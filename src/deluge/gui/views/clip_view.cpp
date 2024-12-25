@@ -80,7 +80,7 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 	Action* action = nullptr;
 
 	// If the last action was a shorten, undo it
-	bool undoing = (actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->openForAdditions
+	bool undoing = ((actionLogger.firstAction[BEFORE] != nullptr) && actionLogger.firstAction[BEFORE]->openForAdditions
 	                && actionLogger.firstAction[BEFORE]->type == ActionType::CLIP_LENGTH_DECREASE
 	                && actionLogger.firstAction[BEFORE]->currentClip == getCurrentClip());
 
@@ -98,7 +98,7 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 		                                                                   : ActionType::CLIP_LENGTH_INCREASE;
 
 		action = actionLogger.getNewAction(actionType, ActionAddition::ALLOWED);
-		if (action && action->currentClip != getCurrentClip()) {
+		if ((action != nullptr) && action->currentClip != getCurrentClip()) {
 			action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
 		}
 
@@ -124,7 +124,7 @@ Action* ClipView::shortenClip(int32_t newLength) {
 	Action* action = nullptr;
 
 	action = actionLogger.getNewAction(ActionType::CLIP_LENGTH_DECREASE, ActionAddition::ALLOWED);
-	if (action && action->currentClip != getCurrentClip()) {
+	if ((action != nullptr) && action->currentClip != getCurrentClip()) {
 		action = actionLogger.getNewAction(ActionType::CLIP_LENGTH_DECREASE, ActionAddition::NOT_ALLOWED);
 	}
 
@@ -166,7 +166,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
 
-		if (action) {
+		if (action != nullptr) {
 			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
 		}
 		return ActionResult::DEALT_WITH;
@@ -207,13 +207,13 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 		// If possible, just modify a previous Action to add this new shift amount to it.
 		Action* action = actionLogger.firstAction[BEFORE];
-		if (action && action->type == ActionType::CLIP_HORIZONTAL_SHIFT && action->openForAdditions
+		if ((action != nullptr) && action->type == ActionType::CLIP_HORIZONTAL_SHIFT && action->openForAdditions
 		    && action->currentClip == clip) {
 
 			// If there's no Consequence in the Action, that's probably because we deleted it a previous time with the
 			// code just below. Or possibly because the Action was created but there wasn't enough RAM to create the
 			// Consequence. Anyway, just go add a consequence now.
-			if (!action->firstConsequence)
+			if (action->firstConsequence == nullptr)
 				goto addConsequenceToAction;
 
 			ConsequenceClipHorizontalShift* consequence = (ConsequenceClipHorizontalShift*)action->firstConsequence;
@@ -227,11 +227,11 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 		else {
 
 			action = actionLogger.getNewAction(ActionType::CLIP_HORIZONTAL_SHIFT, ActionAddition::NOT_ALLOWED);
-			if (action) {
+			if (action != nullptr) {
 addConsequenceToAction:
 				void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipHorizontalShift));
 
-				if (consMemory) {
+				if (consMemory != nullptr) {
 					ConsequenceClipHorizontalShift* newConsequence = new (consMemory)
 					    ConsequenceClipHorizontalShift(shiftAmount, shiftAutomation, shiftSequenceAndMPE);
 					action->addConsequence(newConsequence);
@@ -350,7 +350,7 @@ int32_t ClipView::getTickSquare() {
 	// See if we maybe want to do an auto-scroll
 	if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
 
-		if (newTickSquare == kDisplayWidth && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING)
+		if (newTickSquare == kDisplayWidth && ((currentUIMode == 0u) || currentUIMode == UI_MODE_AUDITIONING)
 		    && getCurrentUI() == this && // currentPlaybackMode == &session &&
 		    (getCurrentClip()->armState == ArmState::OFF || xScrollBeforeFollowingAutoExtendingLinearRecording != -1)) {
 

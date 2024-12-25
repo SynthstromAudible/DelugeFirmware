@@ -59,7 +59,7 @@ bool NumericLayerScrollTransition::callBack() {
 	int8_t progressFlipped = (transitionProgress + transitionDirection) * transitionDirection;
 
 	// Fill character at the end with either a new one, or blank space
-	if (progressFlipped > 0 && next) {
+	if (progressFlipped > 0 && (next != nullptr)) {
 		int32_t readingFrom =
 		    (transitionDirection == 1) ? transitionProgress : (kNumericDisplayLength + transitionProgress - 1);
 

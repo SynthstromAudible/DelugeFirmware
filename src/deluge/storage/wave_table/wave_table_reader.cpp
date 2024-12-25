@@ -22,7 +22,7 @@
 
 Error WaveTableReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t num) {
 
-	while (num--) {
+	while ((num--) != 0) {
 		Error error = advanceClustersIfNecessary();
 		if (error != Error::NONE) {
 			return error;
@@ -40,7 +40,7 @@ Error WaveTableReader::readNewCluster() {
 
 	UINT bytesRead;
 	FRESULT result = f_read(&smDeserializer.readFIL, smDeserializer.fileClusterBuffer, Cluster::size, &bytesRead);
-	if (result) {
+	if (result != 0u) {
 		return Error::SD_CARD; // Failed to load cluster from card
 	}
 	return Error::NONE;

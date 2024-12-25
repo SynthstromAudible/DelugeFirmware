@@ -73,7 +73,7 @@ void LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t numSam
                               int32_t interpolationBufferSize) {
 
 	LiveInputBuffer* liveInputBuffer = AudioEngine::getOrCreateLiveInputBuffer(inputType, false);
-	if (ALPHA_OR_BETA_VERSION && !liveInputBuffer) {
+	if (ALPHA_OR_BETA_VERSION && (liveInputBuffer == nullptr)) {
 		FREEZE_WITH_ERROR("E165");
 	}
 
@@ -162,7 +162,7 @@ startRenderAgain:
 			}
 		}
 
-		if (samplesTilHopEnd && olderPlayHeadIsCurrentlySounding()) {
+		if ((samplesTilHopEnd != 0) && olderPlayHeadIsCurrentlySounding()) {
 			uint32_t maxPlayableSamplesOlder = playHeads[PLAY_HEAD_OLDER].getEstimatedPlaytimeRemaining(
 #if INPUT_ENABLE_REPITCHED_BUFFER
 			    repitchedBufferNumSamplesWritten,
@@ -171,7 +171,7 @@ startRenderAgain:
 #endif
 			    liveInputBuffer, phaseIncrement);
 			// D_PRINTLN(maxPlayableSamplesOlder);
-			if (!maxPlayableSamplesOlder) {
+			if (maxPlayableSamplesOlder == 0u) {
 				crossfadeIncrement = kMaxSampleValue;
 			}
 			else {
@@ -221,7 +221,7 @@ startRenderAgain:
 	}
 #endif
 
-	if (!samplesTilHopEnd) {
+	if (samplesTilHopEnd == 0) {
 		hopEnd(phaseIncrement, liveInputBuffer, numRawSamplesProcessedAtStart, liveInputBuffer->numRawSamplesProcessed);
 		justDidHop = true;
 		goto startRenderAgain;
@@ -294,7 +294,7 @@ startRenderAgain:
 	samplesIntoHop += numSamplesThisTimestretchedRead;
 	numSamplesThisFunctionCall -= numSamplesThisTimestretchedRead;
 
-	if (numSamplesThisFunctionCall) {
+	if (numSamplesThisFunctionCall != 0) {
 		outputBuffer += numSamplesThisTimestretchedRead * numChannels;
 
 		amplitude += amplitudeIncrement * numSamplesThisTimestretchedRead;
@@ -465,7 +465,7 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 
 	// Occasionally (if we've only just switched pitch shifting on), that'll be zero, so we can'd do the moving
 	// averages. But if it's ok, then...
-	if (lengthPerMovingAverage) {
+	if (lengthPerMovingAverage != 0) {
 		int32_t averagesStartPosOldHead =
 		    (playHeads[PLAY_HEAD_OLDER].rawBufferReadPos + averagesStartOffsetFromHead) & (kInputRawBufferSize - 1);
 		liveInputBuffer->getAveragesForCrossfade(oldHeadTotals, averagesStartPosOldHead, lengthPerMovingAverage,
@@ -486,7 +486,7 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 	// If pitch shifting up...
 	if (phaseIncrement > kMaxSampleValue) {
 
-		if (liveInputBuffer) {
+		if (liveInputBuffer != nullptr) {
 
 			// Search backwards, looking for the area (ending at now-time) with the highest average percussiveness.
 			// This particularly helps to keep the hops from all happening at the same length, which leads to a clearly
@@ -559,7 +559,7 @@ stopPercSearch:
 			howFarBack = numRawSamplesProcessedAtNowTime;
 		}
 
-		if (lengthPerMovingAverage) {
+		if (lengthPerMovingAverage != 0) {
 			averagesStartPosNewHead = (numRawSamplesProcessedAtNowTime - howFarBack + averagesStartOffsetFromHead)
 			                          & (kInputRawBufferSize - 1);
 			searchSize = 490; // Allow tracking down to about 45Hz
@@ -578,7 +578,7 @@ stopPercSearch:
 	else {
 		samplesTilHopEnd = maxHopLength;
 
-		if (lengthPerMovingAverage) {
+		if (lengthPerMovingAverage != 0) {
 			averagesStartPosNewHead =
 			    (numRawSamplesProcessedLatest - lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages)
 			    & (kInputRawBufferSize - 1);
@@ -612,8 +612,8 @@ stopPercSearch:
 			goto stopSearch;
 		}
 
-		if ((uint32_t)(numRawSamplesProcessedLatest - averagesStartPosNewHead)
-		    & (kInputRawBufferSize - 1) < lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages) {
+		if (((uint32_t)(numRawSamplesProcessedLatest - averagesStartPosNewHead)
+		    & static_cast<uint32_t>((kInputRawBufferSize - 1) < lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages)) != 0u) {
 			goto stopSearch;
 		}
 
@@ -690,7 +690,7 @@ startSearch:
 			int32_t differenceAbs = getTotalDifferenceAbs(oldHeadTotals, newHeadRunningTotals);
 
 			// If our very first read is worse, let's switch search direction right now - that'll improve our odds
-			if (offsetNow == 0 && searchDirection == 1 && !numFullDirectionsSearched
+			if (offsetNow == 0 && searchDirection == 1 && (numFullDirectionsSearched == 0)
 			    && differenceAbs > bestDifferenceAbs) {
 				searchDirection = -searchDirection;
 				goto startSearch;
@@ -796,7 +796,7 @@ thatsDone:
 
 	playHeads[PLAY_HEAD_NEWER].percPos = 0xFFFFFFFF;
 
-	if (thisCrossfadeLength) {
+	if (thisCrossfadeLength != 0u) {
 		crossfadeProgress = 0;
 		crossfadeIncrement = (kMaxSampleValue - 1) / thisCrossfadeLength + 1;
 	}

@@ -12,7 +12,7 @@ void Toggle::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void Toggle::selectEncoderAction(int32_t offset) {
-	const bool flip = offset & 0b1;
+	const bool flip = (offset & 0b1) != 0;
 	if (flip) {
 		this->setValue(!this->getValue());
 	}

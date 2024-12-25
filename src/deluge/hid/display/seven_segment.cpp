@@ -118,7 +118,7 @@ void SevenSegment::setTopLayer(NumericLayer* newTopLayer) {
 }
 
 void SevenSegment::deleteAllLayers() {
-	while (topLayer) {
+	while (topLayer != nullptr) {
 		NumericLayer* toDelete = topLayer;
 		topLayer = topLayer->next;
 		toDelete->~NumericLayer();
@@ -127,7 +127,7 @@ void SevenSegment::deleteAllLayers() {
 }
 
 void SevenSegment::removeTopLayer() {
-	if (!topLayer || !topLayer->next) {
+	if ((topLayer == nullptr) || (topLayer->next == nullptr)) {
 		return;
 	}
 
@@ -149,14 +149,14 @@ void SevenSegment::setText(std::string_view newText, bool alignRight, uint8_t dr
                            uint8_t* encodedAddition, bool justReplaceBottomLayer) {
 	// Paul: Render time could be lower putting this into internal
 	void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerBasicText));
-	if (!layerSpace) {
+	if (layerSpace == nullptr) {
 		return;
 	}
 	NumericLayerBasicText* newLayer = new (layerSpace) NumericLayerBasicText();
 
 	encodeText(newText, newLayer->segments, alignRight, drawDot, true, scrollPos);
 
-	if (encodedAddition) {
+	if (encodedAddition != nullptr) {
 		for (int32_t i = 0; i < kNumericDisplayLength; i++) {
 			newLayer->segments[i] |= encodedAddition[i];
 		}
@@ -169,7 +169,7 @@ void SevenSegment::setText(std::string_view newText, bool alignRight, uint8_t dr
 		newLayer->blinkSpeed = 0;
 	}
 	else {
-		if (newBlinkMask) {
+		if (newBlinkMask != nullptr) {
 			for (int32_t i = 0; i < kNumericDisplayLength; i++) {
 				newLayer->blinkedSegments[i] = newLayer->segments[i] & newBlinkMask[i];
 			}
@@ -198,7 +198,7 @@ NumericLayerScrollingText* SevenSegment::setScrollingText(char const* newText, i
                                                           int32_t initialDelay, int count, uint8_t fixedDot) {
 	// Paul: Render time could be lower putting this into internal
 	void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerScrollingText));
-	if (!layerSpace) {
+	if (layerSpace == nullptr) {
 		return nullptr;
 	}
 	NumericLayerScrollingText* newLayer = new (layerSpace) NumericLayerScrollingText(fixedDot);
@@ -227,7 +227,7 @@ NumericLayerScrollingText* SevenSegment::setScrollingText(char const* newText, i
 
 void SevenSegment::replaceBottomLayer(NumericLayer* newLayer) {
 	NumericLayer** prevPointer = &topLayer;
-	while ((*prevPointer)->next) {
+	while ((*prevPointer)->next != nullptr) {
 		prevPointer = &(*prevPointer)->next;
 	}
 
@@ -254,7 +254,7 @@ void SevenSegment::transitionToNewLayer(NumericLayer* newLayer) {
 		// Paul: Render time could be lower putting this into internal
 		void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerScrollTransition));
 
-		if (layerSpace) {
+		if (layerSpace != nullptr) {
 			scrollTransition = new (layerSpace) NumericLayerScrollTransition();
 			scrollTransition->transitionDirection = nextTransitionDirection;
 
@@ -268,7 +268,7 @@ void SevenSegment::transitionToNewLayer(NumericLayer* newLayer) {
 	deleteAllLayers();
 
 	// And if doing a transition, put that on top
-	if (scrollTransition) {
+	if (scrollTransition != nullptr) {
 		topLayer = newLayer;
 		setTopLayer(scrollTransition);
 	}
@@ -288,7 +288,7 @@ int32_t SevenSegment::getEncodedPosFromLeft(int32_t textPos, char const* text, b
 
 	for (int32_t i = 0; true; i++) {
 		char thisChar = *text;
-		if (!thisChar) {
+		if (thisChar == 0) {
 			break; // Stop at end of string
 		}
 		bool isDot = (thisChar == '.' || thisChar == '#' || thisChar == ',');
@@ -321,7 +321,7 @@ void putDot(uint8_t* destination, uint8_t drawDot) {
 	}
 	else if ((drawDot & 0b11110000) == 0b10000000) {
 		for (int32_t i = 0; i < kNumericDisplayLength; i++) {
-			if ((drawDot >> (kNumericDisplayLength - 1 - i)) & 1) {
+			if (((drawDot >> (kNumericDisplayLength - 1 - i)) & 1) != 0) {
 				destination[i] |= 128;
 			}
 		}
@@ -334,7 +334,7 @@ void clearDot(uint8_t* destination, uint8_t drawDot) {
 	}
 	else if ((drawDot & 0b11110000) == 0b10000000) {
 		for (int32_t i = 0; i < kNumericDisplayLength; i++) {
-			if ((drawDot >> (kNumericDisplayLength - 1 - i)) & 1) {
+			if (((drawDot >> (kNumericDisplayLength - 1 - i)) & 1) != 0) {
 				destination[i] &= ~128;
 			}
 		}

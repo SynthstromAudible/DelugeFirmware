@@ -52,7 +52,7 @@ public:
 	}
 	~ModFXProcessor() {
 		// Free the mod fx memory
-		if (modFXBuffer) {
+		if (modFXBuffer != nullptr) {
 			delugeDealloc(modFXBuffer);
 		}
 	}

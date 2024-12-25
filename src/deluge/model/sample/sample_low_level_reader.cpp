@@ -45,7 +45,7 @@ int32_t SampleLowLevelReader::getPlayByteLowLevel(Sample* sample, SamplePlayback
 		uint32_t withinCluster = (uint32_t)currentPlayPos - (uint32_t)&clusters[0]->data + 4
 		                         - sample->byteDepth; // Remove deliberate misalignment
 
-		if (compensateForInterpolationBuffer && interpolationBufferSizeLastTime) {
+		if (compensateForInterpolationBuffer && (interpolationBufferSizeLastTime != 0)) {
 			int32_t extraSamples = -(interpolationBufferSizeLastTime >> 1);
 			// if (oscPos >= 8388608) extraSamples++; // This would be good, but we go one better and just copy this to
 			// the new hop, in time stretching
@@ -106,7 +106,7 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 	if ((clusterIndex - finalClusterIndex) * guide->playDirection > 0) {
 		D_PRINTLN("saving from being past finalCluster");
 		Cluster* finalCluster = sample->clusters.getElement(finalClusterIndex)->cluster;
-		if (!finalCluster) {
+		if (finalCluster == nullptr) {
 			return false;
 		}
 
@@ -182,8 +182,8 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 			uint32_t endPosWithinCurrentCluster = Cluster::size + bytesPerSample - excess;
 
 #if ALPHA_OR_BETA_VERSION
-			if ((endPosWithinCurrentCluster + currentClusterIndex * Cluster::size - sample->audioDataStartPosBytes)
-			    % bytesPerSample) {
+			if (((endPosWithinCurrentCluster + currentClusterIndex * Cluster::size - sample->audioDataStartPosBytes)
+			    % bytesPerSample) != 0u) {
 				FREEZE_WITH_ERROR("E163");
 			}
 #endif
@@ -362,7 +362,7 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 	// And for the one at the far end, just grab the next one
 	Cluster* oldLastCluster = clusters[kNumClustersLoadedAhead - 2];
 
-	if (oldLastCluster) {
+	if (oldLastCluster != nullptr) {
 		int32_t prevClusterIndex = oldLastCluster->clusterIndex;
 
 		int32_t newClusterIndex = prevClusterIndex + guide->playDirection;
@@ -523,7 +523,7 @@ bool SampleLowLevelReader::fillInterpolationBufferForward(SamplePlaybackGuide* g
 }
 
 void SampleLowLevelReader::jumpBackSamples(Sample* sample, int32_t numToJumpBack, int32_t playDirection) {
-	while (numToJumpBack--) { // Could probably be more efficient, but why bother - this whole function is rare
+	while ((numToJumpBack--) != 0) { // Could probably be more efficient, but why bother - this whole function is rare
 
 		// Jump back 1 sample
 		char* newPlayPos = currentPlayPos - playDirection * sample->numChannels * sample->byteDepth;
@@ -564,7 +564,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 	if (phaseIncrement != kMaxSampleValue) {
 
 		// But if we weren't interpolating last time...
-		if (!interpolationBufferSizeLastTime) {
+		if (interpolationBufferSizeLastTime == 0) {
 			interpolationBufferSizeLastTime = interpolationBufferSize;
 
 			int32_t halfBufferSize = interpolationBufferSize >> 1;
@@ -676,7 +676,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 		int32_t numSamplesToJumpForward = oscPos >> 24;
 
 		// If jumping forward at least 1...
-		if (numSamplesToJumpForward) {
+		if (numSamplesToJumpForward != 0) {
 			oscPos &= 16777215;
 
 			if (clusters[0]) {
@@ -689,7 +689,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 				}
 			}
 
-			while (numSamplesToJumpForward--) {
+			while ((numSamplesToJumpForward--) != 0) {
 
 				if (!clusters[0]) {
 doZeroes:
@@ -821,7 +821,7 @@ doZeroes:
 	else {
 
 		// But if we were interpolating last time...
-		if (interpolationBufferSizeLastTime) {
+		if (interpolationBufferSizeLastTime != 0) {
 
 			if (!clusters[0]) {
 				return false;
@@ -882,10 +882,10 @@ void SampleLowLevelReader::jumpForwardZeroes(int32_t bufferSize, int32_t numChan
 
 	oscPos += phaseIncrement;
 	int32_t numSamplesToJumpForward = oscPos >> 24;
-	if (numSamplesToJumpForward) {
+	if (numSamplesToJumpForward != 0) {
 		oscPos &= 16777215;
 
-		while (numSamplesToJumpForward--) {
+		while ((numSamplesToJumpForward--) != 0) {
 			// Grab the value of the sample we're now at, to use for interpolation
 			bufferZeroForInterpolation(numChannels);
 		}
@@ -974,7 +974,7 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 
 				oscPos += phaseIncrement;
 				int32_t numSamplesToJumpForward = oscPos >> 24;
-				if (numSamplesToJumpForward) {
+				if (numSamplesToJumpForward != 0) {
 					oscPos &= 16777215;
 
 					// If jumping forward by more than kInterpolationMaxNumSamples, we first need to jump to the one
@@ -995,7 +995,7 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 							interpolator_.buffer_r[numSamplesToJumpForward] =
 							    *(int16_t*)(currentPlayPosNow + byteDepth);
 							currentPlayPosNow += jumpAmount;
-							if (!numSamplesToJumpForward) {
+							if (numSamplesToJumpForward == 0) {
 								goto skipFirstSmooth;
 							}
 							numSamplesToJumpForward--;
@@ -1007,7 +1007,7 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 						while (true) {
 							currentPlayPosNow += jumpAmount;
 							interpolator_.buffer_l[numSamplesToJumpForward] = sourceL;
-							if (!numSamplesToJumpForward) {
+							if (numSamplesToJumpForward == 0) {
 								goto skipFirstSmooth;
 							}
 							sourceL = *(int16_t*)currentPlayPosNow;
@@ -1103,7 +1103,7 @@ skipFirstLinear:
 	}
 
 	*oscBufferPos = oscBufferPosNow;
-	if (cacheWritePos) {
+	if (cacheWritePos != nullptr) {
 		*cacheWritePos = cacheWritePosNow;
 	}
 }
@@ -1170,7 +1170,7 @@ bool SampleLowLevelReader::readSamplesForTimeStretching(
 		int32_t samplesNow = numSamples;
 
 		timeStretcher->playHeadStillActive[whichPlayHead] = considerUpcomingWindow(
-		    guide, sample, &samplesNow, phaseIncrement, loopingAtLowLevel, bufferSize, 0, priorityRating);
+		    guide, sample, &samplesNow, phaseIncrement, loopingAtLowLevel, bufferSize, false, priorityRating);
 		if (!timeStretcher->playHeadStillActive[whichPlayHead]) {
 
 			// If we got false, that can just mean end of waveform. But if clusters[0] has been set to NULL too, that
@@ -1198,7 +1198,7 @@ bool SampleLowLevelReader::readSamplesForTimeStretching(
 		}
 
 		numSamples -= samplesNow;
-	} while (numSamples);
+	} while (numSamples != 0);
 
 	return true;
 }

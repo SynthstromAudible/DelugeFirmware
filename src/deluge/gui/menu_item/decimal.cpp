@@ -143,12 +143,12 @@ void Decimal::drawPixelsForOled() {
 
 	int32_t digitWidth = kTextHugeSpacingX;
 	int32_t periodWidth = digitWidth / 2;
-	int32_t stringWidth = digitWidth * length + (numDecimalPlaces ? periodWidth : 0);
+	int32_t stringWidth = digitWidth * length + ((numDecimalPlaces != 0) ? periodWidth : 0);
 	int32_t stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
 	int32_t ourDigitStartX = stringStartX + editingChar * digitWidth;
 
 	// for values with decimal digits showing
-	if (numDecimalPlaces) {
+	if (numDecimalPlaces != 0) {
 		int32_t numCharsBeforeDecimalPoint = length - numDecimalPlaces;
 		// draw digits before period
 		hid::display::OLED::main.drawString(std::string_view(buffer, numCharsBeforeDecimalPoint), stringStartX, 20,
@@ -182,7 +182,7 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	}
 
 	int32_t dotPos;
-	if (getNumDecimalPlaces())
+	if (getNumDecimalPlaces() != 0)
 		dotPos = soundEditor.numberScrollAmount + 3 - getNumDecimalPlaces();
 	else
 		dotPos = 255;
@@ -235,7 +235,7 @@ void DecimalWithoutScrolling::drawActualValue(bool justDidHorizontalScroll) {
 	int32_t numDecimalPlaces = displayValue > 100 ? 1 : 2;
 	char buffer[12];
 	floatToString(displayValue, buffer, numDecimalPlaces, numDecimalPlaces);
-	if (numDecimalPlaces) {
+	if (numDecimalPlaces != 0) {
 		dotPos = 3 - numDecimalPlaces;
 	}
 	else {

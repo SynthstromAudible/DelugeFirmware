@@ -124,7 +124,7 @@ void prependTimeStamp(bool isNewLine) {
 void println(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 	prependTimeStamp(true);
-	if (midiDebugCable) {
+	if (midiDebugCable != nullptr) {
 		sysexDebugPrint(*midiDebugCable, output, true);
 	}
 	else {
@@ -144,7 +144,7 @@ void println(int32_t number) {
 void print(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 	prependTimeStamp(false);
-	if (midiDebugCable) {
+	if (midiDebugCable != nullptr) {
 		sysexDebugPrint(*midiDebugCable, output, false);
 	}
 	else {
@@ -208,7 +208,7 @@ void RTimer::stop() {
 	lutHexString(deltaT, buffer + 9);
 	buffer[17] = ' ';
 	strcpy(buffer + 18, m_label);
-	if (midiDebugCable) {
+	if (midiDebugCable != nullptr) {
 		sysexDebugPrint(*midiDebugCable, buffer, true);
 	}
 	else {
@@ -233,7 +233,7 @@ void RTimer::stop(const char* stopLabel) {
 	strcpy(buffer + 18, m_label);
 	char* stopplace = buffer + 18 + strlen(m_label);
 	strcpy(stopplace, stopLabel);
-	if (midiDebugCable) {
+	if (midiDebugCable != nullptr) {
 		sysexDebugPrint(*midiDebugCable, buffer, true);
 	}
 	else {
@@ -260,7 +260,7 @@ void RTimer::stop(int number) {
 	ibuffer[0] = ' ';
 	intToString(number, ibuffer + 1);
 	strcpy(stopplace, ibuffer);
-	if (midiDebugCable) {
+	if (midiDebugCable != nullptr) {
 		sysexDebugPrint(*midiDebugCable, buffer, true);
 	}
 	else {

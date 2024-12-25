@@ -93,7 +93,7 @@ void swapDisplayType() {
 		display = new deluge::hid::display::OLED;
 	}
 	UI* ui = getCurrentUI();
-	if (ui) {
+	if (ui != nullptr) {
 		ui->displayOrLanguageChanged();
 	}
 }

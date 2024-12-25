@@ -277,7 +277,7 @@ template <unsigned saturationAmount>
 [[gnu::always_inline]] inline int32_t getTanHUnknown(int32_t input, uint32_t saturationAmount) {
 	uint32_t workingValue;
 
-	if (saturationAmount)
+	if (saturationAmount != 0u != 0u)
 		workingValue = (uint32_t)lshiftAndSaturateUnknown(input, saturationAmount) + 2147483648u;
 	else
 		workingValue = (uint32_t)input + 2147483648u;

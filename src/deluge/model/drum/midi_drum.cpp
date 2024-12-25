@@ -64,8 +64,8 @@ void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "note")) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+		if (strcmp(tagName, "note") == 0) {
 			note = reader.readTagOrAttributeValueInt();
 			reader.exitTag("note");
 		}

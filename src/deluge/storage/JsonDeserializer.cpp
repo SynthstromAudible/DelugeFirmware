@@ -179,7 +179,7 @@ char const* JsonDeserializer::readNextTagOrAttributeName() {
 // the stream index is left directly addressing the leading character of the value.
 bool JsonDeserializer::getIntoAttributeValue() {
 	if (!skipWhiteSpace())
-		return 0;
+		return false;
 	// valid characters to start a value are a digit, minus sign,
 	// or a double quote. If it is double quote, skip past it.
 	char thisChar;
@@ -252,7 +252,7 @@ Error JsonDeserializer::readStringUntilChar(String* string, char endChar) {
 
 		int32_t numCharsHere = bufferPosNow - fileReadBufferCurrentPos;
 
-		if (numCharsHere) {
+		if (numCharsHere != 0) {
 			Error error =
 			    string->concatenateAtPos(&fileClusterBuffer[fileReadBufferCurrentPos], newStringPos, numCharsHere);
 
@@ -289,7 +289,7 @@ char const* JsonDeserializer::readUntilChar(char endChar) {
 		}
 		readState = JsonState::ValueRead;
 		// If possible, just return a pointer to the chars within the existing buffer
-		if (!charPos && fileReadBufferCurrentPos < currentReadBufferEndPos) {
+		if ((charPos == 0) && fileReadBufferCurrentPos < currentReadBufferEndPos) {
 			fileClusterBuffer[fileReadBufferCurrentPos] = 0;
 
 			fileReadBufferCurrentPos++; // Gets us past the endChar
@@ -582,9 +582,9 @@ Error JsonDeserializer::openJsonFile(FilePointer* filePointer, char const* first
 		return Error::FILE_CORRUPTED;
 	char const* tagName;
 
-	while (*(tagName = readNextTagOrAttributeName())) {
+	while (*(tagName = readNextTagOrAttributeName()) != 0) {
 
-		if (!strcmp(tagName, firstTagName) || !strcmp(tagName, altTagName)) {
+		if ((strcmp(tagName, firstTagName) == 0) || (strcmp(tagName, altTagName) == 0)) {
 			return Error::NONE;
 		}
 
@@ -601,13 +601,13 @@ Error JsonDeserializer::openJsonFile(FilePointer* filePointer, char const* first
 
 Error JsonDeserializer::tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) {
 
-	if (!strcmp(tagName, "firmwareVersion")) {
+	if (strcmp(tagName, "firmwareVersion") == 0) {
 		char const* firmware_version_string = readTagOrAttributeValue();
 		song_firmware_version = FirmwareVersion::parse(firmware_version_string);
 	}
 
 	// If this tag doesn't exist, it's from old firmware so is ok
-	else if (!strcmp(tagName, "earliestCompatibleFirmware")) {
+	else if (strcmp(tagName, "earliestCompatibleFirmware") == 0) {
 		char const* firmware_version_string = readTagOrAttributeValue();
 		auto earliestFirmware = FirmwareVersion::parse(firmware_version_string);
 		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {

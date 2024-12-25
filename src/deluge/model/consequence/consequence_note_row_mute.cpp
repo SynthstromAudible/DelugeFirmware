@@ -29,7 +29,7 @@ ConsequenceNoteRowMute::ConsequenceNoteRowMute(InstrumentClip* newClip, int32_t 
 
 Error ConsequenceNoteRowMute::revert(TimeType time, ModelStack* modelStack) {
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
-	if (!noteRow) {
+	if (noteRow == nullptr) {
 		return Error::BUG;
 	}
 

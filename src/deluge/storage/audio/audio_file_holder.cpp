@@ -61,7 +61,7 @@ Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayAc
 // For if we've already got a pointer to the AudioFile in memory.
 void AudioFileHolder::setAudioFile(AudioFile* newAudioFile, bool reversed, bool manuallySelected,
                                    int32_t clusterLoadInstruction) {
-	if (audioFile) {
+	if (audioFile != nullptr) {
 		unassignAllClusterReasons();
 #if ALPHA_OR_BETA_VERSION
 		if (audioFile->numReasonsToBeLoaded <= 0) {
@@ -73,7 +73,7 @@ void AudioFileHolder::setAudioFile(AudioFile* newAudioFile, bool reversed, bool 
 
 	audioFile = newAudioFile;
 
-	if (audioFile) {
+	if (audioFile != nullptr) {
 		audioFile->addReason();
 	}
 }

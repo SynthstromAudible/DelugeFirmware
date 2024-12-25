@@ -197,7 +197,7 @@ public:
 	                                                        int32_t paramID, deluge::modulation::params::Kind paramKind,
 	                                                        bool affectEntire, bool useMenuStack) = 0;
 	virtual bool needsEarlyPlayback() const { return false; }
-	bool hasRecorder() { return recorder; }
+	bool hasRecorder() { return recorder != nullptr; }
 	bool shouldRenderInSong() { return !(recorderIsEchoing); }
 
 	/// disable rendering to the song buffer if this clip is the input to an audio output that's monitoring
@@ -206,7 +206,7 @@ public:
 		outputRecordingThisOutput = output;
 	}
 	bool addRecorder(SampleRecorder* newRecorder) {
-		if (recorder) {
+		if (recorder != nullptr) {
 			return false;
 		}
 		recorder = newRecorder;
@@ -214,7 +214,7 @@ public:
 	}
 	// returns whether a recorder was removed
 	bool removeRecorder() {
-		if (recorder) {
+		if (recorder != nullptr) {
 			recorder->removeFromOutput();
 			recorder = nullptr;
 			return true;

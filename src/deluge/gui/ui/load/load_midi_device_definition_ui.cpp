@@ -46,7 +46,7 @@ bool LoadMidiDeviceDefinitionUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t*
 }
 
 bool LoadMidiDeviceDefinitionUI::opened() {
-	if (!getRootUI()->toClipMinder() || getCurrentOutputType() != OutputType::MIDI_OUT) {
+	if ((getRootUI()->toClipMinder() == nullptr) || getCurrentOutputType() != OutputType::MIDI_OUT) {
 		return false;
 	}
 
@@ -145,7 +145,7 @@ void LoadMidiDeviceDefinitionUI::folderContentsReady(int32_t entryDirection) {
 void LoadMidiDeviceDefinitionUI::enterKeyPress() {
 
 	FileItem* currentFileItem = getCurrentFileItem();
-	if (!currentFileItem) {
+	if (currentFileItem == nullptr) {
 		return;
 	}
 

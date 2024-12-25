@@ -140,7 +140,7 @@ int32_t reverbSidechainShapeInEffect;
 
 bool mustUpdateReverbParamsBeforeNextRender = false;
 
-int32_t sideChainHitPending = false;
+int32_t sideChainHitPending = 0;
 
 uint32_t timeLastSideChainHit = 2147483648;
 int32_t sizeLastSideChainHit;
@@ -257,8 +257,8 @@ void unassignAllVoices(bool deletingSong) {
 	// we have to unassign all of those by going through all AudioOutputs.
 	// But if there's no currentSong, that's fine - it's already been deleted, and this has already been called for it
 	// before then.
-	if (currentSong) {
-		for (Output* output = currentSong->firstOutput; output; output = output->next) {
+	if (currentSong != nullptr) {
+		for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
 			if (output->type == OutputType::AUDIO) {
 				((AudioOutput*)output)->cutAllSound();
 			}
@@ -307,7 +307,7 @@ Voice* hardCullVoice(bool saveVoice, size_t numSamples, Sound* stopFrom) {
 		}
 	}
 
-	if (bestVoice) {
+	if (bestVoice != nullptr) {
 		activeVoices.checkVoiceExists(
 		    bestVoice, bestVoice->assignedToSound,
 		    "E196"); // ronronsen got!!
@@ -320,7 +320,7 @@ Voice* hardCullVoice(bool saveVoice, size_t numSamples, Sound* stopFrom) {
 
 	// Or if no Voices to cull, and we're not culling to make a new voice, try culling an AudioClip...
 	else if (includeAudio) {
-		if (currentSong) {
+		if (currentSong != nullptr) {
 			currentSong->cullAudioClipVoice();
 		}
 	}
@@ -345,7 +345,7 @@ Voice* immediateCullVoice(bool saveVoice, CullType type, size_t numSamples, Soun
 		}
 	}
 
-	if (bestVoice) {
+	if (bestVoice != nullptr) {
 		activeVoices.checkVoiceExists(
 		    bestVoice, bestVoice->assignedToSound,
 		    "E196"); // ronronsen got!!
@@ -386,7 +386,7 @@ Voice* forceCullVoice(size_t numSamples, Sound* stopFrom) {
 		}
 	}
 
-	if (bestVoice) {
+	if (bestVoice != nullptr) {
 		activeVoices.checkVoiceExists(
 		    bestVoice, bestVoice->assignedToSound,
 		    "E196"); // ronronsen got!!
@@ -428,7 +428,7 @@ Voice* softCullVoice(size_t numSamples, Sound* stopFrom) {
 		}
 	}
 
-	if (bestVoice) {
+	if (bestVoice != nullptr) {
 		activeVoices.checkVoiceExists(
 		    bestVoice, bestVoice->assignedToSound,
 		    "E196"); // ronronsen got!!
@@ -451,7 +451,7 @@ Voice* softCullVoice(size_t numSamples, Sound* stopFrom) {
 	return bestVoice;
 }
 int32_t getNumAudio() {
-	return currentSong ? currentSong->countAudioClips() : 0;
+	return (currentSong != nullptr) ? currentSong->countAudioClips() : 0;
 }
 int32_t getNumVoices() {
 	return activeVoices.getNumElements();
@@ -563,7 +563,7 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 			cpuDireness = newDireness;
 			timeDirenessChanged = audioSampleTimer;
 		}
-		auto numAudio = currentSong ? currentSong->countAudioClips() : 0;
+		auto numAudio = (currentSong != nullptr) ? currentSong->countAudioClips() : 0;
 		auto numVoice = getNumVoices();
 		if (!bypassCulling) {
 			cullVoices(numSamples, numAudio, numVoice);
@@ -622,7 +622,7 @@ void renderAudioForStemExport(size_t numSamples);
 	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 
 	if (numSamples <= (10 * numRoutines)) {
-		if (!numRoutines) {
+		if (numRoutines == 0u) {
 			ignoreForStats();
 		}
 		return;
@@ -677,7 +677,7 @@ void renderAudio(size_t numSamples) {
 	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
 	memset(&reverbBuffer, 0, numSamples * sizeof(StereoSample));
 
-	if (sideChainHitPending) {
+	if (sideChainHitPending != 0) {
 		timeLastSideChainHit = audioSampleTimer;
 		sizeLastSideChainHit = sideChainHitPending;
 	}
@@ -685,7 +685,7 @@ void renderAudio(size_t numSamples) {
 	numHopsEndedThisRoutineCall = 0;
 
 	// Render audio for song
-	if (currentSong) {
+	if (currentSong != nullptr) {
 
 		currentSong->renderAudio(renderingBuffer.data(), numSamples, reverbBuffer.data(), sideChainHitPending);
 	}
@@ -710,7 +710,7 @@ void renderAudioForStemExport(size_t numSamples) {
 	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
 	memset(&reverbBuffer, 0, numSamples * sizeof(StereoSample));
 
-	if (sideChainHitPending) {
+	if (sideChainHitPending != 0) {
 		timeLastSideChainHit = audioSampleTimer;
 		sizeLastSideChainHit = sideChainHitPending;
 	}
@@ -718,7 +718,7 @@ void renderAudioForStemExport(size_t numSamples) {
 	numHopsEndedThisRoutineCall = 0;
 
 	// Render audio for song
-	if (currentSong) {
+	if (currentSong != nullptr) {
 
 		currentSong->renderAudio(renderingBuffer.data(), numSamples, reverbBuffer.data(), sideChainHitPending);
 	}
@@ -731,7 +731,7 @@ void renderAudioForStemExport(size_t numSamples) {
 	// If we're recording final output for offline stem export with song FX
 	// Check if we have a recorder
 	SampleRecorder* recorder = audioRecorder.recorder;
-	if (recorder && recorder->mode == AudioInputChannel::OFFLINE_OUTPUT) {
+	if ((recorder != nullptr) && recorder->mode == AudioInputChannel::OFFLINE_OUTPUT) {
 		// continue feeding audio if we're not finished recording
 		if (recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 			recorder->feedAudio((int32_t*)renderingBuffer.data(), numSamples, true);
@@ -852,7 +852,7 @@ void feedReverbBackdoorForGrain(int index, q31_t value) {
 	reverbBuffer[index] += value;
 }
 void renderReverb(size_t numSamples) {
-	if (currentSong && mustUpdateReverbParamsBeforeNextRender) {
+	if ((currentSong != nullptr) && mustUpdateReverbParamsBeforeNextRender) {
 		updateReverbParams();
 		mustUpdateReverbParamsBeforeNextRender = false;
 	}
@@ -919,7 +919,7 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 	masterVolumeAdjustmentR = 167763968; // getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
 	// 167763968 is 134217728 made a bit bigger so that default filter resonance doesn't reduce volume overall
 
-	if (currentSong) {
+	if (currentSong != nullptr) {
 		currentSong->globalEffectable.setupFilterSetConfig(&masterVolumeAdjustmentL, &currentSong->paramManager);
 		currentSong->globalEffectable.processFilters(renderingBuffer.data(), numSamples);
 		currentSong->globalEffectable.processSRRAndBitcrushing(renderingBuffer.data(), numSamples,
@@ -974,7 +974,7 @@ void setMonitoringMode() { // Monitoring setup
 	}
 
 	monitoringAction = MonitoringAction::NONE;
-	if (doMonitoring && audioRecorder.recorder) { // Double-check
+	if (doMonitoring && (audioRecorder.recorder != nullptr)) { // Double-check
 		if (lineInPluggedIn) {                    // Line input
 			if (audioRecorder.recorder->inputLooksDifferential()) {
 				monitoringAction = MonitoringAction::SUBTRACT_RIGHT_CHANNEL;
@@ -1015,7 +1015,7 @@ void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSampl
 		                                - unadjustedNumSamplesBeforeLappingPlayHead)
 		                               & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 
-		if (!samplesTilMIDIOrGate) {
+		if (samplesTilMIDIOrGate == 0) {
 			samplesTilMIDIOrGate = SSI_TX_BUFFER_NUM_SAMPLES;
 		}
 
@@ -1119,15 +1119,15 @@ bool doSomeOutputting() {
 	while (renderingBufferOutputPosNow != renderingBufferOutputEnd) {
 
 		// If we've reached the end of the known space in the output buffer...
-		if (!(((uint32_t)((uint32_t)i2sTXBufferPosNow - saddr) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
-		      & (SSI_TX_BUFFER_NUM_SAMPLES - 1))) {
+		if ((((uint32_t)((uint32_t)i2sTXBufferPosNow - saddr) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
+		      & (SSI_TX_BUFFER_NUM_SAMPLES - 1)) == 0u) {
 
 			// See if there's now some more space.
 			saddr = (uint32_t)getTxBufferCurrentPlace();
 
 			// If there wasn't, stop for now
-			if (!(((uint32_t)((uint32_t)i2sTXBufferPosNow - saddr) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
-			      & (SSI_TX_BUFFER_NUM_SAMPLES - 1))) {
+			if ((((uint32_t)((uint32_t)i2sTXBufferPosNow - saddr) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
+			      & (SSI_TX_BUFFER_NUM_SAMPLES - 1)) == 0u) {
 				break;
 			}
 		}
@@ -1220,7 +1220,7 @@ bool doSomeOutputting() {
 	renderingBufferOutputPos = renderingBufferOutputPosNow; // Write back from __restrict__ pointer to permanent pointer
 	i2sTXBufferPos = (uint32_t)i2sTXBufferPosNow;
 
-	if (numSamplesOutputted) {
+	if (numSamplesOutputted != 0) {
 
 		i2sRXBufferPos += (numSamplesOutputted << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));
 		if (i2sRXBufferPos >= (uint32_t)getRxBufferEnd()) {
@@ -1228,7 +1228,7 @@ bool doSomeOutputting() {
 		}
 
 		// Go through each SampleRecorder, feeding them audio
-		for (SampleRecorder* recorder = firstRecorder; recorder; recorder = recorder->next) {
+		for (SampleRecorder* recorder = firstRecorder; recorder != nullptr; recorder = recorder->next) {
 
 			if (recorder->status >= RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 				continue;
@@ -1332,14 +1332,14 @@ void updateReverbParams() {
 		int32_t highestReverbAmountFound =
 		    currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
 
-		for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+		for (Output* thisOutput = currentSong->firstOutput; thisOutput != nullptr; thisOutput = thisOutput->next) {
 			thisOutput->getThingWithMostReverb(&soundWithMostReverb, &paramManagerWithMostReverb,
 			                                   &globalEffectableWithMostReverb, &highestReverbAmountFound);
 		}
 
 		ModControllableAudio* modControllable;
 
-		if (soundWithMostReverb) {
+		if (soundWithMostReverb != nullptr) {
 			modControllable = soundWithMostReverb;
 
 			ParamDescriptor paramDescriptor;
@@ -1357,7 +1357,7 @@ void updateReverbParams() {
 			}
 			goto sidechainFound;
 		}
-		else if (globalEffectableWithMostReverb) {
+		else if (globalEffectableWithMostReverb != nullptr) {
 			modControllable = globalEffectableWithMostReverb;
 
 			reverbSidechainVolumeInEffect =
@@ -1391,7 +1391,7 @@ void registerSideChainHit(int32_t strength) {
 void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound) {
 	stopAnyPreviewing();
 	MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].getOrCreateFirstRange();
-	if (!range) {
+	if (range == nullptr) {
 		return;
 	}
 	range->sampleHolder.filePath.set(path);
@@ -1413,7 +1413,7 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 
 void stopAnyPreviewing() {
 	sampleForPreview->unassignAllVoices();
-	if (sampleForPreview->sources[0].ranges.getNumElements()) {
+	if (sampleForPreview->sources[0].ranges.getNumElements() != 0) {
 		MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].ranges.getElement(0);
 		range->sampleHolder.setAudioFile(nullptr);
 	}
@@ -1436,7 +1436,7 @@ void getReverbParamsFromSong(Song* song) {
 Voice* solicitVoice(Sound* forSound) {
 	Voice* newVoice;
 
-	if (firstUnassignedVoice) {
+	if (firstUnassignedVoice != nullptr) {
 		newVoice = firstUnassignedVoice;
 		// reconstruct it
 		new (newVoice) Voice();
@@ -1446,8 +1446,8 @@ Voice* solicitVoice(Sound* forSound) {
 	else {
 
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Voice));
-		if (!memory) {
-			if (activeVoices.getNumElements()) {
+		if (memory == nullptr) {
+			if (activeVoices.getNumElements() != 0) {
 				memory = hardCullVoice(true, numSamplesLastTime, forSound);
 			}
 			else {
@@ -1486,7 +1486,7 @@ void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelSt
 
 	activeVoices.checkVoiceExists(voice, sound, "E195");
 
-	voice->setAsUnassigned(modelStack ? modelStack->addVoice(voice) : nullptr);
+	voice->setAsUnassigned((modelStack != nullptr) ? modelStack->addVoice(voice) : nullptr);
 	if (removeFromVector) {
 		uint32_t keyWords[2];
 		keyWords[0] = (uint32_t)sound;
@@ -1510,14 +1510,14 @@ void disposeOfVoice(Voice* voice) {
 }
 
 VoiceSample* solicitVoiceSample() {
-	if (firstUnassignedVoiceSample) [[likely]] {
+	if (firstUnassignedVoiceSample != nullptr) [[likely]] {
 		VoiceSample* toReturn = firstUnassignedVoiceSample;
 		firstUnassignedVoiceSample = firstUnassignedVoiceSample->nextUnassigned;
 		return toReturn;
 	}
 	else {
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(VoiceSample));
-		if (!memory) {
+		if (memory == nullptr) {
 			return nullptr;
 		}
 
@@ -1536,7 +1536,7 @@ void voiceSampleUnassigned(VoiceSample* voiceSample) {
 }
 
 TimeStretcher* solicitTimeStretcher() {
-	if (firstUnassignedTimeStretcher) {
+	if (firstUnassignedTimeStretcher != nullptr) {
 
 		TimeStretcher* toReturn = firstUnassignedTimeStretcher;
 		firstUnassignedTimeStretcher = firstUnassignedTimeStretcher->nextUnassigned;
@@ -1545,7 +1545,7 @@ TimeStretcher* solicitTimeStretcher() {
 
 	else {
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(TimeStretcher));
-		if (!memory) {
+		if (memory == nullptr) {
 			return nullptr;
 		}
 
@@ -1578,7 +1578,7 @@ LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
 		}
 
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
-		if (!memory) {
+		if (memory == nullptr) {
 			return nullptr;
 		}
 
@@ -1598,7 +1598,7 @@ void doRecorderCardRoutines() {
 		count++;
 
 		SampleRecorder* recorder = *prevPointer;
-		if (!recorder) {
+		if (recorder == nullptr) {
 			break;
 		}
 
@@ -1662,7 +1662,7 @@ void slowRoutine() {
 
 	// Discard any LiveInputBuffers which aren't in use
 	for (int32_t i = 0; i < 3; i++) {
-		if (liveInputBuffers[i]) {
+		if (liveInputBuffers[i] != nullptr) {
 			if (liveInputBuffers[i]->upToTime != audioSampleTimer) {
 				liveInputBuffers[i]->~LiveInputBuffer();
 				delugeDealloc(liveInputBuffers[i]);
@@ -1683,7 +1683,7 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
 	Error error;
 
 	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
-	if (!recorderMemory) {
+	if (recorderMemory == nullptr) {
 		return nullptr;
 	}
 
@@ -1699,7 +1699,7 @@ errorAfterAllocation:
 	}
 
 	if (mode == AudioInputChannel::SPECIFIC_OUTPUT) {
-		if (!outputRecordingFrom) {
+		if (outputRecordingFrom == nullptr) {
 			D_PRINTLN("Specific output recorder with no output provided");
 			goto errorAfterAllocation;
 		}
@@ -1727,10 +1727,10 @@ errorAfterAllocation:
 void discardRecorder(SampleRecorder* recorder) {
 	int32_t count = 0;
 	SampleRecorder** prevPointer = &firstRecorder;
-	while (*prevPointer) {
+	while (*prevPointer != nullptr) {
 
 		count++;
-		if (ALPHA_OR_BETA_VERSION && !*prevPointer) {
+		if (ALPHA_OR_BETA_VERSION && (*prevPointer == nullptr)) {
 			FREEZE_WITH_ERROR("E264");
 		}
 		if (*prevPointer == recorder) {
@@ -1746,7 +1746,7 @@ void discardRecorder(SampleRecorder* recorder) {
 }
 
 bool isAnyInternalRecordingHappening() {
-	for (SampleRecorder* recorder = firstRecorder; recorder; recorder = recorder->next) {
+	for (SampleRecorder* recorder = firstRecorder; recorder != nullptr; recorder = recorder->next) {
 		if (recorder->mode >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
 			return true;
 		}

@@ -71,7 +71,7 @@ bool ClipSettingsMenu::acceptCurrentOption() {
 }
 
 ActionResult ClipSettingsMenu::padAction(int32_t x, int32_t y, int32_t on) {
-	if (on) {
+	if (on != 0) {
 		return ContextMenu::padAction(x, y, on);
 	}
 	else {                                      // this would happen if you release pad after entering the menu

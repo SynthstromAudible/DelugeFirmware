@@ -44,7 +44,7 @@ Error ConsequenceClipInstanceExistence::revert(TimeType time, ModelStack* modelS
 	else { // (Re-)create
 		int32_t i = output->clipInstances.insertAtKey(pos);
 		ClipInstance* clipInstance = output->clipInstances.getElement(i);
-		if (!clipInstance) {
+		if (clipInstance == nullptr) {
 			return Error::INSUFFICIENT_RAM;
 		}
 		clipInstance->length = length;

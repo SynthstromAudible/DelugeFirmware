@@ -236,7 +236,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 	uint64_t numValidSamples;
 	int32_t endClusters;
-	if (recorder) {
+	if (recorder != nullptr) {
 		numValidSamples = recorder->numSamplesCaptured;
 		endClusters = sample->clusters.getNumElements();
 	}
@@ -273,7 +273,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 			// If we're still recording, we'll just want to come back and render this one when the waveform has grown to
 			// cover this whole column
-			if (recorder) {
+			if (recorder != nullptr) {
 				data->colStatus[col] = 0;
 				continue;
 			}
@@ -381,7 +381,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 		SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndexToDo);
 
-		if (sampleCluster->cluster && sampleCluster->cluster->numReasonsToBeLoaded < 0) {
+		if ((sampleCluster->cluster != nullptr) && sampleCluster->cluster->numReasonsToBeLoaded < 0) {
 			FREEZE_WITH_ERROR("E449"); // Trying to catch errer before i028, which users have gotten.
 		}
 
@@ -395,7 +395,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 		// Otherwise, do our normal investigation
 		else {
 			char const* errorCode;
-			if (sampleCluster->cluster) {
+			if (sampleCluster->cluster != nullptr) {
 				if (sampleCluster->cluster->loaded) {
 					errorCode = "E343";
 				}
@@ -409,7 +409,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			}
 
 			Cluster* cluster = sampleCluster->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
-			if (!cluster) {
+			if (cluster == nullptr) {
 cantReadData:
 				D_PRINTLN("cant read");
 				data->colStatus[col] = 0;
@@ -462,7 +462,7 @@ cantReadData:
 
 				// If stereo sample, force an odd number here so we alternate between reading both channels
 				if (sample->numChannels == 2) {
-					if (!(timesTooManySamples & 1)) {
+					if ((timesTooManySamples & 1) == 0) {
 						timesTooManySamples++;
 					}
 				}

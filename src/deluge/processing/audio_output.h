@@ -109,11 +109,11 @@ public:
 			// can happen from bad save files
 			return;
 		}
-		if (outputRecordingFrom) {
+		if (outputRecordingFrom != nullptr) {
 			outputRecordingFrom->setRenderingToAudioOutput(false, nullptr);
 		}
 		outputRecordingFrom = toRecordfrom;
-		if (outputRecordingFrom) {
+		if (outputRecordingFrom != nullptr) {
 			// If we are a SAMPLER or a LOOPER then we're monitoring the audio, so tell the other output that we're in
 			// charge of rendering
 			outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);
@@ -128,7 +128,7 @@ public:
 		modeInt = (modeInt + offset) % kNumAudioOutputModes;
 
 		mode = static_cast<AudioOutputMode>(std::clamp<int>(modeInt, 0, kNumAudioOutputModes - 1));
-		if (outputRecordingFrom) {
+		if (outputRecordingFrom != nullptr) {
 			// update the output we're recording from on whether we're monitoring
 			outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);
 		}

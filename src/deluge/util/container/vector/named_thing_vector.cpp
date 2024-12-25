@@ -41,8 +41,8 @@ int32_t NamedThingVector::search(char const* searchString, int32_t comparison, b
 		NamedThingVectorElement* element = getMemory(proposedIndex);
 		int32_t result = strcasecmp(element->name.get(), searchString);
 
-		if (!result) {
-			if (foundExact) {
+		if (result == 0) {
+			if (foundExact != nullptr) {
 				*foundExact = true;
 			}
 			return proposedIndex + comparison;
@@ -55,7 +55,7 @@ int32_t NamedThingVector::search(char const* searchString, int32_t comparison, b
 		}
 	}
 
-	if (foundExact) {
+	if (foundExact != nullptr) {
 		*foundExact = false;
 	}
 	return rangeBegin + comparison;

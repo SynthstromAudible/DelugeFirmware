@@ -150,7 +150,7 @@ void LoadSongUI::enterKeyPress() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	// If it's a directory...
-	if (currentFileItem && currentFileItem->isFolder) {
+	if ((currentFileItem != nullptr) && currentFileItem->isFolder) {
 
 		Error error = goIntoFolder(currentFileItem->filename.get());
 
@@ -194,7 +194,7 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	// want to "launch" the new song.
 	if ((b == LOAD) || (b == SELECT_ENC)) {
 		if (on) {
-			if (!currentUIMode) {
+			if (currentUIMode == 0u) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
@@ -302,7 +302,7 @@ void LoadSongUI::performLoad() {
 	performingLoad = true;
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	if (!currentFileItem) {
+	if (currentFileItem == nullptr) {
 		display->displayError(display->haveOLED()
 		                          ? Error::FILE_NOT_FOUND
 		                          : Error::NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge,
@@ -346,7 +346,7 @@ void LoadSongUI::performLoad() {
 	}
 
 	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
-	if (!songMemory) {
+	if (songMemory == nullptr) {
 ramError:
 		error = Error::INSUFFICIENT_RAM;
 
@@ -355,7 +355,7 @@ someError:
 		activeDeserializer->closeWriter();
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
-		if (!currentSong) {
+		if (currentSong == nullptr) {
 			// If we're here, it's most likely because of a file error. On paper, a RAM error could be possible too.
 			setupBlankSong();
 			audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
@@ -572,7 +572,7 @@ swapDone:
 
 	// Delete the old song
 	AudioEngine::logAction("deleting old song");
-	if (toDelete) {
+	if (toDelete != nullptr) {
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 		toDelete->~Song();
 		delugeDealloc(toDealloc);
@@ -594,8 +594,8 @@ swapDone:
 	display->removeWorkingAnimation();
 
 	// for the song we just loaded, let's check if there's any midi labels we should load
-	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput && thisOutput->type == OutputType::MIDI_OUT) {
+	for (Output* thisOutput = currentSong->firstOutput; thisOutput != nullptr; thisOutput = thisOutput->next) {
+		if ((thisOutput != nullptr) && thisOutput->type == OutputType::MIDI_OUT) {
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)thisOutput;
 			if (midiInstrument->loadDeviceDefinitionFile) {
 				FilePointer tempfp;
@@ -736,7 +736,7 @@ ignoring the file extension.
 
 void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 
-	if (movementDirection) {
+	if (movementDirection != 0) {
 		qwertyVisible = false;
 
 		// Start horizontal scrolling
@@ -829,7 +829,7 @@ goAgain:
 }
 
 ActionResult LoadSongUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (!currentUIMode && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC) && !Buttons::isShiftButtonPressed()
+	if ((currentUIMode == 0u) && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC) && !Buttons::isShiftButtonPressed()
 	    && offset < 0) {
 		if (inCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -870,7 +870,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	if (!currentFileItem || currentFileItem->isFolder) {
+	if ((currentFileItem == nullptr) || currentFileItem->isFolder) {
 		return;
 	}
 
@@ -890,13 +890,13 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 	}
 
 	int32_t previewNumPads = 40;
-	while (*(tagName = reader->readNextTagOrAttributeName())) {
+	while (*(tagName = reader->readNextTagOrAttributeName()) != 0) {
 
-		if (!strcmp(tagName, "previewNumPads")) {
+		if (strcmp(tagName, "previewNumPads") == 0) {
 			previewNumPads = reader->readTagOrAttributeValueInt();
 			reader->exitTag("previewNumPads");
 		}
-		else if (!strcmp(tagName, "preview")) {
+		else if (strcmp(tagName, "preview") == 0) {
 			int32_t skipNumCharsAfterRow = 0;
 
 			int32_t startX = 0;
@@ -913,7 +913,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 
 			for (int32_t y = startY; y < endY; y++) {
 				char const* hexChars = reader->readNextCharsOfTagOrAttributeValue(numCharsToRead);
-				if (!hexChars) {
+				if (hexChars == nullptr) {
 					goto stopLoadingPreview;
 				}
 
@@ -951,7 +951,7 @@ void LoadSongUI::displayText(bool blinkImmediately) {
 ActionResult LoadSongUI::padAction(int32_t x, int32_t y, int32_t on) {
 	// If QWERTY not visible yet, make it visible now
 	if (!qwertyVisible) {
-		if (on && !currentUIMode) {
+		if ((on != 0) && (currentUIMode == 0u)) {
 			if (sdRoutineLock) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}

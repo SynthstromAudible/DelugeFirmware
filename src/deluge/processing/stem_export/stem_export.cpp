@@ -260,11 +260,11 @@ int32_t StemExport::disarmAllInstrumentsForStemExport(StemExportType stemExportT
 	// so get the number and store it so we only need to ping getNumElements once
 	int32_t totalNumOutputs = currentSong->getNumOutputs();
 
-	if (totalNumOutputs) {
+	if (totalNumOutputs != 0) {
 		// iterate through all the instruments to disable all the recording relevant flags
 		for (int32_t idxOutput = 0; idxOutput < totalNumOutputs; ++idxOutput) {
 			Output* output = currentSong->getOutputFromIndex(idxOutput);
-			if (output) {
+			if (output != nullptr) {
 				/* export output stem if all these conditions are met:
 				    1) the output is not muted in arranger
 				    2) the output is not empty (it has clips with notes in them)
@@ -293,7 +293,7 @@ int32_t StemExport::disarmAllInstrumentsForStemExport(StemExportType stemExportT
 	}
 
 	// if exporting master arrangement, just exporting one stem
-	if ((stemExportType == StemExportType::MASTER_ARRANGEMENT) && totalNumStemsToExport) {
+	if ((stemExportType == StemExportType::MASTER_ARRANGEMENT) && (totalNumStemsToExport != 0)) {
 		totalNumStemsToExport = 1;
 	}
 	return totalNumOutputs;
@@ -301,11 +301,11 @@ int32_t StemExport::disarmAllInstrumentsForStemExport(StemExportType stemExportT
 
 /// set instrument mutes back to their previous state (before exporting stems)
 void StemExport::restoreAllInstrumentMutes(int32_t totalNumOutputs) {
-	if (totalNumOutputs) {
+	if (totalNumOutputs != 0) {
 		// iterate through all the instruments to restore previous mute states
 		for (int32_t idxOutput = 0; idxOutput < totalNumOutputs; ++idxOutput) {
 			Output* output = currentSong->getOutputFromIndex(idxOutput);
-			if (output) {
+			if (output != nullptr) {
 				output->mutedInArrangementMode = output->mutedInArrangementModeBeforeStemExport;
 			}
 		}
@@ -319,11 +319,11 @@ int32_t StemExport::exportInstrumentStems(StemExportType stemExportType) {
 	// prepare all the instruments for stem export
 	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport(stemExportType);
 
-	if (totalNumOutputs && totalNumStemsToExport) {
+	if ((totalNumOutputs != 0) && (totalNumStemsToExport != 0)) {
 		// now we're going to iterate through all instruments to find the ones that should be exported
 		for (int32_t idxOutput = totalNumOutputs - 1; idxOutput >= 0; --idxOutput) {
 			Output* output = currentSong->getOutputFromIndex(idxOutput);
-			if (output) {
+			if (output != nullptr) {
 				bool started = startCurrentStemExport(stemExportType, output, output->mutedInArrangementMode, idxOutput,
 				                                      output->exportStem);
 
@@ -366,7 +366,7 @@ int32_t StemExport::exportMasterArrangementStem(StemExportType stemExportType) {
 	// prepare all the instruments for stem export
 	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport(stemExportType);
 
-	if (totalNumOutputs && totalNumStemsToExport) {
+	if ((totalNumOutputs != 0) && (totalNumStemsToExport != 0)) {
 		// set wav file name for stem to be exported
 		setWavFileNameForStemExport(stemExportType, nullptr, 0);
 
@@ -405,11 +405,11 @@ int32_t StemExport::disarmAllClipsForStemExport() {
 	// so get the number and store it so we only need to ping getNumElements once
 	int32_t totalNumClips = currentSong->sessionClips.getNumElements();
 
-	if (totalNumClips) {
+	if (totalNumClips != 0) {
 		// iterate through all clips to disable all the recording relevant flags
 		for (int32_t idxClip = 0; idxClip < totalNumClips; ++idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
-			if (clip) {
+			if (clip != nullptr) {
 				/* export clip stem if all these conditions are met:
 				    1) the clip is not empty (it has notes in it)
 				    2) the output type is not MIDI or CV
@@ -435,11 +435,11 @@ int32_t StemExport::disarmAllClipsForStemExport() {
 
 /// set clip mutes back to their previous state (before exporting stems)
 void StemExport::restoreAllClipMutes(int32_t totalNumClips) {
-	if (totalNumClips) {
+	if (totalNumClips != 0) {
 		// iterate through all clips to restore previous mute states
 		for (int32_t idxClip = 0; idxClip < totalNumClips; ++idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
-			if (clip) {
+			if (clip != nullptr) {
 				clip->activeIfNoSolo = clip->activeIfNoSoloBeforeStemExport;
 			}
 		}
@@ -454,11 +454,11 @@ void StemExport::getLoopLengthOfLongestNotEmptyNoteRow(Clip* clip) {
 	if (clip->type == ClipType::INSTRUMENT) {
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 		int32_t totalNumNoteRows = instrumentClip->noteRows.getNumElements();
-		if (totalNumNoteRows) {
+		if (totalNumNoteRows != 0) {
 			// iterate through all the note rows to find the longest one
 			for (int32_t idxNoteRow = 0; idxNoteRow < totalNumNoteRows; ++idxNoteRow) {
 				NoteRow* thisNoteRow = instrumentClip->noteRows.getElement(idxNoteRow);
-				if (thisNoteRow && (thisNoteRow->loopLengthIfIndependent > loopLengthToStopStemExport)
+				if ((thisNoteRow != nullptr) && (thisNoteRow->loopLengthIfIndependent > loopLengthToStopStemExport)
 				    && !thisNoteRow->hasNoNotes()) {
 					loopLengthToStopStemExport = thisNoteRow->loopLengthIfIndependent;
 				}
@@ -488,11 +488,11 @@ int32_t StemExport::exportClipStems(StemExportType stemExportType) {
 	// prepare all the clips for stem export
 	int32_t totalNumClips = disarmAllClipsForStemExport();
 
-	if (totalNumClips && totalNumStemsToExport) {
+	if ((totalNumClips != 0) && (totalNumStemsToExport != 0)) {
 		// now we're going to iterate through all clips to find the ones that should be exported
 		for (int32_t idxClip = totalNumClips - 1; idxClip >= 0; --idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
-			if (clip) {
+			if (clip != nullptr) {
 				getLoopLengthOfLongestNotEmptyNoteRow(clip);
 				getLoopEndPointInSamplesForAudioFile(clip->loopLength);
 
@@ -800,7 +800,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 
 	// did we just export this same folder?
 	// if yes, no need to find folder number to append (we have it)
-	if (strcmp(folderNameToCompare.get(), lastFolderNameForStemExport.get())) {
+	if (strcmp(folderNameToCompare.get(), lastFolderNameForStemExport.get()) != 0) {
 		// if we're here we didn't just export this song
 		String tempPathForSearch;
 

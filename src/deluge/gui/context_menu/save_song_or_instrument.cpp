@@ -79,13 +79,13 @@ bool SaveSongOrInstrument::isCurrentOptionAvailable() {
 
 	switch (currentOption) {
 	case 0: // Collect media
-		return (isUIOpen(&saveSongUI)) && (!currentFileItem || !currentFileItem->isFolder);
+		return (isUIOpen(&saveSongUI)) && ((currentFileItem == nullptr) || !currentFileItem->isFolder);
 
 	case 1: // Create folder
-		return (!QwertyUI::enteredText.isEmpty() && !currentFileItem);
+		return (!QwertyUI::enteredText.isEmpty() && (currentFileItem == nullptr));
 
 	case 2: // Delete file
-		return (currentFileItem && !currentFileItem->isFolder);
+		return ((currentFileItem != nullptr) && !currentFileItem->isFolder);
 
 	default:
 		__builtin_unreachable();

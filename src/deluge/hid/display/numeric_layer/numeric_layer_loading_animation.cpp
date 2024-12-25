@@ -44,7 +44,7 @@ bool NumericLayerLoadingAnimation::callBack() {
 }
 
 void NumericLayerLoadingAnimation::render(uint8_t* returnSegments) {
-	if (animationIsTransparent && next) {
+	if (animationIsTransparent && (next != nullptr)) {
 		next->render(returnSegments);
 	}
 	else {

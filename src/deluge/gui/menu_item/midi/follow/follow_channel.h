@@ -53,7 +53,7 @@ public:
 		yPixel += kTextSpacingY;
 
 		char const* deviceString = l10n::get(l10n::String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED);
-		if (midiInput.cable) {
+		if (midiInput.cable != nullptr) {
 			deviceString = midiInput.cable->getDisplayName();
 		}
 		canvas.drawString(deviceString, 0, yPixel, kTextSpacingX, kTextSizeYUpdated);
@@ -75,7 +75,7 @@ public:
 		else {
 			channelText = l10n::get(l10n::String::STRING_FOR_CHANNEL);
 			char buffer[12];
-			int32_t channelmod = (midiInput.channelOrZone >= IS_A_CC) * IS_A_CC;
+			int32_t channelmod = static_cast<int>(midiInput.channelOrZone >= IS_A_CC) * IS_A_CC;
 			intToString(midiInput.channelOrZone + 1 - channelmod, buffer, 1);
 			canvas.drawString(buffer, kTextSpacingX * 8, yPixel, kTextSpacingX, kTextSizeYUpdated);
 		}

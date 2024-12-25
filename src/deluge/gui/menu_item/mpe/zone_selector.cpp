@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::mpe {
 ZoneSelector zoneSelectorMenu{};
 
 void ZoneSelector::beginSession(MenuItem* navigatedBackwardFrom) {
-	if (!navigatedBackwardFrom) {
+	if (navigatedBackwardFrom == nullptr) {
 		whichZone = 0;
 	}
 	Selection::beginSession(navigatedBackwardFrom);

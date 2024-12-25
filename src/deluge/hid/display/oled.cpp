@@ -233,7 +233,7 @@ void moveAreaUpCrude(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, int
 
 	// First move any entire rows
 	int32_t deltaRows = delta >> 3;
-	if (deltaRows) {
+	if (deltaRows != 0) {
 		delta &= 7;
 		minY += delta; // There's a bit we can ignore here, potentially
 		int32_t firstRowHere = minY >> 3;
@@ -244,7 +244,7 @@ void moveAreaUpCrude(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, int
 	}
 
 	// Move final sub-row amount
-	if (delta) {
+	if (delta != 0) {
 		for (int32_t x = minX; x <= maxX; x++) {
 			uint8_t carry;
 
@@ -340,7 +340,7 @@ int32_t OLED::setupConsole(int32_t height) {
 	bool shouldRedrawTopLine = false;
 
 	// If already some console items...
-	if (numConsoleItems) {
+	if (numConsoleItems != 0) {
 
 		// If hit max num console items...
 		if (numConsoleItems == MAX_NUM_CONSOLE_ITEMS) {
@@ -419,10 +419,10 @@ void OLED::removePopup() {
 }
 
 bool OLED::isPopupPresent() {
-	return oledPopupWidth;
+	return oledPopupWidth != 0;
 }
 bool OLED::isPopupPresentOfType(PopupType type) {
-	return oledPopupWidth && popupType == type;
+	return (oledPopupWidth != 0) && popupType == type;
 }
 
 bool OLED::isPermanentPopupPresent() {
@@ -456,13 +456,13 @@ void copyBackgroundAroundForeground(ImageStore backgroundImage, ImageStore foreg
 	// Copy everything above
 	int32_t firstRow = minY >> 3;
 	int32_t lastRow = maxY >> 3;
-	if (firstRow) {
+	if (firstRow != 0) {
 		memcpy(foregroundImage, backgroundImage, OLED_MAIN_WIDTH_PIXELS * firstRow);
 	}
 
 	// Partial row above
 	int32_t partialRowPixelsAbove = minY & 7;
-	if (partialRowPixelsAbove) {
+	if (partialRowPixelsAbove != 0) {
 		uint8_t destMask = 255 << partialRowPixelsAbove;
 		copyRowWithMask(destMask, backgroundImage[firstRow], foregroundImage[firstRow], minX, maxX);
 	}
@@ -475,7 +475,7 @@ void copyBackgroundAroundForeground(ImageStore backgroundImage, ImageStore foreg
 
 	// Partial row below
 	int32_t partialRowPixelsBelow = 7 - (maxY & 7);
-	if (partialRowPixelsBelow) {
+	if (partialRowPixelsBelow != 0) {
 		uint8_t destMask = 255 >> partialRowPixelsBelow;
 		copyRowWithMask(destMask, backgroundImage[lastRow], foregroundImage[lastRow], minX, maxX);
 	}
@@ -494,13 +494,13 @@ void OLED::sendMainImage() {
 
 	oledCurrentImage = &main.hackGetImageStore()[0];
 
-	if (numConsoleItems) {
+	if (numConsoleItems != 0) {
 		copyBackgroundAroundForeground(main.hackGetImageStore(), console.hackGetImageStore(), consoleMinX,
 		                               consoleItems[numConsoleItems - 1].minY - 1, consoleMaxX,
 		                               OLED_MAIN_HEIGHT_PIXELS - 1);
 		oledCurrentImage = &console.hackGetImageStore()[0];
 	}
-	if (oledPopupWidth) {
+	if (oledPopupWidth != 0) {
 		copyBackgroundAroundForeground(oledCurrentImage, popup.hackGetImageStore(), popupMinX, popupMinY, popupMaxX,
 		                               popupMaxY);
 		oledCurrentImage = &popup.hackGetImageStore()[0];
@@ -655,7 +655,7 @@ findNextStringSplitPoint:
 			addLine(textLineBreakdown, lineStart, lineWidth, lineLength);
 			// did we reach the end of the original string? or the max number of lines?
 			// then return, we're done
-			if (!*space || textLineBreakdown->numLines == TEXT_MAX_NUM_LINES) {
+			if ((*space == 0) || textLineBreakdown->numLines == TEXT_MAX_NUM_LINES) {
 				return;
 			}
 			// set character to start drawing from on the next line
@@ -805,7 +805,7 @@ void OLED::removeWorkingAnimation() {
 	if (hasPopupOfType(PopupType::LOADING)) {
 		removePopup();
 	}
-	else if (workingAnimationText) {
+	else if (workingAnimationText != nullptr) {
 		workingAnimationText = nullptr;
 	}
 }
@@ -904,7 +904,7 @@ void OLED::setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, b
 }
 
 void OLED::stopBlink() {
-	if (blinkArea.u32) {
+	if (blinkArea.u32 != 0u) {
 		blinkArea.u32 = 0;
 		uiTimerManager.unsetTimer(TimerName::OLED_SCROLLING_AND_BLINKING);
 	}
@@ -967,7 +967,7 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 }
 
 void OLED::stopScrollingAnimation() {
-	if (sideScrollerDirection) {
+	if (sideScrollerDirection != 0) {
 		sideScrollerDirection = 0;
 		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 			SideScroller* scroller = &sideScrollers[s];
@@ -979,7 +979,7 @@ void OLED::stopScrollingAnimation() {
 
 void OLED::timerRoutine() {
 
-	if (workingAnimationText) {
+	if (workingAnimationText != nullptr) {
 		workingAnimationCount = (workingAnimationCount + 1) & 3;
 		updateWorkingAnimation();
 	}
@@ -991,12 +991,12 @@ void OLED::timerRoutine() {
 
 void OLED::scrollingAndBlinkingTimerEvent() {
 
-	if (blinkArea.u32) {
+	if (blinkArea.u32 != 0u) {
 		performBlink();
 		return;
 	}
 
-	if (!sideScrollerDirection) {
+	if (sideScrollerDirection == 0) {
 		return; // Probably isn't necessary...
 	}
 
@@ -1006,7 +1006,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 	for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 		bool doRender = true;
 		SideScroller* scroller = &sideScrollers[s];
-		if (scroller->text) {
+		if (scroller->text != nullptr) {
 			if (doScroll) {
 				if (scroller->finished) {
 					continue;
@@ -1079,7 +1079,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 
 void OLED::consoleTimerEvent() {
 	// If console active
-	if (!numConsoleItems) {
+	if (numConsoleItems == 0) {
 		return;
 	}
 
@@ -1170,12 +1170,12 @@ checkTimeTilTimeout:
 		bool shouldCheckAgain = false;
 		if (consoleItems[numConsoleItems - 1].minY > consoleItems[numConsoleItems - 1].maxY) {
 			numConsoleItems--;
-			shouldCheckAgain = numConsoleItems;
+			shouldCheckAgain = (numConsoleItems != 0);
 		}
 		else {
 			timeTilNext = CONSOLE_ANIMATION_FRAME_TIME_SAMPLES;
 		}
-		if (numConsoleItems) {
+		if (numConsoleItems != 0) {
 			drawConsoleTopLine();
 		}
 		if (shouldCheckAgain) {
@@ -1185,11 +1185,11 @@ checkTimeTilTimeout:
 
 	// Or if it hasn't timed out, then provided we didn't already want a real-soon callback, come back when it does time
 	// out
-	else if (!timeTilNext) {
+	else if (timeTilNext == 0) {
 		timeTilNext = timeLeft;
 	}
 
-	if (timeTilNext) {
+	if (timeTilNext != 0) {
 		uiTimerManager.setTimerSamples(TimerName::OLED_CONSOLE, timeTilNext);
 	}
 
@@ -1213,7 +1213,7 @@ void OLED::freezeWithError(char const* text) {
 
 	// Wait for existing DMA transfer to finish
 	uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
-	while (!(DMACn(OLED_SPI_DMA_CHANNEL).CHSTAT_n & DMAC0_CHSTAT_n_TC)
+	while (((DMACn(OLED_SPI_DMA_CHANNEL).CHSTAT_n & DMAC0_CHSTAT_n_TC) == 0u)
 	       && (uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(50)) {}
 
 	// Wait for PIC to de-select OLED, if it's been doing that.
@@ -1221,7 +1221,7 @@ void OLED::freezeWithError(char const* text) {
 		startTime = *TCNT[TIMER_SYSTEM_SLOW];
 		while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(50)) {
 			uint8_t value;
-			bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
+			bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value) != 0u;
 			if (anything && value == oledWaitingForMessage) {
 				break;
 			}
@@ -1239,7 +1239,7 @@ void OLED::freezeWithError(char const* text) {
 	startTime = *TCNT[TIMER_SYSTEM_SLOW];
 	while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(50)) {
 		uint8_t value;
-		bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
+		bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value) != 0u;
 		if (anything && value == 248) {
 			break;
 		}
@@ -1261,12 +1261,12 @@ void OLED::freezeWithError(char const* text) {
 	DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |=
 	    DMAC_CHCTRL_0S_CLRTC | DMAC_CHCTRL_0S_SETEN; // ---- Enable DMA Transfer and clear TC bit ----
 
-	while (1) {
+	while (true) {
 		PIC::flush();
 		uartFlushIfNotSending(UART_ITEM_MIDI);
 
 		uint8_t value;
-		bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
+		bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value) != 0u;
 		if (anything) {
 			if (value == 175) {
 				break;

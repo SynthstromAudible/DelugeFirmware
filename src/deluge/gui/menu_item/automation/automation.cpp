@@ -39,7 +39,7 @@ MenuItem* Automation::selectButtonPress() {
 	if (Buttons::isShiftButtonPressed()) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithAutoParam* modelStack = getModelStackWithParam(modelStackMemory);
-		if (modelStack && modelStack->autoParam) {
+		if ((modelStack != nullptr) && (modelStack->autoParam != nullptr)) {
 			Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 
 			modelStack->autoParam->deleteAutomation(action, modelStack);
@@ -136,7 +136,7 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 void Automation::selectAutomationViewParameter(bool clipMinder) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = getModelStackWithParam(modelStackMemory);
-	if (modelStack) {
+	if (modelStack != nullptr) {
 		int32_t knobPos = automationView.getAutomationParameterKnobPos(modelStack, view.modPos) + kKnobPosOffset;
 		automationView.setAutomationKnobIndicatorLevels(modelStack, knobPos, knobPos);
 

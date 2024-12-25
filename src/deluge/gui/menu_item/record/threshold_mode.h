@@ -33,7 +33,7 @@ public:
 		if (kind == DEFAULT) {
 			this->setValue(FlashStorage::defaultThresholdRecordingMode);
 		}
-		else if (currentSong) {
+		else if (currentSong != nullptr) {
 			this->setValue(currentSong->thresholdRecordingMode);
 		}
 	}
@@ -42,7 +42,7 @@ public:
 		if (kind == DEFAULT) {
 			FlashStorage::defaultThresholdRecordingMode = this->getValue<ThresholdRecordingMode>();
 		}
-		if (currentSong) {
+		if (currentSong != nullptr) {
 			currentSong->thresholdRecordingMode = this->getValue<ThresholdRecordingMode>();
 		}
 	}

@@ -47,7 +47,7 @@ bool OverwriteFile::acceptCurrentOption() {
 }
 ActionResult OverwriteFile::padAction(int32_t x, int32_t y, int32_t on) {
 	// enter key press. Overwrite is only relevant in places where a qwerty keyboard is showing so no need to check
-	if (on && y == kQwertyHomeRow && x >= 14 && x < 16) {
+	if ((on != 0) && y == kQwertyHomeRow && x >= 14 && x < 16) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}

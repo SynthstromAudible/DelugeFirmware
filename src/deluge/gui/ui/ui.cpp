@@ -42,7 +42,7 @@ void UI::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 }
 
 void UI::graphicsRoutine() {
-	if (getRootUI() && canSeeViewUnderneath()) {
+	if ((getRootUI() != nullptr) && canSeeViewUnderneath()) {
 		getRootUI()->graphicsRoutine();
 	}
 }
@@ -145,12 +145,12 @@ RootUI* getRootUI() {
 
 bool currentUIIsClipMinderScreen() {
 	UI* currentUI = getCurrentUI();
-	return (currentUI && currentUI->toClipMinder());
+	return ((currentUI != nullptr) && (currentUI->toClipMinder() != nullptr));
 }
 
 bool rootUIIsClipMinderScreen() {
 	UI* rootUI = getRootUI();
-	return (rootUI && rootUI->toClipMinder());
+	return ((rootUI != nullptr) && (rootUI->toClipMinder() != nullptr));
 }
 
 void swapOutRootUILowLevel(UI* newUI) {
@@ -285,14 +285,14 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 			break;
 		}
 
-		if (whichMainRows && thisUI->renderMainPads()) {
+		if ((whichMainRows != 0u) && thisUI->renderMainPads()) {
 			whichMainRows = 0;
 		}
-		if (whichSideRows && thisUI->renderSidebar()) {
+		if ((whichSideRows != 0u) && thisUI->renderSidebar()) {
 			whichSideRows = 0;
 		}
 
-		if (!whichMainRows && !whichSideRows) {
+		if ((whichMainRows == 0u) && (whichSideRows == 0u)) {
 			break;
 		}
 	}
@@ -300,7 +300,7 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 
 void doAnyPendingGridRendering() {
 
-	if (!whichMainRowsNeedRendering && !whichSideRowsNeedRendering) {
+	if ((whichMainRowsNeedRendering == 0u) && (whichSideRowsNeedRendering == 0u)) {
 		return;
 	}
 
@@ -316,26 +316,26 @@ void doAnyPendingGridRendering() {
 
 	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
 
-		if (!mainRowsNow && !sideRowsNow) {
+		if ((mainRowsNow == 0u) && (sideRowsNow == 0u)) {
 			break;
 		}
 
 		UI* thisUI = uiNavigationHierarchy[u];
 
-		if (mainRowsNow) {
+		if (mainRowsNow != 0u) {
 			bool usedUp = thisUI->renderMainPads(mainRowsNow, PadLEDs::image, PadLEDs::occupancyMask);
 			if (usedUp) {
-				if (!whichMainRowsNeedRendering) {
+				if (whichMainRowsNeedRendering == 0u) {
 					PadLEDs::sendOutMainPadColours();
 				}
 				mainRowsNow = 0;
 			}
 		}
 
-		if (sideRowsNow) {
+		if (sideRowsNow != 0u) {
 			bool usedUp = thisUI->renderSidebar(sideRowsNow, PadLEDs::image, PadLEDs::occupancyMask);
 			if (usedUp) {
-				if (!whichSideRowsNeedRendering) {
+				if (whichSideRowsNeedRendering == 0u) {
 					PadLEDs::sendOutSidebarColours();
 				}
 				sideRowsNow = 0;
@@ -389,7 +389,7 @@ uint32_t currentUIMode = 0;
 
 bool isUIModeActive(uint32_t uiMode) {
 	if (uiMode > EXCLUSIVE_UI_MODES_MASK) {
-		return (currentUIMode & uiMode);
+		return (currentUIMode & uiMode) != 0u;
 	}
 	else {
 		uint32_t exclusivesOnly = currentUIMode & EXCLUSIVE_UI_MODES_MASK;
@@ -407,7 +407,7 @@ bool isUIModeActiveExclusively(uint32_t uiMode) {
 bool isUIModeWithinRange(const uint32_t* modes) {
 	uint32_t exclusivesOnly = currentUIMode & EXCLUSIVE_UI_MODES_MASK;
 	uint32_t nonExclusivesOnly = currentUIMode & ~EXCLUSIVE_UI_MODES_MASK;
-	while (*modes) {
+	while (*modes != 0u) {
 		// If looking at an exclusive mode...
 		if (*modes <= EXCLUSIVE_UI_MODES_MASK) {
 			if (*modes == exclusivesOnly) {
@@ -422,11 +422,11 @@ bool isUIModeWithinRange(const uint32_t* modes) {
 		modes++;
 	}
 
-	return (!exclusivesOnly && !nonExclusivesOnly);
+	return ((exclusivesOnly == 0u) && (nonExclusivesOnly == 0u));
 }
 
 bool isNoUIModeActive() {
-	return !currentUIMode;
+	return currentUIMode == 0u;
 }
 
 // You can safely call this even if you don't know whether said UI mode is active.

@@ -103,7 +103,7 @@ public:
 private:
 	void recalculateCVChannelVoltage(uint8_t channel);
 	void switchGateOff(int32_t channel);
-	void switchGateOn(int32_t channel, int32_t doInstantlyIfPossible = false);
+	void switchGateOn(int32_t channel, int32_t doInstantlyIfPossible = 0);
 	/// signifies there's a gate that can't go until the cv is output
 	bool cvOutPending{false};
 	/// gate 1-4 as synths or drums

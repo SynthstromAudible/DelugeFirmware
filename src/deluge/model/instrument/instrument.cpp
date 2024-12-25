@@ -83,12 +83,12 @@ bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOn
 			writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->getChannel());
 		}
 		char const* subSlotTag = getSubSlotXMLTag();
-		if (subSlotTag) {
+		if (subSlotTag != nullptr) {
 			writer.writeAttribute(subSlotTag, ((MIDIInstrument*)this)->channelSuffix);
 		}
 	}
 	// saving song
-	if (!clipForSavingOutputOnly) {
+	if (clipForSavingOutputOnly == nullptr) {
 		if (!name.isEmpty()) {
 			writer.writeAttribute("presetName", name.get());
 		}
@@ -152,7 +152,7 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	// Allocate memory for Clip
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
-	if (!clipMemory) {
+	if (clipMemory == nullptr) {
 		return nullptr;
 	}
 
@@ -171,7 +171,7 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 		}
 	}
 	else if (type == OutputType::CV) {
-		if (getActiveClip()) {
+		if (getActiveClip() != nullptr) {
 			newParamManager.cloneParamCollectionsFrom(&getActiveClip()->paramManager, false,
 			                                          true); // Because we want the bend ranges
 		}

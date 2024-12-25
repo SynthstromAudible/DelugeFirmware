@@ -88,7 +88,7 @@ void blinkLed(LED led, uint8_t numBlinks, uint8_t blinkingType, bool initialStat
 	updateBlinkingLedStates(blinkingType);
 
 	int32_t thisInitialFlashTime;
-	if (blinkingType) {
+	if (blinkingType != 0u) {
 		thisInitialFlashTime = kFastFlashTime;
 	}
 	else {
@@ -114,7 +114,7 @@ void ledBlinkTimeout(uint8_t blinkingType, bool forceReset, bool resetToState) {
 
 	bool anyActive = updateBlinkingLedStates(blinkingType);
 
-	int32_t thisFlashTime = (blinkingType ? kFastFlashTime : kFlashTime);
+	int32_t thisFlashTime = ((blinkingType != 0u) ? kFastFlashTime : kFlashTime);
 	if (anyActive) {
 		uiTimerManager.setTimer(static_cast<TimerName>(util::to_underlying(TimerName::LED_BLINK) + blinkingType),
 		                        thisFlashTime);
@@ -315,13 +315,13 @@ void blinkKnobIndicatorLevelTimeout() {
 	                      levelIndicatorBlinkOn ? levelIndicatorBipolar : false);
 
 	levelIndicatorBlinkOn = !levelIndicatorBlinkOn;
-	if (--levelIndicatorBlinksLeft) {
+	if (--levelIndicatorBlinksLeft != 0u) {
 		uiTimerManager.setTimer(TimerName::LEVEL_INDICATOR_BLINK, 20);
 	}
 }
 
 bool isKnobIndicatorBlinking(int32_t whichKnob) {
-	return (levelIndicatorBlinksLeft && whichLevelIndicatorBlinking == whichKnob);
+	return ((levelIndicatorBlinksLeft != 0u) && whichLevelIndicatorBlinking == whichKnob);
 }
 
 void clearKnobIndicatorLevels() {

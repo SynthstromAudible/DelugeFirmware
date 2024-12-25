@@ -31,7 +31,7 @@ ConsequenceClipLength::ConsequenceClipLength(Clip* newClip, int32_t oldLength) {
 Error ConsequenceClipLength::revert(TimeType time, ModelStack* modelStack) {
 
 	uint64_t markerValueBeforeRevert;
-	if (pointerToMarkerValue) {
+	if (pointerToMarkerValue != nullptr) {
 		markerValueBeforeRevert = *pointerToMarkerValue;
 		*pointerToMarkerValue = markerValueToRevertTo;
 		markerValueToRevertTo = markerValueBeforeRevert;

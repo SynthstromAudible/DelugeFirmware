@@ -283,11 +283,11 @@ void ColumnControlState::writeToFile(Serializer& writer) {
 void ColumnControlState::readFromFile(Deserializer& reader) {
 	char const* tagName;
 	reader.match('{');
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		bool isLeft = !strcmp(tagName, "leftCol");
 		if (isLeft || !strcmp(tagName, "rightCol")) {
 			reader.match('{');
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
+			while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 				if (!strcmp(tagName, "type")) {
 					auto value = stringToColumnFunction(reader.readTagOrAttributeValue());
 					(isLeft ? leftColFunc : rightColFunc) = value;
@@ -314,7 +314,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(getCurrentClip());
 
 	ColumnControlState& state = getState().columnControl;
-	if (leftColHeld == 7 && offset) {
+	if (leftColHeld == 7 && (offset != 0)) {
 		state.leftCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
 		state.leftColFunc = (offset > 0) ? nextControlFunction(state.leftColFunc, state.rightColFunc)
 		                                 : prevControlFunction(state.leftColFunc, state.rightColFunc);
@@ -323,7 +323,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 		keyboardScreen.killColumnSwitchKey(LEFT_COL);
 		return true;
 	}
-	else if (rightColHeld == 7 && offset) {
+	else if (rightColHeld == 7 && (offset != 0)) {
 		state.rightCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
 		state.rightColFunc = (offset > 0) ? nextControlFunction(state.rightColFunc, state.leftColFunc)
 		                                  : prevControlFunction(state.rightColFunc, state.leftColFunc);

@@ -81,7 +81,7 @@ bool Arrangement::endPlayback() {
 
 	currentSong->paramManager.expectNoFurtherTicks(modelStack);
 
-	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
 		if (!currentSong->isOutputActiveInArrangement(output)) {
 			continue;
 		}
@@ -132,7 +132,7 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 
 	for (uint8_t iPass = 0; iPass < 2; iPass++) {
 		// Go through all Outputs
-		for (Output* output = currentSong->firstOutput; output; output = output->next) {
+		for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
 
 			if (output->needsEarlyPlayback() == (iPass == 1)) {
 				continue; // First time through, skip anything but priority clips, which must take effect first
@@ -142,17 +142,17 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 			// If recording, we only stop when we hit the next ClipInstance
 			if (output->recordingInArrangement) {
 				int32_t searchPos = lastProcessedPos;
-				if (!posIncrement) {
+				if (posIncrement == 0) {
 					searchPos++; // If first, 0-length tick, don't look at the one that starts here.
 				}
 				int32_t nextI = output->clipInstances.search(searchPos, GREATER_OR_EQUAL);
 
 				ClipInstance* nextClipInstance = output->clipInstances.getElement(nextI);
-				if (nextClipInstance) {
+				if (nextClipInstance != nullptr) {
 					int32_t ticksTilStart = nextClipInstance->pos - lastProcessedPos;
 
 					// If it starts right now...
-					if (!ticksTilStart) {
+					if (ticksTilStart == 0) {
 						output->endAnyArrangementRecording(currentSong, lastProcessedPos, 0);
 						goto notRecording;
 					}
@@ -178,7 +178,7 @@ notRecording:
 
 					ClipInstance* lastClipInstance =
 					    output->clipInstances.getElement(output->clipInstances.getNumElements() - 1);
-					if (lastClipInstance) {
+					if (lastClipInstance != nullptr) {
 						int32_t endPos = lastClipInstance->pos + lastClipInstance->length;
 
 						if (lastProcessedPos < endPos) {
@@ -199,14 +199,14 @@ notRecording:
 						ClipInstance* clipInstance = output->clipInstances.getElement(i);
 						Clip* thisClip = clipInstance->clip;
 
-						if (thisClip) {
+						if (thisClip != nullptr) {
 
 							int32_t endPos = clipInstance->pos + clipInstance->length;
 
 							// If it's ended right now...
 							if (endPos == lastProcessedPos) {
 
-								if (posIncrement) { // Don't deactivate any Clips on the first, 0-length tick, or else!
+								if (posIncrement != 0) { // Don't deactivate any Clips on the first, 0-length tick, or else!
 									thisClip->expectNoFurtherTicks(currentSong);
 									thisClip->activeIfNoSolo = false;
 
@@ -247,20 +247,20 @@ notRecording:
 						}
 						nextClipInstance = output->clipInstances.getElement(i);
 						thisClip = nextClipInstance->clip;
-					} while (!thisClip);
+					} while (thisClip == nullptr);
 
 					// And just see when it starts
 					int32_t ticksTilStart = nextClipInstance->pos - lastProcessedPos;
 
 					// Maybe it starts right now!
-					if (!ticksTilStart) {
+					if (ticksTilStart == 0) {
 
 						AudioEngine::bypassCulling = true;
 
 						ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 						    modelStack->addTimelineCounter(thisClip);
 
-						if (posIncrement) { // If posIncrement is 0, it means this is the very first tick of playback,
+						if (posIncrement != 0) { // If posIncrement is 0, it means this is the very first tick of playback,
 							                // in which case this has just been set up already. But otherwise...
 							thisClip->activeIfNoSolo = true;
 							thisClip->setPos(modelStackWithTimelineCounter, 0);
@@ -301,7 +301,7 @@ notRecording:
 
 justDoArp:
 			int32_t posForArp;
-			if (output->getActiveClip() && output->getActiveClip()->activeIfNoSolo) {
+			if ((output->getActiveClip() != nullptr) && output->getActiveClip()->activeIfNoSolo) {
 				posForArp = output->getActiveClip()->lastProcessedPos;
 			}
 			else {
@@ -364,7 +364,7 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 		currentSong->paramManager.setPlayPos(newPos, modelStack, false);
 	}
 
-	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
 		if (!currentSong->isOutputActiveInArrangement(output)) {
 			continue;
 		}
@@ -373,7 +373,7 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 		ClipInstance* clipInstance = output->clipInstances.getElement(i);
 
 		// If there's a ClipInstance...
-		if (clipInstance && clipInstance->pos + clipInstance->length > lastProcessedPos) {
+		if ((clipInstance != nullptr) && clipInstance->pos + clipInstance->length > lastProcessedPos) {
 			resumeClipInstancePlayback(clipInstance, doingComplete);
 		}
 
@@ -396,7 +396,7 @@ void Arrangement::resumeClipInstancePlayback(ClipInstance* clipInstance, bool do
                                              bool mayActuallyResumeClip) {
 	Clip* thisClip = clipInstance->clip;
 
-	if (thisClip) {
+	if (thisClip != nullptr) {
 		int32_t clipPos = lastProcessedPos - clipInstance->pos; // Use just the currentPos, not the "actual" pos,
 		                                                        // because a multi-tick-forward is probably coming
 
@@ -438,7 +438,7 @@ void Arrangement::reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mus
 
 	int32_t i = output->clipInstances.search(actualPos + 1, LESS);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
-	if (clipInstance && clipInstance->clip == clip && clipInstance->pos + clipInstance->length > actualPos + 1) {
+	if ((clipInstance != nullptr) && clipInstance->clip == clip && clipInstance->pos + clipInstance->length > actualPos + 1) {
 		resumeClipInstancePlayback(clipInstance, true, mayResumeClip);
 	}
 }
@@ -454,14 +454,14 @@ void Arrangement::reversionDone() {
 
 	int32_t actualPos = getLivePos();
 
-	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
 		if (!currentSong->isOutputActiveInArrangement(output)) {
 			continue;
 		}
 
 		int32_t i = output->clipInstances.search(actualPos + 1, LESS);
 		ClipInstance* clipInstance = output->clipInstances.getElement(i);
-		if (clipInstance && clipInstance->pos + clipInstance->length > actualPos + 1) {
+		if ((clipInstance != nullptr) && clipInstance->pos + clipInstance->length > actualPos + 1) {
 			resumeClipInstancePlayback(clipInstance);
 		}
 		else {
@@ -471,7 +471,7 @@ void Arrangement::reversionDone() {
 }
 
 bool Arrangement::isOutputAvailable(Output* output) {
-	if (!playbackHandler.playbackState || !output->getActiveClip()) {
+	if ((playbackHandler.playbackState == 0u) || (output->getActiveClip() == nullptr)) {
 		return true;
 	}
 
@@ -485,7 +485,7 @@ bool Arrangement::isOutputAvailable(Output* output) {
 
 	int32_t i = output->clipInstances.search(lastProcessedPos + 1, LESS);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
-	return (!clipInstance || clipInstance->pos + clipInstance->length <= lastProcessedPos);
+	return ((clipInstance == nullptr) || clipInstance->pos + clipInstance->length <= lastProcessedPos);
 }
 
 // For the purpose of stopping or starting sounds during playback if we edited the stuff
@@ -495,11 +495,11 @@ void Arrangement::rowEdited(Output* output, int32_t startPos, int32_t endPos, Cl
 	int32_t actualPos = getLivePos();
 
 	if (hasPlaybackActive() && actualPos >= startPos && actualPos < endPos) {
-		if (clipRemoved) {
+		if (clipRemoved != nullptr) {
 			clipRemoved->expectNoFurtherTicks(currentSong);
 		}
 
-		if (clipInstanceAdded) {
+		if (clipInstanceAdded != nullptr) {
 			resumeClipInstancePlayback(clipInstanceAdded);
 		}
 	}
@@ -570,7 +570,7 @@ int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter cons
 
 	int32_t i = clip->output->clipInstances.search(lastProcessedPos + 1, LESS);
 	ClipInstance* clipInstance = clip->output->clipInstances.getElement(i);
-	if (!clipInstance || clipInstance->clip != clip) {
+	if ((clipInstance == nullptr) || clipInstance->clip != clip) {
 		return clip->currentlyPlayingReversed ? (-2147483648) : 2147483647; // This shouldn't normally happen right?
 	}
 
@@ -583,7 +583,7 @@ int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter cons
 
 		// See if the next ClipInstance has the same Clip and begins right as this one ends
 		ClipInstance* nextClipInstance = clip->output->clipInstances.getElement(i + 1);
-		if (nextClipInstance) {
+		if (nextClipInstance != nullptr) {
 			if (nextClipInstance->clip == clip && nextClipInstance->pos == clipInstance->pos + clipInstance->length) {
 				int32_t toAdd = nextClipInstance->length;
 				if (clip->currentlyPlayingReversed) {
@@ -636,7 +636,7 @@ bool Arrangement::willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* m
 
 	int32_t i = clip->output->clipInstances.search(lastProcessedPos + 1, LESS);
 	ClipInstance* clipInstance = clip->output->clipInstances.getElement(i);
-	if (!clipInstance || clipInstance->clip != clip) {
+	if ((clipInstance == nullptr) || clipInstance->clip != clip) {
 		return false;
 	}
 
@@ -649,7 +649,7 @@ bool Arrangement::willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* m
 
 	// See if the next ClipInstance has the same Clip and begins right as this one ends
 	ClipInstance* nextClipInstance = clip->output->clipInstances.getElement(i + 1);
-	if (nextClipInstance) {
+	if (nextClipInstance != nullptr) {
 		if (nextClipInstance->clip == clip && nextClipInstance->pos == instanceEndPos) {
 			return true;
 		}
@@ -660,7 +660,7 @@ bool Arrangement::willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* m
 }
 
 void Arrangement::endAnyLinearRecording() {
-	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
 		uint32_t timeRemainder;
 		int32_t actualPos = getLivePos(&timeRemainder);
 		output->endAnyArrangementRecording(currentSong, actualPos, timeRemainder);

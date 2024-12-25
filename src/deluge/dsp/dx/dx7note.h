@@ -41,7 +41,7 @@ public:
 
 	uint8_t params[156];
 	FmCore* core;
-	bool opSwitch(int op) const { return (params[155] >> op) & 1; }
+	bool opSwitch(int op) const { return ((((params[155] >> op) & 1) != 0) != 0) != 0; }
 	void setOpSwitch(int op, bool on) { params[155] = (params[155] & ~(1 << op)) | (on ? 1 : 0) * (1 << op); }
 	uint8_t engineMode;
 

@@ -35,10 +35,10 @@ SideChain::SideChain() {
 	// sound if no SD card inserted, but also some synth presets, possibly just older ones, are saved without this so it
 	// can be set to the default at the time of loading.
 	Song* song = preLoadedSong;
-	if (!song) {
+	if (song == nullptr) {
 		song = currentSong;
 	}
-	if (song) {
+	if (song != nullptr) {
 		syncLevel = (SyncLevel)(7 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
 	}
 	else {

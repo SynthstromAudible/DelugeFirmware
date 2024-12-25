@@ -90,7 +90,7 @@ bool DeleteFile::acceptCurrentOption() {
 	else if (toDelete->instrumentAlreadyInSong) {
 		display->displayPopup(l10n::get(STRING_FOR_ERROR_PRESET_IN_USE));
 	}
-	else if (toDelete->instrument) {
+	else if (toDelete->instrument != nullptr) {
 		// it has an instrument, it's not on the card, it's not in use, let's remove it
 		browser->currentFileDeleted();
 	}

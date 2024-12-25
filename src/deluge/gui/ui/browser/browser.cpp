@@ -129,7 +129,7 @@ void Browser::emptyFileItems() {
 		item->~FileItem();
 
 		i++;
-		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
+		if ((i & 63) == 0) { //  &127 was even fine, even with only -Og compiler optimization.
 			AudioEngine::logAction("emptyFileItems in loop");
 			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
 			yield([]() { return true; });
@@ -151,7 +151,7 @@ void Browser::deleteSomeFileItems(int32_t startAt, int32_t stopAt) {
 		item->~FileItem();
 
 		i++;
-		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
+		if ((i & 63) == 0) { //  &127 was even fine, even with only -Og compiler optimization.
 			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
 			yield([]() { return true; });
 		}
@@ -270,7 +270,7 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	}
 
 	FRESULT result = f_opendir(&staticDIR, currentDir.get());
-	if (result) {
+	if (result != 0u) {
 		return fresultToDelugeErrorCode(result);
 	}
 
@@ -293,7 +293,7 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	int32_t filePrefixLength;
 
 	if (display->have7SEG()) {
-		if (filePrefixHere) {
+		if (filePrefixHere != nullptr) {
 			filePrefixLength = strlen(filePrefixHere);
 		}
 	}
@@ -312,7 +312,7 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 		if (staticFNO.fname[0] == '.') {
 			continue; /* Ignore dot entry */
 		}
-		bool isFolder = staticFNO.fattrib & AM_DIR;
+		bool isFolder = (staticFNO.fattrib & AM_DIR) != 0;
 		if (isFolder) {
 			if (!allowFolders) {
 				continue;
@@ -320,22 +320,22 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 		}
 		else {
 			char const* dotPos = strrchr(staticFNO.fname, '.');
-			if (!dotPos) {
+			if (dotPos == nullptr) {
 extensionNotSupported:
 				continue;
 			}
 			char const* fileExtension = dotPos + 1;
 			char const** thisExtension = allowedFileExtensionsHere;
-			while (strcasecmp(fileExtension, *thisExtension)) {
+			while (strcasecmp(fileExtension, *thisExtension) != 0) {
 				thisExtension++;
-				if (!*thisExtension) {
+				if (*thisExtension == nullptr) {
 					goto extensionNotSupported; // If reached end of list
 				}
 			}
 		}
 
 		FileItem* thisItem = getNewFileItem();
-		if (!thisItem) {
+		if (thisItem == nullptr) {
 			error = Error::INSUFFICIENT_RAM;
 			break;
 		}
@@ -348,13 +348,13 @@ extensionNotSupported:
 
 		char const* storedFilenameChars = thisItem->filename.get();
 		if (display->have7SEG()) {
-			if (filePrefixHere) {
-				if (memcasecmp(storedFilenameChars, filePrefixHere, filePrefixLength)) {
+			if (filePrefixHere != nullptr) {
+				if (memcasecmp(storedFilenameChars, filePrefixHere, filePrefixLength) != 0) {
 					goto nonNumericFile;
 				}
 
 				char* dotAddress = strrchr(storedFilenameChars, '.');
-				if (!dotAddress) {
+				if (dotAddress == nullptr) {
 					goto nonNumericFile; // Shouldn't happen?
 				}
 
@@ -413,7 +413,7 @@ void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityR
 				if (!nextItem->isFolder) {
 					int32_t nameLength = readItem->filename.getLength();
 					char const* nextItemFilename = nextItem->filename.get();
-					if (!memcasecmp(readItem->filename.get(), nextItemFilename, nameLength)) {
+					if (memcasecmp(readItem->filename.get(), nextItemFilename, nameLength) == 0) {
 						if (nextItemFilename[nameLength] == '.' && !strchr(&nextItemFilename[nameLength + 1], '.')) {
 							goto deleteThisItem;
 						}
@@ -422,9 +422,9 @@ void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityR
 			}
 
 			// Or if we have an Instrument, and the next item is a file of the same name, delete the next item.
-			else if (readItem->instrument) {
-				if (!nextItem->instrument && !nextItem->isFolder) {
-					if (!strcasecmp(readItem->displayName, nextItem->displayName)) {
+			else if (readItem->instrument != nullptr) {
+				if ((nextItem->instrument == nullptr) && !nextItem->isFolder) {
+					if (strcasecmp(readItem->displayName, nextItem->displayName) == 0) {
 						// if (readItem->filename.equalsCaseIrrespective(&nextItem->filename)) {
 						nextItem->~FileItem();
 						readI++;
@@ -450,14 +450,14 @@ deleteThisItem:
 			}
 
 			// Or if next item has an Instrument, and we're just a file...
-			else if (nextItem->instrument) {
-				if (!strcasecmp(readItem->displayName, nextItem->displayName)) { // And if same name...
+			else if (nextItem->instrument != nullptr) {
+				if (strcasecmp(readItem->displayName, nextItem->displayName) == 0) { // And if same name...
 					goto deleteThisItem;
 				}
 			}
 		}
 		else {
-			if (readItem->instrument) {
+			if (readItem->instrument != nullptr) {
 				goto checkAvailabilityRequirement;
 			}
 		}
@@ -476,10 +476,10 @@ deleteThisItem:
 
 	// Our system of keeping FileItems from getting too full by deleting elements from its ends as we go could have
 	// caused bad results at the edges of the above, so delete a further one element at each end as needed.
-	if (firstFileItemRemaining) {
+	if (firstFileItemRemaining != nullptr) {
 		fileItems.deleteAtIndex(0);
 	}
-	if (lastFileItemRemaining) {
+	if (lastFileItemRemaining != nullptr) {
 		fileItems.deleteAtIndex(fileItems.getNumElements() - 1);
 	}
 }
@@ -500,7 +500,7 @@ tryReadingItems:
 
 		// If folder didn't exist, try our alternative one if there is one.
 		if (error == Error::FOLDER_DOESNT_EXIST) {
-			if (defaultDirToAlsoTry) {
+			if (defaultDirToAlsoTry != nullptr) {
 				// ... only if we haven't already tried the alternative folder.
 				if (!currentDir.equalsCaseIrrespective(defaultDirToAlsoTry)) {
 					filenameToStartAt = NULL;
@@ -532,17 +532,17 @@ tryReadingItems:
 		return error;
 	}
 
-	if (song && outputType != OutputType::NONE) {
+	if ((song != nullptr) && outputType != OutputType::NONE) {
 		error = song->addInstrumentsToFileItems(outputType);
 		if (error != Error::NONE) {
 			return error;
 		}
 	}
 
-	if (fileItems.getNumElements()) {
+	if (fileItems.getNumElements() != 0) {
 		sortFileItems();
 
-		if (fileItems.getNumElements()) {
+		if (fileItems.getNumElements() != 0) {
 			// Delete folders sharing name of file.
 			// And, files sharing name of in-memory Instrument.
 			if (!allowFoldersSharingNameWithFile) {
@@ -568,7 +568,7 @@ Error Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStart
 	octaveStartsFromA = false;
 
 tryReadingItems:
-	bool doWeHaveASearchString = (filenameToStartAt && *filenameToStartAt);
+	bool doWeHaveASearchString = ((filenameToStartAt != nullptr) && (*filenameToStartAt != 0));
 	int32_t newCatalogSearchDirection = doWeHaveASearchString ? CATALOG_SEARCH_BOTH : CATALOG_SEARCH_RIGHT;
 	Error error =
 	    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, filenameToStartAt,
@@ -585,18 +585,18 @@ gotErrorAfterAllocating:
 	}
 
 	bool foundExact = false;
-	if (fileItems.getNumElements()) {
+	if (fileItems.getNumElements() != 0) {
 		fileIndexSelected = 0;
 
 		if (!doWeHaveASearchString) {
 noExactFileFound:
 			// We did not find exact file.
 			// Normally, we'll need to just use one of the ones we found. (That's just always the first one, I think...)
-			if (!mayDefaultToBrandNewNameOnEntry || direction) {
+			if (!mayDefaultToBrandNewNameOnEntry || (direction != 0)) {
 
 				// But since we're going to just use the first file, if we've deleted items at the start (meaning we had
 				// a search string), we need to go back and get them.
-				if (numFileItemsDeletedAtStart) {
+				if (numFileItemsDeletedAtStart != 0) {
 					filenameToStartAt = NULL;
 					goto tryReadingItems;
 				}
@@ -636,7 +636,7 @@ useFoundFile:
 		fileIndexSelected = i;
 
 		// Usually we'll just use that file.
-		if (!mayDefaultToBrandNewNameOnEntry || direction) {
+		if (!mayDefaultToBrandNewNameOnEntry || (direction != 0)) {
 			goto setEnteredTextAndUseFoundFile;
 		}
 
@@ -648,7 +648,7 @@ useFoundFile:
 		}
 		// `#if 1 || !OLED` macro was here
 		char const* enteredTextChars = enteredText.get();
-		if (!memcasecmp(enteredTextChars, "SONG", 4)) {
+		if (memcasecmp(enteredTextChars, "SONG", 4) == 0) {
 			Slot thisSlot = getSlot(&enteredTextChars[4]);
 			if (thisSlot.slot < 0) {
 				goto doNormal;
@@ -725,7 +725,7 @@ doNormal: // FileItem* currentFile = (FileItem*)fileItems.getElementAddress(file
 tryAgain:
 			char const* delimeterAddress = strrchr(endSearchStringChars, delimeterChar);
 			int32_t numberStartPos;
-			if (delimeterAddress) {
+			if (delimeterAddress != nullptr) {
 				int32_t underscorePos = delimeterAddress - endSearchStringChars;
 
 				// Ok, it what comes after the underscore a positive integer?
@@ -798,7 +798,7 @@ noNumberYet:
 	// Or if no files found at all...
 	else {
 		// Can we just pick a brand new name?
-		if (mayDefaultToBrandNewNameOnEntry && !direction) {
+		if (mayDefaultToBrandNewNameOnEntry && (direction == 0)) {
 pickBrandNewNameIfNoneNominated:
 			if (enteredText.isEmpty()) {
 				error = getUnusedSlot(OutputType::NONE, &enteredText, "SONG");
@@ -860,7 +860,7 @@ doReturn:
 	if (display->haveOLED()) {
 		int32_t freeSlotNumber = 1;
 		int32_t minNumDigits = 1;
-		if (fileItems.getNumElements()) {
+		if (fileItems.getNumElements() != 0) {
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
 			String displayName;
 			error = fileItem->getDisplayNameWithoutExtension(&displayName);
@@ -948,7 +948,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 	int32_t newFileIndex;
 
 	if (fileIndexSelected < 0) { // If no file selected and we were typing a new name?
-		if (!fileItems.getNumElements()) {
+		if (fileItems.getNumElements() == 0) {
 			return;
 		}
 
@@ -1011,10 +1011,10 @@ void Browser::selectEncoderAction(int8_t offset) {
 			}
 		}
 		else {
-			if (filePrefix && Buttons::isShiftButtonPressed()) {
+			if ((filePrefix != nullptr) && Buttons::isShiftButtonPressed()) {
 				int32_t filePrefixLength = strlen(filePrefix);
 				char const* enteredTextChars = enteredText.get();
-				if (memcasecmp(filePrefix, enteredTextChars, filePrefixLength)) {
+				if (memcasecmp(filePrefix, enteredTextChars, filePrefixLength) != 0) {
 					goto nonNumeric;
 				}
 				Slot thisSlot = getSlot(&enteredTextChars[filePrefixLength]);
@@ -1052,7 +1052,7 @@ nonNumeric:
 
 	if (newFileIndex < 0) {
 		D_PRINTLN("index below 0");
-		if (numFileItemsDeletedAtStart) {
+		if (numFileItemsDeletedAtStart != 0) {
 			scrollPosVertical = 9999;
 
 tryReadingItems:
@@ -1078,7 +1078,7 @@ gotErrorAfterAllocating:
 		else { // Wrap to end
 			scrollPosVertical = 0;
 
-			if (numFileItemsDeletedAtEnd) {
+			if (numFileItemsDeletedAtEnd != 0) {
 				newCatalogSearchDirection = CATALOG_SEARCH_LEFT;
 searchFromOneEnd:
 				D_PRINTLN("reloading and wrap");
@@ -1100,7 +1100,7 @@ searchFromOneEnd:
 
 	else if (newFileIndex >= fileItems.getNumElements()) {
 		D_PRINTLN("out of file items");
-		if (numFileItemsDeletedAtEnd) {
+		if (numFileItemsDeletedAtEnd != 0) {
 			scrollPosVertical = 0;
 			goto tryReadingItems;
 		}
@@ -1112,7 +1112,7 @@ searchFromOneEnd:
 		else {
 			scrollPosVertical = 9999;
 
-			if (numFileItemsDeletedAtStart) {
+			if (numFileItemsDeletedAtStart != 0) {
 				newCatalogSearchDirection = CATALOG_SEARCH_RIGHT;
 				goto searchFromOneEnd;
 			}
@@ -1180,7 +1180,7 @@ bool Browser::predictExtendedText() {
 
 	FileItem* oldFileItem = getCurrentFileItem();
 	DWORD oldClust = 0;
-	if (oldFileItem) {
+	if (oldFileItem != nullptr) {
 		oldClust = oldFileItem->filePointer.sclust;
 	}
 
@@ -1252,7 +1252,7 @@ notFound:
 	FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
 
 	// If it didn't match exactly, that's ok, but we need to try some other stuff before we accept that result.
-	if (memcasecmp(fileItem->displayName, enteredText.get(), enteredTextEditPos)) {
+	if (memcasecmp(fileItem->displayName, enteredText.get(), enteredTextEditPos) != 0) {
 		if (numExtraZeroesAdded < 4) {
 			error = searchString.concatenateAtPos("0", searchString.getLength() - 1, 1);
 			if (error != Error::NONE) {
@@ -1291,10 +1291,10 @@ notFound:
 
 void Browser::currentFileDeleted() {
 	FileItem* currentFileItem = getCurrentFileItem();
-	if (!currentFileItem) {
+	if (currentFileItem == nullptr) {
 		return; // Shouldn't happen...
 	}
-	if (currentFileItem->instrument && !currentFileItem->instrumentAlreadyInSong) {
+	if ((currentFileItem->instrument != nullptr) && !currentFileItem->instrumentAlreadyInSong) {
 		currentFileItem->instrument->shouldHibernate = false;
 	}
 	currentFileItem->~FileItem();
@@ -1358,7 +1358,7 @@ drawAFile:
 			int32_t iconWidth = 8;
 			uint8_t const* graphic = isFolder ? deluge::hid::display::OLED::folderIcon : fileIcon;
 			canvas.drawGraphicMultiLine(graphic, iconStartX, yPixel + 0, iconWidth);
-			if (!isFolder && fileIconPt2 && fileIconPt2Width) {
+			if (!isFolder && (fileIconPt2 != nullptr) && (fileIconPt2Width != 0)) {
 				canvas.drawGraphicMultiLine(fileIconPt2, iconStartX + iconWidth, yPixel + 0, fileIconPt2Width);
 			}
 
@@ -1366,7 +1366,7 @@ drawAFile:
 			char finalChar = isFolder ? 0 : '.';
 searchForChar:
 			char const* finalCharAddress = strrchr(displayName, finalChar);
-			if (!finalCharAddress) { // Shouldn't happen... or maybe for in-memory presets?
+			if (finalCharAddress == nullptr) { // Shouldn't happen... or maybe for in-memory presets?
 				finalChar = 0;
 				goto searchForChar;
 			}
@@ -1375,7 +1375,7 @@ searchForChar:
 
 			if (isSelectedIndex) {
 				drawTextForOLEDEditing(textStartX, OLED_MAIN_WIDTH_PIXELS, yPixel, maxChars, canvas);
-				if (!enteredTextEditPos) {
+				if (enteredTextEditPos == 0) {
 					deluge::hid::display::OLED::setupSideScroller(0, enteredText.get(), textStartX,
 					                                              OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
 					                                              kTextSpacingX, kTextSpacingY, true);
@@ -1409,7 +1409,7 @@ Slot Browser::getSlot(char const* displayName) {
 
 	Slot toReturn;
 
-	if (!numDigitsFound) { // We are required to have found at least 1 digit.
+	if (numDigitsFound == 0) { // We are required to have found at least 1 digit.
 nonNumeric:
 		toReturn.slot = -1;
 doReturn:
@@ -1433,7 +1433,7 @@ doReturn:
 		toReturn.subSlot = subSlotChar - 'A';
 		charPos++;
 		char nextChar = *charPos;
-		if (nextChar) {
+		if (nextChar != 0) {
 			goto nonNumeric; // Ensure no more characters
 		}
 		break;
@@ -1474,7 +1474,7 @@ void Browser::displayText(bool blinkImmediately) {
 			}
 			else {
 
-				if (filePrefix) {
+				if (filePrefix != nullptr) {
 
 					Slot thisSlot = getSlot(enteredText.get());
 					if (thisSlot.slot >= 0) {
@@ -1518,9 +1518,9 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 
 	// Save button, to delete file
 	else if (b == SAVE && Buttons::isShiftButtonPressed()) {
-		if (!currentUIMode && on) {
+		if ((currentUIMode == 0u) && on) {
 			FileItem* currentFileItem = getCurrentFileItem();
-			if (currentFileItem) {
+			if (currentFileItem != nullptr) {
 				if (currentFileItem->isFolder) {
 					display->displayPopup(
 					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_FOLDERS_CANNOT_BE_DELETED_ON_THE_DELUGE));
@@ -1537,7 +1537,7 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 
 	// Back button
 	else if (b == BACK) {
-		if (on && !currentUIMode) {
+		if (on && (currentUIMode == 0u)) {
 			return backButtonAction();
 		}
 	}
@@ -1616,7 +1616,7 @@ Error Browser::setEnteredTextFromCurrentFilename() {
 	if (!currentFileItem->isFolder) {
 		char const* enteredTextChars = enteredText.get();
 		char const* dotAddress = strrchr(enteredTextChars, '.');
-		if (dotAddress) {
+		if (dotAddress != nullptr) {
 			int32_t dotPos = (uint32_t)dotAddress - (uint32_t)enteredTextChars;
 			error = enteredText.shorten(dotPos);
 			if (error != Error::NONE) {
@@ -1661,7 +1661,7 @@ Error Browser::goUpOneDirectoryLevel() {
 
 	char const* currentDirChars = currentDir.get();
 	char const* slashAddress = strrchr(currentDirChars, '/');
-	if (!slashAddress || slashAddress == currentDirChars) {
+	if ((slashAddress == nullptr) || slashAddress == currentDirChars) {
 		return Error::NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP;
 	}
 
@@ -1706,7 +1706,7 @@ Error Browser::createFolder() {
 	}
 
 	FRESULT result = f_mkdir(newDirPath.get());
-	if (result) {
+	if (result != 0u) {
 		return Error::SD_CARD;
 	}
 
@@ -1723,7 +1723,7 @@ void Browser::sortFileItems() {
 
 	// If we're just wanting to look to one side or the other of a given filename, then delete everything in the other
 	// direction.
-	if (filenameToStartSearchAt && *filenameToStartSearchAt) {
+	if ((filenameToStartSearchAt != nullptr) && (*filenameToStartSearchAt != 0)) {
 
 		if (catalogSearchDirection == CATALOG_SEARCH_LEFT) {
 			bool foundExact;
@@ -1733,7 +1733,7 @@ void Browser::sortFileItems() {
 				int32_t prevIndex = searchIndex - 1;
 				if (prevIndex >= 0) {
 					FileItem* prevItem = (FileItem*)fileItems.getElementAddress(prevIndex);
-					if (!strcmpspecial(prevItem->displayName, filenameToStartSearchAt)) {
+					if (strcmpspecial(prevItem->displayName, filenameToStartSearchAt) == 0) {
 						searchIndex = prevIndex;
 					}
 				}
@@ -1752,7 +1752,7 @@ void Browser::sortFileItems() {
 				int32_t nextIndex = searchIndex + 1;
 				if (nextIndex < fileItems.getNumElements()) {
 					FileItem* nextItem = (FileItem*)fileItems.getElementAddress(nextIndex);
-					if (!strcmpspecial(nextItem->displayName, filenameToStartSearchAt)) {
+					if (strcmpspecial(nextItem->displayName, filenameToStartSearchAt) == 0) {
 						searchIndex = nextIndex;
 					}
 				}
@@ -1767,7 +1767,7 @@ void Browser::sortFileItems() {
 
 	// If we'd previously deleted items from either end of the list (apart from due to search direction as above),
 	// we need to now delete any items which would have fallen in that region.
-	if (lastFileItemRemaining) {
+	if (lastFileItemRemaining != nullptr) {
 		int32_t searchIndex = fileItems.search(lastFileItemRemaining);
 		int32_t itemsToDeleteAtEnd = fileItems.getNumElements() - searchIndex - 1;
 		if (itemsToDeleteAtEnd > 0) {
@@ -1776,9 +1776,9 @@ void Browser::sortFileItems() {
 		}
 	}
 
-	if (firstFileItemRemaining) {
+	if (firstFileItemRemaining != nullptr) {
 		int32_t itemsToDeleteAtStart = fileItems.search(firstFileItemRemaining);
-		if (itemsToDeleteAtStart) {
+		if (itemsToDeleteAtStart != 0) {
 			deleteSomeFileItems(0, itemsToDeleteAtStart);
 			numFileItemsDeletedAtStart += itemsToDeleteAtStart;
 		}

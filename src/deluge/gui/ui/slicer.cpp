@@ -184,14 +184,14 @@ void Slicer::graphicsRoutine() {
 					continue;
 				}
 
-				if (!assignedVoice || thisVoice->orderSounded > assignedVoice->orderSounded) {
+				if ((assignedVoice == nullptr) || thisVoice->orderSounded > assignedVoice->orderSounded) {
 					assignedVoice = thisVoice;
 				}
 			}
 
-			if (assignedVoice) {
+			if (assignedVoice != nullptr) {
 				VoiceUnisonPartSource* part = &assignedVoice->unisonParts[drum->numUnison >> 1].sources[0];
-				if (part && part->active) {
+				if ((part != nullptr) && part->active) {
 					voiceSample = part->voiceSample;
 					guide = &assignedVoice->guides[soundEditor.currentSourceIndex];
 				}
@@ -199,7 +199,7 @@ void Slicer::graphicsRoutine() {
 		}
 	}
 
-	if (voiceSample) {
+	if (voiceSample != nullptr) {
 		int32_t samplePos = voiceSample->getPlaySample((Sample*)range->sampleHolder.audioFile, guide);
 		if (samplePos >= waveformBasicNavigator.xScroll) {
 			newTickSquare = (samplePos - waveformBasicNavigator.xScroll) / waveformBasicNavigator.xZoom;
@@ -447,13 +447,13 @@ void Slicer::stopAnyPreviewing() {
 	Kit* kit = getCurrentKit();
 	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 	drum->unassignAllVoices();
-	if (drum->sources[0].ranges.getNumElements()) {
+	if (drum->sources[0].ranges.getNumElements() != 0) {
 		MultisampleRange* range = (MultisampleRange*)drum->sources[0].ranges.getElement(0);
 		range->sampleHolder.setAudioFile(nullptr);
 	}
 }
 void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on) {
-	if (on) {
+	if (on != 0) {
 		Kit* kit = getCurrentKit();
 		SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
@@ -487,12 +487,12 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
 		    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
 	}
-	instrumentClipView.sendAuditionNote(on, 0, 64, 0);
+	instrumentClipView.sendAuditionNote(on != 0, 0, 64, 0);
 }
 
 ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 
-	if (on && x < kDisplayWidth && y < kDisplayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad on
+	if ((on != 0) && x < kDisplayWidth && y < kDisplayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad on
 
 		int32_t slicePadIndex = (x % 4 + (x / 4) * 16) + ((y % 4) * 4); //
 
@@ -534,20 +534,20 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 						if (thisVoice->guides[0].audioFileHolder != range->getAudioFileHolder()) {
 							continue;
 						}
-						if (!assignedVoice || thisVoice->orderSounded > assignedVoice->orderSounded) {
+						if ((assignedVoice == nullptr) || thisVoice->orderSounded > assignedVoice->orderSounded) {
 							assignedVoice = thisVoice;
 						}
 					}
-					if (assignedVoice) {
+					if (assignedVoice != nullptr) {
 						VoiceUnisonPartSource* part = &assignedVoice->unisonParts[drum->numUnison >> 1].sources[0];
-						if (part && part->active) {
+						if ((part != nullptr) && part->active) {
 							voiceSample = part->voiceSample;
 							guide = &assignedVoice->guides[soundEditor.currentSourceIndex];
 						}
 					}
 				}
 			}
-			if (voiceSample) {
+			if (voiceSample != nullptr) {
 				int32_t samplePos = voiceSample->getPlaySample((Sample*)range->sampleHolder.audioFile, guide);
 				if (samplePos < waveformBasicNavigator.sample->lengthInSamples && numManualSlice < MAX_MANUAL_SLICES) {
 					manualSlicePoints[numManualSlice].startPos = samplePos;
@@ -578,7 +578,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
-	else if (!on && x < kDisplayWidth && y < kDisplayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad off
+	else if ((on == 0) && x < kDisplayWidth && y < kDisplayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad off
 		preview(0, 0, 0, 0);                                                                           // off
 	}
 
@@ -655,7 +655,7 @@ getOut:
 		firstDrum->sources[0].sampleControls.reversed = false;
 
 #if 1 || ALPHA_OR_BETA_VERSION
-		if (!firstRange->sampleHolder.audioFile) {
+		if (firstRange->sampleHolder.audioFile == nullptr) {
 			FREEZE_WITH_ERROR("i032"); // Trying to narrow down E368 that Kevin F got
 		}
 #endif
@@ -682,7 +682,7 @@ getOut:
 			}
 
 			void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
-			if (!drumMemory) {
+			if (drumMemory == nullptr) {
 ramError:
 				error = Error::INSUFFICIENT_RAM;
 				goto getOut;
@@ -691,7 +691,7 @@ ramError:
 			SoundDrum* newDrum = new (drumMemory) SoundDrum();
 
 			MultisampleRange* range = (MultisampleRange*)newDrum->sources[0].getOrCreateFirstRange();
-			if (!range) {
+			if (range == nullptr) {
 ramError2:
 				newDrum->~SoundDrum();
 				delugeDealloc(drumMemory);
@@ -735,7 +735,7 @@ ramError2:
 
 		// Make NoteRows for all these new Drums
 		getCurrentKit()->resetDrumTempValues();
-		firstDrum->noteRowAssignedTemp = 1;
+		firstDrum->noteRowAssignedTemp = true;
 	}
 	ModelStackWithTimelineCounter* modelStack = (ModelStackWithTimelineCounter*)modelStackMemory;
 	getCurrentInstrumentClip()->assignDrumsToNoteRows(modelStack);

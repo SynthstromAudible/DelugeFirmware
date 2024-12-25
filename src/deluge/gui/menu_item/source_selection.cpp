@@ -133,7 +133,7 @@ void SourceSelection::drawValue() {
 void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 	this->setValue(0);
 
-	if (navigatedBackwardFrom) {
+	if (navigatedBackwardFrom != nullptr) {
 		while (sourceMenuContents[this->getValue()] != s) {
 			this->setValue(this->getValue() + 1);
 		}

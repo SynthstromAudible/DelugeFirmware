@@ -122,7 +122,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	    sideChainHitPending, shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
 	// Render saturation
-	if (clippingAmount) {
+	if (clippingAmount != 0u) {
 		StereoSample const* const bufferEnd = globalEffectableBuffer + numSamples;
 
 		StereoSample* __restrict__ currentSample = globalEffectableBuffer;
@@ -149,7 +149,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	else {
 		compressor.reset();
 	}
-	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+	if ((recorder != nullptr) && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
 		recorder->feedAudio((int32_t*)globalEffectableBuffer, numSamples, true, 2);
 	}
@@ -157,12 +157,12 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	postReverbVolumeLastTime = postReverbVolume;
 
-	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {
+	if (playbackHandler.isEitherClockActive() && (playbackHandler.ticksLeftInCountIn == 0) && isClipActive) {
 		const bool result =
-		    params::kMaxNumUnpatchedParams > 32
-		        ? paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0]
-		              || paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[1]
-		        : paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0];
+		    (params::kMaxNumUnpatchedParams > 32
+		        ? (static_cast<uint32_t>(paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0] != 0u)
+		              || (paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[1] != 0u))
+		        : paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0]) != 0u;
 		if (result) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThingsButNoNoteRow(this, paramManagerForClip);
@@ -180,10 +180,10 @@ int32_t GlobalEffectableForClip::getParameterFromKnob(int32_t whichModEncoder) {
 
 	int32_t modKnobMode = *getModKnobMode();
 
-	if (modKnobMode == 4 && whichModEncoder) {
+	if (modKnobMode == 4 && (whichModEncoder != 0)) {
 		return params::UNPATCHED_SIDECHAIN_VOLUME;
 	}
-	else if (modKnobMode == 6 && !whichModEncoder) {
+	else if (modKnobMode == 6 && (whichModEncoder == 0)) {
 		return params::UNPATCHED_PITCH_ADJUST;
 	}
 
@@ -207,7 +207,7 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 		if (modKnobMode == 4) {
 			if (whichModEncoder == 1) { // Sidechain
 				int32_t insideWorldTickMagnitude;
-				if (currentSong) { // Bit of a hack just referring to currentSong in here...
+				if (currentSong != nullptr) { // Bit of a hack just referring to currentSong in here...
 					insideWorldTickMagnitude =
 					    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 				}
@@ -257,7 +257,7 @@ void GlobalEffectableForClip::getThingWithMostReverb(Clip* activeClip, Sound** s
                                                      GlobalEffectableForClip** globalEffectableWithMostReverb,
                                                      int32_t* highestReverbAmountFound) {
 
-	if (activeClip) {
+	if (activeClip != nullptr) {
 
 		ParamManagerForTimeline* activeParamManager = &activeClip->paramManager;
 

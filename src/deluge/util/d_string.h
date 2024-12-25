@@ -68,7 +68,7 @@ public:
 		if (stringMemory == otherString->stringMemory) {
 			return true; // Works if both lengths are 0, too
 		}
-		if (!stringMemory || !otherString->stringMemory) {
+		if ((stringMemory == nullptr) || (otherString->stringMemory == nullptr)) {
 			return false; // If just one is empty, then not equal
 		}
 		return equals(otherString->get());
@@ -78,20 +78,20 @@ public:
 		if (stringMemory == otherString->stringMemory) {
 			return true; // Works if both lengths are 0, too
 		}
-		if (!stringMemory || !otherString->stringMemory) {
+		if ((stringMemory == nullptr) || (otherString->stringMemory == nullptr)) {
 			return false; // If just one is empty, then not equal
 		}
 		return equalsCaseIrrespective(otherString->get());
 	}
 
 	inline char const* get() {
-		if (!stringMemory) {
+		if (stringMemory == nullptr) {
 			return &nothing;
 		}
 		return stringMemory;
 	}
 
-	inline bool isEmpty() { return !stringMemory; }
+	inline bool isEmpty() { return stringMemory == nullptr; }
 
 private:
 	int32_t getNumReasons();

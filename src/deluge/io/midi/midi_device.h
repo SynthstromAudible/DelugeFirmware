@@ -135,7 +135,7 @@ public:
 	void sendRPN(int32_t channel, int32_t rpnMSB, int32_t rpnLSB, int32_t valueMSB);
 	// @}
 
-	inline bool hasDefaultVelocityToLevelSet() { return defaultVelocityToLevel; }
+	inline bool hasDefaultVelocityToLevelSet() { return defaultVelocityToLevel != 0; }
 
 	// Only 2 ports per device, but this is functionally set in stone due to existing code
 	// Originally done to ease integration to the midi device setting menu

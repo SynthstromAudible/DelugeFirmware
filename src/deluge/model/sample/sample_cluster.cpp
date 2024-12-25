@@ -25,7 +25,7 @@
 #include <cstddef>
 
 SampleCluster::~SampleCluster() {
-	if (cluster) {
+	if (cluster != nullptr) {
 
 #if ALPHA_OR_BETA_VERSION
 		int32_t numReasonsToBeLoaded = cluster->numReasonsToBeLoaded;
@@ -33,7 +33,7 @@ SampleCluster::~SampleCluster() {
 			numReasonsToBeLoaded--;
 		}
 
-		if (numReasonsToBeLoaded) {
+		if (numReasonsToBeLoaded != 0) {
 			D_PRINTLN("uh oh, some reasons left...  %d", numReasonsToBeLoaded);
 
 			// Bay_Mud got this, and thinks a FlashAir card might have been a catalyst. It still "shouldn't" be able to
@@ -46,8 +46,8 @@ SampleCluster::~SampleCluster() {
 }
 
 void SampleCluster::ensureNoReason(Sample* sample) {
-	if (cluster) {
-		if (cluster->numReasonsToBeLoaded) {
+	if (cluster != nullptr) {
+		if (cluster->numReasonsToBeLoaded != 0) {
 			D_PRINTLN("Cluster has reason!  %d %d", cluster->numReasonsToBeLoaded, sample->filePath.get());
 
 			if (cluster->numReasonsToBeLoaded >= 0) {
@@ -71,7 +71,7 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 	}
 
 	// If the Cluster hasn't been created yet
-	if (!cluster) {
+	if (cluster == nullptr) {
 
 		// If the file can no longer be found on the card, we're in trouble
 		if (sample->unloadable) {
@@ -85,7 +85,7 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		// D_PRINTLN("loading");
 		cluster = Cluster::create(); // Adds 1 reason
 
-		if (!cluster) {
+		if (cluster == nullptr) {
 			D_PRINTLN("couldn't allocate");
 			if (error != nullptr) {
 				*error = Error::INSUFFICIENT_RAM;
@@ -123,7 +123,7 @@ justEnqueue:
 			audioFileManager.loadingQueue.push(*cluster, priorityRating);
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-			if (cluster && cluster->numReasonsToBeLoaded <= 0) {
+			if ((cluster != nullptr) && cluster->numReasonsToBeLoaded <= 0) {
 				FREEZE_WITH_ERROR("i027"); // Diversifying Ron R's i004, which was diversifying Qui's E341
 			}
 #endif
@@ -161,7 +161,7 @@ justEnqueue:
 				cluster = nullptr;
 			}
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-			if (cluster && cluster->numReasonsToBeLoaded <= 0) {
+			if ((cluster != nullptr) && cluster->numReasonsToBeLoaded <= 0) {
 				FREEZE_WITH_ERROR("i026"); // Michael B got - insane.
 			}
 #endif
@@ -172,7 +172,7 @@ justEnqueue:
 	else {
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.1.3 have been getting E341.
-		if (cluster && cluster->numReasonsToBeLoaded < 0) {
+		if ((cluster != nullptr) && cluster->numReasonsToBeLoaded < 0) {
 			FREEZE_WITH_ERROR("i028"); // bnhrsch got this!!
 		}
 #endif
@@ -195,14 +195,14 @@ justEnqueue:
 		cluster->addReason();
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.0.x have been getting E341.
-		if (cluster && cluster->numReasonsToBeLoaded <= 0) {
+		if ((cluster != nullptr) && cluster->numReasonsToBeLoaded <= 0) {
 			FREEZE_WITH_ERROR("i025"); // Diversifying Ron R's i004, which was diversifying Qui's E341
 		}
 #endif
 	}
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.0.x have been getting E341.
-	if (cluster && cluster->numReasonsToBeLoaded <= 0) {
+	if ((cluster != nullptr) && cluster->numReasonsToBeLoaded <= 0) {
 		FREEZE_WITH_ERROR("i004"); // Ron R got this! Diversifying Qui's E341
 	}
 #endif

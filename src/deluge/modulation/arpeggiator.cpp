@@ -34,10 +34,10 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 	// sound if no SD card inserted, but also some synth presets, possibly just older ones, are saved without this so it
 	// can be set to the default at the time of loading.
 	Song* song = preLoadedSong;
-	if (!song) {
+	if (song == nullptr) {
 		song = currentSong;
 	}
-	if (song) {
+	if (song != nullptr) {
 		syncLevel = (SyncLevel)(8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
 	}
 	else {
@@ -87,7 +87,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
                                 ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) {
 	lastVelocity = velocity;
 
-	bool wasActiveBefore = arpNote.velocity;
+	bool wasActiveBefore = arpNote.velocity != 0u;
 
 	arpNote.inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
 	arpNote.inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
@@ -109,7 +109,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 			playedFirstArpeggiatedNoteYet = false;
 			gateCurrentlyActive = false;
 
-			if (!(playbackHandler.isEitherClockActive()) || !settings->syncLevel) {
+			if (!(playbackHandler.isEitherClockActive()) || (settings->syncLevel == 0u)) {
 				switchNoteOn(settings, instruction, false);
 			}
 		}
@@ -243,7 +243,7 @@ noteInserted:
 			playedFirstArpeggiatedNoteYet = false;
 			gateCurrentlyActive = false;
 
-			if (!(playbackHandler.isEitherClockActive()) || !settings->syncLevel) {
+			if (!(playbackHandler.isEitherClockActive()) || (settings->syncLevel == 0u)) {
 				switchNoteOn(settings, instruction, false);
 			}
 		}
@@ -945,11 +945,11 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 }
 
 bool Arpeggiator::hasAnyInputNotesActive() {
-	return notes.getNumElements();
+	return notes.getNumElements() != 0;
 }
 
 bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
-	return arpNote.velocity;
+	return arpNote.velocity != 0u;
 }
 
 void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue, uint32_t noteProb,
@@ -1039,7 +1039,7 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 
 	uint32_t maxGateForRatchet = maxGate >> ratchetNotesMultiplier;
 
-	bool syncedNow = (settings->syncLevel && (playbackHandler.isEitherClockActive()));
+	bool syncedNow = ((settings->syncLevel != 0u) && (playbackHandler.isEitherClockActive()));
 
 	// If gatePos is far enough along that we at least want to switch off any note...
 	if (gatePos >= ratchetNotesIndex * maxGateForRatchet + gateThresholdSmall) {
@@ -1083,7 +1083,7 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 
 	int32_t howFarIntoPeriod = clipCurrentPos % ticksPerPeriod;
 
-	if (!howFarIntoPeriod) {
+	if (howFarIntoPeriod == 0) {
 		if (hasAnyInputNotesActive()) {
 			switchAnyNoteOff(instruction);
 			switchNoteOn(settings, instruction, false);

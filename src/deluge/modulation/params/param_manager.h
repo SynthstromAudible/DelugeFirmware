@@ -48,9 +48,9 @@ public:
 	~ParamManager();
 
 	// Not including MPE params
-	inline bool containsAnyMainParamCollections() { return expressionParamSetOffset; }
+	inline bool containsAnyMainParamCollections() { return expressionParamSetOffset != 0u != 0u; }
 
-	inline bool containsAnyParamCollectionsIncludingExpression() { return summaries[0].paramCollection; }
+	inline bool containsAnyParamCollectionsIncludingExpression() { return summaries[0].paramCollection != nullptr; }
 
 	Error setupWithPatching();
 	Error setupUnpatched();
@@ -78,7 +78,7 @@ public:
 
 	inline MIDIParamCollection* getMIDIParamCollection() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[0].paramCollection) {
+		if (summaries[0].paramCollection == nullptr) {
 			FREEZE_WITH_ERROR("E409");
 		}
 #endif
@@ -87,7 +87,7 @@ public:
 
 	inline ParamCollectionSummary* getMIDIParamCollectionSummary() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[0].paramCollection) {
+		if (summaries[0].paramCollection == nullptr) {
 			FREEZE_WITH_ERROR("E409");
 		}
 #endif
@@ -96,7 +96,7 @@ public:
 
 	inline UnpatchedParamSet* getUnpatchedParamSet() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[0].paramCollection) {
+		if (summaries[0].paramCollection == nullptr) {
 			FREEZE_WITH_ERROR("E410");
 		}
 #endif
@@ -105,7 +105,7 @@ public:
 
 	inline ParamCollectionSummary* getUnpatchedParamSetSummary() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[0].paramCollection) {
+		if (summaries[0].paramCollection == nullptr) {
 			FREEZE_WITH_ERROR("E410");
 		}
 #endif
@@ -114,7 +114,7 @@ public:
 
 	inline PatchedParamSet* getPatchedParamSet() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[1].paramCollection) {
+		if (summaries[1].paramCollection == nullptr) {
 			FREEZE_WITH_ERROR("E411");
 		}
 #endif
@@ -123,7 +123,7 @@ public:
 
 	inline ParamCollectionSummary* getPatchedParamSetSummary() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[1].paramCollection) {
+		if (summaries[1].paramCollection == nullptr) {
 			FREEZE_WITH_ERROR("E411");
 		}
 #endif
@@ -132,7 +132,7 @@ public:
 
 	inline ParamCollectionSummary* getPatchCableSetSummary() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[2].paramCollection) {
+		if (summaries[2].paramCollection == nullptr) {
 			FREEZE_WITH_ERROR("E412");
 		}
 #endif
@@ -141,7 +141,7 @@ public:
 
 	inline PatchCableSet* getPatchCableSet() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[2].paramCollection) {
+		if (summaries[2].paramCollection == nullptr) {
 			FREEZE_WITH_ERROR("E412");
 		}
 #endif

@@ -29,7 +29,7 @@ ClipInstance::ClipInstance() {
 }
 
 RGB ClipInstance::getColour() {
-	if (!clip || clip->isArrangementOnlyClip()) {
+	if ((clip == nullptr) || clip->isArrangementOnlyClip()) {
 		return RGB::monochrome(128);
 	}
 
@@ -37,10 +37,10 @@ RGB ClipInstance::getColour() {
 }
 
 void ClipInstance::change(Action* action, Output* output, int32_t newPos, int32_t newLength, Clip* newClip) {
-	if (action) {
+	if (action != nullptr) {
 		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipInstanceChange));
 
-		if (consMemory) {
+		if (consMemory != nullptr) {
 			ConsequenceClipInstanceChange* newConsequence =
 			    new (consMemory) ConsequenceClipInstanceChange(output, this, newPos, newLength, newClip);
 			action->addConsequence(newConsequence);

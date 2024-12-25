@@ -82,7 +82,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 
 		soundEditor.currentMIDICable = getCable(this->getValue());
 
-	} while (!soundEditor.currentMIDICable->connectionFlags);
+	} while (soundEditor.currentMIDICable->connectionFlags == 0u);
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
 	if (display->haveOLED()) {
@@ -158,7 +158,7 @@ void Devices::drawPixelsForOled() {
 	size_t row = 0;
 	while (row < kOLEDMenuNumOptionsVisible && device_idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 		MIDICable* cable = getCable(device_idx);
-		if (cable && cable->connectionFlags != 0u) {
+		if ((cable != nullptr) && cable->connectionFlags != 0u) {
 			itemNames.push_back(cable->getDisplayName());
 			if (device_idx == this->getValue()) {
 				selectedRow = static_cast<int32_t>(row);

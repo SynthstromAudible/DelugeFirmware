@@ -105,7 +105,7 @@ bool interpretEncoders(bool skipActioning) {
 			}
 		}
 
-		if (encodersWaitingForCardRoutineEnd & (1 << e)) {
+		if ((encodersWaitingForCardRoutineEnd & (1 << e)) != 0u) {
 			continue;
 		}
 
@@ -169,7 +169,7 @@ checkResult:
 					PadLEDs::changeRefreshTime(limitedDetentPos);
 				}
 				else if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
-					if (currentSong) {
+					if (currentSong != nullptr) {
 						currentSong->changeThresholdRecordingMode(limitedDetentPos);
 					}
 				}

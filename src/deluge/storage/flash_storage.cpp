@@ -562,7 +562,7 @@ void readSettings() {
 	MIDIDeviceManager::differentiatingInputsByDevice = buffer[79];
 
 	defaultBendRange[BEND_RANGE_MAIN] = buffer[112];
-	if (!defaultBendRange[BEND_RANGE_MAIN]) {
+	if (defaultBendRange[BEND_RANGE_MAIN] == 0u) {
 		defaultBendRange[BEND_RANGE_MAIN] = 12;
 	}
 

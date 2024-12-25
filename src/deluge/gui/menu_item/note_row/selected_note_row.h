@@ -47,7 +47,7 @@ public:
 		bool isKit = clip->output->type == OutputType::KIT;
 
 		if (!isKit) {
-			if (!modelStackWithNoteRow->getNoteRowAllowNull()) { // if note row doesn't exist yet, create it
+			if (modelStackWithNoteRow->getNoteRowAllowNull() == nullptr) { // if note row doesn't exist yet, create it
 				modelStackWithNoteRow =
 				    instrumentClipView.createNoteRowForYDisplay(modelStack, instrumentClipView.lastAuditionedYDisplay);
 			}

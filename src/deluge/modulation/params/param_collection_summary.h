@@ -25,10 +25,10 @@ class ParamCollectionSummary {
 public:
 	inline bool containsAutomation() {
 		if constexpr (kMaxNumUnsignedIntegerstoRepAllParams > 2) {
-			return (whichParamsAreAutomated[0] | whichParamsAreAutomated[1] | whichParamsAreAutomated[2]);
+			return (whichParamsAreAutomated[0] | whichParamsAreAutomated[1] | whichParamsAreAutomated[2]) != 0u != 0u;
 		}
 		else {
-			return (whichParamsAreAutomated[0] | whichParamsAreAutomated[1]);
+			return (whichParamsAreAutomated[0] | whichParamsAreAutomated[1]) != 0u != 0u;
 		}
 	}
 

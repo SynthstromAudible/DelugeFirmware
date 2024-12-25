@@ -266,7 +266,7 @@ bool PerformanceView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 }
 
 bool PerformanceView::opened() {
-	if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
+	if ((playbackHandler.playbackState != 0u) && currentPlaybackMode == &arrangement) {
 		PadLEDs::skipGreyoutFade();
 	}
 
@@ -303,9 +303,9 @@ void PerformanceView::graphicsRoutine() {
 	if (currentUIMode == UI_MODE_NONE) {
 		int32_t modKnobMode = -1;
 		bool editingComp = false;
-		if (view.activeModControllableModelStack.modControllable) {
+		if (view.activeModControllableModelStack.modControllable != nullptr) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer) {
+			if (modKnobModePointer != nullptr) {
 				modKnobMode = *modKnobModePointer;
 				editingComp = view.activeModControllableModelStack.modControllable->isEditingComp();
 			}
@@ -321,7 +321,7 @@ void PerformanceView::graphicsRoutine() {
 	}
 
 	// if we're not currently selecting a clip
-	if (!((currentSong->lastClipInstanceEnteredStartPos != -1) && arrangerView.getClipForSelection())) {
+	if (!((currentSong->lastClipInstanceEnteredStartPos != -1) && (arrangerView.getClipForSelection() != nullptr))) {
 		if (view.potentiallyRenderVUMeter(PadLEDs::image)) {
 			PadLEDs::sendOutSidebarColours();
 		}
@@ -330,7 +330,7 @@ void PerformanceView::graphicsRoutine() {
 	bool reallyNoTickSquare =
 	    (!playbackHandler.isEitherClockActive() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
 	     || currentUIMode == UI_MODE_IMPLODE_ANIMATION || currentSong->lastClipInstanceEnteredStartPos != -1
-	     || !session.launchEventAtSwungTickCount);
+	     || (session.launchEventAtSwungTickCount == 0));
 
 	int32_t sixteenthNotesRemaining = 0;
 
@@ -355,11 +355,11 @@ ActionResult PerformanceView::timerCallback() {
 
 bool PerformanceView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
-	if (!image) {
+	if (image == nullptr) {
 		return true;
 	}
 
-	if (!occupancyMask) {
+	if (occupancyMask == nullptr) {
 		return true;
 	}
 
@@ -452,11 +452,11 @@ bool PerformanceView::isParamAssignedToFXColumn(params::Kind paramKind, int32_t 
 /// if entered performance view using pink grid mode pad, render the pink pad
 bool PerformanceView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	if (!image) {
+	if (image == nullptr) {
 		return true;
 	}
 
-	if (!occupancyMask) {
+	if (occupancyMask == nullptr) {
 		return true;
 	}
 
@@ -766,12 +766,12 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 				Buttons::recordButtonPressUsedUp = true;
 
 				// Make sure we weren't already playing...
-				if (!playbackHandler.playbackState) {
+				if (playbackHandler.playbackState == 0u) {
 
 					Action* action = actionLogger.getNewAction(ActionType::ARRANGEMENT_RECORD);
 
 					arrangerView.xScrollWhenPlaybackStarted = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
-					if (action) {
+					if (action != nullptr) {
 						action->posToClearArrangementFrom = arrangerView.xScrollWhenPlaybackStarted;
 					}
 
@@ -988,7 +988,7 @@ ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 
 		// if pad was pressed in main deluge grid (not sidebar)
 		if (xDisplay < kDisplayWidth) {
-			if (on) {
+			if (on != 0) {
 				// if it's a shortcut press, enter soundEditor menu for that parameter
 				// but not if you're in default editing mode
 				if (Buttons::isShiftButtonPressed()) {
@@ -996,7 +996,7 @@ ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 						return ActionResult::DEALT_WITH;
 					}
 					else {
-						return soundEditor.potentialShortcutPadAction(xDisplay, yDisplay, on);
+						return soundEditor.potentialShortcutPadAction(xDisplay, yDisplay, on != 0);
 					}
 				}
 			}
@@ -1032,7 +1032,7 @@ ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 				else {
 					arrangerView.handleAuditionPadAction(yDisplay, on, this);
 					// when you let go of audition pad action, you need to reset led states
-					if (!on) {
+					if (on == 0) {
 						setCentralLEDStates();
 					}
 				}
@@ -1059,7 +1059,7 @@ ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 			}
 		}
 	}
-	else if (!on) {
+	else if (on == 0) {
 		justExitedSoundEditor = false;
 	}
 	return ActionResult::DEALT_WITH;
@@ -1073,7 +1073,7 @@ void PerformanceView::normalPadAction(ModelStackWithThreeMainThings* modelStack,
 	int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
 
 	// pressing a pad
-	if (on) {
+	if (on != 0) {
 		// no need to pad press action if you've already processed it previously and pad was held
 		if (fxPress[xDisplay].yDisplay != yDisplay) {
 			backupPerformanceLayout();
@@ -1201,7 +1201,7 @@ void PerformanceView::padReleaseAction(ModelStackWithThreeMainThings* modelStack
 void PerformanceView::paramEditorPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay,
                                            int32_t yDisplay, int32_t on) {
 	// pressing a pad
-	if (on) {
+	if (on != 0) {
 		// if you haven't yet pressed and are holding a param shortcut pad on the param overview
 		if (!firstPadPress.isActive) {
 			if (isPadShortcut(xDisplay, yDisplay)) {
@@ -1210,7 +1210,7 @@ void PerformanceView::paramEditorPadAction(ModelStackWithThreeMainThings* modelS
 				firstPadPress.paramID = paramIDShortcutsForPerformanceView[xDisplay][yDisplay];
 				firstPadPress.xDisplay = xDisplay;
 				firstPadPress.yDisplay = yDisplay;
-				renderFXDisplay(firstPadPress.paramKind, firstPadPress.paramID, false);
+				renderFXDisplay(firstPadPress.paramKind, firstPadPress.paramID, 0);
 			}
 		}
 		// if you are holding a param shortcut pad and are now pressing a pad in an FX column
@@ -1396,7 +1396,7 @@ bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStac
                                         int32_t paramID, int32_t xDisplay, int32_t knobPos, bool renderDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = currentSong->getModelStackWithParam(modelStack, paramID);
 
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
+	if ((modelStackWithParam != nullptr) && (modelStackWithParam->autoParam != nullptr)) {
 
 		if (modelStackWithParam->getTimelineCounter()
 		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
@@ -1451,7 +1451,7 @@ void PerformanceView::getParameterValue(ModelStackWithThreeMainThings* modelStac
                                         int32_t paramID, int32_t xDisplay, bool renderDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = currentSong->getModelStackWithParam(modelStack, paramID);
 
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
+	if ((modelStackWithParam != nullptr) && (modelStackWithParam->autoParam != nullptr)) {
 
 		if (modelStackWithParam->getTimelineCounter()
 		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
@@ -1603,9 +1603,9 @@ void PerformanceView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	// release stutter if it's already active before beginning stutter again
 	if (on) {
 		int32_t modKnobMode = -1;
-		if (view.activeModControllableModelStack.modControllable) {
+		if (view.activeModControllableModelStack.modControllable != nullptr) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer) {
+			if (modKnobModePointer != nullptr) {
 				modKnobMode = *modKnobModePointer;
 
 				// Stutter section
@@ -1876,8 +1876,8 @@ void PerformanceView::readDefaultsFromFile() {
 	Deserializer& reader = smDeserializer;
 	char const* tagName;
 	// step into the <defaultFXValues> tag
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, PERFORM_DEFAULTS_FXVALUES_TAG)) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+		if (strcmp(tagName, PERFORM_DEFAULTS_FXVALUES_TAG) == 0) {
 			readDefaultFXValuesFromFile();
 		}
 		reader.exitTag();
@@ -1913,12 +1913,12 @@ void PerformanceView::readDefaultFXValuesFromFile() {
 	Deserializer& reader = smDeserializer;
 	// loop through all FX number tags
 	//<FX#>
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		// find the FX number that the tag corresponds to
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			intToString(xDisplay + 1, &tagNameFX[2]);
 
-			if (!strcmp(tagName, tagNameFX)) {
+			if (strcmp(tagName, tagNameFX) == 0) {
 				readDefaultFXParamAndRowValuesFromFile(xDisplay);
 				break;
 			}
@@ -1930,17 +1930,17 @@ void PerformanceView::readDefaultFXValuesFromFile() {
 void PerformanceView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
 	Deserializer& reader = smDeserializer;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		//<param>
-		if (!strcmp(tagName, PERFORM_DEFAULTS_PARAM_TAG)) {
+		if (strcmp(tagName, PERFORM_DEFAULTS_PARAM_TAG) == 0) {
 			readDefaultFXParamFromFile(xDisplay);
 		}
 		//<row>
-		else if (!strcmp(tagName, PERFORM_DEFAULTS_ROW_TAG)) {
+		else if (strcmp(tagName, PERFORM_DEFAULTS_ROW_TAG) == 0) {
 			readDefaultFXRowNumberValuesFromFile(xDisplay);
 		}
 		//<hold>
-		else if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_TAG)) {
+		else if (strcmp(tagName, PERFORM_DEFAULTS_HOLD_TAG) == 0) {
 			readDefaultFXHoldStatusFromFile(xDisplay);
 		}
 		reader.exitTag();
@@ -1958,7 +1958,7 @@ void PerformanceView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
 		paramName = params::paramNameForFile(songParamsForPerformance[i].paramKind,
 		                                     params::UNPATCHED_START + songParamsForPerformance[i].paramID);
-		if (!strcmp(tagName, paramName)) {
+		if (strcmp(tagName, paramName) == 0) {
 			memcpy(&layoutForPerformance[xDisplay], &songParamsForPerformance[i], sizeof(ParamsForPerformance));
 
 			memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &layoutForPerformance[xDisplay],
@@ -1973,12 +1973,12 @@ void PerformanceView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
 	char rowNumber[5];
 	Deserializer& reader = smDeserializer;
 	// loop through all row <#> number tags
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		// find the row number that the tag corresponds to
 		// reads from row 8 down to row 1
 		for (int32_t yDisplay = kDisplayHeight - 1; yDisplay >= 0; yDisplay--) {
 			intToString(yDisplay + 1, rowNumber);
-			if (!strcmp(tagName, rowNumber)) {
+			if (strcmp(tagName, rowNumber) == 0) {
 				defaultFXValues[xDisplay][yDisplay] = reader.readTagOrAttributeValueInt() - kKnobPosOffset;
 
 				// check if a value greater than 64 was entered as a default value in xml file
@@ -2004,11 +2004,11 @@ void PerformanceView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 	char const* tagName;
 	// loop through the hold tags
 	Deserializer& reader = smDeserializer;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		//<status>
-		if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {
+		if (strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG) == 0) {
 			char const* holdStatus = reader.readTagOrAttributeValue();
-			if (!strcmp(holdStatus, PERFORM_DEFAULTS_ON)) {
+			if (strcmp(holdStatus, PERFORM_DEFAULTS_ON) == 0) {
 				if (!params::isParamStutter(layoutForPerformance[xDisplay].paramKind,
 				                            layoutForPerformance[xDisplay].paramID)) {
 					fxPress[xDisplay].padPressHeld = true;
@@ -2020,7 +2020,7 @@ void PerformanceView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 			}
 		}
 		//<row>
-		else if (!strcmp(tagName, PERFORM_DEFAULTS_ROW_TAG)) {
+		else if (strcmp(tagName, PERFORM_DEFAULTS_ROW_TAG) == 0) {
 			int32_t yDisplay = reader.readTagOrAttributeValueInt();
 			if ((yDisplay >= 1) && (yDisplay <= 8)) {
 				fxPress[xDisplay].yDisplay = yDisplay - 1;
@@ -2031,7 +2031,7 @@ void PerformanceView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 			}
 		}
 		//<resetValue>
-		else if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG)) {
+		else if (strcmp(tagName, PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG) == 0) {
 			fxPress[xDisplay].previousKnobPosition = reader.readTagOrAttributeValueInt() - kKnobPosOffset;
 			// check if a value greater than 64 was entered as a default value in xml file
 			if (fxPress[xDisplay].previousKnobPosition > kKnobPosOffset) {

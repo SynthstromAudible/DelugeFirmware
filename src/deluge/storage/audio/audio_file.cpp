@@ -113,7 +113,7 @@ doSetupWaveTable:
 					// the user isn't insisting, then opt not to do it.
 					if (!fileExplicitlySpecifiesSelfAsWaveTable && !makeWaveTableWorkAtAllCosts) {
 						int32_t audioDataLengthSamples = audioDataLengthBytes / byteDepth;
-						if (audioDataLengthSamples & 2047) {
+						if ((audioDataLengthSamples & 2047) != 0) {
 							return Error::FILE_NOT_LOADABLE_AS_WAVETABLE;
 						}
 					}
@@ -199,7 +199,7 @@ doSetupWaveTable:
 					uint32_t midiPitchFraction = data[4];
 					uint32_t numLoops = data[7];
 
-					if ((midiNote || midiPitchFraction) && midiNote < 128) {
+					if (((midiNote != 0u) || (midiPitchFraction != 0u)) && midiNote < 128) {
 						((Sample*)this)->midiNoteFromFile = (float)midiPitchFraction / ((uint64_t)1 << 32) + midiNote;
 					}
 
@@ -413,7 +413,7 @@ doSetupWaveTable:
 
 					uint8_t midiNote = data[0];
 					int8_t fineTune = data[1];
-					if ((midiNote || fineTune) && midiNote < 128) {
+					if (((midiNote != 0u) || (fineTune != 0)) && midiNote < 128) {
 						((Sample*)this)->midiNoteFromFile = (float)midiNote - (float)fineTune * 0.01;
 						D_PRINTLN("unshifted note:  %s", ((Sample*)this)->midiNoteFromFile);
 					}
@@ -485,7 +485,7 @@ finishedWhileLoop:
 
 void AudioFile::addReason() {
 	// If it was zero before, it's no longer unused
-	if (!numReasonsToBeLoaded) {
+	if (numReasonsToBeLoaded == 0) {
 		remove();
 		numReasonsIncreasedFromZero();
 	}

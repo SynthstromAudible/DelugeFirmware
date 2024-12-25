@@ -264,7 +264,7 @@ void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName,
 
 	char fullChordName[300];
 
-	if (voicingName && *voicingName) {
+	if ((voicingName != nullptr) && (*voicingName != 0)) {
 		sprintf(fullChordName, "%s%s - %s", noteName, chordName, voicingName);
 	}
 	else {
@@ -275,7 +275,7 @@ void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName,
 		D_PRINTLN("Popup text: %s", fullChordName);
 	}
 	else {
-		int8_t drawDot = !isNatural ? 0 : 255;
+		int8_t drawDot = (isNatural == 0) ? 0 : 255;
 		display->setScrollingText(fullChordName, 0);
 	}
 }

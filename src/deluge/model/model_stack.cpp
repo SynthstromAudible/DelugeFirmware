@@ -45,7 +45,7 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 	toReturn->noteRowId = isKit ? noteRowIndex : newNoteRow->y;
 	toReturn->setNoteRow(newNoteRow);
 	toReturn->modControllable =
-	    (isKit && newNoteRow->drum) ? newNoteRow->drum->toModControllable() : output->toModControllable();
+	    (isKit && (newNoteRow->drum != nullptr)) ? newNoteRow->drum->toModControllable() : output->toModControllable();
 	toReturn->paramManager = &newNoteRow->paramManager;
 	return toReturn;
 }
@@ -64,9 +64,9 @@ ModelStackWithNoteRow* ModelStackWithNoteRowId::automaticallyAddNoteRowFromId() 
 bool ModelStackWithNoteRow::isCurrentlyPlayingReversed() const {
 
 	// Under a few different conditions, we just use the parent Clip's reversing status.
-	if (!noteRow
+	if ((noteRow == nullptr)
 	    || (noteRow->sequenceDirectionMode == SequenceDirection::OBEY_PARENT
-	        && (!noteRow->loopLengthIfIndependent
+	        && ((noteRow->loopLengthIfIndependent == 0)
 	            || ((Clip*)getTimelineCounter())->sequenceDirectionMode != SequenceDirection::PINGPONG))) {
 		return ((Clip*)getTimelineCounter())->currentlyPlayingReversed;
 	}
@@ -78,7 +78,7 @@ bool ModelStackWithNoteRow::isCurrentlyPlayingReversed() const {
 }
 
 int32_t ModelStackWithNoteRow::getLoopLength() const {
-	if (noteRow && noteRow->loopLengthIfIndependent) {
+	if ((noteRow != nullptr) && (noteRow->loopLengthIfIndependent != 0)) {
 		return noteRow->loopLengthIfIndependent;
 	}
 	else {
@@ -88,7 +88,7 @@ int32_t ModelStackWithNoteRow::getLoopLength() const {
 
 int32_t ModelStackWithNoteRow::getLastProcessedPos() const {
 
-	if (noteRow && noteRow->hasIndependentPlayPos()) {
+	if ((noteRow != nullptr) && noteRow->hasIndependentPlayPos()) {
 		return noteRow->lastProcessedPosIfIndependent;
 		// I have a feeling I should sort of be taking noteRowsNumTicksBehindClip into account here - but I know it's
 		// usually zero when this gets called, and perhaps the other times I want to ignore it? Should probably
@@ -100,7 +100,7 @@ int32_t ModelStackWithNoteRow::getLastProcessedPos() const {
 }
 
 int32_t ModelStackWithNoteRow::getRepeatCount() const {
-	if (noteRow && noteRow->hasIndependentPlayPos()) {
+	if ((noteRow != nullptr) && noteRow->hasIndependentPlayPos()) {
 		return noteRow->repeatCountIfIndependent;
 	}
 	else {
@@ -111,7 +111,7 @@ int32_t ModelStackWithNoteRow::getRepeatCount() const {
 // That's *cut* - as in, cut out abruptly. If it's looping, and the user isn't stopping it, that's not a cut.
 // A cut could be if the Session-Clip is armed to stop, or if we're getting to the end of a ClipInstance in Arranger
 int32_t ModelStackWithNoteRow::getPosAtWhichPlaybackWillCut() const {
-	if (noteRow && noteRow->hasIndependentPlayPos()) {
+	if ((noteRow != nullptr) && noteRow->hasIndependentPlayPos()) {
 		if (currentPlaybackMode == &session) {
 
 			// Might need Arrangement-recording logic here, like in Session::getPosAtWhichClipWillCut()...
@@ -140,7 +140,7 @@ int32_t ModelStackWithNoteRow::getPosAtWhichPlaybackWillCut() const {
 			if (noteRow->getEffectiveSequenceDirectionMode(this) == SequenceDirection::PINGPONG) {
 				if (reversed) {
 					if (cutPos < 0) {
-						cutPos = noteRow->lastProcessedPosIfIndependent
+						cutPos = (noteRow->lastProcessedPosIfIndependent != 0)
 						             ? 0
 						             : -getLoopLength(); // Check we're not right at pos 0, as we briefly will be when
 						                                 // we pingpong at the right-hand end of the Clip/etc.
@@ -167,7 +167,7 @@ int32_t ModelStackWithNoteRow::getPosAtWhichPlaybackWillCut() const {
 }
 
 int32_t ModelStackWithNoteRow::getLivePos() const {
-	if (noteRow) {
+	if (noteRow != nullptr) {
 		return noteRow->getLivePos(this);
 	}
 	else {
@@ -180,7 +180,7 @@ ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomatic
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
 	NoteRow* noteRowHere = getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
-	toReturn->modControllable = (clip->output->type == OutputType::KIT && noteRowHere->drum) // What if there's no Drum?
+	toReturn->modControllable = (clip->output->type == OutputType::KIT && (noteRowHere->drum != nullptr)) // What if there's no Drum?
 	                                ? noteRowHere->drum->toModControllable()
 	                                : clip->output->toModControllable();
 	toReturn->paramManager = &noteRowHere->paramManager;
@@ -188,33 +188,33 @@ ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomatic
 }
 
 bool ModelStackWithParamId::isParam(Kind kind, ParamType id) {
-	return paramCollection && paramCollection->getParamKind() == kind && paramId == id;
+	return (paramCollection != nullptr) && paramCollection->getParamKind() == kind && paramId == id;
 }
 
 bool ModelStackWithSoundFlags::checkSourceEverActiveDisregardingMissingSample(int32_t s) {
 	int32_t flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s];
 	if (flagValue == FLAG_TBD) {
-		flagValue = ((Sound*)modControllable)
-		                ->isSourceActiveEverDisregardingMissingSample(s, (ParamManagerForTimeline*)paramManager);
+		flagValue = static_cast<int32_t>(((Sound*)modControllable)
+		                ->isSourceActiveEverDisregardingMissingSample(s, (ParamManagerForTimeline*)paramManager));
 		soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s] = flagValue;
 	}
-	return flagValue;
+	return flagValue != 0;
 }
 
 bool ModelStackWithSoundFlags::checkSourceEverActive(int32_t s) {
 	int32_t flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE + s];
 	if (flagValue == FLAG_TBD) {
-		flagValue = checkSourceEverActiveDisregardingMissingSample(s);
-		if (flagValue) { // Does an &&
+		flagValue = static_cast<int32_t>(checkSourceEverActiveDisregardingMissingSample(s));
+		if (flagValue != 0) { // Does an &&
 			Sound* sound = (Sound*)modControllable;
 			flagValue =
-			    sound->synthMode == SynthMode::FM
+			    static_cast<int32_t>(sound->synthMode == SynthMode::FM
 			    || (sound->sources[s].oscType != OscType::SAMPLE && sound->sources[s].oscType != OscType::WAVETABLE)
-			    || sound->sources[s].hasAtLeastOneAudioFileLoaded();
+			    || sound->sources[s].hasAtLeastOneAudioFileLoaded());
 		}
 		soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE + s] = flagValue;
 	}
-	return flagValue;
+	return flagValue != 0;
 }
 
 void copyModelStack(void* newMemory, void const* oldMemory, int32_t size) {
@@ -223,7 +223,7 @@ void copyModelStack(void* newMemory, void const* oldMemory, int32_t size) {
 
 ModelStackWithAutoParam* ModelStackWithThreeMainThings::getUnpatchedAutoParamFromId(int32_t newParamId) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
+	if ((paramManager != nullptr) && paramManager->containsAnyParamCollectionsIncludingExpression()) {
 		ParamCollectionSummary* summary = paramManager->getUnpatchedParamSetSummary();
 
 		ModelStackWithParamId* modelStackWithParamId =
@@ -236,7 +236,7 @@ ModelStackWithAutoParam* ModelStackWithThreeMainThings::getUnpatchedAutoParamFro
 
 ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchedAutoParamFromId(int32_t newParamId) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
+	if ((paramManager != nullptr) && paramManager->containsAnyParamCollectionsIncludingExpression()) {
 		ParamCollectionSummary* summary = paramManager->getPatchedParamSetSummary();
 
 		ModelStackWithParamId* modelStackWithParamId =
@@ -249,7 +249,7 @@ ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchedAutoParamFromI
 
 ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchCableAutoParamFromId(int32_t newParamId) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
+	if ((paramManager != nullptr) && paramManager->containsAnyParamCollectionsIncludingExpression()) {
 		ParamCollectionSummary* summary = paramManager->getPatchCableSetSummary();
 
 		ModelStackWithParamId* modelStackWithParamId =

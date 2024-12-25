@@ -130,7 +130,7 @@ sdError:
 
 	// If currentPath is blank, or is somewhere outside of the SAMPLES folder, then default to previously manually
 	// loaded sample
-	if (currentPath.isEmpty() || memcasecmp(currentPath.get(), "SAMPLES/", 8)) {
+	if (currentPath.isEmpty() || (memcasecmp(currentPath.get(), "SAMPLES/", 8) != 0)) {
 		currentPath.set(&lastFilePathLoaded);
 
 		// If that's blank too, then default to SAMPLES folder.
@@ -145,7 +145,7 @@ sdError:
 		// Must dissect
 		char const* currentPathChars = currentPath.get();
 		char const* slashAddress = strrchr(currentPathChars, '/');
-		if (!slashAddress) {
+		if (slashAddress == nullptr) {
 			searchFilename = currentPathChars;
 			currentDir.clear();
 		}
@@ -215,12 +215,12 @@ void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 
 		char const* currentFilenameChars = currentFileItem->filename.get();
 
-		for (int32_t f = 0; numCharsInPrefix && f < fileItems.getNumElements(); f++) {
+		for (int32_t f = 0; (numCharsInPrefix != 0) && f < fileItems.getNumElements(); f++) {
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(f);
 
 			for (int32_t i = 0; i < numCharsInPrefix; i++) {
 				char const* thisFileName = fileItem->filename.get();
-				if (!thisFileName[i] || thisFileName[i] != currentFilenameChars[i]) {
+				if ((thisFileName[i] == 0) || thisFileName[i] != currentFilenameChars[i]) {
 					numCharsInPrefix = i;
 					break;
 				}
@@ -234,7 +234,7 @@ void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 
 	// Can start scrolling right now, while next preview loads
-	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible)) {
+	if ((movementDirection != 0) && (currentlyShowingSamplePreview || qwertyVisible)) {
 		qwertyVisible = false;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
@@ -262,7 +262,7 @@ void SampleBrowser::exitAction() {
 	if (!isUIOpen(&soundEditor)) {
 		// If no file was selected, the user wanted to get out of creating this Drum.
 		// Only if some unassigned Drums
-		if (soundEditor.editingKit() && getCurrentKit()->getFirstUnassignedDrum(getCurrentInstrumentClip())
+		if (soundEditor.editingKit() && (getCurrentKit()->getFirstUnassignedDrum(getCurrentInstrumentClip()) != nullptr)
 		    && soundEditor.getCurrentAudioFileHolder()->filePath.isEmpty()) {
 			instrumentClipView.deleteDrum((SoundDrum*)soundEditor.currentSound);
 			redrawUI = &instrumentClipView;
@@ -271,7 +271,7 @@ void SampleBrowser::exitAction() {
 
 	Browser::exitAction();
 
-	if (redrawUI) {
+	if (redrawUI != nullptr) {
 		uiNeedsRendering(redrawUI);
 	}
 }
@@ -331,7 +331,7 @@ void SampleBrowser::enterKeyPress() {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	if (!currentFileItem) {
+	if (currentFileItem == nullptr) {
 		if (display->haveOLED()) {
 			display->displayError(Error::FILE_NOT_FOUND);
 		}
@@ -405,9 +405,9 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 
 	// Save button, to delete audio file
 	if (b == SAVE && Buttons::isShiftButtonPressed()) {
-		if (!currentUIMode && on) {
+		if ((currentUIMode == 0u) && on) {
 			FileItem* currentFileItem = getCurrentFileItem();
-			if (currentFileItem) {
+			if (currentFileItem != nullptr) {
 				if (!currentFileItem->isFolder) { // This is an additional requirement only present in this class
 
 					AudioEngine::stopAnyPreviewing();
@@ -490,7 +490,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 bool SampleBrowser::canImportWholeKit() {
 	return (soundEditor.editingKit() && soundEditor.currentSourceIndex == 0
 	        && (SoundDrum*)getCurrentInstrumentClip()->noteRows.getElement(0)->drum == soundEditor.currentSound
-	        && (!getCurrentKit()->firstDrum->next));
+	        && (getCurrentKit()->firstDrum->next == nullptr));
 }
 
 Error SampleBrowser::getCurrentFilePath(String* path) {
@@ -498,7 +498,7 @@ Error SampleBrowser::getCurrentFilePath(String* path) {
 
 	path->set(&currentDir);
 	int32_t oldLength = path->getLength();
-	if (oldLength) {
+	if (oldLength != 0) {
 		error = path->concatenateAtPos("/", oldLength);
 		if (error != Error::NONE) {
 gotError:
@@ -543,7 +543,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	// Preview the WAV file, if we're allowed
-	if (currentFileItem && !currentFileItem->isFolder) {
+	if ((currentFileItem != nullptr) && !currentFileItem->isFolder) {
 
 		String filePath;
 		Error error = getCurrentFilePath(&filePath);
@@ -561,7 +561,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 		if (!instrumentClipView.fileBrowserShouldNotPreview) {
 			switch (FlashStorage::sampleBrowserPreviewMode) {
 			case PREVIEW_ONLY_WHILE_NOT_PLAYING:
-				if (playbackHandler.playbackState) {
+				if (playbackHandler.playbackState != 0u) {
 					break;
 				}
 				// No break
@@ -591,7 +591,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 			AudioFile* sample = ((MultisampleRange*)AudioEngine::sampleForPreview->sources[0].ranges.getElement(0))
 			                        ->sampleHolder.audioFile;
 
-			if (sample) {
+			if (sample != nullptr) {
 				uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
 				currentlyShowingSamplePreview = true;
@@ -601,7 +601,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 				waveformBasicNavigator.opened();
 
 				// If want scrolling animation
-				if (movementDirection) {
+				if (movementDirection != 0) {
 					waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 					                                  waveformBasicNavigator.xZoom, PadLEDs::imageStore,
 					                                  &waveformBasicNavigator.renderData);
@@ -640,7 +640,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 			currentlyShowingSamplePreview = false;
 			qwertyCurrentlyDrawnOnscreen = qwertyVisible;
 
-			if (movementDirection) {
+			if (movementDirection != 0) {
 				getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 				//((ViewScreen*)getRootUI())->renderToStore(0, true, false);
 				if (getRootUI() != &keyboardScreen) {
@@ -680,7 +680,7 @@ ActionResult SampleBrowser::padAction(int32_t x, int32_t y, int32_t on) {
 	// Mute pads - exit UI
 	else if (x == kDisplayWidth) { // !currentlyShowingSamplePreview ||
 possiblyExit:
-		if (on && !currentUIMode) {
+		if ((on != 0) && (currentUIMode == 0u)) {
 			AudioEngine::stopAnyPreviewing();
 			if (sdRoutineLock) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -692,7 +692,7 @@ possiblyExit:
 	else {
 		// If qwerty not visible yet, make it visible
 		if (!qwertyVisible) {
-			if (on && !currentUIMode) {
+			if ((on != 0) && (currentUIMode == 0u)) {
 				if (sdRoutineLock) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
@@ -750,7 +750,7 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 	error = holder->loadFile(reversed, true, true);
 
 	// If there's a pre-margin, we want to set an attack-time
-	if (error == Error::NONE && ((SampleHolder*)holder)->startPos) {
+	if (error == Error::NONE && (((SampleHolder*)holder)->startPos != 0u)) {
 		getCurrentAudioClip()->attack = kAudioClipDefaultAttackIfPreMargin;
 	}
 
@@ -913,7 +913,7 @@ doLoadAsSample:
 
 			// If the file was actually clearly a wavetable file, and we're allowed to load one, then go do that
 			// instead.
-			if (mayDoWaveTable && numTypesTried <= 1 && sample->fileExplicitlySpecifiesSelfAsWaveTable) {
+			if ((mayDoWaveTable != 0) && numTypesTried <= 1 && sample->fileExplicitlySpecifiesSelfAsWaveTable) {
 				goto doLoadAsWaveTable;
 			}
 
@@ -925,7 +925,7 @@ doLoadAsSample:
 			if (!soundEditor.editingKit() && (mayDoSingleCycle == 2 || (mayDoSingleCycle == 1 && mSec <= 20))) {
 
 				// Ideally, we'd like to use the wavetable engine for this single-cycle-ness
-				if (mayDoWaveTable && numTypesTried <= 1 && sample->numChannels == 1
+				if ((mayDoWaveTable != 0) && numTypesTried <= 1 && sample->numChannels == 1
 				    && sample->lengthInSamples >= kWavetableMinCycleSize
 				    && sample->lengthInSamples <= kWavetableMaxCycleSize) {
 
@@ -948,11 +948,11 @@ doLoadAsSample:
 			else {
 
 				// If source file had loop points set...
-				if (sample->fileLoopEndSamples) {
+				if (sample->fileLoopEndSamples != 0u) {
 
 					// If this led to an actual loop end pos, with more waveform after it, and the sample's not too
 					// long, we can do a ONCE.
-					if (((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.loopEndPos && mSec < 2002) {
+					if ((((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.loopEndPos != 0u) && mSec < 2002) {
 						soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
 					}
 					else {
@@ -979,7 +979,7 @@ doLoadAsSample:
 				drum->name.clear();
 
 				String newName;
-				if (!numCharsInPrefix) {
+				if (numCharsInPrefix == 0) {
 					newName.set(&enteredText);
 				}
 				else {
@@ -992,7 +992,7 @@ doLoadAsSample:
 				Kit* kit = getCurrentKit();
 
 				// Ensure Drum name isn't a duplicate, and if need be, make a new name from the fileNamePostPrefix.
-				if (kit->getDrumFromName(newName.get())) {
+				if (kit->getDrumFromName(newName.get()) != nullptr) {
 
 					error = kit->makeDrumNameUnique(&newName, 2);
 					if (error != Error::NONE) {
@@ -1007,7 +1007,7 @@ doLoadAsSample:
 			else {
 
 				// Detect pitch
-				if (mayDoPitchDetection) {
+				if (mayDoPitchDetection != 0) {
 					bool shouldMinimizeOctaves = (soundEditor.currentSource->ranges.getNumElements() == 1);
 
 					((MultisampleRange*)soundEditor.currentMultiRange)
@@ -1049,7 +1049,7 @@ doLoadAsSample:
 		getCurrentInstrument()->beenEdited();
 
 		// If there was only one MultiRange, don't go back to the range menu (that's the BOT-TOP thing).
-		if (soundEditor.currentSource->ranges.getNumElements() <= 1 && soundEditor.navigationDepth
+		if (soundEditor.currentSource->ranges.getNumElements() <= 1 && (soundEditor.navigationDepth != 0u)
 		    && soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth - 1] == &menu_item::multiRangeMenu) {
 			soundEditor.navigationDepth--;
 		}
@@ -1231,7 +1231,7 @@ removeReasonsFromSamplesAndGetOut:
 	String filePath;
 	filePath.set(&dirToLoad);
 	int32_t dirWithSlashLength = filePath.getLength();
-	if (dirWithSlashLength) {
+	if (dirWithSlashLength != 0) {
 		filePath.concatenateAtPos("/", dirWithSlashLength);
 		dirWithSlashLength++;
 	}
@@ -1248,7 +1248,7 @@ removeReasonsFromSamplesAndGetOut:
 		if (staticFNO.fname[0] == '.') {
 			continue; // Ignore dot entry
 		}
-		if (staticFNO.fattrib & AM_DIR) {
+		if ((staticFNO.fattrib & AM_DIR) != 0) {
 			continue; // Ignore folders
 		}
 		if (!isAudioFilename(staticFNO.fname)) {
@@ -1263,7 +1263,7 @@ removeReasonsFromSamplesAndGetOut:
 		if (numSamples > 0) {
 
 			for (int32_t i = 0; i < numCharsInPrefixForFolderLoad; i++) {
-				if (!staticFNO.fname[i] || staticFNO.fname[i] != previouslyViewedFilename[i]) {
+				if ((staticFNO.fname[i] == 0) || staticFNO.fname[i] != previouslyViewedFilename[i]) {
 					numCharsInPrefixForFolderLoad = i;
 					break;
 				}
@@ -1303,7 +1303,7 @@ removeReasonsFromSamplesAndGetOut:
 	}
 	f_closedir(&staticDIR);
 
-	if (getPrefixAndDirLength) {
+	if (getPrefixAndDirLength != nullptr) {
 		// If just one file, there's no prefix.
 		if (numSamples <= 1) {
 			numCharsInPrefixForFolderLoad = 0;
@@ -1320,7 +1320,7 @@ removeReasonsFromSamplesAndGetOut:
 	bool discardingMIDINoteFromFile = (numSamples > 1 && commonMIDINote >= 0);
 
 	Sample** sortArea = (Sample**)GeneralMemoryAllocator::get().allocMaxSpeed(numSamples * sizeof(Sample*) * 2);
-	if (!sortArea) {
+	if (sortArea == nullptr) {
 		error = Error::INSUFFICIENT_RAM;
 		goto removeReasonsFromSamplesAndGetOut;
 	}
@@ -1372,7 +1372,7 @@ removeReasonsFromSamplesAndGetOut:
 #define NOTE_CHECK_ERROR_MARGIN 0.75
 
 		int32_t badnessRatingFromC = getNumTimesIncorrectSampleOrderSeen(numSamples, sortAreas[readArea]);
-		if (!badnessRatingFromC) {
+		if (badnessRatingFromC == 0) {
 			goto allSorted; // If that's all fine, we're done
 		}
 
@@ -1584,13 +1584,13 @@ allSorted:
 		memcpy(sortArea, &sortArea[numSamples], numSamples * sizeof(Sample*));
 	}
 
-	if (getSortArea) {
+	if (getSortArea != nullptr) {
 		*getSortArea = sortArea;
 	}
-	if (getNumSamples) {
+	if (getNumSamples != nullptr) {
 		*getNumSamples = numSamples;
 	}
-	if (getDoingSingleCycle) {
+	if (getDoingSingleCycle != nullptr) {
 		*getDoingSingleCycle = doingSingleCycle;
 	}
 
@@ -1655,13 +1655,13 @@ doReturnFalse:
 	// If we've ended up with some samples a whole octave higher than the others, this may be in error
 	int32_t whichSampleIsAnOctaveUp = 0;
 
-	if (numSamples) {
+	if (numSamples != 0) {
 		float prevNote = sortArea[0]->midiNote;
 		for (int32_t s = 1; s < numSamples; s++) {
 			Sample* thisSample = sortArea[s];
 			float noteHere = thisSample->midiNote;
 			if (noteHere >= prevNote + 12.5 && noteHere <= prevNote + 13.5) {
-				if (whichSampleIsAnOctaveUp) {
+				if (whichSampleIsAnOctaveUp != 0) {
 					goto skipOctaveCorrection;
 				}
 				else {
@@ -1681,7 +1681,7 @@ doReturnFalse:
 			prevNote = noteHere;
 		}
 
-		if (whichSampleIsAnOctaveUp) {
+		if (whichSampleIsAnOctaveUp != 0) {
 			D_PRINTLN("correcting octaves");
 			// Correct earlier ones?
 			if (whichSampleIsAnOctaveUp * 2 < numSamples) {
@@ -1720,7 +1720,7 @@ skipOctaveCorrection:
 
 	for (int32_t s = 0; s < numSamples; s++) {
 
-		if (!(s & 31)) {
+		if ((s & 31) == 0) {
 			AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 		}
 
@@ -1768,13 +1768,13 @@ skipOctaveCorrection:
 		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.reversed, true);
 		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
 		range->sampleHolder.setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote,
-		                                                       topNote);
+		                                                       topNote != 0);
 
 		totalMSec += thisSample->getLengthInMSec();
-		if (thisSample->fileLoopEndSamples) {
+		if (thisSample->fileLoopEndSamples != 0u) {
 			numWithFileLoopPoints++;
 		}
-		if (range->sampleHolder.loopEndPos) {
+		if (range->sampleHolder.loopEndPos != 0u) {
 			numWithResultingLoopEndPoints++;
 		}
 
@@ -1789,7 +1789,7 @@ skipOctaveCorrection:
 
 	numSamples = rangeIndex;
 
-	if (!numSamples) {
+	if (numSamples == 0) {
 		display->displayPopup(
 		    deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT));
 		goto doReturnFalse;
@@ -1870,7 +1870,7 @@ doReturnFalse:
 				drum = firstDrum;
 				source = &drum->sources[0];
 				range = source->getOrCreateFirstRange();
-				if (!range) {
+				if (range == nullptr) {
 getOut:
 					f_closedir(&staticDIR);
 					display->displayError(Error::INSUFFICIENT_RAM);
@@ -1913,7 +1913,7 @@ getOut:
 				}
 
 				void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
-				if (!drumMemory) {
+				if (drumMemory == nullptr) {
 					goto getOut;
 				}
 
@@ -1921,7 +1921,7 @@ getOut:
 				source = &drum->sources[0];
 
 				range = source->getOrCreateFirstRange();
-				if (!range) {
+				if (range == nullptr) {
 					drum->~SoundDrum();
 					delugeDealloc(drumMemory);
 					goto getOut;
@@ -1948,12 +1948,12 @@ getOut:
 
 				char const* newNameChars = newName.get();
 				char const* dotAddress = strrchr(newNameChars, '.');
-				if (dotAddress) {
+				if (dotAddress != nullptr) {
 					int32_t dotPos = (uint32_t)dotAddress - (uint32_t)newNameChars;
 					newName.shorten(dotPos);
 				}
 
-				if (kit->getDrumFromName(newName.get())) {
+				if (kit->getDrumFromName(newName.get()) != nullptr) {
 					error = kit->makeDrumNameUnique(&newName, 2);
 					if (error != Error::NONE) {
 						goto skipNameStuff;
@@ -1980,7 +1980,7 @@ skipNameStuff:
 
 	// Make NoteRows for all these new Drums
 	getCurrentKit()->resetDrumTempValues();
-	firstDrum->noteRowAssignedTemp = 1;
+	firstDrum->noteRowAssignedTemp = true;
 	ModelStackWithTimelineCounter* modelStack = (ModelStackWithTimelineCounter*)modelStackMemory;
 	getCurrentInstrumentClip()->assignDrumsToNoteRows(modelStack);
 

@@ -98,7 +98,7 @@ void KeyboardLayoutIsomorphic::precalculate() {
 
 void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// Precreate list of all active notes per octave
-	bool octaveActiveNotes[kOctaveSize] = {0};
+	bool octaveActiveNotes[kOctaveSize] = {false};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
 		octaveActiveNotes[((currentNotesState.notes[idx].note + kOctaveSize) - getRootNote()) % kOctaveSize] = true;
 	}

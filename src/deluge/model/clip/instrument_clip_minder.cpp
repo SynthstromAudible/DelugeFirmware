@@ -104,7 +104,7 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 
 void InstrumentClipMinder::redrawNumericDisplay() {
 	if (display->have7SEG()) {
-		if (getCurrentUI()->toClipMinder()) { // Seems a redundant check now? Maybe? Or not?
+		if (getCurrentUI()->toClipMinder() != nullptr) { // Seems a redundant check now? Maybe? Or not?
 			view.displayOutputName(getCurrentOutput(), false);
 		}
 	}
@@ -222,7 +222,7 @@ gotError:
 
 	ParamManagerForTimeline newParamManager;
 	Instrument* newInstrument = StorageManager::createNewInstrument(newOutputType, &newParamManager);
-	if (!newInstrument) {
+	if (newInstrument == nullptr) {
 		error = Error::INSUFFICIENT_RAM;
 		goto gotError;
 	}
@@ -566,7 +566,7 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 		display->popupTextTemporary(noteName);
 	}
 	else {
-		uint8_t drawDot = !isNatural ? 0 : 255;
+		uint8_t drawDot = (isNatural == 0) ? 0 : 255;
 		display->setText(noteName, false, drawDot, true);
 	}
 }

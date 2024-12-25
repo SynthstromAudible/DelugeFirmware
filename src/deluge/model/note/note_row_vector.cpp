@@ -51,8 +51,8 @@ void NoteRowVector::deleteNoteRowAtIndex(int32_t startIndex, int32_t numToDelete
 NoteRow* NoteRowVector::insertNoteRowAtY(int32_t y, int32_t* getIndex) {
 	int32_t i = search(y, GREATER_OR_EQUAL);
 	NoteRow* noteRow = insertNoteRowAtIndex(i);
-	if (noteRow) {
-		if (getIndex) {
+	if (noteRow != nullptr) {
+		if (getIndex != nullptr) {
 			*getIndex = i;
 		}
 		noteRow->y = y;

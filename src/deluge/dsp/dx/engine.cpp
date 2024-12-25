@@ -57,7 +57,7 @@ DxVoice* DxEngine::solicitDxVoice() {
 	}
 #endif
 	void* memory = allocMaxSpeed(sizeof(DxVoice));
-	if (!memory)
+	if (memory == nullptr)
 		return nullptr;
 
 	return new (memory) DxVoice();

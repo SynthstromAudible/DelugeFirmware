@@ -57,7 +57,7 @@ ActionResult RenameOutputUI::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	// Back button
 	if (b == BACK) {
-		if (on && !currentUIMode) {
+		if (on && (currentUIMode == 0u)) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -67,7 +67,7 @@ ActionResult RenameOutputUI::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	// Select encoder button
 	else if (b == SELECT_ENC) {
-		if (on && !currentUIMode) {
+		if (on && (currentUIMode == 0u)) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -93,7 +93,7 @@ void RenameOutputUI::enterKeyPress() {
 		// if this is an audio output
 		// don't let user set a name that is a duplicate of another name that has been set for another audio output
 		// Sean: do we only want to do this for audio output's?
-		if (currentSong->getAudioOutputFromName(&enteredText)) {
+		if (currentSong->getAudioOutputFromName(&enteredText) != nullptr) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 			return;
 		}
@@ -117,7 +117,7 @@ ActionResult RenameOutputUI::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 
 	// Otherwise, exit
-	if (on && !currentUIMode) {
+	if ((on != 0) && (currentUIMode == 0u)) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}

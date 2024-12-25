@@ -30,7 +30,7 @@ Error ConsequenceBeginPlayback::revert(TimeType time, ModelStack* modelStack) {
 	}
 
 	else {
-		if (!playbackHandler.playbackState) {
+		if (playbackHandler.playbackState == 0u) {
 			playbackHandler.setupPlaybackUsingInternalClock(0);
 		}
 	}

@@ -114,7 +114,7 @@ void PatchCableStrength::renderOLED() {
 		int32_t rounded = this->getValue() / 100;
 		intToString(rounded, buffer, 1);
 		OLED::main.drawStringAlignRight(
-		    buffer, extraY + OLED_MAIN_TOPMOST_PIXEL + 4 + destinationDescriptor.isJustAParam(), 18, 20);
+		    buffer, extraY + OLED_MAIN_TOPMOST_PIXEL + 4 + static_cast<int>(destinationDescriptor.isJustAParam()), 18, 20);
 
 		int32_t marginL = destinationDescriptor.isJustAParam() ? 0 : 80;
 		int32_t yBar = destinationDescriptor.isJustAParam() ? 36 : 37;
@@ -124,7 +124,7 @@ void PatchCableStrength::renderOLED() {
 		const int32_t digitWidth = kTextBigSpacingX;
 		const int32_t digitHeight = kTextBigSizeY;
 		intToString(this->getValue(), buffer, 3);
-		int32_t textPixelY = extraY + OLED_MAIN_TOPMOST_PIXEL + 10 + destinationDescriptor.isJustAParam();
+		int32_t textPixelY = extraY + OLED_MAIN_TOPMOST_PIXEL + 10 + static_cast<int>(destinationDescriptor.isJustAParam());
 		OLED::main.drawStringAlignRight(buffer, textPixelY, digitWidth, digitHeight);
 
 		int32_t ourDigitStartX = OLED_MAIN_WIDTH_PIXELS - (soundEditor.numberEditPos + 1) * digitWidth;
@@ -169,7 +169,7 @@ ModelStackWithAutoParam* PatchCableStrength::getModelStack(void* memory, bool al
 void PatchCableStrength::writeCurrentValue() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStackWithParam = getModelStack(modelStackMemory, true);
-	if (!modelStackWithParam->autoParam) {
+	if (modelStackWithParam->autoParam == nullptr) {
 		return;
 	}
 

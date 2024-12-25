@@ -55,7 +55,7 @@ void SongChordMemColumn::handlePad(ModelStackWithTimelineCounter* modelStackWith
 	}
 	else {
 		activeChordMem = 0xFF;
-		if ((!currentSong->chordMemNoteCount[pad.y] || Buttons::isShiftButtonPressed()) && currentNotesState.count) {
+		if (((currentSong->chordMemNoteCount[pad.y] == 0u) || Buttons::isShiftButtonPressed()) && (currentNotesState.count != 0u)) {
 			auto noteCount = currentNotesState.count;
 			for (int i = 0; i < noteCount && i < MAX_NOTES_CHORD_MEM; i++) {
 				currentSong->chordMem[pad.y][i] = currentNotesState.notes[i].note;

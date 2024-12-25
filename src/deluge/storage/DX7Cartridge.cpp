@@ -85,7 +85,7 @@ void DX7Cartridge::packProgram(uint8_t* src, int idx, char* name, char* opSwitch
 		char c = (char)name[i];
 		if (c == 0)
 			eos = 1;
-		if (eos) {
+		if (eos != 0) {
 			bulk[118 + i] = ' ';
 			continue;
 		}

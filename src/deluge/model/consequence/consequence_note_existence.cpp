@@ -40,7 +40,7 @@ ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int3
 
 Error ConsequenceNoteExistence::revert(TimeType time, ModelStack* modelStack) {
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
-	if (!noteRow) {
+	if (noteRow == nullptr) {
 		return Error::BUG;
 	}
 
@@ -57,7 +57,7 @@ Error ConsequenceNoteExistence::revert(TimeType time, ModelStack* modelStack) {
 		// Create a note now
 		int32_t i = noteRow->notes.insertAtKey(pos);
 		Note* note = noteRow->notes.getElement(i);
-		if (!note) {
+		if (note == nullptr) {
 			return Error::INSUFFICIENT_RAM;
 		}
 		note->setLength(length);

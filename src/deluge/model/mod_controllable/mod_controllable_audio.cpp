@@ -68,10 +68,10 @@ ModControllableAudio::ModControllableAudio() {
 
 	SyncLevel syncLevel;
 	Song* song = preLoadedSong;
-	if (!song) {
+	if (song == nullptr) {
 		song = currentSong;
 	}
-	if (song) {
+	if (song != nullptr) {
 		syncLevel = (SyncLevel)(8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
 	}
 	else {
@@ -182,11 +182,11 @@ void ModControllableAudio::processGrainFX(StereoSample* buffer, int32_t modFXRat
                                           int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
                                           const StereoSample* bufferEnd, bool anySoundComingIn, q31_t verbAmount) {
 	// this shouldn't be possible but just in case
-	if (anySoundComingIn && !grainFX) [[unlikely]] {
+	if (anySoundComingIn && (grainFX == nullptr)) [[unlikely]] {
 		enableGrain();
 	}
 
-	if (grainFX) {
+	if (grainFX != nullptr) {
 		int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(*postFXVolume, verbAmount) << 5;
 		grainFX->processGrainFX(buffer, modFXRate, modFXDepth,
 		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET),
@@ -407,7 +407,7 @@ void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	writer.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
 	writer.writeAttribute("filterRoute", (char*)filterRouteToString(filterRoute));
-	if (clippingAmount) {
+	if (clippingAmount != 0u) {
 		writer.writeAttribute("clippingAmount", clippingAmount);
 	}
 }
@@ -423,7 +423,7 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 	writer.closeTag();
 
 	// MIDI knobs
-	if (midiKnobArray.getNumElements()) {
+	if (midiKnobArray.getNumElements() != 0) {
 		writer.writeArrayStart("midiKnobs");
 		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
 			MIDIKnob* knob = midiKnobArray.getElement(k);
@@ -431,7 +431,7 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 			knob->midiInput.writeAttributesToFile(
 			    writer,
 			    MIDI_MESSAGE_CC); // Writes channel and CC, but not device - we do that below.
-			writer.writeAttribute("relative", knob->relative);
+			writer.writeAttribute("relative", static_cast<int32_t>(knob->relative));
 			writer.writeAttribute("controlsParam", params::paramNameForFile(unpatchedParamKind_,
 			                                                                knob->paramDescriptor.getJustTheParam()));
 			if (!knob->paramDescriptor.isJustAParam()) { // TODO: this only applies to Sounds
@@ -446,7 +446,7 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 
 			// Because we manually called LearnedMIDI::writeAttributesToFile() above, we have to give the MIDIDevice its
 			// own tag, cos that can't be written as just an attribute.
-			if (knob->midiInput.cable) {
+			if (knob->midiInput.cable != nullptr) {
 				writer.writeOpeningTagEnd();
 				knob->midiInput.cable->writeReferenceToFile(writer);
 				writer.writeClosingTag("midiKnob", true, true);
@@ -518,25 +518,25 @@ bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 
-	if (!strcmp(tagName, "equalizer")) {
+	if (strcmp(tagName, "equalizer") == 0) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "bass")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "bass") == 0) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_BASS,
 				                           readAutomationUpToPos);
 				reader.exitTag("bass");
 			}
-			else if (!strcmp(tagName, "treble")) {
+			else if (strcmp(tagName, "treble") == 0) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_TREBLE,
 				                           readAutomationUpToPos);
 				reader.exitTag("treble");
 			}
-			else if (!strcmp(tagName, "bassFrequency")) {
+			else if (strcmp(tagName, "bassFrequency") == 0) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_BASS_FREQ,
 				                           readAutomationUpToPos);
 				reader.exitTag("bassFrequency");
 			}
-			else if (!strcmp(tagName, "trebleFrequency")) {
+			else if (strcmp(tagName, "trebleFrequency") == 0) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_TREBLE_FREQ,
 				                           readAutomationUpToPos);
 				reader.exitTag("trebleFrequency");
@@ -545,36 +545,36 @@ bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const
 		reader.exitTag("equalizer", true);
 	}
 
-	else if (!strcmp(tagName, "stutterRate")) {
+	else if (strcmp(tagName, "stutterRate") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_STUTTER_RATE,
 		                           readAutomationUpToPos);
 		reader.exitTag("stutterRate");
 	}
 
-	else if (!strcmp(tagName, "sampleRateReduction")) {
+	else if (strcmp(tagName, "sampleRateReduction") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_SAMPLE_RATE_REDUCTION,
 		                           readAutomationUpToPos);
 		reader.exitTag("sampleRateReduction");
 	}
 
-	else if (!strcmp(tagName, "bitCrush")) {
+	else if (strcmp(tagName, "bitCrush") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_BITCRUSHING,
 		                           readAutomationUpToPos);
 		reader.exitTag("bitCrush");
 	}
 
-	else if (!strcmp(tagName, "modFXOffset")) {
+	else if (strcmp(tagName, "modFXOffset") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_OFFSET,
 		                           readAutomationUpToPos);
 		reader.exitTag("modFXOffset");
 	}
 
-	else if (!strcmp(tagName, "modFXFeedback")) {
+	else if (strcmp(tagName, "modFXFeedback") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_FEEDBACK,
 		                           readAutomationUpToPos);
 		reader.exitTag("modFXFeedback");
 	}
-	else if (!strcmp(tagName, "compressorThreshold")) {
+	else if (strcmp(tagName, "compressorThreshold") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_COMPRESSOR_THRESHOLD,
 		                           readAutomationUpToPos);
 		reader.exitTag("compressorThreshold");
@@ -594,36 +594,36 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 
 	int32_t p;
 
-	if (!strcmp(tagName, "lpfMode")) {
+	if (strcmp(tagName, "lpfMode") == 0) {
 		lpfMode = stringToLPFType(reader.readTagOrAttributeValue());
 		reader.exitTag("lpfMode");
 	}
-	else if (!strcmp(tagName, "hpfMode")) {
+	else if (strcmp(tagName, "hpfMode") == 0) {
 		hpfMode = stringToLPFType(reader.readTagOrAttributeValue());
 		reader.exitTag("hpfMode");
 	}
-	else if (!strcmp(tagName, "filterRoute")) {
+	else if (strcmp(tagName, "filterRoute") == 0) {
 		filterRoute = stringToFilterRoute(reader.readTagOrAttributeValue());
 		reader.exitTag("filterRoute");
 	}
 
-	else if (!strcmp(tagName, "clippingAmount")) {
+	else if (strcmp(tagName, "clippingAmount") == 0) {
 		clippingAmount = reader.readTagOrAttributeValueInt();
 		reader.exitTag("clippingAmount");
 	}
 
-	else if (!strcmp(tagName, "delay")) {
+	else if (strcmp(tagName, "delay") == 0) {
 		// Set default values in case they are not configured
 		delay.syncType = SYNC_TYPE_EVEN;
 		delay.syncLevel = SYNC_LEVEL_NONE;
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 
 			// These first two ensure compatibility with old files (pre late 2016 I think?)
-			if (!strcmp(tagName, "feedback")) {
+			if (strcmp(tagName, "feedback") == 0) {
 				p = params::GLOBAL_DELAY_FEEDBACK;
 doReadPatchedParam:
-				if (paramManager) {
+				if (paramManager != nullptr) {
 					if (!paramManager->containsAnyMainParamCollections()) {
 						Error error = Sound::createParamManagerForLoading(paramManager);
 						if (error != Error::NONE) {
@@ -637,26 +637,26 @@ doReadPatchedParam:
 				}
 				reader.exitTag();
 			}
-			else if (!strcmp(tagName, "rate")) {
+			else if (strcmp(tagName, "rate") == 0) {
 				p = params::GLOBAL_DELAY_RATE;
 				goto doReadPatchedParam;
 			}
 
-			else if (!strcmp(tagName, "pingPong")) {
+			else if (strcmp(tagName, "pingPong") == 0) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
 				delay.pingPong = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
 				reader.exitTag("pingPong");
 			}
-			else if (!strcmp(tagName, "analog")) {
+			else if (strcmp(tagName, "analog") == 0) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
 				delay.analog = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
 				reader.exitTag("analog");
 			}
-			else if (!strcmp(tagName, "syncType")) {
+			else if (strcmp(tagName, "syncType") == 0) {
 				delay.syncType = (SyncType)reader.readTagOrAttributeValueInt();
 				reader.exitTag("syncType");
 			}
-			else if (!strcmp(tagName, "syncLevel")) {
+			else if (strcmp(tagName, "syncLevel") == 0) {
 				delay.syncLevel =
 				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
 				reader.exitTag("syncLevel");
@@ -668,35 +668,35 @@ doReadPatchedParam:
 		reader.exitTag("delay", true);
 	}
 
-	else if (!strcmp(tagName, "audioCompressor")) {
+	else if (strcmp(tagName, "audioCompressor") == 0) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "attack")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "attack") == 0) {
 				q31_t masterCompressorAttack = reader.readTagOrAttributeValueInt();
 				compressor.setAttack(masterCompressorAttack);
 				reader.exitTag("attack");
 			}
-			else if (!strcmp(tagName, "release")) {
+			else if (strcmp(tagName, "release") == 0) {
 				q31_t masterCompressorRelease = reader.readTagOrAttributeValueInt();
 				compressor.setRelease(masterCompressorRelease);
 				reader.exitTag("release");
 			}
-			else if (!strcmp(tagName, "thresh")) {
+			else if (strcmp(tagName, "thresh") == 0) {
 				q31_t masterCompressorThresh = reader.readTagOrAttributeValueInt();
 				compressor.setThreshold(masterCompressorThresh);
 				reader.exitTag("thresh");
 			}
-			else if (!strcmp(tagName, "ratio")) {
+			else if (strcmp(tagName, "ratio") == 0) {
 				q31_t masterCompressorRatio = reader.readTagOrAttributeValueInt();
 				compressor.setRatio(masterCompressorRatio);
 				reader.exitTag("ratio");
 			}
-			else if (!strcmp(tagName, "compHPF")) {
+			else if (strcmp(tagName, "compHPF") == 0) {
 				q31_t masterCompressorSidechain = reader.readTagOrAttributeValueInt();
 				compressor.setSidechain(masterCompressorSidechain);
 				reader.exitTag("compHPF");
 			}
-			else if (!strcmp(tagName, "compBlend")) {
+			else if (strcmp(tagName, "compBlend") == 0) {
 				q31_t masterCompressorBlend = reader.readTagOrAttributeValueInt();
 				compressor.setBlend(masterCompressorBlend);
 				reader.exitTag("compBlend");
@@ -708,27 +708,27 @@ doReadPatchedParam:
 		reader.exitTag("AudioCompressor", true);
 	}
 	// this is actually the sidechain but pre c1.1 songs save it as compressor
-	else if (!strcmp(tagName, "compressor") || !strcmp(tagName, "sidechain")) { // Remember, Song doesn't use this
+	else if ((strcmp(tagName, "compressor") == 0) || (strcmp(tagName, "sidechain") == 0)) { // Remember, Song doesn't use this
 		// Set default values in case they are not configured
 		const char* name = tagName;
 		sidechain.syncType = SYNC_TYPE_EVEN;
 		sidechain.syncLevel = SYNC_LEVEL_NONE;
 
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "attack")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "attack") == 0) {
 				sidechain.attack = reader.readTagOrAttributeValueInt();
 				reader.exitTag("attack");
 			}
-			else if (!strcmp(tagName, "release")) {
+			else if (strcmp(tagName, "release") == 0) {
 				sidechain.release = reader.readTagOrAttributeValueInt();
 				reader.exitTag("release");
 			}
-			else if (!strcmp(tagName, "syncType")) {
+			else if (strcmp(tagName, "syncType") == 0) {
 				sidechain.syncType = (SyncType)reader.readTagOrAttributeValueInt();
 				reader.exitTag("syncType");
 			}
-			else if (!strcmp(tagName, "syncLevel")) {
+			else if (strcmp(tagName, "syncLevel") == 0) {
 				sidechain.syncLevel =
 				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
 				reader.exitTag("syncLevel");
@@ -740,10 +740,10 @@ doReadPatchedParam:
 		reader.exitTag(name, true);
 	}
 
-	else if (!strcmp(tagName, "midiKnobs")) {
+	else if (strcmp(tagName, "midiKnobs") == 0) {
 		reader.match('[');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (reader.match('{') && !strcmp(tagName, "midiKnob")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (reader.match('{') && (strcmp(tagName, "midiKnob") == 0)) {
 
 				MIDICable* cable = nullptr;
 				uint8_t channel;
@@ -753,20 +753,20 @@ doReadPatchedParam:
 				PatchSource s = PatchSource::NOT_AVAILABLE;
 				PatchSource s2 = PatchSource::NOT_AVAILABLE;
 
-				while (*(tagName = reader.readNextTagOrAttributeName())) {
-					if (!strcmp(tagName, "device")) {
+				while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+					if (strcmp(tagName, "device") == 0) {
 						cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
 					}
-					else if (!strcmp(tagName, "channel")) {
+					else if (strcmp(tagName, "channel") == 0) {
 						channel = reader.readTagOrAttributeValueInt();
 					}
-					else if (!strcmp(tagName, "ccNumber")) {
+					else if (strcmp(tagName, "ccNumber") == 0) {
 						ccNumber = reader.readTagOrAttributeValueInt();
 					}
-					else if (!strcmp(tagName, "relative")) {
-						relative = reader.readTagOrAttributeValueInt();
+					else if (strcmp(tagName, "relative") == 0) {
+						relative = (reader.readTagOrAttributeValueInt() != 0);
 					}
-					else if (!strcmp(tagName, "controlsParam")) {
+					else if (strcmp(tagName, "controlsParam") == 0) {
 						// if the unpatched kind for the current mod controllable is sound then we also want to check
 						// against patched params. Otherwise skip them to avoid a bug from patched volume params having
 						// the same name in files as unpatched global volumes
@@ -774,10 +774,10 @@ doReadPatchedParam:
 						                              unpatchedParamKind_
 						                                  == deluge::modulation::params::Kind::UNPATCHED_SOUND);
 					}
-					else if (!strcmp(tagName, "patchAmountFromSource")) {
+					else if (strcmp(tagName, "patchAmountFromSource") == 0) {
 						s = stringToSource(reader.readTagOrAttributeValue());
 					}
-					else if (!strcmp(tagName, "patchAmountFromSecondSource")) {
+					else if (strcmp(tagName, "patchAmountFromSecondSource") == 0) {
 						s2 = stringToSource(reader.readTagOrAttributeValue());
 					}
 					reader.exitTag();
@@ -787,7 +787,7 @@ doReadPatchedParam:
 
 				if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
 					MIDIKnob* newKnob = midiKnobArray.insertKnobAtEnd();
-					if (newKnob) {
+					if (newKnob != nullptr) {
 						newKnob->midiInput.cable = cable;
 						newKnob->midiInput.channelOrZone = channel;
 						newKnob->midiInput.noteOrCC = ccNumber;
@@ -897,7 +897,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 
 				// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
 				// region.
-				if (view.modLength
+				if ((view.modLength != 0u)
 				    && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 					modPos = view.modPos;
 					modLength = view.modLength;
@@ -914,7 +914,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 
 			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
 
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
+			if ((modelStackWithParam != nullptr) && (modelStackWithParam->autoParam != nullptr)) {
 				int32_t newKnobPos;
 				int32_t currentValue;
 
@@ -994,7 +994,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 
 				// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
 				// region.
-				if (view.modLength
+				if ((view.modLength != 0u)
 				    && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 					modPos = view.modPos;
 					modLength = view.modLength;
@@ -1004,7 +1004,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 
 			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
 
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
+			if ((modelStackWithParam != nullptr) && (modelStackWithParam->autoParam != nullptr)) {
 				int32_t newKnobPos;
 				int32_t currentValue;
 
@@ -1082,7 +1082,7 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cabl
 
 			if (modelStack->timelineCounterIsSet()) {
 				TimelineCounter* timelineCounter = modelStack->getTimelineCounter();
-				if (view.modLength
+				if ((view.modLength != 0u)
 				    && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 					modPos = view.modPos;
 					modLength = view.modLength;
@@ -1098,7 +1098,7 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cabl
 
 			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
 
-			if (modelStackWithParam->autoParam) {
+			if (modelStackWithParam->autoParam != nullptr) {
 
 				uint32_t value14 = (uint32_t)data1 | ((uint32_t)data2 << 7);
 
@@ -1141,7 +1141,7 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 // paramManager is optional - if you don't send it, it won't restore the stutter rate and we won't redraw the LEDs
 void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 	stutterer.endStutter(paramManager);
-	if (paramManager) {
+	if (paramManager != nullptr) {
 		// Redraw the LEDs.
 		view.notifyParamAutomationOccurred(paramManager);
 	}
@@ -1360,7 +1360,7 @@ bool ModControllableAudio::learnKnob(MIDICable* cable, ParamDescriptor paramDesc
 
 		// Or if we're here, it doesn't already exist, so find an unused MIDIKnob
 		knob = midiKnobArray.insertKnobAtEnd();
-		if (!knob) {
+		if (knob == nullptr) {
 			return false;
 		}
 
@@ -1521,7 +1521,7 @@ void ModControllableAudio::displaySidechainAndReverbSettings(bool on) {
 
 char const* ModControllableAudio::getSidechainDisplayName() {
 	int32_t insideWorldTickMagnitude;
-	if (currentSong) { // Bit of a hack just referring to currentSong in here...
+	if (currentSong != nullptr) { // Bit of a hack just referring to currentSong in here...
 		insideWorldTickMagnitude =
 		    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 	}
@@ -1601,7 +1601,7 @@ bool ModControllableAudio::enableGrain() {
 
 	if (grainFX == nullptr) {
 		void* grainMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GranularProcessor));
-		if (grainMemory) {
+		if (grainMemory != nullptr) {
 			grainFX = new (grainMemory) GranularProcessor;
 			return true;
 		}

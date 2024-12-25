@@ -143,11 +143,11 @@ public:
 		return (ModelStack*)this;
 	}
 
-	inline bool timelineCounterIsSet() const { return timelineCounter; }
+	inline bool timelineCounterIsSet() const { return timelineCounter != nullptr; }
 
 	inline TimelineCounter* getTimelineCounter() const {
 #if ALPHA_OR_BETA_VERSION
-		if (!timelineCounter) {
+		if (timelineCounter == nullptr) {
 			FREEZE_WITH_ERROR("E369");
 		}
 #endif
@@ -196,7 +196,7 @@ public:
 
 	inline NoteRow* getNoteRow() const {
 #if ALPHA_OR_BETA_VERSION
-		if (!noteRow) {
+		if (noteRow == nullptr) {
 			FREEZE_WITH_ERROR("E379");
 		}
 #endif

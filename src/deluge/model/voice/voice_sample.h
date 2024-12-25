@@ -53,7 +53,7 @@ public:
 	// AudioClips don't obey markers because they "fudge" instead.
 	// Or if fudging can't happen cos no pre-margin, then
 	// AudioClip::doTickForward() manually forces restart.
-	bool shouldObeyMarkers() override { return (!cache && !timeStretcher && !forAudioClip); }
+	bool shouldObeyMarkers() override { return (cache == nullptr) && (timeStretcher == nullptr) && !forAudioClip; }
 
 	void readSamplesResampledPossiblyCaching(int32_t** oscBufferPos, int32_t** oscBufferRPos, int32_t numSamples,
 	                                         Sample* sample, int32_t jumpAmount, int32_t numChannels,

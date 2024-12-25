@@ -52,7 +52,7 @@ static bool openFile(const char* path, DX7Cartridge* data) {
 	UINT numBytesRead;
 	int readsize = std::min((int)fileSize, 8192);
 	auto buffer = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(readsize);
-	if (!buffer) {
+	if (buffer == nullptr) {
 		display->displayPopup(get(String::STRING_FOR_DX_ERROR_READ_ERROR));
 		goto close;
 	}

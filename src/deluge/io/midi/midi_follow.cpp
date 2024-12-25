@@ -121,11 +121,11 @@ Clip* MidiFollow::getSelectedOrActiveClip() {
 
 	// if the clip is null, it means you're in a song view and you aren't holding a clip
 	// in that case, we want to control the active clip
-	if (!clip) {
+	if (clip == nullptr) {
 		clip = getCurrentClip();
-		if (clip) {
+		if (clip != nullptr) {
 			Output* output = clip->output;
-			if (output) {
+			if (output != nullptr) {
 				clip = output->getActiveClip();
 			}
 		}
@@ -143,7 +143,7 @@ Clip* MidiFollow::getSelectedClip() {
 
 	RootUI* rootUI = getRootUI();
 	UIType uiType = UIType::NONE;
-	if (rootUI) {
+	if (rootUI != nullptr) {
 		uiType = rootUI->getUIType();
 	}
 
@@ -183,8 +183,8 @@ Clip* MidiFollow::getActiveClip(ModelStack* modelStack) {
 	// when auditioning a clip for that output,
 	// the active clip for that output should be set to the current clip.
 	Clip* currentClip = getCurrentClip();
-	if (currentClip && (currentClip->type == ClipType::INSTRUMENT)) {
-		if (currentClip->output) {
+	if ((currentClip != nullptr) && (currentClip->type == ClipType::INSTRUMENT)) {
+		if (currentClip->output != nullptr) {
 			InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
 			return currentClip->output->getActiveClip();
 		}
@@ -200,15 +200,15 @@ MidiFollow::getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWith
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	// non-null clip means you're dealing with the clip context
-	if (clip) {
-		if (modelStackWithTimelineCounter) {
+	if (clip != nullptr) {
+		if (modelStackWithTimelineCounter != nullptr) {
 			modelStackWithParam =
 			    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, xDisplay, yDisplay);
 		}
 	}
 
 	if (displayError && (paramToCC[xDisplay][yDisplay] == ccNumber)
-	    && (!modelStackWithParam || !modelStackWithParam->autoParam)) {
+	    && ((modelStackWithParam == nullptr) || (modelStackWithParam->autoParam == nullptr))) {
 		displayParamControlError(xDisplay, yDisplay);
 	}
 
@@ -415,7 +415,7 @@ void MidiFollow::noteMessageReceived(MIDICable& cable, bool on, int32_t channel,
 		// all notes off
 		else if (note == ALL_NOTES_OFF) {
 			for (int32_t i = 0; i <= 127; i++) {
-				if (clipForLastNoteReceived[i]) {
+				if (clipForLastNoteReceived[i] != nullptr) {
 					sendNoteToClip(cable, clipForLastNoteReceived[i], match, on, channel, i, velocity, doingMidiThru,
 					               shouldRecordNotesNowNow, modelStack);
 				}
@@ -429,10 +429,10 @@ void MidiFollow::sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType matc
                                 ModelStack* modelStack) {
 
 	// Only send if not muted - but let note-offs through always, for safety
-	if (clip && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
+	if ((clip != nullptr) && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 		// Output is a kit or melodic instrument
-		if (modelStackWithTimelineCounter) {
+		if (modelStackWithTimelineCounter != nullptr) {
 			// Definitely don't record if muted in arrangement
 			bool shouldRecordNotes = shouldRecordNotesNowNow && currentSong->isOutputActiveInArrangement(clip->output);
 			if (clip->output->type == OutputType::KIT) {
@@ -470,7 +470,7 @@ void MidiFollow::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNum
 
 		bool isMIDIClip = false;
 		bool isCVClip = false;
-		if (clip) {
+		if (clip != nullptr) {
 			if (clip->output->type == OutputType::MIDI_OUT) {
 				isMIDIClip = true;
 			}
@@ -482,7 +482,7 @@ void MidiFollow::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNum
 		// don't offer to handleReceivedCC if it's a MIDI or CV Clip
 		// this is because this function is used to control internal deluge parameters only (patched, unpatched)
 		// midi/cv clip cc parameters are handled below in the offerReceivedCCToMelodicInstrument function
-		if (clip && !isMIDIClip && !isCVClip
+		if ((clip != nullptr) && !isMIDIClip && !isCVClip
 		    && (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::CHANNEL)) {
 			// if midi follow feedback and feedback filter is enabled,
 			// check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
@@ -494,10 +494,10 @@ void MidiFollow::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNum
 			            || (midiEngine.midiFollowFeedbackFilter
 			                && ((AudioEngine::audioSampleTimer - timeLastCCSent[ccNumber]) >= kSampleRate))))) {
 				// setup model stack for the active context
-				if (modelStack) {
+				if (modelStack != nullptr) {
 					auto modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-					if (modelStackWithTimelineCounter) {
+					if (modelStackWithTimelineCounter != nullptr) {
 						// See if it's learned to a parameter
 						handleReceivedCC(*modelStackWithTimelineCounter, clip, ccNumber, ccValue);
 					}
@@ -506,9 +506,9 @@ void MidiFollow::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNum
 		}
 		// for these cc's, always use the active clip for the output selected
 		clip = getActiveClip(modelStack);
-		if (clip) {
+		if (clip != nullptr) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-			if (modelStackWithTimelineCounter) {
+			if (modelStackWithTimelineCounter != nullptr) {
 				if (clip->output->type == OutputType::KIT) {
 					Kit* kit = (Kit*)clip->output;
 					kit->receivedCCForKit(modelStackWithTimelineCounter, cable, match, channel, ccNumber, ccValue,
@@ -540,7 +540,7 @@ void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithT
 
 		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
 		// region.
-		if (view.modLength && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+		if ((view.modLength != 0u) && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 			modPos = view.modPos;
 			modLength = view.modLength;
 			isStepEditing = true;
@@ -558,7 +558,7 @@ void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithT
 				    getModelStackWithParam(&modelStackWithTimelineCounter, clip, xDisplay, yDisplay, ccNumber,
 				                           midiEngine.midiFollowDisplayParam);
 				// check if model stack is valid
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
+				if ((modelStackWithParam != nullptr) && (modelStackWithParam->autoParam != nullptr)) {
 					int32_t currentValue;
 
 					// get current value
@@ -639,15 +639,15 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, b
 	Clip* clip = getSelectedOrActiveClip();
 
 	// setup model stack for the active context
-	if (clip) {
+	if (clip != nullptr) {
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-		if (modelStack) {
+		if (modelStack != nullptr) {
 			modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 		}
 	}
 
 	// check that model stack is valid
-	if (modelStackWithTimelineCounter) {
+	if (modelStackWithTimelineCounter != nullptr) {
 		int32_t modPos = 0;
 		bool isStepEditing = false;
 
@@ -656,7 +656,7 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, b
 
 			// Only if this exact TimelineCounter is having automation step-edited, we can send the value for just a
 			// region.
-			if (view.modLength
+			if ((view.modLength != 0u)
 			    && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 				// don't send automation feedback if you're step editing
@@ -677,7 +677,7 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, b
 					ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(
 					    modelStackWithTimelineCounter, clip, xDisplay, yDisplay, MIDI_CC_NONE, false);
 					// check that model stack is valid
-					if (modelStackWithParam && modelStackWithParam->autoParam) {
+					if ((modelStackWithParam != nullptr) && (modelStackWithParam->autoParam != nullptr)) {
 						if (!isAutomation || (isAutomation && modelStackWithParam->autoParam->isAutomated())) {
 							int32_t currentValue;
 							// obtain current value of the learned parameter
@@ -731,10 +731,10 @@ void MidiFollow::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t da
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context
 		Clip* clip = getActiveClip(modelStack);
-		if (clip) {
+		if (clip != nullptr) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-			if (modelStackWithTimelineCounter) {
+			if (modelStackWithTimelineCounter != nullptr) {
 				if (clip->output->type == OutputType::KIT) {
 					Kit* kit = (Kit*)clip->output;
 					kit->receivedPitchBendForKit(modelStackWithTimelineCounter, cable, match, channel, data1, data2,
@@ -759,10 +759,10 @@ void MidiFollow::aftertouchReceived(MIDICable& cable, int32_t channel, int32_t v
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context
 		Clip* clip = getActiveClip(modelStack);
-		if (clip) {
+		if (clip != nullptr) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-			if (modelStackWithTimelineCounter) {
+			if (modelStackWithTimelineCounter != nullptr) {
 				if (clip->output->type == OutputType::KIT) {
 					Kit* kit = (Kit*)clip->output;
 					kit->receivedAftertouchForKit(modelStackWithTimelineCounter, cable, match, channel, value, noteCode,
@@ -906,8 +906,8 @@ void MidiFollow::readDefaultsFromFile() {
 	Deserializer& reader = *activeDeserializer;
 	char const* tagName;
 	// step into the <defaultCCMappings> tag
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, MIDI_DEFAULTS_CC_TAG)) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+		if (strcmp(tagName, MIDI_DEFAULTS_CC_TAG) == 0) {
 			readDefaultMappingsFromFile(reader);
 		}
 		reader.exitTag();
@@ -921,25 +921,25 @@ void MidiFollow::readDefaultsFromFile() {
 void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 	char const* tagName;
 	bool foundParam;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		foundParam = false;
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 				// let's see if this x, y corresponds to a valid param shortcut
 				// if we have a valid param shortcut, let's confirm the tag name corresponds to that shortcut
 				if (((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-				     && !strcmp(tagName, params::paramNameForFile(params::Kind::PATCHED,
-				                                                  patchedParamShortcuts[xDisplay][yDisplay])))
+				     && (strcmp(tagName, params::paramNameForFile(params::Kind::PATCHED,
+				                                                  patchedParamShortcuts[xDisplay][yDisplay])) == 0))
 				    || ((unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-				        && !strcmp(tagName,
+				        && (strcmp(tagName,
 				                   params::paramNameForFile(
 				                       params::Kind::UNPATCHED_SOUND,
-				                       params::UNPATCHED_START + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay])))
+				                       params::UNPATCHED_START + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay])) == 0))
 				    || ((unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-				        && !strcmp(tagName,
+				        && (strcmp(tagName,
 				                   params::paramNameForFile(
 				                       params::Kind::UNPATCHED_GLOBAL,
-				                       params::UNPATCHED_START + unpatchedGlobalParamShortcuts[xDisplay][yDisplay])))) {
+				                       params::UNPATCHED_START + unpatchedGlobalParamShortcuts[xDisplay][yDisplay])) == 0))) {
 					// tag name matches the param shortcut, so we can load the cc mapping for that param
 					// into the paramToCC grid shortcut array which holds the cc value for each param
 					paramToCC[xDisplay][yDisplay] = reader.readTagOrAttributeValueInt();

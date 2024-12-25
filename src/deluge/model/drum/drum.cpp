@@ -49,12 +49,12 @@ void Drum::writeMIDICommandsToFile(Serializer& writer) {
 
 bool Drum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {
 
-	if (!strcmp(tagName, "midiMuteCommand")) {
+	if (strcmp(tagName, "midiMuteCommand") == 0) {
 		muteMIDICommand.readNoteFromFile(reader);
 		reader.exitTag();
 	}
 
-	else if (!strcmp(tagName, "midiInput")) {
+	else if (strcmp(tagName, "midiInput") == 0) {
 		midiInput.readNoteFromFile(reader);
 		reader.exitTag();
 	}
@@ -94,7 +94,7 @@ void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelS
 	// stuff.
 	lastExpressionInputsReceived[level][expressionDimension] = newValue >> 8; // Store value
 	int32_t combinedValue =
-	    (int32_t)newValue + ((int32_t)lastExpressionInputsReceived[!level][expressionDimension] << 8);
+	    (int32_t)newValue + ((int32_t)lastExpressionInputsReceived[level == 0][expressionDimension] << 8);
 	combinedValue = lshiftAndSaturate<16>(combinedValue);
 
 	expressionValueChangesMustBeDoneSmoothly = true;
@@ -107,7 +107,7 @@ void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelS
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    ((InstrumentClip*)modelStack->getTimelineCounter())->getNoteRowForDrum(modelStack, this);
 		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-		if (!noteRow) {
+		if (noteRow == nullptr) {
 			goto justSend;
 		}
 

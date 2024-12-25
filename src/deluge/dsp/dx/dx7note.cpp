@@ -141,7 +141,7 @@ int32_t DxVoice::osc_freq(int logFreq_for_detune, int mode, int coarse, int fine
 		logfreq += detuneRatio * logFreq_for_detune * (detune - 7 + random_scaled);
 
 		logfreq += coarsemul[coarse & 31];
-		if (fine) {
+		if (fine != 0) {
 			// (1 << 24) / log(2)
 			logfreq += (int32_t)floor(24204406.323123 * log(1 + 0.01 * fine) + 0.5);
 		}
@@ -263,11 +263,11 @@ void DxVoice::init(DxPatch& newp, int midinote, int velocity) {
 	pitchenv_.set(pitchenv_p());
 
 	// TODO: in LFO sync mode it would be best with LFO per voice
-	if (patch[141]) {
+	if (patch[141] != 0u) {
 		newp.lfo_phase = (1U << 31) - 1;
 	}
 
-	if (patch[136]) {
+	if (patch[136] != 0u) {
 		oscSync();
 	}
 	else {
@@ -354,7 +354,7 @@ bool DxVoice::compute(int32_t* buf, int n, int base_pitch, const DxPatch* ctrls,
 			// int32_t gain = pow(2, 10 + level * (1.0 / (1 << 24)));
 
 			int mode = patch[off + 17];
-			if (mode)
+			if (mode != 0)
 				params[op].freq = Freqlut::lookup(basepitch_[op]);
 			else
 				params[op].freq = Freqlut::lookup(basepitch_[op] + pitch_mod);

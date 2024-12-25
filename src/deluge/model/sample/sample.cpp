@@ -118,20 +118,20 @@ Sample::~Sample() {
 void Sample::deletePercCache(bool beingDestructed) {
 
 	for (int32_t reversed = 0; reversed < 2; reversed++) {
-		if (percCacheMemory[reversed]) {
+		if (percCacheMemory[reversed] != nullptr) {
 			delugeDealloc(percCacheMemory[reversed]);
 			if (!beingDestructed) {
 				percCacheMemory[reversed] = nullptr;
 			}
 		}
 
-		if (percCacheClusters[reversed]) {
+		if (percCacheClusters[reversed] != nullptr) {
 
 			for (int32_t c = 0; c < numPercCacheClusters; c++) {
-				if (percCacheClusters[reversed][c]) {
+				if (percCacheClusters[reversed][c] != nullptr) {
 
 					// If any of them still has a "reason", well, it shouldn't
-					if (ALPHA_OR_BETA_VERSION && percCacheClusters[reversed][c]->numReasonsToBeLoaded) {
+					if (ALPHA_OR_BETA_VERSION && (percCacheClusters[reversed][c]->numReasonsToBeLoaded != 0)) {
 						FREEZE_WITH_ERROR("E137");
 					}
 
@@ -184,7 +184,7 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 	keyWords[0] = phaseIncrement;
 	keyWords[1] = timeStretchRatio;
 	keyWords[2] = skipSamplesAtStart;
-	keyWords[3] = reversed;
+	keyWords[3] = static_cast<uint32_t>(reversed);
 	int32_t i = caches.searchMultiWordExact(keyWords);
 
 	// If it already existed...
@@ -222,7 +222,7 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 
 	void* memory =
 	    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*));
-	if (!memory) {
+	if (memory == nullptr) {
 		return nullptr;
 	}
 
@@ -240,7 +240,7 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 	element->timeStretchRatio = timeStretchRatio;
 	element->cache = samplePitchAdjustment;
 	element->skipSamplesAtStart = skipSamplesAtStart;
-	element->reversed = reversed;
+	element->reversed = static_cast<uint32_t>(reversed);
 
 	*created = true;
 	return samplePitchAdjustment;
@@ -277,7 +277,7 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 	int32_t reversed = (playDirection == 1) ? 0 : 1;
 
 	// If the start pos is already beyond the waveform, we can get out right now!
-	if (!reversed) {
+	if (reversed == 0) {
 		if (startPosSamples >= lengthInSamples) {
 			return Error::NONE;
 		}
@@ -300,12 +300,12 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 	bool percCacheDoneWithClusters = (lengthInSamplesAfterReduction >= (Cluster::size >> 1));
 
 	if (percCacheDoneWithClusters) {
-		if (!percCacheClusters[reversed]) {
+		if (percCacheClusters[reversed] == nullptr) {
 			numPercCacheClusters = ((lengthInSamplesAfterReduction - 1) >> Cluster::size_magnitude)
 			                       + 1; // Stores this number for the future too
 			int32_t memorySize = numPercCacheClusters * sizeof(Cluster*);
 			percCacheClusters[reversed] = (Cluster**)GeneralMemoryAllocator::get().allocMaxSpeed(memorySize);
-			if (!percCacheClusters[reversed]) {
+			if (percCacheClusters[reversed] == nullptr) {
 				LOCK_EXIT
 				return Error::INSUFFICIENT_RAM;
 			}
@@ -316,11 +316,11 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 
 	else {
 
-		if (!percCacheMemory[reversed]) {
+		if (percCacheMemory[reversed] == nullptr) {
 			int32_t percCacheSize = lengthInSamplesAfterReduction;
 
 			percCacheMemory[reversed] = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(percCacheSize);
-			if (!percCacheMemory[reversed]) {
+			if (percCacheMemory[reversed] == nullptr) {
 				LOCK_EXIT
 				return Error::INSUFFICIENT_RAM;
 			}
@@ -333,7 +333,7 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 	int32_t posIncrement = bytesPerSample * playDirection;
 
 	int32_t i;
-	if (!reversed) {
+	if (reversed == 0) {
 		i = percCacheZones[reversed].search(startPosSamples + 1, LESS);
 	}
 	else {
@@ -365,7 +365,7 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 
 			// If the (potentially made-later) start pos is already beyond the waveform, get out (otherwise we'd be
 			// prone to an error getting the perc Cluster below. Fixed Aug 2021
-			if (!reversed) {
+			if (reversed == 0) {
 				if (startPosSamples >= lengthInSamples) {
 doReturnNoError:
 					LOCK_EXIT
@@ -391,17 +391,17 @@ doReturnNoError:
 				}
 				Cluster* clusterHere = percCacheClusters[reversed][percClusterIndexStart];
 #if ALPHA_OR_BETA_VERSION
-				if (!clusterHere) {
+				if (clusterHere == nullptr) {
 
 					// That's actually allowed if we're right at the start of that cluster. But otherwise...
-					if (startPosSamples & ((1 << Cluster::size_magnitude + kPercBufferReductionMagnitude) - 1)) {
+					if ((startPosSamples & ((1 << Cluster::size_magnitude + kPercBufferReductionMagnitude) - 1)) != 0) {
 						// If Cluster has been stolen, the zones should have been updated, so we shouldn't be here
 						D_PRINTLN("startPosSamples: %d", startPosSamples);
 						FREEZE_WITH_ERROR("E139");
 					}
 				}
 #endif
-				if (clusterHere) {
+				if (clusterHere != nullptr) {
 					timeStretcher->rememberPercCacheCluster(
 					    clusterHere); // If at start of new cluster, there might not be one allocated here yet
 				}
@@ -425,7 +425,7 @@ doReturnNoError:
 						if (percClusterIndexEnd >= numPercCacheClusters) {
 							FREEZE_WITH_ERROR("E140");
 						}
-						if (!percCacheClusters[reversed][percClusterIndexEnd]) {
+						if (percCacheClusters[reversed][percClusterIndexEnd] == nullptr) {
 							// If Cluster has been stolen, the zones should have been updated, so we shouldn't be here
 							FREEZE_WITH_ERROR("E141");
 						}
@@ -450,7 +450,7 @@ doReturnNoError:
 
 	// If still here, need to create element. And we know that perc cache Clusters will be allocated and remembered if
 	// necessary
-	if (!reversed) {
+	if (reversed == 0) {
 		i++;
 	}
 
@@ -477,7 +477,7 @@ doLoading:
 #endif
 
 	// Make sure we don't shoot past end of waveform
-	if (!reversed) {
+	if (reversed == 0) {
 		endPosSamples = std::min(endPosSamples, (int32_t)lengthInSamples);
 	}
 	else {
@@ -536,16 +536,16 @@ doLoading:
 			if (ALPHA_OR_BETA_VERSION && percClusterIndex >= numPercCacheClusters) {
 				FREEZE_WITH_ERROR("E136");
 			}
-			if (!percCacheClusters[reversed][percClusterIndex]) {
+			if (percCacheClusters[reversed][percClusterIndex] == nullptr) {
 				// D_PRINTLN("allocating perc cache Cluster!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 				//  We tell it not to steal any other per cache Cluster from this Sample - not because those Clusters
 				//  are definitely a high priority to keep, but because doing so would probably alter our
 				//  percCacheZones, which we're currently working with, which could really muck things up. Scenario only
 				//  discovered Jan 2021.
 				percCacheClusters[reversed][percClusterIndex] = Cluster::create(
-				    reversed ? Cluster::Type::PERC_CACHE_REVERSED : Cluster::Type::PERC_CACHE_FORWARDS, false,
+				    (reversed != 0) ? Cluster::Type::PERC_CACHE_REVERSED : Cluster::Type::PERC_CACHE_FORWARDS, false,
 				    this); // Doesn't add reason. Call to rememberPercCacheCluster() below will
-				if (!percCacheClusters[reversed][percClusterIndex]) {
+				if (percCacheClusters[reversed][percClusterIndex] == nullptr) {
 					error = Error::INSUFFICIENT_RAM;
 					goto getOut;
 				}
@@ -563,7 +563,7 @@ doLoading:
 
 			// Bytes and samples are the same for the dest Cluster
 			int32_t samplesLeftThisDestCluster =
-			    reversed ? (posWithinPercClusterBig + 1)
+			    (reversed != 0) ? (posWithinPercClusterBig + 1)
 			             : ((Cluster::size << kPercBufferReductionMagnitude) - posWithinPercClusterBig);
 			numSamplesThisClusterReadWrite = std::min(numSamplesThisClusterReadWrite, samplesLeftThisDestCluster);
 		}
@@ -575,14 +575,14 @@ doLoading:
 		Cluster* cluster =
 		    clusters.getElement(sourceClusterIndex)
 		        ->cluster; // Don't call getcluster() - that would add a reason, and potentially do loading and stuff.
-		if (!cluster || !cluster->loaded) {
+		if ((cluster == nullptr) || !cluster->loaded) {
 			goto getOut;
 		}
 
 		int32_t bytePosWithinCluster = sourceBytePos & (Cluster::size - 1);
 
 		// Ok, how many samples can we load right now?
-		int32_t bytesLeftThisSourceCluster = reversed ? (bytePosWithinCluster + bytesPerSample)
+		int32_t bytesLeftThisSourceCluster = (reversed != 0) ? (bytePosWithinCluster + bytesPerSample)
 		                                              : (Cluster::size - bytePosWithinCluster + bytesPerSample - 1);
 		int32_t bytesWeWantToRead = numSamplesThisClusterReadWrite * bytesPerSample;
 		if (bytesWeWantToRead > bytesLeftThisSourceCluster + bytesPerSample) {
@@ -602,11 +602,11 @@ doLoading:
 			int32_t numSamplesThisPercPixelSegment = numSamplesThisClusterReadWrite;
 
 			int32_t numSamplesLeftThisPercPixelSegment =
-			    reversed ? (startPosSamples + 1 + (kPercBufferReductionSize >> 1)) & (kPercBufferReductionSize - 1)
+			    (reversed != 0) ? (startPosSamples + 1 + (kPercBufferReductionSize >> 1)) & (kPercBufferReductionSize - 1)
 			             : kPercBufferReductionSize
 			                   - ((startPosSamples + (kPercBufferReductionSize >> 1)) & (kPercBufferReductionSize - 1));
 
-			if (!numSamplesLeftThisPercPixelSegment) {
+			if (numSamplesLeftThisPercPixelSegment == 0) {
 				numSamplesLeftThisPercPixelSegment = kPercBufferReductionSize;
 			}
 
@@ -668,9 +668,9 @@ doLoading:
 			percCacheZone->lastAngle = angle;
 
 			numSamplesThisClusterReadWrite -= numSamplesThisPercPixelSegment;
-		} while (numSamplesThisClusterReadWrite);
+		} while (numSamplesThisClusterReadWrite != 0);
 
-	} while (numSamples);
+	} while (numSamples != 0);
 
 	percCacheZone->samplesAtStartWhichShouldBeReplaced =
 	    std::max<int32_t>(2048, // 2048 is fairly arbitrary
@@ -793,7 +793,7 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int3
 			}
 
 			Cluster* cluster = clusters.getElement(whichCluster)->cluster;
-			if (!cluster || !cluster->loaded) {
+			if ((cluster == nullptr) || !cluster->loaded) {
 				return false;
 			}
 
@@ -826,7 +826,7 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int3
 			if (ALPHA_OR_BETA_VERSION && numSamplesLeftThisAverage < 0) {
 				FREEZE_WITH_ERROR("DDDD");
 			}
-		} while (numSamplesLeftThisAverage);
+		} while (numSamplesLeftThisAverage != 0);
 	}
 
 	return true;
@@ -838,7 +838,7 @@ uint8_t* Sample::prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirec
 	int32_t reversed = (playDirection == 1) ? 0 : 1;
 
 	int32_t realPos = (pixellatedPos << kPercBufferReductionMagnitude) + (kPercBufferReductionSize >> 1);
-	int32_t i = percCacheZones[reversed].search(realPos + 1 - reversed, reversed ? GREATER_OR_EQUAL : LESS);
+	int32_t i = percCacheZones[reversed].search(realPos + 1 - reversed, (reversed != 0) ? GREATER_OR_EQUAL : LESS);
 	if (i < 0 || i >= percCacheZones[reversed].getNumElements()) {
 		return nullptr;
 	}
@@ -854,14 +854,14 @@ uint8_t* Sample::prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirec
 	    (zone->endPos - (kPercBufferReductionSize >> 1) * playDirection) >> kPercBufferReductionMagnitude;
 
 	// If permanently allocated perc cache...
-	if (percCacheMemory[reversed]) {
+	if (percCacheMemory[reversed] != nullptr) {
 		return percCacheMemory[reversed];
 	}
 
 	// Or if Cluster-based perc cache...
 	else {
 		int32_t ourCluster = pixellatedPos >> Cluster::size_magnitude;
-		if (ALPHA_OR_BETA_VERSION && !percCacheClusters[reversed][ourCluster]) {
+		if (ALPHA_OR_BETA_VERSION && (percCacheClusters[reversed][ourCluster] == nullptr)) {
 			FREEZE_WITH_ERROR("E142");
 		}
 
@@ -894,24 +894,24 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 	LOCK_ENTRY
 
 	D_PRINTLN("percCacheClusterStolen -----------------------------------------------------------!!");
-	int32_t reversed = (cluster->type == Cluster::Type::PERC_CACHE_REVERSED);
-	int32_t playDirection = reversed ? -1 : 1;
-	int32_t comparison = reversed ? GREATER_OR_EQUAL : LESS;
+	int32_t reversed = static_cast<int32_t>(cluster->type == Cluster::Type::PERC_CACHE_REVERSED);
+	int32_t playDirection = (reversed != 0) ? -1 : 1;
+	int32_t comparison = (reversed != 0) ? GREATER_OR_EQUAL : LESS;
 
 #if ALPHA_OR_BETA_VERSION
 	if (cluster->type != Cluster::Type::PERC_CACHE_FORWARDS && cluster->type != Cluster::Type::PERC_CACHE_REVERSED) {
 		FREEZE_WITH_ERROR("E149");
 	}
-	if (!percCacheClusters[reversed]) {
+	if (percCacheClusters[reversed] == nullptr) {
 		FREEZE_WITH_ERROR("E134");
 	}
 	if (cluster->clusterIndex >= numPercCacheClusters) {
 		FREEZE_WITH_ERROR("E135");
 	}
-	if (!percCacheClusters[reversed][cluster->clusterIndex]) {
+	if (percCacheClusters[reversed][cluster->clusterIndex] == nullptr) {
 		FREEZE_WITH_ERROR("i034"); // Trying to track down Steven G's E133 (Feb 2021).
 	}
-	if (percCacheClusters[reversed][cluster->clusterIndex]->numReasonsToBeLoaded) {
+	if (percCacheClusters[reversed][cluster->clusterIndex]->numReasonsToBeLoaded != 0) {
 		FREEZE_WITH_ERROR("i035"); // Trying to track down Steven G's E133 (Feb 2021).
 	}
 #endif
@@ -923,8 +923,8 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 	int32_t leftBorder = cluster->clusterIndex << (Cluster::size_magnitude + kPercBufferReductionMagnitude);
 	int32_t rightBorder = (cluster->clusterIndex + 1) << (Cluster::size_magnitude + kPercBufferReductionMagnitude);
 
-	int32_t laterBorder = reversed ? (leftBorder - 1) : rightBorder;
-	int32_t earlierBorder = reversed ? (rightBorder - 1) : leftBorder;
+	int32_t laterBorder = (reversed != 0) ? (leftBorder - 1) : rightBorder;
+	int32_t earlierBorder = (reversed != 0) ? (rightBorder - 1) : leftBorder;
 
 	// Trim anything earlier
 	int32_t iEarlier;
@@ -943,7 +943,7 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 				zoneEarlier->startPos = laterBorder;
 				zoneEarlier->samplesAtStartWhichShouldBeReplaced = 0;
 
-				int32_t iNew = reversed ? (iEarlier + 1) : iEarlier;
+				int32_t iNew = (reversed != 0) ? (iEarlier + 1) : iEarlier;
 				// This is reasonably likely to fail, cos it might want to allocate new memory, but that's not allowed
 				// if it's currently allocating a Cluster, which it will be if this Cluster got stolen, which is why
 				// we're here. Oh well
@@ -995,8 +995,8 @@ deleteThatOneToo:
 	}
 
 	int32_t numToDelete = (iLater - iEarlier) * playDirection - 1;
-	if (numToDelete) {
-		int32_t deleteFrom = reversed ? (iLater + 1) : (iEarlier + 1);
+	if (numToDelete != 0) {
+		int32_t deleteFrom = (reversed != 0) ? (iLater + 1) : (iEarlier + 1);
 		percCacheZones[reversed].deleteAtIndex(deleteFrom, numToDelete);
 	}
 
@@ -1144,7 +1144,7 @@ int32_t Sample::investigateFundamentalPitch(int32_t fundamentalIndexProvided, in
 
 			uncertaintyCount += (float)1.5 / lastHFound;
 
-			if (!highestFoundHere) {
+			if (highestFoundHere == 0) {
 				continue;
 			}
 		}
@@ -1198,7 +1198,7 @@ examineHarmonic:
 					break;
 				}
 
-				if (!((uint32_t)h % thisPrime)) {
+				if (((uint32_t)h % thisPrime) == 0u) {
 					primeTotals[p] += strengthThisHarmonic;
 				}
 			}
@@ -1286,7 +1286,7 @@ float Sample::determinePitch(bool doingSingleCycle, float minFreqHz, float maxFr
 	int32_t floatIndexTableSize = (kPitchDetectWindowSize >> 2) * sizeof(float);
 	int32_t* fftInput =
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(fftInputSize + fftOutputSize + floatIndexTableSize);
-	if (!fftInput) {
+	if (fftInput == nullptr) {
 		return 0;
 	}
 
@@ -1317,7 +1317,7 @@ float Sample::determinePitch(bool doingSingleCycle, float minFreqHz, float maxFr
 
 	bool doingSecondPassWithReducedThreshold = false;
 	int32_t startValueThreshold = 1 << (31 - 4);
-	if (!beginningOffsetForPitchDetection) {
+	if (beginningOffsetForPitchDetection == 0) {
 		beginningOffsetForPitchDetection = audioDataStartPosBytes;
 	}
 
@@ -1335,7 +1335,7 @@ startAgain:
 
 	Cluster* cluster =
 	    clusters.getElement(currentClusterIndex)->getCluster(this, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
-	if (!cluster) {
+	if (cluster == nullptr) {
 		D_PRINTLN("failed to load first");
 getOut:
 		delugeDealloc(fftInput);
@@ -1358,10 +1358,10 @@ getOut:
 	while (true) {
 continueWhileLoop:
 		// If there's no "next" Cluster, load it now
-		if (!nextCluster && currentClusterIndex + 1 < getFirstClusterIndexWithNoAudioData()) {
+		if ((nextCluster == nullptr) && currentClusterIndex + 1 < getFirstClusterIndexWithNoAudioData()) {
 			nextCluster = clusters.getElement(currentClusterIndex + 1)
 			                  ->getCluster(this, currentClusterIndex + 1, CLUSTER_LOAD_IMMEDIATELY);
-			if (!nextCluster) {
+			if (nextCluster == nullptr) {
 				audioFileManager.removeReasonFromCluster(*cluster, "imcwn4o");
 				D_PRINTLN("failed to load next");
 				goto getOut;
@@ -1374,7 +1374,7 @@ continueWhileLoop:
 		// us
 		for (int32_t i = 0; i < (1 << lengthDoublingsNow); i++) {
 
-			if (!(count & 255)) {
+			if ((count & 255) == 0) {
 				AudioEngine::routineWithClusterLoading(); // --------------------------------------
 			}
 			count++;
@@ -1483,7 +1483,7 @@ doneReading:
 	*/
 
 	// Perform the FFT
-	ne10_fft_r2c_1d_int32_neon(fftOutput, (ne10_int32_t*)fftInput, fftCFG, false);
+	ne10_fft_r2c_1d_int32_neon(fftOutput, (ne10_int32_t*)fftInput, fftCFG, 0);
 
 	// D_PRINTLN("fft done");
 
@@ -1500,7 +1500,7 @@ doneReading:
 	int32_t biggestValue = 0;
 	for (int32_t i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
 
-		if (!(i & 1023)) {
+		if ((i & 1023) == 0) {
 			AudioEngine::routineWithClusterLoading(); // --------------------------------------
 		}
 
@@ -1536,7 +1536,7 @@ doneReading:
 	// a peak
 	for (int32_t i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
 
-		if (!(i & 255)) {
+		if ((i & 255) == 0) {
 			AudioEngine::routineWithClusterLoading(); // --------------------------------------
 		}
 
@@ -1590,13 +1590,13 @@ doneReading:
 	// For each peak, evaluate its strength as a contender for the fundamental
 	for (int32_t i = minFundamentalPeakIndex; i < maxFundamentalPeakIndex; i++) {
 
-		if (!fftHeights[i]) {
+		if (fftHeights[i] == 0) {
 			continue;
 		}
 
 		// We're at a peak!
 
-		if (!(peakCount & 7)) {
+		if ((peakCount & 7) == 0) {
 			AudioEngine::routineWithClusterLoading(); // -------------------------------------- // 15 works. 7 is extra
 			                                          // safe
 		}
@@ -1630,7 +1630,7 @@ doneReading:
 	}
 
 	// If no peaks found, print out the FFT for debugging
-	if (!bestStrength) {
+	if (bestStrength == 0) {
 		D_PRINTLN("no peaks found.");
 
 		D_PRINTLN("searching  %d  to  %d", minFundamentalPeakIndex, maxFundamentalPeakIndex);
@@ -1741,7 +1741,7 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 	for (int32_t c = 0; c < clusters.getNumElements(); c++) {
 
 		Cluster* cluster = clusters.getElement(c)->cluster;
-		if (cluster) {
+		if (cluster != nullptr) {
 
 			if (cluster->clusterIndex != c) {
 				// Leo got! Aug 2020. Suspect some sort of memory corruption... And then Michael got, Feb 2021
@@ -1761,12 +1761,12 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 		// clusters[c].ensureNoReason(this);
 	}
 
-	if (numClusterReasons) {
+	if (numClusterReasons != 0) {
 		D_PRINTLN("reason dump---");
 		for (int32_t c = 0; c < clusters.getNumElements(); c++) {
 
 			Cluster* cluster = clusters.getElement(c)->cluster;
-			if (cluster) {
+			if (cluster != nullptr) {
 				D_PRINT("cluster->numReasonsToBeLoaded[%d]", cluster->numReasonsToBeLoaded);
 
 				if (cluster == audioFileManager.clusterBeingLoaded) {

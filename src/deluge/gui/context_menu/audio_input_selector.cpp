@@ -150,9 +150,9 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 }
 // if they're in session view and press a clip's pad, record from that output
 ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
-	if (on && getUIUpOneLevel() == &sessionView) {
+	if ((on != 0) && getUIUpOneLevel() == &sessionView) {
 		auto track = (&sessionView)->getOutputFromPad(x, y);
-		if (track && track->type != OutputType::MIDI_OUT && track->type != OutputType::CV) {
+		if ((track != nullptr) && track->type != OutputType::MIDI_OUT && track->type != OutputType::CV) {
 			audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
 			audioOutput->setOutputRecordingFrom(track);
 			display->popupTextTemporary(track->name.get());
@@ -161,7 +161,7 @@ ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 			currentOption = scrollPos;
 			renderUIsForOled();
 		}
-		else if (track) {
+		else if (track != nullptr) {
 			display->popupTextTemporary("Can't record MIDI or CV!");
 		}
 

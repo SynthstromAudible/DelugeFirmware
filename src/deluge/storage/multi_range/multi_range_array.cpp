@@ -54,7 +54,7 @@ MultiRange* MultiRangeArray::insertMultiRange(int32_t i) {
 
 Error MultiRangeArray::changeType(int32_t newSize) {
 
-	if (!numElements) {
+	if (numElements == 0) {
 		elementSize = newSize;
 		return Error::NONE;
 	}

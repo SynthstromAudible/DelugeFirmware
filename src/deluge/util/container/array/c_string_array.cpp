@@ -102,8 +102,8 @@ int32_t CStringArray::search(char const* searchString, bool* foundExact) {
 		char const* stringHere = *(char const**)getElementAddress(proposedIndex);
 		int32_t result = strcmpspecial(stringHere, searchString);
 
-		if (!result) {
-			if (foundExact) {
+		if (result == 0) {
+			if (foundExact != nullptr) {
 				*foundExact = true;
 			}
 			return proposedIndex;
@@ -116,7 +116,7 @@ int32_t CStringArray::search(char const* searchString, bool* foundExact) {
 		}
 	}
 
-	if (foundExact) {
+	if (foundExact != nullptr) {
 		*foundExact = false;
 	}
 	return rangeBegin;

@@ -230,7 +230,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 	int32_t currentValue = 0;
 	char const* currentTag = nullptr;
 
-	while (*(currentTag = reader.readNextTagOrAttributeName())) {
+	while (*(currentTag = reader.readNextTagOrAttributeName()) != 0) {
 
 		if (strcmp(currentTag, "startupSong") == 0) {
 			reader.readTagOrAttributeValueString(&startupSong);

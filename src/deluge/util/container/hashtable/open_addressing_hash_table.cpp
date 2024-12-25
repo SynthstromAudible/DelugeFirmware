@@ -44,10 +44,10 @@ OpenAddressingHashTable::~OpenAddressingHashTable() {
 }
 
 void OpenAddressingHashTable::empty(bool destructing) {
-	if (memory) {
+	if (memory != nullptr) {
 		delugeDealloc(memory);
 	}
-	if (secondaryMemory) {
+	if (secondaryMemory != nullptr) {
 		delugeDealloc(secondaryMemory);
 	}
 
@@ -93,10 +93,10 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 #endif
 
 	// If no memory, get some
-	if (!memory) {
+	if (memory == nullptr) {
 		int32_t newNumBuckets = initialNumBuckets;
 		memory = GeneralMemoryAllocator::get().allocMaxSpeed(newNumBuckets * elementSize);
-		if (!memory) {
+		if (memory == nullptr) {
 			return nullptr;
 		}
 
@@ -111,7 +111,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 		int32_t newNumBuckets = numBuckets << 1;
 
 		secondaryMemory = GeneralMemoryAllocator::get().allocMaxSpeed(newNumBuckets * elementSize);
-		if (secondaryMemory) {
+		if (secondaryMemory != nullptr) {
 
 			// Initialize
 			secondaryMemoryNumBuckets = newNumBuckets;
@@ -174,7 +174,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 	while (true) {
 		bucketAddress = getBucketAddress(b);
 		uint32_t destKey = getKeyFromAddress(bucketAddress);
-		if (onlyIfNotAlreadyPresent && destKey == key) {
+		if ((onlyIfNotAlreadyPresent != nullptr) && destKey == key) {
 			*onlyIfNotAlreadyPresent = true;
 			goto justReturnAddress;
 		}
@@ -201,7 +201,7 @@ void* OpenAddressingHashTable::lookup(uint32_t key) {
 	}
 #endif
 
-	if (!memory) {
+	if (memory == nullptr) {
 		return nullptr;
 	}
 
@@ -242,7 +242,7 @@ bool OpenAddressingHashTable::remove(uint32_t key) {
 	}
 #endif
 
-	if (!memory) {
+	if (memory == nullptr) {
 		return false;
 	}
 

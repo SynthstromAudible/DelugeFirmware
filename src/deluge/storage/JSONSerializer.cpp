@@ -185,10 +185,10 @@ void JsonSerializer::writeOpeningTagBeginning(char const* tag, bool box, bool ne
 	if (newLineBefore) // prepend newLine almost always.
 		write("\n");
 	printIndents();
-	if (box || !tag) {
+	if (box || (tag == nullptr)) {
 		write("{");
 	}
-	if (tag) {
+	if (tag != nullptr) {
 		write("\"");
 		write(tag);
 		write("\": {");

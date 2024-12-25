@@ -41,7 +41,7 @@ DxPatch* getCurrentDxPatch() {
 void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
 	using menu_item::dxParam;
 	DxPatch* patch = getCurrentDxPatch();
-	if (!patch) {
+	if (patch == nullptr) {
 		return;
 	}
 	int algid = patch->params[134];
@@ -55,7 +55,7 @@ void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t 
 			if (!patch->opSwitch(op)) {
 				image[y][column] = {255, 0, 0};
 			}
-			else if (a.ops[op] & (OUT_BUS_ONE | OUT_BUS_TWO)) {
+			else if ((a.ops[op] & (OUT_BUS_ONE | OUT_BUS_TWO)) != 0) {
 				image[y][column] = {0, 128, 255};
 			}
 			else {
@@ -82,7 +82,7 @@ void DXColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWith
 void DXColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                          KeyboardLayout* layout) {
 	DxPatch* patch = getCurrentDxPatch();
-	if (!patch) {
+	if (patch == nullptr) {
 		return;
 	}
 

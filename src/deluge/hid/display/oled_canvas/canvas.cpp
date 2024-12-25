@@ -35,7 +35,7 @@ void Canvas::clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t ma
 
 	// First row
 	int32_t firstRowPixelWithin = minY & 7;
-	if (firstRowPixelWithin) {
+	if (firstRowPixelWithin != 0) {
 		firstCompleteRow++;
 		uint8_t firstRowMask = ~(255 << firstRowPixelWithin);
 		if (willDoLastRow && firstRow == lastRow) {
@@ -130,7 +130,7 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 	// to do iterate through each character in the string, based on its size in pixels
 	// and compare that to the scroll position (which is also in pixels)
 	// any characters before the scroll position are chopped off;
-	if (scrollPos) {
+	if (scrollPos != 0) {
 		int32_t numCharsToChopOff = 0;
 		int32_t widthOfCharsToChopOff = 0;
 		int32_t charStartX = 0;

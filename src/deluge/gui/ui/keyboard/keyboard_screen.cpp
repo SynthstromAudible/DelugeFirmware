@@ -101,7 +101,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 	}
 
 	// Handle overruling shortcut presses
-	ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
+	ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity != 0);
 	if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {
 		return soundEditorResult;
 	}
@@ -109,7 +109,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 	int32_t markDead = -1;
 
 	// Pad pressed down, add to list if not full
-	if (velocity) {
+	if (velocity != 0) {
 		// TODO: Logic should be inverted as part of a bigger rewrite
 		if (currentUIMode == UI_MODE_IMPLODE_ANIMATION || currentUIMode == UI_MODE_ANIMATION_FADE
 		    || currentUIMode == UI_MODE_INSTRUMENT_CLIP_COLLAPSING) {

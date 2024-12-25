@@ -784,7 +784,7 @@ void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutom
 }
 
 void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
-	if (paramManager) {
+	if (paramManager != nullptr) {
 		writer.writeOpeningTagBeginning("defaultParams");
 		GlobalEffectable::writeParamAttributesToFile(writer, paramManager, writeAutomation);
 		writer.writeOpeningTagEnd();
@@ -869,7 +869,7 @@ void GlobalEffectable::readParamsFromFile(Deserializer& reader, ParamManagerForT
                                           int32_t readAutomationUpToPos) {
 	char const* tagName;
 
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		if (readParamTagFromFile(reader, tagName, paramManager, readAutomationUpToPos)) {}
 		else {
 			reader.exitTag(tagName);
@@ -883,15 +883,15 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 
-	if (!strcmp(tagName, "delay")) {
+	if (strcmp(tagName, "delay") == 0) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "rate")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "rate") == 0) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_DELAY_RATE,
 				                           readAutomationUpToPos);
 				reader.exitTag("rate");
 			}
-			else if (!strcmp(tagName, "feedback")) {
+			else if (strcmp(tagName, "feedback") == 0) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_DELAY_AMOUNT,
 				                           readAutomationUpToPos);
 				reader.exitTag("feedback");
@@ -900,21 +900,21 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 		reader.exitTag("delay", true);
 	}
 
-	else if (!strcmp(tagName, "lpf")) {
+	else if (strcmp(tagName, "lpf") == 0) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "frequency")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "frequency") == 0) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_LPF_FREQ,
 				                           readAutomationUpToPos);
 				reader.exitTag("frequency");
 			}
-			else if (!strcmp(tagName, "resonance")) {
+			else if (strcmp(tagName, "resonance") == 0) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_LPF_RES,
 				                           readAutomationUpToPos);
 				reader.exitTag("resonance");
 			}
 
-			else if (!strcmp(tagName, "morph")) {
+			else if (strcmp(tagName, "morph") == 0) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH,
 				                           readAutomationUpToPos);
 				reader.exitTag("morph");
@@ -923,21 +923,21 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 		reader.exitTag("lpf", true);
 	}
 
-	else if (!strcmp(tagName, "hpf")) {
+	else if (strcmp(tagName, "hpf") == 0) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "frequency")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "frequency") == 0) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_HPF_FREQ,
 				                           readAutomationUpToPos);
 				reader.exitTag("frequency");
 			}
-			else if (!strcmp(tagName, "resonance")) {
+			else if (strcmp(tagName, "resonance") == 0) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_HPF_RES,
 				                           readAutomationUpToPos);
 				reader.exitTag("resonance");
 			}
 
-			else if (!strcmp(tagName, "morph")) {
+			else if (strcmp(tagName, "morph") == 0) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH,
 				                           readAutomationUpToPos);
 				reader.exitTag("morph");
@@ -946,61 +946,61 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 		reader.exitTag("hpf", true);
 	}
 
-	else if (!strcmp(tagName, "reverbAmount")) {
+	else if (strcmp(tagName, "reverbAmount") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_REVERB_SEND_AMOUNT,
 		                           readAutomationUpToPos);
 		reader.exitTag("reverbAmount");
 	}
 
-	else if (!strcmp(tagName, "lpfMorph")) {
+	else if (strcmp(tagName, "lpfMorph") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH, readAutomationUpToPos);
 		reader.exitTag("lpfMorph");
 	}
 
-	else if (!strcmp(tagName, "hpfMorph")) {
+	else if (strcmp(tagName, "hpfMorph") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH, readAutomationUpToPos);
 		reader.exitTag("hpfMorph");
 	}
-	else if (!strcmp(tagName, "tempo")) {
+	else if (strcmp(tagName, "tempo") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_TEMPO, readAutomationUpToPos);
 		reader.exitTag("tempo");
 	}
 
-	else if (!strcmp(tagName, "volume")) {
+	else if (strcmp(tagName, "volume") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_VOLUME, readAutomationUpToPos);
 		reader.exitTag("volume");
 	}
 
-	else if (!strcmp(tagName, "sidechainCompressorVolume")) {
+	else if (strcmp(tagName, "sidechainCompressorVolume") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_VOLUME,
 		                           readAutomationUpToPos);
 		reader.exitTag("sidechainCompressorVolume");
 	}
 
-	else if (!strcmp(tagName, "sidechainCompressorShape")) {
+	else if (strcmp(tagName, "sidechainCompressorShape") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_SHAPE,
 		                           readAutomationUpToPos);
 		reader.exitTag("sidechainCompressorShape");
 	}
 
-	else if (!strcmp(tagName, "pan")) {
+	else if (strcmp(tagName, "pan") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PAN, readAutomationUpToPos);
 		reader.exitTag("pan");
 	}
 
-	else if (!strcmp(tagName, "pitchAdjust")) {
+	else if (strcmp(tagName, "pitchAdjust") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PITCH_ADJUST,
 		                           readAutomationUpToPos);
 		reader.exitTag("pitchAdjust");
 	}
 
-	else if (!strcmp(tagName, "modFXDepth")) {
+	else if (strcmp(tagName, "modFXDepth") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_DEPTH,
 		                           readAutomationUpToPos);
 		reader.exitTag("modFXDepth");
 	}
 
-	else if (!strcmp(tagName, "modFXRate")) {
+	else if (strcmp(tagName, "modFXRate") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_RATE,
 		                           readAutomationUpToPos);
 		reader.exitTag("modFXRate");
@@ -1025,7 +1025,7 @@ Error GlobalEffectable::readTagFromFile(Deserializer& reader, char const* tagNam
 	// readAutomation)) {}
 
 	// else
-	if (paramManager && !strcmp(tagName, "defaultParams")) {
+	if ((paramManager != nullptr) && (strcmp(tagName, "defaultParams") == 0)) {
 
 		if (!paramManager->containsAnyMainParamCollections()) {
 			Error error = paramManager->setupUnpatched();
@@ -1039,17 +1039,17 @@ Error GlobalEffectable::readTagFromFile(Deserializer& reader, char const* tagNam
 		reader.exitTag("defaultParams");
 	}
 
-	else if (!strcmp(tagName, "modFXType")) {
+	else if (strcmp(tagName, "modFXType") == 0) {
 		modFXType_ = stringToFXType(reader.readTagOrAttributeValue());
 		reader.exitTag("modFXType");
 	}
 
-	else if (!strcmp(tagName, "modFXCurrentParam")) {
+	else if (strcmp(tagName, "modFXCurrentParam") == 0) {
 		currentModFXParam = stringToModFXParam(reader.readTagOrAttributeValue());
 		reader.exitTag("modFXCurrentParam");
 	}
 
-	else if (!strcmp(tagName, "currentFilterType")) {
+	else if (strcmp(tagName, "currentFilterType") == 0) {
 		currentFilterType = stringToFilterType(reader.readTagOrAttributeValue());
 		reader.exitTag("currentFilterType");
 	}
@@ -1150,7 +1150,7 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 		disableGrain();
 	}
 	else if (modFXTypeNow == ModFXType::GRAIN) {
-		if (anySoundComingIn && !grainFX) {
+		if (anySoundComingIn && (grainFX == nullptr)) {
 			enableGrain();
 		}
 	}

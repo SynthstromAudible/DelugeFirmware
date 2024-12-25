@@ -274,7 +274,7 @@ void ModFXProcessor::processOnePhaserSample(int32_t modFXDepth, int32_t feedback
 }
 
 void ModFXProcessor::resetMemory() {
-	if (modFXBuffer) {
+	if (modFXBuffer != nullptr) {
 		memset(modFXBuffer, 0, kModFXBufferSize * sizeof(StereoSample));
 	}
 
@@ -285,15 +285,15 @@ void ModFXProcessor::resetMemory() {
 }
 
 void ModFXProcessor::setupBuffer() {
-	if (!modFXBuffer) {
+	if (modFXBuffer == nullptr) {
 		modFXBuffer = (StereoSample*)delugeAlloc(kModFXBufferSize * sizeof(StereoSample));
-		if (modFXBuffer) {
+		if (modFXBuffer != nullptr) {
 			memset(modFXBuffer, 0, kModFXBufferSize * sizeof(StereoSample));
 		}
 	}
 }
 void ModFXProcessor::disableBuffer() {
-	if (modFXBuffer) {
+	if (modFXBuffer != nullptr) {
 		delugeDealloc(modFXBuffer);
 		modFXBuffer = nullptr;
 	}

@@ -84,7 +84,7 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 	}
 
 	// Rare case of fudging
-	if (fudgingNumSamplesTilLoop) {
+	if (fudgingNumSamplesTilLoop != 0) {
 
 		int32_t numSamplesIntoPreMarginToStartSource = fudgingNumSamplesTilLoop;
 
@@ -170,14 +170,14 @@ void TimeStretcher::beenUnassigned() {
 	unassignAllReasonsForPercCacheClusters();
 	// we might sometimes want to dealloc the clusters but I'm not sure
 	olderPartReader.unassignAllReasons(false);
-	if (buffer) {
+	if (buffer != nullptr) {
 		delugeDealloc(buffer);
 	}
 }
 
 void TimeStretcher::unassignAllReasonsForPercLookahead() {
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		if (clustersForPercLookahead[l]) {
+		if (clustersForPercLookahead[l] != nullptr) {
 			audioFileManager.removeReasonFromCluster(*clustersForPercLookahead[l], "E130");
 			clustersForPercLookahead[l] = nullptr;
 		}
@@ -186,7 +186,7 @@ void TimeStretcher::unassignAllReasonsForPercLookahead() {
 
 void TimeStretcher::unassignAllReasonsForPercCacheClusters() {
 	for (int32_t l = 0; l < 2; l++) {
-		if (percCacheClustersNearby[l]) {
+		if (percCacheClustersNearby[l] != nullptr) {
 			audioFileManager.removeReasonFromCluster(*percCacheClustersNearby[l], "E132");
 			percCacheClustersNearby[l] = nullptr;
 		}
@@ -247,7 +247,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 #if ALPHA_OR_BETA_VERSION
 	// Trying to track down Steven's E133 - percCacheClusterNearby pointing to things with no reasons left
 	for (int32_t l = 0; l < 2; l++) {
-		if (percCacheClustersNearby[l] && !percCacheClustersNearby[l]->numReasonsToBeLoaded) {
+		if ((percCacheClustersNearby[l] != nullptr) && (percCacheClustersNearby[l]->numReasonsToBeLoaded == 0)) {
 			FREEZE_WITH_ERROR("i036");
 		}
 	}
@@ -296,7 +296,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 	// still rendering its old position, but now this new hop is going to start from the new, resume()d current
 	// play-pos. Should be fine and if anything should sound not bad... but maybe beware? Should we refuse to do a new
 	// hop, or to make this call to guide->getSyncedNumSamplesIn(), if an AudioClip is fading/releasing out?
-	if (guide->sequenceSyncLengthTicks && playbackHandler.isEitherClockActive()) {
+	if ((guide->sequenceSyncLengthTicks != 0u) && playbackHandler.isEitherClockActive()) {
 		uint64_t numSamplesIn = guide->getSyncedNumSamplesIn();
 
 		uint64_t startSample = (uint32_t)(guide->startPlaybackAtByte - sample->audioDataStartPosBytes)
@@ -444,7 +444,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 						// If there's a cache, we can't move a bit sideways to phase-align,
 						// cos our new play-head needs to remain perfectly aligned with the start of the cache.
-						if (voiceSample->cache) {
+						if (voiceSample->cache != nullptr) {
 							goto skipSearch;
 
 							// Otherwise, if no cache, we totally do want to do that.
@@ -480,7 +480,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		uint8_t* percCache =
 		    sample->prepareToReadPercCache(beamPosAtTop, playDirection, &earliestPixellatedPos, &latestPixellatedPos);
 
-		if (percCache) {
+		if (percCache != nullptr) {
 
 			int32_t furthestBackSearched = beamPosAtTop;
 			int32_t furthestForwardSearched = beamPosAtTop;
@@ -502,7 +502,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 				                              * playDirection;
 
 				int32_t pixellatedBeamWidth = (beamFrontEdge - beamBackEdge) * playDirection;
-				if (pixellatedBeamWidth) { // It might be zero near the start
+				if (pixellatedBeamWidth != 0) { // It might be zero near the start
 
 					if ((beamFrontEdge - latestPixellatedPos) * playDirection > 0) {
 						// D_PRINTLN("hit front edge");
@@ -715,7 +715,7 @@ startSearch:
 
 				int32_t whichCluster = readByte[i] >> Cluster::size_magnitude;
 				Cluster* cluster = sample->clusters.getElement(whichCluster)->cluster;
-				if (!cluster || !cluster->loaded) {
+				if ((cluster == nullptr) || !cluster->loaded) {
 					goto skipSearch;
 				}
 
@@ -773,7 +773,7 @@ entryPoint:
 				int32_t differenceAbs = getTotalDifferenceAbs(oldHeadTotals, newHeadRunningTotals);
 
 				// If our very first read is worse, let's switch search direction right now - that'll improve our odds
-				if (offsetNow == 0 && searchDirectionRelativeToPlayDirection == 1 && !numFullDirectionsSearched
+				if (offsetNow == 0 && searchDirectionRelativeToPlayDirection == 1 && (numFullDirectionsSearched == 0)
 				    && differenceAbs > bestDifferenceAbs) {
 					goto restartSearchWithOtherDirection;
 				}
@@ -831,7 +831,7 @@ entryPoint:
 				readByte[i] += bytesPerSampleTimesSearchDirection * numSamplesThisRead;
 			}
 
-		} while (numSamplesLeftThisSearch);
+		} while (numSamplesLeftThisSearch != 0);
 
 searchNextDirection:
 		// Search the other direction if we haven't already
@@ -950,7 +950,7 @@ optForDirectReading:
 
 #else
 	// If no one's reading from the buffer anymore, stop filling it
-	if (buffer && !olderHeadReadingFromBuffer) { // olderHeadReadingFromBuffer will always be false - we set it above,
+	if ((buffer != nullptr) && !olderHeadReadingFromBuffer) { // olderHeadReadingFromBuffer will always be false - we set it above,
 		                                         // at the start
 		delugeDealloc(buffer);
 		buffer = nullptr;
@@ -1097,7 +1097,7 @@ void TimeStretcher::rememberPercCacheCluster(Cluster* cluster) {
 
 	cluster->addReason();
 
-	if (percCacheClustersNearby[0]) {
+	if (percCacheClustersNearby[0] != nullptr) {
 		// Steven G got this on V3.1.5, Feb 2021!
 		audioFileManager.removeReasonFromCluster(*percCacheClustersNearby[0], "E133");
 	}
@@ -1112,7 +1112,7 @@ void TimeStretcher::rememberPercCacheCluster(Cluster* cluster) {
 void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int32_t playDirection) {
 	int32_t clusterIndex = sourceBytePos >> Cluster::size_magnitude;
 
-	if (!clustersForPercLookahead[0] || clustersForPercLookahead[0]->clusterIndex != clusterIndex) {
+	if ((clustersForPercLookahead[0] == nullptr) || clustersForPercLookahead[0]->clusterIndex != clusterIndex) {
 		unassignAllReasonsForPercLookahead();
 
 		int32_t nextClusterIndex = clusterIndex;
@@ -1123,7 +1123,7 @@ void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sour
 			}
 			clustersForPercLookahead[l] =
 			    sample->clusters.getElement(nextClusterIndex)->getCluster(sample, nextClusterIndex, CLUSTER_ENQUEUE);
-			if (!clustersForPercLookahead[l]) {
+			if (clustersForPercLookahead[l] == nullptr) {
 				break;
 			}
 			nextClusterIndex += playDirection;
@@ -1149,7 +1149,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 	int32_t bytePosWithinCluster = cacheBytePos & (Cluster::size - 1);
 
 	Cluster* cacheCluster = cache->getCluster(cachedClusterIndex);
-	if (ALPHA_OR_BETA_VERSION && !cacheCluster) { // If it got stolen - but we should have already detected this above
+	if (ALPHA_OR_BETA_VERSION && (cacheCluster == nullptr)) { // If it got stolen - but we should have already detected this above
 		FREEZE_WITH_ERROR("E178");
 	}
 	int32_t* __restrict__ readPos = (int32_t*)&cacheCluster->data[bytePosWithinCluster - 4 + kCacheByteDepth];
@@ -1161,7 +1161,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 		return; // TODO: allow it go to the next Cluster
 	}
 
-	if (!buffer) {
+	if (buffer == nullptr) {
 		bool success = allocateBuffer(numChannels);
 		if (!success) {
 			return;

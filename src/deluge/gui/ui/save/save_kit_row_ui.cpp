@@ -96,7 +96,7 @@ bool SaveKitRowUI::performSave(bool mayOverwrite) {
 	}
 
 	// We can't save into this slot if another Instrument in this Song already uses it
-	if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, enteredText.get(), currentDir.get(), false)) {
+	if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, enteredText.get(), currentDir.get(), false) != nullptr) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SAME_NAME));
 		display->removeWorkingAnimation();
 		return false;

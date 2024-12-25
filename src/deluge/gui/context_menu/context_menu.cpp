@@ -205,7 +205,7 @@ void ContextMenu::drawCurrentOption() {
 }
 
 ActionResult ContextMenu::padAction(int32_t x, int32_t y, int32_t on) {
-	if (on && isUIModeWithinRange(buttonAndPadActionUIModes)) {
+	if ((on != 0) && isUIModeWithinRange(buttonAndPadActionUIModes)) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}

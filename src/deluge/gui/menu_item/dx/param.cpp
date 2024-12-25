@@ -176,7 +176,7 @@ void DxParam::selectEncoderAction(int32_t offset) {
 
 void DxParam::horizontalEncoderAction(int32_t offset) {
 	if (Buttons::isShiftButtonPressed()) {
-		if (param < 0 || param > 6 * 21 || !patch)
+		if (param < 0 || param > 6 * 21 || (patch == nullptr))
 			return; // TODO: remember last OP param?
 		int cur_op = param / 21;
 		int next_op = cur_op;
@@ -439,7 +439,7 @@ static void renderSensParams(uint8_t* params, int op, int idx) {
 
 static void renderTuning(uint8_t* params, int op, int param) {
 	int mode = params[op * 21 + 17];
-	const char* text = mode ? "fixed" : "ratio";
+	const char* text = (mode != 0) ? "fixed" : "ratio";
 	show(text, 0, 1, (17 == param));
 
 	for (int i = 0; i < 3; i++) {
@@ -475,7 +475,7 @@ static void renderLFO(uint8_t* params, int param) {
 		show(val, 1, 1 + i * 9 + 6, (i + 139 == param));
 	}
 
-	const char* sync = (params[141] ? "sync" : "    ");
+	const char* sync = ((params[141] != 0u) ? "sync" : "    ");
 	show(sync, 0, 7, (141 == param));
 	int shap = std::min((int)params[142], 5);
 	show(shapes_long[shap], 0, 12, (142 == param));
@@ -503,9 +503,9 @@ static void renderAlgorithm(uint8_t* params) {
 		buffer[1] = ':';
 		buffer[2] = ' ';
 		buffer[3] = ib[inbus];
-		buffer[4] = (f & OUT_BUS_ADD) ? '+' : '>';
+		buffer[4] = ((f & OUT_BUS_ADD) != 0) ? '+' : '>';
 		buffer[5] = ob[outbus];
-		buffer[6] = (f & (FB_IN | FB_OUT)) ? 'f' : ' ';
+		buffer[6] = ((f & (FB_IN | FB_OUT)) != 0) ? 'f' : ' ';
 		buffer[7] = 0;
 
 		int r = i / 3, c = i % 3;
@@ -556,7 +556,7 @@ void DxParam::drawValue() {
 		int val = getValue();
 		const char* text = NULL;
 		if (param < 6 * 21 && (idx == 17)) {
-			text = val ? "fixd" : "rati";
+			text = (val != 0) ? "fixd" : "rati";
 		}
 		else if (param < 6 * 21 && (idx == 11 || idx == 12)) {
 			text = curves[std::min(val, 4)];
@@ -571,7 +571,7 @@ void DxParam::drawValue() {
 		else if (param < 6 * 21 && (idx == 20)) {
 			val -= 7; // detuning -7 - 7
 		}
-		if (text) {
+		if (text != nullptr) {
 			display->setText(text);
 		}
 		else {

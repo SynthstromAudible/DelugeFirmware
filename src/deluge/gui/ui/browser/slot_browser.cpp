@@ -72,7 +72,7 @@ ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
 	}
 	if (display->have7SEG()) {
 		FileItem* currentFileItem = getCurrentFileItem();
-		if (currentFileItem) {
+		if (currentFileItem != nullptr) {
 			// See if it's numeric. Here, filename has already had prefix removed if it's numeric.
 
 			Slot thisSlot = getSlot(enteredText.get());
@@ -129,7 +129,7 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	if (currentFileItem && currentFileHasSuffixFormatNameImplied && !enteredText.isEmpty()
+	if ((currentFileItem != nullptr) && currentFileHasSuffixFormatNameImplied && !enteredText.isEmpty()
 	    && !currentFileItem->isFolder) {
 
 		int32_t enteredTextLength = enteredText.getLength();

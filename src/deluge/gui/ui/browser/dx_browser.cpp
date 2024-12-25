@@ -68,7 +68,7 @@ Error DxSyxBrowser::getCurrentFilePath(String* path) {
 
 	path->set(&currentDir);
 	int oldLength = path->getLength();
-	if (oldLength) {
+	if (oldLength != 0) {
 		error = path->concatenateAtPos("/", oldLength);
 		if (error != Error::NONE) {
 gotError:
@@ -88,7 +88,7 @@ gotError:
 
 void DxSyxBrowser::enterKeyPress() {
 	FileItem* currentFileItem = getCurrentFileItem();
-	if (!currentFileItem) {
+	if (currentFileItem == nullptr) {
 		return;
 	}
 

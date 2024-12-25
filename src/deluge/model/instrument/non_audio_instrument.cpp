@@ -31,7 +31,7 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
                                       int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
 
 	// MIDI / CV arpeggiator
-	if (activeClip) {
+	if (activeClip != nullptr) {
 		InstrumentClip* activeInstrumentClip = (InstrumentClip*)activeClip;
 
 		if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
@@ -73,7 +73,7 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
                                   uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 
 	ArpeggiatorSettings* arpSettings = nullptr;
-	if (activeClip) {
+	if (activeClip != nullptr) {
 		arpSettings = &((InstrumentClip*)activeClip)->arpSettings;
 	}
 
@@ -195,7 +195,7 @@ lookAtArpNote:
 
 // Returns num ticks til next arp event
 int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
-	if (!activeClip) {
+	if (activeClip == nullptr) {
 		return 2147483647;
 	}
 
@@ -234,7 +234,7 @@ int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t 
 // Unlike other Outputs, these don't have ParamManagers backed up at the Song level
 ParamManager* NonAudioInstrument::getParamManager(Song* song) {
 
-	if (activeClip) {
+	if (activeClip != nullptr) {
 		return &activeClip->paramManager;
 	}
 	else {

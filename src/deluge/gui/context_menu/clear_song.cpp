@@ -70,7 +70,7 @@ void ClearSong::focusRegained() {
 }
 
 bool ClearSong::acceptCurrentOption() {
-	if (playbackHandler.playbackState
+	if ((playbackHandler.playbackState != 0u)
 	    && (playbackHandler.isInternalClockActive() || currentPlaybackMode == &arrangement)) {
 
 		playbackHandler.endPlayback();
@@ -97,7 +97,7 @@ bool ClearSong::acceptCurrentOption() {
 	preLoadedSong->ensureAtLeastOneSessionClip(); // Will load a synth preset from SD card
 
 	playbackHandler.doSongSwap(playbackHandler.isEitherClockActive());
-	if (toDelete) {
+	if (toDelete != nullptr) {
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 		toDelete->~Song();
 		delugeDealloc(toDealloc);

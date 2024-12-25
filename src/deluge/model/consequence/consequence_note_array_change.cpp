@@ -40,7 +40,7 @@ ConsequenceNoteArrayChange::ConsequenceNoteArrayChange(InstrumentClip* newClip, 
 Error ConsequenceNoteArrayChange::revert(TimeType time, ModelStack* modelStack) {
 
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
-	if (!noteRow) {
+	if (noteRow == nullptr) {
 		return Error::BUG;
 	}
 

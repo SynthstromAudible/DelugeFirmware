@@ -244,7 +244,7 @@ goingToReplaceOldRecord:
 
 			// If that next "bigger" record to the right in the array is actually smaller than our new space, we'll have
 			// to rearrange some elements.
-			if (howMuchBigger <= 0 && !(!howMuchBigger && nextBiggerRecord->address > address)) {
+			if (howMuchBigger <= 0 && !((howMuchBigger == 0) && nextBiggerRecord->address > address)) {
 
 				EmptySpaceRecord newRecordPreview;
 				newRecordPreview.length = spaceSize;
@@ -280,7 +280,7 @@ void* MemoryRegion::alloc(uint32_t requiredSize, bool makeStealable, void* thing
 	uint32_t allocatedAddress;
 	int32_t i;
 
-	if (!emptySpaces.getNumElements()) {
+	if (emptySpaces.getNumElements() == 0) {
 		goto noEmptySpace;
 	}
 
@@ -334,7 +334,7 @@ gotEmptySpace:
 
 				// Hopefully we can just update the same empty space record.
 				// We definitely can if it was the leftmost record (smallest empty space).
-				if (!i) {
+				if (i == 0) {
 					goto justUpdateRecord;
 				}
 
@@ -344,7 +344,7 @@ gotEmptySpace:
 					EmptySpaceRecord* nextSmallerRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i - 1);
 					int32_t howMuchBiggerStill = extraSpaceSizeWithoutItsHeaders - nextSmallerRecord->length;
 					if (howMuchBiggerStill > 0
-					    || (!howMuchBiggerStill && extraSpaceAddress > nextSmallerRecord->address)) {
+					    || ((howMuchBiggerStill == 0) && extraSpaceAddress > nextSmallerRecord->address)) {
 						goto justUpdateRecord;
 					}
 
@@ -370,9 +370,9 @@ justUpdateRecord:
 	else {
 noEmptySpace:
 		allocatedAddress = cache_manager_.ReclaimMemory(*this, requiredSize, thingNotToStealFrom, &allocatedSize);
-		if (!allocatedAddress) {
+		if (allocatedAddress == 0u) {
 #if ALPHA_OR_BETA_VERSION
-			if (name) {
+			if (name != nullptr) {
 				const uint32_t msgBufferLen = 32;
 				char msgBuffer[msgBufferLen] = {0};
 				strncpy(&msgBuffer[strlen(msgBuffer)], "-> FULL ", msgBufferLen - strlen(msgBuffer));
@@ -394,7 +394,7 @@ noEmptySpace:
 
 		// See if there was some extra space left over
 		int32_t extraSpaceSizeWithoutItsHeaders = allocatedSize - requiredSize - 8;
-		if (requiredSize && extraSpaceSizeWithoutItsHeaders > minAlign) {
+		if ((requiredSize != 0u) && extraSpaceSizeWithoutItsHeaders > minAlign) {
 			allocatedSize = requiredSize;
 			markSpaceAsEmpty(allocatedAddress + allocatedSize + 8, extraSpaceSizeWithoutItsHeaders, false, false);
 		}
@@ -486,7 +486,7 @@ uint32_t MemoryRegion::shortenLeft(void* address, uint32_t amountToShorten, uint
 
 	uint32_t amountShortened = oldAllocatedSize - newSize;
 
-	if (numBytesToMoveRightIfSuccessful) {
+	if (numBytesToMoveRightIfSuccessful != 0u) {
 		memmove((char*)address + amountShortened, address, numBytesToMoveRightIfSuccessful);
 	}
 
@@ -578,7 +578,7 @@ NeighbouringMemoryGrabAttemptResult MemoryRegion::attemptToGrabNeighbouringMemor
 	// Go through twice - once not actually grabbing but just exploring, and then a second time actually grabbing
 	for (int32_t actuallyGrabbing = 0; actuallyGrabbing < 2; actuallyGrabbing++) {
 
-		if (actuallyGrabbing && originalSpaceNeedsStealing) {
+		if ((actuallyGrabbing != 0) && originalSpaceNeedsStealing) {
 			((Stealable*)originalSpaceAddress)->steal("E417"); // Jensg still getting.
 			((Stealable*)originalSpaceAddress)->~Stealable();
 		}
@@ -596,19 +596,19 @@ tryNotStealingFirst:
 
 			// If we're going to try stealing, well let's not do that if we've actually found the min amount of memory -
 			// to reduce disruption
-			if (tryingStealingYet && amountOfExtraSpaceFoundSoFar >= idealAmountToExtend) {
+			if ((tryingStealingYet != 0) && amountOfExtraSpaceFoundSoFar >= idealAmountToExtend) {
 				goto gotEnoughMemory;
 			}
 
 			// Look both directions once each
 			for (int32_t lookingLeft = 0; lookingLeft < 2; lookingLeft++) {
 
-				uint32_t* __restrict__ lookLeftOrRight = lookingLeft ? lookLeft : lookRight;
+				uint32_t* __restrict__ lookLeftOrRight = (lookingLeft != 0) ? lookLeft : lookRight;
 
 				uint32_t emptySpaceHereSizeWithoutHeaders = *lookLeftOrRight & SPACE_SIZE_MASK;
 
 				uint32_t spaceHereAddress =
-				    lookingLeft ? (uint32_t)lookLeft - emptySpaceHereSizeWithoutHeaders : (uint32_t)(lookRight + 1);
+				    (lookingLeft != 0) ? (uint32_t)lookLeft - emptySpaceHereSizeWithoutHeaders : (uint32_t)(lookRight + 1);
 
 				Stealable* stealable;
 
@@ -616,7 +616,7 @@ tryNotStealingFirst:
 
 				switch (spaceType) {
 				case SPACE_HEADER_STEALABLE:
-					if (!tryingStealingYet) {
+					if (tryingStealingYet == 0) {
 						break;
 					}
 					stealable = (Stealable*)(void*)spaceHereAddress;
@@ -626,7 +626,7 @@ tryNotStealingFirst:
 #endif
 						break;
 					}
-					if (!actuallyGrabbing && markWithTraversalNo) {
+					if ((actuallyGrabbing == 0) && (markWithTraversalNo != 0u)) {
 						stealable->lastTraversalNo = markWithTraversalNo;
 					}
 					// No break
@@ -634,14 +634,14 @@ tryNotStealingFirst:
 				case SPACE_HEADER_EMPTY:
 					amountOfExtraSpaceFoundSoFar += emptySpaceHereSizeWithoutHeaders + 8;
 
-					if (lookingLeft) {
+					if (lookingLeft != 0) {
 						lookLeft = (uint32_t*)((char*)lookLeft - emptySpaceHereSizeWithoutHeaders - 8);
 					}
 					else {
 						lookRight = (uint32_t*)((char*)lookRight + emptySpaceHereSizeWithoutHeaders + 8);
 					}
 
-					if (actuallyGrabbing) {
+					if (actuallyGrabbing != 0) {
 
 						// If empty space...
 						if (spaceType == SPACE_HEADER_EMPTY) {
@@ -676,7 +676,7 @@ tryNotStealingFirst:
 
 						// Can only change these after potentially putting those temp headers in, above
 						toReturn.amountsExtended[lookingLeft] += emptySpaceHereSizeWithoutHeaders + 8;
-						if (lookingLeft) {
+						if (lookingLeft != 0) {
 							toReturn.address = spaceHereAddress;
 						}
 					}
@@ -691,7 +691,7 @@ tryNotStealingFirst:
 					// on more
 					// No - if we're not grabbing this can cause us to exit early without stealing all intermediate
 					// memory
-					if (tryingStealingYet) {
+					if (tryingStealingYet != 0) {
 #ifdef DO_AUDIO_LOG
 						AudioEngine::logAction("found some space and looking for more");
 #endif
@@ -754,7 +754,7 @@ void MemoryRegion::extend(void* address, uint32_t minAmountToExtend, uint32_t id
 	    address, oldAllocatedSize, minAmountToExtend, idealAmountToExtend, thingNotToStealFrom);
 
 	// If couldn't get enough new space, fail
-	if (!grabResult.address) {
+	if (grabResult.address == 0u) {
 		return;
 	}
 

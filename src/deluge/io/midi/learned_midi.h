@@ -33,7 +33,7 @@ public:
 	void clear();
 
 	inline bool equalsCable(MIDICable* newCable) {
-		return (!MIDIDeviceManager::differentiatingInputsByDevice || !cable || newCable == cable);
+		return (!MIDIDeviceManager::differentiatingInputsByDevice || (cable == nullptr) || newCable == cable);
 	}
 
 	inline bool equalsChannelOrZone(MIDICable* newCable, int32_t newChannelOrZone) {

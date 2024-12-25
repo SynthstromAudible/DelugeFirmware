@@ -52,7 +52,7 @@ MIDIDeviceUSBHosted* getSpecificDeviceFromMIDICable(MIDICable& cable) {
 	// This depends on the MIDIDevice having been originally cast as something with a name
 	const char* sourceName = cable.getDisplayName();
 
-	if (cable.connectionFlags && sourceName) {
+	if ((cable.connectionFlags != 0u) && (sourceName != nullptr)) {
 		for (int32_t i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
 			MIDIDeviceUSBHosted* candidate = recastSpecificMidiDevice(hostedMIDIDevices.getElement(i));
 

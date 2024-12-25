@@ -46,7 +46,7 @@ MenuPermission LoopPoint::checkPermissionToBeginSession(ModControllableAudio* mo
 
 	// Before going ahead, make sure a Sample is loaded
 	if (permission == MenuPermission::YES) {
-		if (!(*currentRange)->getAudioFileHolder()->audioFile) {
+		if ((*currentRange)->getAudioFileHolder()->audioFile == nullptr) {
 			permission = MenuPermission::NO;
 		}
 	}

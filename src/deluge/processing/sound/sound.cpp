@@ -408,7 +408,7 @@ void Sound::patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* 
 void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* paramManager) {
 
 	Destination* destination = paramManager->getPatchCableSet()->getDestinationForParam(p);
-	if (destination) {
+	if (destination != nullptr) {
 		sourcesChanged |= destination->sources; // Pretend those sources have changed, and the param will update - for
 		                                        // each Voice too if local.
 	}
@@ -423,7 +423,7 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 
 		// Or local (do to each voice)...
 		else {
-			if (numVoicesAssigned) {
+			if (numVoicesAssigned != 0) {
 				int32_t ends[2];
 				AudioEngine::activeVoices.getRangeForSound(this, ends);
 				for (int32_t v = ends[0]; v < ends[1]; v++) {
@@ -452,7 +452,7 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) {
 
-	if (!strcmp(tagName, "osc1")) {
+	if (strcmp(tagName, "osc1") == 0) {
 		reader.match('{');
 		Error error = readSourceFromFile(reader, 0, paramManager, readAutomationUpToPos);
 		if (error != Error::NONE) {
@@ -461,7 +461,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("osc1", true);
 	}
 
-	else if (!strcmp(tagName, "osc2")) {
+	else if (strcmp(tagName, "osc2") == 0) {
 		reader.match('{');
 		Error error = readSourceFromFile(reader, 1, paramManager, readAutomationUpToPos);
 		if (error != Error::NONE) {
@@ -470,7 +470,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("osc2", true);
 	}
 
-	else if (!strcmp(tagName, "mode")) {
+	else if (strcmp(tagName, "mode") == 0) {
 		char const* contents = reader.readTagOrAttributeValue();
 		if (synthMode != SynthMode::RINGMOD) { // Compatibility with old XML files
 			synthMode = stringToSynthMode(contents);
@@ -481,27 +481,27 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 	}
 
 	// Backwards-compatible reading of old-style oscs, from pre-mid-2016 files
-	else if (!strcmp(tagName, "oscillatorA")) {
+	else if (strcmp(tagName, "oscillatorA") == 0) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 
-			if (!strcmp(tagName, "type")) {
+			if (strcmp(tagName, "type") == 0) {
 				sources[0].oscType = stringToOscType(reader.readTagOrAttributeValue());
 				reader.exitTag("type");
 			}
-			else if (!strcmp(tagName, "volume")) {
+			else if (strcmp(tagName, "volume") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_VOLUME,
 				                         readAutomationUpToPos);
 				reader.exitTag("volume");
 			}
-			else if (!strcmp(tagName, "phaseWidth")) {
+			else if (strcmp(tagName, "phaseWidth") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_PHASE_WIDTH,
 				                         readAutomationUpToPos);
 				reader.exitTag("phaseWidth");
 			}
-			else if (!strcmp(tagName, "note")) {
+			else if (strcmp(tagName, "note") == 0) {
 				int32_t presetNote = std::clamp<int32_t>(reader.readTagOrAttributeValueInt(), 1, 127);
 
 				sources[0].transpose += presetNote - 60;
@@ -517,20 +517,20 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("oscillatorA", true);
 	}
 
-	else if (!strcmp(tagName, "oscillatorB")) {
+	else if (strcmp(tagName, "oscillatorB") == 0) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "type")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "type") == 0) {
 				sources[1].oscType = stringToOscType(reader.readTagOrAttributeValue());
 				reader.exitTag("type");
 			}
-			else if (!strcmp(tagName, "volume")) {
+			else if (strcmp(tagName, "volume") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_VOLUME,
 				                         readAutomationUpToPos);
 				reader.exitTag("volume");
 			}
-			else if (!strcmp(tagName, "phaseWidth")) {
+			else if (strcmp(tagName, "phaseWidth") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_PHASE_WIDTH,
 				                         readAutomationUpToPos);
@@ -538,11 +538,11 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				// 1); // Special case - pw values are stored at half size in file
 				reader.exitTag("phaseWidth");
 			}
-			else if (!strcmp(tagName, "transpose")) {
+			else if (strcmp(tagName, "transpose") == 0) {
 				sources[1].transpose += reader.readTagOrAttributeValueInt();
 				reader.exitTag("transpose");
 			}
-			else if (!strcmp(tagName, "cents")) {
+			else if (strcmp(tagName, "cents") == 0) {
 				sources[1].cents = reader.readTagOrAttributeValueInt();
 				reader.exitTag("cents");
 			}
@@ -553,24 +553,24 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("oscillatorB", true);
 	}
 
-	else if (!strcmp(tagName, "modulator1")) {
+	else if (strcmp(tagName, "modulator1") == 0) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "volume")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "volume") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_0_VOLUME,
 				                         readAutomationUpToPos);
 				reader.exitTag("volume");
 			}
-			else if (!strcmp(tagName, "transpose")) {
+			else if (strcmp(tagName, "transpose") == 0) {
 				modulatorTranspose[0] += reader.readTagOrAttributeValueInt();
 				reader.exitTag("transpose");
 			}
-			else if (!strcmp(tagName, "cents")) {
+			else if (strcmp(tagName, "cents") == 0) {
 				modulatorCents[0] = reader.readTagOrAttributeValueInt();
 				reader.exitTag("cents");
 			}
-			else if (!strcmp(tagName, "retrigPhase")) {
+			else if (strcmp(tagName, "retrigPhase") == 0) {
 				modulatorRetriggerPhase[0] = reader.readTagOrAttributeValueInt();
 				reader.exitTag("retrigPhase");
 			}
@@ -581,31 +581,31 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("modulator1", true);
 	}
 
-	else if (!strcmp(tagName, "modulator2")) {
+	else if (strcmp(tagName, "modulator2") == 0) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "volume")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "volume") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_1_VOLUME,
 				                         readAutomationUpToPos);
 				reader.exitTag("volume");
 			}
-			else if (!strcmp(tagName, "transpose")) {
+			else if (strcmp(tagName, "transpose") == 0) {
 				modulatorTranspose[1] += reader.readTagOrAttributeValueInt();
 				reader.exitTag("transpose");
 			}
-			else if (!strcmp(tagName, "cents")) {
+			else if (strcmp(tagName, "cents") == 0) {
 				modulatorCents[1] = reader.readTagOrAttributeValueInt();
 				reader.exitTag("cents");
 			}
-			else if (!strcmp(tagName, "retrigPhase")) {
+			else if (strcmp(tagName, "retrigPhase") == 0) {
 				modulatorRetriggerPhase[1] = reader.readTagOrAttributeValueInt();
 				reader.exitTag("retrigPhase");
 			}
-			else if (!strcmp(tagName, "toModulator1")) {
-				modulator1ToModulator0 = reader.readTagOrAttributeValueInt();
-				if (modulator1ToModulator0 != 0) {
-					modulator1ToModulator0 = 1;
+			else if (strcmp(tagName, "toModulator1") == 0) {
+				modulator1ToModulator0 = (reader.readTagOrAttributeValueInt() != 0);
+				if (static_cast<int>(modulator1ToModulator0) != 0) {
+					modulator1ToModulator0 = true;
 				}
 				reader.exitTag("toModulator1");
 			}
@@ -616,56 +616,56 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("modulator2", true);
 	}
 
-	else if (!strcmp(tagName, "arpeggiator")) {
+	else if (strcmp(tagName, "arpeggiator") == 0) {
 		// Set default values in case they are not configured
 		arpSettings->syncType = SYNC_TYPE_EVEN;
 		arpSettings->syncLevel = SYNC_LEVEL_NONE;
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 
-			if (!strcmp(tagName,
-			            "rate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs with
+			if (strcmp(tagName,
+			            "rate") == 0) { // This is here for compatibility only for people (Lou and Ian) who saved songs with
 				                   // firmware in September 2016
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_ARP_RATE, readAutomationUpToPos);
 				reader.exitTag("rate");
 			}
-			else if (!strcmp(tagName, "numOctaves")) {
-				if (arpSettings) {
+			else if (strcmp(tagName, "numOctaves") == 0) {
+				if (arpSettings != nullptr) {
 					arpSettings->numOctaves = reader.readTagOrAttributeValueInt();
 				}
 				reader.exitTag("numOctaves");
 			}
-			else if (!strcmp(tagName, "syncType")) {
-				if (arpSettings) {
+			else if (strcmp(tagName, "syncType") == 0) {
+				if (arpSettings != nullptr) {
 					arpSettings->syncType = (SyncType)reader.readTagOrAttributeValueInt();
 					;
 				}
 				reader.exitTag("syncType");
 			}
-			else if (!strcmp(tagName, "syncLevel")) {
-				if (arpSettings) {
+			else if (strcmp(tagName, "syncLevel") == 0) {
+				if (arpSettings != nullptr) {
 					arpSettings->syncLevel = (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(
 					    reader.readTagOrAttributeValueInt());
 				}
 				reader.exitTag("syncLevel");
 			}
-			else if (!strcmp(tagName, "octaveMode")) {
-				if (arpSettings) {
+			else if (strcmp(tagName, "octaveMode") == 0) {
+				if (arpSettings != nullptr) {
 					arpSettings->octaveMode = stringToArpOctaveMode(reader.readTagOrAttributeValue());
 					arpSettings->updatePresetFromCurrentSettings();
 				}
 				reader.exitTag("octaveMode");
 			}
-			else if (!strcmp(tagName, "noteMode")) {
-				if (arpSettings) {
+			else if (strcmp(tagName, "noteMode") == 0) {
+				if (arpSettings != nullptr) {
 					arpSettings->noteMode = stringToArpNoteMode(reader.readTagOrAttributeValue());
 					arpSettings->updatePresetFromCurrentSettings();
 				}
 				reader.exitTag("noteMode");
 			}
-			else if (!strcmp(tagName, "chordType")) {
-				if (arpSettings) {
+			else if (strcmp(tagName, "chordType") == 0) {
+				if (arpSettings != nullptr) {
 					uint8_t chordTypeIndex = (uint8_t)reader.readTagOrAttributeValueInt();
 					char buffer[12];
 					intToString(chordTypeIndex, buffer + strlen(buffer));
@@ -676,33 +676,33 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				}
 				reader.exitTag("chordType");
 			}
-			else if (!strcmp(tagName, "mpeVelocity")) {
-				if (arpSettings) {
+			else if (strcmp(tagName, "mpeVelocity") == 0) {
+				if (arpSettings != nullptr) {
 					arpSettings->mpeVelocity = stringToArpMpeModSource(reader.readTagOrAttributeValue());
 				}
 				reader.exitTag("mpeVelocity");
 			}
-			else if (!strcmp(tagName, "arpMode")) {
-				if (arpSettings) {
+			else if (strcmp(tagName, "arpMode") == 0) {
+				if (arpSettings != nullptr) {
 					arpSettings->mode = stringToArpMode(reader.readTagOrAttributeValue());
 					arpSettings->updatePresetFromCurrentSettings();
 				}
 				reader.exitTag("arpMode");
 			}
-			else if (!strcmp(tagName, "spreadLock")) {
-				if (arpSettings) {
-					arpSettings->spreadLock = reader.readTagOrAttributeValueInt();
+			else if (strcmp(tagName, "spreadLock") == 0) {
+				if (arpSettings != nullptr) {
+					arpSettings->spreadLock = (reader.readTagOrAttributeValueInt() != 0);
 				}
 				reader.exitTag("spreadLock");
 			}
-			else if (!strcmp(tagName, "lockedSpreadVelocity")) {
-				if (arpSettings) {
+			else if (strcmp(tagName, "lockedSpreadVelocity") == 0) {
+				if (arpSettings != nullptr) {
 					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+						if ((firstChars != nullptr) && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
 							char const* hexChars =
 							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
-							if (hexChars) {
+							if (hexChars != nullptr) {
 								arpSettings->lastLockedSpreadVelocityParameterValue = hexToIntFixedLength(hexChars, 8);
 								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 									arpSettings->lockedSpreadVelocityValues[i] =
@@ -714,14 +714,14 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				}
 				reader.exitTag("lockedSpreadVelocity");
 			}
-			else if (!strcmp(tagName, "lockedSpreadGate")) {
-				if (arpSettings) {
+			else if (strcmp(tagName, "lockedSpreadGate") == 0) {
+				if (arpSettings != nullptr) {
 					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+						if ((firstChars != nullptr) && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
 							char const* hexChars =
 							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
-							if (hexChars) {
+							if (hexChars != nullptr) {
 								arpSettings->lastLockedSpreadGateParameterValue = hexToIntFixedLength(hexChars, 8);
 								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 									arpSettings->lockedSpreadGateValues[i] =
@@ -733,14 +733,14 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				}
 				reader.exitTag("lockedSpreadGate");
 			}
-			else if (!strcmp(tagName, "lockedSpreadOctave")) {
-				if (arpSettings) {
+			else if (strcmp(tagName, "lockedSpreadOctave") == 0) {
+				if (arpSettings != nullptr) {
 					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+						if ((firstChars != nullptr) && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
 							char const* hexChars =
 							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
-							if (hexChars) {
+							if (hexChars != nullptr) {
 								arpSettings->lastLockedSpreadOctaveParameterValue = hexToIntFixedLength(hexChars, 8);
 								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 									arpSettings->lockedSpreadOctaveValues[i] =
@@ -752,12 +752,12 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				}
 				reader.exitTag("lockedSpreadOctave");
 			}
-			else if (!strcmp(tagName, "mode")) {
+			else if (strcmp(tagName, "mode") == 0) {
 				if (song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
 					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
 					// but only if the new params are not already read and set,
 					// that is, if we detect they have a value other than default
-					if (arpSettings) {
+					if (arpSettings != nullptr) {
 						OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
 						if (arpSettings->mode == ArpMode::OFF && arpSettings->noteMode == ArpNoteMode::UP
 						    && arpSettings->octaveMode == ArpOctaveMode::UP) {
@@ -772,8 +772,8 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				else
 					reader.exitTag("mode");
 			}
-			else if (!strcmp(tagName,
-			                 "gate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs
+			else if (strcmp(tagName,
+			                 "gate") == 0) { // This is here for compatibility only for people (Lou and Ian) who saved songs
 				                        // with firmware in September 2016
 				ENSURE_PARAM_MANAGER_EXISTS
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_GATE,
@@ -788,74 +788,74 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("arpeggiator", true);
 	}
 
-	else if (!strcmp(tagName, "transpose")) {
+	else if (strcmp(tagName, "transpose") == 0) {
 		transpose = reader.readTagOrAttributeValueInt();
 		reader.exitTag("transpose");
 	}
 
-	else if (!strcmp(tagName, "noiseVolume")) {
+	else if (strcmp(tagName, "noiseVolume") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_NOISE_VOLUME, readAutomationUpToPos);
 		reader.exitTag("noiseVolume");
 	}
 
-	else if (!strcmp(tagName, "ratchetAmount")) {
+	else if (strcmp(tagName, "ratchetAmount") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_AMOUNT,
 		                           readAutomationUpToPos);
 		reader.exitTag("ratchetAmount");
 	}
 
-	else if (!strcmp(tagName, "ratchetProbability")) {
+	else if (strcmp(tagName, "ratchetProbability") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 		                           readAutomationUpToPos);
 		reader.exitTag("ratchetProbability");
 	}
 
-	else if (!strcmp(tagName, "noteProbability")) {
+	else if (strcmp(tagName, "noteProbability") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_NOTE_PROBABILITY,
 		                           readAutomationUpToPos);
 		reader.exitTag("noteProbability");
 	}
 
-	else if (!strcmp(tagName, "sequenceLength")) {
+	else if (strcmp(tagName, "sequenceLength") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
 		                           readAutomationUpToPos);
 		reader.exitTag("sequenceLength");
 	}
 
-	else if (!strcmp(tagName, "rhythm")) {
+	else if (strcmp(tagName, "rhythm") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
 		reader.exitTag("rhythm");
 	}
 
-	else if (!strcmp(tagName, "spreadVelocity")) {
+	else if (strcmp(tagName, "spreadVelocity") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_VELOCITY,
 		                           readAutomationUpToPos);
 		reader.exitTag("spreadVelocity");
 	}
 
-	else if (!strcmp(tagName, "spreadGate")) {
+	else if (strcmp(tagName, "spreadGate") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_GATE,
 		                           readAutomationUpToPos);
 		reader.exitTag("spreadGate");
 	}
 
-	else if (!strcmp(tagName, "spreadOctave")) {
+	else if (strcmp(tagName, "spreadOctave") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_OCTAVE,
 		                           readAutomationUpToPos);
 		reader.exitTag("spreadOctave");
 	}
 
-	else if (!strcmp(tagName,
-	                 "portamento")) { // This is here for compatibility only for people (Lou and Ian) who saved songs
+	else if (strcmp(tagName,
+	                 "portamento") == 0) { // This is here for compatibility only for people (Lou and Ian) who saved songs
 		                              // with firmware in September 2016
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
@@ -863,9 +863,9 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 	}
 
 	// For backwards compatibility. If off, switch off for all operators
-	else if (!strcmp(tagName, "oscillatorReset")) {
+	else if (strcmp(tagName, "oscillatorReset") == 0) {
 		int32_t value = reader.readTagOrAttributeValueInt();
-		if (!value) {
+		if (value == 0) {
 			for (int32_t s = 0; s < kNumSources; s++) {
 				oscRetriggerPhase[s] = 0xFFFFFFFF;
 			}
@@ -876,20 +876,20 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("oscillatorReset");
 	}
 
-	else if (!strcmp(tagName, "unison")) {
+	else if (strcmp(tagName, "unison") == 0) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "num")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "num") == 0) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
 				numUnison = std::max((int32_t)0, std::min((int32_t)kMaxNumVoicesUnison, contents));
 				reader.exitTag("num");
 			}
-			else if (!strcmp(tagName, "detune")) {
+			else if (strcmp(tagName, "detune") == 0) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
 				unisonDetune = std::clamp(contents, 0_i32, kMaxUnisonDetune);
 				reader.exitTag("detune");
 			}
-			else if (!strcmp(tagName, "spread")) {
+			else if (strcmp(tagName, "spread") == 0) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
 				unisonStereoSpread = std::clamp(contents, 0_i32, kMaxUnisonStereoSpread);
 				reader.exitTag("spread");
@@ -901,26 +901,26 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("unison", true);
 	}
 
-	else if (!strcmp(tagName, "oscAPitchAdjust")) {
+	else if (strcmp(tagName, "oscAPitchAdjust") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_PITCH_ADJUST, readAutomationUpToPos);
 		reader.exitTag("oscAPitchAdjust");
 	}
 
-	else if (!strcmp(tagName, "oscBPitchAdjust")) {
+	else if (strcmp(tagName, "oscBPitchAdjust") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_PITCH_ADJUST, readAutomationUpToPos);
 		reader.exitTag("oscBPitchAdjust");
 	}
 
-	else if (!strcmp(tagName, "mod1PitchAdjust")) {
+	else if (strcmp(tagName, "mod1PitchAdjust") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_0_PITCH_ADJUST,
 		                         readAutomationUpToPos);
 		reader.exitTag("mod1PitchAdjust");
 	}
 
-	else if (!strcmp(tagName, "mod2PitchAdjust")) {
+	else if (strcmp(tagName, "mod2PitchAdjust") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_1_PITCH_ADJUST,
 		                         readAutomationUpToPos);
@@ -928,11 +928,11 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 	}
 
 	// Stuff from the early-2016 format, for compatibility
-	else if (!strcmp(tagName, "fileName")) {
+	else if (strcmp(tagName, "fileName") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 
 		MultisampleRange* range = (MultisampleRange*)sources[0].getOrCreateFirstRange();
-		if (!range) {
+		if (range == nullptr) {
 			return Error::INSUFFICIENT_RAM;
 		}
 
@@ -954,26 +954,26 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("fileName");
 	}
 
-	else if (!strcmp(tagName, "cents")) {
+	else if (strcmp(tagName, "cents") == 0) {
 		int8_t newCents = reader.readTagOrAttributeValueInt();
 		// We don't need to call the setTranspose method here, because this will get called soon anyway, once the sample
 		// rate is known
 		sources[0].cents = (std::max((int8_t)-50, std::min((int8_t)50, newCents)));
 		reader.exitTag("cents");
 	}
-	else if (!strcmp(tagName, "continuous")) {
+	else if (strcmp(tagName, "continuous") == 0) {
 		sources[0].repeatMode = static_cast<SampleRepeatMode>(reader.readTagOrAttributeValueInt());
 		sources[0].repeatMode = std::min(sources[0].repeatMode, static_cast<SampleRepeatMode>(kNumRepeatModes - 1));
 		reader.exitTag("continuous");
 	}
-	else if (!strcmp(tagName, "reversed")) {
-		sources[0].sampleControls.reversed = reader.readTagOrAttributeValueInt();
+	else if (strcmp(tagName, "reversed") == 0) {
+		sources[0].sampleControls.reversed = (reader.readTagOrAttributeValueInt() != 0);
 		reader.exitTag("reversed");
 	}
-	else if (!strcmp(tagName, "zone")) {
+	else if (strcmp(tagName, "zone") == 0) {
 		reader.match('{');
 		MultisampleRange* range = (MultisampleRange*)sources[0].getOrCreateFirstRange();
-		if (!range) {
+		if (range == nullptr) {
 			return Error::INSUFFICIENT_RAM;
 		}
 
@@ -981,22 +981,22 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		range->sampleHolder.endMSec = 0;
 		range->sampleHolder.startPos = 0;
 		range->sampleHolder.endPos = 0;
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 			// Because this is for old, early-2016 format, there'll only be seconds and milliseconds in here, not
 			// samples
-			if (!strcmp(tagName, "startSeconds")) {
+			if (strcmp(tagName, "startSeconds") == 0) {
 				range->sampleHolder.startMSec += reader.readTagOrAttributeValueInt() * 1000;
 				reader.exitTag("startSeconds");
 			}
-			else if (!strcmp(tagName, "startMilliseconds")) {
+			else if (strcmp(tagName, "startMilliseconds") == 0) {
 				range->sampleHolder.startMSec += reader.readTagOrAttributeValueInt();
 				reader.exitTag("startMilliseconds");
 			}
-			else if (!strcmp(tagName, "endSeconds")) {
+			else if (strcmp(tagName, "endSeconds") == 0) {
 				range->sampleHolder.endMSec += reader.readTagOrAttributeValueInt() * 1000;
 				reader.exitTag("endSeconds");
 			}
-			else if (!strcmp(tagName, "endMilliseconds")) {
+			else if (strcmp(tagName, "endMilliseconds") == 0) {
 				range->sampleHolder.endMSec += reader.readTagOrAttributeValueInt();
 				reader.exitTag("endMilliseconds");
 			}
@@ -1004,7 +1004,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("zone", true);
 	}
 
-	else if (!strcmp(tagName, "ringMod")) {
+	else if (strcmp(tagName, "ringMod") == 0) {
 		int32_t contents = reader.readTagOrAttributeValueInt();
 		if (contents == 1) {
 			synthMode = SynthMode::RINGMOD;
@@ -1012,27 +1012,27 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("ringMod");
 	}
 
-	else if (!strcmp(tagName, "modKnobs")) {
+	else if (strcmp(tagName, "modKnobs") == 0) {
 
 		int32_t k = 0;
 		int32_t w = 0;
 		reader.match('[');
-		while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "modKnob")) {
+		while (reader.match('{') && (*(tagName = reader.readNextTagOrAttributeName()) != 0)) {
+			if (strcmp(tagName, "modKnob") == 0) {
 				reader.match('{');
 				uint8_t p = params::GLOBAL_NONE;
 				PatchSource s = PatchSource::NOT_AVAILABLE;
 				PatchSource s2 = PatchSource::NOT_AVAILABLE;
 
-				while (*(tagName = reader.readNextTagOrAttributeName())) {
-					if (!strcmp(tagName, "controlsParam")) {
+				while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+					if (strcmp(tagName, "controlsParam") == 0) {
 						p = params::fileStringToParam(params::Kind::UNPATCHED_SOUND, reader.readTagOrAttributeValue(),
 						                              true);
 					}
-					else if (!strcmp(tagName, "patchAmountFromSource")) {
+					else if (strcmp(tagName, "patchAmountFromSource") == 0) {
 						s = stringToSource(reader.readTagOrAttributeValue());
 					}
-					else if (!strcmp(tagName, "patchAmountFromSecondSource")) {
+					else if (strcmp(tagName, "patchAmountFromSecondSource") == 0) {
 						s2 = stringToSource(reader.readTagOrAttributeValue());
 					}
 					reader.exitTag(tagName);
@@ -1071,31 +1071,31 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.match(']');
 	}
 
-	else if (!strcmp(tagName, "patchCables")) {
+	else if (strcmp(tagName, "patchCables") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		paramManager->getPatchCableSet()->readPatchCablesFromFile(reader, readAutomationUpToPos);
 		reader.exitTag("patchCables");
 	}
 
-	else if (!strcmp(tagName, "volume")) {
+	else if (strcmp(tagName, "volume") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_VOLUME_POST_FX, readAutomationUpToPos);
 		reader.exitTag("volume");
 	}
 
-	else if (!strcmp(tagName, "pan")) {
+	else if (strcmp(tagName, "pan") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_PAN, readAutomationUpToPos);
 		reader.exitTag("pan");
 	}
 
-	else if (!strcmp(tagName, "pitchAdjust")) {
+	else if (strcmp(tagName, "pitchAdjust") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_PITCH_ADJUST, readAutomationUpToPos);
 		reader.exitTag("pitchAdjust");
 	}
 
-	else if (!strcmp(tagName, "modFXType")) {
+	else if (strcmp(tagName, "modFXType") == 0) {
 		bool result =
 		    setModFXType(stringToFXType(reader.readTagOrAttributeValue())); // This might not work if not enough RAM
 		if (!result) {
@@ -1104,10 +1104,10 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("modFXType");
 	}
 
-	else if (!strcmp(tagName, "fx")) {
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
+	else if (strcmp(tagName, "fx") == 0) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 
-			if (!strcmp(tagName, "type")) {
+			if (strcmp(tagName, "type") == 0) {
 				bool result = setModFXType(
 				    stringToFXType(reader.readTagOrAttributeValue())); // This might not work if not enough RAM
 				if (!result) {
@@ -1115,13 +1115,13 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				}
 				reader.exitTag("type");
 			}
-			else if (!strcmp(tagName, "rate")) {
+			else if (strcmp(tagName, "rate") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_MOD_FX_RATE,
 				                         readAutomationUpToPos);
 				reader.exitTag("rate");
 			}
-			else if (!strcmp(tagName, "feedback")) {
+			else if (strcmp(tagName, "feedback") == 0) {
 				// This is for compatibility with old files. Some reverse calculation needs to be done.
 				int32_t finalValue = reader.readTagOrAttributeValueInt();
 				int32_t i =
@@ -1132,7 +1132,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				    .setCurrentValueBasicForSetup(i);
 				reader.exitTag("feedback");
 			}
-			else if (!strcmp(tagName, "offset")) {
+			else if (strcmp(tagName, "offset") == 0) {
 				// This is for compatibility with old files. Some reverse calculation needs to be done.
 				int32_t contents = reader.readTagOrAttributeValueInt();
 				int32_t value = ((int64_t)contents << 8) - 2147483648;
@@ -1142,7 +1142,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				    .setCurrentValueBasicForSetup(value);
 				reader.exitTag("offset");
 			}
-			else if (!strcmp(tagName, "depth")) {
+			else if (strcmp(tagName, "depth") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_MOD_FX_DEPTH,
 				                         readAutomationUpToPos);
@@ -1155,26 +1155,26 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("fx");
 	}
 
-	else if (!strcmp(tagName, "lfo1")) {
+	else if (strcmp(tagName, "lfo1") == 0) {
 		// Set default values in case they are not configured.
 		lfoConfig[LFO1_ID].syncLevel = SYNC_LEVEL_NONE;
 		lfoConfig[LFO1_ID].syncType = SYNC_TYPE_EVEN;
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "type")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "type") == 0) {
 				lfoConfig[LFO1_ID].waveType = stringToLFOType(reader.readTagOrAttributeValue());
 				reader.exitTag("type");
 			}
-			else if (!strcmp(tagName, "rate")) {
+			else if (strcmp(tagName, "rate") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ, readAutomationUpToPos);
 				reader.exitTag("rate");
 			}
-			else if (!strcmp(tagName, "syncType")) {
+			else if (strcmp(tagName, "syncType") == 0) {
 				lfoConfig[LFO1_ID].syncType = (SyncType)reader.readTagOrAttributeValueInt();
 				reader.exitTag("syncType");
 			}
-			else if (!strcmp(tagName, "syncLevel")) {
+			else if (strcmp(tagName, "syncLevel") == 0) {
 				lfoConfig[LFO1_ID].syncLevel =
 				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
 				reader.exitTag("syncLevel");
@@ -1187,27 +1187,27 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		resyncGlobalLFO();
 	}
 
-	else if (!strcmp(tagName, "lfo2")) {
+	else if (strcmp(tagName, "lfo2") == 0) {
 		// Set default values in case they are not configured.
 		lfoConfig[LFO2_ID].syncLevel = SYNC_LEVEL_NONE;
 		lfoConfig[LFO2_ID].syncType = SYNC_TYPE_EVEN;
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "type")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "type") == 0) {
 				lfoConfig[LFO2_ID].waveType = stringToLFOType(reader.readTagOrAttributeValue());
 				reader.exitTag("type");
 			}
-			else if (!strcmp(tagName, "rate")) {
+			else if (strcmp(tagName, "rate") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LFO_LOCAL_FREQ,
 				                         readAutomationUpToPos);
 				reader.exitTag("rate");
 			}
-			else if (!strcmp(tagName, "syncType")) {
+			else if (strcmp(tagName, "syncType") == 0) {
 				lfoConfig[LFO2_ID].syncType = (SyncType)reader.readTagOrAttributeValueInt();
 				reader.exitTag("syncType");
 			}
-			else if (!strcmp(tagName, "syncLevel")) {
+			else if (strcmp(tagName, "syncLevel") == 0) {
 				lfoConfig[LFO2_ID].syncLevel =
 				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
 				reader.exitTag("syncLevel");
@@ -1220,37 +1220,37 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		// No resync for LFO2
 	}
 
-	else if (!strcmp(tagName, "sideChainSend")) {
+	else if (strcmp(tagName, "sideChainSend") == 0) {
 		sideChainSendLevel = reader.readTagOrAttributeValueInt();
 		reader.exitTag("sideChainSend");
 	}
 
-	else if (!strcmp(tagName, "lpf")) {
+	else if (strcmp(tagName, "lpf") == 0) {
 		bool switchedOn = true; // For backwards compatibility with pre November 2015 files
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "status")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "status") == 0) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
 				switchedOn = std::max((int32_t)0, std::min((int32_t)1, contents));
 				reader.exitTag("status");
 			}
-			else if (!strcmp(tagName, "frequency")) {
+			else if (strcmp(tagName, "frequency") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LPF_FREQ, readAutomationUpToPos);
 				reader.exitTag("frequency");
 			}
-			else if (!strcmp(tagName, "morph")) {
+			else if (strcmp(tagName, "morph") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LPF_MORPH, readAutomationUpToPos);
 				reader.exitTag("morph");
 			}
-			else if (!strcmp(tagName, "resonance")) {
+			else if (strcmp(tagName, "resonance") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LPF_RESONANCE,
 				                         readAutomationUpToPos);
 				reader.exitTag("resonance");
 			}
-			else if (!strcmp(tagName, "mode")) { // For old, pre- October 2016 files
+			else if (strcmp(tagName, "mode") == 0) { // For old, pre- October 2016 files
 				lpfMode = stringToLPFType(reader.readTagOrAttributeValue());
 				reader.exitTag("mode");
 			}
@@ -1267,27 +1267,27 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("lpf", true);
 	}
 
-	else if (!strcmp(tagName, "hpf")) {
+	else if (strcmp(tagName, "hpf") == 0) {
 		bool switchedOn = true; // For backwards compatibility with pre November 2015 files
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "status")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "status") == 0) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
 				switchedOn = std::max((int32_t)0, std::min((int32_t)1, contents));
 				reader.exitTag("status");
 			}
-			else if (!strcmp(tagName, "frequency")) {
+			else if (strcmp(tagName, "frequency") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_HPF_FREQ, readAutomationUpToPos);
 				reader.exitTag("frequency");
 			}
-			else if (!strcmp(tagName, "resonance")) {
+			else if (strcmp(tagName, "resonance") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_HPF_RESONANCE,
 				                         readAutomationUpToPos);
 				reader.exitTag("resonance");
 			}
-			else if (!strcmp(tagName, "morph")) {
+			else if (strcmp(tagName, "morph") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_HPF_MORPH, readAutomationUpToPos);
 				reader.exitTag("morph");
@@ -1305,28 +1305,28 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("hpf", true);
 	}
 
-	else if (!strcmp(tagName, "envelope1")) {
+	else if (strcmp(tagName, "envelope1") == 0) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "attack")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "attack") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_ATTACK,
 				                         readAutomationUpToPos);
 				reader.exitTag("attack");
 			}
-			else if (!strcmp(tagName, "decay")) {
+			else if (strcmp(tagName, "decay") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_DECAY,
 				                         readAutomationUpToPos);
 				reader.exitTag("decay");
 			}
-			else if (!strcmp(tagName, "sustain")) {
+			else if (strcmp(tagName, "sustain") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_SUSTAIN,
 				                         readAutomationUpToPos);
 				reader.exitTag("sustain");
 			}
-			else if (!strcmp(tagName, "release")) {
+			else if (strcmp(tagName, "release") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_RELEASE,
 				                         readAutomationUpToPos);
@@ -1340,28 +1340,28 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("envelope1", true);
 	}
 
-	else if (!strcmp(tagName, "envelope2")) {
+	else if (strcmp(tagName, "envelope2") == 0) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "attack")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "attack") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_ATTACK,
 				                         readAutomationUpToPos);
 				reader.exitTag("attack");
 			}
-			else if (!strcmp(tagName, "decay")) {
+			else if (strcmp(tagName, "decay") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_DECAY,
 				                         readAutomationUpToPos);
 				reader.exitTag("decay");
 			}
-			else if (!strcmp(tagName, "sustain")) {
+			else if (strcmp(tagName, "sustain") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_SUSTAIN,
 				                         readAutomationUpToPos);
 				reader.exitTag("sustain");
 			}
-			else if (!strcmp(tagName, "release")) {
+			else if (strcmp(tagName, "release") == 0) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_RELEASE,
 				                         readAutomationUpToPos);
@@ -1375,33 +1375,33 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("envelope2", true);
 	}
 
-	else if (!strcmp(tagName, "polyphonic")) {
+	else if (strcmp(tagName, "polyphonic") == 0) {
 		polyphonic = stringToPolyphonyMode(reader.readTagOrAttributeValue());
 		reader.exitTag("polyphonic");
 	}
 
-	else if (!strcmp(tagName, "maxVoices")) {
+	else if (strcmp(tagName, "maxVoices") == 0) {
 		maxVoiceCount = reader.readTagOrAttributeValueInt();
 		reader.exitTag("maxVoices");
 	}
 
-	else if (!strcmp(tagName, "voicePriority")) {
+	else if (strcmp(tagName, "voicePriority") == 0) {
 		voicePriority = static_cast<VoicePriority>(reader.readTagOrAttributeValueInt());
 		reader.exitTag("voicePriority");
 	}
 
-	else if (!strcmp(tagName, "reverbAmount")) {
+	else if (strcmp(tagName, "reverbAmount") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_REVERB_AMOUNT, readAutomationUpToPos);
 		reader.exitTag("reverbAmount");
 	}
 
-	else if (!strcmp(tagName, "defaultParams")) {
+	else if (strcmp(tagName, "defaultParams") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		Sound::readParamsFromFile(reader, paramManager, readAutomationUpToPos);
 		reader.exitTag("defaultParams");
 	}
-	else if (!strcmp(tagName, "waveFold")) {
+	else if (strcmp(tagName, "waveFold") == 0) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_FOLD, readAutomationUpToPos);
 		reader.exitTag("waveFold");
@@ -1662,7 +1662,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
 	// If not polyphonic, stop any notes which are releasing, now
-	if (numVoicesAssigned && polyphonic != PolyphonyMode::POLY) [[unlikely]] {
+	if ((numVoicesAssigned != 0) && polyphonic != PolyphonyMode::POLY) [[unlikely]] {
 
 		int32_t ends[2];
 		AudioEngine::activeVoices.getRangeForSound(this, ends);
@@ -1680,7 +1680,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				if (synthMode == SynthMode::FM) {
 justUnassign:
 					// Ideally, we want to save this voice to reuse. But we can only do that for the first such one
-					if (!voiceToReuse) {
+					if (voiceToReuse == nullptr) {
 						voiceToReuse = thisVoice;
 						thisVoice->unassignStuff(false);
 					}
@@ -1720,7 +1720,7 @@ justUnassign:
 		}
 	}
 
-	if (polyphonic == PolyphonyMode::LEGATO && voiceForLegato) [[unlikely]] {
+	if (polyphonic == PolyphonyMode::LEGATO && (voiceForLegato != nullptr)) [[unlikely]] {
 		ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(voiceForLegato);
 		voiceForLegato->changeNoteCode(modelStackWithVoice, noteCodePreArp, noteCodePostArp, fromMIDIChannel,
 		                               mpeValues);
@@ -1730,7 +1730,7 @@ justUnassign:
 		Voice* newVoice;
 		int32_t envelopePositions[kNumEnvelopes];
 
-		if (voiceToReuse) [[unlikely]] {
+		if (voiceToReuse != nullptr) [[unlikely]] {
 			newVoice = voiceToReuse;
 
 			// The osc phases and stuff will remain
@@ -1742,7 +1742,7 @@ justUnassign:
 
 		else {
 			newVoice = AudioEngine::solicitVoice(this);
-			if (!newVoice) {
+			if (newVoice == nullptr) {
 				return; // Should basically never happen
 			}
 			numVoicesAssigned++;
@@ -1762,7 +1762,7 @@ justUnassign:
 		    newVoice->noteOn(modelStackWithVoice, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength,
 		                     ticksLate, samplesLate, voiceToReuse == nullptr, fromMIDIChannel, mpeValues);
 		if (success) {
-			if (voiceToReuse) {
+			if (voiceToReuse != nullptr) {
 				for (int32_t e = 0; e < kNumEnvelopes; e++) {
 					newVoice->envelopes[e].resumeAttack(envelopePositions[e]);
 				}
@@ -1783,7 +1783,7 @@ void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBa
 	arpeggiator->reset();
 
 #if ALPHA_OR_BETA_VERSION
-	if (!modelStack->paramManager) {
+	if (modelStack->paramManager == nullptr) {
 		// Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices().
 		// But I'm pretty sure this doesn't exist anymore?
 		FREEZE_WITH_ERROR("E403");
@@ -1797,7 +1797,7 @@ void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBa
 
 // noteCode = -32768 (default) means stop *any* voice, regardless of noteCode
 void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode) {
-	if (!numVoicesAssigned) {
+	if (numVoicesAssigned == 0) {
 		return;
 	}
 
@@ -1908,7 +1908,7 @@ int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, b
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 
-		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
+		bool sourceEverActive = (s != 0) ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
 
 		if (sourceEverActive && sources[s].oscType == OscType::SAMPLE
 		    && sources[s].repeatMode == SampleRepeatMode::STRETCH) {
@@ -1934,12 +1934,12 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 	}
 
 	int32_t maxLength = 0;
-	if (anyLooping) {
+	if (anyLooping != nullptr) {
 		*anyLooping = false;
 	}
 
 	for (int32_t s = 0; s < kNumSources; s++) {
-		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
+		bool sourceEverActive = (s != 0) ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
 		if (!sourceEverActive) {
 			continue;
 		}
@@ -1949,7 +1949,7 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 		}
 		else if (sources[s].repeatMode == SampleRepeatMode::CUT || sources[s].repeatMode == SampleRepeatMode::LOOP) {
 
-			if (anyLooping && sources[s].repeatMode == SampleRepeatMode::LOOP) {
+			if ((anyLooping != nullptr) && sources[s].repeatMode == SampleRepeatMode::LOOP) {
 				*anyLooping = true;
 			}
 			int32_t length = sources[s].getLengthInSamplesAtSystemSampleRate(note);
@@ -1975,7 +1975,7 @@ bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 	}
 
 	for (int32_t s = 0; s < kNumSources; s++) {
-		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
+		bool sourceEverActive = (s != 0) ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
 		if (!sourceEverActive) {
 			continue;
 		}
@@ -2004,7 +2004,7 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 	// Basically, if any wave-based oscillators active, or one-shot samples, that means no not allowed
 	for (int32_t s = 0; s < kNumSources; s++) {
 
-		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
+		bool sourceEverActive = (s != 0) ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
 		if (!sourceEverActive) {
 			continue;
 		}
@@ -2081,7 +2081,7 @@ bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
 }
 
 void Sound::sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSoundFlags* modelStack) {
-	if (!numVoicesAssigned) {
+	if (numVoicesAssigned == 0) {
 		return;
 	}
 
@@ -2124,7 +2124,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 			if ((modFXType_ != ModFXType::NONE) || compressor.getThreshold() > 0) {
 
 				// If we didn't start the wait-time yet, start it now
-				if (!startSkippingRenderingAtTime) {
+				if (startSkippingRenderingAtTime == 0u) {
 
 					// But wait, first, maybe we actually have just been instructed to cut the MODFX tail
 					if (shouldJustCutModFX) {
@@ -2281,7 +2281,7 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 		int32_t p = paramLPF.p;
 		paramLPF.p = PARAM_LPF_OFF; // Must do this first, because the below call will involve the Sound calling us back
 		                            // for the current value
-		if (modelStack) {
+		if (modelStack != nullptr) {
 			patchedParamPresetValueChanged(p, modelStack, paramLPF.currentValue,
 			                               modelStack->paramManager->getPatchedParamSet()->getValue(p));
 		}
@@ -2315,14 +2315,14 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	}
 
 	for (int s = 0; s < kNumSources; s++) {
-		if (sources[s].oscType == OscType::DX7 and sources[s].dxPatch) {
+		if (sources[s].oscType == OscType::DX7 and (sources[s].dxPatch != nullptr)) {
 			sources[s].dxPatch->computeLfo(numSamples);
 		}
 	}
 
 	// Do sidechain
 	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::SIDECHAIN)) {
-		if (sideChainHitPending) {
+		if (sideChainHitPending != 0) {
 			sidechain.registerHit(sideChainHitPending);
 		}
 
@@ -2336,7 +2336,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	}
 
 	// Perform the actual patching
-	if (sourcesChanged) {
+	if (sourcesChanged != 0u) {
 		patcher.performPatching(sourcesChanged, this, paramManager);
 	}
 
@@ -2350,7 +2350,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 	// Arpeggiator
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
+	if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
 
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
@@ -2404,9 +2404,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	// Render each voice into a local buffer here
 	bool renderingInStereo = renderingVoicesInStereo(modelStackWithSoundFlags);
 	static int32_t soundBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2];
-	memset(soundBuffer, 0, (numSamples * sizeof(int32_t)) << renderingInStereo);
+	memset(soundBuffer, 0, (numSamples * sizeof(int32_t)) << static_cast<int>(renderingInStereo));
 
-	if (numVoicesAssigned) {
+	if (numVoicesAssigned != 0) {
 
 		// Very often, we'll just apply panning here at the Sound level rather than the Voice level
 		bool applyingPanAtVoiceLevel =
@@ -2546,7 +2546,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		compressor.reset();
 	}
 
-	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+	if ((recorder != nullptr) && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
 		recorder->feedAudio(soundBuffer, numSamples, true, 2);
 	}
@@ -2596,7 +2596,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 		                                                            // actually was skipping at all
 
 		// If rendering was actually stopped for any length of time...
-		if (modFXTimeOff) {
+		if (modFXTimeOff != 0) {
 
 			// Do LFO
 			globalLFO.tick(AudioEngine::audioSampleTimer - timeStartedSkippingRenderingLFO,
@@ -2610,7 +2610,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 
 			// Do sidechain
 			// if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::SIDECHAIN)) {
-			if (AudioEngine::sizeLastSideChainHit) {
+			if (AudioEngine::sizeLastSideChainHit != 0) {
 				sidechain.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
 				                                     AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit);
 				//}
@@ -2628,7 +2628,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSettings) {
 
 	if (skippingRendering) {
-		if (arpSettings && arpSettings->mode != ArpMode::OFF) {
+		if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
 			uint32_t phaseIncrement =
 			    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
 			getArp()->gatePos +=
@@ -2640,7 +2640,7 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 }
 
 void Sound::unassignAllVoices() {
-	if (!numVoicesAssigned) {
+	if (numVoicesAssigned == 0) {
 		return;
 	}
 
@@ -2655,7 +2655,7 @@ void Sound::unassignAllVoices() {
 	}
 
 	int32_t numToDelete = ends[1] - ends[0];
-	if (numToDelete) {
+	if (numToDelete != 0) {
 		AudioEngine::activeVoices.deleteAtIndex(ends[0], numToDelete);
 	}
 
@@ -2781,7 +2781,7 @@ void Sound::resyncGlobalLFO() {
 		int64_t lastInternalTickDone = playbackHandler.getCurrentInternalTickCount(&timeSinceLastTick);
 
 		// If we're right at the first tick, no need to do anything else!
-		if (!lastInternalTickDone && !timeSinceLastTick) {
+		if ((lastInternalTickDone == 0) && (timeSinceLastTick == 0u)) {
 			return;
 		}
 
@@ -2800,7 +2800,7 @@ void Sound::resyncGlobalLFO() {
 		uint32_t offsetTicks = (uint64_t)lastInternalTickDone % (uint16_t)numInternalTicksPerPeriod;
 
 		// If we're right at a bar (or something), no need to do anyting else
-		if (!timeSinceLastTick && !offsetTicks) {
+		if ((timeSinceLastTick == 0u) && (offsetTicks == 0u)) {
 			return;
 		}
 
@@ -2858,7 +2858,7 @@ void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {
 			break;
 		}
 
-		if (backedUp->clip) {
+		if (backedUp->clip != nullptr) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, this, backedUp->clip,
@@ -2897,7 +2897,7 @@ void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(ModelStackWit
 		    modelStackWithParamCollection->addParamId(patchedParamsWhichShouldBeZeroIfNoKnobAssigned[i]);
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStackWithParamId->paramCollection->getAutoParamFromId(
 		    modelStackWithParamId, false); // Don't allow creation
-		if (modelStackWithAutoParam->autoParam) {
+		if (modelStackWithAutoParam->autoParam != nullptr) {
 			ensureParamPresetValueWithoutKnobIsZero(modelStackWithAutoParam);
 		}
 	}
@@ -2995,7 +2995,7 @@ void Sound::setupUnisonDetuners(ModelStackWithSoundFlags* modelStack) {
 		for (int32_t u = 0; u < numUnison; u++) {
 
 			// Middle unison part gets no detune
-			if ((numUnison & 1) && u == ((numUnison - 1) >> 1)) {
+			if (((numUnison & 1) != 0) && u == ((numUnison - 1) >> 1)) {
 				unisonDetuners[u].setNoDetune();
 			}
 			else {
@@ -3096,7 +3096,7 @@ void Sound::recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* 
 // Can handle NULL modelStack, which you'd only want to do if no Voices active
 void Sound::recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack) {
 
-	if (!numVoicesAssigned || !modelStack) {
+	if ((numVoicesAssigned == 0) || (modelStack == nullptr)) {
 		return; // These two "should" always be false in tandem...
 	}
 
@@ -3118,7 +3118,7 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 	calculateEffectiveVolume();
 
 	// Effective volume has changed. Need to pass that change onto Voices
-	if (numVoicesAssigned) {
+	if (numVoicesAssigned != 0) {
 
 		int32_t ends[2];
 		AudioEngine::activeVoices.getRangeForSound(this, ends);
@@ -3132,7 +3132,7 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 					bool sourceEverActive = modelStack->checkSourceEverActive(s);
 
 					if (sourceEverActive && synthMode != SynthMode::FM && sources[s].oscType == OscType::SAMPLE
-					    && thisVoice->guides[s].audioFileHolder && thisVoice->guides[s].audioFileHolder->audioFile) {
+					    && (thisVoice->guides[s].audioFileHolder != nullptr) && (thisVoice->guides[s].audioFileHolder->audioFile != nullptr)) {
 
 						// For samples, set the current play pos for the new unison part, if num unison went up
 						if (newNum > oldNum) {
@@ -3148,7 +3148,7 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 								newPart->carrierFeedback = oldPart->carrierFeedback;
 
 								newPart->voiceSample = AudioEngine::solicitVoiceSample();
-								if (!newPart->voiceSample) {
+								if (newPart->voiceSample == nullptr) {
 									newPart->active = false;
 								}
 
@@ -3198,11 +3198,11 @@ bool Sound::anyNoteIsOn() {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
+	if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
 		return (getArp()->hasAnyInputNotesActive());
 	}
 
-	return numVoicesAssigned;
+	return numVoicesAssigned != 0;
 }
 
 bool Sound::hasFilters() {
@@ -3213,7 +3213,7 @@ void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* pa
                                int32_t readAutomationUpToPos) {
 	char const* tagName;
 	reader.match('{');
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		if (readParamTagFromFile(reader, tagName, paramManager, readAutomationUpToPos)) {}
 		else {
 			reader.exitTag(tagName);
@@ -3236,7 +3236,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 
 	ParamManagerForTimeline paramManager;
 
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		Error result =
 		    readTagFromFile(reader, tagName, &paramManager, readAutomationUpToPos, arpSettings, modelStack->song);
 		if (result == Error::NONE) {}
@@ -3347,56 +3347,56 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 	Source* source = &sources[s];
 
 	char const* tagName;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "type")) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+		if (strcmp(tagName, "type") == 0) {
 			source->setOscType(stringToOscType(reader.readTagOrAttributeValue()));
 			reader.exitTag("type");
 		}
-		else if (!strcmp(tagName, "phaseWidth")) {
+		else if (strcmp(tagName, "phaseWidth") == 0) {
 			ENSURE_PARAM_MANAGER_EXISTS
 			patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_PHASE_WIDTH + s,
 			                         readAutomationUpToPos);
 			reader.exitTag("phaseWidth");
 		}
-		else if (!strcmp(tagName, "volume")) {
+		else if (strcmp(tagName, "volume") == 0) {
 			ENSURE_PARAM_MANAGER_EXISTS
 			patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_VOLUME + s,
 			                         readAutomationUpToPos);
 			reader.exitTag("volume");
 		}
-		else if (!strcmp(tagName, "transpose")) {
+		else if (strcmp(tagName, "transpose") == 0) {
 			source->transpose = reader.readTagOrAttributeValueInt();
 			reader.exitTag("transpose");
 		}
-		else if (!strcmp(tagName, "cents")) {
+		else if (strcmp(tagName, "cents") == 0) {
 			source->cents = reader.readTagOrAttributeValueInt();
 			reader.exitTag("cents");
 		}
-		else if (!strcmp(tagName, "loopMode")) {
+		else if (strcmp(tagName, "loopMode") == 0) {
 			source->repeatMode = static_cast<SampleRepeatMode>(reader.readTagOrAttributeValueInt());
 			source->repeatMode = std::min(source->repeatMode, static_cast<SampleRepeatMode>(kNumRepeatModes - 1));
 			reader.exitTag("loopMode");
 		}
-		else if (!strcmp(tagName, "oscillatorSync")) {
+		else if (strcmp(tagName, "oscillatorSync") == 0) {
 			int32_t value = reader.readTagOrAttributeValueInt();
 			oscillatorSync = (value != 0);
 			reader.exitTag("oscillatorSync");
 		}
-		else if (!strcmp(tagName, "reversed")) {
-			source->sampleControls.reversed = reader.readTagOrAttributeValueInt();
+		else if (strcmp(tagName, "reversed") == 0) {
+			source->sampleControls.reversed = (reader.readTagOrAttributeValueInt() != 0);
 			reader.exitTag("reversed");
 		}
-		else if (!strcmp(tagName, "dx7patch")) {
+		else if (strcmp(tagName, "dx7patch") == 0) {
 			DxPatch* patch = source->ensureDxPatch();
 			int len = reader.readTagOrAttributeValueHexBytes(patch->params, 156);
 			reader.exitTag("dx7patch");
 		}
-		else if (!strcmp(tagName, "dx7randomdetune")) {
+		else if (strcmp(tagName, "dx7randomdetune") == 0) {
 			DxPatch* patch = source->ensureDxPatch();
 			patch->random_detune = reader.readTagOrAttributeValueInt();
 			reader.exitTag("dx7randomdetune");
 		}
-		else if (!strcmp(tagName, "dx7enginemode")) {
+		else if (strcmp(tagName, "dx7enginemode") == 0) {
 			DxPatch* patch = source->ensureDxPatch();
 			patch->setEngineMode(reader.readTagOrAttributeValueInt());
 			reader.exitTag("dx7enginemode");
@@ -3407,28 +3407,28 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 		    reader.exitTag("sampleSync");
 		}
 		*/
-		else if (!strcmp(tagName, "timeStretchEnable")) {
-			source->sampleControls.pitchAndSpeedAreIndependent = reader.readTagOrAttributeValueInt();
+		else if (strcmp(tagName, "timeStretchEnable") == 0) {
+			source->sampleControls.pitchAndSpeedAreIndependent = (reader.readTagOrAttributeValueInt() != 0);
 			reader.exitTag("timeStretchEnable");
 		}
-		else if (!strcmp(tagName, "timeStretchAmount")) {
+		else if (strcmp(tagName, "timeStretchAmount") == 0) {
 			source->timeStretchAmount = reader.readTagOrAttributeValueInt();
 			reader.exitTag("timeStretchAmount");
 		}
-		else if (!strcmp(tagName, "linearInterpolation")) {
-			if (reader.readTagOrAttributeValueInt()) {
+		else if (strcmp(tagName, "linearInterpolation") == 0) {
+			if (reader.readTagOrAttributeValueInt() != 0) {
 				source->sampleControls.interpolationMode = InterpolationMode::LINEAR;
 			}
 			reader.exitTag("linearInterpolation");
 		}
-		else if (!strcmp(tagName, "retrigPhase")) {
+		else if (strcmp(tagName, "retrigPhase") == 0) {
 			oscRetriggerPhase[s] = reader.readTagOrAttributeValueInt();
 			reader.exitTag("retrigPhase");
 		}
-		else if (!strcmp(tagName, "fileName")) {
+		else if (strcmp(tagName, "fileName") == 0) {
 
 			MultiRange* range = source->getOrCreateFirstRange();
-			if (!range) {
+			if (range == nullptr) {
 				return Error::INSUFFICIENT_RAM;
 			}
 
@@ -3436,10 +3436,10 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 
 			reader.exitTag("fileName");
 		}
-		else if (!strcmp(tagName, "zone")) {
+		else if (strcmp(tagName, "zone") == 0) {
 
 			MultisampleRange* range = (MultisampleRange*)source->getOrCreateFirstRange();
-			if (!range) {
+			if (range == nullptr) {
 				return Error::INSUFFICIENT_RAM;
 			}
 
@@ -3449,38 +3449,38 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			range->sampleHolder.endPos = 0;
 			reader.match('{');
 
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
-				if (!strcmp(tagName, "startSeconds")) {
+			while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+				if (strcmp(tagName, "startSeconds") == 0) {
 					range->sampleHolder.startMSec += reader.readTagOrAttributeValueInt() * 1000;
 					reader.exitTag("startSeconds");
 				}
-				else if (!strcmp(tagName, "startMilliseconds")) {
+				else if (strcmp(tagName, "startMilliseconds") == 0) {
 					range->sampleHolder.startMSec += reader.readTagOrAttributeValueInt();
 					reader.exitTag("startMilliseconds");
 				}
-				else if (!strcmp(tagName, "endSeconds")) {
+				else if (strcmp(tagName, "endSeconds") == 0) {
 					range->sampleHolder.endMSec += reader.readTagOrAttributeValueInt() * 1000;
 					reader.exitTag("endSeconds");
 				}
-				else if (!strcmp(tagName, "endMilliseconds")) {
+				else if (strcmp(tagName, "endMilliseconds") == 0) {
 					range->sampleHolder.endMSec += reader.readTagOrAttributeValueInt();
 					reader.exitTag("endMilliseconds");
 				}
 
-				else if (!strcmp(tagName, "startSamplePos")) {
+				else if (strcmp(tagName, "startSamplePos") == 0) {
 					range->sampleHolder.startPos = reader.readTagOrAttributeValueInt();
 					reader.exitTag("startSamplePos");
 				}
-				else if (!strcmp(tagName, "endSamplePos")) {
+				else if (strcmp(tagName, "endSamplePos") == 0) {
 					range->sampleHolder.endPos = reader.readTagOrAttributeValueInt();
 					reader.exitTag("endSamplePos");
 				}
 
-				else if (!strcmp(tagName, "startLoopPos")) {
+				else if (strcmp(tagName, "startLoopPos") == 0) {
 					range->sampleHolder.loopStartPos = reader.readTagOrAttributeValueInt();
 					reader.exitTag("startLoopPos");
 				}
-				else if (!strcmp(tagName, "endLoopPos")) {
+				else if (strcmp(tagName, "endLoopPos") == 0) {
 					range->sampleHolder.loopEndPos = reader.readTagOrAttributeValueInt();
 					reader.exitTag("endLoopPos");
 				}
@@ -3491,11 +3491,11 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			}
 			reader.exitTag("zone", true);
 		}
-		else if (!strcmp(tagName, "sampleRanges") || !strcmp(tagName, "wavetableRanges")) {
+		else if ((strcmp(tagName, "sampleRanges") == 0) || (strcmp(tagName, "wavetableRanges") == 0)) {
 			reader.match('[');
-			while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
+			while (reader.match('{') && (*(tagName = reader.readNextTagOrAttributeName()) != 0)) {
 
-				if (!strcmp(tagName, "sampleRange") || !strcmp(tagName, "wavetableRange")) {
+				if ((strcmp(tagName, "sampleRange") == 0) || (strcmp(tagName, "wavetableRange") == 0)) {
 
 					char tempMemory[source->ranges.elementSize];
 
@@ -3509,35 +3509,35 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 
 					AudioFileHolder* holder = tempRange->getAudioFileHolder();
 					reader.match('{');
-					while (*(tagName = reader.readNextTagOrAttributeName())) {
+					while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 
-						if (!strcmp(tagName, "fileName")) {
+						if (strcmp(tagName, "fileName") == 0) {
 							reader.readTagOrAttributeValueString(&holder->filePath);
 							reader.exitTag("fileName");
 						}
-						else if (!strcmp(tagName, "rangeTopNote")) {
+						else if (strcmp(tagName, "rangeTopNote") == 0) {
 							tempRange->topNote = reader.readTagOrAttributeValueInt();
 							reader.exitTag("rangeTopNote");
 						}
 						else if (source->oscType != OscType::WAVETABLE) {
-							if (!strcmp(tagName, "zone")) {
+							if (strcmp(tagName, "zone") == 0) {
 								reader.match('{');
-								while (*(tagName = reader.readNextTagOrAttributeName())) {
-									if (!strcmp(tagName, "startSamplePos")) {
+								while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+									if (strcmp(tagName, "startSamplePos") == 0) {
 										((SampleHolder*)holder)->startPos = reader.readTagOrAttributeValueInt();
 										reader.exitTag("startSamplePos");
 									}
-									else if (!strcmp(tagName, "endSamplePos")) {
+									else if (strcmp(tagName, "endSamplePos") == 0) {
 										((SampleHolder*)holder)->endPos = reader.readTagOrAttributeValueInt();
 										reader.exitTag("endSamplePos");
 									}
 
-									else if (!strcmp(tagName, "startLoopPos")) {
+									else if (strcmp(tagName, "startLoopPos") == 0) {
 										((SampleHolderForVoice*)holder)->loopStartPos =
 										    reader.readTagOrAttributeValueInt();
 										reader.exitTag("startLoopPos");
 									}
-									else if (!strcmp(tagName, "endLoopPos")) {
+									else if (strcmp(tagName, "endLoopPos") == 0) {
 										((SampleHolderForVoice*)holder)->loopEndPos =
 										    reader.readTagOrAttributeValueInt();
 										reader.exitTag("endLoopPos");
@@ -3548,11 +3548,11 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 								}
 								reader.exitTag("zone", true);
 							}
-							else if (!strcmp(tagName, "transpose")) {
+							else if (strcmp(tagName, "transpose") == 0) {
 								((SampleHolderForVoice*)holder)->transpose = reader.readTagOrAttributeValueInt();
 								reader.exitTag("transpose");
 							}
-							else if (!strcmp(tagName, "cents")) {
+							else if (strcmp(tagName, "cents") == 0) {
 								((SampleHolderForVoice*)holder)->cents = reader.readTagOrAttributeValueInt();
 								reader.exitTag("cents");
 							}
@@ -3621,8 +3621,8 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 	if (source->oscType == OscType::SAMPLE
 	    && synthMode != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
 		writer.writeAttribute("loopMode", util::to_underlying(source->repeatMode));
-		writer.writeAttribute("reversed", source->sampleControls.reversed);
-		writer.writeAttribute("timeStretchEnable", source->sampleControls.pitchAndSpeedAreIndependent);
+		writer.writeAttribute("reversed", static_cast<int32_t>(source->sampleControls.reversed));
+		writer.writeAttribute("timeStretchEnable", static_cast<int32_t>(source->sampleControls.pitchAndSpeedAreIndependent));
 		writer.writeAttribute("timeStretchAmount", source->timeStretchAmount);
 		if (source->sampleControls.interpolationMode == InterpolationMode::LINEAR) {
 			writer.writeAttribute("linearInterpolation", 1);
@@ -3646,13 +3646,13 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 				}
 			}
 
-			writer.writeAttribute("fileName", range->sampleHolder.audioFile
+			writer.writeAttribute("fileName", (range->sampleHolder.audioFile != nullptr)
 			                                      ? range->sampleHolder.audioFile->filePath.get()
 			                                      : range->sampleHolder.filePath.get());
-			if (range->sampleHolder.transpose) {
+			if (range->sampleHolder.transpose != 0) {
 				writer.writeAttribute("transpose", range->sampleHolder.transpose);
 			}
-			if (range->sampleHolder.cents) {
+			if (range->sampleHolder.cents != 0) {
 				writer.writeAttribute("cents", range->sampleHolder.cents);
 			}
 
@@ -3661,10 +3661,10 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			writer.writeOpeningTagBeginning("zone");
 			writer.writeAttribute("startSamplePos", range->sampleHolder.startPos);
 			writer.writeAttribute("endSamplePos", range->sampleHolder.endPos);
-			if (range->sampleHolder.loopStartPos) {
+			if (range->sampleHolder.loopStartPos != 0u) {
 				writer.writeAttribute("startLoopPos", range->sampleHolder.loopStartPos);
 			}
-			if (range->sampleHolder.loopEndPos) {
+			if (range->sampleHolder.loopEndPos != 0u) {
 				writer.writeAttribute("endLoopPos", range->sampleHolder.loopEndPos);
 			}
 			writer.closeTag();
@@ -3689,7 +3689,7 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 		writer.writeAttribute("transpose", source->transpose);
 		writer.writeAttribute("cents", source->cents);
 		if (s == 1 && oscillatorSync) {
-			writer.writeAttribute("oscillatorSync", oscillatorSync);
+			writer.writeAttribute("oscillatorSync", static_cast<int32_t>(oscillatorSync));
 		}
 		writer.writeAttribute("retrigPhase", oscRetriggerPhase[s]);
 
@@ -3714,7 +3714,7 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 					}
 				}
 
-				writer.writeAttribute("fileName", range->sampleHolder.audioFile
+				writer.writeAttribute("fileName", (range->sampleHolder.audioFile != nullptr)
 				                                      ? range->sampleHolder.audioFile->filePath.get()
 				                                      : range->sampleHolder.filePath.get());
 
@@ -3733,7 +3733,7 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 		}
 		else if (source->oscType == OscType::DX7
 		         && synthMode != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
-			if (source->dxPatch) {
+			if (source->dxPatch != nullptr) {
 				DxPatch* patch = source->dxPatch;
 				writer.writeAttributeHexBytes("dx7patch", patch->params, 156);
 
@@ -3763,143 +3763,143 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 	ParamCollectionSummary* patchedParamsSummary = paramManager->getPatchedParamSetSummary();
 	PatchedParamSet* patchedParams = (PatchedParamSet*)patchedParamsSummary->paramCollection;
 
-	if (!strcmp(tagName, "arpeggiatorGate")) {
+	if (strcmp(tagName, "arpeggiatorGate") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_GATE, readAutomationUpToPos);
 		reader.exitTag("arpeggiatorGate");
 	}
-	else if (!strcmp(tagName, "noteProbability")) {
+	else if (strcmp(tagName, "noteProbability") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_NOTE_PROBABILITY,
 		                           readAutomationUpToPos);
 		reader.exitTag("noteProbability");
 	}
-	else if (!strcmp(tagName, "ratchetProbability")) {
+	else if (strcmp(tagName, "ratchetProbability") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 		                           readAutomationUpToPos);
 		reader.exitTag("ratchetProbability");
 	}
-	else if (!strcmp(tagName, "ratchetAmount")) {
+	else if (strcmp(tagName, "ratchetAmount") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_AMOUNT,
 		                           readAutomationUpToPos);
 		reader.exitTag("ratchetAmount");
 	}
-	else if (!strcmp(tagName, "sequenceLength")) {
+	else if (strcmp(tagName, "sequenceLength") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
 		                           readAutomationUpToPos);
 		reader.exitTag("sequenceLength");
 	}
-	else if (!strcmp(tagName, "rhythm")) {
+	else if (strcmp(tagName, "rhythm") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
 		reader.exitTag("rhythm");
 	}
-	else if (!strcmp(tagName, "spreadVelocity")) {
+	else if (strcmp(tagName, "spreadVelocity") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_VELOCITY,
 		                           readAutomationUpToPos);
 		reader.exitTag("spreadVelocity");
 	}
-	else if (!strcmp(tagName, "spreadGate")) {
+	else if (strcmp(tagName, "spreadGate") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_GATE,
 		                           readAutomationUpToPos);
 		reader.exitTag("spreadGate");
 	}
-	else if (!strcmp(tagName, "spreadOctave")) {
+	else if (strcmp(tagName, "spreadOctave") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_OCTAVE,
 		                           readAutomationUpToPos);
 		reader.exitTag("spreadOctave");
 	}
-	else if (!strcmp(tagName, "portamento")) {
+	else if (strcmp(tagName, "portamento") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
 		reader.exitTag("portamento");
 	}
-	else if (!strcmp(tagName, "compressorShape")) {
+	else if (strcmp(tagName, "compressorShape") == 0) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_SHAPE,
 		                           readAutomationUpToPos);
 		reader.exitTag("compressorShape");
 	}
 
-	else if (!strcmp(tagName, "noiseVolume")) {
+	else if (strcmp(tagName, "noiseVolume") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_NOISE_VOLUME, readAutomationUpToPos);
 		reader.exitTag("noiseVolume");
 	}
-	else if (!strcmp(tagName, "oscAVolume")) {
+	else if (strcmp(tagName, "oscAVolume") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_VOLUME, readAutomationUpToPos);
 		reader.exitTag("oscAVolume");
 	}
-	else if (!strcmp(tagName, "oscBVolume")) {
+	else if (strcmp(tagName, "oscBVolume") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_VOLUME, readAutomationUpToPos);
 		reader.exitTag("oscBVolume");
 	}
-	else if (!strcmp(tagName, "oscAPulseWidth")) {
+	else if (strcmp(tagName, "oscAPulseWidth") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_PHASE_WIDTH, readAutomationUpToPos);
 		reader.exitTag("oscAPulseWidth");
 	}
-	else if (!strcmp(tagName, "oscBPulseWidth")) {
+	else if (strcmp(tagName, "oscBPulseWidth") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_PHASE_WIDTH, readAutomationUpToPos);
 		reader.exitTag("oscBPulseWidth");
 	}
-	else if (!strcmp(tagName, "oscAWavetablePosition")) {
+	else if (strcmp(tagName, "oscAWavetablePosition") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_WAVE_INDEX, readAutomationUpToPos);
 		reader.exitTag();
 	}
-	else if (!strcmp(tagName, "oscBWavetablePosition")) {
+	else if (strcmp(tagName, "oscBWavetablePosition") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_WAVE_INDEX, readAutomationUpToPos);
 		reader.exitTag();
 	}
-	else if (!strcmp(tagName, "volume")) {
+	else if (strcmp(tagName, "volume") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_VOLUME_POST_FX, readAutomationUpToPos);
 		reader.exitTag("volume");
 	}
-	else if (!strcmp(tagName, "pan")) {
+	else if (strcmp(tagName, "pan") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_PAN, readAutomationUpToPos);
 		reader.exitTag("pan");
 	}
-	else if (!strcmp(tagName, "lpfFrequency")) {
+	else if (strcmp(tagName, "lpfFrequency") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LPF_FREQ, readAutomationUpToPos);
 		reader.exitTag("lpfFrequency");
 	}
-	else if (!strcmp(tagName, "lpfResonance")) {
+	else if (strcmp(tagName, "lpfResonance") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LPF_RESONANCE, readAutomationUpToPos);
 		reader.exitTag("lpfResonance");
 	}
-	else if (!strcmp(tagName, "lpfMorph")) {
+	else if (strcmp(tagName, "lpfMorph") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LPF_MORPH, readAutomationUpToPos);
 		reader.exitTag("lpfMorph");
 	}
-	else if (!strcmp(tagName, "hpfFrequency")) {
+	else if (strcmp(tagName, "hpfFrequency") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_HPF_FREQ, readAutomationUpToPos);
 		reader.exitTag("hpfFrequency");
 	}
-	else if (!strcmp(tagName, "hpfResonance")) {
+	else if (strcmp(tagName, "hpfResonance") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_HPF_RESONANCE, readAutomationUpToPos);
 		reader.exitTag("hpfResonance");
 	}
-	else if (!strcmp(tagName, "hpfMorph")) {
+	else if (strcmp(tagName, "hpfMorph") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_HPF_MORPH, readAutomationUpToPos);
 		reader.exitTag("hpfMorph");
 	}
-	else if (!strcmp(tagName, "waveFold")) {
+	else if (strcmp(tagName, "waveFold") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_FOLD, readAutomationUpToPos);
 		reader.exitTag("waveFold");
 	}
 
-	else if (!strcmp(tagName, "envelope1")) {
+	else if (strcmp(tagName, "envelope1") == 0) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "attack")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "attack") == 0) {
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_ATTACK,
 				                         readAutomationUpToPos);
 				reader.exitTag("attack");
 			}
-			else if (!strcmp(tagName, "decay")) {
+			else if (strcmp(tagName, "decay") == 0) {
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_DECAY,
 				                         readAutomationUpToPos);
 				reader.exitTag("decay");
 			}
-			else if (!strcmp(tagName, "sustain")) {
+			else if (strcmp(tagName, "sustain") == 0) {
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_SUSTAIN,
 				                         readAutomationUpToPos);
 				reader.exitTag("sustain");
 			}
-			else if (!strcmp(tagName, "release")) {
+			else if (strcmp(tagName, "release") == 0) {
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_RELEASE,
 				                         readAutomationUpToPos);
 				reader.exitTag("release");
@@ -3907,25 +3907,25 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 		}
 		reader.exitTag("envelope1", true);
 	}
-	else if (!strcmp(tagName, "envelope2")) {
+	else if (strcmp(tagName, "envelope2") == 0) {
 		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "attack")) {
+		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+			if (strcmp(tagName, "attack") == 0) {
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_ATTACK,
 				                         readAutomationUpToPos);
 				reader.exitTag("attack");
 			}
-			else if (!strcmp(tagName, "decay")) {
+			else if (strcmp(tagName, "decay") == 0) {
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_DECAY,
 				                         readAutomationUpToPos);
 				reader.exitTag("decay");
 			}
-			else if (!strcmp(tagName, "sustain")) {
+			else if (strcmp(tagName, "sustain") == 0) {
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_SUSTAIN,
 				                         readAutomationUpToPos);
 				reader.exitTag("sustain");
 			}
-			else if (!strcmp(tagName, "release")) {
+			else if (strcmp(tagName, "release") == 0) {
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_RELEASE,
 				                         readAutomationUpToPos);
 				reader.exitTag("release");
@@ -3933,87 +3933,87 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 		}
 		reader.exitTag("envelope2", true);
 	}
-	else if (!strcmp(tagName, "lfo1Rate")) {
+	else if (strcmp(tagName, "lfo1Rate") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ, readAutomationUpToPos);
 		reader.exitTag("lfo1Rate");
 	}
-	else if (!strcmp(tagName, "lfo2Rate")) {
+	else if (strcmp(tagName, "lfo2Rate") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LFO_LOCAL_FREQ, readAutomationUpToPos);
 		reader.exitTag("lfo2Rate");
 	}
-	else if (!strcmp(tagName, "modulator1Amount")) {
+	else if (strcmp(tagName, "modulator1Amount") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_0_VOLUME, readAutomationUpToPos);
 		reader.exitTag("modulator1Amount");
 	}
-	else if (!strcmp(tagName, "modulator2Amount")) {
+	else if (strcmp(tagName, "modulator2Amount") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_1_VOLUME, readAutomationUpToPos);
 		reader.exitTag("modulator2Amount");
 	}
-	else if (!strcmp(tagName, "modulator1Feedback")) {
+	else if (strcmp(tagName, "modulator1Feedback") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_0_FEEDBACK,
 		                         readAutomationUpToPos);
 		reader.exitTag("modulator1Feedback");
 	}
-	else if (!strcmp(tagName, "modulator2Feedback")) {
+	else if (strcmp(tagName, "modulator2Feedback") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_1_FEEDBACK,
 		                         readAutomationUpToPos);
 		reader.exitTag("modulator2Feedback");
 	}
-	else if (!strcmp(tagName, "carrier1Feedback")) {
+	else if (strcmp(tagName, "carrier1Feedback") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_CARRIER_0_FEEDBACK, readAutomationUpToPos);
 		reader.exitTag("carrier1Feedback");
 	}
-	else if (!strcmp(tagName, "carrier2Feedback")) {
+	else if (strcmp(tagName, "carrier2Feedback") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_CARRIER_1_FEEDBACK, readAutomationUpToPos);
 		reader.exitTag("carrier2Feedback");
 	}
-	else if (!strcmp(tagName, "pitchAdjust")) {
+	else if (strcmp(tagName, "pitchAdjust") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_PITCH_ADJUST, readAutomationUpToPos);
 		reader.exitTag("pitchAdjust");
 	}
-	else if (!strcmp(tagName, "oscAPitchAdjust")) {
+	else if (strcmp(tagName, "oscAPitchAdjust") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_PITCH_ADJUST, readAutomationUpToPos);
 		reader.exitTag("oscAPitchAdjust");
 	}
-	else if (!strcmp(tagName, "oscBPitchAdjust")) {
+	else if (strcmp(tagName, "oscBPitchAdjust") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_PITCH_ADJUST, readAutomationUpToPos);
 		reader.exitTag("oscBPitchAdjust");
 	}
-	else if (!strcmp(tagName, "mod1PitchAdjust")) {
+	else if (strcmp(tagName, "mod1PitchAdjust") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_0_PITCH_ADJUST,
 		                         readAutomationUpToPos);
 		reader.exitTag("mod1PitchAdjust");
 	}
-	else if (!strcmp(tagName, "mod2PitchAdjust")) {
+	else if (strcmp(tagName, "mod2PitchAdjust") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_1_PITCH_ADJUST,
 		                         readAutomationUpToPos);
 		reader.exitTag("mod2PitchAdjust");
 	}
-	else if (!strcmp(tagName, "modFXRate")) {
+	else if (strcmp(tagName, "modFXRate") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_MOD_FX_RATE, readAutomationUpToPos);
 		reader.exitTag("modFXRate");
 	}
-	else if (!strcmp(tagName, "modFXDepth")) {
+	else if (strcmp(tagName, "modFXDepth") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_MOD_FX_DEPTH, readAutomationUpToPos);
 		reader.exitTag("modFXDepth");
 	}
-	else if (!strcmp(tagName, "delayRate")) {
+	else if (strcmp(tagName, "delayRate") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_DELAY_RATE, readAutomationUpToPos);
 		reader.exitTag("delayRate");
 	}
-	else if (!strcmp(tagName, "delayFeedback")) {
+	else if (strcmp(tagName, "delayFeedback") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_DELAY_FEEDBACK, readAutomationUpToPos);
 		reader.exitTag("delayFeedback");
 	}
-	else if (!strcmp(tagName, "reverbAmount")) {
+	else if (strcmp(tagName, "reverbAmount") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_REVERB_AMOUNT, readAutomationUpToPos);
 		reader.exitTag("reverbAmount");
 	}
-	else if (!strcmp(tagName, "arpeggiatorRate")) {
+	else if (strcmp(tagName, "arpeggiatorRate") == 0) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_ARP_RATE, readAutomationUpToPos);
 		reader.exitTag("arpeggiatorRate");
 	}
-	else if (!strcmp(tagName, "patchCables")) {
+	else if (strcmp(tagName, "patchCables") == 0) {
 		paramManager->getPatchCableSet()->readPatchCablesFromFile(reader, readAutomationUpToPos);
 		reader.exitTag("patchCables");
 	}
@@ -4154,7 +4154,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	ModControllableAudio::writeAttributesToFile(writer);
 
 	// Community Firmware parameters (always write them after the official ones)
-	if (pathAttribute) {
+	if (pathAttribute != nullptr) {
 		writer.writeAttribute("path", pathAttribute);
 	}
 	writer.writeAttribute("maxVoices", maxVoiceCount);
@@ -4191,7 +4191,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.writeAttribute("transpose", modulatorTranspose[1]);
 		writer.writeAttribute("cents", modulatorCents[1]);
 		writer.writeAttribute("retrigPhase", modulatorRetriggerPhase[1]);
-		writer.writeAttribute("toModulator1", modulator1ToModulator0);
+		writer.writeAttribute("toModulator1", static_cast<int32_t>(modulator1ToModulator0));
 		writer.closeTag();
 	}
 
@@ -4202,17 +4202,17 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	writer.writeAttribute("spread", unisonStereoSpread, false);
 	writer.closeTag();
 
-	if (paramManager) {
+	if (paramManager != nullptr) {
 		writer.writeOpeningTagBeginning("defaultParams", true);
 		Sound::writeParamsToFile(writer, paramManager, false);
 		writer.writeClosingTag("defaultParams", true, true);
 	}
 
-	if (arpSettings) {
+	if (arpSettings != nullptr) {
 		writer.writeOpeningTagBeginning("arpeggiator");
 		writer.writeAttribute("mode", arpPresetToOldArpMode(arpSettings->preset)); // For backwards compatibility
 		writer.writeAttribute("numOctaves", arpSettings->numOctaves);
-		writer.writeAttribute("spreadLock", arpSettings->spreadLock);
+		writer.writeAttribute("spreadLock", static_cast<int32_t>(arpSettings->spreadLock));
 
 		// Write locked spread params
 		char buffer[9];
@@ -4313,7 +4313,7 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings(clip);
 
-	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
+	if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
 		maxRawOscTranspose += (arpSettings->numOctaves - 1) * 12;
 	}
 
@@ -4629,7 +4629,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 	         && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN) {
 		if (on) {
 			int32_t insideWorldTickMagnitude;
-			if (currentSong) { // Bit of a hack just referring to currentSong in here...
+			if (currentSong != nullptr) { // Bit of a hack just referring to currentSong in here...
 				insideWorldTickMagnitude =
 				    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 			}
@@ -4734,7 +4734,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 
 // modelStack may be NULL
 void Sound::fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack) {
-	if (!numVoicesAssigned) {
+	if (numVoicesAssigned == 0) {
 		return;
 	}
 
@@ -4801,7 +4801,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 		return false;
 	}
 
-	if (!numVoicesAssigned) {
+	if (numVoicesAssigned == 0) {
 		return false;
 	}
 
@@ -4815,7 +4815,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 		return true;
 	}
 
-	if (unisonStereoSpread && numUnison > 1) {
+	if ((unisonStereoSpread != 0u) && numUnison > 1) {
 		return true;
 	}
 
@@ -4843,7 +4843,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 				MultiRange* range = source->ranges.getElement(0);
 				AudioFileHolder* holder = range->getAudioFileHolder();
 
-				if (holder->audioFile && holder->audioFile->numChannels == 2) {
+				if ((holder->audioFile != nullptr) && holder->audioFile->numChannels == 2) {
 					return true;
 				}
 			}
@@ -4852,7 +4852,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 
 	// Ok, if that determined that either source has multiple samples (multisample ranges), we now have to
 	// investigate each Voice
-	if (mustExamineSourceInEachVoice) {
+	if (mustExamineSourceInEachVoice != 0u) {
 
 		int32_t ends[2];
 		AudioEngine::activeVoices.getRangeForSound(this, ends);
@@ -4860,9 +4860,9 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 			Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 
 			for (int32_t s = 0; s < kNumSources; s++) {
-				if (mustExamineSourceInEachVoice & (1 << s)) {
+				if ((mustExamineSourceInEachVoice & (1 << s)) != 0u) {
 					AudioFileHolder* holder = thisVoice->guides[s].audioFileHolder;
-					if (holder && holder->audioFile && holder->audioFile->numChannels == 2) {
+					if ((holder != nullptr) && (holder->audioFile != nullptr) && holder->audioFile->numChannels == 2) {
 						return true;
 					}
 				}

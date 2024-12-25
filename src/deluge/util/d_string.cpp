@@ -37,7 +37,7 @@ void String::setNumReasons(int32_t newNum) {
 }
 
 void String::clear(bool destructing) {
-	if (stringMemory) {
+	if (stringMemory != nullptr) {
 		int32_t numReasons = getNumReasons();
 		if (numReasons > 1) {
 			setNumReasons(numReasons - 1);
@@ -58,7 +58,7 @@ Error String::set(char const* newChars, int32_t newLength) {
 		newLength = strlen(newChars);
 	}
 
-	if (!newLength) {
+	if (newLength == 0) {
 		clear();
 		return Error::NONE;
 	}
@@ -66,7 +66,7 @@ Error String::set(char const* newChars, int32_t newLength) {
 	// If we're here, new length is not 0
 
 	// If already got some memory...
-	if (stringMemory) {
+	if (stringMemory != nullptr) {
 
 		{
 			// If it's shared with another object, can't use it
@@ -108,7 +108,7 @@ clearAndAllocateNew:
 
 	{
 		void* newMemory = GeneralMemoryAllocator::get().allocExternal(newLength + 1 + 4);
-		if (!newMemory) {
+		if (newMemory == nullptr) {
 			return Error::INSUFFICIENT_RAM;
 		}
 		stringMemory = (char*)newMemory + 4;
@@ -132,7 +132,7 @@ void String::set(String const* otherString) {
 			return;
 		}
 		// or if it doesn't have an allocation
-		if (!GeneralMemoryAllocator::get().getAllocatedSize(sm)) {
+		if (GeneralMemoryAllocator::get().getAllocatedSize(sm) == 0u) {
 			FREEZE_WITH_ERROR("S002");
 			return;
 		}
@@ -158,7 +158,7 @@ size_t String::getLength() {
 }
 
 Error String::shorten(int32_t newLength) {
-	if (!newLength) {
+	if (newLength == 0) {
 		clear();
 	}
 	else {
@@ -168,7 +168,7 @@ Error String::shorten(int32_t newLength) {
 		// If reasons, we have to do a clone
 		if (oldNumReasons > 1) {
 			void* newMemory = GeneralMemoryAllocator::get().allocExternal(newLength + 1 + 4);
-			if (!newMemory) {
+			if (newMemory == nullptr) {
 				return Error::INSUFFICIENT_RAM;
 			}
 
@@ -188,7 +188,7 @@ Error String::shorten(int32_t newLength) {
 }
 
 Error String::concatenate(String* otherString) {
-	if (!stringMemory) {
+	if (stringMemory == nullptr) {
 		set(otherString);
 		return Error::NONE;
 	}
@@ -237,10 +237,10 @@ Error String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newCha
 		                                     &amountExtendedRight);
 
 		// If that worked...
-		if (amountExtendedLeft || amountExtendedRight) {
+		if ((amountExtendedLeft != 0u) || (amountExtendedRight != 0u)) {
 
 			// If extended left, gotta move stuff
-			if (amountExtendedLeft) {
+			if (amountExtendedLeft != 0u) {
 				memmove(stringMemory - amountExtendedLeft - 4, stringMemory - 4,
 				        pos + 4); // Moves the stored num reasons, too
 				stringMemory -= amountExtendedLeft;
@@ -251,7 +251,7 @@ Error String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newCha
 		else {
 allocateNewMemory:
 			void* newMemory = GeneralMemoryAllocator::get().allocExternal(requiredSize);
-			if (!newMemory) {
+			if (newMemory == nullptr) {
 				return Error::INSUFFICIENT_RAM;
 			}
 
@@ -295,7 +295,7 @@ Error String::setChar(char newChar, int32_t pos) {
 
 		int32_t requiredSize = length + 4 + 1;
 		void* newMemory = GeneralMemoryAllocator::get().allocExternal(requiredSize);
-		if (!newMemory) {
+		if (newMemory == nullptr) {
 			return Error::INSUFFICIENT_RAM;
 		}
 
@@ -352,7 +352,7 @@ void intToHex(uint32_t number, char* output, int32_t numChars) {
 
 uint32_t hexToInt(char const* string) {
 	int32_t output = 0;
-	while (*string) {
+	while (*string != 0) {
 		output <<= 4;
 		output |= hexCharToHalfByte(*string);
 		string++;

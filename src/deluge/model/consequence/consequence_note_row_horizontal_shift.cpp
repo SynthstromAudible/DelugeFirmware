@@ -44,7 +44,7 @@ Error ConsequenceNoteRowHorizontalShift::revert(TimeType time, ModelStack* model
 	                                                   ->addNoteRowId(noteRowId)
 	                                                   ->automaticallyAddNoteRowFromId();
 
-	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
+	if (modelStackWithNoteRow->getNoteRowAllowNull() == nullptr) {
 #if ALPHA_OR_BETA_VERSION
 		FREEZE_WITH_ERROR("E377");
 #endif

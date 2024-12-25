@@ -93,7 +93,7 @@ void Session::armAllClipsToStop(int32_t afterNumRepeats) {
 
 	Clip* waitForClip = currentSong->getLongestClip(false, true);
 
-	if (!waitForClip) {
+	if (waitForClip == nullptr) {
 		return; // Nothing to do if no Clips are playing
 	}
 
@@ -178,7 +178,7 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 	}
 
 	// Must do this before calling opportunityToBeginLinearLoopRecording(), which may clone a new Output
-	bool currentClipHasSameOutput = (getCurrentClip() && getCurrentOutput() == clip->output);
+	bool currentClipHasSameOutput = ((getCurrentClip() != nullptr) && getCurrentOutput() == clip->output);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
@@ -195,7 +195,7 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 
 		// if we're creating a new recording based on a previous clip on the same
 		// output, set current clip to the new one
-		else if (currentClipHasSameOutput && getCurrentUI()->toClipMinder()) {
+		else if (currentClipHasSameOutput && (getCurrentUI()->toClipMinder() != nullptr)) {
 
 			currentSong->setCurrentClip(clip);
 			getCurrentUI()->focusRegained(); // A bit shifty...
@@ -298,7 +298,7 @@ void Session::doLaunch(bool isFillLaunch) {
 
 			Output* output = clip->output;
 
-			if (isFillLaunch && clip->launchStyle == LaunchStyle::FILL && output->getActiveClip()
+			if (isFillLaunch && clip->launchStyle == LaunchStyle::FILL && (output->getActiveClip() != nullptr)
 			    && output->getActiveClip()->launchStyle != LaunchStyle::FILL) {
 				/* There's a non fill clip already on this output, don't launch */
 				clip->armState = ArmState::OFF;
@@ -353,7 +353,7 @@ void Session::doLaunch(bool isFillLaunch) {
 	// Clip launching. But in the case where soloing is stopping entirely, other Clips are going to be launching, so
 	// we'll need to actually set these on all Outputs.
 	if (!anySoloingAfter && currentSong->anyClipsSoloing) {
-		for (Output* output = currentSong->firstOutput; output; output = output->next) {
+		for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
 			output->alreadyGotItsNewClip = false;
 			output->isGettingSoloingClip = false;
 		}
@@ -426,7 +426,7 @@ void Session::doLaunch(bool isFillLaunch) {
 				if (clip->getCurrentlyRecordingLinearly()) {
 doFinishLinearRecording:
 					Clip* nextPendingOverdub = currentSong->getPendingOverdubWithOutput(clip->output);
-					if (nextPendingOverdub) {
+					if (nextPendingOverdub != nullptr) {
 						// Copy this again, in case it's changed since it was created
 						nextPendingOverdub->copyBasicsFrom(clip);
 					}
@@ -487,7 +487,7 @@ stopOnlyIfOutputTaken:
 				}
 
 				// If some other Clip is launching for this Output, we gotta stop
-				if (outputsLaunchedFor.lookup((uint32_t)output)) {
+				if (outputsLaunchedFor.lookup((uint32_t)output) != nullptr) {
 
 					if (clip->launchStyle == LaunchStyle::FILL) {
 						// Must also disarm it if a fill clip to avoid it
@@ -692,7 +692,7 @@ doNormalLaunch:
 			else {
 
 				// If AudioClip recording just began...
-				if (distanceTilLaunchEvent) {
+				if (distanceTilLaunchEvent != 0) {
 					scheduleLaunchTiming(playbackHandler.lastSwungTickActioned + distanceTilLaunchEvent, 1,
 					                     distanceTilLaunchEvent);
 					armingChanged();
@@ -775,7 +775,7 @@ void Session::cancelAllLaunchScheduling() {
 }
 
 void Session::launchSchedulingMightNeedCancelling() {
-	if (!preLoadedSong && !areAnyClipsArmed()) {
+	if ((preLoadedSong == nullptr) && !areAnyClipsArmed()) {
 		cancelAllLaunchScheduling();
 		if (display->haveOLED()) {
 			RootUI* rootUI = getRootUI();
@@ -875,7 +875,7 @@ doReSyncToSongTicks:
 		else {
 			Clip* syncToClip =
 			    modelStack->song->getLongestActiveClipWithMultipleOrFactorLength(clip->loopLength, false, clip);
-			if (syncToClip) {
+			if (syncToClip != nullptr) {
 
 				int32_t oldPos = clip->lastProcessedPos;
 				clip->setPos(modelStack, syncToClip->getCurrentPosAsIfPlayingInForwardDirection());
@@ -972,7 +972,7 @@ void Session::cancelArmingForClip(Clip* clip, int32_t* clipIndex) {
 void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, int32_t buttonPressLatency) {
 
 	// Not allowed if playing arrangement
-	if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
+	if ((playbackHandler.playbackState != 0u) && currentPlaybackMode == &arrangement) {
 		return;
 	}
 
@@ -1029,7 +1029,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 				currentSong->assertActiveness(modelStackWithTimelineCounter);
 
 				// Special case if doing tempoless recording elsewhere - this action stops that
-				if (playbackHandler.playbackState) {
+				if (playbackHandler.playbackState != 0u) {
 					playbackHandler.finishTempolessRecording(true, buttonPressLatency);
 					RootUI* rootUI = getRootUI();
 					if (rootUI == &sessionView || rootUI == &performanceView) {
@@ -1050,7 +1050,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 		else {
 
 			// Playback on
-			if (playbackHandler.playbackState) {
+			if (playbackHandler.playbackState != 0u) {
 
 				// Tempoless recording
 				if (!playbackHandler.isEitherClockActive()) {
@@ -1082,7 +1082,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 							armClipToStopAction(clip);
 
 							sessionView.clipNeedsReRendering(clip);
-							if (getCurrentClip()) {
+							if (getCurrentClip() != nullptr) {
 								if (getCurrentClip()->onAutomationClipView) {
 									uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
 								}
@@ -1163,7 +1163,7 @@ void Session::soloClipAction(Clip* clip, int32_t buttonPressLatency) {
 			soloClipRightNow(modelStackWithTimelineCounter);
 
 			// Special case if doing tempoless recording elsewhere
-			if (playbackHandler.playbackState) {
+			if (playbackHandler.playbackState != 0u) {
 				playbackHandler.finishTempolessRecording(true, buttonPressLatency);
 				// use root UI in case this is called from performance view
 				sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
@@ -1224,7 +1224,7 @@ yupThatsFine:
 
 		armSectionWhenNeitherClockActive(modelStack, section, stopAllOtherClips);
 
-		if (playbackHandler.playbackState) {
+		if (playbackHandler.playbackState != 0u) {
 			playbackHandler.finishTempolessRecording(true, buttonPressLatency);
 			return;
 		}
@@ -1297,7 +1297,7 @@ void Session::scheduleOverdubToStartRecording(Clip* overdub, Clip* clipAbove) {
 	}
 
 	Clip* waitForClip = clipAbove;
-	if (!waitForClip || !currentSong->isClipActive(waitForClip)) {
+	if ((waitForClip == nullptr) || !currentSong->isClipActive(waitForClip)) {
 		waitForClip = currentSong->getLongestActiveClipWithMultipleOrFactorLength(overdub->loopLength, true, overdub);
 	}
 
@@ -1329,7 +1329,7 @@ void Session::scheduleOverdubToStartRecording(Clip* overdub, Clip* clipAbove) {
 
 void Session::armClipsAlongWithExistingLaunching(ArmState armState, uint8_t section, Clip* clip) {
 	// If just one Clip...
-	if (clip) {
+	if (clip != nullptr) {
 		armClipLowLevel(clip, armState);
 	}
 	else // Or, if a whole section...
@@ -1353,7 +1353,7 @@ void Session::armClipsWithNothingToSyncTo(uint8_t section, Clip* clip) {
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	// Restart playback.
 	// If just one Clip...
-	if (clip) {
+	if (clip != nullptr) {
 		clip->activeIfNoSolo = true;
 		currentSong->assertActiveness(modelStack->addTimelineCounter(clip));
 	}
@@ -1381,7 +1381,7 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 	Clip* waitForClip;
 
 	// ... if launching just a Clip
-	if (clip) {
+	if (clip != nullptr) {
 
 		// Now (Nov 2020), we're going to call getLongestActiveClipWithMultipleOrFactorLength() for all launching of a
 		// Clip (not a section). It seems that for the past several years(?) this was broken and would always just wait
@@ -1440,7 +1440,7 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 		armClipsToStartOrSoloWithQuantization(currentPosWithinQuantization, quantization, section, stopAllOtherClips,
 		                                      clip, forceLateStart, allowLateStart, newNumRepeatsTilLaunch, armState);
 
-		if (clip) {
+		if (clip != nullptr) {
 			scheduleFillClip(clip);
 		}
 		else {
@@ -1454,10 +1454,10 @@ LaunchStatus Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* curre
                                               bool allowSubdividedQuantization) {
 
 	// If no Clips are playing...
-	if (!waitForClip) {
+	if (waitForClip == nullptr) {
 
 		// See if any other Clips are armed. We can start at the same time as them
-		if (launchEventAtSwungTickCount) {
+		if (launchEventAtSwungTickCount != 0) {
 			return LaunchStatus::LAUNCH_ALONG_WITH_EXISTING_LAUNCHING;
 
 			// Otherwise...
@@ -1600,7 +1600,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 	bool doLateStart = forceLateStart;
 
 	// If we were doing this just for one Clip (so a late-start might be allowed too)...
-	if (clip) {
+	if (clip != nullptr) {
 		if (clip->launchStyle == LaunchStyle::DEFAULT || !doLateStart) {
 			if (!doLateStart && allowLateStart) { // Reminder - late start is never allowed for sections - just cos it's
 				                                  // not that useful, and tricky to implement
@@ -1726,7 +1726,7 @@ weWantThisClipInactive:
 
 						// If we've already picked a Clip for this same Output, we definitely don't want this one
 						// remaining active, so arm it to stop
-						if (outputsWeHavePickedAClipFor.lookup((uint32_t)thisClip->output)) {
+						if (outputsWeHavePickedAClipFor.lookup((uint32_t)thisClip->output) != nullptr) {
 							thisClip->armState = ArmState::ON_NORMAL;
 						}
 					}
@@ -1839,7 +1839,7 @@ void Session::scheduleFillClip(Clip* clip) {
 			// and if closer than the fill clip length, do immediate launch */
 			// if (launchEventAtSwungTickCount < playbackHandler.getActualSwungTickCount() + clip->getMaxLength()) {
 			if (fillStartTime < playbackHandler.getActualSwungTickCount()) {
-				if (clip->output->getActiveClip()) {
+				if (clip->output->getActiveClip() != nullptr) {
 					if (clip->output->getActiveClip()->launchStyle == LaunchStyle::FILL) {
 						/* A fill clip is already here, steal the output */
 					}
@@ -1904,7 +1904,7 @@ void Session::scheduleFillClips(uint8_t section) {
 		if (thisClip->section == section && thisClip->launchStyle == LaunchStyle::FILL) {
 
 			Output* output = thisClip->output;
-			if (output->getActiveClip() && output->getActiveClip()->launchStyle != LaunchStyle::FILL) {
+			if ((output->getActiveClip() != nullptr) && output->getActiveClip()->launchStyle != LaunchStyle::FILL) {
 				/* Some non-fill already has this output. We can't steal it.*/
 				continue;
 			}
@@ -2010,7 +2010,7 @@ bool Session::areAnyClipsArmed() {
 // I wish we could easily just do this to the Clips that need it, but we don't store an easy list of just the Clips
 // affected by each Action. This is only to be called if playbackHandler.isEitherClockActive().
 void Session::reversionDone() {
-	if (!currentSong) {
+	if (currentSong == nullptr) {
 		return;
 	}
 	for (Clip* clip : AllClips::everywhere(currentSong)) {
@@ -2053,10 +2053,10 @@ bool Session::endPlayback() {
 
 	// If we were waiting for a launch event, we've now stopped so will never reach that point in time, so we'd better
 	// swap right now.
-	if (launchEventAtSwungTickCount || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
+	if ((launchEventAtSwungTickCount != 0) || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
 		cancelAllLaunchScheduling();
 
-		if (preLoadedSong) {
+		if (preLoadedSong != nullptr) {
 			return true;
 		}
 		else {
@@ -2083,7 +2083,7 @@ bool Session::endPlayback() {
 bool Session::wantsToDoTempolessRecord(int32_t newPos) {
 
 	bool mightDoTempolessRecord =
-	    (!newPos && playbackHandler.recording == RecordingMode::NORMAL && !playbackHandler.metronomeOn);
+	    ((newPos == 0) && playbackHandler.recording == RecordingMode::NORMAL && !playbackHandler.metronomeOn);
 	if (!mightDoTempolessRecord) {
 		return false;
 	}
@@ -2157,7 +2157,7 @@ yeahNahItsOn:
 
 			if (doingComplete) {
 				// If starting after 0, must do the "resume" function, to get samples playing from right point, etc
-				if (newPos) {
+				if (newPos != 0) {
 					clip->resumePlayback(modelStackWithTimelineCounter);
 				}
 
@@ -2184,7 +2184,7 @@ yeahNahItsOn:
 		}
 
 		// If just became armed (audio clip began recording)... The placement of this probably isn't quite ideal...
-		else if (distanceTilLaunchEvent) {
+		else if (distanceTilLaunchEvent != 0) {
 			scheduleLaunchTiming(playbackHandler.lastSwungTickActioned + distanceTilLaunchEvent, 1,
 			                     distanceTilLaunchEvent);
 			armingChanged(); // This isn't really ideal. Is here for AudioClips which just armed themselves in setPos()
@@ -2217,7 +2217,7 @@ traverseClips:
 		Clip* clip = clipArray->getClipAtIndex(c);
 
 		if (clip->fillEventAtTickCount > 0) {
-			if (!nextClipWithFillEvent || nextClipWithFillEvent->fillEventAtTickCount > clip->fillEventAtTickCount) {
+			if ((nextClipWithFillEvent == nullptr) || nextClipWithFillEvent->fillEventAtTickCount > clip->fillEventAtTickCount) {
 				nextClipWithFillEvent = clip;
 			}
 		}
@@ -2225,7 +2225,7 @@ traverseClips:
 			continue;
 		}
 
-		if (clip->output->getActiveClip() && clip->output->getActiveClip()->beingRecordedFromClip == clip) {
+		if ((clip->output->getActiveClip() != nullptr) && clip->output->getActiveClip()->beingRecordedFromClip == clip) {
 			clip = clip->output->getActiveClip();
 		}
 
@@ -2240,14 +2240,14 @@ traverseClips:
 
 	bool enforceSettingUpArming = false;
 
-	if (nextClipWithFillEvent && playbackHandler.lastSwungTickActioned >= nextClipWithFillEvent->fillEventAtTickCount) {
+	if ((nextClipWithFillEvent != nullptr) && playbackHandler.lastSwungTickActioned >= nextClipWithFillEvent->fillEventAtTickCount) {
 		doLaunch(true);
 		armingChanged();
 		nextClipWithFillEvent->fillEventAtTickCount = 0;
 	}
 
 	// If launch event right now
-	if (launchEventAtSwungTickCount && playbackHandler.lastSwungTickActioned >= launchEventAtSwungTickCount) {
+	if ((launchEventAtSwungTickCount != 0) && playbackHandler.lastSwungTickActioned >= launchEventAtSwungTickCount) {
 		numRepeatsTilLaunch--;
 
 		// If no more repeats remain, do the actual launch event now!
@@ -2258,7 +2258,7 @@ traverseClips:
 			}
 
 			// If we're doing a song swap...
-			if (preLoadedSong) {
+			if (preLoadedSong != nullptr) {
 				cancelAllLaunchScheduling();
 				lastSectionArmed = 255;
 				playbackHandler.doSongSwap();
@@ -2345,7 +2345,7 @@ void Session::doTickForward(int32_t posIncrement) {
 		return;
 	}
 
-	if (launchEventAtSwungTickCount) {
+	if (launchEventAtSwungTickCount != 0) {
 		int32_t ticksTilLaunchEvent = launchEventAtSwungTickCount - playbackHandler.lastSwungTickActioned;
 
 		playbackHandler.swungTicksTilNextEvent = std::min(ticksTilLaunchEvent, playbackHandler.swungTicksTilNextEvent);
@@ -2379,7 +2379,7 @@ void Session::doTickForward(int32_t posIncrement) {
 
 		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 			Clip* clip = clipArray->getClipAtIndex(c);
-			if (!(clip->output)) {
+			if ((clip->output) == nullptr) {
 				// possible while swapping songs and render is called between deallocating the output and its clips
 				continue;
 			}
@@ -2398,7 +2398,7 @@ void Session::doTickForward(int32_t posIncrement) {
 				continue;
 			}
 
-			if (clip->output->getActiveClip() && clip->output->getActiveClip()->beingRecordedFromClip == clip) {
+			if ((clip->output->getActiveClip() != nullptr) && clip->output->getActiveClip()->beingRecordedFromClip == clip) {
 				clip = clip->output->getActiveClip();
 			}
 
@@ -2429,10 +2429,10 @@ void Session::doTickForward(int32_t posIncrement) {
 	}
 
 	// Do arps too (hmmm, could we want to do this in considerLaunchEvent() instead, just like the incrementing?)
-	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = currentSong->firstOutput; thisOutput != nullptr; thisOutput = thisOutput->next) {
 
 		int32_t posForArp;
-		if (thisOutput->getActiveClip() && currentSong->isClipActive(thisOutput->getActiveClip())) {
+		if ((thisOutput->getActiveClip() != nullptr) && currentSong->isClipActive(thisOutput->getActiveClip())) {
 			posForArp = thisOutput->getActiveClip()->lastProcessedPos;
 		}
 		else {
@@ -2573,7 +2573,7 @@ doAssertThisClip:
 }
 
 bool Session::isOutputAvailable(Output* output) {
-	if (!playbackHandler.playbackState || !output->getActiveClip()) {
+	if ((playbackHandler.playbackState == 0u) || (output->getActiveClip() == nullptr)) {
 		return true;
 	}
 
@@ -2582,7 +2582,7 @@ bool Session::isOutputAvailable(Output* output) {
 
 void Session::stopOutputRecordingAtLoopEnd() {
 	// If no launch-event currently, plan one
-	if (!launchEventAtSwungTickCount) {
+	if (launchEventAtSwungTickCount == 0) {
 		armAllClipsToStop(1);
 		lastSectionArmed = 254;
 		armingChanged();
@@ -2598,7 +2598,7 @@ int32_t Session::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* m
 	// If recording arrangement, pretend it's gonna cut at the end of the current length, cos we're actually going to
 	// auto-extend it when we get there, so we don't want any wrapping-around happening
 	if (clip->isArrangementOnlyClip() && playbackHandler.recording == RecordingMode::ARRANGEMENT
-	    && clip->beingRecordedFromClip) {
+	    && (clip->beingRecordedFromClip != nullptr)) {
 		return clip->currentlyPlayingReversed ? 0 : clip->loopLength;
 	}
 
@@ -2620,7 +2620,7 @@ int32_t Session::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* m
 	if (clip->sequenceDirectionMode == SequenceDirection::PINGPONG) {
 		if (clip->currentlyPlayingReversed) {
 			if (cutPos < 0) {
-				cutPos = clip->lastProcessedPos
+				cutPos = (clip->lastProcessedPos != 0)
 				             ? 0
 				             : -clip->loopLength; // Check we're not right at pos 0, as we briefly will be when we
 				                                  // pingpong at the right-hand end of the Clip/etc.
@@ -2648,7 +2648,7 @@ bool Session::willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* 
 	// Note: this isn't quite perfect - it doesn’t know if Clip will cut out due to another one launching. But the ill
 	// effects of this are pretty minor.
 	bool willLoop =
-	    !launchEventAtSwungTickCount             // If no launch event scheduled, obviously it'll loop
+	    (launchEventAtSwungTickCount == 0)             // If no launch event scheduled, obviously it'll loop
 	    || numRepeatsTilLaunch > 1               // If the launch event is gonna just trigger another repeat, it'll loop
 	    || clip->armState != ArmState::ON_NORMAL // If not armed, or armed to solo, it'll loop (except see above)
 	    || (clip->soloingInSessionMode
@@ -2681,10 +2681,10 @@ bool Session::deletingClipWhichCouldBeAbandonedOverdub(Clip* clip) {
 	    clip->activeIfNoSolo; // Yep, this works better (in some complex scenarios I tested) than calling
 	                          // isClipActive(), which would take soloing into account
 
-	if (shouldBeActiveWhileExistent && !(playbackHandler.playbackState && currentPlaybackMode == &arrangement)) {
+	if (shouldBeActiveWhileExistent && !((playbackHandler.playbackState != 0u) && currentPlaybackMode == &arrangement)) {
 		int32_t newClipIndex;
 		Clip* newClip = currentSong->getSessionClipWithOutput(clip->output, -1, clip, &newClipIndex, true);
-		if (newClip) {
+		if (newClip != nullptr) {
 			toggleClipStatus(newClip, &newClipIndex, true, 0);
 		}
 	}

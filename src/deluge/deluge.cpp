@@ -111,7 +111,7 @@ uint16_t batteryMV;
 bool batteryLEDState = false;
 
 void batteryLEDBlink() {
-	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, batteryLEDState);
+	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, static_cast<uint16_t>(batteryLEDState));
 	int32_t blinkPeriod = ((int32_t)batteryMV - 2630) * 3;
 	blinkPeriod = std::min(blinkPeriod, 500_i32);
 	blinkPeriod = std::max(blinkPeriod, 60_i32);
@@ -140,7 +140,7 @@ void inputRoutine() {
 
 	if (!ALLOW_SPAM_MODE) {
 		bool speakerOn = (!AudioEngine::headphonesPluggedIn && !outputPluggedInL && !outputPluggedInR);
-		setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, speakerOn);
+		setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, static_cast<uint16_t>(speakerOn));
 	}
 
 	AudioEngine::renderInStereo =
@@ -174,7 +174,7 @@ void inputRoutine() {
 			if (batteryMV > 2950) {
 makeBattLEDSolid:
 				batteryCurrentRegion = 1;
-				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, false);
+				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, 0u);
 				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
 			}
 		}
@@ -186,7 +186,7 @@ makeBattLEDSolid:
 
 			else if (batteryMV > 3300) {
 				batteryCurrentRegion = 2;
-				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
+				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, 1u);
 				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
 			}
 		}
@@ -238,7 +238,7 @@ bool isShortPress(uint32_t pressTime) {
 
 bool readButtonsAndPads() {
 
-	if (!usbInitializationPeriodComplete && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
+	if ((usbInitializationPeriodComplete == 0u) && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
 		usbInitializationPeriodComplete = 1;
 	}
 
@@ -289,7 +289,7 @@ bool readButtonsAndPads() {
 #endif
 
 	PIC::Response value{0};
-	bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
+	bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value) != 0u;
 	if (anything) {
 
 		if (value < PIC::kPadAndButtonMessagesEnd) {
@@ -304,13 +304,13 @@ bool readButtonsAndPads() {
 				 * function that it should use the default velocity for the instrument
 				 */
 				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
-				if (thisPadPressIsOn) {
+				if (thisPadPressIsOn != 0) {
 					Buttons::ignoreCurrentShiftForSticky();
 				}
 			}
 			else {
 				auto b = deluge::hid::Button(value);
-				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
+				result = Buttons::buttonAction(b, thisPadPressIsOn != 0, sdRoutineLock);
 			}
 
 			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
@@ -322,7 +322,7 @@ bool readButtonsAndPads() {
 			}
 		}
 		else if (value == PIC::Response::NEXT_PAD_OFF) {
-			nextPadPressIsOn = false;
+			nextPadPressIsOn = 0;
 		}
 
 		// "No presses happening" message
@@ -408,7 +408,7 @@ void setUIForLoadedSong(Song* song) {
 	UI* newUI;
 	Clip* currentClip = song->getCurrentClip();
 	// If in a Clip-minder view
-	if (currentClip && song->inClipMinderViewOnLoad) {
+	if ((currentClip != nullptr) && song->inClipMinderViewOnLoad) {
 		if (currentClip->onAutomationClipView) {
 			newUI = &automationView;
 		}
@@ -619,7 +619,7 @@ void registerTasks() {
 	// true); addRepeatingTask(&(AudioEngine::routine), 0, 16 / 44100., 64 / 44100., true);
 }
 void mainLoop() {
-	while (1) {
+	while (true) {
 
 		uiTimerManager.routine();
 
@@ -633,7 +633,7 @@ void mainLoop() {
 
 		int32_t count = 0;
 		while (readButtonsAndPads() && count < 16) {
-			if (!(count & 3)) {
+			if ((count & 3) == 0) {
 				AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 			}
 			count++;
@@ -727,7 +727,7 @@ extern "C" int32_t deluge_main(void) {
 
 	if (have_oled) {
 		// If OLED sharing SPI channel, have to manually control SSL pin.
-		setOutputState(SPI_SSL.port, SPI_SSL.pin, true);
+		setOutputState(SPI_SSL.port, SPI_SSL.pin, 1u);
 		setPinAsOutput(SPI_SSL.port, SPI_SSL.pin);
 
 		setupSPIInterrupts();
@@ -850,7 +850,7 @@ extern "C" int32_t deluge_main(void) {
 	// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
 	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then,
 	// that hadn't fully initialized yet. I think I sorta have that for host, but not for peripheral yet.
-	if (!anythingInitiallyAttachedAsUSBHost) {
+	if (anythingInitiallyAttachedAsUSBHost == 0u) {
 		D_PRINTLN("switching from host to peripheral");
 		closeUSBHost();
 		openUSBPeripheral();

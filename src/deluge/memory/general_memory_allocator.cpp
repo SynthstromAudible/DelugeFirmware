@@ -93,7 +93,7 @@ void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 	lock = true;
 	void* address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, false, NULL);
 	lock = false;
-	if (!address) {
+	if (address == nullptr) {
 		// FREEZE_WITH_ERROR("M998");
 		return nullptr;
 	}
@@ -124,7 +124,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 			address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, makeStealable, thingNotToStealFrom);
 			lock = false;
 
-			if (address) {
+			if (address != nullptr) {
 				return address;
 			}
 
@@ -136,7 +136,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 		address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, makeStealable, thingNotToStealFrom);
 		lock = false;
 
-		if (address) {
+		if (address != nullptr) {
 			return address;
 		}
 

@@ -345,8 +345,8 @@ cant:
 			}
 
 			// If no scaling currently, start it, if we're on a Clip-minder screen
-			if (!currentSong->getSyncScalingClip()) {
-				if (!getCurrentUI()->toClipMinder()) {
+			if (currentSong->getSyncScalingClip() == nullptr) {
+				if (getCurrentUI()->toClipMinder() == nullptr) {
 					indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW);
 					return ActionResult::DEALT_WITH;
 				}
@@ -464,7 +464,7 @@ void View::endMIDILearn() {
 	}
 	uiTimerManager.unsetTimer(TimerName::MIDI_LEARN_FLASH);
 	midiLearnFlashOn = false;
-	if (getRootUI()) {
+	if (getRootUI() != nullptr) {
 		getRootUI()->midiLearnFlash();
 	}
 
@@ -478,7 +478,7 @@ void View::endMIDILearn() {
 
 void View::setTimeBaseScaleLedState() {
 	// If this Clip is the inputTickScaleClip, flash the LED
-	if (getCurrentUI()->toClipMinder() && getCurrentClip() == currentSong->getSyncScalingClip()) {
+	if ((getCurrentUI()->toClipMinder() != nullptr) && getCurrentClip() == currentSong->getSyncScalingClip()) {
 		indicator_leds::blinkLed(IndicatorLED::SYNC_SCALING);
 	}
 
@@ -610,11 +610,11 @@ void View::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, i
 				newBendRange = cable.inputChannels[channelOrZone].bendRange;
 			}
 
-			if (newBendRange) {
+			if (newBendRange != 0) {
 				NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowForDrum(drumPressedForMIDILearn);
-				if (noteRow) {
+				if (noteRow != nullptr) {
 					ExpressionParamSet* expressionParams = noteRow->paramManager.getOrCreateExpressionParamSet(true);
-					if (expressionParams) {
+					if (expressionParams != nullptr) {
 						if (!expressionParams->params[0].isAutomated()) {
 							expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = newBendRange;
 						}
@@ -661,12 +661,12 @@ isMPEZone:
 				newBendRanges[BEND_RANGE_MAIN] = cable.mpeZoneBendRanges[zone][BEND_RANGE_MAIN];
 				newBendRanges[BEND_RANGE_FINGER_LEVEL] = cable.mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
 
-				if (newBendRanges[BEND_RANGE_FINGER_LEVEL]) {
+				if (newBendRanges[BEND_RANGE_FINGER_LEVEL] != 0u) {
 					InstrumentClip* clip = (InstrumentClip*)instrumentPressedForMIDILearn->getActiveClip();
-					if (!clip || !clip->hasAnyPitchExpressionAutomationOnNoteRows()) {
-						if (paramManager) { // Could be NULL, e.g. for CVInstruments with no Clips
+					if ((clip == nullptr) || !clip->hasAnyPitchExpressionAutomationOnNoteRows()) {
+						if (paramManager != nullptr) { // Could be NULL, e.g. for CVInstruments with no Clips
 							ExpressionParamSet* expressionParams = paramManager->getOrCreateExpressionParamSet();
-							if (expressionParams) {
+							if (expressionParams != nullptr) {
 								expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] =
 								    newBendRanges[BEND_RANGE_FINGER_LEVEL];
 							}
@@ -682,10 +682,10 @@ isMPEZone:
 				newBendRanges[BEND_RANGE_MAIN] = cable.inputChannels[channelOrZone].bendRange;
 			}
 
-			if (newBendRanges[BEND_RANGE_MAIN]) {
-				if (paramManager) { // Could be NULL, e.g. for CVInstruments with no Clips
+			if (newBendRanges[BEND_RANGE_MAIN] != 0u) {
+				if (paramManager != nullptr) { // Could be NULL, e.g. for CVInstruments with no Clips
 					ExpressionParamSet* expressionParams = paramManager->getOrCreateExpressionParamSet();
-					if (expressionParams && !expressionParams->params[0].isAutomated()) {
+					if ((expressionParams != nullptr) && !expressionParams->params[0].isAutomated()) {
 						expressionParams->bendRanges[BEND_RANGE_MAIN] = newBendRanges[BEND_RANGE_MAIN];
 					}
 				}
@@ -717,10 +717,10 @@ void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 	ParamManager* paramManager = instrumentPressedForMIDILearn->getParamManager(
 	    currentSong); // Could be NULL, e.g. for CVInstruments with no Clips
 
-	if (paramManager) {
+	if (paramManager != nullptr) {
 		ParamCollectionSummary* expressionParamsSummary = paramManager->getExpressionParamSetSummary();
 		ExpressionParamSet* expressionParams = (ExpressionParamSet*)expressionParamsSummary->paramCollection;
-		if (expressionParams) {
+		if (expressionParams != nullptr) {
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithParamCollection* modelStack =
@@ -756,7 +756,7 @@ void View::ccReceivedForMIDILearn(MIDICable& cable, int32_t channel, int32_t cc,
 		// Or, for all other types of things the user might be holding down...
 		else {
 			// So long as the value wasn't 0, pretend it was a note-on for command-learn purposes
-			if (value) {
+			if (value != 0) {
 				noteOnReceivedForMidiLearn(cable, channel + IS_A_CC, cc, 127);
 			}
 		}
@@ -767,7 +767,7 @@ void View::midiLearnFlash() {
 	midiLearnFlashOn = !midiLearnFlashOn;
 	uiTimerManager.setTimer(TimerName::MIDI_LEARN_FLASH, kFastFlashTime);
 
-	if (getRootUI()) {
+	if (getRootUI() != nullptr) {
 		getRootUI()->midiLearnFlash();
 	}
 
@@ -791,13 +791,13 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	//  	return;
 	//  }
 
-	if (activeModControllableModelStack.modControllable) {
+	if (activeModControllableModelStack.modControllable != nullptr) {
 
 		bool noteTailsAllowedBefore;
 		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(whichModEncoder, noteTailsAllowedBefore);
 
 		// If non-existent param, still let the ModControllable know
-		if (!modelStackWithParam || !modelStackWithParam->autoParam) {
+		if ((modelStackWithParam == nullptr) || (modelStackWithParam->autoParam == nullptr)) {
 			ActionResult result = activeModControllableModelStack.modControllable->modEncoderActionForNonExistentParam(
 			    offset, whichModEncoder, modelStackWithParam);
 
@@ -901,7 +901,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				    modelStackWithParam->modControllable->allowNoteTails(tempModelStack->addSoundFlags());
 
 				if (noteTailsAllowedBefore != noteTailsAllowedAfter) {
-					if (getRootUI() && getRootUI()->toTimelineView() != nullptr) {
+					if ((getRootUI() != nullptr) && getRootUI()->toTimelineView() != nullptr) {
 						uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
 					}
 				}
@@ -930,7 +930,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 ModelStackWithAutoParam* View::getModelStackWithParam(int32_t whichModEncoder, bool& noteTailsAllowedBefore) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	if (activeModControllableModelStack.modControllable) {
+	if (activeModControllableModelStack.modControllable != nullptr) {
 
 		/*
 		char newModelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -971,7 +971,7 @@ ModelStackWithAutoParam* View::getModelStackWithParam(int32_t whichModEncoder, b
 void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* parameterName) {
 	bool noteTailsAllowedBefore;
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(whichModEncoder, noteTailsAllowedBefore);
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
+	if ((modelStackWithParam != nullptr) && (modelStackWithParam->autoParam != nullptr)) {
 		params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
 		if (kind == params::Kind::PATCH_CABLE) {
@@ -1191,7 +1191,7 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 		return;
 	}
 
-	if (activeModControllableModelStack.modControllable) {
+	if (activeModControllableModelStack.modControllable != nullptr) {
 
 		if (Buttons::isShiftButtonPressed() && on) {
 
@@ -1199,7 +1199,7 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 			    activeModControllableModelStack.modControllable->getParamFromModEncoder(
 			        whichModEncoder, &activeModControllableModelStack);
 
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
+			if ((modelStackWithParam != nullptr) && (modelStackWithParam->autoParam != nullptr)) {
 				Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
@@ -1225,7 +1225,7 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 }
 
 void View::setKnobIndicatorLevels() {
-	if (!getRootUI()) {
+	if (getRootUI() == nullptr) {
 		return; // What's this?
 	}
 
@@ -1235,7 +1235,7 @@ void View::setKnobIndicatorLevels() {
 		return;
 	}
 
-	if (activeModControllableModelStack.modControllable) {
+	if (activeModControllableModelStack.modControllable != nullptr) {
 		for (int32_t whichModEncoder = 0; whichModEncoder < NUM_LEVEL_INDICATORS; whichModEncoder++) {
 			if (!indicator_leds::isKnobIndicatorBlinking(whichModEncoder)) {
 				setKnobIndicatorLevel(whichModEncoder);
@@ -1258,7 +1258,7 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	int32_t knobPos;
 	bool isBipolar = false;
 
-	if (modelStackWithParam->autoParam) {
+	if (modelStackWithParam->autoParam != nullptr) {
 		int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 		ParamCollection* paramCollection = modelStackWithParam->paramCollection;
 		params::Kind kind = paramCollection->getParamKind();
@@ -1354,7 +1354,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 
 	pretendModKnobsUntouchedForAWhile();
 
-	if (activeModControllableModelStack.modControllable) {
+	if (activeModControllableModelStack.modControllable != nullptr) {
 		if (on) {
 			if (isUIModeWithinRange(modButtonUIModes) || (rootUI == &performanceView)) {
 				// only displaying VU meter in session view, arranger view, performance view and arranger automation
@@ -1396,7 +1396,7 @@ void View::setModLedStates() {
 
 	RootUI* rootUI = getRootUI();
 	UIType uiType = UIType::NONE;
-	if (rootUI) {
+	if (rootUI != nullptr) {
 		uiType = rootUI->getUIType();
 	}
 	AutomationSubType automationSubType = AutomationSubType::NONE;
@@ -1436,7 +1436,7 @@ void View::setModLedStates() {
 
 	// here we will set a boolean flag to let the function know if affect entire is enabled
 	// so that it can correctly illuminate the affect entire LED indicator
-	bool affectEntire = rootUI && rootUI->getAffectEntire();
+	bool affectEntire = (rootUI != nullptr) && rootUI->getAffectEntire();
 
 	// if you are not in a song
 	// affect entire is always true if you are in an audio clip, or automation view for an audio clip
@@ -1483,7 +1483,7 @@ void View::setModLedStates() {
 		case UIType::SESSION: {
 			Clip* clip = sessionView.getClipForLayout();
 
-			if (clip) {
+			if (clip != nullptr) {
 				if (clip->onAutomationClipView) {
 					onAutomationClipView = true;
 				}
@@ -1493,7 +1493,7 @@ void View::setModLedStates() {
 		case UIType::ARRANGER: {
 			Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
 
-			if (output) {
+			if (output != nullptr) {
 				if (currentSong->getClipWithOutput(output)->onAutomationClipView) {
 					onAutomationClipView = true;
 				}
@@ -1576,9 +1576,9 @@ void View::setModLedStates() {
 
 int32_t View::getModKnobMode() {
 	int32_t modKnobMode = -1;
-	if (activeModControllableModelStack.modControllable) {
+	if (activeModControllableModelStack.modControllable != nullptr) {
 		uint8_t* modKnobModePointer = activeModControllableModelStack.modControllable->getModKnobMode();
-		if (modKnobModePointer) {
+		if (modKnobModePointer != nullptr) {
 			modKnobMode = *modKnobModePointer;
 		}
 	}
@@ -1615,7 +1615,7 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 		if (channel != MIDI_CHANNEL_NONE) {
 			// check if we're dealing with a clip context param (don't send feedback for song params)
 			if (isClipContext()) {
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
+				if ((modelStackWithParam != nullptr) && (modelStackWithParam->autoParam != nullptr)) {
 					params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 					int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
 					if (ccNumber != MIDI_CC_NONE) {
@@ -1633,7 +1633,7 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 // sets flag to let caller know if we are dealing with clip context
 bool View::isClipContext() {
 	bool itsAClip = false;
-	if (activeModControllableModelStack.modControllable) {
+	if (activeModControllableModelStack.modControllable != nullptr) {
 		itsAClip = (activeModControllableModelStack.timelineCounterIsSet()
 		            && activeModControllableModelStack.getTimelineCounter() != currentSong);
 	}
@@ -1659,7 +1659,7 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 	// 2) we've pressed a clip while vu meter was active
 	// then let's continue to render VU meter
 	if (displayVUMeter
-	    && ((activeModControllableModelStack.modControllable
+	    && (((activeModControllableModelStack.modControllable != nullptr)
 	         && *activeModControllableModelStack.modControllable->getModKnobMode() == 0)
 	        || (isClipContext() && renderedVUMeter))) {
 		PadLEDs::renderingLock = true;
@@ -1767,7 +1767,7 @@ void View::renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][
 }
 
 void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCounter, bool shouldSendMidiFeedback) {
-	if (timelineCounter) {
+	if (timelineCounter != nullptr) {
 		timelineCounter = timelineCounter->getTimelineCounterToRecordTo();
 	}
 	pretendModKnobsUntouchedForAWhile();
@@ -1775,7 +1775,7 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(&activeModControllableModelStack, currentSong)->addTimelineCounter(timelineCounter);
 
-	if (timelineCounter) {
+	if (timelineCounter != nullptr) {
 		timelineCounter->getActiveModControllable(modelStack);
 	}
 
@@ -1831,8 +1831,8 @@ void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 	pretendModKnobsUntouchedForAWhile();
 
 	// If holding down a note and not playing, permanently grab values from pos
-	if (length && activeModControllableModelStack.timelineCounterIsSet()
-	    && activeModControllableModelStack.modControllable && activeModControllableModelStack.paramManager
+	if ((length != 0u) && activeModControllableModelStack.timelineCounterIsSet()
+	    && (activeModControllableModelStack.modControllable != nullptr) && (activeModControllableModelStack.paramManager != nullptr)
 	    && !playbackHandler.isEitherClockActive()
 	    && activeModControllableModelStack.paramManager->containsAnyMainParamCollections()) {
 
@@ -1958,13 +1958,13 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 		}
 
 		InstrumentClip* clip = nullptr;
-		if (clip && clip->type == ClipType::INSTRUMENT) {
+		if ((clip != nullptr) && clip->type == ClipType::INSTRUMENT) {
 			clip = (InstrumentClip*)clip;
 		}
 
-		setLedState(LED::KEYBOARD, (clip && clip->onKeyboardScreen));
-		setLedState(LED::SCALE_MODE, (clip && clip->inScaleMode && clip->output->type != OutputType::KIT));
-		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
+		setLedState(LED::KEYBOARD, ((clip != nullptr) && clip->onKeyboardScreen));
+		setLedState(LED::SCALE_MODE, ((clip != nullptr) && clip->inScaleMode && clip->output->type != OutputType::KIT));
+		setLedState(LED::CROSS_SCREEN_EDIT, ((clip != nullptr) && clip->wrapEditing));
 	}
 
 	// hook to render display for OLED and 7SEG when in Automation View
@@ -2018,7 +2018,7 @@ oledDrawString:
 				                                              kTextTitleSizeY, false);
 			}
 
-			if (clip) {
+			if (clip != nullptr) {
 				if (!clip->name.isEmpty()) {
 					yPos = yPos + 14;
 					canvas.drawStringCentred(clip->name.get(), yPos, kTextSpacingX, kTextSpacingY);
@@ -2217,8 +2217,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					}
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, -1, nullptr, nullptr,
-					                                                   false)) {
+					if (modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, -1, nullptr, nullptr,
+					                                                   false) == nullptr) {
 						break;
 					}
 				}
@@ -2284,8 +2284,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					}
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix,
-					                                                   nullptr, nullptr, false)) {
+					if (modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix,
+					                                                   nullptr, nullptr, false) == nullptr) {
 						break;
 					}
 				}
@@ -2297,7 +2297,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 		newInstrument = modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr,
 		                                                              nullptr, false);
 
-		shouldReplaceWholeInstrument = (oldInstrumentCanBeReplaced && !newInstrument);
+		shouldReplaceWholeInstrument = (oldInstrumentCanBeReplaced && (newInstrument == nullptr));
 
 		// If we want to "replace" the old Instrument, we can instead sneakily just modify its channel
 		if (shouldReplaceWholeInstrument) {
@@ -2326,15 +2326,15 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 			bool instrumentAlreadyInSong = (newInstrument != nullptr);
 
 			// If an Instrument doesn't yet exist for the new channel we're gonna use...
-			if (!newInstrument) {
+			if (newInstrument == nullptr) {
 				if (outputType == OutputType::MIDI_OUT) {
 					newInstrument = modelStack->song->grabHibernatingMIDIInstrument(newChannel, newChannelSuffix);
-					if (newInstrument) {
+					if (newInstrument != nullptr) {
 						goto gotAnInstrument;
 					}
 				}
 				newInstrument = StorageManager::createNewNonAudioInstrument(outputType, newChannel, newChannelSuffix);
-				if (!newInstrument) {
+				if (newInstrument == nullptr) {
 					display->displayError(Error::INSUFFICIENT_RAM);
 					return;
 				}
@@ -2405,13 +2405,13 @@ getOut:
 #if ALPHA_OR_BETA_VERSION
 		if (newInstrument->type == OutputType::KIT) {
 			Kit* kit = (Kit*)newInstrument;
-			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
-					if (!modelStack->song->getBackedUpParamManagerPreferablyWithClip(
-					        soundDrum, NULL)) { // If no backedUpParamManager...
-						if (!modelStack->song->findParamManagerForDrum(
-						        kit, soundDrum)) { // If no ParamManager with a NoteRow somewhere...
+					if (modelStack->song->getBackedUpParamManagerPreferablyWithClip(
+					        soundDrum, NULL) == nullptr) { // If no backedUpParamManager...
+						if (modelStack->song->findParamManagerForDrum(
+						        kit, soundDrum) == nullptr) { // If no ParamManager with a NoteRow somewhere...
 
 							if (results.loadedFromFile) {
 								FREEZE_WITH_ERROR("E103");
@@ -2506,7 +2506,7 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 	}
 
 	Instrument* newInstrument = clip->changeOutputType(modelStack, newOutputType);
-	if (!newInstrument) {
+	if (newInstrument == nullptr) {
 		return false;
 	}
 
@@ -2530,7 +2530,7 @@ void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrume
 
 RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool allowMIDIFlash) {
 
-	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip && clip->armedForRecording) {
+	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && (clip != nullptr) && clip->armedForRecording) {
 		if (blinkOn) {
 			bool shouldGoPurple = clip->type == ClipType::AUDIO && ((AudioClip*)clip)->overdubsShouldCloneOutput;
 
@@ -2755,8 +2755,8 @@ bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB i
 		break;
 	}
 
-	if (occupancyMask) {
-		occupancyMask[y][column] = true;
+	if (occupancyMask != nullptr) {
+		occupancyMask[y][column] = 1u;
 	}
 
 	return armed;
@@ -2782,7 +2782,7 @@ void View::activateMacro(uint32_t y) {
 
 	case OUTPUT_CYCLE: {
 		Clip* nextClip = findNextClipForOutput(m.output);
-		if (nextClip) {
+		if (nextClip != nullptr) {
 			session.toggleClipStatus(nextClip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		break;

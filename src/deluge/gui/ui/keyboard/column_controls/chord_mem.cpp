@@ -56,7 +56,7 @@ void ChordMemColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTime
 	}
 	else {
 		activeChordMem = 0xFF;
-		if ((!chordMemNoteCount[pad.y] || Buttons::isShiftButtonPressed()) && currentNotesState.count) {
+		if (((chordMemNoteCount[pad.y] == 0u) || Buttons::isShiftButtonPressed()) && (currentNotesState.count != 0u)) {
 			auto noteCount = currentNotesState.count;
 			for (int i = 0; i < noteCount && i < kMaxNotesChordMem; i++) {
 				chordMem[pad.y][i] = currentNotesState.notes[i].note;
@@ -99,7 +99,7 @@ void ChordMemColumn::readFromFile(Deserializer& reader) {
 	reader.match('[');
 	int slot_index = 0;
 	const char* tagName;
-	while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
+	while (reader.match('{') && (*(tagName = reader.readNextTagOrAttributeName()) != 0)) {
 		if (!strcmp(tagName, "chordSlot")) {
 			int y = slot_index++;
 			if (y >= kDisplayHeight) {
@@ -108,10 +108,10 @@ void ChordMemColumn::readFromFile(Deserializer& reader) {
 			}
 			int i = 0;
 			reader.match('[');
-			while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
+			while (reader.match('{') && (*(tagName = reader.readNextTagOrAttributeName()) != 0)) {
 				if (!strcmp(tagName, "note")) {
 					reader.match('{');
-					while (*(tagName = reader.readNextTagOrAttributeName())) {
+					while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 						if (!strcmp(tagName, "code")) {
 							if (i < kMaxNotesChordMem) {
 								chordMem[y][i] = reader.readTagOrAttributeValueInt();

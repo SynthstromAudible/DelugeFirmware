@@ -44,7 +44,7 @@ SampleHolderForVoice::~SampleHolderForVoice() {
 	// We have to unassign reasons here, even though our parent destructor will call unassignAllReasons() - our
 	// overriding of that virtual function won't happen as we've already been destructed!
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		if (clustersForLoopStart[l]) {
+		if (clustersForLoopStart[l] != nullptr) {
 			audioFileManager.removeReasonFromCluster(*clustersForLoopStart[l], "E247");
 		}
 	}
@@ -53,7 +53,7 @@ SampleHolderForVoice::~SampleHolderForVoice() {
 void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 	SampleHolder::unassignAllClusterReasons(beingDestructed);
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		if (clustersForLoopStart[l]) {
+		if (clustersForLoopStart[l] != nullptr) {
 			// Happened to me while auto-pilot testing, I think
 			audioFileManager.removeReasonFromCluster(*clustersForLoopStart[l], "E320");
 			if (!beingDestructed) {
@@ -68,7 +68,7 @@ void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoadInstruction) {
 
 #if ALPHA_OR_BETA_VERSION
-	if (!audioFile) {
+	if (audioFile == nullptr) {
 		FREEZE_WITH_ERROR("i030"); // Trying to narrow down E368 that Kevin F got
 	}
 #endif
@@ -81,12 +81,12 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 	int32_t loopStartPlaybackAtSample = reversed ? loopEndPos : loopStartPos;
 
 	if (reversed) { // Don't mix this with the above - we want to keep 0s as 0
-		if (loopStartPlaybackAtSample) {
+		if (loopStartPlaybackAtSample != 0) {
 			loopStartPlaybackAtSample--;
 		}
 	}
 
-	if (loopStartPlaybackAtSample) {
+	if (loopStartPlaybackAtSample != 0) {
 		int32_t loopStartPlaybackAtByte =
 		    ((Sample*)audioFile)->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;
 		claimClusterReasonsForMarker(clustersForLoopStart, loopStartPlaybackAtByte, playDirection,
@@ -103,7 +103,7 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 	// Or if no loop start point now, clear out any reasons we had before
 	else {
 		for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-			if (clustersForLoopStart[l]) {
+			if (clustersForLoopStart[l] != nullptr) {
 				audioFileManager.removeReasonFromCluster(*clustersForLoopStart[l], "E246");
 				clustersForLoopStart[l] = nullptr;
 			}
@@ -125,7 +125,7 @@ uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {
 		return 9999999;
 	}
 	else {
-		if (!audioFile) {
+		if (audioFile == nullptr) {
 			return 0;
 		}
 		else {
@@ -154,7 +154,7 @@ void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctav
 		}
 
 		else if (rangeCoversJustOneNote) {
-			if (semitonesInt == 60 - thatOneNote) {
+			if (semitonesInt == 60 - static_cast<int>(thatOneNote)) {
 				if (cents >= -4 && cents <= 4) {
 					cents = 0;
 					// Uart::println("discarded cents");
@@ -178,7 +178,7 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 		loopStartPos = 0;
 		loopEndPos = 0;
 
-		if (((Sample*)audioFile)->fileLoopEndSamples && ((Sample*)audioFile)->fileLoopEndSamples <= lengthInSamples) {
+		if ((((Sample*)audioFile)->fileLoopEndSamples != 0u) && ((Sample*)audioFile)->fileLoopEndSamples <= lengthInSamples) {
 
 			int32_t loopLength = ((Sample*)audioFile)->fileLoopEndSamples - ((Sample*)audioFile)->fileLoopStartSamples;
 
@@ -193,7 +193,7 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 
 			// Grab loop start from file too, if it's not erroneously late
 			if (((Sample*)audioFile)->fileLoopStartSamples < lengthInSamples
-			    && (!((Sample*)audioFile)->fileLoopEndSamples
+			    && ((((Sample*)audioFile)->fileLoopEndSamples == 0u)
 			        || ((Sample*)audioFile)->fileLoopStartSamples < ((Sample*)audioFile)->fileLoopEndSamples)) {
 				loopStartPos =
 				    ((Sample*)audioFile)->fileLoopStartSamples; // If it's 0, that'll translate to meaning no loop start
@@ -214,15 +214,15 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 
 			// Convert old MSec values, loaded from old song files, to samples. Can only do this now that we know the
 			// sample rate
-			if (startMSec) {
-				if (!startPos) {
+			if (startMSec != 0u) {
+				if (startPos == 0u) {
 					startPos = (uint64_t)startMSec * ((Sample*)audioFile)->sampleRate / 1000;
 					convertedMSecValues = true;
 				}
 				startMSec = 0;
 			}
-			if (endMSec) {
-				if ((!endPos || endPos == lengthInSamples)) { // && endMSec > startMSec) {
+			if (endMSec != 0u) {
+				if (((endPos == 0u) || endPos == lengthInSamples)) { // && endMSec > startMSec) {
 					endPos = (uint64_t)endMSec * ((Sample*)audioFile)->sampleRate / 1000;
 					if (endPos > lengthInSamples && endPos <= lengthInSamples + 45) {
 						endPos = lengthInSamples;
@@ -251,7 +251,7 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 			loopStartPos = 0;
 		}
 
-		if (loopEndPos && loopStartPos >= loopEndPos) {
+		if ((loopEndPos != 0u) && loopStartPos >= loopEndPos) {
 			loopStartPos = 0; // It's arbitrary which one we set to 0
 		}
 	}

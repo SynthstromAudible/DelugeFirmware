@@ -46,7 +46,7 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 		clip->sampleHolder.setAudioFile(nullptr);
 
 		// Deactivate Clip if it'd otherwise suddenly start recording again
-		if (playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL) {
+		if ((playbackHandler.playbackState != 0u) && playbackHandler.recording == RecordingMode::NORMAL) {
 			clip->activeIfNoSolo = false;
 		}
 	}

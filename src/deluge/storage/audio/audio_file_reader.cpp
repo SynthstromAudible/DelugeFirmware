@@ -48,7 +48,7 @@ Error AudioFileReader::advanceClustersIfNecessary() {
 
 	int32_t numClustersToAdvance = byteIndexWithinCluster >> Cluster::size_magnitude;
 
-	if (!numClustersToAdvance) {
+	if (numClustersToAdvance == 0) {
 		return Error::NONE;
 	}
 

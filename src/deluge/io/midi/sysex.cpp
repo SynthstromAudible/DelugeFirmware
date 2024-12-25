@@ -59,7 +59,7 @@ void Debug::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 }
 
 void Debug::sysexDebugPrint(MIDICable& cable, const char* msg, bool nl) {
-	if (!msg) {
+	if (msg == nullptr) {
 		return; // Do not do that
 	}
 	// data[4]: reserved, could serve as a message identifier to filter messages

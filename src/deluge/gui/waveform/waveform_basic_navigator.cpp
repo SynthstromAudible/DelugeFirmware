@@ -35,7 +35,7 @@ void WaveformBasicNavigator::opened(SampleHolder* holder) {
 	renderData.xScroll = -1;
 
 	// If want to use saved pos and sample already has peak info stored...
-	if (holder && holder->waveformViewZoom) {
+	if ((holder != nullptr) && (holder->waveformViewZoom != 0)) {
 		xScroll = holder->waveformViewScroll;
 		xZoom = holder->waveformViewZoom;
 
@@ -213,7 +213,7 @@ bool WaveformBasicNavigator::scroll(int32_t offset, bool shouldAllowExtraScrollR
 		}
 		else {
 			if (xScroll + xZoom * kDisplayWidth >= sample->lengthInSamples
-			    && (!cols || cols[util::to_underlying(MarkerType::END)].colOnScreen < kDisplayWidth)) {
+			    && ((cols == nullptr) || cols[util::to_underlying(MarkerType::END)].colOnScreen < kDisplayWidth)) {
 				return false;
 			}
 			xScroll += xZoom;

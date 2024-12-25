@@ -37,7 +37,7 @@ void SampleHolderForClip::setAudioFile(AudioFile* newAudioFile, bool reversed, b
 
 void SampleHolderForClip::recalculateNeutralPhaseIncrement() {
 
-	if (audioFile) {
+	if (audioFile != nullptr) {
 
 		int32_t noteWithinOctave = (uint16_t)(transpose + 240) % 12;
 		int32_t octave = ((uint16_t)(transpose + 120) / 12) - 10;
@@ -48,7 +48,7 @@ void SampleHolderForClip::recalculateNeutralPhaseIncrement() {
 			neutralPhaseIncrement = (uint64_t)neutralPhaseIncrement * ((Sample*)audioFile)->sampleRate / kSampleRate;
 		}
 
-		if (cents) {
+		if (cents != 0) {
 			int32_t multiplier = interpolateTable(2147483648u + (int32_t)cents * 42949672, 32, centAdjustTableSmall);
 			neutralPhaseIncrement = multiply_32x32_rshift32(neutralPhaseIncrement, multiplier) << 2;
 		}
@@ -63,14 +63,14 @@ void SampleHolderForClip::beenClonedFrom(SampleHolderForClip const* other, bool 
 
 void SampleHolderForClip::sampleBeenSet(bool reversed, bool manuallySelected) {
 
-	if (manuallySelected && ((Sample*)audioFile)->fileLoopEndSamples
+	if (manuallySelected && (((Sample*)audioFile)->fileLoopEndSamples != 0u)
 	    && ((Sample*)audioFile)->fileLoopEndSamples <= ((Sample*)audioFile)->lengthInSamples) {
 
 		endPos = ((Sample*)audioFile)->fileLoopEndSamples;
 
 		// Grab loop start from file too, if it's not erroneously late
 		if (((Sample*)audioFile)->fileLoopStartSamples < ((Sample*)audioFile)->lengthInSamples
-		    && (!((Sample*)audioFile)->fileLoopEndSamples
+		    && ((((Sample*)audioFile)->fileLoopEndSamples == 0u)
 		        || ((Sample*)audioFile)->fileLoopStartSamples < ((Sample*)audioFile)->fileLoopEndSamples)) {
 			startPos =
 			    ((Sample*)audioFile)->fileLoopStartSamples; // If it's 0, that'll translate to meaning no loop start

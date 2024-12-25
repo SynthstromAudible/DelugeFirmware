@@ -84,18 +84,18 @@ bool Source::renderInStereo(Sound* s, SampleHolder* sampleHolder) {
 		return false;
 	}
 
-	if (s->unisonStereoSpread && s->numUnison > 1) {
+	if ((s->unisonStereoSpread != 0u) && s->numUnison > 1) {
 		return true;
 	}
 
-	return (oscType == OscType::SAMPLE && sampleHolder && sampleHolder->audioFile
+	return (oscType == OscType::SAMPLE && (sampleHolder != nullptr) && (sampleHolder->audioFile != nullptr)
 	        && sampleHolder->audioFile->numChannels == 2)
 	       || (oscType == OscType::INPUT_STEREO && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn));
 }
 
 void Source::detachAllAudioFiles() {
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
-		if (!(e & 7)) {
+		if ((e & 7) == 0) {
 			AudioEngine::routineWithClusterLoading(); // --------------------------------------- // 7 works, 15
 			                                          // occasionally drops voices - for multisampled synths
 		}
@@ -106,7 +106,7 @@ void Source::detachAllAudioFiles() {
 Error Source::loadAllSamples(bool mayActuallyReadFiles) {
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("Source::loadAllSamples");
-		if (!(e & 3)) {
+		if ((e & 3) == 0) {
 			AudioEngine::routineWithClusterLoading(); // -------------------------------------- // 3 works, 7
 			                                          // occasionally drops voices - for multisampled synths
 		}
@@ -127,7 +127,7 @@ void Source::setReversed(bool newReversed) {
 		MultiRange* range = (MultisampleRange*)ranges.getElement(e);
 		SampleHolder* holder = (SampleHolder*)range->getAudioFileHolder();
 		Sample* sample = (Sample*)holder->audioFile;
-		if (sample) {
+		if (sample != nullptr) {
 			if (sampleControls.reversed && holder->endPos > sample->lengthInSamples) {
 				holder->endPos = sample->lengthInSamples;
 			}
@@ -166,11 +166,11 @@ int32_t Source::getRangeIndex(int32_t note) {
 }
 
 MultiRange* Source::getOrCreateFirstRange() {
-	if (!ranges.getNumElements()) {
+	if (ranges.getNumElements() == 0) {
 		MultiRange* newRange = ranges.insertMultiRange(
 		    0); // Default option - allowed e.g. for a new Sound where the current process is the Ranges get set up
 		        // before oscType is switched over to SAMPLE - but this can't happen for WAVETABLE so that's ok
-		if (!newRange) {
+		if (newRange == nullptr) {
 			return nullptr;
 		}
 
@@ -185,7 +185,7 @@ MultiRange* Source::getOrCreateFirstRange() {
 
 bool Source::hasAtLeastOneAudioFileLoaded() {
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
-		if (ranges.getElement(e)->getAudioFileHolder()->audioFile) {
+		if (ranges.getElement(e)->getAudioFileHolder()->audioFile != nullptr) {
 			return true;
 		}
 	}
@@ -232,7 +232,7 @@ void Source::doneReadingFromFile(Sound* sound) {
 bool Source::hasAnyLoopEndPoint() {
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
-		if (range->sampleHolder.loopEndPos) {
+		if (range->sampleHolder.loopEndPos != 0u) {
 			return true;
 		}
 	}

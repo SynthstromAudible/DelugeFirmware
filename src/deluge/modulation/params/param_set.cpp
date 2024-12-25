@@ -102,7 +102,7 @@ void ParamSet::paramHasNoAutomationNow(ModelStackWithParamCollection const* mode
 	}
 
 inline void ParamSet::checkWhetherParamHasInterpolationNow(ModelStackWithParamCollection const* modelStack, int32_t p) {
-	if (params[p].valueIncrementPerHalfTick) {
+	if (params[p].valueIncrementPerHalfTick != 0) {
 		modelStack->summary->whichParamsAreInterpolating[p >> 5] |= ((uint32_t)1 << (p & 31));
 	}
 }
@@ -171,7 +171,7 @@ void ParamSet::writeParamAsAttribute(Serializer& writer, char const* name, int32
 		return;
 	}
 
-	int32_t* valueForOverride = valuesForOverride ? &valuesForOverride[p] : nullptr;
+	int32_t* valueForOverride = (valuesForOverride != nullptr) ? &valuesForOverride[p] : nullptr;
 	writer.insertCommaIfNeeded();
 	writer.write("\n");
 	writer.printIndents();
@@ -401,7 +401,7 @@ bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId con
 	return false;
 }
 int32_t UnpatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-	if (modelStack && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
+	if ((modelStack != nullptr) && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
 		return (paramValue >> 24) - 64;
 	}
 	else {
@@ -410,7 +410,7 @@ int32_t UnpatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWit
 }
 
 int32_t UnpatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-	if (modelStack && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
+	if ((modelStack != nullptr) && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
 		int32_t paramValue = 2147483647;
 		if (knobPos < 64) {
 			paramValue = (knobPos + 64) << 24;
@@ -495,7 +495,7 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 }
 
 int32_t PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-	if (modelStack
+	if ((modelStack != nullptr)
 	    && (modelStack->paramId == params::LOCAL_OSC_A_PHASE_WIDTH
 	        || modelStack->paramId == params::LOCAL_OSC_B_PHASE_WIDTH)) {
 		return (paramValue >> 24) - 64;
@@ -506,7 +506,7 @@ int32_t PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithA
 }
 
 int32_t PatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-	if (modelStack
+	if ((modelStack != nullptr)
 	    && (modelStack->paramId == params::LOCAL_OSC_A_PHASE_WIDTH
 	        || modelStack->paramId == params::LOCAL_OSC_B_PHASE_WIDTH)) {
 		int32_t paramValue = 2147483647;
@@ -570,7 +570,7 @@ void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam co
 
 			NoteRow* noteRow = modelStack->getNoteRowAllowNull();
 
-			if (noteRow) {
+			if (noteRow != nullptr) {
 				modelStack->modControllable->polyphonicExpressionEventOnChannelOrNote(
 				    currentValue, modelStack->paramId, modelStack->getNoteRow()->y, MIDICharacteristic::NOTE);
 			}
@@ -640,18 +640,18 @@ void ExpressionParamSet::readFromFile(Deserializer& reader, ParamCollectionSumma
 
 	char const* tagName;
 
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		int32_t p;
 		for (p = 0; p < kNumExpressionDimensions; p++) {
-			if (!strcmp(tagName, expressionParamNames[p])) {
+			if (strcmp(tagName, expressionParamNames[p]) == 0) {
 doReadParam:
 				readParam(reader, summary, p, readAutomationUpToPos);
 				goto finishedTag;
 			}
 		}
 
-		if (!strcmp(tagName,
-		            "channelPressure")) { // Alpha testers had 2 weeks or so to create files like this - not sure if
+		if (strcmp(tagName,
+		            "channelPressure") == 0) { // Alpha testers had 2 weeks or so to create files like this - not sure if
 			                              // anyone even did.
 			p = 2;
 			goto doReadParam;

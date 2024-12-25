@@ -30,7 +30,7 @@ public:
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		if (getCurrentAudioClip()) {
+		if (getCurrentAudioClip() != nullptr) {
 			return true;
 		}
 		Sound* sound = static_cast<Sound*>(modControllable);

@@ -60,12 +60,12 @@ ActionLogger::ActionLogger() {
 }
 
 void ActionLogger::deleteLastActionIfEmpty() {
-	if (firstAction[BEFORE]) {
+	if (firstAction[BEFORE] != nullptr) {
 
 		// There are probably more cases where we might want to do this, but I've only done it for recording so far
 		// Paul: reinstating the original for now because it seems there are broken pointers in this list which lead to
 		// crashes, we need to fix after release while (!firstAction[BEFORE]->firstConsequence) {
-		if (firstAction[BEFORE]->type == ActionType::RECORD && !firstAction[BEFORE]->firstConsequence) {
+		if (firstAction[BEFORE]->type == ActionType::RECORD && (firstAction[BEFORE]->firstConsequence == nullptr)) {
 
 			deleteLastAction();
 		}
@@ -84,7 +84,7 @@ void ActionLogger::deleteLastAction() {
 
 Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addToExistingIfPossible) {
 
-	if (!currentSong) {
+	if (currentSong == nullptr) {
 		return nullptr;
 	}
 	deleteLog(AFTER);
@@ -104,7 +104,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		return nullptr;
 
 		// If there's no action for that, we're really screwed, we'd better get out
-		if (!firstAction[BEFORE] || firstAction[BEFORE]->type != ActionType::ARRANGEMENT_RECORD) {
+		if ((firstAction[BEFORE] == nullptr) || firstAction[BEFORE]->type != ActionType::ARRANGEMENT_RECORD) {
 			return nullptr;
 		}
 
@@ -120,7 +120,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 	}
 
 	// See if we can add to an existing action...
-	else if (addToExistingIfPossible != ActionAddition::NOT_ALLOWED && firstAction[BEFORE]
+	else if (addToExistingIfPossible != ActionAddition::NOT_ALLOWED && (firstAction[BEFORE] != nullptr)
 	         && firstAction[BEFORE]->openForAdditions && firstAction[BEFORE]->type == newActionType
 	         && firstAction[BEFORE]->view == getCurrentUI()
 	         && (addToExistingIfPossible == ActionAddition::ALLOWED
@@ -134,14 +134,14 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		deleteLastActionIfEmpty();
 
 		// Make sure we close off any existing action
-		if (firstAction[BEFORE]) {
+		if (firstAction[BEFORE] != nullptr) {
 			firstAction[BEFORE]->openForAdditions = false;
 		}
 
 		// And make a new one
 		void* actionMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Action));
 
-		if (!actionMemory) {
+		if (actionMemory == nullptr) {
 			D_PRINTLN("no ram to create new Action");
 			return nullptr;
 		}
@@ -153,7 +153,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		ActionClipState* clipStates =
 		    (ActionClipState*)GeneralMemoryAllocator::get().allocLowSpeed(numClips * sizeof(ActionClipState));
 
-		if (!clipStates) {
+		if (clipStates == nullptr) {
 			delugeDealloc(actionMemory);
 			return nullptr;
 		}
@@ -200,7 +200,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 
 void ActionLogger::updateAction(Action* newAction) {
 	// Update ActionClipStates for each Clip
-	if (newAction->numClipStates) {
+	if (newAction->numClipStates != 0) {
 
 		// If number of Clips has changed, discard
 		if (newAction->numClipStates
@@ -237,7 +237,7 @@ void ActionLogger::updateAction(Action* newAction) {
 void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, ActionType actionType) {
 
 	Action* action = getNewAction(actionType, ActionAddition::ALLOWED);
-	if (!action) {
+	if (action == nullptr) {
 		return;
 	}
 
@@ -247,19 +247,19 @@ void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* m
 void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 
 	Action* action = getNewAction(ActionType::SWING_CHANGE, ActionAddition::ALLOWED);
-	if (!action) {
+	if (action == nullptr) {
 		return;
 	}
 
 	// See if there's a previous one we can update
-	if (action->firstConsequence) {
+	if (action->firstConsequence != nullptr) {
 		ConsequenceSwingChange* consequence = (ConsequenceSwingChange*)action->firstConsequence;
 		consequence->swing[AFTER] = swingAfter;
 	}
 	else {
 		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceSwingChange));
 
-		if (consMemory) {
+		if (consMemory != nullptr) {
 			ConsequenceSwingChange* newConsequence = new (consMemory) ConsequenceSwingChange(swingBefore, swingAfter);
 			action->addConsequence(newConsequence);
 		}
@@ -269,12 +269,12 @@ void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter) {
 
 	Action* action = getNewAction(ActionType::TEMPO_CHANGE, ActionAddition::ALLOWED);
-	if (!action) {
+	if (action == nullptr) {
 		return;
 	}
 
 	// See if there's a previous one we can update
-	if (action->firstConsequence) {
+	if (action->firstConsequence != nullptr) {
 		ConsequenceTempoChange* consequence = (ConsequenceTempoChange*)action->firstConsequence;
 		consequence->timePerBig[AFTER] = timePerBigAfter;
 	}
@@ -282,7 +282,7 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 
 		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
 
-		if (consMemory) {
+		if (consMemory != nullptr) {
 			ConsequenceTempoChange* newConsequence =
 			    new (consMemory) ConsequenceTempoChange(timePerBigBefore, timePerBigAfter);
 			action->addConsequence(newConsequence);
@@ -296,13 +296,13 @@ void ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDispl
 
 	Action* action = getNewAction(ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE, ActionAddition::ALLOWED);
 
-	if (!action) {
+	if (action == nullptr) {
 		return;
 	}
 
 	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequencePerformanceViewPress));
 
-	if (consMemory) {
+	if (consMemory != nullptr) {
 		ConsequencePerformanceViewPress* newConsequence =
 		    new (consMemory) ConsequencePerformanceViewPress(fxPressBefore, fxPressAfter, xDisplay);
 		action->addConsequence(newConsequence);
@@ -319,7 +319,7 @@ bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation)
 
 	deleteLastActionIfEmpty();
 
-	if (firstAction[time]) {
+	if (firstAction[time] != nullptr) {
 		Action* toRevert = firstAction[time];
 
 		// If we're in a UI mode, and reverting this Action would mean changing UI, we have to disallow that.
@@ -395,18 +395,18 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 			}
 
 			// Switching between session and clip view
-			else if (action->view == &sessionView && getCurrentUI()->toClipMinder()) {
+			else if (action->view == &sessionView && (getCurrentUI()->toClipMinder() != nullptr)) {
 				whichAnimation = Animation::CLIP_MINDER_TO_SESSION;
 			}
-			else if (action->view->toClipMinder() && getCurrentUI() == &sessionView) {
+			else if ((action->view->toClipMinder() != nullptr) && getCurrentUI() == &sessionView) {
 				whichAnimation = Animation::SESSION_TO_CLIP_MINDER;
 			}
 
 			// Entering / exiting arranger
-			else if (action->view == &arrangerView && getCurrentUI()->toClipMinder()) {
+			else if (action->view == &arrangerView && (getCurrentUI()->toClipMinder() != nullptr)) {
 				whichAnimation = Animation::CLIP_MINDER_TO_ARRANGEMENT;
 			}
-			else if (action->view->toClipMinder() && getCurrentUI() == &arrangerView) {
+			else if ((action->view->toClipMinder() != nullptr) && getCurrentUI() == &arrangerView) {
 				whichAnimation = Animation::ARRANGEMENT_TO_CLIP_MINDER;
 			}
 
@@ -427,7 +427,7 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 			}
 
 			// Or if we've changed Clip but ended up back in the same view...
-			else if (getCurrentUI()->toClipMinder() && getCurrentClip() != action->currentClip) {
+			else if ((getCurrentUI()->toClipMinder() != nullptr) && getCurrentClip() != action->currentClip) {
 				whichAnimation = Animation::CHANGE_CLIP;
 			}
 
@@ -464,7 +464,7 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 		currentSong->xZoom[NAVIGATION_ARRANGEMENT] = action->xZoomArranger[time];
 
 		// Restore states of each Clip
-		if (action->numClipStates) {
+		if (action->numClipStates != 0) {
 			int32_t totalNumClips =
 			    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
 			if (action->numClipStates == totalNumClips) {
@@ -571,7 +571,7 @@ otherOption:
 
 		// Swap currentClip over. Can only do this after calling transitionToSessionView(). Previously, we did this much
 		// earlier, causing a crash. Hopefully moving it later here is ok...
-		if (action->currentClip) { // If song just loaded and we hadn't been into ClipMinder yet, this would be NULL,
+		if (action->currentClip != nullptr) { // If song just loaded and we hadn't been into ClipMinder yet, this would be NULL,
 			                       // and we don't want to set currentSong->currentClip back to this
 			currentSong->setCurrentClip(action->currentClip);
 		}
@@ -716,7 +716,7 @@ currentClipSwitchedOver:
 
 		default:
 			ClipMinder* clipMinder = getCurrentUI()->toClipMinder();
-			if (clipMinder) {
+			if (clipMinder != nullptr) {
 				if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 					((InstrumentClipMinder*)clipMinder)->setLedStates();
 				}
@@ -743,13 +743,13 @@ currentClipSwitchedOver:
 }
 
 void ActionLogger::closeAction(ActionType actionType) {
-	if (firstAction[BEFORE] && firstAction[BEFORE]->type == actionType) {
+	if ((firstAction[BEFORE] != nullptr) && firstAction[BEFORE]->type == actionType) {
 		firstAction[BEFORE]->openForAdditions = false;
 	}
 }
 
 void ActionLogger::closeActionUnlessCreatedJustNow(ActionType actionType) {
-	if (firstAction[BEFORE] && firstAction[BEFORE]->type == actionType
+	if ((firstAction[BEFORE] != nullptr) && firstAction[BEFORE]->type == actionType
 	    && firstAction[BEFORE]->creationTime != AudioEngine::audioSampleTimer) {
 		firstAction[BEFORE]->openForAdditions = false;
 	}
@@ -761,7 +761,7 @@ void ActionLogger::deleteAllLogs() {
 }
 
 void ActionLogger::deleteLog(int32_t time) {
-	while (firstAction[time]) {
+	while (firstAction[time] != nullptr) {
 		Action* toDelete = firstAction[time];
 
 		firstAction[time] = firstAction[time]->nextAction;
@@ -796,13 +796,13 @@ void ActionLogger::undo() {
 	}
 
 	// Or if recording tempoless, gotta stop that
-	else if (playbackHandler.playbackState && !playbackHandler.isEitherClockActive()) {
+	else if ((playbackHandler.playbackState != 0u) && !playbackHandler.isEitherClockActive()) {
 		playbackHandler.endPlayback();
 		goto displayUndoMessage;
 	}
 
 	// Or if recording linearly to arrangement, gotta exit that mode
-	else if (playbackHandler.playbackState && playbackHandler.recording != RecordingMode::OFF
+	else if ((playbackHandler.playbackState != 0u) && playbackHandler.recording != RecordingMode::OFF
 	         && currentPlaybackMode == &arrangement) {
 		arrangement.endAnyLinearRecording();
 	}
@@ -840,15 +840,15 @@ const uint32_t reversionUIModes[] = {
 };
 
 bool ActionLogger::allowedToDoReversion() {
-	return (currentSong && getCurrentUI() == getRootUI() && isUIModeWithinRange(reversionUIModes));
+	return ((currentSong != nullptr) && getCurrentUI() == getRootUI() && isUIModeWithinRange(reversionUIModes));
 }
 
 void ActionLogger::notifyClipRecordingAborted(Clip* clip) {
 
 	// If there's an Action which only recorded the beginning of this Clip recording, we don't want it anymore.
-	if (firstAction[BEFORE] && firstAction[BEFORE]->type == ActionType::RECORD) {
+	if ((firstAction[BEFORE] != nullptr) && firstAction[BEFORE]->type == ActionType::RECORD) {
 		Consequence* firstConsequence = firstAction[BEFORE]->firstConsequence;
-		if (!firstConsequence->next && firstConsequence->type == Consequence::CLIP_BEGIN_LINEAR_RECORD) {
+		if ((firstConsequence->next == nullptr) && firstConsequence->type == Consequence::CLIP_BEGIN_LINEAR_RECORD) {
 			if (clip == ((ConsequenceClipBeginLinearRecord*)firstConsequence)->clip) {
 				deleteLastAction();
 			}
@@ -867,13 +867,13 @@ bool ActionLogger::undoJustOneConsequencePerNoteRow(ModelStack* modelStack) {
 	bool revertedWholeAction = false;
 
 	Consequence* firstConsequence = firstAction[BEFORE]->firstConsequence;
-	if (firstConsequence) { // Should always be true
+	if (firstConsequence != nullptr) { // Should always be true
 
 		// Work out if multiple Consequences per NoteRow (see big comment above)
 		int32_t firstNoteRowId = ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId;
 
 		Consequence* thisConsequence = firstConsequence->next;
-		while (thisConsequence) {
+		while (thisConsequence != nullptr) {
 			if (thisConsequence->type == Consequence::NOTE_ARRAY_CHANGE
 			    && ((ConsequenceNoteArrayChange*)thisConsequence)->noteRowId == firstNoteRowId) {
 				goto gotMultipleConsequencesPerNoteRow;

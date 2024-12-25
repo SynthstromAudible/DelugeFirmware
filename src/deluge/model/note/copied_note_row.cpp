@@ -24,7 +24,7 @@ CopiedNoteRow::CopiedNoteRow() {
 }
 
 CopiedNoteRow::~CopiedNoteRow() {
-	if (notes) {
+	if (notes != nullptr) {
 		delugeDealloc(notes);
 	}
 }

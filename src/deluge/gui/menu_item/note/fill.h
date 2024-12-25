@@ -43,7 +43,7 @@ public:
 	void readCurrentValue() final override {
 		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 
-		if (leftMostNote) {
+		if (leftMostNote != nullptr) {
 			this->setValue(leftMostNote->getFill());
 		}
 	}

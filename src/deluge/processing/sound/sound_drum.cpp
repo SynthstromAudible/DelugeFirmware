@@ -50,11 +50,11 @@ Drum* SoundDrum::clone() {
 */
 
 bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
-	if (!strcmp(tagName, "name")) {
+	if (strcmp(tagName, "name") == 0) {
 		reader.readTagOrAttributeValueString(&name);
 		reader.exitTag("name");
 	}
-	else if (!strcmp(tagName, "path")) {
+	else if (strcmp(tagName, "path") == 0) {
 		reader.readTagOrAttributeValueString(&path);
 		reader.exitTag("path");
 	}
@@ -206,7 +206,7 @@ void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
 }
 
 void SoundDrum::setSkippingRendering(bool newSkipping) {
-	if (kit && newSkipping != skippingRendering) {
+	if ((kit != nullptr) && newSkipping != skippingRendering) {
 		if (newSkipping) {
 			kit->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)this);
 		}

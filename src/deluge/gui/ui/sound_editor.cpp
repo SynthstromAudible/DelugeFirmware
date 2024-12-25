@@ -146,7 +146,7 @@ bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 
 	RootUI* rootUI = getRootUI();
 	UIType uiType = UIType::NONE;
-	if (rootUI) {
+	if (rootUI != nullptr) {
 		uiType = rootUI->getUIType();
 	}
 
@@ -223,8 +223,8 @@ void SoundEditor::displayOrLanguageChanged() {
 void SoundEditor::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::SAVE, false); // In case we came from the save-Instrument UI
 
-	indicator_leds::setLedState(IndicatorLED::SYNTH, !inSettingsMenu() && !editingKit() && currentSound);
-	indicator_leds::setLedState(IndicatorLED::KIT, !inSettingsMenu() && editingKit() && currentSound);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, !inSettingsMenu() && !editingKit() && (currentSound != nullptr));
+	indicator_leds::setLedState(IndicatorLED::KIT, !inSettingsMenu() && editingKit() && (currentSound != nullptr));
 	indicator_leds::setLedState(IndicatorLED::MIDI,
 	                            !inSettingsMenu() && getCurrentOutputType() == OutputType::MIDI_OUT);
 	indicator_leds::setLedState(IndicatorLED::CV, !inSettingsMenu() && getCurrentOutputType() == OutputType::CV);
@@ -257,7 +257,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	if (rootUIIsClipMinderScreen()) {
 		clip = getCurrentClip();
-		if (clip) {
+		if (clip != nullptr) {
 			isUIInstrumentClipView = clip->type == ClipType::INSTRUMENT;
 		}
 	}
@@ -273,7 +273,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 				MenuItem* currentMenuItem = getCurrentMenuItem();
 				MenuItem* newItem = currentMenuItem->selectButtonPress();
-				if (newItem) {
+				if (newItem != nullptr) {
 					if (newItem != NO_NAVIGATION) {
 						if (newItem->shouldEnterSubmenu()) {
 							MenuPermission result = newItem->checkPermissionToBeginSession(
@@ -350,7 +350,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		if (on) {
-			if (!currentUIMode) {
+			if (currentUIMode == 0u) {
 				if (!getCurrentMenuItem()->allowsLearnMode()) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_LEARN));
 				}
@@ -648,7 +648,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 							goto stopThat;
 						}
 
-						if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) {
+						if (currentParamShorcutX != 255 && ((x & 1) != 0) && currentSourceIndex == 0) {
 							goto stopThat;
 						}
 						setupShortcutBlink(x, y, 0);
@@ -726,7 +726,7 @@ void SoundEditor::blinkShortcut() {
 
 	uint32_t counterForNow = shortcutBlinkCounter >> 1;
 
-	if (shortcutBlinkCounter & 1) {
+	if ((shortcutBlinkCounter & 1) != 0u) {
 		// Blink param
 		if ((counterForNow & paramShortcutBlinkFrequency) == 0) {
 			PadLEDs::flashMainPad(currentParamShorcutX, currentParamShorcutY);
@@ -804,7 +804,7 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-		if (currentSound) {
+		if (currentSound != nullptr) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
@@ -813,7 +813,7 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 
 		getCurrentMenuItem()->selectEncoderAction(offset);
 
-		if (currentSound) {
+		if (currentSound != nullptr) {
 			if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) {
 				markInstrumentAsEdited(); // TODO: make reverb and reverb-sidechain stuff exempt from this
 			}
@@ -841,7 +841,7 @@ ActionResult SoundEditor::timerCallback() {
 void SoundEditor::markInstrumentAsEdited() {
 	if (!inSettingsMenu()) {
 		Instrument* inst = getCurrentInstrument();
-		if (inst) {
+		if (inst != nullptr) {
 			getCurrentInstrument()->beenEdited();
 		}
 	}
@@ -903,7 +903,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			if (x == 11 && y == 5) {
 				// Renames the output (track), not the clip
 				Output* output = getCurrentOutput();
-				if (output) {
+				if (output != nullptr) {
 					renameOutputUI.output = output;
 					openUI(&renameOutputUI);
 					return ActionResult::DEALT_WITH;
@@ -956,7 +956,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 				}
 
 doSetup:
-				if (item) {
+				if (item != nullptr) {
 
 					if (item == comingSoonMenu) {
 						display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
@@ -1061,7 +1061,7 @@ getOut:
 					else {
 
 						// If we've been given a MenuItem to go into, do that
-						if (newMenuItem
+						if ((newMenuItem != nullptr)
 						    && newMenuItem->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
 						                                                  &currentMultiRange)
 						           != MenuPermission::NO) {
@@ -1125,7 +1125,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	RootUI* rootUI = getRootUI();
 
 	if (!inSettingsMenu() && !inNoteEditor() && !inNoteRowEditor()) {
-		ActionResult result = potentialShortcutPadAction(x, y, on);
+		ActionResult result = potentialShortcutPadAction(x, y, on != 0);
 		if (result != ActionResult::NOT_DEALT_WITH) {
 			return result;
 		}
@@ -1172,7 +1172,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 
 	// Otherwise...
-	if (currentUIMode == UI_MODE_NONE && on) {
+	if (currentUIMode == UI_MODE_NONE && (on != 0)) {
 		if (getCurrentMenuItem() == &firmwareVersionMenu && y == 7) {
 			char buffer[12] = {0};
 
@@ -1351,12 +1351,12 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		if (modelStack) {
+		if (modelStack != nullptr) {
 			newParamManager = (ParamManagerForTimeline*)modelStack->paramManager;
 			newModControllable = (ModControllableAudio*)modelStack->modControllable;
 		}
 	}
-	else if (clip) {
+	else if (clip != nullptr) {
 		output = clip->output;
 		outputType = output->type;
 
@@ -1375,7 +1375,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 				}
 
 				// If a SoundDrum is selected...
-				else if (selectedDrum) {
+				else if (selectedDrum != nullptr) {
 					if (selectedDrum->type == DrumType::SOUND) {
 						NoteRow* noteRow = instrumentClip->getNoteRowForDrum(selectedDrum);
 						if (noteRow == nullptr) {
@@ -1434,11 +1434,11 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 
 	MenuItem* newItem;
 
-	if (item) {
+	if (item != nullptr) {
 		newItem = (MenuItem*)item;
 	}
 	else {
-		if (clip) {
+		if (clip != nullptr) {
 			actionLogger.deleteAllLogs();
 
 			if (clip->type == ClipType::INSTRUMENT) {
@@ -1511,18 +1511,18 @@ doMIDIOrCV:
 	currentMultiRange = newRange;
 	currentModControllable = newModControllable;
 
-	if (currentModControllable) {
+	if (currentModControllable != nullptr) {
 		currentSidechain = &currentModControllable->sidechain;
 	}
 
-	if (currentSound) {
+	if (currentSound != nullptr) {
 		currentSourceIndex = sourceIndex;
 		currentSource = &currentSound->sources[currentSourceIndex];
 		currentSampleControls = &currentSource->sampleControls;
 		currentPriority = &currentSound->voicePriority;
 
 		if (result == MenuPermission::YES && currentMultiRange == nullptr) {
-			if (currentSource->ranges.getNumElements()) {
+			if (currentSource->ranges.getNumElements() != 0) {
 				currentMultiRange = (MultisampleRange*)currentSource->ranges.getElement(0); // Is this good?
 			}
 		}
@@ -1566,7 +1566,7 @@ void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 	// if you're holding down a note
 	// see if you're currently editing a row param
 	// if so, enter the note editor menu for that param
-	if (on) {
+	if (on != 0) {
 		if (currentMenuItem == &noteRowProbabilityMenu) {
 			newMenuItem = &noteProbabilityMenu;
 		}
@@ -1592,9 +1592,9 @@ void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 		}
 	}
 
-	if (newMenuItem && newMenuItem->shouldEnterSubmenu()) {
+	if ((newMenuItem != nullptr) && newMenuItem->shouldEnterSubmenu()) {
 		// holding down note pad, enter note param menu
-		if (on) {
+		if (on != 0) {
 			enterSubmenu(newMenuItem);
 		}
 		// release note pad, go back to previous row menu
@@ -1621,7 +1621,7 @@ MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(S
 	Source* source = &sound->sources[whichThing];
 
 	::MultiRange* firstRange = source->getOrCreateFirstRange();
-	if (!firstRange) {
+	if (firstRange == nullptr) {
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return MenuPermission::NO;
 	}
@@ -1637,7 +1637,7 @@ MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(S
 		return MenuPermission::YES;
 	}
 
-	if (getCurrentUI() == &soundEditor && *previouslySelectedRange && currentSourceIndex == whichThing) {
+	if (getCurrentUI() == &soundEditor && (*previouslySelectedRange != nullptr) && currentSourceIndex == whichThing) {
 		return MenuPermission::YES;
 	}
 
@@ -1681,7 +1681,7 @@ ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 		int32_t noteRowIndex;
 		if (instrument->type == OutputType::KIT) {
 			Drum* selectedDrum = ((Kit*)instrument)->selectedDrum;
-			if (selectedDrum) {
+			if (selectedDrum != nullptr) {
 				noteRow = clip->getNoteRowForDrum(selectedDrum, &noteRowIndex);
 			}
 		}
@@ -1705,7 +1705,7 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	// Sorry - extremely ugly hack here.
 	MenuItem* currentMenuItem = getCurrentMenuItem();
 	if (currentMenuItem == static_cast<void*>(&drumNameMenu)) {
-		if (!navigationDepth) {
+		if (navigationDepth == 0u) {
 			return;
 		}
 		currentMenuItem = menuItemNavigationRecord[navigationDepth - 1];
@@ -1725,7 +1725,7 @@ bool SoundEditor::handleClipName() {
 
 		if (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
 		    || output->type == OutputType::KIT && getRootUI()->getAffectEntire()) {
-			if (clip) {
+			if (clip != nullptr) {
 				renameClipUI.clip = clip;
 				openUI(&renameClipUI);
 				return true;

@@ -95,7 +95,7 @@ void Delay::setupWorkingState(Delay::State& workingState, uint32_t timePerIntern
 	// Set some stuff up that we need before we make some decisions
 	// BUG: we want to be able to reduce the 256 to 1, but for some reason, the
 	// patching engine spits out 112 even when this should be 0...
-	bool mightDoDelay = (workingState.delayFeedbackAmount >= 256 && (anySoundComingIn || repeatsUntilAbandon));
+	bool mightDoDelay = (workingState.delayFeedbackAmount >= 256 && (anySoundComingIn || (repeatsUntilAbandon != 0u)));
 
 	if (mightDoDelay) {
 
@@ -188,7 +188,7 @@ void Delay::hasWrapped() {
 	}
 
 	repeatsUntilAbandon--;
-	if (!repeatsUntilAbandon) {
+	if (repeatsUntilAbandon == 0u) {
 		// D_PRINTLN("discarding");
 		discardBuffers();
 	}

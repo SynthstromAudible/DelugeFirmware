@@ -29,5 +29,5 @@ PlaybackMode::~PlaybackMode() {
 }
 
 bool PlaybackMode::hasPlaybackActive() {
-	return (currentPlaybackMode == this && playbackHandler.playbackState);
+	return (currentPlaybackMode == this && (playbackHandler.playbackState != 0u));
 }

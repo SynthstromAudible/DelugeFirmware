@@ -51,7 +51,7 @@ void Env::init(const EnvParams& p, int ol, int rate_scaling) {
 
 int32_t Env::getsample(const EnvParams& p, int n, int extra_rate) {
 #ifdef ACCURATE_ENVELOPE
-	if (staticcount_) {
+	if (staticcount_ != 0) {
 		staticcount_ -= n;
 		if (staticcount_ <= 0) {
 			staticcount_ = 0;
@@ -61,7 +61,7 @@ int32_t Env::getsample(const EnvParams& p, int n, int extra_rate) {
 #endif
 
 	if (ix_ < 3 || ((ix_ < 4) && !down_)) {
-		if (staticcount_) {
+		if (staticcount_ != 0) {
 			;
 		}
 		else if (rising_) {

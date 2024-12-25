@@ -203,7 +203,7 @@ void Stutterer::endStutter(ParamManagerForTimeline* paramManager) {
 
 	bool automationOccurred = false;
 
-	if (paramManager) {
+	if (paramManager != nullptr) {
 
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 

@@ -53,7 +53,7 @@ void GateDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 Error GateDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		if (NonAudioDrum::readDrumTagFromFile(reader, tagName)) {}
 		else {
 			reader.exitTag(tagName);

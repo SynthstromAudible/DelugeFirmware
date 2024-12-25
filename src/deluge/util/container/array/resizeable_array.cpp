@@ -66,7 +66,7 @@ ResizeableArray::ResizeableArray(int32_t newElementSize, int32_t newMaxNumEmptyS
 ResizeableArray::~ResizeableArray() {
 	LOCK_ENTRY
 
-	if (memory) {
+	if (memory != nullptr) {
 		delugeDealloc(memoryAllocationStart);
 	}
 	// Don't call empty() - this does some other writing, which is a waste of time
@@ -94,8 +94,8 @@ void ResizeableArray::empty() {
 	numElements = 0;
 	memoryStart = 0;
 
-	if (!staticMemoryAllocationSize && emptyingShouldFreeMemory) {
-		if (memory) {
+	if ((staticMemoryAllocationSize == 0u) && emptyingShouldFreeMemory) {
+		if (memory != nullptr) {
 			delugeDealloc(memoryAllocationStart);
 		}
 
@@ -141,7 +141,7 @@ Error ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory,
 
 	memoryStart = 0;
 
-	if (!numElements) {
+	if (numElements == 0) {
 		memoryAllocationStart = nullptr;
 		memory = nullptr;
 		memorySize = 0;
@@ -152,7 +152,7 @@ Error ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory,
 		uint32_t allocatedSize = newSize * elementSize;
 		memory = GeneralMemoryAllocator::get().allocMaxSpeed(allocatedSize);
 
-		if (!memory) {
+		if (memory == nullptr) {
 			numElements = 0;
 			memorySize = 0;
 			return Error::INSUFFICIENT_RAM;
@@ -207,7 +207,7 @@ void ResizeableArray::swapStateWith(ResizeableArray* other) {
 }
 
 void ResizeableArray::attemptMemoryShorten() {
-	if (staticMemoryAllocationSize) {
+	if (staticMemoryAllocationSize != 0u) {
 		return;
 	}
 	if ((uint32_t)memoryAllocationStart >= (uint32_t)INTERNAL_MEMORY_BEGIN) {
@@ -315,7 +315,7 @@ mostBasicDelete:
 				// can just do the most basic delete. Careful with this - it seemed to cause a crash when first
 				// introduced in commit "Tidied up some stuff in ResizeableArray", though that seems to have been
 				// because of the bugs fixed in commit "Fixed horrendous problem with ResizeableArray[...]".
-				if (staticMemoryAllocationSize || !mayShortenMemoryAfter) {
+				if ((staticMemoryAllocationSize != 0u) || !mayShortenMemoryAfter) {
 					goto mostBasicDelete;
 				}
 
@@ -445,7 +445,7 @@ moveBitBetweenWrapPointAndDeletionPoint:
 
 	numElements = newNum;
 
-	if (!staticMemoryAllocationSize && mayShortenMemoryAfter) {
+	if ((staticMemoryAllocationSize == 0u) && mayShortenMemoryAfter) {
 		elementsBeforeWrap = memorySize - memoryStart; // Updates this
 
 		// If no wrap...
@@ -467,8 +467,8 @@ bool ResizeableArray::ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNe
 	LOCK_ENTRY
 
 	// If nothing allocated yet, easy
-	if (!memory) {
-		if (staticMemoryAllocationSize) {
+	if (memory == nullptr) {
+		if (staticMemoryAllocationSize != 0u) {
 			LOCK_EXIT
 			return false;
 		}
@@ -476,7 +476,7 @@ bool ResizeableArray::ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNe
 		uint32_t allocatedMemorySize = numAdditionalElementsNeeded * elementSize;
 
 		void* newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(allocatedMemorySize);
-		if (!newMemory) {
+		if (newMemory == nullptr) {
 			LOCK_EXIT
 			return false;
 		}
@@ -515,7 +515,7 @@ tryAgain:
 	// If that wasn't enough memory (very likely on first try)
 	if (memorySize < newNum) {
 
-		if (staticMemoryAllocationSize) {
+		if (staticMemoryAllocationSize != 0u) {
 			LOCK_EXIT
 			return false;
 		}
@@ -532,7 +532,7 @@ tryAgain:
 		                                     &amountExtendedLeft, &amountExtendedRight);
 
 		// If successfully extended...
-		if (amountExtendedLeft || amountExtendedRight) {
+		if ((amountExtendedLeft != 0u) || (amountExtendedRight != 0u)) {
 			memoryAllocationStart = (char* __restrict__)memoryAllocationStart - amountExtendedLeft;
 			goto tryAgain;
 		}
@@ -552,13 +552,13 @@ getBrandNewMemory:
 
 		uint32_t newMemoryAllocationSize = (newNum + numExtraSpacesToAllocate) * elementSize;
 		newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(newMemoryAllocationSize);
-		if (!newMemory) {
+		if (newMemory == nullptr) {
 			newMemoryAllocationSize = newNum * elementSize;
 			newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(newMemoryAllocationSize);
 		}
 
 		// If that didn't work...
-		if (!newMemory) {
+		if (newMemory == nullptr) {
 
 allocationFail:
 
@@ -575,7 +575,7 @@ allocationFail:
 		uint32_t newMemorySize = newMemoryAllocationSize / elementSize;
 		uint32_t newMemoryStartIndex = 0;
 
-		if (memoryIncreasedBy) {
+		if (memoryIncreasedBy != 0) {
 			D_PRINTLN("new memory, already increased");
 		}
 
@@ -662,7 +662,7 @@ startAgain:
 
 	// If we actually had a bit more already, right...
 	uint32_t potentialMemorySize = staticMemoryAllocationSize;
-	if (!potentialMemorySize) {
+	if (potentialMemorySize == 0u) {
 		potentialMemorySize = GeneralMemoryAllocator::get().getAllocatedSize(memoryAllocationStart) - extraBytesLeft;
 	}
 	uint32_t extraBytesRight = potentialMemorySize - (memorySize * elementSize);
@@ -698,7 +698,7 @@ startAgain:
 		                                     idealNumToExtendIfExtendingAllocation * elementSize, &amountExtendedLeft,
 		                                     &amountExtendedRight, thingNotToStealFrom);
 
-		if (amountExtendedLeft || amountExtendedRight) {
+		if ((amountExtendedLeft != 0u) || (amountExtendedRight != 0u)) {
 			memoryAllocationStart = (char* __restrict__)memoryAllocationStart - amountExtendedLeft;
 			goto startAgain;
 		}
@@ -905,9 +905,9 @@ Error ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thing
 	int32_t newNum = numElements + numToInsert;
 
 	// If no memory yet...
-	if (!memory) {
+	if (memory == nullptr) {
 
-		if (staticMemoryAllocationSize) {
+		if (staticMemoryAllocationSize != 0u) {
 			LOCK_EXIT
 			return Error::INSUFFICIENT_RAM;
 		}
@@ -918,7 +918,7 @@ Error ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thing
 		uint32_t allocatedMemorySize = newMemorySize * elementSize;
 
 		void* newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(allocatedMemorySize, thingNotToStealFrom);
-		if (!newMemory) {
+		if (newMemory == nullptr) {
 			LOCK_EXIT
 			return Error::INSUFFICIENT_RAM;
 		}
@@ -942,7 +942,7 @@ Error ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thing
 			// If not enough memory...
 			if (newNum > memorySize) {
 				bool success = attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate,
-				                                      !staticMemoryAllocationSize, thingNotToStealFrom);
+				                                      staticMemoryAllocationSize == 0u, thingNotToStealFrom);
 				if (!success) {
 					goto getBrandNewMemory;
 				}
@@ -991,7 +991,7 @@ workNormally:
 
 					// ... and we can't extend memory...
 					if (!attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate,
-					                            !staticMemoryAllocationSize, thingNotToStealFrom)) {
+					                            staticMemoryAllocationSize == 0u, thingNotToStealFrom)) {
 
 						// Only choice is to get brand new memory
 						goto getBrandNewMemory;
@@ -1004,7 +1004,7 @@ workNormally:
 
 				// If can't or won't grab some extra memory at the wrap-point...
 				if (!attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate,
-				                            !staticMemoryAllocationSize, thingNotToStealFrom)) {
+				                            staticMemoryAllocationSize == 0u, thingNotToStealFrom)) {
 
 					// If we do actually have enough memory, working "normally" is still an option, and it's now the
 					// best option
@@ -1082,7 +1082,7 @@ workNormally:
 		if (false) {
 getBrandNewMemory:
 
-			if (staticMemoryAllocationSize) {
+			if (staticMemoryAllocationSize != 0u) {
 				LOCK_EXIT
 				return Error::INSUFFICIENT_RAM;
 			}
@@ -1098,7 +1098,7 @@ getBrandNewMemoryAgain:
 			    GeneralMemoryAllocator::get().allocMaxSpeed(allocatedSize, thingNotToStealFrom);
 
 			// If that didn't work...
-			if (!newMemory) {
+			if (newMemory == nullptr) {
 
 				// If our expectations weren't already as low as they can go, then lower our expectations and try
 				// again...

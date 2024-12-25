@@ -115,7 +115,7 @@ public:
 
 	inline void setCurrentValueBasicForSetup(int32_t value) { currentValue = value; }
 
-	inline bool isAutomated() { return (nodes.getNumElements()); }
+	inline bool isAutomated() { return (nodes.getNumElements()) != 0; }
 
 	inline void cancelOverriding() { // Will also cancel "latching".
 		renewedOverridingAtTime = 0;

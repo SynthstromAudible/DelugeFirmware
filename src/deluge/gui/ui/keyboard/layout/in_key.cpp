@@ -95,7 +95,7 @@ void KeyboardLayoutInKey::precalculate() {
 
 void KeyboardLayoutInKey::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// Precreate list of all active notes per octave
-	bool scaleActiveNotes[kOctaveSize] = {0};
+	bool scaleActiveNotes[kOctaveSize] = {false};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
 		scaleActiveNotes[((currentNotesState.notes[idx].note + kOctaveSize) - getRootNote()) % kOctaveSize] = true;
 	}

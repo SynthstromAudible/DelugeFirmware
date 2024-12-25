@@ -140,7 +140,7 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 
 			// If that couldn't be done (in which case the original, central Stealable won't have been stolen either),
 			// move on to next Stealable to assess
-			if (!result.address) {
+			if (result.address == 0u) {
 				if (result.longestRunFound > longestRunSeenInThisQueue) {
 					longestRunSeenInThisQueue = result.longestRunFound;
 				}

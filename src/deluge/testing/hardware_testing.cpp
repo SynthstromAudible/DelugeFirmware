@@ -49,7 +49,7 @@ void ramTestUart() {
 	uint32_t lastErrorAt = 0;
 	uint32_t* address;
 
-	while (1) {
+	while (true) {
 
 		// while (1) {
 		D_PRINTLN("writing to ram");
@@ -134,12 +134,12 @@ void sendColoursForHardwareTest(bool testButtonStates[9][16]) {
 bool anythingProbablyPressed = false;
 
 void readInputsForHardwareTest(bool testButtonStates[9][16]) {
-	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
-	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
-	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin);
-	bool micNow = !readInput(MIC_DETECT.port, MIC_DETECT.pin);
-	bool lineInNow = readInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin);
-	bool gateInNow = readInput(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin);
+	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin) != 0u;
+	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin) != 0u;
+	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin) != 0u;
+	bool micNow = readInput(MIC_DETECT.port, MIC_DETECT.pin) == 0u;
+	bool lineInNow = readInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin) != 0u;
+	bool gateInNow = readInput(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin) != 0u;
 
 	bool inputStateNow = (outputPluggedInL == outputPluggedInR == headphoneNow == micNow == lineInNow == gateInNow);
 
@@ -149,7 +149,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 	}
 
 	uint8_t value;
-	bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
+	bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value) != 0u;
 	if (anything) {
 		if (value == 252) {
 			nextIsDepress = true;
@@ -311,14 +311,14 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	uint32_t* address;
 	bool ledState = true;
 
-	while (1) {
+	while (true) {
 
 		sendColoursForHardwareTest(testButtonStates);
 
 		hardwareTestWhichColour = (hardwareTestWhichColour + 1) % 3;
 
 		// Write Synced LED
-		setOutputState(SYNCED_LED.port, SYNCED_LED.pin, true);
+		setOutputState(SYNCED_LED.port, SYNCED_LED.pin, 1u);
 
 		// Write gate outputs
 		for (int32_t i = 0; i < NUM_GATE_CHANNELS; i++) {
@@ -342,7 +342,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 			address++;
 		}
 
-		setOutputState(SYNCED_LED.port, SYNCED_LED.pin, false);
+		setOutputState(SYNCED_LED.port, SYNCED_LED.pin, 0u);
 
 		address = (uint32_t*)0x0C000000;
 		while (address != (uint32_t*)0x10000000) {
@@ -354,19 +354,19 @@ void ramTestLED(bool stuffAlreadySetUp) {
 			if (*address != (uint32_t)address) {
 
 				// Error!!!
-				while (1) {
+				while (true) {
 					readInputsForHardwareTest(testButtonStates);
 
-					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, true);
+					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, 1u);
 					delayMS(50);
 					delayMS(50);
-					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, false);
+					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, 0u);
 					delayMS(50);
 					delayMS(50);
-					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, true);
+					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, 1u);
 					delayMS(50);
 					delayMS(50);
-					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, false);
+					setOutputState(SYNCED_LED.port, SYNCED_LED.pin, 0u);
 					delayMS(50);
 					delayMS(50);
 					delayMS(50);

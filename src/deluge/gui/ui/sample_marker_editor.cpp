@@ -118,7 +118,7 @@ bool SampleMarkerEditor::opened() {
 
 	waveformBasicNavigator.sample = static_cast<Sample*>(getCurrentSampleHolder().audioFile);
 
-	if (!waveformBasicNavigator.sample) {
+	if (waveformBasicNavigator.sample == nullptr) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_SAMPLE));
 		return false;
 	}
@@ -159,7 +159,7 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 	bool audioClipActive;
 	if (clipType == ClipType::AUDIO) {
 		audioClipActive = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(getCurrentClip())
-		                   && getCurrentAudioClip()->voiceSample);
+		                   && (getCurrentAudioClip()->voiceSample != nullptr));
 
 		getCurrentAudioClip()->unassignVoiceSample(false);
 	}
@@ -269,7 +269,7 @@ void SampleMarkerEditor::getColsOnScreen(MarkerColumn* cols) {
 }
 
 void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
-	if (currentUIMode && currentUIMode != UI_MODE_AUDITIONING) {
+	if ((currentUIMode != 0u) && currentUIMode != UI_MODE_AUDITIONING) {
 		return;
 	}
 
@@ -351,7 +351,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 
 	if (currentUIMode != UI_MODE_AUDITIONING) { // Don't want to do this while auditioning - too easy to do by mistake
-		ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, on);
+		ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, on != 0);
 		if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {
 			return soundEditorResult;
 		}
@@ -367,7 +367,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Mute pads
 	else if (x == kDisplayWidth) {
-		if (on && !currentUIMode) {
+		if ((on != 0) && (currentUIMode == 0u)) {
 			exitUI();
 		}
 	}
@@ -375,9 +375,9 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	else {
 
 		// Press down
-		if (on) {
+		if (on != 0) {
 
-			if (currentUIMode && currentUIMode != UI_MODE_AUDITIONING
+			if ((currentUIMode != 0u) && currentUIMode != UI_MODE_AUDITIONING
 			    && currentUIMode != UI_MODE_HOLDING_SAMPLE_MARKER) {
 				return ActionResult::DEALT_WITH;
 			}
@@ -662,7 +662,7 @@ ActionResult SampleMarkerEditor::buttonAction(deluge::hid::Button b, bool on, bo
 
 	// Back button
 	if (b == BACK) {
-		if (on && !currentUIMode) {
+		if (on && (currentUIMode == 0u)) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -1029,15 +1029,15 @@ void SampleMarkerEditor::graphicsRoutine() {
 					continue;
 				}
 
-				if (!assignedVoice || thisVoice->orderSounded > assignedVoice->orderSounded) {
+				if ((assignedVoice == nullptr) || thisVoice->orderSounded > assignedVoice->orderSounded) {
 					assignedVoice = thisVoice;
 				}
 			}
 
-			if (assignedVoice) {
+			if (assignedVoice != nullptr) {
 				VoiceUnisonPartSource* part = &assignedVoice->unisonParts[soundEditor.currentSound->numUnison >> 1]
 				                                   .sources[soundEditor.currentSourceIndex];
-				if (part && part->active) {
+				if ((part != nullptr) && part->active) {
 					voiceSample = part->voiceSample;
 					guide = &assignedVoice->guides[soundEditor.currentSourceIndex];
 				}
@@ -1051,7 +1051,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 		guide = &getCurrentAudioClip()->guide;
 	}
 
-	if (voiceSample) {
+	if (voiceSample != nullptr) {
 		int32_t samplePos = voiceSample->getPlaySample(waveformBasicNavigator.sample, guide);
 		if (samplePos >= waveformBasicNavigator.xScroll) {
 			newTickSquare = (samplePos - waveformBasicNavigator.xScroll) / waveformBasicNavigator.xZoom;
@@ -1196,12 +1196,12 @@ void SampleMarkerEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& c
 		goto printSeconds;
 	}
 
-	if (hundredmilliseconds) {
+	if (hundredmilliseconds != 0u) {
 printSeconds:
 		int32_t numDecimalPlaces;
 
 		// Maybe we just want to display->millisecond resolution (that's S with 3 decimal places)...
-		if (hours || minutes || hundredmilliseconds >= 100000) {
+		if ((hours != 0u) || (minutes != 0u) || hundredmilliseconds >= 100000) {
 			hundredmilliseconds /= 100;
 			numDecimalPlaces = 3;
 		}
@@ -1220,7 +1220,7 @@ printSeconds:
 		canvas.drawString(buffer, xPixel, yPixel, smallTextSpacingX, smallTextSizeY);
 		xPixel += (length + 1) * smallTextSpacingX;
 
-		if (hours || minutes) {
+		if ((hours != 0u) || (minutes != 0u)) {
 			canvas.drawChar('s', xPixel, yPixel, smallTextSpacingX, smallTextSizeY);
 		}
 		else {
@@ -1389,7 +1389,7 @@ void SampleMarkerEditor::renderColumn(int32_t col, RGB image[kDisplayHeight][kDi
 bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                         bool drawUndefinedArea) {
-	if (!image) {
+	if (image == nullptr) {
 		return true;
 	}
 

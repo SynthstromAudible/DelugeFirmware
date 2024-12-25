@@ -43,7 +43,7 @@ int32_t SamplePlaybackGuide::getFinalClusterIndex(Sample* sample, bool obeyMarke
 		endPlaybackAtByteNow = getBytePosToEndOrLoopPlayback();
 	}
 
-	if (getEndPlaybackAtByte) {
+	if (getEndPlaybackAtByte != nullptr) {
 		*getEndPlaybackAtByte = endPlaybackAtByteNow;
 	}
 

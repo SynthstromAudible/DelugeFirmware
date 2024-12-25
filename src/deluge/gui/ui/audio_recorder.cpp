@@ -139,7 +139,7 @@ bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newN
 
 	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, false, writeLoopPoints,
 	                                       kInternalButtonPressLatency, false, nullptr);
-	if (!recorder) {
+	if (recorder == nullptr) {
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return false;
 	}
@@ -171,7 +171,7 @@ bool AudioRecorder::beginOutputRecording(AudioRecordingFolder folder, AudioInput
 void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
 
 	// Make sure we don't call the same thing multiple times - I think there's a few scenarios where this could happen
-	if (recorder && recorder->status == RecorderStatus::CAPTURING_DATA) {
+	if ((recorder != nullptr) && recorder->status == RecorderStatus::CAPTURING_DATA) {
 		display->displayLoadingAnimationText("Working");
 		recorder->endSyncedRecording(buttonLatency);
 	}
@@ -230,7 +230,7 @@ void AudioRecorder::process() {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIPPING_OCCURRED));
 				}
 			}
-			else if (!updatedRecordingStatus && recorder->numSamplesCaptured) {
+			else if (!updatedRecordingStatus && (recorder->numSamplesCaptured != 0u)) {
 				if (display->have7SEG()) {
 					display->setText("REC", false, 255, true);
 				}
@@ -285,6 +285,6 @@ ActionResult AudioRecorder::buttonAction(deluge::hid::Button b, bool on, bool in
 }
 
 bool AudioRecorder::isCurrentlyResampling() {
-	return (recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && recorder
+	return (recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && (recorder != nullptr)
 	        && recorder->status == RecorderStatus::CAPTURING_DATA);
 }

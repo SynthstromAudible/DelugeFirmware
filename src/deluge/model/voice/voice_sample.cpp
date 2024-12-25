@@ -61,12 +61,12 @@ void VoiceSample::noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32
 // Returns false if error
 bool VoiceSample::noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybackGuide* guide) {
 
-	if (cache) {
+	if (cache != nullptr) {
 		cacheLoopEndPointBytes = 2147483647;
 		return true;
 	}
 	else {
-		if (timeStretcher) {
+		if (timeStretcher != nullptr) {
 			return true;
 		}
 		else {
@@ -81,7 +81,7 @@ bool VoiceSample::noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybac
 void VoiceSample::endTimeStretching() {
 	fudging = false;
 
-	if (timeStretcher) {
+	if (timeStretcher != nullptr) {
 		timeStretcher->beenUnassigned();
 		AudioEngine::timeStretcherUnassigned(timeStretcher);
 		timeStretcher = nullptr;
@@ -193,7 +193,7 @@ LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* 
 		FREEZE_WITH_ERROR("E366");
 	}
 
-	int32_t finalClusterIndex = voiceSource->getFinalClusterIndex(sample, cache); // Think this is right...
+	int32_t finalClusterIndex = voiceSource->getFinalClusterIndex(sample, cache != nullptr); // Think this is right...
 
 	int32_t clusterIndex = startAtClusterIndex;
 
@@ -274,7 +274,7 @@ bool VoiceSample::fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlayback
 	D_PRINTLN("fudging  %d", numSamplesTilLoop);
 
 	timeStretcher = AudioEngine::solicitTimeStretcher();
-	if (!timeStretcher) {
+	if (timeStretcher == nullptr) {
 		D_PRINTLN("fudging FAIL!!!!");
 		return true; // That failed, but no need to unassign
 	}
@@ -314,9 +314,9 @@ bool VoiceSample::weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuid
                                               int32_t priorityRating, LoopType loopingType) {
 
 	// If not set up yet, do it
-	if (!timeStretcher) {
+	if (timeStretcher == nullptr) {
 		timeStretcher = AudioEngine::solicitTimeStretcher();
-		if (!timeStretcher) {
+		if (timeStretcher == nullptr) {
 			return false;
 		}
 
@@ -344,7 +344,7 @@ bool VoiceSample::weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuid
 	// 32 is about minimum to avoid "hitting front edge" of perc cache when sped up double.
 	// We'll do 32 if we're writing to main cache, cos that makes it extra important that we get the best sound.
 	// Otherwise, go real easy on CPU
-	int32_t maxNumSamplesToProcess = numSamples * ((cache && writingToCache) ? 32 : 6);
+	int32_t maxNumSamplesToProcess = numSamples * (((cache != nullptr) && writingToCache) ? 32 : 6);
 
 	if (timeStretchRatio != kMaxSampleValue) {
 		sample->fillPercCache(timeStretcher, playSample, playSample + (phaseIncrement >> 10) * playDirection,
@@ -427,7 +427,7 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 
 	// If there's a cache, check some stuff. Do this first, cos this can cause us to return
 	// unlikely - if there is a cache this render will be fast, if not we definitely don't want to waste time looking
-	if (cache) [[unlikely]] {
+	if (cache != nullptr) [[unlikely]] {
 
 		// If relevant params have changed since before, we have to stop using the cache which those params previously
 		// described
@@ -526,7 +526,7 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 	}
 
 	// If not reading from a cache (but possibly writing to one)...
-	if (!cache || writingToCache) {
+	if ((cache == nullptr) || writingToCache) {
 
 		// If we should be time stretching now...
 		if (timeStretchRatio != kMaxSampleValue) {
@@ -538,7 +538,7 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 
 			// If writing to cache, there's a chance that setting up time stretching and generating perc data could have
 			// stolen Clusters, so we might have to stop writing to cache
-			if (cache && writingToCache) {
+			if ((cache != nullptr) && writingToCache) {
 				if (cache->writeBytePos < cacheBytePos) {
 					bool success = stopUsingCache(guide, sample, priorityRating, loopingType == LoopType::LOW_LEVEL);
 					if (!success) {
@@ -551,7 +551,7 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 		// If we shouldn't be time stretching now, but if it remains set up from before, stop it. We'd know there's no
 		// cache in this case
 		else {
-			if (timeStretcher && !fudging) [[unlikely]] {
+			if ((timeStretcher != nullptr) && !fudging) [[unlikely]] {
 
 				// We're only allowed to stop once all the play-pos's line up, otherwise there's a big ol' click
 				bool canExit;
@@ -565,7 +565,7 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 #endif
 				{
 					canExit = (currentPlayPos == timeStretcher->olderPartReader.currentPlayPos
-					           && (!guide->sequenceSyncLengthTicks || !guide->getNumSamplesLaggingBehindSync(this)));
+					           && ((guide->sequenceSyncLengthTicks == 0u) || (guide->getNumSamplesLaggingBehindSync(this) == 0)));
 				}
 				if (canExit) {
 					D_PRINTLN("time stretcher no longer needed");
@@ -613,7 +613,7 @@ timeStretchingConsidered:
 	}
 
 	// If time-stretching or reading a time-stretched cache
-	if (timeStretcher) {
+	if (timeStretcher != nullptr) {
 		amplitude <<= 1;
 		amplitudeIncrement <<= 1;
 
@@ -624,7 +624,7 @@ timeStretchingConsidered:
 
 	// Replaying cached stuff!
 	// again unlikely since this is the fast case
-	if (cache && !writingToCache) [[unlikely]] {
+	if ((cache != nullptr) && !writingToCache) [[unlikely]] {
 		// if (!getRandom255()) D_PRINTLN("reading cache");
 
 readCachedWindow:
@@ -712,7 +712,7 @@ readCachedWindow:
 
 		Cluster* cacheCluster = cache->getCluster(cachedClusterIndex);
 		if (ALPHA_OR_BETA_VERSION
-		    && !cacheCluster) { // If it got stolen - but we should have already detected this above
+		    && (cacheCluster == nullptr)) { // If it got stolen - but we should have already detected this above
 			FREEZE_WITH_ERROR("E157");
 		}
 		int32_t* __restrict__ readPos = (int32_t*)&cacheCluster->data[bytePosWithinCluster - 4 + kCacheByteDepth];
@@ -872,7 +872,7 @@ readCachedWindow:
 		}
 
 		numSamples -= numSamplesThisCacheRead;
-		if (numSamples) {
+		if (numSamples != 0) {
 			goto readCachedWindow;
 		}
 	}
@@ -887,7 +887,7 @@ uncachedPlayback:
 		char* cacheWritePos;
 
 		// If there's a cache, prepare to write to it
-		if (cache) {
+		if (cache != nullptr) {
 
 			// If reached loop end, switch to playing the cached loop back
 			int32_t cachingBytesTilLoopEnd = cacheLoopEndPointBytes - cache->writeBytePos;
@@ -931,7 +931,7 @@ uncachedPlayback:
 			}
 
 			Cluster* cacheCluster = cache->getCluster(cacheClusterIndex);
-			if (ALPHA_OR_BETA_VERSION && !cacheCluster) {
+			if (ALPHA_OR_BETA_VERSION && (cacheCluster == nullptr)) {
 				// Check that the Cluster hasn't been stolen - but this should have been detected right at the start
 				FREEZE_WITH_ERROR("E166");
 			}
@@ -970,7 +970,7 @@ uncachedPlayback:
 uncachedPlaybackNotWriting:
 
 			// If time stretching but not synced, now is the time to check loop / end point
-			if (timeStretcher && !guide->sequenceSyncLengthTicks) {
+			if ((timeStretcher != nullptr) && (guide->sequenceSyncLengthTicks == 0u)) {
 				int32_t reassessmentPos = guide->getBytePosToEndOrLoopPlayback();
 
 #if ALPHA_OR_BETA_VERSION
@@ -1063,7 +1063,7 @@ assessLoopPointAgainTimestretched:
 
 		// If no time stretching
 		// unlikely as it's the fast happy path and we don't struggle with it
-		if (!timeStretcher) [[unlikely]] {
+		if (timeStretcher == nullptr) [[unlikely]] {
 
 readNonTimestretched:
 
@@ -1089,7 +1089,7 @@ readNonTimestretched:
 			else {
 
 				// That call to considerUpcomingWindow() just might have led to our cache having Clusters stolen!
-				if (cache && cache->writeBytePos < cacheBytePos) {
+				if ((cache != nullptr) && cache->writeBytePos < cacheBytePos) {
 					bool success = stopUsingCache(guide, sample, priorityRating, loopingType == LoopType::LOW_LEVEL);
 					if (!success) {
 						return false;
@@ -1106,13 +1106,13 @@ readNonTimestretched:
 				                     &cacheWritePos, &doneAnySamplesYet, NULL, false, whichKernel);
 			}
 
-			if (cache) {
+			if (cache != nullptr) {
 				cacheBytePos += numSamplesThisNonTimestretchedRead * kCacheByteDepth * sampleSourceNumChannels;
 				cache->writeBytePos = cacheBytePos; // These two were and are now still the same
 			}
 
 			numSamplesThisUncachedRead -= numSamplesThisNonTimestretchedRead;
-			if (numSamplesThisUncachedRead) {
+			if (numSamplesThisUncachedRead != 0) {
 				goto readNonTimestretched;
 			}
 		}
@@ -1127,7 +1127,7 @@ readNonTimestretched:
 
 			int32_t* const tempBuffer = spareRenderingBuffer[1];
 
-			if (cache) { // If writing cache...
+			if (cache != nullptr) { // If writing cache...
 
 				// Because we're writing cache, and if both play-heads have finished up, clearing that cache is all
 				// that's actually required!
@@ -1186,7 +1186,7 @@ readTimestretched:
 
 						// Check this again, cos newer play-head can become inactive in hopEnd(). This probably isn't
 						// really crucial. Added June 2019
-						if (!cache && loopingType == LoopType::NONE
+						if ((cache == nullptr) && loopingType == LoopType::NONE
 						    && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
 						    && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
 							return false;
@@ -1245,7 +1245,7 @@ readTimestretched:
 
 			// If there's a cache, we don't want the per-play-head functions to apply the overall voice amplitude
 			// envelope - we'll do that at the end when we copy from the cache into the output buffer
-			if (cache) {
+			if (cache != nullptr) {
 				preCacheAmplitude = 2147483647;
 				preCacheAmplitudeIncrement = 0;
 			}
@@ -1430,27 +1430,27 @@ headsFinishedReading:
 			}
 #endif
 
-			if (!cache && loopingType == LoopType::NONE && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
+			if ((cache == nullptr) && loopingType == LoopType::NONE && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
 			    && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
 				return false;
 			}
 
 			timeStretcher->samplesTilHopEnd -= numSamplesThisTimestretchedRead;
 
-			if (!cache) {
+			if (cache == nullptr) {
 				amplitude += amplitudeIncrement * numSamplesThisTimestretchedRead;
 			}
 
 			numSamplesThisUncachedRead -= numSamplesThisTimestretchedRead;
 
-			if (numSamplesThisUncachedRead) {
+			if (numSamplesThisUncachedRead != 0) {
 				timeStretchResultWritePos += numSamplesThisTimestretchedRead * numChannelsInTimeStretchResult;
 				goto readTimestretched;
 			}
 
 			// If we were writing to a temp buffer instead of the output buffer because we need to cache,
 			// now we copy from the temp buffer to both the cache and the output buffer
-			if (cache) {
+			if (cache != nullptr) {
 				int32_t* __restrict__ tempBufferReadPos = tempBuffer;
 
 				// Pre-fetch some memory
@@ -1532,7 +1532,7 @@ headsFinishedReading:
 					existingValueL = *outputBufferWritePos;
 				}
 
-				if (cache) { // Might not be true anymore if we had to abandon the cache just above cos it got Clusters
+				if (cache != nullptr) { // Might not be true anymore if we had to abandon the cache just above cos it got Clusters
 					         // stolen.
 					cacheWritePos =
 					    cacheWritePosNow; // Not necessary I don't think - cacheWritePos doesn't get used again does it?
@@ -1554,7 +1554,7 @@ finishedTimestretchedRead:
 		// numSamples -= numSamplesThisUncachedRead; // No, this was now done above
 
 		// If need to go again, to write to a different cache Cluster...
-		if (numSamples) {
+		if (numSamples != 0) {
 			goto uncachedPlayback;
 		}
 	}
@@ -1571,14 +1571,14 @@ bool VoiceSample::sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sa
 
 	// If cache, then update cache loop points - but not if it was the start marker that was moved, cos that means we'll
 	// stop using cache altogether
-	if (cache && markerType != MarkerType::START) {
+	if ((cache != nullptr) && markerType != MarkerType::START) {
 		setupCacheLoopPoints(voiceSource, sample, loopingType);
 	}
 
 	if (markerType == MarkerType::START) {
 
 		// If cache...
-		if (cache) {
+		if (cache != nullptr) {
 			bool success = stopUsingCache(voiceSource, sample, priorityRating, loopingType == LoopType::LOW_LEVEL);
 			if (!success) {
 				return false;
@@ -1596,7 +1596,7 @@ bool VoiceSample::sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sa
 
 		D_PRINTLN("MarkerType::LOOP_END");
 		// If cache...
-		if (cache) {
+		if (cache != nullptr) {
 
 			// If we've shot past loop end point...
 			if (cacheBytePos >= cacheLoopEndPointBytes) {
@@ -1612,7 +1612,7 @@ loopBackToStartCached:
 		// Or if no cache...
 		else {
 
-			if (timeStretcher) {
+			if (timeStretcher != nullptr) {
 				D_PRINTLN("timeStretcher");
 
 				if (((VoiceSamplePlaybackGuide*)voiceSource)->shouldObeyLoopEndPointNow()) {
@@ -1649,7 +1649,7 @@ loopBackToStartCached:
 	else if (markerType == MarkerType::END) {
 
 		// If cache...
-		if (cache) {
+		if (cache != nullptr) {
 
 			// If we've shot past end point...
 			if (cacheBytePos >= cacheEndPointBytes) {
@@ -1666,9 +1666,9 @@ loopBackToStartCached:
 		// Or if no cache...
 		else {
 
-			if (timeStretcher) {
+			if (timeStretcher != nullptr) {
 
-				if (voiceSource->endPlaybackAtByte
+				if ((voiceSource->endPlaybackAtByte != 0u)
 				    && (forAudioClip
 				        || !((VoiceSamplePlaybackGuide*)voiceSource)
 				                ->noteOffReceived)) { // Wait, wouldn't there always be a
@@ -1738,7 +1738,7 @@ loopBackToStartTimeStretched:
 }
 
 int32_t VoiceSample::getPlaySample(Sample* sample, SamplePlaybackGuide* guide) {
-	if (timeStretcher) {
+	if (timeStretcher != nullptr) {
 		return timeStretcher->getSamplePos(guide->playDirection);
 	}
 
@@ -1761,7 +1761,7 @@ bool VoiceSample::possiblySetUpCache(SampleControls* sampleControls, SamplePlayb
 	if (phaseIncrement == kMaxSampleValue) {
 		return true;
 	}
-	if (guide->sequenceSyncLengthTicks && (playbackHandler.isExternalClockActive())) {
+	if ((guide->sequenceSyncLengthTicks != 0u) && (playbackHandler.isExternalClockActive())) {
 		return true; // No syncing to external clock
 	}
 	if (sampleControls->interpolationMode != InterpolationMode::SMOOTH) {
@@ -1773,7 +1773,7 @@ bool VoiceSample::possiblySetUpCache(SampleControls* sampleControls, SamplePlayb
 	            ->getOrCreateCache((SampleHolder*)guide->audioFileHolder, phaseIncrement, timeStretchRatio,
 	                               guide->playDirection == -1, mayCreate, &writingToCache);
 
-	if (cache) {
+	if (cache != nullptr) {
 		// D_PRINTLN("cache gotten");
 		cacheBytePos = 0;
 

@@ -33,7 +33,7 @@ void VoiceSamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
 	int32_t loopEndPlaybackAtSample = 0;
 
 	// Loop points are only obeyed if not in STRETCH mode
-	if (!sequenceSyncLengthTicks) {
+	if (sequenceSyncLengthTicks == 0u) {
 
 		loopStartPlaybackAtSample = reversed ? ((SampleHolderForVoice*)audioFileHolder)->loopEndPos
 		                                     : ((SampleHolderForVoice*)audioFileHolder)->loopStartPos;
@@ -41,10 +41,10 @@ void VoiceSamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
 		                                   : ((SampleHolderForVoice*)audioFileHolder)->loopEndPos;
 
 		if (reversed) { // Don't mix this with the above - we want to keep 0s as 0
-			if (loopStartPlaybackAtSample) {
+			if (loopStartPlaybackAtSample != 0) {
 				loopStartPlaybackAtSample--;
 			}
-			if (loopEndPlaybackAtSample) {
+			if (loopEndPlaybackAtSample != 0) {
 				loopEndPlaybackAtSample--;
 			}
 		}
@@ -56,14 +56,14 @@ void VoiceSamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
 	Sample* sample = (Sample*)audioFileHolder->audioFile;
 	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
 
-	if (loopStartPlaybackAtSample) {
+	if (loopStartPlaybackAtSample != 0) {
 		loopStartPlaybackAtByte = sample->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;
 	}
 	else {
 		loopStartPlaybackAtByte = startPlaybackAtByte;
 	}
 
-	if (loopEndPlaybackAtSample) {
+	if (loopEndPlaybackAtSample != 0) {
 		loopEndPlaybackAtByte = sample->audioDataStartPosBytes + loopEndPlaybackAtSample * bytesPerSample;
 	}
 }
@@ -71,7 +71,7 @@ void VoiceSamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
 // This is, whether to obey the loop-end point as opposed to the actual end-of-sample point (which sometimes might cause
 // looping too)
 bool VoiceSamplePlaybackGuide::shouldObeyLoopEndPointNow() {
-	return (loopEndPlaybackAtByte && !noteOffReceived);
+	return ((loopEndPlaybackAtByte != 0u) && !noteOffReceived);
 }
 
 int32_t VoiceSamplePlaybackGuide::getBytePosToStartPlayback(bool justLooped) {
@@ -94,7 +94,7 @@ int32_t VoiceSamplePlaybackGuide::getBytePosToEndOrLoopPlayback() {
 }
 
 LoopType VoiceSamplePlaybackGuide::getLoopingType(const Source& source) const {
-	if (loopEndPlaybackAtByte) {
+	if (loopEndPlaybackAtByte != 0u) {
 		return noteOffReceived ? LoopType::NONE : LoopType::LOW_LEVEL;
 	}
 	return (source.repeatMode == SampleRepeatMode::LOOP) ? LoopType::LOW_LEVEL : LoopType::NONE;

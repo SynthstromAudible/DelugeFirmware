@@ -77,7 +77,7 @@ ActionResult RenameMidiCCUI::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	// Back button
 	if (b == BACK) {
-		if (on && !currentUIMode) {
+		if (on && (currentUIMode == 0u)) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -87,7 +87,7 @@ ActionResult RenameMidiCCUI::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	// Select encoder button
 	else if (b == SELECT_ENC) {
-		if (on && !currentUIMode) {
+		if (on && (currentUIMode == 0u)) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -128,7 +128,7 @@ ActionResult RenameMidiCCUI::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 
 	// Otherwise, exit
-	if (on && !currentUIMode) {
+	if ((on != 0) && (currentUIMode == 0u)) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}

@@ -197,7 +197,7 @@ void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ se
 }
 
 bool OrderedResizeableArrayWith32bitKey::generateRepeats(int32_t wrapPoint, int32_t endPos) {
-	if (!memory) {
+	if (memory == nullptr) {
 		return true;
 	}
 
@@ -534,7 +534,7 @@ OrderedResizeableArrayWith32bitKey::OrderedResizeableArrayWith32bitKey(int32_t n
 
 void OrderedResizeableArrayWith32bitKey::shiftHorizontal(int32_t shiftAmount, int32_t effectiveLength) {
 
-	if (!numElements) {
+	if (numElements == 0) {
 		return;
 	}
 
@@ -546,7 +546,7 @@ void OrderedResizeableArrayWith32bitKey::shiftHorizontal(int32_t shiftAmount, in
 		shiftAmount = -((uint32_t)(-shiftAmount) % (uint32_t)effectiveLength);
 	}
 
-	if (!shiftAmount) {
+	if (shiftAmount == 0) {
 		return;
 	}
 
@@ -582,11 +582,11 @@ updateKeys:
 	}
 
 	// If the leftmost element (in terms of key/position, *not* physical memory location!) has actually changed...
-	if (cutoffIndex && cutoffIndex < numElements) {
+	if ((cutoffIndex != 0) && cutoffIndex < numElements) {
 
 		// If ends aren't touching...
 		int32_t memoryTooBigBy = memorySize - numElements;
-		if (memoryTooBigBy) {
+		if (memoryTooBigBy != 0) {
 
 			// If wrap, then do the smallest amount of memory moving possible to make the ends touch
 			int32_t numElementsBeforeWrap = memorySize - memoryStart;

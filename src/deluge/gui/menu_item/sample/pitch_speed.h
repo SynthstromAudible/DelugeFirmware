@@ -31,7 +31,7 @@ public:
 	bool usesAffectEntire() override { return true; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) final {
-		return getCurrentAudioClip() || isSampleModeSample(modControllable, whichThing);
+		return (getCurrentAudioClip() != nullptr) || isSampleModeSample(modControllable, whichThing);
 	}
 
 	void readCurrentValue() override { this->setValue(soundEditor.currentSampleControls->pitchAndSpeedAreIndependent); }

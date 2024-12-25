@@ -127,13 +127,13 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 
 	int32_t highlightStartX;
 	int32_t scrollAmount = enteredTextEditPos - scrollPosHorizontal;
-	if (FlashStorage::accessibilityMenuHighlighting && !scrollAmount) {
+	if (FlashStorage::accessibilityMenuHighlighting && (scrollAmount == 0)) {
 		highlightStartX = 0;
 	}
 	else {
 		// if we're at the beginning of the string, we want to show an extra inverted pixel before
 		// if we're somewhere inside the string, we want to start highlight right on the character
-		int32_t startAdjustment = scrollAmount ? 0 : 1;
+		int32_t startAdjustment = (scrollAmount != 0) ? 0 : 1;
 		highlightStartX = xPixel + kTextSpacingX * scrollAmount - startAdjustment;
 	}
 	int32_t highlightWidth = xPixelMax - highlightStartX;
@@ -161,7 +161,7 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	bool encodedEndPosAndAHalf;
 	int32_t encodedEndPos = display->getEncodedPosFromLeft(totalTextLength, enteredText.get(), &encodedEndPosAndAHalf);
 
-	int32_t scrollPos = encodedEditPos - (kNumericDisplayLength >> 1) + encodedEditPosAndAHalf;
+	int32_t scrollPos = encodedEditPos - (kNumericDisplayLength >> 1) + static_cast<int>(encodedEditPosAndAHalf);
 	int32_t maxScrollPos = encodedEndPos - kNumericDisplayLength;
 	if (totalTextLength == enteredTextEditPos) {
 		maxScrollPos++;
@@ -229,7 +229,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Backspace
 	if (y == kQwertyHomeRow + 2 && x >= 14 && x < 16) {
-		if (on) {
+		if (on != 0) {
 			if (currentUIMode == UI_MODE_PREDICTING_QWERTY_TEXT) {
 				predictionInterrupted = true;
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -240,7 +240,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			else if (!currentUIMode) {
+			else if (currentUIMode == 0u) {
 				currentUIMode = UI_MODE_HOLDING_BACKSPACE;
 				processBackspace();
 				uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
@@ -256,7 +256,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Enter
 	else if (y == kQwertyHomeRow && x >= 14 && x < 16) {
-		if (on) {
+		if (on != 0) {
 			if (currentUIMode == UI_MODE_PREDICTING_QWERTY_TEXT) {
 				predictionInterrupted = true;
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -268,7 +268,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 				return ActionResult::DEALT_WITH;
 			}
 
-			else if (!currentUIMode) {
+			else if (currentUIMode == 0u) {
 				if (sdRoutineLock) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
@@ -279,7 +279,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Normal keys
 	else if (x >= 3 && x < 14 && y >= kQwertyHomeRow - 2 && y <= kQwertyHomeRow + 2) {
-		if (on) {
+		if (on != 0) {
 
 			// If predicting, gotta interrupt that
 			if (currentUIMode == UI_MODE_PREDICTING_QWERTY_TEXT) {
@@ -288,7 +288,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 
 			// Otherwise, if we still might want to use this press...
-			else if (!currentUIMode || currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED) {
+			else if ((currentUIMode == 0u) || currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED) {
 
 				char newChar =
 				    keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)][kQwertyHomeRow - y + 2][x - 3];
@@ -297,7 +297,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 				}
 
 				// First character must be alphanumerical
-				if (!enteredTextEditPos) {
+				if (enteredTextEditPos == 0) {
 					if ((newChar >= 'A' && newChar <= 'Z') || (newChar >= '0' && newChar <= '9')) {
 					} // Then everything's fine
 					else {

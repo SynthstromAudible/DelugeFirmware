@@ -47,7 +47,7 @@ bool SoundInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOut
 	ParamManager* paramManager;
 
 	// If saving Output only...
-	if (clipForSavingOutputOnly) {
+	if (clipForSavingOutputOnly != nullptr) {
 		paramManager = &clipForSavingOutputOnly->paramManager;
 
 		// Or if saving Song...
@@ -56,7 +56,7 @@ bool SoundInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOut
 
 		// If no activeClip, that means no Clip has this Output, so there should be a backedUpParamManager that we
 		// should use
-		if (!activeClip) {
+		if (activeClip == nullptr) {
 			paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
 		}
 		else {
@@ -65,7 +65,7 @@ bool SoundInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOut
 	}
 
 	Sound::writeToFile(writer, clipForSavingOutputOnly == nullptr, paramManager,
-	                   clipForSavingOutputOnly ? &((InstrumentClip*)clipForSavingOutputOnly)->arpSettings : nullptr,
+	                   (clipForSavingOutputOnly != nullptr) ? &((InstrumentClip*)clipForSavingOutputOnly)->arpSettings : nullptr,
 	                   NULL);
 
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(writer, clipForSavingOutputOnly, song);
@@ -93,7 +93,7 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPo
                                    int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
 	// this should only happen in the rare case that this is called while replacing an instrument but after the clips
 	// have been cleared
-	if (!activeClip) [[unlikely]] {
+	if (activeClip == nullptr) [[unlikely]] {
 		return;
 	}
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -109,19 +109,19 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPo
 		              reverbAmountAdjust, shouldLimitDelayFeedback, kMaxSampleValue, recorder);
 	}
 
-	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {
+	if (playbackHandler.isEitherClockActive() && (playbackHandler.ticksLeftInCountIn == 0) && isClipActive) {
 
 		// No time to call the proper function and do error checking, sorry.
 		ParamCollectionSummary* patchedParamsSummary = &modelStackWithThreeMainThings->paramManager->summaries[1];
 		bool anyInterpolating = false;
 		if constexpr (params::kNumParams > 64) {
-			anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
-			                   || patchedParamsSummary->whichParamsAreInterpolating[1]
-			                   || patchedParamsSummary->whichParamsAreInterpolating[2];
+			anyInterpolating = (patchedParamsSummary->whichParamsAreInterpolating[0] != 0u)
+			                   || (patchedParamsSummary->whichParamsAreInterpolating[1] != 0u)
+			                   || (patchedParamsSummary->whichParamsAreInterpolating[2] != 0u);
 		}
 		else {
-			anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
-			                   || patchedParamsSummary->whichParamsAreInterpolating[1];
+			anyInterpolating = (patchedParamsSummary->whichParamsAreInterpolating[0] != 0u)
+			                   || (patchedParamsSummary->whichParamsAreInterpolating[1] != 0u);
 		}
 		if (anyInterpolating) {
 yesTickParamManagerForClip:
@@ -135,13 +135,13 @@ yesTickParamManagerForClip:
 			// No time to call the proper function and do error checking, sorry.
 			ParamCollectionSummary* unpatchedParamsSummary = &modelStackWithThreeMainThings->paramManager->summaries[0];
 			if constexpr (params::UNPATCHED_SOUND_MAX_NUM > 32) {
-				if (unpatchedParamsSummary->whichParamsAreInterpolating[0]
-				    || unpatchedParamsSummary->whichParamsAreInterpolating[1]) {
+				if ((unpatchedParamsSummary->whichParamsAreInterpolating[0] != 0u)
+				    || (unpatchedParamsSummary->whichParamsAreInterpolating[1] != 0u)) {
 					goto yesTickParamManagerForClip;
 				}
 			}
 			else {
-				if (unpatchedParamsSummary->whichParamsAreInterpolating[0]) {
+				if (unpatchedParamsSummary->whichParamsAreInterpolating[0] != 0u) {
 					goto yesTickParamManagerForClip;
 				}
 			}
@@ -149,13 +149,13 @@ yesTickParamManagerForClip:
 			// No time to call the proper function and do error checking, sorry.
 			ParamCollectionSummary* patchCablesSummary = &modelStackWithThreeMainThings->paramManager->summaries[2];
 			if constexpr (kMaxNumPatchCables > 32) {
-				if (patchCablesSummary->whichParamsAreInterpolating[0]
-				    || patchCablesSummary->whichParamsAreInterpolating[1]) {
+				if ((patchCablesSummary->whichParamsAreInterpolating[0] != 0u)
+				    || (patchCablesSummary->whichParamsAreInterpolating[1] != 0u)) {
 					goto yesTickParamManagerForClip;
 				}
 			}
 			else {
-				if (patchCablesSummary->whichParamsAreInterpolating[0]) {
+				if (patchCablesSummary->whichParamsAreInterpolating[0] != 0u) {
 					goto yesTickParamManagerForClip;
 				}
 			}
@@ -164,13 +164,13 @@ yesTickParamManagerForClip:
 			ParamCollectionSummary* expressionParamsSummary =
 			    &modelStackWithThreeMainThings->paramManager->summaries[3];
 			if constexpr (kNumExpressionDimensions > 32) {
-				if (expressionParamsSummary->whichParamsAreInterpolating[0]
-				    || expressionParamsSummary->whichParamsAreInterpolating[1]) {
+				if ((expressionParamsSummary->whichParamsAreInterpolating[0] != 0u)
+				    || (expressionParamsSummary->whichParamsAreInterpolating[1] != 0u)) {
 					goto yesTickParamManagerForClip;
 				}
 			}
 			else {
-				if (expressionParamsSummary->whichParamsAreInterpolating[0]) {
+				if (expressionParamsSummary->whichParamsAreInterpolating[0] != 0u) {
 					goto yesTickParamManagerForClip;
 				}
 			}
@@ -183,11 +183,11 @@ yesTickParamManagerForClip:
 			ParamCollectionSummary* expressionParamsSummary = &thisNoteRow->paramManager.summaries[0];
 			bool result = false;
 			if constexpr (kNumExpressionDimensions > 32) {
-				result = expressionParamsSummary->whichParamsAreInterpolating[0]
-				         || expressionParamsSummary->whichParamsAreInterpolating[1];
+				result = (expressionParamsSummary->whichParamsAreInterpolating[0] != 0u)
+				         || (expressionParamsSummary->whichParamsAreInterpolating[1] != 0u);
 			}
 			else {
-				result = expressionParamsSummary->whichParamsAreInterpolating[0];
+				result = (expressionParamsSummary->whichParamsAreInterpolating[0] != 0u);
 			}
 			if (result) {
 				modelStackWithThreeMainThings->setNoteRow(thisNoteRow, thisNoteRow->y);
@@ -230,7 +230,7 @@ void SoundInstrument::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull();
 	ParamManagerForTimeline* paramManager;
-	if (clip) {
+	if (clip != nullptr) {
 		paramManager = &clip->paramManager;
 
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -259,13 +259,13 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, P
 	if (clipChanged) {
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 
-		if (modelStack) {
+		if (modelStack != nullptr) {
 			ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
 			patcher.performInitialPatching(this, paramManager);
 
 			// Grab mono expression params
 			ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
-			if (expressionParams) {
+			if (expressionParams != nullptr) {
 				for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 					monophonicExpressionValues[i] = expressionParams->params[i].getCurrentValue();
 				}
@@ -289,7 +289,7 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 
 	ParamManager* paramManager =
 	    modelStackWithTimelineCounter->song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
-	if (!paramManager) {
+	if (paramManager == nullptr) {
 		FREEZE_WITH_ERROR("E173");
 	}
 	patcher.performInitialPatching(this, paramManager);
@@ -398,7 +398,7 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 
 #if ALPHA_OR_BETA_VERSION
-			if (!modelStack->paramManager) {
+			if (modelStack->paramManager == nullptr) {
 				// Previously we were allowed to receive a NULL paramManager, then would just crudely do an
 				// unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
 				FREEZE_WITH_ERROR("E402");
@@ -431,7 +431,7 @@ void SoundInstrument::loadCrucialAudioFilesOnly() {
 
 // Any time it gets edited, we want to grab the default arp settings from the activeClip
 void SoundInstrument::beenEdited(bool shouldMoveToEmptySlot) {
-	if (activeClip) {
+	if (activeClip != nullptr) {
 		defaultArpSettings.cloneFrom(&((InstrumentClip*)activeClip)->arpSettings);
 	}
 	Instrument::beenEdited(shouldMoveToEmptySlot);
@@ -439,7 +439,7 @@ void SoundInstrument::beenEdited(bool shouldMoveToEmptySlot) {
 
 // Returns num ticks til next arp event
 int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
-	if (!activeClip) {
+	if (activeClip == nullptr) {
 		return 2147483647;
 	}
 
@@ -486,7 +486,7 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 void SoundInstrument::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
                                              GlobalEffectableForClip** globalEffectableWithMostReverb,
                                              int32_t* highestReverbAmountFound) {
-	if (activeClip) {
+	if (activeClip != nullptr) {
 		Sound::getThingWithMostReverb(soundWithMostReverb, paramManagerWithMostReverb, globalEffectableWithMostReverb,
 		                              highestReverbAmountFound, &activeClip->paramManager);
 	}
@@ -500,7 +500,7 @@ bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	if (arpSettings) {
+	if (arpSettings != nullptr) {
 		if (arpSettings->mode != ArpMode::OFF || polyphonic == PolyphonyMode::LEGATO
 		    || polyphonic == PolyphonyMode::MONO) {
 
@@ -513,7 +513,7 @@ bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 		}
 	}
 
-	if (!numVoicesAssigned) {
+	if (numVoicesAssigned == 0) {
 		return false;
 	}
 

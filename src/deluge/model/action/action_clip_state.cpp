@@ -41,7 +41,7 @@ void ActionClipState::grabFromClip(Clip* thisClip) {
 		}
 		else {
 			Kit* kit = (Kit*)thisClip->output;
-			if (!kit->selectedDrum) {
+			if (kit->selectedDrum == nullptr) {
 				selectedDrumIndex = -1;
 			}
 			else {

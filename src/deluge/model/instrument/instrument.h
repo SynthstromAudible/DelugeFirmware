@@ -58,7 +58,7 @@ public:
 		if (type == otherType) {
 
 			if (otherType == OutputType::SYNTH || otherType == OutputType::KIT) {
-				match = !strcasecmp(otherName, name.get()) && !strcasecmp(otherPath, dirPath.get());
+				match = (strcasecmp(otherName, name.get()) == 0) && (strcasecmp(otherPath, dirPath.get()) == 0);
 			}
 		}
 		return match;

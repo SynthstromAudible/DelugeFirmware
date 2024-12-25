@@ -123,7 +123,7 @@ void CVEngine::switchGateOff(int32_t channel) {
 void CVEngine::switchGateOn(int32_t channel, int32_t doInstantlyIfPossible) {
 	gateChannels[channel].on = true;
 
-	if (doInstantlyIfPossible) {
+	if (doInstantlyIfPossible != 0) {
 		uint32_t timeSinceLastSwitchedOff = AudioEngine::audioSampleTimer - gateChannels[channel].timeLastSwitchedOff;
 		if (timeSinceLastSwitchedOff >= minGateOffTime * 441) {
 			physicallySwitchGate(channel);
@@ -131,7 +131,7 @@ void CVEngine::switchGateOn(int32_t channel, int32_t doInstantlyIfPossible) {
 		}
 	}
 
-	if (doInstantlyIfPossible) {
+	if (doInstantlyIfPossible != 0) {
 		asapGateOutputPending = true;
 	}
 	else {
@@ -208,7 +208,7 @@ void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 
 void CVEngine::physicallySwitchGate(int32_t channel) {
 	// setOutputState is inverted - sending true turns the gate off
-	int32_t on = gateChannels[channel].on == (gateChannels[channel].mode == GateType::S_TRIG);
+	int32_t on = static_cast<int32_t>(gateChannels[channel].on == (gateChannels[channel].mode == GateType::S_TRIG));
 	setOutputState(gatePort[channel], gatePin[channel], on);
 }
 
@@ -335,11 +335,11 @@ void CVEngine::updateRunOutput() {
 		return;
 	}
 
-	bool runState = (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn);
+	bool runState = (playbackHandler.isEitherClockActive() && (playbackHandler.ticksLeftInCountIn == 0));
 
 	if (runState) {
 		switchGateOn(WHICH_GATE_OUTPUT_IS_RUN,
-		             true); // Try to do instantly, because it's actually good if RUN can switch on before the first
+		             1); // Try to do instantly, because it's actually good if RUN can switch on before the first
 		                    // clock is sent
 	}
 	else {

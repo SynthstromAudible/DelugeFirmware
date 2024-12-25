@@ -39,7 +39,7 @@ public:
 	void readCurrentValue() override {
 		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 
-		if (leftMostNote) {
+		if (leftMostNote != nullptr) {
 			Iterance iterance = leftMostNote->getIterance();
 			if (iterance == kDefaultIteranceValue) {
 				// if we end up here in this menu, convert OFF to the default CUSTOM value 1of1
@@ -53,7 +53,7 @@ public:
 	void writeCurrentValue() override {
 		int32_t val = this->getValue();
 		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
-		if (leftMostNote) {
+		if (leftMostNote != nullptr) {
 			Iterance iterance = leftMostNote->getIterance();
 			if (iterance == kDefaultIteranceValue) {
 				// if we end up here in this menu, convert OFF to the default CUSTOM value 1of1

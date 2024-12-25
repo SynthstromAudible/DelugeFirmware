@@ -114,7 +114,7 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 	int32_t pitchAdjustNeutralValue = ((SampleHolder*)guide->audioFileHolder)->neutralPhaseIncrement;
 
 	// If syncing...
-	if (guide->sequenceSyncLengthTicks) {
+	if (guide->sequenceSyncLengthTicks != 0u) {
 
 		*timeStretchRatio = kMaxSampleValue;
 

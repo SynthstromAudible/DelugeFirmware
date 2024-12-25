@@ -45,7 +45,7 @@ void ConsequenceClipExistence::prepareForDestruction(int32_t whichQueueActionIn,
 
 #if ALPHA_OR_BETA_VERSION
 		if (clip->type == ClipType::AUDIO) {
-			if (((AudioClip*)clip)->recorder) {
+			if (((AudioClip*)clip)->recorder != nullptr) {
 				FREEZE_WITH_ERROR("i002"); // Trying to diversify Qui's E278
 			}
 		}
@@ -74,7 +74,7 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 		}
 
 #if ALPHA_OR_BETA_VERSION
-		if (clip->type == ClipType::AUDIO && !clip->paramManager.summaries[0].paramCollection) {
+		if (clip->type == ClipType::AUDIO && (clip->paramManager.summaries[0].paramCollection == nullptr)) {
 			FREEZE_WITH_ERROR("E419"); // Trying to diversify Leo's E410
 		}
 #endif
@@ -84,14 +84,14 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 		clip->activeIfNoSolo = false;   // So we can toggle it back on, below
 		clip->armState = ArmState::OFF; // In case was left on before
 
-		if (shouldBeActiveWhileExistent && !(playbackHandler.playbackState && currentPlaybackMode == &arrangement)) {
+		if (shouldBeActiveWhileExistent && !((playbackHandler.playbackState != 0u) && currentPlaybackMode == &arrangement)) {
 			session.toggleClipStatus(clip, &clipIndex, true, 0);
 			if (!clip->activeIfNoSolo) {
 				D_PRINTLN("still not active!");
 			}
 		}
 
-		if (!clip->output->getActiveClip()) {
+		if (clip->output->getActiveClip() == nullptr) {
 			clip->output->setActiveClip(
 			    modelStackWithTimelineCounter); // Must do this to avoid E170 error. If Instrument has no
 			                                    // backedUpParamManager, it must have an activeClip
@@ -145,14 +145,14 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 
 #if ALPHA_OR_BETA_VERSION
 		if (clip->type == ClipType::AUDIO) {
-			if (((AudioClip*)clip)->recorder) {
+			if (((AudioClip*)clip)->recorder != nullptr) {
 				FREEZE_WITH_ERROR("i003"); // Trying to diversify Qui's E278
 			}
 		}
 #endif
 
 #if ALPHA_OR_BETA_VERSION
-		if (clip->type == ClipType::AUDIO && !clip->paramManager.summaries[0].paramCollection) {
+		if (clip->type == ClipType::AUDIO && (clip->paramManager.summaries[0].paramCollection == nullptr)) {
 			FREEZE_WITH_ERROR("E420"); // Trying to diversify Leo's E410
 		}
 #endif

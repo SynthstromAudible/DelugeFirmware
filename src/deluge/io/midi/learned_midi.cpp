@@ -90,7 +90,7 @@ void LearnedMIDI::writeToFile(Serializer& writer, char const* commandName, int32
 	writer.writeOpeningTagBeginning(commandName);
 	writeAttributesToFile(writer, midiMessageType);
 
-	if (cable) {
+	if (cable != nullptr) {
 		writer.writeOpeningTagEnd();
 		cable->writeReferenceToFile(writer);
 		writer.writeClosingTag(commandName);
@@ -103,18 +103,18 @@ void LearnedMIDI::writeToFile(Serializer& writer, char const* commandName, int32
 void LearnedMIDI::readFromFile(Deserializer& reader, int32_t midiMessageType) {
 
 	char const* tagName;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "channel")) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+		if (strcmp(tagName, "channel") == 0) {
 			channelOrZone = reader.readTagOrAttributeValueInt();
 		}
-		else if (!strcmp(tagName, "mpeZone")) {
+		else if (strcmp(tagName, "mpeZone") == 0) {
 			readMPEZone(reader);
 		}
-		else if (!strcmp(tagName, "device")) {
+		else if (strcmp(tagName, "device") == 0) {
 			cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
 		}
 		else if (midiMessageType != MIDI_MESSAGE_NONE
-		         && !strcmp(tagName, getTagNameFromMIDIMessageType(midiMessageType))) {
+		         && (strcmp(tagName, getTagNameFromMIDIMessageType(midiMessageType)) == 0)) {
 			noteOrCC = reader.readTagOrAttributeValueInt();
 			noteOrCC = std::min<int32_t>(noteOrCC, 127);
 		}
@@ -124,10 +124,10 @@ void LearnedMIDI::readFromFile(Deserializer& reader, int32_t midiMessageType) {
 
 void LearnedMIDI::readMPEZone(Deserializer& reader) {
 	char const* text = reader.readTagOrAttributeValue();
-	if (!strcmp(text, "lower")) {
+	if (strcmp(text, "lower") == 0) {
 		channelOrZone = MIDI_CHANNEL_MPE_LOWER_ZONE;
 	}
-	else if (!strcmp(text, "upper")) {
+	else if (strcmp(text, "upper") == 0) {
 		channelOrZone = MIDI_CHANNEL_MPE_UPPER_ZONE;
 	}
 }
@@ -139,7 +139,7 @@ bool LearnedMIDI::equalsChannelAllowMPE(MIDICable* newCable, int32_t newChannel)
 	if (!equalsCable(newCable)) {
 		return false;
 	}
-	if (!cable) {
+	if (cable == nullptr) {
 		return false; // Could we actually be set to MPE but have no device? Maybe if loaded from weird song file?
 	}
 	int32_t newCorZ = newCable->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(newChannel);

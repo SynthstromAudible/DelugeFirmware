@@ -29,7 +29,7 @@ public:
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		audioOutputBeingEdited = (AudioOutput*)getCurrentOutput();
-		if (audioOutputBeingEdited->getOutputRecordingFrom()) {
+		if (audioOutputBeingEdited->getOutputRecordingFrom() != nullptr) {
 			outputIndex = currentSong->getOutputIndex(audioOutputBeingEdited->getOutputRecordingFrom());
 		}
 		else {

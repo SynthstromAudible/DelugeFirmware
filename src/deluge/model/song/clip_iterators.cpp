@@ -34,7 +34,7 @@ void ClipIteratorBase::deleteClip(InstrumentRemoval instrumentRemoval) {
 void ClipIteratorBase::next() {
 	for (;;) {
 		index++;
-		if (index >= array->getNumElements() && nextArray) {
+		if (index >= array->getNumElements() && (nextArray != nullptr)) {
 			array = nextArray;
 			nextArray = nullptr;
 			index = 0;
@@ -67,8 +67,8 @@ ClipIterator<Clip> AllClips::begin() {
 }
 
 ClipIterator<Clip> AllClips::end() {
-	ClipArray* last = second ? second : first;
-	int32_t n = last ? last->getNumElements() : 0;
+	ClipArray* last = (second != nullptr) ? second : first;
+	int32_t n = (last != nullptr) ? last->getNumElements() : 0;
 	return ClipIterator<Clip>(last, n, nullptr, {});
 }
 
@@ -81,7 +81,7 @@ ClipIterator<InstrumentClip> InstrumentClips::begin() {
 }
 
 ClipIterator<InstrumentClip> InstrumentClips::end() {
-	ClipArray* last = second ? second : first;
+	ClipArray* last = (second != nullptr) ? second : first;
 	return ClipIterator<InstrumentClip>(last, last->getNumElements(), nullptr, ClipType::INSTRUMENT);
 }
 
@@ -94,6 +94,6 @@ ClipIterator<AudioClip> AudioClips::begin() {
 }
 
 ClipIterator<AudioClip> AudioClips::end() {
-	ClipArray* last = second ? second : first;
+	ClipArray* last = (second != nullptr) ? second : first;
 	return ClipIterator<AudioClip>(last, last->getNumElements(), nullptr, ClipType::AUDIO);
 }

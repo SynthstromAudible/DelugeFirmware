@@ -24,16 +24,16 @@ void MIDICableUSB::connectedNow(int32_t midiDeviceNum) {
 }
 
 void MIDICableUSB::sendMCMsNowIfNeeded() {
-	if (needsToSendMCMs) {
+	if (needsToSendMCMs != 0u) {
 		needsToSendMCMs--;
-		if (!needsToSendMCMs) {
+		if (needsToSendMCMs == 0u) {
 			sendAllMCMs();
 		}
 	}
 }
 
 void MIDICableUSB::sendMessage(MIDIMessage message) {
-	if (!connectionFlags) {
+	if (connectionFlags == 0u) {
 		return;
 	}
 
@@ -42,7 +42,7 @@ void MIDICableUSB::sendMessage(MIDIMessage message) {
 	uint32_t fullMessage = setupUSBMessage(message);
 
 	for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
-		if (connectionFlags & (1 << d)) {
+		if ((connectionFlags & (1 << d)) != 0) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 			connectedDevice->bufferMessage(fullMessage);
 		}
@@ -56,13 +56,13 @@ size_t MIDICableUSB::sendBufferSpace() {
 	// find the connected device for this specific device. Note that virtual
 	// port number is specified as part of the message, implemented below.
 	for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
-		if (connectionFlags & (1 << d)) {
+		if ((connectionFlags & (1 << d)) != 0) {
 			connectedDevice = &connectedUSBMIDIDevices[ip][d];
 			break;
 		}
 	}
 
-	if (!connectedDevice) {
+	if (connectedDevice == nullptr) {
 		return 0;
 	}
 
@@ -82,13 +82,13 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 	// find the connected device for this specific device. Note that virtual
 	// port number is specified as part of the message, implemented below.
 	for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
-		if (connectionFlags & (1 << d)) {
+		if ((connectionFlags & (1 << d)) != 0) {
 			connectedDevice = &connectedUSBMIDIDevices[ip][d];
 			break;
 		}
 	}
 
-	if (!connectedDevice) {
+	if (connectedDevice == nullptr) {
 		return;
 	}
 

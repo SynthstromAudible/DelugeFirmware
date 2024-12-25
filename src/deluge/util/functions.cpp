@@ -352,7 +352,7 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 PatchSource stringToSource(char const* string) {
 	for (int32_t s = 0; s < kNumPatchSources; s++) {
 		auto patchSource = static_cast<PatchSource>(s);
-		if (!strcmp(string, sourceToString(patchSource))) {
+		if (strcmp(string, sourceToString(patchSource)) == 0) {
 			return patchSource;
 		}
 	}
@@ -657,7 +657,7 @@ int32_t stringToInt(char const* __restrict__ string) {
 
 int32_t stringToUIntOrError(char const* __restrict__ mem) {
 	uint32_t number = 0;
-	while (*mem) {
+	while (*mem != 0) {
 		if (*mem < '0' || *mem > '9') {
 			return -1;
 		}
@@ -740,37 +740,37 @@ char const* oscTypeToString(OscType oscType) {
 
 OscType stringToOscType(char const* string) {
 
-	if (!strcmp(string, "square")) {
+	if (strcmp(string, "square") == 0) {
 		return OscType::SQUARE;
 	}
-	else if (!strcmp(string, "analogSquare")) {
+	else if (strcmp(string, "analogSquare") == 0) {
 		return OscType::ANALOG_SQUARE;
 	}
-	else if (!strcmp(string, "analogSaw")) {
+	else if (strcmp(string, "analogSaw") == 0) {
 		return OscType::ANALOG_SAW_2;
 	}
-	else if (!strcmp(string, "saw")) {
+	else if (strcmp(string, "saw") == 0) {
 		return OscType::SAW;
 	}
-	else if (!strcmp(string, "sine")) {
+	else if (strcmp(string, "sine") == 0) {
 		return OscType::SINE;
 	}
-	else if (!strcmp(string, "sample")) {
+	else if (strcmp(string, "sample") == 0) {
 		return OscType::SAMPLE;
 	}
-	else if (!strcmp(string, "wavetable")) {
+	else if (strcmp(string, "wavetable") == 0) {
 		return OscType::WAVETABLE;
 	}
-	else if (!strcmp(string, "inLeft")) {
+	else if (strcmp(string, "inLeft") == 0) {
 		return OscType::INPUT_L;
 	}
-	else if (!strcmp(string, "inRight")) {
+	else if (strcmp(string, "inRight") == 0) {
 		return OscType::INPUT_R;
 	}
-	else if (!strcmp(string, "inStereo")) {
+	else if (strcmp(string, "inStereo") == 0) {
 		return OscType::INPUT_STEREO;
 	}
-	else if (!strcmp(string, "dx7")) {
+	else if (strcmp(string, "dx7") == 0) {
 		return OscType::DX7;
 	}
 	else {
@@ -802,22 +802,22 @@ char const* lfoTypeToString(LFOType oscType) {
 }
 
 LFOType stringToLFOType(char const* string) {
-	if (!strcmp(string, "square")) {
+	if (strcmp(string, "square") == 0) {
 		return LFOType::SQUARE;
 	}
-	else if (!strcmp(string, "saw")) {
+	else if (strcmp(string, "saw") == 0) {
 		return LFOType::SAW;
 	}
-	else if (!strcmp(string, "sine")) {
+	else if (strcmp(string, "sine") == 0) {
 		return LFOType::SINE;
 	}
-	else if (!strcmp(string, "sah")) {
+	else if (strcmp(string, "sah") == 0) {
 		return LFOType::SAMPLE_AND_HOLD;
 	}
-	else if (!strcmp(string, "warbler")) {
+	else if (strcmp(string, "warbler") == 0) {
 		return LFOType::WARBLER;
 	}
-	else if (!strcmp(string, "rwalk")) {
+	else if (strcmp(string, "rwalk") == 0) {
 		return LFOType::RANDOM_WALK;
 	}
 	else {
@@ -839,10 +839,10 @@ char const* synthModeToString(SynthMode synthMode) {
 }
 
 SynthMode stringToSynthMode(char const* string) {
-	if (!strcmp(string, "fm")) {
+	if (strcmp(string, "fm") == 0) {
 		return SynthMode::FM;
 	}
-	else if (!strcmp(string, "ringmod")) {
+	else if (strcmp(string, "ringmod") == 0) {
 		return SynthMode::RINGMOD;
 	}
 	else {
@@ -870,22 +870,22 @@ char const* polyphonyModeToString(PolyphonyMode synthMode) {
 }
 
 PolyphonyMode stringToPolyphonyMode(char const* string) {
-	if (!strcmp(string, "mono")) {
+	if (strcmp(string, "mono") == 0) {
 		return PolyphonyMode::MONO;
 	}
-	else if (!strcmp(string, "auto")) {
+	else if (strcmp(string, "auto") == 0) {
 		return PolyphonyMode::AUTO;
 	}
-	else if (!strcmp(string, "0")) {
+	else if (strcmp(string, "0") == 0) {
 		return PolyphonyMode::AUTO; // Old firmware, pre June 2017
 	}
-	else if (!strcmp(string, "legato")) {
+	else if (strcmp(string, "legato") == 0) {
 		return PolyphonyMode::LEGATO;
 	}
-	else if (!strcmp(string, "choke")) {
+	else if (strcmp(string, "choke") == 0) {
 		return PolyphonyMode::CHOKE;
 	}
-	else if (!strcmp(string, "2")) {
+	else if (strcmp(string, "2") == 0) {
 		return PolyphonyMode::CHOKE; // Old firmware, pre June 2017
 	}
 	else {
@@ -917,22 +917,22 @@ char const* fxTypeToString(ModFXType fxType) {
 }
 
 ModFXType stringToFXType(char const* string) {
-	if (!strcmp(string, "flanger")) {
+	if (strcmp(string, "flanger") == 0) {
 		return ModFXType::FLANGER;
 	}
-	else if (!strcmp(string, "TapeWarble")) {
+	else if (strcmp(string, "TapeWarble") == 0) {
 		return ModFXType::WARBLE;
 	}
-	else if (!strcmp(string, "chorus")) {
+	else if (strcmp(string, "chorus") == 0) {
 		return ModFXType::CHORUS;
 	}
-	else if (!strcmp(string, "StereoChorus")) {
+	else if (strcmp(string, "StereoChorus") == 0) {
 		return ModFXType::CHORUS_STEREO;
 	}
-	else if (!strcmp(string, "grainFX")) {
+	else if (strcmp(string, "grainFX") == 0) {
 		return ModFXType::GRAIN;
 	}
-	else if (!strcmp(string, "phaser")) {
+	else if (strcmp(string, "phaser") == 0) {
 		return ModFXType::PHASER;
 	}
 	else {
@@ -954,10 +954,10 @@ char const* modFXParamToString(ModFXParam fxType) {
 }
 
 ModFXParam stringToModFXParam(char const* string) {
-	if (!strcmp(string, "depth")) {
+	if (strcmp(string, "depth") == 0) {
 		return ModFXParam::DEPTH;
 	}
-	else if (!strcmp(string, "feedback")) {
+	else if (strcmp(string, "feedback") == 0) {
 		return ModFXParam::FEEDBACK;
 	}
 	else {
@@ -979,10 +979,10 @@ char const* filterTypeToString(FilterType fxType) {
 }
 
 FilterType stringToFilterType(char const* string) {
-	if (!strcmp(string, "hpf")) {
+	if (strcmp(string, "hpf") == 0) {
 		return FilterType::HPF;
 	}
-	else if (!strcmp(string, "eq")) {
+	else if (strcmp(string, "eq") == 0) {
 		return FilterType::EQ;
 	}
 	else {
@@ -1067,16 +1067,16 @@ char const* arpPresetToOldArpMode(ArpPreset preset) {
 }
 
 OldArpMode stringToOldArpMode(char const* string) {
-	if (!strcmp(string, "up")) {
+	if (strcmp(string, "up") == 0) {
 		return OldArpMode::UP;
 	}
-	else if (!strcmp(string, "down")) {
+	else if (strcmp(string, "down") == 0) {
 		return OldArpMode::DOWN;
 	}
-	else if (!strcmp(string, "both")) {
+	else if (strcmp(string, "both") == 0) {
 		return OldArpMode::BOTH;
 	}
-	else if (!strcmp(string, "random")) {
+	else if (strcmp(string, "random") == 0) {
 		return OldArpMode::RANDOM;
 	}
 	else {
@@ -1095,7 +1095,7 @@ char const* arpModeToString(ArpMode mode) {
 }
 
 ArpMode stringToArpMode(char const* string) {
-	if (!strcmp(string, "arp")) {
+	if (strcmp(string, "arp") == 0) {
 		return ArpMode::ARP;
 	}
 	else {
@@ -1123,16 +1123,16 @@ char const* arpNoteModeToString(ArpNoteMode mode) {
 }
 
 ArpNoteMode stringToArpNoteMode(char const* string) {
-	if (!strcmp(string, "down")) {
+	if (strcmp(string, "down") == 0) {
 		return ArpNoteMode::DOWN;
 	}
-	else if (!strcmp(string, "upDown")) {
+	else if (strcmp(string, "upDown") == 0) {
 		return ArpNoteMode::UP_DOWN;
 	}
-	else if (!strcmp(string, "asPlayed")) {
+	else if (strcmp(string, "asPlayed") == 0) {
 		return ArpNoteMode::AS_PLAYED;
 	}
-	else if (!strcmp(string, "random")) {
+	else if (strcmp(string, "random") == 0) {
 		return ArpNoteMode::RANDOM;
 	}
 	else {
@@ -1160,16 +1160,16 @@ char const* arpOctaveModeToString(ArpOctaveMode mode) {
 }
 
 ArpOctaveMode stringToArpOctaveMode(char const* string) {
-	if (!strcmp(string, "down")) {
+	if (strcmp(string, "down") == 0) {
 		return ArpOctaveMode::DOWN;
 	}
-	else if (!strcmp(string, "upDown")) {
+	else if (strcmp(string, "upDown") == 0) {
 		return ArpOctaveMode::RANDOM;
 	}
-	else if (!strcmp(string, "alt")) {
+	else if (strcmp(string, "alt") == 0) {
 		return ArpOctaveMode::ALTERNATE;
 	}
-	else if (!strcmp(string, "random")) {
+	else if (strcmp(string, "random") == 0) {
 		return ArpOctaveMode::RANDOM;
 	}
 	else {
@@ -1191,10 +1191,10 @@ char const* arpMpeModSourceToString(ArpMpeModSource modSource) {
 }
 
 ArpMpeModSource stringToArpMpeModSource(char const* string) {
-	if (!strcmp(string, "y")) {
+	if (strcmp(string, "y") == 0) {
 		return ArpMpeModSource::MPE_Y;
 	}
-	else if (!strcmp(string, "z")) {
+	else if (strcmp(string, "z") == 0) {
 		return ArpMpeModSource::AFTERTOUCH;
 	}
 	else {
@@ -1231,25 +1231,25 @@ char const* inputChannelToString(AudioInputChannel inputChannel) {
 }
 
 AudioInputChannel stringToInputChannel(char const* string) {
-	if (!strcmp(string, "left")) {
+	if (strcmp(string, "left") == 0) {
 		return AudioInputChannel::LEFT;
 	}
-	else if (!strcmp(string, "right")) {
+	else if (strcmp(string, "right") == 0) {
 		return AudioInputChannel::RIGHT;
 	}
-	else if (!strcmp(string, "stereo")) {
+	else if (strcmp(string, "stereo") == 0) {
 		return AudioInputChannel::STEREO;
 	}
-	else if (!strcmp(string, "balanced")) {
+	else if (strcmp(string, "balanced") == 0) {
 		return AudioInputChannel::BALANCED;
 	}
-	else if (!strcmp(string, "mix")) {
+	else if (strcmp(string, "mix") == 0) {
 		return AudioInputChannel::MIX;
 	}
-	else if (!strcmp(string, "output")) {
+	else if (strcmp(string, "output") == 0) {
 		return AudioInputChannel::OUTPUT;
 	}
-	else if (!strcmp(string, "specificTrack")) {
+	else if (strcmp(string, "specificTrack") == 0) {
 		return AudioInputChannel::SPECIFIC_OUTPUT;
 	}
 
@@ -1279,13 +1279,13 @@ char const* sequenceDirectionModeToString(SequenceDirection sequenceDirectionMod
 }
 
 SequenceDirection stringToSequenceDirectionMode(char const* string) {
-	if (!strcmp(string, "reverse")) {
+	if (strcmp(string, "reverse") == 0) {
 		return SequenceDirection::REVERSE;
 	}
-	else if (!strcmp(string, "pingpong")) {
+	else if (strcmp(string, "pingpong") == 0) {
 		return SequenceDirection::PINGPONG;
 	}
-	else if (!strcmp(string, "obeyParent")) {
+	else if (strcmp(string, "obeyParent") == 0) {
 		return SequenceDirection::OBEY_PARENT;
 	}
 	else {
@@ -1311,10 +1311,10 @@ char const* launchStyleToString(LaunchStyle launchStyle) {
 }
 
 LaunchStyle stringToLaunchStyle(char const* string) {
-	if (!strcmp(string, "fill")) {
+	if (strcmp(string, "fill") == 0) {
 		return LaunchStyle::FILL;
 	}
-	else if (!strcmp(string, "once")) {
+	else if (strcmp(string, "once") == 0) {
 		return LaunchStyle::ONCE;
 	}
 	else {
@@ -1342,12 +1342,12 @@ bool isAudioFilename(char const* filename) {
 		return false;
 	}
 	char* dotPos = strrchr(filename, '.');
-	return (!strcasecmp(dotPos, ".WAV") || !strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF"));
+	return ((strcasecmp(dotPos, ".WAV") == 0) || (strcasecmp(dotPos, ".AIF") == 0) || (strcasecmp(dotPos, ".AIFF") == 0));
 }
 
 bool isAiffFilename(char const* filename) {
 	char* dotPos = strrchr(filename, '.');
-	return (dotPos != NULL && (!strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF")));
+	return (dotPos != NULL && ((strcasecmp(dotPos, ".AIF") == 0) || (strcasecmp(dotPos, ".AIFF") == 0)));
 }
 
 int32_t lookupReleaseRate(int32_t input) {
@@ -1698,7 +1698,7 @@ int32_t strcmpspecial(char const* first, char const* second) {
 		if (firstIsNumber && secondIsNumber) {
 
 			// If we haven't yet seen a differing number of leading zeros in a number, see if that exists here.
-			if (!resultIfGetToEndOfBothStrings) {
+			if (resultIfGetToEndOfBothStrings == 0) {
 				char const* firstHere = first;
 				char const* secondHere = second;
 				while (true) {
@@ -1743,7 +1743,7 @@ int32_t strcmpspecial(char const* first, char const* second) {
 			}
 
 			int32_t difference = firstNumber - secondNumber;
-			if (difference) {
+			if (difference != 0) {
 				return difference;
 			}
 		}
@@ -1779,7 +1779,7 @@ int32_t strcmpspecial(char const* first, char const* second) {
 				}
 
 				if (firstResult.noteNumber == secondResult.noteNumber) {
-					if (!firstResult.stringLength && !secondResult.stringLength) {
+					if ((firstResult.stringLength == 0) && (secondResult.stringLength == 0)) {
 						goto doNormal;
 					}
 					first += firstResult.stringLength;
@@ -1827,7 +1827,7 @@ char* replace_char(const char* str, char find, char replace) {
 
 	strcpy(copy, str);
 	char* current_pos = strchr(copy, find);
-	while (current_pos) {
+	while (current_pos != nullptr) {
 		*current_pos = replace;
 		current_pos = strchr(current_pos, find);
 	}
@@ -1892,7 +1892,7 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 		intToString(octave, thisChar, 1);
 	}
 
-	if (getLengthWithoutDot) {
+	if (getLengthWithoutDot != nullptr) {
 		*getLengthWithoutDot = strlen(buffer);
 		if (noteCodeIsSharp[noteCodeWithinOctave]) {
 			(*getLengthWithoutDot)--;
@@ -1954,7 +1954,7 @@ double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */) {
 		}
 	}
 
-	if (bytes[0] & 0x80) {
+	if ((bytes[0] & 0x80) != 0) {
 		return -f;
 	}
 	else {
@@ -1998,7 +1998,7 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 	int32_t count = 0;
 	while (true) {
 		char charA = *a;
-		if (!charA) {
+		if (charA == 0) {
 			break;
 		}
 		char charB = *b;
@@ -2024,7 +2024,7 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 
 bool shouldAbortLoading() {
 	return (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED
-	        && (encoders::getEncoder(encoders::EncoderName::SELECT).detentPos || QwertyUI::predictionInterrupted));
+	        && ((encoders::getEncoder(encoders::EncoderName::SELECT).detentPos != 0) || QwertyUI::predictionInterrupted));
 }
 
 int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitude) {
@@ -2108,17 +2108,17 @@ void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude,
 
 char const* getFileNameFromEndOfPath(char const* filePathChars) {
 	char const* slashPos = strrchr(filePathChars, '/');
-	return slashPos ? (slashPos + 1) : filePathChars;
+	return (slashPos != nullptr) ? (slashPos + 1) : filePathChars;
 }
 
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int32_t prefixLength) {
 
-	if (memcasecmp(fileName, filePrefix, prefixLength)) {
+	if (memcasecmp(fileName, filePrefix, prefixLength) != 0) {
 		return false;
 	}
 
 	char* dotAddress = strrchr(fileName, '.');
-	if (!dotAddress) {
+	if (dotAddress == nullptr) {
 		return false;
 	}
 

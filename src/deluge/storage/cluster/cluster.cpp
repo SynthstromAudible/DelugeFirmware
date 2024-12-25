@@ -149,7 +149,7 @@ void Cluster::convertDataIfNecessary() {
 
 			for (; pos < endPos; pos++) {
 
-				if (!((uint32_t)pos & 0b1111111100)) {
+				if (((uint32_t)pos & 0b1111111100) == 0u) {
 					AudioEngine::logAction("from convert-data");
 					AudioEngine::routine(); // ----------------------------------------------------
 				}
@@ -165,19 +165,19 @@ StealableQueue Cluster::getAppropriateQueue() {
 
 	// If it's a perc cache...
 	if (type == Type::PERC_CACHE_FORWARDS || type == Type::PERC_CACHE_REVERSED) {
-		q = sample->numReasonsToBeLoaded ? StealableQueue::CURRENT_SONG_SAMPLE_DATA_PERC_CACHE
+		q = (sample->numReasonsToBeLoaded != 0) ? StealableQueue::CURRENT_SONG_SAMPLE_DATA_PERC_CACHE
 		                                 : StealableQueue::NO_SONG_SAMPLE_DATA_PERC_CACHE;
 	}
 
 	// If it's a regular repitched cache...
-	else if (sampleCache) {
-		q = (sampleCache->sample->numReasonsToBeLoaded) ? StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE
+	else if (sampleCache != nullptr) {
+		q = ((sampleCache->sample->numReasonsToBeLoaded) != 0) ? StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE
 		                                                : StealableQueue::NO_SONG_SAMPLE_DATA_REPITCHED_CACHE;
 	}
 
 	// Or, if it has a Sample...
-	else if (sample) {
-		q = sample->numReasonsToBeLoaded ? StealableQueue::CURRENT_SONG_SAMPLE_DATA
+	else if (sample != nullptr) {
+		q = (sample->numReasonsToBeLoaded != 0) ? StealableQueue::CURRENT_SONG_SAMPLE_DATA
 		                                 : StealableQueue::NO_SONG_SAMPLE_DATA;
 
 		if (sample->rawDataFormat != RawDataFormat::NATIVE) {
@@ -228,11 +228,11 @@ void Cluster::steal(char const* errorCode) {
 }
 
 bool Cluster::mayBeStolen(void* thingNotToStealFrom) {
-	if (numReasonsToBeLoaded) {
+	if (numReasonsToBeLoaded != 0) {
 		return false;
 	}
 
-	if (!thingNotToStealFrom) {
+	if (thingNotToStealFrom == nullptr) {
 		return true;
 	}
 

@@ -108,7 +108,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 
 	// Do we know any details about this device already?
 
-	bool gotAName = (name && !name->isEmpty());
+	bool gotAName = ((name != nullptr) && !name->isEmpty());
 	int32_t i = 0; // Need default value for below if we skip first bit because !gotAName
 
 	if (gotAName) {
@@ -121,7 +121,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 			MIDIDeviceUSBHosted* device = recastSpecificMidiDevice(hostedMIDIDevices.getElement(i));
 
 			// Update vendor and product id, if we have those
-			if (vendorId) {
+			if (vendorId != 0u) {
 				device->vendorId = vendorId;
 				device->productId = productId;
 			}
@@ -153,7 +153,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 	SpecificMidiDeviceType devType = getSpecificMidiDeviceType(vendorId, productId);
 	if (devType == SpecificMidiDeviceType::LUMI_KEYS) {
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIDeviceLumiKeys));
-		if (!memory) {
+		if (memory == nullptr) {
 			return nullptr;
 		}
 
@@ -162,7 +162,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 	}
 	else {
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIDeviceUSBHosted));
-		if (!memory) {
+		if (memory == nullptr) {
 			return nullptr;
 		}
 
@@ -188,11 +188,11 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 }
 
 void recountSmallestMPEZonesForDevice(MIDICable* device) {
-	if (!device->connectionFlags) {
+	if (device->connectionFlags == 0u) {
 		return;
 	}
 
-	if (device->ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel
+	if ((device->ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel != 0u)
 	    && device->ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel
 	           < lowestLastMemberChannelOfLowerZoneOnConnectedOutput) {
 
@@ -231,7 +231,7 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 
 	usbDeviceCurrentlyBeingSetUp[ip].name.clear(); // Save some memory. Not strictly necessary
 
-	if (!device) {
+	if (device == nullptr) {
 		return; // Only if ran out of RAM - i.e. very unlikely.
 	}
 
@@ -245,8 +245,8 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 	}
 
 	connectedDevice->sq = 0;
-	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller");
-	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "LUMI Keys BLOCK");
+	connectedDevice->canHaveMIDISent = static_cast<uint8_t>((bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller"));
+	connectedDevice->canHaveMIDISent = static_cast<uint8_t>((bool)strcmp(device->name.get(), "LUMI Keys BLOCK"));
 
 	device->connectedNow(midiDeviceNum);
 	recountSmallestMPEZones(); // Must be called after setting device->connectionFlags
@@ -280,7 +280,7 @@ extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 	int32_t ports = connectedDevice->maxPortConnected;
 	for (int32_t i = 0; i <= ports; i++) {
 		MIDICableUSB* device = connectedDevice->cable[i];
-		if (device) { // Surely always has one?
+		if (device != nullptr) { // Surely always has one?
 			device->connectionFlags &= ~(1 << midiDeviceNum);
 		}
 		connectedDevice->cable[i] = nullptr;
@@ -333,28 +333,28 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 	MIDICable* device = nullptr;
 
 	char const* tagName;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "vendorId")) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+		if (strcmp(tagName, "vendorId") == 0) {
 			vendorId = reader.readTagOrAttributeValueHex(0);
 		}
-		else if (!strcmp(tagName, "productId")) {
+		else if (strcmp(tagName, "productId") == 0) {
 			productId = reader.readTagOrAttributeValueHex(0);
 		}
-		else if (!strcmp(tagName, "name")) {
+		else if (strcmp(tagName, "name") == 0) {
 			reader.readTagOrAttributeValueString(&name);
 		}
-		else if (!strcmp(tagName, "port")) {
+		else if (strcmp(tagName, "port") == 0) {
 			char const* port = reader.readTagOrAttributeValue();
-			if (!strcmp(port, "upstreamUSB")) {
+			if (strcmp(port, "upstreamUSB") == 0) {
 				device = &upstreamUSBMIDICable1;
 			}
-			else if (!strcmp(port, "upstreamUSB2")) {
+			else if (strcmp(port, "upstreamUSB2") == 0) {
 				device = &upstreamUSBMIDICable2;
 			}
-			else if (!strcmp(port, "upstreamUSB3")) {
+			else if (strcmp(port, "upstreamUSB3") == 0) {
 				device = &upstreamUSBMIDICable3;
 			}
-			else if (!strcmp(port, "din")) {
+			else if (strcmp(port, "din") == 0) {
 				device = &dinMIDIPorts;
 			}
 		}
@@ -362,12 +362,12 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 		reader.exitTag();
 	}
 
-	if (device) {
+	if (device != nullptr) {
 		return device;
 	}
 
 	// If we got something, go use it
-	if (!name.isEmpty() || vendorId) {
+	if (!name.isEmpty() || (vendorId != 0u)) {
 		return getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId, productId); // Will return NULL if error.
 	}
 
@@ -547,20 +547,20 @@ void readDevicesFromFile() {
 	}
 	Deserializer& reader = *activeDeserializer;
 	char const* tagName;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "dinPorts")) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+		if (strcmp(tagName, "dinPorts") == 0) {
 			dinMIDIPorts.readFromFile(reader);
 		}
-		else if (!strcmp(tagName, "upstreamUSBDevice")) {
+		else if (strcmp(tagName, "upstreamUSBDevice") == 0) {
 			upstreamUSBMIDICable1.readFromFile(reader);
 		}
-		else if (!strcmp(tagName, "upstreamUSBDevice2")) {
+		else if (strcmp(tagName, "upstreamUSBDevice2") == 0) {
 			upstreamUSBMIDICable2.readFromFile(reader);
 		}
-		else if (!strcmp(tagName, "upstreamUSBDevice3")) {
+		else if (strcmp(tagName, "upstreamUSBDevice3") == 0) {
 			upstreamUSBMIDICable3.readFromFile(reader);
 		}
-		else if (!strcmp(tagName, "hostedUSBDevice")) {
+		else if (strcmp(tagName, "hostedUSBDevice") == 0) {
 			readAHostedDeviceFromFile(reader);
 		}
 
@@ -584,63 +584,63 @@ void readAHostedDeviceFromFile(Deserializer& reader) {
 	uint16_t productId;
 
 	char const* tagName;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 
 		int32_t whichPort;
 
-		if (!strcmp(tagName, "vendorId")) {
+		if (strcmp(tagName, "vendorId") == 0) {
 			vendorId = reader.readTagOrAttributeValueHex(0);
 		}
-		else if (!strcmp(tagName, "productId")) {
+		else if (strcmp(tagName, "productId") == 0) {
 			productId = reader.readTagOrAttributeValueHex(0);
 		}
-		else if (!strcmp(tagName, "name")) {
+		else if (strcmp(tagName, "name") == 0) {
 			reader.readTagOrAttributeValueString(&name);
 		}
-		else if (!strcmp(tagName, "input")) {
+		else if (strcmp(tagName, "input") == 0) {
 			whichPort = MIDI_DIRECTION_INPUT_TO_DELUGE;
 checkDevice:
-			if (!device) {
-				if (!name.isEmpty() || vendorId) {
+			if (device == nullptr) {
+				if (!name.isEmpty() || (vendorId != 0u)) {
 					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
 					                                                productId); // Will return NULL if error.
 				}
 			}
 
-			if (device) {
+			if (device != nullptr) {
 				device->ports[whichPort].readFromFile(
 				    reader, (whichPort == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) ? device : nullptr);
 			}
 		}
-		else if (!strcmp(tagName, "output")) {
+		else if (strcmp(tagName, "output") == 0) {
 			whichPort = MIDI_DIRECTION_OUTPUT_FROM_DELUGE;
 			goto checkDevice;
 		}
-		else if (!strcmp(tagName, "defaultVolumeVelocitySensitivity")) {
+		else if (strcmp(tagName, "defaultVolumeVelocitySensitivity") == 0) {
 
 			// Sorry, I cloned this code from above.
-			if (!device) {
-				if (!name.isEmpty() || vendorId) {
+			if (device == nullptr) {
+				if (!name.isEmpty() || (vendorId != 0u)) {
 					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
 					                                                productId); // Will return NULL if error.
 				}
 			}
 
-			if (device) {
+			if (device != nullptr) {
 				device->defaultVelocityToLevel = reader.readTagOrAttributeValueInt();
 			}
 		}
-		else if (!strcmp(tagName, "sendClock")) {
+		else if (strcmp(tagName, "sendClock") == 0) {
 			// this is actually not much duplicated code, just checks for nulls and then an attempt to create a device
-			if (!device) {
-				if (!name.isEmpty() || vendorId) {
+			if (device == nullptr) {
+				if (!name.isEmpty() || (vendorId != 0u)) {
 					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
 					                                                productId); // Will return NULL if error.
 				}
 			}
 
-			if (device) {
-				device->sendClock = reader.readTagOrAttributeValueInt();
+			if (device != nullptr) {
+				device->sendClock = (reader.readTagOrAttributeValueInt() != 0);
 			}
 		}
 
@@ -648,7 +648,7 @@ checkDevice:
 	}
 
 	// Hook point!
-	if (device) {}
+	if (device != nullptr) {}
 }
 
 } // namespace MIDIDeviceManager
@@ -656,7 +656,7 @@ checkDevice:
 void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
 	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
 	if (queued > 16) {
-		if (!anyUSBSendingStillHappening[0]) {
+		if (anyUSBSendingStillHappening[0] == 0u) {
 			midiEngine.flushUSBMIDIOutput();
 		}
 		queued = ringBufWriteIdx - ringBufReadIdx;
@@ -718,7 +718,7 @@ bool ConnectedUSBMIDIDevice::consumeSendData() {
 
 void ConnectedUSBMIDIDevice::setup() {
 	numBytesSendingNow = 0;
-	currentlyWaitingToReceive = false;
+	currentlyWaitingToReceive = 0u;
 	numBytesReceived = 0;
 
 	// default to only a single port

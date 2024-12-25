@@ -41,7 +41,7 @@ SampleHolder::~SampleHolder() {
 
 	// Don't call setSample() - that does writing to variables which isn't necessary
 
-	if ((Sample*)audioFile) {
+	if (((Sample*)audioFile) != nullptr) {
 		unassignAllClusterReasons(true);
 #if ALPHA_OR_BETA_VERSION
 		if (audioFile->numReasonsToBeLoaded <= 0) {
@@ -54,7 +54,7 @@ SampleHolder::~SampleHolder() {
 
 void SampleHolder::beenClonedFrom(SampleHolder const* other, bool reversed) {
 	filePath.set(&other->filePath);
-	if (other->audioFile) {
+	if (other->audioFile != nullptr) {
 		setAudioFile(other->audioFile, reversed);
 	}
 
@@ -100,7 +100,7 @@ int32_t SampleHolder::getLengthInSamplesAtSystemSampleRate(bool forTimeStretchin
 
 // returns loop length in ticks from the sample waveform start and end positions selected
 int32_t SampleHolder::getLoopLengthAtSystemSampleRate(bool forTimeStretching) {
-	if (audioFile) {
+	if (audioFile != nullptr) {
 		double loopLength = (double)getLengthInSamplesAtSystemSampleRate(forTimeStretching)
 		                    / playbackHandler.getTimePerInternalTickFloat();
 
@@ -114,7 +114,7 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 
 	AudioFileHolder::setAudioFile(newSample, reversed, manuallySelected, clusterLoadInstruction);
 
-	if (audioFile) {
+	if (audioFile != nullptr) {
 
 		if (manuallySelected && ((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
 			sampleBrowser.lastFilePathLoaded.set(&filePath);
@@ -142,7 +142,7 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 		sampleBeenSet(reversed, manuallySelected);
 
 #if 1 || ALPHA_OR_BETA_VERSION
-		if (!audioFile) {
+		if (audioFile == nullptr) {
 			FREEZE_WITH_ERROR("i031"); // Trying to narrow down E368 that Kevin F got
 		}
 #endif
@@ -157,7 +157,7 @@ constexpr int32_t kMarkerSamplesBeforeToClaim = 150;
 // Ensure there is a sample before you call this.
 void SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruction) {
 
-	if (ALPHA_OR_BETA_VERSION && !audioFile) {
+	if (ALPHA_OR_BETA_VERSION && (audioFile == nullptr)) {
 		FREEZE_WITH_ERROR("E368");
 	}
 
@@ -219,7 +219,7 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 
 		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction);
 
-		if (!newClusters[l]) {
+		if (newClusters[l] == nullptr) {
 			D_PRINTLN("NULL!!");
 		}
 		else if (clusterLoadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && !newClusters[l]->loaded) {

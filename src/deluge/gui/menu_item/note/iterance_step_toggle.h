@@ -33,7 +33,7 @@ public:
 	void readCurrentValue() override {
 		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 
-		if (leftMostNote) {
+		if (leftMostNote != nullptr) {
 			Iterance iterance = leftMostNote->getIterance();
 			if (iterance == kDefaultIteranceValue) {
 				// if we end up here in this menu, convert OFF to the default CUSTOM value 1of1
@@ -47,7 +47,7 @@ public:
 		bool value = this->getValue();
 		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 
-		if (leftMostNote) {
+		if (leftMostNote != nullptr) {
 			Iterance iterance = leftMostNote->getIterance();
 			if (iterance == kDefaultIteranceValue) {
 				// if we end up here in this menu, convert OFF to the default CUSTOM value 1of1
@@ -70,7 +70,7 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 
-		if (leftMostNote) {
+		if (leftMostNote != nullptr) {
 			Iterance iterance = leftMostNote->getIterance();
 			// Only show this iteration step if its index is smaller than current divisor value
 			return (iterance == kDefaultIteranceValue && index == 0) || iterance.divisor > index;

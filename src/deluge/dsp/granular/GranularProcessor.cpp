@@ -142,7 +142,7 @@ StereoSample GranularProcessor::processOneGrainSample(StereoSample* currentSampl
 			    grains[i].counter <= (grains[i].length >> 1)
 			        ? grains[i].counter * grains[i].volScale
 			        : grains[i].volScaleMax - (grains[i].counter - (grains[i].length >> 1)) * grains[i].volScale;
-			int32_t delta = grains[i].counter * (grains[i].rev == 1 ? -1 : 1);
+			int32_t delta = grains[i].counter * (static_cast<int>(grains[i].rev) == 1 ? -1 : 1);
 			if (grains[i].pitch != 1024) {
 				delta = ((delta * grains[i].pitch) >> 10);
 			}
@@ -303,7 +303,7 @@ GranularProcessor::GranularProcessor() {
 void GranularProcessor::getBuffer() {
 	if (grainBuffer == nullptr) {
 		void* grainBufferMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GrainBuffer));
-		if (grainBufferMemory) {
+		if (grainBufferMemory != nullptr) {
 			grainBuffer = new (grainBufferMemory) GrainBuffer(this);
 		}
 		else {}
@@ -336,7 +336,7 @@ GranularProcessor::GranularProcessor(const GranularProcessor& other) {
 	getBuffer();
 }
 void GranularProcessor::startSkippingRendering() {
-	if (grainBuffer) {
+	if (grainBuffer != nullptr) {
 		grainBuffer->inUse = false;
 	}
 }

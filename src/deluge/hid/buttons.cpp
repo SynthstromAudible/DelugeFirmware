@@ -170,7 +170,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 				playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 
 				// Begin output-recording simultaneously with playback
-				if (isButtonPressed(RECORD) && playbackHandler.playbackState && !recordButtonPressUsedUp) {
+				if (isButtonPressed(RECORD) && (playbackHandler.playbackState != 0u) && !recordButtonPressUsedUp) {
 					audioRecorder.beginOutputRecording();
 				}
 			}

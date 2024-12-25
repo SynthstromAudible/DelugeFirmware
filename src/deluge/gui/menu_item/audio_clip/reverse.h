@@ -32,7 +32,7 @@ public:
 	void readCurrentValue() override { this->setValue(getCurrentAudioClip()->sampleControls.reversed); }
 	void writeCurrentValue() override {
 		auto* clip = getCurrentAudioClip();
-		bool active = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(clip) && clip->voiceSample);
+		bool active = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(clip) && (clip->voiceSample != nullptr));
 
 		clip->unassignVoiceSample(false);
 

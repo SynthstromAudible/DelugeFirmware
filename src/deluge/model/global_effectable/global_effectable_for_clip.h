@@ -44,7 +44,7 @@ public:
 
 	inline void saturate(int32_t* data, uint32_t* workingValue) {
 		// Clipping
-		if (clippingAmount) {
+		if (clippingAmount != 0u) {
 			int32_t shiftAmount = (clippingAmount >= 3) ? (clippingAmount - 3) : 0;
 			//*data = getTanHUnknown(*data, 5 + clippingAmount) << (shiftAmount);
 			*data = getTanHAntialiased(*data, workingValue, 3 + clippingAmount) << (shiftAmount);

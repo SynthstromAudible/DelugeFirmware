@@ -88,7 +88,7 @@ setMPEBendRange:
 			int32_t zone;
 
 			// Master Channel of Lower zone
-			if (ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel && channel == 0) {
+			if ((ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel != 0u) && channel == 0) {
 				zone = MPE_ZONE_LOWER_NUMBERED_FROM_0;
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel = msb;
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE]
@@ -97,7 +97,7 @@ setMPEBendRange:
 
 resetBendRanges: // Have to reset pitch bend range for zone, according to MPE spec. Unless we just deactivated the MPE
                  // zone...
-				if (msb) {
+				if (msb != 0) {
 					mpeZoneBendRanges[zone][BEND_RANGE_MAIN] = 2;
 					mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL] = 48;
 
@@ -188,19 +188,19 @@ void MIDICable::writePorts(Serializer& writer) {
 // ids.
 void MIDICable::readFromFile(Deserializer& reader) {
 	char const* tagName;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 
-		if (!strcmp(tagName, "input")) {
+		if (strcmp(tagName, "input") == 0) {
 			ports[MIDI_DIRECTION_INPUT_TO_DELUGE].readFromFile(reader, nullptr);
 		}
-		else if (!strcmp(tagName, "output")) {
+		else if (strcmp(tagName, "output") == 0) {
 			ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].readFromFile(reader, this);
 		}
-		else if (!strcmp(tagName, "defaultVolumeVelocitySensitivity")) {
+		else if (strcmp(tagName, "defaultVolumeVelocitySensitivity") == 0) {
 			defaultVelocityToLevel = reader.readTagOrAttributeValueInt();
 		}
-		else if (!strcmp(tagName, "sendClock")) {
-			sendClock = reader.readTagOrAttributeValueInt();
+		else if (strcmp(tagName, "sendClock") == 0) {
+			sendClock = (reader.readTagOrAttributeValueInt() != 0);
 		}
 
 		reader.exitTag();
@@ -212,7 +212,7 @@ void MIDICable::writeDefinitionAttributesToFile(Serializer& writer) {
 	if (hasDefaultVelocityToLevelSet()) {
 		writer.writeAttribute("defaultVolumeVelocitySensitivity", defaultVelocityToLevel);
 	}
-	writer.writeAttribute("sendClock", sendClock);
+	writer.writeAttribute("sendClock", static_cast<int32_t>(sendClock));
 }
 
 void MIDICable::writeToFile(Serializer& writer, char const* tagName) {
@@ -225,7 +225,7 @@ void MIDICable::writeToFile(Serializer& writer, char const* tagName) {
 }
 
 int32_t MIDIPort::channelToZone(int32_t inputChannel) {
-	if (mpeLowerZoneLastMemberChannel && mpeLowerZoneLastMemberChannel >= inputChannel) {
+	if ((mpeLowerZoneLastMemberChannel != 0u) && mpeLowerZoneLastMemberChannel >= inputChannel) {
 		return MIDI_CHANNEL_MPE_LOWER_ZONE;
 	}
 	if (mpeUpperZoneLastMemberChannel < 15 && mpeUpperZoneLastMemberChannel <= inputChannel) {
@@ -235,7 +235,7 @@ int32_t MIDIPort::channelToZone(int32_t inputChannel) {
 }
 
 bool MIDIPort::isMasterChannel(int32_t inputChannel) {
-	if (mpeLowerZoneLastMemberChannel && inputChannel == 0) {
+	if ((mpeLowerZoneLastMemberChannel != 0u) && inputChannel == 0) {
 		return true;
 	}
 	if (mpeUpperZoneLastMemberChannel < 15 && inputChannel == 15) {
@@ -270,15 +270,15 @@ void MIDIPort::writeToFile(Serializer& writer, char const* tagName) {
 
 	int32_t numUpperMemberChannels = 15 - mpeUpperZoneLastMemberChannel;
 
-	if (numUpperMemberChannels || mpeLowerZoneLastMemberChannel) {
+	if ((numUpperMemberChannels != 0) || (mpeLowerZoneLastMemberChannel != 0u)) {
 		writer.writeOpeningTag(tagName);
 
-		if (mpeLowerZoneLastMemberChannel) {
+		if (mpeLowerZoneLastMemberChannel != 0u) {
 			writer.writeOpeningTagBeginning("mpeLowerZone");
 			writer.writeAttribute("numMemberChannels", mpeLowerZoneLastMemberChannel);
 			writer.closeTag();
 		}
-		if (numUpperMemberChannels) {
+		if (numUpperMemberChannels != 0) {
 			writer.writeOpeningTagBeginning("mpeUpperZone");
 			writer.writeAttribute("numMemberChannels", numUpperMemberChannels);
 			writer.closeTag();
@@ -291,14 +291,14 @@ void MIDIPort::writeToFile(Serializer& writer, char const* tagName) {
 void MIDIPort::readFromFile(Deserializer& reader, MIDICable* deviceToSendMCMsOn) {
 	char const* tagName;
 	bool sentMPEConfig = false;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "mpeLowerZone")) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+		if (strcmp(tagName, "mpeLowerZone") == 0) {
 
 			char const* tagName;
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
-				if (!strcmp(tagName, "numMemberChannels")) {
+			while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+				if (strcmp(tagName, "numMemberChannels") == 0) {
 
-					if (!mpeLowerZoneLastMemberChannel) { // If value was already set, then leave it - the user or an
+					if (mpeLowerZoneLastMemberChannel == 0u) { // If value was already set, then leave it - the user or an
 						                                  // MCM might have changed it since the file was last read.
 						int32_t newMPELowerZoneLastMemberChannel = reader.readTagOrAttributeValueInt();
 						if (newMPELowerZoneLastMemberChannel >= 0 && newMPELowerZoneLastMemberChannel < 16) {
@@ -306,7 +306,7 @@ void MIDIPort::readFromFile(Deserializer& reader, MIDICable* deviceToSendMCMsOn)
 							moveLowerZoneOutOfWayOfUpperZone(); // Move self out of way of other - just in case user or
 							                                    // MCM has set other and that's the important one they
 							                                    // want now.
-							if (deviceToSendMCMsOn) {
+							if (deviceToSendMCMsOn != nullptr) {
 								deviceToSendMCMsOn->sendRPN(0, 0, 6, mpeLowerZoneLastMemberChannel);
 								sentMPEConfig = true;
 							}
@@ -317,11 +317,11 @@ void MIDIPort::readFromFile(Deserializer& reader, MIDICable* deviceToSendMCMsOn)
 				reader.exitTag();
 			}
 		}
-		else if (!strcmp(tagName, "mpeUpperZone")) {
+		else if (strcmp(tagName, "mpeUpperZone") == 0) {
 
 			char const* tagName;
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
-				if (!strcmp(tagName, "numMemberChannels")) {
+			while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+				if (strcmp(tagName, "numMemberChannels") == 0) {
 					// If value was already set, then leave it - the user or an MCM might have changed it since the file
 					// was last read.
 					if (mpeUpperZoneLastMemberChannel == 15) {
@@ -331,7 +331,7 @@ void MIDIPort::readFromFile(Deserializer& reader, MIDICable* deviceToSendMCMsOn)
 							moveUpperZoneOutOfWayOfLowerZone(); // Move self out of way of other - just in case user or
 							                                    // MCM has set other and that's the important one they
 							                                    // want now.
-							if (deviceToSendMCMsOn) {
+							if (deviceToSendMCMsOn != nullptr) {
 								deviceToSendMCMsOn->sendRPN(15, 0, 6, 15 - mpeUpperZoneLastMemberChannel);
 								sentMPEConfig = true;
 							}
@@ -348,5 +348,5 @@ void MIDIPort::readFromFile(Deserializer& reader, MIDICable* deviceToSendMCMsOn)
 }
 
 bool MIDIPort::worthWritingToFile() {
-	return (mpeLowerZoneLastMemberChannel || mpeUpperZoneLastMemberChannel != 15);
+	return ((mpeLowerZoneLastMemberChannel != 0u) || mpeUpperZoneLastMemberChannel != 15);
 }

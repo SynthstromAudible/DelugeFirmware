@@ -142,9 +142,9 @@ void clearTickSquares(bool shouldSend) {
 	memset(slowFlashSquares, 255, sizeof(slowFlashSquares));
 
 	if (shouldSend && flashCursor == FLASH_CURSOR_SLOW && !shouldNotRenderDuringTimerRoutine()) {
-		if (colsToSend) {
+		if (colsToSend != 0u) {
 			for (int32_t x = 0; x < 8; x++) {
-				if (colsToSend & (1 << x)) {
+				if ((colsToSend & (1 << x)) != 0u) {
 					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInColUpdateMessage) {
 						break;
 					}
@@ -210,9 +210,9 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 
 	if (flashCursor == FLASH_CURSOR_SLOW && !shouldNotRenderDuringTimerRoutine()) {
 		// Actually send everything, if there was a change
-		if (colsToSend) {
+		if (colsToSend != 0u) {
 			for (int32_t x = 0; x < 8; x++) {
-				if (colsToSend & (1 << x)) {
+				if ((colsToSend & (1 << x)) != 0u) {
 					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= kNumBytesInColUpdateMessage) {
 						break;
 					}
@@ -284,8 +284,8 @@ RGB prepareColour(int32_t x, int32_t y, RGB colourSource) {
 		}
 	}
 
-	if ((greyoutRows || greyoutCols)
-	    && ((greyoutRows & (1 << y)) || (greyoutCols & (1 << (kDisplayWidth + kSideBarWidth - 1 - x))))) {
+	if (((greyoutRows != 0u) || (greyoutCols != 0u))
+	    && (((greyoutRows & (1 << y)) != 0u) || ((greyoutCols & (1 << (kDisplayWidth + kSideBarWidth - 1 - x))) != 0u))) {
 		return colourSource.greyOut(greyProportion);
 	}
 	return colourSource;
@@ -383,7 +383,7 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 		}
 
 		for (int32_t i = 0; i < numAnimatedRows; i++) {
-			if (!occupancyMaskStore[i][col]) {
+			if (occupancyMaskStore[i][col] == 0u) {
 				continue; // Nothing to do if there was nothing in this square
 			}
 
@@ -433,7 +433,7 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 
 	Sample* sample = (Sample*)clip->sampleHolder.audioFile;
 
-	if (ALPHA_OR_BETA_VERSION && !sample) {
+	if (ALPHA_OR_BETA_VERSION && (sample == nullptr)) {
 		FREEZE_WITH_ERROR("E311");
 	}
 
@@ -519,7 +519,7 @@ void renderAudioClipExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 		xSourceRightEdge = xSourceBig >> 16;
 
 		// For first iteration, we just wanted that value, to use next time - and we should get out now
-		if (!xDestSquareRightEdge) {
+		if (xDestSquareRightEdge == 0) {
 			continue;
 		}
 
@@ -600,7 +600,7 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 
 		for (int32_t xSource = xStart; xSource < xEnd; xSource++) {
 
-			if (occupancyMaskStore[ySource + 1][xSource]) { // If there's actually anything in this source square...
+			if (occupancyMaskStore[ySource + 1][xSource] != 0u) { // If there's actually anything in this source square...
 
 				for (int32_t xOffset = 0; xOffset < 2; xOffset++) {
 					int32_t xNow = xDestArray[xSource] + xOffset;
@@ -645,7 +645,7 @@ void reassessGreyout(bool doInstantly) {
 		return;
 	}
 
-	bool anythingBefore = (greyoutCols || greyoutRows);
+	bool anythingBefore = ((greyoutCols != 0u) || (greyoutRows != 0u));
 	bool anythingNow = (newCols || newRows);
 
 	bool anythingBoth = (anythingBefore && anythingNow);
@@ -932,7 +932,7 @@ void sendOutMainPadColours() {
 	}
 
 	for (int32_t col = 0; col < kDisplayWidth; col++) {
-		if (col & 1) {
+		if ((col & 1) != 0) {
 			sortLedsForCol(col - 1);
 		}
 	}
@@ -1213,7 +1213,7 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 
 				bool drawingAnything = false;
 
-				if (inImageFadePerCol[xDisplay]) {
+				if (inImageFadePerCol[xDisplay] != 0u) {
 
 					renderZoomedSquare(outputSquareStartOnInImage[xDisplay], outputSquareEndOnInImage[xDisplay],
 					                   inImageTimesBiggerThanNative, inImageFadePerCol[xDisplay], outValue, innerImage,
@@ -1262,7 +1262,7 @@ void renderZoomedSquare(int32_t outputSquareStartOnSourceImage, int32_t outputSq
 		}
 
 		// If nothing (i.e. black) at this input pixel, continue
-		if (!((*(uint32_t*)&inputImageRow[xSource * 3]) & (uint32_t)16777215)) {
+		if (((*(uint32_t*)&inputImageRow[xSource * 3]) & (uint32_t)16777215) == 0u) {
 			continue;
 		}
 

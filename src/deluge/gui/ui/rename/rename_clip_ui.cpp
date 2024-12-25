@@ -57,7 +57,7 @@ ActionResult RenameClipUI::buttonAction(deluge::hid::Button b, bool on, bool inC
 
 	// Back button
 	if (b == BACK) {
-		if (on && !currentUIMode) {
+		if (on && (currentUIMode == 0u)) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -67,7 +67,7 @@ ActionResult RenameClipUI::buttonAction(deluge::hid::Button b, bool on, bool inC
 
 	// Select encoder button
 	else if (b == SELECT_ENC) {
-		if (on && !currentUIMode) {
+		if (on && (currentUIMode == 0u)) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -86,7 +86,7 @@ void RenameClipUI::enterKeyPress() {
 
 	// Don't allow duplicate names on clips of a single output.
 	if (!clip->name.equalsCaseIrrespective(&enteredText)) {
-		if (clip->output->getClipFromName(&enteredText)) {
+		if (clip->output->getClipFromName(&enteredText) != nullptr) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 			return;
 		}
@@ -109,7 +109,7 @@ ActionResult RenameClipUI::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 
 	// Otherwise, exit
-	if (on && !currentUIMode) {
+	if ((on != 0) && (currentUIMode == 0u)) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}

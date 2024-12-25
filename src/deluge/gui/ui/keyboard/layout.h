@@ -108,7 +108,7 @@ protected:
 		if (getCurrentOutputType() == OutputType::KIT) {
 			if (note >= 0 && note < getCurrentInstrumentClip()->noteRows.getNumElements()) {
 				NoteRow* noteRow = getCurrentInstrumentClip()->noteRows.getElement(note);
-				if (noteRow) {
+				if (noteRow != nullptr) {
 					colourOffset = noteRow->getColourOffset(getCurrentInstrumentClip());
 				}
 			}

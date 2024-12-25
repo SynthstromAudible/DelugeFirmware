@@ -29,7 +29,7 @@ NumericLayerBasicText::~NumericLayerBasicText() {
 }
 
 void NumericLayerBasicText::isNowOnTop() {
-	if (blinkSpeed) {
+	if (blinkSpeed != 0) {
 
 		if (blinkSpeed == 1 && uiTimerManager.isTimerSet(TimerName::LED_BLINK)) {
 			uiTimerManager.setTimerByOtherTimer(TimerName::DISPLAY, TimerName::LED_BLINK);

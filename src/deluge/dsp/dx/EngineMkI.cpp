@@ -81,7 +81,7 @@ inline int32_t mkiSin(int32_t phase, uint16_t env) {
 	uint16_t expVal = sinLog(phase >> (22 - SINLOG_BITDEPTH)) + (env);
 	// int16_t expValShow = expVal;
 
-	const bool isSigned = expVal & NEGATIVE_BIT;
+	const bool isSigned = (expVal & NEGATIVE_BIT) != 0;
 	expVal &= ~NEGATIVE_BIT;
 
 	const uint16_t SINEXP_FILTER = 0x3FF;

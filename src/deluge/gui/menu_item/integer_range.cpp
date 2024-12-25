@@ -74,12 +74,12 @@ void IntegerRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRig
 	intToString(lower, buffer);
 
 	int32_t leftLength = strlen(buffer);
-	if (getLeftLength) {
+	if (getLeftLength != nullptr) {
 		*getLeftLength = leftLength;
 	}
 
 	if (mayShowJustOne && lower == upper) {
-		if (getRightLength) {
+		if (getRightLength != nullptr) {
 			*getRightLength = 0;
 		}
 		return;
@@ -91,7 +91,7 @@ void IntegerRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRig
 
 	intToString(upper, bufferPos);
 
-	if (getRightLength) {
+	if (getRightLength != nullptr) {
 		*getRightLength = strlen(bufferPos);
 	}
 }

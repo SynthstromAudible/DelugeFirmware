@@ -116,7 +116,7 @@ public:
 
 	void displayPopup(char const* newText, int8_t numFlashes = 3, bool = false, uint8_t = 255, int32_t = 1,
 	                  PopupType type = PopupType::GENERAL) override {
-		popupText(newText, !numFlashes, type);
+		popupText(newText, numFlashes == 0, type);
 	}
 
 	void popupText(char const* text, PopupType type = PopupType::GENERAL) override { popupText(text, true, type); }

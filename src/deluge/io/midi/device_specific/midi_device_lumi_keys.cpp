@@ -114,10 +114,10 @@ void MIDIDeviceLumiKeys::hookOnRecalculateColour() {
 
 	bool learnedToCurrentClip = false;
 
-	if (clip) {
+	if (clip != nullptr) {
 		// Determine if learned device on the current clip is the same as this one
 		LearnedMIDI* midiInput = &(((MelodicInstrument*)clip->output)->midiInput);
-		if (midiInput->containsSomething() && midiInput->cable) {
+		if (midiInput->containsSomething() && (midiInput->cable != nullptr)) {
 			if (midiInput->cable->getDisplayName() == getDisplayName()
 			    && midiInput->cable->connectionFlags == connectionFlags) {
 				learnedToCurrentClip = true;
@@ -132,7 +132,7 @@ void MIDIDeviceLumiKeys::hookOnRecalculateColour() {
 			uint32_t offset = 0;
 			NoteRow* noteRow = clip->getNoteRowOnScreen(yPos, currentSong);
 
-			if (noteRow) {
+			if (noteRow != nullptr) {
 				offset = noteRow->getColourOffset(clip);
 			}
 

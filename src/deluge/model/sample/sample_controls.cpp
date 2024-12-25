@@ -33,7 +33,7 @@ useLinearInterpolation:
 	else {
 
 		// If CPU dire...
-		if (AudioEngine::cpuDireness) {
+		if (AudioEngine::cpuDireness != 0) {
 			int32_t octave =
 			    getMagnitudeOld(phaseIncrement); // Unstretched, and the first octave going up from that, would be '25'
 			if (octave >= 26

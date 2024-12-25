@@ -36,7 +36,7 @@
 bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(Serializer& writer, Clip* clipForSavingOutputOnly,
                                                                Song* song) {
 	Instrument::writeDataToFile(writer, clipForSavingOutputOnly, song);
-	if (!clipForSavingOutputOnly) {
+	if (clipForSavingOutputOnly == nullptr) {
 
 		// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI class now uses.
 		// Channel gets written here as an attribute. Device, gets written below, as a tag.
@@ -57,11 +57,11 @@ bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(Serializer& write
 void MelodicInstrument::writeMelodicInstrumentTagsToFile(Serializer& writer, Clip* clipForSavingOutputOnly,
                                                          Song* song) {
 
-	if (!clipForSavingOutputOnly) {
+	if (clipForSavingOutputOnly == nullptr) {
 		// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI class now uses.
 		if (midiInput.containsSomething()) {
 			// Device gets written here as a tag. Channel got written above, as an attribute.
-			if (midiInput.cable) {
+			if (midiInput.cable != nullptr) {
 				midiInput.cable->writeReferenceToFile(writer, "inputMidiDevice");
 			}
 		}
@@ -71,15 +71,15 @@ void MelodicInstrument::writeMelodicInstrumentTagsToFile(Serializer& writer, Cli
 bool MelodicInstrument::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI class now uses.
-	if (!strcmp(tagName, "inputMidiChannel")) {
+	if (strcmp(tagName, "inputMidiChannel") == 0) {
 		midiInput.channelOrZone = reader.readTagOrAttributeValueInt();
 		reader.exitTag();
 	}
-	else if (!strcmp(tagName, "inputMPEZone")) {
+	else if (strcmp(tagName, "inputMPEZone") == 0) {
 		midiInput.readMPEZone(reader);
 		reader.exitTag();
 	}
-	else if (!strcmp(tagName, "inputMidiDevice")) {
+	else if (strcmp(tagName, "inputMidiDevice") == 0) {
 		midiInput.cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
 		reader.exitTag();
 	}
@@ -109,7 +109,7 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 		auto* instrumentClip = (InstrumentClip*)activeClip;
 
 		ModelStackWithNoteRow* modelStackWithNoteRow =
-		    instrumentClip ? instrumentClip->getNoteRowForYNote(note, modelStack) : modelStack->addNoteRow(0, nullptr);
+		    (instrumentClip != nullptr) ? instrumentClip->getNoteRowForYNote(note, modelStack) : modelStack->addNoteRow(0, nullptr);
 
 		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 
@@ -128,9 +128,9 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 			    mpeValues); // Hmm, should we really be going in here even when it's not MPE input?
 
 			// NoteRow must not already be sounding a note
-			if (!noteRow || !noteRow->soundingStatus) {
+			if ((noteRow == nullptr) || (noteRow->soundingStatus == 0u)) {
 
-				if (instrumentClip) {
+				if (instrumentClip != nullptr) {
 
 					// If we wanna record...
 					if (shouldRecordNotes && instrumentClip->armedForRecording) {
@@ -155,7 +155,7 @@ recordingEarly:
 
 						// And another special case - if there's a linear recording beginning really soon,
 						// and activeClip is not linearly recording (and maybe not even active)...
-						else if (currentPlaybackMode == &session && session.launchEventAtSwungTickCount
+						else if (currentPlaybackMode == &session && (session.launchEventAtSwungTickCount != 0)
 						         && !instrumentClip->getCurrentlyRecordingLinearly()) {
 							int32_t ticksTilLaunch =
 							    session.launchEventAtSwungTickCount - playbackHandler.getActualSwungTickCount();
@@ -164,7 +164,7 @@ recordingEarly:
 							if (samplesTilLaunch <= kLinearRecordingEarlyFirstNoteAllowance) {
 								Clip* clipAboutToRecord =
 								    currentSong->getClipWithOutputAboutToBeginLinearRecording(this);
-								if (clipAboutToRecord) {
+								if (clipAboutToRecord != nullptr) {
 									goto recordingEarly;
 								}
 							}
@@ -190,17 +190,17 @@ doRecord:
 							    &scaleAltered); // Have to re-get this anyway since called
 							                    // possiblyCloneForArrangementRecording(), above.
 							noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-							if (noteRow) {
+							if (noteRow != nullptr) {
 								// midichannel is not used by instrument clip
 								instrumentClip->recordNoteOn(modelStackWithNoteRow, velocity, forcePos0,
 								                             mpeValuesOrNull, midiChannel);
-								if (getRootUI()) {
+								if (getRootUI() != nullptr) {
 									getRootUI()->noteRowChanged(instrumentClip, noteRow);
 								}
 							}
 
 							// If this caused the scale to change, update scroll
-							if (action && scaleAltered) {
+							if ((action != nullptr) && scaleAltered) {
 								action->updateYScrollClipViewAfter();
 							}
 						}
@@ -237,7 +237,7 @@ justAuditionNote:
 			}
 			// NoteRow must already be auditioning
 			if (notesAuditioned.contains(note)) {
-				if (noteRow) {
+				if (noteRow != nullptr) {
 					// If we get here, we know there is a Clip
 					if (shouldRecordNotes
 					    && ((playbackHandler.recording == RecordingMode::ARRANGEMENT
@@ -248,7 +248,7 @@ justAuditionNote:
 						    && !instrumentClip->isArrangementOnlyClip()) {}
 						else {
 							instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
-							if (getRootUI()) {
+							if (getRootUI() != nullptr) {
 								getRootUI()->noteRowChanged(instrumentClip, noteRow);
 							}
 						}
@@ -258,11 +258,11 @@ justAuditionNote:
 				}
 			}
 
-			if (noteRow) {
+			if (noteRow != nullptr) {
 				// MPE-controlled params are a bit special in that we can see (via this note-off) when the user has
 				// removed their finger and won't be sending more values. So, let's unlatch those params now.
 				ExpressionParamSet* mpeParams = noteRow->paramManager.getExpressionParamSet();
-				if (mpeParams) {
+				if (mpeParams != nullptr) {
 					mpeParams->cancelAllOverriding();
 				}
 			}
@@ -295,7 +295,7 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
 	// you can't set a device
 	// norns midigrid mod sends deluge midi note_on messages on channel 16 to update pad brightness
 	else if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
-	         && instrumentClip->onKeyboardScreen && instrumentClip->output
+	         && instrumentClip->onKeyboardScreen && (instrumentClip->output != nullptr)
 	         && instrumentClip->output->type == OutputType::MIDI_OUT
 	         && ((MIDIInstrument*)instrumentClip->output)->getChannel() == midiChannel) {
 		keyboardScreen.nornsNotes[note] = on ? velocity : 0;
@@ -468,11 +468,11 @@ void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDICable& 
 	if (midiInput.equalsChannelOrZone(&cable, channelOrZone)) {
 
 		ParamManager* paramManager = getParamManager(modelStack->song);
-		if (paramManager) { // It could be NULL! - for a CVInstrument.
+		if (paramManager != nullptr) { // It could be NULL! - for a CVInstrument.
 			ExpressionParamSet* expressionParams = paramManager->getOrCreateExpressionParamSet();
-			if (expressionParams) {
+			if (expressionParams != nullptr) {
 				// If existing automation, don't do it.
-				if (activeClip) {
+				if (activeClip != nullptr) {
 					if (whichBendRange == BEND_RANGE_MAIN) {
 						if (expressionParams->params[0].isAutomated()) {
 							return;
@@ -514,7 +514,7 @@ void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
 	notesAuditioned.clear();
 	earlyNotes.clear(); // This is fine, though in a perfect world we'd prefer to just mark the notes as no
 	                    // longer active
-	if (activeClip) {
+	if (activeClip != nullptr) {
 		activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
 	}
 }
@@ -526,7 +526,7 @@ bool MelodicInstrument::isNoteAuditioning(int32_t noteCode) {
 void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity,
                                                 int16_t const* mpeValues, int32_t fromMIDIChannel,
                                                 uint32_t sampleSyncLength) {
-	if (!activeClip) {
+	if (activeClip == nullptr) {
 		return;
 	}
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
@@ -535,12 +535,12 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 
 	// don't audition this note row if there is a drone note that is currently sounding
 	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-	if (noteRow && noteRow->isDroning(modelStackWithNoteRow->getLoopLength())
+	if ((noteRow != nullptr) && noteRow->isDroning(modelStackWithNoteRow->getLoopLength())
 	    && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
 		return;
 	}
 
-	if (!activeClip || ((InstrumentClip*)activeClip)->allowNoteTails(modelStackWithNoteRow)) {
+	if ((activeClip == nullptr) || ((InstrumentClip*)activeClip)->allowNoteTails(modelStackWithNoteRow)) {
 		notesAuditioned.emplace(note, EarlyNoteInfo{static_cast<uint8_t>(velocity)});
 	}
 
@@ -555,7 +555,7 @@ void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t no
 
 	notesAuditioned.erase(note);
 	earlyNotes[note].stillActive = false; // set no longer active
-	if (!activeClip) {
+	if (activeClip == nullptr) {
 		return;
 	}
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
@@ -565,12 +565,12 @@ void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t no
 
 	// here we check if this note row has a drone note that is currently sounding
 	// in which case we don't want to stop it from sounding
-	if (noteRow && noteRow->isDroning(modelStackWithNoteRow->getLoopLength())
+	if ((noteRow != nullptr) && noteRow->isDroning(modelStackWithNoteRow->getLoopLength())
 	    && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
 		return;
 	}
 
-	if (activeClip) {
+	if (activeClip != nullptr) {
 		activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
 	}
 
@@ -593,7 +593,7 @@ MelodicInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackW
 	ParamCollectionSummary* summary = modelStack->paramManager->getExpressionParamSetSummary();
 
 	ExpressionParamSet* mpeParams = (ExpressionParamSet*)summary->paramCollection;
-	if (!mpeParams) {
+	if (mpeParams == nullptr) {
 		return modelStack->addParam(nullptr, nullptr, 0, nullptr); // Crude way of saying "none".
 	}
 
@@ -631,7 +631,7 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 
 		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
 		// region.
-		if (view.modLength
+		if ((view.modLength != 0u)
 		    && modelStack->getTimelineCounter() == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 			modPos = view.modPos;
 			modLength = view.modLength;
@@ -646,7 +646,7 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 	ModelStackWithAutoParam* modelStackWithParam =
 	    getParamToControlFromInputMIDIChannel(cc, modelStackWithThreeMainThings);
 
-	if (modelStackWithParam->autoParam) {
+	if (modelStackWithParam->autoParam != nullptr) {
 		modelStackWithParam->autoParam->setValuePossiblyForRegion(
 		    newValue, modelStackWithParam, modPos, modLength,
 		    false); // Don't delete nodes in linear run, cos this might need to be outputted as MIDI again
@@ -654,10 +654,10 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 }
 
 ArpeggiatorSettings* MelodicInstrument::getArpSettings(InstrumentClip* clip) {
-	if (clip) {
+	if (clip != nullptr) {
 		return &clip->arpSettings;
 	}
-	else if (activeClip) {
+	else if (activeClip != nullptr) {
 		return &((InstrumentClip*)activeClip)->arpSettings;
 	}
 	else {
@@ -697,7 +697,7 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 				            modelStack); // No need to create - it should already exist if they're recording a
 				                         // note here.
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-				if (noteRow) {
+				if (noteRow != nullptr) {
 					bool success = noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, newValue,
 					                                                        expressionDimension, false);
 					if (success) {
@@ -732,7 +732,7 @@ ModelStackWithAutoParam* MelodicInstrument::getModelStackWithParam(ModelStackWit
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
 
-	if (modelStackWithThreeMainThings) {
+	if (modelStackWithThreeMainThings != nullptr) {
 		if (paramKind == deluge::modulation::params::Kind::PATCHED) {
 			modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
 		}

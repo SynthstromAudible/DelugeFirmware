@@ -47,7 +47,7 @@ void CVInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChanne
 void CVInstrument::polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
                                                             int32_t expressionDimension, ArpNote* arpNote) {
 	if (cvEngine.isNoteOn(getPitchChannel(), noteCodeAfterArpeggiation)) {
-		if (!expressionDimension) { // Pitch bend only, handles different polyphonic vs mpe pitch scales
+		if (expressionDimension == 0) { // Pitch bend only, handles different polyphonic vs mpe pitch scales
 			polyPitchBendValue = newValue;
 			updatePitchBendOutput();
 		}
@@ -60,7 +60,7 @@ void CVInstrument::polyphonicExpressionEventPostArpeggiator(int32_t newValue, in
 }
 
 void CVInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {
-	if (!expressionDimension) { // Pitch bend only
+	if (expressionDimension == 0) { // Pitch bend only
 		monophonicPitchBendValue = newValue;
 		updatePitchBendOutput();
 	}
@@ -73,9 +73,9 @@ void CVInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expressio
 void CVInstrument::updatePitchBendOutput(bool outputToo) {
 
 	ParamManager* paramManager = getParamManager(nullptr);
-	if (paramManager) {
+	if (paramManager != nullptr) {
 		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
-		if (expressionParams) {
+		if (expressionParams != nullptr) {
 			cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];
 			cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
 		}
@@ -98,7 +98,7 @@ bool CVInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutput
 	// call
 	writeMelodicInstrumentAttributesToFile(writer, clipForSavingOutputOnly, song);
 	writer.writeAttribute("cv2Source", static_cast<int32_t>(cvmode[1]));
-	if (clipForSavingOutputOnly || !midiInput.containsSomething()) {
+	if ((clipForSavingOutputOnly != nullptr) || !midiInput.containsSomething()) {
 		return false; // If we don't need to write a "device" tag, opt not to end the opening tag
 	}
 
@@ -126,11 +126,11 @@ bool CVInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmC
 	bool clipChanged = NonAudioInstrument::setActiveClip(modelStack, maySendMIDIPGMs);
 
 	if (clipChanged) {
-		if (modelStack) {
+		if (modelStack != nullptr) {
 
 			ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
 			ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
-			if (expressionParams) {
+			if (expressionParams != nullptr) {
 				monophonicPitchBendValue = expressionParams->params[0].getCurrentValue();
 
 				cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];

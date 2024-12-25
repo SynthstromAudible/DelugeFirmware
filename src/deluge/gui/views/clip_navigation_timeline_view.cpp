@@ -36,7 +36,7 @@ ActionResult ClipNavigationTimelineView::horizontalEncoderAction(int32_t offset)
 void ClipNavigationTimelineView::horizontalScrollForLinearRecording(int32_t newXScroll) {
 	// Make sure we don't scroll too far right
 	if (newXScroll < getMaxLength()) {
-		if (!PadLEDs::renderingLock && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING)
+		if (!PadLEDs::renderingLock && ((currentUIMode == 0u) || currentUIMode == UI_MODE_AUDITIONING)
 		    && getCurrentUI() == this) {
 			initiateXScroll(newXScroll);
 		}

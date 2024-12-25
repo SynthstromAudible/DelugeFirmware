@@ -67,13 +67,13 @@ void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLe
 		}
 	}
 
-	if (getLeftLength) {
+	if (getLeftLength != nullptr) {
 		*getLeftLength = leftLength;
 	}
 
 	if (mayShowJustOne && lower == upper) {
 		*buffer = 0;
-		if (getRightLength) {
+		if (getRightLength != nullptr) {
 			*getRightLength = 0;
 		}
 		return;
@@ -92,7 +92,7 @@ void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLe
 
 	*buffer = 0;
 
-	if (getRightLength) {
+	if (getRightLength != nullptr) {
 		*getRightLength = rightLength;
 	}
 }

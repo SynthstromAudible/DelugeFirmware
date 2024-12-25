@@ -456,7 +456,7 @@ int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t
 			int32_t blockStartRelativeToScroll = blockStartPos - xScroll; // Will be negative or 0
 			int32_t posRelativeToBlockStart = pos - blockStartPos;
 
-			if (rightOnSquare) {
+			if (rightOnSquare != nullptr) {
 				*rightOnSquare =
 				    (posRelativeToBlockStart % (xZoom * 4 / 3) == 0); // Will the % be ok if it's negative? No! :O
 			}
@@ -473,7 +473,7 @@ int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t
 		else if (xZoom < currentSong->tripletsLevel * 2) {
 			int32_t posRelativeToTripletsStart =
 			    posRelativeToScroll % (currentSong->tripletsLevel * 3); // Will the % be ok if it's negative? No! :O
-			if (rightOnSquare) {
+			if (rightOnSquare != nullptr) {
 				*rightOnSquare =
 				    (posRelativeToTripletsStart == 0 || posRelativeToTripletsStart == currentSong->tripletsLevel * 2);
 			}
@@ -485,7 +485,7 @@ int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t
 		}
 	}
 
-	if (rightOnSquare) {
+	if (rightOnSquare != nullptr) {
 		*rightOnSquare = (posRelativeToScroll >= 0
 		                  && (posRelativeToScroll % xZoom) == 0); // Will the % be ok if it's negative? No! :O
 	}

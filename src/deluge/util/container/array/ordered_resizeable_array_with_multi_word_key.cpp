@@ -80,7 +80,7 @@ int32_t OrderedResizeableArrayWithMultiWordKey::searchMultiWordExact(uint32_t* _
 	}
 
 notFound:
-	if (getIndexToInsertAt) {
+	if (getIndexToInsertAt != nullptr) {
 		*getIndexToInsertAt = i;
 	}
 	return -1;

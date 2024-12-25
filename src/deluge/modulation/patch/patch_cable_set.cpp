@@ -58,7 +58,7 @@ void unflagCable(uint32_t* flags, int32_t c) {
 
 inline void PatchCableSet::freeDestinationMemory(bool destructing) {
 	for (int32_t g = 0; g < 2; g++) {
-		if (destinations[g]) {
+		if (destinations[g] != nullptr) {
 			delugeDealloc(destinations[g]);
 			if (!destructing) {
 				destinations[g] = nullptr;
@@ -96,7 +96,7 @@ bool PatchCableSet::isSourcePatchedToSomethingManuallyCheckCables(PatchSource s)
 }
 
 bool PatchCableSet::doesParamHaveSomethingPatchedToIt(int32_t p) {
-	return getDestinationForParam(p);
+	return getDestinationForParam(p) != nullptr;
 }
 
 void PatchCableSet::swapCables(int32_t c1, int32_t c2) {
@@ -111,7 +111,7 @@ Destination* PatchCableSet::getDestinationForParam(int32_t p) {
 	int32_t globality = (p < params::FIRST_GLOBAL) ? GLOBALITY_LOCAL : GLOBALITY_GLOBAL;
 
 	// Special case - no Destinations at all
-	if (!destinations[globality]) {
+	if (destinations[globality] == nullptr) {
 		return nullptr;
 	}
 
@@ -119,7 +119,7 @@ Destination* PatchCableSet::getDestinationForParam(int32_t p) {
 	destinationParamDescriptor.setToHaveParamOnly(p);
 
 	// TODO: don't just linear search. But then, there won't be more than like 4 Destinations usually....
-	for (Destination* destination = &destinations[globality][0]; destination->sources; destination++) {
+	for (Destination* destination = &destinations[globality][0]; destination->sources != 0u; destination++) {
 		if (destination->destinationParamDescriptor == destinationParamDescriptor) {
 			return destination;
 		}
@@ -141,7 +141,7 @@ void PatchCableSet::setupPatching(ModelStackWithParamCollection const* modelStac
 		    (Destination*)GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Destination) * (kMaxNumPatchCables + 1));
 
 		// If couldn't...
-		if (!destinations[g]) {
+		if (destinations[g] == nullptr) {
 
 			// If we'd got the first one successfully, deallocate it again
 			if (g == 1) {
@@ -252,7 +252,7 @@ goAgainWithoutIncrement:
 	for (int32_t globality = 0; globality < 2; globality++) {
 
 		// If no Destinations here at all, free memory
-		if (!numDestinations[globality]) {
+		if (numDestinations[globality] == 0) {
 			delugeDealloc(destinations[globality]);
 			destinations[globality] = nullptr;
 		}
@@ -335,7 +335,7 @@ goAgainWithoutIncrement:
 		if (patchCables[c].param.isAutomated()) {
 			flagCable(modelStack->summary->whichParamsAreAutomated, c);
 
-			if (patchCables[c].param.valueIncrementPerHalfTick) {
+			if (patchCables[c].param.valueIncrementPerHalfTick != 0) {
 				flagCable(modelStack->summary->whichParamsAreInterpolating, c);
 			}
 		}
@@ -439,7 +439,7 @@ claimPatchCable:
 		patchCables[c].destinationParamDescriptor = destinationParamDescriptor;
 
 		// Re-setup the patching, to place this cable where it needs to be
-		if (modelStack) {
+		if (modelStack != nullptr) {
 			setupPatching(modelStack);
 		}
 
@@ -660,7 +660,7 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 	param->trimToLength(newLength, action, modelStackWithAutoParam);
 
-	if (!param->valueIncrementPerHalfTick) {
+	if (param->valueIncrementPerHalfTick == 0) {
 		unflagCable(modelStack->summary->whichParamsAreInterpolating, c);
 
 		bool stillAutomated = param->isAutomated();
@@ -726,7 +726,7 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 		int32_t ticksTilNextEventThisCable = param->processCurrentPos(modelStackWithAutoParam, reversed, didPingpong);
 		ticksTilNextEvent = std::min(ticksTilNextEvent, ticksTilNextEventThisCable);
 
-		if (param->valueIncrementPerHalfTick) {
+		if (param->valueIncrementPerHalfTick != 0) {
 			flagCable(modelStack->summary->whichParamsAreInterpolating, c);
 		}
 		FOR_EACH_PARAM_END
@@ -754,7 +754,7 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 
 	// Allocate new memory - max size we might need
 	for (int32_t g = 0; g < 2; g++) {
-		if (!destinations[g]) {
+		if (destinations[g] == nullptr) {
 			continue;
 		}
 
@@ -763,7 +763,7 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 		    (Destination*)GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Destination) * (kMaxNumPatchCables + 1));
 
 		// If couldn't...
-		if (!newDestinations[g]) {
+		if (newDestinations[g] == nullptr) {
 
 			// If we'd got the first one successfully, deallocate it again
 			if (g == 1) {
@@ -780,7 +780,7 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 		Destination* to = newDestinations[g];
 		while (true) {
 			*to = *from;
-			if (!from->sources) {
+			if (from->sources == 0u) {
 				break; // Stop *after* copying the terminating "0".
 			}
 
@@ -803,9 +803,9 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 
 	char const* tagName;
 	reader.match('[');
-	while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())
+	while (reader.match('{') && (*(tagName = reader.readNextTagOrAttributeName()) != 0)
 	       && numPatchCables < kMaxNumPatchCables) { // box and name.
-		if (!strcmp(tagName, "patchCable")) {
+		if (strcmp(tagName, "patchCable") == 0) {
 			reader.match('{'); // inner object value.
 			int32_t numCablesAtStartOfThing = numPatchCables;
 
@@ -815,33 +815,33 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 			AutoParam tempParam;
 
 			bool rangeAdjustable = false;
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
-				if (!strcmp(tagName, "source")) {
+			while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+				if (strcmp(tagName, "source") == 0) {
 					source = stringToSource(reader.readTagOrAttributeValue());
 				}
-				else if (!strcmp(tagName, "destination")) {
+				else if (strcmp(tagName, "destination") == 0) {
 					destinationParamDescriptor.setToHaveParamOnly(params::fileStringToParam(
 					    params::Kind::UNPATCHED_SOUND, reader.readTagOrAttributeValue(), true));
 				}
-				else if (!strcmp(tagName, "amount")) {
+				else if (strcmp(tagName, "amount") == 0) {
 					tempParam.readFromFile(reader, readAutomationUpToPos);
 				}
-				else if (!strcmp(tagName, "rangeAdjustable")) { // Files before V3.2 had this
-					rangeAdjustable = reader.readTagOrAttributeValueInt();
+				else if (strcmp(tagName, "rangeAdjustable") == 0) { // Files before V3.2 had this
+					rangeAdjustable = (reader.readTagOrAttributeValueInt() != 0);
 				}
-				else if (!strcmp(tagName, "depthControlledBy")) {
+				else if (strcmp(tagName, "depthControlledBy") == 0) {
 					reader.match('[');
-					while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())
+					while (reader.match('{') && (*(tagName = reader.readNextTagOrAttributeName()) != 0)
 					       && numPatchCables < kMaxNumPatchCables - 1) {
-						if (!strcmp(tagName, "patchCable")) {
+						if (strcmp(tagName, "patchCable") == 0) {
 							reader.match('{');
 							PatchSource rangeSource = PatchSource::NONE;
 							AutoParam tempRangeParam;
-							while (*(tagName = reader.readNextTagOrAttributeName())) {
-								if (!strcmp(tagName, "source")) {
+							while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
+								if (strcmp(tagName, "source") == 0) {
 									rangeSource = stringToSource(reader.readTagOrAttributeValue());
 								}
-								else if (!strcmp(tagName, "amount")) {
+								else if (strcmp(tagName, "amount") == 0) {
 									tempRangeParam.readFromFile(reader, readAutomationUpToPos);
 								}
 								reader.exitTag();
@@ -937,7 +937,7 @@ abandonThisCable:
 }
 
 void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomation) {
-	if (!numPatchCables) {
+	if (numPatchCables == 0u) {
 		return;
 	}
 
@@ -1117,7 +1117,7 @@ void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset,
 
 	param->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action, modelStackWithParam);
 
-	if (!param->valueIncrementPerHalfTick) {
+	if (param->valueIncrementPerHalfTick == 0) {
 		unflagCable(modelStack->summary->whichParamsAreInterpolating, c);
 
 		bool stillAutomated = param->isAutomated();
@@ -1158,7 +1158,7 @@ void PatchCableSet::notifyPingpongOccurred(ModelStackWithParamCollection* modelS
 }
 
 void PatchCableSet::grabVelocityToLevelFromMIDIInput(LearnedMIDI* midiInput) {
-	if (midiInput->containsSomething() && midiInput->cable) {
+	if (midiInput->containsSomething() && (midiInput->cable != nullptr)) {
 		MIDICable* cable = midiInput->cable;
 		if (cable->hasDefaultVelocityToLevelSet()) {
 
@@ -1170,7 +1170,7 @@ void PatchCableSet::grabVelocityToLevelFromMIDIInput(LearnedMIDI* midiInput) {
 void PatchCableSet::grabVelocityToLevelFromMIDICable(MIDICable& cable) {
 
 	PatchCable* patchCable = getPatchCableFromVelocityToLevel();
-	if (!patchCable) {
+	if (patchCable == nullptr) {
 		return;
 	}
 

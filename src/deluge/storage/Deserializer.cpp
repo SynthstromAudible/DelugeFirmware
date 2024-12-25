@@ -114,7 +114,7 @@ skipToNextTag:
 			goto getOut;
 
 		default:
-			if (!charPos) {
+			if (charPos == 0) {
 				tagDepthFile++;
 			}
 
@@ -218,7 +218,7 @@ reachedNameEnd:
 			readDone();
 			haveReachedNameEnd = true;
 			// If possible, just return a pointer to the chars within the existing buffer
-			if (!charPos && fileReadBufferCurrentPos < currentReadBufferEndPos) {
+			if ((charPos == 0) && fileReadBufferCurrentPos < currentReadBufferEndPos) {
 				fileClusterBuffer[fileReadBufferCurrentPos] = 0; // NULL end of the string we're returning
 				fileReadBufferCurrentPos++;                      // Gets us past the endChar
 				return &fileClusterBuffer[bufferPosAtStart];
@@ -271,7 +271,7 @@ char const* XMLDeserializer::readNextTagOrAttributeName() {
 	case IN_TAG_PAST_NAME:
 		toReturn = readNextAttributeName();
 		// If depth has changed, this means we met a /> and must get out
-		if (*toReturn || tagDepthFile != tagDepthStart) {
+		if ((*toReturn != 0) || tagDepthFile != tagDepthStart) {
 			break;
 		}
 		// No break
@@ -285,7 +285,7 @@ char const* XMLDeserializer::readNextTagOrAttributeName() {
 		toReturn = readTagName();
 	}
 
-	if (*toReturn) {
+	if (*toReturn != 0) {
 		/*
 		for (int32_t t = 0; t < tagDepthCaller; t++) {
 D_PRINTLN("\t");
@@ -421,7 +421,7 @@ Error XMLDeserializer::readStringUntilChar(String* string, char endChar) {
 
 		int32_t numCharsHere = bufferPosNow - fileReadBufferCurrentPos;
 
-		if (numCharsHere) {
+		if (numCharsHere != 0) {
 			Error error =
 			    string->concatenateAtPos(&fileClusterBuffer[fileReadBufferCurrentPos], newStringPos, numCharsHere);
 
@@ -453,7 +453,7 @@ char const* XMLDeserializer::readUntilChar(char endChar) {
 		}
 
 		// If possible, just return a pointer to the chars within the existing buffer
-		if (!charPos && fileReadBufferCurrentPos < currentReadBufferEndPos) {
+		if ((charPos == 0) && fileReadBufferCurrentPos < currentReadBufferEndPos) {
 			fileClusterBuffer[fileReadBufferCurrentPos] = 0;
 
 			fileReadBufferCurrentPos++; // Gets us past the endChar
@@ -845,9 +845,9 @@ Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTa
 
 	char const* tagName;
 
-	while (*(tagName = readNextTagOrAttributeName())) {
+	while (*(tagName = readNextTagOrAttributeName()) != 0) {
 
-		if (!strcmp(tagName, firstTagName) || !strcmp(tagName, altTagName)) {
+		if ((strcmp(tagName, firstTagName) == 0) || (strcmp(tagName, altTagName) == 0)) {
 			return Error::NONE;
 		}
 
@@ -864,13 +864,13 @@ Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTa
 
 Error XMLDeserializer::tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) {
 
-	if (!strcmp(tagName, "firmwareVersion")) {
+	if (strcmp(tagName, "firmwareVersion") == 0) {
 		char const* firmware_version_string = readTagOrAttributeValue();
 		song_firmware_version = FirmwareVersion::parse(firmware_version_string);
 	}
 
 	// If this tag doesn't exist, it's from old firmware so is ok
-	else if (!strcmp(tagName, "earliestCompatibleFirmware")) {
+	else if (strcmp(tagName, "earliestCompatibleFirmware") == 0) {
 		char const* firmware_version_string = readTagOrAttributeValue();
 		auto earliestFirmware = FirmwareVersion::parse(firmware_version_string);
 		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {

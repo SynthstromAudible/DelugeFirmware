@@ -51,7 +51,7 @@ public:
 				// get model stack with note row but don't create note row if it doesn't exist
 				ModelStackWithNoteRow* modelStackWithNoteRow =
 				    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, modelStack);
-				if (!modelStackWithNoteRow->getNoteRowAllowNull()) { // if note row doesn't exist yet, create it
+				if (modelStackWithNoteRow->getNoteRowAllowNull() == nullptr) { // if note row doesn't exist yet, create it
 					modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(
 					    modelStack, instrumentClipView.lastAuditionedYDisplay);
 				}

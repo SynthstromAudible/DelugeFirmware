@@ -86,7 +86,7 @@ FatFS::Filesystem fileSystem;
 
 Error StorageManager::checkSpaceOnCard() {
 	D_PRINTLN("free clusters:  %d", fileSystem.free_clst);
-	return fileSystem.free_clst ? Error::NONE : Error::SD_CARD_FULL; // This doesn't seem to always be 100% accurate...
+	return (fileSystem.free_clst != 0u) ? Error::NONE : Error::SD_CARD_FULL; // This doesn't seem to always be 100% accurate...
 }
 
 // Creates folders and subfolders as needed!
@@ -134,7 +134,7 @@ processError:
 cutFolderPathAndTryCreating:
 			char const* folderPathChars = folderPath.get();
 			char const* slashAddr = strrchr(folderPathChars, '/');
-			if (!slashAddr) {
+			if (slashAddr == nullptr) {
 				return std::unexpected(Error::UNSPECIFIED); // Shouldn't happen
 			}
 			int32_t slashPos = (uint32_t)slashAddr - (uint32_t)folderPathChars;
@@ -251,7 +251,7 @@ Error StorageManager::initSD() {
 	}
 
 	// But if there's no card present, we're in trouble
-	if (status & STA_NODISK) {
+	if ((status & STA_NODISK) != 0) {
 		return Error::SD_CARD_NOT_PRESENT;
 	}
 
@@ -268,13 +268,13 @@ Error StorageManager::initSD() {
 
 bool StorageManager::checkSDPresent() {
 	DSTATUS status = disk_status(SD_PORT);
-	bool present = !(status & STA_NODISK);
+	bool present = (status & STA_NODISK) == 0;
 	return present;
 }
 
 bool StorageManager::checkSDInitialized() {
 	DSTATUS status = disk_status(SD_PORT);
-	return !(status & STA_NOINIT);
+	return (status & STA_NOINIT) == 0;
 }
 
 // Function can't fail.
@@ -298,7 +298,7 @@ void StorageManager::openFilePointer(FilePointer* fp, FileReader& reader) {
 Error StorageManager::openInstrumentFile(OutputType outputType, FilePointer* filePointer) {
 
 	AudioEngine::logAction("openInstrumentFile");
-	if (!filePointer->sclust) {
+	if (filePointer->sclust == 0u) {
 		return Error::FILE_NOT_FOUND;
 	}
 	char const* firstTagName;
@@ -338,7 +338,7 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 	AudioEngine::logAction("loadInstrumentFromFile");
 	Instrument* newInstrument = createNewInstrument(outputType);
 
-	if (!newInstrument) {
+	if (newInstrument == nullptr) {
 		smDeserializer.closeWriter();
 		D_PRINTLN("Allocating instrument file failed -  %d", name->get());
 		return Error::INSUFFICIENT_RAM;
@@ -351,7 +351,7 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
 		D_PRINTLN("reading instrument file failed -  %s", name->get());
-		if (!fileSuccess) {
+		if (fileSuccess == 0u) {
 			error = Error::SD_CARD;
 		}
 
@@ -366,8 +366,8 @@ deleteInstrumentAndGetOut:
 	}
 
 	// Check that a ParamManager was actually loaded for the Instrument, cos if not, that'd spell havoc
-	if (!song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
-	                                                     nullptr)) {
+	if (song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
+	                                                     nullptr) == nullptr) {
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
 		// paramManager to be created when we read the Kit just now. So, just make one.
@@ -396,12 +396,12 @@ paramManagersMissing:
 	// For Kits, ensure that every audio Drum has a ParamManager somewhere
 	if (newInstrument->type == OutputType::KIT) {
 		Kit* kit = (Kit*)newInstrument;
-		for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 			if (thisDrum->type == DrumType::SOUND) {
 				SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
 				// If no backedUpParamManager...
-				if (!currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL)) {
+				if (currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL) == nullptr) {
 					goto paramManagersMissing;
 				}
 			}
@@ -420,7 +420,7 @@ paramManagersMissing:
 Error StorageManager::openMidiDeviceDefinitionFile(FilePointer* filePointer) {
 
 	AudioEngine::logAction("openMidiDeviceDefinitionFile");
-	if (!filePointer->sclust) {
+	if (filePointer->sclust == 0u) {
 		return Error::FILE_NOT_FOUND;
 	}
 	char const* firstTagName = "midiDevice";
@@ -454,7 +454,7 @@ Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrumen
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
 		D_PRINTLN("reading midi device definition file failed -  %s", fileName->get());
-		if (!fileSuccess) {
+		if (fileSuccess == 0u) {
 			error = Error::SD_CARD;
 		}
 
@@ -475,7 +475,7 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
                                       String* dirPath) {
 	OutputType outputType = OutputType::SYNTH;
 	SoundDrum* newDrum = (SoundDrum*)createNewDrum(DrumType::SOUND);
-	if (!newDrum) {
+	if (newDrum == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
@@ -506,7 +506,7 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 		}
 	}
 	// these have to get cleared, otherwise we keep creating drums that aren't attached to note rows
-	if (*getInstrument) {
+	if (*getInstrument != nullptr) {
 		song->deleteBackedUpParamManagersForModControllable(*getInstrument);
 		(*getInstrument)->wontBeRenderedForAWhile();
 		void* toDealloc = static_cast<void*>(*getInstrument);
@@ -537,7 +537,7 @@ Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamM
 	}
 
 	void* instrumentMemory = GeneralMemoryAllocator::get().allocMaxSpeed(instrumentSize);
-	if (!instrumentMemory) {
+	if (instrumentMemory == nullptr) {
 		return nullptr;
 	}
 
@@ -547,7 +547,7 @@ Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamM
 
 	// Synth
 	if (newOutputType == OutputType::SYNTH) {
-		if (paramManager) {
+		if (paramManager != nullptr) {
 			error = paramManager->setupWithPatching();
 			if (error != Error::NONE) {
 paramManagerSetupError:
@@ -565,7 +565,7 @@ paramManagerSetupError:
 
 	// Kit
 	else {
-		if (paramManager) {
+		if (paramManager != nullptr) {
 			error = paramManager->setupUnpatched();
 			if (error != Error::NONE) {
 				goto paramManagerSetupError;
@@ -583,7 +583,7 @@ Instrument* StorageManager::createNewNonAudioInstrument(OutputType outputType, i
 	int32_t size = (outputType == OutputType::MIDI_OUT) ? sizeof(MIDIInstrument) : sizeof(CVInstrument);
 	// Paul: Might make sense to put these into Internal?
 	void* instrumentMemory = GeneralMemoryAllocator::get().allocLowSpeed(size);
-	if (!instrumentMemory) { // RAM fail
+	if (instrumentMemory == nullptr) { // RAM fail
 		return nullptr;
 	}
 
@@ -614,7 +614,7 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 	}
 
 	void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(memorySize);
-	if (!drumMemory) {
+	if (drumMemory == nullptr) {
 		return nullptr;
 	}
 
@@ -775,12 +775,12 @@ bool FileReader::readFileCluster() {
 	}
 
 	FRESULT result = f_read(&readFIL, (UINT*)fileClusterBuffer, Cluster::size, &currentReadBufferEndPos);
-	if (result) {
+	if (result != 0u) {
 		return false;
 	}
 
 	// If error or we reached end of file
-	if (!currentReadBufferEndPos) {
+	if (currentReadBufferEndPos == 0u) {
 		return false;
 	}
 
@@ -823,7 +823,7 @@ void FileReader::readDone() {
 
 	if (!callRoutines)
 		return;
-	if (!(readCount & 63)) { // 511 bad. 255 almost fine. 127 almost always fine
+	if ((readCount & 63) == 0) { // 511 bad. 255 almost fine. 127 almost always fine
 		AudioEngine::routineWithClusterLoading();
 
 		uiTimerManager.routine();
@@ -908,12 +908,12 @@ void FileWriter::writeByte(int8_t b) {
 	fileWriteBufferCurrentPos++;
 
 	// Ensure we do some of the audio routine once in a while
-	if (callRoutines && !(fileWriteBufferCurrentPos & 0b11111111)) {
+	if (callRoutines && ((fileWriteBufferCurrentPos & 0b11111111) == 0)) {
 		routineForSD();
 	}
 }
 void FileWriter::writeChars(char const* output) {
-	while (*output) {
+	while (*output != 0) {
 		writeByte(*output);
 		output++;
 	}
@@ -946,14 +946,14 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 	}
 
 	FRESULT result = closeWriter();
-	if (result) {
+	if (result != 0u) {
 		return Error::WRITE_FAIL;
 	}
 
-	if (path) {
+	if (path != nullptr) {
 		// Check file exists
 		result = f_open(&writeFIL, path, FA_READ);
-		if (result) {
+		if (result != 0u) {
 			return Error::WRITE_FAIL;
 		}
 	}
@@ -964,39 +964,39 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 	}
 
 	// Check beginning
-	if (beginningString) {
+	if (beginningString != nullptr) {
 		UINT dontCare;
 		int32_t length = strlen(beginningString);
 		result = f_read(&writeFIL, miscStringBuffer, length, &dontCare);
-		if (result) {
+		if (result != 0u) {
 			return Error::WRITE_FAIL;
 		}
-		if (memcmp(miscStringBuffer, beginningString, length)) {
+		if (memcmp(miscStringBuffer, beginningString, length) != 0) {
 			return Error::WRITE_FAIL;
 		}
 	}
 
 	// Check end
-	if (endString) {
+	if (endString != nullptr) {
 		UINT dontCare;
 		int32_t length = strlen(endString);
 
 		result = f_lseek(&writeFIL, fileTotalBytesWritten - length);
-		if (result) {
+		if (result != 0u) {
 			return Error::WRITE_FAIL;
 		}
 
 		result = f_read(&writeFIL, miscStringBuffer, length, &dontCare);
-		if (result) {
+		if (result != 0u) {
 			return Error::WRITE_FAIL;
 		}
-		if (memcmp(miscStringBuffer, endString, length)) {
+		if (memcmp(miscStringBuffer, endString, length) != 0) {
 			return Error::WRITE_FAIL;
 		}
 	}
 
 	result = closeWriter();
-	if (result) {
+	if (result != 0u) {
 		return Error::WRITE_FAIL;
 	}
 

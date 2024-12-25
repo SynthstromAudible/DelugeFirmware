@@ -40,7 +40,7 @@ SaveMidiDeviceDefinitionUI::SaveMidiDeviceDefinitionUI() {
 }
 
 bool SaveMidiDeviceDefinitionUI::opened() {
-	if (!getRootUI()->toClipMinder() || getCurrentOutputType() != OutputType::MIDI_OUT) {
+	if ((getRootUI()->toClipMinder() == nullptr) || getCurrentOutputType() != OutputType::MIDI_OUT) {
 		return false;
 	}
 

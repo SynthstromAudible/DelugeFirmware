@@ -36,7 +36,7 @@
 extern int32_t oscSyncRenderingBuffer[];
 
 WaveTableBand::~WaveTableBand() {
-	if (data) { // It might be NULL if that BandData was just "stolen".
+	if (data != nullptr) { // It might be NULL if that BandData was just "stolen".
 		data->~WaveTableBandData();
 		delugeDealloc(data);
 	}
@@ -143,7 +143,7 @@ Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioD
 
 	uint32_t originalSampleLengthInSamples;
 
-	if (sample) {
+	if (sample != nullptr) {
 		filePath.set(&sample->filePath);
 		loadedFromAlternatePath.set(&sample->loadedFromAlternatePath);
 
@@ -212,7 +212,7 @@ tryGettingFFTConfig:
 	// If that returned NULL, normally we can just opt to not do FFTs and have just 1 band.
 	// But in the case where the original wasn't a power-of-two size, we're gonna have to do FFTs (as well as one
 	// DFT)...
-	if (!fftCFGForInitialBand && !rawFileCycleSizeIsAPowerOfTwo) {
+	if ((fftCFGForInitialBand == nullptr) && !rawFileCycleSizeIsAPowerOfTwo) {
 
 		// Actually screw it, this is so rare, it's easier just to make a rule that for non-power-of-two we *have* to
 		// render it out to that bigger size. Cos if we allow a smaller initial band, we don't have enough space in it
@@ -236,7 +236,7 @@ tryGettingFFTConfig:
 	// that small unless we enable its additional C code, which would take up program size for little advantage.
 	{
 		int32_t numBands =
-		    fftCFGForInitialBand ? ((initialBandCycleMagnitude - 2) >> (NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS - 1)) : 1;
+		    (fftCFGForInitialBand != nullptr) ? ((initialBandCycleMagnitude - 2) >> (NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS - 1)) : 1;
 
 		// Don't refer to numBands after this! (Why? Because we might end up using less after all?)
 		error = bands.insertAtIndex(0, numBands);
@@ -268,7 +268,7 @@ gotError2:
 		// Ironically we'll even do that if the source file was just 8-bit, but that's really uncommon.
 		void* bandDataMemory =
 		    GeneralMemoryAllocator::get().allocStealable(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData));
-		if (!bandDataMemory) {
+		if (bandDataMemory == nullptr) {
 			error = Error::INSUFFICIENT_RAM;
 			// All bands from this one onwards still have undefined data, so gotta get rid of them before anything else
 			// tries to do anything with them.
@@ -305,7 +305,7 @@ gotError2:
 	// Internal RAM is good, and it's only temporary
 	int32_t* __restrict__ currentCycleInt32 =
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(currentCycleMemorySize * sizeof(int32_t));
-	if (!currentCycleInt32) {
+	if (currentCycleInt32 == nullptr) {
 		error = Error::INSUFFICIENT_RAM;
 		goto gotError2;
 	}
@@ -316,7 +316,7 @@ gotError2:
 	ne10_fft_cpx_int32_t* __restrict__ frequencyDomainData =
 	    (ne10_fft_cpx_int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(((currentCycleMemorySize >> 1) + 1)
 	                                                                       * sizeof(ne10_fft_cpx_int32_t));
-	if (!frequencyDomainData) {
+	if (frequencyDomainData == nullptr) {
 		error = Error::INSUFFICIENT_RAM;
 gotError4:
 		delugeDealloc(currentCycleInt32);
@@ -341,7 +341,7 @@ gotError5:
 	int32_t clusterIndex = audioDataStartPosBytes >> Cluster::size_magnitude;
 	int32_t byteIndexWithinCluster = audioDataStartPosBytes & (Cluster::size - 1);
 
-	if (!sample) {
+	if (sample == nullptr) {
 		reader->jumpForwardToBytePos(audioDataStartPosBytes); // In case reader wasn't quite up to here yet! Can happen
 		                                                      // in AIFF files, with their "offset"
 	}
@@ -382,20 +382,20 @@ gotError5:
 		do {
 
 			// If converting an existing Sample from memory into this WaveTable...
-			if (sample) {
+			if (sample != nullptr) {
 
 				// If we need to load a new Cluster now (which might not be the case if we've just switched into a new
 				// Cycle which starts still within the same Cluster)...
 				if (clusterIndex != clusterIndexCurrentlyLoaded) {
 
 					// First, unload the old Cluster if there was one
-					if (cluster) {
+					if (cluster != nullptr) {
 						audioFileManager.removeReasonFromCluster(*cluster, "E385");
 					}
 
 					cluster = sample->clusters.getElement(clusterIndex)
 					              ->getCluster(sample, clusterIndex, CLUSTER_LOAD_IMMEDIATELY, 0, &error);
-					if (!cluster) {
+					if (cluster == nullptr) {
 						goto gotError5;
 					}
 
@@ -462,7 +462,7 @@ gotError5:
 
 				CONVERT_AND_STORE_SAMPLE;
 
-				if (!sample) {
+				if (sample == nullptr) {
 					reader->byteIndexWithinCluster +=
 					    byteDepth + byteIndexWithinCluster; // +byteIndexWithinCluster because we already moved forward
 					                                        // an extra -byteIndexWithinCluster, above.
@@ -509,7 +509,7 @@ gotError5:
 			sourceBytesLeftToCopyThisCycle -= sourceBytesJustRead;
 			byteIndexWithinCluster += sourceBytesJustRead;
 
-			if (!sample) {
+			if (sample == nullptr) {
 				reader->byteIndexWithinCluster += sourceBytesJustRead; // Keep this up to date
 			}
 
@@ -576,7 +576,7 @@ gotError5:
 			}
 
 			// Perform the FFT, to frequency domain
-			ne10_fft_r2c_1d_int32_neon(frequencyDomainData, currentCycleInt32, fftCFGForInitialBand, false);
+			ne10_fft_r2c_1d_int32_neon(frequencyDomainData, currentCycleInt32, fftCFGForInitialBand, 0);
 		}
 
 		AudioEngine::logAction("got freq domain data");
@@ -613,7 +613,7 @@ gotError5:
 
 			// If haven't "started" this band yet, update record to show it starts from this cycle - which it might
 			// because the next cycle might be needed, and we have a rule that we start one cycle early.
-			if (!(startedBandsYet & 1)) {
+			if ((startedBandsYet & 1) == 0u) {
 				band->fromCycleNumber = cycleIndex;
 			}
 		}
@@ -664,7 +664,7 @@ gotError5:
 
 					// If haven't "started" this band yet, update record to show it starts from this cycle - which it
 					// might because the next cycle might be needed, and we have a rule that we start one cycle early.
-					if (!(startedBandsYet & (1 << b))) {
+					if ((startedBandsYet & (1 << b)) == 0u) {
 						band->fromCycleNumber = cycleIndex;
 					}
 				}
@@ -692,9 +692,9 @@ transformBandToTimeDomain:
 			    FFTConfigManager::getConfig(band->cycleSizeMagnitude); // Just gets the config, doesn't do the FFT.
 
 			// If couldn't get FFT config, gotta delete this band
-			if (!fftCFGThisBand) {
+			if (fftCFGThisBand == nullptr) {
 #if ALPHA_OR_BETA_VERSION
-				if (!b) {
+				if (b == 0) {
 					FREEZE_WITH_ERROR("E390");
 				}
 #endif
@@ -709,7 +709,7 @@ transformBandToTimeDomain:
 			AudioEngine::logAction("doing FFT to time domain");
 
 			// Do the FFT, putting the output, time-domain data back in the temp currentCycleInt32 buffer.
-			ne10_fft_c2r_1d_int32_neon(currentCycleInt32, frequencyDomainData, fftCFGThisBand, false);
+			ne10_fft_c2r_1d_int32_neon(currentCycleInt32, frequencyDomainData, fftCFGThisBand, 0);
 
 			int16_t* __restrict__ destination =
 			    &band->dataAccessAddress[(band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
@@ -786,7 +786,7 @@ transformBandToTimeDomain:
 
 			// Right-hand side
 			if (band->toCycleNumber < numCycles) {
-				if (!b) {
+				if (b == 0) {
 					D_PRINTLN("(band 0) ");
 				}
 				D_PRINTLN("deleting num cycles from right-hand side:  %d", numCycles - band->toCycleNumber);
@@ -798,7 +798,7 @@ transformBandToTimeDomain:
 			}
 
 			// Left-hand side
-			if (band->fromCycleNumber) {
+			if (band->fromCycleNumber != 0) {
 				uint32_t idealAmountToShorten =
 				    band->fromCycleNumber
 				    * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * sizeof(int16_t);
@@ -1148,7 +1148,7 @@ startRenderingACycle:
 
 doneRenderingACycle:
 		numSamplesLeftToDo -= numSamplesThisCycle;
-		if (numSamplesLeftToDo) {
+		if (numSamplesLeftToDo != 0) {
 			outputBuffer += numSamplesThisCycle;
 			waveIndexScaled += waveIndexIncrementScaled * numSamplesThisCycle;
 			resetterPhaseThisCycle += resetterPhaseIncrement * numSamplesThisCycle;
@@ -1186,7 +1186,7 @@ void WaveTable::numReasonsIncreasedFromZero() {
 	// Remove all bands' data from Stealable-queue, as it may no longer be stolen.
 	for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
-		if (band->data) {
+		if (band->data != nullptr) {
 			band->data->remove();
 		}
 	}
@@ -1197,9 +1197,9 @@ void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
 	// Put all bands' data in queue to be stolen.
 	for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
-		if (band->data) {
+		if (band->data != nullptr) {
 #if ALPHA_OR_BETA_VERSION
-			if (band->data->list) {
+			if (band->data->list != nullptr) {
 				FREEZE_WITH_ERROR("E388");
 			}
 #endif

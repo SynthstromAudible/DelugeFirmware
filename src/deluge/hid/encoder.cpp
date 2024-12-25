@@ -28,10 +28,10 @@ Encoder::Encoder() {
 	encPos = 0;
 	detentPos = 0;
 	encLastChange = 0;
-	pinALastSwitch = 1;
-	pinBLastSwitch = 1;
-	pinALastRead = 1;
-	pinBLastRead = 1;
+	pinALastSwitch = true;
+	pinBLastSwitch = true;
+	pinALastRead = true;
+	pinBLastRead = true;
 	doDetents = true;
 	valuesNow[0] = true;
 	valuesNow[1] = true;

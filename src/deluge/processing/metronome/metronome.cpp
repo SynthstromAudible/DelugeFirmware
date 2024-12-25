@@ -39,7 +39,7 @@ void Metronome::render(StereoSample* buffer, uint16_t numSamples) {
 		return;
 	}
 	int32_t volumePostFX;
-	if (currentSong) {
+	if (currentSong != nullptr) {
 		volumePostFX =
 		    getFinalParameterValueVolume(
 		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(

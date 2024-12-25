@@ -116,7 +116,7 @@ void SaveSongUI::focusRegained() {
 
 bool SaveSongUI::performSave(bool mayOverwrite) {
 
-	if (ALPHA_OR_BETA_VERSION && currentlyAccessingCard) {
+	if (ALPHA_OR_BETA_VERSION && (currentlyAccessingCard != 0u)) {
 		FREEZE_WITH_ERROR("E316");
 	}
 

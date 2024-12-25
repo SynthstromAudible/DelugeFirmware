@@ -204,7 +204,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			AudioEngine::audioRoutineLocked = true;
 			::MultiRange* newRange = soundEditor.currentSource->ranges.insertMultiRange(newI);
 			AudioEngine::audioRoutineLocked = false;
-			if (!newRange) {
+			if (newRange == nullptr) {
 				display->displayError(Error::INSUFFICIENT_RAM);
 				return;
 			}
@@ -343,7 +343,7 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 	// Lower end
 	if (this->getValue() == 0) {
 		strcpy(buffer, l10n::get(l10n::String::STRING_FOR_BOTTOM));
-		if (getLeftLength) {
+		if (getLeftLength != nullptr) {
 			*getLeftLength = display->haveOLED() ? 6 : 3;
 		}
 	}
@@ -371,7 +371,7 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 		*(bufferPos++) = 'o';
 		*(bufferPos++) = 'p';
 		*(bufferPos++) = 0;
-		if (getRightLength) {
+		if (getRightLength != nullptr) {
 			*getRightLength = 3;
 		}
 	}

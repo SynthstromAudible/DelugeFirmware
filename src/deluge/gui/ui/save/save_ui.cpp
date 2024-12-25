@@ -71,7 +71,7 @@ void SaveUI::enterKeyPress() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	// If it's a directory...
-	if (currentFileItem && currentFileItem->isFolder) {
+	if ((currentFileItem != nullptr) && currentFileItem->isFolder) {
 
 		Error error = goIntoFolder(currentFileItem->filename.get());
 

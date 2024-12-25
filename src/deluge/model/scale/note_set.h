@@ -34,7 +34,7 @@ public:
 	void remove(int8_t note) { bits = 0xfff & (bits & ~(1 << note)); }
 	/** Returns true if note is part of the NoteSet.
 	 */
-	bool has(int8_t note) const { return (bits >> note) & 1; }
+	bool has(int8_t note) const { return ((bits >> note) & 1) != 0; }
 	/** Like add(), but ensures note is in range and higher than previous notes.
 	 */
 	void addUntrusted(uint8_t note);

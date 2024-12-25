@@ -424,7 +424,7 @@ public:
 	void displayMasterTransposeInterval();
 
 	// MIDI controlled song transpose
-	bool hasBeenTransposed = 0;
+	bool hasBeenTransposed = false;
 	int16_t transposeOffset = 0;
 
 	int32_t countAudioClips() const;

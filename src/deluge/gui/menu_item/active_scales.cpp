@@ -122,7 +122,7 @@ bool ActiveScaleMenu::isDisabled(uint8_t scaleIndex) {
 	if (kind == DEFAULT) {
 		return FlashStorage::defaultDisabledPresetScales[scaleIndex];
 	}
-	else if (currentSong) {
+	else if (currentSong != nullptr) {
 		return currentSong->disabledPresetScales[scaleIndex];
 	}
 	else {
@@ -134,7 +134,7 @@ void ActiveScaleMenu::setDisabled(uint8_t scaleIndex, bool value) {
 	if (kind == DEFAULT) {
 		FlashStorage::defaultDisabledPresetScales[scaleIndex] = value;
 	}
-	else if (currentSong) {
+	else if (currentSong != nullptr) {
 		currentSong->disabledPresetScales[scaleIndex] = value;
 	}
 }

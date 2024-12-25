@@ -43,7 +43,7 @@ void Command::drawPixelsForOled() {
 	}
 	else {
 		char const* deviceString = l10n::get(l10n::String::STRING_FOR_ANY_MIDI_DEVICE);
-		if (command->cable) {
+		if (command->cable != nullptr) {
 			deviceString = command->cable->getDisplayName();
 		}
 		image.drawString(deviceString, 0, yPixel, kTextSpacingX, kTextSizeYUpdated);

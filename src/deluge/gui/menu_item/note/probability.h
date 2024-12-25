@@ -43,7 +43,7 @@ public:
 	void readCurrentValue() override {
 		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 
-		if (leftMostNote) {
+		if (leftMostNote != nullptr) {
 			this->setValue(leftMostNote->getProbability());
 		}
 	}

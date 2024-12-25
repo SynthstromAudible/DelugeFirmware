@@ -121,7 +121,7 @@ void ArrangerView::moveClipToSession() {
 	Clip* clip = clipInstance->clip;
 
 	// Empty ClipInstance - can't do
-	if (!clip) {
+	if (clip == nullptr) {
 		display->displayPopup(
 		    deluge::l10n::get(deluge::l10n::String::STRING_FOR_EMPTY_CLIP_INSTANCES_CANT_BE_MOVED_TO_THE_SESSION));
 	}
@@ -358,7 +358,7 @@ doChangeOutputType:
 						goto doActualSimpleChange;
 					}
 
-					if (!output) {
+					if (output == nullptr) {
 						return ActionResult::DEALT_WITH;
 					}
 
@@ -433,7 +433,7 @@ doActualSimpleChange:
 void ArrangerView::deleteOutput() {
 
 	Output* output = outputsOnScreen[yPressedEffective];
-	if (!output) {
+	if (output == nullptr) {
 		return;
 	}
 
@@ -445,13 +445,13 @@ void ArrangerView::deleteOutput() {
 	}
 
 	for (int32_t i = 0; i < output->clipInstances.getNumElements(); i++) {
-		if (output->clipInstances.getElement(i)->clip) {
+		if (output->clipInstances.getElement(i)->clip != nullptr) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST));
 			return;
 		}
 	}
 
-	if (currentSong->getSessionClipWithOutput(output)) {
+	if (currentSong->getSessionClipWithOutput(output) != nullptr) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION));
 		return;
 	}
@@ -487,7 +487,7 @@ void ArrangerView::clearArrangement() {
 	// improve on because the deletion of the Clips themselves, where there are arrangement-only ones, causes the
 	// calling of output->pickAnActiveClipIfPossible. So we have to ensure that extra ClipInstances don't exist at any
 	// instant in time, or else it'll look at those to pick the new activeClip, which might not exist anymore.
-	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
 		for (int32_t i = output->clipInstances.getNumElements() - 1; i >= 0; i--) {
 			deleteClipInstance(output, i, output->clipInstances.getElement(i), action, false);
 		}
@@ -558,7 +558,7 @@ void ArrangerView::repopulateOutputsOnScreen(bool doRender) {
 
 	Output* output = currentSong->firstOutput;
 	int32_t row = 0 - currentSong->arrangementYScroll;
-	while (output) {
+	while (output != nullptr) {
 		if (row >= kDisplayHeight) {
 			break;
 		}
@@ -579,7 +579,7 @@ void ArrangerView::repopulateOutputsOnScreen(bool doRender) {
 
 bool ArrangerView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	if (!image) {
+	if (image == nullptr) {
 		return true;
 	}
 
@@ -588,7 +588,7 @@ bool ArrangerView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth +
 	}
 
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
-		if (whichRows & (1 << i)) {
+		if ((whichRows & (1 << i)) != 0u) {
 			drawMuteSquare(i, image[i]);
 			drawAuditionSquare(i, image[i]);
 		}
@@ -600,7 +600,7 @@ void ArrangerView::drawMuteSquare(int32_t yDisplay, RGB thisImage[]) {
 	RGB& thisColour = thisImage[kDisplayWidth];
 
 	// If no Instrument, black
-	if (!outputsOnScreen[yDisplay]) {
+	if (outputsOnScreen[yDisplay] == nullptr) {
 		thisColour = colours::black;
 	}
 
@@ -648,7 +648,7 @@ void ArrangerView::drawAuditionSquare(int32_t yDisplay, RGB thisImage[]) {
 	if (view.midiLearnFlashOn) {
 		Output* output = outputsOnScreen[yDisplay];
 
-		if (!output || output->type == OutputType::AUDIO) {
+		if ((output == nullptr) || output->type == OutputType::AUDIO) {
 			goto drawNormally;
 		}
 
@@ -690,12 +690,12 @@ ModelStackWithNoteRow* ArrangerView::getNoteRowForAudition(ModelStack* modelStac
 
 		InstrumentClip* instrumentClip = (InstrumentClip*)kit->getActiveClip();
 		modelStackWithNoteRow = instrumentClip->getNoteRowForDrumName(modelStackWithTimelineCounter, "SNAR");
-		if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-			if (kit->selectedDrum) {
+		if (modelStackWithNoteRow->getNoteRowAllowNull() == nullptr) {
+			if (kit->selectedDrum != nullptr) {
 				modelStackWithNoteRow =
 				    instrumentClip->getNoteRowForDrum(modelStackWithTimelineCounter, kit->selectedDrum);
 			}
-			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
+			if (modelStackWithNoteRow->getNoteRowAllowNull() == nullptr) {
 				modelStackWithNoteRow =
 				    modelStackWithTimelineCounter->addNoteRow(0, instrumentClip->noteRows.getElement(0));
 			}
@@ -710,9 +710,9 @@ ModelStackWithNoteRow* ArrangerView::getNoteRowForAudition(ModelStack* modelStac
 
 Drum* ArrangerView::getDrumForAudition(Kit* kit) {
 	Drum* drum = kit->getDrumFromName("SNAR");
-	if (!drum) {
+	if (drum == nullptr) {
 		drum = kit->selectedDrum;
-		if (!drum) {
+		if (drum == nullptr) {
 			drum = kit->firstDrum;
 		}
 	}
@@ -728,7 +728,7 @@ void ArrangerView::beginAudition(Output* output) {
 
 	Instrument* instrument = (Instrument*)output;
 
-	if (!playbackHandler.playbackState && !Buttons::isShiftButtonPressed()) {
+	if ((playbackHandler.playbackState == 0u) && !Buttons::isShiftButtonPressed()) {
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -741,9 +741,9 @@ void ArrangerView::beginAudition(Output* output) {
 			Drum* drum;
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 
-			if (noteRow) {
+			if (noteRow != nullptr) {
 				drum = noteRow->drum;
-				if (drum && drum->type == DrumType::SOUND && !noteRow->paramManager.containsAnyMainParamCollections()) {
+				if ((drum != nullptr) && drum->type == DrumType::SOUND && !noteRow->paramManager.containsAnyMainParamCollections()) {
 					FREEZE_WITH_ERROR("E324"); // Vinz got this! I may have since fixed.
 				}
 			}
@@ -751,7 +751,7 @@ void ArrangerView::beginAudition(Output* output) {
 				drum = getDrumForAudition(kit);
 			}
 
-			if (drum) {
+			if (drum != nullptr) {
 				kit->beginAuditioningforDrum(modelStackWithNoteRow, drum, kit->defaultVelocity, zeroMPEValues);
 			}
 		}
@@ -772,7 +772,7 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 
 	Instrument* instrument = (Instrument*)output;
 
-	if (!playbackHandler.playbackState || evenIfPlaying) {
+	if ((playbackHandler.playbackState == 0u) || evenIfPlaying) {
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -785,14 +785,14 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 			Drum* drum;
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 
-			if (noteRow) {
+			if (noteRow != nullptr) {
 				drum = noteRow->drum;
 			}
 			else {
 				drum = getDrumForAudition(kit);
 			}
 
-			if (drum) {
+			if (drum != nullptr) {
 				kit->endAuditioningForDrum(modelStackWithNoteRow, drum);
 			}
 		}
@@ -820,10 +820,10 @@ Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* in
 	                                 });
 
 	Instrument* newInstrument = fileItem->instrument;
-	bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
-	*instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
+	bool isHibernating = (newInstrument != nullptr) && !fileItem->instrumentAlreadyInSong;
+	*instrumentAlreadyInSong = (newInstrument != nullptr) && fileItem->instrumentAlreadyInSong;
 
-	if (!newInstrument) {
+	if (newInstrument == nullptr) {
 		String newPresetName;
 		fileItem->getDisplayNameWithoutExtension(&newPresetName);
 		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, newOutputType, false, &newInstrument,
@@ -880,7 +880,7 @@ doNewPress:
 			yPressedActual = y;
 
 			// If nothing on this row yet, we'll add a brand new Instrument
-			if (!output) {
+			if (output == nullptr) {
 
 				int32_t minY = -currentSong->arrangementYScroll - 1;
 				int32_t maxY = -currentSong->arrangementYScroll + currentSong->getNumOutputs();
@@ -891,7 +891,7 @@ doNewPress:
 				bool instrumentAlreadyInSong; // Will always end up false
 
 				output = createNewInstrument(OutputType::SYNTH, &instrumentAlreadyInSong);
-				if (!output) {
+				if (output == nullptr) {
 					return;
 				}
 
@@ -910,7 +910,7 @@ doNewPress:
 
 			beginAudition(output);
 
-			if (output->getActiveClip()) {
+			if (output->getActiveClip() != nullptr) {
 				view.setActiveModControllableTimelineCounter(output->getActiveClip());
 			}
 			else {
@@ -980,11 +980,11 @@ ActionResult ArrangerView::handleEditPadAction(int32_t x, int32_t y, int32_t vel
 	Output* output = outputsOnScreen[y];
 
 	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
-		if (velocity) {
+		if (velocity != 0) {
 			// NAME shortcut
 			if (x == 11 && y == 5) {
 				Output* output = outputsOnScreen[yPressedEffective];
-				if (output && output->type != OutputType::CV) {
+				if ((output != nullptr) && output->type != OutputType::CV) {
 					endAudition(output);
 					currentUIMode = UI_MODE_NONE;
 					renameOutputUI.output = output;
@@ -995,8 +995,8 @@ ActionResult ArrangerView::handleEditPadAction(int32_t x, int32_t y, int32_t vel
 		}
 	}
 	else {
-		if (output) {
-			editPadAction(x, y, velocity);
+		if (output != nullptr) {
+			editPadAction(x, y, velocity != 0);
 		}
 	}
 	return ActionResult::DEALT_WITH;
@@ -1005,11 +1005,11 @@ ActionResult ArrangerView::handleEditPadAction(int32_t x, int32_t y, int32_t vel
 ActionResult ArrangerView::handleStatusPadAction(int32_t y, int32_t velocity, UI* ui) {
 	Output* output = outputsOnScreen[y];
 
-	if (!output) {
+	if (output == nullptr) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	if (velocity) {
+	if (velocity != 0) {
 		uint32_t rowsToRedraw = 1 << y;
 
 		switch (currentUIMode) {
@@ -1037,7 +1037,7 @@ ActionResult ArrangerView::handleStatusPadAction(int32_t y, int32_t velocity, UI
 				// If we're the first Instrument to be soloing, need to tell others they've been inadvertedly
 				// deactivated
 				if (!currentSong->getAnyOutputsSoloingInArrangement()) {
-					for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+					for (Output* thisOutput = currentSong->firstOutput; thisOutput != nullptr; thisOutput = thisOutput->next) {
 						if (thisOutput != output && !thisOutput->mutedInArrangementMode) {
 							outputDeactivated(thisOutput);
 						}
@@ -1073,7 +1073,7 @@ doUnsolo:
 
 					// If no other Instruments still soloing, re-activate all the other ones
 					if (!currentSong->getAnyOutputsSoloingInArrangement()) {
-						for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+						for (Output* thisOutput = currentSong->firstOutput; thisOutput != nullptr; thisOutput = thisOutput->next) {
 							if (thisOutput != output && !thisOutput->mutedInArrangementMode) {
 								outputActivated(thisOutput);
 							}
@@ -1094,7 +1094,7 @@ doUnsolo:
 		case UI_MODE_NONE:
 			// If the user was just quick and is actually holding the record button but the submode just hasn't changed
 			// yet...
-			if (velocity && Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
+			if ((velocity != 0) && Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
 				output->armedForRecording = !output->armedForRecording;
 				timerCallback();                 // Get into UI_MODE_VIEWING_RECORD_ARMING
 				return ActionResult::DEALT_WITH; // No need to draw anything
@@ -1139,9 +1139,9 @@ ActionResult ArrangerView::handleAuditionPadAction(int32_t y, int32_t velocity, 
 
 	switch (currentUIMode) {
 	case UI_MODE_MIDI_LEARN:
-		if (output) {
+		if (output != nullptr) {
 			if (output->type == OutputType::AUDIO) {
-				if (velocity) {
+				if (velocity != 0) {
 					view.endMIDILearn();
 					context_menu::audioInputSelector.audioOutput = (AudioOutput*)output;
 					context_menu::audioInputSelector.setupAndCheckAvailability();
@@ -1155,7 +1155,7 @@ ActionResult ArrangerView::handleAuditionPadAction(int32_t y, int32_t velocity, 
 		break;
 
 	default:
-		auditionPadAction(velocity, y, ui);
+		auditionPadAction(velocity != 0, y, ui);
 		break;
 	}
 	return ActionResult::DEALT_WITH;
@@ -1171,7 +1171,7 @@ void ArrangerView::outputActivated(Output* output) {
 
 	int32_t i = output->clipInstances.search(actualPos + 1, LESS);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
-	if (clipInstance && clipInstance->pos + clipInstance->length > actualPos) {
+	if ((clipInstance != nullptr) && clipInstance->pos + clipInstance->length > actualPos) {
 		arrangement.resumeClipInstancePlayback(clipInstance);
 	}
 
@@ -1186,7 +1186,7 @@ void ArrangerView::outputDeactivated(Output* output) {
 	output->stopAnyAuditioning(modelStack);
 
 	if (arrangement.hasPlaybackActive()) {
-		if (output->getActiveClip() && !output->recordingInArrangement) {
+		if ((output->getActiveClip() != nullptr) && !output->recordingInArrangement) {
 			output->getActiveClip()->expectNoFurtherTicks(currentSong);
 			output->getActiveClip()->activeIfNoSolo = false;
 		}
@@ -1197,7 +1197,7 @@ void ArrangerView::outputDeactivated(Output* output) {
 void ArrangerView::deleteClipInstance(Output* output, int32_t clipInstanceIndex, ClipInstance* clipInstance,
                                       Action* action, bool clearingWholeArrangement) {
 
-	if (action) {
+	if (action != nullptr) {
 		action->recordClipInstanceExistenceChange(output, clipInstance, ExistenceChangeType::DELETE);
 	}
 	Clip* clip = clipInstance->clip;
@@ -1213,7 +1213,7 @@ void ArrangerView::deleteClipInstance(Output* output, int32_t clipInstanceIndex,
 void ArrangerView::interactWithClipInstance(Output* output, int32_t yDisplay, ClipInstance* clipInstance) {
 	Clip* clip = clipInstance->clip;
 
-	if (clip) {
+	if (clip != nullptr) {
 		// it looks like this variable isn't used anywhere
 		originallyPressedClipActualLength = clipInstance->clip->loopLength;
 
@@ -1237,7 +1237,7 @@ void ArrangerView::interactWithClipInstance(Output* output, int32_t yDisplay, Cl
 void ArrangerView::rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance) {
 	lastInteractedOutputIndex = yDisplay + currentSong->arrangementYScroll;
 	lastInteractedPos = clipInstance->pos;
-	lastInteractedSection = clipInstance->clip ? clipInstance->clip->section : 255;
+	lastInteractedSection = (clipInstance->clip != nullptr) ? clipInstance->clip->section : 255;
 	lastInteractedClipInstance = clipInstance;
 }
 
@@ -1292,7 +1292,7 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 				if (x == xPressed && y == yPressedEffective) {
 					// if a section clip instance was changed to an arrangement only clip instance,
 					// the clip itself is created on pad release
-					if (lastInteractedSection == 255 && !lastInteractedClipInstance->clip) {
+					if (lastInteractedSection == 255 && (lastInteractedClipInstance->clip == nullptr)) {
 						createNewClipForClipInstance(output, lastInteractedClipInstance);
 					}
 
@@ -1318,11 +1318,11 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 
 							// If Clip wasn't created yet, create it first. This does both AudioClips and
 							// InstrumentClips
-							if (!clipInstance->clip) {
+							if (clipInstance->clip == nullptr) {
 								createNewClipForClipInstance(output, clipInstance);
 							}
 
-							if (clipInstance->clip) {
+							if (clipInstance->clip != nullptr) {
 								transitionToClipView(clipInstance);
 							}
 						}
@@ -1341,10 +1341,10 @@ void ArrangerView::cloneClipInstanceToWhite(Output* output, int32_t x, int32_t y
 
 	int32_t i = output->clipInstances.search(squareEnd, LESS);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
-	if (clipInstance && clipInstance->pos + clipInstance->length >= squareStart) {
+	if ((clipInstance != nullptr) && clipInstance->pos + clipInstance->length >= squareStart) {
 		Clip* oldClip = clipInstance->clip;
 
-		if (oldClip && !oldClip->isArrangementOnlyClip() && !oldClip->getCurrentlyRecordingLinearly()) {
+		if ((oldClip != nullptr) && !oldClip->isArrangementOnlyClip() && !oldClip->getCurrentlyRecordingLinearly()) {
 			actionLogger.deleteAllLogs();
 
 			Error error = arrangement.doUniqueCloneOnClipInstance(clipInstance, clipInstance->length, true);
@@ -1370,12 +1370,12 @@ void ArrangerView::createNewClipInstance(Output* output, int32_t x, int32_t y, i
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
 
 	// If we did find a clip instance
-	if (clipInstance) {
+	if (clipInstance != nullptr) {
 		Clip* clip = clipInstance->clip;
 
-		if (clip) {
+		if (clip != nullptr) {
 			// If it's being recorded to, some special instructions
-			if (playbackHandler.playbackState && output->recordingInArrangement
+			if ((playbackHandler.playbackState != 0u) && output->recordingInArrangement
 			    && clip->getCurrentlyRecordingLinearly()) {
 				// Can't press here to the left of the play/record cursor!
 				if (squareStart < arrangement.getLivePos()) {
@@ -1427,7 +1427,7 @@ ClipInstance* ArrangerView::createClipInstance(Output* output, int32_t y, int32_
 	{
 		int32_t j = output->clipInstances.search(squareStart, GREATER_OR_EQUAL);
 		ClipInstance* nextClipInstance = output->clipInstances.getElement(j);
-		if (nextClipInstance && nextClipInstance->pos == squareStart) {
+		if ((nextClipInstance != nullptr) && nextClipInstance->pos == squareStart) {
 			FREEZE_WITH_ERROR("E233"); // Yes, this happened to someone. Including me!!
 		}
 	}
@@ -1441,7 +1441,7 @@ ClipInstance* ArrangerView::createClipInstance(Output* output, int32_t y, int32_
 	// Test thing
 	{
 		ClipInstance* nextInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
-		if (nextInstance) {
+		if (nextInstance != nullptr) {
 			if (nextInstance->pos == squareStart) {
 				FREEZE_WITH_ERROR("E232");
 			}
@@ -1449,14 +1449,14 @@ ClipInstance* ArrangerView::createClipInstance(Output* output, int32_t y, int32_
 	}
 
 	clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
-	if (!clipInstance) {
+	if (clipInstance == nullptr) {
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
 	clipInstance->clip = newClip;
 
-	if (clipInstance->clip) {
+	if (clipInstance->clip != nullptr) {
 		clipInstance->length = clipInstance->clip->loopLength;
 	}
 	else {
@@ -1468,7 +1468,7 @@ ClipInstance* ArrangerView::createClipInstance(Output* output, int32_t y, int32_
 	}
 
 	ClipInstance* nextInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
-	if (nextInstance) {
+	if (nextInstance != nullptr) {
 
 		if (nextInstance->pos == squareStart) {
 			FREEZE_WITH_ERROR("E209");
@@ -1491,7 +1491,7 @@ ClipInstance* ArrangerView::createClipInstance(Output* output, int32_t y, int32_
 	}
 
 	Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
-	if (action) {
+	if (action != nullptr) {
 		action->recordClipInstanceExistenceChange(output, clipInstance, ExistenceChangeType::CREATE);
 	}
 
@@ -1511,11 +1511,11 @@ ClipInstance* ArrangerView::createClipInstance(Output* output, int32_t y, int32_
 Clip* ArrangerView::getClipForNewClipInstance(Output* output, Output* lastOutputInteractedWith,
                                               ClipInstance* lastClipInstance) {
 	Clip* newClip = nullptr;
-	if (lastClipInstance && lastClipInstance->pos == lastInteractedPos) {
+	if ((lastClipInstance != nullptr) && lastClipInstance->pos == lastInteractedPos) {
 
 		// If same Output...
 		if (lastOutputInteractedWith == output) {
-			if (lastClipInstance->clip && !lastClipInstance->clip->isArrangementOnlyClip()) {
+			if ((lastClipInstance->clip != nullptr) && !lastClipInstance->clip->isArrangementOnlyClip()) {
 				newClip = lastClipInstance->clip;
 			}
 		}
@@ -1523,7 +1523,7 @@ Clip* ArrangerView::getClipForNewClipInstance(Output* output, Output* lastOutput
 		// Or if different Output...
 		else {
 			// If yes Clip, look for another one with that section
-			if (lastClipInstance->clip) {
+			if (lastClipInstance->clip != nullptr) {
 				lastInteractedSection = lastClipInstance->clip->section;
 				newClip = getClipFromSection(output);
 			}
@@ -1544,7 +1544,7 @@ Clip* ArrangerView::getClipFromSection(Output* output) {
 		newClip = currentSong->getSessionClipWithOutput(output, lastInteractedSection);
 
 		// If that section had none, just get any old one (still might return NULL - that's fine)
-		if (!newClip) {
+		if (newClip == nullptr) {
 			newClip = currentSong->getSessionClipWithOutput(output);
 		}
 	}
@@ -1574,7 +1574,7 @@ void ArrangerView::adjustClipInstanceLength(Output* output, int32_t x, int32_t y
 	// Shorten
 	if (clipInstance->length > lengthTilNewSquareStart) {
 		Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
-		if (clipInstance->clip) {
+		if (clipInstance->clip != nullptr) {
 			arrangement.rowEdited(output, clipInstance->pos + lengthTilNewSquareStart,
 			                      clipInstance->pos + clipInstance->length, clipInstance->clip, nullptr);
 		}
@@ -1590,7 +1590,7 @@ void ArrangerView::adjustClipInstanceLength(Output* output, int32_t x, int32_t y
 
 		// Make sure it doesn't collide with next ClipInstance
 		ClipInstance* nextClipInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
-		if (nextClipInstance) {
+		if (nextClipInstance != nullptr) {
 			int32_t maxLength = nextClipInstance->pos - clipInstance->pos;
 			if (newLength > maxLength) {
 				newLength = maxLength;
@@ -1645,7 +1645,7 @@ void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* cl
 	int32_t size = (output->type == OutputType::AUDIO) ? sizeof(AudioClip) : sizeof(InstrumentClip);
 
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
-	if (!memory) {
+	if (memory == nullptr) {
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return exitSubModeWithoutAction();
 	}
@@ -1690,14 +1690,14 @@ void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* cl
 	// Crucial that we do this not long after calling setInstrument, in case this is the
 	// first Clip with the Instrument and we just grabbed the backedUpParamManager for it,
 	// which it might go and look for again if the audio routine was called in the interim
-	if (!output->getActiveClip()) {
+	if (output->getActiveClip() == nullptr) {
 		output->setActiveClip(modelStack);
 	}
 
 	currentSong->arrangementOnlyClips.insertClipAtIndex(newClip, 0);
 
 	Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
-	if (action) {
+	if (action != nullptr) {
 		action->recordClipExistenceChange(currentSong, &currentSong->arrangementOnlyClips, newClip,
 		                                  ExistenceChangeType::CREATE);
 	}
@@ -1742,7 +1742,7 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 
 	if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		Output* output = outputsOnScreen[yPressedEffective];
-		if (output) {
+		if (output != nullptr) {
 			endAudition(output);
 			auditionEnded();
 			uiNeedsRendering(ui, 0, 1 << yPressedEffective);
@@ -1833,7 +1833,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 	}
 	else if (clip->type == ClipType::AUDIO) {
 		// If no sample, just skip directly there
-		if (!((AudioClip*)clip)->sampleHolder.audioFile) {
+		if (((AudioClip*)clip)->sampleHolder.audioFile == nullptr) {
 			currentUIMode = UI_MODE_NONE;
 			changeRootUI(&audioClipView);
 
@@ -1881,7 +1881,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 	int64_t clipLengthBig = ((uint64_t)clip->loopLength << 16) / currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 
-	if (clipLengthBig) {
+	if (clipLengthBig != 0) {
 		while (true) {
 			int64_t nextPotentialStart = xStartBig + clipLengthBig;
 			if ((nextPotentialStart >> 16) > xPressed) {
@@ -1916,7 +1916,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
 
 		// If no sample, just skip directly there
-		if (!getCurrentAudioClip()->sampleHolder.audioFile) {
+		if (getCurrentAudioClip()->sampleHolder.audioFile == nullptr) {
 			changeRootUI(&arrangerView);
 			return true;
 		}
@@ -1925,7 +1925,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 	Output* output = getCurrentOutput();
 	int32_t i = output->clipInstances.search(currentSong->lastClipInstanceEnteredStartPos, GREATER_OR_EQUAL);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
-	if (!clipInstance || clipInstance->clip != getCurrentClip()) {
+	if ((clipInstance == nullptr) || clipInstance->clip != getCurrentClip()) {
 		return false;
 	}
 
@@ -2028,7 +2028,7 @@ bool ArrangerView::putDraggedClipInstanceInNewPosition(Output* newOutputToDragIn
 	if (newOutputToDragInto == pressedClipInstanceOutput) {
 
 		// If back to original (well, last valid) scroll pos too, nothing to do
-		if (!xMovement) {
+		if (xMovement == 0) {
 			pressedClipInstanceIsInValidPosition = true;
 			return true;
 		}
@@ -2036,7 +2036,7 @@ bool ArrangerView::putDraggedClipInstanceInNewPosition(Output* newOutputToDragIn
 
 	// Or if Output not the same
 	else {
-		if (clip) {
+		if (clip != nullptr) {
 			if (newOutputToDragInto->type != OutputType::AUDIO
 			    || pressedClipInstanceOutput->type != OutputType::AUDIO) {
 itsInvalid:
@@ -2068,7 +2068,7 @@ itsInvalid:
 	int32_t iPrev = newOutputToDragInto->clipInstances.search(newStartPos, LESS);
 	ClipInstance* prevClipInstance = newOutputToDragInto->clipInstances.getElement(iPrev);
 	if (prevClipInstance != clipInstance) {
-		if (prevClipInstance) {
+		if (prevClipInstance != nullptr) {
 			if (newOutputToDragInto->recordingInArrangement) {
 				if (newStartPos <= arrangement.getLivePos()) {
 					goto itsInvalid;
@@ -2086,7 +2086,7 @@ itsInvalid:
 	int32_t iNext = iPrev + 1;
 	ClipInstance* nextClipInstance = newOutputToDragInto->clipInstances.getElement(iNext);
 	if (nextClipInstance != clipInstance) {
-		if (nextClipInstance && nextClipInstance->pos < newStartPos + clipInstance->length) {
+		if ((nextClipInstance != nullptr) && nextClipInstance->pos < newStartPos + clipInstance->length) {
 			goto itsInvalid;
 		}
 	}
@@ -2095,7 +2095,7 @@ itsInvalid:
 
 	int32_t length = clipInstance->length;
 
-	if (clip) {
+	if (clip != nullptr) {
 		arrangement.rowEdited(pressedClipInstanceOutput, clipInstance->pos, clipInstance->pos + length, clip, nullptr);
 	}
 
@@ -2109,7 +2109,7 @@ itsInvalid:
 
 	// Or if it has...
 	else {
-		if (action) {
+		if (action != nullptr) {
 			action->recordClipInstanceExistenceChange(pressedClipInstanceOutput, clipInstance,
 			                                          ExistenceChangeType::DELETE);
 		}
@@ -2120,12 +2120,12 @@ itsInvalid:
 		clipInstance = newOutputToDragInto->clipInstances.getElement(pressedClipInstanceIndex);
 		clipInstance->clip = clip;
 		clipInstance->length = length;
-		if (action) {
+		if (action != nullptr) {
 			action->recordClipInstanceExistenceChange(newOutputToDragInto, clipInstance, ExistenceChangeType::CREATE);
 		}
 
 		// And if changing output...
-		if (newOutputToDragInto != pressedClipInstanceOutput && clip) {
+		if (newOutputToDragInto != pressedClipInstanceOutput && (clip != nullptr)) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
@@ -2139,7 +2139,7 @@ itsInvalid:
 		pressedClipInstanceOutput = newOutputToDragInto;
 	}
 
-	if (clip) {
+	if (clip != nullptr) {
 		arrangement.rowEdited(newOutputToDragInto, clipInstance->pos, clipInstance->pos + length, nullptr,
 		                      clipInstance);
 	}
@@ -2162,9 +2162,9 @@ uint32_t ArrangerView::doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t 
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		if (whichRows & (1 << yDisplay)) {
+		if ((whichRows & (1 << yDisplay)) != 0u) {
 			uint8_t* occupancyMaskThisRow = nullptr;
-			if (occupancyMask) {
+			if (occupancyMask != nullptr) {
 				occupancyMaskThisRow = occupancyMask[yDisplay];
 			}
 
@@ -2182,7 +2182,7 @@ uint32_t ArrangerView::doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t 
 
 bool ArrangerView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
-	if (!image) {
+	if (image == nullptr) {
 		return true;
 	}
 
@@ -2194,7 +2194,7 @@ bool ArrangerView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth 
 
 	PadLEDs::renderingLock = false;
 
-	if (whichRowsCouldntBeRendered && image == PadLEDs::image) {
+	if ((whichRowsCouldntBeRendered != 0u) && image == PadLEDs::image) {
 		uiNeedsRendering(this, whichRowsCouldntBeRendered, 0);
 	}
 
@@ -2208,7 +2208,7 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
 
 	Output* output = outputsOnScreen[yDisplay];
 
-	if (!output) {
+	if (output == nullptr) {
 
 		const RGB* imageEnd = imageThisRow + renderWidth;
 
@@ -2289,7 +2289,7 @@ bool ArrangerView::renderRowForOutput(ModelStack* modelStack, Output* output, in
 	// this is constant and zero - so does nothing?
 	int32_t firstXDisplayNotLeftOf0 = 0;
 
-	if (!output->clipInstances.getNumElements()) {
+	if (output->clipInstances.getNumElements() == 0) {
 		while (imageNow < imageEnd) {
 			*(imageNow++) = colours::black;
 		}
@@ -2327,7 +2327,7 @@ squareStartPosSet:
 		}
 		ClipInstance* clipInstance = output->clipInstances.getElement(i);
 
-		if (clipInstance) {
+		if (clipInstance != nullptr) {
 			RGB colour = clipInstance->getColour();
 
 			// If Instance starts exactly on square or somewhere within square, draw "head".
@@ -2343,7 +2343,7 @@ squareStartPosSet:
 				// get the end of the clip instance
 				int32_t instanceEnd = clipInstance->pos + clipInstance->length;
 				// for currently recording clips, get the playhead
-				if (output->recordingInArrangement && clipInstance->clip
+				if (output->recordingInArrangement && (clipInstance->clip != nullptr)
 				    && clipInstance->clip->getCurrentlyRecordingLinearly()) {
 					instanceEnd = arrangement.getLivePos();
 				}
@@ -2362,7 +2362,7 @@ squareStartPosSet:
 					// Draw either the blank, non-existent Clip if this Instance doesn't have one...
 					// Or the real Clip - for all squares in the Instance
 					for (auto* it = &image[xDisplay]; it != &image[xDisplay] + (squareEnd - xDisplay); it++) {
-						if (!clipInstance->clip) {
+						if (clipInstance->clip == nullptr) {
 							// Arranger only clip instances created from a section clip (hold clip + turn Select) don't
 							// have a clip until the pad is released. Their "clip preview" gets drawn here
 							image[xDisplay] = colour.dim(4);
@@ -2466,7 +2466,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 		ClipInstance* clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
 
 		// If an arrangement-only Clip, can't do anything
-		if (clipInstance->clip && clipInstance->clip->section == 255) {
+		if ((clipInstance->clip != nullptr) && clipInstance->clip->section == 255) {
 			return;
 		}
 
@@ -2481,7 +2481,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 		}
 
 		// Notify the arrangement that the existing clip will be removed
-		if (clipInstance->clip) {
+		if (clipInstance->clip != nullptr) {
 			arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length,
 			                      clipInstance->clip, nullptr);
 		}
@@ -2489,7 +2489,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 		int32_t newLength;
 
 		// No newClip means this will become a white clip
-		if (!newClip) {
+		if (newClip == nullptr) {
 			// which will have the same length as the original clip instance
 			newLength = desiredLength;
 		}
@@ -2501,7 +2501,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 
 		// Make sure it's not too long
 		ClipInstance* nextClipInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
-		if (nextClipInstance) {
+		if (nextClipInstance != nullptr) {
 			int32_t maxLength = nextClipInstance->pos - clipInstance->pos;
 
 			if (newLength > maxLength) {
@@ -2529,9 +2529,9 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 
 	else if (currentUIMode == UI_MODE_NONE) {
 
-		if (playbackHandler.playbackState) {
+		if (playbackHandler.playbackState != 0u) {
 			if (currentPlaybackMode == &session) {
-				if (session.launchEventAtSwungTickCount && session.switchToArrangementAtLaunchEvent) {
+				if ((session.launchEventAtSwungTickCount != 0) && session.switchToArrangementAtLaunchEvent) {
 					sessionView.editNumRepeatsTilLaunch(offset);
 				}
 			}
@@ -2586,7 +2586,7 @@ void ArrangerView::changeOutputType(OutputType newOutputType) {
 	endAudition(oldInstrument);
 
 	Instrument* newInstrument = currentSong->changeOutputType(oldInstrument, newOutputType);
-	if (!newInstrument) {
+	if (newInstrument == nullptr) {
 		return;
 	}
 
@@ -2609,7 +2609,7 @@ void ArrangerView::changeOutputToAudio() {
 		return;
 	}
 
-	if (oldOutput->clipInstances.getNumElements()) {
+	if (oldOutput->clipInstances.getNumElements() != 0) {
 cant:
 		display->displayPopup(deluge::l10n::get(
 		    deluge::l10n::String::STRING_FOR_INSTRUMENTS_WITH_CLIPS_CANT_BE_TURNED_INTO_AUDIO_TRACKS));
@@ -2618,11 +2618,11 @@ cant:
 
 	InstrumentClip* instrumentClip = (InstrumentClip*)currentSong->getClipWithOutput(oldOutput);
 
-	if (instrumentClip) {
+	if (instrumentClip != nullptr) {
 		if (instrumentClip->containsAnyNotes()) {
 			goto cant;
 		}
-		if (currentSong->getClipWithOutput(oldOutput, false, instrumentClip)) {
+		if (currentSong->getClipWithOutput(oldOutput, false, instrumentClip) != nullptr) {
 			goto cant; // Make sure not more than 1 Clip
 		}
 
@@ -2638,14 +2638,14 @@ cant:
 	Clip* newClip = nullptr;
 
 	// If the old Output had a Clip that we're going to replace too...
-	if (instrumentClip) {
+	if (instrumentClip != nullptr) {
 		int32_t clipIndex = currentSong->sessionClips.getIndexForClip(instrumentClip);
 		if (ALPHA_OR_BETA_VERSION && clipIndex == -1) {
 			FREEZE_WITH_ERROR("E266");
 		}
 		newClip = currentSong->replaceInstrumentClipWithAudioClip(instrumentClip, clipIndex);
 
-		if (!newClip) {
+		if (newClip == nullptr) {
 			display->displayError(Error::INSUFFICIENT_RAM);
 			return;
 		}
@@ -2659,7 +2659,7 @@ cant:
 
 		// Suss output
 		newOutput = currentSong->createNewAudioOutput(oldOutput);
-		if (!newOutput) {
+		if (newOutput == nullptr) {
 			display->displayError(Error::INSUFFICIENT_RAM);
 			return;
 		}
@@ -2759,7 +2759,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 
 				Action* action = actionLogger.getNewAction(actionType, ActionAddition::ALLOWED);
 
-				if (action
+				if ((action != nullptr)
 				    && (action->xScrollArranger[BEFORE] != currentSong->xScroll[NAVIGATION_ARRANGEMENT]
 				        || action->xZoomArranger[BEFORE] != currentSong->xZoom[NAVIGATION_ARRANGEMENT])) {
 					action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
@@ -2779,7 +2779,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 					if (offset >= 0) {
 						void* consMemory =
 						    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceArrangerParamsTimeInserted));
-						if (consMemory) {
+						if (consMemory != nullptr) {
 							ConsequenceArrangerParamsTimeInserted* consequence = new (consMemory)
 							    ConsequenceArrangerParamsTimeInserted(currentSong->xScroll[NAVIGATION_ARRANGEMENT],
 							                                          scrollAmount);
@@ -2789,7 +2789,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 						                            currentSong->xScroll[NAVIGATION_ARRANGEMENT], scrollAmount);
 					}
 					else {
-						if (action) {
+						if (action != nullptr) {
 							unpatchedParams->backUpAllAutomatedParamsToAction(action, modelStackWithUnpatchedParams);
 						}
 						unpatchedParams->deleteTime(modelStackWithUnpatchedParams,
@@ -2797,7 +2797,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 					}
 				}
 
-				for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+				for (Output* thisOutput = currentSong->firstOutput; thisOutput != nullptr; thisOutput = thisOutput->next) {
 					int32_t i = thisOutput->clipInstances.search(currentSong->xScroll[NAVIGATION_ARRANGEMENT],
 					                                             GREATER_OR_EQUAL);
 
@@ -3073,9 +3073,9 @@ void ArrangerView::graphicsRoutine() {
 	if (currentUIMode == UI_MODE_NONE) {
 		int32_t modKnobMode = -1;
 		bool editingComp = false;
-		if (view.activeModControllableModelStack.modControllable) {
+		if (view.activeModControllableModelStack.modControllable != nullptr) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer) {
+			if (modKnobModePointer != nullptr) {
 				modKnobMode = *modKnobModePointer;
 				editingComp = view.activeModControllableModelStack.modControllable->isEditingComp();
 			}
@@ -3104,7 +3104,7 @@ void ArrangerView::graphicsRoutine() {
 		int32_t newTickSquare;
 
 		if (!arrangement.hasPlaybackActive() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
-		    || currentUIMode == UI_MODE_IMPLODE_ANIMATION || playbackHandler.ticksLeftInCountIn) {
+		    || currentUIMode == UI_MODE_IMPLODE_ANIMATION || (playbackHandler.ticksLeftInCountIn != 0)) {
 			newTickSquare = 255;
 		}
 		else {
@@ -3156,11 +3156,11 @@ void ArrangerView::graphicsRoutine() {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 				Output* output = outputsOnScreen[yDisplay];
 				tickSquares[yDisplay] =
-				    (currentSong->getAnyOutputsSoloingInArrangement() && (!output || !output->soloingInArrangementMode))
+				    (currentSong->getAnyOutputsSoloingInArrangement() && ((output == nullptr) || !output->soloingInArrangementMode))
 				        ? 255
 				        : newTickSquare;
 				colours[yDisplay] =
-				    (output && output->recordingInArrangement) ? 2 : (output && output->mutedInArrangementMode ? 1 : 0);
+				    ((output != nullptr) && output->recordingInArrangement) ? 2 : ((output != nullptr) && output->mutedInArrangementMode ? 1 : 0);
 
 				if (arrangement.hasPlaybackActive() && currentUIMode != UI_MODE_EXPLODE_ANIMATION
 				    && currentUIMode != UI_MODE_IMPLODE_ANIMATION) {
@@ -3216,7 +3216,7 @@ void ArrangerView::autoScrollOnPlaybackEnd() {
 
 		int32_t scrollDifference = newScrollPos - currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 
-		if (scrollDifference) {
+		if (scrollDifference != 0) {
 
 			// If allowed to do a nice scrolling animation...
 			if (currentUIMode == UI_MODE_NONE && getCurrentUI() == this && !PadLEDs::renderingLock) {
@@ -3257,14 +3257,14 @@ bool ArrangerView::initiateXScroll(int32_t newScrollPos) {
 uint32_t ArrangerView::getMaxLength() {
 
 	uint32_t maxEndPos = 0;
-	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+	for (Output* thisOutput = currentSong->firstOutput; thisOutput != nullptr; thisOutput = thisOutput->next) {
 
 		if (thisOutput->recordingInArrangement) {
 			maxEndPos = std::max<int32_t>(maxEndPos, arrangement.getLivePos());
 		}
 
 		int32_t numElements = thisOutput->clipInstances.getNumElements();
-		if (numElements) {
+		if (numElements != 0) {
 			ClipInstance* lastInstance = thisOutput->clipInstances.getElement(numElements - 1);
 			uint32_t endPos = lastInstance->pos + lastInstance->length;
 			maxEndPos = std::max(maxEndPos, endPos);
@@ -3298,7 +3298,7 @@ uint32_t ArrangerView::getMaxZoom() {
 void ArrangerView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		PadLEDs::transitionTakingPlaceOnRow[yDisplay] =
-		    (outputsOnScreen[yDisplay] && outputsOnScreen[yDisplay]->clipInstances.getNumElements());
+		    ((outputsOnScreen[yDisplay] != nullptr) && (outputsOnScreen[yDisplay]->clipInstances.getNumElements() != 0));
 	}
 }
 
@@ -3319,7 +3319,7 @@ bool ArrangerView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 		*cols = 0xFFFFFFFD;
 		*rows = 0;
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			if (outputsOnScreen[yDisplay] && !outputsOnScreen[yDisplay]->armedForRecording) {
+			if ((outputsOnScreen[yDisplay] != nullptr) && !outputsOnScreen[yDisplay]->armedForRecording) {
 				*rows |= (1 << yDisplay);
 			}
 		}
@@ -3366,7 +3366,7 @@ void ArrangerView::clipNeedsReRendering(Clip* clip) {
 Clip* ArrangerView::getClipForSelection() {
 	Clip* clip = nullptr;
 	// if you're in arranger view, check if you're pressing a clip or holding audition pad to control that clip
-	if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && lastInteractedClipInstance) {
+	if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && (lastInteractedClipInstance != nullptr)) {
 		clip = lastInteractedClipInstance->clip;
 	}
 	else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {

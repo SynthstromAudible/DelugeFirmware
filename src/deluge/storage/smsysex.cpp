@@ -141,7 +141,7 @@ FILdata* smSysex::openFIL(const char* fPath, int forWrite, uint32_t* fsize, FRES
 	fp->fileID = FIDcounter++;
 	noteFileIdUse(fp);
 	BYTE mode = FA_READ;
-	if (forWrite) {
+	if (forWrite != 0) {
 		mode = FA_WRITE;
 		if (forWrite == 1)
 			mode |= FA_CREATE_ALWAYS;
@@ -230,9 +230,9 @@ void smSysex::openFile(MIDICable& cable, JsonDeserializer& reader) {
 	uint32_t date = 0;
 	uint32_t time = 0;
 	reader.match('{');
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		if (!strcmp(tagName, "write")) {
-			forWrite = reader.readTagOrAttributeValueInt();
+			forWrite = (reader.readTagOrAttributeValueInt() != 0);
 		}
 		else if (!strcmp(tagName, "path")) {
 			reader.readTagOrAttributeValueString(&path);
@@ -256,7 +256,7 @@ retry:
 	FRESULT errCode;
 	uint32_t fSize = 0;
 
-	FILdata* fp = openFIL(path.get(), forWrite, &fSize, &errCode);
+	FILdata* fp = openFIL(path.get(), static_cast<int>(forWrite), &fSize, &errCode);
 
 	if (fp != nullptr) {
 		fSize = fp->fSize;
@@ -281,7 +281,7 @@ void smSysex::closeFile(MIDICable& cable, JsonDeserializer& reader) {
 	int32_t fid = 0;
 	char const* tagName;
 	reader.match('{');
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		if (!strcmp(tagName, "fid")) {
 			fid = reader.readTagOrAttributeValueInt();
 		}
@@ -309,7 +309,7 @@ void smSysex::deleteFile(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	String path;
 	reader.match('{');
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		if (!strcmp(tagName, "path")) {
 			reader.readTagOrAttributeValueString(&path);
 		}
@@ -341,7 +341,7 @@ void smSysex::createDirectory(MIDICable& cable, JsonDeserializer& reader) {
 	uint32_t date = 0;
 	uint32_t time = 0;
 	reader.match('{');
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		if (!strcmp(tagName, "path")) {
 			reader.readTagOrAttributeValueString(&path);
 		}
@@ -385,7 +385,7 @@ void smSysex::rename(MIDICable& cable, JsonDeserializer& reader) {
 	String fromName;
 	String toName;
 	reader.match('{');
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		if (!strcmp(tagName, "from")) {
 			reader.readTagOrAttributeValueString(&fromName);
 		}
@@ -426,7 +426,7 @@ void smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
 	FRESULT errCode = FRESULT::FR_OK;
 	char const* tagName;
 	reader.match('{');
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		if (!strcmp(tagName, "offset")) {
 			lineOffset = reader.readTagOrAttributeValueInt();
 		}
@@ -511,7 +511,7 @@ void smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
 
 	auto repSN = reader.getReplySeqNum();
 	reader.match('{');
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		if (!strcmp(tagName, "fid")) {
 			fid = reader.readTagOrAttributeValueInt();
 		}
@@ -538,11 +538,11 @@ void smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
 	UINT actuallyRead = 0;
 	uint8_t* srcAddr = (uint8_t*)addr;
 	if (errCode == FRESULT::FR_OK) {
-		if (!readBlockBuffer && fp) {
+		if ((readBlockBuffer == nullptr) && (fp != nullptr)) {
 			readBlockBuffer = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(blockBufferMax);
 		}
 
-		if (readBlockBuffer && fp) {
+		if ((readBlockBuffer != nullptr) && (fp != nullptr)) {
 			noteFileIdUse(fp);
 			// If file position requested is not what we expect, seek to requested.
 			if (fp->fPosition != addr) {
@@ -585,7 +585,7 @@ void smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
 		uint8_t rotBit = 1;
 		for (int i = 1; i <= pktSize; ++i) {
 			working[i] = (*srcAddr) & 0x7F;
-			if ((*srcAddr) & 0x80) {
+			if (((*srcAddr) & 0x80) != 0) {
 				hiBits |= rotBit;
 			}
 			srcAddr++;
@@ -603,7 +603,7 @@ void smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
 	uint32_t addr = 0;
 	uint32_t size = blockBufferMax;
 	reader.match('{');
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		if (!strcmp(tagName, "addr")) {
 			addr = reader.readTagOrAttributeValueInt();
 		}
@@ -619,7 +619,7 @@ void smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
 			reader.exitTag();
 		}
 	}
-	if (!writeBlockBuffer) {
+	if (writeBlockBuffer == nullptr) {
 		writeBlockBuffer = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(blockBufferMax);
 	}
 	reader.match('}');
@@ -640,7 +640,7 @@ void smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
 	if (fp == nullptr) {
 		errCode = FRESULT::FR_NOT_ENABLED;
 	}
-	if (writeBlockBuffer && (fp != nullptr)) {
+	if ((writeBlockBuffer != nullptr) && (fp != nullptr)) {
 		if (addr != fp->fPosition) {
 			errCode = f_lseek(&fp->file, addr);
 		}
@@ -672,7 +672,7 @@ void smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
 	String path;
 
 	reader.match('{');
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		if (!strcmp(tagName, "path")) {
 			reader.readTagOrAttributeValueString(&path);
 		}
@@ -711,7 +711,7 @@ void smSysex::assignSession(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	String tag;
 	reader.match('{');
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 		if (!strcmp(tagName, "tag")) {
 			reader.readTagOrAttributeValueString(&tag);
 		}
@@ -756,7 +756,7 @@ void smSysex::doPing(MIDICable& cable, JsonDeserializer& reader) {
 
 uint32_t smSysex::decodeDataFromReader(JsonDeserializer& reader, uint8_t* dest, uint32_t destMax) {
 	char zip = 0;
-	if (!reader.readChar(&zip) || zip) // skip separator, fail if not there.
+	if (!reader.readChar(&zip) || (zip != 0)) // skip separator, fail if not there.
 		return 0;
 	uint32_t encodedSize = reader.bytesRemainingInBuffer() - 1; // don't count that 0xF7.
 	uint32_t amount = unpack_7bit_to_8bit(dest, destMax, (uint8_t*)reader.GetCurrentAddressInBuffer(), encodedSize);
@@ -788,7 +788,7 @@ void smSysex::handleNextSysEx() {
 	parser.setReplySeqNum(msgSeqNum);
 
 	parser.match('{');
-	while (*(tagName = parser.readNextTagOrAttributeName())) {
+	while (*(tagName = parser.readNextTagOrAttributeName()) != 0) {
 		if (!strcmp(tagName, "open")) {
 			openFile(de.cable, parser);
 			goto done;

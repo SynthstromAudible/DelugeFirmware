@@ -60,7 +60,7 @@ void MatrixDriver::noPressesHappening(bool inCardRoutine) {
 	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			if (padStates[x][y]) {
-				padAction(x, y, false);
+				padAction(x, y, 0);
 			}
 		}
 	}
@@ -72,7 +72,7 @@ ActionResult MatrixDriver::padAction(int32_t x, int32_t y, int32_t velocity) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	padStates[x][y] = velocity;
+	padStates[x][y] = (velocity != 0);
 #if ENABLE_MATRIX_DEBUG
 	D_PRINT("UI=%s,PAD_X=%d,PAD_Y=%d,VEL=%d", getCurrentUI()->getName(), x, y, velocity);
 #endif

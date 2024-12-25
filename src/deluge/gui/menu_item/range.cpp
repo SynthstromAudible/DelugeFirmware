@@ -177,7 +177,7 @@ void Range::drawPixelsForOled() {
 
 	getText(buffer, &leftLength, &rightLength, soundEditor.editingRangeEdge == RangeEdit::OFF);
 
-	int32_t textLength = leftLength + rightLength + (bool)rightLength;
+	int32_t textLength = leftLength + rightLength + static_cast<int>((bool)rightLength);
 
 	int32_t baseY = 18;
 	int32_t digitWidth = kTextHugeSpacingX;
