@@ -252,8 +252,6 @@ void SoundEditor::enterSubmenu(MenuItem* newItem) {
 ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	D_PRINTLN("SoundEditor::buttonAction(%d)", (int)b);
-
 	Clip* clip = nullptr;
 	bool isUIInstrumentClipView = false;
 
@@ -926,6 +924,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		if (!rootUIIsClipMinderScreen()) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForSongView[x][y];
+				parent = parentsForSongShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -935,6 +934,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		else if (setupKitGlobalFXMenu) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForKitGlobalFX[x][y];
+				parent = parentsForKitGlobalFXShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -955,6 +955,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			}
 			else if (x <= 14) {
 				item = paramShortcutsForAudioClips[x][y];
+				parent = parentsForAudioShortcuts[x][y];
 			}
 
 			goto doSetup;

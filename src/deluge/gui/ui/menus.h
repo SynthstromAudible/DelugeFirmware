@@ -90,6 +90,9 @@ extern MenuItem* paramShortcutsForSongView[kShortcutTableWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForKitGlobalFX[kShortcutTableWidth][kDisplayHeight];
 
 extern deluge::gui::menu_item::Submenu* parentsForSoundShortcuts[kShortcutTableWidth][kDisplayHeight];
+extern deluge::gui::menu_item::Submenu* parentsForAudioShortcuts[kShortcutTableWidth][kDisplayHeight];
+extern deluge::gui::menu_item::Submenu* parentsForSongShortcuts[kShortcutTableWidth][kDisplayHeight];
+extern deluge::gui::menu_item::Submenu* parentsForKitGlobalFXShortcuts[kShortcutTableWidth][kDisplayHeight];
 
 void setOscillatorNumberForTitles(int32_t);
 void setModulatorNumberForTitles(int32_t);
