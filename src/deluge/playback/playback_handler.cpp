@@ -400,7 +400,8 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 
 	// See if we want a count-in
 	if (allowCountIn && !doingTempolessRecord && recording == RecordingMode::NORMAL && (countInBars != 0u)
-	    && ((currentUIMode == 0u) || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) && getCurrentUI() == rootUI) {
+	    && ((currentUIMode == 0u) || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
+	    && getCurrentUI() == rootUI) {
 
 		ticksLeftInCountIn = currentSong->getBarLength() * countInBars;
 		currentVisualCountForCountIn = 0; // Reset it. In a moment it'll display as 4 - 12.
@@ -472,7 +473,8 @@ void PlaybackHandler::tapTempoAutoSwitchOff() {
 void PlaybackHandler::decideOnCurrentPlaybackMode() {
 	// If in arranger...
 	if (getRootUI() == &arrangerView
-	    || ((getRootUI() == nullptr) && (currentSong != nullptr) && currentSong->lastClipInstanceEnteredStartPos != -1)) {
+	    || ((getRootUI() == nullptr) && (currentSong != nullptr)
+	        && currentSong->lastClipInstanceEnteredStartPos != -1)) {
 		goto useArranger;
 	}
 
@@ -1133,9 +1135,9 @@ int64_t PlaybackHandler::getActualSwungTickCount(uint32_t* timeRemainder) {
 
 	else {
 		int64_t nextSwungTickToAction = lastSwungTickActioned + swungTicksTilNextEvent;
-		if ((nextSwungTickToAction != 0) // Checking for special case when nextSwungTickToAction == 0, when playback first
-		                          // starts. Unchecked, that would sometimes lead to us returning -1 when following
-		                          // external clock.
+		if ((nextSwungTickToAction != 0) // Checking for special case when nextSwungTickToAction == 0, when playback
+		                                 // first starts. Unchecked, that would sometimes lead to us returning -1 when
+		                                 // following external clock.
 		    && actualSwungTick >= nextSwungTickToAction) {
 			actualSwungTick = nextSwungTickToAction - 1;
 			if (timeRemainder != nullptr) {

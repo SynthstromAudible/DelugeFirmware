@@ -863,7 +863,8 @@ void MidiEngine::checkIncomingUsbMidi() {
 		int32_t numDevicesNow = aPeripheral ? 1 : MAX_NUM_USB_MIDI_DEVICES;
 
 		for (int32_t d = 0; d < numDevicesNow; d++) {
-			if ((connectedUSBMIDIDevices[ip][d].cable[0] != nullptr) && (connectedUSBMIDIDevices[ip][d].currentlyWaitingToReceive == 0u)) {
+			if ((connectedUSBMIDIDevices[ip][d].cable[0] != nullptr)
+			    && (connectedUSBMIDIDevices[ip][d].currentlyWaitingToReceive == 0u)) {
 
 				int32_t bytesReceivedHere = connectedUSBMIDIDevices[ip][d].numBytesReceived;
 				if (bytesReceivedHere != 0) {
@@ -991,7 +992,8 @@ void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8
 				// No break
 
 			case 0x08: // Note off, and note on continues here too
-				playbackHandler.noteMessageReceived(cable, (statusType & 1) != 0, channel, data1, data2, &shouldDoMidiThruNow);
+				playbackHandler.noteMessageReceived(cable, (statusType & 1) != 0, channel, data1, data2,
+				                                    &shouldDoMidiThruNow);
 #if MISSING_MESSAGE_CHECK
 				if (lastWasNoteOn == (bool)(statusType & 1))
 					FREEZE_WITH_ERROR("MISSED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");

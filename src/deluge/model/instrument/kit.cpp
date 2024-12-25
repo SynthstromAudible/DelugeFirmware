@@ -265,7 +265,8 @@ Error Kit::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t re
 			while (reader.match('{') && (*(tagName = reader.readNextTagOrAttributeName()) != 0)) {
 				DrumType drumType;
 
-				if ((strcmp(tagName, "sample") == 0) || (strcmp(tagName, "synth") == 0) || (strcmp(tagName, "sound") == 0)) {
+				if ((strcmp(tagName, "sample") == 0) || (strcmp(tagName, "synth") == 0)
+				    || (strcmp(tagName, "sound") == 0)) {
 					drumType = DrumType::SOUND;
 doReadDrum:
 					reader.match('{');
@@ -868,8 +869,9 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 			for (int32_t i = 0; i < noteRows->getNumElements(); i++) {
 				NoteRow* thisNoteRow = noteRows->getElement(i);
 
-				if (thisNoteRow->drum != nullptr) { // In a perfect world we'd do this for every Drum, even any without NoteRows in
-					                     // new Clip, but meh this'll be fine
+				if (thisNoteRow->drum
+				    != nullptr) { // In a perfect world we'd do this for every Drum, even any without NoteRows in
+					              // new Clip, but meh this'll be fine
 
 					thisNoteRow->drum->noteRowAssignedTemp = true;
 					thisNoteRow->drum->earlyNoteVelocity = 0;
@@ -1047,7 +1049,8 @@ void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICab
 
 	bool recordingNoteOnEarly = false;
 
-	bool shouldRecordNoteOn = shouldRecordNotes && (instrumentClip != nullptr) && currentSong->isClipActive(instrumentClip)
+	bool shouldRecordNoteOn = shouldRecordNotes && (instrumentClip != nullptr)
+	                          && currentSong->isClipActive(instrumentClip)
 	                          && instrumentClip->armedForRecording; // Even if this comes out as false here,
 	                                                                // there are some special cases below where
 	                                                                // we might insist on making it true
@@ -1523,8 +1526,9 @@ void Kit::stopAnyAuditioning(ModelStack* modelStack) {
 	for (Drum* thisDrum = firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 		if (thisDrum->auditioned) {
 			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    (activeClip != nullptr) ? ((InstrumentClip*)activeClip)->getNoteRowForDrum(modelStackWithTimelineCounter, thisDrum)
-			               : modelStackWithTimelineCounter->addNoteRow(0, nullptr);
+			    (activeClip != nullptr)
+			        ? ((InstrumentClip*)activeClip)->getNoteRowForDrum(modelStackWithTimelineCounter, thisDrum)
+			        : modelStackWithTimelineCounter->addNoteRow(0, nullptr);
 
 			endAuditioningForDrum(modelStackWithNoteRow, thisDrum);
 		}
@@ -1673,7 +1677,8 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTime
                                                               bool useMenuStack) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	if ((selectedDrum != nullptr) && selectedDrum->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
+	if ((selectedDrum != nullptr)
+	    && selectedDrum->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
 
 		ModelStackWithNoteRow* modelStackWithNoteRow = ((InstrumentClip*)clip)->getNoteRowForSelectedDrum(modelStack);
 

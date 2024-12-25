@@ -245,7 +245,8 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 	}
 
 	connectedDevice->sq = 0;
-	connectedDevice->canHaveMIDISent = static_cast<uint8_t>((bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller"));
+	connectedDevice->canHaveMIDISent =
+	    static_cast<uint8_t>((bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller"));
 	connectedDevice->canHaveMIDISent = static_cast<uint8_t>((bool)strcmp(device->name.get(), "LUMI Keys BLOCK"));
 
 	device->connectedNow(midiDeviceNum);

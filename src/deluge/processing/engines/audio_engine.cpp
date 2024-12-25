@@ -975,7 +975,7 @@ void setMonitoringMode() { // Monitoring setup
 
 	monitoringAction = MonitoringAction::NONE;
 	if (doMonitoring && (audioRecorder.recorder != nullptr)) { // Double-check
-		if (lineInPluggedIn) {                    // Line input
+		if (lineInPluggedIn) {                                 // Line input
 			if (audioRecorder.recorder->inputLooksDifferential()) {
 				monitoringAction = MonitoringAction::SUBTRACT_RIGHT_CHANNEL;
 			}
@@ -1120,14 +1120,16 @@ bool doSomeOutputting() {
 
 		// If we've reached the end of the known space in the output buffer...
 		if ((((uint32_t)((uint32_t)i2sTXBufferPosNow - saddr) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
-		      & (SSI_TX_BUFFER_NUM_SAMPLES - 1)) == 0u) {
+		     & (SSI_TX_BUFFER_NUM_SAMPLES - 1))
+		    == 0u) {
 
 			// See if there's now some more space.
 			saddr = (uint32_t)getTxBufferCurrentPlace();
 
 			// If there wasn't, stop for now
 			if ((((uint32_t)((uint32_t)i2sTXBufferPosNow - saddr) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
-			      & (SSI_TX_BUFFER_NUM_SAMPLES - 1)) == 0u) {
+			     & (SSI_TX_BUFFER_NUM_SAMPLES - 1))
+			    == 0u) {
 				break;
 			}
 		}

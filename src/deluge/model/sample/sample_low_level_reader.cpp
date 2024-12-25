@@ -183,7 +183,8 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 
 #if ALPHA_OR_BETA_VERSION
 			if (((endPosWithinCurrentCluster + currentClusterIndex * Cluster::size - sample->audioDataStartPosBytes)
-			    % bytesPerSample) != 0u) {
+			     % bytesPerSample)
+			    != 0u) {
 				FREEZE_WITH_ERROR("E163");
 			}
 #endif

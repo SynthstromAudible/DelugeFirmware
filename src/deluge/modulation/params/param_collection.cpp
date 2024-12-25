@@ -39,8 +39,8 @@ void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 
 	bool currentValueChanged = (oldValue != modelStack->autoParam->getCurrentValue());
 	if (currentValueChanged || automationChanged) {
-		modelStack->paramManager->notifyParamModifiedInSomeWay(modelStack, static_cast<int32_t>(currentValueChanged), automationChanged,
-		                                                       automatedNow);
+		modelStack->paramManager->notifyParamModifiedInSomeWay(modelStack, static_cast<int32_t>(currentValueChanged),
+		                                                       automationChanged, automatedNow);
 	}
 
 	if (automationChanged && automatedNow) {

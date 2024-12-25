@@ -208,7 +208,7 @@ Song::~Song() {
 
 	// Delete existing Clips, if any
 	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
-		if ((c & 31) == 0) {                              // Exact number here not fine-tuned
+		if ((c & 31) == 0) {                          // Exact number here not fine-tuned
 			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		}
 
@@ -217,7 +217,7 @@ Song::~Song() {
 	}
 
 	for (int32_t c = 0; c < arrangementOnlyClips.getNumElements(); c++) {
-		if ((c & 31) == 0) {                              // Exact number here not fine-tuned
+		if ((c & 31) == 0) {                          // Exact number here not fine-tuned
 			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		}
 
@@ -1562,8 +1562,9 @@ unknownTag:
 			}
 
 			else if (strcmp(tagName,
-			                 "inArrangementView") == 0) { // For V2.0 pre-beta songs. There'd be another way to detect
-				                                     // this...
+			                "inArrangementView")
+			         == 0) { // For V2.0 pre-beta songs. There'd be another way to detect
+				             // this...
 				lastClipInstanceEnteredStartPos = 0;
 				reader.exitTag("inArrangementView");
 			}
@@ -1996,7 +1997,8 @@ loadOutput:
 				reader.exitTag();
 			}
 
-			else if ((strcmp(tagName, "arrangementOnlyTracks") == 0) || (strcmp(tagName, "arrangementOnlyClips") == 0)) {
+			else if ((strcmp(tagName, "arrangementOnlyTracks") == 0)
+			         || (strcmp(tagName, "arrangementOnlyClips") == 0)) {
 				Error error = readClipsFromFile(reader, &arrangementOnlyClips);
 				if (error != Error::NONE) {
 					return error;
@@ -2239,7 +2241,8 @@ skipInstance:
 
 	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
-	int32_t playbackWillStartInArrangerAtPos = (playbackHandler.playbackState != 0u) ? lastClipInstanceEnteredStartPos : -1;
+	int32_t playbackWillStartInArrangerAtPos =
+	    (playbackHandler.playbackState != 0u) ? lastClipInstanceEnteredStartPos : -1;
 
 	AudioEngine::logAction("aaa5.1");
 	sortOutWhichClipsAreActiveWithoutSendingPGMs(modelStack, playbackWillStartInArrangerAtPos);
@@ -2459,10 +2462,13 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 
 	if (playbackHandler.isEitherClockActive() && (playbackHandler.ticksLeftInCountIn == 0)
 	    && currentPlaybackMode == &arrangement) {
-		const bool result = (params::kMaxNumUnpatchedParams > 32
-		                        ? (static_cast<uint32_t>(paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0] != 0u)
-		                              || (paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[1] != 0u))
-		                        : paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0]) != 0u;
+		const bool result =
+		    (params::kMaxNumUnpatchedParams > 32
+		         ? (static_cast<uint32_t>(paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0]
+		                                  != 0u)
+		            || (paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[1] != 0u))
+		         : paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0])
+		    != 0u;
 		if (result) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = addToModelStack(modelStack);
 			paramManager.tickSamples(numSamples, modelStackWithThreeMainThings);
@@ -4210,7 +4216,8 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 		else {
 			if (output->type == OutputType::SYNTH || output->type == OutputType::KIT) {
 				if (getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)output->toModControllable(),
-				                                               nullptr) == nullptr) {
+				                                              nullptr)
+				    == nullptr) {
 #if ALPHA_OR_BETA_VERSION
 					display->displayPopup("E044");
 #endif
@@ -4232,9 +4239,11 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 				if (thisDrum->type == DrumType::SOUND) {
 					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 					if (getBackedUpParamManagerPreferablyWithClip(soundDrum,
-					                                               NULL) == nullptr) { // If no backedUpParamManager...
+					                                              NULL)
+					    == nullptr) { // If no backedUpParamManager...
 						if (findParamManagerForDrum(kit,
-						                             soundDrum) == nullptr) { // If no ParamManager with a NoteRow somewhere...
+						                            soundDrum)
+						    == nullptr) { // If no ParamManager with a NoteRow somewhere...
 							FREEZE_WITH_ERROR("E102");
 						}
 					}
@@ -4388,7 +4397,8 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 
 		else {
 			if (getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput->toModControllable(),
-			                                               nullptr) == nullptr) {
+			                                              nullptr)
+			    == nullptr) {
 				FREEZE_WITH_ERROR(errorMessageNormal);
 			}
 		}
@@ -4412,7 +4422,8 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 
 		else {
 			if (getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisInstrument->toModControllable(),
-			                                               nullptr) == nullptr) {
+			                                              nullptr)
+			    == nullptr) {
 				FREEZE_WITH_ERROR(errorMessageHibernating);
 			}
 		}
@@ -4691,7 +4702,8 @@ cantDoIt:
 					return output;
 				}
 
-			} while (currentSong->getInstrumentFromPresetSlot(outputType, newChannel, -1, nullptr, nullptr, false) != nullptr);
+			} while (currentSong->getInstrumentFromPresetSlot(outputType, newChannel, -1, nullptr, nullptr, false)
+			         != nullptr);
 		}
 
 		// Or MIDI
@@ -4724,7 +4736,8 @@ cantDoIt:
 				}
 
 			} while (currentSong->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr,
-			                                                  nullptr, false) != nullptr);
+			                                                  nullptr, false)
+			         != nullptr);
 
 			oldNonAudioInstrument->setChannel(oldChannel); // Put it back, before switching notes off etc
 		}
@@ -5520,7 +5533,8 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 			Clip* clip = sessionClips.getClipAtIndex(c);
 
 			if (clip->type == ClipType::AUDIO && clip->armedForRecording) {
-				defaultAudioClipOverdubOutputCloning = static_cast<int8_t>(((AudioClip*)clip)->overdubsShouldCloneOutput);
+				defaultAudioClipOverdubOutputCloning =
+				    static_cast<int8_t>(((AudioClip*)clip)->overdubsShouldCloneOutput);
 				break;
 			}
 		}
@@ -5660,7 +5674,8 @@ void Song::setDefaultVelocityForAllInstruments(uint8_t newDefaultVelocity) {
 		}
 	}
 
-	for (Instrument* instrument = firstHibernatingInstrument; instrument != nullptr; instrument = (Instrument*)instrument->next) {
+	for (Instrument* instrument = firstHibernatingInstrument; instrument != nullptr;
+	     instrument = (Instrument*)instrument->next) {
 		instrument->defaultVelocity = newDefaultVelocity;
 	}
 }

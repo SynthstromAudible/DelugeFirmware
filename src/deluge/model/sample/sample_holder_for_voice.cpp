@@ -178,7 +178,8 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 		loopStartPos = 0;
 		loopEndPos = 0;
 
-		if ((((Sample*)audioFile)->fileLoopEndSamples != 0u) && ((Sample*)audioFile)->fileLoopEndSamples <= lengthInSamples) {
+		if ((((Sample*)audioFile)->fileLoopEndSamples != 0u)
+		    && ((Sample*)audioFile)->fileLoopEndSamples <= lengthInSamples) {
 
 			int32_t loopLength = ((Sample*)audioFile)->fileLoopEndSamples - ((Sample*)audioFile)->fileLoopStartSamples;
 

@@ -180,9 +180,10 @@ ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomatic
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
 	NoteRow* noteRowHere = getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
-	toReturn->modControllable = (clip->output->type == OutputType::KIT && (noteRowHere->drum != nullptr)) // What if there's no Drum?
-	                                ? noteRowHere->drum->toModControllable()
-	                                : clip->output->toModControllable();
+	toReturn->modControllable =
+	    (clip->output->type == OutputType::KIT && (noteRowHere->drum != nullptr)) // What if there's no Drum?
+	        ? noteRowHere->drum->toModControllable()
+	        : clip->output->toModControllable();
 	toReturn->paramManager = &noteRowHere->paramManager;
 	return toReturn;
 }
@@ -194,8 +195,9 @@ bool ModelStackWithParamId::isParam(Kind kind, ParamType id) {
 bool ModelStackWithSoundFlags::checkSourceEverActiveDisregardingMissingSample(int32_t s) {
 	int32_t flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s];
 	if (flagValue == FLAG_TBD) {
-		flagValue = static_cast<int32_t>(((Sound*)modControllable)
-		                ->isSourceActiveEverDisregardingMissingSample(s, (ParamManagerForTimeline*)paramManager));
+		flagValue = static_cast<int32_t>(
+		    ((Sound*)modControllable)
+		        ->isSourceActiveEverDisregardingMissingSample(s, (ParamManagerForTimeline*)paramManager));
 		soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s] = flagValue;
 	}
 	return flagValue != 0;
@@ -207,8 +209,8 @@ bool ModelStackWithSoundFlags::checkSourceEverActive(int32_t s) {
 		flagValue = static_cast<int32_t>(checkSourceEverActiveDisregardingMissingSample(s));
 		if (flagValue != 0) { // Does an &&
 			Sound* sound = (Sound*)modControllable;
-			flagValue =
-			    static_cast<int32_t>(sound->synthMode == SynthMode::FM
+			flagValue = static_cast<int32_t>(
+			    sound->synthMode == SynthMode::FM
 			    || (sound->sources[s].oscType != OscType::SAMPLE && sound->sources[s].oscType != OscType::WAVETABLE)
 			    || sound->sources[s].hasAtLeastOneAudioFileLoaded());
 		}

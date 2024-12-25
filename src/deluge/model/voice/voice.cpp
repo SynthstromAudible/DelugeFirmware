@@ -233,8 +233,9 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 
 				// Set up MultiRange
 				MultiRange* range = sound.sources[s].getRange(noteCodeAfterArpeggiation + sound.transpose);
-				if (range == nullptr) { // There could be no Range for a SAMPLE or WAVETABLE Source that just hasn't had a file
-					          // loaded, like how OSC2 very often would be sitting
+				if (range == nullptr) { // There could be no Range for a SAMPLE or WAVETABLE Source that just hasn't had
+					                    // a file
+					                    // loaded, like how OSC2 very often would be sitting
 					goto gotInactive;
 				}
 
@@ -435,7 +436,8 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 		Source* source = &sound.sources[s];
 
 		int32_t oscillatorTranspose;
-		if (source->oscType == OscType::SAMPLE && (guides[s].audioFileHolder != nullptr)) { // Do not do this for WaveTables
+		if (source->oscType == OscType::SAMPLE
+		    && (guides[s].audioFileHolder != nullptr)) { // Do not do this for WaveTables
 			oscillatorTranspose = ((SampleHolderForVoice*)guides[s].audioFileHolder)->transpose;
 		}
 		else {
@@ -862,7 +864,8 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 			    || source->repeatMode
 			           != SampleRepeatMode::ONCE // Don't do it for anything else. STRETCH is too hard to calculate
 			    || (guides[s].audioFileHolder == nullptr)
-			    || ((((SampleHolderForVoice*)guides[s].audioFileHolder)->loopEndPos != 0u) && !guides[s].noteOffReceived)) {
+			    || ((((SampleHolderForVoice*)guides[s].audioFileHolder)->loopEndPos != 0u)
+			        && !guides[s].noteOffReceived)) {
 				goto skipAutoRelease;
 			}
 

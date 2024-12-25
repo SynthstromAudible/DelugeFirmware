@@ -86,7 +86,8 @@ FatFS::Filesystem fileSystem;
 
 Error StorageManager::checkSpaceOnCard() {
 	D_PRINTLN("free clusters:  %d", fileSystem.free_clst);
-	return (fileSystem.free_clst != 0u) ? Error::NONE : Error::SD_CARD_FULL; // This doesn't seem to always be 100% accurate...
+	return (fileSystem.free_clst != 0u) ? Error::NONE
+	                                    : Error::SD_CARD_FULL; // This doesn't seem to always be 100% accurate...
 }
 
 // Creates folders and subfolders as needed!
@@ -367,7 +368,8 @@ deleteInstrumentAndGetOut:
 
 	// Check that a ParamManager was actually loaded for the Instrument, cos if not, that'd spell havoc
 	if (song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
-	                                                     nullptr) == nullptr) {
+	                                                    nullptr)
+	    == nullptr) {
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
 		// paramManager to be created when we read the Kit just now. So, just make one.

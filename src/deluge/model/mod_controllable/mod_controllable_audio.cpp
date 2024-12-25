@@ -708,7 +708,8 @@ doReadPatchedParam:
 		reader.exitTag("AudioCompressor", true);
 	}
 	// this is actually the sidechain but pre c1.1 songs save it as compressor
-	else if ((strcmp(tagName, "compressor") == 0) || (strcmp(tagName, "sidechain") == 0)) { // Remember, Song doesn't use this
+	else if ((strcmp(tagName, "compressor") == 0)
+	         || (strcmp(tagName, "sidechain") == 0)) { // Remember, Song doesn't use this
 		// Set default values in case they are not configured
 		const char* name = tagName;
 		sidechain.syncType = SYNC_TYPE_EVEN;

@@ -162,7 +162,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 
 			if (!reversed
 			    && (nodes.getNumElements() != 0)) { // Yeah turns out we just don't need the result from this if we're
-				                             // reversed. RIP the work I put into making this code reverse-compatible.
+				// reversed. RIP the work I put into making this code reverse-compatible.
 				int32_t prevNodeI = nodes.search(livePos + (int32_t)reversed, reversed ? GREATER_OR_EQUAL : LESS);
 				if (prevNodeI >= 0 && prevNodeI < nodes.getNumElements()) { // If there was a Node before livePos...
 investigatePrevNode:
@@ -1017,7 +1017,8 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		}
 
 		// If we're in the region right now...
-		mostRecentI = nodes.search(modelStack->getLivePos() + static_cast<int>(!modelStack->isCurrentlyPlayingReversed()), LESS);
+		mostRecentI =
+		    nodes.search(modelStack->getLivePos() + static_cast<int>(!modelStack->isCurrentlyPlayingReversed()), LESS);
 		if (mostRecentI == -1) {
 			mostRecentI = nodes.getNumElements() - 1;
 		}
@@ -1764,7 +1765,7 @@ void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithA
 	// To ensure that the effective value at pos 0 remains the same even after earlier nodes deleted, we might need to
 	// add a new, non-interpolating node there.
 	bool needNewNodeAt0 = nodes.getFirst()->pos != 0; // Deactivated for now, but I'm going to enable in the ModelStacks
-	                                             // branch, where we have a TimelineCounter here.
+	                                                  // branch, where we have a TimelineCounter here.
 	int32_t oldValueAt0;
 	if (needNewNodeAt0) {
 		oldValueAt0 = getValueAtPos(0, modelStack);

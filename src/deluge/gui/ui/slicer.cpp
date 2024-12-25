@@ -579,7 +579,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 	else if ((on == 0) && x < kDisplayWidth && y < kDisplayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad off
-		preview(0, 0, 0, 0);                                                                           // off
+		preview(0, 0, 0, 0);                                                                                 // off
 	}
 
 	if (slicerMode == SLICER_MODE_MANUAL) {

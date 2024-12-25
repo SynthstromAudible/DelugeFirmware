@@ -952,7 +952,8 @@ doLoadAsSample:
 
 					// If this led to an actual loop end pos, with more waveform after it, and the sample's not too
 					// long, we can do a ONCE.
-					if ((((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.loopEndPos != 0u) && mSec < 2002) {
+					if ((((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.loopEndPos != 0u)
+					    && mSec < 2002) {
 						soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
 					}
 					else {

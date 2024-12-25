@@ -206,7 +206,8 @@ notRecording:
 							// If it's ended right now...
 							if (endPos == lastProcessedPos) {
 
-								if (posIncrement != 0) { // Don't deactivate any Clips on the first, 0-length tick, or else!
+								if (posIncrement
+								    != 0) { // Don't deactivate any Clips on the first, 0-length tick, or else!
 									thisClip->expectNoFurtherTicks(currentSong);
 									thisClip->activeIfNoSolo = false;
 
@@ -260,8 +261,9 @@ notRecording:
 						ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 						    modelStack->addTimelineCounter(thisClip);
 
-						if (posIncrement != 0) { // If posIncrement is 0, it means this is the very first tick of playback,
-							                // in which case this has just been set up already. But otherwise...
+						if (posIncrement
+						    != 0) { // If posIncrement is 0, it means this is the very first tick of playback,
+							        // in which case this has just been set up already. But otherwise...
 							thisClip->activeIfNoSolo = true;
 							thisClip->setPos(modelStackWithTimelineCounter, 0);
 							// Rohan: used to call assertActiveness(), but that's actually
@@ -438,7 +440,8 @@ void Arrangement::reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mus
 
 	int32_t i = output->clipInstances.search(actualPos + 1, LESS);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
-	if ((clipInstance != nullptr) && clipInstance->clip == clip && clipInstance->pos + clipInstance->length > actualPos + 1) {
+	if ((clipInstance != nullptr) && clipInstance->clip == clip
+	    && clipInstance->pos + clipInstance->length > actualPos + 1) {
 		resumeClipInstancePlayback(clipInstance, true, mayResumeClip);
 	}
 }

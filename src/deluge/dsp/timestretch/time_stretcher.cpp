@@ -950,8 +950,9 @@ optForDirectReading:
 
 #else
 	// If no one's reading from the buffer anymore, stop filling it
-	if ((buffer != nullptr) && !olderHeadReadingFromBuffer) { // olderHeadReadingFromBuffer will always be false - we set it above,
-		                                         // at the start
+	if ((buffer != nullptr)
+	    && !olderHeadReadingFromBuffer) { // olderHeadReadingFromBuffer will always be false - we set it above,
+		                                  // at the start
 		delugeDealloc(buffer);
 		buffer = nullptr;
 		D_PRINTLN("abandoning buffer!!!!!!!!!!!!!!!!");
@@ -1149,7 +1150,8 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 	int32_t bytePosWithinCluster = cacheBytePos & (Cluster::size - 1);
 
 	Cluster* cacheCluster = cache->getCluster(cachedClusterIndex);
-	if (ALPHA_OR_BETA_VERSION && (cacheCluster == nullptr)) { // If it got stolen - but we should have already detected this above
+	if (ALPHA_OR_BETA_VERSION
+	    && (cacheCluster == nullptr)) { // If it got stolen - but we should have already detected this above
 		FREEZE_WITH_ERROR("E178");
 	}
 	int32_t* __restrict__ readPos = (int32_t*)&cacheCluster->data[bytePosWithinCluster - 4 + kCacheByteDepth];

@@ -2190,8 +2190,9 @@ void SessionView::graphicsRoutine() {
 		displayPotentialTempoChange(this);
 	}
 
-	bool reallyNoTickSquare = (!playbackHandler.isEitherClockActive() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
-	                           || currentUIMode == UI_MODE_IMPLODE_ANIMATION || (session.launchEventAtSwungTickCount == 0));
+	bool reallyNoTickSquare =
+	    (!playbackHandler.isEitherClockActive() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
+	     || currentUIMode == UI_MODE_IMPLODE_ANIMATION || (session.launchEventAtSwungTickCount == 0));
 
 	int32_t sixteenthNotesRemaining = 0;
 
@@ -3154,7 +3155,8 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 
 				else {
 					// If user assigning MIDI controls and has this section selected, flash to half brightness
-					if ((currentSong != nullptr) && view.learnedThing == &currentSong->sections[section].launchMIDICommand) {
+					if ((currentSong != nullptr)
+					    && view.learnedThing == &currentSong->sections[section].launchMIDICommand) {
 						ptrSectionColour = ptrSectionColour.dim();
 					}
 				}
@@ -3547,7 +3549,8 @@ void SessionView::setupNewClip(Clip* newClip) {
 				Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
 				if (clip->type == ClipType::AUDIO && clip->armedForRecording) {
-					currentSong->defaultAudioClipOverdubOutputCloning = static_cast<int8_t>(((AudioClip*)clip)->overdubsShouldCloneOutput);
+					currentSong->defaultAudioClipOverdubOutputCloning =
+					    static_cast<int8_t>(((AudioClip*)clip)->overdubsShouldCloneOutput);
 					break;
 				}
 			}
@@ -3680,7 +3683,8 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 				}
 			}
 
-			if ((targetOutput != nullptr) && targetOutput != sourceClip->output && targetOutput->type == OutputType::AUDIO) {
+			if ((targetOutput != nullptr) && targetOutput != sourceClip->output
+			    && targetOutput->type == OutputType::AUDIO) {
 				((AudioOutput*)targetOutput)->cloneFrom((AudioOutput*)(sourceClip->output));
 				newAudioClip->setOutput(modelStack, targetOutput);
 			}

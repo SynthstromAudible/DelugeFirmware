@@ -564,7 +564,7 @@ doLoading:
 			// Bytes and samples are the same for the dest Cluster
 			int32_t samplesLeftThisDestCluster =
 			    (reversed != 0) ? (posWithinPercClusterBig + 1)
-			             : ((Cluster::size << kPercBufferReductionMagnitude) - posWithinPercClusterBig);
+			                    : ((Cluster::size << kPercBufferReductionMagnitude) - posWithinPercClusterBig);
 			numSamplesThisClusterReadWrite = std::min(numSamplesThisClusterReadWrite, samplesLeftThisDestCluster);
 		}
 
@@ -582,8 +582,9 @@ doLoading:
 		int32_t bytePosWithinCluster = sourceBytePos & (Cluster::size - 1);
 
 		// Ok, how many samples can we load right now?
-		int32_t bytesLeftThisSourceCluster = (reversed != 0) ? (bytePosWithinCluster + bytesPerSample)
-		                                              : (Cluster::size - bytePosWithinCluster + bytesPerSample - 1);
+		int32_t bytesLeftThisSourceCluster = (reversed != 0)
+		                                         ? (bytePosWithinCluster + bytesPerSample)
+		                                         : (Cluster::size - bytePosWithinCluster + bytesPerSample - 1);
 		int32_t bytesWeWantToRead = numSamplesThisClusterReadWrite * bytesPerSample;
 		if (bytesWeWantToRead > bytesLeftThisSourceCluster + bytesPerSample) {
 			numSamplesThisClusterReadWrite = bytesLeftThisSourceCluster / bytesPerSample;
@@ -602,9 +603,10 @@ doLoading:
 			int32_t numSamplesThisPercPixelSegment = numSamplesThisClusterReadWrite;
 
 			int32_t numSamplesLeftThisPercPixelSegment =
-			    (reversed != 0) ? (startPosSamples + 1 + (kPercBufferReductionSize >> 1)) & (kPercBufferReductionSize - 1)
-			             : kPercBufferReductionSize
-			                   - ((startPosSamples + (kPercBufferReductionSize >> 1)) & (kPercBufferReductionSize - 1));
+			    (reversed != 0)
+			        ? (startPosSamples + 1 + (kPercBufferReductionSize >> 1)) & (kPercBufferReductionSize - 1)
+			        : kPercBufferReductionSize
+			              - ((startPosSamples + (kPercBufferReductionSize >> 1)) & (kPercBufferReductionSize - 1));
 
 			if (numSamplesLeftThisPercPixelSegment == 0) {
 				numSamplesLeftThisPercPixelSegment = kPercBufferReductionSize;

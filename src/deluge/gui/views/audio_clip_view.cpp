@@ -779,7 +779,8 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 }
 
 ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if ((currentUIMode == 0u) && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+	if ((currentUIMode == 0u) && Buttons::isShiftButtonPressed()
+	    && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 		}

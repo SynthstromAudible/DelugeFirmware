@@ -238,7 +238,8 @@ bool isShortPress(uint32_t pressTime) {
 
 bool readButtonsAndPads() {
 
-	if ((usbInitializationPeriodComplete == 0u) && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
+	if ((usbInitializationPeriodComplete == 0u)
+	    && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
 		usbInitializationPeriodComplete = 1;
 	}
 

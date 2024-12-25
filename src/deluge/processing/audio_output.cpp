@@ -250,7 +250,8 @@ renderEnvelope:
 	if (mode != AudioOutputMode::player && modelStack->song->isOutputActiveInArrangement(this)
 	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
-		StereoSample* __restrict__ outputPos = (bufferToTransferTo != nullptr) ? (StereoSample*)bufferToTransferTo : renderBuffer;
+		StereoSample* __restrict__ outputPos =
+		    (bufferToTransferTo != nullptr) ? (StereoSample*)bufferToTransferTo : renderBuffer;
 		StereoSample const* const outputPosEnd = outputPos + numSamples;
 
 		int32_t const* __restrict__ inputReadPos = (int32_t const*)AudioEngine::i2sRXBufferPos;
@@ -315,7 +316,8 @@ renderEnvelope:
 	else if (mode != AudioOutputMode::player && modelStack->song->isOutputActiveInArrangement(this)
 	         && inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && (outputRecordingFrom != nullptr)) {
 		rendered = true;
-		StereoSample* __restrict__ outputBuffer = (bufferToTransferTo != nullptr) ? (StereoSample*)bufferToTransferTo : renderBuffer;
+		StereoSample* __restrict__ outputBuffer =
+		    (bufferToTransferTo != nullptr) ? (StereoSample*)bufferToTransferTo : renderBuffer;
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* songModelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 		outputRecordingFrom->renderOutput(songModelStack, outputBuffer, outputBuffer + numSamples, numSamples,
@@ -467,7 +469,8 @@ bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmCh
 }
 
 bool AudioOutput::isSkippingRendering() {
-	return mode == AudioOutputMode::player && ((activeClip == nullptr) || (((AudioClip*)activeClip)->voiceSample == nullptr));
+	return mode == AudioOutputMode::player
+	       && ((activeClip == nullptr) || (((AudioClip*)activeClip)->voiceSample == nullptr));
 }
 
 void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,

@@ -651,8 +651,9 @@ doReadParam:
 		}
 
 		if (strcmp(tagName,
-		            "channelPressure") == 0) { // Alpha testers had 2 weeks or so to create files like this - not sure if
-			                              // anyone even did.
+		           "channelPressure")
+		    == 0) { // Alpha testers had 2 weeks or so to create files like this - not sure if
+			        // anyone even did.
 			p = 2;
 			goto doReadParam;
 		}

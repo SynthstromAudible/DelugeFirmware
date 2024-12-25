@@ -160,9 +160,11 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	if (playbackHandler.isEitherClockActive() && (playbackHandler.ticksLeftInCountIn == 0) && isClipActive) {
 		const bool result =
 		    (params::kMaxNumUnpatchedParams > 32
-		        ? (static_cast<uint32_t>(paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0] != 0u)
-		              || (paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[1] != 0u))
-		        : paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0]) != 0u;
+		         ? (static_cast<uint32_t>(
+		                paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0] != 0u)
+		            || (paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[1] != 0u))
+		         : paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0])
+		    != 0u;
 		if (result) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThingsButNoNoteRow(this, paramManagerForClip);

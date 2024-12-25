@@ -318,7 +318,8 @@ void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareIn
 	// does the note fall within the square we're looking at
 	if ((*note != nullptr) && ((*note)->pos >= squareInfo.squareStartPos) && ((*note)->pos < squareInfo.squareEndPos)) {
 		while ((noteIndex >= 0)
-		       && ((*note != nullptr) && ((*note)->pos >= squareInfo.squareStartPos) && ((*note)->pos < squareInfo.squareEndPos))) {
+		       && ((*note != nullptr) && ((*note)->pos >= squareInfo.squareStartPos)
+		           && ((*note)->pos < squareInfo.squareEndPos))) {
 			squareInfo.numNotes += 1;
 
 			if (squareInfo.numNotes == 1 && (*note)->pos == squareInfo.squareStartPos) {
@@ -879,7 +880,8 @@ Error NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNot
 	// area
 	int32_t areaStartThisScreen =
 	    areaStart
-	    + static_cast<int>(actuallyExtendNoteAtStartOfArea); // If actuallyExtendNoteAtStartOfArea, then only clear from 1 tick later
+	    + static_cast<int>(
+	        actuallyExtendNoteAtStartOfArea); // If actuallyExtendNoteAtStartOfArea, then only clear from 1 tick later
 	int32_t areaEndThisScreen = areaStart + areaWidth;
 
 	for (int32_t i = 0; i < (numScreens << 1); i++) {
@@ -1036,14 +1038,16 @@ void NoteRow::recordNoteOff(uint32_t noteOffPos, ModelStackWithNoteRow* modelSta
 	int32_t newLength;
 	int32_t newNoteLeftPos;
 
-	int32_t i = notes.search(noteOffPos + static_cast<uint32_t>(!reversed), GREATER_OR_EQUAL) - static_cast<int>(!reversed);
+	int32_t i =
+	    notes.search(noteOffPos + static_cast<uint32_t>(!reversed), GREATER_OR_EQUAL) - static_cast<int>(!reversed);
 	bool wrapping = (i == -1 || i == notes.getNumElements());
 	if (wrapping) {
 
 		// If pingponging, do something quite unique
 		if (getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::PINGPONG) {
-			note = notes.getElement((notes.getNumElements() - 1) * static_cast<int>(reversed)); // Will be 0 if playing forwards
-			newNoteLeftPos = note->pos * static_cast<int>(reversed);                            // Will be 0 if playing forwards
+			note = notes.getElement((notes.getNumElements() - 1)
+			                        * static_cast<int>(reversed));   // Will be 0 if playing forwards
+			newNoteLeftPos = note->pos * static_cast<int>(reversed); // Will be 0 if playing forwards
 			newLength = reversed ? (effectiveLength - note->pos) : (note->pos + note->length);
 			wrapping = false; // Ensure we don't execute that if-block below
 			goto modifyNote;
@@ -2033,7 +2037,7 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 
 		// Deal with recording from session to arrangement.
 		if ((loopLengthIfIndependent != 0) // Only if independent *length* - which isn't always the case when we have
-		                            // independent play pos.
+		                                   // independent play pos.
 		    && playbackHandler.recording == RecordingMode::ARRANGEMENT
 		    && lastProcessedPosIfIndependent
 		           == (playingReversedNow ? 0 : effectiveLength) // If reached end (or start) of row length.
@@ -2115,7 +2119,8 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 			paramManager.notifyPingpongOccurred(modelStackWithThreeMainThings);
 		}
 
-		bool mayInterpolate = (drum != nullptr) ? drum->type == DrumType::SOUND : (clip->output->type == OutputType::SYNTH);
+		bool mayInterpolate =
+		    (drum != nullptr) ? drum->type == DrumType::SOUND : (clip->output->type == OutputType::SYNTH);
 		// We'll not interpolate for CV, just for efficiency. Since our CV output steps are limited anyway, this
 		// is probably reasonably reasonable.
 
@@ -2246,7 +2251,8 @@ stopNote:
 								goto stopNote;
 							}
 						}
-						else if (clip->output->type == OutputType::KIT && (drum != nullptr) && drum->type == DrumType::SOUND
+						else if (clip->output->type == OutputType::KIT && (drum != nullptr)
+						         && drum->type == DrumType::SOUND
 						         && clip->arpSettings.mode == ArpMode::OFF) { // For Kits
 							if (((SoundDrum*)drum)->hasCutModeSamples(&paramManager)) {
 								goto stopNote;
@@ -2295,7 +2301,8 @@ currentlyOff:
 					// Special case for currentPos 0...
 					if (searchPos == 0) {
 						if (!allowingNoteTailsNow) {
-							if (!alreadySearchedBackwards && (notes.getNumElements() != 0) && (notes.getElement(0)->pos == 0)) {
+							if (!alreadySearchedBackwards && (notes.getNumElements() != 0)
+							    && (notes.getElement(0)->pos == 0)) {
 								nextNoteI = 0;
 								goto gotValidNoteIndex;
 							}
@@ -2807,7 +2814,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		}
 
 		if ((sound == nullptr)
-		    || (!sound->hasCutModeSamples(paramManagerNow) && (sound->hasAnyTimeStretchSyncing(paramManagerNow) == 0))) {
+		    || (!sound->hasCutModeSamples(paramManagerNow)
+		        && (sound->hasAnyTimeStretchSyncing(paramManagerNow) == 0))) {
 
 			notes.getElement(0)->length = newLoopLength;
 			return true;
@@ -2983,7 +2991,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		if (iterance != kDefaultIteranceValue) {
 			int32_t divisor = iterance.divisor;
 
-			int32_t newNumFullLoops = (numRepeatsRounded != 0) ? newLoopLength / (uint32_t)(oldLoopLength * divisor) : 1;
+			int32_t newNumFullLoops =
+			    (numRepeatsRounded != 0) ? newLoopLength / (uint32_t)(oldLoopLength * divisor) : 1;
 
 			int32_t whichFullLoop = 0; // If newNumFullLoops is 0, this will never get above 0
 			int32_t whichRepeatWithinLoop = 0;
@@ -3687,7 +3696,8 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 				drum = soundDrum; // Better set this temporarily for this call. See comment above for why we
 				                  // can't set it permanently yet
 				bool success = modelStack->song->getBackedUpParamManagerPreferablyWithClip(
-				    soundDrum, (Clip*)modelStack->getTimelineCounter(), &paramManager) != nullptr;
+				                   soundDrum, (Clip*)modelStack->getTimelineCounter(), &paramManager)
+				               != nullptr;
 				if (success) {
 					trimParamManager(modelStack);
 				}
@@ -4114,7 +4124,8 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 		}
 
 		if ((sound == nullptr)
-		    || (!sound->hasCutModeSamples(paramManagerNow) && (sound->hasAnyTimeStretchSyncing(paramManagerNow) == 0))) {
+		    || (!sound->hasCutModeSamples(paramManagerNow)
+		        && (sound->hasAnyTimeStretchSyncing(paramManagerNow) == 0))) {
 
 			int32_t numNotesHere = notes.getNumElements();
 			if (numNotesHere != 0) {
@@ -4261,8 +4272,8 @@ void NoteRow::resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelSta
 		originalNoteRow->silentlyResumePlayback(modelStackOriginal);
 	}
 
-	bool stillSounding =
-	    ((originalNoteRow != nullptr) && !originalNoteRow->muted && originalNoteRow->soundingStatus == STATUS_SEQUENCED_NOTE);
+	bool stillSounding = ((originalNoteRow != nullptr) && !originalNoteRow->muted
+	                      && originalNoteRow->soundingStatus == STATUS_SEQUENCED_NOTE);
 
 	bool shouldSoundNoteOffNow = (wasSounding && !stillSounding);
 

@@ -245,8 +245,9 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String& filePath, String
 					return Error::SD_CARD;
 				}
 
-				if (__builtin_expect(static_cast<long>((*(uint32_t*)staticFNO.altname & 0x00FFFFFF) == 0x00434552), 1) != 0) { // "REC"
-					if (*(uint32_t*)&staticFNO.altname[8] == 0x5641572E) {                             // ".WAV"
+				if (__builtin_expect(static_cast<long>((*(uint32_t*)staticFNO.altname & 0x00FFFFFF) == 0x00434552), 1)
+				    != 0) {                                                // "REC"
+					if (*(uint32_t*)&staticFNO.altname[8] == 0x5641572E) { // ".WAV"
 
 						int32_t thisSlot = memToUIntOrError(&staticFNO.altname[3], &staticFNO.altname[8]);
 						if (thisSlot == -1) {
@@ -492,7 +493,8 @@ AudioFileManager::getAudioFileFromFilename(String& filePath, bool mayReadCard, F
 
 				// If this isn't actually a wavetable-specifying file or at least a wavetable-looking length, and
 				// the user isn't insisting, then opt not to do it.
-				if (!foundSample->fileExplicitlySpecifiesSelfAsWaveTable && ((foundSample->lengthInSamples & 2047) != 0u)) {
+				if (!foundSample->fileExplicitlySpecifiesSelfAsWaveTable
+				    && ((foundSample->lengthInSamples & 2047) != 0u)) {
 					return std::unexpected(Error::FILE_NOT_LOADABLE_AS_WAVETABLE);
 				}
 			}

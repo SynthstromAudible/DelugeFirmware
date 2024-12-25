@@ -108,8 +108,9 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 		// -1 means no change
 		auto* instrumentClip = (InstrumentClip*)activeClip;
 
-		ModelStackWithNoteRow* modelStackWithNoteRow =
-		    (instrumentClip != nullptr) ? instrumentClip->getNoteRowForYNote(note, modelStack) : modelStack->addNoteRow(0, nullptr);
+		ModelStackWithNoteRow* modelStackWithNoteRow = (instrumentClip != nullptr)
+		                                                   ? instrumentClip->getNoteRowForYNote(note, modelStack)
+		                                                   : modelStack->addNoteRow(0, nullptr);
 
 		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 

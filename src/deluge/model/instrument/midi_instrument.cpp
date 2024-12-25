@@ -112,8 +112,9 @@ ModelStackWithAutoParam* MIDIInstrument::getParamFromModEncoder(int32_t whichMod
                                                                 ModelStackWithThreeMainThings* modelStack,
                                                                 bool allowCreation) {
 
-	if (modelStack->paramManager == nullptr) { // Could be NULL - if the user is holding down an audition pad in Arranger, and we
-		                             // have no Clips
+	if (modelStack->paramManager
+	    == nullptr) { // Could be NULL - if the user is holding down an audition pad in Arranger, and we
+		              // have no Clips
 noParam:
 		return modelStack->addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr); // "No param"
 	}
@@ -137,8 +138,9 @@ int32_t MIDIInstrument::getKnobPosForNonExistentParam(int32_t whichModEncoder, M
 ModelStackWithAutoParam*
 MIDIInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackWithThreeMainThings* modelStack) {
 
-	if (modelStack->paramManager == nullptr) { // Could be NULL - if the user is holding down an audition pad in Arranger, and we
-		                             // have no Clips
+	if (modelStack->paramManager
+	    == nullptr) { // Could be NULL - if the user is holding down an audition pad in Arranger, and we
+		              // have no Clips
 noParam:
 		return modelStack->addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr); // "No param"
 	}
@@ -252,10 +254,11 @@ bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, Pg
 		InstrumentClip* newInstrumentClip = (InstrumentClip*)modelStack->getTimelineCounter();
 		InstrumentClip* oldInstrumentClip = (InstrumentClip*)activeClip;
 
-		shouldSendPGMs = (maySendMIDIPGMs != PgmChangeSend::NEVER && (activeClip != nullptr) && activeClip != newInstrumentClip
-		                  && (newInstrumentClip->midiPGM != oldInstrumentClip->midiPGM
-		                      || newInstrumentClip->midiSub != oldInstrumentClip->midiSub
-		                      || newInstrumentClip->midiBank != oldInstrumentClip->midiBank));
+		shouldSendPGMs =
+		    (maySendMIDIPGMs != PgmChangeSend::NEVER && (activeClip != nullptr) && activeClip != newInstrumentClip
+		     && (newInstrumentClip->midiPGM != oldInstrumentClip->midiPGM
+		         || newInstrumentClip->midiSub != oldInstrumentClip->midiSub
+		         || newInstrumentClip->midiBank != oldInstrumentClip->midiBank));
 	}
 	else {
 		shouldSendPGMs = false;

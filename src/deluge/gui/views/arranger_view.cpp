@@ -743,7 +743,8 @@ void ArrangerView::beginAudition(Output* output) {
 
 			if (noteRow != nullptr) {
 				drum = noteRow->drum;
-				if ((drum != nullptr) && drum->type == DrumType::SOUND && !noteRow->paramManager.containsAnyMainParamCollections()) {
+				if ((drum != nullptr) && drum->type == DrumType::SOUND
+				    && !noteRow->paramManager.containsAnyMainParamCollections()) {
 					FREEZE_WITH_ERROR("E324"); // Vinz got this! I may have since fixed.
 				}
 			}
@@ -1037,7 +1038,8 @@ ActionResult ArrangerView::handleStatusPadAction(int32_t y, int32_t velocity, UI
 				// If we're the first Instrument to be soloing, need to tell others they've been inadvertedly
 				// deactivated
 				if (!currentSong->getAnyOutputsSoloingInArrangement()) {
-					for (Output* thisOutput = currentSong->firstOutput; thisOutput != nullptr; thisOutput = thisOutput->next) {
+					for (Output* thisOutput = currentSong->firstOutput; thisOutput != nullptr;
+					     thisOutput = thisOutput->next) {
 						if (thisOutput != output && !thisOutput->mutedInArrangementMode) {
 							outputDeactivated(thisOutput);
 						}
@@ -1073,7 +1075,8 @@ doUnsolo:
 
 					// If no other Instruments still soloing, re-activate all the other ones
 					if (!currentSong->getAnyOutputsSoloingInArrangement()) {
-						for (Output* thisOutput = currentSong->firstOutput; thisOutput != nullptr; thisOutput = thisOutput->next) {
+						for (Output* thisOutput = currentSong->firstOutput; thisOutput != nullptr;
+						     thisOutput = thisOutput->next) {
 							if (thisOutput != output && !thisOutput->mutedInArrangementMode) {
 								outputActivated(thisOutput);
 							}
@@ -2797,7 +2800,8 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 					}
 				}
 
-				for (Output* thisOutput = currentSong->firstOutput; thisOutput != nullptr; thisOutput = thisOutput->next) {
+				for (Output* thisOutput = currentSong->firstOutput; thisOutput != nullptr;
+				     thisOutput = thisOutput->next) {
 					int32_t i = thisOutput->clipInstances.search(currentSong->xScroll[NAVIGATION_ARRANGEMENT],
 					                                             GREATER_OR_EQUAL);
 
@@ -3155,12 +3159,13 @@ void ArrangerView::graphicsRoutine() {
 
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 				Output* output = outputsOnScreen[yDisplay];
-				tickSquares[yDisplay] =
-				    (currentSong->getAnyOutputsSoloingInArrangement() && ((output == nullptr) || !output->soloingInArrangementMode))
-				        ? 255
-				        : newTickSquare;
-				colours[yDisplay] =
-				    ((output != nullptr) && output->recordingInArrangement) ? 2 : ((output != nullptr) && output->mutedInArrangementMode ? 1 : 0);
+				tickSquares[yDisplay] = (currentSong->getAnyOutputsSoloingInArrangement()
+				                         && ((output == nullptr) || !output->soloingInArrangementMode))
+				                            ? 255
+				                            : newTickSquare;
+				colours[yDisplay] = ((output != nullptr) && output->recordingInArrangement)
+				                        ? 2
+				                        : ((output != nullptr) && output->mutedInArrangementMode ? 1 : 0);
 
 				if (arrangement.hasPlaybackActive() && currentUIMode != UI_MODE_EXPLODE_ANIMATION
 				    && currentUIMode != UI_MODE_IMPLODE_ANIMATION) {
@@ -3298,7 +3303,8 @@ uint32_t ArrangerView::getMaxZoom() {
 void ArrangerView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		PadLEDs::transitionTakingPlaceOnRow[yDisplay] =
-		    ((outputsOnScreen[yDisplay] != nullptr) && (outputsOnScreen[yDisplay]->clipInstances.getNumElements() != 0));
+		    ((outputsOnScreen[yDisplay] != nullptr)
+		     && (outputsOnScreen[yDisplay]->clipInstances.getNumElements() != 0));
 	}
 }
 

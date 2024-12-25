@@ -2217,7 +2217,8 @@ traverseClips:
 		Clip* clip = clipArray->getClipAtIndex(c);
 
 		if (clip->fillEventAtTickCount > 0) {
-			if ((nextClipWithFillEvent == nullptr) || nextClipWithFillEvent->fillEventAtTickCount > clip->fillEventAtTickCount) {
+			if ((nextClipWithFillEvent == nullptr)
+			    || nextClipWithFillEvent->fillEventAtTickCount > clip->fillEventAtTickCount) {
 				nextClipWithFillEvent = clip;
 			}
 		}
@@ -2225,7 +2226,8 @@ traverseClips:
 			continue;
 		}
 
-		if ((clip->output->getActiveClip() != nullptr) && clip->output->getActiveClip()->beingRecordedFromClip == clip) {
+		if ((clip->output->getActiveClip() != nullptr)
+		    && clip->output->getActiveClip()->beingRecordedFromClip == clip) {
 			clip = clip->output->getActiveClip();
 		}
 
@@ -2240,7 +2242,8 @@ traverseClips:
 
 	bool enforceSettingUpArming = false;
 
-	if ((nextClipWithFillEvent != nullptr) && playbackHandler.lastSwungTickActioned >= nextClipWithFillEvent->fillEventAtTickCount) {
+	if ((nextClipWithFillEvent != nullptr)
+	    && playbackHandler.lastSwungTickActioned >= nextClipWithFillEvent->fillEventAtTickCount) {
 		doLaunch(true);
 		armingChanged();
 		nextClipWithFillEvent->fillEventAtTickCount = 0;
@@ -2398,7 +2401,8 @@ void Session::doTickForward(int32_t posIncrement) {
 				continue;
 			}
 
-			if ((clip->output->getActiveClip() != nullptr) && clip->output->getActiveClip()->beingRecordedFromClip == clip) {
+			if ((clip->output->getActiveClip() != nullptr)
+			    && clip->output->getActiveClip()->beingRecordedFromClip == clip) {
 				clip = clip->output->getActiveClip();
 			}
 
@@ -2648,7 +2652,7 @@ bool Session::willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* 
 	// Note: this isn't quite perfect - it doesn’t know if Clip will cut out due to another one launching. But the ill
 	// effects of this are pretty minor.
 	bool willLoop =
-	    (launchEventAtSwungTickCount == 0)             // If no launch event scheduled, obviously it'll loop
+	    (launchEventAtSwungTickCount == 0)       // If no launch event scheduled, obviously it'll loop
 	    || numRepeatsTilLaunch > 1               // If the launch event is gonna just trigger another repeat, it'll loop
 	    || clip->armState != ArmState::ON_NORMAL // If not armed, or armed to solo, it'll loop (except see above)
 	    || (clip->soloingInSessionMode
@@ -2681,7 +2685,8 @@ bool Session::deletingClipWhichCouldBeAbandonedOverdub(Clip* clip) {
 	    clip->activeIfNoSolo; // Yep, this works better (in some complex scenarios I tested) than calling
 	                          // isClipActive(), which would take soloing into account
 
-	if (shouldBeActiveWhileExistent && !((playbackHandler.playbackState != 0u) && currentPlaybackMode == &arrangement)) {
+	if (shouldBeActiveWhileExistent
+	    && !((playbackHandler.playbackState != 0u) && currentPlaybackMode == &arrangement)) {
 		int32_t newClipIndex;
 		Clip* newClip = currentSong->getSessionClipWithOutput(clip->output, -1, clip, &newClipIndex, true);
 		if (newClip != nullptr) {

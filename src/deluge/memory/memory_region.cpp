@@ -607,8 +607,8 @@ tryNotStealingFirst:
 
 				uint32_t emptySpaceHereSizeWithoutHeaders = *lookLeftOrRight & SPACE_SIZE_MASK;
 
-				uint32_t spaceHereAddress =
-				    (lookingLeft != 0) ? (uint32_t)lookLeft - emptySpaceHereSizeWithoutHeaders : (uint32_t)(lookRight + 1);
+				uint32_t spaceHereAddress = (lookingLeft != 0) ? (uint32_t)lookLeft - emptySpaceHereSizeWithoutHeaders
+				                                               : (uint32_t)(lookRight + 1);
 
 				Stealable* stealable;
 

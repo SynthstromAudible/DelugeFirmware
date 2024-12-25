@@ -1182,7 +1182,8 @@ void InstrumentClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) 
 	if (output->type == OutputType::KIT) {
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
-			if ((thisNoteRow->drum != nullptr) && thisNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+			if ((thisNoteRow->drum != nullptr)
+			    && thisNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThingsForNoteRow =
 				    modelStack->addNoteRow(i, thisNoteRow)
 				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
@@ -1781,7 +1782,8 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 			NoteRow* thisNoteRow = noteRows.getElement(i);
 
 			// Cycle through the backed up drum names for this NoteRow
-			for (DrumName* oldDrumName = thisNoteRow->firstOldDrumName; oldDrumName != nullptr; oldDrumName = oldDrumName->next) {
+			for (DrumName* oldDrumName = thisNoteRow->firstOldDrumName; oldDrumName != nullptr;
+			     oldDrumName = oldDrumName->next) {
 
 				// See if a Drum (which hasn't been assigned yet) has this name
 				SoundDrum* thisDrum = kit->getDrumFromName(oldDrumName->name.get(), true);
@@ -2026,7 +2028,8 @@ void InstrumentClip::assignDrumsToNoteRows(ModelStackWithTimelineCounter* modelS
 insertSomeAtBottom:
 		int32_t numNoteRowsInsertedAtBottom = 0;
 
-		while ((nextPotentiallyUnassignedDrum != nullptr) && numNoteRowsInsertedAtBottom < maxNumNoteRowsToInsertAtBottom) {
+		while ((nextPotentiallyUnassignedDrum != nullptr)
+		       && numNoteRowsInsertedAtBottom < maxNumNoteRowsToInsertAtBottom) {
 
 			Drum* thisDrum = nextPotentiallyUnassignedDrum;
 			nextPotentiallyUnassignedDrum = nextPotentiallyUnassignedDrum->next;
@@ -2101,7 +2104,8 @@ noUnassignedDrumsLeft:
 	// NoteRow, and make them one
 	else {
 
-		for (; nextPotentiallyUnassignedDrum != nullptr; nextPotentiallyUnassignedDrum = nextPotentiallyUnassignedDrum->next) {
+		for (; nextPotentiallyUnassignedDrum != nullptr;
+		     nextPotentiallyUnassignedDrum = nextPotentiallyUnassignedDrum->next) {
 
 			// If this Drum is already assigned to a NoteRow...
 			if (nextPotentiallyUnassignedDrum->noteRowAssignedTemp) {
@@ -2166,7 +2170,8 @@ Error InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTimel
 		if ((noteRow->drum != nullptr) && noteRow->drum->type == DrumType::SOUND) {
 
 			bool success = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)noteRow->drum, this,
-			                                                                           &noteRow->paramManager) != nullptr;
+			                                                                           &noteRow->paramManager)
+			               != nullptr;
 
 			if (!success) {
 				if (ALPHA_OR_BETA_VERSION) {
@@ -3135,7 +3140,8 @@ doReadBendRange:
 				// Try grabbing the Instrument's "backed up" one
 				ModControllable* modControllable = output->toModControllable();
 				bool success = song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)modControllable,
-				                                                               this, &paramManager) != nullptr;
+				                                                               this, &paramManager)
+				               != nullptr;
 				if (success) {
 					char modelStackMemory[MODEL_STACK_MAX_SIZE];
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -4054,7 +4060,8 @@ void InstrumentClip::getSuggestedParamManager(Clip* newClip, ParamManagerForTime
 		InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
 		for (int32_t i = 0; i < newInstrumentClip->noteRows.getNumElements(); i++) {
 			NoteRow* noteRow = newInstrumentClip->noteRows.getElement(i);
-			if ((noteRow->drum != nullptr) && noteRow->drum->type == DrumType::SOUND && (SoundDrum*)noteRow->drum == sound) {
+			if ((noteRow->drum != nullptr) && noteRow->drum->type == DrumType::SOUND
+			    && (SoundDrum*)noteRow->drum == sound) {
 				*suggestedParamManager = &noteRow->paramManager;
 				break;
 			}
@@ -4087,8 +4094,9 @@ ParamManagerForTimeline* InstrumentClip::getCurrentParamManager() {
 
 Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
-	if (output == nullptr) { // Would only have an output already if file from before V2.0.0 I think? So, this block normally does
-		           // apply.
+	if (output == nullptr) { // Would only have an output already if file from before V2.0.0 I think? So, this block
+		                     // normally does
+		                     // apply.
 		const OutputType outputType = outputTypeWhileLoading;
 		const size_t outputTypeAsIdx = static_cast<size_t>(outputType);
 
@@ -4190,7 +4198,8 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 					// Try grabbing the Drum's "backed up" one
 					success = (modelStackWithNoteRow->song->getBackedUpParamManagerPreferablyWithClip(
-					    (SoundDrum*)thisNoteRow->drum, this, &thisNoteRow->paramManager) != nullptr);
+					               (SoundDrum*)thisNoteRow->drum, this, &thisNoteRow->paramManager)
+					           != nullptr);
 					if (success) {
 						thisNoteRow->trimParamManager(modelStackWithNoteRow);
 					}
@@ -4368,8 +4377,8 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 
 		bool mayStillLengthen = true;
 
-		while (
-		    thisNoteRow->notes.getNumElements() != 0) { // There's most likely only one offender, but you never really know
+		while (thisNoteRow->notes.getNumElements()
+		       != 0) { // There's most likely only one offender, but you never really know
 			Note* lastNote = thisNoteRow->notes.getLast();
 
 			// If Note is past new end-point that we're setting now, then delete / move the Note

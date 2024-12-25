@@ -624,8 +624,9 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 
 			if (strcmp(tagName,
-			            "rate") == 0) { // This is here for compatibility only for people (Lou and Ian) who saved songs with
-				                   // firmware in September 2016
+			           "rate")
+			    == 0) { // This is here for compatibility only for people (Lou and Ian) who saved songs with
+				        // firmware in September 2016
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_ARP_RATE, readAutomationUpToPos);
 				reader.exitTag("rate");
@@ -773,8 +774,9 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 					reader.exitTag("mode");
 			}
 			else if (strcmp(tagName,
-			                 "gate") == 0) { // This is here for compatibility only for people (Lou and Ian) who saved songs
-				                        // with firmware in September 2016
+			                "gate")
+			         == 0) { // This is here for compatibility only for people (Lou and Ian) who saved songs
+				             // with firmware in September 2016
 				ENSURE_PARAM_MANAGER_EXISTS
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_GATE,
 				                           readAutomationUpToPos);
@@ -855,8 +857,9 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 	}
 
 	else if (strcmp(tagName,
-	                 "portamento") == 0) { // This is here for compatibility only for people (Lou and Ian) who saved songs
-		                              // with firmware in September 2016
+	                "portamento")
+	         == 0) { // This is here for compatibility only for people (Lou and Ian) who saved songs
+		             // with firmware in September 2016
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
 		reader.exitTag("portamento");
@@ -3132,7 +3135,8 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 					bool sourceEverActive = modelStack->checkSourceEverActive(s);
 
 					if (sourceEverActive && synthMode != SynthMode::FM && sources[s].oscType == OscType::SAMPLE
-					    && (thisVoice->guides[s].audioFileHolder != nullptr) && (thisVoice->guides[s].audioFileHolder->audioFile != nullptr)) {
+					    && (thisVoice->guides[s].audioFileHolder != nullptr)
+					    && (thisVoice->guides[s].audioFileHolder->audioFile != nullptr)) {
 
 						// For samples, set the current play pos for the new unison part, if num unison went up
 						if (newNum > oldNum) {
@@ -3622,7 +3626,8 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 	    && synthMode != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
 		writer.writeAttribute("loopMode", util::to_underlying(source->repeatMode));
 		writer.writeAttribute("reversed", static_cast<int32_t>(source->sampleControls.reversed));
-		writer.writeAttribute("timeStretchEnable", static_cast<int32_t>(source->sampleControls.pitchAndSpeedAreIndependent));
+		writer.writeAttribute("timeStretchEnable",
+		                      static_cast<int32_t>(source->sampleControls.pitchAndSpeedAreIndependent));
 		writer.writeAttribute("timeStretchAmount", source->timeStretchAmount);
 		if (source->sampleControls.interpolationMode == InterpolationMode::LINEAR) {
 			writer.writeAttribute("linearInterpolation", 1);

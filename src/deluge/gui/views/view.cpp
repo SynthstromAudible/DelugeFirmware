@@ -1832,8 +1832,8 @@ void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 
 	// If holding down a note and not playing, permanently grab values from pos
 	if ((length != 0u) && activeModControllableModelStack.timelineCounterIsSet()
-	    && (activeModControllableModelStack.modControllable != nullptr) && (activeModControllableModelStack.paramManager != nullptr)
-	    && !playbackHandler.isEitherClockActive()
+	    && (activeModControllableModelStack.modControllable != nullptr)
+	    && (activeModControllableModelStack.paramManager != nullptr) && !playbackHandler.isEitherClockActive()
 	    && activeModControllableModelStack.paramManager->containsAnyMainParamCollections()) {
 
 		activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
@@ -2218,7 +2218,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
 					if (modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, -1, nullptr, nullptr,
-					                                                   false) == nullptr) {
+					                                                  false)
+					    == nullptr) {
 						break;
 					}
 				}
@@ -2284,8 +2285,9 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					}
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-					if (modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix,
-					                                                   nullptr, nullptr, false) == nullptr) {
+					if (modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr,
+					                                                  nullptr, false)
+					    == nullptr) {
 						break;
 					}
 				}
@@ -2408,10 +2410,10 @@ getOut:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
-					if (modelStack->song->getBackedUpParamManagerPreferablyWithClip(
-					        soundDrum, NULL) == nullptr) { // If no backedUpParamManager...
-						if (modelStack->song->findParamManagerForDrum(
-						        kit, soundDrum) == nullptr) { // If no ParamManager with a NoteRow somewhere...
+					if (modelStack->song->getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL)
+					    == nullptr) { // If no backedUpParamManager...
+						if (modelStack->song->findParamManagerForDrum(kit, soundDrum)
+						    == nullptr) { // If no ParamManager with a NoteRow somewhere...
 
 							if (results.loadedFromFile) {
 								FREEZE_WITH_ERROR("E103");

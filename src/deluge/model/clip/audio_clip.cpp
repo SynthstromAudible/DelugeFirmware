@@ -137,7 +137,8 @@ void AudioClip::abortRecording() {
 }
 
 bool AudioClip::wantsToBeginLinearRecording(Song* song) {
-	return (Clip::wantsToBeginLinearRecording(song) && ((sampleHolder.audioFile == nullptr) || !shouldCloneForOverdubs())
+	return (Clip::wantsToBeginLinearRecording(song)
+	        && ((sampleHolder.audioFile == nullptr) || !shouldCloneForOverdubs())
 	        && ((AudioOutput*)output)->inputChannel > AudioInputChannel::NONE);
 }
 
@@ -190,7 +191,8 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 
 	// Got to check reachedMaxFileSize here, cos that'll go true a bit before cardRoutine() sets status to ERROR
 	// also check if we haven't captured any samples (which can happen with threshold recording)
-	if (recorder->status == RecorderStatus::ABORTED || recorder->reachedMaxFileSize || (recorder->numSamplesCaptured == 0u)) {
+	if (recorder->status == RecorderStatus::ABORTED || recorder->reachedMaxFileSize
+	    || (recorder->numSamplesCaptured == 0u)) {
 		abortRecording();
 		return;
 	}
@@ -482,7 +484,8 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	// If already time stretching, no need to do anything - that'll take care of the new play-position.
 	// Also can only do this if envelope not releasing, which (possibly not anymore since I fixed other bug) it can
 	// still be if this is our second quick successive <>+play starting playback partway through Clip
-	if ((voiceSample != nullptr) && (voiceSample->timeStretcher != nullptr) && ((AudioOutput*)output)->envelope.state < EnvelopeStage::RELEASE) {
+	if ((voiceSample != nullptr) && (voiceSample->timeStretcher != nullptr)
+	    && ((AudioOutput*)output)->envelope.state < EnvelopeStage::RELEASE) {
 		return;
 	}
 
@@ -652,7 +655,8 @@ justDontTimeStretch:
 
 	int32_t priorityRating = 1;
 
-	bool clipWillLoopAtEnd = (playbackHandler.playbackState != 0u) && currentPlaybackMode->willClipLoopAtSomePoint(modelStack);
+	bool clipWillLoopAtEnd =
+	    (playbackHandler.playbackState != 0u) && currentPlaybackMode->willClipLoopAtSomePoint(modelStack);
 	// I don't love that this is being called for every AudioClip at every render. This is to determine the "looping"
 	// parameter for the call to VoiceSample::render() below. It'd be better to maybe have that just query the
 	// currentPlaybackMode when it needs to actually use this info, cos it only occasionally needs it
@@ -933,7 +937,8 @@ doNormal:
 	else {
 
 		// If our ParamManager was the only one that the old Output had, we have to clone it
-		if ((song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)output->toModControllable(), this) == nullptr)
+		if ((song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)output->toModControllable(), this)
+		     == nullptr)
 		    && (song->getClipWithOutput(output, false, this) == nullptr)) {
 
 			ParamManagerForTimeline newParamManager;
@@ -991,7 +996,8 @@ void AudioClip::getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_
 			    sampleHolder.getEndPos(true) - xScrollSamplesWithinZone - (*xZoomSamples << kDisplayWidthMagnitude);
 		}
 		else {
-			int64_t sampleStartPos = (recorder != nullptr) ? recorder->sample->fileLoopStartSamples : sampleHolder.startPos;
+			int64_t sampleStartPos =
+			    (recorder != nullptr) ? recorder->sample->fileLoopStartSamples : sampleHolder.startPos;
 			*xScrollSamples = xScrollSamplesWithinZone + sampleStartPos;
 		}
 	}
@@ -1049,7 +1055,7 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 	writer.writeAttribute("trackName", output->name.get());
 
 	writer.writeAttribute("filePath", (sampleHolder.audioFile != nullptr) ? sampleHolder.audioFile->filePath.get()
-	                                                         : sampleHolder.filePath.get());
+	                                                                      : sampleHolder.filePath.get());
 	writer.writeAttribute("startSamplePos", sampleHolder.startPos);
 	writer.writeAttribute("endSamplePos", sampleHolder.endPos);
 	writer.writeAttribute("pitchSpeedIndependent", static_cast<int32_t>(sampleControls.pitchAndSpeedAreIndependent));
@@ -1373,7 +1379,8 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 		uint64_t length = sampleHolder.endPos - sampleHolder.startPos;
 
 		// Stop the clip if it is playing
-		bool active = (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this) && (voiceSample != nullptr));
+		bool active =
+		    (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this) && (voiceSample != nullptr));
 		unassignVoiceSample(false);
 
 		sampleHolder.startPos = newStartPos;

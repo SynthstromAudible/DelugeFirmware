@@ -298,8 +298,9 @@ void MIDIPort::readFromFile(Deserializer& reader, MIDICable* deviceToSendMCMsOn)
 			while (*(tagName = reader.readNextTagOrAttributeName()) != 0) {
 				if (strcmp(tagName, "numMemberChannels") == 0) {
 
-					if (mpeLowerZoneLastMemberChannel == 0u) { // If value was already set, then leave it - the user or an
-						                                  // MCM might have changed it since the file was last read.
+					if (mpeLowerZoneLastMemberChannel
+					    == 0u) { // If value was already set, then leave it - the user or an
+						         // MCM might have changed it since the file was last read.
 						int32_t newMPELowerZoneLastMemberChannel = reader.readTagOrAttributeValueInt();
 						if (newMPELowerZoneLastMemberChannel >= 0 && newMPELowerZoneLastMemberChannel < 16) {
 							mpeLowerZoneLastMemberChannel = newMPELowerZoneLastMemberChannel;

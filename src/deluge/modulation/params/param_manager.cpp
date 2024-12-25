@@ -232,7 +232,8 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 	}
 	else {
 		*newSummary = mpeParamsOrNullHere;
-		if (mpeParamsOrNullHere.paramCollection != nullptr) { // Check first, otherwise we'll overflow the array, I think...
+		if (mpeParamsOrNullHere.paramCollection
+		    != nullptr) { // Check first, otherwise we'll overflow the array, I think...
 			newSummary++;
 			*newSummary = {0}; // Mark end of list
 		}
@@ -390,7 +391,8 @@ void ParamManagerForTimeline::processCurrentPos(ModelStackWithThreeMainThings* m
 
 void ParamManagerForTimeline::expectEvent(ModelStackWithThreeMainThings const* modelStack) {
 	TimelineCounter* timelineCounter = modelStack->getTimelineCounterAllowNull();
-	if (playbackHandler.isEitherClockActive() && ((timelineCounter == nullptr) || timelineCounter->isPlayingAutomationNow())) {
+	if (playbackHandler.isEitherClockActive()
+	    && ((timelineCounter == nullptr) || timelineCounter->isPlayingAutomationNow())) {
 		ticksTilNextEvent = 0;
 		if (timelineCounter != nullptr) {
 			timelineCounter->expectEvent();

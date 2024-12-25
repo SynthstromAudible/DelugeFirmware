@@ -540,7 +540,8 @@ void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithT
 
 		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
 		// region.
-		if ((view.modLength != 0u) && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+		if ((view.modLength != 0u)
+		    && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 			modPos = view.modPos;
 			modLength = view.modLength;
 			isStepEditing = true;
@@ -929,17 +930,20 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 				// if we have a valid param shortcut, let's confirm the tag name corresponds to that shortcut
 				if (((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
 				     && (strcmp(tagName, params::paramNameForFile(params::Kind::PATCHED,
-				                                                  patchedParamShortcuts[xDisplay][yDisplay])) == 0))
+				                                                  patchedParamShortcuts[xDisplay][yDisplay]))
+				         == 0))
 				    || ((unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
 				        && (strcmp(tagName,
-				                   params::paramNameForFile(
-				                       params::Kind::UNPATCHED_SOUND,
-				                       params::UNPATCHED_START + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay])) == 0))
+				                   params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
+				                                            params::UNPATCHED_START
+				                                                + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]))
+				            == 0))
 				    || ((unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
 				        && (strcmp(tagName,
-				                   params::paramNameForFile(
-				                       params::Kind::UNPATCHED_GLOBAL,
-				                       params::UNPATCHED_START + unpatchedGlobalParamShortcuts[xDisplay][yDisplay])) == 0))) {
+				                   params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
+				                                            params::UNPATCHED_START
+				                                                + unpatchedGlobalParamShortcuts[xDisplay][yDisplay]))
+				            == 0))) {
 					// tag name matches the param shortcut, so we can load the cc mapping for that param
 					// into the paramToCC grid shortcut array which holds the cc value for each param
 					paramToCC[xDisplay][yDisplay] = reader.readTagOrAttributeValueInt();

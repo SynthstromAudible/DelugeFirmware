@@ -739,7 +739,8 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 		// you're not in a kit where you haven't selected a drum and you haven't selected affect entire either
 		// you're not in a kit where no sound drum has been selected and you're not editing velocity
 		// you're in a kit where midi or CV sound drum has been selected and you're editing velocity
-		if (onArrangerView || !(outputType == OutputType::KIT && !getAffectEntire() && (((Kit*)output)->selectedDrum == nullptr))) {
+		if (onArrangerView
+		    || !(outputType == OutputType::KIT && !getAffectEntire() && (((Kit*)output)->selectedDrum == nullptr))) {
 			bool isMIDICVDrum = false;
 			if (outputType == OutputType::KIT && !getAffectEntire()) {
 				isMIDICVDrum = ((((Kit*)output)->selectedDrum != nullptr)
@@ -1268,7 +1269,8 @@ void AutomationView::renderAutomationOverviewDisplayOLED(deluge::hid::display::o
 
 	// display Automation Overview
 	char const* overviewText;
-	if (!onArrangerView && (outputType == OutputType::KIT && !getAffectEntire() && (((Kit*)output)->selectedDrum == nullptr))) {
+	if (!onArrangerView
+	    && (outputType == OutputType::KIT && !getAffectEntire() && (((Kit*)output)->selectedDrum == nullptr))) {
 		overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
 		deluge::hid::display::OLED::drawPermanentPopupLookingText(overviewText);
 	}
@@ -1456,7 +1458,8 @@ void AutomationView::renderDisplay7SEG(Clip* clip, Output* output, OutputType ou
 
 void AutomationView::renderAutomationOverviewDisplay7SEG(Output* output, OutputType outputType) {
 	char const* overviewText;
-	if (!onArrangerView && (outputType == OutputType::KIT && !getAffectEntire() && (((Kit*)output)->selectedDrum == nullptr))) {
+	if (!onArrangerView
+	    && (outputType == OutputType::KIT && !getAffectEntire() && (((Kit*)output)->selectedDrum == nullptr))) {
 		overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
 	}
 	else {
@@ -1509,8 +1512,8 @@ void AutomationView::renderAutomationEditorDisplay7SEG(Clip* clip, OutputType ou
 		}
 	}
 
-	bool isAutomated =
-	    (modelStackWithParam != nullptr) && (modelStackWithParam->autoParam != nullptr) && modelStackWithParam->autoParam->isAutomated();
+	bool isAutomated = (modelStackWithParam != nullptr) && (modelStackWithParam->autoParam != nullptr)
+	                   && modelStackWithParam->autoParam->isAutomated();
 	bool playbackStarted = playbackHandler.isEitherClockActive();
 
 	// display parameter value if knobPos is provided
@@ -2457,7 +2460,8 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 				// make sure the context is valid for selecting a parameter
 				// can't select a parameter in a kit if you haven't selected a drum
 				if (onArrangerView
-				    || !(outputType == OutputType::KIT && !getAffectEntire() && (((Kit*)output)->selectedDrum == nullptr))
+				    || !(outputType == OutputType::KIT && !getAffectEntire()
+				         && (((Kit*)output)->selectedDrum == nullptr))
 				    || (outputType == OutputType::KIT && getAffectEntire())) {
 
 					handleParameterSelection(clip, output, outputType, x, y);

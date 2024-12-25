@@ -80,57 +80,57 @@ const int32_t kMaxPresetArpRhythm = kMaxMenuValue;
 // 	4, // <-
 // };
 const ArpRhythm arpRhythmPatterns[kMaxPresetArpRhythm + 1] = {
-    {1, {true, true, true, true, true, true}}, // <- 1 step
-    {3, {true, false, false, true, true, true}}, // <- 3 steps
-    {3, {true, true, false, true, true, true}}, // <-
-    {3, {true, false, true, true, true, true}}, // <-
-    {4, {true, false, true, true, true, true}}, // <- 4 steps
-    {4, {true, true, false, false, true, true}}, // <-
-    {4, {true, true, true, false, true, true}}, // <-
-    {4, {true, false, false, true, true, true}}, // <-
-    {4, {true, true, false, true, true, true}}, // <-
-    {5, {true, false, false, false, false, true}}, // <- 5 steps
-    {5, {true, false, true, true, true, true}}, // <-
-    {5, {true, true, false, false, false, true}}, // <-
-    {5, {true, true, true, true, false, true}}, // <-
-    {5, {true, false, false, false, true, true}}, // <-
-    {5, {true, true, false, true, true, true}}, // <-
-    {5, {true, false, true, false, false, true}}, // <-
-    {5, {true, true, true, false, true, true}}, // <-
-    {5, {true, false, false, true, false, true}}, // <-
-    {5, {true, false, false, true, true, true}}, // <-
-    {5, {true, true, true, false, false, true}}, // <-
-    {5, {true, true, false, false, true, true}}, // <-
-    {5, {true, false, true, true, false, true}}, // <-
-    {5, {true, true, false, true, false, true}}, // <-
-    {5, {true, false, true, false, true, true}}, // <-
+    {1, {true, true, true, true, true, true}},      // <- 1 step
+    {3, {true, false, false, true, true, true}},    // <- 3 steps
+    {3, {true, true, false, true, true, true}},     // <-
+    {3, {true, false, true, true, true, true}},     // <-
+    {4, {true, false, true, true, true, true}},     // <- 4 steps
+    {4, {true, true, false, false, true, true}},    // <-
+    {4, {true, true, true, false, true, true}},     // <-
+    {4, {true, false, false, true, true, true}},    // <-
+    {4, {true, true, false, true, true, true}},     // <-
+    {5, {true, false, false, false, false, true}},  // <- 5 steps
+    {5, {true, false, true, true, true, true}},     // <-
+    {5, {true, true, false, false, false, true}},   // <-
+    {5, {true, true, true, true, false, true}},     // <-
+    {5, {true, false, false, false, true, true}},   // <-
+    {5, {true, true, false, true, true, true}},     // <-
+    {5, {true, false, true, false, false, true}},   // <-
+    {5, {true, true, true, false, true, true}},     // <-
+    {5, {true, false, false, true, false, true}},   // <-
+    {5, {true, false, false, true, true, true}},    // <-
+    {5, {true, true, true, false, false, true}},    // <-
+    {5, {true, true, false, false, true, true}},    // <-
+    {5, {true, false, true, true, false, true}},    // <-
+    {5, {true, true, false, true, false, true}},    // <-
+    {5, {true, false, true, false, true, true}},    // <-
     {6, {true, false, false, false, false, false}}, // <- 6 steps
-    {6, {true, false, true, true, true, true}}, // <-
-    {6, {true, true, false, false, false, false}}, // <-
-    {6, {true, true, true, true, true, false}}, // <-
-    {6, {true, false, false, false, false, true}}, // <-
-    {6, {true, true, false, true, true, true}}, // <-
-    {6, {true, false, true, false, false, false}}, // <-
-    {6, {true, true, true, true, false, true}}, // <-
-    {6, {true, false, false, false, true, false}}, // <-
-    {6, {true, true, true, false, true, true}}, // <-
-    {6, {true, false, false, true, true, true}}, // <-
-    {6, {true, true, true, false, false, false}}, // <-
-    {6, {true, true, true, true, false, false}}, // <-
-    {6, {true, false, false, false, true, true}}, // <-
-    {6, {true, true, false, false, true, true}}, // <-
-    {6, {true, false, true, true, false, false}}, // <-
-    {6, {true, true, true, false, false, true}}, // <-
-    {6, {true, false, false, true, true, false}}, // <-
-    {6, {true, false, true, false, true, true}}, // <-
-    {6, {true, true, false, true, false, false}}, // <-
-    {6, {true, true, true, false, true, false}}, // <-
-    {6, {true, false, false, true, false, true}}, // <-
-    {6, {true, false, true, true, true, false}}, // <-
-    {6, {true, true, false, false, false, true}}, // <-
-    {6, {true, true, false, false, true, false}}, // <-
-    {6, {true, false, true, false, false, true}}, // <-
-    {6, {true, true, false, true, false, true}}, // <-
+    {6, {true, false, true, true, true, true}},     // <-
+    {6, {true, true, false, false, false, false}},  // <-
+    {6, {true, true, true, true, true, false}},     // <-
+    {6, {true, false, false, false, false, true}},  // <-
+    {6, {true, true, false, true, true, true}},     // <-
+    {6, {true, false, true, false, false, false}},  // <-
+    {6, {true, true, true, true, false, true}},     // <-
+    {6, {true, false, false, false, true, false}},  // <-
+    {6, {true, true, true, false, true, true}},     // <-
+    {6, {true, false, false, true, true, true}},    // <-
+    {6, {true, true, true, false, false, false}},   // <-
+    {6, {true, true, true, true, false, false}},    // <-
+    {6, {true, false, false, false, true, true}},   // <-
+    {6, {true, true, false, false, true, true}},    // <-
+    {6, {true, false, true, true, false, false}},   // <-
+    {6, {true, true, true, false, false, true}},    // <-
+    {6, {true, false, false, true, true, false}},   // <-
+    {6, {true, false, true, false, true, true}},    // <-
+    {6, {true, true, false, true, false, false}},   // <-
+    {6, {true, true, true, false, true, false}},    // <-
+    {6, {true, false, false, true, false, true}},   // <-
+    {6, {true, false, true, true, true, false}},    // <-
+    {6, {true, true, false, false, false, true}},   // <-
+    {6, {true, true, false, false, true, false}},   // <-
+    {6, {true, false, true, false, false, true}},   // <-
+    {6, {true, true, false, true, false, true}},    // <-
 };
 
 const std::array<char const*, kMaxPresetArpRhythm + 1> arpRhythmPatternNames = {

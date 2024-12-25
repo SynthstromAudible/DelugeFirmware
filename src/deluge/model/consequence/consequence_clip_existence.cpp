@@ -84,7 +84,8 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 		clip->activeIfNoSolo = false;   // So we can toggle it back on, below
 		clip->armState = ArmState::OFF; // In case was left on before
 
-		if (shouldBeActiveWhileExistent && !((playbackHandler.playbackState != 0u) && currentPlaybackMode == &arrangement)) {
+		if (shouldBeActiveWhileExistent
+		    && !((playbackHandler.playbackState != 0u) && currentPlaybackMode == &arrangement)) {
 			session.toggleClipStatus(clip, &clipIndex, true, 0);
 			if (!clip->activeIfNoSolo) {
 				D_PRINTLN("still not active!");

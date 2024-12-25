@@ -166,19 +166,20 @@ StealableQueue Cluster::getAppropriateQueue() {
 	// If it's a perc cache...
 	if (type == Type::PERC_CACHE_FORWARDS || type == Type::PERC_CACHE_REVERSED) {
 		q = (sample->numReasonsToBeLoaded != 0) ? StealableQueue::CURRENT_SONG_SAMPLE_DATA_PERC_CACHE
-		                                 : StealableQueue::NO_SONG_SAMPLE_DATA_PERC_CACHE;
+		                                        : StealableQueue::NO_SONG_SAMPLE_DATA_PERC_CACHE;
 	}
 
 	// If it's a regular repitched cache...
 	else if (sampleCache != nullptr) {
-		q = ((sampleCache->sample->numReasonsToBeLoaded) != 0) ? StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE
-		                                                : StealableQueue::NO_SONG_SAMPLE_DATA_REPITCHED_CACHE;
+		q = ((sampleCache->sample->numReasonsToBeLoaded) != 0)
+		        ? StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE
+		        : StealableQueue::NO_SONG_SAMPLE_DATA_REPITCHED_CACHE;
 	}
 
 	// Or, if it has a Sample...
 	else if (sample != nullptr) {
 		q = (sample->numReasonsToBeLoaded != 0) ? StealableQueue::CURRENT_SONG_SAMPLE_DATA
-		                                 : StealableQueue::NO_SONG_SAMPLE_DATA;
+		                                        : StealableQueue::NO_SONG_SAMPLE_DATA;
 
 		if (sample->rawDataFormat != RawDataFormat::NATIVE) {
 			q = static_cast<StealableQueue>(util::to_underlying(q) + 1); // next queue

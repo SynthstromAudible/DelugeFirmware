@@ -1630,7 +1630,8 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 		// too - but this gets deactivated if they've done any "euclidean" or per-NoteRow editing already by holding
 		// down that audition pad, because if they've done that, they're probably not intending to deliberately go into
 		// the SoundEditor, but might be trying to edit notes. Which they currently can't do...
-		if ((velocity != 0) && (!isUIModeActive(UI_MODE_AUDITIONING) || !editedAnyPerNoteRowStuffSinceAuditioningBegan)) {
+		if ((velocity != 0)
+		    && (!isUIModeActive(UI_MODE_AUDITIONING) || !editedAnyPerNoteRowStuffSinceAuditioningBegan)) {
 			// are we trying to enter the automation view velocity note editor
 			// by pressing audition pad + velocity shortcut?
 			if (isUIModeActive(UI_MODE_AUDITIONING) && (x == kVelocityShortcutX && y == kVelocityShortcutY)) {
@@ -1753,8 +1754,9 @@ possiblyAuditionPad:
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
-				if ((velocity != 0) && getCurrentOutputType() != OutputType::KIT) { // We probably couldn't have got this far
-					                                                         // if it was a Kit, but let's just check
+				if ((velocity != 0)
+				    && getCurrentOutputType() != OutputType::KIT) { // We probably couldn't have got this far
+					                                                // if it was a Kit, but let's just check
 					toggleScaleModeOnButtonRelease = false;
 					currentUIMode = UI_MODE_NONE;
 					if (getCurrentInstrumentClip()->inScaleMode) {
@@ -3068,7 +3070,8 @@ bool InstrumentClipView::enterNoteEditor() {
 void InstrumentClipView::exitNoteEditor() {
 	if (lastSelectedNoteXDisplay != kNoSelection && lastSelectedNoteYDisplay != kNoSelection) {
 		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-			editPadAction(false, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay, currentSong->xZoom[NAVIGATION_CLIP]);
+			editPadAction(false, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay,
+			              currentSong->xZoom[NAVIGATION_CLIP]);
 		}
 		gridSquareInfo[lastSelectedNoteXDisplay][lastSelectedNoteYDisplay].isValid = false;
 		lastSelectedNoteXDisplay = kNoSelection;
@@ -3988,8 +3991,9 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 				}
 			}
 			if (!draggingNoteRow && !drawnNoteCodeYet
-			    && (auditionPadIsPressed[yDisplay] != 0u)) { // If we're shiftingNoteRow, no need to re-draw the noteCode,
-				                                     // because it'll be the same
+			    && (auditionPadIsPressed[yDisplay]
+			        != 0u)) { // If we're shiftingNoteRow, no need to re-draw the noteCode,
+				              // because it'll be the same
 				drawNoteCode(yDisplay);
 				if (isKit) {
 					Drum* newSelectedDrum = nullptr;
@@ -5448,7 +5452,8 @@ void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, RGB thisImage[]) {
 
 		bool midiCommandAssigned;
 		if (getCurrentOutputType() == OutputType::KIT) {
-			midiCommandAssigned = ((noteRow != nullptr) && (noteRow->drum != nullptr) && noteRow->drum->midiInput.containsSomething());
+			midiCommandAssigned =
+			    ((noteRow != nullptr) && (noteRow->drum != nullptr) && noteRow->drum->midiInput.containsSomething());
 		}
 		else {
 			midiCommandAssigned = (((MelodicInstrument*)getCurrentOutput())->midiInput.containsSomething());
@@ -5682,8 +5687,9 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 						ModelStackWithNoteRow* modelStackWithNoteRow =
 						    getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, modelStack);
 						NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-						if (noteRow != nullptr) { // This is fine. If we were in Kit mode, we could only be auditioning if
-							           // there was a NoteRow already
+						if (noteRow
+						    != nullptr) { // This is fine. If we were in Kit mode, we could only be auditioning if
+							              // there was a NoteRow already
 							noteRow->colourOffset += offset;
 							if (noteRow->colourOffset >= 72) {
 								noteRow->colourOffset -= 72;
@@ -6049,8 +6055,8 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 
 		// See if we can do a "secret UNDO".
 		Action* lastAction = actionLogger.firstAction[BEFORE];
-		if ((offset != 0) && (lastAction != nullptr) && lastAction->type == ActionType::NOTE_REPEAT_EDIT && lastAction->openForAdditions
-		    && lastAction->offset == -offset) {
+		if ((offset != 0) && (lastAction != nullptr) && lastAction->type == ActionType::NOTE_REPEAT_EDIT
+		    && lastAction->openForAdditions && lastAction->offset == -offset) {
 			actionLogger.undoJustOneConsequencePerNoteRow(
 			    modelStack->toWithSong()); // Only ok because we're not going to use the
 			                               // ModelStackWithTimelineCounter or with any more stuff again here.
@@ -6407,9 +6413,10 @@ void InstrumentClipView::graphicsRoutine() {
 
 	int32_t newTickSquare;
 
-	bool reallyNoTickSquare = (!playbackHandler.isEitherClockActive() || !currentSong->isClipActive(clip)
-	                           || currentUIMode == UI_MODE_EXPLODE_ANIMATION
-	                           || currentUIMode == UI_MODE_IMPLODE_ANIMATION || (playbackHandler.ticksLeftInCountIn != 0));
+	bool reallyNoTickSquare =
+	    (!playbackHandler.isEitherClockActive() || !currentSong->isClipActive(clip)
+	     || currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_IMPLODE_ANIMATION
+	     || (playbackHandler.ticksLeftInCountIn != 0));
 
 	if (reallyNoTickSquare) {
 		newTickSquare = 255;
@@ -6751,8 +6758,8 @@ justDisplayOldNumNotes:
 			Action* lastAction = actionLogger.firstAction[BEFORE];
 			// No need to check that lastAction was for the same Clip or anything - the Action gets "closed"
 			// manually when we stop auditioning.
-			if ((lastAction != nullptr) && lastAction->type == ActionType::EUCLIDEAN_NUM_EVENTS_EDIT && lastAction->openForAdditions
-			    && lastAction->offset == -offset) {
+			if ((lastAction != nullptr) && lastAction->type == ActionType::EUCLIDEAN_NUM_EVENTS_EDIT
+			    && lastAction->openForAdditions && lastAction->offset == -offset) {
 
 				char modelStackMemory2[MODEL_STACK_MAX_SIZE];
 				ModelStack* modelStackWithJustSong = setupModelStackWithSong(modelStackMemory2, modelStack->song);

@@ -1342,7 +1342,8 @@ bool isAudioFilename(char const* filename) {
 		return false;
 	}
 	char* dotPos = strrchr(filename, '.');
-	return ((strcasecmp(dotPos, ".WAV") == 0) || (strcasecmp(dotPos, ".AIF") == 0) || (strcasecmp(dotPos, ".AIFF") == 0));
+	return ((strcasecmp(dotPos, ".WAV") == 0) || (strcasecmp(dotPos, ".AIF") == 0)
+	        || (strcasecmp(dotPos, ".AIFF") == 0));
 }
 
 bool isAiffFilename(char const* filename) {
@@ -2023,8 +2024,9 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 }
 
 bool shouldAbortLoading() {
-	return (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED
-	        && ((encoders::getEncoder(encoders::EncoderName::SELECT).detentPos != 0) || QwertyUI::predictionInterrupted));
+	return (
+	    currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED
+	    && ((encoders::getEncoder(encoders::EncoderName::SELECT).detentPos != 0) || QwertyUI::predictionInterrupted));
 }
 
 int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitude) {

@@ -829,8 +829,8 @@ goAgain:
 }
 
 ActionResult LoadSongUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if ((currentUIMode == 0u) && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC) && !Buttons::isShiftButtonPressed()
-	    && offset < 0) {
+	if ((currentUIMode == 0u) && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)
+	    && !Buttons::isShiftButtonPressed() && offset < 0) {
 		if (inCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}

@@ -565,7 +565,8 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 #endif
 				{
 					canExit = (currentPlayPos == timeStretcher->olderPartReader.currentPlayPos
-					           && ((guide->sequenceSyncLengthTicks == 0u) || (guide->getNumSamplesLaggingBehindSync(this) == 0)));
+					           && ((guide->sequenceSyncLengthTicks == 0u)
+					               || (guide->getNumSamplesLaggingBehindSync(this) == 0)));
 				}
 				if (canExit) {
 					D_PRINTLN("time stretcher no longer needed");
@@ -1430,7 +1431,8 @@ headsFinishedReading:
 			}
 #endif
 
-			if ((cache == nullptr) && loopingType == LoopType::NONE && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
+			if ((cache == nullptr) && loopingType == LoopType::NONE
+			    && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
 			    && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
 				return false;
 			}
@@ -1532,8 +1534,9 @@ headsFinishedReading:
 					existingValueL = *outputBufferWritePos;
 				}
 
-				if (cache != nullptr) { // Might not be true anymore if we had to abandon the cache just above cos it got Clusters
-					         // stolen.
+				if (cache != nullptr) { // Might not be true anymore if we had to abandon the cache just above cos it
+					                    // got Clusters
+					                    // stolen.
 					cacheWritePos =
 					    cacheWritePosNow; // Not necessary I don't think - cacheWritePos doesn't get used again does it?
 

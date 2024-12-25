@@ -340,7 +340,7 @@ void CVEngine::updateRunOutput() {
 	if (runState) {
 		switchGateOn(WHICH_GATE_OUTPUT_IS_RUN,
 		             1); // Try to do instantly, because it's actually good if RUN can switch on before the first
-		                    // clock is sent
+		                 // clock is sent
 	}
 	else {
 		switchGateOff(WHICH_GATE_OUTPUT_IS_RUN);

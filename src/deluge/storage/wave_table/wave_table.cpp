@@ -235,8 +235,9 @@ tryGettingFFTConfig:
 	// numBands is set such that the "smallest" band will have 8 samples per cycle. Not 4 - because NE10 can't do FFTs
 	// that small unless we enable its additional C code, which would take up program size for little advantage.
 	{
-		int32_t numBands =
-		    (fftCFGForInitialBand != nullptr) ? ((initialBandCycleMagnitude - 2) >> (NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS - 1)) : 1;
+		int32_t numBands = (fftCFGForInitialBand != nullptr)
+		                       ? ((initialBandCycleMagnitude - 2) >> (NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS - 1))
+		                       : 1;
 
 		// Don't refer to numBands after this! (Why? Because we might end up using less after all?)
 		error = bands.insertAtIndex(0, numBands);

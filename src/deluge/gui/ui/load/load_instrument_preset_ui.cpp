@@ -324,8 +324,8 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 			}
 		}
 
-		if (currentFileItem
-		        ->instrument != nullptr) { // When would this not have something? Well ok, maybe now that we have folders.
+		if (currentFileItem->instrument
+		    != nullptr) { // When would this not have something? Well ok, maybe now that we have folders.
 			convertToPrefixFormatIfPossible();
 		}
 

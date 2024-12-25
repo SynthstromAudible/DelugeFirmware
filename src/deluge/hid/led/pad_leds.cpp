@@ -285,7 +285,8 @@ RGB prepareColour(int32_t x, int32_t y, RGB colourSource) {
 	}
 
 	if (((greyoutRows != 0u) || (greyoutCols != 0u))
-	    && (((greyoutRows & (1 << y)) != 0u) || ((greyoutCols & (1 << (kDisplayWidth + kSideBarWidth - 1 - x))) != 0u))) {
+	    && (((greyoutRows & (1 << y)) != 0u)
+	        || ((greyoutCols & (1 << (kDisplayWidth + kSideBarWidth - 1 - x))) != 0u))) {
 		return colourSource.greyOut(greyProportion);
 	}
 	return colourSource;
@@ -600,7 +601,8 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 
 		for (int32_t xSource = xStart; xSource < xEnd; xSource++) {
 
-			if (occupancyMaskStore[ySource + 1][xSource] != 0u) { // If there's actually anything in this source square...
+			if (occupancyMaskStore[ySource + 1][xSource]
+			    != 0u) { // If there's actually anything in this source square...
 
 				for (int32_t xOffset = 0; xOffset < 2; xOffset++) {
 					int32_t xNow = xDestArray[xSource] + xOffset;
