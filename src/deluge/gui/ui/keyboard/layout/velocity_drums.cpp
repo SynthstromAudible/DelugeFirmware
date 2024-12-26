@@ -93,9 +93,9 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 
 		state.zoomLevel = std::clamp(state.zoomLevel, kMinZoomLevel, kMaxZoomLevel);
 
-		char buffer[16] = "Zoom level:   ";
-		auto displayOffset = (display->haveOLED() ? 11 : 0);
-		intToString(state.zoomLevel, buffer + displayOffset, 1);
+		char buffer[14] = "Pad Area:   ";
+		auto displayOffset = (display->haveOLED() ? 9 : 0);
+		intToString(state.edgeSizeX * state.edgeSizeY, buffer + displayOffset, 1);
 		display->displayPopup(buffer);
 
 		offset = 0; // Reset offset variable for processing scroll calculation without actually shifting
@@ -139,8 +139,11 @@ void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBa
 	uint8_t edgeSizeX = getState().drums.edgeSizeX;
 	uint8_t edgeSizeY = getState().drums.edgeSizeY;
 	uint8_t offset = getState().drums.scrollOffset;
-	float padArea2 = pow(edgeSizeX * edgeSizeY, 2);
+	float padArea = edgeSizeX * edgeSizeY;
+	float padArea2 = pow(padArea, 2);
+	float dimBrightness = std::min(0.35 + 0.65 * padArea / 128,0.75);
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		uint8_t localY = y % edgeSizeY;
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			uint8_t note = noteFromCoords(x, y, edgeSizeX, edgeSizeY);
 			if (note > highestClipNote) {
@@ -151,12 +154,12 @@ void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBa
 			RGB noteColour = noteColours[note - offset];
 
 			uint8_t localX = x % edgeSizeX;
-			uint8_t localY = y % edgeSizeY;
 			float position = localX + (localY * edgeSizeX) + 1;
 			float colourIntensity = position * position / padArea2; // use quadratic curve for pad brightness
 
-			// Highlight active notes, but it is easier to see the difference when they are dimmed.
-			float brightnessFactor = currentNotesState.noteEnabled(note) ? 0.5 : 1;
+			// Dim the active notes
+
+			float brightnessFactor = currentNotesState.noteEnabled(note)? dimBrightness : 1;
 
 			image[y][x] = noteColour.transform([colourIntensity, brightnessFactor](uint8_t chan) {
 				return (chan * colourIntensity * brightnessFactor);
