@@ -182,7 +182,7 @@ void StemExport::stopPlayback() {
 
 /// simulate pressing record
 void StemExport::stopOutputRecording() {
-	// if playback has stopped and recording mode is off, it means we either cancelled the export or reached loop end 
+	// if playback has stopped and recording mode is off, it means we either cancelled the export or reached loop end
 	// which means we can check whether to end the recording and export the audio
 	// note: recording mode is set to off by PlaybackHandler::endPlayback()
 	if (!playbackHandler.isEitherClockActive() && playbackHandler.recording == RecordingMode::OFF) {
