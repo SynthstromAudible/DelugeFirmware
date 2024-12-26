@@ -119,14 +119,18 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 
 void KeyboardLayoutVelocityDrums::precalculate() {
 	KeyboardStateDrums& state = getState().drums;
+	// KeyboardStateIsomorphic& state2 = getState().isomorphic;
 
 	// Pre-Buffer colours for next renderings
 	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSizeY) * (kDisplayWidth / state.edgeSizeX));
+	// RGB noteColours[displayedfullPadsCount];
 	// uint8_t hue_step = 100 / std::floor(kDisplayWidth / state.edgeSizeX);
-	for (int32_t i = 0; i < displayedfullPadsCount; ++i) {
+	// int32_t offset2 = state.scrollOffset + state2.scrollOffset; // hue offset adjustment
+	for (int32_t i = 0; i < displayedfullPadsCount; i++) {
 		// noteColours[i] = getNoteColour(state.scrollOffset + i);
-		uint8_t i2 = state.scrollOffset + i;
-		noteColours[i] = RGB::fromHue((i2 * 7 + (i2 % 2 == 0) * 127) % 255);
+		uint32_t i2 = state.scrollOffset + i;
+		// int32_t i2 = offset2 + i;
+		noteColours[i] = RGB::fromHue((i2 * 14 + (i2 % 2 == 1) * 107) % 192);
 	}
 }
 
@@ -146,13 +150,13 @@ void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBa
 
 			RGB noteColour = noteColours[note - offset];
 
-			uint8_t localX = (x % edgeSizeX);
-			uint8_t localY = (y % edgeSizeY);
+			uint8_t localX = x % edgeSizeX;
+			uint8_t localY = y % edgeSizeY;
 			float position = localX + (localY * edgeSizeX) + 1;
 			float colourIntensity = position * position / padArea2; // use quadratic curve for pad brightness
 
 			// Highlight active notes, but it is easier to see the difference when they are dimmed.
-			float brightnessFactor = currentNotesState.noteEnabled(note) ? 0.5 : 1.0;
+			float brightnessFactor = currentNotesState.noteEnabled(note) ? 0.5 : 1;
 
 			image[y][x] = noteColour.transform([colourIntensity, brightnessFactor](uint8_t chan) {
 				return (chan * colourIntensity * brightnessFactor);
