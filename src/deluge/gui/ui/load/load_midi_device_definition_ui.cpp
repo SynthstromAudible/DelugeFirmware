@@ -107,7 +107,7 @@ Error LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition() {
 		auto fullPathLength = strlen(fullPath);
 
 		// directory
-		char* dir = new char[sizeof(char) * fullPathLength + 1];
+		char dir[sizeof(char) * fullPathLength + 1];
 
 		memset(dir, 0, sizeof(char) * fullPathLength + 1);
 		strncpy(dir, fullPath, fullPathLength - strlen(filename));

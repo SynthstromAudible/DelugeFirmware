@@ -44,12 +44,15 @@ void MIDICableUSB::sendMessage(MIDIMessage message) {
 	for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
 		if ((connectionFlags & (1 << d)) != 0) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
-			connectedDevice->bufferMessage(fullMessage);
+			if (connectedDevice->canHaveMIDISent) {
+				uint32_t channeledMessage = fullMessage | (portNumber << 4);
+				connectedDevice->bufferMessage(fullMessage);
+			}
 		}
 	}
 }
 
-size_t MIDICableUSB::sendBufferSpace() {
+size_t MIDICableUSB::sendBufferSpace() const {
 	int32_t ip = 0;
 	ConnectedUSBMIDIDevice* connectedDevice = nullptr;
 
@@ -128,5 +131,14 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		status |= (portNumber << 4);
 		uint32_t packed = ((uint32_t)byte2 << 24) | ((uint32_t)byte1 << 16) | ((uint32_t)byte0 << 8) | status;
 		connectedDevice->bufferMessage(packed);
+	}
+}
+
+bool MIDICableUSB::wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const {
+	if (message.isSystemMessage()) {
+		return sendClock;
+	}
+	else {
+		return MIDICable::wantsToOutputMIDIOnChannel(message, filter);
 	}
 }

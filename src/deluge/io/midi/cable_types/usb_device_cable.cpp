@@ -20,17 +20,17 @@
 #include "io/debug/log.h"
 #include "storage/storage_manager.h"
 
-void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile(Serializer& writer) {
+void MIDICableUSBUpstream::writeReferenceAttributesToFile(Serializer& writer) {
 	// Same line. Usually the user wouldn't have default velocity sensitivity set for their computer.
 	writer.writeAttribute("port", (portNumber != 0u) ? "upstreamUSB2" : "upstreamUSB", false);
 }
 
-void MIDIDeviceUSBUpstream::writeToFlash(uint8_t* memory) {
+void MIDICableUSBUpstream::writeToFlash(uint8_t* memory) {
 	D_PRINTLN("writing to flash port  %d  into ", portNumber);
 	*(uint16_t*)memory = (portNumber != 0u) ? VENDOR_ID_UPSTREAM_USB2 : VENDOR_ID_UPSTREAM_USB;
 }
 
-char const* MIDIDeviceUSBUpstream::getDisplayName() {
+char const* MIDICableUSBUpstream::getDisplayName() {
 	switch (portNumber) {
 	case 0:
 		return deluge::l10n::get(deluge::l10n::String::STRING_FOR_UPSTREAM_USB_PORT_1);

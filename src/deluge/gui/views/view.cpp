@@ -541,7 +541,7 @@ void View::drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit) {
 		learnedThing = &drum->midiInput;
 		drumPressedForMIDILearn = drum;
 		kitPressedForMIDILearn = kit; // Having this makes it possible to search much faster when we call
-		                              // grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForDrum()
+		                              // grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForDrum()
 	}
 
 	else if (thingPressedForMidiLearn == MidiLearn::DRUM_INPUT) {
@@ -587,7 +587,7 @@ void View::endMidiLearnPressSession(MidiLearn newThingPressed) {
 	thingPressedForMidiLearn = newThingPressed;
 
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_MIDI_LEARN);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_MIDI_LEARN);
 }
 
 void View::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t note, int32_t velocity) {

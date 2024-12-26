@@ -2745,7 +2745,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 		if (clip->type == ClipType::INSTRUMENT) {
 			// Hook point for specificMidiDevice
-			iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
+			iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
 		}
 	}
 
@@ -2789,7 +2789,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 		PadLEDs::renderClipExpandOrCollapse();
 
 		// Hook point for specificMidiDevice
-		iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
+		iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
 	}
 
 	// AudioClips
@@ -2899,7 +2899,7 @@ void SessionView::transitionToSessionView() {
 	}
 
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
 }
 
 // Might be called during card routine! So renders might fail. Not too likely
@@ -4397,7 +4397,7 @@ void SessionView::gridTransitionToSessionView() {
 	uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, 35);
 
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
 }
 
 void SessionView::gridTransitionToViewForClip(Clip* clip) {
@@ -4481,7 +4481,7 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 	PadLEDs::sendOutSidebarColours(); // They'll have been cleared by the first explode render
 
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_CLIP_VIEW);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_CLIP_VIEW);
 }
 
 const uint32_t SessionView::gridTrackCount() {

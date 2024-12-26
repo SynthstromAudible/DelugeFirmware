@@ -1908,7 +1908,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 	PadLEDs::sendOutSidebarColours(); // They'll have been cleared by the first explode render
 
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_CLIP_VIEW);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_CLIP_VIEW);
 }
 
 // Returns false if error
@@ -2012,7 +2012,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 	doingAutoScrollNow = false; // May get changed back at new scroll pos soon
 
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_ARRANGER_VIEW);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_ARRANGER_VIEW);
 
 	return true;
 }

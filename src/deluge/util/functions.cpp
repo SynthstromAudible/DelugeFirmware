@@ -1823,16 +1823,13 @@ doNormal:
 	}
 }
 
-char* replace_char(const char* str, char find, char replace) {
-	char* copy = new char[sizeof(char) * strlen(str) + 1];
-
-	strcpy(copy, str);
-	char* current_pos = strchr(copy, find);
+void replace_char(char* out_str, const char* in_str, char find, char replace) {
+	strcpy(out_str, in_str);
+	char* current_pos = strchr(out_str, find);
 	while (current_pos != nullptr) {
 		*current_pos = replace;
 		current_pos = strchr(current_pos, find);
 	}
-	return copy;
 }
 
 bool charCaseEqual(char firstChar, char secondChar) {
