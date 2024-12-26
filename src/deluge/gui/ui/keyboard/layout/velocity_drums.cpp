@@ -126,10 +126,9 @@ void KeyboardLayoutVelocityDrums::precalculate() {
 
 	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSizeY) * (kDisplayWidth / state.edgeSizeX));
 	int32_t offset = state.scrollOffset;
-	// D_PRINTLN("offset: %d", offset);
+
 	// color offset controlled with shift+vert enc., +60 to go to 0 from the default of -60.
 	int32_t offset2 = getCurrentInstrumentClip()->colourOffset + 60;
-	D_PRINTLN("offset2: %d", offset2);
 	for (int32_t i = 0; i < displayedfullPadsCount; i++) {
 		int32_t i2 = offset + i;
 		noteColours[i] = RGB::fromHue((i2 * 14 + (i2 % 2 == 1) * 107 + offset2) % 192);
@@ -160,7 +159,6 @@ void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBa
 			float colourIntensity = position * position / padArea2; // use quadratic curve for pad brightness
 
 			// Dim the active notes
-
 			float brightnessFactor = currentNotesState.noteEnabled(note) ? dimBrightness : 1;
 
 			image[y][x] = noteColour.transform([colourIntensity, brightnessFactor](uint8_t chan) {
