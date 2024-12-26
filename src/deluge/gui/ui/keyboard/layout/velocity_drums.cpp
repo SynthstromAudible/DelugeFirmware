@@ -89,7 +89,8 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 			state.zoomLevel += offset;
 			zoomLevelChanged = true;
 		}
-		else return;
+		else
+			return;
 
 		state.edgeSizeX = zoomArr[state.zoomLevel][0];
 		state.edgeSizeY = zoomArr[state.zoomLevel][1];
@@ -99,8 +100,8 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 		display->displayPopup(buffer);
 
 		offset = 0; // Since the offset variable can be used for scrolling or zooming,
-		// we reset it to 0 before calculating scroll offset
-	} // end zoom control
+		            // we reset it to 0 before calculating scroll offset
+	}               // end zoom control
 	// scroll offset control - need to run to adjust to new max position if zoom level has changed
 
 	// Calculate highest possible displayable note with current edgeSize
@@ -119,26 +120,19 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 }
 
 void KeyboardLayoutVelocityDrums::precalculate() {
-	// precalculate pad colour set for current zoom level and scroll offset position
+	// update note (pad) colours array based on current zoom level and scroll offset position for use in next renderings
 
 	KeyboardStateDrums& state = getState().drums;
-	// KeyboardStateIsomorphic& state2 = getState().isomorphic;
 
-	// Pre-Buffer colours for next renderings
 	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSizeY) * (kDisplayWidth / state.edgeSizeX));
-	// RGB noteColours[displayedfullPadsCount];
-	// uint8_t hue_step = 100 / std::floor(kDisplayWidth / state.edgeSizeX);
-	// int32_t offset2 = state.scrollOffset + state2.scrollOffset; // hue offset adjustment
-
 	int32_t offset = state.scrollOffset;
-	D_PRINTLN("offset: %d", offset);
-	// int32_t offset2 = getState().isomorphic.scrollOffset;
-	// D_PRINTLN("offset2: %d", offset2);
+	// D_PRINTLN("offset: %d", offset);
+	// color offset controlled with shift+vert enc., +60 to go to 0 from the default of -60.
+	int32_t offset2 = getCurrentInstrumentClip()->colourOffset + 60;
+	D_PRINTLN("offset2: %d", offset2);
 	for (int32_t i = 0; i < displayedfullPadsCount; i++) {
-		// noteColours[i] = getNoteColour(state.scrollOffset + i);
-		uint32_t i2 = state.scrollOffset + i;
-		// int32_t i2 = offset2 + i;
-		noteColours[i] = RGB::fromHue((i2 * 14 + (i2 % 2 == 1) * 107) % 192);
+		int32_t i2 = offset + i;
+		noteColours[i] = RGB::fromHue((i2 * 14 + (i2 % 2 == 1) * 107 + offset2) % 192);
 	}
 }
 
@@ -149,7 +143,7 @@ void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBa
 	uint8_t offset = getState().drums.scrollOffset;
 	float padArea = edgeSizeX * edgeSizeY;
 	float padArea2 = pow(padArea, 2);
-	float dimBrightness = std::min(0.35 + 0.65 * padArea / 128,0.75);
+	float dimBrightness = std::min(0.35 + 0.65 * padArea / 128, 0.75);
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		uint8_t localY = y % edgeSizeY;
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
@@ -167,7 +161,7 @@ void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBa
 
 			// Dim the active notes
 
-			float brightnessFactor = currentNotesState.noteEnabled(note)? dimBrightness : 1;
+			float brightnessFactor = currentNotesState.noteEnabled(note) ? dimBrightness : 1;
 
 			image[y][x] = noteColour.transform([colourIntensity, brightnessFactor](uint8_t chan) {
 				return (chan * colourIntensity * brightnessFactor);
