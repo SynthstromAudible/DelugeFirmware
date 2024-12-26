@@ -131,19 +131,20 @@ resetBendRanges: // Have to reset pitch bend range for zone, according to MPE sp
 	}
 }
 
-bool MIDICable::wantsToOutputMIDIOnChannel(int32_t channel, int32_t filter) {
+bool MIDICable::wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const {
+	auto lowerLastMember = ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel;
+	auto upperLastMember = ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeUpperZoneLastMemberChannel;
+
 	switch (filter) {
 	case MIDI_CHANNEL_MPE_LOWER_ZONE:
-		return (ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel != 0);
+		return lowerLastMember != 0;
 
 	case MIDI_CHANNEL_MPE_UPPER_ZONE:
-		return (ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeUpperZoneLastMemberChannel != 15);
+		return upperLastMember != 15;
 
 	default:
-		return (ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel == 0
-		        || ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel < channel)
-		       && (ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeUpperZoneLastMemberChannel == 15
-		           || ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeUpperZoneLastMemberChannel > channel);
+		return (lowerLastMember == 0 || lowerLastMember < message.channel)
+		       && (upperLastMember == 15 || upperLastMember > message.channel);
 	}
 }
 

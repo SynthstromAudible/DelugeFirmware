@@ -195,7 +195,7 @@ ActionResult InstrumentClipView::commandLearnUserScale() {
 	recalculateColours();
 	uiNeedsRendering(this);
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
 	display->popupTextTemporary("USER");
 	return ActionResult::DEALT_WITH;
 }
@@ -205,7 +205,7 @@ ActionResult InstrumentClipView::commandCycleThroughScales() {
 	recalculateColours();
 	uiNeedsRendering(this);
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
 	return ActionResult::DEALT_WITH;
 }
 
@@ -215,7 +215,7 @@ ActionResult InstrumentClipView::commandFlashRootNote() {
 	flashDefaultRootNoteOn = false;
 	flashDefaultRootNote();
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
 	return ActionResult::DEALT_WITH;
 }
 
@@ -239,7 +239,7 @@ ActionResult InstrumentClipView::commandChangeRootNote(uint8_t yDisplay) {
 	uiNeedsRendering(this);
 
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_ROOT_NOTE);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_CHANGE_ROOT_NOTE);
 
 	return ActionResult::DEALT_WITH;
 }
@@ -3766,7 +3766,7 @@ void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
 	rowBlurColour[yDisplay] = rowColour[yDisplay].forBlur();
 
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_RECALCULATE_COLOUR);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_RECALCULATE_COLOUR);
 }
 
 ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow) {
@@ -5258,7 +5258,7 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 	}
 
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_ENTER_SCALE_MODE);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_ENTER_SCALE_MODE);
 }
 
 int32_t InstrumentClipView::setupForExitingScaleMode() {
@@ -5349,7 +5349,7 @@ void InstrumentClipView::exitScaleMode() {
 	}
 
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_EXIT_SCALE_MODE);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_EXIT_SCALE_MODE);
 }
 
 // If called from KeyboardScreen, the newRootNote won't correspond to the yDisplay, and that's ok
