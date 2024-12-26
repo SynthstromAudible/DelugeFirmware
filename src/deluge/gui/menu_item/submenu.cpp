@@ -3,6 +3,8 @@
 #include "hid/display/oled.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "util/container/static_vector.hpp"
+#include "gui/views/automation_view.h"
+
 
 namespace deluge::gui::menu_item {
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
@@ -190,7 +192,11 @@ void Submenu::selectEncoderAction(int32_t offset) {
 	}
 	bool horizontal = renderingStyle() == RenderingStyle::HORIZONTAL;
 	MenuItem* child = *current_item_;
-	if (Buttons::isShiftButtonPressed() && !child->isSubmenu() && horizontal) {
+	if (horizontal && !child->isSubmenu() && (Buttons::isShiftButtonPressed() || getRootUI() == &automationView)) {
+		// KLUDGE: the automationView case is handled here, because Nikodemus couldn't yet figure out a way to tell
+		// the automation view that the active item has changed: so we're opting to interpret shiftless select
+		// encoder turns as edits when in automation view at least for now. Otherwise the menu and the automation
+		// view would disagree.
 		child->selectEncoderAction(offset);
 		focusChild(child);
 		// We don't want to return true for selectEncoderEditsInstrument(), since
