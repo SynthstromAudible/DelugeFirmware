@@ -3991,9 +3991,8 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 				}
 			}
 			if (!draggingNoteRow && !drawnNoteCodeYet
-			    && (auditionPadIsPressed[yDisplay]
-			        != 0u)) { // If we're shiftingNoteRow, no need to re-draw the noteCode,
-				              // because it'll be the same
+			    && (auditionPadIsPressed[yDisplay] != 0u)) { // If we're shiftingNoteRow, no need to re-draw the
+				                                             // noteCode, because it'll be the same
 				drawNoteCode(yDisplay);
 				if (isKit) {
 					Drum* newSelectedDrum = nullptr;
@@ -5687,9 +5686,8 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 						ModelStackWithNoteRow* modelStackWithNoteRow =
 						    getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, modelStack);
 						NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-						if (noteRow
-						    != nullptr) { // This is fine. If we were in Kit mode, we could only be auditioning if
-							              // there was a NoteRow already
+						if (noteRow != nullptr) { // This is fine. If we were in Kit mode, we could only be auditioning
+							                      // if there was a NoteRow already
 							noteRow->colourOffset += offset;
 							if (noteRow->colourOffset >= 72) {
 								noteRow->colourOffset -= 72;

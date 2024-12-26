@@ -950,9 +950,8 @@ optForDirectReading:
 
 #else
 	// If no one's reading from the buffer anymore, stop filling it
-	if ((buffer != nullptr)
-	    && !olderHeadReadingFromBuffer) { // olderHeadReadingFromBuffer will always be false - we set it above,
-		                                  // at the start
+	if ((buffer != nullptr) && !olderHeadReadingFromBuffer) { // olderHeadReadingFromBuffer will always be false - we
+		                                                      // set it above, at the start
 		delugeDealloc(buffer);
 		buffer = nullptr;
 		D_PRINTLN("abandoning buffer!!!!!!!!!!!!!!!!");

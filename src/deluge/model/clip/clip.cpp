@@ -793,9 +793,8 @@ void Clip::prepareForDestruction(ModelStackWithTimelineCounter* modelStack,
 		detachFromOutput(modelStack, false);
 	}
 
-	if (oldOutput
-	    != nullptr) { // One case where there won't be an Output is if the song is being deleted because it wasn't able
-		              // to be completely loaded
+	if (oldOutput != nullptr) { // One case where there won't be an Output is if the song is being deleted because it
+		                        // wasn't able to be completely loaded
 
 		if (instrumentRemovalInstruction == InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED) {
 			modelStack->song->deleteOrHibernateOutputIfNoClips(oldOutput);

@@ -869,9 +869,8 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 			for (int32_t i = 0; i < noteRows->getNumElements(); i++) {
 				NoteRow* thisNoteRow = noteRows->getElement(i);
 
-				if (thisNoteRow->drum
-				    != nullptr) { // In a perfect world we'd do this for every Drum, even any without NoteRows in
-					              // new Clip, but meh this'll be fine
+				if (thisNoteRow->drum != nullptr) { // In a perfect world we'd do this for every Drum, even any without
+					                                // NoteRows in new Clip, but meh this'll be fine
 
 					thisNoteRow->drum->noteRowAssignedTemp = true;
 					thisNoteRow->drum->earlyNoteVelocity = 0;

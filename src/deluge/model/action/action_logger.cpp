@@ -571,9 +571,8 @@ otherOption:
 
 		// Swap currentClip over. Can only do this after calling transitionToSessionView(). Previously, we did this much
 		// earlier, causing a crash. Hopefully moving it later here is ok...
-		if (action->currentClip
-		    != nullptr) { // If song just loaded and we hadn't been into ClipMinder yet, this would be NULL,
-			              // and we don't want to set currentSong->currentClip back to this
+		if (action->currentClip != nullptr) { // If song just loaded and we hadn't been into ClipMinder yet, this would
+			                                  // be NULL, and we don't want to set currentSong->currentClip back to this
 			currentSong->setCurrentClip(action->currentClip);
 		}
 	}
