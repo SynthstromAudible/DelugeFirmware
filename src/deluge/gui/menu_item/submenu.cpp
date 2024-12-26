@@ -275,6 +275,24 @@ ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 	}
 }
 
+deluge::modulation::params::Kind Submenu::getParamKind() {
+	if (shouldForwardButtons()) {
+		return (*current_item_)->getParamKind();
+	}
+	else {
+		return MenuItem::getParamKind();
+	}
+}
+
+uint32_t Submenu::getParamIndex() {
+	if (shouldForwardButtons()) {
+		return (*current_item_)->getParamIndex();
+	}
+	else {
+		return MenuItem::getParamIndex();
+	}
+}
+
 void Submenu::unlearnAction() {
 	if (soundEditor.getCurrentMenuItem() == this) {
 		(*current_item_)->unlearnAction();

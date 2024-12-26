@@ -62,6 +62,9 @@ public:
 	RenderingStyle renderingStyle();
 	void updatePadLights() override;
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override;
+	deluge::modulation::params::Kind getParamKind() override;
+	uint32_t getParamIndex() override;
+
 
 protected:
 	void drawVerticalMenu();
