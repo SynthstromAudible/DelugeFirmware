@@ -32,7 +32,7 @@ now stands out from the tail in proportion to its velocity. At velocity 127 it i
 at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
 
 #### 2.2 Horizontal Menus
-- Following items display in horizontal menus on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+- The menus for following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
   - Envelope 1 & 2.
 
 ## 3. General Improvements
