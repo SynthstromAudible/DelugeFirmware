@@ -301,12 +301,15 @@ doOther:
 
 	// Clip view button
 	else if (b == CLIP_VIEW) {
+		D_PRINTLN("InstrumentClipView::buttonAction(CLIP_VIEW) %d", (int)b);
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-
+			D_PRINTLN("- yes");
 			changeRootUI(&automationView);
+		} else {
+			D_PRINTLN("- no");
 		}
 	}
 

@@ -252,6 +252,8 @@ void SoundEditor::enterSubmenu(MenuItem* newItem) {
 ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	D_PRINTLN("SoundEditor::buttonAction(%d)", (int)b);
+
 	Clip* clip = nullptr;
 	bool isUIInstrumentClipView = false;
 

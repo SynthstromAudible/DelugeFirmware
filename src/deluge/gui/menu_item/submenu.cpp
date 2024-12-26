@@ -246,15 +246,25 @@ void Submenu::selectEncoderAction(int32_t offset) {
 	updatePadLights();
 }
 
+bool Submenu::shouldForwardButtons() {
+	// Should we deliver buttons to selected menu item instead?
+	return (*current_item_)->isSubmenu() == false && renderingStyle() == RenderingStyle::HORIZONTAL;
+}
+
 MenuItem* Submenu::selectButtonPress() {
-	if ((*current_item_)->isSubmenu() == false && renderingStyle() == RenderingStyle::HORIZONTAL) {
-		// Deliver the button press to the actual menu item instead. This allows
-		// direct access to modulations without going through the big value editor, and
-		// allows removing automation, etc.
+	if (shouldForwardButtons()) {
 		return (*current_item_)->selectButtonPress();
 	}
 	else {
 		return *current_item_;
+	}
+}
+
+ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	if (shouldForwardButtons()) {
+		return (*current_item_)->buttonAction(b, on, inCardRoutine);
+	} else {
+		return MenuItem::buttonAction(b, on, inCardRoutine);
 	}
 }
 

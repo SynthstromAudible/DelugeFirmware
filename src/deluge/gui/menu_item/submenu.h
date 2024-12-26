@@ -43,6 +43,7 @@ public:
 	void updateDisplay();
 	void selectEncoderAction(int32_t offset) final;
 	MenuItem* selectButtonPress() final;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) final;
 	void readValueAgain() final { updateDisplay(); }
 	void unlearnAction() final;
 	bool allowsLearnMode() final;
@@ -67,6 +68,7 @@ protected:
 	void drawHorizontalMenu();
 
 private:
+	bool shouldForwardButtons();
 	deluge::vector<MenuItem*> items;
 	typename decltype(items)::iterator current_item_;
 };
