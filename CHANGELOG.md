@@ -37,8 +37,8 @@
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
 
-#### <ins>Session Mode</ins>
-- Doubled the number of Session Mode sections from 12 to 24.
+#### <ins>Song View</ins>
+- Doubled the number of Song View sections from 12 to 24.
 
 #### <ins>Song Grid View</ins>
 
