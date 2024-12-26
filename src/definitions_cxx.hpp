@@ -97,7 +97,7 @@ constexpr int32_t kEditPadPressBufferSize = 8;
 
 constexpr int32_t kNumModButtons = 8;
 
-// Display information
+// Display information (actually pads, not the display proper)
 constexpr int32_t kDisplayHeight = 8;
 constexpr int32_t kDisplayHeightMagnitude = 3;
 constexpr int32_t kDisplayWidth = 16;

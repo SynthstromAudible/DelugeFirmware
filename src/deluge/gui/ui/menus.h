@@ -79,13 +79,17 @@ extern deluge::gui::menu_item::note_row::Fill noteRowFillMenu;
 extern deluge::gui::menu_item::PatchCables patchCablesMenu;
 extern deluge::gui::menu_item::source::patched_param::FM modulatorVolume;
 
-extern MenuItem* midiOrCVParamShortcuts[8];
-extern MenuItem* paramShortcutsForSounds[15][8];
-extern MenuItem* paramShortcutsForAudioClips[15][8];
-extern MenuItem* paramShortcutsForSongView[15][8];
-extern MenuItem* paramShortcutsForKitGlobalFX[15][8];
+// Shortcut tables penny-pinch by not having the modulation column present. Might be
+// better to just have it there and simplify code elsewhere?
+const int32_t kShortcutTableWidth = kDisplayWidth - 1;
 
-extern deluge::gui::menu_item::Submenu* parentsForSoundShortcuts[15][8];
+extern MenuItem* midiOrCVParamShortcuts[kDisplayHeight];
+extern MenuItem* paramShortcutsForSounds[kShortcutTableWidth][kDisplayHeight];
+extern MenuItem* paramShortcutsForAudioClips[kShortcutTableWidth][kDisplayHeight];
+extern MenuItem* paramShortcutsForSongView[kShortcutTableWidth][kDisplayHeight];
+extern MenuItem* paramShortcutsForKitGlobalFX[kShortcutTableWidth][kDisplayHeight];
+
+extern deluge::gui::menu_item::Submenu* parentsForSoundShortcuts[kShortcutTableWidth][kDisplayHeight];
 
 void setOscillatorNumberForTitles(int32_t);
 void setModulatorNumberForTitles(int32_t);

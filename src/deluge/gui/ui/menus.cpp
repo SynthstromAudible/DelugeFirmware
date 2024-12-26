@@ -745,7 +745,7 @@ Submenu audioClipSampleMenu{
 
 audio_clip::Attack audioClipAttackMenu{STRING_FOR_ATTACK};
 
-const MenuItem* midiOrCVParamShortcuts[8] = {
+const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
     &arpRateMenuMIDIOrCV,
     &arpSyncMenu,
     &arpGateMenuMIDIOrCV,
@@ -1490,7 +1490,7 @@ Submenu settingsRootMenu{
 #define comingSoonMenu reinterpret_cast<MenuItem*>(0xFFFFFFFF)
 
 // clang-format off
-MenuItem* paramShortcutsForSounds[][8] = {
+MenuItem* paramShortcutsForSounds[][kDisplayHeight] = {
   // Post V3
     {&sampleRepeatMenu,       &sampleReverseMenu,      &timeStretchMenu,               &samplePitchSpeedMenu,          &audioRecorderMenu,   &fileSelectorMenu,      &interpolationMenu,       &sampleStartMenu                   },
     {&sampleRepeatMenu,       &sampleReverseMenu,      &timeStretchMenu,               &samplePitchSpeedMenu,          &audioRecorderMenu,   &fileSelectorMenu,      &interpolationMenu,       &sampleStartMenu                   },
@@ -1508,7 +1508,7 @@ MenuItem* paramShortcutsForSounds[][8] = {
     {&lfo2RateMenu,           &lfo2SyncMenu,           &lfo2TypeMenu,                  &reverbAmountMenu,              &reverbPanMenu,       &reverbWidthMenu,       &reverbDampingMenu,       &reverbRoomSizeMenu                },
     {&delayRateMenu,          &delaySyncMenu,          &delayAnalogMenu,               &delayFeedbackMenu,             &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
 };
-Submenu* parentsForSoundShortcuts[][8] = {
+Submenu* parentsForSoundShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
@@ -1525,7 +1525,7 @@ Submenu* parentsForSoundShortcuts[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
 };
-MenuItem* paramShortcutsForAudioClips[][8] = {
+MenuItem* paramShortcutsForAudioClips[][kDisplayHeight] = {
     {nullptr,                 &audioClipReverseMenu,   nullptr,                        &samplePitchSpeedMenu,          nullptr,              &fileSelectorMenu,      &audioClipInterpolationMenu,&audioClipSampleMarkerEditorMenuEnd},
     {nullptr,                 &audioClipReverseMenu,   nullptr,                        &samplePitchSpeedMenu,          nullptr,              &fileSelectorMenu,      &audioClipInterpolationMenu,&audioClipSampleMarkerEditorMenuEnd},
     {nullptr,     	  		  nullptr, 				   nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
@@ -1543,7 +1543,7 @@ MenuItem* paramShortcutsForAudioClips[][8] = {
     {&globalDelayRateMenu, 	  &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
 };
 
-MenuItem* paramShortcutsForSongView[][8] = {
+MenuItem* paramShortcutsForSongView[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
@@ -1561,7 +1561,7 @@ MenuItem* paramShortcutsForSongView[][8] = {
     {&globalDelayRateMenu,    &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
 };
 
-MenuItem* paramShortcutsForKitGlobalFX[][8] = {
+MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
