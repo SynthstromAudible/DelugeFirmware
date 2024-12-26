@@ -2162,7 +2162,7 @@ Error fresultToDelugeErrorCode(FRESULT result) {
 	}
 }
 
-Error fatfsErrorToDelugeError(FatFS::Error result) {
+Error toError(FatFS::Error result) {
 	switch (result) {
 	case FatFS::Error::NO_FILESYSTEM:
 		return Error::SD_CARD_NO_FILESYSTEM;

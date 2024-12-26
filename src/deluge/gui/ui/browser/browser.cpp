@@ -18,6 +18,7 @@
 #include "gui/ui/browser/browser.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "fatfs.hpp"
 #include "gui/context_menu/delete_file.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui_timer_manager.h"
@@ -35,6 +36,7 @@
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include "util/try.h"
 #include <cstring>
 #include <new>
 
@@ -269,18 +271,7 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 		return error;
 	}
 
-	FRESULT result = f_opendir(&staticDIR, currentDir.get());
-	if (result) {
-		return fresultToDelugeErrorCode(result);
-	}
-
-	/*
-	error = fileItems.allocateMemory(FILE_ITEMS_MAX_NUM_ELEMENTS, false);
-	if (error != Error::NONE) {
-	    f_closedir(&staticDIR);
-	    return error;
-	}
-	*/
+	FatFS::Directory dir = D_TRY_CATCH(FatFS::Directory::open(currentDir.get()), error, { return toError(error); });
 
 	numFileItemsDeletedAtStart = 0;
 	numFileItemsDeletedAtEnd = 0;
@@ -304,10 +295,12 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 		audioFileManager.loadAnyEnqueuedClusters();
 		FilePointer thisFilePointer;
 
-		result = f_readdir_get_filepointer(&staticDIR, &staticFNO, &thisFilePointer); /* Read a directory item */
+		std::tie(staticFNO, thisFilePointer) = D_TRY_CATCH(dir.read_and_get_filepointer(), error, {
+			break; // Break on error
+		});
 
-		if (result != FR_OK || staticFNO.fname[0] == 0) {
-			break; /* Break on error or end of dir */
+		if (staticFNO.fname[0] == 0) {
+			break; /* Break on end of dir */
 		}
 		if (staticFNO.fname[0] == '.') {
 			continue; /* Ignore dot entry */
@@ -388,7 +381,10 @@ nonNumericFile:
 		}
 	}
 
-	f_closedir(&staticDIR);
+	D_TRY_CATCH(dir.close(), error, {
+		emptyFileItems();
+		return toError(error);
+	});
 
 	if (error != Error::NONE) {
 		emptyFileItems();

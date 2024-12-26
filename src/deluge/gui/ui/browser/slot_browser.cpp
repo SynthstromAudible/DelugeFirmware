@@ -43,18 +43,12 @@ Error SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 
 	// But we won't try to open the folder yet, because we don't yet know what it should be.
 
-	/*
-	FRESULT result = f_opendir(&staticDIR, currentDir.get());
-	if (result != FR_OK && !allowIfNoFolder) return false;
-*/
-
 	bool success = Browser::opened();
 	if (!success) {
 		return Error::UNSPECIFIED;
 	}
 
 	if (shouldDrawKeys) {
-
 		drawKeys();
 	}
 

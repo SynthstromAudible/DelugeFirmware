@@ -19,6 +19,7 @@
 #include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "fatfs.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "hid/display/display.h"
@@ -235,35 +236,37 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String& filePath, String
 	// recordings will be much smaller
 	if (highestUsedAudioRecordingNumberNeedsReChecking[folderID]) {
 
-		FRESULT result = f_opendir(&staticDIR, audioRecordingFolderNames[folderID]);
-		if (result == FR_OK) {
+		D_TRY_CATCH( //
+		    FatFS::Directory::open(audioRecordingFolderNames[folderID])
+		        .and_then([&](FatFS::Directory dir) -> std::expected<FatFS::Directory, FatFS::Error> {
+			        while (true) {
+				        loadAnyEnqueuedClusters();
+				        staticFNO = D_TRY(dir.read()); // Read a directory item
+				        if ((*(uint32_t*)staticFNO.altname & 0x00FFFFFF) == 0x00434552) [[likely]] { // "REC"
+					        if (*(uint32_t*)&staticFNO.altname[8] == 0x5641572E) {                   // ".WAV"
 
-			while (true) {
-				loadAnyEnqueuedClusters();
-				FRESULT result = f_readdir(&staticDIR, &staticFNO); /* Read a directory item */
-				if (__builtin_expect(result != FR_OK, 0)) {
-					return Error::SD_CARD;
-				}
+						        int32_t thisSlot = memToUIntOrError(&staticFNO.altname[3], &staticFNO.altname[8]);
+						        if (thisSlot == -1) {
+							        continue;
+						        }
 
-				if (__builtin_expect((*(uint32_t*)staticFNO.altname & 0x00FFFFFF) == 0x00434552, 1)) { // "REC"
-					if (*(uint32_t*)&staticFNO.altname[8] == 0x5641572E) {                             // ".WAV"
-
-						int32_t thisSlot = memToUIntOrError(&staticFNO.altname[3], &staticFNO.altname[8]);
-						if (thisSlot == -1) {
-							continue;
-						}
-
-						if (thisSlot > highestUsedAudioRecordingNumber[folderID]) {
-							highestUsedAudioRecordingNumber[folderID] = thisSlot;
-						}
-					}
-				}
-				else if (!staticFNO.altname[0]) {
-					break; /* Break on end of dir */
-				}
-			}
-			// f_closedir(&staticDIR);
-		}
+						        if (thisSlot > highestUsedAudioRecordingNumber[folderID]) {
+							        highestUsedAudioRecordingNumber[folderID] = thisSlot;
+						        }
+					        }
+				        }
+				        else if (!staticFNO.altname[0]) {
+					        break; /* Break on end of dir */
+				        }
+			        }
+			        return dir;
+		        })
+		        .and_then([](auto dir) { return dir.close(); })
+		        .transform_error(toError),
+		    error, {
+			    // if we encounter any error, return an SD_CARD error
+			    return Error::SD_CARD;
+		    });
 
 		highestUsedAudioRecordingNumberNeedsReChecking[folderID] = false;
 	}

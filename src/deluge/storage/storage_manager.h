@@ -399,7 +399,6 @@ Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
 
 extern FirmwareVersion song_firmware_version;
 extern FILINFO staticFNO;
-extern DIR staticDIR;
 extern const bool writeJsonFlag;
 
 inline bool isCardReady() {

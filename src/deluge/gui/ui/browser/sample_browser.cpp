@@ -16,6 +16,7 @@
  */
 
 #include "definitions_cxx.hpp"
+#include "fatfs.hpp"
 #include "hid/button.h"
 #include "model/sample/sample.h"
 #include <ranges>
@@ -70,6 +71,7 @@
 #include "storage/wave_table/wave_table.h"
 #include "util/d_string.h"
 #include "util/functions.h"
+#include "util/try.h"
 #include <cstring>
 
 namespace params = deluge::modulation::params;
@@ -1191,11 +1193,10 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 		previouslyViewedFilename = currentFileItem->filename.get();
 	}
 
-	FRESULT result = f_opendir(&staticDIR, dirToLoad.get());
-	if (result != FR_OK) {
+	FatFS::Directory dir = D_TRY_CATCH(FatFS::Directory::open(dirToLoad.get()), error, {
 		display->displayError(Error::SD_CARD);
 		return false;
-	}
+	});
 
 	int32_t numSamples = 0;
 
@@ -1240,9 +1241,12 @@ removeReasonsFromSamplesAndGetOut:
 		audioFileManager.loadAnyEnqueuedClusters();
 		FilePointer thisFilePointer;
 
-		result = f_readdir_get_filepointer(&staticDIR, &staticFNO, &thisFilePointer); /* Read a directory item */
+		/* Read a directory item */
+		std::tie(staticFNO, thisFilePointer) = D_TRY_CATCH(dir.read_and_get_filepointer(), error, {
+			break; // Break on error
+		});
 
-		if (result != FR_OK || staticFNO.fname[0] == 0) {
+		if (staticFNO.fname[0] == 0) {
 			break; // Break on error or end of dir
 		}
 		if (staticFNO.fname[0] == '.') {
@@ -1278,7 +1282,7 @@ removeReasonsFromSamplesAndGetOut:
 
 		if (!maybeNewSample.has_value() || maybeNewSample.value() == nullptr) {
 			error = maybeNewSample.error_or(Error::NONE);
-			f_closedir(&staticDIR);
+			error = dir.close().transform_error(toError).error_or(Error::NONE);
 			goto removeReasonsFromSamplesAndGetOut;
 		}
 
@@ -1301,7 +1305,7 @@ removeReasonsFromSamplesAndGetOut:
 
 		numSamples++;
 	}
-	f_closedir(&staticDIR);
+	error = dir.close().transform_error(toError).error_or(Error::NONE);
 
 	if (getPrefixAndDirLength) {
 		// If just one file, there's no prefix.
@@ -1872,7 +1876,6 @@ doReturnFalse:
 				range = source->getOrCreateFirstRange();
 				if (!range) {
 getOut:
-					f_closedir(&staticDIR);
 					display->displayError(Error::INSUFFICIENT_RAM);
 					goto doReturnFalse;
 				}

@@ -59,7 +59,6 @@ void routineForSD(void);
 
 FirmwareVersion song_firmware_version = FirmwareVersion::current();
 FILINFO staticFNO;
-DIR staticDIR;
 XMLSerializer smSerializer;
 XMLDeserializer smDeserializer;
 JsonSerializer smJsonSerializer;
@@ -162,7 +161,7 @@ cutFolderPathAndTryCreating:
 		// Otherwise, just return the appropriate error.
 		else {
 
-			error = fatfsErrorToDelugeError(opened.error());
+			error = toError(opened.error());
 			if (error == Error::SD_CARD) {
 				error = Error::WRITE_FAIL; // Get a bit more specific if we only got the most general error.
 			}
@@ -256,7 +255,7 @@ Error StorageManager::initSD() {
 	}
 
 	// Otherwise, we can mount the filesystem...
-	bool success = D_TRY_CATCH(fileSystem.mount(1).transform_error(fatfsErrorToDelugeError), error, {
+	bool success = D_TRY_CATCH(fileSystem.mount(1).transform_error(toError), error, {
 		return error; //<
 	});
 	if (success) {
