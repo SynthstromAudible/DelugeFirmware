@@ -308,7 +308,8 @@ doOther:
 			}
 			D_PRINTLN("- yes");
 			changeRootUI(&automationView);
-		} else {
+		}
+		else {
 			D_PRINTLN("- no");
 		}
 	}
