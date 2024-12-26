@@ -21,8 +21,8 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-constexpr int32_t kMinZoomLevel = 1;
-constexpr int32_t kMaxZoomLevel = 13;
+constexpr int32_t kMinZoomLevel = 0;
+constexpr int32_t kMaxZoomLevel = 12;
 
 // The zoomArr is used to set the edge sizes of the pads {x size, y size} on each zoom level.
 const int32_t zoomArr[13][2] = {{1, 1}, {2, 1}, {3, 1}, {2, 2}, {3, 2}, {4, 2}, {5, 2},
@@ -60,7 +60,7 @@ private:
 			return FlashStorage::defaultVelocity;
 		}
 		else if (edgeSizeY == 1) {
-			return ((x % edgeSizeX) + 1) * 100 / edgeSizeX; // simpler, easier on the ears.
+			return ((x % edgeSizeX) + 1) * 110 / edgeSizeX; // simpler, easier on the ears.
 		}
 		else {
 			uint8_t position = (x % edgeSizeX) + 1;

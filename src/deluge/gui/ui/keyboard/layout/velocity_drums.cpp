@@ -83,41 +83,44 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
                                                           PressedPad presses[kMaxNumKeyboardPadPresses],
                                                           bool encoderPressed) {
 	KeyboardStateDrums& state = getState().drums;
-
-	if (shiftEnabled || Buttons::isButtonPressed(hid::button::X_ENC)) {
-		state.zoomLevel += offset;
-		if (state.zoomLevel >= kMinZoomLevel && state.zoomLevel <= kMaxZoomLevel) {
-			state.edgeSizeX = zoomArr[state.zoomLevel - 1][0];
-			state.edgeSizeY = zoomArr[state.zoomLevel - 1][1];
+	bool zoomLevelChanged = false;
+	if (shiftEnabled || Buttons::isButtonPressed(hid::button::X_ENC)) { // zoom control
+		if (state.zoomLevel + offset >= kMinZoomLevel && state.zoomLevel + offset <= kMaxZoomLevel) {
+			state.zoomLevel += offset;
+			zoomLevelChanged = true;
 		}
+		else return;
 
-		state.zoomLevel = std::clamp(state.zoomLevel, kMinZoomLevel, kMaxZoomLevel);
-
+		state.edgeSizeX = zoomArr[state.zoomLevel][0];
+		state.edgeSizeY = zoomArr[state.zoomLevel][1];
 		char buffer[14] = "Pad Area:   ";
 		auto displayOffset = (display->haveOLED() ? 9 : 0);
 		intToString(state.edgeSizeX * state.edgeSizeY, buffer + displayOffset, 1);
 		display->displayPopup(buffer);
 
-		offset = 0; // Reset offset variable for processing scroll calculation without actually shifting
-	}
+		offset = 0; // Since the offset variable can be used for scrolling or zooming,
+		// we reset it to 0 before calculating scroll offset
+	} // end zoom control
+	// scroll offset control - need to run to adjust to new max position if zoom level has changed
 
 	// Calculate highest possible displayable note with current edgeSize
 	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSizeY) * (kDisplayWidth / state.edgeSizeX));
 	int32_t highestScrolledNote = std::max<int32_t>(0, (getHighestClipNote() + 1 - displayedfullPadsCount));
 
-	// Make sure current value is in bounds
-	state.scrollOffset = std::clamp(state.scrollOffset, getLowestClipNote(), highestScrolledNote);
+	// Make sure scroll offset value is in bounds.
+	// For example, if zoom level has gone down and scroll offset was at max, it will be reduced some.
+	int32_t newOffset = std::clamp(state.scrollOffset + offset, getLowestClipNote(), highestScrolledNote);
 
-	// Offset if still in bounds (check for verticalEncoder)
-	int32_t newOffset = state.scrollOffset + offset;
-	if (newOffset >= getLowestClipNote() && newOffset <= highestScrolledNote) {
+	// Only need to update colors and screen if the zoom level and/or scroll offset value has changed
+	if (newOffset != state.scrollOffset || zoomLevelChanged) {
 		state.scrollOffset = newOffset;
+		precalculate();
 	}
-
-	precalculate();
 }
 
 void KeyboardLayoutVelocityDrums::precalculate() {
+	// precalculate pad colour set for current zoom level and scroll offset position
+
 	KeyboardStateDrums& state = getState().drums;
 	// KeyboardStateIsomorphic& state2 = getState().isomorphic;
 
@@ -126,6 +129,11 @@ void KeyboardLayoutVelocityDrums::precalculate() {
 	// RGB noteColours[displayedfullPadsCount];
 	// uint8_t hue_step = 100 / std::floor(kDisplayWidth / state.edgeSizeX);
 	// int32_t offset2 = state.scrollOffset + state2.scrollOffset; // hue offset adjustment
+
+	int32_t offset = state.scrollOffset;
+	D_PRINTLN("offset: %d", offset);
+	// int32_t offset2 = getState().isomorphic.scrollOffset;
+	// D_PRINTLN("offset2: %d", offset2);
 	for (int32_t i = 0; i < displayedfullPadsCount; i++) {
 		// noteColours[i] = getNoteColour(state.scrollOffset + i);
 		uint32_t i2 = state.scrollOffset + i;
