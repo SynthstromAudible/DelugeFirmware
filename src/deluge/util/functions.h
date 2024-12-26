@@ -128,7 +128,7 @@ template <uint8_t lshift>
 	}
 }
 
-char* replace_char(const char* str, char find, char replace);
+void replace_char(char* str, const char* in_str, char find, char replace);
 
 /// pads a string up to a num of characters if the current string size is shorter than num
 [[gnu::always_inline]] constexpr void padStringTo(std::string& str, const size_t num) {

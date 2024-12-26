@@ -5709,7 +5709,7 @@ String Song::getSongFullPath() {
 void Song::setSongFullPath(const char* fullPath) {
 	if (char* filename = strrchr((char*)fullPath, '/')) {
 		auto fullPathLength = strlen(fullPath);
-		char* dir = new char[sizeof(char) * fullPathLength + 1];
+		char dir[sizeof(char) * fullPathLength + 1];
 
 		memset(dir, 0, sizeof(char) * fullPathLength + 1);
 		strncpy(dir, fullPath, fullPathLength - strlen(filename));
