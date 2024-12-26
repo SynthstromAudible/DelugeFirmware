@@ -111,9 +111,9 @@ void writeDevicesToFile();
 void readAHostedDeviceFromFile(Deserializer& reader);
 void readDevicesFromFile();
 
-extern MIDIDeviceUSBUpstream upstreamUSBMIDICable1;
-extern MIDIDeviceUSBUpstream upstreamUSBMIDICable2;
-extern MIDIDeviceUSBUpstream upstreamUSBMIDICable3;
+extern MIDICableUSBUpstream upstreamUSBMIDICable1;
+extern MIDICableUSBUpstream upstreamUSBMIDICable2;
+extern MIDICableUSBUpstream upstreamUSBMIDICable3;
 extern MIDICableDINPorts dinMIDIPorts;
 
 extern bool differentiatingInputsByDevice;

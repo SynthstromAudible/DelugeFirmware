@@ -514,8 +514,7 @@ void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter
 	}
 
 	// Send serial MIDI
-	if (message.isSystemMessage()
-	    || MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(message.channel, filter)) {
+	if (MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(message, filter)) {
 		sendSerialMidi(message);
 	}
 
@@ -561,9 +560,7 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 				    && connectedDevice->cable[p] != &MIDIDeviceManager::upstreamUSBMIDICable3) {
 					// if it's a clock (or sysex technically but we don't send that to this function)
 					// or if it's a message that this channel wants
-					if ((isSystemMessage && connectedDevice->cable[p]->sendClock)
-					    || (!isSystemMessage
-					        && connectedDevice->cable[p]->wantsToOutputMIDIOnChannel(message.channel, filter))) {
+					if (connectedDevice->cable[p]->wantsToOutputMIDIOnChannel(message, filter)) {
 
 						// Or with the port to add the cable number to the full message. This
 						// is a bit hacky but it works
