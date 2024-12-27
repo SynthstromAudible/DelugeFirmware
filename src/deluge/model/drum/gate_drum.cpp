@@ -34,11 +34,13 @@ void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocit
 	ArpReturnInstruction instruction;
 	// Run everything by the Arp...
 	arpeggiator.noteOn(arpSettings, kNoteForDrum, velocity, &instruction, fromMIDIChannel, mpeValues);
-	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-		noteOffPostArp(instruction.noteCodeOffPostArp);
-	}
-	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) [[likely]] {
-		noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
+			noteOffPostArp(instruction.noteCodeOffPostArp[n]);
+		}
+		if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+			noteOnPostArp(instruction.noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+		}
 	}
 }
 
@@ -47,11 +49,13 @@ void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 	ArpReturnInstruction instruction;
 	// Run everything by the Arp...
 	arpeggiator.noteOff(arpSettings, kNoteForDrum, &instruction);
-	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-		noteOffPostArp(instruction.noteCodeOffPostArp);
-	}
-	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
-		noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
+			noteOffPostArp(instruction.noteCodeOffPostArp[n]);
+		}
+		if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+			noteOnPostArp(instruction.noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+		}
 	}
 }
 
@@ -91,7 +95,7 @@ int32_t GateDrum::getNumChannels() {
 	return NUM_GATE_CHANNELS;
 }
 
-void GateDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
+void GateDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
 	cvEngine.sendNote(true, channel, kNoteForDrum);
 	state = true;
 }

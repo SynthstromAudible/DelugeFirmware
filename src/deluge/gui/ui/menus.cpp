@@ -241,7 +241,7 @@ arpeggiator::OnlyForSoundUnpatchedParam arpGateMenu{STRING_FOR_GATE, STRING_FOR_
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
 arpeggiator::Rhythm arpRhythmMenu{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE, params::UNPATCHED_ARP_RHYTHM};
 arpeggiator::midi_cv::Rhythm arpRhythmMenuMIDIOrCV{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE};
-arpeggiator::OnlyForSoundUnpatchedParam arpChordPolyphonyMenu{
+arpeggiator::OnlyForNonKitSoundUnpatchedParam arpChordPolyphonyMenu{
     STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_POLYPHONY};
 arpeggiator::midi_cv::ChordPolyphony arpChordPolyphonyMenuMIDIOrCV{STRING_FOR_CHORD_POLYPHONY,
                                                                    STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE};
@@ -263,7 +263,7 @@ arpeggiator::OnlyForSoundUnpatchedParam arpBassProbabilityMenu{
     STRING_FOR_BASS_PROBABILITY, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_BASS_PROBABILITY};
 arpeggiator::midi_cv::BassProbability arpBassProbabilityMenuMIDIOrCV{STRING_FOR_BASS_PROBABILITY,
                                                                      STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE};
-arpeggiator::OnlyForSoundUnpatchedParam arpChordProbabilityMenu{
+arpeggiator::OnlyForNonKitSoundUnpatchedParam arpChordProbabilityMenu{
     STRING_FOR_CHORD_PROBABILITY, STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_PROBABILITY};
 arpeggiator::midi_cv::ChordProbability arpChordProbabilityMenuMIDIOrCV{STRING_FOR_CHORD_PROBABILITY,
                                                                        STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE};

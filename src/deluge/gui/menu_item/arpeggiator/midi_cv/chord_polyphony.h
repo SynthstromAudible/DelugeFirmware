@@ -62,7 +62,7 @@ public:
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow();
+		return soundEditor.editingCVOrMIDIClip();
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

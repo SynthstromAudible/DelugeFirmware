@@ -721,13 +721,13 @@ The Sound menu contains the following menu hierarchy:
 	- Gate
 	- Rhythm (RHYT)
 	- Sequence Length (LENG)
-	- Chord Polyphony (POLY)
+	- Chord Polyphony (POLY) (NOTE: NOT available for Sound Kit Rows)
 	- Ratchet Amount (RATC)
 	- Randomizer
 		- Ratchet Probability (RPRO)
 		- Note Probability (PROB)
 		- Bass Probability (BASS)
-		- Chord Probability (CHRD)
+		- Chord Probability (CHRD) (NOTE: NOT available for Sound Kit Rows)
 		- Octave Spread (OCTA)
 		- Gate Spread (GATE)
 		- Velocity Spread (VELO)
@@ -1319,13 +1319,13 @@ The MIDI menu contains the following menu hierarchy:
 	- Gate
 	- Rhythm (RHYT)
 	- Sequence Length (LENG)
-	- Chord Polyphony (POLY)
+	- Chord Polyphony (POLY) (NOTE: NOT available for Midi Kit Rows)
 	- Ratchet Amount (RATC)
 	- Randomizer
 		- Ratchet Probability (RPRO)
 		- Note Probability (PROB)
 		- Bass Probability (BASS)
-		- Chord Probability (CHRD)
+		- Chord Probability (CHRD) (NOTE: NOT available for Midi Kit Rows)
 		- Octave Spread (OCTA)
 		- Gate Spread (GATE)
 		- Velocity Spread (VELO)

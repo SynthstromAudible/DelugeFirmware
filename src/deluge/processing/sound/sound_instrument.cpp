@@ -394,20 +394,22 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 
 		arpeggiator.noteOff(arpSettings, noteCode, &instruction);
 
-		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
 
 #if ALPHA_OR_BETA_VERSION
-			if (!modelStack->paramManager) {
-				// Previously we were allowed to receive a NULL paramManager, then would just crudely do an
-				// unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
-				FREEZE_WITH_ERROR("E402");
-			}
+				if (!modelStack->paramManager) {
+					// Previously we were allowed to receive a NULL paramManager, then would just crudely do an
+					// unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
+					FREEZE_WITH_ERROR("E402");
+				}
 #endif
-			ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
+				ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 
-			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
+				noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
 
-			reassessRenderSkippingStatus(modelStackWithSoundFlags);
+				reassessRenderSkippingStatus(modelStackWithSoundFlags);
+			}
 		}
 	}
 }
@@ -471,17 +473,19 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStackWithThreeMainThings->addSoundFlags();
 
-	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
-	}
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
+			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+		}
 
-	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
-		noteOnPostArpeggiator(
-		    modelStackWithSoundFlags,
-		    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-		    instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
-		    instruction.sampleSyncLengthOn, 0, 0,
-		    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+		if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+			noteOnPostArpeggiator(
+				modelStackWithSoundFlags,
+				instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+				instruction.noteCodeOnPostArp[n], instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
+				instruction.sampleSyncLengthOn, 0, 0,
+				instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+		}
 	}
 
 	return ticksTilNextArpEvent;

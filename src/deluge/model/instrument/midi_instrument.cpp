@@ -813,7 +813,7 @@ void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack
 	                                      shouldRecordNotes, doingMidiThru);
 }
 
-void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
+void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
 	int32_t channel = getChannel();
 	ArpeggiatorSettings* arpSettings = NULL;
 	if (activeClip) {
@@ -848,16 +848,16 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 			// which will have had its toMIDIChannel set to 16 by Arpeggiator (we'll decide and set it below).
 			for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
 				ArpNote* thisArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-				if (thisArpNote->outputMemberChannel >= lowestMemberChannel
-				    && thisArpNote->outputMemberChannel <= highestMemberChannel) {
-					numNotesPreviouslyActiveOnMemberChannel[thisArpNote->outputMemberChannel]++;
+				if (thisArpNote->outputMemberChannel[noteIndex] >= lowestMemberChannel
+				    && thisArpNote->outputMemberChannel[noteIndex] <= highestMemberChannel) {
+					numNotesPreviouslyActiveOnMemberChannel[thisArpNote->outputMemberChannel[noteIndex]]++;
 
 					// If this note is coming in live from the same member channel as the one we wish to switch on now,
 					// that's a good clue that we should group them together at the output. (Final decision to be made
 					// further below.)
 					if (thisArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]
 					    == arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]) {
-						outputMemberChannelWithNoteSharingInputMemberChannel = thisArpNote->outputMemberChannel;
+						outputMemberChannelWithNoteSharingInputMemberChannel = thisArpNote->outputMemberChannel[noteIndex];
 					}
 				}
 			}
@@ -897,8 +897,8 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 
 		// Ok. We have our new member channel.
 
-		arpNote->outputMemberChannel = outputMemberChannel;
-		arpeggiator.outputMIDIChannelForNoteCurrentlyOnPostArp = outputMemberChannel; // Needed if arp on
+		arpNote->outputMemberChannel[noteIndex] = outputMemberChannel;
+		arpeggiator.outputMIDIChannelForNoteCurrentlyOnPostArp[noteIndex] = outputMemberChannel; // Needed if arp on
 
 		int16_t mpeValuesAverage[kNumExpressionDimensions]; // We may fill this up and point to it, or not
 		int16_t const* mpeValuesToUse = arpNote->mpeValues;
@@ -913,7 +913,7 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 			for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
 			     n++) { // This traversal will include the original note, which will get counted up too
 				ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-				if (lookingAtArpNote->outputMemberChannel == outputMemberChannel) {
+				if (lookingAtArpNote->outputMemberChannel[noteIndex] == outputMemberChannel) {
 					numNotesFound++;
 					for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 						mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
@@ -971,7 +971,7 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 	}
 }
 
-void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMemberChannel, int32_t velocity) {
+void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMemberChannel, int32_t velocity, int32_t noteIndex) {
 	int32_t channel = getChannel();
 	if (sendsToInternal()) {
 		sendNoteToInternal(false, noteCodePostArp, velocity, oldOutputMemberChannel);
@@ -1011,7 +1011,7 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 		for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
 		     n++) { // This traversal will not include the original note, which has already been deleted from the array.
 			ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-			if (lookingAtArpNote->outputMemberChannel == oldOutputMemberChannel) {
+			if (lookingAtArpNote->outputMemberChannel[noteIndex] == oldOutputMemberChannel) {
 				numNotesFound++;
 				for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 					mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
@@ -1062,7 +1062,8 @@ uint8_t const shiftAmountsFrom16Bit[] = {2, 9, 8};
 // well use the 32-bit version here. Although, could it have even got more than 14 bits of meaningful value in the first
 // place?
 void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, int32_t noteCodeAfterArpeggiation,
-                                                              int32_t expressionDimension, ArpNote* arpNote) {
+                                                              int32_t expressionDimension, ArpNote* arpNote, int32_t noteIndex) {
+	// TODO RAUL: use noteIndex to search the right note and channel.
 	int32_t channel = getChannel();
 	if (sendsToInternal()) {
 		// Do nothing
@@ -1087,7 +1088,7 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 
 	// Or if we do have MPE output...
 	else {
-		int32_t memberChannel = arpNote->outputMemberChannel;
+		int32_t memberChannel = arpNote->outputMemberChannel[noteIndex];
 
 		// Are multiple notes sharing the same output member channel?
 		ArpeggiatorSettings* settings = getArpSettings();
@@ -1098,7 +1099,7 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 			for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
 			     n++) { // This traversal will include the original note, which will get counted up too
 				ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-				if (lookingAtArpNote->outputMemberChannel == memberChannel) {
+				if (lookingAtArpNote->outputMemberChannel[noteIndex] == memberChannel) {
 					numNotesFound++;
 					mpeValuesSum += lookingAtArpNote->mpeValues[expressionDimension];
 				}

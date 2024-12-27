@@ -64,7 +64,7 @@ public:
 	ArpeggiatorBase* getArp() { return &arpeggiator; }
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
 
-	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) = 0;
+	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) = 0;
 	virtual void noteOffPostArp(int32_t noteCodePostArp) = 0;
 
 	void writeArpeggiatorToFile(Serializer& writer);

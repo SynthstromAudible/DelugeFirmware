@@ -29,6 +29,8 @@ class PostArpTriggerable;
 class ParamManagerForTimeline;
 
 #define RANDOMIZER_LOCK_MAX_SAVED_VALUES 16
+#define ARP_NOTE_NONE 32767
+#define ARP_MAX_INSTRUCTION_NOTES 4
 
 class ArpeggiatorSettings {
 public:
@@ -154,35 +156,43 @@ public:
 };
 
 struct ArpNote {
+	ArpNote() {
+		outputMemberChannel.fill(MIDI_CHANNEL_NONE);
+	}
 	int16_t inputCharacteristics[2]; // Before arpeggiation. And applying to MIDI input if that's happening. Or, channel
 	                                 // might be MIDI_CHANNEL_NONE.
 	int16_t mpeValues[kNumExpressionDimensions];
 	uint8_t velocity;
 	uint8_t baseVelocity;
-	uint8_t outputMemberChannel;
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMemberChannel;
 };
-
-#define ARP_NOTE_NONE 32767
 
 class ArpReturnInstruction {
 public:
-	ArpReturnInstruction()
-	    : noteCodeOffPostArp(ARP_NOTE_NONE), noteCodeOnPostArp(ARP_NOTE_NONE), sampleSyncLengthOn(0) {}
-	int16_t noteCodeOffPostArp; // 32767 means none/no action
-	int16_t noteCodeOnPostArp;  // 32767 means none/no action
+	ArpReturnInstruction() {
+		noteCodeOffPostArp.fill(ARP_NOTE_NONE);
+		noteCodeOnPostArp.fill(ARP_NOTE_NONE);
+		outputMIDIChannelOff.fill(MIDI_CHANNEL_NONE);
+	}
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOffPostArp;
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOnPostArp;
 
 	// These are only valid if doing a note-on, or when releasing the most recently played with the arp off when other
 	// notes are still playing (e.g. for mono note priority)
-	uint32_t sampleSyncLengthOn; // This defaults to zero, or may be overwritten by the caller to the Arp - and then the
+	uint32_t sampleSyncLengthOn = 0; // This defaults to zero, or may be overwritten by the caller to the Arp - and then the
 	                             // Arp itself may override that.
 	ArpNote* arpNoteOn;
 
 	// And these are only valid if doing a note-off
-	uint8_t outputMIDIChannelOff; // For MPE
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelOff; // For MPE
 };
 
 class ArpeggiatorBase {
 public:
+	ArpeggiatorBase() {
+		noteCodeCurrentlyOnPostArp.fill(ARP_NOTE_NONE);
+		outputMIDIChannelForNoteCurrentlyOnPostArp.fill(0);
+	}
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
 	void updateParams(uint32_t rhythmValue, uint32_t sequenceLength, uint32_t chordPoly, uint32_t ratchAmount,
@@ -203,8 +213,8 @@ public:
 	int8_t currentOctaveDirection = 1;
 	bool playedFirstArpeggiatedNoteYet = false;
 	uint8_t lastVelocity = 0;
-	int16_t noteCodeCurrentlyOnPostArp = 0;
-	uint8_t outputMIDIChannelForNoteCurrentlyOnPostArp = 0;
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeCurrentlyOnPostArp;
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES>  outputMIDIChannelForNoteCurrentlyOnPostArp;
 
 	// Playing state
 	uint32_t notesPlayedFromSequence = 0;

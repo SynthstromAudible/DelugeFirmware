@@ -99,7 +99,9 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 	arpNote.velocity = originalVelocity; // Means note is on.
 	// MIDIInstrument might set this later, but it needs to be MIDI_CHANNEL_NONE until then so it doesn't get included
 	// in the survey that will happen of existing output member channels.
-	arpNote.outputMemberChannel = MIDI_CHANNEL_NONE;
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		arpNote.outputMemberChannel[n] = MIDI_CHANNEL_NONE;
+	}
 
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 		arpNote.mpeValues[m] = mpeValues[m];
@@ -154,7 +156,13 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 		arpNote.velocity = velocity; // calculated modified velocity
 
 		// Set the note to be played
-		instruction->noteCodeOnPostArp = noteCode;
+		noteCodeCurrentlyOnPostArp[0] = noteCode;
+		instruction->noteCodeOnPostArp[0] = noteCode;
+		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			// Clean rest of slots
+			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+			instruction->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+		}
 		instruction->arpNoteOn = &arpNote;
 	}
 }
@@ -164,15 +172,23 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, int32_t noteCode
 
 	// If no arpeggiation...
 	if ((settings == nullptr) || settings->mode == ArpMode::OFF) {
-		instruction->noteCodeOffPostArp = noteCodePreArp;
-		instruction->outputMIDIChannelOff = arpNote.outputMemberChannel;
+		instruction->noteCodeOffPostArp[0] = noteCodePreArp;
+		instruction->outputMIDIChannelOff[0] = arpNote.outputMemberChannel[0];
+		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			// If no arp, rest of chord notes are for sure disabled
+			instruction->noteCodeOffPostArp[n] = ARP_NOTE_NONE;
+			instruction->outputMIDIChannelOff[n] = MIDI_CHANNEL_NONE;
+		}
 	}
 
 	// Or if yes arpeggiation...
 	else {
 		if (gateCurrentlyActive) {
-			instruction->noteCodeOffPostArp = noteCodeCurrentlyOnPostArp;
-			instruction->outputMIDIChannelOff = outputMIDIChannelForNoteCurrentlyOnPostArp;
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				// Set all chord notes
+				instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
+				instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+			}
 		}
 	}
 
@@ -236,7 +252,9 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it
 		// doesn't get included in the survey that will happen of existing output member
 		// channels.
-		arpNote->outputMemberChannel = MIDI_CHANNEL_NONE;
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			arpNote->outputMemberChannel[n] = MIDI_CHANNEL_NONE;
+		}
 		// Update expression values
 		for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 			arpNote->mpeValues[m] = mpeValues[m];
@@ -258,7 +276,9 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it
 		// doesn't get included in the survey that will happen of existing output member
 		// channels.
-		arpNoteAsPlayed->outputMemberChannel = MIDI_CHANNEL_NONE;
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			arpNoteAsPlayed->outputMemberChannel[n] = MIDI_CHANNEL_NONE;
+		}
 		// Update expression values
 		for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 			arpNoteAsPlayed->mpeValues[m] = mpeValues[m];
@@ -293,7 +313,7 @@ noteInserted:
 		// Don't do the note-on now, it'll happen automatically at next render
 	}
 	else {
-		// Apply spread to non-arpegg notes
+		// Apply spread to non-arpeggiated notes
 		int32_t spreadVelocityForCurrentStep = getRandomBipolarProbabilityAmount(spreadVelocity);
 
 		arpNote->baseVelocity = originalVelocity;
@@ -324,7 +344,13 @@ noteInserted:
 		arpNote->velocity = velocity; // calculated modified velocity
 
 		// Set the note to be played
-		instruction->noteCodeOnPostArp = noteCode;
+		noteCodeCurrentlyOnPostArp[0] = noteCode;
+		instruction->noteCodeOnPostArp[0] = noteCode;
+		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			// Clean rest of chord note slots
+			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+			instruction->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+		}
 		instruction->arpNoteOn = arpNote;
 	}
 }
@@ -338,8 +364,13 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 			bool arpOff = (settings == nullptr) || settings->mode == ArpMode::OFF;
 			// If no arpeggiation...
 			if (arpOff) {
-				instruction->noteCodeOffPostArp = noteCodePreArp;
-				instruction->outputMIDIChannelOff = arpNote->outputMemberChannel;
+				instruction->noteCodeOffPostArp[0] = noteCodePreArp;
+				instruction->outputMIDIChannelOff[0] = arpNote->outputMemberChannel[0];
+				for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					// If no arp, rest of chord notes are for sure disabled
+					instruction->noteCodeOffPostArp[n] = ARP_NOTE_NONE;
+					instruction->outputMIDIChannelOff[n] = MIDI_CHANNEL_NONE;
+				}
 			}
 
 			// Or if yes arpeggiation, we'll only stop right now if that was the last note to switch off. Otherwise,
@@ -347,13 +378,16 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 			else {
 				if (notes.getNumElements() == 1) {
 					if (whichNoteCurrentlyOnPostArp == notesKey && gateCurrentlyActive) {
-						instruction->noteCodeOffPostArp = noteCodeCurrentlyOnPostArp;
-						instruction->outputMIDIChannelOff = outputMIDIChannelForNoteCurrentlyOnPostArp;
+						for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+							// Set all chord notes
+							instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
+							instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+						}
 					}
 				}
 			}
-
 			notes.deleteAtIndex(notesKey);
+
 			// We must also search and delete from notesAsPlayed
 			int numNotes = notesAsPlayed.getNumElements();
 			for (int32_t i = 0; i < numNotes; i++) {
@@ -364,8 +398,12 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 						// if we're not arpeggiating then pass the second last note back - cv instruments will snap back
 						// to it (like playing a normal mono synth)
 						ArpNote* newArpNote = (ArpNote*)notesAsPlayed.getElementAddress(i - 1);
-						instruction->noteCodeOnPostArp =
+						instruction->noteCodeOnPostArp[0] =
 						    newArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
+						for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+							// Clean rest of chord note slots
+							instruction->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+						}
 						instruction->arpNoteOn = newArpNote;
 					}
 					break;
@@ -397,8 +435,11 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 
 void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 	if (gateCurrentlyActive) {
-		instruction->noteCodeOffPostArp = noteCodeCurrentlyOnPostArp;
-		instruction->outputMIDIChannelOff = outputMIDIChannelForNoteCurrentlyOnPostArp;
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			// Set all chord notes
+			instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
+			instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+		}
 		gateCurrentlyActive = false;
 	}
 }
@@ -562,7 +603,6 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 
 	bool shouldPlayNote = evaluateNoteProbability(isRatchet);
 	bool shouldPlayBassNote = evaluateBassProbability(isRatchet);
-	bool shouldPlayChordNote = evaluateChordProbability(isRatchet);
 
 	if (isRatchet) {
 		// Increment ratchet note index if we are ratcheting when entering switchNoteOn
@@ -594,9 +634,6 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 
 			// Save last note played from probability
 			lastNormalNotePlayedFromBassProbability = shouldPlayBassNote;
-
-			// Save last note played from probability
-			lastNormalNotePlayedFromChordProbability = shouldPlayChordNote;
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
@@ -678,13 +715,21 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			note = 127;
 		}
 		// Set the note to be played
-		noteCodeCurrentlyOnPostArp = note;
-		instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
+		// (Only one note, chord polyphony/probability is not available in kit rows)
+		noteCodeCurrentlyOnPostArp[0] = note;
+		instruction->noteCodeOnPostArp[0] = noteCodeCurrentlyOnPostArp[0];
+		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			// Clean rest of chord note slots
+			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+			instruction->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+		}
 		instruction->arpNoteOn = &arpNote;
 	}
 	else {
 		// Rhythm silence: Don't play the note
-		instruction->noteCodeOnPostArp = ARP_NOTE_NONE;
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			instruction->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+		}
 	}
 }
 
@@ -1100,14 +1145,70 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		else if (note > 127) {
 			note = 127;
 		}
-		// Set the note to be played
-		noteCodeCurrentlyOnPostArp = note;
-		instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
+
+		// Wipe noteOn codes
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			// Clean rest of chord note slots
+			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+			instruction->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+		}
+
+		// Set the note(s) to be played
+		noteCodeCurrentlyOnPostArp[0] = note; // This is the main note, whether we play chord or not
+
+		// Now get additional notes to be played
+		MusicalKey musicalKey = currentSong->key;
+		int8_t degree = musicalKey.degreeOf(note);
+		if (shouldPlayChordNote && degree >= 0 && musicalKey.modeNotes.count() >= 5) {
+			// Play chord!
+			// Limitation: we will only try to play chords for notes in the scale, and if scale has at least 5 notes
+			int8_t baseOffset = musicalKey.modeNotes[degree % musicalKey.modeNotes.count()];
+			int8_t numAdditionalNotesInChord = std::min((int8_t)3, getRandomWeighted2BitsAmount(chordPolyphony));
+			int8_t degreeOffsets[3] = {0, 0, 0};
+			if (numAdditionalNotesInChord > 0) {
+				switch (numAdditionalNotesInChord) {
+				case 1:
+					degreeOffsets[0] = 4;
+					break;
+				case 2:
+					degreeOffsets[0] = 2;
+					degreeOffsets[1] = 4;
+					break;
+				case 3:
+					degreeOffsets[0] = 2;
+					degreeOffsets[1] = 4;
+					degreeOffsets[2] = 6;
+					break;
+				default:
+					break;
+				}
+				for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (n <= numAdditionalNotesInChord) {
+						// Pick the note to be added
+						int8_t targetOffset = musicalKey.modeNotes[(degree + degreeOffsets[n -1]) % musicalKey.modeNotes.count()];
+						if (targetOffset <= baseOffset) {
+							// If the 5th is higher than the base note, we need to add an octave
+							targetOffset += 12;
+						}
+						noteCodeCurrentlyOnPostArp[n] = note + targetOffset - baseOffset;
+					}
+				}
+			}
+		}
+
+		// Copy notes to the arp return instruction object
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			// Clean rest of chord note slots
+			instruction->noteCodeOnPostArp[n] = noteCodeCurrentlyOnPostArp[n];
+		}
+
 		instruction->arpNoteOn = arpNote;
 	}
 	else {
 		// Rhythm silence: Don't play the note
-		instruction->noteCodeOnPostArp = ARP_NOTE_NONE;
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			instruction->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+		}
 	}
 }
 

@@ -27,4 +27,12 @@ public:
 	}
 };
 
+class OnlyForNonKitSoundUnpatchedParam final : public UnpatchedParam {
+public:
+	using UnpatchedParam::UnpatchedParam;
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKit();
+	}
+};
+
 } // namespace deluge::gui::menu_item::arpeggiator
