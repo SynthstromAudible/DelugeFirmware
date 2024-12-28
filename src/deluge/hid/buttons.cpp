@@ -34,6 +34,8 @@
 #include <map>
 #include <string>
 
+#include "io/debug/log.h"
+
 namespace Buttons {
 
 bool recordButtonPressUsedUp;
@@ -144,6 +146,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 		}
 	}
 
+	D_PRINTLN("HID buttonAction() for %s", getCurrentUI()->getName());
 	result = getCurrentUI()->buttonAction(b, on, inCardRoutine);
 
 	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {

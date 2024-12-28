@@ -28,6 +28,8 @@ public:
 		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 		setEnvelopeNumberForTitles(this->thingIndex);
 	}
+
+	bool supportsHorizontalRendering() override { return true; }
 };
 
 } // namespace deluge::gui::menu_item::submenu
