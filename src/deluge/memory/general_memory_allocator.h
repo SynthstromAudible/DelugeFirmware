@@ -60,15 +60,15 @@ class Stealable;
 class GeneralMemoryAllocator {
 public:
 	GeneralMemoryAllocator();
-	[[gnu::always_inline]] void* allocMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL) {
+	[[gnu::always_inline]] void* allocMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
 		return alloc(requiredSize, true, false, thingNotToStealFrom);
 	}
 
-	[[gnu::always_inline]] void* allocLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL) {
+	[[gnu::always_inline]] void* allocLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
 		return alloc(requiredSize, false, false, thingNotToStealFrom);
 	}
 
-	[[gnu::always_inline]] void* allocStealable(uint32_t requiredSize, void* thingNotToStealFrom = NULL) {
+	[[gnu::always_inline]] void* allocStealable(uint32_t requiredSize, void* thingNotToStealFrom = nullptr) {
 		return alloc(requiredSize, false, true, thingNotToStealFrom);
 	}
 
@@ -79,7 +79,7 @@ public:
 	uint32_t shortenRight(void* address, uint32_t newSize);
 	uint32_t shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful = 0);
 	void extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
-	            uint32_t* getAmountExtendedLeft, uint32_t* getAmountExtendedRight, void* thingNotToStealFrom = NULL);
+	            uint32_t* getAmountExtendedLeft, uint32_t* getAmountExtendedRight, void* thingNotToStealFrom = nullptr);
 	uint32_t extendRightAsMuchAsEasilyPossible(void* address);
 	void test();
 	uint32_t getAllocatedSize(void* address);

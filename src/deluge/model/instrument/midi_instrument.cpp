@@ -27,12 +27,11 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
-#include "modulation/midi/label/midi_label.h"
-#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
 #include <cstring>
+#include <string_view>
 
 int16_t lastNoteOffOrder = 1;
 
@@ -116,7 +115,7 @@ ModelStackWithAutoParam* MIDIInstrument::getParamFromModEncoder(int32_t whichMod
 	if (!modelStack->paramManager) { // Could be NULL - if the user is holding down an audition pad in Arranger, and we
 		                             // have no Clips
 noParam:
-		return modelStack->addParamCollectionAndId(NULL, NULL, 0)->addAutoParam(NULL); // "No param"
+		return modelStack->addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr); // "No param"
 	}
 
 	int32_t paramId = modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder];
@@ -141,7 +140,7 @@ MIDIInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackWith
 	if (!modelStack->paramManager) { // Could be NULL - if the user is holding down an audition pad in Arranger, and we
 		                             // have no Clips
 noParam:
-		return modelStack->addParamCollectionAndId(NULL, NULL, 0)->addAutoParam(NULL); // "No param"
+		return modelStack->addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr); // "No param"
 	}
 
 	ParamCollectionSummary* summary;
@@ -374,11 +373,11 @@ void MIDIInstrument::writeCCLabelsToFile(Serializer& writer) {
 	writer.writeOpeningTagBeginning("ccLabels");
 	for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
 		if (i != CC_EXTERNAL_MOD_WHEEL) {
-			MIDILabel* midiLabel = midiLabelCollection.labels.getLabelFromCC(i);
+			auto it = labels.find(i);
 			char ccNumber[10];
 			intToString(i, ccNumber, 1);
-			if (midiLabel) {
-				writer.writeAttribute(ccNumber, midiLabel->name.get());
+			if (it != labels.end()) {
+				writer.writeAttribute(ccNumber, it->second.data());
 			}
 			else {
 				writer.writeAttribute(ccNumber, "");
@@ -460,7 +459,7 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToP
 	Deserializer& reader = *activeDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "modKnob")) {
-			MIDIParamCollection* midiParamCollection = NULL;
+			MIDIParamCollection* midiParamCollection = nullptr;
 			if (paramManager) {
 				midiParamCollection = paramManager->getMIDIParamCollection();
 			}
@@ -537,7 +536,7 @@ Error MIDIInstrument::readCCLabelsFromFile(Deserializer& reader) {
 			continue;
 		}
 
-		midiLabelCollection.labels.setOrCreateLabelForCC(cc, reader.readTagOrAttributeValue());
+		labels[cc] = reader.readTagOrAttributeValue();
 
 		error = Error::NONE;
 
@@ -582,12 +581,12 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 		else if (!strcmp(tagName, "value")) {
 			if (cc != CC_NUMBER_NONE && midiParamCollection) {
 
-				MIDIParam* midiParam = midiParamCollection->params.getOrCreateParamFromCC(cc, 0);
-				if (!midiParam) {
-					return Error::INSUFFICIENT_RAM;
+				auto maybeMidiParam = midiParamCollection->getOrCreateParamFromCC(cc);
+				if (!maybeMidiParam) {
+					return maybeMidiParam.error();
 				}
 
-				Error error = midiParam->param.readFromFile(reader, readAutomationUpToPos);
+				Error error = maybeMidiParam.value()->second.readFromFile(reader, readAutomationUpToPos);
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -676,7 +675,7 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 
 	// CC (besides 74)
 	if (modelStackWithAutoParam->paramCollection == midiParamCollection) {
-		midiParamCollection->params.deleteAtKey(oldCC);
+		midiParamCollection->params.erase(oldCC);
 	}
 
 	// Expression param
@@ -816,7 +815,7 @@ void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack
 
 void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 	int32_t channel = getChannel();
-	ArpeggiatorSettings* arpSettings = NULL;
+	ArpeggiatorSettings* arpSettings = nullptr;
 	if (activeClip) {
 		arpSettings = &((InstrumentClip*)activeClip)->arpSettings;
 	}
@@ -1237,19 +1236,25 @@ void MIDIInstrument::sendNoteToInternal(bool on, int32_t note, uint8_t velocity,
 	}
 }
 
-String* MIDIInstrument::getNameFromCC(int32_t cc) {
-	if (cc >= 0 && cc < kNumRealCCNumbers) {
-		MIDILabel* midiLabel = midiLabelCollection.labels.getLabelFromCC(cc);
-
-		if (midiLabel) {
-			return &midiLabel->name;
-		}
+std::string_view MIDIInstrument::getNameFromCC(int32_t cc) {
+	if (cc < 0 || cc >= kNumRealCCNumbers) {
+		// out of range
+		return std::string_view{};
 	}
-	return nullptr;
+
+	auto it = labels.find(cc);
+
+	// found
+	if (it != labels.end()) {
+		return it->second;
+	}
+
+	// not found
+	return std::string_view{};
 }
 
 void MIDIInstrument::setNameForCC(int32_t cc, String* name) {
 	if (cc >= 0 && cc < kNumRealCCNumbers) {
-		midiLabelCollection.labels.setOrCreateLabelForCC(cc, name->get());
+		labels[cc] = name->get();
 	}
 }

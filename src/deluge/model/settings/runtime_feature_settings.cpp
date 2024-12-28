@@ -159,9 +159,9 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LightShiftLed], STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT,
 	                  "lightShift", RuntimeFeatureStateToggle::Off);
 
-	// EnableDxShortcuts
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableDxShortcuts], STRING_FOR_COMMUNITY_FEATURE_DX_SHORTCUTS,
-	                  "enableDxShortcuts", RuntimeFeatureStateToggle::Off);
+	// EnableDX7Engine
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableDX7Engine], STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE,
+	                  "EnableDX7Engine", RuntimeFeatureStateToggle::Off);
 
 	// EmulatedDisplay
 	SetupEmulatedDisplaySetting(settings[RuntimeFeatureSettingType::EmulatedDisplay],

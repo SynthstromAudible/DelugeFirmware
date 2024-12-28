@@ -19,10 +19,10 @@
 
 #include "deluge/io/midi/cable_types/usb_common.h"
 
-class MIDIDeviceUSBHosted : public MIDICableUSB {
+class MIDICableUSBHosted : public MIDICableUSB {
 public:
-	virtual ~MIDIDeviceUSBHosted() = default;
-	MIDIDeviceUSBHosted() = default;
+	virtual ~MIDICableUSBHosted() = default;
+	MIDICableUSBHosted() = default;
 
 	void writeReferenceAttributesToFile(Serializer& writer) override;
 	void writeToFlash(uint8_t* memory) override;

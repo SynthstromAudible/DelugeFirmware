@@ -39,8 +39,9 @@ inline int32_t Patcher::getSourceValue(PatchSource s) {
 void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, Sound* sound,
                                                         ParamManagerForTimeline* paramManager) {
 
-	int32_t cableCombination = (p < patchableInfo->firstHybridParam) ? combineCablesLinear(NULL, p, sound, paramManager)
-	                                                                 : combineCablesExp(NULL, p, sound, paramManager);
+	int32_t cableCombination = (p < patchableInfo->firstHybridParam)
+	                               ? combineCablesLinear(nullptr, p, sound, paramManager)
+	                               : combineCablesExp(nullptr, p, sound, paramManager);
 
 	int32_t finalValue;
 	int32_t paramNeutralValue = paramNeutralValues[p];
@@ -327,13 +328,13 @@ void Patcher::performInitialPatching(Sound* sound, ParamManager* paramManager) {
 		// the few which do, we overwrite those values
 		int32_t firstHybridParam = patchableInfo->firstHybridParam;
 		for (; p < firstHybridParam; p++) {
-			paramFinalValues[p] = combineCablesLinear(NULL, p, sound, paramManager);
+			paramFinalValues[p] = combineCablesLinear(nullptr, p, sound, paramManager);
 		}
 
 		// And now we do the same for params whose cables get added
 		int32_t endParams = patchableInfo->endParams;
 		for (; p < endParams; p++) {
-			paramFinalValues[p] = combineCablesExp(NULL, p, sound, paramManager);
+			paramFinalValues[p] = combineCablesExp(nullptr, p, sound, paramManager);
 		}
 
 		Destination* destination = paramManager->getPatchCableSet()->destinations[patchableInfo->globality];

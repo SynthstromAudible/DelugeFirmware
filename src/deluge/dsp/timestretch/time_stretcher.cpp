@@ -44,11 +44,11 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 	// D_PRINTLN("TimeStretcher::init");
 
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		clustersForPercLookahead[l] = NULL;
+		clustersForPercLookahead[l] = nullptr;
 	}
 
 	for (int32_t l = 0; l < 2; l++) {
-		percCacheClustersNearby[l] = NULL;
+		percCacheClustersNearby[l] = nullptr;
 	}
 
 	playHeadStillActive[PLAY_HEAD_OLDER] = true;
@@ -56,7 +56,7 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 
 	samplePosBig = newSamplePosBig;
 
-	buffer = NULL;
+	buffer = nullptr;
 
 	numTimesMissedHop = 0;
 
@@ -179,7 +179,7 @@ void TimeStretcher::unassignAllReasonsForPercLookahead() {
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clustersForPercLookahead[l]) {
 			audioFileManager.removeReasonFromCluster(*clustersForPercLookahead[l], "E130");
-			clustersForPercLookahead[l] = NULL;
+			clustersForPercLookahead[l] = nullptr;
 		}
 	}
 }
@@ -188,7 +188,7 @@ void TimeStretcher::unassignAllReasonsForPercCacheClusters() {
 	for (int32_t l = 0; l < 2; l++) {
 		if (percCacheClustersNearby[l]) {
 			audioFileManager.removeReasonFromCluster(*percCacheClustersNearby[l], "E132");
-			percCacheClustersNearby[l] = NULL;
+			percCacheClustersNearby[l] = nullptr;
 		}
 	}
 }
@@ -953,7 +953,7 @@ optForDirectReading:
 	if (buffer && !olderHeadReadingFromBuffer) { // olderHeadReadingFromBuffer will always be false - we set it above,
 		                                         // at the start
 		delugeDealloc(buffer);
-		buffer = NULL;
+		buffer = nullptr;
 		D_PRINTLN("abandoning buffer!!!!!!!!!!!!!!!!");
 	}
 
@@ -1044,7 +1044,7 @@ void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int
 
 bool TimeStretcher::allocateBuffer(int32_t numChannels) {
 	buffer = (int32_t*)allocMaxSpeed(TimeStretch::kBufferSize * sizeof(int32_t) * numChannels);
-	return (buffer != NULL);
+	return (buffer != nullptr);
 }
 
 void TimeStretcher::readFromBuffer(int32_t* __restrict__ oscBufferPos, int32_t numSamples, int32_t numChannels,
@@ -1171,7 +1171,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 	// If we're really unlucky, allocating the buffer may have stolen from the cache
 	if (originalCacheWriteBytePos != cache->writeBytePos) {
 		delugeDealloc(buffer);
-		buffer = NULL;
+		buffer = nullptr;
 		return;
 	}
 

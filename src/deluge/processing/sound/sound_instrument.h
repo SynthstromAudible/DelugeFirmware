@@ -66,7 +66,7 @@ public:
 	              int32_t fromMIDIChannel, uint8_t velocity, uint32_t sampleSyncLength, int32_t ticksLate,
 	              uint32_t samplesLate) override;
 
-	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) override;
+	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr) override;
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
 	void prepareForHibernationOrDeletion() override;

@@ -131,7 +131,8 @@ void Browser::emptyFileItems() {
 		i++;
 		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
 			AudioEngine::logAction("emptyFileItems in loop");
-			AudioEngine::routineWithClusterLoading();
+			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 		}
 	}
 
@@ -151,7 +152,8 @@ void Browser::deleteSomeFileItems(int32_t startAt, int32_t stopAt) {
 
 		i++;
 		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
-			AudioEngine::routineWithClusterLoading();
+			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 		}
 	}
 
@@ -175,7 +177,7 @@ doCull:
 	Error error = fileItems.insertAtIndex(newIndex);
 	if (error != Error::NONE) {
 		if (alreadyCulled) {
-			return NULL;
+			return nullptr;
 		}
 		else {
 			goto doCull;
@@ -282,8 +284,8 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 
 	numFileItemsDeletedAtStart = 0;
 	numFileItemsDeletedAtEnd = 0;
-	firstFileItemRemaining = NULL;
-	lastFileItemRemaining = NULL;
+	firstFileItemRemaining = nullptr;
+	lastFileItemRemaining = nullptr;
 	catalogSearchDirection = newCatalogSearchDirection;
 	maxNumFileItemsNow = newMaxNumFileItems;
 	filenameToStartSearchAt = filenameToStartAt;
@@ -1500,7 +1502,7 @@ void Browser::displayText(bool blinkImmediately) {
 
 FileItem* Browser::getCurrentFileItem() {
 	if (fileIndexSelected == -1) {
-		return NULL;
+		return nullptr;
 	}
 	return (FileItem*)fileItems.getElementAddress(fileIndexSelected);
 }

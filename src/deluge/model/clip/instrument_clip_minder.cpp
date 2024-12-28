@@ -44,7 +44,6 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/scale/preset_scales.h"
 #include "model/song/song.h"
-#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "playback/mode/arrangement.h"
 #include "processing/engines/cv_engine.h"
@@ -142,11 +141,11 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 		bool appendedName = false;
 
 		if (controlNumber >= 0 && controlNumber < kNumRealCCNumbers) {
-			String* name = midiInstrument->getNameFromCC(controlNumber);
+			std::string_view name = midiInstrument->getNameFromCC(controlNumber);
 			// if we have a name for this midi cc set by the user, display that instead of the cc number
-			if (name && !name->isEmpty()) {
-				buffer.append(name->get());
-				doScroll = name->getLength() > 4 ? true : false;
+			if (!name.empty()) {
+				buffer.append(name.data());
+				doScroll = name.size() > 4;
 				appendedName = true;
 			}
 		}
@@ -266,7 +265,7 @@ gotError:
 	if (shouldReplaceWholeInstrument) {
 		// newInstrument->loadAllSamples(true); // There'll be no samples cos it's new and blank
 		//  This is how we feed a ParamManager into the replaceInstrument() function
-		currentSong->backUpParamManager((ModControllableAudio*)newInstrument->toModControllable(), NULL,
+		currentSong->backUpParamManager((ModControllableAudio*)newInstrument->toModControllable(), nullptr,
 		                                &newParamManager, true);
 		currentSong->replaceInstrument(getCurrentInstrument(), newInstrument, false);
 	}
@@ -276,7 +275,7 @@ gotError:
 		// There'll be no samples cos it's new and blank
 		// TODO: deal with errors
 		Error error = clip->changeInstrument(modelStack, newInstrument, &newParamManager,
-		                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, false);
+		                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, nullptr, false);
 
 		currentSong->addOutput(newInstrument);
 	}

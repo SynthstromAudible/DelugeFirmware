@@ -81,10 +81,10 @@ public:
 	int32_t getArrangementRecordPosAtLastActionedSwungTick();
 	void slowRoutine();
 	void scheduleSwungTickFromExternalClock();
-	int32_t getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRemainder = NULL);
-	int32_t getNumSwungTicksInSinceLastActionedSwungTick(uint32_t* timeRemainder = NULL);
-	int64_t getActualSwungTickCount(uint32_t* timeRemainder = NULL);
-	int64_t getCurrentInternalTickCount(uint32_t* remainder = NULL);
+	int32_t getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRemainder = nullptr);
+	int32_t getNumSwungTicksInSinceLastActionedSwungTick(uint32_t* timeRemainder = nullptr);
+	int64_t getActualSwungTickCount(uint32_t* timeRemainder = nullptr);
+	int64_t getCurrentInternalTickCount(uint32_t* remainder = nullptr);
 	void scheduleSwungTick();
 	int32_t getInternalTickTime(int64_t internalTickCount);
 	void scheduleTriggerClockOutTick();

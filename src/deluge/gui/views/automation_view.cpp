@@ -558,7 +558,8 @@ void AutomationView::openedInBackground() {
 
 	bool renderingToStore = (currentUIMode == UI_MODE_ANIMATION_FADE);
 
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 	AudioEngine::logAction("AutomationView::beginSession 2");
 
 	if (renderingToStore) {
@@ -1136,7 +1137,7 @@ void AutomationView::renderUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_
                                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t imageWidth,
                                          TimelineView* timelineView, bool tripletsOnHere, int32_t xDisplay) {
 	// If the visible pane extends beyond the end of the Clip, draw it as grey
-	int32_t greyStart = timelineView->getSquareFromPos(lengthToDisplay - 1, NULL, xScroll, xZoom) + 1;
+	int32_t greyStart = timelineView->getSquareFromPos(lengthToDisplay - 1, nullptr, xScroll, xZoom) + 1;
 
 	if (greyStart < 0) {
 		greyStart = 0; // This actually happened in a song of Marek's, due to another bug, but best to check
@@ -1647,10 +1648,10 @@ void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputTyp
 			bool appendedName = false;
 
 			if (clip->lastSelectedParamID >= 0 && clip->lastSelectedParamID < kNumRealCCNumbers) {
-				String* name = midiInstrument->getNameFromCC(clip->lastSelectedParamID);
+				std::string_view name = midiInstrument->getNameFromCC(clip->lastSelectedParamID);
 				// if we have a name for this midi cc set by the user, display that instead of the cc number
-				if (name && !name->isEmpty()) {
-					parameterName.append(name->get());
+				if (!name.empty()) {
+					parameterName.append(name.data());
 					appendedName = true;
 				}
 			}
@@ -3411,7 +3412,7 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 	ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip =
 	    clip->getNoteRowOnScreen(yDisplay, modelStackWithTimelineCounter);
 
-	Drum* drum = NULL;
+	Drum* drum = nullptr;
 
 	bool selectedDrumChanged = false;
 	bool selectedRowChanged = false;
@@ -3470,9 +3471,10 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 					// NoteRow is allowed to be NULL in this case.
 					int32_t yNote = clip->getYNoteFromYDisplay(yDisplay, currentSong);
 					((MelodicInstrument*)output)
-					    ->earlyNotes.insertElementIfNonePresent(
-					        yNote, ((Instrument*)output)->defaultVelocity,
-					        clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
+					    ->earlyNotes.emplace(yNote, MelodicInstrument::EarlyNoteInfo{
+					                                    ((Instrument*)output)->defaultVelocity,
+					                                    clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip),
+					                                });
 				}
 			}
 
@@ -4104,7 +4106,7 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 					instrumentClipView.drawNoteCode(yDisplay);
 
 					if (isKit) {
-						Drum* newSelectedDrum = NULL;
+						Drum* newSelectedDrum = nullptr;
 						NoteRow* noteRow = clip->getNoteRowOnScreen(yDisplay, currentSong);
 						if (noteRow) {
 							newSelectedDrum = noteRow->drum;
@@ -4416,7 +4418,7 @@ void AutomationView::copyAutomation(ModelStackWithAutoParam* modelStackWithParam
                                     int32_t xZoom) {
 	if (copiedParamAutomation.nodes) {
 		delugeDealloc(copiedParamAutomation.nodes);
-		copiedParamAutomation.nodes = NULL;
+		copiedParamAutomation.nodes = nullptr;
 		copiedParamAutomation.numNodes = 0;
 	}
 

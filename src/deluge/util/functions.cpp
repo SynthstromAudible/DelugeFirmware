@@ -1347,7 +1347,7 @@ bool isAudioFilename(char const* filename) {
 
 bool isAiffFilename(char const* filename) {
 	char* dotPos = strrchr(filename, '.');
-	return (dotPos != 0 && (!strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF")));
+	return (dotPos != NULL && (!strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF")));
 }
 
 int32_t lookupReleaseRate(int32_t input) {
@@ -1822,16 +1822,13 @@ doNormal:
 	}
 }
 
-char* replace_char(const char* str, char find, char replace) {
-	char* copy = new char[sizeof(char) * strlen(str) + 1];
-
-	strcpy(copy, str);
-	char* current_pos = strchr(copy, find);
+void replace_char(char* out_str, const char* in_str, char find, char replace) {
+	strcpy(out_str, in_str);
+	char* current_pos = strchr(out_str, find);
 	while (current_pos) {
 		*current_pos = replace;
 		current_pos = strchr(current_pos, find);
 	}
-	return copy;
 }
 
 bool charCaseEqual(char firstChar, char secondChar) {

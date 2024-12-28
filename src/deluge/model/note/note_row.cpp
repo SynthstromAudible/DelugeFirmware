@@ -53,8 +53,8 @@ NoteRow::NoteRow(int16_t newY) {
 	y = newY;
 	muted = false;
 	colourOffset = random(71);
-	drum = NULL;
-	firstOldDrumName = NULL;
+	drum = nullptr;
+	firstOldDrumName = nullptr;
 	soundingStatus = STATUS_OFF;
 	ignoreNoteOnsBefore_ = 0;
 	probabilityValue = kNumProbabilityValues;
@@ -82,14 +82,14 @@ void NoteRow::deleteOldDrumNames(bool shouldUpdatePointer) {
 	}
 
 	if (shouldUpdatePointer) {
-		firstOldDrumName = NULL;
+		firstOldDrumName = nullptr;
 	}
 }
 
 Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing) {
 	// No need to clone much stuff - it's been automatically copied already as a block of memory.
 
-	firstOldDrumName = NULL;
+	firstOldDrumName = nullptr;
 	ignoreNoteOnsBefore_ = 0;
 	// soundingStatus = STATUS_OFF;
 
@@ -574,8 +574,8 @@ Error NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, 
 	int32_t nextIndexToCopyFrom = 0;
 	int32_t nextIndexToCopyTo = 0;
 
-	Note* __restrict__ sourceNote = NULL;
-	Note* __restrict__ destNote = NULL;
+	Note* __restrict__ sourceNote = nullptr;
+	Note* __restrict__ destNote = nullptr;
 
 	// For each screen we're going to add a note on, copy all notes prior to (and including) the insertion point
 	for (int32_t screenIndex = 0; screenIndex < numScreensToAddNoteOn; screenIndex++) {
@@ -617,7 +617,7 @@ Error NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, 
 			}
 
 addNewNote:
-			sourceNote = NULL; // Reset it - we now (briefly) will not have copied any notes since inserting this one
+			sourceNote = nullptr; // Reset it - we now (briefly) will not have copied any notes since inserting this one
 
 			// And insert a new note at the position within this screen
 			destNote = newNotes.getElement(nextIndexToCopyTo);
@@ -902,7 +902,7 @@ Error NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNot
 
 		int32_t areaBeginIndexThisScreen = searchTerms[screenIndex << 1];
 
-		Note* __restrict__ destNote = NULL;
+		Note* __restrict__ destNote = nullptr;
 
 		// Copy all notes before this one (which is to the right of the area begin).
 		while (nextIndexToCopyFrom < areaBeginIndexThisScreen) {
@@ -959,7 +959,7 @@ Error NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNot
 	// Deallocate working memory - no longer needed
 	delugeDealloc(searchTerms);
 
-	Note* __restrict__ destNote = NULL;
+	Note* __restrict__ destNote = nullptr;
 
 	// Copy the final notes too - after area end on the final screen
 	while (nextIndexToCopyFrom < notes.getNumElements()) {
@@ -1398,7 +1398,7 @@ Error NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow
 
 	int32_t nextIndexToCopyFrom = 0;
 	int32_t nextIndexToCopyTo = 0;
-	Note* __restrict__ destNote = NULL;
+	Note* __restrict__ destNote = nullptr;
 
 	// Deal with wrapping right
 	if (nudgeOffset >= 0 && (numScreens - 1) * wrapEditLevel + editPos + 1 == effectiveLength) {
@@ -1426,7 +1426,7 @@ Error NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow
 				}
 			}
 
-			destNote = NULL;     // We don't want to do anything further to this Note below like we normally would after
+			destNote = nullptr;  // We don't want to do anything further to this Note below like we normally would after
 			                     // copying a nudge one
 			numSourceNotes--;    // Don't copy the last one when we get to it - we've just done it
 			nextIndexToCopyTo++; // We've now copied our first destination note
@@ -2155,7 +2155,7 @@ noFurtherNotes:
 	else {
 		bool justStoppedConstantNote = false;
 		bool alreadySearchedBackwards = false;
-		Note* thisNote = NULL;
+		Note* thisNote = nullptr;
 
 		// If user is auditioning note...
 		if (isAuditioning(modelStack)) {
@@ -2390,7 +2390,7 @@ bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
 		return drum && drum->auditioned;
 	}
 	else {
-		return (((MelodicInstrument*)output)->notesAuditioned.searchExact(y) != -1);
+		return ((MelodicInstrument*)output)->notesAuditioned.contains(y);
 	}
 }
 
@@ -2466,7 +2466,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 	}
 	*/
 
-	Sound* sound = NULL;
+	Sound* sound = nullptr;
 	ParamManagerForTimeline* thisParamManager;
 	if (drum && drum->type == DrumType::SOUND) {
 		sound = (SoundDrum*)drum;
@@ -2573,7 +2573,7 @@ storePendingNoteOn:
 			    modelStack->addOtherTwoThings(((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
 			                                  &modelStack->getTimelineCounter()->paramManager);
 			((MelodicInstrument*)output)
-			    ->sendNote(modelStackWithThreeMainThings, false, getNoteCode(), NULL, MIDI_CHANNEL_NONE, lift);
+			    ->sendNote(modelStackWithThreeMainThings, false, getNoteCode(), nullptr, MIDI_CHANNEL_NONE, lift);
 		}
 	}
 	else if (drum) {
@@ -2793,8 +2793,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 
 	// Deal with single droning note case - but don't do this for samples in CUT or STRETCH mode
 	if (numNotesBefore == 1 && notes.getElement(0)->length == oldLoopLength) {
-		Sound* sound = NULL;
-		ParamManagerForTimeline* paramManagerNow = NULL;
+		Sound* sound = nullptr;
+		ParamManagerForTimeline* paramManagerNow = nullptr;
 
 		if (drum && drum->type == DrumType::SOUND) {
 			sound = (SoundDrum*)drum;
@@ -3665,7 +3665,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 	// Set drum to NULL first - it's crucial because we're about to call the following functions:
 	// - currentSong->findParamManagerForDrum() looks for NoteRows with this Drum. We don't want to be one just
 	// yet, or we'll be the one that's found
-	drum = NULL;
+	drum = nullptr;
 
 	// Grab new ParamManager from that backed up in Drum
 	if (newDrum && newDrum->type == DrumType::SOUND) {
@@ -3691,7 +3691,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 				if (success) {
 					trimParamManager(modelStack);
 				}
-				drum = NULL;
+				drum = nullptr;
 
 				// If there still isn't one, grab from another NoteRow
 				if (!paramManager.containsAnyMainParamCollections()) {
@@ -3729,7 +3729,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		    modelStack->addOtherTwoThings(soundDrum, &paramManager);
 		drum = soundDrum;
 		soundDrum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(modelStackWithThreeMainThings);
-		drum = NULL; // Yup this ugliness again, sorry!
+		drum = nullptr; // Yup this ugliness again, sorry!
 
 		ParamCollectionSummary* patchCablesSummary = paramManager.getPatchCableSetSummary();
 		PatchCableSet* patchCableSet = (PatchCableSet*)patchCablesSummary->paramCollection;
@@ -4098,8 +4098,8 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 
 	// Deal with single droning note case - but don't do this for samples in CUT or STRETCH mode
 	if (numToInsert == 1 && notes.getElement(0)->length == otherNoteRowLength) {
-		Sound* sound = NULL;
-		ParamManagerForTimeline* paramManagerNow = NULL;
+		Sound* sound = nullptr;
+		ParamManagerForTimeline* paramManagerNow = nullptr;
 
 		if (drum && drum->type == DrumType::SOUND) {
 			sound = (SoundDrum*)drum;
@@ -4273,7 +4273,7 @@ void NoteRow::trimParamManager(ModelStackWithNoteRow* modelStack) {
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
 	int32_t effectiveLength = modelStackWithThreeMainThings->getLoopLength();
-	paramManager.trimToLength(effectiveLength, modelStackWithThreeMainThings, NULL, false);
+	paramManager.trimToLength(effectiveLength, modelStackWithThreeMainThings, nullptr, false);
 }
 
 uint32_t NoteRow::getLivePos(ModelStackWithNoteRow const* modelStack) {

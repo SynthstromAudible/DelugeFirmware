@@ -700,7 +700,7 @@ ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int32_t whichM
 	ModelStackWithParamId* newModelStack1 = modelStack->addParamCollectionAndId(paramCollection, summary, paramId);
 
 	if (paramId == 255) {
-		return newModelStack1->addAutoParam(NULL); // Communicate there's no param, back to caller
+		return newModelStack1->addAutoParam(nullptr); // Communicate there's no param, back to caller
 	}
 	else {
 		return newModelStack1->paramCollection->getAutoParamFromId(newModelStack1, allowCreation);

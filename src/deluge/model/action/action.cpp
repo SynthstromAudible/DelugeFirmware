@@ -41,12 +41,12 @@
 #include <new>
 
 Action::Action(ActionType newActionType) {
-	firstConsequence = NULL;
-	nextAction = NULL;
+	firstConsequence = nullptr;
+	nextAction = nullptr;
 	type = newActionType;
 	openForAdditions = true;
 
-	clipStates = NULL;
+	clipStates = nullptr;
 	numClipStates = 0;
 	creationTime = AudioEngine::audioSampleTimer;
 
@@ -74,7 +74,7 @@ void Action::deleteAllConsequences(int32_t whichQueueActionIn, Song* song, bool 
 		delugeDealloc(toDelete);
 	}
 	if (!destructing) {
-		firstConsequence = NULL;
+		firstConsequence = nullptr;
 	}
 }
 
@@ -93,12 +93,12 @@ Error Action::revert(TimeType time, ModelStack* modelStack) {
 	// record the Consequences involved in doing so, so that this Action can then be reverted in the opposite direction
 	// next time
 	if (type == ActionType::ARRANGEMENT_RECORD) {
-		firstConsequence = NULL;
+		firstConsequence = nullptr;
 		currentSong->clearArrangementBeyondPos(posToClearArrangementFrom, this);
 		time = BEFORE;
 	}
 
-	Consequence* newFirstConsequence = NULL;
+	Consequence* newFirstConsequence = nullptr;
 
 	Error error = Error::NONE;
 
@@ -319,7 +319,7 @@ void Action::updateYScrollClipViewAfter(InstrumentClip* clip) {
 	    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
 		numClipStates = 0;
 		delugeDealloc(clipStates);
-		clipStates = NULL;
+		clipStates = nullptr;
 		D_PRINTLN("discarded clip states");
 		return;
 	}

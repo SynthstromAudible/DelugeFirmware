@@ -116,7 +116,7 @@ public:
 
 	MenuItem* selectButtonPress() final {
 		if (soundEditor.currentSource->oscType != OscType::DX7) {
-			return NULL;
+			return nullptr;
 		}
 		return (MenuItem*)&dxMenu;
 	}

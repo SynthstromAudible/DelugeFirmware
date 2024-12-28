@@ -88,5 +88,5 @@ public:
 	virtual void expressionEvent(int32_t newValue, int32_t expressionDimension) {}
 	void getCombinedExpressionInputs(int16_t* combined);
 
-	virtual ModControllable* toModControllable() { return NULL; }
+	virtual ModControllable* toModControllable() { return nullptr; }
 };
