@@ -274,6 +274,9 @@ public:
 	virtual bool isSubmenu() { return false; }
 	virtual void setupNumberEditor() {}
 	virtual void updatePadLights();
+	/// Called to inform automation view that the active parameter has changed. Parameters inheriting
+	/// from Automation forward there, no-op for everything else.
+	virtual void updateAutomationViewParameter() { return; }
 
 	/// @}
 };

@@ -80,4 +80,8 @@ void Integer::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t star
 	                 0, startX + width);
 }
 
+void Integer::updateAutomationViewParameter() {
+	Automation::handleAutomationViewParameterUpdate();
+}
+
 } // namespace deluge::gui::menu_item::patched_param

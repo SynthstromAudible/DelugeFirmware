@@ -274,4 +274,8 @@ void PatchCableStrength::horizontalEncoderAction(int32_t offset) {
 	}
 }
 
+void PatchCableStrength::updateAutomationViewParameter() {
+	Automation::handleAutomationViewParameterUpdate();
+}
+
 } // namespace deluge::gui::menu_item

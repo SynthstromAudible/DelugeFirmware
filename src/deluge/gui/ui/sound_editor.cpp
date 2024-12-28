@@ -827,11 +827,14 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 		scaledOffset *= 5;
 	}
 
+	MenuItem* item = getCurrentMenuItem();
 	RootUI* rootUI = getRootUI();
 
-	// if you're not on the automation overview and you haven't selected a multi pad press
-	// (multi pad press values are only editable with mod encoders to edit left and right position)
-	if (rootUI == &automationView && isEditingAutomationViewParam() && !automationView.multiPadPressSelected) {
+	// Forward to automation view.
+	// - skipped for submenus, since vertical menus don't need it, and horizontal menus need extra case
+	// - TODO: this could be handled by the Automation class via regular forwarding for all cases
+	if (!item->isSubmenu() && rootUI == &automationView && isEditingAutomationViewParam()
+	    && !automationView.multiPadPressSelected) {
 		automationView.modEncoderAction(0, scaledOffset);
 	}
 	else {
@@ -851,7 +854,6 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 			hadNoteTails = currentSound->allowNoteTails(modelStack);
 		}
 
-		MenuItem* item = getCurrentMenuItem();
 		item->selectEncoderAction(item->isSubmenu() ? offset * getKnobSpeed(offset) : scaledOffset);
 
 		if (currentSound) {

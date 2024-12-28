@@ -65,7 +65,6 @@ public:
 	deluge::modulation::params::Kind getParamKind() override;
 	uint32_t getParamIndex() override;
 
-
 protected:
 	void drawVerticalMenu();
 	void drawHorizontalMenu();
