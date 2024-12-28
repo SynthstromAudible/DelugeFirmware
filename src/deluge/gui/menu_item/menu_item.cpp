@@ -73,3 +73,42 @@ void MenuItem::renderSubmenuItemTypeForOled(int32_t yPixel) {
 
 	image.drawGraphicMultiLine(deluge::hid::display::OLED::submenuArrowIcon, startX, yPixel, kSubmenuIconSpacingX);
 }
+
+void MenuItem::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
+	// Render item name
+
+	// TODO: refactor this into renderShortName() that can be used to render column titles as well,
+	// and shared with other renderInHorizontalMenu() methods.
+
+	std::string_view name = getShortName();
+	size_t nameLen = std::min((size_t)(width / kTextTitleSpacingX), name.size());
+	// If we can fit the whole name, we do, if we can't we chop one letter off. It just looks and
+	// feels better, at least with the names we have now.
+	if (name.size() > nameLen) {
+		nameLen -= 1;
+	}
+	DEF_STACK_STRING_BUF(shortName, 10);
+	for (uint8_t p = 0; p < nameLen; p++) {
+		shortName.append(name[p]);
+	}
+	int32_t pxLen = image.getStringWidthInPixels(shortName.c_str(), kTextTitleSizeY);
+	// Padding to center the string. If we can't center exactly, 1px right is better than 1px left.
+	int32_t pad = (width + 1 - pxLen) / 2;
+	image.drawString(shortName.c_str(), pad + startX, startY + kTextSpacingY, kTextTitleSpacingX, kTextTitleSizeY, 0,
+	                 startX + width);
+}
+
+void MenuItem::updatePadLights() {
+	soundEditor.updatePadLightsFor(this);
+}
+
+bool isItemRelevant(MenuItem* item) {
+	if (item == nullptr) {
+		return false;
+	}
+	else {
+		return item->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex);
+	}
+}

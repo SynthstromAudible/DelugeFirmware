@@ -57,6 +57,8 @@ public:
 
 	ModelStackWithAutoParam* getModelStackWithParam(void* memory) override;
 
+	void updateAutomationViewParameter() override;
+
 	/// Used when scrolling horizontally to briefly catch on min / max decimal number edit position
 	uint32_t delayHorizontalScrollUntil = 0;
 
