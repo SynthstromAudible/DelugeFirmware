@@ -31,45 +31,54 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 	static_assert(kMaxNumActiveNotes < 32, "We use a 32-bit integer to represent note active state");
 	uint32_t activeNotes = 0;
 	std::array<int32_t, kMaxNumActiveNotes> noteOnTimes{};
+	// D_PRINTLN("start evaluating pads");
+	for (int32_t idxPress = kMaxNumKeyboardPadPresses; --idxPress >= 0;) {
+		if (presses[idxPress].active) {
+			if (presses[idxPress].x
+			    < kDisplayWidth) { // the width check is to avoid the sidebar being able to activate notes
+				uint8_t edgeSizeX = (uint32_t)getState().drums.edgeSizeX;
+				uint8_t edgeSizeY = (uint32_t)getState().drums.edgeSizeY;
+				uint8_t note = noteFromCoords(presses[idxPress].x, presses[idxPress].y, edgeSizeX, edgeSizeY);
 
-	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
-		if (presses[idxPress].active && presses[idxPress].x < kDisplayWidth) {
-			uint8_t edgeSizeX = (uint32_t)getState().drums.edgeSizeX;
-			uint8_t edgeSizeY = (uint32_t)getState().drums.edgeSizeY;
-			uint8_t note = noteFromCoords(presses[idxPress].x, presses[idxPress].y, edgeSizeX, edgeSizeY);
+				uint8_t velocity =
+				    (velocityFromCoords(presses[idxPress].x, presses[idxPress].y, edgeSizeX, edgeSizeY) >> 1);
+				auto noteOnIdx = currentNotesState.enableNote(note, velocity);
 
-			uint8_t velocity =
-			    (velocityFromCoords(presses[idxPress].x, presses[idxPress].y, edgeSizeX, edgeSizeY) >> 1);
-			auto noteOnIdx = currentNotesState.enableNote(note, velocity);
+				// D_PRINTLN("noteOnIdx: %d, idxPress: %d", noteOnIdx, idxPress);
+				// exceeded maximum number of active notes, ignore this note-on
+				// if (noteOnIdx >= kMaxNumActiveNotes) {
+				// 	continue;
+				// }
 
-			// exceeded maximum number of active notes, ignore this note-on
-			if (noteOnIdx == kMaxNumActiveNotes) {
-				continue;
-			}
-
-			if ((activeNotes & (1 << noteOnIdx)) == 0) {
-				activeNotes |= 1 << noteOnIdx;
-				noteOnTimes[noteOnIdx] = presses[idxPress].timeLastPadPress;
-			}
-			else {
-				// this is a retrigger on the same note, see if we should update the velocity
-				auto lastOnTime = noteOnTimes[noteOnIdx];
-				auto thisOnTime = presses[idxPress].timeLastPadPress;
-				if (util::infinite_a_lt_b(lastOnTime, thisOnTime)) {
-					// this press is more recent, use its velocity.
-					currentNotesState.notes[noteOnIdx].velocity = velocity;
-					noteOnTimes[noteOnIdx] = thisOnTime;
+				if ((activeNotes & (1 << noteOnIdx)) == 0) {
+					activeNotes |= 1 << noteOnIdx;
+					noteOnTimes[noteOnIdx] = presses[idxPress].timeLastPadPress;
 				}
-			}
+				else {
+					// this is a retrigger on the same note, see if we should update the velocity
+					auto lastOnTime = noteOnTimes[noteOnIdx];
+					auto thisOnTime = presses[idxPress].timeLastPadPress;
+					if (util::infinite_a_lt_b(lastOnTime, thisOnTime)) {
+						// this press is more recent, use its velocity.
+						currentNotesState.notes[noteOnIdx].velocity = velocity;
+						noteOnTimes[noteOnIdx] = thisOnTime;
+					}
+				}
 
-			// if this note was recently pressed, set it as the selected drum
-			if (isShortPress(noteOnTimes[noteOnIdx])) {
-				InstrumentClip* clip = getCurrentInstrumentClip();
-				Kit* thisKit = (Kit*)clip->output;
-				Drum* thisDrum = thisKit->getDrumFromNoteCode(clip, note);
-				bool shouldSendMidiFeedback = false;
-				instrumentClipView.setSelectedDrum(thisDrum, true, nullptr, shouldSendMidiFeedback);
+				// if this note was recently pressed, set it as the selected drum
+				if (isShortPress(noteOnTimes[noteOnIdx])) {
+					InstrumentClip* clip = getCurrentInstrumentClip();
+					Kit* thisKit = (Kit*)clip->output;
+					Drum* thisDrum = thisKit->getDrumFromNoteCode(clip, note);
+					bool shouldSendMidiFeedback = false;
+					instrumentClipView.setSelectedDrum(thisDrum, true, nullptr, shouldSendMidiFeedback);
+				}
+
+				// D_PRINTLN("active notes: %d", log2(activeNotes+1) + 1);
 			}
+		}
+		else {
+			break;
 		}
 	}
 }

@@ -64,9 +64,7 @@ private:
 		}
 		else {
 			uint8_t position = (x % edgeSizeX) + 1;
-			if (edgeSizeY > 1) { // only need to calculate y position if we have more than one row per pad
-				position += ((y % edgeSizeY) * edgeSizeX);
-			}
+			position += ((y % edgeSizeY) * edgeSizeX);
 			// We use two bytes to keep the precision of the calculations high,
 			// then shift it down to one byte at the end
 			uint32_t stepSize = 0xFFFF / (edgeSizeX * edgeSizeY);

@@ -153,7 +153,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 				pressedPads[idx].active = false;
 				markDead = idx;
 				if ((AudioEngine::audioSampleTimer - pressedPads[idx].timeLastPadPress) > FlashStorage::holdTime) {
-					pressedPads[idx].padPressHeld = true;
+					pressedPads[idx].padPressHeld = true; // why is this needed if the pad has been released?
 				}
 				break;
 			}
