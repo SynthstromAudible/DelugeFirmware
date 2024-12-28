@@ -32,7 +32,7 @@ struct PressedPad : Cartesian {
 	uint32_t timeLastPadPress;
 	bool padPressHeld;
 	bool active;
-	// all evaluatePads wil be called at least once with pad.active == false on release. Following
+	// all evaluatePads will be called at least once with pad.active == false on release. Following
 	// that, dead will be set to true to avoid repeatedly processing releases.
 	// exception - if the pad is "used up" by switching keyboard columns it will be set dead immediately to prevent
 	// processing its release, while still being set as active
