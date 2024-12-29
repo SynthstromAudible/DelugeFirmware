@@ -204,6 +204,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
 - Submenus on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 - Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.
+- The note range selection menu (aka "BOTTOM-TO-TOP") is skipped when there is only one range to select.
 
 #### <ins>OLED Display Improvements</ins>
 - Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
