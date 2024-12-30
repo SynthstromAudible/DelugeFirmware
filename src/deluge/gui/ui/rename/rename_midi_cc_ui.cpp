@@ -108,7 +108,7 @@ void RenameMidiCCUI::enterKeyPress() {
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 	int32_t cc = clip->lastSelectedParamID;
 
-	midiInstrument->setNameForCC(cc, &enteredText);
+	midiInstrument->setNameForCC(cc, enteredText.get());
 	midiInstrument->editedByUser = true; // need to set this to true so that the name gets saved with the song / preset
 
 	exitUI();
