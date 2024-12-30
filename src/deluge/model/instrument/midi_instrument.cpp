@@ -1253,8 +1253,8 @@ std::string_view MIDIInstrument::getNameFromCC(int32_t cc) {
 	return std::string_view{};
 }
 
-void MIDIInstrument::setNameForCC(int32_t cc, String* name) {
+void MIDIInstrument::setNameForCC(int32_t cc, std::string_view name) {
 	if (cc >= 0 && cc < kNumRealCCNumbers) {
-		labels[cc] = name->get();
+		labels[cc] = name;
 	}
 }
