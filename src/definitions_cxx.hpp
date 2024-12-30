@@ -194,10 +194,6 @@ constexpr int32_t kNumInstrumentSlots = 1000;
 // Don't ever make this less! The zoom rendering code uses this buffer for its stuff
 constexpr size_t kFilenameBufferSize = 256;
 
-// Macro that enumerates UI types, allowing single definition of them: used here for
-// the enum, and for names in ui.cpp
-#define DEF_UI_TYPES
-
 /// Static enum representing which view a generic UI pointer actually represents.
 /// If you update this, also update the string translations in ui.cpp!
 enum class UIType : uint8_t {
