@@ -20,6 +20,7 @@
 #include "extern.h"
 #include "gui/context_menu/load_instrument_preset.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/load/load_dx_cartridge.h"
 #include "gui/ui/root_ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -38,6 +39,8 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_instrument.h"
+#include "storage/DX7Cartridge.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
@@ -47,6 +50,13 @@
 using namespace deluge;
 namespace encoders = deluge::hid::encoders;
 using encoders::EncoderName;
+
+char const* allowedFileExtensionsXMLandSYX[] = {"XML", "Json", "syx", NULL};
+
+static bool isSYXFile(FileItem *item) {
+	size_t len = item->filename.getLength();
+	return(len >= 4 && strcasecmp(item->filename.get()+(len-4), ".syx") == 0);
+}
 
 LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
@@ -62,6 +72,7 @@ bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* row
 	}
 	return true;
 }
+
 
 bool LoadInstrumentPresetUI::opened() {
 
@@ -131,12 +142,15 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 
+	allowedFileExtensions = allowedFileExtensionsXML;
+
 	if (loadingSynthToKitRow) {
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
 		indicator_leds::blinkLed(IndicatorLED::KIT);
 	}
 	else if (outputTypeToLoad == OutputType::SYNTH) {
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
+		allowedFileExtensions = allowedFileExtensionsXMLandSYX;
 	}
 	else if (outputTypeToLoad == OutputType::MIDI_OUT) {
 		indicator_leds::blinkLed(IndicatorLED::MIDI);
@@ -290,6 +304,30 @@ void LoadInstrumentPresetUI::currentFileChanged(int32_t movementDirection) {
 	//}
 }
 
+static Error getRawFilePath(String* path, FileItem *item) {
+	path->set(&Browser::currentDir);
+
+	Error error = path->concatenate("/");
+	if (error != Error::NONE) {
+		return error;
+	}
+
+return  path->concatenate(&item->filename);
+}
+
+SoundInstrument *LoadInstrumentPresetUI::prepareForDX7(FileItem *currentFileItem) {
+	ParamManagerForTimeline newParamManager;
+	SoundInstrument* newInstrument = (SoundInstrument *)StorageManager::createNewInstrument(OutputType::SYNTH, &newParamManager);
+	newInstrument->dirPath.set(&currentDir);
+	newInstrument->syxPath.set(&currentFileItem->filename);
+	newInstrument->setupAsBlankSynth(&newParamManager, true);
+	// TODO: oldInstrumentShouldBeReplaced ??????
+	//  This is how we feed a ParamManager into the replaceInstrument() function
+	currentSong->backUpParamManager((ModControllableAudio*)newInstrument->toModControllable(), nullptr,
+									&newParamManager, true);
+	return newInstrument;
+}
+
 void LoadInstrumentPresetUI::enterKeyPress() {
 
 	FileItem* currentFileItem = getCurrentFileItem();
@@ -308,8 +346,38 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 			return;
 		}
 	}
+	else if (isSYXFile(currentFileItem)) {
+		String path;
+		getRawFilePath(&path, currentFileItem);
 
-	else {
+		// TODO: do a quick check this is a yamaha syx file - nice to leave in a slot where other SYX files can be detected as well
+		if (!loadDxCartridgeUI.tryLoad(path.get())) {
+			// display->displayPopup(path.get());
+			return;
+		}
+
+		// TODO: not if we currently is at a freshly loaded DX7 instrument, in case we can just modify it in place
+		SoundInstrument *newInstrument = prepareForDX7(currentFileItem);
+		currentSong->replaceInstrument(instrumentToReplace, newInstrument);
+		currentInstrument = newInstrument;
+		instrumentToReplace = newInstrument;
+		actionLogger.deleteAllLogs(); // Can't undo past this!
+		display->removeWorkingAnimation();
+		close();
+
+		if (loadDxCartridgeUI.pd->isCartridge()) {
+			loadDxCartridgeUI.currentSound = newInstrument;
+			openUI(&loadDxCartridgeUI);
+			// associating the instrument with a file is tricky, we need to
+			// allocate an "unsaved slot" which can be navigated to..
+		} else {
+			loadDxCartridgeUI.pd->unpackProgram(newInstrument->sources[0].dxPatch->params, 0);
+			currentFileItem->instrument = newInstrument;
+		}
+
+		return;
+
+	} else {
 
 		if (currentInstrumentLoadError != Error::NONE) {
 			if (loadingSynthToKitRow) {
@@ -858,6 +926,19 @@ Error LoadInstrumentPresetUI::performLoad(bool doClone) {
 		return Error::NONE; // Happens if navigate over a folder's name (Instrument stays the same),
 	}
 
+	bool is_single_syx = false;
+	if (isSYXFile(currentFileItem)) {
+		String path;
+		getRawFilePath(&path, currentFileItem);
+		loadDxCartridgeUI.tryLoad(path.get());
+
+		if (loadDxCartridgeUI.pd->isCartridge()) {
+			return Error::NONE;
+		} else {
+			is_single_syx = true;
+		}
+	}
+
 	// then back onto that neighbouring Instrument - you'd incorrectly get a "USED" error without this line.
 
 	// Work out availabilityRequirement. This can't change as presets are navigated through... I don't think?
@@ -922,9 +1003,16 @@ giveUsedError:
 		// Browser::checkFP();
 
 		// synth or kit
-		error = StorageManager::loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
-		                                               &newInstrument, &currentFileItem->filePointer, &enteredText,
-		                                               &currentDir);
+		if (is_single_syx) {
+			SoundInstrument *dxInstrument = prepareForDX7(currentFileItem);
+			newInstrument = dxInstrument;
+			loadDxCartridgeUI.pd->unpackProgram(dxInstrument->sources[0].dxPatch->params, 0);
+			currentFileItem->instrument = newInstrument;
+		} else {
+			error = StorageManager::loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
+														   &newInstrument, &currentFileItem->filePointer, &enteredText,
+														   &currentDir);
+		}
 
 		if (error != Error::NONE) {
 			return error;
@@ -1418,7 +1506,7 @@ readAgain:
 	int32_t newCatalogSearchDirection = (offset >= 0) ? CATALOG_SEARCH_RIGHT : CATALOG_SEARCH_LEFT;
 readAgainWithSameOffset:
 	toReturn.error =
-	    readFileItemsForFolder(getThingName(outputType), false, allowedFileExtensionsXML, oldNameString.get(),
+	    readFileItemsForFolder(getThingName(outputType), false, allowedFileExtensionsXMLandSYX, oldNameString.get(),
 	                           FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, newCatalogSearchDirection);
 
 	if (toReturn.error != Error::NONE) {

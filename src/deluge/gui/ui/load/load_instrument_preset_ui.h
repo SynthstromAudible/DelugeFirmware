@@ -27,6 +27,7 @@
 class Instrument;
 class InstrumentClip;
 class Output;
+class SoundInstrument;
 
 class LoadInstrumentPresetUI final : public LoadUI {
 public:
@@ -91,6 +92,8 @@ private:
 	void exitAction() override;
 	bool isInstrumentInList(Instrument* searchInstrument, Output* list);
 	bool findUnusedSlotVariation(String* oldName, String* newName);
+
+	SoundInstrument *prepareForDX7(FileItem *currentFileItem);
 
 	InstrumentClip* instrumentClipToLoadFor; // Can be NULL - if called from Arranger.
 	Instrument* instrumentToReplace; // The Instrument that's actually successfully loaded and assigned to the Clip.
