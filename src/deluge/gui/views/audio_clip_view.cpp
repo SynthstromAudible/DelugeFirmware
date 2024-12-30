@@ -57,9 +57,6 @@ using namespace deluge::gui;
 
 AudioClipView audioClipView{};
 
-AudioClipView::AudioClipView() {
-}
-
 inline Sample* getSample() {
 	if (getCurrentAudioClip()->getCurrentlyRecordingLinearly()) {
 		return getCurrentAudioClip()->recorder->sample;

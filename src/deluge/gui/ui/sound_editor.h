@@ -146,7 +146,6 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::SOUND_EDITOR; }
-	const char* getName() override { return "sound_editor"; }
 
 	bool selectedNoteRow;
 

@@ -98,8 +98,6 @@ public:
 	static char const* filenameToStartSearchAt;
 
 	// ui
-	UIType getUIType() override { return UIType::BROWSER; }
-	const char* getName() override { return "browser"; }
 	bool exitUI() override {
 		Browser::close();
 		return true;
