@@ -48,7 +48,6 @@ public:
 	bool opened() override;
 	void focusRegained() override;
 
-	const char* getName() override { return "session_view"; }
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult clipCreationButtonPressed(hid::Button i, bool on, bool routine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;

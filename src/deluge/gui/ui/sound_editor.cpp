@@ -122,7 +122,7 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 	}
 }
 
-SoundEditor soundEditor;
+SoundEditor soundEditor{};
 
 SoundEditor::SoundEditor() {
 	currentParamShorcutX = 255;

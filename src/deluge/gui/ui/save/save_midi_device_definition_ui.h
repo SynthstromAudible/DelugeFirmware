@@ -22,7 +22,7 @@ class Song;
 
 class SaveMidiDeviceDefinitionUI final : public SaveUI {
 public:
-	SaveMidiDeviceDefinitionUI();
+	SaveMidiDeviceDefinitionUI() = default;
 
 	bool opened() override;
 	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed){};
@@ -33,7 +33,9 @@ public:
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
 		return true;
 	}
-	const char* getName() override { return "save_midi_device_definition_ui"; }
+
+	// ui
+	UIType getUIType() override { return UIType::SAVE_MIDI_DEVICE_DEFINITION; }
 };
 
 extern SaveMidiDeviceDefinitionUI saveMidiDeviceDefinitionUI;

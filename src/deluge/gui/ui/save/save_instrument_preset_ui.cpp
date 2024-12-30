@@ -41,9 +41,6 @@ using namespace deluge;
 
 SaveInstrumentPresetUI saveInstrumentPresetUI{};
 
-SaveInstrumentPresetUI::SaveInstrumentPresetUI() {
-}
-
 bool SaveInstrumentPresetUI::opened() {
 
 	Instrument* currentInstrument = getCurrentInstrument();

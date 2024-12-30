@@ -36,7 +36,6 @@ public:
 	bool canSeeViewUnderneath() final { return false; }
 	ActionResult timerCallback() override;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
-	const char* getName() override { return "save_ui"; }
 
 protected:
 	// void displayText(bool blinkImmediately) final;
