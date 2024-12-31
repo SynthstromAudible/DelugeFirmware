@@ -22,8 +22,9 @@
 #define PLUGINDATA_H_INCLUDED
 
 #include "gui/l10n/strings.h"
-#include <stdint.h>
-#include <string.h>
+#include <cstdint>
+#include <cstring>
+#include <span>
 
 uint8_t sysexChecksum(const uint8_t* sysex, int size);
 void exportSysexPgm(uint8_t* dest, uint8_t* src);
@@ -45,7 +46,7 @@ class DX7Cartridge {
 	}
 
 public:
-	DX7Cartridge() {}
+	DX7Cartridge() = default;
 
 	DX7Cartridge(const DX7Cartridge& cpy) { memcpy(voiceData, cpy.voiceData, SYSEX_SIZE); }
 
@@ -87,18 +88,18 @@ public:
 	 * Returns EMPTY_STRING if it was parsed successfully
 	 * otherwise a string describing the error.
 	 */
-	deluge::l10n::String load(const uint8_t* stream, size_t size) {
+	deluge::l10n::String load(std::span<std::byte> stream) {
 		using deluge::l10n::String;
-		const uint8_t* pos = stream;
+		const std::byte* pos = stream.data();
 
 		size_t minMsgSize = 163;
 
-		if (size < minMsgSize) {
-			memcpy(voiceData + 6, pos, size);
+		if (stream.size() < minMsgSize) {
+			memcpy(voiceData + 6, pos, stream.size());
 			return String::STRING_FOR_DX_ERROR_FILE_TOO_SMALL;
 		}
 
-		if (pos[0] != 0xF0) {
+		if (pos[0] != std::byte{0xF0}) {
 			// it is not, just copy the first 4096 bytes
 			memcpy(voiceData + 6, pos, 4096);
 			return String::STRING_FOR_DX_ERROR_NO_SYSEX_START;
@@ -106,12 +107,12 @@ public:
 
 		int i;
 		// check if this is the size of a DX7 sysex cartridge
-		for (i = 0; i < size; i++) {
-			if (pos[i] == 0xF7) {
+		for (i = 0; i < stream.size(); i++) {
+			if (pos[i] == std::byte{0xF7}) {
 				break;
 			}
 		}
-		if (i == size) {
+		if (i == stream.size()) {
 			return String::STRING_FOR_DX_ERROR_NO_SYSEX_END;
 		}
 
@@ -123,7 +124,7 @@ public:
 
 		memcpy(voiceData, pos, msgSize);
 		int dataSize = (msgSize == SYSEX_SIZE) ? 4096 : 155;
-		if (sysexChecksum(voiceData + 6, dataSize) != pos[msgSize - 2]) {
+		if (sysexChecksum(voiceData + 6, dataSize) != static_cast<uint8_t>(pos[msgSize - 2])) {
 			return String::STRING_FOR_DX_ERROR_CHECKSUM_FAIL;
 		}
 
