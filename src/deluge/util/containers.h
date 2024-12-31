@@ -1,5 +1,5 @@
 #pragma once
-#include "memory/fallback_allocator.h"
+#include "memory/external_allocator.h"
 #include "memory/fast_allocator.h"
 #include <deque>
 #include <forward_list>
@@ -22,35 +22,35 @@ namespace deluge {
 // if appropriate.
 
 // Vector (resizeable variable-length array, unknown size)
-template <typename T, typename Alloc = memory::fallback_allocator<T>>
+template <typename T, typename Alloc = memory::external_allocator<T>>
 using vector = std::vector<T, Alloc>;
 
 // Doubly-ended queue
-template <typename T, typename Alloc = memory::fallback_allocator<T>>
+template <typename T, typename Alloc = memory::external_allocator<T>>
 using deque = std::deque<T, Alloc>;
 
 // Singly linked list
-template <typename T, typename Alloc = memory::fallback_allocator<T>>
+template <typename T, typename Alloc = memory::external_allocator<T>>
 using forward_list = std::forward_list<T, Alloc>;
 
 // Doubly-linked list
-template <typename T, typename Alloc = memory::fallback_allocator<T>>
+template <typename T, typename Alloc = memory::external_allocator<T>>
 using list = std::list<T, Alloc>;
 
 // Tree map
-template <typename Key, typename T, typename Alloc = memory::fallback_allocator<std::pair<const Key, T>>>
+template <typename Key, typename T, typename Alloc = memory::external_allocator<std::pair<const Key, T>>>
 using map = std::map<Key, T, std::less<Key>, Alloc>;
 
 // Hash map
-template <typename Key, typename T, typename Alloc = memory::fallback_allocator<std::pair<const Key, T>>>
+template <typename Key, typename T, typename Alloc = memory::external_allocator<std::pair<const Key, T>>>
 using unordered_map = std::unordered_map<Key, T, std::hash<Key>, std::equal_to<Key>, Alloc>;
 
 // Stack
-template <typename T, typename Alloc = memory::fallback_allocator<T>>
+template <typename T, typename Alloc = memory::external_allocator<T>>
 using stack = std::stack<T, deque<T, Alloc>>;
 
 // Queue
-template <typename T, typename Alloc = memory::fallback_allocator<T>>
+template <typename T, typename Alloc = memory::external_allocator<T>>
 using queue = std::queue<T, deque<T, Alloc>>;
 
 // Vector (resizeable variable-length array, unknown size)

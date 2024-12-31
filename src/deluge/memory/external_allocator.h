@@ -10,39 +10,40 @@ namespace deluge::memory {
 /**
  * @brief A simple GMA wrapper that conforms to the C++ Allocator trait spec
  * (see: https://en.cppreference.com/w/cpp/named_req/Allocator)
+ * @note "external" on the Deluge refers to the specially reserved non-stealable 8MiB region of SDRAM
  *
  * @tparam T The type to allocate for
  */
 template <typename T>
-class fallback_allocator {
+class external_allocator {
 public:
 	using value_type = T;
 
-	constexpr fallback_allocator() noexcept = default;
+	constexpr external_allocator() noexcept = default;
 
 	template <typename U>
-	constexpr fallback_allocator(const fallback_allocator<U>&) noexcept {};
+	constexpr external_allocator(const external_allocator<U>&) noexcept {};
 
 	[[nodiscard]] T* allocate(std::size_t n) noexcept(false) {
 		if (n == 0) {
 			return nullptr;
 		}
 		void* addr = GeneralMemoryAllocator::get().allocExternal(n * sizeof(T));
-		if (addr != nullptr) {
-			return static_cast<T*>(addr);
+		if (addr == nullptr) [[unlikely]] {
+			throw deluge::exception::BAD_ALLOC;
 		}
-		throw deluge::exception::BAD_ALLOC;
+		return static_cast<T*>(addr);
 	}
 
 	void deallocate(T* p, std::size_t n) { GeneralMemoryAllocator::get().deallocExternal(p); }
 
 	template <typename U>
-	bool operator==(const deluge::memory::fallback_allocator<U>& o) {
+	bool operator==(const deluge::memory::external_allocator<U>& o) {
 		return true;
 	}
 
 	template <typename U>
-	bool operator!=(const deluge::memory::fallback_allocator<U>& o) {
+	bool operator!=(const deluge::memory::external_allocator<U>& o) {
 		return false;
 	}
 };
