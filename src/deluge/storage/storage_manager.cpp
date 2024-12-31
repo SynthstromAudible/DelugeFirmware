@@ -59,7 +59,7 @@ void routineForSD(void);
 
 FirmwareVersion song_firmware_version = FirmwareVersion::current();
 FILINFO staticFNO;
-DIR staticDIR;
+FatFS::Directory staticDIR;
 XMLSerializer smSerializer;
 XMLDeserializer smDeserializer;
 JsonSerializer smJsonSerializer;

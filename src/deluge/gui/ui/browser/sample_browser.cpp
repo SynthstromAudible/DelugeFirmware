@@ -16,8 +16,10 @@
  */
 
 #include "definitions_cxx.hpp"
+#include "fatfs.hpp"
 #include "hid/button.h"
 #include "model/sample/sample.h"
+#include "util/try.h"
 #include <ranges>
 #undef __GNU_VISIBLE
 #define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
@@ -1191,11 +1193,10 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 		previouslyViewedFilename = currentFileItem->filename.get();
 	}
 
-	FRESULT result = f_opendir(&staticDIR, dirToLoad.get());
-	if (result != FR_OK) {
+	staticDIR = D_TRY_CATCH(FatFS::Directory::open(dirToLoad.get()), error, {
 		display->displayError(Error::SD_CARD);
 		return false;
-	}
+	});
 
 	int32_t numSamples = 0;
 
@@ -1240,10 +1241,13 @@ removeReasonsFromSamplesAndGetOut:
 		audioFileManager.loadAnyEnqueuedClusters();
 		FilePointer thisFilePointer;
 
-		result = f_readdir_get_filepointer(&staticDIR, &staticFNO, &thisFilePointer); /* Read a directory item */
+		/* Read a directory item */
+		std::tie(staticFNO, thisFilePointer) = D_TRY_CATCH(staticDIR.read_and_get_filepointer(), error, {
+			break; // break on error
+		});
 
-		if (result != FR_OK || staticFNO.fname[0] == 0) {
-			break; // Break on error or end of dir
+		if (staticFNO.fname[0] == 0) {
+			break; // Break on end of dir
 		}
 		if (staticFNO.fname[0] == '.') {
 			continue; // Ignore dot entry
@@ -1278,7 +1282,7 @@ removeReasonsFromSamplesAndGetOut:
 
 		if (!maybeNewSample.has_value() || maybeNewSample.value() == nullptr) {
 			error = maybeNewSample.error_or(Error::NONE);
-			f_closedir(&staticDIR);
+			staticDIR.close();
 			goto removeReasonsFromSamplesAndGetOut;
 		}
 
@@ -1301,7 +1305,7 @@ removeReasonsFromSamplesAndGetOut:
 
 		numSamples++;
 	}
-	f_closedir(&staticDIR);
+	staticDIR.close();
 
 	if (getPrefixAndDirLength) {
 		// If just one file, there's no prefix.
@@ -1872,7 +1876,7 @@ doReturnFalse:
 				range = source->getOrCreateFirstRange();
 				if (!range) {
 getOut:
-					f_closedir(&staticDIR);
+					staticDIR.close();
 					display->displayError(Error::INSUFFICIENT_RAM);
 					goto doReturnFalse;
 				}
