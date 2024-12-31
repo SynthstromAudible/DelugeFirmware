@@ -638,7 +638,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	}
 
 	else {
-		requestRendering();
+		// requestRendering();
 		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
 		if (result != ActionResult::NOT_DEALT_WITH) {
 			return result;

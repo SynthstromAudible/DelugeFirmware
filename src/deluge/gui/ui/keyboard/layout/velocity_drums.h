@@ -48,28 +48,38 @@ public:
 private:
 	RGB noteColours[128];
 
-	inline uint8_t noteFromCoords(int32_t x, int32_t y, uint8_t edgeSizeX, uint8_t edgeSizeY) {
-		uint8_t padsPerRow = kDisplayWidth / edgeSizeX;
-		return (x / edgeSizeX) + ((y / edgeSizeY) * padsPerRow) + getState().drums.scrollOffset;
-	}
+	// inline uint8_t noteFromCoords(int32_t x, int32_t y, uint8_t edgeSizeX, uint8_t edgeSizeY) {
+	// 	uint8_t padsPerRow = kDisplayWidth / edgeSizeX;
+	// 	uint8_t x_adjust = (x == 15 && edgeSizeX % 2 == 1 && edgeSizeX > 1) ? 1 : 0;
+	// 	return (x / edgeSizeX) - x_adjust + ((y / edgeSizeY) * padsPerRow) + getState().drums.scrollOffset;
+	// }
 
 	inline uint8_t velocityFromCoords(int32_t x, int32_t y, uint8_t edgeSizeX, uint8_t edgeSizeY) {
-
+		uint8_t velocity = 0;
 		if (edgeSizeX == 1) {
 			// No need to do a lot of calculations or use max velocity for only one option.
-			return FlashStorage::defaultVelocity;
+			velocity = FlashStorage::defaultVelocity * 2;
 		}
-		else if (edgeSizeY == 1) {
-			return ((x % edgeSizeX) + 1) * 110 / edgeSizeX; // simpler, easier on the ears.
+		else{
+			bool oddPad = (edgeSizeX % 2 == 1);  // check if has odd width pads
+			uint8_t x_limit = kDisplayWidth - 2 - edgeSizeX; // end of second to last pad in a row (the regular pads)
+			bool x_adjust = (oddPad && x > x_limit);
+			uint8_t localX = x_adjust ? x - x_limit : x % (edgeSizeX);
+
+			if (edgeSizeY == 1) {
+				velocity = (localX + 1) * 200 / (edgeSizeX + x_adjust); // simpler, easier on the ears.
+			}
+			else {
+				if(edgeSizeX % 2 == 1 && x > kDisplayWidth - 2 - edgeSizeX) edgeSizeX += 1;
+				uint8_t position = localX + 1;
+				position += ((y % edgeSizeY) * (edgeSizeX + x_adjust));
+				// We use two bytes to keep the precision of the calculations high,
+				// then shift it down to one byte at the end.
+				uint32_t stepSize = 0xFFFF / ((edgeSizeX + x_adjust) * edgeSizeY);
+				velocity = (position * stepSize) >> 8;
+			}
 		}
-		else {
-			uint8_t position = (x % edgeSizeX) + 1;
-			position += ((y % edgeSizeY) * edgeSizeX);
-			// We use two bytes to keep the precision of the calculations high,
-			// then shift it down to one byte at the end
-			uint32_t stepSize = 0xFFFF / (edgeSizeX * edgeSizeY);
-			return (position * stepSize) >> 8;
-		}
+		return velocity; // returns an integer value 0-255
 	}
 };
 
