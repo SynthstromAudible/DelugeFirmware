@@ -31,24 +31,24 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 	static_assert(kMaxNumActiveNotes < 32, "We use a 32-bit integer to represent note active state");
 	uint32_t activeNotes = 0;
 	std::array<int32_t, kMaxNumActiveNotes> noteOnTimes{};
-	// D_PRINTLN("start evaluating pads");
-	for (int32_t idxPress = kMaxNumKeyboardPadPresses; --idxPress >= 0;) {
+	uint8_t edgeSizeX = (uint32_t)getState().drums.edgeSizeX;
+	uint8_t edgeSizeY = (uint32_t)getState().drums.edgeSizeY;
+	uint8_t offset = getState().drums.scrollOffset;
+	uint8_t padsPerRow = kDisplayWidth / edgeSizeX;
+	bool oddPad = (edgeSizeX % 2 == 1 && edgeSizeX > 1);
+	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
+	// for (int32_t idxPress = kMaxNumKeyboardPadPresses; --idxPress >= 0;) {
 		if (presses[idxPress].active) {
-			if (presses[idxPress].x
-			    < kDisplayWidth) { // the width check is to avoid the sidebar being able to activate notes
-				uint8_t edgeSizeX = (uint32_t)getState().drums.edgeSizeX;
-				uint8_t edgeSizeY = (uint32_t)getState().drums.edgeSizeY;
-				uint8_t note = noteFromCoords(presses[idxPress].x, presses[idxPress].y, edgeSizeX, edgeSizeY);
-
-				uint8_t velocity =
-				    (velocityFromCoords(presses[idxPress].x, presses[idxPress].y, edgeSizeX, edgeSizeY) >> 1);
+			uint8_t x = presses[idxPress].x;
+			if (x < kDisplayWidth) {
+				// the width check is to avoid the sidebar being able to activate notes
+				bool x_adjust_N = (oddPad && x == kDisplayWidth - 1);
+				uint8_t y = presses[idxPress].y;
+				uint8_t note = (x / edgeSizeX) - x_adjust_N + ((y / edgeSizeY) * padsPerRow) + offset;
+				uint8_t velocity = (velocityFromCoords(x, y, edgeSizeX, edgeSizeY)
+				                    >> 1); // uses bitshift to divide by two, to get 0-127
+				// D_PRINTLN("velocity: %d", velocity);
 				auto noteOnIdx = currentNotesState.enableNote(note, velocity);
-
-				// D_PRINTLN("noteOnIdx: %d, idxPress: %d", noteOnIdx, idxPress);
-				// exceeded maximum number of active notes, ignore this note-on
-				// if (noteOnIdx >= kMaxNumActiveNotes) {
-				// 	continue;
-				// }
 
 				if ((activeNotes & (1 << noteOnIdx)) == 0) {
 					activeNotes |= 1 << noteOnIdx;
@@ -73,13 +73,11 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 					bool shouldSendMidiFeedback = false;
 					instrumentClipView.setSelectedDrum(thisDrum, true, nullptr, shouldSendMidiFeedback);
 				}
-
-				// D_PRINTLN("active notes: %d", log2(activeNotes+1) + 1);
 			}
 		}
-		else {
-			break;
-		}
+		// else {
+		// 	break;
+		// }
 	}
 }
 
@@ -136,7 +134,7 @@ void KeyboardLayoutVelocityDrums::precalculate() {
 	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSizeY) * (kDisplayWidth / state.edgeSizeX));
 	int32_t offset = state.scrollOffset;
 
-	// color offset controlled with shift+vert enc., +60 to go to 0 from the default of -60.
+	// color offset controlled with shift + vertical encoder, the +60 is to go to 0 from the default of -60.
 	int32_t offset2 = getCurrentInstrumentClip()->colourOffset + 60;
 	for (int32_t i = 0; i < displayedfullPadsCount; i++) {
 		int32_t i2 = offset + i;
@@ -149,27 +147,46 @@ void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBa
 	uint8_t edgeSizeX = getState().drums.edgeSizeX;
 	uint8_t edgeSizeY = getState().drums.edgeSizeY;
 	uint8_t offset = getState().drums.scrollOffset;
-	float padArea = edgeSizeX * edgeSizeY;
-	float padArea2 = pow(padArea, 2);
-	float dimBrightness = std::min(0.35 + 0.65 * padArea / 128, 0.75);
+	float padArea1 = edgeSizeX * edgeSizeY;
+	float padArea2 = pow(padArea1, 2);
+	bool oddPad = (edgeSizeX % 2 == 1 && edgeSizeX > 1);               // check if has odd width pads
+	float padArea3 = oddPad ? pow(padArea1 + edgeSizeY, 2) : padArea2; // area^2 for the odd width pads
+	// Dims more for smaller pads, less for bigger ones.
+	// Changing brightness too much on large areas is unpleasant to the eyes.
+	float dimBrightness = std::min(0.35 + 0.65 * padArea1 / 128, 0.75);
+
+	uint8_t padsPerRow = kDisplayWidth / edgeSizeX;
+	uint8_t x_limit = kDisplayWidth - 2 - edgeSizeX; // end of second to last pad in a row (the regular pads)
+	float colourIntensity = 1.0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		uint8_t localY = y % edgeSizeY;
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			uint8_t note = noteFromCoords(x, y, edgeSizeX, edgeSizeY);
+			bool x_adjust_N = (oddPad && x == kDisplayWidth - 1);
+			uint8_t note = (x / edgeSizeX) - x_adjust_N + ((y / edgeSizeY) * padsPerRow) + offset;
 			if (note > highestClipNote) {
 				image[y][x] = colours::black;
 				continue;
 			}
-
 			RGB noteColour = noteColours[note - offset];
 
-			uint8_t localX = x % edgeSizeX;
-			float position = localX + (localY * edgeSizeX) + 1;
-			float colourIntensity = position * position / padArea2; // use quadratic curve for pad brightness
-
+			if (edgeSizeX > 1){
+				bool x_adjust = (oddPad && x > x_limit);
+				float localX = x_adjust ? x - x_limit - 1 : x % edgeSizeX;
+				float edgeSizeX2 = edgeSizeX + x_adjust;
+				if(edgeSizeY == 1){
+					colourIntensity = pow((localX + 1) / edgeSizeX2, 2);
+				}
+				else{
+					float position = localX + 1 + localY * edgeSizeX2;
+					float padArea4 = x_adjust ? padArea3 : padArea2;
+					// use quadratic curve for pad brightness to make the gradient much more apparent
+					colourIntensity = position * position / padArea4;
+					// if(x < edgeSizeX && y < edgeSizeY) D_PRINTLN("I: %f", colourIntensity);
+				}
+			}
 			// Dim the active notes
+			// Brighter by default makes the pads more visible in daylight and allows for the full gradient.
 			float brightnessFactor = currentNotesState.noteEnabled(note) ? dimBrightness : 1;
-
 			image[y][x] = noteColour.transform([colourIntensity, brightnessFactor](uint8_t chan) {
 				return (chan * colourIntensity * brightnessFactor);
 			});
