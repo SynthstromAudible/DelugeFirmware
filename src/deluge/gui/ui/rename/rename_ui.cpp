@@ -20,7 +20,7 @@
 #include "gui/ui/qwerty_ui.h"
 #include "hid/display/oled.h"
 
-RenameUI::RenameUI(const char* title_) {
+RenameUI::RenameUI(const char* title_) : QwertyUI() {
 	title = title_;
 	scrollPosHorizontal = 0;
 	oledShowsUIUnderneath = true;

@@ -24,7 +24,7 @@ class Output;
 
 class RenameOutputUI final : public RenameUI {
 public:
-	RenameOutputUI(const char* title_) : RenameUI(title){};
+	RenameOutputUI(const char* title_) : RenameUI(title_){};
 	// Assigned before openUI() is called -- not necessarily the current output!
 	Output* output;
 

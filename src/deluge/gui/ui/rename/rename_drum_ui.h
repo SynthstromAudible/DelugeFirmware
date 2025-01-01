@@ -24,7 +24,7 @@ class SoundDrum;
 
 class RenameDrumUI final : public RenameUI {
 public:
-	RenameDrumUI(const char* title_) : RenameUI(title){};
+	RenameDrumUI(const char* title_) : RenameUI(title_){};
 
 protected:
 	bool trySetName(const std::string_view&) override;
