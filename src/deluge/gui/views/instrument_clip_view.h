@@ -73,7 +73,6 @@ public:
 	bool opened() override;
 	void focusRegained() override;
 	void displayOrLanguageChanged() final;
-	const char* getName() override { return "instrument_clip_view"; }
 
 	// BUTTON ACTION button press / release handling
 
@@ -331,7 +330,7 @@ private:
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
 	Drum* flipThroughAvailableDrums(int32_t newOffset, Drum* drum, bool mayBeNone = false);
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
-	                                int32_t* getIndex = NULL);
+	                                int32_t* getIndex = nullptr);
 	void createDrumForAuditionedNoteRow(DrumType drumType);
 	bool isRowAuditionedByInstrument(int32_t yDisplay);
 

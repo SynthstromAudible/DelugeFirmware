@@ -63,7 +63,7 @@ public:
 	ParamManagerForTimeline* currentParamManager;
 	SideChain* currentSidechain;
 	ArpeggiatorSettings* currentArpSettings;
-	MultiRange* currentMultiRange;
+	::MultiRange* currentMultiRange;
 	SampleControls* currentSampleControls;
 	VoicePriority* currentPriority;
 	int16_t currentMultiRangeIndex;
@@ -110,7 +110,7 @@ public:
 	bool pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2);
 	void selectEncoderAction(int8_t offset) override;
 	bool canSeeViewUnderneath() override { return true; }
-	bool setup(Clip* clip = NULL, const MenuItem* item = NULL, int32_t sourceIndex = 0);
+	bool setup(Clip* clip = nullptr, const MenuItem* item = nullptr, int32_t sourceIndex = 0);
 	void enterOrUpdateSoundEditor(bool on);
 	void blinkShortcut();
 	ActionResult potentialShortcutPadAction(int32_t x, int32_t y, bool on);
@@ -133,7 +133,7 @@ public:
 	void setCurrentMultiRange(int32_t i);
 	void possibleChangeToCurrentRangeDisplay();
 	MenuPermission checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int32_t whichThing,
-	                                                                  MultiRange** previouslySelectedRange);
+	                                                                  ::MultiRange** previouslySelectedRange);
 	void setupExclusiveShortcutBlink(int32_t x, int32_t y);
 	void setShortcutsVersion(int32_t newVersion);
 	ModelStackWithThreeMainThings* getCurrentModelStack(void* memory);
@@ -146,7 +146,6 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::SOUND_EDITOR; }
-	const char* getName() override { return "sound_editor"; }
 
 	bool selectedNoteRow;
 
@@ -154,12 +153,13 @@ public:
 	bool inNoteEditor();
 	bool inNoteRowEditor();
 	void toggleNoteEditorParamMenu(int32_t on);
+	void updatePadLightsFor(MenuItem* item);
 
 private:
 	/// Setup shortcut blinking by finding the given menu item in the provided item map
 	void setupShortcutsBlinkFromTable(MenuItem const* currentItem,
 	                                  MenuItem const* const items[kDisplayWidth][kDisplayHeight]);
-	bool beginScreen(MenuItem* oldMenuItem = NULL);
+	bool beginScreen(MenuItem* oldMenuItem = nullptr);
 	uint8_t getActualParamFromScreen(uint8_t screen);
 	void setLedStates();
 	ActionResult handleAutomationViewPadAction(int32_t x, int32_t y, int32_t velocity);

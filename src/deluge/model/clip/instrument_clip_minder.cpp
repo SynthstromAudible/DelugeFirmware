@@ -44,7 +44,6 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/scale/preset_scales.h"
 #include "model/song/song.h"
-#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "playback/mode/arrangement.h"
 #include "processing/engines/cv_engine.h"
@@ -266,7 +265,7 @@ gotError:
 	if (shouldReplaceWholeInstrument) {
 		// newInstrument->loadAllSamples(true); // There'll be no samples cos it's new and blank
 		//  This is how we feed a ParamManager into the replaceInstrument() function
-		currentSong->backUpParamManager((ModControllableAudio*)newInstrument->toModControllable(), NULL,
+		currentSong->backUpParamManager((ModControllableAudio*)newInstrument->toModControllable(), nullptr,
 		                                &newParamManager, true);
 		currentSong->replaceInstrument(getCurrentInstrument(), newInstrument, false);
 	}
@@ -276,7 +275,7 @@ gotError:
 		// There'll be no samples cos it's new and blank
 		// TODO: deal with errors
 		Error error = clip->changeInstrument(modelStack, newInstrument, &newParamManager,
-		                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, false);
+		                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, nullptr, false);
 
 		currentSong->addOutput(newInstrument);
 	}

@@ -128,7 +128,7 @@ template <uint8_t lshift>
 	}
 }
 
-char* replace_char(const char* str, char find, char replace);
+void replace_char(char* str, const char* in_str, char find, char replace);
 
 /// pads a string up to a num of characters if the current string size is shorter than num
 [[gnu::always_inline]] constexpr void padStringTo(std::string& str, const size_t num) {
@@ -375,7 +375,8 @@ inline RGB drawSquare(const RGB& squareColour, int32_t intensity, const RGB& squ
 }
 
 int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from);
-void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot = NULL, bool appendOctaveNo = true);
+void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot = nullptr,
+                      bool appendOctaveNo = true);
 void concatenateLines(const char* lines[], size_t numLines, char* resultString);
 double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */);
 int32_t divide_round_negative(int32_t dividend, int32_t divisor);

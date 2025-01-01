@@ -32,13 +32,13 @@ class SampleHolder;
 class WaveformBasicNavigator {
 public:
 	WaveformBasicNavigator();
-	void opened(SampleHolder* range = NULL);
+	void opened(SampleHolder* range = nullptr);
 	int32_t getMaxZoom();
 	bool isZoomedIn();
 
-	bool zoom(int32_t offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = NULL,
+	bool zoom(int32_t offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = nullptr,
 	          MarkerType markerType = MarkerType::NONE);
-	bool scroll(int32_t offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = NULL);
+	bool scroll(int32_t offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = nullptr);
 	void potentiallyAdjustScrollPosition(bool shouldAllowExtraScrollRight = false);
 
 	Sample* sample;

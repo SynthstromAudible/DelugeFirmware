@@ -47,7 +47,6 @@ public:
 	}
 
 protected:
-	virtual void readCurrentValue() {}
 	virtual void writeCurrentValue() {}
 
 	// 7SEG ONLY

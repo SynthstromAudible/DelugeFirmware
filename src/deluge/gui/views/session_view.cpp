@@ -329,7 +329,8 @@ moveAfterClipInstance:
 				newInstance->pos = proposedStartPos;
 				newInstance->clip = clip;
 				newInstance->length = clip->loopLength;
-				arrangement.rowEdited(output, proposedStartPos, proposedStartPos + clip->loopLength, NULL, newInstance);
+				arrangement.rowEdited(output, proposedStartPos, proposedStartPos + clip->loopLength, nullptr,
+				                      newInstance);
 
 				int32_t howMuchLater = proposedStartPos - posPressed;
 
@@ -1577,7 +1578,7 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 	if (!newInstrument) {
 		String newPresetName;
 		fileItem->getDisplayNameWithoutExtension(&newPresetName);
-		error = StorageManager::loadInstrumentFromFile(currentSong, NULL, outputType, false, &newInstrument,
+		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, outputType, false, &newInstrument,
 		                                               &fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}
 
@@ -1603,7 +1604,7 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 	display->removeWorkingAnimation();
 
 	if (copyDrumsFromClip) {
-		error = clip->setAudioInstrument(newInstrument, currentSong, true, NULL); // Does a setupPatching()
+		error = clip->setAudioInstrument(newInstrument, currentSong, true, nullptr); // Does a setupPatching()
 		if (error != Error::NONE) {
 			// TODO: needs more thought - we'd want to deallocate the Instrument...
 			return error;
@@ -1622,7 +1623,7 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
-		Error error = clip->changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::NONE);
+		Error error = clip->changeInstrument(modelStack, newInstrument, nullptr, InstrumentRemoval::NONE);
 		if (error != Error::NONE) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 		}
@@ -1850,7 +1851,7 @@ Clip* SessionView::getClipOnScreen(int32_t yDisplay) {
 	int32_t index = yDisplay + currentSong->songViewYScroll;
 
 	if (index < 0 || index >= currentSong->sessionClips.getNumElements()) {
-		return NULL;
+		return nullptr;
 	}
 
 	return currentSong->sessionClips.getClipAtIndex(index);
@@ -2259,7 +2260,7 @@ void SessionView::graphicsRoutine() {
 				}
 			}
 
-			newTickSquare = getSquareFromPos(livePos, NULL, localScroll);
+			newTickSquare = getSquareFromPos(livePos, nullptr, localScroll);
 
 			// Linearly recording
 			if (clip->getCurrentlyRecordingLinearly()) {
@@ -2743,7 +2744,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 		if (clip->type == ClipType::INSTRUMENT) {
 			// Hook point for specificMidiDevice
-			iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
+			iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
 		}
 	}
 
@@ -2787,7 +2788,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 		PadLEDs::renderClipExpandOrCollapse();
 
 		// Hook point for specificMidiDevice
-		iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
+		iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
 	}
 
 	// AudioClips
@@ -2897,7 +2898,7 @@ void SessionView::transitionToSessionView() {
 	}
 
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
 }
 
 // Might be called during card routine! So renders might fail. Not too likely
@@ -3654,7 +3655,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 
 			// Different instrument, switch the cloned clip to it
 			else if (targetOutput != sourceClip->output) {
-				Error error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
+				Error error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, nullptr,
 				                                                  InstrumentRemoval::NONE);
 				if (error != Error::NONE) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
@@ -4392,7 +4393,7 @@ void SessionView::gridTransitionToSessionView() {
 	uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, 35);
 
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
 }
 
 void SessionView::gridTransitionToViewForClip(Clip* clip) {
@@ -4476,7 +4477,7 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 	PadLEDs::sendOutSidebarColours(); // They'll have been cleared by the first explode render
 
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_CLIP_VIEW);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_CLIP_VIEW);
 }
 
 const uint32_t SessionView::gridTrackCount() {

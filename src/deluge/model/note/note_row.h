@@ -107,7 +107,7 @@ public:
 	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false);
 	void deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action);
 	void stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange = true,
-	                              Note* note = NULL);
+	                              Note* note = nullptr);
 	bool generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLength, uint32_t newLength,
 	                     int32_t numRepeatsRounded, Action* action);
 	void toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAndPlaybackIsOn);
@@ -120,7 +120,7 @@ public:
 	void readFromFlash(InstrumentClip* parentClip);
 	uint32_t getNumNotes();
 	void setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack,
-	             InstrumentClip* favourClipForCloningParamManager = NULL, ParamManager* paramManager = NULL,
+	             InstrumentClip* favourClipForCloningParamManager = nullptr, ParamManager* paramManager = nullptr,
 	             bool backupOldParamManager = true);
 
 	int32_t getDistanceToNextNote(int32_t pos, ModelStackWithNoteRow const* modelStack, bool reversed = false);
@@ -242,9 +242,9 @@ public:
 
 private:
 	void playNote(bool, ModelStackWithNoteRow* modelStack, Note*, int32_t ticksLate = 0, uint32_t samplesLate = 0,
-	              bool noteMightBeConstant = false, PendingNoteOnList* pendingNoteOnList = NULL);
+	              bool noteMightBeConstant = false, PendingNoteOnList* pendingNoteOnList = nullptr);
 	void playNextNote(InstrumentClip*, bool, bool noteMightBeConstant = false,
-	                  PendingNoteOnList* pendingNoteOnList = NULL);
+	                  PendingNoteOnList* pendingNoteOnList = nullptr);
 	void findNextNoteToPlay(uint32_t);
 	void attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack, Note* note);
 	bool noteRowMayMakeSound(bool);

@@ -72,7 +72,7 @@ void CVInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expressio
 
 void CVInstrument::updatePitchBendOutput(bool outputToo) {
 
-	ParamManager* paramManager = getParamManager(NULL);
+	ParamManager* paramManager = getParamManager(nullptr);
 	if (paramManager) {
 		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 		if (expressionParams) {

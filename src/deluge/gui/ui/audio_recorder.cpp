@@ -57,7 +57,7 @@ void oledRoutine();
 
 AudioRecorder::AudioRecorder() {
 	recordingSource = AudioInputChannel::NONE;
-	recorder = NULL;
+	recorder = nullptr;
 }
 
 bool AudioRecorder::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -252,7 +252,7 @@ void AudioRecorder::finishRecording() {
 
 	AudioEngine::discardRecorder(recorder);
 
-	recorder = NULL;
+	recorder = nullptr;
 	recordingSource = AudioInputChannel::NONE;
 	display->removeLoadingAnimation();
 }

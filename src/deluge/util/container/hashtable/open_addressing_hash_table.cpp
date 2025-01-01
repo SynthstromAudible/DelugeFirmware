@@ -28,11 +28,11 @@
 #define SECONDARY_MEMORY_FUNCTION_BEING_REHASHED_FROM 2
 
 OpenAddressingHashTable::OpenAddressingHashTable() {
-	memory = NULL;
+	memory = nullptr;
 	numBuckets = 0;
 	numElements = 0;
 
-	secondaryMemory = NULL;
+	secondaryMemory = nullptr;
 	secondaryMemoryNumBuckets = 0;
 	secondaryMemoryCurrentFunction = SECONDARY_MEMORY_FUNCTION_NONE;
 
@@ -52,11 +52,11 @@ void OpenAddressingHashTable::empty(bool destructing) {
 	}
 
 	if (!destructing) {
-		memory = NULL;
+		memory = nullptr;
 		numBuckets = 0;
 		numElements = 0;
 
-		secondaryMemory = NULL;
+		secondaryMemory = nullptr;
 		secondaryMemoryNumBuckets = 0;
 		secondaryMemoryCurrentFunction = SECONDARY_MEMORY_FUNCTION_NONE;
 	}
@@ -97,7 +97,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 		int32_t newNumBuckets = initialNumBuckets;
 		memory = GeneralMemoryAllocator::get().allocMaxSpeed(newNumBuckets * elementSize);
 		if (!memory) {
-			return NULL;
+			return nullptr;
 		}
 
 		numBuckets = newNumBuckets;
@@ -159,14 +159,14 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 			// Discard old stuff
 			secondaryMemoryCurrentFunction = SECONDARY_MEMORY_FUNCTION_NONE;
 			delugeDealloc(secondaryMemory);
-			secondaryMemory = NULL;
+			secondaryMemory = nullptr;
 			secondaryMemoryNumBuckets = 0;
 		}
 	}
 
 	// If still can't get new memory and table completely full...
 	if (numElements == numBuckets) {
-		return NULL;
+		return nullptr;
 	}
 
 	int32_t b = getBucketIndex(key);
@@ -202,7 +202,7 @@ void* OpenAddressingHashTable::lookup(uint32_t key) {
 #endif
 
 	if (!memory) {
-		return NULL;
+		return nullptr;
 	}
 
 	int32_t bInitial = getBucketIndex(key);
@@ -230,7 +230,7 @@ void* OpenAddressingHashTable::lookup(uint32_t key) {
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 // Returns whether it found the element
@@ -278,7 +278,7 @@ bool OpenAddressingHashTable::remove(uint32_t key) {
 	// If we've hit zero elements, and it's worth getting rid of the memory, just do that
 	if (!numElements && numBuckets > initialNumBuckets) {
 		delugeDealloc(memory);
-		memory = NULL;
+		memory = nullptr;
 		numBuckets = 0;
 	}
 

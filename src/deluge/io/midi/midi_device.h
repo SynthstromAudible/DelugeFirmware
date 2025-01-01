@@ -98,7 +98,9 @@ public:
 	virtual char const* getDisplayName() = 0;
 
 	void dataEntryMessageReceived(ModelStack* modelStack, int32_t channel, int32_t msb);
-	bool wantsToOutputMIDIOnChannel(int32_t channel, int32_t filter);
+
+	/// Used to decide if the given message should be output on a channel
+	[[nodiscard]] virtual bool wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const;
 
 	/// @name File IO functions
 	/// @{
@@ -122,7 +124,7 @@ public:
 	virtual void sendSysex(const uint8_t* data, int32_t len) = 0;
 
 	/// Get the number of bytes available in the send buffer.
-	virtual size_t sendBufferSpace() = 0;
+	[[nodiscard]] virtual size_t sendBufferSpace() const = 0;
 
 	/// @}
 	/// @name High-level IO functions

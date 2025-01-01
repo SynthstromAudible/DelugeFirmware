@@ -20,7 +20,7 @@
 #include <string.h>
 
 DrumName::DrumName(String* newName) {
-	next = NULL;
+	next = nullptr;
 	name.set(newName);
 }
 

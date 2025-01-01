@@ -69,7 +69,7 @@ public:
 
 	void readSamplesNative(int32_t** __restrict__ oscBufferPos, int32_t numSamplesTotal, Sample* sample,
 	                       int32_t jumpAmount, int32_t numChannels, int32_t numChannelsAfterCondensing,
-	                       int32_t* amplitude, int32_t amplitudeIncrement, TimeStretcher* timeStretcher = NULL,
+	                       int32_t* amplitude, int32_t amplitudeIncrement, TimeStretcher* timeStretcher = nullptr,
 	                       bool bufferingToTimeStretcher = false);
 
 	void readSamplesResampled(int32_t** __restrict__ oscBufferPos, int32_t numSamples, Sample* sample,
