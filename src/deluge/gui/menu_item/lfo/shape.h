@@ -24,15 +24,16 @@ class Shape : public Selection {
 public:
 	using Selection::Selection;
 
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		using enum l10n::String;
+		bool shortOpt = optType == OptType::SHORT;
 		return {
 		    l10n::getView(STRING_FOR_SINE),
 		    l10n::getView(STRING_FOR_TRIANGLE),
 		    l10n::getView(STRING_FOR_SQUARE),
 		    l10n::getView(STRING_FOR_SAW),
 		    l10n::getView(STRING_FOR_SAMPLE_AND_HOLD),
-		    l10n::getView(STRING_FOR_RANDOM_WALK),
+		    l10n::getView(shortOpt ? STRING_FOR_RANDOM_WALK_SHORT : STRING_FOR_RANDOM_WALK),
 		    l10n::getView(STRING_FOR_WARBLE),
 		};
 	}

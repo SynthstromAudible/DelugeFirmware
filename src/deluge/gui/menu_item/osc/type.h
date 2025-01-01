@@ -75,7 +75,8 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		using enum l10n::String;
 		deluge::vector<std::string_view> options = {
 		    l10n::getView(STRING_FOR_SINE),          //<
