@@ -36,10 +36,10 @@
 static bool openFile(std::string_view path, DX7Cartridge* data) {
 	using namespace deluge;
 	using enum deluge::l10n::String;
-	const int minSize = SMALL_SYSEX_SIZE;
+	constexpr size_t minSize = kSmallSysexSize;
 
 	FatFS::FileInfo fno = D_TRY_CATCH(FatFS::stat(path), error, {
-		return false; //
+		return false; // fail quickly if file doesn't exist
 	});
 
 	FSIZE_t filesize = fno.fsize;

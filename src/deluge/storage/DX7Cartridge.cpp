@@ -21,36 +21,36 @@
 #include "DX7Cartridge.h"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <ranges>
+#include <span>
 using namespace ::std;
 
-uint8_t sysexChecksum(const uint8_t* sysex, int size) {
-	int sum = 0;
-	int i;
-
-	for (i = 0; i < size; sum -= sysex[i++])
-		;
-	return sum & 0x7F;
+std::byte sysexChecksum(std::span<std::byte> sysex) {
+	int32_t sum = std::ranges::fold_left(sysex, 0, [](int32_t sum, std::byte b) {
+		return sum - std::to_integer<uint8_t>(b); // fold op
+	});
+	return std::byte(sum & 0x7F);
 }
 
-void exportSysexPgm(uint8_t* dest, uint8_t* src) {
-	uint8_t header[] = {0xF0, 0x43, 0x00, 0x00, 0x01, 0x1B};
-
-	memcpy(dest, header, 6);
+void exportSysexPgm(std::span<std::byte> dest, std::span<std::byte> src) {
+	std::array header = {0xF0, 0x43, 0x00, 0x00, 0x01, 0x1B};
+	auto [in_it, out_it] = std::ranges::copy(src, dest.begin());
 
 	// copy 1 unpacked voices
-	memcpy(dest + 6, src, 155);
+	out_it = std::copy_n(src.begin(), 155, out_it);
 
 	// make checksum for dump
-	uint8_t footer[] = {sysexChecksum(src, 155), 0xF7};
-
-	memcpy(dest + 161, footer, 2);
+	std::array footer = {sysexChecksum(src.first(155)), 0xF7_b};
+	std::ranges::copy(footer, out_it);
 }
 
 /**
  * Pack a program into a 32 packed sysex
  */
 void DX7Cartridge::packProgram(uint8_t* src, int idx, char* name, char* opSwitch) {
-	uint8_t* bulk = voiceData + 6 + (idx * 128);
+	auto* bulk = reinterpret_cast<uint8_t*>(&voiceData[6 + (idx * 128)]);
 
 	for (int op = 0; op < 6; op++) {
 		// eg rate and level, brk pt, depth, scaling
@@ -61,15 +61,21 @@ void DX7Cartridge::packProgram(uint8_t* src, int idx, char* name, char* opSwitch
 		// left curves
 		bulk[pp + 11] = (src[up + 11] & 0x03) | ((src[up + 12] & 0x03) << 2);
 		bulk[pp + 12] = (src[up + 13] & 0x07) | ((src[up + 20] & 0x0f) << 3);
+
 		// kvs_ams
 		bulk[pp + 13] = (src[up + 14] & 0x03) | ((src[up + 15] & 0x07) << 2);
+
 		// output lvl
-		if (opSwitch[op] == '0')
+		if (opSwitch[op] == '0') {
 			bulk[pp + 14] = 0;
-		else
+		}
+		else {
 			bulk[pp + 14] = src[up + 16];
+		}
+
 		// fcoarse_mode
 		bulk[pp + 15] = (src[up + 17] & 0x01) | ((src[up + 18] & 0x1f) << 1);
+
 		// fine freq
 		bulk[pp + 16] = src[up + 19];
 	}
@@ -83,8 +89,9 @@ void DX7Cartridge::packProgram(uint8_t* src, int idx, char* name, char* opSwitch
 
 	for (int i = 0; i < 10; i++) {
 		char c = (char)name[i];
-		if (c == 0)
+		if (c == 0) {
 			eos = 1;
+		}
 		if (eos) {
 			bulk[118 + i] = ' ';
 			continue;
@@ -100,8 +107,9 @@ void DX7Cartridge::packProgram(uint8_t* src, int idx, char* name, char* opSwitch
  * It used to avoid engine crashing upon extreme values
  */
 char normparm(char value, char max, int id) {
-	if (value <= max && value >= 0)
+	if (value <= max && value >= 0) {
 		return value;
+	}
 
 	// if this is beyond the max, we expect a 0-255 range, normalize this
 	// to the expected return value; and this value as a random data.
@@ -115,12 +123,12 @@ char normparm(char value, char max, int id) {
 
 void DX7Cartridge::unpackProgram(uint8_t* unpackPgm, int idx) {
 	if (!isCartridge()) {
-		memcpy(unpackPgm, voiceData + 6, 155);
+		memcpy(unpackPgm, &voiceData[6], 155);
 		return;
 	}
 
 	// TODO put this in uint8_t :D
-	char* bulk = (char*)voiceData + 6 + (idx * 128);
+	char* bulk = reinterpret_cast<char*>(&voiceData[6 + (idx * 128)]);
 
 	for (int op = 0; op < 6; op++) {
 		// eg rate and level, brk pt, depth, scaling
