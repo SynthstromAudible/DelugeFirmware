@@ -233,6 +233,10 @@ MidiFollow::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelSt
 		modelStackWithParam =
 		    getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, clip, xDisplay, yDisplay);
 		break;
+	// explicit fallthrough cases
+	case OutputType::CV:
+	case OutputType::MIDI_OUT:
+	case OutputType::NONE:;
 	}
 
 	return modelStackWithParam;

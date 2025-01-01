@@ -163,6 +163,9 @@ void PlaybackHandler::slowRoutine() {
 			case GlobalMIDICommand::REDO:
 				actionLogger.redo();
 				break;
+
+			// we're explicitly only interedted in UNDO and REDO
+			default:;
 			}
 
 			if (ALPHA_OR_BETA_VERSION && pendingGlobalMIDICommandNumClustersWritten) {

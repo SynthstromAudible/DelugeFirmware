@@ -86,6 +86,11 @@ tryDefaultDir:
 			fileIcon = deluge::hid::display::OLED::midiIcon;
 			fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
 			fileIconPt2Width = 1;
+			break;
+		// explicit fallthrough cases
+		case OutputType::CV:
+		case OutputType::AUDIO:
+		case OutputType::NONE:;
 		}
 	}
 
@@ -187,6 +192,10 @@ fail:
 		break;
 	case OutputType::MIDI_OUT:
 		endString = "\n</midi>\n";
+	// explicit fallthrough cases
+	case OutputType::AUDIO:
+	case OutputType::CV:
+	case OutputType::NONE:;
 	}
 
 	error = GetSerializer().closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",

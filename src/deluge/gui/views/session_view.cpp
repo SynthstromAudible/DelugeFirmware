@@ -117,6 +117,8 @@ bool SessionView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 			*rows = 0x0;
 			break;
 		}
+		// explicit fallthrough cases
+		case SessionLayoutType::SessionLayoutTypeMaxElement:;
 		}
 
 		return true;
@@ -616,6 +618,8 @@ doActualSimpleChange:
 							}
 							break;
 						}
+						// explicit fallthrough cases
+						case SessionLayoutType::SessionLayoutTypeMaxElement:;
 						}
 					}
 				}
@@ -1309,6 +1313,8 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 			}
 			break;
 		}
+		// explicit fallthrough cases
+		case SessionLayoutType::SessionLayoutTypeMaxElement:;
 		}
 	}
 	else {
@@ -2565,6 +2571,8 @@ void SessionView::flashPlayRoutine() {
 		}
 		break;
 	}
+	// explicit fallthrough cases
+	case SessionLayoutType::SessionLayoutTypeMaxElement:;
 	}
 }
 
@@ -3063,6 +3071,8 @@ void SessionView::selectLayout(int8_t offset) {
 			currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 			break;
 		}
+		// explicit fallthrough cases
+		case SessionLayoutType::SessionLayoutTypeMaxElement:;
 		}
 		renderLayoutChange();
 	}
@@ -3824,6 +3834,8 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			modeHandleResult = gridHandlePadsMacros(x, y, on, clip);
 			break;
 		}
+		// explicit fallthrough cases
+		case SessionGridModeMaxElement:;
 		}
 
 		if (modeHandleResult == ActionResult::DEALT_WITH) {

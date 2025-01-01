@@ -531,6 +531,8 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 				// velocity = ((arpNote.mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 1) + (1 << 14)) >>
 				// 8;
 				break;
+			// explicit fallthrough case
+			case ArpMpeModSource::OFF:;
 			}
 			// Fix base velocity if it's outside of MPE-controlled bounds
 			if (velocity < MIN_MPE_MODULATED_VELOCITY) {
@@ -893,6 +895,8 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			case ArpMpeModSource::MPE_Y:
 				velocity = arpNote->mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 8;
 				break;
+			// explicit fallthrough case
+			case ArpMpeModSource::OFF:;
 			}
 			// Fix base velocity if it's outside of MPE-controlled bounds
 			if (velocity < MIN_MPE_MODULATED_VELOCITY) {

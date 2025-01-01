@@ -212,6 +212,7 @@ list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
     -Wnull-dereference
     -Wparentheses
     -Wsequence-point
+    -Wswitch
     $<$<BOOL:${MAINTAINER_MODE}>:-Wextra>
     $<$<BOOL:${MAINTAINER_MODE}>:-Wall>
     $<$<BOOL:${MAINTAINER_MODE}>:-Wabi>
