@@ -121,6 +121,37 @@ char normparm(char value, char max, int id) {
 	return v;
 }
 
+/**
+ * @brief unpacks a byte into separate bitfield components, least significant bits first
+ *
+ * @tparam args the length of each bitfield, LSB first
+ * @param b the byte to unpack
+ * @return an array of bitfield components as separate bytes
+ */
+template <size_t... args, typename T>
+constexpr std::array<T, sizeof...(args)> unpackBits(T b) {
+	static_assert((args + ...) <= CHAR_BIT);
+	std::array<T, sizeof...(args)> output;
+
+	size_t i = 0;
+	for (size_t num_bits : {args...}) {
+		auto bitmask = static_cast<T>((1 << num_bits) - 1);
+		output[i++] = b & bitmask;
+		b >>= num_bits;
+	}
+	return output;
+}
+
+template <typename T>
+constexpr T clearTopNBits(T b, size_t n) {
+	return b & ~util::top_n_bits<T>(n);
+}
+
+template <typename T>
+constexpr T clearTopBit(T b) {
+	return clearTopNBits(b, 1);
+}
+
 void DX7Cartridge::unpackProgram(uint8_t* unpackPgm, int idx) {
 	if (!isCartridge()) {
 		memcpy(unpackPgm, &voiceData[6], 155);
