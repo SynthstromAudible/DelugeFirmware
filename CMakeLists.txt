@@ -208,11 +208,15 @@ list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
     $<$<AND:$<BOOL:${MAINTAINER_MODE}>,$<CXX_COMPILER_ID:GNU>>:-fanalyzer> # static analysis
 
     # Warnings
+    -Warray-bounds=1
+    -Wnull-dereference
+    -Wparentheses
+    -Wsequence-point
+    -Wswitch
     $<$<BOOL:${MAINTAINER_MODE}>:-Wextra>
     $<$<BOOL:${MAINTAINER_MODE}>:-Wall>
     $<$<BOOL:${MAINTAINER_MODE}>:-Wabi>
     $<$<BOOL:${MAINTAINER_MODE}>:-Wpedantic>
-    $<$<CONFIG:DEBUG>:-Wnull-dereference>
     $<$<CONFIG:DEBUG>:-Wno-psabi>
     $<$<CONFIG:DEBUG>:-Wno-unused-parameter>
 

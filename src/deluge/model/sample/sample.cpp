@@ -394,7 +394,7 @@ doReturnNoError:
 				if (!clusterHere) {
 
 					// That's actually allowed if we're right at the start of that cluster. But otherwise...
-					if (startPosSamples & ((1 << Cluster::size_magnitude + kPercBufferReductionMagnitude) - 1)) {
+					if (startPosSamples & ((1 << (Cluster::size_magnitude + kPercBufferReductionMagnitude)) - 1)) {
 						// If Cluster has been stolen, the zones should have been updated, so we shouldn't be here
 						D_PRINTLN("startPosSamples: %d", startPosSamples);
 						FREEZE_WITH_ERROR("E139");

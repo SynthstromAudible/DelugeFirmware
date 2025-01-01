@@ -212,6 +212,8 @@ ControlColumn* ColumnControlState::getColumnForFunc(ColumnControlFunction func) 
 		return &dxColumn;
 	case SESSION:
 		return &sessionColumn;
+	// explicit fallthrough cases
+	case COL_CTRL_FUNC_MAX:;
 	}
 	return nullptr;
 }
@@ -234,6 +236,9 @@ const char* columnFunctionToString(ColumnControlFunction func) {
 		return "dx";
 	case SESSION:
 		return "session";
+	// explicit fallthrough cases
+	case COL_CTRL_FUNC_MAX: // counter: should not appear here
+	    ;
 	}
 	return "";
 }

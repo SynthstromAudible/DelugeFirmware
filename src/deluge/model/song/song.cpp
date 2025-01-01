@@ -1315,6 +1315,8 @@ weAreInArrangementEditorOrInClipInstance:
 				break;
 			case NO_MACRO:
 				break;
+			// explicit fallthrough cases
+			case NUM_KINDS:;
 			}
 			writer.closeTag(true);
 		}

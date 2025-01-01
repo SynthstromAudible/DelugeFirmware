@@ -243,6 +243,12 @@ bool Cluster::mayBeStolen(void* thingNotToStealFrom) {
 	case Type::PERC_CACHE_FORWARDS:
 	case Type::PERC_CACHE_REVERSED:
 		return (sample != thingNotToStealFrom);
+
+	// explicit fallthrough cases
+	case Type::SAMPLE:
+	case Type::EMPTY:
+	case Type::GENERAL_MEMORY:
+	case Type::OTHER:;
 	}
 	return true;
 }

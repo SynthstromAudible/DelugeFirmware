@@ -269,6 +269,9 @@ private:
 			gridModeSelected = SessionGridModeEdit;
 			break;
 		}
+		// explicit fallthrough cases
+		case GridDefaultActiveModeSelection: // handled outside
+		case GridDefaultActiveModeMaxElement:;
 		}
 	}
 	void setupTrackCreation() const;

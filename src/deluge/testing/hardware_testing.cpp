@@ -141,7 +141,13 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 	bool lineInNow = readInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin);
 	bool gateInNow = readInput(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin);
 
-	bool inputStateNow = (outputPluggedInL == outputPluggedInR == headphoneNow == micNow == lineInNow == gateInNow);
+	// FIXME: This used to be
+	//    bool inputStateNow = (outputPluggedInL == outputPluggedInR == headphoneNow == micNow == lineInNow ==
+	//    gateInNow);
+	// probably _intending_ to check that they're all the same. However, the actual meaning was the same as the
+	// re-written expression below, since == is binary and left-associative, not N-ary.
+	bool inputStateNow =
+	    (((((outputPluggedInL == outputPluggedInR) == headphoneNow) == micNow) == lineInNow) == gateInNow);
 
 	if (inputStateNow != inputStateLastTime) {
 		indicator_leds::setLedState(IndicatorLED::TAP_TEMPO, !inputStateNow);

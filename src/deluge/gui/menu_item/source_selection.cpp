@@ -123,6 +123,11 @@ void SourceSelection::drawValue() {
 	case PatchSource::Y:
 		text = STRING_FOR_PATCH_SOURCE_Y;
 		break;
+
+	// explicit fallthrough cases
+	case PatchSource::NOT_AVAILABLE:
+	case PatchSource::SOON:
+	case PatchSource::NONE:;
 	}
 
 	uint8_t drawDot = shouldDrawDotOnValue();
