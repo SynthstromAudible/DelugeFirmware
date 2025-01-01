@@ -1,5 +1,6 @@
 /**
  *
+ * Copyright (c) 2024 Katherine Whitlock
  * Copyright (c) 2014-2017 Pascal Gauthier.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,13 +20,14 @@
  */
 
 #include "DX7Cartridge.h"
+#include "util/misc.h"
 
+#include <climits>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <ranges>
 #include <span>
-using namespace ::std;
 
 std::byte sysexChecksum(std::span<std::byte> sysex) {
 	int32_t sum = std::ranges::fold_left(sysex, 0, [](int32_t sum, std::byte b) {
@@ -106,7 +108,7 @@ void DX7Cartridge::packProgram(uint8_t* src, int idx, char* name, char* opSwitch
  * This function normalize data that comes from corrupted sysex.
  * It used to avoid engine crashing upon extreme values
  */
-char normparm(char value, char max, int id) {
+uint8_t normparm(uint8_t value, uint8_t max, int id) {
 	if (value <= max && value >= 0) {
 		return value;
 	}
@@ -114,11 +116,7 @@ char normparm(char value, char max, int id) {
 	// if this is beyond the max, we expect a 0-255 range, normalize this
 	// to the expected return value; and this value as a random data.
 
-	value = abs(value);
-
-	char v = ((float)value) / 255 * max;
-
-	return v;
+	return ((float)value) / 255 * max;
 }
 
 /**
@@ -152,60 +150,73 @@ constexpr T clearTopBit(T b) {
 	return clearTopNBits(b, 1);
 }
 
-void DX7Cartridge::unpackProgram(uint8_t* unpackPgm, int idx) {
+// For details on the DX7 SYSEX specification, please see contrib/sysex-format.txt
+
+void DX7Cartridge::unpackProgram(std::span<std::uint8_t> unpackPgm, size_t idx) {
 	if (!isCartridge()) {
-		memcpy(unpackPgm, &voiceData[6], 155);
+		std::memcpy(unpackPgm.data(), &voiceData[6], 155);
 		return;
 	}
 
-	// TODO put this in uint8_t :D
-	char* bulk = reinterpret_cast<char*>(&voiceData[6 + (idx * 128)]);
+	auto* bulk = reinterpret_cast<uint8_t*>(&voiceData[6 + (idx * 128)]);
 
-	for (int op = 0; op < 6; op++) {
+	for (size_t op = 0; op < 6; ++op) {
+		std::uint8_t* bulk_op = &bulk[op * 17];
+		std::uint8_t* unpack_op = &unpackPgm[op * 21];
+
 		// eg rate and level, brk pt, depth, scaling
-
-		for (int i = 0; i < 11; i++) {
-			uint8_t currparm = bulk[op * 17 + i] & 0x7F; // mask BIT7 (don't care per sysex spec)
-			unpackPgm[op * 21 + i] = normparm(currparm, 99, i);
+		for (size_t i = 0; i < 11; ++i) {
+			auto currparm = clearTopBit(bulk_op[i]); // mask BIT7 (don't care per sysex spec)
+			unpack_op[i] = normparm(currparm, 99, i);
 		}
 
-		memcpy(unpackPgm + op * 21, bulk + op * 17, 11);
-		char leftrightcurves = bulk[op * 17 + 11] & 0xF; // bits 4-7 don't care per sysex spec
-		unpackPgm[op * 21 + 11] = leftrightcurves & 3;
-		unpackPgm[op * 21 + 12] = (leftrightcurves >> 2) & 3;
-		char detune_rs = bulk[op * 17 + 12] & 0x7F;
-		unpackPgm[op * 21 + 13] = detune_rs & 7;
-		char kvs_ams = bulk[op * 17 + 13] & 0x1F; // bits 5-7 don't care per sysex spec
-		unpackPgm[op * 21 + 14] = kvs_ams & 3;
-		unpackPgm[op * 21 + 15] = (kvs_ams >> 2) & 7;
-		unpackPgm[op * 21 + 16] = bulk[op * 17 + 14] & 0x7F; // output level
-		char fcoarse_mode = bulk[op * 17 + 15] & 0x3F;       // bits 6-7 don't care per sysex spec
-		unpackPgm[op * 21 + 17] = fcoarse_mode & 1;
-		unpackPgm[op * 21 + 18] = (fcoarse_mode >> 1) & 0x1F;
-		unpackPgm[op * 21 + 19] = bulk[op * 17 + 16] & 0x7F; // fine freq
-		unpackPgm[op * 21 + 20] = (detune_rs >> 3) & 0x7F;
+		// FIXME(@stellar-aria): This looks like it's overwriting the previous for loop??? Is this correct?
+		// See original source here:
+		// https://github.com/asb2m10/dexed/blob/a95b61d5196ac018a57ede34bfb037c886551d63/Source/PluginData.cpp#L126
+		std::copy_n(bulk_op, 11, unpack_op);
+
+		auto [left_curve, right_curve] = unpackBits<2, 2>(clearTopBit(bulk_op[11]));
+		unpack_op[11] = left_curve;
+		unpack_op[12] = right_curve;
+
+		auto [detune, rs] = unpackBits<3, 4>(clearTopBit(bulk_op[12]));
+		unpack_op[13] = rs;
+
+		auto [ams, kvs] = unpackBits<2, 3>(clearTopBit(bulk_op[13])); // bits 5-7 don't care per sysex spec
+		unpack_op[14] = ams;
+		unpack_op[15] = kvs;
+		unpack_op[16] = clearTopBit(bulk_op[14]); // output level
+
+		auto [mode, freq_coarse] = unpackBits<1, 5>(clearTopBit(bulk_op[15])); // bits 6-7 don't care per sysex spec
+		unpack_op[17] = mode;
+		unpack_op[18] = freq_coarse;
+		unpack_op[19] = clearTopBit(bulk_op[16]); // fine freq
+		unpack_op[20] = detune;
 	}
 
 	for (int i = 0; i < 8; i++) {
-		uint8_t currparm = bulk[102 + i] & 0x7F; // mask BIT7 (don't care per sysex spec)
+		auto currparm = clearTopBit(bulk[102 + i]); // mask BIT7 (don't care per sysex spec)
 		unpackPgm[126 + i] = normparm(currparm, 99, 126 + i);
 	}
-	unpackPgm[134] = normparm(bulk[110] & 0x1F, 31, 134); // bits 5-7 are don't care per sysex spec
 
-	char oks_fb = bulk[111] & 0xF; // bits 4-7 are don't care per spec
-	unpackPgm[135] = oks_fb & 7;
-	unpackPgm[136] = oks_fb >> 3;
-	unpackPgm[137] = bulk[112] & 0x7F; // lfs
-	unpackPgm[138] = bulk[113] & 0x7F; // lfd
-	unpackPgm[139] = bulk[114] & 0x7F; // lpmd
-	unpackPgm[140] = bulk[115] & 0x7F; // lamd
-	char lpms_lfw_lks = bulk[116] & 0x7F;
-	unpackPgm[141] = lpms_lfw_lks & 1;
-	unpackPgm[142] = (lpms_lfw_lks >> 1) & 7;
-	unpackPgm[143] = lpms_lfw_lks >> 4;
-	unpackPgm[144] = bulk[117] & 0x7F;
+	// algorithm // bits 5-7 are don't care per sysex spec
+	unpackPgm[134] = normparm(clearTopNBits(bulk[110], 3), 31, 134);
+
+	auto [fb, oks] = unpackBits<3, 1>(clearTopBit(bulk[111])); // bits 4-7 are don't care per spec
+	unpackPgm[135] = fb;
+	unpackPgm[136] = oks;
+	unpackPgm[137] = clearTopBit(bulk[112]); // lfs
+	unpackPgm[138] = clearTopBit(bulk[113]); // lfd
+	unpackPgm[139] = clearTopBit(bulk[114]); // lpmd
+	unpackPgm[140] = clearTopBit(bulk[115]); // lamd
+
+	auto [lks, lfw, lpms] = unpackBits<1, 4, 2>(clearTopBit(bulk[116]));
+	unpackPgm[141] = lks;
+	unpackPgm[142] = lfw;
+	unpackPgm[143] = lpms;
+	unpackPgm[144] = clearTopBit(bulk[117]);
 	for (int name_idx = 0; name_idx < 10; name_idx++) {
-		unpackPgm[145 + name_idx] = bulk[118 + name_idx] & 0x7F;
+		unpackPgm[145 + name_idx] = clearTopBit(bulk[118 + name_idx]);
 	} // name_idx
 	  //    memcpy(unpackPgm + 144, bulk + 117, 11);  // transpose, name
 }

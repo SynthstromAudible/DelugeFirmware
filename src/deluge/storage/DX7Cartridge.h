@@ -152,6 +152,6 @@ public:
 		                 reinterpret_cast<const char*>(getRawVoice() + ((i * 128) + (isCartridge() ? 118 : 145))));
 	}
 
-	void unpackProgram(uint8_t* unpackPgm, int idx);
+	void unpackProgram(std::span<std::uint8_t>, size_t idx);
 	void packProgram(uint8_t* src, int idx, char* name, char* opSwitch);
 };
