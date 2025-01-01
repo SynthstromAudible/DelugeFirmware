@@ -210,6 +210,7 @@ list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
     # Warnings
     -Warray-bounds=1
     -Wnull-dereference
+    -Wparentheses
     -Wsequence-point
     $<$<BOOL:${MAINTAINER_MODE}>:-Wextra>
     $<$<BOOL:${MAINTAINER_MODE}>:-Wall>
