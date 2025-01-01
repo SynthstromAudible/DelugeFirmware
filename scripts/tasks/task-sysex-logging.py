@@ -2,7 +2,6 @@
 import sys
 import time
 import argparse
-import rtmidi
 import sys
 import util
 
@@ -101,6 +100,15 @@ def sysex_console(midiout, midiin):
 
 
 def main():
+    try:
+        import rtmidi
+    except ImportError:
+        import sys
+        import subprocess
+        subprocess.check_call([sys.executable, "-m", "pip", "install", 'python-rtmidi'])
+    finally:
+        import rtmidi
+        
     midiout = rtmidi.MidiOut()
     midiin = rtmidi.MidiIn()
 

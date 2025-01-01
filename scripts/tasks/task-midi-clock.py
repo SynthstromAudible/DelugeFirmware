@@ -2,7 +2,6 @@
 import sys
 import time
 import argparse
-import rtmidi
 import sys
 import util
 
@@ -78,6 +77,15 @@ def midi_clock(midiin, target, output):
 
 
 def main():
+    try:
+        import rtmidi
+    except ImportError:
+        import sys
+        import subprocess
+        subprocess.check_call([sys.executable, "-m", "pip", "install", 'python-rtmidi'])
+    finally:
+        import rtmidi
+
     midiin = rtmidi.MidiIn()
     target = None
     file = None
