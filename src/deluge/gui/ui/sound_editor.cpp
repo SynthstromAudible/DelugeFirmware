@@ -900,7 +900,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 	}
 	else {
 		// allow automation view to handle interpolation and pad selection shortcut
-		if ((getRootUI() == &automationView) && (x == 0 && (y == 6) || (y == 7))) {
+		if ((getRootUI() == &automationView) && (x == 0) && ((y == 6) || (y == 7))) {
 			ignoreAction = true;
 		}
 	}
@@ -1778,7 +1778,7 @@ bool SoundEditor::handleClipName() {
 	case ClipType::INSTRUMENT:
 
 		if (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
-		    || output->type == OutputType::KIT && getRootUI()->getAffectEntire()) {
+		    || (output->type == OutputType::KIT && getRootUI()->getAffectEntire())) {
 			if (clip) {
 				renameClipUI.clip = clip;
 				openUI(&renameClipUI);
