@@ -11,6 +11,9 @@ from pathlib import Path
 import time
 import fileinput
 
+def install_rtmidi():
+    subprocess.check_call([sys.executable, "-m", "pip", "install", 'python-rtmidi==1.5.8'])
+
 
 def run(args, redirect_input: bool = True, redirect_output: bool = True):
     # start child process

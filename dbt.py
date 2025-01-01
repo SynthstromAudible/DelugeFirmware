@@ -7,7 +7,7 @@ import os
 import subprocess
 import sys
 import textwrap
-from distutils.dir_util import copy_tree
+from shutil import copy_tree
 from pathlib import Path
 
 PROG_NAME = sys.argv[0].split(".")[0]

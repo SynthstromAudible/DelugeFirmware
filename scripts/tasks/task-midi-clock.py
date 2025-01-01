@@ -80,9 +80,7 @@ def main():
     try:
         import rtmidi
     except ImportError:
-        import sys
-        import subprocess
-        subprocess.check_call([sys.executable, "-m", "pip", "install", 'python-rtmidi'])
+        util.install_rtmidi()
     finally:
         import rtmidi
 
