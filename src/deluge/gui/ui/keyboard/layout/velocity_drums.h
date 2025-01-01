@@ -21,12 +21,12 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-constexpr int32_t kMinZoomLevel = 0;
-constexpr int32_t kMaxZoomLevel = 12;
+constexpr int32_t k_min_zoom_level = 0;
+constexpr int32_t k_max_zoom_level = 12;
 
-// The zoomArr is used to set the edge sizes of the pads {x size, y size} on each zoom level.
-const int32_t zoomArr[13][2] = {{1, 1}, {2, 1}, {3, 1}, {2, 2}, {3, 2}, {4, 2}, {5, 2},
-                                {3, 4}, {4, 4}, {5, 4}, {8, 4}, {8, 8}, {16, 8}};
+// The zoom_arr is used to set the edge sizes of the pads {x size, y size} on each zoom level.
+const int32_t zoom_arr[13][2] = {{1, 1}, {2, 1}, {3, 1}, {2, 2}, {3, 2}, {4, 2}, {5, 2},
+                                 {3, 4}, {4, 4}, {5, 4}, {8, 4}, {8, 8}, {16, 8}};
 
 class KeyboardLayoutVelocityDrums : KeyboardLayout {
 public:
@@ -46,40 +46,35 @@ public:
 	bool supportsKit() override { return true; }
 
 private:
-	RGB noteColours[128];
+	RGB note_colours[128];
 
-	// inline uint8_t noteFromCoords(int32_t x, int32_t y, uint8_t edgeSizeX, uint8_t edgeSizeY) {
-	// 	uint8_t padsPerRow = kDisplayWidth / edgeSizeX;
-	// 	uint8_t x_adjust = (x == 15 && edgeSizeX % 2 == 1 && edgeSizeX > 1) ? 1 : 0;
-	// 	return (x / edgeSizeX) - x_adjust + ((y / edgeSizeY) * padsPerRow) + getState().drums.scrollOffset;
-	// }
-
-	inline uint8_t velocityFromCoords(int32_t x, int32_t y, uint8_t edgeSizeX, uint8_t edgeSizeY) {
+	inline uint8_t velocityFromCoords(int32_t x, int32_t y, uint8_t edge_size_x, uint8_t edge_size_y) {
 		uint8_t velocity = 0;
-		if (edgeSizeX == 1) {
+		if (edge_size_x == 1) {
 			// No need to do a lot of calculations or use max velocity for only one option.
 			velocity = FlashStorage::defaultVelocity * 2;
 		}
-		else{
-			bool oddPad = (edgeSizeX % 2 == 1);  // check if has odd width pads
-			uint8_t x_limit = kDisplayWidth - 2 - edgeSizeX; // end of second to last pad in a row (the regular pads)
-			bool x_adjust = (oddPad && x > x_limit);
-			uint8_t localX = x_adjust ? x - x_limit : x % (edgeSizeX);
+		else {
+			bool odd_pad = (edge_size_x % 2 == 1);             // check if the view has odd width pads
+			uint8_t x_limit = kDisplayWidth - 2 - edge_size_x; // end of second to last pad in a row (the regular pads)
+			bool x_adjust = (odd_pad && x > x_limit);
+			uint8_t localX = x_adjust ? x - x_limit : x % (edge_size_x);
 
-			if (edgeSizeY == 1) {
-				velocity = (localX + 1) * 200 / (edgeSizeX + x_adjust); // simpler, easier on the ears.
+			if (edge_size_y == 1) {
+				velocity = (localX + 1) * 200 / (edge_size_x + x_adjust); // simpler, more useful, easier on the ears.
 			}
 			else {
-				if(edgeSizeX % 2 == 1 && x > kDisplayWidth - 2 - edgeSizeX) edgeSizeX += 1;
+				if (edge_size_x % 2 == 1 && x > kDisplayWidth - 2 - edge_size_x)
+					edge_size_x += 1;
 				uint8_t position = localX + 1;
-				position += ((y % edgeSizeY) * (edgeSizeX + x_adjust));
+				position += ((y % edge_size_y) * (edge_size_x + x_adjust));
 				// We use two bytes to keep the precision of the calculations high,
 				// then shift it down to one byte at the end.
-				uint32_t stepSize = 0xFFFF / ((edgeSizeX + x_adjust) * edgeSizeY);
+				uint32_t stepSize = 0xFFFF / ((edge_size_x + x_adjust) * edge_size_y);
 				velocity = (position * stepSize) >> 8;
 			}
 		}
-		return velocity; // returns an integer value 0-255
+		return velocity; // returns an integer value 0-255, which will then be divided by 2 to get 0-127
 	}
 };
 

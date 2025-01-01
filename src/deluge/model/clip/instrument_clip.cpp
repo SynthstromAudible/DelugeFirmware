@@ -2373,10 +2373,10 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	writer.writeAttribute("keyboardLayout", keyboardState.currentLayout);
 	writer.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
-	writer.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
-	writer.writeAttribute("drumsEdgeSizeX", keyboardState.drums.edgeSizeX);
-	writer.writeAttribute("drumsEdgeSizeY", keyboardState.drums.edgeSizeY);
-	writer.writeAttribute("drumsZoomLevel", keyboardState.drums.zoomLevel);
+	writer.writeAttribute("drumsScrollOffset", keyboardState.drums.scroll_offset);
+	writer.writeAttribute("drumsEdgeSizeX", keyboardState.drums.edge_size_x);
+	writer.writeAttribute("drumsEdgeSizeY", keyboardState.drums.edge_size_y);
+	writer.writeAttribute("drumsZoomLevel", keyboardState.drums.zoom_level);
 	writer.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
 	writer.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
 
@@ -2629,17 +2629,17 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "drumsScrollOffset")) {
-			keyboardState.drums.scrollOffset = reader.readTagOrAttributeValueInt();
+			keyboardState.drums.scroll_offset = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "drumsEdgeSizeX")) {
-			keyboardState.drums.edgeSizeX = reader.readTagOrAttributeValueInt();
+			keyboardState.drums.edge_size_x = reader.readTagOrAttributeValueInt();
 		}
 		else if (!strcmp(tagName, "drumsEdgeSizeY")) {
-			keyboardState.drums.edgeSizeY = reader.readTagOrAttributeValueInt();
+			keyboardState.drums.edge_size_y = reader.readTagOrAttributeValueInt();
 		}
 		else if (!strcmp(tagName, "drumsZoomLevel")) {
-			keyboardState.drums.zoomLevel = reader.readTagOrAttributeValueInt();
+			keyboardState.drums.zoom_level = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "inKeyScrollOffset")) {
