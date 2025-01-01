@@ -20,7 +20,7 @@ notice during usage or testing of the firmwares created from this repository and
   provide excerpts of the relevant logs if you suspect they might be helpful.
 * Bugs in related projects should be submitted to the appropriate issue tracker:
     * DelugeProbe: [litui/delugeprobe](https://github.com/litui/delugeprobe).
-    * DBT-Toolchain: [litui/dbt-toolchain](https://github.com/litui/dbt-toolchain).
+    * DBT-Toolchain: [SynthstromAudible/dbt-toolchain](https://github.com/SynthstromAudible/dbt-toolchain/issues).
 
 ## Ideas, feature requests, suggestions and discussions
 
@@ -51,8 +51,8 @@ appreciated.
 * Code reviews are intended to increase quality and should not go into nitpicking, please remember
   the [Code of Conduct](CODE_OF_CONDUCT.md).
 * Final decisions about merging of Pull requests is up to the code owners, see [Governance](GOVERNANCE.md).
-* If you have a contribution to make then review the [Guidelines for Repository Contributions](/docs/dev/guidelines.md). 
+* If you have a contribution to make then review the [Guidelines for Repository Contributions](docs/dev/guidelines.md). 
 
 ## Additional Developer Resources
 
-* Access more developer resources in [Additional Information](/docs/dev/additional_info.md).
+* Access more developer resources in [Additional Information](docs/dev/additional_info.md).
