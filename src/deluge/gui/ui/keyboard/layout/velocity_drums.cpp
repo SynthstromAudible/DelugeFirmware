@@ -24,49 +24,51 @@
 namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
-	uint8_t noteIdx = 0;
-
 	currentNotesState = NotesState{}; // Erase active notes
 
 	static_assert(kMaxNumActiveNotes < 32, "We use a 32-bit integer to represent note active state");
-	uint32_t activeNotes = 0;
-	std::array<int32_t, kMaxNumActiveNotes> noteOnTimes{};
-	uint8_t edgeSizeX = (uint32_t)getState().drums.edgeSizeX;
-	uint8_t edgeSizeY = (uint32_t)getState().drums.edgeSizeY;
-	uint8_t offset = getState().drums.scrollOffset;
-	uint8_t padsPerRow = kDisplayWidth / edgeSizeX;
-	bool oddPad = (edgeSizeX % 2 == 1 && edgeSizeX > 1);
-	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
-	// for (int32_t idxPress = kMaxNumKeyboardPadPresses; --idxPress >= 0;) {
-		if (presses[idxPress].active) {
-			uint8_t x = presses[idxPress].x;
+	uint32_t active_notes = 0;
+	std::array<int32_t, kMaxNumActiveNotes> note_on_times{};
+	uint8_t edge_size_x = (uint32_t)getState().drums.edge_size_x;
+	uint8_t edge_size_y = (uint32_t)getState().drums.edge_size_y;
+	uint8_t offset = getState().drums.scroll_offset;
+	uint8_t pads_per_row = kDisplayWidth / edge_size_x;
+	uint8_t highest_clip_note = getHighestClipNote();
+	bool odd_pad = (edge_size_x % 2 == 1 && edge_size_x > 1);
+	for (int32_t idx_press = 0; idx_press < kMaxNumKeyboardPadPresses; ++idx_press) {
+		if (presses[idx_press].active) {
+			uint8_t x = presses[idx_press].x;
 			if (x < kDisplayWidth) {
-				// the width check is to avoid the sidebar being able to activate notes
-				bool x_adjust_N = (oddPad && x == kDisplayWidth - 1);
-				uint8_t y = presses[idxPress].y;
-				uint8_t note = (x / edgeSizeX) - x_adjust_N + ((y / edgeSizeY) * padsPerRow) + offset;
-				uint8_t velocity = (velocityFromCoords(x, y, edgeSizeX, edgeSizeY)
+				// the width check is to prevent the sidebar from being able to activate notes
+				bool x_adjust_note = (odd_pad && x == kDisplayWidth - 1);
+				uint8_t y = presses[idx_press].y;
+				uint8_t note = (x / edge_size_x) - x_adjust_note + ((y / edge_size_y) * pads_per_row) + offset;
+				if (note > highest_clip_note) {
+					continue; // save calculation time if press was on an unlit pad. Is there a way to prevent
+					          // re-rendering?
+				}
+				uint8_t velocity = (velocityFromCoords(x, y, edge_size_x, edge_size_y)
 				                    >> 1); // uses bitshift to divide by two, to get 0-127
-				// D_PRINTLN("velocity: %d", velocity);
-				auto noteOnIdx = currentNotesState.enableNote(note, velocity);
+				// D_PRINTLN("note, velocity: %d, %d", note, velocity);
+				auto note_on_idx = currentNotesState.enableNote(note, velocity);
 
-				if ((activeNotes & (1 << noteOnIdx)) == 0) {
-					activeNotes |= 1 << noteOnIdx;
-					noteOnTimes[noteOnIdx] = presses[idxPress].timeLastPadPress;
+				if ((active_notes & (1 << note_on_idx)) == 0) {
+					active_notes |= 1 << note_on_idx;
+					note_on_times[note_on_idx] = presses[idx_press].timeLastPadPress;
 				}
 				else {
 					// this is a retrigger on the same note, see if we should update the velocity
-					auto lastOnTime = noteOnTimes[noteOnIdx];
-					auto thisOnTime = presses[idxPress].timeLastPadPress;
-					if (util::infinite_a_lt_b(lastOnTime, thisOnTime)) {
+					auto last_on_time = note_on_times[note_on_idx];
+					auto this_on_time = presses[idx_press].timeLastPadPress;
+					if (util::infinite_a_lt_b(last_on_time, this_on_time)) {
 						// this press is more recent, use its velocity.
-						currentNotesState.notes[noteOnIdx].velocity = velocity;
-						noteOnTimes[noteOnIdx] = thisOnTime;
+						currentNotesState.notes[note_on_idx].velocity = velocity;
+						note_on_times[note_on_idx] = this_on_time;
 					}
 				}
 
 				// if this note was recently pressed, set it as the selected drum
-				if (isShortPress(noteOnTimes[noteOnIdx])) {
+				if (isShortPress(note_on_times[note_on_idx])) {
 					InstrumentClip* clip = getCurrentInstrumentClip();
 					Kit* thisKit = (Kit*)clip->output;
 					Drum* thisDrum = thisKit->getDrumFromNoteCode(clip, note);
@@ -75,35 +77,32 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 				}
 			}
 		}
-		// else {
-		// 	break;
-		// }
 	}
 }
 
 void KeyboardLayoutVelocityDrums::handleVerticalEncoder(int32_t offset) {
 	PressedPad pressedPad{};
-	handleHorizontalEncoder(offset * (kDisplayWidth / getState().drums.edgeSizeX), false, &pressedPad, false);
+	handleHorizontalEncoder(offset * (kDisplayWidth / getState().drums.edge_size_x), false, &pressedPad, false);
 }
 
 void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
                                                           PressedPad presses[kMaxNumKeyboardPadPresses],
                                                           bool encoderPressed) {
 	KeyboardStateDrums& state = getState().drums;
-	bool zoomLevelChanged = false;
+	bool zoom_level_changed = false;
 	if (shiftEnabled || Buttons::isButtonPressed(hid::button::X_ENC)) { // zoom control
-		if (state.zoomLevel + offset >= kMinZoomLevel && state.zoomLevel + offset <= kMaxZoomLevel) {
-			state.zoomLevel += offset;
-			zoomLevelChanged = true;
+		if (state.zoom_level + offset >= k_min_zoom_level && state.zoom_level + offset <= k_max_zoom_level) {
+			state.zoom_level += offset;
+			zoom_level_changed = true;
 		}
 		else
 			return;
 
-		state.edgeSizeX = zoomArr[state.zoomLevel][0];
-		state.edgeSizeY = zoomArr[state.zoomLevel][1];
+		state.edge_size_x = zoom_arr[state.zoom_level][0];
+		state.edge_size_y = zoom_arr[state.zoom_level][1];
 		char buffer[14] = "Pad Area:   ";
-		auto displayOffset = (display->haveOLED() ? 9 : 0);
-		intToString(state.edgeSizeX * state.edgeSizeY, buffer + displayOffset, 1);
+		auto display_offset = (display->haveOLED() ? 9 : 0);
+		intToString(state.edge_size_x * state.edge_size_y, buffer + display_offset, 1);
 		display->displayPopup(buffer);
 
 		offset = 0; // Since the offset variable can be used for scrolling or zooming,
@@ -111,17 +110,17 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 	}               // end zoom control
 	// scroll offset control - need to run to adjust to new max position if zoom level has changed
 
-	// Calculate highest possible displayable note with current edgeSize
-	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSizeY) * (kDisplayWidth / state.edgeSizeX));
-	int32_t highestScrolledNote = std::max<int32_t>(0, (getHighestClipNote() + 1 - displayedfullPadsCount));
+	// Calculate highest possible displayable note with current edge size
+	int32_t displayed_full_pads_count = ((kDisplayHeight / state.edge_size_y) * (kDisplayWidth / state.edge_size_x));
+	int32_t highest_scrolled_note = std::max<int32_t>(0, (getHighestClipNote() + 1 - displayed_full_pads_count));
 
 	// Make sure scroll offset value is in bounds.
 	// For example, if zoom level has gone down and scroll offset was at max, it will be reduced some.
-	int32_t newOffset = std::clamp(state.scrollOffset + offset, getLowestClipNote(), highestScrolledNote);
+	int32_t new_offset = std::clamp(state.scroll_offset + offset, getLowestClipNote(), highest_scrolled_note);
 
 	// Only need to update colors and screen if the zoom level and/or scroll offset value has changed
-	if (newOffset != state.scrollOffset || zoomLevelChanged) {
-		state.scrollOffset = newOffset;
+	if (new_offset != state.scroll_offset || zoom_level_changed) {
+		state.scroll_offset = new_offset;
 		precalculate();
 	}
 }
@@ -131,65 +130,85 @@ void KeyboardLayoutVelocityDrums::precalculate() {
 
 	KeyboardStateDrums& state = getState().drums;
 
-	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSizeY) * (kDisplayWidth / state.edgeSizeX));
-	int32_t offset = state.scrollOffset;
+	int32_t displayed_full_pads_count = ((kDisplayHeight / state.edge_size_y) * (kDisplayWidth / state.edge_size_x));
+	int32_t offset = state.scroll_offset;
 
 	// color offset controlled with shift + vertical encoder, the +60 is to go to 0 from the default of -60.
 	int32_t offset2 = getCurrentInstrumentClip()->colourOffset + 60;
-	for (int32_t i = 0; i < displayedfullPadsCount; i++) {
+	for (int32_t i = 0; i < displayed_full_pads_count; i++) {
 		int32_t i2 = offset + i;
-		noteColours[i] = RGB::fromHue((i2 * 14 + (i2 % 2 == 1) * 107 + offset2) % 192);
+		note_colours[i] = RGB::fromHue((i2 * 14 + (i2 % 2 == 1) * 107 + offset2) % 192);
 	}
 }
 
 void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
-	uint8_t highestClipNote = getHighestClipNote();
-	uint8_t edgeSizeX = getState().drums.edgeSizeX;
-	uint8_t edgeSizeY = getState().drums.edgeSizeY;
-	uint8_t offset = getState().drums.scrollOffset;
-	float padArea1 = edgeSizeX * edgeSizeY;
-	float padArea2 = pow(padArea1, 2);
-	bool oddPad = (edgeSizeX % 2 == 1 && edgeSizeX > 1);               // check if has odd width pads
-	float padArea3 = oddPad ? pow(padArea1 + edgeSizeY, 2) : padArea2; // area^2 for the odd width pads
+	// D_PRINTLN("render pads");
+	uint8_t highest_clip_note = getHighestClipNote();
+	uint8_t edge_size_x = getState().drums.edge_size_x;
+	uint8_t edge_size_y = getState().drums.edge_size_y;
+	uint8_t offset = getState().drums.scroll_offset;
+	uint8_t pad_area_1 = edge_size_x * edge_size_y;
+	uint8_t pad_area_2 = pad_area_1 + edge_size_y;
+	bool odd_pad = (edge_size_x % 2 == 1 && edge_size_x > 1); // check if the view has odd width pads
 	// Dims more for smaller pads, less for bigger ones.
 	// Changing brightness too much on large areas is unpleasant to the eyes.
-	float dimBrightness = std::min(0.35 + 0.65 * padArea1 / 128, 0.75);
-
-	uint8_t padsPerRow = kDisplayWidth / edgeSizeX;
-	uint8_t x_limit = kDisplayWidth - 2 - edgeSizeX; // end of second to last pad in a row (the regular pads)
-	float colourIntensity = 1.0;
-	for (int32_t y = 0; y < kDisplayHeight; ++y) {
-		uint8_t localY = y % edgeSizeY;
-		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			bool x_adjust_N = (oddPad && x == kDisplayWidth - 1);
-			uint8_t note = (x / edgeSizeX) - x_adjust_N + ((y / edgeSizeY) * padsPerRow) + offset;
-			if (note > highestClipNote) {
-				image[y][x] = colours::black;
-				continue;
-			}
-			RGB noteColour = noteColours[note - offset];
-
-			if (edgeSizeX > 1){
-				bool x_adjust = (oddPad && x > x_limit);
-				float localX = x_adjust ? x - x_limit - 1 : x % edgeSizeX;
-				float edgeSizeX2 = edgeSizeX + x_adjust;
-				if(edgeSizeY == 1){
-					colourIntensity = pow((localX + 1) / edgeSizeX2, 2);
-				}
-				else{
-					float position = localX + 1 + localY * edgeSizeX2;
-					float padArea4 = x_adjust ? padArea3 : padArea2;
-					// use quadratic curve for pad brightness to make the gradient much more apparent
-					colourIntensity = position * position / padArea4;
-					// if(x < edgeSizeX && y < edgeSizeY) D_PRINTLN("I: %f", colourIntensity);
-				}
-			}
+	float dim_brightness = std::min(0.25 + 0.65 * pad_area_1 / 128, 0.75);
+	// fine tune the curve for different pad sizes.
+	float initial_intensity = pad_area_1 == 2 ? 0.25 : pad_area_1 < 6 ? 0.045 : 0.015;
+	float intensity_increment_1 = edge_size_x > 1 ? std::exp(-std::log(initial_intensity) / (pad_area_1 - 1)) : 1;
+	float intensity_increment_2 = odd_pad ? std::exp(-std::log(initial_intensity) / (pad_area_2 - 1)) : 1;
+	uint8_t pads_per_row = kDisplayWidth / edge_size_x;
+	uint8_t pads_per_col = kDisplayHeight / edge_size_y;
+	uint8_t note = offset;
+	for (uint8_t padY = 0; padY < pads_per_col; ++padY) {
+		uint8_t y = padY * edge_size_y;
+		for (uint8_t padX = 0; padX < pads_per_row; ++padX) {
+			uint8_t x = padX * edge_size_x;
+			RGB note_colour = note_colours[note - offset];
+			bool note_enabled = currentNotesState.noteEnabled(note);
 			// Dim the active notes
 			// Brighter by default makes the pads more visible in daylight and allows for the full gradient.
-			float brightnessFactor = currentNotesState.noteEnabled(note) ? dimBrightness : 1;
-			image[y][x] = noteColour.transform([colourIntensity, brightnessFactor](uint8_t chan) {
-				return (chan * colourIntensity * brightnessFactor);
-			});
+			float brightness_factor = note_enabled ? dim_brightness : 1;
+
+			if (edge_size_x > 1) {
+				bool disabled_pad = (note > highest_clip_note);
+				bool x_adjust = (odd_pad && padX == pads_per_row - 1);
+				uint8_t edge_size_x2 = edge_size_x + x_adjust;
+				uint8_t pad_area = x_adjust ? pad_area_2 : pad_area_1;
+				float intensity_increment = x_adjust ? intensity_increment_2 : intensity_increment_1;
+				float colour_intensity = initial_intensity;
+				uint8_t x2 = 0;
+				uint8_t y2 = 0;
+				for (uint8_t i = 0; i < pad_area; ++i) {
+					if (disabled_pad)
+						image[y + y2][x + x2] = colours::black;
+					else {
+						image[y + y2][x + x2] =
+						    note_colour.transform([brightness_factor, colour_intensity](uint8_t chan) {
+							    return (chan * brightness_factor * colour_intensity);
+						    });
+					}
+					x2++;
+					if (x2 == edge_size_x2) {
+						x2 = 0;
+						y2++;
+					}
+					if (disabled_pad || i == pad_area - 1)
+						colour_intensity = 1;
+					else
+						colour_intensity *= intensity_increment;
+				}
+			}
+			else {
+				if (note > highest_clip_note)
+					image[y][x] = colours::black;
+				else if (note_enabled)
+					image[y][x] =
+					    note_colour.transform([brightness_factor](uint8_t chan) { return (chan * brightness_factor); });
+				else
+					image[y][x] = note_colour;
+			}
+			note++;
 		}
 	}
 }
