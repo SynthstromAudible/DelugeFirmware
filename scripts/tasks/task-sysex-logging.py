@@ -106,7 +106,7 @@ def main():
         util.install_rtmidi()
     finally:
         import rtmidi
-        
+
     midiout = rtmidi.MidiOut()
     midiin = rtmidi.MidiIn()
 

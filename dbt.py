@@ -7,7 +7,7 @@ import os
 import subprocess
 import sys
 import textwrap
-from shutil import copy_tree
+from shutil import copytree
 from pathlib import Path
 
 PROG_NAME = sys.argv[0].split(".")[0]
@@ -42,9 +42,9 @@ def setup():
 
 def setup_ide_configs():
     if not os.path.exists(".vscode"):
-        copy_tree("IDE_Configs/vscode", ".vscode")
+        copytree("IDE_Configs/vscode", ".vscode")
     if not os.path.exists(".idea"):
-        copy_tree("IDE_Configs/clion", ".idea")
+        copytree("IDE_Configs/clion", ".idea")
 
 
 def print_tasks_usage(tasks):
