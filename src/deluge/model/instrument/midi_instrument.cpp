@@ -27,6 +27,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
+#include "modulation/arpeggiator.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
@@ -914,10 +915,12 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 			for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
 			     n++) { // This traversal will include the original note, which will get counted up too
 				ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-				if (lookingAtArpNote->outputMemberChannel[noteIndex] == outputMemberChannel) {
-					numNotesFound++;
-					for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-						mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
+				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
+					if (lookingAtArpNote->outputMemberChannel[i] == outputMemberChannel) {
+						numNotesFound++;
+						for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
+							mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
+						}
 					}
 				}
 			}
@@ -1013,10 +1016,12 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 		for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
 		     n++) { // This traversal will not include the original note, which has already been deleted from the array.
 			ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-			if (lookingAtArpNote->outputMemberChannel[noteIndex] == oldOutputMemberChannel) {
-				numNotesFound++;
-				for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-					mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
+			for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
+				if (lookingAtArpNote->outputMemberChannel[i] == oldOutputMemberChannel) {
+					numNotesFound++;
+					for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
+						mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
+					}
 				}
 			}
 		}
