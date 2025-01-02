@@ -64,8 +64,8 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
 					noteOffPostArp(instruction.noteCodeOffPostArp[n], instruction.outputMIDIChannelOff[n],
-									kDefaultLiftValue, n); // Is there some better option than using the default lift value? The
-														// lift event wouldn't have occurred yet...
+					               kDefaultLiftValue, n); // Is there some better option than using the default lift
+					                                      // value? The lift event wouldn't have occurred yet...
 				}
 
 				if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
@@ -96,7 +96,7 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
 				noteOffPostArp(instruction.noteCodeOffPostArp[n], instruction.outputMIDIChannelOff[n],
-									kDefaultLiftValue, n);
+				               kDefaultLiftValue, n);
 			}
 			if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
 				noteOnPostArp(instruction.noteCodeOnPostArp[n], instruction.arpNoteOn, n);
@@ -167,7 +167,8 @@ lookAtArpNote:
 
 				// Otherwise, just take note of which octave is currently outputting
 				// TODO RAUL: this seems to be totally wrong. it is adding octave number instead of octave * 12
-				// TODO RAUL: Maybe we need to move noteCodePostArp info from instruction to arpNote so it is available there??
+				// TODO RAUL: Maybe we need to move noteCodePostArp info from instruction to arpNote so it is available
+				// there??
 
 				noteCodeAfterArpeggiation += arpeggiator.currentOctave;
 
@@ -228,9 +229,9 @@ int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t 
 
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
-			noteOffPostArp(instruction.noteCodeOffPostArp[n], instruction.outputMIDIChannelOff[n],
-						kDefaultLiftValue, n); // Is there some better option than using the default lift value? The lift
-											// event wouldn't have occurred yet...
+			noteOffPostArp(instruction.noteCodeOffPostArp[n], instruction.outputMIDIChannelOff[n], kDefaultLiftValue,
+			               n); // Is there some better option than using the default lift value? The lift
+			                   // event wouldn't have occurred yet...
 		}
 
 		if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {

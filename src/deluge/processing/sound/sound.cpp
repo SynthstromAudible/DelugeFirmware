@@ -1754,8 +1754,8 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 		if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) [[likely]] {
 			noNoteOn = false;
 			noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp, instruction.noteCodeOnPostArp[n],
-								instruction.arpNoteOn->velocity, mpeValues, instruction.sampleSyncLengthOn, ticksLate,
-								samplesLate, fromMIDIChannel);
+			                      instruction.arpNoteOn->velocity, mpeValues, instruction.sampleSyncLengthOn, ticksLate,
+			                      samplesLate, fromMIDIChannel);
 		}
 	}
 	if (noNoteOn) {
@@ -2502,11 +2502,11 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 			if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
 				noteOnPostArpeggiator(
-					modelStackWithSoundFlags,
-					instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-					instruction.noteCodeOnPostArp[n], instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
-					instruction.sampleSyncLengthOn, 0, 0,
-					instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+				    modelStackWithSoundFlags,
+				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+				    instruction.noteCodeOnPostArp[n], instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
+				    instruction.sampleSyncLengthOn, 0, 0,
+				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
 			}
 		}
 	}

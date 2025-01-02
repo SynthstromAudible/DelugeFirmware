@@ -127,7 +127,8 @@ public:
 
 protected:
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
-	                                              int32_t expressionDimension, ArpNote* arpNote, int32_t noteIndex) override;
+	                                              int32_t expressionDimension, ArpNote* arpNote,
+	                                              int32_t noteIndex) override;
 	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) override;
 	void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity, int32_t noteIndex) override;
 	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) override;

@@ -156,9 +156,7 @@ public:
 };
 
 struct ArpNote {
-	ArpNote() {
-		outputMemberChannel.fill(MIDI_CHANNEL_NONE);
-	}
+	ArpNote() { outputMemberChannel.fill(MIDI_CHANNEL_NONE); }
 	int16_t inputCharacteristics[2]; // Before arpeggiation. And applying to MIDI input if that's happening. Or, channel
 	                                 // might be MIDI_CHANNEL_NONE.
 	int16_t mpeValues[kNumExpressionDimensions];
@@ -179,8 +177,8 @@ public:
 
 	// These are only valid if doing a note-on, or when releasing the most recently played with the arp off when other
 	// notes are still playing (e.g. for mono note priority)
-	uint32_t sampleSyncLengthOn = 0; // This defaults to zero, or may be overwritten by the caller to the Arp - and then the
-	                             // Arp itself may override that.
+	uint32_t sampleSyncLengthOn = 0; // This defaults to zero, or may be overwritten by the caller to the Arp - and then
+	                                 // the Arp itself may override that.
 	ArpNote* arpNoteOn;
 
 	// And these are only valid if doing a note-off
@@ -214,7 +212,7 @@ public:
 	bool playedFirstArpeggiatedNoteYet = false;
 	uint8_t lastVelocity = 0;
 	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeCurrentlyOnPostArp;
-	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES>  outputMIDIChannelForNoteCurrentlyOnPostArp;
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForNoteCurrentlyOnPostArp;
 
 	// Playing state
 	uint32_t notesPlayedFromSequence = 0;

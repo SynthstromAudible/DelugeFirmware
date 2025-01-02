@@ -857,7 +857,8 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 					// further below.)
 					if (thisArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]
 					    == arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]) {
-						outputMemberChannelWithNoteSharingInputMemberChannel = thisArpNote->outputMemberChannel[noteIndex];
+						outputMemberChannelWithNoteSharingInputMemberChannel =
+						    thisArpNote->outputMemberChannel[noteIndex];
 					}
 				}
 			}
@@ -971,7 +972,8 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 	}
 }
 
-void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMemberChannel, int32_t velocity, int32_t noteIndex) {
+void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMemberChannel, int32_t velocity,
+                                    int32_t noteIndex) {
 	int32_t channel = getChannel();
 	if (sendsToInternal()) {
 		sendNoteToInternal(false, noteCodePostArp, velocity, oldOutputMemberChannel);
@@ -1062,7 +1064,8 @@ uint8_t const shiftAmountsFrom16Bit[] = {2, 9, 8};
 // well use the 32-bit version here. Although, could it have even got more than 14 bits of meaningful value in the first
 // place?
 void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, int32_t noteCodeAfterArpeggiation,
-                                                              int32_t expressionDimension, ArpNote* arpNote, int32_t noteIndex) {
+                                                              int32_t expressionDimension, ArpNote* arpNote,
+                                                              int32_t noteIndex) {
 	// TODO RAUL: use noteIndex to search the right note and channel.
 	int32_t channel = getChannel();
 	if (sendsToInternal()) {

@@ -1189,7 +1189,8 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 				for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					if (n <= numAdditionalNotesInChord) {
 						// Pick the note to be added
-						int8_t targetOffset = musicalKey.modeNotes[(degree + degreeOffsets[n -1]) % musicalKey.modeNotes.count()];
+						int8_t targetOffset =
+						    musicalKey.modeNotes[(degree + degreeOffsets[n - 1]) % musicalKey.modeNotes.count()];
 						if (targetOffset <= baseOffset) {
 							// If the 5th is higher than the base note, we need to add an octave
 							targetOffset += 12;

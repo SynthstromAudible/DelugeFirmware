@@ -35,7 +35,8 @@ public:
 	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) override;
 	void noteOffPostArp(int32_t noteCode, int32_t oldMIDIChannel, int32_t velocity, int32_t noteIndex) override;
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
-	                                              int32_t expressionDmiension, ArpNote* arpNote, int32_t noteIndex) override;
+	                                              int32_t expressionDmiension, ArpNote* arpNote,
+	                                              int32_t noteIndex) override;
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	bool readTagFromFile(Deserializer& reader, const char* tagName) override;
 	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDmiension) override;
