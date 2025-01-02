@@ -7,20 +7,6 @@ int32_t computeCurrentValueForStandardMenuItem(int32_t value) {
 	return (((int64_t)value + 2147483648) * kMaxMenuValue + 2147483648) >> 32;
 }
 
-int32_t computeWeightedFourValuesForUnsignedMenuItem(uint32_t value) {
-	int32_t v = ((int64_t)value * kMaxMenuValue + 2147483648) >> 32;
-	if (v >= 35) {
-		return 3;
-	}
-	else if (v >= 20) {
-		return 2;
-	}
-	else if (v >= 5) {
-		return 1;
-	}
-	return 0;
-}
-
 int32_t computeCurrentValueForHalfPrecisionMenuItem(int32_t value) {
 	return ((int64_t)value * (kMaxMenuValue * 2) + 2147483648) >> 32;
 }
