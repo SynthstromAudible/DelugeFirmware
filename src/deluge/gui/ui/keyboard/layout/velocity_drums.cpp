@@ -42,8 +42,8 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 		}
 		uint32_t x = presses[idx_press].x;
 		if (x >= kDisplayWidth) {
-			continue;
-		} // prevents the sidebar from being able to activate notes
+			continue; // prevents the sidebar from being able to activate notes
+		}
 		bool x_adjust_note = (odd_pad && x == kDisplayWidth - 1);
 		uint32_t y = presses[idx_press].y;
 		uint32_t note = (x / edge_size_x) - x_adjust_note + ((y / edge_size_y) * pads_per_row) + offset;
@@ -123,30 +123,9 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 	// For example, if zoom level has gone down and scroll offset was at max, it will be reduced some.
 	int32_t new_offset = std::clamp(state.scroll_offset + offset, getLowestClipNote(), highest_scrolled_note);
 
-	// Only need to update colors and screen if the zoom level and/or scroll offset value has changed
+	// may need to update the scroll offset if zoom level has changed
 	if (new_offset != state.scroll_offset || zoom_level_changed) {
 		state.scroll_offset = new_offset;
-		precalculate();
-	}
-}
-
-void KeyboardLayoutVelocityDrums::precalculate() {
-	// update note (pad) colours array based on current zoom level and scroll offset position for use in next renderings
-
-	// update note (pad) colours array based on current zoom level and scroll offset position for use in next renderings
-
-	KeyboardStateDrums& state = getState().drums;
-	uint32_t zoom_level = getState().drums.zoom_level;
-	uint32_t edge_size_x = zoom_arr[zoom_level][0];
-	uint32_t edge_size_y = zoom_arr[zoom_level][1];
-	uint32_t displayed_full_pads_count = ((kDisplayHeight / edge_size_y) * (kDisplayWidth / edge_size_x));
-	uint32_t offset = state.scroll_offset;
-
-	// color offset controlled with shift + vertical encoder, the +60 is to go to 0 from the default of -60.
-	uint32_t offset2 = getCurrentInstrumentClip()->colourOffset + 60;
-	for (int32_t i = 0; i < displayed_full_pads_count; i++) {
-		int32_t i2 = offset + i;
-		note_colours[i] = RGB::fromHue((i2 * 14 + (i2 % 2 == 1) * 107 + offset2) % 192);
 	}
 }
 
@@ -154,6 +133,7 @@ void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBa
 	// D_PRINTLN("render pads");
 	uint32_t highest_clip_note = getHighestClipNote();
 	uint32_t offset = getState().drums.scroll_offset;
+	uint32_t offset2 = getCurrentInstrumentClip()->colourOffset + 60;
 	uint32_t zoom_level = getState().drums.zoom_level;
 	uint32_t edge_size_x = zoom_arr[zoom_level][0];
 	uint32_t edge_size_y = zoom_arr[zoom_level][1];
@@ -174,7 +154,7 @@ void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBa
 		uint32_t y = padY * edge_size_y;
 		for (uint32_t padX = 0; padX < pads_per_row; ++padX) {
 			uint32_t x = padX * edge_size_x;
-			RGB note_colour = note_colours[note - offset];
+			RGB note_colour = RGB::fromHue((note * 14 + (note % 2 == 1) * 107 + offset2) % 192);
 			bool note_enabled = currentNotesState.noteEnabled(note);
 			// Dim the active notes
 			// Brighter by default makes the pads more visible in daylight and allows for the full gradient.

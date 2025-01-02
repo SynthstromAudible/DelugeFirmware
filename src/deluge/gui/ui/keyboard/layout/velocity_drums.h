@@ -46,8 +46,6 @@ public:
 	bool supportsKit() override { return true; }
 
 private:
-	RGB note_colours[128];
-
 	inline uint8_t velocityFromCoords(int32_t x, int32_t y, uint32_t edge_size_x, uint32_t edge_size_y) {
 		uint32_t velocity = 0;
 		if (edge_size_x == 1) {

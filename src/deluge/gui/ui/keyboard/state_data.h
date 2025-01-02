@@ -31,8 +31,6 @@ struct KeyboardStateIsomorphic {
 
 struct KeyboardStateDrums {
 	int32_t scroll_offset = 0;
-	int32_t edge_size_x = 4;
-	int32_t edge_size_y = 4;
 	int32_t zoom_level = 8;
 };
 
