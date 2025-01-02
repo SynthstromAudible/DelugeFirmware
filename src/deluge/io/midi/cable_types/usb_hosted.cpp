@@ -18,22 +18,22 @@
 #include "usb_hosted.h"
 #include "storage/storage_manager.h"
 
-void MIDIDeviceUSBHosted::writeReferenceAttributesToFile(Serializer& writer) {
+void MIDICableUSBHosted::writeReferenceAttributesToFile(Serializer& writer) {
 	writer.writeAttribute("name", name.get());
 	writer.writeAttributeHex("vendorId", vendorId, 4);
 	writer.writeAttributeHex("productId", productId, 4);
 }
 
-void MIDIDeviceUSBHosted::writeToFlash(uint8_t* memory) {
+void MIDICableUSBHosted::writeToFlash(uint8_t* memory) {
 	*(uint16_t*)memory = vendorId;
 	*(uint16_t*)(memory + 2) = productId;
 }
 
-char const* MIDIDeviceUSBHosted::getDisplayName() {
+char const* MIDICableUSBHosted::getDisplayName() {
 	return name.get();
 }
 
-void MIDIDeviceUSBHosted::callHook(Hook hook) {
+void MIDICableUSBHosted::callHook(Hook hook) {
 	switch (hook) {
 	case Hook::HOOK_ON_CONNECTED:
 		hookOnConnected();

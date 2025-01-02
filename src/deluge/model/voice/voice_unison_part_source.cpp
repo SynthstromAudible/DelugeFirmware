@@ -98,7 +98,7 @@ void VoiceUnisonPartSource::unassign(bool deletingSong) {
 
 	if (dxVoice != nullptr) {
 		dxEngine->dxVoiceUnassigned(dxVoice);
-		dxVoice = NULL;
+		dxVoice = nullptr;
 	}
 
 	if (livePitchShifter != nullptr) {

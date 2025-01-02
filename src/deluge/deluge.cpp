@@ -91,8 +91,8 @@ extern uint8_t currentlyAccessingCard;
 
 extern "C" void disk_timerproc(UINT msPassed);
 
-Song* currentSong = NULL;
-Song* preLoadedSong = NULL;
+Song* currentSong = nullptr;
+Song* preLoadedSong = nullptr;
 
 bool sdRoutineLock = false;
 
@@ -455,7 +455,7 @@ void setupBlankSong() {
 	preLoadedSong->ensureAtLeastOneSessionClip();
 
 	currentSong = preLoadedSong;
-	preLoadedSong = NULL;
+	preLoadedSong = nullptr;
 
 	AudioEngine::getReverbParamsFromSong(currentSong);
 
@@ -472,7 +472,11 @@ void setupStartupSong() {
 	    startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath : runtimeFeatureSettings.getStartupSong();
 	String failSafePath;
 	failSafePath.concatenate("SONGS/__STARTUP_OFF_CHECK_");
-	failSafePath.concatenate(replace_char(filename, '/', '_'));
+
+	char replaced[sizeof(char) * strlen(filename) + 1]; // +1 for NULL terminator
+	replace_char(replaced, filename, '/', '_');
+	failSafePath.concatenate(replaced);
+
 	if (StorageManager::fileExists(failSafePath.get())) {
 		String msgReason;
 		msgReason.concatenate("STARTUP OFF, reason: ");
@@ -1061,12 +1065,12 @@ void deleteOldSongBeforeLoadingNew() {
 	AudioEngine::unassignAllVoices(true); // Need to do this now that we're not bothering getting the old Song's
 	                                      // Instruments detached and everything on delete
 
-	view.activeModControllableModelStack.modControllable = NULL;
-	view.activeModControllableModelStack.setTimelineCounter(NULL);
-	view.activeModControllableModelStack.paramManager = NULL;
+	view.activeModControllableModelStack.modControllable = nullptr;
+	view.activeModControllableModelStack.setTimelineCounter(nullptr);
+	view.activeModControllableModelStack.paramManager = nullptr;
 
 	Song* toDelete = currentSong;
-	currentSong = NULL;
+	currentSong = nullptr;
 	void* toDealloc = dynamic_cast<void*>(toDelete);
 	toDelete->~Song();
 	delugeDealloc(toDelete);

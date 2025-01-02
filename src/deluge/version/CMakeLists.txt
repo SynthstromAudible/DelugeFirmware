@@ -2,9 +2,12 @@
 # git is picked up
 
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/version.cmake
-"# Get the result of git rev-parse --short HEAD
+"
+find_package(Git REQUIRED QUIET)
+
+# Get the result of git rev-parse --short HEAD
 execute_process(
-    COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+    COMMAND $\{GIT_EXECUTABLE} rev-parse --short HEAD
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     OUTPUT_VARIABLE GIT_COMMIT_SHORT
     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -12,11 +15,21 @@ execute_process(
 
 # Get the result of git status --porcelain
 execute_process(
-    COMMAND ${GIT_EXECUTABLE} status --porcelain
+    COMMAND $\{GIT_EXECUTABLE} status --porcelain
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     OUTPUT_VARIABLE GIT_STATUS
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
+
+set(BUILD_VERSION_STRING_SHORT \"c${PROJECT_VERSION}\")
+
+if (RELEASE_TYPE STREQUAL \"release\")
+    set(BUILD_COMMIT_SHORT \"\${GIT_COMMIT_SHORT}\")
+    set(BUILD_VERSION_STRING \"c${PROJECT_VERSION}\")
+else()
+    set(BUILD_COMMIT_SHORT \"\${GIT_COMMIT_SHORT}\")
+    set(BUILD_VERSION_STRING \"${PROJECT_VERSION}${SEMVER_PRERELEASE_ID}-\${GIT_COMMIT_SHORT}\")
+endif()
 
 if(NOT \"\${GIT_STATUS}\" STREQUAL \"\")
     if(NOT RELEASE_TYPE STREQUAL \"release\")
@@ -24,17 +37,9 @@ if(NOT \"\${GIT_STATUS}\" STREQUAL \"\")
     endif()
 endif()
 
-set(BUILD_VERSION_STRING_SHORT \"c${PROJECT_VERSION}\")
-
-if (RELEASE_TYPE STREQUAL \"release\")
-    set(BUILD_COMMIT_SHORT \"\${GIT_COMMIT_SHORT}\")
-    set(BUILD_VERSION_STRING \"c$\{PROJECT_VERSION}\")
-else()
-    set(BUILD_COMMIT_SHORT \"\${GIT_COMMIT_SHORT}\")
-    set(BUILD_VERSION_STRING \"${PROJECT_VERSION}${SEMVER_PRERELEASE_ID}-\${GIT_COMMIT_SHORT}\")
-endif()
-
 configure_file(\${SRC} \${DST} @ONLY)
+
+message(STATUS \"Deluge Community Firmware v\${BUILD_VERSION_STRING}\")
 ")
 
 set(deluge_version_INCLUDES ${CMAKE_CURRENT_BINARY_DIR} PARENT_SCOPE)
@@ -43,7 +48,7 @@ add_custom_target(
   deluge_version
   ALL
   BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/version.cpp.gen
-  COMMENT "Checking current git state..."
+  COMMENT "Generating version from git state..."
   COMMAND ${CMAKE_COMMAND}
     -DBUILD_VERSION_STRING="${BUILD_VERSION_STRING}"
     -DRELEASE_TYPE="${RELEASE_TYPE}"

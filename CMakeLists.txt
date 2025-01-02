@@ -21,43 +21,9 @@ else()
     set(SEMVER_PRERELEASE_ID "-${RELEASE_TYPE}")
 endif()
 
-if(CMAKE_HOST_WIN32)
-  # Find python by ourselves, since on windows the find_package lookup
-  # seems to fail
-  set(Python_EXECUTABLE "$ENV{DBT_TOOLCHAIN_ROOT}/python/python.exe")
-  IF(EXISTS ${Python_EXECUTABLE})
-    execute_process(
-      COMMAND ${Python_EXECUTABLE} -c "import platform; print(platform.python_version())"
-      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-      OUTPUT_VARIABLE Python_VERSION
-      RESULT_VARIABLE Python_RESULT
-      OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    if(NOT ${Python_RESULT} AND NOT ${Python_VERSION} STREQUAL "")
-      set(Python_Interpreter_FOUND 1)
-    else()
-      message(FATAL_ERROR "Python found at ${Python_EXECUTABLE} but failed to get version number")
-    endif()
-  else()
-    set(Python_Interpreter_FOUND 0)
-  endif()
-else()
-  find_package(Python COMPONENTS Interpreter)
-endif()
-
-if (Python_Interpreter_FOUND)
-    message(VERBOSE "python found: ${Python_EXECUTABLE} version ${Python_VERSION}")
-else()
-    message(FATAL_ERROR "Python not found")
-endif(Python_Interpreter_FOUND)
-
-find_package(Git)
-
-if(GIT_FOUND)
-    message(VERBOSE "git found: ${GIT_EXECUTABLE} version ${GIT_VERSION_STRING}")
-else()
-    message(FATAL_ERROR "Git not found. Check your path.")
-endif(GIT_FOUND)
+set(Python_ROOT $ENV{DBT_TOOLCHAIN_ROOT}/python CACHE STRING "Path to the Python installation")
+find_package(Python REQUIRED COMPONENTS Interpreter)
+find_package(Git REQUIRED)
 
 # Get the result of "git rev-parse --short HEAD"
 execute_process(
@@ -86,14 +52,6 @@ else()
 endif()
 
 string(REPLACE "." "_" BUILD_VERSION_SUFFIX ${BUILD_VERSION_SUFFIX})
-
-if(NOT "${GIT_STATUS}" STREQUAL "")
-    if(NOT RELEASE_TYPE STREQUAL "release")
-        string(APPEND BUILD_VERSION_STRING "-dirty")
-    endif()
-endif()
-
-message(STATUS "Deluge version: v${BUILD_VERSION_STRING}")
 
 option(ENABLE_VERSIONED_OUTPUT "Tag the resulting output files with a semver label" OFF)
 
@@ -155,7 +113,6 @@ if(DOXYGEN_FOUND)
 
     # set(DOXYGEN_CLANG_ASSISTED_PARSING YES)
     # SET(DOXYGEN_CLANG_DATABASE_PATH build)
-
     set(DOXYGEN_USE_MDFILE_AS_MAINPAGE README.md)
 
     file(GLOB markdown_SOURCES *.md)
@@ -204,8 +161,6 @@ add_compile_options(
     # ASM stuff
     $<$<COMPILE_LANGUAGE:ASM>:-x>
     $<$<COMPILE_LANGUAGE:ASM>:assembler-with-cpp>
-
-
 )
 
 # Add libraries
@@ -237,6 +192,7 @@ list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
     $<$<CONFIG:DEBUG>:-Wno-unused-parameter>
 
     $<$<CONFIG:DEBUG>:-Werror=write-strings>
+
     # Offsetof for non standard types is supported in GCC,
     # if another compiler does not support it they are obligated to error
 
@@ -277,7 +233,6 @@ target_link_options(deluge PUBLIC
 
     # Enabled to generate a full ELF, objcopy will do the stripping
     # $<$<CONFIG:RELEASE>:LINKER:--strip-all> # Strip
-
     -nostartfiles # Don't emit startfiles
 
     # Print details

@@ -346,7 +346,7 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 	// First things first - if there is no next Cluster or it's not loaded...
 	if (!clusters[0]) {
 		D_PRINTLN("reached end of waveform. last Cluster was:  %d", oldClusterIndex);
-		currentPlayPos = 0;
+		currentPlayPos = nullptr;
 		return false;
 	}
 
@@ -427,7 +427,7 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 				}
 			}
 			else {
-				currentPlayPos = 0;
+				currentPlayPos = nullptr;
 				return false;
 			}
 		}
@@ -1193,7 +1193,7 @@ bool SampleLowLevelReader::readSamplesForTimeStretching(
 		else {
 			bool doneAnySamplesYet = false;
 			readSamplesResampled(&outputBuffer, samplesNow, sample, jumpAmount, numChannels, numChannelsAfterCondensing,
-			                     phaseIncrement, &amplitude, amplitudeIncrement, bufferSize, false, NULL,
+			                     phaseIncrement, &amplitude, amplitudeIncrement, bufferSize, false, nullptr,
 			                     &doneAnySamplesYet, timeStretcher, bufferingToTimeStretcher, whichKernel);
 		}
 

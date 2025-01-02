@@ -25,7 +25,7 @@ ConsequenceClipLength::ConsequenceClipLength(Clip* newClip, int32_t oldLength) {
 
 	clip = newClip;
 	lengthToRevertTo = oldLength;
-	pointerToMarkerValue = NULL;
+	pointerToMarkerValue = nullptr;
 }
 
 Error ConsequenceClipLength::revert(TimeType time, ModelStack* modelStack) {
@@ -39,7 +39,7 @@ Error ConsequenceClipLength::revert(TimeType time, ModelStack* modelStack) {
 
 	int32_t lengthBeforeRevert = clip->loopLength;
 
-	modelStack->song->setClipLength(clip, lengthToRevertTo, NULL);
+	modelStack->song->setClipLength(clip, lengthToRevertTo, nullptr);
 
 	lengthToRevertTo = lengthBeforeRevert;
 

@@ -37,15 +37,10 @@ class FileItem;
 class NumericLayerScrollingText;
 class Song;
 
+// FIXME: std::expected<std::pair<bool, FileItem*>, Error>
 struct PresetNavigationResult {
 	FileItem* fileItem;
-	Error error;
 	bool loadedFromFile;
-};
-
-// FIXME: This is literally a std::expected and should be such.
-struct ReturnOfConfirmPresetOrNextUnlaunchedOne {
-	FileItem* fileItem;
 	Error error;
 };
 
@@ -103,8 +98,6 @@ public:
 	static char const* filenameToStartSearchAt;
 
 	// ui
-	UIType getUIType() override { return UIType::BROWSER; }
-	const char* getName() override { return "browser"; }
 	bool exitUI() override {
 		Browser::close();
 		return true;

@@ -17,6 +17,13 @@ body:
       label: What is the expected behavior?
     validations:
       required: true
+  - type: textarea
+    id: problem_date
+    attributes:
+      label: When did you start noticing the issue?
+      description: "A specific date, \"a few weeks\" or \"just now\" are all good timeframes to help narrow down a bug's cause."
+    validations:
+      required: true
   - type: input
     id: pr
     attributes:
@@ -39,6 +46,7 @@ body:
       label: What firmware did you reproduce it with?
       multiple: true
       options:
+        - Release 1.2/Chopin
         - Release 1.1/Beethoven
         - Release 1.0/Amadeus
         - Nightly

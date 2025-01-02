@@ -133,6 +133,8 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 void KeyboardLayoutVelocityDrums::precalculate() {
 	// update note (pad) colours array based on current zoom level and scroll offset position for use in next renderings
 
+	// update note (pad) colours array based on current zoom level and scroll offset position for use in next renderings
+
 	KeyboardStateDrums& state = getState().drums;
 	uint32_t zoom_level = getState().drums.zoom_level;
 	uint32_t edge_size_x = zoom_arr[zoom_level][0];

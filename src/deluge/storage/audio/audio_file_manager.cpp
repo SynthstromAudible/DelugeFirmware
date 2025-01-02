@@ -792,7 +792,7 @@ ramError:
 
 		// if (!suppliedFilePointer) f_close(&fileSystemStuff.currentFile);
 
-		((SampleReader*)reader)->currentCluster = NULL;
+		((SampleReader*)reader)->currentCluster = nullptr;
 	}
 
 	// Or if WaveTable, we're going to read the file more normally through FatFS, so we want to "open" it.
@@ -1171,7 +1171,7 @@ copy7ToMe:
 
 	cluster.loaded = true;
 
-	clusterBeingLoaded = NULL;
+	clusterBeingLoaded = nullptr;
 	removeReasonFromCluster(cluster, "E034");
 
 #if ALPHA_OR_BETA_VERSION
@@ -1346,7 +1346,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* err
 		if (loadingQueue.erase(cluster) || deletingSong) {
 
 			// Tell its Cluster to forget it exists
-			cluster.sample->clusters.getElement(cluster.clusterIndex)->cluster = NULL;
+			cluster.sample->clusters.getElement(cluster.clusterIndex)->cluster = nullptr;
 
 			delete &cluster; // It contains nothing, so completely recycle it
 		}

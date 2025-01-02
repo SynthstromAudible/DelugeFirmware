@@ -149,7 +149,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 				if (clip->section == oldSection) {
 					int32_t newSection =
 					    currentSong->sessionClips.getClipAtIndex(c - 1)->section; // Grab section from next Clip down
-					userWantsToArmClipsToStartOrSolo(newSection, NULL, true, false, false, numRepetitions, false);
+					userWantsToArmClipsToStartOrSolo(newSection, nullptr, true, false, false, numRepetitions, false);
 					lastSectionArmed = newSection;
 					return;
 				}
@@ -159,7 +159,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 	// grid mode - just go to the next section, no need to worry about what order they're in
 	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		if (oldSection < kMaxNumSections) {
-			userWantsToArmClipsToStartOrSolo(oldSection + 1, NULL, true, false, false, numRepetitions, false);
+			userWantsToArmClipsToStartOrSolo(oldSection + 1, nullptr, true, false, false, numRepetitions, false);
 			lastSectionArmed = oldSection + 1;
 			return;
 		}
@@ -390,7 +390,7 @@ void Session::doLaunch(bool isFillLaunch) {
 				// If wanting to stop recording linearly at the same time as that...
 				if (clip->getCurrentlyRecordingLinearly()) {
 					// Won't be a pending overdub - those aren't allowed if we're gonna be soloing
-					clip->finishLinearRecording(modelStackWithTimelineCounter, NULL);
+					clip->finishLinearRecording(modelStackWithTimelineCounter, nullptr);
 					stoppedLinearRecording = true;
 				}
 			}
@@ -1233,7 +1233,7 @@ yupThatsFine:
 	// Or if Deluge playing
 	else {
 		userWantsToArmClipsToStartOrSolo(
-		    section, NULL, stopAllOtherClips, false,
+		    section, nullptr, stopAllOtherClips, false,
 		    false); // Don't allow "late start". It's too fiddly to implement, and rarely even useful for sections
 		lastSectionArmed = section;
 	}
@@ -2201,7 +2201,7 @@ yeahNahItsOn:
 bool Session::considerLaunchEvent(int32_t numTicksBeingIncremented) {
 
 	bool swappedSong = false;
-	Clip* nextClipWithFillEvent = NULL;
+	Clip* nextClipWithFillEvent = nullptr;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);

@@ -72,7 +72,7 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
                                   int16_t const* mpeValues, int32_t fromMIDIChannel, uint8_t velocity,
                                   uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 
-	ArpeggiatorSettings* arpSettings = NULL;
+	ArpeggiatorSettings* arpSettings = nullptr;
 	if (activeClip) {
 		arpSettings = &((InstrumentClip*)activeClip)->arpSettings;
 	}
@@ -238,7 +238,7 @@ ParamManager* NonAudioInstrument::getParamManager(Song* song) {
 		return &activeClip->paramManager;
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 }
 

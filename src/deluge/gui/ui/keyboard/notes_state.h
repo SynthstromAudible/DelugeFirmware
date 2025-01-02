@@ -18,11 +18,11 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "util/misc.h"
+#include <array>
+#include <bitset>
 #include <climits>
 #include <cstdint>
 #include <cstring>
-#include <ranges>
 
 constexpr uint8_t kMaxNumActiveNotes = 10;
 
@@ -56,7 +56,7 @@ constexpr uint8_t kHighestKeyboardNote = kOctaveSize * 12;
 struct NotesState {
 	using NoteArray = std::array<NoteState, kMaxNumActiveNotes>;
 
-	uint64_t states[util::div_ceil(size_t{kHighestKeyboardNote}, size_t{64})] = {0};
+	std::bitset<kHighestKeyboardNote> states;
 	NoteArray notes;
 	uint8_t count = 0;
 
@@ -92,15 +92,12 @@ struct NotesState {
 			memcpy(&state.mpeValues, mpeValues, sizeof(state.mpeValues));
 		}
 
-		states[(note / 64)] |= (1ull << (note % 64));
+		states[note] = true;
 
 		return idx;
 	}
 
-	bool noteEnabled(uint8_t note) {
-		uint64_t expectedValue = (1ull << (note % 64));
-		return (states[(note / 64)] & expectedValue) == expectedValue;
-	}
+	[[nodiscard]] constexpr bool noteEnabled(uint8_t note) const { return states[note]; }
 };
 
 }; // namespace deluge::gui::ui::keyboard

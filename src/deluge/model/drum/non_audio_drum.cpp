@@ -33,7 +33,7 @@ bool NonAudioDrum::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool dis
 
 void NonAudioDrum::unassignAllVoices() {
 	if (hasAnyVoices()) {
-		noteOff(NULL);
+		noteOff(nullptr);
 	}
 }
 
@@ -88,7 +88,7 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int32_t 
 
 	bool wasOn = state;
 	if (wasOn) {
-		noteOff(NULL);
+		noteOff(nullptr);
 	}
 
 	*encoderOffset = 0;
@@ -106,7 +106,7 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int32_t 
 	instrumentClipView.drawDrumName(this, true);
 
 	if (wasOn) {
-		noteOn(modelStack, lastVelocity, NULL, zeroMPEValues);
+		noteOn(modelStack, lastVelocity, nullptr, zeroMPEValues);
 	}
 }
 

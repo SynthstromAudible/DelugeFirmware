@@ -29,14 +29,13 @@ public:
 	virtual bool performSave(bool mayOverwrite = false) = 0; // Returns true if success, or if otherwise dealt with
 	                                                         // (e.g. "overwrite" context menu brought up)
 	void focusRegained() override;
-	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) override {
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
 		return true;
 	}
 	bool canSeeViewUnderneath() final { return false; }
 	ActionResult timerCallback() override;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
-	const char* getName() override { return "save_ui"; }
 
 protected:
 	// void displayText(bool blinkImmediately) final;

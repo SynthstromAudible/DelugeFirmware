@@ -25,11 +25,13 @@ public:
 		connectionFlags = 1; // DIN ports are always connected
 	}
 
+	[[nodiscard]] bool wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const override;
+
 	void writeReferenceAttributesToFile(Serializer& writer) override;
 	void writeToFlash(uint8_t* memory) override;
 	char const* getDisplayName() override;
 
 	void sendMessage(MIDIMessage message) override;
 	void sendSysex(const uint8_t* data, int32_t len) override;
-	size_t sendBufferSpace() override;
+	size_t sendBufferSpace() const override;
 };

@@ -43,7 +43,7 @@ Source::Source() {
 	timeStretchAmount = 0;
 
 	defaultRangeI = -1;
-	dxPatch = NULL;
+	dxPatch = nullptr;
 }
 
 Source::~Source() {
@@ -99,7 +99,7 @@ void Source::detachAllAudioFiles() {
 			AudioEngine::routineWithClusterLoading(); // --------------------------------------- // 7 works, 15
 			                                          // occasionally drops voices - for multisampled synths
 		}
-		ranges.getElement(e)->getAudioFileHolder()->setAudioFile(NULL);
+		ranges.getElement(e)->getAudioFileHolder()->setAudioFile(nullptr);
 	}
 }
 
@@ -114,7 +114,7 @@ Error Source::loadAllSamples(bool mayActuallyReadFiles) {
 			return Error::ABORTED_BY_USER;
 		}
 		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.reversed, false, mayActuallyReadFiles,
-		                                                     CLUSTER_ENQUEUE, 0, true);
+		                                                     CLUSTER_ENQUEUE, nullptr, true);
 	}
 
 	return Error::NONE;
@@ -141,7 +141,7 @@ MultiRange* Source::getRange(int32_t note) {
 		return ranges.getElement(0);
 	}
 	else if (ranges.getNumElements() == 0) {
-		return NULL;
+		return nullptr;
 	}
 	else {
 		defaultRangeI = ranges.search(note, GREATER_OR_EQUAL);
@@ -171,7 +171,7 @@ MultiRange* Source::getOrCreateFirstRange() {
 		    0); // Default option - allowed e.g. for a new Sound where the current process is the Ranges get set up
 		        // before oscType is switched over to SAMPLE - but this can't happen for WAVETABLE so that's ok
 		if (!newRange) {
-			return NULL;
+			return nullptr;
 		}
 
 		newRange->topNote = 32767;

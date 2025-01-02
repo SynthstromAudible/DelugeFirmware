@@ -40,7 +40,6 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::LOAD_SONG; }
-	const char* getName() override { return "load_song_ui"; }
 
 protected:
 	void displayText(bool blinkImmediately = false) override;

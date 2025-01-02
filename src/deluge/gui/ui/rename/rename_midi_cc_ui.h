@@ -33,8 +33,6 @@ public:
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 
 	// ui
-	UIType getUIType() override { return UIType::RENAME_MIDI_CC; }
-	const char* getName() override { return "rename_midi_cc_ui"; }
 	bool exitUI() override;
 
 protected:

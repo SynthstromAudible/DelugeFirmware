@@ -67,7 +67,7 @@ Kit::~Kit() {
 }
 
 Drum* Kit::getNextDrum(Drum* fromDrum) {
-	if (fromDrum == NULL) {
+	if (fromDrum == nullptr) {
 		return firstDrum;
 	}
 	else {
@@ -77,7 +77,7 @@ Drum* Kit::getNextDrum(Drum* fromDrum) {
 
 Drum* Kit::getPrevDrum(Drum* fromDrum) {
 	if (fromDrum == firstDrum) {
-		return NULL;
+		return nullptr;
 	}
 
 	Drum* thisDrum = firstDrum;
@@ -99,7 +99,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 	}
 	// saving song
 	else {
-		paramManager = NULL;
+		paramManager = nullptr;
 
 		// If no activeClip, that means no Clip has this Instrument, so there should be a backedUpParamManager that we
 		// should use
@@ -108,7 +108,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 		}
 	}
 
-	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == NULL);
+	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == nullptr);
 
 	writer.writeOpeningTagEnd(); // ---------------------------------------------------------------------------
 	                             // Attributes end
@@ -118,13 +118,13 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 			midiInput.writeNoteToFile(writer, "MIDIInput");
 		}
 	}
-	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, clipForSavingOutputOnly == NULL);
+	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, clipForSavingOutputOnly == nullptr);
 
 	writer.writeArrayStart("soundSources"); // TODO: change this?
 	int32_t selectedDrumIndex = -1;
 	int32_t drumIndex = 0;
 
-	Drum* newFirstDrum = NULL;
+	Drum* newFirstDrum = nullptr;
 	Drum** newLastDrum = &newFirstDrum;
 
 	Clip* clipToTakeDrumOrderFrom = clipForSavingOutputOnly;
@@ -141,7 +141,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 			if (thisNoteRow->drum) {
 				Drum* drum = thisNoteRow->drum;
 
-				ParamManagerForTimeline* paramManagerForDrum = NULL;
+				ParamManagerForTimeline* paramManagerForDrum = nullptr;
 
 				// If saving Kit (not Song)
 				if (clipForSavingOutputOnly) {
@@ -149,11 +149,11 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 				}
 				// Or if saving Song, we know there's a NoteRow, so no need to save the ParamManager
 
-				writeDrumToFile(writer, drum, paramManagerForDrum, (clipForSavingOutputOnly == NULL),
+				writeDrumToFile(writer, drum, paramManagerForDrum, (clipForSavingOutputOnly == nullptr),
 				                &selectedDrumIndex, &drumIndex, song);
 
 				removeDrumFromLinkedList(drum);
-				drum->next = NULL;
+				drum->next = nullptr;
 				*newLastDrum = drum;
 				newLastDrum = &drum->next;
 			}
@@ -169,7 +169,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 			break;
 		}
 
-		ParamManager* paramManagerForDrum = NULL;
+		ParamManager* paramManagerForDrum = nullptr;
 
 		// If saving Kit (not song), only save Drums if some other NoteRow in the song has it - in which case, save as
 		// "default" the params from that NoteRow
@@ -222,7 +222,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 			}
 		}
 
-		writeDrumToFile(writer, thisDrum, paramManagerForDrum, clipForSavingOutputOnly == NULL, &selectedDrumIndex,
+		writeDrumToFile(writer, thisDrum, paramManagerForDrum, clipForSavingOutputOnly == nullptr, &selectedDrumIndex,
 		                &drumIndex, song);
 
 moveOn:
@@ -273,8 +273,8 @@ doReadDrum:
 					if (error != Error::NONE) {
 						return error;
 					}
-					reader.match('}');          // Exit value.
-					reader.exitTag(NULL, true); // Exit box.
+					reader.match('}');             // Exit value.
+					reader.exitTag(nullptr, true); // Exit box.
 				}
 				else if (!strcmp(tagName, "midiOutput")) {
 					drumType = DrumType::MIDI;
@@ -413,7 +413,7 @@ void Kit::loadCrucialAudioFilesOnly() {
 
 void Kit::addDrum(Drum* newDrum) {
 	Drum** prevPointer = &firstDrum;
-	while (*prevPointer != NULL) {
+	while (*prevPointer != nullptr) {
 		prevPointer = &((*prevPointer)->next);
 	}
 	*prevPointer = newDrum;
@@ -440,7 +440,7 @@ void Kit::removeDrumFromLinkedList(Drum* drum) {
 
 void Kit::drumRemoved(Drum* drum) {
 	if (selectedDrum == drum) {
-		selectedDrum = NULL;
+		selectedDrum = nullptr;
 	}
 
 #if ALPHA_OR_BETA_VERSION
@@ -452,13 +452,13 @@ void Kit::drumRemoved(Drum* drum) {
 }
 
 Drum* Kit::getFirstUnassignedDrum(InstrumentClip* clip) {
-	for (Drum* thisDrum = firstDrum; thisDrum != NULL; thisDrum = thisDrum->next) {
+	for (Drum* thisDrum = firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 		if (!clip->getNoteRowForDrum(thisDrum)) {
 			return thisDrum;
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 int32_t Kit::getDrumIndex(Drum* drum) {
@@ -506,7 +506,7 @@ SoundDrum* Kit::getDrumFromName(char const* name, bool onlyIfNoNoteRow) {
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 void Kit::cutAllSound() {
@@ -537,7 +537,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		}
 
 		ParamManager* drumParamManager;
-		NoteRow* thisNoteRow = NULL;
+		NoteRow* thisNoteRow = nullptr;
 		int32_t noteRowIndex;
 
 		if (activeClip) {
@@ -725,7 +725,7 @@ bool Kit::offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channe
 
 void Kit::choke() {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		thisDrum->choke(NULL);
+		thisDrum->choke(nullptr);
 	}
 }
 
@@ -763,7 +763,7 @@ Error Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
 
 void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(NULL);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(nullptr);
 
 	setupPatching(modelStackWithTimelineCounter);
 
@@ -779,7 +779,7 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 			SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
 			ParamManager* paramManager = modelStackWithTimelineCounter->song->getBackedUpParamManagerPreferablyWithClip(
-			    (ModControllableAudio*)soundDrum, NULL);
+			    (ModControllableAudio*)soundDrum, nullptr);
 			if (!paramManager) {
 				FREEZE_WITH_ERROR("E174");
 			}
@@ -835,8 +835,8 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 				SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
-				ParamManager* paramManager =
-				    modelStack->song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)soundDrum, NULL);
+				ParamManager* paramManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip(
+				    (ModControllableAudio*)soundDrum, nullptr);
 				if (!paramManager) {
 					FREEZE_WITH_ERROR("E172");
 				}
@@ -1006,7 +1006,7 @@ GateDrum* Kit::getGateDrumForChannel(int32_t gateChannel) {
 			}
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 void Kit::resetDrumTempValues() {
@@ -1098,7 +1098,7 @@ goingToRecordNoteOnEarly:
 
 	ModelStackWithNoteRow* modelStackWithNoteRow;
 
-	NoteRow* thisNoteRow = NULL; // Will only be set to true if there's a Clip / activeClip
+	NoteRow* thisNoteRow = nullptr; // Will only be set to true if there's a Clip / activeClip
 
 	if (instrumentClip) {
 		modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);
@@ -1108,7 +1108,7 @@ goingToRecordNoteOnEarly:
 		}
 	}
 	else {
-		modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
+		modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
 	}
 
 	if (recordingNoteOnEarly) {
@@ -1148,7 +1148,7 @@ goingToRecordNoteOnEarly:
 
 			if (thisNoteRow && shouldRecordNoteOn) {
 
-				int16_t const* mpeValuesOrNull = NULL;
+				int16_t const* mpeValuesOrNull = nullptr;
 
 				if (cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
 					mpeValuesOrNull = mpeValues;
@@ -1524,7 +1524,7 @@ void Kit::stopAnyAuditioning(ModelStack* modelStack) {
 		if (thisDrum->auditioned) {
 			ModelStackWithNoteRow* modelStackWithNoteRow =
 			    activeClip ? ((InstrumentClip*)activeClip)->getNoteRowForDrum(modelStackWithTimelineCounter, thisDrum)
-			               : modelStackWithTimelineCounter->addNoteRow(0, NULL);
+			               : modelStackWithTimelineCounter->addNoteRow(0, nullptr);
 
 			endAuditioningForDrum(modelStackWithNoteRow, thisDrum);
 		}
@@ -1547,7 +1547,7 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 	if (!drum) {
 		return;
 	}
-	ParamManager* paramManagerForDrum = NULL;
+	ParamManager* paramManagerForDrum = nullptr;
 
 	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
 
@@ -1601,7 +1601,7 @@ void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, i
 		return;
 	}
 
-	ParamManager* paramManagerForDrum = NULL;
+	ParamManager* paramManagerForDrum = nullptr;
 
 	if (drum->type == DrumType::SOUND) {
 		if (noteRow) {

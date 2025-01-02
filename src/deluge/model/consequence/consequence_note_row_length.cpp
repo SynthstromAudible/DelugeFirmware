@@ -30,7 +30,7 @@ Error ConsequenceNoteRowLength::revert(TimeType time, ModelStack* modelStack) {
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(modelStack->song->getCurrentClip())
 	                                                   ->addNoteRowId(noteRowId)
 	                                                   ->automaticallyAddNoteRowFromId();
-	performChange(modelStackWithNoteRow, NULL, modelStackWithNoteRow->getLastProcessedPos(),
+	performChange(modelStackWithNoteRow, nullptr, modelStackWithNoteRow->getLastProcessedPos(),
 	              modelStackWithNoteRow->getNoteRow()->hasIndependentPlayPos());
 	return Error::NONE;
 }

@@ -30,7 +30,7 @@ class Output;
 
 class LoadInstrumentPresetUI final : public LoadUI {
 public:
-	LoadInstrumentPresetUI();
+	LoadInstrumentPresetUI() = default;
 	bool opened() override;
 	// void selectEncoderAction(int8_t offset);
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
@@ -41,18 +41,18 @@ public:
 	Error performLoadSynthToKit();
 	ActionResult timerCallback() override;
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
-	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true,
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr, bool drawUndefinedArea = true,
 	                    int32_t navSys = -1) {
 		return true;
 	}
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
-	ReturnOfConfirmPresetOrNextUnlaunchedOne
+	std::expected<FileItem*, Error>
 	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, OutputType outputType,
 	                                                Availability availabilityRequirement);
-	ReturnOfConfirmPresetOrNextUnlaunchedOne confirmPresetOrNextUnlaunchedOne(OutputType outputType, String* searchName,
-	                                                                          Availability availabilityRequirement);
+	std::expected<FileItem*, Error> confirmPresetOrNextUnlaunchedOne(OutputType outputType, String* searchName,
+	                                                                 Availability availabilityRequirement);
 	PresetNavigationResult doPresetNavigation(int32_t offset, Instrument* oldInstrument,
 	                                          Availability availabilityRequirement, bool doBlink);
 	void setupLoadInstrument(OutputType newOutputType, Instrument* instrumentToReplace_,
@@ -74,9 +74,9 @@ public:
 		noteRowIndex = rowIndex; // (not set value for note rows)
 		noteRow = row;
 	}
+
 	// ui
 	UIType getUIType() override { return UIType::LOAD_INSTRUMENT_PRESET; }
-	const char* getName() override { return "load_instrument_preset"; }
 
 protected:
 	void enterKeyPress() override;

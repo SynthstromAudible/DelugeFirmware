@@ -19,8 +19,9 @@
 
 #include "definitions_cxx.hpp"
 #include "model/instrument/non_audio_instrument.h"
-#include "modulation/midi/label/midi_label_collection.h"
+#include "util/containers.h"
 #include <array>
+#include <string_view>
 
 class ModelStack;
 class ModelStackWithThreeMainThings;
@@ -57,8 +58,8 @@ public:
 	void writeDeviceDefinitionFileNameToPresetOrSong(Serializer& writer);
 	void writeCCLabelsToFile(Serializer& writer);
 	/// getting / updating cc labels
-	String* getNameFromCC(int32_t cc);
-	void setNameForCC(int32_t cc, String* name);
+	std::string_view getNameFromCC(int32_t cc);
+	void setNameForCC(int32_t cc, std::string_view name);
 	/// definition file
 	String deviceDefinitionFileName;
 	bool loadDeviceDefinitionFile = false;
@@ -136,6 +137,7 @@ private:
 	void combineMPEtoMono(int32_t value32, int32_t expressionDimension);
 	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);
 	Error readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
-	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = NULL);
-	MIDILabelCollection midiLabelCollection;
+	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = nullptr);
+
+	deluge::fast_map<uint8_t, std::string> labels;
 };

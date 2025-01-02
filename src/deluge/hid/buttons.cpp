@@ -34,6 +34,8 @@
 #include <map>
 #include <string>
 
+#include "io/debug/log.h"
+
 namespace Buttons {
 
 bool recordButtonPressUsedUp;
@@ -88,7 +90,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 // This is a debug feature that allows us to output SYSEX debug logging button presses
 // See contributing.md for more information
 #if ENABLE_MATRIX_DEBUG
-	D_PRINT("UI=%s, Button=%s, On=%d", getCurrentUI()->getName(), getButtonName(b), on);
+	D_PRINT("UI=%s, Button=%s, On=%d", getCurrentUI()->getUIName(), getButtonName(b), on);
 #endif
 	if (on) {
 		// If the user presses a different button while holding shift, don't consider the shift press for the purposes

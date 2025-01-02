@@ -26,6 +26,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include <string_view>
 
 RenameMidiCCUI renameMidiCCUI{};
 
@@ -51,9 +52,9 @@ bool RenameMidiCCUI::opened() {
 
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 
-	String* name = midiInstrument->getNameFromCC(cc);
-	if (name) {
-		enteredText.set(name);
+	std::string_view name = midiInstrument->getNameFromCC(cc);
+	if (!name.empty()) {
+		enteredText.set(name.data());
 	}
 	else {
 		enteredText.clear();
@@ -107,7 +108,7 @@ void RenameMidiCCUI::enterKeyPress() {
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 	int32_t cc = clip->lastSelectedParamID;
 
-	midiInstrument->setNameForCC(cc, &enteredText);
+	midiInstrument->setNameForCC(cc, enteredText.get());
 	midiInstrument->editedByUser = true; // need to set this to true so that the name gets saved with the song / preset
 
 	exitUI();

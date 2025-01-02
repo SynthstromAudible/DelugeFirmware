@@ -30,7 +30,6 @@ public:
 	void focusRegained() override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 
-	const char* getName() override { return "slot_browser"; }
 	Error getCurrentFilePath(String* path) override;
 
 protected:

@@ -256,7 +256,7 @@ void SampleBrowser::exitAndNeverDeleteDrum() {
 
 // Will "delete drum if possible".
 void SampleBrowser::exitAction() {
-	UI* redrawUI = NULL;
+	UI* redrawUI = nullptr;
 
 	display->setNextTransitionDirection(-1);
 	if (!isUIOpen(&soundEditor)) {
@@ -726,13 +726,13 @@ Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCost
 	soundEditor.cutSound();
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
-	holder->setAudioFile(NULL);
+	holder->setAudioFile(nullptr);
 	Error error = getCurrentFilePath(&holder->filePath);
 	if (error != Error::NONE) {
 		return error;
 	}
 
-	return holder->loadFile(soundEditor.currentSource->sampleControls.reversed, true, true, CLUSTER_ENQUEUE, 0,
+	return holder->loadFile(soundEditor.currentSource->sampleControls.reversed, true, true, CLUSTER_ENQUEUE, nullptr,
 	                        makeWaveTableWorkAtAllCosts);
 }
 
@@ -740,7 +740,7 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 	soundEditor.cutSound();
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
-	holder->setAudioFile(NULL);
+	holder->setAudioFile(nullptr);
 	Error error = getCurrentFilePath(&holder->filePath);
 	if (error != Error::NONE) {
 		return error;
@@ -1841,7 +1841,7 @@ bool SampleBrowser::importFolderAsKit() {
 	Sample** sortArea;
 
 	int32_t prefixAndDirLength;
-	bool success = loadAllSamplesInFolder(false, &numSamples, &sortArea, NULL, &prefixAndDirLength);
+	bool success = loadAllSamplesInFolder(false, &numSamples, &sortArea, nullptr, &prefixAndDirLength);
 
 	if (!success) {
 doReturnFalse:
@@ -1936,7 +1936,7 @@ getOut:
 			}
 
 			AudioFileHolder* holder = range->getAudioFileHolder();
-			holder->setAudioFile(NULL);
+			holder->setAudioFile(nullptr);
 			holder->filePath.set(&thisSample->filePath);
 			holder->setAudioFile(thisSample, source->sampleControls.reversed, true);
 

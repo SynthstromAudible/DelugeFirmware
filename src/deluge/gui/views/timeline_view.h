@@ -26,13 +26,12 @@ class NoteRow;
 
 class TimelineView : public RootUI {
 public:
-	TimelineView() {}
+	TimelineView() = default;
 
 	void scrollFinished() override;
 
 	TimelineView* toTimelineView() final { return this; }
 
-	const char* getName() override { return "timeline_view"; }
 	virtual uint32_t getMaxZoom() = 0;
 	virtual bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom,
 	                                     uint32_t oldZoom); // Returns false if no animation needed
@@ -63,16 +62,13 @@ public:
 
 	[[nodiscard]] int32_t getPosFromSquare(int32_t square, int32_t localScroll = -1) const;
 	[[nodiscard]] int32_t getPosFromSquare(int32_t square, int32_t xScroll, uint32_t xZoom) const;
-	int32_t getSquareFromPos(int32_t pos, bool* rightOnSquare = NULL, int32_t localScroll = -1);
+	int32_t getSquareFromPos(int32_t pos, bool* rightOnSquare = nullptr, int32_t localScroll = -1);
 	int32_t getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t xScroll, uint32_t xZoom);
 	int32_t getSquareEndFromPos(int32_t pos, int32_t localScroll = -1);
 	bool isSquareDefined(int32_t square, int32_t xScroll = -1);
 	bool isSquareDefined(int32_t square, int32_t xScroll, uint32_t xZoom);
 
 	[[nodiscard]] bool inTripletsView() const;
-
-	// ui
-	UIType getUIType() override { return UIType::TIMELINE; }
 
 private:
 	/// Used when scrolling horizontally to briefly catch on clip's max zoom

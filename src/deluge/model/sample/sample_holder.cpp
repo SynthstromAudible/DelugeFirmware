@@ -33,7 +33,7 @@ SampleHolder::SampleHolder() {
 	audioFileType = AudioFileType::SAMPLE;
 
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		clustersForStart[l] = NULL;
+		clustersForStart[l] = nullptr;
 	}
 }
 
@@ -197,7 +197,7 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 	// Set up new temp list
 	Cluster* newClusters[kNumClustersLoadedAhead];
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		newClusters[l] = NULL;
+		newClusters[l] = nullptr;
 	}
 
 	// Populate new list

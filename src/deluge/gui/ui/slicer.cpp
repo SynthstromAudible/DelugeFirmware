@@ -159,8 +159,8 @@ const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 void Slicer::graphicsRoutine() {
 
 	int32_t newTickSquare = 255;
-	VoiceSample* voiceSample = NULL;
-	SamplePlaybackGuide* guide = NULL;
+	VoiceSample* voiceSample = nullptr;
+	SamplePlaybackGuide* guide = nullptr;
 
 	MultisampleRange* range;
 	Kit* kit = getCurrentKit();
@@ -170,7 +170,7 @@ void Slicer::graphicsRoutine() {
 
 		if (drum->hasAnyVoices()) {
 
-			Voice* assignedVoice = NULL;
+			Voice* assignedVoice = nullptr;
 
 			range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
 
@@ -449,7 +449,7 @@ void Slicer::stopAnyPreviewing() {
 	drum->unassignAllVoices();
 	if (drum->sources[0].ranges.getNumElements()) {
 		MultisampleRange* range = (MultisampleRange*)drum->sources[0].ranges.getElement(0);
-		range->sampleHolder.setAudioFile(NULL);
+		range->sampleHolder.setAudioFile(nullptr);
 	}
 }
 void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on) {
@@ -514,15 +514,15 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 		else { // do slice
 
-			VoiceSample* voiceSample = NULL;
-			SamplePlaybackGuide* guide = NULL;
+			VoiceSample* voiceSample = nullptr;
+			SamplePlaybackGuide* guide = nullptr;
 			MultisampleRange* range;
 			Kit* kit = getCurrentKit();
 			SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
 			if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 				if (drum->hasAnyVoices()) {
-					Voice* assignedVoice = NULL;
+					Voice* assignedVoice = nullptr;
 
 					range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
 
