@@ -200,6 +200,10 @@ Error String::concatenate(char const* newChars) {
 	return concatenateAtPos(newChars, getLength());
 }
 
+Error String::concatenate(const std::string_view& otherString) {
+	return concatenateAtPos(otherString.data(), getLength(), otherString.size());
+}
+
 Error String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newCharsLength) {
 	if (pos == 0) {
 		return set(newChars, newCharsLength);
@@ -316,8 +320,11 @@ bool String::equals(char const* otherChars) {
 	return !strcmp(get(), otherChars);
 }
 
-bool String::equalsCaseIrrespective(char const* otherChars) {
-	return !strcasecmp(get(), otherChars);
+bool String::equalsCaseIrrespective(char const* otherChars, int32_t numChars) {
+	if (numChars < 0) {
+		numChars = strlen(otherChars);
+	}
+	return !strncasecmp(get(), otherChars, numChars);
 }
 
 /**********************************************************************************************************************\

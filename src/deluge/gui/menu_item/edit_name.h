@@ -18,13 +18,13 @@
 #pragma once
 
 #include "gui/menu_item/menu_item.h"
+#include "gui/ui/rename/rename_ui.h"
 
 namespace deluge::gui::menu_item {
 
-class DrumName final : public MenuItem {
+class EditName final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override;
 };
 } // namespace deluge::gui::menu_item
