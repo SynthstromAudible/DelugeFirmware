@@ -195,8 +195,8 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_MOD_FX_FEEDBACK},
     {params::Kind::PATCHED, params::GLOBAL_MOD_FX_DEPTH},
     {params::Kind::PATCHED, params::GLOBAL_MOD_FX_RATE},
-    // Arp Rate, Gate, Ratchet Prob, Ratchet Amount, Sequence Length, Rhythm, Spread Velocity, Spread Gate, Spread Note,
-    // Spread Octave
+    // Arp Rate, Gate, Rhythm, Chord Polyphony, Sequence Length, Ratchet Amount, Note Prob, Bass Prob, Chord Prob,
+    // Ratchet Prob, Spread Gate, Spread Octave, Spread Velocity
     {params::Kind::PATCHED, params::GLOBAL_ARP_RATE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_GATE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RHYTHM},

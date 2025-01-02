@@ -26,14 +26,16 @@ class NonAudioDrum : public Drum, public ModControllable {
 public:
 	NonAudioDrum(DrumType newType);
 
+	// Rate
 	int32_t arpeggiatorRate;
 	int32_t arpeggiatorGate;
 
-	// Rhythm
+	// Pattern
 	uint32_t arpeggiatorRhythm;
 	uint32_t arpeggiatorSequenceLength;
 	uint32_t arpeggiatorChordPolyphony;
 	uint32_t arpeggiatorRatchetAmount;
+
 	// Randomizer
 	uint32_t arpeggiatorNoteProbability;
 	uint32_t arpeggiatorBassProbability;

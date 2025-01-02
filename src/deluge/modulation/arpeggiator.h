@@ -143,13 +143,13 @@ public:
 	uint32_t lastLockedSpreadOctaveParameterValue{0};
 
 	// Up to 16 pre-calculated randomized values for each parameter
-	int8_t lockedNoteProbabilityValues[RANDOMIZER_LOCK_MAX_SAVED_VALUES]{};
-	int8_t lockedBassProbabilityValues[RANDOMIZER_LOCK_MAX_SAVED_VALUES]{};
-	int8_t lockedChordProbabilityValues[RANDOMIZER_LOCK_MAX_SAVED_VALUES]{};
-	int8_t lockedRatchetProbabilityValues[RANDOMIZER_LOCK_MAX_SAVED_VALUES]{};
-	int8_t lockedSpreadVelocityValues[RANDOMIZER_LOCK_MAX_SAVED_VALUES]{};
-	int8_t lockedSpreadGateValues[RANDOMIZER_LOCK_MAX_SAVED_VALUES]{};
-	int8_t lockedSpreadOctaveValues[RANDOMIZER_LOCK_MAX_SAVED_VALUES]{};
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedNoteProbabilityValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedBassProbabilityValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedChordProbabilityValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedRatchetProbabilityValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadVelocityValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadGateValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadOctaveValues;
 
 	// Temporary flags
 	bool flagForceArpRestart{false};
@@ -178,15 +178,16 @@ struct ArpAsPlayedNote {
 class ArpReturnInstruction {
 public:
 	ArpReturnInstruction() {
+		sampleSyncLengthOn = 0;
+		arpNoteOn = nullptr;
 		outputMIDIChannelOff.fill(MIDI_CHANNEL_NONE);
 		noteCodeOffPostArp.fill(ARP_NOTE_NONE);
-		arpNoteOn = nullptr;
 	}
 
 	// These are only valid if doing a note-on, or when releasing the most recently played with the arp off when other
 	// notes are still playing (e.g. for mono note priority)
-	uint32_t sampleSyncLengthOn = 0; // This defaults to zero, or may be overwritten by the caller to the Arp - and then
-	                                 // the Arp itself may override that.
+	uint32_t sampleSyncLengthOn; // This defaults to zero, or may be overwritten by the caller to the Arp - and then
+	                             // the Arp itself may override that.
 	ArpNote* arpNoteOn;
 
 	// And these are only valid if doing a note-off
