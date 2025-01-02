@@ -126,7 +126,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### <ins>Arpeggiator</ins>
 - Added `NOTE PROBABILITY (PROB)` paramater that will apply a probability to be played or not to notes (after rhythm has been applied).
-- Added `CHORD TYPE (CHRD)` paramater to Kit Rows, that will emulate a held chord so you can use `NOTE MODE` on them.
+- Added `CHORD SIMULATOR (CHRD)` paramater to Kit Rows, that will emulate a held chord so you can use `NOTE MODE` on them.
 - Added `SPREAD` parameters (Velocity, Gate, and Octave) that will allow you to control how those parameters of each arp step are deviated from its base value. Additionally, a `LOCK` parameter will allow you to lock the generated values to create a repeating pattern. Velocity Spread
 also affect normal sequenced notes while arpeggiator is Off.
 - Added `BASS PROBABILITY (BASS)` paramater that will allow you to control the chance of a note being replaced the bass (lowest) note of the inputted notes.
