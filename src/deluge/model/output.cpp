@@ -53,7 +53,7 @@ Output::~Output() {
 	}
 }
 
-Clip* Output::getClipFromName(String* name) {
+Clip* Output::getClipFromName(const std::string_view& name) {
 	for (Clip* clip : AllClips::everywhere(currentSong)) {
 		if (clip->output == this && clip->name.equalsCaseIrrespective(name)) {
 			return clip;
