@@ -1203,29 +1203,19 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction
 
 	uint32_t gateThresholdSmall = gateThreshold >> 8;
 
-	if (isRatcheting) {
-		// shorten gate in case we are ratcheting (with the calculated number of ratchet notes)
-		gateThresholdSmall = gateThresholdSmall >> ratchetNotesMultiplier;
-	}
 	if (spreadGateForCurrentStep != 0) {
 		// Apply spread to gate threshold
 		int32_t signedGateThreshold = (int32_t)gateThresholdSmall;
 		int32_t diff = 0;
 		if (spreadGateForCurrentStep < 0) {
-			// Reducing velocity
+			// Reducing gate
 			diff = -(multiply_32x32_rshift32((-spreadGateForCurrentStep) << 24, signedGateThreshold) << 1);
 		}
 		else {
-			// Increasing velocity
+			// Increasing gate
 			diff = (multiply_32x32_rshift32(spreadGateForCurrentStep << 24, maxGate - signedGateThreshold) << 1);
 		}
-		if (isRatcheting) {
-			// Need to reduce the spread amount by the same ratchet multiplier
-			signedGateThreshold = signedGateThreshold + (diff >> ratchetNotesMultiplier);
-		}
-		else {
-			signedGateThreshold = signedGateThreshold + diff;
-		}
+		signedGateThreshold = signedGateThreshold + diff;
 		// And fix it if out of bounds
 		if (signedGateThreshold < 0) {
 			signedGateThreshold = 0;
@@ -1237,6 +1227,10 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction
 		gateThresholdSmall = (uint32_t)signedGateThreshold;
 	}
 
+	if (isRatcheting) {
+		// shorten gate in case we are ratcheting (with the calculated number of ratchet notes)
+		gateThresholdSmall = gateThresholdSmall >> ratchetNotesMultiplier;
+	}
 	uint32_t maxGateForRatchet = maxGate >> ratchetNotesMultiplier;
 
 	bool syncedNow = (settings->syncLevel && (playbackHandler.isEitherClockActive()));
