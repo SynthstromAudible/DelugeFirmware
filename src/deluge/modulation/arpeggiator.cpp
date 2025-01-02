@@ -130,30 +130,8 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 		int32_t spreadVelocityForCurrentStep = getRandomBipolarProbabilityAmount(spreadVelocity);
 
 		arpNote.baseVelocity = originalVelocity;
-		uint8_t velocity = originalVelocity;
-		if (spreadVelocityForCurrentStep != 0) {
-			// Now apply velocity spread to the base velocity
-			int32_t signedVelocity = (int32_t)velocity;
-			int32_t diff = 0;
-			if (spreadVelocityForCurrentStep < 0) {
-				// Reducing velocity
-				diff = -(multiply_32x32_rshift32((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1) << 1);
-			}
-			else {
-				// Increasing velocity
-				diff = (multiply_32x32_rshift32(spreadVelocityForCurrentStep << 24, 127 - signedVelocity) << 1);
-			}
-			signedVelocity = signedVelocity + diff;
-			// And fix it if out of bounds
-			if (signedVelocity < 1) {
-				signedVelocity = 1;
-			}
-			else if (signedVelocity > 127) {
-				signedVelocity = 127;
-			}
-			// Convert back to unsigned
-			velocity = (uint32_t)signedVelocity;
-		}
+		// Now apply velocity spread to the base velocity
+		uint8_t velocity = calculateSpreadVelocity(originalVelocity, spreadVelocityForCurrentStep);
 		arpNote.velocity = velocity; // calculated modified velocity
 
 		// Set the note to be played
@@ -306,30 +284,8 @@ noteInserted:
 		int32_t spreadVelocityForCurrentStep = getRandomBipolarProbabilityAmount(spreadVelocity);
 
 		arpNote->baseVelocity = originalVelocity;
-		uint8_t velocity = originalVelocity;
-		if (spreadVelocityForCurrentStep != 0) {
-			// Now apply velocity spread to the base velocity
-			int32_t signedVelocity = (int32_t)velocity;
-			int32_t diff = 0;
-			if (spreadVelocityForCurrentStep < 0) {
-				// Reducing velocity
-				diff = -(multiply_32x32_rshift32((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1) << 1);
-			}
-			else {
-				// Increasing velocity
-				diff = (multiply_32x32_rshift32(spreadVelocityForCurrentStep << 24, 127 - signedVelocity) << 1);
-			}
-			signedVelocity = signedVelocity + diff;
-			// And fix it if out of bounds
-			if (signedVelocity < 1) {
-				signedVelocity = 1;
-			}
-			else if (signedVelocity > 127) {
-				signedVelocity = 127;
-			}
-			// Convert back to unsigned
-			velocity = (uint32_t)signedVelocity;
-		}
+		// Now apply velocity spread to the base velocity
+		uint8_t velocity = calculateSpreadVelocity(originalVelocity, spreadVelocityForCurrentStep);
 		arpNote->velocity = velocity; // calculated modified velocity
 
 		// Set the note to be played
@@ -462,6 +418,33 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 		ratchetNotesCount = 0;
 	}
 	ratchetNotesIndex = 0;
+}
+
+uint32_t ArpeggiatorBase::calculateSpreadVelocity(uint8_t velocity, int32_t spreadVelocityForCurrentStep) {
+	if (spreadVelocityForCurrentStep == 0) {
+		// No spreading
+		return velocity;
+	}
+	int32_t signedVelocity = (int32_t)velocity;
+	int32_t diff = 0;
+	if (spreadVelocityForCurrentStep < 0) {
+		// Reducing velocity
+		diff = -(multiply_32x32_rshift32((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1) << 1);
+	}
+	else {
+		// Increasing velocity
+		diff = (multiply_32x32_rshift32(spreadVelocityForCurrentStep << 24, 127 - signedVelocity) << 1);
+	}
+	signedVelocity = signedVelocity + diff;
+	// And fix it if out of bounds
+	if (signedVelocity < 1) {
+		signedVelocity = 1;
+	}
+	else if (signedVelocity > 127) {
+		signedVelocity = 127;
+	}
+	// Convert back to unsigned
+	return (uint32_t)signedVelocity;
 }
 
 // Returns if the arpeggiator should advance to next note or not
@@ -663,29 +646,8 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			}
 		}
 		arpNote.baseVelocity = velocity;
-		if (spreadVelocityForCurrentStep != 0) {
-			// Now apply velocity spread to the base velocity
-			int32_t signedVelocity = (int32_t)velocity;
-			int32_t diff = 0;
-			if (spreadVelocityForCurrentStep < 0) {
-				// Reducing velocity
-				diff = -(multiply_32x32_rshift32((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1) << 1);
-			}
-			else {
-				// Increasing velocity
-				diff = (multiply_32x32_rshift32(spreadVelocityForCurrentStep << 24, 127 - signedVelocity) << 1);
-			}
-			signedVelocity = signedVelocity + diff;
-			// And fix it if out of bounds
-			if (signedVelocity < 1) {
-				signedVelocity = 1;
-			}
-			else if (signedVelocity > 127) {
-				signedVelocity = 127;
-			}
-			// Convert back to unsigned
-			velocity = (uint32_t)signedVelocity;
-		}
+		// Now apply velocity spread to the base velocity
+		velocity = calculateSpreadVelocity(velocity, spreadVelocityForCurrentStep);
 		arpNote.velocity = velocity;
 		// Get current sequence note
 		int16_t note;
@@ -1099,30 +1061,8 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			}
 		}
 		arpNote->baseVelocity = velocity;
-		if (spreadVelocityForCurrentStep != 0) {
-			// Now apply velocity spread to the base velocity
-			int32_t signedVelocity = (int32_t)velocity;
-
-			int32_t diff = 0;
-			if (spreadVelocityForCurrentStep < 0) {
-				// Reducing velocity
-				diff = -(multiply_32x32_rshift32((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1) << 1);
-			}
-			else {
-				// Increasing velocity
-				diff = (multiply_32x32_rshift32(spreadVelocityForCurrentStep << 24, 127 - signedVelocity) << 1);
-			}
-			signedVelocity = signedVelocity + diff;
-			// And fix it if out of bounds
-			if (signedVelocity < 1) {
-				signedVelocity = 1;
-			}
-			else if (signedVelocity > 127) {
-				signedVelocity = 127;
-			}
-			// Convert back to unsigned
-			velocity = (uint32_t)signedVelocity;
-		}
+		// Now apply velocity spread to the base velocity
+		velocity = calculateSpreadVelocity(velocity, spreadVelocityForCurrentStep);
 		arpNote->velocity = velocity;
 		// Get current sequence note
 		int16_t note;

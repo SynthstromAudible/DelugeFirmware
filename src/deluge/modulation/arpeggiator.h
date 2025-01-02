@@ -293,6 +293,7 @@ protected:
 	bool evaluateNoteProbability(bool isRatchet);
 	bool evaluateBassProbability(bool isRatchet);
 	bool evaluateChordProbability(bool isRatchet);
+	uint32_t calculateSpreadVelocity(uint8_t velocity, int32_t spreadVelocityForCurrentStep);
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
