@@ -75,4 +75,15 @@ private:
 	typename decltype(items)::iterator current_item_;
 };
 
+class HorizontalMenu : public Submenu {
+public:
+	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems) : Submenu(newName, newItems) {}
+	HorizontalMenu(l10n::String newName, std::span<MenuItem*> newItems) : Submenu(newName, newItems) {}
+	HorizontalMenu(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems)
+	    : Submenu(newName, title, newItems) {}
+	HorizontalMenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
+	    : Submenu(newName, title, newItems) {}
+	bool supportsHorizontalRendering() { return true; }
+};
+
 } // namespace deluge::gui::menu_item

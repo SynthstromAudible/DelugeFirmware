@@ -243,8 +243,8 @@ public:
 	[[nodiscard]] virtual std::string_view getName() const { return deluge::l10n::getView(name); }
 	/// @brief Get the name for use on horizontal menus.
 	///
-	/// By default this is just the l10n string for \ref name, but can be overriden.
-	[[nodiscard]] virtual std::string_view getShortName() const { return deluge::l10n::getView(name); }
+	/// By default this redirects to getName(), but can be overriden.
+	[[nodiscard]] virtual std::string_view getShortName() const { return getName(); }
 
 	/// @brief Check if this MenuItem should show up in a containing deluge::gui::menu_item::Submenu.
 	///
@@ -277,6 +277,7 @@ public:
 	/// Called to inform automation view that the active parameter has changed. Parameters inheriting
 	/// from Automation forward there, no-op for everything else.
 	virtual void updateAutomationViewParameter() { return; }
+	void renderColumnLabel(int32_t startX, int32_t width, int32_t startY);
 
 	/// @}
 };

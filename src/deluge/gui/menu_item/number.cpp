@@ -61,4 +61,17 @@ void Number::drawBar(int32_t yTop, int32_t marginL, int32_t marginR) {
 	canvas.drawRectangle(leftMost, yTop, rightMost, yTop + height);
 }
 
+void Number::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+	renderColumnLabel(startX, width, startY);
+
+	DEF_STACK_STRING_BUF(paramValue, 10);
+	paramValue.appendInt(getValue());
+
+	int32_t pxLen = image.getStringWidthInPixels(paramValue.c_str(), kTextTitleSizeY);
+	int32_t pad = (width + 1 - pxLen) / 2;
+	image.drawString(paramValue.c_str(), startX + pad, startY + kTextSpacingY + 2, kTextTitleSpacingX, kTextTitleSizeY,
+	                 0, startX + width);
+}
+
 } // namespace deluge::gui::menu_item
