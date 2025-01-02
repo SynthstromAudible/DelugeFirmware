@@ -124,6 +124,17 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 				break;
 			}
 		}
+		// CV instruments could switch on a note
+		if (type == OutputType::CV) {
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+					noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+				}
+				else {
+					break;
+				}
+			}
+		}
 	}
 }
 
@@ -159,47 +170,14 @@ lookAtArpNote:
 			// work.
 			arpNote->mpeValues[expressionDimension] = newValue >> 16;
 
-			int32_t noteCodeBeforeArpeggiation =
-			    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
-			int32_t noteCodeAfterArpeggiation = noteCodeBeforeArpeggiation;
-
-			// If there's actual arpeggiation happening right now and noteMode is not AS_PLAYED...
-			if ((settings != nullptr) && settings->mode != ArpMode::OFF
-			    && settings->noteMode != ArpNoteMode::AS_PLAYED) {
-				// If it's not this noteCode's turn, then do nothing with it
-				if (arpeggiator.whichNoteCurrentlyOnPostArp != n) {
-					continue;
-				}
-
-				// Otherwise, just take note of which octave is currently outputting
-				// TODO RAUL: this seems to be totally wrong. it is adding octave number instead of octave * 12
-				// TODO RAUL: Maybe we need to move noteCodePostArp info from instruction to arpNote so it is available
-				// there??
-
-				noteCodeAfterArpeggiation += arpeggiator.currentOctave;
-
-				// We'll send even if the gate isn't still active. Seems the most sensible. And the release might still
-				// be sounding on the connected synth, so this probably makes sense
-			}
-
 			// Send this even if arp is on and this note isn't currently sounding: its release might still be
 			for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
-				if (arpNote->outputMemberChannel[n] != MIDI_CHANNEL_NONE) {
-					polyphonicExpressionEventPostArpeggiator(newValue, noteCodeAfterArpeggiation, expressionDimension,
-					                                         arpNote, i);
+				if (arpNote->noteCodeOnPostArp[i] != ARP_NOTE_NONE
+				    && arpNote->outputMemberChannel[i] != MIDI_CHANNEL_NONE) {
+					polyphonicExpressionEventPostArpeggiator(newValue, arpNote->noteCodeOnPostArp[i],
+					                                         expressionDimension, arpNote, i);
 				}
 			}
-		}
-	}
-	// Traverse also notesAsPlayed so those get updated mpeValues too, in case noteMode is changed to AsPlayed
-	for (n = 0; n < arpeggiator.notesAsPlayed.getNumElements(); n++) {
-		ArpNote* arpNote = (ArpNote*)arpeggiator.notesAsPlayed.getElementAddress(n);
-		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
-			// Update the MPE value in the ArpNote. If arpeggiating, it'll get read from there the next time there's a
-			// note-on-post-arp. I realise this is potentially frequent writing when it's only going to be read
-			// occasionally, but since we're already this far (the Instrument being notified), it's hardly any extra
-			// work.
-			arpNote->mpeValues[expressionDimension] = newValue >> 16;
 		}
 	}
 }

@@ -51,7 +51,7 @@ ArpeggiatorForDrum::ArpeggiatorForDrum() {
 	arpNote.velocity = 0;
 }
 
-Arpeggiator::Arpeggiator() : notes(sizeof(ArpNote), 16, 0, 8, 8), notesAsPlayed(sizeof(ArpNote), 8, 8) {
+Arpeggiator::Arpeggiator() : notes(sizeof(ArpNote), 16, 0, 8, 8), notesAsPlayed(sizeof(ArpAsPlayedNote), 8, 8) {
 	notes.emptyingShouldFreeMemory = false;
 	notesAsPlayed.emptyingShouldFreeMemory = false;
 }
@@ -204,7 +204,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	bool noteExists = false;
 
 	ArpNote* arpNote;
-	ArpNote* arpNoteAsPlayed;
+	ArpAsPlayedNote* arpAsPlayedNote;
 
 	int32_t notesKey = notes.search(noteCode, GREATER_OR_EQUAL);
 	if (notesKey < notes.getNumElements()) [[unlikely]] {
@@ -215,9 +215,9 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	}
 	int32_t notesAsPlayedIndex = -1;
 	for (int32_t i = 0; i < notesAsPlayed.getNumElements(); i++) {
-		ArpNote* theArpNote = (ArpNote*)notesAsPlayed.getElementAddress(i);
-		if (theArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode) {
-			arpNoteAsPlayed = theArpNote;
+		ArpAsPlayedNote* theArpAsPlayedNote = (ArpAsPlayedNote*)notesAsPlayed.getElementAddress(i);
+		if (theArpAsPlayedNote->noteCode == noteCode) {
+			arpAsPlayedNote = theArpAsPlayedNote;
 			notesAsPlayedIndex = i;
 			noteExists = true;
 			break;
@@ -269,27 +269,14 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 			return;
 		}
 		// Save arpNote
-		arpNoteAsPlayed = (ArpNote*)notesAsPlayed.getElementAddress(notesAsPlayedIndex);
-		arpNoteAsPlayed->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
-		arpNoteAsPlayed->baseVelocity = originalVelocity;
-		arpNoteAsPlayed->velocity = originalVelocity;
-		// MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it
-		// doesn't get included in the survey that will happen of existing output member
-		// channels.
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			arpNoteAsPlayed->outputMemberChannel[n] = MIDI_CHANNEL_NONE;
-		}
-		// Update expression values
-		for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-			arpNoteAsPlayed->mpeValues[m] = mpeValues[m];
-		}
+		arpAsPlayedNote = (ArpAsPlayedNote*)notesAsPlayed.getElementAddress(notesAsPlayedIndex);
+		arpAsPlayedNote->noteCode = noteCode;
 	}
 
 noteInserted:
 	// This is here so that "stealing" a note being edited can then replace its MPE data during
 	// editing. Kind of a hacky solution, but it works for now.
 	arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
-	arpNoteAsPlayed->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
 
 	// If we're an arpeggiator...
 	if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
@@ -391,20 +378,23 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 			// We must also search and delete from notesAsPlayed
 			int numNotes = notesAsPlayed.getNumElements();
 			for (int32_t i = 0; i < numNotes; i++) {
-				ArpNote* arpNote = (ArpNote*)notesAsPlayed.getElementAddress(i);
-				if (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCodePreArp) {
+				ArpAsPlayedNote* arpAsPlayedNote = (ArpAsPlayedNote*)notesAsPlayed.getElementAddress(i);
+				if (arpAsPlayedNote->noteCode == noteCodePreArp) {
 					notesAsPlayed.deleteAtIndex(i);
 					if (arpOff && i == numNotes - 1 && i > 0) {
 						// if we're not arpeggiating then pass the second last note back - cv instruments will snap back
 						// to it (like playing a normal mono synth)
-						ArpNote* newArpNote = (ArpNote*)notesAsPlayed.getElementAddress(i - 1);
-						newArpNote->noteCodeOnPostArp[0] =
-						    newArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
-						for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-							// Clean rest of chord note slots
-							newArpNote->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+						ArpAsPlayedNote* lastArpAsPlayedNote = (ArpAsPlayedNote*)notesAsPlayed.getElementAddress(i - 1);
+						int32_t newNotesKey = notes.search(lastArpAsPlayedNote->noteCode, GREATER_OR_EQUAL);
+						if (newNotesKey < notes.getNumElements()) [[likely]] {
+							ArpNote* lastArpNote = (ArpNote*)notes.getElementAddress(newNotesKey);
+							lastArpNote->noteCodeOnPostArp[0] = lastArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
+							for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+								// Clean rest of chord note slots
+								lastArpNote->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+							}
+							instruction->arpNoteOn = lastArpNote;
 						}
-						instruction->arpNoteOn = newArpNote;
 					}
 					break;
 				}
@@ -1064,7 +1054,13 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		arpNote = (ArpNote*)notes.getElementAddress(0);
 	}
 	else if (settings->noteMode == ArpNoteMode::AS_PLAYED) {
-		arpNote = (ArpNote*)notesAsPlayed.getElementAddress(whichNoteCurrentlyOnPostArp);
+		ArpAsPlayedNote* arpAsPlayedNote = (ArpAsPlayedNote*)notesAsPlayed.getElementAddress(whichNoteCurrentlyOnPostArp);
+		int32_t notesKey = notes.search(arpAsPlayedNote->noteCode, GREATER_OR_EQUAL);
+		if (notesKey < notes.getNumElements()) [[likely]] {
+			arpNote = (ArpNote*)notes.getElementAddress(notesKey);
+		} else {
+			arpNote = (ArpNote*)notesAsPlayed.getElementAddress(whichNoteCurrentlyOnPostArp);
+		}
 	}
 	else {
 		arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);

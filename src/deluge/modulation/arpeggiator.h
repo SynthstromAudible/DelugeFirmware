@@ -171,6 +171,10 @@ struct ArpNote {
 	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOnPostArp;
 };
 
+struct ArpAsPlayedNote {
+	int16_t noteCode; // Before arpeggiation
+};
+
 class ArpReturnInstruction {
 public:
 	ArpReturnInstruction() {
