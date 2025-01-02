@@ -906,7 +906,6 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 		// reasonably well.
 
 		// Ok. We have our new member channel.
-		// TODO RAUL
 		arpNote->outputMemberChannel[noteIndex] = outputMemberChannel;
 		arpeggiator.outputMIDIChannelForNoteCurrentlyOnPostArp[noteIndex] = outputMemberChannel; // Needed if arp on
 
