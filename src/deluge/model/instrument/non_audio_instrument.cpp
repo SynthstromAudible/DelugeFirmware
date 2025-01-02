@@ -124,7 +124,7 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 				break;
 			}
 		}
-		// CV instruments could switch on a note
+		// CV instruments could switch on a note to do a glide
 		if (type == OutputType::CV) {
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {

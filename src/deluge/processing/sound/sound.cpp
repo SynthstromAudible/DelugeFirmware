@@ -1761,7 +1761,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	}
 	if (noNoteOn) {
 		// in the case of the arpeggiator not returning a note On (could happen if Note Probability evaluates to "don't
-		// play") we must at least evaluate the skipping if the arpeggiator is on
+		// play") we must at least evaluate the render-skipping if the arpeggiator is ON
 		if (arpSettings != nullptr && getArp()->hasAnyInputNotesActive() && arpSettings->mode != ArpMode::OFF) {
 			reassessRenderSkippingStatus(modelStackWithSoundFlags);
 		}

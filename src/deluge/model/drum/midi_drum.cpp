@@ -35,14 +35,6 @@ void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocit
 	// Run everything by the Arp...
 	arpeggiator.noteOn(arpSettings, note, velocity, &instruction, fromMIDIChannel, mpeValues);
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-		if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
-			noteOffPostArp(instruction.noteCodeOffPostArp[n]);
-		}
-		else {
-			break;
-		}
-	}
-	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE)
 		    [[likely]] {
 			noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);

@@ -97,12 +97,13 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 	arpNote.inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
 	arpNote.baseVelocity = originalVelocity;
 	arpNote.velocity = originalVelocity; // Means note is on.
+
 	// MIDIInstrument might set this later, but it needs to be MIDI_CHANNEL_NONE until then so it doesn't get included
 	// in the survey that will happen of existing output member channels.
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		arpNote.outputMemberChannel[n] = MIDI_CHANNEL_NONE;
 	}
-
+	// Update expression values
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 		arpNote.mpeValues[m] = mpeValues[m];
 	}
@@ -125,7 +126,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 
 	// Or otherwise, just switch the note on.
 	else {
-		// Apply spread to non-arpeggiator notes
+		// Apply spread to non-arpeggiated notes
 		int32_t spreadVelocityForCurrentStep = getRandomBipolarProbabilityAmount(spreadVelocity);
 
 		arpNote.baseVelocity = originalVelocity;
@@ -249,6 +250,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
 		arpNote->baseVelocity = originalVelocity;
 		arpNote->velocity = originalVelocity;
+
 		// MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it
 		// doesn't get included in the survey that will happen of existing output member
 		// channels.
@@ -1145,7 +1147,6 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 
 		// Wipe noteOn codes
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			// Clean rest of chord note slots
 			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
 			arpNote->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 		}
@@ -1185,7 +1186,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 						int8_t targetOffset =
 						    musicalKey.modeNotes[(degree + degreeOffsets[n - 1]) % musicalKey.modeNotes.count()];
 						if (targetOffset <= baseOffset) {
-							// If the 5th is higher than the base note, we need to add an octave
+							// If the note is lower than the base note, we need to add an octave
 							targetOffset += 12;
 						}
 						noteCodeCurrentlyOnPostArp[n] = note + targetOffset - baseOffset;
@@ -1196,7 +1197,6 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 
 		// Copy notes to the arp return instruction object
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			// Clean rest of chord note slots
 			arpNote->noteCodeOnPostArp[n] = noteCodeCurrentlyOnPostArp[n];
 		}
 		instruction->arpNoteOn = arpNote;

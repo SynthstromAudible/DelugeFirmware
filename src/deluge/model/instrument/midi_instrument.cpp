@@ -858,16 +858,13 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 					    && thisArpNote->outputMemberChannel[i] <= highestMemberChannel) {
 						numNotesPreviouslyActiveOnMemberChannel[thisArpNote->outputMemberChannel[i]]++;
 
-						// // If this note is coming in live from the same member channel as the one we wish to switch
-						// on now,
-						// // that's a good clue that we should group them together at the output. (Final decision to be
-						// made
-						// // further below.)
-						// if (thisArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]
-						// 	== arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]) {
-						// 	outputMemberChannelWithNoteSharingInputMemberChannel =
-						// 		thisArpNote->outputMemberChannel[i];
-						// }
+						// If this note is coming in live from the same member channel as the one we wish to switch on
+						// now, that's a good clue that we should group them together at the output. (Final decision to
+						// be made further below.)
+						if (thisArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]
+						    == arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]) {
+							outputMemberChannelWithNoteSharingInputMemberChannel = thisArpNote->outputMemberChannel[i];
+						}
 					}
 				}
 			}
@@ -896,10 +893,10 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 
 		// If we weren't able to get an output member channel all to ourselves, a better option (if it exists) would be
 		// to group with note(s) which shared an input member channel
-		// if (numNotesPreviouslyActiveOnMemberChannel[outputMemberChannel]
-		//     && outputMemberChannelWithNoteSharingInputMemberChannel < 16) {
-		// 	outputMemberChannel = outputMemberChannelWithNoteSharingInputMemberChannel;
-		// }
+		if (numNotesPreviouslyActiveOnMemberChannel[outputMemberChannel]
+		    && outputMemberChannelWithNoteSharingInputMemberChannel < 16) {
+			outputMemberChannel = outputMemberChannelWithNoteSharingInputMemberChannel;
+		}
 
 		// TODO: It'd be good to be able to group them according to them having similar MPE data, which could happen if
 		// they were originally recorded via the same input member channel. This would actually be really easy to do
