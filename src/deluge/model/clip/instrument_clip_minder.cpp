@@ -265,7 +265,7 @@ gotError:
 	if (shouldReplaceWholeInstrument) {
 		// newInstrument->loadAllSamples(true); // There'll be no samples cos it's new and blank
 		//  This is how we feed a ParamManager into the replaceInstrument() function
-		currentSong->backUpParamManager((ModControllableAudio*)newInstrument->toModControllable(), NULL,
+		currentSong->backUpParamManager((ModControllableAudio*)newInstrument->toModControllable(), nullptr,
 		                                &newParamManager, true);
 		currentSong->replaceInstrument(getCurrentInstrument(), newInstrument, false);
 	}
@@ -275,7 +275,7 @@ gotError:
 		// There'll be no samples cos it's new and blank
 		// TODO: deal with errors
 		Error error = clip->changeInstrument(modelStack, newInstrument, &newParamManager,
-		                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, false);
+		                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, nullptr, false);
 
 		currentSong->addOutput(newInstrument);
 	}
@@ -378,9 +378,9 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		if (getCurrentOutputType() == OutputType::MIDI_OUT && (b == MOD_ENCODER_0 || b == MOD_ENCODER_1)) {
 			openUI(&saveMidiDeviceDefinitionUI);
 		}
-		else if (b == SYNTH && getCurrentOutputType() == OutputType::SYNTH
-		         || b == KIT && getCurrentOutputType() == OutputType::KIT
-		         || b == MIDI && getCurrentOutputType() == OutputType::MIDI_OUT) {
+		else if ((b == SYNTH && getCurrentOutputType() == OutputType::SYNTH)
+		         || (b == KIT && getCurrentOutputType() == OutputType::KIT)
+		         || (b == MIDI && getCurrentOutputType() == OutputType::MIDI_OUT)) {
 			openUI(&saveInstrumentPresetUI);
 		}
 	}

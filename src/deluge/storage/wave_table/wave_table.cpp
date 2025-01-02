@@ -61,7 +61,7 @@ void WaveTable::bandDataBeingStolen(WaveTableBandData* bandData) {
 	for (int32_t b = 0; b < bands.getNumElements(); b++) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
 		if (band->data == bandData) {
-			band->data = NULL;
+			band->data = nullptr;
 			break;
 		}
 	}
@@ -354,7 +354,7 @@ gotError5:
 
 	uint32_t bitMask = 0xFFFFFFFF << ((4 - byteDepth) * 8);
 
-	Cluster* cluster = NULL;
+	Cluster* cluster = nullptr;
 	int32_t clusterIndexCurrentlyLoaded = -1; // Initially, none is loaded yet.
 
 	uint32_t startedBandsYet = 0;

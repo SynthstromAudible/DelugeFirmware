@@ -32,8 +32,6 @@ public:
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 
 	// ui
-	UIType getUIType() override { return UIType::RENAME_DRUM; }
-	const char* getName() override { return "rename_drum_ui"; }
 	bool exitUI() override;
 
 protected:

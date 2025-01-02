@@ -355,11 +355,11 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 	writer.writeAttribute("outputRecordingIndex", currentSong->getOutputIndex(outputRecordingFrom));
 	Output::writeDataToFile(writer, clipForSavingOutputOnly, song);
 
-	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == NULL);
+	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == nullptr);
 
 	writer.writeOpeningTagEnd();
 
-	ParamManager* paramManager = NULL;
+	ParamManager* paramManager = nullptr;
 	// If no activeClip, that means no Clip has this Instrument, so there should be a backedUpParamManager that we
 	// should use / save
 	if (!activeClip) {
@@ -432,7 +432,7 @@ Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) 
 	// Allocate memory for audio clip
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!clipMemory) {
-		return NULL;
+		return nullptr;
 	}
 
 	AudioClip* newClip = new (clipMemory) AudioClip();

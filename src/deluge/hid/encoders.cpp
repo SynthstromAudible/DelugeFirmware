@@ -177,6 +177,11 @@ checkResult:
 					getCurrentUI()->selectEncoderAction(limitedDetentPos);
 				}
 				break;
+
+			// explicit fallthrough cases
+			case EncoderName::MOD_0: // nothing, really?
+			case EncoderName::MAX_ENCODER:
+			case EncoderName::MAX_FUNCTION_ENCODERS:;
 			}
 		}
 	}

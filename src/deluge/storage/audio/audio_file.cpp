@@ -118,7 +118,7 @@ doSetupWaveTable:
 						}
 					}
 					error = ((WaveTable*)this)
-					            ->setup(NULL, waveTableCycleSize, audioDataStartPosBytes, audioDataLengthBytes,
+					            ->setup(nullptr, waveTableCycleSize, audioDataStartPosBytes, audioDataLengthBytes,
 					                    byteDepth, rawDataFormat, (WaveTableReader*)reader);
 					if (true || error != Error::NONE) {
 						return error; // Just always return here, for now.

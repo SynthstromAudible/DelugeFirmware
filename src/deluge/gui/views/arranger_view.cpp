@@ -702,7 +702,7 @@ ModelStackWithNoteRow* ArrangerView::getNoteRowForAudition(ModelStack* modelStac
 		}
 	}
 	else {
-		modelStackWithNoteRow = modelStackWithTimelineCounter->addNoteRow(0, NULL);
+		modelStackWithNoteRow = modelStackWithTimelineCounter->addNoteRow(0, nullptr);
 	}
 
 	return modelStackWithNoteRow;
@@ -826,7 +826,7 @@ Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* in
 	if (!newInstrument) {
 		String newPresetName;
 		fileItem->getDisplayNameWithoutExtension(&newPresetName);
-		error = StorageManager::loadInstrumentFromFile(currentSong, NULL, newOutputType, false, &newInstrument,
+		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, newOutputType, false, &newInstrument,
 		                                               &fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}
 
@@ -1495,7 +1495,7 @@ ClipInstance* ArrangerView::createClipInstance(Output* output, int32_t y, int32_
 		action->recordClipInstanceExistenceChange(output, clipInstance, ExistenceChangeType::CREATE);
 	}
 
-	arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, NULL, clipInstance);
+	arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, nullptr, clipInstance);
 
 	uiNeedsRendering(this, 1 << y, 0);
 
@@ -1607,8 +1607,8 @@ void ArrangerView::adjustClipInstanceLength(Output* output, int32_t x, int32_t y
 			Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 
 			clipInstance->change(action, output, clipInstance->pos, newLength, clipInstance->clip);
-			arrangement.rowEdited(output, clipInstance->pos + oldLength, clipInstance->pos + clipInstance->length, NULL,
-			                      clipInstance);
+			arrangement.rowEdited(output, clipInstance->pos + oldLength, clipInstance->pos + clipInstance->length,
+			                      nullptr, clipInstance);
 		}
 	}
 
@@ -1626,7 +1626,7 @@ void ArrangerView::deleteClipInstance(Output* output, ClipInstance* clipInstance
 	view.setActiveModControllableTimelineCounter(currentSong);
 
 	arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, clipInstance->clip,
-	                      NULL);
+	                      nullptr);
 
 	Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
 	deleteClipInstance(output, pressedClipInstanceIndex, clipInstance, action);
@@ -1671,7 +1671,7 @@ void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* cl
 		error = ((AudioClip*)newClip)->setOutput(modelStack, output);
 	}
 	else {
-		error = ((InstrumentClip*)newClip)->setInstrument((Instrument*)output, currentSong, NULL);
+		error = ((InstrumentClip*)newClip)->setInstrument((Instrument*)output, currentSong, nullptr);
 	}
 
 	if (error != Error::NONE) {
@@ -1704,7 +1704,7 @@ void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* cl
 
 	clipInstance->change(action, output, clipInstance->pos, clipInstance->length, newClip);
 
-	arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, NULL, clipInstance);
+	arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, nullptr, clipInstance);
 }
 
 /// called from ArrangerView::editPadAction
@@ -1905,7 +1905,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 	PadLEDs::sendOutSidebarColours(); // They'll have been cleared by the first explode render
 
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_CLIP_VIEW);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_CLIP_VIEW);
 }
 
 // Returns false if error
@@ -2009,7 +2009,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 	doingAutoScrollNow = false; // May get changed back at new scroll pos soon
 
 	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_ARRANGER_VIEW);
+	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_ARRANGER_VIEW);
 
 	return true;
 }
@@ -2096,7 +2096,7 @@ itsInvalid:
 	int32_t length = clipInstance->length;
 
 	if (clip) {
-		arrangement.rowEdited(pressedClipInstanceOutput, clipInstance->pos, clipInstance->pos + length, clip, NULL);
+		arrangement.rowEdited(pressedClipInstanceOutput, clipInstance->pos, clipInstance->pos + length, clip, nullptr);
 	}
 
 	Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
@@ -2140,7 +2140,8 @@ itsInvalid:
 	}
 
 	if (clip) {
-		arrangement.rowEdited(newOutputToDragInto, clipInstance->pos, clipInstance->pos + length, NULL, clipInstance);
+		arrangement.rowEdited(newOutputToDragInto, clipInstance->pos, clipInstance->pos + length, nullptr,
+		                      clipInstance);
 	}
 
 	pressedClipInstanceXScrollWhenLastInValidPosition = xScroll;
@@ -2162,7 +2163,7 @@ uint32_t ArrangerView::doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t 
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		if (whichRows & (1 << yDisplay)) {
-			uint8_t* occupancyMaskThisRow = NULL;
+			uint8_t* occupancyMaskThisRow = nullptr;
 			if (occupancyMask) {
 				occupancyMaskThisRow = occupancyMask[yDisplay];
 			}
@@ -2482,7 +2483,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 		// Notify the arrangement that the existing clip will be removed
 		if (clipInstance->clip) {
 			arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length,
-			                      clipInstance->clip, NULL);
+			                      clipInstance->clip, nullptr);
 		}
 
 		int32_t newLength;
@@ -2514,7 +2515,8 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 		Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 		clipInstance->change(action, output, clipInstance->pos, newLength, newClip);
 		// notify the arrangement that this clip instance will be added
-		arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, NULL, clipInstance);
+		arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, nullptr,
+		                      clipInstance);
 
 		interactWithClipInstance(output, yPressedEffective, clipInstance);
 
@@ -2633,7 +2635,7 @@ cant:
 	oldOutput->cutAllSound();
 
 	AudioOutput* newOutput;
-	Clip* newClip = NULL;
+	Clip* newClip = nullptr;
 
 	// If the old Output had a Clip that we're going to replace too...
 	if (instrumentClip) {
@@ -2961,7 +2963,7 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 		output = outputsOnScreen[yPressedEffective];
 
 		if (direction >= 0) { // Up
-			if (output->next == NULL) {
+			if (output->next == nullptr) {
 				return ActionResult::DEALT_WITH;
 			}
 		}

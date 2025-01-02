@@ -23,17 +23,16 @@
 
 class QwertyUI : public UI {
 public:
-	QwertyUI();
+	QwertyUI() = default;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	ActionResult timerCallback() override;
-	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL,
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                    bool drawUndefinedArea = true) override {
 		return true;
 	}
 
-	const char* getName() override { return "qwerty_ui"; }
 	static bool predictionInterrupted;
 	static String enteredText;
 

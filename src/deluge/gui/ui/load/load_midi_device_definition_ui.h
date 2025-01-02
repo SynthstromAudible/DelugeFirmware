@@ -23,7 +23,7 @@
 
 class LoadMidiDeviceDefinitionUI final : public LoadUI {
 public:
-	LoadMidiDeviceDefinitionUI();
+	LoadMidiDeviceDefinitionUI() = default;
 
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	bool opened() override;
@@ -31,8 +31,8 @@ public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
-	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true,
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr, bool drawUndefinedArea = true,
 	                    int32_t navSys = -1) {
 		return true;
 	}
@@ -45,7 +45,6 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::LOAD_MIDI_DEVICE_DEFINITION; }
-	const char* getName() override { return "load_midi_device_definition_ui"; }
 
 protected:
 	void folderContentsReady(int32_t entryDirection) override;

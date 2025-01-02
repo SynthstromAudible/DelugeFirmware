@@ -19,6 +19,10 @@
     - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
   - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
 
+#### <ins>Horizontal Menus</ins>
+- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+  - Envelope 1 & 2.
+
 #### <ins>Tempo</ins>
 - Added Community Feature toggle (`Settings > Community Features > Alternative Tap Tempo Behaviour (TAPT)`) to adjust number of `TAP TEMPO` button presses to engage `TAP TEMPO` to `FOUR (4)` to avoid mistakingly changing tempo.
 
@@ -33,12 +37,15 @@
     - Press and hold `RECORD` + turn  `SELECT`
     - Enter the Song menu while in Song or Arranger View by pressing `SELECT` and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
 
+#### <ins>Audio Export</ins>
+- Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
+
 #### <ins>Arranger View</ins>
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
 
-#### <ins>Session Mode</ins>
-- Doubled the number of Session Mode sections from 12 to 24.
+#### <ins>Song View</ins>
+- Doubled the number of Song View sections from 12 to 24.
 
 #### <ins>Song Grid View</ins>
 
@@ -199,6 +206,7 @@ also affect normal sequenced notes while arpeggiator is Off.
 - Added community feature toggle `Alternative Playback Start Behaviour (STAR)` to change the behaviour of playback start shortcuts as follows:
   - With playback off, pressing `PLAY` will start playback from the current grid scroll position
   - With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
+- Removed `High CPU Usage Indicator` feature.
 
 #### <ins>Menu UI Improvements</ins>
 - For toggle (ON/OFF) menus, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
@@ -206,6 +214,7 @@ also affect normal sequenced notes while arpeggiator is Off.
   - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
 - Submenus on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 - Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.
+- The note range selection menu (aka "BOTTOM-TO-TOP") is skipped when there is only one range to select.
 
 #### <ins>OLED Display Improvements</ins>
 - Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
@@ -368,7 +377,7 @@ also affect normal sequenced notes while arpeggiator is Off.
 
 #### <ins>General</ins>
 - Added a feature which saves user-defined pad brightness level and restores it at startup. `SETTINGS>DEFAULTS>PAD BRIGHTNESS`
-- Added new `High CPU Usage Indicator`. The `PLAY` button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
+- **(Removed in 1.2)** Added new `High CPU Usage Indicator`. The `PLAY` button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
   - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
 - Added new default menu to set the length of time to register a `Hold Press` for use with `Sticky Shift`, `Performance View`, and the `Keyboard Sidebar Layouts.`
   - Set the default Hold Press time by accessing `SETTINGS > DEFAULTS > HOLD PRESS TIME`

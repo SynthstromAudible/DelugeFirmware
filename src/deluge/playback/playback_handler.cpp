@@ -163,6 +163,9 @@ void PlaybackHandler::slowRoutine() {
 			case GlobalMIDICommand::REDO:
 				actionLogger.redo();
 				break;
+
+			// we're explicitly only interedted in UNDO and REDO
+			default:;
 			}
 
 			if (ALPHA_OR_BETA_VERSION && pendingGlobalMIDICommandNumClustersWritten) {
@@ -288,7 +291,7 @@ void PlaybackHandler::recordButtonPressed() {
 
 			if (!wasRecordingArrangement && playbackState) {
 				if (currentPlaybackMode == &session) {
-					bool anyClipsRemoved = currentSong->deletePendingOverdubs(NULL, NULL, true);
+					bool anyClipsRemoved = currentSong->deletePendingOverdubs(nullptr, nullptr, true);
 					if (anyClipsRemoved) {
 						// use root UI in case this is called from performance view
 						sessionView.requestRendering(getRootUI());
@@ -1360,7 +1363,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	midiFollow.clearStoredClips(); // need to clear clip pointers stored for previous song
 	currentSong = preLoadedSong;
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
-	preLoadedSong = NULL;
+	preLoadedSong = nullptr;
 	loadSongUI.deletedPartsOfOldSong = false;
 
 	currentSong->sendAllMIDIPGMs();
@@ -2529,7 +2532,7 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 	bool foundAnyYet = false;
 	uint32_t ticksLong = 3;
 
-	Action* action = NULL;
+	Action* action = nullptr;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -2542,7 +2545,7 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 
 			Clip* nextPendingOverdub = currentSong->getPendingOverdubWithOutput(clip->output);
 
-			clip->finishLinearRecording(modelStackWithTimelineCounter, NULL,
+			clip->finishLinearRecording(modelStackWithTimelineCounter, nullptr,
 			                            buttonLatencyForTempolessRecord); // nextPendingOverdub doesn't actually get
 			                                                              // used in this call, for audioClips
 
@@ -3187,7 +3190,7 @@ probablyExitRecordMode:
 
 doCreateNextOverdub:
 
-			Clip* clipToCreateOverdubFrom = NULL;
+			Clip* clipToCreateOverdubFrom = nullptr;
 			int32_t clipIndexToCreateOverdubFrom;
 
 			// If we're holding down a Clip in Session View, prioritize that

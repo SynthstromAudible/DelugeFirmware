@@ -60,12 +60,13 @@ bool SoundInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOut
 			paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
 		}
 		else {
-			paramManager = NULL;
+			paramManager = nullptr;
 		}
 	}
 
-	Sound::writeToFile(writer, clipForSavingOutputOnly == NULL, paramManager,
-	                   clipForSavingOutputOnly ? &((InstrumentClip*)clipForSavingOutputOnly)->arpSettings : NULL, NULL);
+	Sound::writeToFile(writer, clipForSavingOutputOnly == nullptr, paramManager,
+	                   clipForSavingOutputOnly ? &((InstrumentClip*)clipForSavingOutputOnly)->arpSettings : nullptr,
+	                   NULL);
 
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(writer, clipForSavingOutputOnly, song);
 
@@ -282,7 +283,7 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, P
 
 void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(NULL);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(nullptr);
 
 	setupPatching(modelStackWithTimelineCounter);
 

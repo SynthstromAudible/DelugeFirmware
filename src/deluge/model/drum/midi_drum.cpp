@@ -72,7 +72,7 @@ void MIDIDrum::noteOffPostArp(int32_t noteCodePostArp) {
 
 void MIDIDrum::unassignAllVoices() {
 	if (hasAnyVoices()) {
-		noteOff(NULL);
+		noteOff(nullptr);
 	}
 }
 

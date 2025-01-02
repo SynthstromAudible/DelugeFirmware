@@ -69,7 +69,7 @@ public:
 	void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true) override;
 	Error changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput);
 	Error setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
-	                AudioClip* favourClipForCloningParamManager = NULL);
+	                AudioClip* favourClipForCloningParamManager = nullptr);
 	RGB getColour();
 	bool currentlyScrollableAndZoomable() override;
 	void getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_t* xScrollSamples, int64_t* xZoomSamples);

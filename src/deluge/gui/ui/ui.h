@@ -118,7 +118,7 @@ public:
 	virtual bool canSeeViewUnderneath() { return false; }
 	/// Convert this clip to a clip minder. Returns true for views which manage a single clip,
 	/// false for song level views
-	virtual ClipMinder* toClipMinder() { return NULL; }
+	virtual ClipMinder* toClipMinder() { return nullptr; }
 
 	/// \brief Convert this view to a TimelineView
 	///
@@ -126,7 +126,6 @@ public:
 	virtual TimelineView* toTimelineView() { return nullptr; }
 
 	virtual void scrollFinished() {}
-	virtual const char* getName() { return "UI"; }
 	virtual bool pcReceivedForMidiLearn(MIDICable& fromCable, int32_t channel, int32_t program) { return false; }
 
 	virtual bool noteOnReceivedForMidiLearn(MIDICable& fromCable, int32_t channel, int32_t note, int32_t velocity) {
@@ -140,13 +139,13 @@ public:
 	// When these return false it means they're transparent, showing what's underneath.
 	// These *must* check whether image has been supplied - if not, just return, saying whether opaque or not.
 	// Cos we need to be able to quiz these without actually getting any rendering done.
-	virtual bool renderMainPads(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
-	                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL,
+	virtual bool renderMainPads(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                            bool drawUndefinedArea = true) {
 		return false;
 	}
-	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
-	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
+	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) {
 		return false;
 	}
 	// called when back is held, used to exit menus or similar full screen views completely
@@ -158,6 +157,12 @@ public:
 	bool oledShowsUIUnderneath;
 
 	virtual UIType getUIType() = 0;
+#if ENABLE_MATRIX_DEBUG
+	const char* getUIName();
+#endif
+
+protected:
+	UIType uiType;
 };
 
 // UIs

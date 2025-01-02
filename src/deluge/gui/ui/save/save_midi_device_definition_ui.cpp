@@ -36,9 +36,6 @@ using namespace deluge;
 
 SaveMidiDeviceDefinitionUI saveMidiDeviceDefinitionUI{};
 
-SaveMidiDeviceDefinitionUI::SaveMidiDeviceDefinitionUI() {
-}
-
 bool SaveMidiDeviceDefinitionUI::opened() {
 	if (!getRootUI()->toClipMinder() || getCurrentOutputType() != OutputType::MIDI_OUT) {
 		return false;
@@ -72,7 +69,7 @@ doReturnFalse:
 		auto fullPathLength = strlen(fullPath);
 
 		// directory
-		char* dir = new char[sizeof(char) * fullPathLength + 1];
+		char dir[sizeof(char) * fullPathLength + 1];
 
 		memset(dir, 0, sizeof(char) * fullPathLength + 1);
 		strncpy(dir, fullPath, fullPathLength - strlen(filename));

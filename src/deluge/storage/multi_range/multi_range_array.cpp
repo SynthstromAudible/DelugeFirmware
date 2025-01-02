@@ -38,7 +38,7 @@ MultiRange* MultiRangeArray::getElement(int32_t i) {
 MultiRange* MultiRangeArray::insertMultiRange(int32_t i) {
 	Error error = insertAtIndex(i);
 	if (error != Error::NONE) {
-		return NULL;
+		return nullptr;
 	}
 	void* memory = getElementAddress(i);
 	MultiRange* range;

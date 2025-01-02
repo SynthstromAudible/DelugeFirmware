@@ -199,7 +199,7 @@ NumericLayerScrollingText* SevenSegment::setScrollingText(char const* newText, i
 	// Paul: Render time could be lower putting this into internal
 	void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerScrollingText));
 	if (!layerSpace) {
-		return NULL;
+		return nullptr;
 	}
 	NumericLayerScrollingText* newLayer = new (layerSpace) NumericLayerScrollingText(fixedDot);
 
@@ -246,10 +246,10 @@ void SevenSegment::replaceBottomLayer(NumericLayer* newLayer) {
 
 void SevenSegment::transitionToNewLayer(NumericLayer* newLayer) {
 
-	NumericLayerScrollTransition* scrollTransition = NULL;
+	NumericLayerScrollTransition* scrollTransition = nullptr;
 
 	// If transition...
-	if (!popupActive && nextTransitionDirection != 0 && topLayer != NULL) {
+	if (!popupActive && nextTransitionDirection != 0 && topLayer != nullptr) {
 
 		// Paul: Render time could be lower putting this into internal
 		void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerScrollTransition));

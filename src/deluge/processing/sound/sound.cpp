@@ -1771,9 +1771,9 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
                                   int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
                                   int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel) {
 
-	Voice* voiceToReuse = NULL;
+	Voice* voiceToReuse = nullptr;
 
-	Voice* voiceForLegato = NULL;
+	Voice* voiceForLegato = nullptr;
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
@@ -1876,7 +1876,7 @@ justUnassign:
 
 		bool success =
 		    newVoice->noteOn(modelStackWithVoice, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength,
-		                     ticksLate, samplesLate, voiceToReuse == NULL, fromMIDIChannel, mpeValues);
+		                     ticksLate, samplesLate, voiceToReuse == nullptr, fromMIDIChannel, mpeValues);
 		if (success) {
 			if (voiceToReuse) {
 				for (int32_t e = 0; e < kNumEnvelopes; e++) {
@@ -2309,7 +2309,7 @@ void Sound::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** p
 			*highestReverbAmountFound = reverbHere;
 			*soundWithMostReverb = this;
 			*paramManagerWithMostReverb = paramManager;
-			*globalEffectableWithMostReverb = NULL;
+			*globalEffectableWithMostReverb = nullptr;
 		}
 	}
 }
@@ -2772,7 +2772,7 @@ void Sound::unassignAllVoices() {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
 		AudioEngine::activeVoices.checkVoiceExists(thisVoice, this, "E203");
-		AudioEngine::unassignVoice(thisVoice, this, NULL,
+		AudioEngine::unassignVoice(thisVoice, this, nullptr,
 		                           false); // Don't remove from Vector - we'll do that below, in bulk
 	}
 
@@ -3087,11 +3087,11 @@ void Sound::doneReadingFromFile() {
 		sources[s].doneReadingFromFile(this);
 	}
 
-	setupUnisonDetuners(NULL);
+	setupUnisonDetuners(nullptr);
 	setupUnisonStereoSpread();
 
 	for (int32_t m = 0; m < kNumModulators; m++) {
-		recalculateModulatorTransposer(m, NULL);
+		recalculateModulatorTransposer(m, nullptr);
 	}
 }
 
@@ -4628,7 +4628,7 @@ ModelStackWithAutoParam* Sound::getParamFromModEncoder(int32_t whichModEncoder,
 	// If setting up a macro by holding its encoder down, the knobs will represent macro control-amounts rather than
 	// actual "params", so there's no "param".
 	if (isUIModeActive(UI_MODE_MACRO_SETTING_UP)) {
-		return modelStack->addParam(NULL, NULL, 0, NULL); // "none"
+		return modelStack->addParam(nullptr, nullptr, 0, nullptr); // "none"
 	}
 	return getParamFromModEncoderDeeper(whichModEncoder, modelStack, allowCreation);
 }
@@ -4965,7 +4965,7 @@ void Sound::wontBeRenderedForAWhile() {
 	sidechain.status = EnvelopeStage::OFF;
 
 	// Tell it to just cut the MODFX tail - we needa change status urgently!
-	reassessRenderSkippingStatus(NULL, true);
+	reassessRenderSkippingStatus(nullptr, true);
 
 	// If it still thinks it's meant to be rendering, we did something wrong
 	if (ALPHA_OR_BETA_VERSION && !skippingRendering) {

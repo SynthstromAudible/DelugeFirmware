@@ -45,6 +45,7 @@ def main(argv: Sequence[str] = sys.argv) -> int:
     if result.returncode == 0:
         if webbrowser.open(index_page.absolute()):
             return 0
+        return 0
     return 1
 
 

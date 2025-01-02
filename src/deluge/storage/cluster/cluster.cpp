@@ -197,7 +197,7 @@ void Cluster::steal(char const* errorCode) {
 		if (ALPHA_OR_BETA_VERSION && sample == nullptr) {
 			FREEZE_WITH_ERROR("E181");
 		}
-		sample->clusters.getElement(clusterIndex)->cluster = NULL;
+		sample->clusters.getElement(clusterIndex)->cluster = nullptr;
 		break;
 
 	case Type::SAMPLE_CACHE:
@@ -243,6 +243,12 @@ bool Cluster::mayBeStolen(void* thingNotToStealFrom) {
 	case Type::PERC_CACHE_FORWARDS:
 	case Type::PERC_CACHE_REVERSED:
 		return (sample != thingNotToStealFrom);
+
+	// explicit fallthrough cases
+	case Type::SAMPLE:
+	case Type::EMPTY:
+	case Type::GENERAL_MEMORY:
+	case Type::OTHER:;
 	}
 	return true;
 }

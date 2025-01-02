@@ -73,5 +73,5 @@ public:
 	std::expected<typename decltype(params)::iterator, Error> getOrCreateParamFromCC(int32_t cc);
 
 private:
-	void deleteAllParams(Action* action = NULL);
+	void deleteAllParams(Action* action = nullptr);
 };

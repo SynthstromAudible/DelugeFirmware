@@ -25,7 +25,6 @@ public:
 	ClipNavigationTimelineView() = default;
 	void focusRegained() override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
-	const char* getName() override { return "clip_navigation_timeline_view"; }
 
 protected:
 	void horizontalScrollForLinearRecording(int32_t newXScroll);

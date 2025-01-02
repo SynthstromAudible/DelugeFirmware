@@ -123,7 +123,7 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 	}
 }
 
-SoundEditor soundEditor;
+SoundEditor soundEditor{};
 
 SoundEditor::SoundEditor() {
 	currentParamShorcutX = 255;
@@ -268,6 +268,8 @@ void SoundEditor::enterSubmenu(MenuItem* newItem) {
 
 ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
+
+	D_PRINTLN("SoundEditor::buttonAction(%d)", (int)b);
 
 	Clip* clip = nullptr;
 	bool isUIInstrumentClipView = false;
@@ -600,21 +602,7 @@ void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem
 	}
 }
 
-bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
-
-	MenuItem* currentItem = getCurrentMenuItem();
-
-	currentItem->beginSession(oldMenuItem);
-
-	// If that didn't succeed (file browser)
-	if (getCurrentUI() != &soundEditor && getCurrentUI() != &sampleBrowser && getCurrentUI() != &audioRecorder
-	    && getCurrentUI() != &sampleMarkerEditor && getCurrentUI() != &renameDrumUI) {
-		return false;
-	}
-
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 
 	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
 	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
@@ -694,7 +682,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 				}
 			}
 
-stopThat: {}
+stopThat:
 
 			if (currentParamShorcutX != 255) {
 				updateSourceBlinks(currentItem);
@@ -722,6 +710,25 @@ shortcutsPicked:
 	}
 
 	possibleChangeToCurrentRangeDisplay();
+}
+
+bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
+
+	MenuItem* currentItem = getCurrentMenuItem();
+
+	currentItem->beginSession(oldMenuItem);
+
+	// If that didn't succeed (file browser)
+	if (getCurrentUI() != &soundEditor && getCurrentUI() != &sampleBrowser && getCurrentUI() != &audioRecorder
+	    && getCurrentUI() != &sampleMarkerEditor && getCurrentUI() != &renameDrumUI) {
+		return false;
+	}
+
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+
+	currentItem->updatePadLights();
 
 	return true;
 }
@@ -806,19 +813,55 @@ void SoundEditor::scrollFinished() {
 const uint32_t selectEncoderUIModes[] = {UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, UI_MODE_NOTES_PRESSED,
                                          UI_MODE_AUDITIONING, 0};
 
-void SoundEditor::selectEncoderAction(int8_t offset) {
+// inertia and acceleration controls how fast the knob accelerates in horizontal menus
+// speedScale controls how we go from "raw speed" to speed used as offset multiplier
+// min and max speed clamp the max effective speed
+//
+// current values have been tuned to be slow enough to feel easy to control, but fast
+// enough to go from 0 to 50 with one fast turn of the encoder. speedScale and min/max
+// could potentially be user configurable in a small range.
+const double acceleration = 0.1;
+const double inertia = 1.0 - acceleration;
+const double speedScale = 0.15;
+const double minSpeed = 1.0;
+const double maxSpeed = 5.0;
 
+double getKnobSpeed(int8_t offset) {
+	// speed is current raw knob speed
+	static double speed = 0.0;
+	// lastOffset and lastEncoderTime keep track of our direction and time
+	static int8_t lastOffset = 0;
+	static double lastEncoderTime = 0.0;
+	double time = getSystemTime();
+	if (offset == lastOffset) {
+		// moving in the same direction, update speed
+		speed = speed * inertia + (1.0 / (time - lastEncoderTime)) * acceleration;
+	}
+	else {
+		// change of direction, reset speed
+		speed = 0.0;
+	}
+	lastEncoderTime = time;
+	lastOffset = offset;
+	return std::clamp((speed * speedScale), minSpeed, maxSpeed);
+}
+
+void SoundEditor::selectEncoderAction(int8_t offset) {
+	int8_t scaledOffset = offset;
 	// 5x acceleration of select encoder when holding the shift button
 	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
-		offset = offset * 5;
+		scaledOffset *= 5;
 	}
 
+	MenuItem* item = getCurrentMenuItem();
 	RootUI* rootUI = getRootUI();
 
-	// if you're not on the automation overview and you haven't selected a multi pad press
-	// (multi pad press values are only editable with mod encoders to edit left and right position)
-	if (rootUI == &automationView && isEditingAutomationViewParam() && !automationView.multiPadPressSelected) {
-		automationView.modEncoderAction(0, offset);
+	// Forward to automation view.
+	// - skipped for submenus, since vertical menus don't need it, and horizontal menus need extra case
+	// - TODO: this could be handled by the Automation class via regular forwarding for all cases
+	if (!item->isSubmenu() && rootUI == &automationView && isEditingAutomationViewParam()
+	    && !automationView.multiPadPressSelected) {
+		automationView.modEncoderAction(0, scaledOffset);
 	}
 	else {
 		if (!isUIModeWithinRange(selectEncoderUIModes)) {
@@ -837,7 +880,7 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 			hadNoteTails = currentSound->allowNoteTails(modelStack);
 		}
 
-		getCurrentMenuItem()->selectEncoderAction(offset);
+		item->selectEncoderAction(item->isSubmenu() ? offset * getKnobSpeed(offset) : scaledOffset);
 
 		if (currentSound) {
 			if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) {
@@ -884,7 +927,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 	}
 	else {
 		// allow automation view to handle interpolation and pad selection shortcut
-		if ((getRootUI() == &automationView) && (x == 0 && (y == 6) || (y == 7))) {
+		if ((getRootUI() == &automationView) && (x == 0) && ((y == 6) || (y == 7))) {
 			ignoreAction = true;
 		}
 	}
@@ -904,6 +947,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 
 		const MenuItem* item = nullptr;
+		Submenu* parent = nullptr;
 
 		// session views (arranger, song, performance)
 		if (!rootUIIsClipMinderScreen()) {
@@ -950,6 +994,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			}
 			else {
 				item = paramShortcutsForSounds[x][y];
+				parent = parentsForSoundShortcuts[x][y];
 				goto doSetup;
 			}
 		}
@@ -1062,6 +1107,7 @@ getOut:
 				}
 				else {
 					item = paramShortcutsForSounds[x][y];
+					parent = parentsForSoundShortcuts[x][y];
 				}
 
 doSetup:
@@ -1070,6 +1116,14 @@ doSetup:
 					if (item == comingSoonMenu) {
 						display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 						return ActionResult::DEALT_WITH;
+					}
+
+					// If we're on OLED, a parent menu & horizontal menus are in play,
+					// then we swap the parent in place of the child.
+					if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+						if (parent->focusChild(item)) {
+							item = parent;
+						}
 					}
 
 					// if we're in the menu and automation view is the root (background) UI
@@ -1770,7 +1824,7 @@ bool SoundEditor::handleClipName() {
 	case ClipType::INSTRUMENT:
 
 		if (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
-		    || output->type == OutputType::KIT && getRootUI()->getAffectEntire()) {
+		    || (output->type == OutputType::KIT && getRootUI()->getAffectEntire())) {
 			if (clip) {
 				renameClipUI.clip = clip;
 				openUI(&renameClipUI);

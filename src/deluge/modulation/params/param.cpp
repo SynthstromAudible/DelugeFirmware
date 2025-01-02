@@ -440,9 +440,10 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 
 		case UNPATCHED_PITCH_ADJUST:
 			return "pitchAdjust";
-		case UNPATCHED_GLOBAL_MAX_NUM:
-		    // Intentional fallthrough, not handled
-		    ;
+
+		// explicit fallthrough cases
+		case UNPATCHED_TEMPO: // nothing, really?
+		case UNPATCHED_GLOBAL_MAX_NUM:;
 		}
 	}
 

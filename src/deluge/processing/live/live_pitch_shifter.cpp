@@ -612,8 +612,8 @@ stopPercSearch:
 			goto stopSearch;
 		}
 
-		if ((uint32_t)(numRawSamplesProcessedLatest - averagesStartPosNewHead)
-		    & (kInputRawBufferSize - 1) < lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages) {
+		if (((uint32_t)(numRawSamplesProcessedLatest - averagesStartPosNewHead) & (kInputRawBufferSize - 1))
+		    < lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages) {
 			goto stopSearch;
 		}
 

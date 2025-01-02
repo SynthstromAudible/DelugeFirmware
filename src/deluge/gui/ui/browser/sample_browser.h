@@ -58,8 +58,10 @@ public:
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	void exitAndNeverDeleteDrum();
 
-	const char* getName() override { return "sample_browser"; }
 	String lastFilePathLoaded;
+
+	// ui
+	UIType getUIType() override { return UIType::SAMPLE_BROWSER; }
 
 protected:
 	void enterKeyPress() override;
@@ -74,7 +76,7 @@ private:
 	void audioFileIsNowSet();
 	bool canImportWholeKit();
 	bool loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
-	                            bool* getDoingSingleCycle = NULL, int32_t* getNumCharsInPrefix = NULL);
+	                            bool* getDoingSingleCycle = nullptr, int32_t* getNumCharsInPrefix = nullptr);
 	Error getCurrentFilePath(String* path) override;
 	void drawKeysOverWaveform();
 	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);

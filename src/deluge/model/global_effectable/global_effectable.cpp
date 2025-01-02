@@ -490,6 +490,9 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 			case CompParam::BLEND:
 				current = compressor.getBlend() >> 24;
 				break;
+
+			// explicit fallthrough case
+			case CompParam::LAST:;
 			}
 		}
 	}
@@ -573,7 +576,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				unit = " HZ";
 				break;
 
-			case CompParam::BLEND:
+			case CompParam::BLEND: {
 				if (display->haveOLED()) {
 					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_BLEND));
 				}
@@ -585,6 +588,10 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				displayLevel = compressor.setBlend(level);
 				unit = " %";
 				break;
+			}
+
+			// explicit fallthrough case
+			case CompParam::LAST:;
 			}
 			indicator_leds::setKnobIndicatorLevel(0, ledLevel);
 		}
@@ -700,7 +707,7 @@ ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int32_t whichM
 	ModelStackWithParamId* newModelStack1 = modelStack->addParamCollectionAndId(paramCollection, summary, paramId);
 
 	if (paramId == 255) {
-		return newModelStack1->addAutoParam(NULL); // Communicate there's no param, back to caller
+		return newModelStack1->addAutoParam(nullptr); // Communicate there's no param, back to caller
 	}
 	else {
 		return newModelStack1->paramCollection->getAutoParamFromId(newModelStack1, allowCreation);

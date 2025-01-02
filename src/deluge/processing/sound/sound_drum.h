@@ -60,6 +60,6 @@ public:
 	                                              MIDICharacteristic whichCharacteristic) override;
 
 	ArpeggiatorBase* getArp() override { return &arpeggiator; }
-	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) override { return &arpSettings; }
+	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr) override { return &arpSettings; }
 	void resetTimeEnteredState();
 };

@@ -50,9 +50,6 @@ using encoders::EncoderName;
 
 LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
-LoadInstrumentPresetUI::LoadInstrumentPresetUI() {
-}
-
 bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	if (showingAuditionPads()) {
 		*cols = 0b10;
@@ -89,11 +86,17 @@ bool LoadInstrumentPresetUI::opened() {
 	switch (instrumentToReplace->type) {
 	case OutputType::MIDI_OUT:
 		initialChannelSuffix = ((MIDIInstrument*)instrumentToReplace)->channelSuffix;
-		// No break
+		// intentional fallthrough to share code with CV case
 
 	case OutputType::CV:
 		initialChannel = ((NonAudioInstrument*)instrumentToReplace)->getChannel();
 		break;
+
+	// explicit fallthrough cases
+	case OutputType::AUDIO:
+	case OutputType::SYNTH:
+	case OutputType::KIT:
+	case OutputType::NONE:;
 	}
 
 	changedInstrumentForClip = false;
@@ -169,6 +172,11 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 				fileIcon = deluge::hid::display::OLED::midiIcon;
 				fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
 				fileIconPt2Width = 1;
+				break;
+			// explicit fallthrough cases
+			case OutputType::AUDIO:
+			case OutputType::CV:
+			case OutputType::NONE:;
 			}
 		}
 	}
@@ -536,7 +544,7 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 
 	bool needToAddInstrumentToSong = false;
 
-	Instrument* initialInstrument = NULL;
+	Instrument* initialInstrument = nullptr;
 
 	// Search main, non-hibernating Instruments
 	initialInstrument = currentSong->getInstrumentFromPresetSlot(
@@ -652,7 +660,7 @@ gotAnInstrument:
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 
-		Error error = instrumentClipToLoadFor->changeInstrument(modelStack, initialInstrument, NULL,
+		Error error = instrumentClipToLoadFor->changeInstrument(modelStack, initialInstrument, nullptr,
 		                                                        InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
 		// TODO: deal with errors!
 
@@ -980,7 +988,7 @@ giveUsedError:
 		// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
 		Error error = instrumentClipToLoadFor->changeInstrument(
-		    modelStack, newInstrument, NULL, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+		    modelStack, newInstrument, nullptr, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, nullptr, true);
 		// TODO: deal with errors!
 
 		if (needToAddInstrumentToSong) {
@@ -996,7 +1004,7 @@ giveUsedError:
 		for (int32_t f = fileItems.getNumElements() - 1; f >= 0; f--) {
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(f);
 			if (fileItem->instrument == instrumentToReplace) {
-				fileItem->instrument = NULL;
+				fileItem->instrument = nullptr;
 				break;
 			}
 		}
@@ -1191,7 +1199,7 @@ LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* so
 goAgain:
 
 	Error error = readFileItemsFromFolderAndMemory(song, outputType, getThingName(outputType),
-	                                               searchNameLocalCopy.get(), NULL, true);
+	                                               searchNameLocalCopy.get(), nullptr, true);
 	if (error != Error::NONE) {
 		emptyFileItems();
 		return std::unexpected{error};
@@ -1322,7 +1330,7 @@ LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne(OutputType outputType, 
 
 doReadFiles:
 	Error error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType),
-	                                               searchNameLocalCopy.get(), NULL, false, availabilityRequirement);
+	                                               searchNameLocalCopy.get(), nullptr, false, availabilityRequirement);
 
 	AudioEngine::logAction("confirmPresetOrNextUnlaunchedOne");
 
@@ -1570,7 +1578,7 @@ doPendingPresetNavigation:
 
 		if (toReturn.loadedFromFile) {
 			currentSong->deleteOutput(toReturn.fileItem->instrument);
-			toReturn.fileItem->instrument = NULL;
+			toReturn.fileItem->instrument = nullptr;
 		}
 		goto moveAgain;
 	}
@@ -1580,9 +1588,9 @@ doPendingPresetNavigation:
 	// TODO: This isn't true, it's an argument so that must have changed at some point. This logic will create a clone
 	// if anything other than unused is passed in
 	if (!toReturn.fileItem->instrument) {
-		toReturn.error =
-		    StorageManager::loadInstrumentFromFile(currentSong, NULL, outputType, false, &toReturn.fileItem->instrument,
-		                                           &toReturn.fileItem->filePointer, &newName, &Browser::currentDir);
+		toReturn.error = StorageManager::loadInstrumentFromFile(
+		    currentSong, nullptr, outputType, false, &toReturn.fileItem->instrument, &toReturn.fileItem->filePointer,
+		    &newName, &Browser::currentDir);
 		if (toReturn.error != Error::NONE) {
 			emptyFileItems();
 			return toReturn;

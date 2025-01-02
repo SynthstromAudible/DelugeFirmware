@@ -72,11 +72,11 @@ Sample::Sample()
 	minValueFound = 2147483647;
 	maxValueFound = -2147483648;
 
-	percCacheMemory[0] = NULL;
-	percCacheMemory[1] = NULL;
+	percCacheMemory[0] = nullptr;
+	percCacheMemory[1] = nullptr;
 
-	percCacheClusters[0] = NULL;
-	percCacheClusters[1] = NULL;
+	percCacheClusters[0] = nullptr;
+	percCacheClusters[1] = nullptr;
 
 	fileLoopStartSamples = 0;
 	fileLoopEndSamples = 0;
@@ -121,7 +121,7 @@ void Sample::deletePercCache(bool beingDestructed) {
 		if (percCacheMemory[reversed]) {
 			delugeDealloc(percCacheMemory[reversed]);
 			if (!beingDestructed) {
-				percCacheMemory[reversed] = NULL;
+				percCacheMemory[reversed] = nullptr;
 			}
 		}
 
@@ -143,7 +143,7 @@ void Sample::deletePercCache(bool beingDestructed) {
 
 			delugeDealloc(percCacheClusters[reversed]);
 			if (!beingDestructed) {
-				percCacheClusters[reversed] = NULL;
+				percCacheClusters[reversed] = nullptr;
 			}
 		}
 
@@ -196,7 +196,7 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 
 	// Or if still here, it didn't already exist.
 	if (!mayCreate) {
-		return NULL;
+		return nullptr;
 	}
 
 	uint64_t combinedIncrement = ((uint64_t)(uint32_t)phaseIncrement * (uint32_t)timeStretchRatio) >> 24;
@@ -215,7 +215,7 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 	uint64_t lengthInBytesCached = lengthInSamplesCached * kCacheByteDepth * numChannels;
 
 	if (lengthInBytesCached >= (32 << 20)) {
-		return NULL; // If cache would be more than 32MB, assume that it wouldn't be very useful to cache it
+		return nullptr; // If cache would be more than 32MB, assume that it wouldn't be very useful to cache it
 	}
 
 	int32_t numClusters = ((lengthInBytesCached - 1) >> Cluster::size_magnitude) + 1;
@@ -223,13 +223,13 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 	void* memory =
 	    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*));
 	if (!memory) {
-		return NULL;
+		return nullptr;
 	}
 
 	i = caches.insertAtKeyMultiWord(keyWords);
 	if (i == -1) { // If error
 		delugeDealloc(memory);
-		return NULL;
+		return nullptr;
 	}
 
 	SampleCache* samplePitchAdjustment = new (memory)
@@ -394,7 +394,7 @@ doReturnNoError:
 				if (!clusterHere) {
 
 					// That's actually allowed if we're right at the start of that cluster. But otherwise...
-					if (startPosSamples & ((1 << Cluster::size_magnitude + kPercBufferReductionMagnitude) - 1)) {
+					if (startPosSamples & ((1 << (Cluster::size_magnitude + kPercBufferReductionMagnitude)) - 1)) {
 						// If Cluster has been stolen, the zones should have been updated, so we shouldn't be here
 						D_PRINTLN("startPosSamples: %d", startPosSamples);
 						FREEZE_WITH_ERROR("E139");
@@ -840,12 +840,12 @@ uint8_t* Sample::prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirec
 	int32_t realPos = (pixellatedPos << kPercBufferReductionMagnitude) + (kPercBufferReductionSize >> 1);
 	int32_t i = percCacheZones[reversed].search(realPos + 1 - reversed, reversed ? GREATER_OR_EQUAL : LESS);
 	if (i < 0 || i >= percCacheZones[reversed].getNumElements()) {
-		return NULL;
+		return nullptr;
 	}
 
 	SamplePercCacheZone* zone = (SamplePercCacheZone*)percCacheZones[reversed].getElementAddress(i);
 	if ((zone->endPos - realPos) * playDirection <= 0) {
-		return NULL;
+		return nullptr;
 	}
 
 	*earliestPixellatedPos =
@@ -916,7 +916,7 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 	}
 #endif
 
-	percCacheClusters[reversed][cluster->clusterIndex] = NULL;
+	percCacheClusters[reversed][cluster->clusterIndex] = nullptr;
 
 	// TODO: while inside this, don't allow further editing to percCacheZones[reversed]
 
@@ -1342,7 +1342,7 @@ getOut:
 		return 0;
 	}
 
-	Cluster* nextCluster = NULL;
+	Cluster* nextCluster = nullptr;
 
 	int32_t biggestValueFound = 0;
 
@@ -1398,7 +1398,7 @@ continueWhileLoop:
 
 				audioFileManager.removeReasonFromCluster(*cluster, "hset");
 				cluster = nextCluster;
-				nextCluster = NULL; // It'll soon get filled
+				nextCluster = nullptr; // It'll soon get filled
 			}
 
 			// Rudimentary audio start-detection. We need this, because detecting the tone of percussive sounds relies
