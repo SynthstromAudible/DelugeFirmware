@@ -846,7 +846,8 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 
 		if (!arpIsOn) {
 			// Count up notes per member channel. This traversal will *not* find the new note that we're switching on,
-			// which will have had its toMIDIChannel set to MIDI_CHANNEL_NONE (255) by Arpeggiator (we'll decide and set it below).
+			// which will have had its toMIDIChannel set to MIDI_CHANNEL_NONE (255) by Arpeggiator (we'll decide and set
+			// it below).
 			for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
 				ArpNote* thisArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
 				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
@@ -854,11 +855,13 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 						break;
 					}
 					if (thisArpNote->outputMemberChannel[i] >= lowestMemberChannel
-						&& thisArpNote->outputMemberChannel[i] <= highestMemberChannel) {
+					    && thisArpNote->outputMemberChannel[i] <= highestMemberChannel) {
 						numNotesPreviouslyActiveOnMemberChannel[thisArpNote->outputMemberChannel[i]]++;
 
-						// // If this note is coming in live from the same member channel as the one we wish to switch on now,
-						// // that's a good clue that we should group them together at the output. (Final decision to be made
+						// // If this note is coming in live from the same member channel as the one we wish to switch
+						// on now,
+						// // that's a good clue that we should group them together at the output. (Final decision to be
+						// made
 						// // further below.)
 						// if (thisArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]
 						// 	== arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]) {
