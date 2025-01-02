@@ -2045,13 +2045,22 @@ oledDrawString:
 			}
 
 			if (clip) {
-				if (!clip->name.isEmpty()) {
-					yPos = yPos + 14;
-					canvas.drawStringCentred(clip->name.get(), yPos, kTextSpacingX, kTextSpacingY);
-					deluge::hid::display::OLED::setupSideScroller(1, clip->name.get(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
-					                                              yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY,
-					                                              false);
+				// "SECTION NN" is 10, "NN: " is 3 => 10 over current name is always enough.
+				DEF_STACK_STRING_BUF(info, clip->name.getLength() + 10);
+				if (clip->name.isEmpty()) {
+					info.append("Section ");
+					info.appendInt(clip->section + 1);
 				}
+				else {
+					info.appendInt(clip->section + 1);
+					info.append(": ");
+					info.append(clip->name.get());
+				}
+				yPos = yPos + 14;
+				canvas.drawStringCentred(info.data(), yPos, kTextSpacingX, kTextSpacingY);
+				deluge::hid::display::OLED::setupSideScroller(1, info.data(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
+				                                              yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY,
+				                                              false);
 			}
 		}
 		else {
