@@ -127,7 +127,7 @@ All the following parameters define other aspects of the arpeggiator and can be 
   - If set to a value higher than zero, the pattern will play up to the set number of steps, and then
     reset itself to start from the beginning. Tip: You can use this in combination with the Rhythm
     parameter to create longer and more complex rhythm patterns.
-- **`Chord Polyphony (POLY)`**: is not only available for Kit Rows. This will set the maximum number of notes that will play at the same time when a
+- **`Chord Polyphony (POLY)`**: is not available for Kit Rows. This will set the maximum number of notes that will play at the same time when a
   step is played as a chord. Increase parameter `Chord Probability` to make some steps play a chord instead
   of a single note. Values range from no chord, to 5th, to triad (3rd + 5th), to seventh chord (3rd + 5th + 7th).
 - **`Ratchet Amount (RATC)`**: A ratchet is when a note repeats itself several times in the same time interval
@@ -144,7 +144,7 @@ The following parameters are also **automatable** and **learnable** to golden kn
   - **`Bass Probability (BASS)`**: It applies a chance of replacing the current note to be played with the lowest note of the played notes.
     The higher the value, the more likely that the note played is the bass note of the arpeggiated chord.
     This can be used as a performance tool to open up or close the arpeggio pitch range.
-  - **`Chord Probability (CHRD)`**: is not only available for Kit Rows. This paramater will allow you to control the chance of a note to play, at the same time, itself and the following notes in the available
+  - **`Chord Probability (CHRD)`**: is not available for Kit Rows. This paramater will allow you to control the chance of a note to play, at the same time, itself and the following notes in the available
     notes set, like a chord.
   - **`Octave Spread (OCTA)`**: The note will get a change in pitch of a random amount of octaves, going from 0 up to a maximum of +3 octaves.
   - **`Gate Spread (GATE)`**: The gate of the arp step will get a random **positive** or **negative** deviation from the base gate.
@@ -156,7 +156,7 @@ The following parameters are also **automatable** and **learnable** to golden kn
     - Tip 2: If you want to re-roll the dice for a parameter, slightly change its value and a new set of random values will be
     generated and locked.
     - Tip 3: If you want some parameters to be locked, but not others, add some automation variation in the clip to those,
-    so the dice is re-rolled and hence you always get fresh new random values for them.
+    so the dice is re-rolled and hence you always get fresh new random values for them, while the others have fixed values.
 
 ### MPE
 This submenu contains parameters that are useful if you have an MPE controller connected to the Deluge:

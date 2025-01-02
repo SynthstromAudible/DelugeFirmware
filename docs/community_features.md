@@ -845,7 +845,7 @@ to each individual note onset. ([#1978])
 
 #### 4.3.8 - Advanced Arpeggiator
 
-- ([#1198] [#2978] [#2985] [#2990] [#3062]) For a detailed description of this feature, please refer to the feature
+- ([#1198] [#2978] [#2985] [#2990] [#3062] [#3079]) For a detailed description of this feature, please refer to the feature
   documentation: [Arpeggiator Documentation]
   
 #### 4.3.9 - Velocity View
@@ -1545,6 +1545,8 @@ different firmware
 [#2958]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2958
 
 [#3062]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3062
+
+[#3079]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3079
 
 [Automation View Documentation]: features/automation_view.md
 
