@@ -24,6 +24,7 @@
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "util/functions.h"
+#include <string>
 
 namespace deluge::gui::menu_item {
 
@@ -116,14 +117,13 @@ void Range::drawValue(int32_t startPos, bool renderSidebarToo) {
 		renderUIsForOled();
 	}
 	else {
-		char* buffer = shortStringBuffer;
-		getText(buffer);
+		std::string text = this->getText();
 
-		if (strlen(buffer) <= kNumericDisplayLength) {
-			display->setText(buffer, true);
+		if (text.length() <= kNumericDisplayLength) {
+			display->setText(text, true);
 		}
 		else {
-			display->setScrollingText(buffer, startPos);
+			display->setScrollingText(text, startPos);
 		}
 	}
 }
@@ -134,29 +134,33 @@ void Range::drawValueForEditingRange(bool blinkImmediately) {
 		return;
 	}
 
-	int32_t leftLength, rightLength;
-	char* buffer = shortStringBuffer;
+	size_t leftLength = 0;
+	size_t rightLength = 0;
 
-	getText(buffer, &leftLength, &rightLength, false);
+	std::string text = this->getText(&leftLength, &rightLength, false);
 
-	int32_t textLength = leftLength + rightLength + 1;
+	size_t textLength = leftLength + rightLength + 1;
 
 	uint8_t blinkMask[kNumericDisplayLength];
 	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
 		for (int32_t i = 0; i < kNumericDisplayLength; i++) {
-			if (i < leftLength + kNumericDisplayLength - std::min(4_i32, textLength))
+			if (i < leftLength + kNumericDisplayLength - std::min<size_t>(4, textLength)) {
 				blinkMask[i] = 0;
-			else
+			}
+			else {
 				blinkMask[i] = 255;
+			}
 		}
 	}
 
 	else {
 		for (int32_t i = 0; i < kNumericDisplayLength; i++) {
-			if (kNumericDisplayLength - 1 - i < rightLength)
+			if (kNumericDisplayLength - 1 - i < rightLength) {
 				blinkMask[i] = 0;
-			else
+			}
+			else {
 				blinkMask[i] = 255;
+			}
 		}
 	}
 
@@ -165,17 +169,17 @@ void Range::drawValueForEditingRange(bool blinkImmediately) {
 	// Sorta hackish, to reset timing of blinking LED and always show text "on" initially on edit value
 	indicator_leds::blinkLed(IndicatorLED::BACK, 255, 0, !blinkImmediately);
 
-	display->setText(buffer, alignRight, 255, true, blinkMask);
+	display->setText(text, alignRight, 255, true, blinkMask);
 
 	soundEditor.possibleChangeToCurrentRangeDisplay();
 }
 
 void Range::drawPixelsForOled() {
 	deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main;
-	int32_t leftLength, rightLength;
-	char* buffer = shortStringBuffer;
+	size_t leftLength = 0;
+	size_t rightLength = 0;
 
-	getText(buffer, &leftLength, &rightLength, soundEditor.editingRangeEdge == RangeEdit::OFF);
+	std::string text = this->getText(&leftLength, &rightLength, soundEditor.editingRangeEdge == RangeEdit::OFF);
 
 	int32_t textLength = leftLength + rightLength + (bool)rightLength;
 
@@ -186,7 +190,7 @@ void Range::drawPixelsForOled() {
 	int32_t stringWidth = digitWidth * textLength;
 	int32_t stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
 
-	canvas.drawString(buffer, stringStartX, baseY + OLED_MAIN_TOPMOST_PIXEL, digitWidth, digitHeight);
+	canvas.drawString(text, stringStartX, baseY + OLED_MAIN_TOPMOST_PIXEL, digitWidth, digitHeight);
 
 	int32_t highlightStartX, highlightWidth;
 

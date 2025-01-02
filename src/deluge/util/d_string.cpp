@@ -20,6 +20,9 @@
 #include "memory/general_memory_allocator.h"
 #include "util/cfunctions.h"
 #include <bit>
+#include <charconv>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 
 const char nothing = 0;
@@ -378,4 +381,29 @@ uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int32_t length) 
 	} while (hexChars != endChar);
 
 	return output;
+}
+
+StringBuf& StringBuf::appendInt(int32_t value, size_t min_digits) {
+	DEF_STACK_STRING_BUF(buffer, 20);
+
+	auto [endPtr, ec] = std::to_chars(buffer.begin(), buffer.true_end() - 1, value); // Leave room for NUL
+	if (ec != std::errc()) {
+		return *this; // fail if error
+	}
+	*endPtr = '\0';
+
+	size_t length = endPtr - buffer.begin();
+
+	// calculate how many characters to copy: the minimum required digits _or_ only enough to fill the string (excluding
+	// NUL)
+	size_t num_to_copy = std::min(min_digits, capacity() - size());
+
+	int32_t pad_count = static_cast<int32_t>(num_to_copy) - length;
+	char* it = end();
+	if (pad_count > 0) {
+		it = std::fill_n(it,  pad_count, '0'); // literal zero! not NUL!
+	}
+	it = std::copy_n(buffer.begin(), length, it);
+	*it = '\0';
+	return *this;
 }

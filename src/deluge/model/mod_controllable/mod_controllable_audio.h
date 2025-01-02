@@ -150,7 +150,7 @@ protected:
 	char const* getDelayTypeDisplayName();
 	char const* getDelayPingPongStatusDisplayName();
 	char const* getDelaySyncTypeDisplayName();
-	void getDelaySyncLevelDisplayName(char* displayName);
+	std::string getDelaySyncLevelDisplayName();
 	char const* getSidechainDisplayName();
 
 	void displayFilterSettings(bool on, FilterType currentFilterType);

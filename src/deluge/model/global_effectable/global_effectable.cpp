@@ -378,9 +378,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 						displayDelaySettings(on);
 					}
 					else {
-						char displayName[30];
-						getDelaySyncLevelDisplayName(displayName);
-						display->displayPopup(displayName);
+						std::string name = getDelaySyncLevelDisplayName();
+						display->displayPopup(name);
 					}
 				}
 				else {

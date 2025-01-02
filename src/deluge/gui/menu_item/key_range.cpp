@@ -55,46 +55,40 @@ void KeyRange::selectEncoderAction(int32_t offset) {
 	}
 }
 
-void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) {
-
-	*(buffer++) = noteCodeToNoteLetter[lower];
-	int32_t leftLength = 1;
+std::string KeyRange::getText(size_t* getLeftLength, size_t* getRightLength, bool mayShowJustOne) {
+	std::string left;
+	left += noteCodeToNoteLetter[lower];
 
 	if (noteCodeIsSharp[lower]) {
-		*(buffer++) = (display->haveOLED()) ? '#' : '.';
-		if (display->haveOLED()) {
-			leftLength++;
-		}
+		left += display->haveOLED() ? '#' : '.';
 	}
 
-	if (getLeftLength) {
-		*getLeftLength = leftLength;
+	if (getLeftLength != nullptr) {
+		*getLeftLength = (left.back() == '.') ? 2 : 1;
 	}
 
 	if (mayShowJustOne && lower == upper) {
-		*buffer = 0;
-		if (getRightLength) {
+		if (getRightLength != nullptr) {
 			*getRightLength = 0;
 		}
-		return;
+		return left;
 	}
 
-	*(buffer++) = '-';
+	std::string right;
+	right += noteCodeToNoteLetter[upper];
 
-	*(buffer++) = noteCodeToNoteLetter[upper];
-	int32_t rightLength = 1;
 	if (noteCodeIsSharp[upper]) {
-		*(buffer++) = (display->haveOLED()) ? '#' : '.';
-		if (display->haveOLED()) {
-			rightLength++;
-		}
+		left += display->haveOLED() ? '#' : '.';
 	}
 
-	*buffer = 0;
-
-	if (getRightLength) {
-		*getRightLength = rightLength;
+	if (getRightLength != nullptr) {
+		*getLeftLength = (left.back() == '.') ? 2 : 1;
 	}
+
+	// concatenate and return
+	left += '-';
+	left += right;
+	return left;
 }
 
 // Call seedRandom() before you call this

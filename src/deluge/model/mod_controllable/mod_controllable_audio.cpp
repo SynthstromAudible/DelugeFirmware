@@ -1197,12 +1197,10 @@ void ModControllableAudio::switchDelaySyncLevel() {
 	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); // cycle from 1 to 9 (omit 0)
 }
 
-void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
+std::string ModControllableAudio::getDelaySyncLevelDisplayName() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	delay.syncLevel = (SyncLevel)(delay.syncLevel % SyncLevel::SYNC_LEVEL_256TH); // cycle from 1 to 9 (omit 0)
-	StringBuf buffer{shortStringBuffer, kShortStringBufferSize};
-	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
-	strncpy(displayName, buffer.data(), 29);
+	return currentSong->getNoteLengthName((uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
 }
 
 char const* ModControllableAudio::getFilterTypeDisplayName(FilterType currentFilterType) {
@@ -1439,9 +1437,7 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 				popupMsg.append(getDelaySyncTypeDisplayName());
 
 				popupMsg.append("\nSync: ");
-				char displayName[30];
-				getDelaySyncLevelDisplayName(displayName);
-				popupMsg.append(displayName);
+				popupMsg.append(getDelaySyncLevelDisplayName());
 			}
 			else {
 				popupMsg.append("Ping pong: ");
@@ -1463,9 +1459,7 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 				display->displayPopup(getDelaySyncTypeDisplayName());
 			}
 			else {
-				char displayName[30];
-				getDelaySyncLevelDisplayName(displayName);
-				display->displayPopup(displayName);
+				display->displayPopup(getDelaySyncLevelDisplayName());
 			}
 		}
 		else {

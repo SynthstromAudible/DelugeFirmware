@@ -28,8 +28,6 @@ public:
 	using SyncLevel::SyncLevel;
 
 protected:
-	void getNoteLengthName(StringBuf& buffer) final {
-		getNoteLengthNameFromMagnitude(buffer, -6 + 9 - this->getValue());
-	}
+	std::string getNoteLengthName() final { return getNoteLengthNameFromMagnitude(-6 + 9 - this->getValue()); }
 };
 } // namespace deluge::gui::menu_item::sync_level

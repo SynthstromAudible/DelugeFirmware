@@ -85,6 +85,7 @@
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "util/string.h"
 
 namespace params = deluge::modulation::params;
 namespace encoders = deluge::hid::encoders;
@@ -2018,8 +2019,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 		canvas.drawStringCentred(outputTypeText, yPos, kTextSpacingX, kTextSpacingY);
 	}
 
-	char buffer[12];
-	char const* nameToDraw = nullptr;
+	std::string nameToDraw;
 
 	if (!isNameEmpty) {
 		if (display->haveOLED()) {
@@ -2106,8 +2106,8 @@ yesAlignRight:
 	else if (outputType == OutputType::MIDI_OUT) {
 		if (display->haveOLED()) {
 			if (channel < 16) {
-				slotToString(channel + 1, channelSuffix, buffer, 1);
-				goto oledOutputBuffer;
+				nameToDraw = string::fromSlot(channel + 1, channelSuffix, 1);
+				goto oledDrawString;
 			}
 			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 				nameToDraw = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
@@ -2134,13 +2134,11 @@ yesAlignRight:
 	else if (outputType == OutputType::CV) {
 		if (display->haveOLED()) {
 			if (channel < both) {
-				intToString(channel + 1, buffer);
+				nameToDraw = string::fromInt(channel + 1);
 			}
 			else {
-				sprintf(buffer, "1 and 2");
+				nameToDraw = "1 and 2";
 			}
-oledOutputBuffer:
-			nameToDraw = buffer;
 			goto oledDrawString;
 		}
 		else {
@@ -2403,17 +2401,17 @@ gotAnInstrument:
 		// Special case: when it is a saved MIDI preset (with a name), then we need to show the channel in a popup, as
 		// the name will print over the midi channel and we can't see it while changing it
 		if (outputType == OutputType::MIDI_OUT && newInstrument->name.getLength() > 0) {
-			char buffer[12];
+			std::string text;
 			if (newChannel < 16) {
-				slotToString(newChannel + 1, newChannelSuffix, buffer, 1);
+				text = string::fromSlot(newChannel + 1, newChannelSuffix);
 			}
 			else if (newChannel == MIDI_CHANNEL_MPE_LOWER_ZONE || newChannel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-				strcpy(buffer, (newChannel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper");
+				text = (newChannel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
 			}
 			else {
-				strcpy(buffer, "Transpose");
+				text = "Transpose";
 			}
-			display->popupTextTemporary(buffer);
+			display->popupTextTemporary(text);
 		}
 	}
 

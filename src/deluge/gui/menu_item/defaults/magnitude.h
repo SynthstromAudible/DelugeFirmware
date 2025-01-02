@@ -20,7 +20,7 @@
 #include "hid/display/oled.h"
 #include "model/sync.h"
 #include "storage/flash_storage.h"
-#include "util/d_string.h"
+#include "util/string.h"
 
 namespace deluge::gui::menu_item::defaults {
 class Magnitude final : public Enumeration {
@@ -36,11 +36,9 @@ public:
 		FlashStorage::defaultSwingInterval = clampSwingIntervalSyncLevel(FlashStorage::defaultSwingInterval - delta);
 	}
 	void drawPixelsForOled() override {
-		char buffer[12];
-		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+		hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 
-		intToString(96 << this->getValue(), buffer);
-		canvas.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, 18, 20);
+		canvas.drawStringCentred(string::fromInt(96 << this->getValue()), 18 + OLED_MAIN_TOPMOST_PIXEL, 18, 20);
 	}
 
 	void drawValue() override { display->setTextAsNumber(96 << this->getValue()); }

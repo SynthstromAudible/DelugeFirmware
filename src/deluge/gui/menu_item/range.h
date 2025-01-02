@@ -36,8 +36,8 @@ public:
 	bool cancelEditingIfItsOn();
 
 protected:
-	virtual void getText(char* buffer, int32_t* getLeftLength = nullptr, int32_t* getRightLength = nullptr,
-	                     bool mayShowJustOne = true) = 0;
+	virtual std::string getText(size_t* getLeftLength = nullptr, size_t* getRightLength = nullptr,
+	                            bool mayShowJustOne = true) = 0;
 	virtual bool mayEditRangeEdge(RangeEdit whichEdge) { return true; }
 	virtual void drawValue() { this->drawValue(0); }
 	void drawValue(int32_t startPos, bool renderSidebarToo = true);

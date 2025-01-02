@@ -32,7 +32,7 @@ public:
 
 protected:
 	void drawValue() final;
-	virtual void getNoteLengthName(StringBuf& buffer);
+	virtual std::string getNoteLengthName();
 	void drawPixelsForOled() override;
 };
 

@@ -19,6 +19,8 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "util/cfunctions.h"
+#include "util/d_string.h"
+#include "util/string.h"
 
 namespace deluge::gui::menu_item {
 
@@ -62,9 +64,9 @@ void IntegerWithOff::drawPixelsForOled() {
 }
 
 void Integer::drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
-	char buffer[12];
-	intToString(getDisplayValue(), buffer, 1);
-	strncat(buffer, getUnit(), 4);
+	std::string buffer;
+	buffer += string::fromInt(getDisplayValue());
+	buffer.append(getUnit(), 4);
 	deluge::hid::display::OLED::main.drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
 }
 

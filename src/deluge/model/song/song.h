@@ -351,8 +351,8 @@ public:
 	AudioOutput* getFirstAudioOutput();
 	AudioOutput* createNewAudioOutput(Output* replaceOutput = nullptr);
 	/// buffer must have at least 5 characters on 7seg, or 30 for OLED
-	void getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const* notesString = "-notes",
-	                       bool clarifyPerColumn = false) const;
+	std::string getNoteLengthName(uint32_t noteLength, char const* notesString = "-notes",
+	                              bool clarifyPerColumn = false) const;
 	void replaceOutputLowLevel(Output* newOutput, Output* oldOutput);
 	void removeSessionClip(Clip* clip, int32_t clipIndex, bool forceClipsAboveToMoveVertically = false);
 	bool deletePendingOverdubs(Output* onlyWithOutput = nullptr, int32_t* originalClipIndex = nullptr,

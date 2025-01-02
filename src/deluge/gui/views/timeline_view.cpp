@@ -118,10 +118,9 @@ ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inC
 }
 
 void TimelineView::displayZoomLevel(bool justPopup) {
-	DEF_STACK_STRING_BUF(text, 30);
-	currentSong->getNoteLengthName(text, currentSong->xZoom[getNavSysId()], "-notes", true);
+	std::string name = currentSong->getNoteLengthName(currentSong->xZoom[getNavSysId()], "-notes", true);
 
-	display->displayPopup(text.data(), justPopup ? 3 : 0, true);
+	display->displayPopup(name, justPopup ? 3 : 0, true);
 }
 
 bool horizontalEncoderActionLock = false;

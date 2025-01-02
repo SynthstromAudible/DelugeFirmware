@@ -10,6 +10,8 @@
 #include "source_selection/range.h"
 #include "source_selection/regular.h"
 #include "util/functions.h"
+#include "util/string.h"
+#include "util/try.h"
 
 namespace deluge::gui::menu_item {
 
@@ -83,8 +85,10 @@ void PatchCables::renderOptions() {
 		float floatLevel = (float)level / 100;
 		int floatoff = floatLevel < 0 ? 1 : 0;
 
-		floatToString(floatLevel, buf + off + 5 - floatoff, 2, 2);
-		// fmt::vformat_to_n(buf + off + 5, 5, "{:4}", fmt::make_format_args();
+		D_TRY_CATCH(deluge::to_chars(&buf[off + 5 - floatoff], &buf[off + 9], floatLevel, 2), error,
+		            {
+		                // ignore, shouldn't ever happen
+		            });
 
 		buf[off + 9] = ' ';
 		strncpy(buf + off + 10, dest_name, item_max_len - 10 - off);

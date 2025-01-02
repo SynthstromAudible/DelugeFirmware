@@ -18,6 +18,7 @@
 #pragma once
 #include "menu_item.h"
 #include "range.h"
+#include <string>
 
 namespace deluge::gui::menu_item {
 
@@ -34,9 +35,8 @@ public:
 	MenuItem* menuItemHeadingTo;
 
 protected:
-	void getText(char* buffer, int32_t* getLeftLength = nullptr, int32_t* getRightLength = nullptr,
-
-	             bool mayShowJustOne = true) override;
+	std::string getText(size_t* getLeftLength = nullptr, size_t* getRightLength = nullptr,
+	                    bool mayShowJustOne = true) override;
 	bool mayEditRangeEdge(RangeEdit whichEdge) override;
 
 	[[nodiscard]] std::string_view getTitle() const override {

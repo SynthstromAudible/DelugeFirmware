@@ -29,9 +29,12 @@
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/string.h"
 #include <cmath>
 #include <cstdint>
-#include <string.h>
+#include <cstring>
+#include <string>
+#include <string_view>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -2036,71 +2039,83 @@ int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitu
 	return noteMagnitude;
 }
 
-void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude, char const* const notesString,
-                                    bool clarifyPerColumn) {
+std::string getNoteLengthNameFromMagnitudeOLED(int32_t magnitude, const std::string_view notesString,
+                                               bool clarifyPerColumn) {
 	// Positive magnitudes are bars, negative magnitudes are divisions of bars.
 	uint32_t division = (uint32_t)1 << (0 - magnitude);
 
-	if (display->haveOLED()) {
-		if (magnitude < 0) {
-			noteLengthBuf.appendInt(division);
-			// this is not fully general but since division are always a power of 2, it works out in practice (no need
-			// for "rd")
-			char const* suffix = ((division % 10) == 2) ? "nd" : "th";
-			noteLengthBuf.append(suffix);
-			noteLengthBuf.append(notesString);
+	std::string name;
+	if (magnitude < 0) {
+		name += deluge::string::fromInt(division);
+		// this is not fully general but since division are always a power of 2, it works out in practice (no need
+		// for "rd")
+		char const* suffix = ((division % 10) == 2) ? "nd" : "th";
+		name += suffix;
+		name += notesString;
+	}
+	else {
+		uint32_t numBars = (uint32_t)1 << magnitude;
+		name += deluge::string::fromInt(numBars);
+		if (clarifyPerColumn) {
+			name += ' ';
+			name += (numBars == 1) ? "bar" : "bars";
+			name += " (per column)";
 		}
 		else {
-			uint32_t numBars = (uint32_t)1 << magnitude;
-			noteLengthBuf.appendInt(numBars);
-			if (clarifyPerColumn) {
-				if (numBars == 1) {
-					noteLengthBuf.append(" bar (per column)");
-				}
-				else {
-					noteLengthBuf.append(" bars (per column)");
-				}
+			name += "-bar";
+		}
+	}
+	return name;
+}
+
+std::string getNoteLengthNameFromMagnitude7SEG(int32_t magnitude, const std::string_view notesString,
+                                               bool clarifyPerColumn) {
+
+	// Positive magnitudes are bars, negative magnitudes are divisions of bars.
+	uint32_t division = (uint32_t)1 << (0 - magnitude);
+
+	std::string name;
+	if (magnitude < 0) {
+		if (division <= 9999) {
+			name += deluge::string::fromInt(division);
+			if (division == 2 || division == 32) {
+				name += "ND";
 			}
-			else {
-				noteLengthBuf.append("-bar");
+			else if (division <= 99) {
+				name += "TH";
 			}
+			else if (division <= 999) {
+				name += "T";
+			}
+		}
+		else {
+			name += "TINY";
 		}
 	}
 	else {
-		if (magnitude < 0) {
-			if (division <= 9999) {
-				noteLengthBuf.appendInt(division);
-				if (division == 2 || division == 32) {
-					noteLengthBuf.append("ND");
-				}
-				else if (division <= 99) {
-					noteLengthBuf.append("TH");
-				}
-				else if (division <= 999) {
-					noteLengthBuf.append("T");
-				}
+		uint32_t numBars = (uint32_t)1 << magnitude;
+		if (numBars <= 9999) {
+			name += deluge::string::fromInt(numBars);
+			if (name.length() == 1) {
+				name += "BAR";
 			}
-			else {
-				noteLengthBuf.append("TINY");
+			else if (name.length() <= 3) {
+				name += "B";
 			}
 		}
 		else {
-			uint32_t numBars = (uint32_t)1 << magnitude;
-			if (numBars <= 9999) {
-				noteLengthBuf.appendInt(numBars);
-				auto size = noteLengthBuf.size();
-				if (size == 1) {
-					noteLengthBuf.append("BAR");
-				}
-				else if (size <= 3) {
-					noteLengthBuf.append("B");
-				}
-			}
-			else {
-				noteLengthBuf.append("BIG");
-			}
+			name += "BIG";
 		}
 	}
+	return name;
+}
+
+std::string getNoteLengthNameFromMagnitude(int32_t magnitude, const std::string_view notesString,
+                                           bool clarifyPerColumn) {
+	if (display->haveOLED()) {
+		return getNoteLengthNameFromMagnitudeOLED(magnitude, notesString, clarifyPerColumn);
+	}
+	return getNoteLengthNameFromMagnitude7SEG(magnitude, notesString, clarifyPerColumn);
 }
 
 char const* getFileNameFromEndOfPath(char const* filePathChars) {

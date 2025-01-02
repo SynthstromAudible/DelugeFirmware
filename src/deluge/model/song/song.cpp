@@ -66,6 +66,7 @@
 #include <cstring>
 #include <new>
 #include <stdint.h>
+#include <string>
 
 extern "C" {}
 
@@ -5127,10 +5128,9 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
-void Song::getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const* const notesString,
-                             bool clarifyPerColumn) const {
-	getNoteLengthNameFromMagnitude(buffer, getNoteMagnitudeFfromNoteLength(noteLength, getInputTickMagnitude()),
-	                               notesString, clarifyPerColumn);
+std::string Song::getNoteLengthName(uint32_t noteLength, char const* const notesString, bool clarifyPerColumn) const {
+	return getNoteLengthNameFromMagnitude(getNoteMagnitudeFfromNoteLength(noteLength, getInputTickMagnitude()),
+	                                      notesString, clarifyPerColumn);
 }
 
 Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Availability availabilityRequirement,

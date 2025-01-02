@@ -144,12 +144,12 @@ public:
 
 	// display tempo
 	void displayPotentialTempoChange(UI* ui);
-	void displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM, bool clearArea);
+	void displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, std::string_view tempoBPM, bool clearArea);
 	float lastDisplayedTempo = 0;
 
 	// display root note and scale name
 	void displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
-	                                        StringBuf& rootNoteAndScaleName, bool clearArea);
+	                                        std::string_view rootNoteAndScaleName, bool clearArea);
 	int16_t lastDisplayedRootNote = 0;
 
 	// convert instrument clip to audio clip

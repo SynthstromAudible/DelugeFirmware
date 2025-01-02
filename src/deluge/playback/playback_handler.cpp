@@ -73,6 +73,7 @@
 #include "storage/storage_manager.h"
 #include "util/cfunctions.h"
 #include "util/functions.h"
+#include "util/string.h"
 #include <math.h>
 #include <new>
 
@@ -1943,17 +1944,12 @@ void PlaybackHandler::resyncMIDIClockOutTicksToInternalTicks() {
 void PlaybackHandler::commandDisplaySwingInterval() {
 	DEF_STACK_STRING_BUF(text, 30);
 	if (display->haveOLED()) {
-		text.append("Swing: ");
-		if (currentSong->swingAmount == 0) {
-			text.append("off");
-		}
-		else {
-			text.appendInt(currentSong->swingAmount + 50);
-		}
-		text.append("\n");
+		text += "Swing: ";
+		text += (currentSong->swingAmount == 0) ? "OFF" : deluge::string::fromInt(currentSong->swingAmount + 50);
+		text += "\n";
 	}
-	syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
-	display->popupTextTemporary(text.c_str(), PopupType::SWING);
+	text += syncValueToString(currentSong->swingInterval, currentSong->getInputTickMagnitude());
+	display->popupTextTemporary(text, PopupType::SWING);
 }
 
 void PlaybackHandler::commandClearTempoAutomation() {
@@ -1964,25 +1960,15 @@ void PlaybackHandler::commandClearTempoAutomation() {
 void PlaybackHandler::commandDisplaySwingAmount() {
 	DEF_STACK_STRING_BUF(text, 30);
 	if (display->haveOLED()) {
-		text.append("Swing: ");
-		if (currentSong->swingAmount == 0) {
-			text.append("off");
-		}
-		else {
-			text.appendInt(currentSong->swingAmount + 50);
-		}
-		text.append("\n");
-		syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
+		text += "Swing: ";
+		text += (currentSong->swingAmount == 0) ? "OFF" : deluge::string::fromInt(currentSong->swingAmount + 50);
+		text += "\n";
+		text += syncValueToString(currentSong->swingInterval, currentSong->getInputTickMagnitude());
 	}
 	else {
-		if (currentSong->swingAmount == 0) {
-			text.append("OFF");
-		}
-		else {
-			text.appendInt(currentSong->swingAmount + 50);
-		}
+		text += (currentSong->swingAmount == 0) ? "OFF" : deluge::string::fromInt(currentSong->swingAmount + 50);
 	}
-	display->popupTextTemporary(text.c_str(), PopupType::SWING);
+	display->popupTextTemporary(text, PopupType::SWING);
 }
 
 void PlaybackHandler::commandEditSwingInterval(int8_t offset) {
@@ -2309,14 +2295,13 @@ float PlaybackHandler::calculateBPM(float timePerInternalTick) {
 	return currentSong->calculateBPM(timePerInternalTick);
 }
 
-void PlaybackHandler::getTempoStringForOLED(float tempoBPM, StringBuf& buffer) {
+std::string PlaybackHandler::getTempoStringForOLED(float tempoBPM) {
 	if (tempoBPM >= 9999.5) {
-		buffer.append("FAST");
+		return "FAST";
 	}
-	else {
-		int32_t numDecimalPlaces = (tempoBPM >= 1000 || isExternalClockActive()) ? 0 : 2;
-		buffer.appendFloat(tempoBPM, 0, numDecimalPlaces);
-	}
+
+	auto precision = (tempoBPM >= 1000 || isExternalClockActive()) ? 0 : 2;
+	deluge::string::fromFloat(tempoBPM, precision);
 }
 
 void PlaybackHandler::displayTempoBPM(float tempoBPM) {
@@ -2328,14 +2313,14 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 		if ((currentUI == &sessionView || currentUI == &arrangerView)
 		    && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
 			sessionView.lastDisplayedTempo = tempoBPM;
-			getTempoStringForOLED(tempoBPM, text);
+			text += getTempoStringForOLED(tempoBPM);
 			sessionView.displayTempoBPM(deluge::hid::display::OLED::main, text, true);
 			deluge::hid::display::OLED::markChanged();
 		}
 		else {
-			text.append("Tempo: ");
-			getTempoStringForOLED(tempoBPM, text);
-			display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
+			text += "Tempo: ";
+			text += getTempoStringForOLED(tempoBPM);
+			display->popupTextTemporary(text, PopupType::TEMPO);
 		}
 	}
 	else {
@@ -2388,13 +2373,13 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 
 		// If perfect and integer...
 		if (isPerfect && roundedBigger == roundedTempoBPM * divisor) {
-			text.appendInt(roundedTempoBPM);
-			display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
+			text += deluge::string::fromInt(roundedTempoBPM);
+			display->popupTextTemporary(text, PopupType::TEMPO);
 		}
 		else {
-			text.appendInt(roundedBigger, 4);
+			text += string::fromInt(roundedBigger, 4);
 			// This is what popupTextTemporary() does, except for passing in the dotMask
-			display->displayPopup(text.c_str(), 3, false, dotMask, 1, PopupType::TEMPO);
+			display->displayPopup(text, 3, false, dotMask, 1, PopupType::TEMPO);
 		}
 	}
 }

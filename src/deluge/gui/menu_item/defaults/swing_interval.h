@@ -34,8 +34,8 @@ public:
 	}
 
 protected:
-	void getNoteLengthName(StringBuf& buffer) override {
-		syncValueToString(this->getValue(), buffer, FlashStorage::defaultMagnitude);
+	std::string getNoteLengthName() override {
+		return syncValueToString(this->getValue(), FlashStorage::defaultMagnitude);
 	}
 };
 

@@ -4412,9 +4412,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 					displayDelaySettings(on);
 				}
 				else {
-					char displayName[30];
-					getDelaySyncLevelDisplayName(displayName);
-					display->displayPopup(displayName);
+					display->displayPopup(getDelaySyncLevelDisplayName());
 				}
 			}
 			else {

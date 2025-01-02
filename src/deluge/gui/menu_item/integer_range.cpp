@@ -20,6 +20,8 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "util/functions.h"
+#include "util/string.h"
+#include <string>
 
 namespace deluge::gui::menu_item {
 
@@ -69,31 +71,30 @@ justDrawOneNumber:
 	}
 }
 
-void IntegerRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) {
+std::string IntegerRange::getText(size_t* getLeftLength, size_t* getRightLength, bool mayShowJustOne) {
 
-	intToString(lower, buffer);
+	std::string left = deluge::string::fromInt(lower);
 
-	int32_t leftLength = strlen(buffer);
-	if (getLeftLength) {
-		*getLeftLength = leftLength;
+	if (getLeftLength != nullptr) {
+		*getLeftLength = left.length();
 	}
 
 	if (mayShowJustOne && lower == upper) {
-		if (getRightLength) {
+		if (getRightLength != nullptr) {
 			*getRightLength = 0;
 		}
-		return;
+		return left;
 	}
 
-	char* bufferPos = buffer + leftLength;
+	std::string right = deluge::string::fromInt(upper);
 
-	*(bufferPos++) = '-';
-
-	intToString(upper, bufferPos);
-
-	if (getRightLength) {
-		*getRightLength = strlen(bufferPos);
+	if (getRightLength != nullptr) {
+		*getRightLength = right.length();
 	}
+
+	left += '-';
+	left += right;
+	return left;
 }
 
 // Call seedRandom() before you call this

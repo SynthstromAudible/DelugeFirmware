@@ -45,22 +45,20 @@ enum SyncLevel syncValueToSyncLevel(int32_t option) {
 	if (option < SYNC_TYPE_TRIPLET) {
 		return static_cast<enum SyncLevel>(option);
 	}
-	else if (option < SYNC_TYPE_DOTTED) {
+	if (option < SYNC_TYPE_DOTTED) {
 		return static_cast<enum SyncLevel>(option - SYNC_TYPE_TRIPLET + 1);
 	}
-	else {
-		return static_cast<enum SyncLevel>(option - SYNC_TYPE_DOTTED + 1);
-	}
+	return static_cast<enum SyncLevel>(option - SYNC_TYPE_DOTTED + 1);
 }
 
-void syncValueToString(uint32_t value, StringBuf& buffer, int32_t tickMagnitude) {
-	char const* typeStr = nullptr;
-	enum SyncType type { syncValueToSyncType(value) };
-	enum SyncLevel level { syncValueToSyncLevel(value) };
+std::string syncValueToString(uint32_t value, int32_t tickMagnitude) {
+	SyncType type = syncValueToSyncType(value);
+	SyncLevel level = syncValueToSyncLevel(value);
 
 	uint32_t shift = SYNC_LEVEL_256TH - level;
 	uint32_t noteLength = uint32_t{3} << shift;
 
+	std::string_view typeStr;
 	switch (type) {
 	case SYNC_TYPE_EVEN:
 		if (value != 0) {
@@ -75,14 +73,16 @@ void syncValueToString(uint32_t value, StringBuf& buffer, int32_t tickMagnitude)
 		break;
 	}
 
-	getNoteLengthNameFromMagnitude(buffer, getNoteMagnitudeFfromNoteLength(noteLength, tickMagnitude), typeStr, false);
-	if (typeStr != nullptr) {
+	auto name =
+	    getNoteLengthNameFromMagnitude(getNoteMagnitudeFfromNoteLength(noteLength, tickMagnitude), typeStr, false);
+	if (!typeStr.empty()) {
 		int32_t magnitudeLevelBars = SYNC_LEVEL_8TH - tickMagnitude;
 		if (((type == SYNC_TYPE_TRIPLET || type == SYNC_TYPE_DOTTED) && level <= magnitudeLevelBars)
 		    || display->have7SEG()) {
 			// On OLED, getNoteLengthNameForMagniture() handles adding this for the non-bar levels. On 7seg, always
 			// append it
-			buffer.append(typeStr);
+			name += typeStr;
 		}
 	}
+	return name;
 }

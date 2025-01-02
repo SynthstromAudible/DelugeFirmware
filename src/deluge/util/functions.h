@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <string_view>
 
 class UI;
 
@@ -414,8 +415,8 @@ bool charCaseEqual(char firstChar, char secondChar);
 bool shouldAbortLoading();
 int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitude);
 /// buffer must have at least 5 characters on 7seg, or 30 for OLED
-void getNoteLengthNameFromMagnitude(StringBuf& buf, int32_t magnitude, char const* durrationSuffix = "-notes",
-                                    bool clarifyPerColumn = false);
+std::string getNoteLengthNameFromMagnitude(int32_t magnitude, std::string_view durrationSuffix = "-notes",
+                                           bool clarifyPerColumn = false);
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int32_t prefixLength);
 Error fresultToDelugeErrorCode(FRESULT result);
 namespace FatFS {

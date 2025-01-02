@@ -18,8 +18,13 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "util/exceptions.h"
+#include "util/string.h"
+#include "util/try.h"
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <string_view>
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -110,40 +115,94 @@ private:
 class StringBuf {
 	// Not templated to optimize binary size.
 public:
-	StringBuf(char* buf, size_t capacity) : capacity_(capacity), buf_(buf) { memset(buf_, '\0', capacity_); }
+	constexpr StringBuf(char* buf, size_t capacity) : capacity_(capacity - 1), buf_(buf) {
+		std::fill_n(buf_, capacity, '\0');
+	}
 
-	void append(const char* str) { ::strncat(buf_, str, capacity_ - size() - 1); }
-	void append(char c) { ::strncat(buf_, &c, 1); }
-	void clear() { buf_[0] = 0; }
-	void truncate(size_t newSize) {
-		if (newSize < capacity_) {
-			buf_[newSize] = '\0';
+	constexpr void append(std::string_view str, size_t n) {
+		size_t to_concat = std::min({n, str.length(), capacity_ - size()});
+		if (to_concat > 0) {
+			char* ptr = std::copy_n(str.begin(), to_concat, this->end());
+			*ptr = '\0';
 		}
 	}
 
-	// TODO: Validate buffer size. These can overflow
-	void appendInt(int i, int minChars = 1) { intToString(i, buf_ + size(), minChars); }
-	void appendHex(int i, int minChars = 1) { intToHex(i, buf_ + size(), minChars); }
-	void appendFloat(float f, int32_t minDecimals, int32_t maxDecimals) {
-		floatToString(f, buf_ + size(), minDecimals, maxDecimals);
+	constexpr void append(std::string_view str) { append(str, str.length()); }
+
+	constexpr void append(char c) {
+		if (length() != capacity()) {
+			char* terminal = end();
+			terminal[0] = c;
+			terminal[1] = '\0';
+		}
 	}
 
-	[[nodiscard]] char* data() { return buf_; }
-	[[nodiscard]] const char* data() const { return buf_; }
-	[[nodiscard]] const char* c_str() const { return buf_; }
+	constexpr void clear() { std::fill_n(buf_, capacity_ + 1, '\0'); }
 
-	[[nodiscard]] size_t capacity() const { return capacity_; }
-	[[nodiscard]] size_t size() const { return std::strlen(buf_); }
-	[[nodiscard]] size_t length() const { return std::strlen(buf_); }
+	constexpr void truncate(size_t size) {
+		if (size <= capacity_) {
+			buf_[size] = '\0';
+		}
+	}
+
+	StringBuf& appendInt(int32_t value, size_t min_digits = 1);
+
+	StringBuf& appendHex(int32_t value, size_t min_digits = 1) {
+		intToHex(value, end(), min_digits);
+		return *this;
+	}
+
+	StringBuf& appendFloat(float value, int32_t precision) {
+		char* ptr = D_TRY_CATCH(deluge::to_chars(end(), true_end(), value, precision), error, {
+			return *this; // fail if error
+		});
+		*ptr = '\0';
+		return *this;
+	}
+
+	[[nodiscard]] constexpr char* data() { return buf_; }
+	[[nodiscard]] constexpr const char* data() const { return buf_; }
+	[[nodiscard]] constexpr const char* c_str() const { return buf_; }
+
+	[[nodiscard]] constexpr size_t capacity() const { return capacity_; }
+	[[nodiscard]] constexpr size_t length() const {
+		size_t idx = 0;
+		for (; idx <= capacity_; ++idx) {
+			if (buf_[idx] == '\0') {
+				break;
+			}
+		}
+		return idx;
+	}
+	[[nodiscard]] constexpr size_t size() const { return length(); }
+	[[nodiscard]] constexpr bool full() const { return size() == capacity_; }
+
+	[[nodiscard]] char* begin() { return buf_; }
+	[[nodiscard]] char* end() { return &buf_[size()]; }
+	[[nodiscard]] const char* cbegin() const { return buf_; }
+	[[nodiscard]] const char* cend() const { return &buf_[size()]; }
 
 	[[nodiscard]] bool empty() const { return buf_[0] == '\0'; }
 
-	bool operator==(const char* rhs) const { return std::strcmp(buf_, rhs) == 0; }
-	bool operator==(const StringBuf& rhs) const { return std::strcmp(buf_, rhs.c_str()) == 0; }
+	constexpr bool operator==(const char* rhs) const {
+		return static_cast<std::string_view>(*this) == std::string_view{rhs};
+	}
+
+	constexpr bool operator==(const std::string_view rhs) const { return static_cast<std::string_view>(*this) == rhs; }
+
+	constexpr bool operator==(const StringBuf& rhs) const {
+		return static_cast<std::string_view>(*this) == static_cast<std::string_view>(rhs);
+	}
+
+	constexpr void operator+=(const char* cstr) { append(cstr); }
+	constexpr void operator+=(std::string_view str) { append(str); }
+	constexpr void operator+=(std::string& str) { append(str); }
 
 	operator std::string_view() const { return std::string_view{buf_}; }
+	char& operator[](size_t idx) { return buf_[idx]; }
 
 private:
+	[[nodiscard]] constexpr char* true_end() const { return &buf_[capacity_ + 1]; }
 	size_t capacity_;
 	char* buf_;
 };

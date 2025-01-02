@@ -32,9 +32,11 @@
 #include "model/action/action_logger.h"
 #include "util/cfunctions.h"
 #include "util/functions.h"
+#include "util/string.h"
 #include <cstdint>
 #include <cstring>
 #include <new>
+#include <string>
 #include <string_view>
 
 extern "C" {
@@ -194,7 +196,7 @@ void SevenSegment::setText(std::string_view newText, bool alignRight, uint8_t dr
 	}
 }
 
-NumericLayerScrollingText* SevenSegment::setScrollingText(char const* newText, int32_t startAtTextPos,
+NumericLayerScrollingText* SevenSegment::setScrollingText(std::string_view newText, int32_t startAtTextPos,
                                                           int32_t initialDelay, int count, uint8_t fixedDot) {
 	// Paul: Render time could be lower putting this into internal
 	void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerScrollingText));
@@ -279,7 +281,7 @@ void SevenSegment::transitionToNewLayer(NumericLayer* newLayer) {
 }
 
 // Automatically stops at end of string
-int32_t SevenSegment::getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf) {
+int32_t SevenSegment::getEncodedPosFromLeft(int32_t textPos, std::string_view text, bool* andAHalf) {
 
 	int32_t encodedPos = 0;
 	bool lastSegmentHasDot =
@@ -287,8 +289,8 @@ int32_t SevenSegment::getEncodedPosFromLeft(int32_t textPos, char const* text, b
 	*andAHalf = false;
 
 	for (int32_t i = 0; true; i++) {
-		char thisChar = *text;
-		if (!thisChar) {
+		char thisChar = text[i];
+		if (thisChar == '\0') {
 			break; // Stop at end of string
 		}
 		bool isDot = (thisChar == '.' || thisChar == '#' || thisChar == ',');
@@ -308,7 +310,6 @@ int32_t SevenSegment::getEncodedPosFromLeft(int32_t textPos, char const* text, b
 			break;
 		}
 
-		text++;
 		encodedPos++;
 	}
 
@@ -524,12 +525,11 @@ void SevenSegment::setTextAsNumber(int16_t number, uint8_t drawDot, bool doBlink
 
 void SevenSegment::setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink,
                                  int32_t blinkPos, bool blinkImmediately) {
-	char text[12];
 
 	// int32_t minNumDigits = std::max(1, blinkPos + 1);
 	int32_t minNumDigits = (blinkPos == -1) ? -1 : 3;
 
-	slotToString(currentSlot, currentSubSlot, text, minNumDigits);
+	std::string text = string::fromSlot(currentSlot, currentSubSlot, minNumDigits);
 
 	uint8_t blinkMask[kNumericDisplayLength];
 	if (blinkPos == -1) {
@@ -548,7 +548,7 @@ void SevenSegment::setNextTransitionDirection(int8_t thisDirection) {
 	nextTransitionDirection = thisDirection;
 }
 
-void SevenSegment::displayPopup(char const* newText, int8_t numFlashes, bool alignRight, uint8_t drawDot,
+void SevenSegment::displayPopup(std::string_view newText, int8_t numFlashes, bool alignRight, uint8_t drawDot,
                                 int32_t blinkSpeed, PopupType type) {
 	encodeText(newText, popup.segments, alignRight, drawDot);
 	memset(&popup.blinkedSegments, 0, kNumericDisplayLength);
@@ -649,7 +649,7 @@ void SevenSegment::displayLoadingAnimation(bool delayed, bool transparent) {
 	setTopLayer(loadingAnimation);
 }
 
-void SevenSegment::setTextVeryBasicA1(char const* text) {
+void SevenSegment::setTextVeryBasicA1(std::string_view text) {
 	std::array<uint8_t, kNumericDisplayLength> segments;
 	encodeText(text, segments.data(), false, 255, true, 0);
 	PIC::update7SEG(segments);
@@ -658,7 +658,7 @@ void SevenSegment::setTextVeryBasicA1(char const* text) {
 // Highest error code used, main branch: E453
 // Highest error code used, fix branch: i041
 
-void SevenSegment::freezeWithError(char const* text) {
+void SevenSegment::freezeWithError(std::string_view text) {
 	setTextVeryBasicA1(text);
 
 	while (1) {

@@ -26,7 +26,7 @@ public:
 	IntegerRange(l10n::String newName, l10n::String title, int32_t newMin, int32_t newMax)
 	    : Range(newName, title), minValue(newMin), maxValue(newMax) {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
-	void getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) override;
+	std::string getText(size_t* getLeftLength, size_t* getRightLength, bool mayShowJustOne) override;
 	void selectEncoderAction(int32_t offset) override;
 	int32_t getRandomValueInRange();
 

@@ -83,6 +83,8 @@
 #include <algorithm>
 #include <cstdint>
 #include <new>
+#include <string>
+#include <string_view>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -2026,9 +2028,8 @@ void SessionView::renderViewDisplay() {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
 
-	DEF_STACK_STRING_BUF(tempoBPM, 10);
 	lastDisplayedTempo = playbackHandler.calculateBPM(playbackHandler.getTimePerInternalTickFloat());
-	playbackHandler.getTempoStringForOLED(lastDisplayedTempo, tempoBPM);
+	std::string tempoBPM = playbackHandler.getTempoStringForOLED(lastDisplayedTempo);
 	displayTempoBPM(canvas, tempoBPM, false);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
@@ -2065,7 +2066,7 @@ void SessionView::renderViewDisplay() {
 	deluge::hid::display::OLED::markChanged();
 }
 
-void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM,
+void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, std::string_view tempoBPM,
                                   bool clearArea) {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 
@@ -2076,15 +2077,14 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 		                      OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
 	}
 
-	canvas.drawStringAlignRight(tempoBPM.c_str(), yPos, kTextSpacingX, kTextSpacingY);
+	canvas.drawStringAlignRight(tempoBPM, yPos, kTextSpacingX, kTextSpacingY);
 
-	int32_t stringLength = tempoBPM.size();
-	int32_t metronomeIconStartX = OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * stringLength) - metronomeIconSpacingX;
+	int32_t metronomeIconStartX = OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * tempoBPM.length()) - metronomeIconSpacingX;
 	canvas.drawGraphicMultiLine(deluge::hid::display::OLED::metronomeIcon, metronomeIconStartX, yPos, 7);
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
-                                                     StringBuf& rootNoteAndScaleName, bool clearArea) {
+                                                     std::string_view rootNoteAndScaleName, bool clearArea) {
 
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 
@@ -2092,7 +2092,7 @@ void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_
 		canvas.clearAreaExact(0, yPos, OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
 	}
 
-	canvas.drawString(rootNoteAndScaleName.c_str(), 0, yPos, kTextSpacingX, kTextSpacingY);
+	canvas.drawString(rootNoteAndScaleName, 0, yPos, kTextSpacingX, kTextSpacingY);
 }
 
 // This gets called by redrawNumericDisplay() - or, if OLED, it gets called instead, because this still needs to
@@ -2349,8 +2349,7 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 		float diff = std::abs(tempo - lastDisplayedTempo);
 		// always catch manual adjustments, limit rate of others
 		if (diff > 0.5) {
-			DEF_STACK_STRING_BUF(tempoBPM, 10);
-			playbackHandler.getTempoStringForOLED(tempo, tempoBPM);
+			std::string tempoBPM = playbackHandler.getTempoStringForOLED(tempo);
 			displayTempoBPM(deluge::hid::display::OLED::main, tempoBPM, true);
 			deluge::hid::display::OLED::markChanged();
 			lastDisplayedTempo = tempo;

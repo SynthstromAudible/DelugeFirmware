@@ -24,6 +24,7 @@
 #include "io/midi/midi_engine.h"
 #include "util/cfunctions.h"
 #include "util/misc.h"
+#include "util/string.h"
 
 namespace deluge::gui::menu_item::midi {
 
@@ -61,7 +62,6 @@ void Command::drawPixelsForOled() {
 		}
 		else {
 			channelText = l10n::get(l10n::String::STRING_FOR_CHANNEL);
-			char buffer[12];
 			int32_t channelmod = 0;
 			if (command->channelOrZone >= IS_A_PC) {
 				channelmod = IS_A_PC; // the great CC channel hack extended
@@ -69,8 +69,9 @@ void Command::drawPixelsForOled() {
 			else if (command->channelOrZone >= IS_A_CC) {
 				channelmod = IS_A_CC;
 			}
-			intToString(command->channelOrZone + 1 - channelmod, buffer, 1);
-			image.drawString(buffer, kTextSpacingX * 8, yPixel, kTextSpacingX, kTextSizeYUpdated);
+
+			image.drawString(string::fromInt(command->channelOrZone + 1 - channelmod), kTextSpacingX * 8, yPixel,
+			                 kTextSpacingX, kTextSizeYUpdated);
 		}
 		image.drawString(channelText, 0, yPixel, kTextSpacingX, kTextSizeYUpdated);
 
@@ -85,9 +86,8 @@ void Command::drawPixelsForOled() {
 			image.drawString("PC", 0, yPixel, kTextSpacingX, kTextSizeYUpdated);
 		}
 
-		char buffer[12];
-		intToString(command->noteOrCC, buffer, 1);
-		image.drawString(buffer, kTextSpacingX * 5, yPixel, kTextSpacingX, kTextSizeYUpdated);
+		image.drawString(string::fromInt(command->noteOrCC), kTextSpacingX * 5, yPixel, kTextSpacingX,
+		                 kTextSizeYUpdated);
 	}
 }
 

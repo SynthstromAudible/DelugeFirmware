@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item {
 class KeyRange final : public Range {
 public:
 	using Range::Range;
-	void getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) override;
+	std::string getText(size_t* getLeftLength, size_t* getRightLength, bool mayShowJustOne) override;
 	void selectEncoderAction(int32_t offset) override;
 	int32_t getRandomValueInRange();
 

@@ -29,6 +29,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "util/container/static_vector.hpp"
 #include "util/functions.h"
+#include "util/string.h"
 #include <cstring>
 
 namespace deluge::gui::menu_item {
@@ -338,40 +339,35 @@ void MultiRange::deletePress() {
 	}
 }
 
-void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) {
+std::string MultiRange::getText(size_t* getLeftLength, size_t* getRightLength, bool mayShowJustOne) {
 
+	std::string text;
 	// Lower end
 	if (this->getValue() == 0) {
-		strcpy(buffer, l10n::get(l10n::String::STRING_FOR_BOTTOM));
-		if (getLeftLength) {
-			*getLeftLength = display->haveOLED() ? 6 : 3;
+		text = l10n::get(l10n::String::STRING_FOR_BOTTOM);
+		if (getLeftLength != nullptr) {
+			*getLeftLength = text.length();
 		}
 	}
 	else {
 		int32_t note = soundEditor.currentSource->ranges.getElement(this->getValue() - 1)->topNote + 1;
-		noteCodeToString(note, buffer, getLeftLength);
+		text = string::fromNoteCode(note, getLeftLength);
 	}
 
-	char* bufferPos = buffer + strlen(buffer);
-
 	if (display->haveOLED()) {
-		while (bufferPos < &buffer[7]) {
-			*bufferPos = ' ';
-			bufferPos++;
+		while (text.length() < 7) {
+			text += ' ';
 		}
 	}
 
 	// Upper end
 	if (this->getValue() == soundEditor.currentSource->ranges.getNumElements() - 1) {
-		*(bufferPos++) = '-';
+		text += '-';
 		if (display->haveOLED()) {
-			*(bufferPos++) = ' ';
+			text += ' ';
 		}
-		*(bufferPos++) = 't';
-		*(bufferPos++) = 'o';
-		*(bufferPos++) = 'p';
-		*(bufferPos++) = 0;
-		if (getRightLength) {
+		text += "top";
+		if (getRightLength != nullptr) {
 			*getRightLength = 3;
 		}
 	}
@@ -380,13 +376,14 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 
 		if (mayShowJustOne && this->getValue() > 0
 		    && note == soundEditor.currentSource->ranges.getElement(this->getValue() - 1)->topNote + 1) {
-			return;
+			return text;
 		}
 
-		*(bufferPos++) = '-';
-		*(bufferPos++) = ' ';
-		noteCodeToString(note, bufferPos, getRightLength);
+		text += '-';
+		text += ' ';
+		text += string::fromNoteCode(note, getRightLength);
 	}
+	return text;
 }
 
 MenuItem* MultiRange::selectButtonPress() {
@@ -425,8 +422,8 @@ bool MultiRange::mayEditRangeEdge(RangeEdit whichEdge) {
 }
 
 void MultiRange::drawPixelsForOled() {
-	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> itemNames{};
-	char nameBuffers[kOLEDMenuNumOptionsVisible][20];
+	std::array<std::string, kOLEDMenuNumOptionsVisible> names;
+	std::array<std::string_view, kOLEDMenuNumOptionsVisible> name_views{};
 	int32_t actualCurrentRange = this->getValue();
 
 	this->setValue(currentScroll);
@@ -435,9 +432,8 @@ void MultiRange::drawPixelsForOled() {
 		if (this->getValue() >= soundEditor.currentSource->ranges.getNumElements()) {
 			break;
 		}
-		getText(nameBuffers[idx], nullptr, nullptr, false);
-		itemNames.push_back(nameBuffers[idx]);
-
+		names[idx] = getText(nullptr, nullptr, false);
+		name_views[idx] = names[idx];
 		this->setValue(this->getValue() + 1);
 	}
 
@@ -447,7 +443,7 @@ void MultiRange::drawPixelsForOled() {
 	if (soundEditor.editingRangeEdge == RangeEdit::OFF) {
 		selectedOption = this->getValue() - currentScroll;
 	}
-	drawItemsForOled(itemNames, selectedOption);
+	drawItemsForOled(name_views, selectedOption);
 
 	if (soundEditor.editingRangeEdge != RangeEdit::OFF) {
 		int32_t highlightStartX = 0;

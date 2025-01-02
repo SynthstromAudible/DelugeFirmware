@@ -15,17 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <cmath>
-#include <cstring>
-#include <stdint.h>
-
 #include "decimal.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
-#include "util/cfunctions.h"
+#include "util/d_string.h"
 #include "util/functions.h"
+#include "util/string.h"
+#include <cmath>
+#include <cstdint>
+#include <cstring>
+#include <string_view>
 
 namespace deluge::gui::menu_item {
 
@@ -131,61 +132,70 @@ void Decimal::scrollToGoodPos() {
 }
 
 void Decimal::drawPixelsForOled() {
-	int32_t numDecimalPlaces = getNumDecimalPlaces();
-	char buffer[13];
-	intToString(this->getValue(), buffer, numDecimalPlaces + 1);
-	int32_t length = strlen(buffer);
+	int32_t fractional_length = getNumDecimalPlaces();
 
-	int32_t editingChar = length - soundEditor.numberEditPos;
-	if (soundEditor.numberEditPos >= numDecimalPlaces) {
+	std::string int_string = string::fromInt(this->getValue(), fractional_length + 1);
+
+	std::string_view int_string_view = int_string;
+
+	int32_t editingChar = int_string.length() - soundEditor.numberEditPos;
+	if (soundEditor.numberEditPos >= fractional_length) {
 		editingChar--;
 	}
 
 	int32_t digitWidth = kTextHugeSpacingX;
 	int32_t periodWidth = digitWidth / 2;
-	int32_t stringWidth = digitWidth * length + (numDecimalPlaces ? periodWidth : 0);
+	int32_t stringWidth = (digitWidth * int_string.length()) + (fractional_length ? periodWidth : 0);
 	int32_t stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
 	int32_t ourDigitStartX = stringStartX + editingChar * digitWidth;
 
 	// for values with decimal digits showing
-	if (numDecimalPlaces) {
-		int32_t numCharsBeforeDecimalPoint = length - numDecimalPlaces;
+	if (fractional_length) {
+		int32_t integral_length = int_string.length() - fractional_length;
+
 		// draw digits before period
-		hid::display::OLED::main.drawString(std::string_view(buffer, numCharsBeforeDecimalPoint), stringStartX, 20,
-		                                    digitWidth, kTextHugeSizeY, 0, 128, true);
+		hid::display::OLED::main.drawString(int_string_view.substr(0, integral_length), stringStartX, 20, digitWidth,
+		                                    kTextHugeSizeY, 0, 128, true);
 		// draw period
-		hid::display::OLED::main.drawString(".", stringStartX + numCharsBeforeDecimalPoint * digitWidth, 20,
-		                                    periodWidth, kTextHugeSizeY, 0, 128, true);
+		hid::display::OLED::main.drawString(".", stringStartX + integral_length * digitWidth, 20, periodWidth,
+		                                    kTextHugeSizeY, 0, 128, true);
+
 		// modify properties so that the remaining digits and the cursor get drawn correctly
-		std::memmove(buffer, buffer + numCharsBeforeDecimalPoint, sizeof(buffer) - numCharsBeforeDecimalPoint);
-		stringStartX += numCharsBeforeDecimalPoint * digitWidth + periodWidth;
-		if (editingChar > numCharsBeforeDecimalPoint)
+		int_string_view = int_string_view.substr(integral_length);
+		stringStartX += integral_length * digitWidth + periodWidth;
+		if (editingChar > integral_length)
 			ourDigitStartX -= periodWidth;
 	}
+
 	// draw remaining digits
-	hid::display::OLED::main.drawString(buffer, stringStartX, 20, digitWidth, kTextHugeSizeY, 0, 128, true);
+	hid::display::OLED::main.drawString(int_string_view, stringStartX, 20, digitWidth, kTextHugeSizeY, 0, 128, true);
+
 	// draw cursor
 	hid::display::OLED::setupBlink(ourDigitStartX + 1, digitWidth - 2, 41, 42, movingCursor);
 }
 
 void Decimal::drawActualValue(bool justDidHorizontalScroll) {
-	char buffer[12];
+
 	int32_t minNumDigits = getNumDecimalPlaces() + 1;
 	minNumDigits = std::max<int32_t>(minNumDigits, soundEditor.numberEditPos + 1);
-	intToString(this->getValue(), buffer, minNumDigits);
-	int32_t stringLength = strlen(buffer);
 
-	char* outputText = buffer + std::max(stringLength - 4 - soundEditor.numberScrollAmount, 0_i32);
+	std::string int_string = string::fromInt(this->getValue(), minNumDigits);
 
-	if (strlen(outputText) > 4) {
-		outputText[4] = 0;
+	std::string_view output_text =
+	    static_cast<std::string_view>(int_string)
+	        .substr(std::max(static_cast<int32_t>(int_string.length()) - 4 - soundEditor.numberScrollAmount, 0_i32));
+
+	if (output_text.length() > 4) {
+		output_text = output_text.substr(0, 4);
 	}
 
 	int32_t dotPos;
-	if (getNumDecimalPlaces())
+	if (getNumDecimalPlaces() != 0) {
 		dotPos = soundEditor.numberScrollAmount + 3 - getNumDecimalPlaces();
-	else
+	}
+	else {
 		dotPos = 255;
+	}
 
 	indicator_leds::blinkLed(IndicatorLED::BACK, 255, 0, !justDidHorizontalScroll);
 
@@ -193,7 +203,7 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	memset(&blinkMask, 255, kNumericDisplayLength);
 	blinkMask[3 + soundEditor.numberScrollAmount - soundEditor.numberEditPos] = 0b10000000;
 
-	display->setText(outputText,
+	display->setText(output_text,
 	                 true,   // alignRight
 	                 dotPos, // drawDot
 	                 true,   // doBlink
@@ -219,10 +229,12 @@ void DecimalWithoutScrolling::selectEncoderAction(int32_t offset) {
 
 void DecimalWithoutScrolling::drawDecimal(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
 	int32_t numDecimalPlaces = getNumDecimalPlaces();
-	char buffer[12];
-	floatToString(getDisplayValue(), buffer, numDecimalPlaces, numDecimalPlaces);
-	strncat(buffer, getUnit(), 4);
-	deluge::hid::display::OLED::main.drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
+
+	std::string float_string = string::fromFloat(getDisplayValue(), numDecimalPlaces);
+	float_string.append(getUnit(), 4);
+
+	deluge::hid::display::OLED::main.drawStringCentred(float_string, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth,
+	                                                   textHeight);
 }
 
 void DecimalWithoutScrolling::drawPixelsForOled() {
@@ -233,14 +245,13 @@ void DecimalWithoutScrolling::drawActualValue(bool justDidHorizontalScroll) {
 	int32_t dotPos;
 	float displayValue = getDisplayValue();
 	int32_t numDecimalPlaces = displayValue > 100 ? 1 : 2;
-	char buffer[12];
-	floatToString(displayValue, buffer, numDecimalPlaces, numDecimalPlaces);
+	std::string text = string::fromFloat(displayValue, numDecimalPlaces);
 	if (numDecimalPlaces) {
 		dotPos = 3 - numDecimalPlaces;
 	}
 	else {
 		dotPos = 255;
 	}
-	display->setText(buffer, dotPos);
+	display->setText(text, dotPos);
 }
 } // namespace deluge::gui::menu_item

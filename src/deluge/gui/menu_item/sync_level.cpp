@@ -28,24 +28,21 @@ void SyncLevel::drawValue() {
 		display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 	}
 	else {
-		StringBuf buffer{shortStringBuffer, kShortStringBufferSize};
-		getNoteLengthName(buffer);
-		display->setScrollingText(buffer.data(), 0);
+		std::string name = getNoteLengthName();
+		display->setScrollingText(name, 0);
 	}
 }
 
-void SyncLevel::getNoteLengthName(StringBuf& buffer) {
-	syncValueToString(this->getValue(), buffer, currentSong->getInputTickMagnitude());
+std::string SyncLevel::getNoteLengthName() {
+	return syncValueToString(this->getValue(), currentSong->getInputTickMagnitude());
 }
 
 void SyncLevel::drawPixelsForOled() {
-	char const* text = l10n::get(l10n::String::STRING_FOR_OFF);
-	DEF_STACK_STRING_BUF(buffer, 30);
+	std::string name{l10n::getView(l10n::String::STRING_FOR_OFF)};
 	if (this->getValue() != 0) {
-		text = buffer.data();
-		getNoteLengthName(buffer);
+		name = getNoteLengthName();
 	}
-	deluge::hid::display::OLED::main.drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, kTextBigSpacingX,
+	deluge::hid::display::OLED::main.drawStringCentred(name, 20 + OLED_MAIN_TOPMOST_PIXEL, kTextBigSpacingX,
 	                                                   kTextBigSizeY);
 }
 
