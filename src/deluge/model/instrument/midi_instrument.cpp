@@ -842,7 +842,7 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 		uint8_t numNotesPreviouslyActiveOnMemberChannel[16];
 		memset(numNotesPreviouslyActiveOnMemberChannel, 0, sizeof(numNotesPreviouslyActiveOnMemberChannel));
 
-		// int32_t outputMemberChannelWithNoteSharingInputMemberChannel = 16; // 16 means "none", I think
+		int32_t outputMemberChannelWithNoteSharingInputMemberChannel = 16; // 16 means "none", I think
 
 		if (!arpIsOn) {
 			// Count up notes per member channel. This traversal will *not* find the new note that we're switching on,
