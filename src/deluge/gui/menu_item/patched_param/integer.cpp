@@ -56,30 +56,6 @@ int32_t Integer::getFinalValue() {
 	return computeFinalValueForStandardMenuItem(this->getValue());
 }
 
-// As new renderInHorizontalMenu implementations appear, they're likely to be nearly identical
-// -- so please do try to share code!
-void Integer::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-
-	std::string_view name = getShortName();
-	size_t nameLen = std::min((size_t)(width / kTextSpacingX), name.size());
-	// If we can fit the whole name, we do, if we can't we chop one letter off. It just looks and
-	// feels better, at least with the names we have now.
-	if (name.size() > nameLen) {
-		nameLen -= 1;
-	}
-	std::string_view shortName(name.data(), nameLen);
-	image.drawString(shortName, startX, startY, kTextSpacingX, kTextSpacingY, 0, startX + width);
-
-	StackString paramValue{10};
-	paramValue.appendInt(getValue());
-
-	int32_t pxLen = image.getStringWidthInPixels(paramValue.c_str(), kTextTitleSizeY);
-	int32_t pad = (width + 1 - pxLen) / 2;
-	image.drawString(paramValue.c_str(), startX + pad, startY + kTextSpacingY + 2, kTextTitleSpacingX, kTextTitleSizeY,
-	                 0, startX + width);
-}
-
 void Integer::updateAutomationViewParameter() {
 	Automation::handleAutomationViewParameterUpdate();
 }

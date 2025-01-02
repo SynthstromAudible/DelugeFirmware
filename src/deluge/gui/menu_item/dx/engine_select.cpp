@@ -51,7 +51,7 @@ void DxEngineSelect::drawValue() {
 		renderUIsForOled();
 	}
 	else {
-		static const char*(items[]) = {"AUTO", "MODR", "VINT"};
+		static const char* items[] = {"AUTO", "MODR", "VINT"};
 		display->setScrollingText(items[currentValue]);
 	}
 }

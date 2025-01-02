@@ -19,27 +19,16 @@
 
 #include "gui/ui/rename/rename_ui.h"
 #include "hid/button.h"
-
-class Output;
-class Clip;
+#include "model/clip/clip.h"
 
 class RenameClipUI final : public RenameUI {
 public:
-	RenameClipUI();
-	bool opened() override;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
-	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
-
-	Output* output;
+	RenameClipUI(const char* title_) : RenameUI(title_){};
 	Clip* clip;
 
-	// ui
-	bool exitUI() override;
-
 protected:
-	void enterKeyPress() override;
+	bool trySetName(const std::string_view&) override;
+	std::string_view getName() const override;
 };
 
 extern RenameClipUI renameClipUI;

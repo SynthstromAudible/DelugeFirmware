@@ -100,6 +100,19 @@ void MenuItem::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t sta
 	                 startX + width);
 }
 
+void MenuItem::renderColumnLabel(int32_t startX, int32_t width, int32_t startY) {
+	std::string_view name = getShortName();
+	size_t nameLen = std::min((size_t)(width / kTextSpacingX), name.size());
+	// If we can fit the whole name, we do, if we can't we chop one letter off. It just looks and
+	// feels better, at least with the names we have now.
+	if (name.size() > nameLen) {
+		nameLen -= 1;
+	}
+	std::string_view shortName(name.data(), nameLen);
+	deluge::hid::display::OLED::main.drawString(shortName, startX, startY, kTextSpacingX, kTextSpacingY, 0,
+	                                            startX + width);
+}
+
 void MenuItem::updatePadLights() {
 	soundEditor.updatePadLightsFor(this);
 }

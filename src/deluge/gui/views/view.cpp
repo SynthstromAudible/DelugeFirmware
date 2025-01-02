@@ -579,6 +579,13 @@ void View::endMidiLearnPressSession(MidiLearn newThingPressed) {
 	case MidiLearn::TAP_TEMPO_BUTTON:
 		playbackHandler.setLedStates();
 		break;
+	// explicit fallthrough cases
+	case MidiLearn::CLIP:
+	case MidiLearn::NONE:
+	case MidiLearn::NOTEROW_MUTE:
+	case MidiLearn::SECTION:
+	case MidiLearn::INSTRUMENT_INPUT:
+	case MidiLearn::DRUM_INPUT:;
 	}
 
 	learnedThing = nullptr;
@@ -1427,6 +1434,10 @@ void View::setModLedStates() {
 				itsTheSong = true;
 			}
 			break;
+
+		default:
+		    // fallthrough for everything else -- to many UIs to list explicitly
+		    ;
 		}
 	}
 
@@ -1465,6 +1476,9 @@ void View::setModLedStates() {
 		case UIType::AUDIO_CLIP:
 			affectEntire = true;
 			break;
+		default:
+		    // fallthrough for everything else -- to many UIs to list explicitly
+		    ;
 		}
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
@@ -1508,6 +1522,9 @@ void View::setModLedStates() {
 		case UIType::AUTOMATION:
 			onAutomationClipView = true;
 			break;
+		default:
+		    // fallthrough for everything else -- to many UIs to list explicitly
+		    ;
 		}
 
 		if (onAutomationClipView) {
@@ -1545,6 +1562,9 @@ void View::setModLedStates() {
 			case UIType::SESSION:
 				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
 				break;
+			default:
+			    // fallthrough for everything else -- to many UIs to list explicitly
+			    ;
 			}
 		}
 	}
@@ -1905,6 +1925,12 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 		case OutputType::CV:
 			channel = ((NonAudioInstrument*)instrument)->getChannel();
 			break;
+
+		// explicit fallthrough cases
+		case OutputType::SYNTH:
+		case OutputType::KIT:
+		case OutputType::AUDIO:
+		case OutputType::NONE:;
 		}
 	}
 	else {
@@ -2019,13 +2045,22 @@ oledDrawString:
 			}
 
 			if (clip) {
-				if (!clip->name.isEmpty()) {
-					yPos = yPos + 14;
-					canvas.drawStringCentred(clip->name.get(), yPos, kTextSpacingX, kTextSpacingY);
-					deluge::hid::display::OLED::setupSideScroller(1, clip->name.get(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
-					                                              yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY,
-					                                              false);
+				// "SECTION NN" is 10, "NN: " is 3 => 10 over current name is always enough.
+				StackString info{clip->name.getLength() + 10};
+				if (clip->name.isEmpty()) {
+					info.append("Section ");
+					info.appendInt(clip->section + 1);
 				}
+				else {
+					info.appendInt(clip->section + 1);
+					info.append(": ");
+					info.append(clip->name.get());
+				}
+				yPos = yPos + 14;
+				canvas.drawStringCentred(info.data(), yPos, kTextSpacingX, kTextSpacingY);
+				deluge::hid::display::OLED::setupSideScroller(1, info.data(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
+				                                              yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY,
+				                                              false);
 			}
 		}
 		else {
@@ -2753,6 +2788,8 @@ bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB i
 	case NO_MACRO:
 		image[y][column] = {dark, dark, dark};
 		break;
+	// explicit fallthrough
+	case NUM_KINDS:;
 	}
 
 	if (occupancyMask) {

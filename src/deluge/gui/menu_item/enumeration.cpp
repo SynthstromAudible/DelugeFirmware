@@ -28,8 +28,6 @@ void Enumeration::selectEncoderAction(int32_t offset) {
 		nextValue = std::clamp<int32_t>(nextValue, 0, numOptions - 1);
 	}
 
-	D_PRINTLN("value = %d", nextValue);
-
 	setValue(nextValue);
 
 	// reset offset to account for wrapping

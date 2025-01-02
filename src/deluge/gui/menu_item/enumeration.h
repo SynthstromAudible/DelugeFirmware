@@ -12,9 +12,8 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void selectEncoderAction(int32_t offset) override;
 	virtual size_t size() = 0;
-	/// @brief  Should this menu wrap around? Destined to be virtualized and moved higher
-	/// in the class hierarchy.
-	bool wrapAround();
+	/// @brief  Should this menu wrap around?
+	virtual bool wrapAround();
 
 protected:
 	void drawPixelsForOled() override = 0;

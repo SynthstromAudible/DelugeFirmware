@@ -378,9 +378,9 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		if (getCurrentOutputType() == OutputType::MIDI_OUT && (b == MOD_ENCODER_0 || b == MOD_ENCODER_1)) {
 			openUI(&saveMidiDeviceDefinitionUI);
 		}
-		else if (b == SYNTH && getCurrentOutputType() == OutputType::SYNTH
-		         || b == KIT && getCurrentOutputType() == OutputType::KIT
-		         || b == MIDI && getCurrentOutputType() == OutputType::MIDI_OUT) {
+		else if ((b == SYNTH && getCurrentOutputType() == OutputType::SYNTH)
+		         || (b == KIT && getCurrentOutputType() == OutputType::KIT)
+		         || (b == MIDI && getCurrentOutputType() == OutputType::MIDI_OUT)) {
 			openUI(&saveInstrumentPresetUI);
 		}
 	}
