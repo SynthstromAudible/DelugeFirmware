@@ -150,10 +150,8 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// Pad was already active
 			if (pressedPads[idx].active && pressedPads[idx].x == x && pressedPads[idx].y == y) {
 				pressedPads[idx].active = false;
+				pressedPads[idx].padPressHeld = false;
 				markDead = idx;
-				if ((AudioEngine::audioSampleTimer - pressedPads[idx].timeLastPadPress) > FlashStorage::holdTime) {
-					pressedPads[idx].padPressHeld = true; // why is this needed if the pad has been released?
-				}
 				break;
 			}
 		}
@@ -636,7 +634,6 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	}
 
 	else {
-		// requestRendering();
 		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
 		if (result != ActionResult::NOT_DEALT_WITH) {
 			return result;

@@ -2374,8 +2374,6 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	writer.writeAttribute("keyboardLayout", keyboardState.currentLayout);
 	writer.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
 	writer.writeAttribute("drumsScrollOffset", keyboardState.drums.scroll_offset);
-	writer.writeAttribute("drumsEdgeSizeX", keyboardState.drums.edge_size_x);
-	writer.writeAttribute("drumsEdgeSizeY", keyboardState.drums.edge_size_y);
 	writer.writeAttribute("drumsZoomLevel", keyboardState.drums.zoom_level);
 	writer.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
 	writer.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
@@ -2632,12 +2630,6 @@ someError:
 			keyboardState.drums.scroll_offset = reader.readTagOrAttributeValueInt();
 		}
 
-		else if (!strcmp(tagName, "drumsEdgeSizeX")) {
-			keyboardState.drums.edge_size_x = reader.readTagOrAttributeValueInt();
-		}
-		else if (!strcmp(tagName, "drumsEdgeSizeY")) {
-			keyboardState.drums.edge_size_y = reader.readTagOrAttributeValueInt();
-		}
 		else if (!strcmp(tagName, "drumsZoomLevel")) {
 			keyboardState.drums.zoom_level = reader.readTagOrAttributeValueInt();
 		}

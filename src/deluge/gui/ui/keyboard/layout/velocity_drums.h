@@ -48,17 +48,17 @@ public:
 private:
 	RGB note_colours[128];
 
-	inline uint8_t velocityFromCoords(int32_t x, int32_t y, uint8_t edge_size_x, uint8_t edge_size_y) {
-		uint8_t velocity = 0;
+	inline uint8_t velocityFromCoords(int32_t x, int32_t y, uint32_t edge_size_x, uint32_t edge_size_y) {
+		uint32_t velocity = 0;
 		if (edge_size_x == 1) {
 			// No need to do a lot of calculations or use max velocity for only one option.
 			velocity = FlashStorage::defaultVelocity * 2;
 		}
 		else {
-			bool odd_pad = (edge_size_x % 2 == 1);             // check if the view has odd width pads
-			uint8_t x_limit = kDisplayWidth - 2 - edge_size_x; // end of second to last pad in a row (the regular pads)
+			bool odd_pad = (edge_size_x % 2 == 1);              // check if the view has odd width pads
+			uint32_t x_limit = kDisplayWidth - 2 - edge_size_x; // end of second to last pad in a row (the regular pads)
 			bool x_adjust = (odd_pad && x > x_limit);
-			uint8_t localX = x_adjust ? x - x_limit : x % (edge_size_x);
+			uint32_t localX = x_adjust ? x - x_limit : x % (edge_size_x);
 
 			if (edge_size_y == 1) {
 				velocity = (localX + 1) * 200 / (edge_size_x + x_adjust); // simpler, more useful, easier on the ears.
@@ -66,7 +66,7 @@ private:
 			else {
 				if (edge_size_x % 2 == 1 && x > kDisplayWidth - 2 - edge_size_x)
 					edge_size_x += 1;
-				uint8_t position = localX + 1;
+				uint32_t position = localX + 1;
 				position += ((y % edge_size_y) * (edge_size_x + x_adjust));
 				// We use two bytes to keep the precision of the calculations high,
 				// then shift it down to one byte at the end.
