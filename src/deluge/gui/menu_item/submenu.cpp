@@ -112,9 +112,9 @@ void Submenu::drawHorizontalMenu() {
 	int32_t pageStart = currentPage * pageSize;
 
 	// Scan to beginning of the visible page:
-	auto it = items.begin();
+	auto it = std::find_if(items.begin(), items.end(), isItemRelevant);
 	for (size_t n = 0; n < pageStart; n++) {
-		it = std::next(std::find_if(it, items.end(), isItemRelevant));
+		it = std::find_if(std::next(it), items.end(), isItemRelevant);
 	}
 
 	int32_t boxHeight = OLED_MAIN_VISIBLE_HEIGHT - baseY;
