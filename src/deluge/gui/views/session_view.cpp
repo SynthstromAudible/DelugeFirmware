@@ -2020,7 +2020,7 @@ void SessionView::renderViewDisplay() {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
 
-	DEF_STACK_STRING_BUF(tempoBPM, 10);
+	StackString tempoBPM{10};
 	lastDisplayedTempo = playbackHandler.calculateBPM(playbackHandler.getTimePerInternalTickFloat());
 	playbackHandler.getTempoStringForOLED(lastDisplayedTempo, tempoBPM);
 	displayTempoBPM(canvas, tempoBPM, false);
@@ -2052,14 +2052,14 @@ void SessionView::renderViewDisplay() {
 
 	yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 
-	DEF_STACK_STRING_BUF(rootNoteAndScaleName, 40);
+	StackString rootNoteAndScaleName{40};
 	currentSong->getCurrentRootNoteAndScaleName(rootNoteAndScaleName);
 	displayCurrentRootNoteAndScaleName(canvas, rootNoteAndScaleName, false);
 
 	deluge::hid::display::OLED::markChanged();
 }
 
-void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM,
+void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StackString& tempoBPM,
                                   bool clearArea) {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 
@@ -2078,7 +2078,7 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
-                                                     StringBuf& rootNoteAndScaleName, bool clearArea) {
+                                                     StackString& rootNoteAndScaleName, bool clearArea) {
 
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 
@@ -2342,7 +2342,7 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 		float diff = std::abs(tempo - lastDisplayedTempo);
 		// always catch manual adjustments, limit rate of others
 		if (diff > 0.5) {
-			DEF_STACK_STRING_BUF(tempoBPM, 10);
+			StackString tempoBPM{10};
 			playbackHandler.getTempoStringForOLED(tempo, tempoBPM);
 			displayTempoBPM(deluge::hid::display::OLED::main, tempoBPM, true);
 			deluge::hid::display::OLED::markChanged();
@@ -2357,7 +2357,7 @@ int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 	// only show pop-up if you're not in any other UI mode
 	if (currentUIMode == UI_MODE_NONE) {
 		if (sixteenthNotesRemaining > 0) {
-			DEF_STACK_STRING_BUF(popupMsg, 40);
+			StackString popupMsg{40};
 			if (sixteenthNotesRemaining > 16) {
 				int32_t barsRemaining = ((sixteenthNotesRemaining - 1) / 16) + 1;
 				if (display->haveOLED()) {

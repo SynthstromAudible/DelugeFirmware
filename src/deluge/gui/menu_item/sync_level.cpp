@@ -28,19 +28,19 @@ void SyncLevel::drawValue() {
 		display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 	}
 	else {
-		StringBuf buffer{shortStringBuffer, kShortStringBufferSize};
+		StackString buffer{kShortStringBufferSize};
 		getNoteLengthName(buffer);
 		display->setScrollingText(buffer.data(), 0);
 	}
 }
 
-void SyncLevel::getNoteLengthName(StringBuf& buffer) {
+void SyncLevel::getNoteLengthName(StackString& buffer) {
 	syncValueToString(this->getValue(), buffer, currentSong->getInputTickMagnitude());
 }
 
 void SyncLevel::drawPixelsForOled() {
 	char const* text = l10n::get(l10n::String::STRING_FOR_OFF);
-	DEF_STACK_STRING_BUF(buffer, 30);
+	StackString buffer{30};
 	if (this->getValue() != 0) {
 		text = buffer.data();
 		getNoteLengthName(buffer);

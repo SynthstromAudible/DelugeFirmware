@@ -205,7 +205,7 @@ bool StemExport::checkForLoopEnd() {
 		    playbackHandler.lastSwungTickActioned + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
 
 		/* For debugging in case this stops working
-		    DEF_STACK_STRING_BUF(popupMsg, 40);
+		    StackString popupMsg{40};
 		    popupMsg.append("Current Pos: ");
 		    popupMsg.appendInt(currentPos);
 		    popupMsg.append("/n");
@@ -652,7 +652,7 @@ void StemExport::displayStemExportProgressOLED(StemExportType stemExportType) {
 		return;
 	}
 	hid::display::OLED::clearMainImage();
-	DEF_STACK_STRING_BUF(exportStatus, 50);
+	StackString exportStatus{50};
 	exportStatus.append("Exported ");
 	exportStatus.appendInt(numStemsExported);
 	exportStatus.append(" of ");
@@ -672,7 +672,7 @@ void StemExport::displayStemExportProgress7SEG() {
 	if (inContextMenu()) {
 		return;
 	}
-	DEF_STACK_STRING_BUF(exportStatus, 50);
+	StackString exportStatus{50};
 	exportStatus.appendInt(totalNumStemsToExport - numStemsExported);
 	display->setText(exportStatus.c_str(), true, 255, false);
 }

@@ -1282,7 +1282,7 @@ void AutomationView::renderAutomationEditorDisplayOLED(deluge::hid::display::ole
                                                        OutputType outputType, int32_t knobPosLeft,
                                                        int32_t knobPosRight) {
 	// display parameter name
-	DEF_STACK_STRING_BUF(parameterName, 30);
+	StackString parameterName{30};
 	getAutomationParameterName(clip, outputType, parameterName);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
@@ -1354,7 +1354,7 @@ void AutomationView::renderNoteEditorDisplayOLED(deluge::hid::display::oled_canv
                                                  InstrumentClip* clip, OutputType outputType, int32_t knobPosLeft,
                                                  int32_t knobPosRight) {
 	// display note parameter name
-	DEF_STACK_STRING_BUF(parameterName, 30);
+	StackString parameterName{30};
 	if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
 		parameterName.append("Velocity");
 	}
@@ -1386,7 +1386,7 @@ void AutomationView::renderNoteEditorDisplayOLED(deluge::hid::display::oled_canv
 
 	if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 		if (isKit) {
-			DEF_STACK_STRING_BUF(drumName, 50);
+			StackString drumName{50};
 			instrumentClipView.getDrumName(modelStackWithNoteRow->getNoteRow()->drum, drumName);
 			strncpy(noteRowName, drumName.c_str(), 49);
 		}
@@ -1526,7 +1526,7 @@ void AutomationView::renderAutomationEditorDisplay7SEG(Clip* clip, OutputType ou
 	}
 	// display parameter name
 	else if (knobPosLeft == kNoSelection) {
-		DEF_STACK_STRING_BUF(parameterName, 30);
+		StackString parameterName{30};
 		getAutomationParameterName(clip, outputType, parameterName);
 		// if playback is running and there is automation, the screen will display the
 		// current automation value at the playhead position
@@ -1566,7 +1566,7 @@ void AutomationView::renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputTyp
 		char noteRowName[50];
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 			if (isKit) {
-				DEF_STACK_STRING_BUF(drumName, 50);
+				StackString drumName{50};
 				instrumentClipView.getDrumName(modelStackWithNoteRow->getNoteRow()->drum, drumName);
 				strncpy(noteRowName, drumName.c_str(), 49);
 			}
@@ -1588,7 +1588,7 @@ void AutomationView::renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputTyp
 }
 
 // get's the name of the Parameter being edited so it can be displayed on the screen
-void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputType, StringBuf& parameterName) {
+void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputType, StackString& parameterName) {
 	if (outputType != OutputType::MIDI_OUT) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
 		int32_t lastSelectedParamID = kNoSelection;
@@ -2819,7 +2819,7 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 						}
 					}
 
-					//	DEF_STACK_STRING_BUF(numSquare, 50);
+					//	StackString numSquare{50};
 					//	numSquare.append("Squares: ");
 					//	numSquare.appendInt(numSquares);
 					//	numSquare.append("\n");

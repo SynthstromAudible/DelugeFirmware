@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "util/exceptions.h"
 #include <cstdint>
 #include <cstring>
 
@@ -102,10 +103,16 @@ private:
 
 /// A string buffer with utility functions to append and format contents.
 /// does not handle allocation
-class StringBuf {
-	// Not templated to optimize binary size.
+class StackString {
 public:
-	StringBuf(char* buf, size_t capacity) : capacity_(capacity), buf_(buf) { buf_[0] = 0; }
+#pragma GCC diagnostic ignored "-Wstack-usage="
+	StackString(size_t capacity) noexcept(false)
+	    : capacity_(capacity), buf_(static_cast<char*>(alloca(sizeof(char) * capacity))) {
+		if (buf_ == nullptr) {
+			throw deluge::exception::BAD_ALLOC; // Technically out of stack, but that's bad either way
+		}
+	}
+#pragma GCC diagnostic pop
 
 	void append(const char* str) { ::strncat(buf_, str, capacity_ - size() - 1); }
 	void append(char c) { ::strncat(buf_, &c, 1); }
@@ -123,19 +130,16 @@ public:
 	[[nodiscard]] const char* c_str() const { return buf_; }
 
 	[[nodiscard]] std::size_t capacity() const { return capacity_; }
-	[[nodiscard]] std::size_t size() const { return ::strlen(buf_); }
+	[[nodiscard]] std::size_t size() const { return std::strlen(buf_); }
 
 	[[nodiscard]] bool empty() const { return buf_[0] == 0; }
 
-	bool operator==(const char* rhs) const { return strcmp(buf_, rhs) == 0; }
-	bool operator==(StringBuf const& rhs) const { return strcmp(buf_, rhs.c_str()) == 0; }
+	bool operator==(const char* rhs) const { return std::strcmp(buf_, rhs) == 0; }
+	bool operator==(const StackString& rhs) const { return std::strcmp(buf_, rhs.c_str()) == 0; }
+
+	operator std::string_view() const { return std::string_view{buf_}; }
 
 private:
 	size_t capacity_;
 	char* buf_;
 };
-
-/// Define a `StringBuf` that uses an array placed on the stack.
-#define DEF_STACK_STRING_BUF(name, capacity)                                                                           \
-	char name##__buf[capacity] = {0};                                                                                  \
-	StringBuf name = {name##__buf, capacity}

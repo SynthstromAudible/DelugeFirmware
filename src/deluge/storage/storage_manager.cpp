@@ -678,7 +678,7 @@ Error StorageManager::openDelugeFile(FileItem* currentFileItem, char const* firs
 bool StorageManager::buildPathToFile(const char* fileName) {
 
 	FRESULT res;
-	DEF_STACK_STRING_BUF(s_container, 255);
+	StackString s_container{255};
 	s_container.append(fileName);
 	char* s = s_container.data();
 	int i = strlen(s);

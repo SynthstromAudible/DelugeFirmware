@@ -1938,7 +1938,7 @@ void PlaybackHandler::resyncMIDIClockOutTicksToInternalTicks() {
 
 /** On OLED displayes both Swing amount and interval, on 7seg only the interval. */
 void PlaybackHandler::commandDisplaySwingInterval() {
-	DEF_STACK_STRING_BUF(text, 30);
+	StackString text{30};
 	if (display->haveOLED()) {
 		text.append("Swing: ");
 		if (currentSong->swingAmount == 0) {
@@ -1959,7 +1959,7 @@ void PlaybackHandler::commandClearTempoAutomation() {
 
 /** On OLED displayes both Swing amount and interval, on 7seg only the amount. */
 void PlaybackHandler::commandDisplaySwingAmount() {
-	DEF_STACK_STRING_BUF(text, 30);
+	StackString text{30};
 	if (display->haveOLED()) {
 		text.append("Swing: ");
 		if (currentSong->swingAmount == 0) {
@@ -2306,7 +2306,7 @@ float PlaybackHandler::calculateBPM(float timePerInternalTick) {
 	return currentSong->calculateBPM(timePerInternalTick);
 }
 
-void PlaybackHandler::getTempoStringForOLED(float tempoBPM, StringBuf& buffer) {
+void PlaybackHandler::getTempoStringForOLED(float tempoBPM, StackString& buffer) {
 	if (tempoBPM >= 9999.5) {
 		buffer.append("FAST");
 	}
@@ -2318,7 +2318,7 @@ void PlaybackHandler::getTempoStringForOLED(float tempoBPM, StringBuf& buffer) {
 
 void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 	// The 7-seg needs to work so much harder there's no point trying to share the code.
-	DEF_STACK_STRING_BUF(text, 27);
+	StackString text{27};
 	if (display->haveOLED()) {
 		UI* currentUI = getCurrentUI();
 		// if we're currently in song or arranger view, we'll render tempo on the display instead of a popup

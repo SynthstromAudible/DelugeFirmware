@@ -5125,7 +5125,7 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
-void Song::getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const* const notesString,
+void Song::getNoteLengthName(StackString& buffer, uint32_t noteLength, char const* const notesString,
                              bool clarifyPerColumn) const {
 	getNoteLengthNameFromMagnitude(buffer, getNoteMagnitudeFfromNoteLength(noteLength, getInputTickMagnitude()),
 	                               notesString, clarifyPerColumn);
@@ -5778,7 +5778,7 @@ doHibernatingInstruments:
 	return Error::NONE;
 }
 
-void Song::getCurrentRootNoteAndScaleName(StringBuf& buffer) {
+void Song::getCurrentRootNoteAndScaleName(StackString& buffer) {
 	char noteName[5];
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
 	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
@@ -5791,7 +5791,7 @@ void Song::getCurrentRootNoteAndScaleName(StringBuf& buffer) {
 }
 
 void Song::displayCurrentRootNoteAndScaleName() {
-	DEF_STACK_STRING_BUF(popupMsg, 40);
+	StackString popupMsg{40};
 	getCurrentRootNoteAndScaleName(popupMsg);
 	if (display->haveOLED()) {
 		UI* currentUI = getCurrentUI();
@@ -5828,7 +5828,7 @@ void Song::adjustMasterTransposeInterval(int32_t interval) {
 }
 
 void Song::displayMasterTransposeInterval() {
-	DEF_STACK_STRING_BUF(popupMsg, 40);
+	StackString popupMsg{40};
 
 	if (display->haveOLED()) {
 		popupMsg.append("Transpose Interval: \n");
@@ -5904,7 +5904,7 @@ void Song::changeThresholdRecordingMode(int8_t offset) {
 }
 
 void Song::displayThresholdRecordingMode() {
-	DEF_STACK_STRING_BUF(popupMsg, 40);
+	StackString popupMsg{40};
 	if (display->haveOLED()) {
 		popupMsg.append("Threshold: ");
 	}

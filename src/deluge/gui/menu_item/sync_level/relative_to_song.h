@@ -28,7 +28,7 @@ public:
 	using SyncLevel::SyncLevel;
 
 protected:
-	void getNoteLengthName(StringBuf& buffer) final {
+	void getNoteLengthName(StackString& buffer) final {
 		getNoteLengthNameFromMagnitude(buffer, -6 + 9 - this->getValue());
 	}
 };

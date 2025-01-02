@@ -53,7 +53,7 @@ enum SyncLevel syncValueToSyncLevel(int32_t option) {
 	}
 }
 
-void syncValueToString(uint32_t value, StringBuf& buffer, int32_t tickMagnitude) {
+void syncValueToString(uint32_t value, StackString& buffer, int32_t tickMagnitude) {
 	char const* typeStr = nullptr;
 	enum SyncType type { syncValueToSyncType(value) };
 	enum SyncLevel level { syncValueToSyncLevel(value) };

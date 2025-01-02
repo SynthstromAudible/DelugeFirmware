@@ -71,7 +71,7 @@ void Integer::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t star
 	std::string_view shortName(name.data(), nameLen);
 	image.drawString(shortName, startX, startY, kTextSpacingX, kTextSpacingY, 0, startX + width);
 
-	DEF_STACK_STRING_BUF(paramValue, 10);
+	StackString paramValue{10};
 	paramValue.appendInt(getValue());
 
 	int32_t pxLen = image.getStringWidthInPixels(paramValue.c_str(), kTextTitleSizeY);

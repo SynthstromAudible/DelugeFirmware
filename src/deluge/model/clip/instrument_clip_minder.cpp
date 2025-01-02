@@ -119,7 +119,7 @@ void InstrumentClipMinder::renderOLED(deluge::hid::display::oled_canvas::Canvas&
 #pragma GCC diagnostic ignored "-Wstack-usage="
 void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool automationExists) {
 
-	DEF_STACK_STRING_BUF(buffer, 30);
+	StackString buffer{30};
 
 	bool doScroll = false;
 

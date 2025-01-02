@@ -984,7 +984,7 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 				source2 = paramDescriptor.getTopLevelSource();
 			}
 
-			DEF_STACK_STRING_BUF(paramDisplayName, 30);
+			StackString paramDisplayName{30};
 			if (source2 == PatchSource::NONE) {
 				paramDisplayName.append(getSourceDisplayNameForOLED(source1));
 			}
@@ -1048,7 +1048,7 @@ void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStack
 
 void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t newKnobPos, PatchSource source1,
                                        PatchSource source2) {
-	DEF_STACK_STRING_BUF(popupMsg, 40);
+	StackString popupMsg{40};
 	bool appendedName = true;
 
 	// On OLED, display the name of the parameter on the first line of the popup

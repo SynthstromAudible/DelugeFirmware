@@ -138,7 +138,7 @@ void Submenu::drawHorizontalMenu() {
 		int32_t endX = OLED_MAIN_WIDTH_PIXELS;
 
 		for (int32_t p = pageCount; p > 0; p--) {
-			DEF_STACK_STRING_BUF(pageNum, 2);
+			StackString pageNum{2};
 			pageNum.appendInt(p);
 			int32_t w = image.getStringWidthInPixels(pageNum.c_str(), kTextSpacingY);
 			image.drawString(pageNum.c_str(), endX - w, pageY, kTextSpacingX, kTextSpacingY);

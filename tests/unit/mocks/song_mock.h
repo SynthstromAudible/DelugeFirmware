@@ -15,7 +15,7 @@ public:
 		sessionClips.clear();
 		arrangementOnlyClips.clear();
 	}
-	void getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const* notesString = "-notes",
+	void getNoteLengthName(StackString& buffer, uint32_t noteLength, char const* notesString = "-notes",
 	                       bool clarifyPerColumn = false) const {
 		// TODO: extract getNoteLengthName() from Song, so we can test
 		// note length naming logic

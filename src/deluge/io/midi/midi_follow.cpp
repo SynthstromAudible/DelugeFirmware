@@ -333,7 +333,7 @@ void MidiFollow::displayParamControlError(int32_t xDisplay, int32_t yDisplay) {
 	}
 
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(popupMsg, 40);
+		StackString popupMsg{40};
 
 		const char* name = getParamDisplayName(paramKind, paramID);
 		if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {

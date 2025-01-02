@@ -125,7 +125,7 @@ public:
 	void grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForDrum(MIDICable& cable, SoundDrum* drum,
 	                                                                                Kit* kit);
 	void grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(MIDICable& cable);
-	void getCurrentRootNoteAndScaleName(StringBuf& buffer);
+	void getCurrentRootNoteAndScaleName(StackString& buffer);
 	void displayCurrentRootNoteAndScaleName();
 
 	// Scale-related methods
@@ -351,7 +351,7 @@ public:
 	AudioOutput* getFirstAudioOutput();
 	AudioOutput* createNewAudioOutput(Output* replaceOutput = nullptr);
 	/// buffer must have at least 5 characters on 7seg, or 30 for OLED
-	void getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const* notesString = "-notes",
+	void getNoteLengthName(StackString& buffer, uint32_t noteLength, char const* notesString = "-notes",
 	                       bool clarifyPerColumn = false) const;
 	void replaceOutputLowLevel(Output* newOutput, Output* oldOutput);
 	void removeSessionClip(Clip* clip, int32_t clipIndex, bool forceClipsAboveToMoveVertically = false);

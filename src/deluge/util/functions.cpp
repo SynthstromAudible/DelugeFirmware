@@ -2036,7 +2036,7 @@ int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitu
 	return noteMagnitude;
 }
 
-void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude, char const* const notesString,
+void getNoteLengthNameFromMagnitude(StackString& noteLengthBuf, int32_t magnitude, char const* const notesString,
                                     bool clarifyPerColumn) {
 	// Positive magnitudes are bars, negative magnitudes are divisions of bars.
 	uint32_t division = (uint32_t)1 << (0 - magnitude);

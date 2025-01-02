@@ -5047,7 +5047,7 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 }
 
 void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
-	DEF_STACK_STRING_BUF(drumName, 50);
+	StackString drumName{50};
 
 	getDrumName(drum, drumName);
 
@@ -5080,7 +5080,7 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 	}
 }
 
-void InstrumentClipView::getDrumName(Drum* drum, StringBuf& drumName) {
+void InstrumentClipView::getDrumName(Drum* drum, StackString& drumName) {
 	if (display->haveOLED()) {
 		if (!drum) {
 			drumName.append("No sound");
@@ -5826,7 +5826,7 @@ void InstrumentClipView::tempoEncoderAction(int8_t offset, bool encoderButtonPre
 	}
 }
 
-void appendQuantizeMode(StringBuf& text, int8_t direction, NudgeMode mode) {
+void appendQuantizeMode(StackString& text, int8_t direction, NudgeMode mode) {
 	switch (mode) {
 	case NudgeMode::QUANTIZE:
 		if (direction >= 0) {
@@ -5852,7 +5852,7 @@ void InstrumentClipView::commandStartQuantize(int8_t offset, NudgeMode mode) {
 	reassessAllAuditionStatus();
 	enterUIMode(UI_MODE_QUANTIZE);
 	quantizeAmount = 0;
-	DEF_STACK_STRING_BUF(text, 30);
+	StackString text{30};
 	appendQuantizeMode(text, offset, mode);
 	display->popupText(text.c_str(), PopupType::QUANTIZE);
 }
@@ -5893,7 +5893,7 @@ void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode
 	}
 
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(text, 24);
+		StackString text{24};
 		appendQuantizeMode(text, quantizeAmount, nudgeMode);
 		text.append(" ");
 		text.appendInt(abs(quantizeAmount * 10));
@@ -5901,7 +5901,7 @@ void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode
 		display->popupText(text.c_str(), PopupType::QUANTIZE);
 	}
 	else {
-		DEF_STACK_STRING_BUF(text, 6);
+		StackString text{6};
 		// Put A in front for QUANTIZE ALL if there's space for it.
 		if (nudgeMode == NudgeMode::QUANTIZE_ALL && quantizeAmount > -10) {
 			text.append("A");

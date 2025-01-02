@@ -127,7 +127,7 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 	if (display->haveOLED()) {
 		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 100);
+			StackString popupMsg{100};
 			popupMsg.append("Comp Mode: ");
 			popupMsg.append(getCompressorModeDisplayName());
 			popupMsg.append("\n");
@@ -175,7 +175,7 @@ char const* GlobalEffectable::getCompressorParamDisplayName() {
 void GlobalEffectable::displayModFXSettings(bool on) {
 	if (display->haveOLED()) {
 		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 100);
+			StackString popupMsg{100};
 			popupMsg.append("Type: ");
 			popupMsg.append(getModFXTypeDisplayName());
 
@@ -499,7 +499,7 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
                                                                    ModelStackWithAutoParam* modelStack) {
 	if (*getModKnobMode() == 4) {
-		DEF_STACK_STRING_BUF(popupMsg, 40);
+		StackString popupMsg{40};
 		int current;
 		int displayLevel;
 		int ledLevel;

@@ -89,7 +89,7 @@ void MenuItem::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t sta
 	if (name.size() > nameLen) {
 		nameLen -= 1;
 	}
-	DEF_STACK_STRING_BUF(shortName, 10);
+	StackString shortName{10};
 	for (uint8_t p = 0; p < nameLen; p++) {
 		shortName.append(name[p]);
 	}
