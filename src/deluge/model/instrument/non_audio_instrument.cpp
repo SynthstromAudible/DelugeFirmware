@@ -67,9 +67,16 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 					               kDefaultLiftValue, n); // Is there some better option than using the default lift
 					                                      // value? The lift event wouldn't have occurred yet...
 				}
-
-				if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
-					noteOnPostArp(instruction.noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+				else {
+					break;
+				}
+			}
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+					noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+				}
+				else {
+					break;
 				}
 			}
 		}
@@ -94,12 +101,11 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 		arpeggiator.noteOn(arpSettings, noteCodePreArp, velocity, &instruction, fromMIDIChannel, mpeValues);
 
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
-				noteOffPostArp(instruction.noteCodeOffPostArp[n], instruction.outputMIDIChannelOff[n],
-				               kDefaultLiftValue, n);
+			if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+				noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
 			}
-			if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
-				noteOnPostArp(instruction.noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+			else {
+				break;
 			}
 		}
 	}
@@ -114,8 +120,8 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 			if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
 				noteOffPostArp(instruction.noteCodeOffPostArp[n], instruction.outputMIDIChannelOff[n], velocity, n);
 			}
-			if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
-				noteOnPostArp(instruction.noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+			else {
+				break;
 			}
 		}
 	}
@@ -233,9 +239,16 @@ int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t 
 			               n); // Is there some better option than using the default lift value? The lift
 			                   // event wouldn't have occurred yet...
 		}
-
-		if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
-			noteOnPostArp(instruction.noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+		else {
+			break;
+		}
+	}
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+			noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+		}
+		else {
+			break;
 		}
 	}
 

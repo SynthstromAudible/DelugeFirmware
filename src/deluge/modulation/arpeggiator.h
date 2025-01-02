@@ -156,24 +156,28 @@ public:
 };
 
 struct ArpNote {
-	ArpNote() { outputMemberChannel.fill(MIDI_CHANNEL_NONE); }
+	ArpNote() {
+		outputMemberChannel.fill(MIDI_CHANNEL_NONE);
+		noteCodeOnPostArp.fill(ARP_NOTE_NONE);
+	}
 	int16_t inputCharacteristics[2]; // Before arpeggiation. And applying to MIDI input if that's happening. Or, channel
 	                                 // might be MIDI_CHANNEL_NONE.
 	int16_t mpeValues[kNumExpressionDimensions];
 	uint8_t velocity;
 	uint8_t baseVelocity;
+
+	// For note-ons
 	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMemberChannel;
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOnPostArp;
 };
 
 class ArpReturnInstruction {
 public:
 	ArpReturnInstruction() {
-		noteCodeOffPostArp.fill(ARP_NOTE_NONE);
-		noteCodeOnPostArp.fill(ARP_NOTE_NONE);
 		outputMIDIChannelOff.fill(MIDI_CHANNEL_NONE);
+		noteCodeOffPostArp.fill(ARP_NOTE_NONE);
+		arpNoteOn = nullptr;
 	}
-	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOffPostArp;
-	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOnPostArp;
 
 	// These are only valid if doing a note-on, or when releasing the most recently played with the arp off when other
 	// notes are still playing (e.g. for mono note priority)
@@ -183,6 +187,7 @@ public:
 
 	// And these are only valid if doing a note-off
 	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelOff; // For MPE
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOffPostArp;
 };
 
 class ArpeggiatorBase {

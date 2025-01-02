@@ -157,11 +157,11 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 
 		// Set the note to be played
 		noteCodeCurrentlyOnPostArp[0] = noteCode;
-		instruction->noteCodeOnPostArp[0] = noteCode;
+		arpNote.noteCodeOnPostArp[0] = noteCode;
 		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			// Clean rest of slots
 			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-			instruction->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+			arpNote.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 		}
 		instruction->arpNoteOn = &arpNote;
 	}
@@ -345,11 +345,11 @@ noteInserted:
 
 		// Set the note to be played
 		noteCodeCurrentlyOnPostArp[0] = noteCode;
-		instruction->noteCodeOnPostArp[0] = noteCode;
+		arpNote->noteCodeOnPostArp[0] = noteCode;
 		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			// Clean rest of chord note slots
 			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-			instruction->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+			arpNote->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 		}
 		instruction->arpNoteOn = arpNote;
 	}
@@ -398,11 +398,11 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 						// if we're not arpeggiating then pass the second last note back - cv instruments will snap back
 						// to it (like playing a normal mono synth)
 						ArpNote* newArpNote = (ArpNote*)notesAsPlayed.getElementAddress(i - 1);
-						instruction->noteCodeOnPostArp[0] =
+						newArpNote->noteCodeOnPostArp[0] =
 						    newArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 						for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 							// Clean rest of chord note slots
-							instruction->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+							newArpNote->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 						}
 						instruction->arpNoteOn = newArpNote;
 					}
@@ -719,19 +719,13 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		// Set the note to be played
 		// (Only one note, chord polyphony/probability is not available in kit rows)
 		noteCodeCurrentlyOnPostArp[0] = note;
-		instruction->noteCodeOnPostArp[0] = noteCodeCurrentlyOnPostArp[0];
+		arpNote.noteCodeOnPostArp[0] = noteCodeCurrentlyOnPostArp[0];
 		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			// Clean rest of chord note slots
 			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-			instruction->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+			arpNote.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 		}
 		instruction->arpNoteOn = &arpNote;
-	}
-	else {
-		// Rhythm silence: Don't play the note
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			instruction->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
-		}
 	}
 }
 
@@ -1154,7 +1148,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			// Clean rest of chord note slots
 			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-			instruction->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+			arpNote->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 		}
 
 		// Set the note(s) to be played
@@ -1204,16 +1198,9 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		// Copy notes to the arp return instruction object
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			// Clean rest of chord note slots
-			instruction->noteCodeOnPostArp[n] = noteCodeCurrentlyOnPostArp[n];
+			arpNote->noteCodeOnPostArp[n] = noteCodeCurrentlyOnPostArp[n];
 		}
-
 		instruction->arpNoteOn = arpNote;
-	}
-	else {
-		// Rhythm silence: Don't play the note
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			instruction->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
-		}
 	}
 }
 

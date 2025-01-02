@@ -700,9 +700,18 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 					if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
 						nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp[n]);
 					}
-
-					if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
-						nonAudioDrum->noteOnPostArp(instruction.noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+					else {
+						break;
+					}
+				}
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.arpNoteOn != nullptr
+					    && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+						nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn,
+						                            n);
+					}
+					else {
+						break;
 					}
 				}
 			}
@@ -1049,13 +1058,21 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 					if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
 						soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
 					}
-
-					if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+					else {
+						break;
+					}
+				}
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.arpNoteOn != nullptr
+					    && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
 						soundDrum->noteOnPostArpeggiator(
 						    modelStackWithSoundFlags,
 						    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-						    instruction.noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
+						    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
 						    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0);
+					}
+					else {
+						break;
 					}
 				}
 			}
@@ -1066,9 +1083,18 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 					if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
 						nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp[n]);
 					}
-
-					if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
-						nonAudioDrum->noteOnPostArp(instruction.noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+					else {
+						break;
+					}
+				}
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.arpNoteOn != nullptr
+					    && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+						nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn,
+						                            n);
+					}
+					else {
+						break;
 					}
 				}
 			}

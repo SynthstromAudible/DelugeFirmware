@@ -478,14 +478,21 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 		if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
 			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
 		}
-
-		if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+		else {
+			break;
+		}
+	}
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
 			noteOnPostArpeggiator(
 			    modelStackWithSoundFlags,
 			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-			    instruction.noteCodeOnPostArp[n], instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
-			    instruction.sampleSyncLengthOn, 0, 0,
+			    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
+			    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
 			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+		}
+		else {
+			break;
 		}
 	}
 

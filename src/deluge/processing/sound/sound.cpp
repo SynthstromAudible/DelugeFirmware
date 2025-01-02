@@ -1748,14 +1748,15 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 
 	bool noNoteOn = true;
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-		if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
-			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
-		}
-		if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) [[likely]] {
+		if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE)
+		    [[likely]] {
 			noNoteOn = false;
-			noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp, instruction.noteCodeOnPostArp[n],
+			noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp, instruction.arpNoteOn->noteCodeOnPostArp[n],
 			                      instruction.arpNoteOn->velocity, mpeValues, instruction.sampleSyncLengthOn, ticksLate,
 			                      samplesLate, fromMIDIChannel);
+		}
+		else {
+			break;
 		}
 	}
 	if (noNoteOn) {
@@ -2499,14 +2500,21 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 			if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
 				noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
 			}
-
-			if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+			else {
+				break;
+			}
+		}
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
 				noteOnPostArpeggiator(
 				    modelStackWithSoundFlags,
 				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-				    instruction.noteCodeOnPostArp[n], instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
-				    instruction.sampleSyncLengthOn, 0, 0,
+				    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
+				    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
 				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+			}
+			else {
+				break;
 			}
 		}
 	}

@@ -38,8 +38,16 @@ void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocit
 		if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
 			noteOffPostArp(instruction.noteCodeOffPostArp[n]);
 		}
-		if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
-			noteOnPostArp(instruction.noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+		else {
+			break;
+		}
+	}
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+			noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+		}
+		else {
+			break;
 		}
 	}
 }
@@ -53,8 +61,8 @@ void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 		if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
 			noteOffPostArp(instruction.noteCodeOffPostArp[n]);
 		}
-		if (instruction.noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
-			noteOnPostArp(instruction.noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+		else {
+			break;
 		}
 	}
 }
