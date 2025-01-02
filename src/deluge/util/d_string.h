@@ -115,6 +115,11 @@ public:
 	void append(const char* str) { ::strncat(buf_, str, capacity_ - size() - 1); }
 	void append(char c) { ::strncat(buf_, &c, 1); }
 	void clear() { buf_[0] = 0; }
+	void truncate(std::size_t newSize) {
+		if (newSize < capacity_) {
+			buf_[newSize] = 0;
+		}
+	}
 
 	// TODO: Validate buffer size. These can overflow
 	void appendInt(int i, int minChars = 1) { intToString(i, buf_ + size(), minChars); }

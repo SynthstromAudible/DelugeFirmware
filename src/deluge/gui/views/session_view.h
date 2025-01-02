@@ -119,6 +119,8 @@ public:
 
 	Clip* getClipForLayout();
 
+	void copyClipName(Clip* source, Clip* target, Output* targetOutput);
+
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
