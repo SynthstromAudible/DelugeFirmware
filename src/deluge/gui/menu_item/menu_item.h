@@ -244,7 +244,7 @@ public:
 	/// @brief Get the name for use on horizontal menus.
 	///
 	/// By default this redirects to getName(), but can be overriden.
-	[[nodiscard]] virtual std::string_view getShortName() const { return getName(); }
+	virtual void getColumnLabel(StringBuf& label) { label.append(getName().data()); }
 
 	/// @brief Check if this MenuItem should show up in a containing deluge::gui::menu_item::Submenu.
 	///
