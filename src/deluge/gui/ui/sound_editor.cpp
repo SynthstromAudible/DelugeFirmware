@@ -124,11 +124,16 @@ SoundEditor soundEditor{};
 
 SoundEditor::SoundEditor() {
 	currentParamShorcutX = 255;
-	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 	timeLastAttemptedAutomatedParamEdit = 0;
 	shouldGoUpOneLevelOnBegin = false;
 	setupKitGlobalFXMenu = false;
 	selectedNoteRow = false;
+	resetSourceBlinks();
+}
+
+void SoundEditor::resetSourceBlinks() {
+	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
+	memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
 }
 
 bool SoundEditor::editingKit() {
@@ -585,8 +590,7 @@ void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem
 
 void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 	// First we clear everything.
-	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
-	memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
+	resetSourceBlinks();
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
 	// In these cases that's all we need to do.
@@ -711,7 +715,7 @@ void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency) {
 }
 
 void SoundEditor::setupExclusiveShortcutBlink(int32_t x, int32_t y) {
-	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
+	resetSourceBlinks();
 	setupShortcutBlink(x, y, 1);
 	blinkShortcut();
 }
