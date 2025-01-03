@@ -18,6 +18,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "fatfs.hpp"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
@@ -93,6 +94,7 @@
 #include "util/cfunctions.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/try.h"
 #include <limits>
 #include <new>
 #include <stdint.h>
@@ -1562,17 +1564,16 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 
 				// Open directory of current audio file
 				*slashAddress = 0;
-				FRESULT result = f_opendir(&staticDIR, path);
-				*slashAddress = '/';
-				if (result != FR_OK) {
-
+				staticDIR = D_TRY_CATCH(FatFS::Directory::open(path), error, {
+					*slashAddress = '/';
 					display->displayError(Error::SD_CARD);
 					return ActionResult::DEALT_WITH;
-				}
+				});
+				*slashAddress = '/';
 
 				// Select random audio file from directory
 				int32_t fileCount = 0;
-				while (f_readdir(&staticDIR, &staticFNO) == FR_OK && staticFNO.fname[0] != 0) {
+				while (f_readdir(&staticDIR.inner(), &staticFNO) == FR_OK && staticFNO.fname[0] != 0) {
 					audioFileManager.loadAnyEnqueuedClusters();
 					if (staticFNO.fattrib & AM_DIR || !isAudioFilename(staticFNO.fname)) {
 						continue;
