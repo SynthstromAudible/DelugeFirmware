@@ -481,9 +481,14 @@ const int16_t lanczosKernelA16[1025] = {
 0, };
 
 
-
+//C C# D D# E F F# G G# A A# B
 const uint8_t noteCodeToNoteLetter[12] = {67, 67, 68, 68, 69, 70, 70, 71, 71, 65, 65, 66};
 const bool noteCodeIsSharp[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
+
+//C Db D Eb E F Gb G Ab A Bb B 
+const uint8_t noteCodeToNoteLetterFlats[12] = {67, 68, 68, 69, 69, 70, 71, 71, 65, 65, 66, 66};
+const bool noteCodeIsFlat[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
+
 
 /**
  * @brief How iterance is encoded:
