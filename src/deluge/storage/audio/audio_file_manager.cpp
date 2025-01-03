@@ -235,18 +235,19 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String& filePath, String
 	// recordings will be much smaller
 	if (highestUsedAudioRecordingNumberNeedsReChecking[folderID]) {
 
-		FRESULT result = f_opendir(&staticDIR, audioRecordingFolderNames[folderID]);
-		if (result == FR_OK) {
+		auto maybeDIR = staticDIR.open(audioRecordingFolderNames[folderID]);
+		if (maybeDIR) {
+			staticDIR = *maybeDIR;
 
 			while (true) {
 				loadAnyEnqueuedClusters();
-				FRESULT result = f_readdir(&staticDIR, &staticFNO); /* Read a directory item */
-				if (__builtin_expect(result != FR_OK, 0)) {
-					return Error::SD_CARD;
-				}
+				/* Read a directory item */
+				staticFNO = D_TRY_CATCH(staticDIR.read(), error, {
+					return Error::SD_CARD; // error if invalid
+				});
 
-				if (__builtin_expect((*(uint32_t*)staticFNO.altname & 0x00FFFFFF) == 0x00434552, 1)) { // "REC"
-					if (*(uint32_t*)&staticFNO.altname[8] == 0x5641572E) {                             // ".WAV"
+				if ((*(uint32_t*)staticFNO.altname & 0x00FFFFFF) == 0x00434552) [[likely]] { // "REC"
+					if (*(uint32_t*)&staticFNO.altname[8] == 0x5641572E) {                   // ".WAV"
 
 						int32_t thisSlot = memToUIntOrError(&staticFNO.altname[3], &staticFNO.altname[8]);
 						if (thisSlot == -1) {
