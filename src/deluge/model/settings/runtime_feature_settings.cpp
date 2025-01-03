@@ -123,7 +123,7 @@ void RuntimeFeatureSettings::init() {
 
 	// UseFlats
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::UseFlats], STRING_FOR_COMMUNITY_FEATURE_USE_FLATS,
-	                  "useFlats", RuntimeFeatureStateToggle::On);
+	                  "useFlats", RuntimeFeatureStateToggle::Off);
 
 	// DeleteUnusedKitRows
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows],

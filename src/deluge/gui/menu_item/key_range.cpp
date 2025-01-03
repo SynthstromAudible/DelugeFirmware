@@ -20,6 +20,8 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "util/functions.h"
+#include "model/settings/runtime_feature_settings.h"
+
 
 namespace deluge::gui::menu_item {
 
@@ -57,11 +59,17 @@ void KeyRange::selectEncoderAction(int32_t offset) {
 
 void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) {
 
-	*(buffer++) = noteCodeToNoteLetter[lower];
+	bool useFlats = runtimeFeatureSettings.get(RuntimeFeatureSettingType::UseFlats)
+		== RuntimeFeatureStateToggle::On;
+	char accidential = useFlats ? 'b' : '#';
+
+
+	*(buffer++) = useFlats ? noteCodeToNoteLetterFlats[lower] : noteCodeToNoteLetter[lower];
 	int32_t leftLength = 1;
 
+
 	if (noteCodeIsSharp[lower]) {
-		*(buffer++) = (display->haveOLED()) ? '#' : '.';
+		*(buffer++) = (display->haveOLED()) ? accidential : '.';
 		if (display->haveOLED()) {
 			leftLength++;
 		}
@@ -81,10 +89,10 @@ void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLe
 
 	*(buffer++) = '-';
 
-	*(buffer++) = noteCodeToNoteLetter[upper];
+	*(buffer++) = useFlats ? noteCodeToNoteLetterFlats[upper] : noteCodeToNoteLetter[upper];
 	int32_t rightLength = 1;
 	if (noteCodeIsSharp[upper]) {
-		*(buffer++) = (display->haveOLED()) ? '#' : '.';
+		*(buffer++) = (display->haveOLED()) ? accidential : '.';
 		if (display->haveOLED()) {
 			rightLength++;
 		}
