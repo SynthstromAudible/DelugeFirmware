@@ -60,8 +60,9 @@ public:
 	Error setChar(char newChar, int32_t pos);
 	Error concatenate(String* otherString);
 	Error concatenate(char const* newChars);
+	Error concatenate(const std::string_view& otherString);
 	bool equals(char const* otherChars);
-	bool equalsCaseIrrespective(char const* otherChars);
+	bool equalsCaseIrrespective(char const* otherChars, int32_t numChars = -1);
 
 	inline bool contains(const char* otherChars) { return strstr(stringMemory, otherChars) != NULL; }
 	inline bool equals(String* otherString) {
@@ -74,7 +75,11 @@ public:
 		return equals(otherString->get());
 	}
 
-	inline bool equalsCaseIrrespective(String* otherString) {
+	inline bool equalsCaseIrrespective(const std::string_view& otherString) {
+		return equalsCaseIrrespective(otherString.data(), otherString.size());
+	}
+
+	inline bool equalsCaseIrrespective(const String* otherString) {
 		if (stringMemory == otherString->stringMemory) {
 			return true; // Works if both lengths are 0, too
 		}
@@ -84,7 +89,7 @@ public:
 		return equalsCaseIrrespective(otherString->get());
 	}
 
-	inline char const* get() {
+	inline char const* get() const {
 		if (!stringMemory) {
 			return &nothing;
 		}
@@ -110,6 +115,11 @@ public:
 	void append(const char* str) { ::strncat(buf_, str, capacity_ - size() - 1); }
 	void append(char c) { ::strncat(buf_, &c, 1); }
 	void clear() { buf_[0] = 0; }
+	void truncate(std::size_t newSize) {
+		if (newSize < capacity_) {
+			buf_[newSize] = 0;
+		}
+	}
 
 	// TODO: Validate buffer size. These can overflow
 	void appendInt(int i, int minChars = 1) { intToString(i, buf_ + size(), minChars); }

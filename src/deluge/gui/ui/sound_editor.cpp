@@ -11,9 +11,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/rename/rename_clip_ui.h"
 #include "gui/ui/rename/rename_drum_ui.h"
-#include "gui/ui/rename/rename_output_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/ui.h"
@@ -251,8 +249,6 @@ void SoundEditor::enterSubmenu(MenuItem* newItem) {
 
 ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
-
-	D_PRINTLN("SoundEditor::buttonAction(%d)", (int)b);
 
 	Clip* clip = nullptr;
 	bool isUIInstrumentClipView = false;
@@ -589,7 +585,7 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 
 	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
 	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
-	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&drumNameMenu)) {
+	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&nameEditMenu)) {
 
 		memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 		memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
@@ -693,6 +689,8 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 	currentItem->beginSession(oldMenuItem);
 
 	// If that didn't succeed (file browser)
+	// XXX: Why do we need to check for renameDrumUI, but not other rename UIs? either way, this should probably
+	// be a virtual function getCurrentUI()->noSoundEditor() or something.
 	if (getCurrentUI() != &soundEditor && getCurrentUI() != &sampleBrowser && getCurrentUI() != &audioRecorder
 	    && getCurrentUI() != &sampleMarkerEditor && getCurrentUI() != &renameDrumUI) {
 		return false;
@@ -900,7 +898,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 	}
 	else {
 		// allow automation view to handle interpolation and pad selection shortcut
-		if ((getRootUI() == &automationView) && (x == 0 && (y == 6) || (y == 7))) {
+		if ((getRootUI() == &automationView) && (x == 0) && ((y == 6) || (y == 7))) {
 			ignoreAction = true;
 		}
 	}
@@ -926,6 +924,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		if (!rootUIIsClipMinderScreen()) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForSongView[x][y];
+				parent = parentsForSongShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -935,6 +934,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		else if (setupKitGlobalFXMenu) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForKitGlobalFX[x][y];
+				parent = parentsForKitGlobalFXShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -943,33 +943,12 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		// AudioClips - there are just a few shortcuts
 		else if (getCurrentClip()->type == ClipType::AUDIO) {
 
-			// NAME shortcut
-			if (x == 11 && y == 5) {
-				// Renames the output (track), not the clip
-				Output* output = getCurrentOutput();
-				if (output) {
-					renameOutputUI.output = output;
-					openUI(&renameOutputUI);
-					return ActionResult::DEALT_WITH;
-				}
-			}
-			else if (x <= 14) {
+			if (x <= 14) {
 				item = paramShortcutsForAudioClips[x][y];
+				parent = parentsForAudioShortcuts[x][y];
 			}
 
 			goto doSetup;
-		}
-
-		else if (x == 11 && y == 5) {
-
-			if (handleClipName()) {
-				ActionResult::DEALT_WITH;
-			}
-			else {
-				item = paramShortcutsForSounds[x][y];
-				parent = parentsForSoundShortcuts[x][y];
-				goto doSetup;
-			}
 		}
 
 		else {
@@ -1758,7 +1737,7 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 
 	// Sorry - extremely ugly hack here.
 	MenuItem* currentMenuItem = getCurrentMenuItem();
-	if (currentMenuItem == static_cast<void*>(&drumNameMenu)) {
+	if (currentMenuItem == static_cast<void*>(&nameEditMenu)) {
 		if (!navigationDepth) {
 			return;
 		}
@@ -1768,32 +1747,6 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	currentMenuItem->renderOLED();
 }
 
-bool SoundEditor::handleClipName() {
-
-	Clip* clip = getCurrentClip();
-	Output* output = getCurrentOutput();
-
-	switch (clip->type) {
-
-	case ClipType::INSTRUMENT:
-
-		if (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
-		    || output->type == OutputType::KIT && getRootUI()->getAffectEntire()) {
-			if (clip) {
-				renameClipUI.clip = clip;
-				openUI(&renameClipUI);
-				return true;
-			}
-		}
-		else {
-
-			return false;
-		}
-
-	default:
-		return false;
-	}
-}
 /*
 char modelStackMemory[MODEL_STACK_MAX_SIZE];
 ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);

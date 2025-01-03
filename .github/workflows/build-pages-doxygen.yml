@@ -1,7 +1,7 @@
 # Based on NextJS sample build workflow
 #  https://github.com/actions/starter-workflows/blob/f3c5d7931d054ffbbdcbfdc463cc3bd0def74929/pages/nextjs.yml
 
-name: Deploy Pages site
+name: Deploy Pages and Doxygen
 
 on:
   # Runs on pushes targeting the default branch
@@ -9,6 +9,7 @@ on:
     branches: ["community"]
     paths:
       - 'pages/**'
+      - 'src/**'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -27,9 +28,8 @@ concurrency:
   group: "pages"
   cancel-in-progress: false
 
-jobs:
-  # Single deploy job since we're just deploying
-  deploy:
+jobs:  
+  deploy-docs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -37,6 +37,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
+      - name: Install doxygen
+        uses: ssciwr/doxygen-install@v1
+      - name: Install graphvis
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y graphviz
+      - name: Run dbt configure
+        run:  ./dbt configure
+      - name: Run dbt docs
+        run:  ./dbt docs  
+      - name: Move doxygen docs
+        run:  mv ./build/html ./pages/public/docs    
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
@@ -46,3 +60,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
