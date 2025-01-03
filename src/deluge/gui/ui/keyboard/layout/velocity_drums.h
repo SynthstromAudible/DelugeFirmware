@@ -30,9 +30,9 @@ const int32_t zoom_arr[13][2] = {{1, 1}, {2, 1}, {3, 1}, {2, 2}, {3, 2}, {4, 2},
 
 class KeyboardLayoutVelocityDrums : KeyboardLayout {
 public:
-	KeyboardLayoutVelocityDrums() {}
-	~KeyboardLayoutVelocityDrums() override {}
-	void precalculate() override{};
+	KeyboardLayoutVelocityDrums() = default;
+	~KeyboardLayoutVelocityDrums() override = default;
+	void precalculate() override {}
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;
