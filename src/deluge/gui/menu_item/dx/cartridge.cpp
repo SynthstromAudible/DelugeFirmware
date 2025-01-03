@@ -17,64 +17,65 @@
 
 #include "cartridge.h"
 #include "dsp/dx/engine.h"
+#include "fatfs.hpp"
 #include "gui/ui/browser/dx_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
-#include "memory/general_memory_allocator.h"
+#include "memory/allocate_unique.h"
+#include "memory/sdram_allocator.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "storage/DX7Cartridge.h"
 #include "util/container/static_vector.hpp"
+#include "util/functions.h"
+#include "util/try.h"
+#include <memory>
 
-static bool openFile(const char* path, DX7Cartridge* data) {
-	using deluge::l10n::String;
-	bool didLoad = false;
-	const int minSize = SMALL_SYSEX_SIZE;
+static bool openFile(std::string_view path, DX7Cartridge* data) {
+	using namespace deluge;
+	using enum deluge::l10n::String;
+	constexpr size_t minSize = kSmallSysexSize;
 
-	FILINFO fno;
-	int result = f_stat(path, &fno);
-	FSIZE_t fileSize = fno.fsize;
-	if (fileSize < minSize) {
-		display->displayPopup(get(String::STRING_FOR_DX_ERROR_FILE_TOO_SMALL));
+	FatFS::FileInfo fno = D_TRY_CATCH(FatFS::stat(path), error, {
+		return false; // fail quickly if file doesn't exist
+	});
+
+	FSIZE_t filesize = fno.fsize;
+	if (filesize < minSize) {
+		display->displayPopup(l10n::get(STRING_FOR_DX_ERROR_FILE_TOO_SMALL));
 	}
 
-	FIL file;
 	// Open the file
-	result = f_open(&file, path, FA_READ);
-	if (result != FR_OK) {
-		display->displayPopup(get(String::STRING_FOR_DX_ERROR_READ_ERROR));
+	FatFS::File file = D_TRY_CATCH(FatFS::File::open(path, FA_READ), error, {
+		display->displayPopup(l10n::get(STRING_FOR_DX_ERROR_READ_ERROR));
+		return false;
+	});
+
+	l10n::String error = EMPTY_STRING;
+	int readsize = std::min((int)filesize, 8192);
+
+	std::unique_ptr buffer = D_TRY_CATCH_MOVE((allocate_unique<std::byte, memory::sdram_allocator>(readsize)), error, {
+		display->displayPopup(l10n::get(STRING_FOR_DX_ERROR_READ_ERROR));
+		return false;
+	});
+
+	std::span<std::byte> readbuffer = D_TRY_CATCH(file.read({buffer.get(), filesize}), error, {
+		return false; //
+	});
+
+	if (readbuffer.size() < minSize) {
+		display->displayPopup(l10n::get(STRING_FOR_DX_ERROR_FILE_TOO_SMALL));
+	}
+
+	error = data->load(readbuffer);
+	if (error != EMPTY_STRING) {
+		display->displayPopup(l10n::get(error), 3);
 		return false;
 	}
 
-	String error = String::EMPTY_STRING;
-	UINT numBytesRead;
-	int readsize = std::min((int)fileSize, 8192);
-	auto buffer = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(readsize);
-	if (!buffer) {
-		display->displayPopup(get(String::STRING_FOR_DX_ERROR_READ_ERROR));
-		goto close;
-	}
-	result = f_read(&file, buffer, fileSize, &numBytesRead);
-	if (numBytesRead < minSize) {
-		display->displayPopup(get(String::STRING_FOR_DX_ERROR_FILE_TOO_SMALL));
-		goto free;
-	}
-
-	error = data->load(buffer, numBytesRead);
-	if (error != String::EMPTY_STRING) {
-		display->displayPopup(get(error), 3);
-	}
-	else {
-		didLoad = true;
-	}
-
-free:
-	GeneralMemoryAllocator::get().dealloc(buffer);
-close:
-	f_close(&file);
-	return didLoad;
+	return true;
 }
 namespace deluge::gui::menu_item {
 
@@ -129,7 +130,7 @@ void DxCartridge::drawValue() {
 	display->setScrollingText(names[currentValue]);
 }
 
-bool DxCartridge::tryLoad(const char* path) {
+bool DxCartridge::tryLoad(std::string_view path) {
 	if (pd == nullptr) {
 		pd = new DX7Cartridge();
 	}

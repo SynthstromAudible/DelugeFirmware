@@ -1,5 +1,6 @@
 #pragma once
 #include <concepts> // IWYU pragma: keep this is actually needed for std::integral, clangd is messing it up
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
@@ -128,4 +129,8 @@ consteval int_least16_t operator"" _i16(unsigned long long arg) {
 };
 consteval int_least8_t operator"" _i8(unsigned long long arg) {
 	return arg;
+};
+
+consteval std::byte operator"" _b(unsigned long long arg) {
+	return std::byte(arg);
 };
