@@ -32,12 +32,12 @@ class KeyboardLayoutVelocityDrums : KeyboardLayout {
 public:
 	KeyboardLayoutVelocityDrums() {}
 	~KeyboardLayoutVelocityDrums() override {}
+	void precalculate() override{};
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;
 	void handleHorizontalEncoder(int32_t offset, bool shiftEnabled, PressedPad presses[kMaxNumKeyboardPadPresses],
 	                             bool encoderPressed = false) override;
-	void precalculate() override;
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
