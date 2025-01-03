@@ -128,7 +128,7 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 			    mpeValues); // Hmm, should we really be going in here even when it's not MPE input?
 
 			// NoteRow must not already be sounding a note
-			if (!noteRow || !noteRow->soundingStatus) {
+			if (!noteRow || !noteRow->sequenced) {
 
 				if (instrumentClip) {
 
@@ -535,8 +535,7 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 
 	// don't audition this note row if there is a drone note that is currently sounding
 	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-	if (noteRow && noteRow->isDroning(modelStackWithNoteRow->getLoopLength())
-	    && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+	if (noteRow && noteRow->isDroning(modelStackWithNoteRow->getLoopLength()) && noteRow->sequenced) {
 		return;
 	}
 
@@ -565,8 +564,7 @@ void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t no
 
 	// here we check if this note row has a drone note that is currently sounding
 	// in which case we don't want to stop it from sounding
-	if (noteRow && noteRow->isDroning(modelStackWithNoteRow->getLoopLength())
-	    && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+	if (noteRow && noteRow->isDroning(modelStackWithNoteRow->getLoopLength()) && noteRow->sequenced) {
 		return;
 	}
 

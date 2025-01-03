@@ -3964,7 +3964,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 				if (!isKit || modelStackWithNoteRow->getNoteRowAllowNull()) {
 
 					if (modelStackWithNoteRow->getNoteRowAllowNull()
-					    && modelStackWithNoteRow->getNoteRow()->soundingStatus == STATUS_SEQUENCED_NOTE) {}
+					    && modelStackWithNoteRow->getNoteRow()->sequenced) {}
 					else {
 
 						// Record note-on if we're recording
@@ -4771,7 +4771,7 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 
 	if (noteRowOnActiveClip) {
 		// Ensure our auditioning doesn't override a note playing in the sequence
-		if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->soundingStatus == STATUS_SEQUENCED_NOTE) {
+		if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->sequenced) {
 			doSilentAudition = true;
 		}
 	}
@@ -4856,7 +4856,7 @@ void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNo
 
 		// Stop the note sounding - but only if a sequenced note isn't in fact being played here.
 		// Or if it's drone note, end auditioning to transfer the note's sustain to the sequencer
-		if (!noteRowOnActiveClip || noteRowOnActiveClip->soundingStatus == STATUS_OFF
+		if (!noteRowOnActiveClip || !noteRowOnActiveClip->sequenced
 		    || noteRowOnActiveClip->isDroning(modelStack->getLoopLength())) {
 			sendAuditionNote(false, yDisplay, 64, 0);
 		}
