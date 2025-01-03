@@ -116,6 +116,7 @@ public:
 		if (buf_ == nullptr) {
 			throw deluge::exception::BAD_ALLOC; // Technically out of stack, but that's bad either way
 		}
+		memset(buf_, '\0', capacity);
 	}
 #pragma GCC diagnostic pop
 
@@ -124,7 +125,7 @@ public:
 	void clear() { buf_[0] = 0; }
 	void truncate(std::size_t newSize) {
 		if (newSize < capacity_) {
-			buf_[newSize] = 0;
+			buf_[newSize] = '\0';
 		}
 	}
 
