@@ -124,11 +124,16 @@ SoundEditor soundEditor{};
 
 SoundEditor::SoundEditor() {
 	currentParamShorcutX = 255;
-	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 	timeLastAttemptedAutomatedParamEdit = 0;
 	shouldGoUpOneLevelOnBegin = false;
 	setupKitGlobalFXMenu = false;
 	selectedNoteRow = false;
+	resetSourceBlinks();
+}
+
+void SoundEditor::resetSourceBlinks() {
+	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
+	memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
 }
 
 bool SoundEditor::editingKit() {
@@ -582,13 +587,18 @@ void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem
 }
 
 void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
+	// First we clear everything.
+	resetSourceBlinks();
+	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
-	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
-	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
-	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&nameEditMenu)) {
+	// In these cases that's all we need to do.
+	if (inSettingsMenu() || inNoteEditor() || getCurrentUI() != &soundEditor) {
+		return;
+	}
 
-		memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
-		memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
+	// Extra braces to make the diff easier to read. Will submit a separate cleanup.
+	{
+
 		paramShortcutBlinkFrequency = 3;
 
 		// Find param shortcut
@@ -659,18 +669,11 @@ stopThat:
 			}
 		}
 
-		// If we found nothing...
-		if (currentParamShorcutX == 255) {
-			uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
-		}
-
-		// Or if we found something...
-		else {
+		// If we found something...
+		if (currentParamShorcutX != 255) {
 			blinkShortcut();
 		}
 	}
-
-shortcutsPicked:
 
 	if (currentItem->shouldBlinkLearnLed()) {
 		indicator_leds::blinkLed(IndicatorLED::LEARN);
@@ -678,23 +681,11 @@ shortcutsPicked:
 	else {
 		indicator_leds::setLedState(IndicatorLED::LEARN, false);
 	}
-
-	possibleChangeToCurrentRangeDisplay();
 }
 
 bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
-
 	MenuItem* currentItem = getCurrentMenuItem();
-
 	currentItem->beginSession(oldMenuItem);
-
-	// If that didn't succeed (file browser)
-	// XXX: Why do we need to check for renameDrumUI, but not other rename UIs? either way, this should probably
-	// be a virtual function getCurrentUI()->noSoundEditor() or something.
-	if (getCurrentUI() != &soundEditor && getCurrentUI() != &sampleBrowser && getCurrentUI() != &audioRecorder
-	    && getCurrentUI() != &sampleMarkerEditor && getCurrentUI() != &renameDrumUI) {
-		return false;
-	}
 
 	if (display->haveOLED()) {
 		renderUIsForOled();
@@ -702,7 +693,9 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 
 	currentItem->updatePadLights();
 
-	return true;
+	possibleChangeToCurrentRangeDisplay();
+
+	return getCurrentUI() == &soundEditor;
 }
 
 void SoundEditor::possibleChangeToCurrentRangeDisplay() {
@@ -720,7 +713,7 @@ void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency) {
 }
 
 void SoundEditor::setupExclusiveShortcutBlink(int32_t x, int32_t y) {
-	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
+	resetSourceBlinks();
 	setupShortcutBlink(x, y, 1);
 	blinkShortcut();
 }
