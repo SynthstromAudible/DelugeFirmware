@@ -36,12 +36,12 @@ public:
 			if (currentDrum != nullptr
 			    && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
 				auto* nonAudioDrum = (NonAudioDrum*)currentDrum;
-				this->setValue(computeCurrentValueForUnsignedMenuItem(nonAudioDrum->arpeggiatorChordPolyphony));
+				this->setValue(computeCurrentValueForUnsignedMenuItem(nonAudioDrum->arpSettings.chordPolyphony));
 			}
 		}
 		else if (currentClip->type == ClipType::INSTRUMENT) {
 			this->setValue(
-			    computeCurrentValueForUnsignedMenuItem(((InstrumentClip*)currentClip)->arpeggiatorChordPolyphony));
+			    computeCurrentValueForUnsignedMenuItem(((InstrumentClip*)currentClip)->arpSettings.chordPolyphony));
 		}
 	}
 
@@ -53,11 +53,11 @@ public:
 			if (currentDrum != nullptr
 			    && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
 				auto* nonAudioDrum = (NonAudioDrum*)currentDrum;
-				nonAudioDrum->arpeggiatorChordPolyphony = value;
+				nonAudioDrum->arpSettings.chordPolyphony = value;
 			}
 		}
 		else if (currentClip->type == ClipType::INSTRUMENT) {
-			((InstrumentClip*)currentClip)->arpeggiatorChordPolyphony = value;
+			((InstrumentClip*)currentClip)->arpSettings.chordPolyphony = value;
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }

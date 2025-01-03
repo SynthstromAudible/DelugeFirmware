@@ -34,27 +34,11 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 	if (activeClip) {
 		InstrumentClip* activeInstrumentClip = (InstrumentClip*)activeClip;
 
-		uint32_t rhythm = activeInstrumentClip->arpeggiatorRhythm;
-		uint32_t sequenceLength = activeInstrumentClip->arpeggiatorSequenceLength;
-		uint32_t chordPolyphony = activeInstrumentClip->arpeggiatorChordPolyphony;
-		uint32_t ratchetAmount = activeInstrumentClip->arpeggiatorRatchetAmount;
-		uint32_t noteProbability = activeInstrumentClip->arpeggiatorNoteProbability;
-		uint32_t bassProbability = activeInstrumentClip->arpeggiatorBassProbability;
-		uint32_t chordProbability = activeInstrumentClip->arpeggiatorChordProbability;
-		uint32_t ratchetProbability = activeInstrumentClip->arpeggiatorRatchetProbability;
-		uint32_t spreadVelocity = activeInstrumentClip->arpeggiatorSpreadVelocity;
-		uint32_t spreadGate = activeInstrumentClip->arpeggiatorSpreadGate;
-		uint32_t spreadOctave = activeInstrumentClip->arpeggiatorSpreadOctave;
-
-		arpeggiator.updateParams(rhythm, sequenceLength, chordPolyphony, ratchetAmount, noteProbability,
-		                         bassProbability, chordProbability, ratchetProbability, spreadVelocity, spreadGate,
-		                         spreadOctave);
-
 		if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
-			uint32_t gateThreshold = (uint32_t)activeInstrumentClip->arpeggiatorGate + 2147483648;
+			uint32_t gateThreshold = (uint32_t)activeInstrumentClip->arpSettings.gate + 2147483648;
 			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
 			    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
-			                              cableToExpParamShortcut(activeInstrumentClip->arpeggiatorRate)));
+			                              cableToExpParamShortcut(activeInstrumentClip->arpSettings.rate)));
 
 			ArpReturnInstruction instruction;
 
@@ -62,21 +46,19 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 			                   phaseIncrement);
 
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-				if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
-					noteOffPostArp(instruction.noteCodeOffPostArp[n], instruction.outputMIDIChannelOff[n],
-					               kDefaultLiftValue, n); // Is there some better option than using the default lift
-					                                      // value? The lift event wouldn't have occurred yet...
-				}
-				else {
+				if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
+				noteOffPostArp(instruction.noteCodeOffPostArp[n], instruction.outputMIDIChannelOff[n],
+				               kDefaultLiftValue, n); // Is there some better option than using the default lift
+				                                      // value? The lift event wouldn't have occurred yet...
 			}
-			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-				if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+			if (instruction.arpNoteOn != nullptr) {
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+						break;
+					}
 					noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
-				}
-				else {
-					break;
 				}
 			}
 		}
@@ -100,12 +82,12 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 		// Run everything by the Arp...
 		arpeggiator.noteOn(arpSettings, noteCodePreArp, velocity, &instruction, fromMIDIChannel, mpeValues);
 
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+		if (instruction.arpNoteOn != nullptr) {
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+					break;
+				}
 				noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
-			}
-			else {
-				break;
 			}
 		}
 	}
@@ -117,21 +99,19 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 		arpeggiator.noteOff(arpSettings, noteCodePreArp, &instruction);
 
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
-				noteOffPostArp(instruction.noteCodeOffPostArp[n], instruction.outputMIDIChannelOff[n], velocity, n);
-			}
-			else {
+			if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 				break;
 			}
+			noteOffPostArp(instruction.noteCodeOffPostArp[n], instruction.outputMIDIChannelOff[n], velocity, n);
 		}
 		// CV instruments could switch on a note to do a glide
 		if (type == OutputType::CV) {
-			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-				if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+			if (instruction.arpNoteOn != nullptr) {
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+						break;
+					}
 					noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
-				}
-				else {
-					break;
 				}
 			}
 		}
@@ -172,11 +152,12 @@ lookAtArpNote:
 
 			// Send this even if arp is on and this note isn't currently sounding: its release might still be
 			for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
-				if (arpNote->noteCodeOnPostArp[i] != ARP_NOTE_NONE
-				    && arpNote->outputMemberChannel[i] != MIDI_CHANNEL_NONE) {
-					polyphonicExpressionEventPostArpeggiator(newValue, arpNote->noteCodeOnPostArp[i],
-					                                         expressionDimension, arpNote, i);
+				if (arpNote->noteCodeOnPostArp[i] == ARP_NOTE_NONE
+				    || arpNote->outputMemberChannel[i] == MIDI_CHANNEL_NONE) {
+					break;
 				}
+				polyphonicExpressionEventPostArpeggiator(newValue, arpNote->noteCodeOnPostArp[i], expressionDimension,
+				                                         arpNote, i);
 			}
 		}
 	}
@@ -188,45 +169,25 @@ int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t 
 		return 2147483647;
 	}
 
-	InstrumentClip* activeInstrumentClip = (InstrumentClip*)activeClip;
-	if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
-		uint32_t rhythm = activeInstrumentClip->arpeggiatorRhythm;
-		uint32_t sequenceLength = activeInstrumentClip->arpeggiatorSequenceLength;
-		uint32_t chordPolyphony = activeInstrumentClip->arpeggiatorChordPolyphony;
-		uint32_t ratchetAmount = activeInstrumentClip->arpeggiatorRatchetAmount;
-		uint32_t noteProbability = activeInstrumentClip->arpeggiatorNoteProbability;
-		uint32_t bassProbability = activeInstrumentClip->arpeggiatorBassProbability;
-		uint32_t chordProbability = activeInstrumentClip->arpeggiatorChordProbability;
-		uint32_t ratchetProbability = activeInstrumentClip->arpeggiatorRatchetProbability;
-		uint32_t spreadVelocity = activeInstrumentClip->arpeggiatorSpreadVelocity;
-		uint32_t spreadGate = activeInstrumentClip->arpeggiatorSpreadGate;
-		uint32_t spreadOctave = activeInstrumentClip->arpeggiatorSpreadOctave;
-		arpeggiator.updateParams(rhythm, sequenceLength, chordPolyphony, ratchetAmount, noteProbability,
-		                         bassProbability, chordProbability, ratchetProbability, spreadVelocity, spreadGate,
-		                         spreadOctave);
-	}
-
 	ArpReturnInstruction instruction;
 
 	int32_t ticksTilNextArpEvent = arpeggiator.doTickForward(&((InstrumentClip*)activeClip)->arpSettings, &instruction,
 	                                                         currentPos, activeClip->currentlyPlayingReversed);
 
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-		if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
-			noteOffPostArp(instruction.noteCodeOffPostArp[n], instruction.outputMIDIChannelOff[n], kDefaultLiftValue,
-			               n); // Is there some better option than using the default lift value? The lift
-			                   // event wouldn't have occurred yet...
-		}
-		else {
+		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
+		noteOffPostArp(instruction.noteCodeOffPostArp[n], instruction.outputMIDIChannelOff[n], kDefaultLiftValue,
+		               n); // Is there some better option than using the default lift value? The lift
+		                   // event wouldn't have occurred yet...
 	}
-	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-		if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+	if (instruction.arpNoteOn != nullptr) {
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+				break;
+			}
 			noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
-		}
-		else {
-			break;
 		}
 	}
 

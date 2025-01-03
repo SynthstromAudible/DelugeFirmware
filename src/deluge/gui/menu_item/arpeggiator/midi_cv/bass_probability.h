@@ -36,12 +36,12 @@ public:
 			if (currentDrum != nullptr
 			    && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
 				auto* nonAudioDrum = (NonAudioDrum*)currentDrum;
-				this->setValue(computeCurrentValueForUnsignedMenuItem(nonAudioDrum->arpeggiatorBassProbability));
+				this->setValue(computeCurrentValueForUnsignedMenuItem(nonAudioDrum->arpSettings.bassProbability));
 			}
 		}
 		else if (currentClip->type == ClipType::INSTRUMENT) {
 			this->setValue(
-			    computeCurrentValueForUnsignedMenuItem(((InstrumentClip*)currentClip)->arpeggiatorBassProbability));
+			    computeCurrentValueForUnsignedMenuItem(((InstrumentClip*)currentClip)->arpSettings.bassProbability));
 		}
 	}
 
@@ -53,11 +53,11 @@ public:
 			if (currentDrum != nullptr
 			    && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
 				auto* nonAudioDrum = (NonAudioDrum*)currentDrum;
-				nonAudioDrum->arpeggiatorBassProbability = value;
+				nonAudioDrum->arpSettings.bassProbability = value;
 			}
 		}
 		else if (currentClip->type == ClipType::INSTRUMENT) {
-			((InstrumentClip*)currentClip)->arpeggiatorBassProbability = value;
+			((InstrumentClip*)currentClip)->arpSettings.bassProbability = value;
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }

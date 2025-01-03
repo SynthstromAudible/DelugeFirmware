@@ -39,11 +39,11 @@ public:
 			if (currentDrum != nullptr
 			    && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
 				auto* nonAudioDrum = (NonAudioDrum*)currentDrum;
-				this->setValue(computeCurrentValueForUnsignedMenuItem(nonAudioDrum->arpeggiatorRhythm));
+				this->setValue(computeCurrentValueForUnsignedMenuItem(nonAudioDrum->arpSettings.rhythm));
 			}
 		}
 		else if (currentClip->type == ClipType::INSTRUMENT) {
-			this->setValue(computeCurrentValueForUnsignedMenuItem(((InstrumentClip*)currentClip)->arpeggiatorRhythm));
+			this->setValue(computeCurrentValueForUnsignedMenuItem(((InstrumentClip*)currentClip)->arpSettings.rhythm));
 		}
 	}
 	void writeCurrentValue() override {
@@ -54,11 +54,11 @@ public:
 			if (currentDrum != nullptr
 			    && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
 				auto* nonAudioDrum = (NonAudioDrum*)currentDrum;
-				nonAudioDrum->arpeggiatorRhythm = value;
+				nonAudioDrum->arpSettings.rhythm = value;
 			}
 		}
 		else if (currentClip->type == ClipType::INSTRUMENT) {
-			((InstrumentClip*)currentClip)->arpeggiatorRhythm = value;
+			((InstrumentClip*)currentClip)->arpSettings.rhythm = value;
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxPresetArpRhythm; }

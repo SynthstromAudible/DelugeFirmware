@@ -20,30 +20,12 @@
 #include "definitions_cxx.hpp"
 #include "model/drum/drum.h"
 #include "model/mod_controllable/mod_controllable.h"
+#include "modulation/arpeggiator.h"
 #include <cstdint>
 
 class NonAudioDrum : public Drum, public ModControllable {
 public:
 	NonAudioDrum(DrumType newType);
-
-	// Rate
-	int32_t arpeggiatorRate;
-	int32_t arpeggiatorGate;
-
-	// Pattern
-	uint32_t arpeggiatorRhythm;
-	uint32_t arpeggiatorSequenceLength;
-	uint32_t arpeggiatorChordPolyphony;
-	uint32_t arpeggiatorRatchetAmount;
-
-	// Randomizer
-	uint32_t arpeggiatorNoteProbability;
-	uint32_t arpeggiatorBassProbability;
-	uint32_t arpeggiatorChordProbability;
-	uint32_t arpeggiatorRatchetProbability;
-	uint32_t arpeggiatorSpreadVelocity;
-	uint32_t arpeggiatorSpreadGate;
-	uint32_t arpeggiatorSpreadOctave;
 
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) final;
 	bool anyNoteIsOn() final;

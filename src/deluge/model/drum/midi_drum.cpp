@@ -30,33 +30,30 @@ MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 
 void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
                       int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
-	ArpeggiatorSettings* arpSettings = getArpSettings(nullptr);
+	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction instruction;
 	// Run everything by the Arp...
 	arpeggiator.noteOn(arpSettings, note, velocity, &instruction, fromMIDIChannel, mpeValues);
-	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-		if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE)
-		    [[likely]] {
+	if (instruction.arpNoteOn != nullptr) {
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+				break;
+			}
 			noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
-		}
-		else {
-			break;
 		}
 	}
 }
 
 void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
-	ArpeggiatorSettings* arpSettings = getArpSettings(nullptr);
+	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction instruction;
 	// Run everything by the Arp...
 	arpeggiator.noteOff(arpSettings, note, &instruction);
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-		if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
-			noteOffPostArp(instruction.noteCodeOffPostArp[n]);
-		}
-		else {
+		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
+		noteOffPostArp(instruction.noteCodeOffPostArp[n]);
 	}
 }
 

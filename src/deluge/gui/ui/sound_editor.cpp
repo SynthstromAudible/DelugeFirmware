@@ -141,19 +141,30 @@ bool SoundEditor::editingCVOrMIDIClip() {
 }
 
 bool SoundEditor::editingNonAudioDrumRow() {
-	return getCurrentOutputType() == OutputType::KIT && getCurrentKit()->selectedDrum
-	       && (getCurrentKit()->selectedDrum->type == DrumType::MIDI
-	           || getCurrentKit()->selectedDrum->type == DrumType::GATE);
+	auto* kit = getCurrentKit();
+	if (kit == nullptr || kit->selectedDrum == nullptr) {
+		return false;
+	}
+	auto selectedDrumType = kit->selectedDrum->type;
+	return selectedDrumType == DrumType::MIDI || selectedDrumType == DrumType::GATE;
 }
 
 bool SoundEditor::editingMidiDrumRow() {
-	return getCurrentOutputType() == OutputType::KIT && getCurrentKit()->selectedDrum
-	       && getCurrentKit()->selectedDrum->type == DrumType::MIDI;
+	auto* kit = getCurrentKit();
+	if (kit == nullptr || kit->selectedDrum == nullptr) {
+		return false;
+	}
+	auto selectedDrumType = kit->selectedDrum->type;
+	return selectedDrumType == DrumType::MIDI;
 }
 
 bool SoundEditor::editingGateDrumRow() {
-	return getCurrentOutputType() == OutputType::KIT && getCurrentKit()->selectedDrum
-	       && getCurrentKit()->selectedDrum->type == DrumType::GATE;
+	auto* kit = getCurrentKit();
+	if (kit == nullptr || kit->selectedDrum == nullptr) {
+		return false;
+	}
+	auto selectedDrumType = kit->selectedDrum->type;
+	return selectedDrumType == DrumType::GATE;
 }
 
 bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -560,7 +571,7 @@ void SoundEditor::exitCompletely() {
 
 bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout) {
 	bool found = false;
-	for (int32_t x = 0; x < 16; x++) {
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			if (deluge::modulation::params::patchedParamShortcuts[x][y] == paramLookingFor) {
 
@@ -588,7 +599,7 @@ void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
 
 void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem,
                                                MenuItem const* const items[kDisplayWidth][kDisplayHeight]) {
-	for (auto x = 0; x < 16; ++x) {
+	for (auto x = 0; x < kDisplayWidth; ++x) {
 		for (auto y = 0; y < kDisplayHeight; ++y) {
 			if (items[x][y] == currentItem) {
 				setupShortcutBlink(x, y, 0);
@@ -650,7 +661,7 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 			}
 
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
-			for (int32_t x = 0; x < 16; x++) {
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
 					if (paramShortcutsForSounds[x][y] == currentItem) {
 

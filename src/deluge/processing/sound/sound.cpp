@@ -40,6 +40,7 @@
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
 #include "model/voice/voice_vector.h"
+#include "modulation/arpeggiator.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -704,140 +705,68 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				}
 				reader.exitTag("randomizerLock");
 			}
-			else if (!strcmp(tagName, "lockedNoteProb")) {
-				if (arpSettings) {
-					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
-						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars =
-							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-							if (hexChars) {
-								arpSettings->lastLockedNoteProbabilityParameterValue = hexToIntFixedLength(hexChars, 8);
-								for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-									arpSettings->lockedNoteProbabilityValues[i] =
-									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
-								}
-							}
-						}
-					}
-				}
-				reader.exitTag("lockedNoteProb");
+			else if (!strcmp(tagName, "lastLockedNoteProb")) {
+				arpSettings->lastLockedNoteProbabilityParameterValue = reader.readTagOrAttributeValueInt();
+				reader.exitTag("lastLockedNoteProb");
 			}
-			else if (!strcmp(tagName, "lockedBassProb")) {
-				if (arpSettings) {
-					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
-						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars =
-							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-							if (hexChars) {
-								arpSettings->lastLockedBassProbabilityParameterValue = hexToIntFixedLength(hexChars, 8);
-								for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-									arpSettings->lockedBassProbabilityValues[i] =
-									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
-								}
-							}
-						}
-					}
-				}
-				reader.exitTag("lockedBassProb");
+			else if (!strcmp(tagName, "lockedNoteProbArray")) {
+				int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)arpSettings->lockedNoteProbabilityValues,
+				                                                 RANDOMIZER_LOCK_MAX_SAVED_VALUES);
+				reader.exitTag("lockedNoteProbArray");
 			}
-			else if (!strcmp(tagName, "lockedChordProb")) {
-				if (arpSettings) {
-					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
-						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars =
-							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-							if (hexChars) {
-								arpSettings->lastLockedChordProbabilityParameterValue =
-								    hexToIntFixedLength(hexChars, 8);
-								for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-									arpSettings->lockedChordProbabilityValues[i] =
-									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
-								}
-							}
-						}
-					}
-				}
-				reader.exitTag("lockedChordProb");
+			else if (!strcmp(tagName, "lastLockedBassProb")) {
+				arpSettings->lastLockedBassProbabilityParameterValue = reader.readTagOrAttributeValueInt();
+				reader.exitTag("lastLockedBassProb");
 			}
-			else if (!strcmp(tagName, "lockedRatchetProb")) {
-				if (arpSettings) {
-					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
-						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars =
-							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-							if (hexChars) {
-								arpSettings->lastLockedRatchetProbabilityParameterValue =
-								    hexToIntFixedLength(hexChars, 8);
-								for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-									arpSettings->lockedRatchetProbabilityValues[i] =
-									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
-								}
-							}
-						}
-					}
-				}
-				reader.exitTag("lockedRatchetProb");
+			else if (!strcmp(tagName, "lockedBassProbArray")) {
+				int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)arpSettings->lockedBassProbabilityValues,
+				                                                 RANDOMIZER_LOCK_MAX_SAVED_VALUES);
+				reader.exitTag("lockedBassProbArray");
 			}
-			else if (!strcmp(tagName, "lockedSpreadVelocity")) {
-				if (arpSettings) {
-					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
-						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars =
-							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-							if (hexChars) {
-								arpSettings->lastLockedSpreadVelocityParameterValue = hexToIntFixedLength(hexChars, 8);
-								for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-									arpSettings->lockedSpreadVelocityValues[i] =
-									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
-								}
-							}
-						}
-					}
-				}
-				reader.exitTag("lockedSpreadVelocity");
+			else if (!strcmp(tagName, "lastLockedChordProb")) {
+				arpSettings->lastLockedChordProbabilityParameterValue = reader.readTagOrAttributeValueInt();
+				reader.exitTag("lastLockedChordProb");
 			}
-			else if (!strcmp(tagName, "lockedSpreadGate")) {
-				if (arpSettings) {
-					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
-						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars =
-							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-							if (hexChars) {
-								arpSettings->lastLockedSpreadGateParameterValue = hexToIntFixedLength(hexChars, 8);
-								for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-									arpSettings->lockedSpreadGateValues[i] =
-									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
-								}
-							}
-						}
-					}
-				}
-				reader.exitTag("lockedSpreadGate");
+			else if (!strcmp(tagName, "lockeChordProbArray")) {
+				int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)arpSettings->lockedChordProbabilityValues,
+				                                                 RANDOMIZER_LOCK_MAX_SAVED_VALUES);
+				reader.exitTag("lockedChordProbArray");
 			}
-			else if (!strcmp(tagName, "lockedSpreadOctave")) {
-				if (arpSettings) {
-					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
-						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars =
-							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-							if (hexChars) {
-								arpSettings->lastLockedSpreadOctaveParameterValue = hexToIntFixedLength(hexChars, 8);
-								for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-									arpSettings->lockedSpreadOctaveValues[i] =
-									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
-								}
-							}
-						}
-					}
-				}
-				reader.exitTag("lockedSpreadOctave");
+			else if (!strcmp(tagName, "lastLockedRatchetProb")) {
+				arpSettings->lastLockedRatchetProbabilityParameterValue = reader.readTagOrAttributeValueInt();
+				reader.exitTag("lastLockedRatchetProb");
+			}
+			else if (!strcmp(tagName, "lockeRatchetProbArray")) {
+				int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)arpSettings->lockedRatchetProbabilityValues,
+				                                                 RANDOMIZER_LOCK_MAX_SAVED_VALUES);
+				reader.exitTag("lockedRatchetProbArray");
+			}
+			else if (!strcmp(tagName, "lastLockedVelocitySpread")) {
+				arpSettings->lastLockedSpreadVelocityParameterValue = reader.readTagOrAttributeValueInt();
+				reader.exitTag("lastLockedVelocitySpread");
+			}
+			else if (!strcmp(tagName, "lockedVelocitySpreadArray")) {
+				int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)arpSettings->lockedSpreadVelocityValues,
+				                                                 RANDOMIZER_LOCK_MAX_SAVED_VALUES);
+				reader.exitTag("lockedVelocitySpreadArray");
+			}
+			else if (!strcmp(tagName, "lastLockedGateSpread")) {
+				arpSettings->lastLockedSpreadGateParameterValue = reader.readTagOrAttributeValueInt();
+				reader.exitTag("lastLockedGateSpread");
+			}
+			else if (!strcmp(tagName, "lockedGateSpreadArray")) {
+				int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)arpSettings->lockedSpreadGateValues,
+				                                                 RANDOMIZER_LOCK_MAX_SAVED_VALUES);
+				reader.exitTag("lockedGateSpreadArray");
+			}
+			else if (!strcmp(tagName, "lastLockedOctaveSpread")) {
+				arpSettings->lastLockedSpreadOctaveParameterValue = reader.readTagOrAttributeValueInt();
+				reader.exitTag("lastLockedOctaveSpread");
+			}
+			else if (!strcmp(tagName, "lockedOctaveSpreadArray")) {
+				int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)arpSettings->lockedSpreadOctaveValues,
+				                                                 RANDOMIZER_LOCK_MAX_SAVED_VALUES);
+				reader.exitTag("lockedOctaveSpreadArray");
 			}
 			else if (!strcmp(tagName, "mode")) {
 				if (song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
@@ -1747,16 +1676,15 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	arpeggiator->noteOn(arpSettings, noteCodePreArp, velocity, &instruction, fromMIDIChannel, mpeValues);
 
 	bool noNoteOn = true;
-	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-		if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE)
-		    [[likely]] {
+	if (instruction.arpNoteOn != nullptr) {
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+				break;
+			}
 			noNoteOn = false;
 			noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp, instruction.arpNoteOn->noteCodeOnPostArp[n],
 			                      instruction.arpNoteOn->velocity, mpeValues, instruction.sampleSyncLengthOn, ticksLate,
 			                      samplesLate, fromMIDIChannel);
-		}
-		else {
-			break;
 		}
 	}
 	if (noNoteOn) {
@@ -2468,25 +2396,28 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	uint32_t rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
-	uint32_t sequenceLength = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
-	uint32_t chordPolyphony = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_POLYPHONY) + 2147483648;
-	uint32_t ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
-	uint32_t noteProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_NOTE_PROBABILITY) + 2147483648;
-	uint32_t bassProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_PROBABILITY) + 2147483648;
-	uint32_t chordProbability =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_PROBABILITY) + 2147483648;
-	uint32_t ratchetProbability =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
-	uint32_t spreadVelocity = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_SPREAD_VELOCITY) + 2147483648;
-	uint32_t spreadGate = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
-	uint32_t spreadOctave = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_OCTAVE) + 2147483648;
-
-	getArp()->updateParams(rhythm, sequenceLength, chordPolyphony, ratchetAmount, noteProbability, bassProbability,
-	                       chordProbability, ratchetProbability, spreadVelocity, spreadGate, spreadOctave);
-
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
+		arpSettings->rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
+		arpSettings->sequenceLength =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
+		arpSettings->chordPolyphony =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_POLYPHONY) + 2147483648;
+		arpSettings->ratchetAmount =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
+		arpSettings->noteProbability =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_NOTE_PROBABILITY) + 2147483648;
+		arpSettings->bassProbability =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_PROBABILITY) + 2147483648;
+		arpSettings->chordProbability =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_PROBABILITY) + 2147483648;
+		arpSettings->ratchetProbability =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
+		arpSettings->spreadVelocity =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_SPREAD_VELOCITY) + 2147483648;
+		arpSettings->spreadGate = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
+		arpSettings->spreadOctave =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_OCTAVE) + 2147483648;
 
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement =
@@ -2497,24 +2428,22 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		getArp()->render(arpSettings, &instruction, numSamples, gateThreshold, phaseIncrement);
 
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			if (instruction.noteCodeOffPostArp[n] != ARP_NOTE_NONE) {
-				noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
-			}
-			else {
+			if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 				break;
 			}
+			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
 		}
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			if (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+		if (instruction.arpNoteOn != nullptr) {
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+					break;
+				}
 				noteOnPostArpeggiator(
 				    modelStackWithSoundFlags,
 				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
 				    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
 				    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
 				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
-			}
-			else {
-				break;
 			}
 		}
 	}
@@ -4374,99 +4303,34 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.writeAttribute("randomizerLock", arpSettings->randomizerLock);
 
 		// Write locked params
-		char buffer[9];
 		// Note probability
-		writer.insertCommaIfNeeded();
-		writer.write("\n");
-		writer.printIndents();
-		writer.writeTagNameAndSeperator("lockedNoteProb");
-		writer.write("\"0x");
-		intToHex(arpSettings->lastLockedNoteProbabilityParameterValue, buffer);
-		writer.write(buffer);
-		for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-			intToHex(arpSettings->lockedNoteProbabilityValues[i], buffer, 2);
-			writer.write(buffer);
-		}
-		writer.write("\"");
+		writer.writeAttribute("lastLockedNoteProb", arpSettings->lastLockedNoteProbabilityParameterValue);
+		writer.writeAttributeHexBytes("lockedNoteProbArray", (uint8_t*)arpSettings->lockedNoteProbabilityValues,
+		                              RANDOMIZER_LOCK_MAX_SAVED_VALUES);
 		// Bass probability
-		writer.insertCommaIfNeeded();
-		writer.write("\n");
-		writer.printIndents();
-		writer.writeTagNameAndSeperator("lockedBassProb");
-		writer.write("\"0x");
-		intToHex(arpSettings->lastLockedBassProbabilityParameterValue, buffer);
-		writer.write(buffer);
-		for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-			intToHex(arpSettings->lockedBassProbabilityValues[i], buffer, 2);
-			writer.write(buffer);
-		}
-		writer.write("\"");
+		writer.writeAttribute("lastLockedBassProb", arpSettings->lastLockedBassProbabilityParameterValue);
+		writer.writeAttributeHexBytes("lockedBassProbArray", (uint8_t*)arpSettings->lockedBassProbabilityValues,
+		                              RANDOMIZER_LOCK_MAX_SAVED_VALUES);
 		// Chord probability
-		writer.insertCommaIfNeeded();
-		writer.write("\n");
-		writer.printIndents();
-		writer.writeTagNameAndSeperator("lockedChordProb");
-		writer.write("\"0x");
-		intToHex(arpSettings->lastLockedChordProbabilityParameterValue, buffer);
-		writer.write(buffer);
-		for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-			intToHex(arpSettings->lockedChordProbabilityValues[i], buffer, 2);
-			writer.write(buffer);
-		}
-		writer.write("\"");
+		writer.writeAttribute("lastLockedChordProb", arpSettings->lastLockedChordProbabilityParameterValue);
+		writer.writeAttributeHexBytes("lockedChordProbArray", (uint8_t*)arpSettings->lockedChordProbabilityValues,
+		                              RANDOMIZER_LOCK_MAX_SAVED_VALUES);
 		// Ratchet probability
-		writer.insertCommaIfNeeded();
-		writer.write("\n");
-		writer.printIndents();
-		writer.writeTagNameAndSeperator("lockedRatchetProb");
-		writer.write("\"0x");
-		intToHex(arpSettings->lastLockedRatchetProbabilityParameterValue, buffer);
-		writer.write(buffer);
-		for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-			intToHex(arpSettings->lockedRatchetProbabilityValues[i], buffer, 2);
-			writer.write(buffer);
-		}
-		writer.write("\"");
+		writer.writeAttribute("lastLockedRatchetProb", arpSettings->lastLockedRatchetProbabilityParameterValue);
+		writer.writeAttributeHexBytes("lockedRatchetProbArray", (uint8_t*)arpSettings->lockedRatchetProbabilityValues,
+		                              RANDOMIZER_LOCK_MAX_SAVED_VALUES);
 		// Spread velocity
-		writer.insertCommaIfNeeded();
-		writer.write("\n");
-		writer.printIndents();
-		writer.writeTagNameAndSeperator("lockedSpreadVelocity");
-		writer.write("\"0x");
-		intToHex(arpSettings->lastLockedSpreadVelocityParameterValue, buffer);
-		writer.write(buffer);
-		for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-			intToHex(arpSettings->lockedSpreadVelocityValues[i], buffer, 2);
-			writer.write(buffer);
-		}
-		writer.write("\"");
+		writer.writeAttribute("lastLockedVelocitySpread", arpSettings->lastLockedSpreadVelocityParameterValue);
+		writer.writeAttributeHexBytes("lockedVelocitySpreadArray", (uint8_t*)arpSettings->lockedSpreadVelocityValues,
+		                              RANDOMIZER_LOCK_MAX_SAVED_VALUES);
 		// Spread gate
-		writer.insertCommaIfNeeded();
-		writer.write("\n");
-		writer.printIndents();
-		writer.writeTagNameAndSeperator("lockedSpreadGate");
-		writer.write("\"0x");
-		intToHex(arpSettings->lastLockedSpreadGateParameterValue, buffer);
-		writer.write(buffer);
-		for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-			intToHex(arpSettings->lockedSpreadGateValues[i], buffer, 2);
-			writer.write(buffer);
-		}
-		writer.write("\"");
+		writer.writeAttribute("lastLockedGateSpread", arpSettings->lastLockedSpreadGateParameterValue);
+		writer.writeAttributeHexBytes("lockedGateSpreadArray", (uint8_t*)arpSettings->lockedSpreadGateValues,
+		                              RANDOMIZER_LOCK_MAX_SAVED_VALUES);
 		// Spread octave
-		writer.insertCommaIfNeeded();
-		writer.write("\n");
-		writer.printIndents();
-		writer.writeTagNameAndSeperator("lockedSpreadOctave");
-		writer.write("\"0x");
-		intToHex(arpSettings->lastLockedSpreadOctaveParameterValue, buffer);
-		writer.write(buffer);
-		for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-			intToHex(arpSettings->lockedSpreadOctaveValues[i], buffer, 2);
-			writer.write(buffer);
-		}
-		writer.write("\"");
-
+		writer.writeAttribute("lastLockedOctaveSpread", arpSettings->lastLockedSpreadOctaveParameterValue);
+		writer.writeAttributeHexBytes("lockedOctaveSpreadArray", (uint8_t*)arpSettings->lockedSpreadOctaveValues,
+		                              RANDOMIZER_LOCK_MAX_SAVED_VALUES);
 		writer.closeTag();
 	}
 
