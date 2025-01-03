@@ -165,21 +165,15 @@ void DX7Cartridge::unpackProgram(std::span<std::uint8_t> unpackPgm, size_t idx) 
 		std::uint8_t* unpack_op = &unpackPgm[op * 21];
 
 		// eg rate and level, brk pt, depth, scaling
-		for (size_t i = 0; i < 11; ++i) {
-			auto currparm = clearTopBit(bulk_op[i]); // mask BIT7 (don't care per sysex spec)
-			unpack_op[i] = normparm(currparm, 99, i);
+		for (size_t i = 0; i < 10; ++i) {
+			unpack_op[i] = normparm(clearTopBit(bulk_op[i]), 99, i); // mask BIT7 (don't care per sysex spec)
 		}
-
-		// FIXME(@stellar-aria): This looks like it's overwriting the previous for loop??? Is this correct?
-		// See original source here:
-		// https://github.com/asb2m10/dexed/blob/a95b61d5196ac018a57ede34bfb037c886551d63/Source/PluginData.cpp#L126
-		std::copy_n(bulk_op, 11, unpack_op);
 
 		auto [left_curve, right_curve] = unpackBits<2, 2>(clearTopBit(bulk_op[11]));
 		unpack_op[11] = left_curve;
 		unpack_op[12] = right_curve;
 
-		auto [detune, rs] = unpackBits<3, 4>(clearTopBit(bulk_op[12]));
+		auto [rs, detune] = unpackBits<3, 4>(clearTopBit(bulk_op[12]));
 		unpack_op[13] = rs;
 
 		auto [ams, kvs] = unpackBits<2, 3>(clearTopBit(bulk_op[13])); // bits 5-7 don't care per sysex spec
@@ -195,8 +189,7 @@ void DX7Cartridge::unpackProgram(std::span<std::uint8_t> unpackPgm, size_t idx) 
 	}
 
 	for (int i = 0; i < 8; i++) {
-		auto currparm = clearTopBit(bulk[102 + i]); // mask BIT7 (don't care per sysex spec)
-		unpackPgm[126 + i] = normparm(currparm, 99, 126 + i);
+		unpackPgm[126 + i] = normparm(clearTopBit(bulk[102 + i]), 99, 126 + i); // mask BIT7 (don't care per sysex spec)
 	}
 
 	// algorithm // bits 5-7 are don't care per sysex spec
