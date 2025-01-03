@@ -99,6 +99,7 @@
 #include <new>
 #include <stdint.h>
 #include <string.h>
+#include <string_view>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -2432,17 +2433,12 @@ void InstrumentClipView::updateVelocityValue(int32_t& velocityValue, int32_t new
 // display updated velocity value for note(s) edited or generalized "velocity increased / decreased" message
 void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocityChange) {
 	if (velocityValue) {
-		char buffer[22];
-		char const* displayString;
 		if (velocityValue == 255) {
 			// this happens when you're holding two or more notes that have two different velocities, so it can't show
 			// the current velocity value (so it just says note velocities have increased or decreased)
-			if (velocityChange >= 0) {
-				displayString = deluge::l10n::get(deluge::l10n::String::STRING_FOR_VELOCITY_INCREASED);
-			}
-			else {
-				displayString = deluge::l10n::get(deluge::l10n::String::STRING_FOR_VELOCITY_DECREASED);
-			}
+			std::string_view displayString =
+			    (velocityChange >= 0) ? deluge::l10n::get(deluge::l10n::String::STRING_FOR_VELOCITY_INCREASED)
+			                          : deluge::l10n::get(deluge::l10n::String::STRING_FOR_VELOCITY_DECREASED);
 
 			popupVelocity(displayString);
 
@@ -2455,6 +2451,7 @@ void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocity
 			bool inNoteEditor = currentUI == &soundEditor && soundEditor.inNoteEditor();
 			getCurrentInstrument()->defaultVelocity = velocityValue;
 			if (!inAutomationView && !inNoteEditor) {
+				char buffer[22];
 				if (display->haveOLED()) {
 					strcpy(buffer, "Velocity: ");
 					intToString(velocityValue, buffer + strlen(buffer));
@@ -2463,16 +2460,14 @@ void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocity
 					intToString(velocityValue, buffer);
 				}
 
-				displayString = buffer;
-
-				popupVelocity(displayString);
+				popupVelocity(buffer);
 			}
 		}
 	}
 }
 
 // display velocity popup
-void InstrumentClipView::popupVelocity(char const* displayString) {
+void InstrumentClipView::popupVelocity(std::string_view displayString) {
 	if (display->haveOLED()) {
 		display->popupText(displayString);
 	}

@@ -309,7 +309,7 @@ char const* sourceToString(PatchSource source) {
 	}
 }
 
-char const* getSourceDisplayNameForOLED(PatchSource s) {
+std::string_view getSourceDisplayNameForOLED(PatchSource s) {
 	using enum l10n::String;
 	auto lang = l10n::chosenLanguage;
 

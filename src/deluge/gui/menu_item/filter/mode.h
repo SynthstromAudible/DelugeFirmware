@@ -43,17 +43,16 @@ public:
 		using enum l10n::String;
 		if (info.getSlot() == FilterSlot::HPF) {
 			return {
-			    l10n::getView(STRING_FOR_SVF_BAND),
-			    l10n::getView(STRING_FOR_SVF_NOTCH),
-			    l10n::getView(STRING_FOR_HPLADDER),
-			    l10n::getView(STRING_FOR_OFF),
+			    l10n::get(STRING_FOR_SVF_BAND),
+			    l10n::get(STRING_FOR_SVF_NOTCH),
+			    l10n::get(STRING_FOR_HPLADDER),
+			    l10n::get(STRING_FOR_OFF),
 			};
 		}
 		else {
 			return {
-			    l10n::getView(STRING_FOR_12DB_LADDER), l10n::getView(STRING_FOR_24DB_LADDER),
-			    l10n::getView(STRING_FOR_DRIVE),       l10n::getView(STRING_FOR_SVF_BAND),
-			    l10n::getView(STRING_FOR_SVF_NOTCH),   l10n::getView(STRING_FOR_OFF),
+			    l10n::get(STRING_FOR_12DB_LADDER), l10n::get(STRING_FOR_24DB_LADDER), l10n::get(STRING_FOR_DRIVE),
+			    l10n::get(STRING_FOR_SVF_BAND),    l10n::get(STRING_FOR_SVF_NOTCH),   l10n::get(STRING_FOR_OFF),
 			};
 		}
 	}
@@ -61,17 +60,17 @@ public:
 		using enum l10n::String;
 		if (info.getSlot() == FilterSlot::HPF) {
 			return {
-			    l10n::getView(STRING_FOR_SVF_BAND_SHORT),
-			    l10n::getView(STRING_FOR_SVF_NOTCH_SHORT),
-			    l10n::getView(STRING_FOR_12DB_LADDER_SHORT),
-			    l10n::getView(STRING_FOR_OFF),
+			    l10n::get(STRING_FOR_SVF_BAND_SHORT),
+			    l10n::get(STRING_FOR_SVF_NOTCH_SHORT),
+			    l10n::get(STRING_FOR_12DB_LADDER_SHORT),
+			    l10n::get(STRING_FOR_OFF),
 			};
 		}
 		else {
 			return {
-			    l10n::getView(STRING_FOR_12DB_LADDER_SHORT), l10n::getView(STRING_FOR_24DB_LADDER_SHORT),
-			    l10n::getView(STRING_FOR_DRIVE_SHORT),       l10n::getView(STRING_FOR_SVF_BAND_SHORT),
-			    l10n::getView(STRING_FOR_SVF_NOTCH_SHORT),   l10n::getView(STRING_FOR_OFF),
+			    l10n::get(STRING_FOR_12DB_LADDER_SHORT), l10n::get(STRING_FOR_24DB_LADDER_SHORT),
+			    l10n::get(STRING_FOR_DRIVE_SHORT),       l10n::get(STRING_FOR_SVF_BAND_SHORT),
+			    l10n::get(STRING_FOR_SVF_NOTCH_SHORT),   l10n::get(STRING_FOR_OFF),
 			};
 		}
 	}

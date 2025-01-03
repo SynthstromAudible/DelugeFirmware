@@ -41,6 +41,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
+#include <string_view>
 
 namespace params = deluge::modulation::params;
 using deluge::modulation::params::kNoParamID;
@@ -339,7 +340,7 @@ void MidiFollow::displayParamControlError(int32_t xDisplay, int32_t yDisplay) {
 	if (display->haveOLED()) {
 		DEF_STACK_STRING_BUF(popupMsg, 40);
 
-		const char* name = getParamDisplayName(paramKind, paramID);
+		std::string_view name = getParamDisplayName(paramKind, paramID);
 		if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
 			popupMsg.append("Can't control: \n");
 			popupMsg.append(name);

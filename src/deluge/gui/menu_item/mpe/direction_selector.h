@@ -29,8 +29,8 @@ public:
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_IN),
-		    l10n::getView(STRING_FOR_OUT),
+		    l10n::get(STRING_FOR_IN),
+		    l10n::get(STRING_FOR_OUT),
 		};
 	}
 	void readCurrentValue() override { this->setValue(whichDirection); }
@@ -38,8 +38,8 @@ public:
 	MenuItem* selectButtonPress() override;
 	uint8_t whichDirection;
 	[[nodiscard]] std::string_view getTitle() const override {
-		return whichDirection ? l10n::getView(l10n::String::STRING_FOR_MPE_OUTPUT)
-		                      : l10n::getView(l10n::String::STRING_FOR_MPE_INPUT);
+		return whichDirection ? l10n::get(l10n::String::STRING_FOR_MPE_OUTPUT)
+		                      : l10n::get(l10n::String::STRING_FOR_MPE_INPUT);
 	}
 };
 

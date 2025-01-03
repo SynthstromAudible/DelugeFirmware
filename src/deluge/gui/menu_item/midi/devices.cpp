@@ -140,7 +140,7 @@ void Devices::drawValue() {
 		renderUIsForOled();
 	}
 	else {
-		char const* displayName = soundEditor.currentMIDICable->getDisplayName();
+		std::string_view displayName = soundEditor.currentMIDICable->getDisplayName();
 		display->setScrollingText(displayName);
 	}
 }

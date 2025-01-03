@@ -21,6 +21,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "hid/display/display.h"
+#include <string_view>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -30,7 +31,7 @@ namespace deluge::gui::context_menu {
 
 DeleteFile deleteFile{};
 
-char const* DeleteFile::getTitle() {
+std::string_view DeleteFile::getTitle() {
 	using enum l10n::String;
 	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
 		return l10n::get(STRING_FOR_ARE_YOU_SURE_QMARK);
@@ -38,20 +39,20 @@ char const* DeleteFile::getTitle() {
 	return l10n::get(STRING_FOR_DELETE_QMARK);
 }
 
-Sized<char const**> DeleteFile::getOptions() {
+Sized<std::string_view*> DeleteFile::getOptions() {
 	using enum l10n::String;
 
 	if (display->haveOLED()) {
-		static char const* options[] = {l10n::get(STRING_FOR_OK)};
+		static std::string_view options[] = {l10n::get(STRING_FOR_OK)};
 		return {options, 1};
 	}
 	else {
 		if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
-			static char const* options[] = {l10n::get(STRING_FOR_SURE)};
+			static std::string_view options[] = {l10n::get(STRING_FOR_SURE)};
 			return {options, 1};
 		}
 
-		static char const* options[] = {l10n::get(STRING_FOR_DELETE)};
+		static std::string_view options[] = {l10n::get(STRING_FOR_DELETE)};
 		return {options, 1};
 	}
 }
@@ -90,7 +91,7 @@ bool DeleteFile::acceptCurrentOption() {
 	else if (toDelete->instrumentAlreadyInSong) {
 		display->displayPopup(l10n::get(STRING_FOR_ERROR_PRESET_IN_USE));
 	}
-	else if (toDelete->instrument) {
+	else if (toDelete->instrument != nullptr) {
 		// it has an instrument, it's not on the card, it's not in use, let's remove it
 		browser->currentFileDeleted();
 	}

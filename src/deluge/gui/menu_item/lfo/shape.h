@@ -27,13 +27,9 @@ public:
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_SINE),
-		    l10n::getView(STRING_FOR_TRIANGLE),
-		    l10n::getView(STRING_FOR_SQUARE),
-		    l10n::getView(STRING_FOR_SAW),
-		    l10n::getView(STRING_FOR_SAMPLE_AND_HOLD),
-		    l10n::getView(STRING_FOR_RANDOM_WALK),
-		    l10n::getView(STRING_FOR_WARBLE),
+		    l10n::get(STRING_FOR_SINE),   l10n::get(STRING_FOR_TRIANGLE),        l10n::get(STRING_FOR_SQUARE),
+		    l10n::get(STRING_FOR_SAW),    l10n::get(STRING_FOR_SAMPLE_AND_HOLD), l10n::get(STRING_FOR_RANDOM_WALK),
+		    l10n::get(STRING_FOR_WARBLE),
 		};
 	}
 };

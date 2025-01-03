@@ -29,9 +29,9 @@ public:
 	void writeCurrentValue() override { FlashStorage::defaultKeyboardLayout = this->getValue<KeyboardLayoutType>(); }
 	deluge::vector<std::string_view> getOptions() override {
 		return {
-		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_ISOMORPHIC),
-		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_INKEY),
-		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_PIANO),
+		    l10n::get(l10n::String::STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_ISOMORPHIC),
+		    l10n::get(l10n::String::STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_INKEY),
+		    l10n::get(l10n::String::STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_PIANO),
 		};
 	}
 };

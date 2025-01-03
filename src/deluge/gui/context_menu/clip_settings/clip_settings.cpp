@@ -13,27 +13,27 @@ namespace deluge::gui::context_menu::clip_settings {
 
 ClipSettingsMenu clipSettings{};
 
-char const* ClipSettingsMenu::getTitle() {
-	static char const* title = "Clip Settings";
+std::string_view ClipSettingsMenu::getTitle() {
+	static std::string_view title = "Clip Settings";
 	return title;
 }
 
-Sized<char const**> ClipSettingsMenu::getOptions() {
+Sized<std::string_view*> ClipSettingsMenu::getOptions() {
 	using enum l10n::String;
 	if (clip->type == ClipType::AUDIO) {
-		static const char* optionsls[] = {
+		static std::string_view options[] = {
 		    l10n::get(STRING_FOR_CLIP_MODE),
 		    l10n::get(STRING_FOR_CLIP_NAME),
 		};
-		return {optionsls, 2};
+		return {options, 2};
 	}
 	else {
-		static const char* optionsls[] = {
+		static std::string_view options[] = {
 		    l10n::get(STRING_FOR_CONVERT_TO_AUDIO),
 		    l10n::get(STRING_FOR_CLIP_MODE),
 		    l10n::get(STRING_FOR_CLIP_NAME),
 		};
-		return {optionsls, 3};
+		return {options, 3};
 	}
 }
 

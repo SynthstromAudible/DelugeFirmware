@@ -19,24 +19,25 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/save/save_ui.h"
 #include "hid/display/display.h"
+#include <string_view>
 
 namespace deluge::gui::context_menu {
 OverwriteFile overwriteFile{};
 
-char const* OverwriteFile::getTitle() {
+std::string_view OverwriteFile::getTitle() {
 	using enum l10n::String;
 	return l10n::get(STRING_FOR_OVERWRITE_QMARK);
 }
 
-Sized<char const**> OverwriteFile::getOptions() {
+Sized<std::string_view*> OverwriteFile::getOptions() {
 	using enum l10n::String;
 	if (display->haveOLED()) {
-		static char const* options[] = {l10n::get(STRING_FOR_OK)};
-		return {options, 1};
+		static std::string_view options[] = {l10n::get(STRING_FOR_OK)};
+		return {.value = options, .size = 1};
 	}
 	else {
-		static char const* options[] = {l10n::get(STRING_FOR_OVERWRITE)};
-		return {options, 1};
+		static std::string_view options[] = {l10n::get(STRING_FOR_OVERWRITE)};
+		return {.value = options, .size = 1};
 	}
 }
 

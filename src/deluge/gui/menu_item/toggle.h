@@ -2,6 +2,7 @@
 
 #include "gui/ui/sound_editor.h"
 #include "value.h"
+#include <string_view>
 
 namespace deluge::gui::menu_item {
 
@@ -56,7 +57,7 @@ public:
 	}
 
 private:
-	const char* getNameFor(bool on);
+	std::string_view getNameFor(bool on);
 };
 
 /// the toggle pointer passed to this class must be valid for as long as the menu exists

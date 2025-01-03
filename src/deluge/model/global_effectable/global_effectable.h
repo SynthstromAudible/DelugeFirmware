@@ -22,6 +22,7 @@
 #include "gui/l10n/l10n.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "util/containers.h"
+#include <string_view>
 using namespace deluge;
 class Serializer;
 
@@ -77,9 +78,9 @@ protected:
 private:
 	void ensureModFXParamIsValid();
 	void displayCompressorAndReverbSettings(bool on);
-	char const* getCompressorModeDisplayName();
-	char const* getCompressorParamDisplayName();
+	std::string_view getCompressorModeDisplayName();
+	std::string_view getCompressorParamDisplayName();
 	void displayModFXSettings(bool on);
-	char const* getModFXTypeDisplayName();
-	char const* getModFXParamDisplayName();
+	std::string_view getModFXTypeDisplayName();
+	std::string_view getModFXParamDisplayName();
 };

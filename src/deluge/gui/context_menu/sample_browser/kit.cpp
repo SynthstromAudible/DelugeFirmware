@@ -27,14 +27,14 @@
 namespace deluge::gui::context_menu::sample_browser {
 Kit kit{};
 
-char const* Kit::getTitle() {
+std::string_view Kit::getTitle() {
 	using enum l10n::String;
 	return l10n::get(STRING_FOR_SAMPLES);
 }
 
-Sized<char const**> Kit::getOptions() {
+Sized<std::string_view*> Kit::getOptions() {
 	using enum l10n::String;
-	static char const* options[] = {
+	static std::string_view options[] = {
 	    l10n::get(STRING_FOR_LOAD_ALL), //<
 	    l10n::get(STRING_FOR_SLICE)     //<
 	};

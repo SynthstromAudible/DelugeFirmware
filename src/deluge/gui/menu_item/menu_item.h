@@ -214,7 +214,7 @@ public:
 	///
 	/// The returned pointer must live long enough for us to draw the title, which for practical purposes means "the
 	/// lifetime of this menu item"
-	[[nodiscard]] virtual std::string_view getTitle() const { return deluge::l10n::getView(title); }
+	[[nodiscard]] virtual std::string_view getTitle() const { return deluge::l10n::get(title); }
 
 	/// @brief Get the "draw dot state".
 	///
@@ -240,7 +240,7 @@ public:
 	/// @brief Get the actual name for use on OLED for deluge::gui::menu_item::Submenu s.
 	///
 	/// By default this is just the l10n string for \ref name, but can be overriden.
-	[[nodiscard]] virtual std::string_view getName() const { return deluge::l10n::getView(name); }
+	[[nodiscard]] virtual std::string_view getName() const { return deluge::l10n::get(name); }
 	/// @brief Get the name for use on horizontal menus.
 	///
 	/// By default this redirects to getName(), but can be overriden.

@@ -29,8 +29,8 @@ public:
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_TRANSPOSE_INKEY),
-		    l10n::getView(STRING_FOR_TRANSPOSE_CHROMATIC),
+		    l10n::get(STRING_FOR_TRANSPOSE_INKEY),
+		    l10n::get(STRING_FOR_TRANSPOSE_CHROMATIC),
 		};
 	}
 };

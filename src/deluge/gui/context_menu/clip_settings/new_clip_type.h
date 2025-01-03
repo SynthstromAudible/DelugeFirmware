@@ -33,10 +33,10 @@ public:
 	OutputType toCreate = OutputType::NONE;
 
 	/// Title
-	char const* getTitle() override;
+	std::string_view getTitle() override;
 
 	/// Options
-	Sized<const char**> getOptions() override;
+	Sized<std::string_view*> getOptions() override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t on) override;
 };
 

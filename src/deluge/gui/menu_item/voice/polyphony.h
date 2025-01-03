@@ -78,14 +78,14 @@ public:
 
 	deluge::vector<std::string_view> getOptions() override {
 		deluge::vector<std::string_view> options = {
-		    l10n::getView(l10n::String::STRING_FOR_AUTO),
-		    l10n::getView(l10n::String::STRING_FOR_POLYPHONIC),
-		    l10n::getView(l10n::String::STRING_FOR_MONOPHONIC),
-		    l10n::getView(l10n::String::STRING_FOR_LEGATO),
+		    l10n::get(l10n::String::STRING_FOR_AUTO),
+		    l10n::get(l10n::String::STRING_FOR_POLYPHONIC),
+		    l10n::get(l10n::String::STRING_FOR_MONOPHONIC),
+		    l10n::get(l10n::String::STRING_FOR_LEGATO),
 		};
 
 		if (soundEditor.editingKit()) {
-			options.push_back(l10n::getView(l10n::String::STRING_FOR_CHOKE));
+			options.push_back(l10n::get(l10n::String::STRING_FOR_CHOKE));
 		}
 		return options;
 	}

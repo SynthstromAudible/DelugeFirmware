@@ -46,6 +46,7 @@
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include "util/functions.h"
+#include <string_view>
 
 extern "C" {}
 
@@ -491,15 +492,9 @@ void PerformanceView::renderViewDisplay() {
 
 			yPos = yPos + 12;
 
-			char const* editingModeType;
-
 			// render "Param" or "Value" in the middle of the OLED screen
-			if (editingParam) {
-				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_PARAM);
-			}
-			else {
-				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_VALUE);
-			}
+			std::string_view editingModeType = (editingParam) ? l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_PARAM)
+			                                                  : l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_VALUE);
 
 			image.drawStringCentred(editingModeType, yPos, kTextSpacingX, kTextSpacingY);
 
@@ -512,13 +507,8 @@ void PerformanceView::renderViewDisplay() {
 			deluge::hid::display::OLED::markChanged();
 		}
 		else {
-			char const* editingModeType;
-			if (editingParam) {
-				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_PARAM);
-			}
-			else {
-				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_VALUE);
-			}
+			std::string_view editingModeType = (editingParam) ? l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_PARAM)
+			                                                  : l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_VALUE);
 			display->setScrollingText(editingModeType);
 		}
 	}
@@ -552,8 +542,9 @@ void PerformanceView::renderViewDisplay() {
 void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, int32_t knobPos) {
 	if (editingParam) {
 		// display parameter name
-		char parameterName[30];
-		strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
+		char parameterName[30] = {0};
+		auto paramDisplayName = getParamDisplayName(paramKind, paramID);
+		strncpy(parameterName, paramDisplayName.data(), paramDisplayName.length());
 		if (display->haveOLED()) {
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 			deluge::hid::display::OLED::clearMainImage();
@@ -579,8 +570,9 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 			deluge::hid::display::OLED::clearMainImage();
 
 			// display parameter name
-			char parameterName[30];
-			strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
+			char parameterName[30] = {0};
+			auto paramDisplayName = getParamDisplayName(paramKind, paramID);
+			strncpy(parameterName, paramDisplayName.data(), paramDisplayName.length());
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;

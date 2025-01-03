@@ -22,6 +22,7 @@
 #include "hid/button.h"
 #include "model/song/song.h"
 #include "storage/flash_storage.h"
+#include <string_view>
 
 class Editor;
 class InstrumentClip;
@@ -136,7 +137,7 @@ public:
 	// Grid macros config mode
 	void enterMacrosConfigMode();
 	void exitMacrosConfigMode();
-	char const* getMacroKindString(SessionMacroKind kind);
+	std::string_view getMacroKindString(SessionMacroKind kind);
 
 	// Midi learn mode
 	void enterMidiLearnMode();

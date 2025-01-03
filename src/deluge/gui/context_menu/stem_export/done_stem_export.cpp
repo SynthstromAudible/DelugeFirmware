@@ -28,20 +28,20 @@ namespace deluge::gui::context_menu {
 
 DoneStemExport doneStemExport{};
 
-char const* DoneStemExport::getTitle() {
+std::string_view DoneStemExport::getTitle() {
 	using enum l10n::String;
 	return l10n::get(STRING_FOR_DONE_EXPORT_STEMS);
 }
 
-Sized<char const**> DoneStemExport::getOptions() {
+Sized<std::string_view*> DoneStemExport::getOptions() {
 	using enum l10n::String;
 
 	if (display->haveOLED()) {
-		static char const* options[] = {l10n::get(STRING_FOR_OK)};
+		static std::string_view options[] = {l10n::get(STRING_FOR_OK)};
 		return {options, 1};
 	}
 	else {
-		static char const* options[] = {l10n::get(STRING_FOR_DONE_EXPORT_STEMS)};
+		static std::string_view options[] = {l10n::get(STRING_FOR_DONE_EXPORT_STEMS)};
 		return {options, 1};
 	}
 }

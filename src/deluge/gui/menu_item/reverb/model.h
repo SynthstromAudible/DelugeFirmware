@@ -17,8 +17,8 @@ public:
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_FREEVERB),
-		    l10n::getView(STRING_FOR_MUTABLE),
+		    l10n::get(STRING_FOR_FREEVERB),
+		    l10n::get(STRING_FOR_MUTABLE),
 		};
 	}
 };

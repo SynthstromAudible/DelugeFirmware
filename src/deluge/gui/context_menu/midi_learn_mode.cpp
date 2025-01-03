@@ -39,20 +39,20 @@ bool MidiLearnMode::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	return true;
 }
 
-char const* MidiLearnMode::getTitle() {
+std::string_view MidiLearnMode::getTitle() {
 	using enum l10n::String;
 	return l10n::get(STRING_FOR_MIDI_LEARN);
 }
 
-Sized<char const**> MidiLearnMode::getOptions() {
+Sized<std::string_view*> MidiLearnMode::getOptions() {
 	using enum l10n::String;
 
 	if (display->haveOLED()) {
-		static char const* options[] = {l10n::get(STRING_FOR_CONFIGURE_SONG_MACROS_EXIT)};
+		static std::string_view options[] = {l10n::get(STRING_FOR_CONFIGURE_SONG_MACROS_EXIT)};
 		return {options, 1};
 	}
 	else {
-		static char const* options[] = {l10n::get(STRING_FOR_CONFIGURE_SONG_MACROS_EXIT)};
+		static std::string_view options[] = {l10n::get(STRING_FOR_CONFIGURE_SONG_MACROS_EXIT)};
 		return {options, 1};
 	}
 }

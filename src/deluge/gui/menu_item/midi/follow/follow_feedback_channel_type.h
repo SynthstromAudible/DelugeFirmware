@@ -33,10 +33,10 @@ public:
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_FOLLOW_CHANNEL_A),
-		    l10n::getView(STRING_FOR_FOLLOW_CHANNEL_B),
-		    l10n::getView(STRING_FOR_FOLLOW_CHANNEL_C),
-		    l10n::getView(STRING_FOR_NONE),
+		    l10n::get(STRING_FOR_FOLLOW_CHANNEL_A),
+		    l10n::get(STRING_FOR_FOLLOW_CHANNEL_B),
+		    l10n::get(STRING_FOR_FOLLOW_CHANNEL_C),
+		    l10n::get(STRING_FOR_NONE),
 		};
 	}
 };

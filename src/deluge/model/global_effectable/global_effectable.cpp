@@ -33,6 +33,7 @@
 #include "storage/storage_manager.h"
 #include "util/comparison.h"
 #include "util/firmware_version.h"
+#include <string_view>
 
 using namespace deluge;
 namespace params = deluge::modulation::params;
@@ -162,13 +163,13 @@ void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 	}
 }
 
-char const* GlobalEffectable::getCompressorModeDisplayName() {
+std::string_view GlobalEffectable::getCompressorModeDisplayName() {
 	return editingComp ? "FULL" : "ONE";
 }
 
-char const* GlobalEffectable::getCompressorParamDisplayName() {
+std::string_view GlobalEffectable::getCompressorParamDisplayName() {
 	currentCompParam = static_cast<CompParam>(util::to_underlying(currentCompParam) % maxCompParam);
-	const char* params[util::to_underlying(CompParam::LAST)] = {"ratio", "attack", "release", "hpf", "blend"};
+	std::string_view params[util::to_underlying(CompParam::LAST)] = {"ratio", "attack", "release", "hpf", "blend"};
 	return params[int(currentCompParam)];
 }
 
@@ -198,7 +199,7 @@ void GlobalEffectable::displayModFXSettings(bool on) {
 	}
 }
 
-char const* GlobalEffectable::getModFXTypeDisplayName() {
+std::string_view GlobalEffectable::getModFXTypeDisplayName() {
 	auto modTypeCount = kNumModFXTypes;
 
 	modFXType_ = static_cast<ModFXType>(util::to_underlying(modFXType_) % modTypeCount);
@@ -206,7 +207,7 @@ char const* GlobalEffectable::getModFXTypeDisplayName() {
 	return modfx::modFXToString(modFXType_);
 }
 
-char const* GlobalEffectable::getModFXParamDisplayName() {
+std::string_view GlobalEffectable::getModFXParamDisplayName() {
 	currentModFXParam = static_cast<ModFXParam>(util::to_underlying(currentModFXParam) % kNumModFXParams);
 
 	return modfx::getParamName(modFXType_, currentModFXParam);
@@ -1175,18 +1176,18 @@ deluge::vector<std::string_view> getModNames() {
 	using enum deluge::l10n::String;
 	using namespace deluge;
 	return {
-	    l10n::getView(STRING_FOR_DISABLED),      //<
-	    l10n::getView(STRING_FOR_FLANGER),       //<
-	    l10n::getView(STRING_FOR_CHORUS),        //<
-	    l10n::getView(STRING_FOR_PHASER),        //<
-	    l10n::getView(STRING_FOR_STEREO_CHORUS), //<
-	    l10n::getView(STRING_FOR_WARBLE),
-	    l10n::getView(STRING_FOR_DIMENSION), //<
-	    l10n::getView(STRING_FOR_GRAIN),     //<
+	    l10n::get(STRING_FOR_DISABLED),      //<
+	    l10n::get(STRING_FOR_FLANGER),       //<
+	    l10n::get(STRING_FOR_CHORUS),        //<
+	    l10n::get(STRING_FOR_PHASER),        //<
+	    l10n::get(STRING_FOR_STEREO_CHORUS), //<
+	    l10n::get(STRING_FOR_WARBLE),
+	    l10n::get(STRING_FOR_DIMENSION), //<
+	    l10n::get(STRING_FOR_GRAIN),     //<
 	};
 }
 
-const char* getParamName(ModFXType type, ModFXParam param) {
+std::string_view getParamName(ModFXType type, ModFXParam param) {
 	using enum deluge::l10n::String;
 	using namespace deluge;
 	switch (type) {
@@ -1219,7 +1220,8 @@ const char* getParamName(ModFXType type, ModFXParam param) {
 	}
 	}
 }
-const char* modFXToString(ModFXType type) {
+
+std::string_view modFXToString(ModFXType type) {
 	switch (type) {
 		using namespace deluge;
 		using enum deluge::l10n::String;

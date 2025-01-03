@@ -26,8 +26,8 @@ class OverwriteFile final : public ContextMenuForSaving {
 public:
 	OverwriteFile() = default;
 
-	char const* getTitle() override;
-	Sized<char const**> getOptions() override;
+	std::string_view getTitle() override;
+	Sized<std::string_view*> getOptions() override;
 	bool acceptCurrentOption() override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t on) override;
 

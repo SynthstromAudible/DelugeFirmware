@@ -17,6 +17,7 @@
 
 #include "usb_hosted.h"
 #include "storage/storage_manager.h"
+#include <string_view>
 
 void MIDICableUSBHosted::writeReferenceAttributesToFile(Serializer& writer) {
 	writer.writeAttribute("name", name.get());
@@ -29,7 +30,7 @@ void MIDICableUSBHosted::writeToFlash(uint8_t* memory) {
 	*(uint16_t*)(memory + 2) = productId;
 }
 
-char const* MIDICableUSBHosted::getDisplayName() {
+std::string_view MIDICableUSBHosted::getDisplayName() {
 	return name.get();
 }
 

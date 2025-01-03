@@ -24,14 +24,14 @@ class Synth final : public ContextMenu {
 public:
 	Synth() = default;
 
-	Sized<char const**> getOptions() override;
+	Sized<std::string_view*> getOptions() override;
 	bool isCurrentOptionAvailable() override;
 	bool canSeeViewUnderneath() override;
 
 	bool acceptCurrentOption() override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
-	char const* getTitle() override;
+	std::string_view getTitle() override;
 };
 
 extern Synth synth;

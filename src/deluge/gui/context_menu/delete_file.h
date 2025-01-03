@@ -24,10 +24,10 @@ class DeleteFile final : public ContextMenuForSaving {
 public:
 	DeleteFile() = default;
 
-	Sized<char const**> getOptions() override;
+	Sized<std::string_view*> getOptions() override;
 	bool acceptCurrentOption() override;
 
-	char const* getTitle() override;
+	std::string_view getTitle() override;
 };
 
 extern DeleteFile deleteFile;

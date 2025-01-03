@@ -23,9 +23,9 @@ namespace deluge::gui::context_menu {
 class LoadInstrumentPreset final : public ContextMenuForLoading {
 public:
 	LoadInstrumentPreset() = default;
-	Sized<char const**> getOptions() override;
+	Sized<std::string_view*> getOptions() override;
 	bool acceptCurrentOption() override;
-	char const* getTitle() override;
+	std::string_view getTitle() override;
 };
 
 extern LoadInstrumentPreset loadInstrumentPreset;

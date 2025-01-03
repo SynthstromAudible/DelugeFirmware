@@ -3,6 +3,7 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
 #include <algorithm>
+#include <string_view>
 
 namespace deluge::gui::menu_item {
 
@@ -19,7 +20,7 @@ void Toggle::selectEncoderAction(int32_t offset) {
 	Value::selectEncoderAction(offset);
 }
 
-const char* Toggle::getNameFor(bool enabled) {
+std::string_view Toggle::getNameFor(bool enabled) {
 	return enabled ? l10n::get(l10n::String::STRING_FOR_ENABLED) : l10n::get(l10n::String::STRING_FOR_DISABLED);
 }
 
@@ -41,7 +42,7 @@ void Toggle::drawPixelsForOled() {
 	bool selectedOption = getValue();
 	bool order[2] = {false, true};
 	for (bool o : order) {
-		const char* name = getNameFor(o);
+		std::string_view name = getNameFor(o);
 		canvas.drawString(name, kTextSpacingX, yPixel, kTextSpacingX, kTextSpacingY);
 
 		if (o == selectedOption) {

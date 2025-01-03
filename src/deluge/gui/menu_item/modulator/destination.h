@@ -28,9 +28,9 @@ public:
 	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->getValue(); }
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
-		static auto mod1 = l10n::getView(STRING_FOR_MODULATOR_1);
+		static auto mod1 = l10n::get(STRING_FOR_MODULATOR_1);
 		return {
-		    l10n::getView(STRING_FOR_CARRIERS),
+		    l10n::get(STRING_FOR_CARRIERS),
 		    mod1,
 		};
 	}

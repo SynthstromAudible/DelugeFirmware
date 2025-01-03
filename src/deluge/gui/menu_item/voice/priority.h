@@ -28,9 +28,9 @@ public:
 	void writeCurrentValue() override { *soundEditor.currentPriority = this->getValue<VoicePriority>(); }
 	deluge::vector<std::string_view> getOptions() override {
 		return {
-		    l10n::getView(l10n::String::STRING_FOR_LOW),
-		    l10n::getView(l10n::String::STRING_FOR_MEDIUM),
-		    l10n::getView(l10n::String::STRING_FOR_HIGH),
+		    l10n::get(l10n::String::STRING_FOR_LOW),
+		    l10n::get(l10n::String::STRING_FOR_MEDIUM),
+		    l10n::get(l10n::String::STRING_FOR_HIGH),
 		};
 	}
 };

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge/io/midi/cable_types/usb_common.h"
+#include <string_view>
 
 class MIDICableUSBHosted : public MIDICableUSB {
 public:
@@ -26,7 +27,7 @@ public:
 
 	void writeReferenceAttributesToFile(Serializer& writer) override;
 	void writeToFlash(uint8_t* memory) override;
-	char const* getDisplayName() override;
+	std::string_view getDisplayName() override;
 
 	/// @name Hooks
 	/// @{

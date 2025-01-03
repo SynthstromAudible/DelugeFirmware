@@ -76,7 +76,7 @@ public:
 		if (type == FilterParamType::MORPH) {
 			using enum l10n::String;
 			auto filt = deluge::dsp::filter::SpecificFilter(getMode());
-			return l10n::getView(filt.getMorphName());
+			return l10n::get(filt.getMorphName());
 		}
 		else {
 			return alt;

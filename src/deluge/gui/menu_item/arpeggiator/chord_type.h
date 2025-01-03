@@ -42,15 +42,15 @@ public:
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_NONE),      //<
-		    l10n::getView(STRING_FOR_FIFTH),     //<
-		    l10n::getView(STRING_FOR_SUS2),      //<
-		    l10n::getView(STRING_FOR_MINOR),     //<
-		    l10n::getView(STRING_FOR_MAJOR),     //<
-		    l10n::getView(STRING_FOR_SUS4),      //<
-		    l10n::getView(STRING_FOR_MINOR7),    //<
-		    l10n::getView(STRING_FOR_DOMINANT7), //<
-		    l10n::getView(STRING_FOR_MAJOR7),    //<
+		    l10n::get(STRING_FOR_NONE),      //<
+		    l10n::get(STRING_FOR_FIFTH),     //<
+		    l10n::get(STRING_FOR_SUS2),      //<
+		    l10n::get(STRING_FOR_MINOR),     //<
+		    l10n::get(STRING_FOR_MAJOR),     //<
+		    l10n::get(STRING_FOR_SUS4),      //<
+		    l10n::get(STRING_FOR_MINOR7),    //<
+		    l10n::get(STRING_FOR_DOMINANT7), //<
+		    l10n::get(STRING_FOR_MAJOR7),    //<
 		};
 	}
 };

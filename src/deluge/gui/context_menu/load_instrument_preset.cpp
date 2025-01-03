@@ -24,14 +24,14 @@
 namespace deluge::gui::context_menu {
 LoadInstrumentPreset loadInstrumentPreset{};
 
-char const* LoadInstrumentPreset::getTitle() {
+std::string_view LoadInstrumentPreset::getTitle() {
 	using enum l10n::String;
 	return l10n::get(STRING_FOR_LOAD_PRESET);
 }
 
-Sized<char const**> LoadInstrumentPreset::getOptions() {
+Sized<std::string_view*> LoadInstrumentPreset::getOptions() {
 	using enum l10n::String;
-	static char const* options[] = {l10n::get(STRING_FOR_CLONE)};
+	static std::string_view options[] = {l10n::get(STRING_FOR_CLONE)};
 	return {options, 1};
 }
 

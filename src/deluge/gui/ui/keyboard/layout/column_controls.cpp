@@ -323,7 +323,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 		state.leftCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
 		state.leftColFunc = (offset > 0) ? nextControlFunction(state.leftColFunc, state.rightColFunc)
 		                                 : prevControlFunction(state.leftColFunc, state.rightColFunc);
-		display->displayPopup(l10n::getView(functionNames[state.leftColFunc]));
+		display->displayPopup(l10n::get(functionNames[state.leftColFunc]));
 		state.leftCol = state.getColumnForFunc(state.leftColFunc);
 		keyboardScreen.killColumnSwitchKey(LEFT_COL);
 		return true;
@@ -332,7 +332,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 		state.rightCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
 		state.rightColFunc = (offset > 0) ? nextControlFunction(state.rightColFunc, state.leftColFunc)
 		                                  : prevControlFunction(state.rightColFunc, state.leftColFunc);
-		display->displayPopup(l10n::getView(functionNames[state.rightColFunc]));
+		display->displayPopup(l10n::get(functionNames[state.rightColFunc]));
 		state.rightCol = state.getColumnForFunc(state.rightColFunc);
 		state.rightColSetAtRuntime = true;
 		keyboardScreen.killColumnSwitchKey(RIGHT_COL);

@@ -37,7 +37,7 @@ public:
 	virtual bool isCurrentOptionAvailable() { return true; }
 	virtual bool acceptCurrentOption() { return false; } // If returns false, will cause UI to exit
 
-	virtual Sized<char const**> getOptions() = 0;
+	virtual Sized<std::string_view*> getOptions() = 0;
 
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
@@ -49,7 +49,7 @@ public:
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 	int32_t scrollPos = 0; // Don't make static. We'll have multiple nested ContextMenus open at the same time
-	virtual char const* getTitle() = 0;
+	virtual std::string_view getTitle() = 0;
 
 	// UI
 

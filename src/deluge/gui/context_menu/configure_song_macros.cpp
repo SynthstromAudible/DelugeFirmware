@@ -22,6 +22,7 @@
 #include "gui/views/session_view.h"
 #include "hid/display/display.h"
 #include "model/song/song.h"
+#include <string_view>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -37,20 +38,20 @@ bool ConfigureSongMacros::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) 
 	return true;
 }
 
-char const* ConfigureSongMacros::getTitle() {
+std::string_view ConfigureSongMacros::getTitle() {
 	using enum l10n::String;
 	return l10n::get(STRING_FOR_CONFIGURE_SONG_MACROS_SHORT);
 }
 
-Sized<char const**> ConfigureSongMacros::getOptions() {
+Sized<std::string_view*> ConfigureSongMacros::getOptions() {
 	using enum l10n::String;
 
 	if (display->haveOLED()) {
-		static char const* options[] = {l10n::get(STRING_FOR_CONFIGURE_SONG_MACROS_EXIT)};
+		static std::string_view options[] = {l10n::get(STRING_FOR_CONFIGURE_SONG_MACROS_EXIT)};
 		return {options, 1};
 	}
 	else {
-		static char const* options[] = {l10n::get(STRING_FOR_CONFIGURE_SONG_MACROS_EXIT)};
+		static std::string_view options[] = {l10n::get(STRING_FOR_CONFIGURE_SONG_MACROS_EXIT)};
 		return {options, 1};
 	}
 }
@@ -99,7 +100,7 @@ void ConfigureSongMacros::renderOLED(deluge::hid::display::oled_canvas::Canvas& 
 	ContextMenu::renderOLED(canvas);
 
 	if (sessionView.selectedMacro != -1) {
-		const char* macroKind =
+		std::string_view macroKind =
 		    sessionView.getMacroKindString(currentSong->sessionMacros[sessionView.selectedMacro].kind);
 		int32_t windowHeight = 40;
 		int32_t windowMinY = (OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1;

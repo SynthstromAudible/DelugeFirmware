@@ -143,15 +143,15 @@ protected:
 	/// subclass is
 	deluge::modulation::params::Kind unpatchedParamKind_;
 
-	char const* getFilterTypeDisplayName(FilterType currentFilterType);
-	char const* getFilterModeDisplayName(FilterType currentFilterType);
-	char const* getLPFModeDisplayName();
-	char const* getHPFModeDisplayName();
-	char const* getDelayTypeDisplayName();
-	char const* getDelayPingPongStatusDisplayName();
-	char const* getDelaySyncTypeDisplayName();
+	std::string_view getFilterTypeDisplayName(FilterType currentFilterType);
+	std::string_view getFilterModeDisplayName(FilterType currentFilterType);
+	std::string_view getLPFModeDisplayName();
+	std::string_view getHPFModeDisplayName();
+	std::string_view getDelayTypeDisplayName();
+	std::string_view getDelayPingPongStatusDisplayName();
+	std::string_view getDelaySyncTypeDisplayName();
 	std::string getDelaySyncLevelDisplayName();
-	char const* getSidechainDisplayName();
+	std::string_view getSidechainDisplayName();
 
 	void displayFilterSettings(bool on, FilterType currentFilterType);
 	void displayDelaySettings(bool on);

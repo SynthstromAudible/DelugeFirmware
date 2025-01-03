@@ -22,6 +22,7 @@
 #include "dsp/stereo_sample.h"
 #include "modulation/lfo.h"
 #include "util/containers.h"
+#include <string_view>
 class ModFXProcessor {
 
 	void setupChorus(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
@@ -78,9 +79,9 @@ public:
 namespace modfx {
 deluge::vector<std::string_view> getModNames();
 
-const char* getParamName(ModFXType type, ModFXParam param);
+std::string_view getParamName(ModFXType type, ModFXParam param);
 
-const char* modFXToString(ModFXType type);
+std::string_view modFXToString(ModFXType type);
 } // namespace modfx
 
 #endif // DELUGE_MODFXPROCESSOR_H

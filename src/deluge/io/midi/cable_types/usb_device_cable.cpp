@@ -19,6 +19,7 @@
 #include "gui/l10n/l10n.h"
 #include "io/debug/log.h"
 #include "storage/storage_manager.h"
+#include <string_view>
 
 void MIDICableUSBUpstream::writeReferenceAttributesToFile(Serializer& writer) {
 	// Same line. Usually the user wouldn't have default velocity sensitivity set for their computer.
@@ -30,7 +31,7 @@ void MIDICableUSBUpstream::writeToFlash(uint8_t* memory) {
 	*(uint16_t*)memory = portNumber ? VENDOR_ID_UPSTREAM_USB2 : VENDOR_ID_UPSTREAM_USB;
 }
 
-char const* MIDICableUSBUpstream::getDisplayName() {
+std::string_view MIDICableUSBUpstream::getDisplayName() {
 	switch (portNumber) {
 	case 0:
 		return deluge::l10n::get(deluge::l10n::String::STRING_FOR_UPSTREAM_USB_PORT_1);

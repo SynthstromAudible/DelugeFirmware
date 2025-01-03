@@ -57,17 +57,17 @@ public:
 
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
-		static auto out1 = l10n::getView(STRING_FOR_GATE_OUTPUT_1);
-		static auto out2 = l10n::getView(STRING_FOR_GATE_OUTPUT_2);
-		static auto out3 = l10n::getView(STRING_FOR_GATE_OUTPUT_3);
-		static auto out4 = l10n::getView(STRING_FOR_GATE_OUTPUT_4);
+		static auto out1 = l10n::get(STRING_FOR_GATE_OUTPUT_1);
+		static auto out2 = l10n::get(STRING_FOR_GATE_OUTPUT_2);
+		static auto out3 = l10n::get(STRING_FOR_GATE_OUTPUT_3);
+		static auto out4 = l10n::get(STRING_FOR_GATE_OUTPUT_4);
 
 		return {
-		    out1,                                       //<
-		    out2,                                       //<
-		    out3,                                       //<
-		    out4,                                       //<
-		    l10n::getView(STRING_FOR_MINIMUM_OFF_TIME), //<
+		    out1,                                   //<
+		    out2,                                   //<
+		    out3,                                   //<
+		    out4,                                   //<
+		    l10n::get(STRING_FOR_MINIMUM_OFF_TIME), //<
 		};
 	}
 };

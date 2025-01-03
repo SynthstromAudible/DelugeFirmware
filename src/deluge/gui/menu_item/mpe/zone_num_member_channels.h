@@ -32,7 +32,7 @@ public:
 	// char nameChars[16];
 
 	[[nodiscard]] std::string_view getTitle() const override {
-		return l10n::getView(l10n::String::STRING_FOR_NUM_MEMBER_CH_MENU_TITLE);
+		return l10n::get(l10n::String::STRING_FOR_NUM_MEMBER_CH_MENU_TITLE);
 	}
 
 private:

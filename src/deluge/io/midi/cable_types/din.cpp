@@ -24,6 +24,7 @@ extern "C" {
 #include "gui/l10n/l10n.h"
 #include "io/midi/midi_engine.h"
 #include "storage/storage_manager.h"
+#include <string_view>
 
 void MIDICableDINPorts::writeReferenceAttributesToFile(Serializer& writer) {
 	// Same line. Usually the user wouldn't have default velocity sensitivity set
@@ -34,7 +35,7 @@ void MIDICableDINPorts::writeToFlash(uint8_t* memory) {
 	*(uint16_t*)memory = VENDOR_ID_DIN;
 }
 
-char const* MIDICableDINPorts::getDisplayName() {
+std::string_view MIDICableDINPorts::getDisplayName() {
 	return deluge::l10n::get(deluge::l10n::String::STRING_FOR_DIN_PORTS);
 }
 

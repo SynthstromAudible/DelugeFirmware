@@ -16,21 +16,21 @@ constexpr size_t kNumValues = 5;
 
 NewClipType newClipType{};
 
-char const* NewClipType::getTitle() {
-	static char const* title = "New Clip Type";
+std::string_view NewClipType::getTitle() {
+	static std::string_view title = "New Clip Type";
 	return title;
 }
 
-Sized<char const**> NewClipType::getOptions() {
+Sized<std::string_view*> NewClipType::getOptions() {
 	using enum l10n::String;
-	static const char* optionsls[] = {
+	static std::string_view options[] = {
 	    "Audio", // audio
 	    "Synth", // synth
 	    "Kit",   // kit
 	    "MIDI",  // midi
 	    "CV",    // cv
 	};
-	return {optionsls, kNumValues};
+	return {options, kNumValues};
 }
 
 bool NewClipType::setupAndCheckAvailability() {

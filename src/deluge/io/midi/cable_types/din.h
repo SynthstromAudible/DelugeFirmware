@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge/io/midi/midi_device.h"
+#include <string_view>
 
 class MIDICableDINPorts final : public MIDICable {
 public:
@@ -29,7 +30,7 @@ public:
 
 	void writeReferenceAttributesToFile(Serializer& writer) override;
 	void writeToFlash(uint8_t* memory) override;
-	char const* getDisplayName() override;
+	std::string_view getDisplayName() override;
 
 	void sendMessage(MIDIMessage message) override;
 	void sendSysex(const uint8_t* data, int32_t len) override;

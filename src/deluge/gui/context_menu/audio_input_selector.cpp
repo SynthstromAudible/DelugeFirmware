@@ -41,14 +41,14 @@ constexpr size_t kNumValues = 8;
 
 AudioInputSelector audioInputSelector{};
 
-char const* AudioInputSelector::getTitle() {
+std::string_view AudioInputSelector::getTitle() {
 	using enum l10n::String;
 	return l10n::get(STRING_FOR_AUDIO_SOURCE);
 }
 
-Sized<const char**> AudioInputSelector::getOptions() {
+Sized<std::string_view*> AudioInputSelector::getOptions() {
 	using enum l10n::String;
-	static const char* options[] = {
+	static std::string_view options[kNumValues] = {
 	    l10n::get(STRING_FOR_DISABLED),     l10n::get(STRING_FOR_LEFT_INPUT),     l10n::get(STRING_FOR_RIGHT_INPUT),
 	    l10n::get(STRING_FOR_STEREO_INPUT), l10n::get(STRING_FOR_BALANCED_INPUT), l10n::get(STRING_FOR_MIX_PRE_FX),
 	    l10n::get(STRING_FOR_MIX_POST_FX),  l10n::get(STRING_FOR_TRACK),

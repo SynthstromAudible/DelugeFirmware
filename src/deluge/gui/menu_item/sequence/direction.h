@@ -90,16 +90,16 @@ public:
 
 	deluge::vector<std::string_view> getOptions() override {
 		deluge::vector<std::string_view> sequenceDirectionOptions = {
-		    l10n::getView(l10n::String::STRING_FOR_FORWARD),
-		    l10n::getView(l10n::String::STRING_FOR_REVERSED),
-		    l10n::getView(l10n::String::STRING_FOR_PING_PONG),
+		    l10n::get(l10n::String::STRING_FOR_FORWARD),
+		    l10n::get(l10n::String::STRING_FOR_REVERSED),
+		    l10n::get(l10n::String::STRING_FOR_PING_PONG),
 		};
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			sequenceDirectionOptions.push_back(l10n::getView(l10n::String::STRING_FOR_NONE));
+			sequenceDirectionOptions.push_back(l10n::get(l10n::String::STRING_FOR_NONE));
 		}
 
 		return sequenceDirectionOptions;

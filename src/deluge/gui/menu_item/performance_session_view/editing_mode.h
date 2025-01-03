@@ -76,9 +76,9 @@ public:
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_DISABLED),
-		    l10n::getView(STRING_FOR_PERFORM_EDIT_VALUE),
-		    l10n::getView(STRING_FOR_PERFORM_EDIT_PARAM),
+		    l10n::get(STRING_FOR_DISABLED),
+		    l10n::get(STRING_FOR_PERFORM_EDIT_VALUE),
+		    l10n::get(STRING_FOR_PERFORM_EDIT_PARAM),
 		};
 	}
 };

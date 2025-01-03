@@ -21,6 +21,7 @@
 #include "gui/l10n/strings.h"
 #include "model/settings/runtime_feature_settings.h"
 #include <cstring>
+#include <string_view>
 
 namespace deluge::modulation::params {
 
@@ -173,7 +174,7 @@ char const* getPatchedParamShortName(ParamType type) {
 	}
 }
 
-char const* getPatchedParamDisplayName(int32_t p) {
+std::string_view getPatchedParamDisplayName(int32_t p) {
 	using enum l10n::String;
 
 	static l10n::String const NAMES[GLOBAL_NONE] = {
@@ -233,7 +234,7 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	}
 }
 
-char const* getParamDisplayName(Kind kind, int32_t p) {
+std::string_view getParamDisplayName(Kind kind, int32_t p) {
 	using enum l10n::String;
 	if (kind == Kind::PATCHED) {
 		return getPatchedParamDisplayName(p);

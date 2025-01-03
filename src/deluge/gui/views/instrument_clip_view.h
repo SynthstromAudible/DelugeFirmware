@@ -26,6 +26,7 @@
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_node.h"
 #include "util/d_string.h"
+#include <string_view>
 
 class InstrumentClip;
 class NoteRow;
@@ -236,7 +237,7 @@ public:
 	void adjustVelocity(int32_t velocityChange);
 	void updateVelocityValue(int32_t& velocityValue, int32_t newVelocity);
 	void displayVelocity(int32_t velocityValue, int32_t velocityChange);
-	void popupVelocity(char const* displayString);
+	void popupVelocity(std::string_view displayString);
 
 	void adjustNoteProbabilityWithOffset(int32_t offset);
 	void adjustNoteIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom = true);

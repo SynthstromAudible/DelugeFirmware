@@ -14,19 +14,19 @@ constexpr size_t kNumValues = 3;
 
 LaunchStyleMenu launchStyle{};
 
-char const* LaunchStyleMenu::getTitle() {
-	static char const* title = "Clip Mode";
+std::string_view LaunchStyleMenu::getTitle() {
+	static std::string_view title = "Clip Mode";
 	return title;
 }
 
-Sized<char const**> LaunchStyleMenu::getOptions() {
+Sized<std::string_view*> LaunchStyleMenu::getOptions() {
 	using enum l10n::String;
-	static const char* optionsls[] = {
+	static std::string_view options[] = {
 	    l10n::get(STRING_FOR_DEFAULT_LAUNCH),
 	    l10n::get(STRING_FOR_FILL_LAUNCH),
 	    l10n::get(STRING_FOR_ONCE_LAUNCH),
 	};
-	return {optionsls, kNumValues};
+	return {options, kNumValues};
 }
 
 bool LaunchStyleMenu::setupAndCheckAvailability() {

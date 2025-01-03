@@ -43,7 +43,7 @@ public:
 	deluge::vector<std::string_view> getOptions() override {
 		deluge::vector<std::string_view> output;
 		for (l10n::String str : options_) {
-			output.push_back(l10n::getView(str));
+			output.push_back(l10n::get(str));
 		}
 		return output;
 	}

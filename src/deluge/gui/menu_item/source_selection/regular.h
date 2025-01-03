@@ -26,7 +26,7 @@ public:
 	ParamDescriptor getDestinationDescriptor() override;
 	MenuItem* selectButtonPress() override;
 	MenuItem* patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) override;
-	std::string_view getTitle() const override { return l10n::getView(l10n::String::STRING_FOR_MODULATE_WITH); };
+	std::string_view getTitle() const override { return l10n::get(l10n::String::STRING_FOR_MODULATE_WITH); };
 };
 
 extern Regular regularMenu;

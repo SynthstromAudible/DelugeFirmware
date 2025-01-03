@@ -7,8 +7,8 @@
 #include <optional>
 
 namespace deluge::l10n {
-std::string_view getView(const deluge::l10n::Language& language, deluge::l10n::String string);
-std::string_view getView(deluge::l10n::String string);
-const char* get(const deluge::l10n::Language& language, deluge::l10n::String string);
-const char* get(deluge::l10n::String string);
+std::string_view get(const deluge::l10n::Language& language, deluge::l10n::String string);
+std::string_view get(deluge::l10n::String string);
+const char* getRaw(const deluge::l10n::Language& language, deluge::l10n::String string);
+const char* getRaw(deluge::l10n::String string);
 } // namespace deluge::l10n

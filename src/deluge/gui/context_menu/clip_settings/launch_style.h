@@ -24,10 +24,10 @@ public:
 	Clip* clip = nullptr;
 
 	/// Title
-	char const* getTitle() override;
+	std::string_view getTitle() override;
 
 	/// Options
-	Sized<const char**> getOptions() override;
+	Sized<std::string_view*> getOptions() override;
 };
 
 extern LaunchStyleMenu launchStyle;

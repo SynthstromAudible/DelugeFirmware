@@ -24,11 +24,11 @@ class DoneStemExport final : public ContextMenu {
 public:
 	DoneStemExport() = default;
 
-	Sized<char const**> getOptions() override;
+	Sized<std::string_view*> getOptions() override;
 	bool acceptCurrentOption() override;
 	bool canSeeViewUnderneath() override { return true; }
 
-	char const* getTitle() override;
+	std::string_view getTitle() override;
 };
 
 extern DoneStemExport doneStemExport;

@@ -24,8 +24,8 @@ class ConfigureSongMacros final : public ContextMenu {
 public:
 	ConfigureSongMacros() = default;
 
-	char const* getTitle() override;
-	Sized<char const**> getOptions() override;
+	std::string_view getTitle() override;
+	Sized<std::string_view*> getOptions() override;
 	bool setupAndCheckAvailability();
 	bool acceptCurrentOption() override;
 	bool canSeeViewUnderneath() override { return true; }

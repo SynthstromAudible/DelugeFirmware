@@ -25,6 +25,7 @@
 #include "util/cfunctions.h"
 #include "util/misc.h"
 #include "util/string.h"
+#include <string_view>
 
 namespace deluge::gui::menu_item::midi {
 
@@ -43,7 +44,7 @@ void Command::drawPixelsForOled() {
 		                 kTextSizeYUpdated);
 	}
 	else {
-		char const* deviceString = l10n::get(l10n::String::STRING_FOR_ANY_MIDI_DEVICE);
+		std::string_view deviceString = l10n::get(l10n::String::STRING_FOR_ANY_MIDI_DEVICE);
 		if (command->cable) {
 			deviceString = command->cable->getDisplayName();
 		}
@@ -53,7 +54,7 @@ void Command::drawPixelsForOled() {
 
 		yPixel += kTextSpacingY;
 
-		char const* channelText;
+		std::string_view channelText;
 		if (command->channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
 			channelText = l10n::get(l10n::String::STRING_FOR_MPE_LOWER_ZONE);
 		}
@@ -92,7 +93,7 @@ void Command::drawPixelsForOled() {
 }
 
 void Command::drawValue() const {
-	char const* output = nullptr;
+	std::string_view output;
 	if (!midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].containsSomething()) {
 		output = l10n::get(l10n::String::STRING_FOR_NONE);
 	}

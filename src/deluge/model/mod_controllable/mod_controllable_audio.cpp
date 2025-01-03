@@ -40,6 +40,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
+#include <string_view>
 
 namespace params = deluge::modulation::params;
 
@@ -1156,7 +1157,7 @@ void ModControllableAudio::switchDelayAnalog() {
 	delay.analog = !delay.analog;
 }
 
-char const* ModControllableAudio::getDelayTypeDisplayName() {
+std::string_view ModControllableAudio::getDelayTypeDisplayName() {
 	switch (delay.analog) {
 		using enum deluge::l10n::String;
 	case 0:
@@ -1181,7 +1182,7 @@ void ModControllableAudio::switchDelaySyncType() {
 	}
 }
 
-char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
+std::string_view ModControllableAudio::getDelaySyncTypeDisplayName() {
 	switch (delay.syncType) {
 	case SYNC_TYPE_TRIPLET:
 		return "Triplet";
@@ -1203,7 +1204,7 @@ std::string ModControllableAudio::getDelaySyncLevelDisplayName() {
 	return currentSong->getNoteLengthName((uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
 }
 
-char const* ModControllableAudio::getFilterTypeDisplayName(FilterType currentFilterType) {
+std::string_view ModControllableAudio::getFilterTypeDisplayName(FilterType currentFilterType) {
 	using enum deluge::l10n::String;
 	switch (currentFilterType) {
 	case FilterType::LPF:
@@ -1236,7 +1237,7 @@ void ModControllableAudio::switchLPFModeWithOff() {
 	}
 }
 
-char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFilterType) {
+std::string_view ModControllableAudio::getFilterModeDisplayName(FilterType currentFilterType) {
 	switch (currentFilterType) {
 	case FilterType::LPF:
 		return getLPFModeDisplayName();
@@ -1247,7 +1248,7 @@ char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFil
 	}
 }
 
-char const* ModControllableAudio::getLPFModeDisplayName() {
+std::string_view ModControllableAudio::getLPFModeDisplayName() {
 
 	using enum deluge::l10n::String;
 	switch (lpfMode) {
@@ -1282,7 +1283,7 @@ void ModControllableAudio::switchHPFModeWithOff() {
 	}
 }
 
-char const* ModControllableAudio::getHPFModeDisplayName() {
+std::string_view ModControllableAudio::getHPFModeDisplayName() {
 	using enum deluge::l10n::String;
 	switch (hpfMode) {
 	case FilterMode::HPLADDER:
@@ -1473,7 +1474,7 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 	}
 }
 
-char const* ModControllableAudio::getDelayPingPongStatusDisplayName() {
+std::string_view ModControllableAudio::getDelayPingPongStatusDisplayName() {
 	using enum deluge::l10n::String;
 	switch (delay.pingPong) {
 	case 0:
@@ -1513,7 +1514,7 @@ void ModControllableAudio::displaySidechainAndReverbSettings(bool on) {
 	}
 }
 
-char const* ModControllableAudio::getSidechainDisplayName() {
+std::string_view ModControllableAudio::getSidechainDisplayName() {
 	int32_t insideWorldTickMagnitude;
 	if (currentSong) { // Bit of a hack just referring to currentSong in here...
 		insideWorldTickMagnitude =

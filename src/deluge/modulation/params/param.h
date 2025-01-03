@@ -22,6 +22,7 @@
 #include "util/misc.h"
 #include <algorithm>
 #include <cstdint>
+#include <string_view>
 
 /// \namespace deluge::modulation::params
 /// "Param"s are at the heart of the Deluge's modulation capabilities.
@@ -256,10 +257,10 @@ bool isSidechainPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
 bool isPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
 void getPatchCableFromShortcut(int32_t xDisplay, int32_t yDisplay, ParamDescriptor* paramDescriptor);
 
-char const* getPatchedParamDisplayName(int32_t p);
+std::string_view getPatchedParamDisplayName(int32_t p);
 /// Get the short version of a param name, for use in the OLED mod matrix display (maximum 10 characters)
 char const* getPatchedParamShortName(ParamType type);
-char const* getParamDisplayName(Kind kind, int32_t p);
+std::string_view getParamDisplayName(Kind kind, int32_t p);
 
 bool paramNeedsLPF(ParamType p, bool fromAutomation);
 

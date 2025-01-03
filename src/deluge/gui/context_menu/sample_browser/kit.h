@@ -24,14 +24,14 @@ class Kit final : public ContextMenu {
 public:
 	Kit() = default;
 
-	Sized<char const**> getOptions() override;
+	Sized<std::string_view*> getOptions() override;
 	bool isCurrentOptionAvailable() override;
 	bool canSeeViewUnderneath() override;
 
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	bool acceptCurrentOption() override;
 
-	char const* getTitle() override;
+	std::string_view getTitle() override;
 };
 
 extern Kit kit;

@@ -34,19 +34,19 @@ extern void deleteOldSongBeforeLoadingNew();
 namespace deluge::gui::context_menu {
 ClearSong clearSong{};
 
-char const* ClearSong::getTitle() {
+std::string_view ClearSong::getTitle() {
 	using enum l10n::String;
 	return l10n::get(STRING_FOR_CLEAR_SONG_QMARK);
 }
 
-Sized<char const**> ClearSong::getOptions() {
+Sized<std::string_view*> ClearSong::getOptions() {
 	using enum l10n::String;
 	if (display->haveOLED()) {
-		static char const* options[] = {l10n::get(STRING_FOR_OK)};
+		static std::string_view options[] = {l10n::get(STRING_FOR_OK)};
 		return {options, 1};
 	}
 	else {
-		static char const* options[] = {l10n::get(STRING_FOR_NEW)};
+		static std::string_view options[] = {l10n::get(STRING_FOR_NEW)};
 		return {options, 1};
 	}
 }

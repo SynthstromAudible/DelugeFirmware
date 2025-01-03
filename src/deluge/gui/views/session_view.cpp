@@ -4312,7 +4312,7 @@ ActionResult SessionView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on,
 			renderUIsForOled();
 		}
 		else {
-			const char* macroKind = getMacroKindString(macro.kind);
+			std::string_view macroKind = getMacroKindString(macro.kind);
 			display->displayPopup(macroKind);
 		}
 
@@ -4327,25 +4327,23 @@ ActionResult SessionView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on,
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
-char const* SessionView::getMacroKindString(SessionMacroKind kind) {
-	const char* macroKind;
+std::string_view SessionView::getMacroKindString(SessionMacroKind kind) {
 	// display new macro type on the screen
 	switch (kind) {
-		using deluge::l10n::String;
+		using namespace deluge;
 	case SessionMacroKind::CLIP_LAUNCH:
-		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_CLIP);
+		return l10n::get(l10n::String::STRING_FOR_SONG_MACRO_KIND_CLIP);
 		break;
 	case SessionMacroKind::OUTPUT_CYCLE:
-		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_OUTPUT);
+		return l10n::get(l10n::String::STRING_FOR_SONG_MACRO_KIND_OUTPUT);
 		break;
 	case SessionMacroKind::SECTION:
-		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_SECTION);
+		return l10n::get(l10n::String::STRING_FOR_SONG_MACRO_KIND_SECTION);
 		break;
 	default:
-		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_NONE);
+		return l10n::get(l10n::String::STRING_FOR_SONG_MACRO_KIND_NONE);
 		break;
 	}
-	return macroKind;
 }
 
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {

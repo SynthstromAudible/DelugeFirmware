@@ -33,9 +33,9 @@ public:
 		using enum l10n::String;
 		switch (AudioEngine::reverb.getModel()) {
 		case dsp::Reverb::Model::MUTABLE:
-			return l10n::getView(STRING_FOR_TIME);
+			return l10n::get(STRING_FOR_TIME);
 		default:
-			return l10n::getView(this->name);
+			return l10n::get(this->name);
 		}
 	}
 	[[nodiscard]] std::string_view getTitle() const override { return getName(); }

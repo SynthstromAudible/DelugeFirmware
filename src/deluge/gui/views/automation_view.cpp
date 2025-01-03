@@ -94,6 +94,7 @@
 #include "util/functions.h"
 #include <new>
 #include <string.h>
+#include <string_view>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -1270,13 +1271,12 @@ void AutomationView::renderAutomationOverviewDisplayOLED(deluge::hid::display::o
 #endif
 
 	// display Automation Overview
-	char const* overviewText;
 	if (!onArrangerView && (outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
-		overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
+		std::string_view overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
 		deluge::hid::display::OLED::drawPermanentPopupLookingText(overviewText);
 	}
 	else {
-		overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW);
+		std::string_view overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW);
 		canvas.drawStringCentred(overviewText, yPos, kTextSpacingX, kTextSpacingY);
 	}
 }
@@ -1313,17 +1313,14 @@ void AutomationView::renderAutomationEditorDisplayOLED(deluge::hid::display::ole
 		modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
 	}
 
-	char const* isAutomated;
+	std::string_view isAutomated;
 
 	// check if Parameter is currently automated so that the automation status can be drawn on
 	// the screen with the Parameter Name
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		if (modelStackWithParam->autoParam->isAutomated()) {
-			isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_ON);
-		}
-		else {
-			isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OFF);
-		}
+		isAutomated = (modelStackWithParam->autoParam->isAutomated())
+		                  ? l10n::get(l10n::String::STRING_FOR_AUTOMATION_ON)
+		                  : l10n::get(l10n::String::STRING_FOR_AUTOMATION_OFF);
 	}
 
 	canvas.drawStringCentred(isAutomated, yPos, kTextSpacingX, kTextSpacingY);
@@ -1458,7 +1455,7 @@ void AutomationView::renderDisplay7SEG(Clip* clip, Output* output, OutputType ou
 }
 
 void AutomationView::renderAutomationOverviewDisplay7SEG(Output* output, OutputType outputType) {
-	char const* overviewText;
+	std::string_view overviewText;
 	if (!onArrangerView && (outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
 		overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
 	}

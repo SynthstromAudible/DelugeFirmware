@@ -86,6 +86,7 @@
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/string.h"
+#include <string_view>
 
 namespace params = deluge::modulation::params;
 namespace encoders = deluge::hid::encoders;
@@ -1020,7 +1021,8 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 			strncpy(parameterName, paramDisplayName.c_str(), 29);
 		}
 		else {
-			strncpy(parameterName, getParamDisplayName(kind, modelStackWithParam->paramId), 29);
+			auto paramDisplayName = getParamDisplayName(kind, modelStackWithParam->paramId);
+			strncpy(parameterName, paramDisplayName.data(), std::min<size_t>(paramDisplayName.length(), 29));
 		}
 	}
 }
@@ -1101,7 +1103,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			}
 		}
 		else {
-			const char* name = getParamDisplayName(kind, paramID);
+			std::string_view name = getParamDisplayName(kind, paramID);
 			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
 				popupMsg.append(name);
 			}
@@ -1908,7 +1910,7 @@ int32_t View::getCurrentReverbPreset() {
 	return currentPreset;
 }
 
-char const* View::getReverbPresetDisplayName(int32_t preset) {
+std::string_view View::getReverbPresetDisplayName(int32_t preset) {
 	return deluge::l10n::get(presetReverbNames[preset]);
 }
 

@@ -5,29 +5,29 @@
 namespace deluge::l10n {
 Language const* chosenLanguage = nullptr;
 
-std::string_view getView(const deluge::l10n::Language& language, deluge::l10n::String string) {
+std::string_view get(const deluge::l10n::Language& language, deluge::l10n::String string) {
 	auto string_opt = language.get(string);
 	if (string_opt.has_value()) {
 		return string_opt.value();
 	}
 
 	if (language.hasFallback()) {
-		return getView(language.fallback(), string);
+		return get(language.fallback(), string);
 	}
 
 	return built_in::english.get(deluge::l10n::String::EMPTY_STRING).value(); // EMPTY_STRING
 }
 
-std::string_view getView(deluge::l10n::String string) {
-	return getView(*chosenLanguage, string);
+std::string_view get(deluge::l10n::String string) {
+	return get(*chosenLanguage, string);
 }
 
-const char* get(const Language& language, deluge::l10n::String string) {
-	return getView(language, string).data();
+const char* getRaw(const Language& language, deluge::l10n::String string) {
+	return get(language, string).data();
 }
 
-const char* get(deluge::l10n::String string) {
-	return getView(string).data();
+const char* getRaw(deluge::l10n::String string) {
+	return get(string).data();
 }
 
 } // namespace deluge::l10n
@@ -43,6 +43,6 @@ const size_t l10n_STRING_FOR_USB_DEVICE_NOT_RECOGNIZED =
     util::to_underlying(deluge::l10n::String::STRING_FOR_USB_DEVICE_NOT_RECOGNIZED);
 
 char const* l10n_get(size_t string) {
-	return deluge::l10n::get(static_cast<deluge::l10n::String>(string));
+	return deluge::l10n::getRaw(static_cast<deluge::l10n::String>(string));
 }
 }

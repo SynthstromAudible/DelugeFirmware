@@ -19,6 +19,7 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
 #include "io/midi/midi_engine.h"
+#include <string_view>
 
 class MIDICable;
 
@@ -41,18 +42,15 @@ public:
 
 		yPixel = 20;
 
-		char const* differentiationString;
-		if (MIDIDeviceManager::differentiatingInputsByDevice) {
-			differentiationString = l10n::get(l10n::String::STRING_FOR_INPUT_DIFFERENTIATION_ON);
-		}
-		else {
-			differentiationString = l10n::get(l10n::String::STRING_FOR_INPUT_DIFFERENTIATION_OFF);
-		}
+		std::string_view differentiationString = (MIDIDeviceManager::differentiatingInputsByDevice)
+		                                             ? l10n::get(l10n::String::STRING_FOR_INPUT_DIFFERENTIATION_ON)
+		                                             : l10n::get(l10n::String::STRING_FOR_INPUT_DIFFERENTIATION_OFF);
+
 		canvas.drawString(differentiationString, 0, yPixel, kTextSpacingX, kTextSizeYUpdated);
 
 		yPixel += kTextSpacingY;
 
-		char const* deviceString = l10n::get(l10n::String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED);
+		std::string_view deviceString = l10n::get(l10n::String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED);
 		if (midiInput.cable) {
 			deviceString = midiInput.cable->getDisplayName();
 		}
@@ -62,7 +60,7 @@ public:
 
 		yPixel += kTextSpacingY;
 
-		char const* channelText;
+		std::string_view channelText;
 		if (this->getValue() == MIDI_CHANNEL_MPE_LOWER_ZONE) {
 			channelText = l10n::get(l10n::String::STRING_FOR_MPE_LOWER_ZONE);
 		}

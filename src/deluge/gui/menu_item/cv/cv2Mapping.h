@@ -48,10 +48,10 @@ public:
 
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
-		static auto o = l10n::getView(STRING_FOR_OFF);
-		static auto y = l10n::getView(STRING_FOR_PATCH_SOURCE_Y);
-		static auto a = l10n::getView(STRING_FOR_PATCH_SOURCE_AFTERTOUCH);
-		static auto v = l10n::getView(STRING_FOR_VELOCITY);
+		static auto o = l10n::get(STRING_FOR_OFF);
+		static auto y = l10n::get(STRING_FOR_PATCH_SOURCE_Y);
+		static auto a = l10n::get(STRING_FOR_PATCH_SOURCE_AFTERTOUCH);
+		static auto v = l10n::get(STRING_FOR_VELOCITY);
 
 		return {o, y, a, v};
 	}

@@ -26,14 +26,14 @@
 namespace deluge::gui::context_menu {
 SaveSongOrInstrument saveSongOrInstrument{};
 
-char const* SaveSongOrInstrument::getTitle() {
+std::string_view SaveSongOrInstrument::getTitle() {
 	using enum l10n::String;
 	return l10n::get(STRING_FOR_OPTIONS);
 }
 
-Sized<char const**> SaveSongOrInstrument::getOptions() {
+Sized<std::string_view*> SaveSongOrInstrument::getOptions() {
 	using enum l10n::String;
-	static char const* options[] = {
+	static std::string_view options[] = {
 	    l10n::get(STRING_FOR_COLLECT_MEDIA), //<
 	    l10n::get(STRING_FOR_CREATE_FOLDER), //<
 	    l10n::get(STRING_FOR_DELETE)         //<

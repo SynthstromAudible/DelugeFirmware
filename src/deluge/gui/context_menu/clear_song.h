@@ -26,9 +26,9 @@ public:
 	void focusRegained() override;
 	bool canSeeViewUnderneath() override { return true; }
 
-	char const* getTitle() override;
+	std::string_view getTitle() override;
 
-	Sized<char const**> getOptions() override;
+	Sized<std::string_view*> getOptions() override;
 	bool acceptCurrentOption() override;
 };
 

@@ -22,6 +22,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include <string_view>
 
 namespace deluge::gui::menu_item::midi {
 class Preset : public Integer {
@@ -33,7 +34,7 @@ public:
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 		char buffer[12];
-		char const* text;
+		std::string_view text;
 		if (this->getValue() == 128) {
 			text = l10n::get(l10n::String::STRING_FOR_NONE);
 		}

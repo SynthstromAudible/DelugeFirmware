@@ -38,7 +38,7 @@ std::string SyncLevel::getNoteLengthName() {
 }
 
 void SyncLevel::drawPixelsForOled() {
-	std::string name{l10n::getView(l10n::String::STRING_FOR_OFF)};
+	std::string name{l10n::get(l10n::String::STRING_FOR_OFF)};
 	if (this->getValue() != 0) {
 		name = getNoteLengthName();
 	}

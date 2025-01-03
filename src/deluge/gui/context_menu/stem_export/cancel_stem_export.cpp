@@ -29,20 +29,20 @@ namespace deluge::gui::context_menu {
 
 CancelStemExport cancelStemExport{};
 
-char const* CancelStemExport::getTitle() {
+std::string_view CancelStemExport::getTitle() {
 	using enum l10n::String;
 	return l10n::get(STRING_FOR_STOP_EXPORT_STEMS_QMARK);
 }
 
-Sized<char const**> CancelStemExport::getOptions() {
+Sized<std::string_view*> CancelStemExport::getOptions() {
 	using enum l10n::String;
 
 	if (display->haveOLED()) {
-		static char const* options[] = {l10n::get(STRING_FOR_OK)};
+		static std::string_view options[] = {l10n::get(STRING_FOR_OK)};
 		return {options, 1};
 	}
 	else {
-		static char const* options[] = {l10n::get(STRING_FOR_SURE)};
+		static std::string_view options[] = {l10n::get(STRING_FOR_SURE)};
 		return {options, 1};
 	}
 }

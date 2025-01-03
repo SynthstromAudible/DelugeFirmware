@@ -401,7 +401,7 @@ StringBuf& StringBuf::appendInt(int32_t value, size_t min_digits) {
 	int32_t pad_count = static_cast<int32_t>(num_to_copy) - length;
 	char* it = end();
 	if (pad_count > 0) {
-		it = std::fill_n(it,  pad_count, '0'); // literal zero! not NUL!
+		it = std::fill_n(it, pad_count, '0'); // literal zero! not NUL!
 	}
 	it = std::copy_n(buffer.begin(), length, it);
 	*it = '\0';

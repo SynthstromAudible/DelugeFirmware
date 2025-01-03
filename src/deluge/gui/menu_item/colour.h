@@ -43,11 +43,11 @@ public:
 	};
 	deluge::vector<std::string_view> getOptions() override {
 		return {
-		    l10n::getView(l10n::String::STRING_FOR_RED),   l10n::getView(l10n::String::STRING_FOR_GREEN),
-		    l10n::getView(l10n::String::STRING_FOR_BLUE),  l10n::getView(l10n::String::STRING_FOR_YELLOW),
-		    l10n::getView(l10n::String::STRING_FOR_CYAN),  l10n::getView(l10n::String::STRING_FOR_MAGENTA),
-		    l10n::getView(l10n::String::STRING_FOR_AMBER), l10n::getView(l10n::String::STRING_FOR_WHITE),
-		    l10n::getView(l10n::String::STRING_FOR_PINK),
+		    l10n::get(l10n::String::STRING_FOR_RED),   l10n::get(l10n::String::STRING_FOR_GREEN),
+		    l10n::get(l10n::String::STRING_FOR_BLUE),  l10n::get(l10n::String::STRING_FOR_YELLOW),
+		    l10n::get(l10n::String::STRING_FOR_CYAN),  l10n::get(l10n::String::STRING_FOR_MAGENTA),
+		    l10n::get(l10n::String::STRING_FOR_AMBER), l10n::get(l10n::String::STRING_FOR_WHITE),
+		    l10n::get(l10n::String::STRING_FOR_PINK),
 		};
 	}
 	[[nodiscard]] RGB getRGB() const;

@@ -24,8 +24,8 @@ class MidiLearnMode final : public ContextMenu {
 public:
 	MidiLearnMode() = default;
 
-	char const* getTitle() override;
-	Sized<char const**> getOptions() override;
+	std::string_view getTitle() override;
+	Sized<std::string_view*> getOptions() override;
 	bool setupAndCheckAvailability();
 	bool acceptCurrentOption() override;
 	bool canSeeViewUnderneath() override { return true; }

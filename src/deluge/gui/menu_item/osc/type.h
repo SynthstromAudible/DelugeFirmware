@@ -78,32 +78,32 @@ public:
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		deluge::vector<std::string_view> options = {
-		    l10n::getView(STRING_FOR_SINE),          //<
-		    l10n::getView(STRING_FOR_TRIANGLE),      //<
-		    l10n::getView(STRING_FOR_SQUARE),        //<
-		    l10n::getView(STRING_FOR_ANALOG_SQUARE), //<
-		    l10n::getView(STRING_FOR_SAW),           //<
-		    l10n::getView(STRING_FOR_ANALOG_SAW),    //<
-		    l10n::getView(STRING_FOR_WAVETABLE),     //<
+		    l10n::get(STRING_FOR_SINE),          //<
+		    l10n::get(STRING_FOR_TRIANGLE),      //<
+		    l10n::get(STRING_FOR_SQUARE),        //<
+		    l10n::get(STRING_FOR_ANALOG_SQUARE), //<
+		    l10n::get(STRING_FOR_SAW),           //<
+		    l10n::get(STRING_FOR_ANALOG_SAW),    //<
+		    l10n::get(STRING_FOR_WAVETABLE),     //<
 		};
 
 		if (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD) {
 			return options;
 		}
 
-		options.emplace_back(l10n::getView(STRING_FOR_SAMPLE));
+		options.emplace_back(l10n::get(STRING_FOR_SAMPLE));
 
 		if (mayUseDx()) {
-			options.emplace_back(l10n::getView(STRING_FOR_DX7));
+			options.emplace_back(l10n::get(STRING_FOR_DX7));
 		}
 
 		if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) {
-			options.emplace_back(l10n::getView(STRING_FOR_INPUT_LEFT));
-			options.emplace_back(l10n::getView(STRING_FOR_INPUT_RIGHT));
-			options.emplace_back(l10n::getView(STRING_FOR_INPUT_STEREO));
+			options.emplace_back(l10n::get(STRING_FOR_INPUT_LEFT));
+			options.emplace_back(l10n::get(STRING_FOR_INPUT_RIGHT));
+			options.emplace_back(l10n::get(STRING_FOR_INPUT_STEREO));
 		}
 		else {
-			options.emplace_back(l10n::getView(STRING_FOR_INPUT));
+			options.emplace_back(l10n::get(STRING_FOR_INPUT));
 		}
 
 		return options;
