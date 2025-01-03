@@ -133,6 +133,9 @@ extern deluge::l10n::String presetReverbNames[NUM_PRESET_REVERBS];
 extern const uint8_t noteCodeToNoteLetter[];
 extern const bool noteCodeIsSharp[];
 
+extern const uint8_t noteCodeToNoteLetterFlats[];
+extern const bool noteCodeIsFlat[];
+
 extern const std::array<Iterance, 35> iterancePresets;
 
 #define MAX_CHORD_TYPES 9
