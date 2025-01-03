@@ -48,6 +48,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	FineTempoKnob,
 	PatchCableResolution,
 	CatchNotes,
+	SharpsOrFlats
 	DeleteUnusedKitRows,
 	AltGoldenKnobDelayParams,
 	DevSysexAllowed,
