@@ -538,7 +538,7 @@ void AutomationView::focusRegained() {
 		padSelectionShortcutBlinking = false;
 		instrumentClipView.noteRowBlinking = false;
 		// remove patch cable blink frequencies
-		memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
+		soundEditor.resetSourceBlinks();
 		// possibly restablish parameter shortcut blinking (if parameter is selected)
 		blinkShortcuts();
 	}
@@ -5734,7 +5734,7 @@ void AutomationView::blinkShortcuts() {
 }
 
 void AutomationView::resetShortcutBlinking() {
-	memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
+	soundEditor.resetSourceBlinks();
 	resetParameterShortcutBlinking();
 	resetInterpolationShortcutBlinking();
 	resetPadSelectionShortcutBlinking();

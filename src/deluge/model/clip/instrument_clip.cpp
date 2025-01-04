@@ -2355,8 +2355,8 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	writer.writeAttribute("keyboardLayout", keyboardState.currentLayout);
 	writer.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
-	writer.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
-	writer.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
+	writer.writeAttribute("drumsScrollOffset", keyboardState.drums.scroll_offset);
+	writer.writeAttribute("drumsZoomLevel", keyboardState.drums.zoom_level);
 	writer.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
 	writer.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
 
@@ -2547,11 +2547,11 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "drumsScrollOffset")) {
-			keyboardState.drums.scrollOffset = reader.readTagOrAttributeValueInt();
+			keyboardState.drums.scroll_offset = reader.readTagOrAttributeValueInt();
 		}
 
-		else if (!strcmp(tagName, "drumsEdgeSize")) {
-			keyboardState.drums.edgeSize = reader.readTagOrAttributeValueInt();
+		else if (!strcmp(tagName, "drumsZoomLevel")) {
+			keyboardState.drums.zoom_level = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "inKeyScrollOffset")) {

@@ -118,6 +118,13 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ##### Kits
 - Added ability to change the pad size in the `KIT VELOCITY KEYBOARD VIEW` using the Zoom In/Out shortcut by `Pressing + Turning <>`
 - Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
+- `KIT VELOCITY KEYBOARD VIEW` Changes:
+  - Additional shortcut of `Pressing + Turning <>` to change the pad size using the Zoom In/Out.
+  - Went from 8 zoom levels to 13, with mostly smaller jumps in size and number of drum pads between levels.
+  - Rectangular pads of various sizes are used where needed to fully cover the screen without any partial pads. This means you can now have six or four pads, or even the entire screen as a single pad.
+  - Zoom level 1 pads play the system-level default velocity (64 by default out of a maximum 127, but it is user defineable), and levels 2 and 3 have a slightly lowered max velocity of 100 to make them more useable.
+  - Pad colors are calculated to avoid having adjacent pads of the same color as much as possible.
+  - Default pad brightness is set to match the default brightness value, so they will be more visible if needed. They will dim when pressed instead of getting brighter. The brightness gradient over the drum pads, going from dim on the low velocity pads to bright on the highest, is now much more apparent, due to the max brightness being higher, the lowest brightness being lower, and using a quadratic curve for the brightness ratio rather than linear. The amount that the drum pads dim when pressed depends on the pad area, so that smaller pad presses will be more visible, and larger pad presses won't be TOO visible, i.e. they won't have a potentially unpleasant strobe light flashing behavior.
 
 ##### Layout
 - Added the classic piano keyboard layout.
