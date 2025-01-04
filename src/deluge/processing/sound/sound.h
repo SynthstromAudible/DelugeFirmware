@@ -296,8 +296,8 @@ private:
 	void setupUnisonStereoSpread();
 	void calculateEffectiveVolume();
 	void ensureKnobReferencesCorrectVolume(Knob* knob);
-	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-	                      int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
+	Error readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
+	                             int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 
 	void writeSourceToFile(Serializer& writer, int32_t s, char const* tagName);
 	Error readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerForTimeline* paramManager,

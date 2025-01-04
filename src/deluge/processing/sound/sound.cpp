@@ -453,8 +453,8 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 // paramManager only required for old old song files, or for presets (because you'd be wanting to extract the
 // defaultParams into it). arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all
 // separate from Clips and won't store any arp stuff.
-Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-                             int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) {
+Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
+                                    int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) {
 
 	if (!strcmp(tagName, "osc1")) {
 		reader.match('{');
@@ -626,178 +626,19 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		arpSettings->syncLevel = SYNC_LEVEL_NONE;
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
-
 			if (!strcmp(tagName,
-			            "rate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs with
-				                   // firmware in September 2016
-				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_ARP_RATE, readAutomationUpToPos);
-				reader.exitTag("rate");
-			}
-			else if (!strcmp(tagName, "numOctaves")) {
-				if (arpSettings) {
-					arpSettings->numOctaves = reader.readTagOrAttributeValueInt();
-				}
-				reader.exitTag("numOctaves");
-			}
-			else if (!strcmp(tagName, "stepRepeat")) {
-				if (arpSettings) {
-					arpSettings->numStepRepeats = reader.readTagOrAttributeValueInt();
-				}
-				reader.exitTag("stepRepeat");
-			}
-			else if (!strcmp(tagName, "syncType")) {
-				if (arpSettings) {
-					arpSettings->syncType = (SyncType)reader.readTagOrAttributeValueInt();
-					;
-				}
-				reader.exitTag("syncType");
-			}
-			else if (!strcmp(tagName, "syncLevel")) {
-				if (arpSettings) {
-					arpSettings->syncLevel = (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(
-					    reader.readTagOrAttributeValueInt());
-				}
-				reader.exitTag("syncLevel");
-			}
-			else if (!strcmp(tagName, "octaveMode")) {
-				if (arpSettings) {
-					arpSettings->octaveMode = stringToArpOctaveMode(reader.readTagOrAttributeValue());
-					arpSettings->updatePresetFromCurrentSettings();
-				}
-				reader.exitTag("octaveMode");
-			}
-			else if (!strcmp(tagName, "noteMode")) {
-				if (arpSettings) {
-					arpSettings->noteMode = stringToArpNoteMode(reader.readTagOrAttributeValue());
-					arpSettings->updatePresetFromCurrentSettings();
-				}
-				reader.exitTag("noteMode");
-			}
-			else if (!strcmp(tagName, "chordType")) {
-				if (arpSettings) {
-					uint8_t chordTypeIndex = (uint8_t)reader.readTagOrAttributeValueInt();
-					char buffer[12];
-					intToString(chordTypeIndex, buffer + strlen(buffer));
-					display->displayPopup(buffer);
-					if (chordTypeIndex >= 0 && chordTypeIndex < MAX_CHORD_TYPES) {
-						arpSettings->chordTypeIndex = chordTypeIndex;
-					}
-				}
-				reader.exitTag("chordType");
-			}
-			else if (!strcmp(tagName, "mpeVelocity")) {
-				if (arpSettings) {
-					arpSettings->mpeVelocity = stringToArpMpeModSource(reader.readTagOrAttributeValue());
-				}
-				reader.exitTag("mpeVelocity");
-			}
-			else if (!strcmp(tagName, "arpMode")) {
-				if (arpSettings) {
-					arpSettings->mode = stringToArpMode(reader.readTagOrAttributeValue());
-					arpSettings->updatePresetFromCurrentSettings();
-				}
-				reader.exitTag("arpMode");
-			}
-			else if (!strcmp(tagName, "randomizerLock")) {
-				if (arpSettings) {
-					arpSettings->randomizerLock = reader.readTagOrAttributeValueInt();
-				}
-				reader.exitTag("randomizerLock");
-			}
-			else if (!strcmp(tagName, "lastLockedNoteProb")) {
-				arpSettings->lastLockedNoteProbabilityParameterValue = reader.readTagOrAttributeValueInt();
-				reader.exitTag("lastLockedNoteProb");
-			}
-			else if (!strcmp(tagName, "lockedNoteProbArray")) {
-				int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)arpSettings->lockedNoteProbabilityValues,
-				                                                 RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-				reader.exitTag("lockedNoteProbArray");
-			}
-			else if (!strcmp(tagName, "lastLockedBassProb")) {
-				arpSettings->lastLockedBassProbabilityParameterValue = reader.readTagOrAttributeValueInt();
-				reader.exitTag("lastLockedBassProb");
-			}
-			else if (!strcmp(tagName, "lockedBassProbArray")) {
-				int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)arpSettings->lockedBassProbabilityValues,
-				                                                 RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-				reader.exitTag("lockedBassProbArray");
-			}
-			else if (!strcmp(tagName, "lastLockedChordProb")) {
-				arpSettings->lastLockedChordProbabilityParameterValue = reader.readTagOrAttributeValueInt();
-				reader.exitTag("lastLockedChordProb");
-			}
-			else if (!strcmp(tagName, "lockeChordProbArray")) {
-				int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)arpSettings->lockedChordProbabilityValues,
-				                                                 RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-				reader.exitTag("lockedChordProbArray");
-			}
-			else if (!strcmp(tagName, "lastLockedRatchetProb")) {
-				arpSettings->lastLockedRatchetProbabilityParameterValue = reader.readTagOrAttributeValueInt();
-				reader.exitTag("lastLockedRatchetProb");
-			}
-			else if (!strcmp(tagName, "lockeRatchetProbArray")) {
-				int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)arpSettings->lockedRatchetProbabilityValues,
-				                                                 RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-				reader.exitTag("lockedRatchetProbArray");
-			}
-			else if (!strcmp(tagName, "lastLockedVelocitySpread")) {
-				arpSettings->lastLockedSpreadVelocityParameterValue = reader.readTagOrAttributeValueInt();
-				reader.exitTag("lastLockedVelocitySpread");
-			}
-			else if (!strcmp(tagName, "lockedVelocitySpreadArray")) {
-				int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)arpSettings->lockedSpreadVelocityValues,
-				                                                 RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-				reader.exitTag("lockedVelocitySpreadArray");
-			}
-			else if (!strcmp(tagName, "lastLockedGateSpread")) {
-				arpSettings->lastLockedSpreadGateParameterValue = reader.readTagOrAttributeValueInt();
-				reader.exitTag("lastLockedGateSpread");
-			}
-			else if (!strcmp(tagName, "lockedGateSpreadArray")) {
-				int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)arpSettings->lockedSpreadGateValues,
-				                                                 RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-				reader.exitTag("lockedGateSpreadArray");
-			}
-			else if (!strcmp(tagName, "lastLockedOctaveSpread")) {
-				arpSettings->lastLockedSpreadOctaveParameterValue = reader.readTagOrAttributeValueInt();
-				reader.exitTag("lastLockedOctaveSpread");
-			}
-			else if (!strcmp(tagName, "lockedOctaveSpreadArray")) {
-				int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)arpSettings->lockedSpreadOctaveValues,
-				                                                 RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-				reader.exitTag("lockedOctaveSpreadArray");
-			}
-			else if (!strcmp(tagName, "mode")) {
-				if (song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
-					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
-					// but only if the new params are not already read and set,
-					// that is, if we detect they have a value other than default
-					if (arpSettings) {
-						OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
-						if (arpSettings->mode == ArpMode::OFF && arpSettings->noteMode == ArpNoteMode::UP
-						    && arpSettings->octaveMode == ArpOctaveMode::UP) {
-							arpSettings->mode = oldModeToArpMode(oldMode);
-							arpSettings->noteMode = oldModeToArpNoteMode(oldMode);
-							arpSettings->octaveMode = oldModeToArpOctaveMode(oldMode);
-							arpSettings->updatePresetFromCurrentSettings();
-						}
-					}
-					reader.exitTag("mode");
-				}
-				else
-					reader.exitTag("mode");
-			}
-			else if (!strcmp(tagName,
-			                 "gate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs
-				                        // with firmware in September 2016
+			            "gate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs
+				                   // with firmware in September 2016
 				ENSURE_PARAM_MANAGER_EXISTS
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_GATE,
 				                           readAutomationUpToPos);
 				reader.exitTag("gate");
 			}
-			else {
-				reader.exitTag(tagName);
+			else if (arpSettings) {
+				bool readAndExited = arpSettings->readCommonTagsFromFile(reader, tagName, song);
+				if (!readAndExited) {
+					reader.exitTag(tagName);
+				}
 			}
 		}
 
@@ -3296,8 +3137,8 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	ParamManagerForTimeline paramManager;
 
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		Error result =
-		    readTagFromFile(reader, tagName, &paramManager, readAutomationUpToPos, arpSettings, modelStack->song);
+		Error result = readTagFromFileOrError(reader, tagName, &paramManager, readAutomationUpToPos, arpSettings,
+		                                      modelStack->song);
 		if (result == Error::NONE) {}
 		else if (result != Error::RESULT_TAG_UNUSED) {
 			return result;
@@ -4290,47 +4131,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	if (arpSettings) {
 		writer.writeOpeningTagBeginning("arpeggiator");
-		writer.writeAttribute("mode", arpPresetToOldArpMode(arpSettings->preset)); // For backwards compatibility
-		writer.writeAttribute("numOctaves", arpSettings->numOctaves);
-		writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel, true);
-		writer.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType, true);
-		writer.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
-		writer.writeAttribute("chordType", arpSettings->chordTypeIndex);
-		writer.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
-		writer.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
-		writer.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
-		writer.writeAttribute("stepRepeat", arpSettings->numStepRepeats);
-		writer.writeAttribute("randomizerLock", arpSettings->randomizerLock);
-
-		// Write locked params
-		// Note probability
-		writer.writeAttribute("lastLockedNoteProb", arpSettings->lastLockedNoteProbabilityParameterValue);
-		writer.writeAttributeHexBytes("lockedNoteProbArray", (uint8_t*)arpSettings->lockedNoteProbabilityValues,
-		                              RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-		// Bass probability
-		writer.writeAttribute("lastLockedBassProb", arpSettings->lastLockedBassProbabilityParameterValue);
-		writer.writeAttributeHexBytes("lockedBassProbArray", (uint8_t*)arpSettings->lockedBassProbabilityValues,
-		                              RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-		// Chord probability
-		writer.writeAttribute("lastLockedChordProb", arpSettings->lastLockedChordProbabilityParameterValue);
-		writer.writeAttributeHexBytes("lockedChordProbArray", (uint8_t*)arpSettings->lockedChordProbabilityValues,
-		                              RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-		// Ratchet probability
-		writer.writeAttribute("lastLockedRatchetProb", arpSettings->lastLockedRatchetProbabilityParameterValue);
-		writer.writeAttributeHexBytes("lockedRatchetProbArray", (uint8_t*)arpSettings->lockedRatchetProbabilityValues,
-		                              RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-		// Spread velocity
-		writer.writeAttribute("lastLockedVelocitySpread", arpSettings->lastLockedSpreadVelocityParameterValue);
-		writer.writeAttributeHexBytes("lockedVelocitySpreadArray", (uint8_t*)arpSettings->lockedSpreadVelocityValues,
-		                              RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-		// Spread gate
-		writer.writeAttribute("lastLockedGateSpread", arpSettings->lastLockedSpreadGateParameterValue);
-		writer.writeAttributeHexBytes("lockedGateSpreadArray", (uint8_t*)arpSettings->lockedSpreadGateValues,
-		                              RANDOMIZER_LOCK_MAX_SAVED_VALUES);
-		// Spread octave
-		writer.writeAttribute("lastLockedOctaveSpread", arpSettings->lastLockedSpreadOctaveParameterValue);
-		writer.writeAttributeHexBytes("lockedOctaveSpreadArray", (uint8_t*)arpSettings->lockedSpreadOctaveValues,
-		                              RANDOMIZER_LOCK_MAX_SAVED_VALUES);
+		arpSettings->writeCommonParamsToFile(writer, currentSong);
 		writer.closeTag();
 	}
 

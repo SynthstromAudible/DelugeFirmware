@@ -19,12 +19,7 @@
 #include "gui/menu_item/integer.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "model/clip/clip.h"
-#include "model/clip/instrument_clip.h"
-#include "model/drum/non_audio_drum.h"
-#include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator_rhythms.h"
 
@@ -33,33 +28,11 @@ class Rhythm final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		Clip* currentClip = getCurrentInstrumentClip();
-		if (currentClip->output->type == OutputType::KIT) {
-			Drum* currentDrum = ((Kit*)currentClip->output)->selectedDrum;
-			if (currentDrum != nullptr
-			    && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
-				auto* nonAudioDrum = (NonAudioDrum*)currentDrum;
-				this->setValue(computeCurrentValueForUnsignedMenuItem(nonAudioDrum->arpSettings.rhythm));
-			}
-		}
-		else if (currentClip->type == ClipType::INSTRUMENT) {
-			this->setValue(computeCurrentValueForUnsignedMenuItem(((InstrumentClip*)currentClip)->arpSettings.rhythm));
-		}
+		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->rhythm));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		Clip* currentClip = getCurrentClip();
-		if (currentClip->output->type == OutputType::KIT) {
-			Drum* currentDrum = ((Kit*)currentClip->output)->selectedDrum;
-			if (currentDrum != nullptr
-			    && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
-				auto* nonAudioDrum = (NonAudioDrum*)currentDrum;
-				nonAudioDrum->arpSettings.rhythm = value;
-			}
-		}
-		else if (currentClip->type == ClipType::INSTRUMENT) {
-			((InstrumentClip*)currentClip)->arpSettings.rhythm = value;
-		}
+		soundEditor.currentArpSettings->rhythm = value;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxPresetArpRhythm; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

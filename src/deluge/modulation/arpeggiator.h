@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/sync.h"
+#include "storage/storage_manager.h"
 #include "util/container/array/ordered_resizeable_array.h"
 #include "util/container/array/resizeable_array.h"
 
@@ -37,88 +38,19 @@ class ArpeggiatorSettings {
 public:
 	ArpeggiatorSettings();
 
-	void cloneFrom(ArpeggiatorSettings const* other) {
-		// Static params
-		preset = other->preset;
-		mode = other->mode;
-		octaveMode = other->octaveMode;
-		noteMode = other->noteMode;
-		chordTypeIndex = other->chordTypeIndex;
-		numOctaves = other->numOctaves;
-		numStepRepeats = other->numStepRepeats;
-		randomizerLock = other->randomizerLock;
-		syncType = other->syncType;
-		syncLevel = other->syncLevel;
-		mpeVelocity = other->mpeVelocity;
-		// Automatable params
-		rate = other->rate;
-		gate = other->gate;
-		rhythm = other->rhythm;
-		sequenceLength = other->sequenceLength;
-		chordPolyphony = other->chordPolyphony;
-		ratchetAmount = other->ratchetAmount;
-		noteProbability = other->noteProbability;
-		bassProbability = other->bassProbability;
-		chordProbability = other->chordProbability;
-		ratchetProbability = other->ratchetProbability;
-		spreadVelocity = other->spreadVelocity;
-		spreadGate = other->spreadGate;
-		spreadOctave = other->spreadOctave;
-	}
+	void cloneFrom(ArpeggiatorSettings const* other);
 
-	void updatePresetFromCurrentSettings() {
-		if (mode == ArpMode::OFF) {
-			preset = ArpPreset::OFF;
-		}
-		else if (octaveMode == ArpOctaveMode::UP && noteMode == ArpNoteMode::UP) {
-			preset = ArpPreset::UP;
-		}
-		else if (octaveMode == ArpOctaveMode::DOWN && noteMode == ArpNoteMode::DOWN) {
-			preset = ArpPreset::DOWN;
-		}
-		else if (octaveMode == ArpOctaveMode::ALTERNATE && noteMode == ArpNoteMode::UP) {
-			preset = ArpPreset::BOTH;
-		}
-		else if (octaveMode == ArpOctaveMode::RANDOM && noteMode == ArpNoteMode::RANDOM) {
-			preset = ArpPreset::RANDOM;
-		}
-		else {
-			preset = ArpPreset::CUSTOM;
-		}
-	}
+	bool readCommonTagsFromFile(Deserializer& reader, char const* tagName, Song* songToConvertSyncLevel);
 
-	void updateSettingsFromCurrentPreset() {
-		if (preset == ArpPreset::OFF) {
-			mode = ArpMode::OFF;
-		}
-		else if (preset == ArpPreset::UP) {
-			mode = ArpMode::ARP;
-			octaveMode = ArpOctaveMode::UP;
-			noteMode = ArpNoteMode::UP;
-		}
-		else if (preset == ArpPreset::DOWN) {
-			mode = ArpMode::ARP;
-			octaveMode = ArpOctaveMode::DOWN;
-			noteMode = ArpNoteMode::DOWN;
-		}
-		else if (preset == ArpPreset::BOTH) {
-			mode = ArpMode::ARP;
-			octaveMode = ArpOctaveMode::ALTERNATE;
-			noteMode = ArpNoteMode::UP;
-		}
-		else if (preset == ArpPreset::RANDOM) {
-			mode = ArpMode::ARP;
-			octaveMode = ArpOctaveMode::RANDOM;
-			noteMode = ArpNoteMode::RANDOM;
-		}
-		else if (preset == ArpPreset::CUSTOM) {
-			mode = ArpMode::ARP;
-			// Although CUSTOM has octaveMode and noteMode freely setable, when we select CUSTOM from the preset menu
-			// shortcut, we can provide here some default starting settings that user can change later with the menus.
-			octaveMode = ArpOctaveMode::UP;
-			noteMode = ArpNoteMode::UP;
-		}
-	}
+	bool readNonAudioTagsFromFile(Deserializer& reader, char const* tagName);
+
+	void writeCommonParamsToFile(Serializer& writer, Song* songToConvertSyncLevel);
+
+	void writeNonAudioParamsToFile(Serializer& writer);
+
+	void updatePresetFromCurrentSettings();
+
+	void updateSettingsFromCurrentPreset();
 
 	uint32_t getPhaseIncrement(int32_t arpRate);
 
@@ -159,13 +91,13 @@ public:
 	uint32_t lastLockedSpreadOctaveParameterValue{0};
 
 	// Up to 16 pre-calculated randomized values for each parameter
-	int8_t lockedNoteProbabilityValues[RANDOMIZER_LOCK_MAX_SAVED_VALUES]{};
-	int8_t lockedBassProbabilityValues[RANDOMIZER_LOCK_MAX_SAVED_VALUES]{};
-	int8_t lockedChordProbabilityValues[RANDOMIZER_LOCK_MAX_SAVED_VALUES]{};
-	int8_t lockedRatchetProbabilityValues[RANDOMIZER_LOCK_MAX_SAVED_VALUES]{};
-	int8_t lockedSpreadVelocityValues[RANDOMIZER_LOCK_MAX_SAVED_VALUES]{};
-	int8_t lockedSpreadGateValues[RANDOMIZER_LOCK_MAX_SAVED_VALUES]{};
-	int8_t lockedSpreadOctaveValues[RANDOMIZER_LOCK_MAX_SAVED_VALUES]{};
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedNoteProbabilityValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedBassProbabilityValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedChordProbabilityValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedRatchetProbabilityValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadVelocityValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadGateValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadOctaveValues;
 
 	// Temporary flags
 	bool flagForceArpRestart{false};

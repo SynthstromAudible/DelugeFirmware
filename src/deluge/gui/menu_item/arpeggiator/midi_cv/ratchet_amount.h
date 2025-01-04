@@ -19,10 +19,6 @@
 #include "gui/menu_item/integer.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
-#include "model/clip/clip.h"
-#include "model/clip/instrument_clip.h"
-#include "model/drum/non_audio_drum.h"
-#include "model/instrument/kit.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
@@ -30,34 +26,11 @@ class RatchetAmount final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		Clip* currentClip = getCurrentInstrumentClip();
-		if (currentClip->output->type == OutputType::KIT) {
-			Drum* currentDrum = ((Kit*)currentClip->output)->selectedDrum;
-			if (currentDrum != nullptr
-			    && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
-				auto* nonAudioDrum = (NonAudioDrum*)currentDrum;
-				this->setValue(computeCurrentValueForUnsignedMenuItem(nonAudioDrum->arpSettings.ratchetAmount));
-			}
-		}
-		else if (currentClip->type == ClipType::INSTRUMENT) {
-			this->setValue(
-			    computeCurrentValueForUnsignedMenuItem(((InstrumentClip*)currentClip)->arpSettings.ratchetAmount));
-		}
+		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->ratchetAmount));
 	}
 	void writeCurrentValue() override {
-		uint32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		Clip* currentClip = getCurrentClip();
-		if (currentClip->output->type == OutputType::KIT) {
-			Drum* currentDrum = ((Kit*)currentClip->output)->selectedDrum;
-			if (currentDrum != nullptr
-			    && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
-				auto* nonAudioDrum = (NonAudioDrum*)currentDrum;
-				nonAudioDrum->arpSettings.ratchetAmount = value;
-			}
-		}
-		else if (currentClip->type == ClipType::INSTRUMENT) {
-			((InstrumentClip*)currentClip)->arpSettings.ratchetAmount = value;
-		}
+		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
+		soundEditor.currentArpSettings->ratchetAmount = value;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

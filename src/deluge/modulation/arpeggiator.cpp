@@ -45,6 +45,14 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
 	}
 	syncType = SYNC_TYPE_EVEN;
+
+	lockedNoteProbabilityValues.fill(0);
+	lockedBassProbabilityValues.fill(0);
+	lockedChordProbabilityValues.fill(0);
+	lockedRatchetProbabilityValues.fill(0);
+	lockedSpreadVelocityValues.fill(0);
+	lockedSpreadGateValues.fill(0);
+	lockedSpreadOctaveValues.fill(0);
 }
 
 ArpeggiatorForDrum::ArpeggiatorForDrum() {
@@ -1286,4 +1294,322 @@ uint32_t ArpeggiatorSettings::getPhaseIncrement(int32_t arpRate) {
 		}
 	}
 	return phaseIncrement;
+}
+
+void ArpeggiatorSettings::cloneFrom(ArpeggiatorSettings const* other) {
+	// Static params
+	preset = other->preset;
+	mode = other->mode;
+	octaveMode = other->octaveMode;
+	noteMode = other->noteMode;
+	chordTypeIndex = other->chordTypeIndex;
+	numOctaves = other->numOctaves;
+	numStepRepeats = other->numStepRepeats;
+	randomizerLock = other->randomizerLock;
+	syncType = other->syncType;
+	syncLevel = other->syncLevel;
+	mpeVelocity = other->mpeVelocity;
+	// Automatable params
+	rate = other->rate;
+	gate = other->gate;
+	rhythm = other->rhythm;
+	sequenceLength = other->sequenceLength;
+	chordPolyphony = other->chordPolyphony;
+	ratchetAmount = other->ratchetAmount;
+	noteProbability = other->noteProbability;
+	bassProbability = other->bassProbability;
+	chordProbability = other->chordProbability;
+	ratchetProbability = other->ratchetProbability;
+	spreadVelocity = other->spreadVelocity;
+	spreadGate = other->spreadGate;
+	spreadOctave = other->spreadOctave;
+}
+
+bool ArpeggiatorSettings::readCommonTagsFromFile(Deserializer& reader, char const* tagName,
+                                                 Song* songToConvertSyncLevel) {
+	if (!strcmp(tagName, "numOctaves")) {
+		numOctaves = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "stepRepeat")) {
+		numStepRepeats = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "randomizerLock")) {
+		randomizerLock = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "lastLockedNoteProb")) {
+		lastLockedNoteProbabilityParameterValue = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "lockedNoteProbArray")) {
+		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedNoteProbabilityValues.data(),
+		                                                 lockedNoteProbabilityValues.size());
+	}
+	else if (!strcmp(tagName, "lastLockedBassProb")) {
+		lastLockedBassProbabilityParameterValue = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "lockedBassProbArray")) {
+		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedBassProbabilityValues.data(),
+		                                                 lockedBassProbabilityValues.size());
+	}
+	else if (!strcmp(tagName, "lastLockedChordProb")) {
+		lastLockedChordProbabilityParameterValue = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "lockeChordProbArray")) {
+		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedChordProbabilityValues.data(),
+		                                                 lockedChordProbabilityValues.size());
+	}
+	else if (!strcmp(tagName, "lastLockedRatchetProb")) {
+		lastLockedRatchetProbabilityParameterValue = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "lockeRatchetProbArray")) {
+		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedRatchetProbabilityValues.data(),
+		                                                 lockedRatchetProbabilityValues.size());
+	}
+	else if (!strcmp(tagName, "lastLockedVelocitySpread")) {
+		lastLockedSpreadVelocityParameterValue = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "lockedVelocitySpreadArray")) {
+		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedSpreadVelocityValues.data(),
+		                                                 lockedSpreadVelocityValues.size());
+	}
+	else if (!strcmp(tagName, "lastLockedGateSpread")) {
+		lastLockedSpreadGateParameterValue = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "lockedGateSpreadArray")) {
+		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedSpreadGateValues.data(),
+		                                                 lockedSpreadGateValues.size());
+	}
+	else if (!strcmp(tagName, "lastLockedOctaveSpread")) {
+		lastLockedSpreadOctaveParameterValue = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "lockedOctaveSpreadArray")) {
+		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedSpreadOctaveValues.data(),
+		                                                 lockedSpreadOctaveValues.size());
+	}
+	else if (!strcmp(tagName, "syncLevel")) {
+		if (songToConvertSyncLevel) {
+			syncLevel = (SyncLevel)songToConvertSyncLevel->convertSyncLevelFromFileValueToInternalValue(
+			    reader.readTagOrAttributeValueInt());
+		}
+		else {
+			syncLevel = (SyncLevel)reader.readTagOrAttributeValueInt();
+		}
+	}
+	else if (!strcmp(tagName, "syncType")) {
+		syncType = (SyncType)reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "mode")) {
+		if (song_firmware_version < FirmwareVersion::community({1, 1, 0})) {
+			// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
+			// but only if the new params are not already read and set,
+			// that is, if we detect they have a value other than default
+			OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
+			if (mode == ArpMode::OFF && noteMode == ArpNoteMode::UP && octaveMode == ArpOctaveMode::UP) {
+				mode = oldModeToArpMode(oldMode);
+				noteMode = oldModeToArpNoteMode(oldMode);
+				octaveMode = oldModeToArpOctaveMode(oldMode);
+				updatePresetFromCurrentSettings();
+			}
+		}
+	}
+	else if (!strcmp(tagName, "arpMode")) {
+		mode = stringToArpMode(reader.readTagOrAttributeValue());
+		updatePresetFromCurrentSettings();
+	}
+	else if (!strcmp(tagName, "octaveMode")) {
+		octaveMode = stringToArpOctaveMode(reader.readTagOrAttributeValue());
+		updatePresetFromCurrentSettings();
+	}
+	else if (!strcmp(tagName, "chordType")) {
+		uint8_t chordTypeIndex = (uint8_t)reader.readTagOrAttributeValueInt();
+		if (chordTypeIndex >= 0 && chordTypeIndex < MAX_CHORD_TYPES) {
+			chordTypeIndex = chordTypeIndex;
+		}
+	}
+	else if (!strcmp(tagName, "noteMode")) {
+		noteMode = stringToArpNoteMode(reader.readTagOrAttributeValue());
+		updatePresetFromCurrentSettings();
+	}
+	else if (!strcmp(tagName, "mpeVelocity")) {
+		mpeVelocity = stringToArpMpeModSource(reader.readTagOrAttributeValue());
+	}
+	else {
+		return false;
+	}
+
+	reader.exitTag(tagName);
+	return true;
+}
+
+bool ArpeggiatorSettings::readNonAudioTagsFromFile(Deserializer& reader, char const* tagName) {
+	if (!strcmp(tagName, "rate")) {
+		rate = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "gate")) {
+		gate = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "noteProbability")) {
+		noteProbability = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "bassProbability")) {
+		bassProbability = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "chordProbability")) {
+		chordProbability = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "ratchetProbability")) {
+		ratchetProbability = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "ratchetAmount")) {
+		ratchetAmount = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "sequenceLength")) {
+		sequenceLength = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "chordPolyphony")) {
+		chordPolyphony = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "rhythm")) {
+		rhythm = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "spreadVelocity")) {
+		spreadVelocity = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "spreadGate")) {
+		spreadGate = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "spreadOctave")) {
+		spreadOctave = reader.readTagOrAttributeValueInt();
+	}
+	else {
+		return false;
+	}
+
+	reader.exitTag(tagName);
+	return true;
+}
+
+void ArpeggiatorSettings::writeCommonParamsToFile(Serializer& writer, Song* songToConvertSyncLevel) {
+	writer.writeAttribute("mode", (char*)arpModeToString(mode));
+	if (songToConvertSyncLevel) {
+		writer.writeAbsoluteSyncLevelToFile(songToConvertSyncLevel, "syncLevel", syncLevel, true);
+	}
+	else {
+		writer.writeAttribute("syncLevel", syncLevel, true);
+	}
+	writer.writeAttribute("numOctaves", numOctaves);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	if (songToConvertSyncLevel) {
+		writer.writeSyncTypeToFile(songToConvertSyncLevel, "syncType", syncType, true);
+	}
+	else {
+		writer.writeAttribute("syncType", syncType);
+	}
+	writer.writeAttribute("arpMode", (char*)arpModeToString(mode));
+	writer.writeAttribute("chordType", chordTypeIndex);
+	writer.writeAttribute("noteMode", (char*)arpNoteModeToString(noteMode));
+	writer.writeAttribute("octaveMode", (char*)arpOctaveModeToString(octaveMode));
+	writer.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(mpeVelocity));
+	writer.writeAttribute("stemRepeat", numStepRepeats);
+	writer.writeAttribute("randomizerLock", randomizerLock);
+
+	// Note probability
+	writer.writeAttribute("lastLockedNoteProb", lastLockedNoteProbabilityParameterValue);
+	writer.writeAttributeHexBytes("lockedNoteProbArray", (uint8_t*)lockedNoteProbabilityValues.data(),
+	                              lockedNoteProbabilityValues.size());
+	// Bass probability
+	writer.writeAttribute("lastLockedBassProb", lastLockedBassProbabilityParameterValue);
+	writer.writeAttributeHexBytes("lockedBassProbArray", (uint8_t*)lockedBassProbabilityValues.data(),
+	                              lockedBassProbabilityValues.size());
+	// Chord probability
+	writer.writeAttribute("lastLockedChordProb", lastLockedChordProbabilityParameterValue);
+	writer.writeAttributeHexBytes("lockedChordProbArray", (uint8_t*)lockedChordProbabilityValues.data(),
+	                              lockedChordProbabilityValues.size());
+	// Ratchet probability
+	writer.writeAttribute("lastLockedRatchetProb", lastLockedRatchetProbabilityParameterValue);
+	writer.writeAttributeHexBytes("lockedRatchetProbArray", (uint8_t*)lockedRatchetProbabilityValues.data(),
+	                              lockedRatchetProbabilityValues.size());
+	// Spread velocity
+	writer.writeAttribute("lastLockedVelocitySpread", lastLockedSpreadVelocityParameterValue);
+	writer.writeAttributeHexBytes("lockedVelocitySpreadArray", (uint8_t*)lockedSpreadVelocityValues.data(),
+	                              lockedSpreadVelocityValues.size());
+	// Spread gate
+	writer.writeAttribute("lastLockedGateSpread", lastLockedSpreadGateParameterValue);
+	writer.writeAttributeHexBytes("lockedGateSpreadArray", (uint8_t*)lockedSpreadGateValues.data(),
+	                              lockedSpreadGateValues.size());
+	// Spread octave
+	writer.writeAttribute("lastLockedOctaveSpread", lastLockedSpreadOctaveParameterValue);
+	writer.writeAttributeHexBytes("lockedOctaveSpreadArray", (uint8_t*)lockedSpreadOctaveValues.data(),
+	                              lockedSpreadOctaveValues.size());
+}
+
+void ArpeggiatorSettings::writeNonAudioParamsToFile(Serializer& writer) {
+	writer.writeAttribute("gate", gate);
+	writer.writeAttribute("rate", rate);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent
+	// tag)
+	writer.writeAttribute("noteProbability", noteProbability);
+	writer.writeAttribute("bassProbability", bassProbability);
+	writer.writeAttribute("chordProbability", chordProbability);
+	writer.writeAttribute("ratchetProbability", ratchetProbability);
+	writer.writeAttribute("ratchetAmount", ratchetAmount);
+	writer.writeAttribute("sequenceLength", sequenceLength);
+	writer.writeAttribute("chordPolyphony", chordPolyphony);
+	writer.writeAttribute("rhythm", rhythm);
+	writer.writeAttribute("spreadVelocity", spreadVelocity);
+	writer.writeAttribute("spreadGate", spreadGate);
+	writer.writeAttribute("spreadOctave", spreadOctave);
+}
+
+void ArpeggiatorSettings::updatePresetFromCurrentSettings() {
+	if (mode == ArpMode::OFF) {
+		preset = ArpPreset::OFF;
+	}
+	else if (octaveMode == ArpOctaveMode::UP && noteMode == ArpNoteMode::UP) {
+		preset = ArpPreset::UP;
+	}
+	else if (octaveMode == ArpOctaveMode::DOWN && noteMode == ArpNoteMode::DOWN) {
+		preset = ArpPreset::DOWN;
+	}
+	else if (octaveMode == ArpOctaveMode::ALTERNATE && noteMode == ArpNoteMode::UP) {
+		preset = ArpPreset::BOTH;
+	}
+	else if (octaveMode == ArpOctaveMode::RANDOM && noteMode == ArpNoteMode::RANDOM) {
+		preset = ArpPreset::RANDOM;
+	}
+	else {
+		preset = ArpPreset::CUSTOM;
+	}
+}
+
+void ArpeggiatorSettings::updateSettingsFromCurrentPreset() {
+	if (preset == ArpPreset::OFF) {
+		mode = ArpMode::OFF;
+	}
+	else if (preset == ArpPreset::UP) {
+		mode = ArpMode::ARP;
+		octaveMode = ArpOctaveMode::UP;
+		noteMode = ArpNoteMode::UP;
+	}
+	else if (preset == ArpPreset::DOWN) {
+		mode = ArpMode::ARP;
+		octaveMode = ArpOctaveMode::DOWN;
+		noteMode = ArpNoteMode::DOWN;
+	}
+	else if (preset == ArpPreset::BOTH) {
+		mode = ArpMode::ARP;
+		octaveMode = ArpOctaveMode::ALTERNATE;
+		noteMode = ArpNoteMode::UP;
+	}
+	else if (preset == ArpPreset::RANDOM) {
+		mode = ArpMode::ARP;
+		octaveMode = ArpOctaveMode::RANDOM;
+		noteMode = ArpNoteMode::RANDOM;
+	}
+	else if (preset == ArpPreset::CUSTOM) {
+		mode = ArpMode::ARP;
+		// Although CUSTOM has octaveMode and noteMode freely setable, when we select CUSTOM from the preset menu
+		// shortcut, we can provide here some default starting settings that user can change later with the menus.
+		octaveMode = ArpOctaveMode::UP;
+		noteMode = ArpNoteMode::UP;
+	}
 }

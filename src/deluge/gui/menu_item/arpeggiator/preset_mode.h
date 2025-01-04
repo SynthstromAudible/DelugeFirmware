@@ -21,7 +21,7 @@
 #include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
-#include "model/drum/non_audio_drum.h"
+#include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
