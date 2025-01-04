@@ -15,16 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/patched_param/integer.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/menu_item/submenu.h"
 
-namespace deluge::gui::menu_item::arpeggiator {
-class Rate final : public patched_param::Integer {
+namespace deluge::gui::menu_item::submenu {
+class ArpMpeSubmenu final : public Submenu {
 public:
-	using patched_param::Integer::Integer;
+	using Submenu::Submenu;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
+		return !soundEditor.editingGateDrumRow();
 	}
 };
 
-} // namespace deluge::gui::menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::submenu

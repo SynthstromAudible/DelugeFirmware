@@ -48,8 +48,9 @@ public:
 	char const* getSlotXMLTag() override { return "channel"; }
 	char const* getSubSlotXMLTag() override { return NULL; }
 
-	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) = 0;
-	virtual void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) = 0;
+	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) = 0;
+	virtual void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity,
+	                            int32_t noteIndex) = 0;
 
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
@@ -62,7 +63,8 @@ public:
 
 protected:
 	virtual void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
-	                                                      int32_t expressionDimension, ArpNote* arpNote) = 0;
+	                                                      int32_t expressionDimension, ArpNote* arpNote,
+	                                                      int32_t noteIndex) = 0;
 	// for tracking mono expression output
 	int32_t lastMonoExpression[3]{0};
 	int32_t lastCombinedPolyExpression[3]{0};

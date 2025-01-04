@@ -23,12 +23,13 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
+#include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <string.h>
 
-Drum::Drum(DrumType newType) : type(newType) {
+Drum::Drum(DrumType newType) : type(newType), arpeggiator(), arpSettings() {
 	next = nullptr;
 
 	earlyNoteVelocity = 0;

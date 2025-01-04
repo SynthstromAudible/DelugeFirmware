@@ -27,6 +27,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "modulation/arpeggiator.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include <cstdint>

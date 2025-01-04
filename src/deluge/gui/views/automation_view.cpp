@@ -121,7 +121,7 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumNonGlobalParamsForAutomation = 67;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 70;
 constexpr int32_t kNumGlobalParamsForAutomation = 26;
 constexpr int32_t kParamNodeWidth = 3;
 
@@ -195,18 +195,21 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_MOD_FX_FEEDBACK},
     {params::Kind::PATCHED, params::GLOBAL_MOD_FX_DEPTH},
     {params::Kind::PATCHED, params::GLOBAL_MOD_FX_RATE},
-    // Arp Rate, Gate, Ratchet Prob, Ratchet Amount, Sequence Length, Rhythm, Spread Velocity, Spread Gate, Spread Note,
-    // Spread Octave
+    // Arp Rate, Gate, Rhythm, Chord Polyphony, Sequence Length, Ratchet Amount, Note Prob, Bass Prob, Chord Prob,
+    // Ratchet Prob, Spread Gate, Spread Octave, Spread Velocity
     {params::Kind::PATCHED, params::GLOBAL_ARP_RATE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_GATE},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_NOTE_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_AMOUNT},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RHYTHM},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_VELOCITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_CHORD_POLYPHONY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_AMOUNT},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_NOTE_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_BASS_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_CHORD_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_GATE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_OCTAVE},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SPREAD_VELOCITY},
     // Noise
     {params::Kind::PATCHED, params::LOCAL_NOISE_VOLUME},
     // Portamento

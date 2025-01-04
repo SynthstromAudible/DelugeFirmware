@@ -21,6 +21,7 @@
 #include "gui/ui/keyboard/state_data.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/note/note_row_vector.h"
+#include "modulation/arpeggiator.h"
 
 class Song;
 
@@ -99,18 +100,6 @@ public:
 	void copyBasicsFrom(Clip const* otherClip) override;
 
 	ArpeggiatorSettings arpSettings; // Not valid for Kits
-
-	int32_t arpeggiatorRate;
-	int32_t arpeggiatorGate;
-
-	uint32_t arpeggiatorRatchetProbability;
-	uint32_t arpeggiatorRatchetAmount;
-	uint32_t arpeggiatorSequenceLength;
-	uint32_t arpeggiatorRhythm;
-	uint32_t arpeggiatorNoteProbability;
-	uint32_t arpeggiatorSpreadVelocity;
-	uint32_t arpeggiatorSpreadGate;
-	uint32_t arpeggiatorSpreadOctave;
 
 	ParamManagerForTimeline backedUpParamManagerMIDI;
 
