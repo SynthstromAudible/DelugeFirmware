@@ -174,15 +174,16 @@ public:
 		}
 		return idx;
 	}
+
 	[[nodiscard]] constexpr size_t size() const { return length(); }
 	[[nodiscard]] constexpr bool full() const { return size() == capacity_; }
 
-	[[nodiscard]] char* begin() { return buf_; }
-	[[nodiscard]] char* end() { return &buf_[size()]; }
-	[[nodiscard]] const char* cbegin() const { return buf_; }
-	[[nodiscard]] const char* cend() const { return &buf_[size()]; }
+	[[nodiscard]] constexpr char* begin() { return buf_; }
+	[[nodiscard]] constexpr char* end() { return &buf_[size()]; }
+	[[nodiscard]] constexpr const char* cbegin() const { return buf_; }
+	[[nodiscard]] constexpr const char* cend() const { return &buf_[size()]; }
 
-	[[nodiscard]] bool empty() const { return buf_[0] == '\0'; }
+	[[nodiscard]] constexpr bool empty() const { return buf_[0] == '\0'; }
 
 	constexpr bool operator==(const char* rhs) const {
 		return static_cast<std::string_view>(*this) == std::string_view{rhs};
