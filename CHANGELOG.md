@@ -78,6 +78,9 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - If scale mode is active, you can now check the current root note and scale by long pressing the scale button. On 7SEG it will display the root note on press and scale on release.
 - Long pressing the scale button will not result in entering or exiting scale mode so you can safely check the current root note and scale without accidentally exiting scale mode.
 
+##### Velocity Spread
+- Added `Velocity Spread` parameter into a `Randomizer` submenu for Sound instruments. This parameters is shared with the arpeggiator and lets you apply some random variation to the notes.
+
 ##### Note / Note Row Probability, Iterance, Fill
 - Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
   - To edit probability, hold a note / audition pad and turn the select encoder to the left to display current probability value / set new probability value.
@@ -119,6 +122,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 #### <ins>Keyboard View</ins>
 
 ##### Kits
+- Added ability to change the pad size in the `KIT VELOCITY KEYBOARD VIEW` using the Zoom In/Out shortcut by `Pressing + Turning <>`
+- Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
 - `KIT VELOCITY KEYBOARD VIEW` Changes:
   - Additional shortcut of `Pressing + Turning <>` to change the pad size using the Zoom In/Out.
   - Went from 8 zoom levels to 13, with mostly smaller jumps in size and number of drum pads between levels.
@@ -133,9 +138,15 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ### Sequencer
 
 #### <ins>Arpeggiator</ins>
-- The arpeggiator has now a new `NOTE PROBABILITY (PROB)` paramater that will apply a probability to notes (after rhythm and sequence length have been applied).
-- Added new `CHORD TYPE (CHRD)` paramater that will emulate a held chord so you can use `NOTE MODE` on the Kit Row.
-- The arpeggiator has now a new `SPREAD` submenu with up to 3 parameters that will allow you to control how those parameters of each arp step are deviated from its base value.
+- Added `NOTE PROBABILITY (PROB)` paramater that will apply a probability to be played or not to notes (after rhythm has been applied).
+- Added `CHORD SIMULATOR (CHRD)` paramater to Kit Rows, that will emulate a held chord so you can use `NOTE MODE` on them.
+- Added `SPREAD` parameters (Velocity, Gate, and Octave) that will allow you to control how those parameters of each arp step are deviated from its base value. Additionally, a `LOCK` parameter will allow you to lock the generated values to create a repeating pattern. Velocity Spread
+also affect normal sequenced notes while arpeggiator is Off.
+- Added `BASS PROBABILITY (BASS)` paramater that will allow you to control the chance of a note being replaced the bass (lowest) note of the inputted notes.
+- Added `STEP REPEAT (REPE)` paramater (with values 1 to 8) that makes walked notes in the pattern be repeated X times before moving to the next note+octave in the pattern.
+- Added `CHORD PROBABILITY (CHRD)` paramater that will allow you to control the chance of a note to play, at the same time, itself and other notes to form a chord (5th, 3rd and 7th).
+- Added `CHORD POLYPHONY (POLY)` paramater that works together with the previous parameter, and this one will dictate how big is the chord, that is, how many notes will be played at the same time.
+- Added `LOCK` parameter to allow you to freeze the current set of randomized values so the sequence has a repeatable pattern.
 
 ### MIDI
 

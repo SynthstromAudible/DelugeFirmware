@@ -15,16 +15,26 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/patched_param/integer.h"
+#include "definitions_cxx.hpp"
+#include "gui/menu_item/integer.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
+#include "model/song/song.h"
 
-namespace deluge::gui::menu_item::arpeggiator {
-class Rate final : public patched_param::Integer {
+namespace deluge::gui::menu_item::arpeggiator::midi_cv {
+class BassProbability final : public Integer {
 public:
-	using patched_param::Integer::Integer;
+	using Integer::Integer;
+	void readCurrentValue() override {
+		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->bassProbability));
+	}
+	void writeCurrentValue() override {
+		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
+		soundEditor.currentArpSettings->bassProbability = value;
+	}
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
+		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow();
 	}
 };
-
-} // namespace deluge::gui::menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::arpeggiator::midi_cv

@@ -19,6 +19,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "io/midi/midi_engine.h"
+#include "model/drum/non_audio_drum.h"
 #include "storage/storage_manager.h"
 #include <string.h>
 
@@ -29,13 +30,41 @@ MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 
 void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
                       int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
-	lastVelocity = velocity;
-	midiEngine.sendNote(this, true, note, velocity, channel, kMIDIOutputFilterNoMPE);
-	state = true;
+	ArpeggiatorSettings* arpSettings = getArpSettings();
+	ArpReturnInstruction instruction;
+	// Run everything by the Arp...
+	arpeggiator.noteOn(arpSettings, note, velocity, &instruction, fromMIDIChannel, mpeValues);
+	if (instruction.arpNoteOn != nullptr) {
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+				break;
+			}
+			noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+		}
+	}
 }
 
 void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
-	midiEngine.sendNote(this, false, note, velocity, channel, kMIDIOutputFilterNoMPE);
+	ArpeggiatorSettings* arpSettings = getArpSettings();
+	ArpReturnInstruction instruction;
+	// Run everything by the Arp...
+	arpeggiator.noteOff(arpSettings, note, &instruction);
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		noteOffPostArp(instruction.noteCodeOffPostArp[n]);
+	}
+}
+
+void MIDIDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
+	lastVelocity = arpNote->velocity;
+	midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, channel, kMIDIOutputFilterNoMPE);
+	state = true;
+}
+
+void MIDIDrum::noteOffPostArp(int32_t noteCodePostArp) {
+	midiEngine.sendNote(this, false, noteCodePostArp, 64, channel, kMIDIOutputFilterNoMPE);
 	state = false;
 }
 
@@ -50,15 +79,14 @@ void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 
 	writer.writeAttribute("channel", channel, false);
 	writer.writeAttribute("note", note, false);
+	writer.writeOpeningTagEnd();
+
+	NonAudioDrum::writeArpeggiatorToFile(writer);
 
 	if (savingSong) {
-		writer.writeOpeningTagEnd();
 		Drum::writeMIDICommandsToFile(writer);
-		writer.writeClosingTag("midiOutput", true, true);
 	}
-	else {
-		writer.closeTag(true);
-	}
+	writer.writeClosingTag("midiOutput", true, true);
 }
 
 Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {

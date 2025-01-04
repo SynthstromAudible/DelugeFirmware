@@ -41,6 +41,8 @@ extern deluge::gui::menu_item::stem_export::Start startStemExportMenu;
 extern deluge::gui::menu_item::firmware::Version firmwareVersionMenu;
 extern deluge::gui::menu_item::sequence::Direction sequenceDirectionMenu;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuMIDIOrCV;
+extern deluge::gui::menu_item::Submenu soundEditorRootMenuMidiDrum;
+extern deluge::gui::menu_item::Submenu soundEditorRootMenuGateDrum;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuAudioClip;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuPerformanceView;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuSongView;
@@ -80,20 +82,17 @@ extern deluge::gui::menu_item::note_row::Fill noteRowFillMenu;
 extern deluge::gui::menu_item::PatchCables patchCablesMenu;
 extern deluge::gui::menu_item::source::patched_param::FM modulatorVolume;
 
-// Shortcut tables penny-pinch by not having the modulation column present. Might be
-// better to just have it there and simplify code elsewhere?
-const int32_t kShortcutTableWidth = kDisplayWidth - 1;
-
 extern MenuItem* midiOrCVParamShortcuts[kDisplayHeight];
-extern MenuItem* paramShortcutsForSounds[kShortcutTableWidth][kDisplayHeight];
-extern MenuItem* paramShortcutsForAudioClips[kShortcutTableWidth][kDisplayHeight];
-extern MenuItem* paramShortcutsForSongView[kShortcutTableWidth][kDisplayHeight];
-extern MenuItem* paramShortcutsForKitGlobalFX[kShortcutTableWidth][kDisplayHeight];
+extern MenuItem* gateDrumParamShortcuts[kDisplayHeight];
+extern MenuItem* paramShortcutsForSounds[kDisplayWidth][kDisplayHeight];
+extern MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight];
+extern MenuItem* paramShortcutsForSongView[kDisplayWidth][kDisplayHeight];
+extern MenuItem* paramShortcutsForKitGlobalFX[kDisplayWidth][kDisplayHeight];
 
-extern deluge::gui::menu_item::Submenu* parentsForSoundShortcuts[kShortcutTableWidth][kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForAudioShortcuts[kShortcutTableWidth][kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForSongShortcuts[kShortcutTableWidth][kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForKitGlobalFXShortcuts[kShortcutTableWidth][kDisplayHeight];
+extern deluge::gui::menu_item::Submenu* parentsForSoundShortcuts[kDisplayWidth][kDisplayHeight];
+extern deluge::gui::menu_item::Submenu* parentsForAudioShortcuts[kDisplayWidth][kDisplayHeight];
+extern deluge::gui::menu_item::Submenu* parentsForSongShortcuts[kDisplayWidth][kDisplayHeight];
+extern deluge::gui::menu_item::Submenu* parentsForKitGlobalFXShortcuts[kDisplayWidth][kDisplayHeight];
 
 void setOscillatorNumberForTitles(int32_t);
 void setModulatorNumberForTitles(int32_t);

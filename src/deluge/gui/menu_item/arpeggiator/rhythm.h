@@ -41,7 +41,7 @@ public:
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip();
+		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
 	}
 };
 

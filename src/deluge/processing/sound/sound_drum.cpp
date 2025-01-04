@@ -32,7 +32,7 @@
 #include "util/misc.h"
 #include <new>
 
-SoundDrum::SoundDrum() : Drum(DrumType::SOUND), arpeggiator() {
+SoundDrum::SoundDrum() : Drum(DrumType::SOUND) {
 	nameIsDiscardable = false;
 }
 
@@ -224,8 +224,4 @@ uint8_t* SoundDrum::getModKnobMode() {
 
 void SoundDrum::drumWontBeRenderedForAWhile() {
 	Sound::wontBeRenderedForAWhile();
-}
-
-ArpeggiatorBase* SoundDrum::getArp() {
-	return &arpeggiator;
 }

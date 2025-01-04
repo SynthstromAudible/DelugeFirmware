@@ -20,6 +20,8 @@
 #include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
@@ -38,7 +40,14 @@ public:
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 
-				if (soundEditor.editingCVOrMIDIClip()) {
+				if (soundEditor.editingNonAudioDrumRow()) {
+					// Midi or CV drum
+					Drum* currentDrum = ((Kit*)getCurrentClip()->output)->selectedDrum;
+					if (currentDrum != nullptr) {
+						currentDrum->unassignAllVoices();
+					}
+				}
+				else if (soundEditor.editingCVOrMIDIClip()) {
 					getCurrentInstrumentClip()->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
 				}
 				else {

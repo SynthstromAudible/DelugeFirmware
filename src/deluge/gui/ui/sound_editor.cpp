@@ -36,6 +36,7 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/drum/non_audio_drum.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -142,6 +143,33 @@ bool SoundEditor::editingKit() {
 
 bool SoundEditor::editingCVOrMIDIClip() {
 	return (getCurrentOutputType() == OutputType::MIDI_OUT || getCurrentOutputType() == OutputType::CV);
+}
+
+bool SoundEditor::editingNonAudioDrumRow() {
+	auto* kit = getCurrentKit();
+	if (kit == nullptr || kit->selectedDrum == nullptr) {
+		return false;
+	}
+	auto selectedDrumType = kit->selectedDrum->type;
+	return selectedDrumType == DrumType::MIDI || selectedDrumType == DrumType::GATE;
+}
+
+bool SoundEditor::editingMidiDrumRow() {
+	auto* kit = getCurrentKit();
+	if (kit == nullptr || kit->selectedDrum == nullptr) {
+		return false;
+	}
+	auto selectedDrumType = kit->selectedDrum->type;
+	return selectedDrumType == DrumType::MIDI;
+}
+
+bool SoundEditor::editingGateDrumRow() {
+	auto* kit = getCurrentKit();
+	if (kit == nullptr || kit->selectedDrum == nullptr) {
+		return false;
+	}
+	auto selectedDrumType = kit->selectedDrum->type;
+	return selectedDrumType == DrumType::GATE;
 }
 
 bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -548,7 +576,7 @@ void SoundEditor::exitCompletely() {
 
 bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout) {
 	bool found = false;
-	for (int32_t x = 0; x < 15; x++) {
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			if (deluge::modulation::params::patchedParamShortcuts[x][y] == paramLookingFor) {
 
@@ -576,7 +604,7 @@ void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
 
 void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem,
                                                MenuItem const* const items[kDisplayWidth][kDisplayHeight]) {
-	for (auto x = 0; x < 15; ++x) {
+	for (auto x = 0; x < kDisplayWidth; ++x) {
 		for (auto y = 0; y < kDisplayHeight; ++y) {
 			if (items[x][y] == currentItem) {
 				setupShortcutBlink(x, y, 0);
@@ -617,8 +645,17 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 		else if (getCurrentClip()->type == ClipType::AUDIO) {
 			setupShortcutsBlinkFromTable(currentItem, paramShortcutsForAudioClips);
 		}
-		// Or for MIDI or CV clips
-		else if (editingCVOrMIDIClip()) {
+		// Or for Gate drums
+		else if (editingGateDrumRow()) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				if (gateDrumParamShortcuts[y] == currentItem) {
+					setupShortcutBlink(11, y, 0);
+					break;
+				}
+			}
+		}
+		// Or for MIDI or CV clips, or MIDI drums
+		else if (editingCVOrMIDIClip() || editingMidiDrumRow()) {
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
 				if (midiOrCVParamShortcuts[y] == currentItem) {
 					setupShortcutBlink(11, y, 0);
@@ -634,7 +671,7 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 			}
 
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
-			for (int32_t x = 0; x < 15; x++) {
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
 					if (paramShortcutsForSounds[x][y] == currentItem) {
 
@@ -885,6 +922,7 @@ static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 	bool ignoreAction = false;
+	bool modulationItemFound = false;
 	if (!Buttons::isShiftButtonPressed()) {
 		// ignore if you're not auditioning and in instrument clip view
 		ignoreAction = !(isUIModeActive(UI_MODE_AUDITIONING) && getRootUI() == &instrumentClipView);
@@ -952,12 +990,94 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 					return ActionResult::DEALT_WITH;
 				}
 			}
-			// Shortcut to edit a parameter
-			if (x < 14 || (x == 14 && y < 5)) {
 
-				if (editingCVOrMIDIClip()) {
+			// Shortcut to patch a modulation source to the parameter we're already looking at
+			if (getCurrentUI() == &soundEditor && ((x == 14 && y >= 5) || x == 15)) {
+
+				PatchSource source = modSourceShortcuts[x - 14][y];
+				if (source == PatchSource::SOON) {
+					display->displayPopup("SOON");
+				}
+
+				if (source >= kLastPatchSource) {
+					return ActionResult::DEALT_WITH;
+				}
+
+				bool previousPressStillActive = false;
+				for (int32_t h = 0; h < 2; h++) {
+					for (int32_t i = 0; i < kDisplayHeight; i++) {
+						if (h == 0 && i < 5) {
+							continue;
+						}
+
+						if ((h + 14 != x || i != y) && matrixDriver.isPadPressed(14 + h, i)) {
+							previousPressStillActive = true;
+							goto getOut;
+						}
+					}
+				}
+
+getOut:
+				bool wentBack = false;
+
+				int32_t newNavigationDepth = navigationDepth;
+
+				while (true) {
+
+					// Ask current MenuItem what to do with this action
+					MenuItem* newMenuItem = menuItemNavigationRecord[newNavigationDepth]->patchingSourceShortcutPress(
+					    source, previousPressStillActive);
+
+					// If it says "go up a level and ask that MenuItem", do that
+					if (newMenuItem == NO_NAVIGATION) {
+						newNavigationDepth--;
+						if (newNavigationDepth < 0) { // This normally shouldn't happen
+							exitCompletely();
+							return ActionResult::DEALT_WITH;
+						}
+						wentBack = true;
+					}
+
+					// Otherwise...
+					else {
+
+						// If we've been given a MenuItem to go into, do that
+						if (newMenuItem
+						    && newMenuItem->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
+						                                                  &currentMultiRange)
+						           != MenuPermission::NO) {
+							modulationItemFound = true;
+							navigationDepth = newNavigationDepth + 1;
+							menuItemNavigationRecord[navigationDepth] = newMenuItem;
+							if (!wentBack) {
+								display->setNextTransitionDirection(1);
+							}
+							beginScreen();
+
+							if (getRootUI() == &automationView) {
+								// if automation view is open in the background
+								// potentially refresh grid if opening a new patch cable menu
+								getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, sdRoutineLock);
+							}
+						}
+
+						// Otherwise, do nothing
+						break;
+					}
+				}
+			}
+
+			// Shortcut to edit a parameter
+			if (!modulationItemFound && (x < 14 || (x == 14 && y < 5) || (x == 15 && y == 1))) {
+
+				if (editingCVOrMIDIClip() || editingNonAudioDrumRow()) {
 					if (x == 11) {
-						item = midiOrCVParamShortcuts[y];
+						if (editingGateDrumRow()) {
+							item = gateDrumParamShortcuts[y];
+						}
+						else {
+							item = midiOrCVParamShortcuts[y];
+						}
 					}
 					else if (x == 4) {
 						if (y == 7) {
@@ -1033,81 +1153,6 @@ doSetup:
 					}
 
 					enterOrUpdateSoundEditor(on);
-				}
-			}
-
-			// Shortcut to patch a modulation source to the parameter we're already looking at
-			else if (getCurrentUI() == &soundEditor) {
-
-				PatchSource source = modSourceShortcuts[x - 14][y];
-				if (source == PatchSource::SOON) {
-					display->displayPopup("SOON");
-				}
-
-				if (source >= kLastPatchSource) {
-					return ActionResult::DEALT_WITH;
-				}
-
-				bool previousPressStillActive = false;
-				for (int32_t h = 0; h < 2; h++) {
-					for (int32_t i = 0; i < kDisplayHeight; i++) {
-						if (h == 0 && i < 5) {
-							continue;
-						}
-
-						if ((h + 14 != x || i != y) && matrixDriver.isPadPressed(14 + h, i)) {
-							previousPressStillActive = true;
-							goto getOut;
-						}
-					}
-				}
-
-getOut:
-				bool wentBack = false;
-
-				int32_t newNavigationDepth = navigationDepth;
-
-				while (true) {
-
-					// Ask current MenuItem what to do with this action
-					MenuItem* newMenuItem = menuItemNavigationRecord[newNavigationDepth]->patchingSourceShortcutPress(
-					    source, previousPressStillActive);
-
-					// If it says "go up a level and ask that MenuItem", do that
-					if (newMenuItem == NO_NAVIGATION) {
-						newNavigationDepth--;
-						if (newNavigationDepth < 0) { // This normally shouldn't happen
-							exitCompletely();
-							return ActionResult::DEALT_WITH;
-						}
-						wentBack = true;
-					}
-
-					// Otherwise...
-					else {
-
-						// If we've been given a MenuItem to go into, do that
-						if (newMenuItem
-						    && newMenuItem->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
-						                                                  &currentMultiRange)
-						           != MenuPermission::NO) {
-							navigationDepth = newNavigationDepth + 1;
-							menuItemNavigationRecord[navigationDepth] = newMenuItem;
-							if (!wentBack) {
-								display->setNextTransitionDirection(1);
-							}
-							beginScreen();
-
-							if (getRootUI() == &automationView) {
-								// if automation view is open in the background
-								// potentially refresh grid if opening a new patch cable menu
-								getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, sdRoutineLock);
-							}
-						}
-
-						// Otherwise, do nothing
-						break;
-					}
 				}
 			}
 		}
@@ -1412,17 +1457,8 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 						newParamManager = &noteRow->paramManager;
 						newArpSettings = &((SoundDrum*)selectedDrum)->arpSettings;
 					}
-					else {
-						if (item != &sequenceDirectionMenu && item != &noteEditorRootMenu
-						    && item != &noteRowEditorRootMenu) {
-							if (selectedDrum->type == DrumType::MIDI) {
-								indicator_leds::indicateAlertOnLed(IndicatorLED::MIDI);
-							}
-							else { // GATE
-								indicator_leds::indicateAlertOnLed(IndicatorLED::CV);
-							}
-							return false;
-						}
+					else if (selectedDrum->type == DrumType::MIDI || selectedDrum->type == DrumType::GATE) {
+						newArpSettings = &((NonAudioDrum*)selectedDrum)->arpSettings;
 					}
 				}
 
@@ -1468,7 +1504,13 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 			actionLogger.deleteAllLogs();
 
 			if (clip->type == ClipType::INSTRUMENT) {
-				if (outputType == OutputType::MIDI_OUT) {
+				if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+					newItem = &noteEditorRootMenu;
+				}
+				else if (currentUIMode == UI_MODE_AUDITIONING) {
+					newItem = &noteRowEditorRootMenu;
+				}
+				else if (outputType == OutputType::MIDI_OUT) {
 					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_MIDI_INST_MENU_TITLE;
 doMIDIOrCV:
 					newItem = &soundEditorRootMenuMIDIOrCV;
@@ -1482,6 +1524,18 @@ doMIDIOrCV:
 					newItem = &soundEditorRootMenuKitGlobalFX;
 				}
 
+				else if ((outputType == OutputType::KIT) && !instrumentClip->affectEntire
+				         && ((Kit*)output)->selectedDrum != nullptr
+				         && ((Kit*)output)->selectedDrum->type == DrumType::MIDI) {
+					newItem = &soundEditorRootMenuMidiDrum;
+				}
+
+				else if ((outputType == OutputType::KIT) && !instrumentClip->affectEntire
+				         && ((Kit*)output)->selectedDrum != nullptr
+				         && ((Kit*)output)->selectedDrum->type == DrumType::GATE) {
+					newItem = &soundEditorRootMenuGateDrum;
+				}
+
 				else {
 					newItem = &soundEditorRootMenu;
 				}
@@ -1492,8 +1546,11 @@ doMIDIOrCV:
 			}
 		}
 		else {
-			if ((currentUI == &sessionView || currentUI == &arrangerView || currentUI == &automationView)
-			    && !Buttons::isShiftButtonPressed()) {
+			if ((currentUI == &performanceView) && !Buttons::isShiftButtonPressed()) {
+				newItem = &soundEditorRootMenuPerformanceView;
+			}
+			else if ((currentUI == &sessionView || currentUI == &arrangerView || currentUI == &automationView)
+			         && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuSongView;
 			}
 			else {
