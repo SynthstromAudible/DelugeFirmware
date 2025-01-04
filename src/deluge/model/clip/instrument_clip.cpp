@@ -893,11 +893,11 @@ doNewProbability:
 					sendPendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
 				}
 				else {
-					pendingNoteOnList.pendingNoteOns[i].noteRow->soundingStatus = STATUS_OFF;
+					pendingNoteOnList.pendingNoteOns[i].noteRow->sequenced = false;
 				}
 			}
 			else {
-				pendingNoteOnList.pendingNoteOns[i].noteRow->soundingStatus = STATUS_OFF;
+				pendingNoteOnList.pendingNoteOns[i].noteRow->sequenced = false;
 			}
 		}
 	}
@@ -4199,7 +4199,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 					// if we just recorded a drone note, transfer the note to the sequencer
 					// so that we can stop auditioning / sending midi and note will continue sustaining
 					if (thisNoteRow->isDroning(loopLength)) {
-						thisNoteRow->soundingStatus = STATUS_SEQUENCED_NOTE;
+						thisNoteRow->sequenced = true;
 					}
 				}
 
