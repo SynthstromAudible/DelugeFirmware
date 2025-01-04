@@ -72,6 +72,7 @@
 #include "storage/wave_table/wave_table.h"
 #include "util/d_string.h"
 #include "util/functions.h"
+#include "util/path.h"
 #include <cstring>
 
 namespace params = deluge::modulation::params;
@@ -1255,7 +1256,7 @@ removeReasonsFromSamplesAndGetOut:
 		if (staticFNO.fattrib & AM_DIR) {
 			continue; // Ignore folders
 		}
-		if (!isAudioFilename(staticFNO.fname)) {
+		if (!Path::isAudioFile(staticFNO.fname)) {
 			continue; // Ignore anything that's not an audio file
 		}
 

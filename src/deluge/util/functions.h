@@ -195,9 +195,6 @@ char const* getInstrumentFolder(OutputType outputType);
 
 int32_t getExp(int32_t presetValue, int32_t adjustment);
 
-bool isAudioFilename(char const* filename);
-bool isAiffFilename(char const* filename);
-
 char const* getFileNameFromEndOfPath(char const* filePathChars);
 
 int32_t lookupReleaseRate(int32_t input);
