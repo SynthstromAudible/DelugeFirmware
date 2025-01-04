@@ -36,10 +36,4 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxNumVoicesUnison; }
 };
 
-class CountToStereoSpread final : public Count {
-public:
-	using Count::Count;
-	MenuItem* selectButtonPress() override { return &unison::stereoSpreadMenu; }
-};
-
 } // namespace deluge::gui::menu_item::unison

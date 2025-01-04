@@ -279,10 +279,33 @@ public:
 	virtual void updateAutomationViewParameter() { return; }
 	void renderColumnLabel(int32_t startX, int32_t width, int32_t startY);
 
+	/// Called by SoundEditor when same shortcut is entered twice in a row. Used by LayeredShortcut to step to the next
+	/// layer. Returns the number of the current layer.
+	virtual int32_t nextLayer() { return 0; }
+
+	/// Used to focus a menu on a specific item. Returns true if the item was available and relevant.
+	virtual bool focusChild(MenuItem* item) { return false; }
+
+	/// Menus which support horizontal rendering need to override this.
+	virtual bool supportsHorizontalRendering() { return false; }
+
+	/// Called when the manu item stops being the current one.
+	virtual void lostFocus(){};
+
+	/// Returns the underlying menu item: for submenus returns the currently active (focused) child,
+	/// for layered shortcuts returns the menu item of the active layer.
+	virtual MenuItem* actual() { return this; }
+
+	enum RenderingStyle { VERTICAL, HORIZONTAL };
+	RenderingStyle renderingStyle();
+
 	/// @}
 };
 
-#define NO_NAVIGATION ((MenuItem*)0xFFFFFFFF)
+/// Tombstone / no-value-value for menu-items. Used to communicate backwards navigation, etc.
+extern MenuItem noNavigation;
+
+#define NO_NAVIGATION &noNavigation
 
 /// @brief  Returns true if the item is relevant using current soundEditor
 /// modControllable and sourceIndex.

@@ -2,7 +2,6 @@
 #include "gui/views/automation_view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "util/container/static_vector.hpp"
 
 namespace deluge::gui::menu_item {
@@ -14,7 +13,7 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 
-bool Submenu::focusChild(const MenuItem* child) {
+bool Submenu::focusChild(MenuItem* child) {
 	// Set new current item.
 	auto prev = current_item_;
 	if (child != nullptr) {
@@ -249,6 +248,9 @@ void Submenu::selectEncoderAction(int32_t offset) {
 }
 
 bool Submenu::shouldForwardButtons() {
+	if (current_item_ == items.end()) {
+		return false;
+	}
 	// Should we deliver buttons to selected menu item instead?
 	return (*current_item_)->isSubmenu() == false && renderingStyle() == RenderingStyle::HORIZONTAL;
 }
@@ -320,16 +322,6 @@ bool Submenu::learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) {
 	return false;
 }
 
-Submenu::RenderingStyle Submenu::renderingStyle() {
-	if (display->haveOLED() && this->supportsHorizontalRendering()
-	    && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus)) {
-		return RenderingStyle::HORIZONTAL;
-	}
-	else {
-		return RenderingStyle::VERTICAL;
-	}
-}
-
 void Submenu::updatePadLights() {
 	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
 		soundEditor.updatePadLightsFor(*current_item_);
@@ -345,6 +337,15 @@ MenuItem* Submenu::patchingSourceShortcutPress(PatchSource s, bool previousPress
 	}
 	else {
 		return MenuItem::patchingSourceShortcutPress(s, previousPressStillActive);
+	}
+}
+
+MenuItem* Submenu::actual() {
+	if (current_item_ == items.end()) {
+		return nullptr;
+	}
+	else {
+		return (*current_item_)->actual();
 	}
 }
 

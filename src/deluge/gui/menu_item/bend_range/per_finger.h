@@ -39,7 +39,8 @@ public:
 		}
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.navigationDepth == 1 || soundEditor.editingKit();
+		// Why the depth check?
+		return soundEditor.getNavigationDepth() == 1 || soundEditor.editingKit();
 	}
 };
 } // namespace deluge::gui::menu_item::bend_range

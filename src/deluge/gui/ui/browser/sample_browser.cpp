@@ -1051,9 +1051,9 @@ doLoadAsSample:
 		getCurrentInstrument()->beenEdited();
 
 		// If there was only one MultiRange, don't go back to the range menu (that's the BOT-TOP thing).
-		if (soundEditor.currentSource->ranges.getNumElements() <= 1 && soundEditor.navigationDepth
-		    && soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth - 1] == &menu_item::multiRangeMenu) {
-			soundEditor.navigationDepth--;
+		if (soundEditor.currentSource->ranges.getNumElements() <= 1
+		    && soundEditor.prevNavigationRecord() == &menu_item::multiRangeMenu) {
+			soundEditor.popNavigationRecord();
 		}
 	}
 

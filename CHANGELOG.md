@@ -28,6 +28,11 @@
 - If a clip has a name, it is displayed with a number prefix, indicating its section, eg. "3: CHORUS".
 - When clips are copied, the clip name is copied as well. If the target track already has a clip with the same name, an integer suffix starting from 2 is added unless the name already has an integer suffix. This integer suffix is incremented until the clip name is unique on the target track. Ie. copying a clip named "BRIDGE" to the same otherwise empty track will first create "BRIDGE2", then "BRIDGE3", etc.
 
+#### <ins>Layered Shortcuts<ins>
+- Layered Shortcuts mechanism allows multiple shortcuts to be accessed under a single shotcut pad. Holding shift and pressing the same shortcut again cycles between shortcuts. The items available under layered shortcuts can also be accessed from menu: layered shortcut is never the only access method.
+- Following shortcuts have layers:
+  - `UNISON NUMBER`: cycles between `UNISON AMOUNT` and `UNISON STEREO SPREAD`, replacing the previous "press select when in `UNISON AMOUNT` access mechanism for `UNISON STEREO SPREAD`.
+
 #### <ins>Tempo</ins>
 - Added Community Feature toggle (`Settings > Community Features > Alternative Tap Tempo Behaviour (TAPT)`) to adjust number of `TAP TEMPO` button presses to engage `TAP TEMPO` to `FOUR (4)` to avoid mistakingly changing tempo.
 
@@ -584,7 +589,8 @@ also affect normal sequenced notes while arpeggiator is Off.
 - `WAVEFOLD` distortion has been added and occurs pre-filter. The parameter pad shortcut is between `SATURATION`
   and `LPF CUTOFF`.
 - `UNISON STEREO SPREAD` has been added and can be dialed to spread the unison parts across the stereo field.
-  Click `SELECT` when in `UNISON AMOUNT` to reveal the parameter.
+  ~~Click `SELECT` when in `UNISON AMOUNT` to reveal the parameter.~~ Since 1.3: hold `SHIFT` and press the
+  `UNISON NUMBER` shortcut pad twice, or access via `SOUND > VOICE > UNISON` menu.
 
 ##### Filter
 

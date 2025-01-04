@@ -19,6 +19,7 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h" //todo: this probably shouldn't be needed
+#include "model/settings/runtime_feature_settings.h"
 #include <string_view>
 
 using namespace deluge;
@@ -117,6 +118,16 @@ void MenuItem::updatePadLights() {
 	soundEditor.updatePadLightsFor(this);
 }
 
+MenuItem::RenderingStyle MenuItem::renderingStyle() {
+	if (display->haveOLED() && this->supportsHorizontalRendering()
+	    && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus)) {
+		return MenuItem::RenderingStyle::HORIZONTAL;
+	}
+	else {
+		return MenuItem::RenderingStyle::VERTICAL;
+	}
+}
+
 bool isItemRelevant(MenuItem* item) {
 	if (item == nullptr) {
 		return false;
@@ -125,3 +136,5 @@ bool isItemRelevant(MenuItem* item) {
 		return item->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex);
 	}
 }
+
+MenuItem noNavigation{};

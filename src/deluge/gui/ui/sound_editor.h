@@ -58,8 +58,12 @@ public:
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	Sound* currentSound;
 	ModControllableAudio* currentModControllable;
+	/// Should indicate the oscillator being adjusted, but if an oscillator is not being adjusted may
+	/// point at either. Some code which should be transitioned to use currentPatchIndex instead also
+	/// uses this -- when you notice it, fix it.
 	int8_t currentSourceIndex;
 	Source* currentSource;
+	int8_t currentPatchIndex;
 	ParamManagerForTimeline* currentParamManager;
 	SideChain* currentSidechain;
 	ArpeggiatorSettings* currentArpSettings;
@@ -85,7 +89,6 @@ public:
 	void updateSourceBlinks(MenuItem* currentItem);
 	void resetSourceBlinks();
 
-	uint8_t navigationDepth;
 	uint8_t patchingParamSelected;
 	uint8_t currentParamShorcutX;
 	uint8_t currentParamShorcutY;
@@ -100,8 +103,6 @@ public:
 
 	uint8_t shortcutsVersion;
 
-	MenuItem* menuItemNavigationRecord[16];
-
 	bool shouldGoUpOneLevelOnBegin;
 
 	bool programChangeReceived(MIDICable& cable, uint8_t channel, uint8_t program) { return false; }
@@ -109,7 +110,7 @@ public:
 	bool pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2);
 	void selectEncoderAction(int8_t offset) override;
 	bool canSeeViewUnderneath() override { return true; }
-	bool setup(Clip* clip = nullptr, const MenuItem* item = nullptr, int32_t sourceIndex = 0);
+	bool setup(Clip* clip = nullptr, MenuItem* item = nullptr, int32_t sourceIndex = 0, int32_t layerIndex = 0);
 	void enterOrUpdateSoundEditor(bool on);
 	void blinkShortcut();
 	ActionResult potentialShortcutPadAction(int32_t x, int32_t y, bool on);
@@ -157,6 +158,24 @@ public:
 	void toggleNoteEditorParamMenu(int32_t on);
 	void updatePadLightsFor(MenuItem* item);
 
+	// Navigation record operations
+
+	/// Returns true iff there are navigation records.
+	bool hasNavigationRecords();
+	/// Returns true iff there is exactly one navigation record.
+	bool lastNavigationRecord();
+	/// Removes the latest navigation record from the stack, notifies it off loss of focus,
+	/// and returns it.
+	MenuItem* popNavigationRecord();
+	/// If there are more than one navigation records, returns the second from the top.
+	MenuItem* prevNavigationRecord();
+	/// Pushes a new navigation record on stack.
+	void pushNavigationRecord(MenuItem* item);
+	/// Returns the numnber of navigation records.
+	int32_t getNavigationDepth() { return navigationDepth_; }
+	/// Replaces the current navigation record. No-op if item is the current record.
+	void replaceNavigationRecord(MenuItem* item);
+
 private:
 	/// Setup shortcut blinking by finding the given menu item in the provided item map
 	void setupShortcutsBlinkFromTable(MenuItem const* currentItem,
@@ -168,7 +187,11 @@ private:
 	bool isEditingAutomationViewParam();
 	void handlePotentialParamMenuChange(deluge::hid::Button b, bool on, bool inCardRoutine, MenuItem* previousItem,
 	                                    MenuItem* currentItem);
-	bool handleClipName();
+
+	// Navigation record stack
+	static const int32_t kMaxNavigationDepth = 16;
+	int32_t navigationDepth_;
+	MenuItem* menuItemNavigationRecord_[kMaxNavigationDepth + 1];
 
 	uint8_t sourceShortcutBlinkFrequencies[2][kDisplayHeight];
 	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight];

@@ -34,7 +34,12 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### 2.2 Horizontal Menus
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
-  - Envelope 1 & 2.
+  - Envelope 1 & 2. ([#3147])
+
+#### 2.3 Layered Shortcuts
+- Layered Shortcuts mechanism allows multiple shortcuts to be accessed under a single shotcut pad. Holding shift and pressing the same shortcut again cycles between shortcuts. The items available under layered shortcuts can also be accessed from menu: layered shortcut is never the only access method.
+- Following shortcuts have layers:
+  - `UNISON NUMBER`: cycles between `UNISON AMOUNT` and `UNISON STEREO SPREAD`. ([#3209])
 
 ## 3. General Improvements
 
@@ -1041,9 +1046,8 @@ to each individual note onset. ([#1978])
 - ([#157]) Add a `MOD MATRIX` entry to the `SOUND` menu which shows a list of all currently active modulations.
 
 #### 4.5.2 - Unison Stereo Spread
-
-- ([#223]) The unison parts can be spread accross the stereo field. Press `SELECT` when in the `UNISON NUMBER` menu to
-  access the new unison spread parameter.
+- ([#223], [#3209]) The unison parts can be spread accross the stereo field. Access through `SOUND > VOICE > UNISON` menu,
+  or though layered shortcut on `UNISON NUMBER` pad.
 
 #### 4.5.3 - Waveform Loop Lock
 
@@ -1569,6 +1573,8 @@ different firmware
 [#3062]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3062
 
 [#3079]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3079
+
+[#3209]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3209
 
 [Automation View Documentation]: features/automation_view.md
 

@@ -28,8 +28,6 @@ namespace deluge::gui::menu_item {
 
 class Submenu : public MenuItem {
 public:
-	enum RenderingStyle { VERTICAL, HORIZONTAL };
-
 	Submenu(l10n::String newName, std::initializer_list<MenuItem*> newItems)
 	    : MenuItem(newName), items{newItems}, current_item_{items.end()} {}
 	Submenu(l10n::String newName, std::span<MenuItem*> newItems)
@@ -48,22 +46,20 @@ public:
 	void unlearnAction() final;
 	bool allowsLearnMode() final;
 	void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final;
-	void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) override;
+	void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) final;
 	bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) final;
-	void drawPixelsForOled() override;
+	void drawPixelsForOled() final;
 	void drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption);
 	/// @brief 	Indicates if the menu-like object should wrap-around. Destined to be virtualized.
 	///         At the moment implements the legacy behaviour of wrapping on 7seg but not on OLED.
 	bool wrapAround();
-	bool isSubmenu() override { return true; }
-	virtual bool focusChild(const MenuItem* child);
-	/// Submenus which support horizontal rendering need to override this.
-	virtual bool supportsHorizontalRendering() { return false; }
-	RenderingStyle renderingStyle();
-	void updatePadLights() override;
-	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override;
-	deluge::modulation::params::Kind getParamKind() override;
-	uint32_t getParamIndex() override;
+	bool isSubmenu() final { return true; }
+	bool focusChild(MenuItem* child) final;
+	void updatePadLights() final;
+	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) final;
+	deluge::modulation::params::Kind getParamKind() final;
+	uint32_t getParamIndex() final;
+	MenuItem* actual() final;
 
 protected:
 	void drawVerticalMenu();
@@ -83,7 +79,7 @@ public:
 	    : Submenu(newName, title, newItems) {}
 	HorizontalMenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
 	    : Submenu(newName, title, newItems) {}
-	bool supportsHorizontalRendering() { return true; }
+	bool supportsHorizontalRendering() final { return true; }
 };
 
 } // namespace deluge::gui::menu_item

@@ -125,10 +125,14 @@ SoundEditor soundEditor{};
 
 SoundEditor::SoundEditor() {
 	currentParamShorcutX = 255;
+	currentSourceIndex = 0;
+	currentSource = nullptr;
+	currentPatchIndex = 0;
 	timeLastAttemptedAutomatedParamEdit = 0;
 	shouldGoUpOneLevelOnBegin = false;
 	setupKitGlobalFXMenu = false;
 	selectedNoteRow = false;
+	navigationDepth_ = -1;
 	resetSourceBlinks();
 }
 
@@ -274,8 +278,7 @@ void SoundEditor::setLedStates() {
 }
 
 void SoundEditor::enterSubmenu(MenuItem* newItem) {
-	navigationDepth++;
-	menuItemNavigationRecord[navigationDepth] = newItem;
+	pushNavigationRecord(newItem);
 	display->setNextTransitionDirection(1);
 	beginScreen();
 }
@@ -527,18 +530,21 @@ void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool on,
 }
 
 void SoundEditor::goUpOneLevel() {
+	if (!hasNavigationRecords()) {
+		FREEZE_WITH_ERROR("NAV4");
+	}
+
+	MenuItem* oldItem;
 	do {
-		if (navigationDepth == 0) {
-			exitCompletely();
-			return;
+		if (lastNavigationRecord()) {
+			return exitCompletely();
 		}
-		navigationDepth--;
+		oldItem = popNavigationRecord();
 	} while (getCurrentMenuItem()->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
 	                                                             &currentMultiRange)
 	         == MenuPermission::NO);
 	display->setNextTransitionDirection(-1);
 
-	MenuItem* oldItem = menuItemNavigationRecord[navigationDepth + 1];
 	if (oldItem == &menu_item::multiRangeMenu) {
 		oldItem = menu_item::multiRangeMenu.menuItemHeadingTo;
 	}
@@ -547,22 +553,28 @@ void SoundEditor::goUpOneLevel() {
 }
 
 void SoundEditor::exitCompletely() {
-	if (inSettingsMenu()) {
-		// First, save settings
+	while (hasNavigationRecords()) {
+		if (inSettingsMenu()) {
+			// First, save settings
 
-		display->displayLoadingAnimationText("Saving settings");
+			display->displayLoadingAnimationText("Saving settings");
 
-		FlashStorage::writeSettings();
-		MIDIDeviceManager::writeDevicesToFile();
-		runtimeFeatureSettings.writeSettingsToFile();
-		display->removeWorkingAnimation();
+			FlashStorage::writeSettings();
+			MIDIDeviceManager::writeDevicesToFile();
+			runtimeFeatureSettings.writeSettingsToFile();
+			display->removeWorkingAnimation();
+		}
+		else if (inNoteEditor()) {
+			instrumentClipView.exitNoteEditor();
+		}
+		else if (inNoteRowEditor()) {
+			instrumentClipView.exitNoteRowEditor();
+		}
+		// the cases above could be handled by lostFocus() methods
+		// on the appropriate classes, probably
+		popNavigationRecord();
 	}
-	else if (inNoteEditor()) {
-		instrumentClipView.exitNoteEditor();
-	}
-	else if (inNoteRowEditor()) {
-		instrumentClipView.exitNoteRowEditor();
-	}
+
 	display->setNextTransitionDirection(-1);
 	close();
 	possibleChangeToCurrentRangeDisplay();
@@ -948,8 +960,8 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
-		const MenuItem* item = nullptr;
-		Submenu* parent = nullptr;
+		MenuItem* item = nullptr;
+		MenuItem* parent = nullptr;
 
 		// session views (arranger, song, performance)
 		if (!rootUIIsClipMinderScreen()) {
@@ -1020,21 +1032,20 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 getOut:
 				bool wentBack = false;
 
-				int32_t newNavigationDepth = navigationDepth;
-
-				while (true) {
+				while (hasNavigationRecords()) {
 
 					// Ask current MenuItem what to do with this action
-					MenuItem* newMenuItem = menuItemNavigationRecord[newNavigationDepth]->patchingSourceShortcutPress(
-					    source, previousPressStillActive);
+					MenuItem* newMenuItem =
+					    getCurrentMenuItem()->patchingSourceShortcutPress(source, previousPressStillActive);
 
 					// If it says "go up a level and ask that MenuItem", do that
 					if (newMenuItem == NO_NAVIGATION) {
-						newNavigationDepth--;
-						if (newNavigationDepth < 0) { // This normally shouldn't happen
+						if (lastNavigationRecord()) {
+							// should no happen normally!
 							exitCompletely();
 							return ActionResult::DEALT_WITH;
 						}
+						popNavigationRecord();
 						wentBack = true;
 					}
 
@@ -1047,8 +1058,7 @@ getOut:
 						                                                  &currentMultiRange)
 						           != MenuPermission::NO) {
 							modulationItemFound = true;
-							navigationDepth = newNavigationDepth + 1;
-							menuItemNavigationRecord[navigationDepth] = newMenuItem;
+							pushNavigationRecord(newMenuItem);
 							if (!wentBack) {
 								display->setNextTransitionDirection(1);
 							}
@@ -1061,7 +1071,7 @@ getOut:
 							}
 						}
 
-						// Otherwise, do nothing
+						// Done, whether we have a new item or not
 						break;
 					}
 				}
@@ -1101,51 +1111,79 @@ doSetup:
 						return ActionResult::DEALT_WITH;
 					}
 
-					// If we're on OLED, a parent menu & horizontal menus are in play,
-					// then we swap the parent in place of the child.
-					if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
-						if (parent->focusChild(item)) {
+					// Figure out if we're pressing the same shortcut twice: if we are, we want to give
+					// the relevant menu the opportunity to change layers.
+					//
+					// The interaction between horizontal parent menus and layered menus is slightly non-obvious:
+					// - Some menu items (like envelope semgnets) are shared between menus, so we cannot look
+					//   at just the underlying item, but also the possible parent.
+					// - If we have a parent menu, we want to change layers on the parent before focusing the
+					//   child, so that we focus on the right layer.
+					//
+					// Layers themselves function is offsets to patchIndex, which used to identify the correct
+					// item in the sound the user is editing. Currently this works for envelopes -- and is needed
+					// for them due to the slightly magical way envelopes share segments. If the edit target
+					// has proper unique identification then layer number / patchIndex is not needed.
+					//
+					// This works on 7-seg as well.
+					int32_t layerNumber = 0;
+					MenuItem* newItem = item->actual();
+					MenuItem* oldItem = getCurrentMenuItem()->actual();
+					if (oldItem == newItem) {
+						if (parent == nullptr) {
+							// No parent, same item == same shortcut twice.
+							layerNumber = item->nextLayer();
+						}
+						else if (parent == oldItem) {
+							// Same parent, same item == same shortcut twice.
+							layerNumber = parent->nextLayer();
+						}
+					}
+
+					// If we're on OLED, a parent menu & horizontal menus are in play, then we swap the parent in
+					// place of the child.
+					if (parent != nullptr && parent->renderingStyle() == MenuItem::RenderingStyle::HORIZONTAL) {
+						if (parent->focusChild(newItem)) {
 							item = parent;
 						}
 					}
 
 					// if we're in the menu and automation view is the root (background) UI
 					// and you're using a grid shortcut, only allow use of shortcuts for parameters / patch cables
-					MenuItem* newItem;
-					newItem = (MenuItem*)item;
+
 					// need to make sure we're already in the menu
 					// because at this point menu may not have been setup yet
 					// menu needs to be setup before menu items can call soundEditor.getCurrentModelStack()
 					if (getCurrentUI() == &soundEditor) {
-						deluge::modulation::params::Kind kind = newItem->getParamKind();
-						if ((newItem->getParamKind() == deluge::modulation::params::Kind::NONE)
+						if ((item->getParamKind() == deluge::modulation::params::Kind::NONE)
 						    && getRootUI() == &automationView) {
 							return ActionResult::DEALT_WITH;
 						}
 					}
 
+					int32_t sourceIndex = x & 1;
+					int32_t patchIndex = sourceIndex + 2 * layerNumber;
 					if (display->haveOLED()) {
 						switch (x) {
 						case 0 ... 3:
-							setOscillatorNumberForTitles(x & 1);
+							setOscillatorNumberForTitles(sourceIndex);
 							break;
 
 						case 4 ... 5:
-							setModulatorNumberForTitles(x & 1);
+							setModulatorNumberForTitles(sourceIndex);
 							break;
 
 						case 8 ... 9:
-							setEnvelopeNumberForTitles(x & 1);
+							setEnvelopeNumberForTitles(patchIndex);
 							break;
 						}
 					}
-					int32_t thingIndex = x & 1;
 
-					bool setupSuccess = setup(getCurrentClip(), item, thingIndex);
+					bool setupSuccess = setup(getCurrentClip(), item, sourceIndex, patchIndex);
 
 					if (!setupSuccess && item == &modulatorVolume && currentSource->oscType == OscType::DX7) {
 						item = &dxParam;
-						setupSuccess = setup(getCurrentClip(), item, thingIndex);
+						setupSuccess = setup(getCurrentClip(), item, sourceIndex, patchIndex);
 					}
 
 					if (!setupSuccess) {
@@ -1403,7 +1441,61 @@ void SoundEditor::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 }
 
-bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
+bool SoundEditor::hasNavigationRecords() {
+	return navigationDepth_ >= 0;
+}
+
+bool SoundEditor::lastNavigationRecord() {
+	return navigationDepth_ == 0;
+}
+
+MenuItem* SoundEditor::popNavigationRecord() {
+	if (hasNavigationRecords()) {
+		MenuItem* top = menuItemNavigationRecord_[navigationDepth_--];
+		if (top) {
+			top->lostFocus();
+		}
+		return top;
+	}
+	else {
+		FREEZE_WITH_ERROR("NAV1");
+		return nullptr;
+	}
+}
+
+MenuItem* SoundEditor::prevNavigationRecord() {
+	if (navigationDepth_ >= 1) {
+		return menuItemNavigationRecord_[navigationDepth_ - 1];
+	}
+	else {
+		return nullptr;
+	}
+}
+
+void SoundEditor::pushNavigationRecord(MenuItem* item) {
+	if (navigationDepth_ < -1) {
+		FREEZE_WITH_ERROR("NU1");
+	}
+	else if (navigationDepth_ >= kMaxNavigationDepth) {
+		FREEZE_WITH_ERROR("NO1");
+	}
+	menuItemNavigationRecord_[++navigationDepth_] = item;
+}
+
+void SoundEditor::replaceNavigationRecord(MenuItem* item) {
+	if (navigationDepth_ <= -1) {
+		FREEZE_WITH_ERROR("NU2");
+	}
+	else if (navigationDepth_ > kMaxNavigationDepth) {
+		FREEZE_WITH_ERROR("NO2");
+	}
+	if (item != menuItemNavigationRecord_[navigationDepth_]) {
+		popNavigationRecord();
+		pushNavigationRecord(item);
+	}
+}
+
+bool SoundEditor::setup(Clip* clip, MenuItem* item, int32_t sourceIndex, int32_t patchIndex) {
 
 	Sound* newSound = nullptr;
 	ParamManagerForTimeline* newParamManager = nullptr;
@@ -1494,26 +1586,21 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 		}
 	}
 
-	MenuItem* newItem;
-
-	if (item) {
-		newItem = (MenuItem*)item;
-	}
-	else {
+	if (!item) {
 		if (clip) {
 			actionLogger.deleteAllLogs();
 
 			if (clip->type == ClipType::INSTRUMENT) {
 				if (currentUIMode == UI_MODE_NOTES_PRESSED) {
-					newItem = &noteEditorRootMenu;
+					item = &noteEditorRootMenu;
 				}
 				else if (currentUIMode == UI_MODE_AUDITIONING) {
-					newItem = &noteRowEditorRootMenu;
+					item = &noteRowEditorRootMenu;
 				}
 				else if (outputType == OutputType::MIDI_OUT) {
 					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_MIDI_INST_MENU_TITLE;
 doMIDIOrCV:
-					newItem = &soundEditorRootMenuMIDIOrCV;
+					item = &soundEditorRootMenuMIDIOrCV;
 				}
 				else if (outputType == OutputType::CV) {
 					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_CV_INSTRUMENT;
@@ -1521,40 +1608,52 @@ doMIDIOrCV:
 				}
 
 				else if ((outputType == OutputType::KIT) && instrumentClip->affectEntire) {
-					newItem = &soundEditorRootMenuKitGlobalFX;
+					item = &soundEditorRootMenuKitGlobalFX;
 				}
 
 				else if ((outputType == OutputType::KIT) && !instrumentClip->affectEntire
 				         && ((Kit*)output)->selectedDrum != nullptr
 				         && ((Kit*)output)->selectedDrum->type == DrumType::MIDI) {
-					newItem = &soundEditorRootMenuMidiDrum;
+					item = &soundEditorRootMenuMidiDrum;
 				}
 
 				else if ((outputType == OutputType::KIT) && !instrumentClip->affectEntire
 				         && ((Kit*)output)->selectedDrum != nullptr
 				         && ((Kit*)output)->selectedDrum->type == DrumType::GATE) {
-					newItem = &soundEditorRootMenuGateDrum;
+					item = &soundEditorRootMenuGateDrum;
+				}
+
+				else if ((outputType == OutputType::KIT) && !instrumentClip->affectEntire
+				         && ((Kit*)output)->selectedDrum != nullptr
+				         && ((Kit*)output)->selectedDrum->type == DrumType::MIDI) {
+					item = &soundEditorRootMenuMidiDrum;
+				}
+
+				else if ((outputType == OutputType::KIT) && !instrumentClip->affectEntire
+				         && ((Kit*)output)->selectedDrum != nullptr
+				         && ((Kit*)output)->selectedDrum->type == DrumType::GATE) {
+					item = &soundEditorRootMenuGateDrum;
 				}
 
 				else {
-					newItem = &soundEditorRootMenu;
+					item = &soundEditorRootMenu;
 				}
 			}
 
 			else {
-				newItem = &soundEditorRootMenuAudioClip;
+				item = &soundEditorRootMenuAudioClip;
 			}
 		}
 		else {
 			if ((currentUI == &performanceView) && !Buttons::isShiftButtonPressed()) {
-				newItem = &soundEditorRootMenuPerformanceView;
+				item = &soundEditorRootMenuPerformanceView;
 			}
 			else if ((currentUI == &sessionView || currentUI == &arrangerView || currentUI == &automationView)
 			         && !Buttons::isShiftButtonPressed()) {
-				newItem = &soundEditorRootMenuSongView;
+				item = &soundEditorRootMenuSongView;
 			}
 			else {
-				newItem = &settingsRootMenu;
+				item = &settingsRootMenu;
 			}
 		}
 	}
@@ -1570,7 +1669,7 @@ doMIDIOrCV:
 	// depth", it needs this.
 	currentParamManager = newParamManager;
 
-	MenuPermission result = newItem->checkPermissionToBeginSession(newModControllable, sourceIndex, &newRange);
+	MenuPermission result = item->checkPermissionToBeginSession(newModControllable, sourceIndex, &newRange);
 
 	if (result == MenuPermission::NO) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
@@ -1581,8 +1680,8 @@ doMIDIOrCV:
 		D_PRINTLN("must select range");
 
 		newRange = nullptr;
-		menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
-		newItem = &menu_item::multiRangeMenu;
+		menu_item::multiRangeMenu.menuItemHeadingTo = item;
+		item = &menu_item::multiRangeMenu;
 	}
 
 	if (display->haveOLED()) {
@@ -1601,6 +1700,7 @@ doMIDIOrCV:
 	if (currentSound) {
 		currentSourceIndex = sourceIndex;
 		currentSource = &currentSound->sources[currentSourceIndex];
+		currentPatchIndex = patchIndex;
 		currentSampleControls = &currentSource->sampleControls;
 		currentPriority = &currentSound->voicePriority;
 
@@ -1616,9 +1716,17 @@ doMIDIOrCV:
 		currentPriority = &audioClip->voicePriority;
 	}
 
-	navigationDepth = 0;
+	if (hasNavigationRecords()) {
+		while (!lastNavigationRecord()) {
+			popNavigationRecord();
+		}
+		replaceNavigationRecord(item);
+	}
+	else {
+		pushNavigationRecord(item);
+	}
+
 	shouldGoUpOneLevelOnBegin = false;
-	menuItemNavigationRecord[navigationDepth] = newItem;
 
 	display->setNextTransitionDirection(1);
 
@@ -1626,19 +1734,24 @@ doMIDIOrCV:
 }
 
 MenuItem* SoundEditor::getCurrentMenuItem() {
-	return menuItemNavigationRecord[navigationDepth];
+	if (hasNavigationRecords()) {
+		return menuItemNavigationRecord_[navigationDepth_];
+	}
+	else {
+		return NO_NAVIGATION;
+	}
 }
 
 bool SoundEditor::inSettingsMenu() {
-	return (menuItemNavigationRecord[0] == &settingsRootMenu);
+	return (menuItemNavigationRecord_[0] == &settingsRootMenu);
 }
 
 bool SoundEditor::inNoteEditor() {
-	return (menuItemNavigationRecord[0] == &noteEditorRootMenu);
+	return (menuItemNavigationRecord_[0] == &noteEditorRootMenu);
 }
 
 bool SoundEditor::inNoteRowEditor() {
-	return (menuItemNavigationRecord[0] == &noteRowEditorRootMenu);
+	return (menuItemNavigationRecord_[0] == &noteRowEditorRootMenu);
 }
 
 // used to jump from note row editor to note editor and back
@@ -1786,12 +1899,15 @@ void SoundEditor::mpeZonesPotentiallyUpdated() {
 void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 
 	// Sorry - extremely ugly hack here.
+
+	// FIXME: why? what?
+
 	MenuItem* currentMenuItem = getCurrentMenuItem();
 	if (currentMenuItem == static_cast<void*>(&nameEditMenu)) {
-		if (!navigationDepth) {
+		if (lastNavigationRecord()) {
 			return;
 		}
-		currentMenuItem = menuItemNavigationRecord[navigationDepth - 1];
+		currentMenuItem = popNavigationRecord();
 	}
 
 	currentMenuItem->renderOLED();
