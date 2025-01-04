@@ -198,8 +198,8 @@ public:
 	constexpr void operator+=(std::string_view str) { append(str); }
 	constexpr void operator+=(std::string& str) { append(str); }
 
-	operator std::string_view() const { return std::string_view{buf_}; }
-	char& operator[](size_t idx) { return buf_[idx]; }
+	constexpr operator std::string_view() const { return std::string_view{buf_}; }
+	constexpr char& operator[](size_t idx) { return buf_[idx]; }
 
 private:
 	[[nodiscard]] constexpr char* true_end() const { return &buf_[capacity_ + 1]; }

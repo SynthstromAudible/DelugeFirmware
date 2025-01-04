@@ -483,7 +483,7 @@ const int16_t lanczosKernelA16[1025] = {
 
 
 const char noteCodeToNoteLetter[12] = {'C','C','D','D','E','F','F','G','G','A','A','B'};
-const bool noteCodeIsSharp[12] = {false, true, false, true, 0, false, true, false, true, false, true, false};
+const bool noteCodeIsSharp[12] = {false, true, false, true, false, false, true, false, true, false, true, false};
 
 /**
  * @brief How iterance is encoded:
