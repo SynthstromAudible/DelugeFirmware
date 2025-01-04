@@ -387,6 +387,13 @@ which track to record from. The source can also be selected by pressing a clip's
   - This menu is also accessible from the `VOICE (VOIC) > Polyphony Type (POLY)` type menu by selecting `Polyphonic` and pressing `SELECT`
 - Updated default `Max Voices` for new synth's to `8 voices`. Old synths for which a max number of voices has not been configured will default to `16 voices`.
 
+#### 3.35 Clip Names
+- ([#2293], [#2299], [#3183]) All clips can be named. Name must be unique per track. Clip name is displayed underneath the track name on OLED.
+  1. Via clip settings menu, see [#3-28-Add-Clip-Settings-Menu-in-Song-View-to-set-Clip-Mode-and-Clip-Name-and-convert-Instrument-Clips-to-Audio-Clips]
+  2. Via `NAME` shortcut in the clip view for non-audio clips (in audio clips the `NAME` shortcut currently names the track instead). In KIT clips `AFFECT ALL` must be on, or the shortcut names the active drum instead.
+- ([#3195]) Clip name display includes the section number. If the clip has no name, it is displayed using just the section number, as "SECTION N". If the clip has a name, it is prefixed with the section number, as "N: CLIP NAME".
+- ([#3195]) When clips are copied, the clip name is copied as well. If the target track already has a clip with the same name, an integer suffix starting from 2 is added unless the name already has an integer suffix. This integer suffix is incremented until the clip name is unique on the target track. Ie. copying a clip named "BRIDGE" to the same otherwise empty track will first create "BRIDGE2", then "BRIDGE3", etc.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1592,6 +1599,8 @@ different firmware
 
 [#1962]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1962
 
+[#1978]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1978
+
 [#2046]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2046
 
 [#2080]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2080
@@ -1603,6 +1612,10 @@ different firmware
 [#2174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2166
 
 [#2260]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2260
+
+[#2264]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2264
+
+[#2293]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2293
 
 [#2299]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2299
 
@@ -1650,6 +1663,8 @@ different firmware
 
 [#2751]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2751
 
+[#2788]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2788
+
 [#2808]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2808
 
 [#2810]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2810
@@ -1657,6 +1672,10 @@ different firmware
 [#2815]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2815
 
 [#2823]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2823
+
+[#2882]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2882
+
+[#2958]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2958
 
 [#2978]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2978
 
@@ -1666,7 +1685,9 @@ different firmware
 
 [#2990]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2990
 
-[#2958]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2958
+[#3183]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3183
+
+[#3195]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3195
 
 [Automation View Documentation]: features/automation_view.md
 
