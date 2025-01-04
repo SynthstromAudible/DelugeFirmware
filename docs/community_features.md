@@ -10,6 +10,7 @@ development work for a future Deluge version at a given time, and many of the
 features are not yet available in released stable versions. Documentation
 about released versions can be found here:
 
+- [1.2.x (Chopin)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.2/docs/community_features.md)
 - [1.1.x (Beethoven)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.1/docs/community_features.md)
 - [1.0.x (Amadeus)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/community_features.md)
 
