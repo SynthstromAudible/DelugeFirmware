@@ -3539,8 +3539,7 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 
 			if (noteRowOnActiveClip) {
 				// Ensure our auditioning doesn't override a note playing in the sequence
-				if (playbackHandler.isEitherClockActive()
-				    && noteRowOnActiveClip->soundingStatus == STATUS_SEQUENCED_NOTE) {
+				if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->sequenced) {
 					goto doSilentAudition;
 				}
 			}
@@ -3606,7 +3605,7 @@ doSilentAudition:
 
 				// Stop the note sounding - but only if a sequenced note isn't in fact being played here.
 				// Or if it's drone note, end auditioning to transfer the note's sustain to the sequencer
-				if (!noteRowOnActiveClip || noteRowOnActiveClip->soundingStatus == STATUS_OFF
+				if (!noteRowOnActiveClip || !noteRowOnActiveClip->sequenced
 				    || noteRowOnActiveClip->isDroning(modelStackWithNoteRowOnCurrentClip->getLoopLength())) {
 					instrumentClipView.sendAuditionNote(false, yDisplay, 64, 0);
 				}
@@ -4072,8 +4071,7 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 
 			if (!isKit || modelStackWithNoteRow->getNoteRowAllowNull()) {
 
-				if (modelStackWithNoteRow->getNoteRowAllowNull()
-				    && modelStackWithNoteRow->getNoteRow()->soundingStatus == STATUS_SEQUENCED_NOTE) {}
+				if (modelStackWithNoteRow->getNoteRowAllowNull() && modelStackWithNoteRow->getNoteRow()->sequenced) {}
 				else {
 
 					// Record note-on if we're recording
