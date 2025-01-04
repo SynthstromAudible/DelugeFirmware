@@ -1598,6 +1598,8 @@ different firmware
 
 [#1962]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1962
 
+[#1978]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1978
+
 [#2046]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2046
 
 [#2080]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2080
@@ -1609,6 +1611,10 @@ different firmware
 [#2174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2166
 
 [#2260]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2260
+
+[#2264]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2264
+
+[#2293]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2293
 
 [#2299]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2299
 
@@ -1656,6 +1662,8 @@ different firmware
 
 [#2751]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2751
 
+[#2788]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2788
+
 [#2808]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2808
 
 [#2810]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2810
@@ -1663,6 +1671,10 @@ different firmware
 [#2815]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2815
 
 [#2823]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2823
+
+[#2882]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2882
+
+[#2958]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2958
 
 [#2978]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2978
 
@@ -1672,7 +1684,9 @@ different firmware
 
 [#2990]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2990
 
-[#2958]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2958
+[#3183]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3183
+
+[#3195]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3195
 
 [Automation View Documentation]: features/automation_view.md
 
