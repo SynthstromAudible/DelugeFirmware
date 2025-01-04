@@ -1917,14 +1917,12 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 	bool useFlats = runtimeFeatureSettings.get(RuntimeFeatureSettingType::UseFlats)
 		== RuntimeFeatureStateToggle::On;
 
-	if (useFlats) {
-	*thisChar = noteCodeToNoteLetterFlats[noteCodeWithinOctave];
-	} else {
-	*thisChar = noteCodeToNoteLetter[noteCodeWithinOctave];
-	}
+
+	*thisChar = !useFlats ? noteCodeToNoteLetter[noteCodeWithinOctave] : noteCodeToNoteLetterFlats[noteCodeWithinOctave];
+	
 	thisChar++;
 	if (noteCodeIsSharp[noteCodeWithinOctave]) {
-		char accidential = useFlats ? 'b' : '#';
+		char accidential = !useFlats ? '#' : 'b';
 		*thisChar = display->haveOLED() ? accidential : '.';
 		thisChar++;
 	}

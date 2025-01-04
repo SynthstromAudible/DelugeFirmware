@@ -61,10 +61,10 @@ void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLe
 
 	bool useFlats = runtimeFeatureSettings.get(RuntimeFeatureSettingType::UseFlats)
 		== RuntimeFeatureStateToggle::On;
-	char accidential = useFlats ? 'b' : '#';
+	char accidential = !useFlats ? '#' : 'b';
 
 
-	*(buffer++) = useFlats ? noteCodeToNoteLetterFlats[lower] : noteCodeToNoteLetter[lower];
+	*(buffer++) = !useFlats ? noteCodeToNoteLetter[lower] : noteCodeToNoteLetterFlats[lower];
 	int32_t leftLength = 1;
 
 
@@ -89,7 +89,7 @@ void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLe
 
 	*(buffer++) = '-';
 
-	*(buffer++) = useFlats ? noteCodeToNoteLetterFlats[upper] : noteCodeToNoteLetter[upper];
+	*(buffer++) = !useFlats ? noteCodeToNoteLetter[upper] : noteCodeToNoteLetterFlats[upper];
 	int32_t rightLength = 1;
 	if (noteCodeIsSharp[upper]) {
 		*(buffer++) = (display->haveOLED()) ? accidential : '.';
