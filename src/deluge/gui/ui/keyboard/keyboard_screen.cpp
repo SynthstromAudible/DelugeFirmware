@@ -774,14 +774,11 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 		instrumentClipView.setupChangingOfRootNote(newRootNote);
 
 		char noteName[3] = {0};
-		if (useFlats) {
-			noteName[0] = noteCodeToNoteLetterFlats[newRootNote];
-		} else {
-			noteName[0] = noteCodeToNoteLetter[newRootNote];
-		}
+		noteName[0] = !useFlats ? noteCodeToNoteLetter[newRootNote] : noteCodeToNoteLetterFlats[newRootNote];
+	
 		if (display->haveOLED()) {
 			if (noteCodeIsSharp[newRootNote]) {
-				char accidential = useFlats ? 'b' : '#';
+				char accidential = !useFlats ? '#' : 'b';
 				noteName[1] = accidential;
 			}
 		}
