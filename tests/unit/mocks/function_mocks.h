@@ -8,7 +8,7 @@
 int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitude) {
 	return 1;
 }
-void getNoteLengthNameFromMagnitude(StringBuf& buf, int32_t magnitude, char const* durrationSuffix = "-notes",
-                                    bool clarifyPerColumn = false) {
-	;
+std::string getNoteLengthNameFromMagnitude(int32_t magnitude, std::string_view durrationSuffix = "-notes",
+                                           bool clarifyPerColumn = false) {
+	return {};
 }
