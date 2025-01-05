@@ -53,6 +53,9 @@ using stack = std::stack<T, deque<T, Alloc>>;
 template <typename T, typename Alloc = memory::external_allocator<T>>
 using queue = std::queue<T, deque<T, Alloc>>;
 
+template <typename T, class Compare = std::less<T>, typename Alloc = memory::external_allocator<T>>
+using set = std::set<T, Compare, Alloc>;
+
 // Vector (resizeable variable-length array, unknown size)
 template <typename T>
 using fast_vector = std::vector<T, memory::fast_allocator<T>>;
@@ -72,4 +75,7 @@ using fast_unordered_map =
 
 template <typename Key, typename T, class Compare = std::less<Key>>
 using fast_map = std::map<Key, T, Compare, memory::fast_allocator<std::pair<const Key, T>>>;
+
+template <typename T>
+using fast_stack = std::stack<T, deque<T, memory::fast_allocator<T>>>;
 } // namespace deluge
