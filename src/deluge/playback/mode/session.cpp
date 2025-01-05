@@ -146,7 +146,12 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 			for (int32_t c = 1; c < currentSong->sessionClips.getNumElements(); c++) { // NOTE: starts at 1, not 0
 				Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
-				if (clip->section == oldSection) {
+				// Launch non-exclusively section
+				if(currentSong->sections[clip->section].numRepetitions == -1) {
+					continue;
+				}
+
+				else if (clip->section == oldSection) {
 					int32_t newSection =
 					    currentSong->sessionClips.getClipAtIndex(c - 1)->section; // Grab section from next Clip down
 					userWantsToArmClipsToStartOrSolo(newSection, nullptr, true, false, false, numRepetitions, false);
@@ -280,7 +285,11 @@ void Session::doLaunch(bool isFillLaunch) {
 	for (int32_t c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
-		if (isFillLaunch
+		// Launch non-exclusively section
+		if(currentSong->sections[clip->section].numRepetitions == -1) {
+			continue;
+		}
+		else if (isFillLaunch
 		    && (clip->fillEventAtTickCount <= 0
 		        || playbackHandler.lastSwungTickActioned < clip->fillEventAtTickCount)) {
 			/* This clip needs no action, since it is not a fill clip,
@@ -342,7 +351,11 @@ void Session::doLaunch(bool isFillLaunch) {
 				}
 			}
 			else { // Not armed
-				if (clip->soloingInSessionMode || clip->activeIfNoSolo) {
+				// Launch non-exclusively section
+				if(currentSong->sections[clip->section].numRepetitions == -1) {
+					continue;
+				}
+				else if (clip->soloingInSessionMode || clip->activeIfNoSolo) {
 					anyClipsStillActiveAfter = true;
 				}
 			}
@@ -365,6 +378,11 @@ void Session::doLaunch(bool isFillLaunch) {
 	// start. But we can't action the starting of any Clips yet, until all stopping is done.
 	for (int32_t c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
+
+		// Launch non-exclusively section
+		if(currentSong->sections[clip->section].numRepetitions == -1) {
+			continue;
+		}
 
 		clip->wasActiveBefore = currentSong->isClipActive(clip);
 
@@ -527,6 +545,10 @@ stopOnlyIfOutputTaken:
 	for (int32_t c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
+		// Launch non-exclusively section
+		if(currentSong->sections[clip->section].numRepetitions == -1) {
+			continue;
+		}
 		if (isFillLaunch
 		    && (clip->fillEventAtTickCount <= 0
 		        || playbackHandler.lastSwungTickActioned < clip->fillEventAtTickCount)) {
@@ -1336,6 +1358,10 @@ void Session::armClipsAlongWithExistingLaunching(ArmState armState, uint8_t sect
 	{
 		for (int l = 0; l < currentSong->sessionClips.getNumElements(); l++) {
 			Clip* thisClip = currentSong->sessionClips.getClipAtIndex(l);
+			// Skip Launch non-exclusively
+			if(currentSong->sections[thisClip->section].numRepetitions == -1) {
+				continue;
+			}
 			if (thisClip->section == section) {
 				// If we're arming a section, we know there's no soloing or armed Clips, so that's easy.
 				// Only arm if it's not playing
@@ -1625,6 +1651,10 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 		for (int32_t c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
 			Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 
+			// Launch non-exclusively section
+			if(currentSong->sections[thisClip->section].numRepetitions == -1) {
+				continue;
+			}
 			if (thisClip->launchStyle == LaunchStyle::FILL) {
 				continue;
 			}
@@ -1689,8 +1719,13 @@ wantActive:
 				if (stopAllOtherClips) {
 
 weWantThisClipInactive:
+					// Clip is launched non-exclusively
+					if(currentSong->sections[thisClip->section].numRepetitions == -1) {
+						thisClip->armState = ArmState::OFF;
+					}
+
 					// If it's active, arm it to stop
-					if (thisClip->activeIfNoSolo) {
+					else if (thisClip->activeIfNoSolo) {
 						thisClip->armState = ArmState::ON_NORMAL;
 					}
 
@@ -1716,6 +1751,11 @@ weWantThisClipInactive:
 
 			for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
 				Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
+
+				// Launch non-exclusively section
+				if(currentSong->sections[thisClip->section].numRepetitions == -1) {
+					continue;
+				}
 
 				// Ok, so if it's from another section (only those, because we've already dealt with the ones in our
 				// section)...
@@ -1970,6 +2010,11 @@ int32_t Session::getCurrentSection() {
 
 	for (int32_t l = 0; l < currentSong->sessionClips.getNumElements(); l++) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(l);
+
+		// Launch non-exclusively section
+		if(currentSong->sections[clip->section].numRepetitions == -1) {
+			continue;
+		}
 
 		if (clip->activeIfNoSolo) {
 			if (section == 255) {
