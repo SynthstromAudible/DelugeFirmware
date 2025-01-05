@@ -19,8 +19,8 @@
 
 #include "gui/ui/ui.h"
 #include "hid/button.h"
-#include <span>
 #include <cstdint>
+#include <span>
 
 namespace deluge::gui {
 
