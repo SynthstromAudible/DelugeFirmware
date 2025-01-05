@@ -89,10 +89,10 @@ extern MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForSongView[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForKitGlobalFX[kDisplayWidth][kDisplayHeight];
 
-extern deluge::gui::menu_item::Submenu* parentsForSoundShortcuts[kDisplayWidth][kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForAudioShortcuts[kDisplayWidth][kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForSongShortcuts[kDisplayWidth][kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForKitGlobalFXShortcuts[kDisplayWidth][kDisplayHeight];
+extern MenuItem* parentsForSoundShortcuts[kDisplayWidth][kDisplayHeight];
+extern MenuItem* parentsForAudioShortcuts[kDisplayWidth][kDisplayHeight];
+extern MenuItem* parentsForSongShortcuts[kDisplayWidth][kDisplayHeight];
+extern MenuItem* parentsForKitGlobalFXShortcuts[kDisplayWidth][kDisplayHeight];
 
 void setOscillatorNumberForTitles(int32_t);
 void setModulatorNumberForTitles(int32_t);

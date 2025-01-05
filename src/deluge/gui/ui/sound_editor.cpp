@@ -1128,14 +1128,15 @@ doSetup:
 					// This works on 7-seg as well.
 					int32_t layerNumber = 0;
 					MenuItem* newItem = item->actual();
-					MenuItem* oldItem = getCurrentMenuItem()->actual();
-					if (oldItem == newItem) {
+					MenuItem* oldItem = getCurrentMenuItem();
+					if (oldItem->actual() == newItem) {
 						if (parent == nullptr) {
 							// No parent, same item == same shortcut twice.
 							layerNumber = item->nextLayer();
 						}
 						else if (parent == oldItem) {
 							// Same parent, same item == same shortcut twice.
+							// NB: not oldItem->actual(), but the container!
 							layerNumber = parent->nextLayer();
 						}
 					}
