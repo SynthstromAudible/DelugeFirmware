@@ -38,7 +38,7 @@
 #include "storage/wave_table/wave_table_reader.h"
 #include "util/containers.h"
 #include "util/exceptions.h"
-#include "util/path.h"
+#include "util/filesystem.h"
 #include "util/try.h"
 #include <algorithm>
 #include <cstring>
@@ -488,7 +488,7 @@ AudioFileManager::getAudioFileFromFilename(String& filePath, bool mayReadCard, F
 			// And if the user isn't insisting, then some other signs show that we probably don't want to load this
 			// as a WaveTable
 			if (!makeWaveTableWorkAtAllCosts) {
-				if (!path_view{foundSample->filePath.get()}.ends_with(".wav")) {
+				if (!filesystem::isWAV(foundSample->filePath.get())) {
 					return std::unexpected(Error::FILE_NOT_LOADABLE_AS_WAVETABLE);
 				}
 

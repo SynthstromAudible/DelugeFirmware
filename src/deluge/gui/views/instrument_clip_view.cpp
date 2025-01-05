@@ -94,7 +94,7 @@
 #include "util/cfunctions.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
-#include "util/path.h"
+#include "util/filesystem.h"
 #include "util/try.h"
 #include <limits>
 #include <new>
@@ -1576,7 +1576,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 				int32_t fileCount = 0;
 				while (f_readdir(&staticDIR.inner(), &staticFNO) == FR_OK && staticFNO.fname[0] != 0) {
 					audioFileManager.loadAnyEnqueuedClusters();
-					if (staticFNO.fattrib & AM_DIR || !Path::isAudioFile(staticFNO.fname)) {
+					if (staticFNO.fattrib & AM_DIR || !filesystem::isAudioFile(staticFNO.fname)) {
 						continue;
 					}
 					if (random(fileCount++) == 0) { // Algorithm: Reservoir Sampling with k=1

@@ -1,13 +1,19 @@
-#include "util/path.h"
+#include "util/filesystem/path.h"
 
 #include "cppspec.hpp"
 #include <memory>
 
-std::shared_ptr<PathComponent> Path::root_ = std::make_shared<PathComponent>();
+using namespace deluge::filesystem;
 
 // clang-format off
 describe path("Path", $ {
-	it("parses a filename", _ {
+	it("parses a root path", _ {
+		Path path = "/";
+		expect(path.data()).to_equal(Path::root());
+		expect(path.to_string()).to_equal("/");
+	});
+
+	it("parses a simple filename", _ {
 		Path path = "/path_spec.cpp";
 		expect(path.basename()).to_equal("path_spec.cpp");
 	});
@@ -31,7 +37,7 @@ describe path("Path", $ {
 
 
 	it("cleans up after release", _ {
-		std::weak_ptr<PathComponent> weak_path;
+		std::weak_ptr<typename Path::component_type> weak_path;
 		{
 			Path path = "/home/Kate/GitHub/DelugeFirmware/tests/build/spec/all_specs.exe";
 			weak_path = path.data();
@@ -40,17 +46,17 @@ describe path("Path", $ {
 	});
 
 	it("appends", _ {
-		Path path = "/home/Kate/GitHub/DelugeFirmware/tests/build";
+		Path path = "build";
 		path /= "spec";
 		path /= "all_specs.exe";
-		expect(path.to_string()).to_equal("/home/Kate/GitHub/DelugeFirmware/tests/build/spec/all_specs.exe");
+		expect(path.to_string()).to_equal("/build/spec/all_specs.exe");
 	});
 
 	it("concats", _ {
-		Path path = "/home/Kate/GitHub/DelugeFirmware/tests/build";
+		Path path = "build";
 		path += "spec";
 		path += "all_specs.exe";
-		expect(path.to_string()).to_equal("/home/Kate/GitHub/DelugeFirmware/tests/buildspecall_specs.exe");
+		expect(path.to_string()).to_equal("/buildspecall_specs.exe");
 	});
 
 	it("merges strings", _ {
@@ -74,6 +80,16 @@ describe path("Path", $ {
 			Path path = "/home/Kate/GitHub/DelugeFirmware/tests/build/spec/all_specs.cpp";
 			expect(path.ends_with("spec/all_specs.exe")).to_be_false();
 		});
+	});
+
+	it("returns the extension", _{
+		Path path = "all_specs.cpp";
+		expect(path.extension()).to_equal(".cpp");
+	});
+
+	it("returns the stem of the filename", _{
+		Path path = "all_specs.cpp";
+		expect(path.stem()).to_equal("all_specs");
 	});
 });
 
