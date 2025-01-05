@@ -290,8 +290,8 @@ void Session::doLaunch(bool isFillLaunch) {
 			continue;
 		}
 		else if (isFillLaunch
-		    	&& (clip->fillEventAtTickCount <= 0
-		        	|| playbackHandler.lastSwungTickActioned < clip->fillEventAtTickCount)) {
+		    	 && (clip->fillEventAtTickCount <= 0
+		        	 || playbackHandler.lastSwungTickActioned < clip->fillEventAtTickCount)) {
 			/* This clip needs no action, since it is not a fill clip,
 			   or it is but it's not time to start it, or it's not armed at all. */
 			continue;
