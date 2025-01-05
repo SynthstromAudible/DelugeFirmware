@@ -17,6 +17,7 @@
 
 #include "gui/ui/rename/rename_midi_cc_ui.h"
 #include "definitions_cxx.hpp"
+#include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/automation_view.h"
 #include "hid/buttons.h"
@@ -27,29 +28,81 @@
 #include "model/song/song.h"
 #include <string_view>
 
-RenameMidiCCUI renameMidiCCUI{"CC Name"};
+RenameMidiCCUI renameMidiCCUI{};
 
-bool RenameMidiCCUI::canRename() const {
+RenameMidiCCUI::RenameMidiCCUI() {
+	title = "CC Name";
+}
+
+bool RenameMidiCCUI::opened() {
+	bool success = QwertyUI::opened();
+	if (!success) {
+		return false;
+	}
+
 	Clip* clip = getCurrentClip();
+
 	int32_t cc = clip->lastSelectedParamID;
+
 	// if we're not dealing with a real cc number
 	// then don't allow user to edit the name
 	if (cc < 0 || cc == CC_EXTERNAL_MOD_WHEEL || cc >= kNumRealCCNumbers) {
 		return false;
 	}
-	else {
-		return true;
-	}
-}
 
-std::string_view RenameMidiCCUI::getName() const {
-	Clip* clip = getCurrentClip();
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
-	int32_t cc = clip->lastSelectedParamID;
-	return midiInstrument->getNameFromCC(cc);
+
+	std::string_view name = midiInstrument->getNameFromCC(cc);
+	if (!name.empty()) {
+		enteredText.set(name.data());
+	}
+	else {
+		enteredText.clear();
+	}
+
+	displayText();
+
+	drawKeys();
+
+	return true;
 }
 
-bool RenameMidiCCUI::trySetName(const std::string_view& name) {
+bool RenameMidiCCUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+	*cols = 0b11;
+	return true;
+}
+
+ActionResult RenameMidiCCUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
+
+	// Back button
+	if (b == BACK) {
+		if (on && !currentUIMode) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			exitUI();
+		}
+	}
+
+	// Select encoder button
+	else if (b == SELECT_ENC) {
+		if (on && !currentUIMode) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			enterKeyPress();
+		}
+	}
+
+	else {
+		return ActionResult::NOT_DEALT_WITH;
+	}
+
+	return ActionResult::DEALT_WITH;
+}
+
+void RenameMidiCCUI::enterKeyPress() {
 
 	Clip* clip = getCurrentClip();
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
@@ -58,5 +111,33 @@ bool RenameMidiCCUI::trySetName(const std::string_view& name) {
 	midiInstrument->setNameForCC(cc, enteredText.get());
 	midiInstrument->editedByUser = true; // need to set this to true so that the name gets saved with the song / preset
 
+	exitUI();
+}
+
+bool RenameMidiCCUI::exitUI() {
+	display->setNextTransitionDirection(-1);
+	close();
 	return true;
+}
+
+ActionResult RenameMidiCCUI::padAction(int32_t x, int32_t y, int32_t on) {
+
+	// Main pad
+	if (x < kDisplayWidth) {
+		return QwertyUI::padAction(x, y, on);
+	}
+
+	// Otherwise, exit
+	if (on && !currentUIMode) {
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		exitUI();
+	}
+
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult RenameMidiCCUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	return ActionResult::DEALT_WITH;
 }

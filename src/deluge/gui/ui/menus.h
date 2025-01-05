@@ -2,7 +2,6 @@
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
 #include "gui/menu_item/defaults/swing_interval.h"
-#include "gui/menu_item/edit_name.h"
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/note/fill.h"
 #include "gui/menu_item/note/iterance_divisor.h"
@@ -33,7 +32,7 @@ extern deluge::gui::menu_item::sample::Start sampleStartMenu;
 extern deluge::gui::menu_item::sample::End sampleEndMenu;
 extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart;
 extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd;
-extern deluge::gui::menu_item::EditName nameEditMenu;
+extern DrumName drumNameMenu;
 extern deluge::gui::menu_item::Submenu dxMenu;
 extern deluge::gui::menu_item::Submenu stemExportMenu;
 extern deluge::gui::menu_item::stem_export::Start startStemExportMenu;

@@ -24,13 +24,20 @@ class Output;
 
 class RenameOutputUI final : public RenameUI {
 public:
-	RenameOutputUI(const char* title_) : RenameUI(title_){};
-	// Assigned before openUI() is called -- not necessarily the current output!
+	RenameOutputUI();
+	bool opened() override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
+
 	Output* output;
 
+	// ui
+	bool exitUI() override;
+
 protected:
-	bool trySetName(const std::string_view& name) override;
-	std::string_view getName() const override;
+	void enterKeyPress() override;
 };
 
 extern RenameOutputUI renameOutputUI;

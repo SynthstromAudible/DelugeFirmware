@@ -17,6 +17,7 @@
 
 #include "gui/ui/rename/rename_clip_ui.h"
 #include "definitions_cxx.hpp"
+#include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
@@ -25,20 +26,99 @@
 #include "model/output.h"
 #include "model/song/song.h"
 
-RenameClipUI renameClipUI{"Clip Name"};
+RenameClipUI renameClipUI{};
 
-std::string_view RenameClipUI::getName() const {
-	return clip->name.get();
+RenameClipUI::RenameClipUI() {
+	title = "Clip Name";
 }
 
-bool RenameClipUI::trySetName(const std::string_view& name) {
-	// Don't allow duplicate names on clips of a single output.
-	if (!clip->name.equalsCaseIrrespective(name)) {
-		if (clip->output->getClipFromName(name)) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
-			return false;
+bool RenameClipUI::opened() {
+	bool success = QwertyUI::opened();
+	if (!success) {
+		return false;
+	}
+
+	enteredText.set(&clip->name);
+
+	displayText();
+
+	drawKeys();
+
+	return true;
+}
+
+bool RenameClipUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+	*cols = 0b11;
+	return true;
+}
+
+ActionResult RenameClipUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
+
+	// Back button
+	if (b == BACK) {
+		if (on && !currentUIMode) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			exitUI();
 		}
 	}
-	clip->name.set(name.data(), name.size());
+
+	// Select encoder button
+	else if (b == SELECT_ENC) {
+		if (on && !currentUIMode) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			enterKeyPress();
+		}
+	}
+
+	else {
+		return ActionResult::NOT_DEALT_WITH;
+	}
+
+	return ActionResult::DEALT_WITH;
+}
+
+void RenameClipUI::enterKeyPress() {
+
+	// Don't allow duplicate names on clips of a single output.
+	if (!clip->name.equalsCaseIrrespective(&enteredText)) {
+		if (clip->output->getClipFromName(&enteredText)) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
+			return;
+		}
+	}
+	clip->name.set(&enteredText);
+	exitUI();
+}
+
+bool RenameClipUI::exitUI() {
+	display->setNextTransitionDirection(-1);
+	close();
 	return true;
+}
+
+ActionResult RenameClipUI::padAction(int32_t x, int32_t y, int32_t on) {
+
+	// Main pad
+	if (x < kDisplayWidth) {
+		return QwertyUI::padAction(x, y, on);
+	}
+
+	// Otherwise, exit
+	if (on && !currentUIMode) {
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		exitUI();
+	}
+
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult RenameClipUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	return ActionResult::DEALT_WITH;
 }

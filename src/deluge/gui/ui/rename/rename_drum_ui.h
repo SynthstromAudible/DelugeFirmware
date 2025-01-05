@@ -24,15 +24,21 @@ class SoundDrum;
 
 class RenameDrumUI final : public RenameUI {
 public:
-	RenameDrumUI(const char* title_) : RenameUI(title_){};
+	RenameDrumUI();
+	bool opened() override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
+
+	// ui
+	bool exitUI() override;
 
 protected:
-	bool trySetName(const std::string_view&) override;
-	std::string_view getName() const override;
-	bool allowEmpty() const override { return false; }
+	void enterKeyPress() override;
 
 private:
-	SoundDrum* getDrum() const;
+	SoundDrum* getDrum();
 };
 
 extern RenameDrumUI renameDrumUI;

@@ -15,45 +15,22 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "edit_name.h"
-#include "gui/ui/rename/rename_clip_ui.h"
+#include "drum_name.h"
 #include "gui/ui/rename/rename_drum_ui.h"
-#include "gui/ui/rename/rename_output_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
-#include "model/song/song.h"
 #include "util/functions.h"
 
 namespace deluge::gui::menu_item {
 
-void EditName::beginSession(MenuItem* navigatedBackwardFrom) {
-	RenameUI* ui;
+bool DrumName::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+	return soundEditor.editingKit();
+}
 
-	// Figure out which rename UI we need, and do any necessary setup.
-	Clip* clip = getCurrentClip();
-	Output* output = getCurrentOutput();
-	if (output->type == OutputType::AUDIO) {
-		// XXX: Before naming clips was implemented, we made name shortcut inside
-		// audio clips name the output. This should probably open a context menu to
-		// select the naming target, since being able to name audio clips as well
-		// would be quite nice...
-		renameOutputUI.output = output;
-		ui = &renameOutputUI;
-	}
-	else if (output->type == OutputType::KIT && !getRootUI()->getAffectEntire()) {
-		ui = &renameDrumUI;
-	}
-	else {
-		renameClipUI.clip = clip;
-		ui = &renameClipUI;
-	}
-
-	// Done, go for it.
+void DrumName::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
-	if (clip->type == ClipType::INSTRUMENT) {
-		instrumentClipView.cancelAllAuditioning();
-	}
-	openUI(ui);
+	instrumentClipView.cancelAllAuditioning();
+	openUI(&renameDrumUI);
 }
 
 } // namespace deluge::gui::menu_item

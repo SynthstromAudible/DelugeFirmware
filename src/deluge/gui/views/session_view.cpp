@@ -3588,7 +3588,9 @@ void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput)
 		counter = atoi(newName.data() + end);
 	}
 	// Keep trying until we have a name that's unique on the output.
-	while (targetOutput->getClipFromName(newName.data()) != nullptr) {
+	String newNameString;
+	newNameString.set(newName.data());
+	while (targetOutput->getClipFromName(&newNameString) != nullptr) {
 		newName.truncate(end);
 		newName.appendInt(counter++);
 	}
