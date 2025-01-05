@@ -38,6 +38,8 @@
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 #include "util/d_string.h"
 
+#define DEBUG_TIMERTICKS (1 && ENABLE_TEXT_OUTPUT)
+
 class MidiCommand;
 class Clip;
 class AudioClip;
@@ -281,6 +283,7 @@ public:
 	                 int32_t sideChainHitPending);
 	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);
 	Clip* syncScalingClip;
+	void nudgeTimerTicks(int32_t numSteps);
 	void setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction = false);
 	bool hasAnySwing();
 	void resyncLFOs();

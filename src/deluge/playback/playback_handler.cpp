@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
+#include "io/debug/log.h" // at the top of the file
 #include "playback/playback_handler.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
@@ -937,6 +937,14 @@ doMetronome:
 					uint32_t phaseIncrement =
 					    ((currentMetronomeTick % (swungTicksPerQuarterNote << 2)) == 0) ? 128411753 : 50960238;
 					AudioEngine::metronome.trigger(phaseIncrement);
+#if DEBUG_TIMERTICKS
+D_PRINTLN(",Metronome,%f,%c,%lld,%ld"
+	, (float)(AudioEngine::audioSampleTimer / 44100.0)
+	, (char)((currentMetronomeTick % (currentSong->getQuarterNoteLength() << 2)) == 0) ? 'H' : 'L'
+	, (int64_t)(lastSwungTickActioned)
+	, (int32_t)(swungTicksTilNextEvent)
+);
+#endif
 				}
 
 				int32_t ticksIntoCurrentBeep = currentMetronomeTick % swungTicksPerQuarterNote;
@@ -2015,9 +2023,7 @@ void PlaybackHandler::commandNudgeClock(int8_t offset) {
 			}
 		}
 		else {
-			// Nothing to nudge? TODO: Should we instead nudge the internal clock? Could be
-			// useful for manual beat syncs.
-			return;
+			currentSong->nudgeTimerTicks(offset);
 		}
 	}
 	else if (isExternalClockActive()) {

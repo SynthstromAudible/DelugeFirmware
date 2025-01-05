@@ -263,6 +263,9 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 			else if (isButtonPressed(TAP_TEMPO)) {
 				playbackHandler.commandDisplaySwingInterval();
 			}
+			else if (isButtonPressed(X_ENC) && isButtonPressed(TEMPO_ENC)) {
+				playbackHandler.commandNudgeClock(0);
+			}
 			else {
 				UI* currentUI = getCurrentUI();
 				bool isOLEDSessionView =

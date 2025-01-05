@@ -137,6 +137,10 @@ void Session::armAllClipsToStop(int32_t afterNumRepeats) {
 }
 
 void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
+D_PRINTLN(",armNextSection,%d,%d"
+,oldSection,numRepetitions
+);
+
 	if (numRepetitions == -1) {
 		numRepetitions = currentSong->sections[oldSection].numRepetitions;
 	}
@@ -1626,6 +1630,16 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 			Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 
 			if (thisClip->launchStyle == LaunchStyle::FILL) {
+				continue;
+			}
+D_PRINTLN(",armClipsToStartOrSoloWithQuantization,%d,%d,%d,%s"
+,section
+,c
+,currentSong->sections[thisClip->section].numRepetitions
+,thisClip->name
+);
+			// Clip is launched non-exclusively
+			if(currentSong->sections[thisClip->section].numRepetitions == -1) {
 				continue;
 			}
 
