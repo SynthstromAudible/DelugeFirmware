@@ -147,7 +147,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 				Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
 				// Launch non-exclusively section
-				if(currentSong->sections[clip->section].numRepetitions == -1) {
+				if (currentSong->sections[clip->section].numRepetitions == -1) {
 					continue;
 				}
 
@@ -286,12 +286,12 @@ void Session::doLaunch(bool isFillLaunch) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
 		// Launch non-exclusively section
-		if(currentSong->sections[clip->section].numRepetitions == -1) {
+		if (currentSong->sections[clip->section].numRepetitions == -1) {
 			continue;
 		}
 		else if (isFillLaunch
-		    && (clip->fillEventAtTickCount <= 0
-		        || playbackHandler.lastSwungTickActioned < clip->fillEventAtTickCount)) {
+		    	&& (clip->fillEventAtTickCount <= 0
+		        	|| playbackHandler.lastSwungTickActioned < clip->fillEventAtTickCount)) {
 			/* This clip needs no action, since it is not a fill clip,
 			   or it is but it's not time to start it, or it's not armed at all. */
 			continue;
@@ -352,7 +352,7 @@ void Session::doLaunch(bool isFillLaunch) {
 			}
 			else { // Not armed
 				// Launch non-exclusively section
-				if(currentSong->sections[clip->section].numRepetitions == -1) {
+				if (currentSong->sections[clip->section].numRepetitions == -1) {
 					continue;
 				}
 				else if (clip->soloingInSessionMode || clip->activeIfNoSolo) {
@@ -380,7 +380,7 @@ void Session::doLaunch(bool isFillLaunch) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
 		// Launch non-exclusively section
-		if(currentSong->sections[clip->section].numRepetitions == -1) {
+		if (currentSong->sections[clip->section].numRepetitions == -1) {
 			continue;
 		}
 
@@ -546,7 +546,7 @@ stopOnlyIfOutputTaken:
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
 		// Launch non-exclusively section
-		if(currentSong->sections[clip->section].numRepetitions == -1) {
+		if (currentSong->sections[clip->section].numRepetitions == -1) {
 			continue;
 		}
 		if (isFillLaunch
@@ -1359,7 +1359,7 @@ void Session::armClipsAlongWithExistingLaunching(ArmState armState, uint8_t sect
 		for (int l = 0; l < currentSong->sessionClips.getNumElements(); l++) {
 			Clip* thisClip = currentSong->sessionClips.getClipAtIndex(l);
 			// Skip Launch non-exclusively
-			if(currentSong->sections[thisClip->section].numRepetitions == -1) {
+			if (currentSong->sections[thisClip->section].numRepetitions == -1) {
 				continue;
 			}
 			if (thisClip->section == section) {
@@ -1652,7 +1652,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 			Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 
 			// Launch non-exclusively section
-			if(currentSong->sections[thisClip->section].numRepetitions == -1) {
+			if (currentSong->sections[thisClip->section].numRepetitions == -1) {
 				continue;
 			}
 			if (thisClip->launchStyle == LaunchStyle::FILL) {
@@ -1720,7 +1720,7 @@ wantActive:
 
 weWantThisClipInactive:
 					// Clip is launched non-exclusively
-					if(currentSong->sections[thisClip->section].numRepetitions == -1) {
+					if (currentSong->sections[thisClip->section].numRepetitions == -1) {
 						thisClip->armState = ArmState::OFF;
 					}
 
@@ -1753,7 +1753,7 @@ weWantThisClipInactive:
 				Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 
 				// Launch non-exclusively section
-				if(currentSong->sections[thisClip->section].numRepetitions == -1) {
+				if (currentSong->sections[thisClip->section].numRepetitions == -1) {
 					continue;
 				}
 
@@ -2012,7 +2012,7 @@ int32_t Session::getCurrentSection() {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(l);
 
 		// Launch non-exclusively section
-		if(currentSong->sections[clip->section].numRepetitions == -1) {
+		if (currentSong->sections[clip->section].numRepetitions == -1) {
 			continue;
 		}
 
