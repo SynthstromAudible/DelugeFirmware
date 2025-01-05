@@ -19,7 +19,7 @@
 
 #include "gui/ui/ui.h"
 #include "hid/button.h"
-#include "util/sized.h"
+#include <span>
 #include <cstdint>
 
 namespace deluge::gui {
@@ -37,7 +37,7 @@ public:
 	virtual bool isCurrentOptionAvailable() { return true; }
 	virtual bool acceptCurrentOption() { return false; } // If returns false, will cause UI to exit
 
-	virtual Sized<char const**> getOptions() = 0;
+	virtual std::span<char const*> getOptions() = 0;
 
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
