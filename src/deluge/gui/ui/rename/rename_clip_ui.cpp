@@ -27,11 +27,11 @@
 
 RenameClipUI renameClipUI{"Clip Name"};
 
-std::string_view RenameClipUI::getName() const {
-	return clip->name.get();
+String RenameClipUI::getName() const {
+	return clip->name;
 }
 
-bool RenameClipUI::trySetName(const std::string_view& name) {
+bool RenameClipUI::trySetName(String* name) {
 	// Don't allow duplicate names on clips of a single output.
 	if (!clip->name.equalsCaseIrrespective(name)) {
 		if (clip->output->getClipFromName(name)) {
@@ -39,6 +39,6 @@ bool RenameClipUI::trySetName(const std::string_view& name) {
 			return false;
 		}
 	}
-	clip->name.set(name.data(), name.size());
+	clip->name.set(name);
 	return true;
 }

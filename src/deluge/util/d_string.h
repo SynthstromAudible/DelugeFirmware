@@ -60,9 +60,8 @@ public:
 	Error setChar(char newChar, int32_t pos);
 	Error concatenate(String* otherString);
 	Error concatenate(char const* newChars);
-	Error concatenate(const std::string_view& otherString);
 	bool equals(char const* otherChars);
-	bool equalsCaseIrrespective(char const* otherChars, int32_t numChars = -1);
+	bool equalsCaseIrrespective(char const* otherChars);
 
 	inline bool contains(const char* otherChars) { return strstr(stringMemory, otherChars) != NULL; }
 	inline bool equals(String* otherString) {
@@ -75,11 +74,7 @@ public:
 		return equals(otherString->get());
 	}
 
-	inline bool equalsCaseIrrespective(const std::string_view& otherString) {
-		return equalsCaseIrrespective(otherString.data(), otherString.size());
-	}
-
-	inline bool equalsCaseIrrespective(const String* otherString) {
+	inline bool equalsCaseIrrespective(String* otherString) {
 		if (stringMemory == otherString->stringMemory) {
 			return true; // Works if both lengths are 0, too
 		}
@@ -89,7 +84,7 @@ public:
 		return equalsCaseIrrespective(otherString->get());
 	}
 
-	inline char const* get() const {
+	inline char const* get() {
 		if (!stringMemory) {
 			return &nothing;
 		}
