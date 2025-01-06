@@ -51,11 +51,10 @@ size_t String::getLength() const {
 
 Error String::shorten(int32_t newLength) {
 	if (newLength == 0) {
-		clear();
+		this->clear();
 	}
 	else {
-		uniquify();
-		stringMemory->resize(newLength);
+		unique().resize(newLength);
 	}
 	return Error::NONE;
 }
@@ -85,8 +84,7 @@ Error String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newCha
 		return shorten(pos);
 	}
 
-	uniquify();
-	*stringMemory += newChars;
+	unique() += newChars;
 
 	return Error::NONE;
 }
@@ -104,8 +102,7 @@ Error String::setInt(int32_t number, int32_t minNumDigits) {
 }
 
 Error String::setChar(char newChar, int32_t pos) {
-	uniquify();
-	(*stringMemory)[pos] = newChar;
+	unique().at(pos) = newChar;
 	return Error::NONE;
 }
 

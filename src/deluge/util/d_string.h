@@ -48,7 +48,7 @@ class String {
 public:
 	String() : stringMemory(std::make_shared<std::string>()){};
 
-	constexpr void clear() { uniquify().clear(); }
+	void clear() { unique().clear(); }
 
 	Error set(std::string_view otherString);
 	void set(String const* otherString);
@@ -94,12 +94,12 @@ public:
 	bool isEmpty() const { return stringMemory->empty(); }
 
 private:
-	constexpr String& uniquify() noexcept(false) {
+	std::string& unique() noexcept(false) {
 		// If any additional reasons, we gotta clone the memory first
 		if (stringMemory.use_count() > 1) {
 			stringMemory = std::make_shared<std::string>(*stringMemory);
 		}
-		return *this;
+		return *stringMemory;
 	}
 
 	std::shared_ptr<std::string> stringMemory;
