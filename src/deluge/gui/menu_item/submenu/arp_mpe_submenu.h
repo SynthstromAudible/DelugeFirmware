@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright (c) 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,17 +14,16 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #pragma once
+#include "gui/menu_item/submenu.h"
 
-#include "gui/menu_item/menu_item.h"
-
-namespace deluge::gui::menu_item {
-
-class DrumName final : public MenuItem {
+namespace deluge::gui::menu_item::submenu {
+class ArpMpeSubmenu final : public Submenu {
 public:
-	using MenuItem::MenuItem;
-	void beginSession(MenuItem* navigatedBackwardFrom) override;
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override;
+	using Submenu::Submenu;
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return !soundEditor.editingGateDrumRow();
+	}
 };
-} // namespace deluge::gui::menu_item
+
+} // namespace deluge::gui::menu_item::submenu

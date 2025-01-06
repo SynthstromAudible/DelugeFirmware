@@ -83,14 +83,13 @@ public:
 	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency);
 	bool findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout);
 	void updateSourceBlinks(MenuItem* currentItem);
+	void resetSourceBlinks();
 
 	uint8_t navigationDepth;
 	uint8_t patchingParamSelected;
 	uint8_t currentParamShorcutX;
 	uint8_t currentParamShorcutY;
 	uint8_t paramShortcutBlinkFrequency;
-	uint8_t sourceShortcutBlinkFrequencies[2][kDisplayHeight];
-	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight];
 	uint32_t shortcutBlinkCounter;
 
 	uint32_t timeLastAttemptedAutomatedParamEdit;
@@ -129,6 +128,9 @@ public:
 	bool noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) override;
 	void markInstrumentAsEdited();
 	bool editingCVOrMIDIClip();
+	bool editingNonAudioDrumRow();
+	bool editingMidiDrumRow();
+	bool editingGateDrumRow();
 	bool isUntransposedNoteWithinRange(int32_t noteCode);
 	void setCurrentMultiRange(int32_t i);
 	void possibleChangeToCurrentRangeDisplay();
@@ -167,6 +169,9 @@ private:
 	void handlePotentialParamMenuChange(deluge::hid::Button b, bool on, bool inCardRoutine, MenuItem* previousItem,
 	                                    MenuItem* currentItem);
 	bool handleClipName();
+
+	uint8_t sourceShortcutBlinkFrequencies[2][kDisplayHeight];
+	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight];
 };
 
 extern SoundEditor soundEditor;

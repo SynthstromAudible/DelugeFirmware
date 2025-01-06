@@ -62,7 +62,6 @@ public:
 		return getValue();
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 	void updateAutomationViewParameter() override;
 
 protected:

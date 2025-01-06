@@ -86,9 +86,6 @@ struct PendingNoteOnList {
 
 constexpr int32_t kQuantizationPrecision = 10;
 
-#define STATUS_OFF 0
-#define STATUS_SEQUENCED_NOTE 1
-
 /// An ordered list of notes which all share the same nominal y value.
 ///
 /// In kits, the y value represents the row within the kit directly. In other types of clips, the y value maps to a MIDI
@@ -155,7 +152,7 @@ public:
 
 	// External classes aren't really supposed to set this to OFF. Call something like cancelAutitioning() instead -
 	// which calls Clip::expectEvent(), which is needed
-	uint8_t soundingStatus;
+	bool sequenced;
 
 	/// Time before which all note events should be ignored during live playback. 0 means all notes should play (i.e. a
 	/// note event at the time stored here should be allowed to sound). When doing quantized recording, we might have

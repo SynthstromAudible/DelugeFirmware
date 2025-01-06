@@ -15,25 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/patched_param/integer_non_fm.h"
+#include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 
-using namespace deluge::dsp::filter;
-namespace deluge::gui::menu_item::filter {
-
-class FilterMorph final : public patched_param::Integer {
+namespace deluge::gui::menu_item::arpeggiator {
+class StepRepeat final : public Integer {
 public:
-	using patched_param::Integer::Integer;
-	FilterMorph(l10n::String newName, int32_t newP, bool hpf) : Integer{newName, newP}, hpf{hpf} {}
-	[[nodiscard]] std::string_view getName() const override {
-		using enum l10n::String;
-		auto filt = SpecificFilter(hpf ? soundEditor.currentModControllable->hpfMode
-		                               : soundEditor.currentModControllable->lpfMode);
-		return l10n::getView(filt.getMorphName());
+	using Integer::Integer;
+	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->numStepRepeats); }
+	void writeCurrentValue() override { soundEditor.currentArpSettings->numStepRepeats = this->getValue(); }
+	[[nodiscard]] int32_t getMinValue() const override { return 1; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 8; }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return !soundEditor.editingGateDrumRow();
 	}
-	[[nodiscard]] std::string_view getTitle() const override { return getName(); }
-
-private:
-	bool hpf;
 };
-} // namespace deluge::gui::menu_item::filter
+} // namespace deluge::gui::menu_item::arpeggiator

@@ -212,7 +212,10 @@ uint32_t GeneralMemoryAllocator::extendRightAsMuchAsEasilyPossible(void* address
 }
 
 void GeneralMemoryAllocator::dealloc(void* address) {
-	return regions[getRegion(address)].dealloc(address);
+	if (address == nullptr) [[unlikely]] {
+		return;
+	}
+	regions[getRegion(address)].dealloc(address);
 }
 
 void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, StealableQueue q) {

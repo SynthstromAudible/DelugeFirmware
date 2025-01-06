@@ -21,14 +21,14 @@
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class SpreadLock final : public Selection {
+class RandomizerLock final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->spreadLock); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->randomizerLock); }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue();
 
-		soundEditor.currentArpSettings->spreadLock = this->getValue() != 0;
+		soundEditor.currentArpSettings->randomizerLock = this->getValue() != 0;
 	}
 
 	deluge::vector<std::string_view> getOptions() override {

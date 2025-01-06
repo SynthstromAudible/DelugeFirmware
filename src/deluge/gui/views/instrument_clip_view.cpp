@@ -18,6 +18,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "fatfs.hpp"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
@@ -93,6 +94,7 @@
 #include "util/cfunctions.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/try.h"
 #include <limits>
 #include <new>
 #include <stdint.h>
@@ -1562,17 +1564,16 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 
 				// Open directory of current audio file
 				*slashAddress = 0;
-				FRESULT result = f_opendir(&staticDIR, path);
-				*slashAddress = '/';
-				if (result != FR_OK) {
-
+				staticDIR = D_TRY_CATCH(FatFS::Directory::open(path), error, {
+					*slashAddress = '/';
 					display->displayError(Error::SD_CARD);
 					return ActionResult::DEALT_WITH;
-				}
+				});
+				*slashAddress = '/';
 
 				// Select random audio file from directory
 				int32_t fileCount = 0;
-				while (f_readdir(&staticDIR, &staticFNO) == FR_OK && staticFNO.fname[0] != 0) {
+				while (f_readdir(&staticDIR.inner(), &staticFNO) == FR_OK && staticFNO.fname[0] != 0) {
 					audioFileManager.loadAnyEnqueuedClusters();
 					if (staticFNO.fattrib & AM_DIR || !isAudioFilename(staticFNO.fname)) {
 						continue;
@@ -3964,7 +3965,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 				if (!isKit || modelStackWithNoteRow->getNoteRowAllowNull()) {
 
 					if (modelStackWithNoteRow->getNoteRowAllowNull()
-					    && modelStackWithNoteRow->getNoteRow()->soundingStatus == STATUS_SEQUENCED_NOTE) {}
+					    && modelStackWithNoteRow->getNoteRow()->sequenced) {}
 					else {
 
 						// Record note-on if we're recording
@@ -4771,7 +4772,7 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 
 	if (noteRowOnActiveClip) {
 		// Ensure our auditioning doesn't override a note playing in the sequence
-		if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->soundingStatus == STATUS_SEQUENCED_NOTE) {
+		if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->sequenced) {
 			doSilentAudition = true;
 		}
 	}
@@ -4856,7 +4857,7 @@ void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNo
 
 		// Stop the note sounding - but only if a sequenced note isn't in fact being played here.
 		// Or if it's drone note, end auditioning to transfer the note's sustain to the sequencer
-		if (!noteRowOnActiveClip || noteRowOnActiveClip->soundingStatus == STATUS_OFF
+		if (!noteRowOnActiveClip || !noteRowOnActiveClip->sequenced
 		    || noteRowOnActiveClip->isDroning(modelStack->getLoopLength())) {
 			sendAuditionNote(false, yDisplay, 64, 0);
 		}

@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/drum/drum.h"
 #include "model/mod_controllable/mod_controllable.h"
+#include "modulation/arpeggiator.h"
 #include <cstdint>
 
 class NonAudioDrum : public Drum, public ModControllable {
@@ -43,6 +44,14 @@ public:
 
 	uint8_t channel;
 	int8_t channelEncoderCurrentOffset;
+
+	ArpeggiatorBase* getArp() { return &arpeggiator; }
+	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
+
+	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) = 0;
+	virtual void noteOffPostArp(int32_t noteCodePostArp) = 0;
+
+	void writeArpeggiatorToFile(Serializer& writer);
 
 protected:
 	void modChange(ModelStackWithThreeMainThings* modelStack, int32_t offset, int8_t* encoderOffset, uint8_t* value,

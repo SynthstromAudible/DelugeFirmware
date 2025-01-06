@@ -15,25 +15,26 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/patched_param/integer_non_fm.h"
+#include "definitions_cxx.hpp"
+#include "gui/menu_item/integer.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
-#include "modulation/patch/patch_cable_set.h"
+#include "model/song/song.h"
 
-namespace deluge::gui::menu_item::filter {
-class LPFFreq final : public patched_param::Integer {
+namespace deluge::gui::menu_item::arpeggiator::midi_cv {
+class ChordPolyphony final : public Integer {
 public:
-	using patched_param::Integer::Integer;
-
-	// 7Seg ONLY
-	void drawValue() override {
-		if (this->getValue() == kMaxMenuValue
-		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
-		        deluge::modulation::params::LOCAL_LPF_FREQ)) {
-			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
-		}
-		else {
-			patched_param::Integer::drawValue();
-		}
+	using Integer::Integer;
+	void readCurrentValue() override {
+		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->chordPolyphony));
+	}
+	void writeCurrentValue() override {
+		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
+		soundEditor.currentArpSettings->chordPolyphony = value;
+	}
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return soundEditor.editingCVOrMIDIClip();
 	}
 };
-} // namespace deluge::gui::menu_item::filter
+} // namespace deluge::gui::menu_item::arpeggiator::midi_cv

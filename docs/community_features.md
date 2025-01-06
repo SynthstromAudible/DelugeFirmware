@@ -10,6 +10,7 @@ development work for a future Deluge version at a given time, and many of the
 features are not yet available in released stable versions. Documentation
 about released versions can be found here:
 
+- [1.2.x (Chopin)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.2/docs/community_features.md)
 - [1.1.x (Beethoven)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.1/docs/community_features.md)
 - [1.0.x (Amadeus)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/community_features.md)
 
@@ -186,6 +187,8 @@ as the micromonsta and the dreadbox nymphes.
 
 - ([#395]) Load synth presets into kit rows by holding the row's `AUDITION` + `SYNTH`. Saving can be done by holding the
   audition pad and pressing save.
+
+- ([#3062]) Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
 
 #### 3.7 - Global Interface
 
@@ -385,6 +388,13 @@ which track to record from. The source can also be selected by pressing a clip's
 - ([#1824]) Added new `Max Voices (VCNT)` menu which lets you configure the Maximum number of Voices for a Polyphonic instrument, accessible by pressing `SELECT` in a `Synth clip` or `Kit clip with a Sound Drum selected and Affect Entire Off` under the `VOICE (VOIC)` menu.
   - This menu is also accessible from the `VOICE (VOIC) > Polyphony Type (POLY)` type menu by selecting `Polyphonic` and pressing `SELECT`
 - Updated default `Max Voices` for new synth's to `8 voices`. Old synths for which a max number of voices has not been configured will default to `16 voices`.
+
+#### 3.35 Clip Names
+- ([#2293], [#2299], [#3183]) All clips can be named. Name must be unique per track. Clip name is displayed underneath the track name on OLED.
+  1. Via clip settings menu, see [#3-28-Add-Clip-Settings-Menu-in-Song-View-to-set-Clip-Mode-and-Clip-Name-and-convert-Instrument-Clips-to-Audio-Clips]
+  2. Via `NAME` shortcut in the clip view for non-audio clips (in audio clips the `NAME` shortcut currently names the track instead). In KIT clips `AFFECT ALL` must be on, or the shortcut names the active drum instead.
+- ([#3195]) Clip name display includes the section number. If the clip has no name, it is displayed using just the section number, as "SECTION N". If the clip has a name, it is prefixed with the section number, as "N: CLIP NAME".
+- ([#3195]) When clips are copied, the clip name is copied as well. If the target track already has a clip with the same name, an integer suffix starting from 2 is added unless the name already has an integer suffix. This integer suffix is incremented until the clip name is unique on the target track. Ie. copying a clip named "BRIDGE" to the same otherwise empty track will first create "BRIDGE2", then "BRIDGE3", etc.
 
 ## 4. New Features Added
 
@@ -843,134 +853,9 @@ to each individual note onset. ([#1978])
 
 #### 4.3.8 - Advanced Arpeggiator
 
-- ([#1198] [#2978] [#2985] [#2990]) Added new features to the arpeggiator, which include:
-    - Splitted the old `Mode` setting into separate settings: `Mode` (Off or Arpeggiator), `Octave Mode` (Up, Down,
-      Up&Down, Alternate or Random) and `Note Mode` (Up, Down, Up&Down, AsPlayed or Random), so you can setup
-      individually how octaves are walked and how notes are walked in the sequence.
-    - The `Mode` pad shortcut is now an `Arp preset` shortcut, which will update the new 3 settings all at once:
-        - `Off` will disable arpeggiator.
-        - `Up` will setup Mode to `Arpeggiator`, Octave Mode to `Up` and Note Mode to `Up`.
-        - `Down` will setup Mode to `Arpeggiator`, Octave Mode to `Down` and Note Mode to `Down`.
-        - `Both` will setup Mode to `Arpeggiator`, Octave Mode to `Alternate` and Note Mode to `Up`.
-        - `Random` will setup Mode to `Arpeggiator`, Octave Mode to `Random` and Note Mode to `Random`.
-        - `Custom` will setup Mode to `Arpeggiator`, and enter a submenu to let you edit Octave Mode and Note Mode.
-    - **`Enabled (ON):`**: enables the arpeggiator.
-    - **`Octave Mode (OMOD):`**
-        - `Up` (UP) will walk the octaves up.
-        - `Down` (DOWN) will walk the octaves down.
-        - `Up & Down` (UPDN) will walk the octaves up and down, repeating the highest and lowest octaves.
-        - `Alternate` (ALT)  will walk the octaves up, and then down reversing the Notes pattern (without
-          repeating notes). Tip: Octave Mode set to Alternate and Note Mode set to Up is equivalent to
-          the old `Both` mode.
-        - `Random` (RAND) will choose a random octave every time the Notes pattern has played.
-          Tip: Set also Note Mode to Random to have the equivalent to the old `Random` mode.
-    - **`Note Mode (NMOD):`**
-        - `Up` (UP) will walk the notes up.
-        - `Down` (DOWN) will walk the notes down. Tip: this mode also works in conjunction with Octave Mode
-          Alternate, which will walk all the notes and octaves all the way down, and then up reversing it.
-        - `Up & Down` (UPDN) will walk the notes up and down, repeating the highest and lowest notes.
-        - `As played` (PLAY) will walk the notes in the same order that they were played. Tip: this mode
-          also works in conjunction with Octave Mode Alternate, which will walk all the notes and octaves
-          all the way up (with notes as played), and then down reversing the order of played notes.
-          Note: this produces the same effect as Up for Kit Rows.
-        - `Random` (RAND) will choose a random note each time. If the Octave Mode is set to something
-          different than Random, then the pattern will play, in the same octave, the same number of random
-          notes as notes are in the held chord and then move to a different octave based on the Octave Mode.
-          Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
-    - **`Note Probability (PROB)`** (unpatchet parameter, assignable to golden knobs). This parameter will apply a probability to notes (after rhythm and sequence length conditions have been applied).
-    - **`Chord Type (CHRD)`** (only for Kit Rows): This allows you to emulate a held chord so you can use `Note Mode` on the Kit Row.
-    - **`Rhythm (RHYT)`** (unpatchet parameter, assignable to golden knobs):
-      This parameter will play silences in some of the steps. This menu option show zeroes
-      and dashes, "0" means "play note", and "-" means "don't play note" (or play a silence).
-      The available options are:
-      <details>
-      <summary>Rhythm Options</summary>
-        <ul>
-          <li> 0: None</li>
-          <li> 1: 0--</li>
-          <li> 2: 00-</li>
-          <li> 3: 0-0</li>
-          <li> 4: 0-00</li>
-          <li> 5: 00--</li>
-          <li> 6: 000-</li>
-          <li> 7: 0--0</li>
-          <li> 8: 00-0</li>
-          <li> 9: 0----</li>
-          <li>10: 0-000</li>
-          <li>11: 00---</li>
-          <li>12: 0000-</li>
-          <li>13: 0---0</li>
-          <li>14: 00-00</li>
-          <li>15: 0-0--</li>
-          <li>16: 000-0</li>
-          <li>17: 0--0-</li>
-          <li>18: 0--00</li>
-          <li>19: 000--</li>
-          <li>20: 00--0</li>
-          <li>21: 0-00-</li>
-          <li>22: 00-0-</li>
-          <li>23: 0-0-0</li>
-          <li>24: 0-----</li>
-          <li>25: 0-0000</li>
-          <li>26: 00----</li>
-          <li>27: 00000-</li>
-          <li>28: 0----0</li>
-          <li>29: 00-000</li>
-          <li>30: 0-0---</li>
-          <li>31: 0000-0</li>
-          <li>32: 0---0-</li>
-          <li>33: 000-00</li>
-          <li>34: 0--000</li>
-          <li>35: 000---</li>
-          <li>36: 0000--</li>
-          <li>37: 0---00</li>
-          <li>38: 00--00</li>
-          <li>39: 0-00--</li>
-          <li>40: 000--0</li>
-          <li>41: 0--00-</li>
-          <li>42: 0-0-00</li>
-          <li>43: 00-0--</li>
-          <li>44: 000-0-</li>
-          <li>45: 0--0-0</li>
-          <li>46: 0-000-</li>
-          <li>47: 00---0</li>
-          <li>48: 00--0-</li>
-          <li>49: 0-0--0</li>
-          <li>50: 00-0-0</li>
-        </ul>
-      </details>
-    - **`Sequence Length (LENG)`**  (unpatchet parameter, assignable to golden knobs):
-        - If set to zero, the arpeggiator pattern will play fully.
-        - If set to a value higher than zero, the pattern will play up to the set number of notes, and then
-          reset itself to start from the beginning. Tip: You can use this in combination with the Rhythm parameter
-          to create longer and more complex rhythm patterns.
-    - **`Ratcheting:`** There are two new parameters (unpatched, assignable to golden knobs), to control how notes
-      are ratcheted. A ratchet is when a note repeats itself several times in the same time interval that the
-      original note has to play.
-        - `Ratchet Amount` (RATC): this will set the maximum number of ratchets that an arpeggiator step
-          could have (each step will randomize the number of ratchet notes between 1 and max value).
-            - From values 0 to 4, no ratchet notes
-            - From 5 to 19, up to 2 ratchet notes
-            - From 20 to 34, up to 4 ratchet notes
-            - From 35 to 50, up to 8 ratchet notes
-        - `Ratchet Probability` (RPRO): this sets how likely a step is to be ratcheted
-            - Being 0 (0%), no ratchets at all
-            - And 50 (100%), all notes will evaluate to be ratcheted.
-    - **`Spread (SPRE):`** There are three new parameters (unpatched, assignable to golden knobs), to control how the parameters
-      of each arp step are deviated from its base value. If spread is increased for a parameter, the arp steps will
-      get a random amount of deviation for that parameter, calculated on each iteration.
-        - `Lock`: this flag will lock the current sequence of generated random values so the sequence has a repeatable pattern. Make use of the `Sequence Length` parameter to further adjust the repeated sequence. To change the generated values, change the value of any of the parameters and the dice will be re-rolled for that parameter.
-        - `Velocity`: the velocity of the arp step will get a random decrease from the base velocity.
-        - `Gate`: the gate of the arp step will get a random positive or negative deviation of the base gate.
-        - `Octave`: the note will get a change in pitch of a random amount of octaves, going from 0 up to a maximum of 3 octaves.
-            - From values 0 to 4, no changes in octaves
-            - From 5 to 19, up to 1 octave changes
-            - From 20 to 34, up to 2 octave changes
-            - From 35 to 50, up to 3 octave changes
-    - **`MPE`** settings:
-      - `Velocity`: if you have an MPE keyboard you may want to enable this. It will allow you to control the
-      velocity of each new arpeggiated note by applying different pressure (aftertouch) or slide (Y) on the keys.
-
+- ([#1198] [#2978] [#2985] [#2990] [#3062] [#3079]) For a detailed description of this feature, please refer to the feature
+  documentation: [Arpeggiator Documentation]
+  
 #### 4.3.9 - Velocity View
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Velocity View Documentation]
@@ -1591,6 +1476,8 @@ different firmware
 
 [#1962]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1962
 
+[#1978]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1978
+
 [#2046]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2046
 
 [#2080]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2080
@@ -1602,6 +1489,10 @@ different firmware
 [#2174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2166
 
 [#2260]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2260
+
+[#2264]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2264
+
+[#2293]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2293
 
 [#2299]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2299
 
@@ -1649,6 +1540,8 @@ different firmware
 
 [#2751]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2751
 
+[#2788]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2788
+
 [#2808]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2808
 
 [#2810]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2810
@@ -1656,6 +1549,10 @@ different firmware
 [#2815]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2815
 
 [#2823]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2823
+
+[#2882]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2882
+
+[#2958]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2958
 
 [#2978]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2978
 
@@ -1665,9 +1562,17 @@ different firmware
 
 [#2990]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2990
 
-[#2958]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2958
+[#3183]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3183
+
+[#3195]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3195
+
+[#3062]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3062
+
+[#3079]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3079
 
 [Automation View Documentation]: features/automation_view.md
+
+[Arpeggiator Documentation]: features/arpeggiator.md
 
 [Velocity View Documentation]: features/velocity_view.md
 

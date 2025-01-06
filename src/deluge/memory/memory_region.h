@@ -30,7 +30,6 @@ struct NeighbouringMemoryGrabAttemptResult {
 	int32_t amountsExtended[2];
 	uint32_t longestRunFound; // Only valid if didn't return some space.
 };
-
 #define SPACE_HEADER_EMPTY 0
 #define SPACE_HEADER_STEALABLE 0x40000000
 #define SPACE_HEADER_ALLOCATED 0x80000000

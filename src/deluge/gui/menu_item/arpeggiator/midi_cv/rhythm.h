@@ -15,14 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/integer.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
-#include "modulation/arpeggiator.h"
 #include "modulation/arpeggiator_rhythms.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
@@ -30,14 +28,15 @@ class Rhythm final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(getCurrentInstrumentClip()->arpeggiatorRhythm));
+		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->rhythm));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorRhythm = computeFinalValueForUnsignedMenuItem(this->getValue());
+		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
+		soundEditor.currentArpSettings->rhythm = value;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxPresetArpRhythm; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingCVOrMIDIClip();
+		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingNonAudioDrumRow();
 	}
 
 	void drawValue() override { display->setScrollingText(arpRhythmPatternNames[this->getValue()]); }

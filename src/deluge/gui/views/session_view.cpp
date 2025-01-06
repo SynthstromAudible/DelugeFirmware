@@ -2145,6 +2145,7 @@ ramError:
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
 	newClip->section = (uint8_t)(newClip->section + 1) % kMaxNumSections;
+	copyClipName(clipToClone, newClip, clipToClone->output);
 
 	int32_t newIndex = yDisplayTo + currentSong->songViewYScroll;
 
@@ -3566,6 +3567,36 @@ void SessionView::setupNewClip(Clip* newClip) {
 	}
 }
 
+void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput) {
+	if (source->name.isEmpty()) {
+		return;
+	}
+	// Start from the original clip name. We have max 12 sections, so being able to append
+	// a two digit number is enough.
+	DEF_STACK_STRING_BUF(newName, source->name.getLength() + 2);
+	newName.append(source->name.get());
+	// If the name already exists on the target output, we'll append a number. We start from 2,
+	// because "BRIDGE" & "BRIDGE2" make more sense than "BRIDGE" & "BRIDGE1".
+	int32_t counter = 2;
+	// If the original ends in a number, grab it instead.
+	int32_t sourceEnd = newName.size();
+	int32_t end = sourceEnd;
+	while (end > 0 && isdigit(newName.data()[end - 1])) {
+		end--;
+	}
+	if (end < sourceEnd) {
+		counter = atoi(newName.data() + end);
+	}
+	// Keep trying until we have a name that's unique on the output.
+	String newNameString;
+	newNameString.set(newName.data());
+	while (targetOutput->getClipFromName(&newNameString) != nullptr) {
+		newName.truncate(end);
+		newName.appendInt(counter++);
+	}
+	target->name.set(newName.data());
+}
+
 Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, Clip* sourceClip) {
 	actionLogger.deleteAllLogs();
 
@@ -3588,6 +3619,8 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		if (newClip == nullptr) {
 			return nullptr;
 		}
+		// ...with a derived name
+		copyClipName(sourceClip, newClip, targetOutput);
 	}
 
 	// Create new clip in existing track

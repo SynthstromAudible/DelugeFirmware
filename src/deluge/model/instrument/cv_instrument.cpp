@@ -28,7 +28,7 @@ CVInstrument::CVInstrument() : NonAudioInstrument(OutputType::CV) {
 	polyPitchBendValue = 0;
 }
 
-void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
+void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
 	// First update pitch bend for the new note
 	polyPitchBendValue = (int32_t)arpNote->mpeValues[0] << 16;
 	updatePitchBendOutput(false);
@@ -39,13 +39,15 @@ void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 	}
 }
 
-void CVInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) {
+void CVInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity,
+                                  int32_t noteIndex) {
 
 	cvEngine.sendNote(false, getPitchChannel(), noteCodePostArp);
 }
 
 void CVInstrument::polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
-                                                            int32_t expressionDimension, ArpNote* arpNote) {
+                                                            int32_t expressionDimension, ArpNote* arpNote,
+                                                            int32_t noteIndex) {
 	if (cvEngine.isNoteOn(getPitchChannel(), noteCodeAfterArpeggiation)) {
 		if (!expressionDimension) { // Pitch bend only, handles different polyphonic vs mpe pitch scales
 			polyPitchBendValue = newValue;

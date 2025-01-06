@@ -703,7 +703,6 @@ The Sound menu contains the following menu hierarchy:
 			- 64th-DTTED
 			- 128th-DTTED
 	- Rate
-	- Gate
 	- Octaves (OCTA)
 	- Octave Mode (OMOD)
 		- Up
@@ -717,22 +716,32 @@ The Sound menu contains the following menu hierarchy:
 		- Up & Down (UPDN)
 		- As Played (PLAY)
 		- Random (RAND)
-	- Chord Type (CHRD) (NOTE: Available only in Kit Rows)
-	- Note probability (PROB)
+	- Chord Simulator (CHRD) (NOTE: Available only in Kit Rows)
+	- Step Repeat (REPE)
+	- Gate
 	- Rhythm (RHYT)
 	- Sequence Length (LENG)
+	- Chord Polyphony (POLY) (NOTE: NOT available for Sound Kit Rows)
 	- Ratchet Amount (RATC)
-	- Ratchet Probability (RPRO)
-	- Spread
+	- Randomizer
+		- Ratchet Probability (RPRO)
+		- Note Probability (PROB)
+		- Bass Probability (BASS)
+		- Chord Probability (CHRD) (NOTE: NOT available for Sound Kit Rows)
+		- Octave Spread (OCTA)
+		- Gate Spread (GATE)
+		- Velocity Spread (VELO)
 		- Lock (LOCK)
-		- Velocity (VELO)
-		- Gate (GATE)
-		- Octave (OCTA)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
 			- Aftertouch
 			- MPE Y (Y)
+</details>
+
+<details><summary>Randomizer (RAND)</summary>
+
+	- Velocity Spread (VELO)
 </details>
 <details><summary>Compressor (COMP)</summary>
 
@@ -1292,7 +1301,6 @@ The MIDI menu contains the following menu hierarchy:
 			- 64th-DTTED
 			- 128th-DTTED
 	- Rate
-	- Gate
 	- Octaves (OCTA)
 	- Octave Mode (OMOD)
 		- Up
@@ -1306,20 +1314,31 @@ The MIDI menu contains the following menu hierarchy:
 		- Up & Down (UPDN)
 		- As Played (PLAY)
 		- Random (RAND)
+	- Chord Simulator (CHRD) (NOTE: Available only in Kit Rows)
+	- Step Repeat (REPE)
+	- Gate
 	- Rhythm (RHYT)
 	- Sequence Length (LENG)
+	- Chord Polyphony (POLY) (NOTE: NOT available for Midi Kit Rows)
 	- Ratchet Amount (RATC)
-	- Ratchet Probability (RPRO)
-	- Spread
+	- Randomizer
+		- Ratchet Probability (RPRO)
+		- Note Probability (PROB)
+		- Bass Probability (BASS)
+		- Chord Probability (CHRD) (NOTE: NOT available for Midi Kit Rows)
+		- Octave Spread (OCTA)
+		- Gate Spread (GATE)
+		- Velocity Spread (VELO)
 		- Lock (LOCK)
-		- Velocity (VELO)
-		- Gate (GATE)
-		- Octave (OCTA)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
 			- Aftertouch
 			- MPE Y (Y)
+</details>
+<details><summary>Randomizer (RAND)</summary>
+
+	- Velocity Spread (VELO)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 
@@ -1354,9 +1373,7 @@ The CV menu contains the following menu hierarchy:
 <blockquote>
 <details><summary>Arpeggiator (ARPE)</summary>
 
-	- Mode
-		- OFF
-		- Arpeggiator (ARP)
+	- Enabled (ON)
 	- Sync
 	NOTE: These options can change depending on how your default resolution is set
 
@@ -1389,34 +1406,44 @@ The CV menu contains the following menu hierarchy:
 			- 64th-DTTED
 			- 128th-DTTED
 	- Rate
-	- Gate
-	- Octaves (OCTA)
-	- Octave Mode (OMOD)
+	- Octaves (OCTA) (NOTE: NOT available for Gate Kit Rows)
+	- Octave Mode (OMOD) (NOTE: NOT available for Gate Kit Rows)
 		- Up
 		- Down
 		- Up & Down (UPDN)
 		- Alternate (ALT)
 		- Random (RAND)
-	- Note Mode (NMOD)
+	- Note Mode (NMOD) (NOTE: NOT available for Gate Kit Rows)
 		- Up
 		- Down
 		- Up & Down (UPDN)
 		- As Played (PLAY)
 		- Random (RAND)
+	- Chord Simulator (CHRD) (NOTE: NOT available for Gate Kit Rows)
+	- Step Repeat (REPE) (NOTE: NOT available for Gate Kit Rows)
+	- Gate
 	- Rhythm (RHYT)
 	- Sequence Length (LENG)
+	- Chord Polyphony (POLY) (NOTE: NOT available for Gate Kit Rows)
 	- Ratchet Amount (RATC)
-	- Ratchet Probability (RPRO)
-	- Spread
+	- Randomizer
+		- Ratchet Probability (RPRO)
+		- Note Probability (PROB)
+		- Bass Probability (BASS) (NOTE: NOT available for Gate Kit Rows)
+		- Chord Probability (CHRD) (NOTE: NOT available for Gate Kit Rows)
+		- Octave Spread (OCTA) (NOTE: NOT available for Gate Kit Rows)
+		- Gate Spread (GATE)
+		- Velocity Spread (VELO) (NOTE: NOT available for Gate Kit Rows)
 		- Lock (LOCK)
-		- Velocity (VELO)
-		- Gate (GATE)
-		- Octave (OCTA)
-	- MPE
+	- MPE (NOTE: NOT available for Gate Kit Rows)
 		- Velocity (VELO)
 			- Disabled (OFF)
 			- Aftertouch
 			- MPE Y (Y)
+</details>
+<details><summary>Randomizer (RAND)</summary>
+
+	- Velocity Spread (VELO)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 

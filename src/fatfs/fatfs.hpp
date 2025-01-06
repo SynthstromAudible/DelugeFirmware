@@ -126,8 +126,6 @@ using FileInfo = FILINFO;
 
 class Directory {
 public:
-  Directory(Directory &) = default;  // Copy constructor
-  Directory(Directory &&) = default; // Move constructor
   ~Directory() { f_closedir(&dir_); }
 
   /* Open a directory */
@@ -161,7 +159,7 @@ public:
   constexpr DIR &inner() { return dir_; }
 
 private:
-  Directory() = default;
+  //Directory() = default;
 
   DIR dir_;
 

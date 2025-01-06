@@ -23,6 +23,11 @@
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
   - Envelope 1 & 2.
 
+#### <ins>Clip Name Display & Copying</ins>
+- If a clip has no named "SECTION N" is displayed in place of the clip name, indicating which section the clip is in.
+- If a clip has a name, it is displayed with a number prefix, indicating its section, eg. "3: CHORUS".
+- When clips are copied, the clip name is copied as well. If the target track already has a clip with the same name, an integer suffix starting from 2 is added unless the name already has an integer suffix. This integer suffix is incremented until the clip name is unique on the target track. Ie. copying a clip named "BRIDGE" to the same otherwise empty track will first create "BRIDGE2", then "BRIDGE3", etc.
+
 #### <ins>Tempo</ins>
 - Added Community Feature toggle (`Settings > Community Features > Alternative Tap Tempo Behaviour (TAPT)`) to adjust number of `TAP TEMPO` button presses to engage `TAP TEMPO` to `FOUR (4)` to avoid mistakingly changing tempo.
 
@@ -73,6 +78,9 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - If scale mode is active, you can now check the current root note and scale by long pressing the scale button. On 7SEG it will display the root note on press and scale on release.
 - Long pressing the scale button will not result in entering or exiting scale mode so you can safely check the current root note and scale without accidentally exiting scale mode.
 
+##### Velocity Spread
+- Added `Velocity Spread` parameter into a `Randomizer` submenu for Sound instruments. This parameters is shared with the arpeggiator and lets you apply some random variation to the notes.
+
 ##### Note / Note Row Probability, Iterance, Fill
 - Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
   - To edit probability, hold a note / audition pad and turn the select encoder to the left to display current probability value / set new probability value.
@@ -96,6 +104,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - Press `SELECT` to enter the `CV Instrument Menu`
   - Enter the  `CV 2 Source (CV2)` submenu
   - Select from `OFF, Y, Aftertouch, Velocity`
+- CV clips can now be named like other clips.
 
 ##### MIDI Clips
 - Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`. See documentation on [MIDI Device Definition Files](docs/features/midi_device_definition_files.md) for more info.
@@ -114,6 +123,14 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### Kits
 - Added ability to change the pad size in the `KIT VELOCITY KEYBOARD VIEW` using the Zoom In/Out shortcut by `Pressing + Turning <>`
+- Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
+- `KIT VELOCITY KEYBOARD VIEW` Changes:
+  - Additional shortcut of `Pressing + Turning <>` to change the pad size using the Zoom In/Out.
+  - Went from 8 zoom levels to 13, with mostly smaller jumps in size and number of drum pads between levels.
+  - Rectangular pads of various sizes are used where needed to fully cover the screen without any partial pads. This means you can now have six or four pads, or even the entire screen as a single pad.
+  - Zoom level 1 pads play the system-level default velocity (64 by default out of a maximum 127, but it is user defineable), and levels 2 and 3 have a slightly lowered max velocity of 100 to make them more useable.
+  - Pad colors are calculated to avoid having adjacent pads of the same color as much as possible.
+  - Default pad brightness is set to match the default brightness value, so they will be more visible if needed. They will dim when pressed instead of getting brighter. The brightness gradient over the drum pads, going from dim on the low velocity pads to bright on the highest, is now much more apparent, due to the max brightness being higher, the lowest brightness being lower, and using a quadratic curve for the brightness ratio rather than linear. The amount that the drum pads dim when pressed depends on the pad area, so that smaller pad presses will be more visible, and larger pad presses won't be TOO visible, i.e. they won't have a potentially unpleasant strobe light flashing behavior.
 
 ##### Layout
 - Added the classic piano keyboard layout.
@@ -121,9 +138,15 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ### Sequencer
 
 #### <ins>Arpeggiator</ins>
-- The arpeggiator has now a new `NOTE PROBABILITY (PROB)` paramater that will apply a probability to notes (after rhythm and sequence length have been applied).
-- Added new `CHORD TYPE (CHRD)` paramater that will emulate a held chord so you can use `NOTE MODE` on the Kit Row.
-- The arpeggiator has now a new `SPREAD` submenu with up to 3 parameters that will allow you to control how those parameters of each arp step are deviated from its base value.
+- Added `NOTE PROBABILITY (PROB)` paramater that will apply a probability to be played or not to notes (after rhythm has been applied).
+- Added `CHORD SIMULATOR (CHRD)` paramater to Kit Rows, that will emulate a held chord so you can use `NOTE MODE` on them.
+- Added `SPREAD` parameters (Velocity, Gate, and Octave) that will allow you to control how those parameters of each arp step are deviated from its base value. Additionally, a `LOCK` parameter will allow you to lock the generated values to create a repeating pattern. Velocity Spread
+also affect normal sequenced notes while arpeggiator is Off.
+- Added `BASS PROBABILITY (BASS)` paramater that will allow you to control the chance of a note being replaced the bass (lowest) note of the inputted notes.
+- Added `STEP REPEAT (REPE)` paramater (with values 1 to 8) that makes walked notes in the pattern be repeated X times before moving to the next note+octave in the pattern.
+- Added `CHORD PROBABILITY (CHRD)` paramater that will allow you to control the chance of a note to play, at the same time, itself and other notes to form a chord (5th, 3rd and 7th).
+- Added `CHORD POLYPHONY (POLY)` paramater that works together with the previous parameter, and this one will dictate how big is the chord, that is, how many notes will be played at the same time.
+- Added `LOCK` parameter to allow you to freeze the current set of randomized values so the sequence has a repeatable pattern.
 
 ### MIDI
 

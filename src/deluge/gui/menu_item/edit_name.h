@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2019-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,26 +14,17 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+
 #pragma once
-#include "gui/menu_item/patched_param/integer_non_fm.h"
-#include "gui/ui/sound_editor.h"
-#include "modulation/patch/patch_cable_set.h"
 
-namespace deluge::gui::menu_item::filter {
+#include "gui/menu_item/menu_item.h"
+#include "gui/ui/rename/rename_ui.h"
 
-class HPFFreq final : public patched_param::Integer {
+namespace deluge::gui::menu_item {
+
+class EditName final : public MenuItem {
 public:
-	using patched_param::Integer::Integer;
-	// 7Seg ONLY
-	void drawValue() override {
-		if (this->getValue() == kMinMenuValue
-		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
-		        deluge::modulation::params::LOCAL_HPF_FREQ)) {
-			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
-		}
-		else {
-			patched_param::Integer::drawValue();
-		}
-	}
+	using MenuItem::MenuItem;
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
 };
-} // namespace deluge::gui::menu_item::filter
+} // namespace deluge::gui::menu_item
