@@ -36,6 +36,8 @@
 ///   - Exp (exponential) params have different sources added together, converted to an exponential scale, then
 ///   multiplied by the neutral value
 
+class ModControllableAudio;
+
 namespace deluge::modulation::params {
 enum class Kind : int32_t {
 	NONE,
@@ -248,6 +250,7 @@ bool isParamPitch(Kind kind, int32_t paramID);
 bool isParamPitchBend(Kind kind, int32_t paramID);
 bool isParamArpRhythm(Kind kind, int32_t paramID);
 bool isParamStutter(Kind kind, int32_t paramID);
+bool isParamQuantizedStutter(Kind kind, int32_t paramID, ModControllableAudio* modControllableAudio);
 
 bool isVibratoPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
 bool isSidechainPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
