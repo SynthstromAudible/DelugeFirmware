@@ -34,6 +34,10 @@ MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
 void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin,
                          uint32_t regionEnd) {
 	emptySpaces.setStaticMemory(emptySpacesMemory, emptySpacesMemorySize);
+	// bit of a hack - the allocations start with a 4 byte type+size header, this ensures the
+	// resulting allocations are still aligned to 16 bytes (which should generally be fine for anything?)
+	regionBegin = (regionBegin & 0xFFFFFFF0) + 16;
+
 	start = regionBegin;
 	// this is actually the location of the footer but that's better anyway
 	end = regionEnd - 8;
@@ -53,6 +57,8 @@ void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize,
 }
 
 uint32_t MemoryRegion::padSize(uint32_t requiredSize) {
+	requiredSize += 8; // dirty hack - we need the size with its headers to be aligned so we'll add it here then
+	                   // subtract 8 afterwards
 	if (requiredSize < minAlign) {
 		requiredSize = minAlign;
 	}
@@ -69,7 +75,7 @@ uint32_t MemoryRegion::padSize(uint32_t requiredSize) {
 		}
 		requiredSize += extraSize;
 	}
-	return requiredSize;
+	return requiredSize - 8;
 }
 
 bool seenYet = false;
@@ -426,7 +432,6 @@ noEmptySpace:
 // Returns new size
 uint32_t MemoryRegion::shortenRight(void* address, uint32_t newSize) {
 	newSize = padSize(newSize);
-
 	uint32_t* __restrict__ header = (uint32_t*)((char*)address - 4);
 	uint32_t oldAllocatedSize = *header & SPACE_SIZE_MASK;
 	uint32_t allocationType = *header & SPACE_TYPE_MASK;
@@ -460,7 +465,6 @@ uint32_t MemoryRegion::shortenRight(void* address, uint32_t newSize) {
 
 // Returns how much it was shortened by
 uint32_t MemoryRegion::shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful) {
-
 	uint32_t* __restrict__ header = (uint32_t*)((char*)address - 4);
 	uint32_t oldAllocatedSize = *header & SPACE_SIZE_MASK;
 	uint32_t allocationType = *header & SPACE_TYPE_MASK;
@@ -515,7 +519,6 @@ void MemoryRegion::writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32
 // Will grab one item of empty or stealable space to the right of the supplied allocation.
 // Returns new size, or same size if couldn't extend.
 uint32_t MemoryRegion::extendRightAsMuchAsEasilyPossible(void* address) {
-
 	uint32_t* __restrict__ header = (uint32_t*)(static_cast<char*>(address) - 4);
 	uint32_t spaceSize = (*header & SPACE_SIZE_MASK);
 	uint32_t currentSpaceType = *header & SPACE_TYPE_MASK;
@@ -742,7 +745,6 @@ gotEnoughMemory: {}
 void MemoryRegion::extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
                           uint32_t* __restrict__ getAmountExtendedLeft, uint32_t* __restrict__ getAmountExtendedRight,
                           void* thingNotToStealFrom) {
-
 	minAmountToExtend = padSize(minAmountToExtend);
 	idealAmountToExtend = padSize(idealAmountToExtend);
 
@@ -823,6 +825,7 @@ void MemoryRegion::dealloc(void* address) {
 	// uint16_t startTime = *TCNT[TIMER_SYSTEM_FAST];
 
 	uint32_t* __restrict__ header = (uint32_t*)((uint32_t)address - 4);
+
 	uint32_t spaceSize = (*header & SPACE_SIZE_MASK);
 
 #if ALPHA_OR_BETA_VERSION
