@@ -1207,7 +1207,7 @@ someError:
 
 Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
-	output = modelStack->song->getAudioOutputFromName(outputNameWhileLoading.get());
+	output = modelStack->song->getAudioOutputFromName(&outputNameWhileLoading);
 
 	if (!output) {
 		return Error::FILE_CORRUPTED;

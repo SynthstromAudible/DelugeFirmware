@@ -34,9 +34,9 @@ bool RenameUI::opened() {
 		return false;
 	}
 
-	std::string_view name = getName();
+	String name = getName();
 	enteredText.clear();
-	enteredText.concatenate(name);
+	enteredText.concatenate(&name);
 
 	displayText();
 	drawKeys();
@@ -48,7 +48,7 @@ void RenameUI::enterKeyPress() {
 	if (enteredText.isEmpty() && !allowEmpty()) {
 		return;
 	}
-	if (trySetName(enteredText.get())) {
+	if (trySetName(&enteredText)) {
 		exitUI();
 	}
 }
