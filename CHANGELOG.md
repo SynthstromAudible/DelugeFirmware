@@ -9,7 +9,12 @@
 - Added a boss/roland style Dimension effect
 - Made grain much faster and updated controls
 - Added LPF to Mutable Instruments Reverb
-- Added an option to reverse the stutter effect
+
+#### <ins>Per-clip Stutter with options: Quantize, Reverse, and Ping-Pong</ins>
+- Now the stutter buffer can also be set to play in reverse, and ping-pong.
+- A new menu has been added to the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song.
+- An extra menu has been added per sound source (either synths, kit rows, affect-entire kits, or audio clips) to
+set the stutter configuration independently of the song configuration if you wish.
 
 ### User Interface
 

@@ -621,6 +621,7 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 
 	else if (!strcmp(tagName, "stutter")) {
 		// Set default values in case they are not configured
+		stutterConfig.useSongStutter = true;
 		stutterConfig.quantized = false;
 		stutterConfig.reversed = false;
 		stutterConfig.pingPong = false;
@@ -1154,8 +1155,10 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 		return;
 	}
 	if (Error::NONE
-	    == stutterer.beginStutter(this, paramManager, stutterConfig, currentSong->getInputTickMagnitude(),
-	                              playbackHandler.getTimePerInternalTickInverse())) {
+	    == stutterer.beginStutter(
+	        this, paramManager,
+	        stutterConfig.useSongStutter ? currentSong->globalEffectable.stutterConfig : stutterConfig,
+	        currentSong->getInputTickMagnitude(), playbackHandler.getTimePerInternalTickInverse())) {
 		// Redraw the LEDs. Really only for quantized stutter, but doing it for unquantized won't hurt.
 		view.notifyParamAutomationOccurred(paramManager);
 		enterUIMode(UI_MODE_STUTTERING);

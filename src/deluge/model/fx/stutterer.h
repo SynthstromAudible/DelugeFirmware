@@ -25,9 +25,10 @@ class ParamManager;
 class StereoSample;
 
 struct StutterConfig {
-	bool quantized;
-	bool reversed;
-	bool pingPong;
+	bool useSongStutter = true;
+	bool quantized = false;
+	bool reversed = false;
+	bool pingPong = false;
 };
 
 class Stutterer {

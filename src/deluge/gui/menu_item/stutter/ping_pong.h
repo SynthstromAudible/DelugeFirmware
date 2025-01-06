@@ -26,6 +26,10 @@ public:
 	using Toggle::Toggle;
 	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.pingPong); }
 	void writeCurrentValue() override { soundEditor.currentModControllable->stutterConfig.pingPong = this->getValue(); }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return soundEditor.currentModControllable->isSong()
+		       || !soundEditor.currentModControllable->stutterConfig.useSongStutter;
+	}
 };
 
 } // namespace deluge::gui::menu_item::stutter

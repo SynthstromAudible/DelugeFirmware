@@ -18,17 +18,31 @@
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/song/song.h"
 
 namespace deluge::gui::menu_item::stutter {
 
-class ReversedStutter final : public Toggle {
+class UseSongStutter final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.reversed); }
-	void writeCurrentValue() override { soundEditor.currentModControllable->stutterConfig.reversed = this->getValue(); }
+	void readCurrentValue() override {
+		this->setValue(soundEditor.currentModControllable->stutterConfig.useSongStutter);
+	}
+	void writeCurrentValue() override {
+		bool value = this->getValue();
+		if (!value) {
+			// Copy current song settings to this clip settings
+			soundEditor.currentModControllable->stutterConfig.quantized =
+			    currentSong->globalEffectable.stutterConfig.quantized;
+			soundEditor.currentModControllable->stutterConfig.reversed =
+			    currentSong->globalEffectable.stutterConfig.reversed;
+			soundEditor.currentModControllable->stutterConfig.pingPong =
+			    currentSong->globalEffectable.stutterConfig.pingPong;
+		}
+		soundEditor.currentModControllable->stutterConfig.useSongStutter = value;
+	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.currentModControllable->isSong()
-		       || !soundEditor.currentModControllable->stutterConfig.useSongStutter;
+		return !soundEditor.currentModControllable->isSong();
 	}
 };
 

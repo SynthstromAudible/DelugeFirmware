@@ -667,16 +667,12 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
   removes itself from the signal path.
     - Note that it has no effect on square waves, it's best with sines and triangles
 
-#### 4.2.8 - Quantized Stutter
+#### 4.2.8 - Per-clip Stutter with options: Quantize, Reverse, and Ping-Pong
 
-- ([#357]) Set the stutter effect to be quantized to `4TH, 8TH, 16TH, 32ND, and 64TH` rate before triggering it. Once
-  you have pressed the `STUTTER`-related gold encoder, then the selected value will be the center value of the encoder
-  and you can go up and down with the golden encoder and come back to the original rate by centering the encoder (LEDs
-  will flash indicating it).
-
-    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
-
-
+- ([#3226]) Now the stutter buffer can also be set to play in reverse, and ping-pong. A new menu has been added to
+  the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song. An extra menu has been added
+  per sound source (either synths, kit rows, affect-entire kits, or audio clips) to set the stutter configuration
+  independently of the song configuration if you wish.
 
 #### 4.2.9 - Reverb Improvements
 
@@ -1569,6 +1565,8 @@ different firmware
 [#3062]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3062
 
 [#3079]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3079
+
+[#3226]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3226
 
 [Automation View Documentation]: features/automation_view.md
 

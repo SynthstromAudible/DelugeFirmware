@@ -172,6 +172,7 @@
 #include "gui/menu_item/stutter/ping_pong.h"
 #include "gui/menu_item/stutter/quantized.h"
 #include "gui/menu_item/stutter/reversed.h"
+#include "gui/menu_item/stutter/use_song_stutter.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/menu_item/submenu/MPE.h"
 #include "gui/menu_item/submenu/actual_source.h"
@@ -420,6 +421,7 @@ Submenu delayMenu{
 };
 
 // Stutter ----------------------------------------------------------------------------------
+stutter::UseSongStutter stutterUseSongMenu{STRING_FOR_USE_SONG, STRING_FOR_USE_SONG};
 stutter::QuantizedStutter stutterQuantizedMenu{STRING_FOR_QUANTIZE, STRING_FOR_QUANTIZE};
 stutter::ReversedStutter stutterReversedMenu{STRING_FOR_REVERSE, STRING_FOR_REVERSE};
 stutter::PingPongStutter stutterPingPongMenu{STRING_FOR_PING_PONG, STRING_FOR_PING_PONG};
@@ -427,6 +429,7 @@ stutter::PingPongStutter stutterPingPongMenu{STRING_FOR_PING_PONG, STRING_FOR_PI
 Submenu stutterMenu{
     STRING_FOR_STUTTER,
     {
+        &stutterUseSongMenu,
         &stutterQuantizedMenu,
         &stutterReversedMenu,
         &stutterPingPongMenu,

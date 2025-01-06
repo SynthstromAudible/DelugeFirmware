@@ -28,6 +28,10 @@ public:
 	void writeCurrentValue() override {
 		soundEditor.currentModControllable->stutterConfig.quantized = this->getValue();
 	}
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return soundEditor.currentModControllable->isSong()
+		       || !soundEditor.currentModControllable->stutterConfig.useSongStutter;
+	}
 };
 
 } // namespace deluge::gui::menu_item::stutter
