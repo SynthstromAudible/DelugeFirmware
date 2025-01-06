@@ -207,8 +207,9 @@ TEST(MemoryAllocation, allocationSizes) {
 		for (int i = 0; i < expectedAllocations; i++) {
 			if (!testAllocations[i]) {
 				// this is to make a log distribution - probably the worst case for packing efficiency
-				int magnitude = rand() % 16;
-				int size = (rand() % 10) << magnitude;
+				// min allocation size is 8 bytes
+				int magnitude = rand() % 16 + 2;
+				int size = (rand() % 10 + 1) << magnitude;
 				void* testalloc = memreg.alloc(size, false, NULL);
 				if (testalloc) {
 					totalSize += size;
@@ -235,7 +236,7 @@ TEST(MemoryAllocation, allocationSizes) {
 	}
 	// un modified GMA gets .999311
 	// current with extra padding gets .9939
-	// std::cout << "Packing factor: " << (average_packing_factor / numRepeats) << std::endl;
+	std::cout << "Packing factor: " << (average_packing_factor / numRepeats) << std::endl;
 	CHECK(average_packing_factor / numRepeats > 0.99);
 };
 
