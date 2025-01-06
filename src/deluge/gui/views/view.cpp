@@ -1115,8 +1115,8 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 
 	// if turning stutter mod encoder and stutter quantize is enabled
 	// display stutter quantization instead of knob position
-	if (isParamStutter(kind, paramID) && activeModControllableModelStack.modControllable
-	    && ((ModControllableAudio*)view.activeModControllableModelStack.modControllable)->stutterConfig.quantized
+	if (isParamQuantizedStutter(kind, paramID,
+	                            (ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 	    && !isUIModeActive(UI_MODE_STUTTERING)) {
 		if (newKnobPos < -39) { // 4ths stutter: no leds turned on
 			popupMsg.append("4ths");
@@ -1282,8 +1282,8 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 			lowerLimit = std::min(-64_i32, knobPos);
 		}
 		knobPos = std::clamp(knobPos, lowerLimit, 64_i32);
-		if (isParamStutter(kind, modelStackWithParam->paramId) && modelStackWithParam->modControllable
-		    && ((ModControllableAudio*)modelStackWithParam->modControllable)->stutterConfig.quantized
+		if (isParamQuantizedStutter(kind, modelStackWithParam->paramId,
+		                            (ModControllableAudio*)modelStackWithParam->modControllable)
 		    && !isUIModeActive(UI_MODE_STUTTERING)) {
 			if (knobPos < -39) { // 4ths stutter: no leds turned on
 				knobPos = -64;

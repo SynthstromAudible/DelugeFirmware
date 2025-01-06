@@ -145,12 +145,9 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 			int32_t strength1;
 			int32_t strength2;
 
-			// If ping-pong is active and we're at the start or end of the buffer, reverse the direction
-			if (stutterConfig.pingPong
-			    && ((currentReverse && &buffer.current() == buffer.begin())
-			        || (!currentReverse && &buffer.current() == buffer.end()))) {
-				currentReverse = !currentReverse;
-			}
+			StereoSample* currentSample = &buffer.current();
+			StereoSample* startSample = buffer.begin();
+			StereoSample* endSample = buffer.end();
 
 			if (buffer.isNative()) {
 				if (currentReverse) {
@@ -201,6 +198,14 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 					                << 2;
 				}
 			}
+
+			// If ping-pong is active and we're at the start or end of the buffer, reverse the direction
+			if (stutterConfig.pingPong
+			    && ((currentReverse && &buffer.current() == buffer.begin())
+			        || (!currentReverse && &buffer.current() == endSample))) {
+				currentReverse = !currentReverse;
+			}
+
 		} while (++thisSample != audioEnd);
 	}
 }

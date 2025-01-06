@@ -64,7 +64,7 @@ bool isParamStutter(Kind kind, int32_t paramID) {
 
 bool isParamQuantizedStutter(Kind kind, int32_t paramID, ModControllableAudio* modControllableAudio) {
 	return (kind == Kind::UNPATCHED_GLOBAL || kind == Kind::UNPATCHED_SOUND)
-	       && static_cast<UnpatchedShared>(paramID) == UNPATCHED_STUTTER_RATE
+	       && static_cast<UnpatchedShared>(paramID) == UNPATCHED_STUTTER_RATE && modControllableAudio
 	       && (modControllableAudio->stutterConfig.useSongStutter
 	               ? currentSong->globalEffectable.stutterConfig.quantized
 	               : modControllableAudio->stutterConfig.quantized);
