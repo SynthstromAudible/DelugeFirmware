@@ -61,20 +61,6 @@ bool isParamStutter(Kind kind, int32_t paramID) {
 	       && static_cast<UnpatchedShared>(paramID) == UNPATCHED_STUTTER_RATE;
 }
 
-bool isParamQuantizedStutter(Kind kind, int32_t paramID) {
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) != RuntimeFeatureStateToggle::On) {
-		return false;
-	}
-	return isParamStutter(kind, paramID);
-}
-
-bool isParamReverseStutter(Kind kind, int32_t paramID) {
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ReverseStutterRate) != RuntimeFeatureStateToggle::On) {
-		return false;
-	}
-	return isParamStutter(kind, paramID);
-}
-
 bool isVibratoPatchCableShortcut(int32_t xDisplay, int32_t yDisplay) {
 	if (xDisplay == 6 && yDisplay == 2) {
 		return true;

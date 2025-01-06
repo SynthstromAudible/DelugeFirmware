@@ -476,6 +476,13 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 	writer.writeAttribute("compHPF", compressor.getSidechain());
 	writer.writeAttribute("compBlend", compressor.getBlend());
 	writer.closeTag();
+
+	// Stutter
+	writer.writeOpeningTagBeginning("stutter");
+	writer.writeAttribute("quantized", stutterConfig.quantized);
+	writer.writeAttribute("reverse", stutterConfig.reversed);
+	writer.writeAttribute("pingPong", stutterConfig.pingPong);
+	writer.closeTag();
 }
 
 void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager,
@@ -610,6 +617,32 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 	else if (!strcmp(tagName, "clippingAmount")) {
 		clippingAmount = reader.readTagOrAttributeValueInt();
 		reader.exitTag("clippingAmount");
+	}
+
+	else if (!strcmp(tagName, "stutter")) {
+		// Set default values in case they are not configured
+		stutterConfig.quantized = false;
+		stutterConfig.reversed = false;
+		stutterConfig.pingPong = false;
+		reader.match('{');
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "quantized")) {
+				int32_t contents = reader.readTagOrAttributeValueInt();
+				stutterConfig.quantized = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
+				reader.exitTag("quantized");
+			}
+			else if (!strcmp(tagName, "reverse")) {
+				int32_t contents = reader.readTagOrAttributeValueInt();
+				stutterConfig.reversed = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
+				reader.exitTag("reverse");
+			}
+			else if (!strcmp(tagName, "pingPong")) {
+				int32_t contents = reader.readTagOrAttributeValueInt();
+				stutterConfig.pingPong = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
+				reader.exitTag("pingPong");
+			}
+		}
+		reader.exitTag("stutter", true);
 	}
 
 	else if (!strcmp(tagName, "delay")) {
@@ -1121,9 +1154,8 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 		return;
 	}
 	if (Error::NONE
-	    == stutterer.beginStutter(
-	        this, paramManager, runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::QuantizedStutterRate),
-	        currentSong->getInputTickMagnitude(), playbackHandler.getTimePerInternalTickInverse())) {
+	    == stutterer.beginStutter(this, paramManager, stutterConfig, currentSong->getInputTickMagnitude(),
+	                              playbackHandler.getTimePerInternalTickInverse())) {
 		// Redraw the LEDs. Really only for quantized stutter, but doing it for unquantized won't hurt.
 		view.notifyParamAutomationOccurred(paramManager);
 		enterUIMode(UI_MODE_STUTTERING);
@@ -1133,8 +1165,7 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSamples, ParamManager* paramManager) {
 	if (stutterer.isStuttering(this)) {
 		stutterer.processStutter(buffer, numSamples, paramManager, currentSong->getInputTickMagnitude(),
-		                         playbackHandler.getTimePerInternalTickInverse(),
-		                         runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ReverseStutterRate));
+		                         playbackHandler.getTimePerInternalTickInverse());
 	}
 }
 

@@ -592,7 +592,9 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 			// display parameter value
 			yPos = yPos + 24;
 
-			if (params::isParamQuantizedStutter(paramKind, paramID)) {
+			if (params::isParamStutter(paramKind, paramID)
+			    && ((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+			           ->stutterConfig.quantized) {
 				char const* buffer;
 				if (knobPos < -39) { // 4ths stutter: no leds turned on
 					buffer = "4ths";
@@ -621,7 +623,9 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 		}
 		// 7Seg Display
 		else {
-			if (params::isParamQuantizedStutter(paramKind, paramID)) {
+			if (params::isParamStutter(paramKind, paramID)
+			    && ((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+			           ->stutterConfig.quantized) {
 				char const* buffer;
 				if (knobPos < -39) { // 4ths stutter: no leds turned on
 					buffer = "4ths";
@@ -1428,7 +1432,9 @@ bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStac
 			}
 
 			if (renderDisplay) {
-				if (params::isParamQuantizedStutter(paramKind, paramID)) {
+				if (params::isParamStutter(paramKind, paramID)
+				    && ((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+				           ->stutterConfig.quantized) {
 					renderFXDisplay(paramKind, paramID, knobPos);
 				}
 				else {
@@ -1461,7 +1467,9 @@ void PerformanceView::getParameterValue(ModelStackWithThreeMainThings* modelStac
 			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 
 			if (renderDisplay && (fxPress[xDisplay].currentKnobPosition != knobPos)) {
-				if (params::isParamQuantizedStutter(paramKind, paramID)) {
+				if (params::isParamStutter(paramKind, paramID)
+				    && ((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+				           ->stutterConfig.quantized) {
 					renderFXDisplay(paramKind, paramID, knobPos);
 				}
 				else {
@@ -1894,8 +1902,9 @@ void PerformanceView::loadDefaultLayout() {
 		memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay],
 		       sizeof(ParamsForPerformance));
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			if (params::isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
-			                                    layoutForPerformance[xDisplay].paramID)) {
+			if (params::isParamStutter(layoutForPerformance[xDisplay].paramKind, layoutForPerformance[xDisplay].paramID)
+			    && ((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+			           ->stutterConfig.quantized) {
 				defaultFXValues[xDisplay][yDisplay] = quantizedStutterPressValues[yDisplay];
 				backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
 			}
@@ -1986,8 +1995,10 @@ void PerformanceView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
 					defaultFXValues[xDisplay][yDisplay] = kKnobPosOffset;
 				}
 
-				if (params::isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
-				                                    layoutForPerformance[xDisplay].paramID)) {
+				if (params::isParamStutter(layoutForPerformance[xDisplay].paramKind,
+				                           layoutForPerformance[xDisplay].paramID)
+				    && ((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+				           ->stutterConfig.quantized) {
 					defaultFXValues[xDisplay][yDisplay] = quantizedStutterPressValues[yDisplay];
 				}
 

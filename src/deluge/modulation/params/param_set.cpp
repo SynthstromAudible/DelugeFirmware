@@ -23,6 +23,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/melodic_instrument.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
@@ -381,8 +382,7 @@ bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId con
 	// Shared
 	switch (modelStack->paramId) {
 	case params::UNPATCHED_STUTTER_RATE:
-		return runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
-		           == RuntimeFeatureStateToggle::Off
+		return !((ModControllableAudio*)modelStack->modControllable)->stutterConfig.quantized
 		       || isUIModeActive(UI_MODE_STUTTERING);
 	case params::UNPATCHED_BASS:
 	case params::UNPATCHED_TREBLE:

@@ -63,9 +63,11 @@ int32_t Stutterer::getStutterRate(ParamManager* paramManager, int32_t magnitude,
 	return rate;
 }
 
-Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManager, bool quantize, int32_t magnitude,
+Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManager, StutterConfig sc, int32_t magnitude,
                               uint32_t timePerTickInverse) {
-	if (quantize) {
+	stutterConfig = sc;
+	currentReverse = stutterConfig.reversed;
+	if (stutterConfig.quantized) {
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 		int32_t paramValue = unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE);
 		int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, nullptr);
@@ -87,7 +89,6 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 		// Save current values for later recovering them
 		valueBeforeStuttering = paramValue;
 		lastQuantizedKnobDiff = knobPos;
-		isQuantized = true;
 
 		// When stuttering, we center the value at 0, so the center is the reference for the stutter rate that we
 		// selected just before pressing the knob and we use the lastQuantizedKnobDiff value to calculate the relative
@@ -107,13 +108,16 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 }
 
 void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamManager* paramManager, int32_t magnitude,
-                               uint32_t timePerTickInverse, bool reverse) {
+                               uint32_t timePerTickInverse) {
 	StereoSample* audioEnd = audio + numSamples;
 	StereoSample* thisSample = audio;
 
 	int32_t rate = getStutterRate(paramManager, magnitude, timePerTickInverse);
 
 	buffer.setupForRender(rate);
+
+	// These check if the buffer has been fully passed, before reversing
+	static int32_t bufferPosition = 0;
 
 	if (status == Status::RECORDING) {
 		do {
@@ -145,25 +149,40 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 			int32_t strength2;
 
 			if (buffer.isNative()) {
-				if (reverse == false) {
-					buffer.moveOn(); // move forward in the buffer
+				if (currentReverse) {
+					buffer.moveBack(); // move backward in the buffer
 				}
 				else {
-					buffer.moveBack(); // move backward in the buffer
+					buffer.moveOn(); // move forward in the buffer
 				}
 				thisSample->l = buffer.current().l;
 				thisSample->r = buffer.current().r;
 			}
 			else {
-				if (reverse == false) {
-					strength2 = buffer.advance([&] { buffer.moveOn(); });
+				if (currentReverse) {
+					strength2 = buffer.retreat([&] { buffer.moveBack(); });
 				}
 				else {
-					strength2 = buffer.retreat([&] { buffer.moveBack(); });
+					strength2 = buffer.advance([&] { buffer.moveOn(); });
 				}
 
 				strength1 = 65536 - strength2;
-				if (reverse == false) {
+
+				if (currentReverse) {
+					StereoSample* prevPos = &buffer.current() - 1;
+					if (prevPos < buffer.begin()) {
+						prevPos = buffer.end() - 1; // Wrap around to the end of the buffer
+					}
+					StereoSample& fromDelay1 = buffer.current();
+					StereoSample& fromDelay2 = *prevPos;
+					thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
+					                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
+					                << 2;
+					thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
+					                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
+					                << 2;
+				}
+				else {
 					StereoSample* nextPos = &buffer.current() + 1;
 					if (nextPos == buffer.end()) {
 						nextPos = buffer.begin();
@@ -177,19 +196,15 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 					                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
 					                << 2;
 				}
-				else {
-					StereoSample* prevPos = &buffer.current() - 1;
-					if (prevPos < buffer.begin()) {
-						prevPos = buffer.end() - 1; // Wrap around to the end of the buffer
-					}
-					StereoSample& fromDelay1 = buffer.current();
-					StereoSample& fromDelay2 = *prevPos;
-					thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
-					                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
-					                << 2;
-					thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
-					                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
-					                << 2;
+			}
+			if (stutterConfig.pingPong) {
+				if (bufferPosition >= buffer.size()) {
+					currentReverse = !currentReverse;
+					bufferPosition = buffer.size() - 1;
+				}
+				else if (bufferPosition < 0) {
+					currentReverse = !currentReverse;
+					bufferPosition = 0;
 				}
 			}
 		} while (++thisSample != audioEnd);
@@ -207,7 +222,7 @@ void Stutterer::endStutter(ParamManagerForTimeline* paramManager) {
 
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-		if (isQuantized) {
+		if (stutterConfig.quantized) {
 			// Sset back the value it had just before stuttering so orange LEDs are redrawn.
 			unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(valueBeforeStuttering);
 		}
