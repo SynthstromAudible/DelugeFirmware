@@ -229,7 +229,9 @@ TEST(MemoryAllocation, allocationSizes) {
 
 		// we should have one empty space left, and it should be the size of the memory minus headers
 		CHECK(memreg.emptySpaces.getNumElements() == 1);
-		CHECK(memreg.emptySpaces.getKeyAtIndex(0) == mem_size - 16);
+		// we might have needed to align the region start to 16 after setting the headers
+		int sizeDiff = (mem_size - 16 - memreg.emptySpaces.getKeyAtIndex(0));
+		CHECK(sizeDiff <= 16);
 	}
 	// un modified GMA gets .999311
 	// current with extra padding gets .9939
