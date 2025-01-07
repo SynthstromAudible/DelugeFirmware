@@ -1665,7 +1665,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 			Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 
 			// Launch exclusively section
-			if (currentSong->sections[thisClip->section].numRepetitions == -2){
+			if (currentSong->sections[thisClip->section].numRepetitions == -2) {
 				continue;
 			}
 			if (thisClip->launchStyle == LaunchStyle::FILL) {
