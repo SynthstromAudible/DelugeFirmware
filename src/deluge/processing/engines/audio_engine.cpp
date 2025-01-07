@@ -1442,7 +1442,6 @@ bool allowedToStartVoice() {
 	return false;
 }
 
-
 Voice* solicitVoice(Sound* forSound) {
 	Voice* newVoice;
 

@@ -2030,7 +2030,7 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 		// if we ignored a note on and are now actioning it we know that there's nothing left to do
 		if (ticksSinceLast < ignoreUntil) {
 			ignoreUntil -= ticksSinceLast;
-			return ignoredNoteOn? 1:ignoreUntil;
+			return ignoredNoteOn ? 1 : ignoreUntil;
 		}
 		// otherwise we'll just continue and process the note row
 	}
@@ -2385,7 +2385,8 @@ gotValidNoteIndex:
 						goto stopNote;
 					}
 
-					newTicksTil = nextNote->length; // Want this even if we're "skipping" playing the note (why exactly?)
+					newTicksTil =
+					    nextNote->length; // Want this even if we're "skipping" playing the note (why exactly?)
 				}
 
 				ticksTilNextNoteEvent = newTicksTil;
@@ -2394,7 +2395,7 @@ gotValidNoteIndex:
 	}
 
 	ignoreUntil = std::min(ticksTilNextNoteEvent, ticksTilNextParamManagerEvent);
-	return ignoredNoteOn? 1:ignoreUntil;
+	return ignoredNoteOn ? 1 : ignoreUntil;
 }
 
 bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
@@ -3135,7 +3136,8 @@ void NoteRow::maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effe
 			attemptLateStartOfNextNoteToPlay(modelStack, note);
 			ignoredNoteOn = false;
 		}
-	} else {
+	}
+	else {
 		ignoredNoteOn = false;
 	}
 }
