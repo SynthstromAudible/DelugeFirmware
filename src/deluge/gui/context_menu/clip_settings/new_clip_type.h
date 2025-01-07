@@ -36,7 +36,7 @@ public:
 	char const* getTitle() override;
 
 	/// Options
-	Sized<const char**> getOptions() override;
+	std::span<const char*> getOptions() override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t on) override;
 };
 

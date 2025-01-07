@@ -18,7 +18,7 @@ char const* ClipSettingsMenu::getTitle() {
 	return title;
 }
 
-Sized<char const**> ClipSettingsMenu::getOptions() {
+std::span<char const*> ClipSettingsMenu::getOptions() {
 	using enum l10n::String;
 	if (clip->type == ClipType::AUDIO) {
 		static const char* optionsls[] = {

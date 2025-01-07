@@ -46,7 +46,7 @@ char const* AudioInputSelector::getTitle() {
 	return l10n::get(STRING_FOR_AUDIO_SOURCE);
 }
 
-Sized<const char**> AudioInputSelector::getOptions() {
+std::span<const char*> AudioInputSelector::getOptions() {
 	using enum l10n::String;
 	static const char* options[] = {
 	    l10n::get(STRING_FOR_DISABLED),     l10n::get(STRING_FOR_LEFT_INPUT),     l10n::get(STRING_FOR_RIGHT_INPUT),
