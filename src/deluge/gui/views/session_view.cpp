@@ -1226,7 +1226,10 @@ void SessionView::drawSectionRepeatNumber() {
 	char const* outputText;
 	if (display->haveOLED()) {
 		char buffer[21];
-		if (number == -1) {
+		if (number == -2) {
+			outputText = "Launch \nexclusively"; // Need line break to match format of next label.
+		}
+		else if (number == -1) {
 			outputText = "Launch non-\nexclusively"; // Need line break cos line splitter doesn't deal with hyphens.
 		}
 		else {
@@ -1273,8 +1276,8 @@ void SessionView::commandChangeSectionRepeats(int8_t offset) {
 		if (*numRepetitions > 9999) {
 			*numRepetitions = 9999;
 		}
-		else if (*numRepetitions < -1) {
-			*numRepetitions = -1;
+		else if (*numRepetitions < -2) {
+			*numRepetitions = -2;
 		}
 		drawSectionRepeatNumber();
 	}
@@ -3764,7 +3767,7 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 
 void SessionView::gridStartSection(uint32_t section, bool instant) {
 	if (instant) {
-		currentSong->turnSoloingIntoJustPlaying(currentSong->sections[section].numRepetitions != -1);
+		currentSong->turnSoloingIntoJustPlaying(currentSong->sections[section].numRepetitions > -1);
 
 		for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
