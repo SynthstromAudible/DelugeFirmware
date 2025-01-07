@@ -661,6 +661,21 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 	auto ao = (AudioOutput*)getCurrentAudioClip()->output;
 	ao->scrollAudioOutputMode(offset);
 	renderUIsForOled();
+	if (display->have7SEG()) {
+		const char* type;
+		switch (ao->mode) {
+		case AudioOutputMode::player:
+			type = "PLAY";
+			break;
+		case AudioOutputMode::sampler:
+			type = "SAMP";
+			break;
+		case AudioOutputMode::looper:
+			type = "LOOP";
+		}
+
+		display->displayPopup(type);
+	}
 }
 
 void AudioClipView::setClipLengthEqualToSampleLength() {
