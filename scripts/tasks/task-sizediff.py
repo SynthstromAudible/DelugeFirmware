@@ -31,7 +31,7 @@ def main() -> int:
     os.chdir(util.get_git_root())
 
     # Get the commit hash of the community branch
-    old_hash = util.run_get_output(["git", "merge-base", "--fork-point" "community"])
+    old_hash = util.run_get_output(["git", "merge-base", "--fork-point", "community"])
 
     # get the current commit hash
     new_hash = util.run_get_output(["git", "rev-parse", "HEAD"])
