@@ -1854,7 +1854,7 @@ unknownTag:
 
 							else if (!strcmp(tagName, "numRepeats")) {
 								numRepeats = reader.readTagOrAttributeValueInt();
-								if (numRepeats < -1 || numRepeats > 9999) {
+								if (numRepeats < -2 || numRepeats > 9999) {
 									numRepeats = 0;
 								}
 							}
