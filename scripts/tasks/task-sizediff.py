@@ -29,6 +29,7 @@ def main() -> int:
     (args, unknown_args) = argparser().parse_known_args()
 
     os.chdir(util.get_git_root())
+    os.makedirs(".cache/sizediff", exist_ok=True)
 
     # Get the commit hash of the community branch
     old_hash = util.run_get_output(["git", "merge-base", "--fork-point", "community"])
