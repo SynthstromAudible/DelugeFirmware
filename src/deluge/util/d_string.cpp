@@ -24,166 +24,38 @@
 
 const char nothing = 0;
 
-String::~String() {
-	clear(true);
-}
-
-int32_t String::getNumReasons() {
-	return *std::bit_cast<intptr_t*>(stringMemory - 4);
-}
-
-void String::setNumReasons(int32_t newNum) {
-	*std::bit_cast<intptr_t*>(stringMemory - 4) = newNum;
-}
-
-void String::clear(bool destructing) {
-	if (stringMemory) {
-		int32_t numReasons = getNumReasons();
-		if (numReasons > 1) {
-			setNumReasons(numReasons - 1);
-		}
-		else {
-			delugeDealloc(stringMemory - 4);
-		}
-
-		if (!destructing) {
-			stringMemory = nullptr;
-		}
-	}
-}
-
-Error String::set(char const* newChars, int32_t newLength) {
-
-	if (newLength == -1) {
-		newLength = strlen(newChars);
-	}
-
-	if (!newLength) {
+Error String::set(std::string_view newChars) {
+	if (newChars.empty()) {
 		clear();
 		return Error::NONE;
 	}
 
 	// If we're here, new length is not 0
-
-	// If already got some memory...
-	if (stringMemory) {
-
-		{
-			// If it's shared with another object, can't use it
-			int32_t numReasons = getNumReasons();
-			if (numReasons > 1) {
-				goto clearAndAllocateNew;
-			}
-
-			// If we're here, the memory is exclusively ours (1 reason)
-
-			int32_t allocatedSize = GeneralMemoryAllocator::get().getAllocatedSize(stringMemory - 4);
-
-			int32_t extraMemoryNeeded = newLength + 1 + 4 - allocatedSize;
-
-			// Either it's enough for new string...
-			if (extraMemoryNeeded <= 0) {
-				goto doCopy;
-			}
-
-			else {
-				// Try extending
-				uint32_t amountExtendedLeft, amountExtendedRight;
-				GeneralMemoryAllocator::get().extend(stringMemory - 4, extraMemoryNeeded, extraMemoryNeeded,
-				                                     &amountExtendedLeft, &amountExtendedRight);
-
-				stringMemory -= amountExtendedLeft;
-
-				// If that gave us enough...
-				if (amountExtendedLeft + amountExtendedRight >= extraMemoryNeeded) {
-					goto doCopy;
-				}
-			}
-		}
-
-		// Or it's not and we have to clear
-clearAndAllocateNew:
-		clear();
+	if (stringMemory.use_count() > 1) {
+		stringMemory = std::make_shared<std::string>(newChars);
 	}
-
-	{
-		void* newMemory = GeneralMemoryAllocator::get().allocExternal(newLength + 1 + 4);
-		if (!newMemory) {
-			return Error::INSUFFICIENT_RAM;
-		}
-		stringMemory = (char*)newMemory + 4;
+	else {
+		stringMemory->assign(newChars);
 	}
-
-doCopy:
-	memcpy(stringMemory, newChars, newLength);
-	stringMemory[newLength] = 0;
-	setNumReasons(1);
 	return Error::NONE;
 }
 
 // This one can't fail!
 void String::set(String const* otherString) {
-	char* sm = otherString->stringMemory;
-#if ALPHA_OR_BETA_VERSION
-	// if the other string has memory and it's not in the non audio region
-	if (sm != nullptr) {
-		if (!(EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR < (uint32_t)sm && (uint32_t)sm < EXTERNAL_MEMORY_END)) {
-			FREEZE_WITH_ERROR("S001");
-			return;
-		}
-		// or if it doesn't have an allocation
-		if (!GeneralMemoryAllocator::get().getAllocatedSize(sm)) {
-			FREEZE_WITH_ERROR("S002");
-			return;
-		}
-	}
-#endif
-	clear();
-	stringMemory = sm;
-
-	beenCloned();
+	stringMemory = otherString->stringMemory;
 }
 
-void String::beenCloned() {
-	if (stringMemory != nullptr) {
-		setNumReasons(getNumReasons() + 1);
-	}
-}
-
-size_t String::getLength() {
-	if (stringMemory == nullptr) {
-		return 0;
-	}
-	return strlen(stringMemory);
+size_t String::getLength() const {
+	return stringMemory->length();
 }
 
 Error String::shorten(int32_t newLength) {
-	if (!newLength) {
-		clear();
+	if (newLength == 0) {
+		this->clear();
 	}
 	else {
-
-		int32_t oldNumReasons = getNumReasons();
-
-		// If reasons, we have to do a clone
-		if (oldNumReasons > 1) {
-			void* newMemory = GeneralMemoryAllocator::get().allocExternal(newLength + 1 + 4);
-			if (!newMemory) {
-				return Error::INSUFFICIENT_RAM;
-			}
-
-			setNumReasons(oldNumReasons - 1); // Reduce reasons on old memory
-
-			char* newStringMemory = (char*)newMemory + 4;
-			memcpy(newStringMemory, stringMemory, newLength); // The ending 0 will get set below
-			stringMemory = newStringMemory;
-
-			setNumReasons(1); // Set num reasons on new memory
-		}
-
-		stringMemory[newLength] = 0;
+		unique().resize(newLength);
 	}
-
 	return Error::NONE;
 }
 
@@ -202,73 +74,17 @@ Error String::concatenate(char const* newChars) {
 
 Error String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newCharsLength) {
 	if (pos == 0) {
-		return set(newChars, newCharsLength);
-	}
-
-	if (newCharsLength == -1) {
-		newCharsLength = strlen(newChars);
+		if (newCharsLength < 0) {
+			newCharsLength = strlen(newChars);
+		}
+		return set({newChars, static_cast<size_t>(newCharsLength)});
 	}
 
 	if (newCharsLength == 0) {
 		return shorten(pos);
 	}
 
-	int32_t oldNumReasons = getNumReasons();
-
-	int32_t requiredSize = pos + newCharsLength + 4 + 1;
-	int32_t extraBytesNeeded;
-	bool deallocateAfter = true;
-
-	// If additional reasons, we definitely have to allocate afresh
-	if (oldNumReasons > 1) {
-		deallocateAfter = false;
-		setNumReasons(oldNumReasons - 1);
-		goto allocateNewMemory;
-	}
-
-	extraBytesNeeded = requiredSize - GeneralMemoryAllocator::get().getAllocatedSize(stringMemory - 4);
-
-	// If not enough memory allocated...
-	if (extraBytesNeeded > 0) {
-
-		// See if we can extend
-		uint32_t amountExtendedLeft, amountExtendedRight;
-		GeneralMemoryAllocator::get().extend(stringMemory - 4, extraBytesNeeded, extraBytesNeeded, &amountExtendedLeft,
-		                                     &amountExtendedRight);
-
-		// If that worked...
-		if (amountExtendedLeft || amountExtendedRight) {
-
-			// If extended left, gotta move stuff
-			if (amountExtendedLeft) {
-				memmove(stringMemory - amountExtendedLeft - 4, stringMemory - 4,
-				        pos + 4); // Moves the stored num reasons, too
-				stringMemory -= amountExtendedLeft;
-			}
-		}
-
-		// Otherwise, gotta allocate brand new memory
-		else {
-allocateNewMemory:
-			void* newMemory = GeneralMemoryAllocator::get().allocExternal(requiredSize);
-			if (!newMemory) {
-				return Error::INSUFFICIENT_RAM;
-			}
-
-			char* newStringMemory = (char*)newMemory + 4;
-
-			// Copy the bit we want to keep of the old memory
-			memcpy(newStringMemory, stringMemory, pos);
-
-			if (deallocateAfter) {
-				delugeDealloc(stringMemory - 4);
-			}
-			stringMemory = newStringMemory;
-			setNumReasons(1);
-		}
-	}
-	memcpy(&stringMemory[pos], newChars, newCharsLength);
-	stringMemory[pos + newCharsLength] = 0;
+	unique() += newChars;
 
 	return Error::NONE;
 }
@@ -286,37 +102,15 @@ Error String::setInt(int32_t number, int32_t minNumDigits) {
 }
 
 Error String::setChar(char newChar, int32_t pos) {
-
-	// If any additional reasons, we gotta clone the memory first
-	int32_t oldNumReasons = getNumReasons();
-	if (oldNumReasons > 1) {
-
-		int32_t length = getLength();
-
-		int32_t requiredSize = length + 4 + 1;
-		void* newMemory = GeneralMemoryAllocator::get().allocExternal(requiredSize);
-		if (!newMemory) {
-			return Error::INSUFFICIENT_RAM;
-		}
-
-		char* newStringMemory = (char*)newMemory + 4;
-
-		// Copy the old memory
-		memcpy(newStringMemory, stringMemory, length + 1); // Copies 0 at end, too
-		setNumReasons(oldNumReasons - 1);                  // Reduce reasons on old memory
-		stringMemory = newStringMemory;
-		setNumReasons(1); // Set reasons on new memory
-	}
-
-	stringMemory[pos] = newChar;
+	unique().at(pos) = newChar;
 	return Error::NONE;
 }
 
-bool String::equals(char const* otherChars) {
-	return !strcmp(get(), otherChars);
+bool String::equals(char const* otherChars) const {
+	return *stringMemory == otherChars;
 }
 
-bool String::equalsCaseIrrespective(char const* otherChars) {
+bool String::equalsCaseIrrespective(char const* otherChars) const {
 	return !strcasecmp(get(), otherChars);
 }
 
