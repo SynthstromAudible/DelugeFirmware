@@ -2025,6 +2025,15 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 	int32_t effectiveLength = modelStack->getLoopLength();
 	bool playingReversedNow = modelStack->isCurrentlyPlayingReversed();
 	bool didPingpong = false;
+	if (ignoredNoteOn) {
+		maybeStartLateNote(modelStack, modelStack->getLivePos());
+		// if we ignored a note on and are now actioning it we know that there's nothing left to do
+		if (ticksSinceLast < ignoreUntil) {
+			ignoreUntil -= ticksSinceLast;
+			return ignoredNoteOn? 1:ignoreUntil;
+		}
+		// otherwise we'll just continue and process the note row
+	}
 
 	// If we have an independent play-pos, we need to check if we've reached the end (right of left) of this NoteRow.
 	if (hasIndependentPlayPos()) {
@@ -2358,7 +2367,13 @@ gotValidNoteIndex:
 				// If we've arrived at a Note right now...
 				if (newTicksTil <= 0) {
 					if (effectiveForwardPos >= ignoreNoteOnsBefore_) {
-						playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
+						if (AudioEngine::allowedToStartVoice()) {
+							playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
+							ignoredNoteOn = false;
+						}
+						else {
+							ignoredNoteOn = true;
+						}
 					}
 
 					// If playing reversed and not allowing note tails (i.e. doing one-shot drums), we're
@@ -2370,8 +2385,7 @@ gotValidNoteIndex:
 						goto stopNote;
 					}
 
-					newTicksTil =
-					    nextNote->length; // Want this even if we're "skipping" playing the note (why exactly?)
+					newTicksTil = nextNote->length; // Want this even if we're "skipping" playing the note (why exactly?)
 				}
 
 				ticksTilNextNoteEvent = newTicksTil;
@@ -2379,7 +2393,8 @@ gotValidNoteIndex:
 		}
 	}
 
-	return std::min(ticksTilNextNoteEvent, ticksTilNextParamManagerEvent);
+	ignoreUntil = std::min(ticksTilNextNoteEvent, ticksTilNextParamManagerEvent);
+	return ignoredNoteOn? 1:ignoreUntil;
 }
 
 bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
@@ -3101,6 +3116,29 @@ void NoteRow::toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAnd
 	}
 }
 
+void NoteRow::maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos) {
+	// See if our play-pos is inside of a note, which we might want to try playing...
+	int32_t i = notes.search(effectiveActualCurrentPos, LESS);
+	bool wrapping = (i == -1);
+	if (wrapping) {
+		i = notes.getNumElements() - 1;
+	}
+	Note* note = notes.getElement(i);
+	int32_t noteEnd = note->pos + note->length;
+	if (wrapping) {
+		noteEnd -= modelStack->getLoopLength();
+	}
+
+	if (noteEnd > effectiveActualCurrentPos) {
+		// if we're not allowed we'll just come back here later (next tick)
+		if (AudioEngine::allowedToStartVoice()) {
+			attemptLateStartOfNextNoteToPlay(modelStack, note);
+			ignoredNoteOn = false;
+		}
+	} else {
+		ignoredNoteOn = false;
+	}
+}
 // Attempts (possibly late) start of any note at or overlapping the currentPos
 void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound) {
 	if (noteRowMayMakeSound(clipMayMakeSound) && !sequenced && !isAuditioning(modelStack)) {
@@ -3112,21 +3150,7 @@ void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMake
 		int32_t effectiveActualCurrentPos = getLivePos(modelStack);
 
 		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
-			// See if our play-pos is inside of a note, which we might want to try playing...
-			int32_t i = notes.search(effectiveActualCurrentPos, LESS);
-			bool wrapping = (i == -1);
-			if (wrapping) {
-				i = notes.getNumElements() - 1;
-			}
-			Note* note = notes.getElement(i);
-			int32_t noteEnd = note->pos + note->length;
-			if (wrapping) {
-				noteEnd -= modelStack->getLoopLength();
-			}
-
-			if (noteEnd > effectiveActualCurrentPos) {
-				attemptLateStartOfNextNoteToPlay(modelStack, note);
-			}
+			maybeStartLateNote(modelStack, effectiveActualCurrentPos);
 		}
 	}
 
