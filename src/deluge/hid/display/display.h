@@ -46,7 +46,7 @@ public:
 	virtual void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
 	                     uint8_t* newBlinkMask = nullptr, bool blinkImmediately = false, bool shouldBlinkFast = false,
 	                     int32_t scrollPos = 0, uint8_t* blinkAddition = nullptr,
-	                     bool justReplaceBottomLayer = false)  {};
+	                     bool justReplaceBottomLayer = false) {};
 
 	virtual void displayPopup(std::string_view newText, int8_t numFlashes = 3, bool alignRight = false,
 	                          uint8_t drawDot = 255, int32_t blinkSpeed = 1, PopupType type = PopupType::GENERAL) = 0;
@@ -76,7 +76,7 @@ public:
 	virtual void removeWorkingAnimation() = 0;
 
 	// Loading animations
-	virtual void displayLoadingAnimation()  {};
+	virtual void displayLoadingAnimation() {};
 	virtual void displayLoadingAnimationText(std::string_view text, bool delayed = false, bool transparent = false) = 0;
 	virtual void removeLoadingAnimation() = 0;
 

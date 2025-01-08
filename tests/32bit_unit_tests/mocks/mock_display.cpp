@@ -24,7 +24,7 @@ public:
 
 	void setNextTransitionDirection(int8_t thisDirection) final {}
 
-	void cancelPopup() final{};
+	void cancelPopup() final {};
 	void freezeWithError(std::string_view text) { std::cout << text << std::endl; }
 	bool isLayerCurrentlyOnTop(NumericLayer* layer) final { return false; }
 	void displayError(Error error) { std::cout << util::to_underlying(error) << std::endl; }
