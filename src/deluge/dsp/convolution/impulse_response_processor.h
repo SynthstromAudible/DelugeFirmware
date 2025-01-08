@@ -21,7 +21,7 @@
 #include "util/fixedpoint.h"
 #include <cstdint>
 
-class ImpulseResponseProcessor {
+class [[gnu::hot]] ImpulseResponseProcessor {
 	constexpr static size_t IR_SIZE = 26;
 	constexpr static size_t IR_BUFFER_SIZE = (IR_SIZE - 1);
 

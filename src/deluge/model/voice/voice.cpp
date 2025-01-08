@@ -706,7 +706,12 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 [[gnu::hot]] bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples,
                                 bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
                                 bool doLPF, bool doHPF, int32_t externalPitchAdjust) {
-
+	// we spread out over a render cycle - allocating and starting the voice takes more time than rendering it so this
+	// avoids the cpu spike at note on
+	if (justCreated == false) {
+		justCreated = true;
+		return true;
+	}
 	GeneralMemoryAllocator::get().checkStack("Voice::render");
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;

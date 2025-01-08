@@ -144,7 +144,7 @@ void (*g_usb_callback[])(usb_utr_t*, uint16_t, uint16_t) = {
 
     /* PMSC */
     USB_NULL, USB_NULL, /* USB_PMSC  (9) */
-};                      /* const void (g_usb_callback[])(usb_utr_t *, uint16_t, uint16_t) */
+}; /* const void (g_usb_callback[])(usb_utr_t *, uint16_t, uint16_t) */
 
 /***********************************************************************************************************************
  Renesas Abstracted common data I/O functions
