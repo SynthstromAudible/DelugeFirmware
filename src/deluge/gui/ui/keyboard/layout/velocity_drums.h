@@ -41,7 +41,7 @@ public:
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
-	char const* name() override { return "Drums"; }
+	l10n::String name() override { return l10n::String::STRING_FOR_KEYBOARD_LAYOUT_VELOCITY_DRUMS; }
 	bool supportsInstrument() override { return false; }
 	bool supportsKit() override { return true; }
 
