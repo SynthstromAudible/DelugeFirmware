@@ -1220,7 +1220,7 @@ gotErrorAfterAllocating:
 
 		// Otherwise if we already tried that, then our whole search is fruitless.
 notFound:
-		if (!mayDefaultToBrandNewNameOnEntry) {
+		if (display->haveOLED() && !mayDefaultToBrandNewNameOnEntry) {
 			if (fileIndexSelected >= 0) {
 				setEnteredTextFromCurrentFilename(); // Set it back
 			}
