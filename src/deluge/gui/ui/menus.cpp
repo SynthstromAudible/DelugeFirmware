@@ -310,7 +310,7 @@ Submenu arpMenu{
     {
         // Mode
         &arpModeMenu,
-		// Gate
+        // Gate
         &arpGateMenu,
         // Sync
         &arpSyncMenu,

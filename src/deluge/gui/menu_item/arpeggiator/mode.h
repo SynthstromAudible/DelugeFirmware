@@ -68,7 +68,7 @@ public:
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_OFF), //<
-		    l10n::getView(STRING_FOR_ON), //<
+		    l10n::getView(STRING_FOR_ON),  //<
 		};
 	}
 

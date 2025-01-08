@@ -109,7 +109,7 @@ public:
 	/// @brief Begin an editing session with this menu item.
 	///
 	/// Should make sure the menu's internal state matches the system and redraw the display.
-	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr) {};
+	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr){};
 
 	/// Re-read the value from the system and redraw the display to match.
 	virtual void readValueAgain() {}
@@ -244,7 +244,9 @@ public:
 	/// @brief Get the name for use on horizontal menus.
 	///
 	/// By default this redirects to getName(), but can be overriden.
-	virtual void getColumnLabel(StringBuf& label) { label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, name).data()); }
+	virtual void getColumnLabel(StringBuf& label) {
+		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, name).data());
+	}
 
 	/// @brief Check if this MenuItem should show up in a containing deluge::gui::menu_item::Submenu.
 	///
