@@ -96,6 +96,7 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	sidechain.cloneFrom(&other->sidechain);
 	midiKnobArray.cloneFrom(&other->midiKnobArray); // Could fail if no RAM... not too big a concern
 	delay = other->delay;
+	stutterConfig = other->stutterConfig;
 }
 
 void ModControllableAudio::initParams(ParamManager* paramManager) {
