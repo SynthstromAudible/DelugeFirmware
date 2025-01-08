@@ -46,7 +46,7 @@ extern const char nothing;
 
 class String {
 public:
-	String() : stringMemory(std::make_shared<std::string>()){};
+	String() : stringMemory(std::make_shared<std::string>()) {};
 
 	void clear() { unique().clear(); }
 

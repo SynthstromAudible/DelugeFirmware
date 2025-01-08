@@ -71,7 +71,7 @@ bool SessionColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 };
 
 void SessionColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                        KeyboardLayout* layout){};
+                                        KeyboardLayout* layout) {};
 
 void SessionColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                               KeyboardLayout* layout) {
