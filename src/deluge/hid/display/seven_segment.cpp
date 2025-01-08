@@ -32,7 +32,6 @@
 #include "model/action/action_logger.h"
 #include "util/cfunctions.h"
 #include "util/functions.h"
-#include "util/string.h"
 #include <cstdint>
 #include <cstring>
 #include <new>
@@ -529,7 +528,8 @@ void SevenSegment::setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, boo
 	// int32_t minNumDigits = std::max(1, blinkPos + 1);
 	int32_t minNumDigits = (blinkPos == -1) ? -1 : 3;
 
-	std::string text = string::fromSlot(currentSlot, currentSubSlot, minNumDigits);
+	char text[12] = {'\0'};
+	slotToString(currentSlot, currentSubSlot, text, minNumDigits);
 
 	uint8_t blinkMask[kNumericDisplayLength];
 	if (blinkPos == -1) {
