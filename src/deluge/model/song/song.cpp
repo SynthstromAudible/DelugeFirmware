@@ -5782,8 +5782,10 @@ doHibernatingInstruments:
 
 void Song::getCurrentRootNoteAndScaleName(StringBuf& buffer) {
 	char noteName[5];
-	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
+	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp or flat.
+	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural, true
+		, currentSong->key.rootNote, currentSong->getCurrentScale()
+	);
 
 	buffer.append(noteName);
 	if (display->haveOLED()) {

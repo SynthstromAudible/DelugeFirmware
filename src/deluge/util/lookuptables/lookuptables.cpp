@@ -482,9 +482,6 @@ const int16_t lanczosKernelA16[1025] = {
 
 
 
-const uint8_t noteCodeToNoteLetter[12] = {67, 67, 68, 68, 69, 70, 70, 71, 71, 65, 65, 66};
-const bool noteCodeIsSharp[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
-
 /**
  * @brief How iterance is encoded:
  *

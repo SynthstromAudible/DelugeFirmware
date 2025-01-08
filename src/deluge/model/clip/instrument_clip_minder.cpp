@@ -559,8 +559,10 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 	}
 
 	char noteName[5];
-	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(noteCode, noteName, &isNatural);
+	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp or flat.
+	noteCodeToString(noteCode, noteName, &isNatural, true
+		, currentSong->key.rootNote, currentSong->getCurrentScale()
+	);
 
 	if (display->haveOLED()) {
 		display->popupTextTemporary(noteName);
