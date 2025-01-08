@@ -134,8 +134,6 @@
         "STRING_FOR_MODFX_DEPTH": "MOD-FX depth",
         "STRING_FOR_MODFX_RATE": "MOD-FX rate",
 
-        "STRING_FOR_ARP_GATE_MENU_TITLE": "Arp. gate",
-
         "STRING_FOR_PORTAMENTO": "PORTAMENTO",
 
         "STRING_FOR_STUTTER": "STUTTER",
@@ -417,7 +415,7 @@
         "STRING_FOR_CHORD_PROBABILITY": "Chord Probability",
         "STRING_FOR_RATCHET_PROBABILITY": "Ratchet Probability",
         "STRING_FOR_SEQUENCE_LENGTH": "Sequence Length",
-        "STRING_FOR_RANDOMIZER_LOCK": "Lock",
+        "STRING_FOR_RANDOMIZER_LOCK": "Lock Randomizer",
         "STRING_FOR_SPREAD_VELOCITY": "Velocity Spread",
         "STRING_FOR_SPREAD_GATE": "Gate Spread",
         "STRING_FOR_SPREAD_OCTAVE": "Octave Spread",
@@ -693,8 +691,9 @@
         "STRING_FOR_SAMP_INTERP_MENU_TITLE": "Samp* interp.",
         "STRING_FOR_OSC_P_WIDTH_MENU_TITLE": "Osc* p. width",
         "STRING_FOR_OSC_R_PHASE_MENU_TITLE": "Osc* r. phase",
+        "STRING_FOR_ARP_GATE_MENU_TITLE": "Arp gate",
         "STRING_FOR_ARP_PRESET_MENU_TITLE": "Arp preset",
-        "STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE": "Arp rand lock",
+        "STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE": "Arp lock rand",
         "STRING_FOR_ARP_MODE_MENU_TITLE": "Arp enabled",
         "STRING_FOR_ARP_SYNC_MENU_TITLE": "Arp sync",
         "STRING_FOR_ARP_OCTAVES_MENU_TITLE": "Arp octaves",

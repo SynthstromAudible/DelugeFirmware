@@ -283,12 +283,22 @@ arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD
                                                                STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
 
 // Arp: Randomizer
-Submenu arpRandomizerMenu{STRING_FOR_RANDOMIZER,
-                          {&arpRatchetProbabilityMenu, &arpRatchetProbabilityMenuMIDIOrCV, &arpNoteProbabilityMenu,
-                           &arpNoteProbabilityMenuMIDIOrCV, &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV,
-                           &arpChordProbabilityMenu, &arpChordProbabilityMenuMIDIOrCV, &arpSpreadOctaveMenu,
-                           &arpSpreadOctaveMenuMIDIOrCV, &arpSpreadGateMenu, &arpSpreadGateMenuMIDIOrCV,
-                           &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV, &arpRandomizerLockMenu}};
+HorizontalMenu arpRandomizerMenu{STRING_FOR_RANDOMIZER,
+                                 {// Lock
+                                  &arpRandomizerLockMenu,
+                                  // Spreads
+                                  &arpSpreadOctaveMenu, &arpSpreadOctaveMenuMIDIOrCV, &arpSpreadGateMenu,
+                                  &arpSpreadGateMenuMIDIOrCV, &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV,
+                                  // Ratchets
+                                  &arpRatchetAmountMenu, &arpRatchetAmountMenuMIDIOrCV, &arpRatchetProbabilityMenu,
+                                  &arpRatchetProbabilityMenuMIDIOrCV,
+                                  // Chords
+                                  &arpChordPolyphonyMenu, &arpChordPolyphonyMenuMIDIOrCV, &arpChordProbabilityMenu,
+                                  &arpChordProbabilityMenuMIDIOrCV,
+                                  // Note
+                                  &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
+                                  // Bass
+                                  &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV}};
 // Global: Randomizer
 Submenu globalRandomizerMenu{STRING_FOR_RANDOMIZER, {&arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV}};
 // Arp: MPE
@@ -300,6 +310,8 @@ Submenu arpMenu{
     {
         // Mode
         &arpModeMenu,
+		// Gate
+        &arpGateMenu,
         // Sync
         &arpSyncMenu,
         &arpRateMenu,
@@ -307,20 +319,15 @@ Submenu arpMenu{
         // Pattern
         &arpOctavesMenu,
         &arpOctaveModeMenu,
-        &arpNoteModeMenu,
         &arpChordSimulatorMenuKit,
+        &arpNoteModeMenu,
         &arpStepRepeatMenu,
         // Note and rhythm settings
-        &arpGateMenu,
         &arpGateMenuMIDIOrCV,
         &arpRhythmMenu,
         &arpRhythmMenuMIDIOrCV,
         &arpSequenceLengthMenu,
         &arpSequenceLengthMenuMIDIOrCV,
-        &arpChordPolyphonyMenu,
-        &arpChordPolyphonyMenuMIDIOrCV,
-        &arpRatchetAmountMenu,
-        &arpRatchetAmountMenuMIDIOrCV,
         // Randomizer
         &arpRandomizerMenu,
         // MPE
