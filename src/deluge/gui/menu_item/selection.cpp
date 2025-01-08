@@ -70,29 +70,8 @@ void Selection::renderSubmenuItemTypeForOled(int32_t yPixel) {
 	}
 }
 
-void Selection::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-
-	renderColumnLabel(startX, width, startY);
-
-	// Render current value
-
-	std::string_view opt = getShortOptions()[this->getValue()];
-	// Grab 6-char prefix with spaces removed.
-	DEF_STACK_STRING_BUF(shortOpt, 6);
-	for (uint8_t p = 0; p < opt.size() && shortOpt.size() < shortOpt.capacity(); p++) {
-		if (opt[p] != ' ') {
-			shortOpt.append(opt[p]);
-		}
-	}
-	int32_t pxLen;
-	// Trim characters from the end until it fits.
-	while ((pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextSizeYUpdated)) >= width) {
-		shortOpt.data()[shortOpt.size() - 1] = 0;
-	}
-	// Padding to center the string. If we can't center exactly, 1px right is better than 1px left.
-	int32_t pad = (width + 1 - pxLen) / 2;
-	image.drawString(shortOpt.c_str(), startX + pad, startY + kTextSpacingY + 2, kTextSpacingX, kTextSpacingY, 0,
-	                 startX + width - kTextSpacingX);
+void Selection::getShortOption(StringBuf& opt) {
+	opt.append(getOptions(OptType::SHORT)[this->getValue()].data());
 }
+
 } // namespace deluge::gui::menu_item

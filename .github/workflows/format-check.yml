@@ -24,7 +24,7 @@ jobs:
         with:
           source: './src'
           extensions: 'c,cpp,h,hpp'
-          clangFormatVersion: 17
+          clangFormatVersion: 18
       - name: Run Black style check for Python code
         uses: psf/black@stable
         with:

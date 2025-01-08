@@ -13,34 +13,34 @@ public:
 
 	void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
 	             uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,
-	             int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false){};
+	             int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false) {};
 
 	void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false, uint8_t = 255, int32_t = 1,
-	                  PopupType type = PopupType::GENERAL){};
+	                  PopupType type = PopupType::GENERAL) {};
 
-	void popupText(char const* text, PopupType type = PopupType::GENERAL){};
-	void popupTextTemporary(char const* text, PopupType type = PopupType::GENERAL){};
+	void popupText(char const* text, PopupType type = PopupType::GENERAL) {};
+	void popupTextTemporary(char const* text, PopupType type = PopupType::GENERAL) {};
 
-	void setNextTransitionDirection(int8_t thisDirection){};
+	void setNextTransitionDirection(int8_t thisDirection) {};
 
-	void cancelPopup(){};
+	void cancelPopup() {};
 	void freezeWithError(char const* text) { std::cout << text << std::endl; };
 	bool isLayerCurrentlyOnTop(NumericLayer* layer) { return false; };
 	void displayError(Error error) { std::cout << util::to_underlying(error) << std::endl; };
 
-	void removeWorkingAnimation(){};
+	void removeWorkingAnimation() {};
 
 	// Loading animations
-	void displayLoadingAnimation(){};
-	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false){};
-	void removeLoadingAnimation(){};
+	void displayLoadingAnimation() {};
+	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) {};
+	void removeLoadingAnimation() {};
 
 	bool hasPopup() { return false; };
 	bool hasPopupOfType(PopupType type) { return false; };
 
-	void consoleText(char const* text){};
+	void consoleText(char const* text) {};
 
-	void timerRoutine(){};
+	void timerRoutine() {};
 
 	void setTextAsNumber(int16_t number, uint8_t drawDot = 255, bool doBlink = false) {}
 	int32_t getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf) { return 0; }

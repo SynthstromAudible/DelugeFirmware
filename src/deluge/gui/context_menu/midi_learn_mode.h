@@ -25,7 +25,7 @@ public:
 	MidiLearnMode() = default;
 
 	char const* getTitle() override;
-	Sized<char const**> getOptions() override;
+	std::span<char const*> getOptions() override;
 	bool setupAndCheckAvailability();
 	bool acceptCurrentOption() override;
 	bool canSeeViewUnderneath() override { return true; }

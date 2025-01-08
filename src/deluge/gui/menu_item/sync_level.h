@@ -29,6 +29,8 @@ public:
 	using Enumeration::Enumeration;
 	int32_t syncTypeAndLevelToMenuOption(SyncType type, ::SyncLevel level);
 	size_t size() override { return NUM_SYNC_VALUES; }
+	/// Implementation of Enumeration::getShortOption(): note length name or OFF
+	void getShortOption(StringBuf&) override;
 
 protected:
 	void drawValue() final;

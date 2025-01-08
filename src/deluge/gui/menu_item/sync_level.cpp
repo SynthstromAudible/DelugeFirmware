@@ -52,4 +52,15 @@ void SyncLevel::drawPixelsForOled() {
 int32_t SyncLevel::syncTypeAndLevelToMenuOption(::SyncType type, ::SyncLevel level) {
 	return static_cast<int32_t>(type) + (static_cast<int32_t>(level) - (type != SYNC_TYPE_EVEN ? 1 : 0));
 }
+
+void SyncLevel::getShortOption(StringBuf& opt) {
+	// Note length name trimmed to fit, or OFF
+	if (this->getValue() != 0) {
+		getNoteLengthName(opt);
+	}
+	else {
+		opt.append(l10n::get(l10n::String::STRING_FOR_OFF));
+	}
+}
+
 } // namespace deluge::gui::menu_item

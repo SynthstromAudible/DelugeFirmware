@@ -42,7 +42,7 @@ char const* ConfigureSongMacros::getTitle() {
 	return l10n::get(STRING_FOR_CONFIGURE_SONG_MACROS_SHORT);
 }
 
-Sized<char const**> ConfigureSongMacros::getOptions() {
+std::span<char const*> ConfigureSongMacros::getOptions() {
 	using enum l10n::String;
 
 	if (display->haveOLED()) {

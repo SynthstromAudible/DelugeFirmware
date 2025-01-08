@@ -52,7 +52,7 @@ struct SemVer {
 		};
 
 		/// Create a new parser with the given string
-		Parser(std::string_view input) : input_(input){};
+		Parser(std::string_view input) : input_(input) {};
 
 		/// Execute the parser, returning either the well-formed @ref SemVer or a @ref Parser::Error
 		std::expected<SemVer, Error> parse();

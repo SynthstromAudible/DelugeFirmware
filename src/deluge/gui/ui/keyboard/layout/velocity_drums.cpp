@@ -110,7 +110,7 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 
 		offset = 0; // Since the offset variable can be used for scrolling or zooming,
 		            // we reset it to 0 before calculating scroll offset
-	}               // end zoom control
+	} // end zoom control
 	// scroll offset control - need to run to adjust to new max position if zoom level has changed
 
 	// Calculate highest possible displayable note with current edge size
