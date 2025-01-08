@@ -19,6 +19,8 @@
 #include "definitions_cxx.hpp"
 #include "gui/fonts/fonts.h"
 #include "storage/flash_storage.h"
+#include <ranges>
+#include <string_view>
 
 using deluge::hid::display::oled_canvas::Canvas;
 
@@ -186,21 +188,20 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 	}
 }
 
-void Canvas::drawStringCentred(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
+void Canvas::drawStringCentred(std::string_view string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
                                int32_t centrePos) {
-	std::string_view str{string};
 	int32_t stringWidth = getStringWidthInPixels(string, textHeight);
 	int32_t pixelX = centrePos - (stringWidth >> 1);
-	drawString(str, pixelX, pixelY, textWidth, textHeight);
+	drawString(string, pixelX, pixelY, textWidth, textHeight);
 }
 
 /// Draw a string, reducing its height so the string fits within the specified width
 ///
-/// @param string A null-terminated C string
+/// @param string A string_view
 /// @param pixelY The Y coordinate of the top of the string
 /// @param textWidth Requested width for each character in the string
 /// @param textHeight Requested height for each character in the string
-void Canvas::drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, int32_t textWidth,
+void Canvas::drawStringCentredShrinkIfNecessary(std::string_view string, int32_t pixelY, int32_t textWidth,
                                                 int32_t textHeight) {
 	bool shrink = false;
 	std::string_view str{string};
@@ -232,7 +233,7 @@ void Canvas::drawStringCentredShrinkIfNecessary(char const* string, int32_t pixe
 	drawString(str, pixelX, pixelY, textWidth, textHeight, 0, OLED_MAIN_WIDTH_PIXELS, shrink);
 }
 
-void Canvas::drawStringAlignRight(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
+void Canvas::drawStringAlignRight(std::string_view string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
                                   int32_t rightPos) {
 	std::string_view str{string};
 	int32_t stringWidth = getStringWidthInPixels(string, textHeight);
@@ -384,18 +385,13 @@ int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool
 	}
 }
 
-int32_t Canvas::getStringWidthInPixels(char const* string, int32_t textHeight) {
-	std::string_view str{string};
-	int32_t stringLength = str.length();
-	int32_t stringWidth = 0;
-	int32_t charIdx = 0;
-	for (char const c : str) {
-		int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
-		int32_t charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
-		stringWidth += charWidth;
-		charIdx++;
+int32_t Canvas::getStringWidthInPixels(std::string_view string, int32_t textHeight) {
+	int32_t width = 0;
+	for (auto [idx, c] : string | std::views::enumerate) {
+		width += getCharWidthInPixels(c, textHeight);
+		width += getCharSpacingInPixels(c, textHeight, idx == string.length());
 	}
-	return stringWidth;
+	return width;
 }
 
 void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height,

@@ -18,6 +18,7 @@
 
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/colour/colour.h"
+#include "gui/l10n/strings.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/chords.h"
@@ -247,13 +248,11 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 	// }
 	if (x == kDisplayWidth - 1 && y == kDisplayHeight - 1) {
 		mode = ChordKeyboardMode::ROW;
-		char const* shortLong[2] = {"ROW", "Chord Row Mode"};
-		display->displayPopup(shortLong);
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_CHORD_ROW_MODE));
 	}
 	else if (x == kDisplayWidth - 1 && y == kDisplayHeight - 2) {
 		mode = ChordKeyboardMode::COLUMN;
-		char const* shortLong[2] = {"COLM", "Chord Column Mode"};
-		display->displayPopup(shortLong);
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_CHORD_COLUMN_MODE));
 	}
 }
 

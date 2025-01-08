@@ -96,32 +96,33 @@ public:
 
 	/// Draw a string, centered at the provided location.
 	///
-	/// @param string A null-terminated C string
+	/// @param string A string_view
 	/// @param pixelY Y coordinate of the top side of the string
 	/// @param textWidth Base width in pixels of each character
 	/// @param textHeight Height in pixels of each character
 	/// @param scrollPos Offset in pixels representing how far the text has scrolled from the left.
 	/// @param endX Maximum X coordinate after which we bail out. N.B. this means the *actual* maximum X coordinate
 	///             rendered is endX + textWidth, as the individual character rendering work can overshoot.
-	void drawStringCentred(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
+	void drawStringCentred(std::string_view string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
 	                       int32_t centrePos = OLED_MAIN_WIDTH_PIXELS / 2);
 
 	/// Draw a string, reducing its height so the string fits within the specified width
 	///
-	/// @param string A null-terminated C string
+	/// @param string A string_view
 	/// @param pixelY The Y coordinate of the top of the string
 	/// @param textWidth Requested width for each character in the string
 	/// @param textHeight Requested height for each character in the string
-	void drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight);
+	void drawStringCentredShrinkIfNecessary(std::string_view string, int32_t pixelY, int32_t textWidth,
+	                                        int32_t textHeight);
 
 	/// Draw a string, aligned to the right.
 	///
-	/// @param string A null-terminated C string
+	/// @param string A string_view
 	/// @param pixelY The Y coordinate of the top of the string
 	/// @param textWidth The width for each character in the string
 	/// @param textHeight The height for each character in the string
 	/// @param rightPos X coordinate, exclusive, of the rightmost pixel to use for the string
-	void drawStringAlignRight(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
+	void drawStringAlignRight(std::string_view string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
 	                          int32_t rightPos = OLED_MAIN_WIDTH_PIXELS);
 
 	/// Draw a single character
@@ -148,9 +149,9 @@ public:
 
 	/// Returns width of a string in pixels
 	///
-	/// @param string A null-terminated C string
+	/// @param string A string_view
 	/// @param textHeight The height for each character in the string
-	int32_t getStringWidthInPixels(char const* string, int32_t textHeight);
+	int32_t getStringWidthInPixels(std::string_view string, int32_t textHeight);
 
 	/// Draw a "graphic".
 	///

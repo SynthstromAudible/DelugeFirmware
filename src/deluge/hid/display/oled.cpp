@@ -31,6 +31,8 @@
 #include "storage/flash_storage.h"
 #include "util/cfunctions.h"
 #include "util/d_string.h"
+#include "util/exceptions.h"
+#include <optional>
 #include <string.h>
 #include <string_view>
 
@@ -57,7 +59,7 @@ oled_canvas::Canvas OLED::console;
 bool OLED::needsSending;
 
 int32_t workingAnimationCount;
-char const* workingAnimationText; // NULL means animation not active
+std::optional<std::string_view> workingAnimationText = std::nullopt; // NULL means animation not active
 
 int32_t sideScrollerDirection; // 0 means none active
 
@@ -413,7 +415,7 @@ void OLED::removePopup() {
 
 	oledPopupWidth = 0;
 	popupType = PopupType::NONE;
-	workingAnimationText = nullptr;
+	workingAnimationText = std::nullopt;
 	uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	markChanged();
 }
@@ -595,23 +597,23 @@ char const* findLineSplitPoint(char const* wordStart, int32_t maxWidthPerLine, i
 	return space;
 }
 
-void addLine(TextLineBreakdown* textLineBreakdown, char const* lineStart, int32_t lineWidth, int32_t lineLength) {
+void addLine(TextLineBreakdown& textLineBreakdown, char const* lineStart, int32_t lineWidth, int32_t lineLength) {
 	// save the start position for this line of the string
-	textLineBreakdown->lines[textLineBreakdown->numLines] = lineStart;
+	textLineBreakdown.lines[textLineBreakdown.numLines] = lineStart;
 	// save the length in characters for this line of the string
-	textLineBreakdown->lineLengths[textLineBreakdown->numLines] = lineLength;
+	textLineBreakdown.lineLengths[textLineBreakdown.numLines] = lineLength;
 	// check if this line is the longest line in characters, if so, save the length
-	if (lineLength > textLineBreakdown->longestLineLength) {
-		textLineBreakdown->longestLineLength = lineLength;
+	if (lineLength > textLineBreakdown.longestLineLength) {
+		textLineBreakdown.longestLineLength = lineLength;
 	}
 	// save the length in pixels for this line of the string
-	textLineBreakdown->lineWidths[textLineBreakdown->numLines] = lineWidth;
+	textLineBreakdown.lineWidths[textLineBreakdown.numLines] = lineWidth;
 	// check if this line is the longest line in pixels, if so, save the width in pixels
-	if (lineWidth > textLineBreakdown->longestLineWidth) {
-		textLineBreakdown->longestLineWidth = lineWidth;
+	if (lineWidth > textLineBreakdown.longestLineWidth) {
+		textLineBreakdown.longestLineWidth = lineWidth;
 	}
 	// increment number of lines
-	textLineBreakdown->numLines++;
+	textLineBreakdown.numLines++;
 }
 
 /// this function takes a string and breaks it into multiple lines
@@ -624,12 +626,12 @@ void addLine(TextLineBreakdown* textLineBreakdown, char const* lineStart, int32_
 /// a) if the character is part of a word, then that word will be rendered on the next line
 /// b) if the character is a space, then the space gets ignored and the next character will be drawn on
 ///    the next line
-void breakStringIntoLines(char const* text, TextLineBreakdown* textLineBreakdown, int32_t textHeight) {
-	textLineBreakdown->numLines = 0;
-	textLineBreakdown->longestLineLength = 0;
-	textLineBreakdown->longestLineWidth = 0;
+void breakStringIntoLines(std::string_view text, TextLineBreakdown& textLineBreakdown, int32_t textHeight) {
+	textLineBreakdown.numLines = 0;
+	textLineBreakdown.longestLineLength = 0;
+	textLineBreakdown.longestLineWidth = 0;
 
-	char const* lineStart = text;
+	char const* lineStart = text.begin();
 	char const* wordStart = lineStart;
 
 	int32_t lineWidth = 0;                // width in pixels of a line
@@ -643,11 +645,11 @@ findNextStringSplitPoint:
 	lineWidthBeforeThisWord = lineWidth;
 	lineLengthBeforeThisWord = lineLength;
 
-	char const* space = findLineSplitPoint(wordStart, textLineBreakdown->maxWidthPerLine, textHeight, lineWidth,
+	char const* space = findLineSplitPoint(wordStart, textLineBreakdown.maxWidthPerLine, textHeight, lineWidth,
 	                                       lineLength, charSpacing);
 
 	// If line not too long yet
-	if (lineWidth <= textLineBreakdown->maxWidthPerLine) {
+	if (lineWidth <= textLineBreakdown.maxWidthPerLine) {
 		// If end of whole line, or whole string...
 		if (*space == '\n' || *space == 0) {
 			// if we reached line break or end of string, we don't need extra spacing after it
@@ -655,7 +657,7 @@ findNextStringSplitPoint:
 			addLine(textLineBreakdown, lineStart, lineWidth, lineLength);
 			// did we reach the end of the original string? or the max number of lines?
 			// then return, we're done
-			if (!*space || textLineBreakdown->numLines == TEXT_MAX_NUM_LINES) {
+			if (!*space || textLineBreakdown.numLines == TEXT_MAX_NUM_LINES) {
 				return;
 			}
 			// set character to start drawing from on the next line
@@ -678,7 +680,7 @@ findNextStringSplitPoint:
 		addLine(textLineBreakdown, lineStart, lineWidthBeforeThisWord, lineLengthBeforeThisWord);
 		// did we reach the the max number of lines?
 		// then return, we're done
-		if (textLineBreakdown->numLines == TEXT_MAX_NUM_LINES) {
+		if (textLineBreakdown.numLines == TEXT_MAX_NUM_LINES) {
 			return;
 		}
 		// if current character is a space, we won't draw it on the next line
@@ -700,14 +702,14 @@ findNextStringSplitPoint:
 	}
 }
 
-void OLED::drawPermanentPopupLookingText(char const* text) {
+void OLED::drawPermanentPopupLookingText(std::string_view text) {
 	TextLineBreakdown textLineBreakdown;
 	textLineBreakdown.maxCharsPerLine = 19;
 
 	int32_t doubleMargin = 12;
 	textLineBreakdown.maxWidthPerLine = OLED_MAIN_WIDTH_PIXELS - doubleMargin;
 
-	breakStringIntoLines(text, &textLineBreakdown, kTextSpacingY);
+	breakStringIntoLines(text, textLineBreakdown, kTextSpacingY);
 
 	int32_t textWidth = textLineBreakdown.longestLineWidth;
 	int32_t textHeight = textLineBreakdown.numLines * kTextSpacingY;
@@ -735,7 +737,7 @@ void OLED::drawPermanentPopupLookingText(char const* text) {
 	drawnPermanentPopup = true;
 }
 
-void OLED::popupText(char const* text, bool persistent, PopupType type) {
+void OLED::popupText(std::string_view text, bool persistent, PopupType type) {
 
 	TextLineBreakdown textLineBreakdown;
 	textLineBreakdown.maxCharsPerLine = 19;
@@ -743,7 +745,7 @@ void OLED::popupText(char const* text, bool persistent, PopupType type) {
 	int32_t doubleMargin = 12;
 	textLineBreakdown.maxWidthPerLine = OLED_MAIN_WIDTH_PIXELS - doubleMargin;
 
-	breakStringIntoLines(text, &textLineBreakdown, kTextSpacingY);
+	breakStringIntoLines(text, textLineBreakdown, kTextSpacingY);
 
 	int32_t textWidth = textLineBreakdown.longestLineWidth;
 	int32_t textHeight = textLineBreakdown.numLines * kTextSpacingY;
@@ -778,25 +780,19 @@ void OLED::popupText(char const* text, bool persistent, PopupType type) {
 }
 
 void updateWorkingAnimation() {
-	String textNow;
-	Error error = textNow.set(workingAnimationText);
-	if (error != Error::NONE) {
+	try {
+		std::string text{*workingAnimationText};
+		for (size_t i = 0; i < 3; ++i) {
+			text += (i <= workingAnimationCount) ? '.' : ' ';
+		}
+		OLED::popupText(text, true, PopupType::LOADING);
+	} catch (deluge::exception e) {
 		return;
 	}
-
-	char buffer[4];
-	buffer[3] = 0;
-
-	for (int32_t i = 0; i < 3; i++) {
-		buffer[i] = (i <= workingAnimationCount) ? '.' : ' ';
-	}
-
-	error = textNow.concatenate(buffer);
-	OLED::popupText(textNow.get(), true, PopupType::LOADING);
 }
 
-void OLED::displayWorkingAnimation(char const* word) {
-	workingAnimationText = word;
+void OLED::displayWorkingAnimation(std::string_view word) {
+	workingAnimationText = word.data();
 	workingAnimationCount = 0;
 	updateWorkingAnimation();
 }
@@ -806,7 +802,7 @@ void OLED::removeWorkingAnimation() {
 		removePopup();
 	}
 	else if (workingAnimationText) {
-		workingAnimationText = nullptr;
+		workingAnimationText = std::nullopt;
 	}
 }
 
@@ -850,7 +846,7 @@ void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& 
 
 #define CONSOLE_ANIMATION_FRAME_TIME_SAMPLES (6 * 44) // 6
 
-void OLED::consoleText(char const* text) {
+void OLED::consoleText(std::string_view text) {
 	TextLineBreakdown textLineBreakdown;
 	textLineBreakdown.maxCharsPerLine = 19;
 
@@ -860,7 +856,7 @@ void OLED::consoleText(char const* text) {
 	int32_t charWidth = 6;
 	int32_t charHeight = 7;
 
-	breakStringIntoLines(text, &textLineBreakdown, charHeight);
+	breakStringIntoLines(text, textLineBreakdown, charHeight);
 
 	int32_t textPixelY = setupConsole(textLineBreakdown.numLines * charHeight + 1) + 1;
 
@@ -1196,7 +1192,7 @@ checkTimeTilTimeout:
 	markChanged();
 }
 
-void OLED::freezeWithError(char const* text) {
+void OLED::freezeWithError(std::string_view text) {
 	OLED::clearMainImage();
 	int32_t yPixel = OLED_MAIN_TOPMOST_PIXEL;
 	main.drawString("Error:", 0, yPixel, kTextSpacingX, kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);
