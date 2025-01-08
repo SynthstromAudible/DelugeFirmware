@@ -35,6 +35,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 #### 2.2 Horizontal Menus
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
   - Envelope 1 & 2.
+  - LPF and HPF.
+  - LFOs.
 
 ## 3. General Improvements
 

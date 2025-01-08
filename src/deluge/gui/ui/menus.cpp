@@ -359,14 +359,14 @@ lfo::Type lfo1TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO1_TYPE, LFO1_ID};
 lfo::Rate lfo1RateMenu{STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ, LFO1_ID};
 lfo::Sync lfo1SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO1_SYNC, LFO1_ID};
 
-Submenu lfo1Menu{STRING_FOR_LFO1, {&lfo1TypeMenu, &lfo1RateMenu, &lfo1SyncMenu}};
+HorizontalMenu lfo1Menu{STRING_FOR_LFO1, {&lfo1TypeMenu, &lfo1RateMenu, &lfo1SyncMenu}};
 
 // LFO2 menu ---------------------------------------------------------------------------------
 lfo::Type lfo2TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO2_TYPE, LFO2_ID};
 lfo::Rate lfo2RateMenu{STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ, LFO2_ID};
 lfo::Sync lfo2SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO2_SYNC, LFO2_ID};
 
-Submenu lfo2Menu{STRING_FOR_LFO2, {&lfo2TypeMenu, &lfo2RateMenu, &lfo2SyncMenu}};
+HorizontalMenu lfo2Menu{STRING_FOR_LFO2, {&lfo2TypeMenu, &lfo2RateMenu, &lfo2SyncMenu}};
 
 // Mod FX ----------------------------------------------------------------------------------
 mod_fx::Type modFXTypeMenu{STRING_FOR_TYPE, STRING_FOR_MODFX_TYPE};
@@ -1599,29 +1599,29 @@ Submenu* parentsForSoundShortcuts[][kDisplayHeight] = {
     {&env1Menu,               &env1Menu,               &env1Menu,                      &env1Menu,                      &hpfMenu,             &hpfMenu,               &hpfMenu,                 &hpfMenu,                          },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {&lfo1Menu,               &lfo1Menu,               &lfo1Menu,                      nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {&lfo2Menu,               &lfo2Menu,               &lfo2Menu,                      nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
 };
 
-MenuItem* paramShortcutsForAudioClips[][kDisplayHeight] = {
-    {nullptr,                 &audioClipReverseMenu,   nullptr,                        &samplePitchSpeedMenu,          nullptr,              &fileSelectorMenu,      &audioClipInterpolationMenu,&audioClipSampleMarkerEditorMenuEnd},
-    {nullptr,     	  		  nullptr, 				   nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
-    {nullptr,     	  		  nullptr, 				   nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
-    {&globalLevelMenu,     	  &audioClipTransposeMenu, nullptr,                        &globalPanMenu,                 nullptr,              &srrMenu,               &bitcrushMenu,            &clippingMenu                      },
-    {nullptr,                 nullptr,                 &priorityMenu,                  nullptr,                        nullptr,              nullptr,                nullptr,                  comingSoonMenu                     },
-    {nullptr,                 nullptr,                 nullptr,                        &audioClipAttackMenu,           &globalLPFMorphMenu,  &lpfModeMenu,           &globalLPFResMenu,        &globalLPFFreqMenu              	  },
-    {nullptr,                 nullptr,                 nullptr,                        &audioClipAttackMenu,           &globalHPFMorphMenu,  &hpfModeMenu,           &globalHPFResMenu,        &globalHPFFreqMenu                 },
-    {&sidechainReleaseMenu,   &sidechainSyncMenu,      &globalSidechainVolumeMenu,     &sidechainAttackMenu,           &sidechainShapeMenu,  nullptr,                &bassMenu,                &bassFreqMenu                      },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &nameEditMenu,          &trebleMenu,              &trebleFreqMenu                    },
-    {nullptr,                 nullptr,                 nullptr,                        &modFXTypeMenu,           	   &modFXOffsetMenu,     &modFXFeedbackMenu,     &globalModFXDepthMenu,    &globalModFXRateMenu            	  },
-    {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,       &reverbWidthMenu,       &reverbDampingMenu,       &reverbRoomSizeMenu                },
-    {&globalDelayRateMenu, 	  &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
-    {nullptr,          	  nullptr,  nullptr,                  nullptr,                  nullptr,                  nullptr,                  nullptr,                  nullptr                            },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight] = {
+    {nullptr,                 &audioClipReverseMenu,   nullptr,                    &samplePitchSpeedMenu,       nullptr,              &fileSelectorMenu,  &audioClipInterpolationMenu,&audioClipSampleMarkerEditorMenuEnd},
+    {nullptr,                 &audioClipReverseMenu,   nullptr,                    &samplePitchSpeedMenu,       nullptr,              &fileSelectorMenu,  &audioClipInterpolationMenu,&audioClipSampleMarkerEditorMenuEnd},
+    {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  nullptr                            },
+    {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  nullptr                            },
+    {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  nullptr                            },
+    {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  nullptr                            },
+    {&globalLevelMenu,        &audioClipTransposeMenu, nullptr,                    &globalPanMenu,              nullptr,              &srrMenu,           &bitcrushMenu,            &clippingMenu                      },
+    {nullptr,                 nullptr,                 &priorityMenu,              nullptr,                     nullptr,              nullptr,            nullptr,                  comingSoonMenu                     },
+    {nullptr,                 nullptr,                 nullptr,                    &audioClipAttackMenu,        &globalLPFMorphMenu,  &lpfModeMenu,       &globalLPFResMenu,        &globalLPFFreqMenu                 },
+    {nullptr,                 nullptr,                 nullptr,                    &audioClipAttackMenu,        &globalHPFMorphMenu,  &hpfModeMenu,       &globalHPFResMenu,        &globalHPFFreqMenu                 },
+    {&sidechainReleaseMenu,   &sidechainSyncMenu,      &globalSidechainVolumeMenu, &sidechainAttackMenu,        &sidechainShapeMenu,  nullptr,            &bassMenu,                &bassFreqMenu                      },
+    {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              &nameEditMenu,      &trebleMenu,              &trebleFreqMenu                    },
+    {nullptr,                 nullptr,                 nullptr,                    &modFXTypeMenu,              &modFXOffsetMenu,     &modFXFeedbackMenu, &globalModFXDepthMenu,    &globalModFXRateMenu               },
+    {nullptr,                 nullptr,                 nullptr,                    &globalReverbSendAmountMenu, &reverbPanMenu,       &reverbWidthMenu,   &reverbDampingMenu,       &reverbRoomSizeMenu                },
+    {&globalDelayRateMenu,    &delaySyncMenu,          &delayAnalogMenu,           &globalDelayFeedbackMenu,    &delayPingPongMenu,   nullptr,            nullptr,                  nullptr                            },
+    {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  nullptr                            },
 };
 Submenu* parentsForAudioShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },

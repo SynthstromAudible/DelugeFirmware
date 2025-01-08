@@ -26,7 +26,8 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->modulator1ToModulator0); }
 	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->getValue(); }
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		using enum l10n::String;
 		static auto mod1 = l10n::getView(STRING_FOR_MODULATOR_1);
 		return {

@@ -28,7 +28,7 @@ public:
 
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
-	deluge::vector<std::string_view> getOptions() override;
+	deluge::vector<std::string_view> getOptions(OptType optType) override;
 	[[nodiscard]] std::string_view getName() const override;
 	[[nodiscard]] std::string_view getTitle() const override;
 

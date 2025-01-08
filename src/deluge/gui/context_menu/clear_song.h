@@ -28,7 +28,7 @@ public:
 
 	char const* getTitle() override;
 
-	Sized<char const**> getOptions() override;
+	std::span<char const*> getOptions() override;
 	bool acceptCurrentOption() override;
 };
 
