@@ -8,7 +8,7 @@
 
 namespace deluge::dsp {
 
-class Reverb : reverb::Base {
+class [[gnu::hot]] Reverb : reverb::Base {
 public:
 	enum class Model {
 		FREEVERB = 0, // Freeverb is the original
