@@ -1002,7 +1002,7 @@ to each individual note onset. ([#1978])
       chord or change the default chord. Any note you play will be interpreted as the root note
       and the remaining notes will be played along with it. The default chord is none.
       You can get back to none by short pressing the current chord. Chords include 5th, Sus2,
-      Minor, Major, Sus4, Minor7, Dom7, Major7. All are in closed root position.
+      Minor, Major, Sus4, Minor7, Dom7, Major7. All are in closed root position. (Note: this option is not available while in either of the chord keyboard layouts.)
     - **`Song Chord Memory (CMEM - Cyan):`** Hold a chord down and press a pad to remember the chord. Press
       that pad again to play it. You can play over the top of your saved chords. To clear a chord,
       press shift and the pad you want to clear. Chord memory is shared across all song clips and it
