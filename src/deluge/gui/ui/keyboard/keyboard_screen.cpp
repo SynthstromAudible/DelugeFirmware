@@ -768,13 +768,13 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 		instrumentClipView.setupChangingOfRootNote(newRootNote);
 
 		char noteName[3] = {0};
-		noteName[0] = noteCodeToNoteLetter[newRootNote];
+		noteName[0] = noteLetter[newRootNote];
 		if (display->haveOLED()) {
-			if (noteCodeIsSharp[newRootNote]) {
+			if (noteIsAltered[newRootNote]) {
 				noteName[1] = '#';
 			}
 		}
-		display->displayPopup(noteName, 3, false, (noteCodeIsSharp[newRootNote] ? 0 : 255));
+		display->displayPopup(noteName, 3, false, (noteIsAltered[newRootNote] ? 0 : 255));
 		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(
 		    0, false, pressedPads, xEncoderActive);
 		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();

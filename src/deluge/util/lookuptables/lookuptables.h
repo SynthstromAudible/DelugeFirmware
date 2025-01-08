@@ -130,9 +130,6 @@ const uint8_t presetReverbRoomSize[NUM_PRESET_REVERBS] = {16, 30, 44};
 const uint8_t presetReverbDamping[NUM_PRESET_REVERBS] = {29, 36, 45};
 extern deluge::l10n::String presetReverbNames[NUM_PRESET_REVERBS];
 
-extern const uint8_t noteCodeToNoteLetter[];
-extern const bool noteCodeIsSharp[];
-
 extern const std::array<Iterance, 35> iterancePresets;
 
 #define MAX_CHORD_TYPES 9

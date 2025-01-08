@@ -1874,29 +1874,6 @@ int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from) {
 	return getMagnitudeOld(to) - getMagnitudeOld(from);
 }
 
-void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot, bool appendOctaveNo) {
-	char* thisChar = buffer;
-	int32_t octave = (noteCode) / 12 - 2;
-	int32_t noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
-
-	*thisChar = noteCodeToNoteLetter[noteCodeWithinOctave];
-	thisChar++;
-	if (noteCodeIsSharp[noteCodeWithinOctave]) {
-		*thisChar = display->haveOLED() ? '#' : '.';
-		thisChar++;
-	}
-	if (appendOctaveNo) {
-		intToString(octave, thisChar, 1);
-	}
-
-	if (getLengthWithoutDot) {
-		*getLengthWithoutDot = strlen(buffer);
-		if (noteCodeIsSharp[noteCodeWithinOctave]) {
-			(*getLengthWithoutDot)--;
-		}
-	}
-}
-
 void concatenateLines(const char* lines[], size_t numLines, char* resultString) {
 	const size_t maxCharsPerLine = 19;
 	size_t resultIndex = 0;
