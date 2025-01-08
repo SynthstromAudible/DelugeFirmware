@@ -39,7 +39,7 @@ bool SongChordMemColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 };
 
 void SongChordMemColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                             KeyboardLayout* layout){};
+                                             KeyboardLayout* layout) {};
 
 void SongChordMemColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                                    KeyboardLayout* layout) {

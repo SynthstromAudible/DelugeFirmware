@@ -222,6 +222,7 @@ enum class String : size_t {
 	STRING_FOR_SAW,
 	STRING_FOR_SAMPLE_AND_HOLD,
 	STRING_FOR_RANDOM_WALK,
+	STRING_FOR_RANDOM_WALK_SHORT,
 	STRING_FOR_WARBLE,
 
 	// gui/menu_item/midi/takeover.h

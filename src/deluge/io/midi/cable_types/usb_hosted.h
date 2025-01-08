@@ -34,37 +34,37 @@ public:
 	// Add new hooks to the below list.
 
 	// Gets called once for each freshly connected hosted device.
-	virtual void hookOnConnected(){};
+	virtual void hookOnConnected() {};
 
 	// Gets called when something happens that changes the root note
-	virtual void hookOnChangeRootNote(){};
+	virtual void hookOnChangeRootNote() {};
 
 	// Gets called when something happens that changes the scale/mode
-	virtual void hookOnChangeScale(){};
+	virtual void hookOnChangeScale() {};
 
 	// Gets called when entering Scale Mode in a clip
-	virtual void hookOnEnterScaleMode(){};
+	virtual void hookOnEnterScaleMode() {};
 
 	// Gets called when exiting Scale Mode in a clip
-	virtual void hookOnExitScaleMode(){};
+	virtual void hookOnExitScaleMode() {};
 
 	// Gets called when learning/unlearning a midi device to a clip
-	virtual void hookOnMIDILearn(){};
+	virtual void hookOnMIDILearn() {};
 
 	// Gets called when recalculating colour in clip mode
-	virtual void hookOnRecalculateColour(){};
+	virtual void hookOnRecalculateColour() {};
 
 	// Gets called when transitioning to ArrangerView
-	virtual void hookOnTransitionToArrangerView(){};
+	virtual void hookOnTransitionToArrangerView() {};
 
 	// Gets called when transitioning to ClipView
-	virtual void hookOnTransitionToClipView(){};
+	virtual void hookOnTransitionToClipView() {};
 
 	// Gets called when transitioning to SessionView
-	virtual void hookOnTransitionToSessionView(){};
+	virtual void hookOnTransitionToSessionView() {};
 
 	// Gets called when hosted device info is saved to XML (usually after changing settings)
-	virtual void hookOnWriteHostedDeviceToFile(){};
+	virtual void hookOnWriteHostedDeviceToFile() {};
 
 	// Add an entry to this enum if adding new virtual hook functions above
 	enum class Hook {

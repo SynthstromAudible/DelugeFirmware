@@ -35,9 +35,8 @@ public:
 		}
 	}
 
-	deluge::vector<std::string_view> getOptions() override {
-		using enum l10n::String;
-
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		return modfx::getModNames();
 	}
 };
