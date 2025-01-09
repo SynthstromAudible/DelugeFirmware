@@ -714,7 +714,7 @@ The Sound menu contains the following menu hierarchy:
 		- Up
 		- Down
 		- Up & Down (UPDN)
-		- As Played (PLAY)
+		- Played Order (PLAY)
 		- Random (RAND)
 	- Chord Simulator (CSIM) (NOTE: Available only in Kit Rows)
 	- Step Repeat (REPE)
@@ -1312,7 +1312,7 @@ The MIDI menu contains the following menu hierarchy:
 		- Up
 		- Down
 		- Up & Down (UPDN)
-		- As Played (PLAY)
+		- Played Order (PLAY)
 		- Random (RAND)
 	- Chord Simulator (CSIM) (NOTE: Available only in Kit Rows)
 	- Step Repeat (REPE)
@@ -1417,7 +1417,7 @@ The CV menu contains the following menu hierarchy:
 		- Up
 		- Down
 		- Up & Down (UPDN)
-		- As Played (PLAY)
+		- Played Order (PLAY)
 		- Random (RAND)
 	- Chord Simulator (CSIM) (NOTE: NOT available for Gate Kit Rows)
 	- Step Repeat (REPE) (NOTE: NOT available for Gate Kit Rows)

@@ -54,7 +54,7 @@ setting how many times they are repeated, and setting the direction in which the
     - `Down (DOWN)` will walk the notes down. Tip: this mode also works in conjunction with Octave Mode
       Alternate, which will walk all the notes and octaves all the way down, and then up reversing it.
     - `Up & Down (UPDN)` will walk the notes up and down, repeating the highest and lowest notes.
-    - `As played (PLAY)` will walk the notes in the same order that they were played. Tip: this mode
+    - `Played Order (PLAY)` will walk the notes in the same order that they were played. Tip: this mode
       also works in conjunction with Octave Mode Alternate, which will walk all the notes and octaves
       all the way up (with notes as played), and then down reversing the order of played notes.
       Note: this produces the same effect as Up for Kit Rows.
