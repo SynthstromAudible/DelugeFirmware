@@ -80,9 +80,7 @@ Error String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newCha
 		return set({newChars, static_cast<size_t>(newCharsLength)});
 	}
 
-	if (newCharsLength == 0) {
-		return shorten(pos);
-	}
+	unique().resize(pos);
 
 	unique() += newChars;
 
