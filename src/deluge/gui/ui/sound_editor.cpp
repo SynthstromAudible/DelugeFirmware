@@ -1081,6 +1081,7 @@ getOut:
 						else {
 							item = midiOrCVParamShortcuts[y];
 						}
+						parent = parentsForMidiOrCVParamShortcuts[y];
 					}
 					else if (x == 4) {
 						if (y == 7) {
