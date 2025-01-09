@@ -19,6 +19,7 @@
 #include "util/waves.h"
 #include <argon.hpp>
 #include <arm_neon.h>
+#pragma once
 
 [[gnu::always_inline]] static inline void //<
 renderOscSync(auto storageFunction, auto extraInstructionsForCrossoverSampleRedo,

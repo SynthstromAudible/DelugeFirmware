@@ -18,6 +18,7 @@
 #include <argon.hpp>
 #include <limits>
 #include <utility>
+#pragma once
 
 // Renders 4 wave values (a "vector") together in one go.
 [[gnu::always_inline]] static inline std::pair<Argon<int32_t>, uint32_t> //<
