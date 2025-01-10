@@ -800,7 +800,8 @@ const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
     nullptr,
 };
 const Submenu* parentsForMidiOrCVParamShortcuts[kDisplayHeight] = {
-    &arpBasicMenu, &arpBasicMenu, &arpBasicMenu, &arpPatternMenu, &arpPresetAndRandomizerMenu, nullptr, nullptr, nullptr,
+    &arpBasicMenu, &arpBasicMenu, &arpBasicMenu, &arpPatternMenu, &arpPresetAndRandomizerMenu,
+    nullptr,       nullptr,       nullptr,
 };
 
 const MenuItem* gateDrumParamShortcuts[8] = {
