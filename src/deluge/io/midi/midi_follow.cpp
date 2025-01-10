@@ -1133,7 +1133,8 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 		if (!foundParam) {
 			// Loop through unpatched sound params (if not found before)
 			for (uint8_t paramId = 0; paramId != params::UNPATCHED_SOUND_MAX_NUM; paramId++) {
-				if (!strcmp(tagName, params::paramNameForFile(params::Kind::UNPATCHED_SOUND, params::UNPATCHED_START + paramId))) {
+				if (!strcmp(tagName, params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
+				                                              params::UNPATCHED_START + paramId))) {
 					soundParamToCC[paramId] = reader.readTagOrAttributeValueInt();
 					foundParam = true;
 					break;
@@ -1142,7 +1143,8 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 		}
 		// Loop through unpatched global params
 		for (uint8_t paramId = 0; paramId != params::UNPATCHED_GLOBAL_MAX_NUM; paramId++) {
-			if (!strcmp(tagName, params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_START + paramId))) {
+			if (!strcmp(tagName,
+			            params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_START + paramId))) {
 				globalParamToCC[paramId] = reader.readTagOrAttributeValueInt();
 				break;
 			}
