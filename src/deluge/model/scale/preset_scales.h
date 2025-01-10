@@ -99,18 +99,13 @@ extern std::array<char const*, NUM_SCALELIKE> scalelikeNames;
 const char* getScaleName(Scale scale);
 
 /* Calculate relative major key accidental preference */
-								//    C   Db  D   Eb  E   F   F#  G   Ab  A   Bb  B
-const uint8_t majorAccidental[12] = {'&','&','#','&','#','&','#','#','&','#','&','#'};
-const uint8_t noteLetter[13] = {'C','C','D','D','E','F','F','G','G','A','A','B','C'}; // 1 more for Cb
-const uint8_t noteIsAltered[12] = {0,1,0,1,0,0,1,0,1,0,1,0};
-
+//                                    C    Db   D    Eb   E    F    F#   G    Ab   A    Bb   B
+const uint8_t majorAccidental[12] = {'&', '&', '#', '&', '#', '&', '#', '#', '&', '#', '&', '#'};
+const uint8_t noteLetter[13] = {'C', 'C', 'D', 'D', 'E', 'F', 'F', 'G', 'G', 'A', 'A', 'B', 'C'}; // 1 more for Cb
+const uint8_t noteIsAltered[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
 const uint8_t getAccidental(int32_t rootNoteCode, Scale scale);
-void noteCodeToString(int32_t noteCode, char* buffer
-					, int32_t* getLengthWithoutDot = nullptr
-                    , bool appendOctaveNo = true
-					, int32_t rootNoteCode = -1
-					, Scale scale = Scale::NO_SCALE
-				);
+void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot = nullptr,
+                      bool appendOctaveNo = true, int32_t rootNoteCode = -1, Scale scale = Scale::NO_SCALE);
 
 Scale getScale(NoteSet notes);
 
