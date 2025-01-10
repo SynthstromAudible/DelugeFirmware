@@ -1,5 +1,5 @@
-#include "io/debug/log.h"
 #include "model/scale/preset_scales.h"
+#include "io/debug/log.h"
 #include "model/scale/note_set.h"
 #include "util/d_string.h"
 
