@@ -885,7 +885,7 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 		// will instead enter the scale mode.
 		// First press we display current scale, subsequent presses
 		// cycles through list.
-		if(Buttons::shiftHasChanged2()) {
+		if (Buttons::shiftHasChanged2()) {
 			displayCurrentScaleName();
 		}
 		else {
