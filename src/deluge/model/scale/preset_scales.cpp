@@ -134,7 +134,7 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 			(*getLengthWithoutDot)--;
 		}
 	}
-	D_PRINTLN(",noteCodeToString,%s", buffer);
+//	D_PRINTLN(",noteCodeToString,%s", buffer);
 }
 
 Scale getScale(NoteSet notes) {
