@@ -88,7 +88,7 @@ const uint8_t getAccidental(int32_t rootNoteCode, Scale scale) {
 			break;
 		default:
 			break;
- 		}
+		}
 		if (rootNoteCode < 0) {
 			rootNoteCode += 12;
 		}
