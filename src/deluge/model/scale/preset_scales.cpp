@@ -49,12 +49,12 @@ const uint8_t getAccidental(int32_t rootNoteCode, Scale scale) {
 		case MIXOLYDIAN_SCALE: // Flat 7th
 			degree = 5;
 			break;
-		case HARMONIC_MINOR_SCALE: 		// Flat 3rd and 6th, natural 7th
-		case HUNGARIAN_MINOR_SCALE: 	// Flat 3rd and 6th, natural 7th and sharp 4th
-		case BLUES_SCALE: 				// Flat 3rd and 7th, missing 2nd and 6th, add tritone (flat 5th)
-		case PENTATONIC_MINOR_SCALE: 	// Flat 3rd and 7th, missing 2nd and 6th
-		case HIRAJOSHI_SCALE: 			// Flat 3rd and 6th, missing 4th and 7th
-		case MINOR_SCALE: 				// Flat 3rd, 6th and 7th
+		case HARMONIC_MINOR_SCALE:   // Flat 3rd and 6th, natural 7th
+		case HUNGARIAN_MINOR_SCALE:  // Flat 3rd and 6th, natural 7th and sharp 4th
+		case BLUES_SCALE:            // Flat 3rd and 7th, missing 2nd and 6th, add tritone (flat 5th)
+		case PENTATONIC_MINOR_SCALE: // Flat 3rd and 7th, missing 2nd and 6th
+		case HIRAJOSHI_SCALE:        // Flat 3rd and 6th, missing 4th and 7th
+		case MINOR_SCALE:            // Flat 3rd, 6th and 7th
 			degree = 6;
 			break;
 		case LOCRIAN_SCALE: // Flat 2nd, 3rd, 5th, 6th and 7th
@@ -89,7 +89,7 @@ const uint8_t getAccidental(int32_t rootNoteCode, Scale scale) {
 		default:
 			break;
  		}
-		if(rootNoteCode < 0) {
+		if (rootNoteCode < 0) {
 			rootNoteCode += 12;
 		}
 		int32_t majorRoot = rootNoteCode % 12;
