@@ -28,7 +28,7 @@ std::array<MenuItem*, 3> child2 = {
     &filterRoutingMenu,
 };
 Submenu soundFiltersMenu{STRING_FOR_FILTERS, child2};
-audio_compressor::CompParam threshold{STRING_FOR_THRESHOLD, STRING_FOR_THRESHOLD, params::UNPATCHED_COMPRESSOR_THRESHOLD};
+audio_compressor::CompParam threshold{STRING_FOR_THRESHOLD, STRING_FOR_COMP_THRESHOLD_MENU_TITLE, params::UNPATCHED_COMPRESSOR_THRESHOLD};
 audio_compressor::Ratio compRatio{STRING_FOR_RATIO, STRING_FOR_RATIO};
 audio_compressor::Attack compAttack{STRING_FOR_ATTACK, STRING_FOR_ATTACK};
 audio_compressor::Release compRelease{STRING_FOR_RELEASE, STRING_FOR_RELEASE};
