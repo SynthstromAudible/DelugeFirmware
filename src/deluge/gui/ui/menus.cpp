@@ -312,6 +312,8 @@ HorizontalMenu arpRandomizerMenu{STRING_FOR_RANDOMIZER,
                                   &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
                                   // Bass
                                   &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV}};
+// Arp: Preset and Randomizer
+HorizontalMenu arpPresetAndRandomizerMenu{STRING_FOR_ARPEGGIATOR, {&arpPresetModeMenu, &arpRandomizerMenu}};
 // Global: Randomizer
 Submenu globalRandomizerMenu{STRING_FOR_RANDOMIZER, {&arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV}};
 // Arp: MPE
@@ -798,7 +800,7 @@ const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
     nullptr,
 };
 const Submenu* parentsForMidiOrCVParamShortcuts[kDisplayHeight] = {
-    &arpBasicMenu, &arpBasicMenu, &arpBasicMenu, &arpPatternMenu, nullptr, nullptr, nullptr, nullptr,
+    &arpBasicMenu, &arpBasicMenu, &arpBasicMenu, &arpPatternMenu, &arpPresetAndRandomizerMenu, nullptr, nullptr, nullptr,
 };
 
 const MenuItem* gateDrumParamShortcuts[8] = {
@@ -1591,7 +1593,7 @@ Submenu* parentsForSoundShortcuts[][kDisplayHeight] = {
     {&env0Menu,               &env0Menu,               &env0Menu,                      &env0Menu,                      &lpfMenu,             &lpfMenu,               &lpfMenu,                 &lpfMenu,                          },
     {&env1Menu,               &env1Menu,               &env1Menu,                      &env1Menu,                      &hpfMenu,             &hpfMenu,               &hpfMenu,                 &hpfMenu,                          },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
-    {&arpBasicMenu,                 &arpBasicMenu,                 &arpBasicMenu,                        &arpPatternMenu,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {&arpBasicMenu,           &arpBasicMenu,           &arpBasicMenu,                  &arpPatternMenu,                &arpPresetAndRandomizerMenu, nullptr,         nullptr,                  nullptr,                           },
     {&lfo1Menu,               &lfo1Menu,               &lfo1Menu,                      nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {&lfo2Menu,               &lfo2Menu,               &lfo2Menu,                      nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
