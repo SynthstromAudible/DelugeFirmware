@@ -1,7 +1,7 @@
+#include "io/debug/log.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/note_set.h"
 #include "util/d_string.h"
-#include "io/debug/log.h"
 
 std::array<char const*, NUM_SCALELIKE> scalelikeNames = {
 #define DEF(id, name, notes) name,
@@ -37,7 +37,7 @@ const uint8_t getAccidental(int32_t rootNoteCode, Scale scale) {
 			degree = 1;
 			break;
 		case MELODIC_MINOR_SCALE: // Flat 3rd, natural 7th
-		case DORIAN_SCALE: // Flat 3rd and 7th
+		case DORIAN_SCALE:        // Flat 3rd and 7th
 			degree = 2;
 			break;
 		case PHRYGIAN_SCALE: // Flat 2nd, 3rd, 6th and 7th
@@ -49,12 +49,12 @@ const uint8_t getAccidental(int32_t rootNoteCode, Scale scale) {
 		case MIXOLYDIAN_SCALE: // Flat 7th
 			degree = 5;
 			break;
-		case HARMONIC_MINOR_SCALE: // Flat 3rd and 6th, natural 7th
-		case HUNGARIAN_MINOR_SCALE: // Flat 3rd and 6th, natural 7th and sharp 4th
-		case BLUES_SCALE: // Flat 3rd and 7th, missing 2nd and 6th, add tritone (flat 5th)
-		case PENTATONIC_MINOR_SCALE: // Flat 3rd and 7th, missing 2nd and 6th
-		case HIRAJOSHI_SCALE: // Flat 3rd and 6th, missing 4th and 7th
-		case MINOR_SCALE: // Flat 3rd, 6th and 7th
+		case HARMONIC_MINOR_SCALE: 		// Flat 3rd and 6th, natural 7th
+		case HUNGARIAN_MINOR_SCALE: 	// Flat 3rd and 6th, natural 7th and sharp 4th
+		case BLUES_SCALE: 				// Flat 3rd and 7th, missing 2nd and 6th, add tritone (flat 5th)
+		case PENTATONIC_MINOR_SCALE: 	// Flat 3rd and 7th, missing 2nd and 6th
+		case HIRAJOSHI_SCALE: 			// Flat 3rd and 6th, missing 4th and 7th
+		case MINOR_SCALE: 				// Flat 3rd, 6th and 7th
 			degree = 6;
 			break;
 		case LOCRIAN_SCALE: // Flat 2nd, 3rd, 5th, 6th and 7th
@@ -101,9 +101,9 @@ const uint8_t getAccidental(int32_t rootNoteCode, Scale scale) {
 }
 
 void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot,
-                      bool appendOctaveNo, // defaults to true
+                      bool appendOctaveNo,  // defaults to true
                       int32_t rootNoteCode, // defaults to -1
-                      Scale scale) { // defaults to NO_SCALE
+                      Scale scale) {        // defaults to NO_SCALE
 	char* thisChar = buffer;
 	int32_t octave = (noteCode) / 12 - 2;
 	int32_t n = (uint16_t)(noteCode + 120) % (uint8_t)12;
