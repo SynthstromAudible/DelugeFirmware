@@ -24,7 +24,7 @@ class SoundDrum;
 
 class RenameDrumUI final : public RenameUI {
 public:
-	RenameDrumUI(const char* title_) : RenameUI(title_){};
+	RenameDrumUI(const char* title_) : RenameUI(title_) {};
 
 protected:
 	bool trySetName(String*) override;

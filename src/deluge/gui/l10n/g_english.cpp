@@ -216,6 +216,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SAW, "Saw"},
         {STRING_FOR_SAMPLE_AND_HOLD, "S&H"},
         {STRING_FOR_RANDOM_WALK, "Random Walk"},
+        {STRING_FOR_RANDOM_WALK_SHORT, "Walk"},
         {STRING_FOR_JUMP, "Jump"},
         {STRING_FOR_PICK_UP, "Pickup"},
         {STRING_FOR_SCALE, "Scale"},

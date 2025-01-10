@@ -39,39 +39,25 @@ public:
 		// turns the filter on.
 		return display->have7SEG() || runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus);
 	}
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		using enum l10n::String;
+		bool shortOpt = optType == OptType::SHORT;
 		if (info.getSlot() == FilterSlot::HPF) {
 			return {
-			    l10n::getView(STRING_FOR_SVF_BAND),
-			    l10n::getView(STRING_FOR_SVF_NOTCH),
-			    l10n::getView(STRING_FOR_HPLADDER),
+			    l10n::getView(shortOpt ? STRING_FOR_SVF_BAND_SHORT : STRING_FOR_SVF_BAND),
+			    l10n::getView(shortOpt ? STRING_FOR_SVF_NOTCH_SHORT : STRING_FOR_SVF_NOTCH),
+			    l10n::getView(shortOpt ? STRING_FOR_12DB_LADDER_SHORT : STRING_FOR_HPLADDER),
 			    l10n::getView(STRING_FOR_OFF),
 			};
 		}
 		else {
 			return {
-			    l10n::getView(STRING_FOR_12DB_LADDER), l10n::getView(STRING_FOR_24DB_LADDER),
-			    l10n::getView(STRING_FOR_DRIVE),       l10n::getView(STRING_FOR_SVF_BAND),
-			    l10n::getView(STRING_FOR_SVF_NOTCH),   l10n::getView(STRING_FOR_OFF),
-			};
-		}
-	}
-	deluge::vector<std::string_view> getShortOptions() override {
-		using enum l10n::String;
-		if (info.getSlot() == FilterSlot::HPF) {
-			return {
-			    l10n::getView(STRING_FOR_SVF_BAND_SHORT),
-			    l10n::getView(STRING_FOR_SVF_NOTCH_SHORT),
-			    l10n::getView(STRING_FOR_12DB_LADDER_SHORT),
+			    l10n::getView(shortOpt ? STRING_FOR_12DB_LADDER_SHORT : STRING_FOR_12DB_LADDER),
+			    l10n::getView(shortOpt ? STRING_FOR_24DB_LADDER_SHORT : STRING_FOR_24DB_LADDER),
+			    l10n::getView(STRING_FOR_DRIVE),
+			    l10n::getView(shortOpt ? STRING_FOR_SVF_BAND_SHORT : STRING_FOR_SVF_BAND),
+			    l10n::getView(shortOpt ? STRING_FOR_SVF_NOTCH_SHORT : STRING_FOR_SVF_NOTCH),
 			    l10n::getView(STRING_FOR_OFF),
-			};
-		}
-		else {
-			return {
-			    l10n::getView(STRING_FOR_12DB_LADDER_SHORT), l10n::getView(STRING_FOR_24DB_LADDER_SHORT),
-			    l10n::getView(STRING_FOR_DRIVE_SHORT),       l10n::getView(STRING_FOR_SVF_BAND_SHORT),
-			    l10n::getView(STRING_FOR_SVF_NOTCH_SHORT),   l10n::getView(STRING_FOR_OFF),
 			};
 		}
 	}

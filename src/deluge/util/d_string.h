@@ -46,7 +46,7 @@ extern const char nothing;
 
 class String {
 public:
-	String() : stringMemory(std::make_shared<std::string>()){};
+	String() : stringMemory(std::make_shared<std::string>()) {};
 
 	void clear() { unique().clear(); }
 
@@ -114,6 +114,18 @@ public:
 
 	void append(const char* str) { ::strncat(buf_, str, capacity_ - size() - 1); }
 	void append(char c) { ::strncat(buf_, &c, 1); }
+	void removeSpaces() {
+		size_t removed = 0;
+		// upto size, not below it -- we want the null as well
+		for (size_t i = 0; i <= size(); i++) {
+			if (isspace(buf_[i])) {
+				removed++;
+			}
+			else {
+				buf_[i - removed] = buf_[i];
+			}
+		}
+	}
 	void clear() { buf_[0] = 0; }
 	void truncate(size_t newSize) {
 		if (newSize < capacity_) {
