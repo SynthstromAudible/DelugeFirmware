@@ -71,7 +71,7 @@ public:
 
 	// Properties
 
-	virtual char const* name() = 0;
+	virtual l10n::String name() = 0;
 	/// This currently includes Synth, MIDI and CV
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return false; }

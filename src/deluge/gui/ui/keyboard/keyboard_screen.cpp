@@ -728,7 +728,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 
 	getCurrentInstrumentClip()->keyboardState.currentLayout = (KeyboardLayoutType)nextLayout;
 	if (getCurrentInstrumentClip()->keyboardState.currentLayout != lastLayout) {
-		display->displayPopup(layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->name());
+		display->displayPopup(l10n::get(layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->name()));
 	}
 
 	// Ensure scale mode is as expected
