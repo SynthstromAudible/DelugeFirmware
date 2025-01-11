@@ -60,11 +60,6 @@ bool shiftCurrentlyStuck = false;
  */
 bool shiftHasChangedSinceLastCheck;
 /**
- * Flag above is immediately consumed by main loop.  Here is a clone of this flag to be used by
- * InstrumentClipView::handleScaleButtonAction to detect when Shift button is released.
- */
-bool shiftHasChangedSinceLastCheck2;
-/**
  * Flag that represents whether another button was pressed while shift was held, and therefore we should ignore the
  * release of the shift for the purposes of toggling sticky shift.
  */
@@ -196,7 +191,6 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 			considerShiftReleaseForSticky = true;
 			// Shift has changed, make sure we notify.
 			shiftHasChangedSinceLastCheck = true;
-			shiftHasChangedSinceLastCheck2 = true;
 		}
 		else {
 			uint32_t releaseTime = AudioEngine::audioSampleTimer;
@@ -226,7 +220,6 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 			if (!shiftCurrentlyStuck) {
 				shiftCurrentlyPressed = false;
 				shiftHasChangedSinceLastCheck = true;
-				shiftHasChangedSinceLastCheck2 = true;
 			}
 		}
 	}
@@ -316,20 +309,11 @@ void clearShiftSticky() {
 	shiftCurrentlyStuck = false;
 	shiftCurrentlyPressed = false;
 	shiftHasChangedSinceLastCheck = true;
-	shiftHasChangedSinceLastCheck2 = true;
 }
 
 bool shiftHasChanged() {
 	bool toReturn = shiftHasChangedSinceLastCheck;
 	shiftHasChangedSinceLastCheck = false;
-	return toReturn;
-}
-
-// Deluge.cpp readButtonAndPads() consumes the flag shiftHasChangedSinceLastCheck
-// immediately in main loop so here we create a clone to be used by instrumentClipView
-bool shiftHasChanged2() {
-	bool toReturn = shiftHasChangedSinceLastCheck2;
-	shiftHasChangedSinceLastCheck2 = false;
 	return toReturn;
 }
 

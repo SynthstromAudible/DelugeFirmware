@@ -40,10 +40,6 @@ void clearShiftSticky();
  * This implicitly clears the "shiftHasChangedSinceLastCheck" flag, so only the main loop should call this function.
  */
 bool shiftHasChanged();
-/**
- * Clone of above flag to be used in InstrumentClipView::handleScaleButtonAction
- */
-bool shiftHasChanged2();
 
 extern bool recordButtonPressUsedUp;
 extern bool considerCrossScreenReleaseForCrossScreenMode;

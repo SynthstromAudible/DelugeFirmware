@@ -881,17 +881,9 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 		return commandLearnUserScale();
 	}
 	else if (on && inScaleMode && Buttons::isShiftButtonPressed()) {
-		// If we're not in scale mode, we defer to commands that
+		// If we're note in scale mode, we defer to commands that
 		// will instead enter the scale mode.
-		// First press we display current scale, subsequent presses
-		// cycles through list.
-		if(Buttons::shiftHasChanged2()) {
-			displayCurrentScaleName();
-		}
-		else {
-			return commandCycleThroughScales();
-		}
-		return ActionResult::DEALT_WITH;
+		return commandCycleThroughScales();
 	}
 	else if (on && oneNoteAuditioning()) {
 		if (inScaleMode) {
