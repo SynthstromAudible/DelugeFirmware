@@ -124,7 +124,7 @@ public:
 private:
 	// inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t
 	// phaseShift);
-	
+
 	void renderBasicSource(Sound& sound, ParamManagerForTimeline* paramManager, int32_t s, int32_t* oscBuffer,
 	                       int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude,
 	                       bool* unisonPartBecameInactive, int32_t overallPitchAdjust, bool doOscSync,
