@@ -166,7 +166,7 @@ void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBar
 void KeyboardLayoutChordLibrary::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
 	char noteName[3] = {0};
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(noteCode, noteName, &isNatural, false);
+	noteCodeToString(noteCode, noteName, &isNatural, false, currentSong->key.rootNote, currentSong->getCurrentScale());
 
 	char fullChordName[300];
 

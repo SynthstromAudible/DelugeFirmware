@@ -1,4 +1,5 @@
 #include "model/scale/preset_scales.h"
+#include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "model/scale/note_set.h"
 #include "util/cfunctions.h"
@@ -113,11 +114,11 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 	if (noteIsAltered[n]) { // actually: if code is a black key on the piano?
 		if ((accidental == '#')) {
 			*thisChar++ = noteLetter[n];
-			*thisChar = accidental;
+			*thisChar = display->haveOLED() ? accidental : '.';
 		}
 		else {
 			*thisChar++ = noteLetter[n + 1];
-			*thisChar = accidental;
+			*thisChar = display->haveOLED() ? accidental : '.';
 		}
 	}
 	else {
