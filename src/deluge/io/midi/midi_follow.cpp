@@ -208,14 +208,14 @@ void MidiFollow::initDefaultMappings() {
 	ccToSoundParam[50] = params::UNPATCHED_START + params::UNPATCHED_ARP_GATE;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_GATE] = 50;
 	// EQ
-	ccToSoundParam[74] = params::UNPATCHED_START + params::UNPATCHED_BASS_FREQ;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BASS_FREQ] = 74;
-	ccToSoundParam[81] = params::UNPATCHED_START + params::UNPATCHED_TREBLE_FREQ;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_TREBLE_FREQ] = 81;
-	ccToSoundParam[71] = params::UNPATCHED_START + params::UNPATCHED_BASS;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BASS] = 71;
-	ccToSoundParam[82] = params::UNPATCHED_START + params::UNPATCHED_TREBLE;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_TREBLE] = 82;
+	ccToSoundParam[84] = params::UNPATCHED_START + params::UNPATCHED_BASS_FREQ;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BASS_FREQ] = 84;
+	ccToSoundParam[85] = params::UNPATCHED_START + params::UNPATCHED_TREBLE_FREQ;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_TREBLE_FREQ] = 85;
+	ccToSoundParam[86] = params::UNPATCHED_START + params::UNPATCHED_BASS;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BASS] = 86;
+	ccToSoundParam[87] = params::UNPATCHED_START + params::UNPATCHED_TREBLE;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_TREBLE] = 87;
 	// Modfx
 	ccToSoundParam[17] = params::UNPATCHED_START + params::UNPATCHED_MOD_FX_FEEDBACK;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_MOD_FX_FEEDBACK] = 17;
@@ -285,13 +285,13 @@ void MidiFollow::initDefaultMappings() {
 	ccToGlobalParam[61] = params::UNPATCHED_SIDECHAIN_VOLUME;
 	globalParamToCC[params::UNPATCHED_SIDECHAIN_VOLUME] = 61;
 	// EQ
-	ccToGlobalParam[74] = params::UNPATCHED_BASS_FREQ;
+	ccToGlobalParam[84] = params::UNPATCHED_BASS_FREQ;
 	globalParamToCC[params::UNPATCHED_BASS_FREQ] = 74;
-	ccToGlobalParam[81] = params::UNPATCHED_TREBLE_FREQ;
+	ccToGlobalParam[85] = params::UNPATCHED_TREBLE_FREQ;
 	globalParamToCC[params::UNPATCHED_TREBLE_FREQ] = 81;
-	ccToGlobalParam[71] = params::UNPATCHED_BASS;
+	ccToGlobalParam[86] = params::UNPATCHED_BASS;
 	globalParamToCC[params::UNPATCHED_BASS] = 71;
-	ccToGlobalParam[82] = params::UNPATCHED_TREBLE;
+	ccToGlobalParam[87] = params::UNPATCHED_TREBLE;
 	globalParamToCC[params::UNPATCHED_TREBLE] = 82;
 	// Modfx
 	ccToGlobalParam[17] = params::UNPATCHED_MOD_FX_FEEDBACK;
@@ -1123,10 +1123,11 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		foundParam = false;
 		int32_t value = reader.readTagOrAttributeValueInt();
-		// Loop through patched sound params
+		// Loop through sound params
 		for (uint8_t paramId = 0; paramId < params::GLOBAL_NONE; paramId++) {
 			if (!strcmp(tagName, params::paramNameForFile(params::Kind::PATCHED, paramId))) {
 				soundParamToCC[paramId] = value;
+				ccToSoundParam[value] = paramId;
 				foundParam = true;
 				break;
 			}
@@ -1136,17 +1137,19 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 			for (uint8_t paramId = 0; paramId != params::UNPATCHED_SOUND_MAX_NUM; paramId++) {
 				if (!strcmp(tagName, params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
 				                                              params::UNPATCHED_START + paramId))) {
-					soundParamToCC[paramId] = value;
+					soundParamToCC[params::UNPATCHED_START + paramId] = value;
+					ccToSoundParam[value] = paramId;
 					foundParam = true;
 					break;
 				}
 			}
 		}
-		// Loop through unpatched global params
+		// Loop through global params
 		for (uint8_t paramId = 0; paramId != params::UNPATCHED_GLOBAL_MAX_NUM; paramId++) {
 			if (!strcmp(tagName,
 			            params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_START + paramId))) {
 				globalParamToCC[paramId] = value;
+				ccToGlobalParam[value] = paramId;
 				break;
 			}
 		}
