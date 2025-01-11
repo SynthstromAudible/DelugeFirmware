@@ -118,7 +118,7 @@ void Submenu::drawHorizontalMenu() {
 	}
 
 	int32_t boxHeight = OLED_MAIN_VISIBLE_HEIGHT - baseY;
-	int32_t boxWidth = OLED_MAIN_WIDTH_PIXELS / pageSize;
+	int32_t boxWidth = OLED_MAIN_WIDTH_PIXELS / std::min<int32_t>(nTotal - pageStart, 4);
 
 	// Render the page
 	for (size_t n = 0; n < pageSize && it != items.end(); n++) {

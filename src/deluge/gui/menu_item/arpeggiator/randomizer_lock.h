@@ -35,8 +35,8 @@ public:
 		(void)optType;
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_DISABLED), //<
-		    l10n::getView(STRING_FOR_ENABLED),  //<
+		    l10n::getView(STRING_FOR_OFF), //<
+		    l10n::getView(STRING_FOR_ON),  //<
 		};
 	}
 
