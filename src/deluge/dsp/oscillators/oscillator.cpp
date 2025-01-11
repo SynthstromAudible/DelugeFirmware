@@ -1,21 +1,35 @@
-//
-// Created by Mark Adams on 2025-01-08.
-//
-
+/*
+ * Copyright © 2017-2023 Synthstrom Audible Limited, 2025 Mark Adams
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+#include "basic_waves.h"
 #include "oscillator.h"
 #include "processing/render_wave.h"
 #include "storage/wave_table/wave_table.h"
+
+
 namespace deluge {
 namespace dsp {
 PLACE_INTERNAL_FRUNK int32_t oscSyncRenderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES + 4]
     __attribute__((aligned(CACHE_LINE_SIZE)));
 __attribute__((optimize("unroll-loops"))) void
-oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
+Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
                       uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
                       int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
                       uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
                       int sourceWaveIndexLastTime, WaveTable* waveTable) {
-	GeneralMemoryAllocator::get().checkStack("renderOsc");
 
 	// We save a decent bit of processing power by grabbing a local copy of the phase to work with, and just
 	// incrementing the startPhase once
@@ -493,7 +507,7 @@ callRenderWave:
 
 	maybeStorePhase(type, startPhase, phase, doPulseWave);
 }
-void oscillator::applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamples, int32_t amplitudeIncrement,
+void Oscillator::applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamples, int32_t amplitudeIncrement,
                                               int32_t* outputBufferPos, int32_t* inputBuferPos) {
 	int32_t const* const bufferEnd = outputBufferPos + numSamples;
 
@@ -513,7 +527,7 @@ void oscillator::applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamp
 		inputBuferPos += 4;
 	} while (outputBufferPos < bufferEnd);
 }
-void oscillator::maybeStorePhase(const OscType& type, uint32_t* startPhase, uint32_t phase, bool doPulseWave) {
+void Oscillator::maybeStorePhase(const OscType& type, uint32_t* startPhase, uint32_t phase, bool doPulseWave) {
 	if (!(doPulseWave && type != OscType::SQUARE)) {
 		*startPhase = phase;
 	}

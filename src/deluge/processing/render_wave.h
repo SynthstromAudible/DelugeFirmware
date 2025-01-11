@@ -14,12 +14,13 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+
+#pragma once
 #include "processing/vector_rendering_function.h"
 #include "util/fixedpoint.h"
 #include "util/waves.h"
 #include <argon.hpp>
 #include <arm_neon.h>
-#pragma once
 
 [[gnu::always_inline]] static inline void //<
 renderOscSync(auto storageFunction, auto extraInstructionsForCrossoverSampleRedo,

@@ -1315,7 +1315,7 @@ cantBeDoingOscSyncForFirstOsc:
 
 					OscType oscType = sound.sources[s].oscType;
 
-					dsp::oscillator::renderOsc(
+					dsp::Oscillator::renderOsc(
 					    oscType, 0, spareRenderingBuffer[s + 2], spareRenderingBuffer[s + 2] + numSamples, numSamples,
 					    phaseIncrements[s], pulseWidth, &unisonParts[u].sources[s].oscPos, false, 0,
 					    doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s],
@@ -2405,7 +2405,7 @@ dontUseCache: {}
 			// Work out pulse width
 			uint32_t pulseWidth = (uint32_t)lshiftAndSaturate<1>(paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
 
-			dsp::oscillator::renderOsc(
+			dsp::Oscillator::renderOsc(
 			    sound.sources[s].oscType, sourceAmplitude, renderBuffer, oscBufferEnd, numSamples, phaseIncrement,
 			    pulseWidth, &unisonParts[u].sources[s].oscPos, true, amplitudeIncrement, doOscSync,
 			    oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase, waveIndexIncrement,

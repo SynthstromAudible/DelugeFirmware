@@ -14,11 +14,11 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+#pragma once
 #include "util/misc.h"
 #include <argon.hpp>
 #include <limits>
 #include <utility>
-#pragma once
 
 // Renders 4 wave values (a "vector") together in one go.
 [[gnu::always_inline]] static inline std::pair<Argon<int32_t>, uint32_t> //<
