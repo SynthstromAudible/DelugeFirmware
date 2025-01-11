@@ -430,7 +430,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 				// If user holding shift and we're already in scale mode, cycle through available scales
 				if (Buttons::isShiftButtonPressed() && inScaleMode) {
-					if (Buttons::shiftHasChanged2()) {
+					if(Buttons::shiftHasChanged2()) {
 						displayCurrentScaleName();
 					}
 					else {
