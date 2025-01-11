@@ -14,11 +14,10 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#include "basic_waves.h"
 #include "oscillator.h"
+#include "basic_waves.h"
 #include "processing/render_wave.h"
 #include "storage/wave_table/wave_table.h"
-
 
 namespace deluge {
 namespace dsp {
