@@ -417,16 +417,16 @@ inline static void hw_usb_clear_sts_brdy(usb_utr_t* ptr, uint16_t pipeno)
     {
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
-        USB200.BRDYSTS = (uint16_t) ~(1 << pipeno);
+        USB200.BRDYSTS = (uint16_t)~(1 << pipeno);
 #else
-        USB201.BRDYSTS = (uint16_t) ~(1 << pipeno);
+        USB201.BRDYSTS = (uint16_t)~(1 << pipeno);
 #endif
 #endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
     }
     else
     {
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
-        ptr->ipp->BRDYSTS = (uint16_t) ~(1 << pipeno);
+        ptr->ipp->BRDYSTS = (uint16_t)~(1 << pipeno);
 #endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
     }
 } /* End of function hw_usb_clear_sts_brdy() */
@@ -457,16 +457,16 @@ inline static void hw_usb_clear_status_bemp(usb_utr_t* ptr, uint16_t pipeno)
     {
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
-        USB200.BEMPSTS = (uint16_t) ~(1 << pipeno);
+        USB200.BEMPSTS = (uint16_t)~(1 << pipeno);
 #else
-        USB201.BEMPSTS = (uint16_t) ~(1 << pipeno);
+        USB201.BEMPSTS = (uint16_t)~(1 << pipeno);
 #endif
 #endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
     }
     else
     {
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
-        ptr->ipp->BEMPSTS = (uint16_t) ~(1 << pipeno);
+        ptr->ipp->BEMPSTS = (uint16_t)~(1 << pipeno);
 #endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
     }
 } /* End of function hw_usb_clear_status_bemp() */
