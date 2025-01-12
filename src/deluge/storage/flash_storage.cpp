@@ -389,10 +389,10 @@ void readSettings() {
 	FirmwareVersion savedVersion = (firmwareType != FirmwareVersion::Type::COMMUNITY)
 	                                   ? FirmwareVersion(firmwareType, {0, 0, 0})
 	                                   : FirmwareVersion::community({
-	                                       .major = buffer[VERSION_MAJOR],
-	                                       .minor = buffer[VERSION_MINOR],
-	                                       .patch = buffer[VERSION_PATCH],
-	                                   });
+	                                         .major = buffer[VERSION_MAJOR],
+	                                         .minor = buffer[VERSION_MINOR],
+	                                         .patch = buffer[VERSION_PATCH],
+	                                     });
 
 	for (int chan = 0; chan < NUM_PHYSICAL_CV_CHANNELS; ++chan) {
 		cvEngine.setCVVoltsPerOctave(chan, buffer[CV_VOLTS_PER_OCTAVE + chan]);

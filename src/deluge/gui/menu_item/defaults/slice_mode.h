@@ -27,7 +27,8 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(FlashStorage::defaultSliceMode); }
 	void writeCurrentValue() override { FlashStorage::defaultSliceMode = this->getValue<SampleRepeatMode>(); }
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_CUT),
 		    l10n::getView(l10n::String::STRING_FOR_ONCE),

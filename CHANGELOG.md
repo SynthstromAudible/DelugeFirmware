@@ -22,6 +22,8 @@
 #### <ins>Horizontal Menus</ins>
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
   - Envelope 1 & 2.
+  - LPF and HPF.
+  - LFOs.
 
 #### <ins>Clip Name Display & Copying</ins>
 - If a clip has no named "SECTION N" is displayed in place of the clip name, indicating which section the clip is in.

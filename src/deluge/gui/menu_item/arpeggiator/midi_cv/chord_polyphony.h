@@ -16,15 +16,15 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/integer.h"
+#include "gui/menu_item/arpeggiator/midi_cv/arp_integer.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
-class ChordPolyphony final : public Integer {
+class ChordPolyphony final : public ArpNonSoundInteger {
 public:
-	using Integer::Integer;
+	using ArpNonSoundInteger::ArpNonSoundInteger;
 	void readCurrentValue() override {
 		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->chordPolyphony));
 	}
@@ -32,7 +32,6 @@ public:
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
 		soundEditor.currentArpSettings->chordPolyphony = value;
 	}
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return soundEditor.editingCVOrMIDIClip();
 	}

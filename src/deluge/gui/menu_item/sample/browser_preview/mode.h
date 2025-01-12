@@ -24,7 +24,8 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(FlashStorage::sampleBrowserPreviewMode); }
 	void writeCurrentValue() override { FlashStorage::sampleBrowserPreviewMode = this->getValue(); }
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_DISABLED),
 		    l10n::getView(l10n::String::STRING_FOR_CONDITIONAL),

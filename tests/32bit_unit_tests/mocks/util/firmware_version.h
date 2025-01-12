@@ -9,7 +9,7 @@ struct FirmwareVersion {
 	};
 
 	FirmwareVersion() = delete;
-	constexpr FirmwareVersion(Type type, SemVer version) : type_(type), version_(version){};
+	constexpr FirmwareVersion(Type type, SemVer version) : type_(type), version_(version) {};
 
 	constexpr static FirmwareVersion current() {
 		return FirmwareVersion(Type::COMMUNITY, {

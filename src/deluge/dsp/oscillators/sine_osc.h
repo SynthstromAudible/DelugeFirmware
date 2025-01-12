@@ -6,7 +6,7 @@
 #include <cstdint>
 
 namespace deluge::dsp {
-class SineOsc {
+class [[gnu::hot]] SineOsc {
 	static constexpr size_t kSineTableSizeMagnitude = 8;
 	static std::array<int16_t, 512> sineWaveDiff;
 

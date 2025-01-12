@@ -35,8 +35,12 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingGateDrumRow();
 	}
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
+	}
 
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_UP),        //<

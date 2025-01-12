@@ -63,11 +63,12 @@ public:
 		soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
 	}
 
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_OFF), //<
-		    l10n::getView(STRING_FOR_ARP), //<
+		    l10n::getView(STRING_FOR_ON),  //<
 		};
 	}
 

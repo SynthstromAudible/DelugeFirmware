@@ -83,6 +83,8 @@ extern deluge::gui::menu_item::PatchCables patchCablesMenu;
 extern deluge::gui::menu_item::source::patched_param::FM modulatorVolume;
 
 extern MenuItem* midiOrCVParamShortcuts[kDisplayHeight];
+extern deluge::gui::menu_item::Submenu* parentsForMidiOrCVParamShortcuts[kDisplayHeight];
+
 extern MenuItem* gateDrumParamShortcuts[kDisplayHeight];
 extern MenuItem* paramShortcutsForSounds[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight];

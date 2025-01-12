@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/ui.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/output.h"
 #include "modulation/envelope.h"
@@ -131,6 +132,21 @@ public:
 		if (outputRecordingFrom) {
 			// update the output we're recording from on whether we're monitoring
 			outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);
+		}
+		renderUIsForOled(); // oled shows the type on the clip screen (including while holding a clip in song view)
+		if (display->have7SEG()) {
+			const char* type;
+			switch (mode) {
+			case AudioOutputMode::player:
+				type = "PLAY";
+				break;
+			case AudioOutputMode::sampler:
+				type = "SAMP";
+				break;
+			case AudioOutputMode::looper:
+				type = "LOOP";
+			}
+			display->displayPopup(type);
 		}
 	}
 

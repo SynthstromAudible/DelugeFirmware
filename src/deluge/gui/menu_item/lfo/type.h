@@ -33,6 +33,8 @@ public:
 		// would be enough?
 		soundEditor.currentSound->resyncGlobalLFO();
 	}
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+	void getColumnLabel(StringBuf&) override;
 
 private:
 	uint8_t lfoId_;

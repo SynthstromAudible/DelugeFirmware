@@ -40,7 +40,7 @@ extern q31_t blendBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2];
  * so care should be taken to ensure any filter is as performant as possible.
  */
 template <typename T>
-class Filter {
+class [[gnu::hot]] Filter {
 public:
 	Filter() = default;
 	// returns a gain compensation value

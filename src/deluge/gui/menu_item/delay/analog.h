@@ -27,7 +27,8 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.analog); }
 	void writeCurrentValue() override { soundEditor.currentModControllable->delay.analog = this->getValue(); }
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		using enum l10n::String;
 		return {l10n::getView(STRING_FOR_DIGITAL), l10n::getView(STRING_FOR_ANALOG)};
 	}

@@ -72,7 +72,7 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_DELAY_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 
-	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(889516852); // 3/4 of the way up
+	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(0); // half of the way up
 	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].setCurrentValueBasicForSetup(0);
 

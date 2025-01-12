@@ -34,7 +34,7 @@ class Cluster;
 class Sample;
 class SampleCache;
 
-class TimeStretcher {
+class [[gnu::hot]] TimeStretcher {
 public:
 	TimeStretcher() = default;
 	bool init(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int64_t newSamplePosBig,

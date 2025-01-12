@@ -97,7 +97,7 @@ public: /******************** INNER CLASSES ****************/
 	};
 
 	struct DelayLine {
-		DelayLine(size_t length) : length(length){};
+		DelayLine(size_t length) : length(length) {};
 
 		// Store and Fetch
 		//[gnu::always_inline]
@@ -140,7 +140,7 @@ public: /******************** INNER CLASSES ****************/
 	};
 
 	struct AllPass : public DelayLine {
-		AllPass(size_t length) : DelayLine(length){};
+		AllPass(size_t length) : DelayLine(length) {};
 
 		//[gnu::always_inline]
 		float Read(Context& c, int32_t offset, float scale) {

@@ -34,7 +34,9 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### 2.2 Horizontal Menus
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
-  - Envelope 1 & 2. ([#3147])
+  - Envelope 1 & 2.
+  - LPF and HPF.
+  - LFOs.
 
 #### 2.3 Layered Shortcuts
 - Layered Shortcuts mechanism allows multiple shortcuts to be accessed under a single shotcut pad. Holding shift and pressing the same shortcut again cycles between shortcuts. The items available under layered shortcuts can also be accessed from menu: layered shortcut is never the only access method.
@@ -960,7 +962,7 @@ to each individual note onset. ([#1978])
       chord or change the default chord. Any note you play will be interpreted as the root note
       and the remaining notes will be played along with it. The default chord is none.
       You can get back to none by short pressing the current chord. Chords include 5th, Sus2,
-      Minor, Major, Sus4, Minor7, Dom7, Major7. All are in closed root position.
+      Minor, Major, Sus4, Minor7, Dom7, Major7. All are in closed root position. (Note: this option is not available while in either of the chord keyboard layouts.)
     - **`Song Chord Memory (CMEM - Cyan):`** Hold a chord down and press a pad to remember the chord. Press
       that pad again to play it. You can play over the top of your saved chords. To clear a chord,
       press shift and the pad you want to clear. Chord memory is shared across all song clips and it
