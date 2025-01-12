@@ -2450,7 +2450,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
 		recorder->feedAudio(soundBuffer, numSamples, true, 2);
 	}
-	addAudio((StereoSample*)soundBuffer, outputBuffer, numSamples);
+
+	for (size_t i = 0; i < numSamples; ++i) {
+		outputBuffer[i] += reinterpret_cast<StereoSample*>(soundBuffer)[i];
+	}
 
 	postReverbVolumeLastTime = postReverbVolume;
 

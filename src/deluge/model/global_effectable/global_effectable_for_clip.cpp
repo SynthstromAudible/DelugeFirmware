@@ -155,7 +155,10 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		compressor.reset();
 	}
 
-	addAudio(globalEffectableBuffer, outputBuffer, numSamples);
+
+	for (size_t i = 0; i < numSamples; ++i) {
+		outputBuffer[i] += globalEffectableBuffer[i];
+	}
 
 	postReverbVolumeLastTime = postReverbVolume;
 
