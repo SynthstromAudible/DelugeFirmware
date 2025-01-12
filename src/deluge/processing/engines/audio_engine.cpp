@@ -703,7 +703,7 @@ void renderAudio(size_t numSamples) {
 
 	metronome.render(renderingBuffer);
 
-	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer.data(), renderingBuffer.size());
+	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer);
 
 	setMonitoringMode();
 
@@ -746,7 +746,7 @@ void renderAudioForStemExport(size_t numSamples) {
 		}
 	}
 
-	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer.data(), renderingBuffer.size());
+	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer);
 
 	doMonitoring = false;
 	monitoringAction = MonitoringAction::NONE;

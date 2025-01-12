@@ -53,7 +53,7 @@ public:
 		return releaseMS;
 	};
 
-	StereoFloatSample calcApproxRMS(StereoSample* buffer, uint16_t numSamples);
+	StereoFloatSample calcApproxRMS(std::span<StereoSample> buffer);
 
 private:
 	float runEnvelope(float current, float desired, float numSamples);

@@ -1105,7 +1105,7 @@ doFinishCapturing:
 			// check if there's any audio in this cycle
 			else {
 				StereoFloatSample approxRMSLevel =
-				    envelopeFollower.calcApproxRMS((StereoSample*)beginInputNow, numSamplesThisCycle);
+				    envelopeFollower.calcApproxRMS({(StereoSample*)beginInputNow, numSamplesThisCycle});
 				if (std::max(approxRMSLevel.l, approxRMSLevel.r) > startValueThreshold) {
 					writePos = writePosNow;
 					numSamplesCaptured += numSamplesThisCycle;
