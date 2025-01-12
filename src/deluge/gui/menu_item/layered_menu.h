@@ -112,7 +112,7 @@ public:
 	uint8_t shouldDrawDotOnName() final { return (*current_item_)->shouldDrawDotOnName(); }
 	void drawName() final { return (*current_item_)->drawName(); }
 	std::string_view getName() const final { return (*current_item_)->getName(); }
-	std::string_view getShortName() const final { return (*current_item_)->getShortName(); }
+	void getColumnLabel(StringBuf& label) override { return (*current_item_)->getColumnLabel(label); }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) final {
 		return (*current_item_)->isRelevant(modControllable, whichThing);
 	}
