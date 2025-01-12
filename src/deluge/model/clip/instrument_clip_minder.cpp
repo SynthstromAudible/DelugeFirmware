@@ -21,6 +21,8 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_midi_device_definition_ui.h"
+#include "gui/ui/load/load_pattern_ui.h"
+#include "gui/ui/save/save_pattern_ui.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/save/save_kit_row_ui.h"
@@ -378,6 +380,9 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		if (getCurrentOutputType() == OutputType::MIDI_OUT && (b == MOD_ENCODER_0 || b == MOD_ENCODER_1)) {
 			openUI(&saveMidiDeviceDefinitionUI);
 		}
+		else if(b == X_ENC){
+			openUI(&savePatternUI);
+		}
 		else if ((b == SYNTH && getCurrentOutputType() == OutputType::SYNTH)
 		         || (b == KIT && getCurrentOutputType() == OutputType::KIT)
 		         || (b == MIDI && getCurrentOutputType() == OutputType::MIDI_OUT)) {
@@ -391,6 +396,9 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		indicator_leds::setLedState(IndicatorLED::LOAD, false);
 		if (getCurrentOutputType() == OutputType::MIDI_OUT && (b == MOD_ENCODER_0 || b == MOD_ENCODER_1)) {
 			openUI(&loadMidiDeviceDefinitionUI);
+		}
+		else if(b == X_ENC){
+			openUI(&loadPatternUI);
 		}
 		else {
 			OutputType newOutputType;

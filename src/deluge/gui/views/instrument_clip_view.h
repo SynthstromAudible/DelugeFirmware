@@ -27,6 +27,7 @@
 #include "modulation/params/param_node.h"
 #include "util/d_string.h"
 
+
 class InstrumentClip;
 class NoteRow;
 class Note;
@@ -64,6 +65,7 @@ struct EditPadPress {
 
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
 #define MPE_RECORD_INTERVAL_TIME (kSampleRate >> 2) // 250ms
+#define PATTERN_FILE_VERSION "0.0.1"
 
 enum class NudgeMode { QUANTIZE, QUANTIZE_ALL };
 
@@ -260,6 +262,8 @@ public:
 	bool handleNoteRowEditorPadAction(int32_t x, int32_t y, int32_t on);
 	bool handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on);
 	void handleNoteRowEditorAuditionPadAction(int32_t y);
+	void copyNotesToFile(Serializer& writer);
+	Error pasteNotesFromFile(Deserializer& reader,bool overwriteExisting);
 	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult handleNoteRowEditorHorizontalEncoderAction(int32_t offset);
 	ActionResult handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
@@ -316,7 +320,7 @@ private:
 	void displayIterance(Iterance iterance);
 
 	// note row functions
-	void copyNotes();
+	void copyNotes(Serializer* writer);
 	void pasteNotes(bool overwriteExisting);
 	void deleteCopiedNoteRows();
 	CopiedNoteRow* firstCopiedNoteRow;
