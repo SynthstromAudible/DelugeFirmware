@@ -65,11 +65,11 @@ const uint8_t font_apple[] = {
         0b01100010,
         0b01100000,
 
-        0b01111110,		// & = flat glyph b
-        0b01001000,
-        0b01001000,
-        0b01001000,
-        0b00110000,
+        0b00110110,		// &
+        0b01001001,
+        0b01010110,
+        0b00100000,
+        0b01010000,
 
         0b00000111,		// ‘
 
@@ -408,6 +408,13 @@ const uint8_t font_apple[] = {
         0b00000011,
         0b00000010,
         0b00000001,
+
+        0b01111110,		// flat glyph b
+        0b01001000,
+        0b01001000,
+        0b01001000,
+        0b00110000,
+
 };
 
 const lv_font_glyph_dsc_t font_apple_desc[] = {
@@ -480,6 +487,7 @@ const lv_font_glyph_dsc_t font_apple_desc[] = {
         {.w_px = 1,     .glyph_index = 293},	// |
         {.w_px = 5,     .glyph_index = 294},	// }
         {.w_px = 5,     .glyph_index = 299},	// ~
+        {.w_px = 5,     .glyph_index = 304},	// flat glyph
 };
 
 

@@ -259,15 +259,29 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 
 void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
 	char noteName[3] = {0};
-	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
+	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp or flat.
 	noteCodeToString(noteCode, noteName, &isNatural, false, currentSong->key.rootNote, currentSong->getCurrentScale());
-	char fullChordName[300];
 
+	char modChordName[100];
+	int j = 0;
+	for (int i = 0; chordName[i] != 0; ++i) {
+		if (chordName[i] == 'F' && chordName[i + 1] == 'L' && chordName[i + 2] == 'A' && chordName[i + 3] == 'T') {
+			modChordName[j] = 129;
+			i = i + 3;
+		}
+		else {
+			modChordName[j] = chordName[i];
+		}
+		++j;
+	}
+	modChordName[j] = 0;
+
+	char fullChordName[300];
 	if (voicingName && *voicingName) {
-		sprintf(fullChordName, "%s%s - %s", noteName, chordName, voicingName);
+		sprintf(fullChordName, "%s%s - %s", noteName, modChordName, voicingName);
 	}
 	else {
-		sprintf(fullChordName, "%s%s", noteName, chordName);
+		sprintf(fullChordName, "%s%s", noteName, modChordName);
 	}
 	if (display->haveOLED()) {
 		display->popupTextTemporary(fullChordName);

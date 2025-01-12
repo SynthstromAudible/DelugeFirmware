@@ -308,7 +308,10 @@ void Canvas::drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, int32_t s
 }
 
 int32_t Canvas::getCharIndex(uint8_t theChar) {
-	if (theChar > '~') {
+	if (theChar == 129) {
+		theChar = '~' + 1;
+	}
+	else if (theChar > '~') {
 		return 0;
 	}
 

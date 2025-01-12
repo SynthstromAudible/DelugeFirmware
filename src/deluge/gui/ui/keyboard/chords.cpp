@@ -196,14 +196,15 @@ const Chord kMinorMaj7 = {"-M7",
                           {{ROOT, MIN3, P5, MAJ7, NONE, NONE, NONE},
                            {ROOT, MIN3 + OCT, P5, MAJ7, NONE, NONE, NONE},
                            {ROOT, MIN3 + OCT, P5, MAJ7 + OCT, NONE, NONE, NONE}}};
-const Chord kMinor7b5 = {"-7&5",
+const Chord kMinor7b5 = {"-7FLAT5",
                          NoteSet({ROOT, MIN3, DIM5, MIN7}),
                          {{ROOT, MIN3, DIM5, MIN7, NONE, NONE, NONE},
                           {ROOT, MIN3 + OCT, DIM5, MIN7, NONE, NONE, NONE},
                           {ROOT, MIN3 + OCT, DIM5, MIN7 + OCT, NONE, NONE, NONE}}};
-const Chord kMinor9b5 = {"-9&5", NoteSet({ROOT, MIN3, DIM5, MIN7, MAJ2}), {{ROOT, MIN3, DIM5, MIN7, MAJ9, NONE, NONE}}};
+const Chord kMinor9b5 = {
+    "-9FLAT5", NoteSet({ROOT, MIN3, DIM5, MIN7, MAJ2}), {{ROOT, MIN3, DIM5, MIN7, MAJ9, NONE, NONE}}};
 const Chord kMinor7b5b9 = {
-    "-7&5&9", NoteSet({ROOT, MIN3, DIM5, MIN7, MIN2}), {{ROOT, MIN3, DIM5, MIN7, MIN9, NONE, NONE}}};
+    "-7FLAT5FLAT9", NoteSet({ROOT, MIN3, DIM5, MIN7, MIN2}), {{ROOT, MIN3, DIM5, MIN7, MIN9, NONE, NONE}}};
 const Chord k9 = {"9",
                   NoteSet({ROOT, MAJ3, P5, MIN7, MAJ2}),
                   {{ROOT, MAJ3, P5, MIN7, MAJ9, NONE, NONE},
