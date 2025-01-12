@@ -415,7 +415,7 @@ void usb_cstd_DmaxInt(usb_utr_t* ptr, uint16_t pipemode)
         if (0u == g_usb_pstd_data_cnt[pipe])
 #endif
         {
-            /* FIFO buffer empty flag clear */
+        /* FIFO buffer empty flag clear */
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
             usb_creg_clr_sts_bemp(ip, pipe);
             /* bval control for transfer enable fifo 2 usb control */
@@ -432,14 +432,14 @@ void usb_cstd_DmaxInt(usb_utr_t* ptr, uint16_t pipemode)
         }
         else
         {
-            /* update remaining transfer data size */
+        /* update remaining transfer data size */
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
             g_usb_hstd_data_cnt[ip][pipe] -= g_usb_cstd_dma_size[ip][ch_no];
 #endif
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
             g_usb_pstd_data_cnt[pipe] -= g_usb_cstd_dma_size[ip][ch_no];
 #endif
-            /* check transfer remaining data */
+        /* check transfer remaining data */
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
             if (0u == g_usb_hstd_data_cnt[ip][pipe])
 #endif
@@ -477,7 +477,7 @@ void usb_cstd_DmaxInt(usb_utr_t* ptr, uint16_t pipemode)
                         if ((usb_creg_read_pipectr(ip, pipe) & USB_INBUFM) != USB_INBUFM)
                         {
                             L1_D_CacheWritebackFlushAll();
-                            /* DMA transfer function end. call callback function */
+                    /* DMA transfer function end. call callback function */
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
                             usb_hstd_data_end(ptr, pipe, (uint16_t)USB_DATA_NONE);
@@ -2424,22 +2424,22 @@ uint32_t usb_cstd_GetDXfifoYAdr(uint16_t ip, uint16_t trans_size, uint16_t pipem
             {
                 if (USB_D0DMA == pipemode)
                 {
-                    ret_address = (uint32_t) & (USB200.D0FIFO.UINT8[3]);
+                    ret_address = (uint32_t)&(USB200.D0FIFO.UINT8[3]);
                 }
                 if (USB_D1DMA == pipemode)
                 {
-                    ret_address = (uint32_t) & (USB200.D1FIFO.UINT8[3]);
+                    ret_address = (uint32_t)&(USB200.D1FIFO.UINT8[3]);
                 }
             }
             if (USB_IP1 == ip)
             {
                 if (USB_D0DMA == pipemode)
                 {
-                    ret_address = (uint32_t) & (USB201.D0FIFO.UINT8[3]);
+                    ret_address = (uint32_t)&(USB201.D0FIFO.UINT8[3]);
                 }
                 if (USB_D1DMA == pipemode)
                 {
-                    ret_address = (uint32_t) & (USB201.D1FIFO.UINT8[3]);
+                    ret_address = (uint32_t)&(USB201.D1FIFO.UINT8[3]);
                 }
             }
 
@@ -2451,22 +2451,22 @@ uint32_t usb_cstd_GetDXfifoYAdr(uint16_t ip, uint16_t trans_size, uint16_t pipem
             {
                 if (USB_D0DMA == pipemode)
                 {
-                    ret_address = (uint32_t) & (USB200.D0FIFO);
+                    ret_address = (uint32_t)&(USB200.D0FIFO);
                 }
                 if (USB_D1DMA == pipemode)
                 {
-                    ret_address = (uint32_t) & (USB200.D1FIFO);
+                    ret_address = (uint32_t)&(USB200.D1FIFO);
                 }
             }
             if (USB_IP1 == ip)
             {
                 if (USB_D0DMA == pipemode)
                 {
-                    ret_address = (uint32_t) & (USB201.D0FIFO);
+                    ret_address = (uint32_t)&(USB201.D0FIFO);
                 }
                 if (USB_D1DMA == pipemode)
                 {
-                    ret_address = (uint32_t) & (USB201.D1FIFO);
+                    ret_address = (uint32_t)&(USB201.D1FIFO);
                 }
             }
 
@@ -2478,22 +2478,22 @@ uint32_t usb_cstd_GetDXfifoYAdr(uint16_t ip, uint16_t trans_size, uint16_t pipem
             {
                 if (USB_D0DMA == pipemode)
                 {
-                    ret_address = (uint32_t) & (USB200.D0FIFOB0);
+                    ret_address = (uint32_t)&(USB200.D0FIFOB0);
                 }
                 if (USB_D1DMA == pipemode)
                 {
-                    ret_address = (uint32_t) & (USB200.D1FIFOB0);
+                    ret_address = (uint32_t)&(USB200.D1FIFOB0);
                 }
             }
             if (USB_IP1 == ip)
             {
                 if (USB_D0DMA == pipemode)
                 {
-                    ret_address = (uint32_t) & (USB201.D0FIFOB0);
+                    ret_address = (uint32_t)&(USB201.D0FIFOB0);
                 }
                 if (USB_D1DMA == pipemode)
                 {
-                    ret_address = (uint32_t) & (USB201.D1FIFOB0);
+                    ret_address = (uint32_t)&(USB201.D1FIFOB0);
                 }
             }
 
@@ -2869,11 +2869,11 @@ void usb_creg_clr_sts_bemp(uint16_t ip, uint16_t pipeno)
 {
     if (USB_IP0 == ip)
     {
-        USB200.BEMPSTS = (uint16_t) ~(1 << pipeno);
+        USB200.BEMPSTS = (uint16_t)~(1 << pipeno);
     }
     if (USB_IP1 == ip)
     {
-        USB201.BEMPSTS = (uint16_t) ~(1 << pipeno);
+        USB201.BEMPSTS = (uint16_t)~(1 << pipeno);
     }
 } /* End of function usb_creg_clr_sts_bemp() */
 
