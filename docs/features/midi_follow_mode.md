@@ -92,13 +92,29 @@ The default mappings have taken into account standard MIDI CC to parameter mappi
 
 The default MIDI CC to parameter mappings, as mapped the to the parameter shortcuts on the Deluge grid are as follows:
 
-![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/e5c6ecbf-e21e-4b3b-9cfc-8f433a56ed28)
+![image](https://github.com/user-attachments/assets/d0a82d14-99db-4c02-b618-7906238ec2c8)
+
+Additionally, there are other parameters not in the grid that are mapped to MIDI CC's, which are the following:
+- Compressor Threshold: CC 27
+- Stutter Rate: CC 20
+- New arpeggiator parameters:
+  - Rhythm: CC 42
+  - Sequence Length: CC 43
+  - Chord Polyphony: CC 44
+  - Ratchet Amount: CC 45
+  - Note Probability: CC 46
+  - Bass Probability: CC 47
+  - Chord Probability: CC 48
+  - Ratchet Probability: CC 49
+  - Spread Velocity: CC 37
+  - Spread Octave: CC 39
+  - Spread Gate: CC 40
 
 > * See Appendix A for detailed listing and description of default CC # to Parameter mappings.
 
 Here are the MIDI CC #'s that have been reserved for other purposes:
 
-![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/f076d9c8-d25f-4d13-a631-be552f84d7c8)
+![image](https://github.com/user-attachments/assets/530b8aa7-610c-411a-91b1-c98c3c4034ce)
 
 #### Adjust MIDI CC Mappings
 MIDI CC mappings for MIDI Follow Mode are saved to the `SETTINGS` folder in the root of your SD card in an XML file called `MIDIFollow.XML`
@@ -110,7 +126,7 @@ You can manually edit the `MIDIFollow.XML` to enter your MIDI CC mappings to eac
 
 The defaults from `MIDIFollow.XML` are loaded automatically when you start the Deluge so you can begin controlling the deluge with your MIDI controller right away.
 
-Note: A parameter can only be mapped to one MIDI CC. Conversely, a MIDI CC can be mapped to multiple parameters.
+Note: A parameter can only be mapped to one MIDI CC, and viceversa.
 
 #### Display Parameter Names and Values on Screen
 
