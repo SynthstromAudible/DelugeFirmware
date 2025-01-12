@@ -1950,7 +1950,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 
 			RGB& pixel = image[xDisplay];
 
-			// If Note starts somewhere within square, draw the blur colour
+			// If note starts somewhere within square, draw the blur colour
 			if (note && note->pos > squareStartPos) {
 				drewNote = true;
 				pixel = rowBlurColour;
@@ -1959,12 +1959,15 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 				}
 			}
 
-			// Or if Note starts exactly on square...
+			// Or if note starts exactly on square...
 			else if (note && note->pos == squareStartPos) {
 				drewNote = true;
-				// this is just colour * (0.25 + 0.75 * velocity) but in fixed point, i.e. it'll go linearly from 0.25
-				// to max brightness with velocity
-				pixel = rowColour.adjustFractional((65 + note->velocity + (note->velocity / 2)) << 8, 255 << 8);
+				float velocity_ratio = (float)(note->velocity) / 127; // velocity range is 1-127
+				float colour_intensity = 0.03 + 0.97 * velocity_ratio * velocity_ratio;
+				// The brightness is reduced as necessary to be proportional to the note velocity.
+				// below .03 (~4/127) it is not visible enough, so we set that as the minimum
+				// A quadratic curve makes the brightness gradient appear more linear.
+				pixel = rowColour.transform([colour_intensity](uint8_t chan) { return (chan * colour_intensity); });
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
 				}
