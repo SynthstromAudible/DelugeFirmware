@@ -149,7 +149,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
 	                           reverbSendAmount, pan, true);
 	if (compThreshold > 0) {
-		compressor.renderVolNeutral(globalEffectableBuffer, numSamples, volumePostFX);
+		compressor.renderVolNeutral({globalEffectableBuffer, numSamples}, volumePostFX);
 	}
 	else {
 		compressor.reset();
