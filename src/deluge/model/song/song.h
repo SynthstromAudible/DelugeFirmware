@@ -166,7 +166,7 @@ public:
 	Instrument* getInstrumentFromPresetSlot(OutputType outputType, int32_t presetNumber, int32_t presetSubSlotNumber,
 	                                        char const* name, char const* dirPath, bool searchHibernatingToo = true,
 	                                        bool searchNonHibernating = true);
-	AudioOutput* getAudioOutputFromName(const std::string_view& name);
+	AudioOutput* getAudioOutputFromName(String* name);
 	void setupPatchingForAllParamManagers();
 	void replaceInstrument(Instrument* oldInstrument, Instrument* newInstrument, bool keepNoteRowsWithMIDIInput = true);
 	void stopAllMIDIAndGateNotesPlaying();

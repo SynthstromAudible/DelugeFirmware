@@ -20,6 +20,8 @@
 #include "definitions_cxx.hpp"
 #include <cstdint>
 #include <cstring>
+#include <memory>
+#include <string_view>
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -44,15 +46,13 @@ extern const char nothing;
 
 class String {
 public:
-	String() = default;
-	// String(String* otherString); // BEWARE - using this on stack instances sometimes just caused crashes and stuff.
-	// Made no sense. Instead, constructing then calling set() works
-	~String();
-	void clear(bool destructing = false);
-	Error set(char const* newChars, int32_t newLength = -1);
+	String() : stringMemory(std::make_shared<std::string>()) {};
+
+	void clear() { unique().clear(); }
+
+	Error set(std::string_view otherString);
 	void set(String const* otherString);
-	void beenCloned();
-	size_t getLength();
+	size_t getLength() const;
 	Error shorten(int32_t newLength);
 	Error concatenateAtPos(char const* newChars, int32_t pos, int32_t newCharsLength = -1);
 	Error concatenateInt(int32_t number, int32_t minNumDigits = 1);
@@ -60,12 +60,11 @@ public:
 	Error setChar(char newChar, int32_t pos);
 	Error concatenate(String* otherString);
 	Error concatenate(char const* newChars);
-	Error concatenate(const std::string_view& otherString);
-	bool equals(char const* otherChars);
-	bool equalsCaseIrrespective(char const* otherChars, int32_t numChars = -1);
+	bool equals(char const* otherChars) const;
+	bool equalsCaseIrrespective(char const* otherChars) const;
 
-	inline bool contains(const char* otherChars) { return strstr(stringMemory, otherChars) != NULL; }
-	inline bool equals(String* otherString) {
+	bool contains(const char* otherChars) const { return stringMemory->contains(otherChars); }
+	bool equals(String* otherString) const {
 		if (stringMemory == otherString->stringMemory) {
 			return true; // Works if both lengths are 0, too
 		}
@@ -75,11 +74,7 @@ public:
 		return equals(otherString->get());
 	}
 
-	inline bool equalsCaseIrrespective(const std::string_view& otherString) {
-		return equalsCaseIrrespective(otherString.data(), otherString.size());
-	}
-
-	inline bool equalsCaseIrrespective(const String* otherString) {
+	bool equalsCaseIrrespective(String* otherString) const {
 		if (stringMemory == otherString->stringMemory) {
 			return true; // Works if both lengths are 0, too
 		}
@@ -89,20 +84,25 @@ public:
 		return equalsCaseIrrespective(otherString->get());
 	}
 
-	inline char const* get() const {
+	char const* get() const {
 		if (!stringMemory) {
 			return &nothing;
 		}
-		return stringMemory;
+		return stringMemory->c_str();
 	}
 
-	inline bool isEmpty() { return !stringMemory; }
+	bool isEmpty() const { return stringMemory->empty(); }
 
 private:
-	int32_t getNumReasons();
-	void setNumReasons(int32_t newNum);
+	std::string& unique() noexcept(false) {
+		// If any additional reasons, we gotta clone the memory first
+		if (stringMemory.use_count() > 1) {
+			stringMemory = std::make_shared<std::string>(*stringMemory);
+		}
+		return *stringMemory;
+	}
 
-	char* stringMemory = nullptr;
+	std::shared_ptr<std::string> stringMemory;
 };
 
 /// A string buffer with utility functions to append and format contents.
@@ -110,14 +110,26 @@ private:
 class StringBuf {
 	// Not templated to optimize binary size.
 public:
-	StringBuf(char* buf, size_t capacity) : capacity_(capacity), buf_(buf) { buf_[0] = 0; }
+	StringBuf(char* buf, size_t capacity) : capacity_(capacity), buf_(buf) { memset(buf_, '\0', capacity_); }
 
 	void append(const char* str) { ::strncat(buf_, str, capacity_ - size() - 1); }
 	void append(char c) { ::strncat(buf_, &c, 1); }
+	void removeSpaces() {
+		size_t removed = 0;
+		// upto size, not below it -- we want the null as well
+		for (size_t i = 0; i <= size(); i++) {
+			if (isspace(buf_[i])) {
+				removed++;
+			}
+			else {
+				buf_[i - removed] = buf_[i];
+			}
+		}
+	}
 	void clear() { buf_[0] = 0; }
-	void truncate(std::size_t newSize) {
+	void truncate(size_t newSize) {
 		if (newSize < capacity_) {
-			buf_[newSize] = 0;
+			buf_[newSize] = '\0';
 		}
 	}
 
@@ -132,13 +144,16 @@ public:
 	[[nodiscard]] const char* data() const { return buf_; }
 	[[nodiscard]] const char* c_str() const { return buf_; }
 
-	[[nodiscard]] std::size_t capacity() const { return capacity_; }
-	[[nodiscard]] std::size_t size() const { return ::strlen(buf_); }
+	[[nodiscard]] size_t capacity() const { return capacity_; }
+	[[nodiscard]] size_t size() const { return std::strlen(buf_); }
+	[[nodiscard]] size_t length() const { return std::strlen(buf_); }
 
-	[[nodiscard]] bool empty() const { return buf_[0] == 0; }
+	[[nodiscard]] bool empty() const { return buf_[0] == '\0'; }
 
-	bool operator==(const char* rhs) const { return strcmp(buf_, rhs) == 0; }
-	bool operator==(StringBuf const& rhs) const { return strcmp(buf_, rhs.c_str()) == 0; }
+	bool operator==(const char* rhs) const { return std::strcmp(buf_, rhs) == 0; }
+	bool operator==(const StringBuf& rhs) const { return std::strcmp(buf_, rhs.c_str()) == 0; }
+
+	operator std::string_view() const { return std::string_view{buf_}; }
 
 private:
 	size_t capacity_;

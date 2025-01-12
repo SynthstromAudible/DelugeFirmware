@@ -137,7 +137,7 @@ public:
 	                                    GlobalEffectableForClip** globalEffectableWithMostReverb,
 	                                    int32_t* highestReverbAmountFound) {}
 	/// If there's a clip matching the name on this output, returns it.
-	Clip* getClipFromName(const std::string_view& name);
+	Clip* getClipFromName(String* name);
 
 	/// Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
 	virtual bool offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
@@ -163,9 +163,9 @@ public:
 	virtual void loadCrucialAudioFilesOnly() {} // Caller must check that there is an activeClip.
 
 	// No activeClip needed. Call anytime the Instrument comes into existence on the main list thing
-	virtual void resyncLFOs(){};
+	virtual void resyncLFOs() {};
 
-	virtual void sendMIDIPGM(){};
+	virtual void sendMIDIPGM() {};
 	virtual void deleteBackedUpParamManagers(Song* song) {}
 	virtual void prepareForHibernationOrDeletion() {}
 

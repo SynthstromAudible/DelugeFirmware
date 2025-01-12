@@ -24,13 +24,13 @@ class Output;
 
 class RenameOutputUI final : public RenameUI {
 public:
-	RenameOutputUI(const char* title_) : RenameUI(title_){};
+	using RenameUI::RenameUI;
 	// Assigned before openUI() is called -- not necessarily the current output!
 	Output* output;
 
 protected:
-	bool trySetName(const std::string_view& name) override;
-	std::string_view getName() const override;
+	bool trySetName(String* name) override;
+	String getName() const override;
 };
 
 extern RenameOutputUI renameOutputUI;

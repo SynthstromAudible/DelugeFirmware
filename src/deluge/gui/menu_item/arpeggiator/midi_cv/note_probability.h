@@ -15,27 +15,22 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/integer.h"
+#include "definitions_cxx.hpp"
+#include "gui/menu_item/arpeggiator/midi_cv/arp_integer.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
-#include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
-class NoteProbability final : public Integer {
+class NoteProbability final : public ArpNonSoundInteger {
 public:
-	using Integer::Integer;
+	using ArpNonSoundInteger::ArpNonSoundInteger;
 	void readCurrentValue() override {
-		auto* current_clip = getCurrentInstrumentClip();
-		int64_t value = (int64_t)current_clip->arpeggiatorNoteProbability;
-		this->setValue(computeCurrentValueForUnsignedMenuItem(value));
+		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->noteProbability));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorNoteProbability = computeFinalValueForUnsignedMenuItem(this->getValue());
-	}
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingCVOrMIDIClip();
+		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
+		soundEditor.currentArpSettings->noteProbability = value;
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

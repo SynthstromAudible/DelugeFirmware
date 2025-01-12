@@ -55,7 +55,7 @@ NoteRow::NoteRow(int16_t newY) {
 	colourOffset = random(71);
 	drum = nullptr;
 	firstOldDrumName = nullptr;
-	soundingStatus = STATUS_OFF;
+	sequenced = false;
 	ignoreNoteOnsBefore_ = 0;
 	probabilityValue = kNumProbabilityValues;
 	iteranceValue = kDefaultIteranceValue;
@@ -91,7 +91,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 
 	firstOldDrumName = nullptr;
 	ignoreNoteOnsBefore_ = 0;
-	// soundingStatus = STATUS_OFF;
+	// sequenced = false;
 
 	int32_t effectiveLength = modelStack->getLoopLength();
 
@@ -1867,13 +1867,13 @@ void NoteRow::deleteNoteByIndex(int32_t index, Action* action, int32_t noteRowId
 
 // note is usually supplied as NULL, and that means you don't get the lift-velocity
 void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange, Note* note) {
-	if (soundingStatus == STATUS_OFF) {
+	if (!sequenced) {
 		return;
 	}
 	if (actuallySoundChange) {
 		playNote(false, modelStack, note);
 	}
-	soundingStatus = STATUS_OFF;
+	sequenced = false;
 }
 
 // occupancyMask now optional!
@@ -2028,6 +2028,15 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 	int32_t effectiveLength = modelStack->getLoopLength();
 	bool playingReversedNow = modelStack->isCurrentlyPlayingReversed();
 	bool didPingpong = false;
+	if (ignoredNoteOn) {
+		maybeStartLateNote(modelStack, modelStack->getLivePos());
+		// if we ignored a note on and are now actioning it we know that there's nothing left to do
+		if (ticksSinceLast < ignoreUntil) {
+			ignoreUntil -= ticksSinceLast;
+			return ignoredNoteOn ? 1 : ignoreUntil;
+		}
+		// otherwise we'll just continue and process the note row
+	}
 
 	// If we have an independent play-pos, we need to check if we've reached the end (right of left) of this NoteRow.
 	if (hasIndependentPlayPos()) {
@@ -2174,7 +2183,7 @@ noFurtherNotes:
 		}
 
 		// If a note is currently playing, all we can do is see if it's stopped yet.
-		if (soundingStatus == STATUS_SEQUENCED_NOTE) {
+		if (sequenced) {
 
 			if (!notes.getNumElements()) {
 stopNote:
@@ -2261,7 +2270,7 @@ stopNote:
 						}
 
 						justStoppedConstantNote = true;
-						soundingStatus = STATUS_OFF;
+						sequenced = false;
 					}
 
 					// Or normal case - just stop sounding the Note.
@@ -2273,7 +2282,7 @@ stopNote:
 		}
 
 		// Now, if no note is playing (even if that only became the case just now as one ended, above)...
-		if (soundingStatus == STATUS_OFF) {
+		if (!sequenced) {
 currentlyOff:
 			ticksTilNextNoteEvent = 2147483647; // Do it again
 
@@ -2361,7 +2370,13 @@ gotValidNoteIndex:
 				// If we've arrived at a Note right now...
 				if (newTicksTil <= 0) {
 					if (effectiveForwardPos >= ignoreNoteOnsBefore_) {
-						playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
+						if (AudioEngine::allowedToStartVoice()) {
+							playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
+							ignoredNoteOn = false;
+						}
+						else {
+							ignoredNoteOn = true;
+						}
 					}
 
 					// If playing reversed and not allowing note tails (i.e. doing one-shot drums), we're
@@ -2382,7 +2397,8 @@ gotValidNoteIndex:
 		}
 	}
 
-	return std::min(ticksTilNextNoteEvent, ticksTilNextParamManagerEvent);
+	ignoreUntil = std::min(ticksTilNextNoteEvent, ticksTilNextParamManagerEvent);
+	return ignoredNoteOn ? 1 : ignoreUntil;
 }
 
 bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
@@ -2623,7 +2639,7 @@ storePendingNoteOn:
 	// And for all cases of a note-on, remember that that's what's happening, for later.
 	if (on) {
 		if (clip->allowNoteTails(modelStack)) {
-			soundingStatus = STATUS_SEQUENCED_NOTE;
+			sequenced = true;
 		}
 	}
 }
@@ -3104,9 +3120,33 @@ void NoteRow::toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAnd
 	}
 }
 
+void NoteRow::maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos) {
+	// See if our play-pos is inside of a note, which we might want to try playing...
+	int32_t i = notes.search(effectiveActualCurrentPos, LESS);
+	bool wrapping = (i == -1);
+	if (wrapping) {
+		i = notes.getNumElements() - 1;
+	}
+	Note* note = notes.getElement(i);
+	int32_t noteEnd = note->pos + note->length;
+	if (wrapping) {
+		noteEnd -= modelStack->getLoopLength();
+	}
+
+	if (noteEnd > effectiveActualCurrentPos) {
+		// if we're not allowed we'll just come back here later (next tick)
+		if (AudioEngine::allowedToStartVoice()) {
+			attemptLateStartOfNextNoteToPlay(modelStack, note);
+			ignoredNoteOn = false;
+		}
+	}
+	else {
+		ignoredNoteOn = false;
+	}
+}
 // Attempts (possibly late) start of any note at or overlapping the currentPos
 void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound) {
-	if (noteRowMayMakeSound(clipMayMakeSound) && soundingStatus == STATUS_OFF && !isAuditioning(modelStack)) {
+	if (noteRowMayMakeSound(clipMayMakeSound) && !sequenced && !isAuditioning(modelStack)) {
 
 		if (!notes.getNumElements()) {
 			return;
@@ -3115,21 +3155,7 @@ void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMake
 		int32_t effectiveActualCurrentPos = getLivePos(modelStack);
 
 		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
-			// See if our play-pos is inside of a note, which we might want to try playing...
-			int32_t i = notes.search(effectiveActualCurrentPos, LESS);
-			bool wrapping = (i == -1);
-			if (wrapping) {
-				i = notes.getNumElements() - 1;
-			}
-			Note* note = notes.getElement(i);
-			int32_t noteEnd = note->pos + note->length;
-			if (wrapping) {
-				noteEnd -= modelStack->getLoopLength();
-			}
-
-			if (noteEnd > effectiveActualCurrentPos) {
-				attemptLateStartOfNextNoteToPlay(modelStack, note);
-			}
+			maybeStartLateNote(modelStack, effectiveActualCurrentPos);
 		}
 	}
 
@@ -3154,7 +3180,7 @@ void NoteRow::silentlyResumePlayback(ModelStackWithNoteRow* modelStack) {
 	}
 
 	if (noteEnd > effectiveCurrentPos) {
-		soundingStatus = STATUS_SEQUENCED_NOTE;
+		sequenced = true;
 	}
 }
 
@@ -4255,7 +4281,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 void NoteRow::resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelStackOriginal,
                                                  ModelStackWithNoteRow* modelStackClone) {
 
-	bool wasSounding = (!muted && soundingStatus == STATUS_SEQUENCED_NOTE);
+	bool wasSounding = (!muted && sequenced);
 
 	NoteRow* originalNoteRow =
 	    modelStackOriginal->getNoteRowAllowNull(); // It might be NULL - we'll check for that below.
@@ -4264,8 +4290,7 @@ void NoteRow::resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelSta
 		originalNoteRow->silentlyResumePlayback(modelStackOriginal);
 	}
 
-	bool stillSounding =
-	    (originalNoteRow && !originalNoteRow->muted && originalNoteRow->soundingStatus == STATUS_SEQUENCED_NOTE);
+	bool stillSounding = (originalNoteRow && !originalNoteRow->muted && originalNoteRow->sequenced);
 
 	bool shouldSoundNoteOffNow = (wasSounding && !stillSounding);
 

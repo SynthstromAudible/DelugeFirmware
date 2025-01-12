@@ -286,7 +286,7 @@ void KeyboardScreen::updateActiveNotes() {
 		// Ensure the note the user is trying to sound isn't already sounding
 		NoteRow* noteRow = ((InstrumentClip*)activeInstrument->getActiveClip())->getNoteRowForYNote(newNote);
 		if (noteRow) {
-			if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+			if (noteRow->sequenced) {
 				continue;
 			}
 		}
@@ -382,7 +382,7 @@ void KeyboardScreen::noteOff(ModelStack& modelStack, Instrument& activeInstrumen
                              int32_t note) {
 	NoteRow* noteRow = (static_cast<InstrumentClip*>(activeInstrument.getActiveClip()))->getNoteRowForYNote(note);
 	if (noteRow) {
-		if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+		if (noteRow->sequenced) {
 			return; // Note was activated by sequence
 		}
 	}
@@ -728,7 +728,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 
 	getCurrentInstrumentClip()->keyboardState.currentLayout = (KeyboardLayoutType)nextLayout;
 	if (getCurrentInstrumentClip()->keyboardState.currentLayout != lastLayout) {
-		display->displayPopup(layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->name());
+		display->displayPopup(l10n::get(layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->name()));
 	}
 
 	// Ensure scale mode is as expected

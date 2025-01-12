@@ -29,20 +29,20 @@
 
 RenameDrumUI renameDrumUI{"Drum Name"};
 
-std::string_view RenameDrumUI::getName() const {
-	return getDrum()->name.get();
+String RenameDrumUI::getName() const {
+	return getDrum()->name;
 }
 
 SoundDrum* RenameDrumUI::getDrum() const {
 	return (SoundDrum*)soundEditor.currentSound;
 }
 
-bool RenameDrumUI::trySetName(const std::string_view& name) {
+bool RenameDrumUI::trySetName(String* name) {
 	// don't let user set a name that is a duplicate of another name that has been set for another drum
-	if (!getDrum()->name.equalsCaseIrrespective(name) && getCurrentKit()->getDrumFromName(name.data())) {
+	if (!getDrum()->name.equalsCaseIrrespective(name) && getCurrentKit()->getDrumFromName(name->get())) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 		return false;
 	}
-	getDrum()->name.set(name.data(), name.size());
+	getDrum()->name.set(name);
 	return true;
 }

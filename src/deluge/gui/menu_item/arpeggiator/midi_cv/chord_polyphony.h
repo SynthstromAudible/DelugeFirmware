@@ -15,16 +15,25 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/unpatched_param.h"
+#include "definitions_cxx.hpp"
+#include "gui/menu_item/arpeggiator/midi_cv/arp_integer.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
+#include "model/song/song.h"
 
-namespace deluge::gui::menu_item::arpeggiator {
-class OnlyForSoundUnpatchedParam final : public UnpatchedParam {
+namespace deluge::gui::menu_item::arpeggiator::midi_cv {
+class ChordPolyphony final : public ArpNonSoundInteger {
 public:
-	using UnpatchedParam::UnpatchedParam;
+	using ArpNonSoundInteger::ArpNonSoundInteger;
+	void readCurrentValue() override {
+		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->chordPolyphony));
+	}
+	void writeCurrentValue() override {
+		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
+		soundEditor.currentArpSettings->chordPolyphony = value;
+	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip();
+		return soundEditor.editingCVOrMIDIClip();
 	}
 };
-
-} // namespace deluge::gui::menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::arpeggiator::midi_cv

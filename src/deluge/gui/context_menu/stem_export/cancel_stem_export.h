@@ -24,7 +24,7 @@ class CancelStemExport final : public ContextMenu {
 public:
 	CancelStemExport() = default;
 
-	Sized<char const**> getOptions() override;
+	std::span<char const*> getOptions() override;
 	bool acceptCurrentOption() override;
 	bool canSeeViewUnderneath() override { return true; }
 

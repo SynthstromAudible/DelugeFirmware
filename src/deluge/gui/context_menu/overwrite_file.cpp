@@ -28,7 +28,7 @@ char const* OverwriteFile::getTitle() {
 	return l10n::get(STRING_FOR_OVERWRITE_QMARK);
 }
 
-Sized<char const**> OverwriteFile::getOptions() {
+std::span<char const*> OverwriteFile::getOptions() {
 	using enum l10n::String;
 	if (display->haveOLED()) {
 		static char const* options[] = {l10n::get(STRING_FOR_OK)};
