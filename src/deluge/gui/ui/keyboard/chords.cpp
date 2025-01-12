@@ -201,8 +201,7 @@ const Chord kMinor7b5 = {"-7&5",
                          {{ROOT, MIN3, DIM5, MIN7, NONE, NONE, NONE},
                           {ROOT, MIN3 + OCT, DIM5, MIN7, NONE, NONE, NONE},
                           {ROOT, MIN3 + OCT, DIM5, MIN7 + OCT, NONE, NONE, NONE}}};
-const Chord kMinor9b5 = {
-    "-9&5", NoteSet({ROOT, MIN3, DIM5, MIN7, MAJ2}), {{ROOT, MIN3, DIM5, MIN7, MAJ9, NONE, NONE}}};
+const Chord kMinor9b5 = {"-9&5", NoteSet({ROOT, MIN3, DIM5, MIN7, MAJ2}), {{ROOT, MIN3, DIM5, MIN7, MAJ9, NONE, NONE}}};
 const Chord kMinor7b5b9 = {
     "-7&5&9", NoteSet({ROOT, MIN3, DIM5, MIN7, MIN2}), {{ROOT, MIN3, DIM5, MIN7, MIN9, NONE, NONE}}};
 const Chord k9 = {"9",
