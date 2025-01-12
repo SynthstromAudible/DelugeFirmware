@@ -106,7 +106,6 @@ Additionally, there are other parameters not in the grid that are mapped to MIDI
   - Bass Probability: CC 47
   - Chord Probability: CC 48
   - Ratchet Probability: CC 49
-  - Spread Velocity: CC 37
   - Spread Octave: CC 39
   - Spread Gate: CC 40
 
