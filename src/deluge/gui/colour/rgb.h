@@ -109,6 +109,13 @@ public:
 	}
 
 	/**
+	 * @brief Change a color's brightness through a simple
+	 * multiplication operation with a float value
+	 * @return RGB The updated color
+	 */
+	[[nodiscard]] constexpr RGB operator*(float value) const { return RGB(r * value, g * value, b * value); }
+
+	/**
 	 * @brief Dim a colour
 	 *
 	 * @param level How much to dim (up to 8)
