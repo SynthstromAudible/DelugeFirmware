@@ -258,7 +258,7 @@ ActionResult InstrumentClipView::commandExitScaleMode() {
 
 ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
-
+	D_PRINTLN("ButtonAction: Button: %i State %i",b,currentUIMode);
 	// Scale mode button
 	if (b == SCALE_MODE) {
 		return handleScaleButtonAction(on, inCardRoutine);
@@ -1077,12 +1077,12 @@ void InstrumentClipView::copyAutomation(int32_t whichModEncoder, int32_t navSysI
 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_AUTOMATION_TO_COPY));
 }
 
-void InstrumentClipView::copyNotes(Serializer* writer){
+void InstrumentClipView::copyNotes(Serializer* writer) {
 
 	bool copyToFile = false;
 	if (writer) {
        	copyToFile = true;
-    }
+	}
 
 	// Clear out previously copied stuff
 	deleteCopiedNoteRows();
@@ -1099,7 +1099,7 @@ void InstrumentClipView::copyNotes(Serializer* writer){
 	// getCurrentClip()->yScroll;
 	copiedYNoteOfBottomRow = getCurrentInstrumentClip()->getYNoteFromYDisplay(0, currentSong);
 
-	if(copyToFile) {
+	if (copyToFile) {
 		writer->writeOpeningTag("pattern");
 		writer->writeOpeningTagBeginning("attributes");
 
@@ -1177,7 +1177,7 @@ ramError:
 				newCopiedNoteRow->yNote = thisNoteRow->y;
 				newCopiedNoteRow->yDisplay = noteRowYDisplay;
 
-				if(copyToFile) {
+				if (copyToFile) {
 					writer->writeOpeningTagBeginning("noteRow");
 
 					writer->writeAttribute("numNotes", numNotes);
@@ -1204,14 +1204,14 @@ ramError:
 					newNote->iterance = noteToCopy->iterance;
 					newNote->fill = noteToCopy->fill;
 
-					if(copyToFile) {
+					if (copyToFile) {
 
 						char buffer[9];
 
 						intToHex(newNote->pos, buffer);
 						writer->write(buffer);
 
-						intToHex(newNote->getLength() , buffer);
+						intToHex(newNote->getLength(), buffer);
 						writer->write(buffer);
 
 						intToHex(newNote->getVelocity(), buffer, 2);
@@ -1231,7 +1231,7 @@ ramError:
 					}
 				}
 
-				if(copyToFile){
+				if (copyToFile) {
 					writer->write("\"");
 					writer->closeTag();
 				}
@@ -1239,12 +1239,12 @@ ramError:
 		}
 	}
 
-	if(copyToFile) {
+	if (copyToFile) {
 		writer->writeArrayEnding("noteRows");
 		writer->writeClosingTag("pattern");
 	}
 
-	if(copyToFile) {
+	if (copyToFile) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PATTERN_SAVED));
 	}
 	else {
@@ -1415,15 +1415,15 @@ getOut:
 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTES_PASTED));
 }
 
-Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader,bool overwriteExisting){
-	Error error = Error::NONE;;
+Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader, bool overwriteExisting){
+	Error error = Error::NONE;
 
 
 
 	if (false) {
 ramError:
 		display->displayError(Error::INSUFFICIENT_RAM);
-		return Error::INSUFFICIENT_RAM ;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	reader.match('{');
@@ -1436,8 +1436,6 @@ ramError:
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-
-
 	int32_t readAutomationUpToPos = kMaxSequenceLength;
 
 	int32_t startPos = instrumentClipView.getPosFromSquare(0);
@@ -1447,18 +1445,17 @@ ramError:
 	float scaleFactor = 0;
 	String patternVersion;
 
-
 	if (pastedScreenWidth == 0) {
-			return Error::NONE;
+		return Error::NONE;
 	}
 
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		uint16_t noteHexLength;
-		if(!strcmp(tagName, "attributes")){
+		if (!strcmp(tagName, "attributes")) {
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "patternVersion")) {
 					reader.readTagOrAttributeValueString(&patternVersion);
-					if(!patternVersion.equals(PATTERN_FILE_VERSION)){
+					if (!patternVersion.equals(PATTERN_FILE_VERSION)) {
 						display->displayError(Error::INVALID_PATTERN_VERSION);
 						return Error::INVALID_PATTERN_VERSION;
 					}
@@ -1474,9 +1471,9 @@ ramError:
 				}
 			}
 		}
-		else if(!strcmp(tagName, "noteRows")){
+		else if (!strcmp(tagName, "noteRows")) {
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
-				if(!strcmp(tagName, "noteRow")){
+				if (!strcmp(tagName, "noteRow")) {
 
 					void* copiedNoteRowMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(CopiedNoteRow));
 					if (!copiedNoteRowMemory) {
@@ -1502,7 +1499,8 @@ ramError:
 
 							newCopiedNoteRow->numNotes = numNotes;
 
-							newCopiedNoteRow->notes = (Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
+							newCopiedNoteRow->notes =
+								(Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
 
 							currentNote = 0;
 
@@ -1569,9 +1567,7 @@ ramError:
 								currentNote++;
 
 							}
-					getOut: {}
-
-
+getOut: {}
 
 						}
 
@@ -3425,7 +3421,7 @@ ActionResult InstrumentClipView::handleNoteEditorHorizontalEncoderAction(int32_t
 
 ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
-
+	D_PRINTLN("NoteEditor: Button: %i State %i",b,currentUIMode);
 	// to allow you to zoom in / out
 	// to allow you to toggle fill
 	if (b == X_ENC || b == SYNC_SCALING) {
@@ -3661,7 +3657,7 @@ ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int3
 
 ActionResult InstrumentClipView::handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
-
+	D_PRINTLN("RowEditor: Button: %i State %i",b,currentUIMode);
 	// to allow you to zoom in / out
 	// to allow you to toggle fill
 	if (b == X_ENC || b == SYNC_SCALING) {

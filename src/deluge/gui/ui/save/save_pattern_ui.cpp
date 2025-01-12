@@ -99,8 +99,6 @@ bool SavePatternUI::performSave(bool mayOverwrite) {
 		display->displayLoadingAnimation();
 	}
 
-	//InstrumentClip* clipToSave = (InstrumentClip*)getCurrentInstrumentClip();
-
 	if (getCurrentOutputType() != OutputType::SYNTH) {
 		defaultFolder = PATTERN_MELODIC_DEFAULT_FOLDER;
 	}
@@ -144,9 +142,7 @@ fail:
 
 	Serializer& writer = GetSerializer();
 
-	//clipToSave->writePatternToFile(writer,currentSong);
 	instrumentClipView.copyNotesToFile(writer);
-
 
 	writer.closeFileAfterWriting();
 
@@ -154,7 +150,6 @@ fail:
 	if (error != Error::NONE) {
 		goto fail;
 	}
-
 
 	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PATTERN_SAVED));
 	close();

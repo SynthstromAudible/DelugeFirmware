@@ -43,6 +43,8 @@ public:
 
 	Error performLoad(bool doClone = false);
 
+	void setOverwriteOnLoad(bool pasteGently = true);
+
 	// ui
 	UIType getUIType() override { return UIType::LOAD_PATTERN; }
 

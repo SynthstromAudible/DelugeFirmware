@@ -263,7 +263,7 @@ public:
 	bool handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on);
 	void handleNoteRowEditorAuditionPadAction(int32_t y);
 	void copyNotesToFile(Serializer& writer);
-	Error pasteNotesFromFile(Deserializer& reader,bool overwriteExisting);
+	Error pasteNotesFromFile(Deserializer& reader, bool overwriteExisting);
 	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult handleNoteRowEditorHorizontalEncoderAction(int32_t offset);
 	ActionResult handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);

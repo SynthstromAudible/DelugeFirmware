@@ -22,11 +22,11 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_midi_device_definition_ui.h"
 #include "gui/ui/load/load_pattern_ui.h"
-#include "gui/ui/save/save_pattern_ui.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/save/save_kit_row_ui.h"
 #include "gui/ui/save/save_midi_device_definition_ui.h"
+#include "gui/ui/save/save_pattern_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -366,6 +366,7 @@ void InstrumentClipMinder::focusRegained() {
 }
 
 ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	D_PRINTLN("Minder: Button: %i State %i",b,currentUIMode);
 	using namespace deluge::hid::button;
 
 	if (inCardRoutine) {
@@ -380,7 +381,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		if (getCurrentOutputType() == OutputType::MIDI_OUT && (b == MOD_ENCODER_0 || b == MOD_ENCODER_1)) {
 			openUI(&saveMidiDeviceDefinitionUI);
 		}
-		else if(b == X_ENC){
+		else if (b == X_ENC){
 			openUI(&savePatternUI);
 		}
 		else if ((b == SYNTH && getCurrentOutputType() == OutputType::SYNTH)
@@ -397,8 +398,13 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		if (getCurrentOutputType() == OutputType::MIDI_OUT && (b == MOD_ENCODER_0 || b == MOD_ENCODER_1)) {
 			openUI(&loadMidiDeviceDefinitionUI);
 		}
-		else if(b == X_ENC){
+		else if (b == X_ENC){
+			D_PRINTLN("Cross %b",Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT));
 			openUI(&loadPatternUI);
+			if (Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT)) {
+				loadPatternUI.setOverwriteOnLoad(false);
+			}
+
 		}
 		else {
 			OutputType newOutputType;

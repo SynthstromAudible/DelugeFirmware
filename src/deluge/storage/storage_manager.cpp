@@ -482,12 +482,11 @@ Error StorageManager::openPatternFile(FilePointer* filePointer) {
 }
 
 // Returns error status
-Error StorageManager::loadPatternFile(FilePointer* filePointer,String* fileName) {
+Error StorageManager::loadPatternFile(FilePointer* filePointer, String* fileName, bool pasteGently) {
 
 
 	AudioEngine::logAction("loadPatternFile");
-	D_PRINTLN("opening pattern file -  %s %s  from FP  %lu", fileName->get(),
-	          (int32_t)filePointer->sclust);
+	D_PRINTLN("opening pattern file -  %s %s  from FP  %lu", fileName->get(), (int32_t)filePointer->sclust);
 
 	Error error = openPatternFile(filePointer);
 	if (error != Error::NONE) {
@@ -497,7 +496,7 @@ Error StorageManager::loadPatternFile(FilePointer* filePointer,String* fileName)
 
 	AudioEngine::logAction("readPatternFile");
 
-	error = instrumentClipView.pasteNotesFromFile(smDeserializer,true);
+	error = instrumentClipView.pasteNotesFromFile(smDeserializer, pasteGently);
 
 	FRESULT fileSuccess = activeDeserializer->closeWriter();
 
