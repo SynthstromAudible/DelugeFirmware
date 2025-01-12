@@ -192,23 +192,32 @@ In this case, you will need to ensure that MIDI Feedback Filter Responses is set
 ## Appendix B - Loopy Pro Template for Deluge MIDI Follow Mode
 
 For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Loopy Pro Template]
-- It is set up to send and receive on channel 15 when the Deluge is connected via USB (and detected as “Deluge Port
+- The control surface is located in page "B". Page "A" is just the default page with donuts to loop. You can delete
+  page "A" if you don't need it.
+- Page "C" contains the controls that are doing the heavy lifting of sending/receiving midi so it should NOT be deleted.
+  That is, page "B" are the "user facing" controls, tied to the stepped dials from page "C".
+- The controls are set up to send and receive on channel 15 when the Deluge is connected via USB (and detected as “Deluge Port
   1”), so you must go to your Deluge, and do Shift + Select to enter the main menu, go to MIDI -> MIDI-FOLLOW -> CHANNEL A,
-  and set it to 15. In case your port is detected with a different name in Loopy (it could happen if the language of your
-  iOS device is not English), like for example "Deluge **Puerto** 1" (in Spanish), you can always transfer the existing
-  midi bindings from one port to the other by going to Loopy's Menu -> Control Settings -> Current Project -> Default ->
-  look for the "Deluge Port 1" section and tap on "TRANSFER" to copy or move all the midi bindings to the real
-  port name of your Deluge.
-- As a bonus, this project also contains a page "B" with controls for the Song's global parameters, which must be learned
-  individually (not part of MIDI Follow). To do that, go to Deluge Song view, click Select button to enter the
-  Song menu, go to each parameter (Volume, Pan, LPF Freq, etc), hold Learn button and then move the knobs and
-  faders within page "B" of Loopy's project.
-- Pages "C" and "D" are the controls that are doing the heavy lifting of sending/receiving midi so they can't be deleted.
-  Pages "A" and "B" are just the "user facing" controls, tied to the stepped dials from the other two pages.
+  and set it to 15.
 - **How to setup Feedback:** In Loopy, go to Menu -> Control Settings -> MIDI Devices section -> Deluge Port 1 -> make sure
   that Feedback switch is enabled.
   In your Deluge, do Shift + Select to enter the main menu, go to MIDI -> MIDI-FOLLOW -> FEEDBACK. Here you can select the
   Channel to send feedback to, the Rate at which feedback is sent for Automation, and you must set Filter Responses to DISABLED.
+- **Troubleshooting:**
+  - In case your port is detected with a different name in Loopy (it could happen if the language of your
+    iOS device is not English), like for example "Deluge **Puerto** 1" (in Spanish), you can always transfer the existing
+    midi bindings from one port to the other by going to Loopy's Menu -> Control Settings -> Current Project -> Default ->
+    look for the "Deluge Port 1" section and tap on "TRANSFER" to copy or move all the midi bindings to the real
+    port name of your Deluge.
+  - In case you already have a Loopy Pro project or template and you want to import the MIDI follow control surface into it, do
+    the following:
+    - Open the "Deluge Midi Follow"project and go to Settings -> Control Settings -> Current Project -> click "Midi Follow" profile.
+    - On the top right click "TRANSFER" and copy it to Global Profiles.
+    - Open your project and go to Settings -> Control Settings -> Global -> click "Midi Follow" profile.
+    - On the top right click "TRANSFER" and copy it to Current Project. Ok, now the MIDI bindings are imported. Now we need to import
+      the widgets.
+    - Open again the "Deluge Midi Follow" project and click the pencil to edit the UI, and drag a rectangle selection all the page.
+      Copy it, open your own project and in an empy page, paste it. Do the same with the other page with Stepped Dials.
 
 <img alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/316279c5e091cdeb7d50828e407789966fb53abc/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.png">
 
