@@ -192,7 +192,7 @@ In this case, you will need to ensure that MIDI Feedback Filter Responses is set
 ## Appendix B - Loopy Pro Template for Deluge MIDI Follow Mode
 
 For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Loopy Pro Template]
-- It is setup to send and receive on channel 15 when the Deluge is connected via USB (and detected as “Deluge Port
+- It is set up to send and receive on channel 15 when the Deluge is connected via USB (and detected as “Deluge Port
   1”), so you must go to your Deluge, and do Shift + Select to enter the main menu, go to MIDI -> MIDI-FOLLOW -> CHANNEL A,
   and set it to 15. In case your port is detected with a different name in Loopy (it could happen if the language of your
   iOS device is not English), like for example "Deluge **Puerto** 1" (in Spanish), you can always transfer the existing
@@ -210,7 +210,7 @@ For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MI
   In your Deluge, do Shift + Select to enter the main menu, go to MIDI -> MIDI-FOLLOW -> FEEDBACK. Here you can select the
   Channel to send feedback to, the Rate at which feedback is sent for Automation, and you must set Filter Responses to DISABLED.
 
-<img alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/316279c5e091cdeb7d50828e407789966fb53abc/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.jpg">
+<img alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/316279c5e091cdeb7d50828e407789966fb53abc/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.png">
 
 ## Appendix C - Touch OSC Template for Deluge MIDI Follow Mode
 
