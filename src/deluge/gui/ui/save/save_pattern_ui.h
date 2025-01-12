@@ -25,8 +25,8 @@ public:
 	SavePatternUI() = default;
 
 	bool opened() override;
-	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed){};
-	void endSession(){};
+	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {};
+	void endSession() {};
 	bool performSave(bool mayOverwrite) override;
 
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,

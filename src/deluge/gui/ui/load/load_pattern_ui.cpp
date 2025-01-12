@@ -37,6 +37,7 @@ using namespace deluge;
 #define PATTERN_MELODIC_DEFAULT_FOLDER "PATTERNS/MELODIC"
 
 LoadPatternUI loadPatternUI{};
+bool overwriteExistingState;
 
 bool LoadPatternUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;
@@ -45,7 +46,9 @@ bool LoadPatternUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 
 bool LoadPatternUI::opened() {
 	D_PRINTLN("opened");
-	if (!getRootUI()->toClipMinder() || ( getCurrentOutputType() != OutputType::SYNTH && getCurrentOutputType() != OutputType::KIT )  ) {
+	overwriteExistingState = true;
+	if (!getRootUI()->toClipMinder()
+		|| ( getCurrentOutputType() == OutputType::AUDIO )  ) {
 		return false;
 	}
 
@@ -70,9 +73,13 @@ bool LoadPatternUI::opened() {
 	return true;
 }
 
+void LoadPatternUI::setOverwriteOnLoad(bool overwriteExisting) {
+	overwriteExistingState = overwriteExisting;
+}
 
 void LoadPatternUI::currentFileChanged(int32_t movementDirection) {
 	D_PRINTLN("chagned");
+
 	FileItem* currentFileItem = getCurrentFileItem();
 
 
@@ -86,8 +93,7 @@ void LoadPatternUI::currentFileChanged(int32_t movementDirection) {
 
 		D_PRINTLN("Selected Filename- %s", fileName.get());
 
-		//Error error = StorageManager::loadPatternFile(currentSong,(InstrumentClip*)getCurrentInstrumentClip(),&currentFileItem->filePointer, &fileName);
-		Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName);
+		Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName, overwriteExistingState);
 		error = Error::NONE;
 	}
 }
@@ -101,7 +107,7 @@ Error LoadPatternUI::setupForLoadingPattern() {
 	if (getCurrentOutputType() == OutputType::KIT) {
 		patternFolder = PATTERN_RHYTMIC_DEFAULT_FOLDER;
 	}
-	else{
+	else {
 		patternFolder = PATTERN_MELODIC_DEFAULT_FOLDER;
 	}
 
@@ -114,11 +120,7 @@ Error LoadPatternUI::setupForLoadingPattern() {
 		fileIconPt2Width = 1;
 	}
 
-
-
 	String searchFilename;
-
-
 
 	Error error = currentDir.set(defaultDir);
 	if (error != Error::NONE) {
@@ -149,7 +151,6 @@ Error LoadPatternUI::setupForLoadingPattern() {
 }
 
 void LoadPatternUI::folderContentsReady(int32_t entryDirection) {
-
 }
 
 void LoadPatternUI::enterKeyPress() {
@@ -185,7 +186,6 @@ void LoadPatternUI::enterKeyPress() {
 	}
 }
 
-
 ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	D_PRINTLN("buttonAction");
 	using namespace deluge::hid::button;
@@ -194,7 +194,7 @@ ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 	if (getCurrentOutputType() == OutputType::KIT) {
 		patternFolder = PATTERN_RHYTMIC_DEFAULT_FOLDER;
 	}
-	else{
+	else {
 		patternFolder = PATTERN_MELODIC_DEFAULT_FOLDER;
 	}
 
@@ -254,8 +254,7 @@ Error LoadPatternUI::performLoad(bool doClone) {
 
 	D_PRINTLN("Selected Filename- %s", fileName.get());
 
-	//Error error = StorageManager::loadPatternFile(currentSong,(InstrumentClip*)getCurrentInstrumentClip(),&currentFileItem->filePointer, &fileName);
-	Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName);
+	Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName, overwriteExistingState);
 	error = Error::NONE;
 
 	if (error != Error::NONE) {
