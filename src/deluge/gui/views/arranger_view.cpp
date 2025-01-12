@@ -2383,18 +2383,18 @@ squareStartPosSet:
 
 							if (isLoopStart) {
 								if (clipInstance->clip->isArrangementOnlyClip()) {
-									*it = image[xDisplay] = colour.dim(2);
+									*it = (image[xDisplay] = colour.dim(2));
 								}
 								else {
-									*it = image[xDisplay] = colour.dim(3);
+									*it = (image[xDisplay] = colour.dim(3));
 								}
 							}
 							else {
 								if (clipInstance->clip->isArrangementOnlyClip()) {
-									*it = image[xDisplay] = colour.dim(4);
+									*it = (image[xDisplay] = colour.dim(4));
 								}
 								else {
-									*it = image[xDisplay] = colour.forBlur().dim(3);
+									*it = (image[xDisplay] = colour.forBlur().dim(3));
 								}
 							}
 						}

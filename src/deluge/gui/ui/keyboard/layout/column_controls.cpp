@@ -37,16 +37,16 @@ using namespace deluge::gui::ui::keyboard::controls;
 
 namespace deluge::gui::ui::keyboard::layout {
 
-const char* functionNames[][2] = {
-    /* VELOCITY    */ {"VEL", "Velocity"},
-    /* MOD         */ {"MOD", "Modwheel"},
-    /* CHORD       */ {"CHRD", "Chords"},
-    /* SONG_CHORD_MEM   */ {"CMEM", "Song Chord Memory"},
-    /* CHORD_MEM   */ {"CCME", "Clip Chord Memory"},
-    /* SCALE_MODE  */ {"SMOD", "Scales"},
-    /* DX          */ {"DX", "DX operators"},
-    /* SESSION     */ {"SONG", "song macros"},
-    /* BEAT_REPEAT */ {"BEAT", "Beat Repeat"},
+l10n::String functionNames[] = {
+    l10n::String::STRING_FOR_COLUMN_VELOCITY, //<
+    l10n::String::STRING_FOR_COLUMN_MOD,
+    l10n::String::STRING_FOR_COLUMN_CHORD,
+    l10n::String::STRING_FOR_COLUMN_SONG_CHORD_MEM,
+    l10n::String::STRING_FOR_COLUMN_CHORD_MEM,
+    l10n::String::STRING_FOR_COLUMN_SCALE_MODE,
+    l10n::String::STRING_FOR_COLUMN_DX,
+    l10n::String::STRING_FOR_COLUMN_SESSION,
+    l10n::String::STRING_FOR_COLUMN_BEAT_REPEAT,
 };
 
 void ColumnControlsKeyboard::enableNote(uint8_t note, uint8_t velocity) {
@@ -323,7 +323,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 		state.leftCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
 		state.leftColFunc = (offset > 0) ? nextControlFunction(state.leftColFunc, state.rightColFunc)
 		                                 : prevControlFunction(state.leftColFunc, state.rightColFunc);
-		display->displayPopup(functionNames[state.leftColFunc]);
+		display->displayPopup(l10n::get(functionNames[state.leftColFunc]));
 		state.leftCol = state.getColumnForFunc(state.leftColFunc);
 		keyboardScreen.killColumnSwitchKey(LEFT_COL);
 		return true;
@@ -332,7 +332,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 		state.rightCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
 		state.rightColFunc = (offset > 0) ? nextControlFunction(state.rightColFunc, state.leftColFunc)
 		                                  : prevControlFunction(state.rightColFunc, state.leftColFunc);
-		display->displayPopup(functionNames[state.rightColFunc]);
+		display->displayPopup(l10n::get(functionNames[state.rightColFunc]));
 		state.rightCol = state.getColumnForFunc(state.rightColFunc);
 		state.rightColSetAtRuntime = true;
 		keyboardScreen.killColumnSwitchKey(RIGHT_COL);

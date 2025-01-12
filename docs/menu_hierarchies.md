@@ -676,8 +676,10 @@ The Sound menu contains the following menu hierarchy:
 <details><summary>Arpeggiator (ARPE)</summary>
 
 	- Enabled (ON)
-	- Sync
-	NOTE: These options can change depending on how your default resolution is set
+	- Basic
+		- Gate
+		- Sync
+		NOTE: These options can change depending on how your default resolution is set
 
 			- Off
 			- 2-Bar
@@ -707,36 +709,36 @@ The Sound menu contains the following menu hierarchy:
 			- 32nd-DTTED
 			- 64th-DTTED
 			- 128th-DTTED
-	- Rate
-	- Octaves (OCTA)
-	- Octave Mode (OMOD)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- Alternate (ALT)
-		- Random (RAND)
-	- Note Mode (NMOD)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- As Played (PLAY)
-		- Random (RAND)
-	- Chord Simulator (CHRD) (NOTE: Available only in Kit Rows)
-	- Step Repeat (REPE)
-	- Gate
-	- Rhythm (RHYT)
-	- Sequence Length (LENG)
-	- Chord Polyphony (POLY) (NOTE: NOT available for Sound Kit Rows)
-	- Ratchet Amount (RATC)
+		- Rate
+	- Pattern
+		- Octaves (OCTA)
+		- Octave Mode (OMOD)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Alternate (ALT)
+			- Random (RAND)
+		- Chord Simulator (CSIM) (NOTE: Available only in Kit Rows)
+		- Note Mode (NMOD)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Played Order (PLAY)
+			- Random (RAND)
+		- Step Repeat (REPE)
+		- Rhythm (RHYT)
+		- Sequence Length (LENG)
 	- Randomizer
-		- Ratchet Probability (RPRO)
-		- Note Probability (PROB)
-		- Bass Probability (BASS)
-		- Chord Probability (CHRD) (NOTE: NOT available for Sound Kit Rows)
+		- Lock Randomizer (LOCK)
 		- Octave Spread (OCTA)
 		- Gate Spread (GATE)
 		- Velocity Spread (VELO)
-		- Lock (LOCK)
+		- Ratchet Amount (RATC)
+		- Ratchet Probability (RPRO)
+		- Chord Polyphony (CHRD) (NOTE: NOT available for Sound Kit Rows)
+		- Chord Probability (CPRO) (NOTE: NOT available for Sound Kit Rows)
+		- Note Probability (NOTE)
+		- Bass Probability (BASS)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
@@ -1011,7 +1013,6 @@ The Sound menu contains the following menu hierarchy:
 		- Saw
 		- S&H (S H)
 		- Random Walk (RWLK)
-	- Rate
 	- Sync
 	NOTE: These options can change depending on how your default resolution is set
 
@@ -1043,6 +1044,7 @@ The Sound menu contains the following menu hierarchy:
 		- 32nd-DTTED
 		- 64th-DTTED
 		- 128th-DTTED
+	- Rate
 </details>
 <details><summary>LFO2 </summary>
 
@@ -1053,6 +1055,37 @@ The Sound menu contains the following menu hierarchy:
 		- Saw
 		- S&H (S H)
 		- Random Walk (RWLK)
+	- Sync
+	NOTE: These options can change depending on how your default resolution is set
+
+		- Off
+		- 2-Bar
+		- 1-Bar
+		- 2nd-Notes
+		- 4th-Notes
+		- 8th-Notes
+		- 16th-Notes
+		- 32nd-Notes
+		- 64th-Notes
+		- 128th-Notes
+		- 2-Bar-TPLTS
+		- 1-Bar-TPLTS
+		- 2nd-TPLTS
+		- 4th-TPLTS
+		- 8th-TPLTS
+		- 16th-TPLTS
+		- 32nd-TPLTS
+		- 64th-TPLTS
+		- 128th-TPLTS
+		- 2-Bar-DTTED
+		- 1-Bar-DTTED
+		- 2nd-DTTED
+		- 4th-DTTED
+		- 8th-DTTED
+		- 16th-DTTED
+		- 32nd-DTTED
+		- 64th-DTTED
+		- 128th-DTTED
 	- Rate
 </details>
 <details><summary>Voice (VOIC) </summary>
@@ -1286,8 +1319,10 @@ The MIDI menu contains the following menu hierarchy:
 <details><summary>Arpeggiator (ARPE)</summary>
 
 	- Enabled (ON)
-	- Sync
-	NOTE: These options can change depending on how your default resolution is set
+	- Basic
+		- Gate
+		- Sync
+		NOTE: These options can change depending on how your default resolution is set
 
 			- Off
 			- 2-Bar
@@ -1317,36 +1352,36 @@ The MIDI menu contains the following menu hierarchy:
 			- 32nd-DTTED
 			- 64th-DTTED
 			- 128th-DTTED
-	- Rate
-	- Octaves (OCTA)
-	- Octave Mode (OMOD)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- Alternate (ALT)
-		- Random (RAND)
-	- Note Mode (NMOD)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- As Played (PLAY)
-		- Random (RAND)
-	- Chord Simulator (CHRD) (NOTE: Available only in Kit Rows)
-	- Step Repeat (REPE)
-	- Gate
-	- Rhythm (RHYT)
-	- Sequence Length (LENG)
-	- Chord Polyphony (POLY) (NOTE: NOT available for Midi Kit Rows)
-	- Ratchet Amount (RATC)
+		- Rate
+	- Pattern
+		- Octaves (OCTA)
+		- Octave Mode (OMOD)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Alternate (ALT)
+			- Random (RAND)
+		- Chord Simulator (CSIM) (NOTE: Available only in Kit Rows)
+		- Note Mode (NMOD)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Played Order (PLAY)
+			- Random (RAND)
+		- Step Repeat (REPE)
+		- Rhythm (RHYT)
+		- Sequence Length (LENG)
 	- Randomizer
-		- Ratchet Probability (RPRO)
-		- Note Probability (PROB)
-		- Bass Probability (BASS)
-		- Chord Probability (CHRD) (NOTE: NOT available for Midi Kit Rows)
+		- Lock Randomizer (LOCK)
 		- Octave Spread (OCTA)
 		- Gate Spread (GATE)
 		- Velocity Spread (VELO)
-		- Lock (LOCK)
+		- Ratchet Amount (RATC)
+		- Ratchet Probability (RPRO)
+		- Chord Polyphony (CHRD) (NOTE: NOT available for Midi Kit Rows)
+		- Chord Probability (CPRO) (NOTE: NOT available for Midi Kit Rows)
+		- Note Probability (NOTE)
+		- Bass Probability (BASS)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
@@ -1391,9 +1426,11 @@ The CV menu contains the following menu hierarchy:
 <details><summary>Arpeggiator (ARPE)</summary>
 
 	- Enabled (ON)
-	- Sync
-	NOTE: These options can change depending on how your default resolution is set
-
+	- Basic
+		- Gate
+		- Sync
+		NOTE: These options can change depending on how your default resolution is set
+		
 			- Off
 			- 2-Bar
 			- 1-Bar
@@ -1422,36 +1459,36 @@ The CV menu contains the following menu hierarchy:
 			- 32nd-DTTED
 			- 64th-DTTED
 			- 128th-DTTED
-	- Rate
-	- Octaves (OCTA) (NOTE: NOT available for Gate Kit Rows)
-	- Octave Mode (OMOD) (NOTE: NOT available for Gate Kit Rows)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- Alternate (ALT)
-		- Random (RAND)
-	- Note Mode (NMOD) (NOTE: NOT available for Gate Kit Rows)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- As Played (PLAY)
-		- Random (RAND)
-	- Chord Simulator (CHRD) (NOTE: NOT available for Gate Kit Rows)
-	- Step Repeat (REPE) (NOTE: NOT available for Gate Kit Rows)
-	- Gate
-	- Rhythm (RHYT)
-	- Sequence Length (LENG)
-	- Chord Polyphony (POLY) (NOTE: NOT available for Gate Kit Rows)
-	- Ratchet Amount (RATC)
+		- Rate
+	- Pattern
+		- Octaves (OCTA) (NOTE: NOT available for Gate Kit Rows)
+		- Octave Mode (OMOD) (NOTE: NOT available for Gate Kit Rows)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Alternate (ALT)
+			- Random (RAND)
+		- Chord Simulator (CSIM) (NOTE: NOT available for Gate Kit Rows)
+		- Note Mode (NMOD) (NOTE: NOT available for Gate Kit Rows)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Played Order (PLAY)
+			- Random (RAND)
+		- Step Repeat (REPE) (NOTE: NOT available for Gate Kit Rows)
+		- Rhythm (RHYT)
+		- Sequence Length (LENG)
 	- Randomizer
-		- Ratchet Probability (RPRO)
-		- Note Probability (PROB)
-		- Bass Probability (BASS) (NOTE: NOT available for Gate Kit Rows)
-		- Chord Probability (CHRD) (NOTE: NOT available for Gate Kit Rows)
+		- Lock Randomizer (LOCK)
 		- Octave Spread (OCTA) (NOTE: NOT available for Gate Kit Rows)
 		- Gate Spread (GATE)
 		- Velocity Spread (VELO) (NOTE: NOT available for Gate Kit Rows)
-		- Lock (LOCK)
+		- Ratchet Amount (RATC)
+		- Ratchet Probability (RPRO)
+		- Chord Polyphony (CHRD) (NOTE: NOT available for Gate Kit Rows)
+		- Chord Probability (CPRO) (NOTE: NOT available for Gate Kit Rows)
+		- Note Probability (NOTE)
+		- Bass Probability (BASS) (NOTE: NOT available for Gate Kit Rows)
 	- MPE (NOTE: NOT available for Gate Kit Rows)
 		- Velocity (VELO)
 			- Disabled (OFF)
