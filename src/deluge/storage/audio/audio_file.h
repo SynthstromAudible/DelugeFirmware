@@ -28,7 +28,8 @@ public:
 	AudioFile(AudioFileType newType) : type(newType) {}
 	~AudioFile() override = default;
 
-	Error loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts);
+	Error loadWAVE(AudioFileReader& reader, bool makeWaveTableWorkAtAllCosts);
+	Error loadAIFF(AudioFileReader& reader, bool makeWaveTableWorkAtAllCosts);
 	virtual void finalizeAfterLoad(uint32_t fileSize) {}
 
 	void addReason();
@@ -41,7 +42,7 @@ public:
 	String filePath;
 
 	const AudioFileType type;
-	uint8_t numChannels;
+	uint8_t numChannels = 0;
 	String loadedFromAlternatePath; // We now need to store this, since "alternate" files can now just have the same
 	                                // filename (in special folder) as the original. So we need to remember which format
 	                                // the name took.
