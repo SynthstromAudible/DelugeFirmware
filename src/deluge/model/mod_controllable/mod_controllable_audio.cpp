@@ -188,9 +188,9 @@ void ModControllableAudio::processGrainFX(StereoSample* buffer, int32_t modFXRat
 
 	if (grainFX) {
 		int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(*postFXVolume, verbAmount) << 5;
-		grainFX->processGrainFX(buffer, modFXRate, modFXDepth,
+		grainFX->processGrainFX({buffer, bufferEnd - buffer}, modFXRate, modFXDepth,
 		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET),
-		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK), postFXVolume, bufferEnd,
+		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK), postFXVolume,
 		                        anySoundComingIn, currentSong->calculateBPM(), reverbSendAmountAndPostFXVolume);
 	}
 }
