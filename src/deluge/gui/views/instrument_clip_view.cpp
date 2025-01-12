@@ -712,7 +712,7 @@ doOther:
 			pasteNotes(true);
 		}
 		else {
-			copyNotes();
+			copyNotes(nullptr);
 		}
 	}
 	else if (b == TEMPO_ENC && isUIModeActive(UI_MODE_AUDITIONING)
@@ -1077,7 +1077,12 @@ void InstrumentClipView::copyAutomation(int32_t whichModEncoder, int32_t navSysI
 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_AUTOMATION_TO_COPY));
 }
 
-void InstrumentClipView::copyNotes() {
+void InstrumentClipView::copyNotes(Serializer* writer){
+
+	bool copyToFile = false;
+	if (writer) {
+       	copyToFile = true;
+    }
 
 	// Clear out previously copied stuff
 	deleteCopiedNoteRows();
@@ -1093,6 +1098,20 @@ void InstrumentClipView::copyNotes() {
 	copiedScaleType = getCurrentInstrumentClip()->getScaleType();
 	// getCurrentClip()->yScroll;
 	copiedYNoteOfBottomRow = getCurrentInstrumentClip()->getYNoteFromYDisplay(0, currentSong);
+
+	if(copyToFile) {
+		writer->writeOpeningTag("pattern");
+		writer->writeOpeningTagBeginning("attributes");
+
+		writer->writeAttribute("patternVersion", PATTERN_FILE_VERSION);
+		writer->writeAttribute("screenWidth", copiedScreenWidth);
+		writer->writeAttribute("scaleType",static_cast<int32_t>(copiedScaleType));
+		writer->writeAttribute("yNoteOfBottomRow", getCurrentInstrumentClip()->getYNoteFromYDisplay(0, currentSong));
+
+		writer->closeTag();
+
+		writer->writeArrayStart("noteRows");
+	}
 
 	CopiedNoteRow** prevPointer = &firstCopiedNoteRow;
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -1158,6 +1177,19 @@ ramError:
 				newCopiedNoteRow->yNote = thisNoteRow->y;
 				newCopiedNoteRow->yDisplay = noteRowYDisplay;
 
+				if(copyToFile) {
+					writer->writeOpeningTagBeginning("noteRow");
+
+					writer->writeAttribute("numNotes", numNotes);
+					writer->writeAttribute("yNote", thisNoteRow->y);
+					writer->writeAttribute("yDisplay", noteRowYDisplay);
+					writer->insertCommaIfNeeded();
+					writer->write("\n");
+					writer->printIndents();
+					writer->writeTagNameAndSeperator("noteDataWithSplitProb");
+					writer->write("\"0x");
+				}
+
 				// Fill in all the Notes' details
 				for (int32_t n = 0; n < numNotes; n++) {
 					Note* noteToCopy = thisNoteRow->notes.getElement(n + startI);
@@ -1171,12 +1203,58 @@ ramError:
 					newNote->lift = noteToCopy->lift;
 					newNote->iterance = noteToCopy->iterance;
 					newNote->fill = noteToCopy->fill;
+
+					if(copyToFile) {
+
+						char buffer[9];
+
+						intToHex(newNote->pos, buffer);
+						writer->write(buffer);
+
+						intToHex(newNote->getLength() , buffer);
+						writer->write(buffer);
+
+						intToHex(newNote->getVelocity(), buffer, 2);
+						writer->write(buffer);
+
+						intToHex(newNote->getLift(), buffer, 2);
+						writer->write(buffer);
+
+						intToHex(newNote->getProbability(), buffer, 2);
+						writer->write(buffer);
+
+						intToHex(newNote->getIterance().toInt(), buffer, 4);
+						writer->write(buffer);
+
+						intToHex(newNote->getFill(), buffer, 2);
+						writer->write(buffer);
+					}
+				}
+
+				if(copyToFile){
+					writer->write("\"");
+					writer->closeTag();
 				}
 			}
 		}
 	}
 
-	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTES_COPIED));
+	if(copyToFile) {
+		writer->writeArrayEnding("noteRows");
+		writer->writeClosingTag("pattern");
+	}
+
+	if(copyToFile) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PATTERN_SAVED));
+	}
+	else {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTES_COPIED));
+	}
+
+}
+
+void InstrumentClipView::copyNotesToFile(Serializer& writer) {
+	copyNotes(&writer);
 }
 
 void InstrumentClipView::deleteCopiedNoteRows() {
@@ -1336,6 +1414,183 @@ getOut:
 	uiNeedsRendering(this);
 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTES_PASTED));
 }
+
+Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader,bool overwriteExisting){
+	Error error = Error::NONE;;
+
+
+
+	if (false) {
+ramError:
+		display->displayError(Error::INSUFFICIENT_RAM);
+		return Error::INSUFFICIENT_RAM ;
+	}
+
+	reader.match('{');
+
+	char const* tagName;
+
+	deleteCopiedNoteRows();
+
+	CopiedNoteRow** prevPointer = &firstCopiedNoteRow;
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+
+
+	int32_t readAutomationUpToPos = kMaxSequenceLength;
+
+	int32_t startPos = instrumentClipView.getPosFromSquare(0);
+	int32_t endPos = instrumentClipView.getPosFromSquare(kDisplayWidth);
+
+	int32_t pastedScreenWidth = endPos - startPos;
+	float scaleFactor = 0;
+	String patternVersion;
+
+
+	if (pastedScreenWidth == 0) {
+			return Error::NONE;
+	}
+
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		uint16_t noteHexLength;
+		if(!strcmp(tagName, "attributes")){
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
+				if (!strcmp(tagName, "patternVersion")) {
+					reader.readTagOrAttributeValueString(&patternVersion);
+					if(!patternVersion.equals(PATTERN_FILE_VERSION)){
+						display->displayError(Error::INVALID_PATTERN_VERSION);
+						return Error::INVALID_PATTERN_VERSION;
+					}
+				}
+				else if (!strcmp(tagName, "scaleType")) {
+					copiedScaleType = static_cast<ScaleType>(reader.readTagOrAttributeValueInt());
+				}
+				else if (!strcmp(tagName, "yNoteOfBottomRow")) {
+					copiedYNoteOfBottomRow = reader.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, "screenWidth")) {
+					copiedScreenWidth = reader.readTagOrAttributeValueInt();
+				}
+			}
+		}
+		else if(!strcmp(tagName, "noteRows")){
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
+				if(!strcmp(tagName, "noteRow")){
+
+					void* copiedNoteRowMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(CopiedNoteRow));
+					if (!copiedNoteRowMemory) {
+						deleteCopiedNoteRows();
+						display->displayError(Error::INSUFFICIENT_RAM);
+						return Error::INSUFFICIENT_RAM;
+					}
+
+					// Make the new CopiedNoteRow object
+
+					CopiedNoteRow* newCopiedNoteRow = new (copiedNoteRowMemory) CopiedNoteRow();
+
+					// Put that on the list
+					*prevPointer = newCopiedNoteRow;
+					prevPointer = &newCopiedNoteRow->next;
+
+					int32_t currentNote = 0;
+
+					while (*(tagName = reader.readNextTagOrAttributeName())) {
+						if (!strcmp(tagName, "numNotes")) {
+
+							int32_t numNotes = reader.readTagOrAttributeValueInt();
+
+							newCopiedNoteRow->numNotes = numNotes;
+
+							newCopiedNoteRow->notes = (Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
+
+							currentNote = 0;
+
+
+						}
+						else if (!strcmp(tagName, "yNote")) {
+							int16_t yNote = reader.readTagOrAttributeValueInt();
+							newCopiedNoteRow->yNote = yNote;
+						}
+						else if (!strcmp(tagName, "yDisplay")) {
+							int16_t yDisplay = reader.readTagOrAttributeValueInt();
+							newCopiedNoteRow->yDisplay = yDisplay;
+						}
+						else if (!strcmp(tagName, "noteDataWithSplitProb")) {
+
+							noteHexLength = 28;
+							int32_t minPos = 0;
+							int32_t numElementsToAllocateFor = 0;
+
+							if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+								goto getOut;
+							}
+
+							{
+								char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+								if (!firstChars || *(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) {
+									goto getOut;
+								}
+							}
+
+							while (true) {
+
+								char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(noteHexLength);
+								if (!hexChars) {
+
+									goto getOut;
+								}
+
+
+								Note* newNote = &newCopiedNoteRow->notes[currentNote];
+
+								int32_t pos = hexToIntFixedLength(hexChars, 8);
+								int32_t length = hexToIntFixedLength(&hexChars[8], 8);
+								uint8_t velocity = hexToIntFixedLength(&hexChars[16], 2);
+								uint8_t lift, probability, fill;
+								Iterance iterance;
+								fill = hexToIntFixedLength(&hexChars[26], 2);
+								iterance = Iterance::fromInt(hexToIntFixedLength(&hexChars[22], 4));
+								probability = hexToIntFixedLength(&hexChars[20], 2);
+								lift = hexToIntFixedLength(&hexChars[18], 2);
+								if (lift == 0 || lift > 127) {
+									lift = kDefaultLiftValue;
+								}
+
+								newNote->pos = pos;
+								newNote->length = length;
+								newNote->velocity = velocity;
+								newNote->probability = probability;
+								newNote->lift = lift;
+								newNote->iterance = iterance;
+								newNote->fill = fill;
+
+
+								currentNote++;
+
+							}
+					getOut: {}
+
+
+
+						}
+
+					}
+
+				}
+
+			}
+
+		}
+	}
+
+	// Pasting notes to the View
+	pasteNotes(overwriteExisting);
+
+	return Error::NONE;
+
+}
+
 
 void InstrumentClipView::doubleClipLengthAction() {
 

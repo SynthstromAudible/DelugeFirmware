@@ -467,6 +467,52 @@ Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrumen
 	return Error::NONE;
 }
 
+Error StorageManager::openPatternFile(FilePointer* filePointer) {
+
+	AudioEngine::logAction("openPatternFile");
+	if (!filePointer->sclust) {
+		return Error::FILE_NOT_FOUND;
+	}
+	char const* firstTagName = "pattern";
+	char const* altTagName = "";
+
+	D_PRINTLN("opening XML");
+	Error error = openXMLFile(filePointer, smDeserializer, firstTagName, altTagName);
+	return error;
+}
+
+// Returns error status
+Error StorageManager::loadPatternFile(FilePointer* filePointer,String* fileName) {
+
+
+	AudioEngine::logAction("loadPatternFile");
+	D_PRINTLN("opening pattern file -  %s %s  from FP  %lu", fileName->get(),
+	          (int32_t)filePointer->sclust);
+
+	Error error = openPatternFile(filePointer);
+	if (error != Error::NONE) {
+		D_PRINTLN("opening pattern file failed -  %s", fileName->get());
+		return error;
+	}
+
+	AudioEngine::logAction("readPatternFile");
+
+	error = instrumentClipView.pasteNotesFromFile(smDeserializer,true);
+
+	FRESULT fileSuccess = activeDeserializer->closeWriter();
+
+	// If that somehow didn't work...
+	if (error != Error::NONE || fileSuccess != FR_OK) {
+		D_PRINTLN("reading pattern file failed -  %s", fileName->get());
+		if (!fileSuccess) {
+			error = Error::SD_CARD;
+		}
+
+		return error;
+	}
+
+	return Error::NONE;
+}
 /**
  * Special function to read a synth preset into a sound drum
  */
