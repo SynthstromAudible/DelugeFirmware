@@ -1139,7 +1139,7 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 				if (!strcmp(tagName, params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
 				                                              params::UNPATCHED_START + paramId))) {
 					soundParamToCC[params::UNPATCHED_START + paramId] = value;
-					ccToSoundParam[value] = paramId;
+					ccToSoundParam[value] = params::UNPATCHED_START + paramId;
 					foundParam = true;
 					break;
 				}
