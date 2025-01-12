@@ -1962,7 +1962,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			// Or if note starts exactly on square...
 			else if (note && note->pos == squareStartPos) {
 				drewNote = true;
-				float velocity_ratio = (float)(note->velocity) / 127; // velocity range is 1-127
+				float velocity_ratio = static_cast<float>(note->velocity) / 127.f; // velocity range is 1-127
 				float colour_intensity = 0.03 + 0.97 * velocity_ratio * velocity_ratio;
 				// The brightness is reduced as necessary to be proportional to the note velocity.
 				// below .03 (~4/127) it is not visible enough, so we set that as the minimum
