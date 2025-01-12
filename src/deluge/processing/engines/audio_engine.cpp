@@ -701,7 +701,7 @@ void renderAudio(size_t numSamples) {
 
 	renderSongFX(numSamples);
 
-	metronome.render(renderingBuffer.data(), renderingBuffer.size());
+	metronome.render(renderingBuffer);
 
 	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer.data(), renderingBuffer.size());
 
