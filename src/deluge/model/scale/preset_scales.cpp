@@ -74,11 +74,11 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 	if (noteIsAltered[n]) { // actually: if code is a black key on the piano?
 		if ((accidental == '#')) {
 			*thisChar++ = noteLetter[n];
-			*thisChar = accidental; // display->haveOLED() ? accidental : '.';
+			*thisChar = accidental;
 		}
 		else {
 			*thisChar++ = noteLetter[n + 1];
-			*thisChar = accidental; // display->haveOLED() ? accidental : '.';
+			*thisChar = accidental;
 		}
 	}
 	else {

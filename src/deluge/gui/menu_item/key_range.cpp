@@ -58,14 +58,21 @@ void KeyRange::selectEncoderAction(int32_t offset) {
 
 void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) {
 
-	*(buffer++) = noteLetter[lower];
-	int32_t leftLength = 1;
-
+	int32_t leftLength = 0;
 	if (noteIsAltered[lower]) {
-		*(buffer++) = (display->haveOLED()) ? '#' : '.';
-		if (display->haveOLED()) {
-			leftLength++;
+		uint8_t accidental = majorAccidental[lower];
+		if (accidental == '#') {
+			*(buffer++) = noteLetter[lower];
 		}
+		else {
+			*(buffer++) = noteLetter[lower + 1];
+		}
+		*(buffer++) = accidental;
+		leftLength += 2;
+	}
+	else {
+		*(buffer++) = noteLetter[lower];
+		++leftLength;
 	}
 
 	if (getLeftLength) {
@@ -82,13 +89,21 @@ void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLe
 
 	*(buffer++) = '-';
 
-	*(buffer++) = noteLetter[upper];
-	int32_t rightLength = 1;
+	int32_t rightLength = 0;
 	if (noteIsAltered[upper]) {
-		*(buffer++) = (display->haveOLED()) ? '#' : '.';
-		if (display->haveOLED()) {
-			rightLength++;
+		uint8_t accidental = majorAccidental[upper];
+		if (accidental == '#') {
+			*(buffer++) = noteLetter[upper];
 		}
+		else {
+			*(buffer++) = noteLetter[upper + 1];
+		}
+		*(buffer++) = accidental;
+		rightLength += 2;
+	}
+	else {
+		*(buffer++) = noteLetter[upper];
+		++rightLength;
 	}
 
 	*buffer = 0;
