@@ -1084,7 +1084,7 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 
 #### 4.5.8 - More envelopes
 
-- ([#3278]) Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
+- ([#3279]) Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
 
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
@@ -1576,7 +1576,7 @@ different firmware
 
 [#3079]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3079
 
-[#3278]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3278
+[#3279]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3279
 
 [Automation View Documentation]: features/automation_view.md
 
