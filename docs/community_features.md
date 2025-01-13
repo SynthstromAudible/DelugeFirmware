@@ -34,7 +34,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### 2.2 Horizontal Menus
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
-  - Envelope 1 & 2.
+  - Envelopes 1-4
   - LPF and HPF.
   - LFOs.
 
@@ -1085,6 +1085,9 @@ as an oscillator type within the subtractive engine, so it can be combined with 
   - Patches can be imported from the common 32-patch bank syx-file format, and afterwards saved as SYNTH presets or as part of songs.
 
   - As the UI and implementation is still experimental, a community setting has to be activated to create new DX7 patches. See the separate document for details.
+
+#### 4.5.7 - More envelopes
+- ([#3209]) Two more envelopes have been added. Pressing the ENV1 shortcuts toggles between ENV1 and ENV3, while the ENV2 shortcuts toggle between ENV2 and ENV4.
 
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
