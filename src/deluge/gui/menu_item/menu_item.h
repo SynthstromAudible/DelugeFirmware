@@ -290,7 +290,7 @@ public:
 	virtual bool supportsHorizontalRendering() { return false; }
 
 	/// Called when the manu item stops being the current one.
-	virtual void lostFocus(){};
+	virtual void lostFocus() {};
 
 	/// Returns the underlying menu item: for submenus returns the currently active (focused) child,
 	/// for layered shortcuts returns the menu item of the active layer.
