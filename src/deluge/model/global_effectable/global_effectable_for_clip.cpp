@@ -143,7 +143,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	// record before pan/compression/volume to keep volumes consistent
 	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
-		recorder->feedAudio((int32_t*)globalEffectableBuffer, numSamples, true, 2);
+		recorder->feedAudio({globalEffectableBuffer, numSamples}, true, 2);
 	}
 
 	processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,

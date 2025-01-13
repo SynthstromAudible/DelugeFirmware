@@ -742,7 +742,7 @@ void renderAudioForStemExport(size_t numSamples) {
 	if (recorder && recorder->mode == AudioInputChannel::OFFLINE_OUTPUT) {
 		// continue feeding audio if we're not finished recording
 		if (recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-			recorder->feedAudio(reinterpret_cast<q31_t*>(renderingBuffer.data()), numSamples, true);
+			recorder->feedAudio(renderingBuffer, true);
 		}
 	}
 
@@ -1245,7 +1245,7 @@ bool doSomeOutputting() {
 		}
 
 		// Go through each SampleRecorder, feeding them audio
-		for (SampleRecorder* recorder = firstRecorder; recorder; recorder = recorder->next) {
+		for (SampleRecorder* recorder = firstRecorder; recorder != nullptr; recorder = recorder->next) {
 
 			if (recorder->status >= RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 				continue;
@@ -1253,7 +1253,7 @@ bool doSomeOutputting() {
 
 			// Recording final output
 			if (recorder->mode == AudioInputChannel::OUTPUT) {
-				recorder->feedAudio(reinterpret_cast<q31_t*>(outputBufferForResampling.data()), numSamplesOutputted);
+				recorder->feedAudio(outputBufferForResampling.first(numSamplesOutputted));
 			}
 
 			// Recording from an input source
@@ -1279,7 +1279,7 @@ bool doSomeOutputting() {
 				        ? std::span{reinterpret_cast<StereoSample*>(recorder->sourcePos + 1), numSamplesFeedingNow}
 				        : std::span{reinterpret_cast<StereoSample*>(recorder->sourcePos), numSamplesFeedingNow};
 
-				recorder->feedAudio(reinterpret_cast<q31_t*>(streamToRecord.data()), streamToRecord.size());
+				recorder->feedAudio(streamToRecord);
 
 				recorder->sourcePos += numSamplesFeedingNow << NUM_MONO_INPUT_CHANNELS_MAGNITUDE;
 				if (recorder->sourcePos >= getRxBufferEnd()) {

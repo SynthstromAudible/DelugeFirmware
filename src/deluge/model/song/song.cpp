@@ -2439,7 +2439,7 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 		}
 
 		if (recorder->mode == AudioInputChannel::MIX) {
-			recorder->feedAudio((int32_t*)outputBuffer, numSamples, true);
+			recorder->feedAudio({outputBuffer, numSamples}, true);
 		}
 	}
 

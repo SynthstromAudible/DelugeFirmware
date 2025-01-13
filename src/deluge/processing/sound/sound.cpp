@@ -2448,7 +2448,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
-		recorder->feedAudio(soundBuffer, numSamples, true, 2);
+		recorder->feedAudio({reinterpret_cast<StereoSample*>(soundBuffer), numSamples}, true, 2);
 	}
 
 	for (size_t i = 0; i < numSamples; ++i) {
