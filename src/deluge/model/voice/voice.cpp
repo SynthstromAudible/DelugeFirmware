@@ -744,10 +744,9 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 		}
 	}
 
-	bool unassignVoiceAfter =
-	    (envelopes[0].state
-	     == EnvelopeStage::OFF); //(envelopes[0].state >= EnvelopeStage::DECAY &&
-	                             // localSourceValues[PatchSource::ENVELOPE_0 - Local::FIRST_SOURCE] == -2147483648);
+	bool unassignVoiceAfter = (envelopes[0].state == EnvelopeStage::OFF)
+	                          || (envelopes[0].state > EnvelopeStage::DECAY
+	                              && sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] == -2147483648);
 	// Local LFO
 	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
 	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
@@ -2436,7 +2435,14 @@ bool Voice::doFastRelease(uint32_t releaseIncrement) {
 
 bool Voice::forceNormalRelease() {
 	if (doneFirstRender) {
-		envelopes[0].unconditionalRelease();
+		// If no release-stage, we'll stop as soon as we can
+		if (!hasReleaseStage()) {
+			envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE);
+		}
+		// otherwise we'll just let it get there on its own
+		else {
+			envelopes[0].unconditionalRelease();
+		}
 		return true;
 	}
 
