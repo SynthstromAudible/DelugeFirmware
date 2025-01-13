@@ -90,162 +90,61 @@ void MidiFollow::clearMappings() {
 void MidiFollow::initDefaultMappings() {
 	clearMappings();
 
-	// PATCHED SOUND
+	// SOUND PARAMS
+	// NOTE: when adding an UNPATCHED param, make sure you add params::UNPATCHED_START to it for the indexes
 
-	// Noise
-	ccToSoundParam[41] = params::LOCAL_NOISE_VOLUME;
-	soundParamToCC[params::LOCAL_NOISE_VOLUME] = 41;
-	// Oscillators
-	ccToSoundParam[25] = params::LOCAL_OSC_A_WAVE_INDEX;
-	soundParamToCC[params::LOCAL_OSC_A_WAVE_INDEX] = 25;
-	ccToSoundParam[30] = params::LOCAL_OSC_A_WAVE_INDEX;
-	soundParamToCC[params::LOCAL_OSC_A_WAVE_INDEX] = 30;
-	ccToSoundParam[24] = params::LOCAL_CARRIER_0_FEEDBACK;
-	soundParamToCC[params::LOCAL_CARRIER_0_FEEDBACK] = 24;
-	ccToSoundParam[29] = params::LOCAL_CARRIER_1_FEEDBACK;
-	soundParamToCC[params::LOCAL_CARRIER_1_FEEDBACK] = 29;
-	ccToSoundParam[23] = params::LOCAL_OSC_A_PHASE_WIDTH;
-	soundParamToCC[params::LOCAL_OSC_A_PHASE_WIDTH] = 23;
-	ccToSoundParam[28] = params::LOCAL_OSC_B_PHASE_WIDTH;
-	soundParamToCC[params::LOCAL_OSC_B_PHASE_WIDTH] = 28;
+	ccToSoundParam[3] = params::LOCAL_PITCH_ADJUST;
+	soundParamToCC[params::LOCAL_PITCH_ADJUST] = 3;
+	ccToSoundParam[5] = params::UNPATCHED_START + params::UNPATCHED_PORTAMENTO;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_PORTAMENTO] = 5;
+	ccToSoundParam[7] = params::GLOBAL_VOLUME_POST_FX;
+	soundParamToCC[params::GLOBAL_VOLUME_POST_FX] = 7;
+	ccToSoundParam[10] = params::LOCAL_PAN;
+	soundParamToCC[params::LOCAL_PAN] = 10;
 	ccToSoundParam[12] = params::LOCAL_OSC_A_PITCH_ADJUST;
 	soundParamToCC[params::LOCAL_OSC_A_PITCH_ADJUST] = 12;
 	ccToSoundParam[13] = params::LOCAL_OSC_B_PITCH_ADJUST;
 	soundParamToCC[params::LOCAL_OSC_B_PITCH_ADJUST] = 13;
-	ccToSoundParam[21] = params::LOCAL_OSC_A_VOLUME;
-	soundParamToCC[params::LOCAL_OSC_A_VOLUME] = 21;
-	ccToSoundParam[26] = params::LOCAL_OSC_B_VOLUME;
-	soundParamToCC[params::LOCAL_OSC_B_VOLUME] = 26;
-	// FM
-	ccToSoundParam[55] = params::LOCAL_MODULATOR_0_FEEDBACK;
-	soundParamToCC[params::LOCAL_MODULATOR_0_FEEDBACK] = 55;
-	ccToSoundParam[57] = params::LOCAL_MODULATOR_1_FEEDBACK;
-	soundParamToCC[params::LOCAL_MODULATOR_1_FEEDBACK] = 57;
 	ccToSoundParam[14] = params::LOCAL_MODULATOR_0_PITCH_ADJUST;
 	soundParamToCC[params::LOCAL_MODULATOR_0_PITCH_ADJUST] = 14;
 	ccToSoundParam[15] = params::LOCAL_MODULATOR_1_PITCH_ADJUST;
 	soundParamToCC[params::LOCAL_MODULATOR_1_PITCH_ADJUST] = 15;
-	ccToSoundParam[54] = params::LOCAL_MODULATOR_0_VOLUME;
-	soundParamToCC[params::LOCAL_MODULATOR_0_VOLUME] = 54;
-	ccToSoundParam[56] = params::LOCAL_MODULATOR_1_VOLUME;
-	soundParamToCC[params::LOCAL_MODULATOR_1_VOLUME] = 56;
-	// Master
-	ccToSoundParam[10] = params::LOCAL_PAN;
-	soundParamToCC[params::LOCAL_PAN] = 10;
-	ccToSoundParam[3] = params::LOCAL_PITCH_ADJUST;
-	soundParamToCC[params::LOCAL_PITCH_ADJUST] = 3;
-	ccToSoundParam[7] = params::GLOBAL_VOLUME_POST_FX;
-	soundParamToCC[params::GLOBAL_VOLUME_POST_FX] = 7;
-	// Dist
-	ccToSoundParam[19] = params::LOCAL_FOLD;
-	soundParamToCC[params::LOCAL_FOLD] = 19;
-	// Filters
-	ccToSoundParam[74] = params::LOCAL_LPF_FREQ;
-	soundParamToCC[params::LOCAL_LPF_FREQ] = 74;
-	ccToSoundParam[81] = params::LOCAL_HPF_FREQ;
-	soundParamToCC[params::LOCAL_HPF_FREQ] = 81;
-	ccToSoundParam[71] = params::LOCAL_LPF_RESONANCE;
-	soundParamToCC[params::LOCAL_LPF_RESONANCE] = 71;
-	ccToSoundParam[82] = params::LOCAL_HPF_RESONANCE;
-	soundParamToCC[params::LOCAL_HPF_RESONANCE] = 82;
-	ccToSoundParam[70] = params::LOCAL_LPF_MORPH;
-	soundParamToCC[params::LOCAL_LPF_MORPH] = 70;
-	ccToSoundParam[83] = params::LOCAL_HPF_MORPH;
-	soundParamToCC[params::LOCAL_HPF_MORPH] = 83;
-	// Envelopes
-	ccToSoundParam[73] = params::LOCAL_ENV_0_ATTACK;
-	soundParamToCC[params::LOCAL_ENV_0_ATTACK] = 73;
-	ccToSoundParam[77] = params::LOCAL_ENV_1_ATTACK;
-	soundParamToCC[params::LOCAL_ENV_1_ATTACK] = 77;
-	ccToSoundParam[102] = params::LOCAL_ENV_2_ATTACK;
-	soundParamToCC[params::LOCAL_ENV_2_ATTACK] = 102;
-	ccToSoundParam[106] = params::LOCAL_ENV_3_ATTACK;
-	soundParamToCC[params::LOCAL_ENV_3_ATTACK] = 106;
-	ccToSoundParam[75] = params::LOCAL_ENV_0_DECAY;
-	soundParamToCC[params::LOCAL_ENV_0_DECAY] = 75;
-	ccToSoundParam[78] = params::LOCAL_ENV_1_DECAY;
-	soundParamToCC[params::LOCAL_ENV_1_DECAY] = 78;
-	ccToSoundParam[103] = params::LOCAL_ENV_2_DECAY;
-	soundParamToCC[params::LOCAL_ENV_2_DECAY] = 103;
-	ccToSoundParam[107] = params::LOCAL_ENV_3_DECAY;
-	soundParamToCC[params::LOCAL_ENV_3_DECAY] = 107;
-	ccToSoundParam[76] = params::LOCAL_ENV_0_SUSTAIN;
-	soundParamToCC[params::LOCAL_ENV_0_SUSTAIN] = 76;
-	ccToSoundParam[79] = params::LOCAL_ENV_1_SUSTAIN;
-	soundParamToCC[params::LOCAL_ENV_1_SUSTAIN] = 79;
-	ccToSoundParam[104] = params::LOCAL_ENV_2_SUSTAIN;
-	soundParamToCC[params::LOCAL_ENV_2_SUSTAIN] = 104;
-	ccToSoundParam[108] = params::LOCAL_ENV_3_SUSTAIN;
-	soundParamToCC[params::LOCAL_ENV_3_SUSTAIN] = 108;
-	ccToSoundParam[72] = params::LOCAL_ENV_0_RELEASE;
-	soundParamToCC[params::LOCAL_ENV_0_RELEASE] = 72;
-	ccToSoundParam[80] = params::LOCAL_ENV_1_RELEASE;
-	soundParamToCC[params::LOCAL_ENV_1_RELEASE] = 80;
-	ccToSoundParam[105] = params::LOCAL_ENV_2_RELEASE;
-	soundParamToCC[params::LOCAL_ENV_2_RELEASE] = 105;
-	ccToSoundParam[109] = params::LOCAL_ENV_3_RELEASE;
-	soundParamToCC[params::LOCAL_ENV_3_RELEASE] = 109;
-	// Arp
-	ccToSoundParam[51] = params::GLOBAL_ARP_RATE;
-	soundParamToCC[params::GLOBAL_ARP_RATE] = 51;
-	// Modfx
 	ccToSoundParam[16] = params::GLOBAL_MOD_FX_RATE;
 	soundParamToCC[params::GLOBAL_MOD_FX_RATE] = 16;
-	ccToSoundParam[93] = params::GLOBAL_MOD_FX_DEPTH;
-	soundParamToCC[params::GLOBAL_MOD_FX_DEPTH] = 93;
-	// LFO
-	ccToSoundParam[58] = params::GLOBAL_LFO_FREQ;
-	soundParamToCC[params::GLOBAL_LFO_FREQ] = 58;
-	ccToSoundParam[59] = params::LOCAL_LFO_LOCAL_FREQ;
-	soundParamToCC[params::LOCAL_LFO_LOCAL_FREQ] = 59;
-	// Reverb
-	ccToSoundParam[91] = params::GLOBAL_REVERB_AMOUNT;
-	soundParamToCC[params::GLOBAL_REVERB_AMOUNT] = 91;
-	// Delay
-	ccToSoundParam[52] = params::GLOBAL_DELAY_FEEDBACK;
-	soundParamToCC[params::GLOBAL_DELAY_FEEDBACK] = 52;
-	ccToSoundParam[53] = params::GLOBAL_DELAY_RATE;
-	soundParamToCC[params::GLOBAL_DELAY_RATE] = 53;
-
-	// UNPATCHED SOUND
-
-	// Portamento
-	ccToSoundParam[5] = params::UNPATCHED_START + params::UNPATCHED_PORTAMENTO;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_PORTAMENTO] = 5;
-	// Dist
-	ccToSoundParam[62] = params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING] = 62;
-	ccToSoundParam[63] = params::UNPATCHED_START + params::UNPATCHED_SAMPLE_RATE_REDUCTION;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SAMPLE_RATE_REDUCTION] = 63;
-	// Sidechain
-	ccToSoundParam[60] = params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE] = 60;
-	// Arp gate
-	ccToSoundParam[50] = params::UNPATCHED_START + params::UNPATCHED_ARP_GATE;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_GATE] = 50;
-	// EQ
-	ccToSoundParam[84] = params::UNPATCHED_START + params::UNPATCHED_BASS_FREQ;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BASS_FREQ] = 84;
-	ccToSoundParam[85] = params::UNPATCHED_START + params::UNPATCHED_TREBLE_FREQ;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_TREBLE_FREQ] = 85;
-	ccToSoundParam[86] = params::UNPATCHED_START + params::UNPATCHED_BASS;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BASS] = 86;
-	ccToSoundParam[87] = params::UNPATCHED_START + params::UNPATCHED_TREBLE;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_TREBLE] = 87;
-	// Modfx
 	ccToSoundParam[17] = params::UNPATCHED_START + params::UNPATCHED_MOD_FX_FEEDBACK;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_MOD_FX_FEEDBACK] = 17;
 	ccToSoundParam[18] = params::UNPATCHED_START + params::UNPATCHED_MOD_FX_OFFSET;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_MOD_FX_OFFSET] = 18;
-
-	// Stutter
-	// cc 22 could be reserved as a way to trigger stutter
+	ccToSoundParam[19] = params::LOCAL_FOLD;
+	soundParamToCC[params::LOCAL_FOLD] = 19;
 	ccToSoundParam[20] = params::UNPATCHED_START + params::UNPATCHED_STUTTER_RATE;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_STUTTER_RATE] = 20;
-	// Compressor
+	ccToSoundParam[21] = params::LOCAL_OSC_A_VOLUME;
+	soundParamToCC[params::LOCAL_OSC_A_VOLUME] = 21;
+	ccToSoundParam[23] = params::LOCAL_OSC_A_PHASE_WIDTH;
+	soundParamToCC[params::LOCAL_OSC_A_PHASE_WIDTH] = 23;
+	ccToSoundParam[24] = params::LOCAL_CARRIER_0_FEEDBACK;
+	soundParamToCC[params::LOCAL_CARRIER_0_FEEDBACK] = 24;
+	ccToSoundParam[25] = params::LOCAL_OSC_A_WAVE_INDEX;
+	soundParamToCC[params::LOCAL_OSC_A_WAVE_INDEX] = 25;
+	ccToSoundParam[26] = params::LOCAL_OSC_B_VOLUME;
+	soundParamToCC[params::LOCAL_OSC_B_VOLUME] = 26;
 	ccToSoundParam[27] = params::UNPATCHED_START + params::UNPATCHED_COMPRESSOR_THRESHOLD;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_COMPRESSOR_THRESHOLD] = 27;
-	// Arpeggiator
+	ccToSoundParam[28] = params::LOCAL_OSC_B_PHASE_WIDTH;
+	soundParamToCC[params::LOCAL_OSC_B_PHASE_WIDTH] = 28;
+	ccToSoundParam[29] = params::LOCAL_CARRIER_1_FEEDBACK;
+	soundParamToCC[params::LOCAL_CARRIER_1_FEEDBACK] = 29;
+	ccToSoundParam[30] = params::LOCAL_OSC_A_WAVE_INDEX;
+	soundParamToCC[params::LOCAL_OSC_A_WAVE_INDEX] = 30;
+	ccToSoundParam[37] = params::UNPATCHED_START + params::UNPATCHED_SPREAD_VELOCITY;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SPREAD_VELOCITY] = 37;
+	ccToSoundParam[39] = params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_OCTAVE;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_OCTAVE] = 39;
+	ccToSoundParam[40] = params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_GATE;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_GATE] = 40;
+	ccToSoundParam[41] = params::LOCAL_NOISE_VOLUME;
+	soundParamToCC[params::LOCAL_NOISE_VOLUME] = 41;
 	ccToSoundParam[42] = params::UNPATCHED_START + params::UNPATCHED_ARP_RHYTHM;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_RHYTHM] = 42;
 	ccToSoundParam[43] = params::UNPATCHED_START + params::UNPATCHED_ARP_SEQUENCE_LENGTH;
@@ -262,46 +161,130 @@ void MidiFollow::initDefaultMappings() {
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_CHORD_PROBABILITY] = 48;
 	ccToSoundParam[49] = params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_PROBABILITY;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_PROBABILITY] = 49;
-	ccToSoundParam[40] = params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_GATE;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_GATE] = 40;
-	ccToSoundParam[39] = params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_OCTAVE;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_OCTAVE] = 39;
-	ccToSoundParam[37] = params::UNPATCHED_START + params::UNPATCHED_SPREAD_VELOCITY;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SPREAD_VELOCITY] = 37;
+	ccToSoundParam[50] = params::UNPATCHED_START + params::UNPATCHED_ARP_GATE;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_GATE] = 50;
+	ccToSoundParam[51] = params::GLOBAL_ARP_RATE;
+	soundParamToCC[params::GLOBAL_ARP_RATE] = 51;
+	ccToSoundParam[52] = params::GLOBAL_DELAY_FEEDBACK;
+	soundParamToCC[params::GLOBAL_DELAY_FEEDBACK] = 52;
+	ccToSoundParam[53] = params::GLOBAL_DELAY_RATE;
+	soundParamToCC[params::GLOBAL_DELAY_RATE] = 53;
+	ccToSoundParam[54] = params::LOCAL_MODULATOR_0_VOLUME;
+	soundParamToCC[params::LOCAL_MODULATOR_0_VOLUME] = 54;
+	ccToSoundParam[55] = params::LOCAL_MODULATOR_0_FEEDBACK;
+	soundParamToCC[params::LOCAL_MODULATOR_0_FEEDBACK] = 55;
+	ccToSoundParam[56] = params::LOCAL_MODULATOR_1_VOLUME;
+	soundParamToCC[params::LOCAL_MODULATOR_1_VOLUME] = 56;
+	ccToSoundParam[57] = params::LOCAL_MODULATOR_1_FEEDBACK;
+	soundParamToCC[params::LOCAL_MODULATOR_1_FEEDBACK] = 57;
+	ccToSoundParam[58] = params::GLOBAL_LFO_FREQ;
+	soundParamToCC[params::GLOBAL_LFO_FREQ] = 58;
+	ccToSoundParam[59] = params::LOCAL_LFO_LOCAL_FREQ;
+	soundParamToCC[params::LOCAL_LFO_LOCAL_FREQ] = 59;
+	ccToSoundParam[60] = params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE] = 60;
+	ccToSoundParam[62] = params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING] = 62;
+	ccToSoundParam[63] = params::UNPATCHED_START + params::UNPATCHED_SAMPLE_RATE_REDUCTION;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SAMPLE_RATE_REDUCTION] = 63;
+	ccToSoundParam[70] = params::LOCAL_LPF_MORPH;
+	soundParamToCC[params::LOCAL_LPF_MORPH] = 70;
+	ccToSoundParam[71] = params::LOCAL_LPF_RESONANCE;
+	soundParamToCC[params::LOCAL_LPF_RESONANCE] = 71;
+	ccToSoundParam[72] = params::LOCAL_ENV_0_RELEASE;
+	soundParamToCC[params::LOCAL_ENV_0_RELEASE] = 72;
+	ccToSoundParam[73] = params::LOCAL_ENV_0_ATTACK;
+	soundParamToCC[params::LOCAL_ENV_0_ATTACK] = 73;
+	ccToSoundParam[74] = params::LOCAL_LPF_FREQ;
+	soundParamToCC[params::LOCAL_LPF_FREQ] = 74;
+	ccToSoundParam[75] = params::LOCAL_ENV_0_DECAY;
+	soundParamToCC[params::LOCAL_ENV_0_DECAY] = 75;
+	ccToSoundParam[76] = params::LOCAL_ENV_0_SUSTAIN;
+	soundParamToCC[params::LOCAL_ENV_0_SUSTAIN] = 76;
+	ccToSoundParam[77] = params::LOCAL_ENV_1_ATTACK;
+	soundParamToCC[params::LOCAL_ENV_1_ATTACK] = 77;
+	ccToSoundParam[78] = params::LOCAL_ENV_1_DECAY;
+	soundParamToCC[params::LOCAL_ENV_1_DECAY] = 78;
+	ccToSoundParam[79] = params::LOCAL_ENV_1_SUSTAIN;
+	soundParamToCC[params::LOCAL_ENV_1_SUSTAIN] = 79;
+	ccToSoundParam[80] = params::LOCAL_ENV_1_RELEASE;
+	soundParamToCC[params::LOCAL_ENV_1_RELEASE] = 80;
+	ccToSoundParam[81] = params::LOCAL_HPF_FREQ;
+	soundParamToCC[params::LOCAL_HPF_FREQ] = 81;
+	ccToSoundParam[82] = params::LOCAL_HPF_RESONANCE;
+	soundParamToCC[params::LOCAL_HPF_RESONANCE] = 82;
+	ccToSoundParam[83] = params::LOCAL_HPF_MORPH;
+	soundParamToCC[params::LOCAL_HPF_MORPH] = 83;
+	ccToSoundParam[84] = params::UNPATCHED_START + params::UNPATCHED_BASS_FREQ;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BASS_FREQ] = 84;
+	ccToSoundParam[85] = params::UNPATCHED_START + params::UNPATCHED_TREBLE_FREQ;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_TREBLE_FREQ] = 85;
+	ccToSoundParam[86] = params::UNPATCHED_START + params::UNPATCHED_BASS;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BASS] = 86;
+	ccToSoundParam[87] = params::UNPATCHED_START + params::UNPATCHED_TREBLE;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_TREBLE] = 87;
+	ccToSoundParam[91] = params::GLOBAL_REVERB_AMOUNT;
+	soundParamToCC[params::GLOBAL_REVERB_AMOUNT] = 91;
+	ccToSoundParam[93] = params::GLOBAL_MOD_FX_DEPTH;
+	soundParamToCC[params::GLOBAL_MOD_FX_DEPTH] = 93;
+	ccToSoundParam[102] = params::LOCAL_ENV_2_ATTACK;
+	soundParamToCC[params::LOCAL_ENV_2_ATTACK] = 102;
+	ccToSoundParam[103] = params::LOCAL_ENV_2_DECAY;
+	soundParamToCC[params::LOCAL_ENV_2_DECAY] = 103;
+	ccToSoundParam[104] = params::LOCAL_ENV_2_SUSTAIN;
+	soundParamToCC[params::LOCAL_ENV_2_SUSTAIN] = 104;
+	ccToSoundParam[106] = params::LOCAL_ENV_3_ATTACK;
+	soundParamToCC[params::LOCAL_ENV_2_RELEASE] = 105;
+	ccToSoundParam[109] = params::LOCAL_ENV_3_RELEASE;
+	soundParamToCC[params::LOCAL_ENV_3_ATTACK] = 106;
+	ccToSoundParam[107] = params::LOCAL_ENV_3_DECAY;
+	soundParamToCC[params::LOCAL_ENV_3_DECAY] = 107;
+	ccToSoundParam[108] = params::LOCAL_ENV_3_SUSTAIN;
+	soundParamToCC[params::LOCAL_ENV_3_SUSTAIN] = 108;
+	ccToSoundParam[105] = params::LOCAL_ENV_2_RELEASE;
+	soundParamToCC[params::LOCAL_ENV_3_RELEASE] = 109;
 
-	// UNPATCHED GLOBAL
+	// GLOBAL PARAMS
+	// NOTE: Here you add the global param, assigning the same CC as its relative sound param
 
-	// Master
-	ccToGlobalParam[10] = params::UNPATCHED_PAN;
-	globalParamToCC[params::UNPATCHED_PAN] = 10;
 	ccToGlobalParam[3] = params::UNPATCHED_PITCH_ADJUST;
 	globalParamToCC[params::UNPATCHED_PITCH_ADJUST] = 3;
 	ccToGlobalParam[7] = params::UNPATCHED_VOLUME;
 	globalParamToCC[params::UNPATCHED_VOLUME] = 7;
-	// Dist
-	ccToGlobalParam[62] = params::UNPATCHED_BITCRUSHING;
-	globalParamToCC[params::UNPATCHED_BITCRUSHING] = 62;
-	ccToGlobalParam[63] = params::UNPATCHED_SAMPLE_RATE_REDUCTION;
-	globalParamToCC[params::UNPATCHED_SAMPLE_RATE_REDUCTION] = 63;
-	// Filters
-	ccToGlobalParam[74] = params::UNPATCHED_LPF_FREQ;
-	globalParamToCC[params::UNPATCHED_LPF_FREQ] = 74;
-	ccToGlobalParam[81] = params::UNPATCHED_HPF_FREQ;
-	globalParamToCC[params::UNPATCHED_HPF_FREQ] = 81;
-	ccToGlobalParam[71] = params::UNPATCHED_LPF_RES;
-	globalParamToCC[params::UNPATCHED_LPF_RES] = 71;
-	ccToGlobalParam[82] = params::UNPATCHED_HPF_RES;
-	globalParamToCC[params::UNPATCHED_HPF_RES] = 82;
-	ccToGlobalParam[70] = params::UNPATCHED_LPF_MORPH;
-	globalParamToCC[params::UNPATCHED_LPF_MORPH] = 70;
-	ccToGlobalParam[83] = params::UNPATCHED_HPF_MORPH;
-	globalParamToCC[params::UNPATCHED_HPF_MORPH] = 83;
-	// Sidechain
+	ccToGlobalParam[10] = params::UNPATCHED_PAN;
+	globalParamToCC[params::UNPATCHED_PAN] = 10;
+	ccToGlobalParam[16] = params::UNPATCHED_MOD_FX_RATE;
+	globalParamToCC[params::UNPATCHED_MOD_FX_RATE] = 16;
+	ccToGlobalParam[17] = params::UNPATCHED_MOD_FX_FEEDBACK;
+	globalParamToCC[params::UNPATCHED_MOD_FX_FEEDBACK] = 17;
+	ccToGlobalParam[18] = params::UNPATCHED_MOD_FX_OFFSET;
+	globalParamToCC[params::UNPATCHED_MOD_FX_OFFSET] = 18;
+	ccToGlobalParam[20] = params::UNPATCHED_STUTTER_RATE;
+	globalParamToCC[params::UNPATCHED_STUTTER_RATE] = 20;
+	ccToGlobalParam[52] = params::UNPATCHED_DELAY_AMOUNT;
+	globalParamToCC[params::UNPATCHED_DELAY_AMOUNT] = 52;
+	ccToGlobalParam[53] = params::UNPATCHED_DELAY_RATE;
+	globalParamToCC[params::UNPATCHED_DELAY_RATE] = 53;
 	ccToGlobalParam[60] = params::UNPATCHED_SIDECHAIN_SHAPE;
 	globalParamToCC[params::UNPATCHED_SIDECHAIN_SHAPE] = 60;
 	ccToGlobalParam[61] = params::UNPATCHED_SIDECHAIN_VOLUME;
 	globalParamToCC[params::UNPATCHED_SIDECHAIN_VOLUME] = 61;
-	// EQ
+	ccToGlobalParam[62] = params::UNPATCHED_BITCRUSHING;
+	globalParamToCC[params::UNPATCHED_BITCRUSHING] = 62;
+	ccToGlobalParam[63] = params::UNPATCHED_SAMPLE_RATE_REDUCTION;
+	globalParamToCC[params::UNPATCHED_SAMPLE_RATE_REDUCTION] = 63;
+	ccToGlobalParam[70] = params::UNPATCHED_LPF_MORPH;
+	globalParamToCC[params::UNPATCHED_LPF_MORPH] = 70;
+	ccToGlobalParam[71] = params::UNPATCHED_LPF_RES;
+	globalParamToCC[params::UNPATCHED_LPF_RES] = 71;
+	ccToGlobalParam[74] = params::UNPATCHED_LPF_FREQ;
+	globalParamToCC[params::UNPATCHED_LPF_FREQ] = 74;
+	ccToGlobalParam[81] = params::UNPATCHED_HPF_FREQ;
+	globalParamToCC[params::UNPATCHED_HPF_FREQ] = 81;
+	ccToGlobalParam[82] = params::UNPATCHED_HPF_RES;
+	globalParamToCC[params::UNPATCHED_HPF_RES] = 82;
+	ccToGlobalParam[83] = params::UNPATCHED_HPF_MORPH;
+	globalParamToCC[params::UNPATCHED_HPF_MORPH] = 83;
 	ccToGlobalParam[84] = params::UNPATCHED_BASS_FREQ;
 	globalParamToCC[params::UNPATCHED_BASS_FREQ] = 74;
 	ccToGlobalParam[85] = params::UNPATCHED_TREBLE_FREQ;
@@ -310,26 +293,10 @@ void MidiFollow::initDefaultMappings() {
 	globalParamToCC[params::UNPATCHED_BASS] = 71;
 	ccToGlobalParam[87] = params::UNPATCHED_TREBLE;
 	globalParamToCC[params::UNPATCHED_TREBLE] = 82;
-	// Modfx
-	ccToGlobalParam[17] = params::UNPATCHED_MOD_FX_FEEDBACK;
-	globalParamToCC[params::UNPATCHED_MOD_FX_FEEDBACK] = 17;
-	ccToGlobalParam[18] = params::UNPATCHED_MOD_FX_OFFSET;
-	globalParamToCC[params::UNPATCHED_MOD_FX_OFFSET] = 18;
-	ccToGlobalParam[16] = params::UNPATCHED_MOD_FX_RATE;
-	globalParamToCC[params::UNPATCHED_MOD_FX_RATE] = 16;
-	ccToGlobalParam[93] = params::UNPATCHED_MOD_FX_DEPTH;
-	globalParamToCC[params::UNPATCHED_MOD_FX_DEPTH] = 93;
-	// Reverb
 	ccToGlobalParam[91] = params::UNPATCHED_REVERB_SEND_AMOUNT;
 	globalParamToCC[params::UNPATCHED_REVERB_SEND_AMOUNT] = 91;
-	// Delay
-	ccToGlobalParam[52] = params::UNPATCHED_DELAY_AMOUNT;
-	globalParamToCC[params::UNPATCHED_DELAY_AMOUNT] = 52;
-	ccToGlobalParam[53] = params::UNPATCHED_DELAY_RATE;
-	globalParamToCC[params::UNPATCHED_DELAY_RATE] = 53;
-	// Stutter
-	ccToGlobalParam[20] = params::UNPATCHED_STUTTER_RATE;
-	globalParamToCC[params::UNPATCHED_STUTTER_RATE] = 20;
+	ccToGlobalParam[93] = params::UNPATCHED_MOD_FX_DEPTH;
+	globalParamToCC[params::UNPATCHED_MOD_FX_DEPTH] = 93;
 }
 
 /// checks to see if there is an active clip for the current context
