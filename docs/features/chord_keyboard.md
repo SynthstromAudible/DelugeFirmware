@@ -107,5 +107,5 @@ In the interest of brevity, and to display as much of the chord name as possible
 
 Then the chord would be followed by any additional information such as the extension (7, 9, 11, 13) or alterations (b5, #5, b9, #9, #11, b13). Finally, if the chord has a well known nickname, it may be included as well.
 
-So for example, a C Major chord would be displayed as `CM`, a C Minor chord would be displayed as `C-`, and a C Diminished chord would be displayed as `CDIM`. A C Dominant 7 chord would be displayed as `C7`, a C Minor 7 Flat 5 chord would be displayed as `C-7FLAT5`.
+So for example, a C Major chord would be displayed as `CM`, a C Minor chord would be displayed as `C-`, and a C Diminished chord would be displayed as `CDIM`. A C Dominant 7 chord would be displayed as `C7`, a C Minor 7 Flat 5 chord would be displayed as `C-7b5`.
 
