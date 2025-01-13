@@ -54,6 +54,7 @@
 #include "RZA1/system/r_typedefs.h"
 
 #include "RZA1/bsc/bsc_userdef.h" //sdram init
+#include "RZA1/cache/cache.h"
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/stb/stb.h"
@@ -71,8 +72,6 @@
     && !defined(__ARM_ARCH_4T__)
 #define HAVE_CALL_INDIRECT
 #endif
-
-extern int R_CACHE_L1Init(void);
 
 extern void __libc_init_array(void);
 
@@ -176,8 +175,12 @@ void resetprg(void) {
 
 	R_INTC_Init(); // Set up interrupt controller
 
-	R_CACHE_L1Init(); // Makes everything go about 1000x faster
+	// branch prediction, data cache, instruction cache
+	R_CACHE_L1Init();
 
+	// must be second or l1 will flush into it. Note this is currently instruction caching only, DMA has
+	// bad interactions with data caching in L2 since it's physically after the DMA controllers
+	L2CacheInit();
 	__enable_irq();
 	__enable_fiq();
 	// Setup SDRAM. Have to do this before we init global objects

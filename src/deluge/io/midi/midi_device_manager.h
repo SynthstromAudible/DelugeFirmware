@@ -18,17 +18,16 @@
 #pragma once
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
+#include "io/midi/cable_types/din.h"
+#include "io/midi/cable_types/usb_common.h"
+#include "io/midi/cable_types/usb_device_cable.h"
 #include "util/container/vector/named_thing_vector.h"
-class MIDIDevice;
-class MIDIDeviceUSBUpstream;
-class MIDIDeviceDINPorts;
-class MIDIDeviceUSB;
 class Serializer;
 class Deserializer;
 
 #else
 #include "definitions.h"
-struct MIDIDeviceUSB;
+struct MIDICableUSB;
 #endif
 
 // size in 32-bit messages
@@ -61,7 +60,7 @@ struct MIDIDeviceUSB;
  */
 class ConnectedUSBMIDIDevice {
 public:
-	MIDIDeviceUSB* device[4]; // If NULL, then no device is connected here
+	MIDICableUSB* cable[4]; // If NULL, then no cable is connected here
 	ConnectedUSBMIDIDevice();
 	void bufferMessage(uint32_t fullMessage);
 	void setup();
@@ -73,7 +72,7 @@ public:
 #else
 // warning - accessed as a C struct from usb driver
 struct ConnectedUSBMIDIDevice {
-	struct MIDIDeviceUSB* device[4];
+	struct MIDICableUSB* device[4];
 #endif
 	uint8_t currentlyWaitingToReceive;
 	uint8_t sq; // Only for connections as HOST
@@ -102,7 +101,7 @@ struct ConnectedUSBMIDIDevice {
 namespace MIDIDeviceManager {
 
 void slowRoutine();
-MIDIDevice* readDeviceReferenceFromFile(Deserializer& reader);
+MIDICable* readDeviceReferenceFromFile(Deserializer& reader);
 void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const* memory);
 void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory);
 void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory);
@@ -112,10 +111,10 @@ void writeDevicesToFile();
 void readAHostedDeviceFromFile(Deserializer& reader);
 void readDevicesFromFile();
 
-extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1;
-extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2;
-extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3;
-extern MIDIDeviceDINPorts dinMIDIPorts;
+extern MIDICableUSBUpstream upstreamUSBMIDICable1;
+extern MIDICableUSBUpstream upstreamUSBMIDICable2;
+extern MIDICableUSBUpstream upstreamUSBMIDICable3;
+extern MIDICableDINPorts dinMIDIPorts;
 
 extern bool differentiatingInputsByDevice;
 

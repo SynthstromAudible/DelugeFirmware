@@ -81,10 +81,11 @@ public:
 	}
 	virtual void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
 	                                       IndependentNoteRowLengthIncrease independentNoteRowInstruction,
-	                                       bool completelyRenderOutIterationDependence = false, Action* action = NULL) {
+	                                       bool completelyRenderOutIterationDependence = false,
+	                                       Action* action = nullptr) {
 	} // This is not implemented for AudioClips - because in the cases where we call this, we don't want it to happen
 	  // for AudioClips
-	virtual void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL);
+	virtual void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = nullptr);
 	virtual void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound);
 	virtual ParamManagerForTimeline* getCurrentParamManager() { return nullptr; }
 
@@ -103,7 +104,7 @@ public:
 
 	// To be called after Song loaded, to link to the relevant Output object
 	virtual Error claimOutput(ModelStackWithTimelineCounter* modelStack) = 0;
-	virtual void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop = NULL,
+	virtual void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop = nullptr,
 	                                   int32_t buttonLatencyForTempolessRecord = 0) = 0;
 	virtual Error beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) = 0;
 	void drawUndefinedArea(int32_t localScroll, uint32_t, int32_t lengthToDisplay, RGB* image, uint8_t[],
@@ -221,14 +222,14 @@ public:
 	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 	// Setup the name per clip on session/song/grid view and to be selectable on the arranger
-	String clipName;
+	String name;
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the
 	                                                                       // modelStack if new Clip got created
 	virtual bool
 	cloneOutput(ModelStackWithTimelineCounter* modelStack) = 0; // Returns whether a new Output was in fact created
-	Error solicitParamManager(Song* song, ParamManager* newParamManager = NULL,
-	                          Clip* favourClipForCloningParamManager = NULL);
+	Error solicitParamManager(Song* song, ParamManager* newParamManager = nullptr,
+	                          Clip* favourClipForCloningParamManager = nullptr);
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {}
 };

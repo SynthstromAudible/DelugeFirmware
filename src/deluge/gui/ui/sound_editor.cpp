@@ -11,9 +11,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/rename/rename_clipname_ui.h"
 #include "gui/ui/rename/rename_drum_ui.h"
-#include "gui/ui/rename/rename_output_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/ui.h"
@@ -21,7 +19,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -38,6 +36,7 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/drum/non_audio_drum.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -122,15 +121,20 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 	}
 }
 
-SoundEditor soundEditor;
+SoundEditor soundEditor{};
 
 SoundEditor::SoundEditor() {
 	currentParamShorcutX = 255;
-	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 	timeLastAttemptedAutomatedParamEdit = 0;
 	shouldGoUpOneLevelOnBegin = false;
 	setupKitGlobalFXMenu = false;
 	selectedNoteRow = false;
+	resetSourceBlinks();
+}
+
+void SoundEditor::resetSourceBlinks() {
+	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
+	memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
 }
 
 bool SoundEditor::editingKit() {
@@ -139,6 +143,33 @@ bool SoundEditor::editingKit() {
 
 bool SoundEditor::editingCVOrMIDIClip() {
 	return (getCurrentOutputType() == OutputType::MIDI_OUT || getCurrentOutputType() == OutputType::CV);
+}
+
+bool SoundEditor::editingNonAudioDrumRow() {
+	auto* kit = getCurrentKit();
+	if (kit == nullptr || kit->selectedDrum == nullptr) {
+		return false;
+	}
+	auto selectedDrumType = kit->selectedDrum->type;
+	return selectedDrumType == DrumType::MIDI || selectedDrumType == DrumType::GATE;
+}
+
+bool SoundEditor::editingMidiDrumRow() {
+	auto* kit = getCurrentKit();
+	if (kit == nullptr || kit->selectedDrum == nullptr) {
+		return false;
+	}
+	auto selectedDrumType = kit->selectedDrum->type;
+	return selectedDrumType == DrumType::MIDI;
+}
+
+bool SoundEditor::editingGateDrumRow() {
+	auto* kit = getCurrentKit();
+	if (kit == nullptr || kit->selectedDrum == nullptr) {
+		return false;
+	}
+	auto selectedDrumType = kit->selectedDrum->type;
+	return selectedDrumType == DrumType::GATE;
 }
 
 bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -545,7 +576,7 @@ void SoundEditor::exitCompletely() {
 
 bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout) {
 	bool found = false;
-	for (int32_t x = 0; x < 15; x++) {
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			if (deluge::modulation::params::patchedParamShortcuts[x][y] == paramLookingFor) {
 
@@ -573,7 +604,7 @@ void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
 
 void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem,
                                                MenuItem const* const items[kDisplayWidth][kDisplayHeight]) {
-	for (auto x = 0; x < 15; ++x) {
+	for (auto x = 0; x < kDisplayWidth; ++x) {
 		for (auto y = 0; y < kDisplayHeight; ++y) {
 			if (items[x][y] == currentItem) {
 				setupShortcutBlink(x, y, 0);
@@ -583,25 +614,11 @@ void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem
 	}
 }
 
-bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
-
-	MenuItem* currentItem = getCurrentMenuItem();
-
-	currentItem->beginSession(oldMenuItem);
-
-	// If that didn't succeed (file browser)
-	if (getCurrentUI() != &soundEditor && getCurrentUI() != &sampleBrowser && getCurrentUI() != &audioRecorder
-	    && getCurrentUI() != &sampleMarkerEditor && getCurrentUI() != &renameDrumUI) {
-		return false;
-	}
-
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 
 	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
 	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
-	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&drumNameMenu)) {
+	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&nameEditMenu)) {
 
 		memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 		memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
@@ -623,8 +640,17 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		else if (getCurrentClip()->type == ClipType::AUDIO) {
 			setupShortcutsBlinkFromTable(currentItem, paramShortcutsForAudioClips);
 		}
-		// Or for MIDI or CV clips
-		else if (editingCVOrMIDIClip()) {
+		// Or for Gate drums
+		else if (editingGateDrumRow()) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				if (gateDrumParamShortcuts[y] == currentItem) {
+					setupShortcutBlink(11, y, 0);
+					break;
+				}
+			}
+		}
+		// Or for MIDI or CV clips, or MIDI drums
+		else if (editingCVOrMIDIClip() || editingMidiDrumRow()) {
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
 				if (midiOrCVParamShortcuts[y] == currentItem) {
 					setupShortcutBlink(11, y, 0);
@@ -640,7 +666,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 			}
 
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
-			for (int32_t x = 0; x < 15; x++) {
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
 					if (paramShortcutsForSounds[x][y] == currentItem) {
 
@@ -668,25 +694,18 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 				}
 			}
 
-stopThat: {}
+stopThat:
 
 			if (currentParamShorcutX != 255) {
 				updateSourceBlinks(currentItem);
 			}
 		}
 
-		// If we found nothing...
-		if (currentParamShorcutX == 255) {
-			uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
-		}
-
-		// Or if we found something...
-		else {
+		// If we found something...
+		if (currentParamShorcutX != 255) {
 			blinkShortcut();
 		}
 	}
-
-shortcutsPicked:
 
 	if (currentItem->shouldBlinkLearnLed()) {
 		indicator_leds::blinkLed(IndicatorLED::LEARN);
@@ -694,10 +713,29 @@ shortcutsPicked:
 	else {
 		indicator_leds::setLedState(IndicatorLED::LEARN, false);
 	}
+}
+
+bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
+	MenuItem* currentItem = getCurrentMenuItem();
+	currentItem->beginSession(oldMenuItem);
+
+	// If that didn't succeed (file browser)
+	// XXX: Why do we need to check for renameDrumUI, but not other rename UIs? either way, this should probably
+	// be a virtual function getCurrentUI()->noSoundEditor() or something.
+	if (getCurrentUI() != &soundEditor && getCurrentUI() != &sampleBrowser && getCurrentUI() != &audioRecorder
+	    && getCurrentUI() != &sampleMarkerEditor && getCurrentUI() != &renameDrumUI) {
+		return false;
+	}
+
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+
+	currentItem->updatePadLights();
 
 	possibleChangeToCurrentRangeDisplay();
 
-	return true;
+	return getCurrentUI() == &soundEditor;
 }
 
 void SoundEditor::possibleChangeToCurrentRangeDisplay() {
@@ -715,7 +753,7 @@ void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency) {
 }
 
 void SoundEditor::setupExclusiveShortcutBlink(int32_t x, int32_t y) {
-	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
+	resetSourceBlinks();
 	setupShortcutBlink(x, y, 1);
 	blinkShortcut();
 }
@@ -780,19 +818,55 @@ void SoundEditor::scrollFinished() {
 const uint32_t selectEncoderUIModes[] = {UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, UI_MODE_NOTES_PRESSED,
                                          UI_MODE_AUDITIONING, 0};
 
-void SoundEditor::selectEncoderAction(int8_t offset) {
+// inertia and acceleration controls how fast the knob accelerates in horizontal menus
+// speedScale controls how we go from "raw speed" to speed used as offset multiplier
+// min and max speed clamp the max effective speed
+//
+// current values have been tuned to be slow enough to feel easy to control, but fast
+// enough to go from 0 to 50 with one fast turn of the encoder. speedScale and min/max
+// could potentially be user configurable in a small range.
+const double acceleration = 0.1;
+const double inertia = 1.0 - acceleration;
+const double speedScale = 0.15;
+const double minSpeed = 1.0;
+const double maxSpeed = 5.0;
 
+double getKnobSpeed(int8_t offset) {
+	// speed is current raw knob speed
+	static double speed = 0.0;
+	// lastOffset and lastEncoderTime keep track of our direction and time
+	static int8_t lastOffset = 0;
+	static double lastEncoderTime = 0.0;
+	double time = getSystemTime();
+	if (offset == lastOffset) {
+		// moving in the same direction, update speed
+		speed = speed * inertia + (1.0 / (time - lastEncoderTime)) * acceleration;
+	}
+	else {
+		// change of direction, reset speed
+		speed = 0.0;
+	}
+	lastEncoderTime = time;
+	lastOffset = offset;
+	return std::clamp((speed * speedScale), minSpeed, maxSpeed);
+}
+
+void SoundEditor::selectEncoderAction(int8_t offset) {
+	int8_t scaledOffset = offset;
 	// 5x acceleration of select encoder when holding the shift button
 	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
-		offset = offset * 5;
+		scaledOffset *= 5;
 	}
 
+	MenuItem* item = getCurrentMenuItem();
 	RootUI* rootUI = getRootUI();
 
-	// if you're not on the automation overview and you haven't selected a multi pad press
-	// (multi pad press values are only editable with mod encoders to edit left and right position)
-	if (rootUI == &automationView && isEditingAutomationViewParam() && !automationView.multiPadPressSelected) {
-		automationView.modEncoderAction(0, offset);
+	// Forward to automation view.
+	// - skipped for submenus, since vertical menus don't need it, and horizontal menus need extra case
+	// - TODO: this could be handled by the Automation class via regular forwarding for all cases
+	if (!item->isSubmenu() && rootUI == &automationView && isEditingAutomationViewParam()
+	    && !automationView.multiPadPressSelected) {
+		automationView.modEncoderAction(0, scaledOffset);
 	}
 	else {
 		if (!isUIModeWithinRange(selectEncoderUIModes)) {
@@ -811,7 +885,7 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 			hadNoteTails = currentSound->allowNoteTails(modelStack);
 		}
 
-		getCurrentMenuItem()->selectEncoderAction(offset);
+		item->selectEncoderAction(item->isSubmenu() ? offset * getKnobSpeed(offset) : scaledOffset);
 
 		if (currentSound) {
 			if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) {
@@ -851,13 +925,14 @@ static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 	bool ignoreAction = false;
+	bool modulationItemFound = false;
 	if (!Buttons::isShiftButtonPressed()) {
 		// ignore if you're not auditioning and in instrument clip view
 		ignoreAction = !(isUIModeActive(UI_MODE_AUDITIONING) && getRootUI() == &instrumentClipView);
 	}
 	else {
 		// allow automation view to handle interpolation and pad selection shortcut
-		if ((getRootUI() == &automationView) && (x == 0 && (y == 6) || (y == 7))) {
+		if ((getRootUI() == &automationView) && (x == 0) && ((y == 6) || (y == 7))) {
 			ignoreAction = true;
 		}
 	}
@@ -877,11 +952,13 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 
 		const MenuItem* item = nullptr;
+		Submenu* parent = nullptr;
 
 		// session views (arranger, song, performance)
 		if (!rootUIIsClipMinderScreen()) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForSongView[x][y];
+				parent = parentsForSongShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -891,6 +968,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		else if (setupKitGlobalFXMenu) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForKitGlobalFX[x][y];
+				parent = parentsForKitGlobalFXShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -899,119 +977,25 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		// AudioClips - there are just a few shortcuts
 		else if (getCurrentClip()->type == ClipType::AUDIO) {
 
-			// NAME shortcut
-			if (x == 11 && y == 5) {
-				// Renames the output (track), not the clip
-				Output* output = getCurrentOutput();
-				if (output) {
-					renameOutputUI.output = output;
-					openUI(&renameOutputUI);
-					return ActionResult::DEALT_WITH;
-				}
-			}
-			else if (x <= 14) {
+			if (x <= 14) {
 				item = paramShortcutsForAudioClips[x][y];
+				parent = parentsForAudioShortcuts[x][y];
 			}
 
 			goto doSetup;
 		}
 
-		else if (x == 11 && y == 5) {
-
-			if (handleClipName()) {
-				ActionResult::DEALT_WITH;
-			}
-			else {
-				item = paramShortcutsForSounds[x][y];
-				goto doSetup;
-			}
-		}
-
 		else {
 			if (getCurrentUI() == &soundEditor && getCurrentMenuItem() == &dxParam
-			    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDxShortcuts)
+			    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine)
 			           == RuntimeFeatureStateToggle::On) {
 				if (dxParam.potentialShortcutPadAction(x, y, on)) {
 					return ActionResult::DEALT_WITH;
 				}
 			}
-			// Shortcut to edit a parameter
-			if (x < 14 || (x == 14 && y < 5)) {
-
-				if (editingCVOrMIDIClip()) {
-					if (x == 11) {
-						item = midiOrCVParamShortcuts[y];
-					}
-					else if (x == 4) {
-						if (y == 7) {
-							item = &sequenceDirectionMenu;
-						}
-					}
-					else {
-						item = nullptr;
-					}
-				}
-				else {
-					item = paramShortcutsForSounds[x][y];
-				}
-
-doSetup:
-				if (item) {
-
-					if (item == comingSoonMenu) {
-						display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
-						return ActionResult::DEALT_WITH;
-					}
-
-					// if we're in the menu and automation view is the root (background) UI
-					// and you're using a grid shortcut, only allow use of shortcuts for parameters / patch cables
-					MenuItem* newItem;
-					newItem = (MenuItem*)item;
-					// need to make sure we're already in the menu
-					// because at this point menu may not have been setup yet
-					// menu needs to be setup before menu items can call soundEditor.getCurrentModelStack()
-					if (getCurrentUI() == &soundEditor) {
-						deluge::modulation::params::Kind kind = newItem->getParamKind();
-						if ((newItem->getParamKind() == deluge::modulation::params::Kind::NONE)
-						    && getRootUI() == &automationView) {
-							return ActionResult::DEALT_WITH;
-						}
-					}
-
-					if (display->haveOLED()) {
-						switch (x) {
-						case 0 ... 3:
-							setOscillatorNumberForTitles(x & 1);
-							break;
-
-						case 4 ... 5:
-							setModulatorNumberForTitles(x & 1);
-							break;
-
-						case 8 ... 9:
-							setEnvelopeNumberForTitles(x & 1);
-							break;
-						}
-					}
-					int32_t thingIndex = x & 1;
-
-					bool setupSuccess = setup(getCurrentClip(), item, thingIndex);
-
-					if (!setupSuccess && item == &modulatorVolume && currentSource->oscType == OscType::DX7) {
-						item = &dxParam;
-						setupSuccess = setup(getCurrentClip(), item, thingIndex);
-					}
-
-					if (!setupSuccess) {
-						return ActionResult::DEALT_WITH;
-					}
-
-					enterOrUpdateSoundEditor(on);
-				}
-			}
 
 			// Shortcut to patch a modulation source to the parameter we're already looking at
-			else if (getCurrentUI() == &soundEditor) {
+			if (getCurrentUI() == &soundEditor && ((x == 14 && y >= 5) || x == 15)) {
 
 				PatchSource source = modSourceShortcuts[x - 14][y];
 				if (source == PatchSource::SOON) {
@@ -1065,6 +1049,7 @@ getOut:
 						    && newMenuItem->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
 						                                                  &currentMultiRange)
 						           != MenuPermission::NO) {
+							modulationItemFound = true;
 							navigationDepth = newNavigationDepth + 1;
 							menuItemNavigationRecord[navigationDepth] = newMenuItem;
 							if (!wentBack) {
@@ -1082,6 +1067,96 @@ getOut:
 						// Otherwise, do nothing
 						break;
 					}
+				}
+			}
+
+			// Shortcut to edit a parameter
+			if (!modulationItemFound && (x < 14 || (x == 14 && y < 5) || (x == 15 && y == 1))) {
+
+				if (editingCVOrMIDIClip() || editingNonAudioDrumRow()) {
+					if (x == 11) {
+						if (editingGateDrumRow()) {
+							item = gateDrumParamShortcuts[y];
+						}
+						else {
+							item = midiOrCVParamShortcuts[y];
+						}
+						parent = parentsForMidiOrCVParamShortcuts[y];
+					}
+					else if (x == 4) {
+						if (y == 7) {
+							item = &sequenceDirectionMenu;
+						}
+					}
+					else {
+						item = nullptr;
+					}
+				}
+				else {
+					item = paramShortcutsForSounds[x][y];
+					parent = parentsForSoundShortcuts[x][y];
+				}
+
+doSetup:
+				if (item) {
+
+					if (item == comingSoonMenu) {
+						display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
+						return ActionResult::DEALT_WITH;
+					}
+
+					// If we're on OLED, a parent menu & horizontal menus are in play,
+					// then we swap the parent in place of the child.
+					if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+						if (parent->focusChild(item)) {
+							item = parent;
+						}
+					}
+
+					// if we're in the menu and automation view is the root (background) UI
+					// and you're using a grid shortcut, only allow use of shortcuts for parameters / patch cables
+					MenuItem* newItem;
+					newItem = (MenuItem*)item;
+					// need to make sure we're already in the menu
+					// because at this point menu may not have been setup yet
+					// menu needs to be setup before menu items can call soundEditor.getCurrentModelStack()
+					if (getCurrentUI() == &soundEditor) {
+						deluge::modulation::params::Kind kind = newItem->getParamKind();
+						if ((newItem->getParamKind() == deluge::modulation::params::Kind::NONE)
+						    && getRootUI() == &automationView) {
+							return ActionResult::DEALT_WITH;
+						}
+					}
+
+					if (display->haveOLED()) {
+						switch (x) {
+						case 0 ... 3:
+							setOscillatorNumberForTitles(x & 1);
+							break;
+
+						case 4 ... 5:
+							setModulatorNumberForTitles(x & 1);
+							break;
+
+						case 8 ... 9:
+							setEnvelopeNumberForTitles(x & 1);
+							break;
+						}
+					}
+					int32_t thingIndex = x & 1;
+
+					bool setupSuccess = setup(getCurrentClip(), item, thingIndex);
+
+					if (!setupSuccess && item == &modulatorVolume && currentSource->oscType == OscType::DX7) {
+						item = &dxParam;
+						setupSuccess = setup(getCurrentClip(), item, thingIndex);
+					}
+
+					if (!setupSuccess) {
+						return ActionResult::DEALT_WITH;
+					}
+
+					enterOrUpdateSoundEditor(on);
 				}
 			}
 		}
@@ -1198,10 +1273,10 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 
-		// used in performanceSessionView to ignore pad presses when you just exited soundEditor
+		// used in performanceView to ignore pad presses when you just exited soundEditor
 		// with a padAction
-		if (rootUI == &performanceSessionView) {
-			performanceSessionView.justExitedSoundEditor = true;
+		if (rootUI == &performanceView) {
+			performanceView.justExitedSoundEditor = true;
 		}
 
 		exitCompletely();
@@ -1264,22 +1339,22 @@ ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRouti
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);
 }
 
-bool SoundEditor::pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program) {
+bool SoundEditor::pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) {
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
-		getCurrentMenuItem()->learnProgramChange(fromDevice, channel, program);
+		getCurrentMenuItem()->learnProgramChange(cable, channel, program);
 		return true;
 	}
 	return false;
 }
-bool SoundEditor::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity) {
-	return getCurrentMenuItem()->learnNoteOn(fromDevice, channel, note);
+bool SoundEditor::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) {
+	return getCurrentMenuItem()->learnNoteOn(cable, channel, note);
 }
 
 // Returns true if some use was made of the message here
-bool SoundEditor::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value) {
+bool SoundEditor::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value) {
 
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
-		getCurrentMenuItem()->learnCC(fromDevice, channel, ccNumber, value);
+		getCurrentMenuItem()->learnCC(cable, channel, ccNumber, value);
 		return true;
 	}
 
@@ -1287,10 +1362,10 @@ bool SoundEditor::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_
 }
 
 // Returns true if some use was made of the message here
-bool SoundEditor::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2) {
+bool SoundEditor::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2) {
 
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
-		getCurrentMenuItem()->learnKnob(fromDevice, 128, 0, channel);
+		getCurrentMenuItem()->learnKnob(&cable, 128, 0, channel);
 		return true;
 	}
 
@@ -1386,16 +1461,8 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 						newParamManager = &noteRow->paramManager;
 						newArpSettings = &((SoundDrum*)selectedDrum)->arpSettings;
 					}
-					else {
-						if (item != &sequenceDirectionMenu) {
-							if (selectedDrum->type == DrumType::MIDI) {
-								indicator_leds::indicateAlertOnLed(IndicatorLED::MIDI);
-							}
-							else { // GATE
-								indicator_leds::indicateAlertOnLed(IndicatorLED::CV);
-							}
-							return false;
-						}
+					else if (selectedDrum->type == DrumType::MIDI || selectedDrum->type == DrumType::GATE) {
+						newArpSettings = &((NonAudioDrum*)selectedDrum)->arpSettings;
 					}
 				}
 
@@ -1461,6 +1528,18 @@ doMIDIOrCV:
 					newItem = &soundEditorRootMenuKitGlobalFX;
 				}
 
+				else if ((outputType == OutputType::KIT) && !instrumentClip->affectEntire
+				         && ((Kit*)output)->selectedDrum != nullptr
+				         && ((Kit*)output)->selectedDrum->type == DrumType::MIDI) {
+					newItem = &soundEditorRootMenuMidiDrum;
+				}
+
+				else if ((outputType == OutputType::KIT) && !instrumentClip->affectEntire
+				         && ((Kit*)output)->selectedDrum != nullptr
+				         && ((Kit*)output)->selectedDrum->type == DrumType::GATE) {
+					newItem = &soundEditorRootMenuGateDrum;
+				}
+
 				else {
 					newItem = &soundEditorRootMenu;
 				}
@@ -1471,7 +1550,7 @@ doMIDIOrCV:
 			}
 		}
 		else {
-			if ((currentUI == &performanceSessionView) && !Buttons::isShiftButtonPressed()) {
+			if ((currentUI == &performanceView) && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuPerformanceView;
 			}
 			else if ((currentUI == &sessionView || currentUI == &arrangerView || currentUI == &automationView)
@@ -1712,7 +1791,7 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 
 	// Sorry - extremely ugly hack here.
 	MenuItem* currentMenuItem = getCurrentMenuItem();
-	if (currentMenuItem == static_cast<void*>(&drumNameMenu)) {
+	if (currentMenuItem == static_cast<void*>(&nameEditMenu)) {
 		if (!navigationDepth) {
 			return;
 		}
@@ -1722,32 +1801,6 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	currentMenuItem->renderOLED();
 }
 
-bool SoundEditor::handleClipName() {
-
-	Clip* clip = getCurrentClip();
-	Output* output = getCurrentOutput();
-
-	switch (clip->type) {
-
-	case ClipType::INSTRUMENT:
-
-		if (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
-		    || output->type == OutputType::KIT && getRootUI()->getAffectEntire()) {
-			if (clip) {
-				renameClipNameUI.clip = clip;
-				openUI(&renameClipNameUI);
-				return true;
-			}
-		}
-		else {
-
-			return false;
-		}
-
-	default:
-		return false;
-	}
-}
 /*
 char modelStackMemory[MODEL_STACK_MAX_SIZE];
 ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);

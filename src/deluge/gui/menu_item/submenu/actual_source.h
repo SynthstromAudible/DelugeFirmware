@@ -28,7 +28,7 @@ public:
 	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
 
 	// OLED Only
-	void beginSession(MenuItem* navigatedBackwardFrom) {
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		setOscillatorNumberForTitles(this->thingIndex);
 		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 	}

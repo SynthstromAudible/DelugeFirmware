@@ -52,7 +52,7 @@ public:
 
 	int16_t defaultRangeI; // -1 means none yet
 
-	bool renderInStereo(Sound* s, SampleHolder* sampleHolder = NULL);
+	bool renderInStereo(Sound* s, SampleHolder* sampleHolder = nullptr);
 	void setCents(int32_t newCents);
 	void recalculateFineTuner();
 	int32_t getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching = false);

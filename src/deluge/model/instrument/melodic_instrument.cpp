@@ -27,9 +27,12 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "modulation/arpeggiator.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include <cstdint>
 #include <cstring>
+#include <ranges>
 
 bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(Serializer& writer, Clip* clipForSavingOutputOnly,
                                                                Song* song) {
@@ -59,8 +62,8 @@ void MelodicInstrument::writeMelodicInstrumentTagsToFile(Serializer& writer, Cli
 		// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI class now uses.
 		if (midiInput.containsSomething()) {
 			// Device gets written here as a tag. Channel got written above, as an attribute.
-			if (midiInput.device) {
-				midiInput.device->writeReferenceToFile(writer, "inputMidiDevice");
+			if (midiInput.cable) {
+				midiInput.cable->writeReferenceToFile(writer, "inputMidiDevice");
 			}
 		}
 	}
@@ -78,7 +81,7 @@ bool MelodicInstrument::readTagFromFile(Deserializer& reader, char const* tagNam
 		reader.exitTag();
 	}
 	else if (!strcmp(tagName, "inputMidiDevice")) {
-		midiInput.device = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
+		midiInput.cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
 		reader.exitTag();
 	}
 	else if (Instrument::readTagFromFile(reader, tagName)) {}
@@ -89,25 +92,25 @@ bool MelodicInstrument::readTagFromFile(Deserializer& reader, char const* tagNam
 	return true;
 }
 
-void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
+void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on,
                                      int32_t midiChannel, MIDIMatchType match, int32_t note, int32_t velocity,
                                      bool shouldRecordNotes, bool* doingMidiThru) {
 	int16_t const* mpeValues = zeroMPEValues;
-	int16_t const* mpeValuesOrNull = NULL;
+	int16_t const* mpeValuesOrNull = nullptr;
 	int32_t highlightNoteValue = -1;
 	switch (match) {
 	case MIDIMatchType::NO_MATCH:
 		return;
 	case MIDIMatchType::MPE_MASTER:
 	case MIDIMatchType::MPE_MEMBER:
-		mpeValues = mpeValuesOrNull = fromDevice->defaultInputMPEValuesPerMIDIChannel[midiChannel];
+		mpeValues = mpeValuesOrNull = cable.inputChannels[midiChannel].defaultInputMPEValues.data();
 		// no break
 	case MIDIMatchType::CHANNEL:
 		// -1 means no change
 		auto* instrumentClip = (InstrumentClip*)activeClip;
 
 		ModelStackWithNoteRow* modelStackWithNoteRow =
-		    instrumentClip ? instrumentClip->getNoteRowForYNote(note, modelStack) : modelStack->addNoteRow(0, NULL);
+		    instrumentClip ? instrumentClip->getNoteRowForYNote(note, modelStack) : modelStack->addNoteRow(0, nullptr);
 
 		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 
@@ -126,7 +129,7 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 			    mpeValues); // Hmm, should we really be going in here even when it's not MPE input?
 
 			// NoteRow must not already be sounding a note
-			if (!noteRow || !noteRow->soundingStatus) {
+			if (!noteRow || !noteRow->sequenced) {
 
 				if (instrumentClip) {
 
@@ -145,8 +148,9 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 						}
 						else if (currentUIMode == UI_MODE_RECORD_COUNT_IN) {
 recordingEarly:
-							earlyNotes.insertElementIfNonePresent(
-							    note, velocity, instrumentClip->allowNoteTails(modelStackWithNoteRow));
+							earlyNotes.emplace(note,
+							                   EarlyNoteInfo{static_cast<uint8_t>(velocity),
+							                                 instrumentClip->allowNoteTails(modelStackWithNoteRow)});
 							goto justAuditionNote;
 						}
 
@@ -233,8 +237,7 @@ justAuditionNote:
 				highlightNoteValue = 0;
 			}
 			// NoteRow must already be auditioning
-			if (notesAuditioned.searchExact(note) != -1) {
-
+			if (notesAuditioned.contains(note)) {
 				if (noteRow) {
 					// If we get here, we know there is a Clip
 					if (shouldRecordNotes
@@ -279,14 +282,14 @@ justAuditionNote:
 	}
 }
 
-void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
+void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on,
                                           int32_t midiChannel, int32_t note, int32_t velocity, bool shouldRecordNotes,
                                           bool* doingMidiThru) {
-	MIDIMatchType match = midiInput.checkMatch(fromDevice, midiChannel);
+	MIDIMatchType match = midiInput.checkMatch(&cable, midiChannel);
 	auto* instrumentClip = static_cast<InstrumentClip*>(activeClip);
 
 	if (match != MIDIMatchType::NO_MATCH) {
-		receivedNote(modelStack, fromDevice, on, midiChannel, match, note, velocity, shouldRecordNotes, doingMidiThru);
+		receivedNote(modelStack, cable, on, midiChannel, match, note, velocity, shouldRecordNotes, doingMidiThru);
 	}
 	// In case Norns layout is active show
 	// this ignores input differentiation, but since midi learn doesn't work for norns grid
@@ -302,16 +305,16 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
 }
 
 void MelodicInstrument::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                               MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+                                               MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
                                                bool* doingMidiThru) {
-	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	MIDIMatchType match = midiInput.checkMatch(&cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
-		receivedPitchBend(modelStackWithTimelineCounter, fromDevice, match, channel, data1, data2, doingMidiThru);
+		receivedPitchBend(modelStackWithTimelineCounter, cable, match, channel, data1, data2, doingMidiThru);
 	}
 }
 
 void MelodicInstrument::receivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                          MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t data1,
+                                          MIDICable& cable, MIDIMatchType match, uint8_t channel, uint8_t data1,
                                           uint8_t data2, bool* doingMidiThru) {
 	int32_t newValue;
 	switch (match) {
@@ -344,16 +347,15 @@ void MelodicInstrument::receivedPitchBend(ModelStackWithTimelineCounter* modelSt
 		break;
 	}
 }
-void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                        MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
-                                        bool* doingMidiThru) {
-	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
+                                        uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {
+	MIDIMatchType match = midiInput.checkMatch(&cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
-		receivedCC(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value, doingMidiThru);
+		receivedCC(modelStackWithTimelineCounter, cable, match, channel, ccNumber, value, doingMidiThru);
 	}
 }
 // match external mod wheel to mono expression y, mpe cc74 to poly expression y
-void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                                    MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                    bool* doingMidiThru) {
 	int32_t value32 = 0;
@@ -412,18 +414,18 @@ void MelodicInstrument::possiblyRefreshAutomationEditorGrid(int32_t ccNumber) {
 }
 
 void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                                MIDIDevice* fromDevice, int32_t channel, int32_t value,
-                                                int32_t noteCode, bool* doingMidiThru) {
-	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+                                                MIDICable& cable, int32_t channel, int32_t value, int32_t noteCode,
+                                                bool* doingMidiThru) {
+	MIDIMatchType match = midiInput.checkMatch(&cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
-		receivedAftertouch(modelStackWithTimelineCounter, fromDevice, match, channel, value, noteCode, doingMidiThru);
+		receivedAftertouch(modelStackWithTimelineCounter, cable, match, channel, value, noteCode, doingMidiThru);
 	}
 }
 
 // noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to
 // one note).
 void MelodicInstrument::receivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                           MIDIDevice* fromDevice, MIDIMatchType match, int32_t channel, int32_t value,
+                                           MIDICable& cable, MIDIMatchType match, int32_t channel, int32_t value,
                                            int32_t noteCode, bool* doingMidiThru) {
 	int32_t valueBig = (int32_t)value << 24;
 	switch (match) {
@@ -461,10 +463,10 @@ void MelodicInstrument::receivedAftertouch(ModelStackWithTimelineCounter* modelS
 	}
 }
 
-void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
+void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone,
                                              int32_t whichBendRange, int32_t bendSemitones) {
 
-	if (midiInput.equalsChannelOrZone(device, channelOrZone)) {
+	if (midiInput.equalsChannelOrZone(&cable, channelOrZone)) {
 
 		ParamManager* paramManager = getParamManager(modelStack->song);
 		if (paramManager) { // It could be NULL! - for a CVInstrument.
@@ -491,13 +493,13 @@ void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice*
 
 bool MelodicInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 
-	earlyNotes.empty();
+	earlyNotes.clear();
 
 	return Instrument::setActiveClip(modelStack, maySendMIDIPGMs);
 }
 
 bool MelodicInstrument::isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) {
-	return (notesAuditioned.searchExact(noteRow->y) != -1) && (earlyNotes.searchExact(noteRow->y) == -1);
+	return notesAuditioned.contains(noteRow->y) && earlyNotes.contains(noteRow->y);
 }
 
 void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
@@ -506,13 +508,12 @@ void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
 	    modelStack->addTimelineCounter(activeClip)
 	        ->addOtherTwoThingsButNoNoteRow(toModControllable(), getParamManager(modelStack->song));
 
-	for (int32_t i = 0; i < notesAuditioned.getNumElements(); i++) {
-		EarlyNote* note = (EarlyNote*)notesAuditioned.getElementAddress(i);
-		sendNote(modelStackWithThreeMainThings, false, note->note, NULL);
+	for (int16_t note : notesAuditioned | std::views::keys) {
+		sendNote(modelStackWithThreeMainThings, false, note, nullptr);
 	}
 
-	notesAuditioned.empty();
-	earlyNotes.empty(); // This is fine, though in a perfect world we'd prefer to just mark the notes as no
+	notesAuditioned.clear();
+	earlyNotes.clear(); // This is fine, though in a perfect world we'd prefer to just mark the notes as no
 	                    // longer active
 	if (activeClip) {
 		activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
@@ -520,7 +521,7 @@ void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
 }
 
 bool MelodicInstrument::isNoteAuditioning(int32_t noteCode) {
-	return (notesAuditioned.searchExact(noteCode) != -1);
+	return notesAuditioned.contains(noteCode);
 }
 
 void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity,
@@ -535,13 +536,12 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 
 	// don't audition this note row if there is a drone note that is currently sounding
 	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-	if (noteRow && noteRow->isDroning(modelStackWithNoteRow->getLoopLength())
-	    && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+	if (noteRow && noteRow->isDroning(modelStackWithNoteRow->getLoopLength()) && noteRow->sequenced) {
 		return;
 	}
 
 	if (!activeClip || ((InstrumentClip*)activeClip)->allowNoteTails(modelStackWithNoteRow)) {
-		notesAuditioned.insertElementIfNonePresent(note, velocity);
+		notesAuditioned.emplace(note, EarlyNoteInfo{static_cast<uint8_t>(velocity)});
 	}
 
 	ParamManager* paramManager = getParamManager(modelStackWithNoteRow->song);
@@ -553,8 +553,8 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 
 void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity) {
 
-	notesAuditioned.deleteAtKey(note);
-	earlyNotes.noteNoLongerActive(note);
+	notesAuditioned.erase(note);
+	earlyNotes[note].stillActive = false; // set no longer active
 	if (!activeClip) {
 		return;
 	}
@@ -565,8 +565,7 @@ void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t no
 
 	// here we check if this note row has a drone note that is currently sounding
 	// in which case we don't want to stop it from sounding
-	if (noteRow && noteRow->isDroning(modelStackWithNoteRow->getLoopLength())
-	    && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+	if (noteRow && noteRow->isDroning(modelStackWithNoteRow->getLoopLength()) && noteRow->sequenced) {
 		return;
 	}
 
@@ -578,11 +577,11 @@ void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t no
 	    modelStack->addTimelineCounter(activeClip)
 	        ->addOtherTwoThingsButNoNoteRow(toModControllable(), getParamManager(modelStack->song));
 
-	sendNote(modelStackWithThreeMainThings, false, note, NULL, MIDI_CHANNEL_NONE, velocity);
+	sendNote(modelStackWithThreeMainThings, false, note, nullptr, MIDI_CHANNEL_NONE, velocity);
 }
 
 bool MelodicInstrument::isAnyAuditioningHappening() {
-	return notesAuditioned.getNumElements();
+	return !notesAuditioned.empty();
 }
 
 // Virtual function, gets overridden.
@@ -594,7 +593,7 @@ MelodicInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackW
 
 	ExpressionParamSet* mpeParams = (ExpressionParamSet*)summary->paramCollection;
 	if (!mpeParams) {
-		return modelStack->addParam(NULL, NULL, 0, NULL); // Crude way of saying "none".
+		return modelStack->addParam(nullptr, nullptr, 0, nullptr); // Crude way of saying "none".
 	}
 
 	int32_t paramId;
@@ -638,7 +637,7 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 		}
 	}
 
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStackWithNoteRow->addOtherTwoThings(toModControllable(), getParamManager(modelStack->song));
@@ -661,7 +660,7 @@ ArpeggiatorSettings* MelodicInstrument::getArpSettings(InstrumentClip* clip) {
 		return &((InstrumentClip*)activeClip)->arpSettings;
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 }
 
@@ -673,7 +672,7 @@ bool expressionValueChangesMustBeDoneSmoothly = false; // Wee bit of a workaroun
 // no NoteRow for the note
 // - but we still want to cause a sound change in response to the message.
 void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack,
-                                                                  int32_t newValue, int32_t whichExpressionDimension,
+                                                                  int32_t newValue, int32_t expressionDimension,
                                                                   int32_t channelOrNoteNumber,
                                                                   MIDICharacteristic whichCharacteristic) {
 	expressionValueChangesMustBeDoneSmoothly = true;
@@ -699,7 +698,7 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (noteRow) {
 					bool success = noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, newValue,
-					                                                        whichExpressionDimension, false);
+					                                                        expressionDimension, false);
 					if (success) {
 						continue;
 					}
@@ -707,7 +706,7 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 
 				// If still here, that didn't work, so just send it without recording.
 				polyphonicExpressionEventOnChannelOrNote(
-				    newValue, whichExpressionDimension,
+				    newValue, expressionDimension,
 				    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
 				    MIDICharacteristic::NOTE);
 			}
@@ -716,7 +715,7 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 
 	// Or if not recording, just sound the change ourselves here (as opposed to the AutoParam doing it).
 	else {
-		polyphonicExpressionEventOnChannelOrNote(newValue, whichExpressionDimension, channelOrNoteNumber,
+		polyphonicExpressionEventOnChannelOrNote(newValue, expressionDimension, channelOrNoteNumber,
 		                                         whichCharacteristic);
 	}
 

@@ -28,16 +28,15 @@ class Type : public Selection {
 public:
 	using Selection::Selection;
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->modFXType); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->modFXType_); }
 	void writeCurrentValue() override {
 		if (!soundEditor.currentModControllable->setModFXType(this->getValue<ModFXType>())) {
 			display->displayError(Error::INSUFFICIENT_RAM);
 		}
 	}
 
-	deluge::vector<std::string_view> getOptions() override {
-		using enum l10n::String;
-
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		return modfx::getModNames();
 	}
 };

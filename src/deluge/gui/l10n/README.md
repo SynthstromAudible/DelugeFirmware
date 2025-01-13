@@ -1,3 +1,5 @@
+# Localization
+
 This folder contains the list of strings that can be localized for the OLED display and their abbreviations for the 7SEG display.
 
 For developers looking to add additional strings for use in the codebase, you will need to update the following three files:

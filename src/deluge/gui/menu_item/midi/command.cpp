@@ -43,8 +43,8 @@ void Command::drawPixelsForOled() {
 	}
 	else {
 		char const* deviceString = l10n::get(l10n::String::STRING_FOR_ANY_MIDI_DEVICE);
-		if (command->device) {
-			deviceString = command->device->getDisplayName();
+		if (command->cable) {
+			deviceString = command->cable->getDisplayName();
 		}
 		image.drawString(deviceString, 0, yPixel, kTextSpacingX, kTextSizeYUpdated);
 		deluge::hid::display::OLED::setupSideScroller(0, deviceString, kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel,
@@ -127,17 +127,17 @@ void Command::unlearnAction() {
 	}
 }
 
-void Command::learnProgramChange(MIDIDevice* device, int32_t channel, int32_t programNumber) {
+void Command::learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) {
 	if (commandNumber == GlobalMIDICommand::FILL) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_LEARN_PC));
 	}
 	else {
-		learnNoteOn(device, channel + IS_A_PC, programNumber);
+		learnNoteOn(cable, channel + IS_A_PC, programNumber);
 	}
 }
 
-bool Command::learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) {
-	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].device = device;
+bool Command::learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) {
+	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].cable = &cable;
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].channelOrZone = channel;
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].noteOrCC = noteCode;
 	if (soundEditor.getCurrentMenuItem() == this) {
@@ -154,9 +154,9 @@ bool Command::learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode)
 	return true;
 }
 
-void Command::learnCC(MIDIDevice* device, int32_t channel, int32_t ccNumber, int32_t value) {
+void Command::learnCC(MIDICable& cable, int32_t channel, int32_t ccNumber, int32_t value) {
 	if (value != 0) {
-		learnNoteOn(device, channel + IS_A_CC, ccNumber);
+		learnNoteOn(cable, channel + IS_A_CC, ccNumber);
 	}
 }
 } // namespace deluge::gui::menu_item::midi

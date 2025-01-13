@@ -97,7 +97,7 @@ constexpr int32_t kEditPadPressBufferSize = 8;
 
 constexpr int32_t kNumModButtons = 8;
 
-// Display information
+// Display information (actually pads, not the display proper)
 constexpr int32_t kDisplayHeight = 8;
 constexpr int32_t kDisplayHeightMagnitude = 3;
 constexpr int32_t kDisplayWidth = 16;
@@ -195,26 +195,32 @@ constexpr int32_t kNumInstrumentSlots = 1000;
 constexpr size_t kFilenameBufferSize = 256;
 
 /// Static enum representing which view a generic UI pointer actually represents.
+/// If you update this, also update the string translations in ui.cpp!
 enum class UIType : uint8_t {
 	ARRANGER,
 	AUDIO_CLIP,
 	AUDIO_RECORDER,
 	AUTOMATION,
-	BROWSER,
 	CONTEXT_MENU,
+	DX_BROWSER,
 	INSTRUMENT_CLIP,
 	KEYBOARD_SCREEN,
 	LOAD_INSTRUMENT_PRESET,
+	LOAD_MIDI_DEVICE_DEFINITION,
 	LOAD_SONG,
-	PERFORMANCE_SESSION,
-	RENAME_DRUM,
-	RENAME_OUTPUT,
+	PERFORMANCE,
+	RENAME,
+	SAMPLE_BROWSER,
 	SAMPLE_MARKER_EDITOR,
+	SAVE_INSTRUMENT_PRESET,
+	SAVE_KIT_ROW,
+	SAVE_MIDI_DEVICE_DEFINITION,
+	SAVE_SONG,
 	SESSION,
 	SLICER,
 	SOUND_EDITOR,
-	TIMELINE,
-	RENAME_CLIPNAME,
+	// Keep these at the bottom!
+	UI_TYPE_COUNT,
 	NONE = 255,
 };
 
@@ -266,7 +272,7 @@ constexpr int32_t kFlangerMinTime = (3 << 16);
 constexpr int32_t kFlangerAmplitude = (kModFXMaxDelay - kFlangerMinTime);
 constexpr int32_t kFlangerOffset = ((kModFXMaxDelay + kFlangerMinTime) >> 1);
 
-constexpr int32_t kNumEnvelopes = 2;
+constexpr int32_t kNumEnvelopes = 4;
 constexpr int32_t kNumLFOs = 2;
 constexpr int32_t kNumModulators = 2;
 
@@ -301,6 +307,8 @@ enum class PatchSource : uint8_t {
 	SIDECHAIN,
 	ENVELOPE_0,
 	ENVELOPE_1,
+	ENVELOPE_2,
+	ENVELOPE_3,
 	LFO_LOCAL,
 	X,
 	Y,
@@ -417,6 +425,7 @@ enum class ModFXType : uint8_t {
 	PHASER,
 	CHORUS_STEREO,
 	WARBLE,
+	DIMENSION,
 	GRAIN, // Look below if you want to add another one
 };
 constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
@@ -450,7 +459,7 @@ constexpr int32_t kNumericDisplayLength = 4;
 constexpr size_t kNumGoldKnobIndicatorLEDs = 4;
 constexpr int32_t kMaxGoldKnobIndicatorLEDValue = kMaxKnobPos / 4;
 
-constexpr int32_t kMaxNumSections = 12;
+constexpr int32_t kMaxNumSections = 24;
 
 constexpr int32_t kNumPhysicalModKnobs = 2;
 
@@ -585,6 +594,7 @@ enum class GlobalMIDICommand {
 	REDO,
 	FILL,
 	TRANSPOSE,
+	NEXT_SONG,
 	LAST, // Keep as boundary
 };
 constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::LAST) + 1;
@@ -742,16 +752,6 @@ constexpr int32_t kDifferenceLPFPoles = 2;
 constexpr int32_t kInterpolationMaxNumSamples = 16;
 constexpr int32_t kInterpolationMaxNumSamplesMagnitude = 4;
 
-enum class ClusterType {
-	EMPTY,
-	Sample,
-	GENERAL_MEMORY,
-	SAMPLE_CACHE,
-	PERC_CACHE_FORWARDS,
-	PERC_CACHE_REVERSED,
-	OTHER,
-};
-
 enum PlayHead {
 	PLAY_HEAD_OLDER,
 	PLAY_HEAD_NEWER,
@@ -806,6 +806,7 @@ enum class AudioInputChannel {
 	MIX,
 	OUTPUT,
 	SPECIFIC_OUTPUT,
+	OFFLINE_OUTPUT, // special output only used with offline stem exporting
 };
 
 constexpr AudioInputChannel AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION = AudioInputChannel::MIX;
@@ -942,6 +943,7 @@ constexpr int32_t kTextHugeSizeY = 20;
 // submenu icons
 constexpr int32_t kSubmenuIconSpacingX = 7;
 
+// For kits
 constexpr int32_t kNoteForDrum = 60;
 
 enum BendRange {
@@ -987,9 +989,21 @@ constexpr uint32_t kLowFeedbackAutomationRate = (kSampleRate / 1000) * 500;    /
 constexpr uint32_t kMediumFeedbackAutomationRate = (kSampleRate / 1000) * 150; // 150 ms
 constexpr uint32_t kHighFeedbackAutomationRate = (kSampleRate / 1000) * 40;    // 40 ms
 
+enum class ThresholdRecordingMode : int8_t {
+	OFF,
+	LOW,
+	MEDIUM,
+	HIGH,
+};
+
+constexpr int8_t kFirstThresholdRecordingMode = util::to_underlying(ThresholdRecordingMode::OFF);
+constexpr int8_t kLastThresholdRecordingMode = util::to_underlying(ThresholdRecordingMode::HIGH);
+constexpr int8_t kNumThresholdRecordingModes = kLastThresholdRecordingMode + 1;
+
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,
 	KeyboardLayoutTypeInKey,
+	KeyboardLayoutTypePiano,
 	KeyboardLayoutTypeChord,
 	KeyboardLayoutTypeChordLibrary,
 	KeyboardLayoutTypeDrums,

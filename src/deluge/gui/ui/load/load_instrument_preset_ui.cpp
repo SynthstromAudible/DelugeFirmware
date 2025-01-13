@@ -42,15 +42,13 @@
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include "util/try.h"
 
 using namespace deluge;
 namespace encoders = deluge::hid::encoders;
 using encoders::EncoderName;
 
 LoadInstrumentPresetUI loadInstrumentPresetUI{};
-
-LoadInstrumentPresetUI::LoadInstrumentPresetUI() {
-}
 
 bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	if (showingAuditionPads()) {
@@ -88,11 +86,17 @@ bool LoadInstrumentPresetUI::opened() {
 	switch (instrumentToReplace->type) {
 	case OutputType::MIDI_OUT:
 		initialChannelSuffix = ((MIDIInstrument*)instrumentToReplace)->channelSuffix;
-		// No break
+		// intentional fallthrough to share code with CV case
 
 	case OutputType::CV:
 		initialChannel = ((NonAudioInstrument*)instrumentToReplace)->getChannel();
 		break;
+
+	// explicit fallthrough cases
+	case OutputType::AUDIO:
+	case OutputType::SYNTH:
+	case OutputType::KIT:
+	case OutputType::NONE:;
 	}
 
 	changedInstrumentForClip = false;
@@ -168,6 +172,11 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 				fileIcon = deluge::hid::display::OLED::midiIcon;
 				fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
 				fileIconPt2Width = 1;
+				break;
+			// explicit fallthrough cases
+			case OutputType::AUDIO:
+			case OutputType::CV:
+			case OutputType::NONE:;
 			}
 		}
 	}
@@ -535,7 +544,7 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 
 	bool needToAddInstrumentToSong = false;
 
-	Instrument* initialInstrument = NULL;
+	Instrument* initialInstrument = nullptr;
 
 	// Search main, non-hibernating Instruments
 	initialInstrument = currentSong->getInstrumentFromPresetSlot(
@@ -651,7 +660,7 @@ gotAnInstrument:
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 
-		Error error = instrumentClipToLoadFor->changeInstrument(modelStack, initialInstrument, NULL,
+		Error error = instrumentClipToLoadFor->changeInstrument(modelStack, initialInstrument, nullptr,
 		                                                        InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
 		// TODO: deal with errors!
 
@@ -979,7 +988,7 @@ giveUsedError:
 		// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
 		Error error = instrumentClipToLoadFor->changeInstrument(
-		    modelStack, newInstrument, NULL, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+		    modelStack, newInstrument, nullptr, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, nullptr, true);
 		// TODO: deal with errors!
 
 		if (needToAddInstrumentToSong) {
@@ -995,7 +1004,7 @@ giveUsedError:
 		for (int32_t f = fileItems.getNumElements() - 1; f >= 0; f--) {
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(f);
 			if (fileItem->instrument == instrumentToReplace) {
-				fileItem->instrument = NULL;
+				fileItem->instrument = nullptr;
 				break;
 			}
 		}
@@ -1019,6 +1028,19 @@ giveUsedError:
 
 	instrumentToReplace = newInstrument;
 	display->removeWorkingAnimation();
+
+	// for the instrument we just loaded, let's check if there's any midi labels we should load
+	if (newInstrument->type == OutputType::MIDI_OUT) {
+		MIDIInstrument* midiInstrument = (MIDIInstrument*)newInstrument;
+		if (midiInstrument->loadDeviceDefinitionFile) {
+			FilePointer tempfp;
+			bool fileExists = StorageManager::fileExists(midiInstrument->deviceDefinitionFileName.get(), &tempfp);
+			if (fileExists) {
+				StorageManager::loadMidiDeviceDefinitionFile(midiInstrument, &tempfp,
+				                                             &midiInstrument->deviceDefinitionFileName, false);
+			}
+		}
+	}
 
 	return Error::NONE;
 }
@@ -1063,6 +1085,8 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 		// don't back up the param manager since we can't use the backup anyway
 		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor, paramManager,
 		                 false);
+
+		kitToLoadFor->selectedDrum = soundDrumToReplace;
 		kitToLoadFor->beenEdited();
 	}
 	else {
@@ -1159,14 +1183,12 @@ void LoadInstrumentPresetUI::instrumentEdited(Instrument* instrument) {
 // Caller must call emptyFileItems() at some point after calling this function.
 // song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when
 // the currentSong is not set up.
-ReturnOfConfirmPresetOrNextUnlaunchedOne
+std::expected<FileItem*, Error>
 LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, OutputType outputType,
                                                                         Availability availabilityRequirement) {
 
 	AudioEngine::logAction("findAnUnlaunchedPresetIncludingWithinSubfolders");
 	allowedFileExtensions = allowedFileExtensionsXML;
-
-	ReturnOfConfirmPresetOrNextUnlaunchedOne toReturn;
 
 	int32_t initialDirLength = currentDir.getLength();
 
@@ -1176,13 +1198,11 @@ LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* so
 
 goAgain:
 
-	toReturn.error = readFileItemsFromFolderAndMemory(song, outputType, getThingName(outputType),
-	                                                  searchNameLocalCopy.get(), NULL, true);
-
-	if (toReturn.error != Error::NONE) {
-emptyFileItemsAndReturn:
+	Error error = readFileItemsFromFolderAndMemory(song, outputType, getThingName(outputType),
+	                                               searchNameLocalCopy.get(), nullptr, true);
+	if (error != Error::NONE) {
 		emptyFileItems();
-		return toReturn;
+		return std::unexpected{error};
 	}
 
 	sortFileItems();
@@ -1200,18 +1220,16 @@ startDoingFolders:
 
 		// Or if we already were looking at subfolders, we're all outta options now.
 		else {
-noFurtherFiles:
-			toReturn.error = Error::NO_FURTHER_FILES_THIS_DIRECTION;
-			return toReturn;
+			return std::unexpected{Error::NO_FURTHER_FILES_THIS_DIRECTION};
 		}
 	}
 
 	// Store rightmost display name before filtering, for later.
 	String lastFileItemDisplayNameBeforeFiltering;
-	FileItem* rightmostFileItemBeforeFiltering = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
-	toReturn.error = lastFileItemDisplayNameBeforeFiltering.set(rightmostFileItemBeforeFiltering->displayName);
-	if (toReturn.error != Error::NONE) {
-		return toReturn;
+	auto* rightmostFileItemBeforeFiltering = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
+	error = lastFileItemDisplayNameBeforeFiltering.set(rightmostFileItemBeforeFiltering->displayName);
+	if (error != Error::NONE) {
+		return std::unexpected{error};
 	}
 
 	deleteFolderAndDuplicateItems(availabilityRequirement);
@@ -1221,9 +1239,9 @@ noFurtherFiles:
 
 		// Look through our list of FileItems, for a preset.
 		for (int32_t i = 0; i < fileItems.getNumElements(); i++) {
-			toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
-			if (!toReturn.fileItem->isFolder) {
-				return toReturn; // We found a preset / file.
+			auto* fileItem = (FileItem*)fileItems.getElementAddress(i);
+			if (!fileItem->isFolder) {
+				return fileItem; // We found a preset / file.
 			}
 		}
 
@@ -1245,9 +1263,10 @@ noFurtherFiles:
 
 	// Ok, do folders now.
 	int32_t i;
+	FileItem* fileItem;
 	for (i = 0; i < fileItems.getNumElements(); i++) {
-		toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
-		if (toReturn.fileItem->isFolder) {
+		fileItem = (FileItem*)fileItems.getElementAddress(i);
+		if (fileItem->isFolder) {
 			goto doThisFolder;
 		}
 	}
@@ -1256,77 +1275,76 @@ noFurtherFiles:
 		goto goAgain;
 	}
 	else {
-		goto noFurtherFiles;
+		return std::unexpected{Error::NO_FURTHER_FILES_THIS_DIRECTION};
 	}
 
 	if (false) {
 doThisFolder:
 		bool anyMoreForLater = numFileItemsDeletedAtEnd || (i < (fileItems.getNumElements() - 1));
-		searchNameLocalCopy.set(toReturn.fileItem->displayName);
+		searchNameLocalCopy.set(fileItem->displayName);
 
-		toReturn.error = currentDir.concatenate("/");
-		if (toReturn.error != Error::NONE) {
-			goto emptyFileItemsAndReturn;
+		Error error = currentDir.concatenate("/");
+		if (error != Error::NONE) {
+			emptyFileItems();
+			return std::unexpected{error};
 		}
-		toReturn.error = currentDir.concatenate(&toReturn.fileItem->filename);
-		if (toReturn.error != Error::NONE) {
-			goto emptyFileItemsAndReturn;
+		error = currentDir.concatenate(&fileItem->filename);
+		if (error != Error::NONE) {
+			emptyFileItems();
+			return std::unexpected{error};
 		}
 
 		// Call self
-		toReturn = findAnUnlaunchedPresetIncludingWithinSubfolders(song, outputType, availabilityRequirement);
-		if (toReturn.error == Error::NO_FURTHER_FILES_THIS_DIRECTION) {
-			if (anyMoreForLater) {
-				currentDir.shorten(initialDirLength);
-				goto goAgain;
-			}
-			else {
-				return toReturn;
-			}
-		}
-		else if (toReturn.error != Error::NONE) {
-			goto emptyFileItemsAndReturn;
-		}
-
-		// If still here, the recursive call found something, so return.
-		return toReturn;
+		return D_TRY_CATCH(findAnUnlaunchedPresetIncludingWithinSubfolders(song, outputType, availabilityRequirement),
+		                   error, {
+			                   if (error == Error::NO_FURTHER_FILES_THIS_DIRECTION) {
+				                   if (anyMoreForLater) {
+					                   currentDir.shorten(initialDirLength);
+					                   goto goAgain;
+				                   }
+				                   return result;
+			                   }
+			                   emptyFileItems();
+			                   return result;
+		                   });
 	}
 }
 
 // Caller must call emptyFileItems() at some point after calling this function.
 // And, set currentDir, before this is called.
-ReturnOfConfirmPresetOrNextUnlaunchedOne
+std::expected<FileItem*, Error>
 LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne(OutputType outputType, String* searchName,
                                                          Availability availabilityRequirement) {
-	ReturnOfConfirmPresetOrNextUnlaunchedOne toReturn;
-
 	String searchNameLocalCopy;
 	searchNameLocalCopy.set(searchName); // Can't fail.
 	bool shouldJustGrabLeftmost = false;
 
+	// This does *not* favour the currentDir, so you should exhaust all avenues before calling this.
+	auto justGetAnyPreset = [&]() -> std::expected<FileItem*, Error> {
+		Error error = currentDir.set(getInstrumentFolder(outputType));
+		if (error != Error::NONE) {
+			return std::unexpected{error};
+		}
+		return findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, outputType, availabilityRequirement);
+	};
+
 doReadFiles:
-	toReturn.error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType),
-	                                                  searchNameLocalCopy.get(), NULL, false, availabilityRequirement);
+	Error error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType),
+	                                               searchNameLocalCopy.get(), nullptr, false, availabilityRequirement);
 
 	AudioEngine::logAction("confirmPresetOrNextUnlaunchedOne");
 
-	if (toReturn.error == Error::FOLDER_DOESNT_EXIST) {
-justGetAnyPreset: // This does *not* favour the currentDir, so you should exhaust all avenues before calling this.
-		toReturn.error = currentDir.set(getInstrumentFolder(outputType));
-		if (toReturn.error != Error::NONE) {
-			return toReturn;
-		}
-		toReturn = findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, outputType, availabilityRequirement);
-		return toReturn;
+	if (error == Error::FOLDER_DOESNT_EXIST) {
+		justGetAnyPreset();
 	}
-	else if (toReturn.error != Error::NONE) {
-		return toReturn;
+	else if (error != Error::NONE) {
+		return std::unexpected{error};
 	}
 
 	sortFileItems();
 	if (!fileItems.getNumElements()) {
 		if (shouldJustGrabLeftmost) {
-			goto justGetAnyPreset;
+			return justGetAnyPreset();
 		}
 
 		if (numFileItemsDeletedAtStart) {
@@ -1336,16 +1354,16 @@ needToGrabLeftmostButHaveToReadFirst:
 			goto doReadFiles;
 		}
 		else {
-			goto justGetAnyPreset;
+			return justGetAnyPreset();
 		}
 	}
 
 	// Store rightmost display name before filtering, for later.
 	String lastFileItemDisplayNameBeforeFiltering;
-	FileItem* rightmostFileItemBeforeFiltering = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
-	toReturn.error = lastFileItemDisplayNameBeforeFiltering.set(rightmostFileItemBeforeFiltering->displayName);
-	if (toReturn.error != Error::NONE) {
-		return toReturn;
+	auto* rightmostFileItemBeforeFiltering = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
+	error = lastFileItemDisplayNameBeforeFiltering.set(rightmostFileItemBeforeFiltering->displayName);
+	if (error != Error::NONE) {
+		return std::unexpected{error};
 	}
 
 	deleteFolderAndDuplicateItems(availabilityRequirement);
@@ -1361,7 +1379,7 @@ needToGrabLeftmostButHaveToReadFirst:
 		else {
 			// If we've already been trying to grab just any preset within this folder, well that's failed.
 			if (shouldJustGrabLeftmost) {
-				goto justGetAnyPreset;
+				return justGetAnyPreset();
 			}
 
 			// Otherwise, let's do that now:
@@ -1374,14 +1392,13 @@ needToGrabLeftmostButHaveToReadFirst:
 			else {
 				// Well, if there's still nothing in that, then we really need to give up.
 				if (!fileItems.getNumElements()) {
-					goto justGetAnyPreset;
+					return justGetAnyPreset();
 				}
 				// Otherwise, everything's fine and we can just take the first element.
 			}
 		}
 	}
-	toReturn.fileItem = (FileItem*)fileItems.getElementAddress(0);
-	return toReturn;
+	return (FileItem*)fileItems.getElementAddress(0);
 }
 
 /// Caller must call emptyFileItems() at some point after calling this function - unless an error is returned
@@ -1443,7 +1460,8 @@ reachedEnd:
 		else {
 noErrorButGetOut:
 			toReturn.error = Error::NO_ERROR_BUT_GET_OUT;
-			goto emptyFileItemsAndReturn;
+			emptyFileItems();
+			return toReturn;
 		}
 	}
 	else if (fileItems.getNumElements() == 1
@@ -1537,11 +1555,13 @@ doneMoving:
 	else {
 		toReturn.error = toReturn.fileItem->getDisplayNameWithoutExtension(&newName);
 		if (toReturn.error != Error::NONE) {
-			goto emptyFileItemsAndReturn;
+			emptyFileItems();
+			return toReturn;
 		}
 		toReturn.error = oldNameString.set(toReturn.fileItem->displayName);
 		if (toReturn.error != Error::NONE) {
-			goto emptyFileItemsAndReturn;
+			emptyFileItems();
+			return toReturn;
 		}
 		view.drawOutputNameFromDetails(outputType, 0, 0, newName.get(), newName.isEmpty(), false, doBlink);
 	}
@@ -1558,7 +1578,7 @@ doPendingPresetNavigation:
 
 		if (toReturn.loadedFromFile) {
 			currentSong->deleteOutput(toReturn.fileItem->instrument);
-			toReturn.fileItem->instrument = NULL;
+			toReturn.fileItem->instrument = nullptr;
 		}
 		goto moveAgain;
 	}
@@ -1568,11 +1588,12 @@ doPendingPresetNavigation:
 	// TODO: This isn't true, it's an argument so that must have changed at some point. This logic will create a clone
 	// if anything other than unused is passed in
 	if (!toReturn.fileItem->instrument) {
-		toReturn.error =
-		    StorageManager::loadInstrumentFromFile(currentSong, NULL, outputType, false, &toReturn.fileItem->instrument,
-		                                           &toReturn.fileItem->filePointer, &newName, &Browser::currentDir);
+		toReturn.error = StorageManager::loadInstrumentFromFile(
+		    currentSong, nullptr, outputType, false, &toReturn.fileItem->instrument, &toReturn.fileItem->filePointer,
+		    &newName, &Browser::currentDir);
 		if (toReturn.error != Error::NONE) {
-			goto emptyFileItemsAndReturn;
+			emptyFileItems();
+			return toReturn;
 		}
 
 		toReturn.loadedFromFile = true;

@@ -86,9 +86,6 @@ struct PendingNoteOnList {
 
 constexpr int32_t kQuantizationPrecision = 10;
 
-#define STATUS_OFF 0
-#define STATUS_SEQUENCED_NOTE 1
-
 /// An ordered list of notes which all share the same nominal y value.
 ///
 /// In kits, the y value represents the row within the kit directly. In other types of clips, the y value maps to a MIDI
@@ -107,10 +104,11 @@ public:
 	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false);
 	void deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action);
 	void stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange = true,
-	                              Note* note = NULL);
+	                              Note* note = nullptr);
 	bool generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLength, uint32_t newLength,
 	                     int32_t numRepeatsRounded, Action* action);
 	void toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAndPlaybackIsOn);
+	void maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos);
 	bool hasNoNotes();
 	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound);
 	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip);
@@ -120,7 +118,7 @@ public:
 	void readFromFlash(InstrumentClip* parentClip);
 	uint32_t getNumNotes();
 	void setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack,
-	             InstrumentClip* favourClipForCloningParamManager = NULL, ParamManager* paramManager = NULL,
+	             InstrumentClip* favourClipForCloningParamManager = nullptr, ParamManager* paramManager = nullptr,
 	             bool backupOldParamManager = true);
 
 	int32_t getDistanceToNextNote(int32_t pos, ModelStackWithNoteRow const* modelStack, bool reversed = false);
@@ -155,7 +153,7 @@ public:
 
 	// External classes aren't really supposed to set this to OFF. Call something like cancelAutitioning() instead -
 	// which calls Clip::expectEvent(), which is needed
-	uint8_t soundingStatus;
+	bool sequenced;
 
 	/// Time before which all note events should be ignored during live playback. 0 means all notes should play (i.e. a
 	/// note event at the time stored here should be allowed to sound). When doing quantized recording, we might have
@@ -234,7 +232,7 @@ public:
 	                             bool shouldJustDeleteNodes = false);
 	SequenceDirection getEffectiveSequenceDirectionMode(ModelStackWithNoteRow const* modelStack);
 	bool recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStackWithNoteRow, int32_t newValueBig,
-	                                     int32_t whichExpressionDimension, bool forDrum);
+	                                     int32_t expressionDimension, bool forDrum);
 	void setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode);
 	bool isAuditioning(ModelStackWithNoteRow* modelStack);
 
@@ -242,12 +240,15 @@ public:
 
 private:
 	void playNote(bool, ModelStackWithNoteRow* modelStack, Note*, int32_t ticksLate = 0, uint32_t samplesLate = 0,
-	              bool noteMightBeConstant = false, PendingNoteOnList* pendingNoteOnList = NULL);
+	              bool noteMightBeConstant = false, PendingNoteOnList* pendingNoteOnList = nullptr);
 	void playNextNote(InstrumentClip*, bool, bool noteMightBeConstant = false,
-	                  PendingNoteOnList* pendingNoteOnList = NULL);
+	                  PendingNoteOnList* pendingNoteOnList = nullptr);
 	void findNextNoteToPlay(uint32_t);
 	void attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack, Note* note);
 	bool noteRowMayMakeSound(bool);
 	void drawTail(int32_t startTail, int32_t endTail, uint8_t squareColour[], bool overwriteExisting,
 	              uint8_t image[][3], uint8_t occupancyMask[]);
+	bool ignoredNoteOn{false};
+	int32_t ignoreUntil{0};
+	int32_t ignoredTicks{0};
 };

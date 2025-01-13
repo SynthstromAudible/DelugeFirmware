@@ -29,8 +29,8 @@ MenuPermission MenuItem::checkPermissionToBeginSession(ModControllableAudio* mod
 	return toReturn ? MenuPermission::YES : MenuPermission::NO;
 }
 
-void MenuItem::learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber, int32_t value) {
-	learnKnob(fromDevice, ccNumber, 0, channel);
+void MenuItem::learnCC(MIDICable& cable, int32_t channel, int32_t ccNumber, int32_t value) {
+	learnKnob(&cable, ccNumber, 0, channel);
 }
 
 void MenuItem::renderOLED() {
@@ -72,4 +72,42 @@ void MenuItem::renderSubmenuItemTypeForOled(int32_t yPixel) {
 	int32_t startX = getSubmenuItemTypeRenderIconStart();
 
 	image.drawGraphicMultiLine(deluge::hid::display::OLED::submenuArrowIcon, startX, yPixel, kSubmenuIconSpacingX);
+}
+
+void MenuItem::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+	// Default implementation: just render the label.
+	renderColumnLabel(startX, width, startY);
+}
+
+void MenuItem::renderColumnLabel(int32_t startX, int32_t width, int32_t startY) {
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
+	DEF_STACK_STRING_BUF(label, kShortStringBufferSize);
+	getColumnLabel(label);
+	// Remove any spaces
+	label.removeSpaces();
+	int32_t pxLen = image.getStringWidthInPixels(label.c_str(), kTextSpacingY);
+	// If the name fits as-is, we'll squeeze it in. Otherwise we chop off letters until
+	// we have some padding between columns.
+	if (pxLen >= width) {
+		const int32_t padding = 4;
+		while ((pxLen = image.getStringWidthInPixels(label.c_str(), kTextSpacingY)) + padding >= width) {
+			label.truncate(label.size() - 1);
+		}
+	}
+	deluge::hid::display::OLED::main.drawString(label.c_str(), startX, startY, kTextSpacingX, kTextSpacingY, 0,
+	                                            startX + width - kTextSpacingX);
+}
+
+void MenuItem::updatePadLights() {
+	soundEditor.updatePadLightsFor(this);
+}
+
+bool isItemRelevant(MenuItem* item) {
+	if (item == nullptr) {
+		return false;
+	}
+	else {
+		return item->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex);
+	}
 }

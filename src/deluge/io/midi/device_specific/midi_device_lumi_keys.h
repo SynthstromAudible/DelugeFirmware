@@ -18,7 +18,7 @@
 #pragma once
 
 #include "gui/colour/colour.h"
-#include "io/midi/midi_device.h"
+#include "io/midi/cable_types/usb_hosted.h"
 #include "model/scale/note_set.h"
 
 #define MIDI_DEVICE_LUMI_KEYS_VP_COUNT 1
@@ -78,7 +78,7 @@
 #define MIDI_DEVICE_LUMI_SCALE_8TONE_SPANISH 0b010101111011
 #define MIDI_DEVICE_LUMI_SCALE_CHROMATIC 0b111111111111
 
-class MIDIDeviceLumiKeys final : public MIDIDeviceUSBHosted {
+class MIDIDeviceLumiKeys final : public MIDICableUSBHosted {
 public:
 	static constexpr uint16_t lumiKeysVendorProductPairs[MIDI_DEVICE_LUMI_KEYS_VP_COUNT][2] = {{0x2af4, 0xe00}};
 

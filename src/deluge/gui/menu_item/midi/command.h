@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
 
-class MIDIDevice;
+class MIDICable;
 
 namespace deluge::gui::menu_item::midi {
 
@@ -34,11 +34,11 @@ public:
 	bool allowsLearnMode() override { return true; }
 	bool shouldBlinkLearnLed() override { return true; }
 	void unlearnAction() override;
-	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) override;
-	void learnProgramChange(MIDIDevice* device, int32_t channel, int32_t programNumber) override;
-	void learnCC(MIDIDevice* device, int32_t channel, int32_t ccNumber, int32_t value) override;
+	bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) override;
+	void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) override;
+	void learnCC(MIDICable& cable, int32_t channel, int32_t ccNumber, int32_t value) override;
 
-	void drawPixelsForOled();
+	void drawPixelsForOled() override;
 
 	GlobalMIDICommand commandNumber;
 };

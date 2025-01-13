@@ -24,23 +24,15 @@ class SoundDrum;
 
 class RenameDrumUI final : public RenameUI {
 public:
-	RenameDrumUI();
-	bool opened();
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
-
-	// ui
-	UIType getUIType() { return UIType::RENAME_DRUM; }
-	const char* getName() { return "rename_drum_ui"; }
-	bool exitUI() override;
+	RenameDrumUI(const char* title_) : RenameUI(title_) {};
 
 protected:
-	void enterKeyPress();
+	bool trySetName(String*) override;
+	String getName() const override;
+	bool allowEmpty() const override { return false; }
 
 private:
-	SoundDrum* getDrum();
+	SoundDrum* getDrum() const;
 };
 
 extern RenameDrumUI renameDrumUI;

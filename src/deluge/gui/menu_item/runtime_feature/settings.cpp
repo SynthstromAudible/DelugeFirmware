@@ -35,19 +35,22 @@ SettingToggle menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 SettingToggle menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 SettingToggle menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 SettingToggle menuQuantizedStutterRate(RuntimeFeatureSettingType::QuantizedStutterRate);
+SettingToggle menuReverseStutterRate(RuntimeFeatureSettingType::ReverseStutterRate);
 Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
 DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 SettingToggle menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
 SettingToggle menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 ShiftIsSticky menuShiftIsSticky{};
 SettingToggle menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
-SettingToggle menuEnableDxShortcuts(RuntimeFeatureSettingType::EnableDxShortcuts);
+SettingToggle menuEnableDX7Engine(RuntimeFeatureSettingType::EnableDX7Engine);
 EmulatedDisplay menuEmulatedDisplay{};
 SettingToggle menuEnableKeyboardViewSidebarMenuExit(RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit);
 SettingToggle menuEnableLaunchEventPlayhead(RuntimeFeatureSettingType::EnableLaunchEventPlayhead);
 SettingToggle menuDisplayChordLayout(RuntimeFeatureSettingType::DisplayChordKeyboard);
 SettingToggle menuAlternativePlaybackStartBehaviour(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour);
 SettingToggle menuEnableGridViewLoopPads(RuntimeFeatureSettingType::EnableGridViewLoopPads);
+SettingToggle menuAlternativeTapTempoBehaviour(RuntimeFeatureSettingType::AlternativeTapTempoBehaviour);
+SettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalMenus);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
@@ -58,19 +61,22 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuDeleteUnusedKitRows,
     &menuAltGoldenKnobDelayParams,
     &menuQuantizedStutterRate,
+    &menuReverseStutterRate,
     &menuDevSysexAllowed,
     &menuSyncScalingAction,
     &menuHighlightIncomingNotes,
     &menuDisplayNornsLayout,
     &menuShiftIsSticky,
     &menuLightShiftLed,
-    &menuEnableDxShortcuts,
+    &menuEnableDX7Engine,
     &menuEmulatedDisplay,
     &menuEnableKeyboardViewSidebarMenuExit,
     &menuEnableLaunchEventPlayhead,
     &menuDisplayChordLayout,
     &menuAlternativePlaybackStartBehaviour,
-    &menuEnableGridViewLoopPads};
+    &menuEnableGridViewLoopPads,
+    &menuAlternativeTapTempoBehaviour,
+    &menuHorizontalMenus};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }

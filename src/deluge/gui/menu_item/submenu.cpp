@@ -1,77 +1,61 @@
 #include "submenu.h"
+#include "gui/views/automation_view.h"
 #include "hid/display/display.h"
-#include "hid/display/oled.h" //todo: this probably shouldn't be needed
+#include "hid/display/oled.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "util/container/static_vector.hpp"
 
 namespace deluge::gui::menu_item {
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
-	current_item_ = items.begin();
 	soundEditor.currentMultiRange = nullptr;
-	if (navigatedBackwardFrom != nullptr) {
-		for (; *current_item_ != navigatedBackwardFrom; current_item_++) {
-			if (current_item_ == items.end()) { // If desired item not found
-				current_item_ = items.begin();
-				break;
-			}
-		}
-	}
-	auto start = current_item_;
-	bool wrapped = false;
-	// loop through non-null items until we find a relevant one
-	while ((*current_item_ != nullptr)
-	       && !(*current_item_)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)
-	       && !(wrapped && current_item_ == start)) {
-		current_item_++;
-		if (current_item_ == items.end()) { // Not sure we need this since we don't wrap submenu items?
-			current_item_ = items.begin();
-			wrapped = true;
-		}
-	}
+	focusChild(navigatedBackwardFrom);
 	if (display->have7SEG()) {
 		updateDisplay();
 	}
 }
 
-void Submenu::updateDisplay() {
-	if (ensureCurrentItemIsRelevant()) {
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			(*current_item_)->drawName();
-		}
+bool Submenu::focusChild(const MenuItem* child) {
+	// Set new current item.
+	auto prev = current_item_;
+	if (child != nullptr) {
+		current_item_ = std::find(items.begin(), items.end(), child);
+	}
+	// If the item wasn't found or isn't relevant, set to first relevant one instead.
+	if (current_item_ == items.end() || !isItemRelevant(*current_item_)) {
+		current_item_ = std::find_if(items.begin(), items.end(), isItemRelevant);
+	}
+	// Log it.
+	if (current_item_ != items.end()) {
+		return true;
+	}
+	else {
+		return false;
 	}
 }
 
-// sometimes when you refresh a menu, a menu item may become not relevant anymore depending on the context
-// for example, refreshing the custom note iterance menu when selecting a different note with a different divisor
-// this function ensures that when the menu is refreshed that only a relevant menu item is selected
-bool Submenu::ensureCurrentItemIsRelevant() {
-	// check if current item is relevant scrolling in backwards direction
-	for (auto it = current_item_; it >= items.begin(); it--) {
-		MenuItem* menuItem = (*it);
-		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-			current_item_ = it;
-			return true;
-		}
+void Submenu::updateDisplay() {
+	if (!focusChild(nullptr)) {
+		// no relevant items, back out
+		soundEditor.goUpOneLevel();
 	}
-
-	// if we still didn't find a relevant one...
-	// then maybe there is a relevant one in the forward direction...
-	for (auto it = current_item_; it <= items.end(); it++) {
-		MenuItem* menuItem = (*it);
-		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-			current_item_ = it;
-			return true;
-		}
+	else if (display->haveOLED()) {
+		renderUIsForOled();
 	}
-
-	// if we still didn't find one...something went really wrong...exit out of this menu
-	soundEditor.goUpOneLevel();
-	return false;
+	else {
+		(*current_item_)->drawName();
+	}
 }
 
 void Submenu::drawPixelsForOled() {
+	if (renderingStyle() == RenderingStyle::VERTICAL) {
+		drawVerticalMenu();
+	}
+	else {
+		drawHorizontalMenu();
+	}
+}
+
+void Submenu::drawVerticalMenu() {
 	// Collect items before the current item, this is possibly more than we need.
 	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> before = {};
 	for (auto it = current_item_ - 1; it != items.begin() - 1 && before.size() < before.capacity(); it--) {
@@ -112,6 +96,61 @@ void Submenu::drawPixelsForOled() {
 	drawSubmenuItemsForOled(visible, pos);
 }
 
+void Submenu::drawHorizontalMenu() {
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
+	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
+	baseY += OLED_MAIN_TOPMOST_PIXEL;
+
+	int32_t nTotal = std::count_if(items.begin(), items.end(), isItemRelevant);
+	int32_t nBefore = std::count_if(items.begin(), current_item_, isItemRelevant);
+
+	int32_t pageSize = std::min<int32_t>(nTotal, 4);
+	int32_t pageCount = std::ceil(nTotal / (float)pageSize);
+	int32_t currentPage = nBefore / pageSize;
+	int32_t posOnPage = mod(nBefore, pageSize);
+	int32_t pageStart = currentPage * pageSize;
+
+	// Scan to beginning of the visible page:
+	auto it = std::find_if(items.begin(), items.end(), isItemRelevant);
+	for (size_t n = 0; n < pageStart; n++) {
+		it = std::find_if(std::next(it), items.end(), isItemRelevant);
+	}
+
+	int32_t boxHeight = OLED_MAIN_VISIBLE_HEIGHT - baseY;
+	int32_t boxWidth = OLED_MAIN_WIDTH_PIXELS / std::min<int32_t>(nTotal - pageStart, 4);
+
+	// Render the page
+	for (size_t n = 0; n < pageSize && it != items.end(); n++) {
+		MenuItem* item = *it;
+		int32_t startX = boxWidth * n;
+		item->readCurrentValue();
+		item->renderInHorizontalMenu(startX + 1, boxWidth, baseY, boxHeight);
+		// next relevant item.
+		it = std::find_if(std::next(it), items.end(), isItemRelevant);
+	}
+
+	// Render the page counters
+	if (pageCount > 1) {
+		int32_t extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
+		int32_t pageY = extraY + OLED_MAIN_TOPMOST_PIXEL;
+
+		int32_t endX = OLED_MAIN_WIDTH_PIXELS;
+
+		for (int32_t p = pageCount; p > 0; p--) {
+			DEF_STACK_STRING_BUF(pageNum, 2);
+			pageNum.appendInt(p);
+			int32_t w = image.getStringWidthInPixels(pageNum.c_str(), kTextSpacingY);
+			image.drawString(pageNum.c_str(), endX - w, pageY, kTextSpacingX, kTextSpacingY);
+			endX -= w + 1;
+			if (p - 1 == currentPage) {
+				image.invertArea(endX, w + 1, pageY, pageY + kTextSpacingY);
+			}
+		}
+	}
+	image.invertArea(boxWidth * posOnPage, boxWidth, baseY, baseY + boxHeight);
+}
+
 void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption) {
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
@@ -143,16 +182,30 @@ void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_
 }
 
 bool Submenu::wrapAround() {
-	return display->have7SEG();
+	return display->have7SEG() || renderingStyle() == RenderingStyle::HORIZONTAL;
 }
 
 void Submenu::selectEncoderAction(int32_t offset) {
-	if (!items.size()) {
+	if (current_item_ == items.end()) {
 		return;
 	}
-	auto lastRelevant = current_item_;
+	bool horizontal = renderingStyle() == RenderingStyle::HORIZONTAL;
+	MenuItem* child = *current_item_;
+	if (horizontal && !child->isSubmenu() && Buttons::isShiftButtonPressed()) {
+		child->selectEncoderAction(offset);
+		focusChild(child);
+		// We don't want to return true for selectEncoderEditsInstrument(), since
+		// that would trigger for scrolling in the menu as well.
+		return soundEditor.markInstrumentAsEdited();
+	}
+	if (horizontal) {
+		// Undo any acceleration: we only want it for the items, not the menu itself.
+		// We only do this for horizontal menus to allow fast scrolling with shift in vertical menus.
+		offset = std::clamp(offset, (int32_t)-1, (int32_t)1);
+	}
 	if (offset > 0) {
 		// Scan items forward, counting relevant items.
+		auto lastRelevant = current_item_;
 		do {
 			current_item_++;
 			if (current_item_ == items.end()) {
@@ -172,6 +225,7 @@ void Submenu::selectEncoderAction(int32_t offset) {
 	}
 	else if (offset < 0) {
 		// Scan items backwad, counting relevant items.
+		auto lastRelevant = current_item_;
 		do {
 			if (current_item_ == items.begin()) {
 				if (wrapAround()) {
@@ -190,10 +244,49 @@ void Submenu::selectEncoderAction(int32_t offset) {
 		} while (offset < 0);
 	}
 	updateDisplay();
+	updatePadLights();
+	(*current_item_)->updateAutomationViewParameter();
+}
+
+bool Submenu::shouldForwardButtons() {
+	// Should we deliver buttons to selected menu item instead?
+	return (*current_item_)->isSubmenu() == false && renderingStyle() == RenderingStyle::HORIZONTAL;
 }
 
 MenuItem* Submenu::selectButtonPress() {
-	return *current_item_;
+	if (shouldForwardButtons()) {
+		return (*current_item_)->selectButtonPress();
+	}
+	else {
+		return *current_item_;
+	}
+}
+
+ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	if (shouldForwardButtons()) {
+		return (*current_item_)->buttonAction(b, on, inCardRoutine);
+	}
+	else {
+		return MenuItem::buttonAction(b, on, inCardRoutine);
+	}
+}
+
+deluge::modulation::params::Kind Submenu::getParamKind() {
+	if (shouldForwardButtons()) {
+		return (*current_item_)->getParamKind();
+	}
+	else {
+		return MenuItem::getParamKind();
+	}
+}
+
+uint32_t Submenu::getParamIndex() {
+	if (shouldForwardButtons()) {
+		return (*current_item_)->getParamIndex();
+	}
+	else {
+		return MenuItem::getParamIndex();
+	}
 }
 
 void Submenu::unlearnAction() {
@@ -209,21 +302,50 @@ bool Submenu::allowsLearnMode() {
 	return false;
 }
 
-void Submenu::learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
+void Submenu::learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
 	if (soundEditor.getCurrentMenuItem() == this) {
-		(*current_item_)->learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
+		(*current_item_)->learnKnob(cable, whichKnob, modKnobMode, midiChannel);
 	}
 }
-void Submenu::learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber) {
+void Submenu::learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) {
 	if (soundEditor.getCurrentMenuItem() == this) {
-		(*current_item_)->learnProgramChange(fromDevice, channel, programNumber);
+		(*current_item_)->learnProgramChange(cable, channel, programNumber);
 	}
 }
 
-bool Submenu::learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) {
+bool Submenu::learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) {
 	if (soundEditor.getCurrentMenuItem() == this) {
-		return (*current_item_)->learnNoteOn(fromDevice, channel, noteCode);
+		return (*current_item_)->learnNoteOn(cable, channel, noteCode);
 	}
 	return false;
 }
+
+Submenu::RenderingStyle Submenu::renderingStyle() {
+	if (display->haveOLED() && this->supportsHorizontalRendering()
+	    && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus)) {
+		return RenderingStyle::HORIZONTAL;
+	}
+	else {
+		return RenderingStyle::VERTICAL;
+	}
+}
+
+void Submenu::updatePadLights() {
+	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
+		soundEditor.updatePadLightsFor(*current_item_);
+	}
+	else {
+		MenuItem::updatePadLights();
+	}
+}
+
+MenuItem* Submenu::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
+	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
+		return (*current_item_)->patchingSourceShortcutPress(s, previousPressStillActive);
+	}
+	else {
+		return MenuItem::patchingSourceShortcutPress(s, previousPressStillActive);
+	}
+}
+
 } // namespace deluge::gui::menu_item

@@ -16,13 +16,13 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.h"
 #include "gui/menu_item/arpeggiator/octave_mode.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/display.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
@@ -41,10 +41,19 @@ public:
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 
-				if (soundEditor.editingCVOrMIDIClip()) {
+				if (soundEditor.editingNonAudioDrumRow()) {
+					// Midi or CV drum
+					Drum* currentDrum = ((Kit*)getCurrentClip()->output)->selectedDrum;
+					if (currentDrum != nullptr) {
+						currentDrum->unassignAllVoices();
+					}
+				}
+				else if (soundEditor.editingCVOrMIDIClip()) {
+					// Midi or CV synth
 					getCurrentInstrumentClip()->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
 				}
 				else {
+					// Sound
 					ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 					soundEditor.currentSound->allNotesOff(
 					    modelStackWithSoundFlags,
@@ -58,7 +67,8 @@ public:
 		soundEditor.currentArpSettings->flagForceArpRestart = true;
 	}
 
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_OFF),    //<

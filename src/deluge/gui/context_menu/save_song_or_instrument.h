@@ -26,7 +26,7 @@ public:
 	SaveSongOrInstrument() = default;
 
 	bool acceptCurrentOption() override;
-	Sized<char const**> getOptions() override;
+	std::span<char const*> getOptions() override;
 	bool isCurrentOptionAvailable() override;
 
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;

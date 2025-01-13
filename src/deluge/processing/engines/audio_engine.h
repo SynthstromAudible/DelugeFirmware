@@ -137,7 +137,7 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 void stopAnyPreviewing();
 
 Voice* solicitVoice(Sound* forSound);
-void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelStack = NULL,
+void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelStack = nullptr,
                    bool removeFromVector = true, bool shouldDispose = true);
 void disposeOfVoice(Voice* voice);
 
@@ -210,4 +210,8 @@ extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
 extern StereoFloatSample approxRMSLevel;
 extern AbsValueFollower envelopeFollower;
+void feedReverbBackdoorForGrain(int index, q31_t value);
+
+/// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
+bool allowedToStartVoice();
 } // namespace AudioEngine

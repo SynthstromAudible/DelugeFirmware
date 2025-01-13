@@ -26,7 +26,7 @@ class AudioClip;
 
 class AudioClipView final : public ClipView, public ClipMinder {
 public:
-	AudioClipView();
+	AudioClipView() = default;
 
 	bool opened() override;
 	void focusRegained() override;
@@ -61,7 +61,6 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::AUDIO_CLIP; }
-	const char* getName() { return "audio_clip_view"; }
 
 private:
 	uint32_t timeSongButtonPressed;

@@ -22,7 +22,7 @@
 #include "dsp/stereo_sample.h"
 #include <cmath>
 
-class RMSFeedbackCompressor {
+class [[gnu::hot]] RMSFeedbackCompressor {
 public:
 	RMSFeedbackCompressor();
 

@@ -48,8 +48,8 @@ Clip::Clip(ClipType newType) : type(newType) {
 	wasActiveBefore = false; // Want to set this default in case a Clip was created during playback
 
 	section = 0;
-	output = NULL;
-	beingRecordedFromClip = NULL;
+	output = nullptr;
+	beingRecordedFromClip = nullptr;
 	isPendingOverdub = false;
 	isUnfinishedAutoOverdub = false;
 	colourOffset = -60;
@@ -487,7 +487,7 @@ Error Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* model
 
 	// Take back control!
 	activeIfNoSolo = false;
-	beingRecordedFromClip = NULL; // This now just gets set by endInstancesOfActiveClips()
+	beingRecordedFromClip = nullptr; // This now just gets set by endInstancesOfActiveClips()
 
 	Clip* originalClip = (Clip*)modelStackOriginal->getTimelineCounter();
 	originalClip->activeIfNoSolo =
@@ -526,7 +526,7 @@ void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
 		int32_t maxLength = arrangementRecordPos - clipInstance->pos;
 
 		if (maxLength <= 0) { // Shouldn't normally go below 0...
-			song->deletingClipInstanceForClip(output, clipInstance->clip, NULL, false); // Calls audio routine...
+			song->deletingClipInstanceForClip(output, clipInstance->clip, nullptr, false); // Calls audio routine...
 			clipInstanceI--;
 			goto setupClipInstance;
 		}
@@ -559,7 +559,7 @@ void Clip::endInstance(int32_t arrangementRecordPos, bool evenIfOtherClip) {
 		}
 	}
 
-	beingRecordedFromClip = NULL;
+	beingRecordedFromClip = nullptr;
 }
 
 // Returns error code
@@ -582,7 +582,7 @@ Error Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsButNoNoteRow(modControllable, &paramManager);
 
-	paramManager.trimToLength(loopLength, modelStackWithThreeMainThings, NULL, false);
+	paramManager.trimToLength(loopLength, modelStackWithThreeMainThings, nullptr, false);
 
 	return Error::NONE;
 }
@@ -866,7 +866,7 @@ void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDi
                              uint8_t occupancyMask[], int32_t imageWidth, TimelineView* timelineView,
                              bool tripletsOnHere) {
 	// If the visible pane extends beyond the end of the Clip, draw it as grey
-	int32_t greyStart = timelineView->getSquareFromPos(lengthToDisplay - 1, NULL, xScroll, xZoom) + 1;
+	int32_t greyStart = timelineView->getSquareFromPos(lengthToDisplay - 1, nullptr, xScroll, xZoom) + 1;
 
 	if (greyStart < 0) {
 		greyStart = 0; // This actually happened in a song of Marek's, due to another bug, but best to check for this
@@ -938,7 +938,7 @@ trimFoundParamManager:
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, modControllable, this,
 				                                                   &paramManager);
-				paramManager.trimToLength(loopLength, modelStackWithThreeMainThings, NULL,
+				paramManager.trimToLength(loopLength, modelStackWithThreeMainThings, nullptr,
 				                          false); // oldLength actually has no consequence anyway
 				return Error::NONE;
 			}
@@ -1152,7 +1152,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 			if (type == ClipType::AUDIO) {
 				((AudioClip*)newClip)->voiceSample = ((AudioClip*)this)->voiceSample;
-				((AudioClip*)this)->voiceSample = NULL;
+				((AudioClip*)this)->voiceSample = nullptr;
 			}
 
 			newClip->activeIfNoSolo = false; // And now, we want it to actually be false

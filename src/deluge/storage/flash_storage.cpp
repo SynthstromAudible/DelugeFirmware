@@ -183,6 +183,10 @@ enum Entries {
 175: accessibilityMenuHighlighting
 176: default new clip type
 177: use last clip type
+178: use threshold recording
+179: GlobalMIDICommand::NEXT_SONG channel + 1
+180: GlobalMIDICommand::NEXT_SONG noteCode + 1
+181-184: GlobalMIDICommand::NEXT_SONG product / vendor ids
 */
 
 uint8_t defaultScale;
@@ -241,6 +245,8 @@ bool accessibilityMenuHighlighting = true;
 
 OutputType defaultNewClipType = OutputType::SYNTH;
 bool defaultUseLastClipType = true;
+
+ThresholdRecordingMode defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 
 void resetSettings() {
 
@@ -342,6 +348,8 @@ void resetSettings() {
 
 	defaultNewClipType = OutputType::SYNTH;
 	defaultUseLastClipType = true;
+
+	defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 }
 
 void resetMidiFollowSettings() {
@@ -381,10 +389,10 @@ void readSettings() {
 	FirmwareVersion savedVersion = (firmwareType != FirmwareVersion::Type::COMMUNITY)
 	                                   ? FirmwareVersion(firmwareType, {0, 0, 0})
 	                                   : FirmwareVersion::community({
-	                                       .major = buffer[VERSION_MAJOR],
-	                                       .minor = buffer[VERSION_MINOR],
-	                                       .patch = buffer[VERSION_PATCH],
-	                                   });
+	                                         .major = buffer[VERSION_MAJOR],
+	                                         .minor = buffer[VERSION_MINOR],
+	                                         .patch = buffer[VERSION_PATCH],
+	                                     });
 
 	for (int chan = 0; chan < NUM_PHYSICAL_CV_CHANNELS; ++chan) {
 		cvEngine.setCVVoltsPerOctave(chan, buffer[CV_VOLTS_PER_OCTAVE + chan]);
@@ -434,6 +442,8 @@ void readSettings() {
 	    buffer[71] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].channelOrZone = buffer[114] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].noteOrCC = buffer[115] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].channelOrZone = buffer[179] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].noteOrCC = buffer[180] - 1;
 
 	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
 	/* buffer[81]  \
@@ -471,6 +481,10 @@ void readSettings() {
 	/* buffer[117]  \
 	   buffer[118]   device reference above occupies 4 bytes
 	   buffer[119] */
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::NEXT_SONG, &buffer[181]);
+	/* buffer[182]  \
+	   buffer[183]   device reference above occupies 4 bytes
+	   buffer[184] */
 
 	if (buffer[50] >= kNumInputMonitoringModes) {
 		AudioEngine::inputMonitoringMode = InputMonitoringMode::SMART;
@@ -747,6 +761,13 @@ void readSettings() {
 	else {
 		defaultUseLastClipType = buffer[177];
 	}
+
+	if (buffer[178] >= kNumThresholdRecordingModes) {
+		defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
+	}
+	else {
+		defaultThresholdRecordingMode = static_cast<ThresholdRecordingMode>(buffer[178]);
+	}
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -859,6 +880,8 @@ void writeSettings() {
 	buffer[68] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::REDO)].noteOrCC + 1;
 	buffer[114] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].channelOrZone + 1;
 	buffer[115] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].noteOrCC + 1;
+	buffer[179] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].channelOrZone + 1;
+	buffer[180] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].noteOrCC + 1;
 	buffer[70] =
 	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].channelOrZone
 	    + 1;
@@ -902,6 +925,10 @@ void writeSettings() {
 	/* buffer[117]  \
 	   buffer[118]   device reference above occupies 4 bytes
 	   buffer[119] */
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::NEXT_SONG, &buffer[181]);
+	/* buffer[182]  \
+	   buffer[183]   device reference above occupies 4 bytes
+	   buffer[184] */
 
 	buffer[50] = util::to_underlying(AudioEngine::inputMonitoringMode);
 
@@ -1015,6 +1042,8 @@ void writeSettings() {
 
 	buffer[176] = util::to_underlying(defaultNewClipType);
 	buffer[177] = defaultUseLastClipType;
+
+	buffer[178] = util::to_underlying(defaultThresholdRecordingMode);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

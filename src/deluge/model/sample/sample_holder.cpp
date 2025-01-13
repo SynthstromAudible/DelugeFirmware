@@ -33,7 +33,7 @@ SampleHolder::SampleHolder() {
 	audioFileType = AudioFileType::SAMPLE;
 
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		clustersForStart[l] = NULL;
+		clustersForStart[l] = nullptr;
 	}
 }
 
@@ -66,10 +66,10 @@ void SampleHolder::beenClonedFrom(SampleHolder const* other, bool reversed) {
 
 void SampleHolder::unassignAllClusterReasons(bool beingDestructed) {
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		if (clustersForStart[l]) {
-			audioFileManager.removeReasonFromCluster(clustersForStart[l], "E123");
+		if (clustersForStart[l] != nullptr) {
+			audioFileManager.removeReasonFromCluster(*clustersForStart[l], "E123");
 			if (!beingDestructed) {
-				clustersForStart[l] = NULL;
+				clustersForStart[l] = nullptr;
 			}
 		}
 	}
@@ -190,14 +190,14 @@ void SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruc
 void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int32_t playDirection,
                                                 int32_t clusterLoadInstruction) {
 
-	int32_t clusterIndex = startPlaybackAtByte >> audioFileManager.clusterSizeMagnitude;
+	int32_t clusterIndex = startPlaybackAtByte >> Cluster::size_magnitude;
 
-	uint32_t posWithinCluster = startPlaybackAtByte & (audioFileManager.clusterSize - 1);
+	uint32_t posWithinCluster = startPlaybackAtByte & (Cluster::size - 1);
 
 	// Set up new temp list
 	Cluster* newClusters[kNumClustersLoadedAhead];
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		newClusters[l] = NULL;
+		newClusters[l] = nullptr;
 	}
 
 	// Populate new list
@@ -235,8 +235,8 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 
 	// Replace old list
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		if (clusters[l]) {
-			audioFileManager.removeReasonFromCluster(clusters[l], "E146");
+		if (clusters[l] != nullptr) {
+			audioFileManager.removeReasonFromCluster(*clusters[l], "E146");
 		}
 		clusters[l] = newClusters[l];
 	}

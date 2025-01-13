@@ -15,15 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
-#include "model/clip/clip.h"
-#include "model/clip/instrument_clip.h"
-#include "model/model_stack.h"
 #include "model/song/song.h"
-#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
 class ArpMpeVelocity final : public Selection {
@@ -33,8 +27,12 @@ public:
 	void writeCurrentValue() override {
 		soundEditor.currentArpSettings->mpeVelocity = this->getValue<ArpMpeModSource>();
 	}
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return !soundEditor.editingGateDrumRow();
+	}
 
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_DISABLED),                //<

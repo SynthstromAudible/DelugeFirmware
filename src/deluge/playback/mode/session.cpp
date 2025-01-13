@@ -21,7 +21,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
@@ -57,6 +57,32 @@ enum class LaunchStatus {
 	LAUNCH_USING_QUANTIZATION,
 	LAUNCH_ALONG_WITH_EXISTING_LAUNCHING,
 };
+
+using namespace deluge::gui::colours;
+const Colour defaultClipSectionColours[] = {RGB::fromHue(102), // bright light blue
+                                            RGB::fromHue(168), // bright dark pink
+                                            RGB::fromHue(24),  // bright light orange
+                                            RGB::fromHue(84),  // bright turquoise
+                                            red,
+                                            lime,
+                                            blue,
+                                            RGB::fromHue(12),  // bright dark orange
+                                            RGB::fromHue(147), // bright purple
+                                            yellow,
+                                            green,
+                                            RGB::fromHue(157), // bright magenta
+                                            pastel::blue,
+                                            pink_full,
+                                            pastel::orange,
+                                            pastel::green,
+                                            pink.forTail(),
+                                            lime.forTail(),
+                                            cyan.forTail(),
+                                            orange.forTail(),
+                                            purple.forTail(),
+                                            pastel::yellow.forTail(),
+                                            green.forTail(),
+                                            magenta.forTail()};
 
 Session::Session() {
 	cancelAllLaunchScheduling();
@@ -123,7 +149,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 				if (clip->section == oldSection) {
 					int32_t newSection =
 					    currentSong->sessionClips.getClipAtIndex(c - 1)->section; // Grab section from next Clip down
-					userWantsToArmClipsToStartOrSolo(newSection, NULL, true, false, false, numRepetitions, false);
+					userWantsToArmClipsToStartOrSolo(newSection, nullptr, true, false, false, numRepetitions, false);
 					lastSectionArmed = newSection;
 					return;
 				}
@@ -133,7 +159,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 	// grid mode - just go to the next section, no need to worry about what order they're in
 	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		if (oldSection < kMaxNumSections) {
-			userWantsToArmClipsToStartOrSolo(oldSection + 1, NULL, true, false, false, numRepetitions, false);
+			userWantsToArmClipsToStartOrSolo(oldSection + 1, nullptr, true, false, false, numRepetitions, false);
 			lastSectionArmed = oldSection + 1;
 			return;
 		}
@@ -364,7 +390,7 @@ void Session::doLaunch(bool isFillLaunch) {
 				// If wanting to stop recording linearly at the same time as that...
 				if (clip->getCurrentlyRecordingLinearly()) {
 					// Won't be a pending overdub - those aren't allowed if we're gonna be soloing
-					clip->finishLinearRecording(modelStackWithTimelineCounter, NULL);
+					clip->finishLinearRecording(modelStackWithTimelineCounter, nullptr);
 					stoppedLinearRecording = true;
 				}
 			}
@@ -753,10 +779,10 @@ void Session::launchSchedulingMightNeedCancelling() {
 		cancelAllLaunchScheduling();
 		if (display->haveOLED()) {
 			RootUI* rootUI = getRootUI();
-			if (getCurrentUI() == &loadSongUI) {
+			if (loadSongUI.isLoadingSong()) {
 				loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
 			}
-			else if ((rootUI == &sessionView || rootUI == &performanceSessionView)
+			else if ((rootUI == &sessionView || rootUI == &performanceView)
 			         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
 				renderUIsForOled();
 			}
@@ -1006,7 +1032,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 				if (playbackHandler.playbackState) {
 					playbackHandler.finishTempolessRecording(true, buttonPressLatency);
 					RootUI* rootUI = getRootUI();
-					if (rootUI == &sessionView || rootUI == &performanceSessionView) {
+					if (rootUI == &sessionView || rootUI == &performanceView) {
 						uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
 					}
 					return;
@@ -1207,7 +1233,7 @@ yupThatsFine:
 	// Or if Deluge playing
 	else {
 		userWantsToArmClipsToStartOrSolo(
-		    section, NULL, stopAllOtherClips, false,
+		    section, nullptr, stopAllOtherClips, false,
 		    false); // Don't allow "late start". It's too fiddly to implement, and rarely even useful for sections
 		lastSectionArmed = section;
 	}
@@ -1239,7 +1265,7 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t s
 // Updates LEDs after arming changed
 void Session::armingChanged() {
 	RootUI* rootUI = getRootUI();
-	if (rootUI == &sessionView || rootUI == &performanceSessionView) {
+	if (rootUI == &sessionView || rootUI == &performanceView) {
 		sessionView.requestRendering(rootUI, 0, 0xFFFFFFFF);
 
 		if (getCurrentUI()->canSeeViewUnderneath()) {
@@ -2175,7 +2201,7 @@ yeahNahItsOn:
 bool Session::considerLaunchEvent(int32_t numTicksBeingIncremented) {
 
 	bool swappedSong = false;
-	Clip* nextClipWithFillEvent = NULL;
+	Clip* nextClipWithFillEvent = nullptr;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -2279,10 +2305,10 @@ traverseClips:
 			launchEventAtSwungTickCount = playbackHandler.lastSwungTickActioned + currentArmedLaunchLengthForOneRepeat;
 			if (display->haveOLED()) {
 				RootUI* rootUI = getRootUI();
-				if (getCurrentUI() == &loadSongUI) {
+				if (loadSongUI.isLoadingSong()) {
 					loadSongUI.displayLoopsRemainingPopup();
 				}
-				else if ((rootUI == &sessionView || rootUI == &performanceSessionView)
+				else if ((rootUI == &sessionView || rootUI == &performanceView)
 				         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
 					renderUIsForOled();
 				}

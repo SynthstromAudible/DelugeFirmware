@@ -24,22 +24,13 @@ class Output;
 
 class RenameOutputUI final : public RenameUI {
 public:
-	RenameOutputUI();
-	bool opened();
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
-
+	using RenameUI::RenameUI;
+	// Assigned before openUI() is called -- not necessarily the current output!
 	Output* output;
 
-	// ui
-	UIType getUIType() { return UIType::RENAME_OUTPUT; }
-	const char* getName() { return "rename_output_ui"; }
-	bool exitUI() override;
-
 protected:
-	void enterKeyPress();
+	bool trySetName(String* name) override;
+	String getName() const override;
 };
 
 extern RenameOutputUI renameOutputUI;

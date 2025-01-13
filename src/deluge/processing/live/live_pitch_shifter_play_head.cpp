@@ -16,23 +16,17 @@
  */
 
 #include "processing/live/live_pitch_shifter_play_head.h"
+#include "dsp/interpolate/interpolate.h"
 #include "processing/live/live_input_buffer.h"
 #include "processing/live/live_pitch_shifter.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
+#include <argon.hpp>
 
 #pragma GCC push_options
 #pragma GCC target("fpu=neon")
 
 #include "arm_neon_shim.h"
-
-LivePitchShifterPlayHead::LivePitchShifterPlayHead() {
-	// TODO Auto-generated constructor stub
-}
-
-LivePitchShifterPlayHead::~LivePitchShifterPlayHead() {
-	// TODO Auto-generated destructor stub
-}
 
 void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_t numSamples, int32_t numChannels,
                                       int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
@@ -75,26 +69,18 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 				if (numSamplesToJumpForward > kInterpolationMaxNumSamples) {
 					rawBufferReadPos = (rawBufferReadPos + (numSamplesToJumpForward - kInterpolationMaxNumSamples))
 					                   & (kInputRawBufferSize - 1);
-					numSamplesToJumpForward =
-					    kInterpolationMaxNumSamples; // Shouldn't be necesssary, but for some reason this seems to do
-					                                 // some optimization and speed things up. Re-test?
+
+					// Shouldn't be necesssary, but for some reason this seems to do
+					// some optimization and speed things up. Re-test?
+					numSamplesToJumpForward = kInterpolationMaxNumSamples;
 				}
 
-				for (int32_t i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
-					interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - numSamplesToJumpForward];
-				}
-
-				if (numChannels == 2) {
-					for (int32_t i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
-						interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i - numSamplesToJumpForward];
-					}
-				}
+				interpolator_.jumpForward(numSamplesToJumpForward);
 
 				while (numSamplesToJumpForward--) {
-					interpolationBuffer[0][0][numSamplesToJumpForward] =
-					    rawBuffer[rawBufferReadPos * numChannels] >> 16;
+					interpolator_.buffer_l[numSamplesToJumpForward] = rawBuffer[rawBufferReadPos * numChannels] >> 16;
 					if (numChannels == 2) {
-						interpolationBuffer[1][0][numSamplesToJumpForward] = rawBuffer[rawBufferReadPos * 2 + 1] >> 16;
+						interpolator_.buffer_r[numSamplesToJumpForward] = rawBuffer[rawBufferReadPos * 2 + 1] >> 16;
 					}
 
 					rawBufferReadPos = (rawBufferReadPos + 1) & (kInputRawBufferSize - 1);
@@ -103,19 +89,15 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 
 			amplitude += amplitudeIncrement;
 
-			int32_t sampleRead[2];
-			if (interpolationBufferSize > 2) {
-				interpolate(sampleRead, numChannels, whichKernel);
-			}
-			else {
-				interpolateLinear(sampleRead, numChannels, whichKernel);
-			}
+			StereoSample sampleRead = (interpolationBufferSize > 2)
+			                              ? interpolator_.interpolate(numChannels, whichKernel, oscPos)
+			                              : interpolator_.interpolateLinear(numChannels, oscPos);
 
-			*outputBuffer += multiply_32x32_rshift32_rounded(sampleRead[0], amplitude) << 5;
+			*outputBuffer += multiply_32x32_rshift32_rounded(sampleRead.l, amplitude) << 5;
 			outputBuffer++;
 
 			if (numChannels == 2) {
-				*outputBuffer += multiply_32x32_rshift32_rounded(sampleRead[1], amplitude) << 5;
+				*outputBuffer += multiply_32x32_rshift32_rounded(sampleRead.r, amplitude) << 5;
 				outputBuffer++;
 			}
 		} while (outputBuffer != outputBufferEnd);
@@ -187,22 +169,24 @@ int32_t LivePitchShifterPlayHead::getNumRawSamplesBehindInput(LiveInputBuffer* l
 	}
 }
 
+/// @param numChannels a value between 0 and 1
 void LivePitchShifterPlayHead::fillInterpolationBuffer(LiveInputBuffer* liveInputBuffer, int32_t numChannels) {
-	for (int32_t c = 0; c < numChannels; c++) {
+#pragma unroll
+	for (int32_t i = 1; i <= kInterpolationMaxNumSamples; i++) {
+		int32_t pos = (uint32_t)(rawBufferReadPos - i) & (kInputRawBufferSize - 1);
+
+		interpolator_.buffer_l[i - 1] =
+		    (pos < liveInputBuffer->numRawSamplesProcessed) ? liveInputBuffer->rawBuffer[pos * numChannels] >> 16 : 0;
+	}
+
+	if (numChannels > 1) {
+#pragma unroll
 		for (int32_t i = 1; i <= kInterpolationMaxNumSamples; i++) {
 			int32_t pos = (uint32_t)(rawBufferReadPos - i) & (kInputRawBufferSize - 1);
 
-			interpolationBuffer[c][0][i - 1] = (pos < liveInputBuffer->numRawSamplesProcessed)
-			                                       ? liveInputBuffer->rawBuffer[pos * numChannels + c] >> 16
-			                                       : 0;
+			interpolator_.buffer_r[i - 1] = (pos < liveInputBuffer->numRawSamplesProcessed)
+			                                    ? liveInputBuffer->rawBuffer[pos * numChannels + 1] >> 16
+			                                    : 0;
 		}
 	}
-}
-
-void LivePitchShifterPlayHead::interpolate(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel) {
-#include "dsp/interpolation/interpolate.h"
-}
-
-void LivePitchShifterPlayHead::interpolateLinear(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel) {
-#include "dsp/interpolation/interpolate_linear.h"
 }

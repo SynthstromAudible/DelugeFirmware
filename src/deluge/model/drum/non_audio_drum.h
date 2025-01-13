@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/drum/drum.h"
 #include "model/mod_controllable/mod_controllable.h"
+#include "modulation/arpeggiator.h"
 #include <cstdint>
 
 class NonAudioDrum : public Drum, public ModControllable {
@@ -29,20 +30,28 @@ public:
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) final;
 	bool anyNoteIsOn() final;
 	bool hasAnyVoices() final;
-	void unassignAllVoices();
+	void unassignAllVoices() override;
 	bool readDrumTagFromFile(Deserializer& reader, char const* tagName);
 
 	virtual int32_t getNumChannels() = 0;
 
 	virtual int8_t modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset, uint8_t whichModEncoder);
 
-	ModControllable* toModControllable() { return this; }
+	ModControllable* toModControllable() override { return this; }
 
 	bool state;
 	uint8_t lastVelocity;
 
 	uint8_t channel;
 	int8_t channelEncoderCurrentOffset;
+
+	ArpeggiatorBase* getArp() { return &arpeggiator; }
+	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
+
+	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) = 0;
+	virtual void noteOffPostArp(int32_t noteCodePostArp) = 0;
+
+	void writeArpeggiatorToFile(Serializer& writer);
 
 protected:
 	void modChange(ModelStackWithThreeMainThings* modelStack, int32_t offset, int8_t* encoderOffset, uint8_t* value,

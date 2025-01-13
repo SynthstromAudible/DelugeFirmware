@@ -24,10 +24,11 @@
 class DxSyxBrowser final : public Browser {
 public:
 	DxSyxBrowser();
-	bool opened();
-	void enterKeyPress();
+	bool opened() override;
+	void enterKeyPress() override;
 	Error getCurrentFilePath(String* path) override;
-	const char* getName() { return "dx_browser"; }
+	// ui
+	UIType getUIType() override { return UIType::DX_BROWSER; }
 };
 
 extern DxSyxBrowser dxBrowser;

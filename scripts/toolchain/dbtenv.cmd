@@ -40,7 +40,7 @@ if exist "%DBT_TOOLCHAIN_VERSION_FILE%" (
 )
 
 if not "%REAL_TOOLCHAIN_VERSION%" == "%DBT_TOOLCHAIN_VERSION%" (
-	echo DBT: starting toolchain upgrade process from %REAL_TOOLCHAIN_VERSION% to %DBT_TOOLCHAIN_VERSION%
+	echo DBT: starting toolchain upgrade process to %DBT_TOOLCHAIN_VERSION%
 	set "DBT_NEEDS_INSTALL=1"
 )
 
@@ -65,10 +65,9 @@ set "PROMPT=(dbt) %PROMPT%"
 set "DBT_TOOLCHAIN_INSTALLED=1"
 set "PIP_REQUIREMENTS_PATH=%DBT_ROOT%\scripts\toolchain\requirements.txt"
 
-if "%DBT_TOOLCHAIN_INSTALLED%" == "1" (
+if "%DBT_NEEDS_INSTALL%" == "1" (
 	python -m pip install -q --upgrade pip
 	python -m pip install -q -r "%PIP_REQUIREMENTS_PATH%"
-	cd
 )
 
 :already_set

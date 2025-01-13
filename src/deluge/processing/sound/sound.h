@@ -30,6 +30,7 @@
 #include "modulation/sidechain/sidechain.h"
 #include "processing/source.h"
 #include "util/misc.h"
+#include <bitset>
 
 struct CableGroup;
 class StereoSample;
@@ -85,6 +86,23 @@ public:
 	LFO globalLFO;
 	LFOConfig lfoConfig[LFO_COUNT];
 
+	// December 3, 2024
+	// @todo
+	// Commit 6534979986d465a0acf01018e066e1d7ca1d170e
+	// From PR #2004 (LFO: cleanups in preparation for LFO2 sync support)
+	// (https://github.com/SynthstromAudible/DelugeFirmware/pull/2004)
+	// Removed four uint8_t lfo variables from this section and replaced them with the LFOConfig
+	// definition above. This unknowingly introduced a "release" bug which changed the sound of the
+	// Deluge synth engine compared to 1.1 as reported in issue #2660:
+	// (https://github.com/SynthstromAudible/DelugeFirmware/issues/2660)
+	// As a TEMPORARY solution, padding is being added here to fix the bug so as to not hold up
+	// the 1.2 Beta release.
+	// Emphasis on temporary as this bug needs a proper fix, otherwise it will keep coming back
+	// as changes get made to this Sound class.
+	// We think the issue relates to the use of "offsetof" in the param and patcher system
+	// (related to the paramFinalValues / globalSourceValues definitions above)
+	uint32_t temporaryPadding{0xDEADBEEF};
+
 	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 
 	int32_t sideChainSendLevel;
@@ -119,7 +137,7 @@ public:
 
 	bool skippingRendering;
 
-	uint8_t whichExpressionSourcesChangedAtSynthLevel;
+	std::bitset<kNumExpressionDimensions> expressionSourcesChangedAtSynthLevel;
 
 	// I really didn't want to store these here, since they're stored in the ParamManager, but.... complications! Always
 	// 0 for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the
@@ -136,10 +154,10 @@ public:
 	uint32_t startSkippingRenderingAtTime; // Valid when not 0. Allows a wait-time before render skipping starts, for if
 	                                       // mod fx are on
 
-	virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) = 0;
+	virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr) = 0;
 	virtual void setSkippingRendering(bool newSkipping);
 
-	ModFXType getModFXType();
+	ModFXType getModFXType() override;
 	bool setModFXType(ModFXType newType) final;
 
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
@@ -162,7 +180,7 @@ public:
 
 	int8_t getKnobPos(uint8_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
 	int32_t getKnobPosBig(int32_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
-	bool learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
+	bool learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
 	               uint8_t midiChannel, Song* song) final;
 
 	bool hasFilters();
@@ -177,7 +195,7 @@ public:
 	                   ArpeggiatorSettings* arpSettings);
 	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager, ArpeggiatorSettings* arpSettings,
 	                 const char* pathAttribute = NULL);
-	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false);
+	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) override;
 
 	void voiceUnassigned(ModelStackWithVoice* modelStack);
 	bool isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramManager);
@@ -198,7 +216,7 @@ public:
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
 	void setSynthMode(SynthMode value, Song* song);
-	inline SynthMode getSynthMode() { return synthMode; }
+	inline SynthMode getSynthMode() const { return synthMode; }
 	bool anyNoteIsOn();
 	virtual bool isDrum() { return false; }
 	void setupAsSample(ParamManagerForTimeline* paramManager);
@@ -222,7 +240,7 @@ public:
 	static Error createParamManagerForLoading(ParamManagerForTimeline* paramManager);
 	int32_t hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength = false,
 	                                 int32_t note = 0);
-	int32_t hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, int32_t note, bool* anyLooping = NULL);
+	int32_t hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, int32_t note, bool* anyLooping = nullptr);
 	bool hasCutModeSamples(ParamManagerForTimeline* paramManager);
 	bool allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimeline* paramManager);
 	void fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack);
@@ -255,7 +273,7 @@ public:
 	                             int32_t oldValue, int32_t newValue, bool fromAutomation);
 	void deleteMultiRange(int32_t s, int32_t r);
 	void prepareForHibernation();
-	void wontBeRenderedForAWhile();
+	void wontBeRenderedForAWhile() override;
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) final;
 	virtual ArpeggiatorBase* getArp() = 0;
 	void possiblySetupDefaultExpressionPatching(ParamManager* paramManager);
@@ -278,8 +296,8 @@ private:
 	void setupUnisonStereoSpread();
 	void calculateEffectiveVolume();
 	void ensureKnobReferencesCorrectVolume(Knob* knob);
-	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-	                      int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
+	Error readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
+	                             int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 
 	void writeSourceToFile(Serializer& writer, int32_t s, char const* tagName);
 	Error readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerForTimeline* paramManager,

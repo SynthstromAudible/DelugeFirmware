@@ -41,7 +41,7 @@ SampleCluster::~SampleCluster() {
 			FREEZE_WITH_ERROR("E036");
 		}
 #endif
-		audioFileManager.deallocateCluster(cluster);
+		cluster->destroy();
 	}
 }
 
@@ -83,7 +83,7 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		}
 
 		// D_PRINTLN("loading");
-		cluster = audioFileManager.allocateCluster(); // Adds 1 reason
+		cluster = Cluster::create(); // Adds 1 reason
 
 		if (!cluster) {
 			D_PRINTLN("couldn't allocate");
@@ -97,7 +97,7 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		if (cluster->numReasonsToBeLoaded != 1) {
 			FREEZE_WITH_ERROR("i005"); // Diversifying Qui's E341. It should actually be exactly 1
 		}
-		if (cluster->type != ClusterType::Sample) {
+		if (cluster->type != Cluster::Type::SAMPLE) {
 			FREEZE_WITH_ERROR("E256"); // Cos I got E236
 		}
 #endif
@@ -115,12 +115,13 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		if (loadInstruction == CLUSTER_ENQUEUE) {
 justEnqueue:
 
-			if (ALPHA_OR_BETA_VERSION && cluster->type != ClusterType::Sample) {
+			if (ALPHA_OR_BETA_VERSION && cluster->type != Cluster::Type::SAMPLE) {
 				FREEZE_WITH_ERROR("E236"); // Cos Chris F got an E205
 			}
 
-			audioFileManager.enqueueCluster(
-			    cluster, priorityRating); // TODO: If that fails, it'll just get awkwardly forgotten about
+			// TODO: If that fails, it'll just get awkwardly forgotten about
+			audioFileManager.loadingQueue.push(*cluster, priorityRating);
+
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
 			if (cluster && cluster->numReasonsToBeLoaded <= 0) {
 				FREEZE_WITH_ERROR("i027"); // Diversifying Ron R's i004, which was diversifying Qui's E341
@@ -133,10 +134,10 @@ justEnqueue:
 
 			// cluster has (at least?) one reason - added above
 
-			if (ALPHA_OR_BETA_VERSION && cluster->type != ClusterType::Sample) {
+			if (ALPHA_OR_BETA_VERSION && cluster->type != Cluster::Type::SAMPLE) {
 				FREEZE_WITH_ERROR("E234"); // Cos Chris F got an E205
 			}
-			bool result = audioFileManager.loadCluster(cluster, 1);
+			bool result = audioFileManager.loadCluster(*cluster, 1);
 
 			// If that didn't work...
 			if (!result) {
@@ -150,7 +151,7 @@ justEnqueue:
 				// Or if it was a must-load-now...
 				// Free and remove our link to the unloaded Cluster - otherwise the next time we try to load it, it'd
 				// still exist but never get enqueued for loading
-				audioFileManager.deallocateCluster(cluster); // This removes the 1 reason that it'd still have
+				cluster->destroy(); // This removes the 1 reason that it'd still have
 
 				if (error != nullptr) {
 					// TODO: get actual error. Although sometimes it'd just be a "can't do it now
@@ -191,7 +192,7 @@ justEnqueue:
 			}
 		}
 
-		audioFileManager.addReasonToCluster(cluster);
+		cluster->addReason();
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.0.x have been getting E341.
 		if (cluster && cluster->numReasonsToBeLoaded <= 0) {

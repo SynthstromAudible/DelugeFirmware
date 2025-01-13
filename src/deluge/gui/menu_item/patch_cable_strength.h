@@ -44,18 +44,20 @@ public:
 
 	deluge::modulation::params::Kind getParamKind();
 	uint32_t getParamIndex();
-	virtual PatchSource getPatchSource();
+	PatchSource getPatchSource() override;
 
 	// OLED Only
 	void renderOLED();
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
-	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
-		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
+	void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
+		MenuItemWithCCLearning::learnKnob(cable, whichKnob, modKnobMode, midiChannel);
 	};
 
-	virtual ModelStackWithAutoParam* getModelStackWithParam(void* memory);
+	ModelStackWithAutoParam* getModelStackWithParam(void* memory) override;
+
+	void updateAutomationViewParameter() override;
 
 	/// Used when scrolling horizontally to briefly catch on min / max decimal number edit position
 	uint32_t delayHorizontalScrollUntil = 0;

@@ -51,19 +51,22 @@ enum RuntimeFeatureSettingType : uint32_t {
 	DeleteUnusedKitRows,
 	AltGoldenKnobDelayParams,
 	QuantizedStutterRate,
+	ReverseStutterRate,
 	DevSysexAllowed,
 	SyncScalingAction,
 	HighlightIncomingNotes,
 	DisplayNornsLayout,
 	ShiftIsSticky,
 	LightShiftLed,
-	EnableDxShortcuts,
+	EnableDX7Engine,
 	EmulatedDisplay,
 	EnableKeyboardViewSidebarMenuExit,
 	EnableLaunchEventPlayhead,
 	DisplayChordKeyboard,
 	AlternativePlaybackStartBehaviour,
 	EnableGridViewLoopPads,
+	AlternativeTapTempoBehaviour,
+	HorizontalMenus,
 	MaxElement // Keep as boundary
 };
 

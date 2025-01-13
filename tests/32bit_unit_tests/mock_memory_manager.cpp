@@ -52,8 +52,7 @@ public:
 		return -1;
 	}
 
-	void checkStack(char const* caller) { /* noop in tests */
-	}
+	void checkStack(char const* caller) { /* noop in tests */ }
 
 	int32_t getRegion(void* address) {
 		// TODO: we should expose an API to allow mocking this

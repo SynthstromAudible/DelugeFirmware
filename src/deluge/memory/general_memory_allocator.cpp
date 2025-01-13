@@ -86,8 +86,8 @@ extern "C" void delugeDealloc(void* address) {
 void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 
 	if (lock) {
-		return NULL; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
-		             // could extend the stack an unspecified amount
+		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
+		                // could extend the stack an unspecified amount
 	}
 
 	lock = true;
@@ -110,8 +110,8 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
                                     void* thingNotToStealFrom) {
 
 	if (lock) {
-		return NULL; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
-		             // could extend the stack an unspecified amount
+		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
+		                // could extend the stack an unspecified amount
 	}
 
 	void* address = nullptr;
@@ -212,7 +212,10 @@ uint32_t GeneralMemoryAllocator::extendRightAsMuchAsEasilyPossible(void* address
 }
 
 void GeneralMemoryAllocator::dealloc(void* address) {
-	return regions[getRegion(address)].dealloc(address);
+	if (address == nullptr) [[unlikely]] {
+		return;
+	}
+	regions[getRegion(address)].dealloc(address);
 }
 
 void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, StealableQueue q) {

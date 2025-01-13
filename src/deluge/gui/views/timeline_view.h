@@ -26,13 +26,12 @@ class NoteRow;
 
 class TimelineView : public RootUI {
 public:
-	TimelineView() {}
+	TimelineView() = default;
 
-	void scrollFinished();
+	void scrollFinished() override;
 
 	TimelineView* toTimelineView() final { return this; }
 
-	const char* getName() { return "timeline_view"; }
 	virtual uint32_t getMaxZoom() = 0;
 	virtual bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom,
 	                                     uint32_t oldZoom); // Returns false if no animation needed
@@ -52,7 +51,7 @@ public:
 	void initiateXScroll(uint32_t newXScroll, int32_t numSquaresToScroll = kDisplayWidth);
 	bool zoomToMax(bool inOnly = false);
 	void initiateXZoom(int32_t zoomMagnitude, int32_t newScroll, uint32_t oldZoom);
-	void midiLearnFlash();
+	void midiLearnFlash() override;
 
 	bool scrollRightToEndOfLengthIfNecessary(int32_t maxLength);
 
@@ -63,16 +62,13 @@ public:
 
 	[[nodiscard]] int32_t getPosFromSquare(int32_t square, int32_t localScroll = -1) const;
 	[[nodiscard]] int32_t getPosFromSquare(int32_t square, int32_t xScroll, uint32_t xZoom) const;
-	int32_t getSquareFromPos(int32_t pos, bool* rightOnSquare = NULL, int32_t localScroll = -1);
+	int32_t getSquareFromPos(int32_t pos, bool* rightOnSquare = nullptr, int32_t localScroll = -1);
 	int32_t getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t xScroll, uint32_t xZoom);
 	int32_t getSquareEndFromPos(int32_t pos, int32_t localScroll = -1);
 	bool isSquareDefined(int32_t square, int32_t xScroll = -1);
 	bool isSquareDefined(int32_t square, int32_t xScroll, uint32_t xZoom);
 
 	[[nodiscard]] bool inTripletsView() const;
-
-	// ui
-	UIType getUIType() { return UIType::TIMELINE; }
 
 private:
 	/// Used when scrolling horizontally to briefly catch on clip's max zoom

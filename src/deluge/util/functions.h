@@ -128,7 +128,7 @@ template <uint8_t lshift>
 	}
 }
 
-char* replace_char(const char* str, char find, char replace);
+void replace_char(char* str, const char* in_str, char find, char replace);
 
 /// pads a string up to a num of characters if the current string size is shorter than num
 [[gnu::always_inline]] constexpr void padStringTo(std::string& str, const size_t num) {
@@ -229,47 +229,6 @@ char const* sourceToStringShort(PatchSource source);
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
 
-[[gnu::always_inline]] constexpr void convertFloatToIntAtMemoryLocation(uint32_t* pos) {
-
-	//*(int32_t*)pos = *(float*)pos * 2147483648;
-
-	uint32_t readValue = *(uint32_t*)pos;
-	int32_t exponent = (int32_t)((readValue >> 23) & 255) - 127;
-
-	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
-
-	// Sign bit
-	if (readValue >> 31)
-		outputValue = -outputValue;
-
-	*pos = outputValue;
-}
-
-[[gnu::always_inline]] constexpr int32_t floatToInt(float theFloat) {
-	uint32_t readValue = std::bit_cast<uint32_t>(theFloat);
-	int32_t exponent = (int32_t)((readValue >> 23) & 255) - 127;
-
-	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
-
-	// Sign bit
-	if (readValue >> 31)
-		outputValue = -outputValue;
-
-	return outputValue;
-}
-
-[[gnu::always_inline]] constexpr int32_t floatBitPatternToInt(uint32_t readValue) {
-	int32_t exponent = (int32_t)((readValue >> 23) & 255) - 127;
-
-	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
-
-	// Sign bit
-	if (readValue >> 31)
-		outputValue = -outputValue;
-
-	return outputValue;
-}
-
 int32_t interpolateTable(uint32_t input, int32_t numBitsInInput, const uint16_t* table, int32_t numBitsInTableSize = 8);
 uint32_t interpolateTableInverse(int32_t tableValueBig, int32_t numBitsInLookupOutput, const uint16_t* table,
                                  int32_t numBitsInTableSize = 8);
@@ -352,6 +311,14 @@ int32_t getDecay4(uint32_t input, uint8_t numBitsInInput);
 	return CONG;
 }
 
+/// generates a triangle distribution from -1q31 to 1q31 centered on 0 (Irwin-Hall)
+inline q31_t sampleTriangleDistribution() {
+	auto u1 = getNoise();
+	auto u2 = getNoise();
+	auto s = add_saturation(u1, u2);
+	return s;
+}
+
 void seedRandom();
 
 extern bool shouldInterpretNoteNames;
@@ -408,7 +375,8 @@ inline RGB drawSquare(const RGB& squareColour, int32_t intensity, const RGB& squ
 }
 
 int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from);
-void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot = NULL, bool appendOctaveNo = true);
+void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot = nullptr,
+                      bool appendOctaveNo = true);
 void concatenateLines(const char* lines[], size_t numLines, char* resultString);
 double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */);
 int32_t divide_round_negative(int32_t dividend, int32_t divisor);

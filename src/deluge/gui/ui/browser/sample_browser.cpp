@@ -16,8 +16,11 @@
  */
 
 #include "definitions_cxx.hpp"
+#include "fatfs.hpp"
 #include "hid/button.h"
 #include "model/sample/sample.h"
+#include "util/try.h"
+#include <ranges>
 #undef __GNU_VISIBLE
 #define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
 #include "extern.h"
@@ -255,7 +258,7 @@ void SampleBrowser::exitAndNeverDeleteDrum() {
 
 // Will "delete drum if possible".
 void SampleBrowser::exitAction() {
-	UI* redrawUI = NULL;
+	UI* redrawUI = nullptr;
 
 	display->setNextTransitionDirection(-1);
 	if (!isUIOpen(&soundEditor)) {
@@ -372,11 +375,11 @@ void SampleBrowser::enterKeyPress() {
 		// If we're here, we know that the file has fully loaded
 
 		// If user wants to slice...
-		if (Buttons::isShiftButtonPressed()) {
+		if (soundEditor.editingKit() && Buttons::isShiftButtonPressed()) {
 
 			// Can only do this for Kit Clips, and for source 0, not 1, AND there has to be only one drum present, which
 			// is assigned to the first NoteRow
-			if (getCurrentClip()->type == ClipType::INSTRUMENT && canImportWholeKit()) {
+			if (canImportWholeKit()) {
 				display->displayPopup("SLICER");
 				openUI(&slicer);
 			}
@@ -423,7 +426,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 						return ActionResult::DEALT_WITH;
 					}
 
-					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
+					bool allFine = audioFileManager.releaseSampleAtFilePath(filePath);
 
 					if (!allFine) {
 						display->displayPopup(
@@ -725,13 +728,13 @@ Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCost
 	soundEditor.cutSound();
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
-	holder->setAudioFile(NULL);
+	holder->setAudioFile(nullptr);
 	Error error = getCurrentFilePath(&holder->filePath);
 	if (error != Error::NONE) {
 		return error;
 	}
 
-	return holder->loadFile(soundEditor.currentSource->sampleControls.reversed, true, true, CLUSTER_ENQUEUE, 0,
+	return holder->loadFile(soundEditor.currentSource->sampleControls.reversed, true, true, CLUSTER_ENQUEUE, nullptr,
 	                        makeWaveTableWorkAtAllCosts);
 }
 
@@ -739,7 +742,7 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 	soundEditor.cutSound();
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
-	holder->setAudioFile(NULL);
+	holder->setAudioFile(nullptr);
 	Error error = getCurrentFilePath(&holder->filePath);
 	if (error != Error::NONE) {
 		return error;
@@ -1190,11 +1193,10 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 		previouslyViewedFilename = currentFileItem->filename.get();
 	}
 
-	FRESULT result = f_opendir(&staticDIR, dirToLoad.get());
-	if (result != FR_OK) {
+	staticDIR = D_TRY_CATCH(FatFS::Directory::open(dirToLoad.get()), error, {
 		display->displayError(Error::SD_CARD);
 		return false;
-	}
+	});
 
 	int32_t numSamples = 0;
 
@@ -1205,22 +1207,17 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	if (false) {
 removeReasonsFromSamplesAndGetOut:
 		// Remove reasons from any samples we loaded in just before
-		for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
-			AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
+		for (Sample* thisSample : audioFileManager.sampleFiles | std::views::values) {
 
-			if (audioFile->type == AudioFileType::SAMPLE) {
-				Sample* thisSample = (Sample*)audioFile;
-
-				// If this sample is one of the ones we loaded a moment ago...
-				if (thisSample->partOfFolderBeingLoaded) {
-					thisSample->partOfFolderBeingLoaded = false;
+			// If this sample is one of the ones we loaded a moment ago...
+			if (thisSample->partOfFolderBeingLoaded) {
+				thisSample->partOfFolderBeingLoaded = false;
 #if ALPHA_OR_BETA_VERSION
-					if (thisSample->numReasonsToBeLoaded <= 0) {
-						FREEZE_WITH_ERROR("E213"); // I put this here to try and catch an E004 Luc got
-					}
-#endif
-					thisSample->removeReason("E392"); // Remove that temporary reason we added
+				if (thisSample->numReasonsToBeLoaded <= 0) {
+					FREEZE_WITH_ERROR("E213"); // I put this here to try and catch an E004 Luc got
 				}
+#endif
+				thisSample->removeReason("E392"); // Remove that temporary reason we added
 			}
 		}
 
@@ -1244,10 +1241,13 @@ removeReasonsFromSamplesAndGetOut:
 		audioFileManager.loadAnyEnqueuedClusters();
 		FilePointer thisFilePointer;
 
-		result = f_readdir_get_filepointer(&staticDIR, &staticFNO, &thisFilePointer); /* Read a directory item */
+		/* Read a directory item */
+		std::tie(staticFNO, thisFilePointer) = D_TRY_CATCH(staticDIR.read_and_get_filepointer(), error, {
+			break; // break on error
+		});
 
-		if (result != FR_OK || staticFNO.fname[0] == 0) {
-			break; // Break on error or end of dir
+		if (staticFNO.fname[0] == 0) {
+			break; // Break on end of dir
 		}
 		if (staticFNO.fname[0] == '.') {
 			continue; // Ignore dot entry
@@ -1276,13 +1276,17 @@ removeReasonsFromSamplesAndGetOut:
 
 		filePath.concatenateAtPos(staticFNO.fname, dirWithSlashLength);
 
-		Sample* newSample = (Sample*)audioFileManager.getAudioFileFromFilename(
-		    &filePath, true, &error, &thisFilePointer,
-		    AudioFileType::SAMPLE); // We really want to be able to pass a file pointer in here
-		if (error != Error::NONE || !newSample) {
-			f_closedir(&staticDIR);
+		// We really want to be able to pass a file pointer in here
+		auto maybeNewSample =
+		    audioFileManager.getAudioFileFromFilename(filePath, true, &thisFilePointer, AudioFileType::SAMPLE);
+
+		if (!maybeNewSample.has_value() || maybeNewSample.value() == nullptr) {
+			error = maybeNewSample.error_or(Error::NONE);
+			staticDIR.close();
 			goto removeReasonsFromSamplesAndGetOut;
 		}
+
+		auto* newSample = static_cast<Sample*>(maybeNewSample.value());
 
 		newSample->addReason();
 		newSample->partOfFolderBeingLoaded = true;
@@ -1301,7 +1305,7 @@ removeReasonsFromSamplesAndGetOut:
 
 		numSamples++;
 	}
-	f_closedir(&staticDIR);
+	staticDIR.close();
 
 	if (getPrefixAndDirLength) {
 		// If just one file, there's no prefix.
@@ -1329,31 +1333,25 @@ removeReasonsFromSamplesAndGetOut:
 
 	// Go through each sample in memory that was from the folder in question, adding them to our pointer list
 	int32_t sampleI = 0;
-	for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
-		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
+	for (Sample* thisSample : audioFileManager.sampleFiles | std::views::values) {
+		// If this sample is one of the ones we loaded a moment ago...
+		if (thisSample->partOfFolderBeingLoaded) {
+			thisSample->partOfFolderBeingLoaded = false;
 
-		if (audioFile->type == AudioFileType::SAMPLE) {
+			if (discardingMIDINoteFromFile) {
+				thisSample->midiNoteFromFile = -1;
+			}
 
-			Sample* thisSample = (Sample*)audioFile;
-			// If this sample is one of the ones we loaded a moment ago...
-			if (thisSample->partOfFolderBeingLoaded) {
-				thisSample->partOfFolderBeingLoaded = false;
+			if (detectPitch) {
+				thisSample->workOutMIDINote(doingSingleCycle);
+			}
 
-				if (discardingMIDINoteFromFile) {
-					thisSample->midiNoteFromFile = -1;
-				}
+			*thisSamplePointer = thisSample;
+			sampleI++;
+			thisSamplePointer++;
 
-				if (detectPitch) {
-					thisSample->workOutMIDINote(doingSingleCycle);
-				}
-
-				*thisSamplePointer = thisSample;
-				sampleI++;
-				thisSamplePointer++;
-
-				if (sampleI == numSamples) {
-					break; // Just for safety
-				}
+			if (sampleI == numSamples) {
+				break; // Just for safety
 			}
 		}
 	}
@@ -1847,7 +1845,7 @@ bool SampleBrowser::importFolderAsKit() {
 	Sample** sortArea;
 
 	int32_t prefixAndDirLength;
-	bool success = loadAllSamplesInFolder(false, &numSamples, &sortArea, NULL, &prefixAndDirLength);
+	bool success = loadAllSamplesInFolder(false, &numSamples, &sortArea, nullptr, &prefixAndDirLength);
 
 	if (!success) {
 doReturnFalse:
@@ -1878,7 +1876,7 @@ doReturnFalse:
 				range = source->getOrCreateFirstRange();
 				if (!range) {
 getOut:
-					f_closedir(&staticDIR);
+					staticDIR.close();
 					display->displayError(Error::INSUFFICIENT_RAM);
 					goto doReturnFalse;
 				}
@@ -1942,7 +1940,7 @@ getOut:
 			}
 
 			AudioFileHolder* holder = range->getAudioFileHolder();
-			holder->setAudioFile(NULL);
+			holder->setAudioFile(nullptr);
 			holder->filePath.set(&thisSample->filePath);
 			holder->setAudioFile(thisSample, source->sampleControls.reversed, true);
 

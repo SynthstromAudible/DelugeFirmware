@@ -33,6 +33,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
+#include "model/instrument/melodic_instrument.h"
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -49,6 +50,7 @@
 #include "gui/ui/keyboard/layout/in_key.h"
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "gui/ui/keyboard/layout/norns.h"
+#include "gui/ui/keyboard/layout/piano.h"
 #include "gui/ui/keyboard/layout/velocity_drums.h"
 
 deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
@@ -58,6 +60,7 @@ namespace deluge::gui::ui::keyboard {
 layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
 layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
 layout::KeyboardLayoutInKey keyboardLayoutInKey{};
+layout::KeyboardLayoutPiano keyboardLayoutPiano{};
 layout::KeyboardLayoutChord KeyboardLayoutChord{};
 layout::KeyboardLayoutChordLibrary keyboardLayoutChordLibrary{};
 layout::KeyboardLayoutNorns keyboardLayoutNorns{};
@@ -67,6 +70,7 @@ KeyboardScreen::KeyboardScreen() {
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = (KeyboardLayout*)&keyboardLayoutIsomorphic;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeDrums] = (KeyboardLayout*)&keyboardLayoutVelocityDrums;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeInKey] = (KeyboardLayout*)&keyboardLayoutInKey;
+	layoutList[KeyboardLayoutType::KeyboardLayoutTypePiano] = (KeyboardLayout*)&keyboardLayoutPiano;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeChord] = (KeyboardLayout*)&KeyboardLayoutChord;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeChordLibrary] = (KeyboardLayout*)&keyboardLayoutChordLibrary;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeNorns] = (KeyboardLayout*)&keyboardLayoutNorns;
@@ -147,10 +151,8 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// Pad was already active
 			if (pressedPads[idx].active && pressedPads[idx].x == x && pressedPads[idx].y == y) {
 				pressedPads[idx].active = false;
+				pressedPads[idx].padPressHeld = false;
 				markDead = idx;
-				if ((AudioEngine::audioSampleTimer - pressedPads[idx].timeLastPadPress) > FlashStorage::holdTime) {
-					pressedPads[idx].padPressHeld = true;
-				}
 				break;
 			}
 		}
@@ -284,7 +286,7 @@ void KeyboardScreen::updateActiveNotes() {
 		// Ensure the note the user is trying to sound isn't already sounding
 		NoteRow* noteRow = ((InstrumentClip*)activeInstrument->getActiveClip())->getNoteRowForYNote(newNote);
 		if (noteRow) {
-			if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+			if (noteRow->sequenced) {
 				continue;
 			}
 		}
@@ -327,9 +329,10 @@ void KeyboardScreen::updateActiveNotes() {
 			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) { // It definitely will be auditioning if we're here
 				ModelStackWithNoteRow* modelStackWithNoteRow = modelStackWithTimelineCounter->addNoteRow(0, NULL);
 				((MelodicInstrument*)activeInstrument)
-				    ->earlyNotes.insertElementIfNonePresent(
-				        newNote, currentNotesState.notes[idx].velocity,
-				        getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRow));
+				    ->earlyNotes.emplace(newNote,
+				                         MelodicInstrument::EarlyNoteInfo{
+				                             static_cast<uint8_t>(currentNotesState.notes[idx].velocity),
+				                             getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRow)});
 			}
 
 			else {
@@ -379,7 +382,7 @@ void KeyboardScreen::noteOff(ModelStack& modelStack, Instrument& activeInstrumen
                              int32_t note) {
 	NoteRow* noteRow = (static_cast<InstrumentClip*>(activeInstrument.getActiveClip()))->getNoteRowForYNote(note);
 	if (noteRow) {
-		if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+		if (noteRow->sequenced) {
 			return; // Note was activated by sequence
 		}
 	}
@@ -633,7 +636,6 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	}
 
 	else {
-		requestRendering();
 		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
 		if (result != ActionResult::NOT_DEALT_WITH) {
 			return result;
@@ -726,7 +728,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 
 	getCurrentInstrumentClip()->keyboardState.currentLayout = (KeyboardLayoutType)nextLayout;
 	if (getCurrentInstrumentClip()->keyboardState.currentLayout != lastLayout) {
-		display->displayPopup(layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->name());
+		display->displayPopup(l10n::get(layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->name()));
 	}
 
 	// Ensure scale mode is as expected

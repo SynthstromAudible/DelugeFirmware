@@ -2,7 +2,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clip_settings/launch_style.h"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/rename/rename_clipname_ui.h"
+#include "gui/ui/rename/rename_clip_ui.h"
 #include "gui/ui/root_ui.h"
 #include "gui/views/session_view.h"
 #include "hid/display/display.h"
@@ -18,7 +18,7 @@ char const* ClipSettingsMenu::getTitle() {
 	return title;
 }
 
-Sized<char const**> ClipSettingsMenu::getOptions() {
+std::span<char const*> ClipSettingsMenu::getOptions() {
 	using enum l10n::String;
 	if (clip->type == ClipType::AUDIO) {
 		static const char* optionsls[] = {
@@ -63,8 +63,8 @@ bool ClipSettingsMenu::acceptCurrentOption() {
 		}
 		else {
 			currentUIMode = UI_MODE_NONE;
-			renameClipNameUI.clip = clip;
-			openUI(&renameClipNameUI);
+			renameClipUI.clip = clip;
+			openUI(&renameClipUI);
 		}
 		return true;
 	}

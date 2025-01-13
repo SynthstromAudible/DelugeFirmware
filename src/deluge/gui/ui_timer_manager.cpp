@@ -21,7 +21,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -230,6 +230,10 @@ void UITimerManager::routine() {
 				case TimerName::SYSEX_DISPLAY:
 					HIDSysex::sendDisplayIfChanged();
 					break;
+
+				// explicit fallthrough cases
+				case TimerName::METER_INDICATOR_BLINK: // really nothing for this?
+				case TimerName::NUM_TIMERS:;
 				}
 			}
 		}

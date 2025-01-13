@@ -25,7 +25,7 @@ public:
 	~SampleHolderForClip() override;
 
 	void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false,
-	                  int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
+	                  int32_t clusterLoadInstruction = CLUSTER_ENQUEUE) override;
 	void recalculateNeutralPhaseIncrement();
 	void beenClonedFrom(SampleHolderForClip const* other, bool reversed);
 
@@ -33,5 +33,5 @@ public:
 	int8_t cents;
 
 protected:
-	void sampleBeenSet(bool reversed, bool manuallySelected);
+	void sampleBeenSet(bool reversed, bool manuallySelected) override;
 };

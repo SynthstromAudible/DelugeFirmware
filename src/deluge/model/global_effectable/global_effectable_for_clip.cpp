@@ -118,7 +118,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	// Render actual Drums / AudioClip
 	renderedLastTime = renderGlobalEffectableForClip(
-	    modelStack, globalEffectableBuffer, NULL, numSamples, reverbBuffer, reverbAmountAdjustForDrums,
+	    modelStack, globalEffectableBuffer, nullptr, numSamples, reverbBuffer, reverbAmountAdjustForDrums,
 	    sideChainHitPending, shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
 	// Render saturation
@@ -138,8 +138,13 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	// Render FX
 	processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
 	processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
-	                             delayWorkingState, renderedLastTime);
+	                             delayWorkingState, renderedLastTime, reverbSendAmount);
 	processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
+	// record before pan/compression/volume to keep volumes consistent
+	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
+		recorder->feedAudio((int32_t*)globalEffectableBuffer, numSamples, true, 2);
+	}
 
 	processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
 	                           reverbSendAmount, pan, true);
@@ -149,10 +154,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	else {
 		compressor.reset();
 	}
-	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
-		recorder->feedAudio((int32_t*)globalEffectableBuffer, numSamples, true, 2);
-	}
+
 	addAudio(globalEffectableBuffer, outputBuffer, numSamples);
 
 	postReverbVolumeLastTime = postReverbVolume;
@@ -269,7 +271,7 @@ void GlobalEffectableForClip::getThingWithMostReverb(Clip* activeClip, Sound** s
 			int32_t reverbHere = unpatchedParams->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
 			if (*highestReverbAmountFound < reverbHere) {
 				*highestReverbAmountFound = reverbHere;
-				*soundWithMostReverb = NULL;
+				*soundWithMostReverb = nullptr;
 				*paramManagerWithMostReverb = activeParamManager;
 				*globalEffectableWithMostReverb = this;
 			}

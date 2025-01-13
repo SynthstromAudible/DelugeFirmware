@@ -24,12 +24,13 @@ class ContextMenu;
 class SaveSongUI final : public SaveUI {
 public:
 	SaveSongUI();
-	bool opened();
-	void focusRegained();
+	bool opened() override;
+	void focusRegained() override;
 	// void selectEncoderAction(int8_t offset);
-	bool performSave(bool mayOverwrite = false);
-	const char* getName() { return "save_song_ui"; }
+	bool performSave(bool mayOverwrite = false) override;
 	bool collectingSamples;
+	// ui
+	UIType getUIType() override { return UIType::SAVE_SONG; }
 
 protected:
 	// int32_t arrivedInNewFolder(int32_t direction);

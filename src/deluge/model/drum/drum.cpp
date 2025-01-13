@@ -23,13 +23,14 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
+#include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <string.h>
 
-Drum::Drum(DrumType newType) : type(newType) {
-	next = NULL;
+Drum::Drum(DrumType newType) : type(newType), arpeggiator(), arpSettings() {
+	next = nullptr;
 
 	earlyNoteVelocity = 0;
 	earlyNoteStillActive = false;
@@ -37,7 +38,7 @@ Drum::Drum(DrumType newType) : type(newType) {
 	auditioned = false;
 	lastMIDIChannelAuditioned = MIDI_CHANNEL_NONE;
 
-	kit = NULL;
+	kit = nullptr;
 
 	memset(lastExpressionInputsReceived, 0, sizeof(lastExpressionInputsReceived));
 }
@@ -86,15 +87,15 @@ void Drum::getCombinedExpressionInputs(int16_t* combined) {
 }
 
 void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
-                                           int32_t whichExpressionimension, int32_t level) {
+                                           int32_t expressionDimension, int32_t level) {
 
 	// Ok we have to first combine the expression inputs that the user might have sent at both MPE/polyphonic/finger
 	// level, *and* at channel/instrument level. Yes, we combine these here at the input before the data gets recorded
 	// or sounded, because unlike for Instruments, we're a Drum, and all we have is the NoteRow level to store this
 	// stuff.
-	lastExpressionInputsReceived[level][whichExpressionimension] = newValue >> 8; // Store value
+	lastExpressionInputsReceived[level][expressionDimension] = newValue >> 8; // Store value
 	int32_t combinedValue =
-	    (int32_t)newValue + ((int32_t)lastExpressionInputsReceived[!level][whichExpressionimension] << 8);
+	    (int32_t)newValue + ((int32_t)lastExpressionInputsReceived[!level][expressionDimension] << 8);
 	combinedValue = lshiftAndSaturate<16>(combinedValue);
 
 	expressionValueChangesMustBeDoneSmoothly = true;
@@ -111,8 +112,8 @@ void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelS
 			goto justSend;
 		}
 
-		bool success = noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, combinedValue,
-		                                                        whichExpressionimension, true);
+		bool success =
+		    noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, combinedValue, expressionDimension, true);
 		if (!success) {
 			goto justSend;
 		}
@@ -121,7 +122,7 @@ void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelS
 	// Or if not recording, just sound the change ourselves here (as opposed to the AutoParam doing it).
 	else {
 justSend:
-		expressionEvent(combinedValue, whichExpressionimension); // Virtual function
+		expressionEvent(combinedValue, expressionDimension); // Virtual function
 	}
 
 	expressionValueChangesMustBeDoneSmoothly = false;

@@ -20,6 +20,7 @@
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
 #include "dsp/fft/fft_config_manager.h"
+#include "dsp/interpolate/interpolate.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
@@ -29,6 +30,7 @@
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table_reader.h"
+#include "util/fixedpoint.h"
 #include <new>
 
 extern int32_t oscSyncRenderingBuffer[];
@@ -59,7 +61,7 @@ void WaveTable::bandDataBeingStolen(WaveTableBandData* bandData) {
 	for (int32_t b = 0; b < bands.getNumElements(); b++) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
 		if (band->data == bandData) {
-			band->data = NULL;
+			band->data = nullptr;
 			break;
 		}
 	}
@@ -135,7 +137,7 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 #define SHOULD_DISCARD_WAVETABLE_DATA_WITH_INSUFFICIENT_HF_CONTENT 0
 
 Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
-                       uint32_t audioDataLengthBytes, int32_t byteDepth, int32_t rawDataFormat,
+                       uint32_t audioDataLengthBytes, int32_t byteDepth, RawDataFormat rawDataFormat,
                        WaveTableReader* reader) {
 	AudioEngine::logAction("WaveTable::setup");
 
@@ -336,8 +338,8 @@ gotError5:
 	// will be overwritten, just since we're using the same code as for power-of-two.
 	int16_t* __restrict__ initialBandWritePos = initialBand->dataAccessAddress;
 
-	int32_t clusterIndex = audioDataStartPosBytes >> audioFileManager.clusterSizeMagnitude;
-	int32_t byteIndexWithinCluster = audioDataStartPosBytes & (audioFileManager.clusterSize - 1);
+	int32_t clusterIndex = audioDataStartPosBytes >> Cluster::size_magnitude;
+	int32_t byteIndexWithinCluster = audioDataStartPosBytes & (Cluster::size - 1);
 
 	if (!sample) {
 		reader->jumpForwardToBytePos(audioDataStartPosBytes); // In case reader wasn't quite up to here yet! Can happen
@@ -352,16 +354,16 @@ gotError5:
 
 	uint32_t bitMask = 0xFFFFFFFF << ((4 - byteDepth) * 8);
 
-	Cluster* cluster = NULL;
+	Cluster* cluster = nullptr;
 	int32_t clusterIndexCurrentlyLoaded = -1; // Initially, none is loaded yet.
 
 	uint32_t startedBandsYet = 0;
 
 	bool swappingEndianness =
-	    (rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_32 || rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_24
-	     || rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_16);
+	    (rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_32 || rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_24
+	     || rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_16);
 
-	bool needToMisalignData = (rawDataFormat == RAW_DATA_FINE || rawDataFormat == RAW_DATA_UNSIGNED_8);
+	bool needToMisalignData = (rawDataFormat == RawDataFormat::NATIVE || rawDataFormat == RawDataFormat::UNSIGNED_8);
 
 	// For each wave cycle...
 	for (int32_t cycleIndex = 0; cycleIndex < numCycles; cycleIndex++) {
@@ -388,7 +390,7 @@ gotError5:
 
 					// First, unload the old Cluster if there was one
 					if (cluster) {
-						audioFileManager.removeReasonFromCluster(cluster, "E385");
+						audioFileManager.removeReasonFromCluster(*cluster, "E385");
 					}
 
 					cluster = sample->clusters.getElement(clusterIndex)
@@ -418,15 +420,15 @@ gotError5:
 			// Macro setup for below
 #define CONVERT_AND_STORE_SAMPLE                                                                                       \
 	{                                                                                                                  \
-		if (rawDataFormat == RAW_DATA_FLOAT) {                                                                         \
-			value32 = floatBitPatternToInt(value32);                                                                   \
+		if (rawDataFormat == RawDataFormat::FLOAT) {                                                                   \
+			value32 = q31_from_float(std::bit_cast<float>(value32));                                                   \
 		}                                                                                                              \
 		else {                                                                                                         \
 			if (swappingEndianness) {                                                                                  \
 				value32 = swapEndianness32(value32);                                                                   \
 			}                                                                                                          \
 			value32 &= bitMask;                                                                                        \
-			if (rawDataFormat == RAW_DATA_UNSIGNED_8) {                                                                \
+			if (rawDataFormat == RawDataFormat::UNSIGNED_8) {                                                          \
 				value32 += (1 << 31);                                                                                  \
 			}                                                                                                          \
 		}                                                                                                              \
@@ -476,7 +478,7 @@ gotError5:
 			}
 
 			const char* source = &sourceBuffer[byteIndexWithinCluster];
-			const char* sourceStopAt = &sourceBuffer[audioFileManager.clusterSize];
+			const char* sourceStopAt = &sourceBuffer[Cluster::size];
 
 			// Stop before we get to the final sample that overlaps the end of the cluster, if that happens.
 			sourceStopAt = sourceStopAt - byteDepth + 1;
@@ -512,10 +514,12 @@ gotError5:
 			}
 
 			// If we're less than one sample from the end of the cluster...
-			if (byteIndexWithinCluster > audioFileManager.clusterSize - byteDepth) {
+			if (byteIndexWithinCluster > Cluster::size - byteDepth) {
 				bytesOverlappingFromLastCluster = *(uint32_t*)source;
-				byteIndexWithinCluster -= audioFileManager.clusterSize; // Might end up negative, indicating that we've
-				                                                        // got a sample overlapping the cluster boundary
+
+				// A negative value here indicates that the start of the next sample is within the current cluster
+				byteIndexWithinCluster -= Cluster::size;
+
 				clusterIndex++;
 			}
 		} while (sourceBytesLeftToCopyThisCycle > 0);
@@ -735,8 +739,8 @@ transformBandToTimeDomain:
 	// Ok, we've now processed all Cycles.
 
 	// There could be a Cluster with a reason we still need to remove.
-	if (cluster) {
-		audioFileManager.removeReasonFromCluster(cluster, "E385");
+	if (cluster != nullptr) {
+		audioFileManager.removeReasonFromCluster(*cluster, "E385");
 	}
 
 	if (numCycles > 1) {
@@ -1048,7 +1052,7 @@ const int16_t* getKernel(int32_t phaseIncrement, int32_t bandMaxPhaseIncrement) 
 // waveIndex comes in as a 31-bit number
 uint32_t WaveTable::render(int32_t* __restrict__ outputBuffer, int32_t numSamples, uint32_t phaseIncrement,
                            uint32_t phase, bool doOscSync, uint32_t resetterPhaseThisCycle,
-                           uint32_t resetterPhaseIncrement, uint32_t resetterDivideByPhaseIncrement,
+                           uint32_t resetterPhaseIncrement, int32_t resetterDivideByPhaseIncrement,
                            uint32_t retriggerPhase, int32_t waveIndex, int32_t waveIndexIncrement) {
 
 	// Decide on ideal band
@@ -1123,8 +1127,16 @@ startRenderingACycle:
 				int32_t* bufferStartThisSync = outputBuffer;
 				uint32_t resetterPhase = resetterPhaseThisCycle;
 				int32_t numSamplesThisOscSyncSession = numSamplesThisCycle;
-				RENDER_OSC_SYNC(RENDER_WAVETABLE_LOOP, 0, WAVETABLE_EXTRA_INSTRUCTIONS_FOR_CROSSOVER_SAMPLE_REDO,
-				                startRenderingASyncForWavetable);
+				renderOscSync(
+				    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
+					    doRenderingLoop(bufferStartThisSync, bufferEndThisSyncRender, firstCycleNumber, bandHere, phase,
+					                    phaseIncrement, crossCycleStrength2, crossCycleStrength2Increment, kernel);
+				    },
+				    [&](uint32_t samplesIncludingNextCrossoverSample) {
+					    crossCycleStrength2 += crossCycleStrength2Increment * (samplesIncludingNextCrossoverSample - 1);
+				    },
+				    phase, phaseIncrement, resetterPhase, resetterPhaseIncrement, resetterDivideByPhaseIncrement,
+				    retriggerPhase, numSamplesThisOscSyncSession, bufferStartThisSync);
 			}
 			else {
 				int32_t const* bufferEnd = outputBuffer + numSamplesThisCycle;
@@ -1151,7 +1163,13 @@ doneRenderingACycle:
 			int32_t* bufferStartThisSync = outputBuffer;
 			uint32_t resetterPhase = resetterPhaseThisCycle;
 			int32_t numSamplesThisOscSyncSession = numSamples;
-			RENDER_OSC_SYNC(RENDER_SINGLE_CYCLE_WAVEFORM_LOOP, 0, 0, startRenderingASyncForSingleCycleWaveform);
+			renderOscSync(
+			    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
+				    doRenderingLoopSingleCycle(bufferStartThisSync, bufferEndThisSyncRender, bandHere, phase,
+				                               phaseIncrement, kernel);
+			    },
+			    [](uint32_t) {}, phase, phaseIncrement, resetterPhase, resetterPhaseIncrement,
+			    resetterDivideByPhaseIncrement, retriggerPhase, numSamplesThisOscSyncSession, bufferStartThisSync);
 		}
 		else {
 			int32_t const* bufferEnd = outputBuffer + numSamples;
@@ -1196,3 +1214,26 @@ void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
 
     }
  */
+
+bool WaveTable::mayBeStolen(void* thingNotToStealFrom) {
+	if (numReasonsToBeLoaded > 0) {
+		return false;
+	}
+
+	// If we were stolen, sampleManager's wavetableFiles/sampleFiles would get an entry deleted from it, and that's not
+	// allowed while it's being inserted to, which is when we'd be provided it as the thingNotToStealFrom.
+	return (thingNotToStealFrom != &audioFileManager.wavetableFiles);
+
+	// We don't have to worry about e.g. a Sample being stolen as we try to allocate a Cluster for it in the same way as
+	// we do with SampleCaches - because in a case like this, the Sample would have a reason and so not be stealable.
+}
+
+void WaveTable::steal(char const* errorCode) {
+	// The destructor is about to be called too, so we don't have to do too much.
+#if ALPHA_OR_BETA_VERSION
+	if (!audioFileManager.wavetableFiles.contains(&this->filePath)) {
+		display->displayPopup(errorCode); // Jensg still getting.
+	}
+#endif
+	audioFileManager.wavetableFiles.erase(&this->filePath);
+}

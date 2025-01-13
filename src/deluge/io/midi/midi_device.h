@@ -18,8 +18,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/midi/message.h"
 #include "model/model_stack.h"
 #include "util/d_string.h"
+#include <array>
 
 // These numbers are what get stored just in the internal Deluge flash memory to represent things.
 #define VENDOR_ID_NONE 0
@@ -34,7 +36,7 @@
 #define MPE_ZONE_LOWER_NUMBERED_FROM_0 0
 #define MPE_ZONE_UPPER_NUMBERED_FROM_0 1
 
-class MIDIDevice;
+class MIDICable;
 class Serializer;
 class Deserializer;
 
@@ -47,7 +49,7 @@ public:
 	int32_t channelToZone(int32_t inputChannel);
 	void writeToFile(Serializer& writer, char const* tagName);
 	bool worthWritingToFile();
-	void readFromFile(Deserializer& reader, MIDIDevice* deviceToSendMCMsOn);
+	void readFromFile(Deserializer& reader, MIDICable* deviceToSendMCMsOn);
 	void moveUpperZoneOutOfWayOfLowerZone();
 	void moveLowerZoneOutOfWayOfUpperZone();
 	bool isMasterChannel(int32_t inputChannel);
@@ -68,6 +70,14 @@ public:
 		rpnLSB = 127;  // Means no param specified
 		rpnMSB = 127;
 	}
+
+	/* These are stored as full-range 16-bit values (scaled up from 7 or 14-bit MIDI depending on which), and you'll
+	 * want to scale this up again to 32-bit to use them. X and Y may be both positive and negative, and Z may only be
+	 * positive (so has been scaled up less from incoming bits). These default to 0. These are just for
+	 * MelodicInstruments. For Drums, the values get stored in the Drum itself.
+	 */
+	std::array<int16_t, kNumExpressionDimensions> defaultInputMPEValues{0};
+
 	uint8_t rpnLSB;
 	uint8_t rpnMSB;
 	uint8_t bendRange;
@@ -80,45 +90,58 @@ public:
  * See MIDIDeviceManager or midiengine.cpp for details
  */
 
-// These never get destructed. So we're safe having various Instruments etc holding pointers to them.
-class MIDIDevice {
+/// A MIDI cable connection. Stores all state specific to a given cable and its contained ports and channels.
+class MIDICable {
 public:
-	MIDIDevice();
-	void writeReferenceToFile(Serializer& writer, char const* tagName = "device");
+	MIDICable();
 	virtual void writeToFlash(uint8_t* memory) = 0;
 	virtual char const* getDisplayName() = 0;
+
+	void dataEntryMessageReceived(ModelStack* modelStack, int32_t channel, int32_t msb);
+
+	/// Used to decide if the given message should be output on a channel
+	[[nodiscard]] virtual bool wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const;
+
+	/// @name File IO functions
+	/// @{
+	void writeReferenceToFile(Serializer& writer, char const* tagName = "device");
 	void writeToFile(Serializer& writer, char const* tagName);
 	void readFromFile(Deserializer& reader);
-	void dataEntryMessageReceived(ModelStack* modelStack, int32_t channel, int32_t msb);
-	bool wantsToOutputMIDIOnChannel(int32_t channel, int32_t filter);
-	void sendAllMCMs();
 	bool worthWritingToFile();
 	void writePorts(Serializer& writer);
+	/// @}
 
-	virtual void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) = 0;
+	/// @name Low-level Device I/O
+	/// @{
 
-	inline void sendCC(int32_t channel, int32_t cc, int32_t value) { sendMessage(0x0B, channel, cc, value); }
+	/// Send a MIDI message
+	virtual void sendMessage(MIDIMessage message) = 0;
 
-	// data should be a complete message with data[0] = 0xf0, data[len-1] = 0xf7
+	/// Send a chunk of SYSEX data.
+	///
+	/// @param data Data to send. Should include the 0xf0 and 0xf7 start/stop bytes.
+	/// @param len Number of bytes in data, including the start/stop bytes.
 	virtual void sendSysex(const uint8_t* data, int32_t len) = 0;
 
-	virtual int32_t sendBufferSpace() = 0;
+	/// Get the number of bytes available in the send buffer.
+	[[nodiscard]] virtual size_t sendBufferSpace() const = 0;
 
+	/// @}
+	/// @name High-level IO functions
+	/// @{
+
+	/// Send MPE control messages
+	void sendAllMCMs();
+
+	inline void sendCC(int32_t channel, int32_t cc, int32_t value) { sendMessage(MIDIMessage::cc(channel, cc, value)); }
 	void sendRPN(int32_t channel, int32_t rpnMSB, int32_t rpnLSB, int32_t valueMSB);
+	// @}
 
 	inline bool hasDefaultVelocityToLevelSet() { return defaultVelocityToLevel; }
 
 	// Only 2 ports per device, but this is functionally set in stone due to existing code
 	// Originally done to ease integration to the midi device setting menu
 	MIDIPort ports[2];
-
-	/* These are stored as full-range 16-bit values (scaled up from 7 or 14-bit MIDI depending on which), and you'll
-	 * want to scale this up again to 32-bit to use them. X and Y may be both positive and negative, and Z may only be
-	 * positive (so has been scaled up less from incoming bits). These default to 0. These are just for
-	 * MelodicInstruments. For Drums, the values get stored in the Drum itself.
-	 */
-
-	int16_t defaultInputMPEValuesPerMIDIChannel[16][kNumExpressionDimensions];
 
 	uint8_t mpeZoneBendRanges[2][2]; // 0 means none set. It's [zone][whichBendRange].
 
@@ -134,112 +157,10 @@ public:
 	int32_t incomingSysexPos = 0;
 
 protected:
-	virtual void writeReferenceAttributesToFile(
-	    Serializer& writer) = 0; // These go both into MIDIDEVICES.XML and also any song/preset
-	                             // files where there's a reference to this Device.
-	void writeDefinitionAttributesToFile(Serializer& writer); // These only go into MIDIDEVICES.XML.
-};
+	// These go both into SETTINGS/MIDIDevices.XML and also any song/preset
+	// files where there's a reference to this Device.
+	virtual void writeReferenceAttributesToFile(Serializer& writer) = 0;
 
-class MIDIDeviceUSB : public MIDIDevice {
-public:
-	MIDIDeviceUSB(uint8_t portNum = 0) {
-		portNumber = portNum;
-		needsToSendMCMs = 0;
-	}
-	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
-	void sendSysex(const uint8_t* data, int32_t len) override;
-	int32_t sendBufferSpace() override;
-	void connectedNow(int32_t midiDeviceNum);
-	void sendMCMsNowIfNeeded();
-	uint8_t needsToSendMCMs;
-	uint8_t portNumber;
-};
-
-class MIDIDeviceUSBHosted : public MIDIDeviceUSB {
-public:
-	MIDIDeviceUSBHosted() {}
-	void writeReferenceAttributesToFile(Serializer& writer);
-	void writeToFlash(uint8_t* memory);
-	char const* getDisplayName();
-
-	// Add new hooks to the below list.
-
-	// Gets called once for each freshly connected hosted device.
-	virtual void hookOnConnected(){};
-
-	// Gets called when something happens that changes the root note
-	virtual void hookOnChangeRootNote(){};
-
-	// Gets called when something happens that changes the scale/mode
-	virtual void hookOnChangeScale(){};
-
-	// Gets called when entering Scale Mode in a clip
-	virtual void hookOnEnterScaleMode(){};
-
-	// Gets called when exiting Scale Mode in a clip
-	virtual void hookOnExitScaleMode(){};
-
-	// Gets called when learning/unlearning a midi device to a clip
-	virtual void hookOnMIDILearn(){};
-
-	// Gets called when recalculating colour in clip mode
-	virtual void hookOnRecalculateColour(){};
-
-	// Gets called when transitioning to ArrangerView
-	virtual void hookOnTransitionToArrangerView(){};
-
-	// Gets called when transitioning to ClipView
-	virtual void hookOnTransitionToClipView(){};
-
-	// Gets called when transitioning to SessionView
-	virtual void hookOnTransitionToSessionView(){};
-
-	// Gets called when hosted device info is saved to XML (usually after changing settings)
-	virtual void hookOnWriteHostedDeviceToFile(){};
-
-	// Add an entry to this enum if adding new virtual hook functions above
-	enum class Hook {
-		HOOK_ON_CONNECTED = 0,
-		HOOK_ON_CHANGE_ROOT_NOTE,
-		HOOK_ON_CHANGE_SCALE,
-		HOOK_ON_ENTER_SCALE_MODE,
-		HOOK_ON_EXIT_SCALE_MODE,
-		HOOK_ON_MIDI_LEARN,
-		HOOK_ON_RECALCULATE_COLOUR,
-		HOOK_ON_TRANSITION_TO_ARRANGER_VIEW,
-		HOOK_ON_TRANSITION_TO_CLIP_VIEW,
-		HOOK_ON_TRANSITION_TO_SESSION_VIEW,
-		HOOK_ON_WRITE_HOSTED_DEVICE_TO_FILE
-	};
-
-	// Ensure to add a case to this function in midi_device.cpp when adding new hooks
-	void callHook(Hook hook);
-
-	uint16_t vendorId;
-	uint16_t productId;
-
-	bool freshly_connected = true; // Used to trigger hookOnConnected from the input loop
-
-	String name;
-};
-
-class MIDIDeviceUSBUpstream final : public MIDIDeviceUSB {
-public:
-	MIDIDeviceUSBUpstream(uint8_t portNum = 0) : MIDIDeviceUSB(portNum) {}
-	void writeReferenceAttributesToFile(Serializer& writer);
-	void writeToFlash(uint8_t* memory);
-	char const* getDisplayName();
-};
-
-class MIDIDeviceDINPorts final : public MIDIDevice {
-public:
-	MIDIDeviceDINPorts() {
-		connectionFlags = 1; // DIN ports are always connected
-	}
-	void writeReferenceAttributesToFile(Serializer& writer);
-	void writeToFlash(uint8_t* memory);
-	char const* getDisplayName();
-	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
-	void sendSysex(const uint8_t* data, int32_t len) override;
-	int32_t sendBufferSpace() override;
+	// These only go into SETTINGS/MIDIDevices.XML
+	void writeDefinitionAttributesToFile(Serializer& writer);
 };

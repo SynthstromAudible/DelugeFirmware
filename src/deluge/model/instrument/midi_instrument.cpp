@@ -27,11 +27,12 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
-#include "modulation/midi/midi_param.h"
+#include "modulation/arpeggiator.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
 #include <cstring>
+#include <string_view>
 
 int16_t lastNoteOffOrder = 1;
 
@@ -115,7 +116,7 @@ ModelStackWithAutoParam* MIDIInstrument::getParamFromModEncoder(int32_t whichMod
 	if (!modelStack->paramManager) { // Could be NULL - if the user is holding down an audition pad in Arranger, and we
 		                             // have no Clips
 noParam:
-		return modelStack->addParamCollectionAndId(NULL, NULL, 0)->addAutoParam(NULL); // "No param"
+		return modelStack->addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr); // "No param"
 	}
 
 	int32_t paramId = modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder];
@@ -140,7 +141,7 @@ MIDIInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackWith
 	if (!modelStack->paramManager) { // Could be NULL - if the user is holding down an audition pad in Arranger, and we
 		                             // have no Clips
 noParam:
-		return modelStack->addParamCollectionAndId(NULL, NULL, 0)->addAutoParam(NULL); // "No param"
+		return modelStack->addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr); // "No param"
 	}
 
 	ParamCollectionSummary* summary;
@@ -203,21 +204,21 @@ int32_t MIDIInstrument::getOutputMasterChannel() {
 	}
 }
 
-void MIDIInstrument::monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
-	lastMonoExpression[whichExpressionDimension] = newValue;
-	sendMonophonicExpressionEvent(whichExpressionDimension);
+void MIDIInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {
+	lastMonoExpression[expressionDimension] = newValue;
+	sendMonophonicExpressionEvent(expressionDimension);
 }
 
-void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimension) {
+void MIDIInstrument::sendMonophonicExpressionEvent(int32_t expressionDimension) {
 
 	int32_t masterChannel = getOutputMasterChannel();
 
-	switch (whichExpressionDimension) {
+	switch (expressionDimension) {
 	case X_PITCH_BEND: {
-		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
-		                                  lastMonoExpression[whichExpressionDimension]);
+		int32_t newValue =
+		    add_saturation(lastCombinedPolyExpression[expressionDimension], lastMonoExpression[expressionDimension]);
 		int32_t valueSmall = (newValue >> 18) + 8192;
-		midiEngine.sendPitchBend(this, masterChannel, valueSmall & 127, valueSmall >> 7, getChannel());
+		midiEngine.sendPitchBend(this, masterChannel, valueSmall, getChannel());
 		break;
 	}
 
@@ -226,8 +227,8 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		// this means that without sending CC1 on the master channel poly expression below 64 will
 		// send as mod wheel 0. However this is better than the alternative of sending erroneous values
 		// because the sound engine initializes MPE-Y as 0 (e.g. a CC value of 64)
-		int32_t polyPart = (lastCombinedPolyExpression[whichExpressionDimension] >> 24);
-		int32_t monoPart = lastMonoExpression[whichExpressionDimension] >> 24;
+		int32_t polyPart = (lastCombinedPolyExpression[expressionDimension] >> 24);
+		int32_t monoPart = lastMonoExpression[expressionDimension] >> 24;
 		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
 		// send CC1 for monophonic expression - monophonic synths won't do anything useful with CC74
 
@@ -235,9 +236,9 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		break;
 	}
 	case Z_PRESSURE: {
-		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
-		                                  lastMonoExpression[whichExpressionDimension])
-		                   >> 24;
+		int32_t newValue =
+		    add_saturation(lastCombinedPolyExpression[expressionDimension], lastMonoExpression[expressionDimension])
+		    >> 24;
 		midiEngine.sendChannelAftertouch(this, masterChannel, newValue, getChannel());
 		break;
 	}
@@ -328,6 +329,8 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writer.writeAttribute("mpe", (int32_t)collapseMPE);
 		writer.writeAttribute("yCC", (int32_t)outputMPEY);
 		writer.closeTag();
+
+		writeDeviceDefinitionFile(writer, true);
 	}
 	else {
 		if (!clipForSavingOutputOnly && !midiInput.containsSomething()) {
@@ -341,6 +344,48 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(writer, clipForSavingOutputOnly, song);
 	return true;
+}
+
+void MIDIInstrument::writeDeviceDefinitionFile(Serializer& writer, bool writeFileNameToPresetOrSong) {
+	writer.writeOpeningTagBeginning("midiDevice");
+	writer.writeOpeningTagEnd();
+
+	if (writeFileNameToPresetOrSong) {
+		writeDeviceDefinitionFileNameToPresetOrSong(writer);
+	}
+
+	writeCCLabelsToFile(writer);
+
+	writer.writeClosingTag("midiDevice");
+}
+
+void MIDIInstrument::writeDeviceDefinitionFileNameToPresetOrSong(Serializer& writer) {
+	writer.writeOpeningTagBeginning("definitionFile");
+	if (deviceDefinitionFileName.isEmpty()) {
+		writer.writeAttribute("name", "");
+	}
+	else {
+		writer.writeAttribute("name", deviceDefinitionFileName.get());
+	}
+	writer.closeTag();
+}
+
+void MIDIInstrument::writeCCLabelsToFile(Serializer& writer) {
+	writer.writeOpeningTagBeginning("ccLabels");
+	for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
+		if (i != CC_EXTERNAL_MOD_WHEEL) {
+			auto it = labels.find(i);
+			char ccNumber[10];
+			intToString(i, ccNumber, 1);
+			if (it != labels.end()) {
+				writer.writeAttribute(ccNumber, it->second.data());
+			}
+			else {
+				writer.writeAttribute(ccNumber, "");
+			}
+		}
+	}
+	writer.closeTag();
 }
 
 bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) {
@@ -392,6 +437,9 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 	else if (!strcmp(tagName, subSlotXMLTag)) {
 		channelSuffix = reader.readTagOrAttributeValueInt();
 	}
+	else if (!strcmp(tagName, "midiDevice")) {
+		readDeviceDefinitionFile(reader, true);
+	}
 	else if (NonAudioInstrument::readTagFromFile(reader, tagName)) {
 		return true;
 	}
@@ -412,7 +460,7 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToP
 	Deserializer& reader = *activeDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "modKnob")) {
-			MIDIParamCollection* midiParamCollection = NULL;
+			MIDIParamCollection* midiParamCollection = nullptr;
 			if (paramManager) {
 				midiParamCollection = paramManager->getMIDIParamCollection();
 			}
@@ -432,6 +480,71 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToP
 
 	editedByUser = true;
 	return Error::NONE;
+}
+
+Error MIDIInstrument::readDeviceDefinitionFile(Deserializer& reader, bool readFromPresetOrSong) {
+	Error error = Error::FILE_UNREADABLE;
+	loadDeviceDefinitionFile = false;
+
+	char const* tagName;
+
+	// step into any subtags
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "definitionFile")) {
+			readDeviceDefinitionFileNameFromPresetOrSong(reader);
+			// only flag definition file for loading if we aren't reading from preset or song
+			// and definition file name isn't blank
+			if (!deviceDefinitionFileName.isEmpty() && !readFromPresetOrSong) {
+				loadDeviceDefinitionFile = true;
+			}
+		}
+		// if we aren't reading from device definition file later, then try to read
+		// device info now
+		else if (!loadDeviceDefinitionFile) {
+			if (!strcmp(tagName, "ccLabels")) {
+				error = readCCLabelsFromFile(reader);
+			}
+		}
+		reader.exitTag();
+	}
+
+	editedByUser = true;
+	return error;
+}
+
+void MIDIInstrument::readDeviceDefinitionFileNameFromPresetOrSong(Deserializer& reader) {
+	char const* tagName;
+
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "name")) {
+			reader.readTagOrAttributeValueString(&deviceDefinitionFileName);
+		}
+		reader.exitTag();
+	}
+}
+
+Error MIDIInstrument::readCCLabelsFromFile(Deserializer& reader) {
+	Error error = Error::FILE_UNREADABLE;
+
+	int32_t cc = 0;
+	char const* tagName;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		char ccNumber[10];
+		cc = stringToInt(tagName);
+
+		if (cc < 0 || cc >= kNumRealCCNumbers) {
+			reader.exitTag();
+			continue;
+		}
+
+		labels[cc] = reader.readTagOrAttributeValue();
+
+		error = Error::NONE;
+
+		reader.exitTag();
+	}
+
+	return error;
 }
 
 // This has now mostly been replaced by an equivalent-ish function in InstrumentClip.
@@ -469,12 +582,12 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 		else if (!strcmp(tagName, "value")) {
 			if (cc != CC_NUMBER_NONE && midiParamCollection) {
 
-				MIDIParam* midiParam = midiParamCollection->params.getOrCreateParamFromCC(cc, 0);
-				if (!midiParam) {
-					return Error::INSUFFICIENT_RAM;
+				auto maybeMidiParam = midiParamCollection->getOrCreateParamFromCC(cc);
+				if (!maybeMidiParam) {
+					return maybeMidiParam.error();
 				}
 
-				Error error = midiParam->param.readFromFile(reader, readAutomationUpToPos);
+				Error error = maybeMidiParam.value()->second.readFromFile(reader, readAutomationUpToPos);
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -563,7 +676,7 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 
 	// CC (besides 74)
 	if (modelStackWithAutoParam->paramCollection == midiParamCollection) {
-		midiParamCollection->params.deleteAtKey(oldCC);
+		midiParamCollection->params.erase(oldCC);
 	}
 
 	// Expression param
@@ -682,9 +795,9 @@ traverseClips2:
 	return newCC;
 }
 
-void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                       MIDIDevice* fromDevice, bool on, int32_t receivedChannel, int32_t note,
-                                       int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru) {
+void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
+                                       bool on, int32_t receivedChannel, int32_t note, int32_t velocity,
+                                       bool shouldRecordNotes, bool* doingMidiThru) {
 
 	if (midiInput.channelOrZone == receivedChannel) {
 
@@ -697,13 +810,13 @@ void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack
 		}
 	}
 
-	NonAudioInstrument::offerReceivedNote(modelStackWithTimelineCounter, fromDevice, on, receivedChannel, note,
-	                                      velocity, shouldRecordNotes, doingMidiThru);
+	NonAudioInstrument::offerReceivedNote(modelStackWithTimelineCounter, cable, on, receivedChannel, note, velocity,
+	                                      shouldRecordNotes, doingMidiThru);
 }
 
-void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
+void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
 	int32_t channel = getChannel();
-	ArpeggiatorSettings* arpSettings = NULL;
+	ArpeggiatorSettings* arpSettings = nullptr;
 	if (activeClip) {
 		arpSettings = &((InstrumentClip*)activeClip)->arpSettings;
 	}
@@ -733,19 +846,25 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 
 		if (!arpIsOn) {
 			// Count up notes per member channel. This traversal will *not* find the new note that we're switching on,
-			// which will have had its toMIDIChannel set to 16 by Arpeggiator (we'll decide and set it below).
+			// which will have had its toMIDIChannel set to MIDI_CHANNEL_NONE (255) by Arpeggiator (we'll decide and set
+			// it below).
 			for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
 				ArpNote* thisArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-				if (thisArpNote->outputMemberChannel >= lowestMemberChannel
-				    && thisArpNote->outputMemberChannel <= highestMemberChannel) {
-					numNotesPreviouslyActiveOnMemberChannel[thisArpNote->outputMemberChannel]++;
+				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
+					if (thisArpNote->outputMemberChannel[i] == MIDI_CHANNEL_NONE) {
+						break;
+					}
+					if (thisArpNote->outputMemberChannel[i] >= lowestMemberChannel
+					    && thisArpNote->outputMemberChannel[i] <= highestMemberChannel) {
+						numNotesPreviouslyActiveOnMemberChannel[thisArpNote->outputMemberChannel[i]]++;
 
-					// If this note is coming in live from the same member channel as the one we wish to switch on now,
-					// that's a good clue that we should group them together at the output. (Final decision to be made
-					// further below.)
-					if (thisArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]
-					    == arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]) {
-						outputMemberChannelWithNoteSharingInputMemberChannel = thisArpNote->outputMemberChannel;
+						// If this note is coming in live from the same member channel as the one we wish to switch on
+						// now, that's a good clue that we should group them together at the output. (Final decision to
+						// be made further below.)
+						if (thisArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]
+						    == arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]) {
+							outputMemberChannelWithNoteSharingInputMemberChannel = thisArpNote->outputMemberChannel[i];
+						}
 					}
 				}
 			}
@@ -784,9 +903,8 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 		// reasonably well.
 
 		// Ok. We have our new member channel.
-
-		arpNote->outputMemberChannel = outputMemberChannel;
-		arpeggiator.outputMIDIChannelForNoteCurrentlyOnPostArp = outputMemberChannel; // Needed if arp on
+		arpNote->outputMemberChannel[noteIndex] = outputMemberChannel;
+		arpeggiator.outputMIDIChannelForNoteCurrentlyOnPostArp[noteIndex] = outputMemberChannel; // Needed if arp on
 
 		int16_t mpeValuesAverage[kNumExpressionDimensions]; // We may fill this up and point to it, or not
 		int16_t const* mpeValuesToUse = arpNote->mpeValues;
@@ -801,10 +919,12 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 			for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
 			     n++) { // This traversal will include the original note, which will get counted up too
 				ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-				if (lookingAtArpNote->outputMemberChannel == outputMemberChannel) {
-					numNotesFound++;
-					for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-						mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
+				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
+					if (lookingAtArpNote->outputMemberChannel[i] == outputMemberChannel) {
+						numNotesFound++;
+						for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
+							mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
+						}
 					}
 				}
 			}
@@ -843,8 +963,7 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 		int32_t outputValue14 = mpeValuesToUse[0] >> 2;
 		mpeOutputMemberChannels[outputMemberChannel].lastXValueSent = outputValue14;
 		int32_t outputValue14Unsigned = outputValue14 + 8192;
-		midiEngine.sendPitchBend(this, outputMemberChannel, outputValue14Unsigned & 127, outputValue14Unsigned >> 7,
-		                         channel);
+		midiEngine.sendPitchBend(this, outputMemberChannel, outputValue14Unsigned, channel);
 	}
 
 	{ // Y
@@ -860,7 +979,8 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 	}
 }
 
-void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMemberChannel, int32_t velocity) {
+void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMemberChannel, int32_t velocity,
+                                    int32_t noteIndex) {
 	int32_t channel = getChannel();
 	if (sendsToInternal()) {
 		sendNoteToInternal(false, noteCodePostArp, velocity, oldOutputMemberChannel);
@@ -900,10 +1020,12 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 		for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
 		     n++) { // This traversal will not include the original note, which has already been deleted from the array.
 			ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-			if (lookingAtArpNote->outputMemberChannel == oldOutputMemberChannel) {
-				numNotesFound++;
-				for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-					mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
+			for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
+				if (lookingAtArpNote->outputMemberChannel[i] == oldOutputMemberChannel) {
+					numNotesFound++;
+					for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
+						mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
+					}
 				}
 			}
 		}
@@ -951,14 +1073,15 @@ uint8_t const shiftAmountsFrom16Bit[] = {2, 9, 8};
 // well use the 32-bit version here. Although, could it have even got more than 14 bits of meaningful value in the first
 // place?
 void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, int32_t noteCodeAfterArpeggiation,
-                                                              int32_t whichExpressionDimension, ArpNote* arpNote) {
+                                                              int32_t expressionDimension, ArpNote* arpNote,
+                                                              int32_t noteIndex) {
 	int32_t channel = getChannel();
 	if (sendsToInternal()) {
 		// Do nothing
 	}
 	// If we don't have MPE output...
 	else if (!sendsToMPE()) {
-		if (whichExpressionDimension == 2) {
+		if (expressionDimension == 2) {
 			if (!collapseAftertouch) {
 				// We can only send Z - and that's as polyphonic aftertouch
 				midiEngine.sendPolyphonicAftertouch(this, channel, value32 >> 24, noteCodeAfterArpeggiation,
@@ -966,17 +1089,17 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 				return;
 			}
 			else {
-				combineMPEtoMono(value32, whichExpressionDimension);
+				combineMPEtoMono(value32, expressionDimension);
 			}
 		}
 		else if (collapseMPE) {
-			combineMPEtoMono(value32, whichExpressionDimension);
+			combineMPEtoMono(value32, expressionDimension);
 		}
 	}
 
 	// Or if we do have MPE output...
 	else {
-		int32_t memberChannel = arpNote->outputMemberChannel;
+		int32_t memberChannel = arpNote->outputMemberChannel[noteIndex];
 
 		// Are multiple notes sharing the same output member channel?
 		ArpeggiatorSettings* settings = getArpSettings();
@@ -987,9 +1110,11 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 			for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
 			     n++) { // This traversal will include the original note, which will get counted up too
 				ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-				if (lookingAtArpNote->outputMemberChannel == memberChannel) {
-					numNotesFound++;
-					mpeValuesSum += lookingAtArpNote->mpeValues[whichExpressionDimension];
+				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
+					if (lookingAtArpNote->outputMemberChannel[i] == memberChannel) {
+						numNotesFound++;
+						mpeValuesSum += lookingAtArpNote->mpeValues[expressionDimension];
+					}
 				}
 			}
 
@@ -997,10 +1122,10 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 			if (numNotesFound > 1) {
 				int32_t averageValue16 = mpeValuesSum / numNotesFound;
 
-				int32_t averageValue7Or14 = averageValue16 >> shiftAmountsFrom16Bit[whichExpressionDimension];
+				int32_t averageValue7Or14 = averageValue16 >> shiftAmountsFrom16Bit[expressionDimension];
 				int32_t lastValue7Or14 =
-				    whichExpressionDimension
-				        ? mpeOutputMemberChannels[memberChannel].lastYAndZValuesSent[whichExpressionDimension - 1]
+				    expressionDimension
+				        ? mpeOutputMemberChannels[memberChannel].lastYAndZValuesSent[expressionDimension - 1]
 				        : mpeOutputMemberChannels[memberChannel].lastXValueSent;
 
 				// If there's been no actual change, don't send anything
@@ -1013,12 +1138,12 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 			}
 		}
 
-		switch (whichExpressionDimension) {
+		switch (expressionDimension) {
 		case 0: { // X
 			int32_t value14 = (value32 >> 18);
 			mpeOutputMemberChannels[memberChannel].lastXValueSent = value14;
 			int32_t value14Unsigned = value14 + 8192;
-			midiEngine.sendPitchBend(this, memberChannel, value14Unsigned & 127, value14Unsigned >> 7, channel);
+			midiEngine.sendPitchBend(this, memberChannel, value14Unsigned, channel);
 			break;
 		}
 
@@ -1041,7 +1166,7 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 	}
 }
 
-void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDimension) {
+void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t expressionDimension) {
 
 	ParamManager* paramManager = getParamManager(NULL);
 	if (paramManager) {
@@ -1065,7 +1190,7 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 
 			numNotesFound++;
 
-			int32_t value = lookingAtArpNote->mpeValues[whichExpressionDimension];
+			int32_t value = lookingAtArpNote->mpeValues[expressionDimension];
 			mpeValuesSum += value;
 			mpeValuesMax = std::max(mpeValuesMax, value);
 		}
@@ -1073,7 +1198,7 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 		// If there in fact are multiple notes sharing the channel, to combine...
 		if (numNotesFound >= 1) {
 			int32_t averageValue16;
-			if (whichExpressionDimension == 0) {
+			if (expressionDimension == 0) {
 				averageValue16 = mpeValuesSum / numNotesFound;
 			}
 			else {
@@ -1082,16 +1207,16 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 
 			value32 = averageValue16 << 16;
 		}
-		if (whichExpressionDimension == 0) {
+		if (expressionDimension == 0) {
 			// this can be bigger than 2^31
 			float fbend = value32 * ratio;
 			// casting down will truncate
 			value32 = (int32_t)fbend;
 		}
 		// if it's changed, we need to update the outputs
-		if (value32 != lastCombinedPolyExpression[whichExpressionDimension]) {
-			lastCombinedPolyExpression[whichExpressionDimension] = value32;
-			sendMonophonicExpressionEvent(whichExpressionDimension);
+		if (value32 != lastCombinedPolyExpression[expressionDimension]) {
+			lastCombinedPolyExpression[expressionDimension] = value32;
+			sendMonophonicExpressionEvent(expressionDimension);
 		}
 	}
 }
@@ -1122,5 +1247,28 @@ void MIDIInstrument::sendNoteToInternal(bool on, int32_t note, uint8_t velocity,
 	switch (channel) {
 	case MIDI_CHANNEL_TRANSPOSE:
 		MIDITranspose::doTranspose(on, note);
+	}
+}
+
+std::string_view MIDIInstrument::getNameFromCC(int32_t cc) {
+	if (cc < 0 || cc >= kNumRealCCNumbers) {
+		// out of range
+		return std::string_view{};
+	}
+
+	auto it = labels.find(cc);
+
+	// found
+	if (it != labels.end()) {
+		return it->second;
+	}
+
+	// not found
+	return std::string_view{};
+}
+
+void MIDIInstrument::setNameForCC(int32_t cc, std::string_view name) {
+	if (cc >= 0 && cc < kNumRealCCNumbers) {
+		labels[cc] = name;
 	}
 }

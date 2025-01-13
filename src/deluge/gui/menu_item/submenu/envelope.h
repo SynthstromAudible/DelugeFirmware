@@ -24,10 +24,12 @@ class Envelope final : public SubmenuReferringToOneThing {
 public:
 	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
 
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) {
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
 		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 		setEnvelopeNumberForTitles(this->thingIndex);
 	}
+
+	bool supportsHorizontalRendering() override { return true; }
 };
 
 } // namespace deluge::gui::menu_item::submenu

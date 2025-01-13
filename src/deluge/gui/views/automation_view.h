@@ -61,7 +61,6 @@ public:
 	// ui
 	UIType getUIType() override { return UIType::AUTOMATION; }
 	AutomationSubType getAutomationSubType();
-	const char* getName() override { return "automation_view"; }
 
 	// rendering
 	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
@@ -91,7 +90,7 @@ public:
 	int32_t navSysId;
 
 	// vertical encoder action
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 	ActionResult scrollVertical(int32_t scrollAmount);
 	void potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output);
 
@@ -113,7 +112,9 @@ public:
 	void notifyPlaybackBegun() override;
 
 	// used to identify the UI as a clip UI or not.
-	ClipMinder* toClipMinder() override { return getAutomationSubType() == AutomationSubType::ARRANGER ? NULL : this; }
+	ClipMinder* toClipMinder() override {
+		return getAutomationSubType() == AutomationSubType::ARRANGER ? nullptr : this;
+	}
 
 	void setAutomationParamType();
 
@@ -149,6 +150,9 @@ public:
 	void resetPadSelectionShortcutBlinking();
 	AutomationParamType automationParamType;
 	bool getAffectEntire() override;
+
+	// public so action logger can access it
+	void resetShortcutBlinking();
 
 private:
 	// button action functions
@@ -332,7 +336,6 @@ private:
 	                                                    int32_t offset);
 
 	void blinkShortcuts();
-	void resetShortcutBlinking();
 	void resetParameterShortcutBlinking();
 
 	bool parameterShortcutBlinking;

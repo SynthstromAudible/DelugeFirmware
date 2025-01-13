@@ -20,17 +20,16 @@
 #include "io/midi/learned_midi.h"
 #include "model/instrument/instrument.h"
 #include "modulation/arpeggiator.h"
-#include "util/container/array/early_note_array.h"
+#include "util/containers.h"
 
 class PostArpTriggerable;
 class NoteRow;
 class ModelStackWithAutoParam;
 class ModelStackWithThreeMainThings;
-class MIDIDevice;
 
 class MelodicInstrument : public Instrument {
 public:
-	explicit MelodicInstrument(OutputType newType) : Instrument(newType), earlyNotes(), notesAuditioned() {}
+	explicit MelodicInstrument(OutputType newType) : Instrument(newType) {}
 
 	// Check activeClip before you call!
 	// mpeValues must be provided for a note-on (can be 0s). Otherwise, can be NULL pointer
@@ -44,22 +43,22 @@ public:
 	void writeMelodicInstrumentTagsToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
-	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable, bool on,
+	                       int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
 	                       bool* doingMidiThru) override;
-	void receivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t midiChannel,
+	void receivedNote(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t midiChannel,
 	                  MIDIMatchType match, int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru);
-	void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                            uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru) override;
-	void receivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void receivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                       MIDIMatchType match, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
-	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                     uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) override;
-	void receivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
-	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void receivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable, MIDIMatchType match,
+	                uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
+	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                             int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru) override;
-	void receivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void receivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                        MIDIMatchType match, int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
 	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) final;
@@ -75,21 +74,26 @@ public:
 	                                      ModelStackWithTimelineCounter* modelStack) override;
 
 	void polyphonicExpressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int32_t newValue,
-	                                               int32_t whichExpressionDimension, int32_t channelOrNoteNumber,
+	                                               int32_t expressionDimension, int32_t channelOrNoteNumber,
 	                                               MIDICharacteristic whichCharacteristic);
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr);
 
-	virtual void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+	virtual void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
 	                                                      int32_t channelOrNoteNumber,
 	                                                      MIDICharacteristic whichCharacteristic) = 0;
 
-	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone, int32_t whichBendRange,
+	void offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone, int32_t whichBendRange,
 	                          int32_t bendSemitones) override;
 
 	Arpeggiator arpeggiator;
 
-	EarlyNoteArray earlyNotes;
-	EarlyNoteArray notesAuditioned;
+	struct EarlyNoteInfo {
+		uint8_t velocity;
+		bool stillActive = false;
+	};
+
+	deluge::fast_map<int16_t, EarlyNoteInfo> earlyNotes; // note value, velocity, still_active
+	deluge::fast_map<int16_t, EarlyNoteInfo> notesAuditioned;
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,

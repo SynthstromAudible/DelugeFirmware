@@ -29,17 +29,19 @@ public:
 		paramManagerToSave = paramManager;
 		outputTypeToLoad = OutputType::SYNTH;
 	}
-	bool opened();
+	bool opened() override;
 	// void selectEncoderAction(int8_t offset);
-	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed){};
-	void endSession(){};
-	bool performSave(bool mayOverwrite);
+	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {};
+	void endSession() {};
+	bool performSave(bool mayOverwrite) override;
 
-	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
 		return true;
 	}
-	const char* getName() { return "save_kit_row_ui"; }
+
+	// ui
+	UIType getUIType() override { return UIType::SAVE_KIT_ROW; }
 
 protected:
 	SoundDrum* soundDrumToSave;

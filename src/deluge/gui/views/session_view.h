@@ -41,32 +41,27 @@ extern float getTransitionProgress();
 
 constexpr uint32_t kGridHeight = kDisplayHeight;
 
-// Clip Group colours
-extern const uint8_t numDefaultClipGroupColours;
-extern const uint8_t defaultClipGroupColours[];
-
 class SessionView final : public ClipNavigationTimelineView {
 public:
 	SessionView();
-	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
-	bool opened();
-	void focusRegained();
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
+	bool opened() override;
+	void focusRegained() override;
 
-	const char* getName() { return "session_view"; }
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult clipCreationButtonPressed(hid::Button i, bool on, bool routine);
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	ActionResult horizontalEncoderAction(int32_t offset);
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult horizontalEncoderAction(int32_t offset) override;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 	void removeClip(Clip* clip);
 	void redrawClipsOnScreen(bool doRender = true);
-	uint32_t getMaxZoom();
+	uint32_t getMaxZoom() override;
 	void cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo);
 	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
 	               uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	void graphicsRoutine();
+	void graphicsRoutine() override;
 	int32_t displayLoopsRemainingPopup(bool ephemeral = false);
 	void potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare, int32_t sixteenthNotesRemaining);
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
@@ -74,33 +69,33 @@ public:
 	int32_t getClipPlaceOnScreen(Clip* clip);
 	void drawStatusSquare(uint8_t yDisplay, RGB thisImage[]);
 	void drawSectionSquare(uint8_t yDisplay, RGB thisImage[]);
-	bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom, uint32_t oldZoom);
-	uint32_t getMaxLength();
-	bool setupScroll(uint32_t oldScroll);
+	bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom, uint32_t oldZoom) override;
+	uint32_t getMaxLength() override;
+	bool setupScroll(uint32_t oldScroll) override;
 	uint32_t getClipLocalScroll(Clip* loopable, uint32_t overviewScroll, uint32_t xZoom);
 	void flashPlayRoutine();
 
-	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
-	void modButtonAction(uint8_t whichButton, bool on);
-	void selectEncoderAction(int8_t offset);
-	ActionResult timerCallback();
-	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
+	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
+	void modButtonAction(uint8_t whichButton, bool on) override;
+	void selectEncoderAction(int8_t offset) override;
+	ActionResult timerCallback() override;
+	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) override;
 	void setLedStates();
 	void editNumRepeatsTilLaunch(int32_t offset);
-	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output);
+	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output) override;
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	void midiLearnFlash();
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
+	void midiLearnFlash() override;
 
-	void transitionToViewForClip(Clip* clip = NULL);
+	void transitionToViewForClip(Clip* clip = nullptr);
 	void transitionToSessionView();
 	void finishedTransitioningHere();
-	void playbackEnded();
-	void clipNeedsReRendering(Clip* clip);
-	void sampleNeedsReRendering(Sample* sample);
+	void playbackEnded() override;
+	void clipNeedsReRendering(Clip* clip) override;
+	void sampleNeedsReRendering(Sample* sample) override;
 	Clip* getClipOnScreen(int32_t yDisplay);
 	Output* getOutputFromPad(int32_t x, int32_t y);
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 	ActionResult verticalScrollOneSquare(int32_t direction);
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
@@ -124,13 +119,15 @@ public:
 
 	Clip* getClipForLayout();
 
+	void copyClipName(Clip* source, Clip* target, Output* targetOutput);
+
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
 	// ui
-	UIType getUIType() { return UIType::SESSION; }
+	UIType getUIType() override { return UIType::SESSION; }
 
 	Clip* createNewClip(OutputType outputType, int32_t yDisplay);
 	bool createClip{false};
@@ -278,6 +275,9 @@ private:
 			gridModeSelected = SessionGridModeEdit;
 			break;
 		}
+		// explicit fallthrough cases
+		case GridDefaultActiveModeSelection: // handled outside
+		case GridDefaultActiveModeMaxElement:;
 		}
 	}
 	void setupTrackCreation() const;

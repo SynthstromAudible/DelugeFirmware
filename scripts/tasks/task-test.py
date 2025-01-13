@@ -8,6 +8,7 @@ import util
 
 def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="test", description="Run deluge tests")
+    parser.group = "Development"
     parser.add_argument(
         "-n",
         "--no-run",

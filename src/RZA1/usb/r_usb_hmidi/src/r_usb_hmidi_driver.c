@@ -436,8 +436,8 @@ static void usb_hmidi_enumeration_sequence(usb_utr_t* mess)
 
             p_desc = g_p_usb_hmidi_config_table[mess->ip];
 
-            desc_len = ((uint16_t) * (p_desc + 3)) << 8;
-            desc_len += (uint16_t) * (p_desc + 2);
+            desc_len = ((uint16_t)*(p_desc + 3)) << 8;
+            desc_len += (uint16_t)*(p_desc + 2);
 
             /* Searching InterfaceDescriptor */
             p_iftable = g_p_usb_hmidi_interface_table[mess->ip];

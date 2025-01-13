@@ -34,11 +34,11 @@ public:
 	Kit();
 	Drum* getNextDrum(Drum* fromSoundSource);
 	Drum* getPrevDrum(Drum* fromSoundSource);
-	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
+	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	void addDrum(Drum* newDrum);
-	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	Drum* getFirstUnassignedDrum(InstrumentClip* clip);
-	~Kit();
+	~Kit() override;
 	int32_t getDrumIndex(Drum* drum);
 	Drum* getDrumFromIndex(int32_t index);
 	Drum* getDrumFromIndexAllowNull(int32_t index);
@@ -49,48 +49,48 @@ public:
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                  bool shouldLimitDelayFeedback, bool isClipActive) override;
 
-	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                     uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) override;
-	void receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                      MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru,
 	                      Clip* clip);
-	void offerReceivedCCToModControllable(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	void offerReceivedCCToModControllable(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                      ModelStackWithTimelineCounter* modelStack);
-	void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	void offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                    ModelStackWithTimelineCounter* modelStack) override;
 
-	void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                            uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru) override;
 	void receivedPitchBendForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
 	                              uint8_t data1, uint8_t data2, MIDIMatchType match, uint8_t channel,
 	                              bool* doingMidiThru);
-	void receivedPitchBendForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void receivedPitchBendForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                             MIDIMatchType match, uint8_t channel, uint8_t data1, uint8_t data2,
 	                             bool* doingMidiThru);
-	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+	bool offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
 	                                           ModelStackWithTimelineCounter* modelStack) override;
 
 	// drums don't receive other CCs
 	void receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
 	                         MIDIMatchType match, uint8_t channel, uint8_t value);
 
-	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                             int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru) override;
 
 	void receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
 	                               MIDIMatchType match, uint8_t channel, uint8_t value);
 
-	void receivedAftertouchForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void receivedAftertouchForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                              MIDIMatchType match, int32_t channel, int32_t value, int32_t noteCode,
 	                              bool* doingMidiThru);
 
-	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable, bool on,
+	                       int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
 	                       bool* doingMidiThru) override;
-	void receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
-	                         int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-	                         bool* doingMidiThru, Drum* thisDrum);
-	void receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t channel,
+	void receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
+	                         int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
+	                         Drum* thisDrum);
+	void receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
 	                        int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
 	                        InstrumentClip* clip);
 
@@ -98,44 +98,44 @@ public:
 	                                      ModelStackWithTimelineCounter* modelStack) override {}
 
 	void choke();
-	void resyncLFOs();
+	void resyncLFOs() override;
 	void removeDrum(Drum* drum);
-	ModControllable* toModControllable();
+	ModControllable* toModControllable() override;
 	SoundDrum* getDrumFromName(char const* name, bool onlyIfNoNoteRow = false);
 	Error makeDrumNameUnique(String* name, int32_t startAtNumber);
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
-	void setupPatching(ModelStackWithTimelineCounter* modelStack);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
+	void setupPatching(ModelStackWithTimelineCounter* modelStack) override;
 	void compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song);
-	void deleteBackedUpParamManagers(Song* song);
-	void prepareForHibernationOrDeletion();
-	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos);
-	void loadCrucialAudioFilesOnly();
+	void deleteBackedUpParamManagers(Song* song) override;
+	void prepareForHibernationOrDeletion() override;
+	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) override;
+	void loadCrucialAudioFilesOnly() override;
 	GateDrum* getGateDrumForChannel(int32_t gateChannel);
 	void resetDrumTempValues();
-	void setupWithoutActiveClip(ModelStack* modelStack);
+	void setupWithoutActiveClip(ModelStack* modelStack) override;
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
-	                            int32_t* highestReverbAmountFound);
-	uint8_t* getModKnobMode() { return &modKnobMode; }
-	Output* toOutput() { return this; }
+	                            int32_t* highestReverbAmountFound) override;
+	uint8_t* getModKnobMode() override { return &modKnobMode; }
+	Output* toOutput() override { return this; }
 
-	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow);
+	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) override;
 	bool allowNoteTails(NoteRow* noteRow);
-	void stopAnyAuditioning(ModelStack* modelStack);
-	bool isAnyAuditioningHappening();
+	void stopAnyAuditioning(ModelStack* modelStack) override;
+	bool isAnyAuditioningHappening() override;
 	void beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity,
 	                             int16_t const* mpeValues, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE);
 	void endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity = kDefaultLiftValue);
-	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone, int32_t whichBendRange,
-	                          int32_t bendSemitones);
+	void offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone, int32_t whichBendRange,
+	                          int32_t bendSemitones) override;
 
 	bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
 	                                   int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
 	                                   int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
-	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
+	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd) override;
 
-	char const* getXMLTag() { return "kit"; }
+	char const* getXMLTag() override { return "kit"; }
 
 	Drum* firstDrum;
 	Drum* selectedDrum;
@@ -144,7 +144,7 @@ public:
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                bool affectEntire, bool useMenuStack);
+	                                                bool affectEntire, bool useMenuStack) override;
 	ModelStackWithAutoParam* getModelStackWithParamForKit(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                      int32_t paramID, deluge::modulation::params::Kind paramKind,
 	                                                      bool useMenuStack);
@@ -156,7 +156,7 @@ public:
 	Drum* getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode);
 
 protected:
-	bool isKit() { return true; }
+	bool isKit() override { return true; }
 
 private:
 	Error readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumType drumType,

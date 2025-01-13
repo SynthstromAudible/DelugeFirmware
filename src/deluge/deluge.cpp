@@ -60,10 +60,11 @@
 #include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
+#include "storage/smsysex.h"
 #include "storage/storage_manager.h"
-#include "task_scheduler.h"
 #include "util/misc.h"
 #include "util/pack.h"
 #include <stdlib.h>
@@ -90,8 +91,8 @@ extern uint8_t currentlyAccessingCard;
 
 extern "C" void disk_timerproc(UINT msPassed);
 
-Song* currentSong = NULL;
-Song* preLoadedSong = NULL;
+Song* currentSong = nullptr;
+Song* preLoadedSong = nullptr;
 
 bool sdRoutineLock = false;
 
@@ -454,7 +455,7 @@ void setupBlankSong() {
 	preLoadedSong->ensureAtLeastOneSessionClip();
 
 	currentSong = preLoadedSong;
-	preLoadedSong = NULL;
+	preLoadedSong = nullptr;
 
 	AudioEngine::getReverbParamsFromSong(currentSong);
 
@@ -471,7 +472,11 @@ void setupStartupSong() {
 	    startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath : runtimeFeatureSettings.getStartupSong();
 	String failSafePath;
 	failSafePath.concatenate("SONGS/__STARTUP_OFF_CHECK_");
-	failSafePath.concatenate(replace_char(filename, '/', '_'));
+
+	char replaced[sizeof(char) * strlen(filename) + 1]; // +1 for NULL terminator
+	replace_char(replaced, filename, '/', '_');
+	failSafePath.concatenate(replaced);
+
 	if (StorageManager::fileExists(failSafePath.get())) {
 		String msgReason;
 		msgReason.concatenate("STARTUP OFF, reason: ");
@@ -591,6 +596,9 @@ void registerTasks() {
 	addRepeatingTask(&doAnyPendingUIRendering, p++, 0.01, 0.01, 0.03, "pending UI");
 	// this one actually actions them
 	addRepeatingTask([]() { encoders::interpretEncoders(false); }, p++, 0.005, 0.005, 0.01, "interpret encoders slow");
+
+	// Check for and handle queued SysEx traffic
+	addRepeatingTask([]() { smSysex::handleNextSysEx(); }, p++, 0.0002, 0.0002, 0.01, "Handle pending SysEx traffic.");
 
 	// 21-29: Low priority (30 for dyn tasks)
 	p = 21;
@@ -1031,7 +1039,7 @@ extern "C" void sdCardInserted(void) {
 }
 
 extern "C" void sdCardEjected(void) {
-	audioFileManager.cardEjected = true;
+	audioFileManager.setCardEjected();
 }
 
 extern "C" void loadAnyEnqueuedClustersRoutine() {
@@ -1057,12 +1065,12 @@ void deleteOldSongBeforeLoadingNew() {
 	AudioEngine::unassignAllVoices(true); // Need to do this now that we're not bothering getting the old Song's
 	                                      // Instruments detached and everything on delete
 
-	view.activeModControllableModelStack.modControllable = NULL;
-	view.activeModControllableModelStack.setTimelineCounter(NULL);
-	view.activeModControllableModelStack.paramManager = NULL;
+	view.activeModControllableModelStack.modControllable = nullptr;
+	view.activeModControllableModelStack.setTimelineCounter(nullptr);
+	view.activeModControllableModelStack.paramManager = nullptr;
 
 	Song* toDelete = currentSong;
-	currentSong = NULL;
+	currentSong = nullptr;
 	void* toDealloc = dynamic_cast<void*>(toDelete);
 	toDelete->~Song();
 	delugeDealloc(toDelete);

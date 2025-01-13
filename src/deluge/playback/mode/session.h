@@ -17,6 +17,7 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/colour/colour.h"
 #include "playback/mode/playback_mode.h"
 
 class InstrumentClip;
@@ -39,7 +40,7 @@ public:
 	void launchSchedulingMightNeedCancelling();
 	void reSyncClipToSongTicks(Clip* clip);
 	void reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSetPosToSomething = false,
-	                bool mayResumeClip = true);
+	                bool mayResumeClip = true) override;
 	void userWantsToUnsoloClip(Clip* clip, bool forceLateStart, int32_t buttonPressLatency);
 	void toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, int32_t buttonPressLatency);
 	void soloClipAction(Clip* clip, int32_t buttonPressLatency);
@@ -73,19 +74,19 @@ public:
 	void justAbortedSomeLinearRecording();
 
 	// PlaybackMode implementation
-	void setupPlayback();
-	bool endPlayback(); // Returns whether to do an instant song swap
-	void doTickForward(int32_t posIncrement);
-	void resetPlayPos(int32_t newPos, bool doingComplete = true, int32_t buttonPressLatency = 0);
-	void resyncToSongTicks(Song* song);
-	void reversionDone();
-	bool isOutputAvailable(Output* output);
-	bool considerLaunchEvent(int32_t numTicksBeingIncremented); // Returns whether Song was swapped
-	void stopOutputRecordingAtLoopEnd();
-	int32_t getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* modelStack);
-	bool willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* modelStack);
-	bool willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* modelStack);
-	bool wantsToDoTempolessRecord(int32_t newPos);
+	void setupPlayback() override;
+	bool endPlayback() override; // Returns whether to do an instant song swap
+	void doTickForward(int32_t posIncrement) override;
+	void resetPlayPos(int32_t newPos, bool doingComplete = true, int32_t buttonPressLatency = 0) override;
+	void resyncToSongTicks(Song* song) override;
+	void reversionDone() override;
+	bool isOutputAvailable(Output* output) override;
+	bool considerLaunchEvent(int32_t numTicksBeingIncremented) override; // Returns whether Song was swapped
+	void stopOutputRecordingAtLoopEnd() override;
+	int32_t getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* modelStack) override;
+	bool willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* modelStack) override;
+	bool willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* modelStack) override;
+	bool wantsToDoTempolessRecord(int32_t newPos) override;
 
 	uint8_t lastSectionArmed; // 255 means none. 254 means the action was switch-off-all-sections
 	uint32_t timeLastSectionPlayed;
@@ -107,3 +108,4 @@ private:
 };
 
 extern Session session;
+extern const deluge::gui::colours::Colour defaultClipSectionColours[];

@@ -20,7 +20,7 @@ The Settings menu contains the following menu hierarchy:
 	- CV Output 2 (OUT2)
 		- Volts per Octave (VOLT)
 		- Transpose (TRAN)
-</details>		
+</details>
 <details><summary>Gate</summary>
 
 	- Gate Output 1 (OUT1)
@@ -41,7 +41,7 @@ The Settings menu contains the following menu hierarchy:
 <details><summary>Trigger Clock (TCLO)</summary>
 
 	- Input (IN)
-		- PPQN 
+		- PPQN
 		- Auto-Start (AUTO)
 			- Disabled (ON)
 			- Enabled (OFF)
@@ -104,6 +104,8 @@ The Settings menu contains the following menu hierarchy:
 		- Loop
 		- Layering Loop (LAYE)
 		- Fill
+		- Transpose (TRAN)
+		- Load Next Song (SONG)
 	- Differentiate Inputs (DIFF)
 		- Disabled (OFF)
 		- Enabled (ON)
@@ -115,7 +117,7 @@ The Settings menu contains the following menu hierarchy:
 					- Upper Zone (UPPE)
 				- Out
 					- Lower Zone (LOWE)
-					- Upper Zone (UPPE)				
+					- Upper Zone (UPPE)
 			- Velocity (VELO)
 			- Clock (CLK)
 				- Disabled (OFF)
@@ -127,13 +129,13 @@ The Settings menu contains the following menu hierarchy:
 					- Upper Zone (UPPE)
 				- Out
 					- Lower Zone (LOWE)
-					- Upper Zone (UPPE)				
+					- Upper Zone (UPPE)
 			- Velocity (VELO)
 			- Clock (CLK)
 				- Disabled (OFF)
 				- Enabled (ON)
 </details>
-				
+
 <details><summary>Defaults (DEFA)</summary>
 
 	- UI
@@ -156,6 +158,7 @@ The Settings menu contains the following menu hierarchy:
 			- Layout (LAYT)
 				- Isomorphic (ISO)
 				- In-Key (INKY)
+				- Piano (PIAN)
 			- Sidebar Controls (CTRL)
 				- Momentary Velocity (MVEL)
 					- Disabled (OFF)
@@ -194,24 +197,26 @@ The Settings menu contains the following menu hierarchy:
 	- Swing Interval (SWII)
 	- Key
 	- Scale (SCAL)
-		- Major (MAJO)
-		- Minor (MINO)
-		- Dorian (DORI)
-		- Phrygian (PHRY)
-		- Lydian (LYDI)
-		- Mixolydian (MIXO)
-		- Locrian (LOCR)
-		- Melodic Minor (MELO)
-		- Harmonic Minor (HARM)
-		- Hungarian Minor (HUNG)
-		- Marva (MARV)
-		- Arabian (ARAB)
-		- Whole Tone (WHOL)
-		- Blues (BLUE)
-		- Pentatonic Minor (PENT)
-		- Hirajoshi (HIRA)
-		- Random (RAND)
-		- None
+		- Init Scale
+		- Active Scales
+			- Major (MAJO)
+			- Minor (MINO)
+			- Dorian (DORI)
+			- Phrygian (PHRY)
+			- Lydian (LYDI)
+			- Mixolydian (MIXO)
+			- Locrian (LOCR)
+			- Melodic Minor (MELO)
+			- Harmonic Minor (HARM)
+			- Hungarian Minor (HUNG)
+			- Marva (MARV)
+			- Arabian (ARAB)
+			- Whole Tone (WHOL)
+			- Blues (BLUE)
+			- Pentatonic Minor (PENT)
+			- Hirajoshi (HIRA)
+			- Random (RAND)
+			- None
 	- Velocity (VELO)
 	- Resolution (RESO)
 	- Bend Range (BEND)
@@ -287,7 +292,7 @@ NOTE: These options can change depending on how your default resolution is set
 			- Amber (AMBE)
 			- White (WHIT)
 			- Pink
-		- Soloed 
+		- Soloed
 			- Red
 			- Green (GREE)
 			- Blue
@@ -304,15 +309,15 @@ NOTE: These options can change depending on how your default resolution is set
 	- Disabled (OFF)
 	- Conditional (COND)
 	- Enabled (ON)
-</details>	
-	
+</details>
+
 <details><summary>Play-Cursor (CURS)</summary>
 
 	- Fast
 	- Disabled (OFF)
 	- Slow
-</details>	
-	
+</details>
+
 <details><summary>Recording (RECO)</summary>
 
 	- Count-in (COUN)
@@ -336,6 +341,12 @@ NOTE: These options can change depending on how your default resolution is set
 		- Conditional (COND)
 		- Enabled (ON)
 		- Disabled (OFF)
+	- Threshold Recording (THRE)
+		- Mode
+			- Disabled (OFF)
+			- Low
+			- Medium
+			- High
 </details>
 
 <details><summary>Community Features (FEAT)</summary>
@@ -364,6 +375,9 @@ NOTE: These options can change depending on how your default resolution is set
 	- Stutter Rate Quantize (STUT)
 		- OFF
 		- ON
+  	- Reverse Stutter Rate (RSTUT)
+		- OFF
+		- ON
 	- Allow Insecure Develop Sysex Messages (SYSX)
 		- OFF
 		- ON
@@ -385,7 +399,7 @@ NOTE: These options can change depending on how your default resolution is set
 	- Grain FX (GRFX)
 		- OFF
 		- ON
-	- DX Shortcuts (DX7S)
+	- DX7 ENGINE (DX7)
 		- OFF
 		- ON
 	- Emulated Display (EMUL)
@@ -492,7 +506,7 @@ The Song menu contains the following menu hierarchy:
 			- Analog (ANA)
 		- Sync
 		NOTE: These options can change depending on how your default resolution is set
-				
+
 			- Off
 			- 2-Bar
 			- 1-Bar
@@ -524,15 +538,17 @@ The Song menu contains the following menu hierarchy:
 	- Reverb (REVE)
 		- Amount (AMOU)
   			- Freeverb (FVRB)
-     			- Mutable (MTBL)
+          		- Mutable (MTBL)
 		- Model (MODE)
 		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
 		- Damping (DAMP)
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+  		- HPF (if Mutable is Selected)
+  		- LPF (if Mutable is Selected)
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
-	
+
 	- Mod-FX (MODU)
 		- Type
 			- Disabled (OFF)
@@ -554,11 +570,40 @@ The Song menu contains the following menu hierarchy:
 		- Bitcrush (CRUS)
 </details>
 <details><summary>Swing Interval (SWII)</summary></details>
+<details><summary>Active Scales</summary>
+
+	- Major (MAJO)
+	- Minor (MINO)
+	- Dorian (DORI)
+	- Phrygian (PHRY)
+	- Lydian (LYDI)
+	- Mixolydian (MIXO)
+	- Locrian (LOCR)
+	- Melodic Minor (MELO)
+	- Harmonic Minor (HARM)
+	- Hungarian Minor (HUNG)
+	- Marva (MARV)
+	- Arabian (ARAB)
+	- Whole Tone (WHOL)
+	- Blues (BLUE)
+	- Pentatonic Minor (PENT)
+	- Hirajoshi (HIRA)
+	- Random (RAND)
+	- None
+</details>
+<details><summary>Threshold Recording (THRE)</summary>
+	- Mode
+		- Disabled (OFF)
+		- Conditional (COND)
+		- Low
+		- Medium
+		- High
+</details>
 <details><summary>Configure Macros (MACR)</summary></details>
 <details><summary>Midi Learn (MIDI)</summary></details>
-<details><summary>Stem Export (STEM)</summary>
+<details><summary>Audio Export (EXPO)</summary>
 
-	- Start Export (STEM)
+	- Start Export (EXPO)
 	- Configure Export (CONF)
 		- Normalization (NORM)
 			- Disabled (OFF)
@@ -599,7 +644,7 @@ The Perform FX menu contains the following menu hierarchy:
 <details><summary>FX</summary>
 
 	- See Song menu hierarchy above for break-down of FX menu
-</details>		
+</details>
 
 </details>
 
@@ -625,11 +670,11 @@ The Sound menu contains the following menu hierarchy:
 </details>
 <details><summary>Arpeggiator (ARPE)</summary>
 
-	- Mode
-		- OFF
-		- Arpeggiator (ARP)
-	- Sync
-	NOTE: These options can change depending on how your default resolution is set
+	- Enabled (ON)
+	- Basic
+		- Gate
+		- Sync
+		NOTE: These options can change depending on how your default resolution is set
 
 			- Off
 			- 2-Bar
@@ -658,31 +703,47 @@ The Sound menu contains the following menu hierarchy:
 			- 16th-DTTED
 			- 32nd-DTTED
 			- 64th-DTTED
-			- 128th-DTTED	
-	- Rate
-	- Gate
-	- Octaves (OCTA)
-	- Octave Mode (OMOD)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- Alternate (ALT)
-		- Random (RAND)
-	- Note Mode (NMOD) (NOTE: Available in Synth sounds but not in Kit sounds)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- As Played (PLAY)
-		- Random (RAND)
-	- Rhythm (RHYT)
-	- Sequence Length (LENG)
-	- Ratchet Amount (RATC)
-	- Ratchet Probability (RPRO)
+			- 128th-DTTED
+		- Rate
+	- Pattern
+		- Octaves (OCTA)
+		- Octave Mode (OMOD)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Alternate (ALT)
+			- Random (RAND)
+		- Chord Simulator (CSIM) (NOTE: Available only in Kit Rows)
+		- Note Mode (NMOD)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Played Order (PLAY)
+			- Random (RAND)
+		- Step Repeat (REPE)
+		- Rhythm (RHYT)
+		- Sequence Length (LENG)
+	- Randomizer
+		- Lock Randomizer (LOCK)
+		- Octave Spread (OCTA)
+		- Gate Spread (GATE)
+		- Velocity Spread (VELO)
+		- Ratchet Amount (RATC)
+		- Ratchet Probability (RPRO)
+		- Chord Polyphony (CHRD) (NOTE: NOT available for Sound Kit Rows)
+		- Chord Probability (CPRO) (NOTE: NOT available for Sound Kit Rows)
+		- Note Probability (NOTE)
+		- Bass Probability (BASS)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
 			- Aftertouch
 			- MPE Y (Y)
+</details>
+
+<details><summary>Randomizer (RAND)</summary>
+
+	- Velocity Spread (VELO)
 </details>
 <details><summary>Compressor (COMP)</summary>
 
@@ -735,7 +796,7 @@ The Sound menu contains the following menu hierarchy:
 			- Analog (ANA)
 		- Sync
 		NOTE: These options can change depending on how your default resolution is set
-				
+
 			- Off
 			- 2-Bar
 			- 1-Bar
@@ -767,15 +828,17 @@ The Sound menu contains the following menu hierarchy:
 	- Reverb (REVE)
 		- Amount (AMOU)
   			- Freeverb (FVRB)
-     			- Mutable (MTBL)
+          		- Mutable (MTBL)
 		- Model (MODE)
 		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
 		- Damping (DAMP)
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+  		- HPF (if Mutable is Selected)
+  		- LPF (if Mutable is Selected)
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
-	
+
 	- Mod-FX (MODU)
 		- Type
 			- Disabled (OFF)
@@ -804,7 +867,7 @@ The Sound menu contains the following menu hierarchy:
 	- Volume Ducking (VOLU)
 	- Sync
 	NOTE: These options can change depending on how your default resolution is set
-				
+
 		- Off
 		- 2-Bar
 		- 1-Bar
@@ -832,11 +895,11 @@ The Sound menu contains the following menu hierarchy:
 		- 16th-DTTED
 		- 32nd-DTTED
 		- 64th-DTTED
-		- 128th-DTTED		
+		- 128th-DTTED
 	- Attack (ATTA)
 	- Release (RELE)
 	- Shape (TYPE)
-</details>	
+</details>
 <details><summary>Oscillator 1 (OSC1) </summary>
 
 	- Type
@@ -874,7 +937,7 @@ The Sound menu contains the following menu hierarchy:
 	- Speed (SPEE) - if Sample type selected
 	- Pulse Width (PULS) - if any type except Sample or Input is selected
 	- Retrigger Phase (RETR) - if any type except Sample is selected
-</details>	
+</details>
 <details><summary>Oscillator 2 (OSC2) </summary>
 
 	- Type
@@ -915,14 +978,14 @@ The Sound menu contains the following menu hierarchy:
 		- Disabled (OFF)
 		- Enabled (ON)
 	- Retrigger Phase (RETR) - if any type except Sample is selected
-</details>	
+</details>
 <details><summary>Envelope 1 (ENV1) </summary>
 
 	- Attack (ATTA)
 	- Decay (DECA)
 	- Sustain (SUST)
 	- Release (RELE)
-</details>	
+</details>
 <details><summary>Envelope 2 (ENV2) </summary>
 
 	- Attack (ATTA)
@@ -939,10 +1002,9 @@ The Sound menu contains the following menu hierarchy:
 		- Saw
 		- S&H (S H)
 		- Random Walk (RWLK)
-	- Rate
 	- Sync
 	NOTE: These options can change depending on how your default resolution is set
-				
+
 		- Off
 		- 2-Bar
 		- 1-Bar
@@ -970,7 +1032,8 @@ The Sound menu contains the following menu hierarchy:
 		- 16th-DTTED
 		- 32nd-DTTED
 		- 64th-DTTED
-		- 128th-DTTED	
+		- 128th-DTTED
+	- Rate
 </details>
 <details><summary>LFO2 </summary>
 
@@ -981,7 +1044,38 @@ The Sound menu contains the following menu hierarchy:
 		- Saw
 		- S&H (S H)
 		- Random Walk (RWLK)
-	- Rate	
+	- Sync
+	NOTE: These options can change depending on how your default resolution is set
+
+		- Off
+		- 2-Bar
+		- 1-Bar
+		- 2nd-Notes
+		- 4th-Notes
+		- 8th-Notes
+		- 16th-Notes
+		- 32nd-Notes
+		- 64th-Notes
+		- 128th-Notes
+		- 2-Bar-TPLTS
+		- 1-Bar-TPLTS
+		- 2nd-TPLTS
+		- 4th-TPLTS
+		- 8th-TPLTS
+		- 16th-TPLTS
+		- 32nd-TPLTS
+		- 64th-TPLTS
+		- 128th-TPLTS
+		- 2-Bar-DTTED
+		- 1-Bar-DTTED
+		- 2nd-DTTED
+		- 4th-DTTED
+		- 8th-DTTED
+		- 16th-DTTED
+		- 32nd-DTTED
+		- 64th-DTTED
+		- 128th-DTTED
+	- Rate
 </details>
 <details><summary>Voice (VOIC) </summary>
 
@@ -1081,7 +1175,7 @@ The Kit FX menu contains the following menu hierarchy:
 			- Analog (ANA)
 		- Sync
 		NOTE: These options can change depending on how your default resolution is set
-				
+
 			- Off
 			- 2-Bar
 			- 1-Bar
@@ -1113,15 +1207,17 @@ The Kit FX menu contains the following menu hierarchy:
 	- Reverb (REVE)
 		- Amount (AMOU)
   			- Freeverb (FVRB)
-     			- Mutable (MTBL)
+          		- Mutable (MTBL)
 		- Model (MODE)
 		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
 		- Damping (DAMP)
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+  		- HPF (if Mutable is Selected)
+  		- LPF (if Mutable is Selected)
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
-	
+
 	- Mod-FX (MODU)
 		- Type
 			- Disabled (OFF)
@@ -1147,7 +1243,7 @@ The Kit FX menu contains the following menu hierarchy:
 	- Volume Ducking (VOLU)
 	- Sync
 	NOTE: These options can change depending on how your default resolution is set
-				
+
 		- Off
 		- 2-Bar
 		- 1-Bar
@@ -1175,11 +1271,11 @@ The Kit FX menu contains the following menu hierarchy:
 		- 16th-DTTED
 		- 32nd-DTTED
 		- 64th-DTTED
-		- 128th-DTTED		
+		- 128th-DTTED
 	- Attack (ATTA)
 	- Release (RELE)
 	- Shape (TYPE)
-</details>	
+</details>
 
 </details>
 
@@ -1191,16 +1287,25 @@ The MIDI Instrument menu is accessible from MIDI clips by pressing on the `SELEC
 The MIDI menu contains the following menu hierarchy:
 
 <blockquote>
+<details><summary>Device Definition (DEVI)</summary></details>
+
+	This submenu will indicate whether the current MIDI Instrument in the Song is linked to a MIDI Device Definition file.
+
+	- File Linked (LINK)
+		- Unlinked
+		- Linked
+	- File Name of Linked File
+
 <details><summary>PGM</summary></details>
 <details><summary>Bank</summary></details>
 <details><summary>Sub-Bank (SUB)</summary></details>
 <details><summary>Arpeggiator (ARPE)</summary>
 
-	- Mode
-		- OFF
-		- Arpeggiator (ARP)
-	- Sync
-	NOTE: These options can change depending on how your default resolution is set
+	- Enabled (ON)
+	- Basic
+		- Gate
+		- Sync
+		NOTE: These options can change depending on how your default resolution is set
 
 			- Off
 			- 2-Bar
@@ -1229,31 +1334,46 @@ The MIDI menu contains the following menu hierarchy:
 			- 16th-DTTED
 			- 32nd-DTTED
 			- 64th-DTTED
-			- 128th-DTTED	
-	- Rate
-	- Gate
-	- Octaves (OCTA)
-	- Octave Mode (OMOD)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- Alternate (ALT)
-		- Random (RAND)
-	- Note Mode (NMOD)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- As Played (PLAY)
-		- Random (RAND)
-	- Rhythm (RHYT)
-	- Sequence Length (LENG)
-	- Ratchet Amount (RATC)
-	- Ratchet Probability (RPRO)
+			- 128th-DTTED
+		- Rate
+	- Pattern
+		- Octaves (OCTA)
+		- Octave Mode (OMOD)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Alternate (ALT)
+			- Random (RAND)
+		- Chord Simulator (CSIM) (NOTE: Available only in Kit Rows)
+		- Note Mode (NMOD)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Played Order (PLAY)
+			- Random (RAND)
+		- Step Repeat (REPE)
+		- Rhythm (RHYT)
+		- Sequence Length (LENG)
+	- Randomizer
+		- Lock Randomizer (LOCK)
+		- Octave Spread (OCTA)
+		- Gate Spread (GATE)
+		- Velocity Spread (VELO)
+		- Ratchet Amount (RATC)
+		- Ratchet Probability (RPRO)
+		- Chord Polyphony (CHRD) (NOTE: NOT available for Midi Kit Rows)
+		- Chord Probability (CPRO) (NOTE: NOT available for Midi Kit Rows)
+		- Note Probability (NOTE)
+		- Bass Probability (BASS)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
 			- Aftertouch
 			- MPE Y (Y)
+</details>
+<details><summary>Randomizer (RAND)</summary>
+
+	- Velocity Spread (VELO)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 
@@ -1268,7 +1388,7 @@ The MIDI menu contains the following menu hierarchy:
 	- MPE
 		- Disabled (OFF)
 		- Enabled (ON)
-</details>	
+</details>
 <details><summary>Play Direction (DIRE) </summary>
 
 	- Forward
@@ -1288,12 +1408,12 @@ The CV menu contains the following menu hierarchy:
 <blockquote>
 <details><summary>Arpeggiator (ARPE)</summary>
 
-	- Mode
-		- OFF
-		- Arpeggiator (ARP)
-	- Sync
-	NOTE: These options can change depending on how your default resolution is set
-
+	- Enabled (ON)
+	- Basic
+		- Gate
+		- Sync
+		NOTE: These options can change depending on how your default resolution is set
+		
 			- Off
 			- 2-Bar
 			- 1-Bar
@@ -1321,31 +1441,46 @@ The CV menu contains the following menu hierarchy:
 			- 16th-DTTED
 			- 32nd-DTTED
 			- 64th-DTTED
-			- 128th-DTTED	
-	- Rate
-	- Gate
-	- Octaves (OCTA)
-	- Octave Mode (OMOD)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- Alternate (ALT)
-		- Random (RAND)
-	- Note Mode (NMOD)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- As Played (PLAY)
-		- Random (RAND)
-	- Rhythm (RHYT)
-	- Sequence Length (LENG)
-	- Ratchet Amount (RATC)
-	- Ratchet Probability (RPRO)
-	- MPE
+			- 128th-DTTED
+		- Rate
+	- Pattern
+		- Octaves (OCTA) (NOTE: NOT available for Gate Kit Rows)
+		- Octave Mode (OMOD) (NOTE: NOT available for Gate Kit Rows)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Alternate (ALT)
+			- Random (RAND)
+		- Chord Simulator (CSIM) (NOTE: NOT available for Gate Kit Rows)
+		- Note Mode (NMOD) (NOTE: NOT available for Gate Kit Rows)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Played Order (PLAY)
+			- Random (RAND)
+		- Step Repeat (REPE) (NOTE: NOT available for Gate Kit Rows)
+		- Rhythm (RHYT)
+		- Sequence Length (LENG)
+	- Randomizer
+		- Lock Randomizer (LOCK)
+		- Octave Spread (OCTA) (NOTE: NOT available for Gate Kit Rows)
+		- Gate Spread (GATE)
+		- Velocity Spread (VELO) (NOTE: NOT available for Gate Kit Rows)
+		- Ratchet Amount (RATC)
+		- Ratchet Probability (RPRO)
+		- Chord Polyphony (CHRD) (NOTE: NOT available for Gate Kit Rows)
+		- Chord Probability (CPRO) (NOTE: NOT available for Gate Kit Rows)
+		- Note Probability (NOTE)
+		- Bass Probability (BASS) (NOTE: NOT available for Gate Kit Rows)
+	- MPE (NOTE: NOT available for Gate Kit Rows)
 		- Velocity (VELO)
 			- Disabled (OFF)
 			- Aftertouch
 			- MPE Y (Y)
+</details>
+<details><summary>Randomizer (RAND)</summary>
+
+	- Velocity Spread (VELO)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 
@@ -1388,29 +1523,29 @@ The Note Editor menu contains the following menu hierarchy:
 
 	- 1 OF 2 (1OF2)
 	- 2 OF 2 (2OF2)
- 
+
 	- 1 OF 3 (1OF3)
 	- 2 OF 3 (2OF3)
 	- 3 OF 3 (3OF3)
-    
+
 	- 1 OF 4 (1OF4)
 	- 2 OF 4 (2OF4)
 	- 3 OF 4 (3OF4)
 	- 4 OF 4 (4OF4)
-	
+
 	- 1 OF 5 (1OF5)
 	- 2 OF 5 (2OF5)
 	- 3 OF 5 (3OF5)
 	- 4 OF 5 (4OF5)
 	- 5 OF 5 (5OF5)
-     
+
 	- 1 OF 6 (1OF6)
 	- 2 OF 6 (2OF6)
 	- 3 OF 6 (3OF6)
 	- 4 OF 6 (4OF6)
 	- 5 OF 6 (5OF6)
 	- 6 OF 6 (6OF6)
-   
+
 	- 1 OF 7 (1OF7)
 	- 2 OF 7 (2OF7)
 	- 3 OF 7 (3OF7)
@@ -1418,7 +1553,7 @@ The Note Editor menu contains the following menu hierarchy:
 	- 5 OF 7 (5OF7)
 	- 6 OF 7 (6OF7)
 	- 7 OF 7 (7OF7)
-    
+
 	- 1 OF 8 (1OF8)
 	- 2 OF 8 (2OF8)
 	- 3 OF 8 (3OF8)
@@ -1464,29 +1599,29 @@ The Note Row Editor menu contains the following menu hierarchy:
 
 	- 1 OF 2 (1OF2)
 	- 2 OF 2 (2OF2)
- 
+
 	- 1 OF 3 (1OF3)
 	- 2 OF 3 (2OF3)
 	- 3 OF 3 (3OF3)
-    
+
 	- 1 OF 4 (1OF4)
 	- 2 OF 4 (2OF4)
 	- 3 OF 4 (3OF4)
 	- 4 OF 4 (4OF4)
-	
+
 	- 1 OF 5 (1OF5)
 	- 2 OF 5 (2OF5)
 	- 3 OF 5 (3OF5)
 	- 4 OF 5 (4OF5)
 	- 5 OF 5 (5OF5)
-     
+
 	- 1 OF 6 (1OF6)
 	- 2 OF 6 (2OF6)
 	- 3 OF 6 (3OF6)
 	- 4 OF 6 (4OF6)
 	- 5 OF 6 (5OF6)
 	- 6 OF 6 (6OF6)
-   
+
 	- 1 OF 7 (1OF7)
 	- 2 OF 7 (2OF7)
 	- 3 OF 7 (3OF7)
@@ -1494,7 +1629,7 @@ The Note Row Editor menu contains the following menu hierarchy:
 	- 5 OF 7 (5OF7)
 	- 6 OF 7 (6OF7)
 	- 7 OF 7 (7OF7)
-    
+
 	- 1 OF 8 (1OF8)
 	- 2 OF 8 (2OF8)
 	- 3 OF 8 (3OF8)
@@ -1545,17 +1680,12 @@ The Audio Clip menu contains the following menu hierarchy:
 
 	- Disabled (OFF)
 	- Left Input (LEFT)
-	- Left Input (Monitoring) (LEFT.)
 	- Right Input (RIGH)
-	- Right Input (Monitoring) (RIGH.)
 	- Stereo Input (STER)
-	- Stereo Input (Monitoring) (STER.)
 	- Bal. Input (BALA)
-	- Bal. Input (Monitoring) (BALA.)
 	- Deluge Mix (Pre FX) (MIX)
 	- Deluge Output (Post FX) (OUTP)
 	- Specific Track (TRAK)
-	- Specific Track (FX Processing) (TRAK.)
 </details>
 <details><summary>Specific Track (TRAK)</summary></details>
 <details><summary>Master (MASTR)</summary>
@@ -1615,7 +1745,7 @@ The Audio Clip menu contains the following menu hierarchy:
 			- Analog (ANA)
 		- Sync
 		NOTE: These options can change depending on how your default resolution is set
-				
+
 			- Off
 			- 2-Bar
 			- 1-Bar
@@ -1647,17 +1777,17 @@ The Audio Clip menu contains the following menu hierarchy:
 	- Reverb (REVE)
 		- Amount (AMOU)
   			- Freeverb (FVRB)
-     			- Mutable (MTBL)
+          		- Mutable (MTBL)
 		- Model (MODE)
 		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
 		- Damping (DAMP)
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+  		- HPF (if Mutable is Selected)
+  		- LPF (if Mutable is Selected)
 		- Pan
-		- HPF (if Mutable is selected)
-		- LPF (if Mutable is selected)
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
-	
+
 	- Mod-FX (MODU)
 		- Type
 			- Disabled (OFF)
@@ -1684,7 +1814,7 @@ The Audio Clip menu contains the following menu hierarchy:
 	- Volume Ducking (VOLU)
 	- Sync
 	NOTE: These options can change depending on how your default resolution is set
-				
+
 		- Off
 		- 2-Bar
 		- 1-Bar
@@ -1712,11 +1842,11 @@ The Audio Clip menu contains the following menu hierarchy:
 		- 16th-DTTED
 		- 32nd-DTTED
 		- 64th-DTTED
-		- 128th-DTTED		
+		- 128th-DTTED
 	- Attack (ATTA)
 	- Release (RELE)
 	- Shape (TYPE)
-</details>	
+</details>
 <details><summary>Sample (SAMP) </summary>
 
 	- File Browser (FILE)

@@ -21,6 +21,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
 
 NonAudioDrum::NonAudioDrum(DrumType newType) : Drum(newType) {
 	state = false;
@@ -33,7 +34,7 @@ bool NonAudioDrum::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool dis
 
 void NonAudioDrum::unassignAllVoices() {
 	if (hasAnyVoices()) {
-		noteOff(NULL);
+		noteOff(nullptr);
 	}
 }
 
@@ -88,7 +89,7 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int32_t 
 
 	bool wasOn = state;
 	if (wasOn) {
-		noteOff(NULL);
+		noteOff(nullptr);
 	}
 
 	*encoderOffset = 0;
@@ -106,8 +107,18 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int32_t 
 	instrumentClipView.drawDrumName(this, true);
 
 	if (wasOn) {
-		noteOn(modelStack, lastVelocity, NULL, zeroMPEValues);
+		noteOn(modelStack, lastVelocity, nullptr, zeroMPEValues);
 	}
+}
+
+void NonAudioDrum::writeArpeggiatorToFile(Serializer& writer) {
+	writer.writeOpeningTagBeginning("arpeggiator");
+
+	arpSettings.writeCommonParamsToFile(writer, nullptr);
+
+	arpSettings.writeNonAudioParamsToFile(writer);
+
+	writer.closeTag();
 }
 
 bool NonAudioDrum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {
@@ -115,6 +126,19 @@ bool NonAudioDrum::readDrumTagFromFile(Deserializer& reader, char const* tagName
 	if (!strcmp(tagName, "channel")) {
 		channel = reader.readTagOrAttributeValueInt();
 		reader.exitTag("channel");
+	}
+	else if (!strcmp(tagName, "arpeggiator")) {
+		reader.match('{');
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
+			bool readAndExited = arpSettings.readCommonTagsFromFile(reader, tagName, nullptr);
+			if (!readAndExited) {
+				readAndExited = arpSettings.readNonAudioTagsFromFile(reader, tagName);
+			}
+			if (!readAndExited) {
+				reader.exitTag(tagName);
+			}
+		}
+		reader.match('}'); // End arpeggiator value object.
 	}
 	else if (Drum::readDrumTagFromFile(reader, tagName)) {}
 	else {

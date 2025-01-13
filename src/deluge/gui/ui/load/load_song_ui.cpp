@@ -20,6 +20,7 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -31,6 +32,7 @@
 #include "hid/led/pad_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -38,11 +40,12 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-#include "task_scheduler.h"
+#include "util/try.h"
 #include <string.h>
 
 LoadSongUI loadSongUI{};
@@ -60,6 +63,7 @@ LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
 	filePrefix = "SONG";
 	title = "Load song";
+	performingLoad = false;
 }
 
 bool LoadSongUI::opened() {
@@ -112,8 +116,8 @@ gotError:
 	scrollingIntoSlot = true;
 
 	if (currentUIMode != UI_MODE_VERTICAL_SCROLL) {
-		currentUIMode =
-		    UI_MODE_VERTICAL_SCROLL; // Have to reset this again - it might have finished the first bit of the scroll
+		currentUIMode = UI_MODE_VERTICAL_SCROLL; // Have to reset this again - it might have finished the first bit
+		                                         // of the scroll
 		timerCallback();
 	}
 
@@ -227,9 +231,75 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	return ActionResult::DEALT_WITH;
 }
 
+bool LoadSongUI::isLoadingSong() {
+	// The current open UI is this one, or there is an automatic "load next" command in progress
+	return getCurrentUI() == this || performingLoad;
+}
+
+// This is the public method exposed to allow for queue loading next song while playing
+void LoadSongUI::queueLoadNextSongIfAvailable(int8_t offset) {
+	if (!playbackHandler.isEitherClockActive()) {
+		// This method is intended just for queueing while playing
+		return;
+	}
+	if (performingLoad) {
+		// If another load is in progress, ignore this request
+		return;
+	}
+	if (fileIndexSelected == -1) {
+		// If no song is loaded/selected yet, we have nothing to do
+		return;
+	}
+	doQueueLoadNextSongIfAvailable(offset);
+}
+
+// This method actually executes the loading of next song (by offset)
+void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
+	outputTypeToLoad = OutputType::NONE;
+	currentDir.set(&currentSong->dirPath);
+
+	int32_t currentFileIndexSelected = fileIndexSelected;
+
+	bool songFound = false;
+	do {
+		fileIndexSelected = fileIndexSelected + offset;
+		if (fileIndexSelected < 0) {
+			fileIndexSelected = fileItems.getNumElements() - 1;
+		}
+		else if (fileIndexSelected >= fileItems.getNumElements()) {
+			fileIndexSelected = 0;
+		}
+		Browser::setEnteredTextFromCurrentFilename();
+
+		FileItem* currentFileItem = getCurrentFileItem();
+
+		if (currentFileItem != nullptr) {
+			// Check if it's a directory...
+			if (currentFileItem->isFolder) {
+				// it is a folder
+				// scroll to the next item
+				continue;
+			}
+			else {
+				// if is a file, select it
+				songFound = true;
+				AudioEngine::logAction("performLoad");
+				performLoad();
+				if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+					runtimeFeatureSettings.writeSettingsToFile();
+				}
+			}
+		}
+	} while (currentFileIndexSelected != fileIndexSelected && !songFound);
+	// in case we wrapped around the whole list of files and didn't find a song,
+	// we just exit without doing anything else
+
+	currentUIMode = UI_MODE_NONE;
+}
+
 // Before calling this, you must set loadButtonReleased.
 void LoadSongUI::performLoad() {
-
+	performingLoad = true;
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
@@ -237,6 +307,7 @@ void LoadSongUI::performLoad() {
 		                          ? Error::FILE_NOT_FOUND
 		                          : Error::NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge,
 		                                                                     // for consistency with old times.
+		performingLoad = false;
 		return;
 	}
 
@@ -281,7 +352,7 @@ ramError:
 
 someError:
 		display->displayError(error);
-		activeDeserializer->closeFIL();
+		activeDeserializer->closeWriter();
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
 		if (!currentSong) {
@@ -299,7 +370,7 @@ fail:
 			void* toDealloc = dynamic_cast<void*>(preLoadedSong);
 			preLoadedSong->~Song(); // Will also delete paramManager
 			delugeDealloc(toDealloc);
-			preLoadedSong = NULL;
+			preLoadedSong = nullptr;
 			goto someError;
 		}
 
@@ -317,7 +388,7 @@ fail:
 		}
 		AudioEngine::logAction("d");
 
-		FRESULT success = activeDeserializer->closeFIL();
+		FRESULT success = activeDeserializer->closeWriter();
 		if (success != FR_OK) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 			goto fail;
@@ -331,11 +402,12 @@ fail:
 			goto gotErrorAfterCreatingSong;
 		}
 
-		error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath,
-		                                                    currentDir.get(), &currentFilenameWithoutExtension);
-		if (error != Error::NONE) {
-			goto gotErrorAfterCreatingSong;
-		}
+		D_TRY_CATCH(audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath,
+		                                                        currentDir.get(), currentFilenameWithoutExtension),
+		            local_error, {
+			            error = local_error;
+			            goto gotErrorAfterCreatingSong;
+		            });
 		audioFileManager.thingBeginningLoading(ThingType::SONG);
 
 		// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
@@ -353,6 +425,7 @@ fail:
 		}
 		currentUIMode = UI_MODE_NONE;
 		display->removeWorkingAnimation();
+		performingLoad = false;
 		return;
 	}
 
@@ -363,7 +436,7 @@ gotErrorAfterCreatingSong:
 		void* toDealloc = dynamic_cast<void*>(preLoadedSong);
 		preLoadedSong->~Song(); // Will also delete paramManager
 		delugeDealloc(toDealloc);
-		preLoadedSong = NULL;
+		preLoadedSong = nullptr;
 		goto someError;
 	}
 
@@ -379,7 +452,7 @@ gotErrorAfterCreatingSong:
 	}
 	AudioEngine::logAction("read new song from file");
 
-	FRESULT success = activeDeserializer->closeFIL();
+	FRESULT success = activeDeserializer->closeWriter();
 	if (success != FR_OK) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 		goto fail;
@@ -393,11 +466,13 @@ gotErrorAfterCreatingSong:
 		goto gotErrorAfterCreatingSong;
 	}
 
-	error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
-	                                                    &currentFilenameWithoutExtension);
-	if (error != Error::NONE) {
-		goto gotErrorAfterCreatingSong;
-	}
+	D_TRY_CATCH(audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath,
+	                                                        currentDir.get(), currentFilenameWithoutExtension),
+	            local_error, {
+		            error = local_error;
+		            goto gotErrorAfterCreatingSong;
+	            });
+
 	audioFileManager.thingBeginningLoading(ThingType::SONG);
 
 	// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
@@ -517,6 +592,23 @@ swapDone:
 	currentUIMode = UI_MODE_NONE;
 
 	display->removeWorkingAnimation();
+
+	// for the song we just loaded, let's check if there's any midi labels we should load
+	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+		if (thisOutput && thisOutput->type == OutputType::MIDI_OUT) {
+			MIDIInstrument* midiInstrument = (MIDIInstrument*)thisOutput;
+			if (midiInstrument->loadDeviceDefinitionFile) {
+				FilePointer tempfp;
+				bool fileExists = StorageManager::fileExists(midiInstrument->deviceDefinitionFileName.get(), &tempfp);
+				if (fileExists) {
+					StorageManager::loadMidiDeviceDefinitionFile(midiInstrument, &tempfp,
+					                                             &midiInstrument->deviceDefinitionFileName, false);
+				}
+			}
+		}
+	}
+
+	performingLoad = false;
 }
 
 ActionResult LoadSongUI::timerCallback() {
@@ -840,7 +932,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 		}
 	}
 stopLoadingPreview:
-	activeDeserializer->closeFIL();
+	activeDeserializer->closeWriter();
 }
 
 void LoadSongUI::displayText(bool blinkImmediately) {

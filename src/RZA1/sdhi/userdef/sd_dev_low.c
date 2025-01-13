@@ -53,7 +53,7 @@ Includes   <System Includes> , "Project Includes"
 #include "deluge/drivers/uart/uart.h"
 #include "deluge/deluge.h"
 #include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
-#include "OSLikeStuff/task_scheduler.h"
+#include "OSLikeStuff/scheduler_api.h"
 
 /******************************************************************************
 Typedef definitions

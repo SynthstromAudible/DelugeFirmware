@@ -20,7 +20,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -537,14 +537,15 @@ Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32
 	// Add to Song
 	currentSong->arrangementOnlyClips.insertClipAtIndex(newClip, 0);
 
-	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, clipInstance->clip, NULL);
+	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, clipInstance->clip,
+	          nullptr);
 
 	clipInstance->clip = newClip;
 	if (newLength != -1) {
 		clipInstance->length = newLength;
 	}
 
-	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, NULL, clipInstance);
+	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, nullptr, clipInstance);
 
 	return Error::NONE;
 }

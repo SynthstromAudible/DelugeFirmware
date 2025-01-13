@@ -336,10 +336,9 @@ SECTIONS
   /DISCARD/ :
   {
     libc.a ( * )
-	libc_nano.a ( * )
     libm.a ( * )
     libgcc.a ( * )
-    libstdc++_nano.a ( * )
+    libstdc++.a ( * )
   }
 
 }

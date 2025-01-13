@@ -66,9 +66,9 @@ void SampleCache::clusterStolen(int32_t clusterIndex) {
 
 	// Make it a multiple of bytesPerSample - but round up.
 	// If you try and simplify this, make sure it still works for 0 and doesn't go negative or anything!
-	writeBytePos = (uint32_t)((uint32_t)((clusterIndex << audioFileManager.clusterSizeMagnitude) + bytesPerSample - 1)
-	                          / bytesPerSample)
-	               * bytesPerSample;
+	writeBytePos =
+	    (uint32_t)((uint32_t)((clusterIndex << Cluster::size_magnitude) + bytesPerSample - 1) / bytesPerSample)
+	    * bytesPerSample;
 
 #if ALPHA_OR_BETA_VERSION
 	if (writeBytePos < 0) {
@@ -83,8 +83,8 @@ void SampleCache::clusterStolen(int32_t clusterIndex) {
 	if (numExistentClusters != clusterIndex) {
 		FREEZE_WITH_ERROR("E295");
 	}
-	clusters[clusterIndex] = NULL; // No need to remove this first Cluster from a queue or anything - that's already all
-	                               // done by the thing that's stealing it
+	clusters[clusterIndex] = nullptr; // No need to remove this first Cluster from a queue or anything - that's already
+	                                  // all done by the thing that's stealing it
 #endif
 }
 
@@ -96,10 +96,10 @@ void SampleCache::unlinkClusters(int32_t startAtIndex, bool beingDestructed) {
 			FREEZE_WITH_ERROR("E167");
 		}
 
-		audioFileManager.deallocateCluster(clusters[i]);
+		clusters[i]->destroy();
 
 		if (ALPHA_OR_BETA_VERSION && !beingDestructed) {
-			clusters[i] = NULL;
+			clusters[i] = nullptr;
 		}
 	}
 }
@@ -148,9 +148,9 @@ bool SampleCache::setupNewCluster(int32_t clusterIndex) {
 	}
 #endif
 
-	clusters[clusterIndex] = audioFileManager.allocateCluster(
-	    ClusterType::SAMPLE_CACHE, false, this); // Do not add reasons, and don't steal from this SampleCache
-	if (!clusters[clusterIndex]) {               // If that allocation failed...
+	// Do not add reasons, and don't steal from this SampleCache
+	clusters[clusterIndex] = Cluster::create(Cluster::Type::SAMPLE_CACHE, false, this);
+	if (!clusters[clusterIndex]) { // If that allocation failed...
 		D_PRINTLN("allocation fail");
 		return false;
 	}
@@ -224,8 +224,7 @@ int32_t SampleCache::getNumExistentClusters(int32_t thisWriteBytePos) {
 	int32_t bytesPerSample = sample->numChannels * kCacheByteDepth;
 
 	// Remember, a cache Cluster actually gets (bytesPerSample - 1) extra usable bytes after it.
-	int32_t numExistentClusters =
-	    (thisWriteBytePos + audioFileManager.clusterSize - bytesPerSample) >> audioFileManager.clusterSizeMagnitude;
+	int32_t numExistentClusters = (thisWriteBytePos + Cluster::size - bytesPerSample) >> Cluster::size_magnitude;
 
 #if ALPHA_OR_BETA_VERSION
 	if (numExistentClusters < 0) {

@@ -36,7 +36,7 @@ SampleHolderForVoice::SampleHolderForVoice() {
 	endMSec = 0;
 
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		clustersForLoopStart[l] = NULL;
+		clustersForLoopStart[l] = nullptr;
 	}
 }
 
@@ -45,7 +45,7 @@ SampleHolderForVoice::~SampleHolderForVoice() {
 	// overriding of that virtual function won't happen as we've already been destructed!
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clustersForLoopStart[l]) {
-			audioFileManager.removeReasonFromCluster(clustersForLoopStart[l], "E247");
+			audioFileManager.removeReasonFromCluster(*clustersForLoopStart[l], "E247");
 		}
 	}
 }
@@ -54,10 +54,10 @@ void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 	SampleHolder::unassignAllClusterReasons(beingDestructed);
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clustersForLoopStart[l]) {
-			audioFileManager.removeReasonFromCluster(clustersForLoopStart[l],
-			                                         "E320"); // Happened to me while auto-pilot testing, I think
+			// Happened to me while auto-pilot testing, I think
+			audioFileManager.removeReasonFromCluster(*clustersForLoopStart[l], "E320");
 			if (!beingDestructed) {
-				clustersForLoopStart[l] = NULL;
+				clustersForLoopStart[l] = nullptr;
 			}
 		}
 	}
@@ -95,8 +95,7 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 
 	else if (((Sample*)audioFile)->clusters.getNumElements() <= 4) {
 		// claim the next few reasons for the sample instead since we can keep it all cached
-		int32_t nextClusterStartByte =
-		    ((Sample*)audioFile)->audioDataStartPosBytes + audioFileManager.clusterSizeMagnitude << 1;
+		int32_t nextClusterStartByte = (((Sample*)audioFile)->audioDataStartPosBytes + Cluster::size_magnitude) << 1;
 
 		claimClusterReasonsForMarker(clustersForLoopStart, nextClusterStartByte, playDirection, clusterLoadInstruction);
 	}
@@ -105,8 +104,8 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 	else {
 		for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 			if (clustersForLoopStart[l]) {
-				audioFileManager.removeReasonFromCluster(clustersForLoopStart[l], "E246");
-				clustersForLoopStart[l] = NULL;
+				audioFileManager.removeReasonFromCluster(*clustersForLoopStart[l], "E246");
+				clustersForLoopStart[l] = nullptr;
 			}
 		}
 	}

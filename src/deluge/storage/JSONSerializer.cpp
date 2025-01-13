@@ -30,7 +30,6 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
-#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
@@ -176,20 +175,24 @@ void JsonSerializer::writeTagNameAndSeperator(char const* tag) {
 }
 
 void JsonSerializer::writeOpeningTag(char const* tag, bool startNewLineAfter, bool box) {
-	writeOpeningTagBeginning(tag, box);
+	writeOpeningTagBeginning(tag, box, false);
 	writeOpeningTagEnd(startNewLineAfter);
 }
 
+// If passed NULL for the tag, then don't write one. Just start a new object.
 void JsonSerializer::writeOpeningTagBeginning(char const* tag, bool box, bool newLineBefore) {
 	insertCommaIfNeeded();
 	if (newLineBefore) // prepend newLine almost always.
 		write("\n");
 	printIndents();
-	if (box)
+	if (box || !tag) {
 		write("{");
-	write("\"");
-	write(tag);
-	write("\": {");
+	}
+	if (tag) {
+		write("\"");
+		write(tag);
+		write("\": {");
+	}
 	indentAmount++;
 	firstItemHasBeenWritten = false;
 }
@@ -215,6 +218,8 @@ void JsonSerializer::writeClosingTag(char const* tag, bool shouldPrintIndents, b
 }
 
 void JsonSerializer::printIndents() {
+	if (memoryBased)
+		return;
 	for (int32_t i = 0; i < indentAmount; i++) {
 		write("\t");
 	}

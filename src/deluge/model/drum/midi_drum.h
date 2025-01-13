@@ -25,20 +25,23 @@ public:
 
 	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
 	            int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
-	            uint32_t samplesLate = 0);
-	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue);
-	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager);
-	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
-	void getName(char* buffer);
-	int32_t getNumChannels() { return 16; }
-	void unassignAllVoices();
+	            uint32_t samplesLate = 0) override;
+	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) override;
+	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) override;
+	void noteOffPostArp(int32_t noteCodePostArp) override;
+	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) override;
+	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
+	void getName(char* buffer) override;
+	int32_t getNumChannels() override { return 16; }
+	void unassignAllVoices() override;
 
-	int8_t modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset, uint8_t whichModEncoder);
+	int8_t modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset, uint8_t whichModEncoder) override;
 
-	void expressionEvent(int32_t newValue, int32_t whichExpressionDimension);
+	void expressionEvent(int32_t newValue, int32_t expressionDimension) override;
 
-	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
-	                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic);
+	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
+	                                              int32_t channelOrNoteNumber,
+	                                              MIDICharacteristic whichCharacteristic) override;
 
 	uint8_t note;
 	int8_t noteEncoderCurrentOffset;

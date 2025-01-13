@@ -73,7 +73,6 @@ public:
 	bool opened() override;
 	void focusRegained() override;
 	void displayOrLanguageChanged() final;
-	const char* getName() { return "instrument_clip_view"; }
 
 	// BUTTON ACTION button press / release handling
 
@@ -161,7 +160,7 @@ public:
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 	ClipMinder* toClipMinder() override { return this; }
 	void reportMPEInitialValuesForNoteEditing(ModelStackWithNoteRow* modelStack, int16_t const* mpeValues);
-	void reportMPEValueForNoteEditing(int32_t whichExpressionDimension, int32_t value);
+	void reportMPEValueForNoteEditing(int32_t expressionDimension, int32_t value);
 	void reportNoteOffForMPEEditing(ModelStackWithNoteRow* modelStack);
 	void dontDeleteNotesOnDepress();
 
@@ -331,7 +330,7 @@ private:
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
 	Drum* flipThroughAvailableDrums(int32_t newOffset, Drum* drum, bool mayBeNone = false);
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
-	                                int32_t* getIndex = NULL);
+	                                int32_t* getIndex = nullptr);
 	void createDrumForAuditionedNoteRow(DrumType drumType);
 	bool isRowAuditionedByInstrument(int32_t yDisplay);
 

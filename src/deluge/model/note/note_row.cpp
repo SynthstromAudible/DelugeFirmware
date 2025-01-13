@@ -53,9 +53,9 @@ NoteRow::NoteRow(int16_t newY) {
 	y = newY;
 	muted = false;
 	colourOffset = random(71);
-	drum = NULL;
-	firstOldDrumName = NULL;
-	soundingStatus = STATUS_OFF;
+	drum = nullptr;
+	firstOldDrumName = nullptr;
+	sequenced = false;
 	ignoreNoteOnsBefore_ = 0;
 	probabilityValue = kNumProbabilityValues;
 	iteranceValue = kDefaultIteranceValue;
@@ -82,16 +82,16 @@ void NoteRow::deleteOldDrumNames(bool shouldUpdatePointer) {
 	}
 
 	if (shouldUpdatePointer) {
-		firstOldDrumName = NULL;
+		firstOldDrumName = nullptr;
 	}
 }
 
 Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing) {
 	// No need to clone much stuff - it's been automatically copied already as a block of memory.
 
-	firstOldDrumName = NULL;
+	firstOldDrumName = nullptr;
 	ignoreNoteOnsBefore_ = 0;
-	// soundingStatus = STATUS_OFF;
+	// sequenced = false;
 
 	int32_t effectiveLength = modelStack->getLoopLength();
 
@@ -574,8 +574,8 @@ Error NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, 
 	int32_t nextIndexToCopyFrom = 0;
 	int32_t nextIndexToCopyTo = 0;
 
-	Note* __restrict__ sourceNote = NULL;
-	Note* __restrict__ destNote = NULL;
+	Note* __restrict__ sourceNote = nullptr;
+	Note* __restrict__ destNote = nullptr;
 
 	// For each screen we're going to add a note on, copy all notes prior to (and including) the insertion point
 	for (int32_t screenIndex = 0; screenIndex < numScreensToAddNoteOn; screenIndex++) {
@@ -617,7 +617,7 @@ Error NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, 
 			}
 
 addNewNote:
-			sourceNote = NULL; // Reset it - we now (briefly) will not have copied any notes since inserting this one
+			sourceNote = nullptr; // Reset it - we now (briefly) will not have copied any notes since inserting this one
 
 			// And insert a new note at the position within this screen
 			destNote = newNotes.getElement(nextIndexToCopyTo);
@@ -902,7 +902,7 @@ Error NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNot
 
 		int32_t areaBeginIndexThisScreen = searchTerms[screenIndex << 1];
 
-		Note* __restrict__ destNote = NULL;
+		Note* __restrict__ destNote = nullptr;
 
 		// Copy all notes before this one (which is to the right of the area begin).
 		while (nextIndexToCopyFrom < areaBeginIndexThisScreen) {
@@ -959,7 +959,7 @@ Error NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNot
 	// Deallocate working memory - no longer needed
 	delugeDealloc(searchTerms);
 
-	Note* __restrict__ destNote = NULL;
+	Note* __restrict__ destNote = nullptr;
 
 	// Copy the final notes too - after area end on the final screen
 	while (nextIndexToCopyFrom < notes.getNumElements()) {
@@ -1398,7 +1398,7 @@ Error NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow
 
 	int32_t nextIndexToCopyFrom = 0;
 	int32_t nextIndexToCopyTo = 0;
-	Note* __restrict__ destNote = NULL;
+	Note* __restrict__ destNote = nullptr;
 
 	// Deal with wrapping right
 	if (nudgeOffset >= 0 && (numScreens - 1) * wrapEditLevel + editPos + 1 == effectiveLength) {
@@ -1426,7 +1426,7 @@ Error NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow
 				}
 			}
 
-			destNote = NULL;     // We don't want to do anything further to this Note below like we normally would after
+			destNote = nullptr;  // We don't want to do anything further to this Note below like we normally would after
 			                     // copying a nudge one
 			numSourceNotes--;    // Don't copy the last one when we get to it - we've just done it
 			nextIndexToCopyTo++; // We've now copied our first destination note
@@ -1867,13 +1867,13 @@ void NoteRow::deleteNoteByIndex(int32_t index, Action* action, int32_t noteRowId
 
 // note is usually supplied as NULL, and that means you don't get the lift-velocity
 void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange, Note* note) {
-	if (soundingStatus == STATUS_OFF) {
+	if (!sequenced) {
 		return;
 	}
 	if (actuallySoundChange) {
 		playNote(false, modelStack, note);
 	}
-	soundingStatus = STATUS_OFF;
+	sequenced = false;
 }
 
 // occupancyMask now optional!
@@ -2025,6 +2025,15 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 	int32_t effectiveLength = modelStack->getLoopLength();
 	bool playingReversedNow = modelStack->isCurrentlyPlayingReversed();
 	bool didPingpong = false;
+	if (ignoredNoteOn) {
+		maybeStartLateNote(modelStack, modelStack->getLivePos());
+		// if we ignored a note on and are now actioning it we know that there's nothing left to do
+		if (ticksSinceLast < ignoreUntil) {
+			ignoreUntil -= ticksSinceLast;
+			return ignoredNoteOn ? 1 : ignoreUntil;
+		}
+		// otherwise we'll just continue and process the note row
+	}
 
 	// If we have an independent play-pos, we need to check if we've reached the end (right of left) of this NoteRow.
 	if (hasIndependentPlayPos()) {
@@ -2155,7 +2164,7 @@ noFurtherNotes:
 	else {
 		bool justStoppedConstantNote = false;
 		bool alreadySearchedBackwards = false;
-		Note* thisNote = NULL;
+		Note* thisNote = nullptr;
 
 		// If user is auditioning note...
 		if (isAuditioning(modelStack)) {
@@ -2171,7 +2180,7 @@ noFurtherNotes:
 		}
 
 		// If a note is currently playing, all we can do is see if it's stopped yet.
-		if (soundingStatus == STATUS_SEQUENCED_NOTE) {
+		if (sequenced) {
 
 			if (!notes.getNumElements()) {
 stopNote:
@@ -2235,7 +2244,8 @@ stopNote:
 						// If it's a cut-mode sample, though, we want it to stop, so it can get retriggered
 						// again from the start. Same for time-stretching - although those can loop themselves,
 						// caching comes along and stuffs that up, so let's just stop em.
-						if (clip->output->type == OutputType::SYNTH) { // For Sounds
+						if (clip->output->type == OutputType::SYNTH
+						    && clip->arpSettings.mode == ArpMode::OFF) { // For Sounds
 
 							if (((SoundInstrument*)clip->output)->hasCutModeSamples(&clip->paramManager)) {
 								goto stopNote;
@@ -2245,8 +2255,8 @@ stopNote:
 								goto stopNote;
 							}
 						}
-						else if (clip->output->type == OutputType::KIT && drum
-						         && drum->type == DrumType::SOUND) { // For Kits
+						else if (clip->output->type == OutputType::KIT && drum && drum->type == DrumType::SOUND
+						         && clip->arpSettings.mode == ArpMode::OFF) { // For Kits
 							if (((SoundDrum*)drum)->hasCutModeSamples(&paramManager)) {
 								goto stopNote;
 							}
@@ -2257,7 +2267,7 @@ stopNote:
 						}
 
 						justStoppedConstantNote = true;
-						soundingStatus = STATUS_OFF;
+						sequenced = false;
 					}
 
 					// Or normal case - just stop sounding the Note.
@@ -2269,7 +2279,7 @@ stopNote:
 		}
 
 		// Now, if no note is playing (even if that only became the case just now as one ended, above)...
-		if (soundingStatus == STATUS_OFF) {
+		if (!sequenced) {
 currentlyOff:
 			ticksTilNextNoteEvent = 2147483647; // Do it again
 
@@ -2357,7 +2367,13 @@ gotValidNoteIndex:
 				// If we've arrived at a Note right now...
 				if (newTicksTil <= 0) {
 					if (effectiveForwardPos >= ignoreNoteOnsBefore_) {
-						playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
+						if (AudioEngine::allowedToStartVoice()) {
+							playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
+							ignoredNoteOn = false;
+						}
+						else {
+							ignoredNoteOn = true;
+						}
 					}
 
 					// If playing reversed and not allowing note tails (i.e. doing one-shot drums), we're
@@ -2378,7 +2394,8 @@ gotValidNoteIndex:
 		}
 	}
 
-	return std::min(ticksTilNextNoteEvent, ticksTilNextParamManagerEvent);
+	ignoreUntil = std::min(ticksTilNextNoteEvent, ticksTilNextParamManagerEvent);
+	return ignoredNoteOn ? 1 : ignoreUntil;
 }
 
 bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
@@ -2389,7 +2406,7 @@ bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
 		return drum && drum->auditioned;
 	}
 	else {
-		return (((MelodicInstrument*)output)->notesAuditioned.searchExact(y) != -1);
+		return ((MelodicInstrument*)output)->notesAuditioned.contains(y);
 	}
 }
 
@@ -2465,7 +2482,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 	}
 	*/
 
-	Sound* sound = NULL;
+	Sound* sound = nullptr;
 	ParamManagerForTimeline* thisParamManager;
 	if (drum && drum->type == DrumType::SOUND) {
 		sound = (SoundDrum*)drum;
@@ -2572,7 +2589,7 @@ storePendingNoteOn:
 			    modelStack->addOtherTwoThings(((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
 			                                  &modelStack->getTimelineCounter()->paramManager);
 			((MelodicInstrument*)output)
-			    ->sendNote(modelStackWithThreeMainThings, false, getNoteCode(), NULL, MIDI_CHANNEL_NONE, lift);
+			    ->sendNote(modelStackWithThreeMainThings, false, getNoteCode(), nullptr, MIDI_CHANNEL_NONE, lift);
 		}
 	}
 	else if (drum) {
@@ -2619,7 +2636,7 @@ storePendingNoteOn:
 	// And for all cases of a note-on, remember that that's what's happening, for later.
 	if (on) {
 		if (clip->allowNoteTails(modelStack)) {
-			soundingStatus = STATUS_SEQUENCED_NOTE;
+			sequenced = true;
 		}
 	}
 }
@@ -2792,8 +2809,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 
 	// Deal with single droning note case - but don't do this for samples in CUT or STRETCH mode
 	if (numNotesBefore == 1 && notes.getElement(0)->length == oldLoopLength) {
-		Sound* sound = NULL;
-		ParamManagerForTimeline* paramManagerNow = NULL;
+		Sound* sound = nullptr;
+		ParamManagerForTimeline* paramManagerNow = nullptr;
 
 		if (drum && drum->type == DrumType::SOUND) {
 			sound = (SoundDrum*)drum;
@@ -3100,9 +3117,33 @@ void NoteRow::toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAnd
 	}
 }
 
+void NoteRow::maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos) {
+	// See if our play-pos is inside of a note, which we might want to try playing...
+	int32_t i = notes.search(effectiveActualCurrentPos, LESS);
+	bool wrapping = (i == -1);
+	if (wrapping) {
+		i = notes.getNumElements() - 1;
+	}
+	Note* note = notes.getElement(i);
+	int32_t noteEnd = note->pos + note->length;
+	if (wrapping) {
+		noteEnd -= modelStack->getLoopLength();
+	}
+
+	if (noteEnd > effectiveActualCurrentPos) {
+		// if we're not allowed we'll just come back here later (next tick)
+		if (AudioEngine::allowedToStartVoice()) {
+			attemptLateStartOfNextNoteToPlay(modelStack, note);
+			ignoredNoteOn = false;
+		}
+	}
+	else {
+		ignoredNoteOn = false;
+	}
+}
 // Attempts (possibly late) start of any note at or overlapping the currentPos
 void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound) {
-	if (noteRowMayMakeSound(clipMayMakeSound) && soundingStatus == STATUS_OFF && !isAuditioning(modelStack)) {
+	if (noteRowMayMakeSound(clipMayMakeSound) && !sequenced && !isAuditioning(modelStack)) {
 
 		if (!notes.getNumElements()) {
 			return;
@@ -3111,21 +3152,7 @@ void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMake
 		int32_t effectiveActualCurrentPos = getLivePos(modelStack);
 
 		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
-			// See if our play-pos is inside of a note, which we might want to try playing...
-			int32_t i = notes.search(effectiveActualCurrentPos, LESS);
-			bool wrapping = (i == -1);
-			if (wrapping) {
-				i = notes.getNumElements() - 1;
-			}
-			Note* note = notes.getElement(i);
-			int32_t noteEnd = note->pos + note->length;
-			if (wrapping) {
-				noteEnd -= modelStack->getLoopLength();
-			}
-
-			if (noteEnd > effectiveActualCurrentPos) {
-				attemptLateStartOfNextNoteToPlay(modelStack, note);
-			}
+			maybeStartLateNote(modelStack, effectiveActualCurrentPos);
 		}
 	}
 
@@ -3150,7 +3177,7 @@ void NoteRow::silentlyResumePlayback(ModelStackWithNoteRow* modelStack) {
 	}
 
 	if (noteEnd > effectiveCurrentPos) {
-		soundingStatus = STATUS_SEQUENCED_NOTE;
+		sequenced = true;
 	}
 }
 
@@ -3664,7 +3691,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 	// Set drum to NULL first - it's crucial because we're about to call the following functions:
 	// - currentSong->findParamManagerForDrum() looks for NoteRows with this Drum. We don't want to be one just
 	// yet, or we'll be the one that's found
-	drum = NULL;
+	drum = nullptr;
 
 	// Grab new ParamManager from that backed up in Drum
 	if (newDrum && newDrum->type == DrumType::SOUND) {
@@ -3690,7 +3717,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 				if (success) {
 					trimParamManager(modelStack);
 				}
-				drum = NULL;
+				drum = nullptr;
 
 				// If there still isn't one, grab from another NoteRow
 				if (!paramManager.containsAnyMainParamCollections()) {
@@ -3728,7 +3755,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		    modelStack->addOtherTwoThings(soundDrum, &paramManager);
 		drum = soundDrum;
 		soundDrum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(modelStackWithThreeMainThings);
-		drum = NULL; // Yup this ugliness again, sorry!
+		drum = nullptr; // Yup this ugliness again, sorry!
 
 		ParamCollectionSummary* patchCablesSummary = paramManager.getPatchCableSetSummary();
 		PatchCableSet* patchCableSet = (PatchCableSet*)patchCablesSummary->paramCollection;
@@ -3762,14 +3789,14 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 		// Copy bend range, if appropriate. This logic is duplicated in View::noteOnReceivedForMidiLearn()
 		LearnedMIDI* midiInput = &drum->midiInput;
-		if (midiInput->containsSomething() && midiInput->device) {
+		if (midiInput->containsSomething() && midiInput->cable) {
 			int32_t newBendRange;
 			int32_t zone = midiInput->channelOrZone - MIDI_CHANNEL_MPE_LOWER_ZONE;
 			if (zone >= 0) { // MPE input
-				newBendRange = midiInput->device->mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
+				newBendRange = midiInput->cable->mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
 			}
 			else { // Regular MIDI input
-				newBendRange = midiInput->device->inputChannels[midiInput->channelOrZone].bendRange;
+				newBendRange = midiInput->cable->inputChannels[midiInput->channelOrZone].bendRange;
 			}
 
 			if (newBendRange) {
@@ -4097,8 +4124,8 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 
 	// Deal with single droning note case - but don't do this for samples in CUT or STRETCH mode
 	if (numToInsert == 1 && notes.getElement(0)->length == otherNoteRowLength) {
-		Sound* sound = NULL;
-		ParamManagerForTimeline* paramManagerNow = NULL;
+		Sound* sound = nullptr;
+		ParamManagerForTimeline* paramManagerNow = nullptr;
 
 		if (drum && drum->type == DrumType::SOUND) {
 			sound = (SoundDrum*)drum;
@@ -4251,7 +4278,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 void NoteRow::resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelStackOriginal,
                                                  ModelStackWithNoteRow* modelStackClone) {
 
-	bool wasSounding = (!muted && soundingStatus == STATUS_SEQUENCED_NOTE);
+	bool wasSounding = (!muted && sequenced);
 
 	NoteRow* originalNoteRow =
 	    modelStackOriginal->getNoteRowAllowNull(); // It might be NULL - we'll check for that below.
@@ -4260,8 +4287,7 @@ void NoteRow::resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelSta
 		originalNoteRow->silentlyResumePlayback(modelStackOriginal);
 	}
 
-	bool stillSounding =
-	    (originalNoteRow && !originalNoteRow->muted && originalNoteRow->soundingStatus == STATUS_SEQUENCED_NOTE);
+	bool stillSounding = (originalNoteRow && !originalNoteRow->muted && originalNoteRow->sequenced);
 
 	bool shouldSoundNoteOffNow = (wasSounding && !stillSounding);
 
@@ -4272,7 +4298,7 @@ void NoteRow::trimParamManager(ModelStackWithNoteRow* modelStack) {
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
 	int32_t effectiveLength = modelStackWithThreeMainThings->getLoopLength();
-	paramManager.trimToLength(effectiveLength, modelStackWithThreeMainThings, NULL, false);
+	paramManager.trimToLength(effectiveLength, modelStackWithThreeMainThings, nullptr, false);
 }
 
 uint32_t NoteRow::getLivePos(ModelStackWithNoteRow const* modelStack) {
@@ -4370,7 +4396,7 @@ needToDoIt:
 
 // Returns whether success.
 bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack, int32_t newValueBig,
-                                              int32_t whichExpressionDimension, bool forDrum) {
+                                              int32_t expressionDimension, bool forDrum) {
 
 	uint32_t livePos = modelStack->getLivePos();
 	if (livePos < ignoreNoteOnsBefore_) {
@@ -4384,11 +4410,11 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 		return false;
 	}
 
-	AutoParam* param = &mpeParams->params[whichExpressionDimension];
+	AutoParam* param = &mpeParams->params[expressionDimension];
 
 	ModelStackWithAutoParam* modelStackWithAutoParam =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParam(mpeParams, mpeParamsSummary,
-	                                                                       whichExpressionDimension, param);
+	                                                                       expressionDimension, param);
 
 	// Only if this exact TimelineCounter and NoteRow is having automation step-edited, we can set the value for
 	// just a region.
@@ -4398,7 +4424,7 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 
 		// As well as just setting values now, InstrumentClipView keeps a record, for in case the user then
 		// releases the note, in which case we'll want the values from when they pressed hardest etc.
-		instrumentClipView.reportMPEValueForNoteEditing(whichExpressionDimension, newValueBig);
+		instrumentClipView.reportMPEValueForNoteEditing(expressionDimension, newValueBig);
 
 		// And also, set the values now, for in case they're instead gonna stop editing the note before
 		// releasing this MIDI note.

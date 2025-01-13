@@ -20,7 +20,7 @@ Optional: place DX7 compatible patch banks in .syx format in a "DX7/" folder in 
 
 ### Community Feature Setting
 
-Enable the "DX SHORTCUTS" community setting for full access to the relevant UI behaviors.
+Enable the "DX7 ENGINE" community setting for full access to the relevant UI behaviors.
 
 ### Create New Synth
 
@@ -57,9 +57,9 @@ unless it was manually set to something else.
 
 When the Keyboard view is active, the first 6 rows of the sidebar shows the operators as green for a carrier and blue for a modulator.
 
-1. Taping a single pad in isolation lets you switch an operator on or off. 
+1. Taping a single pad in isolation lets you switch an operator on or off.
 
-2. Pressing Shift+coloured pad opens the editor for that operator. 
+2. Pressing Shift+coloured pad opens the editor for that operator.
 - The first press of Shift+colored pad selects the level parameter.
 - Pressing Shift+coloured pad again select the COARSE tuning parameter.
 

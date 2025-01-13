@@ -18,36 +18,33 @@
  *
  */
 
-#ifndef PLUGINDATA_H_INCLUDED
-#define PLUGINDATA_H_INCLUDED
+#pragma once
 
 #include "gui/l10n/strings.h"
-#include <stdint.h>
-#include <string.h>
+#include "util/misc.h"
+#include <algorithm>
+#include <cstdint>
+#include <cstring>
+#include <span>
 
-uint8_t sysexChecksum(const uint8_t* sysex, int size);
+std::byte sysexChecksum(std::span<std::byte> sysex);
 void exportSysexPgm(uint8_t* dest, uint8_t* src);
 
-#define SYSEX_HEADER                                                                                                   \
-	{ 0xF0, 0x43, 0x00, 0x09, 0x20, 0x00 }
-#define SYSEX_SIZE 4104
-// single patch
-#define SMALL_SYSEX_SIZE 163
+constexpr std::array kSysexHeader = {0xF0_b, 0x43_b, 0x00_b, 0x09_b, 0x20_b, 0x00_b};
+constexpr std::size_t kSysexSize = 4104;
+constexpr std::size_t kSmallSysexSize = 163;
 
 class DX7Cartridge {
-	uint8_t voiceData[SYSEX_SIZE];
+	std::array<std::byte, kSysexSize> voiceData;
 
 	void setHeader() {
-		uint8_t voiceHeader[] = SYSEX_HEADER;
-		memcpy(voiceData, voiceHeader, 6);
-		voiceData[4102] = sysexChecksum(voiceData + 6, 4096);
-		voiceData[4103] = 0xF7;
+		std::ranges::copy(kSysexHeader, voiceData.begin());
+		voiceData[4102] = sysexChecksum({&voiceData[6], 4096});
+		voiceData[4103] = std::byte{0xF7};
 	}
 
 public:
-	DX7Cartridge() {}
-
-	DX7Cartridge(const DX7Cartridge& cpy) { memcpy(voiceData, cpy.voiceData, SYSEX_SIZE); }
+	DX7Cartridge() = default;
 
 	static void normalizePgmName(char buffer[11], const char* sysexName) {
 		memcpy(buffer, sysexName, 10);
@@ -87,62 +84,62 @@ public:
 	 * Returns EMPTY_STRING if it was parsed successfully
 	 * otherwise a string describing the error.
 	 */
-	deluge::l10n::String load(const uint8_t* stream, size_t size) {
+	deluge::l10n::String load(std::span<std::byte> stream) {
 		using deluge::l10n::String;
-		const uint8_t* pos = stream;
+		const std::byte* pos = stream.data();
 
 		size_t minMsgSize = 163;
 
-		if (size < minMsgSize) {
-			memcpy(voiceData + 6, pos, size);
+		if (stream.size() < minMsgSize) {
+			std::ranges::copy(stream, &voiceData[6]);
 			return String::STRING_FOR_DX_ERROR_FILE_TOO_SMALL;
 		}
 
-		if (pos[0] != 0xF0) {
+		if (pos[0] != std::byte{0xF0}) {
 			// it is not, just copy the first 4096 bytes
-			memcpy(voiceData + 6, pos, 4096);
+			std::copy_n(pos, 4096, &voiceData[6]);
 			return String::STRING_FOR_DX_ERROR_NO_SYSEX_START;
 		}
 
-		int i;
+		size_t i;
 		// check if this is the size of a DX7 sysex cartridge
-		for (i = 0; i < size; i++) {
-			if (pos[i] == 0xF7) {
+		for (i = 0; i < stream.size(); ++i) {
+			if (pos[i] == std::byte{0xF7}) {
 				break;
 			}
 		}
-		if (i == size) {
+		if (i == stream.size()) {
 			return String::STRING_FOR_DX_ERROR_NO_SYSEX_END;
 		}
 
 		int msgSize = i + 1;
 
-		if (msgSize != SYSEX_SIZE && msgSize != SMALL_SYSEX_SIZE) {
+		if (msgSize != kSysexSize && msgSize != kSmallSysexSize) {
 			return String::STRING_FOR_DX_ERROR_INVALID_LEN;
 		}
 
-		memcpy(voiceData, pos, msgSize);
-		int dataSize = (msgSize == SYSEX_SIZE) ? 4096 : 155;
-		if (sysexChecksum(voiceData + 6, dataSize) != pos[msgSize - 2]) {
+		std::copy_n(pos, msgSize, voiceData.begin());
+		size_t dataSize = (msgSize == kSysexSize) ? 4096 : 155;
+		if (sysexChecksum({&voiceData[6], dataSize}) != pos[msgSize - 2]) {
 			return String::STRING_FOR_DX_ERROR_CHECKSUM_FAIL;
 		}
 
-		if (voiceData[1] != 67 || (voiceData[3] != 9 && voiceData[3] != 0)) {
+		if (voiceData[1] != std::byte{67} || (voiceData[3] != std::byte{9} && voiceData[3] != std::byte{0})) {
 			return String::STRING_FOR_DX_ERROR_SYSEX_ID;
 		}
 
 		return String::EMPTY_STRING;
 	}
 
-	bool isCartridge() { return voiceData[3] == 9; }
+	bool isCartridge() { return voiceData[3] == std::byte{9}; }
 	int numPatches() { return isCartridge() ? 32 : 1; }
 
-	void saveVoice(uint8_t* sysex) {
+	std::span<const std::byte> saveVoice() {
 		setHeader();
-		memcpy(sysex, voiceData, SYSEX_SIZE);
+		return voiceData;
 	}
 
-	char* getRawVoice() { return (char*)voiceData + 6; }
+	std::byte* getRawVoice() { return &voiceData[6]; }
 
 	void getProgramNames(char dest[32][11]) { // 10 chars + NUL
 		for (int i = 0; i < numPatches(); i++) {
@@ -151,11 +148,10 @@ public:
 	}
 
 	void getProgramName(int32_t i, char dest[11]) {
-		normalizePgmName(dest, getRawVoice() + ((i * 128) + (isCartridge() ? 118 : 145)));
+		normalizePgmName(dest,
+		                 reinterpret_cast<const char*>(getRawVoice() + ((i * 128) + (isCartridge() ? 118 : 145))));
 	}
 
-	void unpackProgram(uint8_t* unpackPgm, int idx);
+	void unpackProgram(std::span<std::uint8_t>, size_t idx);
 	void packProgram(uint8_t* src, int idx, char* name, char* opSwitch);
 };
-
-#endif // PLUGINDATA_H_INCLUDED

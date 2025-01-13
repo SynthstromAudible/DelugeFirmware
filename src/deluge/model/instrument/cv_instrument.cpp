@@ -28,7 +28,7 @@ CVInstrument::CVInstrument() : NonAudioInstrument(OutputType::CV) {
 	polyPitchBendValue = 0;
 }
 
-void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
+void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
 	// First update pitch bend for the new note
 	polyPitchBendValue = (int32_t)arpNote->mpeValues[0] << 16;
 	updatePitchBendOutput(false);
@@ -39,40 +39,42 @@ void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 	}
 }
 
-void CVInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) {
+void CVInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity,
+                                  int32_t noteIndex) {
 
 	cvEngine.sendNote(false, getPitchChannel(), noteCodePostArp);
 }
 
 void CVInstrument::polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
-                                                            int32_t whichExpressionDimension, ArpNote* arpNote) {
+                                                            int32_t expressionDimension, ArpNote* arpNote,
+                                                            int32_t noteIndex) {
 	if (cvEngine.isNoteOn(getPitchChannel(), noteCodeAfterArpeggiation)) {
-		if (!whichExpressionDimension) { // Pitch bend only, handles different polyphonic vs mpe pitch scales
+		if (!expressionDimension) { // Pitch bend only, handles different polyphonic vs mpe pitch scales
 			polyPitchBendValue = newValue;
 			updatePitchBendOutput();
 		}
 		else {
 			// send the combined mono and poly expression
-			lastCombinedPolyExpression[whichExpressionDimension] = newValue;
-			sendMonophonicExpressionEvent(whichExpressionDimension);
+			lastCombinedPolyExpression[expressionDimension] = newValue;
+			sendMonophonicExpressionEvent(expressionDimension);
 		}
 	}
 }
 
-void CVInstrument::monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
-	if (!whichExpressionDimension) { // Pitch bend only
+void CVInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {
+	if (!expressionDimension) { // Pitch bend only
 		monophonicPitchBendValue = newValue;
 		updatePitchBendOutput();
 	}
 	else {
-		lastMonoExpression[whichExpressionDimension] = newValue;
-		sendMonophonicExpressionEvent(whichExpressionDimension);
+		lastMonoExpression[expressionDimension] = newValue;
+		sendMonophonicExpressionEvent(expressionDimension);
 	}
 }
 
 void CVInstrument::updatePitchBendOutput(bool outputToo) {
 
-	ParamManager* paramManager = getParamManager(NULL);
+	ParamManager* paramManager = getParamManager(nullptr);
 	if (paramManager) {
 		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 		if (expressionParams) {

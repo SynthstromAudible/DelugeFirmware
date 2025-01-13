@@ -24,6 +24,7 @@
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_vector.h"
+#include "modulation/arpeggiator.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -60,12 +61,13 @@ bool SoundInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOut
 			paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
 		}
 		else {
-			paramManager = NULL;
+			paramManager = nullptr;
 		}
 	}
 
-	Sound::writeToFile(writer, clipForSavingOutputOnly == NULL, paramManager,
-	                   clipForSavingOutputOnly ? &((InstrumentClip*)clipForSavingOutputOnly)->arpSettings : NULL, NULL);
+	Sound::writeToFile(writer, clipForSavingOutputOnly == nullptr, paramManager,
+	                   clipForSavingOutputOnly ? &((InstrumentClip*)clipForSavingOutputOnly)->arpSettings : nullptr,
+	                   NULL);
 
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(writer, clipForSavingOutputOnly, song);
 
@@ -274,7 +276,7 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, P
 					monophonicExpressionValues[i] = 0;
 				}
 			}
-			whichExpressionSourcesChangedAtSynthLevel = (1 << kNumExpressionDimensions) - 1;
+			expressionSourcesChangedAtSynthLevel.set();
 		}
 	}
 	return clipChanged;
@@ -282,7 +284,7 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, P
 
 void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(NULL);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(nullptr);
 
 	setupPatching(modelStackWithTimelineCounter);
 
@@ -297,7 +299,7 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 		monophonicExpressionValues[i] = 0;
 	}
-	whichExpressionSourcesChangedAtSynthLevel = (1 << kNumExpressionDimensions) - 1;
+	expressionSourcesChangedAtSynthLevel.set();
 
 	Instrument::setupWithoutActiveClip(modelStack);
 }
@@ -316,19 +318,19 @@ void SoundInstrument::deleteBackedUpParamManagers(Song* song) {
 
 extern bool expressionValueChangesMustBeDoneSmoothly;
 
-void SoundInstrument::monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
-	whichExpressionSourcesChangedAtSynthLevel |= 1 << whichExpressionDimension;
-	monophonicExpressionValues[whichExpressionDimension] = newValue;
+void SoundInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {
+	expressionSourcesChangedAtSynthLevel[expressionDimension] = true;
+	monophonicExpressionValues[expressionDimension] = newValue;
 }
 
 // Alternative to what's in the NonAudioInstrument:: implementation, which would almost work here, but we cut corner for
 // Sound by avoiding going through the Arp and just talk directly to the Voices. (Despite my having made it now actually
 // need to talk to the Arp too, as below...) Note, this virtual function actually overrides/implements from two base
 // classes - MelodicInstrument and ModControllable.
-void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
                                                                int32_t channelOrNoteNumber,
                                                                MIDICharacteristic whichCharacteristic) {
-	int32_t s = whichExpressionDimension + util::to_underlying(PatchSource::X);
+	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
 
 	// sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
 
@@ -341,7 +343,7 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue,
 				thisVoice->expressionEventSmooth(newValue, s);
 			}
 			else {
-				thisVoice->expressionEventImmediate(this, newValue, s);
+				thisVoice->expressionEventImmediate(*this, newValue, s);
 			}
 		}
 	}
@@ -363,14 +365,7 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue,
 lookAtArpNote:
 		ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
 		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
-			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
-		}
-	}
-	// Traverse also notesAsPlayed so those get updated mpeValues too, in case noteMode is changed to AsPlayed
-	for (n = 0; n < arpeggiator.notesAsPlayed.getNumElements(); n++) {
-		ArpNote* arpNote = (ArpNote*)arpeggiator.notesAsPlayed.getElementAddress(n);
-		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
-			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
+			arpNote->mpeValues[expressionDimension] = newValue >> 16;
 		}
 	}
 }
@@ -394,8 +389,10 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 
 		arpeggiator.noteOff(arpSettings, noteCode, &instruction);
 
-		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+				break;
+			}
 #if ALPHA_OR_BETA_VERSION
 			if (!modelStack->paramManager) {
 				// Previously we were allowed to receive a NULL paramManager, then would just crudely do an
@@ -405,7 +402,7 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 #endif
 			ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 
-			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
+			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
 
 			reassessRenderSkippingStatus(modelStackWithSoundFlags);
 		}
@@ -447,31 +444,51 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 	        ->addOtherTwoThingsButNoNoteRow(this, getParamManager(modelStack->song));
 
 	UnpatchedParamSet* unpatchedParams = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSet();
-	uint32_t sequenceLength = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
-	uint32_t rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
-	uint32_t ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
-	uint32_t ratchetProbability =
+
+	ArpeggiatorSettings* arpSettings = getArpSettings();
+	arpSettings->rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
+	arpSettings->sequenceLength =
+	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
+	arpSettings->chordPolyphony =
+	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_POLYPHONY) + 2147483648;
+	arpSettings->ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
+	arpSettings->noteProbability =
+	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_NOTE_PROBABILITY) + 2147483648;
+	arpSettings->bassProbability =
+	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_PROBABILITY) + 2147483648;
+	arpSettings->chordProbability =
+	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_PROBABILITY) + 2147483648;
+	arpSettings->ratchetProbability =
 	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
-	arpeggiator.updateParams(sequenceLength, rhythm, ratchetAmount, ratchetProbability);
+	arpSettings->spreadVelocity = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_SPREAD_VELOCITY) + 2147483648;
+	arpSettings->spreadGate = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
+	arpSettings->spreadOctave = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_OCTAVE) + 2147483648;
 
 	ArpReturnInstruction instruction;
 
-	int32_t ticksTilNextArpEvent = arpeggiator.doTickForward(&((InstrumentClip*)activeClip)->arpSettings, &instruction,
-	                                                         currentPos, activeClip->currentlyPlayingReversed);
+	int32_t ticksTilNextArpEvent =
+	    arpeggiator.doTickForward(arpSettings, &instruction, currentPos, activeClip->currentlyPlayingReversed);
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStackWithThreeMainThings->addSoundFlags();
 
-	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
 	}
-
-	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
-		noteOnPostArpeggiator(
-		    modelStackWithSoundFlags,
-		    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-		    instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
-		    instruction.sampleSyncLengthOn, 0, 0,
-		    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+	if (instruction.arpNoteOn != nullptr) {
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+				break;
+			}
+			noteOnPostArpeggiator(
+			    modelStackWithSoundFlags,
+			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+			    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
+			    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
+			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+		}
 	}
 
 	return ticksTilNextArpEvent;

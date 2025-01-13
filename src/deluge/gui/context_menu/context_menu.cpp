@@ -32,7 +32,7 @@ bool ContextMenu::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 }
 
 bool ContextMenu::setupAndCheckAvailability() {
-	const auto [_options, numOptions] = getOptions();
+	const size_t numOptions = getOptions().size();
 	for (currentOption = 0; currentOption < numOptions; currentOption++) {
 		if (isCurrentOptionAvailable()) {
 			scrollPos = currentOption;
@@ -58,7 +58,7 @@ void ContextMenu::focusRegained() {
 }
 
 void ContextMenu::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
-	const auto [options, numOptions] = getOptions();
+	const auto options = getOptions();
 
 	int32_t windowWidth = 100;
 	int32_t windowHeight = 40;
@@ -82,7 +82,7 @@ void ContextMenu::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	int32_t i = 0;
 
 	while (true) {
-		if (currentOption >= numOptions) {
+		if (currentOption >= options.size()) {
 			break;
 		}
 		if (i >= 2) {
@@ -114,7 +114,7 @@ void ContextMenu::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 }
 
 void ContextMenu::selectEncoderAction(int8_t offset) {
-	const auto [_options, numOptions] = getOptions();
+	const size_t numOptions = getOptions().size();
 
 	if (display->haveOLED()) {
 		bool wasOnScrollPos = (currentOption == scrollPos);
@@ -197,7 +197,7 @@ probablyAcceptCurrentOption:
 }
 
 void ContextMenu::drawCurrentOption() {
-	const auto [options, _size] = getOptions();
+	const auto options = getOptions();
 	if (display->have7SEG()) {
 		indicator_leds::ledBlinkTimeout(0, true);
 		display->setText(options[currentOption], false, 255, true);
@@ -219,12 +219,12 @@ ActionResult ContextMenu::padAction(int32_t x, int32_t y, int32_t on) {
 void ContextMenuForSaving::focusRegained() {
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
 	indicator_leds::blinkLed(IndicatorLED::SAVE);
-	return ContextMenu::focusRegained();
+	ContextMenu::focusRegained();
 }
 
 void ContextMenuForLoading::focusRegained() {
 	indicator_leds::setLedState(IndicatorLED::SAVE, false);
 	indicator_leds::blinkLed(IndicatorLED::LOAD);
-	return ContextMenu::focusRegained();
+	ContextMenu::focusRegained();
 }
 } // namespace deluge::gui

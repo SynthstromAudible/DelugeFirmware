@@ -27,19 +27,18 @@ public:
 	SlotBrowser() = default;
 
 	// 7SEG ONLY
-	void focusRegained();
-	ActionResult horizontalEncoderAction(int32_t offset);
+	void focusRegained() override;
+	ActionResult horizontalEncoderAction(int32_t offset) override;
 
-	const char* getName() { return "slot_browser"; }
 	Error getCurrentFilePath(String* path) override;
 
 protected:
 	Error beginSlotSession(bool shouldDrawKeys = true, bool allowIfNoFolder = false);
-	void processBackspace();
+	void processBackspace() override;
 	// bool predictExtendedText();
 	virtual void predictExtendedTextFromMemory() {}
 	void convertToPrefixFormatIfPossible();
-	void enterKeyPress();
+	void enterKeyPress() override;
 	Error getCurrentFilenameWithoutExtension(String* filename);
 
 	static bool currentFileHasSuffixFormatNameImplied;

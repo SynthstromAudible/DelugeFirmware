@@ -32,9 +32,6 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 
-ClipView::ClipView() {
-}
-
 uint32_t ClipView::getMaxZoom() {
 	return getCurrentClip()->getMaxZoom();
 }
@@ -77,7 +74,7 @@ extern bool allowResyncingDuringClipLengthChange;
 // Check newLength valid before calling this
 Action* ClipView::lengthenClip(int32_t newLength) {
 
-	Action* action = NULL;
+	Action* action = nullptr;
 
 	// If the last action was a shorten, undo it
 	bool undoing = (actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->openForAdditions
@@ -121,7 +118,7 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 // Check newLength valid before calling this
 Action* ClipView::shortenClip(int32_t newLength) {
 
-	Action* action = NULL;
+	Action* action = nullptr;
 
 	action = actionLogger.getNewAction(ActionType::CLIP_LENGTH_DECREASE, ActionAddition::ALLOWED);
 	if (action && action->currentClip != getCurrentClip()) {
@@ -160,7 +157,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
-		Action* action = NULL;
+		Action* action = nullptr;
 
 		uint32_t newLength = changeClipLength(offset, oldLength, action);
 

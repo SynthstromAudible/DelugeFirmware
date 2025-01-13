@@ -29,6 +29,7 @@
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/smsysex.h"
 #include "version.h"
 
 extern "C" {
@@ -104,7 +105,7 @@ void usbSendCompleteAsHost(int32_t ip) {
 			midiDeviceNum -= MAX_NUM_USB_MIDI_DEVICES;
 		}
 		connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
-		if (connectedDevice->device[0] && connectedDevice->numBytesSendingNow) {
+		if (connectedDevice->cable[0] && connectedDevice->numBytesSendingNow) {
 			// If here, we got a connected device, so flush
 			flushUSBMIDIToHostedDevice(ip, midiDeviceNum);
 			return;
@@ -214,7 +215,6 @@ bool anythingInUSBOutputBuffer = false;
 
 MidiEngine::MidiEngine() {
 	numSerialMidiInput = 0;
-	lastStatusByteSent = 0;
 	currentlyReceivingSysExSerial = false;
 	midiThru = false;
 	for (auto& midiChannelType : midiFollowChannelType) {
@@ -355,7 +355,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 			// Make sure that's on a connected device - it probably would be...
 			while (true) {
 				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNumToSendTo];
-				if (connectedDevice->device[0] && connectedDevice->hasBufferedSendData()) {
+				if (connectedDevice->cable[0] && connectedDevice->hasBufferedSendData()) {
 					break; // We found a connected one
 				}
 				if (midiDeviceNumToSendTo == newStopSendingAfter) {
@@ -371,7 +371,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 			while (true) {
 				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][newStopSendingAfter];
 
-				if (connectedDevice->device[0] && connectedDevice->hasBufferedSendData()) {
+				if (connectedDevice->cable[0] && connectedDevice->hasBufferedSendData()) {
 					break; // We found a connected one
 				}
 
@@ -386,7 +386,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 			while (true) {
 				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 
-				if (connectedDevice->device[0]) {
+				if (connectedDevice->cable[0]) {
 					connectedDevice->consumeSendData();
 				}
 				if (d == newStopSendingAfter) {
@@ -423,44 +423,47 @@ void MidiEngine::sendNote(MIDISource source, bool on, int32_t note, uint8_t velo
 	velocity = std::max((uint8_t)1, velocity);
 	velocity = std::min((uint8_t)127, velocity);
 
-	sendMidi(source, on ? 0x09 : 0x08, channel, note, velocity, filter);
+	if (on) {
+		sendMidi(source, MIDIMessage::noteOn(channel, note, velocity), filter);
+	}
+	else {
+		sendMidi(source, MIDIMessage::noteOff(channel, note, velocity), filter);
+	}
 }
 
 void MidiEngine::sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter) {
-	sendCC(source, channel, 123, 0, filter);
+	sendMidi(source, MIDIMessage::cc(channel, 123, 0), filter);
 }
 
 void MidiEngine::sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter) {
 	if (value > 127) {
 		value = 127;
 	}
-	sendMidi(source, 0x0B, channel, cc, value, filter);
+	sendMidi(source, MIDIMessage::cc(channel, cc, value), filter);
 }
 
 void MidiEngine::sendClock(MIDISource source, bool sendUSB, int32_t howMany) {
 	while (howMany--) {
-		sendMidi(source, 0x0F, 0x08, 0, 0, kMIDIOutputFilterNoMPE, sendUSB);
+		sendMidi(source, MIDIMessage::realtimeClock(), kMIDIOutputFilterNoMPE, sendUSB);
 	}
 }
 
 void MidiEngine::sendStart(MIDISource source) {
 	playbackHandler.timeLastMIDIStartOrContinueMessageSent = AudioEngine::audioSampleTimer;
-	sendMidi(source, 0x0F, 0x0A);
+	sendMidi(source, MIDIMessage::realtimeStart());
 }
 
 void MidiEngine::sendContinue(MIDISource source) {
 	playbackHandler.timeLastMIDIStartOrContinueMessageSent = AudioEngine::audioSampleTimer;
-	sendMidi(source, 0x0F, 0x0B);
+	sendMidi(source, MIDIMessage::realtimeContinue());
 }
 
 void MidiEngine::sendStop(MIDISource source) {
-	sendMidi(source, 0x0F, 0x0C);
+	sendMidi(source, MIDIMessage::realtimeStop());
 }
 
 void MidiEngine::sendPositionPointer(MIDISource source, uint16_t positionPointer) {
-	uint8_t positionPointerLSB = positionPointer & (uint32_t)0x7F;
-	uint8_t positionPointerMSB = (positionPointer >> 7) & (uint32_t)0x7F;
-	sendMidi(source, 0x0F, 0x02, positionPointerLSB, positionPointerMSB);
+	sendMidi(source, MIDIMessage::systemPositionPointer(positionPointer));
 }
 
 void MidiEngine::sendBank(MIDISource source, int32_t channel, int32_t num, int32_t filter) {
@@ -472,24 +475,23 @@ void MidiEngine::sendSubBank(MIDISource source, int32_t channel, int32_t num, in
 }
 
 void MidiEngine::sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter) {
-	sendMidi(source, 0x0C, channel, pgm, 0, filter);
+	sendMidi(source, MIDIMessage::programChange(channel, pgm), filter);
 }
 
-void MidiEngine::sendPitchBend(MIDISource source, int32_t channel, uint8_t lsbs, uint8_t msbs, int32_t filter) {
-	sendMidi(source, 0x0E, channel, lsbs, msbs, filter);
+void MidiEngine::sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter) {
+	sendMidi(source, MIDIMessage::pitchBend(channel, bend), filter);
 }
 
 void MidiEngine::sendChannelAftertouch(MIDISource source, int32_t channel, uint8_t value, int32_t filter) {
-	sendMidi(source, 0x0D, channel, value, 0, filter);
+	sendMidi(source, MIDIMessage::channelAftertouch(channel, value), filter);
 }
 
 void MidiEngine::sendPolyphonicAftertouch(MIDISource source, int32_t channel, uint8_t value, uint8_t noteCode,
                                           int32_t filter) {
-	sendMidi(source, 0x0A, channel, noteCode, value, filter);
+	sendMidi(source, MIDIMessage::polyphonicAftertouch(channel, noteCode, value), filter);
 }
 
-void MidiEngine::sendMidi(MIDISource source, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
-                          int32_t filter, bool sendUSB) {
+void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter, bool sendUSB) {
 	if (eventStackTop_ == eventStack_.end()) {
 		// We're somehow 16 messages deep, reject this message.
 		return;
@@ -508,21 +510,21 @@ void MidiEngine::sendMidi(MIDISource source, uint8_t statusType, uint8_t channel
 
 	// Send USB MIDI
 	if (sendUSB) {
-		sendUsbMidi(statusType, channel, data1, data2, filter);
+		sendUsbMidi(message, filter);
 	}
 
 	// Send serial MIDI
-	if (statusType == 0x0F || MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(channel, filter)) {
-		sendSerialMidi(statusType, channel, data1, data2);
+	if (MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(message, filter)) {
+		sendSerialMidi(message);
 	}
 
 	--eventStackTop_;
 }
 
-uint32_t setupUSBMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
+uint32_t setupUSBMessage(MIDIMessage message) {
 	// format message per USB midi spec on virtual cable 0
 	uint8_t cin;
-	uint8_t firstByte = (channel & 15) | (statusType << 4);
+	uint8_t firstByte = (message.channel & 15) | (message.statusType << 4);
 
 	switch (firstByte) {
 	case 0xF2: // Position pointer
@@ -530,18 +532,19 @@ uint32_t setupUSBMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uin
 		break;
 
 	default:
-		cin = statusType; // Good for voice commands
+		cin = message.statusType; // Good for voice commands
 		break;
 	}
 
-	return ((uint32_t)data2 << 24) | ((uint32_t)data1 << 16) | ((uint32_t)firstByte << 8) | cin;
+	return ((uint32_t)message.data2 << 24) | ((uint32_t)message.data1 << 16) | ((uint32_t)firstByte << 8) | cin;
 }
 
-void MidiEngine::sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int32_t filter) {
+void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 	// TODO: Differentiate between ports on usb midi
+	bool isSystemMessage = message.isSystemMessage();
 
 	// formats message per USB midi spec on virtual cable 0
-	uint32_t fullMessage = setupUSBMessage(statusType, channel, data1, data2);
+	uint32_t fullMessage = setupUSBMessage(message);
 	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
 		int32_t potentialNumDevices = getPotentialNumConnectedUSBMIDIDevices(ip);
 
@@ -553,13 +556,11 @@ void MidiEngine::sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1,
 			int32_t maxPort = connectedDevice->maxPortConnected;
 			for (int32_t p = 0; p <= maxPort; p++) {
 				// if device exists, it's not port 3 (for sysex)
-				if (connectedDevice->device[p]
-				    && connectedDevice->device[p] != &MIDIDeviceManager::upstreamUSBMIDIDevice_port3) {
+				if (connectedDevice->cable[p]
+				    && connectedDevice->cable[p] != &MIDIDeviceManager::upstreamUSBMIDICable3) {
 					// if it's a clock (or sysex technically but we don't send that to this function)
 					// or if it's a message that this channel wants
-					if ((statusType == 0x0F && connectedDevice->device[p]->sendClock)
-					    || (statusType != 0x0F
-					        && connectedDevice->device[p]->wantsToOutputMIDIOnChannel(channel, filter))) {
+					if (connectedDevice->cable[p]->wantsToOutputMIDIOnChannel(message, filter)) {
 
 						// Or with the port to add the cable number to the full message. This
 						// is a bit hacky but it works
@@ -578,28 +579,17 @@ void MidiEngine::flushMIDI() {
 	uartFlushIfNotSending(UART_ITEM_MIDI);
 }
 
-void MidiEngine::sendSerialMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
+void MidiEngine::sendSerialMidi(MIDIMessage message) {
 
-	uint8_t statusByte = channel | (statusType << 4);
-	int32_t messageLength = getMidiMessageLength(statusByte);
-	// If only 1 byte, we have to send it, and keep no record of last status byte sent since we couldn't do running
-	// status anyway
-	if (false && messageLength == 1) {
-		bufferMIDIUart(statusByte);
-		lastStatusByteSent = 0;
-	}
-
-	// Or, if message is longer, only send if status byte is different from last time
-	else if (true || statusByte != lastStatusByteSent) { // Temporarily disabled
-		bufferMIDIUart(statusByte);
-		lastStatusByteSent = statusByte;
-	}
+	uint8_t statusByte = message.channel | (message.statusType << 4);
+	int32_t messageLength = bytesPerStatusMessage(statusByte);
+	bufferMIDIUart(statusByte);
 
 	if (messageLength >= 2) {
-		bufferMIDIUart(data1);
+		bufferMIDIUart(message.data1);
 
 		if (messageLength == 3) {
-			bufferMIDIUart(data2);
+			bufferMIDIUart(message.data2);
 		}
 	}
 }
@@ -610,7 +600,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 	uint32_t* timer = uartGetCharWithTiming(TIMING_CAPTURE_ITEM_MIDI, (char*)&thisSerialByte);
 	if (timer) {
 		// D_PRINTLN((uint32_t)thisSerialByte);
-		MIDIDevice* dev = &MIDIDeviceManager::dinMIDIPorts;
+		MIDICable& cable = MIDIDeviceManager::dinMIDIPorts;
 
 		// If this is a status byte, then we have to store it as the first byte.
 		if (thisSerialByte & 0x80) {
@@ -620,16 +610,15 @@ bool MidiEngine::checkIncomingSerialMidi() {
 			// If it's a realtime message, we have to obey it right now, separately from any other message it was
 			// inserted into the middle of
 			case 0xF8 ... 0xFF:
-				midiMessageReceived(&MIDIDeviceManager::dinMIDIPorts, thisSerialByte >> 4, thisSerialByte & 0x0F, 0, 0,
-				                    timer);
+				midiMessageReceived(cable, thisSerialByte >> 4, thisSerialByte & 0x0F, 0, 0, timer);
 				return true;
 
 			// Or if it's a SysEx start...
 			case 0xF0:
 				currentlyReceivingSysExSerial = true;
 				D_PRINTLN("Sysex start");
-				dev->incomingSysexBuffer[0] = thisSerialByte;
-				dev->incomingSysexPos = 1;
+				cable.incomingSysexBuffer[0] = thisSerialByte;
+				cable.incomingSysexPos = 1;
 				// numSerialMidiInput = 0; // This would throw away any running status stuff...
 				return true;
 			}
@@ -642,10 +631,9 @@ bool MidiEngine::checkIncomingSerialMidi() {
 				D_PRINTLN("Sysex end");
 				if (currentlyReceivingSysExSerial) {
 					currentlyReceivingSysExSerial = false;
-					if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
-						dev->incomingSysexBuffer[dev->incomingSysexPos++] = thisSerialByte;
-						midiSysexReceived(&MIDIDeviceManager::dinMIDIPorts, dev->incomingSysexBuffer,
-						                  dev->incomingSysexPos);
+					if (cable.incomingSysexPos < sizeof cable.incomingSysexBuffer) {
+						cable.incomingSysexBuffer[cable.incomingSysexPos++] = thisSerialByte;
+						midiSysexReceived(cable, cable.incomingSysexBuffer, cable.incomingSysexPos);
 					}
 				}
 				return true;
@@ -660,8 +648,8 @@ bool MidiEngine::checkIncomingSerialMidi() {
 			// If we're currently receiving a SysEx, don't throw it away
 			if (currentlyReceivingSysExSerial) {
 				// TODO: allocate a GMA buffer to some bigger size
-				if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
-					dev->incomingSysexBuffer[dev->incomingSysexPos++] = thisSerialByte;
+				if (cable.incomingSysexPos < sizeof cable.incomingSysexBuffer) {
+					cable.incomingSysexBuffer[cable.incomingSysexPos++] = thisSerialByte;
 				}
 				D_PRINTLN("Sysex:  %d", thisSerialByte);
 				return true;
@@ -677,10 +665,10 @@ bool MidiEngine::checkIncomingSerialMidi() {
 		numSerialMidiInput++;
 
 		// If we've received the whole MIDI message, deal with it
-		if (getMidiMessageLength(serialMidiInput[0]) == numSerialMidiInput) {
+		if (bytesPerStatusMessage(serialMidiInput[0]) == numSerialMidiInput) {
 			uint8_t channel = serialMidiInput[0] & 0x0F;
 
-			midiMessageReceived(&MIDIDeviceManager::dinMIDIPorts, serialMidiInput[0] >> 4, channel, serialMidiInput[1],
+			midiMessageReceived(MIDIDeviceManager::dinMIDIPorts, serialMidiInput[0] >> 4, channel, serialMidiInput[1],
 			                    serialMidiInput[2], timer);
 
 			// If message was more than 1 byte long, and was a voice or mode message, then allow for running status
@@ -722,13 +710,13 @@ void MidiEngine::setupUSBHostReceiveTransfer(int32_t ip, int32_t midiDeviceNum) 
 
 uint8_t usbCurrentlyInitialized = false;
 
-void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int32_t ip, int32_t d, int32_t cable) {
+void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int32_t ip, int32_t d, int32_t cableIdx) {
 	ConnectedUSBMIDIDevice* connected = &connectedUSBMIDIDevices[ip][d];
-	if (cable > connectedUSBMIDIDevices[ip][d].maxPortConnected) {
+	if (cableIdx > connectedUSBMIDIDevices[ip][d].maxPortConnected) {
 		// fallback to cable 0 since we don't support more than one port on hosted devices yet
-		cable = 0;
+		cableIdx = 0;
 	}
-	MIDIDevice* dev = connectedUSBMIDIDevices[ip][d].device[cable];
+	MIDICable& cable = *connectedUSBMIDIDevices[ip][d].cable[cableIdx];
 
 	uint8_t statusType = msg[0] & 15;
 	int32_t to_read = 0;
@@ -736,7 +724,7 @@ void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int32_t ip, int32_t d
 	if (statusType == 0x4) {
 		// sysex start or continue
 		if (msg[1] == 0xf0) {
-			dev->incomingSysexPos = 0;
+			cable.incomingSysexPos = 0;
 		}
 		to_read = 3;
 	}
@@ -746,25 +734,25 @@ void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int32_t ip, int32_t d
 	}
 
 	for (int32_t i = 0; i < to_read; i++) {
-		if (dev->incomingSysexPos >= sizeof(dev->incomingSysexBuffer)) {
+		if (cable.incomingSysexPos >= sizeof(cable.incomingSysexBuffer)) {
 			// TODO: allocate a GMA buffer to some bigger size
-			dev->incomingSysexPos = 0;
+			cable.incomingSysexPos = 0;
 			return; // bail out
 		}
-		dev->incomingSysexBuffer[dev->incomingSysexPos++] = msg[i + 1];
+		cable.incomingSysexBuffer[cable.incomingSysexPos++] = msg[i + 1];
 	}
 
 	if (will_end) {
-		if (dev->incomingSysexBuffer[0] == 0xf0) {
-			midiSysexReceived(dev, dev->incomingSysexBuffer, dev->incomingSysexPos);
+		if (cable.incomingSysexBuffer[0] == 0xf0) {
+			midiSysexReceived(cable, cable.incomingSysexBuffer, cable.incomingSysexPos);
 		}
-		dev->incomingSysexPos = 0;
+		cable.incomingSysexPos = 0;
 	}
 }
 
 bool developerSysexCodeReceived = false;
 
-void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
+void MidiEngine::midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 	if (len < 4) {
 		return;
 	}
@@ -785,7 +773,7 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 			    0, 0,
 			    // Four byte firmware version in human readable order
 			    FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, FIRMWARE_VERSION_PATCH, 0, SysEx::SYSEX_END};
-			device->sendSysex(reply, sizeof(reply));
+			cable.sendSysex(reply, sizeof(reply));
 		}
 		return;
 	}
@@ -810,7 +798,7 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 		if (len >= 8) {
 			longPong[6] = data[6];
 		}
-		device->sendSysex(longPong, sizeof longPong);
+		cable.sendSysex(longPong, sizeof longPong);
 	} break;
 
 	case SysEx::SysexCommands::Popup:
@@ -818,13 +806,17 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 		break;
 
 	case SysEx::SysexCommands::HID:
-		HIDSysex::sysexReceived(device, payloadStart, payloadLength);
+		HIDSysex::sysexReceived(cable, payloadStart, payloadLength);
 		break;
 
 	case SysEx::SysexCommands::Debug:
 		// debug namespace: for sysex calls useful for debugging purposes
 		// and/or might require a debug build to function.
-		Debug::sysexReceived(device, payloadStart, payloadLength);
+		Debug::sysexReceived(cable, payloadStart, payloadLength);
+		break;
+
+	case SysEx::SysexCommands::Json:
+		smSysex::sysexReceived(cable, payloadStart, payloadLength);
 		break;
 
 	case SysEx::SysexCommands::Pong: // PONG, reserved
@@ -834,9 +826,18 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 	}
 }
 
+extern "C" {
+
+extern uint8_t currentlyAccessingCard;
+}
+
 void MidiEngine::checkIncomingUsbMidi() {
 
-	if (!usbCurrentlyInitialized) {
+	if (!usbCurrentlyInitialized
+	    || currentlyAccessingCard != 0) { // hack to avoid SysEx handlers clashing with other sd-card activity.
+		if (currentlyAccessingCard != 0) {
+			// D_PRINTLN("checkIncomingUsbMidi seeing currentlyAccessingCard non-zero");
+		}
 		return;
 	}
 
@@ -859,7 +860,7 @@ void MidiEngine::checkIncomingUsbMidi() {
 		int32_t numDevicesNow = aPeripheral ? 1 : MAX_NUM_USB_MIDI_DEVICES;
 
 		for (int32_t d = 0; d < numDevicesNow; d++) {
-			if (connectedUSBMIDIDevices[ip][d].device[0] && !connectedUSBMIDIDevices[ip][d].currentlyWaitingToReceive) {
+			if (connectedUSBMIDIDevices[ip][d].cable[0] && !connectedUSBMIDIDevices[ip][d].currentlyWaitingToReceive) {
 
 				int32_t bytesReceivedHere = connectedUSBMIDIDevices[ip][d].numBytesReceived;
 				if (bytesReceivedHere) {
@@ -892,7 +893,7 @@ void MidiEngine::checkIncomingUsbMidi() {
 							// fallback to cable 0 since we don't support more than one port on hosted devices yet
 							cable = 0;
 						}
-						midiMessageReceived(connectedUSBMIDIDevices[ip][d].device[cable], statusType, channel, data1,
+						midiMessageReceived(*connectedUSBMIDIDevices[ip][d].cable[cable], statusType, channel, data1,
 						                    data2, &timeLastBRDY[ip]);
 					}
 				}
@@ -918,7 +919,7 @@ void MidiEngine::checkIncomingUsbMidi() {
 				}
 
 				// Or as host
-				else if (connectedUSBMIDIDevices[ip][d].device[0]) {
+				else if (connectedUSBMIDIDevices[ip][d].cable[0]) {
 
 					// Only allowed to setup receive-transfer if not in the process of sending to various devices.
 					// (Wait, still? Was this just because of that insane bug that's now fixed?)
@@ -933,42 +934,13 @@ void MidiEngine::checkIncomingUsbMidi() {
 	}
 }
 
-int32_t MidiEngine::getMidiMessageLength(uint8_t statusByte) {
-	if (statusByte == 0xF0    // System exclusive - dynamic length
-	    || statusByte == 0xF4 // Undefined
-	    || statusByte == 0xF5 // Undefined
-	    || statusByte == 0xF6 // Tune request
-	    || statusByte == 0xF7 // End of exclusive
-	    || statusByte == 0xF8 // Timing clock
-	    || statusByte == 0xF9 // Undefined
-	    || statusByte == 0xFA // Start
-	    || statusByte == 0xFB // Continue
-	    || statusByte == 0xFC // Stop
-	    || statusByte == 0xFD // Undefined
-	    || statusByte == 0xFE // Active sensing
-	    || statusByte == 0xFF // Reset
-	) {
-		return 1;
-	}
-	else if (statusByte == 0xF1         // Timecode
-	         || statusByte == 0xF3      // Song select
-	         || statusByte >> 4 == 0x0C // Program change
-	         || statusByte >> 4 == 0x0D // Channel aftertouch
-	) {
-		return 2;
-	}
-	else {
-		return 3;
-	}
-}
-
 #define MISSING_MESSAGE_CHECK 0
 
 #if MISSING_MESSAGE_CHECK
 bool lastWasNoteOn = false;
 #endif
 
-void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType, uint8_t channel, uint8_t data1,
+void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8_t channel, uint8_t data1,
                                      uint8_t data2, uint32_t* timer) {
 
 	bool shouldDoMidiThruNow = midiThru;
@@ -1016,8 +988,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 				// No break
 
 			case 0x08: // Note off, and note on continues here too
-				playbackHandler.noteMessageReceived(fromDevice, statusType & 1, channel, data1, data2,
-				                                    &shouldDoMidiThruNow);
+				playbackHandler.noteMessageReceived(cable, statusType & 1, channel, data1, data2, &shouldDoMidiThruNow);
 #if MISSING_MESSAGE_CHECK
 				if (lastWasNoteOn == (bool)(statusType & 1))
 					FREEZE_WITH_ERROR("MISSED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
@@ -1026,7 +997,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 				break;
 
 			case 0x0A: // Polyphonic aftertouch
-				playbackHandler.aftertouchReceived(fromDevice, channel, data2, data1, &shouldDoMidiThruNow);
+				playbackHandler.aftertouchReceived(cable, channel, data2, data1, &shouldDoMidiThruNow);
 				break;
 
 			case 0x0B: // CC or channel mode message
@@ -1037,26 +1008,26 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 					// means something different to the user.
 					switch (data1) {
 					case 100: // RPN LSB
-						fromDevice->inputChannels[channel].rpnLSB = data2;
+						cable.inputChannels[channel].rpnLSB = data2;
 						break;
 
 					case 101: // RPN MSB
-						fromDevice->inputChannels[channel].rpnMSB = data2;
+						cable.inputChannels[channel].rpnMSB = data2;
 						break;
 
 					case 6: { // (RPN) data entry MSB
 						char modelStackMemory[MODEL_STACK_MAX_SIZE];
 						ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-						fromDevice->dataEntryMessageReceived(modelStack, channel, data2);
+						cable.dataEntryMessageReceived(modelStack, channel, data2);
 						break;
 					}
 					default: { // not an rpn - let's reset the msb/lsb
-						fromDevice->inputChannels[channel].rpnLSB = 0x7F;
-						fromDevice->inputChannels[channel].rpnMSB = 0x7F;
+						cable.inputChannels[channel].rpnLSB = 0x7F;
+						cable.inputChannels[channel].rpnMSB = 0x7F;
 					}
 					}
 
-					playbackHandler.midiCCReceived(fromDevice, channel, data1, data2, &shouldDoMidiThruNow);
+					playbackHandler.midiCCReceived(cable, channel, data1, data2, &shouldDoMidiThruNow);
 				}
 
 				// Channel mode
@@ -1065,23 +1036,23 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 					// All notes off
 					if (data1 == 123) {
 						if (data2 == 0) {
-							playbackHandler.noteMessageReceived(fromDevice, false, channel, -32768, kDefaultLiftValue,
-							                                    NULL);
+							playbackHandler.noteMessageReceived(cable, false, channel, -32768, kDefaultLiftValue,
+							                                    nullptr);
 						}
 					}
 				}
 				break;
 
 			case 0x0C: // Program change message
-				playbackHandler.programChangeReceived(fromDevice, channel, data1);
+				playbackHandler.programChangeReceived(cable, channel, data1);
 				break;
 
 			case 0x0D: // Channel pressure
-				playbackHandler.aftertouchReceived(fromDevice, channel, data1, -1, &shouldDoMidiThruNow);
+				playbackHandler.aftertouchReceived(cable, channel, data1, -1, &shouldDoMidiThruNow);
 				break;
 
 			case 0x0E: // Pitch bend
-				playbackHandler.pitchBendReceived(fromDevice, channel, data1, data2, &shouldDoMidiThruNow);
+				playbackHandler.pitchBendReceived(cable, channel, data1, data2, &shouldDoMidiThruNow);
 				break;
 			}
 		}
@@ -1091,8 +1062,15 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 	// other messages, rather than using our special clock-specific system
 	if (shouldDoMidiThruNow) {
 		// Only send out on USB if it didn't originate from USB
-		bool shouldSendUSB = (fromDevice == &MIDIDeviceManager::dinMIDIPorts);
+		bool shouldSendUSB = (&cable == &MIDIDeviceManager::dinMIDIPorts);
 		// TODO: reconsider interaction with MPE?
-		sendMidi(fromDevice, originalStatusType, channel, data1, originalData2, kMIDIOutputFilterNoMPE, shouldSendUSB);
+		sendMidi(cable,
+		         MIDIMessage{
+		             .statusType = originalStatusType,
+		             .channel = channel,
+		             .data1 = data1,
+		             .data2 = originalData2,
+		         },
+		         kMIDIOutputFilterNoMPE, shouldSendUSB);
 	}
 }

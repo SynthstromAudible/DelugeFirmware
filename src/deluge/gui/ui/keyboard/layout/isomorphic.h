@@ -34,7 +34,7 @@ public:
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
-	char const* name() override { return "Isomorphic"; }
+	l10n::String name() override { return l10n::String::STRING_FOR_KEYBOARD_LAYOUT_ISOMORPHIC; }
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
 

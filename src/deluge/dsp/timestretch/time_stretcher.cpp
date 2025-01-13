@@ -44,11 +44,11 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 	// D_PRINTLN("TimeStretcher::init");
 
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		clustersForPercLookahead[l] = NULL;
+		clustersForPercLookahead[l] = nullptr;
 	}
 
 	for (int32_t l = 0; l < 2; l++) {
-		percCacheClustersNearby[l] = NULL;
+		percCacheClustersNearby[l] = nullptr;
 	}
 
 	playHeadStillActive[PLAY_HEAD_OLDER] = true;
@@ -56,7 +56,7 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 
 	samplePosBig = newSamplePosBig;
 
-	buffer = NULL;
+	buffer = nullptr;
 
 	numTimesMissedHop = 0;
 
@@ -178,8 +178,8 @@ void TimeStretcher::beenUnassigned() {
 void TimeStretcher::unassignAllReasonsForPercLookahead() {
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clustersForPercLookahead[l]) {
-			audioFileManager.removeReasonFromCluster(clustersForPercLookahead[l], "E130");
-			clustersForPercLookahead[l] = NULL;
+			audioFileManager.removeReasonFromCluster(*clustersForPercLookahead[l], "E130");
+			clustersForPercLookahead[l] = nullptr;
 		}
 	}
 }
@@ -187,8 +187,8 @@ void TimeStretcher::unassignAllReasonsForPercLookahead() {
 void TimeStretcher::unassignAllReasonsForPercCacheClusters() {
 	for (int32_t l = 0; l < 2; l++) {
 		if (percCacheClustersNearby[l]) {
-			audioFileManager.removeReasonFromCluster(percCacheClustersNearby[l], "E132");
-			percCacheClustersNearby[l] = NULL;
+			audioFileManager.removeReasonFromCluster(*percCacheClustersNearby[l], "E132");
+			percCacheClustersNearby[l] = nullptr;
 		}
 	}
 }
@@ -356,7 +356,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		// lookahead = interpolateTableSigned(position, 27, lookaheadCoarse, 2) >> 16;
 	}
 
-	D_PRINTLN("maxBeamWidth:  %d", maxBeamWidth);
+	//	D_PRINTLN("maxBeamWidth:  %d", maxBeamWidth);
 
 	/*
 	minBeamWidth = StorageManager::devVarA * 10;
@@ -659,7 +659,7 @@ skipPercStuff:
 		// for searching in one direction, and we're going to do both directions.
 		int32_t limit = (sample->sampleRate / 45) >> 1;
 		maxSearchSize = std::min(maxSearchSize, limit);
-		D_PRINTLN("max search length:  %d", maxSearchSize);
+		//		D_PRINTLN("max search length:  %d", maxSearchSize);
 
 		int32_t numFullDirectionsSearched = 0;
 		int32_t timesSignFlipped = 0;
@@ -713,18 +713,17 @@ startSearch:
 					goto searchNextDirection;
 				}
 
-				int32_t whichCluster = readByte[i] >> audioFileManager.clusterSizeMagnitude;
+				int32_t whichCluster = readByte[i] >> Cluster::size_magnitude;
 				Cluster* cluster = sample->clusters.getElement(whichCluster)->cluster;
 				if (!cluster || !cluster->loaded) {
 					goto skipSearch;
 				}
 
-				int32_t bytePosWithinCluster = readByte[i] & (audioFileManager.clusterSize - 1);
+				int32_t bytePosWithinCluster = readByte[i] & (Cluster::size - 1);
 
-				int32_t bytesLeftThisCluster =
-				    (searchDirection == -1)
-				        ? (bytePosWithinCluster + bytesPerSample)
-				        : (audioFileManager.clusterSize - bytePosWithinCluster + bytesPerSample - 1);
+				int32_t bytesLeftThisCluster = (searchDirection == -1)
+				                                   ? (bytePosWithinCluster + bytesPerSample)
+				                                   : (Cluster::size - bytePosWithinCluster + bytesPerSample - 1);
 
 				int32_t bytesWeMayRead = std::min(bytesTilWaveformEnd, bytesLeftThisCluster);
 
@@ -954,7 +953,7 @@ optForDirectReading:
 	if (buffer && !olderHeadReadingFromBuffer) { // olderHeadReadingFromBuffer will always be false - we set it above,
 		                                         // at the start
 		delugeDealloc(buffer);
-		buffer = NULL;
+		buffer = nullptr;
 		D_PRINTLN("abandoning buffer!!!!!!!!!!!!!!!!");
 	}
 
@@ -1045,7 +1044,7 @@ void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int
 
 bool TimeStretcher::allocateBuffer(int32_t numChannels) {
 	buffer = (int32_t*)allocMaxSpeed(TimeStretch::kBufferSize * sizeof(int32_t) * numChannels);
-	return (buffer != NULL);
+	return (buffer != nullptr);
 }
 
 void TimeStretcher::readFromBuffer(int32_t* __restrict__ oscBufferPos, int32_t numSamples, int32_t numChannels,
@@ -1096,11 +1095,11 @@ void TimeStretcher::rememberPercCacheCluster(Cluster* cluster) {
 		return;
 	}
 
-	audioFileManager.addReasonToCluster(cluster);
+	cluster->addReason();
 
 	if (percCacheClustersNearby[0]) {
-		audioFileManager.removeReasonFromCluster(percCacheClustersNearby[0],
-		                                         "E133"); // Steven G got this on V3.1.5, Feb 2021!
+		// Steven G got this on V3.1.5, Feb 2021!
+		audioFileManager.removeReasonFromCluster(*percCacheClustersNearby[0], "E133");
 	}
 	percCacheClustersNearby[0] = percCacheClustersNearby[1];
 
@@ -1111,7 +1110,7 @@ void TimeStretcher::rememberPercCacheCluster(Cluster* cluster) {
 // going to need in the next little while, to reserve it and hopefully make sure it's loaded and in memory when we need
 // it.
 void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int32_t playDirection) {
-	int32_t clusterIndex = sourceBytePos >> audioFileManager.clusterSizeMagnitude;
+	int32_t clusterIndex = sourceBytePos >> Cluster::size_magnitude;
 
 	if (!clustersForPercLookahead[0] || clustersForPercLookahead[0]->clusterIndex != clusterIndex) {
 		unassignAllReasonsForPercLookahead();
@@ -1146,8 +1145,8 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 		return;
 	}
 
-	int32_t cachedClusterIndex = cacheBytePos >> audioFileManager.clusterSizeMagnitude;
-	int32_t bytePosWithinCluster = cacheBytePos & (audioFileManager.clusterSize - 1);
+	int32_t cachedClusterIndex = cacheBytePos >> Cluster::size_magnitude;
+	int32_t bytePosWithinCluster = cacheBytePos & (Cluster::size - 1);
 
 	Cluster* cacheCluster = cache->getCluster(cachedClusterIndex);
 	if (ALPHA_OR_BETA_VERSION && !cacheCluster) { // If it got stolen - but we should have already detected this above
@@ -1156,7 +1155,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 	int32_t* __restrict__ readPos = (int32_t*)&cacheCluster->data[bytePosWithinCluster - 4 + kCacheByteDepth];
 
 	int32_t bytesTilCacheClusterEnd =
-	    audioFileManager.clusterSize - bytePosWithinCluster
+	    Cluster::size - bytePosWithinCluster
 	    + (kCacheByteDepth * numChannels - 1); // Add one-byte-less-than-a-sample to it, so it'll round up
 	if (bytesTilCacheClusterEnd <= kCacheByteDepth * numChannels) {
 		return; // TODO: allow it go to the next Cluster
@@ -1172,7 +1171,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 	// If we're really unlucky, allocating the buffer may have stolen from the cache
 	if (originalCacheWriteBytePos != cache->writeBytePos) {
 		delugeDealloc(buffer);
-		buffer = NULL;
+		buffer = nullptr;
 		return;
 	}
 

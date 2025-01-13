@@ -16,22 +16,25 @@
  */
 
 #pragma once
+#include "audio_file.h"
 #include "definitions_cxx.hpp"
-#include "storage/audio/audio_file_vector.h"
+#include "storage/cluster/cluster.h"
 #include "storage/cluster/cluster_priority_queue.h"
+#include <array>
 #include <cstdint>
-#include <stdint.h>
+#include <expected>
+#include <strings.h>
 
 extern "C" {
 #include "fatfs/ff.h"
 }
 
 class Sample;
-class Cluster;
 class SampleCache;
 class String;
 class SampleRecorder;
 class Output;
+class WaveTable;
 
 enum class AlternateLoadDirStatus {
 	NONE_SET,
@@ -40,8 +43,12 @@ enum class AlternateLoadDirStatus {
 	DOES_EXIST,
 };
 
-char const* const audioRecordingFolderNames[] = {"SAMPLES/CLIPS", "SAMPLES/RECORD", "SAMPLES/RESAMPLE",
-                                                 "SAMPLES/STEMS"};
+char const* const audioRecordingFolderNames[] = {
+    "SAMPLES/CLIPS",
+    "SAMPLES/RECORD",
+    "SAMPLES/RESAMPLE",
+    "SAMPLES/EXPORTS",
+};
 
 /*
  * ===================== SD card audio streaming ==================
@@ -76,70 +83,70 @@ char const* const audioRecordingFolderNames[] = {"SAMPLES/CLIPS", "SAMPLES/RECOR
  */
 
 class AudioFileManager {
+	struct StringLessThan {
+		bool operator()(String* const& lhs, String* const& rhs) const { return strcasecmp(lhs->get(), rhs->get()) < 0; }
+	};
+
 public:
 	AudioFileManager();
 
-	AudioFileVector audioFiles;
+	deluge::fast_map<String*, Sample*, StringLessThan> sampleFiles;
+	deluge::fast_map<String*, WaveTable*, StringLessThan> wavetableFiles;
 
 	void init();
-	AudioFile* getAudioFileFromFilename(String* fileName, bool mayReadCard, Error* error, FilePointer* filePointer,
-	                                    AudioFileType type, bool makeWaveTableWorkAtAllCosts = false);
-	Cluster* allocateCluster(ClusterType type = ClusterType::Sample, bool shouldAddReasons = true,
-	                         void* dontStealFromThing = NULL);
-	Error enqueueCluster(Cluster* cluster, uint32_t priorityRating = 0xFFFFFFFF);
-	bool loadCluster(Cluster* cluster, int32_t minNumReasonsAfter = 0);
+	std::expected<AudioFile*, Error> getAudioFileFromFilename(String& fileName, bool mayReadCard,
+	                                                          FilePointer* filePointer, AudioFileType type,
+	                                                          bool makeWaveTableWorkAtAllCosts = false);
+	bool loadCluster(Cluster& cluster, int32_t minNumReasonsAfter = 0);
 	void loadAnyEnqueuedClusters(int32_t maxNum = 128, bool mayProcessUserActionsBetween = false);
-	void addReasonToCluster(Cluster* cluster);
-	void removeReasonFromCluster(Cluster* cluster, char const* errorCode, bool deletingSong = false);
-	void testQueue();
-
-	bool ensureEnoughMemoryForOneMoreAudioFile();
+	void removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong = false);
 
 	void slowRoutine();
-	void deallocateCluster(Cluster* cluster);
-	Error setupAlternateAudioFilePath(String* newPath, int32_t dirPathLength, String* oldPath);
-	Error setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
+
+	std::expected<void, Error> setupAlternateAudioFilePath(String& newPath, int32_t dirPathLength, String& oldPath);
+	std::expected<void, Error> setupAlternateAudioFileDir(String& newPath, char const* rootDir,
+	                                                      String& songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
 	/// If songname isn't supplied the file is placed in the main recording folder and named as samples/folder/REC###.
 	/// If song and channel are supplied then it's placed in samples/folder/song/channel_###
-	Error getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
+	Error getUnusedAudioRecordingFilePath(String& filePath, String* tempFilePathForRecording,
 	                                      AudioRecordingFolder folder, uint32_t* getNumber, const char* channelName,
 	                                      String* songName);
 	void deleteAnyTempRecordedSamplesFromMemory();
-	void deleteUnusedAudioFileFromMemory(AudioFile* audioFile, int32_t i);
-	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* audioFile);
-	bool tryToDeleteAudioFileFromMemoryIfItExists(char const* filePath);
+
+	void releaseFile(Sample& sample);
+	void releaseFile(WaveTable& wavetable);
+	bool releaseSampleAtFilePath(String& filePath);
+	void releaseAllUnused();
 
 	void thingBeginningLoading(ThingType newThingType);
 	void thingFinishedLoading();
 
+	void setCardRead() { cardReadOnce = true; }
+	void setCardEjected() { cardEjected = true; }
+
 	ClusterPriorityQueue loadingQueue;
-
-	uint32_t clusterSize{32768};
-	uint32_t clusterSizeAtBoot{0};
-	int32_t clusterSizeMagnitude;
-
-	uint32_t clusterObjectSize;
-
-	bool cardReadOnce{false};
-	bool cardEjected;
-	bool cardDisabled;
 
 	Cluster* clusterBeingLoaded;
 	int32_t minNumReasonsForClusterBeingLoaded; // Only valid when clusterBeingLoaded is set. And this exists for bug
 	                                            // hunting only.
 
 	String alternateAudioFileLoadPath;
-	AlternateLoadDirStatus alternateLoadDirStatus;
-	ThingType thingTypeBeingLoaded;
+	AlternateLoadDirStatus alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
+	ThingType thingTypeBeingLoaded = ThingType::NONE;
 	DIR alternateLoadDir;
 
-	int32_t highestUsedAudioRecordingNumber[kNumAudioRecordingFolders];
-	bool highestUsedAudioRecordingNumberNeedsReChecking[kNumAudioRecordingFolders];
+	std::array<int32_t, kNumAudioRecordingFolders> highestUsedAudioRecordingNumber;
+	std::bitset<kNumAudioRecordingFolders> highestUsedAudioRecordingNumberNeedsReChecking;
 	void firstCardRead();
 
 private:
-	void setClusterSize(uint32_t newSize);
+	bool cardReadOnce{false};
+	bool cardEjected;
+	bool cardDisabled = false;
+
+	uint32_t clusterSizeAtBoot{0};
+
 	void cardReinserted();
 	int32_t readBytes(char* buffer, int32_t num, int32_t* byteIndexWithinCluster, Cluster** currentCluster,
 	                  uint32_t* currentClusterIndex, uint32_t fileSize, Sample* sample);

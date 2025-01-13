@@ -21,7 +21,7 @@ char const* NewClipType::getTitle() {
 	return title;
 }
 
-Sized<char const**> NewClipType::getOptions() {
+std::span<char const*> NewClipType::getOptions() {
 	using enum l10n::String;
 	static const char* optionsls[] = {
 	    "Audio", // audio

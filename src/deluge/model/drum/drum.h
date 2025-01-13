@@ -19,18 +19,18 @@
 
 #include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
+#include "modulation/arpeggiator.h"
 #include <cstdint>
 
+class Clip;
 class Kit;
+class ModControllable;
+class ModelStackWithSoundFlags;
+class ModelStackWithThreeMainThings;
+class ModelStackWithTimelineCounter;
+class ParamManager;
 class ParamManagerForTimeline;
 class Song;
-class ModControllable;
-class Clip;
-class ModelStackWithThreeMainThings;
-class ModelStackWithSoundFlags;
-class ModelStackWithTimelineCounter;
-class MIDIDevice;
-class ParamManager;
 
 /*
  * Kits are made up of multiple Drums. Even when they are not drum sounds, the class is called Drum, for better or
@@ -62,6 +62,9 @@ public:
 	LearnedMIDI midiInput;
 	LearnedMIDI muteMIDICommand;
 
+	ArpeggiatorForDrum arpeggiator;
+	ArpeggiatorSettings arpSettings;
+
 	virtual void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
 	                    int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0,
 	                    int32_t ticksLate = 0, uint32_t samplesLate = 0) = 0;
@@ -85,9 +88,9 @@ public:
 	bool readDrumTagFromFile(Deserializer& reader, char const* tagName);
 	void recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed);
 	void expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
-	                                     int32_t whichExpressionimension, int32_t level);
-	virtual void expressionEvent(int32_t newValue, int32_t whichExpressionimension) {}
+	                                     int32_t expressionDimension, int32_t level);
+	virtual void expressionEvent(int32_t newValue, int32_t expressionDimension) {}
 	void getCombinedExpressionInputs(int16_t* combined);
 
-	virtual ModControllable* toModControllable() { return NULL; }
+	virtual ModControllable* toModControllable() { return nullptr; }
 };

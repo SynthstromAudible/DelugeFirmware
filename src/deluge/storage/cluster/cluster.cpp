@@ -22,47 +22,73 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "util/misc.h"
-#include <string.h>
+#include <algorithm>
+#include <cstddef>
+#include <cstring>
 
-Cluster::Cluster() {
-	sample = NULL;
-	clusterIndex = 0;
-	sampleCache = NULL;
-	extraBytesAtStartConverted = false;
-	extraBytesAtEndConverted = false;
-	loaded = false;
-	numReasonsHeldBySampleRecorder = 0;
-	numReasonsToBeLoaded = 0;
-	// type is not set here, set it yourself (can't remember exact reason...)
+// The universal size of all clusters
+size_t Cluster::size = 32768;
+size_t Cluster::size_magnitude = 15;
+
+void Cluster::setSize(size_t size) {
+	Cluster::size = size;
+
+	// Find the highest bit set
+	Cluster::size_magnitude = 32 - __builtin_clz(size) - 1;
 }
 
-void Cluster::convertDataIfNecessary() {
-
-	if (!sample->audioDataStartPosBytes) {
-		return; // Or maybe we haven't yet figured out where the audio data starts
+Cluster* Cluster::create(Cluster::Type type, bool shouldAddReasons, void* dontStealFromThing) {
+	audioFileManager.setCardRead(); // even if it hasn't been we're now commited to the cluster size
+	void* memory = GeneralMemoryAllocator::get().allocStealable(sizeof(Cluster) + Cluster::size, dontStealFromThing);
+	if (memory == nullptr) {
+		return nullptr;
 	}
 
-	if (sample->rawDataFormat) {
+	auto* cluster = new (memory) Cluster();
 
-		memcpy(firstThreeBytesPreDataConversion, data, 3);
+	cluster->type = type;
+
+	if (shouldAddReasons) {
+		cluster->addReason();
+	}
+
+	return cluster;
+}
+
+void Cluster::destroy() {
+	this->~Cluster(); // Removes reasons, and / or from stealable list
+	delugeDealloc(this);
+}
+
+/**
+ * @brief This function goes through the contents of the cluster,
+ *        and converts them to the Deluge's native PCM 24-bit format if needed
+ */
+void Cluster::convertDataIfNecessary() {
+	// We haven't yet figured out where the audio data starts
+	if (sample->audioDataStartPosBytes == 0) {
+		return;
+	}
+
+	if (sample->rawDataFormat != RawDataFormat::NATIVE) {
+		std::copy(data, &data[3], firstThreeBytesPreDataConversion);
 
 		int32_t startPos = sample->audioDataStartPosBytes;
-		int32_t startCluster = startPos >> audioFileManager.clusterSizeMagnitude;
+		int32_t startCluster = startPos >> Cluster::size_magnitude;
 
 		if (clusterIndex < startCluster) { // Hmm, there must have been a case where this happens...
 			return;
 		}
 
 		// Special case for 24-bit with its uneven number of bytes
-		if (sample->rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_24) {
+		if (sample->rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_24) {
 			char* pos;
 
 			if (clusterIndex == startCluster) {
-				pos = &data[startPos & (audioFileManager.clusterSize - 1)];
+				pos = &data[startPos & (Cluster::size - 1)];
 			}
 			else {
-				uint32_t bytesBeforeStartOfCluster =
-				    clusterIndex * audioFileManager.clusterSize - sample->audioDataStartPosBytes;
+				uint32_t bytesBeforeStartOfCluster = clusterIndex * Cluster::size - sample->audioDataStartPosBytes;
 				int32_t bytesThatWillBeEatingIntoAnother3Byte = bytesBeforeStartOfCluster % 3;
 				if (bytesThatWillBeEatingIntoAnother3Byte == 0) {
 					bytesThatWillBeEatingIntoAnother3Byte = 3;
@@ -73,18 +99,16 @@ void Cluster::convertDataIfNecessary() {
 			char const* endPos;
 			if (clusterIndex == sample->getFirstClusterIndexWithNoAudioData() - 1) {
 				uint32_t endAtBytePos = sample->audioDataStartPosBytes + sample->audioDataLengthBytes;
-				uint32_t endAtPosWithinCluster = endAtBytePos & (audioFileManager.clusterSize - 1);
+				uint32_t endAtPosWithinCluster = endAtBytePos & (Cluster::size - 1);
 				endPos = &data[endAtPosWithinCluster];
 			}
 			else {
-				endPos = &data[audioFileManager.clusterSize - 2];
+				endPos = &data[Cluster::size - 2];
 			}
 
 			while (true) {
 				char const* endPosNow = pos + 1024; // Every this many bytes, we'll pause and do an audio routine
-				if (endPosNow > endPos) {
-					endPosNow = endPos;
-				}
+				endPosNow = std::min(endPosNow, endPos);
 
 				while (pos < endPosNow) {
 					uint8_t temp = pos[0];
@@ -107,7 +131,7 @@ void Cluster::convertDataIfNecessary() {
 			int32_t* pos;
 
 			if (clusterIndex == startCluster) {
-				pos = (int32_t*)&data[startPos & (audioFileManager.clusterSize - 1)];
+				pos = (int32_t*)&data[startPos & (Cluster::size - 1)];
 			}
 			else {
 				pos = (int32_t*)&data[startPos & 0b11];
@@ -116,14 +140,12 @@ void Cluster::convertDataIfNecessary() {
 			int32_t* endPos;
 			if (clusterIndex == sample->getFirstClusterIndexWithNoAudioData() - 1) {
 				uint32_t endAtBytePos = sample->audioDataStartPosBytes + sample->audioDataLengthBytes;
-				uint32_t endAtPosWithinCluster = endAtBytePos & (audioFileManager.clusterSize - 1);
+				uint32_t endAtPosWithinCluster = endAtBytePos & (Cluster::size - 1);
 				endPos = (int32_t*)&data[endAtPosWithinCluster];
 			}
 			else {
-				endPos = (int32_t*)&data[audioFileManager.clusterSize - 3];
+				endPos = (int32_t*)&data[Cluster::size - 3];
 			}
-
-			// uint16_t startTime = MTU2.TCNT_0;
 
 			for (; pos < endPos; pos++) {
 
@@ -132,16 +154,8 @@ void Cluster::convertDataIfNecessary() {
 					AudioEngine::routine(); // ----------------------------------------------------
 				}
 
-				sample->convertOneData(pos);
+				*pos = sample->convertToNative(*pos);
 			}
-
-			/*
-			uint16_t endTime = MTU2.TCNT_0;
-
-			if (clusterIndex != startCluster) {
-			    D_PRINTLN("time to convert:  %d", (uint16_t)(endTime - startTime));
-			}
-			*/
 		}
 	}
 }
@@ -150,7 +164,7 @@ StealableQueue Cluster::getAppropriateQueue() {
 	StealableQueue q;
 
 	// If it's a perc cache...
-	if (type == ClusterType::PERC_CACHE_FORWARDS || type == ClusterType::PERC_CACHE_REVERSED) {
+	if (type == Type::PERC_CACHE_FORWARDS || type == Type::PERC_CACHE_REVERSED) {
 		q = sample->numReasonsToBeLoaded ? StealableQueue::CURRENT_SONG_SAMPLE_DATA_PERC_CACHE
 		                                 : StealableQueue::NO_SONG_SAMPLE_DATA_PERC_CACHE;
 	}
@@ -166,7 +180,7 @@ StealableQueue Cluster::getAppropriateQueue() {
 		q = sample->numReasonsToBeLoaded ? StealableQueue::CURRENT_SONG_SAMPLE_DATA
 		                                 : StealableQueue::NO_SONG_SAMPLE_DATA;
 
-		if (sample->rawDataFormat) {
+		if (sample->rawDataFormat != RawDataFormat::NATIVE) {
 			q = static_cast<StealableQueue>(util::to_underlying(q) + 1); // next queue
 		}
 	}
@@ -179,15 +193,15 @@ void Cluster::steal(char const* errorCode) {
 	// Ok, we're now gonna decide what to do according to the actual "type" field for this Cluster.
 	switch (type) {
 
-	case ClusterType::Sample:
-		if (ALPHA_OR_BETA_VERSION && !sample) {
+	case Type::SAMPLE:
+		if (ALPHA_OR_BETA_VERSION && sample == nullptr) {
 			FREEZE_WITH_ERROR("E181");
 		}
-		sample->clusters.getElement(clusterIndex)->cluster = NULL;
+		sample->clusters.getElement(clusterIndex)->cluster = nullptr;
 		break;
 
-	case ClusterType::SAMPLE_CACHE:
-		if (ALPHA_OR_BETA_VERSION && !sampleCache) {
+	case Type::SAMPLE_CACHE:
+		if (ALPHA_OR_BETA_VERSION && sampleCache == nullptr) {
 			FREEZE_WITH_ERROR("E183");
 		}
 		sampleCache->clusterStolen(clusterIndex);
@@ -200,9 +214,9 @@ void Cluster::steal(char const* errorCode) {
 		*/
 		break;
 
-	case ClusterType::PERC_CACHE_FORWARDS:
-	case ClusterType::PERC_CACHE_REVERSED:
-		if (ALPHA_OR_BETA_VERSION && !sample) {
+	case Type::PERC_CACHE_FORWARDS:
+	case Type::PERC_CACHE_REVERSED:
+		if (ALPHA_OR_BETA_VERSION && sample == nullptr) {
 			FREEZE_WITH_ERROR("E184");
 		}
 		sample->percCacheClusterStolen(this);
@@ -223,12 +237,28 @@ bool Cluster::mayBeStolen(void* thingNotToStealFrom) {
 	}
 
 	switch (type) {
-	case ClusterType::SAMPLE_CACHE:
+	case Type::SAMPLE_CACHE:
 		return (sampleCache != thingNotToStealFrom);
 
-	case ClusterType::PERC_CACHE_FORWARDS:
-	case ClusterType::PERC_CACHE_REVERSED:
+	case Type::PERC_CACHE_FORWARDS:
+	case Type::PERC_CACHE_REVERSED:
 		return (sample != thingNotToStealFrom);
+
+	// explicit fallthrough cases
+	case Type::SAMPLE:
+	case Type::EMPTY:
+	case Type::GENERAL_MEMORY:
+	case Type::OTHER:;
 	}
 	return true;
+}
+
+void Cluster::addReason() {
+	// If it's going to cease to be zero, it's become unavailable,
+	// so remove it from the stealables queue
+	if (this->numReasonsToBeLoaded == 0) {
+		this->remove();
+	}
+
+	this->numReasonsToBeLoaded++;
 }

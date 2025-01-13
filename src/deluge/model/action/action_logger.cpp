@@ -55,8 +55,8 @@
 ActionLogger actionLogger{};
 
 ActionLogger::ActionLogger() {
-	firstAction[BEFORE] = NULL;
-	firstAction[AFTER] = NULL;
+	firstAction[BEFORE] = nullptr;
+	firstAction[AFTER] = nullptr;
 }
 
 void ActionLogger::deleteLastActionIfEmpty() {
@@ -94,18 +94,18 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 	// Exception for sound editor note row editor UI which can edit note rows on the grid
 	if ((getCurrentUI() != getRootUI())
 	    && (!(getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())))) {
-		return NULL;
+		return nullptr;
 	}
 
 	Action* newAction;
 
 	// If recording arrangement...
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
-		return NULL;
+		return nullptr;
 
 		// If there's no action for that, we're really screwed, we'd better get out
 		if (!firstAction[BEFORE] || firstAction[BEFORE]->type != ActionType::ARRANGEMENT_RECORD) {
-			return NULL;
+			return nullptr;
 		}
 
 		// Only a couple of kinds of new actions are allowed to add to that action
@@ -115,7 +115,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 
 		// Otherwise, not allowed
 		else {
-			return NULL;
+			return nullptr;
 		}
 	}
 
@@ -143,7 +143,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 
 		if (!actionMemory) {
 			D_PRINTLN("no ram to create new Action");
-			return NULL;
+			return nullptr;
 		}
 
 		// Store states of every Clip in existence
@@ -155,7 +155,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 
 		if (!clipStates) {
 			delugeDealloc(actionMemory);
-			return NULL;
+			return nullptr;
 		}
 
 		newAction = new (actionMemory) Action(newActionType);
@@ -207,7 +207,7 @@ void ActionLogger::updateAction(Action* newAction) {
 		    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
 			newAction->numClipStates = 0;
 			delugeDealloc(newAction->clipStates);
-			newAction->clipStates = NULL;
+			newAction->clipStates = nullptr;
 			D_PRINTLN("discarded clip states");
 		}
 
@@ -604,6 +604,7 @@ currentClipSwitchedOver:
 	}
 
 	else if (whichAnimation == Animation::EXIT_AUTOMATION_VIEW) {
+		automationView.resetShortcutBlinking();
 		if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 			changeRootUI(&instrumentClipView);
 		}

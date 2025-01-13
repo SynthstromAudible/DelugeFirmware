@@ -16,7 +16,7 @@
  */
 
 #pragma once
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "model/consequence/consequence.h"
 #include <cstdint>
 
@@ -24,7 +24,7 @@ class ConsequencePerformanceViewPress final : public Consequence {
 public:
 	ConsequencePerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
 	                                FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay);
-	Error revert(TimeType time, ModelStack* modelStack);
+	Error revert(TimeType time, ModelStack* modelStack) override;
 
 	int32_t xDisplayChanged = kNoSelection;
 	FXColumnPress fxPress[2];

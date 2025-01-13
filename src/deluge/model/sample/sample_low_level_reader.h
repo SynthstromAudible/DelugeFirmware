@@ -20,6 +20,8 @@
 #include "arm_neon_shim.h"
 
 #include "definitions_cxx.hpp"
+#include "dsp/interpolate/interpolate.h"
+#include <array>
 #include <cstdint>
 #define REASSESSMENT_ACTION_STOP_OR_LOOP 0
 #define REASSESSMENT_ACTION_NEXT_CLUSTER 1
@@ -33,15 +35,13 @@ class SamplePlaybackGuide;
 
 class SampleLowLevelReader {
 public:
-	SampleLowLevelReader();
-	~SampleLowLevelReader();
+	SampleLowLevelReader() = default;
+	~SampleLowLevelReader() = default;
 
 	void unassignAllReasons(bool wontBeUsedAgain);
 	void jumpForwardLinear(int32_t numChannels, int32_t byteDepth, uint32_t bitMask, int32_t jumpAmount,
 	                       int32_t phaseIncrement);
 	void jumpForwardZeroes(int32_t bufferSize, int32_t numChannels, int32_t phaseIncrement);
-	void interpolate(int32_t* sampleRead, int32_t numChannels, int32_t whichKernel);
-	void interpolateLinear(int32_t* sampleRead, int32_t numChannels, int32_t whichKernel);
 	void fillInterpolationBufferRetrospectively(Sample* sample, int32_t bufferSize, int32_t startI,
 	                                            int32_t playDirection);
 	void jumpBackSamples(Sample* sample, int32_t numToJumpBack, int32_t playDirection);
@@ -69,7 +69,7 @@ public:
 
 	void readSamplesNative(int32_t** __restrict__ oscBufferPos, int32_t numSamplesTotal, Sample* sample,
 	                       int32_t jumpAmount, int32_t numChannels, int32_t numChannelsAfterCondensing,
-	                       int32_t* amplitude, int32_t amplitudeIncrement, TimeStretcher* timeStretcher = NULL,
+	                       int32_t* amplitude, int32_t amplitudeIncrement, TimeStretcher* timeStretcher = nullptr,
 	                       bool bufferingToTimeStretcher = false);
 
 	void readSamplesResampled(int32_t** __restrict__ oscBufferPos, int32_t numSamples, Sample* sample,
@@ -86,8 +86,7 @@ public:
 	                                  TimeStretcher* timeStretcher, bool bufferingToTimeStretcher,
 	                                  int32_t whichPlayHead, int32_t whichKernel, int32_t priorityRating);
 
-	void bufferIndividualSampleForInterpolation(uint32_t bitMask, int32_t numChannels, int32_t byteDepth,
-	                                            char* playPosNow);
+	void bufferIndividualSampleForInterpolation(int32_t numChannels, int32_t byteDepth, char* playPosNow);
 	void bufferZeroForInterpolation(int32_t numChannels);
 
 	uint32_t oscPos;
@@ -97,9 +96,9 @@ public:
 	uint8_t reassessmentAction;
 	int8_t interpolationBufferSizeLastTime; // 0 if was previously switched off
 
-	int16x4_t interpolationBuffer[2][kInterpolationMaxNumSamples >> 2];
+	deluge::dsp::Interpolator interpolator_;
 
-	Cluster* clusters[kNumClustersLoadedAhead];
+	std::array<Cluster*, kNumClustersLoadedAhead> clusters = {nullptr, nullptr};
 
 private:
 	bool assignClusters(SamplePlaybackGuide* guide, Sample* sample, int32_t clusterIndex, int32_t priorityRating);

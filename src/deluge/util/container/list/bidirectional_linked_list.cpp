@@ -56,7 +56,7 @@ void BidirectionalLinkedList::addToStart(BidirectionalLinkedListNode* node) {
 
 BidirectionalLinkedListNode* BidirectionalLinkedList::getFirst() {
 	if (first == &endNode) {
-		return NULL;
+		return nullptr;
 	}
 	else {
 		return first;
@@ -76,7 +76,7 @@ int32_t BidirectionalLinkedList::getNum() {
 BidirectionalLinkedListNode* BidirectionalLinkedList::getNext(BidirectionalLinkedListNode* node) {
 	BidirectionalLinkedListNode* next = node->next;
 	if (next == &endNode) {
-		return NULL;
+		return nullptr;
 	}
 	else {
 		return next;
@@ -85,7 +85,7 @@ BidirectionalLinkedListNode* BidirectionalLinkedList::getNext(BidirectionalLinke
 
 void BidirectionalLinkedList::test() {
 
-	if (first == NULL) {
+	if (first == nullptr) {
 		FREEZE_WITH_ERROR("E005");
 	}
 
@@ -122,7 +122,7 @@ void BidirectionalLinkedList::test() {
 }
 
 BidirectionalLinkedListNode::BidirectionalLinkedListNode() {
-	list = NULL;
+	list = nullptr;
 }
 
 BidirectionalLinkedListNode::~BidirectionalLinkedListNode() {
@@ -138,7 +138,7 @@ void BidirectionalLinkedListNode::remove() {
 	next->prevPointer = prevPointer;
 
 	BidirectionalLinkedList* oldList = list;
-	list = NULL;
+	list = nullptr;
 
 #if ALPHA_OR_BETA_VERSION
 	// Have deactivated this, because some of the lists will have up to 2000 elements in them on boot, and searching

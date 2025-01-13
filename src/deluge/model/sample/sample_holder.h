@@ -33,7 +33,7 @@ class SampleHolder : public AudioFileHolder {
 public:
 	SampleHolder();
 	~SampleHolder() override;
-	void unassignAllClusterReasons(bool beingDestructed = false);
+	void unassignAllClusterReasons(bool beingDestructed = false) override;
 	int64_t getEndPos(bool forTimeStretching = false);
 	int64_t getDurationInSamples(bool forTimeStretching = false);
 	void beenClonedFrom(SampleHolder const* other, bool reversed);
@@ -41,7 +41,7 @@ public:
 	int32_t getLengthInSamplesAtSystemSampleRate(bool forTimeStretching = false);
 	int32_t getLoopLengthAtSystemSampleRate(bool forTimeStretching = false);
 	void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false,
-	                  int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
+	                  int32_t clusterLoadInstruction = CLUSTER_ENQUEUE) override;
 
 	// In samples.
 	uint64_t startPos;

@@ -40,16 +40,16 @@ public:
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                                Clip* clip, int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
 	                                                bool displayError = true);
-	void noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note, int32_t velocity,
+	void noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
 	                         bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack);
-	void sendNoteToClip(MIDIDevice* fromDevice, Clip* clip, MIDIMatchType match, bool on, int32_t channel, int32_t note,
+	void sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType match, bool on, int32_t channel, int32_t note,
 	                    int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack);
-	void midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru,
+	void midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t ccValue, bool* doingMidiThru,
 	                    ModelStack* modelStack);
-	void pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru,
+	void pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru,
 	                       ModelStack* modelStack);
-	void aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
-	                        bool* doingMidiThru, ModelStack* modelStack);
+	void aftertouchReceived(MIDICable& cable, int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru,
+	                        ModelStack* modelStack);
 
 	void clearStoredClips();
 	void removeClip(Clip* clip);
@@ -66,7 +66,7 @@ public:
 	void sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, bool isAutomation = false);
 	void sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos);
 
-	void handleReceivedCC(ModelStackWithTimelineCounter& modelStack, Clip* clip, int32_t ccNumber, int32_t value);
+	void handleReceivedCC(ModelStackWithTimelineCounter& modelStack, Clip* clip, int32_t ccNumber, int32_t ccValue);
 
 private:
 	// initialize
@@ -93,7 +93,7 @@ private:
 	                                   int32_t xDisplay, int32_t yDisplay);
 	void displayParamControlError(int32_t xDisplay, int32_t yDisplay);
 
-	MIDIMatchType checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel);
+	MIDIMatchType checkMidiFollowMatch(MIDICable& cable, uint8_t channel);
 	bool isFeedbackEnabled();
 
 	// saving

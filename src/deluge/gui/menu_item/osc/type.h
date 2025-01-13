@@ -31,10 +31,10 @@ extern deluge::gui::menu_item::Submenu dxMenu;
 namespace deluge::gui::menu_item::osc {
 class Type final : public Selection, public FormattedTitle {
 public:
-	Type(l10n::String name, l10n::String title_format_str) : Selection(name), FormattedTitle(title_format_str){};
+	Type(l10n::String name, l10n::String title_format_str) : Selection(name), FormattedTitle(title_format_str) {};
 	void beginSession(MenuItem* navigatedBackwardFrom) override { Selection::beginSession(navigatedBackwardFrom); }
 
-	bool mayUseDx() { return soundEditor.currentSource->dxPatch != nullptr; }
+	bool mayUseDx() { return !soundEditor.editingKit() && soundEditor.currentSourceIndex == 0; }
 
 	void readCurrentValue() override {
 		int32_t rawVal = (int32_t)soundEditor.currentSource->oscType;
@@ -67,6 +67,7 @@ public:
 		}
 
 		soundEditor.currentSource->setOscType(newValue);
+
 		if (oldValue == OscType::SQUARE || newValue == OscType::SQUARE) {
 			soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
 		}
@@ -74,7 +75,8 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		using enum l10n::String;
 		deluge::vector<std::string_view> options = {
 		    l10n::getView(STRING_FOR_SINE),          //<
@@ -115,7 +117,7 @@ public:
 
 	MenuItem* selectButtonPress() final {
 		if (soundEditor.currentSource->oscType != OscType::DX7) {
-			return NULL;
+			return nullptr;
 		}
 		return (MenuItem*)&dxMenu;
 	}

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/ui.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/output.h"
 #include "modulation/envelope.h"
@@ -36,18 +37,18 @@ char const* aoModeToString(AudioOutputMode mode);
 class AudioOutput final : public Output, public GlobalEffectableForClip {
 public:
 	AudioOutput();
-	virtual ~AudioOutput();
-	void cloneFrom(ModControllableAudio* other);
+	~AudioOutput() override;
+	void cloneFrom(ModControllableAudio* other) override;
 
 	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                  bool shouldLimitDelayFeedback, bool isClipActive);
+	                  bool shouldLimitDelayFeedback, bool isClipActive) override;
 
 	bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
 	                                   int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
 	                                   int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
-	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
+	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd) override;
 
 	void resetEnvelope();
 	bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
@@ -74,14 +75,13 @@ public:
 	                            int32_t* highestReverbAmountFound) override;
 
 	// A TimelineCounter is required
-	void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	void offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                    ModelStackWithTimelineCounter* modelStack) override {
-		ModControllableAudio::offerReceivedCCToLearnedParamsForClip(fromDevice, channel, ccNumber, value, modelStack);
+		ModControllableAudio::offerReceivedCCToLearnedParamsForClip(cable, channel, ccNumber, value, modelStack);
 	}
-	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+	bool offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
 	                                           ModelStackWithTimelineCounter* modelStack) override {
-		return ModControllableAudio::offerReceivedPitchBendToLearnedParams(fromDevice, channel, data1, data2,
-		                                                                   modelStack);
+		return ModControllableAudio::offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, modelStack);
 	}
 
 	char const* getXMLTag() override { return "audioTrack"; }
@@ -123,7 +123,7 @@ public:
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                bool affectEntire, bool useMenuStack);
+	                                                bool affectEntire, bool useMenuStack) override;
 	void scrollAudioOutputMode(int offset) {
 		auto modeInt = util::to_underlying(mode);
 		modeInt = (modeInt + offset) % kNumAudioOutputModes;
@@ -133,12 +133,27 @@ public:
 			// update the output we're recording from on whether we're monitoring
 			outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);
 		}
+		renderUIsForOled(); // oled shows the type on the clip screen (including while holding a clip in song view)
+		if (display->have7SEG()) {
+			const char* type;
+			switch (mode) {
+			case AudioOutputMode::player:
+				type = "PLAY";
+				break;
+			case AudioOutputMode::sampler:
+				type = "SAMP";
+				break;
+			case AudioOutputMode::looper:
+				type = "LOOP";
+			}
+			display->displayPopup(type);
+		}
 	}
 
 protected:
-	Clip* createNewClipForArrangementRecording(ModelStack* modelStack);
-	bool wantsToBeginArrangementRecording();
-	bool willRenderAsOneChannelOnlyWhichWillNeedCopying();
+	Clip* createNewClipForArrangementRecording(ModelStack* modelStack) override;
+	bool wantsToBeginArrangementRecording() override;
+	bool willRenderAsOneChannelOnlyWhichWillNeedCopying() override;
 
 	/// Which output to record from. Only valid when inputChannel is AudioInputChannel::SPECIFIC_OUTPUT.
 	Output* outputRecordingFrom{nullptr};

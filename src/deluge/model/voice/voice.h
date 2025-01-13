@@ -25,6 +25,7 @@
 #include "modulation/lfo.h"
 #include "modulation/params/param.h"
 #include "modulation/patch/patcher.h"
+#include <bitset>
 
 class StereoSample;
 class ModelStackWithVoice;
@@ -53,6 +54,8 @@ public:
 	// choose where the Patcher looks for them
 	int32_t sourceValues[kNumPatchSources];
 
+	std::bitset<kNumExpressionDimensions> expressionSourcesCurrentlySmoothing;
+	std::bitset<kNumExpressionDimensions> expressionSourcesFinalValueChanged;
 	int32_t localExpressionSourceValuesBeforeSmoothing[kNumExpressionDimensions];
 
 	Envelope envelopes[kNumEnvelopes];
@@ -76,14 +79,13 @@ public:
 
 	bool doneFirstRender;
 	bool previouslyIgnoredNoteOff;
-	uint8_t whichExpressionSourcesCurrentlySmoothing;
-	uint8_t whichExpressionSourcesFinalValueChanged;
 
 	uint32_t orderSounded;
 
 	int32_t overrideAmplitudeEnvelopeReleaseRate;
 
 	Voice* nextUnassigned;
+	bool justCreated{false};
 
 	uint32_t getLocalLFOPhaseIncrement();
 	void setAsUnassigned(ModelStackWithVoice* modelStack, bool deletingSong = false);
@@ -98,13 +100,13 @@ public:
 	            uint32_t samplesLate, bool resetEnvelopes, int32_t fromMIDIChannel, const int16_t* mpeValues);
 	void noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage = true);
 
-	void randomizeOscPhases(Sound* sound);
+	void randomizeOscPhases(const Sound& sound);
 	void changeNoteCode(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
 	                    int32_t newNoteCodeAfterArpeggiation, int32_t newInputMIDIChannel, const int16_t* newMPEValues);
 	bool hasReleaseStage();
 	void unassignStuff(bool deletingSong);
 	uint32_t getPriorityRating();
-	void expressionEventImmediate(Sound* sound, int32_t voiceLevelValue, int32_t s);
+	void expressionEventImmediate(const Sound& sound, int32_t voiceLevelValue, int32_t s);
 	void expressionEventSmooth(int32_t newValue, int32_t s);
 
 	/// Release immediately with provided release rate
@@ -115,20 +117,20 @@ public:
 	/// Returns whether voice should still be left active
 	bool doImmediateRelease();
 
+	bool forceNormalRelease();
+
+	bool speedUpRelease();
+
 private:
 	// inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t
 	// phaseShift);
 
-	void renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* thisSample, int32_t* bufferEnd,
-	               int32_t numSamples, uint32_t phaseIncrementNow, uint32_t phaseWidth, uint32_t* thisPhase,
-	               bool applyAmplitude, int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
-	               uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement);
-	void renderBasicSource(Sound* sound, ParamManagerForTimeline* paramManager, int32_t s, int32_t* oscBuffer,
+	void renderBasicSource(Sound& sound, ParamManagerForTimeline* paramManager, int32_t s, int32_t* oscBuffer,
 	                       int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude,
 	                       bool* unisonPartBecameInactive, int32_t overallPitchAdjust, bool doOscSync,
 	                       uint32_t* oscSyncPos, uint32_t* oscSyncPhaseIncrements, int32_t amplitudeIncrement,
 	                       uint32_t* getPhaseIncrements, bool getOutAfterPhaseIncrements, int32_t waveIndexIncrement);
-	bool adjustPitch(uint32_t* phaseIncrement, int32_t adjustment);
+	static bool adjustPitch(uint32_t& phaseIncrement, int32_t adjustment);
 
 	void renderSineWaveWithFeedback(int32_t* thisSample, int32_t numSamples, uint32_t* phase, int32_t amplitude,
 	                                uint32_t phaseIncrement, int32_t feedbackAmount, int32_t* lastFeedbackValue,
@@ -139,7 +141,7 @@ private:
 	void renderFMWithFeedbackAdd(int32_t* thisSample, int32_t numSamples, int32_t* fmBuffer, uint32_t* phase,
 	                             int32_t amplitude, uint32_t phaseIncrement, int32_t feedbackAmount,
 	                             int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
-	bool areAllUnisonPartsInactive(ModelStackWithVoice* modelStackWithVoice);
-	void setupPorta(Sound* sound);
-	int32_t combineExpressionValues(Sound* sound, int32_t whichExpressionDimension);
+	bool areAllUnisonPartsInactive(ModelStackWithVoice& modelStackWithVoice) const;
+	void setupPorta(const Sound& sound);
+	int32_t combineExpressionValues(const Sound& sound, int32_t expressionDimension) const;
 };

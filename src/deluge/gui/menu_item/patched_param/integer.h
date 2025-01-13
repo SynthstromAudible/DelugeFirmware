@@ -53,14 +53,16 @@ public:
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
-	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
-		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
+	void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
+		MenuItemWithCCLearning::learnKnob(cable, whichKnob, modKnobMode, midiChannel);
 	};
 
 	int32_t getParamValue() {
 		readCurrentValue();
 		return getValue();
 	}
+
+	void updateAutomationViewParameter() override;
 
 protected:
 	void readCurrentValue() override;

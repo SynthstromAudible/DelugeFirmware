@@ -31,7 +31,6 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
-#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
@@ -49,7 +48,7 @@ extern "C" {
 #include "RZA1/oled/oled_low_level.h"
 #include "fatfs/diskio.h"
 #include "fatfs/ff.h"
-#include <task_scheduler.h>
+#include <scheduler_api.h>
 
 FRESULT f_readdir_get_filepointer(DIR* dp,      /* Pointer to the open directory object */
                                   FILINFO* fno, /* Pointer to file information to return */
@@ -60,7 +59,7 @@ void routineForSD(void);
 
 FirmwareVersion song_firmware_version = FirmwareVersion::current();
 FILINFO staticFNO;
-DIR staticDIR;
+FatFS::Directory staticDIR;
 XMLSerializer smSerializer;
 XMLDeserializer smDeserializer;
 JsonSerializer smJsonSerializer;
@@ -340,14 +339,14 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 	Instrument* newInstrument = createNewInstrument(outputType);
 
 	if (!newInstrument) {
-		smDeserializer.closeFIL();
+		smDeserializer.closeWriter();
 		D_PRINTLN("Allocating instrument file failed -  %d", name->get());
 		return Error::INSUFFICIENT_RAM;
 	}
 
 	error = newInstrument->readFromFile(smDeserializer, song, clip, 0);
 
-	FRESULT fileSuccess = activeDeserializer->closeFIL();
+	FRESULT fileSuccess = activeDeserializer->closeWriter();
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
@@ -368,7 +367,7 @@ deleteInstrumentAndGetOut:
 
 	// Check that a ParamManager was actually loaded for the Instrument, cos if not, that'd spell havoc
 	if (!song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
-	                                                     NULL)) {
+	                                                     nullptr)) {
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
 		// paramManager to be created when we read the Kit just now. So, just make one.
@@ -418,6 +417,56 @@ paramManagersMissing:
 	return Error::NONE;
 }
 
+Error StorageManager::openMidiDeviceDefinitionFile(FilePointer* filePointer) {
+
+	AudioEngine::logAction("openMidiDeviceDefinitionFile");
+	if (!filePointer->sclust) {
+		return Error::FILE_NOT_FOUND;
+	}
+	char const* firstTagName = "midiDevice";
+	char const* altTagName = "";
+
+	Error error = openXMLFile(filePointer, smDeserializer, firstTagName, altTagName);
+	return error;
+}
+
+// Returns error status
+Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrument, FilePointer* filePointer,
+                                                   String* fileName, bool updateFileName) {
+	midiInstrument->loadDeviceDefinitionFile = false;
+
+	AudioEngine::logAction("loadMidiDeviceDefinitionFile");
+	D_PRINTLN("opening midi device definition file -  %s %s  from FP  %lu", fileName->get(),
+	          (int32_t)filePointer->sclust);
+
+	Error error = openMidiDeviceDefinitionFile(filePointer);
+	if (error != Error::NONE) {
+		D_PRINTLN("opening midi device definition file failed -  %s", fileName->get());
+		return error;
+	}
+
+	AudioEngine::logAction("readMidiDeviceDefinitionFile");
+
+	error = midiInstrument->readDeviceDefinitionFile(smDeserializer, false);
+
+	FRESULT fileSuccess = activeDeserializer->closeWriter();
+
+	// If that somehow didn't work...
+	if (error != Error::NONE || fileSuccess != FR_OK) {
+		D_PRINTLN("reading midi device definition file failed -  %s", fileName->get());
+		if (!fileSuccess) {
+			error = Error::SD_CARD;
+		}
+
+		return error;
+	}
+	else if (updateFileName) {
+		midiInstrument->deviceDefinitionFileName.set(fileName->get());
+	}
+
+	return Error::NONE;
+}
+
 /**
  * Special function to read a synth preset into a sound drum
  */
@@ -441,7 +490,7 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 	error = newDrum->readFromFile(smDeserializer, song, clip, 0);
 
-	bool fileSuccess = activeDeserializer->closeFIL() == FR_OK;
+	bool fileSuccess = activeDeserializer->closeWriter() == FR_OK;
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || !fileSuccess) {
@@ -489,7 +538,7 @@ Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamM
 
 	void* instrumentMemory = GeneralMemoryAllocator::get().allocMaxSpeed(instrumentSize);
 	if (!instrumentMemory) {
-		return NULL;
+		return nullptr;
 	}
 
 	Instrument* newInstrument;
@@ -503,7 +552,7 @@ Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamM
 			if (error != Error::NONE) {
 paramManagerSetupError:
 				delugeDealloc(instrumentMemory);
-				return NULL;
+				return nullptr;
 			}
 			Sound::initParams(paramManager);
 		}
@@ -535,7 +584,7 @@ Instrument* StorageManager::createNewNonAudioInstrument(OutputType outputType, i
 	// Paul: Might make sense to put these into Internal?
 	void* instrumentMemory = GeneralMemoryAllocator::get().allocLowSpeed(size);
 	if (!instrumentMemory) { // RAM fail
-		return NULL;
+		return nullptr;
 	}
 
 	NonAudioInstrument* newInstrument;
@@ -566,7 +615,7 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 
 	void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(memorySize);
 	if (!drumMemory) {
-		return NULL;
+		return nullptr;
 	}
 
 	Drum* newDrum;
@@ -591,7 +640,7 @@ Error StorageManager::openXMLFile(FilePointer* filePointer, XMLDeserializer& rea
 	activeDeserializer = &reader;
 	if (err == Error::NONE)
 		return Error::NONE;
-	reader.closeFIL();
+	reader.closeWriter();
 
 	return Error::FILE_CORRUPTED;
 }
@@ -607,7 +656,7 @@ Error StorageManager::openJsonFile(FilePointer* filePointer, JsonDeserializer& r
 	activeDeserializer = &reader;
 	if (err == Error::NONE)
 		return Error::NONE;
-	reader.closeFIL();
+	reader.closeWriter();
 
 	return Error::FILE_CORRUPTED;
 }
@@ -664,22 +713,44 @@ FileReader::FileReader() {
 	fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
 }
 
+// Used to read an in-memory file stream.
+// Caller 'owns' the memBuffer.
+FileReader::FileReader(char* memBuffer, uint32_t bufLen) {
+	fileClusterBuffer = memBuffer;
+	currentReadBufferEndPos = bufLen;
+	memoryBased = true;
+	callRoutines = false;
+	fileReadBufferCurrentPos = 0;
+}
+
 FileReader::~FileReader() {
-	GeneralMemoryAllocator::get().dealloc(fileClusterBuffer);
+	if (!memoryBased)
+		GeneralMemoryAllocator::get().dealloc(fileClusterBuffer);
 }
 
 void FileReader::resetReader() {
-	fileReadBufferCurrentPos = audioFileManager.clusterSize;
-	currentReadBufferEndPos = audioFileManager.clusterSize;
+	if (!memoryBased) {
+		fileReadBufferCurrentPos = Cluster::size;
+		currentReadBufferEndPos = Cluster::size;
+	}
+	else {
+		fileReadBufferCurrentPos = 0;
+	}
 	readCount = 0;
 	reachedBufferEnd = false;
 }
 
 // Returns whether successful loading took place
+// return true "if still going".
 bool FileReader::readFileClusterIfNecessary() {
-
+	if (memoryBased) {
+		if (fileReadBufferCurrentPos >= currentReadBufferEndPos) {
+			reachedBufferEnd = true;
+		}
+		return !reachedBufferEnd;
+	}
 	// Load next Cluster if necessary
-	if (fileReadBufferCurrentPos >= audioFileManager.clusterSize) {
+	if (fileReadBufferCurrentPos >= Cluster::size) {
 		readCount = 0;
 		bool result = readFileCluster();
 		if (!result) {
@@ -699,8 +770,11 @@ bool FileReader::readFileClusterIfNecessary() {
 bool FileReader::readFileCluster() {
 
 	AudioEngine::logAction("readFileCluster");
+	if (memoryBased) {
+		return true;
+	}
 
-	FRESULT result = f_read(&readFIL, (UINT*)fileClusterBuffer, audioFileManager.clusterSize, &currentReadBufferEndPos);
+	FRESULT result = f_read(&readFIL, (UINT*)fileClusterBuffer, Cluster::size, &currentReadBufferEndPos);
 	if (result) {
 		return false;
 	}
@@ -747,6 +821,8 @@ bool FileReader::readChar(char* thisChar) {
 void FileReader::readDone() {
 	readCount++; // Increment first, cos we don't want to call SD routine immediately when it's 0
 
+	if (!callRoutines)
+		return;
 	if (!(readCount & 63)) { // 511 bad. 255 almost fine. 127 almost always fine
 		AudioEngine::routineWithClusterLoading();
 
@@ -759,17 +835,29 @@ void FileReader::readDone() {
 	}
 }
 
-FRESULT FileReader::closeFIL() {
-	return f_close(&readFIL);
+FRESULT FileReader::closeWriter() {
+	if (!memoryBased)
+		return f_close(&readFIL);
+	else
+		return FRESULT::FR_OK;
 }
 
 FileWriter::FileWriter() {
-	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
+	bufferSize = 32768;
+	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(bufferSize + CACHE_LINE_SIZE * 2);
 	writeClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
+}
+
+FileWriter::FileWriter(bool inMem) : FileWriter() {
+	memoryBased = true;
 }
 
 FileWriter::~FileWriter() {
 	GeneralMemoryAllocator::get().dealloc(writeClusterBuffer);
+}
+
+int32_t FileWriter::bytesWritten() {
+	return fileTotalBytesWritten + fileWriteBufferCurrentPos;
 }
 
 void FileWriter::resetWriter() {
@@ -778,42 +866,56 @@ void FileWriter::resetWriter() {
 	fileAccessFailedDuringWrite = false;
 }
 
-FRESULT FileWriter::closeFIL() {
+FRESULT FileWriter::closeWriter() {
+	if (memoryBased) {
+		if (fileWriteBufferCurrentPos < bufferSize) {
+			writeClusterBuffer[fileWriteBufferCurrentPos] = 0;
+			return FRESULT::FR_OK;
+		}
+		else {
+			return FRESULT::FR_INT_ERR;
+		}
+	}
 	return f_close(&writeFIL);
 }
 
+void FileWriter::writeBlock(uint8_t* block, uint32_t size) {
+	for (uint32_t ix = 0; ix < size; ++ix) {
+		writeByte(block[ix]);
+	}
+}
+
+extern "C" void routineForSD(void);
+
+void FileWriter::writeByte(int8_t b) {
+
+	if (fileWriteBufferCurrentPos == bufferSize) {
+		if (!memoryBased && !fileAccessFailedDuringWrite) {
+			Error error = writeBufferToFile();
+			if (error != Error::NONE) {
+				fileAccessFailedDuringWrite = true;
+				return;
+			}
+		}
+		if (memoryBased) {
+			fileAccessFailedDuringWrite = true;
+			return;
+		}
+		fileWriteBufferCurrentPos = 0;
+	}
+
+	writeClusterBuffer[fileWriteBufferCurrentPos] = b;
+	fileWriteBufferCurrentPos++;
+
+	// Ensure we do some of the audio routine once in a while
+	if (callRoutines && !(fileWriteBufferCurrentPos & 0b11111111)) {
+		routineForSD();
+	}
+}
 void FileWriter::writeChars(char const* output) {
 	while (*output) {
-		if (fileWriteBufferCurrentPos == audioFileManager.clusterSize) {
-			if (!fileAccessFailedDuringWrite) {
-				Error error = writeBufferToFile();
-				if (error != Error::NONE) {
-					fileAccessFailedDuringWrite = true;
-					return;
-				}
-			}
-
-			fileWriteBufferCurrentPos = 0;
-		}
-
-		writeClusterBuffer[fileWriteBufferCurrentPos] = *output;
-
+		writeByte(*output);
 		output++;
-		fileWriteBufferCurrentPos++;
-
-		// Ensure we do some of the audio routine once in a while
-		if (!(fileWriteBufferCurrentPos & 0b11111111)) {
-			AudioEngine::logAction("writeCharsJson");
-
-			// AudioEngine::routineWithClusterLoading();
-
-			uiTimerManager.routine();
-
-			if (display->haveOLED()) {
-				oledRoutine();
-			}
-			PIC::flush();
-		}
 	}
 }
 
@@ -831,16 +933,19 @@ Error FileWriter::writeBufferToFile() {
 
 // Returns false if some error, including error while writing
 Error FileWriter::closeAfterWriting(char const* path, char const* beginningString, char const* endString) {
+
 	if (fileAccessFailedDuringWrite) {
 		return Error::WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we
 		                          // don't want it to flush any data to the card or anything
 	}
+	if (memoryBased)
+		return Error::NONE;
 	Error error = writeBufferToFile();
 	if (error != Error::NONE) {
 		return Error::WRITE_FAIL;
 	}
 
-	FRESULT result = closeFIL();
+	FRESULT result = closeWriter();
 	if (result) {
 		return Error::WRITE_FAIL;
 	}
@@ -890,7 +995,7 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 		}
 	}
 
-	result = closeFIL();
+	result = closeWriter();
 	if (result) {
 		return Error::WRITE_FAIL;
 	}

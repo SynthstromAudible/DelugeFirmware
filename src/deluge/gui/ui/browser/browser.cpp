@@ -18,6 +18,7 @@
 #include "gui/ui/browser/browser.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "fatfs.hpp"
 #include "gui/context_menu/delete_file.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui_timer_manager.h"
@@ -35,6 +36,7 @@
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include "util/try.h"
 #include <cstring>
 #include <new>
 
@@ -131,7 +133,8 @@ void Browser::emptyFileItems() {
 		i++;
 		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
 			AudioEngine::logAction("emptyFileItems in loop");
-			AudioEngine::routineWithClusterLoading();
+			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 		}
 	}
 
@@ -151,7 +154,8 @@ void Browser::deleteSomeFileItems(int32_t startAt, int32_t stopAt) {
 
 		i++;
 		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
-			AudioEngine::routineWithClusterLoading();
+			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 		}
 	}
 
@@ -175,7 +179,7 @@ doCull:
 	Error error = fileItems.insertAtIndex(newIndex);
 	if (error != Error::NONE) {
 		if (alreadyCulled) {
-			return NULL;
+			return nullptr;
 		}
 		else {
 			goto doCull;
@@ -267,23 +271,13 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 		return error;
 	}
 
-	FRESULT result = f_opendir(&staticDIR, currentDir.get());
-	if (result) {
-		return fresultToDelugeErrorCode(result);
-	}
-
-	/*
-	error = fileItems.allocateMemory(FILE_ITEMS_MAX_NUM_ELEMENTS, false);
-	if (error != Error::NONE) {
-	    f_closedir(&staticDIR);
-	    return error;
-	}
-	*/
+	staticDIR =
+	    D_TRY_CATCH(FatFS::Directory::open(currentDir.get()), error, { return fatfsErrorToDelugeError(error); });
 
 	numFileItemsDeletedAtStart = 0;
 	numFileItemsDeletedAtEnd = 0;
-	firstFileItemRemaining = NULL;
-	lastFileItemRemaining = NULL;
+	firstFileItemRemaining = nullptr;
+	lastFileItemRemaining = nullptr;
 	catalogSearchDirection = newCatalogSearchDirection;
 	maxNumFileItemsNow = newMaxNumFileItems;
 	filenameToStartSearchAt = filenameToStartAt;
@@ -302,10 +296,12 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 		audioFileManager.loadAnyEnqueuedClusters();
 		FilePointer thisFilePointer;
 
-		result = f_readdir_get_filepointer(&staticDIR, &staticFNO, &thisFilePointer); /* Read a directory item */
+		std::tie(staticFNO, thisFilePointer) = D_TRY_CATCH(staticDIR.read_and_get_filepointer(), error, {
+			break; // Break on error
+		});
 
-		if (result != FR_OK || staticFNO.fname[0] == 0) {
-			break; /* Break on error or end of dir */
+		if (staticFNO.fname[0] == 0) {
+			break; /* Break on end of dir */
 		}
 		if (staticFNO.fname[0] == '.') {
 			continue; /* Ignore dot entry */
@@ -385,8 +381,7 @@ nonNumericFile:
 			thisItem->displayName = storedFilenameChars;
 		}
 	}
-
-	f_closedir(&staticDIR);
+	staticDIR.close();
 
 	if (error != Error::NONE) {
 		emptyFileItems();
@@ -1225,8 +1220,7 @@ gotErrorAfterAllocating:
 
 		// Otherwise if we already tried that, then our whole search is fruitless.
 notFound:
-		if (false && !mayDefaultToBrandNewNameOnEntry) { // Disabled - now you're again always allowed to type
-			                                             // characters even if no such file exists.
+		if (display->haveOLED() && !mayDefaultToBrandNewNameOnEntry) {
 			if (fileIndexSelected >= 0) {
 				setEnteredTextFromCurrentFilename(); // Set it back
 			}
@@ -1500,7 +1494,7 @@ void Browser::displayText(bool blinkImmediately) {
 
 FileItem* Browser::getCurrentFileItem() {
 	if (fileIndexSelected == -1) {
-		return NULL;
+		return nullptr;
 	}
 	return (FileItem*)fileItems.getElementAddress(fileIndexSelected);
 }

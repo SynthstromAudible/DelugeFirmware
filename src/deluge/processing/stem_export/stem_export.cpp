@@ -35,8 +35,8 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
-#include "task_scheduler.h"
 #include <new>
 #include <string.h>
 
@@ -71,6 +71,7 @@ StemExport::StemExport() {
 	exportMasterArrangement = false;
 
 	timePlaybackStopped = 0xFFFFFFFF;
+	timeThereWasLastSomeActivity = 0xFFFFFFFF;
 
 	lastFolderNameForStemExport.clear();
 }
@@ -148,10 +149,23 @@ void StemExport::stopStemExportProcess() {
 /// Simulate pressing record and play in order to trigger resampling of out output that ends when loop ends
 void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
 	timePlaybackStopped = 0xFFFFFFFF;
+	timeThereWasLastSomeActivity = 0xFFFFFFFF;
 	playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 	if (playbackHandler.isEitherClockActive()) {
-		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, AudioInputChannel::MIX, writeLoopEndPos(),
-		                                   allowNormalization);
+		// default - record the MIX (before SongFX)
+		AudioInputChannel channel = AudioInputChannel::MIX;
+		// if we want to record stems with SongFX
+		if (includeSongFX) {
+			// special input channel for offline rendering
+			if (renderOffline) {
+				channel = AudioInputChannel::OFFLINE_OUTPUT;
+			}
+			// record output for live rendering
+			else {
+				channel = AudioInputChannel::OUTPUT;
+			}
+		}
+		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, channel, writeLoopEndPos(), allowNormalization);
 		if (audioRecorder.recordingSource > AudioInputChannel::NONE) {
 			stopRecording = true;
 		}
@@ -168,7 +182,9 @@ void StemExport::stopPlayback() {
 
 /// simulate pressing record
 void StemExport::stopOutputRecording() {
-	// if playback has stopped and we're currently recording, check if we can stop recording
+	// if playback has stopped and recording mode is off, it means we either cancelled the export or reached loop end
+	// which means we can check whether to end the recording and export the audio
+	// note: recording mode is set to off by PlaybackHandler::endPlayback()
 	if (!playbackHandler.isEitherClockActive() && playbackHandler.recording == RecordingMode::OFF) {
 		// if silence is found and you are currently resampling, stop recording soon
 		// if not exporting to silence, stop recording soon
@@ -199,6 +215,8 @@ bool StemExport::checkForLoopEnd() {
 		*/
 
 		if (currentPos == loopLengthToStopStemExport) {
+			// this will stop playback and set playbackHandler.recording to RecordingMode::OFF
+			// enabling StemExport::stopOutputRecording() to check if it should end the recording
 			playbackHandler.endPlayback();
 			return true;
 		}
@@ -206,20 +224,35 @@ bool StemExport::checkForLoopEnd() {
 	return false;
 }
 
-/// we want to check for silence so we can stop recording
+/// we want to check for 12 seconds of silence so we can stop recording
 /// if we don't find silence after 60 seconds, stop recording
 bool StemExport::checkForSilence() {
-	float approxRMSLevel = std::max(AudioEngine::approxRMSLevel.l, AudioEngine::approxRMSLevel.r);
-	if (approxRMSLevel < 9) {
-		return true;
-	}
 	// if this is the first time we are checking for silence, it means we just stopped playback
 	// so save this time so we can keep track of how long we've been checking for silence
 	if (timePlaybackStopped == 0xFFFFFFFF) {
 		timePlaybackStopped = AudioEngine::audioSampleTimer;
+		timeThereWasLastSomeActivity = AudioEngine::audioSampleTimer;
 	}
+
 	// have we been checking for silence for 60 seconds or longer? then stop recording
-	return ((uint32_t)(AudioEngine::audioSampleTimer - timePlaybackStopped) >= (kSampleRate * 60));
+	if ((uint32_t)(AudioEngine::audioSampleTimer - timePlaybackStopped) >= (kSampleRate * 60)) {
+		return true;
+	}
+
+	// get current level to check for silence
+	float approxRMSLevel = std::max(AudioEngine::approxRMSLevel.l, AudioEngine::approxRMSLevel.r);
+	if (approxRMSLevel < 9) {
+		// has 12 seconds of silence elapsed since we first detected silence? then stop recording
+		if ((uint32_t)(AudioEngine::audioSampleTimer - timeThereWasLastSomeActivity) >= (kSampleRate * 12)) {
+			return true;
+		}
+	}
+	else {
+		// if we're here, then the track is not silent yet
+		// save last time we detected activity
+		timeThereWasLastSomeActivity = AudioEngine::audioSampleTimer;
+	}
+	return false;
 }
 
 /// disarms and prepares all the instruments so that they can be exported
@@ -689,18 +722,18 @@ Error StemExport::getUnusedStemRecordingFilePath(String* filePath, AudioRecordin
 	return Error::NONE;
 }
 
-/// gets folder path in SAMPLES/STEMS to write stems to
+/// gets folder path in SAMPLES/EXPORTS to write stems to
 /// within the STEMS folder, it will try to create a folder with the name of the SONG
 /// if it cannot create a folder with the SONG name because it already exists, it will continue creating folder path
 /// if it cannot create a folder and the folder does not already exist, then function will return an error
-/// after SAMPLES/STEMS/*SONG NAME*/ is created, it will try to create a folder for the type of export (ARRANGER or
+/// after SAMPLES/EXPORTS/*SONG NAME*/ is created, it will try to create a folder for the type of export (ARRANGER or
 /// SONG). if it cannot create a folder of the name ARRANGER or SONG because it already exists, it will append an
 /// incremental number to the end of the ARRANGER or SONG folder name and try to create a folder with that new name thus
-/// we will end up with a folder path of SAMPLES/STEMS/*SONG NAME*/ARRANGER##/ or SAMPLES/STEMS/*SONG NAME*/SONG##/ this
-/// function gets called every time a stem recording is being written to a file to avoid unecessary file system calls,
-/// it will save the last song and arranger/song sub-folder name saved to a String including the last incremental folder
-/// number and use that to obtain the filePath for the next stem export job (e.g. if you are exporting the same song
-/// more and stem export type than once)
+/// we will end up with a folder path of SAMPLES/EXPORTS/*SONG NAME*/TRACKS##/ or SAMPLES/EXPORTS/*SONG NAME*/CLIPS##/
+/// this function gets called every time a stem recording is being written to a file to avoid unecessary file system
+/// calls, it will save the last song and arranger/song sub-folder name saved to a String including the last incremental
+/// folder number and use that to obtain the filePath for the next stem export job (e.g. if you are exporting the same
+/// song more and stem export type than once)
 Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecordingFolder folder) {
 
 	const auto folderID = util::to_underlying(folder);
@@ -712,7 +745,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 
 	String tempPath;
 
-	// set tempPath = SAMPLES/STEMS
+	// set tempPath = SAMPLES/EXPORTS
 	error = tempPath.set(audioRecordingFolderNames[folderID]);
 	if (error != Error::NONE) {
 		return error;
@@ -725,13 +758,13 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 		return fresultToDelugeErrorCode(result);
 	}
 
-	// tempPath = SAMPLES/STEMS/
+	// tempPath = SAMPLES/EXPORTS/
 	error = tempPath.concatenate("/");
 	if (error != Error::NONE) {
 		return error;
 	}
 
-	// tempPath = SAMPLES/STEMS/*INSERT SONG NAME*
+	// tempPath = SAMPLES/EXPORTS/*INSERT SONG NAME*
 	if (currentSong->name.isEmpty()) { // if you have saved song yet
 		error = tempPath.concatenate("UNSAVED");
 	}
@@ -752,12 +785,12 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 	RootUI* rootUI = getRootUI();
 	// concatenate stem export type to folder path
 	if (rootUI == &arrangerView) {
-		// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER
-		error = tempPath.concatenate("/ARRANGER");
+		// tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS
+		error = tempPath.concatenate("/TRACKS");
 	}
 	else {
-		// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG
-		error = tempPath.concatenate("/SONG");
+		// tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS
+		error = tempPath.concatenate("/CLIPS");
 	}
 	if (error != Error::NONE) {
 		return error;
@@ -775,8 +808,8 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 		// if we're here we didn't just export this song
 		String tempPathForSearch;
 
-		// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER OR SONG
-		// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG
+		// tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS OR CLIPS
+		// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS
 		error = tempPathForSearch.set(tempPath.get());
 		if (error != Error::NONE) {
 			return error;
@@ -799,22 +832,22 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 				// increment folder number so we can append it to the ARRANGER or SONG folder name
 				highestUsedStemFolderNumber++;
 
-				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER
-				// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG
+				// tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS
+				// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS
 				error = tempPathForSearch.set(tempPath.get());
 				if (error != Error::NONE) {
 					return error;
 				}
 
-				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER-
-				// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG-
+				// tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS-
+				// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS-
 				error = tempPathForSearch.concatenate("-");
 				if (error != Error::NONE) {
 					return error;
 				}
 
-				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER-##
-				// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG-##
+				// tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS-##
+				// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS-##
 				error = tempPathForSearch.concatenateInt(highestUsedStemFolderNumber, 2);
 				if (error != Error::NONE) {
 					return error;
@@ -835,15 +868,15 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 		// if folder number is not -1, it means this is the second we're running the stem export process
 		// for this song, so we need to append a folder number to the SONG name
 		if (highestUsedStemFolderNumber != -1) {
-			// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER-
-			// or tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG-
+			// tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS-
+			// or tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS-
 			error = tempPath.concatenate("-");
 			if (error != Error::NONE) {
 				return error;
 			}
 
-			// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER-##
-			// or tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG-##
+			// tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS-##
+			// or tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS-##
 			error = tempPath.concatenateInt(highestUsedStemFolderNumber, 2);
 			if (error != Error::NONE) {
 				return error;
@@ -879,8 +912,8 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 	}
 
 	if (stemExportType == StemExportType::MASTER_ARRANGEMENT) {
-		// wavFileNameForStemExport = "/ARRANAGEMENT
-		error = wavFileNameForStemExport.concatenate("ARRANGEMENT");
+		// wavFileNameForStemExport = "/MIXDOWN
+		error = wavFileNameForStemExport.concatenate("MIXDOWN");
 		if (error != Error::NONE) {
 			return;
 		}

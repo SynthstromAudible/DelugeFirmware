@@ -20,11 +20,7 @@
 #include "gui/menu_item/arpeggiator/note_mode.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
-#include "model/clip/clip.h"
-#include "model/clip/instrument_clip.h"
-#include "model/model_stack.h"
 #include "model/song/song.h"
-#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
 class OctaveMode : public Selection {
@@ -36,8 +32,15 @@ public:
 		soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
 		soundEditor.currentArpSettings->flagForceArpRestart = true;
 	}
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return !soundEditor.editingGateDrumRow();
+	}
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
+	}
 
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_UP),        //<

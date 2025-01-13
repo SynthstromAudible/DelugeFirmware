@@ -33,7 +33,7 @@ enum class MenuPermission {
 
 class Sound;
 class MultiRange;
-class MIDIDevice;
+class MIDICable;
 
 /// Base class for all menu items.
 class MenuItem {
@@ -109,10 +109,12 @@ public:
 	/// @brief Begin an editing session with this menu item.
 	///
 	/// Should make sure the menu's internal state matches the system and redraw the display.
-	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr){};
+	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr) {};
 
 	/// Re-read the value from the system and redraw the display to match.
 	virtual void readValueAgain() {}
+	/// Like readValueAgain, but does not redraw.
+	virtual void readCurrentValue() {}
 
 	/// @}
 	/// @name Patching support
@@ -159,7 +161,9 @@ public:
 	/// @{
 
 	/// Learn a mod knob to the parameter edited by this menu.
-	virtual void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {}
+	///
+	/// @param cable The MIDI cable to learn from, or null if a mod knob is to be learned.
+	virtual void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {}
 
 	/// Used by SoundEditor to determine if the current menu item can accept MIDI learning.
 	virtual bool allowsLearnMode() { return false; }
@@ -167,10 +171,10 @@ public:
 	///
 	/// @return True if the learn succeeded and the feature controlled by this menu item will now be bound to a MIDI
 	/// note, false otherwise.
-	virtual bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) { return false; }
+	virtual bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) { return false; }
 
-	virtual void learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber) {}
-	virtual void learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber, int32_t value);
+	virtual void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) {}
+	virtual void learnCC(MIDICable& cable, int32_t channel, int32_t ccNumber, int32_t value);
 
 	/// Return true if the Learn LED should blink while this menu is active (otherwise, it blinks only while LEARN is
 	/// held).
@@ -237,6 +241,10 @@ public:
 	///
 	/// By default this is just the l10n string for \ref name, but can be overriden.
 	[[nodiscard]] virtual std::string_view getName() const { return deluge::l10n::getView(name); }
+	/// @brief Get the name for use on horizontal menus.
+	///
+	/// By default this redirects to getName(), but can be overriden.
+	virtual void getColumnLabel(StringBuf& label) { label.append(getName().data()); }
 
 	/// @brief Check if this MenuItem should show up in a containing deluge::gui::menu_item::Submenu.
 	///
@@ -262,7 +270,20 @@ public:
 	// render the submenu item type (icon or value)
 	virtual void renderSubmenuItemTypeForOled(int32_t yPixel);
 
+	virtual void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height);
+	virtual bool isSubmenu() { return false; }
+	virtual void setupNumberEditor() {}
+	virtual void updatePadLights();
+	/// Called to inform automation view that the active parameter has changed. Parameters inheriting
+	/// from Automation forward there, no-op for everything else.
+	virtual void updateAutomationViewParameter() { return; }
+	void renderColumnLabel(int32_t startX, int32_t width, int32_t startY);
+
 	/// @}
 };
 
 #define NO_NAVIGATION ((MenuItem*)0xFFFFFFFF)
+
+/// @brief  Returns true if the item is relevant using current soundEditor
+/// modControllable and sourceIndex.
+bool isItemRelevant(MenuItem* item);

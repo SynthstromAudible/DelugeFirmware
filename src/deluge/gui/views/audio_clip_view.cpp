@@ -57,9 +57,6 @@ using namespace deluge::gui;
 
 AudioClipView audioClipView{};
 
-AudioClipView::AudioClipView() {
-}
-
 inline Sample* getSample() {
 	if (getCurrentAudioClip()->getCurrentlyRecordingLinearly()) {
 		return getCurrentAudioClip()->recorder->sample;
@@ -663,7 +660,6 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 	}
 	auto ao = (AudioOutput*)getCurrentAudioClip()->output;
 	ao->scrollAudioOutputMode(offset);
-	renderUIsForOled();
 }
 
 void AudioClipView::setClipLengthEqualToSampleLength() {
@@ -683,7 +679,7 @@ void AudioClipView::adjustLoopLength(int32_t newLength) {
 	int32_t oldLength = getCurrentClip()->loopLength;
 
 	if (oldLength != newLength) {
-		Action* action = NULL;
+		Action* action = nullptr;
 
 		if (newLength > oldLength) {
 			// If we're still within limits
@@ -756,7 +752,7 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	Action* action = NULL;
+	Action* action = nullptr;
 
 	uint32_t newLength = changeClipLength(offset, oldLength, action);
 

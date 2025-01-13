@@ -30,7 +30,6 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
-#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
@@ -71,8 +70,8 @@ XMLDeserializer::XMLDeserializer() {
 void XMLDeserializer::reset() {
 	resetReader();
 	// Prep to read first Cluster shortly
-	fileReadBufferCurrentPos = audioFileManager.clusterSize;
-	currentReadBufferEndPos = audioFileManager.clusterSize;
+	fileReadBufferCurrentPos = Cluster::size;
+	currentReadBufferEndPos = Cluster::size;
 
 	song_firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
 
@@ -859,7 +858,7 @@ Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTa
 		exitTag(tagName);
 	}
 
-	closeFIL();
+	closeWriter();
 	return Error::FILE_CORRUPTED;
 }
 
@@ -875,7 +874,7 @@ Error XMLDeserializer::tryReadingFirmwareTagFromFile(char const* tagName, bool i
 		char const* firmware_version_string = readTagOrAttributeValue();
 		auto earliestFirmware = FirmwareVersion::parse(firmware_version_string);
 		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {
-			closeFIL();
+			closeWriter();
 			return Error::FILE_FIRMWARE_VERSION_TOO_NEW;
 		}
 	}
