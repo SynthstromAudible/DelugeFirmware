@@ -857,7 +857,7 @@ to each individual note onset. ([#1978])
 
 - ([#1198] [#2978] [#2985] [#2990] [#3062] [#3079]) For a detailed description of this feature, please refer to the feature
   documentation: [Arpeggiator Documentation]
-  
+
 #### 4.3.9 - Velocity View
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Velocity View Documentation]
@@ -1081,6 +1081,10 @@ as an oscillator type within the subtractive engine, so it can be combined with 
   - Patches can be imported from the common 32-patch bank syx-file format, and afterwards saved as SYNTH presets or as part of songs.
 
   - As the UI and implementation is still experimental, a community setting has to be activated to create new DX7 patches. See the separate document for details.
+
+#### 4.5.8 - More envelopes
+
+- ([#3278]) Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
 
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
@@ -1571,6 +1575,8 @@ different firmware
 [#3062]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3062
 
 [#3079]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3079
+
+[#3278]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3278
 
 [Automation View Documentation]: features/automation_view.md
 
