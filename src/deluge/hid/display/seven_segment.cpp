@@ -366,7 +366,7 @@ int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination,
 		uint8_t* segments = &destination[std::max(writePos, 0_i32)];
 
 		// First, check if it's a dot, which we might want to add to a previous position
-		bool isDot = (thisChar == '.' || thisChar == '#' || thisChar == ',');
+		bool isDot = (thisChar == '.' || thisChar == ',');
 
 		if (isDot) {
 			if (alignRight) {
@@ -437,6 +437,14 @@ int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination,
 
 			case '-':
 				*segments = 0x01;
+				break;
+
+			case '#': // sharp
+				*segments = 0b00000010;
+				break;
+
+			case 129: // flat
+				*segments = 0b00000100;
 				break;
 
 			case '_':
