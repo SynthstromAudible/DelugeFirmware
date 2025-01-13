@@ -64,6 +64,8 @@ std::array<MenuItem*, 4> child5 = {
 };
 submenu::Envelope env0Menu{STRING_FOR_ENVELOPE_1, child5, 0};
 submenu::Envelope env1Menu{STRING_FOR_ENVELOPE_2, child5, 1};
+submenu::Envelope env2Menu{STRING_FOR_ENVELOPE_3, child5, 2};
+submenu::Envelope env3Menu{STRING_FOR_ENVELOPE_4, child5, 3};
 osc::Type oscTypeMenu{STRING_FOR_TYPE, STRING_FOR_OSC_TYPE_MENU_TITLE};
 osc::source::Volume sourceVolumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_OSC_LEVEL_MENU_TITLE, params::LOCAL_OSC_A_VOLUME};
 osc::source::WaveIndex sourceWaveIndexMenu{STRING_FOR_WAVE_INDEX, STRING_FOR_OSC_WAVE_IND_MENU_TITLE, params::LOCAL_OSC_A_WAVE_INDEX};
