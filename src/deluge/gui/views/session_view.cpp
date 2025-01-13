@@ -3350,9 +3350,9 @@ RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool rend
 	if (view.clipArmFlashOn && clip->armState != ArmState::OFF) {
 		return colours::black;
 	}
+
 	// If we're currently pulsing this clip and we have the current pulse colour, use that instead
-	else if (!viewingRecordArmingActive && renderPulse && gridSelectedClipPulsing && (clip == selectedClipForPulsing)
-	         && (gridSelectedClipRenderedColour != RGB::monochrome(0))) {
+	if (!viewingRecordArmingActive && renderPulse && (clip == selectedClipForPulsing)) {
 		return gridSelectedClipRenderedColour;
 	}
 
@@ -4746,7 +4746,8 @@ void SessionView::gridPulseSelectedClip() {
 	if (gridSelectedClipPulsing) {
 		// check if we should stop pulsing
 		if (gridCheckForPulseStop()) {
-			return gridStopSelectedClipPulsing();
+			gridStopSelectedClipPulsing();
+			return;
 		}
 
 		// is UI mode valid for pulsing?
@@ -4767,70 +4768,62 @@ void SessionView::gridPulseSelectedClip() {
 				gridCoordsFromClip(currentClip, selectedClipX, selectedClipY);
 				// don't render pulse if clip is scrolled out of view (coords = - 1)
 				if (selectedClipX != -1 && selectedClipY != -1) {
-					// pulse if:
-					// A) you're not holding a pad
-					// or
-					// B) you're holding a pad that's different from the selected clip
-					if (currentUIMode == UI_MODE_NONE
-					    || (gridFirstPressedX != selectedClipX || gridFirstPressedY != selectedClipY)) {
 
-						// save the selected clip so that we don't override the pulsed colour when re-rendering grid
-						selectedClipForPulsing = currentClip;
+					// save the selected clip so that we don't override the pulsed colour when re-rendering grid
+					selectedClipForPulsing = currentClip;
 
-						// get the clip's colour, which can be different from the track colour
-						RGB clipColour =
-						    gridRenderClipColor(selectedClipForPulsing, selectedClipX, selectedClipY, false);
+					// get the clip's colour, which can be different from the track colour
+					RGB clipColour = gridRenderClipColor(selectedClipForPulsing, selectedClipX, selectedClipY, false);
 
-						// get the track colour so we can compare the clip colour to it
-						// to see if clip colour is dimmer or not
-						RGB trackColour = RGB::fromHue(currentOutput->colour);
+					// get the track colour so we can compare the clip colour to it
+					// to see if clip colour is dimmer or not
+					RGB trackColour = RGB::fromHue(currentOutput->colour);
 
-						// get the blur color that we will be pulsing towards (from the clip colour)
-						RGB blurColour = trackColour.forBlur();
+					// get the blur color that we will be pulsing towards (from the clip colour)
+					RGB blurColour = trackColour.forBlur();
 
-						int32_t maxProgressForBlur;
-						int32_t blendOffsetForBlur;
+					int32_t maxProgressForBlur;
+					int32_t blendOffsetForBlur;
 
-						// if colours are equal, then clip pad is not dim
-						if (clipColour == trackColour) {
-							maxProgressForBlur = kMaxProgressFull;
-							blendOffsetForBlur = blendOffsetFull;
-						}
-						// clip pad is dim
-						else {
-							maxProgressForBlur = kMaxProgressDim;
-							blendOffsetForBlur = blendOffsetDim;
-						}
-
-						// adjust blend offset for direction (are we pulsing towards blur or clip colour)
-						blendOffsetForBlur *= blendDirection;
-
-						// dim the clip colour we're pulsing from to increase the pulse range
-						// red needs a greater brightness range than other colours
-						int32_t brightnessAdjustment = trackColour == colours::red ? 4 : 3;
-						clipColour = clipColour.adjust(255, brightnessAdjustment);
-
-						// calculate progress (position in pulse slider)
-						// ensuring that we do not go outside min/max of the blend range
-						progress = std::clamp(progress + blendOffsetForBlur, kMinProgress, maxProgressForBlur);
-
-						// save the colour to be rendered as this will be used if grid view needs to refresh
-						gridSelectedClipRenderedColour = RGB::blend(clipColour, blurColour, 65536 - progress);
-
-						// we pulse back and forth between min and max of pulse range
-						// so if we reach either end of the range, we need to reverse the direction
-						// we do that by multiplying the blendOffset by a negative blend direction
-						if (progress == maxProgressForBlur || progress == kMinProgress) {
-							blendDirection *= -1;
-						}
-
-						// update grid image with new colour for the pulsed clip pad
-						PadLEDs::writeToGrid(selectedClipX, selectedClipY, gridSelectedClipRenderedColour.r,
-						                     gridSelectedClipRenderedColour.g, gridSelectedClipRenderedColour.b);
-
-						// action the colour change / render the pulse on the grid
-						PadLEDs::sendOutMainPadColours();
+					// if colours are equal, then clip pad is not dim
+					if (clipColour == trackColour) {
+						maxProgressForBlur = kMaxProgressFull;
+						blendOffsetForBlur = blendOffsetFull;
 					}
+					// clip pad is dim
+					else {
+						maxProgressForBlur = kMaxProgressDim;
+						blendOffsetForBlur = blendOffsetDim;
+					}
+
+					// adjust blend offset for direction (are we pulsing towards blur or clip colour)
+					blendOffsetForBlur *= blendDirection;
+
+					// dim the clip colour we're pulsing from to increase the pulse range
+					// red needs a greater brightness range than other colours
+					int32_t brightnessAdjustment = trackColour == colours::red ? 4 : 3;
+					clipColour = clipColour.adjust(255, brightnessAdjustment);
+
+					// calculate progress (position in pulse slider)
+					// ensuring that we do not go outside min/max of the blend range
+					progress = std::clamp(progress + blendOffsetForBlur, kMinProgress, maxProgressForBlur);
+
+					// save the colour to be rendered as this will be used if grid view needs to refresh
+					gridSelectedClipRenderedColour = RGB::blend(clipColour, blurColour, 65536 - progress);
+
+					// we pulse back and forth between min and max of pulse range
+					// so if we reach either end of the range, we need to reverse the direction
+					// we do that by multiplying the blendOffset by a negative blend direction
+					if (progress == maxProgressForBlur || progress == kMinProgress) {
+						blendDirection *= -1;
+					}
+
+					// update grid image with new colour for the pulsed clip pad
+					PadLEDs::writeToGrid(selectedClipX, selectedClipY, gridSelectedClipRenderedColour.r,
+					                     gridSelectedClipRenderedColour.g, gridSelectedClipRenderedColour.b);
+
+					// action the colour change / render the pulse on the grid
+					PadLEDs::sendOutMainPadColours();
 				}
 			}
 		}
