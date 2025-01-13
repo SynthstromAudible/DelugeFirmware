@@ -17,8 +17,9 @@
  * - enum Scale
  * - scalelikeNames
  * - presetScaleNotes
+ * - mode
  *
- * Use by defining DEF(id, name, notes) before invoking DEF_SCALES() and undefining it
+ * Use by defining DEF(id, name, notes, mode) before invoking DEF_SCALES() and undefining it
  * after.
  *
  * DEF_NOTES keeps the notes array intact on the trip through the preprocessor, since
@@ -31,47 +32,47 @@
 	/* ============================== 7-note scales ============================== */                                  \
 	/* ------------- ORIGINAL DELUGE SCALES: modes of the major scale ------------ */                                  \
 	/* MAJO Major (Ionian) */                                                                                          \
-	DEF(MAJOR_SCALE, "MAJOR", DEF_NOTES(0, 2, 4, 5, 7, 9, 11))                                                         \
+	DEF(MAJOR_SCALE, "MAJOR", DEF_NOTES(0, 2, 4, 5, 7, 9, 11), 1)                                                      \
 	/* MINO Natural Minor (Aeolian) */                                                                                 \
-	DEF(MINOR_SCALE, "MINOR", DEF_NOTES(0, 2, 3, 5, 7, 8, 10))                                                         \
+	DEF(MINOR_SCALE, "MINOR", DEF_NOTES(0, 2, 3, 5, 7, 8, 10), 6)                                                      \
 	/* DORI Dorian (minor with raised 6th) */                                                                          \
-	DEF(DORIAN_SCALE, "DORIAN", DEF_NOTES(0, 2, 3, 5, 7, 9, 10))                                                       \
+	DEF(DORIAN_SCALE, "DORIAN", DEF_NOTES(0, 2, 3, 5, 7, 9, 10), 2)                                                    \
 	/* PHRY Phrygian (minor with flattened 2nd) */                                                                     \
-	DEF(PHRYGIAN_SCALE, "PHRYGIAN", DEF_NOTES(0, 1, 3, 5, 7, 8, 10))                                                   \
+	DEF(PHRYGIAN_SCALE, "PHRYGIAN", DEF_NOTES(0, 1, 3, 5, 7, 8, 10), 3)                                                \
 	/* LYDI Lydian (major with raised 4th) */                                                                          \
-	DEF(LYDIAN_SCALE, "LYDIAN", DEF_NOTES(0, 2, 4, 6, 7, 9, 11))                                                       \
+	DEF(LYDIAN_SCALE, "LYDIAN", DEF_NOTES(0, 2, 4, 6, 7, 9, 11), 4)                                                    \
 	/* MIXO Mixolydian (major with flattened 7th) */                                                                   \
-	DEF(MIXOLYDIAN_SCALE, "MIXOLYDIAN", DEF_NOTES(0, 2, 4, 5, 7, 9, 10))                                               \
+	DEF(MIXOLYDIAN_SCALE, "MIXOLYDIAN", DEF_NOTES(0, 2, 4, 5, 7, 9, 10), 5)                                            \
 	/* LOCR Locrian (minor with flattened 2nd and 5th) */                                                              \
-	DEF(LOCRIAN_SCALE, "LOCRIAN", DEF_NOTES(0, 1, 3, 5, 6, 8, 10))                                                     \
+	DEF(LOCRIAN_SCALE, "LOCRIAN", DEF_NOTES(0, 1, 3, 5, 6, 8, 10), 7)                                                  \
 	/* ------------- NEW SCALES START HERE --------------------------------------- */                                  \
 	/* MELO Melodic Minor (Ascending) (matches Launchpad scale) */                                                     \
-	DEF(MELODIC_MINOR_SCALE, "MELODIC MINOR", DEF_NOTES(0, 2, 3, 5, 7, 9, 11))                                         \
+	DEF(MELODIC_MINOR_SCALE, "MELODIC MINOR", DEF_NOTES(0, 2, 3, 5, 7, 9, 11), 2)                                      \
 	/* HARM Harmonic Minor (matches Launchpad and Lumi scale) */                                                       \
-	DEF(HARMONIC_MINOR_SCALE, "HARMONIC MINOR", DEF_NOTES(0, 2, 3, 5, 7, 8, 11))                                       \
+	DEF(HARMONIC_MINOR_SCALE, "HARMONIC MINOR", DEF_NOTES(0, 2, 3, 5, 7, 8, 11), 6)                                    \
 	/* Exotic scales */                                                                                                \
 	/* HUNG Hungarian Minor (matches Launchpad scale) */                                                               \
-	DEF(HUNGARIAN_MINOR_SCALE, "HUNGARIAN MINOR", DEF_NOTES(0, 2, 3, 6, 7, 8, 11))                                     \
+	DEF(HUNGARIAN_MINOR_SCALE, "HUNGARIAN MINOR", DEF_NOTES(0, 2, 3, 6, 7, 8, 11), 6)                                  \
 	/* MARV Marva (matches Launchpad scale) */                                                                         \
-	DEF(MARVA_SCALE, "MARVA", DEF_NOTES(0, 1, 4, 6, 7, 9, 11))                                                         \
+	DEF(MARVA_SCALE, "MARVA", DEF_NOTES(0, 1, 4, 6, 7, 9, 11), 1)                                                      \
 	/* ARAB Arabian (matches Lumi's ARABIC_B scale) */                                                                 \
-	DEF(ARABIAN_SCALE, "ARABIAN", DEF_NOTES(0, 2, 4, 5, 6, 8, 10))                                                     \
+	DEF(ARABIAN_SCALE, "ARABIAN", DEF_NOTES(0, 2, 4, 5, 6, 8, 10), 1)                                                  \
 	/* ============================== 6-note scales ============================== */                                  \
 	/* WHOL Whole Tone (matches Launchpad and Lumi scale) */                                                           \
-	DEF(WHOLE_TONE_SCALE, "WHOLE TONE", DEF_NOTES(0, 2, 4, 6, 8, 10, 0))                                               \
+	DEF(WHOLE_TONE_SCALE, "WHOLE TONE", DEF_NOTES(0, 2, 4, 6, 8, 10, 0), 1)                                            \
 	/* BLUE Blues Minor (matches Launchpad and Lumi BLUES scale) */                                                    \
-	DEF(BLUES_SCALE, "BLUES", DEF_NOTES(0, 3, 5, 6, 7, 10, 0))                                                         \
+	DEF(BLUES_SCALE, "BLUES", DEF_NOTES(0, 3, 5, 6, 7, 10, 0), 6)                                                      \
 	/* ============================== 5-note scales ============================== */                                  \
 	/* PENT Pentatonic Minor (matches Launchpad and Lumi scale) */                                                     \
-	DEF(PENTATONIC_MINOR_SCALE, "PENTATONIC MINOR", DEF_NOTES(0, 3, 5, 7, 10))                                         \
+	DEF(PENTATONIC_MINOR_SCALE, "PENTATONIC MINOR", DEF_NOTES(0, 3, 5, 7, 10), 6)                                      \
 	/* HIRA Hirajoshi (matches Launchpad scale) */                                                                     \
-	DEF(HIRAJOSHI_SCALE, "HIRAJOSHI", DEF_NOTES(0, 2, 3, 7, 8))
+	DEF(HIRAJOSHI_SCALE, "HIRAJOSHI", DEF_NOTES(0, 2, 3, 7, 8), 6)
 
 /** Indexes into scalelikeNames and presetScaleNotes -arrays, and total
  *  number of preset scales.
  */
 enum Scale : uint8_t {
-#define DEF(id, name, notes) id,
+#define DEF(id, name, notes, mode) id,
 	DEF_SCALES()
 #undef DEF
 	// clang-format off
@@ -97,6 +98,7 @@ extern const NoteSet presetScaleNotes[NUM_PRESET_SCALES];
 extern std::array<char const*, NUM_SCALELIKE> scalelikeNames;
 
 const char* getScaleName(Scale scale);
+const uint8_t getScaleMode(Scale scale);
 
 /* Calculate relative major key accidental preference */
 //                                    C    Db   D    Eb   E    F    F#   G    Ab   A    Bb   B

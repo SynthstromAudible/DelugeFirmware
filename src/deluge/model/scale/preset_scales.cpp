@@ -6,7 +6,7 @@
 #include "util/d_string.h"
 
 std::array<char const*, NUM_SCALELIKE> scalelikeNames = {
-#define DEF(id, name, notes) name,
+#define DEF(id, name, notes, mode) name,
     DEF_SCALES()
 #undef DEF
     // clang-format off
@@ -17,7 +17,13 @@ std::array<char const*, NUM_SCALELIKE> scalelikeNames = {
 };
 
 const NoteSet presetScaleNotes[NUM_PRESET_SCALES] = {
-#define DEF(id, name, notes) notes,
+#define DEF(id, name, notes, mode) notes,
+    DEF_SCALES()
+#undef DEF
+};
+
+const uint8_t presetScaleModes[NUM_PRESET_SCALES] = {
+#define DEF(id, name, notes, mode) mode,
     DEF_SCALES()
 #undef DEF
 };
@@ -31,66 +37,20 @@ const char* getScaleName(Scale scale) {
 	}
 }
 
+const uint8_t getScaleMode(Scale scale) {
+	if (scale < NUM_SCALELIKE) {
+		return presetScaleModes[scale];
+	}
+	else {
+		return 1;
+	}
+}
+
+const uint8_t adjustScale2RelativeMajor[] = {0, 0, 2, 4, 5, 7, 9, 11};
 const uint8_t getAccidental(int32_t rootNoteCode, Scale scale) {
 	if (rootNoteCode >= 0 && scale < NUM_SCALELIKE) {
-		int8_t degree = 0;
-		switch (scale) {
-		case MAJOR_SCALE:
-			degree = 1;
-			break;
-		case MELODIC_MINOR_SCALE: // Flat 3rd, natural 7th
-		case DORIAN_SCALE:        // Flat 3rd and 7th
-			degree = 2;
-			break;
-		case PHRYGIAN_SCALE: // Flat 2nd, 3rd, 6th and 7th
-			degree = 3;
-			break;
-		case LYDIAN_SCALE: // Sharp 4th
-			degree = 4;
-			break;
-		case MIXOLYDIAN_SCALE: // Flat 7th
-			degree = 5;
-			break;
-		case HARMONIC_MINOR_SCALE:   // Flat 3rd and 6th, natural 7th
-		case HUNGARIAN_MINOR_SCALE:  // Flat 3rd and 6th, natural 7th and sharp 4th
-		case BLUES_SCALE:            // Flat 3rd and 7th, missing 2nd and 6th, add tritone (flat 5th)
-		case PENTATONIC_MINOR_SCALE: // Flat 3rd and 7th, missing 2nd and 6th
-		case HIRAJOSHI_SCALE:        // Flat 3rd and 6th, missing 4th and 7th
-		case MINOR_SCALE:            // Flat 3rd, 6th and 7th
-			degree = 6;
-			break;
-		case LOCRIAN_SCALE: // Flat 2nd, 3rd, 5th, 6th and 7th
-			degree = 7;
-			break;
-		default:
-			degree = 1;
-			break;
-		}
-
-		switch (degree) {
-		case 1:
-			break;
-		case 2:
-			rootNoteCode -= 2;
-			break;
-		case 3:
-			rootNoteCode -= 4;
-			break;
-		case 4:
-			rootNoteCode -= 5;
-			break;
-		case 5:
-			rootNoteCode -= 7;
-			break;
-		case 6:
-			rootNoteCode -= 9;
-			break;
-		case 7:
-			rootNoteCode -= 11;
-			break;
-		default:
-			break;
-		}
+		int8_t mode = getScaleMode(scale);
+		rootNoteCode -= adjustScale2RelativeMajor[mode];
 		if (rootNoteCode < 0) {
 			rootNoteCode += 12;
 		}
