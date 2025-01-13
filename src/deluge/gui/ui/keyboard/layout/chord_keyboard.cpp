@@ -262,26 +262,12 @@ void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName,
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp or flat.
 	noteCodeToString(noteCode, noteName, &isNatural, false, currentSong->key.rootNote, currentSong->getCurrentScale());
 
-	char modChordName[100];
-	int j = 0;
-	for (int i = 0; chordName[i] != 0; ++i) {
-		if (chordName[i] == 'F' && chordName[i + 1] == 'L' && chordName[i + 2] == 'A' && chordName[i + 3] == 'T') {
-			modChordName[j] = 129;
-			i = i + 3;
-		}
-		else {
-			modChordName[j] = chordName[i];
-		}
-		++j;
-	}
-	modChordName[j] = 0;
-
 	char fullChordName[300];
 	if (voicingName && *voicingName) {
-		sprintf(fullChordName, "%s%s - %s", noteName, modChordName, voicingName);
+		sprintf(fullChordName, "%s%s - %s", noteName, chordName, voicingName);
 	}
 	else {
-		sprintf(fullChordName, "%s%s", noteName, modChordName);
+		sprintf(fullChordName, "%s%s", noteName, chordName);
 	}
 	if (display->haveOLED()) {
 		display->popupTextTemporary(fullChordName);
