@@ -253,7 +253,7 @@ private:
 	void gridStartSection(uint32_t section, bool instant);
 	void gridToggleClipPlay(Clip* clip, bool instant);
 
-	const uint32_t gridTrackCount();
+	[[nodiscard]] const size_t gridTrackCount() const;
 	uint32_t gridClipCountForTrack(Output* track);
 	uint32_t gridTrackIndexFromTrack(Output* track, uint32_t maxTrack);
 	Output* gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack);
@@ -263,9 +263,9 @@ private:
 	int32_t gridTrackIndexFromX(uint32_t x, uint32_t maxTrack);
 	Output* gridTrackFromX(uint32_t x, uint32_t maxTrack);
 	Clip* gridClipFromCoords(uint32_t x, uint32_t y);
-	void gridCoordsFromClip(Clip* clip, uint32_t& x, uint32_t& y);
+	Cartesian gridXYFromClip(Clip& clip);
 
-	inline void gridSetDefaultMode() {
+	void gridSetDefaultMode() {
 		switch (FlashStorage::defaultGridActiveMode) {
 		case GridDefaultActiveModeGreen: {
 			gridModeSelected = SessionGridModeLaunch;
@@ -280,26 +280,46 @@ private:
 		case GridDefaultActiveModeMaxElement:;
 		}
 	}
+
 	void setupTrackCreation() const;
 	void exitTrackCreation();
 
 	// selected clip pulsing in grid view
-	void gridStopSelectedClipPulsing();                // disable selected clip pulsing
-	void gridResetSelectedClipPulseProgress();         // reset blend position for pulse
-	void gridSelectClipForPulsing(Clip* clip);         // render pulse for selected clip
-	bool gridCheckForPulseStop();                      // check if we should stop pulsing
-	bool gridSelectedClipPulsing = false;              // are we doing any pulsing
-	Clip* selectedClipForPulsing = nullptr;            // selected clip we are pulsing
-	RGB gridSelectedClipRenderedColour;                // last pulse colour we rendered
-	int32_t kMinProgress = 1;                          // min position to reach in blend slider
-	int32_t kMaxProgressFull = (65535 / 100) * 60;     // max position to reach for unmuted clip
-	int32_t kMaxProgressDim = 1000;                    // max position to reach for muted clip
-	int32_t kPulseRate = 50;                           // speed of timer in ms
-	int32_t kBlendRate = 60;                           // speed of blending colours
-	int32_t blendOffsetFull = kPulseRate * kBlendRate; // amount to move slider for unmuted clip
-	int32_t blendOffsetDim = kPulseRate;               // amount to move slider for muted clip
-	int32_t blendDirection = 1;                        // direction we're blending towards
-	int32_t progress = 0;                              // pulse blend slider position
+
+	/// @brief calculate a clip's two relevant blend colours
+	std::pair<RGB, RGB> getPulsingColours(Clip& clip);
+
+	/// @brief disable selected clip pulsing
+	void gridStopSelectedClipPulsing();
+
+	/// @brief reset blend position for pulse
+	void gridResetSelectedClipPulseProgress();
+
+	/// @brief render pulse for selected clip
+	void gridSelectClipForPulsing(Clip& clip);
+
+	/// @brief check if we should stop pulsing
+	bool gridCheckForPulseStop();
+
+	bool gridSelectedClipPulsing = false;   // are we doing any pulsing
+	Clip* selectedClipForPulsing = nullptr; // selected clip we are pulsing
+	RGB gridSelectedClipRenderedColour;     // last pulse colour we rendered
+	int32_t blendDirection = 1;             // direction we're blending towards
+	int32_t progress = 0;                   // pulse blend slider position
+
+	/// @brief cached colours for the current pulsing clip
+	std::pair<RGB, RGB> pulsingClipColours = {
+	    deluge::gui::colours::black,
+	    deluge::gui::colours::black,
+	};
+
+	static constexpr int32_t kMinProgress = 1;                           // min position to reach in blend slider
+	static constexpr int32_t kMaxProgressFull = (65535 / 100) * 60;      // max position to reach for unmuted clip
+	static constexpr int32_t kMaxProgressDim = 1000;                     // max position to reach for muted clip
+	static constexpr int32_t kPulseRate = 50;                            // speed of timer in ms
+	static constexpr int32_t kBlendRate = 60;                            // speed of blending colours
+	static constexpr int32_t kBlendOffsetFull = kPulseRate * kBlendRate; // amount to move slider for unmuted clip
+	static constexpr int32_t kBlendOffsetDim = kPulseRate;               // amount to move slider for muted clip
 };
 
 extern SessionView sessionView;
