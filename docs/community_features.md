@@ -857,7 +857,7 @@ to each individual note onset. ([#1978])
 
 - ([#1198] [#2978] [#2985] [#2990] [#3062] [#3079]) For a detailed description of this feature, please refer to the feature
   documentation: [Arpeggiator Documentation]
-  
+
 #### 4.3.9 - Velocity View
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Velocity View Documentation]
@@ -1035,6 +1035,11 @@ to each individual note onset. ([#1978])
       it has been disabled.
     - `DEFAULTS > SCALE > ACTIVE SCALES` sets the active scales for new songs. When `RANDOM` is set as
       `DEFAULTS > SCALE > INIT SCALE`, the random scale is selected from default active scales.
+
+-  ([#3243]) Scale Aware Accidentals
+    - Key scales can display either sharps or flats. The major keys of G, D, A, E, B and F# all display sharps
+      and C, F, Db, Ab, Eb and Bb all display flats.  Scale modes and exotic minor scales will use the accidental of its relative major key.  Accidentals only apply to black keys on a piano.  The sixth sharp of F# is technically E# but will display as its enharmonic equivalent F.
+    - With the 7SEG display, where before a sharp was represented with the decimal point now a sharp is represented using the upper left vertical segment and a flat is represented using the lower left vertical segment.
 
 ### 4.5 - Instrument Clip View - Synth/Kit Clip Features
 
