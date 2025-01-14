@@ -96,7 +96,9 @@ void noteCodeToString(int32_t noteCode, char* buffer,
 	if (appendOctaveNo) {
 		intToString(octave, thisChar, 1);
 	}
-	*thisChar = 0;
+	else {
+		*thisChar = 0;
+	}
 	//	D_PRINTLN(",noteCodeToString,%s", buffer);
 }
 
