@@ -291,10 +291,8 @@ RGB prepareColour(int32_t x, int32_t y, RGB colourSource) {
 	return colourSource;
 }
 
-void writeToGrid(uint8_t xDisplay, uint8_t yDisplay, uint8_t red, uint8_t green, uint8_t blue) {
-	image[yDisplay][xDisplay][0] = red;
-	image[yDisplay][xDisplay][1] = green;
-	image[yDisplay][xDisplay][2] = blue;
+void set(Cartesian pad, RGB colour) {
+	image[pad.y][pad.x] = colour;
 }
 
 void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder) {

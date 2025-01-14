@@ -286,9 +286,6 @@ private:
 
 	// selected clip pulsing in grid view
 
-	/// @brief calculate a clip's two relevant blend colours
-	std::pair<RGB, RGB> getPulsingColours(Clip& clip);
-
 	/// @brief disable selected clip pulsing
 	void gridStopSelectedClipPulsing();
 
@@ -304,14 +301,8 @@ private:
 	bool gridSelectedClipPulsing = false;   // are we doing any pulsing
 	Clip* selectedClipForPulsing = nullptr; // selected clip we are pulsing
 	RGB gridSelectedClipRenderedColour;     // last pulse colour we rendered
-	int32_t blendDirection = 1;             // direction we're blending towards
+	bool blendDirection = false;            // direction we're blending towards
 	int32_t progress = 0;                   // pulse blend slider position
-
-	/// @brief cached colours for the current pulsing clip
-	std::pair<RGB, RGB> pulsingClipColours = {
-	    deluge::gui::colours::black,
-	    deluge::gui::colours::black,
-	};
 
 	static constexpr int32_t kMinProgress = 1;                           // min position to reach in blend slider
 	static constexpr int32_t kMaxProgressFull = (65535 / 100) * 60;      // max position to reach for unmuted clip
