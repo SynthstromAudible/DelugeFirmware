@@ -58,58 +58,25 @@ void KeyRange::selectEncoderAction(int32_t offset) {
 
 void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) {
 
-	int32_t leftLength = 0;
-	if (noteIsAltered[lower]) {
-		uint8_t accidental = majorAccidental[lower];
-		if (accidental == '#') {
-			*(buffer++) = noteLetter[lower];
-		}
-		else {
-			*(buffer++) = noteLetter[lower + 1];
-		}
-		*(buffer++) = accidental;
-		leftLength += 2;
-	}
-	else {
-		*(buffer++) = noteLetter[lower];
-		++leftLength;
-	}
-
+	noteCodeToString(lower, buffer, false);
 	if (getLeftLength) {
-		*getLeftLength = leftLength;
+		*getLeftLength = strlen(buffer);
 	}
 
 	if (mayShowJustOne && lower == upper) {
-		*buffer = 0;
 		if (getRightLength) {
 			*getRightLength = 0;
 		}
 		return;
 	}
 
-	*(buffer++) = '-';
+	char* bufferPos = buffer + *getLeftLength;
 
-	int32_t rightLength = 0;
-	if (noteIsAltered[upper]) {
-		uint8_t accidental = majorAccidental[upper];
-		if (accidental == '#') {
-			*(buffer++) = noteLetter[upper];
-		}
-		else {
-			*(buffer++) = noteLetter[upper + 1];
-		}
-		*(buffer++) = accidental;
-		rightLength += 2;
-	}
-	else {
-		*(buffer++) = noteLetter[upper];
-		++rightLength;
-	}
+	*(bufferPos++) = '-';
 
-	*buffer = 0;
-
+	noteCodeToString(upper, bufferPos, false);
 	if (getRightLength) {
-		*getRightLength = rightLength;
+		*getRightLength = strlen(bufferPos);
 	}
 }
 

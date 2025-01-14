@@ -46,7 +46,13 @@ const uint8_t getScaleMode(Scale scale) {
 	}
 }
 
+/* Calculate relative major key accidental preference */
+//                                    C    Db   D    Eb   E    F    F#   G    Ab   A    Bb   B
+const uint8_t majorAccidental[12] = {129, 129, '#', 129, '#', 129, '#', '#', 129, '#', 129, '#'};
+const uint8_t noteLetter[12] = {'C', 'C', 'D', 'D', 'E', 'F', 'F', 'G', 'G', 'A', 'A', 'B'};
+const uint8_t noteIsAltered[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
 const uint8_t adjustScale2RelativeMajor[] = {0, 0, 2, 4, 5, 7, 9, 11};
+
 const uint8_t getAccidental(int32_t rootNoteCode, Scale scale) {
 	if (rootNoteCode >= 0 && scale < NUM_SCALELIKE) {
 		int8_t mode = getScaleMode(scale);
@@ -90,6 +96,7 @@ void noteCodeToString(int32_t noteCode, char* buffer,
 	if (appendOctaveNo) {
 		intToString(octave, thisChar, 1);
 	}
+	*thisChar = 0;
 	//	D_PRINTLN(",noteCodeToString,%s", buffer);
 }
 
