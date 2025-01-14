@@ -201,7 +201,7 @@ doHighlightJustOneEdge:
 	else if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
 		int32_t stringEndX = (OLED_MAIN_WIDTH_PIXELS + stringWidth) >> 1;
 		highlightWidth = digitWidth * rightLength;
-		highlightStartX = stringEndX - highlightWidth;
+		highlightStartX = stringEndX - highlightWidth - (kTextHugeSpacingX >> 1); // dash is half the width of digit
 		goto doHighlightJustOneEdge;
 	}
 }

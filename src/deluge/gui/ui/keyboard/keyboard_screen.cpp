@@ -768,10 +768,9 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 		instrumentClipView.setupChangingOfRootNote(newRootNote);
 
 		char noteName[3] = {0};
-		int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp or flat.
-		noteCodeToString(currentSong->key.rootNote, noteName, &isNatural, true, currentSong->key.rootNote,
+		noteCodeToString(currentSong->key.rootNote, noteName, true, currentSong->key.rootNote,
 		                 currentSong->getCurrentScale());
-		display->displayPopup(noteName, 3, false, (noteIsAltered[newRootNote] ? 0 : 255));
+		display->displayPopup(noteName, 3);
 		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(
 		    0, false, pressedPads, xEncoderActive);
 		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();

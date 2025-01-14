@@ -349,7 +349,10 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 	}
 	else {
 		int32_t note = soundEditor.currentSource->ranges.getElement(this->getValue() - 1)->topNote + 1;
-		noteCodeToString(note, buffer, getLeftLength);
+		noteCodeToString(note, buffer);
+		if (getLeftLength) {
+			*getLeftLength = strlen(buffer);
+		}
 	}
 
 	char* bufferPos = buffer + strlen(buffer);
@@ -385,7 +388,10 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 
 		*(bufferPos++) = '-';
 		*(bufferPos++) = ' ';
-		noteCodeToString(note, bufferPos, getRightLength);
+		noteCodeToString(note, bufferPos);
+		if (getRightLength) {
+			*getRightLength = strlen(bufferPos);
+		}
 	}
 }
 

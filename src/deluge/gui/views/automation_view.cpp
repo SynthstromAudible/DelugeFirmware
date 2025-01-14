@@ -1394,8 +1394,7 @@ void AutomationView::renderNoteEditorDisplayOLED(deluge::hid::display::oled_canv
 			strncpy(noteRowName, drumName.c_str(), 49);
 		}
 		else {
-			int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-			noteCodeToString(modelStackWithNoteRow->getNoteRow()->getNoteCode(), noteRowName, &isNatural, true,
+			noteCodeToString(modelStackWithNoteRow->getNoteRow()->getNoteCode(), noteRowName, true,
 			                 currentSong->key.rootNote, currentSong->getCurrentScale());
 		}
 	}
@@ -1575,8 +1574,7 @@ void AutomationView::renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputTyp
 				strncpy(noteRowName, drumName.c_str(), 49);
 			}
 			else {
-				int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp or flat.
-				noteCodeToString(modelStackWithNoteRow->getNoteRow()->getNoteCode(), noteRowName, &isNatural, true,
+				noteCodeToString(modelStackWithNoteRow->getNoteRow()->getNoteCode(), noteRowName, true,
 				                 currentSong->key.rootNote, currentSong->getCurrentScale());
 			}
 		}

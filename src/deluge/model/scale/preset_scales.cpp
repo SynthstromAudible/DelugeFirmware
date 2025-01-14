@@ -62,14 +62,16 @@ const uint8_t getAccidental(int32_t rootNoteCode, Scale scale) {
 	}
 }
 
-void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot,
+void noteCodeToString(int32_t noteCode, char* buffer,
                       bool appendOctaveNo,  // defaults to true
-                      int32_t rootNoteCode, // defaults to -1
-                      Scale scale) {        // defaults to NO_SCALE
+                      int32_t rootNoteCode, // defaults to -1, becomes noteCode
+                      Scale scale) {        // defaults to MAJOR
 	char* thisChar = buffer;
 	int32_t octave = (noteCode) / 12 - 2;
 	int32_t n = (uint16_t)(noteCode + 120) % (uint8_t)12;
-
+	if (rootNoteCode == -1) {
+		rootNoteCode = noteCode;
+	}
 	uint8_t accidental = getAccidental(rootNoteCode, scale);
 	if (noteIsAltered[n]) { // actually: if code is a black key on the piano?
 		if ((accidental == '#')) {
@@ -87,13 +89,6 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 	thisChar++;
 	if (appendOctaveNo) {
 		intToString(octave, thisChar, 1);
-	}
-
-	if (getLengthWithoutDot) {
-		*getLengthWithoutDot = strlen(buffer);
-		if (noteIsAltered[n]) {
-			(*getLengthWithoutDot)--;
-		}
 	}
 	//	D_PRINTLN(",noteCodeToString,%s", buffer);
 }
