@@ -9,6 +9,7 @@
 - Added a boss/roland style Dimension effect
 - Made grain much faster and updated controls
 - Added LPF to Mutable Instruments Reverb
+- Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
 
 #### <ins>Per-clip Stutter with options: Quantize, Reverse, and Ping-Pong</ins>
 - Now the stutter buffer can also be set to play in reverse, and ping-pong.
