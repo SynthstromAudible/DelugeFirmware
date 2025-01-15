@@ -746,7 +746,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 
 	bool unassignVoiceAfter = (envelopes[0].state == EnvelopeStage::OFF)
 	                          || (envelopes[0].state > EnvelopeStage::DECAY
-	                              && sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] == -2147483648);
+	                              && sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] == std::numeric_limits<int32_t>::min());
 	// Local LFO
 	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
 	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
