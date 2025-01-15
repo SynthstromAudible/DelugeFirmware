@@ -166,8 +166,8 @@ renderEnvelope:
 				                         / static_cast<double>(render.size()));
 
 				std::span render_mono{reinterpret_cast<q31_t*>(render.data()), render.size()};
-				activeAudioClip.render(modelStack, render_mono.data(), render_mono.size(), amplitudeEffectiveStart,
-				                       amplitudeIncrementEffective, pitchAdjust);
+				activeAudioClip.render(modelStack, render_mono, amplitudeEffectiveStart, amplitudeIncrementEffective,
+				                       pitchAdjust);
 				rendered = true;
 				amplitudeLastTime = amplitudeLocal;
 

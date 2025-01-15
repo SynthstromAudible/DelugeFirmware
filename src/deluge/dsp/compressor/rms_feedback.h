@@ -21,6 +21,7 @@
 #include "dsp/filter/ladder_components.h"
 #include "dsp/stereo_sample.h"
 #include <cmath>
+#include <span>
 
 class [[gnu::hot]] RMSFeedbackCompressor {
 public:
