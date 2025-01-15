@@ -98,9 +98,9 @@ void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> o
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output.data(), output.size(),
-	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, OutputType::AUDIO, recorder);
+	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
+	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
+	                                      isClipActive, OutputType::AUDIO, recorder);
 }
 
 void AudioOutput::resetEnvelope() {

@@ -16,7 +16,9 @@
  */
 
 #include "model/global_effectable/global_effectable_for_clip.h"
+#include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "dsp/stereo_sample.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
 #include "model/action/action.h"
@@ -48,8 +50,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 // Beware - unlike usual, modelStack might have a NULL timelineCounter.
 [[gnu::hot]] void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelStack,
-                                                        ParamManager* paramManagerForClip, StereoSample* outputBuffer,
-                                                        int32_t numSamples, int32_t* reverbBuffer,
+                                                        ParamManager* paramManagerForClip,
+                                                        std::span<StereoSample> output, int32_t* reverbBuffer,
                                                         int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                                         bool shouldLimitDelayFeedback, bool isClipActive,
                                                         OutputType outputType, SampleRecorder* recorder) {
@@ -100,7 +102,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 			sidechain.registerHit(sideChainHitPending);
 		}
 		int32_t sidechainOutput =
-		    sidechain.render(numSamples, unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
+		    sidechain.render(output.size(), unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
 
 		int32_t positivePatchedValue =
 		    multiply_32x32_rshift32(sidechainOutput, getSidechainVolumeAmountAsPatchCableDepth(paramManagerForClip))
@@ -112,18 +114,18 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	}
 	q31_t compThreshold = unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
 	compressor.setThreshold(compThreshold);
-	StereoSample globalEffectableBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));
+	alignas(CACHE_LINE_SIZE) StereoSample globalEffectableBuffer[SSI_TX_BUFFER_NUM_SAMPLES];
 
-	memset(globalEffectableBuffer, 0, sizeof(StereoSample) * numSamples);
+	memset(globalEffectableBuffer, 0, sizeof(StereoSample) * output.size());
 
 	// Render actual Drums / AudioClip
 	renderedLastTime = renderGlobalEffectableForClip(
-	    modelStack, globalEffectableBuffer, nullptr, numSamples, reverbBuffer, reverbAmountAdjustForDrums,
+	    modelStack, globalEffectableBuffer, nullptr, output.size(), reverbBuffer, reverbAmountAdjustForDrums,
 	    sideChainHitPending, shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
 	// Render saturation
 	if (clippingAmount) {
-		StereoSample const* const bufferEnd = globalEffectableBuffer + numSamples;
+		StereoSample const* const bufferEnd = globalEffectableBuffer + output.size();
 
 		StereoSample* __restrict__ currentSample = globalEffectableBuffer;
 		do {
@@ -133,31 +135,30 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	}
 
 	// Render filters
-	processFilters({globalEffectableBuffer, numSamples});
+	processFilters({globalEffectableBuffer, output.size()});
 
 	// Render FX
-	processSRRAndBitcrushing({globalEffectableBuffer, numSamples}, &volumePostFX, paramManagerForClip);
-	processFXForGlobalEffectable({globalEffectableBuffer, numSamples}, &volumePostFX, paramManagerForClip,
+	processSRRAndBitcrushing({globalEffectableBuffer, output.size()}, &volumePostFX, paramManagerForClip);
+	processFXForGlobalEffectable({globalEffectableBuffer, output.size()}, &volumePostFX, paramManagerForClip,
 	                             delayWorkingState, renderedLastTime, reverbSendAmount);
-	processStutter({globalEffectableBuffer, numSamples}, paramManagerForClip);
+	processStutter({globalEffectableBuffer, output.size()}, paramManagerForClip);
 	// record before pan/compression/volume to keep volumes consistent
 	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
-		recorder->feedAudio({globalEffectableBuffer, numSamples}, true, 2);
+		recorder->feedAudio({globalEffectableBuffer, output.size()}, true, 2);
 	}
 
-	processReverbSendAndVolume({globalEffectableBuffer, numSamples}, reverbBuffer, volumePostFX, postReverbVolume,
+	processReverbSendAndVolume({globalEffectableBuffer, output.size()}, reverbBuffer, volumePostFX, postReverbVolume,
 	                           reverbSendAmount, pan, true);
 	if (compThreshold > 0) {
-		compressor.renderVolNeutral({globalEffectableBuffer, numSamples}, volumePostFX);
+		compressor.renderVolNeutral({globalEffectableBuffer, output.size()}, volumePostFX);
 	}
 	else {
 		compressor.reset();
 	}
 
-
-	for (size_t i = 0; i < numSamples; ++i) {
-		outputBuffer[i] += globalEffectableBuffer[i];
+	for (size_t i = 0; i < output.size(); ++i) {
+		output[i] += globalEffectableBuffer[i];
 	}
 
 	postReverbVolumeLastTime = postReverbVolume;
@@ -171,7 +172,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		if (result) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThingsButNoNoteRow(this, paramManagerForClip);
-			paramManagerForClip->toForTimeline()->tickSamples(numSamples, modelStackWithThreeMainThings);
+			paramManagerForClip->toForTimeline()->tickSamples(output.size(), modelStackWithThreeMainThings);
 		}
 	}
 }
@@ -201,7 +202,7 @@ void GlobalEffectableForClip::modButtonAction(uint8_t whichModButton, bool on, P
 		return;
 	}
 
-	return GlobalEffectable::modButtonAction(whichModButton, on, paramManager);
+	GlobalEffectable::modButtonAction(whichModButton, on, paramManager);
 }
 
 bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
