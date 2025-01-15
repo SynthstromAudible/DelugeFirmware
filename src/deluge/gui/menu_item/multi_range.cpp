@@ -23,6 +23,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h" //todo: this probably shouldn't be needed
+#include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
@@ -349,7 +350,7 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 	}
 	else {
 		int32_t note = soundEditor.currentSource->ranges.getElement(this->getValue() - 1)->topNote + 1;
-		noteCodeToString(note, buffer);
+		noteCodeToString(note, buffer, true, currentSong->key.rootNote, currentSong->getCurrentScale());
 		if (getLeftLength) {
 			*getLeftLength = strlen(buffer);
 		}
@@ -388,7 +389,7 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 
 		*(bufferPos++) = '-';
 		*(bufferPos++) = ' ';
-		noteCodeToString(note, bufferPos);
+		noteCodeToString(note, bufferPos, true, currentSong->key.rootNote, currentSong->getCurrentScale());
 		if (getRightLength) {
 			*getRightLength = strlen(bufferPos);
 		}
