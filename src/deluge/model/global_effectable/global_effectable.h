@@ -37,11 +37,10 @@ public:
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation = true) override;
 	void setupFilterSetConfig(int32_t* postFXVolume, ParamManager* paramManager);
-	void processFilters(StereoSample* buffer, int32_t numSamples);
+	void processFilters(std::span<StereoSample> buffer);
 	void compensateVolumeForResonance(ParamManagerForTimeline* paramManager);
-	void processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples, int32_t* postFXVolume,
-	                                  ParamManager* paramManager, const Delay::State& delayWorkingState,
-	                                  bool anySoundComingIn, q31_t verbAmount);
+	void processFXForGlobalEffectable(std::span<StereoSample> buffer, int32_t* postFXVolume, ParamManager* paramManager,
+	                                  const Delay::State& delayWorkingState, bool anySoundComingIn, q31_t verbAmount);
 
 	void writeAttributesToFile(Serializer& writer, bool writeToFile);
 	void writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeToFile);

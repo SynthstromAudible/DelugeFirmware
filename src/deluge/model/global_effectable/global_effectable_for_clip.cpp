@@ -133,11 +133,11 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	}
 
 	// Render filters
-	processFilters(globalEffectableBuffer, numSamples);
+	processFilters({globalEffectableBuffer, numSamples});
 
 	// Render FX
 	processSRRAndBitcrushing({globalEffectableBuffer, numSamples}, &volumePostFX, paramManagerForClip);
-	processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
+	processFXForGlobalEffectable({globalEffectableBuffer, numSamples}, &volumePostFX, paramManagerForClip,
 	                             delayWorkingState, renderedLastTime, reverbSendAmount);
 	processStutter({globalEffectableBuffer, numSamples}, paramManagerForClip);
 	// record before pan/compression/volume to keep volumes consistent

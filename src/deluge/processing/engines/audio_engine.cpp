@@ -933,7 +933,7 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 
 	if (currentSong) {
 		currentSong->globalEffectable.setupFilterSetConfig(&masterVolumeAdjustmentL, &currentSong->paramManager);
-		currentSong->globalEffectable.processFilters(renderingBuffer.data(), renderingBuffer.size());
+		currentSong->globalEffectable.processFilters(renderingBuffer);
 		currentSong->globalEffectable.processSRRAndBitcrushing(renderingBuffer, &masterVolumeAdjustmentL,
 		                                                       &currentSong->paramManager);
 
