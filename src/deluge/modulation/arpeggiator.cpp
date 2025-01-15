@@ -595,7 +595,8 @@ void ArpeggiatorBase::executeArpStep(ArpeggiatorSettings* settings, uint8_t numA
 
 						// Decrement indexes so they are restored to the state they was supposed to be in the previous
 						// step
-						decreasePatternIndexes(numActiveNotes, maxSequenceLength, rhythm, settings->numStepRepeats, previousStepWasCalculated);
+						decreasePatternIndexes(numActiveNotes, maxSequenceLength, rhythm, settings->numStepRepeats,
+						                       previousStepWasCalculated);
 
 						goto continueArpStepExecution;
 					}
@@ -641,13 +642,14 @@ continueArpStepExecution:
 	}
 }
 
-void ArpeggiatorBase::decreasePatternIndexes(uint8_t numActiveNotes, uint32_t maxSequenceLength, uint32_t rhythm, uint8_t numStepRepeats,
-                                      bool previousStepWasCalculated) {
+void ArpeggiatorBase::decreasePatternIndexes(uint8_t numActiveNotes, uint32_t maxSequenceLength, uint32_t rhythm,
+                                             uint8_t numStepRepeats, bool previousStepWasCalculated) {
 	// Random Notes from octave
 	if (randomNotesPlayedFromOctave > 0) {
 		// For random notes played from octave, we don't care about not wrapping
 		randomNotesPlayedFromOctave--;
-	} else if (previousStepWasCalculated) {
+	}
+	else if (previousStepWasCalculated) {
 		// Wrap only if previous step was valid
 		randomNotesPlayedFromOctave = numActiveNotes - 1;
 	}

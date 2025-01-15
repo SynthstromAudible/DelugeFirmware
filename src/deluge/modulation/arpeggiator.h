@@ -250,12 +250,11 @@ protected:
 	void resetBase();
 	void resetRatchet();
 	void executeArpStep(ArpeggiatorSettings* settings, uint8_t numActiveNotes, bool isRatchet,
-uint32_t maxSequenceLength, uint32_t rhythm,
-	                    bool shouldCarryOnRhythmNote, bool shouldPlayNote, bool shouldPlayBassNote,
-	                    bool shouldPlayChordNote);
+	                    uint32_t maxSequenceLength, uint32_t rhythm, bool shouldCarryOnRhythmNote, bool shouldPlayNote,
+	                    bool shouldPlayBassNote, bool shouldPlayChordNote);
 	void carryOnOctaveSequence(ArpeggiatorSettings* settings);
-	void decreasePatternIndexes(uint8_t numActiveNotes, uint32_t maxSequenceLength, uint32_t rhythm, uint8_t numStepRepeats,
-	                     bool previousStepWasCalculated);
+	void decreasePatternIndexes(uint8_t numActiveNotes, uint32_t maxSequenceLength, uint32_t rhythm,
+	                            uint8_t numStepRepeats, bool previousStepWasCalculated);
 	void increasePatternIndexes(uint8_t numStepRepeats);
 	void increaseSequenceIndexes(uint32_t maxSequenceLength, uint32_t rhythm);
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
