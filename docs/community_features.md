@@ -693,6 +693,9 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
   set.
 - ([#2788]) Added LPF to Mutable Instruments Model. 50 (default) corresponds to 20khz and 0 corresponds to 0hz.
 
+#### 4.2.10 Launch Exclusively
+- ([#3213]) A new option, 'Launch Exclusively', isolates a clip section from all other launch activity. This option is found to the left of option 'Launch non-exclusively' when selecting the section's number of repetitions. As a complement to non-exclusive sections that arm and turn off when another section is launched, exclusive sections remain independant and continue playing.
+
 ### 4.3 - Instrument Clip View - General Features
 
 These features were added to the Instrument Clip View and affect Synth, Kit and MIDI instrument clip types.
