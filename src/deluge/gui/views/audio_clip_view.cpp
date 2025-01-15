@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright 2019-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -52,6 +52,9 @@ extern uint8_t currentlyAccessingCard;
 AudioClipView audioClipView{};
 
 AudioClipView::AudioClipView() {
+    startMarkerVisible = false;
+    endMarkerVisible = false;
+    isEditingStartMarker = false;
 }
 
 inline AudioClip* getClip() {
@@ -336,6 +339,7 @@ dontDeactivateMarker:
 			getClip()->clear(action, modelStack);
 			numericDriver.displayPopup(HAVE_OLED ? "Audio clip cleared" : "CLEAR");
 			endMarkerVisible = false;
+			startMarkerVisible = false;
 			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
@@ -349,8 +353,9 @@ dontDeactivateMarker:
 
 		if (result != ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 deactivateMarkerIfNecessary:
-			if (endMarkerVisible) {
+			if (endMarkerVisible || startMarkerVisible) {
 				endMarkerVisible = false;
+				startMarkerVisible = false;
 				if (getCurrentUI() == this) uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 				uiNeedsRendering(this, 0xFFFFFFFF, 0);
 			}
@@ -363,169 +368,176 @@ deactivateMarkerIfNecessary:
 }
 
 int AudioClipView::padAction(int x, int y, int on) {
+    if (x < displayWidth) {
+        if (Buttons::isButtonPressed(tempoEncButtonX, tempoEncButtonY)) {
+            if (on) playbackHandler.grabTempoFromClip(getClip());
+        }
+        else {
+            if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
 
-	// Edit pad action...
-	if (x < displayWidth) {
+            // Maybe go to SoundEditor
+            int soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, on);
+            if (soundEditorResult != ACTION_RESULT_NOT_DEALT_WITH) {
+                if (soundEditorResult == ACTION_RESULT_DEALT_WITH) {
+                    endMarkerVisible = false;
+                    startMarkerVisible = false;
+                    uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+                    uiNeedsRendering(this, 0xFFFFFFFF, 0);
+                }
+                return soundEditorResult;
+            }
+            else if (on && !currentUIMode) {
+                AudioClip* clip = getClip();
 
-		if (Buttons::isButtonPressed(tempoEncButtonX, tempoEncButtonY)) {
-			if (on) playbackHandler.grabTempoFromClip(getClip());
-		}
+                // Calculate display positions
+                int endSquareDisplay = divide_round_negative(
+                    clip->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
+                    currentSong->xZoom[NAVIGATION_CLIP]);
+                
+                int startSquareDisplay = divide_round_negative(
+                    clip->sampleHolder.startPos - currentSong->xScroll[NAVIGATION_CLIP],
+                    currentSong->xZoom[NAVIGATION_CLIP]);
 
-		else {
+                // Toggle between start/end editing if shift is held and tapping the same spot
+                if (Buttons::isShiftButtonPressed()) {
+                    if (startMarkerVisible || endMarkerVisible) {
+                        isEditingStartMarker = !isEditingStartMarker;
+                        startMarkerVisible = isEditingStartMarker;
+                        endMarkerVisible = !isEditingStartMarker;
+                        uiNeedsRendering(this, 0xFFFFFFFF, 0);
+                        return ACTION_RESULT_DEALT_WITH;
+                    }
+                }
 
-			if (sdRoutineLock) return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+                // Handle start marker
+                if (startMarkerVisible) {
+                    if (x == startSquareDisplay) {
+                        if (blinkOn) uiNeedsRendering(this, 0xFFFFFFFF, 0);
+                        uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+                        startMarkerVisible = false;
+                    }
+                    else {
+                        Sample* sample = getSample();
+                        if (sample) {
+                            // Calculate new start position
+                            int newStartPos = x * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
+                            
+                            // Ensure we don't move past the end
+                            if (newStartPos >= clip->sampleHolder.endPos) {
+                                return ACTION_RESULT_DEALT_WITH;
+                            }
 
-			// Maybe go to SoundEditor
-			int soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, on);
-			if (soundEditorResult != ACTION_RESULT_NOT_DEALT_WITH) {
+                            Action* action = actionLogger.getNewAction(ACTION_CLIP_EDIT, false);
+                            
+                            // Store old value for undo
+                            uint64_t oldStartPos = clip->sampleHolder.startPos;
+                            clip->sampleHolder.startPos = newStartPos;
 
-				if (soundEditorResult == ACTION_RESULT_DEALT_WITH) {
-					endMarkerVisible = false;
-					uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
-					uiNeedsRendering(this, 0xFFFFFFFF, 0);
-				}
+                            if (action) {
+                                action->recordClipState(clip);
+                                actionLogger.closeAction(ACTION_CLIP_EDIT);
+                            }
 
-				return soundEditorResult;
-			}
+                            goto needRendering;
+                        }
+                    }
+                }
+                // Handle end marker (existing code)
+                else if (endMarkerVisible) {
+                    if (x == endSquareDisplay) {
+                        if (blinkOn) uiNeedsRendering(this, 0xFFFFFFFF, 0);
+                        uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+                        endMarkerVisible = false;
+                    }
+                    else {
+                        Sample* sample = getSample();
+                        if (sample) {
+                            int oldLength = clip->loopLength;
+                            int newLength = (x + 1) * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
+                            uint64_t oldLengthSamples = clip->sampleHolder.getDurationInSamples(true);
+                            uint64_t newLengthSamples = (uint64_t)(oldLengthSamples * newLength + (oldLength >> 1)) / (uint32_t)oldLength;
 
-			else if (on && !currentUIMode) {
+                            uint64_t* valueToChange;
+                            int64_t newEndPosSamples;
 
-				AudioClip* clip = getClip();
-
-				int endSquareDisplay = divide_round_negative(
-				    clip->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
-				    currentSong->xZoom[NAVIGATION_CLIP]); // Rounds it well down, so we get the "final square" kinda...
-
-				// Marker already visible
-				if (endMarkerVisible) {
-
-					// If tapped on the marker itself again, make it invisible
-					if (x == endSquareDisplay) {
-						if (blinkOn) uiNeedsRendering(this, 0xFFFFFFFF, 0);
-						uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
-						endMarkerVisible = false;
-					}
-
-					// Otherwise, move it
-					else {
-
-						Sample* sample = getSample();
-						if (sample) {
-
-							int oldLength = clip->loopLength;
-
-							// Ok, move the marker!
-							int newLength =
-							    (x + 1) * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
-
-							uint64_t oldLengthSamples = clip->sampleHolder.getDurationInSamples(true);
-
-							uint64_t newLengthSamples = (uint64_t)(oldLengthSamples * newLength + (oldLength >> 1))
-							                            / (uint32_t)oldLength; // Rounded
-
-							uint64_t* valueToChange;
-							int64_t newEndPosSamples;
-
-							// AudioClip reversed
-							if (clip->sampleControls.reversed) {
-
-								newEndPosSamples = clip->sampleHolder.getEndPos(true) - newLengthSamples;
-
-								// If the end pos is very close to the end pos marked in the audio file, assume some rounding happened along the way and just go with the original
-								if (sample->fileLoopStartSamples) {
-									int64_t distanceFromFileEndMarker =
-									    newEndPosSamples - (uint64_t)sample->fileLoopStartSamples;
-									if (distanceFromFileEndMarker < 0)
-										distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
-									if (distanceFromFileEndMarker < 10) {
-										newEndPosSamples = sample->fileLoopStartSamples;
-										goto setTheStartPos;
-									}
-								}
-
-								// Or if very close to actual wave start...
-								{
-									int64_t distanceFromFileEndMarker = newEndPosSamples;
-									if (distanceFromFileEndMarker < 0)
-										distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
-									if (distanceFromFileEndMarker < 10) newEndPosSamples = 0;
-								}
-
-								// If end pos less than 0, not allowed
-								if (newEndPosSamples < 0) return ACTION_RESULT_DEALT_WITH;
+                            if (clip->sampleControls.reversed) {
+                                newEndPosSamples = clip->sampleHolder.getEndPos(true) - newLengthSamples;
+                                if (sample->fileLoopStartSamples) {
+                                    int64_t distanceFromFileEndMarker = newEndPosSamples - (uint64_t)sample->fileLoopStartSamples;
+                                    if (distanceFromFileEndMarker < 0) distanceFromFileEndMarker = -distanceFromFileEndMarker;
+                                    if (distanceFromFileEndMarker < 10) {
+                                        newEndPosSamples = sample->fileLoopStartSamples;
+                                        goto setTheStartPos;
+                                    }
+                                }
+                                {
+                                    int64_t distanceFromFileEndMarker = newEndPosSamples;
+                                    if (distanceFromFileEndMarker < 0) distanceFromFileEndMarker = -distanceFromFileEndMarker;
+                                    if (distanceFromFileEndMarker < 10) newEndPosSamples = 0;
+                                }
+                                if (newEndPosSamples < 0) return ACTION_RESULT_DEALT_WITH;
 setTheStartPos:
-								valueToChange = &clip->sampleHolder.startPos;
-							}
-
-							// AudioClip playing forward
-							else {
-								newEndPosSamples = clip->sampleHolder.startPos + newLengthSamples;
-
-								// If the end pos is very close to the end pos marked in the audio file, assume some rounding happened along the way and just go with the original
-								if (sample->fileLoopEndSamples) {
-									int64_t distanceFromFileEndMarker =
-									    newEndPosSamples - (uint64_t)sample->fileLoopEndSamples;
-									if (distanceFromFileEndMarker < 0)
-										distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
-									if (distanceFromFileEndMarker < 10) {
-										newEndPosSamples = sample->fileLoopEndSamples;
-										goto setTheEndPos;
-									}
-								}
-
-								// Or if very close to actual wave length...
-								{
-									int64_t distanceFromWaveformEnd =
-									    newEndPosSamples - (uint64_t)sample->lengthInSamples;
-									if (distanceFromWaveformEnd < 0)
-										distanceFromWaveformEnd = -distanceFromWaveformEnd; // abs
-									if (distanceFromWaveformEnd < 10) newEndPosSamples = sample->lengthInSamples;
-								}
+                                valueToChange = &clip->sampleHolder.startPos;
+                            }
+                            else {
+                                newEndPosSamples = clip->sampleHolder.startPos + newLengthSamples;
+                                if (sample->fileLoopEndSamples) {
+                                    int64_t distanceFromFileEndMarker = newEndPosSamples - (uint64_t)sample->fileLoopEndSamples;
+                                    if (distanceFromFileEndMarker < 0) distanceFromFileEndMarker = -distanceFromFileEndMarker;
+                                    if (distanceFromFileEndMarker < 10) {
+                                        newEndPosSamples = sample->fileLoopEndSamples;
+                                        goto setTheEndPos;
+                                    }
+                                }
+                                {
+                                    int64_t distanceFromWaveformEnd = newEndPosSamples - (uint64_t)sample->lengthInSamples;
+                                    if (distanceFromWaveformEnd < 0) distanceFromWaveformEnd = -distanceFromWaveformEnd;
+                                    if (distanceFromWaveformEnd < 10) newEndPosSamples = sample->lengthInSamples;
+                                }
 setTheEndPos:
-								valueToChange = &clip->sampleHolder.endPos;
-							}
+                                valueToChange = &clip->sampleHolder.endPos;
+                            }
 
-							int actionType =
-							    (newLength < oldLength) ? ACTION_CLIP_LENGTH_DECREASE : ACTION_CLIP_LENGTH_INCREASE;
+                            int actionType = (newLength < oldLength) ? ACTION_CLIP_LENGTH_DECREASE : ACTION_CLIP_LENGTH_INCREASE;
 
-							// Change sample end-pos value. Must do this before calling setClipLength(), which will end up reading this value.
-							uint64_t oldValue = *valueToChange;
-							*valueToChange = newEndPosSamples;
+                            uint64_t oldValue = *valueToChange;
+                            *valueToChange = newEndPosSamples;
 
-							Action* action = actionLogger.getNewAction(actionType, false);
-							currentSong->setClipLength(clip, newLength, action);
+                            Action* action = actionLogger.getNewAction(actionType, false);
+                            currentSong->setClipLength(clip, newLength, action);
 
-							if (action) {
-								if (action->firstConsequence
-								    && action->firstConsequence->type == CONSEQUENCE_CLIP_LENGTH) {
-									ConsequenceClipLength* consequence =
-									    (ConsequenceClipLength*)action->firstConsequence;
-									consequence->pointerToMarkerValue = valueToChange;
-									consequence->markerValueToRevertTo = oldValue;
-								}
-								actionLogger.closeAction(actionType);
-							}
-
-							goto needRendering;
-						}
-					}
-				}
-
-				// Or, marker not already visible
-				else {
-					if (x == endSquareDisplay || x == endSquareDisplay + 1) {
-						endMarkerVisible = true;
+                            if (action) {
+                                if (action->firstConsequence && action->firstConsequence->type == CONSEQUENCE_CLIP_LENGTH) {
+                                    ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
+                                    consequence->pointerToMarkerValue = valueToChange;
+                                    consequence->markerValueToRevertTo = oldValue;
+                                }
+                                actionLogger.closeAction(actionType);
+                            }
+                            goto needRendering;
+                        }
+                    }
+                }
+                // Neither marker visible - show the appropriate one
+                else {
+                    if (x == startSquareDisplay || x == endSquareDisplay) {
+                        if (x == startSquareDisplay) {
+                            startMarkerVisible = true;
+                            isEditingStartMarker = true;
+                        } else {
+                            endMarkerVisible = true;
+                            isEditingStartMarker = false;
+                        }
 needRendering:
-						uiTimerManager.setTimer(TIMER_UI_SPECIFIC, SAMPLE_MARKER_BLINK_TIME);
-						blinkOn = true;
-						uiNeedsRendering(this, 0xFFFFFFFF, 0);
-					}
-				}
-			}
-		}
-	}
-
-	return ACTION_RESULT_DEALT_WITH;
+                        uiTimerManager.setTimer(TIMER_UI_SPECIFIC, SAMPLE_MARKER_BLINK_TIME);
+                        blinkOn = true;
+                        uiNeedsRendering(this, 0xFFFFFFFF, 0);
+                    }
+                }
+            }
+        }
+    }
+    return ACTION_RESULT_DEALT_WITH;
 }
 
 void AudioClipView::playbackEnded() {

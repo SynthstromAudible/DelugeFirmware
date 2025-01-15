@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright 2019-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -28,10 +28,10 @@ public:
 
 	bool opened();
 	void focusRegained();
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
+	                    uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL, bool drawUndefinedArea = true);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
+	                   uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL);
 	bool setupScroll(uint32_t oldScroll);
 	void transitionToSessionView();
 	void tellMatrixDriverWhichRowsContainSomethingZoomable();
@@ -61,6 +61,8 @@ private:
 	int lastTickSquare;
 	bool mustRedrawTickSquares;
 	bool endMarkerVisible;
+	bool startMarkerVisible;  // New: track if start marker is visible
+	bool isEditingStartMarker;  // New: track whether we're editing start or end
 	bool blinkOn;
 };
 
