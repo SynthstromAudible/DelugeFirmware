@@ -19,6 +19,7 @@
 
 #include "dsp/delay/delay_buffer.h"
 #include <cstdint>
+#include <span>
 
 class ParamManagerForTimeline;
 class ParamManager;
