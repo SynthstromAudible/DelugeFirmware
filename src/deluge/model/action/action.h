@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2023 Synthstrom Audible Limited
+ * Copyright 2017-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -68,6 +68,7 @@ class ModelStack;
 #define ACTION_NOTEROW_ROTATE 24
 #define ACTION_NOTEROW_LENGTH_EDIT 25
 #define ACTION_NOTEROW_HORIZONTAL_SHIFT 26
+#define ACTION_AUDIO_CLIP_EDIT 27
 
 class Action {
 public:

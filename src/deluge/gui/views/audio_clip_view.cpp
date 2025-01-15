@@ -393,7 +393,7 @@ int AudioClipView::padAction(int x, int y, int on) {
                 int endSquareDisplay = divide_round_negative(
                     clip->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
                     currentSong->xZoom[NAVIGATION_CLIP]);
-                
+
                 int startSquareDisplay = divide_round_negative(
                     clip->sampleHolder.startPos - currentSong->xScroll[NAVIGATION_CLIP],
                     currentSong->xZoom[NAVIGATION_CLIP]);
@@ -419,92 +419,59 @@ int AudioClipView::padAction(int x, int y, int on) {
                     else {
                         Sample* sample = getSample();
                         if (sample) {
-                            // Calculate new start position
-                            int newStartPos = x * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
-                            
-                            // Ensure we don't move past the end
-                            if (newStartPos >= clip->sampleHolder.endPos) {
-                                return ACTION_RESULT_DEALT_WITH;
-                            }
-
-                            Action* action = actionLogger.getNewAction(ACTION_CLIP_EDIT, false);
-                            
-                            // Store old value for undo
-                            uint64_t oldStartPos = clip->sampleHolder.startPos;
-                            clip->sampleHolder.startPos = newStartPos;
-
-                            if (action) {
-                                action->recordClipState(clip);
-                                actionLogger.closeAction(ACTION_CLIP_EDIT);
-                            }
-
-                            goto needRendering;
-                        }
-                    }
-                }
-                // Handle end marker (existing code)
-                else if (endMarkerVisible) {
-                    if (x == endSquareDisplay) {
-                        if (blinkOn) uiNeedsRendering(this, 0xFFFFFFFF, 0);
-                        uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
-                        endMarkerVisible = false;
-                    }
-                    else {
-                        Sample* sample = getSample();
-                        if (sample) {
                             int oldLength = clip->loopLength;
-                            int newLength = (x + 1) * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
+                            int newStartPos = x * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
+
                             uint64_t oldLengthSamples = clip->sampleHolder.getDurationInSamples(true);
-                            uint64_t newLengthSamples = (uint64_t)(oldLengthSamples * newLength + (oldLength >> 1)) / (uint32_t)oldLength;
+                            uint64_t newLengthSamples = oldLengthSamples - (newStartPos - clip->sampleHolder.startPos);
 
                             uint64_t* valueToChange;
-                            int64_t newEndPosSamples;
+                            int64_t newPosSamples;
 
                             if (clip->sampleControls.reversed) {
-                                newEndPosSamples = clip->sampleHolder.getEndPos(true) - newLengthSamples;
+                                newPosSamples = clip->sampleHolder.getEndPos(true) - newLengthSamples;
                                 if (sample->fileLoopStartSamples) {
-                                    int64_t distanceFromFileEndMarker = newEndPosSamples - (uint64_t)sample->fileLoopStartSamples;
+                                    int64_t distanceFromFileEndMarker = newPosSamples - (uint64_t)sample->fileLoopStartSamples;
                                     if (distanceFromFileEndMarker < 0) distanceFromFileEndMarker = -distanceFromFileEndMarker;
                                     if (distanceFromFileEndMarker < 10) {
-                                        newEndPosSamples = sample->fileLoopStartSamples;
+                                        newPosSamples = sample->fileLoopStartSamples;
                                         goto setTheStartPos;
                                     }
                                 }
                                 {
-                                    int64_t distanceFromFileEndMarker = newEndPosSamples;
+                                    int64_t distanceFromFileEndMarker = newPosSamples;
                                     if (distanceFromFileEndMarker < 0) distanceFromFileEndMarker = -distanceFromFileEndMarker;
-                                    if (distanceFromFileEndMarker < 10) newEndPosSamples = 0;
+                                    if (distanceFromFileEndMarker < 10) newPosSamples = 0;
                                 }
-                                if (newEndPosSamples < 0) return ACTION_RESULT_DEALT_WITH;
+                                if (newPosSamples < 0) return ACTION_RESULT_DEALT_WITH;
 setTheStartPos:
                                 valueToChange = &clip->sampleHolder.startPos;
                             }
                             else {
-                                newEndPosSamples = clip->sampleHolder.startPos + newLengthSamples;
-                                if (sample->fileLoopEndSamples) {
-                                    int64_t distanceFromFileEndMarker = newEndPosSamples - (uint64_t)sample->fileLoopEndSamples;
-                                    if (distanceFromFileEndMarker < 0) distanceFromFileEndMarker = -distanceFromFileEndMarker;
-                                    if (distanceFromFileEndMarker < 10) {
-                                        newEndPosSamples = sample->fileLoopEndSamples;
-                                        goto setTheEndPos;
+                                newPosSamples = newStartPos;
+                                if (sample->fileLoopStartSamples) {
+                                    int64_t distanceFromFileStartMarker = newPosSamples - (uint64_t)sample->fileLoopStartSamples;
+                                    if (distanceFromFileStartMarker < 0) distanceFromFileStartMarker = -distanceFromFileStartMarker;
+                                    if (distanceFromFileStartMarker < 10) {
+                                        newPosSamples = sample->fileLoopStartSamples;
+                                        goto setTheStartPos2;
                                     }
                                 }
                                 {
-                                    int64_t distanceFromWaveformEnd = newEndPosSamples - (uint64_t)sample->lengthInSamples;
-                                    if (distanceFromWaveformEnd < 0) distanceFromWaveformEnd = -distanceFromWaveformEnd;
-                                    if (distanceFromWaveformEnd < 10) newEndPosSamples = sample->lengthInSamples;
+                                    if (newPosSamples < 0) newPosSamples = 0;
+                                    if (newPosSamples >= clip->sampleHolder.endPos) return ACTION_RESULT_DEALT_WITH;
                                 }
-setTheEndPos:
-                                valueToChange = &clip->sampleHolder.endPos;
+setTheStartPos2:
+                                valueToChange = &clip->sampleHolder.startPos;
                             }
 
-                            int actionType = (newLength < oldLength) ? ACTION_CLIP_LENGTH_DECREASE : ACTION_CLIP_LENGTH_INCREASE;
+                            int actionType = ACTION_CLIP_LENGTH_DECREASE;  // Starting point moves right = decrease length
 
                             uint64_t oldValue = *valueToChange;
-                            *valueToChange = newEndPosSamples;
+                            *valueToChange = newPosSamples;
 
                             Action* action = actionLogger.getNewAction(actionType, false);
-                            currentSong->setClipLength(clip, newLength, action);
+                            currentSong->setClipLength(clip, clip->loopLength - (newStartPos - clip->sampleHolder.startPos), action);
 
                             if (action) {
                                 if (action->firstConsequence && action->firstConsequence->type == CONSEQUENCE_CLIP_LENGTH) {
@@ -514,6 +481,36 @@ setTheEndPos:
                                 }
                                 actionLogger.closeAction(actionType);
                             }
+
+                            goto needRendering;
+                        }
+                    }
+                }
+                // Handle end marker
+                else if (endMarkerVisible) {
+                    if (x == endSquareDisplay) {
+                        if (blinkOn) uiNeedsRendering(this, 0xFFFFFFFF, 0);
+                        uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+                        endMarkerVisible = false;
+                    }
+                    else {
+                        Sample* sample = getSample();
+                        if (sample) {
+                            int newEndPos = (x + 1) * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
+
+                            // Ensure we don't move before the start
+                            if (newEndPos <= clip->sampleHolder.startPos) {
+                                return ACTION_RESULT_DEALT_WITH;
+                            }
+
+                            Action* action = actionLogger.getNewAction(ACTION_AUDIO_CLIP_EDIT, false);
+
+                            if (action) {
+                                action->recordAudioClipSampleChange(clip);
+                                clip->sampleHolder.endPos = newEndPos;
+                                actionLogger.closeAction(ACTION_AUDIO_CLIP_EDIT);
+                            }
+
                             goto needRendering;
                         }
                     }
