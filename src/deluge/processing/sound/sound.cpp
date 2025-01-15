@@ -1341,11 +1341,11 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		return PatchCableAcceptance::DISALLOWED;
 
 	case params::LOCAL_VOLUME:
-		return (s != PatchSource::ENVELOPE_0
-		        // No envelopes allowed to be patched to volume - this is hardcoded elsewhere
-		        && s != PatchSource::ENVELOPE_1
-		        // Don't let the sidechain patch to local volume - it's supposed to go to global volume
-		        && s != PatchSource::SIDECHAIN)
+		return (
+		           // No envelopes allowed to be patched to volume - this is hardcoded elsewhere
+		           (s < PatchSource::ENVELOPE_0 || PatchSource::ENVELOPE_3 < s)
+		           // Don't let the sidechain patch to local volume - it's supposed to go to global volume
+		           && s != PatchSource::SIDECHAIN)
 		           ? PatchCableAcceptance::ALLOWED
 		           : PatchCableAcceptance::DISALLOWED;
 

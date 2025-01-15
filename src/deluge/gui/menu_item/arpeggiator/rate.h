@@ -23,7 +23,8 @@ class Rate final : public patched_param::Integer {
 public:
 	using patched_param::Integer::Integer;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
+		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow()
+		       && soundEditor.currentArpSettings->syncLevel == SYNC_LEVEL_NONE;
 	}
 };
 

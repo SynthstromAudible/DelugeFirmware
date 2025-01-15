@@ -1087,6 +1087,10 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 
   - As the UI and implementation is still experimental, a community setting has to be activated to create new DX7 patches. See the separate document for details.
 
+#### 4.5.8 - More envelopes
+
+- ([#3279]) Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
+
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
 #### 4.6.1 - Keyboard View
@@ -1576,6 +1580,8 @@ different firmware
 [#3062]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3062
 
 [#3079]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3079
+
+[#3279]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3279
 
 [Automation View Documentation]: features/automation_view.md
 
