@@ -74,6 +74,8 @@ private:
 	                                  uint64_t oldLengthSamples) const;
 	void changeUnderlyingSampleStartPos(AudioClip* clip, const Sample* sample, int32_t newStartPos, int32_t oldStartPos,
 	                                     uint64_t oldStartPosSamples) const;
+	void changeUnderlyingSampleEndPos(AudioClip* clip, const Sample* sample, int32_t newEndPos, int32_t oldEndPos,
+	                                  uint64_t oldEndPosSamples) const;
 };
 
 extern AudioClipView audioClipView;
