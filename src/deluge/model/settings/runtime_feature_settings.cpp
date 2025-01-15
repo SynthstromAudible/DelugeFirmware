@@ -33,7 +33,7 @@
 
 /// Unknown Settings container
 struct UnknownSetting {
-	std::string_view name;
+	std::string name;
 	uint32_t value;
 };
 
