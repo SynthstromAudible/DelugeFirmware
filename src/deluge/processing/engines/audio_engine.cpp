@@ -934,13 +934,12 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 	if (currentSong) {
 		currentSong->globalEffectable.setupFilterSetConfig(&masterVolumeAdjustmentL, &currentSong->paramManager);
 		currentSong->globalEffectable.processFilters(renderingBuffer.data(), renderingBuffer.size());
-		currentSong->globalEffectable.processSRRAndBitcrushing(renderingBuffer.data(), renderingBuffer.size(),
-		                                                       &masterVolumeAdjustmentL, &currentSong->paramManager);
+		currentSong->globalEffectable.processSRRAndBitcrushing(renderingBuffer, &masterVolumeAdjustmentL,
+		                                                       &currentSong->paramManager);
 
 		masterVolumeAdjustmentR = masterVolumeAdjustmentL; // This might have changed in the above function calls
 
-		currentSong->globalEffectable.processStutter(renderingBuffer.data(), renderingBuffer.size(),
-		                                             &currentSong->paramManager);
+		currentSong->globalEffectable.processStutter(renderingBuffer, &currentSong->paramManager);
 
 		// And we do panning for song here too - must be post reverb, and we had to do a volume adjustment below
 		// anyway

@@ -2456,8 +2456,8 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	globalEffectable.processFXForGlobalEffectable(outputBuffer.data(), outputBuffer.size(), &volumePostFX,
 	                                              &paramManager, delayWorkingState, true, reverbSendAmount >> 3);
 
-	globalEffectable.processReverbSendAndVolume(outputBuffer.data(), outputBuffer.size(), reverbBuffer, volumePostFX,
-	                                            postReverbVolume, reverbSendAmount >> 1);
+	globalEffectable.processReverbSendAndVolume(outputBuffer, reverbBuffer, volumePostFX, postReverbVolume,
+	                                            reverbSendAmount >> 1);
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
 	    && currentPlaybackMode == &arrangement) {

@@ -2429,12 +2429,12 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	int32_t modFXDepth = paramFinalValues[params::GLOBAL_MOD_FX_DEPTH - params::FIRST_GLOBAL];
 	int32_t modFXRate = paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
 
-	processSRRAndBitcrushing((StereoSample*)soundBuffer, numSamples, &postFXVolume, paramManager);
-	processFX((StereoSample*)soundBuffer, numSamples, modFXType_, modFXRate, modFXDepth, delayWorkingState,
+	processSRRAndBitcrushing({(StereoSample*)soundBuffer, numSamples}, &postFXVolume, paramManager);
+	processFX({(StereoSample*)soundBuffer, numSamples}, modFXType_, modFXRate, modFXDepth, delayWorkingState,
 	          &postFXVolume, paramManager, numVoicesAssigned != 0, reverbSendAmount >> 1);
-	processStutter((StereoSample*)soundBuffer, numSamples, paramManager);
+	processStutter({(StereoSample*)soundBuffer, numSamples}, paramManager);
 
-	processReverbSendAndVolume((StereoSample*)soundBuffer, numSamples, reverbBuffer, postFXVolume, postReverbVolume,
+	processReverbSendAndVolume({(StereoSample*)soundBuffer, numSamples}, reverbBuffer, postFXVolume, postReverbVolume,
 	                           reverbSendAmount, 0, true);
 
 	q31_t compThreshold = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);

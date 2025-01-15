@@ -1166,7 +1166,7 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 		disableGrain();
 	}
 
-	processFX(inputBuffer, numSamples, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume,
+	processFX({inputBuffer, numSamples}, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume,
 	          paramManager, anySoundComingIn, verbAmount);
 }
 

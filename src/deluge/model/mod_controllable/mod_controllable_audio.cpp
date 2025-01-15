@@ -129,21 +129,21 @@ bool ModControllableAudio::hasTrebleAdjusted(ParamManager* paramManager) {
 	return (unpatchedParams->getValue(params::UNPATCHED_TREBLE) != 0);
 }
 
-void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate,
+void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate,
                                      int32_t modFXDepth, const Delay::State& delayWorkingState, int32_t* postFXVolume,
                                      ParamManager* paramManager, bool anySoundComingIn, q31_t reverbSendAmount) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	StereoSample* bufferEnd = buffer + numSamples;
+	StereoSample* bufferEnd = buffer.data() + buffer.size();
 
 	// Mod FX -----------------------------------------------------------------------------------
 	if (modFXType == ModFXType::GRAIN) {
-		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd, anySoundComingIn,
+		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, anySoundComingIn,
 		               reverbSendAmount);
 	}
 	else {
-		modfx.processModFX(buffer, modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd,
+		modfx.processModFX(buffer.data(), modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd,
 		                   anySoundComingIn);
 	}
 
@@ -169,18 +169,18 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 			trebleFreq = getExp(700000000, (unpatchedParams->getValue(params::UNPATCHED_TREBLE_FREQ) >> 5) * 6);
 		}
 
-		StereoSample* currentSample = buffer;
+		StereoSample* currentSample = buffer.data();
 		do {
 			doEQ(thisDoBass, thisDoTreble, &currentSample->l, &currentSample->r, bassAmount, trebleAmount);
 		} while (++currentSample != bufferEnd);
 	}
 
 	// Delay ----------------------------------------------------------------------------------
-	delay.process({buffer, static_cast<size_t>(numSamples)}, delayWorkingState);
+	delay.process(buffer, delayWorkingState);
 }
-void ModControllableAudio::processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth,
+void ModControllableAudio::processGrainFX(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth,
                                           int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-                                          const StereoSample* bufferEnd, bool anySoundComingIn, q31_t verbAmount) {
+                                          bool anySoundComingIn, q31_t verbAmount) {
 	// this shouldn't be possible but just in case
 	if (anySoundComingIn && !grainFX) [[unlikely]] {
 		enableGrain();
@@ -188,19 +188,19 @@ void ModControllableAudio::processGrainFX(StereoSample* buffer, int32_t modFXRat
 
 	if (grainFX) {
 		int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(*postFXVolume, verbAmount) << 5;
-		grainFX->processGrainFX({buffer, bufferEnd - buffer}, modFXRate, modFXDepth,
+		grainFX->processGrainFX(buffer, modFXRate, modFXDepth,
 		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET),
 		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK), postFXVolume,
 		                        anySoundComingIn, currentSong->calculateBPM(), reverbSendAmountAndPostFXVolume);
 	}
 }
 
-void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
+void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* reverbBuffer,
                                                       int32_t postFXVolume, int32_t postReverbVolume,
                                                       int32_t reverbSendAmount, int32_t pan,
                                                       bool doAmplitudeIncrement) {
 
-	StereoSample* bufferEnd = buffer + numSamples;
+	StereoSample* bufferEnd = buffer.data() + buffer.size();
 
 	int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(postFXVolume, reverbSendAmount) << 5;
 
@@ -211,7 +211,7 @@ void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int3
 	// sidechain volume ducking, which is done through post-FX volume.
 	if (doAmplitudeIncrement) {
 		auto postReverbSendVolumeIncrement =
-		    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)numSamples);
+		    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)buffer.size());
 		amplitudeIncrementL = amplitudeIncrementR =
 		    (multiply_32x32_rshift32(postFXVolume, postReverbSendVolumeIncrement) << 5);
 	}
@@ -229,7 +229,7 @@ void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int3
 		amplitudeIncrementR = multiply_32x32_rshift32(amplitudeIncrementR, amplitudeR) << 2;
 	}
 
-	StereoSample* inputSample = buffer;
+	StereoSample* inputSample = buffer.data();
 
 	do {
 		StereoSample processingSample = *inputSample;
@@ -268,9 +268,9 @@ bool ModControllableAudio::isSRREnabled(ParamManager* paramManager) {
 	return (unpatchedParams->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION) != -2147483648);
 }
 
-void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int32_t numSamples, int32_t* postFXVolume,
+void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume,
                                                     ParamManager* paramManager) {
-	StereoSample const* const bufferEnd = buffer + numSamples;
+	StereoSample const* const bufferEnd = buffer.data() + buffer.size();
 
 	uint32_t bitCrushMaskForSRR = 0xFFFFFFFF;
 
@@ -287,7 +287,7 @@ void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int32_
 		// If not also doing SRR
 		if (!srrEnabled) {
 			uint32_t mask = 0xFFFFFFFF << (19 + (positivePreset));
-			StereoSample* __restrict__ currentSample = buffer;
+			StereoSample* __restrict__ currentSample = buffer.data();
 			do {
 				currentSample->l &= mask;
 				currentSample->r &= mask;
@@ -319,7 +319,7 @@ void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int32_
 		int32_t highSampleRateIncrement = ((uint32_t)0xFFFFFFFF / (lowSampleRateIncrement >> 6)) << 6;
 		// int32_t highSampleRateIncrement = getExp(4194304, -(int32_t)(positivePreset >> 3)); // This would work too
 
-		StereoSample* currentSample = buffer;
+		StereoSample* currentSample = buffer.data();
 		do {
 
 			// Convert down.
@@ -1130,9 +1130,9 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	}
 }
 
-void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSamples, ParamManager* paramManager) {
+void ModControllableAudio::processStutter(std::span<StereoSample> buffer, ParamManager* paramManager) {
 	if (stutterer.isStuttering(this)) {
-		stutterer.processStutter({buffer, numSamples}, paramManager, currentSong->getInputTickMagnitude(),
+		stutterer.processStutter(buffer, paramManager, currentSong->getInputTickMagnitude(),
 		                         playbackHandler.getTimePerInternalTickInverse(),
 		                         runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ReverseStutterRate));
 	}

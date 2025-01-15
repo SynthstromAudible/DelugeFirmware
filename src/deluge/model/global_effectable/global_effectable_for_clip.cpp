@@ -136,17 +136,17 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	processFilters(globalEffectableBuffer, numSamples);
 
 	// Render FX
-	processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
+	processSRRAndBitcrushing({globalEffectableBuffer, numSamples}, &volumePostFX, paramManagerForClip);
 	processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
 	                             delayWorkingState, renderedLastTime, reverbSendAmount);
-	processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
+	processStutter({globalEffectableBuffer, numSamples}, paramManagerForClip);
 	// record before pan/compression/volume to keep volumes consistent
 	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
 		recorder->feedAudio({globalEffectableBuffer, numSamples}, true, 2);
 	}
 
-	processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
+	processReverbSendAndVolume({globalEffectableBuffer, numSamples}, reverbBuffer, volumePostFX, postReverbVolume,
 	                           reverbSendAmount, pan, true);
 	if (compThreshold > 0) {
 		compressor.renderVolNeutral({globalEffectableBuffer, numSamples}, volumePostFX);
