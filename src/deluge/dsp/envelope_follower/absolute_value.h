@@ -19,6 +19,8 @@
 
 #include "dsp/stereo_sample.h"
 #include <cmath>
+#include <span>
+
 class AbsValueFollower {
 public:
 	AbsValueFollower() = default;
