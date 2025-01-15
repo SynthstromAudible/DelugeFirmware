@@ -24,6 +24,7 @@
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "processing/engines/audio_engine.h"
+#include <limits>
 #include <string.h>
 // #include <algorithm>
 #include "hid/buttons.h"
@@ -41,11 +42,7 @@ extern "C" {
 namespace params = deluge::modulation::params;
 
 GlobalEffectableForClip::GlobalEffectableForClip() {
-	postReverbVolumeLastTime = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
-
-	lastSaturationTanHWorkingValue[0] = 2147483648;
-	lastSaturationTanHWorkingValue[1] = 2147483648;
-	renderedLastTime = false;
+	this->postReverbVolumeLastTime = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 }
 
 // Beware - unlike usual, modelStack might have a NULL timelineCounter.
@@ -68,12 +65,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall.
 	// Unfortunately when I first implemented this for Kits, I just fudged a number which didn't give the 100% accuracy
 	// that I need for AudioOutputs, and I now have to maintain both for backwards compatibility
-	if (outputType == OutputType::AUDIO) {
-		volumePostFX += multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397);
-	}
-	else {
-		volumePostFX += (volumeAdjustment >> 2);
-	}
+	volumePostFX += (outputType == OutputType::AUDIO) ? multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397)
+	                                                  : (volumeAdjustment >> 2);
 
 	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(reverbAmountAdjust, volumeAdjustment) << 5;
 
@@ -97,7 +90,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	// Render sidechain
 	int32_t sidechainVolumeParam = unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_VOLUME);
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
-	if (sidechainVolumeParam != -2147483648) {
+	if (sidechainVolumeParam != std::numeric_limits<q31_t>::min()) {
 		if (sideChainHitPending != 0) {
 			sidechain.registerHit(sideChainHitPending);
 		}
@@ -107,68 +100,65 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		int32_t positivePatchedValue =
 		    multiply_32x32_rshift32(sidechainOutput, getSidechainVolumeAmountAsPatchCableDepth(paramManagerForClip))
 		    + 536870912;
-		postReverbVolume = (positivePatchedValue >> 15)
-		                   * (positivePatchedValue
-		                      >> 16); // This is tied to getParamNeutralValue(params::GLOBAL_VOLUME_POST_REVERB_SEND)
-		                              // returning 134217728
-	}
-	q31_t compThreshold = unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
-	compressor.setThreshold(compThreshold);
-	alignas(CACHE_LINE_SIZE) StereoSample globalEffectableBuffer[SSI_TX_BUFFER_NUM_SAMPLES];
 
-	memset(globalEffectableBuffer, 0, sizeof(StereoSample) * output.size());
+		// This is tied to getParamNeutralValue(params::GLOBAL_VOLUME_POST_REVERB_SEND) returning 134217728
+		postReverbVolume = (positivePatchedValue >> 15) * (positivePatchedValue >> 16);
+	}
+
+	const q31_t compThreshold = unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
+	compressor.setThreshold(compThreshold);
+
+	alignas(CACHE_LINE_SIZE) StereoSample global_effectable_memory[SSI_TX_BUFFER_NUM_SAMPLES];
+	memset(global_effectable_memory, 0, sizeof(StereoSample) * output.size());
+	std::span<StereoSample> global_effectable_audio{global_effectable_memory, output.size()};
 
 	// Render actual Drums / AudioClip
 	renderedLastTime = renderGlobalEffectableForClip(
-	    modelStack, globalEffectableBuffer, nullptr, output.size(), reverbBuffer, reverbAmountAdjustForDrums,
+	    modelStack, global_effectable_audio.data(), nullptr, output.size(), reverbBuffer, reverbAmountAdjustForDrums,
 	    sideChainHitPending, shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
 	// Render saturation
-	if (clippingAmount) {
-		StereoSample const* const bufferEnd = globalEffectableBuffer + output.size();
-
-		StereoSample* __restrict__ currentSample = globalEffectableBuffer;
-		do {
-			saturate(&currentSample->l, &lastSaturationTanHWorkingValue[0]);
-			saturate(&currentSample->r, &lastSaturationTanHWorkingValue[1]);
-		} while (++currentSample != bufferEnd);
+	if (clippingAmount != 0u) {
+		for (StereoSample& sample : global_effectable_audio) {
+			sample.l = saturate(sample.l, &lastSaturationTanHWorkingValue[0]);
+			sample.r = saturate(sample.r, &lastSaturationTanHWorkingValue[1]);
+		}
 	}
 
 	// Render filters
-	processFilters({globalEffectableBuffer, output.size()});
+	processFilters(global_effectable_audio);
 
 	// Render FX
-	processSRRAndBitcrushing({globalEffectableBuffer, output.size()}, &volumePostFX, paramManagerForClip);
-	processFXForGlobalEffectable({globalEffectableBuffer, output.size()}, &volumePostFX, paramManagerForClip,
-	                             delayWorkingState, renderedLastTime, reverbSendAmount);
-	processStutter({globalEffectableBuffer, output.size()}, paramManagerForClip);
+	processSRRAndBitcrushing(global_effectable_audio, &volumePostFX, paramManagerForClip);
+	processFXForGlobalEffectable(global_effectable_audio, &volumePostFX, paramManagerForClip, delayWorkingState,
+	                             renderedLastTime, reverbSendAmount);
+	processStutter(global_effectable_audio, paramManagerForClip);
 	// record before pan/compression/volume to keep volumes consistent
-	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+	if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
-		recorder->feedAudio({globalEffectableBuffer, output.size()}, true, 2);
+		recorder->feedAudio(global_effectable_audio, true, 2);
 	}
 
-	processReverbSendAndVolume({globalEffectableBuffer, output.size()}, reverbBuffer, volumePostFX, postReverbVolume,
-	                           reverbSendAmount, pan, true);
+	processReverbSendAndVolume(global_effectable_audio, reverbBuffer, volumePostFX, postReverbVolume, reverbSendAmount,
+	                           pan, true);
+
 	if (compThreshold > 0) {
-		compressor.renderVolNeutral({globalEffectableBuffer, output.size()}, volumePostFX);
+		compressor.renderVolNeutral(global_effectable_audio, volumePostFX);
 	}
 	else {
 		compressor.reset();
 	}
 
-	for (size_t i = 0; i < output.size(); ++i) {
-		output[i] += globalEffectableBuffer[i];
-	}
+	// Add the global effectable data to the output
+	std::ranges::transform(global_effectable_audio, output, output.begin(), std::plus{});
 
 	postReverbVolumeLastTime = postReverbVolume;
 
-	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {
-		const bool result =
-		    params::kMaxNumUnpatchedParams > 32
-		        ? paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0]
-		              || paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[1]
-		        : paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0];
+	if (playbackHandler.isEitherClockActive() && (playbackHandler.ticksLeftInCountIn == 0) && isClipActive) {
+		auto& interpolating_params = paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating;
+		const bool result = (params::kMaxNumUnpatchedParams > 32)
+		                        ? (interpolating_params[0] != 0u || interpolating_params[1] != 0u)
+		                        : (interpolating_params[0] != 0u);
 		if (result) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThingsButNoNoteRow(this, paramManagerForClip);

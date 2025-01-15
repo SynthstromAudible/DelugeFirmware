@@ -43,16 +43,17 @@ public:
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
 	                            int32_t* highestReverbAmountFound);
 
-	inline void saturate(int32_t* data, uint32_t* workingValue) {
+	[[gnu::always_inline]] q31_t saturate(q31_t data, uint32_t* workingValue) {
 		// Clipping
-		if (clippingAmount) {
+		if (clippingAmount != 0u) {
 			int32_t shiftAmount = (clippingAmount >= 3) ? (clippingAmount - 3) : 0;
 			//*data = getTanHUnknown(*data, 5 + clippingAmount) << (shiftAmount);
-			*data = getTanHAntialiased(*data, workingValue, 3 + clippingAmount) << (shiftAmount);
+			return getTanHAntialiased(data, workingValue, 3 + clippingAmount) << (shiftAmount);
 		}
+		return data;
 	}
 
-	uint32_t lastSaturationTanHWorkingValue[2];
+	std::array<uint32_t, 2> lastSaturationTanHWorkingValue = {2147483648u, 2147483648u};
 
 protected:
 	int32_t getParameterFromKnob(int32_t whichModEncoder) final;
@@ -71,5 +72,5 @@ protected:
 	virtual bool willRenderAsOneChannelOnlyWhichWillNeedCopying() { return false; }
 
 private:
-	bool renderedLastTime;
+	bool renderedLastTime = false;
 };
