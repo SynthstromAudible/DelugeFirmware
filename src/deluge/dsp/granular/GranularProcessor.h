@@ -24,6 +24,7 @@
 #include "dsp/stereo_sample.h"
 #include "memory/stealable.h"
 #include "modulation/lfo.h"
+#include <span>
 
 class UnpatchedParamSet;
 
