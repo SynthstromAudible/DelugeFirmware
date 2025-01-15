@@ -107,8 +107,8 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSampl
 		compressor.gainReduction = 0;
 	}
 	else {
-		Sound::render(modelStackWithThreeMainThings, output.data(), output.size(), reverbBuffer, sideChainHitPending,
-		              reverbAmountAdjust, shouldLimitDelayFeedback, kMaxSampleValue, recorder);
+		Sound::render(modelStackWithThreeMainThings, output, reverbBuffer, sideChainHitPending, reverbAmountAdjust,
+		              shouldLimitDelayFeedback, kMaxSampleValue, recorder);
 	}
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {

@@ -563,7 +563,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addNoteRow(noteRowIndex, thisNoteRow)->addOtherTwoThings(soundDrum, drumParamManager);
 
-		soundDrum->render(modelStackWithThreeMainThings, globalEffectableBuffer, numSamples, reverbBuffer,
+		soundDrum->render(modelStackWithThreeMainThings, {globalEffectableBuffer, numSamples}, reverbBuffer,
 		                  sideChainHitPending, reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust,
 		                  nullptr); // According to our volume, we tell Drums to send less reverb
 		rendered = true;

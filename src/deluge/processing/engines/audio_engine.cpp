@@ -918,8 +918,7 @@ void renderSamplePreview(size_t numSamples) { // Previewing sample
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
 		    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
 
-		sampleForPreview->render(modelStack, renderingBuffer.data(), renderingBuffer.size(), reverbBuffer.data(),
-		                         sideChainHitPending);
+		sampleForPreview->render(modelStack, renderingBuffer, reverbBuffer.data(), sideChainHitPending);
 	}
 }
 void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen after reverb mixed in, which is why it's

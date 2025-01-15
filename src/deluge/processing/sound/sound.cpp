@@ -2173,9 +2173,9 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 	}
 }
 
-void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outputBuffer, int32_t numSamples,
-                   int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust,
-                   bool shouldLimitDelayFeedback, int32_t pitchAdjust, SampleRecorder* recorder) {
+void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+                   int32_t sideChainHitPending, int32_t reverbAmountAdjust, bool shouldLimitDelayFeedback,
+                   int32_t pitchAdjust, SampleRecorder* recorder) {
 
 	if (skippingRendering) {
 		compressor.gainReduction = 0;
@@ -2194,14 +2194,14 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
 		globalSourceValues[patchSourceLFOGlobalUnderlying] =
-		    globalLFO.render(numSamples, lfoConfig[LFO1_ID], getGlobalLFOPhaseIncrement());
+		    globalLFO.render(output.size(), lfoConfig[LFO1_ID], getGlobalLFOPhaseIncrement());
 		uint32_t anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
 
 	for (int s = 0; s < kNumSources; s++) {
 		if (sources[s].oscType == OscType::DX7 and sources[s].dxPatch) {
-			sources[s].dxPatch->computeLfo(numSamples);
+			sources[s].dxPatch->computeLfo(output.size());
 		}
 	}
 
@@ -2215,7 +2215,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 		int32_t old = globalSourceValues[patchSourceSidechainUnderlying];
 		globalSourceValues[patchSourceSidechainUnderlying] = sidechain.render(
-		    numSamples, paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
+		    output.size(), paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
 		uint32_t anyChange = (old != globalSourceValues[patchSourceSidechainUnderlying]);
 		sourcesChanged |= anyChange << patchSourceSidechainUnderlying;
 	}
@@ -2266,7 +2266,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 		ArpReturnInstruction instruction;
 
-		getArp()->render(arpSettings, &instruction, numSamples, gateThreshold, phaseIncrement);
+		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
 
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
@@ -2304,7 +2304,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	// Render each voice into a local buffer here
 	bool renderingInStereo = renderingVoicesInStereo(modelStackWithSoundFlags);
 	static int32_t soundBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2];
-	memset(soundBuffer, 0, (numSamples * sizeof(int32_t)) << renderingInStereo);
+	memset(soundBuffer, 0, (output.size() * sizeof(int32_t)) << renderingInStereo);
 
 	if (numVoicesAssigned) {
 
@@ -2350,7 +2350,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 			ModelStackWithVoice* modelStackWithVoice = modelStackWithSoundFlags->addVoice(thisVoice);
 
-			bool stillGoing = thisVoice->render(modelStackWithVoice, soundBuffer, numSamples, renderingInStereo,
+			bool stillGoing = thisVoice->render(modelStackWithVoice, soundBuffer, output.size(), renderingInStereo,
 			                                    applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust);
 			if (!stillGoing) {
 				AudioEngine::activeVoices.checkVoiceExists(thisVoice, this, "E201");
@@ -2369,14 +2369,14 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 			bool doPanning;
 			doPanning = (AudioEngine::renderInStereo && shouldDoPanning(pan, &amplitudeL, &amplitudeR));
 			if (doPanning) {
-				for (int32_t i = numSamples - 1; i >= 0; i--) {
+				for (int32_t i = output.size() - 1; i >= 0; i--) {
 					int32_t sampleValue = soundBuffer[i];
 					soundBuffer[(i << 1)] = multiply_32x32_rshift32(sampleValue, amplitudeL) << 2;
 					soundBuffer[(i << 1) + 1] = multiply_32x32_rshift32(sampleValue, amplitudeR) << 2;
 				}
 			}
 			else {
-				for (int32_t i = numSamples - 1; i >= 0; i--) {
+				for (int32_t i = output.size() - 1; i >= 0; i--) {
 					int32_t sampleValue = soundBuffer[i];
 					soundBuffer[(i << 1)] = sampleValue;
 					soundBuffer[(i << 1) + 1] = sampleValue;
@@ -2397,7 +2397,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 				doPanning = (AudioEngine::renderInStereo && shouldDoPanning(pan, &amplitudeL, &amplitudeR));
 				if (doPanning) {
 					int32_t* thisSample = soundBuffer;
-					int32_t* endSamples = thisSample + (numSamples << 1);
+					int32_t* endSamples = thisSample + (output.size() << 1);
 					do {
 						*thisSample = multiply_32x32_rshift32(*thisSample, amplitudeL) << 2;
 						thisSample++;
@@ -2415,7 +2415,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		}
 
 		if (!renderingInStereo) {
-			memset(&soundBuffer[numSamples], 0, numSamples * sizeof(int32_t));
+			memset(&soundBuffer[output.size()], 0, output.size() * sizeof(int32_t));
 		}
 	}
 
@@ -2429,18 +2429,18 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	int32_t modFXDepth = paramFinalValues[params::GLOBAL_MOD_FX_DEPTH - params::FIRST_GLOBAL];
 	int32_t modFXRate = paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
 
-	processSRRAndBitcrushing({(StereoSample*)soundBuffer, numSamples}, &postFXVolume, paramManager);
-	processFX({(StereoSample*)soundBuffer, numSamples}, modFXType_, modFXRate, modFXDepth, delayWorkingState,
+	processSRRAndBitcrushing({(StereoSample*)soundBuffer, output.size()}, &postFXVolume, paramManager);
+	processFX({(StereoSample*)soundBuffer, output.size()}, modFXType_, modFXRate, modFXDepth, delayWorkingState,
 	          &postFXVolume, paramManager, numVoicesAssigned != 0, reverbSendAmount >> 1);
-	processStutter({(StereoSample*)soundBuffer, numSamples}, paramManager);
+	processStutter({(StereoSample*)soundBuffer, output.size()}, paramManager);
 
-	processReverbSendAndVolume({(StereoSample*)soundBuffer, numSamples}, reverbBuffer, postFXVolume, postReverbVolume,
-	                           reverbSendAmount, 0, true);
+	processReverbSendAndVolume({(StereoSample*)soundBuffer, output.size()}, reverbBuffer, postFXVolume,
+	                           postReverbVolume, reverbSendAmount, 0, true);
 
 	q31_t compThreshold = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
 	compressor.setThreshold(compThreshold);
 	if (compThreshold > 0) {
-		compressor.renderVolNeutral({(StereoSample*)soundBuffer, numSamples}, postFXVolume);
+		compressor.renderVolNeutral({(StereoSample*)soundBuffer, output.size()}, postFXVolume);
 	}
 	else {
 		compressor.reset();
@@ -2448,11 +2448,11 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
-		recorder->feedAudio({reinterpret_cast<StereoSample*>(soundBuffer), numSamples}, true, 2);
+		recorder->feedAudio({reinterpret_cast<StereoSample*>(soundBuffer), output.size()}, true, 2);
 	}
 
-	for (size_t i = 0; i < numSamples; ++i) {
-		outputBuffer[i] += reinterpret_cast<StereoSample*>(soundBuffer)[i];
+	for (size_t i = 0; i < output.size(); ++i) {
+		output[i] += reinterpret_cast<StereoSample*>(soundBuffer)[i];
 	}
 
 	postReverbVolumeLastTime = postReverbVolume;
@@ -2469,7 +2469,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		reassessRenderSkippingStatus(modelStackWithSoundFlags);
 	}
 
-	doParamLPF(numSamples, modelStackWithSoundFlags);
+	doParamLPF(output.size(), modelStackWithSoundFlags);
 }
 
 // This is virtual, and gets extended by drums!
