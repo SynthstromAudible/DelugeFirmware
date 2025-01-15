@@ -11,7 +11,8 @@ from pathlib import Path
 import util
 from functools import partial
 
-EXEC_EXT = ".exe" if os.name == "nt" else ""
+# EXEC_EXT = ".exe" if os.name == "nt" else ""
+EXEC_EXT = ""  # Disabled until next DBT release
 
 DBT_VERSION = util.get_dbt_version()
 
@@ -46,8 +47,9 @@ def exclude(files, excludes):
 def get_clang_format_cmd():
     tool_path = util.get_git_root() / "toolchain" / f"v{DBT_VERSION}"
     for path in tool_path.rglob(f"clang-format{EXEC_EXT}"):
-        os.environ["PATH"] += os.pathsep + str(path.parent.absolute())
-        return path
+        if path.is_file():
+            os.environ["PATH"] += os.pathsep + str(path.parent.absolute())
+            return path
     # failed to find it in toolchains, falling back to path, then string
     return util.find_cmd_with_fallback("clang-format")
 
@@ -194,5 +196,5 @@ def main() -> int:
     return 0
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()

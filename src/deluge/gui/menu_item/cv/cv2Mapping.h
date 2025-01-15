@@ -46,7 +46,8 @@ public:
 		((CVInstrument*)getCurrentOutput())->setCV2Mode(newSetting);
 	}
 
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		using enum l10n::String;
 		static auto o = l10n::getView(STRING_FOR_OFF);
 		static auto y = l10n::getView(STRING_FOR_PATCH_SOURCE_Y);

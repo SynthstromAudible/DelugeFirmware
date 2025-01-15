@@ -248,7 +248,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 			arpNote->mpeValues[m] = mpeValues[m];
 		}
 
-		// "AS PLAYED" NOTES
+		// "PLAYED ORDER" NOTES
 
 		// Insert it in notesAsPlayed array
 		notesAsPlayedIndex = notesAsPlayed.getNumElements();

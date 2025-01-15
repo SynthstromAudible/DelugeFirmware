@@ -4,9 +4,9 @@
 
 Two new chord focused keyboards as an additional keyboard options.
 
-The first `CHORD` keyboard is a layout that facilitates the creation and exploration of chords within a scale. It offers two modes, Column mode (providing in-scale harmonically similar chords for substitutions) and Row Mode (based largely on the Launchpad Pro's chord mode that spreads notes out on a row to allow users to build and play interesting chords across the rows).
+The first `CHORD (CORK)` keyboard is a layout that facilitates the creation and exploration of chords within a scale. It offers two modes, Column mode (providing in-scale harmonically similar chords for substitutions) and Row Mode (based largely on the Launchpad Pro's chord mode that spreads notes out on a row to allow users to build and play interesting chords across the rows).
 
-The second `CHORD LIBRARY` keyboard is a library of chords where each column is a note (chromatic, all 12 notes), with chords laid out vertically within each column.
+The second `CHORD LIBRARY (CORL)` keyboard is a library of chords where each column is a note (chromatic, all 12 notes), with chords laid out vertically within each column.
 
 ### Community Feature Setting
 

@@ -3,7 +3,6 @@ import binascii
 import argparse
 import util
 import itertools
-import rtmidi
 import os
 
 advisory = """
@@ -190,6 +189,13 @@ def find_binary(build):
 
 
 def main():
+    try:
+        import rtmidi
+    except ImportError:
+        util.install_rtmidi()
+    finally:
+        import rtmidi
+
     hex_key = None
     binary = None
     delay = None

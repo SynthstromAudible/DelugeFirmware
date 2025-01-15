@@ -31,7 +31,7 @@ char const* SaveSongOrInstrument::getTitle() {
 	return l10n::get(STRING_FOR_OPTIONS);
 }
 
-Sized<char const**> SaveSongOrInstrument::getOptions() {
+std::span<char const*> SaveSongOrInstrument::getOptions() {
 	using enum l10n::String;
 	static char const* options[] = {
 	    l10n::get(STRING_FOR_COLLECT_MEDIA), //<

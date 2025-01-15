@@ -35,6 +35,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 #### 2.2 Horizontal Menus
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
   - Envelope 1 & 2.
+  - LPF and HPF.
+  - LFOs.
 
 ## 3. General Improvements
 
@@ -855,7 +857,7 @@ to each individual note onset. ([#1978])
 
 - ([#1198] [#2978] [#2985] [#2990] [#3062] [#3079]) For a detailed description of this feature, please refer to the feature
   documentation: [Arpeggiator Documentation]
-  
+
 #### 4.3.9 - Velocity View
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Velocity View Documentation]
@@ -955,7 +957,7 @@ to each individual note onset. ([#1978])
       chord or change the default chord. Any note you play will be interpreted as the root note
       and the remaining notes will be played along with it. The default chord is none.
       You can get back to none by short pressing the current chord. Chords include 5th, Sus2,
-      Minor, Major, Sus4, Minor7, Dom7, Major7. All are in closed root position.
+      Minor, Major, Sus4, Minor7, Dom7, Major7. All are in closed root position. (Note: this option is not available while in either of the chord keyboard layouts.)
     - **`Song Chord Memory (CMEM - Cyan):`** Hold a chord down and press a pad to remember the chord. Press
       that pad again to play it. You can play over the top of your saved chords. To clear a chord,
       press shift and the pad you want to clear. Chord memory is shared across all song clips and it
@@ -1079,6 +1081,10 @@ as an oscillator type within the subtractive engine, so it can be combined with 
   - Patches can be imported from the common 32-patch bank syx-file format, and afterwards saved as SYNTH presets or as part of songs.
 
   - As the UI and implementation is still experimental, a community setting has to be activated to create new DX7 patches. See the separate document for details.
+
+#### 4.5.8 - More envelopes
+
+- ([#3279]) Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
 
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
@@ -1569,6 +1575,8 @@ different firmware
 [#3062]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3062
 
 [#3079]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3079
+
+[#3279]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3279
 
 [Automation View Documentation]: features/automation_view.md
 

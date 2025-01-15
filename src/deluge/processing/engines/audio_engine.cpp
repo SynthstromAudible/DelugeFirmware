@@ -170,7 +170,7 @@ bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
 uint32_t i2sTXBufferPos;
 uint32_t i2sRXBufferPos;
-
+int voicesStartedThisRender = 0;
 bool headphonesPluggedIn;
 bool micPluggedIn;
 bool lineInPluggedIn;
@@ -1062,6 +1062,9 @@ void routine() {
 	audioRoutineLocked = true;
 
 	numRoutines = 0;
+	voicesStartedThisRender = std::max<int>(
+	    cpuDireness - 12,
+	    0); // if we're at high direness then we pretend a couple have already been started to limit note ons
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 		while (doSomeOutputting() && numRoutines < 2) {
 
@@ -1431,6 +1434,14 @@ void getReverbParamsFromSong(Song* song) {
 	reverbSidechain.attack = song->reverbSidechainAttack;
 	reverbSidechain.release = song->reverbSidechainRelease;
 	reverbSidechain.syncLevel = song->reverbSidechainSync;
+}
+
+bool allowedToStartVoice() {
+	if (voicesStartedThisRender < 4) {
+		voicesStartedThisRender += 1;
+		return true;
+	}
+	return false;
 }
 
 Voice* solicitVoice(Sound* forSound) {

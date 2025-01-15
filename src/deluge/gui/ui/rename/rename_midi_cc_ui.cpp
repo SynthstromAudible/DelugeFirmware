@@ -34,22 +34,20 @@ bool RenameMidiCCUI::canRename() const {
 	int32_t cc = clip->lastSelectedParamID;
 	// if we're not dealing with a real cc number
 	// then don't allow user to edit the name
-	if (cc < 0 || cc == CC_EXTERNAL_MOD_WHEEL || cc >= kNumRealCCNumbers) {
-		return false;
-	}
-	else {
-		return true;
-	}
+	return cc >= 0 && cc != CC_EXTERNAL_MOD_WHEEL && cc < kNumRealCCNumbers;
 }
 
-std::string_view RenameMidiCCUI::getName() const {
+String RenameMidiCCUI::getName() const {
 	Clip* clip = getCurrentClip();
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 	int32_t cc = clip->lastSelectedParamID;
-	return midiInstrument->getNameFromCC(cc);
+	std::string_view name = midiInstrument->getNameFromCC(cc);
+	String name_string;
+	name_string.set({name.data(), name.length()});
+	return name_string;
 }
 
-bool RenameMidiCCUI::trySetName(const std::string_view& name) {
+bool RenameMidiCCUI::trySetName(String* name) {
 
 	Clip* clip = getCurrentClip();
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
