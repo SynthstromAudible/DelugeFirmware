@@ -115,11 +115,12 @@ void AudioOutput::resetEnvelope() {
 }
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
-bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* renderBuffer,
-                                                int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
-                                                int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                                bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
-                                                int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
+bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
+                                                std::span<StereoSample> renderBuffer, int32_t* bufferToTransferTo,
+                                                int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                                                int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
+                                                bool isClipActive, int32_t pitchAdjust, int32_t amplitudeAtStart,
+                                                int32_t amplitudeAtEnd) {
 	bool rendered = false;
 	// audio outputs can have an activeClip while being muted
 	if (isClipActive) {
@@ -131,7 +132,8 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 
 renderEnvelope:
 			int32_t amplitudeLocal =
-			    (envelope.render(numSamples, attack, 8388608, 2147483647, 0, decayTableSmall4) >> 1) + 1073741824;
+			    (envelope.render(renderBuffer.size(), attack, 8388608, 2147483647, 0, decayTableSmall4) >> 1)
+			    + 1073741824;
 
 			if (envelope.state >= EnvelopeStage::OFF) {
 				if (activeAudioClip->doingLateStart) {
@@ -156,10 +158,12 @@ renderEnvelope:
 				int32_t amplitudeEffectiveEnd =
 				    multiply_32x32_rshift32(amplitudeLocal, amplitudeAtEnd); // Reduces amplitude another >>1
 
-				int32_t amplitudeIncrementEffective = (amplitudeEffectiveEnd - amplitudeEffectiveStart) / numSamples;
+				int32_t amplitudeIncrementEffective =
+				    static_cast<int32_t>(static_cast<double>(amplitudeEffectiveEnd - amplitudeEffectiveStart)
+				                         / static_cast<double>(renderBuffer.size()));
 
-				int32_t* intBuffer = (int32_t*)renderBuffer;
-				activeAudioClip->render(modelStack, intBuffer, numSamples, amplitudeEffectiveStart,
+				int32_t* intBuffer = (int32_t*)renderBuffer.data();
+				activeAudioClip->render(modelStack, intBuffer, renderBuffer.size(), amplitudeEffectiveStart,
 				                        amplitudeIncrementEffective, pitchAdjust);
 				rendered = true;
 				amplitudeLastTime = amplitudeLocal;
@@ -170,10 +174,10 @@ renderEnvelope:
 					// If can write directly into Song buffer...
 					if (bufferToTransferTo) {
 						int32_t const* __restrict__ input = intBuffer;
-						int32_t const* const inputBufferEnd = input + numSamples;
+						int32_t const* const inputBufferEnd = input + renderBuffer.size();
 						int32_t* __restrict__ output = bufferToTransferTo;
 
-						int32_t const* const remainderEnd = input + (numSamples & 1);
+						int32_t const* const remainderEnd = input + (renderBuffer.size() & 1);
 
 						while (input != remainderEnd) {
 							*output += *input;
@@ -201,9 +205,9 @@ renderEnvelope:
 
 					// Or, if duplicating within same rendering buffer (cos there's FX to be applied)
 					else {
-						int32_t i = numSamples - 1;
+						int32_t i = renderBuffer.size() - 1;
 
-						int32_t firstStopAt = numSamples & ~3;
+						int32_t firstStopAt = renderBuffer.size() & ~3;
 
 						while (i >= firstStopAt) {
 							int32_t sampleValue = intBuffer[i];
@@ -250,8 +254,9 @@ renderEnvelope:
 	if (mode != AudioOutputMode::player && modelStack->song->isOutputActiveInArrangement(this)
 	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
-		StereoSample* __restrict__ outputPos = bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer;
-		StereoSample const* const outputPosEnd = outputPos + numSamples;
+		StereoSample* __restrict__ outputPos =
+		    bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer.data();
+		StereoSample const* const outputPosEnd = outputPos + renderBuffer.size();
 
 		int32_t const* __restrict__ inputReadPos = (int32_t const*)AudioEngine::i2sRXBufferPos;
 
@@ -260,7 +265,8 @@ renderEnvelope:
 			inputChannelNow = AudioInputChannel::NONE; // 0 means combine channels
 		}
 
-		int32_t amplitudeIncrement = (int32_t)((double)(amplitudeAtEnd - amplitudeAtStart) / (double)numSamples);
+		int32_t amplitudeIncrement = static_cast<int32_t>((static_cast<double>(amplitudeAtEnd - amplitudeAtStart) //
+		                                                   / static_cast<double>(renderBuffer.size())));
 		int32_t amplitudeNow = amplitudeAtStart;
 
 		do {
@@ -315,11 +321,13 @@ renderEnvelope:
 	else if (mode != AudioOutputMode::player && modelStack->song->isOutputActiveInArrangement(this)
 	         && inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && outputRecordingFrom) {
 		rendered = true;
-		StereoSample* __restrict__ outputBuffer = bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer;
+		StereoSample* __restrict__ outputBuffer =
+		    bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer.data();
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* songModelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-		outputRecordingFrom->renderOutput(songModelStack, {outputBuffer, numSamples}, reverbBuffer, reverbAmountAdjust,
-		                                  sideChainHitPending, shouldLimitDelayFeedback, isClipActive);
+		outputRecordingFrom->renderOutput(songModelStack, {outputBuffer, renderBuffer.size()}, reverbBuffer,
+		                                  reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
+		                                  isClipActive);
 	}
 	return rendered;
 }

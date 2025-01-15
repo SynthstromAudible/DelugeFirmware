@@ -114,8 +114,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	// Render actual Drums / AudioClip
 	renderedLastTime = renderGlobalEffectableForClip(
-	    modelStack, global_effectable_audio.data(), nullptr, output.size(), reverbBuffer, reverbAmountAdjustForDrums,
-	    sideChainHitPending, shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
+	    modelStack, global_effectable_audio, nullptr, reverbBuffer, reverbAmountAdjustForDrums, sideChainHitPending,
+	    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
 	// Render saturation
 	if (clippingAmount != 0u) {

@@ -44,9 +44,9 @@ public:
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
 	                  bool isClipActive) override;
 
-	bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
-	                                   int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
-	                                   int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+	bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
+	                                   std::span<StereoSample> globalEffectableBuffer, int32_t* bufferToTransferTo,
+	                                   int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
 	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd) override;
 
