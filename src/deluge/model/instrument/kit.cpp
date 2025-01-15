@@ -17,6 +17,7 @@
 
 #include "model/instrument/kit.h"
 #include "definitions_cxx.hpp"
+#include "dsp/stereo_sample.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
@@ -652,16 +653,16 @@ yesTickParamManager:
 	return rendered;
 }
 
-void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, StereoSample* outputBufferEnd,
-                       int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-                       int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
+void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+                       int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
+                       bool isClipActive) {
 
 	ParamManager* paramManager = getParamManager(modelStack->song);
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	// Beware - modelStackWithThreeMainThings might have a NULL timelineCounter
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
+	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output.data(), output.size(),
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
 	                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT, recorder);
 
@@ -684,7 +685,7 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 			                              cableToExpParamShortcut(nonAudioDrum->arpSettings.rate)));
 
 			ArpReturnInstruction instruction;
-			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, numSamples, gateThreshold,
+			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, output.size(), gateThreshold,
 			                                 phaseIncrement);
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {

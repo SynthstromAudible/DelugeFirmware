@@ -40,9 +40,9 @@ public:
 	~AudioOutput() override;
 	void cloneFrom(ModControllableAudio* other) override;
 
-	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
-	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                  bool shouldLimitDelayFeedback, bool isClipActive) override;
+	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, int32_t* reverbBuffer,
+	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
+	                  bool isClipActive) override;
 
 	bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
 	                                   int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,

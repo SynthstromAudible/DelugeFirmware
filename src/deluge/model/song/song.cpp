@@ -2418,8 +2418,7 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
 		DISABLE_ALL_INTERRUPTS();
 		if (output->shouldRenderInSong()) {
-			output->renderOutput(modelStack, outputBuffer.data(), outputBuffer.data() + outputBuffer.size(),
-			                     outputBuffer.size(), reverbBuffer, volumePostFX >> 1, sideChainHitPending,
+			output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
 			                     !isClipActiveNow, isClipActiveNow);
 		}
 		ENABLE_INTERRUPTS();

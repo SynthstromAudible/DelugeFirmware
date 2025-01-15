@@ -90,15 +90,15 @@ void AudioOutput::cloneFrom(ModControllableAudio* other) {
 	}
 }
 
-void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, StereoSample* outputBufferEnd,
-                               int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-                               int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
+void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+                               int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
+                               bool isClipActive) {
 
 	ParamManager* paramManager = getParamManager(modelStack->song);
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
+	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output.data(), output.size(),
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
 	                                      shouldLimitDelayFeedback, isClipActive, OutputType::AUDIO, recorder);
 }
@@ -318,9 +318,8 @@ renderEnvelope:
 		StereoSample* __restrict__ outputBuffer = bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer;
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* songModelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-		outputRecordingFrom->renderOutput(songModelStack, outputBuffer, outputBuffer + numSamples, numSamples,
-		                                  reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-		                                  shouldLimitDelayFeedback, isClipActive);
+		outputRecordingFrom->renderOutput(songModelStack, {outputBuffer, numSamples}, reverbBuffer, reverbAmountAdjust,
+		                                  sideChainHitPending, shouldLimitDelayFeedback, isClipActive);
 	}
 	return rendered;
 }

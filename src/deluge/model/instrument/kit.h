@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp/stereo_sample.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
 class InstrumentClip;
@@ -45,9 +46,9 @@ public:
 
 	Error loadAllAudioFiles(bool mayActuallyReadFiles) override;
 	void cutAllSound() override;
-	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
-	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                  bool shouldLimitDelayFeedback, bool isClipActive) override;
+	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, int32_t* reverbBuffer,
+	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
+	                  bool isClipActive) override;
 
 	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                     uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) override;
