@@ -141,8 +141,7 @@ void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType m
 		               reverbSendAmount);
 	}
 	else {
-		modfx.processModFX(buffer.data(), modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams,
-		                   buffer.data() + buffer.size(), anySoundComingIn);
+		modfx.processModFX(buffer, modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams, anySoundComingIn);
 	}
 
 	// EQ -------------------------------------------------------------------------------------
