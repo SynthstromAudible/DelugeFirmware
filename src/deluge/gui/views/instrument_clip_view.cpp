@@ -4668,12 +4668,10 @@ void InstrumentClipView::recordNoteOnEarly(int32_t velocity, int32_t yDisplay, I
 	else {
 		// NoteRow is allowed to be NULL in this case.
 		int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
-		((MelodicInstrument*)instrument)
-		    ->earlyNotes.emplace(yNote,
-		                         MelodicInstrument::EarlyNoteInfo{
-		                             instrument->defaultVelocity,
-		                             getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip),
-		                         });
+		static_cast<MelodicInstrument*>(instrument)->earlyNotes[yNote] = {
+		    .velocity = instrument->defaultVelocity,
+		    .still_active = getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip),
+		};
 	}
 }
 
