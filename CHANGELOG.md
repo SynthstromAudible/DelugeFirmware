@@ -81,6 +81,10 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - If scale mode is active, you can now check the current root note and scale by long pressing the scale button. On 7SEG it will display the root note on press and scale on release.
 - Long pressing the scale button will not result in entering or exiting scale mode so you can safely check the current root note and scale without accidentally exiting scale mode.
 
+##### Scale Aware Accidentals
+- Key scales can display either sharps or flats. The major keys of G, D, A, E, B and F# all display sharps and C, F, Db, Ab, Eb and Bb all display flats.  Scale modes and exotic minor scales will use the accidental of its relative major key.  Accidentals only apply to black keys on a piano.  The sixth sharp of F# is technically E# but will display as its enharmonic equivalent F.
+- With the 7SEG display, where before a sharp was represented with the decimal point now a sharp is represented using the upper left vertical segment and a flat is represented using the lower left vertical segment.
+
 ##### Velocity Spread
 - Added `Velocity Spread` parameter into a `Randomizer` submenu for Sound instruments. This parameters is shared with the arpeggiator and lets you apply some random variation to the notes.
 
