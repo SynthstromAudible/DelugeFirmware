@@ -527,39 +527,12 @@ void ArpeggiatorBase::carryOnOctaveSequence(ArpeggiatorSettings* settings) {
 	}
 }
 
-// Increase random, sequence, rhythm and spread indexes
-void ArpeggiatorBase::increaseIndexes(uint32_t maxSequenceLength, uint32_t rhythm, bool hasPlayedRhythmNote,
-                                      uint8_t numStepRepeats) {
-	// Randome Notes
-	randomNotesPlayedFromOctave++;
-	// Sequence Length
-	if (maxSequenceLength > 0) {
-		notesPlayedFromSequence++;
-	}
-	// Rhythm
-	notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % arpRhythmPatterns[rhythm].length;
-	// Locked Spread
+// Returns if note should be played
+void ArpeggiatorBase::executeArpStep(ArpeggiatorSettings* settings, uint8_t numActiveNotes, bool isRatchet,
+                                     uint32_t maxSequenceLength, uint32_t rhythm, bool shouldCarryOnRhythmNote,
+                                     bool shouldPlayNote, bool shouldPlayBassNote, bool shouldPlayChordNote) {
 
-	if (hasPlayedRhythmNote) {
-		// Only increase notesPlayedFromLockedRandomizer if we've played a rhythm note,
-		// so we effectively have more slots available and not waste them with silent notes
-		notesPlayedFromLockedRandomizer = (notesPlayedFromLockedRandomizer + 1) % RANDOMIZER_LOCK_MAX_SAVED_VALUES;
-
-		// Only increase stepRepeatIndex if we've played a rhythm note
-		stepRepeatIndex++;
-		if (stepRepeatIndex >= numStepRepeats) {
-			stepRepeatIndex = 0;
-		}
-	}
-}
-
-void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction,
-                                      bool isRatchet) {
-	// Note: for drum arpeggiator, the note mode is irrelevant, so we don't need to check it here.
-	//  We only need to account for octaveMode as it is always a 1-note arpeggio.
-	//  Besides, behavior of OctaveMode::UP_DOWN is equal to OctaveMode::ALTERNATE
-	uint32_t maxSequenceLength = computeCurrentValueForUnsignedMenuItem(settings->sequenceLength);
-	uint32_t rhythm = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
+	// Here we reset the arpeggiator sequence based on several possible conditions
 	if (settings->flagForceArpRestart) {
 		// If flagged to restart sequence, do it now and reset the flag
 		playedFirstArpeggiatedNoteYet = false;
@@ -581,31 +554,68 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		whichNoteCurrentlyOnPostArp = 0;
 	}
 
-	bool shouldCarryOnRhythmNote = evaluateRhythm(rhythm, isRatchet);
-
-	if (shouldCarryOnRhythmNote) {
-		// Calculate randomizer amounts
-		calculateRandomizerAmounts(settings);
-	}
-
-	bool shouldPlayNote = evaluateNoteProbability(isRatchet);
-	bool shouldPlayBassNote = evaluateBassProbability(isRatchet);
-
 	if (isRatchet) {
-		// Increment ratchet note index if we are ratcheting when entering switchNoteOn
+		// Increment ratchet note index if we are ratcheting
 		ratchetNotesIndex++;
 	}
 	else {
-		// If this is a normal switchNoteOn event (not ratchet, and not silent) we take here the opportunity to setup a
+		// If this is a normal note event (not ratchet) we take here the opportunity to setup a
 		// ratchet burst and also make all the necessary calculations for the next note to be played
+
 		if (shouldCarryOnRhythmNote) {
 			// Setup ratchet
 			maybeSetupNewRatchet(settings);
 
-			// Move indexes to the next note in the sequence
-			if (stepRepeatIndex == 0) {
-				calculateNextNoteAndOrOctave(settings, chordTypeNoteCount[settings->chordTypeIndex]);
+			// If which-note not actually set up yet...
+			if (!playedFirstArpeggiatedNoteYet) {
+				// Set the initial note and octave values and directions
+				setInitialNoteAndOctave(settings, numActiveNotes);
+				resetWalkBuffer();
 			}
+			else {
+				// Check if we have to "walk" the sequence and do the necessary modifications to status variables
+				if (settings->walk) {
+					// If Walk is enabled, we throw the dice and decide if moving to next step, repeating the current
+					// step or going back to the previous step saved in the walk buffer
+					uint8_t dice = getRandom255();
+					if (dice < 64) {
+						// Go to previous step (from the saved buffer)
+						if (walkBufferIndex > 0) {
+							walkBufferIndex--;
+						}
+						else {
+							walkBufferIndex = WALK_MAX_BUFFER_SIZE - 1;
+						}
+						// Restore values from previous step from the cycle buffer
+						bool previousStepWasCalculated = stepWasCalculatedWalkBuffer[walkBufferIndex];
+						whichNoteCurrentlyOnPostArp = whichNoteCurrentlyOnPostArpWalkBuffer[walkBufferIndex];
+						currentOctave = currentOctaveWalkBuffer[walkBufferIndex];
+						currentDirection = currentDirectionWalkBuffer[walkBufferIndex];
+						currentOctaveDirection = currentOctaveDirectionWalkBuffer[walkBufferIndex];
+
+						// Decrement indexes so they are restored to the state they was supposed to be in the previous
+						// step
+						decreasePatternIndexes(numActiveNotes, maxSequenceLength, rhythm, settings->numStepRepeats, previousStepWasCalculated);
+
+						goto continueArpStepExecution;
+					}
+					else if (dice < 128) {
+						// Repeat current step
+						goto continueArpStepExecution;
+					}
+					// if dice > 128 and < 255, continue to calculate the next step
+				}
+
+				// Move indexes to the next note in the sequence
+				calculateNextNoteAndOrOctave(settings, numActiveNotes);
+
+				increasePatternIndexes(settings->numStepRepeats);
+
+				// Save new step into Walk Buffer
+				saveCurrentValuesToWalkBufferAndMoveCaret();
+			}
+
+continueArpStepExecution:
 
 			// As we have set a note and an octave, we can say we have played a note
 			playedFirstArpeggiatedNoteYet = true;
@@ -621,11 +631,92 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 
 			// Save last note played from probability
 			lastNormalNotePlayedFromBassProbability = shouldPlayBassNote;
+
+			// Save last note played from probability
+			lastNormalNotePlayedFromChordProbability = shouldPlayChordNote;
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
-		increaseIndexes(maxSequenceLength, rhythm, shouldCarryOnRhythmNote, settings->numStepRepeats);
+		increaseSequenceIndexes(maxSequenceLength, rhythm);
 	}
+}
+
+void ArpeggiatorBase::decreasePatternIndexes(uint8_t numActiveNotes, uint32_t maxSequenceLength, uint32_t rhythm, uint8_t numStepRepeats,
+                                      bool previousStepWasCalculated) {
+	// Random Notes from octave
+	if (randomNotesPlayedFromOctave > 0) {
+		// For random notes played from octave, we don't care about not wrapping
+		randomNotesPlayedFromOctave--;
+	} else if (previousStepWasCalculated) {
+		// Wrap only if previous step was valid
+		randomNotesPlayedFromOctave = numActiveNotes - 1;
+	}
+
+	// Randomizer
+	if (notesPlayedFromLockedRandomizer > 0) {
+		notesPlayedFromLockedRandomizer--;
+	}
+	else if (previousStepWasCalculated) {
+		// Wrap only if previous step was valid
+		notesPlayedFromLockedRandomizer = RANDOMIZER_LOCK_MAX_SAVED_VALUES - 1;
+	}
+
+	// Step repeat
+	if (stepRepeatIndex > 0) {
+		stepRepeatIndex--;
+	}
+	else if (previousStepWasCalculated) {
+		// Wrap only if previous step was valid
+		stepRepeatIndex = numStepRepeats - 1;
+	}
+}
+
+// Increase random, sequence, rhythm and spread indexes
+void ArpeggiatorBase::increasePatternIndexes(uint8_t numStepRepeats) {
+	// Randome Notes from octave
+	randomNotesPlayedFromOctave++;
+
+	// Randomizer
+	// Only increase notesPlayedFromLockedRandomizer if we've played a rhythm note,
+	// so we effectively have more slots available and not waste them with silent notes
+	notesPlayedFromLockedRandomizer = (notesPlayedFromLockedRandomizer + 1) % RANDOMIZER_LOCK_MAX_SAVED_VALUES;
+
+	// Step repeat
+	stepRepeatIndex++;
+	if (stepRepeatIndex >= numStepRepeats) {
+		stepRepeatIndex = 0;
+	}
+}
+
+// Increase random, sequence, rhythm and spread indexes
+void ArpeggiatorBase::increaseSequenceIndexes(uint32_t maxSequenceLength, uint32_t rhythm) {
+	// Sequence Length
+	if (maxSequenceLength > 0) {
+		notesPlayedFromSequence++;
+	}
+	// Rhythm
+	notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % arpRhythmPatterns[rhythm].length;
+}
+
+void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction,
+                                      bool isRatchet) {
+	// Get params
+	uint32_t maxSequenceLength = computeCurrentValueForUnsignedMenuItem(settings->sequenceLength);
+	uint32_t rhythm = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
+
+	// Probabilities
+	bool shouldCarryOnRhythmNote = evaluateRhythm(rhythm, isRatchet);
+	if (shouldCarryOnRhythmNote) {
+		// Calculate randomizer amounts only for non-silent notes
+		calculateRandomizerAmounts(settings);
+	}
+	bool shouldPlayNote = evaluateNoteProbability(isRatchet);
+	bool shouldPlayBassNote = evaluateBassProbability(isRatchet);
+	bool shouldPlayChordNote = evaluateChordProbability(isRatchet);
+
+	// Execute all the step calculations
+	executeArpStep(settings, chordTypeNoteCount[settings->chordTypeIndex], isRatchet, maxSequenceLength, rhythm,
+	               shouldCarryOnRhythmNote, shouldPlayNote, shouldPlayBassNote, shouldPlayChordNote);
 
 	if (shouldCarryOnRhythmNote && shouldPlayNote) {
 		// Set Gate as active
@@ -812,6 +903,12 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 }
 
 void ArpeggiatorBase::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes) {
+	if (stepRepeatIndex > 0) {
+		// Don't got to next step if we still have to repeat the previous one
+		//  stepRepeatIndex = 0 means we move to the next step
+		//  stepRepeatIndex > 0 means we are in a "repeated" step
+		return;
+	}
 	// If FULL-RANDOM (RANDOM for both Note and Octave)
 	// we do the same thing whether playedFirstArpeggiatedNoteYet or not
 	if (settings->noteMode == ArpNoteMode::RANDOM && settings->octaveMode == ArpOctaveMode::RANDOM) {
@@ -826,14 +923,8 @@ void ArpeggiatorBase::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings
 
 	// Or not FULL-RANDOM
 	else {
-		// If which-note not actually set up yet...
-		if (!playedFirstArpeggiatedNoteYet) {
-			// Set the initial note and octave values and directions
-			setInitialNoteAndOctave(settings, numActiveNotes);
-		}
-
 		// For 1-note arpeggios it is simpler and can use the same logic as for drums
-		else if (numActiveNotes == 1) {
+		if (numActiveNotes == 1) {
 			carryOnOctaveSequence(settings);
 		}
 
@@ -916,6 +1007,28 @@ void ArpeggiatorBase::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings
 	}
 }
 
+void ArpeggiatorBase::saveCurrentValuesToWalkBufferAndMoveCaret() {
+	// Indicate this step was calculated and is a valid step to go back to
+	stepWasCalculatedWalkBuffer[walkBufferIndex] = true;
+	// Save the values for the step
+	whichNoteCurrentlyOnPostArpWalkBuffer[walkBufferIndex] = whichNoteCurrentlyOnPostArp;
+	currentOctaveWalkBuffer[walkBufferIndex] = currentOctave;
+	currentDirectionWalkBuffer[walkBufferIndex] = currentDirection;
+	currentOctaveDirectionWalkBuffer[walkBufferIndex] = currentOctaveDirection;
+	// Increase index to move to the next buffer slot
+	walkBufferIndex = (walkBufferIndex + 1) % WALK_MAX_BUFFER_SIZE;
+}
+
+void ArpeggiatorBase::resetWalkBuffer() {
+	stepWasCalculatedWalkBuffer.fill(false);
+	whichNoteCurrentlyOnPostArpWalkBuffer.fill(whichNoteCurrentlyOnPostArp);
+	currentOctaveWalkBuffer.fill(currentOctave);
+	currentDirectionWalkBuffer.fill(currentDirection);
+	currentOctaveDirectionWalkBuffer.fill(currentOctaveDirection);
+
+	walkBufferIndex = 0;
+}
+
 // Set initial values for note and octave
 void ArpeggiatorBase::setInitialNoteAndOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes) {
 	// NOTE
@@ -955,78 +1068,23 @@ void ArpeggiatorBase::setInitialNoteAndOctave(ArpeggiatorSettings* settings, uin
 }
 
 void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) {
+	// Get params
 	uint32_t maxSequenceLength = computeCurrentValueForUnsignedMenuItem(settings->sequenceLength);
 	uint32_t rhythm = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
-	if (settings->flagForceArpRestart) {
-		// If flagged to restart sequence, do it now and reset the flag
-		playedFirstArpeggiatedNoteYet = false;
-		settings->flagForceArpRestart = false;
-	}
-	if (!isRatchet
-	    && (!playedFirstArpeggiatedNoteYet
-	        || (maxSequenceLength > 0 && notesPlayedFromSequence >= maxSequenceLength))) {
-		// Reset first note flag
-		playedFirstArpeggiatedNoteYet = false;
-		// Reset indexes
-		notesPlayedFromSequence = 0;
-		notesPlayedFromRhythm = 0;
-		lastNormalNotePlayedFromRhythm = 0;
-		notesPlayedFromLockedRandomizer = 0;
-		lastNormalNotePlayedFromLockedRandomizer = 0;
-		randomNotesPlayedFromOctave = 0;
-		stepRepeatIndex = 0;
-		whichNoteCurrentlyOnPostArp = 0;
-	}
 
+	// Probabilities
 	bool shouldCarryOnRhythmNote = evaluateRhythm(rhythm, isRatchet);
-
 	if (shouldCarryOnRhythmNote) {
-		// Calculate randomizer amounts
+		// Calculate randomizer amounts only for non-silent notes
 		calculateRandomizerAmounts(settings);
 	}
-
 	bool shouldPlayNote = evaluateNoteProbability(isRatchet);
 	bool shouldPlayBassNote = evaluateBassProbability(isRatchet);
 	bool shouldPlayChordNote = evaluateChordProbability(isRatchet);
 
-	if (isRatchet) {
-		// Increment ratchet note index if we are ratcheting when entering switchNoteOn
-		ratchetNotesIndex++;
-	}
-	else {
-		// If this is a normal switchNoteOn event (not ratchet, and not silent) we take here the opportunity to setup a
-		// ratchet burst and also make all the necessary calculations for the next note to be played
-		if (shouldCarryOnRhythmNote) {
-			// Setup ratchet
-			maybeSetupNewRatchet(settings);
-
-			// Move indexes to the next note in the sequence
-			if (stepRepeatIndex == 0) {
-				calculateNextNoteAndOrOctave(settings, (uint8_t)notes.getNumElements());
-			}
-
-			// As we have set a note and an octave, we can say we have played a note
-			playedFirstArpeggiatedNoteYet = true;
-
-			// Save last note played from rhythm
-			lastNormalNotePlayedFromRhythm = notesPlayedFromRhythm;
-
-			// Save last note played from locked randomizer
-			lastNormalNotePlayedFromLockedRandomizer = notesPlayedFromLockedRandomizer;
-
-			// Save last note played from probability
-			lastNormalNotePlayedFromNoteProbability = shouldPlayNote;
-
-			// Save last note played from probability
-			lastNormalNotePlayedFromBassProbability = shouldPlayBassNote;
-
-			// Save last note played from probability
-			lastNormalNotePlayedFromChordProbability = shouldPlayChordNote;
-		}
-
-		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
-		increaseIndexes(maxSequenceLength, rhythm, shouldCarryOnRhythmNote, settings->numStepRepeats);
-	}
+	// Execute all the step calculations
+	executeArpStep(settings, (uint8_t)notes.getNumElements(), isRatchet, maxSequenceLength, rhythm,
+	               shouldCarryOnRhythmNote, shouldPlayNote, shouldPlayBassNote, shouldPlayChordNote);
 
 	// Clamp the index to real range
 	whichNoteCurrentlyOnPostArp = std::clamp<int16_t>(whichNoteCurrentlyOnPostArp, 0, notes.getNumElements() - 1);
@@ -1309,6 +1367,7 @@ void ArpeggiatorSettings::cloneFrom(ArpeggiatorSettings const* other) {
 	syncType = other->syncType;
 	syncLevel = other->syncLevel;
 	mpeVelocity = other->mpeVelocity;
+	walk = other->walk;
 	// Automatable params
 	rate = other->rate;
 	gate = other->gate;
@@ -1335,6 +1394,9 @@ bool ArpeggiatorSettings::readCommonTagsFromFile(Deserializer& reader, char cons
 	}
 	else if (!strcmp(tagName, "randomizerLock")) {
 		randomizerLock = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "walk")) {
+		walk = reader.readTagOrAttributeValueInt();
 	}
 	else if (!strcmp(tagName, "lastLockedNoteProb")) {
 		lastLockedNoteProbabilityParameterValue = reader.readTagOrAttributeValueInt();
@@ -1511,6 +1573,7 @@ void ArpeggiatorSettings::writeCommonParamsToFile(Serializer& writer, Song* song
 	writer.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(mpeVelocity));
 	writer.writeAttribute("stemRepeat", numStepRepeats);
 	writer.writeAttribute("randomizerLock", randomizerLock);
+	writer.writeAttribute("walk", walk);
 
 	// Note probability
 	writer.writeAttribute("lastLockedNoteProb", lastLockedNoteProbabilityParameterValue);

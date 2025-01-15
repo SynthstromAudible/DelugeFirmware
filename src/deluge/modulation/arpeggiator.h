@@ -33,6 +33,7 @@ class ParamManagerForTimeline;
 constexpr size_t RANDOMIZER_LOCK_MAX_SAVED_VALUES = 16;
 constexpr uint32_t ARP_NOTE_NONE = 32767;
 constexpr size_t ARP_MAX_INSTRUCTION_NOTES = 4;
+constexpr size_t WALK_MAX_BUFFER_SIZE = 4;
 
 class ArpeggiatorSettings {
 public:
@@ -77,6 +78,8 @@ public:
 
 	// Arp randomizer lock
 	bool randomizerLock{false};
+
+	bool walk{false};
 
 	// MPE settings
 	ArpMpeModSource mpeVelocity{ArpMpeModSource::OFF};
@@ -176,9 +179,7 @@ public:
 
 	bool gateCurrentlyActive = false;
 	uint32_t gatePos = 0;
-	int8_t currentOctave = 0;
-	int8_t currentDirection = 1;
-	int8_t currentOctaveDirection = 1;
+
 	bool playedFirstArpeggiatedNoteYet = false;
 	uint8_t lastVelocity = 0;
 	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeCurrentlyOnPostArp;
@@ -187,7 +188,12 @@ public:
 	// Playing state
 	uint32_t notesPlayedFromSequence = 0;
 	uint32_t randomNotesPlayedFromOctave = 0;
+
+	// Sequence state
 	int16_t whichNoteCurrentlyOnPostArp; // As in, the index within our list
+	int8_t currentOctave = 0;
+	int8_t currentDirection = 1;
+	int8_t currentOctaveDirection = 1;
 
 	// Rhythm state
 	uint32_t notesPlayedFromRhythm = 0;
@@ -228,13 +234,30 @@ public:
 	int32_t spreadOctaveForCurrentStep = 0;
 	bool resetLockedRandomizerValuesNextTime = false;
 
+	// Walk buffer state
+	int32_t walkBufferIndex = 0;
+	std::array<bool, WALK_MAX_BUFFER_SIZE> stepWasCalculatedWalkBuffer;
+	std::array<int16_t, WALK_MAX_BUFFER_SIZE> whichNoteCurrentlyOnPostArpWalkBuffer;
+	std::array<int8_t, WALK_MAX_BUFFER_SIZE> currentOctaveWalkBuffer;
+	std::array<int8_t, WALK_MAX_BUFFER_SIZE> currentDirectionWalkBuffer;
+	std::array<int8_t, WALK_MAX_BUFFER_SIZE> currentOctaveDirectionWalkBuffer;
+
 protected:
 	void calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
 	void setInitialNoteAndOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
+	void saveCurrentValuesToWalkBufferAndMoveCaret();
+	void resetWalkBuffer();
 	void resetBase();
 	void resetRatchet();
+	void executeArpStep(ArpeggiatorSettings* settings, uint8_t numActiveNotes, bool isRatchet,
+uint32_t maxSequenceLength, uint32_t rhythm,
+	                    bool shouldCarryOnRhythmNote, bool shouldPlayNote, bool shouldPlayBassNote,
+	                    bool shouldPlayChordNote);
 	void carryOnOctaveSequence(ArpeggiatorSettings* settings);
-	void increaseIndexes(uint32_t maxSequenceLength, uint32_t rhythm, bool hasPlayedRhythmNote, uint8_t numStepRepeats);
+	void decreasePatternIndexes(uint8_t numActiveNotes, uint32_t maxSequenceLength, uint32_t rhythm, uint8_t numStepRepeats,
+	                     bool previousStepWasCalculated);
+	void increasePatternIndexes(uint8_t numStepRepeats);
+	void increaseSequenceIndexes(uint32_t maxSequenceLength, uint32_t rhythm);
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	bool evaluateRhythm(uint32_t rhythm, bool isRatchet);
 	bool evaluateNoteProbability(bool isRatchet);

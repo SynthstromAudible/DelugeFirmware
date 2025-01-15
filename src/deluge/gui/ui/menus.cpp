@@ -26,6 +26,7 @@
 #include "gui/menu_item/arpeggiator/rhythm.h"
 #include "gui/menu_item/arpeggiator/step_repeat.h"
 #include "gui/menu_item/arpeggiator/sync.h"
+#include "gui/menu_item/arpeggiator/walk.h"
 #include "gui/menu_item/audio_clip/attack.h"
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
 #include "gui/menu_item/audio_clip/reverse.h"
@@ -232,6 +233,7 @@ arpeggiator::NoteModeFromOctaveMode arpeggiator::arpNoteModeFromOctaveModeMenu{S
                                                                                STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
 arpeggiator::ChordType arpChordSimulatorMenuKit{STRING_FOR_CHORD_SIMULATOR, STRING_FOR_ARP_CHORD_SIMULATOR_MENU_TITLE};
 arpeggiator::StepRepeat arpStepRepeatMenu{STRING_FOR_STEP_REPEAT, STRING_FOR_ARP_STEP_REPEAT_MENU_TITLE};
+arpeggiator::Walk arpWalkMenu{STRING_FOR_WALK, STRING_FOR_ARP_WALK_TITLE};
 // Note and rhythm settings
 arpeggiator::ArpSoundUnpatchedParam arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE,
                                                 params::UNPATCHED_ARP_GATE};
@@ -311,7 +313,9 @@ HorizontalMenu arpRandomizerMenu{STRING_FOR_RANDOMIZER,
                                   // Note
                                   &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
                                   // Bass
-                                  &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV}};
+                                  &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV,
+                                  // Walk sequence
+                                  &arpWalkMenu}};
 // Arp: Preset and Randomizer
 HorizontalMenu arpPresetAndRandomizerMenu{STRING_FOR_ARPEGGIATOR, {&arpPresetModeMenu, &arpRandomizerMenu}};
 // Global: Randomizer
