@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright 2019-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -84,7 +84,7 @@ public:
 	bool willCloneOutputForOverdub() override { return overdubsShouldCloneOutput; }
 	void sampleZoneChanged(ModelStackWithTimelineCounter const* modelStack);
 	int64_t getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStack);
-	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers) override;
+	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t startPos, bool useActualPosForParamManagers) override;
 	/// Return true if successfully shifted, as clip cannot be shifted past beginning
 	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,
 	                       bool shiftSequenceAndMPE) override;

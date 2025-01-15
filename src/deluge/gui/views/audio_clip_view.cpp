@@ -144,11 +144,11 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 		}
 
 		int32_t xEnd = std::min(kDisplayWidth, visibleWaveformXEnd);
-		int32_t xStart = std::max(0, visibleWaveformXStart);
+		int32_t xStart = (visibleWaveformXStart < 0) ? 0 : visibleWaveformXStart;
 
 		bool success = waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image,
 		                                                 &clip->renderData, recorder, rgb,
-		                                                 clip->sampleControls.reversed, xEnd, xStart);
+		                                                 clip->sampleControls.reversed, xEnd);
 
 		// If card being accessed and waveform would have to be re-examined, come back later
 		if (!success && image == PadLEDs::image) {
@@ -550,7 +550,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 							int32_t newStartPos =
 							    x * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
 							int32_t oldStartPos = clip->startPos;
-							uint64_t oldStartPosSamples = clip->sampleHolder.getStartPos(true);
+							uint64_t oldStartPosSamples = clip->sampleHolder.startPos;
 							changeUnderlyingSampleStartPos(clip, sample, newStartPos, oldStartPos, oldStartPosSamples);
 
 							goto needRendering;
@@ -562,14 +562,12 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 				else {
 					if (x == endSquareDisplay || x == endSquareDisplay + 1) {
 						endMarkerVisible = true;
-needRendering:
 						uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
 						blinkOn = true;
 						uiNeedsRendering(this, 0xFFFFFFFF, 0);
 					}
 					else if (x == startSquareDisplay || x == startSquareDisplay + 1) {
 						startMarkerVisible = true;
-needRendering:
 						uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
 						blinkOn = true;
 						uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -694,67 +692,41 @@ void AudioClipView::changeUnderlyingSampleStartPos(AudioClip* clip, const Sample
 
 	uint64_t newStartPosSamplesValue =
 	    (uint64_t)(oldStartPosSamples * newStartPos + (oldStartPos >> 1)) / (uint32_t)oldStartPos; // Rounded
+
+	// Ensure start position doesn't exceed clip length
+	if (newStartPosSamplesValue >= clip->sampleHolder.getDurationInSamples(true)) {
+		newStartPosSamplesValue = clip->sampleHolder.getDurationInSamples(true) - 1;
+	}
+
 	// AudioClip reversed
 	if (clip->sampleControls.reversed) {
 
 		newStartPosSamples = clip->sampleHolder.getEndPos(true) - newStartPosSamplesValue;
 
-		// If the start pos is very close to the start pos marked in the audio file, assume some
-		// rounding happened along the way and just go with the original
-		if (sample->fileLoopStartSamples) {
-			int64_t distanceFromFileStartMarker = newStartPosSamples - (uint64_t)sample->fileLoopStartSamples;
-			if (distanceFromFileStartMarker < 0) {
-				distanceFromFileStartMarker = -distanceFromFileStartMarker; // abs
-			}
-			if (distanceFromFileStartMarker < 10) {
-				newStartPosSamples = sample->fileLoopStartSamples;
-			}
+		// If very close to actual wave start...
+		if (newStartPosSamples < 10) {
+			newStartPosSamples = 0;
 		}
 
-		// Or if very close to actual wave start...
-		{
-			int64_t distanceFromFileStartMarker = newStartPosSamples;
-			if (distanceFromFileStartMarker < 0) {
-				distanceFromFileStartMarker = -distanceFromFileStartMarker; // abs
-			}
-			if (distanceFromFileStartMarker < 10) {
-				newStartPosSamples = 0;
-			}
-		}
-
-		// If start pos less than 0, not allowed
+		// If end pos less than 0, not allowed
 		if (newStartPosSamples < 0) {
 			newStartPosSamples = 0;
 		}
 
-		valueToChange = &clip->sampleHolder.endPos;
+		valueToChange = &clip->sampleHolder.startPos;
 	}
-
 	// AudioClip playing forward
 	else {
 		newStartPosSamples = newStartPosSamplesValue;
 
-		// If the start pos is very close to the start pos marked in the audio file, assume some
-		// rounding happened along the way and just go with the original
-		if (sample->fileLoopStartSamples) {
-			int64_t distanceFromFileStartMarker = newStartPosSamples - (uint64_t)sample->fileLoopStartSamples;
-			if (distanceFromFileStartMarker < 0) {
-				distanceFromFileStartMarker = -distanceFromFileStartMarker; // abs
-			}
-			if (distanceFromFileStartMarker < 10) {
-				newStartPosSamples = sample->fileLoopStartSamples;
-			}
+		// If very close to actual wave start...
+		if (newStartPosSamples < 10) {
+			newStartPosSamples = 0;
 		}
 
-		// Or if very close to actual wave start...
-		{
-			int64_t distanceFromFileStartMarker = newStartPosSamples;
-			if (distanceFromFileStartMarker < 0) {
-				distanceFromFileStartMarker = -distanceFromFileStartMarker; // abs
-			}
-			if (distanceFromFileStartMarker < 10) {
-				newStartPosSamples = 0;
-			}
+		// If start pos greater than length, not allowed
+		if (newStartPosSamples >= sample->lengthInSamples) {
+			newStartPosSamples = sample->lengthInSamples - 1;
 		}
 
 		valueToChange = &clip->sampleHolder.startPos;
@@ -763,14 +735,12 @@ void AudioClipView::changeUnderlyingSampleStartPos(AudioClip* clip, const Sample
 	ActionType actionType =
 	    (newStartPos < oldStartPos) ? ActionType::CLIP_START_DECREASE : ActionType::CLIP_START_INCREASE;
 
-	// Change sample start-pos value. Must do this before calling setClipStartPos(), which will end
-	// up reading this value.
+	// Store old value for undo
 	uint64_t oldValue = *valueToChange;
 	*valueToChange = newStartPosSamples;
 
+	// Create action for undo/redo
 	Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
-	currentSong->setClipStartPos(clip, newStartPos, action);
-
 	if (action) {
 		if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_START) {
 			ConsequenceClipStart* consequence = (ConsequenceClipStart*)action->firstConsequence;
@@ -779,6 +749,9 @@ void AudioClipView::changeUnderlyingSampleStartPos(AudioClip* clip, const Sample
 		}
 		actionLogger.closeAction(actionType);
 	}
+
+	// Update clip length and playback bounds
+	clip->setupPlaybackBounds();
 }
 
 void AudioClipView::playbackEnded() {
@@ -868,7 +841,7 @@ doReRender:
 		if (action) {
 			if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 				ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
-				consequence->pointerToMarkerValue = &getCurrentClip()->loopLength;
+				consequence->pointerToMarkerValue = (uint64_t*)&getCurrentClip()->loopLength;
 				consequence->markerValueToRevertTo = oldLength;
 			}
 			actionLogger.closeAction(ActionType::CLIP_LENGTH);
