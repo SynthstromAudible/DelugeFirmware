@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright 2019-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -68,9 +68,12 @@ private:
 	int32_t lastTickSquare;
 	bool mustRedrawTickSquares;
 	bool endMarkerVisible;
+	bool startMarkerVisible;
 	bool blinkOn;
 	void changeUnderlyingSampleLength(AudioClip* clip, const Sample* sample, int32_t newLength, int32_t oldLength,
 	                                  uint64_t oldLengthSamples) const;
+	void changeUnderlyingSampleStartPos(AudioClip* clip, const Sample* sample, int32_t newStartPos, int32_t oldStartPos,
+	                                     uint64_t oldStartPosSamples) const;
 };
 
 extern AudioClipView audioClipView;

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright 2019-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -79,6 +79,7 @@ bool AudioClipView::opened() {
 void AudioClipView::focusRegained() {
 	ClipView::focusRegained();
 	endMarkerVisible = false;
+	startMarkerVisible = false;
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentClip());
@@ -105,40 +106,49 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 		return true;
 	}
 
+	AudioClip* clip = getCurrentAudioClip();
 	int32_t endSquareDisplay = divide_round_negative(
-	    getCurrentAudioClip()->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
+	    clip->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
 	    currentSong->xZoom[NAVIGATION_CLIP]); // Rounds it well down, so we get the "final square" kinda...
+
+	int32_t startSquareDisplay = divide_round_negative(
+	    clip->startPos - currentSong->xScroll[NAVIGATION_CLIP],
+	    currentSong->xZoom[NAVIGATION_CLIP]);
 
 	// If no Sample, just clear display
 	if (!getSample()) {
-
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			memset(image[y], 0, kDisplayWidth * 3);
 		}
 	}
-
 	// Or if yes Sample...
 	else {
-
-		SampleRecorder* recorder = getCurrentAudioClip()->recorder;
+		SampleRecorder* recorder = clip->recorder;
 
 		int64_t xScrollSamples;
 		int64_t xZoomSamples;
 
-		getCurrentAudioClip()->getScrollAndZoomInSamples(
+		clip->getScrollAndZoomInSamples(
 		    currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP], &xScrollSamples, &xZoomSamples);
 
-		RGB rgb = getCurrentAudioClip()->getColour();
+		RGB rgb = clip->getColour();
+
+		int32_t visibleWaveformXStart = 0;
+		if (startMarkerVisible && blinkOn && startSquareDisplay >= 0) {
+			visibleWaveformXStart = startSquareDisplay + 1;
+		}
 
 		int32_t visibleWaveformXEnd = endSquareDisplay + 1;
 		if (endMarkerVisible && blinkOn) {
 			visibleWaveformXEnd--;
 		}
+
 		int32_t xEnd = std::min(kDisplayWidth, visibleWaveformXEnd);
+		int32_t xStart = std::max(0, visibleWaveformXStart);
 
 		bool success = waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image,
-		                                                 &getCurrentAudioClip()->renderData, recorder, rgb,
-		                                                 getCurrentAudioClip()->sampleControls.reversed, xEnd);
+		                                                 &clip->renderData, recorder, rgb,
+		                                                 clip->sampleControls.reversed, xEnd, xStart);
 
 		// If card being accessed and waveform would have to be re-examined, come back later
 		if (!success && image == PadLEDs::image) {
@@ -148,29 +158,34 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 	}
 
 	if (drawUndefinedArea) {
-
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			// Draw start marker in blue
+			if (startSquareDisplay >= 0 && startSquareDisplay < kDisplayWidth) {
+				if (startMarkerVisible && blinkOn) {
+					image[y][startSquareDisplay][0] = 0;
+					image[y][startSquareDisplay][1] = 0;
+					image[y][startSquareDisplay][2] = 255;
+				}
+			}
 
+			// Draw end marker in red
+			if (endSquareDisplay < kDisplayWidth && endSquareDisplay >= 0) {
+				if (endMarkerVisible && blinkOn) {
+					image[y][endSquareDisplay][0] = 255;
+					image[y][endSquareDisplay][1] = 0;
+					image[y][endSquareDisplay][2] = 0;
+				}
+			}
+
+			// Fill undefined area after end marker
 			if (endSquareDisplay < kDisplayWidth) {
-
-				if (endSquareDisplay >= 0) {
-					if (endMarkerVisible && blinkOn) {
-						image[y][endSquareDisplay][0] = 255;
-						image[y][endSquareDisplay][1] = 0;
-						image[y][endSquareDisplay][2] = 0;
-					}
-				}
-
 				int32_t xDisplay = endSquareDisplay + 1;
-
-				if (xDisplay >= kDisplayWidth) {
-					continue;
+				if (xDisplay < kDisplayWidth) {
+					if (xDisplay < 0) {
+						xDisplay = 0;
+					}
+					std::fill(&image[y][xDisplay], &image[y][xDisplay] + (kDisplayWidth - xDisplay), colours::grey);
 				}
-				else if (xDisplay < 0) {
-					xDisplay = 0;
-				}
-
-				std::fill(&image[y][xDisplay], &image[y][xDisplay] + (kDisplayWidth - xDisplay), colours::grey);
 			}
 		}
 	}
@@ -410,6 +425,7 @@ dontDeactivateMarker:
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_CLEARED));
 			}
 			endMarkerVisible = false;
+			startMarkerVisible = false;
 			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
@@ -423,8 +439,9 @@ dontDeactivateMarker:
 
 		if (result != ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 deactivateMarkerIfNecessary:
-			if (endMarkerVisible) {
+			if (endMarkerVisible || startMarkerVisible) {
 				endMarkerVisible = false;
+				startMarkerVisible = false;
 				if (getCurrentUI() == this) {
 					uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 				}
@@ -461,6 +478,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 
 				if (soundEditorResult == ActionResult::DEALT_WITH) {
 					endMarkerVisible = false;
+					startMarkerVisible = false;
 					uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 					uiNeedsRendering(this, 0xFFFFFFFF, 0);
 				}
@@ -475,6 +493,10 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 				int32_t endSquareDisplay = divide_round_negative(
 				    clip->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
 				    currentSong->xZoom[NAVIGATION_CLIP]); // Rounds it well down, so we get the "final square" kinda...
+
+				int32_t startSquareDisplay = divide_round_negative(
+				    clip->startPos - currentSong->xScroll[NAVIGATION_CLIP],
+				    currentSong->xZoom[NAVIGATION_CLIP]);
 
 				// Marker already visible
 				if (endMarkerVisible) {
@@ -506,10 +528,47 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 					}
 				}
 
+				// Or, start marker already visible
+				else if (startMarkerVisible) {
+
+					// If tapped on the marker itself again, make it invisible
+					if (x == startSquareDisplay) {
+						if (blinkOn) {
+							uiNeedsRendering(this, 0xFFFFFFFF, 0);
+						}
+						uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
+						startMarkerVisible = false;
+					}
+
+					// Otherwise, move it
+					else {
+
+						Sample* sample = getSample();
+						if (sample) {
+
+							// Ok, move the marker!
+							int32_t newStartPos =
+							    x * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
+							int32_t oldStartPos = clip->startPos;
+							uint64_t oldStartPosSamples = clip->sampleHolder.getStartPos(true);
+							changeUnderlyingSampleStartPos(clip, sample, newStartPos, oldStartPos, oldStartPosSamples);
+
+							goto needRendering;
+						}
+					}
+				}
+
 				// Or, marker not already visible
 				else {
 					if (x == endSquareDisplay || x == endSquareDisplay + 1) {
 						endMarkerVisible = true;
+needRendering:
+						uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
+						blinkOn = true;
+						uiNeedsRendering(this, 0xFFFFFFFF, 0);
+					}
+					else if (x == startSquareDisplay || x == startSquareDisplay + 1) {
+						startMarkerVisible = true;
 needRendering:
 						uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
 						blinkOn = true;
@@ -533,6 +592,7 @@ needRendering:
 
 	return ActionResult::DEALT_WITH;
 }
+
 void AudioClipView::changeUnderlyingSampleLength(AudioClip* clip, const Sample* sample, int32_t newLength,
                                                  int32_t oldLength, uint64_t oldLengthSamples) const {
 	uint64_t* valueToChange;
@@ -627,6 +687,100 @@ void AudioClipView::changeUnderlyingSampleLength(AudioClip* clip, const Sample* 
 	}
 }
 
+void AudioClipView::changeUnderlyingSampleStartPos(AudioClip* clip, const Sample* sample, int32_t newStartPos,
+                                                    int32_t oldStartPos, uint64_t oldStartPosSamples) const {
+	uint64_t* valueToChange;
+	int64_t newStartPosSamples;
+
+	uint64_t newStartPosSamplesValue =
+	    (uint64_t)(oldStartPosSamples * newStartPos + (oldStartPos >> 1)) / (uint32_t)oldStartPos; // Rounded
+	// AudioClip reversed
+	if (clip->sampleControls.reversed) {
+
+		newStartPosSamples = clip->sampleHolder.getEndPos(true) - newStartPosSamplesValue;
+
+		// If the start pos is very close to the start pos marked in the audio file, assume some
+		// rounding happened along the way and just go with the original
+		if (sample->fileLoopStartSamples) {
+			int64_t distanceFromFileStartMarker = newStartPosSamples - (uint64_t)sample->fileLoopStartSamples;
+			if (distanceFromFileStartMarker < 0) {
+				distanceFromFileStartMarker = -distanceFromFileStartMarker; // abs
+			}
+			if (distanceFromFileStartMarker < 10) {
+				newStartPosSamples = sample->fileLoopStartSamples;
+			}
+		}
+
+		// Or if very close to actual wave start...
+		{
+			int64_t distanceFromFileStartMarker = newStartPosSamples;
+			if (distanceFromFileStartMarker < 0) {
+				distanceFromFileStartMarker = -distanceFromFileStartMarker; // abs
+			}
+			if (distanceFromFileStartMarker < 10) {
+				newStartPosSamples = 0;
+			}
+		}
+
+		// If start pos less than 0, not allowed
+		if (newStartPosSamples < 0) {
+			newStartPosSamples = 0;
+		}
+
+		valueToChange = &clip->sampleHolder.endPos;
+	}
+
+	// AudioClip playing forward
+	else {
+		newStartPosSamples = newStartPosSamplesValue;
+
+		// If the start pos is very close to the start pos marked in the audio file, assume some
+		// rounding happened along the way and just go with the original
+		if (sample->fileLoopStartSamples) {
+			int64_t distanceFromFileStartMarker = newStartPosSamples - (uint64_t)sample->fileLoopStartSamples;
+			if (distanceFromFileStartMarker < 0) {
+				distanceFromFileStartMarker = -distanceFromFileStartMarker; // abs
+			}
+			if (distanceFromFileStartMarker < 10) {
+				newStartPosSamples = sample->fileLoopStartSamples;
+			}
+		}
+
+		// Or if very close to actual wave start...
+		{
+			int64_t distanceFromFileStartMarker = newStartPosSamples;
+			if (distanceFromFileStartMarker < 0) {
+				distanceFromFileStartMarker = -distanceFromFileStartMarker; // abs
+			}
+			if (distanceFromFileStartMarker < 10) {
+				newStartPosSamples = 0;
+			}
+		}
+
+		valueToChange = &clip->sampleHolder.startPos;
+	}
+
+	ActionType actionType =
+	    (newStartPos < oldStartPos) ? ActionType::CLIP_START_DECREASE : ActionType::CLIP_START_INCREASE;
+
+	// Change sample start-pos value. Must do this before calling setClipStartPos(), which will end
+	// up reading this value.
+	uint64_t oldValue = *valueToChange;
+	*valueToChange = newStartPosSamples;
+
+	Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
+	currentSong->setClipStartPos(clip, newStartPos, action);
+
+	if (action) {
+		if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_START) {
+			ConsequenceClipStart* consequence = (ConsequenceClipStart*)action->firstConsequence;
+			consequence->pointerToMarkerValue = valueToChange;
+			consequence->markerValueToRevertTo = oldValue;
+		}
+		actionLogger.closeAction(actionType);
+	}
+}
+
 void AudioClipView::playbackEnded() {
 
 	// A few reasons we might want to redraw the waveform. If a Sample had only partially recorded, it will have just
@@ -712,7 +866,12 @@ doReRender:
 		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
 
 		if (action) {
-			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+			if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
+				ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
+				consequence->pointerToMarkerValue = &getCurrentClip()->loopLength;
+				consequence->markerValueToRevertTo = oldLength;
+			}
+			actionLogger.closeAction(ActionType::CLIP_LENGTH);
 		}
 	}
 }
