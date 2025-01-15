@@ -691,8 +691,7 @@ void renderAudio(size_t numSamples) {
 	// Render audio for song
 	if (currentSong) {
 
-		currentSong->renderAudio(renderingBuffer.data(), renderingBuffer.size(), reverbBuffer.data(),
-		                         sideChainHitPending);
+		currentSong->renderAudio(renderingBuffer, reverbBuffer.data(), sideChainHitPending);
 	}
 
 	renderReverb(numSamples);
@@ -727,8 +726,7 @@ void renderAudioForStemExport(size_t numSamples) {
 
 	// Render audio for song
 	if (currentSong != nullptr) {
-		currentSong->renderAudio(renderingBuffer.data(), renderingBuffer.size(), reverbBuffer.data(),
-		                         sideChainHitPending);
+		currentSong->renderAudio(renderingBuffer, reverbBuffer.data(), sideChainHitPending);
 	}
 
 	if (stemExport.includeSongFX) {
