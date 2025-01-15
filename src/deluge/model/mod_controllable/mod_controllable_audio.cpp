@@ -135,16 +135,14 @@ void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType m
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	StereoSample* bufferEnd = buffer.data() + buffer.size();
-
 	// Mod FX -----------------------------------------------------------------------------------
 	if (modFXType == ModFXType::GRAIN) {
 		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, anySoundComingIn,
 		               reverbSendAmount);
 	}
 	else {
-		modfx.processModFX(buffer.data(), modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd,
-		                   anySoundComingIn);
+		modfx.processModFX(buffer.data(), modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams,
+		                   buffer.data() + buffer.size(), anySoundComingIn);
 	}
 
 	// EQ -------------------------------------------------------------------------------------
@@ -169,10 +167,9 @@ void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType m
 			trebleFreq = getExp(700000000, (unpatchedParams->getValue(params::UNPATCHED_TREBLE_FREQ) >> 5) * 6);
 		}
 
-		StereoSample* currentSample = buffer.data();
-		do {
-			doEQ(thisDoBass, thisDoTreble, &currentSample->l, &currentSample->r, bassAmount, trebleAmount);
-		} while (++currentSample != bufferEnd);
+		for (StereoSample& sample : buffer) {
+			doEQ(thisDoBass, thisDoTreble, &sample.l, &sample.r, bassAmount, trebleAmount);
+		}
 	}
 
 	// Delay ----------------------------------------------------------------------------------
@@ -199,8 +196,6 @@ void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> bu
                                                       int32_t postFXVolume, int32_t postReverbVolume,
                                                       int32_t reverbSendAmount, int32_t pan,
                                                       bool doAmplitudeIncrement) {
-
-	StereoSample* bufferEnd = buffer.data() + buffer.size();
 
 	int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(postFXVolume, reverbSendAmount) << 5;
 
@@ -229,15 +224,10 @@ void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> bu
 		amplitudeIncrementR = multiply_32x32_rshift32(amplitudeIncrementR, amplitudeR) << 2;
 	}
 
-	StereoSample* inputSample = buffer.data();
-
-	do {
-		StereoSample processingSample = *inputSample;
-
+	for (StereoSample& sample : buffer) {
 		// Send to reverb
 		if (reverbSendAmount != 0) {
-			*(reverbBuffer++) +=
-			    multiply_32x32_rshift32(processingSample.l + processingSample.r, reverbSendAmountAndPostFXVolume) << 1;
+			*(reverbBuffer++) += multiply_32x32_rshift32(sample.l + sample.r, reverbSendAmountAndPostFXVolume) << 1;
 		}
 
 		if (doAmplitudeIncrement) {
@@ -246,10 +236,9 @@ void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> bu
 		}
 
 		// Apply post-fx and post-reverb-send volume
-		inputSample->l = multiply_32x32_rshift32(processingSample.l, postFXAndReverbVolumeL) << 5;
-		inputSample->r = multiply_32x32_rshift32(processingSample.r, postFXAndReverbVolumeR) << 5;
-
-	} while (++inputSample != bufferEnd);
+		sample.l = multiply_32x32_rshift32(sample.l, postFXAndReverbVolumeL) << 5;
+		sample.r = multiply_32x32_rshift32(sample.r, postFXAndReverbVolumeR) << 5;
+	}
 
 	// We've generated some sound. If reverb is happening, make note
 	if (reverbSendAmount != 0) {
@@ -270,8 +259,6 @@ bool ModControllableAudio::isSRREnabled(ParamManager* paramManager) {
 
 void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume,
                                                     ParamManager* paramManager) {
-	StereoSample const* const bufferEnd = buffer.data() + buffer.size();
-
 	uint32_t bitCrushMaskForSRR = 0xFFFFFFFF;
 
 	bool srrEnabled = isSRREnabled(paramManager);
@@ -287,11 +274,10 @@ void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buff
 		// If not also doing SRR
 		if (!srrEnabled) {
 			uint32_t mask = 0xFFFFFFFF << (19 + (positivePreset));
-			StereoSample* __restrict__ currentSample = buffer.data();
-			do {
-				currentSample->l &= mask;
-				currentSample->r &= mask;
-			} while (++currentSample != bufferEnd);
+			for (StereoSample& sample : buffer) {
+				sample.l &= mask;
+				sample.r &= mask;
+			}
 		}
 
 		else {
@@ -319,9 +305,7 @@ void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buff
 		int32_t highSampleRateIncrement = ((uint32_t)0xFFFFFFFF / (lowSampleRateIncrement >> 6)) << 6;
 		// int32_t highSampleRateIncrement = getExp(4194304, -(int32_t)(positivePreset >> 3)); // This would work too
 
-		StereoSample* currentSample = buffer.data();
-		do {
-
+		for (StereoSample& sample : buffer) {
 			// Convert down.
 			// If time to "grab" another sample for down-conversion...
 			if (lowSampleRatePos < 4194304) {
@@ -330,9 +314,9 @@ void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buff
 
 				lastGrabbedSample = grabbedSample; // What was current is now last
 				grabbedSample.l = multiply_32x32_rshift32_rounded(lastSample.l, strength1 << 9)
-				                  + multiply_32x32_rshift32_rounded(currentSample->l, strength2 << 9);
+				                  + multiply_32x32_rshift32_rounded(sample.l, strength2 << 9);
 				grabbedSample.r = multiply_32x32_rshift32_rounded(lastSample.r, strength1 << 9)
-				                  + multiply_32x32_rshift32_rounded(currentSample->r, strength2 << 9);
+				                  + multiply_32x32_rshift32_rounded(sample.r, strength2 << 9);
 				grabbedSample.l &= bitCrushMaskForSRR;
 				grabbedSample.r &= bitCrushMaskForSRR;
 
@@ -346,22 +330,21 @@ void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buff
 				    multiply_32x32_rshift32_rounded(lowSampleRatePos & 4194303, highSampleRateIncrement << 8) << 2;
 			}
 			lowSampleRatePos -= 4194304; // We're one step closer to grabbing our next sample for down-conversion
-			lastSample = *currentSample;
+			lastSample = sample;
 
 			// Convert up
-			int32_t strength2 =
-			    std::min(highSampleRatePos,
-			             (uint32_t)4194303); // Would only overshoot if we raised the sample rate during playback
+			// Would only overshoot if we raised the sample rate during playback
+			int32_t strength2 = std::min(highSampleRatePos, (uint32_t)4194303);
 			int32_t strength1 = 4194303 - strength2;
-			currentSample->l = (multiply_32x32_rshift32_rounded(lastGrabbedSample.l, strength1 << 9)
-			                    + multiply_32x32_rshift32_rounded(grabbedSample.l, strength2 << 9))
-			                   << 2;
-			currentSample->r = (multiply_32x32_rshift32_rounded(lastGrabbedSample.r, strength1 << 9)
-			                    + multiply_32x32_rshift32_rounded(grabbedSample.r, strength2 << 9))
-			                   << 2;
+			sample.l = (multiply_32x32_rshift32_rounded(lastGrabbedSample.l, strength1 << 9)
+			            + multiply_32x32_rshift32_rounded(grabbedSample.l, strength2 << 9))
+			           << 2;
+			sample.r = (multiply_32x32_rshift32_rounded(lastGrabbedSample.r, strength1 << 9)
+			            + multiply_32x32_rshift32_rounded(grabbedSample.r, strength2 << 9))
+			           << 2;
 
 			highSampleRatePos += highSampleRateIncrement;
-		} while (++currentSample != bufferEnd);
+		}
 	}
 	else {
 		sampleRateReductionOnLastTime = false;
