@@ -3465,16 +3465,19 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) {
 				if (isKit) {
 					if (drum) {
-						drum->recordNoteOnEarly(
-						    (velocity == USE_DEFAULT_VELOCITY) ? ((Instrument*)output)->defaultVelocity : velocity,
-						    clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
+						drum->recordNoteOnEarly((velocity == USE_DEFAULT_VELOCITY)
+						                            ? (static_cast<Instrument*>(output)->defaultVelocity)
+						                            : velocity,
+						                        clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
 					}
 				}
 				else {
 					// NoteRow is allowed to be NULL in this case.
 					int32_t yNote = clip->getYNoteFromYDisplay(yDisplay, currentSong);
 					static_cast<MelodicInstrument*>(output)->earlyNotes[yNote] = {
-					    .velocity = static_cast<Instrument*>(output)->defaultVelocity,
+					    .velocity = (velocity == USE_DEFAULT_VELOCITY)
+					                    ? (static_cast<Instrument*>(output)->defaultVelocity)
+					                    : static_cast<uint8_t>(velocity),
 					    .still_active = clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip),
 					};
 				}
