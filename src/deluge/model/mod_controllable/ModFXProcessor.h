@@ -14,15 +14,15 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
-#ifndef DELUGE_MODFXPROCESSOR_H
-#define DELUGE_MODFXPROCESSOR_H
+#pragma once
 
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
 #include "modulation/lfo.h"
 #include "util/containers.h"
 #include <cstdint>
+#include <span>
+
 class ModFXProcessor {
 
 	void setupChorus(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
@@ -85,5 +85,3 @@ const char* getParamName(ModFXType type, ModFXParam param);
 
 const char* modFXToString(ModFXType type);
 } // namespace modfx
-
-#endif // DELUGE_MODFXPROCESSOR_H
