@@ -321,17 +321,7 @@ void AudioClipView::needsRenderingDependingOnSubMode() {
 ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	// 1) Detect SHIFT and TEMPO pressed - DEBUG INFO
-	if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
-		if (on) {
-			char dbg[30];
-			snprintf(dbg, sizeof(dbg), "smv=%d emv=%d bo=%d", startMarkerVisible,
-			         endMarkerVisible, blinkOn);
-			display->displayPopup(dbg);
-		}
-		// Return early if you only want to handle debug in that case
-		return ActionResult::DEALT_WITH;
-	}
+	ActionResult result;
 
 	// Song view button
 	if (b == SESSION_VIEW) {
@@ -351,12 +341,13 @@ ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool in
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			exitUIMode(UI_MODE_HOLDING_SONG_BUTTON);
-
 			if ((int32_t)(AudioEngine::audioSampleTimer - timeSongButtonPressed) > kShortPressTime) {
 				uiNeedsRendering(this, 0, 0xFFFFFFFF);
 				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
 				return ActionResult::DEALT_WITH;
 			}
+
+			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 
 			if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip()) {
 				bool success = arrangerView.transitionToArrangementEditor();
@@ -377,11 +368,111 @@ doOther:
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
+
 			changeRootUI(&automationView);
 		}
 	}
 
-	return ClipView::buttonAction(b, on, inCardRoutine);
+	else if (b == PLAY) {
+dontDeactivateMarker:
+		return ClipView::buttonAction(b, on, inCardRoutine);
+	}
+
+	else if (b == RECORD) {
+		goto dontDeactivateMarker;
+	}
+
+	else if (b == SHIFT) {
+		goto dontDeactivateMarker;
+	}
+
+	else if (b == X_ENC) {
+		// removing time stretching by re-calculating clip length based on length of audio sample
+		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+			if (on && currentUIMode == UI_MODE_NONE) {
+				if (inCardRoutine) {
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
+				setClipLengthEqualToSampleLength();
+			}
+		}
+		// if shift is pressed then we're resizing the clip without time stretching
+		else if (!Buttons::isShiftButtonPressed()) {
+			goto dontDeactivateMarker;
+		}
+	}
+
+	// Select button, without shift
+	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+
+			if (!soundEditor.setup(getCurrentClip())) {
+				return ActionResult::DEALT_WITH;
+			}
+			openUI(&soundEditor);
+
+			result = ActionResult::DEALT_WITH;
+			goto deactivateMarkerIfNecessary;
+		}
+	}
+
+	// Back button to clear Clip
+	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+		if (on) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+
+			// Clear Clip
+			Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
+
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStack =
+			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
+
+			getCurrentAudioClip()->clear(action, modelStack, !FlashStorage::automationClear, true);
+
+			// New default as part of Automation Clip View Implementation
+			// If this is enabled, then when you are in Audio Clip View, clearing
+			// a clip will only clear the Audio Sample (automations remain intact). If this is enabled, if you want to
+			// clear automations, you will enter Automation Clip View and clear the clip there. If this is enabled, the
+			// message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
+			if (FlashStorage::automationClear) {
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SAMPLE_CLEARED));
+			}
+			else {
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_CLEARED));
+			}
+			endMarkerVisible = false;
+			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		}
+	}
+	else {
+
+		result = ClipMinder::buttonAction(b, on);
+		if (result == ActionResult::NOT_DEALT_WITH) {
+			result = ClipView::buttonAction(b, on, inCardRoutine);
+		}
+
+		if (result != ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+deactivateMarkerIfNecessary:
+			if (endMarkerVisible) {
+				endMarkerVisible = false;
+				if (getCurrentUI() == this) {
+					uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
+				}
+				uiNeedsRendering(this, 0xFFFFFFFF, 0);
+			}
+		}
+
+		return result;
+	}
+
+	return ActionResult::DEALT_WITH;
 }
 
 ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
