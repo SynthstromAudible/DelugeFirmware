@@ -319,10 +319,10 @@ void AudioClipView::needsRenderingDependingOnSubMode() {
 // If you want your specialized button logic (session view, clip view, etc.),
 // put that here. Otherwise call the parent:
 ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	// 1) Detect SHIFT and TEMPO pressed - DEBUG INFO
 	if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
-
 		if (on) {
 			char dbg[30];
 			snprintf(dbg, sizeof(dbg), "smv=%d emv=%d bo=%d", startMarkerVisible,
@@ -331,6 +331,54 @@ ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool in
 		}
 		// Return early if you only want to handle debug in that case
 		return ActionResult::DEALT_WITH;
+	}
+
+	// Song view button
+	if (b == SESSION_VIEW) {
+		if (on) {
+			if (currentUIMode == UI_MODE_NONE) {
+				currentUIMode = UI_MODE_HOLDING_SONG_BUTTON;
+				timeSongButtonPressed = AudioEngine::audioSampleTimer;
+				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
+				uiNeedsRendering(this, 0, 0xFFFFFFFF);
+			}
+		}
+		else {
+			if (!isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
+				return ActionResult::DEALT_WITH;
+			}
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			exitUIMode(UI_MODE_HOLDING_SONG_BUTTON);
+
+			if ((int32_t)(AudioEngine::audioSampleTimer - timeSongButtonPressed) > kShortPressTime) {
+				uiNeedsRendering(this, 0, 0xFFFFFFFF);
+				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
+				return ActionResult::DEALT_WITH;
+			}
+
+			if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip()) {
+				bool success = arrangerView.transitionToArrangementEditor();
+				if (!success) {
+					goto doOther;
+				}
+			}
+			else {
+doOther:
+				sessionView.transitionToSessionView();
+			}
+		}
+	}
+
+	// Clip view button
+	else if (b == CLIP_VIEW) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			changeRootUI(&automationView);
+		}
 	}
 
 	return ClipView::buttonAction(b, on, inCardRoutine);
