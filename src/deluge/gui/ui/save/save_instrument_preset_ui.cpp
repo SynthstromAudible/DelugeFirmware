@@ -177,7 +177,7 @@ fail:
 	}
 
 	if (display->haveOLED()) {
-		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
+		deluge::hid::display::OLED::displayWorkingAnimation();
 	}
 
 	instrumentToSave->writeToFile(getCurrentClip(), currentSong);

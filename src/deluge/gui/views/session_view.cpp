@@ -1599,7 +1599,7 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 	}
 
 	if (display->haveOLED()) {
-		deluge::hid::display::OLED::displayWorkingAnimation("Loading");
+		deluge::hid::display::OLED::displayWorkingAnimation();
 	}
 	else {
 		display->displayLoadingAnimation();

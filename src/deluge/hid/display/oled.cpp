@@ -198,6 +198,7 @@ const uint8_t OLED::submenuArrowIcon[] = {
     0b00000000, //<
 };
 
+
 const uint8_t OLED::metronomeIcon[] = {
     0b11100000, //<
     0b11011100, //<
@@ -207,6 +208,27 @@ const uint8_t OLED::metronomeIcon[] = {
     0b11011000, //<
     0b11100100, //<
 };
+
+const uint8_t OLED::readWriteIcon[] = {
+    0b11111100, //<
+    0b10000110, //<
+    0b10000011, //<
+    0b10000001, //<
+    0b10000001, //<
+    0b10000001, //<
+    0b11111011, //<
+};
+
+// blank icon. The bottom is on the left side
+// const uint8_t OLED::blankIcon[] = {
+//     0b00000000, //<
+//     0b00000000, //<
+//     0b00000000, //<
+//     0b00000000, //<
+//     0b00000000, //<
+//     0b00000000, //<
+//     0b00000000, //<
+// };
 
 #if ENABLE_TEXT_OUTPUT
 uint16_t renderStartTime;
@@ -777,28 +799,21 @@ void OLED::popupText(char const* text, bool persistent, PopupType type) {
 	}
 }
 
-void updateWorkingAnimation() {
-	String textNow;
-	Error error = textNow.set(workingAnimationText);
-	if (error != Error::NONE) {
-		return;
+void updateWorkingAnimation(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea = true, bool display_icon = true) {
+
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+
+	if (clearArea) {
+		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - 9,
+		                      OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_WIDTH_PIXELS - 1, yPos + 7);
 	}
 
-	char buffer[4];
-	buffer[3] = 0;
-
-	for (int32_t i = 0; i < 3; i++) {
-		buffer[i] = (i <= workingAnimationCount) ? '.' : ' ';
-	}
-
-	error = textNow.concatenate(buffer);
-	OLED::popupText(textNow.get(), true, PopupType::LOADING);
+	if(display_icon) canvas.drawGraphicMultiLine(deluge::hid::display::OLED::readWriteIcon, OLED_MAIN_WIDTH_PIXELS - 9, yPos, 7);
 }
 
-void OLED::displayWorkingAnimation(char const* word) {
-	workingAnimationText = word;
+void OLED::displayWorkingAnimation() {
 	workingAnimationCount = 0;
-	updateWorkingAnimation();
+	updateWorkingAnimation(deluge::hid::display::OLED::main);
 }
 
 void OLED::removeWorkingAnimation() {
@@ -807,6 +822,7 @@ void OLED::removeWorkingAnimation() {
 	}
 	else if (workingAnimationText) {
 		workingAnimationText = nullptr;
+		updateWorkingAnimation(deluge::hid::display::OLED::main, true, false);
 	}
 }
 
@@ -980,12 +996,13 @@ void OLED::stopScrollingAnimation() {
 void OLED::timerRoutine() {
 
 	if (workingAnimationText) {
-		workingAnimationCount = (workingAnimationCount + 1) & 3;
-		updateWorkingAnimation();
+		// workingAnimationCount = (workingAnimationCount + 1) & 3;
+		// updateWorkingAnimation(deluge::hid::display::OLED::main, true, true);
 	}
 
 	else {
 		removePopup();
+		updateWorkingAnimation(deluge::hid::display::OLED::main, true, false);
 	}
 }
 
@@ -1059,7 +1076,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 
 	int32_t timeInterval;
 	if (!finished) {
-		timeInterval = (sideScrollerDirection >= 0) ? 15 : 5;
+		timeInterval = (sideScrollerDirection >= 0) ? 60 : 1;
 	}
 	else {
 		timeInterval = kScrollTime;
