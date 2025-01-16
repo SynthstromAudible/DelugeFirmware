@@ -564,7 +564,7 @@ gotErrorAfterCreatingSong:
 swapDone:
 	if (display->haveOLED()) {
 		// To override our popup if we did one. (Still necessary?)
-		deluge::hid::display::OLED::displayWorkingAnimation();
+		deluge::hid::display::OLED::displayWorkingAnimation("Loading");
 	}
 	// Ok, the swap's been done, the first tick of the new song has been done, and there are potentially loads of
 	// samples wanting some data loaded. So do that immediately

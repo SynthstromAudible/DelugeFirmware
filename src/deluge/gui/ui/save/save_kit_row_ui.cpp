@@ -137,7 +137,7 @@ fail:
 	}
 
 	if (display->haveOLED()) {
-		deluge::hid::display::OLED::displayWorkingAnimation();
+		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 	}
 
 	soundDrumToSave->writeToFileAsInstrument(false, paramManagerToSave);

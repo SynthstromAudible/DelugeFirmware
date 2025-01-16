@@ -57,7 +57,7 @@ public:
 	static bool isPopupPresentOfType(PopupType type = PopupType::GENERAL);
 	static bool isPermanentPopupPresent();
 
-	static void displayWorkingAnimation();
+	static void displayWorkingAnimation(char const* word);
 
 	static int32_t setupConsole(int32_t height);
 	static void drawConsoleTopLine();
@@ -103,7 +103,6 @@ public:
 	static const uint8_t checkedBoxIcon[];
 	static const uint8_t uncheckedBoxIcon[];
 	static const uint8_t submenuArrowIcon[];
-	static const uint8_t readWriteIcon[];
 	static const uint8_t metronomeIcon[];
 
 	void removeWorkingAnimation() override;
@@ -131,7 +130,7 @@ public:
 
 	// Loading animations
 	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) override {
-		displayWorkingAnimation();
+		displayWorkingAnimation(text);
 	}
 	void removeLoadingAnimation() override { removeWorkingAnimation(); }
 
