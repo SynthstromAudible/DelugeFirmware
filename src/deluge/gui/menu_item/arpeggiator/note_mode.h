@@ -48,9 +48,9 @@ public:
 		    l10n::getView(STRING_FOR_UP),        //<
 		    l10n::getView(STRING_FOR_DOWN),      //<
 		    l10n::getView(STRING_FOR_UP_DOWN),   //<
-		    l10n::getView(STRING_FOR_AS_PLAYED), //<
 		    l10n::getView(STRING_FOR_RANDOM),    //<
 		    l10n::getView(STRING_FOR_WALK),      //<
+		    l10n::getView(STRING_FOR_AS_PLAYED), //<
 		    l10n::getView(STRING_FOR_PATTERN),   //<
 		};
 	}
