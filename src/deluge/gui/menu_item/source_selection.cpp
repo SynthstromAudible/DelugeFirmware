@@ -27,9 +27,10 @@
 
 namespace deluge::gui::menu_item {
 const PatchSource sourceMenuContents[] = {
-    PatchSource::ENVELOPE_0, PatchSource::ENVELOPE_1, PatchSource::LFO_GLOBAL, PatchSource::LFO_LOCAL,
-    PatchSource::VELOCITY,   PatchSource::NOTE,       PatchSource::SIDECHAIN,  PatchSource::RANDOM,
-    PatchSource::X,          PatchSource::Y,          PatchSource::AFTERTOUCH,
+    PatchSource::ENVELOPE_0, PatchSource::ENVELOPE_1, PatchSource::ENVELOPE_2, PatchSource::ENVELOPE_3,
+    PatchSource::LFO_GLOBAL, PatchSource::LFO_LOCAL,  PatchSource::VELOCITY,   PatchSource::NOTE,
+    PatchSource::SIDECHAIN,  PatchSource::RANDOM,     PatchSource::X,          PatchSource::Y,
+    PatchSource::AFTERTOUCH,
 };
 
 uint8_t SourceSelection::shouldDrawDotOnValue() {
@@ -94,6 +95,14 @@ void SourceSelection::drawValue() {
 
 	case PatchSource::ENVELOPE_1:
 		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_1;
+		break;
+
+	case PatchSource::ENVELOPE_2:
+		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_2;
+		break;
+
+	case PatchSource::ENVELOPE_3:
+		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_3;
 		break;
 
 	case PatchSource::SIDECHAIN:

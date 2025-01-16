@@ -96,7 +96,7 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 
 				int64_t resetterPhaseToDivide = (uint64_t)resetterPhase << 30;
 
-				if ((uint32_t)(resetterPhase) >= (uint32_t) - (resetterPhaseIncrement >> 1)) {
+				if ((uint32_t)(resetterPhase) >= (uint32_t)-(resetterPhaseIncrement >> 1)) {
 					resetterPhaseToDivide -= (uint64_t)1 << 62;
 				}
 
@@ -113,7 +113,7 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 				}
 
 				int32_t resetterPhaseToMultiply = resetterPhase >> 1;
-				if ((uint32_t)(resetterPhase) >= (uint32_t) - (resetterPhaseIncrement >> 1)) {
+				if ((uint32_t)(resetterPhase) >= (uint32_t)-(resetterPhaseIncrement >> 1)) {
 					resetterPhaseToMultiply -= ((uint32_t)1 << 31); // Count the last little bit of the cycle as
 					                                                // actually a negative-number bit of the next one.
 				}
