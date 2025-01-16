@@ -540,8 +540,10 @@ enum class ArpNoteMode {
 	UP,
 	DOWN,
 	UP_DOWN,
-	AS_PLAYED,
 	RANDOM,
+	WALK,
+	AS_PLAYED,
+	PATTERN,
 };
 
 enum class ArpOctaveMode {

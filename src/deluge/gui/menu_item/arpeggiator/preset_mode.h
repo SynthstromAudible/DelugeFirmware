@@ -83,6 +83,9 @@ public:
 	MenuItem* selectButtonPress() override {
 		auto current_value = this->getValue<ArpPreset>();
 		if (current_value == ArpPreset::CUSTOM) {
+			if (soundEditor.editingKit()) {
+				return &arpeggiator::arpOctaveModeToNoteModeMenuForDrums;
+			}
 			return &arpeggiator::arpOctaveModeToNoteModeMenu;
 		}
 		return nullptr;

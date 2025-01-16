@@ -30,10 +30,11 @@
 class PostArpTriggerable;
 class ParamManagerForTimeline;
 
-constexpr size_t RANDOMIZER_LOCK_MAX_SAVED_VALUES = 16;
+constexpr uint32_t RANDOMIZER_LOCK_MAX_SAVED_VALUES = 16;
+constexpr uint32_t ARP_MAX_INSTRUCTION_NOTES = 4;
+constexpr uint32_t PATTERN_MAX_BUFFER_SIZE = 16;
+
 constexpr uint32_t ARP_NOTE_NONE = 32767;
-constexpr size_t ARP_MAX_INSTRUCTION_NOTES = 4;
-constexpr size_t WALK_MAX_BUFFER_SIZE = 4;
 
 class ArpeggiatorSettings {
 public:
@@ -48,6 +49,8 @@ public:
 	void writeCommonParamsToFile(Serializer& writer, Song* songToConvertSyncLevel);
 
 	void writeNonAudioParamsToFile(Serializer& writer);
+
+	void generateNewNotePattern();
 
 	void updatePresetFromCurrentSettings();
 
@@ -79,8 +82,6 @@ public:
 	// Arp randomizer lock
 	bool randomizerLock{false};
 
-	bool walk{false};
-
 	// MPE settings
 	ArpMpeModSource mpeVelocity{ArpMpeModSource::OFF};
 
@@ -93,7 +94,7 @@ public:
 	uint32_t lastLockedSpreadGateParameterValue{0};
 	uint32_t lastLockedSpreadOctaveParameterValue{0};
 
-	// Up to 16 pre-calculated randomized values for each parameter
+	// Pre-calculated randomized values for each parameter
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedNoteProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedBassProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedChordProbabilityValues;
@@ -101,6 +102,9 @@ public:
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadVelocityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadGateValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadOctaveValues;
+
+	// Order for the pattern note mode
+	std::array<int8_t, PATTERN_MAX_BUFFER_SIZE> notePattern;
 
 	// Temporary flags
 	bool flagForceArpRestart{false};
@@ -137,7 +141,7 @@ struct ArpNote {
 	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOnPostArp;
 };
 
-struct ArpAsPlayedNote {
+struct ArpJustNoteCode {
 	int16_t noteCode; // Before arpeggiation
 };
 
@@ -201,7 +205,6 @@ public:
 
 	// Locked randomizer state
 	uint32_t notesPlayedFromLockedRandomizer = 0;
-	uint32_t lastNormalNotePlayedFromLockedRandomizer = 0;
 
 	// Note probability state
 	bool lastNormalNotePlayedFromNoteProbability = true;
@@ -234,27 +237,14 @@ public:
 	int32_t spreadOctaveForCurrentStep = 0;
 	bool resetLockedRandomizerValuesNextTime = false;
 
-	// Walk buffer state
-	int32_t walkBufferIndex = 0;
-	std::array<bool, WALK_MAX_BUFFER_SIZE> stepWasCalculatedWalkBuffer;
-	std::array<int16_t, WALK_MAX_BUFFER_SIZE> whichNoteCurrentlyOnPostArpWalkBuffer;
-	std::array<int8_t, WALK_MAX_BUFFER_SIZE> currentOctaveWalkBuffer;
-	std::array<int8_t, WALK_MAX_BUFFER_SIZE> currentDirectionWalkBuffer;
-	std::array<int8_t, WALK_MAX_BUFFER_SIZE> currentOctaveDirectionWalkBuffer;
-
 protected:
 	void calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
 	void setInitialNoteAndOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
-	void saveCurrentValuesToWalkBufferAndMoveCaret();
-	void resetWalkBuffer();
 	void resetBase();
 	void resetRatchet();
 	void executeArpStep(ArpeggiatorSettings* settings, uint8_t numActiveNotes, bool isRatchet,
 	                    uint32_t maxSequenceLength, uint32_t rhythm, bool shouldCarryOnRhythmNote, bool shouldPlayNote,
 	                    bool shouldPlayBassNote, bool shouldPlayChordNote);
-	void carryOnOctaveSequence(ArpeggiatorSettings* settings);
-	void decreasePatternIndexes(uint8_t numActiveNotes, uint32_t maxSequenceLength, uint32_t rhythm,
-	                            uint8_t numStepRepeats, bool previousStepWasCalculated);
 	void increasePatternIndexes(uint8_t numStepRepeats);
 	void increaseSequenceIndexes(uint32_t maxSequenceLength, uint32_t rhythm);
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
@@ -301,7 +291,10 @@ public:
 	OrderedResizeableArray notes;
 	// This array tracks the notes as they were played by the user
 	ResizeableArray notesAsPlayed;
+	// This array tracks the notes as ordered by the Pattern note mode
+	ResizeableArray notesByPattern;
 
 protected:
+	void rearrangePatterntArpNotes(ArpeggiatorSettings *settings);
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) override;
 };

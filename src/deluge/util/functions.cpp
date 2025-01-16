@@ -1139,6 +1139,12 @@ char const* arpNoteModeToString(ArpNoteMode mode) {
 	case ArpNoteMode::RANDOM:
 		return "random";
 
+	case ArpNoteMode::WALK:
+		return "walk";
+
+	case ArpNoteMode::PATTERN:
+		return "pattern";
+
 	default:
 		return "up";
 	}
@@ -1153,6 +1159,12 @@ ArpNoteMode stringToArpNoteMode(char const* string) {
 	}
 	else if (!strcmp(string, "asPlayed")) {
 		return ArpNoteMode::AS_PLAYED;
+	}
+	else if (!strcmp(string, "walk")) {
+		return ArpNoteMode::WALK;
+	}
+	else if (!strcmp(string, "pattern")) {
+		return ArpNoteMode::PATTERN;
 	}
 	else if (!strcmp(string, "random")) {
 		return ArpNoteMode::RANDOM;

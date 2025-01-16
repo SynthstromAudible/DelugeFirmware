@@ -92,6 +92,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_CUSTOM, "CUST"},
         {STRING_FOR_UP_DOWN, "UPDN"},
         {STRING_FOR_AS_PLAYED, "PLAY"},
+        {STRING_FOR_PATTERN, "PATT"},
         {STRING_FOR_ALTERNATE, "ALT"},
         {STRING_FOR_ARP, "ARP"},
         {STRING_FOR_SEQUENCE, "SEQ"},
