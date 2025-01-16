@@ -533,6 +533,7 @@ enum class ArpPreset {
 	DOWN,
 	BOTH,
 	RANDOM,
+	WALK,
 	CUSTOM,
 };
 

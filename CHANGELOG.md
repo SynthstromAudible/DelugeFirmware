@@ -150,6 +150,7 @@ also affect normal sequenced notes while arpeggiator is Off.
 - Added `CHORD PROBABILITY (CHRD)` paramater that will allow you to control the chance of a note to play, at the same time, itself and other notes to form a chord (5th, 3rd and 7th).
 - Added `CHORD POLYPHONY (POLY)` paramater that works together with the previous parameter, and this one will dictate how big is the chord, that is, how many notes will be played at the same time.
 - Added `LOCK` parameter to allow you to freeze the current set of randomized values so the sequence has a repeatable pattern.
+- Added new `WALK` and `PATTERN` note modes.
 
 ### MIDI
 

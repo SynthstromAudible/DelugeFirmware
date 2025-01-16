@@ -295,6 +295,6 @@ public:
 	ResizeableArray notesByPattern;
 
 protected:
-	void rearrangePatterntArpNotes(ArpeggiatorSettings *settings);
+	void rearrangePatterntArpNotes(ArpeggiatorSettings* settings);
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) override;
 };

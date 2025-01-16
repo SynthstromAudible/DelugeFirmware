@@ -76,6 +76,7 @@ public:
 		    l10n::getView(STRING_FOR_DOWN),   //<
 		    l10n::getView(STRING_FOR_BOTH),   //<
 		    l10n::getView(STRING_FOR_RANDOM), //<
+		    l10n::getView(STRING_FOR_WALK),   //<
 		    l10n::getView(STRING_FOR_CUSTOM), //<
 		};
 	}

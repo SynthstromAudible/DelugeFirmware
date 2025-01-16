@@ -14,6 +14,7 @@ A preset sets at the same time 3 parameters: `Arp Mode`, `Octave Mode` and `Note
   - `Down` will setup Mode to `Arpeggiator`, Octave Mode to `Down` and Note Mode to `Down`. This is equivalent to `Down` in official firmware.
   - `Both` will setup Mode to `Arpeggiator`, Octave Mode to `Alternate` and Note Mode to `Up`. This is equivalent to `Both` in official firmware.
   - `Random` will setup Mode to `Arpeggiator`, Octave Mode to `Random` and Note Mode to `Random`. This is equivalent to `Random` in official firmware.
+  - `Walk` will setup Mode to `Arpeggiator`, Octave Mode to `Alternate` and Note Mode to `Walk`.
   - `Custom` will setup Mode to `Arpeggiator`, and enter a submenu to let you edit `Octave Mode` and `Note Mode`.
 
 ## Arpeggiator Parameters
@@ -54,14 +55,23 @@ setting how many times they are repeated, and setting the direction in which the
     - `Down (DOWN)` will walk the notes down. Tip: this mode also works in conjunction with Octave Mode
       Alternate, which will walk all the notes and octaves all the way down, and then up reversing it.
     - `Up & Down (UPDN)` will walk the notes up and down, repeating the highest and lowest notes.
-    - `Played Order (PLAY)` will walk the notes in the same order that they were played. Tip: this mode
-      also works in conjunction with Octave Mode Alternate, which will walk all the notes and octaves
-      all the way up (with notes as played), and then down reversing the order of played notes.
-      Note: this produces the same effect as Up for Kit Rows.
     - `Random (RAND)` will choose a random note each time. If the Octave Mode is set to something
       different than Random, then the pattern will play, in the same octave, the same number of random
       notes as notes are in the held chord and then move to a different octave based on the Octave Mode.
       Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
+    - `Walk (WALK)` will walk the notes this way:
+        - 25% of probability to walk the sequence a step in reverse.
+        - 25% of probability to just repeat the same step of the sequence.
+        - 50% of probability to walk the sequence a step forward (as normal).
+    - `Played Order (PLAY)` will walk the notes in the same order that they were played. Tip: this mode
+      also works in conjunction with Octave Mode Alternate, which will walk all the notes and octaves
+      all the way up (with notes as played), and then down reversing the order of played notes.
+      Note: this mode is not available for Kit Rows.
+    - `Pattern (PATT)` each time you select this `Note Mode` on the menu it will generate a new pattern for you.
+      The pattern is like if you had selected `Played Order` and the Deluge had decided the order for you.
+      Tip: as this mode is the last selectable one, if you try to scroll past the end of the menu, the Deluge
+      will interpret it as a re-selection of the `Pattern` mode and so it will generate a new pattern for you.
+      Note: this mode is not available for Kit Rows.
 - **`Step Repeat (REPE)`**: allows you to set how many times the same note in the pattern is repeated
   before moving on to the next one.
 - **`Rhythm (RHYT)`**: This parameter will play silences in some of the steps. This menu option shows zeroes and dashes,
