@@ -744,9 +744,10 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 		}
 	}
 
-	bool unassignVoiceAfter = (envelopes[0].state == EnvelopeStage::OFF)
-	                          || (envelopes[0].state > EnvelopeStage::DECAY
-	                              && sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] == std::numeric_limits<int32_t>::min());
+	bool unassignVoiceAfter =
+	    (envelopes[0].state == EnvelopeStage::OFF)
+	    || (envelopes[0].state > EnvelopeStage::DECAY
+	        && sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] == std::numeric_limits<int32_t>::min());
 	// Local LFO
 	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
 	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
@@ -1830,7 +1831,7 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 			// version. The hard clipping one sounds really solid.
 			feedback = signed_saturate<22>(feedback);
 
-			uint32_t sum = (uint32_t)*(fmSample++) + (uint32_t)feedback;
+			uint32_t sum = (uint32_t) * (fmSample++) + (uint32_t)feedback;
 
 			feedbackValue = dsp::SineOsc::doFMNew(phaseNow += phaseIncrement, sum);
 			*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, feedbackValue, amplitudeNow);
