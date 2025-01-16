@@ -71,6 +71,7 @@ setting how many times they are repeated, and setting the direction in which the
       The pattern is like if you had selected `Played Order` and the Deluge had decided the order for you.
       Tip: as this mode is the last selectable one, if you try to scroll past the end of the menu, the Deluge
       will interpret it as a re-selection of the `Pattern` mode and so it will generate a new pattern for you.
+      Note: the pattern is saved to the song so you can recreate it after reloading the song.
       Note: this mode is not available for Kit Rows.
 - **`Step Repeat (REPE)`**: allows you to set how many times the same note in the pattern is repeated
   before moving on to the next one.
