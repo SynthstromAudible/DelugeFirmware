@@ -159,14 +159,14 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 					// If endMarkerVisible, show red (bright vs. dim).
 					if (endMarkerVisible) {
 						if (blinkOn) {
-							image[y][endSquareDisplay][0] = 255; // bright red
-							image[y][endSquareDisplay][1] = 0;
-							image[y][endSquareDisplay][2] = 0;
+							image[y][endSquareDisplay][0] = colours::red.r; // bright red
+							image[y][endSquareDisplay][1] = colours::red.g;
+							image[y][endSquareDisplay][2] = colours::red.b;
 						}
 						else {
-							image[y][endSquareDisplay][0] = 90; // dim red
-							image[y][endSquareDisplay][1] = 0;
-							image[y][endSquareDisplay][2] = 0;
+							image[y][endSquareDisplay][0] = colours::red_dull.r; // dim red
+							image[y][endSquareDisplay][1] = colours::red_dull.g;
+							image[y][endSquareDisplay][2] = colours::red_dull.b;
 						}
 					}
 				}
@@ -200,15 +200,16 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 					if (startMarkerVisible) {
 						if (blinkOn) {
 							// bright green
-							image[y][startSquareDisplay][0] = 0;
-							image[y][startSquareDisplay][1] = 255;
-							image[y][startSquareDisplay][2] = 0;
+							image[y][startSquareDisplay][0] = colours::green.r;
+							image[y][startSquareDisplay][1] = colours::green.g;
+							image[y][startSquareDisplay][2] = colours::green.b;
 						}
 						else {
-							// dim green
-							image[y][startSquareDisplay][0] = 0;
-							image[y][startSquareDisplay][1] = 90;
-							image[y][startSquareDisplay][2] = 0;
+							// dim green - using a darker version of green
+							RGB dimGreen = colours::green.dim();
+							image[y][startSquareDisplay][0] = dimGreen.r;
+							image[y][startSquareDisplay][1] = dimGreen.g;
+							image[y][startSquareDisplay][2] = dimGreen.b;
 						}
 					}
 					// else {
