@@ -56,8 +56,8 @@ oled_canvas::Canvas OLED::console;
 
 bool OLED::needsSending;
 
-int32_t workingAnimationCount;
-char const* workingAnimationText; // NULL means animation not active
+int32_t working_animation_count;
+// char const* workingAnimationText; // NULL means animation not active
 
 int32_t sideScrollerDirection; // 0 means none active
 
@@ -206,6 +206,26 @@ const uint8_t OLED::metronomeIcon[] = {
     0b11010011, //<
     0b11011000, //<
     0b11100100, //<
+};
+
+const uint8_t OLED::SD_icon1[] = {
+    0b11111100, //<
+    0b10000110, //<
+    0b10000011, //<
+    0b10000001, //<
+    0b10000001, //<
+    0b10000001, //<
+    0b11111011, //<
+};
+
+const uint8_t OLED::SD_icon2[] = {
+    0b11111100, //<
+    0b11010110, //<
+    0b10101011, //<
+    0b11010101, //<
+    0b10101011, //<
+    0b11010101, //<
+    0b11111011, //<
 };
 
 #if ENABLE_TEXT_OUTPUT
@@ -413,7 +433,7 @@ void OLED::removePopup() {
 
 	oledPopupWidth = 0;
 	popupType = PopupType::NONE;
-	workingAnimationText = nullptr;
+	// workingAnimationText = nullptr;
 	uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	markChanged();
 }
@@ -778,36 +798,44 @@ void OLED::popupText(char const* text, bool persistent, PopupType type) {
 }
 
 void updateWorkingAnimation() {
-	String textNow;
-	Error error = textNow.set(workingAnimationText);
-	if (error != Error::NONE) {
-		return;
+	D_PRINTLN("working animation count: %d", working_animation_count);
+	int32_t y_pos = OLED_MAIN_TOPMOST_PIXEL + 3;
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
+	image.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - 9, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_WIDTH_PIXELS, y_pos + 7);
+
+	if (working_animation_count == 2) {
+		image.drawGraphicMultiLine(deluge::hid::display::OLED::SD_icon1, OLED_MAIN_WIDTH_PIXELS - 9, y_pos, 7);
+		uiTimerManager.setTimer(TimerName::DISPLAY, 750); // simply show a static image to start
 	}
-
-	char buffer[4];
-	buffer[3] = 0;
-
-	for (int32_t i = 0; i < 3; i++) {
-		buffer[i] = (i <= workingAnimationCount) ? '.' : ' ';
+	else {
+		// for the longer loads, start animating so you know it's busy working on it and not just frozen.
+		if (working_animation_count % 2 == 1) {
+			image.drawGraphicMultiLine(deluge::hid::display::OLED::SD_icon2, OLED_MAIN_WIDTH_PIXELS - 9, y_pos, 7);
+		}
+		else {
+			image.drawGraphicMultiLine(deluge::hid::display::OLED::SD_icon1, OLED_MAIN_WIDTH_PIXELS - 9, y_pos, 7);
+		}
+		uiTimerManager.setTimer(TimerName::DISPLAY, 250);
 	}
-
-	error = textNow.concatenate(buffer);
-	OLED::popupText(textNow.get(), true, PopupType::LOADING);
 }
 
 void OLED::displayWorkingAnimation(char const* word) {
-	workingAnimationText = word;
-	workingAnimationCount = 0;
-	updateWorkingAnimation();
+	// D_PRINTLN("%s", word);
+	working_animation_count = 1;
+	uiTimerManager.setTimer(TimerName::DISPLAY, 350); // don't bother showing the loading icon for short load times.
+	                                                  // updateWorkingAnimation();
 }
 
 void OLED::removeWorkingAnimation() {
-	if (hasPopupOfType(PopupType::LOADING)) {
-		removePopup();
+	if (working_animation_count > 1) { // only need to clear if the icon was added
+		deluge::hid::display::OLED::main.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - 9, OLED_MAIN_TOPMOST_PIXEL,
+		                                                OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL + 10);
+		markChanged();
+		D_PRINTLN("remove working animation");
 	}
-	else if (workingAnimationText) {
-		workingAnimationText = nullptr;
-	}
+	working_animation_count = 0;
+	uiTimerManager.unsetTimer(TimerName::DISPLAY);
 }
 
 void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display) {
@@ -979,11 +1007,13 @@ void OLED::stopScrollingAnimation() {
 
 void OLED::timerRoutine() {
 
-	if (workingAnimationText) {
-		workingAnimationCount = (workingAnimationCount + 1) & 3;
+	if (working_animation_count) {
+		// working_animation_count = (working_animation_count + 1) & 1;
+		working_animation_count++;
 		updateWorkingAnimation();
+		markChanged();
 	}
-
+	// if(workingAnimationText) return;
 	else {
 		removePopup();
 	}
@@ -1059,7 +1089,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 
 	int32_t timeInterval;
 	if (!finished) {
-		timeInterval = (sideScrollerDirection >= 0) ? 15 : 5;
+		timeInterval = (sideScrollerDirection >= 0) ? 50 : 5;
 	}
 	else {
 		timeInterval = kScrollTime;

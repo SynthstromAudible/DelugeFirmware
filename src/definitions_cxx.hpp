@@ -168,8 +168,8 @@ constexpr int32_t kNoteRowCollapseSpeed = 150;
 constexpr int32_t kGreyoutSpeed = (300 * 44);
 
 constexpr int32_t kInitialFlashTime = 250;
-constexpr int32_t kFlashTime = 110;
-constexpr int32_t kFastFlashTime = 60;
+constexpr int32_t kFlashTime = 150;
+constexpr int32_t kFastFlashTime = 100;
 constexpr int32_t kSampleMarkerBlinkTime = 200;
 
 constexpr int32_t kScrollTime = 400;
