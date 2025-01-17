@@ -17,6 +17,7 @@
 
 #include "gui/views/audio_clip_view.h"
 #include "definitions_cxx.hpp"
+#include "deluge/model/settings/runtime_feature_settings.h"
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
@@ -157,7 +158,6 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 				if (endSquareDisplay >= 0) {
 					// If endMarkerVisible, show red (bright vs. dim).
 					if (endMarkerVisible) {
-						display->displayPopup("END MARKER COLORING");
 						if (blinkOn) {
 							image[y][endSquareDisplay][0] = 255; // bright red
 							image[y][endSquareDisplay][1] = 0;
@@ -181,10 +181,6 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 			}
 
 			// -------- START marker ----------
-			char message[50];
-			snprintf(message, sizeof(message), "CHECK startSD %d, < kD %d", startSquareDisplay, kDisplayWidth);
-			// -1 , 16 for startSquareDisplay
-			display->displayPopup(message);
 
 			if (startSquareDisplay >= 0) {
 				if (startSquareDisplay < kDisplayWidth) {
@@ -202,7 +198,6 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 
 					// Then overlay the green start marker if visible
 					if (startMarkerVisible) {
-						display->displayPopup("START MARKER COLORING");
 						if (blinkOn) {
 							// bright green
 							image[y][startSquareDisplay][0] = 0;
@@ -560,11 +555,15 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 						uiNeedsRendering(this, 0xFFFFFFFF, 0);
 					}
 					else if (x == startSquareDisplay) {
-						startMarkerVisible = true;
-						endMarkerVisible = false;
-						blinkOn = true;
-						uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
-						uiNeedsRendering(this, 0xFFFFFFFF, 0);
+
+						// WIP: Allow the user to trim from the start of the audio clip
+						if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::TrimFromStartOfAudioClip)) {
+							startMarkerVisible = true;
+							endMarkerVisible = false;
+							blinkOn = true;
+							uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
+							uiNeedsRendering(this, 0xFFFFFFFF, 0);
+						}
 					}
 				}
 			}
