@@ -68,8 +68,8 @@ private:
     int32_t lastTickSquare;
     bool mustRedrawTickSquares;
 
-    bool endMarkerVisible;
-    bool startMarkerVisible;      // *** ADDED FOR START TRIM ***
+    bool endMarkerVisible; // True if user is currently adjusting the clip's end
+    bool startMarkerVisible; // True if user is currently adjusting the clip's start
     bool blinkOn;
 
     void changeUnderlyingSampleLength(AudioClip* clip,

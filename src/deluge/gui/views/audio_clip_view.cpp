@@ -508,8 +508,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 				// =========== Handling END marker =============
 				if (endMarkerVisible) {
 					// If user taps the same or adjacent end marker column => toggle off
-					// TODO: Also disable if start marker is pressed
-					if (x == endSquareDisplay || x == endSquareDisplay + 1) {
+					if (x == endSquareDisplay || x == startSquareDisplay) {
 						endMarkerVisible = false;
 						uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 						uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -528,7 +527,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 				}
 				// =========== Handling START marker =============
 				else if (startMarkerVisible) {
-					if (x == startSquareDisplay) {
+					if (x == startSquareDisplay || x == endSquareDisplay) {
 						startMarkerVisible = false; // Toggle start marker off
 						uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 						uiNeedsRendering(this, 0xFFFFFFFF, 0);
