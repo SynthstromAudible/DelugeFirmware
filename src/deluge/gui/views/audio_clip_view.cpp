@@ -59,12 +59,11 @@ using namespace deluge::gui;
 AudioClipView audioClipView{};
 
 inline Sample* getSample() {
-	if (getCurrentAudioClip()->getCurrentlyRecordingLinearly()) {
-		return getCurrentAudioClip()->recorder->sample;
+	AudioClip& clip = *getCurrentAudioClip();
+	if (clip.getCurrentlyRecordingLinearly()) {
+		return clip.recorder->sample;
 	}
-	else {
-		return (Sample*)getCurrentAudioClip()->sampleHolder.audioFile;
-	}
+	return static_cast<Sample*>(clip.sampleHolder.audioFile);
 }
 
 bool AudioClipView::opened() {
@@ -115,11 +114,11 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 		return true;
 	}
 
-	AudioClip* clip = getCurrentAudioClip();
-	SampleRecorder* recorder = clip->recorder;
+	AudioClip& clip = *getCurrentAudioClip();
+	SampleRecorder* recorder = clip.recorder;
 
 	// end marker column
-	int32_t endSquareDisplay = divide_round_negative(clip->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
+	int32_t endSquareDisplay = divide_round_negative(clip.loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
 	                                                 currentSong->xZoom[NAVIGATION_CLIP]);
 
 	// start marker column
@@ -128,10 +127,10 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 
 	int64_t xScrollSamples;
 	int64_t xZoomSamples;
-	clip->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
+	clip.getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
 	                                &xScrollSamples, &xZoomSamples);
 
-	RGB rgb = clip->getColour();
+	RGB rgb = clip.getColour();
 
 	// Adjust xEnd if end marker is blinking
 	int32_t visibleWaveformXEnd = endSquareDisplay + 1;
@@ -141,8 +140,8 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 	int32_t xEnd = std::min(kDisplayWidth, visibleWaveformXEnd);
 
 	bool success =
-	    waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image, &clip->renderData, recorder,
-	                                      rgb, clip->sampleControls.reversed, xEnd);
+	    waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image, &clip.renderData, recorder,
+	                                      rgb, clip.sampleControls.reversed, xEnd);
 
 	if (!success && image == PadLEDs::image) {
 		uiNeedsRendering(this, whichRows, 0);
@@ -292,10 +291,12 @@ void AudioClipView::graphicsRoutine() {
 		uint8_t tickSquares[kDisplayHeight];
 		memset(tickSquares, newTickSquare, kDisplayHeight);
 
-		const uint8_t* coloursPtr = getCurrentClip()->getCurrentlyRecordingLinearly()
-		                                ? (const uint8_t*)"\2\2\2\2\2\2\2\2"
-		                                : (const uint8_t*)"\0\0\0\0\0\0\0\0";
-		PadLEDs::setTickSquares(tickSquares, coloursPtr);
+		std::array<uint8_t, 8> coloursArray = {0};
+		if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
+			coloursArray.fill(2);
+		}
+
+		PadLEDs::setTickSquares(tickSquares, coloursArray.data());
 
 		lastTickSquare = newTickSquare;
 		mustRedrawTickSquares = false;
@@ -499,9 +500,10 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 				if (!clip) {
 					return ActionResult::DEALT_WITH;
 				}
+				AudioClip& clipRef = *clip;
 
 				int32_t endSquareDisplay = divide_round_negative(
-				    clip->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1, currentSong->xZoom[NAVIGATION_CLIP]);
+				    clipRef.loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1, currentSong->xZoom[NAVIGATION_CLIP]);
 
 				int32_t startSquareDisplay = divide_round_negative(0 - currentSong->xScroll[NAVIGATION_CLIP],
 				                                                   currentSong->xZoom[NAVIGATION_CLIP]);
@@ -519,9 +521,9 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 						if (sample) {
 							int32_t newLength =
 							    (x + 1) * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
-							int32_t oldLength = clip->loopLength;
-							uint64_t oldLengthSamples = clip->sampleHolder.getDurationInSamples(true);
-							changeUnderlyingSampleLength(clip, sample, newLength, oldLength, oldLengthSamples);
+							int32_t oldLength = clipRef.loopLength;
+							uint64_t oldLengthSamples = clipRef.sampleHolder.getDurationInSamples(true);
+							changeUnderlyingSampleLength(clipRef, sample, newLength, oldLength, oldLengthSamples);
 							uiNeedsRendering(this, 0xFFFFFFFF, 0);
 						}
 					}
@@ -538,9 +540,9 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 						if (sample) {
 							int32_t newStartTicks =
 							    x * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
-							int32_t oldLength = clip->loopLength;
-							uint64_t oldLengthSamples = clip->sampleHolder.getDurationInSamples(true);
-							changeUnderlyingSampleStart(clip, sample, newStartTicks, oldLength, oldLengthSamples);
+							int32_t oldLength = clipRef.loopLength;
+							uint64_t oldLengthSamples = clipRef.sampleHolder.getDurationInSamples(true);
+							changeUnderlyingSampleStart(clipRef, sample, newStartTicks, oldLength, oldLengthSamples);
 							uiNeedsRendering(this, 0xFFFFFFFF, 0);
 						}
 					}
@@ -576,27 +578,27 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 }
 
 // ----------- "End" pointer logic -----------
-void AudioClipView::changeUnderlyingSampleLength(AudioClip* clip, const Sample* sample, int32_t newLength,
+void AudioClipView::changeUnderlyingSampleLength(AudioClip& clip, const Sample* sample, int32_t newLength,
                                                  int32_t oldLength, uint64_t oldLengthSamples) const {
 	uint64_t* valueToChange;
 	int64_t newEndPosSamples;
 
 	uint64_t newLengthSamples =
-	    (uint64_t)(oldLengthSamples * newLength + (oldLength >> 1)) / (uint32_t)oldLength; // rounding
+	    static_cast<uint64_t>(oldLengthSamples * newLength + (oldLength / 2)) / static_cast<uint32_t>(oldLength);
 
-	if (clip->sampleControls.reversed) {
-		newEndPosSamples = clip->sampleHolder.endPos - newLengthSamples;
+	if (clip.sampleControls.reversed) {
+		newEndPosSamples = clip.sampleHolder.endPos - newLengthSamples;
 		if (newEndPosSamples < 0) {
 			newEndPosSamples = 0;
 		}
-		valueToChange = &clip->sampleHolder.startPos;
+		valueToChange = &clip.sampleHolder.startPos;
 	}
 	else {
-		newEndPosSamples = clip->sampleHolder.startPos + newLengthSamples;
+		newEndPosSamples = clip.sampleHolder.startPos + newLengthSamples;
 		if ((int64_t)newEndPosSamples > (int64_t)sample->lengthInSamples) {
 			newEndPosSamples = sample->lengthInSamples;
 		}
-		valueToChange = &clip->sampleHolder.endPos;
+		valueToChange = &clip.sampleHolder.endPos;
 	}
 
 	ActionType actionType =
@@ -606,7 +608,7 @@ void AudioClipView::changeUnderlyingSampleLength(AudioClip* clip, const Sample* 
 	*valueToChange = newEndPosSamples;
 
 	Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
-	currentSong->setClipLength(clip, newLength, action);
+	currentSong->setClipLength(&clip, newLength, action);
 	if (action) {
 		if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 			ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
@@ -618,52 +620,52 @@ void AudioClipView::changeUnderlyingSampleLength(AudioClip* clip, const Sample* 
 }
 
 // ----------- "Start" pointer logic -----------
-void AudioClipView::changeUnderlyingSampleStart(AudioClip* clip, const Sample* sample, int32_t newStartTicks,
+void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* sample, int32_t newStartTicks,
                                                 int32_t oldLength, uint64_t oldLengthSamples) const {
 	int32_t oldEndTick = oldLength;
 	int32_t newLengthTicks = oldEndTick - newStartTicks;
 	if (newLengthTicks < 1) {
 		newLengthTicks = 1;
 	}
-	uint64_t newLengthSamples = (uint64_t)(oldLengthSamples * newLengthTicks + (oldLength >> 1)) / (uint32_t)oldLength;
+	uint64_t newLengthSamples = static_cast<uint64_t>(oldLengthSamples * newLengthTicks + (oldLength / 2)) / static_cast<uint32_t>(oldLength);
 
-	if (clip->sampleControls.reversed) {
-		uint64_t oldValue = clip->sampleHolder.endPos;
-		uint64_t newEndPos = clip->sampleHolder.startPos + newLengthSamples;
+	if (clip.sampleControls.reversed) {
+		uint64_t oldValue = clip.sampleHolder.endPos;
+		uint64_t newEndPos = clip.sampleHolder.startPos + newLengthSamples;
 		if (newEndPos > sample->lengthInSamples) {
 			newEndPos = sample->lengthInSamples;
 		}
-		clip->sampleHolder.endPos = newEndPos;
+		clip.sampleHolder.endPos = newEndPos;
 
 		ActionType actionType =
 		    (newLengthTicks < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;
 		Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
-		currentSong->setClipLength(clip, newLengthTicks, action);
+		currentSong->setClipLength(&clip, newLengthTicks, action);
 		if (action) {
 			if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 				ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
-				consequence->pointerToMarkerValue = &clip->sampleHolder.endPos;
+				consequence->pointerToMarkerValue = &clip.sampleHolder.endPos;
 				consequence->markerValueToRevertTo = oldValue;
 			}
 			actionLogger.closeAction(actionType);
 		}
 	}
 	else {
-		uint64_t oldValue = clip->sampleHolder.startPos;
-		uint64_t newStartPos = clip->sampleHolder.endPos - newLengthSamples;
+		uint64_t oldValue = clip.sampleHolder.startPos;
+		uint64_t newStartPos = clip.sampleHolder.endPos - newLengthSamples;
 		if ((int64_t)newStartPos < 0) {
 			newStartPos = 0;
 		}
-		clip->sampleHolder.startPos = newStartPos;
+		clip.sampleHolder.startPos = newStartPos;
 
 		ActionType actionType =
 		    (newLengthTicks < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;
 		Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
-		currentSong->setClipLength(clip, newLengthTicks, action);
+		currentSong->setClipLength(&clip, newLengthTicks, action);
 		if (action) {
 			if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 				ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
-				consequence->pointerToMarkerValue = &clip->sampleHolder.startPos;
+				consequence->pointerToMarkerValue = &clip.sampleHolder.startPos;
 				consequence->markerValueToRevertTo = oldValue;
 			}
 			actionLogger.closeAction(actionType);
@@ -701,8 +703,8 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 }
 
 void AudioClipView::setClipLengthEqualToSampleLength() {
-	AudioClip* audioClip = getCurrentAudioClip();
-	SamplePlaybackGuide guide = audioClip->guide;
+	AudioClip& audioClip = *getCurrentAudioClip();
+	SamplePlaybackGuide guide = audioClip.guide;
 	SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
 	if (sampleHolder) {
 		adjustLoopLength(sampleHolder->getLoopLengthAtSystemSampleRate(true));
@@ -730,10 +732,7 @@ doReRender:
 			if (newLength > 0) {
 				action = shortenClip(newLength);
 				if (!scrollLeftIfTooFarRight(newLength)) {
-					if (zoomToMax(true)) {
-						// ...
-					}
-					else {
+					if (!zoomToMax(true)) {
 						goto doReRender;
 					}
 				}
@@ -776,8 +775,8 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 	Action* action = nullptr;
 	uint32_t newLength = changeClipLength(offset, oldLength, action);
 
-	AudioClip* audioClip = getCurrentAudioClip();
-	SamplePlaybackGuide guide = audioClip->guide;
+	AudioClip& audioClip = *getCurrentAudioClip();
+	SamplePlaybackGuide guide = audioClip.guide;
 	SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
 	if (sampleHolder) {
 		Sample* sample = static_cast<Sample*>(sampleHolder->audioFile);

@@ -72,8 +72,8 @@ private:
 		bool startMarkerVisible; // True if user is currently adjusting the clip's start
 		bool blinkOn;
 
-    void changeUnderlyingSampleLength(AudioClip* clip, const Sample* sample, int32_t newLength, int32_t oldLength, uint64_t oldLengthSamples) const;
-    void changeUnderlyingSampleStart(AudioClip* clip, const Sample* sample, int32_t newStartTicks, int32_t oldLength, uint64_t oldLengthSamples) const;
+    void changeUnderlyingSampleLength(AudioClip& clip, const Sample* sample, int32_t newLength, int32_t oldLength, uint64_t oldLengthSamples) const;
+    void changeUnderlyingSampleStart(AudioClip& clip, const Sample* sample, int32_t newStartTicks, int32_t oldLength, uint64_t oldLengthSamples) const;
 };
 
 extern AudioClipView audioClipView;
