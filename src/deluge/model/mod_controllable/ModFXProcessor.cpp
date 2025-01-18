@@ -16,14 +16,18 @@
  */
 
 #include "ModFXProcessor.h"
+#include "definitions_cxx.hpp"
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
+#include "util/comparison.h"
+#include <cstdint>
+
 /// NOT GRAIN! - this only does the comb filter based mod fx
-void ModFXProcessor::processModFX(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate,
+void ModFXProcessor::processModFX(std::span<StereoSample> buffer, const ModFXType& modFXType, int32_t modFXRate,
                                   int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-                                  const StereoSample* bufferEnd, bool anySoundComingIn) {
+                                  bool anySoundComingIn) {
 
 	if (modFXType != ModFXType::NONE) {
 
@@ -48,36 +52,31 @@ void ModFXProcessor::processModFX(StereoSample* buffer, const ModFXType& modFXTy
 		case ModFXType::NONE:
 			break;
 		case ModFXType::FLANGER:
-			processModFXBuffer<ModFXType::FLANGER>(buffer, modFXRate, modFXDepth, bufferEnd, modFXLFOWaveType,
-			                                       modFXDelayOffset, thisModFXDelayDepth, feedback,
-			                                       AudioEngine::renderInStereo);
+			processModFXBuffer<ModFXType::FLANGER>(buffer, modFXRate, modFXDepth, modFXLFOWaveType, modFXDelayOffset,
+			                                       thisModFXDelayDepth, feedback, AudioEngine::renderInStereo);
 			break;
 		case ModFXType::CHORUS:
-			processModFXBuffer<ModFXType::CHORUS>(buffer, modFXRate, modFXDepth, bufferEnd, modFXLFOWaveType,
-			                                      modFXDelayOffset, thisModFXDelayDepth, feedback,
-			                                      AudioEngine::renderInStereo);
+			processModFXBuffer<ModFXType::CHORUS>(buffer, modFXRate, modFXDepth, modFXLFOWaveType, modFXDelayOffset,
+			                                      thisModFXDelayDepth, feedback, AudioEngine::renderInStereo);
 			break;
 		case ModFXType::PHASER:
-			processModFXBuffer<ModFXType::PHASER>(buffer, modFXRate, modFXDepth, bufferEnd, modFXLFOWaveType,
-			                                      modFXDelayOffset, thisModFXDelayDepth, feedback,
-			                                      AudioEngine::renderInStereo);
+			processModFXBuffer<ModFXType::PHASER>(buffer, modFXRate, modFXDepth, modFXLFOWaveType, modFXDelayOffset,
+			                                      thisModFXDelayDepth, feedback, AudioEngine::renderInStereo);
 			break;
 		case ModFXType::CHORUS_STEREO:
-			processModFXBuffer<ModFXType::CHORUS_STEREO>(buffer, modFXRate, modFXDepth, bufferEnd, modFXLFOWaveType,
+			processModFXBuffer<ModFXType::CHORUS_STEREO>(buffer, modFXRate, modFXDepth, modFXLFOWaveType,
 			                                             modFXDelayOffset, thisModFXDelayDepth, feedback,
 			                                             AudioEngine::renderInStereo);
 			break;
 		case ModFXType::WARBLE:
-			processModFXBuffer<ModFXType::WARBLE>(buffer, modFXRate, modFXDepth, bufferEnd, modFXLFOWaveType,
-			                                      modFXDelayOffset, thisModFXDelayDepth, feedback,
-			                                      AudioEngine::renderInStereo);
+			processModFXBuffer<ModFXType::WARBLE>(buffer, modFXRate, modFXDepth, modFXLFOWaveType, modFXDelayOffset,
+			                                      thisModFXDelayDepth, feedback, AudioEngine::renderInStereo);
 			break;
 		case ModFXType::GRAIN:
 			break;
 		case ModFXType::DIMENSION:
-			processModFXBuffer<ModFXType::DIMENSION>(buffer, modFXRate, modFXDepth, bufferEnd, modFXLFOWaveType,
-			                                         modFXDelayOffset, thisModFXDelayDepth, feedback,
-			                                         AudioEngine::renderInStereo);
+			processModFXBuffer<ModFXType::DIMENSION>(buffer, modFXRate, modFXDepth, modFXLFOWaveType, modFXDelayOffset,
+			                                         thisModFXDelayDepth, feedback, AudioEngine::renderInStereo);
 			break;
 		}
 	}
@@ -138,59 +137,48 @@ void ModFXProcessor::setupModFXWFeedback(const ModFXType& modFXType, int32_t mod
 	}
 }
 template <ModFXType modFXType>
-void ModFXProcessor::processModFXBuffer(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth,
-                                        const StereoSample* bufferEnd, LFOType& modFXLFOWaveType,
-                                        int32_t modFXDelayOffset, int32_t thisModFXDelayDepth, int32_t feedback,
-                                        bool stereo) {
-	StereoSample* currentSample = buffer;
+void ModFXProcessor::processModFXBuffer(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth,
+                                        LFOType& modFXLFOWaveType, int32_t modFXDelayOffset,
+                                        int32_t thisModFXDelayDepth, int32_t feedback, bool stereo) {
 	if constexpr (modFXType == ModFXType::PHASER) {
-		do {
-			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
-			processOnePhaserSample(modFXDepth, feedback, currentSample, lfoOutput);
-
-		} while (++currentSample != bufferEnd);
+		for (StereoSample& sample : buffer) {
+			int32_t lfo = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
+			sample = processOnePhaserSample(sample, modFXDepth, feedback, lfo);
+		}
+		return;
 	}
-	else if (stereo) {
-		do {
-			int32_t lfoOutput;
-			int32_t lfo2Output;
-			processModLFOs<modFXType>(modFXRate, modFXLFOWaveType, lfoOutput, lfo2Output);
 
-			processOneModFXSample<modFXType, true>(modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample,
-			                                       lfoOutput, lfo2Output);
-
-		} while (++currentSample != bufferEnd);
-	}
-	else {
-		do {
-			int32_t lfoOutput;
-			int32_t lfo2Output;
-			processModLFOs<modFXType>(modFXRate, modFXLFOWaveType, lfoOutput, lfo2Output);
-			processOneModFXSample<modFXType, false>(modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample,
-			                                        lfoOutput, -lfoOutput);
-
-		} while (++currentSample != bufferEnd);
+	for (StereoSample& sample : buffer) {
+		auto [lfo1, lfo2] = processModLFOs<modFXType>(modFXRate, modFXLFOWaveType);
+		sample = stereo ? processOneModFXSample<modFXType, true>(sample, modFXDelayOffset, thisModFXDelayDepth,
+		                                                         feedback, lfo1, lfo2)
+		                : processOneModFXSample<modFXType, false>(sample, modFXDelayOffset, thisModFXDelayDepth,
+		                                                          feedback, lfo1, -lfo1);
 	}
 }
+
 template <ModFXType modFXType>
-void ModFXProcessor::processModLFOs(int32_t modFXRate, LFOType& modFXLFOWaveType, int32_t& lfoOutput,
-                                    int32_t& lfo2Output) {
-	lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
+std::pair<int32_t, int32_t> ModFXProcessor::processModLFOs(int32_t modFXRate, LFOType modFXLFOWaveType) {
+	int32_t lfo1 = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
+	int32_t lfo2 = 0;
 	// anymore and they get audibly out of sync, this just sounds wobblier
 	constexpr q31_t width = 0.97 * ONE_Q31;
 	if constexpr (modFXType == ModFXType::WARBLE) {
 		// this needs a second lfo because it's a random process - we can't flip it to make a second sample but
 		// these will always be different anyway
 
-		lfo2Output = modFXLFOStereo.render(1, modFXLFOWaveType, multiply_32x32_rshift32(modFXRate, width) << 1);
+		lfo2 = modFXLFOStereo.render(1, modFXLFOWaveType, multiply_32x32_rshift32(modFXRate, width) << 1);
 	}
 	else {
-		lfo2Output = -lfoOutput;
+		lfo2 = -lfo1;
 	}
+	return {lfo1, lfo2};
 }
+
 template <ModFXType modFXType, bool stereo>
-void ModFXProcessor::processOneModFXSample(int32_t modFXDelayOffset, int32_t thisModFXDelayDepth, int32_t feedback,
-                                           StereoSample* currentSample, int32_t lfoOutput, int32_t lfo2Output) {
+StereoSample ModFXProcessor::processOneModFXSample(StereoSample sample, int32_t modFXDelayOffset,
+                                                   int32_t thisModFXDelayDepth, int32_t feedback, int32_t lfoOutput,
+                                                   int32_t lfo2Output) {
 	int32_t delayTime = multiply_32x32_rshift32(lfoOutput, thisModFXDelayDepth) + modFXDelayOffset;
 
 	int32_t strength2 = (delayTime & 65535) << 15;
@@ -219,44 +207,46 @@ void ModFXProcessor::processOneModFXSample(int32_t modFXDelayOffset, int32_t thi
 	// feedback also controls the mix? Weird but ok, I guess it makes it work on one knob
 	if constexpr (modFXType == ModFXType::FLANGER) {
 		modFXOutputL = multiply_32x32_rshift32_rounded(modFXOutputL, feedback) << 2;
-		modFXBuffer[modFXBufferWriteIndex].l = modFXOutputL + currentSample->l; // Feedback
+		modFXBuffer[modFXBufferWriteIndex].l = modFXOutputL + sample.l; // Feedback
 		modFXOutputR = multiply_32x32_rshift32_rounded(modFXOutputR, feedback) << 2;
-		modFXBuffer[modFXBufferWriteIndex].r = modFXOutputR + currentSample->r; // Feedback
+		modFXBuffer[modFXBufferWriteIndex].r = modFXOutputR + sample.r; // Feedback
 	}
 	else if constexpr (modFXType == ModFXType::WARBLE) {
 		auto fback = multiply_32x32_rshift32_rounded(modFXOutputL, feedback);
-		modFXBuffer[modFXBufferWriteIndex].l = fback + currentSample->l; // Feedback
+		modFXBuffer[modFXBufferWriteIndex].l = fback + sample.l; // Feedback
 		fback = multiply_32x32_rshift32_rounded(modFXOutputR, feedback);
-		modFXBuffer[modFXBufferWriteIndex].r = fback + currentSample->r; // Feedback
+		modFXBuffer[modFXBufferWriteIndex].r = fback + sample.r; // Feedback
 
 		modFXOutputL <<= 1;
 		modFXOutputR <<= 1;
 	}
 	else { // Chorus, Dimension
 		modFXOutputL <<= 1;
-		modFXBuffer[modFXBufferWriteIndex].l = currentSample->l; // Feedback
+		modFXBuffer[modFXBufferWriteIndex].l = sample.l; // Feedback
 		modFXOutputR <<= 1;
-		modFXBuffer[modFXBufferWriteIndex].r = currentSample->r; // Feedback
+		modFXBuffer[modFXBufferWriteIndex].r = sample.r; // Feedback
 	}
 
 	if constexpr (modFXType == ModFXType::DIMENSION || modFXType == ModFXType::WARBLE) {
-		currentSample->l = modFXOutputL << 1;
-		currentSample->r = modFXOutputR << 1;
+		sample.l = modFXOutputL << 1;
+		sample.r = modFXOutputR << 1;
 	}
 	else {
-		currentSample->l += modFXOutputL;
-		currentSample->r += modFXOutputR;
+		sample.l += modFXOutputL;
+		sample.r += modFXOutputR;
 	}
 
 	modFXBufferWriteIndex = (modFXBufferWriteIndex + 1) & kModFXBufferIndexMask;
+	return sample;
 }
-void ModFXProcessor::processOnePhaserSample(int32_t modFXDepth, int32_t feedback, StereoSample* currentSample,
-                                            int32_t lfoOutput) { // "1" is sorta represented by 1073741824 here
+
+StereoSample ModFXProcessor::processOnePhaserSample(StereoSample sample, int32_t modFXDepth, int32_t feedback,
+                                                    int32_t lfoOutput) { // "1" is sorta represented by 1073741824 here
 	int32_t _a1 =
 	    1073741824 - multiply_32x32_rshift32_rounded((((uint32_t)lfoOutput + (uint32_t)2147483648) >> 1), modFXDepth);
 
-	phaserMemory.l = currentSample->l + (multiply_32x32_rshift32_rounded(phaserMemory.l, feedback) << 1);
-	phaserMemory.r = currentSample->r + (multiply_32x32_rshift32_rounded(phaserMemory.r, feedback) << 1);
+	phaserMemory.l = sample.l + (multiply_32x32_rshift32_rounded(phaserMemory.l, feedback) << 1);
+	phaserMemory.r = sample.r + (multiply_32x32_rshift32_rounded(phaserMemory.r, feedback) << 1);
 
 	// Do the allpass filters
 	for (auto& sample : allpassMemory) {
@@ -269,8 +259,10 @@ void ModFXProcessor::processOnePhaserSample(int32_t modFXDepth, int32_t feedback
 		sample.r = (multiply_32x32_rshift32_rounded(phaserMemory.r, _a1) << 2) + whatWasInput.r;
 	}
 
-	currentSample->l += phaserMemory.l;
-	currentSample->r += phaserMemory.r;
+	sample.l += phaserMemory.l;
+	sample.r += phaserMemory.r;
+
+	return sample;
 }
 
 void ModFXProcessor::resetMemory() {

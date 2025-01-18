@@ -17,6 +17,7 @@
 
 #include "processing/sound/sound_instrument.h"
 #include "definitions_cxx.hpp"
+#include "dsp/stereo_sample.h"
 #include "gui/views/view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -89,9 +90,9 @@ void SoundInstrument::cutAllSound() {
 	Sound::unassignAllVoices();
 }
 
-void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos,
-                                   int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-                                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
+void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+                                   int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+                                   bool shouldLimitDelayFeedback, bool isClipActive) {
 	// this should only happen in the rare case that this is called while replacing an instrument but after the clips
 	// have been cleared
 	if (!activeClip) [[unlikely]] {
@@ -106,8 +107,8 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPo
 		compressor.gainReduction = 0;
 	}
 	else {
-		Sound::render(modelStackWithThreeMainThings, startPos, numSamples, reverbBuffer, sideChainHitPending,
-		              reverbAmountAdjust, shouldLimitDelayFeedback, kMaxSampleValue, recorder);
+		Sound::render(modelStackWithThreeMainThings, output, reverbBuffer, sideChainHitPending, reverbAmountAdjust,
+		              shouldLimitDelayFeedback, kMaxSampleValue, recorder);
 	}
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {
@@ -126,7 +127,7 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPo
 		}
 		if (anyInterpolating) {
 yesTickParamManagerForClip:
-			modelStackWithThreeMainThings->paramManager->toForTimeline()->tickSamples(numSamples,
+			modelStackWithThreeMainThings->paramManager->toForTimeline()->tickSamples(output.size(),
 			                                                                          modelStackWithThreeMainThings);
 		}
 		else {
@@ -193,7 +194,7 @@ yesTickParamManagerForClip:
 			if (result) {
 				modelStackWithThreeMainThings->setNoteRow(thisNoteRow, thisNoteRow->y);
 				modelStackWithThreeMainThings->paramManager = &thisNoteRow->paramManager;
-				thisNoteRow->paramManager.tickSamples(numSamples, modelStackWithThreeMainThings);
+				thisNoteRow->paramManager.tickSamples(output.size(), modelStackWithThreeMainThings);
 			}
 		}
 	}
