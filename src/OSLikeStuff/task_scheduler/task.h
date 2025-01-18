@@ -18,6 +18,7 @@
 #ifndef DELUGE_TASK_H
 #define DELUGE_TASK_H
 #include "OSLikeStuff/scheduler_api.h"
+#include "resource_checker.h"
 // internal to the scheduler - do not include from anywhere else
 struct StatBlock {
 
@@ -64,16 +65,19 @@ struct Task {
 	Task() = default;
 
 	// constructor for making a "once" task
-	Task(TaskHandle _handle, uint8_t _priority, Time timeNow, Time _timeToWait, const char* _name)
-	    : handle(_handle), lastCallTime(timeNow), removeAfterUse(true), name(_name) {
+	Task(TaskHandle _handle, uint8_t _priority, Time timeNow, Time _timeToWait, const char* _name,
+	     ResourceChecker checker)
+	    : handle(_handle), lastCallTime(timeNow), removeAfterUse(true), name(_name), _checker(checker) {
 
 		schedule = TaskSchedule{_priority, _timeToWait, _timeToWait, _timeToWait * 2};
 	}
 	// makes a repeating task
-	Task(TaskHandle task, TaskSchedule _schedule, const char* _name) : handle(task), schedule(_schedule), name(_name) {}
+	Task(TaskHandle task, TaskSchedule _schedule, const char* _name, ResourceChecker checker)
+	    : handle(task), schedule(_schedule), name(_name), _checker(checker) {}
 	// makes a conditional once task
-	Task(TaskHandle task, uint8_t priority, RunCondition _condition, const char* _name)
-	    : handle(task), state(State::BLOCKED), condition(_condition), removeAfterUse(true), name(_name) {
+	Task(TaskHandle task, uint8_t priority, RunCondition _condition, const char* _name, ResourceChecker checker)
+	    : handle(task), state(State::BLOCKED), condition(_condition), removeAfterUse(true), name(_name),
+	      _checker(checker) {
 
 		// good to go as soon as it's marked as runnable
 		schedule = {priority, 0, 0, 0};
@@ -102,11 +106,14 @@ struct Task {
 		return false;
 	}
 
-	[[nodiscard]] bool isReady(Time currentTime) const { return state == State::READY && isReleased(currentTime); };
+	[[nodiscard]] bool isReady(Time currentTime) const {
+		return state == State::READY && isReleased(currentTime) && resourcesAvailable();
+	};
 	[[nodiscard]] bool isRunnable() const { return state == State::READY; }
 	[[nodiscard]] bool isReleased(Time currentTime) const {
 		return currentTime - lastFinishTime > schedule.backOffPeriod;
 	}
+	[[nodiscard]] bool resourcesAvailable() const { return _checker.checkResources(); }
 	TaskHandle handle{nullptr};
 	TaskSchedule schedule{0, 0, 0, 0};
 	Time idealCallTime{0};
@@ -126,6 +133,8 @@ struct Task {
 	Time totalTime{0};
 	int32_t timesCalled{0};
 	Time lastRunTime;
+
+	ResourceChecker _checker;
 };
 
 #endif // DELUGE_TASK_H

@@ -3,6 +3,7 @@
 //
 #include "OSLikeStuff/scheduler_api.h"
 #include "OSLikeStuff/task_scheduler/task_scheduler.h"
+#include "resource_checker.h"
 
 extern TaskManager taskManager;
 
@@ -23,16 +24,18 @@ void setNextRunTimeforCurrentTask(double seconds) {
 }
 
 uint8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
-                         double maxTimeBetweenCalls, const char* name) {
+                         double maxTimeBetweenCalls, const char* name, ResourceID resources) {
 	return taskManager.addRepeatingTask(
-	    task, TaskSchedule{priority, backOffTime, targetTimeBetweenCalls, maxTimeBetweenCalls}, name);
+	    task, TaskSchedule{priority, backOffTime, targetTimeBetweenCalls, maxTimeBetweenCalls}, name,
+	    ResourceChecker{resources});
 }
-uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name) {
-	return taskManager.addOnceTask(task, priority, timeToWait, name);
+uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name, ResourceID resources) {
+	return taskManager.addOnceTask(task, priority, timeToWait, name, ResourceChecker{resources});
 }
 
-uint8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name) {
-	return taskManager.addConditionalTask(task, priority, condition, name);
+uint8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name,
+                           ResourceID resources) {
+	return taskManager.addConditionalTask(task, priority, condition, name, ResourceChecker{resources});
 }
 
 void yield(RunCondition until) {
