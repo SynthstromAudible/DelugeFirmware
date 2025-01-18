@@ -388,6 +388,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_RATCHET_PROBABILITY, "Ratchet Probability"},
         {STRING_FOR_SEQUENCE_LENGTH, "Sequence Length"},
         {STRING_FOR_RANDOMIZER_LOCK, "Lock Randomizer"},
+        {STRING_FOR_WALK, "Walk"},
         {STRING_FOR_WALK1, "Walk1"},
         {STRING_FOR_WALK2, "Walk2"},
         {STRING_FOR_WALK3, "Walk3"},
