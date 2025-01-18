@@ -830,7 +830,7 @@ void ArpeggiatorBase::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings
 				if (noteMode == ArpNoteMode::WALK3) {
 					// Probability of going forward is 60%
 					backwardsLimit = 51; // Fast: Walk3 (20% probability)
-					stayLimit = 102;      // Fast: Walk3 (20% probability)
+					stayLimit = 102;     // Fast: Walk3 (20% probability)
 				}
 				else if (noteMode == ArpNoteMode::WALK1) {
 					// Probability of going forward is 40%
