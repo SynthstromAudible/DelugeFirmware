@@ -824,18 +824,18 @@ void ArpeggiatorBase::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings
 			if (noteMode == ArpNoteMode::WALK1 || noteMode == ArpNoteMode::WALK2 || noteMode == ArpNoteMode::WALK3) {
 				// Test if we need to invert direction
 
-				// Probability of going forward is 60%
-				uint8_t backwardsLimit = 52; // Normal: Walk2 (20% probability)
-				uint8_t stayLimit = 104;     // Normal: Walk2 (20% probability)
+				// Probability of going forward is 50%
+				uint8_t backwardsLimit = 64; // Normal: Walk2 (25% probability)
+				uint8_t stayLimit = 128;     // Normal: Walk2 (25% probability)
 				if (noteMode == ArpNoteMode::WALK3) {
-					// Probability of going forward is 75%
-					backwardsLimit = 32; // Fast: Walk3 (12.5% probability)
-					stayLimit = 64;      // Fast: Walk3 (12.5% probability)
+					// Probability of going forward is 60%
+					backwardsLimit = 51; // Fast: Walk3 (20% probability)
+					stayLimit = 102;      // Fast: Walk3 (20% probability)
 				}
 				else if (noteMode == ArpNoteMode::WALK1) {
-					// Probability of going forward is 45%
-					backwardsLimit = 71; // Slow: Walk3 (27.5% probability)
-					stayLimit = 142;     // Slow: Walk3 (27.5% probability)
+					// Probability of going forward is 40%
+					backwardsLimit = 77; // Slow: Walk3 (30% probability)
+					stayLimit = 154;     // Slow: Walk3 (30% probability)
 				}
 
 				uint8_t dice = getRandom255();
