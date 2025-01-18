@@ -14,7 +14,7 @@
 #endif
 
 uint8_t currentlyAccessingCard = false;
-uint32_t  usbLock = false;
+uint32_t usbLock = false;
 bool sdRoutineLock = false;
 namespace {
 
@@ -83,7 +83,8 @@ TEST(Scheduler, schedule) {
 TEST(Scheduler, remove) {
 	static SelfRemoving selfRemoving;
 
-	TaskID id = addRepeatingTask([]() { selfRemoving.runFiveTimes(); }, 0, 0.001, 0.001, 0.001, "run five times", NO_RESOURCE);
+	TaskID id =
+	    addRepeatingTask([]() { selfRemoving.runFiveTimes(); }, 0, 0.001, 0.001, 0.001, "run five times", NO_RESOURCE);
 	selfRemoving.id = id;
 	mock().clear();
 	// will be called one less time due to the time the sleep takes not being zero
