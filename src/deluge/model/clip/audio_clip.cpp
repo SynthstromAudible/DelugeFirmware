@@ -38,6 +38,7 @@
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
+#include "util/fixedpoint.h"
 #include <new>
 
 namespace params = deluge::modulation::params;
@@ -543,8 +544,8 @@ int64_t AudioClip::getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStac
 	return loopTime - AudioEngine::audioSampleTimer;
 }
 
-void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outputBuffer, int32_t numSamples,
-                       int32_t amplitude, int32_t amplitudeIncrement, int32_t pitchAdjust) {
+void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_t> outputBuffer, int32_t amplitude,
+                       int32_t amplitudeIncrement, int32_t pitchAdjust) {
 
 	if (!voiceSample) {
 		return;
@@ -554,7 +555,7 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 
 	// First, if we're still attempting to do a "late start", see if we can do that (perhaps not if relevant audio data
 	// hasn't loaded yet)
-	if (doingLateStart && ((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
+	if (doingLateStart && static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
 		uint64_t numSamplesIn = guide.getSyncedNumSamplesIn();
 
 		LateStartAttemptStatus result = voiceSample->attemptLateSampleStart(&guide, sample, numSamplesIn);
@@ -726,7 +727,7 @@ justDontTimeStretch:
 		// forgot?) It's perhaps a little bit surprising, but this even works and sounds perfect (you never hear any of
 		// the margin) when time-stretching is happening! Down to about half speed. Below that, you hear some of the
 		// margin.
-		if (((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
+		if (static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
 
@@ -739,7 +740,7 @@ justDontTimeStretch:
 				int32_t timeTilLoop = loopTime - AudioEngine::audioSampleTimer;
 
 				if (timeTilLoop < 1024) {
-					((AudioOutput*)output)
+					static_cast<AudioOutput*>(this->output)
 					    ->envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE, 8192); // Let's make it extra fast?
 				}
 			}
@@ -760,8 +761,8 @@ justDontTimeStretch:
 	{
 		LoopType loopingType = getLoopingType(modelStack);
 
-		stillActive = voiceSample->render(&guide, outputBuffer, numSamples, sample, sample->numChannels, loopingType,
-		                                  phaseIncrement, timeStretchRatio, amplitude, amplitudeIncrement,
+		stillActive = voiceSample->render(&guide, outputBuffer.data(), outputBuffer.size(), sample, sample->numChannels,
+		                                  loopingType, phaseIncrement, timeStretchRatio, amplitude, amplitudeIncrement,
 		                                  sampleControls.getInterpolationBufferSize(phaseIncrement),
 		                                  sampleControls.interpolationMode, 1);
 	}

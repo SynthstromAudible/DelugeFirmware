@@ -162,8 +162,8 @@ public:
 
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
 	                                    int32_t newValue);
-	void render(ModelStackWithThreeMainThings* modelStack, StereoSample* outputBuffer, int32_t numSamples,
-	            int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
+	void render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+	            int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
 	            bool shouldLimitDelayFeedback = false, int32_t pitchAdjust = kMaxSampleValue,
 	            SampleRecorder* recorder = nullptr);
 	void unassignAllVoices();

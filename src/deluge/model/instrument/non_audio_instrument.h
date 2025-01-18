@@ -31,9 +31,9 @@ public:
 		cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
 	}
 
-	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
-	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                  bool shouldLimitDelayFeedback, bool isClipActive) override;
+	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, int32_t* reverbBuffer,
+	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
+	                  bool isClipActive) override;
 	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode, int16_t const* mpeValues,
 	              int32_t fromMIDIChannel = 16, uint8_t velocity = 64, uint32_t sampleSyncLength = 0,
 	              int32_t ticksLate = 0, uint32_t samplesLate = 0) override;
