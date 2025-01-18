@@ -106,7 +106,7 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 	}
 	return error;
 }
-void Stutterer::processStutter(std::span<StereoSample> buffer, ParamManager* paramManager, int32_t magnitude,
+void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* paramManager, int32_t magnitude,
                                uint32_t timePerTickInverse) {
 	int32_t rate = getStutterRate(paramManager, magnitude, timePerTickInverse);
 
