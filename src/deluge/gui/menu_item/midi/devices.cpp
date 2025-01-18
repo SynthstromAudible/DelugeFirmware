@@ -25,7 +25,7 @@
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
-#include "util/container/static_vector.hpp"
+#include <etl/vector.h>
 #include <string_view>
 
 extern deluge::gui::menu_item::midi::Device midiDeviceMenu;
@@ -150,7 +150,7 @@ MenuItem* Devices::selectButtonPress() {
 }
 
 void Devices::drawPixelsForOled() {
-	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> itemNames = {};
+	etl::vector<std::string_view, kOLEDMenuNumOptionsVisible> itemNames = {};
 
 	int32_t selectedRow = -1;
 
