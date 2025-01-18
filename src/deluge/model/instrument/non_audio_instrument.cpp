@@ -17,6 +17,7 @@
 
 #include "model/instrument/non_audio_instrument.h"
 #include "definitions_cxx.hpp"
+#include "dsp/stereo_sample.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "modulation/arpeggiator.h"
@@ -26,9 +27,9 @@
 #include "util/functions.h"
 #include <cstring>
 
-void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos,
-                                      int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-                                      int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
+void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+                                      int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+                                      bool shouldLimitDelayFeedback, bool isClipActive) {
 
 	// MIDI / CV arpeggiator
 	if (activeClip) {
@@ -42,7 +43,7 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 
 			ArpReturnInstruction instruction;
 
-			arpeggiator.render(&activeInstrumentClip->arpSettings, &instruction, numSamples, gateThreshold,
+			arpeggiator.render(&activeInstrumentClip->arpSettings, &instruction, output.size(), gateThreshold,
 			                   phaseIncrement);
 
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {

@@ -20,8 +20,6 @@
 #include "definitions_cxx.hpp"
 #include <cstdint>
 #include <cstring>
-#include <memory>
-#include <string_view>
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -46,13 +44,15 @@ extern const char nothing;
 
 class String {
 public:
-	String() : stringMemory(std::make_shared<std::string>()) {};
-
-	void clear() { unique().clear(); }
-
-	Error set(std::string_view otherString);
+	String() = default;
+	// String(String* otherString); // BEWARE - using this on stack instances sometimes just caused crashes and stuff.
+	// Made no sense. Instead, constructing then calling set() works
+	~String();
+	void clear(bool destructing = false);
+	Error set(char const* newChars, int32_t newLength = -1);
 	void set(String const* otherString);
-	size_t getLength() const;
+	void beenCloned();
+	size_t getLength();
 	Error shorten(int32_t newLength);
 	Error concatenateAtPos(char const* newChars, int32_t pos, int32_t newCharsLength = -1);
 	Error concatenateInt(int32_t number, int32_t minNumDigits = 1);
@@ -60,11 +60,11 @@ public:
 	Error setChar(char newChar, int32_t pos);
 	Error concatenate(String* otherString);
 	Error concatenate(char const* newChars);
-	bool equals(char const* otherChars) const;
-	bool equalsCaseIrrespective(char const* otherChars) const;
+	bool equals(char const* otherChars);
+	bool equalsCaseIrrespective(char const* otherChars);
 
-	bool contains(const char* otherChars) const { return stringMemory->contains(otherChars); }
-	bool equals(String* otherString) const {
+	inline bool contains(const char* otherChars) { return strstr(stringMemory, otherChars) != NULL; }
+	inline bool equals(String* otherString) {
 		if (stringMemory == otherString->stringMemory) {
 			return true; // Works if both lengths are 0, too
 		}
@@ -74,7 +74,7 @@ public:
 		return equals(otherString->get());
 	}
 
-	bool equalsCaseIrrespective(String* otherString) const {
+	inline bool equalsCaseIrrespective(String* otherString) {
 		if (stringMemory == otherString->stringMemory) {
 			return true; // Works if both lengths are 0, too
 		}
@@ -84,25 +84,20 @@ public:
 		return equalsCaseIrrespective(otherString->get());
 	}
 
-	char const* get() const {
+	inline char const* get() {
 		if (!stringMemory) {
 			return &nothing;
 		}
-		return stringMemory->c_str();
+		return stringMemory;
 	}
 
-	bool isEmpty() const { return stringMemory->empty(); }
+	inline bool isEmpty() { return !stringMemory; }
 
 private:
-	std::string& unique() noexcept(false) {
-		// If any additional reasons, we gotta clone the memory first
-		if (stringMemory.use_count() > 1) {
-			stringMemory = std::make_shared<std::string>(*stringMemory);
-		}
-		return *stringMemory;
-	}
+	int32_t getNumReasons();
+	void setNumReasons(int32_t newNum);
 
-	std::shared_ptr<std::string> stringMemory;
+	char* stringMemory = nullptr;
 };
 
 /// A string buffer with utility functions to append and format contents.

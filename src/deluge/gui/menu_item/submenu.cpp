@@ -1,9 +1,9 @@
 #include "submenu.h"
+#include "etl/vector.h"
 #include "gui/views/automation_view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "util/container/static_vector.hpp"
 
 namespace deluge::gui::menu_item {
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
@@ -57,7 +57,7 @@ void Submenu::drawPixelsForOled() {
 
 void Submenu::drawVerticalMenu() {
 	// Collect items before the current item, this is possibly more than we need.
-	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> before = {};
+	etl::vector<MenuItem*, kOLEDMenuNumOptionsVisible> before = {};
 	for (auto it = current_item_ - 1; it != items.begin() - 1 && before.size() < before.capacity(); it--) {
 		MenuItem* menuItem = (*it);
 		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
@@ -67,7 +67,7 @@ void Submenu::drawVerticalMenu() {
 	std::reverse(before.begin(), before.end());
 
 	// Collect current item and fill the tail
-	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> after = {};
+	etl::vector<MenuItem*, kOLEDMenuNumOptionsVisible> after = {};
 	for (auto it = current_item_; it != items.end() && after.size() < after.capacity(); it++) {
 		MenuItem* menuItem = (*it);
 		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
@@ -89,7 +89,7 @@ void Submenu::drawVerticalMenu() {
 	}
 
 	// Put it together.
-	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> visible;
+	etl::vector<MenuItem*, kOLEDMenuNumOptionsVisible> visible;
 	visible.insert(visible.begin(), before.end() - pos, before.end());
 	visible.insert(visible.begin() + pos, after.begin(), after.begin() + tail);
 

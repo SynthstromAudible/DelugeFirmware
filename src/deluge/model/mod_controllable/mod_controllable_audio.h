@@ -49,16 +49,15 @@ public:
 	virtual ~ModControllableAudio();
 	virtual void cloneFrom(ModControllableAudio* other);
 
-	void processStutter(StereoSample* buffer, int32_t numSamples, ParamManager* paramManager);
-	void processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
-	                                int32_t postFXVolume, int32_t postReverbVolume, int32_t reverbSendAmount,
-	                                int32_t pan = 0, bool doAmplitudeIncrement = false);
+	void processStutter(std::span<StereoSample> buffer, ParamManager* paramManager);
+	void processReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* reverbBuffer, int32_t postFXVolume,
+	                                int32_t postReverbVolume, int32_t reverbSendAmount, int32_t pan = 0,
+	                                bool doAmplitudeIncrement = false);
 	void writeAttributesToFile(Serializer& writer);
 	void writeTagsToFile(Serializer& writer);
 	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                              int32_t readAutomationUpToPos, Song* song);
-	void processSRRAndBitcrushing(StereoSample* buffer, int32_t numSamples, int32_t* postFXVolume,
-	                              ParamManager* paramManager);
+	void processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume, ParamManager* paramManager);
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = nullptr);
 	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -127,7 +126,7 @@ public:
 	int32_t postReverbVolumeLastTime{};
 
 protected:
-	void processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
+	void processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
 	               const Delay::State& delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
 	               bool anySoundComingIn, q31_t reverbSendAmount);
 	void switchDelayPingPong();
@@ -171,7 +170,6 @@ private:
 	void switchHPFModeWithOff();
 	void switchLPFModeWithOff();
 
-	void processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
-	                    UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd, bool anySoundComingIn,
-	                    q31_t verbAmount);
+	void processGrainFX(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
+	                    UnpatchedParamSet* unpatchedParams, bool anySoundComingIn, q31_t verbAmount);
 };

@@ -5,7 +5,7 @@ if (WIN32 AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Gcc")
     # CPPUTEST_PLATFORM defaults to Gcc, which causes the test binaries to
     # segfault on Windows/Clang builds, since they use the stdlib from MSVC.
     set(CPPUTEST_PLATFORM VisualCpp)
-endif()
+endif ()
 
 set(DELUGE_C_STANDARD 23)
 set(DELUGE_CXX_STANDARD 23)

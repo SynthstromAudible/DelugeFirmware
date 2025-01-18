@@ -106,18 +106,14 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 	}
 	return error;
 }
-
-void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamManager* paramManager, int32_t magnitude,
+void Stutterer::processStutter(std::span<StereoSample> buffer, ParamManager* paramManager, int32_t magnitude,
                                uint32_t timePerTickInverse) {
-	StereoSample* audioEnd = audio + numSamples;
-	StereoSample* thisSample = audio;
-
 	int32_t rate = getStutterRate(paramManager, magnitude, timePerTickInverse);
 
 	buffer.setupForRender(rate);
 
 	if (status == Status::RECORDING) {
-		do {
+		for (StereoSample sample : audio) {
 			int32_t strength1;
 			int32_t strength2;
 
@@ -133,8 +129,8 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 				strength1 = 65536 - strength2;
 			}
 
-			buffer.write(*thisSample, strength1, strength2);
-		} while (++thisSample != audioEnd);
+			buffer.write(sample, strength1, strength2);
+		}
 
 		if (sizeLeftUntilRecordFinished < 0) {
 			if (currentReverse) {
@@ -147,7 +143,7 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 		}
 	}
 	else { // PLAYING
-		do {
+		for (StereoSample& sample : audio) {
 			int32_t strength1;
 			int32_t strength2;
 
@@ -158,8 +154,8 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 				else {
 					buffer.moveOn(); // move forward in the buffer
 				}
-				thisSample->l = buffer.current().l;
-				thisSample->r = buffer.current().r;
+				sample.l = buffer.current().l;
+				sample.r = buffer.current().r;
 			}
 			else {
 				if (currentReverse) {
@@ -178,12 +174,12 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 					}
 					StereoSample& fromDelay1 = buffer.current();
 					StereoSample& fromDelay2 = *prevPos;
-					thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
-					                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
-					                << 2;
-					thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
-					                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
-					                << 2;
+					sample.l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
+					            + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
+					           << 2;
+					sample.r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
+					            + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
+					           << 2;
 				}
 				else {
 					StereoSample* nextPos = &buffer.current() + 1;
@@ -192,12 +188,12 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 					}
 					StereoSample& fromDelay1 = buffer.current();
 					StereoSample& fromDelay2 = *nextPos;
-					thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
-					                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
-					                << 2;
-					thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
-					                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
-					                << 2;
+					sample.l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
+					            + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
+					           << 2;
+					sample.r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
+					            + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
+					           << 2;
 				}
 			}
 
@@ -207,8 +203,7 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 			        || (!currentReverse && &buffer.current() == buffer.end() - 1))) {
 				currentReverse = !currentReverse;
 			}
-
-		} while (++thisSample != audioEnd);
+		}
 	}
 }
 

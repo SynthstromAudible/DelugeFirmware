@@ -19,6 +19,7 @@
 
 #include "dsp/delay/delay_buffer.h"
 #include <cstdint>
+#include <span>
 
 class ParamManagerForTimeline;
 class ParamManager;
@@ -40,7 +41,7 @@ public:
 	// on currentSong and playbackhandler...
 	[[nodiscard]] Error beginStutter(void* source, ParamManagerForTimeline* paramManager, StutterConfig stutterConfig,
 	                                 int32_t magnitude, uint32_t timePerTickInverse);
-	void processStutter(StereoSample* buffer, int32_t numSamples, ParamManager* paramManager, int32_t magnitude,
+	void processStutter(std::span<StereoSample> buffer, ParamManager* paramManager, int32_t magnitude,
 	                    uint32_t timePerTickInverse);
 	void endStutter(ParamManagerForTimeline* paramManager = nullptr);
 

@@ -196,7 +196,8 @@ add_executable(deluge)
 
 # Link external libraries
 target_link_libraries(deluge PUBLIC
-    argon
+        argon
+        etl::etl
 )
 
 option(MAINTAINER_MODE "Enables all warnings and errors" OFF)
