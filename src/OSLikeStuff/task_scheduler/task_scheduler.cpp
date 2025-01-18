@@ -18,7 +18,6 @@
 #include "OSLikeStuff/task_scheduler/task_scheduler.h"
 
 #include "io/debug/log.h"
-#include "util/container/static_vector.hpp"
 #include <algorithm>
 #include <iostream>
 
