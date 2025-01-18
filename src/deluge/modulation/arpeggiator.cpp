@@ -821,10 +821,24 @@ void ArpeggiatorBase::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings
 		}
 		else {
 			// TODO do here the walk
-			if (noteMode == ArpNoteMode::WALK) {
+			if (noteMode == ArpNoteMode::WALK1 || noteMode == ArpNoteMode::WALK2 || noteMode == ArpNoteMode::WALK3) {
 				// Test if we need to invert direction
+
+				// Probability of going forward is 60%
+				uint8_t backwardsLimit = 52; // Normal: Walk2 (20% probability)
+				uint8_t stayLimit = 104; // Normal: Walk2 (20% probability)
+				if (noteMode == ArpNoteMode::WALK3) {
+					// Probability of going forward is 75%
+					backwardsLimit = 32; // Fast: Walk3 (12.5% probability)
+					stayLimit = 64; // Fast: Walk3 (12.5% probability)
+				} else if (noteMode == ArpNoteMode::WALK1) {
+					// Probability of going forward is 44%
+					backwardsLimit = 72; // Slow: Walk3 (28% probability)
+					stayLimit = 144; // Slow: Walk3 (28% probability)
+				}
+
 				uint8_t dice = getRandom255();
-				if (dice < 64) { // 25% probability
+				if (dice < backwardsLimit) {
 					// Go back one step
 					goesReverseOnlyThisStep = true;
 					noteMode = ArpNoteMode::DOWN; // Momentarily fool it to think it must go down
@@ -837,7 +851,7 @@ void ArpeggiatorBase::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings
 					currentDirection = -currentDirection;             // Revert note direction just this step
 					currentOctaveDirection = -currentOctaveDirection; // Revert octave direction just this step
 				}
-				else if (dice < 128) { // 25% probability
+				else if (dice < stayLimit) {
 					// Same step
 					// Don't change anything
 					return;
@@ -1595,7 +1609,7 @@ void ArpeggiatorSettings::updatePresetFromCurrentSettings() {
 	else if (octaveMode == ArpOctaveMode::RANDOM && noteMode == ArpNoteMode::RANDOM) {
 		preset = ArpPreset::RANDOM;
 	}
-	else if (octaveMode == ArpOctaveMode::ALTERNATE && noteMode == ArpNoteMode::WALK) {
+	else if (octaveMode == ArpOctaveMode::ALTERNATE && noteMode == ArpNoteMode::WALK2) {
 		preset = ArpPreset::WALK;
 	}
 	else {
@@ -1630,7 +1644,7 @@ void ArpeggiatorSettings::updateSettingsFromCurrentPreset() {
 	else if (preset == ArpPreset::WALK) {
 		mode = ArpMode::ARP;
 		octaveMode = ArpOctaveMode::ALTERNATE;
-		noteMode = ArpNoteMode::WALK;
+		noteMode = ArpNoteMode::WALK2;
 	}
 	else if (preset == ArpPreset::CUSTOM) {
 		mode = ArpMode::ARP;

@@ -14,7 +14,7 @@ A preset sets at the same time 3 parameters: `Arp Mode`, `Octave Mode` and `Note
   - `Down` will setup Mode to `Arpeggiator`, Octave Mode to `Down` and Note Mode to `Down`. This is equivalent to `Down` in official firmware.
   - `Both` will setup Mode to `Arpeggiator`, Octave Mode to `Alternate` and Note Mode to `Up`. This is equivalent to `Both` in official firmware.
   - `Random` will setup Mode to `Arpeggiator`, Octave Mode to `Random` and Note Mode to `Random`. This is equivalent to `Random` in official firmware.
-  - `Walk` will setup Mode to `Arpeggiator`, Octave Mode to `Alternate` and Note Mode to `Walk`.
+  - `Walk` will setup Mode to `Arpeggiator`, Octave Mode to `Alternate` and Note Mode to `Walk2`.
   - `Custom` will setup Mode to `Arpeggiator`, and enter a submenu to let you edit `Octave Mode` and `Note Mode`.
 
 ## Arpeggiator Parameters (submenus)
@@ -59,10 +59,18 @@ setting how many times they are repeated, and setting the direction in which the
       different than Random, then the pattern will play, in the same octave, the same number of random
       notes as notes are in the held chord and then move to a different octave based on the Octave Mode.
       Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
-    - `Walk (WALK)` will walk the notes this way:
-        - 25% of probability to walk the sequence a step in reverse.
-        - 25% of probability to just repeat the same step of the sequence.
-        - 50% of probability to walk the sequence a step forward (as normal).
+    - `Walk1 (WALK1)` is the "slow" walk and next note is selected this way:
+        - 28% of probability to walk the sequence a step in reverse.
+        - 28% of probability to just repeat the same step of the sequence.
+        - 44% of probability to walk the sequence a step forward (as normal).
+    - `Walk2 (WALK2)` is the "normal" walk and next note is selected this way:
+        - 20% of probability to walk the sequence a step in reverse.
+        - 20% of probability to just repeat the same step of the sequence.
+        - 60% of probability to walk the sequence a step forward (as normal).
+    - `Walk3 (WALK3)` is the "fast" walk and next note is selected this way:
+        - 12,5% of probability to walk the sequence a step in reverse.
+        - 12,5% of probability to just repeat the same step of the sequence.
+        - 75% of probability to walk the sequence a step forward (as normal).
     - `Played Order (PLAY)` will walk the notes in the same order that they were played. Tip: this mode
       also works in conjunction with Octave Mode Alternate, which will walk all the notes and octaves
       all the way up (with notes as played), and then down reversing the order of played notes.

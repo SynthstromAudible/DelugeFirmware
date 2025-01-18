@@ -46,7 +46,9 @@ public:
 		    l10n::getView(STRING_FOR_DOWN),    //<
 		    l10n::getView(STRING_FOR_UP_DOWN), //<
 		    l10n::getView(STRING_FOR_RANDOM),  //<
-		    l10n::getView(STRING_FOR_WALK),    //<
+		    l10n::getView(STRING_FOR_WALK1),   //<
+		    l10n::getView(STRING_FOR_WALK2),   //<
+		    l10n::getView(STRING_FOR_WALK3),   //<
 		};
 	}
 };

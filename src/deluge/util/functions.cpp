@@ -1115,8 +1115,14 @@ char const* arpNoteModeToString(ArpNoteMode mode) {
 	case ArpNoteMode::RANDOM:
 		return "random";
 
-	case ArpNoteMode::WALK:
-		return "walk";
+	case ArpNoteMode::WALK1:
+		return "walk1";
+
+	case ArpNoteMode::WALK2:
+		return "walk2";
+
+	case ArpNoteMode::WALK3:
+		return "walk3";
 
 	case ArpNoteMode::PATTERN:
 		return "pattern";
@@ -1136,8 +1142,14 @@ ArpNoteMode stringToArpNoteMode(char const* string) {
 	else if (!strcmp(string, "asPlayed")) {
 		return ArpNoteMode::AS_PLAYED;
 	}
-	else if (!strcmp(string, "walk")) {
-		return ArpNoteMode::WALK;
+	else if (!strcmp(string, "walk1")) {
+		return ArpNoteMode::WALK1;
+	}
+	else if (!strcmp(string, "walk2")) {
+		return ArpNoteMode::WALK2;
+	}
+	else if (!strcmp(string, "walk3")) {
+		return ArpNoteMode::WALK3;
 	}
 	else if (!strcmp(string, "pattern")) {
 		return ArpNoteMode::PATTERN;

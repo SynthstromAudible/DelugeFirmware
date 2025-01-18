@@ -542,7 +542,9 @@ enum class ArpNoteMode {
 	DOWN,
 	UP_DOWN,
 	RANDOM,
-	WALK,
+	WALK1,
+	WALK2,
+	WALK3,
 	AS_PLAYED,
 	PATTERN,
 };
