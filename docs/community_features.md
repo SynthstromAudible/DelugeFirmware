@@ -1194,11 +1194,6 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
 * `Alternative Golden Knob Delay Params (DELA)`
     * When On, it changes the behaviour of the Mod Encoder button action from the default (PingPong and Type) to the
       alternative params (SyncType and SyncLevel).
-* `Stutter Rate Quantize (STUT)`
-    * When On, the ability to set the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when
-      selecting it is enabled.
-* `Reverse Stutter Rate (RSTUT)`
-    * When On, the stutter buffer is reversed.
 * `Allow Insecure Develop Sysex Messages (SYSX)`
     * When On, the ability to load firmware over USB is enabled.
 * `Sync Scaling Action (SCAL)`
