@@ -3156,7 +3156,8 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 			// Just get rid of arming
 			for (int32_t l = 0; l < sessionClips.getNumElements(); l++) {
 				Clip* loopable = sessionClips.getClipAtIndex(l);
-				if (loopable->launchStyle == LaunchStyle::DEFAULT) {
+				if (loopable->launchStyle == LaunchStyle::DEFAULT
+				    && currentSong->sections[loopable->section].numRepetitions != -2) {
 					loopable->armState = ArmState::OFF;
 				}
 			}

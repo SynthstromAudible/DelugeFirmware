@@ -1709,7 +1709,9 @@ wantActive:
 weWantThisClipInactive:
 					// Clip is launched exclusively
 					if (currentSong->sections[thisClip->section].numRepetitions == -2) {
-						thisClip->armState = ArmState::OFF;
+						if (thisClip->activeIfNoSolo) {
+							thisClip->armState = ArmState::OFF;
+						}
 					}
 
 					// If it's active, arm it to stop
