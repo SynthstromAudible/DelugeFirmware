@@ -54,6 +54,14 @@ void yield_2ms() {
 	yield([]() { return getTimerValueSeconds(0) > started + Time(0.002); });
 }
 
+void yield_2ms_with_lock() {
+	mock().actualCall("yield_2ms");
+	started = getTimerValueSeconds(0);
+	usbLock = true;
+	yield([]() { return getTimerValueSeconds(0) > started + Time(0.002); });
+	usbLock = false;
+}
+
 TEST_GROUP(Scheduler){
 
     void setup(){taskManager = TaskManager();
@@ -234,5 +242,17 @@ TEST(Scheduler, overSchedule) {
 
 	mock().checkExpectations();
 };
+TEST(Scheduler, yield_with_lock) {
+	mock().clear();
+	// will be locked out by the usb lock
+	mock().expectNCalls(0, "sleep_50ns");
+	mock().expectNCalls(1, "yield_2ms");
+	// every 1ms sleep for 50ns and 10ns
+	addRepeatingTask(sleep_50ns, 10, 0.0001, 0.0001, 0.0001, "sleep_50ns", USB);
 
+	addOnceTask(yield_2ms_with_lock, 2, 0, "sleep 2ms", USB);
+	// run the scheduler for 10ms
+	taskManager.start(0.002);
+	mock().checkExpectations();
+};
 } // namespace

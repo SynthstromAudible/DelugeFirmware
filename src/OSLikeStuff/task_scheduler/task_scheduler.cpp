@@ -20,7 +20,6 @@
 #include "io/debug/log.h"
 #include "resource_checker.h"
 #include <algorithm>
-#include <iostream>
 
 #if !IN_UNIT_TESTS
 #include "memory/general_memory_allocator.h"

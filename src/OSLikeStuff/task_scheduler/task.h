@@ -109,7 +109,7 @@ struct Task {
 	[[nodiscard]] bool isReady(Time currentTime) const {
 		return state == State::READY && isReleased(currentTime) && resourcesAvailable();
 	};
-	[[nodiscard]] bool isRunnable() const { return state == State::READY; }
+	[[nodiscard]] bool isRunnable() const { return state == State::READY && resourcesAvailable(); }
 	[[nodiscard]] bool isReleased(Time currentTime) const {
 		return currentTime - lastFinishTime > schedule.backOffPeriod;
 	}
