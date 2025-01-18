@@ -60,9 +60,9 @@ setting how many times they are repeated, and setting the direction in which the
       notes as notes are in the held chord and then move to a different octave based on the Octave Mode.
       Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
     - `Walk1 (WALK1)` is the "slow" walk and next note is selected this way:
-        - 28% of probability to walk the sequence a step in reverse.
-        - 28% of probability to just repeat the same step of the sequence.
-        - 44% of probability to walk the sequence a step forward (as normal).
+        - 27.5% of probability to walk the sequence a step in reverse.
+        - 27.5% of probability to just repeat the same step of the sequence.
+        - 45% of probability to walk the sequence a step forward (as normal).
     - `Walk2 (WALK2)` is the "normal" walk and next note is selected this way:
         - 20% of probability to walk the sequence a step in reverse.
         - 20% of probability to just repeat the same step of the sequence.
