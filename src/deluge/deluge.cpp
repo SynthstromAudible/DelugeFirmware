@@ -173,6 +173,7 @@ void inputRoutine() {
 
 		if (batteryCurrentRegion == 0) {
 			if (batteryMV > 2950) {
+makeBattLEDSolid:
 				batteryCurrentRegion = 1;
 				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, false);
 				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
@@ -667,7 +668,7 @@ void mainLoop() {
 		audioRecorder.slowRoutine();
 
 #if AUTOPILOT_TEST_ENABLED
-	autoPilotStuff();
+		autoPilotStuff();
 #endif
 	}
 }
