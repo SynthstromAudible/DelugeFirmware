@@ -2033,6 +2033,12 @@ void SessionView::renderViewDisplay() {
 	playbackHandler.getTempoStringForOLED(lastDisplayedTempo, tempoBPM);
 	displayTempoBPM(canvas, tempoBPM, false);
 
+#if OLED_MAIN_HEIGHT_PIXELS == 64
+	yPos = OLED_MAIN_TOPMOST_PIXEL + 30;
+#else
+	yPos = OLED_MAIN_TOPMOST_PIXEL + 17;
+#endif
+
 	char const* name;
 	if (currentSong->name.isEmpty()) {
 		name = "UNSAVED";
