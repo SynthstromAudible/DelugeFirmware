@@ -145,8 +145,6 @@ public:
 	static constexpr int kTextSpacingX = 6;  // Character width
 	static constexpr int kTextSpacingY = 8;  // Character height
 
-	static void drawBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea = true); // Function to draw battery status
-
 private:
 	static bool needsSending;
 };

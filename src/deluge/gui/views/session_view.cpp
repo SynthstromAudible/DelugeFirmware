@@ -1885,6 +1885,10 @@ void SessionView::setLedStates() {
 extern char loopsRemainingText[];
 
 void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	if (stemExport.processStarted) {
+		stemExport.displayStemExportProgressOLED(StemExportType::CLIP);
+		return;
+	}
 	UI* currentUI = getCurrentUI();
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		view.displayOutputName(getCurrentClip()->output, true, getCurrentClip());
@@ -2014,6 +2018,12 @@ void SessionView::displayRepeatsTilLaunch() {
 void SessionView::renderViewDisplay() {
 	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 	hid::display::OLED::clearMainImage();
+
+#if OLED_MAIN_HEIGHT_PIXELS == 64
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+#else
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+#endif
 
 	// Draw battery status
 	drawBatteryStatus(canvas, false);
@@ -4656,33 +4666,34 @@ Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
 }
 
 void SessionView::drawBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea) {
-    // Position at top-left corner
-    int32_t x = 2;
-    int32_t y = OLED_MAIN_TOPMOST_PIXEL + 3;
-    int32_t width = 10;
-    int32_t height = 6;
+	// Position at top-left corner
+	int32_t x = 2;
+	int32_t y = OLED_MAIN_TOPMOST_PIXEL + 3;
+	int32_t width = 10;
+	int32_t height = 6;
 
-    // Clear area if requested
-    if (clearArea) {
-        canvas.clearAreaExact(x, y, x + width + 1, y + height + 1);
-    }
+	// Clear area if requested
+	if (clearArea) {
+		canvas.clearAreaExact(x, y, x + width + 1, y + height + 1);
+	}
 
-    // Draw battery outline
-    canvas.drawRectangle(x, y, x + width - 1, y + height - 1);
-    canvas.drawVerticalLine(x + width, y + 2, y + 4);
+	// Draw battery outline
+	canvas.drawRectangle(x, y, x + width - 1, y + height - 1);
+	canvas.drawVerticalLine(x + width, y + 2, y + 4);
 
-    // Calculate fill level based on battery voltage
-    int32_t batteryLevel = std::clamp((batteryMV - BATTERY_MV_MIN) * (height - 2) / (BATTERY_MV_MAX - BATTERY_MV_MIN), int32_t{0}, int32_t{height - 2});
-    if (batteryLevel > 0) {
-        canvas.invertArea(x + 2, x + width - 2, y + 1 + (height - 2 - batteryLevel), y + height - 2);
-    }
+	// Calculate fill level based on battery voltage
+	int32_t batteryLevel = std::clamp((batteryMV - BATTERY_MV_MIN) * (height - 2) / (BATTERY_MV_MAX - BATTERY_MV_MIN),
+	                                  int32_t{0}, int32_t{height - 2});
+	if (batteryLevel > 0) {
+		canvas.invertArea(x + 2, x + width - 2, y + 1 + (height - 2 - batteryLevel), y + height - 2);
+	}
 }
 
 void SessionView::displayPotentialBatteryChange(uint16_t newBatteryMV) {
-    // Only update display if voltage has changed significantly
-    if (abs(newBatteryMV - lastDisplayedBatteryMV) > 10) {
-        lastDisplayedBatteryMV = newBatteryMV;
-        drawBatteryStatus(deluge::hid::display::OLED::main);
-        deluge::hid::display::OLED::markChanged();
-    }
+	// Only update display if voltage has changed significantly
+	if (abs(newBatteryMV - lastDisplayedBatteryMV) > 10) {
+		lastDisplayedBatteryMV = newBatteryMV;
+		drawBatteryStatus(deluge::hid::display::OLED::main);
+		deluge::hid::display::OLED::markChanged();
+	}
 }

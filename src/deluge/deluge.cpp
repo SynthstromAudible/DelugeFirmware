@@ -192,8 +192,7 @@ makeBattLEDSolid:
 		}
 		else {
 			if (batteryMV < 3200) {
-				batteryCurrentRegion = 0;
-				batteryLEDBlink();
+				goto makeBattLEDSolid;
 			}
 		}
 	}
