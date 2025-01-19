@@ -8,8 +8,9 @@
 #include "model/song/song.h"
 #include "source_selection/range.h"
 #include "source_selection/regular.h"
-#include "util/container/static_vector.hpp"
 #include "util/functions.h"
+
+#include <etl/vector.h>
 
 namespace deluge::gui::menu_item {
 
@@ -36,7 +37,7 @@ void ActiveScaleMenu::drawPixelsForOled() {
 	uint8_t sel;
 
 	// Build a vector with visible scale items. No wrap-around.
-	static_vector<uint8_t, kOLEDMenuNumOptionsVisible> visible = {};
+	etl::vector<uint8_t, kOLEDMenuNumOptionsVisible> visible = {};
 	if (currentPos == 0) {
 		sel = 0;
 		// beginning of the list

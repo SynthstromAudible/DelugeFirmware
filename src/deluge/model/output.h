@@ -112,9 +112,9 @@ public:
 
 	// reverbAmountAdjust has "1" as 67108864
 	// Only gets called if there's an activeClip
-	virtual void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
-	                          int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                          bool shouldLimitDelayFeedback, bool isClipActive) = 0;
+	virtual void renderOutput(ModelStack* modelStack, std::span<StereoSample> outputBuffer, int32_t* reverbBuffer,
+	                          int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
+	                          bool isClipActive) = 0;
 
 	virtual void setupWithoutActiveClip(ModelStack* modelStack);
 	virtual bool setActiveClip(

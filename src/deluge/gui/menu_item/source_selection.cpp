@@ -23,7 +23,8 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
-#include "util/container/static_vector.hpp"
+
+#include <etl/vector.h>
 
 namespace deluge::gui::menu_item {
 const PatchSource sourceMenuContents[] = {
@@ -43,7 +44,7 @@ uint8_t SourceSelection::shouldDrawDotOnValue() {
 int32_t SourceSelection::selectedRowOnScreen;
 
 void SourceSelection::drawPixelsForOled() {
-	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> itemNames{};
+	etl::vector<std::string_view, kOLEDMenuNumOptionsVisible> itemNames{};
 
 	selectedRowOnScreen = 0;
 

@@ -50,8 +50,6 @@ enum RuntimeFeatureSettingType : uint32_t {
 	CatchNotes,
 	DeleteUnusedKitRows,
 	AltGoldenKnobDelayParams,
-	QuantizedStutterRate,
-	ReverseStutterRate,
 	DevSysexAllowed,
 	SyncScalingAction,
 	HighlightIncomingNotes,

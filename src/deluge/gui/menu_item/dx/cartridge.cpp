@@ -28,9 +28,9 @@
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "storage/DX7Cartridge.h"
-#include "util/container/static_vector.hpp"
 #include "util/functions.h"
 #include "util/try.h"
+#include <etl/vector.h>
 #include <memory>
 
 static bool openFile(std::string_view path, DX7Cartridge* data) {
@@ -116,7 +116,7 @@ void DxCartridge::drawPixelsForOled() {
 	char names[32][11];
 	pd->getProgramNames(names);
 
-	static_vector<std::string_view, 32> itemNames = {};
+	etl::vector<std::string_view, 32> itemNames = {};
 	for (int i = 0; i < pd->numPatches(); i++) {
 		itemNames.push_back(names[i]);
 	}
