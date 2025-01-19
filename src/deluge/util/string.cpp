@@ -46,7 +46,7 @@ std::string fromInt(int32_t number, size_t min_num_digits) {
 
 std::string fromFloat(float number, int32_t precision) {
 	std::array<char, 64> buffer;
-	char* ptr = D_TRY_CATCH(to_chars(buffer.begin(), buffer.end(), number, precision), error, {
+	char* ptr = D_TRY_CATCH(deluge::to_chars(buffer.data(), buffer.data() + buffer.size(), number, precision), error, {
 		return std::string{}; //
 	});
 
