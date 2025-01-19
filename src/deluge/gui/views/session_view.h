@@ -158,7 +158,8 @@ public:
 	// convert instrument clip to audio clip
 	void replaceInstrumentClipWithAudioClip(Clip* clip);
 
-	static void displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea = false);
+	// Draw battery status
+	void drawBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea = true);
 
 private:
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain

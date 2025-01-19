@@ -109,11 +109,6 @@ public:
 	static const uint8_t uncheckedBoxIcon[];
 	static const uint8_t submenuArrowIcon[];
 	static const uint8_t metronomeIcon[];
-	static const uint8_t batteryIcon[];
-	static const uint8_t tempoMagnitudeIcon[];
-	static const uint8_t tempoMagnitudeIconMask[];
-	static const uint8_t tempoMagnitudeIconInvert[];
-	static const uint8_t tempoMagnitudeIconInvertMask[];
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;
@@ -149,6 +144,8 @@ public:
 
 	static constexpr int kTextSpacingX = 6;  // Character width
 	static constexpr int kTextSpacingY = 8;  // Character height
+
+	static void drawBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea = true); // Function to draw battery status
 
 private:
 	static bool needsSending;
