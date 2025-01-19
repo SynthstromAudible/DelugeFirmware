@@ -208,6 +208,17 @@ const uint8_t OLED::metronomeIcon[] = {
     0b11100100, //<
 };
 
+// Battery icon - 7x7 pixels
+const uint8_t OLED::batteryIcon[] = {
+    0b01111110, //< .█████.
+    0b11111111, //< ███████
+    0b10000001, //< █.....█
+    0b10000001, //< █.....█
+    0b10000001, //< █.....█
+    0b11111111, //< ███████
+    0b01111110, //< .█████.
+};
+
 #if ENABLE_TEXT_OUTPUT
 uint16_t renderStartTime;
 #endif
@@ -978,12 +989,10 @@ void OLED::stopScrollingAnimation() {
 }
 
 void OLED::timerRoutine() {
-
 	if (workingAnimationText) {
 		workingAnimationCount = (workingAnimationCount + 1) & 3;
 		updateWorkingAnimation();
 	}
-
 	else {
 		removePopup();
 	}

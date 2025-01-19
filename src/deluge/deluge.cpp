@@ -157,22 +157,20 @@ void inputRoutine() {
 
 	if (ADC.ADCSR & (1 << 15)) {
 		int32_t numericReading = ADC.ADDRF;
-		// Apply LPF
+		// Apply LPF with less aggressive filtering
 		int32_t voltageReading = numericReading * 3300;
 		int32_t distanceToGo = voltageReading - voltageReadingLastTime;
-		voltageReadingLastTime += distanceToGo >> 4;
+		voltageReadingLastTime += distanceToGo >> 2; // Less aggressive filtering
 
+		// Convert to mV with better precision
 		// We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a
 		// resistive divider already
 		batteryMV = (voltageReadingLastTime) >> 15;
 		// D_PRINT("batt mV: ");
 		// D_PRINTLN(batteryMV);
 
-		// See if we've reached threshold to change verdict on battery level
-
 		if (batteryCurrentRegion == 0) {
 			if (batteryMV > 2950) {
-makeBattLEDSolid:
 				batteryCurrentRegion = 1;
 				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, false);
 				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
@@ -183,7 +181,6 @@ makeBattLEDSolid:
 				batteryCurrentRegion = 0;
 				batteryLEDBlink();
 			}
-
 			else if (batteryMV > 3300) {
 				batteryCurrentRegion = 2;
 				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
@@ -192,7 +189,8 @@ makeBattLEDSolid:
 		}
 		else {
 			if (batteryMV < 3200) {
-				goto makeBattLEDSolid;
+				batteryCurrentRegion = 0;
+				batteryLEDBlink();
 			}
 		}
 	}
