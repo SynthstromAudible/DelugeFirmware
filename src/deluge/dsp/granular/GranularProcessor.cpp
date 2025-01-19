@@ -43,8 +43,8 @@ void GranularProcessor::setWrapsToShutdown() {
 	grainBuffer->inUse = true;
 }
 
-void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t grainRate, int32_t grainMix, int32_t grainDensity,
-                                       int32_t pitchRandomness, int32_t* postFXVolume, const StereoSample* bufferEnd,
+void GranularProcessor::processGrainFX(std::span<StereoSample> buffer, int32_t grainRate, int32_t grainMix,
+                                       int32_t grainDensity, int32_t pitchRandomness, int32_t* postFXVolume,
                                        bool anySoundComingIn, float tempoBPM, q31_t reverbAmount) {
 	if (anySoundComingIn || wrapsToShutdown >= 0) {
 		if (anySoundComingIn) {
@@ -57,23 +57,24 @@ void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t grainRate, 
 			}
 		}
 		setupGrainFX(grainRate, grainMix, grainDensity, pitchRandomness, postFXVolume, tempoBPM);
-		StereoSample* currentSample = buffer;
 		int i = 0;
-		do {
-			StereoSample grainWet = processOneGrainSample(currentSample);
+		for (StereoSample& sample : buffer) {
+			StereoSample grainWet = processOneGrainSample(sample);
 			auto wetl = q31_mult(grainWet.l, _grainVol);
 			auto wetr = q31_mult(grainWet.r, _grainVol);
+
 			// filter slightly - one pole at 12ish khz
 			wetl = lpf_l.doFilter(wetl, 1 << 29);
 			wetr = lpf_r.doFilter(wetr, 1 << 29);
+
 			// WET and DRY Vol
-			currentSample->l = add_saturation(q31_mult(currentSample->l, _grainDryVol), wetl);
-			currentSample->r = add_saturation(q31_mult(currentSample->r, _grainDryVol), wetr);
+			sample.l = add_saturation(q31_mult(sample.l, _grainDryVol), wetl);
+			sample.r = add_saturation(q31_mult(sample.r, _grainDryVol), wetr);
+
 			// adding a small amount of extra reverb covers a lot of the granular artifacts
 			AudioEngine::feedReverbBackdoorForGrain(i, q31_mult((wetl + wetr), reverbAmount));
 			i += 1;
-
-		} while (++currentSample != bufferEnd);
+		}
 
 		if (wrapsToShutdown < 0) {
 			grainBuffer->inUse = false;
@@ -123,7 +124,7 @@ void GranularProcessor::setupGrainFX(int32_t grainRate, int32_t grainMix, int32_
 		_grainFeedbackVol = _grainVol >> 1;
 	}
 }
-StereoSample GranularProcessor::processOneGrainSample(StereoSample* currentSample) {
+StereoSample GranularProcessor::processOneGrainSample(StereoSample currentSample) {
 	if (bufferWriteIndex >= kModFXGrainBufferSize) {
 		bufferWriteIndex = 0;
 		wrapsToShutdown -= 1;
@@ -163,9 +164,9 @@ StereoSample GranularProcessor::processOneGrainSample(StereoSample* currentSampl
 	grains_r <<= 3;
 	// Feedback (Below grainFeedbackVol means "grainVol >> 4")
 	(*grainBuffer)[writeIndex].l =
-	    multiply_accumulate_32x32_rshift32_rounded(currentSample->l, grains_l, _grainFeedbackVol);
+	    multiply_accumulate_32x32_rshift32_rounded(currentSample.l, grains_l, _grainFeedbackVol);
 	(*grainBuffer)[writeIndex].r =
-	    multiply_accumulate_32x32_rshift32_rounded(currentSample->r, grains_r, _grainFeedbackVol);
+	    multiply_accumulate_32x32_rshift32_rounded(currentSample.r, grains_r, _grainFeedbackVol);
 
 	bufferWriteIndex++;
 	return StereoSample{grains_l, grains_r};

@@ -254,20 +254,6 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 	return getFinalParameterValueExp(paramNeutralValue, patchedValue);
 }
 
-void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int32_t numSamples) {
-	StereoSample* inputSample = inputBuffer;
-	StereoSample* outputSample = outputBuffer;
-
-	StereoSample* inputBufferEnd = inputBuffer + numSamples;
-
-	do {
-		outputSample->l += inputSample->l;
-		outputSample->r += inputSample->r;
-
-		outputSample++;
-	} while (++inputSample != inputBufferEnd);
-}
-
 int32_t cableToLinearParamShortcut(int32_t sourceValue) {
 	return sourceValue >> 2;
 }

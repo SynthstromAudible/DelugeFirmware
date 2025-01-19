@@ -14,34 +14,38 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
-#ifndef DELUGE_MODFXPROCESSOR_H
-#define DELUGE_MODFXPROCESSOR_H
+#pragma once
 
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
 #include "modulation/lfo.h"
 #include "util/containers.h"
+#include <cstdint>
+#include <span>
+
 class ModFXProcessor {
 
 	void setupChorus(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
 	                 UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
 	                 int32_t& thisModFXDelayDepth) const;
+
 	/// flanger, phaser, warble - generally any modulated delay tap based effect with feedback
 	void setupModFXWFeedback(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
 	                         UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
 	                         int32_t& thisModFXDelayDepth, int32_t& feedback) const;
 	// not grain!
 	template <ModFXType modFXType>
-	void processModFXBuffer(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, const StereoSample* bufferEnd,
+	void processModFXBuffer(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth,
 	                        LFOType& modFXLFOWaveType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
 	                        int32_t feedback, bool stereo);
+
 	template <ModFXType modFXType>
-	void processModLFOs(int32_t modFXRate, LFOType& modFXLFOWaveType, int32_t& lfoOutput, int32_t& lfo2Output);
+	std::pair<int32_t, int32_t> processModLFOs(int32_t modFXRate, LFOType modFXLFOWaveType);
+
 	template <ModFXType modFXType, bool stereo>
-	void processOneModFXSample(int32_t modFXDelayOffset, int32_t thisModFXDelayDepth, int32_t feedback,
-	                           StereoSample* currentSample, int32_t lfoOutput, int32_t lfo2Output);
-	void processOnePhaserSample(int32_t modFXDepth, int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
+	StereoSample processOneModFXSample(StereoSample sample, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
+	                                   int32_t feedback, int32_t lfoOutput, int32_t lfo2Output);
+	StereoSample processOnePhaserSample(StereoSample sample, int32_t modFXDepth, int32_t feedback, int32_t lfoOutput);
 
 public:
 	ModFXProcessor() {
@@ -63,9 +67,8 @@ public:
 	uint16_t modFXBufferWriteIndex{0};
 	LFO modFXLFO;
 	LFO modFXLFOStereo;
-	void processModFX(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
-	                  int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd,
-	                  bool anySoundComingIn);
+	void processModFX(std::span<StereoSample> buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
+	                  int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams, bool anySoundComingIn);
 	void resetMemory();
 	void setupBuffer();
 	void disableBuffer();
@@ -82,5 +85,3 @@ const char* getParamName(ModFXType type, ModFXParam param);
 
 const char* modFXToString(ModFXType type);
 } // namespace modfx
-
-#endif // DELUGE_MODFXPROCESSOR_H
