@@ -165,9 +165,15 @@ void inputRoutine() {
 		// Convert to mV with better precision
 		// We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a
 		// resistive divider already
-		batteryMV = (voltageReadingLastTime) >> 15;
-		// D_PRINT("batt mV: ");
-		// D_PRINTLN(batteryMV);
+		uint16_t newBatteryMV = (voltageReadingLastTime) >> 15;
+
+		// Only update display if voltage has changed significantly
+		if (abs(newBatteryMV - batteryMV) > 10) {
+			batteryMV = newBatteryMV;
+			// Update display when voltage changes significantly
+			sessionView.drawBatteryStatus(deluge::hid::display::OLED::main);
+			deluge::hid::display::OLED::markChanged();
+		}
 
 		if (batteryCurrentRegion == 0) {
 			if (batteryMV > 2950) {
@@ -665,7 +671,7 @@ void mainLoop() {
 		audioRecorder.slowRoutine();
 
 #if AUTOPILOT_TEST_ENABLED
-		autoPilotStuff();
+	autoPilotStuff();
 #endif
 	}
 }
