@@ -22,12 +22,16 @@
 #include "definitions_cxx.hpp"
 #include "display.h"
 #include "oled_canvas/canvas.h"
+#include "gui/ui/ui.h"
+#include "gui/views/view.h"
 
 #define OLED_LOG_TIMING (0 && ENABLE_TEXT_OUTPUT)
 
 #if OLED_LOG_TIMING
 #include "io/debug/log.h"
 #endif
+
+extern uint16_t batteryMV;  // Battery voltage in millivolts
 
 namespace deluge::hid::display {
 class OLED : public Display {
@@ -59,13 +63,14 @@ public:
 
 	static void displayWorkingAnimation(char const* word);
 
+	static void drawPermanentPopupLookingText(char const* text);
+
 	static int32_t setupConsole(int32_t height);
 	static void drawConsoleTopLine();
 
 	static void stopScrollingAnimation();
 	static void setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
 	                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight);
-	static void drawPermanentPopupLookingText(char const* text);
 
 	/// Call this after doing any rendering work so the next trip through the UI rendering loop actually sends the image
 	/// via \ref sendMainImage.
@@ -104,6 +109,11 @@ public:
 	static const uint8_t uncheckedBoxIcon[];
 	static const uint8_t submenuArrowIcon[];
 	static const uint8_t metronomeIcon[];
+	static const uint8_t batteryIcon[];
+	static const uint8_t tempoMagnitudeIcon[];
+	static const uint8_t tempoMagnitudeIconMask[];
+	static const uint8_t tempoMagnitudeIconInvert[];
+	static const uint8_t tempoMagnitudeIconInvertMask[];
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;
@@ -136,6 +146,9 @@ public:
 
 	bool hasPopup() override { return isPopupPresent(); }
 	bool hasPopupOfType(PopupType type) override { return isPopupPresentOfType(type); }
+
+	static constexpr int kTextSpacingX = 6;  // Character width
+	static constexpr int kTextSpacingY = 8;  // Character height
 
 private:
 	static bool needsSending;

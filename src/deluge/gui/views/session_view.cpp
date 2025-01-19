@@ -1885,6 +1885,15 @@ void SessionView::setLedStates() {
 extern char loopsRemainingText[];
 
 void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	static uint32_t lastBatteryUpdateTime = 0;
+
+	// Update battery display every ~1 second
+	uint32_t currentTime = AudioEngine::audioSampleTimer;
+	if (currentTime - lastBatteryUpdateTime >= 44100) { // 44100 samples = 1 second
+		displayBatteryStatus(canvas, true);
+		lastBatteryUpdateTime = currentTime;
+	}
+
 	if (stemExport.processStarted) {
 		stemExport.displayStemExportProgressOLED(StemExportType::CLIP);
 		return;
@@ -2020,11 +2029,8 @@ void SessionView::renderViewDisplay() {
 	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 	hid::display::OLED::clearMainImage();
 
-#if OLED_MAIN_HEIGHT_PIXELS == 64
-	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
-#else
-	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
-#endif
+	// Display battery status first
+	displayBatteryStatus(canvas, false);  // Don't clear area since we just cleared the whole screen
 
 	DEF_STACK_STRING_BUF(tempoBPM, 10);
 	lastDisplayedTempo = playbackHandler.calculateBPM(playbackHandler.getTimePerInternalTickFloat());
@@ -2032,9 +2038,9 @@ void SessionView::renderViewDisplay() {
 	displayTempoBPM(canvas, tempoBPM, false);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-	yPos = OLED_MAIN_TOPMOST_PIXEL + 30;
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 30;
 #else
-	yPos = OLED_MAIN_TOPMOST_PIXEL + 17;
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 17;
 #endif
 
 	char const* name;
@@ -4661,4 +4667,41 @@ Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
 		return getClipOnScreen(y)->output;
 	}
 	return nullptr;
+}
+
+void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea) {
+    int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+    int32_t batteryIconSpacingX = 7 + 3;
+
+    // Format battery percentage
+    DEF_STACK_STRING_BUF(batteryText, 5);
+
+    // Convert battery voltage to percentage
+    // batteryMV is in millivolts, typical range 3200mV-4200mV
+    int32_t batteryPercent;
+    if (batteryMV >= BATTERY_MV_MAX) {
+        batteryPercent = 100;
+    } else if (batteryMV <= BATTERY_MV_MIN) {
+        batteryPercent = 0;
+    } else {
+        batteryPercent = ((batteryMV - BATTERY_MV_MIN) * 100) / (BATTERY_MV_MAX - BATTERY_MV_MIN);
+    }
+
+    batteryText.appendInt(batteryPercent);
+    batteryText.append("%");
+
+    if (clearArea) {
+        canvas.clearAreaExact(0, OLED_MAIN_TOPMOST_PIXEL,
+                            batteryIconSpacingX + (kTextSpacingX * 4),
+                            yPos + kTextSpacingY);
+    }
+
+    // Draw battery icon on the left
+    canvas.drawGraphicMultiLine(deluge::hid::display::OLED::batteryIcon, 0, yPos, 7);
+
+    // Draw percentage text after icon
+    canvas.drawString(batteryText.c_str(), batteryIconSpacingX, yPos, kTextSpacingX, kTextSpacingY);
+
+    // Mark display as needing update
+    deluge::hid::display::OLED::markChanged();
 }

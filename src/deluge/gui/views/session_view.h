@@ -43,6 +43,9 @@ constexpr uint32_t kGridHeight = kDisplayHeight;
 
 class SessionView final : public ClipNavigationTimelineView {
 public:
+	static constexpr int BATTERY_MV_MIN = 2900;  // 2.9V minimum (matches LED blink threshold)
+	static constexpr int BATTERY_MV_MAX = 3300;  // 3.3V maximum (matches LED solid threshold)
+
 	SessionView();
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	bool opened() override;
@@ -154,6 +157,8 @@ public:
 
 	// convert instrument clip to audio clip
 	void replaceInstrumentClipWithAudioClip(Clip* clip);
+
+	static void displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea = false);
 
 private:
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
