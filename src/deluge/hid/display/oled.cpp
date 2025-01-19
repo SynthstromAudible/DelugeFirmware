@@ -1298,45 +1298,4 @@ void OLED::displayError(Error error) {
 	D_PRINTLN(message);
 }
 
-void OLED::drawBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea) {
-	// Only update if voltage has changed significantly (more than 10mV)
-	int32_t currentBatteryMV = batteryMV;
-	float diff = std::abs(currentBatteryMV - lastDisplayedBatteryMV);
-	if (diff > 10) {
-		int32_t x = 2;  // Left side position
-		int32_t y = OLED_MAIN_TOPMOST_PIXEL + 3;  // Top position
-		int32_t width = 10;  // Battery width
-		int32_t height = 8;  // Battery height
-
-		// Clear the area if requested
-		if (clearArea) {
-			canvas.clearAreaExact(x, y, x + width, y + height);
-		}
-
-		// Draw battery outline
-		canvas.drawRectangle(x, y, x + width - 1, y + height - 1);  // Main rectangle
-
-		// Battery terminal
-		canvas.drawVerticalLine(x + width, y + 2, y + 4);
-
-		// Fill battery based on voltage level
-		int32_t fillLevel;
-		if (currentBatteryMV < 2900) {
-			fillLevel = 1;  // Empty
-		} else if (currentBatteryMV > 3300) {
-			fillLevel = 6;  // Full
-		} else {
-			fillLevel = 1 + ((currentBatteryMV - 2900) * 5 / 400);  // Scale between 1-6
-		}
-
-		// Fill the battery icon
-		if (fillLevel > 0) {
-			canvas.invertArea(x + 2, fillLevel, y + 1, y + height - 2);
-		}
-
-		lastDisplayedBatteryMV = currentBatteryMV;
-		markChanged();
-	}
-}
-
 } // namespace deluge::hid::display
