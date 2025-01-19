@@ -168,12 +168,8 @@ void inputRoutine() {
 		uint16_t newBatteryMV = (voltageReadingLastTime) >> 15;
 
 		// Only update display if voltage has changed significantly
-		if (abs(newBatteryMV - batteryMV) > 10) {
-			batteryMV = newBatteryMV;
-			// Update display when voltage changes significantly
-			sessionView.drawBatteryStatus(deluge::hid::display::OLED::main);
-			deluge::hid::display::OLED::markChanged();
-		}
+		// sessionView.displayPotentialBatteryChange(newBatteryMV);
+		batteryMV = newBatteryMV;
 
 		if (batteryCurrentRegion == 0) {
 			if (batteryMV > 2950) {

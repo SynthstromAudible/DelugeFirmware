@@ -4677,3 +4677,12 @@ void SessionView::drawBatteryStatus(deluge::hid::display::oled_canvas::Canvas& c
         canvas.invertArea(x + 2, x + width - 2, y + 1 + (height - 2 - batteryLevel), y + height - 2);
     }
 }
+
+void SessionView::displayPotentialBatteryChange(uint16_t newBatteryMV) {
+    // Only update display if voltage has changed significantly
+    if (abs(newBatteryMV - lastDisplayedBatteryMV) > 10) {
+        lastDisplayedBatteryMV = newBatteryMV;
+        drawBatteryStatus(deluge::hid::display::OLED::main);
+        deluge::hid::display::OLED::markChanged();
+    }
+}
