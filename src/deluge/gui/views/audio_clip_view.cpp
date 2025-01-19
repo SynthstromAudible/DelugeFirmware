@@ -158,14 +158,10 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 					// If endMarkerVisible, show red (bright vs. dim).
 					if (endMarkerVisible) {
 						if (blinkOn) {
-							image[y][endSquareDisplay][0] = colours::red.r; // bright red
-							image[y][endSquareDisplay][1] = colours::red.g;
-							image[y][endSquareDisplay][2] = colours::red.b;
+							image[y][endSquareDisplay] = colours::red;
 						}
 						else {
-							image[y][endSquareDisplay][0] = colours::red_dull.r; // dim red
-							image[y][endSquareDisplay][1] = colours::red_dull.g;
-							image[y][endSquareDisplay][2] = colours::red_dull.b;
+							image[y][endSquareDisplay] = colours::red_dull;
 						}
 					}
 				}
@@ -188,34 +184,24 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 					// if (fillEnd > kDisplayWidth) {
 					//     fillEnd = kDisplayWidth;
 					// }
-					// RGB greyCol = colours::grey;
 					// for (int32_t xPos = 0; xPos < fillEnd; ++xPos) {
-					//     image[y][xPos][0] = greyCol.r;
-					//     image[y][xPos][1] = greyCol.g;
-					//     image[y][xPos][2] = greyCol.b;
+					//     image[y][xPos][0] = colours::grey;
 					// }
 
 					// Then overlay the green start marker if visible
 					if (startMarkerVisible) {
 						if (blinkOn) {
 							// bright green
-							image[y][startSquareDisplay][0] = colours::green.r;
-							image[y][startSquareDisplay][1] = colours::green.g;
-							image[y][startSquareDisplay][2] = colours::green.b;
+							image[y][startSquareDisplay] = colours::green;
 						}
 						else {
 							// dim green - using a darker version of green
-							RGB dimGreen = colours::green.dim();
-							image[y][startSquareDisplay][0] = dimGreen.r;
-							image[y][startSquareDisplay][1] = dimGreen.g;
-							image[y][startSquareDisplay][2] = dimGreen.b;
+							image[y][startSquareDisplay] = colours::green.dim();
 						}
 					}
 					// else {
 					//     // If not visible, ensure this column is grey
-					//     image[y][startSquareDisplay][0] = greyCol.r;
-					//     image[y][startSquareDisplay][1] = greyCol.g;
-					//     image[y][startSquareDisplay][2] = greyCol.b;
+					//     image[y][startSquareDisplay] = colours::grey;
 					// }
 				}
 				else {
