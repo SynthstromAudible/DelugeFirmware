@@ -1,6 +1,7 @@
 #pragma once
 
 #include "dsp/reverb/reverb.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "processing/engines/audio_engine.h"
 #include <string_view>
@@ -16,10 +17,8 @@ public:
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		using enum l10n::String;
-		return {
-		    l10n::getView(STRING_FOR_FREEVERB),
-		    l10n::getView(STRING_FOR_MUTABLE),
-		};
+		return {l10n::getView(STRING_FOR_FREEVERB), l10n::getView(STRING_FOR_MUTABLE),
+		        l10n::getView(STRING_FOR_DIGITAL)};
 	}
 };
 } // namespace deluge::gui::menu_item::reverb
