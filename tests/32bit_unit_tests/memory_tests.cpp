@@ -94,7 +94,7 @@ TEST_GROUP(MemoryAllocation) {
 		nSteals = 0;
 		memset(raw_mem, 0, mem_size);
 		memset(emptySpacesMemory, 0, empty_spaze_size);
-		memreg.setup(emptySpacesMemory, empty_spaze_size, (uint32_t)raw_mem, (uint32_t)raw_mem + mem_size);
+		memreg.setup(emptySpacesMemory, empty_spaze_size, (uint32_t)raw_mem, (uint32_t)raw_mem + mem_size, nullptr);
 	}
 };
 

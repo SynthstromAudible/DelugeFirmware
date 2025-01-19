@@ -92,7 +92,8 @@ public:
 	void putStealableInAppropriateQueue(Stealable* stealable);
 
 	MemoryRegion regions[NUM_MEMORY_REGIONS];
-
+	// only used for managing stealables (audio files that we could deallocate and re load from sd later if needed)
+	CacheManager cacheManager;
 	bool lock;
 
 	static GeneralMemoryAllocator& get() {

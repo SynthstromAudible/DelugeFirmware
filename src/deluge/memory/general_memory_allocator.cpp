@@ -35,11 +35,12 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
 
 	regions[MEMORY_REGION_STEALABLE].setup(emptySpacesMemory, sizeof(emptySpacesMemory), (uint32_t)&__sdram_bss_end,
-	                                       EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR);
+	                                       EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR, &cacheManager);
 	regions[MEMORY_REGION_EXTERNAL].setup(emptySpacesMemoryGeneral, sizeof(emptySpacesMemoryGeneral),
-	                                      EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR, EXTERNAL_MEMORY_END);
+	                                      EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR, EXTERNAL_MEMORY_END,
+	                                      nullptr);
 	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal),
-	                                      (uint32_t)&__heap_start, (uint32_t)&program_stack_start);
+	                                      (uint32_t)&__heap_start, (uint32_t)&program_stack_start, nullptr);
 
 #if ALPHA_OR_BETA_VERSION
 	regions[MEMORY_REGION_STEALABLE].name = "stealable";
