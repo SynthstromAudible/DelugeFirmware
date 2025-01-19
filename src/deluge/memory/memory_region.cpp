@@ -52,7 +52,7 @@ void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize,
 	EmptySpaceRecord* firstRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(0);
 	firstRecord->length = memorySizeWithoutHeaders;
 	firstRecord->address = regionBegin + 8;
-	// cache_manager_ = cacheManager;
+	cache_manager_ = cacheManager;
 }
 
 uint32_t MemoryRegion::padSize(uint32_t requiredSize) {
@@ -374,8 +374,7 @@ justUpdateRecord:
 	// Or if no empty space big enough, try stealing some memory
 	else {
 noEmptySpace:
-		allocatedAddress = cache_manager_.ReclaimMemory(*this, requiredSize, thingNotToStealFrom, &allocatedSize);
-
+		allocatedAddress = cache_manager_->ReclaimMemory(*this, requiredSize, thingNotToStealFrom, &allocatedSize);
 		if (!allocatedAddress) {
 #if ALPHA_OR_BETA_VERSION
 			if (name) {
