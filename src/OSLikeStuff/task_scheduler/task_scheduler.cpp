@@ -18,8 +18,8 @@
 #include "OSLikeStuff/task_scheduler/task_scheduler.h"
 
 #include "io/debug/log.h"
+#include "resource_checker.h"
 #include <algorithm>
-#include <iostream>
 
 #if !IN_UNIT_TESTS
 #include "memory/general_memory_allocator.h"
@@ -90,6 +90,9 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 		// first look based on target time
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
 			struct Task* t = &list[sortedList[i].task];
+			if (!t->isRunnable()) {
+				continue;
+			}
 			struct TaskSchedule* s = &t->schedule;
 			if (currentTime + t->durationStats.average < nextFinishTime
 			    && currentTime - t->lastFinishTime > s->targetInterval
@@ -100,6 +103,9 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 		// then look based on min time just to avoid busy waiting
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
 			struct Task* t = &list[sortedList[i].task];
+			if (!t->isRunnable()) {
+				continue;
+			}
 			struct TaskSchedule* s = &t->schedule;
 			if (currentTime + t->durationStats.average < nextFinishTime
 			    && currentTime - t->lastFinishTime > s->backOffPeriod) {
@@ -124,33 +130,36 @@ TaskID TaskManager::insertTaskToList(Task task) {
 	return index;
 };
 
-TaskID TaskManager::addRepeatingTask(TaskHandle task, TaskSchedule schedule, const char* name) {
+TaskID TaskManager::addRepeatingTask(TaskHandle task, TaskSchedule schedule, const char* name,
+                                     ResourceChecker resources) {
 	if (numRegisteredTasks >= (kMaxTasks)) {
 		return -1;
 	}
 
-	TaskID index = insertTaskToList(Task{task, schedule, name});
+	TaskID index = insertTaskToList(Task{task, schedule, name, resources});
 
 	createSortedList();
 	return index;
 }
 
-TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, Time timeToWait, const char* name) {
+TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, Time timeToWait, const char* name,
+                                ResourceChecker resources) {
 	if (numRegisteredTasks >= (kMaxTasks)) {
 		return -1;
 	}
 	Time timeToStart = running ? getSecondsFromStart() : Time(0);
-	TaskID index = insertTaskToList(Task{task, priority, timeToStart, timeToWait, name});
+	TaskID index = insertTaskToList(Task{task, priority, timeToStart, timeToWait, name, resources});
 
 	createSortedList();
 	return index;
 }
 
-TaskID TaskManager::addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name) {
+TaskID TaskManager::addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name,
+                                       ResourceChecker resources) {
 	if (numRegisteredTasks >= (kMaxTasks)) {
 		return -1;
 	}
-	TaskID index = insertTaskToList(Task{task, priority, condition, name});
+	TaskID index = insertTaskToList(Task{task, priority, condition, name, resources});
 	createSortedList();
 	return index;
 }

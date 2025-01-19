@@ -29,6 +29,13 @@ extern "C" {
 typedef void (*TaskHandle)();
 typedef bool (*RunCondition)();
 typedef int8_t TaskID;
+typedef uint32_t ResourceID;
+#define RESOURCE_NONE 0
+// for actually reading the SD
+#define RESOURCE_SD 1
+#define RESOURCE_USB 2
+// for things that can't run in the SD routine
+#define RESOURCE_SD_ROUTINE 4
 
 /// Schedule a task that will be called at a regular interval.
 ///
@@ -44,15 +51,17 @@ typedef int8_t TaskID;
 /// @param priority Priority of the task. Tasks with lower numbers are given preference over tasks with higher numbers.
 /// @param backOffTime Minimum time from completing the task to calling it again in seconds.
 /// @param targetTimeBetweenCalls Desired time between calls to the task, including the runtime for the task itself.
+/// @param resource
 uint8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
-                         double maxTimeBetweenCalls, const char* name);
+                         double maxTimeBetweenCalls, const char* name, ResourceID resource);
 
 /// Add a task to run once, aiming to run at current time + timeToWait and worst case run at timeToWait*10
-uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name);
+uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name, ResourceID resources);
 
 /// add a task that runs only after the condition returns true. Condition checks should be very fast or they could
 /// interfere with scheduling
-uint8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name);
+uint8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name,
+                           ResourceID resources);
 void ignoreForStats();
 double getAverageRunTimeforCurrentTask();
 double getSystemTime();
