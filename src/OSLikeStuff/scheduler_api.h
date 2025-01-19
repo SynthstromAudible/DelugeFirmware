@@ -30,12 +30,13 @@ typedef void (*TaskHandle)();
 typedef bool (*RunCondition)();
 typedef int8_t TaskID;
 typedef uint32_t ResourceID;
-#define NO_RESOURCE 0
+#define RESOURCE_NONE 0
 // for actually reading the SD
-#define SD 1
-#define USB 2
+#define RESOURCE_SD 1
+#define RESOURCE_USB 2
 // for things that can't run in the SD routine
-#define SD_ROUTINE 4
+#define RESOURCE_SD_ROUTINE 4
+
 /// Schedule a task that will be called at a regular interval.
 ///
 /// The scheduler will try to run the task at a regular cadence such that the time between start of calls to the
