@@ -19,7 +19,8 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "model/settings/runtime_feature_settings.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/song/song.h"
 #include "util/container/enum_to_string_map.hpp"
 #include <cstring>
 
@@ -62,18 +63,12 @@ bool isParamStutter(Kind kind, int32_t paramID) {
 	       && static_cast<UnpatchedShared>(paramID) == UNPATCHED_STUTTER_RATE;
 }
 
-bool isParamQuantizedStutter(Kind kind, int32_t paramID) {
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) != RuntimeFeatureStateToggle::On) {
-		return false;
-	}
-	return isParamStutter(kind, paramID);
-}
-
-bool isParamReverseStutter(Kind kind, int32_t paramID) {
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ReverseStutterRate) != RuntimeFeatureStateToggle::On) {
-		return false;
-	}
-	return isParamStutter(kind, paramID);
+bool isParamQuantizedStutter(Kind kind, int32_t paramID, ModControllableAudio* modControllableAudio) {
+	return (kind == Kind::UNPATCHED_GLOBAL || kind == Kind::UNPATCHED_SOUND)
+	       && static_cast<UnpatchedShared>(paramID) == UNPATCHED_STUTTER_RATE && modControllableAudio
+	       && (modControllableAudio->stutterConfig.useSongStutter
+	               ? currentSong->globalEffectable.stutterConfig.quantized
+	               : modControllableAudio->stutterConfig.quantized);
 }
 
 bool isVibratoPatchCableShortcut(int32_t xDisplay, int32_t yDisplay) {
