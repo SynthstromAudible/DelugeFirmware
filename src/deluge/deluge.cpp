@@ -187,7 +187,7 @@ makeBattLEDSolid:
 				batteryCurrentRegion = 0;
 				batteryLEDBlink();
 			}
-			else if (batteryMV > 4200) {
+			else if (batteryMV > 3800) {
 				batteryCurrentRegion = 3;
 				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
 				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);

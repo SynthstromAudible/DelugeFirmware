@@ -2108,7 +2108,7 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
     canvas.drawRectangle(x, y, x + iconWidth - 1, y + iconHeight - 1); // Main body
     canvas.drawRectangle(iconWidth -1, y + 2, iconWidth, y + 5); // Terminal (1x3)
 
-    // Draw battery segments based on region (0-2)
+    // Draw battery segments based on region (0-3)
     if (batteryCurrentRegion > 0) {
         for (int32_t i = 0; i < batteryCurrentRegion; i++) {
             int32_t segmentX = x + 2 + (i * 3);  // 2px segment + 1px gap
@@ -2407,8 +2407,8 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 void SessionView::displayPotentialBatteryChange(uint16_t newBatteryMV) {
 	// Only update display if we're in the session view
 	if (getCurrentUI() == this) {
-		// Only redraw display if voltage has changed significantly
-		if (abs(newBatteryMV - lastDisplayedBatteryMV) > 10) {
+		// Only redraw display if voltage has changed significantly (50mV roughly 5% of full scale)
+		if (abs(newBatteryMV - lastDisplayedBatteryMV) > 50) {
 			lastDisplayedBatteryMV = newBatteryMV;
 			displayBatteryStatus(deluge::hid::display::OLED::main);
 			deluge::hid::display::OLED::markChanged();
