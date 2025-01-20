@@ -157,10 +157,10 @@ void inputRoutine() {
 
 	if (ADC.ADCSR & (1 << 15)) {
 		int32_t numericReading = ADC.ADDRF;
-		// Apply LPF with less aggressive filtering
+		// Apply LPF
 		int32_t voltageReading = numericReading * 3300;
 		int32_t distanceToGo = voltageReading - voltageReadingLastTime;
-		voltageReadingLastTime += distanceToGo >> 2; // Less aggressive filtering
+		voltageReadingLastTime += distanceToGo >> 4;
 
 		// Convert to mV with better precision
 		// We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a
