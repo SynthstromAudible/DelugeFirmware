@@ -162,16 +162,16 @@ void inputRoutine() {
 		int32_t distanceToGo = voltageReading - voltageReadingLastTime;
 		voltageReadingLastTime += distanceToGo >> 4;
 
-		// Convert to mV with better precision
 		// We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a
 		// resistive divider already
-		uint16_t newBatteryMV = (voltageReadingLastTime) >> 15;
+		batteryMV = (voltageReadingLastTime) >> 15;
+
+		int32_t newBatteryMV = batteryMV;
 
 		// Update battery display if voltage has changed significantly
 		// TODO: Do we need this, can it be self-contained in session_view?
 		sessionView.displayPotentialBatteryChange(newBatteryMV);
 
-		batteryMV = newBatteryMV;
 
 		if (batteryCurrentRegion == 0) {
 			if (batteryMV > 2950) {
