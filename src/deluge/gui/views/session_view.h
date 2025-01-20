@@ -153,7 +153,6 @@ public:
 	// display battery status
 	void displayPotentialBatteryChange(uint16_t newBatteryMV);
 	uint16_t lastDisplayedBatteryMV = 0;
-	bool isPowerConnected{false};
 
 	// display root note and scale name
 	void displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
