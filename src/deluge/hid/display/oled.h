@@ -31,8 +31,6 @@
 #include "io/debug/log.h"
 #endif
 
-extern uint16_t batteryMV;  // Battery voltage in millivolts
-
 namespace deluge::hid::display {
 class OLED : public Display {
 public:
