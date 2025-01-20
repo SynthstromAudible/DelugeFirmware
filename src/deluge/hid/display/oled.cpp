@@ -214,9 +214,6 @@ uint16_t renderStartTime;
 
 bool drawnPermanentPopup = false;
 
-// Keep track of last displayed battery voltage
-static int32_t lastDisplayedBatteryMV = 0;
-
 void OLED::clearMainImage() {
 #if ENABLE_TEXT_OUTPUT
 	renderStartTime = *TCNT[TIMER_SYSTEM_FAST];
