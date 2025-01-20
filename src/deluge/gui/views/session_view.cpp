@@ -2086,8 +2086,8 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 }
 
 void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea) {
-    int32_t x = 1;
-    int32_t y = OLED_MAIN_TOPMOST_PIXEL + 6;
+    int32_t x = 0;
+    int32_t y = OLED_MAIN_TOPMOST_PIXEL + 5;
     int32_t batteryPercent = (batteryMV - BATTERY_MV_MIN) * 100 / (BATTERY_MV_MAX - BATTERY_MV_MIN);
 
     // Battery icon dimensions
@@ -2099,9 +2099,11 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
         canvas.clearAreaExact(x, y, x + iconWidth + 1 + iconSpacing + 40, y + kTextSpacingY);
     }
 
+	// void Canvas::drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY)
+
     // Draw battery outline
     canvas.drawRectangle(x, y, x + iconWidth - 1, y + iconHeight - 1); // Main body
-    canvas.drawRectangle(iconWidth, y + 2, x + iconWidth, y + 4); // Terminal (1x3)
+    canvas.drawRectangle(iconWidth -1, y + 2, iconWidth, y + 5); // Terminal (1x3)
 
     // Calculate fill level (0-3 segments)
     int32_t fillLevel;
@@ -2127,7 +2129,7 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
 
     // Draw power indicator if connected
     if (isPowerConnected) {
-        canvas.drawVerticalLine(x + iconWidth + 2, y + 1, y + 4);  // Draw a vertical line next to battery
+        // canvas.drawVerticalLine(x + iconWidth + 2, y + 1, y + 4);  // Draw a vertical line next to battery
     }
 
     // Draw percentage text
