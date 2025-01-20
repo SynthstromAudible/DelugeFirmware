@@ -2135,7 +2135,7 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
     // Draw percentage text
     char text[16];
     snprintf(text, sizeof(text), "%d%%", batteryPercent);
-    canvas.drawString(text, x + iconWidth + (isPowerConnected ? 4 : 1) + iconSpacing, y, kTextSpacingX, kTextSpacingY);
+    canvas.drawString(text, x + iconWidth + iconSpacing, y - 2, kTextSpacingX, kTextSpacingY);
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
