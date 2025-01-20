@@ -188,6 +188,12 @@ The following parameters are all **automatable** and **learnable** to golden kno
   Note: you can find this parameter also at the root level of the sound menu, under `Randomizer`, because this parameter affects
   both sequenced notes and arpeggiated notes.
 
+The randomizer's parameters that are also available for non-arpeggiated notes are:
+- **`Lock Randomizer (LOCK)`**
+- **`Velocity Spread (VELO)`**
+- **`Note Probability (NOTE)`**
+- **`Reverse Probability (RVRS)`**
+
 ### MPE
 This submenu contains parameters that are useful if you have an MPE controller connected to the Deluge:
 - **`Velocity`**: It will allow you to control the velocity of each new arpeggiated note with an MPE expression parameter.
