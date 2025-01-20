@@ -84,10 +84,9 @@ public:
 			dap1b.Process(c, kap);
 			del1.Write(c, 2.0f);
 			wet = c.Get();
-			dsp::OnePole(hp_r_, wet, hp_cutoff_);
-			wet = wet - hp_r_;
-			dsp::OnePole(lp_r_, wet, lp_cutoff_);
-			wet = lp_r_;
+			wet = wet - dsp::OnePole(hp_r_, wet, hp_cutoff_);
+			;
+			wet = dsp::OnePole(lp_r_, wet, lp_cutoff_);
 
 			auto output_right =
 			    static_cast<int32_t>(wet * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
@@ -99,10 +98,10 @@ public:
 			dap2b.Process(c, kap);
 			del2.Write(c, 2.0f);
 			wet = c.Get();
-			dsp::OnePole(hp_l_, wet, hp_cutoff_);
-			wet = wet - hp_l_;
-			dsp::OnePole(lp_l_, wet, lp_cutoff_);
-			wet = lp_l_;
+			wet = wet - dsp::OnePole(hp_l_, wet, hp_cutoff_);
+			;
+			wet = dsp::OnePole(lp_l_, wet, lp_cutoff_);
+			;
 
 			auto output_left =
 			    static_cast<int32_t>(wet * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
@@ -154,7 +153,7 @@ public:
 
 	[[nodiscard]] float getLPF() const override { return lp_cutoff_val_; }
 
-private:
+protected:
 	static constexpr float sample_rate = kSampleRate;
 
 	std::array<float, kBufferSize> buffer_{};
