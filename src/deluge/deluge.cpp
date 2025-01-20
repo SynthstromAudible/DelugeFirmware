@@ -173,6 +173,7 @@ void inputRoutine() {
 		sessionView.displayPotentialBatteryChange(newBatteryMV);
 
 
+		// See if we've reached threshold to change verdict on battery level
 		if (batteryCurrentRegion == 0) {
 			if (batteryMV > 2950) {
 makeBattLEDSolid:
