@@ -90,7 +90,7 @@ void VoiceSample::endTimeStretching() {
 
 void VoiceSample::setupCacheLoopPoints(SamplePlaybackGuide* guide, Sample* sample, LoopType loopingType) {
 	// D_PRINTLN("VoiceSample::setupCacheLoopPoints");
-
+	// TODO RAUL crash in this method when changing loop markers in waveform editor and the sample is reversed
 	uint8_t bytesPerSample = sample->numChannels * sample->byteDepth;
 
 	uint64_t combinedIncrement = ((uint64_t)(uint32_t)cache->phaseIncrement * (uint32_t)cache->timeStretchRatio) >> 24;

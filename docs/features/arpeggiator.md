@@ -157,6 +157,8 @@ The following parameters are all **automatable** and **learnable** to golden kno
   generated and locked.
   - Tip 3: If you want some parameters to be locked, but not others, add some automation variation in the clip to those,
   so the dice is re-rolled and hence you always get fresh new random values for them, while the others have fixed values.
+  Note: you can find this parameter also at the root level of the sound menu, under `Randomizer`, because this flag is also applied for
+  both sequenced notes and arpeggiated notes.
 - **`Octave Spread (OCTA)`**: The note will get a change in pitch of a random amount of octaves, going from 0 up to a maximum of +3 octaves.
 - **`Gate Spread (GATE)`**: The gate of the arp step will get a random **positive** or **negative** deviation from the base gate.
 - **`Velocity Spread (VELO)`**: The velocity of the arp step will get a random **positive** or **negative** deviation from the base velocity.
@@ -176,9 +178,15 @@ The following parameters are all **automatable** and **learnable** to golden kno
   as a chord. The size of the chord is determined by the `Chord Polyphony` parameter.
 - **`Note Probability (NOTE)`**: It applies a probability for notes to play or not (after Rhythm has been evalutated,
   that is, only for `note` steps, not for `silent` steps).
+  Note: you can find this parameter also at the root level of the sound menu, under `Randomizer`, because this parameter affects
+  both sequenced notes and arpeggiated notes.
 - **`Bass Probability (BASS)`**: It applies a chance of replacing the current note to be played with the lowest note of arpeggiator
   pattern. The higher the value, the more likely that the note played is the bass note of the arpeggiated chord.
   This can be used as a performance tool to open up or close the arpeggio's pitch range.
+- **`Reverse Probability (RVRS)`**: It applies a chance of inverting the `Reverse` sample setting just for the current note to be played.
+  This probability only affects the oscillator whose type is set to `Sample`.
+  Note: you can find this parameter also at the root level of the sound menu, under `Randomizer`, because this parameter affects
+  both sequenced notes and arpeggiated notes.
 
 ### MPE
 This submenu contains parameters that are useful if you have an MPE controller connected to the Deluge:

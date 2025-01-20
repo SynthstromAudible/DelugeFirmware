@@ -548,7 +548,7 @@ The Song menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
-	
+
 	- Stutter (STUT)
 		- Quantize (QTZ)
 		- Reverse (REVE)
@@ -739,6 +739,7 @@ The Sound menu contains the following menu hierarchy:
 		- Chord Probability (CPRO) (NOTE: NOT available for Sound Kit Rows)
 		- Note Probability (NOTE)
 		- Bass Probability (BASS)
+		- Reverse Probability (RVRS)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
@@ -749,6 +750,8 @@ The Sound menu contains the following menu hierarchy:
 <details><summary>Randomizer (RAND)</summary>
 
 	- Velocity Spread (VELO)
+	- Note Probability (NOTE)
+	- Reverse Probability (RVRS)
 </details>
 <details><summary>Compressor (COMP)</summary>
 
@@ -843,7 +846,7 @@ The Sound menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
-	
+
 	- Stutter (STUT)
 		- Use Song Settings (SONG)
 		- Quantize (QTZ)
@@ -1228,7 +1231,7 @@ The Kit FX menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
-	
+
 	- Stutter (STUT)
 		- Use Song Settings (SONG)
 		- Quantize (QTZ)
@@ -1391,6 +1394,7 @@ The MIDI menu contains the following menu hierarchy:
 <details><summary>Randomizer (RAND)</summary>
 
 	- Velocity Spread (VELO)
+	- Note Probability (NOTE)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 
@@ -1430,7 +1434,7 @@ The CV menu contains the following menu hierarchy:
 		- Gate
 		- Sync
 		NOTE: These options can change depending on how your default resolution is set
-		
+
 			- Off
 			- 2-Bar
 			- 1-Bar
@@ -1498,6 +1502,7 @@ The CV menu contains the following menu hierarchy:
 <details><summary>Randomizer (RAND)</summary>
 
 	- Velocity Spread (VELO)
+	- Note Probability (NOTE)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 
@@ -1804,7 +1809,7 @@ The Audio Clip menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
-	
+
 	- Stutter (STUT)
 		- Use Song Settings (SONG)
 		- Quantize (QTZ)

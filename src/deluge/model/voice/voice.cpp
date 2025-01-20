@@ -299,7 +299,8 @@ activenessDetermined:
 		// in STRETCH mode, cos that works differently
 
 		if (oscType == OscType::SAMPLE && guides[s].audioFileHolder) {
-			guides[s].setupPlaybackBounds(source->sampleControls.reversed);
+			guides[s].setupPlaybackBounds(sound.invertReverse ? !source->sampleControls.reversed
+			                                                  : source->sampleControls.reversed);
 
 			// if (source->repeatMode == SampleRepeatMode::STRETCH) samplesLateHere = 0;
 		}

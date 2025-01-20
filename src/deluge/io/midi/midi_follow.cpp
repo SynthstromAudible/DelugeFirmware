@@ -137,6 +137,8 @@ void MidiFollow::initDefaultMappings() {
 	soundParamToCC[params::LOCAL_CARRIER_1_FEEDBACK] = 29;
 	ccToSoundParam[30] = params::LOCAL_OSC_A_WAVE_INDEX;
 	soundParamToCC[params::LOCAL_OSC_A_WAVE_INDEX] = 30;
+	ccToSoundParam[36] = params::UNPATCHED_START + params::UNPATCHED_REVERSE_PROBABILITY;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_REVERSE_PROBABILITY] = 36;
 	ccToSoundParam[37] = params::UNPATCHED_START + params::UNPATCHED_SPREAD_VELOCITY;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SPREAD_VELOCITY] = 37;
 	ccToSoundParam[39] = params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_OCTAVE;
@@ -153,8 +155,8 @@ void MidiFollow::initDefaultMappings() {
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_CHORD_POLYPHONY] = 44;
 	ccToSoundParam[45] = params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_AMOUNT;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_AMOUNT] = 45;
-	ccToSoundParam[46] = params::UNPATCHED_START + params::UNPATCHED_ARP_NOTE_PROBABILITY;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_NOTE_PROBABILITY] = 46;
+	ccToSoundParam[46] = params::UNPATCHED_START + params::UNPATCHED_NOTE_PROBABILITY;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_NOTE_PROBABILITY] = 46;
 	ccToSoundParam[47] = params::UNPATCHED_START + params::UNPATCHED_ARP_BASS_PROBABILITY;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_BASS_PROBABILITY] = 47;
 	ccToSoundParam[48] = params::UNPATCHED_START + params::UNPATCHED_ARP_CHORD_PROBABILITY;

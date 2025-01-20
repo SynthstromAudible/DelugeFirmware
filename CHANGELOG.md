@@ -154,8 +154,10 @@ also affect normal sequenced notes while arpeggiator is Off.
 - Added `STEP REPEAT (REPE)` paramater (with values 1 to 8) that makes walked notes in the pattern be repeated X times before moving to the next note+octave in the pattern.
 - Added `CHORD PROBABILITY (CHRD)` paramater that will allow you to control the chance of a note to play, at the same time, itself and other notes to form a chord (5th, 3rd and 7th).
 - Added `CHORD POLYPHONY (POLY)` paramater that works together with the previous parameter, and this one will dictate how big is the chord, that is, how many notes will be played at the same time.
+- Added `REVERSE PROBABILITY (RVRS)` paramater that will allow you to control the chance of a sound to invert the `Reverse` setting for that note. This parameter will only affect oscillators whose type is `Sample` (it does not affect wavetables, SCW, or standard waveforms).
 - Added `LOCK` parameter to allow you to freeze the current set of randomized values so the sequence has a repeatable pattern.
 - Added new `WALK1`, `WALK2`, `WALK3` and `PATTERN` note modes.
+- Exposed several parameters from the `Randomizer` also for non-arpeggiated notes: `Velocity Spread`, `Note probability`, and `Reverse Probability`.
 
 ### MIDI
 
