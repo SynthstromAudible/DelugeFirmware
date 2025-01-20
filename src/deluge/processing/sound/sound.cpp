@@ -1533,7 +1533,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 				break;
 			}
 			atLeastOneNoteOn = true;
-			invertReverse = instruction.invertReverse;
+			invertReversed = instruction.invertReversed;
 			noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp, instruction.arpNoteOn->noteCodeOnPostArp[n],
 			                      instruction.arpNoteOn->velocity, mpeValues, instruction.sampleSyncLengthOn, ticksLate,
 			                      samplesLate, fromMIDIChannel);
@@ -1676,8 +1676,8 @@ justUnassign:
 }
 
 void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator) {
-	// Reset invertReverse flag so all voices get its reverse settings back to normal
-	invertReverse = false;
+	// Reset invertReversed flag so all voices get its reverse settings back to normal
+	invertReversed = false;
 
 	arpeggiator->reset();
 
@@ -1984,7 +1984,7 @@ void Sound::sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSo
 		return;
 	}
 
-	if (sources[s].sampleControls.reversed) {
+	if (sources[s].sampleControls.isReversed()) {
 		markerType = static_cast<MarkerType>(kNumMarkerTypes - 1 - util::to_underlying(markerType));
 	}
 
@@ -2292,14 +2292,14 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
 		}
 		if (atLeastOneOff) {
-			invertReverse = false;
+			invertReversed = false;
 		}
 		if (instruction.arpNoteOn != nullptr) {
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
-				invertReverse = instruction.invertReverse;
+				invertReversed = instruction.invertReversed;
 				noteOnPostArpeggiator(
 				    modelStackWithSoundFlags,
 				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
@@ -2537,8 +2537,8 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 }
 
 void Sound::unassignAllVoices() {
-	// Reset invertReverse flag so all voices get its reverse settings back to normal
-	invertReverse = false;
+	// Reset invertReversed flag so all voices get its reverse settings back to normal
+	invertReversed = false;
 
 	if (!numVoicesAssigned) {
 		return;

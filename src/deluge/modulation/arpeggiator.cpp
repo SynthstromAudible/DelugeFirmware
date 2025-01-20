@@ -158,7 +158,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 				noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
 				arpNote.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 			}
-			instruction->invertReverse = isPlayReverseForCurrentStep;
+			instruction->invertReversed = isPlayReverseForCurrentStep;
 			instruction->arpNoteOn = &arpNote;
 		}
 	}
@@ -311,7 +311,7 @@ noteInserted:
 				noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
 				arpNote->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 			}
-			instruction->invertReverse = isPlayReverseForCurrentStep;
+			instruction->invertReversed = isPlayReverseForCurrentStep;
 			instruction->arpNoteOn = arpNote;
 		}
 	}
@@ -685,7 +685,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
 			arpNote.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 		}
-		instruction->invertReverse = shouldPlayReverseNote;
+		instruction->invertReversed = shouldPlayReverseNote;
 		instruction->arpNoteOn = &arpNote;
 	}
 }
@@ -1219,7 +1219,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			arpNote->noteCodeOnPostArp[n] = noteCodeCurrentlyOnPostArp[n];
 		}
-		instruction->invertReverse = shouldPlayReverseNote;
+		instruction->invertReversed = shouldPlayReverseNote;
 		instruction->arpNoteOn = arpNote;
 	}
 }

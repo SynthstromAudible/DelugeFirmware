@@ -233,7 +233,7 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 	}
 
 	SampleCache* samplePitchAdjustment = new (memory)
-	    SampleCache(this, numClusters, lengthInBytesCached, phaseIncrement, timeStretchRatio, skipSamplesAtStart);
+	    SampleCache(this, numClusters, lengthInBytesCached, phaseIncrement, timeStretchRatio, skipSamplesAtStart, reversed);
 
 	SampleCacheElement* element = (SampleCacheElement*)caches.getElementAddress(i);
 	element->phaseIncrement = phaseIncrement;

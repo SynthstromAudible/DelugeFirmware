@@ -113,7 +113,7 @@ Error Source::loadAllSamples(bool mayActuallyReadFiles) {
 		if (mayActuallyReadFiles && shouldAbortLoading()) {
 			return Error::ABORTED_BY_USER;
 		}
-		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.reversed, false, mayActuallyReadFiles,
+		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.isReversed(), false, mayActuallyReadFiles,
 		                                                     CLUSTER_ENQUEUE, nullptr, true);
 	}
 
@@ -128,10 +128,10 @@ void Source::setReversed(bool newReversed) {
 		SampleHolder* holder = (SampleHolder*)range->getAudioFileHolder();
 		Sample* sample = (Sample*)holder->audioFile;
 		if (sample) {
-			if (sampleControls.reversed && holder->endPos > sample->lengthInSamples) {
+			if (sampleControls.isReversed() && holder->endPos > sample->lengthInSamples) {
 				holder->endPos = sample->lengthInSamples;
 			}
-			holder->claimClusterReasons(sampleControls.reversed);
+			holder->claimClusterReasons(sampleControls.isReversed());
 		}
 	}
 }

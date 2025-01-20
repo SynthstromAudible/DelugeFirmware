@@ -47,3 +47,7 @@ useLinearInterpolation:
 		return kInterpolationMaxNumSamples;
 	}
 }
+
+bool SampleControls::isReversed() const {
+	return invertReversed ? !reversed : reversed;
+}

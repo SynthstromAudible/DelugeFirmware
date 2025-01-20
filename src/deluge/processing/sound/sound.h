@@ -86,7 +86,7 @@ public:
 	LFO globalLFO;
 	LFOConfig lfoConfig[LFO_COUNT];
 
-	bool invertReverse; // Used by the arpeggiator to invert the reverse flag just for the current voice
+	bool invertReversed; // Used by the arpeggiator to invert the reverse flag just for the current voice
 
 	// December 3, 2024
 	// @todo

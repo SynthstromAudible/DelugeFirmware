@@ -152,7 +152,7 @@ class ArpReturnInstruction {
 public:
 	ArpReturnInstruction() {
 		sampleSyncLengthOn = 0;
-		invertReverse = false;
+		invertReversed = false;
 		arpNoteOn = nullptr;
 		outputMIDIChannelOff.fill(MIDI_CHANNEL_NONE);
 		noteCodeOffPostArp.fill(ARP_NOTE_NONE);
@@ -165,7 +165,7 @@ public:
 
 	// If set to true by the arpeggiator, the reverse SAMPLE flag will be inverted for the next voices to be played
 	// and restored back to normal afterwards
-	bool invertReverse;
+	bool invertReversed;
 
 	ArpNote* arpNoteOn;
 

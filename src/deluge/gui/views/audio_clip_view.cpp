@@ -138,7 +138,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 
 		bool success = waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image,
 		                                                 &getCurrentAudioClip()->renderData, recorder, rgb,
-		                                                 getCurrentAudioClip()->sampleControls.reversed, xEnd);
+		                                                 getCurrentAudioClip()->sampleControls.isReversed(), xEnd);
 
 		// If card being accessed and waveform would have to be re-examined, come back later
 		if (!success && image == PadLEDs::image) {
@@ -541,7 +541,7 @@ void AudioClipView::changeUnderlyingSampleLength(AudioClip* clip, const Sample* 
 	uint64_t newLengthSamples =
 	    (uint64_t)(oldLengthSamples * newLength + (oldLength >> 1)) / (uint32_t)oldLength; // Rounded
 	// AudioClip reversed
-	if (clip->sampleControls.reversed) {
+	if (clip->sampleControls.isReversed()) {
 
 		newEndPosSamples = clip->sampleHolder.getEndPos(true) - newLengthSamples;
 
