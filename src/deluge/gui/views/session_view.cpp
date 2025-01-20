@@ -2087,23 +2087,23 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 
 void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea) {
     int32_t x = 1;
-    int32_t y = OLED_MAIN_TOPMOST_PIXEL + 4;
+    int32_t y = OLED_MAIN_TOPMOST_PIXEL + 6;
     int32_t batteryPercent = (batteryMV - BATTERY_MV_MIN) * 100 / (BATTERY_MV_MAX - BATTERY_MV_MIN);
 
     // Battery icon dimensions
-    int32_t iconWidth = 12;
+    int32_t iconWidth = 12;  // Main body width
     int32_t iconHeight = 7;
     int32_t iconSpacing = 3;
 
     if (clearArea) {
-        canvas.clearAreaExact(x, y, x + iconWidth + iconSpacing + 40, y + kTextSpacingY);
+        canvas.clearAreaExact(x, y, x + iconWidth + 1 + iconSpacing + 40, y + kTextSpacingY);
     }
 
     // Draw battery outline
-    canvas.drawRectangle(x, y, x + iconWidth - 3, y + iconHeight - 1); // Main body
-    canvas.drawRectangle(x + iconWidth - 3, y + 2, x + iconWidth - 1, y + iconHeight - 3); // Terminal
+    canvas.drawRectangle(x, y, x + iconWidth - 1, y + iconHeight - 1); // Main body
+    canvas.drawRectangle(iconWidth, y + 2, x + iconWidth, y + 4); // Terminal (1x3)
 
-    // Calculate fill level (0-2 blocks, representing empty/half/full)
+    // Calculate fill level (0-3 segments)
     int32_t fillLevel;
     if (batteryPercent <= 20) {
         fillLevel = 0;
@@ -2114,21 +2114,26 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
     } else {
         fillLevel = 3;
     }
-	fillLevel = 3;
 
-    // Fill battery based on level (3 segments)
+	fillLevel = 3; // Temporary for testing.
+
+    // Fill battery based on level (3 segments, each 2x3)
     if (fillLevel > 0) {
-        // Draw 1px wide segments with 1px gaps
         for (int32_t i = 0; i < fillLevel; i++) {
-            int32_t segmentX = x + 2 + (i * 2);  // Each segment takes 2px (1px segment + 1px gap)
-            canvas.invertArea(segmentX, segmentX + 1, y + 2, y + iconHeight - 3);
+            int32_t segmentX = x + 2 + (i * 3);  // 2px segment + 1px gap
+            canvas.drawRectangle(segmentX, y + 2, segmentX + 1, y + 4); // 2px wide, 3px tall
         }
+    }
+
+    // Draw power indicator if connected
+    if (isPowerConnected) {
+        canvas.drawVerticalLine(x + iconWidth + 2, y + 1, y + 4);  // Draw a vertical line next to battery
     }
 
     // Draw percentage text
     char text[16];
     snprintf(text, sizeof(text), "%d%%", batteryPercent);
-    canvas.drawString(text, x + iconWidth + iconSpacing, y, kTextSpacingX, kTextSpacingY);
+    canvas.drawString(text, x + iconWidth + (isPowerConnected ? 4 : 1) + iconSpacing, y, kTextSpacingX, kTextSpacingY);
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
