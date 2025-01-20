@@ -128,7 +128,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 	int64_t xScrollSamples;
 	int64_t xZoomSamples;
 	clip.getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
-	                                &xScrollSamples, &xZoomSamples);
+	                               &xScrollSamples, &xZoomSamples);
 
 	RGB rgb = clip.getColour();
 
@@ -139,9 +139,8 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 	}
 	int32_t xEnd = std::min(kDisplayWidth, visibleWaveformXEnd);
 
-	bool success =
-	    waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image, &clip.renderData, recorder,
-	                                      rgb, clip.sampleControls.reversed, xEnd);
+	bool success = waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image, &clip.renderData,
+	                                                 recorder, rgb, clip.sampleControls.reversed, xEnd);
 
 	if (!success && image == PadLEDs::image) {
 		uiNeedsRendering(this, whichRows, 0);
@@ -488,8 +487,9 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 				}
 				AudioClip& clipRef = *clip;
 
-				int32_t endSquareDisplay = divide_round_negative(
-				    clipRef.loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1, currentSong->xZoom[NAVIGATION_CLIP]);
+				int32_t endSquareDisplay =
+				    divide_round_negative(clipRef.loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
+				                          currentSong->xZoom[NAVIGATION_CLIP]);
 
 				int32_t startSquareDisplay = divide_round_negative(0 - currentSong->xScroll[NAVIGATION_CLIP],
 				                                                   currentSong->xZoom[NAVIGATION_CLIP]);
@@ -613,7 +613,8 @@ void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* s
 	if (newLengthTicks < 1) {
 		newLengthTicks = 1;
 	}
-	uint64_t newLengthSamples = static_cast<uint64_t>(oldLengthSamples * newLengthTicks + (oldLength / 2)) / static_cast<uint32_t>(oldLength);
+	uint64_t newLengthSamples =
+	    static_cast<uint64_t>(oldLengthSamples * newLengthTicks + (oldLength / 2)) / static_cast<uint32_t>(oldLength);
 
 	if (clip.sampleControls.reversed) {
 		uint64_t oldValue = clip.sampleHolder.endPos;

@@ -620,9 +620,9 @@ void WaveformRenderer::drawColBar(int32_t xDisplay, int32_t min24, int32_t max24
 		}
 
 		int32_t valueHere = (colourAmount * colourAmount) >> 8;
-		RGB color = rgb.has_value() ? rgb.value().transform([valueHere](auto channel) {
-			return (valueHere * channel) >> 8;
-		}) : RGB::monochrome(valueHere);
+		RGB color = rgb.has_value()
+		                ? rgb.value().transform([valueHere](auto channel) { return (valueHere * channel) >> 8; })
+		                : RGB::monochrome(valueHere);
 
 		thisImage[y + (kDisplayHeight >> 1)][xDisplay] = color;
 	}

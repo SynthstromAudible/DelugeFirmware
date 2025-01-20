@@ -26,54 +26,56 @@ class AudioClip;
 
 class AudioClipView final : public ClipView, public ClipMinder {
 public:
-		AudioClipView() = default;
+	AudioClipView() = default;
 
-		bool opened() override;
-		void focusRegained() override;
-		bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-							uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
-		bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-						uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
-		bool setupScroll(uint32_t oldScroll) override;
-		void tellMatrixDriverWhichRowsContainSomethingZoomable() override;
-		[[nodiscard]] bool supportsTriplets() const override { return false; }
-		ClipMinder* toClipMinder() override { return this; }
+	bool opened() override;
+	void focusRegained() override;
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
+	bool setupScroll(uint32_t oldScroll) override;
+	void tellMatrixDriverWhichRowsContainSomethingZoomable() override;
+	[[nodiscard]] bool supportsTriplets() const override { return false; }
+	ClipMinder* toClipMinder() override { return this; }
 
-		ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
-		ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
-		void graphicsRoutine() override;
-		void playbackEnded() override;
+	void graphicsRoutine() override;
+	void playbackEnded() override;
 
-		void clipNeedsReRendering(Clip* clip) override;
-		void sampleNeedsReRendering(Sample* sample) override;
-		void selectEncoderAction(int8_t offset) override;
-		void setClipLengthEqualToSampleLength();
-		void adjustLoopLength(int32_t newLength);
-		ActionResult horizontalEncoderAction(int32_t offset) override;
-		ActionResult editClipLengthWithoutTimestretching(int32_t offset);
-		ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
-		ActionResult timerCallback() override;
-		uint32_t getMaxLength() override;
-		uint32_t getMaxZoom() override;
+	void clipNeedsReRendering(Clip* clip) override;
+	void sampleNeedsReRendering(Sample* sample) override;
+	void selectEncoderAction(int8_t offset) override;
+	void setClipLengthEqualToSampleLength();
+	void adjustLoopLength(int32_t newLength);
+	ActionResult horizontalEncoderAction(int32_t offset) override;
+	ActionResult editClipLengthWithoutTimestretching(int32_t offset);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult timerCallback() override;
+	uint32_t getMaxLength() override;
+	uint32_t getMaxZoom() override;
 
-    	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
-    	// ui
-    	UIType getUIType() override { return UIType::AUDIO_CLIP; }
+	// ui
+	UIType getUIType() override { return UIType::AUDIO_CLIP; }
 
 private:
-		uint32_t timeSongButtonPressed;
-		void needsRenderingDependingOnSubMode();
-		int32_t lastTickSquare;
-		bool mustRedrawTickSquares;
+	uint32_t timeSongButtonPressed;
+	void needsRenderingDependingOnSubMode();
+	int32_t lastTickSquare;
+	bool mustRedrawTickSquares;
 
-		bool endMarkerVisible; // True if user is currently adjusting the clip's end
-		bool startMarkerVisible; // True if user is currently adjusting the clip's start
-		bool blinkOn;
+	bool endMarkerVisible;   // True if user is currently adjusting the clip's end
+	bool startMarkerVisible; // True if user is currently adjusting the clip's start
+	bool blinkOn;
 
-    void changeUnderlyingSampleLength(AudioClip& clip, const Sample* sample, int32_t newLength, int32_t oldLength, uint64_t oldLengthSamples) const;
-    void changeUnderlyingSampleStart(AudioClip& clip, const Sample* sample, int32_t newStartTicks, int32_t oldLength, uint64_t oldLengthSamples) const;
+	void changeUnderlyingSampleLength(AudioClip& clip, const Sample* sample, int32_t newLength, int32_t oldLength,
+	                                  uint64_t oldLengthSamples) const;
+	void changeUnderlyingSampleStart(AudioClip& clip, const Sample* sample, int32_t newStartTicks, int32_t oldLength,
+	                                 uint64_t oldLengthSamples) const;
 };
 
 extern AudioClipView audioClipView;
