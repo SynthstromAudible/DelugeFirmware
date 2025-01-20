@@ -51,6 +51,8 @@ extern const size_t l10n_STRING_FOR_USB_DEVICE_NOT_RECOGNIZED;
 
 char const* l10n_get(size_t s);
 
+extern uint8_t batteryCurrentRegion;
+
 #ifdef __cplusplus
 }
 #endif

@@ -173,9 +173,6 @@ void inputRoutine() {
 
 		batteryMV = newBatteryMV;
 
-		// Add power connection detection
-		sessionView.isPowerConnected = (batteryMV > SessionView::BATTERY_MV_MAX);
-
 		if (batteryCurrentRegion == 0) {
 			if (batteryMV > 2950) {
 makeBattLEDSolid:
@@ -188,6 +185,11 @@ makeBattLEDSolid:
 			if (batteryMV < 2900) {
 				batteryCurrentRegion = 0;
 				batteryLEDBlink();
+			}
+			else if (batteryMV > 4200) {
+				batteryCurrentRegion = 3;
+				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
+				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
 			}
 			else if (batteryMV > 3300) {
 				batteryCurrentRegion = 2;

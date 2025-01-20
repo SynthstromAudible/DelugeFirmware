@@ -91,6 +91,9 @@ extern "C" {
 using namespace deluge;
 using namespace gui;
 
+extern uint16_t batteryMV;  // Battery voltage in millivolts
+extern uint8_t batteryCurrentRegion;  // Battery level (0-3)
+
 SessionView sessionView{};
 
 SessionView::SessionView() {
@@ -2105,23 +2108,9 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
     canvas.drawRectangle(x, y, x + iconWidth - 1, y + iconHeight - 1); // Main body
     canvas.drawRectangle(iconWidth -1, y + 2, iconWidth, y + 5); // Terminal (1x3)
 
-    // Calculate fill level (0-3 segments)
-    int32_t fillLevel;
-    if (batteryPercent <= 20) {
-        fillLevel = 0;
-    } else if (batteryPercent <= 45) {
-        fillLevel = 1;
-    } else if (batteryPercent <= 75) {
-        fillLevel = 2;
-    } else {
-        fillLevel = 3;
-    }
-
-	fillLevel = 3; // Temporary for testing.
-
-    // Fill battery based on level (3 segments, each 2x3)
-    if (fillLevel > 0) {
-        for (int32_t i = 0; i < fillLevel; i++) {
+    // Draw battery segments based on region (0-2)
+    if (batteryCurrentRegion > 0) {
+        for (int32_t i = 0; i < batteryCurrentRegion; i++) {
             int32_t segmentX = x + 2 + (i * 3);  // 2px segment + 1px gap
             canvas.drawRectangle(segmentX, y + 2, segmentX + 1, y + 4); // 2px wide, 3px tall
         }
@@ -2134,7 +2123,7 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
 
     // Draw percentage text
     char text[16];
-    snprintf(text, sizeof(text), "%d%%", batteryPercent);
+    snprintf(text, sizeof(text), "%d%% %dmV", batteryPercent, batteryMV);
     canvas.drawString(text, x + iconWidth + iconSpacing, y - 1, kTextSpacingX, kTextSpacingY);
 }
 
