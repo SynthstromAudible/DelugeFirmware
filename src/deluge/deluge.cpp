@@ -167,8 +167,9 @@ void inputRoutine() {
 		// resistive divider already
 		uint16_t newBatteryMV = (voltageReadingLastTime) >> 15;
 
-		// Only update display if voltage has changed significantly
-		// sessionView.displayPotentialBatteryChange(newBatteryMV);
+		// Update battery display if voltage has changed significantly
+		sessionView.displayPotentialBatteryChange(newBatteryMV);
+
 		batteryMV = newBatteryMV;
 
 		if (batteryCurrentRegion == 0) {

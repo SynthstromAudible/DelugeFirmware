@@ -2026,7 +2026,7 @@ void SessionView::renderViewDisplay() {
 #endif
 
 	// Draw battery status
-	drawBatteryStatus(canvas, false);
+	displayBatteryStatus(canvas, false);
 
 	DEF_STACK_STRING_BUF(tempoBPM, 10);
 	lastDisplayedTempo = playbackHandler.calculateBPM(playbackHandler.getTimePerInternalTickFloat());
@@ -2083,6 +2083,41 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 	int32_t stringLength = tempoBPM.size();
 	int32_t metronomeIconStartX = OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * stringLength) - metronomeIconSpacingX;
 	canvas.drawGraphicMultiLine(deluge::hid::display::OLED::metronomeIcon, metronomeIconStartX, yPos, 7);
+}
+
+void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea) {
+    int32_t x = 3;
+    int32_t y = OLED_MAIN_TOPMOST_PIXEL + 3;
+    int32_t batteryPercent = (batteryMV - BATTERY_MV_MIN) * 100 / (BATTERY_MV_MAX - BATTERY_MV_MIN);
+
+    // Battery icon dimensions
+    int32_t iconWidth = 10;
+    int32_t iconHeight = 6;
+    int32_t iconSpacing = 3;
+
+    if (clearArea) {
+        canvas.clearAreaExact(x, y, x + iconWidth + iconSpacing + 40, y + kTextSpacingY);
+    }
+
+    // Draw battery outline
+    canvas.drawRectangle(x, y, x + iconWidth - 1, y + iconHeight - 1);
+    canvas.drawVerticalLine(x + iconWidth, y + 2, y + 4); // Battery terminal
+
+    // Calculate fill level (0-4 blocks)
+    int32_t fillLevel = (batteryPercent * 4) / 100;
+    fillLevel = std::clamp(fillLevel, int32_t{0}, int32_t{4});
+
+    // Fill battery based on level
+    if (fillLevel > 0) {
+        // Calculate width of fill based on level
+        int32_t fillWidth = ((iconWidth - 4) * fillLevel) / 4;
+        canvas.invertArea(x + 2, x + 2 + fillWidth, y + 1, y + iconHeight - 2);
+    }
+
+    // Draw percentage text
+    char text[16];
+    snprintf(text, sizeof(text), "%d%%", batteryPercent);
+    canvas.drawString(text, x + iconWidth + iconSpacing, y, kTextSpacingX, kTextSpacingY);
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
@@ -2197,6 +2232,7 @@ void SessionView::graphicsRoutine() {
 
 	if (display->haveOLED()) {
 		displayPotentialTempoChange(this);
+		displayPotentialBatteryChange(batteryMV);
 	}
 
 	bool reallyNoTickSquare = (!playbackHandler.isEitherClockActive() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
@@ -2356,6 +2392,19 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 			displayTempoBPM(deluge::hid::display::OLED::main, tempoBPM, true);
 			deluge::hid::display::OLED::markChanged();
 			lastDisplayedTempo = tempo;
+		}
+	}
+}
+
+// checks if battery voltage has changed and updates it if required
+void SessionView::displayPotentialBatteryChange(uint16_t newBatteryMV) {
+	// Only update display if we're in the session view
+	if (getCurrentUI() == this) {
+		// Only redraw display if voltage has changed significantly
+		if (abs(newBatteryMV - lastDisplayedBatteryMV) > 10) {
+			lastDisplayedBatteryMV = newBatteryMV;
+			displayBatteryStatus(deluge::hid::display::OLED::main);
+			deluge::hid::display::OLED::markChanged();
 		}
 	}
 }
@@ -4663,37 +4712,4 @@ Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
 		return getClipOnScreen(y)->output;
 	}
 	return nullptr;
-}
-
-void SessionView::drawBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea) {
-	// Position at top-left corner
-	int32_t x = 2;
-	int32_t y = OLED_MAIN_TOPMOST_PIXEL + 3;
-	int32_t width = 10;
-	int32_t height = 6;
-
-	// Clear area if requested
-	if (clearArea) {
-		canvas.clearAreaExact(x, y, x + width + 1, y + height + 1);
-	}
-
-	// Draw battery outline
-	canvas.drawRectangle(x, y, x + width - 1, y + height - 1);
-	canvas.drawVerticalLine(x + width, y + 2, y + 4);
-
-	// Calculate fill level based on battery voltage
-	int32_t batteryLevel = std::clamp((batteryMV - BATTERY_MV_MIN) * (height - 2) / (BATTERY_MV_MAX - BATTERY_MV_MIN),
-	                                  int32_t{0}, int32_t{height - 2});
-	if (batteryLevel > 0) {
-		canvas.invertArea(x + 2, x + width - 2, y + 1 + (height - 2 - batteryLevel), y + height - 2);
-	}
-}
-
-void SessionView::displayPotentialBatteryChange(uint16_t newBatteryMV) {
-	// Only update display if voltage has changed significantly
-	if (abs(newBatteryMV - lastDisplayedBatteryMV) > 10) {
-		lastDisplayedBatteryMV = newBatteryMV;
-		drawBatteryStatus(deluge::hid::display::OLED::main);
-		deluge::hid::display::OLED::markChanged();
-	}
 }

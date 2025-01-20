@@ -163,7 +163,7 @@ public:
 	void replaceInstrumentClipWithAudioClip(Clip* clip);
 
 	// Draw battery status
-	void drawBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea = true);
+	void displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea = true);
 
 private:
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
