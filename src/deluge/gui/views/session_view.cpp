@@ -2087,7 +2087,7 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 
 void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea) {
     int32_t x = 0;
-    int32_t y = OLED_MAIN_TOPMOST_PIXEL + 5;
+    int32_t y = OLED_MAIN_TOPMOST_PIXEL + 4;
     int32_t batteryPercent = (batteryMV - BATTERY_MV_MIN) * 100 / (BATTERY_MV_MAX - BATTERY_MV_MIN);
 
     // Battery icon dimensions
@@ -2135,7 +2135,7 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
     // Draw percentage text
     char text[16];
     snprintf(text, sizeof(text), "%d%%", batteryPercent);
-    canvas.drawString(text, x + iconWidth + iconSpacing, y - 2, kTextSpacingX, kTextSpacingY);
+    canvas.drawString(text, x + iconWidth + iconSpacing, y - 1, kTextSpacingX, kTextSpacingY);
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
