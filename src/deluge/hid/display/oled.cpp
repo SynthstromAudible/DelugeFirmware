@@ -978,10 +978,12 @@ void OLED::stopScrollingAnimation() {
 }
 
 void OLED::timerRoutine() {
+
 	if (workingAnimationText) {
 		workingAnimationCount = (workingAnimationCount + 1) & 3;
 		updateWorkingAnimation();
 	}
+
 	else {
 		removePopup();
 	}
