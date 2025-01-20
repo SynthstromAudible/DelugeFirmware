@@ -2086,8 +2086,8 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 }
 
 void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea) {
-    int32_t x = 3;
-    int32_t y = OLED_MAIN_TOPMOST_PIXEL + 3;
+    int32_t x = 1;
+    int32_t y = OLED_MAIN_TOPMOST_PIXEL + 4;
     int32_t batteryPercent = (batteryMV - BATTERY_MV_MIN) * 100 / (BATTERY_MV_MAX - BATTERY_MV_MIN);
 
     // Battery icon dimensions
@@ -2105,19 +2105,24 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
 
     // Calculate fill level (0-2 blocks, representing empty/half/full)
     int32_t fillLevel;
-    if (batteryPercent < 33) {
+    if (batteryPercent <= 20) {
         fillLevel = 0;
-    } else if (batteryPercent < 66) {
+    } else if (batteryPercent <= 45) {
         fillLevel = 1;
-    } else {
+    } else if (batteryPercent <= 75) {
         fillLevel = 2;
+    } else {
+        fillLevel = 3;
     }
+	fillLevel = 3;
 
     // Fill battery based on level (3 segments)
     if (fillLevel > 0) {
-        int32_t segmentWidth = (iconWidth - 5) / 3;  // Width of each segment
-        int32_t fillWidth = segmentWidth * (fillLevel == 1 ? 2 : 3); // Fill 2 segments for half, 3 for full
-        canvas.invertArea(x + 2, x + 2 + fillWidth, y + 2, y + iconHeight - 2);
+        // Draw 1px wide segments with 1px gaps
+        for (int32_t i = 0; i < fillLevel; i++) {
+            int32_t segmentX = x + 2 + (i * 2);  // Each segment takes 2px (1px segment + 1px gap)
+            canvas.invertArea(segmentX, segmentX + 1, y + 2, y + iconHeight - 3);
+        }
     }
 
     // Draw percentage text
