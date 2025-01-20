@@ -1514,7 +1514,11 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 		return;
 	}
 
+	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+
 	ArpeggiatorSettings* arpSettings = getArpSettings();
+	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+
 	getArpBackInTimeAfterSkippingRendering(arpSettings); // Have to do this before telling the arp to noteOn()
 
 	ArpReturnInstruction instruction;
@@ -2252,29 +2256,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
+	if (arpSettings) {
+		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+	}
 	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
-		arpSettings->rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
-		arpSettings->sequenceLength =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
-		arpSettings->chordPolyphony =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_POLYPHONY) + 2147483648;
-		arpSettings->ratchetAmount =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
-		arpSettings->noteProbability =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_NOTE_PROBABILITY) + 2147483648;
-		arpSettings->bassProbability =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_PROBABILITY) + 2147483648;
-		arpSettings->reverseProbability =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_REVERSE_PROBABILITY) + 2147483648;
-		arpSettings->chordProbability =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_PROBABILITY) + 2147483648;
-		arpSettings->ratchetProbability =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
-		arpSettings->spreadVelocity =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_SPREAD_VELOCITY) + 2147483648;
-		arpSettings->spreadGate = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
-		arpSettings->spreadOctave = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_OCTAVE) + 2147483648;
-
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement =
 		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);

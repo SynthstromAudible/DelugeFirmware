@@ -447,24 +447,7 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 	UnpatchedParamSet* unpatchedParams = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSet();
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-	arpSettings->rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
-	arpSettings->sequenceLength =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
-	arpSettings->chordPolyphony =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_POLYPHONY) + 2147483648;
-	arpSettings->ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
-	arpSettings->noteProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_NOTE_PROBABILITY) + 2147483648;
-	arpSettings->bassProbability =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_PROBABILITY) + 2147483648;
-	arpSettings->reverseProbability =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_REVERSE_PROBABILITY) + 2147483648;
-	arpSettings->chordProbability =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_PROBABILITY) + 2147483648;
-	arpSettings->ratchetProbability =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
-	arpSettings->spreadVelocity = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_SPREAD_VELOCITY) + 2147483648;
-	arpSettings->spreadGate = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
-	arpSettings->spreadOctave = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_OCTAVE) + 2147483648;
+	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
 
 	ArpReturnInstruction instruction;
 

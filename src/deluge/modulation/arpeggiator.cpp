@@ -21,12 +21,15 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator_rhythms.h"
+#include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 #include "util/functions.h"
 #include <cstdint>
 
 #define MIN_MPE_MODULATED_VELOCITY 10
+
+namespace params = deluge::modulation::params;
 
 ArpeggiatorSettings::ArpeggiatorSettings() {
 
@@ -1675,6 +1678,27 @@ void ArpeggiatorSettings::updatePresetFromCurrentSettings() {
 	else {
 		preset = ArpPreset::CUSTOM;
 	}
+}
+
+void ArpeggiatorSettings::updateParamsFromUnpatchedParamSet(UnpatchedParamSet* unpatchedParams) {
+	rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
+	sequenceLength =
+	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
+	chordPolyphony =
+	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_POLYPHONY) + 2147483648;
+	ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
+	noteProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_NOTE_PROBABILITY) + 2147483648;
+	bassProbability =
+	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_PROBABILITY) + 2147483648;
+	reverseProbability =
+	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_REVERSE_PROBABILITY) + 2147483648;
+	chordProbability =
+	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_PROBABILITY) + 2147483648;
+	ratchetProbability =
+	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
+	spreadVelocity = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_SPREAD_VELOCITY) + 2147483648;
+	spreadGate = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
+	spreadOctave = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_OCTAVE) + 2147483648;
 }
 
 void ArpeggiatorSettings::updateSettingsFromCurrentPreset() {
