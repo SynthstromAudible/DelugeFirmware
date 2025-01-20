@@ -2091,8 +2091,8 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
     int32_t batteryPercent = (batteryMV - BATTERY_MV_MIN) * 100 / (BATTERY_MV_MAX - BATTERY_MV_MIN);
 
     // Battery icon dimensions
-    int32_t iconWidth = 10;
-    int32_t iconHeight = 6;
+    int32_t iconWidth = 12;
+    int32_t iconHeight = 7;
     int32_t iconSpacing = 3;
 
     if (clearArea) {
@@ -2100,18 +2100,24 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
     }
 
     // Draw battery outline
-    canvas.drawRectangle(x, y, x + iconWidth - 1, y + iconHeight - 1);
-    canvas.drawVerticalLine(x + iconWidth, y + 2, y + 4); // Battery terminal
+    canvas.drawRectangle(x, y, x + iconWidth - 3, y + iconHeight - 1); // Main body
+    canvas.drawRectangle(x + iconWidth - 3, y + 2, x + iconWidth - 1, y + iconHeight - 3); // Terminal
 
-    // Calculate fill level (0-4 blocks)
-    int32_t fillLevel = (batteryPercent * 4) / 100;
-    fillLevel = std::clamp(fillLevel, int32_t{0}, int32_t{4});
+    // Calculate fill level (0-2 blocks, representing empty/half/full)
+    int32_t fillLevel;
+    if (batteryPercent < 33) {
+        fillLevel = 0;
+    } else if (batteryPercent < 66) {
+        fillLevel = 1;
+    } else {
+        fillLevel = 2;
+    }
 
-    // Fill battery based on level
+    // Fill battery based on level (3 segments)
     if (fillLevel > 0) {
-        // Calculate width of fill based on level
-        int32_t fillWidth = ((iconWidth - 4) * fillLevel) / 4;
-        canvas.invertArea(x + 2, x + 2 + fillWidth, y + 1, y + iconHeight - 2);
+        int32_t segmentWidth = (iconWidth - 5) / 3;  // Width of each segment
+        int32_t fillWidth = segmentWidth * (fillLevel == 1 ? 2 : 3); // Fill 2 segments for half, 3 for full
+        canvas.invertArea(x + 2, x + 2 + fillWidth, y + 2, y + iconHeight - 2);
     }
 
     // Draw percentage text

@@ -43,8 +43,8 @@ constexpr uint32_t kGridHeight = kDisplayHeight;
 
 class SessionView final : public ClipNavigationTimelineView {
 public:
-	static constexpr int BATTERY_MV_MIN = 2900;  // 2.9V minimum (matches LED blink threshold)
-	static constexpr int BATTERY_MV_MAX = 3300;  // 3.3V maximum (matches LED solid threshold)
+	static constexpr int BATTERY_MV_MAX = 4200;  // 4.2V fully charged
+	static constexpr int BATTERY_MV_MIN = 2900;  // 2.9V cutoff voltage
 
 	SessionView();
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
