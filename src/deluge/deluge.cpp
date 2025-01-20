@@ -168,9 +168,13 @@ void inputRoutine() {
 		uint16_t newBatteryMV = (voltageReadingLastTime) >> 15;
 
 		// Update battery display if voltage has changed significantly
+		// TODO: Do we need this, can it be self-contained in session_view?
 		sessionView.displayPotentialBatteryChange(newBatteryMV);
 
 		batteryMV = newBatteryMV;
+
+		// Add power connection detection
+		sessionView.isPowerConnected = (batteryMV > SessionView::BATTERY_MV_MAX);
 
 		if (batteryCurrentRegion == 0) {
 			if (batteryMV > 2950) {
