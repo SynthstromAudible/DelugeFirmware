@@ -21,8 +21,6 @@
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "display.h"
-#include "gui/ui/ui.h"
-#include "gui/views/view.h"
 #include "oled_canvas/canvas.h"
 
 #define OLED_LOG_TIMING (0 && ENABLE_TEXT_OUTPUT)
@@ -138,9 +136,6 @@ public:
 
 	bool hasPopup() override { return isPopupPresent(); }
 	bool hasPopupOfType(PopupType type) override { return isPopupPresentOfType(type); }
-
-	static constexpr int kTextSpacingX = 6; // Character width
-	static constexpr int kTextSpacingY = 8; // Character height
 
 private:
 	static bool needsSending;
