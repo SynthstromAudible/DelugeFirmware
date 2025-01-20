@@ -91,8 +91,8 @@ extern "C" {
 using namespace deluge;
 using namespace gui;
 
-extern uint16_t batteryMV;  // Battery voltage in millivolts
-extern uint8_t batteryCurrentRegion;  // Battery level (0-3)
+extern uint16_t batteryMV;           // Battery voltage in millivolts
+extern uint8_t batteryCurrentRegion; // Battery level (0-3)
 
 SessionView sessionView{};
 
@@ -2089,42 +2089,45 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 }
 
 void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea) {
-    int32_t x = 0;
-    int32_t y = OLED_MAIN_TOPMOST_PIXEL + 4;
-    int32_t batteryPercent = (batteryMV - BATTERY_MV_MIN) * 100 / (BATTERY_MV_MAX - BATTERY_MV_MIN);
+	int32_t x = 0;
+	int32_t y = OLED_MAIN_TOPMOST_PIXEL + 4;
+	int32_t batteryPercent = (batteryMV - BATTERY_MV_MIN) * 100 / (BATTERY_MV_MAX - BATTERY_MV_MIN);
 
-    // Battery icon dimensions
-    int32_t iconWidth = 12;  // Main body width
-    int32_t iconHeight = 7;
-    int32_t iconSpacing = 3;
+	// Battery icon dimensions
+	int32_t iconWidth = 12; // Main body width
+	int32_t iconHeight = 7;
+	int32_t iconSpacing = 3;
 
-    if (clearArea) {
-        canvas.clearAreaExact(x, y, x + iconWidth + 1 + iconSpacing + 40, y + kTextSpacingY);
-    }
+	if (clearArea) {
+		// Calculate exact text width for max "100%" (4 chars)
+		// TODO - 11 for now to also show mV
+		int32_t maxTextWidth = kTextSpacingX * 11;
+		canvas.clearAreaExact(x, y, x + iconWidth + 1 + iconSpacing + maxTextWidth, y + iconHeight);
+	}
 
 	// void Canvas::drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY)
 
-    // Draw battery outline
-    canvas.drawRectangle(x, y, x + iconWidth - 1, y + iconHeight - 1); // Main body
-    canvas.drawRectangle(iconWidth -1, y + 2, iconWidth, y + 5); // Terminal (1x3)
+	// Draw battery outline
+	canvas.drawRectangle(x, y, x + iconWidth - 1, y + iconHeight - 1); // Main body
+	canvas.drawRectangle(iconWidth - 1, y + 2, iconWidth, y + 5);      // Terminal (1x3)
 
-    // Draw battery segments based on region (0-3)
-    if (batteryCurrentRegion > 0) {
-        for (int32_t i = 0; i < batteryCurrentRegion; i++) {
-            int32_t segmentX = x + 2 + (i * 3);  // 2px segment + 1px gap
-            canvas.drawRectangle(segmentX, y + 2, segmentX + 1, y + 4); // 2px wide, 3px tall
-        }
-    }
+	// Draw battery segments based on region (0-3)
+	if (batteryCurrentRegion > 0) {
+		for (int32_t i = 0; i < batteryCurrentRegion; i++) {
+			int32_t segmentX = x + 2 + (i * 3);                         // 2px segment + 1px gap
+			canvas.drawRectangle(segmentX, y + 2, segmentX + 1, y + 4); // 2px wide, 3px tall
+		}
+	}
 
-    // Draw power indicator if connected
-    if (isPowerConnected) {
-        // canvas.drawVerticalLine(x + iconWidth + 2, y + 1, y + 4);  // Draw a vertical line next to battery
-    }
+	// Draw power indicator if connected
+	if (isPowerConnected) {
+		// canvas.drawVerticalLine(x + iconWidth + 2, y + 1, y + 4);  // Draw a vertical line next to battery
+	}
 
-    // Draw percentage text
-    char text[16];
-    snprintf(text, sizeof(text), "%d%% %dmV", batteryPercent, batteryMV);
-    canvas.drawString(text, x + iconWidth + iconSpacing, y - 1, kTextSpacingX, kTextSpacingY);
+	// Draw percentage text
+	char text[16];
+	snprintf(text, sizeof(text), "%d%% %dmV", batteryPercent, batteryMV);
+	canvas.drawString(text, x + iconWidth + iconSpacing, y - 1, kTextSpacingX, kTextSpacingY);
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
