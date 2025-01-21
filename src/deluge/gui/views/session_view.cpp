@@ -2093,15 +2093,10 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
 	int32_t x = 0;
 	int32_t y = OLED_MAIN_TOPMOST_PIXEL + 4;
 
-	// Check if USB power is connected
-	bool usbPowerConnected = (check_usb_power_status() == USB_POWER_ATTACHED);
-	int32_t batteryPercent;
-	if (usbPowerConnected) {
-		batteryPercent = 100;
-	}
-	else {
-		batteryPercent = (batteryMV - BATTERY_MV_MIN) * 100 / (BATTERY_MV_MAX - BATTERY_MV_MIN);
-	}
+	// Check if USB power is connected. Must be a better way to do this than just checking the battery voltage.
+	bool usbPowerConnected = (batteryMV > 4600);
+
+	int32_t batteryPercent = (batteryMV - BATTERY_MV_MIN) * 100 / (BATTERY_MV_MAX - BATTERY_MV_MIN);
 
 	// Battery icon dimensions
 	int32_t iconWidth = 12; // Main body width
@@ -2129,6 +2124,9 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
 			canvas.drawPixel(baseX + 1, y + 3); // Middle pixel
 			canvas.drawPixel(baseX, y + 4);     // Bottom pixel
 		}
+
+		// When USB connected, just show "USB" text
+		canvas.drawString("USB", x + iconWidth + iconSpacing, y - 1, kTextSpacingX, kTextSpacingY);
 	}
 	// Or show battery segments based on battery level (0-3)
 	else if (batteryCurrentRegion > 0) {
@@ -2136,12 +2134,12 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
 			int32_t segmentX = x + 2 + (i * 3);                         // 2px segment + 1px gap
 			canvas.drawRectangle(segmentX, y + 2, segmentX + 1, y + 4); // 2px wide, 3px tall
 		}
-	}
 
-	// Draw percentage text
-	char text[16];
-	snprintf(text, sizeof(text), "%d%% %dmV", batteryPercent, batteryMV);
-	canvas.drawString(text, x + iconWidth + iconSpacing, y - 1, kTextSpacingX, kTextSpacingY);
+		// Draw percentage text only when on battery power
+		char text[16];
+		snprintf(text, sizeof(text), "%d%% %dmV", batteryPercent, batteryMV);
+		canvas.drawString(text, x + iconWidth + iconSpacing, y - 1, kTextSpacingX, kTextSpacingY);
+	}
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
@@ -2406,6 +2404,7 @@ void SessionView::graphicsRoutine() {
 // checks if tempo has changed since it was last rendered on the display and updates it if required
 void SessionView::displayPotentialTempoChange(UI* ui) {
 	// check UI in case graphics routine is called while we're in another UI (e.g. menu)
+
 	if (getCurrentUI() == ui) {
 		float tempo = playbackHandler.calculateBPMForDisplay();
 		float diff = std::abs(tempo - lastDisplayedTempo);
@@ -2423,6 +2422,7 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 // checks if battery voltage has changed and updates it if required
 void SessionView::displayPotentialBatteryChange(uint16_t newBatteryMV) {
 	// Only update display if we're in the session view
+
 	if (getCurrentUI() == this) {
 		// Only redraw display if voltage has changed significantly (50mV roughly 5% of full scale)
 		if (abs(newBatteryMV - lastDisplayedBatteryMV) > 50) {
