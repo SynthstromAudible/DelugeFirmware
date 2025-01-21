@@ -28,7 +28,6 @@
 #include "io/midi/sysex.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "storage/flash_storage.h"
 #include "util/cfunctions.h"
 #include "util/d_string.h"
 #include <string.h>
@@ -209,16 +208,6 @@ const uint8_t OLED::metronomeIcon[] = {
     0b11011000, //<
     0b11100100, //<
 };
-
-// const uint8_t OLED::SD_icon1[] = {
-//     0b11111100, //<
-//     0b10000110, //<
-//     0b10000011, //<
-//     0b10000001, //<
-//     0b10000001, //<
-//     0b10000001, //<
-//     0b11111011, //<
-// };
 
 #if ENABLE_TEXT_OUTPUT
 uint16_t renderStartTime;
@@ -425,7 +414,6 @@ void OLED::removePopup() {
 
 	oledPopupWidth = 0;
 	popupType = PopupType::NONE;
-	// workingAnimationText = nullptr;
 	uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	markChanged();
 }
@@ -769,9 +757,6 @@ void OLED::popupText(char const* text, bool persistent, PopupType type) {
 	}
 
 	for (int32_t l = 0; l < textLineBreakdown.numLines; l++) {
-		if (textPixelY >= OLED_MAIN_HEIGHT_PIXELS) {
-			continue;
-		}
 		int32_t textPixelX = (OLED_MAIN_WIDTH_PIXELS - textLineBreakdown.lineWidths[l]) >> 1;
 		popup.drawString(std::string_view{textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l]}, textPixelX,
 		                 textPixelY, kTextSpacingX, kTextSpacingY);
@@ -793,16 +778,16 @@ void updateWorkingAnimation() {
 	// D_PRINTLN("working animation count: %d", working_animation_count);
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
-	int32_t w1 = 5; // spacing between rectangles
-	int32_t w2 = 5; // width of animated portion of rectangle
-	int32_t h = 8; // height of rectangle
+	int32_t w1 = 5;          // spacing between rectangles
+	int32_t w2 = 5;          // width of animated portion of rectangle
+	int32_t h = 8;           // height of rectangle
 	int32_t offset = w2 - 2; // causes shifting lines to overlap by 2 pixels
 	int32_t x_max = OLED_MAIN_WIDTH_PIXELS - 1;
 	int32_t x_min = x_max - (w1 + w2 * 2);
-	int32_t x2 = x_max - w2; // starting position of right rectangle
+	int32_t x2 = x_max - w2;                  // starting position of right rectangle
 	int32_t y1 = OLED_MAIN_TOPMOST_PIXEL + 2; // top of rectangles
-	int32_t y2 = y1 + h - 1; // bottom of rectangles
-	int32_t h2; // height of animated portion (will increase over time)
+	int32_t y2 = y1 + h - 1;                  // bottom of rectangles
+	int32_t h2;                               // height of animated portion (will increase over time)
 	// position of left side of starting stack that will be shifted over
 	int32_t x_pos2 = loading ? x2 - working_animation_count + 1 : x_min + 1 + working_animation_count;
 	int32_t t_reset = w1 + w2 + (h - 2) * offset;
@@ -814,34 +799,42 @@ void updateWorkingAnimation() {
 		image.clearAreaExact(x_min + w2 + 1, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_WIDTH_PIXELS - w2 - 2, y2 + 1);
 		h2 = h - 2; // will cause rectangle to be filled in at the start
 	}
-	else h2 = std::min((working_animation_count + 2) / offset, h - 2);
+	else
+		h2 = std::min((working_animation_count + 2) / offset, h - 2);
 
 	// clears the area gradually on subsequent loops.
 	image.clearAreaExact(x_min + 1, y1 + 1, x_max - 1, y1 + h2);
-	if(!loading) offset *= -1;
+	if (!loading)
+		offset *= -1;
 	for (int i = 0; i < h2; i++) {
 		int32_t x_pos = x_pos2 + i * offset; // Offsets positions which are later clamped. Causes staggered shifting.
 		// backfilling lines from top to bottom
-		if(loading && x_pos < x_min) image.drawHorizontalLine(y1 + 1 + i, x2, x_max - 1);
-		if(!loading && x_pos > x2) image.drawHorizontalLine(y1 + 1 + i, x_min + 1, x_min + w2);
+		if (loading && x_pos < x_min)
+			image.drawHorizontalLine(y1 + 1 + i, x2, x_max - 1);
+		if (!loading && x_pos > x2)
+			image.drawHorizontalLine(y1 + 1 + i, x_min + 1, x_min + w2);
 		x_pos = std::clamp(x_pos, x_min + 1, x2);
 		// horizontally shifting lines
 		image.drawHorizontalLine(y1 + 1 + i, x_pos, x_pos + w2 - 1);
 	}
 
-	if(working_animation_count == t_reset){
+	if (working_animation_count == t_reset) {
 		// completed animation, just have to add final backfill line.
 		working_animation_count = 1;
-		if(loading) image.drawHorizontalLine(y2 - 1, x2, x_max - 1);
-		else image.drawHorizontalLine(y2 - 1, x_min + 1, x_min + w2);
+		if (loading)
+			image.drawHorizontalLine(y2 - 1, x2, x_max - 1);
+		else
+			image.drawHorizontalLine(y2 - 1, x_min + 1, x_min + w2);
 		uiTimerManager.setTimer(TimerName::DISPLAY, 350);
 	}
-	else uiTimerManager.setTimer(TimerName::DISPLAY, 70);
+	else
+		uiTimerManager.setTimer(TimerName::DISPLAY, 70);
 }
 
 void OLED::displayWorkingAnimation(char const* word) {
 	loading = (strcmp(word, "Loading") == 0);
-	if(working_animation_count) uiTimerManager.unsetTimer(TimerName::DISPLAY);
+	if (working_animation_count)
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	working_animation_count = 1;
 	started_animation = false;
 	uiTimerManager.setTimer(TimerName::DISPLAY, 350); // don't bother showing the loading icon for short load times.
@@ -1020,7 +1013,7 @@ void OLED::stopScrollingAnimation() {
 		sideScrollerDirection = 0;
 		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 			SideScroller* scroller = &sideScrollers[s];
-			scroller->text = nullptr;
+			scroller->text = NULL;
 		}
 		uiTimerManager.unsetTimer(TimerName::OLED_SCROLLING_AND_BLINKING);
 	}
@@ -1084,17 +1077,10 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 			}
 
 			if (doRender) {
-				int32_t endX = scroller->endX;
-				if (FlashStorage::accessibilityMenuHighlighting) {
-					// for submenu's, this is the padding before the icon's are rendered
-					// need to clear this area otherwise it leaves a white pixels
-					endX += 4;
-				}
-				// Ok, have to render.
-				main.clearAreaExact(scroller->startX, scroller->startY, endX - 1, scroller->endY);
+				main.clearAreaExact(scroller->startX, scroller->startY, scroller->endX - 1, scroller->endY);
 				main.drawString(scroller->text, scroller->startX, scroller->startY, scroller->textSpacingX,
 				                scroller->textSizeY, scroller->pos, scroller->endX);
-				if (scroller->doHighlight && !FlashStorage::accessibilityMenuHighlighting) {
+				if (scroller->doHighlight) {
 					main.invertArea(scroller->startX, scroller->endX - scroller->startX, scroller->startY,
 					                scroller->endY);
 				}
@@ -1117,7 +1103,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 		if (doScroll) {
 			sideScrollerDirection = -sideScrollerDirection;
 		}
-		// if  we're not scrolling, we reset the scroll position to forward
+		// if  we're not scrolling, we reset the scroll direction to forward
 		else {
 			sideScrollerDirection = 1;
 		}
@@ -1345,7 +1331,6 @@ void OLED::displayError(Error error) {
 		break;
 	}
 	displayPopup(message);
-	D_PRINTLN(message);
 }
 
 } // namespace deluge::hid::display
