@@ -86,8 +86,12 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - If scale mode is active, you can now check the current root note and scale by long pressing the scale button. On 7SEG it will display the root note on press and scale on release.
 - Long pressing the scale button will not result in entering or exiting scale mode so you can safely check the current root note and scale without accidentally exiting scale mode.
 
-##### Velocity Spread
-- Added `Velocity Spread` parameter into a `Randomizer` submenu for Sound instruments. This parameters is shared with the arpeggiator and lets you apply some random variation to the notes.
+##### Randomizer submenu
+- Added a new submenu to the `Sound` menu called `Randomizer`. This menu gives you access to the following parameters (which affect both sequenced and arpeggiated notes):
+  - `Lock`: This parameter determines whether the randomized values will be locked to fixed values. If you change any of the randomizer parameters, the sequence of randomized values will change to a new one and will be locked again.
+  - `Velocity Spread`: This parameters lets you apply some random variation to the notes.
+  - `Note probability`: This parameter determines the likelihood of a note being played or not (this is in addition to the Note/Row probability).
+  - `Reverse Probability`: This parameter determines the likelihood of a note's sample of being reversed.
 
 ##### Note / Note Row Probability, Iterance, Fill
 - Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
