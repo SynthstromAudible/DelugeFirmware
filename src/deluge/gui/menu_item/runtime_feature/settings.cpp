@@ -74,7 +74,8 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuEnableGridViewLoopPads,
     &menuAlternativeTapTempoBehaviour,
     &menuHorizontalMenus,
-	&menuTrimFromStartOfAudioClip};
+	&menuTrimFromStartOfAudioClip
+};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }
