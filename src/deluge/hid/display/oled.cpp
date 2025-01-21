@@ -57,6 +57,8 @@ oled_canvas::Canvas OLED::console;
 bool OLED::needsSending;
 
 int32_t working_animation_count;
+bool started_animation;
+bool loading;
 // char const* workingAnimationText; // NULL means animation not active
 
 int32_t sideScrollerDirection; // 0 means none active
@@ -208,25 +210,15 @@ const uint8_t OLED::metronomeIcon[] = {
     0b11100100, //<
 };
 
-const uint8_t OLED::SD_icon1[] = {
-    0b11111100, //<
-    0b10000110, //<
-    0b10000011, //<
-    0b10000001, //<
-    0b10000001, //<
-    0b10000001, //<
-    0b11111011, //<
-};
-
-const uint8_t OLED::SD_icon2[] = {
-    0b11111100, //<
-    0b11010110, //<
-    0b10101011, //<
-    0b11010101, //<
-    0b10101011, //<
-    0b11010101, //<
-    0b11111011, //<
-};
+// const uint8_t OLED::SD_icon1[] = {
+//     0b11111100, //<
+//     0b10000110, //<
+//     0b10000011, //<
+//     0b10000001, //<
+//     0b10000001, //<
+//     0b10000001, //<
+//     0b11111011, //<
+// };
 
 #if ENABLE_TEXT_OUTPUT
 uint16_t renderStartTime;
@@ -798,41 +790,73 @@ void OLED::popupText(char const* text, bool persistent, PopupType type) {
 }
 
 void updateWorkingAnimation() {
-	D_PRINTLN("working animation count: %d", working_animation_count);
-	int32_t y_pos = OLED_MAIN_TOPMOST_PIXEL + 3;
+	// D_PRINTLN("working animation count: %d", working_animation_count);
+	int32_t y_pos = OLED_MAIN_TOPMOST_PIXEL + 2;
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
-	image.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - 9, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_WIDTH_PIXELS, y_pos + 7);
+	int32_t w = 15;
+	int32_t w2 = 5;
+	int32_t h = 7;
+	int32_t x_max = OLED_MAIN_WIDTH_PIXELS - 1;
+	int32_t x_min = x_max - w;
+	int32_t t_reset = w + w2 * 2;
 
-	if (working_animation_count == 2) {
-		image.drawGraphicMultiLine(deluge::hid::display::OLED::SD_icon1, OLED_MAIN_WIDTH_PIXELS - 9, y_pos, 7);
-		uiTimerManager.setTimer(TimerName::DISPLAY, 750); // simply show a static image to start
+	if (!started_animation) {
+		// clear space and draw outer borders that will not change during the animation
+		started_animation = true;
+		image.clearAreaExact(x_min - 1, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_WIDTH_PIXELS, y_pos + h + 1);
+		image.drawRectangle(x_min, y_pos, x_max, y_pos + h);
+		image.clearAreaExact(x_min + w2 + 1, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_WIDTH_PIXELS - w2 - 1, y_pos + h + 1);
+		image.drawPixel(OLED_MAIN_WIDTH_PIXELS - w2 - 1, y_pos + h);
 	}
-	else {
-		// for the longer loads, start animating so you know it's busy working on it and not just frozen.
-		if (working_animation_count % 2 == 1) {
-			image.drawGraphicMultiLine(deluge::hid::display::OLED::SD_icon2, OLED_MAIN_WIDTH_PIXELS - 9, y_pos, 7);
-		}
-		else {
-			image.drawGraphicMultiLine(deluge::hid::display::OLED::SD_icon1, OLED_MAIN_WIDTH_PIXELS - 9, y_pos, 7);
-		}
-		uiTimerManager.setTimer(TimerName::DISPLAY, 250);
+
+	// moving lines and backfill lines
+	int32_t x_pos2 = loading ? x_max - w2 - working_animation_count + 1 : x_min + 1 + working_animation_count;
+	int32_t offset_factor = loading ? w2 - 2 : - w2 + 2;
+	if(loading) image.clearAreaExact(std::max(x_min + 1, x_pos2), y_pos + 1, x_max - 1, y_pos + h - 1);
+	else image.clearAreaExact(x_min + 1, y_pos + 1, std::min(x_max - 1, x_pos2 + w2 - 1), y_pos + h - 1);
+	for (int i = 0; i < h - 1; i++) {
+		int32_t x_pos = x_pos2 + i * offset_factor;
+		if(loading && x_pos < x_min) image.drawHorizontalLine(y_pos + 1 + i, x_max - w2, x_max - 1);
+		if(!loading && x_pos > x_max - w2) image.drawHorizontalLine(y_pos + 1 + i, x_min + 1, x_min + w2);
+		x_pos = std::clamp(x_pos, x_min + 1, x_max - w2);
+		image.drawHorizontalLine(y_pos + 1 + i, x_pos, x_pos + w2 - 1);
 	}
+
+	if(working_animation_count == t_reset){
+		// completed animation, just have to add final backfill line,
+		working_animation_count = 1;
+		if(loading) image.drawHorizontalLine(y_pos + h - 1, x_max - w2, x_max - 1);
+		else image.drawHorizontalLine(y_pos + h - 1, x_min + 1, x_min + w2);
+		uiTimerManager.setTimer(TimerName::DISPLAY, 350);
+	}
+	else uiTimerManager.setTimer(TimerName::DISPLAY, 70);
 }
 
 void OLED::displayWorkingAnimation(char const* word) {
-	// D_PRINTLN("%s", word);
+	if (strcmp(word, "Loading") == 0) {
+		loading = true;
+    // D_PRINTLN("The word is Loading");
+  }
+	else{
+		loading = false;
+    // D_PRINTLN("The word is Saving");
+	}
+	// loading = false; // for debug
+	if(working_animation_count) uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	working_animation_count = 1;
+	started_animation = false;
 	uiTimerManager.setTimer(TimerName::DISPLAY, 350); // don't bother showing the loading icon for short load times.
 	                                                  // updateWorkingAnimation();
 }
 
 void OLED::removeWorkingAnimation() {
-	if (working_animation_count > 1) { // only need to clear if the icon was added
-		deluge::hid::display::OLED::main.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - 9, OLED_MAIN_TOPMOST_PIXEL,
+	// return; // infinite animation duration for debugging purposes
+	if (started_animation) { // only need to clear if it had time to get started
+		deluge::hid::display::OLED::main.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - 21, OLED_MAIN_TOPMOST_PIXEL,
 		                                                OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL + 10);
 		markChanged();
-		D_PRINTLN("remove working animation");
+		// D_PRINTLN("remove working animation");
 	}
 	working_animation_count = 0;
 	uiTimerManager.unsetTimer(TimerName::DISPLAY);
@@ -1089,7 +1113,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 
 	int32_t timeInterval;
 	if (!finished) {
-		timeInterval = (sideScrollerDirection >= 0) ? 50 : 5;
+		timeInterval = (sideScrollerDirection >= 0) ? 15 : 5;
 	}
 	else {
 		timeInterval = kScrollTime;

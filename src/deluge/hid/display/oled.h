@@ -104,9 +104,6 @@ public:
 	static const uint8_t uncheckedBoxIcon[];
 	static const uint8_t submenuArrowIcon[];
 	static const uint8_t metronomeIcon[];
-	static const uint8_t SD_icon1[];
-	static const uint8_t SD_icon2[];
-	static const uint8_t blank_icon[];
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;
