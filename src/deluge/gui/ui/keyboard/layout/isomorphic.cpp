@@ -139,10 +139,10 @@ void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 				image[y][x] = noteColours[normalizedPadOffset].forTail();
 			}
 			else if (degree == 4) { // Perfect 5th
-				image[y][x] = RGB::monochrome(10);
+				image[y][x] = RGB::monochrome(7);
 			}
 			else if (degree >= 0) {
-				image[y][x] = RGB::monochrome(3);
+				image[y][x] = RGB::monochrome(1);
 			}
 
 			// turn off other pads

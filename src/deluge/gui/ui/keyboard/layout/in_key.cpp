@@ -133,11 +133,11 @@ void KeyboardLayoutInKey::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 				image[y][x] = colourSource.adjust(127, 3);
 			}
 			else if (degree == 4) { // Perfect 5th
-				image[y][x] = RGB::monochrome(10);
+				image[y][x] = RGB::monochrome(7);
 			}
 			// Dimly white for inactive scale notes
 			else {
-				image[y][x] = RGB::monochrome(3);
+				image[y][x] = RGB::monochrome(1);
 			}
 		}
 	}
