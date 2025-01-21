@@ -116,9 +116,13 @@ void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		int32_t noteCode = noteFromCoords(0, y);
 		int32_t normalizedPadOffset = noteCode - getState().isomorphic.scrollOffset;
-		int32_t noteWithinOctave = (uint16_t)((noteCode + kOctaveSize) - getRootNote()) % kOctaveSize;
 
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			int32_t noteWithinOctave = (uint16_t)((noteCode + kOctaveSize) - getRootNote()) % kOctaveSize;
+			int8_t degree = -1;
+			if (keyboard::isInKeyLayoutDefault()) {
+				degree = getScaleNotes().degreeOf(noteWithinOctave);
+			}
 			// Full colour for every octaves root and active notes
 			if (octaveActiveNotes[noteWithinOctave] || noteWithinOctave == 0) {
 				image[y][x] = noteColours[normalizedPadOffset];
@@ -133,6 +137,12 @@ void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 			// Or, if this note is just within the current scale, show it dim
 			else if (octaveScaleNotes.has(noteWithinOctave)) {
 				image[y][x] = noteColours[normalizedPadOffset].forTail();
+			}
+			else if (degree == 4) { // Perfect 5th
+				image[y][x] = RGB::monochrome(10);
+			}
+			else if (degree >= 0) {
+				image[y][x] = RGB::monochrome(3);
 			}
 
 			// turn off other pads

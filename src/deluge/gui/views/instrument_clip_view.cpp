@@ -5547,8 +5547,19 @@ drawNormally:
 				{
 					// If this is the root note, indicate
 					int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
+					int32_t yNoteWithinOctave = currentSong->key.intervalOf(yNote);
+					int8_t degree = -1;
+					if (ui::keyboard::isInKeyLayoutDefault()) {
+						degree = currentSong->key.modeNotes.degreeOf(yNoteWithinOctave);
+					}
 					if (isSameNote(yNote, currentSong->key.rootNote)) {
 						thisColour = rowColour[yDisplay];
+					}
+					else if (degree == 4) { // Perfect 5th
+						thisColour = RGB::monochrome(10);
+					}
+					else if (degree >= 0) {
+						thisColour = RGB::monochrome(3);
 					}
 					else {
 						thisColour = colours::black;

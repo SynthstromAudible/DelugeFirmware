@@ -24,6 +24,7 @@
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/instrument/instrument.h"
+#include "storage/flash_storage.h"
 
 class ModelStack;
 class Instrument;
@@ -31,6 +32,10 @@ class Instrument;
 namespace deluge::gui::ui::keyboard {
 
 constexpr int32_t kMaxNumKeyboardPadPresses = 10;
+
+inline bool isInKeyLayoutDefault() {
+	return FlashStorage::defaultKeyboardLayout == KeyboardLayoutType::KeyboardLayoutTypeInKey;
+}
 
 class KeyboardScreen final : public RootUI, public InstrumentClipMinder {
 public:

@@ -735,7 +735,22 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 	if (getCurrentOutputType() != OutputType::KIT) {
 		auto requiredScaleMode =
 		    layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->requiredScaleMode();
-		if (requiredScaleMode == RequiredScaleMode::Enabled && !getCurrentInstrumentClip()->inScaleMode) {
+
+		// Toggle between In-Key layout and Isomorphic based on state of inScaleMode
+		if (isInKeyLayoutDefault() && lastLayout != KeyboardLayoutType::KeyboardLayoutTypeInKey
+		    && getCurrentInstrumentClip()->keyboardState.currentLayout
+		           == KeyboardLayoutType::KeyboardLayoutTypeIsomorphic
+		    && getCurrentInstrumentClip()->inScaleMode) { // Use In-Key layout for in-scale keyboard
+			getCurrentInstrumentClip()->keyboardState.currentLayout = KeyboardLayoutType::KeyboardLayoutTypeInKey;
+		}
+		else if (isInKeyLayoutDefault() && lastLayout != KeyboardLayoutType::KeyboardLayoutTypeIsomorphic
+		         && getCurrentInstrumentClip()->keyboardState.currentLayout
+		                == KeyboardLayoutType::KeyboardLayoutTypeInKey
+		         && !getCurrentInstrumentClip()->inScaleMode) { // Use Isomorphic layout for chromatic keyboard
+			getCurrentInstrumentClip()->keyboardState.currentLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
+		}
+
+		else if (requiredScaleMode == RequiredScaleMode::Enabled && !getCurrentInstrumentClip()->inScaleMode) {
 			getCurrentInstrumentClip()->yScroll =
 			    instrumentClipView.setupForEnteringScaleMode(currentSong->key.rootNote);
 			setLedStates();
@@ -878,7 +893,14 @@ void KeyboardScreen::flashDefaultRootNote() {
 
 void KeyboardScreen::enterScaleMode(int32_t selectedRootNote) {
 	auto requiredScaleMode = layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->requiredScaleMode();
-	if (requiredScaleMode == RequiredScaleMode::Disabled) {
+
+	if (isInKeyLayoutDefault()
+	    && getCurrentInstrumentClip()->keyboardState.currentLayout
+	           == KeyboardLayoutType::KeyboardLayoutTypeIsomorphic) {
+		getCurrentInstrumentClip()->keyboardState.currentLayout = KeyboardLayoutType::KeyboardLayoutTypeInKey;
+		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
+	}
+	else if (requiredScaleMode == RequiredScaleMode::Disabled) {
 		return;
 	}
 
@@ -900,7 +922,13 @@ void KeyboardScreen::enterScaleMode(int32_t selectedRootNote) {
 
 void KeyboardScreen::exitScaleMode() {
 	auto requiredScaleMode = layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->requiredScaleMode();
-	if (requiredScaleMode == RequiredScaleMode::Enabled) {
+
+	if (isInKeyLayoutDefault()
+	    && getCurrentInstrumentClip()->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeInKey) {
+		getCurrentInstrumentClip()->keyboardState.currentLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
+		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
+	}
+	else if (requiredScaleMode == RequiredScaleMode::Enabled) {
 		return;
 	}
 
