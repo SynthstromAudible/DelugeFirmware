@@ -86,7 +86,7 @@ const Colour defaultClipSectionColours[] = {RGB::fromHue(102), // bright light b
 
 Session::Session() {
 	cancelAllLaunchScheduling();
-	lastSectionArmed = 255;
+	lastSectionArmed = REALLY_OUT_OF_RANGE;
 }
 
 void Session::armAllClipsToStop(int32_t afterNumRepeats) {
@@ -143,14 +143,14 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
 		if (currentSong->sessionClips.getClipAtIndex(0)->section != oldSection) {
 
-			int32_t newSection = 254;
+			int32_t newSection = SECTION_OUT_OF_RANGE;
 			for (int32_t c = 1; c < currentSong->sessionClips.getNumElements(); c++) { // NOTE: starts at 1, not 0
 				Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 				int32_t tempSection = currentSong->sessionClips.getClipAtIndex(c - 1)->section;
-				if (currentSong->sections[tempSection].numRepetitions != -2) {
+				if (currentSong->sections[tempSection].numRepetitions != LAUNCH_EXCLUSIVE) {
 					newSection = tempSection;
 				}
-				if (clip->section == oldSection && newSection != 254) {
+				if (clip->section == oldSection && newSection != SECTION_OUT_OF_RANGE) {
 					userWantsToArmClipsToStartOrSolo(newSection, nullptr, true, false, false, numRepetitions, false);
 					lastSectionArmed = newSection;
 					return;
@@ -161,14 +161,14 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 	// grid mode - just go to the next section, no need to worry about what order they're in
 	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		if (oldSection < kMaxNumSections) {
-			int32_t newSection = 254;
+			int32_t newSection = SECTION_OUT_OF_RANGE;
 			for (int32_t c = oldSection + 1; c <= kMaxNumSections; ++c) {
-				if (currentSong->sections[c].numRepetitions != -2) {
+				if (currentSong->sections[c].numRepetitions != LAUNCH_EXCLUSIVE) {
 					newSection = c;
 					break;
 				}
 			}
-			if (newSection != 254) {
+			if (newSection != SECTION_OUT_OF_RANGE) {
 				userWantsToArmClipsToStartOrSolo(newSection, nullptr, true, false, false, numRepetitions, false);
 				lastSectionArmed = newSection;
 			}
@@ -178,7 +178,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 
 	// If we're here, that was the last section
 	armAllClipsToStop(numRepetitions);
-	lastSectionArmed = 254;
+	lastSectionArmed = SECTION_OUT_OF_RANGE;
 }
 
 // Returns whether it began
@@ -531,7 +531,7 @@ stopOnlyIfOutputTaken:
 	// separate undoability
 	actionLogger.closeAction(ActionType::RECORD);
 
-	bool sectionWasJustLaunched = (lastSectionArmed < 254);
+	bool sectionWasJustLaunched = (lastSectionArmed < SECTION_OUT_OF_RANGE);
 	bool anyLinearRecordingAfter = false;
 
 	// Now action the launching of Clips
@@ -646,7 +646,7 @@ doNormalLaunch:
 		// If we found a playing Clip outside of the armed section, or vice versa, then we can't say we legitimately
 		// just launched a section
 		if (clip->launchStyle != LaunchStyle::FILL && clipActiveAfter != (clip->section == lastSectionArmed)
-		    && currentSong->sections[clip->section].numRepetitions != -2) {
+		    && currentSong->sections[clip->section].numRepetitions != LAUNCH_EXCLUSIVE) {
 			sectionWasJustLaunched = false;
 		}
 	}
@@ -662,9 +662,9 @@ doNormalLaunch:
 		// Otherwise...
 		else {
 
-			bool sectionManuallyStopped = (lastSectionArmed == 254);
+			bool sectionManuallyStopped = (lastSectionArmed == SECTION_OUT_OF_RANGE);
 
-			lastSectionArmed = 255;
+			lastSectionArmed = REALLY_OUT_OF_RANGE;
 
 			// If no Clips active anymore...
 			if (!anyClipsStillActiveAfter) {
@@ -686,7 +686,7 @@ doNormalLaunch:
 
 						int32_t sectionToArm;
 						// And re-activate the first section
-						if (currentSong->sectionToReturnToAfterSongEnd < 254) {
+						if (currentSong->sectionToReturnToAfterSongEnd < SECTION_OUT_OF_RANGE) {
 							sectionToArm = currentSong->sectionToReturnToAfterSongEnd;
 						}
 						else {
@@ -988,8 +988,8 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 		return;
 	}
 
-	if (currentSong->sections[clip->section].numRepetitions != -2) {
-		lastSectionArmed = 255;
+	if (currentSong->sections[clip->section].numRepetitions != LAUNCH_EXCLUSIVE) {
+		lastSectionArmed = REALLY_OUT_OF_RANGE;
 	}
 
 	// If Clip armed, cancel arming - but not if it's an "instant" toggle
@@ -1152,7 +1152,7 @@ void Session::armClipToStopAction(Clip* clip) {
 }
 
 void Session::soloClipAction(Clip* clip, int32_t buttonPressLatency) {
-	lastSectionArmed = 255;
+	lastSectionArmed = REALLY_OUT_OF_RANGE;
 
 	bool anyClipsDeleted = false;
 
@@ -1202,7 +1202,7 @@ renderAndGetOut:
 void Session::armSection(uint8_t section, int32_t buttonPressLatency) {
 
 	// Get rid of soloing. And if we're not a "share" section, get rid of arming too
-	currentSong->turnSoloingIntoJustPlaying(currentSong->sections[section].numRepetitions > -1);
+	currentSong->turnSoloingIntoJustPlaying(currentSong->sections[section].numRepetitions >= 0);
 
 	// If every Clip in this section is already playing, and no other Clips are (unless we're a "share" section), then
 	// there's no need to launch the section because it's already playing. So, make sure this isn't the case before we
@@ -1250,7 +1250,7 @@ yupThatsFine:
 		    section, nullptr, stopAllOtherClips, false,
 		    false); // Don't allow "late start". It's too fiddly to implement, and rarely even useful for sections
 
-		if (currentSong->sections[section].numRepetitions != -2) {
+		if (currentSong->sections[section].numRepetitions != LAUNCH_EXCLUSIVE) {
 			lastSectionArmed = section;
 		}
 	}
@@ -1273,7 +1273,7 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t s
 		}
 
 		if (stopAllOtherClips && clip->section != section && clip->activeIfNoSolo
-		    && currentSong->sections[clip->section].numRepetitions != -2) {
+		    && currentSong->sections[clip->section].numRepetitions != LAUNCH_EXCLUSIVE) {
 			// thisClip->expectNoFurtherTicks(currentSong); // No, don't need this, cos it's not playing!
 			clip->activeIfNoSolo = false;
 		}
@@ -1708,7 +1708,7 @@ wantActive:
 
 weWantThisClipInactive:
 					// Clip is launched exclusively
-					if (currentSong->sections[thisClip->section].numRepetitions == -2) {
+					if (currentSong->sections[thisClip->section].numRepetitions == LAUNCH_EXCLUSIVE) {
 						if (thisClip->activeIfNoSolo) {
 							thisClip->armState = ArmState::OFF;
 						}
@@ -1966,7 +1966,7 @@ void Session::armClipLowLevel(Clip* clipToArm, ArmState armState, bool mustUnarm
 int32_t Session::userWantsToArmNextSection(int32_t numRepetitions) {
 
 	int32_t currentSection = getCurrentSection();
-	if (currentSection < 254) {
+	if (currentSection < SECTION_OUT_OF_RANGE) {
 		if (numRepetitions <= -1) {
 			numRepetitions = currentSong->sections[currentSection].numRepetitions;
 		}
@@ -1985,10 +1985,10 @@ int32_t Session::userWantsToArmNextSection(int32_t numRepetitions) {
 int32_t Session::getCurrentSection() {
 
 	if (currentSong->getAnyClipsSoloing()) {
-		return 255;
+		return REALLY_OUT_OF_RANGE;
 	}
 
-	int32_t section = 255;
+	int32_t section = REALLY_OUT_OF_RANGE;
 
 	bool anyUnlaunchedLoopablesInSection[kMaxNumSections];
 	memset(anyUnlaunchedLoopablesInSection, 0, sizeof(anyUnlaunchedLoopablesInSection));
@@ -1997,16 +1997,16 @@ int32_t Session::getCurrentSection() {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(l);
 
 		// Launch exclusively section
-		if (currentSong->sections[clip->section].numRepetitions == -2) {
+		if (currentSong->sections[clip->section].numRepetitions == LAUNCH_EXCLUSIVE) {
 			continue;
 		}
 
 		if (clip->activeIfNoSolo) {
-			if (section == 255) {
+			if (section == REALLY_OUT_OF_RANGE) {
 				section = clip->section;
 			}
 			else if (section != clip->section) {
-				return 254;
+				return SECTION_OUT_OF_RANGE;
 			}
 		}
 		else {
@@ -2018,7 +2018,7 @@ int32_t Session::getCurrentSection() {
 	}
 
 	if (anyUnlaunchedLoopablesInSection[section]) {
-		return 255;
+		return REALLY_OUT_OF_RANGE;
 	}
 	return section;
 }
@@ -2061,12 +2061,12 @@ void Session::setupPlayback() {
 
 	currentSong->setParamsInAutomationMode(playbackHandler.recording == RecordingMode::ARRANGEMENT);
 
-	lastSectionArmed = 255;
+	lastSectionArmed = REALLY_OUT_OF_RANGE;
 }
 
 // Returns whether to do an instant song swap
 bool Session::endPlayback() {
-	lastSectionArmed = 255;
+	lastSectionArmed = REALLY_OUT_OF_RANGE;
 
 	bool anyClipsRemoved = currentSong->deletePendingOverdubs();
 
@@ -2290,7 +2290,7 @@ traverseClips:
 			// If we're doing a song swap...
 			if (preLoadedSong) {
 				cancelAllLaunchScheduling();
-				lastSectionArmed = 255;
+				lastSectionArmed = REALLY_OUT_OF_RANGE;
 				playbackHandler.doSongSwap();
 				swappedSong = true;
 
@@ -2353,11 +2353,11 @@ traverseClips:
 	if (playbackHandler.lastSwungTickActioned == 0 || enforceSettingUpArming) {
 		int32_t currentSection = userWantsToArmNextSection();
 
-		if (currentSection < 254 && currentSong->areAllClipsInSectionPlaying(currentSection)) {
+		if (currentSection < SECTION_OUT_OF_RANGE && currentSong->areAllClipsInSectionPlaying(currentSection)) {
 			currentSong->sectionToReturnToAfterSongEnd = currentSection;
 		}
 		else {
-			currentSong->sectionToReturnToAfterSongEnd = 255;
+			currentSong->sectionToReturnToAfterSongEnd = REALLY_OUT_OF_RANGE;
 		}
 	}
 
@@ -2614,7 +2614,7 @@ void Session::stopOutputRecordingAtLoopEnd() {
 	// If no launch-event currently, plan one
 	if (!launchEventAtSwungTickCount) {
 		armAllClipsToStop(1);
-		lastSectionArmed = 254;
+		lastSectionArmed = SECTION_OUT_OF_RANGE;
 		armingChanged();
 	}
 
