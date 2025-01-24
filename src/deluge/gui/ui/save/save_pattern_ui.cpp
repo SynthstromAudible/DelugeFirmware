@@ -64,7 +64,7 @@ doReturnFalse:
 	if (getCurrentOutputType() == OutputType::KIT) {
 		patternFolder = PATTERN_RHYTMIC_DEFAULT_FOLDER;
 	}
-	else{
+	else {
 		patternFolder = PATTERN_MELODIC_DEFAULT_FOLDER;
 	}
 
@@ -93,7 +93,6 @@ bool SavePatternUI::performSave(bool mayOverwrite) {
 	if (display->have7SEG()) {
 		display->displayLoadingAnimation();
 	}
-
 
 	if (display->have7SEG()) {
 		display->displayLoadingAnimation();

@@ -484,7 +484,6 @@ Error StorageManager::openPatternFile(FilePointer* filePointer) {
 // Returns error status
 Error StorageManager::loadPatternFile(FilePointer* filePointer, String* fileName, bool pasteGently) {
 
-
 	AudioEngine::logAction("loadPatternFile");
 	D_PRINTLN("opening pattern file -  %s %s  from FP  %lu", fileName->get(), (int32_t)filePointer->sclust);
 
