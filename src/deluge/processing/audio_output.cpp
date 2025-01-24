@@ -16,7 +16,9 @@
  */
 
 #include "processing/audio_output.h"
+#include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "dsp/stereo_sample.h"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
@@ -30,7 +32,9 @@
 #include "storage/audio/audio_file.h"
 #include "storage/storage_manager.h"
 #include "util/lookuptables/lookuptables.h"
+#include <algorithm>
 #include <new>
+#include <ranges>
 
 extern "C" {
 #include "drivers/ssi/ssi.h"
@@ -90,17 +94,17 @@ void AudioOutput::cloneFrom(ModControllableAudio* other) {
 	}
 }
 
-void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, StereoSample* outputBufferEnd,
-                               int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-                               int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
+void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+                               int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
+                               bool isClipActive) {
 
 	ParamManager* paramManager = getParamManager(modelStack->song);
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
-	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, OutputType::AUDIO, recorder);
+	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
+	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
+	                                      isClipActive, OutputType::AUDIO, recorder);
 }
 
 void AudioOutput::resetEnvelope() {
@@ -115,33 +119,34 @@ void AudioOutput::resetEnvelope() {
 }
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
-bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* renderBuffer,
-                                                int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
-                                                int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                                bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
-                                                int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
+bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
+                                                std::span<StereoSample> render, int32_t* bufferToTransferTo,
+                                                int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                                                int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
+                                                bool isClipActive, int32_t pitchAdjust, int32_t amplitudeAtStart,
+                                                int32_t amplitudeAtEnd) {
 	bool rendered = false;
 	// audio outputs can have an activeClip while being muted
 	if (isClipActive) {
-		AudioClip* activeAudioClip = (AudioClip*)activeClip;
-		if (activeAudioClip->voiceSample) {
+		auto& activeAudioClip = static_cast<AudioClip&>(*activeClip);
+		if (activeAudioClip.voiceSample) {
 
 			int32_t attackNeutralValue = paramNeutralValues[params::LOCAL_ENV_0_ATTACK];
-			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip->attack >> 2));
+			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip.attack / 4));
 
 renderEnvelope:
 			int32_t amplitudeLocal =
-			    (envelope.render(numSamples, attack, 8388608, 2147483647, 0, decayTableSmall4) >> 1) + 1073741824;
+			    (envelope.render(render.size(), attack, 8388608, 2147483647, 0, decayTableSmall4) >> 1) + 1073741824;
 
 			if (envelope.state >= EnvelopeStage::OFF) {
-				if (activeAudioClip->doingLateStart) {
+				if (activeAudioClip.doingLateStart) {
 					resetEnvelope();
 					goto renderEnvelope;
 				}
 
 				else {
 					// I think we can only be here for one shot audio clips, so maybe we shouldn't keep it?
-					activeAudioClip->unassignVoiceSample(false);
+					activeAudioClip.unassignVoiceSample(false);
 				}
 			}
 
@@ -156,170 +161,97 @@ renderEnvelope:
 				int32_t amplitudeEffectiveEnd =
 				    multiply_32x32_rshift32(amplitudeLocal, amplitudeAtEnd); // Reduces amplitude another >>1
 
-				int32_t amplitudeIncrementEffective = (amplitudeEffectiveEnd - amplitudeEffectiveStart) / numSamples;
+				int32_t amplitudeIncrementEffective =
+				    static_cast<int32_t>(static_cast<double>(amplitudeEffectiveEnd - amplitudeEffectiveStart)
+				                         / static_cast<double>(render.size()));
 
-				int32_t* intBuffer = (int32_t*)renderBuffer;
-				activeAudioClip->render(modelStack, intBuffer, numSamples, amplitudeEffectiveStart,
-				                        amplitudeIncrementEffective, pitchAdjust);
+				std::span render_mono{reinterpret_cast<q31_t*>(render.data()), render.size()};
+				activeAudioClip.render(modelStack, render_mono, amplitudeEffectiveStart, amplitudeIncrementEffective,
+				                       pitchAdjust);
 				rendered = true;
 				amplitudeLastTime = amplitudeLocal;
 
 				// If we need to duplicate mono to stereo...
 				if (AudioOutput::willRenderAsOneChannelOnlyWhichWillNeedCopying()) {
-
 					// If can write directly into Song buffer...
-					if (bufferToTransferTo) {
-						int32_t const* __restrict__ input = intBuffer;
-						int32_t const* const inputBufferEnd = input + numSamples;
-						int32_t* __restrict__ output = bufferToTransferTo;
-
-						int32_t const* const remainderEnd = input + (numSamples & 1);
-
-						while (input != remainderEnd) {
-							*output += *input;
-							output++;
-							*output += *input;
-							output++;
-
-							input++;
-						}
-
-						while (input != inputBufferEnd) {
-							*output += *input;
-							output++;
-							*output += *input;
-							output++;
-							input++;
-
-							*output += *input;
-							output++;
-							*output += *input;
-							output++;
-							input++;
-						}
+					if (bufferToTransferTo != nullptr) {
+						std::ranges::transform(render_mono, reinterpret_cast<StereoSample*>(bufferToTransferTo),
+						                       StereoSample::fromMono);
 					}
 
 					// Or, if duplicating within same rendering buffer (cos there's FX to be applied)
 					else {
-						int32_t i = numSamples - 1;
-
-						int32_t firstStopAt = numSamples & ~3;
-
-						while (i >= firstStopAt) {
-							int32_t sampleValue = intBuffer[i];
-							intBuffer[(i << 1)] = sampleValue;
-							intBuffer[(i << 1) + 1] = sampleValue;
-							i--;
-						}
-
-						while (i >= 0) {
-							{
-								int32_t sampleValue = intBuffer[i];
-								intBuffer[(i << 1)] = sampleValue;
-								intBuffer[(i << 1) + 1] = sampleValue;
-								i--;
-							}
-
-							{
-								int32_t sampleValue = intBuffer[i];
-								intBuffer[(i << 1)] = sampleValue;
-								intBuffer[(i << 1) + 1] = sampleValue;
-								i--;
-							}
-
-							{
-								int32_t sampleValue = intBuffer[i];
-								intBuffer[(i << 1)] = sampleValue;
-								intBuffer[(i << 1) + 1] = sampleValue;
-								i--;
-							}
-
-							{
-								int32_t sampleValue = intBuffer[i];
-								intBuffer[(i << 1)] = sampleValue;
-								intBuffer[(i << 1) + 1] = sampleValue;
-								i--;
-							}
-						}
+						std::ranges::transform(render_mono.rbegin(), render_mono.rend(), render.rbegin(),
+						                       StereoSample::fromMono);
 					}
 				}
 			}
 		}
 	}
+
+	std::span<StereoSample> output = (bufferToTransferTo != nullptr)
+	                                     ? std::span{reinterpret_cast<StereoSample*>(bufferToTransferTo), render.size()}
+	                                     : render;
+
 	// add in the monitored audio if in sampler or looper mode
 	if (mode != AudioOutputMode::player && modelStack->song->isOutputActiveInArrangement(this)
 	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
-		StereoSample* __restrict__ outputPos = bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer;
-		StereoSample const* const outputPosEnd = outputPos + numSamples;
+		int32_t const* __restrict__ input_ptr = (int32_t const*)AudioEngine::i2sRXBufferPos;
 
-		int32_t const* __restrict__ inputReadPos = (int32_t const*)AudioEngine::i2sRXBufferPos;
-
-		AudioInputChannel inputChannelNow = inputChannel;
-		if (inputChannelNow == AudioInputChannel::STEREO && !AudioEngine::renderInStereo) {
-			inputChannelNow = AudioInputChannel::NONE; // 0 means combine channels
+		AudioInputChannel input_channel = this->inputChannel;
+		if (input_channel == AudioInputChannel::STEREO && !AudioEngine::renderInStereo) {
+			input_channel = AudioInputChannel::NONE; // 0 means combine channels
 		}
 
-		int32_t amplitudeIncrement = (int32_t)((double)(amplitudeAtEnd - amplitudeAtStart) / (double)numSamples);
-		int32_t amplitudeNow = amplitudeAtStart;
+		auto amplitude_increment = static_cast<int32_t>((static_cast<double>(amplitudeAtEnd - amplitudeAtStart) //
+		                                                 / static_cast<double>(render.size())));
+		int32_t amplitude = amplitudeAtStart;
 
-		do {
+		for (StereoSample& output_sample : output) {
+			amplitude += amplitude_increment;
 
-			amplitudeNow += amplitudeIncrement;
+			StereoSample input = {
+			    .l = multiply_32x32_rshift32(input_ptr[0], amplitude) << 2,
+			    .r = multiply_32x32_rshift32(input_ptr[1], amplitude) << 2,
+			};
 
-			int32_t inputL = multiply_32x32_rshift32(inputReadPos[0], amplitudeNow) << 2;
-			int32_t inputR = multiply_32x32_rshift32(inputReadPos[1], amplitudeNow) << 2;
-
-			switch (inputChannelNow) {
+			switch (input_channel) {
 			case AudioInputChannel::LEFT:
-				outputPos->l += inputL;
-				outputPos->r += inputL;
+				output_sample += StereoSample::fromMono(input.l);
 				break;
 
 			case AudioInputChannel::RIGHT:
-				outputPos->l += inputR;
-				outputPos->r += inputR;
+				output_sample += StereoSample::fromMono(input.r);
 				break;
 
-			case AudioInputChannel::BALANCED: {
-				int32_t difference = (inputL >> 1) - (inputR >> 1);
-				outputPos->l += difference;
-				outputPos->r += difference;
+			case AudioInputChannel::BALANCED:
+				output_sample += StereoSample::fromMono((input.l / 2) - (input.r / 2));
 				break;
-			}
 
 			case AudioInputChannel::NONE: // Means combine channels
-			{
-				int32_t sum = (inputL >> 1) + (inputR >> 1);
-				outputPos->l += sum;
-				outputPos->r += sum;
+				output_sample += StereoSample::fromMono((input.l / 2) + (input.r / 2));
 				break;
-			}
 
 			default: // STEREO
-				outputPos->l += inputL;
-				outputPos->r += inputR;
-
+				output_sample += input;
+				break;
 				// Remember, there is no case for echoing out the "output" channel - that function doesn't exist, cos
 				// you're obviously already hearing the output channel
 			}
 
-			outputPos++;
-
-			inputReadPos += NUM_MONO_INPUT_CHANNELS;
-			if (inputReadPos >= getRxBufferEnd()) {
-				inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+			input_ptr += NUM_MONO_INPUT_CHANNELS;
+			if (input_ptr >= getRxBufferEnd()) {
+				input_ptr -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 			}
-		} while (outputPos < outputPosEnd);
+		}
 	}
 	else if (mode != AudioOutputMode::player && modelStack->song->isOutputActiveInArrangement(this)
-	         && inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && outputRecordingFrom) {
+	         && inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && (outputRecordingFrom != nullptr)) {
 		rendered = true;
-		StereoSample* __restrict__ outputBuffer = bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer;
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		std::byte modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* songModelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-		outputRecordingFrom->renderOutput(songModelStack, outputBuffer, outputBuffer + numSamples, numSamples,
-		                                  reverbBuffer, reverbAmountAdjust, sideChainHitPending,
+		outputRecordingFrom->renderOutput(songModelStack, output, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
 		                                  shouldLimitDelayFeedback, isClipActive);
 	}
 	return rendered;

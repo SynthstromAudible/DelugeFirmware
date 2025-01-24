@@ -19,10 +19,18 @@
 
 #include "dsp/delay/delay_buffer.h"
 #include <cstdint>
+#include <span>
 
 class ParamManagerForTimeline;
 class ParamManager;
 class StereoSample;
+
+struct StutterConfig {
+	bool useSongStutter = true;
+	bool quantized = false;
+	bool reversed = false;
+	bool pingPong = false;
+};
 
 class Stutterer {
 public:
@@ -31,10 +39,10 @@ public:
 	inline bool isStuttering(void* source) { return stutterSource == source; }
 	// These calls are slightly awkward with the magniture & timePerTickInverse, but that's the price for not depending
 	// on currentSong and playbackhandler...
-	[[nodiscard]] Error beginStutter(void* source, ParamManagerForTimeline* paramManager, bool quantize,
+	[[nodiscard]] Error beginStutter(void* source, ParamManagerForTimeline* paramManager, StutterConfig stutterConfig,
 	                                 int32_t magnitude, uint32_t timePerTickInverse);
-	void processStutter(StereoSample* buffer, int32_t numSamples, ParamManager* paramManager, int32_t magnitude,
-	                    uint32_t timePerTickInverse, bool reverse);
+	void processStutter(std::span<StereoSample> audio, ParamManager* paramManager, int32_t magnitude,
+	                    uint32_t timePerTickInverse);
 	void endStutter(ParamManagerForTimeline* paramManager = nullptr);
 
 private:
@@ -44,12 +52,13 @@ private:
 		PLAYING,
 	};
 	int32_t getStutterRate(ParamManager* paramManager, int32_t magnitude, uint32_t timePerTickInverse);
+	bool currentReverse;
 	DelayBuffer buffer;
 	Status status = Status::OFF;
 	// TODO: This is currently unused! It's set to 7 initially, and never modified. Either we should set it depending
 	// on sync, or get rid of it entirely.
 	uint8_t sync = 7;
-	bool isQuantized = false;
+	StutterConfig stutterConfig;
 	int32_t sizeLeftUntilRecordFinished = 0;
 	int32_t valueBeforeStuttering = 0;
 	int32_t lastQuantizedKnobDiff = 0;

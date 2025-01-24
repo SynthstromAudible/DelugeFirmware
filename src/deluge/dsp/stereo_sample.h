@@ -23,6 +23,13 @@
 #include "util/functions.h"
 
 struct StereoSample {
+	[[gnu::always_inline]] static constexpr StereoSample fromMono(q31_t sampleValue) {
+		return StereoSample{
+		    .l = sampleValue,
+		    .r = sampleValue,
+		};
+	}
+
 	inline void addMono(q31_t sampleValue) {
 		l += sampleValue;
 		r += sampleValue;

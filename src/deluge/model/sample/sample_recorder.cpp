@@ -31,7 +31,9 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "util/exceptions.h"
+#include "util/fixedpoint.h"
 #include "util/functions.h"
+#include <algorithm>
 #include <new>
 
 extern "C" {
@@ -906,14 +908,10 @@ void SampleRecorder::finishCapturing() {
 
 // Only call this after checking that status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING
 // Watch out - this could be called during SD writing - including during cardRoutine() for this class!
-void SampleRecorder::feedAudio(int32_t* __restrict__ inputAddress, int32_t numSamples, bool applyGain,
-                               uint8_t gainToApply) {
-
+void SampleRecorder::feedAudio(std::span<StereoSample> input, bool applyGain, uint8_t gainToApply) {
+	int32_t numSamples = input.size();
 	do {
-		int32_t numSamplesThisCycle = numSamples;
-		if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle <= 0) {
-			FREEZE_WITH_ERROR("cccc");
-		}
+		int32_t numSamplesThisCycle = input.size();
 
 		// If haven't actually started recording yet cos we're compensating for lag...
 		if (numSamplesBeenRunning < (uint32_t)numSamplesToRunBeforeBeginningCapturing) {
@@ -962,7 +960,8 @@ doFinishCapturing:
 
 			if (bytesTilClusterEnd <= bytesWeWantToWrite - bytesPerSample) {
 				int32_t samplesTilClusterEnd =
-				    (uint16_t)(bytesTilClusterEnd - 1) / (uint8_t)bytesPerSample + 1; // Rounds up
+				    (static_cast<uint16_t>(bytesTilClusterEnd - 1) / static_cast<uint8_t>(bytesPerSample))
+				    + 1; // Rounds up
 				numSamplesThisCycle = std::min(numSamplesThisCycle, samplesTilClusterEnd);
 			}
 
@@ -970,56 +969,32 @@ doFinishCapturing:
 				FREEZE_WITH_ERROR("aaaa");
 			}
 
-			int32_t* beginInputNow = inputAddress;
-			int32_t* endInputNow = inputAddress + (numSamplesThisCycle << NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
-
-			char* __restrict__ writePosNow = writePos;
-
-			// Balanced input. For this, we skip a bunch of stat-grabbing, cos we knob this is just for AudioClips.
+			std::byte* __restrict__ writePosNow = reinterpret_cast<std::byte*>(writePos);
+			// Balanced input. For this, we skip a bunch of stat-grabbing, cos we know this is just for AudioClips.
 			// We also know that applyGain is false - that's just for the MIX option
 			if (mode == AudioInputChannel::BALANCED) {
+				for (StereoSample sample : input.first(numSamplesThisCycle)) {
+					q31_t rxBalanced = (sample.l / 2) - (sample.r / 2);
 
-				do {
-					int32_t rxL = *inputAddress;
-					int32_t rxR = *(inputAddress + 1);
-					int32_t rxBalanced = (rxL >> 1) - (rxR >> 1);
-
-					char* __restrict__ readPos = (char*)&rxBalanced + 1;
-					*(writePosNow++) = *(readPos++);
-					*(writePosNow++) = *(readPos++);
-					*(writePosNow++) = *(readPos++);
-
-					inputAddress += NUM_MONO_INPUT_CHANNELS;
-				} while (inputAddress < endInputNow);
+					// Copy the last 24 bits (lower 3 bytes) to writePosNow
+					writePosNow = std::copy_n(&reinterpret_cast<std::byte*>(&rxBalanced)[1], 3, writePosNow);
+				}
 			}
 
 			// Or, all other, non-balanced input types
 			else {
-				do {
-					int32_t rxL = *inputAddress;
+				for (auto [rxL, rxR] : input.first(numSamplesThisCycle)) {
 					if (applyGain) {
 						rxL = lshiftAndSaturateUnknown(rxL, gainToApply);
 					}
 
-					char* __restrict__ readPos = (char*)&rxL + 1;
-					*(writePosNow++) = *(readPos++);
-					*(writePosNow++) = *(readPos++);
-					*(writePosNow++) = *(readPos++);
+					// Copy the last 24 bits (lower 3 bytes) to writePosNow
+					writePosNow = std::copy_n(&reinterpret_cast<std::byte*>(&rxL)[1], 3, writePosNow);
 
-					if (rxL > recordMax) {
-						recordMax = rxL;
-					}
-					if (rxL < recordMin) {
-						recordMin = rxL;
-					}
+					recordMax = std::max(rxL, recordMax);
+					recordMin = std::min(rxL, recordMin);
 
-					int32_t absL;
-					if (rxL >= 0) {
-						absL = rxL;
-					}
-					else {
-						absL = -1 - rxL;
-					}
+					q31_t absL = (rxL >= 0) ? rxL : -1 - rxL;
 					recordSumL += absL;
 
 					if (rxL < recordPeakL) {
@@ -1028,51 +1003,29 @@ doFinishCapturing:
 					else if (-rxL < recordPeakL) {
 						recordPeakL = -rxL;
 					}
-					if (rxL == 2147483647 || rxL == -2147483648) {
+					if (rxL == std::numeric_limits<q31_t>::max() || rxL == std::numeric_limits<q31_t>::min()) {
 						recordingClippedRecently = true;
 					}
 
 					// recording stereo
 					if (recordingNumChannels == 2) {
-						int32_t rxR = *(inputAddress + 1);
 						if (applyGain) {
 							rxR = lshiftAndSaturateUnknown(rxR, gainToApply);
 						}
 
-						readPos = (char*)&rxR + 1;
-						*(writePosNow++) = *(readPos++);
-						*(writePosNow++) = *(readPos++);
-						*(writePosNow++) = *(readPos++);
+						// Copy the last 24 bits (lower 3 bytes) to writePosNow
+						writePosNow = std::copy_n(&reinterpret_cast<std::byte*>(&rxR)[1], 3, writePosNow);
 
-						if (rxR > recordMax) {
-							recordMax = rxR;
-						}
-						if (rxR < recordMin) {
-							recordMin = rxR;
-						}
+						recordMax = std::max(rxR, recordMax);
+						recordMin = std::min(rxR, recordMin);
 
-						if (rxR >= 0) {
-							recordSumR += rxR;
-						}
-						else {
-							recordSumR += -1 - rxR;
-						}
+						recordSumR += (rxR >= 0) ? rxR : -1 - rxR;
 
 						int32_t lPlusR = (rxL >> 1) + (rxR >> 1);
-						if (lPlusR >= 0) {
-							recordSumLPlusR += lPlusR;
-						}
-						else {
-							recordSumLPlusR += -1 - lPlusR;
-						}
+						recordSumLPlusR += (lPlusR >= 0) ? lPlusR : -1 - lPlusR;
 
 						int32_t lMinusR = (rxL >> 1) - (rxR >> 1);
-						if (lMinusR >= 0) {
-							recordSumLMinusR += lMinusR;
-						}
-						else {
-							recordSumLMinusR += -1 - lMinusR;
-						}
+						recordSumLMinusR += (lMinusR >= 0) ? lMinusR : -1 - lMinusR;
 
 						if (rxR < recordPeakR) {
 							recordPeakR = rxR;
@@ -1080,7 +1033,7 @@ doFinishCapturing:
 						else if (-rxR < recordPeakR) {
 							recordPeakR = -rxR;
 						}
-						if (rxR == 2147483647 || rxR == -2147483648) {
+						if (rxR == std::numeric_limits<q31_t>::max() || rxR == std::numeric_limits<q31_t>::min()) {
 							recordingClippedRecently = true;
 						}
 
@@ -1091,23 +1044,22 @@ doFinishCapturing:
 							recordPeakLMinusR = -lMinusR;
 						}
 					}
-
-					inputAddress += NUM_MONO_INPUT_CHANNELS;
-				} while (inputAddress < endInputNow);
+				}
 			}
+			// update our input view to exclude the chunk we just processed
+			input = input.subspan(numSamplesThisCycle);
 
 			// if we're not threshold recording or we're threshold recording and detected audio
 			if (!thresholdRecording || sample->audioStartDetected) {
-				writePos = writePosNow;
+				writePos = reinterpret_cast<char*>(writePosNow);
 				numSamplesCaptured += numSamplesThisCycle;
 			}
 			// if we're threshold recording and didn't detect audio in previous cycles
 			// check if there's any audio in this cycle
 			else {
-				StereoFloatSample approxRMSLevel =
-				    envelopeFollower.calcApproxRMS((StereoSample*)beginInputNow, numSamplesThisCycle);
+				StereoFloatSample approxRMSLevel = envelopeFollower.calcApproxRMS(input);
 				if (std::max(approxRMSLevel.l, approxRMSLevel.r) > startValueThreshold) {
-					writePos = writePosNow;
+					writePos = reinterpret_cast<char*>(writePosNow);
 					numSamplesCaptured += numSamplesThisCycle;
 					sample->audioStartDetected = true;
 				}
@@ -1117,7 +1069,7 @@ doFinishCapturing:
 		numSamplesBeenRunning += numSamplesThisCycle;
 
 		numSamples -= numSamplesThisCycle;
-	} while (numSamples);
+	} while (numSamples > 0);
 }
 
 void SampleRecorder::endSyncedRecording(int32_t buttonLatencyForTempolessRecording) {

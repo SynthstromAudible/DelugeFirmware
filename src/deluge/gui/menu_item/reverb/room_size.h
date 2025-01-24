@@ -32,6 +32,7 @@ public:
 	[[nodiscard]] std::string_view getName() const override {
 		using enum l10n::String;
 		switch (AudioEngine::reverb.getModel()) {
+		case dsp::Reverb::Model::DIGITAL:
 		case dsp::Reverb::Model::MUTABLE:
 			return l10n::getView(STRING_FOR_TIME);
 		default:

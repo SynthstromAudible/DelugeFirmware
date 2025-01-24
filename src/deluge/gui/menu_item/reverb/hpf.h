@@ -16,7 +16,7 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "dsp/reverb/mutable/reverb.hpp"
+#include "dsp/reverb/mutable.hpp"
 #include "dsp/reverb/reverb.hpp"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/integer.h"
@@ -33,7 +33,8 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return (AudioEngine::reverb.getModel() == dsp::Reverb::Model::MUTABLE);
+		auto model = AudioEngine::reverb.getModel();
+		return (model == dsp::Reverb::Model::MUTABLE) || (model == dsp::Reverb::Model::DIGITAL);
 	}
 };
 } // namespace deluge::gui::menu_item::reverb

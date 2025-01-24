@@ -669,16 +669,12 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
   removes itself from the signal path.
     - Note that it has no effect on square waves, it's best with sines and triangles
 
-#### 4.2.8 - Quantized Stutter
+#### 4.2.8 - Per-clip Stutter with options: Quantize, Reverse, and Ping-Pong
 
-- ([#357]) Set the stutter effect to be quantized to `4TH, 8TH, 16TH, 32ND, and 64TH` rate before triggering it. Once
-  you have pressed the `STUTTER`-related gold encoder, then the selected value will be the center value of the encoder
-  and you can go up and down with the golden encoder and come back to the original rate by centering the encoder (LEDs
-  will flash indicating it).
-
-    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
-
-
+- ([#3226]) Now the stutter buffer can also be set to play in reverse, and ping-pong. A new menu has been added to
+  the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song. An extra menu has been added
+  per sound source (either synths, kit rows, affect-entire kits, or audio clips) to set the stutter configuration
+  independently of the song configuration if you wish.
 
 #### 4.2.9 - Reverb Improvements
 
@@ -1201,11 +1197,6 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
 * `Alternative Golden Knob Delay Params (DELA)`
     * When On, it changes the behaviour of the Mod Encoder button action from the default (PingPong and Type) to the
       alternative params (SyncType and SyncLevel).
-* `Stutter Rate Quantize (STUT)`
-    * When On, the ability to set the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when
-      selecting it is enabled.
-* `Reverse Stutter Rate (RSTUT)`
-    * When On, the stutter buffer is reversed.
 * `Allow Insecure Develop Sysex Messages (SYSX)`
     * When On, the ability to load firmware over USB is enabled.
 * `Sync Scaling Action (SCAL)`
@@ -1580,6 +1571,8 @@ different firmware
 [#3079]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3079
 
 [#3213]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3213
+
+[#3226]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3226
 
 [#3279]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3279
 
