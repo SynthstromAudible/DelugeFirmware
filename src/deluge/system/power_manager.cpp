@@ -1,13 +1,8 @@
 #include "power_manager.h"
 #include "definitions.h"
-#include "hid/usb_check.h"
-#include "util/functions.h"
-#include "RZA1/mtu/mtu.h"
+#include "definitions_cxx.hpp"
 #include "RZA1/system/iodefine.h"
 #include "io/debug/log.h"
-#include <algorithm>
-#include <numeric>
-#include <cmath>
 
 namespace deluge::system {
 
@@ -15,120 +10,77 @@ namespace deluge::system {
 PowerManager powerManager;
 
 PowerManager::PowerManager()
-    : lastStableVoltage(0)
+    : voltageReadingLastTime(0)
+    , lastStableVoltage(0)
     , currentPowerSource(PowerSource::UNKNOWN)
-    , isChargingState(false)
-    , lastPowerSourceChangeTime(0) {
+    , isChargingState(false) {
+
+    // Initialize ADC for battery voltage reading
+    ADC.ADCSR = (1 << 15) |     // Start conversion
+                (1 << 13) |     // Enable ADC
+                (0b011 << 6) |  // Clock select
+                SYS_VOLT_SENSE_PIN;  // Channel select
 }
 
 void PowerManager::update() {
-    // Get new voltage reading from ADC - using existing ADC pattern
+    // Check if ADC conversion is complete
     if (ADC.ADCSR & (1 << 15)) {
-        // ADC is 12-bit, reading is in range 0-4095
-        int32_t numericReading = ADC.ADDRF;
-        // Convert to mV - scale by 3.3V reference
-        int32_t voltageReading = numericReading * 3300;
-        int32_t mV = voltageReading >> 12;  // Convert 12-bit reading to mV
+        // Get raw 12-bit ADC reading (0-4095)
+        int32_t numericReading = ADC.ADDRF & 0xFFF;
 
-        // Add to circular buffer
-        if (!voltageSamples.full()) {
-            voltageSamples.push(mV);
-        }
+        // Convert to mV:
+        // 1. Scale to 0-3300mV range (3.3V reference)
+        // 2. Double the result (voltage divider compensation)
+        // To avoid overflow: reading * (3300 * 2) / 4096
+        int32_t voltageReading = (numericReading * 6600) / 4096;
 
-        // Reject outliers and update power source
-        rejectOutliers();
+        // Apply low-pass filter
+        int32_t distanceToGo = voltageReading - lastStableVoltage;
+        lastStableVoltage += distanceToGo >> 4;  // Shift by 4 for smooth filtering
+
+        D_PRINTLN("Power: ADC=%d mV=%d", numericReading, lastStableVoltage);
+
+        // Update power source based on voltage
         updatePowerSource();
-
-        // Set up for next analog read
-        ADC.ADCSR = (1 << 13) | (0b011 << 6) | SYS_VOLT_SENSE_PIN;
-    }
-}
-
-int32_t PowerManager::calculateSmoothedVoltage() const {
-    if (voltageSamples.empty()) {
-        return lastStableVoltage;
     }
 
-    // Calculate exponential moving average
-    int32_t sum = 0;
-    int32_t weight = 1;
-    int32_t totalWeight = 0;
-
-    for (size_t i = 0; i < voltageSamples.size(); i++) {
-        sum += voltageSamples[i] * weight;
-        totalWeight += weight;
-        weight = (weight * 3) >> 2;  // Multiply by 0.75
-    }
-
-    return sum / totalWeight;
-}
-
-void PowerManager::rejectOutliers() {
-    if (voltageSamples.size() < 3) return;
-
-    // Calculate mean and standard deviation
-    int32_t sum = 0;
-    for (size_t i = 0; i < voltageSamples.size(); i++) {
-        sum += voltageSamples[i];
-    }
-    int32_t mean = sum / voltageSamples.size();
-
-    int32_t sumSquaredDiff = 0;
-    for (size_t i = 0; i < voltageSamples.size(); i++) {
-        int32_t diff = voltageSamples[i] - mean;
-        sumSquaredDiff += diff * diff;
-    }
-    int32_t stdDev = static_cast<int32_t>(std::sqrt(sumSquaredDiff / voltageSamples.size()));
-
-    // Remove values more than 2 standard deviations from mean
-    etl::circular_buffer<int32_t, SAMPLE_BUFFER_SIZE> newSamples;
-    for (size_t i = 0; i < voltageSamples.size(); i++) {
-        if (std::abs(voltageSamples[i] - mean) <= stdDev * 2) {
-            newSamples.push(voltageSamples[i]);
-        }
-    }
-    voltageSamples = newSamples;
+    // Always start a new conversion - this ensures we keep getting updates
+    ADC.ADCSR = (1 << 15) |     // Start conversion
+                (1 << 13) |     // Enable ADC
+                (0b011 << 6) |  // Clock select
+                SYS_VOLT_SENSE_PIN;  // Channel select
 }
 
 void PowerManager::updatePowerSource() {
-    PowerSource newSource = PowerSource::BATTERY;
-    bool newChargingState = false;
+    PowerSource newSource;
+    bool newCharging = false;
 
-    // Check USB power first
-    if (detectUSBPower()) {
+    // Use voltage thresholds to determine power source
+    if (lastStableVoltage > 4600) {  // Above 4.6V - definitely USB/DC power
         newSource = PowerSource::USB;
-        newChargingState = true;
+        newCharging = true;
     }
-    // Then check DC power
-    else if (detectDCPower()) {
-        newSource = PowerSource::DC_POWER;
-        newChargingState = true;
+    else if (lastStableVoltage > 4200) {  // Above 4.2V - fully charged
+        newSource = PowerSource::BATTERY;
+        newCharging = false;
     }
-
-    // Apply hysteresis to power source changes
-    uint32_t currentTime = *TCNT[TIMER_SYSTEM_SLOW];
-    if (newSource != currentPowerSource) {
-        if ((uint32_t)(currentTime - lastPowerSourceChangeTime) > msToSlowTimerCount(POWER_SOURCE_DEBOUNCE_MS)) {
-            currentPowerSource = newSource;
-            isChargingState = newChargingState;
-            lastPowerSourceChangeTime = currentTime;
-        }
+    else if (lastStableVoltage > 2900) {  // Above 2.9V - normal battery operation
+        newSource = PowerSource::BATTERY;
+        newCharging = false;
+    }
+    else {  // Below 2.9V - critical battery
+        newSource = PowerSource::BATTERY;
+        newCharging = false;
     }
 
-    // Update stable voltage with hysteresis
-    int32_t smoothedVoltage = calculateSmoothedVoltage();
-    if (std::abs(smoothedVoltage - lastStableVoltage) > VOLTAGE_HYSTERESIS_MV) {
-        lastStableVoltage = smoothedVoltage;
+    // Only log if state changed
+    if (newSource != currentPowerSource || newCharging != isChargingState) {
+        D_PRINTLN("Power state changed: source=%d->%d charging=%d->%d voltage=%d",
+                 (int)currentPowerSource, (int)newSource, isChargingState, newCharging, lastStableVoltage);
     }
-}
 
-bool PowerManager::detectUSBPower() const {
-    return check_usb_power_status() != 0;
-}
-
-bool PowerManager::detectDCPower() const {
-    // DC power typically shows up as a higher voltage
-    return lastStableVoltage > DC_POWER_THRESHOLD_MV;
+    currentPowerSource = newSource;
+    isChargingState = newCharging;
 }
 
 int32_t PowerManager::getStableVoltage() const {
@@ -140,7 +92,7 @@ PowerSource PowerManager::getPowerSource() const {
 }
 
 bool PowerManager::isExternalPowerConnected() const {
-    return currentPowerSource != PowerSource::BATTERY;
+    return currentPowerSource == PowerSource::USB;
 }
 
 bool PowerManager::isCharging() const {
@@ -148,14 +100,11 @@ bool PowerManager::isCharging() const {
 }
 
 int32_t PowerManager::getBatteryPercentage() const {
-    if (lastStableVoltage <= BATTERY_EMPTY_MV) {
-        return 0;
-    }
-    if (lastStableVoltage >= BATTERY_FULL_MV) {
-        return 100;
-    }
+    if (lastStableVoltage <= BATTERY_EMPTY_MV) return 0;
+    if (lastStableVoltage >= BATTERY_FULL_MV) return 100;
 
-    return ((lastStableVoltage - BATTERY_EMPTY_MV) * 100) / (BATTERY_FULL_MV - BATTERY_EMPTY_MV);
+    return ((lastStableVoltage - BATTERY_EMPTY_MV) * 100)
+           / (BATTERY_FULL_MV - BATTERY_EMPTY_MV);
 }
 
 } // namespace deluge::system

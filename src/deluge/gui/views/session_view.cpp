@@ -17,6 +17,7 @@
 
 #include "gui/views/session_view.h"
 #include "definitions_cxx.hpp"
+#include "deluge/system/power_manager.h"  // Move this up before other includes
 #include "deluge/hid/usb_check.h"
 #include "dsp/compressor/rms_feedback.h"
 #include "extern.h"
@@ -2090,56 +2091,64 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 }
 
 void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea) {
-	int32_t x = 0;
-	int32_t y = OLED_MAIN_TOPMOST_PIXEL + 4;
+    int32_t x = 0;
+    int32_t y = OLED_MAIN_TOPMOST_PIXEL + 4;
 
-	// Check if USB power is connected. Must be a better way to do this than just checking the battery voltage.
-	bool usbPowerConnected = (batteryMV > 4600);
+    // Get power status
+    bool usbPowerConnected = deluge::system::powerManager.isExternalPowerConnected();
+    int32_t batteryPercent = deluge::system::powerManager.getBatteryPercentage();
+    bool isCharging = deluge::system::powerManager.isCharging();
+    int32_t voltage = deluge::system::powerManager.getStableVoltage();
 
-	int32_t batteryPercent = (batteryMV - BATTERY_MV_MIN) * 100 / (BATTERY_MV_MAX - BATTERY_MV_MIN);
+    // Battery icon dimensions
+    int32_t iconWidth = 12;
+    int32_t iconHeight = 7;
+    int32_t iconSpacing = 3;
 
-	// Battery icon dimensions
-	int32_t iconWidth = 12; // Main body width
-	int32_t iconHeight = 7;
-	int32_t iconSpacing = 3;
+    if (clearArea) {
+        // Calculate width for icon + text + debug info
+        int32_t maxTextWidth = kTextSpacingX * 30; // Increased for debug info
+        canvas.clearAreaExact(x, y, x + iconWidth + 1 + iconSpacing + maxTextWidth, y + iconHeight);
+    }
 
-	if (clearArea) {
-		// Calculate exact text width for max "100%" (4 chars)
-		// TODO - 11 for now - to also show mV value
-		int32_t maxTextWidth = kTextSpacingX * 11;
-		canvas.clearAreaExact(x, y, x + iconWidth + 1 + iconSpacing + maxTextWidth, y + iconHeight);
-	}
+    // Draw battery outline
+    canvas.drawRectangle(x, y, x + iconWidth - 1, y + iconHeight - 1);
+    canvas.drawRectangle(iconWidth - 1, y + 2, iconWidth, y + 5);
 
-	// Draw battery outline
-	canvas.drawRectangle(x, y, x + iconWidth - 1, y + iconHeight - 1); // Body (11x7)
-	canvas.drawRectangle(iconWidth - 1, y + 2, iconWidth, y + 5);      // Terminal (1x3)
+    // When on external power
+    if (usbPowerConnected) {
+        if (isCharging) {
+            // Draw charging animation
+            for (int32_t i = 0; i < 3; i++) {
+                int32_t baseX = x + 2 + (i * 3);
+                canvas.drawPixel(baseX, y + 2);
+                canvas.drawPixel(baseX + 1, y + 3);
+                canvas.drawPixel(baseX, y + 4);
+            }
+            canvas.drawString("CHG", x + iconWidth + iconSpacing, y - 1, kTextSpacingX, kTextSpacingY);
+        } else {
+            // Fill battery completely
+            for (int32_t i = 0; i < 3; i++) {
+                int32_t segmentX = x + 2 + (i * 3);
+                canvas.drawRectangle(segmentX, y + 2, segmentX + 1, y + 4);
+            }
+            canvas.drawString("USB", x + iconWidth + iconSpacing, y - 1, kTextSpacingX, kTextSpacingY);
+        }
+    }
+    // On battery power
+    else {
+        int32_t numSegments = (batteryPercent * 3) / 100;
+        for (int32_t i = 0; i < numSegments; i++) {
+            int32_t segmentX = x + 2 + (i * 3);
+            canvas.drawRectangle(segmentX, y + 2, segmentX + 1, y + 4);
+        }
+        canvas.drawString("BAT", x + iconWidth + iconSpacing, y - 1, kTextSpacingX, kTextSpacingY);
+    }
 
-	// When USB power is connected, show charging arrows pattern
-	if (usbPowerConnected) {
-		// Draw three arrow patterns using checkerboard pixels
-		for (int32_t i = 0; i < 3; i++) {
-			int32_t baseX = x + 2 + (i * 3);
-			// Three pixel arrow
-			canvas.drawPixel(baseX, y + 2);     // Top pixel
-			canvas.drawPixel(baseX + 1, y + 3); // Middle pixel
-			canvas.drawPixel(baseX, y + 4);     // Bottom pixel
-		}
-
-		// When USB connected, just show "USB" text
-		canvas.drawString("USB", x + iconWidth + iconSpacing, y - 1, kTextSpacingX, kTextSpacingY);
-	}
-	// Or show battery segments based on battery level (0-3)
-	else if (batteryCurrentRegion > 0) {
-		for (int32_t i = 0; i < batteryCurrentRegion; i++) {
-			int32_t segmentX = x + 2 + (i * 3);                         // 2px segment + 1px gap
-			canvas.drawRectangle(segmentX, y + 2, segmentX + 1, y + 4); // 2px wide, 3px tall
-		}
-
-		// Draw percentage text only when on battery power
-		char text[16];
-		snprintf(text, sizeof(text), "%d%% %dmV", batteryPercent, batteryMV);
-		canvas.drawString(text, x + iconWidth + iconSpacing, y - 1, kTextSpacingX, kTextSpacingY);
-	}
+    // Draw debug info after the battery status
+    char debugText[32];
+    snprintf(debugText, sizeof(debugText), " %dv1 %d%%", voltage, batteryPercent);
+    canvas.drawString(debugText, x + iconWidth + iconSpacing + 30, y - 1, kTextSpacingX, kTextSpacingY);
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
