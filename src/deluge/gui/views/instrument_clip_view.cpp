@@ -258,7 +258,7 @@ ActionResult InstrumentClipView::commandExitScaleMode() {
 
 ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
-	D_PRINTLN("ButtonAction: Button: %i State %i",b,currentUIMode);
+
 	// Scale mode button
 	if (b == SCALE_MODE) {
 		return handleScaleButtonAction(on, inCardRoutine);
@@ -1081,7 +1081,7 @@ void InstrumentClipView::copyNotes(Serializer* writer) {
 
 	bool copyToFile = false;
 	if (writer) {
-       	copyToFile = true;
+		copyToFile = true;
 	}
 
 	// Clear out previously copied stuff
@@ -1105,7 +1105,7 @@ void InstrumentClipView::copyNotes(Serializer* writer) {
 
 		writer->writeAttribute("patternVersion", PATTERN_FILE_VERSION);
 		writer->writeAttribute("screenWidth", copiedScreenWidth);
-		writer->writeAttribute("scaleType",static_cast<int32_t>(copiedScaleType));
+		writer->writeAttribute("scaleType", static_cast<int32_t>(copiedScaleType));
 		writer->writeAttribute("yNoteOfBottomRow", getCurrentInstrumentClip()->getYNoteFromYDisplay(0, currentSong));
 
 		writer->closeTag();
@@ -1415,10 +1415,8 @@ getOut:
 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTES_PASTED));
 }
 
-Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader, bool overwriteExisting){
+Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader, bool overwriteExisting) {
 	Error error = Error::NONE;
-
-
 
 	if (false) {
 ramError:
@@ -1504,7 +1502,6 @@ ramError:
 
 							currentNote = 0;
 
-
 						}
 						else if (!strcmp(tagName, "yNote")) {
 							int16_t yNote = reader.readTagOrAttributeValueInt();
@@ -1539,7 +1536,6 @@ ramError:
 									goto getOut;
 								}
 
-
 								Note* newNote = &newCopiedNoteRow->notes[currentNote];
 
 								int32_t pos = hexToIntFixedLength(hexChars, 8);
@@ -1568,15 +1564,10 @@ ramError:
 
 							}
 getOut: {}
-
 						}
-
 					}
-
 				}
-
 			}
-
 		}
 	}
 
@@ -1584,9 +1575,7 @@ getOut: {}
 	pasteNotes(overwriteExisting);
 
 	return Error::NONE;
-
 }
-
 
 void InstrumentClipView::doubleClipLengthAction() {
 
@@ -3421,7 +3410,7 @@ ActionResult InstrumentClipView::handleNoteEditorHorizontalEncoderAction(int32_t
 
 ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
-	D_PRINTLN("NoteEditor: Button: %i State %i",b,currentUIMode);
+
 	// to allow you to zoom in / out
 	// to allow you to toggle fill
 	if (b == X_ENC || b == SYNC_SCALING) {
@@ -3657,7 +3646,7 @@ ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int3
 
 ActionResult InstrumentClipView::handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
-	D_PRINTLN("RowEditor: Button: %i State %i",b,currentUIMode);
+
 	// to allow you to zoom in / out
 	// to allow you to toggle fill
 	if (b == X_ENC || b == SYNC_SCALING) {
@@ -5129,8 +5118,6 @@ void InstrumentClipView::cancelAllAuditioning() {
 }
 
 void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording) {
-
-	D_PRINTLN("enterDrumCreator");
 
 	char const* prefix;
 	String soundName;

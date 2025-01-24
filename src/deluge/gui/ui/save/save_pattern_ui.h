@@ -39,9 +39,6 @@ public:
 
 private:
 	std::string defaultFolder;
-
 };
-
-
 
 extern SavePatternUI savePatternUI;

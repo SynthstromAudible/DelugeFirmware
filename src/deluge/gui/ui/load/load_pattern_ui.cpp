@@ -47,8 +47,7 @@ bool LoadPatternUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 bool LoadPatternUI::opened() {
 	D_PRINTLN("opened");
 	overwriteExistingState = true;
-	if (!getRootUI()->toClipMinder()
-		|| ( getCurrentOutputType() == OutputType::AUDIO )  ) {
+	if (!getRootUI()->toClipMinder() || ( getCurrentOutputType() == OutputType::AUDIO )  ) {
 		return false;
 	}
 
@@ -81,7 +80,6 @@ void LoadPatternUI::currentFileChanged(int32_t movementDirection) {
 	D_PRINTLN("chagned");
 
 	FileItem* currentFileItem = getCurrentFileItem();
-
 
 	if (!currentFileItem->isFolder) {
 
