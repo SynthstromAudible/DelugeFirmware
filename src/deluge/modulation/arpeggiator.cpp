@@ -1446,9 +1446,9 @@ bool ArpeggiatorSettings::readCommonTagsFromFile(Deserializer& reader, char cons
 		updatePresetFromCurrentSettings();
 	}
 	else if (!strcmp(tagName, "chordType")) {
-		uint8_t chordTypeIndex = (uint8_t)reader.readTagOrAttributeValueInt();
-		if (chordTypeIndex >= 0 && chordTypeIndex < MAX_CHORD_TYPES) {
-			chordTypeIndex = chordTypeIndex;
+		uint8_t value = (uint8_t)reader.readTagOrAttributeValueInt();
+		if (value >= 0 && value < MAX_CHORD_TYPES) {
+			chordTypeIndex = value;
 		}
 	}
 	else if (!strcmp(tagName, "noteMode")) {
