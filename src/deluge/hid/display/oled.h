@@ -137,6 +137,8 @@ public:
 	bool hasPopup() override { return isPopupPresent(); }
 	bool hasPopupOfType(PopupType type) override { return isPopupPresentOfType(type); }
 
+	void drawPowerStatus(int x, int y);
+
 private:
 	static bool needsSending;
 };

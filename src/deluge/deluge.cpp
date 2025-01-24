@@ -16,6 +16,29 @@
  */
 
 #include "deluge.h"
+#include "system/power_manager.h"
+#include "gui/views/session_view.h"
+#include "gui/views/view.h"
+#include "hid/led/indicator_leds.h"
+#include "hid/led/pad_leds.h"
+#include "hid/buttons.h"
+#include "hid/encoders.h"
+#include "hid/matrix/matrix_driver.h"
+#include "hid/display/oled.h"
+#include "hid/display/seven_segment.h"
+#include "io/debug/print.h"
+#include "io/midi/midi_engine.h"
+#include "drivers/uart/uart.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/file_item.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
+#include "util/cfunctions.h"
+#include "gui/ui/root_ui.h"
+#include "gui/ui_timer_manager.h"
+#include "model/settings/runtime_feature_settings.h"
+#include "model/settings/runtime_feature_settings.h"
+#include "fatfs/fatfs.hpp"
 
 #include "RZA1/sdhi/inc/sdif.h"
 #include "definitions_cxx.hpp"
@@ -29,42 +52,27 @@
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
-#include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/session_view.h"
-#include "gui/views/view.h"
-#include "hid/buttons.h"
-#include "hid/display/display.h"
-#include "hid/display/oled.h"
-#include "hid/display/seven_segment.h"
-#include "hid/encoders.h"
-#include "hid/led/indicator_leds.h"
-#include "hid/led/pad_leds.h"
-#include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
-#include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "lib/printf.h" // IWYU pragma: keep this over rides printf with a non allocating version
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/output.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
-#include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/smsysex.h"
-#include "storage/storage_manager.h"
 #include "util/misc.h"
 #include "util/pack.h"
 #include <stdlib.h>
@@ -152,55 +160,30 @@ void inputRoutine() {
 		AudioEngine::lineInPluggedIn = lineInNow;
 	}
 
-	// Battery voltage
-	// If analog read is ready...
+	// Update power management
+	auto& powerManager = deluge::system::powerManager;
+	powerManager.update();
 
-	if (ADC.ADCSR & (1 << 15)) {
-		int32_t numericReading = ADC.ADDRF;
-		// Apply LPF
-		int32_t voltageReading = numericReading * 3300;
-		int32_t distanceToGo = voltageReading - voltageReadingLastTime;
-		voltageReadingLastTime += distanceToGo >> 4;
-
-		// We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a
-		// resistive divider already
-		batteryMV = (voltageReadingLastTime) >> 15;
-
-		int32_t newBatteryMV = batteryMV;
-
-		// Update battery display if voltage has changed significantly
-		// TODO: Do we need this, can it be self-contained in session_view?
-		sessionView.displayPotentialBatteryChange(newBatteryMV);
-
-
-		// See if we've reached threshold to change verdict on battery level
-		if (batteryCurrentRegion == 0) {
-			if (batteryMV > 2950) {
-makeBattLEDSolid:
-				batteryCurrentRegion = 1;
-				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, false);
-				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
-			}
-		}
-		else if (batteryCurrentRegion == 1) {
-			if (batteryMV < 2900) {
-				batteryCurrentRegion = 0;
+	// Update battery LED based on power status
+	if (powerManager.isExternalPowerConnected()) {
+		// When on external power, LED is solid
+		setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
+		uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
+	} else {
+		// On battery, LED behavior depends on battery level
+		int32_t batteryPercent = powerManager.getBatteryPercentage();
+		if (batteryPercent > 80) {
+			// High battery - solid LED
+			setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
+			uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
+		} else if (batteryPercent > 20) {
+			// Medium battery - LED off
+			setOutputState(BATTERY_LED.port, BATTERY_LED.pin, false);
+			uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
+		} else {
+			// Low battery - blinking LED
+			if (!uiTimerManager.isTimerSet(TimerName::BATT_LED_BLINK)) {
 				batteryLEDBlink();
-			}
-			else if (batteryMV > 3800) {
-				batteryCurrentRegion = 3;
-				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
-				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
-			}
-			else if (batteryMV > 3300) {
-				batteryCurrentRegion = 2;
-				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
-				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
-			}
-		}
-		else {
-			if (batteryMV < 3200) {
-				goto makeBattLEDSolid;
 			}
 		}
 	}
@@ -675,7 +658,7 @@ void mainLoop() {
 		audioRecorder.slowRoutine();
 
 #if AUTOPILOT_TEST_ENABLED
-		autoPilotStuff();
+	autoPilotStuff();
 #endif
 	}
 }
@@ -1403,3 +1386,6 @@ void spamMode() {
 }
 
 #endif
+
+class View;  // Forward declaration
+extern View view;

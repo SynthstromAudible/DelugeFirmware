@@ -33,6 +33,11 @@
 #include "util/d_string.h"
 #include <string.h>
 #include <string_view>
+#include "system/power_manager.h"
+#include "hid/display/oled_canvas/canvas.h"
+#include "gui/views/view.h"
+
+using namespace deluge::hid::display::oled_canvas;  // For drawing functions
 
 extern "C" {
 #include "RZA1/oled/oled_low_level.h"
@@ -1295,6 +1300,68 @@ void OLED::displayError(Error error) {
 	}
 	displayPopup(message);
 	D_PRINTLN(message);
+}
+
+void OLED::drawPowerStatus(int x, int y) {
+    auto& powerManager = deluge::system::powerManager;
+
+    // Battery icon dimensions
+    constexpr int iconWidth = 12;
+    constexpr int iconHeight = 7;
+    constexpr int iconSpacing = 3;
+
+    // Draw battery outline
+    main.drawRectangle(x, y, x + iconWidth - 1, y + iconHeight - 1);  // Body
+    main.drawRectangle(iconWidth - 1, y + 2, iconWidth, y + 3);       // Terminal
+
+    auto powerSource = powerManager.getPowerSource();
+    bool isCharging = powerManager.isCharging();
+
+    if (isCharging) {
+        // Draw charging animation (three arrows)
+        for (int i = 0; i < 3; i++) {
+            int baseX = x + 2 + (i * 3);
+            main.drawPixel(baseX, y + 2);     // Top pixel
+            main.drawPixel(baseX + 1, y + 3); // Middle pixel
+            main.drawPixel(baseX, y + 4);     // Bottom pixel
+        }
+    } else {
+        // Draw battery level fill
+        int batteryPercent = powerManager.getBatteryPercentage();
+        int fillWidth = (iconWidth - 2) * batteryPercent / 100;
+        // Fill by drawing vertical lines
+        for (int i = x + 1; i <= x + fillWidth; i++) {
+            main.drawVerticalLine(i, y + 1, y + iconHeight - 2);
+        }
+    }
+
+    // Draw power source indicator
+    const char* sourceText;
+    switch (powerSource) {
+        case deluge::system::PowerSource::USB:
+            sourceText = "USB";
+            break;
+        case deluge::system::PowerSource::DC_POWER:
+            sourceText = "DC";
+            break;
+        case deluge::system::PowerSource::BATTERY:
+            sourceText = isCharging ? "CHG" : "";
+            break;
+        default:
+            sourceText = "";
+    }
+
+    if (*sourceText) {
+        main.drawString(sourceText, x + iconWidth + iconSpacing, y, 6, 8);
+    }
+
+    // Draw battery percentage if on battery and not charging
+    if (powerSource == deluge::system::PowerSource::BATTERY && !isCharging) {
+        char percentStr[5];
+        intToString(powerManager.getBatteryPercentage(), percentStr);
+        main.drawString(percentStr, x + iconWidth + iconSpacing, y, 6, 8);
+        main.drawChar('%', x + iconWidth + iconSpacing + main.getStringWidthInPixels(percentStr, 8), y, 6, 8);
+    }
 }
 
 } // namespace deluge::hid::display
