@@ -777,6 +777,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MPE_LOWER_ZONE, "MPE lower zone"},
         {STRING_FOR_MPE_UPPER_ZONE, "MPE upper zone"},
         {STRING_FOR_CHANNEL, "Channel"},
+        {STRING_FOR_NOTE, "Note"},
         {STRING_FOR_SET, "SET"},
         {STRING_FOR_UNLEARNED, "UNLEARNED"},
         {STRING_FOR_LEARNED, "LEARNED"},

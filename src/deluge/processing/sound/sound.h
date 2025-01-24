@@ -116,6 +116,10 @@ public:
 	int8_t unisonDetune;
 	uint8_t unisonStereoSpread;
 
+	// For sending MIDI notes for SoundDrums
+	uint8_t outputMidiChannel{MIDI_CHANNEL_NONE};
+	uint8_t outputMidiNoteForDrum{MIDI_NOTE_NONE};
+
 	int16_t modulatorTranspose[kNumModulators];
 	int8_t modulatorCents[kNumModulators];
 
@@ -130,6 +134,8 @@ public:
 	int32_t volumeNeutralValueForUnison;
 
 	int32_t lastNoteCode;
+
+	int32_t lastMidiNoteOffSent;
 
 	bool oscillatorSync;
 
