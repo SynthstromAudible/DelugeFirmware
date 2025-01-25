@@ -187,7 +187,7 @@ In this case, you will need to ensure that MIDI Feedback Filter Responses is set
 
 ## Appendix A - List of Deluge Parameters with Default Mapped CC's
 
-<img width="470" alt="image" src="https://github.com/user-attachments/assets/8e64ae13-7864-42a2-b537-a5f8d909efa4">
+<img width="470" alt="image" src="https://github.com/user-attachments/assets/12f4292f-d3fe-4048-a3e8-44f6dcfc3c41">
 
 ## Appendix B - Loopy Pro Template for Deluge MIDI Follow Mode
 
