@@ -192,6 +192,9 @@ as the micromonsta and the dreadbox nymphes.
 
 - ([#3062]) Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
 
+- ([#3313]) Added a new submenu `MIDI` to the `SOUND` menu for sample or synth based rows, where you can select the MIDI channel and note
+  that will be sent at the same time as the sample triggers. It is like having a Sound row + a Midi row together triggering at the same time.
+
 #### 3.7 - Global Interface
 
 - ([#118]) Sticky Shift - When enabled, tapping `SHIFT` will lock shift `ON` unless another button is also pressed
@@ -1570,6 +1573,8 @@ different firmware
 [#3226]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3226
 
 [#3279]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3279
+
+[#3313]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3313
 
 [Automation View Documentation]: features/automation_view.md
 
