@@ -192,7 +192,7 @@ as the micromonsta and the dreadbox nymphes.
 
 - ([#3062]) Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
 
-- ([#3313]) Added a new submenu `MIDI` to the `SOUND` menu for sample or synth based rows, where you can select the MIDI channel and base note
+- ([#3313]) There is a new submenu `MIDI` added to the `SOUND` menu for sample or synth based rows, where you can select the MIDI channel and base note
   that will be sent at the same time as the sample triggers. It is like having a Sound row + a Midi row together triggering at the same time.
   This will allow your drums to trigger external devices at the same time, for example, an external sidechain compressor triggered by MIDI.
   The Midi note being sent is modified in sync with the arpeggiator pattern, so if the pitch changes due to the `Octaves` parameter or due to
