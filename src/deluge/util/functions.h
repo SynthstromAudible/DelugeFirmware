@@ -168,7 +168,6 @@ ArpNoteMode oldModeToArpNoteMode(OldArpMode oldMode);
 ArpOctaveMode oldModeToArpOctaveMode(OldArpMode oldMode);
 
 char const* oldArpModeToString(OldArpMode mode);
-char const* arpPresetToOldArpMode(ArpPreset preset);
 OldArpMode stringToOldArpMode(char const* string);
 
 char const* arpModeToString(ArpMode mode);
