@@ -35,18 +35,24 @@ extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;
 
 GeneralMemoryAllocator::GeneralMemoryAllocator() {
-	uint32_t stealableStart = (uint32_t)&__sdram_bss_end;
-	uint32_t stealableEnd = EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR;
-	uint32_t externalStart = stealableEnd;
-	uint32_t externalEnd = EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_SMALL_ALLOCATOR;
-	uint32_t externalSmallStart = externalEnd;
 	uint32_t externalSmallEnd = EXTERNAL_MEMORY_END;
+	uint32_t externalSmallStart = externalSmallEnd - RESERVED_EXTERNAL_SMALL_ALLOCATOR;
+	uint32_t externalEnd = externalSmallStart;
+	uint32_t externalStart = externalSmallStart - RESERVED_EXTERNAL_ALLOCATOR;
+	uint32_t stealableEnd = externalStart;
+	uint32_t stealableStart = (uint32_t)&__sdram_bss_end;
 
-	uint32_t internalStart = (uint32_t)&__heap_start;
-	uint32_t internalEnd = (uint32_t)&program_stack_start - RESERVED_INTERNAL_SMALL;
-	uint32_t internalSmallStart = internalEnd;
 	uint32_t internalSmallEnd = (uint32_t)&program_stack_start;
+	uint32_t internalSmallStart = internalSmallEnd - RESERVED_INTERNAL_SMALL;
+	uint32_t internalEnd = internalSmallStart;
+	uint32_t internalStart = (uint32_t)&__heap_start;
+
 	lock = false;
+	regions[MEMORY_REGION_STEALABLE].name = "stealable";
+	regions[MEMORY_REGION_INTERNAL].name = "internal";
+	regions[MEMORY_REGION_EXTERNAL].name = "external";
+	regions[MEMORY_REGION_EXTERNAL_SMALL].name = "small external";
+	regions[MEMORY_REGION_INTERNAL_SMALL].name = "small internal";
 
 	regions[MEMORY_REGION_STEALABLE].setup(emptySpacesMemory, sizeof(emptySpacesMemory), stealableStart, stealableEnd,
 	                                       &cacheManager);
@@ -54,25 +60,15 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	                                      externalEnd, nullptr);
 	regions[MEMORY_REGION_EXTERNAL_SMALL].setup(emptySpacesMemoryGeneralSmall, sizeof(emptySpacesMemoryGeneralSmall),
 	                                            externalSmallStart, externalSmallEnd, nullptr);
-	regions[MEMORY_REGION_EXTERNAL_SMALL].minAlign_ = 24;
-	regions[MEMORY_REGION_EXTERNAL_SMALL].maxAlign_ = 64;
+	regions[MEMORY_REGION_EXTERNAL_SMALL].minAlign_ = 16;
 	regions[MEMORY_REGION_EXTERNAL_SMALL].pivot_ = 64;
 	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal), internalStart,
 	                                      internalEnd, nullptr);
 
 	regions[MEMORY_REGION_INTERNAL_SMALL].setup(emptySpacesMemoryInternalSmall, sizeof(emptySpacesMemoryInternalSmall),
 	                                            internalSmallStart, internalSmallEnd, nullptr);
-	regions[MEMORY_REGION_INTERNAL_SMALL].minAlign_ = 24;
-	regions[MEMORY_REGION_INTERNAL_SMALL].maxAlign_ = 64;
+	regions[MEMORY_REGION_INTERNAL_SMALL].minAlign_ = 16;
 	regions[MEMORY_REGION_INTERNAL_SMALL].pivot_ = 64;
-
-#if ALPHA_OR_BETA_VERSION
-	regions[MEMORY_REGION_STEALABLE].name = "stealable";
-	regions[MEMORY_REGION_INTERNAL].name = "internal";
-	regions[MEMORY_REGION_EXTERNAL].name = "external";
-	regions[MEMORY_REGION_EXTERNAL_SMALL].name = "small external";
-	regions[MEMORY_REGION_INTERNAL_SMALL].name = "small internal";
-#endif
 }
 
 int32_t closestDistance = 2147483647;

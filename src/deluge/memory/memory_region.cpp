@@ -53,6 +53,7 @@ void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize,
 	firstRecord->length = memorySizeWithoutHeaders;
 	firstRecord->address = regionBegin + 8;
 	cache_manager_ = cacheManager;
+	D_PRINTLN("%x to %x: Memory region %s", start, end, name);
 }
 
 uint32_t MemoryRegion::padSize(uint32_t requiredSize) {
