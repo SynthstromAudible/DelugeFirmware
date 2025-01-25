@@ -24,7 +24,8 @@
 #include "util/misc.h"
 
 SampleCache::SampleCache(Sample* newSample, int32_t newNumClusters, int32_t newWaveformLengthBytes,
-                         int32_t newPhaseIncrement, int32_t newTimeStretchRatio, int32_t newSkipSamplesAtStart, bool newReversed) {
+                         int32_t newPhaseIncrement, int32_t newTimeStretchRatio, int32_t newSkipSamplesAtStart,
+                         bool newReversed) {
 	sample = newSample;
 	phaseIncrement = newPhaseIncrement;
 	timeStretchRatio = newTimeStretchRatio;

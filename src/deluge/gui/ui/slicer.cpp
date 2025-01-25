@@ -661,7 +661,8 @@ getOut:
 		}
 #endif
 
-		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].sampleControls.isReversed(), CLUSTER_ENQUEUE);
+		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].sampleControls.isReversed(),
+		                                             CLUSTER_ENQUEUE);
 		if (doEnvelopes) {
 			ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 			ModelStackWithParamId* modelStackWithParamId =

@@ -789,7 +789,8 @@ LoopType AudioClip::getLoopingType(ModelStackWithTimelineCounter const* modelSta
 	// Normally we'll loop at the lowest level - but not if user has inserted silence at the end
 	// (put the end-pos beyond the end of the Sample)
 
-	// return (sampleControls.isReversed() || sampleHolder.endPos <= ((Sample*)sampleHolder.audioFile)->lengthInSamples);
+	// return (sampleControls.isReversed() || sampleHolder.endPos <=
+	// ((Sample*)sampleHolder.audioFile)->lengthInSamples);
 
 	// Note that the actual "loop points" don't get obeyed for AudioClips - if any looping happens at the low level,
 	// it'll only be at the very end of the waveform if we happen to reach it.

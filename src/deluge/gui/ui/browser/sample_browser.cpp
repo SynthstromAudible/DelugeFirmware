@@ -734,8 +734,8 @@ Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCost
 		return error;
 	}
 
-	return holder->loadFile(soundEditor.currentSource->sampleControls.isReversed(), true, true, CLUSTER_ENQUEUE, nullptr,
-	                        makeWaveTableWorkAtAllCosts);
+	return holder->loadFile(soundEditor.currentSource->sampleControls.isReversed(), true, true, CLUSTER_ENQUEUE,
+	                        nullptr, makeWaveTableWorkAtAllCosts);
 }
 
 Error SampleBrowser::claimAudioFileForAudioClip() {

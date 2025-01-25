@@ -4022,7 +4022,8 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	unpatchedParams->writeParamAsAttribute(writer, "spreadVelocity", params::UNPATCHED_SPREAD_VELOCITY,
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "spreadGate", params::UNPATCHED_ARP_SPREAD_GATE, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "spreadOctave", params::UNPATCHED_ARP_SPREAD_OCTAVE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "spreadOctave", params::UNPATCHED_ARP_SPREAD_OCTAVE,
+	                                       writeAutomation);
 
 	writer.writeOpeningTagEnd();
 

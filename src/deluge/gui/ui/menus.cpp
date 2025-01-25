@@ -289,8 +289,8 @@ arpeggiator::ArpSoundUnpatchedParam arpSpreadGateMenu{STRING_FOR_SPREAD_GATE, ST
                                                       params::UNPATCHED_ARP_SPREAD_GATE};
 arpeggiator::midi_cv::SpreadGate arpSpreadGateMenuMIDIOrCV{STRING_FOR_SPREAD_GATE,
                                                            STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE};
-arpeggiator::ArpSoundUnpatchedParam arpSpreadOctaveMenu{STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE,
-                                                        params::UNPATCHED_ARP_SPREAD_OCTAVE};
+arpeggiator::ArpSoundUnpatchedParam arpSpreadOctaveMenu{
+    STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_OCTAVE};
 arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD_OCTAVE,
                                                                STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
 
