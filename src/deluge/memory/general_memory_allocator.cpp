@@ -151,14 +151,13 @@ void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
 		address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, false, NULL);
 	}
 	lock = false;
-	if (!address) {
+	if (address == nullptr) {
 		// FREEZE_WITH_ERROR("M998");
-		return nullptr;
 	}
 	return address;
 }
 void GeneralMemoryAllocator::deallocExternal(void* address) {
-	return regions[getRegion(address)].dealloc(address);
+	regions[getRegion(address)].dealloc(address);
 }
 
 // Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code
@@ -178,11 +177,9 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 	if (!makeStealable) {
 		// If internal is allowed, try that first
 		if (mayUseOnChipRam) {
-			lock = true;
 			address = allocInternal(requiredSize);
-			lock = false;
 
-			if (address) {
+			if (address != nullptr) {
 				return address;
 			}
 
@@ -233,6 +230,10 @@ int32_t GeneralMemoryAllocator::getRegion(void* address) {
 	else if (value >= regions[MEMORY_REGION_EXTERNAL_SMALL].start
 	         && value < regions[MEMORY_REGION_EXTERNAL_SMALL].end) {
 		return MEMORY_REGION_EXTERNAL_SMALL;
+	}
+	else if (value >= regions[MEMORY_REGION_INTERNAL_SMALL].start
+	         && value < regions[MEMORY_REGION_INTERNAL_SMALL].end) {
+		return MEMORY_REGION_INTERNAL_SMALL;
 	}
 
 	FREEZE_WITH_ERROR("E339");
