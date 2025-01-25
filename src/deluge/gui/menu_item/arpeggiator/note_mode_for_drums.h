@@ -22,20 +22,17 @@
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class NoteMode : public Selection {
+class NoteModeForDrums : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->noteMode); }
 	void writeCurrentValue() override {
 		soundEditor.currentArpSettings->noteMode = this->getValue<ArpNoteMode>();
 		soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
-		if (soundEditor.currentArpSettings->noteMode == ArpNoteMode::PATTERN) {
-			soundEditor.currentArpSettings->generateNewNotePattern();
-		}
 		soundEditor.currentArpSettings->flagForceArpRestart = true;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingKit();
+		return soundEditor.editingKit() && !soundEditor.editingGateDrumRow();
 	}
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
@@ -45,29 +42,27 @@ public:
 		(void)optType;
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_UP),        //<
-		    l10n::getView(STRING_FOR_DOWN),      //<
-		    l10n::getView(STRING_FOR_UP_DOWN),   //<
-		    l10n::getView(STRING_FOR_RANDOM),    //<
-		    l10n::getView(STRING_FOR_WALK1),     //<
-		    l10n::getView(STRING_FOR_WALK2),     //<
-		    l10n::getView(STRING_FOR_WALK3),     //<
-		    l10n::getView(STRING_FOR_AS_PLAYED), //<
-		    l10n::getView(STRING_FOR_PATTERN),   //<
+		    l10n::getView(STRING_FOR_UP),      //<
+		    l10n::getView(STRING_FOR_DOWN),    //<
+		    l10n::getView(STRING_FOR_UP_DOWN), //<
+		    l10n::getView(STRING_FOR_RANDOM),  //<
+		    l10n::getView(STRING_FOR_WALK1),   //<
+		    l10n::getView(STRING_FOR_WALK2),   //<
+		    l10n::getView(STRING_FOR_WALK3),   //<
 		};
 	}
 };
 
-class NoteModeFromOctaveMode final : public NoteMode {
+class NoteModeFromOctaveModeForDrums final : public NoteModeForDrums {
 public:
-	using NoteMode::NoteMode;
+	using NoteModeForDrums::NoteModeForDrums;
 	void readCurrentValue() override {
 		if (display->have7SEG()) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTE_MODE));
 		}
-		NoteMode::readCurrentValue();
+		NoteModeForDrums::readCurrentValue();
 	}
 };
 
-extern NoteModeFromOctaveMode arpNoteModeFromOctaveModeMenu;
+extern NoteModeFromOctaveModeForDrums arpNoteModeFromOctaveModeMenuForDrums;
 } // namespace deluge::gui::menu_item::arpeggiator

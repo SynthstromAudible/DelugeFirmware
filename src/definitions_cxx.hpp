@@ -533,6 +533,7 @@ enum class ArpPreset {
 	DOWN,
 	BOTH,
 	RANDOM,
+	WALK,
 	CUSTOM,
 };
 
@@ -540,8 +541,12 @@ enum class ArpNoteMode {
 	UP,
 	DOWN,
 	UP_DOWN,
-	AS_PLAYED,
 	RANDOM,
+	WALK1,
+	WALK2,
+	WALK3,
+	AS_PLAYED,
+	PATTERN,
 };
 
 enum class ArpOctaveMode {
