@@ -73,6 +73,7 @@ public:
 
 private:
 	friend class CacheManager;
+	friend class GeneralMemoryAllocator;
 	// manages "stealables" for a memory region, only used in external stealable region
 	CacheManager* cache_manager_;
 	uint32_t numAllocations_{0};

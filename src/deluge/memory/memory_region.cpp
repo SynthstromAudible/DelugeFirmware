@@ -303,7 +303,11 @@ gotEmptySpace:
 
 		allocatedSize = emptySpaceRecord->length;
 		allocatedAddress = emptySpaceRecord->address;
-
+		if (allocatedAddress < start || allocatedAddress > end) {
+			// trying to allocate outside our region
+			D_PRINTLN("Memory region out of bounds at %x, start is %x and end is %x", allocatedAddress, start, end);
+			FREEZE_WITH_ERROR("M002");
+		}
 		int32_t extraSpaceSizeWithoutItsHeaders = allocatedSize - requiredSize - 8;
 		if (extraSpaceSizeWithoutItsHeaders < -8) {
 			FREEZE_WITH_ERROR("M003");
@@ -374,7 +378,9 @@ justUpdateRecord:
 	// Or if no empty space big enough, try stealing some memory
 	else {
 noEmptySpace:
-		allocatedAddress = cache_manager_->ReclaimMemory(*this, requiredSize, thingNotToStealFrom, &allocatedSize);
+		if (cache_manager_) {
+			allocatedAddress = cache_manager_->ReclaimMemory(*this, requiredSize, thingNotToStealFrom, &allocatedSize);
+		}
 		if (!allocatedAddress) {
 #if ALPHA_OR_BETA_VERSION
 			if (name) {
@@ -415,13 +421,12 @@ noEmptySpace:
 	*header = headerData;
 	*footer = headerData;
 
-#if TEST_GENERAL_MEMORY_ALLOCATION
-	numAllocations++;
-#endif
+	numAllocations_++;
 
 #if ALPHA_OR_BETA_VERSION
 	if (allocatedAddress < start || allocatedAddress > end) {
 		// trying to allocate outside our region
+		D_PRINTLN("Memory region out of bounds at %x, start is %x and end is %x", allocatedAddress, start, end);
 		FREEZE_WITH_ERROR("M002");
 	}
 #endif
