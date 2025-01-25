@@ -219,7 +219,7 @@ For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MI
     - Open again the "Deluge Midi Follow" project and click the pencil to edit the UI, and drag a rectangle selection all the page.
       Copy it, open your own project and in an empy page, paste it. Do the same with the other page with Stepped Dials.
 
-<img alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/316279c5e091cdeb7d50828e407789966fb53abc/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.png">
+<img alt="image" src="https://raw.githubusercontent.com/SynthstromAudible/DelugeFirmware/refs/heads/community/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.png">
 
 ## Appendix C - Touch OSC Template for Deluge MIDI Follow Mode
 
