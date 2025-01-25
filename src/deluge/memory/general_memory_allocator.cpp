@@ -54,13 +54,17 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	                                      externalEnd, nullptr);
 	regions[MEMORY_REGION_EXTERNAL_SMALL].setup(emptySpacesMemoryGeneralSmall, sizeof(emptySpacesMemoryGeneralSmall),
 	                                            externalSmallStart, externalSmallEnd, nullptr);
-	regions[MEMORY_REGION_INTERNAL].minAlign_ = 24;
-	regions[MEMORY_REGION_INTERNAL].maxAlign_ = 64;
-	regions[MEMORY_REGION_INTERNAL].pivot_ = 64;
+	regions[MEMORY_REGION_EXTERNAL_SMALL].minAlign_ = 24;
+	regions[MEMORY_REGION_EXTERNAL_SMALL].maxAlign_ = 64;
+	regions[MEMORY_REGION_EXTERNAL_SMALL].pivot_ = 64;
 	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal), internalStart,
 	                                      internalEnd, nullptr);
+
 	regions[MEMORY_REGION_INTERNAL_SMALL].setup(emptySpacesMemoryInternalSmall, sizeof(emptySpacesMemoryInternalSmall),
-	                                            internalStart, internalEnd, nullptr);
+	                                            internalSmallStart, internalSmallEnd, nullptr);
+	regions[MEMORY_REGION_INTERNAL_SMALL].minAlign_ = 24;
+	regions[MEMORY_REGION_INTERNAL_SMALL].maxAlign_ = 64;
+	regions[MEMORY_REGION_INTERNAL_SMALL].pivot_ = 64;
 
 #if ALPHA_OR_BETA_VERSION
 	regions[MEMORY_REGION_STEALABLE].name = "stealable";
@@ -175,7 +179,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 		// If internal is allowed, try that first
 		if (mayUseOnChipRam) {
 			lock = true;
-			address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, makeStealable, thingNotToStealFrom);
+			address = allocInternal(requiredSize);
 			lock = false;
 
 			if (address) {
