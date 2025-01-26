@@ -76,6 +76,7 @@ public:
 		    l10n::getView(STRING_FOR_DOWN),   //<
 		    l10n::getView(STRING_FOR_BOTH),   //<
 		    l10n::getView(STRING_FOR_RANDOM), //<
+		    l10n::getView(STRING_FOR_WALK),   //<
 		    l10n::getView(STRING_FOR_CUSTOM), //<
 		};
 	}
@@ -83,6 +84,9 @@ public:
 	MenuItem* selectButtonPress() override {
 		auto current_value = this->getValue<ArpPreset>();
 		if (current_value == ArpPreset::CUSTOM) {
+			if (soundEditor.editingKit()) {
+				return &arpeggiator::arpOctaveModeToNoteModeMenuForDrums;
+			}
 			return &arpeggiator::arpOctaveModeToNoteModeMenu;
 		}
 		return nullptr;
