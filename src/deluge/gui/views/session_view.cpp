@@ -3596,6 +3596,7 @@ void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput)
 	while (targetOutput->getClipFromName(&newNameString) != nullptr) {
 		newName.truncate(end);
 		newName.appendInt(counter++);
+		newNameString.set(newName.data());
 	}
 	target->name.set(newName.data());
 }
