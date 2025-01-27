@@ -2147,7 +2147,7 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
 
     // Draw debug info after the battery status
     char debugText[32];
-    snprintf(debugText, sizeof(debugText), " %dv1 %d%%", voltage, batteryPercent);
+    snprintf(debugText, sizeof(debugText), " %dv2 %d%%", voltage, batteryPercent);
     canvas.drawString(debugText, x + iconWidth + iconSpacing + 30, y - 1, kTextSpacingX, kTextSpacingY);
 }
 
@@ -2422,6 +2422,7 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 			DEF_STACK_STRING_BUF(tempoBPM, 10);
 			playbackHandler.getTempoStringForOLED(tempo, tempoBPM);
 			displayTempoBPM(deluge::hid::display::OLED::main, tempoBPM, true);
+			displayBatteryStatus(deluge::hid::display::OLED::main, false);
 			deluge::hid::display::OLED::markChanged();
 			lastDisplayedTempo = tempo;
 		}
@@ -2430,16 +2431,31 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 
 // checks if battery voltage has changed and updates it if required
 void SessionView::displayPotentialBatteryChange(uint16_t newBatteryMV) {
-	// Only update display if we're in the session view
+    // Only update display if we're in the session view
+    if (getCurrentUI() == this) {
+        // Always update if:
+        // 1. Voltage has changed significantly (50mV)
+        // 2. Last displayed value is 0 (first time or just entered view)
+        // 3. Every ~1 second
+        static uint32_t lastUpdateTime = 0;
+        uint32_t currentTime = *TCNT[TIMER_SYSTEM_SLOW];
 
-	if (getCurrentUI() == this) {
-		// Only redraw display if voltage has changed significantly (50mV roughly 5% of full scale)
-		if (abs(newBatteryMV - lastDisplayedBatteryMV) > 50) {
-			lastDisplayedBatteryMV = newBatteryMV;
-			displayBatteryStatus(deluge::hid::display::OLED::main);
-			deluge::hid::display::OLED::markChanged();
-		}
-	}
+        if (abs(newBatteryMV - lastDisplayedBatteryMV) > 50 ||
+            lastDisplayedBatteryMV == 0 ||
+            (uint32_t)(currentTime - lastUpdateTime) > msToSlowTimerCount(1000)) {
+
+            lastDisplayedBatteryMV = newBatteryMV;
+            lastUpdateTime = currentTime;
+
+            displayBatteryStatus(deluge::hid::display::OLED::main);
+            deluge::hid::display::OLED::markChanged();
+        }
+    }
+    else {
+        // Reset last displayed value when not in session view
+        // This ensures we update immediately when returning to session view
+        lastDisplayedBatteryMV = 0;
+    }
 }
 
 /// display number of bars or quarter notes remaining until a launch event

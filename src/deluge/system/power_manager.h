@@ -24,8 +24,9 @@ public:
     bool isCharging() const;
 
     // Battery voltage thresholds in mV
-    static constexpr int32_t BATTERY_FULL_MV = 4200;    // 4.2V fully charged
-    static constexpr int32_t BATTERY_EMPTY_MV = 2900;   // 2.9V cutoff voltage
+    static constexpr int32_t USB_THRESHOLD_MV = 4500;
+    static constexpr int32_t BATTERY_FULL_MV = 4200;
+    static constexpr int32_t BATTERY_EMPTY_MV = 3000;
 
 private:
     int32_t voltageReadingLastTime;  // For voltage filtering
@@ -35,7 +36,6 @@ private:
 
     void updatePowerSource();
 };
-
 // Global instance
 extern PowerManager powerManager;
 

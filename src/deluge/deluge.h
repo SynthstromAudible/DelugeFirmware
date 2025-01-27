@@ -53,6 +53,9 @@ char const* l10n_get(size_t s);
 
 extern uint8_t batteryCurrentRegion;
 
+void uartFlushIfNotSending(int32_t);
+void uartPutCharBack(int32_t);
+
 #ifdef __cplusplus
 }
 #endif

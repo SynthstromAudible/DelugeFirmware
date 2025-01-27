@@ -16,29 +16,28 @@
  */
 
 #include "deluge.h"
-#include "system/power_manager.h"
+#include "drivers/uart/uart.h"
+#include "fatfs/fatfs.hpp"
+#include "gui/ui/root_ui.h"
+#include "gui/ui_timer_manager.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/led/indicator_leds.h"
-#include "hid/led/pad_leds.h"
 #include "hid/buttons.h"
-#include "hid/encoders.h"
-#include "hid/matrix/matrix_driver.h"
 #include "hid/display/oled.h"
 #include "hid/display/seven_segment.h"
+#include "hid/encoders.h"
+#include "hid/led/indicator_leds.h"
+#include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
-#include "drivers/uart/uart.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"
+#include "system/power_manager.h"
 #include "util/cfunctions.h"
-#include "gui/ui/root_ui.h"
-#include "gui/ui_timer_manager.h"
-#include "model/settings/runtime_feature_settings.h"
-#include "model/settings/runtime_feature_settings.h"
-#include "fatfs/fatfs.hpp"
+#include "util/functions.h"
 
 #include "RZA1/sdhi/inc/sdif.h"
 #include "definitions_cxx.hpp"
@@ -130,6 +129,10 @@ void batteryLEDBlink() {
 void inputRoutine() {
 	disk_timerproc(UI_MS_PER_REFRESH);
 
+	if (display->haveOLED() && getCurrentUI() == &sessionView) {
+		sessionView.displayBatteryStatus(deluge::hid::display::OLED::main);
+	}
+
 	// Check if mono output cable plugged in
 	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin) != 0u;
 	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin) != 0u;
@@ -169,18 +172,21 @@ void inputRoutine() {
 		// When on external power, LED is solid
 		setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
 		uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
-	} else {
+	}
+	else {
 		// On battery, LED behavior depends on battery level
 		int32_t batteryPercent = powerManager.getBatteryPercentage();
 		if (batteryPercent > 80) {
 			// High battery - solid LED
 			setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
 			uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
-		} else if (batteryPercent > 20) {
+		}
+		else if (batteryPercent > 20) {
 			// Medium battery - LED off
 			setOutputState(BATTERY_LED.port, BATTERY_LED.pin, false);
 			uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
-		} else {
+		}
+		else {
 			// Low battery - blinking LED
 			if (!uiTimerManager.isTimerSet(TimerName::BATT_LED_BLINK)) {
 				batteryLEDBlink();
@@ -195,7 +201,6 @@ void inputRoutine() {
 
 	uiTimerManager.setTimer(TimerName::READ_INPUTS, 100);
 }
-
 int32_t nextPadPressIsOn = USE_DEFAULT_VELOCITY; // Not actually used for 40-pad
 bool alreadyDoneScroll = false;
 bool waitingForSDRoutineToEnd = false;
@@ -658,7 +663,7 @@ void mainLoop() {
 		audioRecorder.slowRoutine();
 
 #if AUTOPILOT_TEST_ENABLED
-	autoPilotStuff();
+		autoPilotStuff();
 #endif
 	}
 }
@@ -713,7 +718,7 @@ extern "C" int32_t deluge_main(void) {
 	setPinMux(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin, 2);
 
 	// Line out detect pins
-	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
+	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_R.pin);
 	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
 	// SPI for CV
@@ -1387,5 +1392,5 @@ void spamMode() {
 
 #endif
 
-class View;  // Forward declaration
+class View; // Forward declaration
 extern View view;
