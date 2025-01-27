@@ -27,7 +27,6 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
-#include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -1287,23 +1286,6 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_FOLD, readAutomationUpToPos);
 		reader.exitTag("waveFold");
 	}
-	else if (!strcmp(tagName, "sendMidiOut")) {
-		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "channel")) {
-				outputMidiChannel = reader.readTagOrAttributeValueInt();
-				reader.exitTag("channel");
-			}
-			else if (!strcmp(tagName, "noteForDrum")) {
-				outputMidiNoteForDrum = reader.readTagOrAttributeValueInt();
-				reader.exitTag("noteForDrum");
-			}
-			else {
-				reader.exitTag(tagName);
-			}
-		}
-		reader.exitTag("sendMidiOut", true);
-	}
 
 	else {
 		Error result =
@@ -1682,27 +1664,6 @@ justUnassign:
 	}
 
 	lastNoteCode = noteCodePostArp; // Store for porta. We store that at both note-on and note-off.
-
-	// Send midi out for sound drums
-	if (outputMidiNoteForDrum != MIDI_NOTE_NONE && outputMidiChannel != MIDI_CHANNEL_NONE) {
-		int32_t noteCodeDiff = noteCodePostArp - kNoteForDrum;
-		int32_t outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
-		if (outputNoteCode < 0) {
-			outputNoteCode = 0;
-		}
-		else if (outputNoteCode > 127) {
-			outputNoteCode = 127;
-		}
-		midiEngine.sendNote(this, true, outputNoteCode, velocity, outputMidiChannel, 0);
-		lastMidiNoteOffSent = -1; // Clear the status for last note off
-
-		// If the note doesn't have a tail (for ONCE samples for example), we will never get a noteOff event to be
-		// called, so we need to "off" the note right now
-		if (!allowNoteTails(modelStack, true)) {
-			midiEngine.sendNote(this, false, outputNoteCode, 64, outputMidiChannel, 0);
-			lastMidiNoteOffSent = outputNoteCode;
-		}
-	}
 }
 
 void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator) {
@@ -1782,22 +1743,6 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 			else {
 justSwitchOff:
 				thisVoice->noteOff(modelStackWithVoice);
-
-				// Send midi out for sound drums
-				if (outputMidiNoteForDrum != MIDI_NOTE_NONE && outputMidiChannel != MIDI_CHANNEL_NONE) {
-					int32_t noteCodeDiff = thisVoice->noteCodeAfterArpeggiation - kNoteForDrum;
-					int32_t outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
-					if (outputNoteCode < 0) {
-						outputNoteCode = 0;
-					}
-					else if (outputNoteCode > 127) {
-						outputNoteCode = 127;
-					}
-					if (outputNoteCode != lastMidiNoteOffSent) {
-						midiEngine.sendNote(this, false, outputNoteCode, 64, outputMidiChannel, 0);
-						lastMidiNoteOffSent = outputNoteCode;
-					}
-				}
 			}
 		}
 	}
@@ -4191,12 +4136,6 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		}
 	}
 	writer.writeArrayEnding("modKnobs");
-
-	// Output MIDI note for Drums
-	writer.writeOpeningTagBeginning("sendMidiOut");
-	writer.writeAttribute("channel", outputMidiChannel);
-	writer.writeAttribute("noteForDrum", outputMidiNoteForDrum);
-	writer.closeTag();
 
 	ModControllableAudio::writeTagsToFile(writer);
 }

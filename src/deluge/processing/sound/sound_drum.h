@@ -31,14 +31,26 @@ public:
 	String path;
 	bool nameIsDiscardable;
 
+	// For sending MIDI notes for SoundDrums
+	uint8_t outputMidiChannel{MIDI_CHANNEL_NONE};
+	uint8_t outputMidiNote{MIDI_NOTE_NONE};
+
+	int32_t lastMidiNoteOffSent;
+
 	SoundDrum();
 	bool isDrum() override { return true; }
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) override;
 	bool anyNoteIsOn() override;
 	bool hasAnyVoices() override;
+
+	void noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
+	                           int32_t newNoteCodeAfterArpeggiation, int32_t velocity, int16_t const* mpeValues,
+	                           uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
+	                           int32_t fromMIDIChannel = 16) override;
 	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
 	            int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	            uint32_t samplesLate = 0) override;
+	void noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode = ALL_NOTES_OFF) override;
 	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) override;
 	void unassignAllVoices() override;
 	void setupPatchingForAllParamManagers(Song* song) override;

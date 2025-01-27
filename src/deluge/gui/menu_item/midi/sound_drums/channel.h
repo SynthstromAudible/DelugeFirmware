@@ -19,7 +19,8 @@
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
-#include "processing/sound/sound.h"
+#include "model/song/song.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::midi::sound_drums {
 
@@ -32,7 +33,8 @@ public:
 		return soundEditor.editingKit() && !soundEditor.editingNonAudioDrumRow();
 	}
 	void readCurrentValue() override {
-		int32_t value = soundEditor.currentSound->outputMidiChannel;
+		SoundDrum* soundDrum = (SoundDrum*)((Kit*)currentSong->getCurrentClip()->output)->selectedDrum;
+		int32_t value = soundDrum->outputMidiChannel;
 		if (value == MIDI_CHANNEL_NONE) {
 			value = 0;
 		}
@@ -49,7 +51,8 @@ public:
 		else {
 			value = value - 1;
 		}
-		soundEditor.currentSound->outputMidiChannel = value;
+		SoundDrum* soundDrum = (SoundDrum*)((Kit*)currentSong->getCurrentClip()->output)->selectedDrum;
+		soundDrum->outputMidiChannel = value;
 	}
 
 	void drawValue() override {

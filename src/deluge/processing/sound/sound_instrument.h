@@ -66,6 +66,12 @@ public:
 	              int32_t fromMIDIChannel, uint8_t velocity, uint32_t sampleSyncLength, int32_t ticksLate,
 	              uint32_t samplesLate) override;
 
+	void noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
+	                           int32_t newNoteCodeAfterArpeggiation, int32_t velocity, int16_t const* mpeValues,
+	                           uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
+	                           int32_t fromMIDIChannel = 16) override;
+	void noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode = ALL_NOTES_OFF) override;
+
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr) override;
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 

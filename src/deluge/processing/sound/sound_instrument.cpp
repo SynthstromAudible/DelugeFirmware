@@ -410,6 +410,18 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 	}
 }
 
+void SoundInstrument::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp,
+                                            int32_t noteCodePostArp, int32_t velocity, int16_t const* mpeValues,
+                                            uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
+                                            int32_t fromMIDIChannel) {
+	Sound::noteOnPostArpeggiator(modelStack, noteCodePreArp, noteCodePostArp, velocity, mpeValues, sampleSyncLength,
+	                             ticksLate, samplesLate, fromMIDIChannel);
+}
+
+void SoundInstrument::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode) {
+	Sound::noteOffPostArpeggiator(modelStack, noteCode);
+}
+
 ArpeggiatorSettings* SoundInstrument::getArpSettings(InstrumentClip* clip) {
 	return MelodicInstrument::getArpSettings(clip);
 }

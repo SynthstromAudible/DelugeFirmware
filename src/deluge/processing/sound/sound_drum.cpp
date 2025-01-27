@@ -20,6 +20,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
+#include "io/midi/midi_engine.h"
 #include "mem_functions.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
@@ -28,6 +29,7 @@
 #include "model/voice/voice.h"
 #include "model/voice/voice_vector.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 #include <new>
@@ -58,7 +60,23 @@ bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
 		reader.readTagOrAttributeValueString(&path);
 		reader.exitTag("path");
 	}
-
+	else if (!strcmp(tagName, "midiOutput")) {
+		reader.match('{');
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "channel")) {
+				outputMidiChannel = reader.readTagOrAttributeValueInt();
+				reader.exitTag("channel");
+			}
+			else if (!strcmp(tagName, "note")) {
+				outputMidiNote = reader.readTagOrAttributeValueInt();
+				reader.exitTag("note");
+			}
+			else {
+				reader.exitTag(tagName);
+			}
+		}
+		reader.exitTag("midiOutput", true);
+	}
 	else if (readDrumTagFromFile(reader, tagName)) {}
 	else {
 		return false;
@@ -90,6 +108,35 @@ void SoundDrum::resetTimeEnteredState() {
 	}
 }
 
+void SoundDrum::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp,
+                                      int32_t noteCodePostArp, int32_t velocity, int16_t const* mpeValues,
+                                      uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
+                                      int32_t fromMIDIChannel) {
+	Sound::noteOnPostArpeggiator(modelStack, noteCodePreArp, noteCodePostArp, velocity, mpeValues, sampleSyncLength,
+	                             ticksLate, samplesLate, fromMIDIChannel);
+
+	// Send midi out for sound drums
+	if (outputMidiNote != MIDI_NOTE_NONE && outputMidiChannel != MIDI_CHANNEL_NONE) {
+		int32_t noteCodeDiff = noteCodePostArp - kNoteForDrum;
+		int32_t outputNoteCode = outputMidiNote + noteCodeDiff;
+		if (outputNoteCode < 0) {
+			outputNoteCode = 0;
+		}
+		else if (outputNoteCode > 127) {
+			outputNoteCode = 127;
+		}
+		midiEngine.sendNote(this, true, outputNoteCode, velocity, outputMidiChannel, 0);
+		lastMidiNoteOffSent = -1; // Clear the status for last note off
+
+		// If the note doesn't have a tail (for ONCE samples for example), we will never get a noteOff event to be
+		// called, so we need to "off" the note right now
+		if (!allowNoteTails(modelStack, true)) {
+			midiEngine.sendNote(this, false, outputNoteCode, 64, outputMidiChannel, 0);
+			lastMidiNoteOffSent = outputNoteCode;
+		}
+	}
+}
+
 void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
                        int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 
@@ -101,6 +148,36 @@ void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t veloci
 	Sound::noteOn(modelStack, &arpeggiator, kNoteForDrum, mpeValues, sampleSyncLength, ticksLate, samplesLate, velocity,
 	              fromMIDIChannel);
 }
+
+void SoundDrum::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode) {
+	int32_t ends[2];
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
+	for (int32_t v = ends[0]; v < ends[1]; v++) {
+		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
+		if ((thisVoice->noteCodeAfterArpeggiation == noteCode || noteCode == ALL_NOTES_OFF)
+		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Don't bother if it's already "releasing"
+
+			// Send midi out for sound drums
+			if (outputMidiNote != MIDI_NOTE_NONE && outputMidiChannel != MIDI_CHANNEL_NONE) {
+				int32_t noteCodeDiff = thisVoice->noteCodeAfterArpeggiation - kNoteForDrum;
+				int32_t outputNoteCode = outputMidiNote + noteCodeDiff;
+				if (outputNoteCode < 0) {
+					outputNoteCode = 0;
+				}
+				else if (outputNoteCode > 127) {
+					outputNoteCode = 127;
+				}
+				if (outputNoteCode != lastMidiNoteOffSent) {
+					midiEngine.sendNote(this, false, outputNoteCode, 64, outputMidiChannel, 0);
+					lastMidiNoteOffSent = outputNoteCode;
+				}
+			}
+		}
+	}
+
+	Sound::noteOffPostArpeggiator(modelStack, noteCode);
+}
+
 void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
 	Sound::allNotesOff(modelStack, &arpeggiator);
 }
@@ -175,6 +252,12 @@ void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* p
 	if (savingSong) {
 		Drum::writeMIDICommandsToFile(writer);
 	}
+
+	// Output MIDI note for Drums
+	writer.writeOpeningTagBeginning("midiOutput");
+	writer.writeAttribute("channel", outputMidiChannel);
+	writer.writeAttribute("note", outputMidiNote);
+	writer.closeTag();
 
 	writer.writeClosingTag("sound", true, true);
 }
