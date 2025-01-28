@@ -106,7 +106,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 		return true;
 	}
 
-	// If no sample, clear display
+	// If no Sample, just clear display
 	if (!getSample()) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			memset(image[y], 0, kDisplayWidth * 3);
@@ -151,6 +151,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 	bool success = waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image, &clip.renderData,
 	                                                 recorder, rgb, clip.sampleControls.reversed, xEnd);
 
+	// If card being accessed and waveform would have to be re-examined, come back later
 	if (!success && image == PadLEDs::image) {
 		uiNeedsRendering(this, whichRows, 0);
 		return true;
@@ -598,8 +599,9 @@ void AudioClipView::changeUnderlyingSampleLength(AudioClip& clip, const Sample* 
 	int64_t newEndPosSamples;
 
 	uint64_t newLengthSamples =
-	    static_cast<uint64_t>(oldLengthSamples * newLength + (oldLength / 2)) / static_cast<uint32_t>(oldLength);
+	    (uint64_t)(oldLengthSamples * (uint64_t)newLength + (oldLength >> 1)) / (uint32_t)oldLength;
 
+	// If end pos less than 0, not allowed
 	if (clip.sampleControls.reversed) {
 		newEndPosSamples = clip.sampleHolder.endPos - newLengthSamples;
 		if (newEndPosSamples < 0) {
@@ -607,17 +609,31 @@ void AudioClipView::changeUnderlyingSampleLength(AudioClip& clip, const Sample* 
 		}
 		valueToChange = &clip.sampleHolder.startPos;
 	}
+	// AudioClip playing forward
 	else {
 		newEndPosSamples = clip.sampleHolder.startPos + newLengthSamples;
-		if ((int64_t)newEndPosSamples > (int64_t)sample->lengthInSamples) {
+		if (newEndPosSamples > sample->lengthInSamples) {
 			newEndPosSamples = sample->lengthInSamples;
 		}
 		valueToChange = &clip.sampleHolder.endPos;
+
+		// If the end pos is very close to the end pos marked in the audio file...
+		if (sample->fileLoopStartSamples) {
+			int64_t distanceFromFileEndMarker = newEndPosSamples - (uint64_t)sample->fileLoopStartSamples;
+			if (distanceFromFileEndMarker < 0) {
+				distanceFromFileEndMarker = -distanceFromFileEndMarker;
+			}
+			if (distanceFromFileEndMarker < 10) {
+				newEndPosSamples = sample->fileLoopStartSamples;
+			}
+		}
 	}
 
 	ActionType actionType =
 	    (newLength < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;
 
+	// Change sample end-pos value. Must do this before calling setClipLength(), which will end
+	// up reading this value.
 	uint64_t oldValue = *valueToChange;
 	*valueToChange = newEndPosSamples;
 
@@ -771,11 +787,13 @@ ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
 }
 
 ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) {
+	// If tempoless recording, don't allow
 	if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EDIT_LENGTH));
 		return ActionResult::DEALT_WITH;
 	}
 
+	// If we're not scrolled all the way to the right, go there now
 	if (scrollRightToEndOfLengthIfNecessary(getCurrentClip()->loopLength)) {
 		return ActionResult::DEALT_WITH;
 	}
@@ -810,8 +828,10 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 		}
+
+		// Shift colour spectrum
 		getCurrentAudioClip()->colourOffset += offset;
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
