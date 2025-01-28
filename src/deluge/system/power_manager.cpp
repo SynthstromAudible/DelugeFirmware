@@ -25,26 +25,19 @@ PowerManager::PowerManager()
 void PowerManager::update() {
     // Check if ADC conversion is complete
     if (ADC.ADCSR & (1 << 15)) {
-        // Get raw 12-bit ADC reading (0-4095)
-        int32_t numericReading = ADC.ADDRF & 0xFFF;
+        // Match original calculation exactly
+        int32_t numericReading = ADC.ADDRF;
+        int32_t voltageReading = numericReading * 3300;
+        int32_t distanceToGo = voltageReading - voltageReadingLastTime;
+        voltageReadingLastTime += distanceToGo >> 4;
 
-        // Convert to mV:
-        // 1. Scale to 0-3300mV range (3.3V reference)
-        // 2. Double the result (voltage divider compensation)
-        // To avoid overflow: reading * (3300 * 2) / 4096
-        int32_t voltageReading = (numericReading * 6600) / 4096;
+        // Match original right shift by 15
+        lastStableVoltage = voltageReadingLastTime >> 15;
 
-        // Apply low-pass filter
-        int32_t distanceToGo = voltageReading - lastStableVoltage;
-        lastStableVoltage += distanceToGo >> 4;  // Shift by 4 for smooth filtering
-
-        D_PRINTLN("Power: ADC=%d mV=%d", numericReading, lastStableVoltage);
-
-        // Update power source based on voltage
         updatePowerSource();
     }
 
-    // Always start a new conversion - this ensures we keep getting updates
+    // Start next conversion
     ADC.ADCSR = (1 << 15) |     // Start conversion
                 (1 << 13) |     // Enable ADC
                 (0b011 << 6) |  // Clock select
@@ -100,11 +93,25 @@ bool PowerManager::isCharging() const {
 }
 
 int32_t PowerManager::getBatteryPercentage() const {
-    if (lastStableVoltage <= BATTERY_EMPTY_MV) return 0;
-    if (lastStableVoltage >= BATTERY_FULL_MV) return 100;
+    // Critical battery - below 2900mV
+    if (lastStableVoltage < 2900) return 0;
 
-    return ((lastStableVoltage - BATTERY_EMPTY_MV) * 100)
-           / (BATTERY_FULL_MV - BATTERY_EMPTY_MV);
+    // Low battery range: 2900mV - 2950mV (0-25%)
+    if (lastStableVoltage < 2950) {
+        return ((lastStableVoltage - 2900) * 25) / 50;
+    }
+
+    // Medium battery range: 2950mV - 3300mV (25-90%)
+    if (lastStableVoltage < 3300) {
+        return 25 + ((lastStableVoltage - 2950) * 65) / 350;
+    }
+
+    // High battery range: 3300mV+ (90-100%)
+    if (lastStableVoltage < 3600) {
+        return 90 + ((lastStableVoltage - 3300) * 10) / 300;
+    }
+
+    return 100;
 }
 
 } // namespace deluge::system

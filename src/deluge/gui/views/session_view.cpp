@@ -17,8 +17,8 @@
 
 #include "gui/views/session_view.h"
 #include "definitions_cxx.hpp"
-#include "deluge/system/power_manager.h"  // Move this up before other includes
 #include "deluge/hid/usb_check.h"
+#include "deluge/system/power_manager.h" // Move this up before other includes
 #include "dsp/compressor/rms_feedback.h"
 #include "extern.h"
 #include "gui/colour/colour.h"
@@ -2030,8 +2030,10 @@ void SessionView::renderViewDisplay() {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
 
-	// Draw battery status
-	displayBatteryStatus(canvas, false);
+	// Only draw battery status if no popups are active
+	if (!hid::display::OLED::isPopupPresent() && !hid::display::OLED::isPermanentPopupPresent()) {
+		displayBatteryStatus(canvas, false);
+	}
 
 	DEF_STACK_STRING_BUF(tempoBPM, 10);
 	lastDisplayedTempo = playbackHandler.calculateBPM(playbackHandler.getTimePerInternalTickFloat());
@@ -2091,64 +2093,58 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 }
 
 void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea) {
-    int32_t x = 0;
-    int32_t y = OLED_MAIN_TOPMOST_PIXEL + 4;
+	int32_t x = 0;
+	int32_t y = OLED_MAIN_TOPMOST_PIXEL + 3;
 
-    // Get power status
-    bool usbPowerConnected = deluge::system::powerManager.isExternalPowerConnected();
-    int32_t batteryPercent = deluge::system::powerManager.getBatteryPercentage();
-    bool isCharging = deluge::system::powerManager.isCharging();
-    int32_t voltage = deluge::system::powerManager.getStableVoltage();
+	// Get power status
+	bool usbPowerConnected = deluge::system::powerManager.isExternalPowerConnected();
+	int32_t batteryPercent = deluge::system::powerManager.getBatteryPercentage();
+	int32_t batteryVoltage = deluge::system::powerManager.getStableVoltage();
+	bool isCharging = deluge::system::powerManager.isCharging();
 
-    // Battery icon dimensions
-    int32_t iconWidth = 12;
-    int32_t iconHeight = 7;
-    int32_t iconSpacing = 3;
+	char text[32];
+	snprintf(text, sizeof(text), "%d%% (%d)", batteryPercent, batteryVoltage);
+	int32_t textWidth = canvas.getStringWidthInPixels(text, kTextSpacingY);
+	int32_t totalWidth = x + 16 + textWidth; // Battery icon (16px) + text width
 
-    if (clearArea) {
-        // Calculate width for icon + text + debug info
-        int32_t maxTextWidth = kTextSpacingX * 30; // Increased for debug info
-        canvas.clearAreaExact(x, y, x + iconWidth + 1 + iconSpacing + maxTextWidth, y + iconHeight);
-    }
+	if (clearArea) {
+		canvas.clearAreaExact(0, OLED_MAIN_TOPMOST_PIXEL, totalWidth, y + kTextSpacingY);
+	}
 
-    // Draw battery outline
-    canvas.drawRectangle(x, y, x + iconWidth - 1, y + iconHeight - 1);
-    canvas.drawRectangle(iconWidth - 1, y + 2, iconWidth, y + 5);
+	// Draw battery outline - rectangular frame
+	canvas.drawRectangle(x, y + 1, x + 11, y + 7);      // Main body
+	canvas.drawRectangle(x + 11, y + 3, x + 12, y + 5); // Terminal nub
 
-    // When on external power
-    if (usbPowerConnected) {
-        if (isCharging) {
-            // Draw charging animation
-            for (int32_t i = 0; i < 3; i++) {
-                int32_t baseX = x + 2 + (i * 3);
-                canvas.drawPixel(baseX, y + 2);
-                canvas.drawPixel(baseX + 1, y + 3);
-                canvas.drawPixel(baseX, y + 4);
-            }
-            canvas.drawString("CHG", x + iconWidth + iconSpacing, y - 1, kTextSpacingX, kTextSpacingY);
-        } else {
-            // Fill battery completely
-            for (int32_t i = 0; i < 3; i++) {
-                int32_t segmentX = x + 2 + (i * 3);
-                canvas.drawRectangle(segmentX, y + 2, segmentX + 1, y + 4);
-            }
-            canvas.drawString("USB", x + iconWidth + iconSpacing, y - 1, kTextSpacingX, kTextSpacingY);
-        }
-    }
-    // On battery power
-    else {
-        int32_t numSegments = (batteryPercent * 3) / 100;
-        for (int32_t i = 0; i < numSegments; i++) {
-            int32_t segmentX = x + 2 + (i * 3);
-            canvas.drawRectangle(segmentX, y + 2, segmentX + 1, y + 4);
-        }
-        canvas.drawString("BAT", x + iconWidth + iconSpacing, y - 1, kTextSpacingX, kTextSpacingY);
-    }
+	if (isCharging) {
+		// Draw charging animation (lightning bolt)
+		canvas.drawPixel(x + 5, y + 3); // Top point
+		canvas.drawPixel(x + 6, y + 4); // Middle right
+		canvas.drawPixel(x + 4, y + 4); // Middle left
+		canvas.drawPixel(x + 7, y + 5); // Bottom right
+		canvas.drawPixel(x + 5, y + 5); // Bottom middle
+		canvas.drawPixel(x + 8, y + 6); // Bottom point
+	}
+	else {
+		// Draw battery level as blocks
+		int32_t numBlocks;
+		if (batteryPercent >= 75)
+			numBlocks = 3; // Full (3 blocks)
+		else if (batteryPercent >= 40)
+			numBlocks = 2; // Medium (2 blocks)
+		else if (batteryPercent >= 15)
+			numBlocks = 1; // Low (1 block)
+		else
+			numBlocks = 0; // Critical (no blocks)
 
-    // Draw debug info after the battery status
-    char debugText[32];
-    snprintf(debugText, sizeof(debugText), " %dv2 %d%%", voltage, batteryPercent);
-    canvas.drawString(debugText, x + iconWidth + iconSpacing + 30, y - 1, kTextSpacingX, kTextSpacingY);
+		for (int32_t i = 0; i < numBlocks; i++) {
+			int32_t blockX = x + 2 + (i * 3); // 2px initial margin, then 3px per block (2px block + 1px gap)
+			canvas.drawVerticalLine(blockX, y + 3, y + 5);     // First pixel of block
+			canvas.drawVerticalLine(blockX + 1, y + 3, y + 5); // Second pixel of block
+		}
+	}
+
+	// Print battery percentage and voltage
+	canvas.drawString(text, x + 16, y, kTextSpacingX, kTextSpacingY);
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
@@ -2431,31 +2427,30 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 
 // checks if battery voltage has changed and updates it if required
 void SessionView::displayPotentialBatteryChange(uint16_t newBatteryMV) {
-    // Only update display if we're in the session view
-    if (getCurrentUI() == this) {
-        // Always update if:
-        // 1. Voltage has changed significantly (50mV)
-        // 2. Last displayed value is 0 (first time or just entered view)
-        // 3. Every ~1 second
-        static uint32_t lastUpdateTime = 0;
-        uint32_t currentTime = *TCNT[TIMER_SYSTEM_SLOW];
+	// Only update display if we're in the session view
+	if (getCurrentUI() == this) {
+		// Always update if:
+		// 1. Voltage has changed significantly (50mV)
+		// 2. Last displayed value is 0 (first time or just entered view)
+		// 3. Every ~1 second
+		static uint32_t lastUpdateTime = 0;
+		uint32_t currentTime = *TCNT[TIMER_SYSTEM_SLOW];
 
-        if (abs(newBatteryMV - lastDisplayedBatteryMV) > 50 ||
-            lastDisplayedBatteryMV == 0 ||
-            (uint32_t)(currentTime - lastUpdateTime) > msToSlowTimerCount(1000)) {
+		if (abs(newBatteryMV - lastDisplayedBatteryMV) > 50 || lastDisplayedBatteryMV == 0
+		    || (uint32_t)(currentTime - lastUpdateTime) > msToSlowTimerCount(1000)) {
 
-            lastDisplayedBatteryMV = newBatteryMV;
-            lastUpdateTime = currentTime;
+			lastDisplayedBatteryMV = newBatteryMV;
+			lastUpdateTime = currentTime;
 
-            displayBatteryStatus(deluge::hid::display::OLED::main);
-            deluge::hid::display::OLED::markChanged();
-        }
-    }
-    else {
-        // Reset last displayed value when not in session view
-        // This ensures we update immediately when returning to session view
-        lastDisplayedBatteryMV = 0;
-    }
+			displayBatteryStatus(deluge::hid::display::OLED::main);
+			deluge::hid::display::OLED::markChanged();
+		}
+	}
+	else {
+		// Reset last displayed value when not in session view
+		// This ensures we update immediately when returning to session view
+		lastDisplayedBatteryMV = 0;
+	}
 }
 
 /// display number of bars or quarter notes remaining until a launch event
