@@ -106,7 +106,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 		return true;
 	}
 
-	// If no sample, just clear display
+	// If no sample, clear display
 	if (!getSample()) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			memset(image[y], 0, kDisplayWidth * 3);
@@ -114,7 +114,16 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 		return true;
 	}
 
-	AudioClip& clip = *getCurrentAudioClip();
+	// If no audio clip, clear display
+	AudioClip* clipPtr = getCurrentAudioClip();
+	if (!clipPtr) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			memset(image[y], 0, kDisplayWidth * 3);
+		}
+		return true;
+	}
+
+	AudioClip& clip = *clipPtr;
 	SampleRecorder* recorder = clip.recorder;
 
 	// end marker column
@@ -216,7 +225,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 
 ActionResult AudioClipView::timerCallback() {
 	blinkOn = !blinkOn;
-	uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	uiNeedsRendering(this, 0xFFFFFFFF, 0); // Very inefficient!
 
 	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
 	return ActionResult::DEALT_WITH;
@@ -261,12 +270,23 @@ void AudioClipView::graphicsRoutine() {
 	    || playbackHandler.ticksLeftInCountIn) {
 		newTickSquare = 255;
 	}
+	// Tempoless or arranger recording
 	else if (!playbackHandler.isEitherClockActive()
 	         || (currentPlaybackMode == &arrangement && getCurrentClip()->getCurrentlyRecordingLinearly())) {
 		newTickSquare = kDisplayWidth - 1;
+
+		// Linearly recording
+		if (getCurrentClip()->getCurrentlyRecordingLinearly()) { // This would have to be true if we got here, I think?
+			getCurrentAudioClip()->renderData.xScroll = -1;      // Make sure values are recalculated
+			needsRenderingDependingOnSubMode();
+		}
 	}
 	else {
 		newTickSquare = getTickSquare();
+
+		if (getCurrentAudioClip()->getCurrentlyRecordingLinearly()) {
+			needsRenderingDependingOnSubMode();
+		}
 		if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
 			newTickSquare = 255;
 		}
@@ -469,7 +489,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			// Possibly a shortcut to SoundEditor
+			// Maybe go to SoundEditor
 			ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, on);
 			if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {
 				if (soundEditorResult == ActionResult::DEALT_WITH) {
