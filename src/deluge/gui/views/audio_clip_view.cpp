@@ -578,7 +578,15 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 	else if (x == kDisplayWidth) {
-		// side column actions or macros, if any
+		if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
+			if (sdRoutineLock) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			if (!on) {
+				view.activateMacro(y);
+			}
+			return ActionResult::DEALT_WITH;
+		}
 	}
 	return ActionResult::DEALT_WITH;
 }
