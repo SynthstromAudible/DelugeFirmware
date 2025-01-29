@@ -200,13 +200,6 @@ void SoundDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
 		else {
 			thisVoice->expressionEventImmediate(*this, newValue, s);
 		}
-
-		// Send to midi out Aftertouch only (same as MidiDrum)
-		if (expressionDimension == 2 && outputMidiNote != MIDI_NOTE_NONE && outputMidiChannel != MIDI_CHANNEL_NONE) {
-			int32_t value7 = newValue >> 24;
-			midiEngine.sendPolyphonicAftertouch(this, outputMidiChannel, value7, thisVoice->noteCodeAfterArpeggiation,
-			                                    kMIDIOutputFilterNoMPE);
-		}
 	}
 
 	// Must update MPE values in Arp too - useful either if it's on, or if we're in true monophonic mode - in either
