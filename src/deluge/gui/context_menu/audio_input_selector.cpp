@@ -148,6 +148,48 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 
 	defaultAudioOutputInputChannel = audioOutput->inputChannel;
 }
+
+void AudioInputSelector::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	const auto options = getOptions();
+
+	int32_t windowMinY = 1;
+
+	canvas.clearAreaExact(0, 0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
+
+	canvas.drawHorizontalLine(windowMinY + 15, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+	canvas.drawString(this->getTitle(), 28, windowMinY + 6, kTextSpacingX, kTextSpacingY);
+
+	int32_t textPixelY = windowMinY + 18;
+	int32_t actualCurrentOption = currentOption;
+
+	currentOption = scrollPos;
+	int32_t i = 0;
+
+	while (true) {
+		if (currentOption == options.size() || i == 3) break;
+
+		if (isCurrentOptionAvailable()) {
+			int32_t invertStartX = 0;
+			int32_t textPixelX = invertStartX + 7;
+			if (FlashStorage::accessibilityMenuHighlighting) {
+				textPixelX += kTextSpacingX;
+			}
+			canvas.drawString(options[currentOption], textPixelX, textPixelY, kTextSpacingX, kTextSpacingY, 0,
+			                  OLED_MAIN_WIDTH_PIXELS);
+			if (currentOption == actualCurrentOption) {
+				canvas.invertLeftEdgeForMenuHighlighting(invertStartX, OLED_MAIN_WIDTH_PIXELS, textPixelY,
+				                                         textPixelY + 8);
+			}
+			textPixelY += kTextSpacingY;
+			i++;
+		}
+		currentOption++;
+	}
+
+	currentOption = actualCurrentOption;
+}
+
+
 // if they're in session view and press a clip's pad, record from that output
 ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 	if (on && getUIUpOneLevel() == &sessionView) {

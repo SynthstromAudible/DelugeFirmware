@@ -548,7 +548,7 @@ The Song menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
-	
+
 	- Stutter (STUT)
 		- Quantize (QTZ)
 		- Reverse (REVE)
@@ -843,7 +843,7 @@ The Sound menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
-	
+
 	- Stutter (STUT)
 		- Use Song Settings (SONG)
 		- Quantize (QTZ)
@@ -1228,7 +1228,7 @@ The Kit FX menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
-	
+
 	- Stutter (STUT)
 		- Use Song Settings (SONG)
 		- Quantize (QTZ)
@@ -1430,7 +1430,7 @@ The CV menu contains the following menu hierarchy:
 		- Gate
 		- Sync
 		NOTE: These options can change depending on how your default resolution is set
-		
+
 			- Off
 			- 2-Bar
 			- 1-Bar
@@ -1699,9 +1699,9 @@ The Audio Clip menu contains the following menu hierarchy:
 	- Left Input (LEFT)
 	- Right Input (RIGH)
 	- Stereo Input (STER)
-	- Bal. Input (BALA)
+	- Balanced Input (BALA)
 	- Deluge Mix (Pre FX) (MIX)
-	- Deluge Output (Post FX) (OUTP)
+	- Deluge Out (Post FX) (OUTP)
 	- Specific Track (TRAK)
 </details>
 <details><summary>Specific Track (TRAK)</summary></details>
@@ -1804,7 +1804,7 @@ The Audio Clip menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
-	
+
 	- Stutter (STUT)
 		- Use Song Settings (SONG)
 		- Quantize (QTZ)
