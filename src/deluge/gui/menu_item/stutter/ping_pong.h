@@ -15,25 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "definitions_cxx.hpp"
-#include "dsp/reverb/reverb.hpp"
-#include "gui/l10n/strings.h"
-#include "gui/menu_item/integer.h"
-#include "processing/engines/audio_engine.h"
-#include <cmath>
+#include "gui/menu_item/toggle.h"
+#include "gui/ui/sound_editor.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 
-namespace deluge::gui::menu_item::reverb {
-class LPF final : public Integer {
+namespace deluge::gui::menu_item::stutter {
+
+class PingPongStutter final : public Toggle {
 public:
-	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(AudioEngine::reverb.getLPF() * kMaxMenuValue); }
-	void writeCurrentValue() override { AudioEngine::reverb.setLPF((float)this->getValue() / kMaxMenuValue); }
-
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
-
+	using Toggle::Toggle;
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.pingPong); }
+	void writeCurrentValue() override { soundEditor.currentModControllable->stutterConfig.pingPong = this->getValue(); }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		auto model = AudioEngine::reverb.getModel();
-		return (model == dsp::Reverb::Model::MUTABLE) || (model == dsp::Reverb::Model::DIGITAL);
+		return soundEditor.currentModControllable->isSong()
+		       || !soundEditor.currentModControllable->stutterConfig.useSongStutter;
 	}
 };
-} // namespace deluge::gui::menu_item::reverb
+
+} // namespace deluge::gui::menu_item::stutter

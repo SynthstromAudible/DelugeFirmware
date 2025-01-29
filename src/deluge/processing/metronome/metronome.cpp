@@ -21,6 +21,7 @@
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
+#include "util/fixedpoint.h"
 
 Metronome::Metronome() {
 	sounding = false;
@@ -34,7 +35,7 @@ void Metronome::trigger(uint32_t newPhaseIncrement) {
 	timeSinceTrigger = 0;
 }
 
-void Metronome::render(StereoSample* buffer, uint16_t numSamples) {
+void Metronome::render(std::span<StereoSample> buffer) {
 	if (!sounding) {
 		return;
 	}
@@ -51,26 +52,16 @@ void Metronome::render(StereoSample* buffer, uint16_t numSamples) {
 	}
 
 	q31_t high = multiply_32x32_rshift32(metronomeVolume, volumePostFX);
-	StereoSample* thisSample = buffer;
-	StereoSample* bufferEnd = buffer + numSamples;
-	do {
 
-		int32_t value;
-		if (phase < 2147483648u) {
-			value = high;
-		}
-		else {
-			value = -high;
-		}
-
+	for (StereoSample& sample : buffer) {
+		q31_t value = (phase <= ONE_Q31) ? high : -high;
 		phase += phaseIncrement;
 
-		thisSample->l += value;
-		thisSample->r += value;
+		sample.l += value;
+		sample.r += value;
+	}
 
-	} while (++thisSample != bufferEnd);
-
-	timeSinceTrigger += numSamples;
+	timeSinceTrigger += buffer.size();
 	if (timeSinceTrigger > 1000) {
 		sounding = false;
 	}

@@ -23,7 +23,8 @@
 #include "hid/display/display.h"
 #include "memory/general_memory_allocator.h"
 #include "processing/source.h"
-#include "util/container/static_vector.hpp"
+
+#include <etl/vector.h>
 
 namespace deluge::gui::menu_item {
 
@@ -42,7 +43,7 @@ void DxEngineSelect::readValueAgain() {
 constexpr int numValues = 3;
 
 void DxEngineSelect::drawPixelsForOled() {
-	static_vector<std::string_view, numValues> itemNames = {"auto", "modern", "vintage"};
+	etl::vector<std::string_view, numValues> itemNames = {"auto", "modern", "vintage"};
 	drawItemsForOled(itemNames, currentValue, 0);
 }
 

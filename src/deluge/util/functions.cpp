@@ -254,20 +254,6 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 	return getFinalParameterValueExp(paramNeutralValue, patchedValue);
 }
 
-void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int32_t numSamples) {
-	StereoSample* inputSample = inputBuffer;
-	StereoSample* outputSample = outputBuffer;
-
-	StereoSample* inputBufferEnd = inputBuffer + numSamples;
-
-	do {
-		outputSample->l += inputSample->l;
-		outputSample->r += inputSample->r;
-
-		outputSample++;
-	} while (++inputSample != inputBufferEnd);
-}
-
 int32_t cableToLinearParamShortcut(int32_t sourceValue) {
 	return sourceValue >> 2;
 }
@@ -1064,30 +1050,6 @@ char const* oldArpModeToString(OldArpMode mode) {
 	}
 }
 
-char const* arpPresetToOldArpMode(ArpPreset preset) {
-	switch (preset) {
-	case ArpPreset::OFF:
-		return "off";
-
-	case ArpPreset::UP:
-		return "up";
-
-	case ArpPreset::DOWN:
-		return "down";
-
-	case ArpPreset::BOTH:
-		return "both";
-
-	case ArpPreset::RANDOM:
-		return "random";
-
-	default:
-		// In case the user selected a Custom mode, we don't know how to convert it to
-		// the old mode so we default to "up" cause at least the arp is ON for sure
-		return "up";
-	}
-}
-
 OldArpMode stringToOldArpMode(char const* string) {
 	if (!strcmp(string, "up")) {
 		return OldArpMode::UP;
@@ -1139,6 +1101,18 @@ char const* arpNoteModeToString(ArpNoteMode mode) {
 	case ArpNoteMode::RANDOM:
 		return "random";
 
+	case ArpNoteMode::WALK1:
+		return "walk1";
+
+	case ArpNoteMode::WALK2:
+		return "walk2";
+
+	case ArpNoteMode::WALK3:
+		return "walk3";
+
+	case ArpNoteMode::PATTERN:
+		return "pattern";
+
 	default:
 		return "up";
 	}
@@ -1153,6 +1127,18 @@ ArpNoteMode stringToArpNoteMode(char const* string) {
 	}
 	else if (!strcmp(string, "asPlayed")) {
 		return ArpNoteMode::AS_PLAYED;
+	}
+	else if (!strcmp(string, "walk1")) {
+		return ArpNoteMode::WALK1;
+	}
+	else if (!strcmp(string, "walk2")) {
+		return ArpNoteMode::WALK2;
+	}
+	else if (!strcmp(string, "walk3")) {
+		return ArpNoteMode::WALK3;
+	}
+	else if (!strcmp(string, "pattern")) {
+		return ArpNoteMode::PATTERN;
 	}
 	else if (!strcmp(string, "random")) {
 		return ArpNoteMode::RANDOM;
