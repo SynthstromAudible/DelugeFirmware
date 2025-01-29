@@ -105,6 +105,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### Synth/Kit Clips
 - Added Auto-Load feature to sample browser, so you can load the sounds to the instrument as you preview them. Auto-Load can be engaged while in sample browser, if you press the `Load` button.
+- Sounds have now the ability to send MIDI notes at the same time as they play a sample. This will allow your synths and drums to trigger external devices. A new menu `MIDI` has been added at the bottom of the `SOUND` menu to set the MIDI channel and the note (in case of drum sounds).
 
 ##### CV Clips
 - Added the ability to set a CV instrument to use both 1 and 2 channels, which makes the cv2 source selectable between mod wheel, velocity, and aftertouch
@@ -492,7 +493,6 @@ also affect normal sequenced notes while arpeggiator is Off.
 - Pressing `SHIFT` + `RANDOM` now randomizes all non-muted drum kit rows.
 - The default Mod-FX type for kit affect-entire is now `DISABLED` rather than `FLANGER`.
 - Fixed several crashes related to drum randomization.
-- Sound kit rows have now the ability to send MIDI notes at the same time as they play a sample. This will allow your drums to trigger external devices at the same time, for example, an external sidechain compressor triggered by MIDI.
 
 #### <ins>Keyboard View</ins>
 - Added `SIDEBAR CONTROLS` in  `KEYBOARD VIEW` for synths. By default the two sidebar columns pertain to `VELOCITY` (red) and `MOD WHEEL` (blue). Holding a pad sets it momentarily to that value, tapping a pad latches it to that value. The functionality can be changed per column by holding the top pad and turning `▼▲`. Available options are `VELOCITY`, `MOD WHEEL`, `CHORDS`, `CHORD MEMORY`, and `SCALES`.
