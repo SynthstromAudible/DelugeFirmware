@@ -710,6 +710,8 @@ void AudioClipView::playbackEnded() {
 
 void AudioClipView::clipNeedsReRendering(Clip* c) {
 	if (c == getCurrentAudioClip()) {
+		// Scroll back left if we need to - it's possible that the length just reverted, if recording got aborted.
+		// Ok, coming back to this, it seems it was a bit hacky that I put this in this function...
 		if (currentSong->xScroll[NAVIGATION_CLIP] >= c->loopLength) {
 			horizontalScrollForLinearRecording(0);
 		}
@@ -753,15 +755,18 @@ void AudioClipView::adjustLoopLength(int32_t newLength) {
 		Action* action = nullptr;
 
 		if (newLength > oldLength) {
+			// If we're still within limits
 			if (newLength <= (uint32_t)kMaxSequenceLength) {
 				action = lengthenClip(newLength);
 doReRender:
+				// use getRootUI() in case this is called from audio clip automation view
 				uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
 			}
 		}
 		else if (newLength < oldLength) {
 			if (newLength > 0) {
 				action = shortenClip(newLength);
+				// Scroll / zoom as needed
 				if (!scrollLeftIfTooFarRight(newLength)) {
 					if (!zoomToMax(true)) {
 						goto doReRender;
@@ -778,10 +783,12 @@ doReRender:
 }
 
 ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
+	// Shift and x pressed - edit length of clip without timestretching
 	if (isNoUIModeActive() && Buttons::isButtonPressed(deluge::hid::button::X_ENC) && Buttons::isShiftButtonPressed()) {
 		return editClipLengthWithoutTimestretching(offset);
 	}
 	else {
+		// Otherwise, let parent do scrolling and zooming
 		return ClipView::horizontalEncoderAction(offset);
 	}
 }
