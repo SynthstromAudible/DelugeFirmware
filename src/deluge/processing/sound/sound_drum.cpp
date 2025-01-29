@@ -140,6 +140,9 @@ void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32
 	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but
 	// yeah, that's all irrelevant.
 	expressionEvent(newValue, expressionDimension);
+
+	Sound::polyphonicExpressionEventOnChannelOrNote(newValue, expressionDimension, channelOrNoteNumber,
+	                                                whichCharacteristic);
 }
 
 void SoundDrum::unassignAllVoices() {

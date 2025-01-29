@@ -1708,6 +1708,39 @@ justUnassign:
 	}
 }
 
+void Sound::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
+                                                         int32_t channelOrNoteNumber,
+                                                         MIDICharacteristic whichCharacteristic) {
+	// Send midi if midi output enabled
+	if (outputMidiChannel != MIDI_CHANNEL_NONE) {
+		// We only support mono or poly aftertouch at the moment (regular MIDI), not full MPE
+		if (expressionDimension == 2) {
+			int32_t value7 = newValue >> 24;
+			if (whichCharacteristic == MIDICharacteristic::NOTE) {
+				// Polyphonic aftertouch
+				if (channelOrNoteNumber >= 0 && channelOrNoteNumber <= kMaxMIDIValue) {
+					// This must be a synth, cause we have a valid note code
+					// Use the provided note code
+					midiEngine.sendPolyphonicAftertouch(this, outputMidiChannel, value7, channelOrNoteNumber, kMIDIOutputFilterNoMPE);
+				}
+				else {
+					// This must be a kit row, with no pitch information
+					// So we use the configured noteForDrum
+					midiEngine.sendPolyphonicAftertouch(this, outputMidiChannel, value7, outputMidiNoteForDrum, kMIDIOutputFilterNoMPE);
+				}
+			}
+			else if (whichCharacteristic == MIDICharacteristic::CHANNEL) {
+				// Channel aftertouch
+				midiEngine.sendChannelAftertouch(this, outputMidiChannel, value7, kMIDIOutputFilterNoMPE);
+			}
+			int32_t value7 = newValue >> 24;
+			midiEngine.sendChannelAftertouch(MIDISource source, int32_t channel, uint8_t value, int32_t filter)
+
+		}
+	}
+
+}
+
 void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator) {
 	arpeggiator->reset();
 

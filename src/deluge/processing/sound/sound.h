@@ -218,6 +218,9 @@ public:
 	                           int32_t newNoteCodeAfterArpeggiation, int32_t velocity, int16_t const* mpeValues,
 	                           uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
 	                           int32_t fromMIDIChannel = 16);
+	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
+	                                              int32_t channelOrNoteNumber,
+	                                              MIDICharacteristic whichCharacteristic) override;
 
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();

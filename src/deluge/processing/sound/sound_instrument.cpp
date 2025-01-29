@@ -369,6 +369,9 @@ lookAtArpNote:
 			arpNote->mpeValues[expressionDimension] = newValue >> 16;
 		}
 	}
+
+	Sound::polyphonicExpressionEventOnChannelOrNote(newValue, expressionDimension, channelOrNoteNumber,
+	                                                whichCharacteristic);
 }
 
 void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode,
