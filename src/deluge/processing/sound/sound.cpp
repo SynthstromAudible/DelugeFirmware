@@ -1800,8 +1800,8 @@ justSwitchOff:
 						}
 					}
 					// if (outputNoteCode != lastMidiNoteOffSent) {
-						midiEngine.sendNote(this, false, outputNoteCode, 64, outputMidiChannel, 0);
-						// lastMidiNoteOffSent = outputNoteCode;
+					midiEngine.sendNote(this, false, outputNoteCode, 64, outputMidiChannel, 0);
+					// lastMidiNoteOffSent = outputNoteCode;
 					// }
 				}
 			}

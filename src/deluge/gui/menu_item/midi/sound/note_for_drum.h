@@ -39,8 +39,6 @@ public:
 		}
 		this->setValue(value);
 	}
-	void writeCurrentValue() override {
-		soundEditor.currentSound->outputMidiNoteForDrum = this->getValue();
-	}
+	void writeCurrentValue() override { soundEditor.currentSound->outputMidiNoteForDrum = this->getValue(); }
 };
 } // namespace deluge::gui::menu_item::midi::sound
