@@ -18,6 +18,7 @@
 #include "gui/menu_item/arpeggiator/mode.h"
 #include "gui/menu_item/arpeggiator/mpe_velocity.h"
 #include "gui/menu_item/arpeggiator/note_mode.h"
+#include "gui/menu_item/arpeggiator/note_mode_for_drums.h"
 #include "gui/menu_item/arpeggiator/octave_mode.h"
 #include "gui/menu_item/arpeggiator/octaves.h"
 #include "gui/menu_item/arpeggiator/preset_mode.h"
@@ -231,9 +232,14 @@ arpeggiator::Octaves arpOctavesMenu{STRING_FOR_NUMBER_OF_OCTAVES, STRING_FOR_ARP
 arpeggiator::OctaveMode arpOctaveModeMenu{STRING_FOR_OCTAVE_MODE, STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
 arpeggiator::OctaveModeToNoteMode arpeggiator::arpOctaveModeToNoteModeMenu{STRING_FOR_OCTAVE_MODE,
                                                                            STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
+arpeggiator::OctaveModeToNoteModeForDrums arpeggiator::arpOctaveModeToNoteModeMenuForDrums{
+    STRING_FOR_OCTAVE_MODE, STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
 arpeggiator::NoteMode arpNoteModeMenu{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
+arpeggiator::NoteModeForDrums arpNoteModeMenuForDrums{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
 arpeggiator::NoteModeFromOctaveMode arpeggiator::arpNoteModeFromOctaveModeMenu{STRING_FOR_NOTE_MODE,
                                                                                STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
+arpeggiator::NoteModeFromOctaveModeForDrums arpeggiator::arpNoteModeFromOctaveModeMenuForDrums{
+    STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
 arpeggiator::ChordType arpChordSimulatorMenuKit{STRING_FOR_CHORD_SIMULATOR, STRING_FOR_ARP_CHORD_SIMULATOR_MENU_TITLE};
 arpeggiator::StepRepeat arpStepRepeatMenu{STRING_FOR_STEP_REPEAT, STRING_FOR_ARP_STEP_REPEAT_MENU_TITLE};
 // Note and rhythm settings
@@ -293,12 +299,13 @@ HorizontalMenu arpBasicMenu{STRING_FOR_BASIC,
                              // Sync
                              &arpSyncMenu, &arpRateMenu, &arpRateMenuMIDIOrCV}};
 // Arp: Pattern
-HorizontalMenu arpPatternMenu{
-    STRING_FOR_PATTERN,
-    {// Pattern
-     &arpOctavesMenu, &arpOctaveModeMenu, &arpChordSimulatorMenuKit, &arpNoteModeMenu, &arpStepRepeatMenu,
-     // Note and rhythm settings
-     &arpRhythmMenu, &arpRhythmMenuMIDIOrCV, &arpSequenceLengthMenu, &arpSequenceLengthMenuMIDIOrCV}};
+HorizontalMenu arpPatternMenu{STRING_FOR_PATTERN,
+                              {// Pattern
+                               &arpOctavesMenu, &arpOctaveModeMenu, &arpChordSimulatorMenuKit, &arpNoteModeMenu,
+                               &arpNoteModeMenuForDrums, &arpStepRepeatMenu,
+                               // Note and rhythm settings
+                               &arpRhythmMenu, &arpRhythmMenuMIDIOrCV, &arpSequenceLengthMenu,
+                               &arpSequenceLengthMenuMIDIOrCV}};
 // Arp: Randomizer
 HorizontalMenu arpRandomizerMenu{STRING_FOR_RANDOMIZER,
                                  {// Lock
