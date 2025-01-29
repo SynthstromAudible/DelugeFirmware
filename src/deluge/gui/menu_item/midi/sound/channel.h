@@ -19,23 +19,18 @@
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
-#include "model/song/song.h"
-#include "processing/sound/sound_drum.h"
+#include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::midi::sound_drums {
+namespace deluge::gui::menu_item::midi::sound {
 
-class OutputMidiNoteForDrum final : public Integer {
+class OutputMidiChannel final : public Integer {
 public:
 	using Integer::Integer;
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMIDIValue + 1; }
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingKit() && !soundEditor.editingNonAudioDrumRow();
-	}
+	[[nodiscard]] int32_t getMaxValue() const override { return 16; }
 	void readCurrentValue() override {
-		SoundDrum* soundDrum = (SoundDrum*)((Kit*)currentSong->getCurrentClip()->output)->selectedDrum;
-		int32_t value = soundDrum->outputMidiNote;
-		if (value == MIDI_NOTE_NONE) {
+		int32_t value = soundEditor.currentSound->outputMidiChannel;
+		if (value == MIDI_CHANNEL_NONE) {
 			value = 0;
 		}
 		else {
@@ -46,13 +41,12 @@ public:
 	void writeCurrentValue() override {
 		int32_t value = this->getValue();
 		if (value == 0) {
-			value = MIDI_NOTE_NONE;
+			value = MIDI_CHANNEL_NONE;
 		}
 		else {
 			value = value - 1;
 		}
-		SoundDrum* soundDrum = (SoundDrum*)((Kit*)currentSong->getCurrentClip()->output)->selectedDrum;
-		soundDrum->outputMidiNote = value;
+		soundEditor.currentSound->outputMidiChannel = value;
 	}
 
 	void drawValue() override {
@@ -62,7 +56,7 @@ public:
 		}
 		else {
 			char name[12];
-			snprintf(name, sizeof(name), "%d", value - 1);
+			snprintf(name, sizeof(name), "%d", value);
 			display->setScrollingText(name);
 		}
 	}
@@ -76,9 +70,9 @@ public:
 		}
 		else {
 			char name[12];
-			snprintf(name, sizeof(name), "%d", value - 1);
+			snprintf(name, sizeof(name), "%d", value);
 			canvas.drawStringCentred(name, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
 		}
 	}
 };
-} // namespace deluge::gui::menu_item::midi::sound_drums
+} // namespace deluge::gui::menu_item::midi::sound

@@ -100,9 +100,8 @@
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
 #include "gui/menu_item/midi/mpe_to_mono.h"
 #include "gui/menu_item/midi/pgm.h"
-#include "gui/menu_item/midi/sound_drums/channel.h"
-#include "gui/menu_item/midi/sound_drums/note_for_drum.h"
-#include "gui/menu_item/midi/sound_drums/submenu.h"
+#include "gui/menu_item/midi/sound/channel.h"
+#include "gui/menu_item/midi/sound/note_for_drum.h"
 #include "gui/menu_item/midi/sub.h"
 #include "gui/menu_item/midi/takeover.h"
 #include "gui/menu_item/midi/transpose.h"
@@ -550,10 +549,9 @@ Submenu soundDistortionMenu{
 };
 
 // Output MIDI for sound drums --------------------------------------------------------------
-midi::sound_drums::OutputMidiChannel outputMidiChannelMenu{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL};
-midi::sound_drums::OutputMidiNoteForDrum outputMidiNoteForDrumMenu{STRING_FOR_NOTE, STRING_FOR_NOTE};
-midi::sound_drums::OutputMidiSubmenu outputMidiSubmenu{STRING_FOR_MIDI,
-                                                       {&outputMidiChannelMenu, &outputMidiNoteForDrumMenu}};
+midi::sound::OutputMidiChannel outputMidiChannelMenu{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL};
+midi::sound::OutputMidiNoteForDrum outputMidiNoteForDrumMenu{STRING_FOR_NOTE, STRING_FOR_NOTE};
+Submenu outputMidiSubmenu{STRING_FOR_MIDI, {&outputMidiChannelMenu, &outputMidiNoteForDrumMenu}};
 
 // MIDIInstrument menu ----------------------------------------------------------------------
 midi::device_definition::Linked midiDeviceLinkedMenu{STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
