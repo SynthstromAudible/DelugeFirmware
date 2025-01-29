@@ -24,6 +24,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/navigation_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -727,8 +728,13 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 	}
 
 	getCurrentInstrumentClip()->keyboardState.currentLayout = (KeyboardLayoutType)nextLayout;
-	if (getCurrentInstrumentClip()->keyboardState.currentLayout != lastLayout) {
-		display->displayPopup(l10n::get(layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->name()));
+	const char* name = l10n::get(layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->name());
+	if (naviview.useNavigationView()) {
+		naviview.textBuffer = name;
+		naviview.drawDashboard();
+	}
+	else if (getCurrentInstrumentClip()->keyboardState.currentLayout != lastLayout) {
+		display->displayPopup(name);
 	}
 
 	// Ensure scale mode is as expected

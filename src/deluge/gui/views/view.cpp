@@ -36,6 +36,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/navigation_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
@@ -2007,7 +2008,11 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 		return;
 	}
 
-	if (display->haveOLED()) {
+	if (naviview.useNavigationView()) {
+		hid::display::OLED::clearMainImage();
+		naviview.drawDashboard();
+	}
+	else if (display->haveOLED()) {
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 		hid::display::OLED::clearMainImage();
 
@@ -2037,7 +2042,10 @@ oledDrawString:
 
 			int32_t stringLengthPixels = canvas.getStringWidthInPixels(nameToDraw, kTextTitleSizeY);
 
-			if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
+			if (naviview.useNavigationView()) {
+				naviview.drawMainboard(nameToDraw);
+			}
+			else if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
 				canvas.drawStringCentred(nameToDraw, yPos, kTextTitleSpacingX, kTextTitleSizeY);
 			}
 			else {
@@ -2047,7 +2055,10 @@ oledDrawString:
 				                                              kTextTitleSizeY, false);
 			}
 
-			if (clip) {
+			if (naviview.useNavigationView()) {
+				naviview.drawBaseboard();
+			}
+			else if (clip) {
 				// "SECTION NN" is 10, "NN: " is 3 => 10 over current name is always enough.
 				DEF_STACK_STRING_BUF(info, clip->name.getLength() + 10);
 				if (clip->name.isEmpty()) {

@@ -32,6 +32,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/navigation_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -494,6 +495,9 @@ void ArrangerView::clearArrangement() {
 	}
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	if (naviview.useNavigationView()) {
+		naviview.drawDashboard();
+	}
 }
 
 bool ArrangerView::opened() {
@@ -2910,6 +2914,9 @@ ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 		}
 
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		if (naviview.useNavigationView()) {
+			naviview.drawDashboard();
+		}
 		reassessWhetherDoingAutoScroll();
 	}
 
@@ -3136,6 +3143,9 @@ void ArrangerView::graphicsRoutine() {
 					if (currentUIMode != UI_MODE_HORIZONTAL_ZOOM) {
 						uiNeedsRendering(ui, 0xFFFFFFFF, 0);
 					}
+					if (naviview.useNavigationView()) {
+						naviview.drawDashboard();
+					}
 				}
 			}
 
@@ -3174,6 +3184,10 @@ void ArrangerView::graphicsRoutine() {
 
 			PadLEDs::setTickSquares(tickSquares, colours);
 			lastTickSquare = newTickSquare;
+
+			if (naviview.useNavigationView()) {
+				naviview.drawDashboard();
+			}
 		}
 	}
 
@@ -3231,6 +3245,9 @@ void ArrangerView::autoScrollOnPlaybackEnd() {
 sharpJump:
 				currentSong->xScroll[NAVIGATION_ARRANGEMENT] = newScrollPos;
 				uiNeedsRendering(this, 0xFFFFFFFF, 0);
+				if (naviview.useNavigationView()) {
+					naviview.drawDashboard();
+				}
 			}
 		}
 	}

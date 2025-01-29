@@ -27,6 +27,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/navigation_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/button.h"
@@ -535,10 +536,16 @@ void PerformanceView::renderViewDisplay() {
 
 			yPos = yPos + 12;
 
-			// Render "Performance View" in the middle of the OLED screen
-			image.drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos, kTextSpacingX,
-			                        kTextSpacingY);
-
+			if (naviview.useNavigationView()) {
+				naviview.drawDashboard();
+				naviview.drawMainboard();
+				naviview.drawBaseboard();
+			}
+			else {
+				// Render "Performance View" in the middle of the OLED screen
+				image.drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos, kTextSpacingX,
+				                        kTextSpacingY);
+			}
 			deluge::hid::display::OLED::markChanged();
 		}
 		else {
@@ -565,7 +572,16 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 #endif
 			yPos = yPos + 12;
 
-			image.drawStringCentred(parameterName, yPos, kTextSpacingX, kTextSpacingY);
+			if (naviview.useNavigationView()) {
+				naviview.parameterName.clear();
+				naviview.parameterName.append(parameterName);
+				naviview.drawDashboard();
+				naviview.drawMainboard();
+				naviview.drawBaseboard();
+			}
+			else {
+				image.drawStringCentred(parameterName, yPos, kTextSpacingX, kTextSpacingY);
+			}
 
 			deluge::hid::display::OLED::markChanged();
 		}
@@ -587,7 +603,16 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 #else
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-			image.drawStringCentred(parameterName, yPos, kTextSpacingX, kTextSpacingY);
+			if (naviview.useNavigationView()) {
+				naviview.parameterName.clear();
+				naviview.parameterName.append(parameterName);
+				naviview.drawDashboard();
+				naviview.drawMainboard();
+				naviview.drawBaseboard();
+			}
+			else {
+				image.drawStringCentred(parameterName, yPos, kTextSpacingX, kTextSpacingY);
+			}
 
 			// display parameter value
 			yPos = yPos + 24;
@@ -610,12 +635,28 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 				else { // 64ths stutter: all 4 leds turned on
 					buffer = "64ths";
 				}
-				image.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
+				if (naviview.useNavigationView()) {
+					naviview.knobPosLeft = kNoSelection;
+					naviview.knobPosRight = kNoSelection;
+					naviview.textBuffer = buffer;
+					naviview.drawBaseboard();
+				}
+				else {
+					image.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
+				}
 			}
 			else {
-				char buffer[5];
-				intToString(knobPos, buffer);
-				image.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
+				if (naviview.useNavigationView()) {
+					naviview.knobPosLeft = knobPos;
+					naviview.knobPosRight = kNoSelection;
+					naviview.textBuffer = nullptr;
+					naviview.drawBaseboard();
+				}
+				else {
+					char buffer[5];
+					intToString(knobPos, buffer);
+					image.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
+				}
 			}
 
 			deluge::hid::display::OLED::markChanged();

@@ -27,6 +27,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/navigation_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -2150,7 +2151,9 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 	else {
 		if (!isExternalClockActive()) {
 			UI* currentUI = getCurrentUI();
-			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+			bool isOLEDSessionView = display->haveOLED()
+			                         && (currentUI == &sessionView || currentUI == &arrangerView
+			                             || (naviview.useNavigationView() && naviview.hasTempoBPM));
 			if (display->hasPopupOfType(PopupType::TEMPO) || isOLEDSessionView) {
 				// Truth table for how we decide between adjusting coarse and fine tempo:
 				//
@@ -2327,8 +2330,11 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 	if (display->haveOLED()) {
 		UI* currentUI = getCurrentUI();
 		// if we're currently in song or arranger view, we'll render tempo on the display instead of a popup
-		if ((currentUI == &sessionView || currentUI == &arrangerView)
-		    && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
+		if (naviview.useNavigationView() && naviview.hasTempoBPM) {
+			naviview.drawTempoBPM();
+		}
+		else if ((currentUI == &sessionView || currentUI == &arrangerView)
+		         && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
 			sessionView.lastDisplayedTempo = tempoBPM;
 			getTempoStringForOLED(tempoBPM, text);
 			sessionView.displayTempoBPM(deluge::hid::display::OLED::main, text, true);

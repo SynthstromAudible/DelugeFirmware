@@ -39,6 +39,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/navigation_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -1906,8 +1907,13 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		if (currentPlaybackMode == &session) {
 			if (session.launchEventAtSwungTickCount) {
 				intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
-				deluge::hid::display::OLED::clearMainImage();
-				deluge::hid::display::OLED::drawPermanentPopupLookingText(loopsRemainingText);
+				if (naviview.useNavigationView()) {
+					naviview.drawRemainingCountdown(loopsRemainingText);
+				}
+				else {
+					deluge::hid::display::OLED::clearMainImage();
+					deluge::hid::display::OLED::drawPermanentPopupLookingText(loopsRemainingText);
+				}
 			}
 		}
 
@@ -2028,11 +2034,15 @@ void SessionView::renderViewDisplay() {
 #else
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-
-	DEF_STACK_STRING_BUF(tempoBPM, 10);
-	lastDisplayedTempo = playbackHandler.calculateBPM(playbackHandler.getTimePerInternalTickFloat());
-	playbackHandler.getTempoStringForOLED(lastDisplayedTempo, tempoBPM);
-	displayTempoBPM(canvas, tempoBPM, false);
+	if (naviview.useNavigationView()) {
+		naviview.drawDashboard();
+	}
+	else {
+		DEF_STACK_STRING_BUF(tempoBPM, 10);
+		lastDisplayedTempo = playbackHandler.calculateBPM(playbackHandler.getTimePerInternalTickFloat());
+		playbackHandler.getTempoStringForOLED(lastDisplayedTempo, tempoBPM);
+		displayTempoBPM(canvas, tempoBPM, false);
+	}
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 	yPos = OLED_MAIN_TOPMOST_PIXEL + 30;
@@ -2050,7 +2060,10 @@ void SessionView::renderViewDisplay() {
 
 	int32_t stringLengthPixels = canvas.getStringWidthInPixels(name, kTextTitleSizeY);
 
-	if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
+	if (naviview.useNavigationView()) {
+		naviview.drawMainboard();
+	}
+	else if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
 		canvas.drawStringCentred(name, yPos, kTextTitleSpacingX, kTextTitleSizeY);
 	}
 	else {
@@ -2061,9 +2074,14 @@ void SessionView::renderViewDisplay() {
 
 	yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 
-	DEF_STACK_STRING_BUF(rootNoteAndScaleName, 40);
-	currentSong->getCurrentRootNoteAndScaleName(rootNoteAndScaleName);
-	displayCurrentRootNoteAndScaleName(canvas, rootNoteAndScaleName, false);
+	if (naviview.useNavigationView()) {
+		naviview.drawBaseboard();
+	}
+	else {
+		DEF_STACK_STRING_BUF(rootNoteAndScaleName, 40);
+		currentSong->getCurrentRootNoteAndScaleName(rootNoteAndScaleName);
+		displayCurrentRootNoteAndScaleName(canvas, rootNoteAndScaleName, false);
+	}
 
 	deluge::hid::display::OLED::markChanged();
 }
@@ -2075,7 +2093,8 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 	int32_t metronomeIconSpacingX = 7 + 3;
 
 	if (clearArea) {
-		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * 6) - metronomeIconSpacingX,
+		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * (tempoBPM.length() + 1))
+		                          - metronomeIconSpacingX,
 		                      OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
 	}
 
@@ -2382,7 +2401,11 @@ int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 				}
 				popupMsg.appendInt(quarterNotesRemaining);
 			}
-			if (display->haveOLED() && !ephemeral) {
+
+			if (naviview.useNavigationView()) {
+				naviview.drawRemainingCountdown(popupMsg.c_str());
+			}
+			else if (display->haveOLED() && !ephemeral) {
 				deluge::hid::display::OLED::clearMainImage();
 				deluge::hid::display::OLED::drawPermanentPopupLookingText(popupMsg.c_str());
 				deluge::hid::display::OLED::sendMainImage();

@@ -18,6 +18,7 @@
 #include "gui/views/timeline_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/views/navigation_view.h"
 #include "gui/views/view.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
@@ -36,6 +37,9 @@ void TimelineView::scrollFinished() {
 	// Needed because sometimes we initiate a scroll before reverting an Action, so we need to
 	// properly render again afterwards
 	uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
+	if (naviview.useNavigationView()) {
+		naviview.drawDashboard();
+	}
 }
 
 // Virtual function
@@ -118,10 +122,16 @@ ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inC
 }
 
 void TimelineView::displayZoomLevel(bool justPopup) {
-	DEF_STACK_STRING_BUF(text, 30);
-	currentSong->getNoteLengthName(text, currentSong->xZoom[getNavSysId()], "-notes", true);
 
-	display->displayPopup(text.data(), justPopup ? 3 : 0, true);
+	if (naviview.useNavigationView()) {
+		naviview.drawDashboard();
+	}
+	else {
+		DEF_STACK_STRING_BUF(text, 30);
+		currentSong->getNoteLengthName(text, currentSong->xZoom[getNavSysId()], "-notes", true);
+
+		display->displayPopup(text.data(), justPopup ? 3 : 0, true);
+	}
 }
 
 bool horizontalEncoderActionLock = false;
@@ -253,7 +263,10 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 		whichSubBeat++;
 	}
 
-	if (display->haveOLED()) {
+	if (naviview.useNavigationView()) {
+		naviview.drawDashboard();
+	}
+	else if (display->haveOLED()) {
 		char buffer[15];
 		sprintf(buffer, "%d : %d : %d", whichBar, whichBeat, whichSubBeat);
 		display->popupTextTemporary(buffer);

@@ -37,6 +37,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/navigation_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -1276,6 +1277,12 @@ void AutomationView::renderAutomationOverviewDisplayOLED(deluge::hid::display::o
 		deluge::hid::display::OLED::drawPermanentPopupLookingText(overviewText);
 	}
 	else {
+		if (naviview.useNavigationView()) {
+			naviview.drawDashboard();
+			naviview.drawMainboard();
+			naviview.drawBaseboard();
+			return;
+		}
 		overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW);
 		canvas.drawStringCentred(overviewText, yPos, kTextSpacingX, kTextSpacingY);
 	}
@@ -1293,7 +1300,15 @@ void AutomationView::renderAutomationEditorDisplayOLED(deluge::hid::display::ole
 #else
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-	canvas.drawStringCentredShrinkIfNecessary(parameterName.c_str(), yPos, kTextSpacingX, kTextSpacingY);
+	if (naviview.useNavigationView()) {
+		naviview.parameterName.clear();
+		naviview.parameterName.append(parameterName.c_str());
+		naviview.knobPosLeft = knobPosLeft;
+		naviview.knobPosRight = knobPosRight;
+	}
+	else {
+		canvas.drawStringCentredShrinkIfNecessary(parameterName.c_str(), yPos, kTextSpacingX, kTextSpacingY);
+	}
 
 	// display automation status
 	yPos = yPos + 12;
@@ -1326,12 +1341,22 @@ void AutomationView::renderAutomationEditorDisplayOLED(deluge::hid::display::ole
 		}
 	}
 
-	canvas.drawStringCentred(isAutomated, yPos, kTextSpacingX, kTextSpacingY);
+	if (naviview.useNavigationView()) {
+		naviview.isAutomated = isAutomated;
+		naviview.drawDashboard();
+		naviview.drawMainboard();
+	}
+	else {
+		canvas.drawStringCentred(isAutomated, yPos, kTextSpacingX, kTextSpacingY);
+	}
 
 	// display parameter value
 	yPos = yPos + 12;
 
-	if (knobPosRight != kNoSelection) {
+	if (naviview.useNavigationView()) {
+		naviview.drawBaseboard();
+	}
+	else if (knobPosRight != kNoSelection) {
 		char bufferLeft[10];
 		bufferLeft[0] = 'L';
 		bufferLeft[1] = ':';
@@ -1367,7 +1392,16 @@ void AutomationView::renderNoteEditorDisplayOLED(deluge::hid::display::oled_canv
 #else
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-	canvas.drawStringCentredShrinkIfNecessary(parameterName.c_str(), yPos, kTextSpacingX, kTextSpacingY);
+	if (naviview.useNavigationView()) {
+		naviview.parameterName.clear();
+		naviview.parameterName.append(parameterName.c_str());
+		naviview.knobPosLeft = knobPosLeft;
+		naviview.knobPosRight = knobPosRight;
+		naviview.drawDashboard();
+	}
+	else {
+		canvas.drawStringCentredShrinkIfNecessary(parameterName.c_str(), yPos, kTextSpacingX, kTextSpacingY);
+	}
 
 	// display note / drum name
 	yPos = yPos + 12;
@@ -1407,12 +1441,21 @@ void AutomationView::renderNoteEditorDisplayOLED(deluge::hid::display::oled_canv
 		}
 	}
 
-	canvas.drawStringCentred(noteRowName, yPos, kTextSpacingX, kTextSpacingY);
+	if (naviview.useNavigationView()) {
+		strncpy(naviview.noteRowName, noteRowName, 49);
+		naviview.drawMainboard();
+	}
+	else {
+		canvas.drawStringCentred(noteRowName, yPos, kTextSpacingX, kTextSpacingY);
+	}
 
 	// display parameter value
 	yPos = yPos + 12;
 
-	if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
+	if (naviview.useNavigationView()) {
+		naviview.drawBaseboard();
+	}
+	else if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
 		if (knobPosRight != kNoSelection) {
 			char bufferLeft[10];
 			bufferLeft[0] = 'L';
