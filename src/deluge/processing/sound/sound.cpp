@@ -26,7 +26,6 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
@@ -1551,10 +1550,27 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	if (noNoteOn) {
 		// in the case of the arpeggiator not returning a note On (could happen if Note Probability evaluates to "don't
 		// play") we must at least evaluate the render-skipping if the arpeggiator is ON
-		if (arpSettings != nullptr && getArp()->hasAnyInputNotesActive() && arpSettings->mode != ArpMode::OFF) {
+		if (arpSettings != nullptr && arpeggiator->hasAnyInputNotesActive() && arpSettings->mode != ArpMode::OFF) {
 			reassessRenderSkippingStatus(modelStackWithSoundFlags);
 		}
 	}
+}
+
+void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode) {
+	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
+	ArpeggiatorSettings* arpSettings = getArpSettings();
+
+	ArpReturnInstruction instruction;
+	arpeggiator->noteOff(arpSettings, noteCode, &instruction);
+
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+	}
+
+	reassessRenderSkippingStatus(modelStackWithSoundFlags);
 }
 
 void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
@@ -1697,68 +1713,129 @@ justUnassign:
 			}
 		}
 		midiEngine.sendNote(this, true, outputNoteCode, velocity, outputMidiChannel, 0);
-		// lastMidiNoteOffSent = -1; // Clear the status for last note off
 
-		// If the note doesn't have a tail (for ONCE samples for example), we will never get a noteOff event to be
-		// called, so we need to "off" the note right now
-		if (!allowNoteTails(modelStack)) {
+		// If the note doesn't have a tail (for ONCE samples for example and if ARP is OFF), we will never get a noteOff
+		// event to be called by the sequencer, so we need to "off" the note right now
+		if (!allowNoteTails(modelStack, true)) {
 			midiEngine.sendNote(this, false, outputNoteCode, 64, outputMidiChannel, 0);
-			// lastMidiNoteOffSent = outputNoteCode;
 		}
 	}
 }
 
 void Sound::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
-                                                         int32_t channelOrNoteNumber,
-                                                         MIDICharacteristic whichCharacteristic) {
+                                                     int32_t channelOrNoteNumber,
+                                                     MIDICharacteristic whichCharacteristic) {
 	// Send midi if midi output enabled
-	if (outputMidiChannel != MIDI_CHANNEL_NONE) {
-		// We only support mono or poly aftertouch at the moment (regular MIDI), not full MPE
-		if (expressionDimension == 2) {
-			int32_t value7 = newValue >> 24;
-			if (whichCharacteristic == MIDICharacteristic::NOTE) {
-				// Polyphonic aftertouch
-				if (channelOrNoteNumber >= 0 && channelOrNoteNumber <= kMaxMIDIValue) {
-					// This must be a synth, cause we have a valid note code
-					// Use the provided note code
-					midiEngine.sendPolyphonicAftertouch(this, outputMidiChannel, value7, channelOrNoteNumber, kMIDIOutputFilterNoMPE);
+	if (outputMidiChannel == MIDI_CHANNEL_NONE) {
+		return;
+	}
+	// We only support mono or poly aftertouch at the moment (regular MIDI), not full MPE
+	if (expressionDimension != 2) {
+		return;
+	}
+	int32_t value7 = newValue >> 24;
+	if (whichCharacteristic == MIDICharacteristic::CHANNEL) {
+		// Channel aftertouch
+		midiEngine.sendChannelAftertouch(this, outputMidiChannel, value7, kMIDIOutputFilterNoMPE);
+	}
+	// whichCharacteristic == MIDICharacteristic::NOTE
+	else {
+		// Polyphonic aftertouch
+		if (getArp()->getArpType() == ArpType::DRUM) {
+			// This is a sound drum (kit)
+			ArpeggiatorForDrum* arpeggiator = (ArpeggiatorForDrum*)getArp();
+			// Just one note is possible
+			ArpNote arpNote = arpeggiator->arpNote;
+			for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
+				if (arpNote.noteCodeOnPostArp[i] == ARP_NOTE_NONE
+				    || arpNote.outputMemberChannel[i] == MIDI_CHANNEL_NONE) {
+					break;
 				}
-				else {
-					// This must be a kit row, with no pitch information
-					// So we use the configured noteForDrum
-					midiEngine.sendPolyphonicAftertouch(this, outputMidiChannel, value7, outputMidiNoteForDrum, kMIDIOutputFilterNoMPE);
+				midiEngine.sendPolyphonicAftertouch(this, arpNote.outputMemberChannel[i], value7,
+				                                    arpNote.noteCodeOnPostArp[i], kMIDIOutputFilterNoMPE);
+			}
+		}
+		else if (getArp()->getArpType() == ArpType::SYNTH) {
+			// This is a sound instrument (synth)
+			Arpeggiator* arpeggiator = (Arpeggiator*)getArp();
+			// Search for the note
+			int32_t n = arpeggiator->notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
+			if (n < arpeggiator->notes.getNumElements()) {
+				ArpNote* arpNote = (ArpNote*)arpeggiator->notes.getElementAddress(n);
+				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
+					if (arpNote->noteCodeOnPostArp[i] == ARP_NOTE_NONE
+					    || arpNote->outputMemberChannel[i] == MIDI_CHANNEL_NONE) {
+						break;
+					}
+					midiEngine.sendPolyphonicAftertouch(this, arpNote->outputMemberChannel[i], value7,
+					                                    arpNote->noteCodeOnPostArp[i], kMIDIOutputFilterNoMPE);
 				}
 			}
-			else if (whichCharacteristic == MIDICharacteristic::CHANNEL) {
-				// Channel aftertouch
-				midiEngine.sendChannelAftertouch(this, outputMidiChannel, value7, kMIDIOutputFilterNoMPE);
-			}
-			int32_t value7 = newValue >> 24;
-			midiEngine.sendChannelAftertouch(MIDISource source, int32_t channel, uint8_t value, int32_t filter)
-
 		}
 	}
-
 }
 
 void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator) {
-	arpeggiator->reset();
-
-#if ALPHA_OR_BETA_VERSION
-	if (!modelStack->paramManager) {
-		// Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices().
-		// But I'm pretty sure this doesn't exist anymore?
-		FREEZE_WITH_ERROR("E403");
-	}
-#endif
-
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
-
 	noteOffPostArpeggiator(modelStackWithSoundFlags, ALL_NOTES_OFF);
+
+	arpeggiator->reset();
 }
 
 // noteCode = ALL_NOTES_OFF (default) means stop *any* voice, regardless of noteCode
 void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode) {
+	ArpeggiatorSettings* arpSettings = getArpSettings();
+
+	// Send midi note offs out
+	// but only if the type of sound allows note tails (if not, note off has already been sent)
+	if (outputMidiChannel != MIDI_CHANNEL_NONE && allowNoteTails(modelStack, true)) {
+		if (noteCode == ALL_NOTES_OFF) {
+			// We must send note offs for all active notes, at least for all the current notes on postarp
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (getArp()->noteCodeCurrentlyOnPostArp[n] == ARP_NOTE_NONE) {
+					break;
+				}
+				int32_t outputNoteCode = getArp()->noteCodeCurrentlyOnPostArp[n];
+				if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
+					// If note for drums is set then this is a SoundDrum and we must use the relative note code (based
+					// on kNoteForDrum)
+					int32_t noteCodeDiff = outputNoteCode - kNoteForDrum;
+					outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
+					if (outputNoteCode < 0) {
+						outputNoteCode = 0;
+					}
+					else if (outputNoteCode > 127) {
+						outputNoteCode = 127;
+					}
+				}
+				midiEngine.sendNote(this, false, outputNoteCode, 64, outputMidiChannel, 0);
+
+				// The "voice" related code below will switch off the voice anyway, so it is safe to clean this so we
+				// don't send two note offs if a normal noteOff or playback stop is received later
+				getArp()->noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+			}
+		}
+		else {
+			// We have an specific note code, so we'll use that
+			// This method has been called from the arp's note off so the handling of "noteCodeCurrentlyOnPostArp" has
+			// already been done
+			int32_t outputNoteCode = noteCode;
+			if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
+				// If note for drums is set then this is a SoundDrum and we must use the relative note code (based on
+				// kNoteForDrum)
+				int32_t noteCodeDiff = outputNoteCode - kNoteForDrum;
+				outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
+				if (outputNoteCode < 0) {
+					outputNoteCode = 0;
+				}
+				else if (outputNoteCode > 127) {
+					outputNoteCode = 127;
+				}
+			}
+			midiEngine.sendNote(this, false, outputNoteCode, 64, outputMidiChannel, 0);
+		}
+	}
+
 	if (!numVoicesAssigned) {
 		return;
 	}
@@ -1769,8 +1846,6 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if ((thisVoice->noteCodeAfterArpeggiation == noteCode || noteCode == ALL_NOTES_OFF)
 		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Don't bother if it's already "releasing"
-
-			ArpeggiatorSettings* arpSettings = getArpSettings();
 
 			ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(thisVoice);
 
@@ -1818,25 +1893,6 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 			else {
 justSwitchOff:
 				thisVoice->noteOff(modelStackWithVoice);
-
-				// Send midi out for sound drums
-				if (outputMidiChannel != MIDI_CHANNEL_NONE) {
-					int32_t outputNoteCode = thisVoice->noteCodeAfterArpeggiation;
-					if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
-						int32_t noteCodeDiff = thisVoice->noteCodeAfterArpeggiation - kNoteForDrum;
-						outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
-						if (outputNoteCode < 0) {
-							outputNoteCode = 0;
-						}
-						else if (outputNoteCode > 127) {
-							outputNoteCode = 127;
-						}
-					}
-					// if (outputNoteCode != lastMidiNoteOffSent) {
-					midiEngine.sendNote(this, false, outputNoteCode, 64, outputMidiChannel, 0);
-					// lastMidiNoteOffSent = outputNoteCode;
-					// }
-				}
 			}
 		}
 	}

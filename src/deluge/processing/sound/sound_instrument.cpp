@@ -370,6 +370,8 @@ lookAtArpNote:
 		}
 	}
 
+	// Let the Sound know about this polyphonic expression event
+	// The Sound class will use it to send MIDI out (if enabled in the sound config)
 	Sound::polyphonicExpressionEventOnChannelOrNote(newValue, expressionDimension, channelOrNoteNumber,
 	                                                whichCharacteristic);
 }
@@ -387,30 +389,7 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 		       fromMIDIChannel);
 	}
 	else {
-		ArpeggiatorSettings* arpSettings = getArpSettings();
-
-		ArpReturnInstruction instruction;
-
-		arpeggiator.noteOff(arpSettings, noteCode, &instruction);
-
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
-				break;
-			}
-#if ALPHA_OR_BETA_VERSION
-			if (!modelStack->paramManager) {
-				// Previously we were allowed to receive a NULL paramManager, then would just crudely do an
-				// unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
-				FREEZE_WITH_ERROR("E402");
-			}
-#endif
-			ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
-			if (allowNoteTails(modelStackWithSoundFlags, true)) {
-				noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
-			}
-
-			reassessRenderSkippingStatus(modelStackWithSoundFlags);
-		}
+		noteOff(modelStack, &arpeggiator, noteCode);
 	}
 }
 
