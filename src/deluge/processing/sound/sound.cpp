@@ -26,7 +26,6 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
