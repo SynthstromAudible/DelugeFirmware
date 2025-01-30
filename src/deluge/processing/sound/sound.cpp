@@ -1790,6 +1790,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 	// but only if the type of sound allows note tails (if not, note off has already been sent)
 	if (outputMidiChannel != MIDI_CHANNEL_NONE && allowNoteTails(modelStack, true)) {
 		if (noteCode == ALL_NOTES_OFF) {
+			midiEngine.sendAllNotesOff(this, channel, kMIDIOutputFilterNoMPE);
 			// We must send note offs for all active notes, at least for all the current notes on postarp
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (getArp()->noteCodeCurrentlyOnPostArp[n] == ARP_NOTE_NONE) {
@@ -1814,6 +1815,9 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 				// don't send two note offs if a normal noteOff or playback stop is received later
 				getArp()->noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
 			}
+
+			// Besides, send this just in case some other note is playing and we didn't have track of it
+			midiEngine.sendAllNotesOff(this, outputMidiChannel, kMIDIOutputFilterNoMPE);
 		}
 		else {
 			// We have an specific note code, so we'll use that
