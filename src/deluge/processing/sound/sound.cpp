@@ -1736,7 +1736,6 @@ void Sound::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t e
 	int32_t value7 = newValue >> 24;
 	if (whichCharacteristic == MIDICharacteristic::CHANNEL) {
 		// Channel aftertouch
-		D_PRINTLN("CH AT %d", channelOrNoteNumber);
 		midiEngine.sendChannelAftertouch(this, outputMidiChannel, value7, kMIDIOutputFilterNoMPE);
 	}
 	// whichCharacteristic == MIDICharacteristic::NOTE
