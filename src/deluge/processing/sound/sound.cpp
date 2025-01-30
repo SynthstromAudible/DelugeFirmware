@@ -26,6 +26,7 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
@@ -1736,6 +1737,7 @@ void Sound::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t e
 	int32_t value7 = newValue >> 24;
 	if (whichCharacteristic == MIDICharacteristic::CHANNEL) {
 		// Channel aftertouch
+		D_PRINTLN("CH AT %d", channelOrNoteNumber);
 		midiEngine.sendChannelAftertouch(this, outputMidiChannel, value7, kMIDIOutputFilterNoMPE);
 	}
 	// whichCharacteristic == MIDICharacteristic::NOTE
@@ -1746,29 +1748,27 @@ void Sound::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t e
 			ArpeggiatorForDrum* arpeggiator = (ArpeggiatorForDrum*)getArp();
 			// Just one note is possible
 			ArpNote arpNote = arpeggiator->arpNote;
-			for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
-				if (arpNote.noteCodeOnPostArp[i] == ARP_NOTE_NONE
-				    || arpNote.outputMemberChannel[i] == MIDI_CHANNEL_NONE) {
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (arpNote.noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
-				midiEngine.sendPolyphonicAftertouch(this, arpNote.outputMemberChannel[i], value7,
-				                                    arpNote.noteCodeOnPostArp[i], kMIDIOutputFilterNoMPE);
+				midiEngine.sendPolyphonicAftertouch(this, outputMidiChannel, value7, arpNote.noteCodeOnPostArp[n],
+				                                    kMIDIOutputFilterNoMPE);
 			}
 		}
 		else if (getArp()->getArpType() == ArpType::SYNTH) {
 			// This is a sound instrument (synth)
 			Arpeggiator* arpeggiator = (Arpeggiator*)getArp();
 			// Search for the note
-			int32_t n = arpeggiator->notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
-			if (n < arpeggiator->notes.getNumElements()) {
-				ArpNote* arpNote = (ArpNote*)arpeggiator->notes.getElementAddress(n);
-				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
-					if (arpNote->noteCodeOnPostArp[i] == ARP_NOTE_NONE
-					    || arpNote->outputMemberChannel[i] == MIDI_CHANNEL_NONE) {
+			int32_t i = arpeggiator->notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
+			if (i < arpeggiator->notes.getNumElements()) {
+				ArpNote* arpNote = (ArpNote*)arpeggiator->notes.getElementAddress(i);
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (arpNote->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
-					midiEngine.sendPolyphonicAftertouch(this, arpNote->outputMemberChannel[i], value7,
-					                                    arpNote->noteCodeOnPostArp[i], kMIDIOutputFilterNoMPE);
+					midiEngine.sendPolyphonicAftertouch(this, outputMidiChannel, value7, arpNote->noteCodeOnPostArp[n],
+					                                    kMIDIOutputFilterNoMPE);
 				}
 			}
 		}
@@ -3625,7 +3625,7 @@ gotError:
 					memcpy(destinationRange, tempRange, source->ranges.elementSize);
 					reader.match('}');          // exit value object
 					reader.exitTag(NULL, true); // exit box.
-				}                               // was a sampleRange or wavetableRange
+				} // was a sampleRange or wavetableRange
 				else {
 					reader.exitTag();
 				}
