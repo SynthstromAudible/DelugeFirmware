@@ -25,6 +25,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/navigation_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -5799,7 +5800,11 @@ void Song::displayCurrentRootNoteAndScaleName() {
 		UI* currentUI = getCurrentUI();
 		bool isSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
 		// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
-		if (isSessionView && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
+		if (naviview.useNavigationView() && naviview.hasScale) {
+			naviview.drawDashboard();
+			return;
+		}
+		else if (isSessionView && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
 			sessionView.displayCurrentRootNoteAndScaleName(deluge::hid::display::OLED::main, popupMsg, true);
 			deluge::hid::display::OLED::markChanged();
 			return;
