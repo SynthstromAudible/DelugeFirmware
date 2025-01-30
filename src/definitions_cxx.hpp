@@ -951,6 +951,7 @@ constexpr int32_t kSubmenuIconSpacingX = 7;
 
 // For kits
 constexpr int32_t kNoteForDrum = 60;
+constexpr int32_t kDefaultNoteOffVelocity = 64;
 
 enum BendRange {
 	BEND_RANGE_MAIN,

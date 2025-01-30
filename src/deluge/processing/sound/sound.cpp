@@ -1717,7 +1717,7 @@ justUnassign:
 		// If the note doesn't have a tail (for ONCE samples for example and if ARP is OFF), we will never get a noteOff
 		// event to be called by the sequencer, so we need to "off" the note right now
 		if (!allowNoteTails(modelStack, true)) {
-			midiEngine.sendNote(this, false, outputNoteCode, 64, outputMidiChannel, 0);
+			midiEngine.sendNote(this, false, outputNoteCode, kDefaultNoteOffVelocity, outputMidiChannel, 0);
 		}
 	}
 }
@@ -1786,22 +1786,23 @@ void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBa
 void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	// Send midi note offs out
-	// but only if the type of sound allows note tails (if not, note off has already been sent)
+	// Send midi note offs out for specific notes,
+	// but only if the type of sound allows note tails (if not, note off was already sent right after its note on)
 	if (outputMidiChannel != MIDI_CHANNEL_NONE && allowNoteTails(modelStack, true)) {
 		if (noteCode == ALL_NOTES_OFF) {
-			midiEngine.sendAllNotesOff(this, channel, kMIDIOutputFilterNoMPE);
-			// We must send note offs for all active notes, at least for all the current notes on postarp
+			// We must send note offs for all active notes
+			// so we will search for the current notes on postArp phase, if any
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (getArp()->noteCodeCurrentlyOnPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
 				int32_t outputNoteCode = getArp()->noteCodeCurrentlyOnPostArp[n];
 				if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
-					// If note for drums is set then this is a SoundDrum and we must use the relative note code (based
-					// on kNoteForDrum)
+					// If note for drums is set then this is a SoundDrum and we must use the relative note code
+					// (relative to kNoteForDrum)
 					int32_t noteCodeDiff = outputNoteCode - kNoteForDrum;
 					outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
+					// Correct if out of bounds
 					if (outputNoteCode < 0) {
 						outputNoteCode = 0;
 					}
@@ -1809,26 +1810,24 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 						outputNoteCode = 127;
 					}
 				}
-				midiEngine.sendNote(this, false, outputNoteCode, 64, outputMidiChannel, 0);
+				midiEngine.sendNote(this, false, outputNoteCode, kDefaultNoteOffVelocity, outputMidiChannel, 0);
 
-				// The "voice" related code below will switch off the voice anyway, so it is safe to clean this so we
-				// don't send two note offs if a normal noteOff or playback stop is received later
+				// The "voice" related code below will switch off the voice anyway, so it is safe to clean this flag so
+				// we don't send two note offs if a normal noteOff or playback stop is received later
 				getArp()->noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
 			}
-
-			// Besides, send this just in case some other note is playing and we didn't have track of it
-			midiEngine.sendAllNotesOff(this, outputMidiChannel, kMIDIOutputFilterNoMPE);
 		}
 		else {
-			// We have an specific note code, so we'll use that
-			// This method has been called from the arp's note off so the handling of "noteCodeCurrentlyOnPostArp" has
-			// already been done
+			// We have an specific note code, so we'll directly use that.
+			// This method has been called from the arp's noteOff so the handling of "noteCodeCurrentlyOnPostArp" has
+			// already been done there
 			int32_t outputNoteCode = noteCode;
 			if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
-				// If note for drums is set then this is a SoundDrum and we must use the relative note code (based on
-				// kNoteForDrum)
+				// If note for drums is set then this is a SoundDrum and we must use the relative note code
+				// (relative to kNoteForDrum)
 				int32_t noteCodeDiff = outputNoteCode - kNoteForDrum;
 				outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
+				// Correct if out of bounds
 				if (outputNoteCode < 0) {
 					outputNoteCode = 0;
 				}
@@ -1836,8 +1835,13 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 					outputNoteCode = 127;
 				}
 			}
-			midiEngine.sendNote(this, false, outputNoteCode, 64, outputMidiChannel, 0);
+			midiEngine.sendNote(this, false, outputNoteCode, kDefaultNoteOffVelocity, outputMidiChannel, 0);
 		}
+	}
+	if (outputMidiChannel != MIDI_CHANNEL_NONE && noteCode == ALL_NOTES_OFF) {
+		// Besides all the previous specific note offs already sent, send also this special MIDI message,
+		// just in case some other note is still playing and we didn't have track of it
+		midiEngine.sendAllNotesOff(this, outputMidiChannel, kMIDIOutputFilterNoMPE);
 	}
 
 	if (!numVoicesAssigned) {
@@ -3621,7 +3625,7 @@ gotError:
 					memcpy(destinationRange, tempRange, source->ranges.elementSize);
 					reader.match('}');          // exit value object
 					reader.exitTag(NULL, true); // exit box.
-				} // was a sampleRange or wavetableRange
+				}                               // was a sampleRange or wavetableRange
 				else {
 					reader.exitTag();
 				}

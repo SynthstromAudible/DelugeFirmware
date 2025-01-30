@@ -64,7 +64,7 @@ void MIDIDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t 
 }
 
 void MIDIDrum::noteOffPostArp(int32_t noteCodePostArp) {
-	midiEngine.sendNote(this, false, noteCodePostArp, 64, channel, kMIDIOutputFilterNoMPE);
+	midiEngine.sendNote(this, false, noteCodePostArp, kDefaultNoteOffVelocity, channel, kMIDIOutputFilterNoMPE);
 	state = false;
 }
 
