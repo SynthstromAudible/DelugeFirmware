@@ -173,8 +173,8 @@
         "STRING_FOR_RIGHT_INPUT": "Right input",
         "STRING_FOR_STEREO_INPUT": "Stereo input",
         "STRING_FOR_BALANCED_INPUT": "Balanced input",
-        "STRING_FOR_MIX_PRE_FX": "Deluge mix (pre fx)",
-        "STRING_FOR_MIX_POST_FX": "Deluge out (post fx)",
+        "STRING_FOR_MIX_PRE_FX": "Deluge mix (no fx)",
+        "STRING_FOR_MIX_POST_FX": "Deluge output (fx)",
         "STRING_FOR_TRACK": "Specific Track",
 
         "STRING_FOR_DEFAULT_LAUNCH": "Infinite",

@@ -152,14 +152,12 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 void AudioInputSelector::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	const auto options = getOptions();
 
-	int32_t windowMinY = 1;
-
 	canvas.clearAreaExact(0, 0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
 
-	canvas.drawHorizontalLine(windowMinY + 15, 0, OLED_MAIN_WIDTH_PIXELS - 1);
-	canvas.drawString(this->getTitle(), 28, windowMinY + 6, kTextSpacingX, kTextSpacingY);
+	canvas.drawString(this->getTitle(), 0, 6, kTextTitleSpacingX, kTextTitleSizeY);
+	canvas.drawHorizontalLine(17, 0, OLED_MAIN_WIDTH_PIXELS - 1);
 
-	int32_t textPixelY = windowMinY + 18;
+	int32_t textPixelY = 19;
 	int32_t actualCurrentOption = currentOption;
 
 	currentOption = scrollPos;
@@ -170,7 +168,7 @@ void AudioInputSelector::renderOLED(deluge::hid::display::oled_canvas::Canvas& c
 
 		if (isCurrentOptionAvailable()) {
 			int32_t invertStartX = 0;
-			int32_t textPixelX = invertStartX + 7;
+			int32_t textPixelX = invertStartX + 6;
 			if (FlashStorage::accessibilityMenuHighlighting) {
 				textPixelX += kTextSpacingX;
 			}
