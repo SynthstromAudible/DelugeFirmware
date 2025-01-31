@@ -185,6 +185,8 @@ void MidiFollow::initDefaultMappings() {
 	soundParamToCC[params::LOCAL_LFO_LOCAL_FREQ] = 59;
 	ccToSoundParam[60] = params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE] = 60;
+	ccToSoundParam[61] = params::GLOBAL_VOLUME_POST_REVERB_SEND;
+	soundParamToCC[params::GLOBAL_VOLUME_POST_REVERB_SEND] = 61;
 	ccToSoundParam[62] = params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING] = 62;
 	ccToSoundParam[63] = params::UNPATCHED_START + params::UNPATCHED_SAMPLE_RATE_REDUCTION;
@@ -1018,29 +1020,38 @@ void MidiFollow::writeDefaultsToFile() {
 
 /// convert paramID to a paramName to write to XML
 void MidiFollow::writeDefaultMappingsToFile() {
+	Serializer& writer = GetSerializer();
 	for (int32_t ccNumber = 0; ccNumber <= kMaxMIDIValue; ccNumber++) {
 		uint8_t soundParamId = ccToSoundParam[ccNumber];
 		uint8_t globalParamId = ccToGlobalParam[ccNumber];
 
 		bool writeTag = false;
-		char const* paramName;
+		char const* paramNameSound;
+		char const* paramNameGlobal;
 		if (soundParamId != PARAM_ID_NONE && soundParamId < params::UNPATCHED_START) {
-			paramName = params::paramNameForFile(params::Kind::PATCHED, soundParamId);
+			paramNameSound = params::paramNameForFile(params::Kind::PATCHED, soundParamId);
 			writeTag = true;
 		}
 		else if (soundParamId != PARAM_ID_NONE && soundParamId >= params::UNPATCHED_START) {
-			paramName = params::paramNameForFile(params::Kind::UNPATCHED_SOUND, soundParamId);
-			writeTag = true;
-		}
-		else if (globalParamId != PARAM_ID_NONE) {
-			paramName = params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL, globalParamId);
+			paramNameSound = params::paramNameForFile(params::Kind::UNPATCHED_SOUND, soundParamId);
 			writeTag = true;
 		}
 		if (writeTag) {
 			char buffer[10];
 			intToString(ccNumber, buffer);
-			Serializer& writer = GetSerializer();
-			writer.writeTag(paramName, buffer);
+			writer.writeTag(paramNameSound, buffer);
+		}
+
+		writeTag = false;
+		if (globalParamId != PARAM_ID_NONE) {
+			paramNameGlobal =
+			    params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_START + globalParamId);
+			writeTag = strcmp(paramNameGlobal, paramNameSound) != 0;
+		}
+		if (writeTag) {
+			char buffer[10];
+			intToString(ccNumber, buffer);
+			writer.writeTag(paramNameGlobal, buffer);
 		}
 	}
 }
