@@ -389,7 +389,7 @@ Error loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrument, FilePointer* 
 
 Error openPatternFile(FilePointer* filePointer);
 Error loadPatternFile(FilePointer* filePointer, String* fileName, bool overwriteExisting, bool previewOnly,
-			bool selectedDrumOnly);
+		      bool selectedDrumOnly);
 
 Drum* createNewDrum(DrumType drumType);
 Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,

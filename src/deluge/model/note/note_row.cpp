@@ -4053,20 +4053,20 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 
 		// Prevents pasting of overlapping notes, which leads to sequentialTest Error "E319"
 		attemptNoteAdd(newPos, newLength, noteSource->velocity, noteSource->probability, noteSource->iterance,
-				noteSource->fill,modelStack,nullptr);
+			       noteSource->fill,modelStack,nullptr);
 		/*
-			int32_t noteDestI = notes.insertAtKey(newPos);
-			Note* noteDest = notes.getElement(noteDestI);
-			if (!noteDest) {
-				return false;
-			}
+		    int32_t noteDestI = notes.insertAtKey(newPos);
+		    Note* noteDest = notes.getElement(noteDestI);
+		    if (!noteDest) {
+		        return false;
+		    }
 
-			noteDest->length = newLength;
-			noteDest->velocity = noteSource->velocity;
-			noteDest->probability = noteSource->probability;
-			noteDest->lift = noteSource->lift;
-			noteDest->iterance = noteSource->iterance;
-			noteDest->fill = noteSource->fill;
+		    noteDest->length = newLength;
+		    noteDest->velocity = noteSource->velocity;
+		    noteDest->probability = noteSource->probability;
+		    noteDest->lift = noteSource->lift;
+		    noteDest->iterance = noteSource->iterance;
+		    noteDest->fill = noteSource->fill;
 		*/
 		minPos = newPos + newLength;
 	}

@@ -1138,8 +1138,8 @@ void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 				continue;
 		}
 		if (getCurrentOutputType() == OutputType::KIT && thisNoteRow->drum != getCurrentKit()->selectedDrum
-				&& selectedDrumOnly) {
-				continue;
+		    && selectedDrumOnly) {
+		        continue;
 		}
 		if (getCurrentOutputType() == OutputType::KIT  && selectedDrumOnly) {
 			noteRowYDisplay=0;
@@ -1326,7 +1326,7 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSys
 }
 
 void InstrumentClipView::pasteNotes(bool overwriteExisting, bool pasteFromFile, bool previewOnly,
-									bool selectedDrumOnly) {
+				    bool selectedDrumOnly) {
 
 	if (!firstCopiedNoteRow) {
 		return;
@@ -1390,7 +1390,7 @@ ramError:
 
 			if (overwriteExisting && selectedDrumOnly) {
 				thisNoteRow->clearArea(startPos, endPos - startPos, modelStackWithNoteRow, action,
-		                       		   getCurrentInstrumentClip()->loopLength); // No cross-screen
+		                       		       getCurrentInstrumentClip()->loopLength); // No cross-screen
 			}
 
 			bool success = thisNoteRow->paste(modelStackWithNoteRow, thisCopiedNoteRow, scaleFactor, endPos, action);
@@ -1437,7 +1437,7 @@ getOut:
 	recalculateColours();
 	uiNeedsRendering(this);
 	if (previewOnly) {
-		if (copiedScreenWidth/16 != currentSong->xZoom[getNavSysId()]) {
+		if (copiedScreenWidth / 16 != currentSong->xZoom[getNavSysId()]) {
 			char buffer[(display->haveOLED()) ? 29 : 5];
 			DEF_STACK_STRING_BUF(from, 30);
 			DEF_STACK_STRING_BUF(to, 30);
@@ -1455,11 +1455,10 @@ getOut:
 	else {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTES_PASTED));
 	}
-
 }
 
 Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool previewOnly,
-											 bool selectedDrumOnly) {
+					     bool selectedDrumOnly) {
 	Error error = Error::NONE;
 
 	if (false) {
@@ -1541,7 +1540,7 @@ ramError:
 							newCopiedNoteRow->numNotes = numNotes;
 
 							newCopiedNoteRow->notes =
-							(Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
+							    (Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
 
 							currentNote = 0;
 						}
