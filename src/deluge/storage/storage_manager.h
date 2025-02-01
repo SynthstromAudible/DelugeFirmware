@@ -388,7 +388,7 @@ Error loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrument, FilePointer* 
                                    bool updateFileName = true);
 
 Error openPatternFile(FilePointer* filePointer);
-Error loadPatternFile(FilePointer* filePointer, String* fileName, bool pasteGently);
+Error loadPatternFile(FilePointer* filePointer, String* fileName, bool overwriteExisting, bool previewOnly, bool selectedDrumOnly);
 
 Drum* createNewDrum(DrumType drumType);
 Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,

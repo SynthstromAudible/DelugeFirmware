@@ -709,10 +709,10 @@ doOther:
 		}
 
 		if (Buttons::isShiftButtonPressed()) {
-			pasteNotes(true);
+			pasteNotes();
 		}
 		else {
-			copyNotes(nullptr);
+			copyNotes(nullptr,false);
 		}
 	}
 	else if (b == TEMPO_ENC && isUIModeActive(UI_MODE_AUDITIONING)
@@ -1077,7 +1077,7 @@ void InstrumentClipView::copyAutomation(int32_t whichModEncoder, int32_t navSysI
 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_AUTOMATION_TO_COPY));
 }
 
-void InstrumentClipView::copyNotes(Serializer* writer) {
+void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 
 	bool copyToFile = false;
 	if (writer) {
@@ -1137,6 +1137,13 @@ void InstrumentClipView::copyNotes(Serializer* writer) {
 			if (!auditionPadIsPressed[noteRowYDisplay])
 				continue;
 		}
+		if (getCurrentOutputType() == OutputType::KIT && thisNoteRow->drum != getCurrentKit()->selectedDrum && selectedDrumOnly) {
+				continue;
+		}
+		if (getCurrentOutputType() == OutputType::KIT  && selectedDrumOnly) {
+				noteRowYDisplay=0;
+		}
+
 
 		// If this NoteRow has any notes...
 		if (!thisNoteRow->hasNoNotes()) {
@@ -1250,11 +1257,10 @@ ramError:
 	else {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTES_COPIED));
 	}
-
 }
 
-void InstrumentClipView::copyNotesToFile(Serializer& writer) {
-	copyNotes(&writer);
+void InstrumentClipView::copyNotesToFile(Serializer& writer, bool selectedDrumOnly) {
+	copyNotes(&writer,selectedDrumOnly);
 }
 
 void InstrumentClipView::deleteCopiedNoteRows() {
@@ -1318,7 +1324,7 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSys
 	}
 }
 
-void InstrumentClipView::pasteNotes(bool overwriteExisting = true) {
+void InstrumentClipView::pasteNotes(bool overwriteExisting, bool pasteFromFile, bool previewOnly, bool selectedDrumOnly) {
 
 	if (!firstCopiedNoteRow) {
 		return;
@@ -1342,12 +1348,20 @@ ramError:
 
 	float scaleFactor = (float)pastedScreenWidth / (uint32_t)copiedScreenWidth;
 
-	Action* action = actionLogger.getNewAction(ActionType::NOTES_PASTE, ActionAddition::NOT_ALLOWED);
+	Action* action;
+
+	// If pasting from File, preview changes should be grouped to one Action
+	if(pasteFromFile) {
+		action = actionLogger.getNewAction(ActionType::NOTES_PASTE, ActionAddition::ALLOWED);
+	}
+	else {
+		action = actionLogger.getNewAction(ActionType::NOTES_PASTE, ActionAddition::NOT_ALLOWED);
+	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	if (overwriteExisting) {
+	if (overwriteExisting && !selectedDrumOnly) {
 		getCurrentInstrumentClip()->clearArea(modelStack, startPos, endPos, action);
 	}
 
@@ -1364,10 +1378,18 @@ ramError:
 			if (noteRowId >= getCurrentInstrumentClip()->noteRows.getNumElements()) {
 				break;
 			}
+			if (selectedDrumOnly) {
+				noteRowId = getCurrentKit()->getDrumIndex(getCurrentKit()->selectedDrum);
+			}
 
 			NoteRow* thisNoteRow = getCurrentInstrumentClip()->noteRows.getElement(noteRowId);
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, thisNoteRow);
+
+			if (overwriteExisting && selectedDrumOnly) {
+				thisNoteRow->clearArea(startPos, endPos - startPos, modelStackWithNoteRow, action,
+		                       getCurrentInstrumentClip()->loopLength); // No cross-screen
+			}
 
 			bool success = thisNoteRow->paste(modelStackWithNoteRow, thisCopiedNoteRow, scaleFactor, endPos, action);
 			if (!success) {
@@ -1412,10 +1434,28 @@ ramError:
 getOut:
 	recalculateColours();
 	uiNeedsRendering(this);
-	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTES_PASTED));
+	if(previewOnly) {
+		if(copiedScreenWidth/16 != currentSong->xZoom[getNavSysId()]) {
+			char buffer[(display->haveOLED()) ? 29 : 5];
+			DEF_STACK_STRING_BUF(from, 30);
+			DEF_STACK_STRING_BUF(to, 30);
+			currentSong->getNoteLengthName(from, copiedScreenWidth/16, "-notes", true);
+			currentSong->getNoteLengthName(to, currentSong->xZoom[getNavSysId()], "-notes", true);
+			if (display->haveOLED()) {
+				snprintf(buffer, sizeof(buffer), "%s -> %s", from.data(), to.data());
+			} else {
+				snprintf(buffer, sizeof(buffer), "%.2f", scaleFactor);
+			}
+			display->displayPopup(buffer,5);
+		}
+	}
+	else {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTES_PASTED));
+	}
+
 }
 
-Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader, bool overwriteExisting) {
+Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool previewOnly,  bool selectedDrumOnly) {
 	Error error = Error::NONE;
 
 	if (false) {
@@ -1481,7 +1521,6 @@ ramError:
 					}
 
 					// Make the new CopiedNoteRow object
-
 					CopiedNoteRow* newCopiedNoteRow = new (copiedNoteRowMemory) CopiedNoteRow();
 
 					// Put that on the list
@@ -1501,7 +1540,6 @@ ramError:
 								(Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
 
 							currentNote = 0;
-
 						}
 						else if (!strcmp(tagName, "yNote")) {
 							int16_t yNote = reader.readTagOrAttributeValueInt();
@@ -1559,9 +1597,7 @@ ramError:
 								newNote->iterance = iterance;
 								newNote->fill = fill;
 
-
 								currentNote++;
-
 							}
 getOut: {}
 						}
@@ -1572,7 +1608,7 @@ getOut: {}
 	}
 
 	// Pasting notes to the View
-	pasteNotes(overwriteExisting);
+	pasteNotes(overwriteExisting, true, previewOnly, selectedDrumOnly);
 
 	return Error::NONE;
 }
