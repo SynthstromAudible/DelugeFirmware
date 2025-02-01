@@ -32,7 +32,7 @@ public:
 	/// Blue channel
 	channel_type b = 0;
 
-	// Add assignment operator
+	/// Copies RGB values from a colour
 	constexpr RGB& operator=(const RGB& other) {
 		r = other.r;
 		g = other.g;
