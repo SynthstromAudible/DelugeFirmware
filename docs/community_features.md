@@ -190,7 +190,7 @@ as the micromonsta and the dreadbox nymphes.
 - ([#395]) Load synth presets into kit rows by holding the row's `AUDITION` + `SYNTH`. Saving can be done by holding the
   audition pad and pressing save.
 
-- ([#3062]) Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
+- ([#3079]) Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
 
 #### 3.7 - Global Interface
 
@@ -689,6 +689,9 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
   set.
 - ([#2788]) Added LPF to Mutable Instruments Model. 50 (default) corresponds to 20khz and 0 corresponds to 0hz.
 
+#### 4.2.10 Launch Exclusively
+- ([#3213]) A new option, 'Launch Exclusively', isolates a clip section from all other launch activity. This option is found to the left of option 'Launch non-exclusively' when selecting the section's number of repetitions. As a complement to non-exclusive sections that arm and turn off when another section is launched, exclusive sections remain independant and continue playing.
+
 ### 4.3 - Instrument Clip View - General Features
 
 These features were added to the Instrument Clip View and affect Synth, Kit and MIDI instrument clip types.
@@ -851,7 +854,7 @@ to each individual note onset. ([#1978])
 
 #### 4.3.8 - Advanced Arpeggiator
 
-- ([#1198] [#2978] [#2985] [#2990] [#3062] [#3079]) For a detailed description of this feature, please refer to the feature
+- ([#1198] [#2978] [#2985] [#2990] [#3079] [#3285]) For a detailed description of this feature, please refer to the feature
   documentation: [Arpeggiator Documentation]
 
 #### 4.3.9 - Velocity View
@@ -1577,17 +1580,17 @@ different firmware
 
 [#3195]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3195
 
-[#3062]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3062
-
 [#3079]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3079
+
+[#3213]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3213
 
 [#3226]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3226
 
 [#3279]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3279
 
-[#3291]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3291
-
 [#3285]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3285
+
+[#3291]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3291
 
 [Automation View Documentation]: features/automation_view.md
 

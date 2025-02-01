@@ -65,4 +65,18 @@ public:
 };
 
 extern OctaveModeToNoteMode arpOctaveModeToNoteModeMenu;
+
+class OctaveModeToNoteModeForDrums final : public OctaveMode {
+public:
+	using OctaveMode::OctaveMode;
+	void readCurrentValue() override {
+		if (display->have7SEG()) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_OCTAVE_MODE));
+		}
+		OctaveMode::readCurrentValue();
+	}
+	MenuItem* selectButtonPress() override { return &arpeggiator::arpNoteModeFromOctaveModeMenuForDrums; }
+};
+
+extern OctaveModeToNoteModeForDrums arpOctaveModeToNoteModeMenuForDrums;
 } // namespace deluge::gui::menu_item::arpeggiator
