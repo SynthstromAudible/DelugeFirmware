@@ -226,7 +226,7 @@ Error LoadPatternUI::performLoad() {
 	fileName.concatenate(".XML");
 
 	Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName, overwriteExistingState,
-                                                     previewOnly, selectedDrumOnly);
+	                                              previewOnly, selectedDrumOnly);
 
 	if (error != Error::NONE) {
 		display->displayError(currentLabelLoadError);
