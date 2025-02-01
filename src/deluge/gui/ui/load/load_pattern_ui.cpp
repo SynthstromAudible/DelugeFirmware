@@ -68,7 +68,7 @@ bool LoadPatternUI::opened() {
 		selectedDrumOnly = false;
 	}
 
-	currentDir.set(defaultDir);
+	currentDir.set(defaultDir.c_str());
 
 	Error error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
 	if (error != Error::NONE) {
