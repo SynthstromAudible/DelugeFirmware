@@ -1141,10 +1141,9 @@ void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 		    && selectedDrumOnly) {
 		        continue;
 		}
-		if (getCurrentOutputType() == OutputType::KIT  && selectedDrumOnly) {
+		if (getCurrentOutputType() == OutputType::KIT && selectedDrumOnly) {
 			noteRowYDisplay=0;
 		}
-
 
 		// If this NoteRow has any notes...
 		if (!thisNoteRow->hasNoNotes()) {
@@ -1326,7 +1325,7 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSys
 }
 
 void InstrumentClipView::pasteNotes(bool overwriteExisting, bool pasteFromFile, bool previewOnly,
-				    bool selectedDrumOnly) {
+                                    bool selectedDrumOnly) {
 
 	if (!firstCopiedNoteRow) {
 		return;
@@ -1390,7 +1389,7 @@ ramError:
 
 			if (overwriteExisting && selectedDrumOnly) {
 				thisNoteRow->clearArea(startPos, endPos - startPos, modelStackWithNoteRow, action,
-		                       		       getCurrentInstrumentClip()->loopLength); // No cross-screen
+		                                       getCurrentInstrumentClip()->loopLength); // No cross-screen
 			}
 
 			bool success = thisNoteRow->paste(modelStackWithNoteRow, thisCopiedNoteRow, scaleFactor, endPos, action);
@@ -1458,7 +1457,7 @@ getOut:
 }
 
 Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool previewOnly,
-					     bool selectedDrumOnly) {
+                                             bool selectedDrumOnly) {
 	Error error = Error::NONE;
 
 	if (false) {
