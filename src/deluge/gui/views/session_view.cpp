@@ -2429,15 +2429,15 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 void SessionView::displayPotentialBatteryChange(uint16_t newBatteryMV) {
 	// Only update display if we're in the session view
 	if (getCurrentUI() == this) {
-		// Always update if:
+		// Update battery display if:
 		// 1. Voltage has changed significantly (50mV)
 		// 2. Last displayed value is 0 (first time or just entered view)
-		// 3. Every ~1 second
-		static uint32_t lastUpdateTime = 0;
-		uint32_t currentTime = *TCNT[TIMER_SYSTEM_SLOW];
+		// 3. Every ~10 second
+		static double lastUpdateTime = 0;
+		double currentTime = getSystemTime();
 
 		if (abs(newBatteryMV - lastDisplayedBatteryMV) > 50 || lastDisplayedBatteryMV == 0
-		    || (uint32_t)(currentTime - lastUpdateTime) > msToSlowTimerCount(1000)) {
+		    || (currentTime - lastUpdateTime) >= 10.0) {
 
 			lastDisplayedBatteryMV = newBatteryMV;
 			lastUpdateTime = currentTime;
