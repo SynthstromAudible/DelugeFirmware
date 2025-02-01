@@ -527,8 +527,8 @@ void AudioClip::sampleZoneChanged(ModelStackWithTimelineCounter const* modelStac
 
 		int32_t priorityRating = 1; // probably better fix this...
 
-		voiceSample->sampleZoneChanged(&guide, ((Sample*)sampleHolder.audioFile), MarkerType::END,
-		                               getLoopingType(modelStack), priorityRating, true);
+		voiceSample->sampleZoneChanged(&guide, ((Sample*)sampleHolder.audioFile), sampleControls.isReversed(),
+		                               MarkerType::END, getLoopingType(modelStack), priorityRating, true);
 	}
 }
 

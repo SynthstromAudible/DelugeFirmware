@@ -664,8 +664,8 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 		VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
 		if (voiceUnisonPartSource->active) {
-			bool stillActive = voiceUnisonPartSource->voiceSample->sampleZoneChanged(&guides[s], sample, markerType,
-			                                                                         loopingType, getPriorityRating());
+			bool stillActive = voiceUnisonPartSource->voiceSample->sampleZoneChanged(
+			    &guides[s], sample, source.sampleControls.isReversed(), markerType, loopingType, getPriorityRating());
 			if (!stillActive) {
 				D_PRINTLN("returned false ---------");
 				voiceUnisonPartSource->unassign(false);
