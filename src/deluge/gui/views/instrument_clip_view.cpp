@@ -712,7 +712,7 @@ doOther:
 			pasteNotes();
 		}
 		else {
-			copyNotes(nullptr,false);
+			copyNotes(nullptr, false);
 		}
 	}
 	else if (b == TEMPO_ENC && isUIModeActive(UI_MODE_AUDITIONING)
@@ -1137,7 +1137,8 @@ void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 			if (!auditionPadIsPressed[noteRowYDisplay])
 				continue;
 		}
-		if (getCurrentOutputType() == OutputType::KIT && thisNoteRow->drum != getCurrentKit()->selectedDrum && selectedDrumOnly) {
+		if (getCurrentOutputType() == OutputType::KIT && thisNoteRow->drum != getCurrentKit()->selectedDrum
+			&& selectedDrumOnly) {
 				continue;
 		}
 		if (getCurrentOutputType() == OutputType::KIT  && selectedDrumOnly) {
@@ -1260,7 +1261,7 @@ ramError:
 }
 
 void InstrumentClipView::copyNotesToFile(Serializer& writer, bool selectedDrumOnly) {
-	copyNotes(&writer,selectedDrumOnly);
+	copyNotes(&writer, selectedDrumOnly);
 }
 
 void InstrumentClipView::deleteCopiedNoteRows() {
@@ -1324,7 +1325,8 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSys
 	}
 }
 
-void InstrumentClipView::pasteNotes(bool overwriteExisting, bool pasteFromFile, bool previewOnly, bool selectedDrumOnly) {
+void InstrumentClipView::pasteNotes(bool overwriteExisting, bool pasteFromFile, bool previewOnly,
+									bool selectedDrumOnly) {
 
 	if (!firstCopiedNoteRow) {
 		return;
@@ -1351,7 +1353,7 @@ ramError:
 	Action* action;
 
 	// If pasting from File, preview changes should be grouped to one Action
-	if(pasteFromFile) {
+	if (pasteFromFile) {
 		action = actionLogger.getNewAction(ActionType::NOTES_PASTE, ActionAddition::ALLOWED);
 	}
 	else {
@@ -1388,7 +1390,7 @@ ramError:
 
 			if (overwriteExisting && selectedDrumOnly) {
 				thisNoteRow->clearArea(startPos, endPos - startPos, modelStackWithNoteRow, action,
-		                       getCurrentInstrumentClip()->loopLength); // No cross-screen
+		                       		   getCurrentInstrumentClip()->loopLength); // No cross-screen
 			}
 
 			bool success = thisNoteRow->paste(modelStackWithNoteRow, thisCopiedNoteRow, scaleFactor, endPos, action);
@@ -1434,19 +1436,20 @@ ramError:
 getOut:
 	recalculateColours();
 	uiNeedsRendering(this);
-	if(previewOnly) {
-		if(copiedScreenWidth/16 != currentSong->xZoom[getNavSysId()]) {
+	if (previewOnly) {
+		if (copiedScreenWidth/16 != currentSong->xZoom[getNavSysId()]) {
 			char buffer[(display->haveOLED()) ? 29 : 5];
 			DEF_STACK_STRING_BUF(from, 30);
 			DEF_STACK_STRING_BUF(to, 30);
-			currentSong->getNoteLengthName(from, copiedScreenWidth/16, "-notes", true);
+			currentSong->getNoteLengthName(from, copiedScreenWidth / 16, "-notes", true);
 			currentSong->getNoteLengthName(to, currentSong->xZoom[getNavSysId()], "-notes", true);
 			if (display->haveOLED()) {
 				snprintf(buffer, sizeof(buffer), "%s -> %s", from.data(), to.data());
-			} else {
+			}
+			else {
 				snprintf(buffer, sizeof(buffer), "%.2f", scaleFactor);
 			}
-			display->displayPopup(buffer,5);
+			display->displayPopup(buffer, 5);
 		}
 	}
 	else {
@@ -1455,7 +1458,8 @@ getOut:
 
 }
 
-Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool previewOnly,  bool selectedDrumOnly) {
+Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool previewOnly,
+											 bool selectedDrumOnly) {
 	Error error = Error::NONE;
 
 	if (false) {
@@ -1537,7 +1541,7 @@ ramError:
 							newCopiedNoteRow->numNotes = numNotes;
 
 							newCopiedNoteRow->notes =
-								(Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
+							(Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
 
 							currentNote = 0;
 						}

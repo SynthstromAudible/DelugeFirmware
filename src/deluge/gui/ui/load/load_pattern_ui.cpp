@@ -46,12 +46,12 @@ bool LoadPatternUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 bool LoadPatternUI::opened() {
 
 	overwriteExistingState = true;
-	if (!getRootUI()->toClipMinder() || (getCurrentOutputType() == OutputType::AUDIO )  ) {
+	if (!getRootUI()->toClipMinder() || (getCurrentOutputType() == OutputType::AUDIO)) {
 		return false;
 	}
 
 	if (getCurrentOutputType() == OutputType::KIT) {
-		if(getRootUI()->getAffectEntire()) {
+		if (getRootUI()->getAffectEntire()) {
 			defaultDir = std::string(PATTERN_RHYTHMIC_DEFAULT_FOLDER) + "/KIT";
 			title = "Load Kit Pattern";
 			selectedDrumOnly = false;
@@ -91,7 +91,7 @@ bool LoadPatternUI::opened() {
 
 void LoadPatternUI::setupLoadPatternUI(bool overwriteExisting) {
 	overwriteExistingState = overwriteExisting;
-	previewOnly=true;
+	previewOnly = true;
 	performLoad();
 }
 
@@ -100,7 +100,7 @@ void LoadPatternUI::currentFileChanged(int32_t movementDirection) {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem->isFolder) {
-		previewOnly=true;
+		previewOnly = true;
 		// as we did overwrite Notes by last preview, revert to orig before previewing next
 		actionLogger.revert(BEFORE);
 		performLoad();
@@ -225,7 +225,8 @@ Error LoadPatternUI::performLoad() {
 	fileName.concatenate(enteredText.get());
 	fileName.concatenate(".XML");
 
-	Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName, overwriteExistingState, previewOnly , selectedDrumOnly);
+	Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName, overwriteExistingState,
+												  previewOnly , selectedDrumOnly);
 
 	if (error != Error::NONE) {
 		display->displayError(currentLabelLoadError);
