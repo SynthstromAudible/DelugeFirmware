@@ -299,8 +299,18 @@ SECTIONS
         PROVIDE(__sdram_data_end = .);
 	} > SDRAM
 
+    .sdram_rodata :AT(ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data))
+    {
+        . = ALIGN(0x4);
+        PROVIDE(__sdram_rodata_start = .);
+        *(.sdram_rodata)
+        *(.sdram_rodata*)
+        PROVIDE(__sdram_rodata_end = .);
+        . = ALIGN(0x4);
+    } > SDRAM
+
 	/* Reset location counter to RAM012L. Warning: Changing relocation sections before that will require change here */
-	. = ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data);
+	. = ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data) + SIZEOF(.sdram_rodata);
 	. = ALIGN(4);
     . = ALIGN(0xFFFF);
 	/* Definition of code_end declared in start.S and referenced in bootloader with DEF_USER_CODE_END */
@@ -317,6 +327,7 @@ SECTIONS
         . = ALIGN(4);
         PROVIDE(__sdram_bss_start = .);
         *(.sdram_bss .sdram_bss*)
+        *deluge_gui.a:(.bss .bss*)
         . = ALIGN(4);
 		KEEP(*(.sdram_bss))
         PROVIDE(__sdram_bss_end = .);
