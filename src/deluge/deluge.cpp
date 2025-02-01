@@ -718,7 +718,7 @@ extern "C" int32_t deluge_main(void) {
 	setPinMux(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin, 2);
 
 	// Line out detect pins
-	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_R.pin);
+	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
 	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
 	// SPI for CV
