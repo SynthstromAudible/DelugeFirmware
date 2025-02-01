@@ -74,6 +74,7 @@ set the stutter configuration independently of the song configuration if you wis
 #### <ins>Audio Clips</ins>
 - Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on
 when the output is a SAMPLER or a LOOPER, chosen by turning the select knob in an audio clip.
+- Added the ability to trim from the start of an audio clip without reversing it (enable in Community Features menu).
 
 #### <ins>Instrument Clip View</ins>
 

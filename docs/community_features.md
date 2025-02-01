@@ -1172,6 +1172,17 @@ for the Lumi Keys Studio Edition, described below.
     - While Lumi has limited options for MPE separation, it will be configured to align with the dominant MPE range
       defined on the Deluge (upper or lower dominant).
 
+### 4.11.0 - Audio Clip View - Trimming Clips
+
+- ([#3291]) Added a new `STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP` feature to allow users to trim from the start of a clip without needing to reverse it.
+  - Pressing a pad in the first column of an audio clip now makes it flash green allowing you to move the start position. The new start position snaps to column one.
+  - You can revert to an earlier portion by pressing undo (or reverse the clip and altering as before).
+  - This lets you alter the start of an audio clip without time stretching.
+  - Previously, this was only possible by reversing the audio clip and trimming the start as if it were the end.
+
+See this demo for more details:
+[Audio Clip View - Trimming Tips](https://www.youtube.com/watch?v=iWhVUsx40Mg&t=45s&ab_channel=RonCavagnaro).
+
 ## 5. Community Features Menu (aka Runtime Settings)
 
 In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT" encoder) there is
