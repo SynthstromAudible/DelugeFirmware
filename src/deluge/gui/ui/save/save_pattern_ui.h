@@ -22,9 +22,11 @@ class Song;
 
 class SavePatternUI final : public SaveUI {
 public:
-	SavePatternUI() = default;
-
+	SavePatternUI();
 	bool opened() override;
+
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+
 	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {};
 	void endSession() {};
 	bool performSave(bool mayOverwrite) override;
@@ -38,7 +40,8 @@ public:
 	UIType getUIType() override { return UIType::SAVE_PATTERN; }
 
 private:
-	std::string defaultFolder;
+	bool selectedDrumOnly;
+	std::string defaultDir;
 };
 
 extern SavePatternUI savePatternUI;

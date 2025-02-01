@@ -32,8 +32,7 @@
 
 using namespace deluge;
 
-
-#define PATTERN_RHYTMIC_DEFAULT_FOLDER "PATTERNS/RHYTHMIC"
+#define PATTERN_RHYTHMIC_DEFAULT_FOLDER "PATTERNS/RHYTHMIC"
 #define PATTERN_MELODIC_DEFAULT_FOLDER "PATTERNS/MELODIC"
 
 LoadPatternUI loadPatternUI{};
@@ -45,19 +44,37 @@ bool LoadPatternUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 }
 
 bool LoadPatternUI::opened() {
-	D_PRINTLN("opened");
+
 	overwriteExistingState = true;
-	if (!getRootUI()->toClipMinder() || ( getCurrentOutputType() == OutputType::AUDIO )  ) {
+	if (!getRootUI()->toClipMinder() || (getCurrentOutputType() == OutputType::AUDIO )  ) {
 		return false;
 	}
+
+	if (getCurrentOutputType() == OutputType::KIT) {
+		if(getRootUI()->getAffectEntire()) {
+			defaultDir = std::string(PATTERN_RHYTHMIC_DEFAULT_FOLDER) + "/KIT";
+			title = "Load Kit Pattern";
+			selectedDrumOnly = false;
+		}
+		else {
+			defaultDir = std::string(PATTERN_RHYTHMIC_DEFAULT_FOLDER) + "/DRUM";
+			title = "Load Drum Pattern";
+			selectedDrumOnly = true;
+		}
+	}
+	else {
+		defaultDir = std::string(PATTERN_MELODIC_DEFAULT_FOLDER);
+		title = "Load Pattern";
+		selectedDrumOnly = false;
+	}
+
+	currentDir.set(defaultDir);
 
 	Error error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;
 	}
-
-	actionLogger.deleteAllLogs();
 
 	error = setupForLoadingPattern(); // Sets currentDir.
 	if (error != Error::NONE) {
@@ -72,47 +89,29 @@ bool LoadPatternUI::opened() {
 	return true;
 }
 
-void LoadPatternUI::setOverwriteOnLoad(bool overwriteExisting) {
+void LoadPatternUI::setupLoadPatternUI(bool overwriteExisting) {
 	overwriteExistingState = overwriteExisting;
+	previewOnly=true;
+	performLoad();
 }
 
 void LoadPatternUI::currentFileChanged(int32_t movementDirection) {
-	D_PRINTLN("chagned");
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem->isFolder) {
-
-		String fileName;
-		fileName.set(currentDir.get());
-		fileName.concatenate("/");
-		fileName.concatenate(enteredText.get());
-		fileName.concatenate(".XML");
-
-		D_PRINTLN("Selected Filename- %s", fileName.get());
-
-		Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName, overwriteExistingState);
-		error = Error::NONE;
+		previewOnly=true;
+		// as we did overwrite Notes by last preview, revert to orig before previewing next
+		actionLogger.revert(BEFORE);
+		performLoad();
 	}
 }
 
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
 Error LoadPatternUI::setupForLoadingPattern() {
-	D_PRINTLN("setup");
 	enteredText.clear();
 
-	std::string patternFolder = "";
-	if (getCurrentOutputType() == OutputType::KIT) {
-		patternFolder = PATTERN_RHYTMIC_DEFAULT_FOLDER;
-	}
-	else {
-		patternFolder = PATTERN_MELODIC_DEFAULT_FOLDER;
-	}
-
-	char const* defaultDir = patternFolder.c_str();
-
 	if (display->haveOLED()) {
-		title = "Load Pattern File";
 		fileIcon = deluge::hid::display::OLED::midiIcon;
 		fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
 		fileIconPt2Width = 1;
@@ -132,7 +131,7 @@ Error LoadPatternUI::setupForLoadingPattern() {
 		}
 	}
 
-	error = arrivedInNewFolder(0, searchFilename.get(), defaultDir);
+	error = arrivedInNewFolder(0, searchFilename.get(), defaultDir.c_str());
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -152,7 +151,6 @@ void LoadPatternUI::folderContentsReady(int32_t entryDirection) {
 }
 
 void LoadPatternUI::enterKeyPress() {
-	D_PRINTLN("keyPress");
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (!currentFileItem) {
 		return;
@@ -171,57 +169,35 @@ void LoadPatternUI::enterKeyPress() {
 	}
 
 	else {
-
-		currentLabelLoadError = performLoad();
-		if (currentLabelLoadError != Error::NONE) {
-			display->displayError(currentLabelLoadError);
-			return;
-		}
-
-		display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PATTERN_LOADED));
-
+		previewOnly = false;
+		performLoad();
 		close();
 	}
 }
 
 ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
-	D_PRINTLN("buttonAction");
 	using namespace deluge::hid::button;
-
-	std::string patternFolder = "";
-	if (getCurrentOutputType() == OutputType::KIT) {
-		patternFolder = PATTERN_RHYTMIC_DEFAULT_FOLDER;
-	}
-	else {
-		patternFolder = PATTERN_MELODIC_DEFAULT_FOLDER;
-	}
-
-	char const* defaultDir = patternFolder.c_str();
-
-	D_PRINTLN("default dir %s", defaultDir);
 
 	// Load button
 	if (b == LOAD) {
-		D_PRINTLN("load ");
+		previewOnly = false;
 		return mainButtonAction(on);
 	}
-
 	else {
 		if (on && b == BACK) {
-			D_PRINTLN("back ");
 			// don't allow navigation backwards if we're in the default folder
-			if (!strcmp(currentDir.get(), defaultDir)) {
+			if (!strcmp(currentDir.get(), defaultDir.c_str())) {
+				// as we did overwrite Notes by previewing, revert to orig before closing
+				actionLogger.revert(BEFORE);
 				close();
 				return ActionResult::DEALT_WITH;
 			}
 		}
-		D_PRINTLN("return ");
 		return LoadUI::buttonAction(b, on, inCardRoutine);
 	}
 }
 
 ActionResult LoadPatternUI::padAction(int32_t x, int32_t y, int32_t on) {
-	D_PRINTLN("padAction");
 	if (x < kDisplayWidth) {
 		return LoadUI::padAction(x, y, on);
 	}
@@ -231,8 +207,7 @@ ActionResult LoadPatternUI::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 }
 
-Error LoadPatternUI::performLoad(bool doClone) {
-	D_PRINTLN("performLoad");
+Error LoadPatternUI::performLoad() {
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (currentFileItem == nullptr) {
 		// Make it say "NONE" on numeric Deluge, for
@@ -250,12 +225,10 @@ Error LoadPatternUI::performLoad(bool doClone) {
 	fileName.concatenate(enteredText.get());
 	fileName.concatenate(".XML");
 
-	D_PRINTLN("Selected Filename- %s", fileName.get());
-
-	Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName, overwriteExistingState);
-	error = Error::NONE;
+	Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName, overwriteExistingState, previewOnly , selectedDrumOnly);
 
 	if (error != Error::NONE) {
+		display->displayError(currentLabelLoadError);
 		return error;
 	}
 

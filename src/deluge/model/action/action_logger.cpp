@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/ui.h"
+#include "gui/ui/load/load_pattern_ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
@@ -92,8 +93,9 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 	// If not on a View, not allowed!
 	// Exception for sound editor note editor UI which can edit notes on the grid
 	// Exception for sound editor note row editor UI which can edit note rows on the grid
+	// Exception for loadPatternUI which does edit note rows on the grid
 	if ((getCurrentUI() != getRootUI())
-	    && (!(getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())))) {
+	    && (!(getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor()))) && (getCurrentUI() != &loadPatternUI)) {
 		return nullptr;
 	}
 
@@ -194,7 +196,6 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 	}
 
 	updateAction(newAction);
-
 	return newAction;
 }
 
@@ -776,7 +777,6 @@ void ActionLogger::deleteLog(int32_t time) {
 // because we could then be in the middle of executing whichever function accessed the card and we don't know if things
 // will break?
 void ActionLogger::undo() {
-
 	// Before we go and revert the most recent Action, there are a few recording-related states we first want to have a
 	// go at cancelling out of. These are treated as special cases here rather than being Consequences because they're
 	// never redoable: their "undoing" is a special case of cancellation.

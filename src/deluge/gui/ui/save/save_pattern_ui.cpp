@@ -37,12 +37,20 @@
 
 using namespace deluge;
 
-#define PATTERN_RHYTMIC_DEFAULT_FOLDER "PATTERNS/RHYTMIC"
+#define PATTERN_RHYTHMIC_DEFAULT_FOLDER "PATTERNS/RHYTHMIC"
 #define PATTERN_MELODIC_DEFAULT_FOLDER "PATTERNS/MELODIC"
 
 SavePatternUI savePatternUI{};
 
+SavePatternUI::SavePatternUI() {
+    filePrefix = "PATTERN";
+}
+
 bool SavePatternUI::opened() {
+
+	if (!getRootUI()->toClipMinder() || (getCurrentOutputType() == OutputType::AUDIO )  ) {
+		return false;
+	}
 
 	Instrument* currentInstrument = getCurrentInstrument();
 	// Must set this before calling SaveUI::opened(), which uses this to work out folder name
@@ -56,19 +64,27 @@ doReturnFalse:
 		return false;
 	}
 
-	enteredText.set("Pattern");
-	enteredTextEditPos = enteredText.getLength();
 	currentFolderIsEmpty = false;
 
 	std::string patternFolder = "";
 	if (getCurrentOutputType() == OutputType::KIT) {
-		patternFolder = PATTERN_RHYTMIC_DEFAULT_FOLDER;
+		if(getRootUI()->getAffectEntire()) {
+			defaultDir = std::string(PATTERN_RHYTHMIC_DEFAULT_FOLDER) + "/KIT";
+			title = "Save Kit Pattern";
+			selectedDrumOnly = false;
+		}
+		else {
+			defaultDir = std::string(PATTERN_RHYTHMIC_DEFAULT_FOLDER) + "/DRUM";
+			title = "Save Drum Pattern";
+			selectedDrumOnly = true;
+		}
 	}
 	else {
-		patternFolder = PATTERN_MELODIC_DEFAULT_FOLDER;
+		defaultDir = std::string(PATTERN_MELODIC_DEFAULT_FOLDER);
+		title = "Save Pattern";
+		selectedDrumOnly = false;
 	}
 
-	char const* defaultDir = patternFolder.c_str();
 tryDefaultDir:
 	currentDir.set(defaultDir);
 
@@ -76,9 +92,7 @@ tryDefaultDir:
 	fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
 	fileIconPt2Width = 0;
 
-	title = "Save Pattern";
-
-	Error error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
+	Error error = arrivedInNewFolder(0, enteredText.get(), defaultDir.c_str());
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
@@ -89,6 +103,25 @@ gotError:
 	return true;
 }
 
+ActionResult SavePatternUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
+
+	// Load button
+	if (b == LOAD) {
+		return mainButtonAction(on);
+	}
+	else {
+		if (on && b == BACK) {
+			// don't allow navigation backwards if we're in the default folder
+			if (!strcmp(currentDir.get(), defaultDir.c_str())) {
+				close();
+				return ActionResult::DEALT_WITH;
+			}
+		}
+		return SaveUI::buttonAction(b, on, inCardRoutine);
+	}
+}
+
 bool SavePatternUI::performSave(bool mayOverwrite) {
 	if (display->have7SEG()) {
 		display->displayLoadingAnimation();
@@ -96,13 +129,6 @@ bool SavePatternUI::performSave(bool mayOverwrite) {
 
 	if (display->have7SEG()) {
 		display->displayLoadingAnimation();
-	}
-
-	if (getCurrentOutputType() != OutputType::SYNTH) {
-		defaultFolder = PATTERN_MELODIC_DEFAULT_FOLDER;
-	}
-	else {
-		defaultFolder = PATTERN_RHYTMIC_DEFAULT_FOLDER;
 	}
 
 	String filePath;
@@ -141,7 +167,7 @@ fail:
 
 	Serializer& writer = GetSerializer();
 
-	instrumentClipView.copyNotesToFile(writer);
+	instrumentClipView.copyNotesToFile(writer, selectedDrumOnly);
 
 	writer.closeFileAfterWriting();
 

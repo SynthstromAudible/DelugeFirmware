@@ -41,9 +41,9 @@ public:
 		return true;
 	}
 
-	Error performLoad(bool doClone = false);
+	Error performLoad();
 
-	void setOverwriteOnLoad(bool pasteGently = true);
+	void setupLoadPatternUI(bool overwriteOnLoad = true);
 
 	// ui
 	UIType getUIType() override { return UIType::LOAD_PATTERN; }
@@ -54,6 +54,9 @@ protected:
 	void enterKeyPress() override;
 
 private:
+	bool selectedDrumOnly;
+	bool previewOnly;
+	std::string defaultDir;
 	Error setupForLoadingPattern();
 	Error currentLabelLoadError = Error::NONE;
 };

@@ -27,7 +27,6 @@
 #include "modulation/params/param_node.h"
 #include "util/d_string.h"
 
-
 class InstrumentClip;
 class NoteRow;
 class Note;
@@ -262,8 +261,8 @@ public:
 	bool handleNoteRowEditorPadAction(int32_t x, int32_t y, int32_t on);
 	bool handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on);
 	void handleNoteRowEditorAuditionPadAction(int32_t y);
-	void copyNotesToFile(Serializer& writer);
-	Error pasteNotesFromFile(Deserializer& reader, bool overwriteExisting);
+	void copyNotesToFile(Serializer& writer, bool selectedDrumOnly = false);
+	Error pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool previewOnly, bool selectedDrumOnly);
 	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult handleNoteRowEditorHorizontalEncoderAction(int32_t offset);
 	ActionResult handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
@@ -320,8 +319,8 @@ private:
 	void displayIterance(Iterance iterance);
 
 	// note row functions
-	void copyNotes(Serializer* writer);
-	void pasteNotes(bool overwriteExisting);
+	void copyNotes(Serializer* writer, bool selectedDrumOnly = false);
+	void pasteNotes(bool overwriteExisting = true, bool pasteFromFile = false, bool previewOnly = false, bool selectedDrumOnly = false);
 	void deleteCopiedNoteRows();
 	CopiedNoteRow* firstCopiedNoteRow;
 	int32_t copiedScreenWidth;

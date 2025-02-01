@@ -398,9 +398,13 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			openUI(&loadMidiDeviceDefinitionUI);
 		}
 		else if (b == X_ENC) {
+			actionLogger.getNewAction(ActionType::NOTES_PASTE, ActionAddition::ALLOWED);
 			openUI(&loadPatternUI);
 			if (Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT)) {
-				loadPatternUI.setOverwriteOnLoad(false);
+				loadPatternUI.setupLoadPatternUI(false);
+			}
+			else {
+				loadPatternUI.setupLoadPatternUI(true);
 			}
 		}
 		else {
