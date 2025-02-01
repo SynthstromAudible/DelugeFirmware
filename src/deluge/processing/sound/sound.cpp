@@ -26,7 +26,7 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/log.h"
+#include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -1286,6 +1286,23 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_FOLD, readAutomationUpToPos);
 		reader.exitTag("waveFold");
 	}
+	else if (!strcmp(tagName, "midiOutput")) {
+		reader.match('{');
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "channel")) {
+				outputMidiChannel = reader.readTagOrAttributeValueInt();
+				reader.exitTag("channel");
+			}
+			else if (!strcmp(tagName, "noteForDrum")) {
+				outputMidiNoteForDrum = reader.readTagOrAttributeValueInt();
+				reader.exitTag("noteForDrum");
+			}
+			else {
+				reader.exitTag(tagName);
+			}
+		}
+		reader.exitTag("midiOutput", true);
+	}
 
 	else {
 		Error result =
@@ -1533,10 +1550,27 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	if (noNoteOn) {
 		// in the case of the arpeggiator not returning a note On (could happen if Note Probability evaluates to "don't
 		// play") we must at least evaluate the render-skipping if the arpeggiator is ON
-		if (arpSettings != nullptr && getArp()->hasAnyInputNotesActive() && arpSettings->mode != ArpMode::OFF) {
+		if (arpSettings != nullptr && arpeggiator->hasAnyInputNotesActive() && arpSettings->mode != ArpMode::OFF) {
 			reassessRenderSkippingStatus(modelStackWithSoundFlags);
 		}
 	}
+}
+
+void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode) {
+	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
+	ArpeggiatorSettings* arpSettings = getArpSettings();
+
+	ArpReturnInstruction instruction;
+	arpeggiator->noteOff(arpSettings, noteCode, &instruction);
+
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+	}
+
+	reassessRenderSkippingStatus(modelStackWithSoundFlags);
 }
 
 void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
@@ -1664,26 +1698,150 @@ justUnassign:
 	}
 
 	lastNoteCode = noteCodePostArp; // Store for porta. We store that at both note-on and note-off.
+
+	// Send midi out for sound drums
+	if (outputMidiChannel != MIDI_CHANNEL_NONE) {
+		int32_t outputNoteCode = noteCodePostArp;
+		if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
+			int32_t noteCodeDiff = noteCodePostArp - kNoteForDrum;
+			outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
+			if (outputNoteCode < 0) {
+				outputNoteCode = 0;
+			}
+			else if (outputNoteCode > 127) {
+				outputNoteCode = 127;
+			}
+		}
+		midiEngine.sendNote(this, true, outputNoteCode, velocity, outputMidiChannel, 0);
+
+		// If the note doesn't have a tail (for ONCE samples for example and if ARP is OFF), we will never get a noteOff
+		// event to be called by the sequencer, so we need to "off" the note right now
+		if (!allowNoteTails(modelStack, true)) {
+			midiEngine.sendNote(this, false, outputNoteCode, kDefaultNoteOffVelocity, outputMidiChannel, 0);
+		}
+	}
+}
+
+void Sound::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
+                                                     int32_t channelOrNoteNumber,
+                                                     MIDICharacteristic whichCharacteristic) {
+	// Send midi if midi output enabled
+	if (outputMidiChannel == MIDI_CHANNEL_NONE) {
+		return;
+	}
+	// We only support mono or poly aftertouch at the moment (regular MIDI), not full MPE
+	if (expressionDimension != 2) {
+		return;
+	}
+	int32_t value7 = newValue >> 24;
+	if (whichCharacteristic == MIDICharacteristic::CHANNEL) {
+		// Channel aftertouch
+		midiEngine.sendChannelAftertouch(this, outputMidiChannel, value7, kMIDIOutputFilterNoMPE);
+	}
+	// whichCharacteristic == MIDICharacteristic::NOTE
+	else {
+		// Polyphonic aftertouch
+		if (getArp()->getArpType() == ArpType::DRUM) {
+			// This is a sound drum (kit)
+			ArpeggiatorForDrum* arpeggiator = (ArpeggiatorForDrum*)getArp();
+			// Just one note is possible
+			ArpNote arpNote = arpeggiator->arpNote;
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (arpNote.noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+					break;
+				}
+				midiEngine.sendPolyphonicAftertouch(this, outputMidiChannel, value7, arpNote.noteCodeOnPostArp[n],
+				                                    kMIDIOutputFilterNoMPE);
+			}
+		}
+		else if (getArp()->getArpType() == ArpType::SYNTH) {
+			// This is a sound instrument (synth)
+			Arpeggiator* arpeggiator = (Arpeggiator*)getArp();
+			// Search for the note
+			int32_t i = arpeggiator->notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
+			if (i < arpeggiator->notes.getNumElements()) {
+				ArpNote* arpNote = (ArpNote*)arpeggiator->notes.getElementAddress(i);
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (arpNote->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+						break;
+					}
+					midiEngine.sendPolyphonicAftertouch(this, outputMidiChannel, value7, arpNote->noteCodeOnPostArp[n],
+					                                    kMIDIOutputFilterNoMPE);
+				}
+			}
+		}
+	}
 }
 
 void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator) {
-	arpeggiator->reset();
-
-#if ALPHA_OR_BETA_VERSION
-	if (!modelStack->paramManager) {
-		// Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices().
-		// But I'm pretty sure this doesn't exist anymore?
-		FREEZE_WITH_ERROR("E403");
-	}
-#endif
-
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
+	noteOffPostArpeggiator(modelStackWithSoundFlags, ALL_NOTES_OFF);
 
-	noteOffPostArpeggiator(modelStackWithSoundFlags, -32768);
+	arpeggiator->reset();
 }
 
-// noteCode = -32768 (default) means stop *any* voice, regardless of noteCode
+// noteCode = ALL_NOTES_OFF (default) means stop *any* voice, regardless of noteCode
 void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode) {
+	ArpeggiatorSettings* arpSettings = getArpSettings();
+
+	// Send midi note offs out for specific notes,
+	// but only if the type of sound allows note tails (if not, note off was already sent right after its note on)
+	if (outputMidiChannel != MIDI_CHANNEL_NONE && allowNoteTails(modelStack, true)) {
+		if (noteCode == ALL_NOTES_OFF) {
+			// We must send note offs for all active notes
+			// so we will search for the current notes on postArp phase, if any
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (getArp()->noteCodeCurrentlyOnPostArp[n] == ARP_NOTE_NONE) {
+					break;
+				}
+				int32_t outputNoteCode = getArp()->noteCodeCurrentlyOnPostArp[n];
+				if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
+					// If note for drums is set then this is a SoundDrum and we must use the relative note code
+					// (relative to kNoteForDrum)
+					int32_t noteCodeDiff = outputNoteCode - kNoteForDrum;
+					outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
+					// Correct if out of bounds
+					if (outputNoteCode < 0) {
+						outputNoteCode = 0;
+					}
+					else if (outputNoteCode > 127) {
+						outputNoteCode = 127;
+					}
+				}
+				midiEngine.sendNote(this, false, outputNoteCode, kDefaultNoteOffVelocity, outputMidiChannel, 0);
+
+				// The "voice" related code below will switch off the voice anyway, so it is safe to clean this flag so
+				// we don't send two note offs if a normal noteOff or playback stop is received later
+				getArp()->noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+			}
+		}
+		else {
+			// We have an specific note code, so we'll directly use that.
+			// This method has been called from the arp's noteOff so the handling of "noteCodeCurrentlyOnPostArp" has
+			// already been done there
+			int32_t outputNoteCode = noteCode;
+			if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
+				// If note for drums is set then this is a SoundDrum and we must use the relative note code
+				// (relative to kNoteForDrum)
+				int32_t noteCodeDiff = outputNoteCode - kNoteForDrum;
+				outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
+				// Correct if out of bounds
+				if (outputNoteCode < 0) {
+					outputNoteCode = 0;
+				}
+				else if (outputNoteCode > 127) {
+					outputNoteCode = 127;
+				}
+			}
+			midiEngine.sendNote(this, false, outputNoteCode, kDefaultNoteOffVelocity, outputMidiChannel, 0);
+		}
+	}
+	if (outputMidiChannel != MIDI_CHANNEL_NONE && noteCode == ALL_NOTES_OFF) {
+		// Besides all the previous specific note offs already sent, send also this special MIDI message,
+		// just in case some other note is still playing and we didn't have track of it
+		midiEngine.sendAllNotesOff(this, outputMidiChannel, kMIDIOutputFilterNoMPE);
+	}
+
 	if (!numVoicesAssigned) {
 		return;
 	}
@@ -1694,8 +1852,6 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if ((thisVoice->noteCodeAfterArpeggiation == noteCode || noteCode == ALL_NOTES_OFF)
 		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Don't bother if it's already "releasing"
-
-			ArpeggiatorSettings* arpSettings = getArpSettings();
 
 			ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(thisVoice);
 
@@ -4136,6 +4292,12 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		}
 	}
 	writer.writeArrayEnding("modKnobs");
+
+	// Output MIDI note for Drums
+	writer.writeOpeningTagBeginning("midiOutput");
+	writer.writeAttribute("channel", outputMidiChannel);
+	writer.writeAttribute("noteForDrum", outputMidiNoteForDrum);
+	writer.closeTag();
 
 	ModControllableAudio::writeTagsToFile(writer);
 }
