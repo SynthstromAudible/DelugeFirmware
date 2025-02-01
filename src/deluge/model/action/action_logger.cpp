@@ -96,7 +96,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 	// Exception for loadPatternUI which does edit note rows on the grid
 	if ((getCurrentUI() != getRootUI())
 	    && (!(getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())))
-		&& (getCurrentUI() != &loadPatternUI)) {
+	&& (getCurrentUI() != &loadPatternUI)) {
 		return nullptr;
 	}
 

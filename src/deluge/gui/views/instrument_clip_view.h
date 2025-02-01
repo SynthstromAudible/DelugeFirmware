@@ -321,7 +321,7 @@ private:
 	// note row functions
 	void copyNotes(Serializer* writer, bool selectedDrumOnly = false);
 	void pasteNotes(bool overwriteExisting = true, bool pasteFromFile = false, bool previewOnly = false,
-					bool selectedDrumOnly = false);
+			bool selectedDrumOnly = false);
 	void deleteCopiedNoteRows();
 	CopiedNoteRow* firstCopiedNoteRow;
 	int32_t copiedScreenWidth;

@@ -119,7 +119,7 @@ Error LoadPatternUI::setupForLoadingPattern() {
 
 	String searchFilename;
 
-	Error error = currentDir.set(defaultDir);
+	Error error = currentDir.set(defaultDir.c_str());
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -226,7 +226,7 @@ Error LoadPatternUI::performLoad() {
 	fileName.concatenate(".XML");
 
 	Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName, overwriteExistingState,
-												  previewOnly , selectedDrumOnly);
+							previewOnly , selectedDrumOnly);
 
 	if (error != Error::NONE) {
 		display->displayError(currentLabelLoadError);
