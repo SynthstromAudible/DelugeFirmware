@@ -4052,7 +4052,8 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 		newLength = std::min(newLength, maxPos - newPos);
 
 		// Prevents pasting of overlapping notes, which leads to sequentialTest Error "E319"
-		attemptNoteAdd(newPos, newLength, noteSource->velocity, noteSource->probability, noteSource->iterance, noteSource->fill,modelStack,nullptr);
+		attemptNoteAdd(newPos, newLength, noteSource->velocity, noteSource->probability, noteSource->iterance,
+					   noteSource->fill,modelStack,nullptr);
 /*
 		int32_t noteDestI = notes.insertAtKey(newPos);
 		Note* noteDest = notes.getElement(noteDestI);

@@ -43,12 +43,12 @@ using namespace deluge;
 SavePatternUI savePatternUI{};
 
 SavePatternUI::SavePatternUI() {
-    filePrefix = "PATTERN";
+	filePrefix = "PATTERN";
 }
 
 bool SavePatternUI::opened() {
 
-	if (!getRootUI()->toClipMinder() || (getCurrentOutputType() == OutputType::AUDIO )  ) {
+	if (!getRootUI()->toClipMinder() || (getCurrentOutputType() == OutputType::AUDIO)) {
 		return false;
 	}
 
@@ -68,7 +68,7 @@ doReturnFalse:
 
 	std::string patternFolder = "";
 	if (getCurrentOutputType() == OutputType::KIT) {
-		if(getRootUI()->getAffectEntire()) {
+		if (getRootUI()->getAffectEntire()) {
 			defaultDir = std::string(PATTERN_RHYTHMIC_DEFAULT_FOLDER) + "/KIT";
 			title = "Save Kit Pattern";
 			selectedDrumOnly = false;
