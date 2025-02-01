@@ -424,6 +424,9 @@ NOTE: These options can change depending on how your default resolution is set
 	- Grid View Loop Pads (LOOP)
 		- OFF
 		- ON
+	- Trim from start of audio clips (TRIM)
+		- OFF
+		- ON
 </details>
 
 Firmware Version (FIRM)
