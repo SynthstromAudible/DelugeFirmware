@@ -86,7 +86,7 @@ doReturnFalse:
 	}
 
 tryDefaultDir:
-	currentDir.set(defaultDir);
+	currentDir.set(defaultDir.c_str());
 
 	fileIcon = deluge::hid::display::OLED::midiIcon;
 	fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
