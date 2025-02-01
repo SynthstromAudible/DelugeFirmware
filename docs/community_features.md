@@ -1587,6 +1587,8 @@ different firmware
 
 [#3291]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3291
 
+[#3285]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3285
+
 [Automation View Documentation]: features/automation_view.md
 
 [Arpeggiator Documentation]: features/arpeggiator.md
