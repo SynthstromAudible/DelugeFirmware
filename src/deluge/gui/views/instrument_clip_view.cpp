@@ -1138,7 +1138,7 @@ void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 				continue;
 		}
 		if (getCurrentOutputType() == OutputType::KIT && thisNoteRow->drum != getCurrentKit()->selectedDrum
-			&& selectedDrumOnly) {
+				&& selectedDrumOnly) {
 				continue;
 		}
 		if (getCurrentOutputType() == OutputType::KIT  && selectedDrumOnly) {
