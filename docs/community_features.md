@@ -1249,6 +1249,8 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
     * When On, the number of `TAP TEMPO` button presses to engage `TAP TEMPO` is changed to `FOUR (4)` to avoid mistakingly changing tempo.
 * `Horizontal menus (HORI)`
     * When On, some menu items render in horizontal menus, with multiple items visible and editable at the same time.
+* `Trim from start of audio clips (TRIM)`
+    * When On, the ability to trim from the start of an audio clip without needing to reverse it is enabled.
 
 ## 6. Sysex Handling
 
