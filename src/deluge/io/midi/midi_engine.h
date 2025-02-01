@@ -42,10 +42,12 @@ struct MIDISource {
 	MIDISource(PlaybackHandler const* handler) : source_(handler) {};
 	MIDISource(MidiFollow const* follow) : source_(follow) {};
 	MIDISource(MIDIDrum const* drum) : source_(drum) {};
+	MIDISource(Sound const* sound) : source_(sound) {};
 
 	MIDISource(MIDICable const& cable) : source_(&cable) {};
 	MIDISource(MIDIInstrument const& instrument) : source_(&instrument) {};
 	MIDISource(MIDIDrum const& drum) : source_(&drum) {};
+	MIDISource(Sound const& sound) : source_(&sound) {};
 	MIDISource(MidiFollow const& follow) : source_(&follow) {};
 	MIDISource(PlaybackHandler const& handler) : source_(&handler) {};
 
