@@ -190,7 +190,7 @@ as the micromonsta and the dreadbox nymphes.
 - ([#395]) Load synth presets into kit rows by holding the row's `AUDITION` + `SYNTH`. Saving can be done by holding the
   audition pad and pressing save.
 
-- ([#3062]) Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
+- ([#3079]) Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
 
 #### 3.7 - Global Interface
 
@@ -669,16 +669,12 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
   removes itself from the signal path.
     - Note that it has no effect on square waves, it's best with sines and triangles
 
-#### 4.2.8 - Quantized Stutter
+#### 4.2.8 - Per-clip Stutter with options: Quantize, Reverse, and Ping-Pong
 
-- ([#357]) Set the stutter effect to be quantized to `4TH, 8TH, 16TH, 32ND, and 64TH` rate before triggering it. Once
-  you have pressed the `STUTTER`-related gold encoder, then the selected value will be the center value of the encoder
-  and you can go up and down with the golden encoder and come back to the original rate by centering the encoder (LEDs
-  will flash indicating it).
-
-    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
-
-
+- ([#3226]) Now the stutter buffer can also be set to play in reverse, and ping-pong. A new menu has been added to
+  the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song. An extra menu has been added
+  per sound source (either synths, kit rows, affect-entire kits, or audio clips) to set the stutter configuration
+  independently of the song configuration if you wish.
 
 #### 4.2.9 - Reverb Improvements
 
@@ -692,6 +688,9 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
   it as smaller numbers. This change also fixes an issue with reverb values displaying differently than how they were
   set.
 - ([#2788]) Added LPF to Mutable Instruments Model. 50 (default) corresponds to 20khz and 0 corresponds to 0hz.
+
+#### 4.2.10 Launch Exclusively
+- ([#3213]) A new option, 'Launch Exclusively', isolates a clip section from all other launch activity. This option is found to the left of option 'Launch non-exclusively' when selecting the section's number of repetitions. As a complement to non-exclusive sections that arm and turn off when another section is launched, exclusive sections remain independant and continue playing.
 
 ### 4.3 - Instrument Clip View - General Features
 
@@ -855,9 +854,9 @@ to each individual note onset. ([#1978])
 
 #### 4.3.8 - Advanced Arpeggiator
 
-- ([#1198] [#2978] [#2985] [#2990] [#3062] [#3079]) For a detailed description of this feature, please refer to the feature
+- ([#1198] [#2978] [#2985] [#2990] [#3079] [#3285]) For a detailed description of this feature, please refer to the feature
   documentation: [Arpeggiator Documentation]
-  
+
 #### 4.3.9 - Velocity View
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Velocity View Documentation]
@@ -1082,6 +1081,10 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 
   - As the UI and implementation is still experimental, a community setting has to be activated to create new DX7 patches. See the separate document for details.
 
+#### 4.5.8 - More envelopes
+
+- ([#3279]) Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
+
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
 #### 4.6.1 - Keyboard View
@@ -1172,6 +1175,18 @@ for the Lumi Keys Studio Edition, described below.
     - While Lumi has limited options for MPE separation, it will be configured to align with the dominant MPE range
       defined on the Deluge (upper or lower dominant).
 
+### 4.11.0 - Audio Clip View - Trimming Clips
+
+- ([#3291]) Added a new `STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP` feature to allow users to trim from the start of a clip without needing to reverse it.
+  - Pressing a pad in the first column of an audio clip now makes it flash green allowing you to move the start position. The new start position snaps to column one.
+  - You can revert to an earlier portion by pressing undo (or reverse the clip and altering as before).
+  - This lets you easily alter the start of an audio clip without time stretching.
+  - Previously, this was only possible by reversing the audio clip and trimming the start as if it were the end.
+  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+
+See this demo for more details:
+[Audio Clip View - Trimming Tips](https://www.youtube.com/watch?v=iWhVUsx40Mg&t=45s&ab_channel=RonCavagnaro).
+
 ## 5. Community Features Menu (aka Runtime Settings)
 
 In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT" encoder) there is
@@ -1194,11 +1209,6 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
 * `Alternative Golden Knob Delay Params (DELA)`
     * When On, it changes the behaviour of the Mod Encoder button action from the default (PingPong and Type) to the
       alternative params (SyncType and SyncLevel).
-* `Stutter Rate Quantize (STUT)`
-    * When On, the ability to set the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when
-      selecting it is enabled.
-* `Reverse Stutter Rate (RSTUT)`
-    * When On, the stutter buffer is reversed.
 * `Allow Insecure Develop Sysex Messages (SYSX)`
     * When On, the ability to load firmware over USB is enabled.
 * `Sync Scaling Action (SCAL)`
@@ -1242,6 +1252,8 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
     * When On, the number of `TAP TEMPO` button presses to engage `TAP TEMPO` is changed to `FOUR (4)` to avoid mistakingly changing tempo.
 * `Horizontal menus (HORI)`
     * When On, some menu items render in horizontal menus, with multiple items visible and editable at the same time.
+* `Trim from start of audio clips (TRIM)`
+    * When On, the ability to trim from the start of an audio clip without needing to reverse it is enabled.
 
 ## 6. Sysex Handling
 
@@ -1568,9 +1580,17 @@ different firmware
 
 [#3195]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3195
 
-[#3062]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3062
-
 [#3079]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3079
+
+[#3213]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3213
+
+[#3226]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3226
+
+[#3279]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3279
+
+[#3285]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3285
+
+[#3291]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3291
 
 [Automation View Documentation]: features/automation_view.md
 

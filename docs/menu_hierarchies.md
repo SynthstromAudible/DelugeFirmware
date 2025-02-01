@@ -424,6 +424,9 @@ NOTE: These options can change depending on how your default resolution is set
 	- Grid View Loop Pads (LOOP)
 		- OFF
 		- ON
+	- Trim from start of audio clips (TRIM)
+		- OFF
+		- ON
 </details>
 
 Firmware Version (FIRM)
@@ -548,6 +551,11 @@ The Song menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+
+	- Stutter (STUT)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
 
 	- Mod-FX (MODU)
 		- Type
@@ -838,6 +846,12 @@ The Sound menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+
+	- Stutter (STUT)
+		- Use Song Settings (SONG)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
 
 	- Mod-FX (MODU)
 		- Type
@@ -1218,6 +1232,12 @@ The Kit FX menu contains the following menu hierarchy:
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
 
+	- Stutter (STUT)
+		- Use Song Settings (SONG)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
+
 	- Mod-FX (MODU)
 		- Type
 			- Disabled (OFF)
@@ -1413,7 +1433,7 @@ The CV menu contains the following menu hierarchy:
 		- Gate
 		- Sync
 		NOTE: These options can change depending on how your default resolution is set
-		
+
 			- Off
 			- 2-Bar
 			- 1-Bar
@@ -1787,6 +1807,12 @@ The Audio Clip menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+
+	- Stutter (STUT)
+		- Use Song Settings (SONG)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
 
 	- Mod-FX (MODU)
 		- Type

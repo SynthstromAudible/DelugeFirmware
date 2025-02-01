@@ -25,10 +25,11 @@ struct TaskManager {
 	void removeTask(TaskID id);
 	void runTask(TaskID id);
 	TaskID chooseBestTask(Time deadline);
-	TaskID addRepeatingTask(TaskHandle task, TaskSchedule schedule, const char* name);
+	TaskID addRepeatingTask(TaskHandle task, TaskSchedule schedule, const char* name, ResourceChecker resources);
 
-	TaskID addOnceTask(TaskHandle task, uint8_t priority, Time timeToWait, const char* name);
-	TaskID addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name);
+	TaskID addOnceTask(TaskHandle task, uint8_t priority, Time timeToWait, const char* name, ResourceChecker resources);
+	TaskID addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name,
+	                          ResourceChecker resources);
 
 	void createSortedList();
 	TaskID insertTaskToList(Task task);

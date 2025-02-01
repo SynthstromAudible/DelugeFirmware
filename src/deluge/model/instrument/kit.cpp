@@ -17,6 +17,7 @@
 
 #include "model/instrument/kit.h"
 #include "definitions_cxx.hpp"
+#include "dsp/stereo_sample.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
@@ -50,6 +51,7 @@ namespace params = deluge::modulation::params;
 Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
 	firstDrum = nullptr;
 	selectedDrum = nullptr;
+	drumsWithRenderingActive.emptyingShouldFreeMemory = false;
 }
 
 Kit::~Kit() {
@@ -517,9 +519,9 @@ void Kit::cutAllSound() {
 }
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
-bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
-                                        int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
-                                        int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
+                                        std::span<StereoSample> globalEffectableBuffer, int32_t* bufferToTransferTo,
+                                        int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                         bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
                                         int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
@@ -561,8 +563,8 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addNoteRow(noteRowIndex, thisNoteRow)->addOtherTwoThings(soundDrum, drumParamManager);
 
-		soundDrum->render(modelStackWithThreeMainThings, globalEffectableBuffer, numSamples, reverbBuffer,
-		                  sideChainHitPending, reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust,
+		soundDrum->render(modelStackWithThreeMainThings, globalEffectableBuffer, reverbBuffer, sideChainHitPending,
+		                  reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust,
 		                  nullptr); // According to our volume, we tell Drums to send less reverb
 		rendered = true;
 	}
@@ -596,7 +598,7 @@ yesTickParamManager:
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStack->addNoteRow(i, thisNoteRow)
 					        ->addOtherTwoThings((SoundDrum*)thisNoteRow->drum, &thisNoteRow->paramManager);
-					thisNoteRow->paramManager.tickSamples(numSamples, modelStackWithThreeMainThings);
+					thisNoteRow->paramManager.tickSamples(globalEffectableBuffer.size(), modelStackWithThreeMainThings);
 					continue;
 				}
 
@@ -651,18 +653,18 @@ yesTickParamManager:
 	return rendered;
 }
 
-void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, StereoSample* outputBufferEnd,
-                       int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-                       int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
+void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+                       int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
+                       bool isClipActive) {
 
 	ParamManager* paramManager = getParamManager(modelStack->song);
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	// Beware - modelStackWithThreeMainThings might have a NULL timelineCounter
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
-	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT, recorder);
+	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
+	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
+	                                      isClipActive, OutputType::KIT, recorder);
 
 	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
@@ -683,7 +685,7 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 			                              cableToExpParamShortcut(nonAudioDrum->arpSettings.rate)));
 
 			ArpReturnInstruction instruction;
-			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, numSamples, gateThreshold,
+			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, output.size(), gateThreshold,
 			                                 phaseIncrement);
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {

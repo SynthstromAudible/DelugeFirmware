@@ -18,6 +18,7 @@
 #include "gui/menu_item/arpeggiator/mode.h"
 #include "gui/menu_item/arpeggiator/mpe_velocity.h"
 #include "gui/menu_item/arpeggiator/note_mode.h"
+#include "gui/menu_item/arpeggiator/note_mode_for_drums.h"
 #include "gui/menu_item/arpeggiator/octave_mode.h"
 #include "gui/menu_item/arpeggiator/octaves.h"
 #include "gui/menu_item/arpeggiator/preset_mode.h"
@@ -170,6 +171,10 @@
 #include "gui/menu_item/song/midi_learn.h"
 #include "gui/menu_item/source/patched_param/fm.h"
 #include "gui/menu_item/stem_export/start.h"
+#include "gui/menu_item/stutter/ping_pong.h"
+#include "gui/menu_item/stutter/quantized.h"
+#include "gui/menu_item/stutter/reversed.h"
+#include "gui/menu_item/stutter/use_song_stutter.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/menu_item/submenu/MPE.h"
 #include "gui/menu_item/submenu/actual_source.h"
@@ -227,9 +232,14 @@ arpeggiator::Octaves arpOctavesMenu{STRING_FOR_NUMBER_OF_OCTAVES, STRING_FOR_ARP
 arpeggiator::OctaveMode arpOctaveModeMenu{STRING_FOR_OCTAVE_MODE, STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
 arpeggiator::OctaveModeToNoteMode arpeggiator::arpOctaveModeToNoteModeMenu{STRING_FOR_OCTAVE_MODE,
                                                                            STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
+arpeggiator::OctaveModeToNoteModeForDrums arpeggiator::arpOctaveModeToNoteModeMenuForDrums{
+    STRING_FOR_OCTAVE_MODE, STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
 arpeggiator::NoteMode arpNoteModeMenu{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
+arpeggiator::NoteModeForDrums arpNoteModeMenuForDrums{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
 arpeggiator::NoteModeFromOctaveMode arpeggiator::arpNoteModeFromOctaveModeMenu{STRING_FOR_NOTE_MODE,
                                                                                STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
+arpeggiator::NoteModeFromOctaveModeForDrums arpeggiator::arpNoteModeFromOctaveModeMenuForDrums{
+    STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
 arpeggiator::ChordType arpChordSimulatorMenuKit{STRING_FOR_CHORD_SIMULATOR, STRING_FOR_ARP_CHORD_SIMULATOR_MENU_TITLE};
 arpeggiator::StepRepeat arpStepRepeatMenu{STRING_FOR_STEP_REPEAT, STRING_FOR_ARP_STEP_REPEAT_MENU_TITLE};
 // Note and rhythm settings
@@ -270,9 +280,9 @@ arpeggiator::ArpSoundUnpatchedParam arpRatchetProbabilityMenu{STRING_FOR_RATCHET
 arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
     STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
 arpeggiator::ArpSoundUnpatchedParam arpSpreadVelocityMenu{
-    STRING_FOR_SPREAD_VELOCITY, STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_SPREAD_VELOCITY};
+    STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_SPREAD_VELOCITY};
 arpeggiator::midi_cv::SpreadVelocity arpSpreadVelocityMenuMIDIOrCV{STRING_FOR_SPREAD_VELOCITY,
-                                                                   STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE};
+                                                                   STRING_FOR_SPREAD_VELOCITY_MENU_TITLE};
 arpeggiator::ArpSoundUnpatchedParam arpSpreadGateMenu{STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
                                                       params::UNPATCHED_ARP_SPREAD_GATE};
 arpeggiator::midi_cv::SpreadGate arpSpreadGateMenuMIDIOrCV{STRING_FOR_SPREAD_GATE,
@@ -289,12 +299,13 @@ HorizontalMenu arpBasicMenu{STRING_FOR_BASIC,
                              // Sync
                              &arpSyncMenu, &arpRateMenu, &arpRateMenuMIDIOrCV}};
 // Arp: Pattern
-HorizontalMenu arpPatternMenu{
-    STRING_FOR_PATTERN,
-    {// Pattern
-     &arpOctavesMenu, &arpOctaveModeMenu, &arpChordSimulatorMenuKit, &arpNoteModeMenu, &arpStepRepeatMenu,
-     // Note and rhythm settings
-     &arpRhythmMenu, &arpRhythmMenuMIDIOrCV, &arpSequenceLengthMenu, &arpSequenceLengthMenuMIDIOrCV}};
+HorizontalMenu arpPatternMenu{STRING_FOR_PATTERN,
+                              {// Pattern
+                               &arpOctavesMenu, &arpOctaveModeMenu, &arpChordSimulatorMenuKit, &arpNoteModeMenu,
+                               &arpNoteModeMenuForDrums, &arpStepRepeatMenu,
+                               // Note and rhythm settings
+                               &arpRhythmMenu, &arpRhythmMenuMIDIOrCV, &arpSequenceLengthMenu,
+                               &arpSequenceLengthMenuMIDIOrCV}};
 // Arp: Randomizer
 HorizontalMenu arpRandomizerMenu{STRING_FOR_RANDOMIZER,
                                  {// Lock
@@ -421,6 +432,22 @@ Submenu delayMenu{
         &delayPingPongMenu,
         &delayAnalogMenu,
         &delaySyncMenu,
+    },
+};
+
+// Stutter ----------------------------------------------------------------------------------
+stutter::UseSongStutter stutterUseSongMenu{STRING_FOR_USE_SONG, STRING_FOR_USE_SONG};
+stutter::QuantizedStutter stutterQuantizedMenu{STRING_FOR_QUANTIZE, STRING_FOR_QUANTIZE};
+stutter::ReversedStutter stutterReversedMenu{STRING_FOR_REVERSE, STRING_FOR_REVERSE};
+stutter::PingPongStutter stutterPingPongMenu{STRING_FOR_PING_PONG, STRING_FOR_PING_PONG};
+
+Submenu stutterMenu{
+    STRING_FOR_STUTTER,
+    {
+        &stutterUseSongMenu,
+        &stutterQuantizedMenu,
+        &stutterReversedMenu,
+        &stutterPingPongMenu,
     },
 };
 
@@ -697,6 +724,7 @@ Submenu globalFXMenu{
         &globalEQMenu,
         &globalDelayMenu,
         &globalReverbMenu,
+        &stutterMenu,
         &globalModFXMenu,
         &globalDistortionMenu,
     },
@@ -763,6 +791,7 @@ Submenu audioClipFXMenu{
         &eqMenu,
         &globalDelayMenu,
         &globalReverbMenu,
+        &stutterMenu,
         &globalModFXMenu,
         &audioClipDistortionMenu,
     },
@@ -1003,7 +1032,7 @@ ToggleBool midiInputDifferentiationMenu{STRING_FOR_DIFFERENTIATE_INPUTS, STRING_
 // MIDI clock menu
 ToggleBool midiClockOutStatusMenu{STRING_FOR_OUTPUT, STRING_FOR_MIDI_CLOCK_OUT, playbackHandler.midiOutClockEnabled};
 ToggleBool midiClockInStatusMenu{STRING_FOR_INPUT, STRING_FOR_MIDI_CLOCK_IN, playbackHandler.midiInClockEnabled};
-ToggleBool tempoMagnitudeMatchingMenu{STRING_FOR_TEMPO_MAGNITUDE_MATCHING, STRING_FOR_TEMPO_M_MATCH_MENU_TITLE,
+ToggleBool tempoMagnitudeMatchingMenu{STRING_FOR_TEMPO_MAGNITUDE_MATCHING, STRING_FOR_TEMPO_MAGNITUDE_MATCHING,
                                       playbackHandler.tempoMagnitudeMatchingEnabled};
 
 // Midi devices menu
@@ -1275,6 +1304,7 @@ Submenu soundFXMenu{
         &eqMenu,
         &delayMenu,
         &reverbMenu,
+        &stutterMenu,
         &modFXMenu,
         &soundDistortionMenu,
         &noiseMenu,
@@ -1297,6 +1327,8 @@ menu_item::Submenu soundEditorRootMenu{
         &modulator1Menu,
         &env0Menu,
         &env1Menu,
+        &env2Menu,
+        &env3Menu,
         &lfo1Menu,
         &lfo2Menu,
         &voiceMenu,

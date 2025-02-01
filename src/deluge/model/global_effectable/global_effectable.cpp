@@ -17,6 +17,7 @@
 
 #include "model/global_effectable/global_effectable.h"
 #include "definitions_cxx.hpp"
+#include "dsp/stereo_sample.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/view.h"
@@ -72,7 +73,7 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_DELAY_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 
-	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(889516852); // 3/4 of the way up
+	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(0); // half of the way up
 	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].setCurrentValueBasicForSetup(0);
 
@@ -778,8 +779,8 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	                        hpfModeForRender, hpfMorph, *postFXVolume, filterRoute, false, NULL);
 }
 
-[[gnu::hot]] void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
-	filterSet.renderLongStereo(&buffer->l, &(buffer + numSamples)->l);
+[[gnu::hot]] void GlobalEffectable::processFilters(std::span<StereoSample> buffer) {
+	filterSet.renderLongStereo(&buffer.data()->l, &(buffer.data() + buffer.size())->l);
 }
 
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
@@ -1128,13 +1129,9 @@ Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManage
 	return delayWorkingState;
 }
 
-void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples,
-                                                    int32_t* postFXVolume, ParamManager* paramManager,
-                                                    const Delay::State& delayWorkingState, bool anySoundComingIn,
-                                                    q31_t verbAmount) {
-
-	StereoSample* inputBufferEnd = inputBuffer + numSamples;
-
+void GlobalEffectable::processFXForGlobalEffectable(std::span<StereoSample> buffer, int32_t* postFXVolume,
+                                                    ParamManager* paramManager, const Delay::State& delayWorkingState,
+                                                    bool anySoundComingIn, q31_t verbAmount) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	int32_t modFXRate =
@@ -1166,8 +1163,8 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 		disableGrain();
 	}
 
-	processFX(inputBuffer, numSamples, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume,
-	          paramManager, anySoundComingIn, verbAmount);
+	processFX(buffer, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume, paramManager,
+	          anySoundComingIn, verbAmount);
 }
 
 namespace modfx {
