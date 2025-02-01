@@ -1179,6 +1179,7 @@ for the Lumi Keys Studio Edition, described below.
   - You can revert to an earlier portion by pressing undo (or reverse the clip and altering as before).
   - This lets you alter the start of an audio clip without time stretching.
   - Previously, this was only possible by reversing the audio clip and trimming the start as if it were the end.
+  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
 See this demo for more details:
 [Audio Clip View - Trimming Tips](https://www.youtube.com/watch?v=iWhVUsx40Mg&t=45s&ab_channel=RonCavagnaro).
