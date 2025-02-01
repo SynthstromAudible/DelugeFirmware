@@ -1177,7 +1177,7 @@ for the Lumi Keys Studio Edition, described below.
 - ([#3291]) Added a new `STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP` feature to allow users to trim from the start of a clip without needing to reverse it.
   - Pressing a pad in the first column of an audio clip now makes it flash green allowing you to move the start position. The new start position snaps to column one.
   - You can revert to an earlier portion by pressing undo (or reverse the clip and altering as before).
-  - This lets you alter the start of an audio clip without time stretching.
+  - This lets you easily alter the start of an audio clip without time stretching.
   - Previously, this was only possible by reversing the audio clip and trimming the start as if it were the end.
   - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
