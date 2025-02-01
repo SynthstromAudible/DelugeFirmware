@@ -164,7 +164,8 @@ void AudioInputSelector::renderOLED(deluge::hid::display::oled_canvas::Canvas& c
 	int32_t i = 0;
 
 	while (true) {
-		if (currentOption == options.size() || i == 3) break;
+		if (currentOption == options.size() || i == 3)
+			break;
 
 		if (isCurrentOptionAvailable()) {
 			int32_t invertStartX = 0;
@@ -186,7 +187,6 @@ void AudioInputSelector::renderOLED(deluge::hid::display::oled_canvas::Canvas& c
 
 	currentOption = actualCurrentOption;
 }
-
 
 // if they're in session view and press a clip's pad, record from that output
 ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
