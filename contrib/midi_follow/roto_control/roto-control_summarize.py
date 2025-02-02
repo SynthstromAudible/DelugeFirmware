@@ -92,7 +92,7 @@ def generate_markdown_table(rows, midi_channels, single_setup=False):
     markdown += "\n"
 
     # Build table rows
-    for i, row in enumerate(rows, start=1):
+    for row in rows:
         markdown += f"| {row['Parameter']} | {row['Position']} | {row['Page']} |"
         if not single_setup:
             markdown += f" {row['Setup']} |"
@@ -105,8 +105,6 @@ def generate_markdown_table(rows, midi_channels, single_setup=False):
                 midi_display = ""
             markdown += f" {midi_display} |"
         markdown += "\n"
-        if i % 8 == 0:
-            markdown += "\n"
 
     # Append MIDI channel summary if needed
     if len(unique_channels) == 1 and most_common_channel is not None:
