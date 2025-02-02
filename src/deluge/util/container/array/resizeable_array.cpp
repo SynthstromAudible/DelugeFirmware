@@ -209,7 +209,7 @@ void ResizeableArray::swapStateWith(ResizeableArray* other) {
 }
 
 void ResizeableArray::attemptMemoryShorten() {
-	if (staticMemoryAllocationSize) {
+	if (staticMemoryAllocationSize || !emptyingShouldFreeMemory) {
 		return;
 	}
 	if ((uint32_t)memoryAllocationStart >= (uint32_t)INTERNAL_MEMORY_BEGIN) {
