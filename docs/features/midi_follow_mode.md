@@ -248,4 +248,4 @@ For users of Melbourne Instruments' Roto-Control, you will find MIDI Follow temp
 [MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/touch_osc
 [MIDI Follow Mode Electra One Preset]:
 https://app.electra.one/preset/vZ6WBYb4xDpMGcpChejY
-[MIDI Follow Mode Roto-Control Templates]: ../../contrib/midi_follow/roto_control/README.md
+[MIDI Follow Mode Roto-Control Templates]: ../../contrib/midi_follow/roto_control/
