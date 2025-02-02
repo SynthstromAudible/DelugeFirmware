@@ -8,9 +8,9 @@ This folder contains the three setup `.json`-files
 
 that together cover all MIDI Follow parameters (and their CC#) described in [*Appendix A - List of Deluge Parameters with Default Mapped CC's*](../../../../docs/features/midi_follow_mode.md#appendix-a---list-of-deluge-parameters-with-default-mapped-ccs).
 
-The philosophy behind these three templates is to surface all available parameters so users can explore which parameters they might want to consolidate in within, say, a single, more performance-oriented setup.
+The philosophy behind these three templates is to surface all available parameters so users can explore which parameters they might want to consolidate within, say, a single, more performance-oriented setup.
 
-Below is a summary table, where `Position` is the knob's position and `Page` is a knob's page in the corresponding setup file.[^1]
+Below is a summary table, where `Position` is the knob's position across the 32 knobs in the setup and `Page` is the knob's page (1st, 2nd, 3rd, or 4th) in the setup file.[^1]
 
 | Parameter | Position | Page | Setup | CC# |
 |-----------|----------|------|-------|----|
