@@ -7,7 +7,7 @@
 extern const int16_t windowedSincKernel[][17][16];
 
 namespace deluge::dsp {
-struct Interpolator {
+struct [[gnu::hot]] Interpolator {
 
 	Interpolator() = default;
 	StereoSample interpolate(size_t channels, int32_t whichKernel, uint32_t oscPos);

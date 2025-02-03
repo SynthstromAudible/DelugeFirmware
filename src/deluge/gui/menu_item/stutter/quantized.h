@@ -15,25 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/patched_param/integer_non_fm.h"
+#include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
-#include "modulation/patch/patch_cable_set.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 
-namespace deluge::gui::menu_item::filter {
+namespace deluge::gui::menu_item::stutter {
 
-class HPFFreq final : public patched_param::Integer {
+class QuantizedStutter final : public Toggle {
 public:
-	using patched_param::Integer::Integer;
-	// 7Seg ONLY
-	void drawValue() override {
-		if (this->getValue() == kMinMenuValue
-		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
-		        deluge::modulation::params::LOCAL_HPF_FREQ)) {
-			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
-		}
-		else {
-			patched_param::Integer::drawValue();
-		}
+	using Toggle::Toggle;
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.quantized); }
+	void writeCurrentValue() override {
+		soundEditor.currentModControllable->stutterConfig.quantized = this->getValue();
+	}
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return soundEditor.currentModControllable->isSong()
+		       || !soundEditor.currentModControllable->stutterConfig.useSongStutter;
 	}
 };
-} // namespace deluge::gui::menu_item::filter
+
+} // namespace deluge::gui::menu_item::stutter

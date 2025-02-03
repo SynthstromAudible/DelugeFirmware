@@ -53,7 +53,7 @@ public:
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
-	char const* name() override { return "Chord"; }
+	l10n::String name() override { return l10n::String::STRING_FOR_KEYBOARD_LAYOUT_CHORD_KEYBOARD; }
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
 	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Disabled; }

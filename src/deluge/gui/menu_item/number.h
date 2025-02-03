@@ -25,6 +25,7 @@ class Number : public Value<int32_t> {
 public:
 	using Value::Value;
 	void drawBar(int32_t yTop, int32_t marginL, int32_t marginR = -1);
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 
 protected:
 	[[nodiscard]] virtual int32_t getMaxValue() const = 0;

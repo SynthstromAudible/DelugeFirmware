@@ -25,5 +25,9 @@ public:
 	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+	void getColumnLabel(StringBuf& label) override {
+		// For envelope segments the first letter is perfect short name: ADSR is well known.
+		label.append(MenuItem::getName().data()[0]);
+	}
 };
 } // namespace deluge::gui::menu_item::envelope

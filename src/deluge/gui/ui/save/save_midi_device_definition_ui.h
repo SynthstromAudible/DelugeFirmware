@@ -22,18 +22,20 @@ class Song;
 
 class SaveMidiDeviceDefinitionUI final : public SaveUI {
 public:
-	SaveMidiDeviceDefinitionUI();
+	SaveMidiDeviceDefinitionUI() = default;
 
 	bool opened() override;
-	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed){};
-	void endSession(){};
+	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {};
+	void endSession() {};
 	bool performSave(bool mayOverwrite) override;
 
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
 		return true;
 	}
-	const char* getName() override { return "save_midi_device_definition_ui"; }
+
+	// ui
+	UIType getUIType() override { return UIType::SAVE_MIDI_DEVICE_DEFINITION; }
 };
 
 extern SaveMidiDeviceDefinitionUI saveMidiDeviceDefinitionUI;

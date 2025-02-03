@@ -48,7 +48,6 @@ public:
 	bool opened() override;
 	void focusRegained() override;
 
-	const char* getName() override { return "session_view"; }
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult clipCreationButtonPressed(hid::Button i, bool on, bool routine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
@@ -119,6 +118,8 @@ public:
 	int8_t selectedMacro = -1;
 
 	Clip* getClipForLayout();
+
+	void copyClipName(Clip* source, Clip* target, Output* targetOutput);
 
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
@@ -270,6 +271,9 @@ private:
 			gridModeSelected = SessionGridModeEdit;
 			break;
 		}
+		// explicit fallthrough cases
+		case GridDefaultActiveModeSelection: // handled outside
+		case GridDefaultActiveModeMaxElement:;
 		}
 	}
 	void setupTrackCreation() const;

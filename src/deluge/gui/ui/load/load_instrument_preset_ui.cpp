@@ -50,9 +50,6 @@ using encoders::EncoderName;
 
 LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
-LoadInstrumentPresetUI::LoadInstrumentPresetUI() {
-}
-
 bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	if (showingAuditionPads()) {
 		*cols = 0b10;
@@ -89,11 +86,17 @@ bool LoadInstrumentPresetUI::opened() {
 	switch (instrumentToReplace->type) {
 	case OutputType::MIDI_OUT:
 		initialChannelSuffix = ((MIDIInstrument*)instrumentToReplace)->channelSuffix;
-		// No break
+		// intentional fallthrough to share code with CV case
 
 	case OutputType::CV:
 		initialChannel = ((NonAudioInstrument*)instrumentToReplace)->getChannel();
 		break;
+
+	// explicit fallthrough cases
+	case OutputType::AUDIO:
+	case OutputType::SYNTH:
+	case OutputType::KIT:
+	case OutputType::NONE:;
 	}
 
 	changedInstrumentForClip = false;
@@ -169,6 +172,11 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 				fileIcon = deluge::hid::display::OLED::midiIcon;
 				fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
 				fileIconPt2Width = 1;
+				break;
+			// explicit fallthrough cases
+			case OutputType::AUDIO:
+			case OutputType::CV:
+			case OutputType::NONE:;
 			}
 		}
 	}

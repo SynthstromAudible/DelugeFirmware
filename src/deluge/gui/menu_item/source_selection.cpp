@@ -23,13 +23,15 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
-#include "util/container/static_vector.hpp"
+
+#include <etl/vector.h>
 
 namespace deluge::gui::menu_item {
 const PatchSource sourceMenuContents[] = {
-    PatchSource::ENVELOPE_0, PatchSource::ENVELOPE_1, PatchSource::LFO_GLOBAL, PatchSource::LFO_LOCAL,
-    PatchSource::VELOCITY,   PatchSource::NOTE,       PatchSource::SIDECHAIN,  PatchSource::RANDOM,
-    PatchSource::X,          PatchSource::Y,          PatchSource::AFTERTOUCH,
+    PatchSource::ENVELOPE_0, PatchSource::ENVELOPE_1, PatchSource::ENVELOPE_2, PatchSource::ENVELOPE_3,
+    PatchSource::LFO_GLOBAL, PatchSource::LFO_LOCAL,  PatchSource::VELOCITY,   PatchSource::NOTE,
+    PatchSource::SIDECHAIN,  PatchSource::RANDOM,     PatchSource::X,          PatchSource::Y,
+    PatchSource::AFTERTOUCH,
 };
 
 uint8_t SourceSelection::shouldDrawDotOnValue() {
@@ -42,7 +44,7 @@ uint8_t SourceSelection::shouldDrawDotOnValue() {
 int32_t SourceSelection::selectedRowOnScreen;
 
 void SourceSelection::drawPixelsForOled() {
-	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> itemNames{};
+	etl::vector<std::string_view, kOLEDMenuNumOptionsVisible> itemNames{};
 
 	selectedRowOnScreen = 0;
 
@@ -96,6 +98,14 @@ void SourceSelection::drawValue() {
 		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_1;
 		break;
 
+	case PatchSource::ENVELOPE_2:
+		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_2;
+		break;
+
+	case PatchSource::ENVELOPE_3:
+		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_3;
+		break;
+
 	case PatchSource::SIDECHAIN:
 		text = STRING_FOR_PATCH_SOURCE_SIDECHAIN;
 		break;
@@ -123,6 +133,11 @@ void SourceSelection::drawValue() {
 	case PatchSource::Y:
 		text = STRING_FOR_PATCH_SOURCE_Y;
 		break;
+
+	// explicit fallthrough cases
+	case PatchSource::NOT_AVAILABLE:
+	case PatchSource::SOON:
+	case PatchSource::NONE:;
 	}
 
 	uint8_t drawDot = shouldDrawDotOnValue();

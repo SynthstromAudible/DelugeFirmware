@@ -56,7 +56,6 @@ public:
 	void setTimeBaseScaleLedState();
 	void setLedStates();
 
-	const char* getName() { return "view"; }
 	void clipStatusMidiLearnPadPressed(bool on, Clip* whichLoopable);
 	void noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow);
 	void endMidiLearnPressSession(MidiLearn newThingPressed = MidiLearn::NONE);

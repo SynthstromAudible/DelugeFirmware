@@ -10,6 +10,7 @@ development work for a future Deluge version at a given time, and many of the
 features are not yet available in released stable versions. Documentation
 about released versions can be found here:
 
+- [1.2.x (Chopin)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.2/docs/community_features.md)
 - [1.1.x (Beethoven)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.1/docs/community_features.md)
 - [1.0.x (Amadeus)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/community_features.md)
 
@@ -31,6 +32,11 @@ back up your SD card!
 now stands out from the tail in proportion to its velocity. At velocity 127 it is identical to official,
 at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
 
+#### 2.2 Horizontal Menus
+- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+  - Envelope 1 & 2.
+  - LPF and HPF.
+  - LFOs.
 
 ## 3. General Improvements
 
@@ -183,6 +189,8 @@ as the micromonsta and the dreadbox nymphes.
 
 - ([#395]) Load synth presets into kit rows by holding the row's `AUDITION` + `SYNTH`. Saving can be done by holding the
   audition pad and pressing save.
+
+- ([#3079]) Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
 
 #### 3.7 - Global Interface
 
@@ -382,6 +390,13 @@ which track to record from. The source can also be selected by pressing a clip's
 - ([#1824]) Added new `Max Voices (VCNT)` menu which lets you configure the Maximum number of Voices for a Polyphonic instrument, accessible by pressing `SELECT` in a `Synth clip` or `Kit clip with a Sound Drum selected and Affect Entire Off` under the `VOICE (VOIC)` menu.
   - This menu is also accessible from the `VOICE (VOIC) > Polyphony Type (POLY)` type menu by selecting `Polyphonic` and pressing `SELECT`
 - Updated default `Max Voices` for new synth's to `8 voices`. Old synths for which a max number of voices has not been configured will default to `16 voices`.
+
+#### 3.35 Clip Names
+- ([#2293], [#2299], [#3183]) All clips can be named. Name must be unique per track. Clip name is displayed underneath the track name on OLED.
+  1. Via clip settings menu, see [#3-28-Add-Clip-Settings-Menu-in-Song-View-to-set-Clip-Mode-and-Clip-Name-and-convert-Instrument-Clips-to-Audio-Clips]
+  2. Via `NAME` shortcut in the clip view for non-audio clips (in audio clips the `NAME` shortcut currently names the track instead). In KIT clips `AFFECT ALL` must be on, or the shortcut names the active drum instead.
+- ([#3195]) Clip name display includes the section number. If the clip has no name, it is displayed using just the section number, as "SECTION N". If the clip has a name, it is prefixed with the section number, as "N: CLIP NAME".
+- ([#3195]) When clips are copied, the clip name is copied as well. If the target track already has a clip with the same name, an integer suffix starting from 2 is added unless the name already has an integer suffix. This integer suffix is incremented until the clip name is unique on the target track. Ie. copying a clip named "BRIDGE" to the same otherwise empty track will first create "BRIDGE2", then "BRIDGE3", etc.
 
 ## 4. New Features Added
 
@@ -654,16 +669,12 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
   removes itself from the signal path.
     - Note that it has no effect on square waves, it's best with sines and triangles
 
-#### 4.2.8 - Quantized Stutter
+#### 4.2.8 - Per-clip Stutter with options: Quantize, Reverse, and Ping-Pong
 
-- ([#357]) Set the stutter effect to be quantized to `4TH, 8TH, 16TH, 32ND, and 64TH` rate before triggering it. Once
-  you have pressed the `STUTTER`-related gold encoder, then the selected value will be the center value of the encoder
-  and you can go up and down with the golden encoder and come back to the original rate by centering the encoder (LEDs
-  will flash indicating it).
-
-    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
-
-
+- ([#3226]) Now the stutter buffer can also be set to play in reverse, and ping-pong. A new menu has been added to
+  the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song. An extra menu has been added
+  per sound source (either synths, kit rows, affect-entire kits, or audio clips) to set the stutter configuration
+  independently of the song configuration if you wish.
 
 #### 4.2.9 - Reverb Improvements
 
@@ -677,6 +688,9 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
   it as smaller numbers. This change also fixes an issue with reverb values displaying differently than how they were
   set.
 - ([#2788]) Added LPF to Mutable Instruments Model. 50 (default) corresponds to 20khz and 0 corresponds to 0hz.
+
+#### 4.2.10 Launch Exclusively
+- ([#3213]) A new option, 'Launch Exclusively', isolates a clip section from all other launch activity. This option is found to the left of option 'Launch non-exclusively' when selecting the section's number of repetitions. As a complement to non-exclusive sections that arm and turn off when another section is launched, exclusive sections remain independant and continue playing.
 
 ### 4.3 - Instrument Clip View - General Features
 
@@ -840,133 +854,8 @@ to each individual note onset. ([#1978])
 
 #### 4.3.8 - Advanced Arpeggiator
 
-- ([#1198] [#2978] [#2985] [#2990]) Added new features to the arpeggiator, which include:
-    - Splitted the old `Mode` setting into separate settings: `Mode` (Off or Arpeggiator), `Octave Mode` (Up, Down,
-      Up&Down, Alternate or Random) and `Note Mode` (Up, Down, Up&Down, AsPlayed or Random), so you can setup
-      individually how octaves are walked and how notes are walked in the sequence.
-    - The `Mode` pad shortcut is now an `Arp preset` shortcut, which will update the new 3 settings all at once:
-        - `Off` will disable arpeggiator.
-        - `Up` will setup Mode to `Arpeggiator`, Octave Mode to `Up` and Note Mode to `Up`.
-        - `Down` will setup Mode to `Arpeggiator`, Octave Mode to `Down` and Note Mode to `Down`.
-        - `Both` will setup Mode to `Arpeggiator`, Octave Mode to `Alternate` and Note Mode to `Up`.
-        - `Random` will setup Mode to `Arpeggiator`, Octave Mode to `Random` and Note Mode to `Random`.
-        - `Custom` will setup Mode to `Arpeggiator`, and enter a submenu to let you edit Octave Mode and Note Mode.
-    - **`Enabled (ON):`**: enables the arpeggiator.
-    - **`Octave Mode (OMOD):`**
-        - `Up` (UP) will walk the octaves up.
-        - `Down` (DOWN) will walk the octaves down.
-        - `Up & Down` (UPDN) will walk the octaves up and down, repeating the highest and lowest octaves.
-        - `Alternate` (ALT)  will walk the octaves up, and then down reversing the Notes pattern (without
-          repeating notes). Tip: Octave Mode set to Alternate and Note Mode set to Up is equivalent to
-          the old `Both` mode.
-        - `Random` (RAND) will choose a random octave every time the Notes pattern has played.
-          Tip: Set also Note Mode to Random to have the equivalent to the old `Random` mode.
-    - **`Note Mode (NMOD):`**
-        - `Up` (UP) will walk the notes up.
-        - `Down` (DOWN) will walk the notes down. Tip: this mode also works in conjunction with Octave Mode
-          Alternate, which will walk all the notes and octaves all the way down, and then up reversing it.
-        - `Up & Down` (UPDN) will walk the notes up and down, repeating the highest and lowest notes.
-        - `As played` (PLAY) will walk the notes in the same order that they were played. Tip: this mode
-          also works in conjunction with Octave Mode Alternate, which will walk all the notes and octaves
-          all the way up (with notes as played), and then down reversing the order of played notes.
-          Note: this produces the same effect as Up for Kit Rows.
-        - `Random` (RAND) will choose a random note each time. If the Octave Mode is set to something
-          different than Random, then the pattern will play, in the same octave, the same number of random
-          notes as notes are in the held chord and then move to a different octave based on the Octave Mode.
-          Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
-    - **`Note Probability (PROB)`** (unpatchet parameter, assignable to golden knobs). This parameter will apply a probability to notes (after rhythm and sequence length conditions have been applied).
-    - **`Chord Type (CHRD)`** (only for Kit Rows): This allows you to emulate a held chord so you can use `Note Mode` on the Kit Row.
-    - **`Rhythm (RHYT)`** (unpatchet parameter, assignable to golden knobs):
-      This parameter will play silences in some of the steps. This menu option show zeroes
-      and dashes, "0" means "play note", and "-" means "don't play note" (or play a silence).
-      The available options are:
-      <details>
-      <summary>Rhythm Options</summary>
-        <ul>
-          <li> 0: None</li>
-          <li> 1: 0--</li>
-          <li> 2: 00-</li>
-          <li> 3: 0-0</li>
-          <li> 4: 0-00</li>
-          <li> 5: 00--</li>
-          <li> 6: 000-</li>
-          <li> 7: 0--0</li>
-          <li> 8: 00-0</li>
-          <li> 9: 0----</li>
-          <li>10: 0-000</li>
-          <li>11: 00---</li>
-          <li>12: 0000-</li>
-          <li>13: 0---0</li>
-          <li>14: 00-00</li>
-          <li>15: 0-0--</li>
-          <li>16: 000-0</li>
-          <li>17: 0--0-</li>
-          <li>18: 0--00</li>
-          <li>19: 000--</li>
-          <li>20: 00--0</li>
-          <li>21: 0-00-</li>
-          <li>22: 00-0-</li>
-          <li>23: 0-0-0</li>
-          <li>24: 0-----</li>
-          <li>25: 0-0000</li>
-          <li>26: 00----</li>
-          <li>27: 00000-</li>
-          <li>28: 0----0</li>
-          <li>29: 00-000</li>
-          <li>30: 0-0---</li>
-          <li>31: 0000-0</li>
-          <li>32: 0---0-</li>
-          <li>33: 000-00</li>
-          <li>34: 0--000</li>
-          <li>35: 000---</li>
-          <li>36: 0000--</li>
-          <li>37: 0---00</li>
-          <li>38: 00--00</li>
-          <li>39: 0-00--</li>
-          <li>40: 000--0</li>
-          <li>41: 0--00-</li>
-          <li>42: 0-0-00</li>
-          <li>43: 00-0--</li>
-          <li>44: 000-0-</li>
-          <li>45: 0--0-0</li>
-          <li>46: 0-000-</li>
-          <li>47: 00---0</li>
-          <li>48: 00--0-</li>
-          <li>49: 0-0--0</li>
-          <li>50: 00-0-0</li>
-        </ul>
-      </details>
-    - **`Sequence Length (LENG)`**  (unpatchet parameter, assignable to golden knobs):
-        - If set to zero, the arpeggiator pattern will play fully.
-        - If set to a value higher than zero, the pattern will play up to the set number of notes, and then
-          reset itself to start from the beginning. Tip: You can use this in combination with the Rhythm parameter
-          to create longer and more complex rhythm patterns.
-    - **`Ratcheting:`** There are two new parameters (unpatched, assignable to golden knobs), to control how notes
-      are ratcheted. A ratchet is when a note repeats itself several times in the same time interval that the
-      original note has to play.
-        - `Ratchet Amount` (RATC): this will set the maximum number of ratchets that an arpeggiator step
-          could have (each step will randomize the number of ratchet notes between 1 and max value).
-            - From values 0 to 4, no ratchet notes
-            - From 5 to 19, up to 2 ratchet notes
-            - From 20 to 34, up to 4 ratchet notes
-            - From 35 to 50, up to 8 ratchet notes
-        - `Ratchet Probability` (RPRO): this sets how likely a step is to be ratcheted
-            - Being 0 (0%), no ratchets at all
-            - And 50 (100%), all notes will evaluate to be ratcheted.
-    - **`Spread (SPRE):`** There are three new parameters (unpatched, assignable to golden knobs), to control how the parameters
-      of each arp step are deviated from its base value. If spread is increased for a parameter, the arp steps will
-      get a random amount of deviation for that parameter, calculated on each iteration.
-        - `Lock`: this flag will lock the current sequence of generated random values so the sequence has a repeatable pattern. Make use of the `Sequence Length` parameter to further adjust the repeated sequence. To change the generated values, change the value of any of the parameters and the dice will be re-rolled for that parameter.
-        - `Velocity`: the velocity of the arp step will get a random decrease from the base velocity.
-        - `Gate`: the gate of the arp step will get a random positive or negative deviation of the base gate.
-        - `Octave`: the note will get a change in pitch of a random amount of octaves, going from 0 up to a maximum of 3 octaves.
-            - From values 0 to 4, no changes in octaves
-            - From 5 to 19, up to 1 octave changes
-            - From 20 to 34, up to 2 octave changes
-            - From 35 to 50, up to 3 octave changes
-    - **`MPE`** settings:
-      - `Velocity`: if you have an MPE keyboard you may want to enable this. It will allow you to control the
-      velocity of each new arpeggiated note by applying different pressure (aftertouch) or slide (Y) on the keys.
+- ([#1198] [#2978] [#2985] [#2990] [#3079] [#3285]) For a detailed description of this feature, please refer to the feature
+  documentation: [Arpeggiator Documentation]
 
 #### 4.3.9 - Velocity View
 
@@ -1067,7 +956,7 @@ to each individual note onset. ([#1978])
       chord or change the default chord. Any note you play will be interpreted as the root note
       and the remaining notes will be played along with it. The default chord is none.
       You can get back to none by short pressing the current chord. Chords include 5th, Sus2,
-      Minor, Major, Sus4, Minor7, Dom7, Major7. All are in closed root position.
+      Minor, Major, Sus4, Minor7, Dom7, Major7. All are in closed root position. (Note: this option is not available while in either of the chord keyboard layouts.)
     - **`Song Chord Memory (CMEM - Cyan):`** Hold a chord down and press a pad to remember the chord. Press
       that pad again to play it. You can play over the top of your saved chords. To clear a chord,
       press shift and the pad you want to clear. Chord memory is shared across all song clips and it
@@ -1192,6 +1081,17 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 
   - As the UI and implementation is still experimental, a community setting has to be activated to create new DX7 patches. See the separate document for details.
 
+#### 4.5.8 - More envelopes
+
+- ([#3279]) Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
+
+#### 4.5.9 - Send Midi
+
+- ([#3313]) There is a new submenu `MIDI` added to the `SOUND` menu for synths and sound drums, where you can select the MIDI channel
+  (and also base note for drums) that will be sent at the same time as the sound triggers.
+  In case of drums, it is like having a Sound row + a Midi row together triggering at the same time. And in case of synths, it is like
+  having a Synth clip + a Midi clip together triggering at the same time. This feature is limited to regular MIDI (that is, not for MPE).
+
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
 #### 4.6.1 - Keyboard View
@@ -1265,6 +1165,17 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 - ([#141]) Holding `▼︎▲︎` down while turning `◀︎▶︎` will shift the waveform of an Audio clip, similar to Instrument
   clips.
 
+#### 4.9.2 - Trim from the start of the clip
+
+- ([#3291]) You can now trim/crop audio from the start of a clip
+  - Pressing a pad in the first column of an audio clip now makes it flash green allowing you to move the start position. Once trimmed, new start position snaps to column one.
+  - You can revert by pressing undo (or reverse the clip and altering as before).
+  - Previously, this was only possible by reversing the audio clip and trimming the start as if it were the end.
+  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+
+See this demo for more details:
+[Audio Clip View - Trimming Tips](https://www.youtube.com/watch?v=iWhVUsx40Mg&t=45s&ab_channel=RonCavagnaro).
+
 ### 4.10 Third Party Device Integration
 
 This is largely on the development side and created the start of a system of modules and hook points for enabling
@@ -1304,11 +1215,6 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
 * `Alternative Golden Knob Delay Params (DELA)`
     * When On, it changes the behaviour of the Mod Encoder button action from the default (PingPong and Type) to the
       alternative params (SyncType and SyncLevel).
-* `Stutter Rate Quantize (STUT)`
-    * When On, the ability to set the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when
-      selecting it is enabled.
-* `Reverse Stutter Rate (RSTUT)`
-    * When On, the stutter buffer is reversed.
 * `Allow Insecure Develop Sysex Messages (SYSX)`
     * When On, the ability to load firmware over USB is enabled.
 * `Sync Scaling Action (SCAL)`
@@ -1350,6 +1256,10 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
     * When On, two pads (Red and Magenta) in the `GRID VIEW` sidebar will be illuminated and enable you to trigger the `LOOP` (Red) and `LAYERING LOOP` (Magenta) global MIDI commands to make it easier for you to loop in `GRID VIEW` without a MIDI controller.
 * `Alternative Tap Tempo Behaviour (TAPT)`
     * When On, the number of `TAP TEMPO` button presses to engage `TAP TEMPO` is changed to `FOUR (4)` to avoid mistakingly changing tempo.
+* `Horizontal menus (HORI)`
+    * When On, some menu items render in horizontal menus, with multiple items visible and editable at the same time.
+* `Trim from start of audio clips (TRIM)`
+    * When On, the ability to trim from the start of an audio clip without needing to reverse it is enabled.
 
 ## 6. Sysex Handling
 
@@ -1586,6 +1496,8 @@ different firmware
 
 [#1962]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1962
 
+[#1978]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1978
+
 [#2046]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2046
 
 [#2080]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2080
@@ -1597,6 +1509,10 @@ different firmware
 [#2174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2166
 
 [#2260]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2260
+
+[#2264]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2264
+
+[#2293]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2293
 
 [#2299]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2299
 
@@ -1644,6 +1560,8 @@ different firmware
 
 [#2751]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2751
 
+[#2788]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2788
+
 [#2808]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2808
 
 [#2810]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2810
@@ -1651,6 +1569,10 @@ different firmware
 [#2815]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2815
 
 [#2823]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2823
+
+[#2882]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2882
+
+[#2958]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2958
 
 [#2978]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2978
 
@@ -1660,9 +1582,27 @@ different firmware
 
 [#2990]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2990
 
-[#2958]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2958
+[#3183]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3183
+
+[#3195]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3195
+
+[#3079]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3079
+
+[#3213]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3213
+
+[#3226]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3226
+
+[#3279]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3279
+
+[#3285]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3285
+
+[#3291]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3291
+
+[#3313]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3313
 
 [Automation View Documentation]: features/automation_view.md
+
+[Arpeggiator Documentation]: features/arpeggiator.md
 
 [Velocity View Documentation]: features/velocity_view.md
 

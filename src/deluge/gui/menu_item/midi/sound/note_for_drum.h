@@ -16,31 +16,29 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.h"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
+#include "hid/display/oled.h"
 #include "processing/sound/sound.h"
-#include "util/misc.h"
+#include <cstdint>
 
-namespace deluge::gui::menu_item::filter {
-class HPFMode final : public Selection {
+namespace deluge::gui::menu_item::midi::sound {
+
+class OutputMidiNoteForDrum final : public Integer {
 public:
-	using Selection::Selection;
+	using Integer::Integer;
+	[[nodiscard]] int32_t getMinValue() const override { return 0; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMIDIValue; }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return soundEditor.editingKit() && !soundEditor.editingNonAudioDrumRow();
+	}
 	void readCurrentValue() override {
-		this->setValue(util::to_underlying(soundEditor.currentModControllable->hpfMode) - kFirstHPFMode);
+		int32_t value = soundEditor.currentSound->outputMidiNoteForDrum;
+		if (value == MIDI_NOTE_NONE) {
+			value = kNoteForDrum;
+		}
+		this->setValue(value);
 	}
-	void writeCurrentValue() override {
-		soundEditor.currentModControllable->hpfMode = static_cast<FilterMode>(this->getValue() + kFirstHPFMode);
-	}
-	deluge::vector<std::string_view> getOptions() override {
-		using enum l10n::String;
-		return {
-		    l10n::getView(STRING_FOR_SVF_BAND),
-		    l10n::getView(STRING_FOR_SVF_NOTCH),
-		    l10n::getView(STRING_FOR_HPLADDER),
-		    l10n::getView(STRING_FOR_NONE),
-		};
-	}
+	void writeCurrentValue() override { soundEditor.currentSound->outputMidiNoteForDrum = this->getValue(); }
 };
-} // namespace deluge::gui::menu_item::filter
+} // namespace deluge::gui::menu_item::midi::sound

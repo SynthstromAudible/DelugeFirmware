@@ -40,9 +40,6 @@ String QwertyUI::enteredText{};
 int16_t QwertyUI::enteredTextEditPos;
 int32_t QwertyUI::scrollPosHorizontal;
 
-QwertyUI::QwertyUI() {
-}
-
 bool QwertyUI::opened() {
 
 	indicator_leds::blinkLed(IndicatorLED::BACK);
@@ -407,6 +404,8 @@ void QwertyUI::processBackspace() {
 	}
 	if (!enteredText.isEmpty()) {
 		enteredText.shorten(enteredTextEditPos);
+		predictExtendedText();
+		predictionInterrupted = false;
 		displayText();
 	}
 }

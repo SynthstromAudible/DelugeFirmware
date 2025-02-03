@@ -19,6 +19,7 @@
 #pragma once
 
 #include "gui/menu_item/menu_item.h"
+#include <string_view>
 
 class DX7Cartridge;
 
@@ -29,7 +30,7 @@ public:
 	using MenuItem::MenuItem;
 	DxCartridge(l10n::String newName) : MenuItem(newName), pd(nullptr) {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
-	bool tryLoad(const char* path);
+	bool tryLoad(std::string_view path);
 	void drawPixelsForOled() override;
 	void readValueAgain() final;
 	void selectEncoderAction(int32_t offset) final;

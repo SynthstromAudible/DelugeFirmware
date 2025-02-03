@@ -95,7 +95,7 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 
 	else if (((Sample*)audioFile)->clusters.getNumElements() <= 4) {
 		// claim the next few reasons for the sample instead since we can keep it all cached
-		int32_t nextClusterStartByte = ((Sample*)audioFile)->audioDataStartPosBytes + Cluster::size_magnitude << 1;
+		int32_t nextClusterStartByte = (((Sample*)audioFile)->audioDataStartPosBytes + Cluster::size_magnitude) << 1;
 
 		claimClusterReasonsForMarker(clustersForLoopStart, nextClusterStartByte, playDirection, clusterLoadInstruction);
 	}

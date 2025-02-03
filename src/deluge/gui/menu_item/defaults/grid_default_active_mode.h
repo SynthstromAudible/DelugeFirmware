@@ -27,7 +27,8 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(FlashStorage::defaultGridActiveMode); }
 	void writeCurrentValue() override { FlashStorage::defaultGridActiveMode = this->getValue<GridDefaultActiveMode>(); }
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE_SELECTION),
 		    l10n::getView(l10n::String::STRING_FOR_GREEN),

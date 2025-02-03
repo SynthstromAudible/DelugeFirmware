@@ -15,16 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/unpatched_param.h"
+#include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 
-namespace deluge::gui::menu_item::arpeggiator {
-class OnlyForSoundUnpatchedParam final : public UnpatchedParam {
+namespace deluge::gui::menu_item::stutter {
+
+class PingPongStutter final : public Toggle {
 public:
-	using UnpatchedParam::UnpatchedParam;
+	using Toggle::Toggle;
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.pingPong); }
+	void writeCurrentValue() override { soundEditor.currentModControllable->stutterConfig.pingPong = this->getValue(); }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip();
+		return soundEditor.currentModControllable->isSong()
+		       || !soundEditor.currentModControllable->stutterConfig.useSongStutter;
 	}
 };
 
-} // namespace deluge::gui::menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::stutter

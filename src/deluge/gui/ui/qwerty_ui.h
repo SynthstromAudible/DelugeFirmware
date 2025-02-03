@@ -23,7 +23,7 @@
 
 class QwertyUI : public UI {
 public:
-	QwertyUI();
+	QwertyUI() = default;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	ActionResult timerCallback() override;
@@ -33,7 +33,6 @@ public:
 		return true;
 	}
 
-	const char* getName() override { return "qwerty_ui"; }
 	static bool predictionInterrupted;
 	static String enteredText;
 

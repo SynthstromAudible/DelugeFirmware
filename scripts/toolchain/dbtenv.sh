@@ -359,8 +359,6 @@ dbtenv_main()
     export SAVED_PYTHONPATH="${PYTHONPATH:-""}";
     export SAVED_PYTHONHOME="${PYTHONHOME:-""}";
 
-    export SSL_CERT_FILE="$TOOLCHAIN_ARCH_DIR/python/lib/python3.12/site-packages/certifi/cacert.pem";
-    export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE";
     export PYTHONNOUSERSITE=1;
     export PYTHONPATH="$DEFAULT_SCRIPT_PATH/scripts";
     export PYTHONHOME=;
@@ -369,6 +367,9 @@ dbtenv_main()
         export SAVED_TERMINFO_DIRS="${TERMINFO_DIRS:-""}";
         export TERMINFO_DIRS="$TOOLCHAIN_ARCH_DIR/ncurses/share/terminfo";
     fi
+
+    export SSL_CERT_FILE=$(python3 -c 'import site; print(site.getsitepackages()[-1])')/certifi/cacert.pem
+    export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE";
 
     if [ -n "${DBT_DID_UNPACKING}" ]; then
       dbtenv_setup_python

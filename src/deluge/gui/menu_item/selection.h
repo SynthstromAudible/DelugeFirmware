@@ -27,7 +27,8 @@ class Selection : public Enumeration {
 public:
 	using Enumeration::Enumeration;
 
-	virtual deluge::vector<std::string_view> getOptions() = 0;
+	enum class OptType { FULL, SHORT };
+	virtual deluge::vector<std::string_view> getOptions(OptType optType = OptType::FULL) = 0;
 
 	void drawValue() override;
 
@@ -80,5 +81,8 @@ public:
 			return 255;
 		}
 	}
+
+protected:
+	void getShortOption(StringBuf&) override;
 };
 } // namespace deluge::gui::menu_item

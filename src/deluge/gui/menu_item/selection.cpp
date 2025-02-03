@@ -70,4 +70,8 @@ void Selection::renderSubmenuItemTypeForOled(int32_t yPixel) {
 	}
 }
 
+void Selection::getShortOption(StringBuf& opt) {
+	opt.append(getOptions(OptType::SHORT)[this->getValue()].data());
+}
+
 } // namespace deluge::gui::menu_item

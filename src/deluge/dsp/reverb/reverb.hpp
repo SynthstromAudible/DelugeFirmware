@@ -1,18 +1,21 @@
 #pragma once
 #include "base.hpp"
+#include "deluge/dsp/reverb/reverb.hpp"
+#include "digital.hpp"
 #include "freeverb/freeverb.hpp"
-#include "mutable/reverb.hpp"
+#include "mutable.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <variant>
 
 namespace deluge::dsp {
 
-class Reverb : reverb::Base {
+class [[gnu::hot]] Reverb : reverb::Base {
 public:
 	enum class Model {
 		FREEVERB = 0, // Freeverb is the original
 		MUTABLE,
+		DIGITAL,
 	};
 
 	Reverb()
@@ -27,6 +30,9 @@ public:
 		switch (m) {
 		case Model::FREEVERB:
 			reverb_.emplace<reverb::Freeverb>();
+			break;
+		case Model::DIGITAL:
+			reverb_.emplace<reverb::Digital>();
 			break;
 		case Model::MUTABLE:
 			reverb_.emplace<reverb::Mutable>();
@@ -50,6 +56,9 @@ public:
 			break;
 		case Model::MUTABLE:
 			reverb_as<Mutable>().process(input, output);
+			break;
+		case Model::DIGITAL:
+			reverb_as<Digital>().process(input, output);
 			break;
 		}
 	}
@@ -99,7 +108,8 @@ public:
 private:
 	std::variant<         //<
 	    reverb::Freeverb, //<
-	    reverb::Mutable   //<
+	    reverb::Mutable,  //<
+	    reverb::Digital   //<
 	    >
 	    reverb_{};
 

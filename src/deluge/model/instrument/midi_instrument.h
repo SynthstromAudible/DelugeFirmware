@@ -21,6 +21,7 @@
 #include "model/instrument/non_audio_instrument.h"
 #include "util/containers.h"
 #include <array>
+#include <string_view>
 
 class ModelStack;
 class ModelStackWithThreeMainThings;
@@ -58,7 +59,7 @@ public:
 	void writeCCLabelsToFile(Serializer& writer);
 	/// getting / updating cc labels
 	std::string_view getNameFromCC(int32_t cc);
-	void setNameForCC(int32_t cc, String* name);
+	void setNameForCC(int32_t cc, std::string_view name);
 	/// definition file
 	String deviceDefinitionFileName;
 	bool loadDeviceDefinitionFile = false;
@@ -126,9 +127,10 @@ public:
 
 protected:
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
-	                                              int32_t expressionDimension, ArpNote* arpNote) override;
-	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) override;
-	void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) override;
+	                                              int32_t expressionDimension, ArpNote* arpNote,
+	                                              int32_t noteIndex) override;
+	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) override;
+	void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity, int32_t noteIndex) override;
 	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) override;
 
 private:
@@ -138,5 +140,5 @@ private:
 	Error readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
 	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = nullptr);
 
-	deluge::fast_map<uint8_t, std::string_view> labels;
+	deluge::fast_map<uint8_t, std::string> labels;
 };

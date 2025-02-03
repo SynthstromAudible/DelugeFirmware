@@ -17,6 +17,7 @@
 
 #include "model/instrument/kit.h"
 #include "definitions_cxx.hpp"
+#include "dsp/stereo_sample.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
@@ -31,6 +32,7 @@
 #include "model/drum/drum.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
+#include "model/drum/non_audio_drum.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
@@ -49,6 +51,7 @@ namespace params = deluge::modulation::params;
 Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
 	firstDrum = nullptr;
 	selectedDrum = nullptr;
+	drumsWithRenderingActive.emptyingShouldFreeMemory = false;
 }
 
 Kit::~Kit() {
@@ -516,9 +519,9 @@ void Kit::cutAllSound() {
 }
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
-bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
-                                        int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
-                                        int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
+                                        std::span<StereoSample> globalEffectableBuffer, int32_t* bufferToTransferTo,
+                                        int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                         bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
                                         int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
@@ -560,8 +563,8 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addNoteRow(noteRowIndex, thisNoteRow)->addOtherTwoThings(soundDrum, drumParamManager);
 
-		soundDrum->render(modelStackWithThreeMainThings, globalEffectableBuffer, numSamples, reverbBuffer,
-		                  sideChainHitPending, reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust,
+		soundDrum->render(modelStackWithThreeMainThings, globalEffectableBuffer, reverbBuffer, sideChainHitPending,
+		                  reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust,
 		                  nullptr); // According to our volume, we tell Drums to send less reverb
 		rendered = true;
 	}
@@ -595,7 +598,7 @@ yesTickParamManager:
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStack->addNoteRow(i, thisNoteRow)
 					        ->addOtherTwoThings((SoundDrum*)thisNoteRow->drum, &thisNoteRow->paramManager);
-					thisNoteRow->paramManager.tickSamples(numSamples, modelStackWithThreeMainThings);
+					thisNoteRow->paramManager.tickSamples(globalEffectableBuffer.size(), modelStackWithThreeMainThings);
 					continue;
 				}
 
@@ -650,18 +653,56 @@ yesTickParamManager:
 	return rendered;
 }
 
-void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, StereoSample* outputBufferEnd,
-                       int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-                       int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
+void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+                       int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
+                       bool isClipActive) {
 
 	ParamManager* paramManager = getParamManager(modelStack->song);
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	// Beware - modelStackWithThreeMainThings might have a NULL timelineCounter
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
-	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT, recorder);
+	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
+	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
+	                                      isClipActive, OutputType::KIT, recorder);
+
+	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
+		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
+		// For Midi and Gate rows, we need to call the render method of the arpeggiator
+		if (thisNoteRow->drum == nullptr) {
+			continue;
+		}
+		if (thisNoteRow->drum->type != DrumType::MIDI && thisNoteRow->drum->type != DrumType::GATE) {
+			continue;
+		}
+
+		NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
+
+		if (nonAudioDrum->arpSettings.mode != ArpMode::OFF) {
+			uint32_t gateThreshold = (uint32_t)nonAudioDrum->arpSettings.gate + 2147483648;
+			uint32_t phaseIncrement = nonAudioDrum->arpSettings.getPhaseIncrement(
+			    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
+			                              cableToExpParamShortcut(nonAudioDrum->arpSettings.rate)));
+
+			ArpReturnInstruction instruction;
+			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, output.size(), gateThreshold,
+			                                 phaseIncrement);
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+					break;
+				}
+				nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp[n]);
+			}
+			if (instruction.arpNoteOn != nullptr) {
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+						break;
+					}
+					nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+				}
+			}
+		}
+	}
 }
 
 // offer the CC to kit gold knobs without also offering to all drums
@@ -957,10 +998,8 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	int32_t ticksTilNextArpEvent = 2147483647;
 	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
-		if (thisNoteRow->drum
-		    && thisNoteRow->drum->type == DrumType::SOUND) { // For now, only SoundDrums have Arps, but that's actually
-			                                                 // a kinda pointless restriction...
-			SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
+		if (thisNoteRow->drum) {
+			Drum* drum = (Drum*)thisNoteRow->drum;
 
 			ArpReturnInstruction instruction;
 
@@ -972,22 +1011,54 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 
 			bool reversed = (clipIsActive && modelStackWithNoteRow->isCurrentlyPlayingReversed());
 
-			int32_t ticksTilNextArpEventThisDrum = soundDrum->arpeggiator.doTickForward(
-			    &soundDrum->arpSettings, &instruction, currentPosThisRow, reversed);
+			int32_t ticksTilNextArpEventThisDrum =
+			    drum->arpeggiator.doTickForward(&drum->arpSettings, &instruction, currentPosThisRow, reversed);
 
-			ModelStackWithSoundFlags* modelStackWithSoundFlags =
-			    modelStackWithNoteRow->addOtherTwoThings(soundDrum, &thisNoteRow->paramManager)->addSoundFlags();
+			if (thisNoteRow->drum->type == DrumType::SOUND) {
+				SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
 
-			if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-				soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
+				ModelStackWithSoundFlags* modelStackWithSoundFlags =
+				    modelStackWithNoteRow->addOtherTwoThings(soundDrum, &thisNoteRow->paramManager)->addSoundFlags();
+
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+						break;
+					}
+					soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+				}
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.arpNoteOn != nullptr
+					    && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+						soundDrum->noteOnPostArpeggiator(
+						    modelStackWithSoundFlags,
+						    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+						    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
+						    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0);
+					}
+					else {
+						break;
+					}
+				}
 			}
+			else if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
+				NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
 
-			if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
-				soundDrum->noteOnPostArpeggiator(
-				    modelStackWithSoundFlags,
-				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-				    instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
-				    instruction.sampleSyncLengthOn, 0, 0);
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+						break;
+					}
+					nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp[n]);
+				}
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.arpNoteOn != nullptr
+					    && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+						nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn,
+						                            n);
+					}
+					else {
+						break;
+					}
+				}
 			}
 
 			ticksTilNextArpEvent = std::min(ticksTilNextArpEvent, ticksTilNextArpEventThisDrum);
@@ -1144,7 +1215,7 @@ goingToRecordNoteOnEarly:
 		// this note-on.
 		instrumentClipView.reportMPEInitialValuesForNoteEditing(modelStackWithNoteRow, mpeValues);
 
-		if (!thisNoteRow || !thisNoteRow->soundingStatus) {
+		if (!thisNoteRow || !thisNoteRow->sequenced) {
 
 			if (thisNoteRow && shouldRecordNoteOn) {
 
@@ -1553,7 +1624,7 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 
 	// don't audition this note row if there is a drone note that is currently sounding
 	if (noteRow) {
-		if (noteRow->isDroning(modelStack->getLoopLength()) && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+		if (noteRow->isDroning(modelStack->getLoopLength()) && noteRow->sequenced) {
 			return;
 		}
 
@@ -1596,8 +1667,7 @@ void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, i
 
 	// here we check if this note row has a drone note that is currently sounding
 	// in which case we don't want to stop it from sounding
-	if (noteRow && noteRow->isDroning(modelStack->getLoopLength())
-	    && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+	if (noteRow && noteRow->isDroning(modelStack->getLoopLength()) && noteRow->sequenced) {
 		return;
 	}
 

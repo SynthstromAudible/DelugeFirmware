@@ -168,7 +168,6 @@ ArpNoteMode oldModeToArpNoteMode(OldArpMode oldMode);
 ArpOctaveMode oldModeToArpOctaveMode(OldArpMode oldMode);
 
 char const* oldArpModeToString(OldArpMode mode);
-char const* arpPresetToOldArpMode(ArpPreset preset);
 OldArpMode stringToOldArpMode(char const* string);
 
 char const* arpModeToString(ArpMode mode);
@@ -217,8 +216,6 @@ int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedV
 int32_t getFinalParameterValueHybrid(int32_t paramNeutralValue, int32_t patchedValue);
 int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValue);
 int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int32_t p);
-
-void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int32_t numSamples);
 
 char const* getSourceDisplayNameForOLED(PatchSource s);
 

@@ -43,7 +43,7 @@ public:
 	virtual bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
 		return false;
 	} // Returns whether Instrument was changed
-	virtual void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager){};
+	virtual void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {};
 	virtual ModelStackWithAutoParam*
 	getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                       bool allowCreation = true); // Check that autoParam isn't NULL, after calling this.
@@ -52,6 +52,7 @@ public:
 	    ModelStackWithThreeMainThings* modelStack); // Check that autoParam isn't NULL, after calling this
 	virtual uint8_t* getModKnobMode();              // Return NULL if different modes not supported
 	virtual bool isKit() { return false; }
+	virtual bool isSong() { return false; }
 	virtual bool isEditingComp() { return false; }
 	virtual int32_t getKnobPosForNonExistentParam(
 	    int32_t whichModEncoder,

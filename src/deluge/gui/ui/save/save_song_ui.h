@@ -28,8 +28,9 @@ public:
 	void focusRegained() override;
 	// void selectEncoderAction(int8_t offset);
 	bool performSave(bool mayOverwrite = false) override;
-	const char* getName() override { return "save_song_ui"; }
 	bool collectingSamples;
+	// ui
+	UIType getUIType() override { return UIType::SAVE_SONG; }
 
 protected:
 	// int32_t arrivedInNewFolder(int32_t direction);

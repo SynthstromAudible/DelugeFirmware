@@ -31,9 +31,9 @@ public:
 		cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
 	}
 
-	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
-	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                  bool shouldLimitDelayFeedback, bool isClipActive) override;
+	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, int32_t* reverbBuffer,
+	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
+	                  bool isClipActive) override;
 	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode, int16_t const* mpeValues,
 	              int32_t fromMIDIChannel = 16, uint8_t velocity = 64, uint32_t sampleSyncLength = 0,
 	              int32_t ticksLate = 0, uint32_t samplesLate = 0) override;
@@ -48,8 +48,9 @@ public:
 	char const* getSlotXMLTag() override { return "channel"; }
 	char const* getSubSlotXMLTag() override { return NULL; }
 
-	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) = 0;
-	virtual void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) = 0;
+	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) = 0;
+	virtual void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity,
+	                            int32_t noteIndex) = 0;
 
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
@@ -62,7 +63,8 @@ public:
 
 protected:
 	virtual void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
-	                                                      int32_t expressionDimension, ArpNote* arpNote) = 0;
+	                                                      int32_t expressionDimension, ArpNote* arpNote,
+	                                                      int32_t noteIndex) = 0;
 	// for tracking mono expression output
 	int32_t lastMonoExpression[3]{0};
 	int32_t lastCombinedPolyExpression[3]{0};

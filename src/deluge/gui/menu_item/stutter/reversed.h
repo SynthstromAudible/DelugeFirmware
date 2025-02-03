@@ -15,25 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/patched_param/integer_non_fm.h"
+#include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 
-using namespace deluge::dsp::filter;
-namespace deluge::gui::menu_item::filter {
+namespace deluge::gui::menu_item::stutter {
 
-class FilterMorph final : public patched_param::Integer {
+class ReversedStutter final : public Toggle {
 public:
-	using patched_param::Integer::Integer;
-	FilterMorph(l10n::String newName, int32_t newP, bool hpf) : Integer{newName, newP}, hpf{hpf} {}
-	[[nodiscard]] std::string_view getName() const override {
-		using enum l10n::String;
-		auto filt = SpecificFilter(hpf ? soundEditor.currentModControllable->hpfMode
-		                               : soundEditor.currentModControllable->lpfMode);
-		return l10n::getView(filt.getMorphName());
+	using Toggle::Toggle;
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.reversed); }
+	void writeCurrentValue() override { soundEditor.currentModControllable->stutterConfig.reversed = this->getValue(); }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return soundEditor.currentModControllable->isSong()
+		       || !soundEditor.currentModControllable->stutterConfig.useSongStutter;
 	}
-	[[nodiscard]] std::string_view getTitle() const override { return getName(); }
-
-private:
-	bool hpf;
 };
-} // namespace deluge::gui::menu_item::filter
+
+} // namespace deluge::gui::menu_item::stutter

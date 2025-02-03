@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/ui.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/output.h"
 #include "modulation/envelope.h"
@@ -39,13 +40,13 @@ public:
 	~AudioOutput() override;
 	void cloneFrom(ModControllableAudio* other) override;
 
-	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
-	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                  bool shouldLimitDelayFeedback, bool isClipActive) override;
+	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, int32_t* reverbBuffer,
+	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
+	                  bool isClipActive) override;
 
-	bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
-	                                   int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
-	                                   int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+	bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
+	                                   std::span<StereoSample> globalEffectableBuffer, int32_t* bufferToTransferTo,
+	                                   int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
 	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd) override;
 
@@ -131,6 +132,21 @@ public:
 		if (outputRecordingFrom) {
 			// update the output we're recording from on whether we're monitoring
 			outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);
+		}
+		renderUIsForOled(); // oled shows the type on the clip screen (including while holding a clip in song view)
+		if (display->have7SEG()) {
+			const char* type;
+			switch (mode) {
+			case AudioOutputMode::player:
+				type = "PLAY";
+				break;
+			case AudioOutputMode::sampler:
+				type = "SAMP";
+				break;
+			case AudioOutputMode::looper:
+				type = "LOOP";
+			}
+			display->displayPopup(type);
 		}
 	}
 

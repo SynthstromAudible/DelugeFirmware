@@ -28,10 +28,10 @@ public:
 			return nullptr;
 		}
 		void* addr = GeneralMemoryAllocator::get().allocMaxSpeed(n * sizeof(T));
-		if (addr != nullptr) {
-			return static_cast<T*>(addr);
+		if (addr == nullptr) [[unlikely]] {
+			throw deluge::exception::BAD_ALLOC;
 		}
-		throw deluge::exception::BAD_ALLOC;
+		return static_cast<T*>(addr);
 	}
 
 	void deallocate(T* p, std::size_t n) { GeneralMemoryAllocator::get().dealloc(p); }

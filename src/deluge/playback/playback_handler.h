@@ -54,6 +54,7 @@ constexpr uint16_t metronomeValueBoundaries[16] = {
 class PlaybackHandler {
 public:
 	PlaybackHandler();
+	void midiRoutine();
 	void routine();
 
 	void playButtonPressed(int32_t buttonPressLatency);

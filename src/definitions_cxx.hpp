@@ -97,7 +97,7 @@ constexpr int32_t kEditPadPressBufferSize = 8;
 
 constexpr int32_t kNumModButtons = 8;
 
-// Display information
+// Display information (actually pads, not the display proper)
 constexpr int32_t kDisplayHeight = 8;
 constexpr int32_t kDisplayHeightMagnitude = 3;
 constexpr int32_t kDisplayWidth = 16;
@@ -195,28 +195,32 @@ constexpr int32_t kNumInstrumentSlots = 1000;
 constexpr size_t kFilenameBufferSize = 256;
 
 /// Static enum representing which view a generic UI pointer actually represents.
+/// If you update this, also update the string translations in ui.cpp!
 enum class UIType : uint8_t {
 	ARRANGER,
 	AUDIO_CLIP,
 	AUDIO_RECORDER,
 	AUTOMATION,
-	BROWSER,
 	CONTEXT_MENU,
+	DX_BROWSER,
 	INSTRUMENT_CLIP,
 	KEYBOARD_SCREEN,
 	LOAD_INSTRUMENT_PRESET,
+	LOAD_MIDI_DEVICE_DEFINITION,
 	LOAD_SONG,
 	PERFORMANCE,
-	RENAME_DRUM,
-	RENAME_OUTPUT,
+	RENAME,
+	SAMPLE_BROWSER,
 	SAMPLE_MARKER_EDITOR,
+	SAVE_INSTRUMENT_PRESET,
+	SAVE_KIT_ROW,
+	SAVE_MIDI_DEVICE_DEFINITION,
+	SAVE_SONG,
 	SESSION,
 	SLICER,
 	SOUND_EDITOR,
-	TIMELINE,
-	RENAME_CLIP,
-	RENAME_MIDI_CC,
-	LOAD_MIDI_DEVICE_DEFINITION,
+	// Keep these at the bottom!
+	UI_TYPE_COUNT,
 	NONE = 255,
 };
 
@@ -268,7 +272,7 @@ constexpr int32_t kFlangerMinTime = (3 << 16);
 constexpr int32_t kFlangerAmplitude = (kModFXMaxDelay - kFlangerMinTime);
 constexpr int32_t kFlangerOffset = ((kModFXMaxDelay + kFlangerMinTime) >> 1);
 
-constexpr int32_t kNumEnvelopes = 2;
+constexpr int32_t kNumEnvelopes = 4;
 constexpr int32_t kNumLFOs = 2;
 constexpr int32_t kNumModulators = 2;
 
@@ -303,6 +307,8 @@ enum class PatchSource : uint8_t {
 	SIDECHAIN,
 	ENVELOPE_0,
 	ENVELOPE_1,
+	ENVELOPE_2,
+	ENVELOPE_3,
 	LFO_LOCAL,
 	X,
 	Y,
@@ -527,6 +533,7 @@ enum class ArpPreset {
 	DOWN,
 	BOTH,
 	RANDOM,
+	WALK,
 	CUSTOM,
 };
 
@@ -534,8 +541,12 @@ enum class ArpNoteMode {
 	UP,
 	DOWN,
 	UP_DOWN,
-	AS_PLAYED,
 	RANDOM,
+	WALK1,
+	WALK2,
+	WALK3,
+	AS_PLAYED,
+	PATTERN,
 };
 
 enum class ArpOctaveMode {
@@ -895,6 +906,7 @@ constexpr int32_t MIDI_CHANNEL_MPE_LOWER_ZONE = 16;
 constexpr int32_t MIDI_CHANNEL_MPE_UPPER_ZONE = 17;
 constexpr int32_t NUM_CHANNELS = 18;
 constexpr int32_t MIDI_CHANNEL_NONE = 255;
+constexpr int32_t MIDI_NOTE_NONE = 255;
 constexpr int32_t MIDI_CC_NONE = 255;
 
 constexpr int32_t NUM_INTERNAL_DESTS = 1;
@@ -939,6 +951,7 @@ constexpr int32_t kSubmenuIconSpacingX = 7;
 
 // For kits
 constexpr int32_t kNoteForDrum = 60;
+constexpr int32_t kDefaultNoteOffVelocity = 64;
 
 enum BendRange {
 	BEND_RANGE_MAIN,

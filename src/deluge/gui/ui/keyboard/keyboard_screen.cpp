@@ -151,10 +151,8 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// Pad was already active
 			if (pressedPads[idx].active && pressedPads[idx].x == x && pressedPads[idx].y == y) {
 				pressedPads[idx].active = false;
+				pressedPads[idx].padPressHeld = false;
 				markDead = idx;
-				if ((AudioEngine::audioSampleTimer - pressedPads[idx].timeLastPadPress) > FlashStorage::holdTime) {
-					pressedPads[idx].padPressHeld = true;
-				}
 				break;
 			}
 		}
@@ -288,7 +286,7 @@ void KeyboardScreen::updateActiveNotes() {
 		// Ensure the note the user is trying to sound isn't already sounding
 		NoteRow* noteRow = ((InstrumentClip*)activeInstrument->getActiveClip())->getNoteRowForYNote(newNote);
 		if (noteRow) {
-			if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+			if (noteRow->sequenced) {
 				continue;
 			}
 		}
@@ -384,7 +382,7 @@ void KeyboardScreen::noteOff(ModelStack& modelStack, Instrument& activeInstrumen
                              int32_t note) {
 	NoteRow* noteRow = (static_cast<InstrumentClip*>(activeInstrument.getActiveClip()))->getNoteRowForYNote(note);
 	if (noteRow) {
-		if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+		if (noteRow->sequenced) {
 			return; // Note was activated by sequence
 		}
 	}
@@ -638,7 +636,6 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	}
 
 	else {
-		requestRendering();
 		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
 		if (result != ActionResult::NOT_DEALT_WITH) {
 			return result;
@@ -731,7 +728,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 
 	getCurrentInstrumentClip()->keyboardState.currentLayout = (KeyboardLayoutType)nextLayout;
 	if (getCurrentInstrumentClip()->keyboardState.currentLayout != lastLayout) {
-		display->displayPopup(layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->name());
+		display->displayPopup(l10n::get(layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->name()));
 	}
 
 	// Ensure scale mode is as expected

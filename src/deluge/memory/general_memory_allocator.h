@@ -23,8 +23,12 @@
 #define MEMORY_REGION_STEALABLE 0
 #define MEMORY_REGION_INTERNAL 1
 #define MEMORY_REGION_EXTERNAL 2
-#define NUM_MEMORY_REGIONS 3
-constexpr uint32_t RESERVED_EXTERNAL_ALLOCATOR = 0x00800000;
+#define MEMORY_REGION_EXTERNAL_SMALL 3
+#define MEMORY_REGION_INTERNAL_SMALL 4
+#define NUM_MEMORY_REGIONS 5
+constexpr uint32_t RESERVED_EXTERNAL_ALLOCATOR = 0x00200000;       // 2 MiB
+constexpr uint32_t RESERVED_EXTERNAL_SMALL_ALLOCATOR = 0x00020000; // 200k
+constexpr uint32_t RESERVED_INTERNAL_SMALL = 0x00010000;           // 200k
 class Stealable;
 
 /*
@@ -75,6 +79,7 @@ public:
 	void* alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom);
 	void dealloc(void* address);
 	void* allocExternal(uint32_t requiredSize);
+	void* allocInternal(uint32_t requiredSize);
 	void deallocExternal(void* address);
 	uint32_t shortenRight(void* address, uint32_t newSize);
 	uint32_t shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful = 0);
@@ -92,7 +97,8 @@ public:
 	void putStealableInAppropriateQueue(Stealable* stealable);
 
 	MemoryRegion regions[NUM_MEMORY_REGIONS];
-
+	// only used for managing stealables (audio files that we could deallocate and re load from sd later if needed)
+	CacheManager cacheManager;
 	bool lock;
 
 	static GeneralMemoryAllocator& get() {

@@ -37,9 +37,6 @@ using namespace deluge;
 
 LoadMidiDeviceDefinitionUI loadMidiDeviceDefinitionUI{};
 
-LoadMidiDeviceDefinitionUI::LoadMidiDeviceDefinitionUI() {
-}
-
 bool LoadMidiDeviceDefinitionUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;
 	return true;

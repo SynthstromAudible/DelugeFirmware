@@ -31,7 +31,7 @@ extern deluge::gui::menu_item::Submenu dxMenu;
 namespace deluge::gui::menu_item::osc {
 class Type final : public Selection, public FormattedTitle {
 public:
-	Type(l10n::String name, l10n::String title_format_str) : Selection(name), FormattedTitle(title_format_str){};
+	Type(l10n::String name, l10n::String title_format_str) : Selection(name), FormattedTitle(title_format_str) {};
 	void beginSession(MenuItem* navigatedBackwardFrom) override { Selection::beginSession(navigatedBackwardFrom); }
 
 	bool mayUseDx() { return !soundEditor.editingKit() && soundEditor.currentSourceIndex == 0; }
@@ -75,7 +75,8 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		using enum l10n::String;
 		deluge::vector<std::string_view> options = {
 		    l10n::getView(STRING_FOR_SINE),          //<

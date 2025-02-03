@@ -19,6 +19,8 @@
 
 #include "dsp/stereo_sample.h"
 #include <cmath>
+#include <span>
+
 class AbsValueFollower {
 public:
 	AbsValueFollower() = default;
@@ -53,7 +55,7 @@ public:
 		return releaseMS;
 	};
 
-	StereoFloatSample calcApproxRMS(StereoSample* buffer, uint16_t numSamples);
+	StereoFloatSample calcApproxRMS(std::span<StereoSample> buffer);
 
 private:
 	float runEnvelope(float current, float desired, float numSamples);
@@ -61,7 +63,7 @@ private:
 	float attackMS{1};
 	float releaseMS{10};
 	// parameters in use
-	float a_ = a_ = (-1000.0f / kSampleRate) / attackMS;
+	float a_ = (-1000.0f / kSampleRate) / attackMS;
 
 	float r_ = (-1000.0f / kSampleRate) / releaseMS;
 

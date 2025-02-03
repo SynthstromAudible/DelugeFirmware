@@ -58,8 +58,10 @@ public:
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	void exitAndNeverDeleteDrum();
 
-	const char* getName() override { return "sample_browser"; }
 	String lastFilePathLoaded;
+
+	// ui
+	UIType getUIType() override { return UIType::SAMPLE_BROWSER; }
 
 protected:
 	void enterKeyPress() override;

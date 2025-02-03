@@ -20,7 +20,7 @@ notice during usage or testing of the firmwares created from this repository and
   provide excerpts of the relevant logs if you suspect they might be helpful.
 * Bugs in related projects should be submitted to the appropriate issue tracker:
     * DelugeProbe: [litui/delugeprobe](https://github.com/litui/delugeprobe).
-    * DBT-Toolchain: [litui/dbt-toolchain](https://github.com/litui/dbt-toolchain).
+    * DBT-Toolchain: [SynthstromAudible/dbt-toolchain](https://github.com/SynthstromAudible/dbt-toolchain/issues).
 
 ## Ideas, feature requests, suggestions and discussions
 

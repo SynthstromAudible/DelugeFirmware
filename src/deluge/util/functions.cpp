@@ -56,6 +56,8 @@ int32_t getParamRange(int32_t p) {
 	switch (p) {
 	case params::LOCAL_ENV_0_ATTACK:
 	case params::LOCAL_ENV_1_ATTACK:
+	case params::LOCAL_ENV_2_ATTACK:
+	case params::LOCAL_ENV_3_ATTACK:
 		return 536870912 * 1.5;
 
 	case params::GLOBAL_DELAY_RATE:
@@ -118,18 +120,26 @@ int32_t getParamNeutralValue(int32_t p) {
 
 	case params::LOCAL_ENV_0_ATTACK:
 	case params::LOCAL_ENV_1_ATTACK:
+	case params::LOCAL_ENV_2_ATTACK:
+	case params::LOCAL_ENV_3_ATTACK:
 		return 4096; // attackRateTable[userValue];
 
 	case params::LOCAL_ENV_0_RELEASE:
 	case params::LOCAL_ENV_1_RELEASE:
+	case params::LOCAL_ENV_2_RELEASE:
+	case params::LOCAL_ENV_3_RELEASE:
 		return 140 << 9; // releaseRateTable[userValue];
 
 	case params::LOCAL_ENV_0_DECAY:
 	case params::LOCAL_ENV_1_DECAY:
+	case params::LOCAL_ENV_2_DECAY:
+	case params::LOCAL_ENV_3_DECAY:
 		return 70 << 9; // releaseRateTable[userValue] >> 1;
 
 	case params::LOCAL_ENV_0_SUSTAIN:
 	case params::LOCAL_ENV_1_SUSTAIN:
+	case params::LOCAL_ENV_2_SUSTAIN:
+	case params::LOCAL_ENV_3_SUSTAIN:
 	case params::GLOBAL_DELAY_FEEDBACK:
 		return 1073741824; // 536870912;
 
@@ -234,28 +244,14 @@ int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValu
 
 int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int32_t p) {
 	// TODO: this is horribly hard-coded, but works for now
-	if (p >= params::LOCAL_ENV_0_DECAY && p <= params::LOCAL_ENV_1_RELEASE) {
+	if (params::LOCAL_ENV_0_DECAY <= p && p <= params::LOCAL_ENV_3_RELEASE) {
 		return multiply_32x32_rshift32(paramNeutralValue, lookupReleaseRate(patchedValue));
 	}
-	if (p == params::LOCAL_ENV_0_ATTACK || p == params::LOCAL_ENV_1_ATTACK) {
+	if (params::LOCAL_ENV_0_ATTACK <= p && p <= params::LOCAL_ENV_3_ATTACK) {
 		patchedValue = -patchedValue;
 	}
 
 	return getFinalParameterValueExp(paramNeutralValue, patchedValue);
-}
-
-void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int32_t numSamples) {
-	StereoSample* inputSample = inputBuffer;
-	StereoSample* outputSample = outputBuffer;
-
-	StereoSample* inputBufferEnd = inputBuffer + numSamples;
-
-	do {
-		outputSample->l += inputSample->l;
-		outputSample->r += inputSample->r;
-
-		outputSample++;
-	} while (++inputSample != inputBufferEnd);
 }
 
 int32_t cableToLinearParamShortcut(int32_t sourceValue) {
@@ -323,6 +319,12 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 	case PatchSource::ENVELOPE_1:
 		return l10n::get(STRING_FOR_PATCH_SOURCE_ENVELOPE_1);
 
+	case PatchSource::ENVELOPE_2:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_ENVELOPE_2);
+
+	case PatchSource::ENVELOPE_3:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_ENVELOPE_3);
+
 	case PatchSource::VELOCITY:
 		return l10n::get(STRING_FOR_PATCH_SOURCE_VELOCITY);
 
@@ -373,6 +375,12 @@ char const* sourceToStringShort(PatchSource source) {
 
 	case PatchSource::ENVELOPE_1:
 		return "env2";
+
+	case PatchSource::ENVELOPE_2:
+		return "env3";
+
+	case PatchSource::ENVELOPE_3:
+		return "env4";
 
 	case PatchSource::VELOCITY:
 		return "velo";
@@ -1042,30 +1050,6 @@ char const* oldArpModeToString(OldArpMode mode) {
 	}
 }
 
-char const* arpPresetToOldArpMode(ArpPreset preset) {
-	switch (preset) {
-	case ArpPreset::OFF:
-		return "off";
-
-	case ArpPreset::UP:
-		return "up";
-
-	case ArpPreset::DOWN:
-		return "down";
-
-	case ArpPreset::BOTH:
-		return "both";
-
-	case ArpPreset::RANDOM:
-		return "random";
-
-	default:
-		// In case the user selected a Custom mode, we don't know how to convert it to
-		// the old mode so we default to "up" cause at least the arp is ON for sure
-		return "up";
-	}
-}
-
 OldArpMode stringToOldArpMode(char const* string) {
 	if (!strcmp(string, "up")) {
 		return OldArpMode::UP;
@@ -1117,6 +1101,18 @@ char const* arpNoteModeToString(ArpNoteMode mode) {
 	case ArpNoteMode::RANDOM:
 		return "random";
 
+	case ArpNoteMode::WALK1:
+		return "walk1";
+
+	case ArpNoteMode::WALK2:
+		return "walk2";
+
+	case ArpNoteMode::WALK3:
+		return "walk3";
+
+	case ArpNoteMode::PATTERN:
+		return "pattern";
+
 	default:
 		return "up";
 	}
@@ -1131,6 +1127,18 @@ ArpNoteMode stringToArpNoteMode(char const* string) {
 	}
 	else if (!strcmp(string, "asPlayed")) {
 		return ArpNoteMode::AS_PLAYED;
+	}
+	else if (!strcmp(string, "walk1")) {
+		return ArpNoteMode::WALK1;
+	}
+	else if (!strcmp(string, "walk2")) {
+		return ArpNoteMode::WALK2;
+	}
+	else if (!strcmp(string, "walk3")) {
+		return ArpNoteMode::WALK3;
+	}
+	else if (!strcmp(string, "pattern")) {
+		return ArpNoteMode::PATTERN;
 	}
 	else if (!strcmp(string, "random")) {
 		return ArpNoteMode::RANDOM;

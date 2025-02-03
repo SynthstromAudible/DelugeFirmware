@@ -20,6 +20,8 @@
 #include "memory/cache_manager.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 
+#include <util/exceptions.h>
+
 struct EmptySpaceRecord {
 	uint32_t length;
 	uint32_t address;
@@ -30,22 +32,22 @@ struct NeighbouringMemoryGrabAttemptResult {
 	int32_t amountsExtended[2];
 	uint32_t longestRunFound; // Only valid if didn't return some space.
 };
-
 #define SPACE_HEADER_EMPTY 0
 #define SPACE_HEADER_STEALABLE 0x40000000
 #define SPACE_HEADER_ALLOCATED 0x80000000
 
 #define SPACE_TYPE_MASK 0xC0000000u
 #define SPACE_SIZE_MASK 0x3FFFFFFFu
-
-constexpr int32_t maxAlign = 1 << 12;
-constexpr int32_t minAlign = 64;
-
+constexpr size_t max_align_big = 1 << 12;
+constexpr size_t min_align_big = 64;
+constexpr size_t pivot_big = 512;
 class MemoryRegion {
 public:
 	MemoryRegion();
-	void setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin, uint32_t regionEnd);
+	void setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin, uint32_t regionEnd,
+	           CacheManager* cacheManager);
 	void* alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom);
+	size_t nallocx(size_t size) { return padSize(size); }
 	uint32_t shortenRight(void* address, uint32_t newSize);
 	uint32_t shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful = 0);
 	void extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
@@ -56,9 +58,13 @@ public:
 
 	uint32_t start;
 	uint32_t end;
-	uint32_t numAllocations;
-	uint32_t pivot;
-	CacheManager& cache_manager() { return cache_manager_; }
+
+	CacheManager& cache_manager() {
+		if (cache_manager_) {
+			return *cache_manager_;
+		}
+		throw deluge::exception::NO_CACHE_FOR_REGION;
+	}
 
 #if ALPHA_OR_BETA_VERSION
 	char const* name; // For debugging messages only.
@@ -67,8 +73,14 @@ public:
 
 private:
 	friend class CacheManager;
-	CacheManager cache_manager_;
-
+	friend class GeneralMemoryAllocator;
+	// manages "stealables" for a memory region, only used in external stealable region
+	CacheManager* cache_manager_;
+	uint32_t numAllocations_{0};
+	uint32_t pivot_{pivot_big}; // items smaller than pivot allocate to left, larger to right
+	size_t maxAlign_ = max_align_big;
+	// not size_t, it needs to  be  compared to results of pointer subtractions that can be negative
+	ptrdiff_t minAlign_ = min_align_big;
 	void markSpaceAsEmpty(uint32_t spaceStart, uint32_t spaceSize, bool mayLookLeft = true, bool mayLookRight = true);
 	NeighbouringMemoryGrabAttemptResult
 	attemptToGrabNeighbouringMemory(void* originalSpaceAddress, int32_t originalSpaceSize, int32_t minAmountToExtend,

@@ -116,6 +116,10 @@ public:
 	int8_t unisonDetune;
 	uint8_t unisonStereoSpread;
 
+	// For sending MIDI notes for SoundDrums
+	uint8_t outputMidiChannel{MIDI_CHANNEL_NONE};
+	uint8_t outputMidiNoteForDrum{MIDI_NOTE_NONE};
+
 	int16_t modulatorTranspose[kNumModulators];
 	int8_t modulatorCents[kNumModulators];
 
@@ -130,6 +134,8 @@ public:
 	int32_t volumeNeutralValueForUnison;
 
 	int32_t lastNoteCode;
+
+	// int32_t lastMidiNoteOffSent;
 
 	bool oscillatorSync;
 
@@ -162,8 +168,8 @@ public:
 
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
 	                                    int32_t newValue);
-	void render(ModelStackWithThreeMainThings* modelStack, StereoSample* outputBuffer, int32_t numSamples,
-	            int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
+	void render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+	            int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
 	            bool shouldLimitDelayFeedback = false, int32_t pitchAdjust = kMaxSampleValue,
 	            SampleRecorder* recorder = nullptr);
 	void unassignAllVoices();
@@ -205,6 +211,7 @@ public:
 	void noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode,
 	            int16_t const* mpeValues, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	            uint32_t samplesLate = 0, int32_t velocity = 64, int32_t fromMIDIChannel = 16);
+	void noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode);
 	void allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator);
 
 	void noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode = -32768);
@@ -212,6 +219,9 @@ public:
 	                           int32_t newNoteCodeAfterArpeggiation, int32_t velocity, int16_t const* mpeValues,
 	                           uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
 	                           int32_t fromMIDIChannel = 16);
+	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
+	                                              int32_t channelOrNoteNumber,
+	                                              MIDICharacteristic whichCharacteristic) override;
 
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
@@ -299,8 +309,8 @@ private:
 	void setupUnisonStereoSpread();
 	void calculateEffectiveVolume();
 	void ensureKnobReferencesCorrectVolume(Knob* knob);
-	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-	                      int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
+	Error readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
+	                             int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 
 	void writeSourceToFile(Serializer& writer, int32_t s, char const* tagName);
 	Error readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerForTimeline* paramManager,

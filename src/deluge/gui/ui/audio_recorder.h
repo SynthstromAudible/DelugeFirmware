@@ -53,7 +53,6 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::AUDIO_RECORDER; }
-	const char* getName() override { return "audio_recorder"; }
 
 private:
 	void finishRecording();

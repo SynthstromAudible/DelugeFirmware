@@ -36,6 +36,8 @@
 ///   - Exp (exponential) params have different sources added together, converted to an exponential scale, then
 ///   multiplied by the neutral value
 
+class ModControllableAudio;
+
 namespace deluge::modulation::params {
 enum class Kind : int32_t {
 	NONE,
@@ -83,6 +85,8 @@ enum Local : ParamType {
 	LOCAL_HPF_RESONANCE,
 	LOCAL_ENV_0_SUSTAIN,
 	LOCAL_ENV_1_SUSTAIN,
+	LOCAL_ENV_2_SUSTAIN,
+	LOCAL_ENV_3_SUSTAIN,
 	LOCAL_LPF_MORPH,
 	LOCAL_HPF_MORPH,
 
@@ -106,10 +110,16 @@ enum Local : ParamType {
 	LOCAL_LFO_LOCAL_FREQ,
 	LOCAL_ENV_0_ATTACK,
 	LOCAL_ENV_1_ATTACK,
+	LOCAL_ENV_2_ATTACK,
+	LOCAL_ENV_3_ATTACK,
 	LOCAL_ENV_0_DECAY,
 	LOCAL_ENV_1_DECAY,
+	LOCAL_ENV_2_DECAY,
+	LOCAL_ENV_3_DECAY,
 	LOCAL_ENV_0_RELEASE,
 	LOCAL_ENV_1_RELEASE,
+	LOCAL_ENV_2_RELEASE,
+	LOCAL_ENV_3_RELEASE,
 
 	/// Special value used to chain in to the Global params.
 	LOCAL_LAST,
@@ -181,14 +191,17 @@ enum UnpatchedShared : ParamType {
 /// Unpatched params which are only used for Sounds
 enum UnpatchedSound : ParamType {
 	UNPATCHED_ARP_GATE = UNPATCHED_NUM_SHARED,
-	UNPATCHED_ARP_NOTE_PROBABILITY,
-	UNPATCHED_ARP_RATCHET_PROBABILITY,
-	UNPATCHED_ARP_RATCHET_AMOUNT,
-	UNPATCHED_ARP_SEQUENCE_LENGTH,
 	UNPATCHED_ARP_RHYTHM,
-	UNPATCHED_ARP_SPREAD_VELOCITY,
+	UNPATCHED_ARP_SEQUENCE_LENGTH,
+	UNPATCHED_ARP_CHORD_POLYPHONY,
+	UNPATCHED_ARP_RATCHET_AMOUNT,
+	UNPATCHED_ARP_NOTE_PROBABILITY,
+	UNPATCHED_ARP_BASS_PROBABILITY,
+	UNPATCHED_ARP_CHORD_PROBABILITY,
+	UNPATCHED_ARP_RATCHET_PROBABILITY,
 	UNPATCHED_ARP_SPREAD_GATE,
 	UNPATCHED_ARP_SPREAD_OCTAVE,
+	UNPATCHED_SPREAD_VELOCITY,
 	UNPATCHED_PORTAMENTO,
 	UNPATCHED_SOUND_MAX_NUM,
 };
@@ -245,8 +258,7 @@ bool isParamPitch(Kind kind, int32_t paramID);
 bool isParamPitchBend(Kind kind, int32_t paramID);
 bool isParamArpRhythm(Kind kind, int32_t paramID);
 bool isParamStutter(Kind kind, int32_t paramID);
-bool isParamQuantizedStutter(Kind kind, int32_t paramID);
-bool isParamReverseStutter(Kind kind, int32_t paramID);
+bool isParamQuantizedStutter(Kind kind, int32_t paramID, ModControllableAudio* modControllableAudio);
 
 bool isVibratoPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
 bool isSidechainPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
@@ -318,7 +330,7 @@ const uint32_t unpatchedNonGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] =
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, UNPATCHED_MOD_FX_OFFSET   , UNPATCHED_MOD_FX_FEEDBACK      , kNoParamID           , kNoParamID},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID}
+    {kNoParamID          , UNPATCHED_SPREAD_VELOCITY, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID}
 };
 // clang-format on
 

@@ -63,7 +63,7 @@ public:
 	ParamManagerForTimeline* currentParamManager;
 	SideChain* currentSidechain;
 	ArpeggiatorSettings* currentArpSettings;
-	MultiRange* currentMultiRange;
+	::MultiRange* currentMultiRange;
 	SampleControls* currentSampleControls;
 	VoicePriority* currentPriority;
 	int16_t currentMultiRangeIndex;
@@ -83,14 +83,13 @@ public:
 	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency);
 	bool findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout);
 	void updateSourceBlinks(MenuItem* currentItem);
+	void resetSourceBlinks();
 
 	uint8_t navigationDepth;
 	uint8_t patchingParamSelected;
 	uint8_t currentParamShorcutX;
 	uint8_t currentParamShorcutY;
 	uint8_t paramShortcutBlinkFrequency;
-	uint8_t sourceShortcutBlinkFrequencies[2][kDisplayHeight];
-	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight];
 	uint32_t shortcutBlinkCounter;
 
 	uint32_t timeLastAttemptedAutomatedParamEdit;
@@ -129,11 +128,14 @@ public:
 	bool noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) override;
 	void markInstrumentAsEdited();
 	bool editingCVOrMIDIClip();
+	bool editingNonAudioDrumRow();
+	bool editingMidiDrumRow();
+	bool editingGateDrumRow();
 	bool isUntransposedNoteWithinRange(int32_t noteCode);
 	void setCurrentMultiRange(int32_t i);
 	void possibleChangeToCurrentRangeDisplay();
 	MenuPermission checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int32_t whichThing,
-	                                                                  MultiRange** previouslySelectedRange);
+	                                                                  ::MultiRange** previouslySelectedRange);
 	void setupExclusiveShortcutBlink(int32_t x, int32_t y);
 	void setShortcutsVersion(int32_t newVersion);
 	ModelStackWithThreeMainThings* getCurrentModelStack(void* memory);
@@ -146,7 +148,6 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::SOUND_EDITOR; }
-	const char* getName() override { return "sound_editor"; }
 
 	bool selectedNoteRow;
 
@@ -154,6 +155,7 @@ public:
 	bool inNoteEditor();
 	bool inNoteRowEditor();
 	void toggleNoteEditorParamMenu(int32_t on);
+	void updatePadLightsFor(MenuItem* item);
 
 private:
 	/// Setup shortcut blinking by finding the given menu item in the provided item map
@@ -167,6 +169,9 @@ private:
 	void handlePotentialParamMenuChange(deluge::hid::Button b, bool on, bool inCardRoutine, MenuItem* previousItem,
 	                                    MenuItem* currentItem);
 	bool handleClipName();
+
+	uint8_t sourceShortcutBlinkFrequencies[2][kDisplayHeight];
+	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight];
 };
 
 extern SoundEditor soundEditor;

@@ -62,6 +62,8 @@ public:
 		return getValue();
 	}
 
+	void updateAutomationViewParameter() override;
+
 protected:
 	void readCurrentValue() override;
 	void writeCurrentValue() final;
