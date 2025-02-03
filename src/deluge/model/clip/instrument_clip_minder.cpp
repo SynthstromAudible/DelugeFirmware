@@ -407,7 +407,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::ALLOWED);
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-			getCurrentInstrumentClip()->clear(action,modelStack,true,true);
+			getCurrentInstrumentClip()->clear(action, modelStack, true, true);
 
 			actionLogger.getNewAction(ActionType::NOTES_PASTE, ActionAddition::ALLOWED);
 			openUI(&loadPatternUI);
