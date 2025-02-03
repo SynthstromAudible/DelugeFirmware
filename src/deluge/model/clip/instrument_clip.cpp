@@ -479,17 +479,17 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 			bool scaleAltered = false;
 
 			for (auto [note, noteInfo] : melodicInstrument->earlyNotes) {
-				const auto [velocity, stillActive] = noteInfo;
+				const auto [velocity, still_active] = noteInfo;
 
 				ModelStackWithNoteRow* modelStackWithNoteRow =
 				    getOrCreateNoteRowForYNote(note, modelStack, action, &scaleAltered);
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-				if (noteRow) {
+				if (noteRow != nullptr) {
 					int32_t probability = noteRow->getDefaultProbability();
 					Iterance iterance = noteRow->getDefaultIterance();
 					int32_t fill = noteRow->getDefaultFill(modelStackWithNoteRow);
 					noteRow->attemptNoteAdd(0, 1, velocity, probability, iterance, fill, modelStackWithNoteRow, action);
-					if (!stillActive) {
+					if (!still_active) {
 						// We just inserted a note-on for an "early" note that is still sounding at time 0, so ignore
 						// note-ons until at least tick 1 to avoid double-playing that note
 						noteRow->ignoreNoteOnsBefore_ = 1;
@@ -498,12 +498,11 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 			}
 
 			// If this caused the scale to change, update scroll
-			if (action && scaleAltered) {
+			if (action != nullptr && scaleAltered) {
 				action->updateYScrollClipViewAfter();
 			}
+			melodicInstrument->earlyNotes.clear();
 		}
-
-		melodicInstrument->earlyNotes.clear();
 	}
 
 	return Clip::beginLinearRecording(modelStack, buttonPressLatency);
@@ -4653,7 +4652,7 @@ void InstrumentClip::yDisplayNoLongerAuditioning(int32_t yDisplay, Song* song) {
 
 	else {
 		int32_t yNote = getYNoteFromYDisplay(yDisplay, song);
-		((MelodicInstrument*)output)->notesAuditioned.erase(yNote);
+		static_cast<MelodicInstrument*>(output)->notesAuditioned.erase(yNote);
 	}
 
 	expectEvent();
