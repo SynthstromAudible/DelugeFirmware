@@ -37,7 +37,6 @@ using namespace deluge;
 
 LoadPatternUI loadPatternUI{};
 
-
 bool LoadPatternUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;
 	return true;
@@ -103,7 +102,6 @@ void LoadPatternUI::setupLoadPatternUI(bool overwriteExistingState, bool noScali
 }
 
 void LoadPatternUI::currentFileChanged(int32_t movementDirection) {
-
 }
 
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
