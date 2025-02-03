@@ -619,15 +619,12 @@ void WaveformRenderer::drawColBar(int32_t xDisplay, int32_t min24, int32_t max24
 			colourAmount = ((howMuchThisSquare * brightness) >> 8);
 		}
 
-		for (int32_t c = 0; c < RGB::size(); c++) {
-			int32_t valueHere = (colourAmount * colourAmount) >> 8;
+		int32_t valueHere = (colourAmount * colourAmount) >> 8;
+		RGB color = rgb.has_value()
+		                ? rgb.value().transform([valueHere](auto channel) { return (valueHere * channel) >> 8; })
+		                : RGB::monochrome(valueHere);
 
-			if (rgb.has_value()) {
-				valueHere = (valueHere * rgb.value()[c]) >> 8;
-			}
-
-			thisImage[y + (kDisplayHeight >> 1)][xDisplay][c] = valueHere;
-		}
+		thisImage[y + (kDisplayHeight >> 1)][xDisplay] = color;
 	}
 }
 

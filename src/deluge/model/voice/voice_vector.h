@@ -28,6 +28,9 @@ struct VoiceVectorElement {
 };
 
 struct VoiceVector : OrderedResizeableArrayWithMultiWordKey {
+	VoiceVector() : OrderedResizeableArrayWithMultiWordKey(sizeof(VoiceVectorElement), 2, 48, 48) {
+		emptyingShouldFreeMemory = false;
+	}
 	void getRangeForSound(Sound* sound, int32_t* __restrict__ ends);
 	void checkVoiceExists(Voice* voice, Sound* sound, char const* errorCode);
 

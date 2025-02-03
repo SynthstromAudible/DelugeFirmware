@@ -292,9 +292,7 @@ RGB prepareColour(int32_t x, int32_t y, RGB colourSource) {
 }
 
 void writeToSideBar(uint8_t sideBarX, uint8_t yDisplay, uint8_t red, uint8_t green, uint8_t blue) {
-	image[yDisplay][sideBarX + kDisplayWidth][0] = red;
-	image[yDisplay][sideBarX + kDisplayWidth][1] = green;
-	image[yDisplay][sideBarX + kDisplayWidth][2] = blue;
+	image[yDisplay][sideBarX + kDisplayWidth] = RGB(red, green, blue);
 }
 
 void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder) {
