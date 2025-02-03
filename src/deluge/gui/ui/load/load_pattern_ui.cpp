@@ -102,6 +102,11 @@ void LoadPatternUI::setupLoadPatternUI(bool overwriteExistingState, bool noScali
 }
 
 void LoadPatternUI::currentFileChanged(int32_t movementDirection) {
+	// Only needed if Pattern Size can different from current Window to show Scaling
+	if (!noScaling) {
+		previewOnly = true;
+		performLoad();
+	}
 }
 
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
@@ -189,12 +194,14 @@ ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 				// as we did overwrite Notes by last preview, revert to orig before previewing next
 				actionLogger.revert(BEFORE);
 				performLoad();
-				display->displayPopup("Preview...");
 				// rerenndering Keyboard
 				renderingNeededRegardlessOfUI();
+				display->displayPopup("Preview...");
 			}
 		}
 		instrumentClipView.patternPreview();
+		// rerenndering Keyboard
+		renderingNeededRegardlessOfUI();
 		return ActionResult::DEALT_WITH;
 	}
 	else {

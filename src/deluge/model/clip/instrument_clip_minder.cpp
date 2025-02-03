@@ -402,6 +402,13 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			indicator_leds::setLedState(IndicatorLED::LOAD, false);
 			// Need to stop Playback before loading a new Pattern to prevent Stuck notes on big Midi files
 			playbackHandler.endPlayback();
+
+			// Clear the Clip bevore starting
+			Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::ALLOWED);
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+			getCurrentInstrumentClip()->clear(action,modelStack,true,true);
+
 			actionLogger.getNewAction(ActionType::NOTES_PASTE, ActionAddition::ALLOWED);
 			openUI(&loadPatternUI);
 			if (Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT)) {
