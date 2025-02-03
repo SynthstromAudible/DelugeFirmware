@@ -123,8 +123,6 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 void NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
                                                                   int32_t channelOrNoteNumber,
                                                                   MIDICharacteristic whichCharacteristic) {
-	ArpeggiatorSettings* settings = getArpSettings();
-
 	int32_t n;
 	int32_t nEnd;
 

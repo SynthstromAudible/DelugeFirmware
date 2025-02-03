@@ -56,7 +56,7 @@ extern uint8_t currentlyAccessingCard;
 
 using namespace deluge::gui;
 
-AudioClipView audioClipView{};
+PLACE_SDRAM_BSS AudioClipView audioClipView{};
 
 inline Sample* getSample() {
 	AudioClip& clip = *getCurrentAudioClip();

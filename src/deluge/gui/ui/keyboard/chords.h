@@ -123,17 +123,17 @@ extern const Chord kM13;
 extern const Chord kM13Sharp11;
 extern const Chord kMinor13;
 
-extern const std::array<Chord, 10> majorChords;
+extern const std::array<const Chord, 10> majorChords;
 
-extern const std::array<Chord, 10> minorChords;
+extern const std::array<const Chord, 10> minorChords;
 
-extern const std::array<Chord, 10> dominantChords;
+extern const std::array<const Chord, 10> dominantChords;
 
-extern const std::array<Chord, 10> diminishedChords;
+extern const std::array<const Chord, 10> diminishedChords;
 
-extern const std::array<Chord, 10> augmentedChords;
+extern const std::array<const Chord, 10> augmentedChords;
 
-extern const std::array<Chord, 10> otherChords;
+extern const std::array<const Chord, 10> otherChords;
 
 /// @brief A collection of chords
 class ChordList {

@@ -23,6 +23,14 @@ OrderedResizeableArrayWithMultiWordKey::OrderedResizeableArrayWithMultiWordKey(i
     : OrderedResizeableArrayWith32bitKey(newElementSize, 16, 15), numWordsInKey(newNumWordsInKey) {
 }
 
+OrderedResizeableArrayWithMultiWordKey::OrderedResizeableArrayWithMultiWordKey(int32_t newElementSize,
+                                                                               int32_t newNumWordsInKey,
+                                                                               int32_t newMaxNumEmptySpacesToKeep,
+                                                                               int32_t newNumExtraSpacesToAllocate)
+    : OrderedResizeableArrayWith32bitKey(newElementSize, newMaxNumEmptySpacesToKeep, newNumExtraSpacesToAllocate),
+      numWordsInKey(newNumWordsInKey) {
+}
+
 int32_t OrderedResizeableArrayWithMultiWordKey::searchMultiWord(uint32_t* __restrict__ keyWords, int32_t comparison,
                                                                 int32_t rangeBegin, int32_t rangeEnd) {
 

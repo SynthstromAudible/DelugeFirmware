@@ -11,8 +11,7 @@ from pathlib import Path
 import util
 from functools import partial
 
-# EXEC_EXT = ".exe" if os.name == "nt" else ""
-EXEC_EXT = ""  # Disabled until next DBT release
+EXEC_EXT = ".exe" if os.name == "nt" else ""
 
 DBT_VERSION = util.get_dbt_version()
 

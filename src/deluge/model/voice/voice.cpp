@@ -241,7 +241,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 				AudioFileHolder* holder = range->getAudioFileHolder();
 				// Only actually set the Range as ours if it has an AudioFile - so that we'll always know that any
 				// VoiceSource's range definitely has a sample
-				if (!holder->audioFile) {
+				if (!holder || !holder->audioFile) {
 					goto gotInactive;
 				}
 
