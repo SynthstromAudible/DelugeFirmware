@@ -483,7 +483,7 @@ Error StorageManager::openPatternFile(FilePointer* filePointer) {
 
 // Returns error status
 Error StorageManager::loadPatternFile(FilePointer* filePointer, String* fileName, bool overwriteExisting,
-                                      bool previewOnly, bool selectedDrumOnly) {
+                                      bool noScaling, bool previewOnly, bool selectedDrumOnly) {
 
 	AudioEngine::logAction("loadPatternFile");
 	D_PRINTLN("opening pattern file -  %s %s  from FP  %lu", fileName->get(), (int32_t)filePointer->sclust);
@@ -496,7 +496,8 @@ Error StorageManager::loadPatternFile(FilePointer* filePointer, String* fileName
 
 	AudioEngine::logAction("readPatternFile");
 
-	error = instrumentClipView.pasteNotesFromFile(smDeserializer, overwriteExisting, previewOnly, selectedDrumOnly);
+	error = instrumentClipView.pasteNotesFromFile(smDeserializer, overwriteExisting, noScaling, previewOnly,
+						      selectedDrumOnly);
 
 	FRESULT fileSuccess = activeDeserializer->closeWriter();
 

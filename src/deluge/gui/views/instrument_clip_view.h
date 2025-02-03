@@ -262,7 +262,9 @@ public:
 	bool handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on);
 	void handleNoteRowEditorAuditionPadAction(int32_t y);
 	void copyNotesToFile(Serializer& writer, bool selectedDrumOnly = false);
-	Error pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool previewOnly, bool selectedDrumOnly);
+	Error pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool noScaling, bool previewOnly,
+				 bool selectedDrumOnly);
+	void patternPreview();
 	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult handleNoteRowEditorHorizontalEncoderAction(int32_t offset);
 	ActionResult handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
@@ -320,8 +322,8 @@ private:
 
 	// note row functions
 	void copyNotes(Serializer* writer, bool selectedDrumOnly = false);
-	void pasteNotes(bool overwriteExisting = true, bool pasteFromFile = false, bool previewOnly = false,
-	                bool selectedDrumOnly = false);
+	void pasteNotes(bool overwriteExisting = true, bool pasteFromFile = false, bool noScaling = false,
+	                bool previewOnly = false, bool selectedDrumOnly = false);
 	void deleteCopiedNoteRows();
 	CopiedNoteRow* firstCopiedNoteRow;
 	int32_t copiedScreenWidth;

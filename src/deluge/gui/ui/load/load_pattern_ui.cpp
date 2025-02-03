@@ -36,7 +36,7 @@ using namespace deluge;
 #define PATTERN_MELODIC_DEFAULT_FOLDER "PATTERNS/MELODIC"
 
 LoadPatternUI loadPatternUI{};
-bool overwriteExistingState;
+
 
 bool LoadPatternUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;
@@ -45,7 +45,7 @@ bool LoadPatternUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 
 bool LoadPatternUI::opened() {
 
-	overwriteExistingState = true;
+	overwriteExisting = true;
 	if (!getRootUI()->toClipMinder() || (getCurrentOutputType() == OutputType::AUDIO)) {
 		return false;
 	}
@@ -89,22 +89,21 @@ bool LoadPatternUI::opened() {
 	return true;
 }
 
-void LoadPatternUI::setupLoadPatternUI(bool overwriteExisting) {
-	overwriteExistingState = overwriteExisting;
+void LoadPatternUI::setupLoadPatternUI(bool overwriteExistingState, bool noScalingState) {
+	overwriteExisting = overwriteExistingState;
+	noScaling = noScalingState;
 	previewOnly = true;
+	if (!overwriteExisting) {
+		display->displayPopup("gently Paste");
+	}
+	if (noScaling) {
+		display->displayPopup("no Scaling");
+	}
 	performLoad();
 }
 
 void LoadPatternUI::currentFileChanged(int32_t movementDirection) {
 
-	FileItem* currentFileItem = getCurrentFileItem();
-
-	if (!currentFileItem->isFolder) {
-		previewOnly = true;
-		// as we did overwrite Notes by last preview, revert to orig before previewing next
-		actionLogger.revert(BEFORE);
-		performLoad();
-	}
 }
 
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
@@ -183,6 +182,23 @@ ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 		previewOnly = false;
 		return mainButtonAction(on);
 	}
+	else if (b == PLAY) {
+		// Need to use special preview mode for this as on constant playing, big Midi files can lead to stucked notes
+		FileItem* currentFileItem = getCurrentFileItem();
+		if (!currentFileItem->isFolder) {
+			if (on) {
+				previewOnly = true;
+				// as we did overwrite Notes by last preview, revert to orig before previewing next
+				actionLogger.revert(BEFORE);
+				performLoad();
+				display->displayPopup("Preview...");
+				// rerenndering Keyboard
+				renderingNeededRegardlessOfUI();
+			}
+		}
+		instrumentClipView.patternPreview();
+		return ActionResult::DEALT_WITH;
+	}
 	else {
 		if (on && b == BACK) {
 			// don't allow navigation backwards if we're in the default folder
@@ -225,8 +241,8 @@ Error LoadPatternUI::performLoad() {
 	fileName.concatenate(enteredText.get());
 	fileName.concatenate(".XML");
 
-	Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName, overwriteExistingState,
-	                                              previewOnly, selectedDrumOnly);
+	Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName, overwriteExisting,
+	                                              noScaling, previewOnly, selectedDrumOnly);
 
 	if (error != Error::NONE) {
 		display->displayError(currentLabelLoadError);

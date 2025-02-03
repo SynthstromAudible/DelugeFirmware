@@ -260,7 +260,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 	using namespace deluge::hid::button;
 
 	// Scale mode button
-	if (b == SCALE_MODE) {
+	if (b == SCALE_MODE && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		return handleScaleButtonAction(on, inCardRoutine);
 	}
 
@@ -1324,8 +1324,17 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSys
 	}
 }
 
-void InstrumentClipView::pasteNotes(bool overwriteExisting, bool pasteFromFile, bool previewOnly,
-                                    bool selectedDrumOnly) {
+void InstrumentClipView::patternPreview(){
+	if (!playbackHandler.playbackState) {
+		playbackHandler.setupPlaybackUsingInternalClock(0, false, true, false);
+	}
+	else {
+		playbackHandler.endPlayback();
+	}
+}
+
+void InstrumentClipView::pasteNotes(bool overwriteExisting, bool pasteFromFile, bool noScaling,
+                                    bool previewOnly, bool selectedDrumOnly) {
 
 	if (!firstCopiedNoteRow) {
 		return;
@@ -1348,6 +1357,23 @@ ramError:
 	ScaleType pastedScaleType = getCurrentInstrumentClip()->getScaleType();
 
 	float scaleFactor = (float)pastedScreenWidth / (uint32_t)copiedScreenWidth;
+
+	if (noScaling) {
+		scaleFactor = 1;
+		if (pastedScreenWidth > copiedScreenWidth) {
+			if (copiedScreenWidth <= (uint32_t)kMaxSequenceLength) {
+				lengthenClip(copiedScreenWidth);
+			}
+		}
+		else if (pastedScreenWidth < copiedScreenWidth) {
+			if (copiedScreenWidth > 0) {
+				shortenClip(copiedScreenWidth);
+			}
+		}
+		zoomToMax();
+		endPos = getPosFromSquare(kDisplayWidth);
+		pastedScreenWidth = endPos - startPos;
+	}
 
 	Action* action;
 
@@ -1456,8 +1482,8 @@ getOut:
 	}
 }
 
-Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool previewOnly,
-                                             bool selectedDrumOnly) {
+Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool noScaling,
+                                             bool previewOnly, bool selectedDrumOnly) {
 	Error error = Error::NONE;
 
 	if (false) {
@@ -1610,7 +1636,7 @@ getOut: {}
 	}
 
 	// Pasting notes to the View
-	pasteNotes(overwriteExisting, true, previewOnly, selectedDrumOnly);
+	pasteNotes(overwriteExisting, true, noScaling, previewOnly, selectedDrumOnly);
 
 	return Error::NONE;
 }

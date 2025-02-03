@@ -43,7 +43,7 @@ public:
 
 	Error performLoad();
 
-	void setupLoadPatternUI(bool overwriteOnLoad = true);
+	void setupLoadPatternUI(bool overwriteOnLoad = true, bool noScaling = false);
 
 	// ui
 	UIType getUIType() override { return UIType::LOAD_PATTERN; }
@@ -56,6 +56,8 @@ protected:
 private:
 	bool selectedDrumOnly;
 	bool previewOnly;
+	bool overwriteExisting;
+	bool noScaling;
 	std::string defaultDir;
 	Error setupForLoadingPattern();
 	Error currentLabelLoadError = Error::NONE;

@@ -392,22 +392,34 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 
 	// If holding load button...
 	else if (currentUIMode == UI_MODE_HOLDING_LOAD_BUTTON && on) {
-		currentUIMode = UI_MODE_NONE;
-		indicator_leds::setLedState(IndicatorLED::LOAD, false);
 		if (getCurrentOutputType() == OutputType::MIDI_OUT && (b == MOD_ENCODER_0 || b == MOD_ENCODER_1)) {
+			currentUIMode = UI_MODE_NONE;
+			indicator_leds::setLedState(IndicatorLED::LOAD, false);
 			openUI(&loadMidiDeviceDefinitionUI);
 		}
 		else if (b == X_ENC) {
+			currentUIMode = UI_MODE_NONE;
+			indicator_leds::setLedState(IndicatorLED::LOAD, false);
+			// Need to stop Playback before loading a new Pattern to prevent Stuck notes on big Midi files
+			playbackHandler.endPlayback();
 			actionLogger.getNewAction(ActionType::NOTES_PASTE, ActionAddition::ALLOWED);
 			openUI(&loadPatternUI);
 			if (Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT)) {
-				loadPatternUI.setupLoadPatternUI(false);
+				// Setup for gently pasting notes
+				loadPatternUI.setupLoadPatternUI(false,false);
+			}
+			else if (Buttons::isButtonPressed(deluge::hid::button::SCALE_MODE)) {
+				// Setup for keeping original Scale on paste
+				loadPatternUI.setupLoadPatternUI(true,true);
 			}
 			else {
-				loadPatternUI.setupLoadPatternUI(true);
+				// Default Load
+				loadPatternUI.setupLoadPatternUI();
 			}
 		}
-		else {
+		else if (b == SYNTH || b == KIT || b == MIDI) {
+			currentUIMode = UI_MODE_NONE;
+			indicator_leds::setLedState(IndicatorLED::LOAD, false);
 			OutputType newOutputType;
 			if (b == SYNTH) {
 				newOutputType = OutputType::SYNTH;
