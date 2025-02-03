@@ -1370,6 +1370,7 @@ ramError:
 				shortenClip(copiedScreenWidth);
 			}
 		}
+		// Zoom to Windowsize for pasting
 		zoomToMax();
 		endPos = getPosFromSquare(kDisplayWidth);
 		pastedScreenWidth = endPos - startPos;
