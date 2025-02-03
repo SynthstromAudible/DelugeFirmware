@@ -84,6 +84,7 @@ bool testAllocationStructure(void* address, uint32_t size, uint32_t spaceType) {
 
 TEST_GROUP(MemoryAllocation) {
 	MemoryRegion memreg;
+	CacheManager cm;
 	// this will hold the address of the stealable test vtable
 	uint32_t empty_spaze_size = sizeof(EmptySpaceRecord) * 512;
 	void* emptySpacesMemory = malloc(empty_spaze_size);
@@ -92,9 +93,10 @@ TEST_GROUP(MemoryAllocation) {
 	// this runs before each test to re intitialize the memory
 	void setup() {
 		nSteals = 0;
+		auto newCM = new (&cm) CacheManager();
 		memset(raw_mem, 0, mem_size);
 		memset(emptySpacesMemory, 0, empty_spaze_size);
-		memreg.setup(emptySpacesMemory, empty_spaze_size, (uint32_t)raw_mem, (uint32_t)raw_mem + mem_size);
+		memreg.setup(emptySpacesMemory, empty_spaze_size, (uint32_t)raw_mem, (uint32_t)raw_mem + mem_size, newCM);
 	}
 };
 
@@ -319,6 +321,7 @@ TEST(MemoryAllocation, stealableAllocations) {
 		void* testalloc = memreg.alloc(size, true, NULL);
 		totalAllocated += size;
 		StealableTest* stealable = new (testalloc) StealableTest();
+
 		memreg.cache_manager().QueueForReclamation(StealableQueue{0}, stealable);
 		vtableAddress = *(uint32_t*)testalloc;
 		actualSize = getAllocatedSize(testalloc);

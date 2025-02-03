@@ -906,6 +906,7 @@ constexpr int32_t MIDI_CHANNEL_MPE_LOWER_ZONE = 16;
 constexpr int32_t MIDI_CHANNEL_MPE_UPPER_ZONE = 17;
 constexpr int32_t NUM_CHANNELS = 18;
 constexpr int32_t MIDI_CHANNEL_NONE = 255;
+constexpr int32_t MIDI_NOTE_NONE = 255;
 constexpr int32_t MIDI_CC_NONE = 255;
 
 constexpr int32_t NUM_INTERNAL_DESTS = 1;
@@ -950,6 +951,7 @@ constexpr int32_t kSubmenuIconSpacingX = 7;
 
 // For kits
 constexpr int32_t kNoteForDrum = 60;
+constexpr int32_t kDefaultNoteOffVelocity = 64;
 
 enum BendRange {
 	BEND_RANGE_MAIN,
