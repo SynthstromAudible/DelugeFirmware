@@ -22,11 +22,11 @@
 #include "processing/engines/audio_engine.h"
 
 // TODO: Check if these have the right size
-char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
-char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
-char emptySpacesMemoryInternalSmall[sizeof(EmptySpaceRecord) * 256];
-char emptySpacesMemoryGeneral[sizeof(EmptySpaceRecord) * 256];
-char emptySpacesMemoryGeneralSmall[sizeof(EmptySpaceRecord) * 256];
+PLACE_SDRAM_BSS char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
+PLACE_SDRAM_BSS char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
+PLACE_SDRAM_BSS char emptySpacesMemoryInternalSmall[sizeof(EmptySpaceRecord) * 256];
+PLACE_SDRAM_BSS char emptySpacesMemoryGeneral[sizeof(EmptySpaceRecord) * 256];
+PLACE_SDRAM_BSS char emptySpacesMemoryGeneralSmall[sizeof(EmptySpaceRecord) * 256];
 extern uint32_t __sdram_bss_start;
 extern uint32_t __sdram_bss_end;
 extern uint32_t __heap_start;
