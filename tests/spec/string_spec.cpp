@@ -1,6 +1,10 @@
 #include "util/string.h"
 #include <cppspec.hpp>
 
+extern "C" void putchar_(char c) {
+	putchar(c);
+}
+
 describe string("deluge::string", ${
 	using namespace deluge;
 	using namespace std::literals;
