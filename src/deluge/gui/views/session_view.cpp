@@ -2105,8 +2105,9 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
 	int32_t batteryVoltage = deluge::system::powerManager.getStableVoltage();
 	bool isCharging = deluge::system::powerManager.isCharging();
 
+	// Battery status text
 	char text[32];
-	snprintf(text, sizeof(text), "%d%% (%d)", batteryPercent, batteryVoltage);
+
 	int32_t textWidth = canvas.getStringWidthInPixels(text, kTextSpacingY);
 	int32_t totalWidth = x + 16 + textWidth; // Battery icon (16px) + text width
 
@@ -2119,16 +2120,17 @@ void SessionView::displayBatteryStatus(deluge::hid::display::oled_canvas::Canvas
 	canvas.drawRectangle(x + 11, y + 3, x + 12, y + 5); // Terminal nub
 
 	if (isCharging) {
-		// Draw charging animation (lightning bolt)
-		canvas.drawPixel(x + 5, y + 3); // Top point
-		canvas.drawPixel(x + 6, y + 4); // Middle right
-		canvas.drawPixel(x + 4, y + 4); // Middle left
-		canvas.drawPixel(x + 7, y + 5); // Bottom right
-		canvas.drawPixel(x + 5, y + 5); // Bottom middle
-		canvas.drawPixel(x + 8, y + 6); // Bottom point
+		snprintf(text, sizeof(text), "CHG");
+
+		// Draw lightning! ⚡️
+		canvas.drawHorizontalLine(y + 3, x + 3, x + 5);  // Row 1
+		canvas.drawHorizontalLine(y + 4, x + 5, x + 6);  // Row 2
+		canvas.drawHorizontalLine(y + 5, x + 6, x + 8); // Row 3
 	}
 	else {
-		// Draw battery level as blocks
+		snprintf(text, sizeof(text), "%d%% (%d)", batteryPercent, batteryVoltage);
+
+		// Draw battery level as blocks 🔋
 		int32_t numBlocks;
 		if (batteryPercent >= 75)
 			numBlocks = 3; // Full (3 blocks)
