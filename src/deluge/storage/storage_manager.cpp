@@ -497,7 +497,7 @@ Error StorageManager::loadPatternFile(FilePointer* filePointer, String* fileName
 	AudioEngine::logAction("readPatternFile");
 
 	error = instrumentClipView.pasteNotesFromFile(smDeserializer, overwriteExisting, noScaling, previewOnly,
-						      selectedDrumOnly);
+	                                              selectedDrumOnly);
 
 	FRESULT fileSuccess = activeDeserializer->closeWriter();
 

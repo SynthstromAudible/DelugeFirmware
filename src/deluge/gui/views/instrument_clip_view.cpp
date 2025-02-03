@@ -1324,7 +1324,7 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSys
 	}
 }
 
-void InstrumentClipView::patternPreview(){
+void InstrumentClipView::patternPreview() {
 	if (!playbackHandler.playbackState) {
 		playbackHandler.setupPlaybackUsingInternalClock(0, false, true, false);
 	}
@@ -1333,8 +1333,8 @@ void InstrumentClipView::patternPreview(){
 	}
 }
 
-void InstrumentClipView::pasteNotes(bool overwriteExisting, bool pasteFromFile, bool noScaling,
-                                    bool previewOnly, bool selectedDrumOnly) {
+void InstrumentClipView::pasteNotes(bool overwriteExisting, bool pasteFromFile, bool noScaling, bool previewOnly,
+                                    bool selectedDrumOnly) {
 
 	if (!firstCopiedNoteRow) {
 		return;

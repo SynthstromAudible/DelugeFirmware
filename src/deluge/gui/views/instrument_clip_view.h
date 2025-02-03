@@ -263,7 +263,7 @@ public:
 	void handleNoteRowEditorAuditionPadAction(int32_t y);
 	void copyNotesToFile(Serializer& writer, bool selectedDrumOnly = false);
 	Error pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool noScaling, bool previewOnly,
-				 bool selectedDrumOnly);
+	                         bool selectedDrumOnly);
 	void patternPreview();
 	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult handleNoteRowEditorHorizontalEncoderAction(int32_t offset);

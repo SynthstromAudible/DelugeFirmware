@@ -406,11 +406,11 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			openUI(&loadPatternUI);
 			if (Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT)) {
 				// Setup for gently pasting notes
-				loadPatternUI.setupLoadPatternUI(false,false);
+				loadPatternUI.setupLoadPatternUI(false, false);
 			}
 			else if (Buttons::isButtonPressed(deluge::hid::button::SCALE_MODE)) {
 				// Setup for keeping original Scale on paste
-				loadPatternUI.setupLoadPatternUI(true,true);
+				loadPatternUI.setupLoadPatternUI(true, true);
 			}
 			else {
 				// Default Load
