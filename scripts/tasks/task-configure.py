@@ -2,7 +2,6 @@
 import argparse
 import importlib
 import subprocess
-import sys
 from typing import Sequence
 import util
 import os
@@ -18,7 +17,9 @@ class CondensedChoiceFormatter(argparse.ArgumentDefaultsHelpFormatter):
 
 
 def argparser() -> argparse.ArgumentParser:
-    fmt = lambda prog: CondensedChoiceFormatter(prog)
+    def fmt(prog):
+        return CondensedChoiceFormatter(prog)
+
     parser = argparse.ArgumentParser(
         prog="configure",
         description="Configure a CMake build (automatically called by build)",

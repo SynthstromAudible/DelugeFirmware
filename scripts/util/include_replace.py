@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Copyright Kate Whitlock (2023)
-from typing import *
+from typing import Tuple
 from subprocess import Popen, PIPE
 from pathlib import Path
 import os

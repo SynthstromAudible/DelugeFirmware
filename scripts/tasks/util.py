@@ -1,8 +1,6 @@
 from functools import partial
-import itertools
 import multiprocessing
 import os
-import re
 import subprocess
 import sys
 import shutil

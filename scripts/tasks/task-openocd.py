@@ -1,7 +1,6 @@
 #! /usr/bin/env python3
 import argparse
 from enum import Enum
-from pathlib import Path
 import subprocess
 import shutil
 import sys
@@ -104,11 +103,11 @@ def main() -> int:
     hardware = os.environ.get("DEBUG_HARDWARE") or "delugeprobe"
     protocol = os.environ.get("DEBUG_PROTOCOL") or "swd"
 
-    if not hardware in _OPENOCD_CONFIG_MAP.keys():
+    if hardware not in _OPENOCD_CONFIG_MAP.keys():
         print(f"Debugging hardware [{hardware}] is not yet supported.")
         sys.exit(ExitCodes.OPENOCD_UNSUPPORTED_HARDWARE)
 
-    if not protocol in _OPENOCD_CONFIG_MAP[hardware].keys():
+    if protocol not in _OPENOCD_CONFIG_MAP[hardware].keys():
         better_protocol = _get_acceptable_protocol(hardware, protocol)
         print(
             f"Debugging protocol [{protocol}] is not supported on hardware [{hardware}]."

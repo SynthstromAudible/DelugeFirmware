@@ -47,7 +47,7 @@ try:
         GMA_START_OFFSET = gdb.lookup_global_symbol(
             "GeneralMemoryAllocator::get()::generalMemoryAllocator"
         ).address.cast(TY_UINT32)
-    except:
+    except (gdb.error, gdb.GdbError):
         print("falling back to string parsing")
         GMA_START_OFFSET = int(
             gdb.execute(
@@ -59,7 +59,7 @@ try:
             16,
         )
 
-except ModuleNotFoundError as e:
+except ModuleNotFoundError:
     gdb = None
 
     class Field:
@@ -295,7 +295,9 @@ def walk_linked_list_from_node(inferior, offset, end):
 
     while offset != end:
         try:
-            memory = inferior.read_memory(offset, TY_BidirectionalLinkedListNode.sizeof)
+            memory = inferior.read_memory(  # noqa: F841
+                offset, TY_BidirectionalLinkedListNode.sizeof
+            )  # noqa: F841
             offset = bytes_as_uint32(inferior.read_memory(offset + next_offset, 4))
             list_addr = bytes_as_uint32(inferior.read_memory(offset + list_offset, 4))
             print(f"Stealable node at: {offset:08x} for list {list_addr:08x}")
@@ -306,7 +308,7 @@ def walk_linked_list_from_node(inferior, offset, end):
 
 
 def parse_cache_manager(inferior, offset):
-    memory = inferior.read_memory(offset, TY_CacheManager.sizeof)
+    memory = inferior.read_memory(offset, TY_CacheManager.sizeof)  # noqa: F841
     # 10 is NUM_STEALABLE_QUEUES
     for i in range(10):
         print("---- Stealables for stealable queue", i)
@@ -340,13 +342,13 @@ def parse_memory_region(inferior, offset, mem_region_idx):
     num_elements = bytes_as_uint32(
         inferior.read_memory(empty_offset + num_elements_offset, 4)
     )
-    element_size = bytes_as_uint32(
+    element_size = bytes_as_uint32(  # noqa: F841
         inferior.read_memory(empty_offset + element_size_offset, 4)
     )
     words_in_key = bytes_as_uint32(
         inferior.read_memory(empty_offset + words_in_key_offset, 4)
     )
-    memory = inferior.read_memory(
+    memory = inferior.read_memory(  # noqa: F841
         empty_offset, TY_OrderedResizeableArrayWithMultiWordKey.sizeof
     )
 
@@ -456,8 +458,6 @@ def parse_args():
 
 
 def main():
-    import sys
-
     parser = parse_args()
     with open(parser.memory_dump, "rb") as inf:
         inf = FakeInferior(inf.read(), 0x20020000)
