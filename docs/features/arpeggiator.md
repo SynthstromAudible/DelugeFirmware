@@ -59,15 +59,15 @@ setting how many times they are repeated, and setting the direction in which the
       different than Random, then the pattern will play, in the same octave, the same number of random
       notes as notes are in the held chord and then move to a different octave based on the Octave Mode.
       Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
-    - `Walk1 (WALK1)` is the "slow" walk and next note is selected this way:
+    - `Walk1 (WLK1)` is the "slow" walk and next note is selected this way:
         - 30% of probability to walk the sequence a step in reverse.
         - 30% of probability to just repeat the same step of the sequence.
         - 40% of probability to walk the sequence a step forward (as normal).
-    - `Walk2 (WALK2)` is the "normal" walk and next note is selected this way:
+    - `Walk2 (WLK2)` is the "normal" walk and next note is selected this way:
         - 25% of probability to walk the sequence a step in reverse.
         - 25% of probability to just repeat the same step of the sequence.
         - 50% of probability to walk the sequence a step forward (as normal).
-    - `Walk3 (WALK3)` is the "fast" walk and next note is selected this way:
+    - `Walk3 (WLK3)` is the "fast" walk and next note is selected this way:
         - 20% of probability to walk the sequence a step in reverse.
         - 20% of probability to just repeat the same step of the sequence.
         - 60% of probability to walk the sequence a step forward (as normal).
