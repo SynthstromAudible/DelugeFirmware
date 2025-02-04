@@ -84,6 +84,7 @@ public:
 	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
 	LFO globalLFO;
+	LFO globalLFO2;
 	LFOConfig lfoConfig[LFO_COUNT];
 
 	// December 3, 2024

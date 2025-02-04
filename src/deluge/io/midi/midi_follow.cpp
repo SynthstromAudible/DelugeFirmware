@@ -177,10 +177,10 @@ void MidiFollow::initDefaultMappings() {
 	soundParamToCC[params::LOCAL_MODULATOR_1_VOLUME] = 56;
 	ccToSoundParam[57] = params::LOCAL_MODULATOR_1_FEEDBACK;
 	soundParamToCC[params::LOCAL_MODULATOR_1_FEEDBACK] = 57;
-	ccToSoundParam[58] = params::GLOBAL_LFO_FREQ;
-	soundParamToCC[params::GLOBAL_LFO_FREQ] = 58;
-	ccToSoundParam[59] = params::LOCAL_LFO_LOCAL_FREQ;
-	soundParamToCC[params::LOCAL_LFO_LOCAL_FREQ] = 59;
+	ccToSoundParam[58] = params::GLOBAL_LFO_FREQ_1;
+	soundParamToCC[params::GLOBAL_LFO_FREQ_1] = 58;
+	ccToSoundParam[59] = params::LOCAL_LFO_LOCAL_FREQ_1;
+	soundParamToCC[params::LOCAL_LFO_LOCAL_FREQ_1] = 59;
 	ccToSoundParam[60] = params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE] = 60;
 	ccToSoundParam[62] = params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING;

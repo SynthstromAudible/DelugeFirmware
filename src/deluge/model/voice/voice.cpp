@@ -157,7 +157,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 
 	// Setup and render local LFO
 	lfo.setLocalInitialPhase(sound.lfoConfig[LFO2_ID]);
-	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = lfo.render(0, sound.lfoConfig[LFO2_ID], 0);
+	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] = lfo.render(0, sound.lfoConfig[LFO2_ID], 0);
 
 	// Setup some sources which won't change for the duration of this note
 	sourceValues[util::to_underlying(PatchSource::VELOCITY)] =
@@ -693,7 +693,7 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 uint32_t Voice::getLocalLFOPhaseIncrement() {
 	LFOConfig& config = assignedToSound->lfoConfig[LFO2_ID];
 	if (config.syncLevel == SYNC_LEVEL_NONE) {
-		return paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ];
+		return paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ_1];
 	}
 	else {
 		return assignedToSound->getSyncedLFOPhaseIncrement(config);
@@ -750,14 +750,14 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 	        && sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] == std::numeric_limits<int32_t>::min());
 	// Local LFO
 	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
-	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
-		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)];
+	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL_1))) {
+		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)];
 		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
 		// for every sample.
-		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] =
+		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] =
 		    lfo.render(numSamples, sound.lfoConfig[LFO2_ID], getLocalLFOPhaseIncrement());
-		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)]);
-		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL);
+		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)]);
+		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_1);
 	}
 
 	// MPE params
@@ -2127,7 +2127,8 @@ pitchTooHigh:
 
 							// And if it's an envelope or LFO or random...
 							if (cable->from == PatchSource::ENVELOPE_0 || cable->from == PatchSource::ENVELOPE_1
-							    || cable->from == PatchSource::LFO_GLOBAL || cable->from == PatchSource::LFO_LOCAL
+							    || cable->from == PatchSource::LFO_GLOBAL_1 || cable->from == PatchSource::LFO_LOCAL_1
+							    || cable->from == PatchSource::LFO_GLOBAL_2 || cable->from == PatchSource::LFO_LOCAL_2
 							    || cable->from == PatchSource::RANDOM) {
 								goto dontUseCache;
 							}

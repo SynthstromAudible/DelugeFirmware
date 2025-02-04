@@ -136,11 +136,11 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 
 	modKnobs[4][0].paramDescriptor.setToHaveParamOnly(params::GLOBAL_REVERB_AMOUNT);
 
-	modKnobs[5][1].paramDescriptor.setToHaveParamOnly(params::GLOBAL_LFO_FREQ);
+	modKnobs[5][1].paramDescriptor.setToHaveParamOnly(params::GLOBAL_LFO_FREQ_1);
 
 	modKnobs[4][1].paramDescriptor.setToHaveParamAndSource(params::GLOBAL_VOLUME_POST_REVERB_SEND,
 	                                                       PatchSource::SIDECHAIN);
-	modKnobs[5][0].paramDescriptor.setToHaveParamAndSource(params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL);
+	modKnobs[5][0].paramDescriptor.setToHaveParamAndSource(params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1);
 
 	modKnobs[6][1].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_STUTTER_RATE);
 	modKnobs[6][0].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_PORTAMENTO);
@@ -214,9 +214,12 @@ void Sound::initParams(ParamManager* paramManager) {
 	    getParamFromUserValue(params::LOCAL_ENV_1_SUSTAIN, 25));
 	patchedParams->params[params::LOCAL_ENV_1_RELEASE].setCurrentValueBasicForSetup(
 	    getParamFromUserValue(params::LOCAL_ENV_1_RELEASE, 20));
-	patchedParams->params[params::LOCAL_LFO_LOCAL_FREQ].setCurrentValueBasicForSetup(0);
-	patchedParams->params[params::GLOBAL_LFO_FREQ].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(params::GLOBAL_LFO_FREQ, 30));
+	patchedParams->params[params::LOCAL_LFO_LOCAL_FREQ_1].setCurrentValueBasicForSetup(0);
+	patchedParams->params[params::GLOBAL_LFO_FREQ_1].setCurrentValueBasicForSetup(
+	    getParamFromUserValue(params::GLOBAL_LFO_FREQ_1, 30));
+	patchedParams->params[params::LOCAL_LFO_LOCAL_FREQ_2].setCurrentValueBasicForSetup(0);
+	patchedParams->params[params::GLOBAL_LFO_FREQ_2].setCurrentValueBasicForSetup(
+	    getParamFromUserValue(params::GLOBAL_LFO_FREQ_2, 30));
 	patchedParams->params[params::LOCAL_PAN].setCurrentValueBasicForSetup(0);
 	patchedParams->params[params::LOCAL_NOISE_VOLUME].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[params::GLOBAL_MOD_FX_DEPTH].setCurrentValueBasicForSetup(0);
@@ -1047,7 +1050,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 			}
 			else if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ, readAutomationUpToPos);
+				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ_1, readAutomationUpToPos);
 				reader.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "syncType")) {
@@ -1079,7 +1082,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 			}
 			else if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LFO_LOCAL_FREQ,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LFO_LOCAL_FREQ_1,
 				                         readAutomationUpToPos);
 				reader.exitTag("rate");
 			}
@@ -1098,6 +1101,71 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		}
 		reader.exitTag("lfo2", true);
 		// No resync for LFO2
+	}
+
+	else if (!strcmp(tagName, "lfo3")) {
+		// Set default values in case they are not configured.
+		lfoConfig[LFO3_ID].syncLevel = SYNC_LEVEL_NONE;
+		lfoConfig[LFO3_ID].syncType = SYNC_TYPE_EVEN;
+		reader.match('{');
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "type")) {
+				lfoConfig[LFO3_ID].waveType = stringToLFOType(reader.readTagOrAttributeValue());
+				reader.exitTag("type");
+			}
+			else if (!strcmp(tagName, "rate")) {
+				ENSURE_PARAM_MANAGER_EXISTS
+				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ_2, readAutomationUpToPos);
+				reader.exitTag("rate");
+			}
+			else if (!strcmp(tagName, "syncType")) {
+				lfoConfig[LFO3_ID].syncType = (SyncType)reader.readTagOrAttributeValueInt();
+				reader.exitTag("syncType");
+			}
+			else if (!strcmp(tagName, "syncLevel")) {
+				lfoConfig[LFO3_ID].syncLevel =
+				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
+				reader.exitTag("syncLevel");
+			}
+			else {
+				reader.exitTag(tagName);
+			}
+		}
+		reader.exitTag("lfo3", true);
+		resyncGlobalLFO();
+	}
+
+	else if (!strcmp(tagName, "lfo4")) {
+		// Set default values in case they are not configured.
+		lfoConfig[LFO4_ID].syncLevel = SYNC_LEVEL_NONE;
+		lfoConfig[LFO4_ID].syncType = SYNC_TYPE_EVEN;
+		reader.match('{');
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "type")) {
+				lfoConfig[LFO4_ID].waveType = stringToLFOType(reader.readTagOrAttributeValue());
+				reader.exitTag("type");
+			}
+			else if (!strcmp(tagName, "rate")) {
+				ENSURE_PARAM_MANAGER_EXISTS
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LFO_LOCAL_FREQ_2,
+				                         readAutomationUpToPos);
+				reader.exitTag("rate");
+			}
+			else if (!strcmp(tagName, "syncType")) {
+				lfoConfig[LFO4_ID].syncType = (SyncType)reader.readTagOrAttributeValueInt();
+				reader.exitTag("syncType");
+			}
+			else if (!strcmp(tagName, "syncLevel")) {
+				lfoConfig[LFO4_ID].syncLevel =
+				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
+				reader.exitTag("syncLevel");
+			}
+			else {
+				reader.exitTag(tagName);
+			}
+		}
+		reader.exitTag("lfo4", true);
+		// No resync for LFO4
 	}
 
 	else if (!strcmp(tagName, "sideChainSend")) {
@@ -1480,7 +1548,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		           ? PatchCableAcceptance::ALLOWED
 		           : PatchCableAcceptance::EDITABLE;
 
-	case params::GLOBAL_LFO_FREQ:
+	case params::GLOBAL_LFO_FREQ_1:
 		return (lfoConfig[LFO1_ID].syncLevel == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
 		                                                         : PatchCableAcceptance::DISALLOWED;
 
@@ -2343,8 +2411,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
 	// Do global LFO
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL)) {
-		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL);
+	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_1)) {
+		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL_1);
 
 		int32_t old = globalSourceValues[patchSourceLFOGlobalUnderlying];
 		// TODO: We don't really need to recompute phase increment unless rate, sync, or
@@ -2773,7 +2841,7 @@ void Sound::confirmNumVoices(char const* error) {
 uint32_t Sound::getGlobalLFOPhaseIncrement() {
 	LFOConfig& config = lfoConfig[LFO1_ID];
 	if (config.syncLevel == SYNC_LEVEL_NONE) {
-		return paramFinalValues[params::GLOBAL_LFO_FREQ - params::FIRST_GLOBAL];
+		return paramFinalValues[params::GLOBAL_LFO_FREQ_1 - params::FIRST_GLOBAL];
 	}
 	else {
 		return getSyncedLFOPhaseIncrement(config);
@@ -3983,12 +4051,20 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 		reader.exitTag("envelope2", true);
 	}
 	else if (!strcmp(tagName, "lfo1Rate")) {
-		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ, readAutomationUpToPos);
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ_1, readAutomationUpToPos);
 		reader.exitTag("lfo1Rate");
 	}
 	else if (!strcmp(tagName, "lfo2Rate")) {
-		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LFO_LOCAL_FREQ, readAutomationUpToPos);
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LFO_LOCAL_FREQ_1, readAutomationUpToPos);
 		reader.exitTag("lfo2Rate");
+	}
+	else if (!strcmp(tagName, "lfo3Rate")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ_2, readAutomationUpToPos);
+		reader.exitTag("lfo3Rate");
+	}
+	else if (!strcmp(tagName, "lfo4Rate")) {
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LFO_LOCAL_FREQ_2, readAutomationUpToPos);
+		reader.exitTag("lfo4Rate");
 	}
 	else if (!strcmp(tagName, "modulator1Amount")) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_0_VOLUME, readAutomationUpToPos);
@@ -4104,8 +4180,10 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	patchedParams->writeParamAsAttribute(writer, "hpfFrequency", params::LOCAL_HPF_FREQ, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "hpfResonance", params::LOCAL_HPF_RESONANCE, writeAutomation);
 
-	patchedParams->writeParamAsAttribute(writer, "lfo1Rate", params::GLOBAL_LFO_FREQ, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "lfo2Rate", params::LOCAL_LFO_LOCAL_FREQ, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "lfo1Rate", params::GLOBAL_LFO_FREQ_1, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "lfo2Rate", params::LOCAL_LFO_LOCAL_FREQ_1, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "lfo3Rate", params::GLOBAL_LFO_FREQ_2, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "lfo4Rate", params::LOCAL_LFO_LOCAL_FREQ_2, writeAutomation);
 
 	patchedParams->writeParamAsAttribute(writer, "modulator1Amount", params::LOCAL_MODULATOR_0_VOLUME, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "modulator1Feedback", params::LOCAL_MODULATOR_0_FEEDBACK,
