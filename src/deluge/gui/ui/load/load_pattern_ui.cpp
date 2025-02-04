@@ -32,8 +32,8 @@
 
 using namespace deluge;
 
-#define PATTERN_RHYTHMIC_DEFAULT_FOLDER "PATTERNS/RHYTHMIC"
-#define PATTERN_MELODIC_DEFAULT_FOLDER "PATTERNS/MELODIC"
+static constexpr const char* PATTERN_RHYTHMIC_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC";
+static constexpr const char* PATTERN_MELODIC_DEFAULT_FOLDER = "PATTERNS/MELODIC";
 
 LoadPatternUI loadPatternUI{};
 
