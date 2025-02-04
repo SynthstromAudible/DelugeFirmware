@@ -89,7 +89,7 @@ public:
 
 	struct EarlyNoteInfo {
 		uint8_t velocity;
-		bool stillActive = false;
+		bool still_active = false;
 	};
 
 	deluge::fast_map<int16_t, EarlyNoteInfo> earlyNotes; // note value, velocity, still_active

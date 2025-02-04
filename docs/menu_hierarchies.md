@@ -1707,9 +1707,9 @@ The Audio Clip menu contains the following menu hierarchy:
 	- Left Input (LEFT)
 	- Right Input (RIGH)
 	- Stereo Input (STER)
-	- Bal. Input (BALA)
-	- Deluge Mix (Pre FX) (MIX)
-	- Deluge Output (Post FX) (OUTP)
+	- Balanced Input (BALA)
+	- Deluge Mix (No FX) (MIX)
+	- Deluge Output (FX) (OUTP)
 	- Specific Track (TRAK)
 </details>
 <details><summary>Specific Track (TRAK)</summary></details>
