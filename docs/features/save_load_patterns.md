@@ -1,4 +1,4 @@
-Added availability to save / load Patterns from/to Files. A Pattern represents all Notes of the actual Deluge Screen including the Attributes Velocity, Probability, Lift, Itterance and Fill. The Patterns can be either of Type melodic Instrument (Synt, Midi, CV) or rhythmic Instrument (Kit, Drum).
+Added ability to save / load Patterns from/to Files. A Pattern represents all Notes of the actual Deluge Screen including the Attributes Velocity, Probability, Lift, Itterance and Fill. The Patterns can be either of Type melodic Instrument (Synt, Midi, CV) or rhythmic Instrument (Kit, Drum).
 
 There are different ways to create Pattern Files. The first way is to just Enter Notes on the Deluge, and then save it to a Pattern. Basically, it works exactly the same way as the Standard Copy/Paste function with the difference, that the Pattern is stored on the SD-Card and not just into the Clipboard. If you load a Pattern, it gets loaded into the Clipboard and then pasted once. After that, you can Paste it on other Screens or even gently Pasted as many Times as you want.
 
