@@ -403,10 +403,10 @@ enum LFO_ID {
 	// LFO_ID is used exlusively is as an array index, so an enum class would
 	// only add extra noise to get the underlying value in all places where this
 	// is used.
-	LFO1_ID = 0,
-	LFO2_ID = 1,
-	LFO3_ID = 2,
-	LFO4_ID = 3,
+	LFO1_ID = 0, // LFO 1 (global)
+	LFO2_ID = 1, // LFO 2 (local)
+	LFO3_ID = 2, // LFO 3 (global)
+	LFO4_ID = 3, // LFO 4 (local)
 	LFO_COUNT = 4,
 };
 

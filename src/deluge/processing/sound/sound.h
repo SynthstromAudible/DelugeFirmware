@@ -83,8 +83,8 @@ public:
 
 	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
-	LFO globalLFO;
-	LFO globalLFO2;
+	LFO globalLFO1;
+	LFO globalLFO3;
 	LFOConfig lfoConfig[LFO_COUNT];
 
 	// December 3, 2024
@@ -154,7 +154,6 @@ public:
 	uint32_t oscRetriggerPhase[kNumSources]; // 4294967295 means "off"
 	uint32_t modulatorRetriggerPhase[kNumModulators];
 
-	uint32_t numSamplesSkippedRenderingForGlobalLFO;
 	uint32_t timeStartedSkippingRenderingModFX;
 	uint32_t timeStartedSkippingRenderingLFO;
 	uint32_t timeStartedSkippingRenderingArp;
@@ -183,7 +182,7 @@ public:
 
 	PatchCableAcceptance maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* paramManager);
 
-	void resyncGlobalLFO();
+	void resyncGlobalLFOs();
 
 	int8_t getKnobPos(uint8_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
 	int32_t getKnobPosBig(int32_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
@@ -301,7 +300,7 @@ public:
 	uint32_t getSyncedLFOPhaseIncrement(const LFOConfig& config);
 
 private:
-	uint32_t getGlobalLFOPhaseIncrement();
+	uint32_t getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
 	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);
 	void setupUnisonStereoSpread();

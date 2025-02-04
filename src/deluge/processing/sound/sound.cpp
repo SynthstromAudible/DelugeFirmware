@@ -1050,7 +1050,8 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 			}
 			else if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ_1, readAutomationUpToPos);
+				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ_1,
+				                         readAutomationUpToPos);
 				reader.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "syncType")) {
@@ -1067,7 +1068,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 			}
 		}
 		reader.exitTag("lfo1", true);
-		resyncGlobalLFO();
+		resyncGlobalLFOs();
 	}
 
 	else if (!strcmp(tagName, "lfo2")) {
@@ -1115,7 +1116,8 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 			}
 			else if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ_2, readAutomationUpToPos);
+				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ_2,
+				                         readAutomationUpToPos);
 				reader.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "syncType")) {
@@ -1132,7 +1134,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 			}
 		}
 		reader.exitTag("lfo3", true);
-		resyncGlobalLFO();
+		resyncGlobalLFOs();
 	}
 
 	else if (!strcmp(tagName, "lfo4")) {
@@ -1550,6 +1552,10 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 
 	case params::GLOBAL_LFO_FREQ_1:
 		return (lfoConfig[LFO1_ID].syncLevel == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
+		                                                         : PatchCableAcceptance::DISALLOWED;
+
+	case params::GLOBAL_LFO_FREQ_2:
+		return (lfoConfig[LFO3_ID].syncLevel == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
 		                                                         : PatchCableAcceptance::DISALLOWED;
 
 		// Nothing may patch to post-fx volume. This is for manual control only. The sidechain patches to post-reverb
@@ -2419,8 +2425,21 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// playbackHandler.getTimePerInternalTickInverse() has changed. Rate and sync changes
 		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
-		globalSourceValues[patchSourceLFOGlobalUnderlying] =
-		    globalLFO.render(output.size(), lfoConfig[LFO1_ID], getGlobalLFOPhaseIncrement());
+		globalSourceValues[patchSourceLFOGlobalUnderlying] = globalLFO1.render(
+		    output.size(), lfoConfig[LFO1_ID], getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1));
+		uint32_t anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
+		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
+	}
+	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_2)) {
+		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL_2);
+
+		int32_t old = globalSourceValues[patchSourceLFOGlobalUnderlying];
+		// TODO: We don't really need to recompute phase increment unless rate, sync, or
+		// playbackHandler.getTimePerInternalTickInverse() has changed. Rate and sync changes
+		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
+		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
+		globalSourceValues[patchSourceLFOGlobalUnderlying] = globalLFO3.render(
+		    output.size(), lfoConfig[LFO3_ID], getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2));
 		uint32_t anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
@@ -2701,8 +2720,10 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 		if (modFXTimeOff) {
 
 			// Do LFO
-			globalLFO.tick(AudioEngine::audioSampleTimer - timeStartedSkippingRenderingLFO,
-			               getGlobalLFOPhaseIncrement());
+			globalLFO1.tick(AudioEngine::audioSampleTimer - timeStartedSkippingRenderingLFO,
+			                getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1));
+			globalLFO3.tick(AudioEngine::audioSampleTimer - timeStartedSkippingRenderingLFO,
+			                getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2));
 
 			// Do Mod FX
 			modfx.tickLFO(modFXTimeOff, paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
@@ -2838,10 +2859,10 @@ void Sound::confirmNumVoices(char const* error) {
 	*/
 }
 
-uint32_t Sound::getGlobalLFOPhaseIncrement() {
-	LFOConfig& config = lfoConfig[LFO1_ID];
+uint32_t Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param) {
+	LFOConfig& config = lfoConfig[lfoId];
 	if (config.syncLevel == SYNC_LEVEL_NONE) {
-		return paramFinalValues[params::GLOBAL_LFO_FREQ_1 - params::FIRST_GLOBAL];
+		return paramFinalValues[param - params::FIRST_GLOBAL];
 	}
 	else {
 		return getSyncedLFOPhaseIncrement(config);
@@ -2865,7 +2886,7 @@ uint32_t Sound::getSyncedLFOPhaseIncrement(const LFOConfig& config) {
 	return phaseIncrement;
 }
 
-void Sound::resyncGlobalLFO() {
+void Sound::resyncGlobalLFOs() {
 	if (!playbackHandler.isEitherClockActive()) {
 		return; // no clock, no sync
 	}
@@ -2876,40 +2897,73 @@ void Sound::resyncGlobalLFO() {
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO.setGlobalInitialPhase(lfoConfig[LFO1_ID]);
+		globalLFO1.setGlobalInitialPhase(lfoConfig[LFO1_ID]);
 
 		uint32_t timeSinceLastTick;
 
 		int64_t lastInternalTickDone = playbackHandler.getCurrentInternalTickCount(&timeSinceLastTick);
 
 		// If we're right at the first tick, no need to do anything else!
-		if (!lastInternalTickDone && !timeSinceLastTick) {
-			return;
-		}
+		if (lastInternalTickDone || timeSinceLastTick) {
+			uint32_t numInternalTicksPerPeriod = 3 << (SYNC_LEVEL_256TH - lfoConfig[LFO1_ID].syncLevel);
+			switch (lfoConfig[LFO1_ID].syncType) {
+			case SYNC_TYPE_EVEN:
+				// Nothing to do
+				break;
+			case SYNC_TYPE_TRIPLET:
+				numInternalTicksPerPeriod = numInternalTicksPerPeriod * 2 / 3;
+				break;
+			case SYNC_TYPE_DOTTED:
+				numInternalTicksPerPeriod = numInternalTicksPerPeriod * 3 / 2;
+				break;
+			}
+			uint32_t offsetTicks = (uint64_t)lastInternalTickDone % (uint16_t)numInternalTicksPerPeriod;
 
-		uint32_t numInternalTicksPerPeriod = 3 << (SYNC_LEVEL_256TH - lfoConfig[LFO1_ID].syncLevel);
-		switch (lfoConfig[LFO1_ID].syncType) {
-		case SYNC_TYPE_EVEN:
-			// Nothing to do
-			break;
-		case SYNC_TYPE_TRIPLET:
-			numInternalTicksPerPeriod = numInternalTicksPerPeriod * 2 / 3;
-			break;
-		case SYNC_TYPE_DOTTED:
-			numInternalTicksPerPeriod = numInternalTicksPerPeriod * 3 / 2;
-			break;
+			// If we're right at a bar (or something), no need to do anyting else
+			if (timeSinceLastTick || offsetTicks) {
+				uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
+				uint32_t timePerPeriod = numInternalTicksPerPeriod * timePerInternalTick;
+				uint32_t offsetTime = offsetTicks * timePerInternalTick + timeSinceLastTick;
+				globalLFO1.phase += (uint32_t)((float)offsetTime / timePerPeriod * 4294967296);
+			}
 		}
-		uint32_t offsetTicks = (uint64_t)lastInternalTickDone % (uint16_t)numInternalTicksPerPeriod;
+	}
+	if (lfoConfig[LFO3_ID].syncLevel != SYNC_LEVEL_NONE) {
 
-		// If we're right at a bar (or something), no need to do anyting else
-		if (!timeSinceLastTick && !offsetTicks) {
-			return;
+		timeStartedSkippingRenderingLFO =
+		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
+		                                   // into LFO phase increment
+
+		globalLFO3.setGlobalInitialPhase(lfoConfig[LFO3_ID]);
+
+		uint32_t timeSinceLastTick;
+
+		int64_t lastInternalTickDone = playbackHandler.getCurrentInternalTickCount(&timeSinceLastTick);
+
+		// If we're right at the first tick, no need to do anything else!
+		if (lastInternalTickDone || timeSinceLastTick) {
+			uint32_t numInternalTicksPerPeriod = 3 << (SYNC_LEVEL_256TH - lfoConfig[LFO3_ID].syncLevel);
+			switch (lfoConfig[LFO3_ID].syncType) {
+			case SYNC_TYPE_EVEN:
+				// Nothing to do
+				break;
+			case SYNC_TYPE_TRIPLET:
+				numInternalTicksPerPeriod = numInternalTicksPerPeriod * 2 / 3;
+				break;
+			case SYNC_TYPE_DOTTED:
+				numInternalTicksPerPeriod = numInternalTicksPerPeriod * 3 / 2;
+				break;
+			}
+			uint32_t offsetTicks = (uint64_t)lastInternalTickDone % (uint16_t)numInternalTicksPerPeriod;
+
+			// If we're right at a bar (or something), no need to do anyting else
+			if (timeSinceLastTick || offsetTicks) {
+				uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
+				uint32_t timePerPeriod = numInternalTicksPerPeriod * timePerInternalTick;
+				uint32_t offsetTime = offsetTicks * timePerInternalTick + timeSinceLastTick;
+				globalLFO3.phase += (uint32_t)((float)offsetTime / timePerPeriod * 4294967296);
+			}
 		}
-
-		uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
-		uint32_t timePerPeriod = numInternalTicksPerPeriod * timePerInternalTick;
-		uint32_t offsetTime = offsetTicks * timePerInternalTick + timeSinceLastTick;
-		globalLFO.phase += (uint32_t)((float)offsetTime / timePerPeriod * 4294967296);
 	}
 }
 
@@ -4310,6 +4364,20 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	// Community Firmware parameters
 	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoConfig[LFO2_ID].syncLevel, false);
 	writer.writeSyncTypeToFile(currentSong, "syncType", lfoConfig[LFO2_ID].syncType, false);
+	writer.closeTag();
+
+	writer.writeOpeningTagBeginning("lfo3");
+	writer.writeAttribute("type", lfoTypeToString(lfoConfig[LFO3_ID].waveType), false);
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoConfig[LFO3_ID].syncLevel, false);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	writer.writeSyncTypeToFile(currentSong, "syncType", lfoConfig[LFO3_ID].syncType, false);
+	writer.closeTag();
+
+	writer.writeOpeningTagBeginning("lfo4");
+	writer.writeAttribute("type", lfoTypeToString(lfoConfig[LFO4_ID].waveType), false);
+	// Community Firmware parameters
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoConfig[LFO4_ID].syncLevel, false);
+	writer.writeSyncTypeToFile(currentSong, "syncType", lfoConfig[LFO4_ID].syncType, false);
 	writer.closeTag();
 
 	if (synthMode == SynthMode::FM) {

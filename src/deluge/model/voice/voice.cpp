@@ -156,8 +156,10 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	}
 
 	// Setup and render local LFO
-	lfo.setLocalInitialPhase(sound.lfoConfig[LFO2_ID]);
-	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] = lfo.render(0, sound.lfoConfig[LFO2_ID], 0);
+	lfo2.setLocalInitialPhase(sound.lfoConfig[LFO2_ID]);
+	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] = lfo2.render(0, sound.lfoConfig[LFO2_ID], 0);
+	lfo4.setLocalInitialPhase(sound.lfoConfig[LFO4_ID]);
+	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] = lfo4.render(0, sound.lfoConfig[LFO4_ID], 0);
 
 	// Setup some sources which won't change for the duration of this note
 	sourceValues[util::to_underlying(PatchSource::VELOCITY)] =
@@ -690,10 +692,10 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	return true;
 }
 
-uint32_t Voice::getLocalLFOPhaseIncrement() {
-	LFOConfig& config = assignedToSound->lfoConfig[LFO2_ID];
+uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param) {
+	LFOConfig& config = assignedToSound->lfoConfig[lfoId];
 	if (config.syncLevel == SYNC_LEVEL_NONE) {
-		return paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ_1];
+		return paramFinalValues[param];
 	}
 	else {
 		return assignedToSound->getSyncedLFOPhaseIncrement(config);
@@ -754,10 +756,20 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)];
 		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
 		// for every sample.
-		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] =
-		    lfo.render(numSamples, sound.lfoConfig[LFO2_ID], getLocalLFOPhaseIncrement());
+		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] = lfo2.render(
+		    numSamples, sound.lfoConfig[LFO2_ID], getLocalLFOPhaseIncrement(LFO2_ID, params::LOCAL_LFO_LOCAL_FREQ_1));
 		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)]);
 		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_1);
+	}
+	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
+	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL_2))) {
+		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)];
+		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
+		// for every sample.
+		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] = lfo4.render(
+		    numSamples, sound.lfoConfig[LFO4_ID], getLocalLFOPhaseIncrement(LFO4_ID, params::LOCAL_LFO_LOCAL_FREQ_2));
+		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)]);
+		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_2);
 	}
 
 	// MPE params
