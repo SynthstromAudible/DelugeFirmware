@@ -113,7 +113,7 @@ except ModuleNotFoundError as e:
             if offset < self.base_offset:
                 raise ValueError(f"offset {offset:x} too low")
             if offset + length > self.max_offset:
-                raise ValueError(f"offset+len too high {offset+length:x}")
+                raise ValueError(f"offset+len too high {offset + length:x}")
 
             offset -= self.base_offset
             return self.memory[offset : offset + length]
@@ -385,7 +385,7 @@ def parse_heap(inferior, start, end):
         block_header = bytes_as_uint32(inferior.read_memory(block_start, 4))
         length = block_header & ~SPACE_HEADER_BITS
         if length == 0:
-            print(f"{block_start:08x} - {block_start+4:08x} Zero-length block")
+            print(f"{block_start:08x} - {block_start + 4:08x} Zero-length block")
             block_start += 4
         else:
             block_footer = bytes_as_uint32(
@@ -408,7 +408,7 @@ def parse_heap(inferior, start, end):
                 else:
                     mode_string = "STEALABLE|ALLOCATED"
                 print(
-                    f"{block_start+4:08x} - {block_start+length+4:08x} {length:8x} {mode_string}"
+                    f"{block_start + 4:08x} - {block_start + length + 4:08x} {length:8x} {mode_string}"
                 )
 
             block_start += length + 8

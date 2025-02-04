@@ -25,7 +25,8 @@ jobs:
           source: './src'
           extensions: 'c,cpp,h,hpp'
           clangFormatVersion: 19
-      - name: Run Black style check for Python code
-        uses: psf/black@stable
+      - name: Run Ruff style check for Python code
+        uses: astral-sh/ruff-action@v3
         with:
-          src: './scripts/ ./contrib ./tests ./src'
+          args: "format --check"
+          src: "./scripts/ ./contrib ./tests ./src"
