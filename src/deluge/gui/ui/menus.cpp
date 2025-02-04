@@ -331,19 +331,19 @@ HorizontalMenu arpRandomizerMenu{STRING_FOR_RANDOMIZER,
 // Arp: Preset and Randomizer
 HorizontalMenu arpPresetAndRandomizerMenu{STRING_FOR_ARPEGGIATOR, {&arpPresetModeMenu, &arpRandomizerMenu}};
 // Global: Randomizer
-Submenu globalRandomizerMenu{STRING_FOR_RANDOMIZER,
-                             {
-                                 // Lock
-                                 &arpRandomizerLockMenu,
-                                 // Spreads
-                                 &arpSpreadVelocityMenu,
-                                 &arpSpreadVelocityMenuMIDIOrCV,
-                                 // Note
-                                 &arpNoteProbabilityMenu,
-                                 &arpNoteProbabilityMenuMIDIOrCV,
-                                 // Reverse
-                                 &arpReverseProbabilityMenu,
-                             }};
+HorizontalMenu globalRandomizerMenu{STRING_FOR_RANDOMIZER,
+                                    {
+                                        // Lock
+                                        &arpRandomizerLockMenu,
+                                        // Spreads
+                                        &arpSpreadVelocityMenu,
+                                        &arpSpreadVelocityMenuMIDIOrCV,
+                                        // Note
+                                        &arpNoteProbabilityMenu,
+                                        &arpNoteProbabilityMenuMIDIOrCV,
+                                        // Reverse
+                                        &arpReverseProbabilityMenu,
+                                    }};
 // Arp: MPE
 arpeggiator::ArpMpeVelocity arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY};
 submenu::ArpMpeSubmenu arpMpeMenu{STRING_FOR_MPE, {&arpMpeVelocityMenu}};
@@ -849,10 +849,6 @@ PLACE_SDRAM_DATA const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
     &nameEditMenu,
     nullptr,
     nullptr,
-};
-PLACE_SDRAM_DATA const Submenu* parentsForMidiOrCVParamShortcuts[kDisplayHeight] = {
-    &arpBasicMenu, &arpBasicMenu, &arpBasicMenu, &arpPatternMenu, &arpPresetAndRandomizerMenu,
-    nullptr,       nullptr,       nullptr,
 };
 
 PLACE_SDRAM_DATA const MenuItem* gateDrumParamShortcuts[8] = {
@@ -1653,7 +1649,7 @@ PLACE_SDRAM_DATA Submenu* parentsForSoundShortcuts[][kDisplayHeight] = {
     {&lfo1Menu,               &lfo1Menu,               &lfo1Menu,                      nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {&lfo2Menu,               &lfo2Menu,               &lfo2Menu,                      nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 &globalRandomizerMenu,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
 };
 
 PLACE_SDRAM_DATA MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight] = {
@@ -1765,6 +1761,24 @@ PLACE_SDRAM_DATA Submenu* parentsForKitGlobalFXShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+};
+PLACE_SDRAM_DATA Submenu* parentsForMidiOrCVParamShortcuts[][kDisplayHeight] = {
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    { &arpBasicMenu, &arpBasicMenu, &arpBasicMenu, &arpPatternMenu, &arpPresetAndRandomizerMenu, nullptr,       nullptr,       nullptr,                          },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 &globalRandomizerMenu,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
 };
 
 //clang-format on
