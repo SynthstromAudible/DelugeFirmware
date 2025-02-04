@@ -32,8 +32,8 @@ def convert_midi_to_xml(midi_file):
                 track_name = msg.name
             if msg.type == "note_on" and msg.velocity > 0:
                 notes.append(
-		     {"midi": msg.note, "start": current_time, "velocity": msg.velocity}
-		 )
+                    {"midi": msg.note, "start": current_time, "velocity": msg.velocity}
+                )
             if msg.type == "note_off" or (msg.type == "note_on" and msg.velocity == 0):
                 for note in notes[::-1]:
                     if "duration" not in note and note["midi"] == msg.note:
@@ -42,8 +42,8 @@ def convert_midi_to_xml(midi_file):
 
         track_name = track_name or f"Track{i+1}"
         last_note_end = max(
-	     (n["start"] + n.get("duration", 0) for n in notes), default=0
-	 )
+            (n["start"] + n.get("duration", 0) for n in notes), default=0
+        )
         lowest_pitch = min((n["midi"] for n in notes), default=60)
         screen_width = get_valid_screen_width(last_note_end)
 
