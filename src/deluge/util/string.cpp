@@ -33,6 +33,10 @@ std::string fromInt(int32_t number, size_t min_num_digits) {
 	// Convert number to string
 	std::string result = std::to_string(number);
 
+	if (result.size() < min_num_digits) {
+		result.reserve(min_num_digits);
+	}
+
 	// Add leading zeros if needed
 	if (result[0] != '-' && result.size() < min_num_digits) {
 		result.insert(result.begin(), min_num_digits - result.size(), '0');
@@ -47,7 +51,7 @@ std::string fromInt(int32_t number, size_t min_num_digits) {
 std::string fromFloat(float number, int32_t precision) {
 	std::array<char, 64> buffer;
 	char* ptr = D_TRY_CATCH(deluge::to_chars(buffer.data(), buffer.data() + buffer.size(), number, precision), error, {
-		return std::string{}; //
+		return std::string{}; // should never happen, 64 characters should be enough to render any float
 	});
 
 	return std::string{buffer.data(), ptr};
@@ -62,7 +66,7 @@ std::string fromSlot(int32_t slot, int32_t subSlot, size_t minNumDigits) {
 }
 
 std::string fromNoteCode(int32_t noteCode, size_t* getLengthWithoutDot, bool appendOctaveNo) {
-	std::string output;
+	std::string output; // Guaranteed to be 4 characters or less
 	int32_t octave = (noteCode) / 12 - 2;
 	int32_t noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
 
