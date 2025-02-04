@@ -222,7 +222,7 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 
 	void* memory =
 	    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*));
-	if (!memory) {
+	if (memory == nullptr) {
 		return nullptr;
 	}
 

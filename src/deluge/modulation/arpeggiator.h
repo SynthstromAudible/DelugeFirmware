@@ -37,6 +37,11 @@ constexpr uint32_t PATTERN_MAX_BUFFER_SIZE = 16;
 
 constexpr uint32_t ARP_NOTE_NONE = 32767;
 
+enum class ArpType : uint8_t {
+	SYNTH,
+	DRUM,
+};
+
 class ArpeggiatorSettings {
 public:
 	ArpeggiatorSettings();
@@ -185,6 +190,7 @@ public:
 	}
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
+	virtual void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) = 0;
 	void render(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, int32_t numSamples,
 	            uint32_t gateThreshold, uint32_t phaseIncrement);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
@@ -192,6 +198,7 @@ public:
 	void calculateRandomizerAmounts(ArpeggiatorSettings* settings);
 	virtual bool hasAnyInputNotesActive() = 0;
 	virtual void reset() = 0;
+	virtual ArpType getArpType() = 0;
 
 	bool gateCurrentlyActive = false;
 	uint32_t gatePos = 0;
@@ -283,8 +290,9 @@ public:
 	ArpeggiatorForDrum();
 	void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
 	            int32_t fromMIDIChannel, int16_t const* mpeValues) override;
-	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction);
+	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) override;
 	void reset() override;
+	ArpType getArpType() override { return ArpType::DRUM; }
 	ArpNote arpNote; // For the one note. noteCode will always be 60. velocity will be 0 if off.
 	int16_t noteForDrum;
 
@@ -298,10 +306,11 @@ public:
 	Arpeggiator();
 
 	void reset() override;
+	ArpType getArpType() override { return ArpType::SYNTH; }
 
 	void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
 	            int32_t fromMIDIChannel, int16_t const* mpeValues) override;
-	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction);
+	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) override;
 	bool hasAnyInputNotesActive() override;
 
 	// This array tracks the notes ordered by noteCode

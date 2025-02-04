@@ -1773,7 +1773,7 @@ bool VoiceSample::possiblySetUpCache(SampleControls* sampleControls, SamplePlayb
 	}
 
 	bool mayCreate = (sampleControls->getInterpolationBufferSize(phaseIncrement) == kInterpolationMaxNumSamples);
-	cache = ((Sample*)guide->audioFileHolder->audioFile)
+	cache = ((Sample*)(guide->audioFileHolder->audioFile))
 	            ->getOrCreateCache((SampleHolder*)guide->audioFileHolder, phaseIncrement, timeStretchRatio,
 	                               guide->playDirection == -1, mayCreate, &writingToCache);
 
