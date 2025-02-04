@@ -8,6 +8,7 @@ Summarize Melbourne Instruments Roto-Control configuration JSON files into a mar
 Currently, only knobs are considered, ignoring buttons.
 """
 
+
 def parse_json_files(files, verbose):
     rows = []
     midi_channels = []  # Store only valid MIDI channels
@@ -15,7 +16,7 @@ def parse_json_files(files, verbose):
     for file in files:
         if verbose:
             print(f"Processing file: {file}")
-        with open(file, 'r', encoding='utf-8') as f:
+        with open(file, "r", encoding="utf-8") as f:
             data = json.load(f)
             setup_name = data.get("name", "Unknown Setup")
             seen_positions = set()  # Reset per file
@@ -28,16 +29,26 @@ def parse_json_files(files, verbose):
                 if midi_channel not in ["NA", None, ""]:
                     midi_channels.append(midi_channel)
                     if verbose:
-                        print(f"Found MIDI Channel: {midi_channel} for Position {position}")
+                        print(
+                            f"Found MIDI Channel: {midi_channel} for Position {position}"
+                        )
 
                 seen_positions.add(position)
                 row = {
-                    "Parameter": f"**{knob['controlName']}**" if knob.get('controlName') else "",
+                    "Parameter": (
+                        f"**{knob['controlName']}**" if knob.get("controlName") else ""
+                    ),
                     "Position": position,
                     "Page": page,
                     "Setup": setup_name,
-                    "CC#": str(knob.get("controlParam", "")) if knob.get("controlParam", 0) != 0 else "",
-                    "MIDI Channel": midi_channel if midi_channel not in ["NA", None, ""] else None
+                    "CC#": (
+                        str(knob.get("controlParam", ""))
+                        if knob.get("controlParam", 0) != 0
+                        else ""
+                    ),
+                    "MIDI Channel": (
+                        midi_channel if midi_channel not in ["NA", None, ""] else None
+                    ),
                 }
                 rows.append(row)
 
@@ -45,7 +56,9 @@ def parse_json_files(files, verbose):
             for pos in range(1, 33):
                 if pos not in seen_positions:
                     if verbose:
-                        print(f"Empty knob at position {pos} for {setup_name}, ensuring no MIDI channel assigned.")
+                        print(
+                            f"Empty knob at position {pos} for {setup_name}, ensuring no MIDI channel assigned."
+                        )
                     page = ((pos - 1) // 8) + 1
                     row = {
                         "Parameter": "",
@@ -53,7 +66,7 @@ def parse_json_files(files, verbose):
                         "Page": page,
                         "Setup": setup_name,
                         "CC#": "",
-                        "MIDI Channel": None
+                        "MIDI Channel": None,
                     }
                     rows.append(row)
 
@@ -61,14 +74,17 @@ def parse_json_files(files, verbose):
         print(f"Final MIDI channels found: {midi_channels}")
 
     # Sort the rows by Setup name and Position
-    rows.sort(key=lambda x: (x['Setup'], x['Position']))
+    rows.sort(key=lambda x: (x["Setup"], x["Position"]))
 
     return rows, midi_channels
+
 
 def generate_markdown_table(rows, midi_channels, single_setup=False):
     defined_midi_channels = [ch for ch in midi_channels if ch is not None]
     midi_channel_counts = Counter(defined_midi_channels)
-    most_common_channel, _ = midi_channel_counts.most_common(1)[0] if defined_midi_channels else (None, 0)
+    most_common_channel, _ = (
+        midi_channel_counts.most_common(1)[0] if defined_midi_channels else (None, 0)
+    )
     unique_channels = set(defined_midi_channels)
 
     include_midi_column = len(unique_channels) > 1
@@ -100,7 +116,11 @@ def generate_markdown_table(rows, midi_channels, single_setup=False):
         if include_midi_column:
             midi_channel = row["MIDI Channel"]
             if midi_channel is not None:
-                midi_display = str(midi_channel) if midi_channel == most_common_channel else f"**{midi_channel}**"
+                midi_display = (
+                    str(midi_channel)
+                    if midi_channel == most_common_channel
+                    else f"**{midi_channel}**"
+                )
             else:
                 midi_display = ""
             markdown += f" {midi_display} |"
@@ -115,20 +135,26 @@ def generate_markdown_table(rows, midi_channels, single_setup=False):
 
     # If single file, add setup info below table
     if single_setup and rows:
-        setup_name = rows[0]['Setup']
+        setup_name = rows[0]["Setup"]
         markdown += f"\nSetup: {setup_name}\n"
 
     return markdown
+
 
 def generate_output_filename(files):
     base_name = "_".join([os.path.splitext(os.path.basename(f))[0] for f in files])
     return f"roto_{base_name}.md"
 
+
 def main():
     parser = argparse.ArgumentParser(description=DESCRIPTION)
-    parser.add_argument("files", nargs='+', help="One or more JSON files to parse.")
-    parser.add_argument("--output", "-o", help="Optional output file to save markdown table.")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose debugging output.")
+    parser.add_argument("files", nargs="+", help="One or more JSON files to parse.")
+    parser.add_argument(
+        "--output", "-o", help="Optional output file to save markdown table."
+    )
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Enable verbose debugging output."
+    )
 
     args = parser.parse_args()
     rows, midi_channels = parse_json_files(args.files, args.verbose)
@@ -142,9 +168,10 @@ def main():
         print("\nGenerated Markdown Table:\n")
         print(markdown_table)
 
-    with open(output_file, 'w', encoding='utf-8') as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         f.write(markdown_table)
     print(f"Markdown table saved to {output_file}")
+
 
 if __name__ == "__main__":
     main()
