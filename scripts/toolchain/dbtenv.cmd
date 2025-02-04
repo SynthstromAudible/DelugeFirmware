@@ -68,6 +68,7 @@ set "PIP_REQUIREMENTS_PATH=%DBT_ROOT%\scripts\toolchain\requirements.txt"
 if "%DBT_NEEDS_INSTALL%" == "1" (
 	python -m pip install -q --upgrade pip
 	python -m pip install -q -r "%PIP_REQUIREMENTS_PATH%"
+    pre-commit install --install-hooks
 )
 
 :already_set

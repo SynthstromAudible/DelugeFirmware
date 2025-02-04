@@ -45,18 +45,18 @@ class Pin:
     def render_as_input(self, g, clazz):
         path = ET.SubElement(g, "path")
         if self.facing_left:
-            p = f"M -{LINE_WEIGHT/2},0 "
+            p = f"M -{LINE_WEIGHT / 2},0 "
             p += f"H {self.width} "
             p += f"l {HALF_HEIGHT},{HALF_HEIGHT} "
             p += f"l -{HALF_HEIGHT},{HALF_HEIGHT} "
-            p += f"H -{LINE_WEIGHT/2}"
+            p += f"H -{LINE_WEIGHT / 2}"
             self.tip_x = self.left - LINE_WEIGHT / 2
         else:
-            p = f"M {self.width+LINE_WEIGHT},0 "
+            p = f"M {self.width + LINE_WEIGHT},0 "
             p += "H 0 "
             p += f"l -{HALF_HEIGHT},{HALF_HEIGHT} "
             p += f"l {HALF_HEIGHT},{HALF_HEIGHT} "
-            p += f"H {self.width+LINE_WEIGHT}"
+            p += f"H {self.width + LINE_WEIGHT}"
             self.tip_x = self.left + self.width + LINE_WEIGHT
         path.attrib["d"] = p
         path.attrib["class"] = clazz
@@ -245,7 +245,7 @@ class Module:
         )
 
         separator = ET.SubElement(g, "path")
-        separator.attrib["d"] = f"M 0,{UNIT_HEIGHT+2*PADDING} H {width}"
+        separator.attrib["d"] = f"M 0,{UNIT_HEIGHT + 2 * PADDING} H {width}"
 
         if self.chip_name is not None:
             chip_rect_width = width - 10

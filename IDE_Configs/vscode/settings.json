@@ -5,7 +5,7 @@
     "files.trimTrailingWhitespace": true,
     "cmake.generator": "Ninja Multi-Config",
     "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.defaultFormatter": "charliermarsh.ruff",
         "editor.formatOnSave": true
     },
     "files.associations": {

@@ -36,7 +36,6 @@ def excludes_from_file(ignore_file):
 
 
 def exclude(files, excludes):
-    out = []
     fpaths = [f for f in files]
     for pattern in excludes:
         fpaths = [x for x in fpaths if not fnmatch.fnmatch(x, pattern)]
@@ -119,6 +118,9 @@ def argparser() -> argparse.ArgumentParser:
         "-c", "--check", help="check for format compliance locally", action="store_true"
     )
     parser.add_argument(
+        "-g", "--changed", help="format only changed files", action="store_true"
+    )
+    parser.add_argument(
         "-i",
         "--stdio",
         help="format stdin to stdout (must also specify a single filename for clang-format to use)",
@@ -144,11 +146,21 @@ def main() -> int:
             return 1
         return format_stdio(filename)
 
-    files_and_directories = (
-        [Path(f) for f in args.files_and_directories]
-        if args.files_and_directories
-        else [util.get_git_root().absolute() / p for p in ["src", "tests"]]
-    )
+    files_and_directories = []
+    if args.changed:
+        files_and_directories = [
+            Path(f)
+            for f in util.run_get_output(
+                ["git", "diff", "--name-only", "--cached", "--diff-filter=ACMRTUXB"]
+            ).splitlines()
+        ]
+    elif args.files_and_directories:
+        files_and_directories = [Path(f) for f in args.files_and_directories]
+    else:
+        files_and_directories = [
+            util.get_git_root().absolute() / p for p in ["src", "tests"]
+        ]
+
     temp = [[], []]
     directories, files = temp
     for is_file, group in groupby(files_and_directories, lambda p: p.is_file()):
@@ -166,6 +178,8 @@ def main() -> int:
 
     excludes = excludes_from_file(".clang-format-ignore")
     files = exclude(files, excludes)
+    if len(files) == 0:
+        return 0
 
     check = args.check
 
