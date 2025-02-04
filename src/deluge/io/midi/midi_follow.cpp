@@ -233,16 +233,20 @@ void MidiFollow::initDefaultMappings() {
 	soundParamToCC[params::LOCAL_ENV_2_DECAY] = 103;
 	ccToSoundParam[104] = params::LOCAL_ENV_2_SUSTAIN;
 	soundParamToCC[params::LOCAL_ENV_2_SUSTAIN] = 104;
-	ccToSoundParam[106] = params::LOCAL_ENV_3_ATTACK;
+	ccToSoundParam[105] = params::LOCAL_ENV_2_RELEASE;
 	soundParamToCC[params::LOCAL_ENV_2_RELEASE] = 105;
-	ccToSoundParam[109] = params::LOCAL_ENV_3_RELEASE;
+	ccToSoundParam[106] = params::LOCAL_ENV_3_ATTACK;
 	soundParamToCC[params::LOCAL_ENV_3_ATTACK] = 106;
 	ccToSoundParam[107] = params::LOCAL_ENV_3_DECAY;
 	soundParamToCC[params::LOCAL_ENV_3_DECAY] = 107;
 	ccToSoundParam[108] = params::LOCAL_ENV_3_SUSTAIN;
 	soundParamToCC[params::LOCAL_ENV_3_SUSTAIN] = 108;
-	ccToSoundParam[105] = params::LOCAL_ENV_2_RELEASE;
+	ccToSoundParam[109] = params::LOCAL_ENV_3_RELEASE;
 	soundParamToCC[params::LOCAL_ENV_3_RELEASE] = 109;
+	ccToSoundParam[110] = params::GLOBAL_LFO_FREQ_2;
+	soundParamToCC[params::GLOBAL_LFO_FREQ_2] = 110;
+	ccToSoundParam[111] = params::LOCAL_LFO_LOCAL_FREQ_2;
+	soundParamToCC[params::LOCAL_LFO_LOCAL_FREQ_2] = 111;
 
 	// GLOBAL PARAMS
 	// NOTE: Here you add the global param, assigning the same CC as its relative sound param
