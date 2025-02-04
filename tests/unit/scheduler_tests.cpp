@@ -83,8 +83,8 @@ TEST(Scheduler, schedule) {
 TEST(Scheduler, remove) {
 	static SelfRemoving selfRemoving;
 
-	TaskID id =
-	    addRepeatingTask([]() { selfRemoving.runFiveTimes(); }, 0, 0.001, 0.001, 0.001, "run five times", RESOURCE_NONE);
+	TaskID id = addRepeatingTask([]() { selfRemoving.runFiveTimes(); }, 0, 0.001, 0.001, 0.001, "run five times",
+	                             RESOURCE_NONE);
 	selfRemoving.id = id;
 	mock().clear();
 	// will be called one less time due to the time the sleep takes not being zero

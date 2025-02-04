@@ -166,10 +166,14 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, int32_t noteCode
 	if ((settings == nullptr) || settings->mode == ArpMode::OFF) {
 		instruction->noteCodeOffPostArp[0] = noteCodePreArp;
 		instruction->outputMIDIChannelOff[0] = arpNote.outputMemberChannel[0];
+		noteCodeCurrentlyOnPostArp[0] = ARP_NOTE_NONE;
+		outputMIDIChannelForNoteCurrentlyOnPostArp[0] = MIDI_CHANNEL_NONE;
 		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			// If no arp, rest of chord notes are for sure disabled
 			instruction->noteCodeOffPostArp[n] = ARP_NOTE_NONE;
 			instruction->outputMIDIChannelOff[n] = MIDI_CHANNEL_NONE;
+			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+			outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
 		}
 	}
 
@@ -180,6 +184,9 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, int32_t noteCode
 				// Set all chord notes
 				instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
 				instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+				// Clean the temp state
+				noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+				outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
 			}
 		}
 	}
@@ -317,10 +324,14 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 			if (arpOff) {
 				instruction->noteCodeOffPostArp[0] = noteCodePreArp;
 				instruction->outputMIDIChannelOff[0] = arpNote->outputMemberChannel[0];
+				noteCodeCurrentlyOnPostArp[0] = ARP_NOTE_NONE;
+				outputMIDIChannelForNoteCurrentlyOnPostArp[0] = MIDI_CHANNEL_NONE;
 				for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					// If no arp, rest of chord notes are for sure disabled
 					instruction->noteCodeOffPostArp[n] = ARP_NOTE_NONE;
 					instruction->outputMIDIChannelOff[n] = MIDI_CHANNEL_NONE;
+					noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+					outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
 				}
 			}
 
@@ -333,6 +344,8 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 							// Set all chord notes
 							instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
 							instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+							noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+							outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
 						}
 					}
 				}
@@ -397,6 +410,9 @@ void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 			// Set all chord notes
 			instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
 			instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+			// Clean the temp state
+			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+			outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
 		}
 		gateCurrentlyActive = false;
 	}

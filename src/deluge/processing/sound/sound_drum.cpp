@@ -102,7 +102,7 @@ void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t veloci
 	              fromMIDIChannel);
 }
 void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
-	Sound::allNotesOff(modelStack, &arpeggiator);
+	Sound::noteOff(modelStack, &arpeggiator, kNoteForDrum);
 }
 
 extern bool expressionValueChangesMustBeDoneSmoothly;
@@ -137,6 +137,11 @@ void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32
 	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but
 	// yeah, that's all irrelevant.
 	expressionEvent(newValue, expressionDimension);
+
+	// Let the Sound know about this polyphonic expression event
+	// The Sound class will use it to send MIDI out (if enabled in the sound config)
+	Sound::polyphonicExpressionEventOnChannelOrNote(newValue, expressionDimension, channelOrNoteNumber,
+	                                                whichCharacteristic);
 }
 
 void SoundDrum::unassignAllVoices() {

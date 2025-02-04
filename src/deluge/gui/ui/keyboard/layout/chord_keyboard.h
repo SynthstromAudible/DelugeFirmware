@@ -100,7 +100,7 @@ private:
 	    // SCALEFIRST - SCALEOCTAVE,
 	};
 
-	std::array<const std::array<Chord, majorChords.size()>*, 6> chordColumns = {
+	std::array<const std::array<const Chord, majorChords.size()>*, 6> chordColumns = {
 	    &majorChords, &minorChords, &diminishedChords, &augmentedChords, &dominantChords, &otherChords};
 
 	std::set<Scale> acceptedScales = {Scale::MAJOR_SCALE,    Scale::MINOR_SCALE,  Scale::DORIAN_SCALE,

@@ -1085,6 +1085,13 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 
 - ([#3279]) Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
 
+#### 4.5.9 - Send Midi
+
+- ([#3313]) There is a new submenu `MIDI` added to the `SOUND` menu for synths and sound drums, where you can select the MIDI channel
+  (and also base note for drums) that will be sent at the same time as the sound triggers.
+  In case of drums, it is like having a Sound row + a Midi row together triggering at the same time. And in case of synths, it is like
+  having a Synth clip + a Midi clip together triggering at the same time. This feature is limited to regular MIDI (that is, not for MPE).
+
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
 #### 4.6.1 - Keyboard View
@@ -1158,6 +1165,17 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 - ([#141]) Holding `▼︎▲︎` down while turning `◀︎▶︎` will shift the waveform of an Audio clip, similar to Instrument
   clips.
 
+#### 4.9.2 - Trim from the start of the clip
+
+- ([#3291]) You can now trim/crop audio from the start of a clip
+  - Pressing a pad in the first column of an audio clip now makes it flash green allowing you to move the start position. Once trimmed, new start position snaps to column one.
+  - You can revert by pressing undo (or reverse the clip and altering as before).
+  - Previously, this was only possible by reversing the audio clip and trimming the start as if it were the end.
+  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+
+See this demo for more details:
+[Audio Clip View - Trimming Tips](https://www.youtube.com/watch?v=iWhVUsx40Mg&t=45s&ab_channel=RonCavagnaro).
+
 ### 4.10 Third Party Device Integration
 
 This is largely on the development side and created the start of a system of modules and hook points for enabling
@@ -1174,18 +1192,6 @@ for the Lumi Keys Studio Edition, described below.
       of the builtin scales supported by the Lumi.
     - While Lumi has limited options for MPE separation, it will be configured to align with the dominant MPE range
       defined on the Deluge (upper or lower dominant).
-
-### 4.11.0 - Audio Clip View - Trimming Clips
-
-- ([#3291]) Added a new `STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP` feature to allow users to trim from the start of a clip without needing to reverse it.
-  - Pressing a pad in the first column of an audio clip now makes it flash green allowing you to move the start position. The new start position snaps to column one.
-  - You can revert to an earlier portion by pressing undo (or reverse the clip and altering as before).
-  - This lets you easily alter the start of an audio clip without time stretching.
-  - Previously, this was only possible by reversing the audio clip and trimming the start as if it were the end.
-  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
-
-See this demo for more details:
-[Audio Clip View - Trimming Tips](https://www.youtube.com/watch?v=iWhVUsx40Mg&t=45s&ab_channel=RonCavagnaro).
 
 ## 5. Community Features Menu (aka Runtime Settings)
 
@@ -1591,6 +1597,8 @@ different firmware
 [#3285]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3285
 
 [#3291]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3291
+
+[#3313]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3313
 
 [Automation View Documentation]: features/automation_view.md
 
