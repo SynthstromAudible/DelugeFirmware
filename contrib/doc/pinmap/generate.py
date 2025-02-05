@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import io
 import xml.etree.ElementTree as ET
 
 
@@ -23,20 +22,20 @@ class Pin:
     def render_as_output(self, g, clazz):
         path = ET.SubElement(g, "path")
         if self.facing_left:
-            p = f"M 0,0"
+            p = "M 0,0"
             p += f"H {self.width} "
             p += f"V {UNIT_HEIGHT} "
-            p += f"H 0 "
+            p += "H 0 "
             p += f"l -{HALF_HEIGHT},-{HALF_HEIGHT} "
             p += "Z"
             self.tip_x = self.left - HALF_HEIGHT
         else:
-            p = f"M 0,0 "
+            p = "M 0,0 "
             p += f"H {self.width} "
             p += f"l {HALF_HEIGHT},{HALF_HEIGHT} "
             p += f"l -{HALF_HEIGHT},{HALF_HEIGHT} "
-            p += f"H 0 "
-            p += f"Z"
+            p += "H 0 "
+            p += "Z"
             self.tip_x = self.left + self.width + HALF_HEIGHT
         path.attrib["d"] = p
         self.tip_y = self.top + HALF_HEIGHT
@@ -70,14 +69,14 @@ class Pin:
             d += "H 0 "
             d += f"A 5 5, 0, 0, 0, 0, {UNIT_HEIGHT}"
             d += f"H {self.width} "
-            d += f"Z"
+            d += "Z"
             self.tip_x = self.left - HALF_HEIGHT
         else:
-            d = f"M 0,0 "
+            d = "M 0,0 "
             d += f"H {self.width} "
             d += f"a 5 5, 0, 0, 1, 0, {UNIT_HEIGHT}"
-            d += f"H 0 "
-            d += f"Z"
+            d += "H 0 "
+            d += "Z"
             self.tip_x = self.left + self.width + HALF_HEIGHT
         path.attrib["d"] = d
         self.tip_y = self.top + HALF_HEIGHT

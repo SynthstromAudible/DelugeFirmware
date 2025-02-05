@@ -1,4 +1,4 @@
-from dmui.dsl import *
+from dmui.dsl import MultiContextMenu
 
 file_selector = MultiContextMenu(
     "FileSelector",

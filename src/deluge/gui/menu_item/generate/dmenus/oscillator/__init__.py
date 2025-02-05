@@ -1,4 +1,4 @@
-from dmui.dsl import *
+from dmui.dsl import Menu, Submenu
 from . import sample
 from . import source
 from ..common import file_selector
