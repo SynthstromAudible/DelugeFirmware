@@ -1,8 +1,8 @@
 {
     "version": 1,
     "type": "MIDI",
-    "name": "Deluge P3",
-    "index": 4,
+    "name": "all_parameters3",
+    "index": 2,
     "knobs": [
         {
             "controlIndex": 0,
