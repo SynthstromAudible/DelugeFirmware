@@ -1907,8 +1907,10 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		if (currentPlaybackMode == &session) {
 			if (session.launchEventAtSwungTickCount) {
 				intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
-				if (naviview.useNavigationView()) {
-					naviview.drawRemainingCountdown(loopsRemainingText);
+				if (naviview.useNavigationView()
+				    && (strncmp(loopsRemainingText, "Bars ", 5) || strncmp(loopsRemainingText, "Beats", 5)
+				        || strncmp(loopsRemainingText, "Loops", 5))) {
+					naviview.drawRemainingCountdown();
 				}
 				else {
 					deluge::hid::display::OLED::clearMainImage();
@@ -2402,8 +2404,10 @@ int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 				popupMsg.appendInt(quarterNotesRemaining);
 			}
 
-			if (naviview.useNavigationView()) {
-				naviview.drawRemainingCountdown(popupMsg.c_str());
+			if (naviview.useNavigationView()
+			    && (strncmp(popupMsg.c_str(), "Bars ", 5) || strncmp(popupMsg.c_str(), "Beats", 5)
+			        || strncmp(popupMsg.c_str(), "Loops", 5))) {
+				naviview.drawRemainingCountdown();
 			}
 			else if (display->haveOLED() && !ephemeral) {
 				deluge::hid::display::OLED::clearMainImage();

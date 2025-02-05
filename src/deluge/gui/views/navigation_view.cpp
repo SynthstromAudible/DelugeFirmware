@@ -462,7 +462,7 @@ void NavigationView::drawBaseboard() {
 	hid::display::OLED::markChanged();
 }
 
-void NavigationView::drawRemainingCountdown(const char* msg) {
+void NavigationView::drawRemainingCountdown() {
 	hasRemainingCountdown = true;
 	int32_t sixteenthNotesRemaining = session.getNumSixteenthNotesRemainingTilLaunch();
 	int32_t barsRemaining = ((sixteenthNotesRemaining - 1) / 16) + 1;
@@ -478,16 +478,9 @@ void NavigationView::drawRemainingCountdown(const char* msg) {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 	hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 
-	if (strncmp(msg, "Bars ", 5) || strncmp(msg, "Beats", 5) || strncmp(msg, "Loops", 5)) {
-		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * buffer.length() + 1), yPos,
-		                      OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
-		canvas.drawStringAlignRight(buffer.data(), yPos, kTextSpacingX, kTextSpacingY);
-	}
-	else {
-		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * strlen(msg) + 1), yPos,
-		                      OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
-		canvas.drawStringAlignRight(msg, yPos, kTextSpacingX, kTextSpacingY);
-	}
+	canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * buffer.length() + 1), yPos,
+	                      OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
+	canvas.drawStringAlignRight(buffer.data(), yPos, kTextSpacingX, kTextSpacingY);
 	hid::display::OLED::markChanged();
 }
 

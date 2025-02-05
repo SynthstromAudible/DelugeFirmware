@@ -48,7 +48,7 @@ public:
 	void drawDashboard();
 	void drawMainboard(const char* nameToDraw = nullptr);
 	void drawBaseboard();
-	void drawRemainingCountdown(const char* msg = nullptr);
+	void drawRemainingCountdown();
 	void drawTempoBPM();
 
 private:
