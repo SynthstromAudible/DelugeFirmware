@@ -61,7 +61,7 @@ void PatchCables::renderOptions() {
 		int dest = desc.getJustTheParam();
 
 		const int item_max_len = 30;
-		PLACE_SDRAM_BSS static char bufs[kMaxNumPatchCables][item_max_len];
+		static char bufs[kMaxNumPatchCables][item_max_len];
 		char* buf = bufs[i];
 
 		const char* src_name = sourceToStringShort(src); // exactly 4 chars

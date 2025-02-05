@@ -53,18 +53,18 @@
 #include "gui/ui/keyboard/layout/piano.h"
 #include "gui/ui/keyboard/layout/velocity_drums.h"
 
-PLACE_SDRAM_BSS deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
+deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
 
 namespace deluge::gui::ui::keyboard {
 
-PLACE_SDRAM_BSS layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
-PLACE_SDRAM_BSS layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
-PLACE_SDRAM_BSS layout::KeyboardLayoutInKey keyboardLayoutInKey{};
-PLACE_SDRAM_BSS layout::KeyboardLayoutPiano keyboardLayoutPiano{};
-PLACE_SDRAM_BSS layout::KeyboardLayoutChord KeyboardLayoutChord{};
-PLACE_SDRAM_BSS layout::KeyboardLayoutChordLibrary keyboardLayoutChordLibrary{};
-PLACE_SDRAM_BSS layout::KeyboardLayoutNorns keyboardLayoutNorns{};
-PLACE_SDRAM_BSS KeyboardLayout* layoutList[KeyboardLayoutType::KeyboardLayoutTypeMaxElement + 1] = {0};
+layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
+layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
+layout::KeyboardLayoutInKey keyboardLayoutInKey{};
+layout::KeyboardLayoutPiano keyboardLayoutPiano{};
+layout::KeyboardLayoutChord KeyboardLayoutChord{};
+layout::KeyboardLayoutChordLibrary keyboardLayoutChordLibrary{};
+layout::KeyboardLayoutNorns keyboardLayoutNorns{};
+KeyboardLayout* layoutList[KeyboardLayoutType::KeyboardLayoutTypeMaxElement + 1] = {0};
 
 KeyboardScreen::KeyboardScreen() {
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = (KeyboardLayout*)&keyboardLayoutIsomorphic;

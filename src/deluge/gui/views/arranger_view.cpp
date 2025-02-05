@@ -89,7 +89,7 @@ extern uint8_t currentlyAccessingCard;
 using namespace deluge;
 using namespace gui;
 
-PLACE_SDRAM_BSS ArrangerView arrangerView{};
+ArrangerView arrangerView{};
 
 ArrangerView::ArrangerView() {
 	doingAutoScrollNow = false;

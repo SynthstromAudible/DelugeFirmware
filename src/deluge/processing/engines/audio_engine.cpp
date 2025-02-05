@@ -154,8 +154,8 @@ int32_t timeLastPopup{0};
 SoundDrum* sampleForPreview;
 ParamManagerForTimeline* paramManagerForSamplePreview;
 
-PLACE_SDRAM_BSS char paramManagerForSamplePreviewMemory[sizeof(ParamManagerForTimeline)];
-PLACE_SDRAM_BSS char sampleForPreviewMemory[sizeof(SoundDrum)];
+char paramManagerForSamplePreviewMemory[sizeof(ParamManagerForTimeline)];
+char sampleForPreviewMemory[sizeof(SoundDrum)];
 
 SampleRecorder* firstRecorder = nullptr;
 

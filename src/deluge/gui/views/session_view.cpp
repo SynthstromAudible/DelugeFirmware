@@ -91,7 +91,7 @@ extern "C" {
 using namespace deluge;
 using namespace gui;
 
-PLACE_SDRAM_BSS SessionView sessionView{};
+SessionView sessionView{};
 
 SessionView::SessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;

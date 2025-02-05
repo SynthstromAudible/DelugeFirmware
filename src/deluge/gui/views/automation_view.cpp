@@ -338,7 +338,7 @@ constexpr uint8_t kPadSelectionShortcutY = 7;
 constexpr uint8_t kVelocityShortcutX = 15;
 constexpr uint8_t kVelocityShortcutY = 1;
 
-PLACE_SDRAM_BSS AutomationView automationView{};
+AutomationView automationView{};
 
 AutomationView::AutomationView() {
 

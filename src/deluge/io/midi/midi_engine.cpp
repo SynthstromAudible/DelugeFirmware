@@ -209,7 +209,7 @@ void brdyOccurred(int32_t ip) {
 }
 }
 
-PLACE_SDRAM_BSS MidiEngine midiEngine{};
+MidiEngine midiEngine{};
 
 bool anythingInUSBOutputBuffer = false;
 

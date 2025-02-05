@@ -174,7 +174,6 @@ add_compile_options(
     # Link time optimizations
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
-    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fdevirtualize-at-ltrans>
     -ffunction-sections
     -fdata-sections
     -DUSE_TASK_MANAGER

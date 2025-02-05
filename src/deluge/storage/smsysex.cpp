@@ -48,7 +48,7 @@ struct FILdata {
 int32_t FIDcounter = 1;
 uint32_t LRUcounter = 1;
 
-PLACE_SDRAM_BSS FILdata openFiles[MAX_OPEN_FILES];
+FILdata openFiles[MAX_OPEN_FILES];
 
 const int MaxSysExLength = 1024;
 
