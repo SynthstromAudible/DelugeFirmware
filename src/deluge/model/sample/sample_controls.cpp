@@ -23,6 +23,7 @@ SampleControls::SampleControls() {
 	interpolationMode = InterpolationMode::SMOOTH;
 	pitchAndSpeedAreIndependent = false;
 	reversed = false;
+	invertReversed = false;
 }
 
 int32_t SampleControls::getInterpolationBufferSize(int32_t phaseIncrement) {
