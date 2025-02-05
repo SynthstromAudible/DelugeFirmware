@@ -33,10 +33,6 @@ namespace deluge::gui::ui::keyboard {
 
 constexpr int32_t kMaxNumKeyboardPadPresses = 10;
 
-inline bool isInKeyLayoutDefault() {
-	return FlashStorage::defaultKeyboardLayout == KeyboardLayoutType::KeyboardLayoutTypeInKey;
-}
-
 class KeyboardScreen final : public RootUI, public InstrumentClipMinder {
 public:
 	KeyboardScreen();

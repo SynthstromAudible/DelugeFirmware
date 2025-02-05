@@ -108,10 +108,7 @@ void KeyboardLayoutInKey::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 			auto padIndex = padIndexFromCoords(x, y);
 			auto note = noteFromPadIndex(padIndex);
 			int32_t noteWithinScale = (uint16_t)((note + kOctaveSize) - getRootNote()) % kOctaveSize;
-			int8_t degree = -1;
-			if (keyboard::isInKeyLayoutDefault()) {
-				degree = getScaleNotes().degreeOf(noteWithinScale);
-			}
+			int8_t degree = getScaleNotes().degreeOf(noteWithinScale);
 			RGB colourSource = noteColours[padIndex - getState().inKey.scrollOffset];
 
 			// Full brightness and colour for active root note

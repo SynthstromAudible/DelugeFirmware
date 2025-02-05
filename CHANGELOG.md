@@ -142,6 +142,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### Layout
 - Added the classic piano keyboard layout.
+- Added diatonic tick marks to the chromatic 'out-of-scale' layout accessed via the `SCALE` button for both Isomorphic and In-Key keyboards.  These tick marks also appear on the Audition/Section pads of a clip's note row view.  These faint white tick marks distinguish notes in scale from those notes on unlit black pads that lie outside the scale.
 
 ### Sequencer
 

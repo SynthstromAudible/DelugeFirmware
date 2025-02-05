@@ -902,6 +902,9 @@ to each individual note onset. ([#1978])
     - New way to change scale `ROOT NOTE` in keyboard mode: Hold `SCALE` and turn `SELECT`
     - A new menu to select the default Keyboard Layout has been added in `MENU -> DEFAULTS -> UI -> KEYBOARD -> LAYOUT`
 
+- ([#3303])
+    - Added diatonic tick marks to the chromatic 'out-of-scale' layout accessed via the `SCALE` button for both Isomorphic and In-Key keyboards.  These tick marks also appear on the Audition/Section pads of a clip's note row view.  These faint white tick marks distinguish notes in scale from those notes on unlit black pads that lie outside the scale.
+
 ##### 4.4.1.3 - Highlight Incoming Notes
 
 - ([#250]) New community feature makes In-Key and Isometric layout display incoming MIDI notes with their velocity.
@@ -1575,6 +1578,8 @@ different firmware
 [#3279]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3279
 
 [#3285]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3285
+
+[#3303]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3303
 
 [Automation View Documentation]: features/automation_view.md
 

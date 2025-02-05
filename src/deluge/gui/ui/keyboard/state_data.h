@@ -66,6 +66,7 @@ struct KeyboardStateChord {
 /// share one struct for storage
 struct KeyboardState {
 	KeyboardLayoutType currentLayout = FlashStorage::defaultKeyboardLayout;
+	KeyboardLayoutType fromLayout = FlashStorage::defaultKeyboardLayout;
 
 	KeyboardStateIsomorphic isomorphic;
 	KeyboardStateDrums drums;
