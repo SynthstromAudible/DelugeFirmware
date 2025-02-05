@@ -42,6 +42,7 @@ public:
 	const char* textBuffer; // Used by KEYBOARD and PERFORMANCE as label to replace navigation
 	bool hasTempoBPM;       // True when BPM is drawn on dashboard
 	bool hasScale;          // True when Scale is drawn on dashboard
+	bool hasRemainingCountdown; // True when cue overlays the tempo BPM
 
 	bool useNavigationView();
 	void drawDashboard();

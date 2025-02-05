@@ -65,6 +65,7 @@ void NavigationView::drawDashboard() {
 
 	hasTempoBPM = false;
 	hasScale = false;
+	hasRemainingCountdown = false;
 	RootUI* rootUI = getRootUI();
 	UIType rootUIType = rootUI->getUIType();
 	bool isSessionView = (rootUI == &sessionView);
@@ -211,7 +212,28 @@ void NavigationView::drawDashboard() {
 		if (!moreMajor) {
 			info.append("-");
 		}
-		if (scale != MAJOR_SCALE && scale != MINOR_SCALE) {
+		switch (scale) {
+		case MAJOR_SCALE:
+			break;
+		case MINOR_SCALE:
+			info.append(" vi");
+			break;
+		case DORIAN_SCALE:
+			info.append(" ii");
+			break;
+		case PHRYGIAN_SCALE:
+			info.append(" iii");
+			break;
+		case LYDIAN_SCALE:
+			info.append(" IV");
+			break;
+		case MIXOLYDIAN_SCALE:
+			info.append(" V");
+			break;
+		case LOCRIAN_SCALE:
+			info.append(" vii");
+			break;
+		default:
 			sprintf(buffer, " %s", getScaleName(scale));
 			for (int i = 1; i < 25 - 1; ++i) {
 				if (buffer[i] == 0)
@@ -234,7 +256,7 @@ void NavigationView::drawDashboard() {
 	canvas.clearAreaExact(0, yPos, OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
 	canvas.drawString(info.data(), 0, yPos, kTextSpacingX, kTextSpacingY);
 	if (!isAudioClipView && !isAutomationView
-	    && (isSessionView || isArrangerView || isPerformanceView || scale == MAJOR_SCALE || scale == MINOR_SCALE)) {
+	    && (isSessionView || isArrangerView || isPerformanceView || scale <= LOCRIAN_SCALE)) {
 		drawTempoBPM();
 	}
 	hid::display::OLED::markChanged();
@@ -441,6 +463,7 @@ void NavigationView::drawBaseboard() {
 }
 
 void NavigationView::drawRemainingCountdown(const char* msg) {
+	hasRemainingCountdown = true;
 	int32_t sixteenthNotesRemaining = session.getNumSixteenthNotesRemainingTilLaunch();
 	int32_t barsRemaining = ((sixteenthNotesRemaining - 1) / 16) + 1;
 	int32_t quarterNotesRemaining = ((sixteenthNotesRemaining - 1) / 4) + 1;
@@ -452,15 +475,17 @@ void NavigationView::drawRemainingCountdown(const char* msg) {
 	buffer.append(":");
 	buffer.appendInt(rndQuarterNotesRemaining);
 
-	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 	hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 
-	canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * buffer.length()), yPos, OLED_MAIN_WIDTH_PIXELS - 1,
-	                      yPos + kTextSpacingY);
 	if (strncmp(msg, "Bars ", 5) || strncmp(msg, "Beats", 5) || strncmp(msg, "Loops", 5)) {
+		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * buffer.length() + 1), yPos,
+		                      OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
 		canvas.drawStringAlignRight(buffer.data(), yPos, kTextSpacingX, kTextSpacingY);
 	}
 	else {
+		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * strlen(msg) + 1), yPos,
+		                      OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
 		canvas.drawStringAlignRight(msg, yPos, kTextSpacingX, kTextSpacingY);
 	}
 	hid::display::OLED::markChanged();

@@ -2330,11 +2330,11 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 	if (display->haveOLED()) {
 		UI* currentUI = getCurrentUI();
 		// if we're currently in song or arranger view, we'll render tempo on the display instead of a popup
-		if (naviview.useNavigationView() && naviview.hasTempoBPM) {
+		if (naviview.useNavigationView() && naviview.hasTempoBPM && !naviview.hasRemainingCountdown) {
 			naviview.drawTempoBPM();
 		}
 		else if ((currentUI == &sessionView || currentUI == &arrangerView)
-		         && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
+		         && !deluge::hid::display::OLED::isPermanentPopupPresent() && !naviview.useNavigationView()) {
 			sessionView.lastDisplayedTempo = tempoBPM;
 			getTempoStringForOLED(tempoBPM, text);
 			sessionView.displayTempoBPM(deluge::hid::display::OLED::main, text, true);
