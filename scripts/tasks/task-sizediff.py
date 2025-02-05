@@ -3,7 +3,6 @@ import argparse
 import importlib
 import shutil
 import subprocess
-import sys
 import util
 import os
 

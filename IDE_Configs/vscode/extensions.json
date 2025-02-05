@@ -2,7 +2,7 @@
   "recommendations": [
     "editorconfig.editorconfig",
     "marus25.cortex-debug",
-    "ms-python.black-formatter",
+    "charliermarsh.ruff",
     "ms-vscode.cpptools",
     "webfreak.advanced-local-formatters",
     "xaver.clang-format"
