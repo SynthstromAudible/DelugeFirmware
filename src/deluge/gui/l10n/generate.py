@@ -1,11 +1,10 @@
 import json
-import sys
 import argparse
 
 
 def process(input, output):
     input = json.loads(input.read())
-    strings = input["strings"]
+    # strings = input["strings"]
 
     output.write(
         """/******************************************************************************\\\n

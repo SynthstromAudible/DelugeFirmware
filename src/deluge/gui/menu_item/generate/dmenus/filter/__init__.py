@@ -1,4 +1,4 @@
-from dmui.dsl import *
+from dmui.dsl import Menu, Submenu
 
 from . import hpf
 from . import lpf
