@@ -2,7 +2,6 @@
 import argparse
 import importlib
 import subprocess
-import sys
 from typing import Sequence
 import util
 import os

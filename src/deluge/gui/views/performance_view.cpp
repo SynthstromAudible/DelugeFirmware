@@ -176,7 +176,7 @@ const int32_t nonDelayPadPressValues[kDisplayHeight] = {0, 18, 37, 55, 73, 91, 1
 const int32_t delayPadPressValues[kDisplayHeight] = {0, 9, 18, 27, 36, 45, 54, 63};
 const int32_t quantizedStutterPressValues[kDisplayHeight] = {-52, -37, -22, -7, 8, 23, 38, 53};
 
-PerformanceView performanceView{};
+PLACE_SDRAM_BSS PerformanceView performanceView{};
 
 // initialize variables
 PerformanceView::PerformanceView() {

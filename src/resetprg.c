@@ -88,6 +88,8 @@ extern uint32_t __sdram_text_start;
 extern uint32_t __sdram_text_end;
 extern uint32_t __sdram_data_start;
 extern uint32_t __sdram_data_end;
+extern uint32_t __sdram_rodata_start;
+extern uint32_t __sdram_rodata_end;
 
 void* __dso_handle = NULL;
 
@@ -126,7 +128,7 @@ static void relocateSDRAMSection(uint32_t* start, uint32_t* end) {
  *******************************************************************************/
 void resetprg(void) {
 	emptySection(&__frunk_bss_start, &__frunk_bss_end);
-
+	emptySection(&__sdram_bss_start, &__sdram_bss_end);
 	// Enable all modules' clocks --------------------------------------------------------------
 	STB_Init();
 	// SDRAM pin mux ------------------------------------------------------------------
@@ -186,13 +188,12 @@ void resetprg(void) {
 	// Setup SDRAM. Have to do this before we init global objects
 	userdef_bsc_cs2_init(0); // 64MB, hardcoded
 
-#if !defined(NDEBUG)
 	const uint32_t SDRAM_SIZE = EXTERNAL_MEMORY_END - EXTERNAL_MEMORY_BEGIN;
 	memset((void*)EXTERNAL_MEMORY_BEGIN, 0, SDRAM_SIZE);
-#endif
 
 	relocateSDRAMSection(&__sdram_text_start, &__sdram_text_end);
 	relocateSDRAMSection(&__sdram_data_start, &__sdram_data_end);
+	relocateSDRAMSection(&__sdram_rodata_start, &__sdram_rodata_end);
 
 	__libc_init_array();
 	// located in OSLikeStuff/main.c

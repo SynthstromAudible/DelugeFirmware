@@ -1088,6 +1088,13 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 
 - ([#3279]) Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
 
+#### 4.5.9 - Send Midi
+
+- ([#3313]) There is a new submenu `MIDI` added to the `SOUND` menu for synths and sound drums, where you can select the MIDI channel
+  (and also base note for drums) that will be sent at the same time as the sound triggers.
+  In case of drums, it is like having a Sound row + a Midi row together triggering at the same time. And in case of synths, it is like
+  having a Synth clip + a Midi clip together triggering at the same time. This feature is limited to regular MIDI (that is, not for MPE).
+
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
 #### 4.6.1 - Keyboard View
@@ -1160,6 +1167,17 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 
 - ([#141]) Holding `▼︎▲︎` down while turning `◀︎▶︎` will shift the waveform of an Audio clip, similar to Instrument
   clips.
+
+#### 4.9.2 - Trim from the start of the clip
+
+- ([#3291]) You can now trim/crop audio from the start of a clip
+  - Pressing a pad in the first column of an audio clip now makes it flash green allowing you to move the start position. Once trimmed, new start position snaps to column one.
+  - You can revert by pressing undo (or reverse the clip and altering as before).
+  - Previously, this was only possible by reversing the audio clip and trimming the start as if it were the end.
+  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+
+See this demo for more details:
+[Audio Clip View - Trimming Tips](https://www.youtube.com/watch?v=iWhVUsx40Mg&t=45s&ab_channel=RonCavagnaro).
 
 ### 4.10 Third Party Device Integration
 
@@ -1243,6 +1261,8 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
     * When On, the number of `TAP TEMPO` button presses to engage `TAP TEMPO` is changed to `FOUR (4)` to avoid mistakingly changing tempo.
 * `Horizontal menus (HORI)`
     * When On, some menu items render in horizontal menus, with multiple items visible and editable at the same time.
+* `Trim from start of audio clips (TRIM)`
+    * When On, the ability to trim from the start of an audio clip without needing to reverse it is enabled.
 
 ## 6. Sysex Handling
 
@@ -1579,7 +1599,11 @@ different firmware
 
 [#3285]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3285
 
+[#3291]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3291
+
 [#3303]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3303
+
+[#3313]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3313
 
 [Automation View Documentation]: features/automation_view.md
 

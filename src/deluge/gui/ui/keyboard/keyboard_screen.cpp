@@ -53,18 +53,18 @@
 #include "gui/ui/keyboard/layout/piano.h"
 #include "gui/ui/keyboard/layout/velocity_drums.h"
 
-deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
+PLACE_SDRAM_BSS deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
 
 namespace deluge::gui::ui::keyboard {
 
-layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
-layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
-layout::KeyboardLayoutInKey keyboardLayoutInKey{};
-layout::KeyboardLayoutPiano keyboardLayoutPiano{};
-layout::KeyboardLayoutChord KeyboardLayoutChord{};
-layout::KeyboardLayoutChordLibrary keyboardLayoutChordLibrary{};
-layout::KeyboardLayoutNorns keyboardLayoutNorns{};
-KeyboardLayout* layoutList[KeyboardLayoutType::KeyboardLayoutTypeMaxElement + 1] = {0};
+PLACE_SDRAM_BSS layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutInKey keyboardLayoutInKey{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutPiano keyboardLayoutPiano{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutChord KeyboardLayoutChord{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutChordLibrary keyboardLayoutChordLibrary{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutNorns keyboardLayoutNorns{};
+PLACE_SDRAM_BSS KeyboardLayout* layoutList[KeyboardLayoutType::KeyboardLayoutTypeMaxElement + 1] = {0};
 
 KeyboardScreen::KeyboardScreen() {
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = (KeyboardLayout*)&keyboardLayoutIsomorphic;
@@ -328,11 +328,10 @@ void KeyboardScreen::updateActiveNotes() {
 			// in MelodicInstrument and Kit
 			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) { // It definitely will be auditioning if we're here
 				ModelStackWithNoteRow* modelStackWithNoteRow = modelStackWithTimelineCounter->addNoteRow(0, NULL);
-				((MelodicInstrument*)activeInstrument)
-				    ->earlyNotes.emplace(newNote,
-				                         MelodicInstrument::EarlyNoteInfo{
-				                             static_cast<uint8_t>(currentNotesState.notes[idx].velocity),
-				                             getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRow)});
+				static_cast<MelodicInstrument*>(activeInstrument)->earlyNotes[newNote] = {
+				    .velocity = static_cast<uint8_t>(currentNotesState.notes[idx].velocity),
+				    .still_active = getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRow),
+				};
 			}
 
 			else {

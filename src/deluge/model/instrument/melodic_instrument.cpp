@@ -148,9 +148,10 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 						}
 						else if (currentUIMode == UI_MODE_RECORD_COUNT_IN) {
 recordingEarly:
-							earlyNotes.emplace(note,
-							                   EarlyNoteInfo{static_cast<uint8_t>(velocity),
-							                                 instrumentClip->allowNoteTails(modelStackWithNoteRow)});
+							earlyNotes[note] = {
+							    .velocity = static_cast<uint8_t>(velocity),
+							    .still_active = instrumentClip->allowNoteTails(modelStackWithNoteRow),
+							};
 							goto justAuditionNote;
 						}
 
@@ -541,7 +542,9 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 	}
 
 	if (!activeClip || ((InstrumentClip*)activeClip)->allowNoteTails(modelStackWithNoteRow)) {
-		notesAuditioned.emplace(note, EarlyNoteInfo{static_cast<uint8_t>(velocity)});
+		notesAuditioned[note] = {
+		    .velocity = static_cast<uint8_t>(velocity),
+		};
 	}
 
 	ParamManager* paramManager = getParamManager(modelStackWithNoteRow->song);
@@ -554,7 +557,7 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity) {
 
 	notesAuditioned.erase(note);
-	earlyNotes[note].stillActive = false; // set no longer active
+	earlyNotes[note].still_active = false; // set no longer active
 	if (!activeClip) {
 		return;
 	}
