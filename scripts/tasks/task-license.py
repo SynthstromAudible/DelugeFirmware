@@ -2,7 +2,6 @@
 
 # Copyright 2023 Kate Whitlock
 import argparse
-import os
 from pathlib import Path
 import util
 from functools import partial
