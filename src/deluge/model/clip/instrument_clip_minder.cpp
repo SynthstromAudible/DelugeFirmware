@@ -75,7 +75,7 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 		if (editingMIDICCForWhichModKnob < kNumPhysicalModKnobs) {
 			MIDIInstrument* instrument = (MIDIInstrument*)getCurrentOutput();
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-			    modelStack->addOtherTwoThingsButNoNoteRow(instrument, &getCurrentInstrumentClip()->paramManager);
+				    modelStack->addOtherTwoThingsButNoNoteRow(instrument, &getCurrentInstrumentClip()->paramManager);
 
 			int32_t newCC;
 
