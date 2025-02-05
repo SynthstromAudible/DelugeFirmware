@@ -1,4 +1,4 @@
-from dmui.dsl import *
+from dmui.dsl import Menu, Submenu
 from . import sample
 from . import source
 from ..common import file_selector
@@ -66,7 +66,7 @@ menus = [
             sync,
             retrigger_phase,
         ],
-        name=f"STRING_FOR_OSCILLATOR_{i+1}",
+        name=f"STRING_FOR_OSCILLATOR_{i + 1}",
     )
     for i in range(2)
 ]

@@ -338,7 +338,7 @@ constexpr uint8_t kPadSelectionShortcutY = 7;
 constexpr uint8_t kVelocityShortcutX = 15;
 constexpr uint8_t kVelocityShortcutY = 1;
 
-AutomationView automationView{};
+PLACE_SDRAM_BSS AutomationView automationView{};
 
 AutomationView::AutomationView() {
 
@@ -3445,7 +3445,7 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 
 	// Or if synth
 	else if (outputType == OutputType::SYNTH) {
-		if (velocity) {
+		if (velocity != 0) {
 			if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 				menu_item::multiRangeMenu.noteOnToChangeRange(clip->getYNoteFromYDisplay(yDisplay, currentSong)
 				                                              + ((SoundInstrument*)output)->transpose);
@@ -3457,7 +3457,7 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 	if (clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(clip)) {
 
 		// Note-on
-		if (velocity) {
+		if (velocity != 0) {
 
 			// If count-in is on, we only got here if it's very nearly finished, so pre-empt that note.
 			// This is basic. For MIDI input, we do this in a couple more cases - see
@@ -3465,19 +3465,21 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) {
 				if (isKit) {
 					if (drum) {
-						drum->recordNoteOnEarly(
-						    (velocity == USE_DEFAULT_VELOCITY) ? ((Instrument*)output)->defaultVelocity : velocity,
-						    clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
+						drum->recordNoteOnEarly((velocity == USE_DEFAULT_VELOCITY)
+						                            ? (static_cast<Instrument*>(output)->defaultVelocity)
+						                            : velocity,
+						                        clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
 					}
 				}
 				else {
 					// NoteRow is allowed to be NULL in this case.
 					int32_t yNote = clip->getYNoteFromYDisplay(yDisplay, currentSong);
-					((MelodicInstrument*)output)
-					    ->earlyNotes.emplace(yNote, MelodicInstrument::EarlyNoteInfo{
-					                                    ((Instrument*)output)->defaultVelocity,
-					                                    clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip),
-					                                });
+					static_cast<MelodicInstrument*>(output)->earlyNotes[yNote] = {
+					    .velocity = (velocity == USE_DEFAULT_VELOCITY)
+					                    ? (static_cast<Instrument*>(output)->defaultVelocity)
+					                    : static_cast<uint8_t>(velocity),
+					    .still_active = clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip),
+					};
 				}
 			}
 
@@ -3491,9 +3493,10 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 				}
 
 				if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-					clip->recordNoteOn(modelStackWithNoteRowOnCurrentClip, (velocity == USE_DEFAULT_VELOCITY)
-					                                                           ? ((Instrument*)output)->defaultVelocity
-					                                                           : velocity);
+					clip->recordNoteOn(modelStackWithNoteRowOnCurrentClip,
+					                   (velocity == USE_DEFAULT_VELOCITY)
+					                       ? static_cast<Instrument*>(output)->defaultVelocity
+					                       : velocity);
 				}
 			}
 		}
@@ -3528,7 +3531,7 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 		}
 
 		// If note on...
-		if (velocity) {
+		if (velocity != 0) {
 			int32_t velocityToSound = velocity;
 			if (velocityToSound == USE_DEFAULT_VELOCITY) {
 				velocityToSound = ((Instrument*)output)->defaultVelocity;
@@ -3537,7 +3540,7 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 			// Yup, need to do this even if we're going to do a "silent" audition, so pad lights up etc.
 			instrumentClipView.auditionPadIsPressed[yDisplay] = velocityToSound;
 
-			if (noteRowOnActiveClip) {
+			if (noteRowOnActiveClip != nullptr) {
 				// Ensure our auditioning doesn't override a note playing in the sequence
 				if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->sequenced) {
 					goto doSilentAudition;

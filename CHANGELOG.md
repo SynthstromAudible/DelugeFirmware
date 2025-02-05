@@ -74,6 +74,7 @@ set the stutter configuration independently of the song configuration if you wis
 #### <ins>Audio Clips</ins>
 - Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on
 when the output is a SAMPLER or a LOOPER, chosen by turning the select knob in an audio clip.
+- Added the ability to trim from the start of an audio clip without reversing it (enable in Community Features menu).
 
 #### <ins>Instrument Clip View</ins>
 
@@ -109,6 +110,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### Synth/Kit Clips
 - Added Auto-Load feature to sample browser, so you can load the sounds to the instrument as you preview them. Auto-Load can be engaged while in sample browser, if you press the `Load` button.
+- Sounds have now the ability to send MIDI notes at the same time as they play a sample. This will allow your synths and drums to trigger external devices. A new menu `MIDI` has been added at the bottom of the `SOUND` menu to set the MIDI channel and the note (in case of drum sounds).
 
 ##### CV Clips
 - Added the ability to set a CV instrument to use both 1 and 2 channels, which makes the cv2 source selectable between mod wheel, velocity, and aftertouch

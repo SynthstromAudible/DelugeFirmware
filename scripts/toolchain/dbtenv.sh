@@ -347,7 +347,7 @@ dbtenv_main()
     PATH="$TOOLCHAIN_ARCH_DIR/python/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/arm-none-eabi-gcc/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/openocd/bin:$PATH";
-    PATH="$TOOLCHAIN_ARCH_DIR/clang/bin:$PATH";
+    PATH="$TOOLCHAIN_ARCH_DIR/clang-format:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/cmake/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/ninja-build/bin:$PATH";
     # PATH="$TOOLCHAIN_ARCH_DIR/openssl/bin:$PATH";
@@ -373,6 +373,7 @@ dbtenv_main()
 
     if [ -n "${DBT_DID_UNPACKING}" ]; then
       dbtenv_setup_python
+      pre-commit install --install-hooks
     fi
 }
 

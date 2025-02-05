@@ -1,6 +1,6 @@
-from . import common
-from . import compressor
-from . import envelopes
-from . import filter
-from . import oscillator
-from . import unison
+from . import common as common
+from . import compressor as compressor
+from . import envelopes as envelopes
+from . import filter as filter
+from . import oscillator as oscillator
+from . import unison as unison

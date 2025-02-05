@@ -1,4 +1,4 @@
-from dmui.dsl import *
+from dmui.dsl import Menu, Submenu
 
 count = Menu(
     "unison::Count",

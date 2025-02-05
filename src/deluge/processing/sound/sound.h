@@ -116,6 +116,10 @@ public:
 	int8_t unisonDetune;
 	uint8_t unisonStereoSpread;
 
+	// For sending MIDI notes for SoundDrums
+	uint8_t outputMidiChannel{MIDI_CHANNEL_NONE};
+	uint8_t outputMidiNoteForDrum{MIDI_NOTE_NONE};
+
 	int16_t modulatorTranspose[kNumModulators];
 	int8_t modulatorCents[kNumModulators];
 
@@ -130,6 +134,8 @@ public:
 	int32_t volumeNeutralValueForUnison;
 
 	int32_t lastNoteCode;
+
+	// int32_t lastMidiNoteOffSent;
 
 	bool oscillatorSync;
 
@@ -205,6 +211,7 @@ public:
 	void noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode,
 	            int16_t const* mpeValues, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	            uint32_t samplesLate = 0, int32_t velocity = 64, int32_t fromMIDIChannel = 16);
+	void noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode);
 	void allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator);
 
 	void noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode = -32768);
@@ -212,6 +219,9 @@ public:
 	                           int32_t newNoteCodeAfterArpeggiation, int32_t velocity, int16_t const* mpeValues,
 	                           uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
 	                           int32_t fromMIDIChannel = 16);
+	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
+	                                              int32_t channelOrNoteNumber,
+	                                              MIDICharacteristic whichCharacteristic) override;
 
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();

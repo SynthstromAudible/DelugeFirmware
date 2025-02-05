@@ -64,7 +64,7 @@ void MIDIDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t 
 }
 
 void MIDIDrum::noteOffPostArp(int32_t noteCodePostArp) {
-	midiEngine.sendNote(this, false, noteCodePostArp, 64, channel, kMIDIOutputFilterNoMPE);
+	midiEngine.sendNote(this, false, noteCodePostArp, kDefaultNoteOffVelocity, channel, kMIDIOutputFilterNoMPE);
 	state = false;
 }
 
@@ -156,7 +156,10 @@ void MIDIDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
 	// Aftertouch only
 	if (expressionDimension == 2) {
 		int32_t value7 = newValue >> 24;
-		midiEngine.sendPolyphonicAftertouch(this, channel, value7, note, kMIDIOutputFilterNoMPE);
+		// Note: use the note code currently on post-arp, because this drum supports "Chord Simulator" and "Octaves" and
+		// the note code could be different
+		midiEngine.sendPolyphonicAftertouch(this, channel, value7, arpeggiator.arpNote.noteCodeOnPostArp[0],
+		                                    kMIDIOutputFilterNoMPE);
 	}
 }
 
