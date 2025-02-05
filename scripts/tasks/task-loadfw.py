@@ -161,7 +161,7 @@ def try_read_hex_key():
     try:
         with open(name, "r") as f:
             return f.read().strip()
-    except:
+    except FileNotFoundError:
         hex_key = input(
             "Enter hex key from COMMUNITY FEATURES > ALLOW INSECURE DEVELOP SYSEX MESSAGES: "
         )
