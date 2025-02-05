@@ -75,7 +75,7 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 		if (editingMIDICCForWhichModKnob < kNumPhysicalModKnobs) {
 			MIDIInstrument* instrument = (MIDIInstrument*)getCurrentOutput();
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    modelStack->addOtherTwoThingsButNoNoteRow(instrument, &getCurrentInstrumentClip()->paramManager);
+			    modelStack->addOtherTwoThingsButNoNoteRow(instrument, &getCurrentInstrumentClip()->paramManager);
 
 			int32_t newCC;
 
@@ -414,7 +414,8 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 				// Clear the Clip bevore starting
 				Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::ALLOWED);
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+				ModelStackWithTimelineCounter* modelStack = 
+				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 				getCurrentInstrumentClip()->clear(action, modelStack, true, true);
 				loadPatternUI.setupLoadPatternUI(true, true);
