@@ -16,8 +16,6 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           submodules: recursive
 
-      # Generate compilation database and make sure to have the source and all third party headers available
-
       # Checkout the review source for the python package
       - name: Checkout clang-tidy-review
         uses: actions/checkout@v4
@@ -42,7 +40,7 @@ jobs:
       - name: Generate compilation database
         run: |
           cd ${{ github.workspace }}
-          ./dbt || DELUGE_FW_ROOT=${{ github.workspace }} cmake . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          ./dbt configure
           sed -i 's/-mthumb-interwork//g' build/compile_commands.json
 
       - name: Run clang-tidy
