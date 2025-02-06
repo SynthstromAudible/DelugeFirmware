@@ -28,9 +28,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y llvm-19 clang-19 clang-tidy-19
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
-          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-19 100
       
       - uses: actions/setup-python@v5
         with:
@@ -42,17 +39,14 @@ jobs:
           cd ${{ github.workspace }}
           ./dbt configure
           sed -i 's/-mthumb-interwork//g' build/compile_commands.json
-
-      - name: Check clang-tidy version
-        run: clang-tidy --version
       
       - name : Install clang-tidy-review
         run: pip install ${{github.workspace}}/clang-tidy-review/post/clang_tidy_review
 
       - name: Run clang-tidy-review
-        run: review --token=${{ secrets.GITHUB_TOKEN }} --repo=${{ github.event.pull_request.head.repo.full_name }} --pr=${{ github.event.pull_request.number }} --clang_tidy_binary=clang-tidy --build_dir=${{ github.workspace }}/build --config_file=.clang-tidy --split_workflow=True
+        run: review --token=${{ secrets.GITHUB_TOKEN }} --repo=${{ github.event.pull_request.head.repo.full_name }} --pr=${{ github.event.pull_request.number }} --clang_tidy_binary=clang-tidy-19 --build_dir=${{ github.workspace }}/build --config_file=.clang-tidy --split_workflow=True
         env:
           USER: ${{ github.event.pull_request.user.login }}
 
       - name: Post review
-        run: post --token=${{ secrets.GITHUB_TOKEN }} --repo=${{ github.event.pull_request.head.repo.full_name }} --lgtm-comment-body="" --num-comments-as-exitcode clang-tidy-review-output.json
+        run: post --token=${{ secrets.GITHUB_TOKEN }} --repo=${{ github.event.pull_request.head.repo.full_name }} --lgtm-comment-body="" --num-comments-as-exitcode=True clang-tidy-review-output.json
