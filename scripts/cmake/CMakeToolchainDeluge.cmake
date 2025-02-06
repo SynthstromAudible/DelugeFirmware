@@ -72,5 +72,3 @@ add_compile_options(
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-
-include_directories(BEFORE ${ARM_TOOLCHAIN_ROOT}/arm-none-eabi/include/c++/14.2.1)

@@ -3,11 +3,11 @@ on:
   pull_request:
     branches:
       - "community"
-  pull_request_target:  # Required to post comments on PR from forks
+  pull_request_target: # Required to post comments on PR from forks
 jobs:
   clang-tidy-review:
     runs-on: ubuntu-latest
-    if: startsWith(github.event_name, 'pull_request')  # Posting a review only makes sense on PRs
+    if: startsWith(github.event_name, 'pull_request') # Posting a review only makes sense on PRs
     steps:
       # Repo config for pull_request_target
       - uses: actions/checkout@v4
@@ -22,12 +22,11 @@ jobs:
           sudo dpkg-reconfigure man-db        
           sudo apt-get update
           sudo apt-get install -y clang-19 clang-tidy-19
-      
+
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
-          cache: 'pip'
-
+          python-version: "3.13"
+          cache: "pip"
       - name: Generate compilation database
         run: |
           cd ${{ github.workspace }}
@@ -35,18 +34,18 @@ jobs:
           sed -i 's/-mthumb-interwork//g' build/compile_commands.json
           sed -i 's/-fdevirtualize-at-ltrans//g' build/compile_commands.json
           sed -i 's/-fuse-linker-plugin//g' build/compile_commands.json
-      
-      - name : Install clang-tidy-review
+
+      - name: Install clang-tidy-review
         run: pip install ${{github.workspace}}/contrib/clang_tidy_review
 
-      - name : Extract system includes from GCC
+      - name: Extract system includes from GCC
         run: |
           ${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++ -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -E -x c++ - -v < /dev/null 2>&1           \
             | sed -n '/^#include <...> search starts here:$/,/^End of search list.$/p' \
             | tail -n +2 \
             | head -n -1 \
             | sed 's/^\s*//g' \
-            | sed 's/^\(.*\)$/--extra-arg-before="-isystem\1"/g' > system_includes.txt
+            | sed 's/^\(.*\)$/--extra-arg-before=-isystem\1/g' > system_includes.txt
           echo "Extracted system includes:"
           cat system_includes.txt
 
@@ -62,7 +61,6 @@ jobs:
             --config_file=${{ github.workspace }}/.clang-tidy \
             $(cat system_includes.txt) \
             --extra-arg-before="--no-standard-includes"
-
         env:
           USER: ${{ github.event.pull_request.user.login }}
 
