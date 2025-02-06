@@ -1,0 +1,52 @@
+name: Clang Tidy
+on:
+  pull_request_target:  # Required to post comments on PR from forks
+jobs:
+  clang-tidy-review:
+    name: Clang Tidy Review
+    runs-on: ubuntu-latest
+    if: startsWith(github.event_name, 'pull_request')  # Posting a review only makes sense on PRs
+    steps:
+      # Repo config for pull_request_target
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          submodules: recursive
+
+      # Generate compilation database and make sure to have the source and all third party headers available
+
+      # Checkout the review source for the python package
+      - name: Checkout clang-tidy-review
+        uses: actions/checkout@v4
+        with:
+          repository: ZedThree/clang-tidy-review
+          ref: master
+          path: clang-tidy-review
+
+      - name: Install LLVM and Clang
+        uses: sagudev/install-llvm-action@ef79f0c3b7ad02359dd1f568311801ae84d8f1b5
+        with:
+          version: '19'
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Generate compilation database
+        run: |
+          cd ${{ github.workspace }}
+          ./dbt || DELUGE_FW_ROOT=${{ github.workspace }} cmake . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          sed -i 's/-mthumb-interwork//g' filename.txt
+
+      - name: Run clang-tidy
+        run: |
+          clang-tidy --version
+          pip install ${{github.workspace}}/clang-tidy-review/post/clang_tidy_review
+          review --token=${{ secrets.GITHUB_TOKEN }} --repo=${{ github.event.pull_request.head.repo.full_name }} --pr=${{ github.event.pull_request.number }} --clang_tidy_binary=clang-tidy --build_dir=${{ github.workspace }}/build --config_file=.clang-tidy --split_workflow=True
+        env:
+          USER: ${{ github.event.pull_request.user.login }}
+
+      - name: Post review
+        run: post --token=${{ secrets.GITHUB_TOKEN }} --repo=${{ github.event.pull_request.head.repo.full_name }} --lgtm-comment-body="" --num-comments-as-exitcode clang-tidy-review-output.json
