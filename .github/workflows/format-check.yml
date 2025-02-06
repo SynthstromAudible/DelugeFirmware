@@ -43,6 +43,7 @@ jobs:
         id: review
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          apt_packages: curl
           clang_tidy_version: 19
           config_file: .clang-tidy
           lgtm_comment_body: ""
