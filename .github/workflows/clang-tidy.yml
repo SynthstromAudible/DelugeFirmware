@@ -39,6 +39,7 @@ jobs:
           cd ${{ github.workspace }}
           ./dbt configure
           sed -i 's/-mthumb-interwork//g' build/compile_commands.json
+          sed -i 's/-fdevirtualize-at-ltrans//g' build/compile_commands.json
       
       - name : Install clang-tidy-review
         run: pip install ${{github.workspace}}/clang-tidy-review/post/clang_tidy_review
