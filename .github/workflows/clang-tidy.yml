@@ -24,7 +24,7 @@ jobs:
           ref: master
           path: clang-tidy-review
 
-      - name: Install LLVM and Clang
+      - name: Install clang-tidy
         run: |
           sudo apt-get update
           sudo apt-get install -y llvm-19 clang-19 clang-tidy-19
@@ -43,11 +43,14 @@ jobs:
           ./dbt configure
           sed -i 's/-mthumb-interwork//g' build/compile_commands.json
 
-      - name: Run clang-tidy
-        run: |
-          clang-tidy --version
-          pip install ${{github.workspace}}/clang-tidy-review/post/clang_tidy_review
-          review --token=${{ secrets.GITHUB_TOKEN }} --repo=${{ github.event.pull_request.head.repo.full_name }} --pr=${{ github.event.pull_request.number }} --clang_tidy_binary=clang-tidy --build_dir=${{ github.workspace }}/build --config_file=.clang-tidy --split_workflow=True
+      - name: Check clang-tidy version
+        run: clang-tidy --version
+      
+      - name : Install clang-tidy-review
+        run: pip install ${{github.workspace}}/clang-tidy-review/post/clang_tidy_review
+
+      - name: Run clang-tidy-review
+        run: review --token=${{ secrets.GITHUB_TOKEN }} --repo=${{ github.event.pull_request.head.repo.full_name }} --pr=${{ github.event.pull_request.number }} --clang_tidy_binary=clang-tidy --build_dir=${{ github.workspace }}/build --config_file=.clang-tidy --split_workflow=True
         env:
           USER: ${{ github.event.pull_request.user.login }}
 
