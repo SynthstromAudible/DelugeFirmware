@@ -43,12 +43,12 @@ jobs:
         id: review
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          apt_packages: curl, git
+          apt_packages: curl
           clang_tidy_version: 19
           config_file: .clang-tidy
           lgtm_comment_body: ""
           build_dir: build
-          cmake_command: ./dbt configure
+          cmake_command: ./dbt || cmake . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
         # If there are any comments, fail the check
       - if: steps.review.outputs.total_comments > 0
