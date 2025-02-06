@@ -49,12 +49,12 @@ jobs:
             --clang_tidy_binary=clang-tidy-19 \
             --build_dir=${{ github.workspace }}/build \
             --config_file=${{ github.workspace }}/.clang-tidy \
-            --extra-arg-before="-I${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include/c++/14.2.1" \
-            --extra-arg-before="-I${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include/c++/14.2.1/arm-none-eabi/thumb/v7-a+simd/hard" \
-            --extra-arg-before="-I${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include/c++/14.2.1/backward" \
-            --extra-arg-before="-I${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/lib/gcc/arm-none-eabi/14.2.1/include" \
-            --extra-arg-before="-I${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/lib/gcc/arm-none-eabi/14.2.1/include-fixed" \
-            --extra-arg-before="-I${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include" \
+            --extra-arg-before="-isystem${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include/c++/14.2.1" \
+            --extra-arg-before="-isystem${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include/c++/14.2.1/arm-none-eabi/thumb/v7-a+simd/hard" \
+            --extra-arg-before="-isystem${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include/c++/14.2.1/backward" \
+            --extra-arg-before="-isystem${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/lib/gcc/arm-none-eabi/14.2.1/include" \
+            --extra-arg-before="-isystem${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/lib/gcc/arm-none-eabi/14.2.1/include-fixed" \
+            --extra-arg-before="-isystem${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include" \
             --extra-arg-before="--no-standard-includes"
 
         env:
