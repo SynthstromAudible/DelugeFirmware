@@ -35,7 +35,7 @@ jobs:
         with:
           src: "./scripts/ ./contrib ./tests ./src"
 
-      - uses: ZedThree/clang-tidy-review@v0.14.0
+      - uses: ZedThree/clang-tidy-review@v0.20.1
         id: review
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
