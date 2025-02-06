@@ -1646,7 +1646,7 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThings(drum->toModControllable(), paramManagerForDrum);
 
-	drum->noteOn(modelStackWithThreeMainThings, velocity, this, mpeValues, fromMIDIChannel);
+	drum->noteOn(modelStackWithThreeMainThings, velocity, mpeValues, fromMIDIChannel);
 
 	if (!activeClip || ((InstrumentClip*)activeClip)->allowNoteTails(modelStack)) {
 		drum->auditioned = true;

@@ -107,7 +107,7 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int32_t 
 	instrumentClipView.drawDrumName(this, true);
 
 	if (wasOn) {
-		noteOn(modelStack, lastVelocity, nullptr, zeroMPEValues);
+		noteOn(modelStack, lastVelocity, zeroMPEValues);
 	}
 }
 

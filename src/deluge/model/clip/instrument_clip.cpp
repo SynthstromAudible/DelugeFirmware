@@ -919,7 +919,7 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThings(
 		    pendingNoteOn->noteRow->drum->toModControllable(), &pendingNoteOn->noteRow->paramManager);
 
-		pendingNoteOn->noteRow->drum->noteOn(modelStackWithThreeMainThings, pendingNoteOn->velocity, (Kit*)output,
+		pendingNoteOn->noteRow->drum->noteOn(modelStackWithThreeMainThings, pendingNoteOn->velocity,
 		                                     mpeValues, MIDI_CHANNEL_NONE, pendingNoteOn->sampleSyncLength,
 		                                     pendingNoteOn->ticksLate);
 	}

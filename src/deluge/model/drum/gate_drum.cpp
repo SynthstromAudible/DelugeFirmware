@@ -28,7 +28,7 @@ GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
 	arpSettings.numOctaves = 1;
 }
 
-void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
+void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
                       int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction instruction;

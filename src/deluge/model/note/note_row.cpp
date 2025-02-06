@@ -2618,7 +2618,7 @@ storePendingNoteOn:
 
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStack->addOtherTwoThings(drum->toModControllable(), &paramManager);
-					drum->noteOn(modelStackWithThreeMainThings, thisNote->velocity, (Kit*)output, mpeValues,
+					drum->noteOn(modelStackWithThreeMainThings, thisNote->velocity, mpeValues,
 					             MIDI_CHANNEL_NONE, thisNote->length, ticksLate, samplesLate);
 				}
 			}

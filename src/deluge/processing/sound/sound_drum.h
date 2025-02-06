@@ -36,7 +36,7 @@ public:
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) override;
 	bool anyNoteIsOn() override;
 	bool hasAnyVoices() override;
-	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
+	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
 	            int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	            uint32_t samplesLate = 0) override;
 	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) override;
