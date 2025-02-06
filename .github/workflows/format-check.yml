@@ -3,11 +3,11 @@ name: Format Check
 on:
   push:
     branches:
-      - 'community'
+      - "community"
   pull_request:
     branches:
-      - 'community'
-      - 'release/**'
+      - "community"
+      - "release/**"
   merge_group:
   workflow_dispatch:
 
@@ -17,31 +17,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Run clang-format style check for C/C++ code
         uses: d-griet/clang-format-lint-action@99a106be2f3f1a92d9783ea7c744fde62d8ce1fa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          source: './src'
-          extensions: 'c,cpp,h,hpp'
+          source: "./src"
+          extensions: "c,cpp,h,hpp"
           clangFormatVersion: 19
+      
       - name: Run Ruff format check for Python code
         uses: astral-sh/ruff-action@v3
         with:
           args: "format --check"
           src: "./scripts/ ./contrib ./tests ./src"
+  
       - name: Run Ruff lint check for Python code
         uses: astral-sh/ruff-action@v3
         with:
           src: "./scripts/ ./contrib ./tests ./src"
 
-      - uses: ZedThree/clang-tidy-review@v0.20.1
+      - name: Run clang-tidy check for C/C++ code
+        uses: ZedThree/clang-tidy-review@v0.20.1
         id: review
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           clang_tidy_version: 19
           config_file: .clang-tidy
+          lgtm_comment_body: ""
+          build_dir: build
+          cmake_command: "cmake -B build -S . -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
 
         # If there are any comments, fail the check
       - if: steps.review.outputs.total_comments > 0
-        run: exit 1      
+        run: exit 1
