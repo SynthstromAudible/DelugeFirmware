@@ -27,7 +27,7 @@ jobs:
       - name: Install clang-tidy
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm-19 clang-19 clang-tidy-19
+          sudo apt-get install -y clang-19 clang-tidy-19
       
       - uses: actions/setup-python@v5
         with:
@@ -40,12 +40,13 @@ jobs:
           ./dbt configure
           sed -i 's/-mthumb-interwork//g' build/compile_commands.json
           sed -i 's/-fdevirtualize-at-ltrans//g' build/compile_commands.json
+          sed -i 's/-fuse-linker-plugin//g' build/compile_commands.json
       
       - name : Install clang-tidy-review
         run: pip install ${{github.workspace}}/clang-tidy-review/post/clang_tidy_review
 
       - name: Run clang-tidy-review
-        run: review --token=${{ secrets.GITHUB_TOKEN }} --repo=${{ github.event.pull_request.head.repo.full_name }} --pr=${{ github.event.pull_request.number }} --clang_tidy_binary=clang-tidy-19 --build_dir=${{ github.workspace }}/build --config_file=.clang-tidy --split_workflow=True
+        run: review --token=${{ secrets.GITHUB_TOKEN }} --repo=${{ github.event.pull_request.head.repo.full_name }} --pr=${{ github.event.pull_request.number }} --clang_tidy_binary=clang-tidy-19 --build_dir=${{ github.workspace }}/build --config_file=${{ github.workspace }}/.clang-tidy --split_workflow=True
         env:
           USER: ${{ github.event.pull_request.user.login }}
 
