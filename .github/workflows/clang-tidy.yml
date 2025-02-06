@@ -6,7 +6,6 @@ on:
   pull_request_target:  # Required to post comments on PR from forks
 jobs:
   clang-tidy-review:
-    name: Clang Tidy Review
     runs-on: ubuntu-latest
     if: startsWith(github.event_name, 'pull_request')  # Posting a review only makes sense on PRs
     steps:
@@ -28,9 +27,12 @@ jobs:
           path: clang-tidy-review
 
       - name: Install LLVM and Clang
-        uses: sagudev/install-llvm-action@ef79f0c3b7ad02359dd1f568311801ae84d8f1b5
-        with:
-          version: '19'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-19 clang-19 clang-tidy-19
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
+          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-19 100
       
       - uses: actions/setup-python@v5
         with:
