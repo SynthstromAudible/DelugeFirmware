@@ -58,7 +58,6 @@ set(ARCH_FLAGS
   -mfpu=neon
   -mfloat-abi=hard
   -mthumb
-  -mthumb-interwork
   -mlittle-endian
 )
 add_compile_options(${ARCH_FLAGS})
