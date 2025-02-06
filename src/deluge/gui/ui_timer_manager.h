@@ -16,7 +16,6 @@
  */
 
 #pragma once
-
 #include "util/misc.h"
 #include <array>
 #include <cstdint>

@@ -24,17 +24,18 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "hid/display/oled.h"
+#include "io/debug/log.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
+#include "system/power_manager.h"
 #include "testing/hardware_testing.h"
 #include <map>
 #include <string>
-
-#include "io/debug/log.h"
 
 namespace Buttons {
 
@@ -143,6 +144,11 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 		if (on) {
 			// The next release has a chance of toggling cross screen mode
 			considerCrossScreenReleaseForCrossScreenMode = true;
+
+			// Show battery status when shift + cross-screen is pressed
+			if (isShiftButtonPressed() && display->haveOLED()) {
+				deluge::system::powerManager.displayPowerStatus();
+			}
 		}
 	}
 

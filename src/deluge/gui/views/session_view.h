@@ -150,10 +150,6 @@ public:
 	void displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM, bool clearArea);
 	float lastDisplayedTempo = 0;
 
-	// display battery status
-	void displayPotentialBatteryChange(uint16_t newBatteryMV);
-	uint16_t lastDisplayedBatteryMV = 0;
-
 	// display root note and scale name
 	void displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
 	                                        StringBuf& rootNoteAndScaleName, bool clearArea);

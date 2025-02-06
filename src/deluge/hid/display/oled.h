@@ -83,6 +83,7 @@ public:
 
 	static void renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display);
 
+	// Static canvas instances
 	static oled_canvas::Canvas main;
 	static oled_canvas::Canvas popup;
 	static oled_canvas::Canvas console;
@@ -136,8 +137,6 @@ public:
 
 	bool hasPopup() override { return isPopupPresent(); }
 	bool hasPopupOfType(PopupType type) override { return isPopupPresentOfType(type); }
-
-	void drawPowerStatus(int x, int y);
 
 private:
 	static bool needsSending;

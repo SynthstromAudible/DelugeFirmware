@@ -112,26 +112,8 @@ extern "C" void midiAndGateTimerGoneOff(void) {
 
 uint32_t timeNextGraphicsTick = 0;
 
-int32_t voltageReadingLastTime = 65535 * 3300;
-uint8_t batteryCurrentRegion = 2;
-uint16_t batteryMV;
-bool batteryLEDState = false;
-
-void batteryLEDBlink() {
-	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, batteryLEDState);
-	int32_t blinkPeriod = ((int32_t)batteryMV - 2630) * 3;
-	blinkPeriod = std::min(blinkPeriod, 500_i32);
-	blinkPeriod = std::max(blinkPeriod, 60_i32);
-	uiTimerManager.setTimer(TimerName::BATT_LED_BLINK, blinkPeriod);
-	batteryLEDState = !batteryLEDState;
-}
-
 void inputRoutine() {
 	disk_timerproc(UI_MS_PER_REFRESH);
-
-	if (display->haveOLED() && getCurrentUI() == &sessionView) {
-		sessionView.displayBatteryStatus(deluge::hid::display::OLED::main);
-	}
 
 	// Check if mono output cable plugged in
 	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin) != 0u;
@@ -166,36 +148,6 @@ void inputRoutine() {
 	// Update power management
 	auto& powerManager = deluge::system::powerManager;
 	powerManager.update();
-
-	// Update battery LED based on power status
-	if (powerManager.isExternalPowerConnected()) {
-		// When on external power, LED is solid
-		setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
-		uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
-	}
-	else {
-		// On battery, LED behavior depends on battery level
-		int32_t batteryPercent = powerManager.getBatteryPercentage();
-		if (batteryPercent > 80) {
-			// High battery - solid LED
-			setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
-			uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
-		}
-		else if (batteryPercent > 20) {
-			// Medium battery - LED off
-			setOutputState(BATTERY_LED.port, BATTERY_LED.pin, false);
-			uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
-		}
-		else {
-			// Low battery - blinking LED
-			if (!uiTimerManager.isTimerSet(TimerName::BATT_LED_BLINK)) {
-				batteryLEDBlink();
-			}
-		}
-	}
-
-	// Set up for next analog read
-	ADC.ADCSR = (1 << 13) | (0b011 << 6) | SYS_VOLT_SENSE_PIN;
 
 	MIDIDeviceManager::slowRoutine();
 
