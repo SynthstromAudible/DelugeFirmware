@@ -47,8 +47,8 @@ jobs:
           clang_tidy_version: 19
           config_file: .clang-tidy
           lgtm_comment_body: ""
-          build_dir: build
-          cmake_command: ./dbt || DBT_TOOLCHAIN_ROOT=/github/workspace/toolchain/current/ DELUGE_FW_ROOT=/github/workspace/ cmake . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          build_dir: /github/workspace/build/
+          cmake_command: ./dbt || DELUGE_FW_ROOT=/github/workspace/ cmake . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
         # If there are any comments, fail the check
       - if: steps.review.outputs.total_comments > 0
