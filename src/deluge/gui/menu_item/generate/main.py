@@ -1,9 +1,7 @@
-from dmui.dsl import *
 from dmui.visitor import CppEmitter, DocEmitter
 import dmenus
 import argparse
 import json
-import sys
 
 top_level_menus = (
     [

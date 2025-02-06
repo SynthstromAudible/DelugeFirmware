@@ -239,9 +239,13 @@ For users of the Electra One, you will find a MIDI Follow template in the Electr
 
 <img width="536" alt="Screenshot 2024-03-28 at 7 35 59 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/039e52fb-a1f0-4bb0-8590-a025d734d40e">
 
+## Appendix E - Melbourne Instruments Roto-Control Templates for Deluge MIDI Follow Mode
+
+For users of Melbourne Instruments' Roto-Control, you will find MIDI Follow templates in this folder: [MIDI Follow Mode Roto-Control Templates]
+
+
 [MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
 [MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/touch_osc
 [MIDI Follow Mode Electra One Preset]:
 https://app.electra.one/preset/vZ6WBYb4xDpMGcpChejY
-
-
+[MIDI Follow Mode Roto-Control Templates]: ../../contrib/midi_follow/roto_control/

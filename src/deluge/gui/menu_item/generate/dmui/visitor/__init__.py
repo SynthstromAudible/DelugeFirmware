@@ -1,4 +1,4 @@
-from .cpp_emitter import CppEmitter
-from .doc_emitter import DocEmitter
+from .cpp_emitter import CppEmitter as CppEmitter
+from .doc_emitter import DocEmitter as DocEmitter
 
-from .visitor import Visitor
+from .visitor import Visitor as Visitor

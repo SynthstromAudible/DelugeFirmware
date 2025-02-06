@@ -21,6 +21,7 @@
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip_instance_vector.h"
 #include "model/output.h"
+#include "storage/flash_storage.h"
 
 class StereoSample;
 class ModControllable;
@@ -43,14 +44,14 @@ class ModelStackWithThreeMainThings;
 
 class Instrument : public Output {
 public:
-	Instrument(OutputType newType);
+	Instrument(OutputType newType) : Output(newType) {}
 	// This needs to be initialized / defaulted to "SYNTHS" or "KITS" (for those Instrument types). The constructor does
 	// not do this, partly because I don't want it doing memory allocation, and also because in many cases, the function
 	// creating the object hard-sets this anyway.
 	String dirPath;
 
-	bool editedByUser;
-	bool existsOnCard;
+	bool editedByUser = false;
+	bool existsOnCard = false;
 	bool shouldHibernate{true};
 	bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
 	                   char const* otherPath) override {
@@ -86,7 +87,7 @@ public:
 
 	virtual bool isAnyAuditioningHappening() = 0;
 
-	uint8_t defaultVelocity;
+	uint8_t defaultVelocity = FlashStorage::defaultVelocity;
 	LearnedMIDI midiInput;
 
 protected:
