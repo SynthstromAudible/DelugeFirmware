@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Run clang-format style check for C/C++ code
         uses: d-griet/clang-format-lint-action@99a106be2f3f1a92d9783ea7c744fde62d8ce1fa
         env:
@@ -26,13 +26,13 @@ jobs:
           source: "./src"
           extensions: "c,cpp,h,hpp"
           clangFormatVersion: 19
-      
+
       - name: Run Ruff format check for Python code
         uses: astral-sh/ruff-action@v3
         with:
           args: "format --check"
           src: "./scripts/ ./contrib ./tests ./src"
-  
+
       - name: Run Ruff lint check for Python code
         uses: astral-sh/ruff-action@v3
         with:
@@ -44,7 +44,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           apt_packages: curl
-          clang_tidy_version: 19
+          clang_tidy_version: 18 # switch to 19 when available
           config_file: .clang-tidy
           lgtm_comment_body: ""
           build_dir: /github/workspace/build/
