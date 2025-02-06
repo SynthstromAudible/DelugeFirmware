@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "definitions_cxx.hpp"
 #include "gui/ui_timer_manager.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
@@ -33,8 +33,8 @@
 #include "io/midi/midi_follow.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "util/functions.h"
 #include "system/power_manager.h"
+#include "util/functions.h"
 
 #include <algorithm>
 
