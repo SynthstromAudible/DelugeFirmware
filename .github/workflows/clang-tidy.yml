@@ -1,5 +1,8 @@
 name: Clang Tidy
 on:
+  pull_request:
+    branches:
+      - "community"
   pull_request_target:  # Required to post comments on PR from forks
 jobs:
   clang-tidy-review:
