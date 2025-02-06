@@ -345,8 +345,10 @@ dbtenv_check_current_symlink()
             ln -s "$TOOLCHAIN_ARCH_DIR" "${DBT_TOOLCHAIN_PATH}/toolchain/current"
         fi
     else
-        echo "Updating current toolchain link"
-        ln -s "$TOOLCHAIN_ARCH_DIR" "${DBT_TOOLCHAIN_PATH}/toolchain/current"
+        if [ -w "${DBT_TOOLCHAIN_PATH}/toolchain" ]; then
+            echo "Adding current toolchain link"
+            ln -s "$TOOLCHAIN_ARCH_DIR" "${DBT_TOOLCHAIN_PATH}/toolchain/current"
+        fi
     fi
 }
 
