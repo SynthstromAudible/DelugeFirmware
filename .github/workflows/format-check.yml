@@ -25,8 +25,23 @@ jobs:
           source: './src'
           extensions: 'c,cpp,h,hpp'
           clangFormatVersion: 19
-      - name: Run Ruff style check for Python code
+      - name: Run Ruff format check for Python code
         uses: astral-sh/ruff-action@v3
         with:
           args: "format --check"
           src: "./scripts/ ./contrib ./tests ./src"
+      - name: Run Ruff lint check for Python code
+        uses: astral-sh/ruff-action@v3
+        with:
+          src: "./scripts/ ./contrib ./tests ./src"
+
+      - uses: ZedThree/clang-tidy-review@v0.14.0
+        id: review
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          clang_tidy_version: 19
+          config_file: .clang-tidy
+
+        # If there are any comments, fail the check
+      - if: steps.review.outputs.total_comments > 0
+        run: exit 1      

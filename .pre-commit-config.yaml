@@ -8,14 +8,18 @@ repos:
         args: [--fix]
       # Run the formatter.
       - id: ruff-format
-  # - repo: local
-  #   hooks:
-  #     - id: dbt-format
-  #       name: dbt-format
-  #       entry: ./dbt format -g
-  #       language: script
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v19.1.7
     hooks:
     - id: clang-format
       types_or: [c, c++]
+  # - repo: local
+  #   hooks:
+  #   - id: clang-tidy
+  #     name: clang-tidy
+  #     language: docker_image
+  #     entry: https://github.com/cpp-linter/clang-tools-docker:latest
+  #   - id: dbt-format
+  #     name: dbt-format
+  #     entry: ./dbt.py format -g
+  #     language: script
