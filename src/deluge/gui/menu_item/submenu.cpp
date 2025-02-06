@@ -22,7 +22,7 @@ bool Submenu::focusChild(const MenuItem* child) {
 	}
 	// If the item wasn't found or isn't relevant, set to first relevant one instead.
 	if (current_item_ == items.end() || !isItemRelevant(*current_item_)) {
-		current_item_ = std::find_if(items.begin(), items.end(), isItemRelevant);
+		current_item_ = std::find_if(items.begin(), items.end(), isItemRelevant); // Find first relevant item.
 	}
 	// Log it.
 	if (current_item_ != items.end()) {
