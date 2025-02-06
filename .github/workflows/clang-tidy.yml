@@ -39,6 +39,17 @@ jobs:
       - name : Install clang-tidy-review
         run: pip install ${{github.workspace}}/contrib/clang_tidy_review
 
+      - name : Extract system includes from GCC
+        run: |
+          ${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++ -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -E -x c++ - -v < /dev/null 2>&1           \
+            | sed -n '/^#include <...> search starts here:$/,/^End of search list.$/p' \
+            | tail -n +2 \
+            | head -n -1 \
+            | sed 's/^\s*//g' \
+            | sed 's/^\(.*\)$/--extra-arg-before="-isystem\1"/g' > system_includes.txt
+          echo "Extracted system includes:"
+          cat system_includes.txt
+
       - name: Run clang-tidy-review
         run: |
           review \
@@ -49,12 +60,7 @@ jobs:
             --clang_tidy_binary=clang-tidy-19 \
             --build_dir=${{ github.workspace }}/build \
             --config_file=${{ github.workspace }}/.clang-tidy \
-            --extra-arg-before="-isystem${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include/c++/14.2.1" \
-            --extra-arg-before="-isystem${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include/c++/14.2.1/arm-none-eabi/thumb/v7-a+simd/hard" \
-            --extra-arg-before="-isystem${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include/c++/14.2.1/backward" \
-            --extra-arg-before="-isystem${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/lib/gcc/arm-none-eabi/14.2.1/include" \
-            --extra-arg-before="-isystem${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/lib/gcc/arm-none-eabi/14.2.1/include-fixed" \
-            --extra-arg-before="-isystem${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include" \
+            $(cat system_includes.txt) \
             --extra-arg-before="--no-standard-includes"
 
         env:

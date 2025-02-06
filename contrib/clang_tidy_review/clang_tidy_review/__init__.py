@@ -827,7 +827,7 @@ def create_review_file(
             )
 
     review: PRReview = {
-        "body": "clang-tidy made some suggestions",
+        "body": "clang-tidy has made some suggestions. Please note that they are machine-generated, and you should review them carefully before applying to avoid introducing bugs.",
         "event": "COMMENT",
         "comments": comments,
     }
