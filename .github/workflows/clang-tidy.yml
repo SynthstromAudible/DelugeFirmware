@@ -16,16 +16,10 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           submodules: recursive
 
-      # Checkout the review source for the python package
-      - name: Checkout clang-tidy-review
-        uses: actions/checkout@v4
-        with:
-          repository: ZedThree/clang-tidy-review
-          ref: master
-          path: clang-tidy-review
-
       - name: Install clang-tidy
         run: |
+          sudo debconf-communicate <<< "set man-db/auto-update false"
+          sudo dpkg-reconfigure man-db        
           sudo apt-get update
           sudo apt-get install -y clang-19 clang-tidy-19
       
@@ -43,10 +37,26 @@ jobs:
           sed -i 's/-fuse-linker-plugin//g' build/compile_commands.json
       
       - name : Install clang-tidy-review
-        run: pip install ${{github.workspace}}/clang-tidy-review/post/clang_tidy_review
+        run: pip install ${{github.workspace}}/contrib/clang_tidy_review
 
       - name: Run clang-tidy-review
-        run: review --token=${{ secrets.GITHUB_TOKEN }} --repo=${{ github.event.pull_request.head.repo.full_name }} --pr=${{ github.event.pull_request.number }} --clang_tidy_binary=clang-tidy-19 --build_dir=${{ github.workspace }}/build --config_file=${{ github.workspace }}/.clang-tidy --split_workflow=True
+        run: |
+          review \
+            --token=${{ secrets.GITHUB_TOKEN }} \
+            --repo=${{ github.event.pull_request.head.repo.full_name }} \
+            --pr=${{ github.event.pull_request.number }} \
+            --split_workflow=True \
+            --clang_tidy_binary=clang-tidy-19 \
+            --build_dir=${{ github.workspace }}/build \
+            --config_file=${{ github.workspace }}/.clang-tidy \
+            --extra-arg-before="-I${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include/c++/14.2.1" \
+            --extra-arg-before="-I${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include/c++/14.2.1/arm-none-eabi/thumb/v7-a+simd/hard" \
+            --extra-arg-before="-I${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include/c++/14.2.1/backward" \
+            --extra-arg-before="-I${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/lib/gcc/arm-none-eabi/14.2.1/include" \
+            --extra-arg-before="-I${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/lib/gcc/arm-none-eabi/14.2.1/include-fixed" \
+            --extra-arg-before="-I${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/arm-none-eabi/include" \
+            --extra-arg-before="--no-standard-includes"
+
         env:
           USER: ${{ github.event.pull_request.user.login }}
 
