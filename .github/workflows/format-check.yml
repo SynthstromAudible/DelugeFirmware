@@ -47,7 +47,7 @@ jobs:
           config_file: .clang-tidy
           lgtm_comment_body: ""
           build_dir: build
-          cmake_command: "cmake -B build -S . -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+          cmake_command: "cmake -B build -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
 
         # If there are any comments, fail the check
       - if: steps.review.outputs.total_comments > 0
