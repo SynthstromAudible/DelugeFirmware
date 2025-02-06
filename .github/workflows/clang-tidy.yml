@@ -38,7 +38,7 @@ jobs:
         run: |
           cd ${{ github.workspace }}
           ./dbt || DELUGE_FW_ROOT=${{ github.workspace }} cmake . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-          sed -i 's/-mthumb-interwork//g' filename.txt
+          sed -i 's/-mthumb-interwork//g' build/compile_commands.json
 
       - name: Run clang-tidy
         run: |
