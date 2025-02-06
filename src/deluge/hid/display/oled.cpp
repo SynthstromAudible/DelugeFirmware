@@ -21,7 +21,6 @@
 #include "drivers/dmac/dmac.h"
 #include "drivers/pic/pic.h"
 #include "gui/ui_timer_manager.h"
-#include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/display/oled_canvas/canvas.h"
