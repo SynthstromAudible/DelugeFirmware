@@ -38,19 +38,6 @@ jobs:
         with:
           src: "./scripts/ ./contrib ./tests ./src"
 
-      - name: Fetch DBT container image
-        run: |
-          docker pull ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)
-      
-      - name: Generate compile_commands.json
-        run: |
-          docker run --rm \
-            --user=$(id --user):$(id --group) \
-            -e DBT_NO_PYTHON_UPGRADE=1 \
-            -v $(pwd):/src \
-            ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION) \
-            configure
-          
       - name: Run clang-tidy check for C/C++ code
         uses: ZedThree/clang-tidy-review@v0.20.1
         id: review
@@ -60,6 +47,7 @@ jobs:
           config_file: .clang-tidy
           lgtm_comment_body: ""
           build_dir: build
+          cmake_command: ./dbt configure
 
         # If there are any comments, fail the check
       - if: steps.review.outputs.total_comments > 0
