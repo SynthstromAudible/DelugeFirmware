@@ -16,7 +16,6 @@
  */
 
 #include "deluge.h"
-#include "drivers/uart/uart.h"
 #include "fatfs/fatfs.hpp"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
@@ -1343,6 +1342,3 @@ void spamMode() {
 }
 
 #endif
-
-class View; // Forward declaration
-extern View view;

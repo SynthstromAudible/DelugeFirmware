@@ -43,10 +43,6 @@ struct UartItem { // Exactly 8 bytes, so can align nicely to cache line
 	uint8_t shouldDoConsecutiveTransferAfter; // Applies to MIDI only - for PIC, always tries to do this
 };
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern struct UartItem uartItems[];
 
 extern void initUartDMA();
@@ -67,7 +63,3 @@ int32_t uartGetTxBufferSpace(int32_t item);
 void uartDrain(uint32_t item);
 
 extern void tx_interrupt(int32_t item);
-
-#ifdef __cplusplus
-}
-#endif

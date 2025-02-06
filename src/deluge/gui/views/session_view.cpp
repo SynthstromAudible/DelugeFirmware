@@ -17,8 +17,6 @@
 
 #include "gui/views/session_view.h"
 #include "definitions_cxx.hpp"
-#include "deluge/hid/usb_check.h"
-#include "deluge/system/power_manager.h" // Move this up before other includes
 #include "dsp/compressor/rms_feedback.h"
 #include "extern.h"
 #include "gui/colour/colour.h"
