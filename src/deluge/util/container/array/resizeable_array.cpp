@@ -23,8 +23,6 @@
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
-
-#include <ranges>
 #include <string.h>
 
 #if RESIZEABLE_ARRAY_DO_LOCKS
@@ -209,7 +207,7 @@ void ResizeableArray::swapStateWith(ResizeableArray* other) {
 }
 
 void ResizeableArray::attemptMemoryShorten() {
-	if (staticMemoryAllocationSize || !emptyingShouldFreeMemory) {
+	if (staticMemoryAllocationSize) {
 		return;
 	}
 	if ((uint32_t)memoryAllocationStart >= (uint32_t)INTERNAL_MEMORY_BEGIN) {
@@ -218,7 +216,7 @@ void ResizeableArray::attemptMemoryShorten() {
 
 	uint32_t allocatedSize = GeneralMemoryAllocator::get().getAllocatedSize(memoryAllocationStart);
 
-	if (allocatedSize > (std::max(memorySize + maxNumEmptySpacesToKeep, memorySize * 2)) * elementSize) {
+	if (allocatedSize > (memorySize + maxNumEmptySpacesToKeep) * elementSize) {
 		int32_t extraSpaceLeft = (uint32_t)memory - (uint32_t)memoryAllocationStart;
 
 		int32_t extraSpaceRight = allocatedSize - extraSpaceLeft - memorySize * elementSize;
@@ -324,7 +322,7 @@ mostBasicDelete:
 
 				// If we're not going to end up with more free memory than we're allowed, then the best option is to do
 				// the most basic delete
-				if (freeMemory < memorySize / 2) {
+				if (freeMemory < maxNumEmptySpacesToKeep) {
 					goto mostBasicDelete;
 				}
 
@@ -528,9 +526,8 @@ tryAgain:
 		if (getRandom255() < 10)
 			goto getBrandNewMemory;
 #endif
-		auto ideal =
-		    std::max<int32_t>(((newNum + numExtraSpacesToAllocate) * elementSize) - allocatedSize, allocatedSize);
-		GeneralMemoryAllocator::get().extend(memoryAllocationStart, ((newNum)*elementSize) - allocatedSize, ideal,
+		GeneralMemoryAllocator::get().extend(memoryAllocationStart, (newNum)*elementSize - allocatedSize,
+		                                     (newNum + numExtraSpacesToAllocate) * elementSize - allocatedSize,
 		                                     &amountExtendedLeft, &amountExtendedRight);
 
 		// If successfully extended...
@@ -943,10 +940,8 @@ Error ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thing
 
 			// If not enough memory...
 			if (newNum > memorySize) {
-				auto ideal = std::max<int32_t>((numToInsert + numExtraSpacesToAllocate) - memorySize, memorySize);
-
-				bool success =
-				    attemptMemoryExpansion(numToInsert, ideal, !staticMemoryAllocationSize, thingNotToStealFrom);
+				bool success = attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate,
+				                                      !staticMemoryAllocationSize, thingNotToStealFrom);
 				if (!success) {
 					goto getBrandNewMemory;
 				}
@@ -994,8 +989,7 @@ workNormally:
 				else {
 
 					// ... and we can't extend memory...
-					if (!attemptMemoryExpansion(numToInsert,
-					                            std::max(memorySize, numToInsert + numExtraSpacesToAllocate),
+					if (!attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate,
 					                            !staticMemoryAllocationSize, thingNotToStealFrom)) {
 
 						// Only choice is to get brand new memory
@@ -1008,8 +1002,9 @@ workNormally:
 			else {
 
 				// If can't or won't grab some extra memory at the wrap-point...
-				if (!attemptMemoryExpansion(numToInsert, std::max(memorySize, numToInsert + numExtraSpacesToAllocate),
+				if (!attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate,
 				                            !staticMemoryAllocationSize, thingNotToStealFrom)) {
+
 					// If we do actually have enough memory, working "normally" is still an option, and it's now the
 					// best option
 					if (newNum <= memorySize) {
@@ -1094,8 +1089,7 @@ getBrandNewMemory:
 			// D_PRINTLN("getting new memory");
 
 			// Otherwise, manually get some brand new memory and do a more complex copying process
-
-			uint32_t desiredSize = (std::max(2 * memorySize, newNum + numExtraSpacesToAllocate)) * elementSize;
+			uint32_t desiredSize = (newNum + numExtraSpacesToAllocate) * elementSize;
 
 getBrandNewMemoryAgain:
 			uint32_t allocatedSize = desiredSize;
