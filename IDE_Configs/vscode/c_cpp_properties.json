@@ -9,7 +9,7 @@
       "macFrameworkPath": [
         "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
       ],
-      "compilerPath": "${workspaceFolder}/toolchain/v22/darwin-arm64/arm-none-eabi-gcc/bin/arm-none-eabi-gcc",
+      "compilerPath": "${workspaceFolder}/toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-gcc",
       "compilerArgs": [
         "-mcpu=cortex-a9",
         "-marm",
@@ -19,8 +19,8 @@
         "-mfpu=neon",
         "-DHAVE_OLED=1"
       ],
-      "cStandard": "gnu17",
-      "cppStandard": "gnu++20",
+      "cStandard": "gnu23",
+      "cppStandard": "gnu++23",
       "intelliSenseMode": "gcc-arm",
       "defines": [
         "HAVE_OLED=1",
@@ -34,7 +34,7 @@
         "src/**",
         "${default}"
       ],
-      "compilerPath": "${workspaceFolder}/toolchain/v22/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gcc",
+      "compilerPath": "${workspaceFolder}/toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-gcc",
       "compilerArgs": [
         "-mcpu=cortex-a9",
         "-marm",
@@ -44,8 +44,8 @@
         "-mfpu=neon",
         "-DHAVE_OLED=1"
       ],
-      "cStandard": "gnu17",
-      "cppStandard": "gnu++20",
+      "cStandard": "gnu23",
+      "cppStandard": "gnu++23",
       "intelliSenseMode": "gcc-arm",
       "defines": [
         "HAVE_OLED=1",
@@ -59,7 +59,7 @@
           "src/**",
           "${default}"
         ],
-        "compilerPath": "${workspaceFolder}/toolchain/v22/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gcc",
+        "compilerPath": "${workspaceFolder}/toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-gcc",
         "compilerArgs": [
           "-mcpu=cortex-a9",
           "-marm",
@@ -69,8 +69,8 @@
           "-mfpu=neon",
           "-DHAVE_OLED=1"
         ],
-        "cStandard": "gnu17",
-        "cppStandard": "gnu++20",
+        "cStandard": "gnu23",
+        "cppStandard": "gnu++23",
         "intelliSenseMode": "gcc-arm",
         "defines": [
           "HAVE_OLED=1",
