@@ -284,6 +284,12 @@ char const* sourceToString(PatchSource source) {
 	case PatchSource::ENVELOPE_1:
 		return "envelope2";
 
+	case PatchSource::ENVELOPE_2:
+		return "envelope3";
+
+	case PatchSource::ENVELOPE_3:
+		return "envelope4";
+
 	case PatchSource::VELOCITY:
 		return "velocity";
 
