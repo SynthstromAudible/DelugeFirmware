@@ -845,8 +845,6 @@
         "STRING_FOR_RANGE_INSERTED": "Range inserted",
         "STRING_FOR_INSERT": "INSERT",
 
-        "STRING_FOR_SVF_BAND": "SVF Bandpass",
-        "STRING_FOR_SVF_NOTCH": "SVF Notch",
         "STRING_FOR_LOOP_TOO_SHORT": "Loop too short",
         "STRING_FOR_LOOP_HALVED": "Loop halved",
         "STRING_FOR_LOOP_TOO_LONG": "Loop too long",

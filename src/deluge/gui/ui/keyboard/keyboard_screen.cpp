@@ -328,11 +328,10 @@ void KeyboardScreen::updateActiveNotes() {
 			// in MelodicInstrument and Kit
 			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) { // It definitely will be auditioning if we're here
 				ModelStackWithNoteRow* modelStackWithNoteRow = modelStackWithTimelineCounter->addNoteRow(0, NULL);
-				((MelodicInstrument*)activeInstrument)
-				    ->earlyNotes.emplace(newNote,
-				                         MelodicInstrument::EarlyNoteInfo{
-				                             static_cast<uint8_t>(currentNotesState.notes[idx].velocity),
-				                             getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRow)});
+				static_cast<MelodicInstrument*>(activeInstrument)->earlyNotes[newNote] = {
+				    .velocity = static_cast<uint8_t>(currentNotesState.notes[idx].velocity),
+				    .still_active = getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRow),
+				};
 			}
 
 			else {

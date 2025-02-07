@@ -1,8 +1,7 @@
 import rtmidi
-import usb
 
 import time
-from rtmidi.midiconstants import *
+from rtmidi.midiconstants import NOTE_ON, NOTE_OFF
 
 # helper functions to send some midi via command line
 
@@ -37,7 +36,7 @@ def receive_note(port):
         try:
             timer = time.time()
             while True:
-                msg = in_port.get_message()
+                msg = midiin.get_message()
 
                 if msg:
                     message, deltatime = msg
