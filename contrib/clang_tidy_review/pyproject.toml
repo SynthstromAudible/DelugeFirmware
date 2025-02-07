@@ -1,0 +1,66 @@
+[build-system]
+requires = [
+    "setuptools >= 75",
+    "setuptools_scm[toml] >= 8",
+    "wheel >= 0.29.0",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clang-tidy-review"
+description = "Run clang-tidy as a GitHub action and automatically post warnings as comments"
+readme = "README.md"
+authors = [{name = "Peter Hill", email = "peter.hill@york.ac.uk"}]
+license = {text = "MIT"}
+dependencies = [
+    "PyGithub ~= 2.1",
+    "unidiff ~= 0.6.0",
+    "pyyaml ~= 6.0.1",
+    "urllib3 ~= 2.2.1",
+]
+keywords = ["C++", "static-analysis"]
+dynamic = ["version"]
+
+[project.urls]
+source = "https://github.com/ZedThree/clang-tidy-review"
+tracker = "https://github.com/ZedThree/clang-tidy-review/issues"
+
+[project.scripts]
+review = "clang_tidy_review.review:main"
+post = "clang_tidy_review.post:main"
+
+[project.optional-dependencies]
+tests = [
+    "pytest >= 8.3.0",
+]
+lint = [
+  "black",
+  "ruff",
+]
+
+[tool.setuptools]
+packages = ["clang_tidy_review"]
+
+[tool.setuptools_scm]
+root = "../.."
+fallback_version = "0.0.0-dev"
+
+[tool.black]
+extend_exclude = "_version.py"
+
+[tool.ruff.lint]
+extend-select = [
+  "B",           # flake8-bugbear
+  "I",           # isort
+  "C4",          # flake8-comprehensions
+  "ICN",         # flake8-import-conventions
+  "PT",          # flake8-pytest-style
+  "PTH",         # flake8-use-pathlib
+  "RET",         # flake8-return
+  "RUF",         # Ruff-specific
+  "SIM",         # flake8-simplify
+  "UP",          # pyupgrade
+  "YTT",         # flake8-2020
+  "EXE",         # flake8-executable
+  "FURB",        # refurb
+]
