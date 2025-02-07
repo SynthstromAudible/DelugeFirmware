@@ -20,7 +20,7 @@ def deluge_midi_if(deluge_dev_cfg):
 
 
 def test_deluge_dev_exists(deluge_dev):
-    assert deluge_dev != None
+    assert deluge_dev is not None
 
 
 def test_deluge_usb_device(deluge_dev):
