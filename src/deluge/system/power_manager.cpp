@@ -191,15 +191,15 @@ void PowerManager::displayPowerStatus() {
 	// Format the battery status text
 	char text[32];
 	if (powerManager.isExternalPowerConnected()) {
-		strcpy(text, "USB Power ");
+		strcpy(text, "USB (");
 		intToString(powerManager.getStableVoltage(), text + strlen(text));
-		strcat(text, "mV");
+		strcat(text, "mV)");
 	}
 	else {
-		intToString(powerManager.getStableVoltage(), text);
-		strcat(text, "mV Battery ");
-		intToString(powerManager.getBatteryChargePercentage(), text + strlen(text));
-		strcat(text, "%");
+		intToString(powerManager.getBatteryChargePercentage(), text);
+		strcat(text, "% (");
+		intToString(powerManager.getStableVoltage(), text + strlen(text));
+		strcat(text, "mV)");
 	}
 
 	display->displayPopup(text);
