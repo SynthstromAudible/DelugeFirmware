@@ -43,7 +43,8 @@ bool LoadPatternUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 }
 
 bool LoadPatternUI::opened() {
-
+	// Start Pattern Paste Action
+	actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	overwriteExisting = true;
 	if (!getRootUI()->toClipMinder() || (getCurrentOutputType() == OutputType::AUDIO)) {
 		return false;
@@ -93,19 +94,30 @@ void LoadPatternUI::setupLoadPatternUI(bool overwriteExistingState, bool noScali
 	noScaling = noScalingState;
 	previewOnly = true;
 	if (!overwriteExisting) {
-		display->displayPopup("gently Paste");
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PATTERN_NOOVERWRITE));
 	}
 	if (noScaling) {
-		display->displayPopup("no Scaling");
+		instrumentClipView.patternClear();
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PATTERN_NOSCALING));
 	}
 	performLoad();
 }
 
+void LoadPatternUI::selectEncoderAction(int8_t offset) {
+	if (noScaling) {
+		instrumentClipView.patternClear();
+	}
+	LoadUI::selectEncoderAction(offset);
+}
+
 void LoadPatternUI::currentFileChanged(int32_t movementDirection) {
-	// Only needed if Pattern Size can different from current Window to show Scaling
-	if (!noScaling) {
-		previewOnly = true;
-		performLoad();
+	if (!overwriteExisting && actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
+		actionLogger.revert(BEFORE);
+		// Create a new Action where the Events can be added
+		actionLogger.getNewAction(ActionType::PATTERN_PASTE,ActionAddition::ALLOWED);
+	}
+	if (noScaling) {
+		instrumentClipView.patternClear();
 	}
 }
 
@@ -191,25 +203,27 @@ ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 		if (!currentFileItem->isFolder) {
 			if (on) {
 				previewOnly = true;
-				// as we did overwrite Notes by last preview, revert to orig before previewing next
-				actionLogger.revert(BEFORE);
+
 				performLoad();
 				// rerenndering Keyboard
 				renderingNeededRegardlessOfUI();
-				display->displayPopup("Preview...");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PATTERN_PREVIEW));
 			}
 		}
 		instrumentClipView.patternPreview();
 		// rerenndering Keyboard
-		renderingNeededRegardlessOfUI();
+
 		return ActionResult::DEALT_WITH;
 	}
 	else {
 		if (on && b == BACK) {
 			// don't allow navigation backwards if we're in the default folder
 			if (!strcmp(currentDir.get(), defaultDir.c_str())) {
-				// as we did overwrite Notes by previewing, revert to orig before closing
-				actionLogger.revert(BEFORE);
+				// Undo all Changes made during Pattern Preview
+				if (actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE ) {
+					actionLogger.closeAction(ActionType::PATTERN_PASTE);
+					actionLogger.revert(BEFORE,false,false);
+				}
 				close();
 				return ActionResult::DEALT_WITH;
 			}
@@ -238,6 +252,14 @@ Error LoadPatternUI::performLoad() {
 
 	if (currentFileItem->isFolder) {
 		return Error::NONE;
+	}
+
+	if (!previewOnly && !noScaling) {
+		if (actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
+			actionLogger.closeAction(ActionType::PATTERN_PASTE);
+			actionLogger.revert(BEFORE,false,false);
+		}
+		actionLogger.getNewAction(ActionType::PATTERN_PASTE,ActionAddition::ALLOWED);
 	}
 
 	String fileName;

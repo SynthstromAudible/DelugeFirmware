@@ -114,7 +114,13 @@ Important:The Tools where tested with the [Wikipedia Midifile Sample](https://en
 
 ![midi2Deluge](https://github.com/user-attachments/assets/902fdcd1-58e7-4992-8c02-6c0ad063233d)
 
+### 7-Seg Abbreviations
 
+- Save pattern:`SAVE`
+- Load pattern:`LOAD`
+- No Overwrite (aka gently Paste):`NOOW`
+- No Scaling:`NOSC`
+- Previwing:`PREV`
 
 ### TODOs:
 - [ ] Auto-Creation of Folder Structure

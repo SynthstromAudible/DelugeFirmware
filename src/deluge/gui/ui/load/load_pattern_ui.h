@@ -30,6 +30,7 @@ public:
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	void selectEncoderAction(int8_t offset) override;
 
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr, bool drawUndefinedArea = true,

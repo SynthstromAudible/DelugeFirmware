@@ -265,6 +265,7 @@ public:
 	Error pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool noScaling, bool previewOnly,
 	                         bool selectedDrumOnly);
 	void patternPreview();
+	void patternClear();
 	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult handleNoteRowEditorHorizontalEncoderAction(int32_t offset);
 	ActionResult handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);

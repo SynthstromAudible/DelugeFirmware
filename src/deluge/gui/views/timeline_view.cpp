@@ -18,6 +18,7 @@
 #include "gui/views/timeline_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/ui/load/load_pattern_ui.h"
 #include "gui/views/view.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
@@ -347,7 +348,7 @@ void TimelineView::initiateXZoom(int32_t zoomMagnitude, int32_t newScroll, uint3
 	uint32_t oldScroll = currentSong->xScroll[getNavSysId()];
 
 	currentSong->xScroll[getNavSysId()] = newScroll;
-	bool anyToAnimate = calculateZoomPinSquares(oldScroll, newScroll, currentSong->xZoom[getNavSysId()], oldZoom);
+	bool anyToAnimate = calculateZoomPinSquares(oldScroll, newScroll, currentSong->xZoom[getNavSysId()], oldZoom) && getCurrentUI() != &loadPatternUI;
 
 	if (anyToAnimate) {
 

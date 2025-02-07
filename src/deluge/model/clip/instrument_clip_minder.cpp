@@ -381,6 +381,12 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			openUI(&saveMidiDeviceDefinitionUI);
 		}
 		else if (b == X_ENC) {
+			// New Tracks have not Drum selected -> abort Drum action
+			if (getCurrentOutputType() == OutputType::KIT && !getRootUI()->getAffectEntire() && (getCurrentKit() == nullptr || getCurrentKit()->selectedDrum == nullptr)) {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PATTERN_NODRUM));
+				return ActionResult::DEALT_WITH;
+			}
+
 			openUI(&savePatternUI);
 		}
 		else if ((b == SYNTH && getCurrentOutputType() == OutputType::SYNTH)
@@ -403,7 +409,12 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			// Need to stop Playback before loading a new Pattern to prevent Stuck notes on big Midi files
 			playbackHandler.endPlayback();
 
-			actionLogger.getNewAction(ActionType::NOTES_PASTE, ActionAddition::ALLOWED);
+			// New Tracks have not Drum selected -> abort Drum action
+			if (getCurrentOutputType() == OutputType::KIT && !getRootUI()->getAffectEntire() && (getCurrentKit() == nullptr || getCurrentKit()->selectedDrum == nullptr)) {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PATTERN_NODRUM));
+				return ActionResult::DEALT_WITH;
+			}
+
 			openUI(&loadPatternUI);
 			if (Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT)) {
 				// Setup for gently pasting notes
@@ -411,13 +422,6 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			}
 			else if (Buttons::isButtonPressed(deluge::hid::button::SCALE_MODE)) {
 				// Setup for keeping original Scale on paste
-				// Clear the Clip bevore starting
-				Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::ALLOWED);
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithTimelineCounter* modelStack = 
-				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-				getCurrentInstrumentClip()->clear(action, modelStack, true, true);
 				loadPatternUI.setupLoadPatternUI(true, true);
 			}
 			else {

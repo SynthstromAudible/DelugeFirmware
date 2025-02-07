@@ -1333,6 +1333,15 @@ void InstrumentClipView::patternPreview() {
 	}
 }
 
+void InstrumentClipView::patternClear() {
+	// Clear the Clip bevore starting
+	Action* action = actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	getCurrentInstrumentClip()->clear(action, modelStack, false, false);
+}
+
 void InstrumentClipView::pasteNotes(bool overwriteExisting, bool pasteFromFile, bool noScaling, bool previewOnly,
                                     bool selectedDrumOnly) {
 
@@ -1380,7 +1389,7 @@ ramError:
 
 	// If pasting from File, preview changes should be grouped to one Action
 	if (pasteFromFile) {
-		action = actionLogger.getNewAction(ActionType::NOTES_PASTE, ActionAddition::ALLOWED);
+		action = actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	}
 	else {
 		action = actionLogger.getNewAction(ActionType::NOTES_PASTE, ActionAddition::NOT_ALLOWED);
@@ -1479,6 +1488,8 @@ getOut:
 		}
 	}
 	else {
+		// final Paste of Pattern
+		actionLogger.closeAction(ActionType::PATTERN_PASTE);
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTES_PASTED));
 	}
 }
