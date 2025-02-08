@@ -114,7 +114,7 @@ void Submenu::drawHorizontalMenu() {
 	int32_t pageStart = currentPage * pageSize;
 
 	// Scan to beginning of the visible page:
-	auto it = std::find_if(items.begin(), items.end(), isItemRelevant);
+	auto it = std::find_if(items.begin(), items.end(), isItemRelevant); // find first relevant item
 	for (size_t n = 0; n < pageStart; n++) {
 		it = std::find_if(std::next(it), items.end(), isItemRelevant);
 	}
