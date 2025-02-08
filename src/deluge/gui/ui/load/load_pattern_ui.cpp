@@ -111,10 +111,11 @@ void LoadPatternUI::selectEncoderAction(int8_t offset) {
 }
 
 void LoadPatternUI::currentFileChanged(int32_t movementDirection) {
-	if (!overwriteExisting && actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
+	if (!overwriteExisting && actionLogger.firstAction[BEFORE]
+	    && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
 		actionLogger.revert(BEFORE);
 		// Create a new Action where the Events can be added
-		actionLogger.getNewAction(ActionType::PATTERN_PASTE,ActionAddition::ALLOWED);
+		actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	}
 	if (noScaling) {
 		instrumentClipView.patternClear();
@@ -220,9 +221,10 @@ ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 			// don't allow navigation backwards if we're in the default folder
 			if (!strcmp(currentDir.get(), defaultDir.c_str())) {
 				// Undo all Changes made during Pattern Preview
-				if (actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE ) {
+				if (actionLogger.firstAction[BEFORE]
+				    && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE ) {
 					actionLogger.closeAction(ActionType::PATTERN_PASTE);
-					actionLogger.revert(BEFORE,false,false);
+					actionLogger.revert(BEFORE, false, false);
 				}
 				close();
 				return ActionResult::DEALT_WITH;
@@ -257,9 +259,9 @@ Error LoadPatternUI::performLoad() {
 	if (!previewOnly && !noScaling) {
 		if (actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
 			actionLogger.closeAction(ActionType::PATTERN_PASTE);
-			actionLogger.revert(BEFORE,false,false);
+			actionLogger.revert(BEFORE, false, false);
 		}
-		actionLogger.getNewAction(ActionType::PATTERN_PASTE,ActionAddition::ALLOWED);
+		actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	}
 
 	String fileName;

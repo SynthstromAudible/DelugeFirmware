@@ -348,7 +348,8 @@ void TimelineView::initiateXZoom(int32_t zoomMagnitude, int32_t newScroll, uint3
 	uint32_t oldScroll = currentSong->xScroll[getNavSysId()];
 
 	currentSong->xScroll[getNavSysId()] = newScroll;
-	bool anyToAnimate = calculateZoomPinSquares(oldScroll, newScroll, currentSong->xZoom[getNavSysId()], oldZoom) && getCurrentUI() != &loadPatternUI;
+	bool anyToAnimate = calculateZoomPinSquares(oldScroll, newScroll, currentSong->xZoom[getNavSysId()], oldZoom)
+	                    && getCurrentUI() != &loadPatternUI;
 
 	if (anyToAnimate) {
 

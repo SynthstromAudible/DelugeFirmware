@@ -382,7 +382,8 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		}
 		else if (b == X_ENC) {
 			// New Tracks have not Drum selected -> abort Drum action
-			if (getCurrentOutputType() == OutputType::KIT && !getRootUI()->getAffectEntire() && (getCurrentKit() == nullptr || getCurrentKit()->selectedDrum == nullptr)) {
+			if (getCurrentOutputType() == OutputType::KIT && !getRootUI()->getAffectEntire()
+			    && (getCurrentKit() == nullptr || getCurrentKit()->selectedDrum == nullptr)) {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PATTERN_NODRUM));
 				return ActionResult::DEALT_WITH;
 			}
@@ -410,7 +411,8 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			playbackHandler.endPlayback();
 
 			// New Tracks have not Drum selected -> abort Drum action
-			if (getCurrentOutputType() == OutputType::KIT && !getRootUI()->getAffectEntire() && (getCurrentKit() == nullptr || getCurrentKit()->selectedDrum == nullptr)) {
+			if (getCurrentOutputType() == OutputType::KIT && !getRootUI()->getAffectEntire() 
+			    && (getCurrentKit() == nullptr || getCurrentKit()->selectedDrum == nullptr)) {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PATTERN_NODRUM));
 				return ActionResult::DEALT_WITH;
 			}
