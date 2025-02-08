@@ -2,6 +2,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "patch_cable_strength/range.h"
@@ -80,10 +81,7 @@ void PatchCables::renderOptions() {
 		int32_t param_value = cable->param.getCurrentValue();
 		int32_t level = ((int64_t)param_value * kMaxMenuPatchCableValue + (1 << 29)) >> 30;
 
-		float floatLevel = (float)level / 100;
-		int floatoff = floatLevel < 0 ? 1 : 0;
-
-		floatToString(floatLevel, buf + off + 5 - floatoff, 2, 2);
+		floatToString((float)level / 100, buf + off + 5, 2, 2);
 		// fmt::vformat_to_n(buf + off + 5, 5, "{:4}", fmt::make_format_args();
 
 		buf[off + 9] = ' ';
@@ -143,8 +141,8 @@ void PatchCables::selectEncoderAction(int32_t offset) {
 
 void PatchCables::blinkShortcutsSoon() {
 	// some throttling so menu scrolling doesn't become a lightning storm of flashes
-	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, display->haveOLED() ? 500 : 200);
-	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
+	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, display->haveOLED() ? 500 : 200);
+	uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 }
 
 ActionResult PatchCables::timerCallback() {
