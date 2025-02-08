@@ -305,13 +305,15 @@ enum class VoicePriority : uint8_t {
 constexpr size_t kNumVoicePriorities = util::to_underlying(VoicePriority::HIGH) + 1;
 
 enum class PatchSource : uint8_t {
-	LFO_GLOBAL,
+	LFO_GLOBAL_1,
+	LFO_GLOBAL_2,
 	SIDECHAIN,
 	ENVELOPE_0,
 	ENVELOPE_1,
 	ENVELOPE_2,
 	ENVELOPE_3,
-	LFO_LOCAL,
+	LFO_LOCAL_1,
+	LFO_LOCAL_2,
 	X,
 	Y,
 	AFTERTOUCH,
@@ -403,9 +405,11 @@ enum LFO_ID {
 	// LFO_ID is used exlusively is as an array index, so an enum class would
 	// only add extra noise to get the underlying value in all places where this
 	// is used.
-	LFO1_ID = 0,
-	LFO2_ID = 1,
-	LFO_COUNT = 2,
+	LFO1_ID = 0, // LFO 1 (global)
+	LFO2_ID = 1, // LFO 2 (local)
+	LFO3_ID = 2, // LFO 3 (global)
+	LFO4_ID = 3, // LFO 4 (local)
+	LFO_COUNT = 4,
 };
 
 enum class LFOType : uint8_t {
