@@ -877,7 +877,7 @@ doLoadAsWaveTable:
 				if (!soundEditor.currentSound->modKnobs[7][0].paramDescriptor.isSetToParamWithNoSource(
 				        params::LOCAL_OSC_B_WAVE_INDEX)) {
 					soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamAndSource(
-					    params::LOCAL_OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL);
+					    params::LOCAL_OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL_1);
 				}
 			}
 			else { // Osc 2

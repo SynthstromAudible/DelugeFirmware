@@ -1,8 +1,5 @@
 name: Clang Tidy
 on:
-  pull_request:
-    branches:
-      - "community"
   pull_request_target: # Required to post comments on PR from forks
 jobs:
   clang-tidy-review:
@@ -15,6 +12,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           submodules: recursive
+
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
 
       - name: Install clang-tidy
         run: |
@@ -53,7 +55,7 @@ jobs:
         run: |
           review \
             --token=${{ secrets.GITHUB_TOKEN }} \
-            --repo=${{ github.event.pull_request.head.repo.full_name }} \
+            --repo=${{ github.event.pull_request.base.repo.full_name }} \
             --pr=${{ github.event.pull_request.number }} \
             --split_workflow=True \
             --clang_tidy_binary=clang-tidy-19 \
@@ -65,4 +67,10 @@ jobs:
           USER: ${{ github.event.pull_request.user.login }}
 
       - name: Post review
-        run: post --token=${{ secrets.GITHUB_TOKEN }} --repo=${{ github.event.pull_request.head.repo.full_name }} --lgtm-comment-body="" --num-comments-as-exitcode=True clang-tidy-review-output.json
+        run: |
+          post \
+            --token=${{ secrets.GITHUB_TOKEN }} \
+            --repo=${{ github.event.pull_request.base.repo.full_name }} \
+            --lgtm-comment-body="" \
+            --num-comments-as-exitcode=True \
+            clang-tidy-review-output.json

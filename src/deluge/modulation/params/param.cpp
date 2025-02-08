@@ -100,7 +100,7 @@ bool isPatchCableShortcut(int32_t xDisplay, int32_t yDisplay) {
 void getPatchCableFromShortcut(int32_t xDisplay, int32_t yDisplay, ParamDescriptor* paramDescriptor) {
 	// vibrato shortcut
 	if (isVibratoPatchCableShortcut(xDisplay, yDisplay)) {
-		paramDescriptor->setToHaveParamAndSource(LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL);
+		paramDescriptor->setToHaveParamAndSource(LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1);
 	}
 	// sidechain volume ducking shortcut
 	else if (isSidechainPatchCableShortcut(xDisplay, yDisplay)) {
@@ -143,7 +143,8 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [LOCAL_MODULATOR_0_PITCH_ADJUST] = "Mod1 pitch",
 	    [LOCAL_MODULATOR_1_PITCH_ADJUST] = "Mod1 pitch",
 	    [LOCAL_HPF_FREQ]                 = "HPF freq",
-	    [LOCAL_LFO_LOCAL_FREQ]           = "LFO2 rate",
+	    [LOCAL_LFO_LOCAL_FREQ_1]           = "LFO2 rate",
+	    [LOCAL_LFO_LOCAL_FREQ_2]           = "LFO4 rate",
 	    [LOCAL_ENV_0_ATTACK]             = "Env1attack",
 	    [LOCAL_ENV_1_ATTACK]             = "Env2attack",
 	    [LOCAL_ENV_2_ATTACK]             = "Env3attack",
@@ -163,7 +164,8 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [GLOBAL_DELAY_FEEDBACK]          = "Delay feed",
 	    [GLOBAL_DELAY_RATE]              = "Delay rate",
 	    [GLOBAL_MOD_FX_RATE]             = "ModFX rate",
-	    [GLOBAL_LFO_FREQ]                = "LFO1 rate",
+	    [GLOBAL_LFO_FREQ_1]                = "LFO1 rate",
+	    [GLOBAL_LFO_FREQ_2]                = "LFO3 rate",
 	    [GLOBAL_ARP_RATE]                = "Arp. rate",
 	};
 	// clang-format on
@@ -212,7 +214,8 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	    [LOCAL_MODULATOR_0_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST,
 	    [LOCAL_MODULATOR_1_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST,
 	    [LOCAL_HPF_FREQ] = STRING_FOR_PARAM_LOCAL_HPF_FREQ,
-	    [LOCAL_LFO_LOCAL_FREQ] = STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ,
+	    [LOCAL_LFO_LOCAL_FREQ_1] = STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ_1,
+	    [LOCAL_LFO_LOCAL_FREQ_2] = STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ_2,
 	    [LOCAL_ENV_0_ATTACK] = STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK,
 	    [LOCAL_ENV_1_ATTACK] = STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK,
 	    [LOCAL_ENV_2_ATTACK] = STRING_FOR_PARAM_LOCAL_ENV_2_ATTACK,
@@ -232,7 +235,8 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	    [GLOBAL_DELAY_FEEDBACK] = STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK,
 	    [GLOBAL_DELAY_RATE] = STRING_FOR_PARAM_GLOBAL_DELAY_RATE,
 	    [GLOBAL_MOD_FX_RATE] = STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE,
-	    [GLOBAL_LFO_FREQ] = STRING_FOR_PARAM_GLOBAL_LFO_FREQ,
+	    [GLOBAL_LFO_FREQ_1] = STRING_FOR_PARAM_GLOBAL_LFO_FREQ_1,
+	    [GLOBAL_LFO_FREQ_2] = STRING_FOR_PARAM_GLOBAL_LFO_FREQ_2,
 	    [GLOBAL_ARP_RATE] = STRING_FOR_PARAM_GLOBAL_ARP_RATE,
 	};
 
@@ -507,8 +511,11 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 	else if (param >= FIRST_GLOBAL && param <= GLOBAL_NONE) {
 		// global patched params
 		switch (static_cast<Global>(param)) {
-		case GLOBAL_LFO_FREQ:
+		case GLOBAL_LFO_FREQ_1:
 			return "lfo1Rate";
+
+		case GLOBAL_LFO_FREQ_2:
+			return "lfo3Rate";
 
 		case GLOBAL_VOLUME_POST_FX:
 			return "volumePostFX";
@@ -608,8 +615,11 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 		case LOCAL_HPF_FREQ:
 			return "hpfFrequency";
 
-		case LOCAL_LFO_LOCAL_FREQ:
+		case LOCAL_LFO_LOCAL_FREQ_1:
 			return "lfo2Rate";
+
+		case LOCAL_LFO_LOCAL_FREQ_2:
+			return "lfo4Rate";
 
 		case LOCAL_ENV_0_ATTACK:
 			return "env1Attack";

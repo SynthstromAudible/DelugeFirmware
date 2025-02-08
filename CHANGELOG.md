@@ -10,6 +10,7 @@
 - Made grain much faster and updated controls
 - Added LPF to Mutable Instruments Reverb
 - Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
+- Added two more LFOs (LFO 3 -global- and LFO 4 -per voice-), which you can access from the sound editor menu.
 
 #### <ins>Per-clip Stutter with options: Quantize, Reverse, and Ping-Pong</ins>
 - Now the stutter buffer can also be set to play in reverse, and ping-pong.
