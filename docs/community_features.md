@@ -123,7 +123,7 @@ as the micromonsta and the dreadbox nymphes.
       but any already sounding notes will be stopped.
 
 - ([#889]) `Master MIDI Follow Mode` whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit
-  clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active or selected clip).
+  clips, and for Parameters, all MIDI (notes + cc's) received will be directed to control the active or selected clip).
     - For a detailed description of this feature, please refer to the feature
       documentation: [MIDI Follow Mode Documentation]
     - Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for learned MIDI cc's.
@@ -132,8 +132,8 @@ as the micromonsta and the dreadbox nymphes.
     - Settings related to MIDI Follow Mode can be found in `SETTINGS > MIDI > MIDI-FOLLOW`.
     - ([#976]) For users of Loopy Pro, you will find a MIDI Follow template in this
       folder: [MIDI Follow Mode Loopy Pro Template]
-        - It is setup to send and receive on channel 15 when the Deluge is connected via USB (and detected as “Deluge Port
-          1”), so you must go to your Deluge, and do Shift + Select to enter the main menu, go to MIDI -> MIDI-FOLLOW -> CHANNEL A,
+        - It is setup to send and receive on channel 15 when the Deluge is connected via USB (and detected as "Deluge Port
+          1"), so you must go to your Deluge, and do Shift + Select to enter the main menu, go to MIDI -> MIDI-FOLLOW -> CHANNEL A,
           and set it to 15. In case your port is detected with a different name in Loopy (it could happen if the language of your
           iOS device is not English), like for example "Deluge **Puerto** 1" (in Spanish), you can always transfer the existing
           midi bindings from one port to the other by going to Loopy's Menu -> Control Settings -> Current Project -> Default ->
@@ -397,6 +397,12 @@ which track to record from. The source can also be selected by pressing a clip's
   2. Via `NAME` shortcut in the clip view for non-audio clips (in audio clips the `NAME` shortcut currently names the track instead). In KIT clips `AFFECT ALL` must be on, or the shortcut names the active drum instead.
 - ([#3195]) Clip name display includes the section number. If the clip has no name, it is displayed using just the section number, as "SECTION N". If the clip has a name, it is prefixed with the section number, as "N: CLIP NAME".
 - ([#3195]) When clips are copied, the clip name is copied as well. If the target track already has a clip with the same name, an integer suffix starting from 2 is added unless the name already has an integer suffix. This integer suffix is incremented until the clip name is unique on the target track. Ie. copying a clip named "BRIDGE" to the same otherwise empty track will first create "BRIDGE2", then "BRIDGE3", etc.
+
+#### 3.36 - Battery Information Pop-up
+- ([#3310]) A new battery health pop-up has been added, giving a visual indication of the current battery status.
+- Press `SHIFT` + `CROSS SCREEN` to show the battery health pop-up.
+- The pop-up displays the current battery level as a percentage and the millivolts (mV) remaining.
+- Charging is recommended when mV drops below 2900mV.
 
 ## 4. New Features Added
 
@@ -1158,7 +1164,7 @@ as an oscillator type within the subtractive engine, so it can be combined with 
   - Enter the  `CV 2 Source (CV2)` submenu
   - Select from `OFF, Y, Aftertouch, Velocity`
 
-### 4.9 Audio Clip View - Features
+### 4.9 Audio Clip View - Featuregs
 
 #### 4.9.1 - Shift Clip
 
@@ -1597,6 +1603,8 @@ different firmware
 [#3285]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3285
 
 [#3291]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3291
+
+[#3310]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3310
 
 [#3313]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3313
 

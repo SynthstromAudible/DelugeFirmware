@@ -243,6 +243,7 @@ also affect normal sequenced notes while arpeggiator is Off.
 #### <ins>OLED Display Improvements</ins>
 - Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
 - Updated OLED display to stop scrolling text while playback is running.
+- Added battery health pop-up to the OLED display.
 
 #### <ins>Audio Export</ins>
 - Added `AUDIO EXPORT`, an automated process for exporting `CLIP's` while in `SONG VIEW` and `TRACK's` while in `ARRANGER VIEW` to individual files. Press `SAVE + RECORD` to start exporting clips/tracks. Press `BACK` to cancel exporting and stop recording and playback.
