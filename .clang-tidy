@@ -32,8 +32,8 @@ Checks: >
   -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-avoid-do-while,
 WarningsAsErrors: false # should be true once we get there
-#HeaderFileExtensions:         ['h','hh','hpp','hxx'] # enable iff clang-tidy v17+
-#ImplementationFileExtensions: ['c','cc','cpp','cxx'] # enable iff clang-tidy v17+ (stops from touching .S assembly files)
+HeaderFileExtensions:         ['h','hh','hpp','hxx']
+ImplementationFileExtensions: ['c','cc','cpp','cxx']
 HeaderFilterRegex: "^((?!lib|RZA1|NE10|fatfs).)*$" # don't touch external files
 ExtraArgs: ['-Wno-unknown-argument', '-Wno-unknown-warning-option', '-W']
 FormatStyle: file
