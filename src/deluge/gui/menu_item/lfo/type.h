@@ -31,7 +31,7 @@ public:
 		// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
 		// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
 		// would be enough?
-		soundEditor.currentSound->resyncGlobalLFO();
+		soundEditor.currentSound->resyncGlobalLFOs();
 	}
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 	void getColumnLabel(StringBuf&) override;

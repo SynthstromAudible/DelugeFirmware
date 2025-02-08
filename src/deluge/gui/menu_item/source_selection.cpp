@@ -28,9 +28,20 @@
 
 namespace deluge::gui::menu_item {
 const PatchSource sourceMenuContents[] = {
-    PatchSource::ENVELOPE_0, PatchSource::ENVELOPE_1, PatchSource::ENVELOPE_2, PatchSource::ENVELOPE_3,
-    PatchSource::LFO_GLOBAL, PatchSource::LFO_LOCAL,  PatchSource::VELOCITY,   PatchSource::NOTE,
-    PatchSource::SIDECHAIN,  PatchSource::RANDOM,     PatchSource::X,          PatchSource::Y,
+    PatchSource::ENVELOPE_0,
+    PatchSource::ENVELOPE_1,
+    PatchSource::ENVELOPE_2,
+    PatchSource::ENVELOPE_3,
+    PatchSource::LFO_GLOBAL_1,
+    PatchSource::LFO_LOCAL_1,
+    PatchSource::LFO_GLOBAL_2,
+    PatchSource::LFO_LOCAL_2,
+    PatchSource::VELOCITY,
+    PatchSource::NOTE,
+    PatchSource::SIDECHAIN,
+    PatchSource::RANDOM,
+    PatchSource::X,
+    PatchSource::Y,
     PatchSource::AFTERTOUCH,
 };
 
@@ -82,12 +93,20 @@ void SourceSelection::drawValue() {
 	using enum l10n::String;
 
 	switch (sourceMenuContents[this->getValue()]) {
-	case PatchSource::LFO_GLOBAL:
-		text = STRING_FOR_PATCH_SOURCE_LFO_GLOBAL;
+	case PatchSource::LFO_GLOBAL_1:
+		text = STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_1;
 		break;
 
-	case PatchSource::LFO_LOCAL:
-		text = STRING_FOR_PATCH_SOURCE_LFO_LOCAL;
+	case PatchSource::LFO_GLOBAL_2:
+		text = STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_2;
+		break;
+
+	case PatchSource::LFO_LOCAL_1:
+		text = STRING_FOR_PATCH_SOURCE_LFO_LOCAL_1;
+		break;
+
+	case PatchSource::LFO_LOCAL_2:
+		text = STRING_FOR_PATCH_SOURCE_LFO_LOCAL_2;
 		break;
 
 	case PatchSource::ENVELOPE_0:

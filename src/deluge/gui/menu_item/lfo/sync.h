@@ -36,7 +36,7 @@ public:
 		// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
 		// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
 		// would be enough?
-		soundEditor.currentSound->resyncGlobalLFO();
+		soundEditor.currentSound->resyncGlobalLFOs();
 		soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
 	}
 

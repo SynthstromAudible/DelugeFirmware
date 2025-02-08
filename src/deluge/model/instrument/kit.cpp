@@ -773,7 +773,7 @@ void Kit::choke() {
 void Kit::resyncLFOs() {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum && thisDrum->type == DrumType::SOUND) {
-			((SoundDrum*)thisDrum)->resyncGlobalLFO();
+			((SoundDrum*)thisDrum)->resyncGlobalLFOs();
 		}
 	}
 }
