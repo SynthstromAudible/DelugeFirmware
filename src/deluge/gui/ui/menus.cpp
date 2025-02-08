@@ -372,17 +372,32 @@ osc::RetriggerPhase modulatorPhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_FM
 // LFO1 menu ---------------------------------------------------------------------------------
 
 lfo::Type lfo1TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO1_TYPE, LFO1_ID};
-lfo::Rate lfo1RateMenu{STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ, LFO1_ID};
+lfo::Rate lfo1RateMenu{STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ_1, LFO1_ID};
 lfo::Sync lfo1SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO1_SYNC, LFO1_ID};
 
 HorizontalMenu lfo1Menu{STRING_FOR_LFO1, {&lfo1TypeMenu, &lfo1SyncMenu, &lfo1RateMenu}};
 
 // LFO2 menu ---------------------------------------------------------------------------------
 lfo::Type lfo2TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO2_TYPE, LFO2_ID};
-lfo::Rate lfo2RateMenu{STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ, LFO2_ID};
+lfo::Rate lfo2RateMenu{STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ_1, LFO2_ID};
 lfo::Sync lfo2SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO2_SYNC, LFO2_ID};
 
 HorizontalMenu lfo2Menu{STRING_FOR_LFO2, {&lfo2TypeMenu, &lfo2SyncMenu, &lfo2RateMenu}};
+
+// LFO3 menu ---------------------------------------------------------------------------------
+
+lfo::Type lfo3TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO3_TYPE, LFO3_ID};
+lfo::Rate lfo3RateMenu{STRING_FOR_RATE, STRING_FOR_LFO3_RATE, params::GLOBAL_LFO_FREQ_2, LFO3_ID};
+lfo::Sync lfo3SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO3_SYNC, LFO3_ID};
+
+HorizontalMenu lfo3Menu{STRING_FOR_LFO3, {&lfo3TypeMenu, &lfo3SyncMenu, &lfo3RateMenu}};
+
+// LFO4 menu ---------------------------------------------------------------------------------
+lfo::Type lfo4TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO4_TYPE, LFO4_ID};
+lfo::Rate lfo4RateMenu{STRING_FOR_RATE, STRING_FOR_LFO4_RATE, params::LOCAL_LFO_LOCAL_FREQ_2, LFO4_ID};
+lfo::Sync lfo4SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO4_SYNC, LFO4_ID};
+
+HorizontalMenu lfo4Menu{STRING_FOR_LFO4, {&lfo4TypeMenu, &lfo4SyncMenu, &lfo4RateMenu}};
 
 // Mod FX ----------------------------------------------------------------------------------
 mod_fx::Type modFXTypeMenu{STRING_FOR_TYPE, STRING_FOR_MODFX_TYPE};
@@ -1282,7 +1297,7 @@ patched_param::IntegerNonFM noiseMenu{STRING_FOR_NOISE_LEVEL, params::LOCAL_NOIS
 
 MasterTranspose masterTransposeMenu{STRING_FOR_MASTER_TRANSPOSE, STRING_FOR_MASTER_TRAN_MENU_TITLE};
 
-patch_cable_strength::Fixed vibratoMenu{STRING_FOR_VIBRATO, params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL};
+patch_cable_strength::Fixed vibratoMenu{STRING_FOR_VIBRATO, params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1};
 
 // Synth only
 menu_item::SynthMode synthModeMenu{STRING_FOR_SYNTH_MODE};
@@ -1320,28 +1335,14 @@ Submenu soundFXMenu{
 menu_item::Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,
     {
-        &soundMasterMenu,
-        &arpMenu,
-        &globalRandomizerMenu,
-        &audioCompMenu,
-        &soundFiltersMenu,
-        &soundFXMenu,
-        &sidechainMenu,
-        &source0Menu,
-        &source1Menu,
-        &modulator0Menu,
-        &modulator1Menu,
-        &env0Menu,
-        &env1Menu,
-        &env2Menu,
-        &env3Menu,
-        &lfo1Menu,
-        &lfo2Menu,
-        &voiceMenu,
-        &bendMenu,
-        &drumBendRangeMenu,
-        &patchCablesMenu,
-        &sequenceDirectionMenu,
+        &soundMasterMenu,   &arpMenu,          &globalRandomizerMenu,
+        &audioCompMenu,     &soundFiltersMenu, &soundFXMenu,
+        &sidechainMenu,     &source0Menu,      &source1Menu,
+        &modulator0Menu,    &modulator1Menu,   &env0Menu,
+        &env1Menu,          &env2Menu,         &env3Menu,
+        &lfo1Menu,          &lfo2Menu,         &lfo3Menu,
+        &lfo4Menu,          &voiceMenu,        &bendMenu,
+        &drumBendRangeMenu, &patchCablesMenu,  &sequenceDirectionMenu,
         &outputMidiSubmenu,
     },
 };
