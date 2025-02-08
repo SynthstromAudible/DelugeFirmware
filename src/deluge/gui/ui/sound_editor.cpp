@@ -141,6 +141,14 @@ bool SoundEditor::editingKit() {
 	return getCurrentOutputType() == OutputType::KIT;
 }
 
+bool SoundEditor::editingKitAffectEntire() {
+	return getCurrentOutputType() == OutputType::KIT && getCurrentInstrumentClip()->affectEntire;
+}
+
+bool SoundEditor::editingKitRow() {
+	return getCurrentOutputType() == OutputType::KIT && !getCurrentInstrumentClip()->affectEntire;
+}
+
 bool SoundEditor::editingCVOrMIDIClip() {
 	return (getCurrentOutputType() == OutputType::MIDI_OUT || getCurrentOutputType() == OutputType::CV);
 }
@@ -1382,7 +1390,7 @@ void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 		if (currentUIMode == UI_MODE_MIDI_LEARN) {
 
 			// But, can't do it if it's a Kit and affect-entire is on!
-			if (editingKit() && getCurrentInstrumentClip()->affectEntire) {
+			if (editingKitAffectEntire()) {
 				// IndicatorLEDs::indicateErrorOnLed(affectEntireLedX, affectEntireLedY);
 			}
 
@@ -1448,6 +1456,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 				if (setupKitGlobalFXMenu) {
 					newModControllable = (ModControllableAudio*)(Instrument*)output->toModControllable();
 					newParamManager = &instrumentClip->paramManager;
+					newArpSettings = &instrumentClip->arpSettings;
 				}
 
 				// If a SoundDrum is selected...

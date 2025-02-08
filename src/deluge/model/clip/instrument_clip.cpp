@@ -920,8 +920,8 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThings(
 		    pendingNoteOn->noteRow->drum->toModControllable(), &pendingNoteOn->noteRow->paramManager);
 
-		pendingNoteOn->noteRow->drum->noteOn(modelStackWithThreeMainThings, pendingNoteOn->velocity,
-		                                     mpeValues, MIDI_CHANNEL_NONE, pendingNoteOn->sampleSyncLength,
+		pendingNoteOn->noteRow->drum->noteOn(modelStackWithThreeMainThings, pendingNoteOn->velocity, mpeValues,
+		                                     MIDI_CHANNEL_NONE, pendingNoteOn->sampleSyncLength,
 		                                     pendingNoteOn->ticksLate);
 	}
 	else {
@@ -2281,7 +2281,8 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 	// Arp stuff, so long as not a Kit (but remember, Sound/Synth is the only other option in this function)
 	if (newInstrument->type == OutputType::SYNTH) {
 		arpSettings.cloneFrom(&((SoundInstrument*)newInstrument)->defaultArpSettings);
-	} else if (newInstrument->type == OutputType::KIT) {
+	}
+	else if (newInstrument->type == OutputType::KIT) {
 		arpSettings.cloneFrom(&((Kit*)newInstrument)->defaultArpSettings);
 	}
 
@@ -2682,7 +2683,8 @@ someError:
 						outputTypeWhileLoading = output->type;
 						if (outputTypeWhileLoading == OutputType::SYNTH) {
 							arpSettings.cloneFrom(&((SoundInstrument*)output)->defaultArpSettings);
-						} else if (outputTypeWhileLoading == OutputType::KIT) {
+						}
+						else if (outputTypeWhileLoading == OutputType::KIT) {
 							arpSettings.cloneFrom(&((Kit*)output)->defaultArpSettings);
 						}
 					}
@@ -2718,7 +2720,8 @@ loadInstrument:
 
 				if (outputTypeWhileLoading == OutputType::SYNTH) {
 					arpSettings.cloneFrom(&((SoundInstrument*)output)->defaultArpSettings);
-				} else if (outputTypeWhileLoading == OutputType::KIT) {
+				}
+				else if (outputTypeWhileLoading == OutputType::KIT) {
 					arpSettings.cloneFrom(&((Kit*)output)->defaultArpSettings);
 				}
 

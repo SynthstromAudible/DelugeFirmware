@@ -303,8 +303,8 @@ doReadDrum:
 			reader.exitTag();
 		}
 		else {
-			Error result =
-			    GlobalEffectableForClip::readTagFromFile(reader, tagName, &paramManager, readAutomationUpToPos, &defaultArpSettings, song);
+			Error result = GlobalEffectableForClip::readTagFromFile(reader, tagName, &paramManager,
+			                                                        readAutomationUpToPos, &defaultArpSettings, song);
 			if (result == Error::NONE) {}
 			else if (result != Error::RESULT_TAG_UNUSED) {
 				return result;
@@ -704,7 +704,6 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 		}
 	}
 }
-
 
 void Kit::beenEdited(bool shouldMoveToEmptySlot) {
 	if (activeClip) {

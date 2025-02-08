@@ -1191,8 +1191,8 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 	}
 
 	else {
-		Error result =
-		    ModControllableAudio::readTagFromFile(reader, tagName, paramManager, readAutomationUpToPos, arpSettings, song);
+		Error result = ModControllableAudio::readTagFromFile(reader, tagName, paramManager, readAutomationUpToPos,
+		                                                     arpSettings, song);
 		if (result == Error::NONE) {}
 		else if (result != Error::RESULT_TAG_UNUSED) {
 			return result;

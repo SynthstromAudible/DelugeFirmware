@@ -2007,7 +2007,8 @@ loadOutput:
 			}
 
 			else {
-				Error result = globalEffectable.readTagFromFile(reader, tagName, &paramManager, 2147483647, nullptr, this);
+				Error result =
+				    globalEffectable.readTagFromFile(reader, tagName, &paramManager, 2147483647, nullptr, this);
 				if (result == Error::NONE) {}
 				else if (result != Error::RESULT_TAG_UNUSED) {
 					return result;
@@ -4882,7 +4883,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 			return nullptr;
 		}
 
-gotAnInstrument : {}
+gotAnInstrument: {}
 	}
 
 	// Synth or Kit

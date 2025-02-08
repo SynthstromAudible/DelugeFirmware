@@ -843,8 +843,8 @@ void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManag
 	unpatchedParams->writeParamAsAttribute(writer, "tempo", params::UNPATCHED_TEMPO, writeAutomation, false,
 	                                       valuesForOverride);
 
-	unpatchedParams->writeParamAsAttribute(writer, "arpeggiatorRate", params::UNPATCHED_ARP_RATE, writeAutomation, false,
-	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(writer, "arpeggiatorRate", params::UNPATCHED_ARP_RATE, writeAutomation,
+	                                       false, valuesForOverride);
 }
 
 void GlobalEffectable::writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,

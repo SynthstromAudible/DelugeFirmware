@@ -78,6 +78,8 @@ public:
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	void scrollFinished() override;
 	bool editingKit();
+	bool editingKitAffectEntire();
+	bool editingKitRow();
 
 	ActionResult timerCallback() override;
 	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency);

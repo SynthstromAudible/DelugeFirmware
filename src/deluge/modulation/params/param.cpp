@@ -502,7 +502,6 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 		case UNPATCHED_SPREAD_VELOCITY:
 			return "spreadVelocity";
 
-
 		case UNPATCHED_NUM_SHARED:
 		    // Intentionally not handled
 		    ;
