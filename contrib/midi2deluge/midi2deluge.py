@@ -40,7 +40,7 @@ def convert_midi_to_xml(midi_file):
                         note["duration"] = current_time - note["start"]
                         break
 
-        track_name = track_name or f"Track{i+1}"
+        track_name = track_name or f"Track{i + 1}"
         last_note_end = max(
             (n["start"] + n.get("duration", 0) for n in notes), default=0
         )
