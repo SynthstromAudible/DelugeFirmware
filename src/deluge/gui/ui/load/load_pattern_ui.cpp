@@ -222,7 +222,7 @@ ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 			if (!strcmp(currentDir.get(), defaultDir.c_str())) {
 				// Undo all Changes made during Pattern Preview
 				if (actionLogger.firstAction[BEFORE]
-				    && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE ) {
+				    && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
 					actionLogger.closeAction(ActionType::PATTERN_PASTE);
 					actionLogger.revert(BEFORE, false, false);
 				}
