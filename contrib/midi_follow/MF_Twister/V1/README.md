@@ -1,5 +1,13 @@
-01/2024
-! Firmware 02.Oct.2019 works - not current firmware !
+01/2024 - Mapping for midi follow without new 2025 parameters for arpegiator.
+
+- Use default mapping on deluge.
+- Use MidiFighter Twister Utility to open the mapping file, transfer it to the device or change controls midi channels.
+- If there are any problems try MF Twister Firmware 02.Oct.2019 (current firmware was not working for me but forgot why :) 
+- Used System channel for switching bank pages: 16 (default was: 4)
+  -> Change banks via push encoder buttons in top row
+- Encoder channel for cc-params: 10
+- Button commands in the two bottom rows channel:11 - are mapped for same behaviour on all 4 banks
+- Sorted mappable parmeters like the deluge layout if possible
 
 
 Bank 1 - Main, Filt, Eq, Reverb, Delay ----------------------
@@ -30,11 +38,3 @@ Command buttons at two bottom encoder rows ------------------
 Restart	 Fill	LayerLoop	Redo
 Play     Rec    Loop		Undo
 
-
-
-System channel for switching pages: 16 (default was: 4)
--> Change banks via push encoder buttons in top row
-Encoder channel for cc-params: 10
-Button commands in the two bottom rows channel:11 
-  
--> Sorted mappable parmeters like the deluge layout if possible
