@@ -1,3 +1,4 @@
+
 #include "storage/smsysex.h"
 #include "fatfs/ff.h"
 #include "gui/l10n/l10n.h"
@@ -48,7 +49,7 @@ struct FILdata {
 int32_t FIDcounter = 1;
 uint32_t LRUcounter = 1;
 
-FILdata openFiles[MAX_OPEN_FILES];
+PLACE_SDRAM_BSS FILdata openFiles[MAX_OPEN_FILES];
 
 const int MaxSysExLength = 1024;
 
