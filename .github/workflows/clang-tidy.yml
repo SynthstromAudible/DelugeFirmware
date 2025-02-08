@@ -13,6 +13,11 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           submodules: recursive
 
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
+
       - name: Install clang-tidy
         run: |
           sudo debconf-communicate <<< "set man-db/auto-update false"
@@ -50,7 +55,7 @@ jobs:
         run: |
           review \
             --token=${{ secrets.GITHUB_TOKEN }} \
-            --repo=${{ github.event.pull_request.base.repo.full_name }} \
+            --repo=${{ github.event.pull_request.head.repo.full_name }} \
             --pr=${{ github.event.pull_request.number }} \
             --split_workflow=True \
             --clang_tidy_binary=clang-tidy-19 \
