@@ -1,4 +1,3 @@
-
 #include "storage/smsysex.h"
 #include "fatfs/ff.h"
 #include "gui/l10n/l10n.h"
