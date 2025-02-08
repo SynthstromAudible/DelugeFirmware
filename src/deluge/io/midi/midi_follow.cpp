@@ -57,7 +57,7 @@ using namespace gui;
 
 constexpr int32_t PARAM_ID_NONE = 255;
 
-MidiFollow midiFollow{};
+PLACE_SDRAM_BSS MidiFollow midiFollow{};
 
 // initialize variables
 MidiFollow::MidiFollow() {
