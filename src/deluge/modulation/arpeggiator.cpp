@@ -1608,7 +1608,7 @@ void ArpeggiatorSettings::writeCommonParamsToFile(Serializer& writer, Song* song
 	writer.writeAttribute("noteMode", (char*)arpNoteModeToString(noteMode));
 	writer.writeAttribute("octaveMode", (char*)arpOctaveModeToString(octaveMode));
 	writer.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(mpeVelocity));
-	writer.writeAttribute("stemRepeat", numStepRepeats);
+	writer.writeAttribute("stepRepeat", numStepRepeats);
 	writer.writeAttribute("randomizerLock", randomizerLock);
 
 	// Note probability
