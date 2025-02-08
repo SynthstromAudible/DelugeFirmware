@@ -1,6 +1,10 @@
 name: Clang Tidy
 on:
   pull_request_target: # Required to post comments on PR from forks
+  pull_request:
+    branches:
+      - "community"
+      - "release/**"
 jobs:
   clang-tidy-review:
     runs-on: ubuntu-latest
