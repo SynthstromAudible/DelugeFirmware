@@ -1,4 +1,5 @@
 @echo off
+setlocal EnableDelayedExpansion
 
 if not ["%DBT_ROOT%"] == [""] (
     goto already_set
@@ -68,6 +69,32 @@ set "PIP_REQUIREMENTS_PATH=%DBT_ROOT%\scripts\toolchain\requirements.txt"
 if "%DBT_NEEDS_INSTALL%" == "1" (
 	python -m pip install -q --upgrade pip
 	python -m pip install -q -r "%PIP_REQUIREMENTS_PATH%"
+    pre-commit install --install-hooks
+)
+
+REM Check if toolchain/current exists and remove it
+if exist %DBT_ROOT%\toolchain\current (
+    REM Query the junction and extract the "Print Name" (the visible target)
+    REM Capture the entire line that contains "Print Name"
+    for /f "delims=" %%L in ('fsutil reparsepoint query %DBT_ROOT%\toolchain\current\ ^| findstr /i "Print Name"') do (
+        set "line=%%L"
+    )
+
+    REM Remove the known prefix "Print Name: " (including the space)
+    REM Adjust the number (here 12) if the prefix length differs.
+    set "target=!line:~23!"
+
+    REM Compare the target with the expected values
+    if /I "!target!" == "%DBT_TOOLCHAIN_ROOT%" (
+        REM The junction is already set to the correct target
+    ) else (
+        echo Updating current toolchain link
+        rmdir %DBT_ROOT%\toolchain\current
+        mklink /j %DBT_ROOT%\toolchain\current %DBT_TOOLCHAIN_ROOT%
+    )
+) else (
+    echo Updating current toolchain link
+    mklink /j %DBT_ROOT%\toolchain\current %DBT_TOOLCHAIN_ROOT%
 )
 
 :already_set

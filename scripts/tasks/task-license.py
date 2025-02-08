@@ -2,7 +2,6 @@
 
 # Copyright 2023 Kate Whitlock
 import argparse
-import os
 from pathlib import Path
 import util
 from functools import partial
@@ -31,9 +30,10 @@ LICENSE_CHECK = "This file is part of The Synthstrom Audible Deluge Firmware."
 
 def license_file(dry_run: bool, verbose: bool, path: Path):
     path = str(path.absolute())
-    with open(path, "rb", 0) as file, mmap.mmap(
-        file.fileno(), 0, access=mmap.ACCESS_READ
-    ) as s:
+    with (
+        open(path, "rb", 0) as file,
+        mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as s,
+    ):
         found = s.find(LICENSE_CHECK.encode()) != -1
     if not dry_run and not found:
         util.prepend_file(LICENSE_TEMPLATE, Path(path))

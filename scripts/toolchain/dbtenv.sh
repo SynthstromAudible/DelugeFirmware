@@ -331,6 +331,27 @@ dbtenv_print_version()
     fi
 }
 
+dbtenv_check_current_symlink()
+{
+    # Check if toolchain/current exists and is a symbolic link
+    if [ -L "${DBT_TOOLCHAIN_PATH}/toolchain/current" ]; then
+        # Query the target of the symbolic link
+        target=$(readlink "${DBT_TOOLCHAIN_PATH}/toolchain/current")
+
+        # Compare the target with the expected value
+        if [ "$target" != "$TOOLCHAIN_ARCH_DIR" ]; then
+            echo "Updating current toolchain link"
+            rm "${DBT_TOOLCHAIN_PATH}/toolchain/current"
+            ln -s "$TOOLCHAIN_ARCH_DIR" "${DBT_TOOLCHAIN_PATH}/toolchain/current"
+        fi
+    else
+        if [ -w "${DBT_TOOLCHAIN_PATH}/toolchain" ]; then
+            echo "Adding current toolchain link"
+            ln -s "$TOOLCHAIN_ARCH_DIR" "${DBT_TOOLCHAIN_PATH}/toolchain/current"
+        fi
+    fi
+}
+
 dbtenv_main()
 {
     dbtenv_check_sourced || return 1;
@@ -342,12 +363,13 @@ dbtenv_main()
     dbtenv_check_if_sourced_multiple_times;
     dbtenv_check_env_vars || return 1;
     dbtenv_check_download_toolchain || return 1;
+    dbtenv_check_current_symlink;
     dbtenv_set_shell_prompt;
     dbtenv_print_version;
     PATH="$TOOLCHAIN_ARCH_DIR/python/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/arm-none-eabi-gcc/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/openocd/bin:$PATH";
-    PATH="$TOOLCHAIN_ARCH_DIR/clang/bin:$PATH";
+    PATH="$TOOLCHAIN_ARCH_DIR/clang-format:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/cmake/bin:$PATH";
     PATH="$TOOLCHAIN_ARCH_DIR/ninja-build/bin:$PATH";
     # PATH="$TOOLCHAIN_ARCH_DIR/openssl/bin:$PATH";
@@ -373,6 +395,7 @@ dbtenv_main()
 
     if [ -n "${DBT_DID_UNPACKING}" ]; then
       dbtenv_setup_python
+      pre-commit install --install-hooks
     fi
 }
 

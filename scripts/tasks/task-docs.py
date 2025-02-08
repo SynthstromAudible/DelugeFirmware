@@ -29,7 +29,7 @@ def main(argv: Sequence[str] = sys.argv) -> int:
 
     project_root = util.get_git_root()
     build_dir = project_root.absolute() / "build"
-    source_dir = project_root.absolute()
+    # source_dir = project_root.absolute()
     index_page = build_dir / "html/index.html"
 
     if not os.path.exists("build"):
