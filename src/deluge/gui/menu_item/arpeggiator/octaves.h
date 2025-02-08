@@ -27,7 +27,7 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return 1; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 8; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingGateDrumRow();
+		return !soundEditor.editingGateDrumRow() && !soundEditor.editingKitAffectEntire();
 	}
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());

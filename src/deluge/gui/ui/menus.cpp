@@ -290,7 +290,7 @@ arpeggiator::ArpUnpatchedParam arpSpreadGateMenu{STRING_FOR_SPREAD_GATE, STRING_
                                                       params::UNPATCHED_ARP_SPREAD_GATE};
 arpeggiator::midi_cv::SpreadGate arpSpreadGateMenuMIDIOrCV{STRING_FOR_SPREAD_GATE,
                                                            STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE};
-arpeggiator::ArpUnpatchedParam arpSpreadOctaveMenu{
+arpeggiator::ArpSoundOnlyUnpatchedParam arpSpreadOctaveMenu{
     STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_OCTAVE};
 arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD_OCTAVE,
                                                                STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
@@ -1587,7 +1587,6 @@ menu_item::Submenu soundEditorRootMenuKitGlobalFX{
     {
         &kitClipMasterMenu,
         &arpMenu,
-        &globalRandomizerMenu,
         &audioCompMenu,
         &globalFiltersMenu,
         &globalFXMenu,

@@ -34,7 +34,8 @@ class ArpSoundOnlyUnpatchedParam final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKit();
+		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKitAffectEntire()
+		       && !soundEditor.editingNonAudioDrumRow();
 	}
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());

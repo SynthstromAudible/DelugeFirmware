@@ -142,11 +142,11 @@ bool SoundEditor::editingKit() {
 }
 
 bool SoundEditor::editingKitAffectEntire() {
-	return getCurrentOutputType() == OutputType::KIT && getCurrentInstrumentClip()->affectEntire;
+	return getCurrentOutputType() == OutputType::KIT && setupKitGlobalFXMenu;
 }
 
 bool SoundEditor::editingKitRow() {
-	return getCurrentOutputType() == OutputType::KIT && !getCurrentInstrumentClip()->affectEntire;
+	return getCurrentOutputType() == OutputType::KIT && !setupKitGlobalFXMenu;
 }
 
 bool SoundEditor::editingCVOrMIDIClip() {
