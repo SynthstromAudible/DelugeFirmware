@@ -1487,6 +1487,7 @@ menu_item::Submenu soundEditorRootMenuGateDrum{
     STRING_FOR_GATE,
     {
         &arpMenu,
+        &globalRandomizerMenu,
     },
 };
 
