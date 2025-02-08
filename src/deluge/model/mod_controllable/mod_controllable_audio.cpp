@@ -722,7 +722,7 @@ doReadPatchedParam:
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("AudioCompressor", true);
+		reader.exitTag("audioCompressor", true);
 	}
 	// this is actually the sidechain but pre c1.1 songs save it as compressor
 	else if (!strcmp(tagName, "compressor") || !strcmp(tagName, "sidechain")) { // Remember, Song doesn't use this
