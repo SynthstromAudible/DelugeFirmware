@@ -89,8 +89,8 @@ void PowerManager::update() {
 
 	// Update battery LED based on power status
 	if (isExternalPowerConnected()) {
-		// When on external power, LED is solid
-		setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
+		// When on external power, LED should be OFF
+		setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true); // HIGH = OFF for open-drain
 		uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
 	}
 	else {
@@ -99,17 +99,17 @@ void PowerManager::update() {
 		switch (status) {
 		case BatteryStatus::FULL:
 		case BatteryStatus::HEALTHY:
-			// Solid LED
-			setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
+			// LED OFF when battery healthy
+			setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true); // HIGH = OFF for open-drain
 			uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
 			break;
 		case BatteryStatus::WARNING:
-			// LED off
-			setOutputState(BATTERY_LED.port, BATTERY_LED.pin, false);
+			// Solid RED LED for low battery
+			setOutputState(BATTERY_LED.port, BATTERY_LED.pin, false); // LOW = ON for open-drain
 			uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
 			break;
 		case BatteryStatus::CRITICAL:
-			// Blinking LED
+			// Blinking RED LED for critical battery
 			if (!uiTimerManager.isTimerSet(TimerName::BATT_LED_BLINK)) {
 				batteryLEDBlink();
 			}
@@ -206,7 +206,7 @@ void PowerManager::displayPowerStatus() {
 }
 
 void PowerManager::batteryLEDBlink() {
-	bool batteryLEDState = false;
+	bool batteryLEDState = false; // Start with LED ON (LOW for open-drain)
 	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, batteryLEDState);
 	int32_t blinkPeriod = ((int32_t)batteryMV - 2630) * 3;
 	blinkPeriod = std::min(blinkPeriod, 500_i32);
