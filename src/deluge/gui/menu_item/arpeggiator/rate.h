@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/unpatched_param.h"
 #include "gui/menu_item/patched_param/integer.h"
 #include "gui/ui/sound_editor.h"
 
@@ -24,7 +25,15 @@ public:
 	using patched_param::Integer::Integer;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow()
-		       && soundEditor.currentArpSettings->syncLevel == SYNC_LEVEL_NONE;
+		       && !soundEditor.editingKitAffectEntire() && soundEditor.currentArpSettings->syncLevel == SYNC_LEVEL_NONE;
+	}
+};
+
+class KitRate final : public UnpatchedParam {
+public:
+	using UnpatchedParam::UnpatchedParam;
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return soundEditor.editingKitAffectEntire() && soundEditor.currentArpSettings->syncLevel == SYNC_LEVEL_NONE;
 	}
 };
 

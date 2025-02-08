@@ -227,6 +227,7 @@ arpeggiator::PresetMode arpPresetModeMenu{STRING_FOR_PRESET, STRING_FOR_ARP_PRES
 arpeggiator::Mode arpModeMenu{STRING_FOR_ENABLED, STRING_FOR_ARP_MODE_MENU_TITLE};
 arpeggiator::Sync arpSyncMenu{STRING_FOR_SYNC, STRING_FOR_ARP_SYNC_MENU_TITLE};
 arpeggiator::Rate arpRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, params::GLOBAL_ARP_RATE};
+arpeggiator::KitRate arpKitRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, params::UNPATCHED_ARP_RATE};
 arpeggiator::midi_cv::Rate arpRateMenuMIDIOrCV{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE};
 // Pattern
 arpeggiator::Octaves arpOctavesMenu{STRING_FOR_NUMBER_OF_OCTAVES, STRING_FOR_ARP_OCTAVES_MENU_TITLE};
@@ -300,7 +301,7 @@ HorizontalMenu arpBasicMenu{STRING_FOR_BASIC,
                             {// Gate
                              &arpGateMenu, &arpGateMenuMIDIOrCV,
                              // Sync
-                             &arpSyncMenu, &arpRateMenu, &arpRateMenuMIDIOrCV}};
+                             &arpSyncMenu, &arpRateMenu, &arpKitRateMenu, &arpRateMenuMIDIOrCV}};
 // Arp: Pattern
 HorizontalMenu arpPatternMenu{STRING_FOR_PATTERN,
                               {// Pattern
