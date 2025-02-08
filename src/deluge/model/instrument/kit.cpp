@@ -304,7 +304,7 @@ doReadDrum:
 		}
 		else {
 			Error result =
-			    GlobalEffectableForClip::readTagFromFile(reader, tagName, &paramManager, readAutomationUpToPos, song);
+			    GlobalEffectableForClip::readTagFromFile(reader, tagName, &paramManager, readAutomationUpToPos, &defaultArpSettings, song);
 			if (result == Error::NONE) {}
 			else if (result != Error::RESULT_TAG_UNUSED) {
 				return result;
@@ -703,6 +703,14 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 			}
 		}
 	}
+}
+
+
+void Kit::beenEdited(bool shouldMoveToEmptySlot) {
+	if (activeClip) {
+		defaultArpSettings.cloneFrom(&((InstrumentClip*)activeClip)->arpSettings);
+	}
+	Instrument::beenEdited(shouldMoveToEmptySlot);
 }
 
 // offer the CC to kit gold knobs without also offering to all drums

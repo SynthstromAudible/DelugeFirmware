@@ -265,6 +265,8 @@ void MidiFollow::initDefaultMappings() {
 	globalParamToCC[params::UNPATCHED_MOD_FX_OFFSET] = 18;
 	ccToGlobalParam[20] = params::UNPATCHED_STUTTER_RATE;
 	globalParamToCC[params::UNPATCHED_STUTTER_RATE] = 20;
+	ccToGlobalParam[51] = params::UNPATCHED_ARP_RATE;
+	globalParamToCC[params::UNPATCHED_ARP_RATE] = 51;
 	ccToGlobalParam[52] = params::UNPATCHED_DELAY_AMOUNT;
 	globalParamToCC[params::UNPATCHED_DELAY_AMOUNT] = 52;
 	ccToGlobalParam[53] = params::UNPATCHED_DELAY_RATE;

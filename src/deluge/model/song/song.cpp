@@ -2007,7 +2007,7 @@ loadOutput:
 			}
 
 			else {
-				Error result = globalEffectable.readTagFromFile(reader, tagName, &paramManager, 2147483647, this);
+				Error result = globalEffectable.readTagFromFile(reader, tagName, &paramManager, 2147483647, nullptr, this);
 				if (result == Error::NONE) {}
 				else if (result != Error::RESULT_TAG_UNUSED) {
 					return result;
@@ -4206,6 +4206,9 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 				((SoundInstrument*)output)
 				    ->defaultArpSettings.cloneFrom(&((InstrumentClip*)output->getActiveClip())->arpSettings);
 			}
+			else if (output->type == OutputType::KIT) {
+				((Kit*)output)->defaultArpSettings.cloneFrom(&((InstrumentClip*)output->getActiveClip())->arpSettings);
+			}
 		}
 
 		// Ok, back to the main task - if there's no activeClip...
@@ -4879,7 +4882,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 			return nullptr;
 		}
 
-gotAnInstrument: {}
+gotAnInstrument : {}
 	}
 
 	// Synth or Kit

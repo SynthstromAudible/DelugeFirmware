@@ -37,6 +37,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/iterance/iterance.h"
 #include "model/note/note.h"
+#include "model/output.h"
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
@@ -2280,6 +2281,8 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 	// Arp stuff, so long as not a Kit (but remember, Sound/Synth is the only other option in this function)
 	if (newInstrument->type == OutputType::SYNTH) {
 		arpSettings.cloneFrom(&((SoundInstrument*)newInstrument)->defaultArpSettings);
+	} else if (newInstrument->type == OutputType::KIT) {
+		arpSettings.cloneFrom(&((Kit*)newInstrument)->defaultArpSettings);
 	}
 
 	if (shouldSetupPatching) {
@@ -2368,17 +2371,15 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		paramManager.getMIDIParamCollection()->writeToFile(writer);
 	}
 
-	if (output->type != OutputType::KIT) {
-		writer.writeOpeningTagBeginning("arpeggiator");
+	writer.writeOpeningTagBeginning("arpeggiator");
 
-		arpSettings.writeCommonParamsToFile(writer, nullptr);
+	arpSettings.writeCommonParamsToFile(writer, nullptr);
 
-		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
-			arpSettings.writeNonAudioParamsToFile(writer);
-		}
-
-		writer.closeTag();
+	if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
+		arpSettings.writeNonAudioParamsToFile(writer);
 	}
+
+	writer.closeTag();
 
 	if (output->type == OutputType::KIT) {
 		writer.writeOpeningTagBeginning("kitParams");
@@ -2681,6 +2682,8 @@ someError:
 						outputTypeWhileLoading = output->type;
 						if (outputTypeWhileLoading == OutputType::SYNTH) {
 							arpSettings.cloneFrom(&((SoundInstrument*)output)->defaultArpSettings);
+						} else if (outputTypeWhileLoading == OutputType::KIT) {
+							arpSettings.cloneFrom(&((Kit*)output)->defaultArpSettings);
 						}
 					}
 					reader.exitTag("referToTrackId");
@@ -2715,6 +2718,8 @@ loadInstrument:
 
 				if (outputTypeWhileLoading == OutputType::SYNTH) {
 					arpSettings.cloneFrom(&((SoundInstrument*)output)->defaultArpSettings);
+				} else if (outputTypeWhileLoading == OutputType::KIT) {
+					arpSettings.cloneFrom(&((Kit*)output)->defaultArpSettings);
 				}
 
 				// Add the Instrument to the Song

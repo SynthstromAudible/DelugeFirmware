@@ -264,6 +264,19 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_MOD_FX_FEEDBACK] = STRING_FOR_MODFX_FEEDBACK,
 		    [UNPATCHED_SIDECHAIN_SHAPE] = STRING_FOR_SIDECHAIN_SHAPE,
 		    [UNPATCHED_COMPRESSOR_THRESHOLD] = STRING_FOR_THRESHOLD,
+		    [UNPATCHED_ARP_GATE] = STRING_FOR_ARP_GATE_MENU_TITLE,
+		    [UNPATCHED_ARP_RHYTHM] = STRING_FOR_ARP_RHYTHM_MENU_TITLE,
+		    [UNPATCHED_ARP_SEQUENCE_LENGTH] = STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE,
+		    [UNPATCHED_ARP_CHORD_POLYPHONY] = STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE,
+		    [UNPATCHED_ARP_RATCHET_AMOUNT] = STRING_FOR_ARP_RATCHETS_MENU_TITLE,
+		    [UNPATCHED_NOTE_PROBABILITY] = STRING_FOR_NOTE_PROBABILITY_MENU_TITLE,
+		    [UNPATCHED_REVERSE_PROBABILITY] = STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE,
+		    [UNPATCHED_ARP_BASS_PROBABILITY] = STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE,
+		    [UNPATCHED_ARP_CHORD_PROBABILITY] = STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE,
+		    [UNPATCHED_ARP_RATCHET_PROBABILITY] = STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
+		    [UNPATCHED_ARP_SPREAD_GATE] = STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
+		    [UNPATCHED_ARP_SPREAD_OCTAVE] = STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE,
+		    [UNPATCHED_SPREAD_VELOCITY] = STRING_FOR_SPREAD_VELOCITY_MENU_TITLE,
 		};
 		return l10n::get(NAMES[p]);
 	}
@@ -282,19 +295,6 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 	if (kind == Kind::UNPATCHED_SOUND && p < util::to_underlying(UNPATCHED_SOUND_MAX_NUM)) {
 		using enum UnpatchedSound;
 		static l10n::String const NAMES[UNPATCHED_SOUND_MAX_NUM - unc] = {
-		    [UNPATCHED_ARP_GATE - unc] = STRING_FOR_ARP_GATE_MENU_TITLE,
-		    [UNPATCHED_ARP_RHYTHM - unc] = STRING_FOR_ARP_RHYTHM_MENU_TITLE,
-		    [UNPATCHED_ARP_SEQUENCE_LENGTH - unc] = STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE,
-		    [UNPATCHED_ARP_CHORD_POLYPHONY - unc] = STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE,
-		    [UNPATCHED_ARP_RATCHET_AMOUNT - unc] = STRING_FOR_ARP_RATCHETS_MENU_TITLE,
-		    [UNPATCHED_NOTE_PROBABILITY - unc] = STRING_FOR_NOTE_PROBABILITY_MENU_TITLE,
-		    [UNPATCHED_REVERSE_PROBABILITY - unc] = STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE,
-		    [UNPATCHED_ARP_BASS_PROBABILITY - unc] = STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE,
-		    [UNPATCHED_ARP_CHORD_PROBABILITY - unc] = STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE,
-		    [UNPATCHED_ARP_RATCHET_PROBABILITY - unc] = STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
-		    [UNPATCHED_ARP_SPREAD_GATE - unc] = STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
-		    [UNPATCHED_ARP_SPREAD_OCTAVE - unc] = STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE,
-		    [UNPATCHED_SPREAD_VELOCITY - unc] = STRING_FOR_SPREAD_VELOCITY_MENU_TITLE,
 		    [UNPATCHED_PORTAMENTO - unc] = STRING_FOR_PORTAMENTO,
 		};
 		return l10n::get(NAMES[p - unc]);
@@ -308,6 +308,7 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_MOD_FX_DEPTH - unc] = STRING_FOR_MOD_FX_DEPTH,
 		    [UNPATCHED_DELAY_RATE - unc] = STRING_FOR_DELAY_RATE,
 		    [UNPATCHED_DELAY_AMOUNT - unc] = STRING_FOR_DELAY_AMOUNT,
+		    [UNPATCHED_ARP_RATE - unc] = STRING_FOR_ARP_RATE_MENU_TITLE,
 		    [UNPATCHED_PAN - unc] = STRING_FOR_PAN,
 		    [UNPATCHED_LPF_FREQ - unc] = STRING_FOR_LPF_FREQUENCY,
 		    [UNPATCHED_LPF_RES - unc] = STRING_FOR_LPF_RESONANCE,
@@ -366,45 +367,6 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 	if (kind == UNPATCHED_SOUND && param >= UNPATCHED_START + UNPATCHED_NUM_SHARED) {
 		// Unpatched params just for Sounds
 		switch (static_cast<UnpatchedSound>(param - UNPATCHED_START)) {
-		case UNPATCHED_ARP_GATE:
-			return "arpGate";
-
-		case UNPATCHED_NOTE_PROBABILITY:
-			return "noteProbability";
-
-		case UNPATCHED_ARP_BASS_PROBABILITY:
-			return "bassProbability";
-
-		case UNPATCHED_REVERSE_PROBABILITY:
-			return "reverseProbability";
-
-		case UNPATCHED_ARP_CHORD_POLYPHONY:
-			return "chordPolyphony";
-
-		case UNPATCHED_ARP_CHORD_PROBABILITY:
-			return "chordProbability";
-
-		case UNPATCHED_ARP_RATCHET_PROBABILITY:
-			return "ratchetProbability";
-
-		case UNPATCHED_ARP_RATCHET_AMOUNT:
-			return "ratchetAmount";
-
-		case UNPATCHED_ARP_SEQUENCE_LENGTH:
-			return "sequenceLength";
-
-		case UNPATCHED_ARP_RHYTHM:
-			return "rhythm";
-
-		case UNPATCHED_ARP_SPREAD_GATE:
-			return "spreadGate";
-
-		case UNPATCHED_ARP_SPREAD_OCTAVE:
-			return "spreadOctave";
-
-		case UNPATCHED_SPREAD_VELOCITY:
-			return "spreadVelocity";
-
 		case UNPATCHED_PORTAMENTO:
 			return "portamento";
 
@@ -427,6 +389,9 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 
 		case UNPATCHED_DELAY_AMOUNT:
 			return "delayFeedback";
+
+		case UNPATCHED_ARP_RATE:
+			return "arpRate";
 
 		case UNPATCHED_PAN:
 			return "pan";
@@ -497,6 +462,46 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 
 		case UNPATCHED_COMPRESSOR_THRESHOLD:
 			return "compressorThreshold";
+
+		case UNPATCHED_ARP_GATE:
+			return "arpGate";
+
+		case UNPATCHED_NOTE_PROBABILITY:
+			return "noteProbability";
+
+		case UNPATCHED_ARP_BASS_PROBABILITY:
+			return "bassProbability";
+
+		case UNPATCHED_REVERSE_PROBABILITY:
+			return "reverseProbability";
+
+		case UNPATCHED_ARP_CHORD_POLYPHONY:
+			return "chordPolyphony";
+
+		case UNPATCHED_ARP_CHORD_PROBABILITY:
+			return "chordProbability";
+
+		case UNPATCHED_ARP_RATCHET_PROBABILITY:
+			return "ratchetProbability";
+
+		case UNPATCHED_ARP_RATCHET_AMOUNT:
+			return "ratchetAmount";
+
+		case UNPATCHED_ARP_SEQUENCE_LENGTH:
+			return "sequenceLength";
+
+		case UNPATCHED_ARP_RHYTHM:
+			return "rhythm";
+
+		case UNPATCHED_ARP_SPREAD_GATE:
+			return "spreadGate";
+
+		case UNPATCHED_ARP_SPREAD_OCTAVE:
+			return "spreadOctave";
+
+		case UNPATCHED_SPREAD_VELOCITY:
+			return "spreadVelocity";
+
 
 		case UNPATCHED_NUM_SHARED:
 		    // Intentionally not handled

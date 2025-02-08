@@ -33,6 +33,9 @@ enum class MIDIMatchType;
 class Kit final : public Instrument, public GlobalEffectableForClip {
 public:
 	Kit();
+
+	ArpeggiatorSettings defaultArpSettings;
+
 	Drum* getNextDrum(Drum* fromSoundSource);
 	Drum* getPrevDrum(Drum* fromSoundSource);
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
@@ -98,6 +101,7 @@ public:
 	void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
 	                                      ModelStackWithTimelineCounter* modelStack) override {}
 
+	void beenEdited(bool shouldMoveToEmptySlot = true) override;
 	void choke();
 	void resyncLFOs() override;
 	void removeDrum(Drum* drum);
