@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/unpatched_param.h"
 #include "gui/menu_item/patched_param/integer.h"
+#include "gui/menu_item/unpatched_param.h"
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
