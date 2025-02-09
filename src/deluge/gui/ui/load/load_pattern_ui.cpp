@@ -44,6 +44,14 @@ bool LoadPatternUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 
 bool LoadPatternUI::opened() {
 	// Start Pattern Paste Action
+
+	Error errorRhythmic = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DEFAULT_FOLDER);
+	Error errorMelodic = createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
+	if (errorRhythmic != Error::NONE || errorMelodic != Error::NONE) {
+		display->displayError(Error::FOLDER_DOESNT_EXIST);
+		return false;
+	}
+
 	actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	overwriteExisting = true;
 	if (!getRootUI()->toClipMinder() || (getCurrentOutputType() == OutputType::AUDIO)) {

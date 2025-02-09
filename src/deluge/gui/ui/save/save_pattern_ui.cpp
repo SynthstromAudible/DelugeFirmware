@@ -48,6 +48,13 @@ SavePatternUI::SavePatternUI() {
 
 bool SavePatternUI::opened() {
 
+	Error errorRhythmic = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DEFAULT_FOLDER);
+	Error errorMelodic = createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
+	if (errorRhythmic != Error::NONE || errorMelodic != Error::NONE) {
+		display->displayError(Error::FOLDER_DOESNT_EXIST);
+		return false;
+	}
+
 	if (!getRootUI()->toClipMinder() || (getCurrentOutputType() == OutputType::AUDIO)) {
 		return false;
 	}

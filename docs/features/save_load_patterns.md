@@ -15,8 +15,8 @@ This feature enables you to build up and share your own Patterns Library on the 
 Everything you can think of and what can be copy/pasted can now also be stored an recalled to/from the SD Card.
 
 
-### Prerequisites
-You need to add the following File Structure to the Root of your SD Card:
+### Folder Structure
+You will Find the Pattern Files nn the following Structure on the Root of your SD Card:
 
 ```
 "PATTERNS/RHYTHMIC/DRUM"
@@ -105,6 +105,7 @@ After loading a Patter, the Pattern is also copied into Clipboard and can be pas
 - Dynamically change Window Size based on original-Pattern size (noScaling)
 - supported Note Attributes: velocity, propability, lift, iterance, fill
 - If Zoomlevel of the Loading Pattern is not identical to the actual Zoom level, a Popup with the Scaling is shown (Scale-Factor for 7Seg)
+- Auto-Creation of Folder Structure
 
 
 ### Additional Tools
@@ -122,5 +123,3 @@ Important:The Tools where tested with the [Wikipedia Midifile Sample](https://en
 - No Scaling:`NOSC`
 - Previwing:`PREV`
 
-### TODOs:
-- [ ] Auto-Creation of Folder Structure
