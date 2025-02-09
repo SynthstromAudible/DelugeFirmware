@@ -1709,25 +1709,25 @@ Error Browser::createFolder() {
 
 Error Browser::createFoldersRecursiveIfNotExists(const char* path) {
 	if (!path || *path == '\0') {  // Check for null or empty string
-        return Error::UNSPECIFIED;
-    }
+		return Error::UNSPECIFIED;
+	}
 
-    char tempPath[256];  // Buffer to store the progressively built path
-    size_t len = 0;
+	char tempPath[256];  // Buffer to store the progressively built path
+	size_t len = 0;
 
     // Iterate through the path and create directories step by step
-    for (const char* p = path; *p; ++p) {
-        tempPath[len++] = *p;
-        tempPath[len] = '\0';  // Null-terminate
+	for (const char* p = path; *p; ++p) {
+		tempPath[len++] = *p;
+		tempPath[len] = '\0';  // Null-terminate
 
-        if (*p == '/' || *(p + 1) == '\0') {  // Create at each folder level
-            FRESULT result = f_mkdir(tempPath);
-            if (result != FR_OK && result != FR_EXIST) {
-               return fresultToDelugeErrorCode(FR_NO_PATH);
-            }
-        }
-    }
-    return Error::NONE;
+		if (*p == '/' || *(p + 1) == '\0') {  // Create at each folder level
+			FRESULT result = f_mkdir(tempPath);
+			if (result != FR_OK && result != FR_EXIST) {
+				return fresultToDelugeErrorCode(FR_NO_PATH);
+			}
+		}
+	}
+	return Error::NONE;
 }
 
 void Browser::sortFileItems() {
