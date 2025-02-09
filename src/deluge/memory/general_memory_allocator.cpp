@@ -20,7 +20,8 @@
 #include "io/debug/log.h"
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
-
+// these are never used directly, they're just reserving raw memory for use in the allocator  and clang tidy is unhappy
+// NOLINTBEGIN
 // TODO: Check if these have the right size
 PLACE_INTERNAL_FRUNK char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
 PLACE_INTERNAL_FRUNK char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
@@ -35,7 +36,7 @@ extern uint32_t __heap_start;
 extern uint32_t __heap_end;
 extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;
-
+// NOLINTEND
 GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	uint32_t externalSmallEnd = EXTERNAL_MEMORY_END;
 	uint32_t externalSmallStart = externalSmallEnd - RESERVED_EXTERNAL_SMALL_ALLOCATOR;
