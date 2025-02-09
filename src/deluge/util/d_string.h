@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include <cctype>
 #include <cstdint>
 #include <cstring>
 

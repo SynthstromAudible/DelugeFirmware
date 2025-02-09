@@ -18,9 +18,9 @@ jobs:
       - name: Install GCC multilib
         run: |
           sudo apt-get update
-          sudo apt-get install gcc-12 gcc-12-multilib g++-12-multilib
-          echo "CC=gcc-12" >> $GITHUB_ENV
-          echo "CXX=g++-12" >> $GITHUB_ENV
+          sudo apt-get install gcc-14 gcc-14-multilib g++-14-multilib
+          echo "CC=gcc-14" >> $GITHUB_ENV
+          echo "CXX=g++-14" >> $GITHUB_ENV
 
       - name: Install CMake
         uses: lukka/get-cmake@latest

@@ -4,11 +4,19 @@ FetchContent_Declare(CppSpec
 )
 FetchContent_MakeAvailable(CppSpec)
 
-add_library(deluge_spec STATIC
-  ../../src/deluge/util/semver.cpp
-)
+add_subdirectory(../../src/lib printf)
 
-target_include_directories(deluge_spec PUBLIC ../../src/deluge)
+add_library(deluge_spec STATIC
+../../src/deluge/util/semver.cpp
+../../src/deluge/util/string.cpp
+../../src/deluge/util/cfunctions.c
+../../src/deluge/util/lookuptables/lookuptables.cpp
+../32bit_unit_tests/mocks/mock_display.cpp
+../32bit_unit_tests/mocks/mock_print.cpp
+)
+target_link_libraries(deluge_spec PUBLIC eyalroz_printf)
+
+target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/)
 
 set_target_properties(deluge_spec PROPERTIES
   CXX_STANDARD 23
