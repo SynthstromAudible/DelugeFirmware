@@ -794,7 +794,7 @@ noNumberYet:
 		if (mayDefaultToBrandNewNameOnEntry && !direction) {
 pickBrandNewNameIfNoneNominated:
 			if (enteredText.isEmpty()) {
-				error = getUnusedSlot(OutputType::NONE, &enteredText, "SONG");
+				error = getUnusedSlot(OutputType::NONE, &enteredText, filePrefix);
 				if (error != Error::NONE) {
 					goto gotErrorAfterAllocating;
 				}
