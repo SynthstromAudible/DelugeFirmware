@@ -22,11 +22,13 @@
 #include "processing/engines/audio_engine.h"
 
 // TODO: Check if these have the right size
-PLACE_SDRAM_BSS char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
-PLACE_SDRAM_BSS char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
-PLACE_SDRAM_BSS char emptySpacesMemoryInternalSmall[sizeof(EmptySpaceRecord) * 256];
-PLACE_SDRAM_BSS char emptySpacesMemoryGeneral[sizeof(EmptySpaceRecord) * 256];
-PLACE_SDRAM_BSS char emptySpacesMemoryGeneralSmall[sizeof(EmptySpaceRecord) * 256];
+PLACE_INTERNAL_FRUNK char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
+PLACE_INTERNAL_FRUNK char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
+PLACE_INTERNAL_FRUNK char emptySpacesMemoryInternalSmall[sizeof(EmptySpaceRecord) * 256];
+PLACE_INTERNAL_FRUNK char emptySpacesMemoryGeneral[sizeof(EmptySpaceRecord) * 256];
+PLACE_INTERNAL_FRUNK char emptySpacesMemoryGeneralSmall[sizeof(EmptySpaceRecord) * 256];
+extern uint32_t __frunk_bss_end;
+extern uint32_t __frunk_slack_end;
 extern uint32_t __sdram_bss_start;
 extern uint32_t __sdram_bss_end;
 extern uint32_t __heap_start;
@@ -42,10 +44,10 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	uint32_t stealableEnd = externalStart;
 	uint32_t stealableStart = (uint32_t)&__sdram_bss_end;
 
-	uint32_t internalSmallEnd = (uint32_t)&program_stack_start;
-	uint32_t internalSmallStart = internalSmallEnd - RESERVED_INTERNAL_SMALL;
-	uint32_t internalEnd = internalSmallStart;
+	uint32_t internalSmallStart = (uint32_t)&__frunk_bss_end;
+	uint32_t internalSmallEnd = (uint32_t)&__frunk_slack_end;
 	uint32_t internalStart = (uint32_t)&__heap_start;
+	uint32_t internalEnd = (uint32_t)&program_stack_start;
 
 	lock = false;
 	regions[MEMORY_REGION_STEALABLE].name = "stealable";
@@ -70,7 +72,8 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	regions[MEMORY_REGION_INTERNAL_SMALL].minAlign_ = 16;
 	regions[MEMORY_REGION_INTERNAL_SMALL].pivot_ = 64;
 }
-
+constexpr size_t kInternalSwitchSize = 128;
+constexpr size_t kExternalSwitchSize = 128;
 int32_t closestDistance = 2147483647;
 
 void GeneralMemoryAllocator::checkStack(char const* caller) {
@@ -115,7 +118,7 @@ void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 
 	lock = true;
 	void* address = nullptr;
-	if (requiredSize < 128) {
+	if (requiredSize < kExternalSwitchSize) {
 		address = regions[MEMORY_REGION_EXTERNAL_SMALL].alloc(requiredSize, false, NULL);
 	}
 	// if it's a large object or the small object allocator was full stick it in the big one
@@ -139,7 +142,7 @@ void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
 
 	lock = true;
 	void* address = nullptr;
-	if (requiredSize < 128) {
+	if (requiredSize < kInternalSwitchSize) {
 		address = regions[MEMORY_REGION_INTERNAL_SMALL].alloc(requiredSize, false, NULL);
 	}
 	// if it's a large object or the small object allocator was full stick it in the big one
