@@ -1211,7 +1211,6 @@ ramError:
 					newNote->iterance = noteToCopy->iterance;
 					newNote->fill = noteToCopy->fill;
 
-
 					if (copyToFile) {
 
 						char buffer[9];
