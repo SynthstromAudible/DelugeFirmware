@@ -47,7 +47,7 @@ jobs:
       - name: List contents of build directory
         run: ls -la ${{ github.workspace }}/build
 
-      - uses: ZehMatt/clang-tidy-annotations@v1.1.1
+      - uses: stellar-aria/clang-tidy-annotations@master #ZehMatt/clang-tidy-annotations@v1.1.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           build_dir: ${{ github.workspace }}/build
