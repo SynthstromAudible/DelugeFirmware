@@ -44,6 +44,9 @@ jobs:
         run: |
           sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-19 100
 
+      - name: List contents of build directory
+        run: ls -la ${{ github.workspace }}/build
+
       - uses: ZehMatt/clang-tidy-annotations@v1.1.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
