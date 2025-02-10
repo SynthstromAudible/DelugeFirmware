@@ -185,15 +185,10 @@ SECTIONS
 		*(.text.startup)
 
 		_etext = .;
+        PROVIDE(program_code_end = .);
 
 	} > RAM012L
 
-	.exceptions : ALIGN(0x4) {
-	    *(.ARM.extab)
-	    *(.ARM.extab.*)
-	    PROVIDE(program_code_end = .);
-	} > RAM012L
-	
 	.rodata :
 	{
 		. = ALIGN(0x4);
@@ -246,14 +241,6 @@ SECTIONS
 		KEEP(*(.fini_array*))
 		KEEP(*(SORT(.fini_array*)))
 		PROVIDE_HIDDEN(__fini_array_end = .);
-	} > RAM012L
-
-	/* See http://embdev.net/topic/282936 */
-	.ARM.exidx : {
-		PROVIDE_HIDDEN(__exidx_start = .);
-		 *(.ARM.exidx*) 
-		 *(.gnu.linkonce.armexidx.*)
-		PROVIDE_HIDDEN(__exidx_end = .);
 	} > RAM012L
 
 	.tors :
@@ -318,8 +305,19 @@ SECTIONS
         . = ALIGN(0x4);
     } > SDRAM
 
+    .exceptions : AT(ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data) + SIZEOF(.sdram_rodata)) {
+        PROVIDE(__reloc_sections_start__ = .);
+        *(.ARM.extab)
+        *(.ARM.extab.*)
+        PROVIDE_HIDDEN(__exidx_start = .);
+         *(.ARM.exidx*)
+         *(.gnu.linkonce.armexidx.*)
+        PROVIDE_HIDDEN(__exidx_end = .);
+        PROVIDE(__reloc_sections_end__ = .);
+    } > SDRAM
+
 	/* Reset location counter to RAM012L. Warning: Changing relocation sections before that will require change here */
-	. = ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data) + SIZEOF(.sdram_rodata);
+	. = ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data) + SIZEOF(.sdram_rodata) + SIZEOF(.exceptions);
 	. = ALIGN(4);
     . = ALIGN(0xFFFF);
 	/* Definition of code_end declared in start.S and referenced in bootloader with DEF_USER_CODE_END */
