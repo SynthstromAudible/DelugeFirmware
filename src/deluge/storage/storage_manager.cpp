@@ -112,11 +112,9 @@ std::expected<FatFS::File, Error> StorageManager::createFile(char const* filePat
 		mode |= FA_CREATE_NEW;
 	}
 
-tryAgain:
 	auto opened = FatFS::File::open(filePath, mode);
 	if (!opened) {
 
-processError:
 		// If folder doesn't exist, try creating it - once only
 		if (opened.error() == FatFS::Error::NO_PATH) {
 			if (triedCreatingFolder) {
@@ -131,7 +129,6 @@ processError:
 			}
 
 			// Get just the folder path
-cutFolderPathAndTryCreating:
 			char const* folderPathChars = folderPath.get();
 			char const* slashAddr = strrchr(folderPathChars, '/');
 			if (!slashAddr) {
@@ -145,17 +142,16 @@ cutFolderPathAndTryCreating:
 			}
 
 			// Try making the folder
-			auto made_dir = FatFS::mkdir(folderPath.get());
+			auto made_dir = createFolder(folderPath.get());
 			if (made_dir) {
-				goto tryAgain;
-			}
-			// If that folder couldn't be created because its parent folder didn't exist...
-			else if (made_dir.error() == FatFS::Error::NO_PATH) {
-				triedCreatingFolder = false;      // Let it do multiple tries again
-				goto cutFolderPathAndTryCreating; // Go and try creating the parent folder
+				// Try opening the file again now as the Paths should be created
+				opened = FatFS::File::open(filePath, mode);
+				if (!opened){
+					return std::unexpected(error);
+				}
 			}
 			else {
-				goto processError;
+				return std::unexpected(error);
 			}
 		}
 
@@ -171,6 +167,62 @@ cutFolderPathAndTryCreating:
 	}
 
 	return opened.value();
+}
+
+// Creates folders and subfolders as needed!
+std::expected<FatFS::Directory, Error> StorageManager::createFolder(char const* newFolderPath) {
+	Error error = initSD();
+	if (error != Error::NONE) {
+		return std::unexpected(error);
+	}
+
+	error = checkSpaceOnCard();
+	if (error != Error::NONE) {
+		return std::unexpected(error);
+	}
+
+	auto opened = FatFS::Directory::open(newFolderPath);
+	if (opened) {
+		return opened.value(); // Folder exists, return it
+	}
+
+	String folderPath;
+	error = folderPath.set(newFolderPath);
+	if (error != Error::NONE) {
+		return std::unexpected(error);
+	}
+
+    if (opened.error() == FatFS::Error::NO_PATH) {
+
+        // Get parent folder path
+        char const* folderPathChars = folderPath.get();
+        char const* slashAddr = strrchr(folderPathChars, '/');
+        if (slashAddr) {
+
+			int32_t slashPos = (uint32_t)slashAddr - (uint32_t)folderPathChars;
+			error = folderPath.shorten(slashPos);
+			if (error != Error::NONE) {
+				return std::unexpected(error);
+			}
+
+			// Recursively create the parent folder first
+			auto parentCreated = createFolder(folderPath.get());
+			if (!parentCreated) {
+				return parentCreated; // Propagate error
+			}
+		}
+
+        // Now that the parent exists, create the current folder
+        auto made_dir = FatFS::mkdir(newFolderPath);
+        if (!made_dir) {
+            return std::unexpected(error);
+        }
+
+        return (FatFS::Directory::open(newFolderPath)).value();
+    }
+
+    // Return error if it's not NO_PATH
+    return std::unexpected(error);
 }
 
 Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer, bool mayOverwrite,

@@ -32,7 +32,8 @@
 
 using namespace deluge;
 
-static constexpr const char* PATTERN_RHYTHMIC_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC";
+static constexpr const char* PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/KIT";
+static constexpr const char* PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/DRUM";
 static constexpr const char* PATTERN_MELODIC_DEFAULT_FOLDER = "PATTERNS/MELODIC";
 
 LoadPatternUI loadPatternUI{};
@@ -45,11 +46,26 @@ bool LoadPatternUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 bool LoadPatternUI::opened() {
 	// Start Pattern Paste Action
 
-	Error errorRhythmic = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DEFAULT_FOLDER);
-	Error errorMelodic = createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
-	if (errorRhythmic != Error::NONE || errorMelodic != Error::NONE) {
-		display->displayError(Error::FOLDER_DOESNT_EXIST);
-		return false;
+	auto dir = StorageManager::createFolder(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
+	if (!dir) {
+		if (dir.error() != Error::FILE_ALREADY_EXISTS ) {
+			display->displayError(Error::FOLDER_DOESNT_EXIST);
+			return false;
+		}
+	}
+	dir = StorageManager::createFolder(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
+	if (!dir) {
+		if (dir.error() != Error::FILE_ALREADY_EXISTS ) {
+			display->displayError(Error::FOLDER_DOESNT_EXIST);
+			return false;
+		}
+	}
+	dir = StorageManager::createFolder(PATTERN_MELODIC_DEFAULT_FOLDER);
+	if (!dir) {
+		if (dir.error() != Error::FILE_ALREADY_EXISTS ) {
+			display->displayError(Error::FOLDER_DOESNT_EXIST);
+			return false;
+		}
 	}
 
 	actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
@@ -60,12 +76,12 @@ bool LoadPatternUI::opened() {
 
 	if (getCurrentOutputType() == OutputType::KIT) {
 		if (getRootUI()->getAffectEntire()) {
-			defaultDir = std::string(PATTERN_RHYTHMIC_DEFAULT_FOLDER) + "/KIT";
+			defaultDir = PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER;
 			title = "Load Kit Pattern";
 			selectedDrumOnly = false;
 		}
 		else {
-			defaultDir = std::string(PATTERN_RHYTHMIC_DEFAULT_FOLDER) + "/DRUM";
+			defaultDir = PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER;
 			title = "Load Drum Pattern";
 			selectedDrumOnly = true;
 		}

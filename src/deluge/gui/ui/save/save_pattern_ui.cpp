@@ -37,7 +37,8 @@
 
 using namespace deluge;
 
-static constexpr const char* PATTERN_RHYTHMIC_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC";
+static constexpr const char* PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/KIT";
+static constexpr const char* PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/DRUM";
 static constexpr const char* PATTERN_MELODIC_DEFAULT_FOLDER = "PATTERNS/MELODIC";
 
 SavePatternUI savePatternUI{};
@@ -47,13 +48,6 @@ SavePatternUI::SavePatternUI() {
 }
 
 bool SavePatternUI::opened() {
-
-	Error errorRhythmic = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DEFAULT_FOLDER);
-	Error errorMelodic = createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
-	if (errorRhythmic != Error::NONE || errorMelodic != Error::NONE) {
-		display->displayError(Error::FOLDER_DOESNT_EXIST);
-		return false;
-	}
 
 	if (!getRootUI()->toClipMinder() || (getCurrentOutputType() == OutputType::AUDIO)) {
 		return false;
@@ -76,12 +70,12 @@ doReturnFalse:
 	std::string patternFolder = "";
 	if (getCurrentOutputType() == OutputType::KIT) {
 		if (getRootUI()->getAffectEntire()) {
-			defaultDir = std::string(PATTERN_RHYTHMIC_DEFAULT_FOLDER) + "/KIT";
+			defaultDir = PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER;
 			title = "Save Kit Pattern";
 			selectedDrumOnly = false;
 		}
 		else {
-			defaultDir = std::string(PATTERN_RHYTHMIC_DEFAULT_FOLDER) + "/DRUM";
+			defaultDir = PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER;
 			title = "Save Drum Pattern";
 			selectedDrumOnly = true;
 		}

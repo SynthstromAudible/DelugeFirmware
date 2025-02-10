@@ -359,6 +359,7 @@ extern FileDeserializer* activeDeserializer;
 namespace StorageManager {
 
 std::expected<FatFS::File, Error> createFile(char const* filePath, bool mayOverwrite);
+std::expected<FatFS::Directory, Error> createFolder(char const* filePath);
 Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false, bool displayErrors = true);
 Error createJsonFile(char const* pathName, JsonSerializer& writer, bool mayOverwrite = false,
                      bool displayErrors = true);
