@@ -61,10 +61,6 @@ extern "C" {
 using namespace deluge;
 namespace params = deluge::modulation::params;
 
-#pragma GCC diagnostic push
-// This is supported by GCC and other compilers should error (not warn), so turn off for this file
-#pragma GCC diagnostic ignored "-Winvalid-offsetof"
-
 PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[4][SSI_TX_BUFFER_NUM_SAMPLES]
     __attribute__((aligned(CACHE_LINE_SIZE)));
 
@@ -2522,4 +2518,3 @@ uint32_t Voice::getPriorityRating() {
 	    // Bits  0-23 - time entered
 	    + ((uint32_t)(-envelopes[0].timeEnteredState) & (0xFFFFFFFF >> 8));
 }
-#pragma GCC diagnostic pop

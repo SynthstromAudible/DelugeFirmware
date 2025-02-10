@@ -66,14 +66,14 @@ namespace params = deluge::modulation::params;
 extern "C" {
 #include "RZA1/mtu/mtu.h"
 }
-#pragma GCC diagnostic push
-// This is supported by GCC and other compilers should error (not warn), so turn off for this file
-#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 constexpr Patcher::Config kPatcherConfigForSound = {
-    params::FIRST_GLOBAL,        params::FIRST_GLOBAL_NON_VOLUME,
-    params::FIRST_GLOBAL_HYBRID, params::FIRST_GLOBAL_EXP,
-    params::kNumParams,          GLOBALITY_GLOBAL,
+    .firstParam = params::FIRST_GLOBAL,
+    .firstNonVolumeParam = params::FIRST_GLOBAL_NON_VOLUME,
+    .firstHybridParam = params::FIRST_GLOBAL_HYBRID,
+    .firstExpParam = params::FIRST_GLOBAL_EXP,
+    .endParams = params::kNumParams,
+    .globality = GLOBALITY_GLOBAL,
 };
 
 Sound::Sound() : patcher(kPatcherConfigForSound, globalSourceValues, paramFinalValues) {
