@@ -18,8 +18,9 @@ jobs:
           sudo debconf-communicate <<< "set man-db/auto-update false"
           sudo dpkg-reconfigure man-db        
           sudo apt-get update
-          sudo apt-get remove -y clang-tidy
+          sudo apt-get remove -y ^clang-tidy
           sudo apt-get install -y clang-19 clang-tidy-19
+          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-19 100
 
       - name: Generate compilation database
         run: |
@@ -40,14 +41,10 @@ jobs:
           echo "Extracted system includes:"
           cat system_includes.txt
 
-      - name: Set clang-tidy-19 as default clang-tidy
-        run: |
-          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-19 100
+      - name: Check clang-tidy version
+        run: clang-tidy --version
 
-      - name: List contents of build directory
-        run: ls -la ${{ github.workspace }}/build
-
-      - uses: stellar-aria/clang-tidy-annotations@master #ZehMatt/clang-tidy-annotations@v1.1.1
+      - uses: stellar-aria/clang-tidy-annotations@7a07996fe01ffaa846b0f4a5e9de3c58a3217f73 #ZehMatt/clang-tidy-annotations@v1.1.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           build_dir: ${{ github.workspace }}/build
