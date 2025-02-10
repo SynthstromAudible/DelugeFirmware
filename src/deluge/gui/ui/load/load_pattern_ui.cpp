@@ -48,21 +48,21 @@ bool LoadPatternUI::opened() {
 
 	auto dir = StorageManager::createFolder(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
 	if (!dir) {
-		if (dir.error() != Error::FILE_ALREADY_EXISTS ) {
+		if (dir.error() != Error::FILE_ALREADY_EXISTS) {
 			display->displayError(Error::FOLDER_DOESNT_EXIST);
 			return false;
 		}
 	}
 	dir = StorageManager::createFolder(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
 	if (!dir) {
-		if (dir.error() != Error::FILE_ALREADY_EXISTS ) {
+		if (dir.error() != Error::FILE_ALREADY_EXISTS) {
 			display->displayError(Error::FOLDER_DOESNT_EXIST);
 			return false;
 		}
 	}
 	dir = StorageManager::createFolder(PATTERN_MELODIC_DEFAULT_FOLDER);
 	if (!dir) {
-		if (dir.error() != Error::FILE_ALREADY_EXISTS ) {
+		if (dir.error() != Error::FILE_ALREADY_EXISTS) {
 			display->displayError(Error::FOLDER_DOESNT_EXIST);
 			return false;
 		}

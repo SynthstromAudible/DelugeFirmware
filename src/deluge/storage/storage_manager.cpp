@@ -146,7 +146,7 @@ std::expected<FatFS::File, Error> StorageManager::createFile(char const* filePat
 			if (made_dir) {
 				// Try opening the file again now as the Paths should be created
 				opened = FatFS::File::open(filePath, mode);
-				if (!opened){
+				if (!opened) {
 					return std::unexpected(error);
 				}
 			}
@@ -192,12 +192,12 @@ std::expected<FatFS::Directory, Error> StorageManager::createFolder(char const* 
 		return std::unexpected(error);
 	}
 
-    if (opened.error() == FatFS::Error::NO_PATH) {
+	if (opened.error() == FatFS::Error::NO_PATH) {
 
-        // Get parent folder path
-        char const* folderPathChars = folderPath.get();
-        char const* slashAddr = strrchr(folderPathChars, '/');
-        if (slashAddr) {
+		// Get parent folder path
+		char const* folderPathChars = folderPath.get();
+		char const* slashAddr = strrchr(folderPathChars, '/');
+		if (slashAddr) {
 
 			int32_t slashPos = (uint32_t)slashAddr - (uint32_t)folderPathChars;
 			error = folderPath.shorten(slashPos);
@@ -212,17 +212,17 @@ std::expected<FatFS::Directory, Error> StorageManager::createFolder(char const* 
 			}
 		}
 
-        // Now that the parent exists, create the current folder
-        auto made_dir = FatFS::mkdir(newFolderPath);
-        if (!made_dir) {
-            return std::unexpected(error);
-        }
+		// Now that the parent exists, create the current folder
+		auto made_dir = FatFS::mkdir(newFolderPath);
+		if (!made_dir) {
+			return std::unexpected(error);
+		}
 
-        return (FatFS::Directory::open(newFolderPath)).value();
-    }
+		return (FatFS::Directory::open(newFolderPath)).value();
+	}
 
-    // Return error if it's not NO_PATH
-    return std::unexpected(error);
+	// Return error if it's not NO_PATH
+	return std::unexpected(error);
 }
 
 Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer, bool mayOverwrite,
