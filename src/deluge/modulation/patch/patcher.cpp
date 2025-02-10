@@ -135,7 +135,6 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 	}
 }
 
-// Declaring these next 4 as inline made no performance difference.
 int32_t Patcher::cableToLinearParamWithoutRangeAdjustment(int32_t source_value, int32_t cable_strength,
                                                           int32_t running_total) {
 	int32_t scaled_source = multiply_32x32_rshift32(source_value, cable_strength);
@@ -168,7 +167,8 @@ int32_t Patcher::cableToExpParam(const PatchCable& patch_cable, int32_t source_v
 	return running_total + patch_cable.applyRangeAdjustment(scaled_source);
 }
 
-int32_t Patcher::combineCablesLinearForRangeParam(Destination const* destination, ParamManager* paramManager) {
+[[gnu::always_inline]] int32_t Patcher::combineCablesLinearForRangeParam(Destination const* destination,
+                                                                         ParamManager* paramManager) {
 	int32_t running_total = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed
 	                                   // to get bigger than 2147483647, which means "4".
 
@@ -198,11 +198,9 @@ int32_t Patcher::combineCablesLinearForRangeParam(Destination const* destination
 
 // Linear param - combine all cables by multiplying their values (values centred around 1). Inputs effectively range
 // from "0" to "2". Output (product) clips off at "4". Call this if (p < getFirstHybridParam()) - "Pan" sits at the end
-// of the linear params and is the exception to the rule - it doesn't want this multiplying treatment Having this inline
-// makes huge ~40% performance difference to performInitialPatching, I think because in that case it knows there are no
-// cables.
-inline int32_t Patcher::combineCablesLinear(Destination const* destination, uint32_t p, Sound* sound,
-                                            ParamManager* paramManager) {
+// of the linear params and is the exception to the rule - it doesn't want this multiplying treatment
+[[gnu::always_inline]] int32_t Patcher::combineCablesLinear(Destination const* destination, uint32_t p, Sound* sound,
+                                                            ParamManager* paramManager) {
 	int32_t running_total = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed
 	                                   // to get bigger than 2147483647, which means "4".
 
@@ -233,8 +231,8 @@ inline int32_t Patcher::combineCablesLinear(Destination const* destination, uint
 // Call this if (p >= getFirstHybridParam())
 // Having this inline makes huge ~40% performance difference to performInitialPatching, I think because in that case it
 // knows there are no cables.
-inline int32_t Patcher::combineCablesExp(Destination const* destination, uint32_t param, Sound* sound,
-                                         ParamManager* paramManager) {
+[[gnu::always_inline]] int32_t Patcher::combineCablesExp(Destination const* destination, uint32_t param, Sound* sound,
+                                                         ParamManager* paramManager) {
 
 	int32_t running_total = 0;
 
