@@ -29,5 +29,5 @@ public:
 	bool reversed;
 	bool invertReversed;
 
-	bool isReversed() const;
+	[[nodiscard]] bool isReversed() const;
 };
