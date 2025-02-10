@@ -56,19 +56,17 @@ public:
 			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_PATTERN),   //<
 			};
 		}
-		else {
-			return {
-			    l10n::getView(STRING_FOR_UP),        //<
-			    l10n::getView(STRING_FOR_DOWN),      //<
-			    l10n::getView(STRING_FOR_UP_DOWN),   //<
-			    l10n::getView(STRING_FOR_RANDOM),    //<
-			    l10n::getView(STRING_FOR_WALK1),     //<
-			    l10n::getView(STRING_FOR_WALK2),     //<
-			    l10n::getView(STRING_FOR_WALK3),     //<
-			    l10n::getView(STRING_FOR_AS_PLAYED), //<
-			    l10n::getView(STRING_FOR_PATTERN),   //<
-			};
-		}
+		return {
+			l10n::getView(STRING_FOR_UP),        //<
+			l10n::getView(STRING_FOR_DOWN),      //<
+			l10n::getView(STRING_FOR_UP_DOWN),   //<
+			l10n::getView(STRING_FOR_RANDOM),    //<
+			l10n::getView(STRING_FOR_WALK1),     //<
+			l10n::getView(STRING_FOR_WALK2),     //<
+			l10n::getView(STRING_FOR_WALK3),     //<
+			l10n::getView(STRING_FOR_AS_PLAYED), //<
+			l10n::getView(STRING_FOR_PATTERN),   //<
+		};
 	}
 };
 

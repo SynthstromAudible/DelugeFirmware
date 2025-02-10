@@ -50,15 +50,13 @@ public:
 			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_RANDOM),    //<
 			};
 		}
-		else {
-			return {
-			    l10n::getView(STRING_FOR_UP),        //<
-			    l10n::getView(STRING_FOR_DOWN),      //<
-			    l10n::getView(STRING_FOR_UP_DOWN),   //<
-			    l10n::getView(STRING_FOR_ALTERNATE), //<
-			    l10n::getView(STRING_FOR_RANDOM),    //<
-			};
-		}
+		return {
+			l10n::getView(STRING_FOR_UP),        //<
+			l10n::getView(STRING_FOR_DOWN),      //<
+			l10n::getView(STRING_FOR_UP_DOWN),   //<
+			l10n::getView(STRING_FOR_ALTERNATE), //<
+			l10n::getView(STRING_FOR_RANDOM),    //<
+		};
 	}
 };
 
