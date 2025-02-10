@@ -48,23 +48,23 @@ public:
 
 	Patcher(const Config& config, std::span<int32_t> source_values, std::span<int32_t> param_final_values)
 	    : config(config), source_values_(source_values), param_final_values_(param_final_values) {};
-	void performInitialPatching(Sound* sound, ParamManager* paramManager);
-	void performPatching(uint32_t sourcesChanged, Sound* sound, ParamManagerForTimeline* paramManager);
-	void recalculateFinalValueForParamWithNoCables(int32_t p, Sound* sound, ParamManagerForTimeline* paramManager);
+	void performInitialPatching(Sound& sound, ParamManager& param_manager);
+	void performPatching(uint32_t sources_changed, Sound& sound, ParamManagerForTimeline& param_manager);
+	void recalculateFinalValueForParamWithNoCables(int32_t param, Sound& sound, ParamManagerForTimeline& param_manager);
 
 private:
-	int32_t combineCablesLinearForRangeParam(Destination const* destination, ParamManager* paramManager);
-	int32_t combineCablesLinear(Destination const* destination, uint32_t param, Sound* sound,
-	                            ParamManager* paramManager);
-	int32_t combineCablesExp(Destination const* destination, uint32_t param, Sound* sound, ParamManager* paramManager);
-	static int32_t cableToLinearParamWithoutRangeAdjustment(int32_t source_value, int32_t cable_strength,
-	                                                        int32_t running_total);
-	int32_t cableToLinearParam(const PatchCable& cable, int32_t source_value, int32_t cable_strength,
-	                           int32_t running_total);
-	static int32_t cableToExpParamWithoutRangeAdjustment(int32_t source_value, int32_t cable_strength,
-	                                                     int32_t running_total);
-	int32_t cableToExpParam(const PatchCable& cable, int32_t source_value, int32_t cable_strength,
-	                        int32_t running_total);
+	int32_t combineCablesLinearForRangeParam(Destination const* destination, ParamManager& param_manager);
+	int32_t combineCablesLinear(Destination const* destination, uint32_t param, Sound& sound,
+	                            ParamManager& param_manager);
+	int32_t combineCablesExp(Destination const* destination, uint32_t param, Sound& sound, ParamManager& param_manager);
+	static int32_t cableToLinearParamWithoutRangeAdjustment(int32_t running_total, int32_t source_value,
+	                                                        int32_t cable_strength);
+	int32_t cableToLinearParam(int32_t running_total, const PatchCable& cable, int32_t source_value,
+	                           int32_t cable_strength);
+	static int32_t cableToExpParamWithoutRangeAdjustment(int32_t running_total, int32_t source_value,
+	                                                     int32_t cable_strength);
+	int32_t cableToExpParam(int32_t running_total, const PatchCable& cable, int32_t source_value,
+	                        int32_t cable_strength);
 
 	const Config& config;
 	std::span<int32_t> source_values_;

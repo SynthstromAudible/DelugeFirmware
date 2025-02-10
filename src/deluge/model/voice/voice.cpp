@@ -202,7 +202,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	for (int32_t s = 0; s < util::to_underlying(kFirstLocalSource); s++) {
 		sourceValues[s] = sound.globalSourceValues[s];
 	}
-	patcher.performInitialPatching(&sound, paramManager);
+	patcher.performInitialPatching(sound, *paramManager);
 
 	// Setup and render envelopes - again. Because they're local params (since mid-late 2017), we really need to render
 	// them *after* initial patching is performed.
@@ -528,7 +528,8 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 	if (sound.getSynthMode() == SynthMode::FM) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
 
-			if (sound.getSmoothedPatchedParamValue(params::LOCAL_MODULATOR_0_VOLUME + m, paramManager) == -2147483648) {
+			if (sound.getSmoothedPatchedParamValue(params::LOCAL_MODULATOR_0_VOLUME + m, *paramManager)
+			    == -2147483648) {
 				continue; // Only if modulator active
 			}
 
@@ -804,7 +805,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 		for (int32_t s = 0; s < util::to_underlying(kFirstLocalSource); s++) {
 			sourceValues[s] = sound.globalSourceValues[s];
 		}
-		patcher.performPatching(sourcesChanged, &sound, paramManager);
+		patcher.performPatching(sourcesChanged, sound, *paramManager);
 	}
 
 	// Sort out pitch

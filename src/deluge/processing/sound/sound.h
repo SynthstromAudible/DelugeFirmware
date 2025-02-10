@@ -269,14 +269,12 @@ public:
 	void detachSourcesFromAudioFiles();
 	void confirmNumVoices(char const* error);
 
-	inline int32_t getSmoothedPatchedParamValue(int32_t p,
-	                                            ParamManager* paramManager) { // Yup, inlining this helped a tiny bit.
+	// Yup, inlining this helped a tiny bit.
+	[[gnu::always_inline]] int32_t getSmoothedPatchedParamValue(int32_t p, ParamManager& paramManager) const {
 		if (paramLPF.p == p) {
 			return paramLPF.currentValue;
 		}
-		else {
-			return paramManager->getPatchedParamSet()->getValue(p);
-		}
+		return paramManager.getPatchedParamSet()->getValue(p);
 	}
 
 	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,
