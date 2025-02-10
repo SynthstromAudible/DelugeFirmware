@@ -71,16 +71,12 @@ extern "C" {
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 constexpr Patcher::Config kPatcherConfigForSound = {
-    offsetof(Sound, paramFinalValues) - offsetof(Sound, patcher),
-    params::FIRST_GLOBAL,
-    params::FIRST_GLOBAL_NON_VOLUME,
-    params::FIRST_GLOBAL_HYBRID,
-    params::FIRST_GLOBAL_EXP,
-    params::kNumParams,
-    GLOBALITY_GLOBAL,
+    params::FIRST_GLOBAL,        params::FIRST_GLOBAL_NON_VOLUME,
+    params::FIRST_GLOBAL_HYBRID, params::FIRST_GLOBAL_EXP,
+    params::kNumParams,          GLOBALITY_GLOBAL,
 };
 
-Sound::Sound() : patcher(kPatcherConfigForSound, globalSourceValues) {
+Sound::Sound() : patcher(kPatcherConfigForSound, globalSourceValues, paramFinalValues) {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
 	for (int32_t s = 0; s < kNumSources; s++) {

@@ -26,7 +26,7 @@
 namespace params = deluge::modulation::params;
 
 inline int32_t* Patcher::getParamFinalValuesPointer() {
-	return (int32_t*)((uint32_t)this + config.paramFinalValuesOffset);
+	return param_final_values_.data();
 }
 
 inline int32_t Patcher::getSourceValue(PatchSource s) {

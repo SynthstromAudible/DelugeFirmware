@@ -38,7 +38,6 @@ enum Globality {
 class Patcher {
 public:
 	struct Config {
-		int32_t paramFinalValuesOffset;
 		uint8_t firstParam;
 		uint8_t firstNonVolumeParam;
 		uint8_t firstHybridParam;
@@ -47,7 +46,8 @@ public:
 		uint8_t globality;
 	};
 
-	Patcher(const Config& config, std::span<int32_t> source_values) : config(config), source_values_(source_values) {};
+	Patcher(const Config& config, std::span<int32_t> source_values, std::span<int32_t> param_final_values)
+	    : config(config), source_values_(source_values), param_final_values_(param_final_values) {};
 	void performInitialPatching(Sound* sound, ParamManager* paramManager);
 	void performPatching(uint32_t sourcesChanged, Sound* sound, ParamManagerForTimeline* paramManager);
 	void recalculateFinalValueForParamWithNoCables(int32_t p, Sound* sound, ParamManagerForTimeline* paramManager);
@@ -70,4 +70,5 @@ private:
 
 	const Config& config;
 	std::span<int32_t> source_values_;
+	std::span<int32_t> param_final_values_;
 };

@@ -71,7 +71,6 @@ PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[4][SSI_TX_BUFFER_NUM_SAMPLES]
 // Hopefully I could make this use the spareRenderingBuffer instead...
 
 const Patcher::Config kPatcherConfigForVoice = {
-    .paramFinalValuesOffset = offsetof(Voice, paramFinalValues) - offsetof(Voice, patcher),
     .firstParam = 0,
     .firstNonVolumeParam = params::FIRST_LOCAL_NON_VOLUME,
     .firstHybridParam = params::FIRST_LOCAL__HYBRID,
@@ -87,7 +86,7 @@ int32_t Voice::combineExpressionValues(const Sound& sound, int32_t expressionDim
 	return lshiftAndSaturate<1>(combinedValue);
 }
 
-Voice::Voice() : patcher(kPatcherConfigForVoice, sourceValues) {
+Voice::Voice() : patcher(kPatcherConfigForVoice, sourceValues, paramFinalValues) {
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
