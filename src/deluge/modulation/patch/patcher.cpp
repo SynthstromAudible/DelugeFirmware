@@ -21,6 +21,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
 #include "util/misc.h"
+#include <etl/map.h>
 #include <utility>
 
 namespace params = deluge::modulation::params;
@@ -86,24 +87,20 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 		i++;
 	}
 
-	uint8_t params[std::max<int32_t>(params::FIRST_GLOBAL, params::kNumParams - params::FIRST_GLOBAL) + 1];
-	int32_t cableCombinations[std::max<int32_t>(params::FIRST_GLOBAL, params::kNumParams - params::FIRST_GLOBAL)];
-	int32_t numParamsPatched = 0;
+	// param_id, cable_combo
+	etl::map<int32_t, int32_t, params::kNumParams> cable_combos;
 
 	// Go through regular Destinations going directly to a param
 	{
 
 		// Now normal, actual params/destinations
-		uint32_t firstHybridParam = config.firstHybridParam | 0xFFFFFF00;
-		for (; destination->destinationParamDescriptor.data < firstHybridParam; destination++) {
+		for (; destination->destinationParamDescriptor.data < (config.firstHybridParam | 0xFFFFFF00); destination++) {
 			if (!(destination->sources & sourcesChanged)) {
 				continue;
 			}
 
 			int32_t p = destination->destinationParamDescriptor.getJustTheParam();
-			cableCombinations[numParamsPatched] = combineCablesLinear(destination, p, sound, paramManager);
-			params[numParamsPatched] = p;
-			numParamsPatched++;
+			cable_combos[p] = combineCablesLinear(destination, p, sound, paramManager);
 		}
 
 		for (; destination->sources; destination++) {
@@ -112,48 +109,35 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 			}
 
 			int32_t p = destination->destinationParamDescriptor.getJustTheParam();
-			cableCombinations[numParamsPatched] = combineCablesExp(destination, p, sound, paramManager);
-			params[numParamsPatched] = p;
-			numParamsPatched++;
+			cable_combos[p] = combineCablesExp(destination, p, sound, paramManager);
 		}
 	}
 
-	params[numParamsPatched] = 255; // To stop the below code from going past the end of the list we just created
-
 	// Now, turn those cableCombinations into paramFinalValues. Splitting these up like this caused a massive speed-up
 	// on all presets tested, somewhat surprisingly!
-	{
-		int32_t i = 0;
-
+	for (auto& [param, cable_combo] : cable_combos) {
 		// Volume params
-		int32_t firstNonVolumeParam = config.firstNonVolumeParam;
-		for (; params[i] < firstNonVolumeParam; i++) {
-			int32_t p = params[i];
-			param_final_values_[p - config.firstParam] =
-			    getFinalParameterValueVolume(paramNeutralValues[p], cableCombinations[i]);
+		if (param < config.firstNonVolumeParam) {
+			param_final_values_[param - config.firstParam] =
+			    getFinalParameterValueVolume(paramNeutralValues[param], cable_combo);
 		}
 
 		// Linear params
-		int32_t firstHybridParam = config.firstHybridParam;
-		for (; params[i] < firstHybridParam; i++) {
-			int32_t p = params[i];
-			param_final_values_[p - config.firstParam] =
-			    getFinalParameterValueLinear(paramNeutralValues[p], cableCombinations[i]);
+		else if (param < config.firstHybridParam) {
+			param_final_values_[param - config.firstParam] =
+			    getFinalParameterValueLinear(paramNeutralValues[param], cable_combo);
 		}
 
 		// Hybrid params
-		int32_t firstExpParam = config.firstExpParam;
-		for (; params[i] < firstExpParam; i++) {
-			int32_t p = params[i];
-			param_final_values_[p - config.firstParam] =
-			    getFinalParameterValueHybrid(paramNeutralValues[p], cableCombinations[i]);
+		else if (param < config.firstExpParam) {
+			param_final_values_[param - config.firstParam] =
+			    getFinalParameterValueHybrid(paramNeutralValues[param], cable_combo);
 		}
 
 		// Exp params
-		for (; i < numParamsPatched; i++) {
-			int32_t p = params[i];
-			param_final_values_[p - config.firstParam] =
-			    getFinalParameterValueExpWithDumbEnvelopeHack(paramNeutralValues[p], cableCombinations[i], p);
+		else {
+			param_final_values_[param - config.firstParam] =
+			    getFinalParameterValueExpWithDumbEnvelopeHack(paramNeutralValues[param], cable_combo, param);
 		}
 	}
 }
