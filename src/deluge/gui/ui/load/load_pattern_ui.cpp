@@ -46,6 +46,10 @@ bool LoadPatternUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 bool LoadPatternUI::opened() {
 	// Start Pattern Paste Action
 
+	if (!getRootUI()->toClipMinder() || (getCurrentOutputType() == OutputType::AUDIO)) {
+		return false;
+	}
+
 	auto dir = StorageManager::createFolder(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
 	if (!dir) {
 		if (dir.error() != Error::FILE_ALREADY_EXISTS) {
@@ -70,9 +74,6 @@ bool LoadPatternUI::opened() {
 
 	actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	overwriteExisting = true;
-	if (!getRootUI()->toClipMinder() || (getCurrentOutputType() == OutputType::AUDIO)) {
-		return false;
-	}
 
 	if (getCurrentOutputType() == OutputType::KIT) {
 		if (getRootUI()->getAffectEntire()) {
