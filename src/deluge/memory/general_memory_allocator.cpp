@@ -16,10 +16,12 @@
  */
 
 #include "memory/general_memory_allocator.h"
+
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
+
 // these are never used directly, they're just reserving raw memory for use in the allocator  and clang tidy is unhappy
 // NOLINTBEGIN
 // TODO: Check if these have the right size
@@ -37,39 +39,40 @@ extern uint32_t __heap_end;
 extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;
 // NOLINTEND
-GeneralMemoryAllocator::GeneralMemoryAllocator() {
-	uint32_t externalSmallEnd = EXTERNAL_MEMORY_END;
-	uint32_t externalSmallStart = externalSmallEnd - RESERVED_EXTERNAL_SMALL_ALLOCATOR;
-	uint32_t externalEnd = externalSmallStart;
-	uint32_t externalStart = externalSmallStart - RESERVED_EXTERNAL_ALLOCATOR;
-	uint32_t stealableEnd = externalStart;
-	uint32_t stealableStart = (uint32_t)&__sdram_bss_end;
+GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
+	uint32_t external_small_end = EXTERNAL_MEMORY_END;
+	uint32_t external_small_start = external_small_end - RESERVED_EXTERNAL_SMALL_ALLOCATOR;
+	uint32_t external_end = external_small_start;
+	uint32_t external_start = external_small_start - RESERVED_EXTERNAL_ALLOCATOR;
+	uint32_t stealable_end = external_start;
+	// NOLINTBEGIN
+	// clang tidy hates both reinterpret and c style casts but linker output is only meaningful when taking address
+	auto stealable_start = (uint32_t)&__sdram_bss_end;
 
-	uint32_t internalSmallStart = (uint32_t)&__frunk_bss_end;
-	uint32_t internalSmallEnd = (uint32_t)&__frunk_slack_end;
-	uint32_t internalStart = (uint32_t)&__heap_start;
-	uint32_t internalEnd = (uint32_t)&program_stack_start;
-
-	lock = false;
+	auto internal_small_start = (uint32_t)&__frunk_bss_end;
+	auto internal_small_end = (uint32_t)&__frunk_slack_end;
+	auto internal_start = (uint32_t)&__heap_start;
+	auto internal_end = (uint32_t)&program_stack_start;
+	// NOLINTEND
 	regions[MEMORY_REGION_STEALABLE].name = "stealable";
 	regions[MEMORY_REGION_INTERNAL].name = "internal";
 	regions[MEMORY_REGION_EXTERNAL].name = "external";
 	regions[MEMORY_REGION_EXTERNAL_SMALL].name = "small external";
 	regions[MEMORY_REGION_INTERNAL_SMALL].name = "small internal";
 
-	regions[MEMORY_REGION_STEALABLE].setup(emptySpacesMemory, sizeof(emptySpacesMemory), stealableStart, stealableEnd,
+	regions[MEMORY_REGION_STEALABLE].setup(emptySpacesMemory, sizeof(emptySpacesMemory), stealable_start, stealable_end,
 	                                       &cacheManager);
-	regions[MEMORY_REGION_EXTERNAL].setup(emptySpacesMemoryGeneral, sizeof(emptySpacesMemoryGeneral), externalStart,
-	                                      externalEnd, nullptr);
+	regions[MEMORY_REGION_EXTERNAL].setup(emptySpacesMemoryGeneral, sizeof(emptySpacesMemoryGeneral), external_start,
+	                                      external_end, nullptr);
 	regions[MEMORY_REGION_EXTERNAL_SMALL].setup(emptySpacesMemoryGeneralSmall, sizeof(emptySpacesMemoryGeneralSmall),
-	                                            externalSmallStart, externalSmallEnd, nullptr);
+	                                            external_small_start, external_small_end, nullptr);
 	regions[MEMORY_REGION_EXTERNAL_SMALL].minAlign_ = 16;
 	regions[MEMORY_REGION_EXTERNAL_SMALL].pivot_ = 64;
-	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal), internalStart,
-	                                      internalEnd, nullptr);
+	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal), internal_start,
+	                                      internal_end, nullptr);
 
 	regions[MEMORY_REGION_INTERNAL_SMALL].setup(emptySpacesMemoryInternalSmall, sizeof(emptySpacesMemoryInternalSmall),
-	                                            internalSmallStart, internalSmallEnd, nullptr);
+	                                            internal_small_start, internal_small_end, nullptr);
 	regions[MEMORY_REGION_INTERNAL_SMALL].minAlign_ = 16;
 	regions[MEMORY_REGION_INTERNAL_SMALL].pivot_ = 64;
 }
