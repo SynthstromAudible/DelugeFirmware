@@ -63,7 +63,7 @@ void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, Sound* sound,
 		}
 	}
 
-	getParamFinalValuesPointer()[p] = finalValue;
+	getParamFinalValuesPointer()[p - patchableInfo->firstParam] = finalValue;
 }
 
 int32_t rangeFinalValues[kMaxNumPatchCables]; // TODO: storing these in permanent memory per voice could save a tiny bit
@@ -142,27 +142,30 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 		int32_t firstNonVolumeParam = patchableInfo->firstNonVolumeParam;
 		for (; params[i] < firstNonVolumeParam; i++) {
 			int32_t p = params[i];
-			paramFinalValues[p] = getFinalParameterValueVolume(paramNeutralValues[p], cableCombinations[i]);
+			paramFinalValues[p - patchableInfo->firstParam] =
+			    getFinalParameterValueVolume(paramNeutralValues[p], cableCombinations[i]);
 		}
 
 		// Linear params
 		int32_t firstHybridParam = patchableInfo->firstHybridParam;
 		for (; params[i] < firstHybridParam; i++) {
 			int32_t p = params[i];
-			paramFinalValues[p] = getFinalParameterValueLinear(paramNeutralValues[p], cableCombinations[i]);
+			paramFinalValues[p - patchableInfo->firstParam] =
+			    getFinalParameterValueLinear(paramNeutralValues[p], cableCombinations[i]);
 		}
 
 		// Hybrid params
 		int32_t firstExpParam = patchableInfo->firstExpParam;
 		for (; params[i] < firstExpParam; i++) {
 			int32_t p = params[i];
-			paramFinalValues[p] = getFinalParameterValueHybrid(paramNeutralValues[p], cableCombinations[i]);
+			paramFinalValues[p - patchableInfo->firstParam] =
+			    getFinalParameterValueHybrid(paramNeutralValues[p], cableCombinations[i]);
 		}
 
 		// Exp params
 		for (; i < numParamsPatched; i++) {
 			int32_t p = params[i];
-			paramFinalValues[p] =
+			paramFinalValues[p - patchableInfo->firstParam] =
 			    getFinalParameterValueExpWithDumbEnvelopeHack(paramNeutralValues[p], cableCombinations[i], p);
 		}
 	}
@@ -328,13 +331,13 @@ void Patcher::performInitialPatching(Sound* sound, ParamManager* paramManager) {
 		// the few which do, we overwrite those values
 		int32_t firstHybridParam = patchableInfo->firstHybridParam;
 		for (; p < firstHybridParam; p++) {
-			paramFinalValues[p] = combineCablesLinear(nullptr, p, sound, paramManager);
+			paramFinalValues[p - patchableInfo->firstParam] = combineCablesLinear(nullptr, p, sound, paramManager);
 		}
 
 		// And now we do the same for params whose cables get added
 		int32_t endParams = patchableInfo->endParams;
 		for (; p < endParams; p++) {
-			paramFinalValues[p] = combineCablesExp(nullptr, p, sound, paramManager);
+			paramFinalValues[p - patchableInfo->firstParam] = combineCablesExp(nullptr, p, sound, paramManager);
 		}
 
 		Destination* destination = paramManager->getPatchCableSet()->destinations[patchableInfo->globality];
@@ -353,11 +356,12 @@ void Patcher::performInitialPatching(Sound* sound, ParamManager* paramManager) {
 			uint32_t firstHybridParamAsDescriptor = firstHybridParam | 0xFFFFFF00;
 			for (; destination->destinationParamDescriptor.data < firstHybridParamAsDescriptor; destination++) {
 				int32_t p = destination->destinationParamDescriptor.getJustTheParam();
-				paramFinalValues[p] = combineCablesLinear(destination, p, sound, paramManager);
+				paramFinalValues[p - patchableInfo->firstParam] =
+				    combineCablesLinear(destination, p, sound, paramManager);
 			}
 			for (; destination->sources; destination++) {
 				int32_t p = destination->destinationParamDescriptor.getJustTheParam();
-				paramFinalValues[p] = combineCablesExp(destination, p, sound, paramManager);
+				paramFinalValues[p - patchableInfo->firstParam] = combineCablesExp(destination, p, sound, paramManager);
 			}
 		}
 	}
@@ -369,26 +373,29 @@ void Patcher::performInitialPatching(Sound* sound, ParamManager* paramManager) {
 		// Volume params
 		int32_t firstNonVolumeParam = patchableInfo->firstNonVolumeParam;
 		for (; p < firstNonVolumeParam; p++) {
-			paramFinalValues[p] = getFinalParameterValueVolume(paramNeutralValues[p], paramFinalValues[p]);
+			paramFinalValues[p - patchableInfo->firstParam] =
+			    getFinalParameterValueVolume(paramNeutralValues[p], paramFinalValues[p - patchableInfo->firstParam]);
 		}
 
 		// Linear params
 		int32_t firstHybridParam = patchableInfo->firstHybridParam;
 		for (; p < firstHybridParam; p++) {
-			paramFinalValues[p] = getFinalParameterValueLinear(paramNeutralValues[p], paramFinalValues[p]);
+			paramFinalValues[p - patchableInfo->firstParam] =
+			    getFinalParameterValueLinear(paramNeutralValues[p], paramFinalValues[p - patchableInfo->firstParam]);
 		}
 
 		// Hybrid params
 		int32_t firstExpParam = patchableInfo->firstExpParam;
 		for (; p < firstExpParam; p++) {
-			paramFinalValues[p] = getFinalParameterValueHybrid(paramNeutralValues[p], paramFinalValues[p]);
+			paramFinalValues[p - patchableInfo->firstParam] =
+			    getFinalParameterValueHybrid(paramNeutralValues[p], paramFinalValues[p - patchableInfo->firstParam]);
 		}
 
 		// Exp params
 		int32_t endParams = patchableInfo->endParams;
 		for (; p < endParams; p++) {
-			paramFinalValues[p] =
-			    getFinalParameterValueExpWithDumbEnvelopeHack(paramNeutralValues[p], paramFinalValues[p], p);
+			paramFinalValues[p - patchableInfo->firstParam] = getFinalParameterValueExpWithDumbEnvelopeHack(
+			    paramNeutralValues[p], paramFinalValues[p - patchableInfo->firstParam], p);
 		}
 	}
 	/*

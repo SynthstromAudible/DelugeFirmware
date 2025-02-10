@@ -71,14 +71,15 @@ extern "C" {
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 const PatchableInfo patchableInfoForSound = {
-    (int32_t)(offsetof(Sound, paramFinalValues) - offsetof(Sound, patcher) - (params::FIRST_GLOBAL * sizeof(int32_t))),
+    offsetof(Sound, paramFinalValues) - offsetof(Sound, patcher),
     offsetof(Sound, globalSourceValues) - offsetof(Sound, patcher),
     params::FIRST_GLOBAL,
     params::FIRST_GLOBAL_NON_VOLUME,
     params::FIRST_GLOBAL_HYBRID,
     params::FIRST_GLOBAL_EXP,
     params::kNumParams,
-    GLOBALITY_GLOBAL};
+    GLOBALITY_GLOBAL,
+};
 
 Sound::Sound() : patcher(&patchableInfoForSound) {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
