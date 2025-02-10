@@ -51,11 +51,11 @@ public:
 			};
 		}
 		return {
-			l10n::getView(STRING_FOR_UP),        //<
-			l10n::getView(STRING_FOR_DOWN),      //<
-			l10n::getView(STRING_FOR_UP_DOWN),   //<
-			l10n::getView(STRING_FOR_ALTERNATE), //<
-			l10n::getView(STRING_FOR_RANDOM),    //<
+		    l10n::getView(STRING_FOR_UP),        //<
+		    l10n::getView(STRING_FOR_DOWN),      //<
+		    l10n::getView(STRING_FOR_UP_DOWN),   //<
+		    l10n::getView(STRING_FOR_ALTERNATE), //<
+		    l10n::getView(STRING_FOR_RANDOM),    //<
 		};
 	}
 };
