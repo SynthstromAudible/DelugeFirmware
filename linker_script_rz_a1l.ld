@@ -109,6 +109,7 @@ SECTIONS
 	/* section 9.4 First level address translation                      */
 	.ttb_mmu1 INTERNAL_RAM_START : ALIGN(0x4000)
 	{
+	    PROVIDE(__frunk_slack_end = .);
 		ttb_mmu1_base = .;
 		.  += TTB_SIZE;
 		.	= ALIGN(0x4);
@@ -172,8 +173,11 @@ SECTIONS
 		*ttb_init.S.obj (.text)
 		*ttb_init.S.obj (.rodata)
 		*ttb_init.S.obj (.data)
+		address_end_reset = .;
 
-		.	= ALIGN(0x4);
+    } > RAM012L
+
+    .text : ALIGN(0x4) {
 		_stext = .;
 		
 		*(.text)
@@ -181,9 +185,13 @@ SECTIONS
 		*(.text.startup)
 
 		_etext = .;
-		address_end_reset = .;
 
-        PROVIDE(program_code_end = .);
+	} > RAM012L
+
+	.exceptions : ALIGN(0x4) {
+	    *(.ARM.extab)
+	    *(.ARM.extab.*)
+	    PROVIDE(program_code_end = .);
 	} > RAM012L
 	
 	.rodata :
