@@ -1,4 +1,5 @@
 #include "io/debug/print.h"
+#include <cstdio>
 #include <iostream>
 using namespace std;
 
@@ -23,3 +24,7 @@ void print(int32_t number) {
 }
 
 } // namespace Debug
+
+extern "C" void putchar_(char c) {
+	putchar(c);
+}
