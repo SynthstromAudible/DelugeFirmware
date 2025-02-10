@@ -53,18 +53,18 @@ public:
 	void recalculateFinalValueForParamWithNoCables(int32_t p, Sound* sound, ParamManagerForTimeline* paramManager);
 
 private:
-	void applyRangeAdjustment(int32_t* patchedValue, PatchCable* patchCable);
 	int32_t combineCablesLinearForRangeParam(Destination const* destination, ParamManager* paramManager);
-	int32_t combineCablesLinear(Destination const* destination, uint32_t p, Sound* sound, ParamManager* paramManager);
-	int32_t combineCablesExp(Destination const* destination, uint32_t p, Sound* sound, ParamManager* paramManager);
-	void cableToLinearParamWithoutRangeAdjustment(int32_t sourceValue, int32_t cableStrength,
-	                                              int32_t* runningTotalCombination);
-	void cableToLinearParam(int32_t sourceValue, int32_t cableStrength, int32_t* runningTotalCombination,
-	                        PatchCable* patchCable);
-	void cableToExpParamWithoutRangeAdjustment(int32_t sourceValue, int32_t cableStrength,
-	                                           int32_t* runningTotalCombination);
-	void cableToExpParam(int32_t sourceValue, int32_t cableStrength, int32_t* runningTotalCombination,
-	                     PatchCable* patchCable);
+	int32_t combineCablesLinear(Destination const* destination, uint32_t param, Sound* sound,
+	                            ParamManager* paramManager);
+	int32_t combineCablesExp(Destination const* destination, uint32_t param, Sound* sound, ParamManager* paramManager);
+	static int32_t cableToLinearParamWithoutRangeAdjustment(int32_t source_value, int32_t cable_strength,
+	                                                        int32_t running_total);
+	int32_t cableToLinearParam(const PatchCable& cable, int32_t source_value, int32_t cable_strength,
+	                           int32_t running_total);
+	static int32_t cableToExpParamWithoutRangeAdjustment(int32_t source_value, int32_t cable_strength,
+	                                                     int32_t running_total);
+	int32_t cableToExpParam(const PatchCable& cable, int32_t source_value, int32_t cable_strength,
+	                        int32_t running_total);
 
 	const Config& config;
 	std::span<int32_t> source_values_;

@@ -18,6 +18,7 @@
 #include "modulation/patch/patcher.h"
 #include "definitions_cxx.hpp"
 #include "modulation/params/param_manager.h"
+#include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
 #include <etl/map.h>
@@ -134,47 +135,42 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 	}
 }
 
-inline void Patcher::applyRangeAdjustment(int32_t* patchedValue, PatchCable* patchCable) {
-	int32_t small = multiply_32x32_rshift32(*patchedValue, *patchCable->rangeAdjustmentPointer);
-	*patchedValue = signed_saturate<32 - 5>(small) << 3; // Not sure if these limits are as wide as they could be...
-}
-
 // Declaring these next 4 as inline made no performance difference.
-inline void Patcher::cableToLinearParamWithoutRangeAdjustment(int32_t sourceValue, int32_t cableStrength,
-                                                              int32_t* runningTotalCombination) {
-	int32_t scaled_source = multiply_32x32_rshift32(sourceValue, cableStrength);
-	int32_t made_positive =
-	    (scaled_source + 536870912); // 0 to 1073741824; 536870912 counts as "1" for next multiplication
-	int32_t pre_limits = multiply_32x32_rshift32(*runningTotalCombination, made_positive);
-	*runningTotalCombination = lshiftAndSaturate<3>(pre_limits);
+int32_t Patcher::cableToLinearParamWithoutRangeAdjustment(int32_t source_value, int32_t cable_strength,
+                                                          int32_t running_total) {
+	int32_t scaled_source = multiply_32x32_rshift32(source_value, cable_strength);
+
+	// 0 to 1073741824; 536870912 counts as "1" for next multiplication
+	int32_t made_positive = (scaled_source + 536870912);
+	int32_t pre_limits = multiply_32x32_rshift32(running_total, made_positive);
+	return lshiftAndSaturate<3>(pre_limits);
 }
 
-inline void Patcher::cableToLinearParam(int32_t sourceValue, int32_t cableStrength, int32_t* runningTotalCombination,
-                                        PatchCable* patchCable) {
-	int32_t scaled_source = multiply_32x32_rshift32(sourceValue, cableStrength);
-	applyRangeAdjustment(&scaled_source, patchCable);
-	int32_t made_positive =
-	    (scaled_source + 536870912); // 0 to 1073741824; 536870912 counts as "1" for next multiplication
-	int32_t pre_limits = multiply_32x32_rshift32(*runningTotalCombination, made_positive);
-	*runningTotalCombination = lshiftAndSaturate<3>(pre_limits);
+int32_t Patcher::cableToLinearParam(const PatchCable& patch_cable, int32_t source_value, int32_t cable_strength,
+                                    int32_t running_total) {
+	int32_t scaled_source = multiply_32x32_rshift32(source_value, cable_strength);
+	scaled_source = patch_cable.applyRangeAdjustment(scaled_source);
+
+	// 0 to 1073741824; 536870912 counts as "1" for next multiplication
+	int32_t made_positive = (scaled_source + 536870912);
+	int32_t pre_limits = multiply_32x32_rshift32(running_total, made_positive);
+	return lshiftAndSaturate<3>(pre_limits);
 }
 
-inline void Patcher::cableToExpParamWithoutRangeAdjustment(int32_t sourceValue, int32_t cableStrength,
-                                                           int32_t* runningTotalCombination) {
-	int32_t scaledSource = multiply_32x32_rshift32(sourceValue, cableStrength);
-	*runningTotalCombination += scaledSource;
+int32_t Patcher::cableToExpParamWithoutRangeAdjustment(int32_t source_value, int32_t cable_strength,
+                                                       int32_t running_total_combination) {
+	return running_total_combination + multiply_32x32_rshift32(source_value, cable_strength);
 }
 
-inline void Patcher::cableToExpParam(int32_t sourceValue, int32_t cableStrength, int32_t* runningTotalCombination,
-                                     PatchCable* patchCable) {
-	int32_t scaled_source = multiply_32x32_rshift32(sourceValue, cableStrength);
-	applyRangeAdjustment(&scaled_source, patchCable);
-	*runningTotalCombination += scaled_source;
+int32_t Patcher::cableToExpParam(const PatchCable& patch_cable, int32_t source_value, int32_t cable_strength,
+                                 int32_t running_total) {
+	int32_t scaled_source = multiply_32x32_rshift32(source_value, cable_strength);
+	return running_total + patch_cable.applyRangeAdjustment(scaled_source);
 }
 
-inline int32_t Patcher::combineCablesLinearForRangeParam(Destination const* destination, ParamManager* paramManager) {
-	int32_t running_total_combination = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed
-	                                               // to get bigger than 2147483647, which means "4".
+int32_t Patcher::combineCablesLinearForRangeParam(Destination const* destination, ParamManager* paramManager) {
+	int32_t running_total = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed
+	                                   // to get bigger than 2147483647, which means "4".
 
 	PatchCableSet& patch_cable_set = *paramManager->getPatchCableSet();
 
@@ -192,10 +188,10 @@ inline int32_t Patcher::combineCablesLinearForRangeParam(Destination const* dest
 		}
 
 		int32_t cable_strength = patch_cable.param.getCurrentValue();
-		cableToLinearParamWithoutRangeAdjustment(source_value, cable_strength, &running_total_combination);
+		running_total = cableToLinearParamWithoutRangeAdjustment(source_value, cable_strength, running_total);
 	}
 
-	return running_total_combination - 536870912;
+	return running_total - 536870912;
 	// return value is ideally between -536870912 and 536870912, but may get up to 1610612736 if the result above was
 	// "4" because of multiple patch cables being multiplied together
 }
@@ -207,14 +203,14 @@ inline int32_t Patcher::combineCablesLinearForRangeParam(Destination const* dest
 // cables.
 inline int32_t Patcher::combineCablesLinear(Destination const* destination, uint32_t p, Sound* sound,
                                             ParamManager* paramManager) {
-	int32_t running_total_combination = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed
-	                                               // to get bigger than 2147483647, which means "4".
+	int32_t running_total = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed
+	                                   // to get bigger than 2147483647, which means "4".
 
 	PatchCableSet& patch_cable_set = *paramManager->getPatchCableSet();
 
 	// Do the "preset value" (which we treat like a "cable" here)
-	cableToLinearParamWithoutRangeAdjustment(sound->getSmoothedPatchedParamValue(p, paramManager), paramRanges[p],
-	                                         &running_total_combination);
+	running_total = cableToLinearParamWithoutRangeAdjustment(sound->getSmoothedPatchedParamValue(p, paramManager),
+	                                                         paramRanges[p], running_total);
 
 	if (destination != nullptr) {
 		// For each patch cable affecting this parameter
@@ -224,11 +220,11 @@ inline int32_t Patcher::combineCablesLinear(Destination const* destination, uint
 			int32_t source_value = source_values_[std::to_underlying(source)];
 
 			int32_t cable_strength = patch_cable.param.getCurrentValue();
-			cableToLinearParam(source_value, cable_strength, &running_total_combination, &patch_cable);
+			running_total = cableToLinearParam(patch_cable, source_value, cable_strength, running_total);
 		}
 	}
 
-	return running_total_combination - 536870912;
+	return running_total - 536870912;
 	// return value is ideally between -536870912 and 536870912, but may get up to 1610612736 if the result above was
 	// "4" because of multiple patch cables being multiplied together
 }
@@ -251,7 +247,7 @@ inline int32_t Patcher::combineCablesExp(Destination const* destination, uint32_
 			int32_t source_value = source_values_[std::to_underlying(patch_cable.from)];
 
 			int32_t cable_strength = patch_cable_set.getModifiedPatchCableAmount(c, param);
-			cableToExpParam(source_value, cable_strength, &running_total, &patch_cable);
+			running_total = cableToExpParam(patch_cable, source_value, cable_strength, running_total);
 		}
 
 		// Hack for wave index params - make the patching (but not the preset value) stretch twice as far, to allow the
@@ -264,8 +260,8 @@ inline int32_t Patcher::combineCablesExp(Destination const* destination, uint32_
 	}
 
 	// Do the "preset value" (which we treat like a "cable" here)
-	cableToExpParamWithoutRangeAdjustment(sound->getSmoothedPatchedParamValue(param, paramManager), paramRanges[param],
-	                                      &running_total);
+	running_total = cableToExpParamWithoutRangeAdjustment(sound->getSmoothedPatchedParamValue(param, paramManager),
+	                                                      paramRanges[param], running_total);
 
 	return running_total;
 }
@@ -296,14 +292,13 @@ void Patcher::performInitialPatching(Sound* sound, ParamManager* paramManager) {
 
 		// First, "range" Destinations
 		for (int32_t i = 0; destination->destinationParamDescriptor.data < (uint32_t)0xFFFFFF00; destination++, i++) {
-			int32_t cablesCombination = combineCablesLinearForRangeParam(destination, paramManager);
+			int32_t cables_combination = combineCablesLinearForRangeParam(destination, paramManager);
 
-			rangeFinalValues[i] = getFinalParameterValueLinear(536870912, cablesCombination);
+			rangeFinalValues[i] = getFinalParameterValueLinear(536870912, cables_combination);
 		}
 
 		// Now, regular Destinations going directly to a param
-		uint32_t firstHybridParamAsDescriptor = config.firstHybridParam | 0xFFFFFF00;
-		for (; destination->destinationParamDescriptor.data < firstHybridParamAsDescriptor; destination++) {
+		for (; destination->destinationParamDescriptor.data < (config.firstHybridParam | 0xFFFFFF00); destination++) {
 			int32_t p = destination->destinationParamDescriptor.getJustTheParam();
 			param_final_values_[p - config.firstParam] = combineCablesLinear(destination, p, sound, paramManager);
 		}
