@@ -72,5 +72,6 @@ jobs:
             --token=${{ secrets.GITHUB_TOKEN }} \
             --repo=${{ github.event.pull_request.base.repo.full_name }} \
             --lgtm-comment-body="" \
+            --annotations=True \
             --num-comments-as-exitcode=True \
             clang-tidy-review-output.json
