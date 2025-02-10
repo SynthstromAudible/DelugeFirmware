@@ -1,6 +1,6 @@
 name: Clang Tidy
 on:
-  pull_request_target: # Required to post comments on PR from forks
+  pull_request: # Required to post comments on PR from forks
 jobs:
   clang-tidy-review:
     runs-on: ubuntu-latest
@@ -13,22 +13,14 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           submodules: recursive
 
-      - name: Dump GitHub context
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-        run: echo "$GITHUB_CONTEXT"
-
       - name: Install clang-tidy
         run: |
           sudo debconf-communicate <<< "set man-db/auto-update false"
           sudo dpkg-reconfigure man-db        
           sudo apt-get update
+          sudo apt-get remove -y clang-tidy
           sudo apt-get install -y clang-19 clang-tidy-19
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-          cache: "pip"
       - name: Generate compilation database
         run: |
           cd ${{ github.workspace }}
@@ -36,9 +28,6 @@ jobs:
           sed -i 's/-mthumb-interwork//g' build/compile_commands.json
           sed -i 's/-fdevirtualize-at-ltrans//g' build/compile_commands.json
           sed -i 's/-fuse-linker-plugin//g' build/compile_commands.json
-
-      - name: Install clang-tidy-review
-        run: pip install ${{github.workspace}}/contrib/clang_tidy_review
 
       - name: Extract system includes from GCC
         run: |
@@ -51,27 +40,16 @@ jobs:
           echo "Extracted system includes:"
           cat system_includes.txt
 
-      - name: Run clang-tidy-review
+      - name: Set clang-tidy-19 as default clang-tidy
         run: |
-          review \
-            --token=${{ secrets.GITHUB_TOKEN }} \
-            --repo=${{ github.event.pull_request.base.repo.full_name }} \
-            --pr=${{ github.event.pull_request.number }} \
-            --split_workflow=True \
-            --clang_tidy_binary=clang-tidy-19 \
-            --build_dir=${{ github.workspace }}/build \
-            --config_file=${{ github.workspace }}/.clang-tidy \
-            $(cat system_includes.txt) \
-            --extra-arg-before="--no-standard-includes"
-        env:
-          USER: ${{ github.event.pull_request.user.login }}
+          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-19 100
 
-      - name: Post review
-        run: |
-          post \
-            --token=${{ secrets.GITHUB_TOKEN }} \
-            --repo=${{ github.event.pull_request.base.repo.full_name }} \
-            --lgtm-comment-body="" \
-            --annotations=True \
-            --num-comments-as-exitcode=True \
-            clang-tidy-review-output.json
+      - uses: ZehMatt/clang-tidy-annotations@v1.1.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          build_dir: ${{ github.workspace }}/build
+          only_affected_lines: true
+          fail_on_problems: true
+          clang_tidy_args: $(cat system_includes.txt) --extra-arg-before="--no-standard-includes"
+          clang_tidy_file: ${{ github.workspace }}/.clang-tidy
+
