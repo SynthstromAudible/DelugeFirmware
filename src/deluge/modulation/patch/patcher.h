@@ -65,8 +65,6 @@ private:
 	                                           int32_t* runningTotalCombination);
 	void cableToExpParam(int32_t sourceValue, int32_t cableStrength, int32_t* runningTotalCombination,
 	                     PatchCable* patchCable);
-	int32_t* getParamFinalValuesPointer();
-	int32_t getSourceValue(PatchSource s);
 
 	const Config& config;
 	std::span<int32_t> source_values_;
