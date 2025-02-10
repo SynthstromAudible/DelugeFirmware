@@ -51,6 +51,6 @@ jobs:
           source_dir: ${{ github.workspace }}
           only_affected_lines: true
           fail_on_problems: true
-          clang_tidy_args: $(cat system_includes.txt) --extra-arg-before="--no-standard-includes"
+          clang_tidy_args: "$(cat system_includes.txt) --extra-arg-before=--no-standard-includes"
           clang_tidy_file: ${{ github.workspace }}/.clang-tidy
 
