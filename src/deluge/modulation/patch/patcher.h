@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include <cstdint>
+#include <span>
 
 struct CableGroup;
 
@@ -38,7 +39,6 @@ class Patcher {
 public:
 	struct Config {
 		int32_t paramFinalValuesOffset;
-		int32_t sourceValuesOffset;
 		uint8_t firstParam;
 		uint8_t firstNonVolumeParam;
 		uint8_t firstHybridParam;
@@ -47,7 +47,7 @@ public:
 		uint8_t globality;
 	};
 
-	Patcher(const Config& config) : config(config) {};
+	Patcher(const Config& config, std::span<int32_t> source_values) : config(config), source_values_(source_values) {};
 	void performInitialPatching(Sound* sound, ParamManager* paramManager);
 	void performPatching(uint32_t sourcesChanged, Sound* sound, ParamManagerForTimeline* paramManager);
 	void recalculateFinalValueForParamWithNoCables(int32_t p, Sound* sound, ParamManagerForTimeline* paramManager);
@@ -69,4 +69,5 @@ private:
 	int32_t getSourceValue(PatchSource s);
 
 	const Config& config;
+	std::span<int32_t> source_values_;
 };

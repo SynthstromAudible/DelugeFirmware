@@ -72,7 +72,6 @@ extern "C" {
 
 constexpr Patcher::Config kPatcherConfigForSound = {
     offsetof(Sound, paramFinalValues) - offsetof(Sound, patcher),
-    offsetof(Sound, globalSourceValues) - offsetof(Sound, patcher),
     params::FIRST_GLOBAL,
     params::FIRST_GLOBAL_NON_VOLUME,
     params::FIRST_GLOBAL_HYBRID,
@@ -81,7 +80,7 @@ constexpr Patcher::Config kPatcherConfigForSound = {
     GLOBALITY_GLOBAL,
 };
 
-Sound::Sound() : patcher(kPatcherConfigForSound) {
+Sound::Sound() : patcher(kPatcherConfigForSound, globalSourceValues) {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
 	for (int32_t s = 0; s < kNumSources; s++) {
