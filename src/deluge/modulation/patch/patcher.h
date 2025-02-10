@@ -34,20 +34,20 @@ enum Globality {
 	GLOBALITY_GLOBAL = 1,
 };
 
-struct PatchableInfo {
-	int32_t paramFinalValuesOffset;
-	int32_t sourceValuesOffset;
-	uint8_t firstParam;
-	uint8_t firstNonVolumeParam;
-	uint8_t firstHybridParam;
-	uint8_t firstExpParam;
-	uint8_t endParams;
-	uint8_t globality;
-};
-
 class Patcher {
 public:
-	Patcher(const PatchableInfo* newInfo);
+	struct Config {
+		int32_t paramFinalValuesOffset;
+		int32_t sourceValuesOffset;
+		uint8_t firstParam;
+		uint8_t firstNonVolumeParam;
+		uint8_t firstHybridParam;
+		uint8_t firstExpParam;
+		uint8_t endParams;
+		uint8_t globality;
+	};
+
+	Patcher(const Config& config) : config(config) {};
 	void performInitialPatching(Sound* sound, ParamManager* paramManager);
 	void performPatching(uint32_t sourcesChanged, Sound* sound, ParamManagerForTimeline* paramManager);
 	void recalculateFinalValueForParamWithNoCables(int32_t p, Sound* sound, ParamManagerForTimeline* paramManager);
@@ -68,5 +68,5 @@ private:
 	int32_t* getParamFinalValuesPointer();
 	int32_t getSourceValue(PatchSource s);
 
-	const PatchableInfo* const patchableInfo;
+	const Config& config;
 };

@@ -70,7 +70,7 @@ extern "C" {
 // This is supported by GCC and other compilers should error (not warn), so turn off for this file
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
-const PatchableInfo patchableInfoForSound = {
+constexpr Patcher::Config kPatcherConfigForSound = {
     offsetof(Sound, paramFinalValues) - offsetof(Sound, patcher),
     offsetof(Sound, globalSourceValues) - offsetof(Sound, patcher),
     params::FIRST_GLOBAL,
@@ -81,7 +81,7 @@ const PatchableInfo patchableInfoForSound = {
     GLOBALITY_GLOBAL,
 };
 
-Sound::Sound() : patcher(&patchableInfoForSound) {
+Sound::Sound() : patcher(kPatcherConfigForSound) {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
 	for (int32_t s = 0; s < kNumSources; s++) {
