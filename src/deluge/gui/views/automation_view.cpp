@@ -121,7 +121,7 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumNonGlobalParamsForAutomation = 73;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 82;
 constexpr int32_t kNumGlobalParamsForAutomation = 26;
 constexpr int32_t kParamNodeWidth = 3;
 
@@ -151,6 +151,7 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::PATCHED, params::GLOBAL_DELAY_RATE},
     {params::Kind::PATCHED, params::GLOBAL_DELAY_FEEDBACK},
     // Sidechain Shape
+    {params::Kind::PATCHED, params::GLOBAL_VOLUME_POST_REVERB_SEND},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SIDECHAIN_SHAPE},
     // Decimation, Bitcrush, Wavefolder
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SAMPLE_RATE_REDUCTION},
@@ -161,8 +162,8 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::PATCHED, params::LOCAL_OSC_A_PITCH_ADJUST},
     {params::Kind::PATCHED, params::LOCAL_OSC_A_PHASE_WIDTH},
     {params::Kind::PATCHED, params::LOCAL_CARRIER_0_FEEDBACK},
-    // OSC 2 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
     {params::Kind::PATCHED, params::LOCAL_OSC_A_WAVE_INDEX},
+    // OSC 2 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
     {params::Kind::PATCHED, params::LOCAL_OSC_B_VOLUME},
     {params::Kind::PATCHED, params::LOCAL_OSC_B_PITCH_ADJUST},
     {params::Kind::PATCHED, params::LOCAL_OSC_B_PHASE_WIDTH},
@@ -186,6 +187,16 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::PATCHED, params::LOCAL_ENV_1_DECAY},
     {params::Kind::PATCHED, params::LOCAL_ENV_1_SUSTAIN},
     {params::Kind::PATCHED, params::LOCAL_ENV_1_RELEASE},
+    // Env 3 ADSR
+    {params::Kind::PATCHED, params::LOCAL_ENV_2_ATTACK},
+    {params::Kind::PATCHED, params::LOCAL_ENV_2_DECAY},
+    {params::Kind::PATCHED, params::LOCAL_ENV_2_SUSTAIN},
+    {params::Kind::PATCHED, params::LOCAL_ENV_2_RELEASE},
+    // Env 4 ADSR
+    {params::Kind::PATCHED, params::LOCAL_ENV_3_ATTACK},
+    {params::Kind::PATCHED, params::LOCAL_ENV_3_DECAY},
+    {params::Kind::PATCHED, params::LOCAL_ENV_3_SUSTAIN},
+    {params::Kind::PATCHED, params::LOCAL_ENV_3_RELEASE},
     // LFO 1
     {params::Kind::PATCHED, params::GLOBAL_LFO_FREQ_1},
     // LFO 2
