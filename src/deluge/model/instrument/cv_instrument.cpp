@@ -160,7 +160,7 @@ void CVInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	monophonicPitchBendValue = 0;
 }
 void CVInstrument::sendMonophonicExpressionEvent(int32_t dimension) {
-	int32_t newValue = add_saturation(lastCombinedPolyExpression[dimension], lastMonoExpression[dimension]) >> 16;
+	int32_t newValue = add_saturate(lastCombinedPolyExpression[dimension], lastMonoExpression[dimension]) >> 16;
 	switch (cvmode[1]) {
 
 	case CVMode::off:

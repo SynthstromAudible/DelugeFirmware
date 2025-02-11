@@ -65,7 +65,7 @@ inline q31_t polynomialOscillatorApproximation(q31_t x) {
 
 inline void foldBufferPolyApproximation(q31_t* startSample, q31_t* endSample, q31_t level) {
 	q31_t* currentSample = startSample;
-	q31_t foldLevel = add_saturation(level, FOLD_MIN);
+	q31_t foldLevel = add_saturate(level, FOLD_MIN);
 
 	do {
 		q31_t c = *currentSample;

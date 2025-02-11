@@ -98,8 +98,8 @@ static inline int32_t signed_saturate(int32_t val) {
 	return out;
 }
 
-static inline int32_t add_saturation(int32_t a, int32_t b) __attribute__((always_inline, unused));
-static inline int32_t add_saturation(int32_t a, int32_t b) {
+static inline int32_t add_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
+static inline int32_t add_saturate(int32_t a, int32_t b) {
 	int32_t out;
 	asm("qadd %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
 	return out;
@@ -154,8 +154,8 @@ static inline int32_t signed_saturate(int32_t val) {
 	return std::min(val, 1 << bits);
 }
 
-static inline int32_t add_saturation(int32_t a, int32_t b) __attribute__((always_inline, unused));
-static inline int32_t add_saturation(int32_t a, int32_t b) {
+static inline int32_t add_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
+static inline int32_t add_saturate(int32_t a, int32_t b) {
 	return a + b;
 }
 
