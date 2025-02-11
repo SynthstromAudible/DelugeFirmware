@@ -29,7 +29,6 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
-#include "system/power_manager.h"
 #include "util/cfunctions.h"
 #include "util/d_string.h"
 #include <string.h>
