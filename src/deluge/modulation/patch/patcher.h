@@ -59,12 +59,12 @@ private:
 	int32_t combineCablesExp(Destination const* destination, uint32_t param, Sound& sound, ParamManager& param_manager);
 	static int32_t cableToLinearParamWithoutRangeAdjustment(int32_t running_total, int32_t source_value,
 	                                                        int32_t cable_strength);
-	int32_t cableToLinearParam(int32_t running_total, const PatchCable& cable, int32_t source_value,
-	                           int32_t cable_strength);
+	static int32_t cableToLinearParam(int32_t running_total, const PatchCable& cable, int32_t source_value,
+	                                  int32_t cable_strength);
 	static int32_t cableToExpParamWithoutRangeAdjustment(int32_t running_total, int32_t source_value,
 	                                                     int32_t cable_strength);
-	int32_t cableToExpParam(int32_t running_total, const PatchCable& cable, int32_t source_value,
-	                        int32_t cable_strength);
+	static int32_t cableToExpParam(int32_t running_total, const PatchCable& cable, int32_t source_value,
+	                               int32_t cable_strength);
 
 	const Config& config;
 	std::span<int32_t> source_values_;

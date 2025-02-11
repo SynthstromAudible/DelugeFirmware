@@ -21,7 +21,7 @@
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
-#include <etl/map.h>
+#include <etl/vector.h>
 #include <utility>
 
 namespace params = deluge::modulation::params;
@@ -85,7 +85,7 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound& sound, ParamManage
 	}
 
 	// param_id, cable_combo
-	etl::map<int32_t, int32_t, params::kNumParams> cable_combos;
+	etl::vector<std::pair<int32_t, int32_t>, params::kNumParams> cable_combos;
 
 	// Now normal, actual params/destinations
 	for (; destination->destinationParamDescriptor.data < (config.firstHybridParam | 0xFFFFFF00); destination++) {
@@ -94,7 +94,7 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound& sound, ParamManage
 		}
 
 		int32_t param = destination->destinationParamDescriptor.getJustTheParam();
-		cable_combos[param] = combineCablesLinear(destination, param, sound, param_manager);
+		cable_combos.push_back({param, combineCablesLinear(destination, param, sound, param_manager)});
 	}
 
 	for (; destination->sources != 0u; destination++) {
@@ -102,36 +102,41 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound& sound, ParamManage
 			continue;
 		}
 
-		int32_t p = destination->destinationParamDescriptor.getJustTheParam();
-		cable_combos[p] = combineCablesExp(destination, p, sound, param_manager);
+		int32_t param = destination->destinationParamDescriptor.getJustTheParam();
+		cable_combos.push_back({param, combineCablesExp(destination, param, sound, param_manager)});
 	}
 
-	// Now, turn those cableCombinations into paramFinalValues. Splitting these up like this caused a massive speed-up
-	// on all presets tested, somewhat surprisingly!
-	for (auto& [param, cable_combo] : cable_combos) {
-		// Volume params
-		if (param < config.firstNonVolumeParam) {
-			param_final_values_[param - config.firstParam] =
-			    getFinalParameterValueVolume(paramNeutralValues[param], cable_combo);
-		}
+	// sort by param_id
+	std::ranges::sort(cable_combos, std::less(), &std::pair<int32_t, int32_t>::first);
 
-		// Linear params
-		else if (param < config.firstHybridParam) {
-			param_final_values_[param - config.firstParam] =
-			    getFinalParameterValueLinear(paramNeutralValues[param], cable_combo);
-		}
+	auto* iterator = cable_combos.begin();
 
-		// Hybrid params
-		else if (param < config.firstExpParam) {
-			param_final_values_[param - config.firstParam] =
-			    getFinalParameterValueHybrid(paramNeutralValues[param], cable_combo);
-		}
+	// Now, turn those cableCombinations into paramFinalValues.
+	// Volume params
+	for (; iterator->first < config.firstNonVolumeParam; iterator++) {
+		auto [param, combo] = *iterator;
+		param_final_values_[param - config.firstParam] = getFinalParameterValueVolume(paramNeutralValues[param], combo);
+	}
 
-		// Exp params
-		else {
-			param_final_values_[param - config.firstParam] =
-			    getFinalParameterValueExpWithDumbEnvelopeHack(paramNeutralValues[param], cable_combo, param);
-		}
+	// Linear params
+	for (; iterator->first < config.firstHybridParam; iterator++) {
+		auto [param, cable_combo] = *iterator;
+		param_final_values_[param - config.firstParam] =
+		    getFinalParameterValueLinear(paramNeutralValues[param], cable_combo);
+	}
+
+	// Hybrid params
+	for (; iterator->first < config.firstExpParam; iterator++) {
+		auto [param, cable_combo] = *iterator;
+		param_final_values_[param - config.firstParam] =
+		    getFinalParameterValueHybrid(paramNeutralValues[param], cable_combo);
+	}
+
+	// Exp params
+	for (; iterator < cable_combos.end(); iterator++) {
+		auto [param, cable_combo] = *iterator;
+		param_final_values_[param - config.firstParam] =
+		    getFinalParameterValueExpWithDumbEnvelopeHack(paramNeutralValues[param], cable_combo, param);
 	}
 }
 
