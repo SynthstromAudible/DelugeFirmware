@@ -23,7 +23,6 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "hid/display/oled_canvas/canvas.h"
 #include "hid/hid_sysex.h"
 #include "io/debug/log.h"
 #include "io/midi/sysex.h"
@@ -35,8 +34,6 @@
 #include "util/d_string.h"
 #include <string.h>
 #include <string_view>
-
-using namespace deluge::hid::display::oled_canvas; // For drawing functions
 
 extern "C" {
 #include "RZA1/oled/oled_low_level.h"
