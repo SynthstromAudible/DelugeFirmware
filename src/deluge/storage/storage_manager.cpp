@@ -173,7 +173,6 @@ cutFolderPathAndTryCreating:
 	return opened.value();
 }
 
-
 Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer, bool mayOverwrite,
                                     bool displayErrors) {
 	auto created = createFile(filePath, mayOverwrite);
