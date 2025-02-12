@@ -53,26 +53,20 @@ bool SavePatternUI::opened() {
 		return false;
 	}
 
-	auto dir = StorageManager::createFolder(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
-	if (!dir) {
-		if (dir.error() != Error::FILE_ALREADY_EXISTS) {
-			display->displayError(Error::FOLDER_DOESNT_EXIST);
-			return false;
-		}
+	Error error = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
 	}
-	dir = StorageManager::createFolder(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
-	if (!dir) {
-		if (dir.error() != Error::FILE_ALREADY_EXISTS) {
-			display->displayError(Error::FOLDER_DOESNT_EXIST);
-			return false;
-		}
+	error = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
 	}
-	dir = StorageManager::createFolder(PATTERN_MELODIC_DEFAULT_FOLDER);
-	if (!dir) {
-		if (dir.error() != Error::FILE_ALREADY_EXISTS) {
-			display->displayError(Error::FOLDER_DOESNT_EXIST);
-			return false;
-		}
+	error = createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
 	}
 
 	Instrument* currentInstrument = getCurrentInstrument();
@@ -115,7 +109,7 @@ tryDefaultDir:
 	fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
 	fileIconPt2Width = 0;
 
-	Error error = arrivedInNewFolder(0, enteredText.get(), defaultDir.c_str());
+	error = arrivedInNewFolder(0, enteredText.get(), defaultDir.c_str());
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);

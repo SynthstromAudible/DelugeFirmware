@@ -1082,6 +1082,7 @@ void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 	bool copyToFile = false;
 	if (writer) {
 		copyToFile = true;
+		writer->reset();
 	}
 
 	// Clear out previously copied stuff

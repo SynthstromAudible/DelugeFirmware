@@ -50,26 +50,20 @@ bool LoadPatternUI::opened() {
 		return false;
 	}
 
-	auto dir = StorageManager::createFolder(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
-	if (!dir) {
-		if (dir.error() != Error::FILE_ALREADY_EXISTS) {
-			display->displayError(Error::FOLDER_DOESNT_EXIST);
-			return false;
-		}
+	Error error = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
 	}
-	dir = StorageManager::createFolder(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
-	if (!dir) {
-		if (dir.error() != Error::FILE_ALREADY_EXISTS) {
-			display->displayError(Error::FOLDER_DOESNT_EXIST);
-			return false;
-		}
+	error = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
 	}
-	dir = StorageManager::createFolder(PATTERN_MELODIC_DEFAULT_FOLDER);
-	if (!dir) {
-		if (dir.error() != Error::FILE_ALREADY_EXISTS) {
-			display->displayError(Error::FOLDER_DOESNT_EXIST);
-			return false;
-		}
+	error = createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
 	}
 
 	actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
@@ -95,7 +89,7 @@ bool LoadPatternUI::opened() {
 
 	currentDir.set(defaultDir.c_str());
 
-	Error error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
+	error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;
