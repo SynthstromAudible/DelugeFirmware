@@ -232,8 +232,8 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 		return nullptr;
 	}
 
-	auto *samplePitchAdjustment = new (memory) SampleCache(this, numClusters, lengthInBytesCached, phaseIncrement,
-	                                                      timeStretchRatio, skipSamplesAtStart, reversed);
+	auto* samplePitchAdjustment = new (memory) SampleCache(this, numClusters, lengthInBytesCached, phaseIncrement,
+	                                                       timeStretchRatio, skipSamplesAtStart, reversed);
 
 	SampleCacheElement* element = (SampleCacheElement*)caches.getElementAddress(i);
 	element->phaseIncrement = phaseIncrement;
