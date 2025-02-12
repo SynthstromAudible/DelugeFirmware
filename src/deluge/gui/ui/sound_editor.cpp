@@ -71,7 +71,7 @@ PatchSource modSourceShortcuts[2][8] = {
         PatchSource::NOT_AVAILABLE,
         PatchSource::NOT_AVAILABLE,
         PatchSource::NOT_AVAILABLE,
-        PatchSource::LFO_GLOBAL,
+        PatchSource::LFO_GLOBAL_1,
         PatchSource::ENVELOPE_0,
         PatchSource::X,
     },
@@ -81,7 +81,7 @@ PatchSource modSourceShortcuts[2][8] = {
         PatchSource::RANDOM,
         PatchSource::NOTE,
         PatchSource::SIDECHAIN,
-        PatchSource::LFO_LOCAL,
+        PatchSource::LFO_LOCAL_1,
         PatchSource::ENVELOPE_1,
         PatchSource::Y,
     },
@@ -615,7 +615,8 @@ void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem
 }
 
 void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
-
+	resetSourceBlinks();
+	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
 	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
 	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&nameEditMenu)) {

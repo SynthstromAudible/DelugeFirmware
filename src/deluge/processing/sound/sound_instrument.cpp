@@ -221,7 +221,7 @@ Error SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 }
 
 void SoundInstrument::resyncLFOs() {
-	resyncGlobalLFO();
+	resyncGlobalLFOs();
 }
 
 ModControllable* SoundInstrument::toModControllable() {

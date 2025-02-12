@@ -32,6 +32,7 @@ file(GLOB_RECURSE deluge_SOURCES
 
         # Used by most other modules
         ../../src/deluge/util/*
+        ../../src/lib/printf.c
 )
 
 file(GLOB_RECURSE mock_SOURCES
@@ -52,6 +53,7 @@ target_include_directories(MemoryManagerTests PRIVATE
         mocks
         ../../src/deluge
         ../../src/NE10/inc
+        ../../src/lib
         ../../src
 )
 
@@ -90,6 +92,7 @@ target_include_directories(SmallPointerTests PRIVATE
         mocks
         ../../src/deluge
         ../../src/NE10/inc
+        ../../src/lib
         ../../src
 )
 
