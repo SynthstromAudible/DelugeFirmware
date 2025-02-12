@@ -79,9 +79,9 @@ bool LoadInstrumentPresetUI::opened() {
 		else {
 			initialName.set("");
 		}
-
-		initialDirPath.set("SYNTHS");
 	}
+
+	initialDirPath.set("SYNTHS");
 
 	switch (instrumentToReplace->type) {
 	case OutputType::MIDI_OUT:
@@ -187,6 +187,9 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 	enteredText.clear();
 
 	char const* defaultDir = getInstrumentFolder(outputTypeToLoad);
+	// Configure and show the favourites
+	favouritesManager.setCategory(defaultDir);
+	LoadUI::enableFavourites();
 
 	String searchFilename;
 
@@ -1138,6 +1141,9 @@ potentiallyExit:
 }
 
 ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	if (Buttons::isShiftButtonPressed()) {
+		LoadUI::verticalEncoderAction(offset, false);
+	}
 	if (showingAuditionPads()) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 			return ActionResult::DEALT_WITH;

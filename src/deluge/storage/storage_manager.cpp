@@ -27,6 +27,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
+#include "model/favourite/favourite_manager.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
@@ -462,6 +463,47 @@ Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrumen
 	}
 	else if (updateFileName) {
 		midiInstrument->deviceDefinitionFileName.set(fileName->get());
+	}
+
+	return Error::NONE;
+}
+
+Error StorageManager::openFavouriteFile(FilePointer* filePointer) {
+
+	AudioEngine::logAction("openFavouriteFile");
+	if (!filePointer->sclust) {
+		return Error::FILE_NOT_FOUND;
+	}
+	char const* firstTagName = "favourites";
+	char const* altTagName = "";
+
+	Error error = openXMLFile(filePointer, smDeserializer, firstTagName, altTagName);
+	return error;
+}
+
+// Returns error status
+Error StorageManager::loadFavouriteFile(FilePointer* filePointer, String* fileName) {
+
+	AudioEngine::logAction("loadFavouriteFile");
+
+	Error error = openFavouriteFile(filePointer);
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	AudioEngine::logAction("readFavouriteFile");
+
+	error = favouritesManager.loadFavouritesFromFile(smDeserializer);
+
+	FRESULT fileSuccess = activeDeserializer->closeWriter();
+
+	// If that somehow didn't work...
+	if (error != Error::NONE || fileSuccess != FR_OK) {
+		if (!fileSuccess) {
+			error = Error::SD_CARD;
+		}
+
+		return error;
 	}
 
 	return Error::NONE;

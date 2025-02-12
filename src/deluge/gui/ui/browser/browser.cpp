@@ -119,6 +119,7 @@ bool Browser::checkFP() {
 
 void Browser::close() {
 	emptyFileItems();
+	favouritesManager.close();
 	QwertyUI::close();
 }
 
@@ -475,6 +476,55 @@ deleteThisItem:
 	if (lastFileItemRemaining) {
 		fileItems.deleteAtIndex(fileItems.getNumElements() - 1);
 	}
+}
+
+Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
+	arrivedAtFileByTyping = true;
+	D_PRINTLN("setFileByFullPath: %s", fullPath);
+	FilePointer tempfp;
+	bool fileExists = StorageManager::fileExists(fullPath, &tempfp);
+	if (!fileExists) {
+		D_PRINTLN("couldn't get filepath");
+		return Error::FILE_NOT_FOUND;
+	}
+
+	const std::string fileName = getFileNameFromEndOfPath(fullPath);
+	const std::string filePath = getPathFromFullPath(fullPath);
+	D_PRINTLN("splitting: p: %s n: %s", filePath, fileName);
+	currentDir.set(filePath.c_str());
+	Error error = arrivedInNewFolder(0);
+	D_PRINTLN("arrivedInNewFolderError: %i currentDir: %s", error, currentDir.get());
+	if (error != Error::NONE) {
+		return error;
+	}
+	D_PRINTLN("currentFile: %s", fileName.c_str());
+	error = readFileItemsForFolder(getThingName(outputType), false, allowedFileExtensionsXML, fileName.c_str(),
+	                               FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, CATALOG_SEARCH_BOTH);
+	if (error != Error::NONE) {
+		D_PRINTLN("readFileError: %i", error);
+		return error;
+	}
+	fileIndexSelected = fileItems.search(fileName.c_str());
+	D_PRINTLN("fileIndexSelected: %i numbers of files %i", fileItems.getNumElements());
+	if (fileIndexSelected > fileItems.getNumElements()) {
+		return Error::FILE_NOT_FOUND;
+	}
+	scrollPosVertical = fileIndexSelected;
+	if (display->getNumBrowserAndMenuLines() > 1) {
+		int32_t lastAllowed = fileItems.getNumElements() - display->getNumBrowserAndMenuLines();
+		if (scrollPosVertical > lastAllowed) {
+			scrollPosVertical = lastAllowed;
+			if (scrollPosVertical < 0) {
+				scrollPosVertical = 0;
+			}
+		}
+	}
+	D_PRINTLN("inxex: %i scrollpos %i", fileIndexSelected, scrollPosVertical);
+	setEnteredTextFromCurrentFilename();
+	currentFileChanged(1);
+	renderUIsForOled();
+
+	return Error::NONE;
 }
 
 // song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when
@@ -1537,6 +1587,54 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
+	if (showFavourites && y == favouriteRow && on) {
+		if (Buttons::isShiftButtonPressed()) {
+			String filePath;
+			Error error = getCurrentFilePath(&filePath);
+			if (error != Error::NONE) {
+				display->displayPopup("Favourite not found");
+			}
+			if (favouritesManager.isEmtpy(x)) {
+				favouritesManager.setFavorite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
+				QwertyUI::setFavouriteColour(x, FavouritesManager::favouriteDefaultColor);
+			}
+			else {
+				favouritesManager.unsetFavorite(x);
+				QwertyUI::setFavouriteColour(x, FavouritesManager::favouriteEmtpyColor);
+			}
+		}
+		else {
+			const std::string favoritePath = favouritesManager.getFavoriteFilename(x);
+			if (!favoritePath.empty()) {
+				setFileByFullPath(outputTypeToLoad, favoritePath.c_str());
+			}
+			else {
+				display->displayPopup("Emtpy");
+			}
+		}
+		return QwertyUI::padAction(x, y, on);
+	}
+	else if (showFavourites && y == favouriteBankRow && on) {
+		favouritesManager.selectFavouritesBank(x);
+		QwertyUI::setFavouritesColour(favouritesManager.getFavouriteColours());
+		return QwertyUI::padAction(x, y, on);
+	}
+	else if (qwertyVisible) {
+		return QwertyUI::padAction(x, y, on);
+	}
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult Browser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	if (showFavourites) {
+		if (Buttons::isShiftButtonPressed) {
+			QwertyUI::setFavouriteColour(selectedFavourite, favouritesManager.changeColour(selectedFavourite, offset));
+		}
+	}
 	return ActionResult::DEALT_WITH;
 }
 

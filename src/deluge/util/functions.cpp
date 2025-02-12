@@ -2116,6 +2116,11 @@ char const* getFileNameFromEndOfPath(char const* filePathChars) {
 	return slashPos ? (slashPos + 1) : filePathChars;
 }
 
+char const* getPathFromFullPath(const char* fullPath) {
+	const char* slashPos = strrchr(fullPath, '/');
+	return slashPos ? std::string(fullPath, slashPos).c_str() : "";
+}
+
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int32_t prefixLength) {
 
 	if (memcasecmp(fileName, filePrefix, prefixLength)) {

@@ -26,6 +26,7 @@ public:
 	QwertyUI() = default;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 	ActionResult timerCallback() override;
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr,
@@ -53,8 +54,22 @@ protected:
 	// 7SEG only
 	virtual void displayText(bool blinkImmediately = false);
 
+	// Favourites
+	void setFavouriteColour(uint32_t index, int8_t colour);
+	void setFavouritesColour(std::array<int8_t, 16> colours);
+	void enableFavourites(bool enabled = true);
+
+	static constexpr int favouriteBankRow = 7;
+	static constexpr int favouriteRow = 6;
+	uint8_t selectedFavouriteBank = 0;
+	uint8_t selectedFavourite = 0;
+	bool showFavourites = false;
+
 	static int16_t enteredTextEditPos;
 	static int32_t scrollPosHorizontal;
 
 private:
+	void renderFavourites();
+
+	int8_t favouriteColours[16] = {-1};
 };

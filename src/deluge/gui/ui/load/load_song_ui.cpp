@@ -962,6 +962,34 @@ ActionResult LoadSongUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// And process the QWERTY keypress
 	if (qwertyVisible) {
+		/* 		if (y == 6 && x == 0 && on) {
+		            auto defaultSongFullPath = "SONGS/SONG1.XML";
+		            if (!StorageManager::fileExists(defaultSongFullPath)) {
+		                display->popupText("not exists");
+		                return QwertyUI::padAction(x, y, on);
+		            }
+		            display->popupText("Son1 loaded");
+		            void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
+
+		            currentSong->setSongFullPath(defaultSongFullPath);
+		            if (openUI(&loadSongUI)) {
+		                loadSongUI.performLoad();
+		            }
+		        }
+		        if (y == 6 && x == 1 && on) {
+		            auto defaultSongFullPath = "SONGS/SONG2.XML";
+		            if (!StorageManager::fileExists(defaultSongFullPath)) {
+		                display->popupText("not exists");
+		                return QwertyUI::padAction(x, y, on);
+		            }
+		            display->popupText("Song2 loaded");
+		            void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
+
+		            currentSong->setSongFullPath(defaultSongFullPath);
+		            if (openUI(&loadSongUI)) {
+		                loadSongUI.performLoad();
+		            }
+		        } */
 		return LoadUI::padAction(x, y, on);
 	}
 	return ActionResult::DEALT_WITH;
