@@ -31,6 +31,11 @@ Checks: >
   -cppcoreguidelines-special-member-functions,
   -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-pro-type-static-cast-downcast,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-magic-numbers,  
+  -readability-identifier-length
 WarningsAsErrors: false # should be true once we get there
 HeaderFileExtensions:         ['h','hh','hpp','hxx']
 ImplementationFileExtensions: ['c','cc','cpp','cxx']

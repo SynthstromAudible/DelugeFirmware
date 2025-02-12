@@ -55,6 +55,12 @@
 
 #define PITCH_DETECT_DEBUG_LEVEL 0
 
+// this is the owning raw pointer annotation used by clang tidy
+namespace gsl {
+template <typename T>
+using owner = T;
+}
+
 constexpr uint8_t kOctaveSize = 12;
 
 struct Cartesian {

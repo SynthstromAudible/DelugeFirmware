@@ -68,7 +68,7 @@ public:
 
 	SampleRecorder* next;
 
-	Sample* sample;
+	gsl::owner<Sample*> sample;
 
 	int32_t numSamplesToRunBeforeBeginningCapturing;
 	uint32_t numSamplesBeenRunning;

@@ -615,7 +615,8 @@ void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem
 }
 
 void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
-
+	resetSourceBlinks();
+	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
 	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
 	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&nameEditMenu)) {
