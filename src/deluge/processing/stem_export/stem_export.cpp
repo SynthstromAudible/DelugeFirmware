@@ -68,7 +68,7 @@ StemExport::StemExport() {
 	exportToSilence = true;
 	includeSongFX = false;
 	renderOffline = true;
-	exportMasterArrangement = false;
+	exportMixdown = false;
 
 	timePlaybackStopped = 0xFFFFFFFF;
 	timeThereWasLastSomeActivity = 0xFFFFFFFF;
@@ -105,8 +105,8 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 	else if (stemExportType == StemExportType::TRACK) {
 		elementsProcessed = exportInstrumentStems(stemExportType);
 	}
-	else if (stemExportType == StemExportType::MASTER_ARRANGEMENT) {
-		elementsProcessed = exportMasterArrangementStem(stemExportType);
+	else if (stemExportType == StemExportType::MIXDOWN) {
+		elementsProcessed = exportMixdownStem(stemExportType);
 	}
 
 	// if process wasn't cancelled, then we got here because we finished
@@ -283,9 +283,9 @@ int32_t StemExport::disarmAllInstrumentsForStemExport(StemExportType stemExportT
 				else {
 					output->exportStem = false;
 				}
-				// if we're not exporting the master arrangement as a single stem,
+				// if we're not exporting the mixdown,
 				// then we want to mute all the tracks as we'll be exporting them individually
-				if (stemExportType != StemExportType::MASTER_ARRANGEMENT) {
+				if (stemExportType != StemExportType::MIXDOWN) {
 					output->mutedInArrangementModeBeforeStemExport = output->mutedInArrangementMode;
 					output->mutedInArrangementMode = true;
 				}
@@ -296,8 +296,8 @@ int32_t StemExport::disarmAllInstrumentsForStemExport(StemExportType stemExportT
 		}
 	}
 
-	// if exporting master arrangement, just exporting one stem
-	if ((stemExportType == StemExportType::MASTER_ARRANGEMENT) && totalNumStemsToExport) {
+	// if exporting mixdown, just exporting one stem
+	if ((stemExportType == StemExportType::MIXDOWN) && totalNumStemsToExport) {
 		totalNumStemsToExport = 1;
 	}
 	return totalNumOutputs;
@@ -363,10 +363,10 @@ int32_t StemExport::exportInstrumentStems(StemExportType stemExportType) {
 }
 
 /// iterates through all instruments, checking if there's any that should be exported (unmuted)
-/// then exports them all as a single master arrangement stem
+/// then exports them all as a single stem
 /// simulates the button combo action of pressing record + play twice to enable resample
 /// and stop recording at the end of the arrangement
-int32_t StemExport::exportMasterArrangementStem(StemExportType stemExportType) {
+int32_t StemExport::exportMixdownStem(StemExportType stemExportType) {
 	// prepare all the instruments for stem export
 	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport(stemExportType);
 
@@ -628,7 +628,7 @@ void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t ind
 			currentSong->songViewYScroll = indexNumber - kDisplayHeight;
 		}
 	}
-	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::MASTER_ARRANGEMENT) {
+	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::MIXDOWN) {
 		// reset arranger view scrolling so we're back at the top left of the arrangement
 		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
 		currentSong->arrangementYScroll = indexNumber - kDisplayHeight;
@@ -911,7 +911,7 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 		return;
 	}
 
-	if (stemExportType == StemExportType::MASTER_ARRANGEMENT) {
+	if (stemExportType == StemExportType::MIXDOWN) {
 		// wavFileNameForStemExport = "/MIXDOWN
 		error = wavFileNameForStemExport.concatenate("MIXDOWN");
 		if (error != Error::NONE) {
@@ -940,7 +940,7 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 		}
 	}
 
-	if (stemExportType != StemExportType::MASTER_ARRANGEMENT) {
+	if (stemExportType != StemExportType::MIXDOWN) {
 		// wavFileNameForStemExport = "/OutputType_
 		error = wavFileNameForStemExport.concatenate("_");
 		if (error != Error::NONE) {

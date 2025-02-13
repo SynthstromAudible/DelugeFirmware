@@ -31,8 +31,8 @@ public:
 		soundEditor.exitCompletely();
 		RootUI* rootUI = getRootUI();
 		if (rootUI == &arrangerView) {
-			if (stemExport.exportMasterArrangement) {
-				stemExport.startStemExportProcess(StemExportType::MASTER_ARRANGEMENT);
+			if (stemExport.exportMixdown) {
+				stemExport.startStemExportProcess(StemExportType::MIXDOWN);
 			}
 			else {
 				stemExport.startStemExportProcess(StemExportType::TRACK);
