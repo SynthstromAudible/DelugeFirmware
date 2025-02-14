@@ -146,7 +146,7 @@ static inline float q31_to_float(q31_t value) {
 #else
 
 static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) {
-	return (int32_t)(((int64_t)a * b) >> 32);
+	return (int32_t)(((int64_t)x * y) >> 32);
 }
 
 // This multiplies two numbers in signed Q31 fixed point and rounds the result
@@ -380,13 +380,14 @@ public:
 	/// Multiply two fixed point numbers with the same number of fractional bits
 	constexpr FixedPoint operator*(const FixedPoint& rhs) const {
 		if constexpr (fast_approximation && fractional_bits > 16) {
+			// less than 16 would mean no fractional bits remain after right shift by 32
 			constexpr int32_t shift = fractional_bits - ((fractional_bits * 2) - 32);
 			return from_raw(signed_most_significant_word_multiply(value_, rhs.value_) << shift);
 		}
 
 		if constexpr (rounded) {
 			IntermediateType value = (static_cast<IntermediateType>(value_) * rhs.value_) >> (fractional_bits - 1);
-			return from_raw(static_cast<BaseType>((value / 2) + (value % 2)));
+			return from_raw(static_cast<BaseType>((value >> 1) + (value % 2)));
 		}
 
 		IntermediateType value = (static_cast<IntermediateType>(value_) * rhs.value_) >> fractional_bits;
@@ -473,46 +474,6 @@ public:
 			return from_raw(static_cast<FixedPoint<FractionalBits - 1>>(*this).MultiplyAdd(a, b).raw() << 1);
 		}
 		return *this + (a * b);
-	}
-
-	template <std::integral T>
-	constexpr FixedPoint operator+(T rhs) noexcept {
-		return FixedPoint::from_raw(value_ + (rhs << fractional_bits));
-	}
-
-	template <std::integral T>
-	constexpr FixedPoint operator-(T rhs) noexcept {
-		return FixedPoint::from_raw(value_ - (rhs << fractional_bits));
-	}
-
-	template <std::integral T>
-	constexpr FixedPoint operator*(T rhs) noexcept {
-		return FixedPoint::from_raw(value_ * rhs);
-	}
-
-	template <std::integral T>
-	constexpr FixedPoint operator/(T rhs) noexcept {
-		return FixedPoint::from_raw(value_ / rhs);
-	}
-
-	template <std::floating_point T>
-	constexpr FixedPoint operator+(T rhs) noexcept {
-		return *this + FixedPoint(rhs);
-	}
-
-	template <std::floating_point T>
-	constexpr FixedPoint operator-(T rhs) noexcept {
-		return *this - FixedPoint(rhs);
-	}
-
-	template <std::floating_point T>
-	constexpr FixedPoint operator*(T rhs) noexcept {
-		return *this * FixedPoint(rhs);
-	}
-
-	template <std::floating_point T>
-	constexpr FixedPoint operator/(T rhs) noexcept {
-		return *this / FixedPoint(rhs);
 	}
 
 	/// @brief Equality operator

@@ -90,74 +90,34 @@ describe fixedpoint("FixedPoint", ${
 	});
 
 	context("add", _ {
-		context("with basic types", _ {
-			it("adds an integer", _ {
-				FixedPoint<16> fp{42};
-				expect(fp + 2).to_equal(44);
-			});
-
-			it("adds a float", _ {
-				FixedPoint<16> fp{42};
-				expect(fp + 2.5f).to_equal(44.5f);
-			});
+		it("adds another FixedPoint with an integral value", _ {
+			FixedPoint<16> fp1{42};
+			FixedPoint<16> fp2{2};
+			expect(fp1 + fp2).to_equal(44);
 		});
 
-		context("with FixedPoint with the same number of fractional bits", _{
-			it("adds another FixedPoint with an integral value", _ {
-				FixedPoint<16> fp1{42};
-				FixedPoint<16> fp2{2};
-				expect(fp1 + fp2).to_equal(44);
-			});
-
-			it("adds another FixedPoint with a fractional value", _ {
-				FixedPoint<16> fp1{42};
-				FixedPoint<16> fp2{2.5f};
-				expect(fp1 + fp2).to_equal(44.5f);
-			});
+		it("adds another FixedPoint with a fractional value", _ {
+			FixedPoint<16> fp1{42};
+			FixedPoint<16> fp2{2.5f};
+			expect(fp1 + fp2).to_equal(44.5f);
 		});
 	});
 
 	context("subtract", _ {
-		context("with basic types", _ {
-			it("subtracts an integer", _ {
-				FixedPoint<16> fp{42};
-				expect(fp - 2).to_equal(40);
-			});
-
-			it("subtracts a float", _ {
-				FixedPoint<16> fp{42};
-				expect(fp - 2.5f).to_equal(39.5f);
-			});
+		it("subtracts another FixedPoint with an integral value", _ {
+			FixedPoint<16> fp1{42};
+			FixedPoint<16> fp2{2};
+			expect(fp1 - fp2).to_equal(40);
 		});
 
-		context("with FixedPoint with the same number of fractional bits", _{
-			it("subtracts another FixedPoint with an integral value", _ {
-				FixedPoint<16> fp1{42};
-				FixedPoint<16> fp2{2};
-				expect(fp1 - fp2).to_equal(40);
-			});
-
-			it("subtracts another FixedPoint with a fractional value", _ {
-				FixedPoint<16> fp1{42};
-				FixedPoint<16> fp2{2.5f};
-				expect(fp1 - fp2).to_equal(39.5f);
-			});
+		it("subtracts another FixedPoint with a fractional value", _ {
+			FixedPoint<16> fp1{42};
+			FixedPoint<16> fp2{2.5f};
+			expect(fp1 - fp2).to_equal(39.5f);
 		});
 	});
 
 	context("multiply", _ {
-		context("with basic types on rhs", _ {
-			it("multiplies by an integer", _ {
-				FixedPoint<16> fp{42};
-				expect(fp * 2).to_equal(84);
-			});
-
-			it("multiplies by a float", _ {
-				FixedPoint<16> fp{42};
-				expect(fp * 2.5f).to_equal(105);
-			});
-		});
-
 		context("approximate", _{
 			context("with FixedPoint with the same number of fractional bits on rhs", _{
 				it("multiplies by another FixedPoint with an integral value", _ {
@@ -220,30 +180,16 @@ describe fixedpoint("FixedPoint", ${
 	});
 
 	context("divide", _{
-		context("with basic types on rhs", _{
-			it("divides by an integer", _ {
-				FixedPoint<16> fp{42};
-				expect(fp / 2).to_equal(21);
-			});
-
-			it("divides by a float", _ {
-				FixedPoint<16> fp{42};
-				expect(fp / 2.5f).to_equal(16.8f);
-			});
+		it("divides by another FixedPoint with an integral value", _ {
+			FixedPoint<16> fp1{42};
+			FixedPoint<16> fp2{2};
+			expect(fp1 / fp2).to_equal(21);
 		});
 
-		context("with FixedPoint with the same number of fractional bits on rhs", _{
-			it("divides by another FixedPoint with an integral value", _ {
-				FixedPoint<16> fp1{42};
-				FixedPoint<16> fp2{2};
-				expect(fp1 / fp2).to_equal(21);
-			});
-
-			it("divides by another FixedPoint with a fractional value", _ {
-				FixedPoint<16> fp1{42};
-				FixedPoint<16> fp2{2.5f};
-				expect(fp1 / fp2).to_equal(16.8f);
-			});
+		it("divides by another FixedPoint with a fractional value", _ {
+			FixedPoint<16> fp1{42};
+			FixedPoint<16> fp2{2.5f};
+			expect(fp1 / fp2).to_equal(16.8f);
 		});
 	});
 
@@ -277,6 +223,7 @@ describe fixedpoint("FixedPoint", ${
 			FixedPoint<30> fp{2.0f};
 			FixedPoint<31> fp2{fp};
 			expect(fp2).to_equal(1.0f);
+			expect(fp2.raw()).to_equal(0x7fffffff);
 		});
 	});
 });
