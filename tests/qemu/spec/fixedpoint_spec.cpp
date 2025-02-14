@@ -8,7 +8,7 @@ using FixedPointAccurate = FixedPoint<FractionalBits, false, false>;
 
 template <size_t FractionalBits, bool Rounded, bool FastApproximation>
 std::ostream& operator<<(std::ostream& os, const FixedPoint<FractionalBits, Rounded, FastApproximation>& fp) {
-	os << std::format("<FixedPoint<{}> {:x} = {}>", FractionalBits, fp.raw(), static_cast<float>(fp));
+	os << std::format("<FixedPoint<{}>:0x{:x} = {}>", FractionalBits, fp.raw(), static_cast<float>(fp));
 	return os;
 }
 
@@ -226,7 +226,7 @@ describe fixedpoint("FixedPoint", ${
 			});
 
 			it("multiplies and adds quickly", _{
-				FixedPoint<30> fp1{0.5};
+				FixedPoint<30> fp1{0.5f};
 				FixedPoint<31> fp2{0.25f};
 				FixedPoint<31> fp3{0.75f};
 				expect(fp1.MultiplyAdd(fp2, fp3)).to_equal(0.6875f);

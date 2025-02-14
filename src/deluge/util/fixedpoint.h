@@ -17,6 +17,7 @@
 #pragma once
 
 #include <bit>
+#include <cmath>
 #include <compare>
 #include <cstdint>
 #include <limits>
@@ -237,15 +238,17 @@ class FixedPoint {
 	using BaseType = int32_t;
 	using IntermediateType = int64_t;
 
+	/// a + b * c
 	[[gnu::always_inline]] static int32_t signed_most_significant_word_multiply_add(int32_t a, int32_t b, int32_t c) {
 		if constexpr (Rounded) {
-			return multiply_accumulate_32x32_rshift32_rounded(c, a, b);
+			return multiply_accumulate_32x32_rshift32_rounded(a, b, c);
 		}
 		else {
-			return multiply_accumulate_32x32_rshift32(c, a, b);
+			return multiply_accumulate_32x32_rshift32(a, b, c);
 		}
 	}
 
+	// a * b
 	[[gnu::always_inline]] static int32_t signed_most_significant_word_multiply(int32_t a, int32_t b) {
 		if constexpr (Rounded) {
 			return multiply_32x32_rshift32_rounded(a, b);
@@ -295,32 +298,62 @@ public:
 
 	/// @brief Convert from a float to a fixed point number
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
-	explicit FixedPoint(float value) noexcept {
-		asm("vcvt.s32.f32 %0, %1, %2" : "=t"(value) : "t"(value), "I"(fractional_bits));
-		value_ = std::bit_cast<int32_t>(value); // NOLINT
-	}
-
-	/// @brief Convert from a double to a fixed point number
-	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
-	explicit FixedPoint(double value) noexcept {
-		int32_t output{};
-		asm("vcvt.s32.f64 %0, %w1, %2" : "=t"(output) : "t"(value), "I"(fractional_bits));
-		value_ = std::bit_cast<int32_t>(output);
+	constexpr explicit FixedPoint(float value) noexcept {
+		if constexpr (std::is_constant_evaluated()) {
+			value *= 1 << fractional_bits;
+			// convert from floating-point to fixed point
+			if constexpr (rounded) {
+				value_ = static_cast<BaseType>((value >= 0.0) ? std::ceil(value) : std::floor(value));
+			}
+			else {
+				value_ = static_cast<BaseType>(value);
+			}
+		}
+		else {
+			asm("vcvt.s32.f32 %0, %1, %2" : "=t"(value) : "t"(value), "I"(fractional_bits));
+			value_ = std::bit_cast<int32_t>(value); // NOLINT
+		}
 	}
 
 	/// @brief Explicit conversion to float
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
-	explicit operator float() const noexcept {
+	constexpr explicit operator float() const noexcept {
+		if constexpr (std::is_constant_evaluated()) {
+			return static_cast<float>(value_) / (1 << fractional_bits);
+		}
 		int32_t output = value_;
 		asm("vcvt.f32.s32 %0, %1, %2" : "=t"(output) : "t"(output), "I"(fractional_bits));
 		return std::bit_cast<float>(output);
 	}
 
+	/// @brief Convert from a double to a fixed point number
+	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
+	constexpr explicit FixedPoint(double value) noexcept {
+		if constexpr (std::is_constant_evaluated()) {
+			value *= 1 << fractional_bits;
+			// convert from floating-point to fixed point
+			if constexpr (rounded) {
+				value_ = static_cast<BaseType>((value >= 0.0) ? std::ceil(value) : std::floor(value));
+			}
+			else {
+				value_ = static_cast<BaseType>(value);
+			}
+		}
+		else {
+			auto output = std::bit_cast<int64_t>(value);
+			asm("vcvt.s32.f64 %0, %1, %2" : "=w"(output) : "w"(output), "I"(fractional_bits));
+			value_ = static_cast<BaseType>(output);
+		}
+	}
+
 	/// @brief Explicit conversion to double
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	explicit operator double() const noexcept {
-		double output{};
-		asm("vcvt.f64.s32 %w0, %1, %2" : "=t"(output) : "t"(value_), "I"(fractional_bits));
+		if constexpr (std::is_constant_evaluated()) {
+			return static_cast<double>(value_) / (1 << fractional_bits);
+		}
+		auto output = std::bit_cast<double>((int64_t)value_);
+		asm("vcvt.f64.s32 %0, %1, %2" : "=w"(output) : "w"(output), "I"(fractional_bits));
 		return output;
 	}
 
