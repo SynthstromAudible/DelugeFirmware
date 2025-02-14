@@ -31,6 +31,21 @@ describe fixedpoint("FixedPoint", ${
 		});
 	});
 
+	context("copy constructor", _ {
+		it("converts to a different FixedPoint with a different number of fractional bits", _ {
+			FixedPoint<16> fp{42.25f};
+			FixedPoint<24> fp2{fp};
+			expect(fp2).to_equal(42.25f);
+		});
+
+		it("saturates if the value is too large", _ {
+			FixedPoint<30> fp{2.0f};
+			FixedPoint<31> fp2{fp};
+			expect(fp2).to_equal(1.0f);
+			expect(fp2.raw()).to_equal(0x7fffffff);
+		});
+	});
+
 	context("==", _ {
 		it("the original integer", _ {
 			FixedPoint<16> fp{42};
@@ -209,21 +224,13 @@ describe fixedpoint("FixedPoint", ${
 				expect(fp2 * fp3).to_equal(8.75f);
 				expect(fp1.MultiplyAdd(fp2, fp3)).to_equal(50.75f);
 			});
-		});
-	});
 
-	context("copy constructor", _ {
-		it("converts to a different FixedPoint with a different number of fractional bits", _ {
-			FixedPoint<16> fp{42.25f};
-			FixedPoint<24> fp2{fp};
-			expect(fp2).to_equal(42.25f);
-		});
-
-		it("saturates if the value is too large", _ {
-			FixedPoint<30> fp{2.0f};
-			FixedPoint<31> fp2{fp};
-			expect(fp2).to_equal(1.0f);
-			expect(fp2.raw()).to_equal(0x7fffffff);
+			it("multiplies and adds quickly", _{
+				FixedPoint<30> fp1{0.5};
+				FixedPoint<31> fp2{0.25f};
+				FixedPoint<31> fp3{0.75f};
+				expect(fp1.MultiplyAdd(fp2, fp3)).to_equal(0.6875f);
+			});
 		});
 	});
 });
