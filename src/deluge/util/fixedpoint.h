@@ -296,32 +296,31 @@ public:
 	/// @brief Convert from a float to a fixed point number
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	explicit FixedPoint(float value) noexcept {
-		int32_t output = 0;
-		asm("vcvt.s32.f32 %0, %1, %2" : "=t"(output) : "t"(value), "I"(fractional_bits));
-		value_ = std::bit_cast<int32_t>(output);
+		asm("vcvt.s32.f32 %0, %1, %2" : "=t"(value) : "t"(value), "I"(fractional_bits));
+		value_ = std::bit_cast<int32_t>(value); // NOLINT
 	}
 
 	/// @brief Convert from a double to a fixed point number
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	explicit FixedPoint(double value) noexcept {
 		int32_t output{};
-		asm("vcvt.s32.f64 %0, %1, %2" : "=t"(output) : "t"(value), "I"(fractional_bits));
+		asm("vcvt.s32.f64 %0, %w1, %2" : "=t"(output) : "t"(value), "I"(fractional_bits));
 		value_ = std::bit_cast<int32_t>(output);
 	}
 
 	/// @brief Explicit conversion to float
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	explicit operator float() const noexcept {
-		float output{};
-		asm("vcvt.f32.s32 %0, %1, %2" : "=t"(output) : "t"(value_), "I"(fractional_bits));
-		return output;
+		int32_t output = value_;
+		asm("vcvt.f32.s32 %0, %1, %2" : "=t"(output) : "t"(output), "I"(fractional_bits));
+		return std::bit_cast<float>(output);
 	}
 
 	/// @brief Explicit conversion to double
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	explicit operator double() const noexcept {
 		double output{};
-		asm("vcvt.f64.s32 %0, %1, %2" : "=t"(output) : "t"(value_), "I"(fractional_bits));
+		asm("vcvt.f64.s32 %w0, %1, %2" : "=t"(output) : "t"(value_), "I"(fractional_bits));
 		return output;
 	}
 
