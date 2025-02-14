@@ -258,6 +258,15 @@ class FixedPoint {
 		}
 	}
 
+	static constexpr BaseType one() noexcept {
+		if constexpr (fractional_bits == 31) {
+			return std::numeric_limits<BaseType>::max();
+		}
+		else {
+			return 1 << fractional_bits;
+		}
+	}
+
 public:
 	constexpr static std::size_t fractional_bits = FractionalBits;
 	constexpr static std::size_t integral_bits = 32 - FractionalBits;
@@ -300,7 +309,7 @@ public:
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	constexpr explicit FixedPoint(float value) noexcept {
 		if constexpr (std::is_constant_evaluated()) {
-			value *= 1 << fractional_bits;
+			value *= FixedPoint::one();
 			// convert from floating-point to fixed point
 			if constexpr (rounded) {
 				value_ = static_cast<BaseType>((value >= 0.0) ? std::ceil(value) : std::floor(value));
@@ -319,7 +328,7 @@ public:
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	constexpr explicit operator float() const noexcept {
 		if constexpr (std::is_constant_evaluated()) {
-			return static_cast<float>(value_) / (1 << fractional_bits);
+			return static_cast<float>(value_) / FixedPoint::one();
 		}
 		int32_t output = value_;
 		asm("vcvt.f32.s32 %0, %1, %2" : "=t"(output) : "t"(output), "I"(fractional_bits));
@@ -330,7 +339,7 @@ public:
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	constexpr explicit FixedPoint(double value) noexcept {
 		if constexpr (std::is_constant_evaluated()) {
-			value *= 1 << fractional_bits;
+			value *= FixedPoint::one();
 			// convert from floating-point to fixed point
 			if constexpr (rounded) {
 				value_ = static_cast<BaseType>((value >= 0.0) ? std::ceil(value) : std::floor(value));
@@ -350,7 +359,7 @@ public:
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	explicit operator double() const noexcept {
 		if constexpr (std::is_constant_evaluated()) {
-			return static_cast<double>(value_) / (1 << fractional_bits);
+			return static_cast<double>(value_) / FixedPoint::one();
 		}
 		auto output = std::bit_cast<double>((int64_t)value_);
 		asm("vcvt.f64.s32 %0, %1, %2" : "=w"(output) : "w"(output), "I"(fractional_bits));
