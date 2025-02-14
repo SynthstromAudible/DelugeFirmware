@@ -146,32 +146,32 @@ static inline float q31_to_float(q31_t value) {
 #else
 
 static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) {
-	return (int32_t)(((int64_t)x * y) >> 32);
+	return (int32_t)(((int64_t)a * b) >> 32);
 }
 
 // This multiplies two numbers in signed Q31 fixed point and rounds the result
 static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) {
-	return (int32_t)(((int64_t)x * y + 0x80000000) >> 32);
+	return (int32_t)(((int64_t)a * b + 0x80000000) >> 32);
 }
 
 // Multiplies A and B, adds to sum, and returns output
 static inline q31_t multiply_accumulate_32x32_rshift32(q31_t sum, q31_t a, q31_t b) {
-	return (int32_t)(((((int64_t)a) << 32) + ((int64_t)x * y)) >> 32);
+	return (int32_t)(((((int64_t)sum) << 32) + ((int64_t)a * b)) >> 32);
 }
 
 // Multiplies A and B, adds to sum, and returns output, rounding
 static inline q31_t multiply_accumulate_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
-	return (int32_t)(((((int64_t)a) << 32) + ((int64_t)x * y) + 0x80000000) >> 32);
+	return (int32_t)(((((int64_t)sum) << 32) + ((int64_t)a * b) + 0x80000000) >> 32);
 }
 
 // Multiplies A and B, subtracts from sum, and returns output
 static inline q31_t multiply_subtract_32x32_rshift32(q31_t sum, q31_t a, q31_t b) {
-	return (int32_t)(((((int64_t)a) << 32) - ((int64_t)x * y)) >> 32);
+	return (int32_t)(((((int64_t)sum) << 32) - ((int64_t)a * b)) >> 32);
 }
 
 // Multiplies A and B, subtracts from sum, and returns output, rounding
 static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
-	return (int32_t)((((((int64_t)a) << 32) - ((int64_t)x * y)) + 0x80000000) >> 32);
+	return (int32_t)((((((int64_t)sum) << 32) - ((int64_t)a * b)) + 0x80000000) >> 32);
 }
 
 // computes limit((val >> rshift), 2**bits)
