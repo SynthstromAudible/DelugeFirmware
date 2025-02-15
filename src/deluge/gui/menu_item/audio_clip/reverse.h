@@ -39,14 +39,14 @@ public:
 		clip->sampleControls.reversed = this->getValue();
 
 		if (clip->sampleHolder.audioFile != nullptr) {
-			if (clip->sampleControls.isReversed()) {
+			if (clip->sampleControls.isCurrentlyReversed()) {
 				uint64_t lengthInSamples = (static_cast<Sample*>(clip->sampleHolder.audioFile))->lengthInSamples;
 				if (clip->sampleHolder.endPos > lengthInSamples) {
 					clip->sampleHolder.endPos = lengthInSamples;
 				}
 			}
 
-			clip->sampleHolder.claimClusterReasons(clip->sampleControls.isReversed());
+			clip->sampleHolder.claimClusterReasons(clip->sampleControls.isCurrentlyReversed());
 
 			if (active) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];

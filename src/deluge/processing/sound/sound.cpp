@@ -2290,7 +2290,7 @@ void Sound::sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSo
 		return;
 	}
 
-	if (sources[s].sampleControls.isReversed()) {
+	if (sources[s].sampleControls.isCurrentlyReversed()) {
 		markerType = static_cast<MarkerType>(kNumMarkerTypes - 1 - util::to_underlying(markerType));
 	}
 

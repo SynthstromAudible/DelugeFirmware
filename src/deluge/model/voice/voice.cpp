@@ -302,7 +302,7 @@ activenessDetermined:
 
 		if (oscType == OscType::SAMPLE && guides[s].audioFileHolder) {
 			source->sampleControls.invertReversed = sound.invertReversed; // Copy the temporary flag from the sound
-			guides[s].setupPlaybackBounds(source->sampleControls.isReversed());
+			guides[s].setupPlaybackBounds(source->sampleControls.isCurrentlyReversed());
 
 			// if (source->repeatMode == SampleRepeatMode::STRETCH) samplesLateHere = 0;
 		}
@@ -652,7 +652,7 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	const Source& source = sound.sources[s];
 	Sample* sample = (Sample*)holder->audioFile;
 
-	guides[s].setupPlaybackBounds(source.sampleControls.isReversed());
+	guides[s].setupPlaybackBounds(source.sampleControls.isCurrentlyReversed());
 
 	LoopType loopingType = guides[s].getLoopingType(sound.sources[s]);
 
@@ -667,7 +667,7 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 
 		if (voiceUnisonPartSource->active) {
 			bool stillActive = voiceUnisonPartSource->voiceSample->sampleZoneChanged(
-			    &guides[s], sample, source.sampleControls.isReversed(), markerType, loopingType, getPriorityRating());
+			    &guides[s], sample, source.sampleControls.isCurrentlyReversed(), markerType, loopingType, getPriorityRating());
 			if (!stillActive) {
 				D_PRINTLN("returned false ---------");
 				voiceUnisonPartSource->unassign(false);

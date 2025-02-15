@@ -213,7 +213,7 @@ void AudioRecorder::process() {
 				soundEditor.currentSource->setOscType(OscType::SAMPLE);
 				soundEditor.currentMultiRange->getAudioFileHolder()->filePath.set(&recorder->sample->filePath);
 				soundEditor.currentMultiRange->getAudioFileHolder()->setAudioFile(
-				    recorder->sample, soundEditor.currentSource->sampleControls.isReversed(), true);
+				    recorder->sample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true);
 			}
 			finishRecording();
 

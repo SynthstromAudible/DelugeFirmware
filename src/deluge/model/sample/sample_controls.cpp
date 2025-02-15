@@ -49,6 +49,6 @@ useLinearInterpolation:
 	}
 }
 
-bool SampleControls::isReversed() const {
+bool SampleControls::isCurrentlyReversed() const {
 	return invertReversed ? !reversed : reversed;
 }

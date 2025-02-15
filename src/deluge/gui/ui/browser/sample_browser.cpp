@@ -734,7 +734,7 @@ Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCost
 		return error;
 	}
 
-	return holder->loadFile(soundEditor.currentSource->sampleControls.isReversed(), true, true, CLUSTER_ENQUEUE,
+	return holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true, CLUSTER_ENQUEUE,
 	                        nullptr, makeWaveTableWorkAtAllCosts);
 }
 
@@ -748,7 +748,7 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 		return error;
 	}
 
-	bool reversed = getCurrentAudioClip()->sampleControls.isReversed();
+	bool reversed = getCurrentAudioClip()->sampleControls.isCurrentlyReversed();
 	error = holder->loadFile(reversed, true, true);
 
 	// If there's a pre-margin, we want to set an attack-time
@@ -1770,7 +1770,7 @@ skipOctaveCorrection:
 		range->topNote = topNote;
 
 		range->sampleHolder.filePath.set(&thisSample->filePath);
-		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.isReversed(), true);
+		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true);
 		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
 		range->sampleHolder.setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote,
 		                                                       topNote);
@@ -1943,7 +1943,7 @@ getOut:
 			AudioFileHolder* holder = range->getAudioFileHolder();
 			holder->setAudioFile(nullptr);
 			holder->filePath.set(&thisSample->filePath);
-			holder->setAudioFile(thisSample, source->sampleControls.isReversed(), true);
+			holder->setAudioFile(thisSample, source->sampleControls.isCurrentlyReversed(), true);
 
 			autoDetectSideChainSending(drum, source, thisSample->filePath.get());
 
