@@ -485,17 +485,15 @@ bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	if (arpSettings) {
-		if (arpSettings->mode != ArpMode::OFF || polyphonic == PolyphonyMode::LEGATO
-		    || polyphonic == PolyphonyMode::MONO) {
-
-			int32_t n = arpeggiator.notes.search(noteCode, GREATER_OR_EQUAL);
-			if (n >= arpeggiator.notes.getNumElements()) {
-				return false;
-			}
-			ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-			return (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode);
+	if (arpSettings != nullptr
+	    && (arpSettings->mode != ArpMode::OFF || polyphonic == PolyphonyMode::LEGATO
+	        || polyphonic == PolyphonyMode::MONO)) {
+		int32_t n = arpeggiator.notes.search(noteCode, GREATER_OR_EQUAL);
+		if (n >= arpeggiator.notes.getNumElements()) {
+			return false;
 		}
+		ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+		return (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode);
 	}
 
 	if (!numVoicesAssigned) {

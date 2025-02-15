@@ -640,7 +640,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				                           readAutomationUpToPos);
 				reader.exitTag("gate");
 			}
-			else if (arpSettings) {
+			else if (arpSettings != nullptr) {
 				bool readAndExited = arpSettings->readCommonTagsFromFile(reader, tagName, song);
 				if (!readAndExited) {
 					reader.exitTag(tagName);
@@ -2569,10 +2569,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-	if (arpSettings) {
+	if (arpSettings != nullptr) {
 		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
 	}
-	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
+	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement =
 		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
@@ -2825,7 +2825,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSettings) {
 
 	if (skippingRendering) {
-		if (arpSettings && arpSettings->mode != ArpMode::OFF) {
+		if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 			uint32_t phaseIncrement =
 			    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
 			getArp()->gatePos +=
@@ -3431,7 +3431,7 @@ bool Sound::anyNoteIsOn() {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
+	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 		return (getArp()->hasAnyInputNotesActive());
 	}
 
@@ -4560,7 +4560,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.writeClosingTag("defaultParams", true, true);
 	}
 
-	if (arpSettings) {
+	if (arpSettings != nullptr) {
 		writer.writeOpeningTagBeginning("arpeggiator");
 		arpSettings->writeCommonParamsToFile(writer, currentSong);
 		writer.closeTag();
@@ -4619,7 +4619,7 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings(clip);
 
-	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
+	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 		maxRawOscTranspose += (arpSettings->numOctaves - 1) * 12;
 	}
 
