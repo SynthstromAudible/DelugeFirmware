@@ -113,8 +113,8 @@ Error Source::loadAllSamples(bool mayActuallyReadFiles) {
 		if (mayActuallyReadFiles && shouldAbortLoading()) {
 			return Error::ABORTED_BY_USER;
 		}
-		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.isCurrentlyReversed(), false, mayActuallyReadFiles,
-		                                                     CLUSTER_ENQUEUE, nullptr, true);
+		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.isCurrentlyReversed(), false,
+		                                                     mayActuallyReadFiles, CLUSTER_ENQUEUE, nullptr, true);
 	}
 
 	return Error::NONE;

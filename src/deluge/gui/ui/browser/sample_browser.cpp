@@ -734,8 +734,8 @@ Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCost
 		return error;
 	}
 
-	return holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true, CLUSTER_ENQUEUE,
-	                        nullptr, makeWaveTableWorkAtAllCosts);
+	return holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true,
+	                        CLUSTER_ENQUEUE, nullptr, makeWaveTableWorkAtAllCosts);
 }
 
 Error SampleBrowser::claimAudioFileForAudioClip() {
@@ -1770,7 +1770,8 @@ skipOctaveCorrection:
 		range->topNote = topNote;
 
 		range->sampleHolder.filePath.set(&thisSample->filePath);
-		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true);
+		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
+		                                 true);
 		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
 		range->sampleHolder.setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote,
 		                                                       topNote);

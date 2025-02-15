@@ -779,9 +779,9 @@ LoopType AudioClip::getLoopingType(ModelStackWithTimelineCounter const* modelSta
 	// We won't loop at the low level. We may want to loop at time-stretcher level, in the following case (not if the
 	// end-point is set to beyond the waveform's length).
 
-	bool shouldLoop =
-	    (sampleControls.isCurrentlyReversed() || sampleHolder.endPos <= ((Sample*)sampleHolder.audioFile)->lengthInSamples)
-	    && currentPlaybackMode->willClipContinuePlayingAtEnd(modelStack);
+	bool shouldLoop = (sampleControls.isCurrentlyReversed()
+	                   || sampleHolder.endPos <= ((Sample*)sampleHolder.audioFile)->lengthInSamples)
+	                  && currentPlaybackMode->willClipContinuePlayingAtEnd(modelStack);
 
 	return shouldLoop ? LoopType::TIMESTRETCHER_LEVEL_IF_ACTIVE : LoopType::NONE;
 
@@ -1025,8 +1025,9 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 
 		RGB rgb = getColour();
 
-		bool success = waveformRenderer.renderAsSingleRow(sample, xScrollSamples, xZoomSamples, image, &renderData,
-		                                                  recorder, rgb, sampleControls.isCurrentlyReversed(), xStart, xEnd);
+		bool success =
+		    waveformRenderer.renderAsSingleRow(sample, xScrollSamples, xZoomSamples, image, &renderData, recorder, rgb,
+		                                       sampleControls.isCurrentlyReversed(), xStart, xEnd);
 
 		if (!success) {
 			// If card being accessed and waveform would have to be re-examined, come back later
