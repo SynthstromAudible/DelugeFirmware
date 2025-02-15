@@ -137,6 +137,8 @@ void MidiFollow::initDefaultMappings() {
 	soundParamToCC[params::LOCAL_CARRIER_1_FEEDBACK] = 29;
 	ccToSoundParam[30] = params::LOCAL_OSC_A_WAVE_INDEX;
 	soundParamToCC[params::LOCAL_OSC_A_WAVE_INDEX] = 30;
+	ccToSoundParam[36] = params::UNPATCHED_START + params::UNPATCHED_REVERSE_PROBABILITY;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_REVERSE_PROBABILITY] = 36;
 	ccToSoundParam[37] = params::UNPATCHED_START + params::UNPATCHED_SPREAD_VELOCITY;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SPREAD_VELOCITY] = 37;
 	ccToSoundParam[39] = params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_OCTAVE;
@@ -153,8 +155,8 @@ void MidiFollow::initDefaultMappings() {
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_CHORD_POLYPHONY] = 44;
 	ccToSoundParam[45] = params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_AMOUNT;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_AMOUNT] = 45;
-	ccToSoundParam[46] = params::UNPATCHED_START + params::UNPATCHED_ARP_NOTE_PROBABILITY;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_NOTE_PROBABILITY] = 46;
+	ccToSoundParam[46] = params::UNPATCHED_START + params::UNPATCHED_NOTE_PROBABILITY;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_NOTE_PROBABILITY] = 46;
 	ccToSoundParam[47] = params::UNPATCHED_START + params::UNPATCHED_ARP_BASS_PROBABILITY;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_BASS_PROBABILITY] = 47;
 	ccToSoundParam[48] = params::UNPATCHED_START + params::UNPATCHED_ARP_CHORD_PROBABILITY;
@@ -183,6 +185,8 @@ void MidiFollow::initDefaultMappings() {
 	soundParamToCC[params::LOCAL_LFO_LOCAL_FREQ_1] = 59;
 	ccToSoundParam[60] = params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE] = 60;
+	ccToSoundParam[61] = params::GLOBAL_VOLUME_POST_REVERB_SEND;
+	soundParamToCC[params::GLOBAL_VOLUME_POST_REVERB_SEND] = 61;
 	ccToSoundParam[62] = params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING] = 62;
 	ccToSoundParam[63] = params::UNPATCHED_START + params::UNPATCHED_SAMPLE_RATE_REDUCTION;
@@ -1020,29 +1024,38 @@ void MidiFollow::writeDefaultsToFile() {
 
 /// convert paramID to a paramName to write to XML
 void MidiFollow::writeDefaultMappingsToFile() {
+	Serializer& writer = GetSerializer();
 	for (int32_t ccNumber = 0; ccNumber <= kMaxMIDIValue; ccNumber++) {
 		uint8_t soundParamId = ccToSoundParam[ccNumber];
 		uint8_t globalParamId = ccToGlobalParam[ccNumber];
 
 		bool writeTag = false;
-		char const* paramName;
+		char const* paramNameSound;
+		char const* paramNameGlobal;
 		if (soundParamId != PARAM_ID_NONE && soundParamId < params::UNPATCHED_START) {
-			paramName = params::paramNameForFile(params::Kind::PATCHED, soundParamId);
+			paramNameSound = params::paramNameForFile(params::Kind::PATCHED, soundParamId);
 			writeTag = true;
 		}
 		else if (soundParamId != PARAM_ID_NONE && soundParamId >= params::UNPATCHED_START) {
-			paramName = params::paramNameForFile(params::Kind::UNPATCHED_SOUND, soundParamId);
-			writeTag = true;
-		}
-		else if (globalParamId != PARAM_ID_NONE) {
-			paramName = params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL, globalParamId);
+			paramNameSound = params::paramNameForFile(params::Kind::UNPATCHED_SOUND, soundParamId);
 			writeTag = true;
 		}
 		if (writeTag) {
 			char buffer[10];
 			intToString(ccNumber, buffer);
-			Serializer& writer = GetSerializer();
-			writer.writeTag(paramName, buffer);
+			writer.writeTag(paramNameSound, buffer);
+		}
+
+		writeTag = false;
+		if (globalParamId != PARAM_ID_NONE) {
+			paramNameGlobal =
+			    params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_START + globalParamId);
+			writeTag = strcmp(paramNameGlobal, paramNameSound) != 0;
+		}
+		if (writeTag) {
+			char buffer[10];
+			intToString(ccNumber, buffer);
+			writer.writeTag(paramNameGlobal, buffer);
 		}
 	}
 }

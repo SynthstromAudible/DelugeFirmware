@@ -1,10 +1,11 @@
 # Description
 
 Automation View is a new view that complements the existing Arranger and Clip Views.
+
 - The Automation Arranger View is accessed from within Arranger View by pressing the Shift + Song buttons
-    - Note: the automation arranger view editor for a specific parameter can be accessed directly from the arranger song menu for that parameter (e.g. the one you would access by pressing on select encoder or by using the shift + shortcut buttom combo) by pressing the Song button while in the parameter value.
+  - Note: the automation arranger view editor for a specific parameter can be accessed directly from the arranger song menu for that parameter (e.g. the one you would access by pressing on select encoder or by using the shift + shortcut buttom combo) by pressing the Song button while in the parameter value.
 - The Automation Clip View is accessed from within the Clip View by pressing the Clip button
-    - Note: the automation clip view editor for a specific parameter can be accessed directly from the clip sound menu for that parameter (e.g. the one you would access by pressing on select encoder or by using the shift + shortcut buttom combo) by pressing the Clip button while in the parameter value.
+  - Note: the automation clip view editor for a specific parameter can be accessed directly from the clip sound menu for that parameter (e.g. the one you would access by pressing on select encoder or by using the shift + shortcut buttom combo) by pressing the Clip button while in the parameter value.
 
 It allows you to edit automatable parameters on a per step basis at any zoom level.
 
@@ -12,7 +13,7 @@ Automatable Parameters are broken down into four categories for Automation View 
 
 1. Automatable Clip View Parameters for Synths and Kits with a row selected and affect entire DISABLED
 
->The 70 parameters that can be edited are:
+> The 71 parameters that can be edited are:
 >
 > - **Master** Level, Pitch, Pan
 > - **LPF** Frequency, Resonance, Morph
@@ -31,7 +32,7 @@ Automatable Parameters are broken down into four categories for Automation View 
 > - **LFO 1** Rate
 > - **LFO 2** Rate
 > - **Mod FX** Offset, Feedback, Depth, Rate
-> - **Arp** Rate, Gate, Note Probability, Ratchet Probability, Ratchet Amount, Sequence Length, Bass Probability, ChordProbability, Rhythm, Chord Polyphony, Spread Velocity, Spread Gate, Spread Octave
+> - **Arp** Rate, Gate, Note Probability, Reverse Probability, Bass Probability, Ratchet Amount, Ratchet Probability, Chord Probability, Chord Polyphony, Rhythm, Sequence Length, Spread Velocity, Spread Gate, Spread Octave
 > - **Noise** Level
 > - **Portamento**
 > - **Stutter** Rate
@@ -40,11 +41,11 @@ Automatable Parameters are broken down into four categories for Automation View 
 > - **Mono Expression** Y (Mod Wheel)
 > - **Mono Expression** Z (Channel Pressure / Aftertouch)
 
->You can also edit any patch cables that are created
+> You can also edit any patch cables that are created
 
 2. Automatable Clip View Parameters for Kits with affect entire ENABLED, and Audio Clips
 
->The 26 parameters that can be edited are:
+> The 26 parameters that can be edited are:
 >
 > - **Master** Level, Pitch, Pan
 > - **LPF** Frequency, Resonance, Morph
@@ -60,7 +61,7 @@ Automatable Parameters are broken down into four categories for Automation View 
 
 3. Automatable Parameters for Arranger
 
->The 22 parameters that can be edited are:
+> The 22 parameters that can be edited are:
 >
 > - **Master** Level, Pan
 > - **LPF** Frequency, Resonance, Morph
@@ -80,9 +81,9 @@ Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then 
 
 5. Automatable CC's for MIDI Clips
 
->You can automate MIDI CC's 0-119, along with Pitch Bend and After Touch. Note: Mod Wheel is MIDI CC 1.
->In Automation View for MIDI Clips, MIDI CC's have been mapped to grid shortcuts using the template file from MIDI Follow Mode (MIDIFollow.XML). So if you want to change what CC's map to what grid shortcuts in the Automation View for MIDI Clips, you would need to edit the MIDIFollow.XML template for MIDI Follow mode.
->See Appendix below for an overview of the MIDI CC to Grid Shortcut mappings
+> You can automate MIDI CC's 0-119, along with Pitch Bend and After Touch. Note: Mod Wheel is MIDI CC 1.
+> In Automation View for MIDI Clips, MIDI CC's have been mapped to grid shortcuts using the template file from MIDI Follow Mode (MIDIFollow.XML). So if you want to change what CC's map to what grid shortcuts in the Automation View for MIDI Clips, you would need to edit the MIDIFollow.XML template for MIDI Follow mode.
+> See Appendix below for an overview of the MIDI CC to Grid Shortcut mappings
 
 Automation View can be thought of as a layer sitting on top of the Arranger View and Clip View for Synths, Kits, MIDI, and Audio clip types.
 
@@ -93,11 +94,11 @@ For Non-Audio Instrument Clip Types (Synths, Kits, and MIDI), the sidebar from t
 The Automation View functionality covered by this feature can be broken down into these sections:
 
 1. Entering/Exiting the Automation View
-4. Automation Overview
-5. Parameter Selection
-6. Automation Editor
-7. Button Shortcuts/Combos
-8. Default Settings (Enhancements to the existing Arranger / Clip View behaviours)
+2. Automation Overview
+3. Parameter Selection
+4. Automation Editor
+5. Button Shortcuts/Combos
+6. Default Settings (Enhancements to the existing Arranger / Clip View behaviours)
 
 A more detailed break-down of the above sections is found below.
 
@@ -194,9 +195,9 @@ The Automation Editor **will:**
 - enable you to quickly change parameters in focus for editing by turning select or using shift + shortcut pad or going back to automation overview using affect entire or shift/audition pad + clip
 - enable you to view the current parameter value setting for the parameters that are currently automatable.
 - illuminate each pad row according to the current value within the range of 0-128. E.g. bottom pad = 0-16, then 17-32, 33-48, 49-64, 65-80, 81-96, 97-112, 113-128)
-> **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
+  > **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
 - edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-128) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 128. Pressing the rows in between increments/decrements the value by 18.29 (e.g. 0, 18, 37, 55, 73, 91, 110, 128).
-> **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
+  > **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
 
 <img width="297" alt="Screenshot 2024-03-16 at 5 13 50 PM" src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/3d5dded1-efc2-4cb6-ad07-df2942fdc66e">
 
@@ -217,7 +218,7 @@ The Automation Editor **will:**
 
 > **Note 1:** to enter long multi-step automations across multiple grid pages you will need to zoom out as both pads pressed must be visible on the grid). Values in between steps are linearly calculated based on the value corresponding to the pads pressed. For example: you could program a sweep up from value 0 to value 128 by pressing and holding on pad 0,0 and then pressing on pad 15,8).
 
-> **Note 2:** with interpolation turned off, the values between pads will sound like they are changing in a step fashion.  to smooth out these values, turn interpolation on before entering your long multi-step automation. By playing with the interpolating setting you could create hybrid parameter changes that sound smooth and stepped.
+> **Note 2:** with interpolation turned off, the values between pads will sound like they are changing in a step fashion. to smooth out these values, turn interpolation on before entering your long multi-step automation. By playing with the interpolating setting you could create hybrid parameter changes that sound smooth and stepped.
 
 ![IMG_5827](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/890970a0-2496-40e9-926c-9a9bd5697c0a)
 
@@ -403,11 +404,11 @@ Through the `Settings/Defaults/Automation/Disable Audition Pad Shortcuts` submen
 
 2. Press play.
 
-5. Switch to Automation Clip View
+3. Switch to Automation Clip View
 
-6. Enter the Automation Editor for a Parameter, e.g. LPF Frequency is a good one
+4. Enter the Automation Editor for a Parameter, e.g. LPF Frequency is a good one
 
-7. Now start drumming on the LPF Frequency Automation Lanes and see how much fun you can have adjusting automation with all your fingers at once
+5. Now start drumming on the LPF Frequency Automation Lanes and see how much fun you can have adjusting automation with all your fingers at once
 
 ## Editing Automations with your left hand and playing the piano roll with your right hand
 
@@ -415,11 +416,11 @@ Through the `Settings/Defaults/Automation/Disable Audition Pad Shortcuts` submen
 
 2. While you're playing the Piano roll, use your left hand to select the parameters you want to edit. E.g. while holding an audition pad you can press the clip button to go back to the Automation Overview and select a Parameter.
 
-4. Select a Parameter and enter the Automation Editor and while you're playing the Piano roll with your right hand, start adjusting the automation lanes with your left hand
+3. Select a Parameter and enter the Automation Editor and while you're playing the Piano roll with your right hand, start adjusting the automation lanes with your left hand
 
-5. Quickly switch back to the Automation Overview and select another Parameter
+4. Quickly switch back to the Automation Overview and select another Parameter
 
-6. Keep the flow going! Playing the Piano roll and switching between all the Parameters at the same time to create some amazing rhythmic sounds
+5. Keep the flow going! Playing the Piano roll and switching between all the Parameters at the same time to create some amazing rhythmic sounds
 
 # Development Notes
 

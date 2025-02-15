@@ -301,7 +301,8 @@ activenessDetermined:
 		// in STRETCH mode, cos that works differently
 
 		if (oscType == OscType::SAMPLE && guides[s].audioFileHolder) {
-			guides[s].setupPlaybackBounds(source->sampleControls.reversed);
+			source->sampleControls.invertReversed = sound.invertReversed; // Copy the temporary flag from the sound
+			guides[s].setupPlaybackBounds(source->sampleControls.isCurrentlyReversed());
 
 			// if (source->repeatMode == SampleRepeatMode::STRETCH) samplesLateHere = 0;
 		}
@@ -627,6 +628,13 @@ void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 			}
 		}
 	}
+
+	for (int32_t s = 0; s < kNumSources; s++) {
+		Source* source = &sound.sources[s];
+		if (source->oscType == OscType::SAMPLE) {
+			source->sampleControls.invertReversed = false; // Reset temporary flag back to normal
+		}
+	}
 }
 
 // Returns false if voice needs unassigning now
@@ -644,7 +652,7 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	const Source& source = sound.sources[s];
 	Sample* sample = (Sample*)holder->audioFile;
 
-	guides[s].setupPlaybackBounds(source.sampleControls.reversed);
+	guides[s].setupPlaybackBounds(source.sampleControls.isCurrentlyReversed());
 
 	LoopType loopingType = guides[s].getLoopingType(sound.sources[s]);
 
@@ -658,8 +666,9 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 		VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
 		if (voiceUnisonPartSource->active) {
-			bool stillActive = voiceUnisonPartSource->voiceSample->sampleZoneChanged(&guides[s], sample, markerType,
-			                                                                         loopingType, getPriorityRating());
+			bool stillActive = voiceUnisonPartSource->voiceSample->sampleZoneChanged(
+			    &guides[s], sample, source.sampleControls.isCurrentlyReversed(), markerType, loopingType,
+			    getPriorityRating());
 			if (!stillActive) {
 				D_PRINTLN("returned false ---------");
 				voiceUnisonPartSource->unassign(false);

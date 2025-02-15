@@ -1082,11 +1082,12 @@ getOut:
 						else {
 							item = midiOrCVParamShortcuts[y];
 						}
-						parent = parentsForMidiOrCVParamShortcuts[y];
+						parent = parentsForMidiOrCVParamShortcuts[x][y];
 					}
 					else if (x == 4) {
 						if (y == 7) {
 							item = &sequenceDirectionMenu;
+							parent = parentsForMidiOrCVParamShortcuts[x][y];
 						}
 					}
 					else {

@@ -30,7 +30,7 @@ public:
 		return !soundEditor.editingGateDrumRow();
 	}
 	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
+		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator
