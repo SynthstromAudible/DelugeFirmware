@@ -104,11 +104,9 @@ public:
 	// as changes get made to this Sound class.
 	// We think the issue relates to the use of "offsetof" in the param and patcher system
 	// (related to the paramFinalValues / globalSourceValues definitions above)
-	// IF ANOTHER INTEGER PARAMETER IS ADDED TO THIS .h FILE, WE WILL NEED TO ADD ANOTHER PADDING INTEGER
-	// TO MAKE THE RESULTING BIN AN EVEN NUMBER (OR SOMETHING LIKE THAT)
-	// uint32_t temporaryPadding2{0xDEADBEEF};
+	uint32_t temporaryPadding{0xDEADBEEF};
 
-	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
+	alignas(8) ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 
 	int32_t sideChainSendLevel;
 
