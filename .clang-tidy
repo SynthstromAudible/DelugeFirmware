@@ -35,7 +35,8 @@ Checks: >
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -bugprone-easily-swappable-parameters,
   -cppcoreguidelines-avoid-magic-numbers,  
-  -readability-identifier-length
+  -readability-identifier-length,
+  -readability-magic-numbers,
 WarningsAsErrors: false # should be true once we get there
 HeaderFileExtensions:         ['h','hh','hpp','hxx']
 ImplementationFileExtensions: ['c','cc','cpp','cxx']
