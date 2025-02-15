@@ -2553,53 +2553,57 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
-		arpSettings->rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
-		arpSettings->sequenceLength =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
-		arpSettings->chordPolyphony =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_POLYPHONY) + 2147483648;
-		arpSettings->ratchetAmount =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
-		arpSettings->noteProbability =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_NOTE_PROBABILITY) + 2147483648;
-		arpSettings->bassProbability =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_PROBABILITY) + 2147483648;
-		arpSettings->chordProbability =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_PROBABILITY) + 2147483648;
-		arpSettings->ratchetProbability =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
+	if (arpSettings) {
+		// these are also used outside of the arp so we always need them
 		arpSettings->spreadVelocity =
 		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_SPREAD_VELOCITY) + 2147483648;
-		arpSettings->spreadGate = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
 		arpSettings->spreadOctave =
 		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_OCTAVE) + 2147483648;
+		if (arpSettings->mode != ArpMode::OFF) {
+			arpSettings->rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
+			arpSettings->sequenceLength =
+			    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
+			arpSettings->chordPolyphony =
+			    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_POLYPHONY) + 2147483648;
+			arpSettings->ratchetAmount =
+			    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
+			arpSettings->noteProbability =
+			    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_NOTE_PROBABILITY) + 2147483648;
+			arpSettings->bassProbability =
+			    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_PROBABILITY) + 2147483648;
+			arpSettings->chordProbability =
+			    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_PROBABILITY) + 2147483648;
+			arpSettings->ratchetProbability =
+			    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
+			arpSettings->spreadGate =
+			    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
 
-		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
-		uint32_t phaseIncrement =
-		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
+			uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
+			uint32_t phaseIncrement =
+			    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
 
-		ArpReturnInstruction instruction;
+			ArpReturnInstruction instruction;
 
-		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
+			getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
 
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
-				break;
-			}
-			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
-		}
-		if (instruction.arpNoteOn != nullptr) {
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-				if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+				if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
-				noteOnPostArpeggiator(
-				    modelStackWithSoundFlags,
-				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-				    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-				    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
-				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+				noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+			}
+			if (instruction.arpNoteOn != nullptr) {
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+						break;
+					}
+					noteOnPostArpeggiator(
+					    modelStackWithSoundFlags,
+					    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+					    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
+					    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
+					    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+				}
 			}
 		}
 	}
