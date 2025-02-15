@@ -713,7 +713,7 @@ bool ArpeggiatorBase::getRandomProbabilityResult(uint32_t value) {
 	if (value == 0) {
 		return false; // If value at min probability, return always false
 	}
-	if (value == 4294967295u) {
+	if (value == std::numeric_limits<uint32_t>::max()) {
 		return true; // If value at max probability, return always true
 	}
 	uint32_t randomChance = random(65535);
