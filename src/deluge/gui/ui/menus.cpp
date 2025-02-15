@@ -1521,9 +1521,8 @@ ToggleBool configureSongFXMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX, STRING_
                                stemExport.includeSongFX};
 ToggleBool configureOfflineRenderingMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING,
                                          STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING, stemExport.renderOffline};
-ToggleBool configureMixdownMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN,
-                                                STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN,
-                                                stemExport.exportMixdown};
+ToggleBool configureMixdownMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN, STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN,
+                                stemExport.exportMixdown};
 menu_item::Submenu configureStemExportMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS,
                                            {
                                                &configureNormalizationMenu,
