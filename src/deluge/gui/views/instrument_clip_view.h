@@ -64,6 +64,7 @@ struct EditPadPress {
 
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
 #define MPE_RECORD_INTERVAL_TIME (kSampleRate >> 2) // 250ms
+static constexpr const char* PATTERN_FILE_VERSION = "0.0.1";
 
 enum class NudgeMode { QUANTIZE, QUANTIZE_ALL };
 
@@ -260,6 +261,11 @@ public:
 	bool handleNoteRowEditorPadAction(int32_t x, int32_t y, int32_t on);
 	bool handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on);
 	void handleNoteRowEditorAuditionPadAction(int32_t y);
+	void copyNotesToFile(Serializer& writer, bool selectedDrumOnly = false);
+	Error pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool noScaling, bool previewOnly,
+	                         bool selectedDrumOnly);
+	void patternPreview();
+	void patternClear();
 	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult handleNoteRowEditorHorizontalEncoderAction(int32_t offset);
 	ActionResult handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
@@ -316,8 +322,9 @@ private:
 	void displayIterance(Iterance iterance);
 
 	// note row functions
-	void copyNotes();
-	void pasteNotes(bool overwriteExisting);
+	void copyNotes(Serializer* writer, bool selectedDrumOnly = false);
+	void pasteNotes(bool overwriteExisting = true, bool pasteFromFile = false, bool noScaling = false,
+	                bool previewOnly = false, bool selectedDrumOnly = false);
 	void deleteCopiedNoteRows();
 	CopiedNoteRow* firstCopiedNoteRow;
 	int32_t copiedScreenWidth;
