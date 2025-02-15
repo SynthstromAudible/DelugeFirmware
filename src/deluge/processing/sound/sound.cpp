@@ -1678,7 +1678,9 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+	if (arpSettings != nullptr) {
+		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+	}
 
 	getArpBackInTimeAfterSkippingRendering(arpSettings); // Have to do this before telling the arp to noteOn()
 
