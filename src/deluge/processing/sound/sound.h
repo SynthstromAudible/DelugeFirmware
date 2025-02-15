@@ -87,6 +87,8 @@ public:
 	LFO globalLFO3;
 	LFOConfig lfoConfig[LFO_COUNT];
 
+	bool invertReversed; // Used by the arpeggiator to invert the reverse flag just for the current voice
+
 	// December 3, 2024
 	// @todo
 	// Commit 6534979986d465a0acf01018e066e1d7ca1d170e
@@ -102,7 +104,9 @@ public:
 	// as changes get made to this Sound class.
 	// We think the issue relates to the use of "offsetof" in the param and patcher system
 	// (related to the paramFinalValues / globalSourceValues definitions above)
-	uint32_t temporaryPadding{0xDEADBEEF};
+	// IF ANOTHER INTEGER PARAMETER IS ADDED TO THIS .h FILE, WE WILL NEED TO ADD ANOTHER PADDING INTEGER
+	// TO MAKE THE RESULTING BIN AN EVEN NUMBER (OR SOMETHING LIKE THAT)
+	// uint32_t temporaryPadding2{0xDEADBEEF};
 
 	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 

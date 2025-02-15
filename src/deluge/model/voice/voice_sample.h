@@ -61,7 +61,7 @@ public:
 	                                         int32_t* sourceAmplitudeNow, int32_t amplitudeIncrement,
 	                                         int32_t bufferSize, int32_t reduceMagnitudeBy = 1);
 
-	bool sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, MarkerType markerType,
+	bool sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, bool reversed, MarkerType markerType,
 	                       LoopType loopingType, int32_t priorityRating, bool forAudioClip = false);
 	int32_t getPlaySample(Sample* sample, SamplePlaybackGuide* guide);
 	bool stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int32_t priorityRating, bool loopingAtLowLevel);

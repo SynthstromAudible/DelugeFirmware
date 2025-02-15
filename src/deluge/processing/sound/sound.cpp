@@ -167,8 +167,9 @@ void Sound::initParams(ParamManager* paramManager) {
 	unpatchedParams->kind = params::Kind::UNPATCHED_SOUND;
 
 	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_ARP_NOTE_PROBABILITY].setCurrentValueBasicForSetup(2147483647);
+	unpatchedParams->params[params::UNPATCHED_NOTE_PROBABILITY].setCurrentValueBasicForSetup(2147483647);
 	unpatchedParams->params[params::UNPATCHED_ARP_BASS_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_REVERSE_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
@@ -639,7 +640,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				                           readAutomationUpToPos);
 				reader.exitTag("gate");
 			}
-			else if (arpSettings) {
+			else if (arpSettings != nullptr) {
 				bool readAndExited = arpSettings->readCommonTagsFromFile(reader, tagName, song);
 				if (!readAndExited) {
 					reader.exitTag(tagName);
@@ -689,6 +690,13 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		reader.exitTag("chordProbability");
 	}
 
+	else if (!strcmp(tagName, "reverseProbability")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_REVERSE_PROBABILITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("reverseProbability");
+	}
+
 	else if (!strcmp(tagName, "bassProbability")) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_BASS_PROBABILITY,
@@ -698,7 +706,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 
 	else if (!strcmp(tagName, "noteProbability")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_NOTE_PROBABILITY,
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_NOTE_PROBABILITY,
 		                           readAutomationUpToPos);
 		reader.exitTag("noteProbability");
 	}
@@ -1667,7 +1675,13 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 		return;
 	}
 
+	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+
 	ArpeggiatorSettings* arpSettings = getArpSettings();
+	if (arpSettings != nullptr) {
+		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+	}
+
 	getArpBackInTimeAfterSkippingRendering(arpSettings); // Have to do this before telling the arp to noteOn()
 
 	ArpReturnInstruction instruction;
@@ -1679,19 +1693,20 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	// find any negative consequence of this, or need to ever remove them en masse.
 	arpeggiator->noteOn(arpSettings, noteCodePreArp, velocity, &instruction, fromMIDIChannel, mpeValues);
 
-	bool noNoteOn = true;
+	bool atLeastOneNoteOn = false;
 	if (instruction.arpNoteOn != nullptr) {
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 				break;
 			}
-			noNoteOn = false;
+			atLeastOneNoteOn = true;
+			invertReversed = instruction.invertReversed;
 			noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp, instruction.arpNoteOn->noteCodeOnPostArp[n],
 			                      instruction.arpNoteOn->velocity, mpeValues, instruction.sampleSyncLengthOn, ticksLate,
 			                      samplesLate, fromMIDIChannel);
 		}
 	}
-	if (noNoteOn) {
+	if (!atLeastOneNoteOn) {
 		// in the case of the arpeggiator not returning a note On (could happen if Note Probability evaluates to "don't
 		// play") we must at least evaluate the render-skipping if the arpeggiator is ON
 		if (arpSettings != nullptr && arpeggiator->hasAnyInputNotesActive() && arpSettings->mode != ArpMode::OFF) {
@@ -1918,6 +1933,9 @@ void Sound::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t e
 }
 
 void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator) {
+	// Reset invertReversed flag so all voices get its reverse settings back to normal
+	invertReversed = false;
+
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 	noteOffPostArpeggiator(modelStackWithSoundFlags, ALL_NOTES_OFF);
 
@@ -2272,7 +2290,7 @@ void Sound::sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSo
 		return;
 	}
 
-	if (sources[s].sampleControls.reversed) {
+	if (sources[s].sampleControls.isCurrentlyReversed()) {
 		markerType = static_cast<MarkerType>(kNumMarkerTypes - 1 - util::to_underlying(markerType));
 	}
 
@@ -2553,28 +2571,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
-		arpSettings->rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
-		arpSettings->sequenceLength =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
-		arpSettings->chordPolyphony =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_POLYPHONY) + 2147483648;
-		arpSettings->ratchetAmount =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
-		arpSettings->noteProbability =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_NOTE_PROBABILITY) + 2147483648;
-		arpSettings->bassProbability =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_PROBABILITY) + 2147483648;
-		arpSettings->chordProbability =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_PROBABILITY) + 2147483648;
-		arpSettings->ratchetProbability =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
-		arpSettings->spreadVelocity =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_SPREAD_VELOCITY) + 2147483648;
-		arpSettings->spreadGate = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
-		arpSettings->spreadOctave =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_OCTAVE) + 2147483648;
-
+	if (arpSettings != nullptr) {
+		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+	}
+	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement =
 		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
@@ -2583,17 +2583,23 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
 
+		bool atLeastOneOff = false;
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 				break;
 			}
+			atLeastOneOff = true;
 			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+		}
+		if (atLeastOneOff) {
+			invertReversed = false;
 		}
 		if (instruction.arpNoteOn != nullptr) {
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
+				invertReversed = instruction.invertReversed;
 				noteOnPostArpeggiator(
 				    modelStackWithSoundFlags,
 				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
@@ -2821,7 +2827,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSettings) {
 
 	if (skippingRendering) {
-		if (arpSettings && arpSettings->mode != ArpMode::OFF) {
+		if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 			uint32_t phaseIncrement =
 			    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
 			getArp()->gatePos +=
@@ -2833,6 +2839,9 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 }
 
 void Sound::unassignAllVoices() {
+	// Reset invertReversed flag so all voices get its reverse settings back to normal
+	invertReversed = false;
+
 	if (!numVoicesAssigned) {
 		return;
 	}
@@ -3424,7 +3433,7 @@ bool Sound::anyNoteIsOn() {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
+	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 		return (getArp()->hasAnyInputNotesActive());
 	}
 
@@ -3995,7 +4004,7 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 		reader.exitTag("arpeggiatorGate");
 	}
 	else if (!strcmp(tagName, "noteProbability")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_NOTE_PROBABILITY,
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_NOTE_PROBABILITY,
 		                           readAutomationUpToPos);
 		reader.exitTag("noteProbability");
 	}
@@ -4003,6 +4012,11 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_BASS_PROBABILITY,
 		                           readAutomationUpToPos);
 		reader.exitTag("bassProbability");
+	}
+	else if (!strcmp(tagName, "reverseProbability")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_REVERSE_PROBABILITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("reverseProbability");
 	}
 	else if (!strcmp(tagName, "chordProbability")) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_CHORD_PROBABILITY,
@@ -4401,9 +4415,11 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 
 	patchedParams->writeParamAsAttribute(writer, "waveFold", params::LOCAL_FOLD, writeAutomation);
 
-	unpatchedParams->writeParamAsAttribute(writer, "noteProbability", params::UNPATCHED_ARP_NOTE_PROBABILITY,
+	unpatchedParams->writeParamAsAttribute(writer, "noteProbability", params::UNPATCHED_NOTE_PROBABILITY,
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "bassProbability", params::UNPATCHED_ARP_BASS_PROBABILITY,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "reverseProbability", params::UNPATCHED_REVERSE_PROBABILITY,
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "chordProbability", params::UNPATCHED_ARP_CHORD_PROBABILITY,
 	                                       writeAutomation);
@@ -4546,7 +4562,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.writeClosingTag("defaultParams", true, true);
 	}
 
-	if (arpSettings) {
+	if (arpSettings != nullptr) {
 		writer.writeOpeningTagBeginning("arpeggiator");
 		arpSettings->writeCommonParamsToFile(writer, currentSong);
 		writer.closeTag();
@@ -4605,7 +4621,7 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings(clip);
 
-	if (arpSettings && arpSettings->mode != ArpMode::OFF) {
+	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 		maxRawOscTranspose += (arpSettings->numOctaves - 1) * 12;
 	}
 

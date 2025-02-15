@@ -36,12 +36,20 @@ public:
 		return !soundEditor.editingGateDrumRow();
 	}
 	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
+		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
-		(void)optType;
 		using enum l10n::String;
+		if (optType == OptType::SHORT) {
+			return {
+			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_UP),        //<
+			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_DOWN),      //<
+			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_UP_DOWN),   //<
+			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_ALTERNATE), //<
+			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_RANDOM),    //<
+			};
+		}
 		return {
 		    l10n::getView(STRING_FOR_UP),        //<
 		    l10n::getView(STRING_FOR_DOWN),      //<
