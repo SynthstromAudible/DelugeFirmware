@@ -217,6 +217,16 @@ don't have "tails", that is, if when you paint a note in the sequencer, it doesn
 is going to be excluded from the `Kit Arpeggiator`. This happens when you load a sample in the row and the sample mode is set to `Once`.
 Or it could also happen when you load a synth preset and you set the `Env1 Sustain` to zero.
 
+### Reverse Probability
+
+The `Reverse Probability` parameter is avaiable for the `Kit Arpeggiator`, but it works a little bit differently than the same
+parameter for sounds. In this case it is able to "invert" the `Reverse` setting for each note, which means that:
+- If `Reverse Probability` evaluates to `Yes` for a note, and the kit row's own `Reverse` evaluates to "play forward", then the sample
+  will play in reverse.
+- If `Reverse Probability` evaluates to `Yes` for a note, and the kit row's own `Reverse` evaluates to "play in reverse", then
+  this will be inverted and the sample will play forward.
+- If `Reverse Probability` evaluates to `No` for a note, then, the kit row's `Reverse` settings will be respected.
+
 ### Tips for using the Kit Arpeggiator
 
 - To be able to use the `Kit Arpeggiator` with a sliced sample, remember to set all kit rows to sample mode `Cut`. You can do this by
