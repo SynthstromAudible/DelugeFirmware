@@ -207,6 +207,8 @@ The `Kit Arpeggiator` is a new layer on top of the kit rows, which will control 
 That means that the kit rows can have their own arpeggiators also enabled. If you want to use the `Kit Arpeggiator`, you need to
 enable `Affect-Entire` in the `Kit`. Then access the menu with `Select` knob and go to the `Kit Arpeggiator` submenu.
 
+The `Kit Arpeggiator` parameters are also controllable with `MIDI FOLLOW`.
+
 ### Opting in and out of the Kit Arpeggiator
 
 Kit rows by default opt-in to the `Kit Arpeggiator`. You can make a kit row opt-out of the `Kit Arpeggiator` by going into
