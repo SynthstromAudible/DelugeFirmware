@@ -47,12 +47,12 @@ public:
 	bool exportToSilence;
 	bool includeSongFX;
 	bool renderOffline;
-	bool exportMasterArrangement;
+	bool exportMixdown;
 
 	// export instruments
 	int32_t disarmAllInstrumentsForStemExport(StemExportType stemExportType);
 	int32_t exportInstrumentStems(StemExportType stemExportType);
-	int32_t exportMasterArrangementStem(StemExportType stemExportType);
+	int32_t exportMixdownStem(StemExportType stemExportType);
 	void restoreAllInstrumentMutes(int32_t totalNumOutputs);
 
 	// export clips
