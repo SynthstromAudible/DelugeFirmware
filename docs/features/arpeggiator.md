@@ -200,3 +200,27 @@ This submenu contains parameters that are useful if you have an MPE controller c
   - `Off`: This disables control of velocity with MPE.
   - `Aftertouch (AFTE)`: The pressure applied to the key sets the velocity of the note.
   - `MPE Y (Y)`: The Y position on the MPE controller sets the velocity of the note.
+
+## Kit Arpeggiator
+
+The `Kit Arpeggiator` is a new layer on top of the kit rows, which will control which rows receive note ON's and note OFF's.
+That means that the kit rows can have their own arpeggiators also enabled. If you want to use the `Kit Arpeggiator`, you need to
+enable `Affect-Entire` in the `Kit`. Then access the menu with `Select` knob and go to the `Kit Arpeggiator` submenu.
+
+### Opting in and out of the Kit Arpeggiator
+
+Kit rows by default opt-in to the `Kit Arpeggiator`. You can make a kit row opt-out of the `Kit Arpeggiator` by going into
+the `Arpeggaitor` submenu from the kit row menu and disabling the option `Include in Kit Arpeggiator`.
+
+There is a special case where the kit row is forced to opt-out of the `Kit Arpeggiator`, which is when their notes in the sequencer
+don't have "tails", that is, if when you paint a note in the sequencer, it doesn't allow you to extend its length, it means this kit row
+is going to be excluded from the `Kit Arpeggiator`. This happens when you load a sample in the row and the sample mode is set to `Once`.
+Or it could also happen when you load a synth preset and you set the `Env1 Sustain` to zero.
+
+### Tips for using the Kit Arpeggiator
+
+- To be able to use the `Kit Arpeggiator` with a sliced sample, remember to set all kit rows to sample mode `Cut`. You can do this by
+  entering sample mode menu for any kit row, and while holding the `Affect-Entire` button, you can change the sample mode to `Cut`.
+  That will apply the change to all kit rows. Then it is up to you how you place the notes, but a simple experiment could be to
+  place a long note occupying the whole length of the clip for all the kit rows, then enable the `Kit Arpeggiator` and have fun
+  playing with the settings.

@@ -165,6 +165,7 @@ also affect normal sequenced notes while arpeggiator is Off.
 - Added `LOCK` parameter to allow you to freeze the current set of randomized values so the sequence has a repeatable pattern.
 - Added new `WALK1`, `WALK2`, `WALK3` and `PATTERN` note modes.
 - Exposed several parameters from the `Randomizer` also for non-arpeggiated notes: `Velocity Spread`, `Note probability`, and `Reverse Probability`.
+- Added `KIT ARPEGGIATOR` for `KIT` clips. This arpeggiator is a new layer on top of the kit rows, which will control which rows receive note ON's and note OFF's. That means that the kit rows can have their own arpeggiators also enabled. You can access the new menu when `Affect-Entire` is enabled in the `Kit` and you access the menu with `Select` knob.
 
 ### MIDI
 

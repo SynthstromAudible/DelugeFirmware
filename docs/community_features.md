@@ -856,6 +856,9 @@ to each individual note onset. ([#1978])
 
 - ([#1198] [#2978] [#2985] [#2990] [#3079] [#3285]) For a detailed description of this feature, please refer to the feature
   documentation: [Arpeggiator Documentation]
+- ([#3388]) Added `KIT ARPEGGIATOR` for `KIT` clips. This allows the user to engage an arpeggiator layer on top of the kit rows,
+  which will control which rows receive note ON's and note OFF's. That means that the kit rows can have their own arpeggiators also
+  enabled, which allows for unlimited possible pattern combinations. This feature is also explained in [Arpeggiator Documentation]
 
 #### 4.3.9 - Velocity View
 
@@ -1605,6 +1608,8 @@ different firmware
 [#3313]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3313
 
 [#3332]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3332
+
+[#3388]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3388
 
 [Automation View Documentation]: features/automation_view.md
 
