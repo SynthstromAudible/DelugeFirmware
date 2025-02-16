@@ -21,6 +21,7 @@
 #include "dsp/filter/filter_set.h"
 #include "gui/l10n/l10n.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "modulation/arpeggiator.h"
 #include "util/containers.h"
 using namespace deluge;
 class Serializer;
@@ -45,7 +46,7 @@ public:
 	void writeAttributesToFile(Serializer& writer, bool writeToFile);
 	void writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeToFile);
 	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-	                      int32_t readAutomationUpToPos, Song* song) override;
+	                      int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) override;
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = nullptr);
 	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,

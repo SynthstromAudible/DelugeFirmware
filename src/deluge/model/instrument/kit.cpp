@@ -35,6 +35,7 @@
 #include "model/drum/non_audio_drum.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
@@ -48,13 +49,17 @@
 
 namespace params = deluge::modulation::params;
 
-Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
+Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)), arpeggiator(), defaultArpSettings() {
+	defaultArpSettings.numOctaves = 1;
 	firstDrum = nullptr;
 	selectedDrum = nullptr;
 	drumsWithRenderingActive.emptyingShouldFreeMemory = false;
 }
 
 Kit::~Kit() {
+	// Reset arpeggiator
+	arpeggiator.reset();
+
 	// Delete all Drums
 	while (firstDrum) {
 		AudioEngine::logAction("~Kit");
@@ -303,8 +308,8 @@ doReadDrum:
 			reader.exitTag();
 		}
 		else {
-			Error result =
-			    GlobalEffectableForClip::readTagFromFile(reader, tagName, &paramManager, readAutomationUpToPos, song);
+			Error result = GlobalEffectableForClip::readTagFromFile(reader, tagName, &paramManager,
+			                                                        readAutomationUpToPos, &defaultArpSettings, song);
 			if (result == Error::NONE) {}
 			else if (result != Error::RESULT_TAG_UNUSED) {
 				return result;
@@ -424,8 +429,11 @@ void Kit::addDrum(Drum* newDrum) {
 	newDrum->kit = this;
 }
 
-void Kit::removeDrum(Drum* drum) {
+void Kit::removeDrumFromKitArpeggiator(int32_t drumIndex) {
+	arpeggiator.removeDrumIndex(getArpSettings(), drumIndex);
+}
 
+void Kit::removeDrum(Drum* drum) {
 	removeDrumFromLinkedList(drum);
 	drumRemoved(drum);
 }
@@ -662,6 +670,60 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	// Beware - modelStackWithThreeMainThings might have a NULL timelineCounter
 
+	ArpeggiatorSettings* arpSettings = getArpSettings();
+
+	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+	// Nullify parameters not supported by Kit Arpeggiator (to avoid Midi Follow to modify them)
+	arpSettings->chordPolyphony = 0;
+	arpSettings->chordProbability = 0;
+	arpSettings->spreadOctave = 0;
+
+	if (arpSettings->mode != ArpMode::OFF) {
+		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
+		uint32_t phaseIncrement = arpSettings->getPhaseIncrement(
+		    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
+		                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_ARP_RATE))));
+
+		ArpReturnInstruction kitInstruction;
+		arpeggiator.render(arpSettings, &kitInstruction, output.size(), gateThreshold, phaseIncrement);
+
+		if (kitInstruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE) {
+			if (kitInstruction.noteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
+				NoteRow* thisNoteRow =
+				    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.noteCodeOffPostArp[0]);
+				if (thisNoteRow->drum != nullptr) {
+					// Reset invertReverse for drum arpeggiator (done for every noteOff)
+					thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
+					// Do row note off
+					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+					    modelStackWithTimelineCounter->addNoteRow(kitInstruction.noteCodeOffPostArp[0], thisNoteRow)
+					        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+					thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
+				}
+			}
+		}
+		if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+			if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0]
+			    < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
+				NoteRow* thisNoteRow =
+				    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.arpNoteOn->noteCodeOnPostArp[0]);
+				if (thisNoteRow->drum != nullptr) {
+					// Set the invertReverse flag for the drum arpeggiator
+					thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = kitInstruction.invertReversed;
+					// Do row note on
+					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+					    modelStackWithTimelineCounter
+					        ->addNoteRow(kitInstruction.arpNoteOn->noteCodeOnPostArp[0], thisNoteRow)
+					        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+					thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
+					                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn,
+					                          0, 0);
+				}
+			}
+		}
+	}
+
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
 	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
 	                                      isClipActive, OutputType::KIT, recorder);
@@ -703,6 +765,25 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 			}
 		}
 	}
+}
+
+ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {
+	if (clip) {
+		return &clip->arpSettings;
+	}
+	else if (activeClip) {
+		return &((InstrumentClip*)activeClip)->arpSettings;
+	}
+	else {
+		return nullptr;
+	}
+}
+
+void Kit::beenEdited(bool shouldMoveToEmptySlot) {
+	if (activeClip) {
+		defaultArpSettings.cloneFrom(&((InstrumentClip*)activeClip)->arpSettings);
+	}
+	Instrument::beenEdited(shouldMoveToEmptySlot);
 }
 
 // offer the CC to kit gold knobs without also offering to all drums
@@ -996,6 +1077,60 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 
 	int32_t ticksTilNextArpEvent = 2147483647;
+
+	// kit arp
+
+	ParamManager* paramManager = getParamManager(modelStack->song);
+
+	ArpeggiatorSettings* arpSettings = getArpSettings();
+
+	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+	// Nullify parameters not supported by Kit Arpeggiator (to avoid Midi Follow to modify them)
+	arpSettings->chordPolyphony = 0;
+	arpSettings->chordProbability = 0;
+	arpSettings->spreadOctave = 0;
+
+	ArpReturnInstruction kitInstruction;
+	int32_t ticksTilNextKitArpEvent =
+	    arpeggiator.doTickForward(arpSettings, &kitInstruction, currentPos, activeClip->currentlyPlayingReversed);
+
+	if (kitInstruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE) {
+		if (kitInstruction.noteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
+			NoteRow* thisNoteRow =
+			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.noteCodeOffPostArp[0]);
+			if (thisNoteRow->drum != nullptr) {
+				// reset invertReverse for drum arpeggiator (done for every noteOff)
+				thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
+				// Do row note off
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    modelStackWithTimelineCounter->addNoteRow(kitInstruction.noteCodeOffPostArp[0], thisNoteRow)
+				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+				thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
+			}
+		}
+	}
+	if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+		if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
+			NoteRow* thisNoteRow =
+			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.arpNoteOn->noteCodeOnPostArp[0]);
+			if (thisNoteRow->drum != nullptr) {
+				// Set the invertReverse flag for the drum arpeggiator
+				thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = kitInstruction.invertReversed;
+				// Do row note on
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    modelStackWithTimelineCounter
+				        ->addNoteRow(kitInstruction.arpNoteOn->noteCodeOnPostArp[0], thisNoteRow)
+				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+				thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
+				                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn, 0,
+				                          0);
+			}
+		}
+	}
+
+	ticksTilNextArpEvent = std::min(ticksTilNextArpEvent, ticksTilNextKitArpEvent);
+
 	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 		if (thisNoteRow->drum) {
@@ -1027,18 +1162,16 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 					soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
 				}
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-					if (instruction.arpNoteOn != nullptr
-					    && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
-						soundDrum->invertReversed = instruction.invertReversed;
-						soundDrum->noteOnPostArpeggiator(
-						    modelStackWithSoundFlags,
-						    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-						    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-						    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0);
-					}
-					else {
+					if (instruction.arpNoteOn == nullptr
+					    || instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
+					soundDrum->invertReversed = instruction.invertReversed;
+					soundDrum->noteOnPostArpeggiator(
+					    modelStackWithSoundFlags,
+					    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+					    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
+					    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0);
 				}
 			}
 			else if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
@@ -1051,14 +1184,11 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 					nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp[n]);
 				}
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-					if (instruction.arpNoteOn != nullptr
-					    && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
-						nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn,
-						                            n);
-					}
-					else {
+					if (instruction.arpNoteOn == nullptr
+					    || instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
+					nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
 				}
 			}
 
@@ -1067,6 +1197,85 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	}
 
 	return ticksTilNextArpEvent;
+}
+
+void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum, uint8_t velocity,
+                          int16_t const* mpeValues, int32_t fromMIDIChannel, uint32_t sampleSyncLength,
+                          int32_t ticksLate, uint32_t samplesLate) {
+	ArpeggiatorSettings* arpSettings = getArpSettings();
+	ArpReturnInstruction kitInstruction;
+	// Run everything by the Kit Arp...
+	int32_t drumIndex = -1;
+	NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(drum, &drumIndex);
+	if (drumIndex != -1 && thisNoteRow->drum != nullptr) {
+		// Check if kit arp is bypassed
+		if (!thisNoteRow->drum->arpSettings.includeInKitArp) {
+			thisNoteRow->drum->noteOn(modelStack, velocity, mpeValues, fromMIDIChannel, sampleSyncLength, ticksLate,
+			                          samplesLate);
+			return;
+		}
+		else if (thisNoteRow->drum->type == DrumType::SOUND) {
+			ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
+			if (!((SoundDrum*)thisNoteRow->drum)->allowNoteTails(modelStackWithSoundFlags, true)) {
+				// If sound doesn't allow note tails, it cannot be included in the kit arp, as it doesn't produce note
+				// offs and will get us stuck notes
+				thisNoteRow->drum->noteOn(modelStack, velocity, mpeValues, fromMIDIChannel, sampleSyncLength, ticksLate,
+				                          samplesLate);
+				return;
+			}
+		}
+
+		// If kit arp not bypassed, execute instruction
+		arpeggiator.noteOn(arpSettings, drumIndex, velocity, &kitInstruction, fromMIDIChannel, mpeValues);
+		if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+			// Set the invertReverse flag for the drum arpeggiator
+			thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = kitInstruction.invertReversed;
+			// Do row note on
+			thisNoteRow->drum->noteOn(modelStack, kitInstruction.arpNoteOn->velocity,
+			                          kitInstruction.arpNoteOn->mpeValues, 0, sampleSyncLength, ticksLate, samplesLate);
+		}
+	}
+}
+
+void Kit::noteOffPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum, int32_t velocity) {
+	ArpeggiatorSettings* arpSettings = getArpSettings();
+	ArpReturnInstruction kitInstruction;
+	// Run everything by the Kit Arp...
+	int32_t drumIndex = -1;
+	NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(drum, &drumIndex);
+	if (drumIndex != -1 && thisNoteRow->drum != nullptr) {
+		// Check if kit arp is bypassed
+		if (!thisNoteRow->drum->arpSettings.includeInKitArp) {
+			// Forced to be excluded from kit arp
+			// reset invertReverse for drum arpeggiator (done for every noteOff)
+			thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
+			// Do row note off
+			thisNoteRow->drum->noteOff(modelStack, velocity);
+			return;
+		}
+		else if (thisNoteRow->drum->type == DrumType::SOUND) {
+			ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
+			if (!((SoundDrum*)thisNoteRow->drum)->allowNoteTails(modelStackWithSoundFlags, true)) {
+				// If sound doesn't allow note tails, it cannot be included in the kit arp, as it doesn't produce note
+				// offs and will get us stuck notes
+				// Just send the note directly to the drum
+				// reset invertReverse for drum arpeggiator (done for every noteOff)
+				thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
+				// Do row note off
+				thisNoteRow->drum->noteOff(modelStack, velocity);
+				return;
+			}
+		}
+
+		// If kit arp not bypassed, execute instruction
+		arpeggiator.noteOff(arpSettings, drumIndex, &kitInstruction);
+		if (kitInstruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE) {
+			// reset invertReverse for drum arpeggiator (done for every noteOff)
+			thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
+			// Do row note off
+			thisNoteRow->drum->noteOff(modelStack, velocity);
+		}
+	}
 }
 
 GateDrum* Kit::getGateDrumForChannel(int32_t gateChannel) {
@@ -1647,7 +1856,7 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThings(drum->toModControllable(), paramManagerForDrum);
 
-	drum->noteOn(modelStackWithThreeMainThings, velocity, this, mpeValues, fromMIDIChannel);
+	noteOnPreKitArp(modelStackWithThreeMainThings, drum, velocity, mpeValues, fromMIDIChannel);
 
 	if (!activeClip || ((InstrumentClip*)activeClip)->allowNoteTails(modelStack)) {
 		drum->auditioned = true;
@@ -1692,7 +1901,7 @@ gotParamManager:
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThings(drum->toModControllable(), paramManagerForDrum);
 
-	drum->noteOff(modelStackWithThreeMainThings);
+	noteOffPreKitArp(modelStackWithThreeMainThings, drum);
 
 	if (activeClip) {
 		activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play

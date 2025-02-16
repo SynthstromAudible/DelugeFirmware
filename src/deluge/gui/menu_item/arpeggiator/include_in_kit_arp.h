@@ -15,48 +15,51 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
-#include <cstdint>
 
 namespace deluge::gui::menu_item::arpeggiator {
-class ChordType : public Selection {
+class IncludeInKitArp final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->chordTypeIndex); }
-	void writeCurrentValue() override {
-		int32_t value = this->getValue();
-		if (value >= 0 && value < MAX_CHORD_TYPES) {
-			soundEditor.currentArpSettings->chordTypeIndex = value;
-			soundEditor.currentArpSettings->flagForceArpRestart = true;
+	void readCurrentValue() override {
+		if (!soundEditor.allowsNoteTails) {
+			this->setValue(0);
+		}
+		else {
+			this->setValue(soundEditor.currentArpSettings->includeInKitArp);
 		}
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingKitRow() && !soundEditor.editingGateDrumRow();
-	}
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
+	void writeCurrentValue() override {
+		if (soundEditor.allowsNoteTails) {
+			auto current_value = this->getValue();
+			soundEditor.currentArpSettings->includeInKitArp = this->getValue() != 0;
+		}
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_NONE),      //<
-		    l10n::getView(STRING_FOR_FIFTH),     //<
-		    l10n::getView(STRING_FOR_SUS2),      //<
-		    l10n::getView(STRING_FOR_MINOR),     //<
-		    l10n::getView(STRING_FOR_MAJOR),     //<
-		    l10n::getView(STRING_FOR_SUS4),      //<
-		    l10n::getView(STRING_FOR_MINOR7),    //<
-		    l10n::getView(STRING_FOR_DOMINANT7), //<
-		    l10n::getView(STRING_FOR_MAJOR7),    //<
+		    l10n::getView(STRING_FOR_OFF), //<
+		    l10n::getView(STRING_FOR_ON),  //<
 		};
 	}
-};
 
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return soundEditor.editingKitRow();
+	}
+
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
+	}
+
+	// flag this selection menu as a toggle menu so we can use a checkbox to toggle value
+	bool isToggle() override { return true; }
+
+	// don't enter menu on select button press
+	bool shouldEnterSubmenu() override { return false; }
+};
 } // namespace deluge::gui::menu_item::arpeggiator

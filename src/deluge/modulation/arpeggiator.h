@@ -40,6 +40,7 @@ constexpr uint32_t ARP_NOTE_NONE = 32767;
 enum class ArpType : uint8_t {
 	SYNTH,
 	DRUM,
+	KIT,
 };
 
 class ArpeggiatorSettings {
@@ -69,6 +70,8 @@ public:
 	// Main settings
 	ArpPreset preset{ArpPreset::OFF};
 	ArpMode mode{ArpMode::OFF};
+
+	bool includeInKitArp{true};
 
 	// Sequence settings
 	ArpOctaveMode octaveMode{ArpOctaveMode::UP};
@@ -285,7 +288,7 @@ protected:
 	int8_t getRandomWeighted2BitsAmount(uint32_t value);
 };
 
-class ArpeggiatorForDrum final : public ArpeggiatorBase {
+class ArpeggiatorForDrum : public ArpeggiatorBase {
 public:
 	ArpeggiatorForDrum();
 	void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
@@ -296,12 +299,14 @@ public:
 	ArpNote arpNote; // For the one note. noteCode will always be 60. velocity will be 0 if off.
 	int16_t noteForDrum;
 
+	bool invertReversedFromKitArp;
+
 protected:
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) override;
 	bool hasAnyInputNotesActive() override;
 };
 
-class Arpeggiator final : public ArpeggiatorBase {
+class Arpeggiator : public ArpeggiatorBase {
 public:
 	Arpeggiator();
 
@@ -323,4 +328,11 @@ public:
 protected:
 	void rearrangePatterntArpNotes(ArpeggiatorSettings* settings);
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) override;
+};
+
+class ArpeggiatorForKit : public Arpeggiator {
+public:
+	ArpeggiatorForKit();
+	ArpType getArpType() override { return ArpType::KIT; }
+	void removeDrumIndex(ArpeggiatorSettings* arpSettings, int32_t drumIndex);
 };
