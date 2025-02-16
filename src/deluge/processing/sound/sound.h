@@ -98,17 +98,11 @@ public:
 	// definition above. This unknowingly introduced a "release" bug which changed the sound of the
 	// Deluge synth engine compared to 1.1 as reported in issue #2660:
 	// (https://github.com/SynthstromAudible/DelugeFirmware/issues/2660)
-	// As a TEMPORARY solution, padding is being added here to fix the bug so as to not hold up
-	// the 1.2 Beta release.
-	// Emphasis on temporary as this bug needs a proper fix, otherwise it will keep coming back
-	// as changes get made to this Sound class.
-	// We think the issue relates to the use of "offsetof" in the param and patcher system
-	// (related to the paramFinalValues / globalSourceValues definitions above)
-	// IF ANOTHER INTEGER PARAMETER IS ADDED TO THIS .h FILE, WE WILL NEED TO ADD ANOTHER PADDING INTEGER
-	// TO MAKE THE RESULTING BIN AN EVEN NUMBER (OR SOMETHING LIKE THAT)
-	// uint32_t temporaryPadding2{0xDEADBEEF};
+	// As a solution modKnobs is aligned to 8 bytes. I don't know why this fixes the problem but it seems to work even
+	// with other changes to the class. We think the issue relates to the use of "offsetof" in the
+	// param and patcher system (related to the paramFinalValues / globalSourceValues definitions above)
 
-	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
+	alignas(8) ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 
 	int32_t sideChainSendLevel;
 
