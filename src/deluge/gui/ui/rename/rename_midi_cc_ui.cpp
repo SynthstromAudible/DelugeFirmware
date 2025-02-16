@@ -43,7 +43,7 @@ String RenameMidiCCUI::getName() const {
 	int32_t cc = clip->lastSelectedParamID;
 	std::string_view name = midiInstrument->getNameFromCC(cc);
 	String name_string;
-	name_string.set({name.data(), name.length()});
+	name_string.set(name.data(), name.length());
 	return name_string;
 }
 

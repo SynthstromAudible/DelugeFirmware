@@ -174,6 +174,7 @@ add_compile_options(
     # Link time optimizations
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
+    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fdevirtualize-at-ltrans>
     -ffunction-sections
     -fdata-sections
     -DUSE_TASK_MANAGER
@@ -196,7 +197,8 @@ add_executable(deluge)
 
 # Link external libraries
 target_link_libraries(deluge PUBLIC
-    argon
+        argon
+        etl::etl
 )
 
 option(MAINTAINER_MODE "Enables all warnings and errors" OFF)

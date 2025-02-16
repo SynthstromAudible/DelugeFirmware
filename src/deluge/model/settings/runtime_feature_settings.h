@@ -50,8 +50,6 @@ enum RuntimeFeatureSettingType : uint32_t {
 	CatchNotes,
 	DeleteUnusedKitRows,
 	AltGoldenKnobDelayParams,
-	QuantizedStutterRate,
-	ReverseStutterRate,
 	DevSysexAllowed,
 	SyncScalingAction,
 	HighlightIncomingNotes,
@@ -67,6 +65,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	EnableGridViewLoopPads,
 	AlternativeTapTempoBehaviour,
 	HorizontalMenus,
+	TrimFromStartOfAudioClip,
 	MaxElement // Keep as boundary
 };
 

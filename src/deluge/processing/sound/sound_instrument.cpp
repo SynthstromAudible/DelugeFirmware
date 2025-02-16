@@ -17,6 +17,7 @@
 
 #include "processing/sound/sound_instrument.h"
 #include "definitions_cxx.hpp"
+#include "dsp/stereo_sample.h"
 #include "gui/views/view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -89,9 +90,9 @@ void SoundInstrument::cutAllSound() {
 	Sound::unassignAllVoices();
 }
 
-void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos,
-                                   int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-                                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
+void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+                                   int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+                                   bool shouldLimitDelayFeedback, bool isClipActive) {
 	// this should only happen in the rare case that this is called while replacing an instrument but after the clips
 	// have been cleared
 	if (!activeClip) [[unlikely]] {
@@ -106,8 +107,8 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPo
 		compressor.gainReduction = 0;
 	}
 	else {
-		Sound::render(modelStackWithThreeMainThings, startPos, numSamples, reverbBuffer, sideChainHitPending,
-		              reverbAmountAdjust, shouldLimitDelayFeedback, kMaxSampleValue, recorder);
+		Sound::render(modelStackWithThreeMainThings, output, reverbBuffer, sideChainHitPending, reverbAmountAdjust,
+		              shouldLimitDelayFeedback, kMaxSampleValue, recorder);
 	}
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {
@@ -126,7 +127,7 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPo
 		}
 		if (anyInterpolating) {
 yesTickParamManagerForClip:
-			modelStackWithThreeMainThings->paramManager->toForTimeline()->tickSamples(numSamples,
+			modelStackWithThreeMainThings->paramManager->toForTimeline()->tickSamples(output.size(),
 			                                                                          modelStackWithThreeMainThings);
 		}
 		else {
@@ -193,7 +194,7 @@ yesTickParamManagerForClip:
 			if (result) {
 				modelStackWithThreeMainThings->setNoteRow(thisNoteRow, thisNoteRow->y);
 				modelStackWithThreeMainThings->paramManager = &thisNoteRow->paramManager;
-				thisNoteRow->paramManager.tickSamples(numSamples, modelStackWithThreeMainThings);
+				thisNoteRow->paramManager.tickSamples(output.size(), modelStackWithThreeMainThings);
 			}
 		}
 	}
@@ -220,7 +221,7 @@ Error SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 }
 
 void SoundInstrument::resyncLFOs() {
-	resyncGlobalLFO();
+	resyncGlobalLFOs();
 }
 
 ModControllable* SoundInstrument::toModControllable() {
@@ -368,6 +369,11 @@ lookAtArpNote:
 			arpNote->mpeValues[expressionDimension] = newValue >> 16;
 		}
 	}
+
+	// Let the Sound know about this polyphonic expression event
+	// The Sound class will use it to send MIDI out (if enabled in the sound config)
+	Sound::polyphonicExpressionEventOnChannelOrNote(newValue, expressionDimension, channelOrNoteNumber,
+	                                                whichCharacteristic);
 }
 
 void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode,
@@ -383,29 +389,7 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 		       fromMIDIChannel);
 	}
 	else {
-		ArpeggiatorSettings* arpSettings = getArpSettings();
-
-		ArpReturnInstruction instruction;
-
-		arpeggiator.noteOff(arpSettings, noteCode, &instruction);
-
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
-				break;
-			}
-#if ALPHA_OR_BETA_VERSION
-			if (!modelStack->paramManager) {
-				// Previously we were allowed to receive a NULL paramManager, then would just crudely do an
-				// unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
-				FREEZE_WITH_ERROR("E402");
-			}
-#endif
-			ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
-
-			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
-
-			reassessRenderSkippingStatus(modelStackWithSoundFlags);
-		}
+		noteOff(modelStack, &arpeggiator, noteCode);
 	}
 }
 
@@ -446,23 +430,7 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 	UnpatchedParamSet* unpatchedParams = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSet();
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-	arpSettings->rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
-	arpSettings->sequenceLength =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
-	arpSettings->chordPolyphony =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_POLYPHONY) + 2147483648;
-	arpSettings->ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
-	arpSettings->noteProbability =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_NOTE_PROBABILITY) + 2147483648;
-	arpSettings->bassProbability =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_PROBABILITY) + 2147483648;
-	arpSettings->chordProbability =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_PROBABILITY) + 2147483648;
-	arpSettings->ratchetProbability =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
-	arpSettings->spreadVelocity = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_SPREAD_VELOCITY) + 2147483648;
-	arpSettings->spreadGate = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
-	arpSettings->spreadOctave = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_OCTAVE) + 2147483648;
+	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
 
 	ArpReturnInstruction instruction;
 
@@ -471,17 +439,23 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStackWithThreeMainThings->addSoundFlags();
 
+	bool atLeastOneOff = false;
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
+		atLeastOneOff = true;
 		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+	}
+	if (atLeastOneOff) {
+		invertReversed = false;
 	}
 	if (instruction.arpNoteOn != nullptr) {
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 				break;
 			}
+			invertReversed = instruction.invertReversed;
 			noteOnPostArpeggiator(
 			    modelStackWithSoundFlags,
 			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
@@ -511,17 +485,15 @@ bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	if (arpSettings) {
-		if (arpSettings->mode != ArpMode::OFF || polyphonic == PolyphonyMode::LEGATO
-		    || polyphonic == PolyphonyMode::MONO) {
-
-			int32_t n = arpeggiator.notes.search(noteCode, GREATER_OR_EQUAL);
-			if (n >= arpeggiator.notes.getNumElements()) {
-				return false;
-			}
-			ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-			return (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode);
+	if (arpSettings != nullptr
+	    && (arpSettings->mode != ArpMode::OFF || polyphonic == PolyphonyMode::LEGATO
+	        || polyphonic == PolyphonyMode::MONO)) {
+		int32_t n = arpeggiator.notes.search(noteCode, GREATER_OR_EQUAL);
+		if (n >= arpeggiator.notes.getNumElements()) {
+			return false;
 		}
+		ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+		return (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode);
 	}
 
 	if (!numVoicesAssigned) {

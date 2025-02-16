@@ -26,6 +26,13 @@ class ModelStackWithTimelineCounter;
 class ModelStack;
 enum class LaunchStatus;
 
+#define SECTION_OUT_OF_RANGE 254
+#define REALLY_OUT_OF_RANGE 255
+#define LAUNCH_EXCLUSIVE -2
+#define LAUNCH_NON_EXCLUSIVE -1
+#define LAUNCH_REPEAT_INFINITELY 0
+#define LAUNCH_REPEAT_ONCE 1
+
 class Session final : public PlaybackMode {
 public:
 	Session();

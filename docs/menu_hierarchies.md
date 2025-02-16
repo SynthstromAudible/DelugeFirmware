@@ -424,6 +424,9 @@ NOTE: These options can change depending on how your default resolution is set
 	- Grid View Loop Pads (LOOP)
 		- OFF
 		- ON
+	- Trim from start of audio clips (TRIM)
+		- OFF
+		- ON
 </details>
 
 Firmware Version (FIRM)
@@ -548,6 +551,11 @@ The Song menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+
+	- Stutter (STUT)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
 
 	- Mod-FX (MODU)
 		- Type
@@ -734,6 +742,7 @@ The Sound menu contains the following menu hierarchy:
 		- Chord Probability (CPRO) (NOTE: NOT available for Sound Kit Rows)
 		- Note Probability (NOTE)
 		- Bass Probability (BASS)
+		- Reverse Probability (RVRS)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
@@ -744,6 +753,8 @@ The Sound menu contains the following menu hierarchy:
 <details><summary>Randomizer (RAND)</summary>
 
 	- Velocity Spread (VELO)
+	- Note Probability (NOTE)
+	- Reverse Probability (RVRS)
 </details>
 <details><summary>Compressor (COMP)</summary>
 
@@ -838,6 +849,12 @@ The Sound menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+
+	- Stutter (STUT)
+		- Use Song Settings (SONG)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
 
 	- Mod-FX (MODU)
 		- Type
@@ -1107,6 +1124,11 @@ The Sound menu contains the following menu hierarchy:
 	- Reversed
 	- Ping-Pong
 </details>
+<details><summary>MIDI</summary>
+
+	- Channel
+	- Note (only available for Kits)
+</details>
 
 </details>
 
@@ -1217,6 +1239,12 @@ The Kit FX menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+
+	- Stutter (STUT)
+		- Use Song Settings (SONG)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
 
 	- Mod-FX (MODU)
 		- Type
@@ -1374,6 +1402,7 @@ The MIDI menu contains the following menu hierarchy:
 <details><summary>Randomizer (RAND)</summary>
 
 	- Velocity Spread (VELO)
+	- Note Probability (NOTE)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 
@@ -1413,7 +1442,7 @@ The CV menu contains the following menu hierarchy:
 		- Gate
 		- Sync
 		NOTE: These options can change depending on how your default resolution is set
-		
+
 			- Off
 			- 2-Bar
 			- 1-Bar
@@ -1481,6 +1510,7 @@ The CV menu contains the following menu hierarchy:
 <details><summary>Randomizer (RAND)</summary>
 
 	- Velocity Spread (VELO)
+	- Note Probability (NOTE)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 
@@ -1682,9 +1712,9 @@ The Audio Clip menu contains the following menu hierarchy:
 	- Left Input (LEFT)
 	- Right Input (RIGH)
 	- Stereo Input (STER)
-	- Bal. Input (BALA)
-	- Deluge Mix (Pre FX) (MIX)
-	- Deluge Output (Post FX) (OUTP)
+	- Balanced Input (BALA)
+	- Deluge Mix (No FX) (MIX)
+	- Deluge Output (FX) (OUTP)
 	- Specific Track (TRAK)
 </details>
 <details><summary>Specific Track (TRAK)</summary></details>
@@ -1787,6 +1817,12 @@ The Audio Clip menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+
+	- Stutter (STUT)
+		- Use Song Settings (SONG)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
 
 	- Mod-FX (MODU)
 		- Type

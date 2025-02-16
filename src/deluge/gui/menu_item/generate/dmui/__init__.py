@@ -1,1 +1,1 @@
-""" Core of the menu compiler. You probably want ``dmui.dsl`` """
+"""Core of the menu compiler. You probably want ``dmui.dsl``"""

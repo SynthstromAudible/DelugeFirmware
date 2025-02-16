@@ -121,7 +121,7 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumNonGlobalParamsForAutomation = 70;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 82;
 constexpr int32_t kNumGlobalParamsForAutomation = 26;
 constexpr int32_t kParamNodeWidth = 3;
 
@@ -151,6 +151,7 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::PATCHED, params::GLOBAL_DELAY_RATE},
     {params::Kind::PATCHED, params::GLOBAL_DELAY_FEEDBACK},
     // Sidechain Shape
+    {params::Kind::PATCHED, params::GLOBAL_VOLUME_POST_REVERB_SEND},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SIDECHAIN_SHAPE},
     // Decimation, Bitcrush, Wavefolder
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SAMPLE_RATE_REDUCTION},
@@ -161,8 +162,8 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::PATCHED, params::LOCAL_OSC_A_PITCH_ADJUST},
     {params::Kind::PATCHED, params::LOCAL_OSC_A_PHASE_WIDTH},
     {params::Kind::PATCHED, params::LOCAL_CARRIER_0_FEEDBACK},
-    // OSC 2 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
     {params::Kind::PATCHED, params::LOCAL_OSC_A_WAVE_INDEX},
+    // OSC 2 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
     {params::Kind::PATCHED, params::LOCAL_OSC_B_VOLUME},
     {params::Kind::PATCHED, params::LOCAL_OSC_B_PITCH_ADJUST},
     {params::Kind::PATCHED, params::LOCAL_OSC_B_PHASE_WIDTH},
@@ -186,10 +187,24 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::PATCHED, params::LOCAL_ENV_1_DECAY},
     {params::Kind::PATCHED, params::LOCAL_ENV_1_SUSTAIN},
     {params::Kind::PATCHED, params::LOCAL_ENV_1_RELEASE},
-    // LFO 1 Freq
-    {params::Kind::PATCHED, params::GLOBAL_LFO_FREQ},
-    // LFO 2 Freq
-    {params::Kind::PATCHED, params::LOCAL_LFO_LOCAL_FREQ},
+    // Env 3 ADSR
+    {params::Kind::PATCHED, params::LOCAL_ENV_2_ATTACK},
+    {params::Kind::PATCHED, params::LOCAL_ENV_2_DECAY},
+    {params::Kind::PATCHED, params::LOCAL_ENV_2_SUSTAIN},
+    {params::Kind::PATCHED, params::LOCAL_ENV_2_RELEASE},
+    // Env 4 ADSR
+    {params::Kind::PATCHED, params::LOCAL_ENV_3_ATTACK},
+    {params::Kind::PATCHED, params::LOCAL_ENV_3_DECAY},
+    {params::Kind::PATCHED, params::LOCAL_ENV_3_SUSTAIN},
+    {params::Kind::PATCHED, params::LOCAL_ENV_3_RELEASE},
+    // LFO 1
+    {params::Kind::PATCHED, params::GLOBAL_LFO_FREQ_1},
+    // LFO 2
+    {params::Kind::PATCHED, params::LOCAL_LFO_LOCAL_FREQ_1},
+    // LFO 3
+    {params::Kind::PATCHED, params::GLOBAL_LFO_FREQ_2},
+    // LFO 4
+    {params::Kind::PATCHED, params::LOCAL_LFO_LOCAL_FREQ_2},
     // Mod FX Offset, Feedback, Depth, Rate
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_MOD_FX_OFFSET},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_MOD_FX_FEEDBACK},
@@ -199,17 +214,18 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     // Ratchet Prob, Spread Gate, Spread Octave, Spread Velocity
     {params::Kind::PATCHED, params::GLOBAL_ARP_RATE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_GATE},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RHYTHM},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_CHORD_POLYPHONY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_AMOUNT},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_NOTE_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_BASS_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_CHORD_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_GATE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_OCTAVE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SPREAD_VELOCITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_AMOUNT},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_CHORD_POLYPHONY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_CHORD_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_NOTE_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_BASS_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_REVERSE_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RHYTHM},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
     // Noise
     {params::Kind::PATCHED, params::LOCAL_NOISE_VOLUME},
     // Portamento
@@ -338,7 +354,7 @@ constexpr uint8_t kPadSelectionShortcutY = 7;
 constexpr uint8_t kVelocityShortcutX = 15;
 constexpr uint8_t kVelocityShortcutY = 1;
 
-AutomationView automationView{};
+PLACE_SDRAM_BSS AutomationView automationView{};
 
 AutomationView::AutomationView() {
 
@@ -3445,7 +3461,7 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 
 	// Or if synth
 	else if (outputType == OutputType::SYNTH) {
-		if (velocity) {
+		if (velocity != 0) {
 			if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 				menu_item::multiRangeMenu.noteOnToChangeRange(clip->getYNoteFromYDisplay(yDisplay, currentSong)
 				                                              + ((SoundInstrument*)output)->transpose);
@@ -3457,7 +3473,7 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 	if (clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(clip)) {
 
 		// Note-on
-		if (velocity) {
+		if (velocity != 0) {
 
 			// If count-in is on, we only got here if it's very nearly finished, so pre-empt that note.
 			// This is basic. For MIDI input, we do this in a couple more cases - see
@@ -3465,19 +3481,21 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) {
 				if (isKit) {
 					if (drum) {
-						drum->recordNoteOnEarly(
-						    (velocity == USE_DEFAULT_VELOCITY) ? ((Instrument*)output)->defaultVelocity : velocity,
-						    clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
+						drum->recordNoteOnEarly((velocity == USE_DEFAULT_VELOCITY)
+						                            ? (static_cast<Instrument*>(output)->defaultVelocity)
+						                            : velocity,
+						                        clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
 					}
 				}
 				else {
 					// NoteRow is allowed to be NULL in this case.
 					int32_t yNote = clip->getYNoteFromYDisplay(yDisplay, currentSong);
-					((MelodicInstrument*)output)
-					    ->earlyNotes.emplace(yNote, MelodicInstrument::EarlyNoteInfo{
-					                                    ((Instrument*)output)->defaultVelocity,
-					                                    clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip),
-					                                });
+					static_cast<MelodicInstrument*>(output)->earlyNotes[yNote] = {
+					    .velocity = (velocity == USE_DEFAULT_VELOCITY)
+					                    ? (static_cast<Instrument*>(output)->defaultVelocity)
+					                    : static_cast<uint8_t>(velocity),
+					    .still_active = clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip),
+					};
 				}
 			}
 
@@ -3491,9 +3509,10 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 				}
 
 				if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-					clip->recordNoteOn(modelStackWithNoteRowOnCurrentClip, (velocity == USE_DEFAULT_VELOCITY)
-					                                                           ? ((Instrument*)output)->defaultVelocity
-					                                                           : velocity);
+					clip->recordNoteOn(modelStackWithNoteRowOnCurrentClip,
+					                   (velocity == USE_DEFAULT_VELOCITY)
+					                       ? static_cast<Instrument*>(output)->defaultVelocity
+					                       : velocity);
 				}
 			}
 		}
@@ -3528,7 +3547,7 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 		}
 
 		// If note on...
-		if (velocity) {
+		if (velocity != 0) {
 			int32_t velocityToSound = velocity;
 			if (velocityToSound == USE_DEFAULT_VELOCITY) {
 				velocityToSound = ((Instrument*)output)->defaultVelocity;
@@ -3537,7 +3556,7 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 			// Yup, need to do this even if we're going to do a "silent" audition, so pad lights up etc.
 			instrumentClipView.auditionPadIsPressed[yDisplay] = velocityToSound;
 
-			if (noteRowOnActiveClip) {
+			if (noteRowOnActiveClip != nullptr) {
 				// Ensure our auditioning doesn't override a note playing in the sequence
 				if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->sequenced) {
 					goto doSilentAudition;

@@ -36,6 +36,8 @@
 ///   - Exp (exponential) params have different sources added together, converted to an exponential scale, then
 ///   multiplied by the neutral value
 
+class ModControllableAudio;
+
 namespace deluge::modulation::params {
 enum class Kind : int32_t {
 	NONE,
@@ -105,7 +107,8 @@ enum Local : ParamType {
 	LOCAL_MODULATOR_0_PITCH_ADJUST,
 	LOCAL_MODULATOR_1_PITCH_ADJUST,
 	LOCAL_HPF_FREQ,
-	LOCAL_LFO_LOCAL_FREQ,
+	LOCAL_LFO_LOCAL_FREQ_1,
+	LOCAL_LFO_LOCAL_FREQ_2,
 	LOCAL_ENV_0_ATTACK,
 	LOCAL_ENV_1_ATTACK,
 	LOCAL_ENV_2_ATTACK,
@@ -147,7 +150,8 @@ enum Global : ParamType {
 	FIRST_GLOBAL_EXP = FIRST_GLOBAL_HYBRID,
 	GLOBAL_DELAY_RATE = FIRST_GLOBAL_EXP,
 	GLOBAL_MOD_FX_RATE,
-	GLOBAL_LFO_FREQ,
+	GLOBAL_LFO_FREQ_1,
+	GLOBAL_LFO_FREQ_2,
 	GLOBAL_ARP_RATE,
 
 	GLOBAL_NONE,
@@ -193,7 +197,8 @@ enum UnpatchedSound : ParamType {
 	UNPATCHED_ARP_SEQUENCE_LENGTH,
 	UNPATCHED_ARP_CHORD_POLYPHONY,
 	UNPATCHED_ARP_RATCHET_AMOUNT,
-	UNPATCHED_ARP_NOTE_PROBABILITY,
+	UNPATCHED_NOTE_PROBABILITY,
+	UNPATCHED_REVERSE_PROBABILITY,
 	UNPATCHED_ARP_BASS_PROBABILITY,
 	UNPATCHED_ARP_CHORD_PROBABILITY,
 	UNPATCHED_ARP_RATCHET_PROBABILITY,
@@ -256,8 +261,7 @@ bool isParamPitch(Kind kind, int32_t paramID);
 bool isParamPitchBend(Kind kind, int32_t paramID);
 bool isParamArpRhythm(Kind kind, int32_t paramID);
 bool isParamStutter(Kind kind, int32_t paramID);
-bool isParamQuantizedStutter(Kind kind, int32_t paramID);
-bool isParamReverseStutter(Kind kind, int32_t paramID);
+bool isParamQuantizedStutter(Kind kind, int32_t paramID, ModControllableAudio* modControllableAudio);
 
 bool isVibratoPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
 bool isSidechainPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
@@ -303,8 +307,8 @@ const uint32_t patchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {LOCAL_ENV_1_RELEASE     , LOCAL_ENV_1_SUSTAIN           , LOCAL_ENV_1_DECAY             , LOCAL_ENV_1_ATTACK     , LOCAL_HPF_MORPH, kNoParamID                , LOCAL_HPF_RESONANCE   , LOCAL_HPF_FREQ},
     {kNoParamID              , kNoParamID                    , kNoParamID					 , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
     {GLOBAL_ARP_RATE         , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {GLOBAL_LFO_FREQ         , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , GLOBAL_MOD_FX_DEPTH   , GLOBAL_MOD_FX_RATE},
-    {LOCAL_LFO_LOCAL_FREQ    , kNoParamID                    , kNoParamID                    , GLOBAL_REVERB_AMOUNT   , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
+    {GLOBAL_LFO_FREQ_1         , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , GLOBAL_MOD_FX_DEPTH   , GLOBAL_MOD_FX_RATE},
+    {LOCAL_LFO_LOCAL_FREQ_1    , kNoParamID                    , kNoParamID                    , GLOBAL_REVERB_AMOUNT   , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
     {GLOBAL_DELAY_RATE       , kNoParamID                    , kNoParamID                    , GLOBAL_DELAY_FEEDBACK  , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
     {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID}
 };

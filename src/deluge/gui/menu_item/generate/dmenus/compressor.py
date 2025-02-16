@@ -1,4 +1,4 @@
-from dmui.dsl import *
+from dmui.dsl import Menu, Submenu
 
 threshold = Menu(
     "audio_compressor::CompParam",
@@ -6,6 +6,7 @@ threshold = Menu(
     ["{name}", "{title}", "params::UNPATCHED_COMPRESSOR_THRESHOLD"],
     "compressor/threshold.md",
     name="STRING_FOR_THRESHOLD",
+    title="STRING_FOR_COMP_THRESHOLD_MENU_TITLE",
 )
 
 attack = Menu(

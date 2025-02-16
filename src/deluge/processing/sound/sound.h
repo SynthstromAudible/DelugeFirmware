@@ -83,8 +83,11 @@ public:
 
 	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
-	LFO globalLFO;
+	LFO globalLFO1;
+	LFO globalLFO3;
 	LFOConfig lfoConfig[LFO_COUNT];
+
+	bool invertReversed; // Used by the arpeggiator to invert the reverse flag just for the current voice
 
 	// December 3, 2024
 	// @todo
@@ -101,7 +104,9 @@ public:
 	// as changes get made to this Sound class.
 	// We think the issue relates to the use of "offsetof" in the param and patcher system
 	// (related to the paramFinalValues / globalSourceValues definitions above)
-	uint32_t temporaryPadding{0xDEADBEEF};
+	// IF ANOTHER INTEGER PARAMETER IS ADDED TO THIS .h FILE, WE WILL NEED TO ADD ANOTHER PADDING INTEGER
+	// TO MAKE THE RESULTING BIN AN EVEN NUMBER (OR SOMETHING LIKE THAT)
+	// uint32_t temporaryPadding2{0xDEADBEEF};
 
 	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 
@@ -115,6 +120,10 @@ public:
 	uint8_t numUnison;
 	int8_t unisonDetune;
 	uint8_t unisonStereoSpread;
+
+	// For sending MIDI notes for SoundDrums
+	uint8_t outputMidiChannel{MIDI_CHANNEL_NONE};
+	uint8_t outputMidiNoteForDrum{MIDI_NOTE_NONE};
 
 	int16_t modulatorTranspose[kNumModulators];
 	int8_t modulatorCents[kNumModulators];
@@ -130,6 +139,8 @@ public:
 	int32_t volumeNeutralValueForUnison;
 
 	int32_t lastNoteCode;
+
+	// int32_t lastMidiNoteOffSent;
 
 	bool oscillatorSync;
 
@@ -147,7 +158,6 @@ public:
 	uint32_t oscRetriggerPhase[kNumSources]; // 4294967295 means "off"
 	uint32_t modulatorRetriggerPhase[kNumModulators];
 
-	uint32_t numSamplesSkippedRenderingForGlobalLFO;
 	uint32_t timeStartedSkippingRenderingModFX;
 	uint32_t timeStartedSkippingRenderingLFO;
 	uint32_t timeStartedSkippingRenderingArp;
@@ -162,8 +172,8 @@ public:
 
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
 	                                    int32_t newValue);
-	void render(ModelStackWithThreeMainThings* modelStack, StereoSample* outputBuffer, int32_t numSamples,
-	            int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
+	void render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+	            int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
 	            bool shouldLimitDelayFeedback = false, int32_t pitchAdjust = kMaxSampleValue,
 	            SampleRecorder* recorder = nullptr);
 	void unassignAllVoices();
@@ -176,7 +186,7 @@ public:
 
 	PatchCableAcceptance maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* paramManager);
 
-	void resyncGlobalLFO();
+	void resyncGlobalLFOs();
 
 	int8_t getKnobPos(uint8_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
 	int32_t getKnobPosBig(int32_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
@@ -205,6 +215,7 @@ public:
 	void noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode,
 	            int16_t const* mpeValues, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	            uint32_t samplesLate = 0, int32_t velocity = 64, int32_t fromMIDIChannel = 16);
+	void noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode);
 	void allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator);
 
 	void noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode = -32768);
@@ -212,6 +223,9 @@ public:
 	                           int32_t newNoteCodeAfterArpeggiation, int32_t velocity, int16_t const* mpeValues,
 	                           uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
 	                           int32_t fromMIDIChannel = 16);
+	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
+	                                              int32_t channelOrNoteNumber,
+	                                              MIDICharacteristic whichCharacteristic) override;
 
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
@@ -290,7 +304,7 @@ public:
 	uint32_t getSyncedLFOPhaseIncrement(const LFOConfig& config);
 
 private:
-	uint32_t getGlobalLFOPhaseIncrement();
+	uint32_t getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
 	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);
 	void setupUnisonStereoSpread();

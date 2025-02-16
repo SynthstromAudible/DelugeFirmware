@@ -9,8 +9,14 @@
 - Added a boss/roland style Dimension effect
 - Made grain much faster and updated controls
 - Added LPF to Mutable Instruments Reverb
-- Added an option to reverse the stutter effect
 - Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
+- Added two more LFOs (LFO 3 -global- and LFO 4 -per voice-), which you can access from the sound editor menu.
+
+#### <ins>Per-clip Stutter with options: Quantize, Reverse, and Ping-Pong</ins>
+- Now the stutter buffer can also be set to play in reverse, and ping-pong.
+- A new menu has been added to the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song.
+- An extra menu has been added per sound source (either synths, kit rows, affect-entire kits, or audio clips) to
+set the stutter configuration independently of the song configuration if you wish.
 
 ### User Interface
 
@@ -48,6 +54,9 @@
 #### <ins>Audio Export</ins>
 - Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
 
+#### <ins>Save/Load Patterns</ins>
+- Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synt, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ](docs/features/save_load_patterns.md) for more info.
+
 #### <ins>Arranger View</ins>
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
@@ -72,6 +81,7 @@
 #### <ins>Audio Clips</ins>
 - Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on
 when the output is a SAMPLER or a LOOPER, chosen by turning the select knob in an audio clip.
+- Added the ability to trim from the start of an audio clip without reversing it (enable in Community Features menu).
 
 #### <ins>Instrument Clip View</ins>
 
@@ -84,8 +94,12 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - If scale mode is active, you can now check the current root note and scale by long pressing the scale button. On 7SEG it will display the root note on press and scale on release.
 - Long pressing the scale button will not result in entering or exiting scale mode so you can safely check the current root note and scale without accidentally exiting scale mode.
 
-##### Velocity Spread
-- Added `Velocity Spread` parameter into a `Randomizer` submenu for Sound instruments. This parameters is shared with the arpeggiator and lets you apply some random variation to the notes.
+##### Randomizer submenu
+- Added a new submenu to the `Sound` menu called `Randomizer`. This menu gives you access to the following parameters (which affect both sequenced and arpeggiated notes):
+  - `Lock`: This parameter determines whether the randomized values will be locked to fixed values. If you change any of the randomizer parameters, the sequence of randomized values will change to a new one and will be locked again.
+  - `Velocity Spread`: This parameters lets you apply some random variation to the notes.
+  - `Note probability`: This parameter determines the likelihood of a note being played or not (this is in addition to the Note/Row probability).
+  - `Reverse Probability`: This parameter determines the likelihood of a note's sample of being reversed.
 
 ##### Note / Note Row Probability, Iterance, Fill
 - Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
@@ -103,6 +117,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### Synth/Kit Clips
 - Added Auto-Load feature to sample browser, so you can load the sounds to the instrument as you preview them. Auto-Load can be engaged while in sample browser, if you press the `Load` button.
+- Sounds have now the ability to send MIDI notes at the same time as they play a sample. This will allow your synths and drums to trigger external devices. A new menu `MIDI` has been added at the bottom of the `SOUND` menu to set the MIDI channel and the note (in case of drum sounds).
 
 ##### CV Clips
 - Added the ability to set a CV instrument to use both 1 and 2 channels, which makes the cv2 source selectable between mod wheel, velocity, and aftertouch
@@ -152,7 +167,10 @@ also affect normal sequenced notes while arpeggiator is Off.
 - Added `STEP REPEAT (REPE)` paramater (with values 1 to 8) that makes walked notes in the pattern be repeated X times before moving to the next note+octave in the pattern.
 - Added `CHORD PROBABILITY (CHRD)` paramater that will allow you to control the chance of a note to play, at the same time, itself and other notes to form a chord (5th, 3rd and 7th).
 - Added `CHORD POLYPHONY (POLY)` paramater that works together with the previous parameter, and this one will dictate how big is the chord, that is, how many notes will be played at the same time.
+- Added `REVERSE PROBABILITY (RVRS)` paramater that will allow you to control the chance of a sound to invert the `Reverse` setting for that note. This parameter will only affect oscillators whose type is `Sample` (it does not affect wavetables, SCW, or standard waveforms).
 - Added `LOCK` parameter to allow you to freeze the current set of randomized values so the sequence has a repeatable pattern.
+- Added new `WALK1`, `WALK2`, `WALK3` and `PATTERN` note modes.
+- Exposed several parameters from the `Randomizer` also for non-arpeggiated notes: `Velocity Spread`, `Note probability`, and `Reverse Probability`.
 
 ### MIDI
 
@@ -251,6 +269,7 @@ also affect normal sequenced notes while arpeggiator is Off.
 - A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
   - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
 - The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
+- A new option, 'Launch Exclusively', isolates a clip section from all other launch activity. This option is found to the left of option 'Launch non-exclusively' when selecting the section's number of repetitions. As a complement to non-exclusive sections that arm and turn off when another section is launched, exclusive sections remain independant.
 
 #### <ins>Audio Clips</ins>
 

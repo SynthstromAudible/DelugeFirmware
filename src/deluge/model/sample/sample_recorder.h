@@ -53,7 +53,7 @@ public:
 	            bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency,
 	            Output* outputRecordingFrom);
 	void setRecordingThreshold();
-	void feedAudio(int32_t* inputAddress, int32_t numSamples, bool applyGain = false, uint8_t gainToApply = 5);
+	void feedAudio(std::span<StereoSample> input, bool applyGain = false, uint8_t gainToApply = 5);
 	Error cardRoutine();
 	void endSyncedRecording(int32_t buttonLatencyForTempolessRecording);
 	bool inputLooksDifferential();
@@ -68,7 +68,7 @@ public:
 
 	SampleRecorder* next;
 
-	Sample* sample;
+	gsl::owner<Sample*> sample;
 
 	int32_t numSamplesToRunBeforeBeginningCapturing;
 	uint32_t numSamplesBeenRunning;

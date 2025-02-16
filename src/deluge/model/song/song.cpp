@@ -1854,7 +1854,7 @@ unknownTag:
 
 							else if (!strcmp(tagName, "numRepeats")) {
 								numRepeats = reader.readTagOrAttributeValueInt();
-								if (numRepeats < -1 || numRepeats > 9999) {
+								if (numRepeats < -2 || numRepeats > 9999) {
 									numRepeats = 0;
 								}
 							}
@@ -2393,8 +2393,7 @@ void Song::deleteSoundsWhichWontSound() {
 	deleteAllBackedUpParamManagersWithClips();
 }
 
-void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
-                       int32_t sideChainHitPending) {
+void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending) {
 
 	// int32_t volumePostFX = getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
 	int32_t volumePostFX =
@@ -2419,8 +2418,8 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
 		DISABLE_ALL_INTERRUPTS();
 		if (output->shouldRenderInSong()) {
-			output->renderOutput(modelStack, outputBuffer, outputBuffer + numSamples, numSamples, reverbBuffer,
-			                     volumePostFX >> 1, sideChainHitPending, !isClipActiveNow, isClipActiveNow);
+			output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
+			                     !isClipActiveNow, isClipActiveNow);
 		}
 		ENABLE_INTERRUPTS();
 #if DO_AUDIO_LOG
@@ -2439,7 +2438,7 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 		}
 
 		if (recorder->mode == AudioInputChannel::MIX) {
-			recorder->feedAudio((int32_t*)outputBuffer, numSamples, true);
+			recorder->feedAudio(outputBuffer, true);
 		}
 	}
 
@@ -2453,10 +2452,10 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 
 	// don't bother checking if sound is coming in - its just to save resources and if nothing is being rendered we
 	// don't need to
-	globalEffectable.processFXForGlobalEffectable(outputBuffer, numSamples, &volumePostFX, &paramManager,
-	                                              delayWorkingState, true, reverbSendAmount >> 3);
+	globalEffectable.processFXForGlobalEffectable(outputBuffer, &volumePostFX, &paramManager, delayWorkingState, true,
+	                                              reverbSendAmount >> 3);
 
-	globalEffectable.processReverbSendAndVolume(outputBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
+	globalEffectable.processReverbSendAndVolume(outputBuffer, reverbBuffer, volumePostFX, postReverbVolume,
 	                                            reverbSendAmount >> 1);
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
@@ -2467,7 +2466,7 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 		                        : paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0];
 		if (result) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = addToModelStack(modelStack);
-			paramManager.tickSamples(numSamples, modelStackWithThreeMainThings);
+			paramManager.tickSamples(outputBuffer.size(), modelStackWithThreeMainThings);
 		}
 	}
 }
@@ -3156,7 +3155,8 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 			// Just get rid of arming
 			for (int32_t l = 0; l < sessionClips.getNumElements(); l++) {
 				Clip* loopable = sessionClips.getClipAtIndex(l);
-				if (loopable->launchStyle == LaunchStyle::DEFAULT) {
+				if (loopable->launchStyle == LaunchStyle::DEFAULT
+				    && currentSong->sections[loopable->section].numRepetitions != -2) {
 					loopable->armState = ArmState::OFF;
 				}
 			}

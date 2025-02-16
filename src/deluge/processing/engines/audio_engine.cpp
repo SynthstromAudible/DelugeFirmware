@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "dsp/reverb/reverb.hpp"
 #include "dsp/timestretch/time_stretcher.h"
@@ -153,8 +154,8 @@ int32_t timeLastPopup{0};
 SoundDrum* sampleForPreview;
 ParamManagerForTimeline* paramManagerForSamplePreview;
 
-char paramManagerForSamplePreviewMemory[sizeof(ParamManagerForTimeline)];
-char sampleForPreviewMemory[sizeof(SoundDrum)];
+PLACE_SDRAM_BSS char paramManagerForSamplePreviewMemory[sizeof(ParamManagerForTimeline)];
+PLACE_SDRAM_BSS char sampleForPreviewMemory[sizeof(SoundDrum)];
 
 SampleRecorder* firstRecorder = nullptr;
 
@@ -185,11 +186,11 @@ LiveInputBuffer* liveInputBuffers[3];
 // For debugging
 uint16_t lastRoutineTime;
 
-std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> renderingBuffer __attribute__((aligned(CACHE_LINE_SIZE)));
-std::array<int32_t, 2 * SSI_TX_BUFFER_NUM_SAMPLES> reverbBuffer __attribute__((aligned(CACHE_LINE_SIZE)));
+alignas(CACHE_LINE_SIZE) std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> renderingMemory;
+alignas(CACHE_LINE_SIZE) std::array<int32_t, 2 * SSI_TX_BUFFER_NUM_SAMPLES> reverbMemory;
 
-StereoSample* renderingBufferOutputPos = renderingBuffer.begin();
-StereoSample* renderingBufferOutputEnd = renderingBuffer.begin();
+StereoSample* renderingBufferOutputPos = renderingMemory.begin();
+StereoSample* renderingBufferOutputEnd = renderingMemory.begin();
 
 int32_t masterVolumeAdjustmentL;
 int32_t masterVolumeAdjustmentR;
@@ -674,8 +675,11 @@ void renderAudioForStemExport(size_t numSamples);
 	bypassCulling = false;
 }
 void renderAudio(size_t numSamples) {
-	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
-	memset(&reverbBuffer, 0, numSamples * sizeof(StereoSample));
+	std::span renderingBuffer{renderingMemory.data(), numSamples};
+	std::span reverbBuffer{reverbMemory.data(), numSamples};
+
+	memset(&renderingMemory, 0, renderingBuffer.size_bytes());
+	memset(&reverbMemory, 0, reverbBuffer.size_bytes());
 
 	if (sideChainHitPending) {
 		timeLastSideChainHit = audioSampleTimer;
@@ -687,7 +691,7 @@ void renderAudio(size_t numSamples) {
 	// Render audio for song
 	if (currentSong) {
 
-		currentSong->renderAudio(renderingBuffer.data(), numSamples, reverbBuffer.data(), sideChainHitPending);
+		currentSong->renderAudio(renderingBuffer, reverbBuffer.data(), sideChainHitPending);
 	}
 
 	renderReverb(numSamples);
@@ -696,19 +700,22 @@ void renderAudio(size_t numSamples) {
 
 	renderSongFX(numSamples);
 
-	metronome.render(renderingBuffer.data(), numSamples);
+	metronome.render(renderingBuffer);
 
-	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer.data(), numSamples);
+	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer);
 
 	setMonitoringMode();
 
-	renderingBufferOutputPos = renderingBuffer.begin();
-	renderingBufferOutputEnd = renderingBuffer.begin() + numSamples;
+	renderingBufferOutputPos = renderingMemory.begin();
+	renderingBufferOutputEnd = renderingMemory.begin() + numSamples;
 }
 
 void renderAudioForStemExport(size_t numSamples) {
-	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
-	memset(&reverbBuffer, 0, numSamples * sizeof(StereoSample));
+	std::span renderingBuffer{renderingMemory.data(), numSamples};
+	std::span reverbBuffer{reverbMemory.data(), numSamples};
+
+	memset(&renderingMemory, 0, renderingBuffer.size_bytes());
+	memset(&reverbMemory, 0, reverbBuffer.size_bytes());
 
 	if (sideChainHitPending) {
 		timeLastSideChainHit = audioSampleTimer;
@@ -718,9 +725,8 @@ void renderAudioForStemExport(size_t numSamples) {
 	numHopsEndedThisRoutineCall = 0;
 
 	// Render audio for song
-	if (currentSong) {
-
-		currentSong->renderAudio(renderingBuffer.data(), numSamples, reverbBuffer.data(), sideChainHitPending);
+	if (currentSong != nullptr) {
+		currentSong->renderAudio(renderingBuffer, reverbBuffer.data(), sideChainHitPending);
 	}
 
 	if (stemExport.includeSongFX) {
@@ -734,17 +740,17 @@ void renderAudioForStemExport(size_t numSamples) {
 	if (recorder && recorder->mode == AudioInputChannel::OFFLINE_OUTPUT) {
 		// continue feeding audio if we're not finished recording
 		if (recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-			recorder->feedAudio((int32_t*)renderingBuffer.data(), numSamples, true);
+			recorder->feedAudio(renderingBuffer, true);
 		}
 	}
 
-	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer.data(), numSamples);
+	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer);
 
 	doMonitoring = false;
 	monitoringAction = MonitoringAction::NONE;
 
-	renderingBufferOutputPos = renderingBuffer.begin();
-	renderingBufferOutputEnd = renderingBuffer.begin() + numSamples;
+	renderingBufferOutputPos = renderingMemory.begin();
+	renderingBufferOutputEnd = renderingMemory.begin() + numSamples;
 }
 
 void flushMIDIGateBuffers() { // Flush everything out of the MIDI buffer now. At this stage, it would only really have
@@ -849,9 +855,12 @@ startAgain:
 }
 
 void feedReverbBackdoorForGrain(int index, q31_t value) {
-	reverbBuffer[index] += value;
+	reverbMemory[index] += value;
 }
 void renderReverb(size_t numSamples) {
+	std::span renderingBuffer{renderingMemory.data(), numSamples};
+	std::span reverbBuffer{reverbMemory.data(), numSamples};
+
 	if (currentSong && mustUpdateReverbParamsBeforeNextRender) {
 		updateReverbParams();
 		mustUpdateReverbParamsBeforeNextRender = false;
@@ -892,16 +901,16 @@ void renderReverb(size_t numSamples) {
 			reverbAmplitudeL = reverbAmplitudeR = reverbOutputVolume;
 		}
 
-		auto reverb_buffer_slice = std::span{reverbBuffer.data(), numSamples};
-		auto render_buffer_slice = std::span{renderingBuffer.data(), numSamples};
-
 		// Mix reverb into main render
 		reverb.setPanLevels(reverbAmplitudeL, reverbAmplitudeR);
-		reverb.process(reverb_buffer_slice, render_buffer_slice);
+		reverb.process(reverbBuffer, renderingBuffer);
 		logAction("Reverb complete");
 	}
 }
 void renderSamplePreview(size_t numSamples) { // Previewing sample
+	std::span renderingBuffer{renderingMemory.data(), numSamples};
+	std::span reverbBuffer{reverbMemory.data(), numSamples};
+
 	if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &gui::context_menu::sample_browser::kit
 	    || getCurrentUI() == &gui::context_menu::sample_browser::synth || getCurrentUI() == &slicer) {
 
@@ -909,25 +918,27 @@ void renderSamplePreview(size_t numSamples) { // Previewing sample
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
 		    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
 
-		sampleForPreview->render(modelStack, renderingBuffer.data(), numSamples, reverbBuffer.data(),
-		                         sideChainHitPending);
+		sampleForPreview->render(modelStack, renderingBuffer, reverbBuffer.data(), sideChainHitPending);
 	}
 }
 void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen after reverb mixed in, which is why it's
 	                                   // happening all the way out here
+	std::span renderingBuffer{renderingMemory.data(), numSamples};
+	std::span reverbBuffer{reverbMemory.data(), numSamples};
+
 	masterVolumeAdjustmentL = 167763968; // getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
 	masterVolumeAdjustmentR = 167763968; // getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
 	// 167763968 is 134217728 made a bit bigger so that default filter resonance doesn't reduce volume overall
 
 	if (currentSong) {
 		currentSong->globalEffectable.setupFilterSetConfig(&masterVolumeAdjustmentL, &currentSong->paramManager);
-		currentSong->globalEffectable.processFilters(renderingBuffer.data(), numSamples);
-		currentSong->globalEffectable.processSRRAndBitcrushing(renderingBuffer.data(), numSamples,
-		                                                       &masterVolumeAdjustmentL, &currentSong->paramManager);
+		currentSong->globalEffectable.processFilters(renderingBuffer);
+		currentSong->globalEffectable.processSRRAndBitcrushing(renderingBuffer, &masterVolumeAdjustmentL,
+		                                                       &currentSong->paramManager);
 
 		masterVolumeAdjustmentR = masterVolumeAdjustmentL; // This might have changed in the above function calls
 
-		currentSong->globalEffectable.processStutter(renderingBuffer.data(), numSamples, &currentSong->paramManager);
+		currentSong->globalEffectable.processStutter(renderingBuffer, &currentSong->paramManager);
 
 		// And we do panning for song here too - must be post reverb, and we had to do a volume adjustment below
 		// anyway
@@ -953,9 +964,8 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 		    >> 1;
 		// there used to be a static subtraction of 2 nepers (natural log based dB), this is the multiplicative
 		// equivalent
-		currentSong->globalEffectable.compressor.render(renderingBuffer.data(), numSamples,
-		                                                masterVolumeAdjustmentL >> 1, masterVolumeAdjustmentR >> 1,
-		                                                songVolume >> 3);
+		currentSong->globalEffectable.compressor.render(renderingBuffer, masterVolumeAdjustmentL >> 1,
+		                                                masterVolumeAdjustmentR >> 1, songVolume >> 3);
 		masterVolumeAdjustmentL = ONE_Q31;
 		masterVolumeAdjustmentR = ONE_Q31;
 		logAction("mastercomp end");
@@ -1114,7 +1124,7 @@ bool doSomeOutputting() {
 	// Copy to actual output buffer, and apply heaps of gain too, with clipping
 	int32_t numSamplesOutputted = 0;
 
-	StereoSample* __restrict__ outputBufferForResampling = (StereoSample*)spareRenderingBuffer;
+	std::span<StereoSample> outputBufferForResampling{reinterpret_cast<StereoSample*>(spareRenderingBuffer), 128 * 2};
 	StereoSample* __restrict__ renderingBufferOutputPosNow = renderingBufferOutputPos;
 	int32_t* __restrict__ i2sTXBufferPosNow = (int32_t*)i2sTXBufferPos;
 	int32_t* __restrict__ inputReadPos = (int32_t*)i2sRXBufferPos;
@@ -1231,7 +1241,7 @@ bool doSomeOutputting() {
 		}
 
 		// Go through each SampleRecorder, feeding them audio
-		for (SampleRecorder* recorder = firstRecorder; recorder; recorder = recorder->next) {
+		for (SampleRecorder* recorder = firstRecorder; recorder != nullptr; recorder = recorder->next) {
 
 			if (recorder->status >= RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 				continue;
@@ -1239,7 +1249,7 @@ bool doSomeOutputting() {
 
 			// Recording final output
 			if (recorder->mode == AudioInputChannel::OUTPUT) {
-				recorder->feedAudio((int32_t*)outputBufferForResampling, numSamplesOutputted);
+				recorder->feedAudio(outputBufferForResampling.first(numSamplesOutputted));
 			}
 
 			// Recording from an input source
@@ -1251,19 +1261,21 @@ bool doSomeOutputting() {
 				uint32_t stopPos =
 				    (i2sRXBufferPos < (uint32_t)recorder->sourcePos) ? (uint32_t)getRxBufferEnd() : i2sRXBufferPos;
 
-				int32_t* streamToRecord = recorder->sourcePos;
-				int32_t numSamplesFeedingNow =
+				size_t numSamplesFeedingNow =
 				    (stopPos - (uint32_t)recorder->sourcePos) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
 
 				// We also enforce a firm limit on how much to feed, to keep things sane. Any remaining will get
 				// done next time.
-				numSamplesFeedingNow = std::min(numSamplesFeedingNow, 256_i32);
+				numSamplesFeedingNow = std::min(numSamplesFeedingNow, 256u);
 
-				if (recorder->mode == AudioInputChannel::RIGHT) {
-					streamToRecord++;
-				}
+				// this is extremely janky, but essentially because feedAudio only works on an interleaved stream of
+				// stereo samples, we can offset it one sample to get it to operate on the right channel
+				std::span streamToRecord =
+				    (recorder->mode == AudioInputChannel::RIGHT)
+				        ? std::span{reinterpret_cast<StereoSample*>(recorder->sourcePos + 1), numSamplesFeedingNow}
+				        : std::span{reinterpret_cast<StereoSample*>(recorder->sourcePos), numSamplesFeedingNow};
 
-				recorder->feedAudio(streamToRecord, numSamplesFeedingNow);
+				recorder->feedAudio(streamToRecord);
 
 				recorder->sourcePos += numSamplesFeedingNow << NUM_MONO_INPUT_CHANNELS_MAGNITUDE;
 				if (recorder->sourcePos >= getRxBufferEnd()) {

@@ -33,7 +33,7 @@
 
 /// Unknown Settings container
 struct UnknownSetting {
-	std::string_view name;
+	std::string name;
 	uint32_t value;
 };
 
@@ -128,14 +128,6 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AltGoldenKnobDelayParams],
 	                  STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS, "altGoldenKnobDelayParams",
 	                  RuntimeFeatureStateToggle::Off);
-	// QuantizedStutterRate
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::QuantizedStutterRate],
-	                  STRING_FOR_COMMUNITY_FEATURE_QUANTIZED_STUTTER, "quantizedStutterRate",
-	                  RuntimeFeatureStateToggle::Off);
-	// ReverseStutterRate
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ReverseStutterRate],
-	                  STRING_FOR_COMMUNITY_FEATURE_REVERSE_STUTTER, "reverseStutterRate",
-	                  RuntimeFeatureStateToggle::Off);
 	// devSysexAllowed
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed], STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX,
 	                  "devSysexAllowed", RuntimeFeatureStateToggle::Off);
@@ -201,6 +193,11 @@ void RuntimeFeatureSettings::init() {
 	// Horizontal menus
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HorizontalMenus],
 	                  STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS, "enableHorizontalMenus",
+	                  RuntimeFeatureStateToggle::On);
+
+	// Trim from start of audio clip
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrimFromStartOfAudioClip],
+	                  STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP, "trimFromStartOfAudioClip",
 	                  RuntimeFeatureStateToggle::On);
 }
 

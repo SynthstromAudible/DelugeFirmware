@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp/stereo_sample.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/sample/sample_recorder.h"
 
@@ -42,33 +43,34 @@ public:
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
 	                            int32_t* highestReverbAmountFound);
 
-	inline void saturate(int32_t* data, uint32_t* workingValue) {
+	[[gnu::always_inline]] q31_t saturate(q31_t data, uint32_t* workingValue) {
 		// Clipping
-		if (clippingAmount) {
+		if (clippingAmount != 0u) {
 			int32_t shiftAmount = (clippingAmount >= 3) ? (clippingAmount - 3) : 0;
 			//*data = getTanHUnknown(*data, 5 + clippingAmount) << (shiftAmount);
-			*data = getTanHAntialiased(*data, workingValue, 3 + clippingAmount) << (shiftAmount);
+			return getTanHAntialiased(data, workingValue, 3 + clippingAmount) << (shiftAmount);
 		}
+		return data;
 	}
 
-	uint32_t lastSaturationTanHWorkingValue[2];
+	std::array<uint32_t, 2> lastSaturationTanHWorkingValue = {2147483648u, 2147483648u};
 
 protected:
 	int32_t getParameterFromKnob(int32_t whichModEncoder) final;
 	void renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
-	                  StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+	                  std::span<StereoSample> output, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
 	                  int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
 	                  OutputType outputType, SampleRecorder* recorder);
 
 	virtual bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
-	                                           StereoSample* globalEffectableBuffer, int32_t* bufferToTransferTo,
-	                                           int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-	                                           int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
-	                                           bool isClipActive, int32_t pitchAdjust, int32_t amplitudeAtStart,
-	                                           int32_t amplitudeAtEnd) = 0;
+	                                           std::span<StereoSample> globalEffectableBuffer,
+	                                           int32_t* bufferToTransferTo, int32_t* reverbBuffer,
+	                                           int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+	                                           bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
+	                                           int32_t amplitudeAtStart, int32_t amplitudeAtEnd) = 0;
 
 	virtual bool willRenderAsOneChannelOnlyWhichWillNeedCopying() { return false; }
 
 private:
-	bool renderedLastTime;
+	bool renderedLastTime = false;
 };

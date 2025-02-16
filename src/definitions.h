@@ -78,6 +78,6 @@ extern void freezeWithError(char const* errmsg);
 
 #define PLACE_SDRAM_BSS __attribute__((__section__(".sdram_bss")))
 #define PLACE_SDRAM_DATA __attribute__((__section__(".sdram_data")))
-
+#define PLACE_SDRAM_RODATA __attribute__((__section__(".sdram_rodata")))
 // #define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text"))) // Paul: I had problems with execution from
 // SDRAM, maybe timing?
