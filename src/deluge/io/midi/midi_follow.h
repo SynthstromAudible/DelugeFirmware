@@ -60,6 +60,7 @@ public:
 
 	// midi CC mappings
 	int32_t getCCFromParam(deluge::modulation::params::Kind paramKind, int32_t paramID);
+	bool isGlobalEffectableContext();
 
 	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
 
