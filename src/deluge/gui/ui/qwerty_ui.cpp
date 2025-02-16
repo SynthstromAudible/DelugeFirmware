@@ -100,7 +100,8 @@ void QwertyUI::drawKeys() {
 	}
 
 	// Favourites Area
-	renderFavourites();
+	// D_PRINTLN("drawKeys calling render: %p", this);
+	// renderFavourites();
 
 	PadLEDs::sendOutMainPadColours();
 }
@@ -280,21 +281,6 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 	}
-
-	// Favourites Category
-	else if (showFavourites && (y == favouriteBankRow || y == favouriteRow)) {
-		if (on) {
-			D_PRINTLN("Line %i x %i", y, x);
-			if (y == favouriteBankRow && x != selectedFavouriteBank) {
-				selectedFavouriteBank = x;
-				selectedFavourite = 0;
-			}
-			if (y == favouriteRow) {
-				selectedFavourite = x;
-			}
-		}
-		renderFavourites();
-	}
 	// Normal keys
 	else if (x >= 3 && x < 14 && y >= kQwertyHomeRow - 2 && y <= kQwertyHomeRow + 2) {
 		if (on) {
@@ -419,51 +405,33 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 	return ActionResult::DEALT_WITH;
 }
 
-void QwertyUI::renderFavourites() {
-	if (showFavourites) {
-		D_PRINTLN("SelectedBank %i SelectedFav %i", selectedFavouriteBank, selectedFavourite);
-		for (size_t i = 0; i < 16; i++) {
-			PadLEDs::image[favouriteBankRow][i] = RGB::fromHue(static_cast<int16_t>((i * colourStep))).dim(4);
-			if (favouriteColours[i] == -1) {
-				PadLEDs::image[favouriteRow][i] = RGB::monochrome(10);
-			}
-			else {
-				PadLEDs::image[favouriteRow][i] =
-				    RGB::fromHue(static_cast<int16_t>((favouriteColours[i] * colourStep))).dim(4);
-			}
-		}
-		// Un-Dim Selected
-		PadLEDs::image[favouriteBankRow][selectedFavouriteBank] =
-		    RGB::fromHue(static_cast<int16_t>((selectedFavouriteBank * colourStep)));
-		if (favouriteColours[selectedFavourite] == -1) {
-			PadLEDs::image[favouriteRow][selectedFavourite] = RGB::monochrome(50);
+void QwertyUI::renderFavourites(std::array<int8_t, 16> colours, uint8_t currentBankNumber,
+                                int8_t currentFavouriteNumber) {
+	D_PRINTLN("renderFavourites called on instance: %p", this);
+	D_PRINTLN("SelectedBank %i SelectedFav %i", currentBankNumber, currentFavouriteNumber);
+	for (size_t i = 0; i < 16; i++) {
+		D_PRINTLN("Pos %i Color %i", i, colours[i]);
+		PadLEDs::image[favouriteBankRow][i] = RGB::fromHue(static_cast<int16_t>((i * colourStep))).dim(4);
+		if (colours[i] == -1) {
+			PadLEDs::image[favouriteRow][i] = RGB::monochrome(10);
 		}
 		else {
-			PadLEDs::image[favouriteRow][selectedFavourite] =
-			    RGB::fromHue(static_cast<int16_t>((favouriteColours[selectedFavourite] * colourStep)));
+			PadLEDs::image[favouriteRow][i] = RGB::fromHue(static_cast<int16_t>((colours[i] * colourStep))).dim(4);
 		}
+	}
+	// Un-Dim Selected Bank
+	PadLEDs::image[favouriteBankRow][currentBankNumber] =
+	    RGB::fromHue(static_cast<int16_t>((currentBankNumber * colourStep)));
+	// Un-Dim Selected Favourite
+	if (colours[currentFavouriteNumber] == -1) {
+		PadLEDs::image[favouriteRow][currentFavouriteNumber] = RGB::monochrome(50);
+	}
+	else {
+		PadLEDs::image[favouriteRow][currentFavouriteNumber] =
+		    RGB::fromHue(static_cast<int16_t>((colours[currentFavouriteNumber] * colourStep)));
 	}
 
 	PadLEDs::sendOutMainPadColours();
-}
-
-void QwertyUI::setFavouriteColour(uint32_t index, int8_t colour) {
-	if (index >= 0 || index < 16) {
-		favouriteColours[index] = colour;
-		renderFavourites();
-	}
-}
-
-void QwertyUI::setFavouritesColour(std::array<int8_t, 16> colours) {
-	for (size_t i = 1; i < 16; i++) {
-		favouriteColours[i] = colours[i];
-		renderFavourites();
-	}
-}
-
-void QwertyUI::enableFavourites(bool enabled) {
-	showFavourites = enabled;
-	renderFavourites();
 }
 
 void QwertyUI::processBackspace() {

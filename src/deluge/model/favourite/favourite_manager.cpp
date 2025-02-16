@@ -23,6 +23,10 @@
 FavouritesManager favouritesManager{};
 
 FavouritesManager::FavouritesManager() {
+	favourites.resize(16);
+	for (uint8_t i = 0; i < 16; i++) {
+		favourites[i].colour = -1;
+	}
 }
 
 FavouritesManager::~FavouritesManager() {
@@ -55,15 +59,16 @@ void FavouritesManager::loadSubcategory(int subcategoryIndex) {
 	FilePointer fileToLoad;
 	bool fileExists = StorageManager::fileExists(filePath.c_str(), &fileToLoad);
 	if (!fileExists) {
-		D_PRINTLN("No file found for subcategory %d", subcategoryIndex);
-		return;
+		// create emtpy File
+		saveFavouriteBank();
 	}
 	D_PRINTLN("File to load %s", filePath.c_str());
 	String path;
 	path.set(filePath.c_str());
 	D_PRINTLN("SM load");
 	Error error = StorageManager::loadFavouriteFile(&fileToLoad, &path);
-	D_PRINTLN("Error loading favourites: %i", error);
+	D_PRINTLN("ReturnVal loading favourites: %i", error);
+	onUpdateCallback();
 }
 
 Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader) {
@@ -72,11 +77,11 @@ Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader) {
 	uint8_t i = 0;
 	String fileName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		D_PRINTLN("Reading tag %s", tagName);
 		if (!strcmp(tagName, "favourite")) {
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "position")) {
-					favourites[i].position = reader.readTagOrAttributeValueInt();
+					i = reader.readTagOrAttributeValueInt();
+					favourites[i].position = i;
 				}
 				else if (!strcmp(tagName, "colour")) {
 					favourites[i].colour = reader.readTagOrAttributeValueInt();
@@ -86,7 +91,8 @@ Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader) {
 					favourites[i].filename = fileName.get();
 				}
 			}
-			i++;
+			// D_PRINTLN("Loaded tag Pos: %i Colour: %i File: %s Size: %i",
+			// favourites[i].position,favourites[i].colour,favourites[i].filename.c_str(), favourites.size()) ; i++;
 		}
 	}
 	return Error::NONE;
@@ -126,17 +132,19 @@ void FavouritesManager::saveFavouriteBank() const {
 	writer.writeArrayEnding("favourites");
 	error = writer.closeFileAfterWriting();
 	D_PRINTLN("Error saving favourites: %s", error);
+	onUpdateCallback();
 	return;
 }
 
 void FavouritesManager::selectFavouritesBank(uint8_t bankNumber) {
-	D_PRINTLN("Selecting subcategory %d", bankNumber);
+	D_PRINTLN("Selecting Favourites Bank %d", bankNumber);
 	if (bankNumber < 0 || bankNumber > 15)
 		return;
 	if (unsavedChanges) {
 		saveFavouriteBank();
 	}
 	currentBankNumber = bankNumber;
+	currentFavouriteNumber = -1;
 	loadSubcategory(currentBankNumber);
 }
 
@@ -147,6 +155,7 @@ void FavouritesManager::setFavorite(uint8_t position, int8_t color, const std::s
 	if (favourites.size() <= position) {
 		favourites.resize(16);
 	}
+	currentFavouriteNumber = position;
 	favourites[position] = Favorite(position, color, filename);
 	D_PRINTLN("Stored favorite at position %d val: %s", position, favourites[position].filename.c_str());
 	saveFavouriteBank();
@@ -156,6 +165,7 @@ void FavouritesManager::unsetFavorite(uint8_t position) {
 	if (position < 0 || position >= 16)
 		return;
 	D_PRINTLN("Unsetting favorite at position %i", position);
+	currentFavouriteNumber = position;
 	favourites[position] = Favorite(position, -1, "");
 	saveFavouriteBank();
 }
@@ -174,26 +184,31 @@ std::array<int8_t, 16> FavouritesManager::getFavouriteColours() const {
 	return colours; // Copy elision makes this efficient
 }
 
+void FavouritesManager::registerCallback(std::function<void()> callback) {
+	onUpdateCallback = callback;
+}
+
 int8_t FavouritesManager::changeColour(uint8_t position, int32_t offset) {
 	D_PRINTLN("Changing color at position %d by %d", position, offset);
 	if (position >= 0 && position < 16) {
 		favourites[position].colour = ((favourites[position].colour + offset) % 16 + 16) % 16;
 		D_PRINTLN("Color at position %d is now %d", position, favourites[position].colour);
 		unsavedChanges = true;
+		onUpdateCallback();
 		return favourites[position].colour;
 	}
 	return -1;
 }
 
-const std::string& FavouritesManager::getFavoriteFilename(uint8_t position) const {
+const std::string& FavouritesManager::getFavoriteFilename(uint8_t position) {
 	static const std::string emptyString = ""; // Safe default value
-
+	currentFavouriteNumber = position;
 	if (position < 0 || position >= 16 || favourites.size() != 16 || favourites[position].colour == -1) {
 		return emptyString; // Return a reference to an empty string instead of nullptr
 	}
 
 	D_PRINTLN("Getting favorite at position %d val: %s color: %i", position, favourites[position].filename,
 	          favourites[position].colour);
-
+	onUpdateCallback();
 	return favourites[position].filename;
 }

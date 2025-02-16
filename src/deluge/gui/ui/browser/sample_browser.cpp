@@ -97,6 +97,7 @@ bool SampleBrowser::opened() {
 		return false;
 	}
 
+	favouritesManager.setCategory("SAMPLES");
 	actionLogger.deleteAllLogs();
 
 	allowedFileExtensions = allowedFileExtensionsAudio;
@@ -617,6 +618,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 				else {
 					if (qwertyVisible) {
 						drawKeys();
+						drawFavourites();
 					}
 					else {
 						waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
@@ -700,11 +702,13 @@ possiblyExit:
 				}
 
 				qwertyVisible = true;
+				favouritesVisible = true;
 
 				uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 				PadLEDs::reassessGreyout(true);
 
 				drawKeys();
+				drawFavourites();
 
 				qwertyCurrentlyDrawnOnscreen = true;
 
@@ -712,9 +716,9 @@ possiblyExit:
 				displayText(false);
 			}
 		}
-
-		if (qwertyVisible) {
-			return QwertyUI::padAction(x, y, on);
+		//
+		else if (qwertyVisible) {
+			return Browser::padAction(x, y, on);
 		}
 		else {
 			return ActionResult::DEALT_WITH;
@@ -2030,11 +2034,13 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 	}
 	else {
 		qwertyVisible = true;
+		favouritesVisible = true;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 		PadLEDs::reassessGreyout(true);
 
 		drawKeys();
+		drawFavourites();
 
 		qwertyCurrentlyDrawnOnscreen = true;
 

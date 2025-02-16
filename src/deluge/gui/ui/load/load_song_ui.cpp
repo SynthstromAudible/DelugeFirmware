@@ -68,6 +68,7 @@ LoadSongUI::LoadSongUI() {
 
 bool LoadSongUI::opened() {
 
+	favouritesManager.setCategory("SONG");
 	outputTypeToLoad = OutputType::NONE;
 	currentDir.set(&currentSong->dirPath);
 
@@ -942,7 +943,9 @@ void LoadSongUI::displayText(bool blinkImmediately) {
 	if (qwertyVisible) {
 		FileItem* currentFileItem = getCurrentFileItem();
 
+		D_PRINT("DrawKeys: ");
 		drawKeys();
+		drawFavourites();
 
 		PadLEDs::sendOutSidebarColours();
 	}
@@ -956,12 +959,13 @@ ActionResult LoadSongUI::padAction(int32_t x, int32_t y, int32_t on) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			qwertyVisible = true;
-			displayText(false); // Necessary still? Not quite sure?
+			favouritesVisible = true;
+			displayText(false); // This will also draw the QWERTY keys
 		}
 	}
 
-	// And process the QWERTY keypress
-	if (qwertyVisible) {
+	// Only process the QWERTY keypress if Keyboard is visible to prevent blind keypresses
+	else if (qwertyVisible) {
 		/* 		if (y == 6 && x == 0 && on) {
 		            auto defaultSongFullPath = "SONGS/SONG1.XML";
 		            if (!StorageManager::fileExists(defaultSongFullPath)) {

@@ -187,9 +187,6 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 	enteredText.clear();
 
 	char const* defaultDir = getInstrumentFolder(outputTypeToLoad);
-	// Configure and show the favourites
-	favouritesManager.setCategory(defaultDir);
-	LoadUI::enableFavourites();
 
 	String searchFilename;
 
@@ -269,6 +266,9 @@ useDefaultFolder:
 	// in from (musical) keyboard view, I think
 
 	drawKeys();
+	// Configure and show the favourites
+	favouritesVisible = true;
+	favouritesManager.setCategory(defaultDir);
 
 	if (showingAuditionPads()) {
 		instrumentClipView.recalculateColours();

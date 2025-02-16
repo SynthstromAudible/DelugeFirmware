@@ -44,6 +44,7 @@ using namespace deluge;
 
 String Browser::currentDir{};
 bool Browser::qwertyVisible;
+bool Browser::favouritesVisible;
 
 CStringArray Browser::fileItems{sizeof(FileItem)};
 int32_t Browser::scrollPosVertical;
@@ -77,6 +78,7 @@ Browser::Browser() {
 	qwertyVisible = true; // Because for most Browsers, it'll just always be true.
 	filePrefix = NULL;
 	shouldInterpretNoteNamesForThisBrowser = false;
+	favouritesManager.registerCallback([this]() { this->drawFavourites(); });
 }
 
 bool Browser::opened() {
@@ -490,35 +492,35 @@ Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 
 	const std::string fileName = getFileNameFromEndOfPath(fullPath);
 	const std::string filePath = getPathFromFullPath(fullPath);
-	D_PRINTLN("splitting: p: %s n: %s", filePath, fileName);
+	D_PRINTLN("splitting: p: %s n: %s", filePath.c_str(), fileName.c_str());
 	currentDir.set(filePath.c_str());
-	Error error = arrivedInNewFolder(0);
-	D_PRINTLN("arrivedInNewFolderError: %i currentDir: %s", error, currentDir.get());
+	Error error = arrivedInNewFolder(0, fileName.c_str());
+	D_PRINTLN("arrivedInNewFolderError: %i currentDir: %s", 0, currentDir.get());
 	if (error != Error::NONE) {
 		return error;
 	}
-	D_PRINTLN("currentFile: %s", fileName.c_str());
+	/* D_PRINTLN("currentFile: %s", fileName.c_str());
 	error = readFileItemsForFolder(getThingName(outputType), false, allowedFileExtensionsXML, fileName.c_str(),
 	                               FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, CATALOG_SEARCH_BOTH);
 	if (error != Error::NONE) {
-		D_PRINTLN("readFileError: %i", error);
-		return error;
-	}
+	    D_PRINTLN("readFileError: %i", error);
+	    return error;
+	} */
 	fileIndexSelected = fileItems.search(fileName.c_str());
 	D_PRINTLN("fileIndexSelected: %i numbers of files %i", fileItems.getNumElements());
 	if (fileIndexSelected > fileItems.getNumElements()) {
 		return Error::FILE_NOT_FOUND;
 	}
 	scrollPosVertical = fileIndexSelected;
-	if (display->getNumBrowserAndMenuLines() > 1) {
-		int32_t lastAllowed = fileItems.getNumElements() - display->getNumBrowserAndMenuLines();
-		if (scrollPosVertical > lastAllowed) {
-			scrollPosVertical = lastAllowed;
-			if (scrollPosVertical < 0) {
-				scrollPosVertical = 0;
-			}
-		}
-	}
+	/* 	if (display->getNumBrowserAndMenuLines() > 1) {
+	        int32_t lastAllowed = fileItems.getNumElements() - display->getNumBrowserAndMenuLines();
+	        if (scrollPosVertical > lastAllowed) {
+	            scrollPosVertical = lastAllowed;
+	            if (scrollPosVertical < 0) {
+	                scrollPosVertical = 0;
+	            }
+	        }
+	    } */
 	D_PRINTLN("inxex: %i scrollpos %i", fileIndexSelected, scrollPosVertical);
 	setEnteredTextFromCurrentFilename();
 	currentFileChanged(1);
@@ -1543,6 +1545,7 @@ void Browser::displayText(bool blinkImmediately) {
 }
 
 FileItem* Browser::getCurrentFileItem() {
+	D_PRINTLN("fileIndexSelected: %d", fileIndexSelected);
 	if (fileIndexSelected == -1) {
 		return nullptr;
 	}
@@ -1591,7 +1594,11 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 }
 
 ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
-	if (showFavourites && y == favouriteRow && on) {
+
+	if (favouritesVisible && y == favouriteRow && on) {
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 		if (Buttons::isShiftButtonPressed()) {
 			String filePath;
 			Error error = getCurrentFilePath(&filePath);
@@ -1599,12 +1606,12 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 				display->displayPopup("Favourite not found");
 			}
 			if (favouritesManager.isEmtpy(x)) {
-				favouritesManager.setFavorite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
-				QwertyUI::setFavouriteColour(x, FavouritesManager::favouriteDefaultColor);
+				if (!getCurrentFileItem()->isFolder) {
+					favouritesManager.setFavorite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
+				}
 			}
 			else {
 				favouritesManager.unsetFavorite(x);
-				QwertyUI::setFavouriteColour(x, FavouritesManager::favouriteEmtpyColor);
 			}
 		}
 		else {
@@ -1616,12 +1623,14 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 				display->displayPopup("Emtpy");
 			}
 		}
-		return QwertyUI::padAction(x, y, on);
+		return ActionResult::DEALT_WITH;
 	}
-	else if (showFavourites && y == favouriteBankRow && on) {
+	else if (favouritesVisible && y == favouriteBankRow && on) {
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 		favouritesManager.selectFavouritesBank(x);
-		QwertyUI::setFavouritesColour(favouritesManager.getFavouriteColours());
-		return QwertyUI::padAction(x, y, on);
+		return ActionResult::DEALT_WITH;
 	}
 	else if (qwertyVisible) {
 		return QwertyUI::padAction(x, y, on);
@@ -1629,10 +1638,17 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 	return ActionResult::DEALT_WITH;
 }
 
+void Browser::drawFavourites() {
+	if (favouritesVisible) {
+		renderFavourites(favouritesManager.getFavouriteColours(), favouritesManager.currentBankNumber,
+		                 favouritesManager.currentFavouriteNumber);
+	}
+}
+
 ActionResult Browser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (showFavourites) {
+	if (favouritesVisible) {
 		if (Buttons::isShiftButtonPressed) {
-			QwertyUI::setFavouriteColour(selectedFavourite, favouritesManager.changeColour(selectedFavourite, offset));
+			favouritesManager.changeColour(favouritesManager.currentFavouriteNumber, offset);
 		}
 	}
 	return ActionResult::DEALT_WITH;

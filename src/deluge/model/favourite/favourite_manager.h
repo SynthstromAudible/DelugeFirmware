@@ -21,6 +21,7 @@
 #include "model/favourite/favourite_manager.h"
 #include "storage/storage_manager.h"
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -57,19 +58,24 @@ public:
 	void close();
 	std::array<int8_t, 16> getFavouriteColours() const;
 	int8_t changeColour(uint8_t position, int32_t offset);
-	const std::string& getFavoriteFilename(uint8_t position) const;
+	const std::string& getFavoriteFilename(uint8_t position);
 	static constexpr int8_t favouriteDefaultColor = 4;
 	static constexpr int8_t favouriteEmtpyColor = -1;
+	void registerCallback(std::function<void()> callback);
+
+	int8_t currentBankNumber;
+	int8_t currentFavouriteNumber;
 
 private:
 	std::string currentCategory;
-	int currentBankNumber;
+
 	std::vector<Favorite> favourites;
 
 	void loadSubcategory(int subcategoryIndex);
 	void saveFavouriteBank() const;
 	std::string getFilenameForSave() const;
 	mutable bool unsavedChanges = false;
+	std::function<void()> onUpdateCallback;
 };
 
 extern FavouritesManager favouritesManager;

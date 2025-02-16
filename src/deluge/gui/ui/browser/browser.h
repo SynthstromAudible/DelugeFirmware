@@ -126,6 +126,7 @@ protected:
 	                                       bool allowFoldersint,
 	                                       Availability availabilityRequirement = Availability::ANY,
 	                                       int32_t newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
+	void drawFavourites();
 
 	static int32_t fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or
 	                                  // maybe we're typing a new name.
@@ -133,6 +134,7 @@ protected:
 	static int32_t
 	    numCharsInPrefix; // Only used for deciding Drum names within Kit. Oh and initial text scroll position.
 	static bool qwertyVisible;
+	static bool favouritesVisible;
 	static bool arrivedAtFileByTyping;
 	static bool allowFoldersSharingNameWithFile;
 	static char const** allowedFileExtensions;

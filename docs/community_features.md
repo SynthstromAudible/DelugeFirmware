@@ -38,6 +38,19 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - LPF and HPF.
   - LFOs.
 
+#### 2.3 Favourites
+- A Favourites-Browser has been added to the Load-UIs for most File-Types. The Favourites Browser is rendered above the Keyboard and is only visible, if the Keyboard is Visible as Well. For every Filetype, there are 16 Banks with 16 Favourites each available. The topmost Row shows the Banks. The second Row shows the Favourites.
+- Save a Favourite
+  - Select the Bank
+  - Browse to the File you want to save
+  - Hold `SHIFT` and select a empty Favourite Slot (white)
+- Recall a Favourite
+  - Select the Bank
+  - Select the Favouirite
+- Change the Colour of a Favourite
+  - Select the Favourite
+  - Hold `SHIFT` and turn `VERTICAL ENCODER`
+
 ## 3. General Improvements
 
 Here is a list of general improvements that have been made, ordered from newest to oldest:
