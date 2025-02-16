@@ -1633,4 +1633,4 @@ different firmware
 
 [Note / Note Row Editor Documentation]: features/note_noterow_editor.md
 
-[Save / Load Patterns feature ]: (features/save_load_patterns.md) 
+[Save / Load Patterns feature ]: features/save_load_patterns.md
