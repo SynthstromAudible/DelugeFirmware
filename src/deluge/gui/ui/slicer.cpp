@@ -653,6 +653,7 @@ getOut:
 		    (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode;
 
 		firstDrum->sources[0].sampleControls.reversed = false;
+		firstDrum->sources[0].sampleControls.invertReversed = false;
 
 #if 1 || ALPHA_OR_BETA_VERSION
 		if (!firstRange->sampleHolder.audioFile) {
@@ -660,7 +661,8 @@ getOut:
 		}
 #endif
 
-		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].sampleControls.reversed, CLUSTER_ENQUEUE);
+		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].sampleControls.isCurrentlyReversed(),
+		                                             CLUSTER_ENQUEUE);
 		if (doEnvelopes) {
 			ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 			ModelStackWithParamId* modelStackWithParamId =

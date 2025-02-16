@@ -59,7 +59,8 @@ public:
 	int32_t localExpressionSourceValuesBeforeSmoothing[kNumExpressionDimensions];
 
 	Envelope envelopes[kNumEnvelopes];
-	LFO lfo;
+	LFO lfo2;
+	LFO lfo4;
 
 	dsp::filter::FilterSet filterSet;
 	int32_t inputCharacteristics[2]; // Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
@@ -87,7 +88,7 @@ public:
 	Voice* nextUnassigned;
 	bool justCreated{false};
 
-	uint32_t getLocalLFOPhaseIncrement();
+	uint32_t getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param);
 	void setAsUnassigned(ModelStackWithVoice* modelStack, bool deletingSong = false);
 	bool render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples, bool soundRenderingInStereo,
 	            bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF, bool doHPF,

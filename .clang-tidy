@@ -31,11 +31,17 @@ Checks: >
   -cppcoreguidelines-special-member-functions,
   -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-pro-type-static-cast-downcast,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-magic-numbers,  
+  -readability-identifier-length,
+  -readability-magic-numbers,
 WarningsAsErrors: false # should be true once we get there
-HeaderFileExtensions:         ['h','hh','hpp','hxx']
-ImplementationFileExtensions: ['c','cc','cpp','cxx']
+HeaderFileExtensions: ["h", "hh", "hpp", "hxx"]
+ImplementationFileExtensions: ["c", "cc", "cpp", "cxx"]
 HeaderFilterRegex: "^((?!lib|RZA1|NE10|fatfs).)*$" # don't touch external files
-ExtraArgs: ['-Wno-unknown-argument', '-Wno-unknown-warning-option', '-W']
+ExtraArgs: ["-Wno-unknown-argument", "-Wno-unknown-warning-option", "-W"]
 FormatStyle: file
 CheckOptions:
   - key: cppcoreguidelines-explicit-virtual-functions.IgnoreDestructors
@@ -48,6 +54,8 @@ CheckOptions:
     value: google
   - key: modernize-replace-auto-ptr.IncludeStyle
     value: google
+  - key: readability-function-cognitive-complexity.DescribeBasicIncrements
+    value: false
   - { key: readability-identifier-naming.NamespaceCase,       value: lower_case }
   - { key: readability-identifier-naming.ClassCase,           value: CamelCase  }
   - { key: readability-identifier-naming.ClassMemberCase,     value: lower_case }

@@ -101,8 +101,10 @@ int32_t getParamNeutralValue(int32_t p) {
 	case params::LOCAL_HPF_FREQ:
 		return 2672947;
 
-	case params::GLOBAL_LFO_FREQ:
-	case params::LOCAL_LFO_LOCAL_FREQ:
+	case params::GLOBAL_LFO_FREQ_1:
+	case params::GLOBAL_LFO_FREQ_2:
+	case params::LOCAL_LFO_LOCAL_FREQ_1:
+	case params::LOCAL_LFO_LOCAL_FREQ_2:
 	case params::GLOBAL_MOD_FX_RATE:
 		return 121739; // lfoRateTable[userValue];
 
@@ -264,17 +266,29 @@ int32_t cableToExpParamShortcut(int32_t sourceValue) {
 
 char const* sourceToString(PatchSource source) {
 	switch (source) {
-	case PatchSource::LFO_GLOBAL:
+	case PatchSource::LFO_GLOBAL_1:
 		return "lfo1";
 
-	case PatchSource::LFO_LOCAL:
+	case PatchSource::LFO_GLOBAL_2:
+		return "lfo3";
+
+	case PatchSource::LFO_LOCAL_1:
 		return "lfo2";
+
+	case PatchSource::LFO_LOCAL_2:
+		return "lfo4";
 
 	case PatchSource::ENVELOPE_0:
 		return "envelope1";
 
 	case PatchSource::ENVELOPE_1:
 		return "envelope2";
+
+	case PatchSource::ENVELOPE_2:
+		return "envelope3";
+
+	case PatchSource::ENVELOPE_3:
+		return "envelope4";
 
 	case PatchSource::VELOCITY:
 		return "velocity";
@@ -307,11 +321,17 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 	auto lang = l10n::chosenLanguage;
 
 	switch (s) {
-	case PatchSource::LFO_GLOBAL:
-		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_GLOBAL);
+	case PatchSource::LFO_GLOBAL_1:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_1);
 
-	case PatchSource::LFO_LOCAL:
-		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_LOCAL);
+	case PatchSource::LFO_GLOBAL_2:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_2);
+
+	case PatchSource::LFO_LOCAL_1:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_LOCAL_1);
+
+	case PatchSource::LFO_LOCAL_2:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_LOCAL_2);
 
 	case PatchSource::ENVELOPE_0:
 		return l10n::get(STRING_FOR_PATCH_SOURCE_ENVELOPE_0);
@@ -364,11 +384,17 @@ PatchSource stringToSource(char const* string) {
 // all should be four chars, to fit a fixed column layout
 char const* sourceToStringShort(PatchSource source) {
 	switch (source) {
-	case PatchSource::LFO_GLOBAL:
+	case PatchSource::LFO_GLOBAL_1:
 		return "lfo1";
 
-	case PatchSource::LFO_LOCAL:
+	case PatchSource::LFO_GLOBAL_2:
+		return "lfo3";
+
+	case PatchSource::LFO_LOCAL_1:
 		return "lfo2";
+
+	case PatchSource::LFO_LOCAL_2:
+		return "lfo4";
 
 	case PatchSource::ENVELOPE_0:
 		return "env1";

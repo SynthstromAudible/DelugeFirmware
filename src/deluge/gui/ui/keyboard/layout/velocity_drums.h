@@ -28,7 +28,7 @@ constexpr int32_t k_max_zoom_level = 12;
 const int32_t zoom_arr[13][2] = {{1, 1}, {2, 1}, {3, 1}, {2, 2}, {3, 2}, {4, 2}, {5, 2},
                                  {3, 4}, {4, 4}, {5, 4}, {8, 4}, {8, 8}, {16, 8}};
 
-class KeyboardLayoutVelocityDrums : KeyboardLayout {
+class KeyboardLayoutVelocityDrums : public KeyboardLayout {
 public:
 	KeyboardLayoutVelocityDrums() = default;
 	~KeyboardLayoutVelocityDrums() override = default;

@@ -773,7 +773,7 @@ void Kit::choke() {
 void Kit::resyncLFOs() {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum && thisDrum->type == DrumType::SOUND) {
-			((SoundDrum*)thisDrum)->resyncGlobalLFO();
+			((SoundDrum*)thisDrum)->resyncGlobalLFOs();
 		}
 	}
 }
@@ -1029,6 +1029,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					if (instruction.arpNoteOn != nullptr
 					    && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+						soundDrum->invertReversed = instruction.invertReversed;
 						soundDrum->noteOnPostArpeggiator(
 						    modelStackWithSoundFlags,
 						    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],

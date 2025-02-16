@@ -711,9 +711,8 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 			ticksTilNextNoteRowEvent = loopLength - lastProcessedPos;
 		}
 
-		PLACE_SDRAM_BSS static PendingNoteOnList
-		    pendingNoteOnList; // Making this static, which it really should have always been,
-		                       // actually didn't help max stack usage at all somehow...
+		static PendingNoteOnList pendingNoteOnList; // Making this static, which it really should have always been,
+		                                            // actually didn't help max stack usage at all somehow...
 		pendingNoteOnList.count = 0;
 
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {

@@ -18,6 +18,7 @@
 #include "model/action/action_logger.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/load/load_pattern_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
@@ -92,8 +93,10 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 	// If not on a View, not allowed!
 	// Exception for sound editor note editor UI which can edit notes on the grid
 	// Exception for sound editor note row editor UI which can edit note rows on the grid
+	// Exception for loadPatternUI which does edit note rows on the grid
 	if ((getCurrentUI() != getRootUI())
-	    && (!(getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())))) {
+	    && (!(getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())))
+	    && (getCurrentUI() != &loadPatternUI)) {
 		return nullptr;
 	}
 

@@ -79,6 +79,8 @@ extern void __libc_init_array(void);
 #define PLACEMENT_INTRAM_START (0x20020000)
 #define PLACEMENT_FLASH_START (0x18080000) // Copied from bootloader, start address of firmware image in flash
 
+extern uint32_t __reloc_sections_start__;
+extern uint32_t __reloc_sections_end__;
 extern uint32_t __heap_start;
 extern uint32_t __frunk_bss_start;
 extern uint32_t __frunk_bss_end;
@@ -191,6 +193,7 @@ void resetprg(void) {
 	const uint32_t SDRAM_SIZE = EXTERNAL_MEMORY_END - EXTERNAL_MEMORY_BEGIN;
 	memset((void*)EXTERNAL_MEMORY_BEGIN, 0, SDRAM_SIZE);
 
+	relocateSDRAMSection(&__reloc_sections_start__, &__reloc_sections_end__);
 	relocateSDRAMSection(&__sdram_text_start, &__sdram_text_end);
 	relocateSDRAMSection(&__sdram_data_start, &__sdram_data_end);
 	relocateSDRAMSection(&__sdram_rodata_start, &__sdram_rodata_end);

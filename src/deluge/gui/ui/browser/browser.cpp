@@ -846,7 +846,7 @@ noNumberYet:
 		if (mayDefaultToBrandNewNameOnEntry && !direction) {
 pickBrandNewNameIfNoneNominated:
 			if (enteredText.isEmpty()) {
-				error = getUnusedSlot(OutputType::NONE, &enteredText, "SONG");
+				error = getUnusedSlot(OutputType::NONE, &enteredText, filePrefix);
 				if (error != Error::NONE) {
 					goto gotErrorAfterAllocating;
 				}
@@ -1819,6 +1819,29 @@ Error Browser::createFolder() {
 	error = goIntoFolder(enteredText.get());
 
 	return error;
+}
+
+Error Browser::createFoldersRecursiveIfNotExists(const char* path) {
+	if (!path || *path == '\0') {
+		return Error::UNSPECIFIED;
+	}
+
+	char tempPath[256];
+	size_t len = 0;
+
+	// Iterate through the path and create directories step by step
+	for (const char* p = path; *p; ++p) {
+		tempPath[len++] = *p;
+		tempPath[len] = '\0';
+
+		if (*p == '/' || *(p + 1) == '\0') {
+			FRESULT result = f_mkdir(tempPath);
+			if (result != FR_OK && result != FR_EXIST) {
+				return fresultToDelugeErrorCode(FR_NO_PATH);
+			}
+		}
+	}
+	return Error::NONE;
 }
 
 void Browser::sortFileItems() {

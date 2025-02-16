@@ -21,10 +21,12 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_midi_device_definition_ui.h"
+#include "gui/ui/load/load_pattern_ui.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/save/save_kit_row_ui.h"
 #include "gui/ui/save/save_midi_device_definition_ui.h"
+#include "gui/ui/save/save_pattern_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -378,6 +380,16 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		if (getCurrentOutputType() == OutputType::MIDI_OUT && (b == MOD_ENCODER_0 || b == MOD_ENCODER_1)) {
 			openUI(&saveMidiDeviceDefinitionUI);
 		}
+		else if (b == X_ENC) {
+			// New Tracks have not Drum selected -> abort Drum action
+			if (getCurrentOutputType() == OutputType::KIT && !getRootUI()->getAffectEntire()
+			    && (getCurrentKit() == nullptr || getCurrentKit()->selectedDrum == nullptr)) {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PATTERN_NODRUM));
+				return ActionResult::DEALT_WITH;
+			}
+
+			openUI(&savePatternUI);
+		}
 		else if ((b == SYNTH && getCurrentOutputType() == OutputType::SYNTH)
 		         || (b == KIT && getCurrentOutputType() == OutputType::KIT)
 		         || (b == MIDI && getCurrentOutputType() == OutputType::MIDI_OUT)) {
@@ -387,12 +399,41 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 
 	// If holding load button...
 	else if (currentUIMode == UI_MODE_HOLDING_LOAD_BUTTON && on) {
-		currentUIMode = UI_MODE_NONE;
-		indicator_leds::setLedState(IndicatorLED::LOAD, false);
 		if (getCurrentOutputType() == OutputType::MIDI_OUT && (b == MOD_ENCODER_0 || b == MOD_ENCODER_1)) {
+			currentUIMode = UI_MODE_NONE;
+			indicator_leds::setLedState(IndicatorLED::LOAD, false);
 			openUI(&loadMidiDeviceDefinitionUI);
 		}
-		else {
+		else if (b == X_ENC) {
+			currentUIMode = UI_MODE_NONE;
+			indicator_leds::setLedState(IndicatorLED::LOAD, false);
+			// Need to stop Playback before loading a new Pattern to prevent Stuck notes on big Midi files
+			playbackHandler.endPlayback();
+
+			// New Tracks have not Drum selected -> abort Drum action
+			if (getCurrentOutputType() == OutputType::KIT && !getRootUI()->getAffectEntire()
+			    && (getCurrentKit() == nullptr || getCurrentKit()->selectedDrum == nullptr)) {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PATTERN_NODRUM));
+				return ActionResult::DEALT_WITH;
+			}
+
+			openUI(&loadPatternUI);
+			if (Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT)) {
+				// Setup for gently pasting notes
+				loadPatternUI.setupLoadPatternUI(false, false);
+			}
+			else if (Buttons::isButtonPressed(deluge::hid::button::SCALE_MODE)) {
+				// Setup for keeping original Scale on paste
+				loadPatternUI.setupLoadPatternUI(true, true);
+			}
+			else {
+				// Default Load
+				loadPatternUI.setupLoadPatternUI();
+			}
+		}
+		else if (b == SYNTH || b == KIT || b == MIDI) {
+			currentUIMode = UI_MODE_NONE;
+			indicator_leds::setLedState(IndicatorLED::LOAD, false);
 			OutputType newOutputType;
 			if (b == SYNTH) {
 				newOutputType = OutputType::SYNTH;

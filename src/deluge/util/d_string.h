@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include <cctype>
 #include <cstdint>
 #include <cstring>
 
@@ -106,8 +107,9 @@ class StringBuf {
 	// Not templated to optimize binary size.
 public:
 	StringBuf(char* buf, size_t capacity) : capacity_(capacity), buf_(buf) { memset(buf_, '\0', capacity_); }
-
-	void append(const char* str) { ::strncat(buf_, str, capacity_ - size() - 1); }
+	// NOLINTBEGIN (*-suspicious-stringview-data-usage)
+	void append(std::string_view str) { ::strncat(buf_, str.data(), std::min(str.length(), capacity_ - size() - 1)); }
+	// NOLINTEND
 	void append(char c) { ::strncat(buf_, &c, 1); }
 	void removeSpaces() {
 		size_t removed = 0;

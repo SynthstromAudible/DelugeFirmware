@@ -427,7 +427,7 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 	clipLength = clip->loopLength;
 	audioClipColour = clip->getColour();
 
-	sampleReversed = clip->sampleControls.reversed;
+	sampleReversed = clip->sampleControls.isCurrentlyReversed();
 
 	Sample* sample = (Sample*)clip->sampleHolder.audioFile;
 

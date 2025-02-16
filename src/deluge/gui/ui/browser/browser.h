@@ -73,6 +73,7 @@ public:
 	void currentFileDeleted();
 	Error goIntoFolder(char const* folderName);
 	Error createFolder();
+	Error createFoldersRecursiveIfNotExists(const char* path);
 	void selectEncoderAction(int8_t offset) override;
 	static FileItem* getCurrentFileItem();
 	Error readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,

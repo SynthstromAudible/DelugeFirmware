@@ -893,6 +893,9 @@ to each individual note onset. ([#1978])
 
 - ([#2676]) When browsing for sample to assign to a Synth or to a Kit Row, you can now enable auto-load of previewed samples. To do this, open the sample browser (`SHIFT + BROWSE`), and engage `AUTO-LOAD` by pressing `LOAD`. While the `LOAD` LED is on, all the samples that you preview will automatically be loaded to the instrument as if you had confirmed the selection. This makes previewing single cycle waveforms way more convenient, for example.
 
+#### 4.3.13 - Save/Load Patterns
+- ([#3352]) Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synt, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ] for more info.
+
 ### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features
 
 #### 4.4.1 - Keyboard View
@@ -1098,7 +1101,11 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 
 - ([#3279]) Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
 
-#### 4.5.9 - Send Midi
+#### 4.5.9 - More LFOs
+
+- ([#3332]) Added two more LFOs: LFO 3 (global) and LFO 4 (per voice), which you can access from the sound editor menu.
+
+#### 4.5.10 - Send Midi
 
 - ([#3313]) There is a new submenu `MIDI` added to the `SOUND` menu for synths and sound drums, where you can select the MIDI channel
   (and also base note for drums) that will be sent at the same time as the sound triggers.
@@ -1613,6 +1620,10 @@ different firmware
 
 [#3313]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3313
 
+[#3332]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3332
+
+[#3352]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3352
+
 [Automation View Documentation]: features/automation_view.md
 
 [Arpeggiator Documentation]: features/arpeggiator.md
@@ -1634,3 +1645,5 @@ different firmware
 [Chord Keyboard Documentation]: features/chord_keyboard.md
 
 [Note / Note Row Editor Documentation]: features/note_noterow_editor.md
+
+[Save / Load Patterns feature ]: features/save_load_patterns.md

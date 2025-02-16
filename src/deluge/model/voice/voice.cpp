@@ -156,8 +156,10 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	}
 
 	// Setup and render local LFO
-	lfo.setLocalInitialPhase(sound.lfoConfig[LFO2_ID]);
-	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = lfo.render(0, sound.lfoConfig[LFO2_ID], 0);
+	lfo2.setLocalInitialPhase(sound.lfoConfig[LFO2_ID]);
+	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] = lfo2.render(0, sound.lfoConfig[LFO2_ID], 0);
+	lfo4.setLocalInitialPhase(sound.lfoConfig[LFO4_ID]);
+	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] = lfo4.render(0, sound.lfoConfig[LFO4_ID], 0);
 
 	// Setup some sources which won't change for the duration of this note
 	sourceValues[util::to_underlying(PatchSource::VELOCITY)] =
@@ -299,7 +301,8 @@ activenessDetermined:
 		// in STRETCH mode, cos that works differently
 
 		if (oscType == OscType::SAMPLE && guides[s].audioFileHolder) {
-			guides[s].setupPlaybackBounds(source->sampleControls.reversed);
+			source->sampleControls.invertReversed = sound.invertReversed; // Copy the temporary flag from the sound
+			guides[s].setupPlaybackBounds(source->sampleControls.isCurrentlyReversed());
 
 			// if (source->repeatMode == SampleRepeatMode::STRETCH) samplesLateHere = 0;
 		}
@@ -625,6 +628,13 @@ void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 			}
 		}
 	}
+
+	for (int32_t s = 0; s < kNumSources; s++) {
+		Source* source = &sound.sources[s];
+		if (source->oscType == OscType::SAMPLE) {
+			source->sampleControls.invertReversed = false; // Reset temporary flag back to normal
+		}
+	}
 }
 
 // Returns false if voice needs unassigning now
@@ -642,7 +652,7 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	const Source& source = sound.sources[s];
 	Sample* sample = (Sample*)holder->audioFile;
 
-	guides[s].setupPlaybackBounds(source.sampleControls.reversed);
+	guides[s].setupPlaybackBounds(source.sampleControls.isCurrentlyReversed());
 
 	LoopType loopingType = guides[s].getLoopingType(sound.sources[s]);
 
@@ -656,8 +666,9 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 		VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
 		if (voiceUnisonPartSource->active) {
-			bool stillActive = voiceUnisonPartSource->voiceSample->sampleZoneChanged(&guides[s], sample, markerType,
-			                                                                         loopingType, getPriorityRating());
+			bool stillActive = voiceUnisonPartSource->voiceSample->sampleZoneChanged(
+			    &guides[s], sample, source.sampleControls.isCurrentlyReversed(), markerType, loopingType,
+			    getPriorityRating());
 			if (!stillActive) {
 				D_PRINTLN("returned false ---------");
 				voiceUnisonPartSource->unassign(false);
@@ -690,10 +701,10 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	return true;
 }
 
-uint32_t Voice::getLocalLFOPhaseIncrement() {
-	LFOConfig& config = assignedToSound->lfoConfig[LFO2_ID];
+uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param) {
+	LFOConfig& config = assignedToSound->lfoConfig[lfoId];
 	if (config.syncLevel == SYNC_LEVEL_NONE) {
-		return paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ];
+		return paramFinalValues[param];
 	}
 	else {
 		return assignedToSound->getSyncedLFOPhaseIncrement(config);
@@ -750,14 +761,24 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 	        && sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] == std::numeric_limits<int32_t>::min());
 	// Local LFO
 	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
-	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
-		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)];
+	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL_1))) {
+		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)];
 		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
 		// for every sample.
-		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] =
-		    lfo.render(numSamples, sound.lfoConfig[LFO2_ID], getLocalLFOPhaseIncrement());
-		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)]);
-		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL);
+		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] = lfo2.render(
+		    numSamples, sound.lfoConfig[LFO2_ID], getLocalLFOPhaseIncrement(LFO2_ID, params::LOCAL_LFO_LOCAL_FREQ_1));
+		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)]);
+		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_1);
+	}
+	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
+	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL_2))) {
+		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)];
+		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
+		// for every sample.
+		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] = lfo4.render(
+		    numSamples, sound.lfoConfig[LFO4_ID], getLocalLFOPhaseIncrement(LFO4_ID, params::LOCAL_LFO_LOCAL_FREQ_2));
+		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)]);
+		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_2);
 	}
 
 	// MPE params
@@ -2127,7 +2148,8 @@ pitchTooHigh:
 
 							// And if it's an envelope or LFO or random...
 							if (cable->from == PatchSource::ENVELOPE_0 || cable->from == PatchSource::ENVELOPE_1
-							    || cable->from == PatchSource::LFO_GLOBAL || cable->from == PatchSource::LFO_LOCAL
+							    || cable->from == PatchSource::LFO_GLOBAL_1 || cable->from == PatchSource::LFO_LOCAL_1
+							    || cable->from == PatchSource::LFO_GLOBAL_2 || cable->from == PatchSource::LFO_LOCAL_2
 							    || cable->from == PatchSource::RANDOM) {
 								goto dontUseCache;
 							}

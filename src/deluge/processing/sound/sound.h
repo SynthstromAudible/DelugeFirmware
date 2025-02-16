@@ -83,8 +83,11 @@ public:
 
 	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
-	LFO globalLFO;
+	LFO globalLFO1;
+	LFO globalLFO3;
 	LFOConfig lfoConfig[LFO_COUNT];
+
+	bool invertReversed; // Used by the arpeggiator to invert the reverse flag just for the current voice
 
 	// December 3, 2024
 	// @todo
@@ -101,7 +104,9 @@ public:
 	// as changes get made to this Sound class.
 	// We think the issue relates to the use of "offsetof" in the param and patcher system
 	// (related to the paramFinalValues / globalSourceValues definitions above)
-	uint32_t temporaryPadding{0xDEADBEEF};
+	// IF ANOTHER INTEGER PARAMETER IS ADDED TO THIS .h FILE, WE WILL NEED TO ADD ANOTHER PADDING INTEGER
+	// TO MAKE THE RESULTING BIN AN EVEN NUMBER (OR SOMETHING LIKE THAT)
+	// uint32_t temporaryPadding2{0xDEADBEEF};
 
 	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 
@@ -153,7 +158,6 @@ public:
 	uint32_t oscRetriggerPhase[kNumSources]; // 4294967295 means "off"
 	uint32_t modulatorRetriggerPhase[kNumModulators];
 
-	uint32_t numSamplesSkippedRenderingForGlobalLFO;
 	uint32_t timeStartedSkippingRenderingModFX;
 	uint32_t timeStartedSkippingRenderingLFO;
 	uint32_t timeStartedSkippingRenderingArp;
@@ -182,7 +186,7 @@ public:
 
 	PatchCableAcceptance maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* paramManager);
 
-	void resyncGlobalLFO();
+	void resyncGlobalLFOs();
 
 	int8_t getKnobPos(uint8_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
 	int32_t getKnobPosBig(int32_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
@@ -300,7 +304,7 @@ public:
 	uint32_t getSyncedLFOPhaseIncrement(const LFOConfig& config);
 
 private:
-	uint32_t getGlobalLFOPhaseIncrement();
+	uint32_t getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
 	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);
 	void setupUnisonStereoSpread();
