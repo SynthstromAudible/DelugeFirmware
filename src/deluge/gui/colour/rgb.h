@@ -187,6 +187,13 @@ public:
 	}
 
 	/**
+	 * @brief Compare two colours to determine if they're the same
+	 *
+	 * @return bool The true / false result if they're the equal
+	 */
+	bool operator==(RGB const&) const = default;
+
+	/**
 	 * @brief Legacy access to the colour internals for ease of use
 	 *
 	 * @param idx The channel to access (order R G B)
