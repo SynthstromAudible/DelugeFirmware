@@ -212,7 +212,7 @@ The `Kit Arpeggiator` parameters are also controllable with `MIDI FOLLOW`.
 ### Opting in and out of the Kit Arpeggiator
 
 Kit rows by default opt-in to the `Kit Arpeggiator`. You can make a kit row opt-out of the `Kit Arpeggiator` by going into
-the `Arpeggaitor` submenu from the kit row menu and disabling the option `Include in Kit Arpeggiator`.
+the `Arpeggaitor` submenu from the kit row menu and disabling the option `Include in Kit Arp`.
 
 There is a special case where the kit row is forced to opt-out of the `Kit Arpeggiator`, which is when their notes in the sequencer
 don't have "tails", that is, if when you paint a note in the sequencer, it doesn't allow you to extend its length, it means this kit row
