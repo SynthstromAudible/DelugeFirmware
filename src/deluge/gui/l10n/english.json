@@ -947,7 +947,7 @@
         "STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE": "Export to Silence",
         "STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX": "Song FX",
         "STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING": "Offline Rendering",
-        "STRING_FOR_CONFIGURE_EXPORT_STEMS_MASTER_ARRANGEMENT": "Export Master Arrangement",
+        "STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN": "Export Mixdown",
         "STRING_FOR_CANT_EXPORT_STEMS": "Turn off playback and/or recording",
         "STRING_FOR_STOP_EXPORT_STEMS_QMARK": "Cancel Export?",
         "STRING_FOR_STOP_EXPORT_STEMS": "Export Cancelled",

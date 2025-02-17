@@ -554,21 +554,49 @@ void MidiFollow::displayParamControlError(int32_t soundParamId, int32_t globalPa
 	}
 }
 
-/// a parameter can be learned t one cc at a time
+/// a parameter can be learned to one cc at a time
 /// for a given parameter, find and return the cc that has been learned (if any)
-/// it does this by finding the grid shortcut that corresponds to that param
-/// and then returns what cc or no cc (255) has been mapped to that param shortcut
+/// for the current midi follow controllable context
+/// if no cc is found, then MIDI_CC_NONE (255) is returned
 int32_t MidiFollow::getCCFromParam(params::Kind paramKind, int32_t paramID) {
-	if (paramKind == params::Kind::PATCHED) {
-		return soundParamToCC[paramID];
+	// audio clip or kit with affect entire enabled
+	if (isGlobalEffectableContext()) {
+		if (paramKind == params::Kind::UNPATCHED_GLOBAL) {
+			return globalParamToCC[paramID];
+		}
 	}
-	else if (paramKind == params::Kind::UNPATCHED_SOUND) {
-		return soundParamToCC[params::UNPATCHED_START + paramID];
-	}
-	else if (paramKind == params::Kind::UNPATCHED_GLOBAL) {
-		return globalParamToCC[paramID];
+	// synth clip or kit row
+	else {
+		if (paramKind == params::Kind::PATCHED) {
+			return soundParamToCC[paramID];
+		}
+		else if (paramKind == params::Kind::UNPATCHED_SOUND) {
+			return soundParamToCC[params::UNPATCHED_START + paramID];
+		}
 	}
 	return MIDI_CC_NONE;
+}
+
+// Check if midi follow is controlling the global effectable context
+// if so, we should only be controlling the global effectable parameters
+bool MidiFollow::isGlobalEffectableContext() {
+	// obtain clip for active context (for params that's only for the active mod controllable stack)
+	Clip* clip = getSelectedOrActiveClip();
+	if (clip != nullptr) {
+		// audio clips are always global effectable
+		if (clip->output->type == OutputType::AUDIO) {
+			return true;
+		}
+		// kits may be global effectable depending on affect entire status
+		else if (clip->output->type == OutputType::KIT) {
+			bool affectEntire = ((InstrumentClip*)clip)->affectEntire;
+			// if affect entire is enabled, then midi follow controls global effectable params
+			if (affectEntire) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 /// used to store the clip's for each note received so that note off's can be sent to the right clip
@@ -899,7 +927,7 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, b
 	}
 }
 
-/// called when updating parameter values using mod (gold) encoders or the select encoder in the soudnEditor menu
+/// called when updating parameter values using mod (gold) encoders or the select encoder in the soundEditor menu
 void MidiFollow::sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos) {
 	if (midiEngine.midiFollowFeedbackChannelType != MIDIFollowChannelType::NONE) {
 		LearnedMIDI& midiInput =
@@ -1126,7 +1154,7 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		foundParam = false;
 		int32_t value = reader.readTagOrAttributeValueInt();
-		// Loop through sound params
+		// Loop through patched sound params
 		for (uint8_t paramId = 0; paramId < params::GLOBAL_NONE; paramId++) {
 			if (!strcmp(tagName, params::paramNameForFile(params::Kind::PATCHED, paramId))) {
 				soundParamToCC[paramId] = value;
@@ -1137,7 +1165,7 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 		}
 		if (!foundParam) {
 			// Loop through unpatched sound params (if not found before)
-			for (uint8_t paramId = 0; paramId != params::UNPATCHED_SOUND_MAX_NUM; paramId++) {
+			for (uint8_t paramId = 0; paramId < params::UNPATCHED_SOUND_MAX_NUM; paramId++) {
 				if (!strcmp(tagName, params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
 				                                              params::UNPATCHED_START + paramId))) {
 					soundParamToCC[params::UNPATCHED_START + paramId] = value;
@@ -1148,7 +1176,7 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 			}
 		}
 		// Loop through global params
-		for (uint8_t paramId = 0; paramId != params::UNPATCHED_GLOBAL_MAX_NUM; paramId++) {
+		for (uint8_t paramId = 0; paramId < params::UNPATCHED_GLOBAL_MAX_NUM; paramId++) {
 			if (!strcmp(tagName,
 			            params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_START + paramId))) {
 				globalParamToCC[paramId] = value;

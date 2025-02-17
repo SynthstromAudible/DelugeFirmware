@@ -48,11 +48,11 @@ public:
 	///
 	/// This is just for the *local* params, specific to this Voice only
 	///
-	int32_t paramFinalValues[deluge::modulation::params::LOCAL_LAST];
+	std::array<int32_t, deluge::modulation::params::LOCAL_LAST> paramFinalValues;
 
 	// At the start of this list are local copies of the "global" ones. It's cheaper to copy them here than to pick and
 	// choose where the Patcher looks for them
-	int32_t sourceValues[kNumPatchSources];
+	std::array<int32_t, kNumPatchSources> sourceValues;
 
 	std::bitset<kNumExpressionDimensions> expressionSourcesCurrentlySmoothing;
 	std::bitset<kNumExpressionDimensions> expressionSourcesFinalValueChanged;
