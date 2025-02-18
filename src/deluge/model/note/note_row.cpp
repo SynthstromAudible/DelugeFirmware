@@ -3631,7 +3631,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 				intToHex(thisNote->getLift(), buffer, 2);
 				writer.write(buffer);
 
-				// Do here an attempt to keep the most signifiant information, in order of priority
+				// Do here an attempt to keep the most significant information, in order of priority
 				// 1st - Iterance preset
 				// 2nd - Fill/NotFill
 				// 3rd - Probability
