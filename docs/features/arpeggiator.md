@@ -211,20 +211,20 @@ The `Kit Arpeggiator` parameters are also controllable with `MIDI FOLLOW`.
 
 ### Opting in and out of the Kit Arpeggiator
 
-Kit rows by default opt-in to the `Kit Arpeggiator`. You can make a kit row opt-out of the `Kit Arpeggiator` by going into
-the `Arpeggaitor` submenu from the kit row menu and disabling the option `Include in Kit Arp`.
+Kit rows by default opt-in to the `Kit Arpeggiator`. You can make a kit row opt-out of it by going into
+the `Arpeggiator` submenu from the kit row menu and disabling the option `Include in Kit Arp`.
 
 There is a special case where the kit row is forced to opt-out of the `Kit Arpeggiator`, which is when their notes in the sequencer
-don't have "tails", that is, if when you paint a note in the sequencer, it doesn't allow you to extend its length, it means this kit row
+don't have "tails". That is, if when you paint a note in the sequencer, it doesn't allow you to extend its length, it means this kit row
 is going to be excluded from the `Kit Arpeggiator`. This happens when you load a sample in the row and the sample mode is set to `Once`.
 Or it could also happen when you load a synth preset and you set the `Env1 Sustain` to zero.
 
 ### Reverse Probability
 
-The `Reverse Probability` parameter is avaiable for the `Kit Arpeggiator`, but it works a little bit differently than the same
+The `Reverse Probability` parameter is available for the `Kit Arpeggiator`, but it works a little bit differently than the same
 parameter for sounds. In this case it is able to "invert" the `Reverse` setting for each note, which means that:
-- If `Reverse Probability` evaluates to `Yes` for a note, and the kit row's own `Reverse` evaluates to "play forward", then the sample
-  will play in reverse.
+- If `Reverse Probability` evaluates to `Yes` for a note, and the kit row's own `Reverse` evaluates to "play forward", then
+  this will be inverted and the sample will play in reverse.
 - If `Reverse Probability` evaluates to `Yes` for a note, and the kit row's own `Reverse` evaluates to "play in reverse", then
   this will be inverted and the sample will play forward.
 - If `Reverse Probability` evaluates to `No` for a note, then, the kit row's `Reverse` settings will be respected.
