@@ -20,13 +20,11 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/ui_timer_manager.h"
-#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/log.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
@@ -98,10 +96,6 @@ void QwertyUI::drawKeys() {
 		PadLEDs::image[kQwertyHomeRow - 1][1 + x] = colours::blue;
 		PadLEDs::image[kQwertyHomeRow - 1][13 + x] = colours::blue;
 	}
-
-	// Favourites Area
-	// D_PRINTLN("drawKeys calling render: %p", this);
-	// renderFavourites();
 
 	PadLEDs::sendOutMainPadColours();
 }
@@ -281,6 +275,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 	}
+
 	// Normal keys
 	else if (x >= 3 && x < 14 && y >= kQwertyHomeRow - 2 && y <= kQwertyHomeRow + 2) {
 		if (on) {
@@ -406,7 +401,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 }
 
 void QwertyUI::renderFavourites(std::array<std::optional<uint8_t>, 16> colours, uint8_t currentBankNumber,
-                                int8_t currentFavouriteNumber) {
+                                std::optional<uint8_t> currentFavouriteNumber) {
 	for (size_t i = 0; i < 16; i++) {
 		PadLEDs::image[favouriteBankRow][i] = RGB::fromHue(static_cast<int16_t>((i * colourStep))).dim(4);
 		if (colours[i].has_value()) {
@@ -421,12 +416,14 @@ void QwertyUI::renderFavourites(std::array<std::optional<uint8_t>, 16> colours, 
 	PadLEDs::image[favouriteBankRow][currentBankNumber] =
 	    RGB::fromHue(static_cast<int16_t>((currentBankNumber * colourStep)));
 	// Un-Dim Selected Favourite
-	if (colours[currentFavouriteNumber].has_value()) {
-		PadLEDs::image[favouriteRow][currentFavouriteNumber] =
-		    RGB::fromHue(static_cast<int16_t>((colours[currentFavouriteNumber].value() * colourStep)));
-	}
-	else {
-		PadLEDs::image[favouriteRow][currentFavouriteNumber] = RGB::monochrome(50);
+	if (currentFavouriteNumber.has_value()) {
+		if (colours[currentFavouriteNumber.value()].has_value()) {
+			PadLEDs::image[favouriteRow][currentFavouriteNumber.value()] =
+			    RGB::fromHue(static_cast<int16_t>((colours[currentFavouriteNumber.value()].value() * colourStep)));
+		}
+		else {
+			PadLEDs::image[favouriteRow][currentFavouriteNumber.value()] = RGB::monochrome(50);
+		}
 	}
 
 	PadLEDs::sendOutMainPadColours();

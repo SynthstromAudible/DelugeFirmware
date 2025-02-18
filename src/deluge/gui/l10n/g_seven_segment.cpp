@@ -517,6 +517,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_NOTE_ROW_EDITOR_FILL, "FILL"},
         {STRING_FOR_DEFAULT_NEW_CLIP_TYPE, "TYPE"},
         {STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, "LAST"},
+        {STRING_FOR_FAVOURITES_EMPTY, "NONE"},
     },
     &built_in::english,
 };

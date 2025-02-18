@@ -1529,7 +1529,6 @@ void Browser::displayText(bool blinkImmediately) {
 }
 
 FileItem* Browser::getCurrentFileItem() {
-	D_PRINTLN("fileIndexSelected: %d", fileIndexSelected);
 	if (fileIndexSelected == -1) {
 		return nullptr;
 	}
@@ -1587,7 +1586,7 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 			String filePath;
 			Error error = getCurrentFilePath(&filePath);
 			if (error != Error::NONE) {
-				display->displayPopup("Favourite not found");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_ERROR_FILE_NOT_FOUND));
 			}
 			if (favouritesManager.isEmpty(x)) {
 				if (!getCurrentFileItem()->isFolder) {
@@ -1604,7 +1603,7 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 				setFileByFullPath(outputTypeToLoad, favoritePath.c_str());
 			}
 			else {
-				display->displayPopup("Emtpy");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_FAVOURITES_EMPTY));
 			}
 		}
 		return ActionResult::DEALT_WITH;
@@ -1632,7 +1631,7 @@ void Browser::drawFavourites() {
 ActionResult Browser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (favouritesVisible) {
 		if (Buttons::isShiftButtonPressed) {
-			favouritesManager.changeColour(favouritesManager.currentFavouriteNumber, offset);
+			favouritesManager.changeColour(favouritesManager.currentFavouriteNumber.value(), offset);
 		}
 	}
 	return ActionResult::DEALT_WITH;

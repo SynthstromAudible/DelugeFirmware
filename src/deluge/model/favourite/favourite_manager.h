@@ -50,19 +50,19 @@ public:
 	static constexpr uint8_t favouriteDefaultColor = 4;
 	void registerCallback(std::function<void()> callback);
 
-	int8_t currentBankNumber;
-	int8_t currentFavouriteNumber;
+	uint8_t currentBankNumber;
+	std::optional<uint8_t> currentFavouriteNumber;
 
 private:
-	std::string currentCategory;
-
-	std::vector<Favorite> favourites;
-
 	void loadFavouritesBank();
 	void saveFavouriteBank() const;
+	std::function<void()> onUpdateCallback;
+
 	std::string getFilenameForSave() const;
 	mutable bool unsavedChanges = false;
-	std::function<void()> onUpdateCallback;
+
+	std::string currentCategory;
+	std::vector<Favorite> favourites;
 };
 
 extern FavouritesManager favouritesManager;

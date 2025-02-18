@@ -943,7 +943,6 @@ void LoadSongUI::displayText(bool blinkImmediately) {
 	if (qwertyVisible) {
 		FileItem* currentFileItem = getCurrentFileItem();
 
-		D_PRINT("DrawKeys: ");
 		drawKeys();
 		drawFavourites();
 

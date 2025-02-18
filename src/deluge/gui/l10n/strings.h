@@ -1044,6 +1044,9 @@ enum class String : size_t {
 	STRING_FOR_DEFAULT_NEW_CLIP_TYPE,
 	STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE,
 
+	// string for favourites feature
+	STRING_FOR_FAVOURITES_EMPTY,
+
 	STRING_LAST
 };
 

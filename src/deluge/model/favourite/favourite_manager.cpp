@@ -16,7 +16,6 @@
  */
 
 #include "model/favourite/favourite_manager.h"
-#include "io/debug/log.h"
 #include <cstdint>
 #include <string.h>
 
@@ -57,7 +56,6 @@ void FavouritesManager::loadFavouritesBank() {
 	FilePointer fileToLoad;
 	bool fileExists = StorageManager::fileExists(filePath.c_str(), &fileToLoad);
 	if (!fileExists) {
-		D_PRINTLN("File does not exist");
 		// create emtpy File
 		saveFavouriteBank();
 	}
@@ -117,9 +115,9 @@ void FavouritesManager::saveFavouriteBank() const {
 			writer.closeTag();
 		}
 	}
-	unsavedChanges = false;
 	writer.writeArrayEnding("favourites");
 	error = writer.closeFileAfterWriting();
+	unsavedChanges = false;
 	onUpdateCallback();
 	return;
 }
@@ -130,7 +128,6 @@ void FavouritesManager::selectFavouritesBank(uint8_t bankNumber) {
 	if (unsavedChanges) {
 		saveFavouriteBank();
 	}
-	D_PRINTLN("Selecting bank %i", bankNumber);
 	currentBankNumber = bankNumber;
 	currentFavouriteNumber = -1;
 	loadFavouritesBank();
