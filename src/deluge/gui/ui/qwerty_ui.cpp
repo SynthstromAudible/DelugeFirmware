@@ -405,30 +405,28 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 	return ActionResult::DEALT_WITH;
 }
 
-void QwertyUI::renderFavourites(std::array<int8_t, 16> colours, uint8_t currentBankNumber,
+void QwertyUI::renderFavourites(std::array<std::optional<uint8_t>, 16> colours, uint8_t currentBankNumber,
                                 int8_t currentFavouriteNumber) {
-	D_PRINTLN("renderFavourites called on instance: %p", this);
-	D_PRINTLN("SelectedBank %i SelectedFav %i", currentBankNumber, currentFavouriteNumber);
 	for (size_t i = 0; i < 16; i++) {
-		D_PRINTLN("Pos %i Color %i", i, colours[i]);
 		PadLEDs::image[favouriteBankRow][i] = RGB::fromHue(static_cast<int16_t>((i * colourStep))).dim(4);
-		if (colours[i] == -1) {
-			PadLEDs::image[favouriteRow][i] = RGB::monochrome(10);
+		if (colours[i].has_value()) {
+			PadLEDs::image[favouriteRow][i] =
+			    RGB::fromHue(static_cast<int16_t>((colours[i].value() * colourStep))).dim(4);
 		}
 		else {
-			PadLEDs::image[favouriteRow][i] = RGB::fromHue(static_cast<int16_t>((colours[i] * colourStep))).dim(4);
+			PadLEDs::image[favouriteRow][i] = RGB::monochrome(10);
 		}
 	}
 	// Un-Dim Selected Bank
 	PadLEDs::image[favouriteBankRow][currentBankNumber] =
 	    RGB::fromHue(static_cast<int16_t>((currentBankNumber * colourStep)));
 	// Un-Dim Selected Favourite
-	if (colours[currentFavouriteNumber] == -1) {
-		PadLEDs::image[favouriteRow][currentFavouriteNumber] = RGB::monochrome(50);
+	if (colours[currentFavouriteNumber].has_value()) {
+		PadLEDs::image[favouriteRow][currentFavouriteNumber] =
+		    RGB::fromHue(static_cast<int16_t>((colours[currentFavouriteNumber].value() * colourStep)));
 	}
 	else {
-		PadLEDs::image[favouriteRow][currentFavouriteNumber] =
-		    RGB::fromHue(static_cast<int16_t>((colours[currentFavouriteNumber] * colourStep)));
+		PadLEDs::image[favouriteRow][currentFavouriteNumber] = RGB::monochrome(50);
 	}
 
 	PadLEDs::sendOutMainPadColours();

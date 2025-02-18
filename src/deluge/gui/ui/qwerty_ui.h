@@ -54,7 +54,8 @@ protected:
 	virtual void displayText(bool blinkImmediately = false);
 
 	// Favourites
-	void renderFavourites(std::array<int8_t, 16> colours, uint8_t currentBankNumber, int8_t currentFavouriteNumber);
+	void renderFavourites(std::array<std::optional<uint8_t>, 16> colours, uint8_t currentBankNumber,
+	                      int8_t currentFavouriteNumber);
 
 	static constexpr int favouriteBankRow = 7;
 	static constexpr int favouriteRow = 6;

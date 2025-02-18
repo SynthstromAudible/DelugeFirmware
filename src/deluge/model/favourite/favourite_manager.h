@@ -29,20 +29,8 @@ class FavouritesManager {
 public:
 	struct Favorite {
 		int position;
-		int colour;
+		std::optional<uint8_t> colour;
 		std::string filename;
-
-		Favorite() {
-			position = -1;
-			colour = -1;
-			filename = "";
-		}; // Default constructor
-
-		Favorite(int pos, int col, const std::string& file) {
-			position = pos;
-			colour = col;
-			filename = file;
-		}; // Constructor with parameters
 	};
 
 public:
@@ -51,16 +39,15 @@ public:
 
 	void setCategory(const std::string& category);
 	void selectFavouritesBank(uint8_t bankNumber);
-	void setFavorite(uint8_t position, int8_t colour, const std::string& filename);
+	void setFavorite(uint8_t position, uint8_t colour, const std::string& filename);
 	void unsetFavorite(uint8_t position);
-	bool isEmtpy(uint8_t position) const;
+	bool isEmpty(uint8_t position) const;
 	Error loadFavouritesFromFile(Deserializer& reader);
 	void close();
-	std::array<int8_t, 16> getFavouriteColours() const;
-	int8_t changeColour(uint8_t position, int32_t offset);
+	std::array<std::optional<uint8_t>, 16> getFavouriteColours() const;
+	void changeColour(uint8_t position, int32_t offset);
 	const std::string& getFavoriteFilename(uint8_t position);
-	static constexpr int8_t favouriteDefaultColor = 4;
-	static constexpr int8_t favouriteEmtpyColor = -1;
+	static constexpr uint8_t favouriteDefaultColor = 4;
 	void registerCallback(std::function<void()> callback);
 
 	int8_t currentBankNumber;
@@ -71,7 +58,7 @@ private:
 
 	std::vector<Favorite> favourites;
 
-	void loadSubcategory(int subcategoryIndex);
+	void loadFavouritesBank();
 	void saveFavouriteBank() const;
 	std::string getFilenameForSave() const;
 	mutable bool unsavedChanges = false;

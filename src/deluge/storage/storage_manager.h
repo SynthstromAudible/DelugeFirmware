@@ -393,7 +393,7 @@ Error loadPatternFile(FilePointer* filePointer, String* fileName, bool overwrite
 
 Error openFavouriteFile(FilePointer* filePointer);
 Error loadFavouriteFile(FilePointer* filePointer, String* fileName);
-  
+
 Drum* createNewDrum(DrumType drumType);
 Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
                       FilePointer* filePointer, String* name, String* dirPath);

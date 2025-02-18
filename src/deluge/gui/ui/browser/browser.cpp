@@ -482,50 +482,34 @@ deleteThisItem:
 
 Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 	arrivedAtFileByTyping = true;
-	D_PRINTLN("setFileByFullPath: %s", fullPath);
 	FilePointer tempfp;
 	bool fileExists = StorageManager::fileExists(fullPath, &tempfp);
 	if (!fileExists) {
-		D_PRINTLN("couldn't get filepath");
 		return Error::FILE_NOT_FOUND;
 	}
 
-	const std::string fileName = getFileNameFromEndOfPath(fullPath);
-	const std::string filePath = getPathFromFullPath(fullPath);
-	D_PRINTLN("splitting: p: %s n: %s", filePath.c_str(), fileName.c_str());
-	currentDir.set(filePath.c_str());
-	Error error = arrivedInNewFolder(0, fileName.c_str());
-	D_PRINTLN("arrivedInNewFolderError: %i currentDir: %s", 0, currentDir.get());
+	const char* fileName = getFileNameFromEndOfPath(fullPath);
+	currentDir.set(getPathFromFullPath(fullPath));
+
+	// Change to the File Folder
+	Error error = arrivedInNewFolder(0, fileName);
 	if (error != Error::NONE) {
 		return error;
 	}
-	/* D_PRINTLN("currentFile: %s", fileName.c_str());
-	error = readFileItemsForFolder(getThingName(outputType), false, allowedFileExtensionsXML, fileName.c_str(),
-	                               FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, CATALOG_SEARCH_BOTH);
-	if (error != Error::NONE) {
-	    D_PRINTLN("readFileError: %i", error);
-	    return error;
-	} */
-	fileIndexSelected = fileItems.search(fileName.c_str());
-	D_PRINTLN("fileIndexSelected: %i numbers of files %i", fileItems.getNumElements());
+
+	//  Get the File Index
+	fileIndexSelected = fileItems.search(fileName);
 	if (fileIndexSelected > fileItems.getNumElements()) {
 		return Error::FILE_NOT_FOUND;
 	}
+
+	// Update the Display
 	scrollPosVertical = fileIndexSelected;
-	/* 	if (display->getNumBrowserAndMenuLines() > 1) {
-	        int32_t lastAllowed = fileItems.getNumElements() - display->getNumBrowserAndMenuLines();
-	        if (scrollPosVertical > lastAllowed) {
-	            scrollPosVertical = lastAllowed;
-	            if (scrollPosVertical < 0) {
-	                scrollPosVertical = 0;
-	            }
-	        }
-	    } */
-	D_PRINTLN("inxex: %i scrollpos %i", fileIndexSelected, scrollPosVertical);
 	setEnteredTextFromCurrentFilename();
-	currentFileChanged(1);
 	renderUIsForOled();
 
+	// Inform the Load UI that the File has changed
+	currentFileChanged(1);
 	return Error::NONE;
 }
 
@@ -1605,7 +1589,7 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 			if (error != Error::NONE) {
 				display->displayPopup("Favourite not found");
 			}
-			if (favouritesManager.isEmtpy(x)) {
+			if (favouritesManager.isEmpty(x)) {
 				if (!getCurrentFileItem()->isFolder) {
 					favouritesManager.setFavorite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
 				}
