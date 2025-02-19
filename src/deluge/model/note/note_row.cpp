@@ -3202,8 +3202,6 @@ Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip*
 	int32_t newBendRange = -1; // Temp variable for this because we can't actually create the expressionParams
 	                           // before we know what kind of Drum (if any) we have.
 
-	bool alreadyReadNoteData = false;
-
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(50);
@@ -3511,13 +3509,15 @@ getOut: {}
 		}
 
 		// Notes stored as hex data including lift (V3.2 onwards)
-		else if (!strcmp(tagName, "noteDataWithLift") && !alreadyReadNoteData) {
+		else if (song_firmware_version < FirmwareVersion::community({1, 3, 0})
+		         && !strcmp(tagName, "noteDataWithLift")) {
 			noteHexLength = 22;
 			goto doReadNoteData;
 		}
 
 		// Notes stored as hex data in nightly firmware 1.3 with no custom iterances
-		else if (!strcmp(tagName, "noteDataWithIteranceAndFill") && !alreadyReadNoteData) {
+		else if (song_firmware_version < FirmwareVersion::community({1, 3, 0})
+		         && !strcmp(tagName, "noteDataWithIteranceAndFill")) {
 			noteHexLength = 26;
 			goto doReadNoteData;
 		}
@@ -3525,7 +3525,6 @@ getOut: {}
 		// Notes stored as hex data including custom iterance and fill (community firmware 1.3 onwards)
 		else if (!strcmp(tagName, "noteDataWithSplitProb")) {
 			noteHexLength = 28;
-			alreadyReadNoteData = true;
 			goto doReadNoteData;
 		}
 
