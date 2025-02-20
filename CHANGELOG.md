@@ -96,7 +96,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### Randomizer submenu
 - Added a new submenu to the `Sound` menu called `Randomizer`. This menu gives you access to the following parameters (which affect both sequenced and arpeggiated notes):
-  - `Lock`: This parameter determines whether the randomized values will be locked to fixed values. If you change any of the randomizer parameters, the sequence of randomized values will change to a new one and will be locked again.
+  - `Lock`: This parameter allows you to freeze the current set of randomized values so the sequence has a repeatable pattern.
   - `Velocity Spread`: This parameters lets you apply some random variation to the notes.
   - `Note probability`: This parameter determines the likelihood of a note being played or not (this is in addition to the Note/Row probability).
   - `Reverse Probability`: This parameter determines the likelihood of a note's sample of being reversed.
