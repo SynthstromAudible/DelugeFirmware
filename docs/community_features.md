@@ -879,12 +879,23 @@ to each individual note onset. ([#1978])
 - ([#1198] [#2978] [#2985] [#2990] [#3079] [#3285]) For a detailed description of this feature, please refer to the feature
   documentation: [Arpeggiator Documentation]
 
-#### 4.3.9 - Velocity View
+#### 4.3.9 - Randomizer
+
+- A new submenu has been added to the `Sound` menu called `Randomizer`. This menu includes some of the Randomizer parameters
+  present in the Arpeggiator submenu, which have been enabled to work also for non-arpeggiated notes. That is, regular notes
+  from the sequencer when the arpeggiator is off, which are the following:
+  - `Lock`: This parameter allows you to freeze the current set of randomized values so the sequence has a repeatable pattern.
+  - `Velocity Spread`: This parameters lets you apply some random variation to the notes.
+  - `Note probability`: This parameter determines the likelihood of a note being played or not (this is in addition to the Note/Row probability).
+  - `Reverse Probability`: This parameter determines the likelihood of a note's sample of being reversed.
+- For more detailed information about these parameters, refer to the [Arpeggiator Documentation].
+
+#### 4.3.10 - Velocity View
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Velocity View Documentation]
 - ([#2046]) Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
 
-#### 4.3.10 - Enhanced Note Probability, Iterance and Fill
+#### 4.3.11 - Enhanced Note Probability, Iterance and Fill
 
 - ([#2641], [#2751]) Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
   - To edit probability, hold a note / audition pad and turn the select encoder to the left to display current probability value / set new probability value.
@@ -892,17 +903,17 @@ to each individual note onset. ([#1978])
   - Note iteration now also supports custom iteration steps. To access them, hold a note and press the `SELECT` encoder to open the Note menu. Scroll to `NOTE ITERANCE` and press `SELECT` again to enter the Note Iterance menu, the default is `OFF`. Turn the `SELECT` encoder right through all options until you see `CUSTOM`, then press the `SELECT` encoder again. A new menu will appear with the `DIVISOR` parameter (from 1 to 8.) The number of `DIVISORS` you choose will set how many `ITERATION #` toggles appear. Each `ITERATION #` allows you to activate or deactivate an iteration step.
   - To edit fill, you need to access the new note and note row editor menu's.
 
-#### 4.3.11 - Added New Note and Note Row Editor Menu's
+#### 4.3.12 - Added New Note and Note Row Editor Menu's
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Note / Note Row Editor Documentation]
 - ([#2641]) Added new note and note row editor menu's to edit note and note row parameters.
   - Hold a note and press the select encoder to enter the note editor menu. While in the note editor menu, the selected note will blink. You can select other notes by pressing the notes on the grid.
   - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the select note row audition pad will blink. You can select other note row's by pressing the note row audition pad.
 
-#### 4.3.12 - Auto Load sample when browsing
+#### 4.3.13 - Auto Load sample when browsing
 
 - ([#2676]) When browsing for sample to assign to a Synth or to a Kit Row, you can now enable auto-load of previewed samples. To do this, open the sample browser (`SHIFT + BROWSE`), and engage `AUTO-LOAD` by pressing `LOAD`. While the `LOAD` LED is on, all the samples that you preview will automatically be loaded to the instrument as if you had confirmed the selection. This makes previewing single cycle waveforms way more convenient, for example.
 
-#### 4.3.13 - Save/Load Patterns
+#### 4.3.14 - Save/Load Patterns
 - ([#3352]) Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synt, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ] for more info.
 
 ### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features

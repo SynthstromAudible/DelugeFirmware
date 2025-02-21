@@ -151,14 +151,18 @@ setting how many times they are repeated, and setting the direction in which the
 
 ### Randomizer (RAND)
 The following parameters are all **automatable** and **learnable** to golden knobs and MIDI CC (not in MIDI clips), and they define how probable a value is to change on each step:
-- **`Lock Randomizer (LOCK)`**: this flag will lock the current set of randomized values for the arpeggiator, so the sequence has a repeatable pattern.
-  - Tip 1: In case you have drone notes, make use of the `Sequence Length` parameter to further adjust the repeated sequence.
-  - Tip 2: If you want to re-roll the dice for a parameter, slightly change its value and a new set of random values will be
-  generated and locked.
-  - Tip 3: If you want some parameters to be locked, but not others, add some automation variation in the clip to those,
-  so the dice is re-rolled and hence you always get fresh new random values for them, while the others have fixed values.
-  Note: you can find this parameter also at the root level of the sound menu, under `Randomizer`, because this flag is also applied for
-  both sequenced notes and arpeggiated notes.
+- **`Lock Randomizer (LOCK)`**: This parameter allows you to freeze the current set of randomized values so the sequence has a
+  repeatable pattern. Note: you can find this parameter also at the root level of the sound menu, under `Randomizer`, because
+  this toggle is also applied for both sequenced notes and arpeggiated notes.
+  - If Lock is OFF, every single note or arp step will get a new random value for each randomized parameter, and as a result for every
+    single step it's unpredictable what result values it will have for Velocity/Octave/Gate spreads, or Note Prob, Ratchet Prob, etc.
+  - If Lock is ON, the dice is rolled just once for every note or arp step of the whole clip sequence (based on the
+    probability values you have set), so you will feel the clip like it is repeating, with a fixed and predictable sequence.
+  = If you want to re-roll the dice just for one of the parameters, slightly change its value (even increasing or decreasing it by 1
+    is enough) and a new set of random values will be generated and locked again.
+  - Extending on the previous tip, if you want some parameters to be locked, but not others, add some automation variation in the clip
+    to those, so the dice is re-rolled for them and hence you always get fresh new random values for them, while the others
+    have fixed values.
 - **`Octave Spread (OCTA)`**: The note will get a change in pitch of a random amount of octaves, going from 0 up to a maximum of +3 octaves.
 - **`Gate Spread (GATE)`**: The gate of the arp step will get a random **positive** or **negative** deviation from the base gate.
 - **`Velocity Spread (VELO)`**: The velocity of the arp step will get a random **positive** or **negative** deviation from the base velocity.

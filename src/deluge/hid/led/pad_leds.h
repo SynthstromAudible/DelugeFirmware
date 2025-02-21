@@ -59,7 +59,7 @@ extern int8_t zoomMagnitude;
 
 void init();
 void sortLedsForCol(int32_t x);
-void writeToSideBar(uint8_t sideBarX, uint8_t yDisplay, uint8_t red, uint8_t green, uint8_t blue);
+void set(Cartesian pad, RGB colour);
 void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEnd, int32_t progress);
 void renderClipExpandOrCollapse();
 void renderNoteRowExpandOrCollapse();
