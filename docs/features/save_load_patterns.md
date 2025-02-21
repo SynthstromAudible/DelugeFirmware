@@ -109,7 +109,7 @@ After loading a Patter, the Pattern is also copied into Clipboard and can be pas
 
 
 ### Additional Tools
-Under [contrib/midi2deluge](contrib/midi2deluge), you will find two simple Tools - a WebApp and a python Script - which can generate Pattern-Files for the Deluge out of Simple Midi-Files.
+Under [contrib/midi2deluge](../contrib/midi2deluge), you will find two simple Tools - a WebApp and a python Script - which can generate Pattern-Files for the Deluge out of Simple Midi-Files.
 Important:The Tools where tested with the [Wikipedia Midifile Sample](https://en.wikipedia.org/wiki/File:MIDI_sample.mid) and may will not work with very complex Midi-Files.
 
 
