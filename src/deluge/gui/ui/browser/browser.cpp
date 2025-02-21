@@ -1577,8 +1577,27 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 }
 
 ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
+	uint8_t shiftFavouritesRow = 0;
+	FavouritesDefaultLayout favouritesLayoutSelected;
+	switch (FlashStorage::defaultFavouritesLayout) {
+	case FavouritesDefaultLayoutFavorites: {
+		favouritesLayoutSelected = FavouritesDefaultLayoutFavorites;
+		shiftFavouritesRow = 1;
+		break;
+	}
+	case FavouritesDefaultLayoutFavoritesAndBanks: {
+		favouritesLayoutSelected = FavouritesDefaultLayoutFavoritesAndBanks;
+		shiftFavouritesRow = 0;
+		break;
+	}
+	default: {
+		favouritesLayoutSelected = FavouritesDefaultLayoutOff;
+		favouritesVisible = false;
+		break;
+	}
+	}
 
-	if (favouritesVisible && y == favouriteRow && on) {
+	if (favouritesVisible && y == (favouriteRow + shiftFavouritesRow) && on) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -1608,14 +1627,16 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 		return ActionResult::DEALT_WITH;
 	}
-	else if (favouritesVisible && y == favouriteBankRow && on) {
+	else if (favouritesVisible
+	         && favouritesLayoutSelected == FavouritesDefaultLayout::FavouritesDefaultLayoutFavoritesAndBanks
+	         && y == favouriteBankRow && on) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		favouritesManager.selectFavouritesBank(x);
 		return ActionResult::DEALT_WITH;
 	}
-	else if (qwertyVisible) {
+	if (qwertyVisible) {
 		return QwertyUI::padAction(x, y, on);
 	}
 	return ActionResult::DEALT_WITH;

@@ -59,6 +59,9 @@ set the stutter configuration independently of the song configuration if you wis
 - Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synt, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ](docs/features/save_load_patterns.md) for more info.
 
 #### <ins>Favourites</ins>
+A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UT -> KEYBOARD -> FAVOURITES`.
+
+#### <ins>Favourites</ins>
 - Added a Favourites to Load Screens of different Filetypes displayed abote the QWERTY Keyboard.
 
 #### <ins>Arranger View</ins>

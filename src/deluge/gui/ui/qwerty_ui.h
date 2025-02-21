@@ -57,8 +57,8 @@ protected:
 	void renderFavourites(std::array<std::optional<uint8_t>, 16> colours, uint8_t currentBankNumber,
 	                      std::optional<uint8_t> currentFavouriteNumber);
 
-	static constexpr int favouriteBankRow = 7;
 	static constexpr int favouriteRow = 6;
+	static constexpr int favouriteBankRow = 7;
 
 	static int16_t enteredTextEditPos;
 	static int32_t scrollPosHorizontal;

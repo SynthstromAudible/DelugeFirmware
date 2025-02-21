@@ -166,6 +166,10 @@ The Settings menu contains the following menu hierarchy:
 				- Momentary Modwheel (MMOD)
 					- Disabled (OFF)
 					- Enabled (ON)
+			- Favourites (FAV)
+				- Favourites Only (16)
+				- Favourites and Banks (256)
+				- Off (OFF)
 		- Clip Type (CLIP)
 			- New Clip Type (TYPE)
 				- Synth

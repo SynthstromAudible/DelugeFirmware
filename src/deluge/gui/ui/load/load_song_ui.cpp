@@ -64,6 +64,7 @@ LoadSongUI::LoadSongUI() {
 	filePrefix = "SONG";
 	title = "Load song";
 	performingLoad = false;
+	qwertyCurrentlyDrawnOnscreen = false;
 }
 
 bool LoadSongUI::opened() {
@@ -224,7 +225,17 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 			}
 		}
 	}
-
+	else if (b == KEYBOARD && on) {
+		qwertyAlwaysVisible = !qwertyAlwaysVisible;
+		indicator_leds::setLedState(IndicatorLED::KEYBOARD, qwertyAlwaysVisible);
+		qwertyVisible = qwertyAlwaysVisible;
+		if (qwertyVisible) {
+			favouritesVisible = true;
+			drawKeys();
+			drawFavourites();
+			qwertyCurrentlyDrawnOnscreen = true;
+		}
+	}
 	else {
 		return LoadUI::buttonAction(b, on, inCardRoutine);
 	}
@@ -737,8 +748,9 @@ ignoring the file extension.
 
 void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 
-	if (movementDirection) {
+	if (movementDirection && !qwertyAlwaysVisible) {
 		qwertyVisible = false;
+		qwertyCurrentlyDrawnOnscreen = false;
 
 		// Start horizontal scrolling
 		PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth + kSideBarWidth, true,
@@ -859,6 +871,10 @@ void LoadSongUI::exitAction() {
 
 void LoadSongUI::drawSongPreview(bool toStore) {
 
+	if (qwertyAlwaysVisible) {
+		return;
+	}
+
 	RGB(*imageStore)[kDisplayWidth + kSideBarWidth];
 	if (toStore) {
 		imageStore = PadLEDs::imageStore;
@@ -940,12 +956,12 @@ void LoadSongUI::displayText(bool blinkImmediately) {
 
 	LoadUI::displayText();
 
-	if (qwertyVisible) {
+	if (qwertyVisible && !qwertyCurrentlyDrawnOnscreen) {
 		FileItem* currentFileItem = getCurrentFileItem();
 
 		drawKeys();
 		drawFavourites();
-
+		qwertyCurrentlyDrawnOnscreen = true;
 		PadLEDs::sendOutSidebarColours();
 	}
 }

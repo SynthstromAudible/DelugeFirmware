@@ -237,7 +237,7 @@ void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 
 	// Can start scrolling right now, while next preview loads
-	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible)) {
+	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible) && !qwertyAlwaysVisible) {
 		qwertyVisible = false;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
@@ -482,7 +482,18 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 			indicator_leds::setLedState(IndicatorLED::LOAD, autoLoadEnabled);
 		}
 	}
-
+	else if (b == KEYBOARD && on) {
+		qwertyAlwaysVisible = !qwertyAlwaysVisible;
+		indicator_leds::setLedState(IndicatorLED::KEYBOARD, qwertyAlwaysVisible);
+		qwertyVisible = qwertyAlwaysVisible;
+		favouritesVisible = qwertyVisible;
+		if (qwertyVisible) {
+			favouritesVisible = true;
+			qwertyCurrentlyDrawnOnscreen = true;
+			drawKeys();
+			drawFavourites();
+		}
+	}
 	else {
 		return Browser::buttonAction(b, on, inCardRoutine);
 	}
@@ -604,7 +615,8 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 				waveformBasicNavigator.opened();
 
 				// If want scrolling animation
-				if (movementDirection) {
+				if (movementDirection && !qwertyAlwaysVisible) {
+					D_PRINTLN("want Scroll animation");
 					waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 					                                  waveformBasicNavigator.xZoom, PadLEDs::imageStore,
 					                                  &waveformBasicNavigator.renderData);
@@ -616,11 +628,13 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 				// Or if want instant snap render
 				else {
-					if (qwertyVisible) {
+					if (qwertyVisible && !qwertyCurrentlyDrawnOnscreen) {
+						D_PRINTLN("qwerty Visible");
 						drawKeys();
 						drawFavourites();
 					}
-					else {
+					else if (!qwertyVisible) {
+						D_PRINTLN("Rener FullScreen");
 						waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 						                                  waveformBasicNavigator.xZoom, PadLEDs::image,
 						                                  &waveformBasicNavigator.renderData);

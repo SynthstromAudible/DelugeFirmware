@@ -46,6 +46,8 @@ extern KeyboardLayoutType defaultKeyboardLayout;
 extern bool keyboardFunctionsVelocityGlide;
 extern bool keyboardFunctionsModwheelGlide;
 
+extern FavouritesDefaultLayout defaultFavouritesLayout;
+
 extern bool gridEmptyPadsUnarm;
 extern bool gridEmptyPadsCreateRec;
 extern bool gridAllowGreenSelection;

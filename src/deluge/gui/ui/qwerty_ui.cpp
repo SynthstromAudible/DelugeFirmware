@@ -402,27 +402,54 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 void QwertyUI::renderFavourites(std::array<std::optional<uint8_t>, 16> colours, uint8_t currentBankNumber,
                                 std::optional<uint8_t> currentFavouriteNumber) {
+	uint8_t shiftFavouritesRow = 0;
+	FavouritesDefaultLayout favouritesLayoutSelected;
+	switch (FlashStorage::defaultFavouritesLayout) {
+	case FavouritesDefaultLayoutFavorites: {
+		favouritesLayoutSelected = FavouritesDefaultLayoutFavorites;
+		shiftFavouritesRow = 1;
+		break;
+	}
+	case FavouritesDefaultLayoutFavoritesAndBanks: {
+		favouritesLayoutSelected = FavouritesDefaultLayoutFavoritesAndBanks;
+		shiftFavouritesRow = 0;
+		break;
+	}
+	default: {
+		return;
+		break;
+	}
+	}
 	for (size_t i = 0; i < 16; i++) {
-		PadLEDs::image[favouriteBankRow][i] = RGB::fromHue(static_cast<int16_t>((i * colourStep))).dim(4);
+		// Render Banks
+		if (favouritesLayoutSelected == FavouritesDefaultLayout::FavouritesDefaultLayoutFavoritesAndBanks) {
+			PadLEDs::image[favouriteBankRow][i] = RGB::fromHue(static_cast<int16_t>((i * colourStep))).dim(4);
+		}
+		// Render Favourites
 		if (colours[i].has_value()) {
-			PadLEDs::image[favouriteRow][i] =
+			PadLEDs::image[favouriteRow + shiftFavouritesRow][i] =
 			    RGB::fromHue(static_cast<int16_t>((colours[i].value() * colourStep))).dim(4);
 		}
 		else {
-			PadLEDs::image[favouriteRow][i] = RGB::monochrome(10);
+			PadLEDs::image[favouriteRow + shiftFavouritesRow][i] =
+			    RGB::fromHue(static_cast<int16_t>((8 * colourStep))).dim(6);
 		}
 	}
-	// Un-Dim Selected Bank
-	PadLEDs::image[favouriteBankRow][currentBankNumber] =
-	    RGB::fromHue(static_cast<int16_t>((currentBankNumber * colourStep)));
+	if (favouritesLayoutSelected == FavouritesDefaultLayout::FavouritesDefaultLayoutFavoritesAndBanks) {
+		// Un-Dim Selected Bank
+		PadLEDs::image[favouriteBankRow][currentBankNumber] =
+		    RGB::fromHue(static_cast<int16_t>((currentBankNumber * colourStep)));
+	}
+
 	// Un-Dim Selected Favourite
 	if (currentFavouriteNumber.has_value()) {
 		if (colours[currentFavouriteNumber.value()].has_value()) {
-			PadLEDs::image[favouriteRow][currentFavouriteNumber.value()] =
+			PadLEDs::image[favouriteRow + shiftFavouritesRow][currentFavouriteNumber.value()] =
 			    RGB::fromHue(static_cast<int16_t>((colours[currentFavouriteNumber.value()].value() * colourStep)));
 		}
 		else {
-			PadLEDs::image[favouriteRow][currentFavouriteNumber.value()] = RGB::monochrome(50);
+			PadLEDs::image[favouriteRow + shiftFavouritesRow][currentFavouriteNumber.value()] =
+			    RGB::fromHue(static_cast<int16_t>((8 * colourStep))).dim(6);
 		}
 	}
 
