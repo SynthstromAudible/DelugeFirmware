@@ -80,6 +80,8 @@ public:
 
 	bool doneFirstRender;
 	bool previouslyIgnoredNoteOff;
+	bool sustainedByPedal;
+	bool pressedAfterSostenuto;
 
 	uint32_t orderSounded;
 

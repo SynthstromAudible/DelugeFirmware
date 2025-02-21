@@ -385,15 +385,23 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 				*doingMidiThru = false;
 			}
 		}
-		if (ccNumber == CC_EXTERNAL_MOD_WHEEL) {
+
+		switch (ccNumber) {
+		case CC_EXTERNAL_MOD_WHEEL:
 			// this is the same range as mpe Y axis but unipolar
 			value32 = (value) << 24;
 			processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, value32, modelStackWithTimelineCounter);
 			// Don't also pass to ccReveived since it will now be handled by output mono expression in midi
 			// clips instead
 			return;
+		case CC_EXTERNAL_PEDAL_SOSTENUTO:
+		case CC_EXTERNAL_PEDAL_SUSTAIN:
+			value32 = (value - 64) << 25;
+			processParamFromInputMIDIChannel(ccNumber, value32, modelStackWithTimelineCounter);
+			return;
+		default:
+			break;
 		}
-
 		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this
 		// themselves
 		ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
@@ -591,9 +599,31 @@ bool MelodicInstrument::isAnyAuditioningHappening() {
 ModelStackWithAutoParam*
 MelodicInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackWithThreeMainThings* modelStack) {
 
-	modelStack->paramManager->ensureExpressionParamSetExists();
-	ParamCollectionSummary* summary = modelStack->paramManager->getExpressionParamSetSummary();
+	if (cc == CC_EXTERNAL_PEDAL_SUSTAIN || cc == CC_EXTERNAL_PEDAL_SOSTENUTO) {
+		ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
+		auto* unpatched_params = static_cast<UnpatchedParamSet*>(summary->paramCollection);
+		if (unpatched_params == nullptr) {
+			return modelStack->addParam(nullptr, nullptr, 0, nullptr);
+		}
 
+		int32_t param_id = 0;
+		switch (cc) {
+		case CC_EXTERNAL_PEDAL_SOSTENUTO:
+			param_id = modulation::params::UNPATCHED_PEDAL_SOSTENUTO;
+			break;
+		case CC_EXTERNAL_PEDAL_SUSTAIN:
+			param_id = modulation::params::UNPATCHED_PEDAL_SUSTAIN;
+			break;
+		default:
+			__builtin_unreachable();
+		}
+
+		return modelStack->addParam(unpatched_params, summary, param_id, &unpatched_params->params[param_id]);
+	}
+
+	modelStack->paramManager->ensureExpressionParamSetExists();
+
+	ParamCollectionSummary* summary = modelStack->paramManager->getExpressionParamSetSummary();
 	ExpressionParamSet* mpeParams = (ExpressionParamSet*)summary->paramCollection;
 	if (!mpeParams) {
 		return modelStack->addParam(nullptr, nullptr, 0, nullptr); // Crude way of saying "none".

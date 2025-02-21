@@ -177,6 +177,8 @@ void Sound::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_PEDAL_SUSTAIN].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_PEDAL_SOSTENUTO].setCurrentValueBasicForSetup(-2147483648);
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	patchedParams->params[params::LOCAL_VOLUME].setCurrentValueBasicForSetup(0);
@@ -4067,6 +4069,16 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 		                           readAutomationUpToPos);
 		reader.exitTag("compressorShape");
 	}
+	else if (!strcmp(tagName, "pedalSustain")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PEDAL_SUSTAIN,
+		                           readAutomationUpToPos);
+		reader.exitTag("pedalSustain");
+	}
+	else if (!strcmp(tagName, "pedalSostenuto")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PEDAL_SOSTENUTO,
+		                           readAutomationUpToPos);
+		reader.exitTag("pedalSostenuto");
+	}
 
 	else if (!strcmp(tagName, "noiseVolume")) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_NOISE_VOLUME, readAutomationUpToPos);
@@ -4347,6 +4359,14 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	unpatchedParams->writeParamAsAttribute(writer, "portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
 	                                       writeAutomation);
+
+	// Only write pedal states if writing automation. This helps avoid saving the pedal state as a part of a preset
+	if (writeAutomation) {
+		unpatchedParams->writeParamAsAttribute(writer, "pedalSustain", params::UNPATCHED_PEDAL_SUSTAIN,
+		                                       writeAutomation);
+		unpatchedParams->writeParamAsAttribute(writer, "pedalSostenuto", params::UNPATCHED_PEDAL_SOSTENUTO,
+		                                       writeAutomation);
+	}
 
 	patchedParams->writeParamAsAttribute(writer, "oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);

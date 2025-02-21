@@ -525,6 +525,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK, "Can't clone audio in other track"},
         {STRING_FOR_CANT_CONVERT_TYPE, "Can't convert audio/non-audio"},
         {STRING_FOR_TARGET_FULL, "Target full"},
+        {STRING_FOR_PEDAL_SUSTAIN, "Sustain Pedal"},
+        {STRING_FOR_PEDAL_SOSTENUTO, "Sostenuto Pedal"},
         {STRING_FOR_LPF_MORPH, "LPF morph"},
         {STRING_FOR_LPF_MODE, "LPF mode"},
         {STRING_FOR_MORPH, "Morph"},

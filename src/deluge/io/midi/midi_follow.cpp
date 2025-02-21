@@ -192,6 +192,10 @@ void MidiFollow::initDefaultMappings() {
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING] = 62;
 	ccToSoundParam[63] = params::UNPATCHED_START + params::UNPATCHED_SAMPLE_RATE_REDUCTION;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SAMPLE_RATE_REDUCTION] = 63;
+	ccToSoundParam[64] = params::UNPATCHED_START + params::UNPATCHED_PEDAL_SUSTAIN;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_PEDAL_SUSTAIN] = 64;
+	ccToSoundParam[66] = params::UNPATCHED_START + params::UNPATCHED_PEDAL_SOSTENUTO;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_PEDAL_SOSTENUTO] = 66;
 	ccToSoundParam[70] = params::LOCAL_LPF_MORPH;
 	soundParamToCC[params::LOCAL_LPF_MORPH] = 70;
 	ccToSoundParam[71] = params::LOCAL_LPF_RESONANCE;
