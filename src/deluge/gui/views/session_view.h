@@ -155,6 +155,9 @@ public:
 	// convert instrument clip to audio clip
 	void replaceInstrumentClipWithAudioClip(Clip* clip);
 
+	// pulse selected clip in grid view
+	void gridPulseSelectedClip();
+
 private:
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
 	// no dispatch logic.
@@ -205,7 +208,7 @@ private:
 	bool gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 
-	RGB gridRenderClipColor(Clip* clip);
+	RGB gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool renderPulse = true);
 
 	ActionResult gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
@@ -250,7 +253,7 @@ private:
 	void gridStartSection(uint32_t section, bool instant);
 	void gridToggleClipPlay(Clip* clip, bool instant);
 
-	const uint32_t gridTrackCount();
+	[[nodiscard]] const size_t gridTrackCount() const;
 	uint32_t gridClipCountForTrack(Output* track);
 	uint32_t gridTrackIndexFromTrack(Output* track, uint32_t maxTrack);
 	Output* gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack);
@@ -260,8 +263,9 @@ private:
 	int32_t gridTrackIndexFromX(uint32_t x, uint32_t maxTrack);
 	Output* gridTrackFromX(uint32_t x, uint32_t maxTrack);
 	Clip* gridClipFromCoords(uint32_t x, uint32_t y);
+	Cartesian gridXYFromClip(Clip& clip);
 
-	inline void gridSetDefaultMode() {
+	void gridSetDefaultMode() {
 		switch (FlashStorage::defaultGridActiveMode) {
 		case GridDefaultActiveModeGreen: {
 			gridModeSelected = SessionGridModeLaunch;
@@ -276,8 +280,37 @@ private:
 		case GridDefaultActiveModeMaxElement:;
 		}
 	}
+
 	void setupTrackCreation() const;
 	void exitTrackCreation();
+
+	// selected clip pulsing in grid view
+
+	/// @brief disable selected clip pulsing
+	void gridStopSelectedClipPulsing();
+
+	/// @brief reset blend position for pulse
+	void gridResetSelectedClipPulseProgress();
+
+	/// @brief render pulse for selected clip
+	void gridSelectClipForPulsing(Clip& clip);
+
+	/// @brief check if we should stop pulsing
+	bool gridCheckForPulseStop();
+
+	bool gridSelectedClipPulsing = false;   // are we doing any pulsing
+	Clip* selectedClipForPulsing = nullptr; // selected clip we are pulsing
+	RGB gridSelectedClipRenderedColour;     // last pulse colour we rendered
+	bool blendDirection = false;            // direction we're blending towards
+	int32_t progress = 0;                   // pulse blend slider position
+
+	static constexpr int32_t kMinProgress = 1;                           // min position to reach in blend slider
+	static constexpr int32_t kMaxProgressFull = (65535 / 100) * 60;      // max position to reach for unmuted clip
+	static constexpr int32_t kMaxProgressDim = 1000;                     // max position to reach for muted clip
+	static constexpr int32_t kPulseRate = 50;                            // speed of timer in ms
+	static constexpr int32_t kBlendRate = 60;                            // speed of blending colours
+	static constexpr int32_t kBlendOffsetFull = kPulseRate * kBlendRate; // amount to move slider for unmuted clip
+	static constexpr int32_t kBlendOffsetDim = kPulseRate;               // amount to move slider for muted clip
 };
 
 extern SessionView sessionView;
