@@ -122,8 +122,9 @@ void ParamSet::processCurrentPos(ModelStackWithParamCollection* modelStack, int3
 
 		AutoParam* param = &params[p];
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
-		int32_t ticksTilNextEventThisParam =
-		    param->processCurrentPos(modelStackWithAutoParam, reversed, didPingpong, mayInterpolate);
+
+		int32_t ticksTilNextEventThisParam = param->processCurrentPos(modelStackWithAutoParam, reversed, didPingpong,
+		                                                              mayInterpolate && mayParamInterpolate(p));
 		ticksTilNextEvent = std::min(ticksTilNextEvent, ticksTilNextEventThisParam);
 
 		checkWhetherParamHasInterpolationNow(modelStack, p);
@@ -426,6 +427,14 @@ int32_t UnpatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAu
 
 bool UnpatchedParamSet::doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) {
 	return (modelStack->paramId != params::UNPATCHED_STUTTER_RATE);
+}
+
+bool UnpatchedParamSet::mayParamInterpolate(int32_t paramId) {
+	if (kind == params::Kind::UNPATCHED_SOUND
+	    && (paramId == params::UNPATCHED_PEDAL_SUSTAIN || paramId == params::UNPATCHED_PEDAL_SOSTENUTO)) {
+		return false;
+	}
+	return true;
 }
 
 // PatchedParamSet --------------------------------------------------------------------------------------------
