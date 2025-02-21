@@ -177,8 +177,6 @@ Error LoadPatternUI::setupForLoadingPattern() {
 	currentLabelLoadError = (fileIndexSelected >= 0) ? Error::NONE : Error::UNSPECIFIED;
 
 	drawKeys();
-	favouritesVisible = true;
-	drawFavourites();
 
 	if (display->have7SEG()) {
 		displayText(false);

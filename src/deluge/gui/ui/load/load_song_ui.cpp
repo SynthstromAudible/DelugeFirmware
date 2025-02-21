@@ -232,7 +232,6 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 		if (qwertyVisible) {
 			favouritesVisible = true;
 			drawKeys();
-			drawFavourites();
 			qwertyCurrentlyDrawnOnscreen = true;
 		}
 	}
@@ -750,6 +749,7 @@ void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 
 	if (movementDirection && !qwertyAlwaysVisible) {
 		qwertyVisible = false;
+		favouritesVisible = false;
 		qwertyCurrentlyDrawnOnscreen = false;
 
 		// Start horizontal scrolling
@@ -849,7 +849,9 @@ ActionResult LoadSongUI::verticalEncoderAction(int32_t offset, bool inCardRoutin
 		}
 		exitAction(); // Exit if your scroll down
 	}
-
+	if (Buttons::isShiftButtonPressed()) {
+		return LoadUI::verticalEncoderAction(offset, false);
+	}
 	return ActionResult::DEALT_WITH;
 }
 
@@ -960,7 +962,6 @@ void LoadSongUI::displayText(bool blinkImmediately) {
 		FileItem* currentFileItem = getCurrentFileItem();
 
 		drawKeys();
-		drawFavourites();
 		qwertyCurrentlyDrawnOnscreen = true;
 		PadLEDs::sendOutSidebarColours();
 	}

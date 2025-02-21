@@ -239,6 +239,7 @@ void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 	// Can start scrolling right now, while next preview loads
 	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible) && !qwertyAlwaysVisible) {
 		qwertyVisible = false;
+		favouritesVisible = false;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
@@ -486,12 +487,10 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 		qwertyAlwaysVisible = !qwertyAlwaysVisible;
 		indicator_leds::setLedState(IndicatorLED::KEYBOARD, qwertyAlwaysVisible);
 		qwertyVisible = qwertyAlwaysVisible;
-		favouritesVisible = qwertyVisible;
 		if (qwertyVisible) {
 			favouritesVisible = true;
 			qwertyCurrentlyDrawnOnscreen = true;
 			drawKeys();
-			drawFavourites();
 		}
 	}
 	else {
@@ -631,7 +630,6 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 					if (qwertyVisible && !qwertyCurrentlyDrawnOnscreen) {
 						D_PRINTLN("qwerty Visible");
 						drawKeys();
-						drawFavourites();
 					}
 					else if (!qwertyVisible) {
 						D_PRINTLN("Rener FullScreen");
@@ -722,7 +720,6 @@ possiblyExit:
 				PadLEDs::reassessGreyout(true);
 
 				drawKeys();
-				drawFavourites();
 
 				qwertyCurrentlyDrawnOnscreen = true;
 
@@ -2056,7 +2053,6 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 		PadLEDs::reassessGreyout(true);
 
 		drawKeys();
-		drawFavourites();
 
 		qwertyCurrentlyDrawnOnscreen = true;
 
@@ -2065,6 +2061,9 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 }
 
 ActionResult SampleBrowser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	if (Buttons::isShiftButtonPressed()) {
+		return Browser::verticalEncoderAction(offset, false);
+	}
 	if (getRootUI() == &instrumentClipView) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 			return ActionResult::DEALT_WITH;

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/ui/ui.h"
+#include "model/favourite/favourite_manager.h"
 #include "util/d_string.h"
 #include <cstdint>
 
@@ -54,14 +55,18 @@ protected:
 	virtual void displayText(bool blinkImmediately = false);
 
 	// Favourites
-	void renderFavourites(std::array<std::optional<uint8_t>, 16> colours, uint8_t currentBankNumber,
-	                      std::optional<uint8_t> currentFavouriteNumber);
+	void renderFavourites();
 
-	static constexpr int favouriteRow = 6;
-	static constexpr int favouriteBankRow = 7;
+	static uint8_t favouriteRow;
+	static constexpr uint8_t favouriteBankRow = 7;
 
 	static int16_t enteredTextEditPos;
 	static int32_t scrollPosHorizontal;
+	static bool favouritesVisible;
+	static bool banksVisible;
 
 private:
+	static uint8_t currentBank;
+	static std::optional<uint8_t> currentFavourite;
+	static FavouritesDefaultLayout favouritesLayoutSelected;
 };

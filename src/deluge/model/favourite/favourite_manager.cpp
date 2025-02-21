@@ -129,7 +129,7 @@ void FavouritesManager::selectFavouritesBank(uint8_t bankNumber) {
 		saveFavouriteBank();
 	}
 	currentBankNumber = bankNumber;
-	currentFavouriteNumber = -1;
+	currentFavouriteNumber = std::nullopt;
 	loadFavouritesBank();
 }
 

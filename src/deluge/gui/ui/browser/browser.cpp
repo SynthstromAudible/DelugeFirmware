@@ -28,7 +28,6 @@
 #include "hid/display/oled.h"
 #include "hid/encoders.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/log.h"
 #include "model/instrument/instrument.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -44,7 +43,6 @@ using namespace deluge;
 
 String Browser::currentDir{};
 bool Browser::qwertyVisible;
-bool Browser::favouritesVisible;
 
 CStringArray Browser::fileItems{sizeof(FileItem)};
 int32_t Browser::scrollPosVertical;
@@ -78,7 +76,7 @@ Browser::Browser() {
 	qwertyVisible = true; // Because for most Browsers, it'll just always be true.
 	filePrefix = NULL;
 	shouldInterpretNoteNamesForThisBrowser = false;
-	favouritesManager.registerCallback([this]() { this->drawFavourites(); });
+	favouritesManager.registerCallback([this]() { this->favouritesChanged(); });
 }
 
 bool Browser::opened() {
@@ -122,6 +120,7 @@ bool Browser::checkFP() {
 void Browser::close() {
 	emptyFileItems();
 	favouritesManager.close();
+	favouritesVisible = false;
 	QwertyUI::close();
 }
 
@@ -1577,27 +1576,8 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 }
 
 ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
-	uint8_t shiftFavouritesRow = 0;
-	FavouritesDefaultLayout favouritesLayoutSelected;
-	switch (FlashStorage::defaultFavouritesLayout) {
-	case FavouritesDefaultLayoutFavorites: {
-		favouritesLayoutSelected = FavouritesDefaultLayoutFavorites;
-		shiftFavouritesRow = 1;
-		break;
-	}
-	case FavouritesDefaultLayoutFavoritesAndBanks: {
-		favouritesLayoutSelected = FavouritesDefaultLayoutFavoritesAndBanks;
-		shiftFavouritesRow = 0;
-		break;
-	}
-	default: {
-		favouritesLayoutSelected = FavouritesDefaultLayoutOff;
-		favouritesVisible = false;
-		break;
-	}
-	}
 
-	if (favouritesVisible && y == (favouriteRow + shiftFavouritesRow) && on) {
+	if (favouritesVisible && y == favouriteRow && on) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -1627,9 +1607,7 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 		return ActionResult::DEALT_WITH;
 	}
-	else if (favouritesVisible
-	         && favouritesLayoutSelected == FavouritesDefaultLayout::FavouritesDefaultLayoutFavoritesAndBanks
-	         && y == favouriteBankRow && on) {
+	else if (favouritesVisible && banksVisible && y == favouriteBankRow && on) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -1642,11 +1620,9 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 	return ActionResult::DEALT_WITH;
 }
 
-void Browser::drawFavourites() {
-	if (favouritesVisible) {
-		renderFavourites(favouritesManager.getFavouriteColours(), favouritesManager.currentBankNumber,
-		                 favouritesManager.currentFavouriteNumber);
-	}
+void Browser::favouritesChanged() {
+	favouritesVisible = true;
+	renderFavourites();
 }
 
 ActionResult Browser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {

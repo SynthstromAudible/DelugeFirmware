@@ -266,8 +266,6 @@ useDefaultFolder:
 	// in from (musical) keyboard view, I think
 
 	drawKeys();
-	// Configure and show the favourites
-	favouritesVisible = true;
 	favouritesManager.setCategory(defaultDir);
 
 	if (showingAuditionPads()) {
