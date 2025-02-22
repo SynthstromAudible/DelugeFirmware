@@ -267,6 +267,7 @@ useDefaultFolder:
 
 	drawKeys();
 	favouritesManager.setCategory(defaultDir);
+	favouritesChanged();
 
 	if (showingAuditionPads()) {
 		instrumentClipView.recalculateColours();

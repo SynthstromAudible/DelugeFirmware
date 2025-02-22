@@ -62,7 +62,6 @@ void FavouritesManager::loadFavouritesBank() {
 	String path;
 	path.set(filePath.c_str());
 	Error error = StorageManager::loadFavouriteFile(&fileToLoad, &path);
-	onUpdateCallback();
 }
 
 Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader) {
@@ -118,7 +117,6 @@ void FavouritesManager::saveFavouriteBank() const {
 	writer.writeArrayEnding("favourites");
 	error = writer.closeFileAfterWriting();
 	unsavedChanges = false;
-	onUpdateCallback();
 	return;
 }
 
@@ -166,15 +164,10 @@ std::array<std::optional<uint8_t>, 16> FavouritesManager::getFavouriteColours() 
 	return colours; // Copy elision makes this efficient
 }
 
-void FavouritesManager::registerCallback(std::function<void()> callback) {
-	onUpdateCallback = callback;
-}
-
 void FavouritesManager::changeColour(uint8_t position, int32_t offset) {
 	if (position < 16 && favourites[position].colour.has_value()) {
 		favourites[position].colour = ((favourites[position].colour.value() + offset) % 16 + 16) % 16;
 		unsavedChanges = true;
-		onUpdateCallback();
 		return;
 	}
 	return;
@@ -186,6 +179,5 @@ const std::string& FavouritesManager::getFavoriteFilename(uint8_t position) {
 	if (position < 0 || position >= 16 || favourites.size() != 16 || !favourites[position].colour.has_value()) {
 		return emptyString; // Return a reference to an empty string instead of nullptr
 	}
-	onUpdateCallback();
 	return favourites[position].filename;
 }

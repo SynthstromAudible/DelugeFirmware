@@ -76,7 +76,6 @@ Browser::Browser() {
 	qwertyVisible = true; // Because for most Browsers, it'll just always be true.
 	filePrefix = NULL;
 	shouldInterpretNoteNamesForThisBrowser = false;
-	favouritesManager.registerCallback([this]() { this->favouritesChanged(); });
 }
 
 bool Browser::opened() {
@@ -1590,14 +1589,17 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 			if (favouritesManager.isEmpty(x)) {
 				if (!getCurrentFileItem()->isFolder) {
 					favouritesManager.setFavorite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
+					favouritesChanged();
 				}
 			}
 			else {
 				favouritesManager.unsetFavorite(x);
+				favouritesChanged();
 			}
 		}
 		else {
 			const std::string favoritePath = favouritesManager.getFavoriteFilename(x);
+			favouritesChanged();
 			if (!favoritePath.empty()) {
 				setFileByFullPath(outputTypeToLoad, favoritePath.c_str());
 			}
@@ -1612,6 +1614,7 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		favouritesManager.selectFavouritesBank(x);
+		favouritesChanged();
 		return ActionResult::DEALT_WITH;
 	}
 	if (qwertyVisible) {
@@ -1628,7 +1631,10 @@ void Browser::favouritesChanged() {
 ActionResult Browser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (favouritesVisible) {
 		if (Buttons::isShiftButtonPressed) {
-			favouritesManager.changeColour(favouritesManager.currentFavouriteNumber.value(), offset);
+			if (favouritesManager.currentFavouriteNumber.has_value()) {
+				favouritesManager.changeColour(favouritesManager.currentFavouriteNumber.value(), offset);
+				favouritesChanged();
+			}
 		}
 	}
 	return ActionResult::DEALT_WITH;

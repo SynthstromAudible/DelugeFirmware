@@ -90,7 +90,7 @@ bool LoadPatternUI::opened() {
 		selectedDrumOnly = false;
 	}
 
-	favouritesManager.setCategory("PATTERN");
+	favouritesChanged();
 	currentDir.set(defaultDir.c_str());
 
 	error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)

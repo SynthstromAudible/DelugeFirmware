@@ -98,6 +98,7 @@ bool SampleBrowser::opened() {
 	}
 
 	favouritesManager.setCategory("SAMPLES");
+	favouritesChanged();
 	actionLogger.deleteAllLogs();
 
 	allowedFileExtensions = allowedFileExtensionsAudio;
@@ -615,7 +616,6 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 				// If want scrolling animation
 				if (movementDirection && !qwertyAlwaysVisible) {
-					D_PRINTLN("want Scroll animation");
 					waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 					                                  waveformBasicNavigator.xZoom, PadLEDs::imageStore,
 					                                  &waveformBasicNavigator.renderData);
@@ -627,12 +627,10 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 				// Or if want instant snap render
 				else {
-					if (qwertyVisible && !qwertyCurrentlyDrawnOnscreen) {
-						D_PRINTLN("qwerty Visible");
+					if ((qwertyVisible && !qwertyCurrentlyDrawnOnscreen) || qwertyAlwaysVisible) {
 						drawKeys();
 					}
 					else if (!qwertyVisible) {
-						D_PRINTLN("Rener FullScreen");
 						waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 						                                  waveformBasicNavigator.xZoom, PadLEDs::image,
 						                                  &waveformBasicNavigator.renderData);
@@ -651,7 +649,8 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 	if (!didDraw) {
 
 		// But if we need to get rid of whatever was onscreen...
-		if (currentlyShowingSamplePreview || (qwertyCurrentlyDrawnOnscreen && !qwertyVisible)) {
+		if ((currentlyShowingSamplePreview || (qwertyCurrentlyDrawnOnscreen && !qwertyVisible))
+		    && !qwertyAlwaysVisible) {
 
 			currentlyShowingSamplePreview = false;
 			qwertyCurrentlyDrawnOnscreen = qwertyVisible;

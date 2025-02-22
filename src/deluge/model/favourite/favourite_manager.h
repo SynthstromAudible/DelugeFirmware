@@ -48,7 +48,6 @@ public:
 	void changeColour(uint8_t position, int32_t offset);
 	const std::string& getFavoriteFilename(uint8_t position);
 	static constexpr uint8_t favouriteDefaultColor = 4;
-	void registerCallback(std::function<void()> callback);
 
 	uint8_t currentBankNumber;
 	std::optional<uint8_t> currentFavouriteNumber;
@@ -56,7 +55,6 @@ public:
 private:
 	void loadFavouritesBank();
 	void saveFavouriteBank() const;
-	std::function<void()> onUpdateCallback;
 
 	std::string getFilenameForSave() const;
 	mutable bool unsavedChanges = false;

@@ -70,6 +70,7 @@ LoadSongUI::LoadSongUI() {
 bool LoadSongUI::opened() {
 
 	favouritesManager.setCategory("SONG");
+	favouritesChanged();
 	outputTypeToLoad = OutputType::NONE;
 	currentDir.set(&currentSong->dirPath);
 
