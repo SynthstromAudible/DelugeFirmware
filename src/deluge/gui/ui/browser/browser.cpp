@@ -1630,7 +1630,7 @@ void Browser::favouritesChanged() {
 
 ActionResult Browser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (favouritesVisible) {
-		if (Buttons::isShiftButtonPressed) {
+		if (Buttons::isShiftButtonPressed()) {
 			if (favouritesManager.currentFavouriteNumber.has_value()) {
 				favouritesManager.changeColour(favouritesManager.currentFavouriteNumber.value(), offset);
 				favouritesChanged();

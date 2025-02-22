@@ -51,7 +51,7 @@ using encoders::EncoderName;
 LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
 bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
-	if (showingAuditionPads()) {
+	if (showingAuditionPads() && !qwertyAlwaysVisible) {
 		*cols = 0b10;
 	}
 	else {
