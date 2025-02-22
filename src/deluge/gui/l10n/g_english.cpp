@@ -164,6 +164,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_LOAD_ALL, "Load all"},
         {STRING_FOR_SLICE, "Slice"},
         {STRING_FOR_MULTISAMPLES, "Multisamples"},
+        {STRING_FOR_SLICED_MULTI, "Sliced Multi"},
         {STRING_FOR_BASIC, "Basic"},
         {STRING_FOR_SINGLE_CYCLE, "Single-cycle"},
         {STRING_FOR_WAVETABLE, "Wavetable"},

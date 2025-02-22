@@ -19,8 +19,9 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/slicer.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/display.h"
+#include "gui/ui/ui.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "storage/file_item.h"
@@ -38,6 +39,7 @@ std::span<char const*> Synth::getOptions() {
 	using enum l10n::String;
 	static char const* options[] = {
 	    l10n::get(STRING_FOR_MULTISAMPLES), //<
+	    l10n::get(STRING_FOR_SLICED_MULTI), //<
 	    l10n::get(STRING_FOR_BASIC),        //<
 	    l10n::get(STRING_FOR_SINGLE_CYCLE), //<
 	    l10n::get(STRING_FOR_WAVETABLE),    //<
@@ -59,14 +61,15 @@ bool Synth::isCurrentOptionAvailable() {
 
 	switch (currentOption) {
 	case 1:
+	case 2:
 		// "Basic" Sample - unavailable if ringmod.
 		return (soundEditor.currentSound->getSynthMode() != SynthMode::RINGMOD);
 
-	case 3:
+	case 4:
 		// WaveTable
 		// No break - return true.
 
-	case 2:
+	case 3:
 		// Single-cycle - available even if we're locked (because of there being other Ranges) to this happening either
 		// in Sample or WaveTable mode. Although, the user could get an error after selecting the option - e.g. if
 		// we're locked to WaveTable mode, they've selected single-cycle, and it realises it can't do this
@@ -84,11 +87,18 @@ bool Synth::acceptCurrentOption() {
 	switch (currentOption) {
 	case 0: // Multisamples
 		return sampleBrowser.importFolderAsMultisamples();
-	case 1: // Basic
+	case 1: // Slice Multisamples
+		if (sampleBrowser.claimCurrentFile(0, 0, 0)) {
+			display->setNextTransitionDirection(1);
+			openUI(&slicer);
+			return true;
+		}
+		return false;
+	case 2: // Basic
 		return sampleBrowser.claimCurrentFile(0, 0, 0);
-	case 2: // Single-cycle
+	case 3: // Single-cycle
 		return sampleBrowser.claimCurrentFile(2, 2, 1);
-	case 3:                                             // WaveTable
+	case 4:                                             // WaveTable
 		return sampleBrowser.claimCurrentFile(1, 1, 2); // Could probably also be 0,0,2
 	default:
 		__builtin_unreachable();

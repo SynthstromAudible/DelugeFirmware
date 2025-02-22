@@ -146,6 +146,7 @@ enum class String : size_t {
 
 	// gui/context_menu/sample_browser/synth.cpp
 	STRING_FOR_MULTISAMPLES,
+	STRING_FOR_SLICED_MULTI,
 	STRING_FOR_BASIC,
 	STRING_FOR_SINGLE_CYCLE,
 	STRING_FOR_WAVETABLE,
