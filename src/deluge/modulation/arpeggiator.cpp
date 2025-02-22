@@ -521,9 +521,9 @@ bool ArpeggiatorBase::evaluateChordProbability(bool isRatchet) {
 
 // Returns if note should be played
 void ArpeggiatorBase::executeArpStep(ArpeggiatorSettings* settings, uint8_t numActiveNotes, bool isRatchet,
-                                     uint32_t maxSequenceLength, uint32_t rhythm, bool shouldCarryOnRhythmNote,
-                                     bool shouldPlayNote, bool shouldPlayBassNote, bool shouldPlayReverseNote,
-                                     bool shouldPlayChordNote) {
+                                     uint32_t maxSequenceLength, uint32_t rhythm, bool* shouldCarryOnRhythmNote,
+                                     bool* shouldPlayNote, bool* shouldPlayBassNote, bool* shouldPlayReverseNote,
+                                     bool* shouldPlayChordNote) {
 
 	// Here we reset the arpeggiator sequence based on several possible conditions
 	if (settings->flagForceArpRestart) {
@@ -545,6 +545,17 @@ void ArpeggiatorBase::executeArpStep(ArpeggiatorSettings* settings, uint8_t numA
 		stepRepeatIndex = 0;
 		whichNoteCurrentlyOnPostArp = 0;
 	}
+
+	// Probabilities
+	*shouldCarryOnRhythmNote = evaluateRhythm(rhythm, isRatchet);
+	if (*shouldCarryOnRhythmNote && !isRatchet) {
+		// Calculate randomizer amounts only for non-silent and non-ratchet notes
+		calculateRandomizerAmounts(settings);
+	}
+	*shouldPlayNote = evaluateNoteProbability(isRatchet);
+	*shouldPlayBassNote = evaluateBassProbability(isRatchet);
+	*shouldPlayReverseNote = evaluateReverseProbability(isRatchet);
+	*shouldPlayChordNote = evaluateChordProbability(isRatchet);
 
 	if (isRatchet) {
 		// Increment ratchet note index if we are ratcheting
@@ -627,18 +638,16 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	uint32_t rhythm = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
 
 	// Probabilities
-	bool shouldCarryOnRhythmNote = evaluateRhythm(rhythm, isRatchet);
-	if (shouldCarryOnRhythmNote) {
-		// Calculate randomizer amounts only for non-silent notes
-		calculateRandomizerAmounts(settings);
-	}
-	bool shouldPlayNote = evaluateNoteProbability(isRatchet);
-	bool shouldPlayBassNote = evaluateBassProbability(isRatchet);
-	bool shouldPlayReverseNote = evaluateReverseProbability(isRatchet);
+	bool shouldCarryOnRhythmNote;
+	bool shouldPlayNote;
+	bool shouldPlayBassNote;
+	bool shouldPlayReverseNote;
+	bool shouldPlayChordNote;
 
 	// Execute all the step calculations
 	executeArpStep(settings, chordTypeNoteCount[settings->chordTypeIndex], isRatchet, maxSequenceLength, rhythm,
-	               shouldCarryOnRhythmNote, shouldPlayNote, shouldPlayBassNote, shouldPlayReverseNote, false);
+	               &shouldCarryOnRhythmNote, &shouldPlayNote, &shouldPlayBassNote, &shouldPlayReverseNote,
+	               &shouldPlayChordNote);
 
 	if (shouldCarryOnRhythmNote && shouldPlayNote) {
 		// Set Gate as active
@@ -1081,20 +1090,16 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	uint32_t rhythm = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
 
 	// Probabilities
-	bool shouldCarryOnRhythmNote = evaluateRhythm(rhythm, isRatchet);
-	if (shouldCarryOnRhythmNote && !isRatchet) {
-		// Calculate randomizer amounts only for non-silent and non-ratchet notes
-		calculateRandomizerAmounts(settings);
-	}
-	bool shouldPlayNote = evaluateNoteProbability(isRatchet);
-	bool shouldPlayBassNote = evaluateBassProbability(isRatchet);
-	bool shouldPlayReverseNote = evaluateReverseProbability(isRatchet);
-	bool shouldPlayChordNote = evaluateChordProbability(isRatchet);
+	bool shouldCarryOnRhythmNote;
+	bool shouldPlayNote;
+	bool shouldPlayBassNote;
+	bool shouldPlayReverseNote;
+	bool shouldPlayChordNote;
 
 	// Execute all the step calculations
 	executeArpStep(settings, (uint8_t)notes.getNumElements(), isRatchet, maxSequenceLength, rhythm,
-	               shouldCarryOnRhythmNote, shouldPlayNote, shouldPlayBassNote, shouldPlayReverseNote,
-	               shouldPlayChordNote);
+	               &shouldCarryOnRhythmNote, &shouldPlayNote, &shouldPlayBassNote, &shouldPlayReverseNote,
+	               &shouldPlayChordNote);
 
 	// Clamp the index to real range
 	whichNoteCurrentlyOnPostArp = std::clamp<int16_t>(whichNoteCurrentlyOnPostArp, 0, notes.getNumElements() - 1);
