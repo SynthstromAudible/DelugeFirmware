@@ -35,6 +35,11 @@ class NumericLayerScrollingText;
 class Source;
 class Sample;
 
+struct SliceItem {
+	int32_t startPos;
+	int32_t transpose;
+};
+
 class SampleBrowser final : public Browser {
 public:
 	SampleBrowser();
@@ -49,7 +54,9 @@ public:
 	Error claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts = false);
 	Error claimAudioFileForAudioClip();
 	void scrollFinished() override;
+	bool finishCreatingMultisamples(int32_t numSamples, Sample** sortArea, bool doingSingleCycle);
 	bool importFolderAsKit();
+	bool importSampleAsSlicedMultisample(int32_t numClips, SliceItem* slicePoints);
 	bool importFolderAsMultisamples();
 	ActionResult timerCallback() override;
 	bool claimCurrentFile(int32_t mayDoPitchDetection = 1, int32_t mayDoSingleCycle = 1, int32_t mayDoWaveTable = 1,
@@ -75,8 +82,9 @@ private:
 	void previewIfPossible(int32_t movementDirection = 1);
 	void audioFileIsNowSet();
 	bool canImportWholeKit();
-	bool loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
+	bool loadAllSamplesInFolder(int32_t* getNumSamples, Sample*** getSortArea,
 	                            bool* getDoingSingleCycle = nullptr, int32_t* getNumCharsInPrefix = nullptr);
+	bool detectPitch(int32_t numSamples, Sample*** getSortArea, bool doingSingleCycle);
 	Error getCurrentFilePath(String* path) override;
 	void drawKeysOverWaveform();
 	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);

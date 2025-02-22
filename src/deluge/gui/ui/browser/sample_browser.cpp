@@ -62,6 +62,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
@@ -1172,8 +1173,8 @@ int32_t getNumTimesIncorrectSampleOrderSeen(int32_t numSamples, Sample** samples
 	return timesIncorrectOrderSeen;
 }
 
-bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
-                                           bool* getDoingSingleCycle, int32_t* getPrefixAndDirLength) {
+bool SampleBrowser::loadAllSamplesInFolder(int32_t* getNumSamples, Sample*** getSortArea, bool* getDoingSingleCycle,
+                                           int32_t* getPrefixAndDirLength) {
 
 	String dirToLoad;
 	Error error;
@@ -1332,6 +1333,7 @@ removeReasonsFromSamplesAndGetOut:
 
 	Sample** thisSamplePointer = sortArea;
 
+	// TODO RAUL only do here the storing in sort area, and do later the workOutMidiNote
 	// Go through each sample in memory that was from the folder in question, adding them to our pointer list
 	int32_t sampleI = 0;
 	for (Sample* thisSample : audioFileManager.sampleFiles | std::views::values) {
@@ -1341,10 +1343,6 @@ removeReasonsFromSamplesAndGetOut:
 
 			if (discardingMIDINoteFromFile) {
 				thisSample->midiNoteFromFile = -1;
-			}
-
-			if (detectPitch) {
-				thisSample->workOutMIDINote(doingSingleCycle);
 			}
 
 			*thisSamplePointer = thisSample;
@@ -1359,8 +1357,6 @@ removeReasonsFromSamplesAndGetOut:
 
 	numSamples = sampleI; // In case it's lower now, e.g. due to some samples' pitch detection failing
 
-	D_PRINTLN("successfully detected pitch: %d", numSamples);
-
 	Sample** sortAreas[2];
 	sortAreas[0] = sortArea;
 	sortAreas[1] = &sortArea[numSamples];
@@ -1371,9 +1367,46 @@ removeReasonsFromSamplesAndGetOut:
 	// Sort by filename
 	sortSamples(filenameGreaterOrEqual, numSamples, sortAreas, &readArea, &writeArea);
 
-	// If detecting pitch, do all of that
-	if (detectPitch) {
+	// All sorted! If the sorted values have ended up in the secondary area, move them back to the first
+	if (readArea == 1) {
+		memcpy(sortArea, &sortArea[numSamples], numSamples * sizeof(Sample*));
+	}
 
+	if (getSortArea) {
+		*getSortArea = sortArea;
+	}
+	if (getNumSamples) {
+		*getNumSamples = numSamples;
+	}
+	if (getDoingSingleCycle) {
+		*getDoingSingleCycle = doingSingleCycle;
+	}
+
+	return true;
+}
+
+bool SampleBrowser::detectPitch(int32_t numSamples, Sample*** getSortArea, bool doingSingleCycle) {
+
+	Sample** sortArea = *getSortArea;
+	for (int32_t s = 0; s < numSamples; s++) {
+		Sample* thisSample = sortArea[s];
+		// If this sample is one of the ones we loaded a moment ago...
+		if (thisSample->partOfFolderBeingLoaded) {
+			thisSample->partOfFolderBeingLoaded = false;
+			thisSample->workOutMIDINote(doingSingleCycle);
+		}
+	}
+
+	D_PRINTLN("successfully detected pitch: %d", numSamples);
+
+	int32_t readArea = 0;
+	int32_t writeArea = 1;
+
+	Sample** sortAreas[2];
+	sortAreas[0] = sortArea;
+	sortAreas[1] = &sortArea[numSamples];
+	{
+		// If detecting pitch, do all of that
 #define NOTE_CHECK_ERROR_MARGIN 0.75
 
 		int32_t badnessRatingFromC = getNumTimesIncorrectSampleOrderSeen(numSamples, sortAreas[readArea]);
@@ -1391,30 +1424,6 @@ removeReasonsFromSamplesAndGetOut:
 			}
 			goto allSorted;
 		}
-
-		/*
-		// Try sorting from A instead
-		sortSamples(filenameGreaterOrEqualOctaveStartingFromA, numSamples, sortAreas, &readArea, &writeArea);
-		int32_t badnessRatingFromA = getNumTimesIncorrectSampleOrderSeen(numSamples, sortAreas[readArea]);
-		if (!badnessRatingFromA) goto allSorted; // If that's all fine, we're done
-
-		// If from A was actually worse than C, go back
-		if (badnessRatingFromA >= badnessRatingFromC) {
-
-		    // But if C is actually bad enough, we might conclude that the filenames are irrelevant
-		    if ((badnessRatingFromC * 3) > numSamples) goto justSortByPitch;
-
-		    D_PRINTLN("going back to ordering from C");
-		    sortSamples(filenameGreaterOrEqual, numSamples, sortAreas, &readArea, &writeArea);
-		}
-
-		// Or if A is better...
-		else {
-
-		    // But if A is still actually bad enough, we might conclude that the filenames are irrelevant
-		    if ((badnessRatingFromA * 3) > numSamples) goto justSortByPitch;
-		}
-		*/
 
 		// Ok, we're here, the samples are optimally ordered by file, but, the pitch is out.
 		D_PRINTLN("sample order by file finalized");
@@ -1578,46 +1587,22 @@ gotNote:
 			}
 		}
 
-justSortByPitch:
 		// We've done all the correcting we can. Now re-sort by pitch
 		sortSamples(pitchGreaterOrEqual, numSamples, sortAreas, &readArea, &writeArea);
 	}
-
 allSorted:
 	// All sorted! If the sorted values have ended up in the secondary area, move them back to the first
 	if (readArea == 1) {
 		memcpy(sortArea, &sortArea[numSamples], numSamples * sizeof(Sample*));
 	}
-
 	if (getSortArea) {
 		*getSortArea = sortArea;
-	}
-	if (getNumSamples) {
-		*getNumSamples = numSamples;
-	}
-	if (getDoingSingleCycle) {
-		*getDoingSingleCycle = doingSingleCycle;
 	}
 
 	return true;
 }
 
-bool SampleBrowser::importFolderAsMultisamples() {
-
-	AudioEngine::stopAnyPreviewing();
-
-	display->displayLoadingAnimationText("Working");
-
-	int32_t numSamples;
-	bool doingSingleCycle;
-	Sample** sortArea;
-
-	bool success = loadAllSamplesInFolder(true, &numSamples, &sortArea, &doingSingleCycle);
-	if (!success) {
-doReturnFalse:
-		display->removeWorkingAnimation();
-		return false;
-	}
+bool SampleBrowser::finishCreatingMultisamples(int32_t numSamples, Sample** sortArea, bool doingSingleCycle) {
 
 	D_PRINTLN("loaded and sorted samples");
 
@@ -1649,7 +1634,8 @@ doReturnFalse:
 				thisSample->removeReason("E393"); // Remove that temporary reason we added above
 			}
 			display->displayError(Error::INSUFFICIENT_RAM);
-			goto doReturnFalse;
+			display->removeWorkingAnimation();
+			return false;
 		}
 	}
 
@@ -1798,7 +1784,8 @@ skipOctaveCorrection:
 	if (!numSamples) {
 		display->displayPopup(
 		    deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT));
-		goto doReturnFalse;
+		display->removeWorkingAnimation();
+		return false;
 	}
 
 	D_PRINTLN("distinct ranges: %d", numSamples);
@@ -1837,6 +1824,56 @@ skipOctaveCorrection:
 	return true;
 }
 
+bool SampleBrowser::importSampleAsSlicedMultisample(int32_t numClips, SliceItem* slicePoints) {
+
+	SoundInstrument* soundInstrument = (SoundInstrument*)soundEditor.currentSource;
+	MultisampleRange* firstRange = (MultisampleRange*)soundInstrument->sources[0].getOrCreateFirstRange();
+	Sample* sample = (Sample*)firstRange->sampleHolder.audioFile;
+
+	// Copy the same sample into the sortArea and set the beginningOffsetForPitchDetection
+	Sample** sortArea = (Sample**)GeneralMemoryAllocator::get().allocMaxSpeed(numClips * sizeof(Sample*));
+	for (int32_t i = 0; i < numClips; i++) {
+		memcpy(sortArea[i], sample, sizeof(Sample));
+		SliceItem slicePoint = slicePoints[i];
+		sortArea[i]->beginningOffsetForPitchDetection = slicePoint.startPos;
+	}
+
+	bool success = detectPitch(numClips, &sortArea, false);
+	if (!success) {
+doReturnFalse:
+		display->removeWorkingAnimation();
+		return false;
+	}
+
+	// Use the slicePoints to create multisamples from the same sample
+	finishCreatingMultisamples(numClips, sortArea, false);
+}
+
+bool SampleBrowser::importFolderAsMultisamples() {
+
+	AudioEngine::stopAnyPreviewing();
+
+	display->displayLoadingAnimationText("Working");
+
+	int32_t numSamples;
+	bool doingSingleCycle;
+	Sample** sortArea;
+
+	bool success = loadAllSamplesInFolder(&numSamples, &sortArea, &doingSingleCycle);
+	if (!success) {
+doReturnFalse:
+		display->removeWorkingAnimation();
+		return false;
+	}
+
+	success = detectPitch(numSamples, &sortArea, doingSingleCycle);
+	if (!success) {
+		goto doReturnFalse;
+	}
+
+	finishCreatingMultisamples(numSamples, sortArea, doingSingleCycle);
+}
+
 bool SampleBrowser::importFolderAsKit() {
 
 	AudioEngine::stopAnyPreviewing();
@@ -1847,7 +1884,7 @@ bool SampleBrowser::importFolderAsKit() {
 	Sample** sortArea;
 
 	int32_t prefixAndDirLength;
-	bool success = loadAllSamplesInFolder(false, &numSamples, &sortArea, nullptr, &prefixAndDirLength);
+	bool success = loadAllSamplesInFolder(&numSamples, &sortArea, nullptr, &prefixAndDirLength);
 
 	if (!success) {
 doReturnFalse:

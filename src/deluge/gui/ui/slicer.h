@@ -17,17 +17,13 @@
 
 #pragma once
 
+#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 
 #define SLICER_MODE_REGION 0
 #define SLICER_MODE_MANUAL 1
 #define MAX_MANUAL_SLICES 64
-
-struct SliceItem {
-	int32_t startPos;
-	int32_t transpose;
-};
 
 class Slicer final : public UI {
 public:
@@ -45,7 +41,6 @@ public:
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 
-	void stopAnyPreviewing();
 	void preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on);
 
 	int32_t numManualSlice;
@@ -63,8 +58,10 @@ public:
 private:
 	// 7SEG Only
 	void redraw();
-
-	void doSlice();
+	void stopAllVoices();
+	void doSlice(bool isManual);
+	void doSliceKit(bool isManual);
+	void doSliceSynth(bool isManual);
 };
 
 extern Slicer slicer;
