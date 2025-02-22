@@ -726,7 +726,7 @@ possiblyExit:
 				displayText(false);
 			}
 		}
-		//
+		// Only process the QWERTY keypress if Keyboard is visible to prevent blind keypresses
 		else if (qwertyVisible) {
 			return Browser::padAction(x, y, on);
 		}

@@ -79,9 +79,9 @@ bool LoadInstrumentPresetUI::opened() {
 		else {
 			initialName.set("");
 		}
-	}
 
-	initialDirPath.set("SYNTHS");
+		initialDirPath.set("SYNTHS");
+	}
 
 	switch (instrumentToReplace->type) {
 	case OutputType::MIDI_OUT:
