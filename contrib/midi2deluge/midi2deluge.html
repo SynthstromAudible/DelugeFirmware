@@ -67,7 +67,7 @@
             border: 1px
             solid #ddd;
             display: inline-block;
-            background-color: darkgreen;
+            background-color: #bd7ce1;
         }
         .note-tail {
             position: absolute;
@@ -76,7 +76,7 @@
             border: 1px
             solid #ddd;
             display: inline-block;
-            background-color: lightgreen;
+            background-color: #93c2fe;
         }
         .scrollable-output {
             width: 1500px; /* Increased width */
@@ -212,22 +212,26 @@
             document.getElementById("outputContainer").appendChild(container);
         }
 
-        async function saveXML(trackName) {
+        function saveXML(trackName) {
             const xmlContent = document.getElementById(`xml_${trackName}`).value;
+            const fileName = `${trackName}.xml`;
 
+            if (window.showSaveFilePicker) {
+                // Use the modern file save picker in Chrome/Edge
+                saveWithFilePicker(xmlContent, fileName);
+            } else {
+                // Use Blob-based download in other browsers
+                saveWithBlob(xmlContent, fileName);
+            }
+        }
+
+        async function saveWithFilePicker(xmlContent, fileName) {
             try {
-                // Open the file save dialog
                 const fileHandle = await window.showSaveFilePicker({
-                    suggestedName: `${defaultFileName}_${trackName}.xml`,
-                    types: [
-                        {
-                            description: "XML Files",
-                            accept: { "text/xml": [".xml"] }
-                        }
-                    ]
+                    suggestedName: fileName,
+                    types: [{ description: "XML Files", accept: { "text/xml": [".xml"] } }]
                 });
 
-                // Write the XML content to the chosen file
                 const writableStream = await fileHandle.createWritable();
                 await writableStream.write(xmlContent);
                 await writableStream.close();
@@ -237,6 +241,18 @@
                 console.error("File save canceled or failed:", err);
             }
         }
+
+        function saveWithBlob(xmlContent, fileName) {
+            const blob = new Blob([xmlContent], { type: "text/xml" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+        }
+
 
         function copyToClipboard(trackName) {
             const text = document.getElementById(`xml_${trackName}`).value;
