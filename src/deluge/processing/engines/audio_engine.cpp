@@ -224,7 +224,7 @@ void init() {
 	        ->addParamCollectionSummary(paramManagerForSamplePreview->getPatchCableSetSummary());
 
 	((PatchCableSet*)modelStackWithParamCollection->paramCollection)->setupPatching(modelStackWithParamCollection);
-	sampleForPreview->patcher.performInitialPatching(*sampleForPreview, *paramManagerForSamplePreview);
+	sampleForPreview->patcher.performInitialPatching(sampleForPreview, paramManagerForSamplePreview);
 
 	sampleForPreview->sideChainSendLevel = 2147483647;
 

@@ -61,12 +61,18 @@ extern "C" {
 using namespace deluge;
 namespace params = deluge::modulation::params;
 
+#pragma GCC diagnostic push
+// This is supported by GCC and other compilers should error (not warn), so turn off for this file
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[4][SSI_TX_BUFFER_NUM_SAMPLES]
     __attribute__((aligned(CACHE_LINE_SIZE)));
 
 // Hopefully I could make this use the spareRenderingBuffer instead...
 
-const Patcher::Config kPatcherConfigForVoice = {
+const PatchableInfo patchableInfoForVoice = {
+    .paramFinalValuesOffset = offsetof(Voice, paramFinalValues) - offsetof(Voice, patcher),
+    .sourceValuesOffset = offsetof(Voice, sourceValues) - offsetof(Voice, patcher),
     .firstParam = 0,
     .firstNonVolumeParam = params::FIRST_LOCAL_NON_VOLUME,
     .firstHybridParam = params::FIRST_LOCAL__HYBRID,
@@ -82,7 +88,7 @@ int32_t Voice::combineExpressionValues(const Sound& sound, int32_t expressionDim
 	return lshiftAndSaturate<1>(combinedValue);
 }
 
-Voice::Voice() : patcher(kPatcherConfigForVoice, sourceValues, paramFinalValues) {
+Voice::Voice() : patcher(&patchableInfoForVoice) {
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
@@ -198,7 +204,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	for (int32_t s = 0; s < util::to_underlying(kFirstLocalSource); s++) {
 		sourceValues[s] = sound.globalSourceValues[s];
 	}
-	patcher.performInitialPatching(sound, *paramManager);
+	patcher.performInitialPatching(&sound, paramManager);
 
 	// Setup and render envelopes - again. Because they're local params (since mid-late 2017), we really need to render
 	// them *after* initial patching is performed.
@@ -525,8 +531,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 	if (sound.getSynthMode() == SynthMode::FM) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
 
-			if (sound.getSmoothedPatchedParamValue(params::LOCAL_MODULATOR_0_VOLUME + m, *paramManager)
-			    == -2147483648) {
+			if (sound.getSmoothedPatchedParamValue(params::LOCAL_MODULATOR_0_VOLUME + m, paramManager) == -2147483648) {
 				continue; // Only if modulator active
 			}
 
@@ -810,7 +815,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 		for (int32_t s = 0; s < util::to_underlying(kFirstLocalSource); s++) {
 			sourceValues[s] = sound.globalSourceValues[s];
 		}
-		patcher.performPatching(sourcesChanged, sound, *paramManager);
+		patcher.performPatching(sourcesChanged, &sound, paramManager);
 	}
 
 	// Sort out pitch
@@ -2527,3 +2532,4 @@ uint32_t Voice::getPriorityRating() {
 	    // Bits  0-23 - time entered
 	    + ((uint32_t)(-envelopes[0].timeEnteredState) & (0xFFFFFFFF >> 8));
 }
+#pragma GCC diagnostic pop

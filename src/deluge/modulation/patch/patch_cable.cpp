@@ -17,7 +17,6 @@
 
 #include "modulation/patch/patch_cable.h"
 #include "definitions_cxx.hpp"
-#include "util/fixedpoint.h"
 
 void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 	from = newFrom;

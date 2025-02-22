@@ -825,7 +825,7 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 				FREEZE_WITH_ERROR("E174");
 			}
 
-			soundDrum->patcher.performInitialPatching(*soundDrum, *(ParamManagerForTimeline*)paramManager);
+			soundDrum->patcher.performInitialPatching(soundDrum, (ParamManagerForTimeline*)paramManager);
 		}
 	}
 
@@ -926,7 +926,7 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 
 						SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
 
-						soundDrum->patcher.performInitialPatching(*soundDrum, thisNoteRow->paramManager);
+						soundDrum->patcher.performInitialPatching(soundDrum, &thisNoteRow->paramManager);
 					}
 				}
 			}

@@ -226,8 +226,8 @@ int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedV
 
 int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedValue) {
 
-	// patchedValue's range is ideally +- 536870912 ('1'), but may get up to 1610612736 ('3') due to multiple patch
-	// cables having been multiplied
+	// patchedValue's range is ideally +- 536870912, but may get up to 1610612736 due to multiple patch cables having
+	// been multiplied
 
 	// No need for max/min here - it's already been taken care of in patchAllCablesToParameter(),
 	// ... or if we got here from patchSourceToAllExclusiveCables(), there's no way it could have been too big

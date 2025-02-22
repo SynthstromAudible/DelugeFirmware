@@ -66,17 +66,21 @@ namespace params = deluge::modulation::params;
 extern "C" {
 #include "RZA1/mtu/mtu.h"
 }
+#pragma GCC diagnostic push
+// This is supported by GCC and other compilers should error (not warn), so turn off for this file
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
-constexpr Patcher::Config kPatcherConfigForSound = {
-    .firstParam = params::FIRST_GLOBAL,
-    .firstNonVolumeParam = params::FIRST_GLOBAL_NON_VOLUME,
-    .firstHybridParam = params::FIRST_GLOBAL_HYBRID,
-    .firstExpParam = params::FIRST_GLOBAL_EXP,
-    .endParams = params::kNumParams,
-    .globality = GLOBALITY_GLOBAL,
-};
+const PatchableInfo patchableInfoForSound = {
+    (int32_t)(offsetof(Sound, paramFinalValues) - offsetof(Sound, patcher) - (params::FIRST_GLOBAL * sizeof(int32_t))),
+    offsetof(Sound, globalSourceValues) - offsetof(Sound, patcher),
+    params::FIRST_GLOBAL,
+    params::FIRST_GLOBAL_NON_VOLUME,
+    params::FIRST_GLOBAL_HYBRID,
+    params::FIRST_GLOBAL_EXP,
+    params::kNumParams,
+    GLOBALITY_GLOBAL};
 
-Sound::Sound() : patcher(kPatcherConfigForSound, globalSourceValues, paramFinalValues) {
+Sound::Sound() : patcher(&patchableInfoForSound) {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
 	for (int32_t s = 0; s < kNumSources; s++) {
@@ -424,7 +428,7 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 
 		// Whether global...
 		if (p >= params::FIRST_GLOBAL) {
-			patcher.recalculateFinalValueForParamWithNoCables(p, *this, *paramManager);
+			patcher.recalculateFinalValueForParamWithNoCables(p, this, paramManager);
 		}
 
 		// Or local (do to each voice)...
@@ -434,7 +438,7 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 				AudioEngine::activeVoices.getRangeForSound(this, ends);
 				for (int32_t v = ends[0]; v < ends[1]; v++) {
 					Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
-					thisVoice->patcher.recalculateFinalValueForParamWithNoCables(p, *this, *paramManager);
+					thisVoice->patcher.recalculateFinalValueForParamWithNoCables(p, this, paramManager);
 				}
 			}
 		}
@@ -2237,7 +2241,7 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 
 bool Sound::isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramManager) {
 	return (synthMode == SynthMode::RINGMOD
-	        || getSmoothedPatchedParamValue(params::LOCAL_OSC_A_VOLUME + s, *paramManager) != -2147483648)
+	        || getSmoothedPatchedParamValue(params::LOCAL_OSC_A_VOLUME + s, paramManager) != -2147483648)
 	       && (synthMode == SynthMode::FM || sources[s].oscType != OscType::SAMPLE
 	           || sources[s].hasAtLeastOneAudioFileLoaded());
 }
@@ -2266,7 +2270,7 @@ bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManag
 	if (synthMode == SynthMode::FM) {
 		return false;
 	}
-	return (getSmoothedPatchedParamValue(params::LOCAL_OSC_B_VOLUME, *paramManager) != -2147483648
+	return (getSmoothedPatchedParamValue(params::LOCAL_OSC_B_VOLUME, paramManager) != -2147483648
 	        || synthMode == SynthMode::RINGMOD);
 }
 
@@ -2551,7 +2555,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	// Perform the actual patching
 	if (sourcesChanged) {
-		patcher.performPatching(sourcesChanged, *this, *paramManager);
+		patcher.performPatching(sourcesChanged, this, paramManager);
 	}
 
 	// Setup some reverb-related stuff
@@ -2638,10 +2642,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 		// Setup filters
 		bool thisHasFilters = hasFilters();
-		q31_t lpfMorph = getSmoothedPatchedParamValue(params::LOCAL_LPF_MORPH, *paramManager);
-		q31_t lpfFreq = getSmoothedPatchedParamValue(params::LOCAL_LPF_FREQ, *paramManager);
-		q31_t hpfMorph = getSmoothedPatchedParamValue(params::LOCAL_HPF_MORPH, *paramManager);
-		q31_t hpfFreq = getSmoothedPatchedParamValue(params::LOCAL_HPF_FREQ, *paramManager);
+		q31_t lpfMorph = getSmoothedPatchedParamValue(params::LOCAL_LPF_MORPH, paramManager);
+		q31_t lpfFreq = getSmoothedPatchedParamValue(params::LOCAL_LPF_FREQ, paramManager);
+		q31_t hpfMorph = getSmoothedPatchedParamValue(params::LOCAL_HPF_MORPH, paramManager);
+		q31_t hpfFreq = getSmoothedPatchedParamValue(params::LOCAL_HPF_FREQ, paramManager);
 		bool doLPF = thisHasFilters
 		             && (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
 		                 || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_LPF_FREQ)

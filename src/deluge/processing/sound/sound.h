@@ -78,9 +78,8 @@ public:
 
 	// This is for the *global* params only, and begins with FIRST_GLOBAL_PARAM, so subtract that from your p value
 	// before accessing this array!
-	std::array<int32_t, deluge::modulation::params::kNumParams - deluge::modulation::params::FIRST_GLOBAL>
-	    paramFinalValues;
-	std::array<int32_t, util::to_underlying(kFirstLocalSource)> globalSourceValues;
+	int32_t paramFinalValues[deluge::modulation::params::kNumParams - deluge::modulation::params::FIRST_GLOBAL];
+	int32_t globalSourceValues[util::to_underlying(kFirstLocalSource)];
 
 	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
@@ -268,12 +267,14 @@ public:
 	void detachSourcesFromAudioFiles();
 	void confirmNumVoices(char const* error);
 
-	// Yup, inlining this helped a tiny bit.
-	[[gnu::always_inline]] int32_t getSmoothedPatchedParamValue(int32_t p, ParamManager& paramManager) const {
+	inline int32_t getSmoothedPatchedParamValue(int32_t p,
+	                                            ParamManager* paramManager) { // Yup, inlining this helped a tiny bit.
 		if (paramLPF.p == p) {
 			return paramLPF.currentValue;
 		}
-		return paramManager.getPatchedParamSet()->getValue(p);
+		else {
+			return paramManager->getPatchedParamSet()->getValue(p);
+		}
 	}
 
 	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,
