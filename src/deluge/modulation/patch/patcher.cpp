@@ -113,27 +113,27 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound& sound, ParamManage
 
 	// Now, turn those cableCombinations into paramFinalValues.
 	// Volume params
-	for (; iterator->first < config.firstNonVolumeParam; iterator++) {
+	for (; iterator < cable_combos.end() && iterator->first < config.firstNonVolumeParam; iterator++) {
 		auto [param, combo] = *iterator;
 		param_final_values_[param - config.firstParam] = getFinalParameterValueVolume(paramNeutralValues[param], combo);
 	}
 
 	// Linear params
-	for (; iterator->first < config.firstHybridParam; iterator++) {
+	for (; iterator < cable_combos.end() && iterator->first < config.firstHybridParam; iterator++) {
 		auto [param, cable_combo] = *iterator;
 		param_final_values_[param - config.firstParam] =
 		    getFinalParameterValueLinear(paramNeutralValues[param], cable_combo);
 	}
 
 	// Hybrid params
-	for (; iterator->first < config.firstExpParam; iterator++) {
+	for (; iterator < cable_combos.end() && iterator->first < config.firstExpParam; iterator++) {
 		auto [param, cable_combo] = *iterator;
 		param_final_values_[param - config.firstParam] =
 		    getFinalParameterValueHybrid(paramNeutralValues[param], cable_combo);
 	}
 
 	// Exp params
-	for (; iterator < cable_combos.end(); iterator++) {
+	for (; iterator < cable_combos.end() && iterator->first < config.endParams; iterator++) {
 		auto [param, cable_combo] = *iterator;
 		param_final_values_[param - config.firstParam] =
 		    getFinalParameterValueExpWithDumbEnvelopeHack(paramNeutralValues[param], cable_combo, param);
