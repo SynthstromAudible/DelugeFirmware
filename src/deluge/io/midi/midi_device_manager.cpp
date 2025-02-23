@@ -33,6 +33,7 @@
 #include "storage/storage_manager.h"
 #include "util/container/vector/named_thing_vector.h"
 #include "util/misc.h"
+#include <memory>
 
 using namespace deluge::io::usb;
 
@@ -60,8 +61,8 @@ struct USBDev {
 };
 std::array<USBDev, USB_NUM_USBIP> usbDeviceCurrentlyBeingSetUp{};
 
-PLACE_SDRAM_BSS DINRootComplex rootDin{};
-MIDIRootComplex* rootUSB{nullptr};
+PLACE_SDRAM_BSS DINRootComplex root_din{};
+gsl::owner<MIDIRootComplex*> root_usb{nullptr};
 
 uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
 uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;
@@ -70,16 +71,16 @@ bool anyChangesToSave = false;
 
 // Gets called within UITimerManager, which may get called during SD card routine.
 void slowRoutine() {
-	if (!rootUSB) {
+	if (!root_usb) {
 		// Nothing to do if there's no USB device connected.
 		return;
 	}
 
-	for (auto& usbCable : rootUSB->getCables()) {
+	for (auto& usbCable : root_usb->getCables()) {
 		auto& cable = static_cast<MIDICableUSB&>(usbCable);
 		cable.sendMCMsNowIfNeeded();
 
-		if (rootUSB->getType() == RootComplexType::RC_USB_HOST) {
+		if (root_usb->getType() == RootComplexType::RC_USB_HOST) {
 			auto& hostCable = static_cast<MIDICableUSBHosted&>(cable);
 			if (hostCable.freshly_connected) {
 				hostCable.hookOnConnected();
@@ -219,13 +220,13 @@ void recountSmallestMPEZones() {
 	lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
 	highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;
 
-	if (rootUSB) {
-		for (auto& cable : rootUSB->getCables()) {
+	if (root_usb) {
+		for (auto& cable : root_usb->getCables()) {
 			recountSmallestMPEZonesForCable(cable);
 		}
 	}
 
-	recountSmallestMPEZonesForCable(rootDin.cable);
+	recountSmallestMPEZonesForCable(root_din.cable);
 }
 
 // Create the midi device configuration and add to the USB midi array
@@ -355,24 +356,24 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 			constexpr char const* const kUpstreamUSB = "upstreamUSB";
 			constexpr auto kUpstreamUSBLen = (std::string{kUpstreamUSB}).length();
 
-			if (rootUSB && rootUSB->getType() == RootComplexType::RC_USB_PERIPHERAL
+			if (root_usb && root_usb->getType() == RootComplexType::RC_USB_PERIPHERAL
 			    && !strncmp(kUpstreamUSB, port, strlen(kUpstreamUSB))) {
 				switch (port[kUpstreamUSBLen]) {
 				case '\0':
-					device = rootUSB->getCable(0);
+					device = root_usb->getCable(0);
 					break;
 				case '2':
-					device = rootUSB->getCable(1);
+					device = root_usb->getCable(1);
 					break;
 				case '3':
-					device = rootUSB->getCable(2);
+					device = root_usb->getCable(2);
 					break;
 				default:
 					break;
 				}
 			}
 			else if (!strcmp(port, "din")) {
-				device = &rootDin.cable;
+				device = &root_din.cable;
 			}
 		}
 
@@ -392,30 +393,30 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 }
 
 static MIDICable* readCableFromFlash(uint8_t const* memory) {
-	uint16_t vendorId = *(uint16_t const*)memory;
+	uint16_t vendor_id = *(uint16_t const*)memory;
 
 	MIDICable* cable;
 
-	if (vendorId == VENDOR_ID_NONE) {
+	if (vendor_id == VENDOR_ID_NONE) {
 		cable = nullptr;
 	}
-	else if (rootUSB && rootUSB->getType() == RootComplexType::RC_USB_PERIPHERAL) {
-		if (vendorId == VENDOR_ID_UPSTREAM_USB) {
-			cable = rootUSB->getCable(0);
+	else if (root_usb != nullptr && root_usb->getType() == RootComplexType::RC_USB_PERIPHERAL) {
+		if (vendor_id == VENDOR_ID_UPSTREAM_USB) {
+			cable = root_usb->getCable(0);
 		}
-		else if (vendorId == VENDOR_ID_UPSTREAM_USB2) {
-			cable = rootUSB->getCable(1);
+		else if (vendor_id == VENDOR_ID_UPSTREAM_USB2) {
+			cable = root_usb->getCable(1);
 		}
-		else if (vendorId == VENDOR_ID_UPSTREAM_USB3) {
-			cable = rootUSB->getCable(2);
+		else if (vendor_id == VENDOR_ID_UPSTREAM_USB3) {
+			cable = root_usb->getCable(2);
 		}
 	}
-	else if (vendorId == VENDOR_ID_DIN) {
-		cable = &rootDin.cable;
+	else if (vendor_id == VENDOR_ID_DIN) {
+		cable = &root_din.cable;
 	}
 	else {
-		uint16_t productId = *(uint16_t const*)(memory + 2);
-		cable = getOrCreateHostedMIDIDeviceFromDetails(nullptr, vendorId, productId);
+		uint16_t product_id = *(reinterpret_cast<uint16_t const*>(memory + 2));
+		cable = getOrCreateHostedMIDIDeviceFromDetails(nullptr, vendor_id, product_id);
 	}
 
 	return cable;
@@ -447,11 +448,11 @@ void writeDevicesToFile() {
 	}
 	anyChangesToSave = false;
 
-	bool anyWorthWritting = rootDin.cable.worthWritingToFile();
+	bool anyWorthWritting = root_din.cable.worthWritingToFile();
 
 	// First, see if it's even worth writing anything
-	if (!anyWorthWritting && rootUSB != nullptr) {
-		for (auto& cable : rootUSB->getCables()) {
+	if (!anyWorthWritting && root_usb != nullptr) {
+		for (auto& cable : root_usb->getCables()) {
 			if (cable.worthWritingToFile()) {
 				anyWorthWritting = true;
 				break;
@@ -476,25 +477,25 @@ void writeDevicesToFile() {
 	writer.writeEarliestCompatibleFirmwareVersion("4.0.0");
 	writer.writeOpeningTagEnd();
 
-	if (rootDin.cable.worthWritingToFile()) {
-		rootDin.cable.writeToFile(writer, "dinPorts");
+	if (root_din.cable.worthWritingToFile()) {
+		root_din.cable.writeToFile(writer, "dinPorts");
 	}
 
-	if (rootUSB != nullptr) {
-		switch (rootUSB->getType()) {
+	if (root_usb != nullptr) {
+		switch (root_usb->getType()) {
 		case RootComplexType::RC_DIN:
 			// illegal
 			break;
 		case RootComplexType::RC_USB_PERIPHERAL:
-			if (rootUSB->getCable(0)->worthWritingToFile()) {
-				rootUSB->getCable(0)->writeToFile(writer, "upstreamUSBDevice");
+			if (root_usb->getCable(0)->worthWritingToFile()) {
+				root_usb->getCable(0)->writeToFile(writer, "upstreamUSBDevice");
 			}
-			if (rootUSB->getCable(1)->worthWritingToFile()) {
-				rootUSB->getCable(1)->writeToFile(writer, "upstreamUSBDevice2");
+			if (root_usb->getCable(1)->worthWritingToFile()) {
+				root_usb->getCable(1)->writeToFile(writer, "upstreamUSBDevice2");
 			}
 			break;
 		case RootComplexType::RC_USB_HOST:
-			for (auto& cable : rootUSB->getCables()) {
+			for (auto& cable : root_usb->getCables()) {
 				auto& cableHosted = static_cast<MIDICableUSBHosted&>(cable);
 				if (cableHosted.worthWritingToFile()) {
 					cableHosted.writeToFile(writer, "hostedUSBDevice");
@@ -545,10 +546,10 @@ void readDevicesFromFile() {
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "dinPorts")) {
-			rootDin.cable.readFromFile(reader);
+			root_din.cable.readFromFile(reader);
 		}
-		else if (rootUSB != nullptr) {
-			auto type = rootUSB->getType();
+		else if (root_usb != nullptr) {
+			auto type = root_usb->getType();
 			if (type == RootComplexType::RC_USB_PERIPHERAL) {
 				constexpr char const* const kUpstreamUSB = "upstreamUSBDevice";
 				constexpr auto kUpstreamUSBLen = (std::string{kUpstreamUSB}).length();
@@ -557,13 +558,13 @@ void readDevicesFromFile() {
 
 					switch (tagName[kUpstreamUSBLen]) {
 					case '\0':
-						rootUSB->getCable(0)->readFromFile(reader);
+						root_usb->getCable(0)->readFromFile(reader);
 						break;
 					case '2':
-						rootUSB->getCable(1)->readFromFile(reader);
+						root_usb->getCable(1)->readFromFile(reader);
 						break;
 					case '3':
-						rootUSB->getCable(3)->readFromFile(reader);
+						root_usb->getCable(3)->readFromFile(reader);
 						break;
 					}
 				}
@@ -661,20 +662,20 @@ checkDevice:
 	if (device) {}
 }
 
-void setUSBRoot(MIDIRootComplex* root) {
-	delete rootUSB;
-	rootUSB = root;
+void setUSBRoot(gsl::owner<MIDIRootComplex*> root) {
+	delete root_usb;
+	root_usb = root;
 }
 
 MIDIRootComplexUSBHosted* getHosted() {
-	if (rootUSB == nullptr) {
+	if (root_usb == nullptr) {
 		return nullptr;
 	}
-	if (rootUSB->getType() != RootComplexType::RC_USB_HOST) {
+	if (root_usb->getType() != RootComplexType::RC_USB_HOST) {
 		return nullptr;
 	}
 
-	return static_cast<MIDIRootComplexUSBHosted*>(rootUSB);
+	return static_cast<MIDIRootComplexUSBHosted*>(root_usb);
 }
 
 } // namespace MIDIDeviceManager

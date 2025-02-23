@@ -18,21 +18,19 @@
 #include "usb_common.h"
 #include "io/midi/midi_engine.h"
 
-void MIDICableUSB::checkIncomingSysex(uint8_t const* msg, int32_t ip, int32_t d) {
-	ConnectedUSBMIDIDevice* connected = &connectedUSBMIDIDevices[ip][d];
-
-	uint8_t statusType = msg[0] & 15;
+void MIDICableUSB::checkIncomingSysex(uint8_t const* msg, [[maybe_unused]] int32_t ip, [[maybe_unused]] int32_t d) {
+	uint8_t status_type = msg[0] & 15;
 	int32_t to_read = 0;
 	bool will_end = false;
-	if (statusType == 0x4) {
+	if (status_type == 0x4) {
 		// sysex start or continue
 		if (msg[1] == 0xf0) {
 			this->incomingSysexPos = 0;
 		}
 		to_read = 3;
 	}
-	else if (statusType >= 0x5 && statusType <= 0x7) {
-		to_read = statusType - 0x4; // read between 1-3 bytes
+	else if (status_type >= 0x5 && status_type <= 0x7) {
+		to_read = status_type - 0x4; // read between 1-3 bytes
 		will_end = true;
 	}
 
@@ -59,9 +57,9 @@ void MIDICableUSB::connectedNow(int32_t midiDeviceNum) {
 }
 
 void MIDICableUSB::sendMCMsNowIfNeeded() {
-	if (needsToSendMCMs) {
+	if (needsToSendMCMs != 0u) {
 		needsToSendMCMs--;
-		if (!needsToSendMCMs) {
+		if (needsToSendMCMs == 0u) {
 			sendAllMCMs();
 		}
 	}
@@ -70,9 +68,9 @@ void MIDICableUSB::sendMCMsNowIfNeeded() {
 static uint32_t setupUSBMessage(MIDIMessage message) {
 	// format message per USB midi spec on virtual cable 0
 	uint8_t cin;
-	uint8_t firstByte = (message.channel & 15) | (message.statusType << 4);
+	uint8_t first_byte = (message.channel & 15) | (message.statusType << 4);
 
-	switch (firstByte) {
+	switch (first_byte) {
 	case 0xF2: // Position pointer
 		cin = 0x03;
 		break;
@@ -82,7 +80,7 @@ static uint32_t setupUSBMessage(MIDIMessage message) {
 		break;
 	}
 
-	return ((uint32_t)message.data2 << 24) | ((uint32_t)message.data1 << 16) | ((uint32_t)firstByte << 8) | cin;
+	return ((uint32_t)message.data2 << 24) | ((uint32_t)message.data1 << 16) | ((uint32_t)first_byte << 8) | cin;
 }
 
 Error MIDICableUSB::sendMessage(MIDIMessage message) {

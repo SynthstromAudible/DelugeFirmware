@@ -16,19 +16,12 @@
  */
 
 #include "devices.h"
-#include "definitions.h"
 #include "device.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
-#include "io/debug/log.h"
-#include "io/midi/cable_types/din.h"
-#include "io/midi/cable_types/usb_device_cable.h"
-#include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_root_complex.h"
-#include "io/midi/root_complex/usb_hosted.h"
-#include "io/midi/root_complex/usb_peripheral.h"
 #include <algorithm>
 #include <etl/vector.h>
 #include <string_view>
@@ -43,11 +36,11 @@ static bool canSelectCable(MIDICable const* cable) {
 
 /// Get the current maximum index for cables. This depends on what the current root USB device is.
 static int32_t currentMaxCable() {
-	if (MIDIDeviceManager::rootUSB == nullptr) {
+	if (MIDIDeviceManager::root_usb == nullptr) {
 		return 0;
 	}
 	// n.b. we intentionally do not subtract 1 here since cable index 0 is the DIN ports  still
-	return static_cast<int32_t>(MIDIDeviceManager::rootUSB->getNumCables());
+	return static_cast<int32_t>(MIDIDeviceManager::root_usb->getNumCables());
 }
 
 void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
@@ -150,15 +143,15 @@ MenuItem* Devices::selectButtonPress() {
 
 MIDICable* Devices::getCable(int32_t deviceIndex) {
 	if (deviceIndex == 0) {
-		return &MIDIDeviceManager::rootDin.cable;
+		return &MIDIDeviceManager::root_din.cable;
 	}
 
-	if (MIDIDeviceManager::rootUSB == nullptr) {
+	if (MIDIDeviceManager::root_usb == nullptr) {
 		return nullptr;
 	}
 
 	// USBRootComplex will return nullptr for out-of-range cables.
-	return MIDIDeviceManager::rootUSB->getCable(deviceIndex - 1);
+	return MIDIDeviceManager::root_usb->getCable(deviceIndex - 1);
 }
 
 void Devices::drawValue() {
@@ -177,19 +170,17 @@ void Devices::drawPixelsForOled() {
 
 	// Fill in the items before the scroll position.
 	int32_t cable_index = current_cable_ - 1;
-	while (cable_index >= 0 && item_names.size() < scroll_pos_) {
+	while (cable_index >= 0 && static_cast<int32_t>(item_names.size()) < scroll_pos_) {
 		auto const* cable = getCable(cable_index);
 		if (canSelectCable(cable)) {
 			item_names.push_back(cable->getDisplayName());
 		}
 		cable_index--;
 	}
-	std::reverse(item_names.begin(), item_names.end());
+	std::ranges::reverse(item_names.begin(), item_names.end());
 
 	// Add the item at the scroll position
 	item_names.push_back(getCable(current_cable_)->getDisplayName());
-
-	D_PRINTLN("%d", scroll_pos_);
 
 	// And fill in the items after the current cable.
 	cable_index = current_cable_ + 1;

@@ -21,10 +21,7 @@
 
 class MIDICableUSB : public MIDICable {
 public:
-	MIDICableUSB(uint8_t portNum = 0) {
-		portNumber = portNum;
-		needsToSendMCMs = 0;
-	}
+	MIDICableUSB(uint8_t portNum = 0) : portNumber(portNum) {}
 
 	[[nodiscard]] bool wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const override;
 
@@ -35,6 +32,7 @@ public:
 	void checkIncomingSysex(uint8_t const* msg, int32_t ip, int32_t d);
 	void connectedNow(int32_t midiDeviceNum);
 	void sendMCMsNowIfNeeded();
-	uint8_t needsToSendMCMs;
+
 	uint8_t portNumber;
+	uint8_t needsToSendMCMs = 0;
 };

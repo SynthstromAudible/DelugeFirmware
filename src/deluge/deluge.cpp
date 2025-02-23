@@ -858,10 +858,7 @@ extern "C" int32_t deluge_main(void) {
 		deluge::io::usb::USBAutoLock lock;
 		openUSBHost();
 
-		if (anythingInitiallyAttachedAsUSBHost) {
-			MIDIDeviceManager::setUSBRoot(new MIDIRootComplexUSBHosted());
-		}
-		else {
+		if (anythingInitiallyAttachedAsUSBHost == 0) {
 			// If nothing was plugged in to us as host, we'll go peripheral
 			// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
 			// To do that, I'd really need to know at any point in time whether the user had just made a connection,
@@ -872,6 +869,9 @@ extern "C" int32_t deluge_main(void) {
 			openUSBPeripheral();
 
 			// configuredAsPeripheral will set the root complex.
+		}
+		else {
+			MIDIDeviceManager::setUSBRoot(new MIDIRootComplexUSBHosted());
 		}
 	}
 

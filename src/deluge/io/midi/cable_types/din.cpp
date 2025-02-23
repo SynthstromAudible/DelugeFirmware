@@ -40,19 +40,19 @@ char const* MIDICableDINPorts::getDisplayName() const {
 }
 
 Error MIDICableDINPorts::sendMessage(MIDIMessage message) {
-	uint8_t statusByte = message.channel | (message.statusType << 4);
-	int32_t messageLength = bytesPerStatusMessage(statusByte);
+	uint8_t status_byte = message.channel | (message.statusType << 4);
+	auto message_length = bytesPerStatusMessage(status_byte);
 
-	if (messageLength > sendBufferSpace()) {
+	if (message_length > sendBufferSpace()) {
 		return Error::OUT_OF_BUFFER_SPACE;
 	}
 
-	bufferMIDIUart(statusByte);
+	bufferMIDIUart(status_byte);
 
-	if (messageLength >= 2) {
+	if (message_length >= 2) {
 		bufferMIDIUart(message.data1);
 
-		if (messageLength == 3) {
+		if (message_length == 3) {
 			bufferMIDIUart(message.data2);
 		}
 	}
@@ -68,7 +68,7 @@ Error MIDICableDINPorts::sendSysex(const uint8_t* data, int32_t len) {
 	if (len < 3 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
 		return Error::OUT_OF_BUFFER_SPACE;
 	}
-	if (len > sendBufferSpace()) {
+	if (static_cast<size_t>(len) > sendBufferSpace()) {
 		return Error::OUT_OF_BUFFER_SPACE;
 	}
 
@@ -83,7 +83,7 @@ Error MIDICableDINPorts::sendSysex(const uint8_t* data, int32_t len) {
 Error MIDICableDINPorts::onReceiveByte(uint32_t timestamp, uint8_t thisSerialByte) {
 	// D_PRINTLN((uint32_t)thisSerialByte);
 	// If this is a status byte, then we have to store it as the first byte.
-	if (thisSerialByte & 0x80) {
+	if ((thisSerialByte & 0x80) != 0) {
 
 		switch (thisSerialByte) {
 
@@ -101,6 +101,9 @@ Error MIDICableDINPorts::onReceiveByte(uint32_t timestamp, uint8_t thisSerialByt
 			incomingSysexPos = 1;
 			// numSerialMidiInput = 0; // This would throw away any running status stuff...
 			return Error::NONE;
+		default:
+			// Default case for non sysex/realtime input
+			break;
 		}
 
 		// If we didn't return for any of those, then it's just a regular old status message (or Sysex stop
@@ -111,7 +114,7 @@ Error MIDICableDINPorts::onReceiveByte(uint32_t timestamp, uint8_t thisSerialByt
 			D_PRINTLN("Sysex end");
 			if (currentlyReceivingSysex_) {
 				currentlyReceivingSysex_ = false;
-				if (incomingSysexPos < sizeof incomingSysexBuffer) {
+				if (static_cast<size_t>(incomingSysexPos) < sizeof incomingSysexBuffer) {
 					incomingSysexBuffer[incomingSysexPos++] = thisSerialByte;
 					midiEngine.midiSysexReceived(*this, incomingSysexBuffer, incomingSysexPos);
 				}
@@ -128,7 +131,7 @@ Error MIDICableDINPorts::onReceiveByte(uint32_t timestamp, uint8_t thisSerialByt
 		// If we're currently receiving a SysEx, don't throw it away
 		if (currentlyReceivingSysex_) {
 			// TODO: allocate a GMA buffer to some bigger size
-			if (incomingSysexPos < sizeof incomingSysexBuffer) {
+			if (static_cast<size_t>(incomingSysexPos) < sizeof incomingSysexBuffer) {
 				incomingSysexBuffer[incomingSysexPos++] = thisSerialByte;
 			}
 			D_PRINTLN("Sysex:  %d", thisSerialByte);

@@ -204,7 +204,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 		}
 	}
 
-	auto _ = MIDIDeviceManager::rootDin.poll();
+	auto _ = MIDIDeviceManager::root_din.poll();
 	midiEngine.flushMIDI();
 
 	encoders::readEncoders();

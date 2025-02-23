@@ -168,7 +168,7 @@ void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter
 	}
 
 	// Send serial MIDI
-	auto& dinCable = MIDIDeviceManager::rootDin.cable;
+	auto& dinCable = MIDIDeviceManager::root_din.cable;
 	if (dinCable.wantsToOutputMIDIOnChannel(message, filter)) {
 		auto error = dinCable.sendMessage(message);
 		if (error != Error::NONE && error != Error::NO_ERROR_BUT_GET_OUT) {
@@ -181,11 +181,11 @@ void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter
 
 void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 	// If no USB device is connected, don't send anything. Otherwise, we send to all cables.
-	if (MIDIDeviceManager::rootUSB == nullptr) {
+	if (MIDIDeviceManager::root_usb == nullptr) {
 		return;
 	}
 
-	for (auto& cable : MIDIDeviceManager::rootUSB->getCables()) {
+	for (auto& cable : MIDIDeviceManager::root_usb->getCables()) {
 		if (cable.wantsToOutputMIDIOnChannel(message, filter)) {
 			cable.sendMessage(message);
 		}
@@ -200,8 +200,8 @@ void MidiEngine::checkIncomingMidi() {
 	}
 
 	// Check incoming USB MIDI
-	if (MIDIDeviceManager::rootUSB != nullptr) {
-		auto error = MIDIDeviceManager::rootUSB->poll();
+	if (MIDIDeviceManager::root_usb != nullptr) {
+		auto error = MIDIDeviceManager::root_usb->poll();
 		if (error != Error::NONE && error != Error::NO_ERROR_BUT_GET_OUT) {
 			D_PRINTLN("USB poll error: %d\n", static_cast<int>(error));
 		}
@@ -209,7 +209,7 @@ void MidiEngine::checkIncomingMidi() {
 
 	// Check incoming Serial MIDI
 	for (int32_t i = 0; i < 12; i++) {
-		auto error = MIDIDeviceManager::rootDin.poll();
+		auto error = MIDIDeviceManager::root_din.poll();
 		if (error == Error::NO_ERROR_BUT_GET_OUT) {
 			break;
 		}
@@ -221,10 +221,10 @@ void MidiEngine::checkIncomingMidi() {
 
 // Warning - this will sometimes (not always) be called in an ISR
 void MidiEngine::flushMIDI() {
-	if (MIDIDeviceManager::rootUSB) {
-		MIDIDeviceManager::rootUSB->flush();
+	if (MIDIDeviceManager::root_usb) {
+		MIDIDeviceManager::root_usb->flush();
 	}
-	MIDIDeviceManager::rootDin.flush();
+	MIDIDeviceManager::root_din.flush();
 }
 
 // Lock USB before calling this!
@@ -434,7 +434,7 @@ void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8
 	// other messages, rather than using our special clock-specific system
 	if (shouldDoMidiThruNow) {
 		// Only send out on USB if it didn't originate from USB
-		bool shouldSendUSB = (&cable == &MIDIDeviceManager::rootDin.cable);
+		bool shouldSendUSB = (&cable == &MIDIDeviceManager::root_din.cable);
 		// TODO: reconsider interaction with MPE?
 		sendMidi(cable,
 		         MIDIMessage{
