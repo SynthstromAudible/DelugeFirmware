@@ -36,9 +36,12 @@ void logDebug(enum DebugPrintMode mode, const char* file, int line, size_t bufsi
 #endif
 
 #if ENABLE_TEXT_OUTPUT
-#define D_PRINTLN(...) logDebug(kDebugPrintModeNewlined, __FILE__, __LINE__, 256, __VA_ARGS__)
-#define D_PRINT(...) logDebug(kDebugPrintModeDefault, __FILE__, __LINE__, 256, __VA_ARGS__)
-#define D_PRINT_RAW(...) logDebug(kDebugPrintModeRaw, __FILE__, __LINE__, 256, __VA_ARGS__)
+#define D_PRINTLN(...)                                                                                                 \
+	logDebug(kDebugPrintModeNewlined, __FILE__, __LINE__, 256, __VA_ARGS__) // NOLINT(cppcoreguidelines-pro-type-vararg)
+#define D_PRINT(...)                                                                                                   \
+	logDebug(kDebugPrintModeDefault, __FILE__, __LINE__, 256, __VA_ARGS__) // NOLINT(cppcoreguidelines-pro-type-vararg)
+#define D_PRINT_RAW(...)                                                                                               \
+	logDebug(kDebugPrintModeRaw, __FILE__, __LINE__, 256, __VA_ARGS__) // NOLINT(cppcoreguidelines-pro-type-vararg)
 
 #else
 
