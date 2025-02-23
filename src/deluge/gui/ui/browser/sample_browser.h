@@ -84,7 +84,7 @@ private:
 	bool canImportWholeKit();
 	bool loadAllSamplesInFolder(int32_t* getNumSamples, Sample*** getSortArea,
 	                            bool* getDoingSingleCycle = nullptr, int32_t* getNumCharsInPrefix = nullptr);
-	bool detectPitch(int32_t numSamples, Sample*** getSortArea, bool doingSingleCycle);
+	bool detectPitch(int32_t numSamples, Sample*** getSortArea, bool doingSingleCycle, SliceItem* slicePoints = nullptr);
 	Error getCurrentFilePath(String* path) override;
 	void drawKeysOverWaveform();
 	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);

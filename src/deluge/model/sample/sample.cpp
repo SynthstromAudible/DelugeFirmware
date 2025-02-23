@@ -1044,10 +1044,12 @@ void Sample::workOutMIDINote(bool doingSingleCycle, float minFreqHz, float maxFr
 calculateMIDINote:
 				midiNote = 69 + log2f(freq / 440) * 12;
 			}
+
+			D_PRINTLN("pitch %f", freq);
 		}
 	}
 
-	D_PRINTLN("midiNote:  %d", midiNote);
+	D_PRINTLN("midiNote:  %f", midiNote);
 }
 
 uint32_t Sample::getLengthInMSec() {

@@ -631,8 +631,6 @@ void Slicer::doSlice(bool isManual) {
 
 void Slicer::doSliceSynth(bool isManual) {
 
-	AudioEngine::stopAnyPreviewing();
-
 	SoundInstrument* soundInstrument = (SoundInstrument*)soundEditor.currentSound;
 	MultisampleRange* firstRange = (MultisampleRange*)soundInstrument->sources[0].getOrCreateFirstRange();
 	Sample* sample = (Sample*)firstRange->sampleHolder.audioFile;
@@ -641,7 +639,7 @@ void Slicer::doSliceSynth(bool isManual) {
 	if (isManual) {
 		for (int32_t i = 0; i < numClips; i++) {
 			finalSlicePoints[i].startPos = manualSlicePoints[i].startPos;
-			finalSlicePoints[i].transpose = manualSlicePoints[i].transpose;
+			finalSlicePoints[i].transpose = 0;
 		}
 	} else {
 		uint32_t lengthInSamples = sample->lengthInSamples;

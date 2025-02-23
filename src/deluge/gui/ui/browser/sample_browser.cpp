@@ -1333,13 +1333,13 @@ removeReasonsFromSamplesAndGetOut:
 
 	Sample** thisSamplePointer = sortArea;
 
-	// TODO RAUL only do here the storing in sort area, and do later the workOutMidiNote
-	// Go through each sample in memory that was from the folder in question, adding them to our pointer list
 	int32_t sampleI = 0;
 	for (Sample* thisSample : audioFileManager.sampleFiles | std::views::values) {
 		// If this sample is one of the ones we loaded a moment ago...
 		if (thisSample->partOfFolderBeingLoaded) {
 			thisSample->partOfFolderBeingLoaded = false;
+
+			thisSample->midiNote = MIDI_NOTE_UNSET;
 
 			if (discardingMIDINoteFromFile) {
 				thisSample->midiNoteFromFile = -1;
@@ -1385,16 +1385,18 @@ removeReasonsFromSamplesAndGetOut:
 	return true;
 }
 
-bool SampleBrowser::detectPitch(int32_t numSamples, Sample*** getSortArea, bool doingSingleCycle) {
+bool SampleBrowser::detectPitch(int32_t numSamples, Sample*** getSortArea, bool doingSingleCycle, SliceItem* slicePoints) {
 
 	Sample** sortArea = *getSortArea;
 	for (int32_t s = 0; s < numSamples; s++) {
 		Sample* thisSample = sortArea[s];
 		// If this sample is one of the ones we loaded a moment ago...
-		if (thisSample->partOfFolderBeingLoaded) {
-			thisSample->partOfFolderBeingLoaded = false;
-			thisSample->workOutMIDINote(doingSingleCycle);
+		if (slicePoints != nullptr) {
+			thisSample->midiNote = MIDI_NOTE_UNSET;
+			thisSample->midiNoteFromFile = -1;
+			thisSample->beginningOffsetForPitchDetection = slicePoints[s].startPos;
 		}
+		thisSample->workOutMIDINote(doingSingleCycle);
 	}
 
 	D_PRINTLN("successfully detected pitch: %d", numSamples);
@@ -1826,27 +1828,63 @@ skipOctaveCorrection:
 
 bool SampleBrowser::importSampleAsSlicedMultisample(int32_t numClips, SliceItem* slicePoints) {
 
-	SoundInstrument* soundInstrument = (SoundInstrument*)soundEditor.currentSource;
-	MultisampleRange* firstRange = (MultisampleRange*)soundInstrument->sources[0].getOrCreateFirstRange();
-	Sample* sample = (Sample*)firstRange->sampleHolder.audioFile;
+	AudioEngine::stopAnyPreviewing();
+
+	display->displayLoadingAnimationText("Working");
+
+	Error error = claimAudioFileForInstrument();
+	if (error != Error::NONE) {
+		D_PRINTLN("ERR");
+	}
+	Sample* sample = (Sample*)soundEditor.getCurrentAudioFileHolder()->audioFile;
+
+	sample->midiNote = MIDI_NOTE_UNSET;
+	sample->midiNoteFromFile = -1;
+	sample->beginningOffsetForPitchDetection = 0;
+
+	// SoundInstrument* soundInstrument = (SoundInstrument*)soundEditor.currentSource;
+	// MultisampleRange* firstRange = (MultisampleRange*)soundInstrument->sources[0].getOrCreateFirstRange();
+	// Sample* sample = (Sample*)firstRange->sampleHolder.audioFile;
+
+	D_PRINTLN("slice multi %d", sample->numChannels);
 
 	// Copy the same sample into the sortArea and set the beginningOffsetForPitchDetection
-	Sample** sortArea = (Sample**)GeneralMemoryAllocator::get().allocMaxSpeed(numClips * sizeof(Sample*));
+	Sample** sortArea = (Sample**)GeneralMemoryAllocator::get().allocMaxSpeed(numClips * sizeof(Sample*) * 2);
+	if (!sortArea) {
+doFailSliceMultisample:
+		display->removeWorkingAnimation();
+		return false;
+	}
+	Sample** thisSamplePointer = sortArea;
 	for (int32_t i = 0; i < numClips; i++) {
-		memcpy(sortArea[i], sample, sizeof(Sample));
-		SliceItem slicePoint = slicePoints[i];
-		sortArea[i]->beginningOffsetForPitchDetection = slicePoint.startPos;
+		// void* sample_memory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Sample));
+		// if (sample_memory == nullptr) {
+		// 	goto doFailSliceMultisample;
+		// }
+		// memcpy(sample_memory, sample, sizeof(Sample));
+		// Sample* copiedSample = (Sample*)sample_memory;
+		// SliceItem slicePoint = slicePoints[i];
+		// copiedSample->midiNote = MIDI_NOTE_UNSET;
+		// copiedSample->midiNoteFromFile = -1;
+		// copiedSample->beginningOffsetForPitchDetection = slicePoint.startPos;
+
+		*thisSamplePointer = sample;
+		thisSamplePointer++;
 	}
 
-	bool success = detectPitch(numClips, &sortArea, false);
+	D_PRINTLN("sortArea created");
+
+	bool success = detectPitch(numClips, &sortArea, false, slicePoints);
 	if (!success) {
-doReturnFalse:
 		display->removeWorkingAnimation();
 		return false;
 	}
 
-	// Use the slicePoints to create multisamples from the same sample
-	finishCreatingMultisamples(numClips, sortArea, false);
+	D_PRINTLN("pitch detected");
+
+	// // Use the slicePoints to create multisamples from the same sample
+	// return finishCreatingMultisamples(numClips, sortArea, false);
+	return true;
 }
 
 bool SampleBrowser::importFolderAsMultisamples() {
@@ -1861,17 +1899,17 @@ bool SampleBrowser::importFolderAsMultisamples() {
 
 	bool success = loadAllSamplesInFolder(&numSamples, &sortArea, &doingSingleCycle);
 	if (!success) {
-doReturnFalse:
 		display->removeWorkingAnimation();
 		return false;
 	}
 
 	success = detectPitch(numSamples, &sortArea, doingSingleCycle);
 	if (!success) {
-		goto doReturnFalse;
+		display->removeWorkingAnimation();
+		return false;
 	}
 
-	finishCreatingMultisamples(numSamples, sortArea, doingSingleCycle);
+	return finishCreatingMultisamples(numSamples, sortArea, doingSingleCycle);
 }
 
 bool SampleBrowser::importFolderAsKit() {
@@ -1887,7 +1925,6 @@ bool SampleBrowser::importFolderAsKit() {
 	bool success = loadAllSamplesInFolder(&numSamples, &sortArea, nullptr, &prefixAndDirLength);
 
 	if (!success) {
-doReturnFalse:
 		display->removeWorkingAnimation();
 		return false;
 	}
@@ -1917,7 +1954,8 @@ doReturnFalse:
 getOut:
 					staticDIR.close();
 					display->displayError(Error::INSUFFICIENT_RAM);
-					goto doReturnFalse;
+					display->removeWorkingAnimation();
+					return false;
 				}
 
 				// Ensure osc type is "sample". For the later drums, calling setupAsSample() does this same thing
