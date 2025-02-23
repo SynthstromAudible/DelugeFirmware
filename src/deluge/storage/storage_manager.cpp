@@ -467,6 +467,49 @@ Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrumen
 	return Error::NONE;
 }
 
+Error StorageManager::openPatternFile(FilePointer* filePointer) {
+
+	AudioEngine::logAction("openPatternFile");
+	if (!filePointer->sclust) {
+		return Error::FILE_NOT_FOUND;
+	}
+	char const* firstTagName = "pattern";
+	char const* altTagName = "";
+
+	Error error = openXMLFile(filePointer, smDeserializer, firstTagName, altTagName);
+	return error;
+}
+
+// Returns error status
+Error StorageManager::loadPatternFile(FilePointer* filePointer, String* fileName, bool overwriteExisting,
+                                      bool noScaling, bool previewOnly, bool selectedDrumOnly) {
+
+	AudioEngine::logAction("loadPatternFile");
+
+	Error error = openPatternFile(filePointer);
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	AudioEngine::logAction("readPatternFile");
+
+	error = instrumentClipView.pasteNotesFromFile(smDeserializer, overwriteExisting, noScaling, previewOnly,
+	                                              selectedDrumOnly);
+
+	FRESULT fileSuccess = activeDeserializer->closeWriter();
+
+	// If that somehow didn't work...
+	if (error != Error::NONE || fileSuccess != FR_OK) {
+		if (!fileSuccess) {
+			error = Error::SD_CARD;
+		}
+
+		return error;
+	}
+
+	return Error::NONE;
+}
+
 /**
  * Special function to read a synth preset into a sound drum
  */

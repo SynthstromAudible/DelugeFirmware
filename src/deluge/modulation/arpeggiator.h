@@ -29,6 +29,7 @@
 
 class PostArpTriggerable;
 class ParamManagerForTimeline;
+class UnpatchedParamSet;
 
 constexpr uint32_t RANDOMIZER_LOCK_MAX_SAVED_VALUES = 16;
 constexpr uint32_t ARP_MAX_INSTRUCTION_NOTES = 4;
@@ -44,6 +45,8 @@ enum class ArpType : uint8_t {
 class ArpeggiatorSettings {
 public:
 	ArpeggiatorSettings();
+
+	void updateParamsFromUnpatchedParamSet(UnpatchedParamSet* unpatchedParams);
 
 	void cloneFrom(ArpeggiatorSettings const* other);
 
@@ -93,6 +96,7 @@ public:
 	// Spread last lock
 	uint32_t lastLockedNoteProbabilityParameterValue{0};
 	uint32_t lastLockedBassProbabilityParameterValue{0};
+	uint32_t lastLockedReverseProbabilityParameterValue{0};
 	uint32_t lastLockedChordProbabilityParameterValue{0};
 	uint32_t lastLockedRatchetProbabilityParameterValue{0};
 	uint32_t lastLockedSpreadVelocityParameterValue{0};
@@ -102,6 +106,7 @@ public:
 	// Pre-calculated randomized values for each parameter
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedNoteProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedBassProbabilityValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedReverseProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedChordProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedRatchetProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSpreadVelocityValues;
@@ -123,6 +128,7 @@ public:
 	uint32_t ratchetAmount{0};
 	uint32_t noteProbability{4294967295u}; // Default to 25 if not set in XML
 	uint32_t bassProbability{0};
+	uint32_t reverseProbability{0};
 	uint32_t chordProbability{0};
 	uint32_t ratchetProbability{0};
 	uint32_t spreadVelocity{0};
@@ -154,6 +160,7 @@ class ArpReturnInstruction {
 public:
 	ArpReturnInstruction() {
 		sampleSyncLengthOn = 0;
+		invertReversed = false;
 		arpNoteOn = nullptr;
 		outputMIDIChannelOff.fill(MIDI_CHANNEL_NONE);
 		noteCodeOffPostArp.fill(ARP_NOTE_NONE);
@@ -163,6 +170,11 @@ public:
 	// notes are still playing (e.g. for mono note priority)
 	uint32_t sampleSyncLengthOn; // This defaults to zero, or may be overwritten by the caller to the Arp - and then
 	                             // the Arp itself may override that.
+
+	// If set to true by the arpeggiator, the reverse SAMPLE flag will be inverted for the next voices to be played
+	// and restored back to normal afterwards
+	bool invertReversed;
+
 	ArpNote* arpNoteOn;
 
 	// And these are only valid if doing a note-off
@@ -217,10 +229,13 @@ public:
 	bool lastNormalNotePlayedFromNoteProbability = true;
 
 	// Bass probability state
-	bool lastNormalNotePlayedFromBassProbability = true;
+	bool lastNormalNotePlayedFromBassProbability = false;
+
+	// Reverse probability state
+	bool lastNormalNotePlayedFromReverseProbability = false;
 
 	// Chord probability state
-	bool lastNormalNotePlayedFromChordProbability = true;
+	bool lastNormalNotePlayedFromChordProbability = false;
 
 	// Step repeat state
 	int32_t stepRepeatIndex = 0;
@@ -237,6 +252,7 @@ public:
 	// Calculated spread amounts
 	bool isPlayNoteForCurrentStep = true;
 	bool isPlayBassForCurrentStep = false;
+	bool isPlayReverseForCurrentStep = false;
 	bool isPlayChordForCurrentStep = false;
 	bool isPlayRatchetForCurrentStep = false;
 	int32_t spreadVelocityForCurrentStep = 0;
@@ -250,14 +266,16 @@ protected:
 	void resetBase();
 	void resetRatchet();
 	void executeArpStep(ArpeggiatorSettings* settings, uint8_t numActiveNotes, bool isRatchet,
-	                    uint32_t maxSequenceLength, uint32_t rhythm, bool shouldCarryOnRhythmNote, bool shouldPlayNote,
-	                    bool shouldPlayBassNote, bool shouldPlayChordNote);
+	                    uint32_t maxSequenceLength, uint32_t rhythm, bool* shouldCarryOnRhythmNote,
+	                    bool* shouldPlayNote, bool* shouldPlayBassNote, bool* shouldPlayReverseNote,
+	                    bool* shouldPlayChordNote);
 	void increasePatternIndexes(uint8_t numStepRepeats);
 	void increaseSequenceIndexes(uint32_t maxSequenceLength, uint32_t rhythm);
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	bool evaluateRhythm(uint32_t rhythm, bool isRatchet);
 	bool evaluateNoteProbability(bool isRatchet);
 	bool evaluateBassProbability(bool isRatchet);
+	bool evaluateReverseProbability(bool isRatchet);
 	bool evaluateChordProbability(bool isRatchet);
 	uint32_t calculateSpreadVelocity(uint8_t velocity, int32_t spreadVelocityForCurrentStep);
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);

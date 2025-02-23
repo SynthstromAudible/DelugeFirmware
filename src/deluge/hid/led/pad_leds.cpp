@@ -291,6 +291,10 @@ RGB prepareColour(int32_t x, int32_t y, RGB colourSource) {
 	return colourSource;
 }
 
+void set(Cartesian pad, RGB colour) {
+	image[pad.y][pad.x] = colour;
+}
+
 void writeToSideBar(uint8_t sideBarX, uint8_t yDisplay, uint8_t red, uint8_t green, uint8_t blue) {
 	image[yDisplay][sideBarX + kDisplayWidth] = RGB(red, green, blue);
 }
@@ -427,7 +431,7 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 	clipLength = clip->loopLength;
 	audioClipColour = clip->getColour();
 
-	sampleReversed = clip->sampleControls.reversed;
+	sampleReversed = clip->sampleControls.isCurrentlyReversed();
 
 	Sample* sample = (Sample*)clip->sampleHolder.audioFile;
 

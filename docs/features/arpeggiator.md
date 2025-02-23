@@ -59,15 +59,15 @@ setting how many times they are repeated, and setting the direction in which the
       different than Random, then the pattern will play, in the same octave, the same number of random
       notes as notes are in the held chord and then move to a different octave based on the Octave Mode.
       Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
-    - `Walk1 (WALK1)` is the "slow" walk and next note is selected this way:
+    - `Walk1 (WLK1)` is the "slow" walk and next note is selected this way:
         - 30% of probability to walk the sequence a step in reverse.
         - 30% of probability to just repeat the same step of the sequence.
         - 40% of probability to walk the sequence a step forward (as normal).
-    - `Walk2 (WALK2)` is the "normal" walk and next note is selected this way:
+    - `Walk2 (WLK2)` is the "normal" walk and next note is selected this way:
         - 25% of probability to walk the sequence a step in reverse.
         - 25% of probability to just repeat the same step of the sequence.
         - 50% of probability to walk the sequence a step forward (as normal).
-    - `Walk3 (WALK3)` is the "fast" walk and next note is selected this way:
+    - `Walk3 (WLK3)` is the "fast" walk and next note is selected this way:
         - 20% of probability to walk the sequence a step in reverse.
         - 20% of probability to just repeat the same step of the sequence.
         - 60% of probability to walk the sequence a step forward (as normal).
@@ -151,12 +151,18 @@ setting how many times they are repeated, and setting the direction in which the
 
 ### Randomizer (RAND)
 The following parameters are all **automatable** and **learnable** to golden knobs and MIDI CC (not in MIDI clips), and they define how probable a value is to change on each step:
-- **`Lock Randomizer (LOCK)`**: this flag will lock the current set of randomized values for the arpeggiator, so the sequence has a repeatable pattern.
-  - Tip 1: In case you have drone notes, make use of the `Sequence Length` parameter to further adjust the repeated sequence.
-  - Tip 2: If you want to re-roll the dice for a parameter, slightly change its value and a new set of random values will be
-  generated and locked.
-  - Tip 3: If you want some parameters to be locked, but not others, add some automation variation in the clip to those,
-  so the dice is re-rolled and hence you always get fresh new random values for them, while the others have fixed values.
+- **`Lock Randomizer (LOCK)`**: This parameter allows you to freeze the current set of randomized values so the sequence has a
+  repeatable pattern. Note: you can find this parameter also at the root level of the sound menu, under `Randomizer`, because
+  this toggle is also applied for both sequenced notes and arpeggiated notes.
+  - If Lock is OFF, every single note or arp step will get a new random value for each randomized parameter, and as a result for every
+    single step it's unpredictable what result values it will have for Velocity/Octave/Gate spreads, or Note Prob, Ratchet Prob, etc.
+  - If Lock is ON, the dice is rolled just once for every note or arp step of the whole clip sequence (based on the
+    probability values you have set), so you will feel the clip like it is repeating, with a fixed and predictable sequence.
+  = If you want to re-roll the dice just for one of the parameters, slightly change its value (even increasing or decreasing it by 1
+    is enough) and a new set of random values will be generated and locked again.
+  - Extending on the previous tip, if you want some parameters to be locked, but not others, add some automation variation in the clip
+    to those, so the dice is re-rolled for them and hence you always get fresh new random values for them, while the others
+    have fixed values.
 - **`Octave Spread (OCTA)`**: The note will get a change in pitch of a random amount of octaves, going from 0 up to a maximum of +3 octaves.
 - **`Gate Spread (GATE)`**: The gate of the arp step will get a random **positive** or **negative** deviation from the base gate.
 - **`Velocity Spread (VELO)`**: The velocity of the arp step will get a random **positive** or **negative** deviation from the base velocity.
@@ -176,9 +182,21 @@ The following parameters are all **automatable** and **learnable** to golden kno
   as a chord. The size of the chord is determined by the `Chord Polyphony` parameter.
 - **`Note Probability (NOTE)`**: It applies a probability for notes to play or not (after Rhythm has been evalutated,
   that is, only for `note` steps, not for `silent` steps).
+  Note: you can find this parameter also at the root level of the sound menu, under `Randomizer`, because this parameter affects
+  both sequenced notes and arpeggiated notes.
 - **`Bass Probability (BASS)`**: It applies a chance of replacing the current note to be played with the lowest note of arpeggiator
   pattern. The higher the value, the more likely that the note played is the bass note of the arpeggiated chord.
   This can be used as a performance tool to open up or close the arpeggio's pitch range.
+- **`Reverse Probability (RVRS)`**: It applies a chance of inverting the `Reverse` sample setting just for the current note to be played.
+  This probability only affects the oscillator whose type is set to `Sample`.
+  Note: you can find this parameter also at the root level of the sound menu, under `Randomizer`, because this parameter affects
+  both sequenced notes and arpeggiated notes.
+
+The randomizer's parameters that are also available for non-arpeggiated notes are:
+- `Lock Randomizer (LOCK)`
+- `Velocity Spread (VELO)`
+- `Note Probability (NOTE)`
+- `Reverse Probability (RVRS)`
 
 ### MPE
 This submenu contains parameters that are useful if you have an MPE controller connected to the Deluge:

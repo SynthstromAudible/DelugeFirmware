@@ -213,6 +213,7 @@ enum class UIType : uint8_t {
 	KEYBOARD_SCREEN,
 	LOAD_INSTRUMENT_PRESET,
 	LOAD_MIDI_DEVICE_DEFINITION,
+	LOAD_PATTERN,
 	LOAD_SONG,
 	PERFORMANCE,
 	RENAME,
@@ -221,6 +222,7 @@ enum class UIType : uint8_t {
 	SAVE_INSTRUMENT_PRESET,
 	SAVE_KIT_ROW,
 	SAVE_MIDI_DEVICE_DEFINITION,
+	SAVE_PATTERN,
 	SAVE_SONG,
 	SESSION,
 	SLICER,
@@ -257,7 +259,7 @@ enum class OutputType : uint8_t {
 enum class StemExportType : uint8_t {
 	CLIP,
 	TRACK,
-	MASTER_ARRANGEMENT,
+	MIXDOWN,
 };
 
 enum class ThingType : uint8_t {
@@ -505,6 +507,7 @@ enum class Error {
 	INSUFFICIENT_RAM_FOR_FOLDER_CONTENTS_SIZE,
 	SD_CARD_NOT_PRESENT,
 	SD_CARD_NO_FILESYSTEM,
+	INVALID_PATTERN_VERSION,
 };
 
 enum class SampleRepeatMode {

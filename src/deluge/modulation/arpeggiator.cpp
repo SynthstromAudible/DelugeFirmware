@@ -21,12 +21,15 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator_rhythms.h"
+#include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 #include "util/functions.h"
 #include <cstdint>
 
 #define MIN_MPE_MODULATED_VELOCITY 10
+
+namespace params = deluge::modulation::params;
 
 ArpeggiatorSettings::ArpeggiatorSettings() {
 
@@ -50,6 +53,7 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 	lockedBassProbabilityValues.fill(0);
 	lockedChordProbabilityValues.fill(0);
 	lockedRatchetProbabilityValues.fill(0);
+	lockedReverseProbabilityValues.fill(0);
 	lockedSpreadVelocityValues.fill(0);
 	lockedSpreadGateValues.fill(0);
 	lockedSpreadOctaveValues.fill(0);
@@ -93,8 +97,6 @@ void ArpeggiatorBase::resetBase() {
 	// Rhythm
 	notesPlayedFromRhythm = 0;
 	lastNormalNotePlayedFromRhythm = 0;
-	// Randomizer
-	notesPlayedFromLockedRandomizer = 0;
 	// Step repeat
 	stepRepeatIndex = 0;
 }
@@ -139,23 +141,29 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 
 	// Or otherwise, just switch the note on.
 	else {
-		// Apply spread to non-arpeggiated notes
-		int32_t spreadVelocityForCurrentStep = getRandomBipolarProbabilityAmount(settings->spreadVelocity);
+		// Apply randomizer
+		calculateRandomizerAmounts(settings);
+		notesPlayedFromLockedRandomizer = (notesPlayedFromLockedRandomizer + 1) % RANDOMIZER_LOCK_MAX_SAVED_VALUES;
 
-		arpNote.baseVelocity = originalVelocity;
-		// Now apply velocity spread to the base velocity
-		uint8_t velocity = calculateSpreadVelocity(originalVelocity, spreadVelocityForCurrentStep);
-		arpNote.velocity = velocity; // calculated modified velocity
+		if (isPlayNoteForCurrentStep) {
+			// Play a note
 
-		// Set the note to be played
-		noteCodeCurrentlyOnPostArp[0] = noteCode;
-		arpNote.noteCodeOnPostArp[0] = noteCode;
-		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			// Clean rest of slots
-			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-			arpNote.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+			arpNote.baseVelocity = originalVelocity;
+			// Now apply velocity spread to the base velocity
+			uint8_t velocity = calculateSpreadVelocity(originalVelocity, spreadVelocityForCurrentStep);
+			arpNote.velocity = velocity; // calculated modified velocity
+
+			// Set the note to be played
+			noteCodeCurrentlyOnPostArp[0] = noteCode;
+			arpNote.noteCodeOnPostArp[0] = noteCode;
+			for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				// Clean rest of slots
+				noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+				arpNote.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+			}
+			instruction->invertReversed = isPlayReverseForCurrentStep;
+			instruction->arpNoteOn = &arpNote;
 		}
-		instruction->arpNoteOn = &arpNote;
 	}
 }
 
@@ -293,23 +301,29 @@ noteInserted:
 		// Don't do the note-on now, it'll happen automatically at next render
 	}
 	else {
-		// Apply spread to non-arpeggiated notes
-		int32_t spreadVelocityForCurrentStep = getRandomBipolarProbabilityAmount(settings->spreadVelocity);
+		// Apply randomizer
+		calculateRandomizerAmounts(settings);
+		notesPlayedFromLockedRandomizer = (notesPlayedFromLockedRandomizer + 1) % RANDOMIZER_LOCK_MAX_SAVED_VALUES;
 
-		arpNote->baseVelocity = originalVelocity;
-		// Now apply velocity spread to the base velocity
-		uint8_t velocity = calculateSpreadVelocity(originalVelocity, spreadVelocityForCurrentStep);
-		arpNote->velocity = velocity; // calculated modified velocity
+		if (isPlayNoteForCurrentStep) {
+			// Play a note
 
-		// Set the note to be played
-		noteCodeCurrentlyOnPostArp[0] = noteCode;
-		arpNote->noteCodeOnPostArp[0] = noteCode;
-		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			// Clean rest of chord note slots
-			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-			arpNote->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+			arpNote->baseVelocity = originalVelocity;
+			// Now apply velocity spread to the base velocity
+			uint8_t velocity = calculateSpreadVelocity(originalVelocity, spreadVelocityForCurrentStep);
+			arpNote->velocity = velocity; // calculated modified velocity
+
+			// Set the note to be played
+			noteCodeCurrentlyOnPostArp[0] = noteCode;
+			arpNote->noteCodeOnPostArp[0] = noteCode;
+			for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				// Clean rest of chord note slots
+				noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+				arpNote->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+			}
+			instruction->invertReversed = isPlayReverseForCurrentStep;
+			instruction->arpNoteOn = arpNote;
 		}
-		instruction->arpNoteOn = arpNote;
 	}
 }
 
@@ -493,6 +507,12 @@ bool ArpeggiatorBase::evaluateBassProbability(bool isRatchet) {
 	return isRatchet ? lastNormalNotePlayedFromBassProbability : isPlayBassForCurrentStep;
 }
 
+// Returns if the arpeggiator should play the bass note instead of the normal note
+bool ArpeggiatorBase::evaluateReverseProbability(bool isRatchet) {
+	// If it is a rachet, use the last value, but it it is not a ratchet, use the calculated value
+	return isRatchet ? lastNormalNotePlayedFromReverseProbability : isPlayReverseForCurrentStep;
+}
+
 // Returns if the arpeggiator should play a chord instead of the normal note
 bool ArpeggiatorBase::evaluateChordProbability(bool isRatchet) {
 	// If it is a rachet, use the last value, but it it is not a ratchet, use the calculated value
@@ -501,8 +521,9 @@ bool ArpeggiatorBase::evaluateChordProbability(bool isRatchet) {
 
 // Returns if note should be played
 void ArpeggiatorBase::executeArpStep(ArpeggiatorSettings* settings, uint8_t numActiveNotes, bool isRatchet,
-                                     uint32_t maxSequenceLength, uint32_t rhythm, bool shouldCarryOnRhythmNote,
-                                     bool shouldPlayNote, bool shouldPlayBassNote, bool shouldPlayChordNote) {
+                                     uint32_t maxSequenceLength, uint32_t rhythm, bool* shouldCarryOnRhythmNote,
+                                     bool* shouldPlayNote, bool* shouldPlayBassNote, bool* shouldPlayReverseNote,
+                                     bool* shouldPlayChordNote) {
 
 	// Here we reset the arpeggiator sequence based on several possible conditions
 	if (settings->flagForceArpRestart) {
@@ -525,6 +546,17 @@ void ArpeggiatorBase::executeArpStep(ArpeggiatorSettings* settings, uint8_t numA
 		whichNoteCurrentlyOnPostArp = 0;
 	}
 
+	// Probabilities
+	*shouldCarryOnRhythmNote = evaluateRhythm(rhythm, isRatchet);
+	if (*shouldCarryOnRhythmNote && !isRatchet) {
+		// Calculate randomizer amounts only for non-silent and non-ratchet notes
+		calculateRandomizerAmounts(settings);
+	}
+	*shouldPlayNote = evaluateNoteProbability(isRatchet);
+	*shouldPlayBassNote = evaluateBassProbability(isRatchet);
+	*shouldPlayReverseNote = evaluateReverseProbability(isRatchet);
+	*shouldPlayChordNote = evaluateChordProbability(isRatchet);
+
 	if (isRatchet) {
 		// Increment ratchet note index if we are ratcheting
 		ratchetNotesIndex++;
@@ -545,10 +577,11 @@ void ArpeggiatorBase::executeArpStep(ArpeggiatorSettings* settings, uint8_t numA
 			else {
 				// Move indexes to the next note in the sequence, according to OctaveMode, NoteMode and StepRepeat
 				calculateNextNoteAndOrOctave(settings, numActiveNotes);
-
-				// Increase pattern related indexes
-				increasePatternIndexes(settings->numStepRepeats);
 			}
+
+			// Increase pattern related indexes
+			increasePatternIndexes(settings->numStepRepeats);
+
 			// As we have set a note and an octave, we can say we have played a note
 			playedFirstArpeggiatedNoteYet = true;
 
@@ -560,6 +593,9 @@ void ArpeggiatorBase::executeArpStep(ArpeggiatorSettings* settings, uint8_t numA
 
 			// Save last note played from probability
 			lastNormalNotePlayedFromBassProbability = shouldPlayBassNote;
+
+			// Save last note played from probability
+			lastNormalNotePlayedFromReverseProbability = shouldPlayReverseNote;
 
 			// Save last note played from probability
 			lastNormalNotePlayedFromChordProbability = shouldPlayChordNote;
@@ -602,18 +638,16 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	uint32_t rhythm = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
 
 	// Probabilities
-	bool shouldCarryOnRhythmNote = evaluateRhythm(rhythm, isRatchet);
-	if (shouldCarryOnRhythmNote) {
-		// Calculate randomizer amounts only for non-silent notes
-		calculateRandomizerAmounts(settings);
-	}
-	bool shouldPlayNote = evaluateNoteProbability(isRatchet);
-	bool shouldPlayBassNote = evaluateBassProbability(isRatchet);
-	bool shouldPlayChordNote = evaluateChordProbability(isRatchet);
+	bool shouldCarryOnRhythmNote;
+	bool shouldPlayNote;
+	bool shouldPlayBassNote;
+	bool shouldPlayReverseNote;
+	bool shouldPlayChordNote;
 
 	// Execute all the step calculations
 	executeArpStep(settings, chordTypeNoteCount[settings->chordTypeIndex], isRatchet, maxSequenceLength, rhythm,
-	               shouldCarryOnRhythmNote, shouldPlayNote, shouldPlayBassNote, shouldPlayChordNote);
+	               &shouldCarryOnRhythmNote, &shouldPlayNote, &shouldPlayBassNote, &shouldPlayReverseNote,
+	               &shouldPlayChordNote);
 
 	if (shouldCarryOnRhythmNote && shouldPlayNote) {
 		// Set Gate as active
@@ -679,13 +713,17 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
 			arpNote.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 		}
+		instruction->invertReversed = shouldPlayReverseNote;
 		instruction->arpNoteOn = &arpNote;
 	}
 }
 
 bool ArpeggiatorBase::getRandomProbabilityResult(uint32_t value) {
 	if (value == 0) {
-		return false;
+		return false; // If value at min probability, return always false
+	}
+	if (value == std::numeric_limits<uint32_t>::max()) {
+		return true; // If value at max probability, return always true
 	}
 	uint32_t randomChance = random(65535);
 	return (value >> 16) >= randomChance;
@@ -727,6 +765,13 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 				settings->lockedBassProbabilityValues[i] = getRandomProbabilityResult(settings->bassProbability);
 			}
 			settings->lastLockedBassProbabilityParameterValue = settings->bassProbability;
+		}
+		if (resetLockedRandomizerValuesNextTime
+		    || settings->lastLockedReverseProbabilityParameterValue != settings->reverseProbability) {
+			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
+				settings->lockedReverseProbabilityValues[i] = getRandomProbabilityResult(settings->reverseProbability);
+			}
+			settings->lastLockedReverseProbabilityParameterValue = settings->reverseProbability;
 		}
 		if (resetLockedRandomizerValuesNextTime
 		    || settings->lastLockedChordProbabilityParameterValue != settings->chordProbability) {
@@ -772,6 +817,9 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		isPlayBassForCurrentStep =
 		    settings->lockedBassProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES]
 		    != 0;
+		isPlayReverseForCurrentStep =
+		    settings->lockedReverseProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES]
+		    != 0;
 		isPlayChordForCurrentStep =
 		    settings->lockedChordProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES]
 		    != 0;
@@ -789,6 +837,7 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		// Lively create new randomized values on the fly each time a note is played
 		isPlayNoteForCurrentStep = getRandomProbabilityResult(settings->noteProbability);
 		isPlayBassForCurrentStep = getRandomProbabilityResult(settings->bassProbability);
+		isPlayReverseForCurrentStep = getRandomProbabilityResult(settings->reverseProbability);
 		isPlayChordForCurrentStep = getRandomProbabilityResult(settings->chordProbability);
 		isPlayRatchetForCurrentStep = getRandomProbabilityResult(settings->ratchetProbability);
 		spreadVelocityForCurrentStep = getRandomBipolarProbabilityAmount(settings->spreadVelocity);
@@ -1041,18 +1090,16 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	uint32_t rhythm = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
 
 	// Probabilities
-	bool shouldCarryOnRhythmNote = evaluateRhythm(rhythm, isRatchet);
-	if (shouldCarryOnRhythmNote && !isRatchet) {
-		// Calculate randomizer amounts only for non-silent and non-ratchet notes
-		calculateRandomizerAmounts(settings);
-	}
-	bool shouldPlayNote = evaluateNoteProbability(isRatchet);
-	bool shouldPlayBassNote = evaluateBassProbability(isRatchet);
-	bool shouldPlayChordNote = evaluateChordProbability(isRatchet);
+	bool shouldCarryOnRhythmNote;
+	bool shouldPlayNote;
+	bool shouldPlayBassNote;
+	bool shouldPlayReverseNote;
+	bool shouldPlayChordNote;
 
 	// Execute all the step calculations
 	executeArpStep(settings, (uint8_t)notes.getNumElements(), isRatchet, maxSequenceLength, rhythm,
-	               shouldCarryOnRhythmNote, shouldPlayNote, shouldPlayBassNote, shouldPlayChordNote);
+	               &shouldCarryOnRhythmNote, &shouldPlayNote, &shouldPlayBassNote, &shouldPlayReverseNote,
+	               &shouldPlayChordNote);
 
 	// Clamp the index to real range
 	whichNoteCurrentlyOnPostArp = std::clamp<int16_t>(whichNoteCurrentlyOnPostArp, 0, notes.getNumElements() - 1);
@@ -1196,6 +1243,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			arpNote->noteCodeOnPostArp[n] = noteCodeCurrentlyOnPostArp[n];
 		}
+		instruction->invertReversed = shouldPlayReverseNote;
 		instruction->arpNoteOn = arpNote;
 	}
 }
@@ -1278,6 +1326,9 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction
 // May switch notes on and/or off.
 int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction,
                                        uint32_t clipCurrentPos, bool currentlyPlayingReversed) {
+	if (clipCurrentPos == 0) {
+		notesPlayedFromLockedRandomizer = 0;
+	}
 	// Make sure we actually intended to sync
 	if (settings->mode == ArpMode::OFF || (settings->syncLevel == 0u)) {
 		return 2147483647;
@@ -1357,6 +1408,7 @@ void ArpeggiatorSettings::cloneFrom(ArpeggiatorSettings const* other) {
 	ratchetAmount = other->ratchetAmount;
 	noteProbability = other->noteProbability;
 	bassProbability = other->bassProbability;
+	reverseProbability = other->reverseProbability;
 	chordProbability = other->chordProbability;
 	ratchetProbability = other->ratchetProbability;
 	spreadVelocity = other->spreadVelocity;
@@ -1388,6 +1440,13 @@ bool ArpeggiatorSettings::readCommonTagsFromFile(Deserializer& reader, char cons
 	else if (!strcmp(tagName, "lockedBassProbArray")) {
 		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedBassProbabilityValues.data(),
 		                                                 lockedBassProbabilityValues.size());
+	}
+	else if (!strcmp(tagName, "lastLockedReverseProb")) {
+		lastLockedReverseProbabilityParameterValue = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "lockeReverseProbArray")) {
+		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedReverseProbabilityValues.data(),
+		                                                 lockedReverseProbabilityValues.size());
 	}
 	else if (!strcmp(tagName, "lastLockedChordProb")) {
 		lastLockedChordProbabilityParameterValue = reader.readTagOrAttributeValueInt();
@@ -1495,6 +1554,9 @@ bool ArpeggiatorSettings::readNonAudioTagsFromFile(Deserializer& reader, char co
 	else if (!strcmp(tagName, "bassProbability")) {
 		bassProbability = reader.readTagOrAttributeValueInt();
 	}
+	else if (!strcmp(tagName, "reverseProbability")) {
+		reverseProbability = reader.readTagOrAttributeValueInt();
+	}
 	else if (!strcmp(tagName, "chordProbability")) {
 		chordProbability = reader.readTagOrAttributeValueInt();
 	}
@@ -1551,7 +1613,7 @@ void ArpeggiatorSettings::writeCommonParamsToFile(Serializer& writer, Song* song
 	writer.writeAttribute("noteMode", (char*)arpNoteModeToString(noteMode));
 	writer.writeAttribute("octaveMode", (char*)arpOctaveModeToString(octaveMode));
 	writer.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(mpeVelocity));
-	writer.writeAttribute("stemRepeat", numStepRepeats);
+	writer.writeAttribute("stepRepeat", numStepRepeats);
 	writer.writeAttribute("randomizerLock", randomizerLock);
 
 	// Note probability
@@ -1562,6 +1624,10 @@ void ArpeggiatorSettings::writeCommonParamsToFile(Serializer& writer, Song* song
 	writer.writeAttribute("lastLockedBassProb", lastLockedBassProbabilityParameterValue);
 	writer.writeAttributeHexBytes("lockedBassProbArray", (uint8_t*)lockedBassProbabilityValues.data(),
 	                              lockedBassProbabilityValues.size());
+	// Reverse probability
+	writer.writeAttribute("lastLockedReverseProb", lastLockedReverseProbabilityParameterValue);
+	writer.writeAttributeHexBytes("lockedReverseProbArray", (uint8_t*)lockedReverseProbabilityValues.data(),
+	                              lockedReverseProbabilityValues.size());
 	// Chord probability
 	writer.writeAttribute("lastLockedChordProb", lastLockedChordProbabilityParameterValue);
 	writer.writeAttributeHexBytes("lockedChordProbArray", (uint8_t*)lockedChordProbabilityValues.data(),
@@ -1593,6 +1659,7 @@ void ArpeggiatorSettings::writeNonAudioParamsToFile(Serializer& writer) {
 	// tag)
 	writer.writeAttribute("noteProbability", noteProbability);
 	writer.writeAttribute("bassProbability", bassProbability);
+	writer.writeAttribute("reverseProbability", reverseProbability);
 	writer.writeAttribute("chordProbability", chordProbability);
 	writer.writeAttribute("ratchetProbability", ratchetProbability);
 	writer.writeAttribute("ratchetAmount", ratchetAmount);
@@ -1632,6 +1699,21 @@ void ArpeggiatorSettings::updatePresetFromCurrentSettings() {
 	else {
 		preset = ArpPreset::CUSTOM;
 	}
+}
+
+void ArpeggiatorSettings::updateParamsFromUnpatchedParamSet(UnpatchedParamSet* unpatchedParams) {
+	rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
+	sequenceLength = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
+	chordPolyphony = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_POLYPHONY) + 2147483648;
+	ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
+	noteProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_NOTE_PROBABILITY) + 2147483648;
+	bassProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_PROBABILITY) + 2147483648;
+	reverseProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_REVERSE_PROBABILITY) + 2147483648;
+	chordProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_PROBABILITY) + 2147483648;
+	ratchetProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
+	spreadVelocity = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_SPREAD_VELOCITY) + 2147483648;
+	spreadGate = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
+	spreadOctave = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_OCTAVE) + 2147483648;
 }
 
 void ArpeggiatorSettings::updateSettingsFromCurrentPreset() {

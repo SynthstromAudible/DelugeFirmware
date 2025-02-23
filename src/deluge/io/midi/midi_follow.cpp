@@ -137,6 +137,8 @@ void MidiFollow::initDefaultMappings() {
 	soundParamToCC[params::LOCAL_CARRIER_1_FEEDBACK] = 29;
 	ccToSoundParam[30] = params::LOCAL_OSC_A_WAVE_INDEX;
 	soundParamToCC[params::LOCAL_OSC_A_WAVE_INDEX] = 30;
+	ccToSoundParam[36] = params::UNPATCHED_START + params::UNPATCHED_REVERSE_PROBABILITY;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_REVERSE_PROBABILITY] = 36;
 	ccToSoundParam[37] = params::UNPATCHED_START + params::UNPATCHED_SPREAD_VELOCITY;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SPREAD_VELOCITY] = 37;
 	ccToSoundParam[39] = params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_OCTAVE;
@@ -153,8 +155,8 @@ void MidiFollow::initDefaultMappings() {
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_CHORD_POLYPHONY] = 44;
 	ccToSoundParam[45] = params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_AMOUNT;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_AMOUNT] = 45;
-	ccToSoundParam[46] = params::UNPATCHED_START + params::UNPATCHED_ARP_NOTE_PROBABILITY;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_NOTE_PROBABILITY] = 46;
+	ccToSoundParam[46] = params::UNPATCHED_START + params::UNPATCHED_NOTE_PROBABILITY;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_NOTE_PROBABILITY] = 46;
 	ccToSoundParam[47] = params::UNPATCHED_START + params::UNPATCHED_ARP_BASS_PROBABILITY;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_BASS_PROBABILITY] = 47;
 	ccToSoundParam[48] = params::UNPATCHED_START + params::UNPATCHED_ARP_CHORD_PROBABILITY;
@@ -183,6 +185,9 @@ void MidiFollow::initDefaultMappings() {
 	soundParamToCC[params::LOCAL_LFO_LOCAL_FREQ_1] = 59;
 	ccToSoundParam[60] = params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE] = 60;
+	// TODO: replace this with the patch cable from sidechain to volume, once midi follow supports patch cables
+	// ccToSoundParam[61] = params::GLOBAL_VOLUME_POST_REVERB_SEND;
+	// soundParamToCC[params::GLOBAL_VOLUME_POST_REVERB_SEND] = 61;
 	ccToSoundParam[62] = params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING;
 	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING] = 62;
 	ccToSoundParam[63] = params::UNPATCHED_START + params::UNPATCHED_SAMPLE_RATE_REDUCTION;
@@ -548,21 +553,49 @@ void MidiFollow::displayParamControlError(int32_t soundParamId, int32_t globalPa
 	}
 }
 
-/// a parameter can be learned t one cc at a time
+/// a parameter can be learned to one cc at a time
 /// for a given parameter, find and return the cc that has been learned (if any)
-/// it does this by finding the grid shortcut that corresponds to that param
-/// and then returns what cc or no cc (255) has been mapped to that param shortcut
+/// for the current midi follow controllable context
+/// if no cc is found, then MIDI_CC_NONE (255) is returned
 int32_t MidiFollow::getCCFromParam(params::Kind paramKind, int32_t paramID) {
-	if (paramKind == params::Kind::PATCHED) {
-		return soundParamToCC[paramID];
+	// audio clip or kit with affect entire enabled
+	if (isGlobalEffectableContext()) {
+		if (paramKind == params::Kind::UNPATCHED_GLOBAL) {
+			return globalParamToCC[paramID];
+		}
 	}
-	else if (paramKind == params::Kind::UNPATCHED_SOUND) {
-		return soundParamToCC[params::UNPATCHED_START + paramID];
-	}
-	else if (paramKind == params::Kind::UNPATCHED_GLOBAL) {
-		return globalParamToCC[paramID];
+	// synth clip or kit row
+	else {
+		if (paramKind == params::Kind::PATCHED) {
+			return soundParamToCC[paramID];
+		}
+		else if (paramKind == params::Kind::UNPATCHED_SOUND) {
+			return soundParamToCC[params::UNPATCHED_START + paramID];
+		}
 	}
 	return MIDI_CC_NONE;
+}
+
+// Check if midi follow is controlling the global effectable context
+// if so, we should only be controlling the global effectable parameters
+bool MidiFollow::isGlobalEffectableContext() {
+	// obtain clip for active context (for params that's only for the active mod controllable stack)
+	Clip* clip = getSelectedOrActiveClip();
+	if (clip != nullptr) {
+		// audio clips are always global effectable
+		if (clip->output->type == OutputType::AUDIO) {
+			return true;
+		}
+		// kits may be global effectable depending on affect entire status
+		else if (clip->output->type == OutputType::KIT) {
+			bool affectEntire = ((InstrumentClip*)clip)->affectEntire;
+			// if affect entire is enabled, then midi follow controls global effectable params
+			if (affectEntire) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 /// used to store the clip's for each note received so that note off's can be sent to the right clip
@@ -893,7 +926,7 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, b
 	}
 }
 
-/// called when updating parameter values using mod (gold) encoders or the select encoder in the soudnEditor menu
+/// called when updating parameter values using mod (gold) encoders or the select encoder in the soundEditor menu
 void MidiFollow::sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos) {
 	if (midiEngine.midiFollowFeedbackChannelType != MIDIFollowChannelType::NONE) {
 		LearnedMIDI& midiInput =
@@ -1020,29 +1053,38 @@ void MidiFollow::writeDefaultsToFile() {
 
 /// convert paramID to a paramName to write to XML
 void MidiFollow::writeDefaultMappingsToFile() {
+	Serializer& writer = GetSerializer();
 	for (int32_t ccNumber = 0; ccNumber <= kMaxMIDIValue; ccNumber++) {
 		uint8_t soundParamId = ccToSoundParam[ccNumber];
 		uint8_t globalParamId = ccToGlobalParam[ccNumber];
 
 		bool writeTag = false;
-		char const* paramName;
+		char const* paramNameSound;
+		char const* paramNameGlobal;
 		if (soundParamId != PARAM_ID_NONE && soundParamId < params::UNPATCHED_START) {
-			paramName = params::paramNameForFile(params::Kind::PATCHED, soundParamId);
+			paramNameSound = params::paramNameForFile(params::Kind::PATCHED, soundParamId);
 			writeTag = true;
 		}
 		else if (soundParamId != PARAM_ID_NONE && soundParamId >= params::UNPATCHED_START) {
-			paramName = params::paramNameForFile(params::Kind::UNPATCHED_SOUND, soundParamId);
-			writeTag = true;
-		}
-		else if (globalParamId != PARAM_ID_NONE) {
-			paramName = params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL, globalParamId);
+			paramNameSound = params::paramNameForFile(params::Kind::UNPATCHED_SOUND, soundParamId);
 			writeTag = true;
 		}
 		if (writeTag) {
 			char buffer[10];
 			intToString(ccNumber, buffer);
-			Serializer& writer = GetSerializer();
-			writer.writeTag(paramName, buffer);
+			writer.writeTag(paramNameSound, buffer);
+		}
+
+		writeTag = false;
+		if (globalParamId != PARAM_ID_NONE) {
+			paramNameGlobal =
+			    params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_START + globalParamId);
+			writeTag = strcmp(paramNameGlobal, paramNameSound) != 0;
+		}
+		if (writeTag) {
+			char buffer[10];
+			intToString(ccNumber, buffer);
+			writer.writeTag(paramNameGlobal, buffer);
 		}
 	}
 }
@@ -1111,7 +1153,7 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		foundParam = false;
 		int32_t value = reader.readTagOrAttributeValueInt();
-		// Loop through sound params
+		// Loop through patched sound params
 		for (uint8_t paramId = 0; paramId < params::GLOBAL_NONE; paramId++) {
 			if (!strcmp(tagName, params::paramNameForFile(params::Kind::PATCHED, paramId))) {
 				soundParamToCC[paramId] = value;
@@ -1122,7 +1164,7 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 		}
 		if (!foundParam) {
 			// Loop through unpatched sound params (if not found before)
-			for (uint8_t paramId = 0; paramId != params::UNPATCHED_SOUND_MAX_NUM; paramId++) {
+			for (uint8_t paramId = 0; paramId < params::UNPATCHED_SOUND_MAX_NUM; paramId++) {
 				if (!strcmp(tagName, params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
 				                                              params::UNPATCHED_START + paramId))) {
 					soundParamToCC[params::UNPATCHED_START + paramId] = value;
@@ -1133,7 +1175,7 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 			}
 		}
 		// Loop through global params
-		for (uint8_t paramId = 0; paramId != params::UNPATCHED_GLOBAL_MAX_NUM; paramId++) {
+		for (uint8_t paramId = 0; paramId < params::UNPATCHED_GLOBAL_MAX_NUM; paramId++) {
 			if (!strcmp(tagName,
 			            params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_START + paramId))) {
 				globalParamToCC[paramId] = value;

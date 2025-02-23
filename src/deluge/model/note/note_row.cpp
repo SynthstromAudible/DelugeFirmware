@@ -3778,7 +3778,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		}
 
 		if (clip->isActiveOnOutput()) {
-			soundDrum->patcher.performInitialPatching(soundDrum, &paramManager);
+			soundDrum->patcher.performInitialPatching(*soundDrum, paramManager);
 		}
 	}
 
@@ -4051,18 +4051,9 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 		newLength = std::max(newLength, (int32_t)1);
 		newLength = std::min(newLength, maxPos - newPos);
 
-		int32_t noteDestI = notes.insertAtKey(newPos);
-		Note* noteDest = notes.getElement(noteDestI);
-		if (!noteDest) {
-			return false;
-		}
-
-		noteDest->length = newLength;
-		noteDest->velocity = noteSource->velocity;
-		noteDest->probability = noteSource->probability;
-		noteDest->lift = noteSource->lift;
-		noteDest->iterance = noteSource->iterance;
-		noteDest->fill = noteSource->fill;
+		// Prevents pasting of overlapping notes, which leads to sequentialTest Error "E319"
+		attemptNoteAdd(newPos, newLength, noteSource->velocity, noteSource->probability, noteSource->iterance,
+		               noteSource->fill, modelStack, nullptr);
 
 		minPos = newPos + newLength;
 	}
