@@ -3150,15 +3150,14 @@ void Sound::ensureParamPresetValueWithoutKnobIsZero(ModelStackWithAutoParam* mod
 		}
 	}
 
-	for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
-		MIDIKnob* knob = midiKnobArray.getElement(k);
-		if (knob->paramDescriptor.isSetToParamWithNoSource(modelStack->paramId)) {
-			return;
-		}
-	}
+	bool any_assigned = std::ranges::any_of(midi_knobs, [&](const MIDIKnob& knob) {
+		return knob.paramDescriptor.isSetToParamWithNoSource(modelStack->paramId);
+	});
 
-	// If we're here, no knobs were assigned to this param, so make it 0
-	modelStack->autoParam->setCurrentValueWithNoReversionOrRecording(modelStack, 0);
+	// No knobs were assigned to this param, so make it 0
+	if (!any_assigned) {
+		modelStack->autoParam->setCurrentValueWithNoReversionOrRecording(modelStack, 0);
+	}
 }
 
 void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManager* paramManager, int32_t p) {
@@ -3178,15 +3177,14 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 		}
 	}
 
-	for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
-		MIDIKnob* knob = midiKnobArray.getElement(k);
-		if (knob->paramDescriptor.isSetToParamWithNoSource(p)) {
-			return;
-		}
-	}
+	bool any_assigned = std::ranges::any_of(midi_knobs, [&](const MIDIKnob& knob) {
+		return knob.paramDescriptor.isSetToParamWithNoSource(p); //<
+	});
 
-	// If we're here, no knobs were assigned to this param, so make it 0
-	param->setCurrentValueBasicForSetup(0);
+	// No knobs were assigned to this param, so make it 0
+	if (!any_assigned) {
+		param->setCurrentValueBasicForSetup(0);
+	}
 }
 
 void Sound::doneReadingFromFile() {
@@ -3501,9 +3499,8 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	doneReadingFromFile();
 
 	// Ensure all MIDI knobs reference correct volume...
-	for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
-		MIDIKnob* knob = midiKnobArray.getElement(k);
-		ensureKnobReferencesCorrectVolume(knob);
+	for (MIDIKnob& knob : midi_knobs) {
+		ensureKnobReferencesCorrectVolume(&knob);
 	}
 
 	return Error::NONE;
