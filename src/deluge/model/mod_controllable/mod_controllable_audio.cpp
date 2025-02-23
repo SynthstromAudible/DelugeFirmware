@@ -840,16 +840,16 @@ doReadPatchedParam:
 	return Error::NONE;
 }
 
-ModelStackWithAutoParam* ModControllableAudio::getParamFromMIDIKnob(MIDIKnob* knob,
+ModelStackWithAutoParam* ModControllableAudio::getParamFromMIDIKnob(MIDIKnob& knob,
                                                                     ModelStackWithThreeMainThings* modelStack) {
 
 	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
 	ParamCollection* paramCollection = summary->paramCollection;
 
-	int32_t paramId = knob->paramDescriptor.getJustTheParam() - params::UNPATCHED_START;
+	int32_t param_id = knob.paramDescriptor.getJustTheParam() - params::UNPATCHED_START;
 
 	ModelStackWithParamId* modelStackWithParamId =
-	    modelStack->addParamCollectionAndId(paramCollection, summary, paramId);
+	    modelStack->addParamCollectionAndId(paramCollection, summary, param_id);
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = paramCollection->getAutoParamFromId(modelStackWithParamId);
 
@@ -933,7 +933,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    addNoteRowIndexAndStuff(modelStack, noteRowIndex);
 
-			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(&knob, modelStackWithThreeMainThings);
+			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				int32_t newKnobPos;
@@ -1023,7 +1023,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 				}
 			}
 
-			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(&knob, modelStackWithThreeMainThings);
+			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				int32_t newKnobPos;
@@ -1117,7 +1117,7 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cabl
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    addNoteRowIndexAndStuff(modelStack, noteRowIndex);
 
-			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(&knob, modelStackWithThreeMainThings);
+			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
 
 			if (modelStackWithParam->autoParam) {
 

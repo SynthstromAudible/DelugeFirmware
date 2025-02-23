@@ -930,19 +930,19 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 					if (p != params::GLOBAL_NONE
 					    && p != params::PLACEHOLDER_RANGE) { // Discard any unlikely "range" ones from before V3.2.0,
 						                                     // for complex reasons
-						ModKnob* newKnob = &modKnobs[k][w];
+						ModKnob& new_knob = modKnobs[k][w];
 
 						if (s == PatchSource::NOT_AVAILABLE) {
-							newKnob->paramDescriptor.setToHaveParamOnly(p);
+							new_knob.paramDescriptor.setToHaveParamOnly(p);
 						}
 						else if (s2 == PatchSource::NOT_AVAILABLE) {
-							newKnob->paramDescriptor.setToHaveParamAndSource(p, s);
+							new_knob.paramDescriptor.setToHaveParamAndSource(p, s);
 						}
 						else {
-							newKnob->paramDescriptor.setToHaveParamAndTwoSources(p, s, s2);
+							new_knob.paramDescriptor.setToHaveParamAndTwoSources(p, s, s2);
 						}
 
-						ensureKnobReferencesCorrectVolume(newKnob);
+						ensureKnobReferencesCorrectVolume(new_knob);
 					}
 				}
 
@@ -1469,19 +1469,19 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 }
 
 // Exists for the purpose of potentially correcting an incorrect file as it's loaded
-void Sound::ensureKnobReferencesCorrectVolume(Knob* knob) {
-	int32_t p = knob->paramDescriptor.getJustTheParam();
+void Sound::ensureKnobReferencesCorrectVolume(Knob& knob) {
+	int32_t p = knob.paramDescriptor.getJustTheParam();
 
 	if (p == params::GLOBAL_VOLUME_POST_REVERB_SEND || p == params::GLOBAL_VOLUME_POST_FX
 	    || p == params::LOCAL_VOLUME) {
-		if (knob->paramDescriptor.isJustAParam()) {
-			knob->paramDescriptor.setToHaveParamOnly(params::GLOBAL_VOLUME_POST_FX);
+		if (knob.paramDescriptor.isJustAParam()) {
+			knob.paramDescriptor.setToHaveParamOnly(params::GLOBAL_VOLUME_POST_FX);
 		}
-		else if (knob->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN) {
-			knob->paramDescriptor.changeParam(params::GLOBAL_VOLUME_POST_REVERB_SEND);
+		else if (knob.paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN) {
+			knob.paramDescriptor.changeParam(params::GLOBAL_VOLUME_POST_REVERB_SEND);
 		}
 		else {
-			knob->paramDescriptor.changeParam(params::LOCAL_VOLUME);
+			knob.paramDescriptor.changeParam(params::LOCAL_VOLUME);
 		}
 	}
 }
@@ -3500,7 +3500,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 
 	// Ensure all MIDI knobs reference correct volume...
 	for (MIDIKnob& knob : midi_knobs) {
-		ensureKnobReferencesCorrectVolume(&knob);
+		ensureKnobReferencesCorrectVolume(knob);
 	}
 
 	return Error::NONE;
@@ -5175,14 +5175,14 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 	return false;
 }
 
-ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) {
+ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) {
 
 	ParamCollectionSummary* summary;
 	int32_t paramId;
 
-	if (knob->paramDescriptor.isJustAParam()) {
+	if (knob.paramDescriptor.isJustAParam()) {
 
-		int32_t p = knob->paramDescriptor.getJustTheParam();
+		int32_t p = knob.paramDescriptor.getJustTheParam();
 
 		// Unpatched parameter
 		if (p >= params::UNPATCHED_START) {
@@ -5199,7 +5199,7 @@ ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob* knob, ModelStackW
 	// Patch cable strength
 	else {
 		summary = modelStack->paramManager->getPatchCableSetSummary();
-		paramId = knob->paramDescriptor.data;
+		paramId = knob.paramDescriptor.data;
 	}
 
 	ModelStackWithParamId* modelStackWithParamId =
