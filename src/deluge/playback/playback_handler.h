@@ -186,6 +186,7 @@ public:
 	void programChangeReceived(MIDICable& cable, int32_t channel, int32_t program);
 	void aftertouchReceived(MIDICable& cable, int32_t channel, int32_t value, int32_t noteCode,
 	                        bool* doingMidiThru); // noteCode -1 means channel-wide
+	void yamahaSysexReceived(MIDICable& fromDevice, uint8_t* data, int32_t len);
 	void loopCommand(OverDubType overdubNature);
 	void grabTempoFromClip(Clip* clip);
 	int32_t getTimeLeftInCountIn();

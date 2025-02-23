@@ -93,6 +93,24 @@ However when feedback is activated on algorithm 4 and 6 (those will multi-operat
 "auto" will instead use the "vintage" engine as the modern one doesn't implement these algorithms properly.
 "vintage" engine is meant to more accurately model a DX7 synth, but has lower polyphony.
 
+## MIDI integration
+
+The synth supports sending and receiving param edits as sysex messages, in the standard format supported by DX7 and many
+software implementations such as dexed. It is possible to use the Dexed UI for editing patch parameters.
+Here is an example for how setting up [Dexed](https://asb2m10.github.io/dexed/)
+
+- Connect the Deluge to the computer with USB
+- Start dexed in "Standalone" mode.
+- Click the "options" button in the top left.
+    - Make sure "Deluge MIDI 3" is selected as an "Active MIDI input". Also set "MIDI output" to "Deluge MIDI 3"
+- Click the "PARM" button just above the screen keyboard to the left.
+- Also set "DX7 OUT" to "Deluge MIDI 3". Channel can remain as "1" (works with MIDI follow mode)
+- On the deluge, setup or load an existing clip with a DX synth
+- Enter the DX param menu, i e by pressing SHIFT and the DX7 sidebar
+- Hold LEARN/INPUT and turn the <|> encoder to select midi channel 1
+- The Dexed UI should now be updated to show the DX7 patch from the deluge
+- Param edits in Dexed should be reflected on the deluge, and vice versa
+
 ## Patch Sources
 Need some DX7 patches? Check out the following:
  - [DX7 factory banks](https://yamahablackboxes.com/collection/yamaha-dx7-synthesizer/patches/) from Yamaha Black Boxes.
@@ -104,5 +122,4 @@ Need some DX7 patches? Check out the following:
 
 ## Missing features:
 
-- [ ] midi implementation
 - [ ] modulating/automating individual operators

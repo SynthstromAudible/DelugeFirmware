@@ -45,6 +45,8 @@ const uint8_t SYSEX_UNIVERSAL_NONRT = 0x7E;
 const uint8_t SYSEX_UNIVERSAL_RT = 0x7F;
 const uint8_t SYSEX_UNIVERSAL_IDENTITY = 0x06;
 
+const uint8_t SYSEX_YAMAHA = 0x43;
+
 const uint8_t SYSEX_END = 0xF7;
 
 enum SysexCommands : uint8_t {
