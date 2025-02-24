@@ -601,7 +601,7 @@ void ArpeggiatorBase::executeArpStep(ArpeggiatorSettings* settings, uint8_t numA
 		// If this is a normal note event (not ratchet) we take here the opportunity to setup a
 		// ratchet burst and also make all the necessary calculations for the next note to be played
 
-		if (shouldCarryOnRhythmNote) {
+		if (*shouldCarryOnRhythmNote) {
 			// Setup ratchet
 			maybeSetupNewRatchet(settings);
 
@@ -625,16 +625,16 @@ void ArpeggiatorBase::executeArpStep(ArpeggiatorSettings* settings, uint8_t numA
 			lastNormalNotePlayedFromRhythm = notesPlayedFromRhythm;
 
 			// Save last note played from probability
-			lastNormalNotePlayedFromNoteProbability = shouldPlayNote;
+			lastNormalNotePlayedFromNoteProbability = *shouldPlayNote;
 
 			// Save last note played from probability
-			lastNormalNotePlayedFromBassProbability = shouldPlayBassNote;
+			lastNormalNotePlayedFromBassProbability = *shouldPlayBassNote;
 
 			// Save last note played from probability
-			lastNormalNotePlayedFromReverseProbability = shouldPlayReverseNote;
+			lastNormalNotePlayedFromReverseProbability = *shouldPlayReverseNote;
 
 			// Save last note played from probability
-			lastNormalNotePlayedFromChordProbability = shouldPlayChordNote;
+			lastNormalNotePlayedFromChordProbability = *shouldPlayChordNote;
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
