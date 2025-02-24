@@ -22,6 +22,7 @@
 #include "dsp/envelope_follower/absolute_value.h"
 #include "model/output.h"
 #include <cstdint>
+#include <memory>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -139,7 +140,6 @@ void stopAnyPreviewing();
 Voice* solicitVoice(Sound* forSound);
 void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelStack = nullptr,
                    bool removeFromVector = true, bool shouldDispose = true);
-void disposeOfVoice(Voice* voice);
 
 void songSwapAboutToHappen();
 void unassignAllVoices(bool deletingSong = false);
