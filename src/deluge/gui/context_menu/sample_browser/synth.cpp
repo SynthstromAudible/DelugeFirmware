@@ -88,11 +88,11 @@ bool Synth::acceptCurrentOption() {
 	case 0: // Multisamples
 		return sampleBrowser.importFolderAsMultisamples();
 	case 1: // Slice Multisamples
-		// if (sampleBrowser.claimCurrentFile(0, 0, 0)) {
+		if (sampleBrowser.claimCurrentFile(0, 0, 0)) {
 			display->setNextTransitionDirection(1);
 			openUI(&slicer);
 			return true;
-		// }
+		}
 		return false;
 	case 2: // Basic
 		return sampleBrowser.claimCurrentFile(0, 0, 0);
