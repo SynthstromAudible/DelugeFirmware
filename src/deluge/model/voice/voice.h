@@ -26,6 +26,7 @@
 #include "modulation/params/param.h"
 #include "modulation/patch/patcher.h"
 #include <bitset>
+#include <memory>
 
 class StereoSample;
 class ModelStackWithSoundFlags;
@@ -43,7 +44,7 @@ public:
 	// this Voice right now.
 	std::array<VoiceSamplePlaybackGuide, kNumSources> guides;
 
-	Sound* assignedToSound;
+	Sound* sound; // This is a pointer to the Sound that owns this Voice
 
 	///
 	/// This is just for the *local* params, specific to this Voice only

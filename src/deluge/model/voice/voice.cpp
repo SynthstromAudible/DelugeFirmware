@@ -92,13 +92,13 @@ void Voice::setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingS
 	unassignStuff(deletingSong);
 
 	if (!deletingSong) {
-		this->assignedToSound->voiceUnassigned(modelStack);
+		this->sound->voiceUnassigned(modelStack);
 	}
 }
 
 void Voice::unassignStuff(bool deletingSong) {
 	for (int32_t s = 0; s < kNumSources; s++) {
-		for (int32_t u = 0; u < this->assignedToSound->numUnison; u++) {
+		for (int32_t u = 0; u < this->sound->numUnison; u++) {
 			unisonParts[u].sources[s].unassign(deletingSong);
 		}
 	}
@@ -697,12 +697,12 @@ bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, M
 }
 
 uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param) {
-	LFOConfig& config = assignedToSound->lfoConfig[lfoId];
+	LFOConfig& config = sound->lfoConfig[lfoId];
 	if (config.syncLevel == SYNC_LEVEL_NONE) {
 		return paramFinalValues[param];
 	}
 	else {
-		return assignedToSound->getSyncedLFOPhaseIncrement(config);
+		return sound->getSyncedLFOPhaseIncrement(config);
 	}
 }
 
@@ -2513,13 +2513,13 @@ static_assert(kNumVoicePriorities < 4, "Too many priority options");
 uint32_t Voice::getPriorityRating() {
 	return
 	    // Bits 30-31 - manual priority setting
-	    ((uint32_t)(3 - util::to_underlying(assignedToSound->voicePriority)) << 30)
+	    ((uint32_t)(3 - util::to_underlying(sound->voicePriority)) << 30)
 
 	    // Bits 27-29 - how many voices that Sound has
 	    // - that one really does need to go above state, otherwise "once" samples can still cut out synth drones.
 	    // In a perfect world, culling for the purpose of "soliciting" a Voice would also count the new Voice being
 	    // solicited, preferring to cut out that same Sound's old, say, one Voice, than another Sound's only Voice
-	    + ((uint32_t)std::min(assignedToSound->numVoicesAssigned, 7_i32) << 27)
+	    + ((uint32_t)std::min(sound->numVoicesAssigned, 7_i32) << 27)
 
 	    // Bits 24-26 - envelope state
 	    + ((uint32_t)envelopes[0].state << 24)

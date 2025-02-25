@@ -2748,7 +2748,7 @@ void Sound::confirmNumVoices(char const* error) {
 	int32_t reasonCount = 0;
 	Voice* endAssignedVoices = audioDriver.endAssignedVoices;
 	for (Voice* thisVoice = audioDriver.voices; thisVoice != endAssignedVoices; thisVoice++) {
-	    if (thisVoice->assignedToSound == this) {
+	    if (thisVoice->sound == this) {
 	        voiceCount++;
 
 	        for (int32_t u = 0; u < maxNumUnison; u++) {

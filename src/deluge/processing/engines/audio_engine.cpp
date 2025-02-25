@@ -232,7 +232,7 @@ void unassignAllVoices(bool deletingSong) {
 
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
 		Voice* thisVoice = activeVoices.getVoice(v);
-		unassignVoice(thisVoice, thisVoice->assignedToSound, nullptr, false);
+		unassignVoice(thisVoice, thisVoice->sound, nullptr, false);
 	}
 	activeVoices.empty();
 
@@ -283,7 +283,7 @@ Voice* hardCullVoice(bool saveVoice, size_t numSamples, Sound* stopFrom) {
 
 		if (ratingThisVoice > bestRating) {
 
-			if (stopFrom == nullptr || thisVoice->assignedToSound == stopFrom) {
+			if (stopFrom == nullptr || thisVoice->sound == stopFrom) {
 				bestRating = ratingThisVoice;
 				bestVoice = thisVoice;
 			}
@@ -292,11 +292,11 @@ Voice* hardCullVoice(bool saveVoice, size_t numSamples, Sound* stopFrom) {
 
 	if (bestVoice) {
 		activeVoices.checkVoiceExists(
-		    bestVoice, bestVoice->assignedToSound,
+		    bestVoice, bestVoice->sound,
 		    "E196"); // ronronsen got!!
 		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
 
-		unassignVoice(bestVoice, bestVoice->assignedToSound, nullptr, true, !saveVoice);
+		unassignVoice(bestVoice, bestVoice->sound, nullptr, true, !saveVoice);
 		D_PRINTLN("hard-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
 		          getNumVoices(), getNumAudio());
 	}
@@ -321,7 +321,7 @@ Voice* immediateCullVoice(bool saveVoice, CullType type, size_t numSamples, Soun
 		uint32_t ratingThisVoice = thisVoice->getPriorityRating();
 
 		if (ratingThisVoice > bestRating) {
-			if (stopFrom == nullptr || thisVoice->assignedToSound == stopFrom) {
+			if (stopFrom == nullptr || thisVoice->sound == stopFrom) {
 				bestRating = ratingThisVoice;
 				bestVoice = thisVoice;
 			}
@@ -330,14 +330,14 @@ Voice* immediateCullVoice(bool saveVoice, CullType type, size_t numSamples, Soun
 
 	if (bestVoice) {
 		activeVoices.checkVoiceExists(
-		    bestVoice, bestVoice->assignedToSound,
+		    bestVoice, bestVoice->sound,
 		    "E196"); // ronronsen got!!
 		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
 
 		bool stillGoing = bestVoice->doImmediateRelease();
 
 		if (!stillGoing) {
-			unassignVoice(bestVoice, bestVoice->assignedToSound);
+			unassignVoice(bestVoice, bestVoice->sound);
 		}
 
 		D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
@@ -361,7 +361,7 @@ Voice* forceCullVoice(size_t numSamples, Sound* stopFrom) {
 			// if we're not skipping releasing voices, or if we are and this one isn't in fast release
 			if ((thisVoice->envelopes[0].state <= EnvelopeStage::FAST_RELEASE
 			     && thisVoice->envelopes[0].fastReleaseIncrement < SOFT_CULL_INCREMENT)) {
-				if (stopFrom == nullptr || thisVoice->assignedToSound == stopFrom) {
+				if (stopFrom == nullptr || thisVoice->sound == stopFrom) {
 					bestRating = ratingThisVoice;
 					bestVoice = thisVoice;
 				}
@@ -371,14 +371,14 @@ Voice* forceCullVoice(size_t numSamples, Sound* stopFrom) {
 
 	if (bestVoice) {
 		activeVoices.checkVoiceExists(
-		    bestVoice, bestVoice->assignedToSound,
+		    bestVoice, bestVoice->sound,
 		    "E196"); // ronronsen got!!
 		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
 
 		bool stillGoing = bestVoice->doFastRelease(SOFT_CULL_INCREMENT);
 
 		if (!stillGoing) {
-			unassignVoice(bestVoice, bestVoice->assignedToSound);
+			unassignVoice(bestVoice, bestVoice->sound);
 		}
 		if (stopFrom == nullptr) {
 
@@ -403,7 +403,7 @@ Voice* softCullVoice(size_t numSamples, Sound* stopFrom) {
 		if (ratingThisVoice > bestRating) {
 			if ((thisVoice->envelopes[0].state <= EnvelopeStage::FAST_RELEASE
 			     && thisVoice->envelopes[0].fastReleaseIncrement <= 4096)) {
-				if (stopFrom == nullptr || thisVoice->assignedToSound == stopFrom) {
+				if (stopFrom == nullptr || thisVoice->sound == stopFrom) {
 					bestRating = ratingThisVoice;
 					bestVoice = thisVoice;
 				}
@@ -413,7 +413,7 @@ Voice* softCullVoice(size_t numSamples, Sound* stopFrom) {
 
 	if (bestVoice) {
 		activeVoices.checkVoiceExists(
-		    bestVoice, bestVoice->assignedToSound,
+		    bestVoice, bestVoice->sound,
 		    "E196"); // ronronsen got!!
 		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
 
@@ -427,7 +427,7 @@ Voice* softCullVoice(size_t numSamples, Sound* stopFrom) {
 		}
 
 		if (!stillGoing) {
-			unassignVoice(bestVoice, bestVoice->assignedToSound);
+			unassignVoice(bestVoice, bestVoice->sound);
 		}
 	}
 
@@ -1453,7 +1453,7 @@ Voice* solicitVoice(Sound* forSound) {
 		}
 	}
 
-	newVoice->assignedToSound = forSound;
+	newVoice->sound = forSound;
 
 	uint32_t keyWords[2];
 	keyWords[0] = (uint32_t)forSound;
