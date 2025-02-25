@@ -19,6 +19,7 @@
 
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_descriptor.h"
+#include "util/fixedpoint.h"
 #include <cstdint>
 
 class Sound;
@@ -33,8 +34,13 @@ public:
 	void initAmount(int32_t value);
 	void makeUnusable();
 
+	[[gnu::always_inline]] [[nodiscard]] int32_t applyRangeAdjustment(int32_t value) const {
+		int32_t small = multiply_32x32_rshift32(value, *this->rangeAdjustmentPointer);
+		return signed_saturate<32 - 5>(small) << 3; // Not sure if these limits are as wide as they could be...
+	}
+
 	PatchSource from;
 	ParamDescriptor destinationParamDescriptor;
 	AutoParam param; // Amounts have to be within +1073741824 and -1073741824
-	int32_t const* rangeAdjustmentPointer;
+	int32_t const* rangeAdjustmentPointer = nullptr;
 };
