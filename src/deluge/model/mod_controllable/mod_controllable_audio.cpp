@@ -820,10 +820,15 @@ doReadPatchedParam:
 						else {
 							new_knob.paramDescriptor.setToHaveParamAndTwoSources(p, s, s2);
 						}
-					} catch (...) {
-						// If we run out of memory, we just ignore the knob
-						// TODO(@stellar-ari): This is bad practice, we should handle this better, but it
-						//  currently follows the previous implementation
+					} catch (deluge::exception e) {
+						if (e == deluge::exception::BAD_ALLOC) {
+							// If we run out of memory, we just ignore the knob
+							// TODO(@stellar-aria): This is bad practice, we should handle this better, but it
+							//  currently follows the previous implementation
+						}
+						else {
+							throw e;
+						}
 					}
 				}
 			}
