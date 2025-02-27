@@ -34,9 +34,7 @@
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
-#include "memory/fast_allocator.h"
 #include "memory/general_memory_allocator.h"
-#include "memory/object_pool.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
@@ -63,7 +61,6 @@
 #include "util/misc.h"
 #include <cstdint>
 #include <cstring>
-#include <etl/stack.h>
 #include <new>
 
 namespace params = deluge::modulation::params;
@@ -199,10 +196,6 @@ bool doMonitoring;
 MonitoringAction monitoringAction;
 
 uint32_t saddr;
-
-using VoicePool = memory::ObjectPool<Voice, memory::fast_allocator>;
-using VoiceSamplePool = memory::ObjectPool<VoiceSample, memory::fast_allocator>;
-using TimeStretcherPool = memory::ObjectPool<TimeStretcher, memory::fast_allocator>;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
 void init() {
