@@ -1,3 +1,19 @@
+/*
+ * Copyright © 2025 Katherine Whitlock
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
 #pragma once
 #include <gsl/gsl>
 #include <memory>
@@ -66,6 +82,7 @@ public:
 		}
 	}
 
+	/// @brief A managed pointer to an object in the pool
 	using ptr_t = std::unique_ptr<T, decltype(&recycle)>;
 
 	/// @brief Acquires an object from the pool
@@ -81,6 +98,7 @@ public:
 		return {obj, &recycle};
 	}
 
+	/// @brief Clears the pool
 	void clear() {
 		while (!objects_.empty()) {
 			alloc_.deallocate(objects_.top(), 1);
@@ -88,6 +106,8 @@ public:
 		}
 	}
 
+	/// @brief Checks if the pool is empty
+	/// @returns true if the pool is empty, false otherwise
 	[[nodiscard]] constexpr bool empty() const { return objects_.empty(); }
 
 private:
