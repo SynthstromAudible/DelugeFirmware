@@ -34,7 +34,9 @@
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
+#include "memory/fast_allocator.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/object_pool.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
@@ -198,17 +200,9 @@ MonitoringAction monitoringAction;
 
 uint32_t saddr;
 
-// statically allocate some of these to reduce allocations
-constexpr int32_t kNumReserved = 48;
-std::array<Voice, kNumReserved> reserved_voices{};
-std::array<VoiceSample, kNumReserved> reserved_sample_voices{};
-std::array<TimeStretcher, kNumReserved> reserved_time_stretchers{};
-
-// These are the reserved voices, voice samples and time stretchers that
-// are currently available for use, taken from the statically allocated arrays above
-etl::stack<Voice*, kNumReserved> available_reserved_voices;
-etl::stack<VoiceSample*, kNumReserved> available_reserved_sample_voices;
-etl::stack<TimeStretcher*, kNumReserved> available_reserved_time_stretchers;
+using VoicePool = memory::ObjectPool<Voice, memory::fast_allocator>;
+using VoiceSamplePool = memory::ObjectPool<VoiceSample, memory::fast_allocator>;
+using TimeStretcherPool = memory::ObjectPool<TimeStretcher, memory::fast_allocator>;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
 void init() {
@@ -230,18 +224,15 @@ void init() {
 
 	sampleForPreview->sideChainSendLevel = 2147483647;
 
-	// All of the reserved objects are available on init
-	for (int32_t i = 0; i < kNumReserved; i++) {
-		available_reserved_voices.push(&reserved_voices[i]);
-		available_reserved_sample_voices.push(&reserved_sample_voices[i]);
-		available_reserved_time_stretchers.push(&reserved_time_stretchers[i]);
-	}
-
 	i2sTXBufferPos = (uint32_t)getTxBufferStart();
 
 	i2sRXBufferPos = (uint32_t)getRxBufferStart()
 	                 + ((SSI_RX_BUFFER_NUM_SAMPLES - SSI_TX_BUFFER_NUM_SAMPLES - 16)
 	                    << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE)); // Subtracting 5 or more seems fine
+
+	VoicePool::get().repopulate();
+	VoiceSamplePool::get().repopulate();
+	TimeStretcherPool::get().repopulate();
 }
 
 void unassignAllVoices(bool deletingSong) {
@@ -1457,23 +1448,16 @@ bool allowedToStartVoice() {
 Voice* solicitVoice(Sound* forSound) {
 	Voice* newVoice;
 
-	if (!available_reserved_voices.empty()) {
-		newVoice = available_reserved_voices.top();
-		available_reserved_voices.pop();
-		new (newVoice) Voice(); // reconstruct it
-	}
-	else {
-
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Voice));
-		if (!memory) {
-			if (activeVoices.getNumElements()) {
-				memory = hardCullVoice(true, numSamplesLastTime, forSound);
-			}
-			else {
-				return nullptr;
-			}
+	try {
+		newVoice = VoicePool::get().acquire().release();
+	} catch (deluge::exception e) { // Out-of-memory exception
+		if (activeVoices.getNumElements()) {
+			newVoice = hardCullVoice(true, numSamplesLastTime, forSound);
+			new (newVoice) Voice();
 		}
-		newVoice = new (memory) Voice();
+		else {
+			return nullptr;
+		}
 	}
 
 	newVoice->assignedToSound = forSound;
@@ -1486,7 +1470,7 @@ Voice* solicitVoice(Sound* forSound) {
 	if (i == -1) {
 		// if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("E193"); // No, having run out of RAM here isn't a reason to
 		// not continue.
-		delete newVoice;
+		VoicePool::recycle(newVoice);
 		return nullptr;
 	}
 
@@ -1513,63 +1497,33 @@ void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelSt
 	}
 
 	if (shouldDispose) {
-		if (voice >= reserved_voices.begin() && voice < reserved_voices.end()) {
-			// If it's in the static array, we don't want to truly delete it,
-			// so we just put it back in the unassigned list
-			available_reserved_voices.push(voice);
-		}
-		else {
-			delete voice;
-		}
+		VoicePool::recycle(voice);
 	}
 }
 
 VoiceSample* solicitVoiceSample() {
-	if (!available_reserved_sample_voices.empty()) [[likely]] {
-		auto ptr = available_reserved_sample_voices.top();
-		available_reserved_sample_voices.pop();
-		return ptr;
-	}
-	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(VoiceSample));
-	if (memory == nullptr) {
+	try {
+		return VoiceSamplePool::get().acquire().release();
+	} catch (deluge::exception e) {
 		return nullptr;
 	}
-
-	return new (memory) VoiceSample();
 }
 
 void voiceSampleUnassigned(VoiceSample* voiceSample) {
-	if (voiceSample >= reserved_sample_voices.begin() && voiceSample < reserved_sample_voices.end()) {
-		available_reserved_sample_voices.push(voiceSample);
-	}
-	else {
-		delete voiceSample;
-	}
+	VoiceSamplePool::recycle(voiceSample);
 }
 
 TimeStretcher* solicitTimeStretcher() {
-	if (!available_reserved_time_stretchers.empty()) [[likely]] {
-		auto ptr = available_reserved_time_stretchers.top();
-		available_reserved_time_stretchers.pop();
-		return ptr;
-	}
-
-	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(TimeStretcher));
-	if (!memory) {
+	try {
+		return TimeStretcherPool::get().acquire().release();
+	} catch (deluge::exception e) {
 		return nullptr;
 	}
-
-	return new (memory) TimeStretcher();
 }
 
 // There are no destructors. You gotta clean it up before you call this
 void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
-	if (timeStretcher >= reserved_time_stretchers.begin() && timeStretcher < reserved_time_stretchers.end()) {
-		available_reserved_time_stretchers.push(timeStretcher);
-	}
-	else {
-		delete timeStretcher;
-	}
+	TimeStretcherPool::recycle(timeStretcher);
 }
 
 // TODO: delete unused ones
