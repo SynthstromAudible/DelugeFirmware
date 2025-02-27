@@ -92,7 +92,7 @@ public:
 
 private:
 	size_t capacity_ = kDefaultSize;
-	std::stack<T*, std::deque<T*, Alloc<T*>>> objects_;
+	std::stack<T*, std::vector<T*, Alloc<T*>>> objects_;
 	Alloc<T> alloc_;
 };
 } // namespace deluge
