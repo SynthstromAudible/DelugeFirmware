@@ -77,6 +77,7 @@ set the stutter configuration independently of the song configuration if you wis
 
 ##### Selected Clip Pulsing
 - The selected clip in `Song Grid View` (which is the last clip you interacted with), now shows a `pulsing / breathing` animation whereby the clip pad will fade in and out between the clip's normal colour and a blurred colour.
+- This will help you keep track of what clip midi follow is currently controlling and what clip is selected for loop recording.
 
 #### <ins>Audio Clips</ins>
 - Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on
