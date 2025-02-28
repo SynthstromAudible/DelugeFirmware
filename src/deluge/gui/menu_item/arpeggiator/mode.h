@@ -31,36 +31,58 @@ class Mode final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->mode); }
+
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<ArpMode>();
 
-		// If was off, or is now becoming off...
-		if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpMode::OFF) {
-			if (getCurrentClip()->isActiveOnOutput()) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
 
-				if (soundEditor.editingNonAudioDrumRow()) {
-					// Midi or CV drum
-					Drum* currentDrum = ((Kit*)getCurrentClip()->output)->selectedDrum;
-					if (currentDrum != nullptr) {
-						currentDrum->unassignAllVoices();
-					}
-				}
-				else if (soundEditor.editingCVOrMIDIClip()) {
-					getCurrentInstrumentClip()->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
-				}
-				else {
-					ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
-					soundEditor.currentSound->allNotesOff(
-					    modelStackWithSoundFlags,
-					    soundEditor.currentSound->getArp()); // Must switch off all notes when switching arp on / off
-					soundEditor.currentSound->reassessRenderSkippingStatus(modelStackWithSoundFlags);
-				}
+			Kit* kit = getCurrentKit();
+
+			// If was off, or is now becoming off...
+			if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpMode::OFF) {
+				kit->cutAllSound();
+			}
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				thisDrum->arpSettings.mode = current_value;
+				thisDrum->arpSettings.updatePresetFromCurrentSettings();
 			}
 		}
-		soundEditor.currentArpSettings->mode = current_value;
-		soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
+		// Or, the normal case of just one sound
+		else {
+			// If was off, or is now becoming off...
+			if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpMode::OFF) {
+				if (getCurrentClip()->isActiveOnOutput()) {
+					char modelStackMemory[MODEL_STACK_MAX_SIZE];
+					ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+
+					if (soundEditor.editingKit()) {
+						// Drum
+						Drum* currentDrum = ((Kit*)getCurrentClip()->output)->selectedDrum;
+						if (currentDrum != nullptr) {
+							currentDrum->unassignAllVoices();
+						}
+					}
+					else if (soundEditor.editingCVOrMIDIClip()) {
+						getCurrentInstrumentClip()->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
+					}
+					else {
+						ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
+						soundEditor.currentSound->allNotesOff(
+						    modelStackWithSoundFlags,
+						    soundEditor.currentSound
+						        ->getArp()); // Must switch off all notes when switching arp on / off
+						soundEditor.currentSound->reassessRenderSkippingStatus(modelStackWithSoundFlags);
+					}
+				}
+			}
+
+			soundEditor.currentArpSettings->mode = current_value;
+			soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
+		}
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

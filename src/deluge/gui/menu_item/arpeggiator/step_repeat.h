@@ -17,15 +17,41 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
+#include "model/song/song.h"
+#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
 class StepRepeat final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->numStepRepeats); }
-	void writeCurrentValue() override { soundEditor.currentArpSettings->numStepRepeats = this->getValue(); }
+
+	bool usesAffectEntire() override { return true; }
+	void writeCurrentValue() override {
+		int32_t current_value = this->getValue();
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type != DrumType::GATE) {
+					thisDrum->arpSettings.numStepRepeats = current_value;
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			soundEditor.currentArpSettings->numStepRepeats = current_value;
+		}
+	}
+
 	[[nodiscard]] int32_t getMinValue() const override { return 1; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 8; }
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingGateDrumRow();
 	}

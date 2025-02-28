@@ -20,9 +20,9 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
-#include "hid/display/oled.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
@@ -36,16 +36,49 @@ void UnpatchedParam::readCurrentValue() {
 	    soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP())));
 }
 
+ModelStackWithAutoParam* UnpatchedParam::getModelStackFromSoundDrum(void* memory, SoundDrum* soundDrum) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	int32_t noteRowIndex;
+	NoteRow* noteRow = clip->getNoteRowForDrum(soundDrum, &noteRowIndex);
+	ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsIncludingNoteRow(
+	    memory, currentSong, getCurrentClip(), noteRowIndex, noteRow, soundDrum, &noteRow->paramManager);
+	return modelStack->getUnpatchedAutoParamFromId(getP());
+}
+
 ModelStackWithAutoParam* UnpatchedParam::getModelStack(void* memory) {
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
 	return modelStack->getUnpatchedAutoParamFromId(getP());
 }
 
 void UnpatchedParam::writeCurrentValue() {
+	// TODO RAUL
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStackWithParam = getModelStack(modelStackMemory);
 	int32_t value = getFinalValue();
-	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+
+	// If affect-entire button held, do whole kit
+	if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
+
+		Kit* kit = getCurrentKit();
+
+		for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+			if (thisDrum->type == DrumType::SOUND) {
+				auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+
+				char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
+				ModelStackWithAutoParam* modelStackWithParamForSoundDrum =
+				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum);
+				modelStackWithParamForSoundDrum->autoParam->setCurrentValueInResponseToUserInput(
+				    value, modelStackWithParamForSoundDrum);
+			}
+		}
+	}
+
+	// Or, the normal case of just one sound
+	else {
+		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+	}
 
 	// send midi follow feedback
 	int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);

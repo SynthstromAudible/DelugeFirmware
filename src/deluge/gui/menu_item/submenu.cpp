@@ -341,6 +341,13 @@ void Submenu::updatePadLights() {
 	}
 }
 
+bool Submenu::usesAffectEntire() {
+	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
+		return (*current_item_)->usesAffectEntire();
+	}
+	return false;
+}
+
 MenuItem* Submenu::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
 	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
 		return (*current_item_)->patchingSourceShortcutPress(s, previousPressStillActive);

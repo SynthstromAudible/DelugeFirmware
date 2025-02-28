@@ -20,6 +20,7 @@
 #include "gui/menu_item/integer.h"
 #include "menu_item_with_cc_learning.h"
 #include "param.h"
+#include "processing/sound/sound_drum.h"
 
 class ModelStackWithAutoParam;
 
@@ -32,6 +33,7 @@ public:
 
 	UnpatchedParam(l10n::String newName, int32_t newP) : Param(newP), IntegerContinuous(newName) {}
 
+	bool usesAffectEntire() override { return true; }
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
 	ParamDescriptor getLearningThing() final;
@@ -55,6 +57,7 @@ public:
 	deluge::modulation::params::Kind getParamKind();
 	uint32_t getParamIndex();
 	ParamSet* getParamSet() final;
+	ModelStackWithAutoParam* getModelStackFromSoundDrum(void* memory, SoundDrum* soundDrum);
 	ModelStackWithAutoParam* getModelStack(void* memory) final;
 
 	int32_t getParamValue() {

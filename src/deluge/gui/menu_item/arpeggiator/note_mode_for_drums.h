@@ -19,18 +19,42 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
+#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
 class NoteModeForDrums : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->noteMode); }
+
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		soundEditor.currentArpSettings->noteMode = this->getValue<ArpNoteMode>();
-		soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
-		soundEditor.currentArpSettings->flagForceArpRestart = true;
+		auto current_value = this->getValue<ArpNoteMode>();
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type != DrumType::GATE) {
+					thisDrum->arpSettings.noteMode = current_value;
+					thisDrum->arpSettings.updatePresetFromCurrentSettings();
+					thisDrum->arpSettings.flagForceArpRestart = true;
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			soundEditor.currentArpSettings->noteMode = current_value;
+			soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
+			soundEditor.currentArpSettings->flagForceArpRestart = true;
+		}
 	}
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return soundEditor.editingKit() && !soundEditor.editingGateDrumRow();
 	}
