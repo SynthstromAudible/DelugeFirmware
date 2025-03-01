@@ -18,6 +18,7 @@
 #include "sid_waves.h"
 #include "dsp/sid/arm_intrinsics.h"
 #include <algorithm>
+#include <cstring>
 
 namespace deluge {
 namespace dsp {
@@ -93,7 +94,7 @@ std::tuple<int32x4_t, uint32_t> generateSidTriangleVector(uint32_t phase, uint32
 	// Scale to 24-bit range and shift for proper alignment in Q format
 	triangleValues = vshlq_n_s32(triangleValues, 16);
 
-	return {triangleValues, phase};
+	return std::make_tuple(triangleValues, phase);
 }
 
 // Create a vectorized version of the saw wave generator
@@ -127,18 +128,52 @@ std::tuple<int32x4_t, uint32_t> generateSidSawVector(uint32_t phase, uint32_t ph
 	// Scale to 24-bit range and shift for proper alignment in Q format
 	sawValues = vshlq_n_s32(sawValues, 16);
 
-	return {sawValues, phase};
+	return std::make_tuple(sawValues, phase);
 }
 
 // Create a vectorized version of the pulse wave generator
 std::tuple<int32x4_t, uint32_t> generateSidPulseVector(uint32_t phase, uint32_t phaseIncrement, uint32_t pulseWidth) {
-	int32_t value1 = (phase >> 12) >= pulseWidth ? 0 : 0xfff;
+	// Calculate minimum pulse width step based on phase increment (anti-aliasing)
+	uint32_t minPwStep = (phaseIncrement + (1 << 19)) >> 20; // Convert to 12-bit range
+	if (minPwStep < 1)
+		minPwStep = 1;
+
+	// Handle edge cases to avoid clicks and ensure proper behavior
+	if (pulseWidth == 0 || pulseWidth >= 0xFFF) {
+		// Return silence for extreme pulse width values (0% or 100%)
+		int32x4_t silenceValues = vdupq_n_s32(0);
+		phase += phaseIncrement * 4;
+		return std::make_tuple(silenceValues, phase);
+	}
+
+	// Apply minimum width check for narrow pulses
+	if (pulseWidth > 0 && pulseWidth < minPwStep) {
+		pulseWidth = minPwStep;
+	}
+
+	// Also check for values too close to maximum
+	if (pulseWidth < 0xFFF && (0xFFF - pulseWidth) < minPwStep) {
+		pulseWidth = 0xFFF - minPwStep;
+	}
+
+	// Get the 12-bit phase value for first sample
+	uint32_t phase_12 = (phase >> 20) & 0xFFF;
+	int32_t value1 = (phase_12 < pulseWidth) ? 0xFFF : 0;
 	phase += phaseIncrement;
-	int32_t value2 = (phase >> 12) >= pulseWidth ? 0 : 0xfff;
+
+	// Get the 12-bit phase value for second sample
+	phase_12 = (phase >> 20) & 0xFFF;
+	int32_t value2 = (phase_12 < pulseWidth) ? 0xFFF : 0;
 	phase += phaseIncrement;
-	int32_t value3 = (phase >> 12) >= pulseWidth ? 0 : 0xfff;
+
+	// Get the 12-bit phase value for third sample
+	phase_12 = (phase >> 20) & 0xFFF;
+	int32_t value3 = (phase_12 < pulseWidth) ? 0xFFF : 0;
 	phase += phaseIncrement;
-	int32_t value4 = (phase >> 12) >= pulseWidth ? 0 : 0xfff;
+
+	// Get the 12-bit phase value for fourth sample
+	phase_12 = (phase >> 20) & 0xFFF;
+	int32_t value4 = (phase_12 < pulseWidth) ? 0xFFF : 0;
 	phase += phaseIncrement;
 
 	// Create vector of pulse values
@@ -151,7 +186,7 @@ std::tuple<int32x4_t, uint32_t> generateSidPulseVector(uint32_t phase, uint32_t 
 	// Scale to 24-bit range and shift for proper alignment in Q format
 	pulseValues = vshlq_n_s32(pulseValues, 16);
 
-	return {pulseValues, phase};
+	return std::make_tuple(pulseValues, phase);
 }
 
 // Helper function to update the shift register for noise generation
@@ -197,7 +232,7 @@ std::tuple<int32x4_t, uint32_t> generateSidNoiseVector(uint32_t phase, uint32_t 
 	// Scale to 24-bit range and shift for proper alignment in Q format
 	noiseValues = vshlq_n_s32(noiseValues, 16);
 
-	return {noiseValues, phase};
+	return std::make_tuple(noiseValues, phase);
 }
 
 // Helper function to create amplitude vector for 4 samples
@@ -304,6 +339,36 @@ void renderSidPulse(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd,
 	int32_t numSamples = bufferEnd - bufferStart;
 	int32_t* currentPos = bufferStart;
 
+	// Calculate minimum pulse width step based on phase increment (anti-aliasing)
+	uint32_t minPwStep = (phaseIncrement + (1 << 19)) >> 20; // Convert to 12-bit range
+	if (minPwStep < 1)
+		minPwStep = 1;
+
+	// Handle edge cases to avoid clicks and ensure proper behavior
+	if (pulseWidth == 0 || pulseWidth >= 0xFFF) {
+		// For extreme pulse width values (0% or 100%), output silence
+		if (applyAmplitude) {
+			// We still need to respect existing buffer content
+			return; // Buffer is already initialized, so just return
+		}
+		else {
+			// Clear the buffer if we're not adding to existing content
+			memset(bufferStart, 0, numSamples * sizeof(int32_t));
+			phase += phaseIncrement * numSamples;
+			return;
+		}
+	}
+
+	// Apply minimum width check for narrow pulses
+	if (pulseWidth > 0 && pulseWidth < minPwStep) {
+		pulseWidth = minPwStep;
+	}
+
+	// Also check for values too close to maximum
+	if (pulseWidth < 0xFFF && (0xFFF - pulseWidth) < minPwStep) {
+		pulseWidth = 0xFFF - minPwStep;
+	}
+
 	// Process blocks of 4 samples at a time (vector processing)
 	while (currentPos + 4 <= bufferEnd) {
 		int32x4_t pulseVector;
@@ -327,7 +392,10 @@ void renderSidPulse(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd,
 
 	// Process any remaining samples
 	while (currentPos < bufferEnd) {
-		int32_t value = ((phase >> 12) >= pulseWidth ? 0 : 0xfff) << 16;
+		// Get the 12-bit phase value
+		uint32_t phase_12 = (phase >> 20) & 0xFFF;
+		int32_t value = (phase_12 < pulseWidth) ? 0xFFF : 0;
+		value <<= 16; // Scale to match the vector implementation
 
 		if (applyAmplitude) {
 			value = ((int64_t)value * amplitude) >> 31;

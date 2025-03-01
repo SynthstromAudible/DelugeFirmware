@@ -483,14 +483,18 @@ doSaw:
 			// Call the SID pulse renderer directly
 			if (doOscSync) {
 				// For oscillator sync, render to the sync buffer first
+				// Scale pulseWidth to 12-bit (0-4095) range which is what SID expects
+				uint32_t sidPulseWidth = (pulseWidth >> 20) & 0xFFF;
 				sid::renderSidPulse(amplitude * 8, oscSyncRenderingBuffer, oscSyncRenderingBuffer + numSamples,
-				                    phaseIncrement, phase, pulseWidth, false, amplitudeIncrement * 8);
+				                    phaseIncrement, phase, sidPulseWidth, false, amplitudeIncrement * 8);
 				applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
 				                             oscSyncRenderingBuffer);
 			}
 			else {
 				// Otherwise render directly to the output buffer
-				sid::renderSidPulse(amplitude * 8, bufferStart, bufferEnd, phaseIncrement, phase, pulseWidth,
+				// Scale pulseWidth to 12-bit (0-4095) range which is what SID expects
+				uint32_t sidPulseWidth = (pulseWidth >> 20) & 0xFFF;
+				sid::renderSidPulse(amplitude * 8, bufferStart, bufferEnd, phaseIncrement, phase, sidPulseWidth,
 				                    applyAmplitude, amplitudeIncrement * 8);
 			}
 
