@@ -20,8 +20,11 @@
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/envelope_follower/absolute_value.h"
+#include "memory/fast_allocator.h"
+#include "memory/object_pool.h"
 #include "model/output.h"
 #include <cstdint>
+#include <memory>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -129,6 +132,10 @@ class Reverb;
 #define DO_AUDIO_LOG 0
 
 namespace AudioEngine {
+using VoicePool = deluge::memory::ObjectPool<Voice, deluge::memory::fast_allocator>;
+using VoiceSamplePool = deluge::memory::ObjectPool<VoiceSample, deluge::memory::fast_allocator>;
+using TimeStretcherPool = deluge::memory::ObjectPool<TimeStretcher, deluge::memory::fast_allocator>;
+
 void routine();
 void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
 
@@ -139,7 +146,6 @@ void stopAnyPreviewing();
 Voice* solicitVoice(Sound* forSound);
 void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelStack = nullptr,
                    bool removeFromVector = true, bool shouldDispose = true);
-void disposeOfVoice(Voice* voice);
 
 void songSwapAboutToHappen();
 void unassignAllVoices(bool deletingSong = false);

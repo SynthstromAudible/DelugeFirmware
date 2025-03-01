@@ -19,29 +19,32 @@
 #include <memory>
 #include <stack>
 
-namespace deluge {
+namespace deluge::memory {
 /// @brief A simple object pool implementation
 /// @tparam T The type of object to pool
 /// @tparam Alloc The allocator to use for the pool
 /// @note ObjectPool instances are thread-local singletons
 template <typename T, template <typename> typename Alloc = std::allocator>
 class ObjectPool {
-	static constexpr size_t kDefaultSize = 16;
+	static constexpr size_t kDefaultSize = 48;
 	ObjectPool() { repopulate(); };
 
 public:
+	/// @brief The type of object in the pool
+	using value_type = T;
+
 	~ObjectPool() { clear(); };
 
 	/// @brief Gets the global pool for a given object
 	/// @returns A reference to the pool
-	static ObjectPool& get() {
+	static constexpr ObjectPool& get() {
 		static thread_local ObjectPool instance;
 		return instance;
 	}
 
 	/// @brief Sets the size of the pool
 	/// @param size The new size of the pool
-	void setCapacity(size_t n) {
+	void resize(size_t n) {
 		capacity_ = n;
 		if (capacity_ < objects_.size()) {
 			// We need to shrink the pool
@@ -63,8 +66,9 @@ public:
 	/// Recycles an object back into the pool
 	/// @param obj The object to recycle
 	static void recycle(gsl::owner<T*> obj) {
-		ObjectPool& op = get();
+		obj->~T();
 
+		ObjectPool& op = get();
 		if (op.objects_.size() < op.capacity_) {
 			op.objects_.push(obj);
 		}
@@ -77,25 +81,26 @@ public:
 	/// @throws deluge::exception::BAD_ALLOC if memory allocation fails
 	void repopulate() noexcept(false) {
 		for (size_t i = objects_.size(); i < capacity_; ++i) {
-			T* mem = alloc_.allocate(1);
-			objects_.push(new (mem) T());
+			objects_.push(alloc_.allocate(1));
 		}
 	}
 
-	/// @brief A managed pointer to an object in the pool
-	using ptr_t = std::unique_ptr<T, decltype(&recycle)>;
+	/// @brief A managed pointer type for an object from the pool
+	using pointer_type = std::unique_ptr<T, decltype(&recycle)>;
 
 	/// @brief Acquires an object from the pool
 	/// @throws deluge::exception::BAD_ALLOC if memory allocation fails
 	/// @returns A managed pointer to the acquired object
-	ptr_t acquire() noexcept(false) {
+	pointer_type acquire() noexcept(false) {
+		T* obj = nullptr;
 		if (objects_.empty()) {
-			T* memory = alloc_.allocate(1);
-			return {new (memory) T(), &recycle};
+			obj = alloc_.allocate(1);
 		}
-		T* obj = objects_.top();
-		objects_.pop();
-		return {obj, &recycle};
+		else {
+			obj = objects_.top();
+			objects_.pop();
+		}
+		return {new (obj) T(), &recycle};
 	}
 
 	/// @brief Clears the pool
@@ -115,4 +120,4 @@ private:
 	std::stack<T*, std::vector<T*, Alloc<T*>>> objects_;
 	Alloc<T> alloc_;
 };
-} // namespace deluge
+} // namespace deluge::memory

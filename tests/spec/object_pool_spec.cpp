@@ -6,14 +6,14 @@
 #include <future>
 #include <thread>
 
-using namespace deluge;
+using namespace deluge::memory;
 
 using ObjectPoolType = ObjectPool<int, TrackingAllocator>;
 
 // clang-format off
 describe object_pool("ObjectPool", $ {
 	before_each([] {
-		ObjectPoolType::get().setCapacity(16);
+		ObjectPoolType::get().resize(16);
 		TrackingAllocator<int>::reset();
 		ObjectPoolType::get().repopulate();
 	});
@@ -30,21 +30,21 @@ describe object_pool("ObjectPool", $ {
 
 	it("should allow resizing the pool", _{
 		auto& op = ObjectPoolType::get();
-		op.setCapacity(32);
+		op.resize(32);
 		expect(op.capacity()).to_equal(32);
 		expect(op.size()).to_equal(16);
 	});
 
 	it("should shrink to a new capacity", _{
 		auto& op = ObjectPoolType::get();
-		op.setCapacity(8);
+		op.resize(8);
 		expect(op.capacity()).to_equal(8);
 		expect(op.size()).to_equal(8);
 	});
 
 	it("should only grow on repopulate", _{
 		auto& op = ObjectPoolType::get();
-		op.setCapacity(32);
+		op.resize(32);
 		expect(op.size()).to_equal(16);
 		op.repopulate();
 		expect(op.capacity()).to_equal(32);
