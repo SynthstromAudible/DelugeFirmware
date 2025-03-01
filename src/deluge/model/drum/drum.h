@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
+#include "model/voiced.h"
 #include "modulation/arpeggiator.h"
 #include <cstdint>
 
@@ -40,10 +41,10 @@ class Song;
  * Types of Drum are MIDIDrum, GateDrum, and SoundDrum (most often a sample).
  */
 
-class Drum {
+class Drum : public virtual Voiced {
 public:
 	Drum(DrumType newType);
-	virtual ~Drum() = default;
+	~Drum() override = default;
 
 	Kit* kit;
 
@@ -69,13 +70,8 @@ public:
 	                    int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0,
 	                    int32_t ticksLate = 0, uint32_t samplesLate = 0) = 0;
 	virtual void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) = 0;
-	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) = 0;
-	virtual bool anyNoteIsOn() = 0;
-	virtual bool hasAnyVoices() = 0;
-	virtual void unassignAllVoices() = 0;
 
 	virtual Error loadAllSamples(bool mayActuallyReadFiles) { return Error::NONE; }
-	virtual void prepareForHibernation() {}
 	virtual void prepareDrumToHaveNoActiveClip() {}
 
 	virtual void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) = 0;

@@ -23,36 +23,11 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
-NonAudioDrum::NonAudioDrum(DrumType newType) : Drum(newType) {
-	state = false;
-	channelEncoderCurrentOffset = 0;
-}
-
-bool NonAudioDrum::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop) {
-	return true;
-}
-
 void NonAudioDrum::unassignAllVoices() {
 	if (hasAnyVoices()) {
 		noteOff(nullptr);
 	}
 }
-
-bool NonAudioDrum::anyNoteIsOn() {
-	return state;
-}
-
-bool NonAudioDrum::hasAnyVoices() {
-	return state;
-}
-
-/*
-int8_t NonAudioDrum::getModKnobLevel(uint8_t whichModEncoder, ParamManagerBase* paramManager, uint32_t pos,
-TimelineCounter* playPositionCounter) { if (whichModEncoder == 0) { channelEncoderCurrentOffset = 0;
-    }
-    return -64;
-}
-*/
 
 int8_t NonAudioDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset,
                                       uint8_t whichModEncoder) {
@@ -87,7 +62,7 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int32_t 
 		return;
 	}
 
-	bool wasOn = state;
+	bool wasOn = state_;
 	if (wasOn) {
 		noteOff(nullptr);
 	}
