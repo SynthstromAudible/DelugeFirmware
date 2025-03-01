@@ -740,6 +740,18 @@ char const* oscTypeToString(OscType oscType) {
 	case OscType::ANALOG_SAW_2:
 		return "analogSaw";
 
+	case OscType::SID_SAW:
+		return "sidSaw";
+
+	case OscType::SID_PULSE:
+		return "sidPulse";
+
+	case OscType::SID_TRIANGLE:
+		return "sidTriangle";
+
+	case OscType::SID_NOISE:
+		return "sidNoise";
+
 	case OscType::ANALOG_SQUARE:
 		return "analogSquare";
 
@@ -782,6 +794,18 @@ OscType stringToOscType(char const* string) {
 	}
 	else if (!strcmp(string, "analogSaw")) {
 		return OscType::ANALOG_SAW_2;
+	}
+	else if (!strcmp(string, "sidSaw")) {
+		return OscType::SID_SAW;
+	}
+	else if (!strcmp(string, "sidPulse")) {
+		return OscType::SID_PULSE;
+	}
+	else if (!strcmp(string, "sidTriangle")) {
+		return OscType::SID_TRIANGLE;
+	}
+	else if (!strcmp(string, "sidNoise")) {
+		return OscType::SID_NOISE;
 	}
 	else if (!strcmp(string, "saw")) {
 		return OscType::SAW;

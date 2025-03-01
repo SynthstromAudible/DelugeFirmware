@@ -26,7 +26,6 @@
         "STRING_FOR_ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO": "Stereo files cannot be used as wavetables",
         "STRING_FOR_ERROR_WRITE_PROTECTED": "Card is write-protected",
         "STRING_FOR_ERROR_GENERIC": "You've encountered an unspecified error. Please report this bug.",
-
         "STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_1": "LFO1",
         "STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_2": "LFO3",
         "STRING_FOR_PATCH_SOURCE_LFO_LOCAL_1": "LFO2",
@@ -42,119 +41,87 @@
         "STRING_FOR_PATCH_SOURCE_AFTERTOUCH": "Aftertouch",
         "STRING_FOR_PATCH_SOURCE_X": "MPE X",
         "STRING_FOR_PATCH_SOURCE_Y": "MPE Y",
-
         "STRING_FOR_PARAM_LOCAL_VOLUME": "Level",
         "STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX": "Master Level",
         "STRING_FOR_PARAM_LOCAL_PITCH_ADJUST": "Master Pitch",
         "STRING_FOR_PARAM_LOCAL_PAN": "Master Pan",
-
         "STRING_FOR_PARAM_LOCAL_LPF_FREQ": "LPF frequency",
         "STRING_FOR_PARAM_LOCAL_LPF_RESONANCE": "LPF resonance",
         "STRING_FOR_PARAM_LOCAL_LPF_MORPH": "LPF morph",
-
         "STRING_FOR_PARAM_LOCAL_HPF_FREQ": "HPF frequency",
         "STRING_FOR_PARAM_LOCAL_HPF_RESONANCE": "HPF resonance",
         "STRING_FOR_PARAM_LOCAL_HPF_MORPH": "HPF morph",
-
         "STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT": "Reverb amount",
-
         "STRING_FOR_PARAM_GLOBAL_DELAY_RATE": "Delay rate",
         "STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK": "Delay amount",
-
         "STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND": "Sidechain Level",
-
         "STRING_FOR_WAVEFOLDER": "Wavefolder",
-
         "STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME": "Osc1 level",
         "STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST": "Osc1 pitch",
         "STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH": "Osc1 pulse width",
         "STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK": "Osc1 feedback",
         "STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX": "Osc1 wave position",
-
         "STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME": "Osc2 level",
         "STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST": "Osc2 pitch",
         "STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH": "Osc2 pulse width",
         "STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK": "Osc2 feedback",
         "STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX": "Osc2 wave position",
-
         "STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME": "FM mod1 level",
         "STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST": "FM mod1 pitch",
         "STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK": "FM mod1 feedback",
-
         "STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME": "FM mod2 level",
         "STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST": "FM mod2 pitch",
         "STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK": "FM mod2 feedback",
-
         "STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK": "Env1 attack",
         "STRING_FOR_PARAM_LOCAL_ENV_0_DECAY": "Env1 decay",
         "STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN": "Env1 sustain",
         "STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE": "Env1 release",
-
         "STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK": "Env2 attack",
         "STRING_FOR_PARAM_LOCAL_ENV_1_DECAY": "Env2 decay",
         "STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN": "Env2 sustain",
         "STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE": "Env2 release",
-
         "STRING_FOR_PARAM_LOCAL_ENV_2_ATTACK": "Env3 attack",
         "STRING_FOR_PARAM_LOCAL_ENV_2_DECAY": "Env3 decay",
         "STRING_FOR_PARAM_LOCAL_ENV_2_SUSTAIN": "Env3 sustain",
         "STRING_FOR_PARAM_LOCAL_ENV_2_RELEASE": "Env3 release",
-
         "STRING_FOR_PARAM_LOCAL_ENV_3_ATTACK": "Env4 attack",
         "STRING_FOR_PARAM_LOCAL_ENV_3_DECAY": "Env4 decay",
         "STRING_FOR_PARAM_LOCAL_ENV_3_SUSTAIN": "Env4 sustain",
         "STRING_FOR_PARAM_LOCAL_ENV_3_RELEASE": "Env4 release",
-
         "STRING_FOR_PARAM_GLOBAL_LFO_FREQ_1": "LFO1 rate",
         "STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ_1": "LFO2 rate",
         "STRING_FOR_PARAM_GLOBAL_LFO_FREQ_2": "LFO3 rate",
         "STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ_2": "LFO4 rate",
-
         "STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH": "Mod-FX depth",
         "STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE": "Mod-FX rate",
-
         "STRING_FOR_PARAM_GLOBAL_ARP_RATE": "Arp rate",
-
         "STRING_FOR_PARAM_LOCAL_NOISE_VOLUME": "Noise level",
-
         "STRING_FOR_MASTER_LEVEL": "Master level",
         "STRING_FOR_MASTER_PITCH": "Master pitch",
         "STRING_FOR_MASTER_PAN": "Master pan",
-
         "STRING_FOR_LPF_FREQUENCY": "LPF frequency",
         "STRING_FOR_LPF_RESONANCE": "LPF resonance",
-
         "STRING_FOR_HPF_FREQUENCY": "HPF frequency",
         "STRING_FOR_HPF_RESONANCE": "HPF resonance",
-
         "STRING_FOR_BASS": "BASS",
         "STRING_FOR_BASS_FREQUENCY": "Bass frequency",
-
         "STRING_FOR_TREBLE": "TREBLE",
         "STRING_FOR_TREBLE_FREQUENCY": "Treble frequency",
-
         "STRING_FOR_REVERB_AMOUNT": "Reverb amount",
-
         "STRING_FOR_DELAY_RATE": "Delay rate",
         "STRING_FOR_DELAY_AMOUNT": "Delay amount",
-
         "STRING_FOR_SIDECHAIN_LEVEL": "Sidechain level",
         "STRING_FOR_SIDECHAIN_SHAPE": "Sidechain shape",
-
         "STRING_FOR_DISTORTION": "Distortion",
         "STRING_FOR_DECIMATION": "DECIMATION",
         "STRING_FOR_BITCRUSH": "Bitcrush",
-
         "STRING_FOR_MODFX_OFFSET": "MOD-FX offset",
         "STRING_FOR_MODFX_FEEDBACK": "MOD-FX feedback",
         "STRING_FOR_MODFX_DEPTH": "MOD-FX depth",
         "STRING_FOR_MODFX_RATE": "MOD-FX rate",
-
         "STRING_FOR_PORTAMENTO": "PORTAMENTO",
-
         "STRING_FOR_STUTTER": "STUTTER",
         "STRING_FOR_STUTTER_RATE": "Stutter Rate",
-
         "STRING_FOR_DISABLED": "Disabled",
         "STRING_FOR_ENABLED": "Enabled",
         "STRING_FOR_OK": "OK",
@@ -163,7 +130,6 @@
         "STRING_FOR_SURE": "Sure",
         "STRING_FOR_OVERWRITE": "Overwrite",
         "STRING_FOR_OPTIONS": "Options",
-
         "STRING_FOR_AUDIO_SOURCE": "Audio source",
         "STRING_FOR_ARE_YOU_SURE_QMARK": "Are you sure?",
         "STRING_FOR_DELETE_QMARK": "Delete?",
@@ -172,7 +138,6 @@
         "STRING_FOR_CLEAR_SONG_QMARK": "Clear song?",
         "STRING_FOR_LOAD_PRESET": "Load preset",
         "STRING_FOR_OVERWRITE_QMARK": "Overwrite?",
-
         "STRING_FOR_LEFT_INPUT": "Left input",
         "STRING_FOR_RIGHT_INPUT": "Right input",
         "STRING_FOR_STEREO_INPUT": "Stereo input",
@@ -180,27 +145,20 @@
         "STRING_FOR_MIX_PRE_FX": "Deluge mix (no fx)",
         "STRING_FOR_MIX_POST_FX": "Deluge output (fx)",
         "STRING_FOR_TRACK": "Specific Track",
-
         "STRING_FOR_DEFAULT_LAUNCH": "Infinite",
         "STRING_FOR_FILL_LAUNCH": "Fill",
         "STRING_FOR_ONCE_LAUNCH": "Once",
-
         "STRING_FOR_LOAD_ALL": "Load all",
         "STRING_FOR_SLICE": "Slice",
-
         "STRING_FOR_MULTISAMPLES": "Multisamples",
         "STRING_FOR_BASIC": "Basic",
         "STRING_FOR_SINGLE_CYCLE": "Single-cycle",
         "STRING_FOR_WAVETABLE": "Wavetable",
-
         "STRING_FOR_ERROR_DELETING_FILE": "Error deleting file",
         "STRING_FOR_FILE_DELETED": "File deleted",
-
         "STRING_FOR_CLONE": "Clone",
-
         "STRING_FOR_COLLECT_MEDIA": "Collect media",
         "STRING_FOR_CREATE_FOLDER": "Create folder",
-
         "STRING_FOR_UP": "Up",
         "STRING_FOR_DOWN": "Down",
         "STRING_FOR_BOTH": "Both",
@@ -211,7 +169,6 @@
         "STRING_FOR_ALTERNATE": "Alternate",
         "STRING_FOR_ARP": "Arpeggiator",
         "STRING_FOR_SEQUENCE": "Sequencer",
-
         "STRING_FOR_FIFTH": "5TH",
         "STRING_FOR_SUS2": "SUS2",
         "STRING_FOR_MINOR": "MIN",
@@ -220,14 +177,11 @@
         "STRING_FOR_MINOR7": "MIN7",
         "STRING_FOR_DOMINANT7": "DOM7",
         "STRING_FOR_MAJOR7": "MAJ7",
-
         "STRING_FOR_CV_OUTPUT_N": "CV output *",
         "STRING_FOR_CV_OUTPUT_1": "CV output 1",
         "STRING_FOR_CV_OUTPUT_2": "CV output 2",
-
         "STRING_FOR_DIGITAL": "Digital",
         "STRING_FOR_ANALOG": "Analog",
-
         "STRING_FOR_DRIVE": "Drive",
         "STRING_FOR_DRIVE_SHORT": "DRV",
         "STRING_FOR_SVF_BAND": "SVF Bandpass",
@@ -245,14 +199,12 @@
         "STRING_FOR_S_TRIGGER": "S-trig",
         "STRING_FOR_CLOCK": "Clock",
         "STRING_FOR_RUN_SIGNAL": "Run signal",
-
         "STRING_FOR_GATE_MODE_TITLE": "Gate out* mode",
         "STRING_FOR_GATE_OUTPUT_1": "Gate output 1",
         "STRING_FOR_GATE_OUTPUT_2": "Gate output 2",
         "STRING_FOR_GATE_OUTPUT_3": "Gate output 3",
         "STRING_FOR_GATE_OUTPUT_4": "Gate output 4",
         "STRING_FOR_MINIMUM_OFF_TIME": "Minimum off-time",
-
         "STRING_FOR_SINE": "Sine",
         "STRING_FOR_TRIANGLE": "Triangle",
         "STRING_FOR_SQUARE": "Square",
@@ -260,23 +212,19 @@
         "STRING_FOR_SAMPLE_AND_HOLD": "S&H",
         "STRING_FOR_RANDOM_WALK": "Random Walk",
         "STRING_FOR_RANDOM_WALK_SHORT": "Walk",
-
         "STRING_FOR_JUMP": "Jump",
         "STRING_FOR_PICK_UP": "Pickup",
         "STRING_FOR_SCALE": "Scale",
         "STRING_FOR_RELATIVE": "Relative",
-
-        "STRING_FOR_WARBLE" : "WARBLE",
+        "STRING_FOR_WARBLE": "WARBLE",
         "STRING_FOR_FLANGER": "Flanger",
         "STRING_FOR_CHORUS": "Chorus",
         "STRING_FOR_PHASER": "Phaser",
         "STRING_FOR_STEREO_CHORUS": "Stereo Chorus",
         "STRING_FOR_DIMENSION": "Dimension",
-
         "STRING_FOR_CARRIERS": "Carriers",
         "STRING_FOR_MODULATOR_1": "Modulator 1",
         "STRING_FOR_MODULATOR_2": "Modulator 2",
-
         "STRING_FOR_CONDITIONAL": "Conditional",
         "STRING_FOR_LOWER_ZONE": "Lower zone",
         "STRING_FOR_UPPER_ZONE": "Upper zone",
@@ -284,6 +232,10 @@
         "STRING_FOR_ANALOG_SAW": "Analog saw",
         "STRING_FOR_SAMPLE": "Sample",
         "STRING_FOR_DX7": "DX7",
+        "STRING_FOR_SID_SAW": "SID saw",
+        "STRING_FOR_SID_PULSE": "SID pulse",
+        "STRING_FOR_SID_TRIANGLE": "SID triangle",
+        "STRING_FOR_SID_NOISE": "SID noise",
         "STRING_FOR_INPUT": "Input",
         "STRING_FOR_INPUT_LEFT": "Input (left)",
         "STRING_FOR_INPUT_RIGHT": "Input (right)",
@@ -296,7 +248,6 @@
         "STRING_FOR_SHORTCUTS_VERSION_1": "1.0",
         "STRING_FOR_SHORTCUTS_VERSION_3": "3.0",
         "STRING_FOR_CANT_RECORD_AUDIO_FM_MODE": "Can't record audio into an FM synth",
-
         "STRING_FOR_FACTORY_RESET": "Factory reset",
         "STRING_FOR_CLIPPING_OCCURRED": "Clipping occurred",
         "STRING_FOR_NO_SAMPLE": "No sample",
@@ -397,10 +348,8 @@
         "STRING_FOR_USB_DEVICE_DETACHED": "USB device detached",
         "STRING_FOR_USB_HUB_ATTACHED": "USB hub attached",
         "STRING_FOR_USB_DEVICE_NOT_RECOGNIZED": "USB device not recognized",
-
         "STRING_FOR_OUT": "Out",
         "STRING_FOR_IN": "In",
-
         "STRING_FOR_DEV_MENU_A": "Dev Menu A",
         "STRING_FOR_DEV_MENU_B": "Dev Menu B",
         "STRING_FOR_DEV_MENU_C": "Dev Menu C",
@@ -500,7 +449,6 @@
         "STRING_FOR_MASTER_TRANSPOSE": "Master transpose",
         "STRING_FOR_SYNTH_MODE": "Synth mode",
         "STRING_FOR_FILTER_ROUTE": "Filter route",
-
         "STRING_FOR_COLUMN_VELOCITY": "Velocity",
         "STRING_FOR_COLUMN_MOD": "Modwheel",
         "STRING_FOR_COLUMN_CHORD": "Chords",
@@ -510,7 +458,6 @@
         "STRING_FOR_COLUMN_DX": "DX operators",
         "STRING_FOR_COLUMN_SESSION": "song macros",
         "STRING_FOR_COLUMN_BEAT_REPEAT": "Beat Repeat",
-
         "STRING_FOR_KEYBOARD_LAYOUT_CHORD_KEYBOARD": "Chord",
         "STRING_FOR_KEYBOARD_LAYOUT_CHORD_LIBRARY": "Chord Library",
         "STRING_FOR_KEYBOARD_LAYOUT_IN_KEY": "In-Key",
@@ -518,7 +465,6 @@
         "STRING_FOR_KEYBOARD_LAYOUT_NORNS": "Norns",
         "STRING_FOR_KEYBOARD_LAYOUT_PIANO": "Piano",
         "STRING_FOR_KEYBOARD_LAYOUT_VELOCITY_DRUMS": "Velocity Drums",
-
         "STRING_FOR_DX_ERROR_FILE_TOO_SMALL": "error: file too small",
         "STRING_FOR_DX_ERROR_NO_SYSEX_START": "error: no sysex start",
         "STRING_FOR_DX_ERROR_NO_SYSEX_END": "error: no sysex end",
@@ -526,7 +472,6 @@
         "STRING_FOR_DX_ERROR_CHECKSUM_FAIL": "error: sysex checksum fail",
         "STRING_FOR_DX_ERROR_SYSEX_ID": "error: unknown sysex id",
         "STRING_FOR_DX_ERROR_READ_ERROR": "error: couldn't read file",
-
         "STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER": "Drum Randomizer",
         "STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR": "Compressor",
         "STRING_FOR_COMMUNITY_FEATURE_QUANTIZE": "Quantize",
@@ -558,23 +503,19 @@
         "STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR": "Alternative Tap Tempo Behaviour",
         "STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS": "Horizontal menus",
         "STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP": "Trim from start of audio clips",
-
         "STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION": "Track still has clips in session",
         "STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST": "Delete all track's clips first",
         "STRING_FOR_CANT_DELETE_FINAL_CLIP": "Can't delete final Clip",
         "STRING_FOR_NEW_SYNTH_CREATED": "New synth created",
         "STRING_FOR_NEW_FM_SYNTH_CREATED": "New dx7 synth created",
         "STRING_FOR_NEW_KIT_CREATED": "New kit created",
-
         "STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT": "Can only import whole folder into brand-new kit",
         "STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP": "Can't import whole folder into audio clip",
-
         "STRING_FOR_IMPOSSIBLE_FROM_GRID": "Impossible from Grid",
         "STRING_FOR_SWITCHING_TO_TRACK_FAILED": "Switching to track failed",
         "STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK": "Can't clone audio in other track",
         "STRING_FOR_CANT_CONVERT_TYPE": "Can't convert audio/non-audio",
         "STRING_FOR_TARGET_FULL": "Target full",
-
         "STRING_FOR_LPF_MORPH": "LPF morph",
         "STRING_FOR_LPF_MODE": "LPF mode",
         "STRING_FOR_MORPH": "Morph",
@@ -796,16 +737,12 @@
         "STRING_FOR_DEFAULT_ACCESSIBILITY": "Accessibility",
         "STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS": "Shortcuts",
         "STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING": "Menu Highlighting",
-
         "STRING_FOR_CV_INSTRUMENT": "CV instrument",
-
         "STRING_FOR_ACTIVE": "ACTIVE",
         "STRING_FOR_STOPPED": "STOPPED",
         "STRING_FOR_MUTED": "MUTED",
         "STRING_FOR_SOLOED": "SOLOED",
-
         "STRING_FOR_FILE_BROWSER": "File browser",
-
         "STRING_FOR_LOW": "LOW",
         "STRING_FOR_MEDIUM": "MEDIUM",
         "STRING_FOR_HIGH": "HIGH",
@@ -856,26 +793,21 @@
         "STRING_FOR_LEARNED": "LEARNED",
         "STRING_FOR_RANGE_INSERTED": "Range inserted",
         "STRING_FOR_INSERT": "INSERT",
-
         "STRING_FOR_LOOP_TOO_SHORT": "Loop too short",
         "STRING_FOR_LOOP_HALVED": "Loop halved",
         "STRING_FOR_LOOP_TOO_LONG": "Loop too long",
         "STRING_FOR_LOOP_DOUBLED": "Loop doubled",
         "STRING_FOR_WAVEFOLD": "Wavefold",
         "STRING_FOR_MOD_MATRIX": "Mod matrix",
-
         "STRING_FOR_CHECKSUM_FAIL": "Checksum fail",
         "STRING_FOR_WRONG_SIZE": "Wrong size?",
         "STRING_FOR_BAD_KEY": "Incorrect Handshake Key",
-
         "STRING_FOR_CLIP_CLEARED": "Clip cleared",
         "STRING_FOR_SAMPLE_CLEARED": "Sample cleared",
         "STRING_FOR_NOTES_CLEARED": "Notes cleared",
         "STRING_FOR_AUTOMATION_CLEARED": "Automation cleared",
-
         "STRING_FOR_GRAIN": "Grain",
         "STRING_FOR_FILL": "Fill",
-
         "STRING_FOR_AUTOMATION": "AUTOMATION",
         "STRING_FOR_AUTOMATION_OVERVIEW": "Automation Overview",
         "STRING_FOR_AUTOMATION_OFF": "(Not Automated)",
@@ -888,7 +820,6 @@
         "STRING_FOR_INTERPOLATION_ENABLED": "Interpolation On",
         "STRING_FOR_PAD_SELECTION_OFF": "Pad Selection Off",
         "STRING_FOR_PAD_SELECTION_ON": "Pad Selection On",
-
         "STRING_FOR_PERFORM_VIEW": "Performance",
         "STRING_FOR_PERFORM_FX": "Perform FX",
         "STRING_FOR_PERFORM_EDITOR": "Editing Mode",
@@ -896,10 +827,8 @@
         "STRING_FOR_PERFORM_EDIT_VALUE": "Value",
         "STRING_FOR_PERFORM_DEFAULTS_LOADED": "Defaults Loaded",
         "STRING_FOR_PERFORM_DEFAULTS_SAVED": "Defaults Saved",
-
         "STRING_FOR_KIT_GLOBAL_FX": "Kit FX",
         "STRING_FOR_PITCH": "Pitch",
-
         "STRING_FOR_FOLLOW_TITLE": "Midi-Follow",
         "STRING_FOR_FOLLOW": "Follow",
         "STRING_FOR_FOLLOW_CHANNEL_A": "Channel A",
@@ -915,30 +844,22 @@
         "STRING_FOR_FOLLOW_CHANNEL_UNASSIGNED": "Channel unassigned",
         "STRING_FOR_INPUT_DIFFERENTIATION_ON": "Use learned device:",
         "STRING_FOR_INPUT_DIFFERENTIATION_OFF": "Use any device",
-
         "STRING_FOR_SELECT_KIT_ROW": "Select Kit Row",
-
         "STRING_FOR_MODEL": "Model",
         "STRING_FOR_FREEVERB": "Freeverb",
         "STRING_FOR_MUTABLE": "Mutable",
         "STRING_FOR_DIFFUSION": "Diffusion",
         "STRING_FOR_TIME": "Time",
-
         "STRING_FOR_MASTER": "Master",
         "STRING_FOR_FILTERS": "Filters",
-
         "STRING_FOR_CANT_TRANSPOSE": "Can't Transpose: No Scale Mode Clips",
-
         "STRING_FOR_TRANSPOSE_INKEY": "In Key",
         "STRING_FOR_TRANSPOSE_PIANO": "Piano",
         "STRING_FOR_TRANSPOSE_CHROMATIC": "Chromatic",
         "STRING_FOR_TRANSPOSE_CHORD": "Chord",
         "STRING_FOR_CANT_ENTER_SCALE": "Can't enter scale mode, MIDI transpose is chromatic",
-
         "STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR": "High CPU Indicator",
-
         "STRING_FOR_HOLD_TIME": "Hold Press Time",
-
         "STRING_FOR_EXPORT_AUDIO": "Export Audio",
         "STRING_FOR_START_EXPORT": "Start Export",
         "STRING_FOR_CONFIGURE_EXPORT_STEMS": "Configure Export",
@@ -951,9 +872,7 @@
         "STRING_FOR_STOP_EXPORT_STEMS_QMARK": "Cancel Export?",
         "STRING_FOR_STOP_EXPORT_STEMS": "Export Cancelled",
         "STRING_FOR_DONE_EXPORT_STEMS": "Export Done!",
-
         "STRING_FOR_KEYBOARD_VIEW_CANT_ENTER_SCALE": "Can't enter scale mode in this keyboard view",
-
         "STRING_FOR_CONFIGURE_SONG_MACROS": "Configure Macros",
         "STRING_FOR_CONFIGURE_SONG_MACROS_SHORT": "Config Macros",
         "STRING_FOR_CONFIGURE_SONG_MACROS_EXIT": "OK",
@@ -961,28 +880,22 @@
         "STRING_FOR_SONG_MACRO_KIND_OUTPUT": "Kind: Output",
         "STRING_FOR_SONG_MACRO_KIND_SECTION": "Kind: Section",
         "STRING_FOR_SONG_MACRO_KIND_NONE": "Kind: None",
-
         "STRING_FOR_MIDI_LEARN": "Midi Learn",
-
         "STRING_FOR_ACTIONS": "Actions",
         "STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH": "Set Clip Length Equal to Sample Length",
         "STRING_FOR_CLIP_LENGTH_ADJUSTED": "Clip Length Adjusted",
-
         "STRING_FOR_CONVERT_TO_AUDIO": "Convert to Audio",
         "STRING_FOR_CLIP_MODE": "Clip Mode",
         "STRING_FOR_CLIP_NAME": "Clip Name",
-
         "STRING_FOR_NOTE_EDITOR": "Note Editor",
         "STRING_FOR_NOTE_EDITOR_VELOCITY": "Note Velocity",
         "STRING_FOR_NOTE_EDITOR_PROBABILITY": "Note Probability",
         "STRING_FOR_NOTE_EDITOR_ITERANCE": "Note Iterance",
         "STRING_FOR_NOTE_EDITOR_FILL": "Note Fill",
-
         "STRING_FOR_NOTE_ROW_EDITOR": "Row Editor",
         "STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY": "Row Probability",
         "STRING_FOR_NOTE_ROW_EDITOR_ITERANCE": "Row Iterance",
         "STRING_FOR_NOTE_ROW_EDITOR_FILL": "Row Fill",
-
         "STRING_FOR_ITERANCE_DIVISOR": "Divisor",
         "STRING_FOR_ITERATION_STEP_1": "Iteration 1",
         "STRING_FOR_ITERATION_STEP_2": "Iteration 2",
@@ -992,7 +905,6 @@
         "STRING_FOR_ITERATION_STEP_6": "Iteration 6",
         "STRING_FOR_ITERATION_STEP_7": "Iteration 7",
         "STRING_FOR_ITERATION_STEP_8": "Iteration 8",
-
         "STRING_FOR_DEFAULT_CLIP_TYPE": "Clip Type",
         "STRING_FOR_DEFAULT_NEW_CLIP_TYPE": "New Clip Type",
         "STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE": "Use Last Clip Type"

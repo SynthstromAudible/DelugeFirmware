@@ -459,6 +459,26 @@ doSaw:
 			table = dsp::analogSawTables[tableNumber];
 		}
 
+		else if (type == OscType::SID_SAW) {
+			// For now, use analog saw table
+			table = dsp::analogSawTables[tableNumber];
+		}
+
+		else if (type == OscType::SID_PULSE) {
+			// For now, use analog square table
+			table = dsp::analogSquareTables[tableNumber];
+		}
+
+		else if (type == OscType::SID_TRIANGLE) {
+			// For now, use analog saw table
+			table = dsp::analogSawTables[tableNumber];
+		}
+
+		else if (type == OscType::SID_NOISE) {
+			// For now, use saw table
+			table = dsp::sawTables[tableNumber];
+		}
+
 		else if (type == OscType::ANALOG_SQUARE) {
 doAnalogSquare:
 			// This sounds different enough to the digital square that we can never just swap back to that to save CPU

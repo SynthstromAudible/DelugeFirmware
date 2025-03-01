@@ -96,6 +96,10 @@ public:
 
 		if (mayUseDx()) {
 			options.emplace_back(l10n::getView(STRING_FOR_DX7));
+			options.emplace_back(l10n::getView(STRING_FOR_SID_SAW));      //<
+			options.emplace_back(l10n::getView(STRING_FOR_SID_PULSE));    //<
+			options.emplace_back(l10n::getView(STRING_FOR_SID_TRIANGLE)); //<
+			options.emplace_back(l10n::getView(STRING_FOR_SID_NOISE));    //<
 		}
 
 		if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) {
