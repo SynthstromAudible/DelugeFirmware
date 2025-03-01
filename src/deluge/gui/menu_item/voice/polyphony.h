@@ -69,7 +69,6 @@ public:
 				}
 			}
 		}
-
 		// Or, the normal case of just one sound
 		else {
 			soundEditor.currentSound->polyphonic = current_value;

@@ -67,7 +67,6 @@ public:
 				}
 			}
 		}
-
 		// Or, the normal case of just one sound
 		else {
 			// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected

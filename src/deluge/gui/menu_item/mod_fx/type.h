@@ -16,11 +16,9 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include "model/settings/runtime_feature_settings.h"
 
 namespace deluge::gui::menu_item::mod_fx {
 

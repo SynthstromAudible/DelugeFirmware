@@ -59,7 +59,6 @@ void Integer::writeCurrentValue() {
 			}
 		}
 	}
-
 	// Or, the normal case of just one sound
 	else {
 		modelStack->autoParam->setCurrentValueInResponseToUserInput(value, modelStack);

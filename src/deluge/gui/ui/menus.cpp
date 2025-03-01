@@ -1312,7 +1312,7 @@ MasterTranspose masterTransposeMenu{STRING_FOR_MASTER_TRANSPOSE, STRING_FOR_MAST
 patch_cable_strength::Fixed vibratoMenu{STRING_FOR_VIBRATO, params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1};
 
 // Synth only
-menu_item::SynthMode synthModeMenu{STRING_FOR_SYNTH_MODE};
+menu_item::SynthModeSelection synthModeMenu{STRING_FOR_SYNTH_MODE};
 bend_range::PerFinger drumBendRangeMenu{STRING_FOR_BEND_RANGE}; // The single option available for Drums
 patched_param::Integer volumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_MASTER_LEVEL, params::GLOBAL_VOLUME_POST_FX};
 patched_param::Pan panMenu{STRING_FOR_PAN, params::LOCAL_PAN};

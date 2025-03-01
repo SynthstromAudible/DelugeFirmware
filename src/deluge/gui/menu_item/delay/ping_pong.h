@@ -17,7 +17,10 @@
 #pragma once
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/instrument/kit.h"
+#include "model/song/song.h"
+#include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::delay {
 
@@ -25,7 +28,27 @@ class PingPong final : public Toggle {
 public:
 	using Toggle::Toggle;
 	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.pingPong); }
-	void writeCurrentValue() override { soundEditor.currentModControllable->delay.pingPong = this->getValue(); }
+	bool usesAffectEntire() override { return true; }
+	void writeCurrentValue() override {
+		int32_t current_value = this->getValue();
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					soundDrum->delay.pingPong = current_value;
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			soundEditor.currentModControllable->delay.pingPong = current_value;
+		}
+	}
 };
 
 } // namespace deluge::gui::menu_item::delay

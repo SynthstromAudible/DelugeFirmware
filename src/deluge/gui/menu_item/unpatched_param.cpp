@@ -44,8 +44,6 @@ ModelStackWithAutoParam* UnpatchedParam::getModelStack(void* memory) {
 }
 
 void UnpatchedParam::writeCurrentValue() {
-	// TODO RAUL
-
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStackWithParam = getModelStack(modelStackMemory);
 	int32_t value = getFinalValue();
@@ -68,7 +66,6 @@ void UnpatchedParam::writeCurrentValue() {
 			}
 		}
 	}
-
 	// Or, the normal case of just one sound
 	else {
 		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);

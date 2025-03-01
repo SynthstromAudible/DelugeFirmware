@@ -38,6 +38,7 @@ public:
 			Kit* kit = getCurrentKit();
 
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				// Note: we need to apply the same filtering as stated in the isRelevant() function
 				if (thisDrum->type != DrumType::GATE) {
 					thisDrum->arpSettings.numStepRepeats = current_value;
 				}

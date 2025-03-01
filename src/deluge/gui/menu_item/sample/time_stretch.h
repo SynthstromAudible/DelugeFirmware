@@ -50,7 +50,6 @@ public:
 				}
 			}
 		}
-
 		// Or, the normal case of just one sound
 		else {
 			soundEditor.currentSource->timeStretchAmount = this->getValue();
