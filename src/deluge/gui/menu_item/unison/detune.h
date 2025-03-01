@@ -17,13 +17,25 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
+#include "model/clip/instrument_clip.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::unison {
 class Detune final : public Integer {
 public:
 	using Integer::Integer;
+
+	ModelStackWithThreeMainThings* getModelStackFromSoundDrum(void* memory, SoundDrum* soundDrum) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		int32_t noteRowIndex;
+		NoteRow* noteRow = clip->getNoteRowForDrum(soundDrum, &noteRowIndex);
+		return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, getCurrentClip(), noteRowIndex,
+		                                                          noteRow, soundDrum, &noteRow->paramManager);
+	}
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->unisonDetune); }
 	void writeCurrentValue() override {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];

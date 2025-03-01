@@ -54,6 +54,7 @@ class PolyphonyType final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->polyphonic); }
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<PolyphonyMode>();
 
@@ -95,7 +96,5 @@ public:
 		}
 		return Selection::selectButtonPress();
 	}
-
-	bool usesAffectEntire() override { return true; }
 };
 } // namespace deluge::gui::menu_item::voice

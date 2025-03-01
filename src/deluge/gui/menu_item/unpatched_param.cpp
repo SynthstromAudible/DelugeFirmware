@@ -58,11 +58,10 @@ void UnpatchedParam::writeCurrentValue() {
 				auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
 				char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
-				ModelStackWithAutoParam* modelStackWithParamForSoundDrum =
+				ModelStackWithAutoParam* modelStackForSoundDrum =
 				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
 				        ->getUnpatchedAutoParamFromId(getP());
-				modelStackWithParamForSoundDrum->autoParam->setCurrentValueInResponseToUserInput(
-				    value, modelStackWithParamForSoundDrum);
+				modelStackForSoundDrum->autoParam->setCurrentValueInResponseToUserInput(value, modelStackForSoundDrum);
 			}
 		}
 	}

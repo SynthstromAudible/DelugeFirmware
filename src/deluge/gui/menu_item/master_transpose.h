@@ -49,9 +49,9 @@ public:
 					soundDrum->transpose = value;
 
 					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
-					ModelStackWithSoundFlags* modelStackWithParamForSoundDrum =
+					ModelStackWithSoundFlags* modelStackForSoundDrum =
 					    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
-					soundDrum->recalculateAllVoicePhaseIncrements(modelStackWithParamForSoundDrum);
+					soundDrum->recalculateAllVoicePhaseIncrements(modelStackForSoundDrum);
 				}
 			}
 		}
