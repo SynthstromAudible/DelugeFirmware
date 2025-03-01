@@ -70,8 +70,6 @@ public:
 	bool fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlaybackGuide* guide, int32_t phaseIncrement,
 	                                     int32_t numSamplesTilLoop, int32_t playDirection, int32_t priorityRating);
 
-	VoiceSample* nextUnassigned;
-
 	uint32_t pendingSamplesLate; // This isn't used for AudioClips. And for samples in STRETCH mode, the exact number
 	                             // isn't relevant - it gets recalculated
 	TimeStretcher* timeStretcher;
