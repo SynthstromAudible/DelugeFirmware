@@ -37,6 +37,9 @@ class SampleLowLevelReader {
 public:
 	SampleLowLevelReader() = default;
 	~SampleLowLevelReader() = default;
+	explicit SampleLowLevelReader(SampleLowLevelReader&, bool stealReasons = false);
+	SampleLowLevelReader(SampleLowLevelReader&& other) noexcept = default;
+	SampleLowLevelReader& operator=(const SampleLowLevelReader& other) = default;
 
 	void unassignAllReasons(bool wontBeUsedAgain);
 	void jumpForwardLinear(int32_t numChannels, int32_t byteDepth, uint32_t bitMask, int32_t jumpAmount,
@@ -61,11 +64,11 @@ public:
 	bool reassessReassessmentLocation(SamplePlaybackGuide* guide, Sample* sample, int32_t priorityRating);
 	int32_t getPlayByteLowLevel(Sample* sample, SamplePlaybackGuide* guide,
 	                            bool compensateForInterpolationBuffer = false);
-	void cloneFrom(SampleLowLevelReader* other, bool stealReasons = false);
+
 	bool setupClustersForPlayFromByte(SamplePlaybackGuide* guide, Sample* sample, int32_t startPlaybackAtByte,
 	                                  int32_t priorityRating);
 
-	virtual bool shouldObeyMarkers() { return false; }
+	[[nodiscard]] virtual bool shouldObeyMarkers() const { return false; }
 
 	void readSamplesNative(int32_t** __restrict__ oscBufferPos, int32_t numSamplesTotal, Sample* sample,
 	                       int32_t jumpAmount, int32_t numChannels, int32_t numChannelsAfterCondensing,
