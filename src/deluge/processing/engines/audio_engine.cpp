@@ -19,6 +19,7 @@
 #include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "dsp/reverb/reverb.hpp"
+#include "dsp/sid/sid_init.h" // Include the SID initialization header
 #include "dsp/timestretch/time_stretcher.h"
 #include "extern.h"
 #include "gui/context_menu/sample_browser/kit.h"
@@ -244,6 +245,9 @@ void init() {
 	i2sRXBufferPos = (uint32_t)getRxBufferStart()
 	                 + ((SSI_RX_BUFFER_NUM_SAMPLES - SSI_TX_BUFFER_NUM_SAMPLES - 16)
 	                    << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE)); // Subtracting 5 or more seems fine
+
+	// Initialize SID wave tables
+	deluge::dsp::sid::initSID();
 }
 
 void unassignAllVoices(bool deletingSong) {

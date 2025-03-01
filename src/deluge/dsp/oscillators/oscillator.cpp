@@ -16,6 +16,7 @@
  */
 #include "oscillator.h"
 #include "basic_waves.h"
+#include "dsp/sid/sid_waves.h"
 #include "processing/render_wave.h"
 #include "storage/wave_table/wave_table.h"
 
@@ -460,23 +461,79 @@ doSaw:
 		}
 
 		else if (type == OscType::SID_SAW) {
-			// For now, use analog saw table
-			table = dsp::analogSawTables[tableNumber];
+			// Call the SID saw renderer directly
+			if (doOscSync) {
+				// For oscillator sync, render to the sync buffer first
+				sid::renderSidSaw(amplitude, oscSyncRenderingBuffer, oscSyncRenderingBuffer + numSamples,
+				                  phaseIncrement, phase, false, phaseToAdd, amplitudeIncrement);
+				applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
+				                             oscSyncRenderingBuffer);
+			}
+			else {
+				// Otherwise render directly to the output buffer
+				sid::renderSidSaw(amplitude, bufferStart, bufferEnd, phaseIncrement, phase, applyAmplitude, phaseToAdd,
+				                  amplitudeIncrement);
+			}
+
+			maybeStorePhase(type, startPhase, phase, doPulseWave);
+			return;
 		}
 
 		else if (type == OscType::SID_PULSE) {
-			// For now, use analog square table
-			table = dsp::analogSquareTables[tableNumber];
+			// Call the SID pulse renderer directly
+			if (doOscSync) {
+				// For oscillator sync, render to the sync buffer first
+				sid::renderSidPulse(amplitude, oscSyncRenderingBuffer, oscSyncRenderingBuffer + numSamples,
+				                    phaseIncrement, phase, pulseWidth, false, amplitudeIncrement);
+				applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
+				                             oscSyncRenderingBuffer);
+			}
+			else {
+				// Otherwise render directly to the output buffer
+				sid::renderSidPulse(amplitude, bufferStart, bufferEnd, phaseIncrement, phase, pulseWidth,
+				                    applyAmplitude, amplitudeIncrement);
+			}
+
+			maybeStorePhase(type, startPhase, phase, true); // Set doPulseWave to true
+			return;
 		}
 
 		else if (type == OscType::SID_TRIANGLE) {
-			// For now, use analog saw table
-			table = dsp::analogSawTables[tableNumber];
+			// Call the SID triangle renderer directly
+			if (doOscSync) {
+				// For oscillator sync, render to the sync buffer first
+				sid::renderSidTriangle(amplitude, oscSyncRenderingBuffer, oscSyncRenderingBuffer + numSamples,
+				                       phaseIncrement, phase, false, phaseToAdd, amplitudeIncrement);
+				applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
+				                             oscSyncRenderingBuffer);
+			}
+			else {
+				// Otherwise render directly to the output buffer
+				sid::renderSidTriangle(amplitude, bufferStart, bufferEnd, phaseIncrement, phase, applyAmplitude,
+				                       phaseToAdd, amplitudeIncrement);
+			}
+
+			maybeStorePhase(type, startPhase, phase, doPulseWave);
+			return;
 		}
 
 		else if (type == OscType::SID_NOISE) {
-			// For now, use saw table
-			table = dsp::sawTables[tableNumber];
+			// Call the SID noise renderer directly
+			if (doOscSync) {
+				// For oscillator sync, render to the sync buffer first
+				sid::renderSidNoise(amplitude, oscSyncRenderingBuffer, oscSyncRenderingBuffer + numSamples,
+				                    phaseIncrement, phase, false, amplitudeIncrement);
+				applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
+				                             oscSyncRenderingBuffer);
+			}
+			else {
+				// Otherwise render directly to the output buffer
+				sid::renderSidNoise(amplitude, bufferStart, bufferEnd, phaseIncrement, phase, applyAmplitude,
+				                    amplitudeIncrement);
+			}
+
+			maybeStorePhase(type, startPhase, phase, doPulseWave);
+			return;
 		}
 
 		else if (type == OscType::ANALOG_SQUARE) {
