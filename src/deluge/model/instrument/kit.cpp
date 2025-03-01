@@ -825,7 +825,7 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 				FREEZE_WITH_ERROR("E174");
 			}
 
-			soundDrum->patcher.performInitialPatching(soundDrum, (ParamManagerForTimeline*)paramManager);
+			soundDrum->patcher.performInitialPatching(*soundDrum, *(ParamManagerForTimeline*)paramManager);
 		}
 	}
 
@@ -926,7 +926,7 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 
 						SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
 
-						soundDrum->patcher.performInitialPatching(soundDrum, &thisNoteRow->paramManager);
+						soundDrum->patcher.performInitialPatching(*soundDrum, thisNoteRow->paramManager);
 					}
 				}
 			}
@@ -1029,6 +1029,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					if (instruction.arpNoteOn != nullptr
 					    && instruction.arpNoteOn->noteCodeOnPostArp[n] != ARP_NOTE_NONE) {
+						soundDrum->invertReversed = instruction.invertReversed;
 						soundDrum->noteOnPostArpeggiator(
 						    modelStackWithSoundFlags,
 						    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],

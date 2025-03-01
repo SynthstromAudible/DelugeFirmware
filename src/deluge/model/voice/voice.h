@@ -37,44 +37,46 @@ public:
 	Patcher patcher;
 
 	// Stores all oscillator positions and stuff, for each Source within each Unison too
-	VoiceUnisonPart unisonParts[kMaxNumVoicesUnison];
+	std::array<VoiceUnisonPart, kMaxNumVoicesUnison> unisonParts;
 
 	// Stores overall info on each Source (basically just sample memory bounds), for the play-through associated with
 	// this Voice right now.
-	VoiceSamplePlaybackGuide guides[kNumSources];
+	std::array<VoiceSamplePlaybackGuide, kNumSources> guides;
 
 	Sound* assignedToSound;
 
 	///
 	/// This is just for the *local* params, specific to this Voice only
 	///
-	int32_t paramFinalValues[deluge::modulation::params::LOCAL_LAST];
+	std::array<int32_t, deluge::modulation::params::LOCAL_LAST> paramFinalValues;
 
 	// At the start of this list are local copies of the "global" ones. It's cheaper to copy them here than to pick and
 	// choose where the Patcher looks for them
-	int32_t sourceValues[kNumPatchSources];
+	std::array<int32_t, kNumPatchSources> sourceValues;
 
 	std::bitset<kNumExpressionDimensions> expressionSourcesCurrentlySmoothing;
 	std::bitset<kNumExpressionDimensions> expressionSourcesFinalValueChanged;
-	int32_t localExpressionSourceValuesBeforeSmoothing[kNumExpressionDimensions];
+	std::array<int32_t, kNumExpressionDimensions> localExpressionSourceValuesBeforeSmoothing;
 
-	Envelope envelopes[kNumEnvelopes];
+	std::array<Envelope, kNumEnvelopes> envelopes;
 	LFO lfo2;
 	LFO lfo4;
 
 	dsp::filter::FilterSet filterSet;
-	int32_t inputCharacteristics[2]; // Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
+
+	// Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
+	std::array<int32_t, 2> inputCharacteristics;
 	int32_t noteCodeAfterArpeggiation;
 
 	uint32_t portaEnvelopePos;
 	int32_t portaEnvelopeMaxAmplitude;
 
-	uint32_t lastSaturationTanHWorkingValue[2];
+	std::array<uint32_t, 2> lastSaturationTanHWorkingValue;
 
 	int32_t overallOscAmplitudeLastTime;
-	int32_t sourceAmplitudesLastTime[kNumSources];
-	int32_t modulatorAmplitudeLastTime[kNumModulators];
-	uint32_t sourceWaveIndexesLastTime[kNumSources];
+	std::array<int32_t, kNumSources> sourceAmplitudesLastTime;
+	std::array<int32_t, kNumModulators> modulatorAmplitudeLastTime;
+	std::array<uint32_t, kNumSources> sourceWaveIndexesLastTime;
 
 	int32_t filterGainLastTime;
 

@@ -121,7 +121,7 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumNonGlobalParamsForAutomation = 72;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 81;
 constexpr int32_t kNumGlobalParamsForAutomation = 26;
 constexpr int32_t kParamNodeWidth = 3;
 
@@ -161,8 +161,8 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::PATCHED, params::LOCAL_OSC_A_PITCH_ADJUST},
     {params::Kind::PATCHED, params::LOCAL_OSC_A_PHASE_WIDTH},
     {params::Kind::PATCHED, params::LOCAL_CARRIER_0_FEEDBACK},
-    // OSC 2 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
     {params::Kind::PATCHED, params::LOCAL_OSC_A_WAVE_INDEX},
+    // OSC 2 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
     {params::Kind::PATCHED, params::LOCAL_OSC_B_VOLUME},
     {params::Kind::PATCHED, params::LOCAL_OSC_B_PITCH_ADJUST},
     {params::Kind::PATCHED, params::LOCAL_OSC_B_PHASE_WIDTH},
@@ -186,6 +186,16 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::PATCHED, params::LOCAL_ENV_1_DECAY},
     {params::Kind::PATCHED, params::LOCAL_ENV_1_SUSTAIN},
     {params::Kind::PATCHED, params::LOCAL_ENV_1_RELEASE},
+    // Env 3 ADSR
+    {params::Kind::PATCHED, params::LOCAL_ENV_2_ATTACK},
+    {params::Kind::PATCHED, params::LOCAL_ENV_2_DECAY},
+    {params::Kind::PATCHED, params::LOCAL_ENV_2_SUSTAIN},
+    {params::Kind::PATCHED, params::LOCAL_ENV_2_RELEASE},
+    // Env 4 ADSR
+    {params::Kind::PATCHED, params::LOCAL_ENV_3_ATTACK},
+    {params::Kind::PATCHED, params::LOCAL_ENV_3_DECAY},
+    {params::Kind::PATCHED, params::LOCAL_ENV_3_SUSTAIN},
+    {params::Kind::PATCHED, params::LOCAL_ENV_3_RELEASE},
     // LFO 1
     {params::Kind::PATCHED, params::GLOBAL_LFO_FREQ_1},
     // LFO 2
@@ -203,17 +213,18 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     // Ratchet Prob, Spread Gate, Spread Octave, Spread Velocity
     {params::Kind::PATCHED, params::GLOBAL_ARP_RATE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_GATE},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RHYTHM},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_CHORD_POLYPHONY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_AMOUNT},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_NOTE_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_BASS_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_CHORD_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_GATE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_OCTAVE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SPREAD_VELOCITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_AMOUNT},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_CHORD_POLYPHONY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_CHORD_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_NOTE_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_BASS_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_REVERSE_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RHYTHM},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
     // Noise
     {params::Kind::PATCHED, params::LOCAL_NOISE_VOLUME},
     // Portamento

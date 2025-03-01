@@ -54,6 +54,9 @@ set the stutter configuration independently of the song configuration if you wis
 #### <ins>Audio Export</ins>
 - Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
 
+#### <ins>Save/Load Patterns</ins>
+- Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synt, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ](docs/features/save_load_patterns.md) for more info.
+
 #### <ins>Arranger View</ins>
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
@@ -72,6 +75,10 @@ set the stutter configuration independently of the song configuration if you wis
     - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
     - NOTE for `SONG ROW VIEW`: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Song Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default.
 
+##### Selected Clip Pulsing
+- The selected clip in `Song Grid View` (which is the last clip you interacted with), now shows a `pulsing / breathing` animation whereby the clip pad will fade in and out between the clip's normal colour and a blurred colour.
+- This will help you keep track of what clip midi follow is currently controlling and what clip is selected for loop recording.
+
 #### <ins>Audio Clips</ins>
 - Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on
 when the output is a SAMPLER or a LOOPER, chosen by turning the select knob in an audio clip.
@@ -88,8 +95,12 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - If scale mode is active, you can now check the current root note and scale by long pressing the scale button. On 7SEG it will display the root note on press and scale on release.
 - Long pressing the scale button will not result in entering or exiting scale mode so you can safely check the current root note and scale without accidentally exiting scale mode.
 
-##### Velocity Spread
-- Added `Velocity Spread` parameter into a `Randomizer` submenu for Sound instruments. This parameters is shared with the arpeggiator and lets you apply some random variation to the notes.
+##### Randomizer submenu
+- Added a new submenu to the `Sound` menu called `Randomizer`. This menu gives you access to the following parameters (which affect both sequenced and arpeggiated notes):
+  - `Lock`: This parameter allows you to freeze the current set of randomized values so the sequence has a repeatable pattern.
+  - `Velocity Spread`: This parameters lets you apply some random variation to the notes.
+  - `Note probability`: This parameter determines the likelihood of a note being played or not (this is in addition to the Note/Row probability).
+  - `Reverse Probability`: This parameter determines the likelihood of a note's sample of being reversed.
 
 ##### Note / Note Row Probability, Iterance, Fill
 - Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
@@ -103,7 +114,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### Recording
 - Enabled seamless linear recording of drone notes using audition pads or external midi.
-  - When linear recording to a clip, you can seamlessly record a drone note using the audition pads or from external midi by continuing to audition / send a note until the linear recording stops. After linear recording stops, you can stop auditioning / send a note off and the drone note will persist without any breaks or re-triggering.
+  - When linear recording to a clip, you can seamlessly record a drone note using the audition pads or from external midi by continuing to audition / send a note until the linear recording stops. After linear recording stops, you can stop auditioning / send a note off and the drone note will persist without any breaks or re-triggering. (The Deluge manual refers to linear recording as _auto extend mode_, see p. 42.)
 
 ##### Synth/Kit Clips
 - Added Auto-Load feature to sample browser, so you can load the sounds to the instrument as you preview them. Auto-Load can be engaged while in sample browser, if you press the `Load` button.
@@ -157,8 +168,10 @@ also affect normal sequenced notes while arpeggiator is Off.
 - Added `STEP REPEAT (REPE)` paramater (with values 1 to 8) that makes walked notes in the pattern be repeated X times before moving to the next note+octave in the pattern.
 - Added `CHORD PROBABILITY (CHRD)` paramater that will allow you to control the chance of a note to play, at the same time, itself and other notes to form a chord (5th, 3rd and 7th).
 - Added `CHORD POLYPHONY (POLY)` paramater that works together with the previous parameter, and this one will dictate how big is the chord, that is, how many notes will be played at the same time.
+- Added `REVERSE PROBABILITY (RVRS)` paramater that will allow you to control the chance of a sound to invert the `Reverse` setting for that note. This parameter will only affect oscillators whose type is `Sample` (it does not affect wavetables, SCW, or standard waveforms).
 - Added `LOCK` parameter to allow you to freeze the current set of randomized values so the sequence has a repeatable pattern.
 - Added new `WALK1`, `WALK2`, `WALK3` and `PATTERN` note modes.
+- Exposed several parameters from the `Randomizer` also for non-arpeggiated notes: `Velocity Spread`, `Note probability`, and `Reverse Probability`.
 
 ### MIDI
 
@@ -277,7 +290,7 @@ also affect normal sequenced notes while arpeggiator is Off.
 - Added ability to sync LFO2. Where LFO1 syncs relative to the grid, LFO2 syncs relative to individual notes.
 - Added ability to set `CLIP NAMES`. MIDI, SYNTH and KIT clips can now be named. When in a the clip view, press `SHIFT` + `NAME` and enter the name of the clip. For KIT, its important to activate `AFFECT ENTIRE` to name the KIT clip. When on ARRANGER view with an OLED display, you are now able to scroll through the clip names when holding a clip pad and turning `SELECT` encoder.
 - Fixed a bug where pressing `UNDO` in a `KIT` could cause the `SELECTED DRUM` to change but not update the `GOLD KNOBS` so that they now control that updated kit row.
-- Fixed a bug where you could not turn `RECORDING OFF` while auditioning a note in an `INSTRUMENT CLIP`. With this fix you can now record drone notes when using `LINEAR RECORDING`.
+- Fixed a bug where you could not turn recording off while auditioning a note in an instrument clip. With this fix you can now record drone notes when using linear recording. (The Deluge manual refers to linear recording as _auto extend mode_, see p. 42.)
 
 ##### Velocity View
 - Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing `SHIFT OR AUDITION PAD + VELOCITY` or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`.

@@ -83,7 +83,6 @@ extern deluge::gui::menu_item::PatchCables patchCablesMenu;
 extern deluge::gui::menu_item::source::patched_param::FM modulatorVolume;
 
 extern MenuItem* midiOrCVParamShortcuts[kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForMidiOrCVParamShortcuts[kDisplayHeight];
 
 extern MenuItem* gateDrumParamShortcuts[kDisplayHeight];
 extern MenuItem* paramShortcutsForSounds[kDisplayWidth][kDisplayHeight];
@@ -95,6 +94,7 @@ extern deluge::gui::menu_item::Submenu* parentsForSoundShortcuts[kDisplayWidth][
 extern deluge::gui::menu_item::Submenu* parentsForAudioShortcuts[kDisplayWidth][kDisplayHeight];
 extern deluge::gui::menu_item::Submenu* parentsForSongShortcuts[kDisplayWidth][kDisplayHeight];
 extern deluge::gui::menu_item::Submenu* parentsForKitGlobalFXShortcuts[kDisplayWidth][kDisplayHeight];
+extern deluge::gui::menu_item::Submenu* parentsForMidiOrCVParamShortcuts[kDisplayWidth][kDisplayHeight];
 
 void setOscillatorNumberForTitles(int32_t);
 void setModulatorNumberForTitles(int32_t);

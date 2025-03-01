@@ -263,7 +263,7 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, P
 
 		if (modelStack) {
 			ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
-			patcher.performInitialPatching(this, paramManager);
+			patcher.performInitialPatching(*this, *paramManager);
 
 			// Grab mono expression params
 			ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
@@ -294,7 +294,7 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	if (!paramManager) {
 		FREEZE_WITH_ERROR("E173");
 	}
-	patcher.performInitialPatching(this, paramManager);
+	patcher.performInitialPatching(*this, *paramManager);
 
 	// Clear mono expression params
 	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
@@ -430,23 +430,7 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 	UnpatchedParamSet* unpatchedParams = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSet();
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-	arpSettings->rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
-	arpSettings->sequenceLength =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
-	arpSettings->chordPolyphony =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_POLYPHONY) + 2147483648;
-	arpSettings->ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
-	arpSettings->noteProbability =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_NOTE_PROBABILITY) + 2147483648;
-	arpSettings->bassProbability =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_PROBABILITY) + 2147483648;
-	arpSettings->chordProbability =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_PROBABILITY) + 2147483648;
-	arpSettings->ratchetProbability =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
-	arpSettings->spreadVelocity = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_SPREAD_VELOCITY) + 2147483648;
-	arpSettings->spreadGate = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
-	arpSettings->spreadOctave = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_OCTAVE) + 2147483648;
+	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
 
 	ArpReturnInstruction instruction;
 
@@ -455,17 +439,23 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStackWithThreeMainThings->addSoundFlags();
 
+	bool atLeastOneOff = false;
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
+		atLeastOneOff = true;
 		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+	}
+	if (atLeastOneOff) {
+		invertReversed = false;
 	}
 	if (instruction.arpNoteOn != nullptr) {
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 				break;
 			}
+			invertReversed = instruction.invertReversed;
 			noteOnPostArpeggiator(
 			    modelStackWithSoundFlags,
 			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
@@ -495,17 +485,15 @@ bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	if (arpSettings) {
-		if (arpSettings->mode != ArpMode::OFF || polyphonic == PolyphonyMode::LEGATO
-		    || polyphonic == PolyphonyMode::MONO) {
-
-			int32_t n = arpeggiator.notes.search(noteCode, GREATER_OR_EQUAL);
-			if (n >= arpeggiator.notes.getNumElements()) {
-				return false;
-			}
-			ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-			return (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode);
+	if (arpSettings != nullptr
+	    && (arpSettings->mode != ArpMode::OFF || polyphonic == PolyphonyMode::LEGATO
+	        || polyphonic == PolyphonyMode::MONO)) {
+		int32_t n = arpeggiator.notes.search(noteCode, GREATER_OR_EQUAL);
+		if (n >= arpeggiator.notes.getNumElements()) {
+			return false;
 		}
+		ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+		return (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode);
 	}
 
 	if (!numVoicesAssigned) {

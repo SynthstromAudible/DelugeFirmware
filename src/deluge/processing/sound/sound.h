@@ -78,14 +78,17 @@ public:
 
 	// This is for the *global* params only, and begins with FIRST_GLOBAL_PARAM, so subtract that from your p value
 	// before accessing this array!
-	int32_t paramFinalValues[deluge::modulation::params::kNumParams - deluge::modulation::params::FIRST_GLOBAL];
-	int32_t globalSourceValues[util::to_underlying(kFirstLocalSource)];
+	std::array<int32_t, deluge::modulation::params::kNumParams - deluge::modulation::params::FIRST_GLOBAL>
+	    paramFinalValues;
+	std::array<int32_t, util::to_underlying(kFirstLocalSource)> globalSourceValues;
 
 	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
 	LFO globalLFO1;
 	LFO globalLFO3;
 	LFOConfig lfoConfig[LFO_COUNT];
+
+	bool invertReversed; // Used by the arpeggiator to invert the reverse flag just for the current voice
 
 	// December 3, 2024
 	// @todo
@@ -96,15 +99,11 @@ public:
 	// definition above. This unknowingly introduced a "release" bug which changed the sound of the
 	// Deluge synth engine compared to 1.1 as reported in issue #2660:
 	// (https://github.com/SynthstromAudible/DelugeFirmware/issues/2660)
-	// As a TEMPORARY solution, padding is being added here to fix the bug so as to not hold up
-	// the 1.2 Beta release.
-	// Emphasis on temporary as this bug needs a proper fix, otherwise it will keep coming back
-	// as changes get made to this Sound class.
-	// We think the issue relates to the use of "offsetof" in the param and patcher system
-	// (related to the paramFinalValues / globalSourceValues definitions above)
-	uint32_t temporaryPadding{0xDEADBEEF};
+	// As a solution modKnobs is aligned to 8 bytes. I don't know why this fixes the problem but it seems to work even
+	// with other changes to the class. We think the issue relates to the use of "offsetof" in the
+	// param and patcher system (related to the paramFinalValues / globalSourceValues definitions above)
 
-	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
+	alignas(8) ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 
 	int32_t sideChainSendLevel;
 
@@ -269,14 +268,12 @@ public:
 	void detachSourcesFromAudioFiles();
 	void confirmNumVoices(char const* error);
 
-	inline int32_t getSmoothedPatchedParamValue(int32_t p,
-	                                            ParamManager* paramManager) { // Yup, inlining this helped a tiny bit.
+	// Yup, inlining this helped a tiny bit.
+	[[gnu::always_inline]] int32_t getSmoothedPatchedParamValue(int32_t p, ParamManager& paramManager) const {
 		if (paramLPF.p == p) {
 			return paramLPF.currentValue;
 		}
-		else {
-			return paramManager->getPatchedParamSet()->getValue(p);
-		}
+		return paramManager.getPatchedParamSet()->getValue(p);
 	}
 
 	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,

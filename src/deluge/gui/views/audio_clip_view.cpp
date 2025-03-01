@@ -149,7 +149,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 	int32_t xEnd = std::min(kDisplayWidth, visibleWaveformXEnd);
 
 	bool success = waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image, &clip.renderData,
-	                                                 recorder, rgb, clip.sampleControls.reversed, xEnd);
+	                                                 recorder, rgb, clip.sampleControls.isCurrentlyReversed(), xEnd);
 
 	// If card being accessed and waveform would have to be re-examined, come back later
 	if (!success && image == PadLEDs::image) {
@@ -602,7 +602,7 @@ void AudioClipView::changeUnderlyingSampleLength(AudioClip& clip, const Sample* 
 	    (uint64_t)(oldLengthSamples * (uint64_t)newLength + (oldLength >> 1)) / (uint32_t)oldLength;
 
 	// If end pos less than 0, not allowed
-	if (clip.sampleControls.reversed) {
+	if (clip.sampleControls.isCurrentlyReversed()) {
 		newEndPosSamples = clip.sampleHolder.endPos - newLengthSamples;
 		if (newEndPosSamples < 0) {
 			newEndPosSamples = 0;
@@ -660,7 +660,7 @@ void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* s
 	uint64_t newLengthSamples =
 	    static_cast<uint64_t>(oldLengthSamples * newLengthTicks + (oldLength / 2)) / static_cast<uint32_t>(oldLength);
 
-	if (clip.sampleControls.reversed) {
+	if (clip.sampleControls.isCurrentlyReversed()) {
 		uint64_t oldValue = clip.sampleHolder.endPos;
 		uint64_t newEndPos = clip.sampleHolder.startPos + newLengthSamples;
 		if (newEndPos > sample->lengthInSamples) {
