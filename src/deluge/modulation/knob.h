@@ -23,7 +23,7 @@
 
 class Knob {
 public:
-	Knob() {}
+	Knob() = default;
 
 	virtual bool isRelative() = 0;
 	virtual bool is14Bit() = 0;
@@ -33,7 +33,7 @@ public:
 
 class MIDIKnob : public Knob {
 public:
-	MIDIKnob() {}
+	MIDIKnob() = default;
 	bool isRelative() override { return relative; }
 	bool is14Bit() override { return (midiInput.noteOrCC == 128); }
 	bool topValueIs127() override { return (midiInput.noteOrCC < 128 && !relative); }

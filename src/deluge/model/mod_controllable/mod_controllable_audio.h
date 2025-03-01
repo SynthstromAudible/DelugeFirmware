@@ -27,6 +27,7 @@
 #include "model/mod_controllable/ModFXProcessor.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
+#include "modulation/knob.h"
 #include "modulation/lfo.h"
 #include "modulation/midi/midi_knob_array.h"
 #include "modulation/params/param_descriptor.h"
@@ -87,7 +88,7 @@ public:
 	bool isSRREnabled(ParamManager* paramManager);
 	bool hasBassAdjusted(ParamManager* paramManager);
 	bool hasTrebleAdjusted(ParamManager* paramManager);
-	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) override;
+	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) override;
 
 	// EQ
 	int32_t bassFreq{}; // These two should eventually not be variables like this
@@ -122,7 +123,7 @@ public:
 
 	SideChain sidechain; // Song doesn't use this, despite extending this class
 
-	MidiKnobArray midiKnobArray;
+	deluge::fast_vector<MIDIKnob> midi_knobs;
 	int32_t postReverbVolumeLastTime{};
 
 protected:

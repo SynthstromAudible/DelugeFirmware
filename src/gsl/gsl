@@ -1,0 +1,8 @@
+#pragma once
+#include <type_traits>
+
+// this is the owning raw pointer annotation used by clang tidy
+namespace gsl {
+template <typename T, typename = std::enable_if_t<std::is_pointer_v<T>>>
+using owner = T;
+}

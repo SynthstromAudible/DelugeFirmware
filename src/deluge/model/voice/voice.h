@@ -87,7 +87,6 @@ public:
 
 	int32_t overrideAmplitudeEnvelopeReleaseRate;
 
-	Voice* nextUnassigned;
 	bool justCreated{false};
 
 	uint32_t getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param);

@@ -281,7 +281,7 @@ public:
 	void deleteMultiRange(int32_t s, int32_t r);
 	void prepareForHibernation();
 	void wontBeRenderedForAWhile() override;
-	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) final;
+	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) final;
 	virtual ArpeggiatorBase* getArp() = 0;
 	void possiblySetupDefaultExpressionPatching(ParamManager* paramManager);
 
@@ -302,7 +302,7 @@ private:
 	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);
 	void setupUnisonStereoSpread();
 	void calculateEffectiveVolume();
-	void ensureKnobReferencesCorrectVolume(Knob* knob);
+	void ensureKnobReferencesCorrectVolume(Knob& knob);
 	Error readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                             int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 
