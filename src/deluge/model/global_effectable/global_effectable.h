@@ -19,9 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
-#include "gui/l10n/l10n.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include "util/containers.h"
 using namespace deluge;
 class Serializer;
 
