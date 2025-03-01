@@ -464,15 +464,15 @@ doSaw:
 			// Call the SID saw renderer directly
 			if (doOscSync) {
 				// For oscillator sync, render to the sync buffer first
-				sid::renderSidSaw(amplitude, oscSyncRenderingBuffer, oscSyncRenderingBuffer + numSamples,
-				                  phaseIncrement, phase, false, phaseToAdd, amplitudeIncrement);
+				sid::renderSidSaw(amplitude * 8, oscSyncRenderingBuffer, oscSyncRenderingBuffer + numSamples,
+				                  phaseIncrement, phase, false, phaseToAdd, amplitudeIncrement * 8);
 				applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
 				                             oscSyncRenderingBuffer);
 			}
 			else {
 				// Otherwise render directly to the output buffer
-				sid::renderSidSaw(amplitude, bufferStart, bufferEnd, phaseIncrement, phase, applyAmplitude, phaseToAdd,
-				                  amplitudeIncrement);
+				sid::renderSidSaw(amplitude * 8, bufferStart, bufferEnd, phaseIncrement, phase, applyAmplitude,
+				                  phaseToAdd, amplitudeIncrement * 8);
 			}
 
 			maybeStorePhase(type, startPhase, phase, doPulseWave);
@@ -483,15 +483,15 @@ doSaw:
 			// Call the SID pulse renderer directly
 			if (doOscSync) {
 				// For oscillator sync, render to the sync buffer first
-				sid::renderSidPulse(amplitude, oscSyncRenderingBuffer, oscSyncRenderingBuffer + numSamples,
-				                    phaseIncrement, phase, pulseWidth, false, amplitudeIncrement);
+				sid::renderSidPulse(amplitude * 8, oscSyncRenderingBuffer, oscSyncRenderingBuffer + numSamples,
+				                    phaseIncrement, phase, pulseWidth, false, amplitudeIncrement * 8);
 				applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
 				                             oscSyncRenderingBuffer);
 			}
 			else {
 				// Otherwise render directly to the output buffer
-				sid::renderSidPulse(amplitude, bufferStart, bufferEnd, phaseIncrement, phase, pulseWidth,
-				                    applyAmplitude, amplitudeIncrement);
+				sid::renderSidPulse(amplitude * 8, bufferStart, bufferEnd, phaseIncrement, phase, pulseWidth,
+				                    applyAmplitude, amplitudeIncrement * 8);
 			}
 
 			maybeStorePhase(type, startPhase, phase, true); // Set doPulseWave to true
@@ -502,15 +502,15 @@ doSaw:
 			// Call the SID triangle renderer directly
 			if (doOscSync) {
 				// For oscillator sync, render to the sync buffer first
-				sid::renderSidTriangle(amplitude, oscSyncRenderingBuffer, oscSyncRenderingBuffer + numSamples,
-				                       phaseIncrement, phase, false, phaseToAdd, amplitudeIncrement);
+				sid::renderSidTriangle(amplitude * 8, oscSyncRenderingBuffer, oscSyncRenderingBuffer + numSamples,
+				                       phaseIncrement, phase, false, phaseToAdd, amplitudeIncrement * 8);
 				applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
 				                             oscSyncRenderingBuffer);
 			}
 			else {
 				// Otherwise render directly to the output buffer
-				sid::renderSidTriangle(amplitude, bufferStart, bufferEnd, phaseIncrement, phase, applyAmplitude,
-				                       phaseToAdd, amplitudeIncrement);
+				sid::renderSidTriangle(amplitude * 8, bufferStart, bufferEnd, phaseIncrement, phase, applyAmplitude,
+				                       phaseToAdd, amplitudeIncrement * 8);
 			}
 
 			maybeStorePhase(type, startPhase, phase, doPulseWave);
@@ -521,15 +521,15 @@ doSaw:
 			// Call the SID noise renderer directly
 			if (doOscSync) {
 				// For oscillator sync, render to the sync buffer first
-				sid::renderSidNoise(amplitude, oscSyncRenderingBuffer, oscSyncRenderingBuffer + numSamples,
-				                    phaseIncrement, phase, false, amplitudeIncrement);
+				sid::renderSidNoise(amplitude * 8, oscSyncRenderingBuffer, oscSyncRenderingBuffer + numSamples,
+				                    phaseIncrement, phase, false, amplitudeIncrement * 8);
 				applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
 				                             oscSyncRenderingBuffer);
 			}
 			else {
 				// Otherwise render directly to the output buffer
-				sid::renderSidNoise(amplitude, bufferStart, bufferEnd, phaseIncrement, phase, applyAmplitude,
-				                    amplitudeIncrement);
+				sid::renderSidNoise(amplitude * 8, bufferStart, bufferEnd, phaseIncrement, phase, applyAmplitude,
+				                    amplitudeIncrement * 8);
 			}
 
 			maybeStorePhase(type, startPhase, phase, doPulseWave);
