@@ -160,7 +160,7 @@ void CVInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	monophonicPitchBendValue = 0;
 }
 void CVInstrument::sendMonophonicExpressionEvent(int32_t dimension) {
-	int32_t newValue = add_saturation(lastCombinedPolyExpression[dimension], lastMonoExpression[dimension]) >> 16;
+	int32_t new_value = add_saturate(lastCombinedPolyExpression[dimension], lastMonoExpression[dimension]) >> 16;
 	switch (cvmode[1]) {
 
 	case CVMode::off:
@@ -169,12 +169,12 @@ void CVInstrument::sendMonophonicExpressionEvent(int32_t dimension) {
 		break;
 	case CVMode::mod:
 		if (dimension == Expression::Y_SLIDE_TIMBRE) {
-			cvEngine.sendVoltageOut(1, std::max<int32_t>(newValue, 0));
+			cvEngine.sendVoltageOut(1, std::max<int32_t>(new_value, 0));
 		}
 		break;
 	case CVMode::aftertouch:
 		if (dimension == Expression::Z_PRESSURE) {
-			cvEngine.sendVoltageOut(1, newValue);
+			cvEngine.sendVoltageOut(1, new_value);
 		}
 		break;
 	case CVMode::velocity:
