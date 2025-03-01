@@ -45,6 +45,7 @@
 #include "gui/menu_item/cv/transpose.h"
 #include "gui/menu_item/cv/volts.h"
 #include "gui/menu_item/defaults/bend_range.h"
+#include "gui/menu_item/defaults/favourites_layout.h"
 #include "gui/menu_item/defaults/grid_default_active_mode.h"
 #include "gui/menu_item/defaults/hold_time.h"
 #include "gui/menu_item/defaults/keyboard_layout.h"
@@ -1133,6 +1134,9 @@ Submenu triggerClockMenu{
 // Defaults menu
 defaults::KeyboardLayout defaultKeyboardLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT};
 
+defaults::DefaultFavouritesLayout defaultFavouritesLayout{STRING_FOR_DEFAULT_UI_FAVOURITES,
+                                                          STRING_FOR_DEFAULT_UI_FAVOURITES};
+
 InvertedToggleBool defaultUIKeyboardFunctionsVelocityGlide{STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY,
                                                            STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY,
                                                            // This control is inverted, as the default value is true
@@ -1150,7 +1154,7 @@ Submenu defaultKeyboardFunctionsMenu{
 
 Submenu defaultUIKeyboard{
     STRING_FOR_DEFAULT_UI_KEYBOARD,
-    {&defaultKeyboardLayoutMenu, &defaultKeyboardFunctionsMenu},
+    {&defaultKeyboardLayoutMenu, &defaultKeyboardFunctionsMenu, &defaultFavouritesLayout},
 };
 
 ToggleBool defaultgridEmptyPadsUnarm{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM,

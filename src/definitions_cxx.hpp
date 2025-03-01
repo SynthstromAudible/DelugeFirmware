@@ -1031,6 +1031,13 @@ enum SessionLayoutType : uint8_t {
 	SessionLayoutTypeMaxElement // Keep as boundary
 };
 
+enum FavouritesDefaultLayout : uint8_t {
+	FavouritesDefaultLayoutFavorites,
+	FavouritesDefaultLayoutFavoritesAndBanks,
+	FavouritesDefaultLayoutOff,
+	FavouritesDefaultLayoutMaxElement // Keep as boundary
+};
+
 enum GridDefaultActiveMode : uint8_t {
 	GridDefaultActiveModeSelection,
 	GridDefaultActiveModeGreen,

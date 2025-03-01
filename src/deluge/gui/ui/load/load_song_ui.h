@@ -54,6 +54,7 @@ private:
 
 	bool performingLoad;
 	bool scrollingIntoSlot;
+	bool qwertyCurrentlyDrawnOnscreen;
 	void doQueueLoadNextSongIfAvailable(int8_t offset);
 	// int32_t findNextFile(int32_t offset);
 	void exitThisUI();
