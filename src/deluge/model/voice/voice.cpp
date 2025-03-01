@@ -330,7 +330,10 @@ activenessDetermined:
 		}
 	}
 
+	pressedAfterSostenuto = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PEDAL_SOSTENUTO) >= 0;
+
 	previouslyIgnoredNoteOff = false;
+	sustainedByPedal = false;
 	expressionSourcesCurrentlySmoothing.reset();
 	filterGainLastTime = 0;
 
@@ -569,12 +572,26 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
 void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 
+	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
+	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
+
+	bool sustainPedal = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PEDAL_SUSTAIN) >= 0;
+	bool sostenutoPedal = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PEDAL_SOSTENUTO) >= 0;
+
+	if (sustainPedal) {
+		sustainedByPedal = true;
+		return;
+	}
+
+	if (sostenutoPedal && !pressedAfterSostenuto) {
+		sustainedByPedal = true;
+		return;
+	}
+	sustainedByPedal = false;
+
 	for (int32_t s = 0; s < kNumSources; s++) {
 		guides[s].noteOffReceived = true;
 	}
-
-	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
-	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
 
 	// Only do it if note-offs are meant to be processed for this sound. Otherwise ignore it.
 	if (sound.allowNoteTails(modelStack, true)) {
@@ -724,6 +741,14 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
 
 	bool didStereoTempBuffer = false;
+
+	if (sustainedByPedal) {
+		// noteOff does nothing if the relevant pedal is still held, so it is safe to call here.
+		noteOff(modelStack);
+	}
+	if (paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PEDAL_SOSTENUTO) < 0) {
+		pressedAfterSostenuto = false;
+	}
 
 	// If we've previously ignored a note-off, we need to check that the user hasn't changed the preset so that we're
 	// now waiting for a note-off again

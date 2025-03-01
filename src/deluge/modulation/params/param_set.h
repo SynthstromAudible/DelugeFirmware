@@ -103,6 +103,7 @@ public:
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	deluge::modulation::params::Kind getParamKind() override { return kind; }
+	bool mayParamInterpolate(int32_t paramId) override;
 
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
 

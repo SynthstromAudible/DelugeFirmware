@@ -705,6 +705,8 @@ enum class ExistenceChangeType {
 enum CCNumber {
 	/// note - only for incoming/outgoing midi. Internally use CC_NUMBER_Y_AXIS
 	CC_EXTERNAL_MOD_WHEEL = 1,
+	CC_EXTERNAL_PEDAL_SUSTAIN = 64,
+	CC_EXTERNAL_PEDAL_SOSTENUTO = 66,
 	CC_EXTERNAL_MPE_Y = 74,
 	CC_NUMBER_PITCH_BEND = 120,
 	CC_NUMBER_AFTERTOUCH = 121,
