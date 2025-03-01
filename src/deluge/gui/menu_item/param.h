@@ -20,6 +20,8 @@
 #include "gui/menu_item/automation/automation.h"
 #include "gui/menu_item/menu_item.h"
 #include <cstdint>
+
+class SoundDrum;
 class ParamSet;
 class ModelStackWithAutoParam;
 
@@ -39,6 +41,7 @@ public:
 
 	uint8_t p;
 
+	ModelStackWithThreeMainThings* getModelStackFromSoundDrum(void* memory, SoundDrum* soundDrum);
 	ModelStackWithAutoParam* getModelStackWithParam(void* memory) override;
 
 protected:

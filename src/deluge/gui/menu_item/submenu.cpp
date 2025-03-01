@@ -342,7 +342,10 @@ void Submenu::updatePadLights() {
 }
 
 bool Submenu::usesAffectEntire() {
-	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
+	if (current_item_ != items.end()
+	    && (renderingStyle() == RenderingStyle::HORIZONTAL || !(*current_item_)->shouldEnterSubmenu())) {
+		// If the menu is Horizontal or is the focused menu item is a toggle,
+		// then we should use affect-entire from this item
 		return (*current_item_)->usesAffectEntire();
 	}
 	return false;

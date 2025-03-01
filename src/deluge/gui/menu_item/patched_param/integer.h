@@ -18,7 +18,6 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/integer.h"
 #include "gui/menu_item/patched_param.h"
-#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
@@ -68,7 +67,6 @@ public:
 	void updateAutomationViewParameter() override;
 
 protected:
-	ModelStackWithAutoParam* getModelStackFromSoundDrum(void* memory, SoundDrum* soundDrum);
 	void readCurrentValue() override;
 	void writeCurrentValue() final;
 	virtual int32_t getFinalValue();

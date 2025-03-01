@@ -24,25 +24,18 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item {
 
 void UnpatchedParam::readCurrentValue() {
 	this->setValue(computeCurrentValueForStandardMenuItem(
 	    soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP())));
-}
-
-ModelStackWithAutoParam* UnpatchedParam::getModelStackFromSoundDrum(void* memory, SoundDrum* soundDrum) {
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	int32_t noteRowIndex;
-	NoteRow* noteRow = clip->getNoteRowForDrum(soundDrum, &noteRowIndex);
-	ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsIncludingNoteRow(
-	    memory, currentSong, getCurrentClip(), noteRowIndex, noteRow, soundDrum, &noteRow->paramManager);
-	return modelStack->getUnpatchedAutoParamFromId(getP());
 }
 
 ModelStackWithAutoParam* UnpatchedParam::getModelStack(void* memory) {
@@ -68,7 +61,8 @@ void UnpatchedParam::writeCurrentValue() {
 
 				char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 				ModelStackWithAutoParam* modelStackWithParamForSoundDrum =
-				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum);
+				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
+				        ->getUnpatchedAutoParamFromId(getP());
 				modelStackWithParamForSoundDrum->autoParam->setCurrentValueInResponseToUserInput(
 				    value, modelStackWithParamForSoundDrum);
 			}

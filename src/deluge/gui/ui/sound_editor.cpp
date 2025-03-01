@@ -333,6 +333,18 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				handlePotentialParamMenuChange(b, on, inCardRoutine, currentMenuItem, getCurrentMenuItem());
 			}
 		}
+		else if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
+			// Special case for Toggle items
+			// If select pressed while holding affect-entire, we have to forward the action to the item
+			if (on) {
+				MenuItem* currentMenuItem = getCurrentMenuItem();
+				MenuItem* newItem = currentMenuItem->selectButtonPress();
+				if (newItem && newItem != NO_NAVIGATION && !newItem->shouldEnterSubmenu()) {
+					newItem->selectButtonPress();
+					return ActionResult::DEALT_WITH;
+				}
+			}
+		}
 	}
 
 	// Back button
@@ -412,7 +424,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Affect-entire button
 	else if (b == AFFECT_ENTIRE && isUIInstrumentClipView && !inNoteEditor() && !inNoteRowEditor()) {
-		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
+		if (editingKit() && getCurrentMenuItem()->usesAffectEntire()) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}

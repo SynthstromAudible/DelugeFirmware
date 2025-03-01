@@ -27,20 +27,12 @@
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::patched_param {
 void Integer::readCurrentValue() {
 	this->setValue(computeCurrentValueForStandardMenuItem(
 	    soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP())));
-}
-
-ModelStackWithAutoParam* Integer::getModelStackFromSoundDrum(void* memory, SoundDrum* soundDrum) {
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	int32_t noteRowIndex;
-	NoteRow* noteRow = clip->getNoteRowForDrum(soundDrum, &noteRowIndex);
-	ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsIncludingNoteRow(
-	    memory, currentSong, getCurrentClip(), noteRowIndex, noteRow, soundDrum, &noteRow->paramManager);
-	return modelStack->getPatchedAutoParamFromId(getP());
 }
 
 void Integer::writeCurrentValue() {
@@ -60,7 +52,8 @@ void Integer::writeCurrentValue() {
 
 				char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 				ModelStackWithAutoParam* modelStackWithParamForSoundDrum =
-				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum);
+				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
+				        ->getPatchedAutoParamFromId(getP());
 				modelStackWithParamForSoundDrum->autoParam->setCurrentValueInResponseToUserInput(
 				    value, modelStackWithParamForSoundDrum);
 			}

@@ -44,7 +44,9 @@ public:
 
 			// If was off, or is now becoming off...
 			if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpPreset::OFF) {
-				kit->cutAllSound();
+				if (getCurrentClip()->isActiveOnOutput()) {
+					kit->cutAllSound();
+				}
 			}
 
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {

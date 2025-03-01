@@ -20,7 +20,6 @@
 #include "gui/menu_item/integer.h"
 #include "menu_item_with_cc_learning.h"
 #include "param.h"
-#include "processing/sound/sound_drum.h"
 
 class ModelStackWithAutoParam;
 
@@ -57,7 +56,6 @@ public:
 	deluge::modulation::params::Kind getParamKind();
 	uint32_t getParamIndex();
 	ParamSet* getParamSet() final;
-	ModelStackWithAutoParam* getModelStackFromSoundDrum(void* memory, SoundDrum* soundDrum);
 	ModelStackWithAutoParam* getModelStack(void* memory) final;
 
 	int32_t getParamValue() {

@@ -19,9 +19,9 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
-#include "processing/sound/sound.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
+#include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item {

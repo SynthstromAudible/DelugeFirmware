@@ -31,15 +31,6 @@ namespace deluge::gui::menu_item {
 class MasterTranspose final : public Integer, public PatchedParam {
 public:
 	using Integer::Integer;
-
-	ModelStackWithSoundFlags* getModelStackFromSoundDrum(void* memory, SoundDrum* soundDrum) {
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		int32_t noteRowIndex;
-		NoteRow* noteRow = clip->getNoteRowForDrum(soundDrum, &noteRowIndex);
-		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsIncludingNoteRow(
-		    memory, currentSong, getCurrentClip(), noteRowIndex, noteRow, soundDrum, &noteRow->paramManager);
-		return modelStack->addSoundFlags();
-	}
 	bool usesAffectEntire() override { return true; }
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->transpose); }
 	void writeCurrentValue() override {
@@ -59,7 +50,7 @@ public:
 
 					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 					ModelStackWithSoundFlags* modelStackWithParamForSoundDrum =
-					    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum);
+					    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
 					soundDrum->recalculateAllVoicePhaseIncrements(modelStackWithParamForSoundDrum);
 				}
 			}

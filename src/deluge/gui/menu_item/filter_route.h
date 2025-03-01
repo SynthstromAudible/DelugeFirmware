@@ -42,6 +42,7 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					// Note: we need to apply the same filtering as stated in the isRelevant() function
 					if (soundDrum->lpfMode != FilterMode::OFF && soundDrum->hpfMode != FilterMode::OFF) {
 						soundDrum->filterRoute = current_value;
 					}
