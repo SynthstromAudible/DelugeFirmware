@@ -36,10 +36,12 @@
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "modulation/knob.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
+#include <algorithm>
 
 namespace params = deluge::modulation::params;
 
@@ -94,7 +96,7 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	trebleFreq = other->trebleFreq;
 	filterRoute = other->filterRoute;
 	sidechain.cloneFrom(&other->sidechain);
-	midiKnobArray.cloneFrom(&other->midiKnobArray); // Could fail if no RAM... not too big a concern
+	midi_knobs = other->midi_knobs; // Could fail if no RAM... not too big a concern
 	delay = other->delay;
 	stutterConfig = other->stutterConfig;
 }
@@ -421,32 +423,31 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 	writer.closeTag();
 
 	// MIDI knobs
-	if (midiKnobArray.getNumElements()) {
+	if (midi_knobs.size() > 0) {
 		writer.writeArrayStart("midiKnobs");
-		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
-			MIDIKnob* knob = midiKnobArray.getElement(k);
+		for (MIDIKnob& knob : midi_knobs) {
 			writer.writeOpeningTagBeginning("midiKnob", true);
-			knob->midiInput.writeAttributesToFile(
+			knob.midiInput.writeAttributesToFile(
 			    writer,
 			    MIDI_MESSAGE_CC); // Writes channel and CC, but not device - we do that below.
-			writer.writeAttribute("relative", knob->relative);
-			writer.writeAttribute("controlsParam", params::paramNameForFile(unpatchedParamKind_,
-			                                                                knob->paramDescriptor.getJustTheParam()));
-			if (!knob->paramDescriptor.isJustAParam()) { // TODO: this only applies to Sounds
+			writer.writeAttribute("relative", knob.relative);
+			writer.writeAttribute(
+			    "controlsParam", params::paramNameForFile(unpatchedParamKind_, knob.paramDescriptor.getJustTheParam()));
+			if (!knob.paramDescriptor.isJustAParam()) { // TODO: this only applies to Sounds
 				writer.writeAttribute("patchAmountFromSource",
-				                      sourceToString(knob->paramDescriptor.getTopLevelSource()));
+				                      sourceToString(knob.paramDescriptor.getTopLevelSource()));
 
-				if (knob->paramDescriptor.hasSecondSource()) {
+				if (knob.paramDescriptor.hasSecondSource()) {
 					writer.writeAttribute("patchAmountFromSecondSource",
-					                      sourceToString(knob->paramDescriptor.getSecondSourceFromTop()));
+					                      sourceToString(knob.paramDescriptor.getSecondSourceFromTop()));
 				}
 			}
 
 			// Because we manually called LearnedMIDI::writeAttributesToFile() above, we have to give the MIDIDevice its
 			// own tag, cos that can't be written as just an attribute.
-			if (knob->midiInput.cable) {
+			if (knob.midiInput.cable != nullptr) {
 				writer.writeOpeningTagEnd();
-				knob->midiInput.cable->writeReferenceToFile(writer);
+				knob.midiInput.cable->writeReferenceToFile(writer);
 				writer.writeClosingTag("midiKnob", true, true);
 			}
 			else {
@@ -939,21 +940,30 @@ doReadPatchedParam:
 				reader.match('}'); // close box.
 
 				if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
-					MIDIKnob* newKnob = midiKnobArray.insertKnobAtEnd();
-					if (newKnob) {
-						newKnob->midiInput.cable = cable;
-						newKnob->midiInput.channelOrZone = channel;
-						newKnob->midiInput.noteOrCC = ccNumber;
-						newKnob->relative = relative;
+					try {
+						MIDIKnob& new_knob = midi_knobs.emplace_back();
+						new_knob.midiInput.cable = cable;
+						new_knob.midiInput.channelOrZone = channel;
+						new_knob.midiInput.noteOrCC = ccNumber;
+						new_knob.relative = relative;
 
 						if (s == PatchSource::NOT_AVAILABLE) {
-							newKnob->paramDescriptor.setToHaveParamOnly(p);
+							new_knob.paramDescriptor.setToHaveParamOnly(p);
 						}
 						else if (s2 == PatchSource::NOT_AVAILABLE) {
-							newKnob->paramDescriptor.setToHaveParamAndSource(p, s);
+							new_knob.paramDescriptor.setToHaveParamAndSource(p, s);
 						}
 						else {
-							newKnob->paramDescriptor.setToHaveParamAndTwoSources(p, s, s2);
+							new_knob.paramDescriptor.setToHaveParamAndTwoSources(p, s, s2);
+						}
+					} catch (deluge::exception e) {
+						if (e == deluge::exception::BAD_ALLOC) {
+							// If we run out of memory, we just ignore the knob
+							// TODO(@stellar-aria): This is bad practice, we should handle this better, but it
+							//  currently follows the previous implementation
+						}
+						else {
+							throw e;
 						}
 					}
 				}
@@ -971,16 +981,16 @@ doReadPatchedParam:
 	return Error::NONE;
 }
 
-ModelStackWithAutoParam* ModControllableAudio::getParamFromMIDIKnob(MIDIKnob* knob,
+ModelStackWithAutoParam* ModControllableAudio::getParamFromMIDIKnob(MIDIKnob& knob,
                                                                     ModelStackWithThreeMainThings* modelStack) {
 
 	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
 	ParamCollection* paramCollection = summary->paramCollection;
 
-	int32_t paramId = knob->paramDescriptor.getJustTheParam() - params::UNPATCHED_START;
+	int32_t param_id = knob.paramDescriptor.getJustTheParam() - params::UNPATCHED_START;
 
 	ModelStackWithParamId* modelStackWithParamId =
-	    modelStack->addParamCollectionAndId(paramCollection, summary, paramId);
+	    modelStack->addParamCollectionAndId(paramCollection, summary, param_id);
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = paramCollection->getAutoParamFromId(modelStackWithParamId);
 
@@ -1028,17 +1038,16 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 	bool messageUsed = false;
 
 	// For each MIDI knob...
-	for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
-		MIDIKnob* knob = midiKnobArray.getElement(k);
+	for (MIDIKnob& knob : midi_knobs) {
 
 		// If this is the knob...
-		if (knob->midiInput.equalsNoteOrCC(&cable, channel, ccNumber)) {
+		if (knob.midiInput.equalsNoteOrCC(&cable, channel, ccNumber)) {
 
 			messageUsed = true;
 
 			// See if this message is evidence that the knob is not "relative"
 			if (value >= 16 && value < 112) {
-				knob->relative = false;
+				knob.relative = false;
 			}
 
 			int32_t modPos = 0;
@@ -1084,7 +1093,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 				    modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
 
 				// calculate new knob position based on value received and deluge current value
-				newKnobPos = MidiTakeover::calculateKnobPos(knobPos, value, knob, false, CC_NUMBER_NONE, isStepEditing);
+				newKnobPos =
+				    MidiTakeover::calculateKnobPos(knobPos, value, &knob, false, CC_NUMBER_NONE, isStepEditing);
 
 				// is the cc being received for the same value as the current knob pos? If so, do nothing
 				if (newKnobPos == knobPos) {
@@ -1125,17 +1135,16 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 	bool messageUsed = false;
 
 	// For each MIDI knob...
-	for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
-		MIDIKnob* knob = midiKnobArray.getElement(k);
+	for (MIDIKnob& knob : midi_knobs) {
 
 		// If this is the knob...
-		if (knob->midiInput.equalsNoteOrCC(&cable, channel, ccNumber)) {
+		if (knob.midiInput.equalsNoteOrCC(&cable, channel, ccNumber)) {
 
 			messageUsed = true;
 
 			// See if this message is evidence that the knob is not "relative"
 			if (value >= 16 && value < 112) {
-				knob->relative = false;
+				knob.relative = false;
 			}
 
 			int32_t modPos = 0;
@@ -1174,7 +1183,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 				    modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
 
 				// calculate new knob position based on value received and deluge current value
-				newKnobPos = MidiTakeover::calculateKnobPos(knobPos, value, knob, false, CC_NUMBER_NONE, isStepEditing);
+				newKnobPos =
+				    MidiTakeover::calculateKnobPos(knobPos, value, &knob, false, CC_NUMBER_NONE, isStepEditing);
 
 				// is the cc being received for the same value as the current knob pos? If so, do nothing
 				if (newKnobPos == knobPos) {
@@ -1219,12 +1229,11 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cabl
 	bool messageUsed = false;
 
 	// For each MIDI knob...
-	for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
-		MIDIKnob* knob = midiKnobArray.getElement(k);
+	for (MIDIKnob& knob : midi_knobs) {
 
 		// If this is the knob...
-		if (knob->midiInput.equalsNoteOrCC(&cable, channel,
-		                                   128)) { // I've got 128 representing pitch bend here... why again?
+		if (knob.midiInput.equalsNoteOrCC(&cable, channel,
+		                                  128)) { // I've got 128 representing pitch bend here... why again?
 
 			messageUsed = true;
 
@@ -1478,83 +1487,45 @@ bool ModControllableAudio::setModFXType(ModFXType newType) {
 // Returns false if fail due to insufficient RAM.
 bool ModControllableAudio::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob,
                                      uint8_t modKnobMode, uint8_t midiChannel, Song* song) {
-
-	bool overwroteExistingKnob = false;
-
 	// If a mod knob
 	if (midiChannel >= 16) {
 		return false;
-
-		// TODO: make function not virtual after this changed
-
-		/*
-		// If that knob was patched to something else...
-		overwroteExistingKnob = (modKnobs[modKnobMode][whichKnob].s != s || modKnobs[modKnobMode][whichKnob].p != p);
-
-		modKnobs[modKnobMode][whichKnob].s = s;
-		modKnobs[modKnobMode][whichKnob].p = p;
-		*/
 	}
 
-	// If a MIDI knob
-	else {
+	// Was there a MIDI knob already set to control this thing?
+	auto result = std::ranges::find_if(midi_knobs, [&](const MIDIKnob& knob) -> bool {
+		return knob.midiInput.equalsNoteOrCC(cable, midiChannel, whichKnob) && paramDescriptor == knob.paramDescriptor;
+	});
 
-		MIDIKnob* knob;
+	try {
+		MIDIKnob& knob = result != midi_knobs.end()
+		                     ? *result                    // If it already exists, use that one
+		                     : midi_knobs.emplace_back(); // If it doesn't exist, create a new one
+		knob.midiInput.noteOrCC = whichKnob;
+		knob.midiInput.channelOrZone = midiChannel;
+		knob.midiInput.cable = cable;
+		knob.paramDescriptor = paramDescriptor;
+		knob.relative = (whichKnob != 128); // Guess that it's relative, unless this is a pitch-bend "knob"
+		return true;
 
-		// Was this MIDI knob already set to control this thing?
-		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
-			knob = midiKnobArray.getElement(k);
-			if (knob->midiInput.equalsNoteOrCC(cable, midiChannel, whichKnob)
-			    && paramDescriptor == knob->paramDescriptor) {
-				// overwroteExistingKnob = (midiKnobs[k].s != s || midiKnobs[k].p != p);
-				goto midiKnobFound;
-			}
-		}
-
-		// Or if we're here, it doesn't already exist, so find an unused MIDIKnob
-		knob = midiKnobArray.insertKnobAtEnd();
-		if (!knob) {
-			return false;
-		}
-
-midiKnobFound:
-		knob->midiInput.noteOrCC = whichKnob;
-		knob->midiInput.channelOrZone = midiChannel;
-		knob->midiInput.cable = cable;
-		knob->paramDescriptor = paramDescriptor;
-		knob->relative = (whichKnob != 128); // Guess that it's relative, unless this is a pitch-bend "knob"
+	} catch (...) {
+		return false;
 	}
-
-	if (overwroteExistingKnob) {
-		ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(song);
-	}
-
-	return true;
 }
 
 // Returns whether anything was found to unlearn
 bool ModControllableAudio::unlearnKnobs(ParamDescriptor paramDescriptor, Song* song) {
-	bool anythingFound = false;
-
 	// I've deactivated the unlearning of mod knobs, mainly because, if you want to unlearn a MIDI knob, you might not
 	// want to also deactivate a mod knob to the same param at the same time
+	size_t erased = std::erase_if(midi_knobs, [&](const MIDIKnob& knob) -> bool {
+		return knob.paramDescriptor == paramDescriptor; //<
+	});
 
-	for (int32_t k = 0; k < midiKnobArray.getNumElements();) {
-		MIDIKnob* knob = midiKnobArray.getElement(k);
-		if (knob->paramDescriptor == paramDescriptor) {
-			anythingFound = true;
-			midiKnobArray.deleteAtIndex(k);
-		}
-		else {
-			k++;
-		}
-	}
-
-	if (anythingFound) {
+	if (erased > 0) {
 		ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(song);
 	}
 
-	return anythingFound;
+	return erased > 0;
 }
 
 void ModControllableAudio::displayFilterSettings(bool on, FilterType currentFilterType) {

@@ -51,7 +51,7 @@ using encoders::EncoderName;
 LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
 bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
-	if (showingAuditionPads()) {
+	if (showingAuditionPads() && !qwertyAlwaysVisible) {
 		*cols = 0b10;
 	}
 	else {
@@ -266,6 +266,8 @@ useDefaultFolder:
 	// in from (musical) keyboard view, I think
 
 	drawKeys();
+	favouritesManager.setCategory(defaultDir);
+	favouritesChanged();
 
 	if (showingAuditionPads()) {
 		instrumentClipView.recalculateColours();
@@ -1138,6 +1140,9 @@ potentiallyExit:
 }
 
 ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	if (Buttons::isShiftButtonPressed()) {
+		LoadUI::verticalEncoderAction(offset, false);
+	}
 	if (showingAuditionPads()) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 			return ActionResult::DEALT_WITH;

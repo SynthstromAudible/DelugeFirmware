@@ -66,7 +66,6 @@ public:
 	void reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int32_t timeStretchRatio,
 	                                      int32_t newBufferFillingMode, int32_t numChannels);
 #endif
-	TimeStretcher* nextUnassigned;
 
 	int64_t samplePosBig; // In whole samples including both channels. From audioDataStart. <<'d by 24
 

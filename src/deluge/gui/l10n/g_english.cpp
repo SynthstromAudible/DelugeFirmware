@@ -424,7 +424,10 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_COMMANDS, "Commands"},
         {STRING_FOR_OUTPUT, "Output"},
         {STRING_FOR_DEFAULT_UI, "UI"},
+        {STRING_FOR_DEFAULT_UI_FAVOURITES, "Favourites"},
         {STRING_FOR_DEFAULT_UI_GRID, "Grid"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_FAVOURITES_LAYOUT_FAVOURITES_AND_BANKS, "Favourites and Banks"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_FAVOURITES_LAYOUT_FAVOURITES, "Favourites Only"},
         {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE, "Default active mode"},
         {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION, "Select in green mode"},
         {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE_SELECTION, "Selection"},
@@ -918,6 +921,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_CLIP_TYPE, "Clip Type"},
         {STRING_FOR_DEFAULT_NEW_CLIP_TYPE, "New Clip Type"},
         {STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, "Use Last Clip Type"},
+        {STRING_FOR_FAVOURITES_EMPTY, "Empty"},
     },
 };
 } // namespace deluge::l10n::built_in

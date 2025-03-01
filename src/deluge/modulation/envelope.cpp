@@ -54,7 +54,7 @@ considerEnvelopeStage:
 		// envelope, then render everything else, but that seems too complicated right now. This works and doesn't make
 		// a huge difference since we'd usually need to smooth it anyway
 
-		smoothedSustain = add_saturation(smoothedSustain, numSamples * (((int32_t)sustain - smoothedSustain) >> 9));
+		smoothedSustain = add_saturate(smoothedSustain, numSamples * (((int32_t)sustain - smoothedSustain) >> 9));
 		lastValue = smoothedSustain + multiply_32x32_rshift32(getDecay8(pos, 23), 2147483647 - smoothedSustain) * 2;
 
 		pos += decay * numSamples;
@@ -66,7 +66,7 @@ considerEnvelopeStage:
 		break;
 
 	case EnvelopeStage::SUSTAIN:
-		smoothedSustain = add_saturation(smoothedSustain, numSamples * (((int32_t)sustain - smoothedSustain) >> 9));
+		smoothedSustain = add_saturate(smoothedSustain, numSamples * (((int32_t)sustain - smoothedSustain) >> 9));
 		lastValue = smoothedSustain;
 		if (ignoredNoteOff) {
 			unconditionalRelease();

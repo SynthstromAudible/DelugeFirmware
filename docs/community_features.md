@@ -38,6 +38,28 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - LPF and HPF.
   - LFOs.
 
+#### 2.3 Favourites
+A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UT -> KEYBOARD -> FAVOURITES`.
+- In the `Favourites Only (16)`-Mode , 16 Favourite Slots are available at the Toprow above the Keyboard.
+- In the `Favourites and Banks (256)`-Mode, the Toprow contains 16 Banks, each with 16 Favourites displayed on the second row.
+Usage:
+- Save a Favourite
+  - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
+  - Browse to the File you want to save
+  - Hold `SHIFT` and select a empty Favourite Slot (light blue)
+- Delete a Favourite
+  - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
+  - Hold `SHIFT` and select the Favourite Slot you want to delete
+- Recall a Favourite
+  - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
+  - Select the Favourite
+- Change the Colour of a Favourite
+  - Select the Favourite you want to modify
+  - Hold `SHIFT` and turn `VERTICAL ENCODER`
+
+Tip:
+If you are Browsing Songs or Samples an dont want to have the Preview to hide the Keyboard on Scrolling, just press the `KEYBOARD`-Button to pin the Keyboard and the Favourites.
+
 ## 3. General Improvements
 
 Here is a list of general improvements that have been made, ordered from newest to oldest:

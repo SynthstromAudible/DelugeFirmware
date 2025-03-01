@@ -3339,15 +3339,14 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 			// - you midi learn a controller to that clip's params
 			// - you then go to change the preset for that clip
 			// - you expect that you can continue controlling the same params for the new preset
-			ModControllableAudio* oldModControllableAudio = (ModControllableAudio*)oldOutput->toModControllable();
-			if (oldModControllableAudio) {
-				int32_t numKnobs = oldModControllableAudio->midiKnobArray.getNumElements();
-				if (numKnobs) {
-					ModControllableAudio* newModControllableAudio =
-					    (ModControllableAudio*)newOutput->toModControllable();
-					newModControllableAudio->midiKnobArray.cloneFrom(&oldModControllableAudio->midiKnobArray);
-					oldModControllableAudio->midiKnobArray.deleteAtIndex(0, numKnobs);
-					oldModControllableAudio->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
+			auto* old_mca = static_cast<ModControllableAudio*>(oldOutput->toModControllable());
+			if (old_mca != nullptr) {
+				size_t num_knobs = old_mca->midi_knobs.size();
+				if (num_knobs > 0) {
+					auto& new_mca = static_cast<ModControllableAudio&>(*newOutput->toModControllable());
+					new_mca.midi_knobs.clear();
+					std::swap(new_mca.midi_knobs, old_mca->midi_knobs);
+					old_mca->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
 				}
 			}
 		}
