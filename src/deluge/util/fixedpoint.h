@@ -328,7 +328,7 @@ public:
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	constexpr FixedPoint(float value) noexcept {
 		if constexpr (std::is_constant_evaluated()) {
-			value *= FixedPoint::one();
+			value *= static_cast<float>(FixedPoint::one());
 			// convert from floating-point to fixed point
 			if constexpr (rounded) {
 				value_ = static_cast<BaseType>((value >= 0.0) ? std::ceil(value) : std::floor(value));
@@ -597,7 +597,7 @@ public:
 	template <typename T>
 	requires std::integral<T> || std::floating_point<T>
 	constexpr bool operator==(const T& rhs) const noexcept {
-		return value_ == FixedPoint(rhs).value_;
+		return value_ == FixedPoint{rhs}.value_;
 	}
 
 	/// @brief Multiply by an integral type
@@ -611,6 +611,8 @@ public:
 	constexpr FixedPoint operator/(const T& rhs) const {
 		return FixedPoint::from_raw(this->raw() / rhs);
 	}
+
+	[[nodiscard]] constexpr int32_t integral() const { return static_cast<int32_t>(value_ >> fractional_bits); }
 
 private:
 	BaseType value_{0};
