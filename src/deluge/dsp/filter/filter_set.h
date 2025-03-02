@@ -21,6 +21,7 @@
 #include "dsp/filter/hpladder.h"
 #include "dsp/filter/lpladder.h"
 #include "dsp/filter/svf.h"
+#include "dsp/sid/sid_lp_filter.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "util/fixedpoint.h"
 #include <cstdint>
@@ -32,6 +33,7 @@ namespace deluge::dsp::filter {
 union LowPass {
 	LpLadderFilter ladder;
 	SVFilter svf;
+	SidLpFilter sid;
 	LowPass() {}
 };
 

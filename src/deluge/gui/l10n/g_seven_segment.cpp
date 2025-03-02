@@ -105,6 +105,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_HPLADDER, "HP_L"},
         {STRING_FOR_12DB_LADDER, "LA12"},
         {STRING_FOR_24DB_LADDER, "LA24"},
+        {STRING_FOR_SID_LP, "SIDL"},
         {STRING_FOR_FAST, "FAST"},
         {STRING_FOR_SLOW, "SLOW"},
         {STRING_FOR_V_TRIGGER, "VTRI"},

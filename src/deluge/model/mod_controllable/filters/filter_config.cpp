@@ -8,6 +8,7 @@ namespace deluge::dsp::filter {
 EnumStringMap<FilterMode, kNumFilterModes> filterMap({{{FilterMode::TRANSISTOR_12DB, "12dB"},
                                                        {FilterMode::TRANSISTOR_24DB, "24dB"},
                                                        {FilterMode::TRANSISTOR_24DB_DRIVE, "24dBDrive"},
+                                                       {FilterMode::SID_LOWPASS, "SID_LP"},
                                                        {FilterMode::SVF_BAND, "SVF_Band"},
                                                        {FilterMode::SVF_NOTCH, "SVF_Notch"},
                                                        {FilterMode::HPLADDER, "HPLadder"}}});

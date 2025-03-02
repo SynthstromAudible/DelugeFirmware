@@ -55,6 +55,7 @@ public:
 			    l10n::getView(shortOpt ? STRING_FOR_12DB_LADDER_SHORT : STRING_FOR_12DB_LADDER),
 			    l10n::getView(shortOpt ? STRING_FOR_24DB_LADDER_SHORT : STRING_FOR_24DB_LADDER),
 			    l10n::getView(STRING_FOR_DRIVE),
+			    l10n::getView(shortOpt ? STRING_FOR_SID_LP_SHORT : STRING_FOR_SID_LP),
 			    l10n::getView(shortOpt ? STRING_FOR_SVF_BAND_SHORT : STRING_FOR_SVF_BAND),
 			    l10n::getView(shortOpt ? STRING_FOR_SVF_NOTCH_SHORT : STRING_FOR_SVF_NOTCH),
 			    l10n::getView(STRING_FOR_OFF),

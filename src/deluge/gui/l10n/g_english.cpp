@@ -206,6 +206,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_12DB_LADDER_SHORT, "12dB"},
         {STRING_FOR_24DB_LADDER, "24dB Ladder"},
         {STRING_FOR_24DB_LADDER_SHORT, "24dB"},
+        {STRING_FOR_SID_LP, "SID lowpass"},
+        {STRING_FOR_SID_LP_SHORT, "SIDL"},
         {STRING_FOR_FAST, "Fast"},
         {STRING_FOR_SLOW, "Slow"},
         {STRING_FOR_V_TRIGGER, "V-trig"},
