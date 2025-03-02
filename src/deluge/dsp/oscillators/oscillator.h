@@ -14,15 +14,12 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef DELUGE_OSCILLATOR_H
-#define DELUGE_OSCILLATOR_H
+#pragma once
 
 #include "storage/wave_table/wave_table.h"
-namespace deluge {
-namespace dsp {
+namespace deluge::dsp {
 
 class Oscillator {
-
 	static void maybeStorePhase(const OscType& type, uint32_t* startPhase, uint32_t phase, bool doPulseWave);
 	static void applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamples, int32_t amplitudeIncrement,
 	                                         int32_t* outputBufferPos, int32_t* inputBuferPos);
@@ -35,7 +32,4 @@ public:
 	                      int sourceWaveIndexLastTime, WaveTable* waveTable);
 };
 
-} // namespace dsp
-} // namespace deluge
-
-#endif // DELUGE_OSCILLATOR_H
+} // namespace deluge::dsp

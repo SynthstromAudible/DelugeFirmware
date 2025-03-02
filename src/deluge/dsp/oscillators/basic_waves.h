@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef DELUGE_BASIC_WAVES_H
-#define DELUGE_BASIC_WAVES_H
-
+#pragma once
+#include <cstdint>
+#include <utility>
 namespace deluge::dsp {
 void renderWave(const int16_t* __restrict__ table, int32_t tableSizeMagnitude, int32_t amplitude,
                 int32_t* __restrict__ outputBuffer, int32_t* bufferEnd, uint32_t phaseIncrement, uint32_t phase,
@@ -42,5 +42,3 @@ extern const int16_t* analogSquareTables[20];
 extern const int16_t* analogSawTables[20];
 
 } // namespace deluge::dsp
-
-#endif // DELUGE_BASIC_WAVES_H

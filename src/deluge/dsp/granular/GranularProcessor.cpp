@@ -24,6 +24,7 @@
 #include "model/mod_controllable/mod_controllable.h"
 #include "modulation/lfo.h"
 #include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
 
 void GranularProcessor::setWrapsToShutdown() {
 
