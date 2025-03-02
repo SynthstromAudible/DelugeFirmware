@@ -127,6 +127,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added Auto-Load feature to sample browser, so you can load the sounds to the instrument as you preview them. Auto-Load can be engaged while in sample browser, if you press the `Load` button.
 - Sounds have now the ability to send MIDI notes at the same time as they play a sample. This will allow your synths and drums to trigger external devices. A new menu `MIDI` has been added at the bottom of the `SOUND` menu to set the MIDI channel and the note (in case of drum sounds).
 
+##### Kit
+
 ##### CV Clips
 - Added the ability to set a CV instrument to use both 1 and 2 channels, which makes the cv2 source selectable between mod wheel, velocity, and aftertouch
   - Turn `SELECT` to choose `1 AND 2 (BOTH)` CV / Gate channel.
