@@ -19,6 +19,7 @@
 #include <bit>
 #include <cmath>
 #include <compare>
+#include <concepts>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
@@ -42,16 +43,22 @@ static inline q31_t toPositive(q31_t a) {
 #if defined(__arm__)
 // This multiplies two numbers in signed Q31 fixed point as if they were q32, so the return value is half what it should
 // be. Use this when several corrective shifts can be accumulated and then combined
-static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) __attribute__((always_inline, unused));
-static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) {
+static constexpr q31_t multiply_32x32_rshift32(q31_t a, q31_t b) __attribute__((always_inline, unused));
+static constexpr q31_t multiply_32x32_rshift32(q31_t a, q31_t b) {
+	if constexpr (std::is_constant_evaluated()) {
+		return (int32_t)(((int64_t)a * b) >> 32);
+	}
 	q31_t out;
 	asm("smmul %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
 	return out;
 }
 
 // This multiplies two numbers in signed Q31 fixed point and rounds the result
-static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) __attribute__((always_inline, unused));
-static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) {
+static constexpr q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) __attribute__((always_inline, unused));
+static constexpr q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) {
+	if constexpr (std::is_constant_evaluated()) {
+		return (int32_t)(((int64_t)a * b + 0x80000000) >> 32);
+	}
 	q31_t out;
 	asm("smmulr %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
 	return out;
@@ -59,43 +66,47 @@ static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) {
 
 // This multiplies two numbers in signed Q31 fixed point, returning the result in q31. This is more useful for readable
 // multiplies
-static inline q31_t q31_mult(q31_t a, q31_t b) __attribute__((always_inline, unused));
-static inline q31_t q31_mult(q31_t a, q31_t b) {
+static constexpr q31_t q31_mult(q31_t a, q31_t b) __attribute__((always_inline, unused));
+static constexpr q31_t q31_mult(q31_t a, q31_t b) {
+	if constexpr (std::is_constant_evaluated()) {
+		return (int32_t)(((int64_t)a * b) >> 31);
+	}
 	q31_t out;
 	asm("smmul %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
 	return out * 2;
 }
 
-// This multiplies a number in q31 by a number in q32 (e.g. unsigned, 2^32 representing one), returning a scaled value a
-static inline q31_t q31tRescale(q31_t a, uint32_t proportion) __attribute__((always_inline, unused));
-static inline q31_t q31tRescale(q31_t a, uint32_t proportion) {
-	q31_t out;
-	asm("smmul %0, %1, %2" : "=r"(out) : "r"(a), "r"(proportion));
-	return out;
-}
-
 // Multiplies A and B, adds to sum, and returns output
-static inline q31_t multiply_accumulate_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b)
+static constexpr q31_t multiply_accumulate_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b)
     __attribute__((always_inline, unused));
-static inline q31_t multiply_accumulate_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
+static constexpr q31_t multiply_accumulate_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
+	if constexpr (std::is_constant_evaluated()) {
+		return (int32_t)(((((int64_t)sum) << 32) + ((int64_t)a * b) + 0x80000000) >> 32);
+	}
 	q31_t out;
 	asm("smmlar %0, %1, %2, %3" : "=r"(out) : "r"(a), "r"(b), "r"(sum));
 	return out;
 }
 
 // Multiplies A and B, adds to sum, and returns output
-static inline q31_t multiply_accumulate_32x32_rshift32(q31_t sum, q31_t a, q31_t b)
+static constexpr q31_t multiply_accumulate_32x32_rshift32(q31_t sum, q31_t a, q31_t b)
     __attribute__((always_inline, unused));
-static inline q31_t multiply_accumulate_32x32_rshift32(q31_t sum, q31_t a, q31_t b) {
+static constexpr q31_t multiply_accumulate_32x32_rshift32(q31_t sum, q31_t a, q31_t b) {
+	if constexpr (std::is_constant_evaluated()) {
+		return (int32_t)(((((int64_t)sum) << 32) + ((int64_t)a * b)) >> 32);
+	}
 	q31_t out;
 	asm("smmla %0, %1, %2, %3" : "=r"(out) : "r"(a), "r"(b), "r"(sum));
 	return out;
 }
 
 // Multiplies A and B, subtracts from sum, and returns output
-static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b)
+static constexpr q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b)
     __attribute__((always_inline, unused));
-static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
+static constexpr q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
+	if constexpr (std::is_constant_evaluated()) {
+		return (int32_t)((((((int64_t)sum) << 32) - ((int64_t)a * b)) + 0x80000000) >> 32);
+	}
 	q31_t out;
 	asm("smmlsr %0, %1, %2, %3" : "=r"(out) : "r"(a), "r"(b), "r"(sum));
 	return out;
@@ -273,6 +284,9 @@ public:
 	constexpr static bool rounded = Rounded;
 	constexpr static bool fast_approximation = FastApproximation;
 
+	constexpr static FixedPoint max() noexcept { return FixedPoint::from_raw(std::numeric_limits<BaseType>::max()); }
+	constexpr static FixedPoint min() noexcept { return FixedPoint::from_raw(std::numeric_limits<BaseType>::min()); }
+
 	/// @brief Default constructor
 	constexpr FixedPoint() = default;
 
@@ -300,6 +314,11 @@ public:
 		}
 	}
 
+	template <std::size_t OtherFractionalBits>
+	constexpr operator FixedPoint<OtherFractionalBits>() const {
+		return FixedPoint<OtherFractionalBits>{*this};
+	}
+
 	/// @brief Convert an integer to a fixed point number
 	/// @note This truncates the integer if it is too large
 	template <std::integral T>
@@ -307,7 +326,7 @@ public:
 
 	/// @brief Convert from a float to a fixed point number
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
-	constexpr explicit FixedPoint(float value) noexcept {
+	constexpr FixedPoint(float value) noexcept {
 		if constexpr (std::is_constant_evaluated()) {
 			value *= FixedPoint::one();
 			// convert from floating-point to fixed point
@@ -326,7 +345,7 @@ public:
 
 	/// @brief Explicit conversion to float
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
-	constexpr explicit operator float() const noexcept {
+	explicit constexpr operator float() const noexcept {
 		if constexpr (std::is_constant_evaluated()) {
 			return static_cast<float>(value_) / FixedPoint::one();
 		}
@@ -337,7 +356,7 @@ public:
 
 	/// @brief Convert from a double to a fixed point number
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
-	constexpr explicit FixedPoint(double value) noexcept {
+	constexpr FixedPoint(double value) noexcept {
 		if constexpr (std::is_constant_evaluated()) {
 			value *= FixedPoint::one();
 			// convert from floating-point to fixed point
@@ -581,6 +600,43 @@ public:
 		return value_ == FixedPoint(rhs).value_;
 	}
 
+	/// @brief Multiply by an integral type
+	template <std::integral T>
+	constexpr FixedPoint operator*(const T& rhs) const {
+		return FixedPoint::from_raw(this->raw() * rhs);
+	}
+
+	/// @brief Divide by an integral type
+	template <std::integral T>
+	constexpr FixedPoint operator/(const T& rhs) const {
+		return FixedPoint::from_raw(this->raw() / rhs);
+	}
+
 private:
 	BaseType value_{0};
 };
+
+/// @brief Multiply by an integral type
+template <std::integral T, std::size_t FractionalBits, bool Rounded, bool FastApproximation>
+constexpr FixedPoint<FractionalBits, Rounded, FastApproximation>
+operator*(const T& lhs, const FixedPoint<FractionalBits, Rounded, FastApproximation>& rhs) {
+	return rhs * lhs;
+}
+
+template <std::floating_point T, std::size_t FractionalBits, bool Rounded, bool FastApproximation>
+constexpr FixedPoint<FractionalBits, Rounded, FastApproximation>
+operator+(const T& lhs, const FixedPoint<FractionalBits, Rounded, FastApproximation>& rhs) {
+	return rhs + lhs;
+}
+
+template <std::floating_point T, std::size_t FractionalBits, bool Rounded, bool FastApproximation>
+constexpr FixedPoint<FractionalBits, Rounded, FastApproximation>
+operator-(const T& lhs, const FixedPoint<FractionalBits, Rounded, FastApproximation>& rhs) {
+	return FixedPoint<FractionalBits, Rounded, FastApproximation>{lhs} - rhs;
+}
+
+template <std::floating_point T, std::size_t FractionalBits, bool Rounded, bool FastApproximation>
+constexpr FixedPoint<FractionalBits, Rounded, FastApproximation>
+operator*(const T& lhs, const FixedPoint<FractionalBits, Rounded, FastApproximation>& rhs) {
+	return rhs * lhs;
+}
