@@ -35,7 +35,9 @@ class SampleControls;
 
 class VoiceSample final : public SampleLowLevelReader {
 public:
-	VoiceSample();
+	VoiceSample() = default;
+	explicit VoiceSample(VoiceSample& other) = default;
+	VoiceSample(SampleLowLevelReader&& other) : SampleLowLevelReader{std::move(other)} {}
 
 	void noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32_t priorityRating);
 	bool noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybackGuide* voiceSource);
@@ -53,7 +55,9 @@ public:
 	// AudioClips don't obey markers because they "fudge" instead.
 	// Or if fudging can't happen cos no pre-margin, then
 	// AudioClip::doTickForward() manually forces restart.
-	bool shouldObeyMarkers() override { return (!cache && !timeStretcher && !forAudioClip); }
+	[[nodiscard]] bool shouldObeyMarkers() const override {
+		return (cache == nullptr && timeStretcher == nullptr && !forAudioClip);
+	}
 
 	void readSamplesResampledPossiblyCaching(int32_t** oscBufferPos, int32_t** oscBufferRPos, int32_t numSamples,
 	                                         Sample* sample, int32_t jumpAmount, int32_t numChannels,
@@ -70,22 +74,15 @@ public:
 	bool fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlaybackGuide* guide, int32_t phaseIncrement,
 	                                     int32_t numSamplesTilLoop, int32_t playDirection, int32_t priorityRating);
 
-	uint32_t pendingSamplesLate; // This isn't used for AudioClips. And for samples in STRETCH mode, the exact number
-	                             // isn't relevant - it gets recalculated
-	TimeStretcher* timeStretcher;
+	uint32_t pendingSamplesLate = 0; // This isn't used for AudioClips. And for samples in STRETCH mode, the exact
+	                                 // number isn't relevant - it gets recalculated
+	TimeStretcher* timeStretcher = nullptr;
 
-	SampleCache* cache;
-	int32_t cacheBytePos;
-	bool doneFirstRenderYet;
-	bool fudging;
-	bool forAudioClip;              // This is a wee bit of a hack - but we need to be able to know this
-	bool writingToCache;            // Value is only valid if cache assigned
-	int32_t cacheLoopEndPointBytes; // 2147483647 means no looping. Will be set to sample end-point if looping there.
-	                                // Gets re-set to 2147483647 when note "released"
-	int32_t cacheEndPointBytes; // Will sometimes be the whole length of the sample. Wherever the red marker is. Or a
-	                            // little further if it's the full length of the sample, to allow for timestretch /
-	                            // interpolation ring-out
-	uint32_t cacheLoopLengthBytes;
+	SampleCache* cache = nullptr;
+	bool doneFirstRenderYet = false;
+	bool fudging = false;
+	bool forAudioClip = false;   // This is a wee bit of a hack - but we need to be able to know this
+	bool writingToCache = false; // Value is only valid if cache assigned
 
 private:
 	bool weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuide* guide, int32_t numSamples,
@@ -93,4 +90,12 @@ private:
 	                                 int32_t priorityRating, LoopType loopingType);
 	void switchToReadingCacheFromWriting();
 	bool stopReadingFromCache();
+
+	int32_t cacheBytePos = 0;
+	uint32_t cacheLoopLengthBytes = 0;
+	int32_t cacheLoopEndPointBytes = 0; // 2147483647 means no looping. Will be set to sample end-point if looping
+	                                    // there. Gets re-set to 2147483647 when note "released"
+	int32_t cacheEndPointBytes = 0; // Will sometimes be the whole length of the sample. Wherever the red marker is. Or
+	                                // a little further if it's the full length of the sample, to allow for timestretch
+	                                // / interpolation ring-out
 };
