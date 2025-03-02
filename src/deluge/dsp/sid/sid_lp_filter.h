@@ -75,6 +75,9 @@ private:
 	// this differentiates between them
 	FilterMode lpfMode;
 
+	// Used to distinguish between 12dB and 24dB modes for SID_LOWPASS
+	bool use12DB;
+
 	// state
 	LpLadderState l;
 	LpLadderState r;

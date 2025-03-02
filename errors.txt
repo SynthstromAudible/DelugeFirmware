@@ -1,0 +1,341 @@
+[1/2   0% :: 0.029] Re-checking globbed directories...
+[2/191   0% :: 0.190] Generating version from git state...
+-- Deluge Community Firmware v1.3.0-dev-00259d63-dirty
+[9/191   1% :: 2.018] Building CXX object CMakeFiles/deluge.dir/Release/src/deluge/gui/menu_item/enumeration.cpp.obj
+[10/191   1% :: 2.023] Building CXX object CMakeFiles/deluge.dir/Release/src/deluge/gui/menu_item/integer.cpp.obj
+[11/191   2% :: 2.726] Building CXX object src/deluge/dsp/CMakeFiles/deluge_dsp.dir/Release/Unity/unity_3_cxx.cxx.obj
+FAILED: src/deluge/dsp/CMakeFiles/deluge_dsp.dir/Release/Unity/unity_3_cxx.cxx.obj 
+/Users/bruce/projects/deluge_c64/DelugeFirmware/toolchain/v22/darwin-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-g++ --sysroot=/Users/bruce/projects/deluge_c64/DelugeFirmware/toolchain/v22/darwin-x86_64/arm-none-eabi-gcc//arm-none-eabi -DCMAKE_INTDIR=\"Release\" -I/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/.. -I/Users/bruce/projects/deluge_c64/DelugeFirmware/src -I/Users/bruce/projects/deluge_c64/DelugeFirmware/build/src/deluge/dsp -I/Users/bruce/projects/deluge_c64/DelugeFirmware/src/NE10/inc -I/Users/bruce/projects/deluge_c64/DelugeFirmware/src/lib -I/Users/bruce/projects/deluge_c64/DelugeFirmware/build/_deps/argon-src/include -DNDEBUG -std=gnu++23 -fdiagnostics-color=always -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -mthumb -mthumb-interwork -mlittle-endian -fmessage-length=0 -funsafe-math-optimizations -fdiagnostics-parseable-fixits -fsigned-char -D_GNU_SOURCE -ggdb3 -O2 -fno-inline-functions -flto=auto -fuse-linker-plugin -fdevirtualize-at-ltrans -ffunction-sections -fdata-sections -DUSE_TASK_MANAGER -fno-rtti -fno-use-cxa-atexit -fno-threadsafe-statics -Warray-bounds=1 -Wnull-dereference -Wparentheses -Wsequence-point -Wswitch -Wstack-usage=2000 -fno-lto -finline-functions -marm -MD -MT src/deluge/dsp/CMakeFiles/deluge_dsp.dir/Release/Unity/unity_3_cxx.cxx.obj -MF src/deluge/dsp/CMakeFiles/deluge_dsp.dir/Release/Unity/unity_3_cxx.cxx.obj.d -o src/deluge/dsp/CMakeFiles/deluge_dsp.dir/Release/Unity/unity_3_cxx.cxx.obj -c /Users/bruce/projects/deluge_c64/DelugeFirmware/build/src/deluge/dsp/CMakeFiles/deluge_dsp.dir/Unity/unity_3_cxx.cxx
+In file included from /Users/bruce/projects/deluge_c64/DelugeFirmware/build/src/deluge/dsp/CMakeFiles/deluge_dsp.dir/Unity/unity_3_cxx.cxx:7:
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:54:7: error: 'LpLadderFilter' has not been declared
+   54 | q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpfmode, q31_t lpfMorph,
+      |       ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp: In function 'q31_t deluge::dsp::filter::setConfig(q31_t, q31_t, FilterMode, q31_t, q31_t)':
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:56:9: error: 'lpfMode' was not declared in this scope; did you mean 'lpfmode'?
+   56 |         lpfMode = lpfmode;
+      |         ^~~~~~~
+      |         lpfmode
+fix-it:"/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp":{56:2-56:9}:"lpfmode"
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:57:9: error: 'morph' was not declared in this scope
+   57 |         morph = lpfMorph;
+      |         ^~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:62:17: error: 'processedResonance' was not declared in this scope
+   62 |                 processedResonance = ONE_Q31 - resonance;          // Always between 0 and 2. 1 represented as 1073741824
+      |                 ^~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:66:17: error: 'doOversampling' was not declared in this scope
+   66 |                 doOversampling = false; // StorageManager::devVarA;
+      |                 ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:110:17: error: 'processedResonance' was not declared in this scope
+  110 |                 processedResonance = ONE_Q31 - resonance;
+      |                 ^~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:114:9: error: 'curveFrequency' was not declared in this scope; did you mean 'lpfFrequency'?
+  114 |         curveFrequency(lpfFrequency);
+      |         ^~~~~~~~~~~~~~
+      |         lpfFrequency
+fix-it:"/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp":{114:2-114:16}:"lpfFrequency"
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:116:9: error: 'moveability' was not declared in this scope
+  116 |         moveability = std::max(fc, (q31_t)4317840);
+      |         ^~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:116:32: error: 'fc' was not declared in this scope
+  116 |         moveability = std::max(fc, (q31_t)4317840);
+      |                                ^~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:122:17: error: 'lpf2Feedback' was not declared in this scope
+  122 |                 lpf2Feedback = multiply_32x32_rshift32_rounded(moveabilityNegative, divideBy1PlusTannedFrequency) << 1;
+      |                 ^~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:122:85: error: 'divideBy1PlusTannedFrequency' was not declared in this scope
+  122 |                 lpf2Feedback = multiply_32x32_rshift32_rounded(moveabilityNegative, divideBy1PlusTannedFrequency) << 1;
+      |                                                                                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:123:17: error: 'lpf1Feedback' was not declared in this scope
+  123 |                 lpf1Feedback = multiply_32x32_rshift32_rounded(lpf2Feedback, moveability) << 1;
+      |                 ^~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:124:17: error: 'divideByTotalMoveabilityAndProcessedResonance' was not declared in this scope
+  124 |                 divideByTotalMoveabilityAndProcessedResonance =
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:128:28: error: 'processedResonance' was not declared in this scope
+  128 |                            processedResonance,
+      |                            ^~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:135:17: error: 'lpf3Feedback' was not declared in this scope
+  135 |                 lpf3Feedback = multiply_32x32_rshift32_rounded(divideBy1PlusTannedFrequency, moveability);
+      |                 ^~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:135:64: error: 'divideBy1PlusTannedFrequency' was not declared in this scope
+  135 |                 lpf3Feedback = multiply_32x32_rshift32_rounded(divideBy1PlusTannedFrequency, moveability);
+      |                                                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:136:17: error: 'lpf2Feedback' was not declared in this scope
+  136 |                 lpf2Feedback = multiply_32x32_rshift32_rounded(lpf3Feedback, moveability) << 1;
+      |                 ^~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:137:17: error: 'lpf1Feedback' was not declared in this scope
+  137 |                 lpf1Feedback = multiply_32x32_rshift32_rounded(lpf2Feedback, moveability) << 1;
+      |                 ^~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:146:104: error: 'processedResonance' was not declared in this scope
+  146 |                                              moveability, multiply_32x32_rshift32_rounded(moveability, processedResonance)))));
+      |                                                                                                        ^~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:147:17: error: 'divideByTotalMoveabilityAndProcessedResonance' was not declared in this scope
+  147 |                 divideByTotalMoveabilityAndProcessedResonance = (q31_t)(72057594037927936.0 / (double)onePlusThing);
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:152:21: error: 'tannedFrequency' was not declared in this scope
+  152 |                 if (tannedFrequency <= 304587486) {
+      |                     ^~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:153:25: error: 'processedResonance' was not declared in this scope
+  153 |                         processedResonance = multiply_32x32_rshift32_rounded(processedResonance, 1150000000) << 1;
+      |                         ^~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:156:25: error: 'processedResonance' was not declared in this scope
+  156 |                         processedResonance >>= 1;
+      |                         ^~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp: At global scope:
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:175:19: error: 'LpLadderFilter' has not been declared
+  175 | [[gnu::hot]] void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
+      |                   ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp: In function 'void deluge::dsp::filter::doFilter(q31_t*, q31_t*, int32_t)':
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:178:13: error: 'lpfMode' was not declared in this scope
+  178 |         if (lpfMode == FilterMode::SID_LOWPASS) {
+      |             ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:182:76: error: 'l' was not declared in this scope
+  182 |                         *currentSample = do12dBLPFOnSample(*currentSample, l);
+      |                                                                            ^
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:182:42: error: 'do12dBLPFOnSample' was not declared in this scope
+  182 |                         *currentSample = do12dBLPFOnSample(*currentSample, l);
+      |                                          ^~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:192:76: error: 'l' was not declared in this scope
+  192 |                         *currentSample = do24dBLPFOnSample(*currentSample, l);
+      |                                                                            ^
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:192:42: error: 'do24dBLPFOnSample' was not declared in this scope
+  192 |                         *currentSample = do24dBLPFOnSample(*currentSample, l);
+      |                                          ^~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:201:21: error: 'doOversampling' was not declared in this scope
+  201 |                 if (doOversampling) {
+      |                     ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:219:68: error: 'l' was not declared in this scope
+  219 |                                 doDriveLPFOnSample(*currentSample, l);
+      |                                                                    ^
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:219:33: error: 'doDriveLPFOnSample' was not declared in this scope
+  219 |                                 doDriveLPFOnSample(*currentSample, l);
+      |                                 ^~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:235:95: error: 'l' was not declared in this scope
+  235 |                                 q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
+      |                                                                                               ^
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:235:60: error: 'doDriveLPFOnSample' was not declared in this scope
+  235 |                                 q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
+      |                                                            ^~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp: At global scope:
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:243:19: error: 'LpLadderFilter' has not been declared
+  243 | [[gnu::hot]] void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
+      |                   ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp: In function 'void deluge::dsp::filter::doFilterStereo(q31_t*, q31_t*)':
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:246:13: error: 'lpfMode' was not declared in this scope
+  246 |         if (lpfMode == FilterMode::SID_LOWPASS) {
+      |             ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:250:76: error: 'l' was not declared in this scope
+  250 |                         *currentSample = do12dBLPFOnSample(*currentSample, l);
+      |                                                                            ^
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:250:42: error: 'do12dBLPFOnSample' was not declared in this scope
+  250 |                         *currentSample = do12dBLPFOnSample(*currentSample, l);
+      |                                          ^~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:252:76: error: 'r' was not declared in this scope
+  252 |                         *currentSample = do12dBLPFOnSample(*currentSample, r);
+      |                                                                            ^
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:261:76: error: 'l' was not declared in this scope
+  261 |                         *currentSample = do24dBLPFOnSample(*currentSample, l);
+      |                                                                            ^
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:261:42: error: 'do24dBLPFOnSample' was not declared in this scope
+  261 |                         *currentSample = do24dBLPFOnSample(*currentSample, l);
+      |                                          ^~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:264:76: error: 'r' was not declared in this scope
+  264 |                         *currentSample = do24dBLPFOnSample(*currentSample, r);
+      |                                                                            ^
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:272:21: error: 'doOversampling' was not declared in this scope
+  272 |                 if (doOversampling) {
+      |                     ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:290:68: error: 'l' was not declared in this scope
+  290 |                                 doDriveLPFOnSample(*currentSample, l);
+      |                                                                    ^
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:290:33: error: 'doDriveLPFOnSample' was not declared in this scope
+  290 |                                 doDriveLPFOnSample(*currentSample, l);
+      |                                 ^~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:300:68: error: 'r' was not declared in this scope
+  300 |                                 doDriveLPFOnSample(*currentSample, r);
+      |                                                                    ^
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:316:95: error: 'l' was not declared in this scope
+  316 |                                 q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
+      |                                                                                               ^
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:316:60: error: 'doDriveLPFOnSample' was not declared in this scope
+  316 |                                 q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
+      |                                                            ^~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:320:89: error: 'r' was not declared in this scope
+  320 |                                 outputSampleToKeep = doDriveLPFOnSample(*currentSample, r);
+      |                                                                                         ^
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp: At global scope:
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:328:37: error: 'LpLadderFilter' has not been declared
+  328 | [[gnu::always_inline]] inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState& state) {
+      |                                     ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:328:84: error: 'LpLadderState' has not been declared
+  328 | [[gnu::always_inline]] inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState& state) {
+      |                                                                                    ^~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp: In function 'q31_t deluge::dsp::filter::do12dBLPFOnSample(q31_t, int&)':
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:331:44: error: request for member 'noiseLastValue' in 'state', which is of non-class type 'int'
+  331 |         q31_t distanceToGo = noise - state.noiseLastValue;
+      |                                            ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:332:15: error: request for member 'noiseLastValue' in 'state', which is of non-class type 'int'
+  332 |         state.noiseLastValue += distanceToGo >> 7; // StorageManager::devVarB;
+      |               ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:333:25: error: 'moveability' was not declared in this scope
+  333 |         q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
+      |                         ^~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:333:82: error: request for member 'noiseLastValue' in 'state', which is of non-class type 'int'
+  333 |         q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
+      |                                                                                  ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:335:36: error: request for member 'lpfLPF1' in 'state', which is of non-class type 'int'
+  335 |         q31_t feedbacksSum = state.lpfLPF1.getFeedbackOutput(lpf1Feedback) + state.lpfLPF2.getFeedbackOutput(lpf2Feedback)
+      |                                    ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:335:62: error: 'lpf1Feedback' was not declared in this scope
+  335 |         q31_t feedbacksSum = state.lpfLPF1.getFeedbackOutput(lpf1Feedback) + state.lpfLPF2.getFeedbackOutput(lpf2Feedback)
+      |                                                              ^~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:335:84: error: request for member 'lpfLPF2' in 'state', which is of non-class type 'int'
+  335 |         q31_t feedbacksSum = state.lpfLPF1.getFeedbackOutput(lpf1Feedback) + state.lpfLPF2.getFeedbackOutput(lpf2Feedback)
+      |                                                                                    ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:335:110: error: 'lpf2Feedback' was not declared in this scope
+  335 |         q31_t feedbacksSum = state.lpfLPF1.getFeedbackOutput(lpf1Feedback) + state.lpfLPF2.getFeedbackOutput(lpf2Feedback)
+      |                                                                                                              ^~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:336:38: error: request for member 'lpfLPF3' in 'state', which is of non-class type 'int'
+  336 |                              + state.lpfLPF3.getFeedbackOutput(divideBy1PlusTannedFrequency);
+      |                                      ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:336:64: error: 'divideBy1PlusTannedFrequency' was not declared in this scope
+  336 |                              + state.lpfLPF3.getFeedbackOutput(divideBy1PlusTannedFrequency);
+      |                                                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:337:19: error: 'scaleInput' was not declared in this scope
+  337 |         q31_t x = scaleInput(input, feedbacksSum);
+      |                   ^~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:344:22: error: request for member 'lpfLPF3' in 'state', which is of non-class type 'int'
+  344 |         return state.lpfLPF3.doAPF(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m) << 1;
+      |                      ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:344:42: error: request for member 'lpfLPF2' in 'state', which is of non-class type 'int'
+  344 |         return state.lpfLPF3.doAPF(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m) << 1;
+      |                                          ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:344:65: error: request for member 'lpfLPF1' in 'state', which is of non-class type 'int'
+  344 |         return state.lpfLPF3.doAPF(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m) << 1;
+      |                                                                 ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp: At global scope:
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:346:37: error: 'LpLadderFilter' has not been declared
+  346 | [[gnu::always_inline]] inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState& state) {
+      |                                     ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:346:84: error: 'LpLadderState' has not been declared
+  346 | [[gnu::always_inline]] inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState& state) {
+      |                                                                                    ^~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp: In function 'q31_t deluge::dsp::filter::do24dBLPFOnSample(q31_t, int&)':
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:350:44: error: request for member 'noiseLastValue' in 'state', which is of non-class type 'int'
+  350 |         q31_t distanceToGo = noise - state.noiseLastValue;
+      |                                            ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:351:15: error: request for member 'noiseLastValue' in 'state', which is of non-class type 'int'
+  351 |         state.noiseLastValue += distanceToGo >> 7; // StorageManager::devVarB;
+      |               ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:352:25: error: 'moveability' was not declared in this scope
+  352 |         q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
+      |                         ^~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:352:82: error: request for member 'noiseLastValue' in 'state', which is of non-class type 'int'
+  352 |         q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
+      |                                                                                  ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:354:37: error: request for member 'lpfLPF1' in 'state', which is of non-class type 'int'
+  354 |         q31_t feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
+      |                                     ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:354:76: error: 'lpf1Feedback' was not declared in this scope
+  354 |         q31_t feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
+      |                                                                            ^~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:355:39: error: request for member 'lpfLPF2' in 'state', which is of non-class type 'int'
+  355 |                               + state.lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
+      |                                       ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:355:78: error: 'lpf2Feedback' was not declared in this scope
+  355 |                               + state.lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
+      |                                                                              ^~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:356:39: error: request for member 'lpfLPF3' in 'state', which is of non-class type 'int'
+  356 |                               + state.lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
+      |                                       ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:356:78: error: 'lpf3Feedback' was not declared in this scope
+  356 |                               + state.lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
+      |                                                                              ^~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:357:39: error: request for member 'lpfLPF4' in 'state', which is of non-class type 'int'
+  357 |                               + state.lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
+      |                                       ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:357:78: error: 'divideBy1PlusTannedFrequency' was not declared in this scope
+  357 |                               + state.lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
+      |                                                                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:364:19: error: 'scaleInput' was not declared in this scope
+  364 |         q31_t x = scaleInput(input, feedbacksSum);
+      |                   ^~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:373:22: error: request for member 'lpfLPF4' in 'state', which is of non-class type 'int'
+  373 |         return state.lpfLPF4.doFilter(
+      |                      ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:374:26: error: request for member 'lpfLPF3' in 'state', which is of non-class type 'int'
+  374 |                    state.lpfLPF3.doFilter(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m),
+      |                          ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:374:49: error: request for member 'lpfLPF2' in 'state', which is of non-class type 'int'
+  374 |                    state.lpfLPF3.doFilter(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m),
+      |                                                 ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:374:72: error: request for member 'lpfLPF1' in 'state', which is of non-class type 'int'
+  374 |                    state.lpfLPF3.doFilter(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m),
+      |                                                                        ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp: At global scope:
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:379:37: error: 'LpLadderFilter' has not been declared
+  379 | [[gnu::always_inline]] inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, LpLadderState& state) {
+      |                                     ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:379:85: error: 'LpLadderState' has not been declared
+  379 | [[gnu::always_inline]] inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, LpLadderState& state) {
+      |                                                                                     ^~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp: In function 'q31_t deluge::dsp::filter::doDriveLPFOnSample(q31_t, int&)':
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:383:44: error: request for member 'noiseLastValue' in 'state', which is of non-class type 'int'
+  383 |         q31_t distanceToGo = noise - state.noiseLastValue;
+      |                                            ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:384:15: error: request for member 'noiseLastValue' in 'state', which is of non-class type 'int'
+  384 |         state.noiseLastValue += distanceToGo >> 7; // StorageManager::devVarB;
+      |               ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:385:25: error: 'moveability' was not declared in this scope
+  385 |         q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
+      |                         ^~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:385:82: error: request for member 'noiseLastValue' in 'state', which is of non-class type 'int'
+  385 |         q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
+      |                                                                                  ^~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:387:37: error: request for member 'lpfLPF1' in 'state', which is of non-class type 'int'
+  387 |         q31_t feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
+      |                                     ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:387:76: error: 'lpf1Feedback' was not declared in this scope
+  387 |         q31_t feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
+      |                                                                            ^~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:388:39: error: request for member 'lpfLPF2' in 'state', which is of non-class type 'int'
+  388 |                               + state.lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
+      |                                       ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:388:78: error: 'lpf2Feedback' was not declared in this scope
+  388 |                               + state.lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
+      |                                                                              ^~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:389:39: error: request for member 'lpfLPF3' in 'state', which is of non-class type 'int'
+  389 |                               + state.lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
+      |                                       ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:389:78: error: 'lpf3Feedback' was not declared in this scope
+  389 |                               + state.lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
+      |                                                                              ^~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:390:39: error: request for member 'lpfLPF4' in 'state', which is of non-class type 'int'
+  390 |                               + state.lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
+      |                                       ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:390:78: error: 'divideBy1PlusTannedFrequency' was not declared in this scope
+  390 |                               + state.lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
+      |                                                                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:401:19: error: 'scaleInput' was not declared in this scope
+  401 |         q31_t x = scaleInput(input, feedbacksSum);
+      |                   ^~~~~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:403:25: error: request for member 'lpfLPF1' in 'state', which is of non-class type 'int'
+  403 |         q31_t a = state.lpfLPF1.doFilter(x, noisy_m);
+      |                         ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:405:25: error: request for member 'lpfLPF2' in 'state', which is of non-class type 'int'
+  405 |         q31_t b = state.lpfLPF2.doFilter(a, noisy_m);
+      |                         ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:407:25: error: request for member 'lpfLPF3' in 'state', which is of non-class type 'int'
+  407 |         q31_t c = state.lpfLPF3.doFilter(b, noisy_m);
+      |                         ^~~~~~~
+/Users/bruce/projects/deluge_c64/DelugeFirmware/src/deluge/dsp/sid/sid_lp_filter.cpp:409:25: error: request for member 'lpfLPF4' in 'state', which is of non-class type 'int'
+  409 |         q31_t d = state.lpfLPF4.doFilter(c, noisy_m) << 1;
+      |                         ^~~~~~~
+[11/191   2% :: 3.441] Building CXX object CMakeFiles/deluge.dir/Release/src/deluge/gui/menu_item/dx/operator_params.cpp.obj
+[11/191   3% :: 3.478] Building CXX object CMakeFiles/deluge.dir/Release/src/deluge/gui/menu_item/dx/global_params.cpp.obj
+[11/191   3% :: 3.568] Building CXX object CMakeFiles/deluge.dir/Release/src/deluge/gui/menu_item/integer_range.cpp.obj
+[11/191   4% :: 3.582] Building CXX object CMakeFiles/deluge.dir/Release/src/deluge/gui/menu_item/key_range.cpp.obj
+[11/191   4% :: 3.884] Building CXX object CMakeFiles/deluge.dir/Release/src/deluge/gui/menu_item/edit_name.cpp.obj
+[11/191   5% :: 3.900] Building CXX object CMakeFiles/deluge.dir/Release/src/deluge/gui/menu_item/file_selector.cpp.obj
+[11/191   5% :: 4.573] Building CXX object CMakeFiles/deluge.dir/Release/src/deluge/gui/menu_item/dx/param.cpp.obj
+ninja: build stopped: subcommand failed.

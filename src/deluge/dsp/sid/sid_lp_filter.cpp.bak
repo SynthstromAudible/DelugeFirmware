@@ -14,8 +14,7 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
-#include "dsp/sid/sid_lp_filter.h"
+#include "dsp/filter/lpladder.h"
 #include "processing/engines/audio_engine.h"
 
 namespace deluge::dsp::filter {
@@ -51,16 +50,11 @@ const int16_t resonanceLimitTable[] = {
     17000, 17000, 17000, 17000, 17000, 17000, 17000, 17000,
 };
 
-q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpfmode, q31_t lpfMorph,
-                             q31_t filterGain) {
+q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpfmode, q31_t lpfMorph,
+                                q31_t filterGain) {
 	lpfMode = lpfmode;
 	morph = lpfMorph;
-
-	// Determine if we should use 12DB mode or 24DB mode for SID_LOWPASS
-	// We'll use 12DB for lower morph values, 24DB for higher ones
-	use12DB = (lpfMode == FilterMode::SID_LOWPASS && morph < 536870912); // Threshold at 50%
-
-	// Hot sid ladder - needs oversampling and stuff
+	// Hot SID ladder - needs oversampling and stuff
 	if (lpfMode == FilterMode::SID_LOWPASS_DRIVE) {
 
 		int32_t resonance = ONE_Q31 - (lpfResonance << 2); // Limits it
@@ -99,7 +93,7 @@ q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 	}
 
 	// Cold sid ladder
-	if ((lpfMode == FilterMode::SID_LOWPASS)) {
+	if ((lpfMode == FilterMode::SID_LOWPASS) || (lpfMode == FilterMode::SID_LOWPASS_DRIVE)) {
 		// Some long-winded stuff to make it so if frequency goes really low, resonance goes down. This is tuned a bit,
 		// but isn't perfect
 
@@ -121,7 +115,7 @@ q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 	moveability = std::max(fc, (q31_t)4317840);
 	// min moveability is 4317840
 	//  Half ladder
-	if (use12DB) {
+	if (lpfMode == FilterMode::SID_LOWPASS) {
 		// Between -2 and 0. 1 represented as 1073741824
 		int32_t moveabilityNegative = moveability - 1073741824;
 		lpf2Feedback = multiply_32x32_rshift32_rounded(moveabilityNegative, divideBy1PlusTannedFrequency) << 1;
@@ -160,27 +154,27 @@ q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 		else {
 			processedResonance >>= 1;
 		}
-	}
 
-	int32_t a = std::min(lpfResonance, (int32_t)536870911);
-	a = 536870912 - a;
-	a = multiply_32x32_rshift32(a, a) << 3;
-	a = 536870912 - a;
-	int32_t gainModifier = 268435456 + a;
-	filterGain = multiply_32x32_rshift32(filterGain, gainModifier) << 3;
+		int32_t a = std::min(lpfResonance, (int32_t)536870911);
+		a = 536870912 - a;
+		a = multiply_32x32_rshift32(a, a) << 3;
+		a = 536870912 - a;
+		int32_t gainModifier = 268435456 + a;
+		filterGain = multiply_32x32_rshift32(filterGain, gainModifier) << 3;
+	}
 
 	// Drive filter - increase output amplitude
-	if (lpfMode == FilterMode::SID_LOWPASS_DRIVE) {
+	else {
+		// overallOscAmplitude <<= 2;
 		filterGain *= 0.8;
 	}
-
 	return filterGain;
 }
 
-[[gnu::hot]] void SidLpFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
+[[gnu::hot]] void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
 
-	// Half ladder (12dB)
-	if (lpfMode == FilterMode::SID_LOWPASS && use12DB) {
+	// Half ladder
+	if (lpfMode == FilterMode::SID_LOWPASS) {
 
 		q31_t* currentSample = startSample;
 		do {
@@ -189,8 +183,8 @@ q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 		} while (currentSample < endSample);
 	}
 
-	// Full ladder (24dB regular)
-	else if (lpfMode == FilterMode::SID_LOWPASS && !use12DB) {
+	// Full ladder (regular)
+	else if (lpfMode == FilterMode::SID_LOWPASS) {
 
 		q31_t* currentSample = startSample;
 		do {
@@ -245,10 +239,10 @@ q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 		}
 	}
 }
-[[gnu::hot]] void SidLpFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
+[[gnu::hot]] void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 
-	// Half ladder (12dB)
-	if (lpfMode == FilterMode::SID_LOWPASS && use12DB) {
+	// Half ladder
+	if (lpfMode == FilterMode::SID_LOWPASS) {
 
 		q31_t* currentSample = startSample;
 		do {
@@ -259,8 +253,8 @@ q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 		} while (currentSample < endSample);
 	}
 
-	// Full ladder (24dB regular)
-	else if (lpfMode == FilterMode::SID_LOWPASS && !use12DB) {
+	// Full ladder (regular)
+	else if (lpfMode == FilterMode::SID_LOWPASS) {
 		q31_t* currentSample = startSample;
 		do {
 			*currentSample = do24dBLPFOnSample(*currentSample, l);
@@ -330,7 +324,7 @@ q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 		}
 	}
 }
-[[gnu::always_inline]] inline q31_t SidLpFilter::do12dBLPFOnSample(q31_t input, LpLadderState& state) {
+[[gnu::always_inline]] inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState& state) {
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
 	q31_t noise = getNoise() >> 2; // StorageManager::devVarA;// 2;
 	q31_t distanceToGo = noise - state.noiseLastValue;
@@ -348,7 +342,7 @@ q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 
 	return state.lpfLPF3.doAPF(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m) << 1;
 }
-[[gnu::always_inline]] inline q31_t SidLpFilter::do24dBLPFOnSample(q31_t input, LpLadderState& state) {
+[[gnu::always_inline]] inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState& state) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
 	q31_t noise = getNoise() >> 2; // StorageManager::devVarA;// 2;
@@ -381,7 +375,7 @@ q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 	       << 1;
 }
 
-[[gnu::always_inline]] inline q31_t SidLpFilter::doDriveLPFOnSample(q31_t input, LpLadderState& state) {
+[[gnu::always_inline]] inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, LpLadderState& state) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
 	q31_t noise = getNoise() >> 2; // StorageManager::devVarA;// 2;

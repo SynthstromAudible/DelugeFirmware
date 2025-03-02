@@ -27,6 +27,7 @@ enum class FilterMode {
 	TRANSISTOR_24DB,
 	TRANSISTOR_24DB_DRIVE, // filter logic relies on ladders being first and contiguous
 	SID_LOWPASS,           // SID lowpass filter mode
+	SID_LOWPASS_DRIVE,     // SID lowpass drive filter mode
 	SVF_BAND,              // first HPF mode
 	SVF_NOTCH,             // last LPF mode
 	HPLADDER,
@@ -105,6 +106,10 @@ public:
 			type = LpLadderType::DRIVE;
 			break;
 		case FilterMode::SID_LOWPASS:
+			family = FilterFamily::LP_LADDER;
+			type = LpLadderType::DRIVE; // Temporary assignment, we can create a SID type later
+			break;
+		case FilterMode::SID_LOWPASS_DRIVE:
 			family = FilterFamily::LP_LADDER;
 			type = LpLadderType::DRIVE; // Temporary assignment, we can create a SID type later
 			break;
