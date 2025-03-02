@@ -75,11 +75,10 @@ public:
 	void writeCurrentValue() override {
 		auto value = this->getValue();
 		if (value < kMaxKnobPos) {
-			q31_t knobPos = lshiftAndSaturate<24>(value);
-			soundEditor.currentModControllable->compressor.setBlend(knobPos);
+			soundEditor.currentModControllable->compressor.setBlend(FixedPoint<7>::from_raw(value));
 		}
 		else if (value == kMaxKnobPos) {
-			soundEditor.currentModControllable->compressor.setBlend(ONE_Q31);
+			soundEditor.currentModControllable->compressor.setBlend(1.f);
 		}
 	}
 	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getBlendForDisplay(); }

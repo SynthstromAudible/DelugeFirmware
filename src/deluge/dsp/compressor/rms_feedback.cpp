@@ -25,7 +25,7 @@ RMSFeedbackCompressor::RMSFeedbackCompressor() {
 	setThreshold(0);
 	setRatio(64 << 24);
 	setSidechain(0);
-	setBlend(ONE_Q31);
+	setBlend(1.f);
 	// Default to the maximum useful base gain
 	baseGain_ = 1.35f;
 }
@@ -59,7 +59,7 @@ constexpr uint8_t saturationAmount = 3;
 void RMSFeedbackCompressor::render(std::span<StereoSample> buffer, q31_t volAdjustL, q31_t volAdjustR,
                                    q31_t finalVolume) {
 	// make a copy for blending if we need to
-	if (wet != ONE_Q31) {
+	if (wet != 1.f) {
 		memcpy(dryBuffer.data(), buffer.data(), buffer.size_bytes());
 	}
 
@@ -108,13 +108,13 @@ void RMSFeedbackCompressor::render(std::span<StereoSample> buffer, q31_t volAdju
 		sample.r = multiply_32x32_rshift32(sample.r, currentVolumeR) << 4;
 		sample.r = getTanHAntialiased(sample.r, &lastSaturationTanHWorkingValue[1], saturationAmount);
 		// wet/dry blend
-		if (wet != ONE_Q31) {
-			sample.l = multiply_32x32_rshift32(sample.l, wet);
-			sample.l = multiply_accumulate_32x32_rshift32_rounded(sample.l, dry_it->l, dry);
+		if (wet != 1.f) {
+			sample.l = multiply_32x32_rshift32(sample.l, wet.raw());
+			sample.l = multiply_accumulate_32x32_rshift32_rounded(sample.l, dry_it->l, dry.raw());
 			sample.l <<= 1; // correct for the two multiplications
 			// same for r because StereoSample is a dumb class
-			sample.r = multiply_32x32_rshift32(sample.r, wet);
-			sample.r = multiply_accumulate_32x32_rshift32_rounded(sample.r, dry_it->r, dry);
+			sample.r = multiply_32x32_rshift32(sample.r, wet.raw());
+			sample.r = multiply_accumulate_32x32_rshift32_rounded(sample.r, dry_it->r, dry.raw());
 			sample.r <<= 1;
 			++dry_it; // this is a little gross but it's fine
 		}
