@@ -99,7 +99,7 @@ q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 	}
 
 	// Cold sid ladder
-	if ((lpfMode == FilterMode::SID_LOWPASS)) {
+	if ((lpfMode == FilterMode::SID_LOWPASS) || (lpfMode == FilterMode::SID_LOWPASS_DRIVE)) {
 		// Some long-winded stuff to make it so if frequency goes really low, resonance goes down. This is tuned a bit,
 		// but isn't perfect
 
@@ -121,7 +121,7 @@ q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 	moveability = std::max(fc, (q31_t)4317840);
 	// min moveability is 4317840
 	//  Half ladder
-	if (use12DB) {
+	if (lpfMode == FilterMode::SID_LOWPASS) {
 		// Between -2 and 0. 1 represented as 1073741824
 		int32_t moveabilityNegative = moveability - 1073741824;
 		lpf2Feedback = multiply_32x32_rshift32_rounded(moveabilityNegative, divideBy1PlusTannedFrequency) << 1;
@@ -160,27 +160,27 @@ q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 		else {
 			processedResonance >>= 1;
 		}
-	}
 
-	int32_t a = std::min(lpfResonance, (int32_t)536870911);
-	a = 536870912 - a;
-	a = multiply_32x32_rshift32(a, a) << 3;
-	a = 536870912 - a;
-	int32_t gainModifier = 268435456 + a;
-	filterGain = multiply_32x32_rshift32(filterGain, gainModifier) << 3;
+		int32_t a = std::min(lpfResonance, (int32_t)536870911);
+		a = 536870912 - a;
+		a = multiply_32x32_rshift32(a, a) << 3;
+		a = 536870912 - a;
+		int32_t gainModifier = 268435456 + a;
+		filterGain = multiply_32x32_rshift32(filterGain, gainModifier) << 3;
+	}
 
 	// Drive filter - increase output amplitude
-	if (lpfMode == FilterMode::SID_LOWPASS_DRIVE) {
+	else {
+		// overallOscAmplitude <<= 2;
 		filterGain *= 0.8;
 	}
-
 	return filterGain;
 }
 
 [[gnu::hot]] void SidLpFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
 
-	// Half ladder (12dB)
-	if (lpfMode == FilterMode::SID_LOWPASS && use12DB) {
+	// Half ladder
+	if (lpfMode == FilterMode::SID_LOWPASS) {
 
 		q31_t* currentSample = startSample;
 		do {
@@ -189,8 +189,8 @@ q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 		} while (currentSample < endSample);
 	}
 
-	// Full ladder (24dB regular)
-	else if (lpfMode == FilterMode::SID_LOWPASS && !use12DB) {
+	// Full ladder (regular)
+	else if (lpfMode == FilterMode::SID_LOWPASS) {
 
 		q31_t* currentSample = startSample;
 		do {
@@ -247,8 +247,8 @@ q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 }
 [[gnu::hot]] void SidLpFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 
-	// Half ladder (12dB)
-	if (lpfMode == FilterMode::SID_LOWPASS && use12DB) {
+	// Half ladder
+	if (lpfMode == FilterMode::SID_LOWPASS) {
 
 		q31_t* currentSample = startSample;
 		do {
@@ -259,8 +259,8 @@ q31_t SidLpFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 		} while (currentSample < endSample);
 	}
 
-	// Full ladder (24dB regular)
-	else if (lpfMode == FilterMode::SID_LOWPASS && !use12DB) {
+	// Full ladder (regular)
+	else if (lpfMode == FilterMode::SID_LOWPASS) {
 		q31_t* currentSample = startSample;
 		do {
 			*currentSample = do24dBLPFOnSample(*currentSample, l);
