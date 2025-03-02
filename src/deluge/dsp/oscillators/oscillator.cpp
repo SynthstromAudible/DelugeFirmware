@@ -495,7 +495,7 @@ callRenderWave:
 			return;
 		}
 		else {
-			dsp::renderWave(table, tableSizeMagnitude, amplitude, bufferStart, bufferEnd, phaseIncrement, phase,
+			dsp::renderWave(table, tableSizeMagnitude, amplitude, {bufferStart, bufferEnd}, phaseIncrement, phase,
 			                applyAmplitude, phaseToAdd, amplitudeIncrement);
 			return;
 		}
