@@ -3513,14 +3513,14 @@ getOut: {}
 			noteHexLength = 22;
 			goto doReadNoteData;
 		}
-
-		// Notes stored as hex data in nightly firmware 1.3 with no custom iterances
+#if ALPHA_OR_BETA_VERSION
+		// Notes stored as hex data in nightly firmware 1.3 previous to the addition of custom iterances
 		else if (song_firmware_version < FirmwareVersion::community({1, 3, 0})
 		         && !strcmp(tagName, "noteDataWithIteranceAndFill")) {
 			noteHexLength = 26;
 			goto doReadNoteData;
 		}
-
+#endif
 		// Notes stored as hex data including custom iterance and fill (community firmware 1.3 onwards)
 		else if (!strcmp(tagName, "noteDataWithSplitProb")) {
 			noteHexLength = 28;
@@ -3609,8 +3609,8 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 		}
 		writer.write("\"");
 
-		// TODO: once we drop retro-compatibility with 1.2 and below, this piece of code
-		// can be deleted
+#if ALPHA_OR_BETA_VERSION
+		// TODO: once we go out of beta, this piece of code can be deleted
 		{
 			writer.insertCommaIfNeeded();
 			writer.write("\n");
@@ -3664,6 +3664,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			}
 			writer.write("\"");
 		}
+#endif
 	}
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
