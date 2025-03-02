@@ -57,6 +57,7 @@ public:
 	void displayOrLanguageChanged() final;
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	Sound* currentSound;
+	bool allowsNoteTails;
 	ModControllableAudio* currentModControllable;
 	int8_t currentSourceIndex;
 	Source* currentSource;
@@ -78,6 +79,8 @@ public:
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	void scrollFinished() override;
 	bool editingKit();
+	bool editingKitAffectEntire();
+	bool editingKitRow();
 
 	ActionResult timerCallback() override;
 	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency);

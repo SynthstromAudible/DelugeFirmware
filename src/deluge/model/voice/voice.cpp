@@ -168,8 +168,8 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	}
 
 	if (resetEnvelopes) {
-		memset(sourceAmplitudesLastTime, 0, sizeof(sourceAmplitudesLastTime));
-		memset(modulatorAmplitudeLastTime, 0, sizeof(modulatorAmplitudeLastTime));
+		sourceAmplitudesLastTime.fill(0);
+		modulatorAmplitudeLastTime.fill(0);
 		overallOscAmplitudeLastTime = 0;
 		doneFirstRender = false;
 

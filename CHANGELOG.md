@@ -54,8 +54,15 @@ set the stutter configuration independently of the song configuration if you wis
 #### <ins>Audio Export</ins>
 - Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
 
+
 #### <ins>Save/Load Patterns</ins>
 - Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synt, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ](docs/features/save_load_patterns.md) for more info.
+
+#### <ins>Favourites</ins>
+A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UT -> KEYBOARD -> FAVOURITES`.
+
+#### <ins>Favourites</ins>
+- Added a Favourites to Load Screens of different Filetypes displayed abote the QWERTY Keyboard.
 
 #### <ins>Arranger View</ins>
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
@@ -77,6 +84,7 @@ set the stutter configuration independently of the song configuration if you wis
 
 ##### Selected Clip Pulsing
 - The selected clip in `Song Grid View` (which is the last clip you interacted with), now shows a `pulsing / breathing` animation whereby the clip pad will fade in and out between the clip's normal colour and a blurred colour.
+- This will help you keep track of what clip midi follow is currently controlling and what clip is selected for loop recording.
 
 #### <ins>Audio Clips</ins>
 - Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on
@@ -96,7 +104,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### Randomizer submenu
 - Added a new submenu to the `Sound` menu called `Randomizer`. This menu gives you access to the following parameters (which affect both sequenced and arpeggiated notes):
-  - `Lock`: This parameter determines whether the randomized values will be locked to fixed values. If you change any of the randomizer parameters, the sequence of randomized values will change to a new one and will be locked again.
+  - `Lock`: This parameter allows you to freeze the current set of randomized values so the sequence has a repeatable pattern.
   - `Velocity Spread`: This parameters lets you apply some random variation to the notes.
   - `Note probability`: This parameter determines the likelihood of a note being played or not (this is in addition to the Note/Row probability).
   - `Reverse Probability`: This parameter determines the likelihood of a note's sample of being reversed.
@@ -113,7 +121,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### Recording
 - Enabled seamless linear recording of drone notes using audition pads or external midi.
-  - When linear recording to a clip, you can seamlessly record a drone note using the audition pads or from external midi by continuing to audition / send a note until the linear recording stops. After linear recording stops, you can stop auditioning / send a note off and the drone note will persist without any breaks or re-triggering.
+  - When linear recording to a clip, you can seamlessly record a drone note using the audition pads or from external midi by continuing to audition / send a note until the linear recording stops. After linear recording stops, you can stop auditioning / send a note off and the drone note will persist without any breaks or re-triggering. (The Deluge manual refers to linear recording as _auto extend mode_, see p. 42.)
 
 ##### Synth/Kit Clips
 - Added Auto-Load feature to sample browser, so you can load the sounds to the instrument as you preview them. Auto-Load can be engaged while in sample browser, if you press the `Load` button.
@@ -171,6 +179,7 @@ also affect normal sequenced notes while arpeggiator is Off.
 - Added `LOCK` parameter to allow you to freeze the current set of randomized values so the sequence has a repeatable pattern.
 - Added new `WALK1`, `WALK2`, `WALK3` and `PATTERN` note modes.
 - Exposed several parameters from the `Randomizer` also for non-arpeggiated notes: `Velocity Spread`, `Note probability`, and `Reverse Probability`.
+- Added `KIT ARPEGGIATOR` for `KIT` clips. This arpeggiator is a new layer on top of the kit rows, which will control which rows receive note ON's and note OFF's. That means that the kit rows can have their own arpeggiators also enabled. You can access the new menu when `Affect-Entire` is enabled in the `Kit` and you access the menu with `Select` knob.
 
 ### MIDI
 
@@ -289,7 +298,7 @@ also affect normal sequenced notes while arpeggiator is Off.
 - Added ability to sync LFO2. Where LFO1 syncs relative to the grid, LFO2 syncs relative to individual notes.
 - Added ability to set `CLIP NAMES`. MIDI, SYNTH and KIT clips can now be named. When in a the clip view, press `SHIFT` + `NAME` and enter the name of the clip. For KIT, its important to activate `AFFECT ENTIRE` to name the KIT clip. When on ARRANGER view with an OLED display, you are now able to scroll through the clip names when holding a clip pad and turning `SELECT` encoder.
 - Fixed a bug where pressing `UNDO` in a `KIT` could cause the `SELECTED DRUM` to change but not update the `GOLD KNOBS` so that they now control that updated kit row.
-- Fixed a bug where you could not turn `RECORDING OFF` while auditioning a note in an `INSTRUMENT CLIP`. With this fix you can now record drone notes when using `LINEAR RECORDING`.
+- Fixed a bug where you could not turn recording off while auditioning a note in an instrument clip. With this fix you can now record drone notes when using linear recording. (The Deluge manual refers to linear recording as _auto extend mode_, see p. 42.)
 
 ##### Velocity View
 - Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing `SHIFT OR AUDITION PAD + VELOCITY` or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`.

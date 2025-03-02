@@ -19,7 +19,7 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class ArpSoundUnpatchedParam final : public UnpatchedParam {
+class ArpUnpatchedParam final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
@@ -27,6 +27,18 @@ public:
 	}
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
+	}
+};
+
+class ArpSoundOnlyUnpatchedParam final : public UnpatchedParam {
+public:
+	using UnpatchedParam::UnpatchedParam;
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKitAffectEntire()
+		       && !soundEditor.editingNonAudioDrumRow();
+	}
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
 	}
 };
 

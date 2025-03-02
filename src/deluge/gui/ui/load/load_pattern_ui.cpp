@@ -72,21 +72,25 @@ bool LoadPatternUI::opened() {
 	if (getCurrentOutputType() == OutputType::KIT) {
 		if (getRootUI()->getAffectEntire()) {
 			defaultDir = PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER;
+			favouritesManager.setCategory(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
 			title = "Load Kit Pattern";
 			selectedDrumOnly = false;
 		}
 		else {
 			defaultDir = PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER;
+			favouritesManager.setCategory(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
 			title = "Load Drum Pattern";
 			selectedDrumOnly = true;
 		}
 	}
 	else {
 		defaultDir = std::string(PATTERN_MELODIC_DEFAULT_FOLDER);
+		favouritesManager.setCategory(PATTERN_MELODIC_DEFAULT_FOLDER);
 		title = "Load Pattern";
 		selectedDrumOnly = false;
 	}
 
+	favouritesChanged();
 	currentDir.set(defaultDir.c_str());
 
 	error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
