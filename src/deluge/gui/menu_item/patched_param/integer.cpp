@@ -52,7 +52,7 @@ void Integer::writeCurrentValue() {
 
 				char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 				ModelStackWithAutoParam* modelStackForSoundDrum =
-				    getModelStackFromSoundDrumForValue(modelStackMemoryForSoundDrum, soundDrum)
+				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
 				        ->getPatchedAutoParamFromId(getP());
 				modelStackForSoundDrum->autoParam->setCurrentValueInResponseToUserInput(value, modelStackForSoundDrum);
 			}

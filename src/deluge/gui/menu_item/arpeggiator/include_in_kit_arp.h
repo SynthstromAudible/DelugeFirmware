@@ -52,7 +52,7 @@ public:
 
 					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 					ModelStackWithSoundFlags* modelStackForSoundDrum =
-					    getModelStackFromSoundDrumForValue(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
+					    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
 					allowsNoteTails = soundDrum->allowNoteTails(modelStackForSoundDrum, true);
 				}
 

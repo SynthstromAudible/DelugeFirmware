@@ -56,8 +56,7 @@ public:
 					if (soundDrum->getSynthMode() == SynthMode::FM) {
 						char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 						ModelStackWithSoundFlags* modelStackForSoundDrum =
-						    getModelStackFromSoundDrumForParam(modelStackMemoryForSoundDrum, soundDrum)
-						        ->addSoundFlags();
+						    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
 
 						soundDrum->setModulatorTranspose(soundEditor.currentSourceIndex, transpose,
 						                                 modelStackForSoundDrum);

@@ -41,7 +41,6 @@ public:
 
 	uint8_t p;
 
-	ModelStackWithThreeMainThings* getModelStackFromSoundDrumForParam(void* memory, SoundDrum* soundDrum);
 	ModelStackWithAutoParam* getModelStackWithParam(void* memory) override;
 
 protected:

@@ -35,8 +35,6 @@ public:
 	void readValueAgain() override;
 	bool selectEncoderActionEditsInstrument() final { return true; }
 
-	ModelStackWithThreeMainThings* getModelStackFromSoundDrumForValue(void* memory, SoundDrum* soundDrum);
-
 	void setValue(T value) { value_ = value; }
 
 	template <util::enumeration E>

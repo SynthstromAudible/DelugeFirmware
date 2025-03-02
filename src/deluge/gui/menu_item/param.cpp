@@ -50,14 +50,6 @@ void Param::horizontalEncoderAction(int32_t offset) {
 	}
 }
 
-ModelStackWithThreeMainThings* Param::getModelStackFromSoundDrumForParam(void* memory, SoundDrum* soundDrum) {
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	int32_t noteRowIndex;
-	NoteRow* noteRow = clip->getNoteRowForDrum(soundDrum, &noteRowIndex);
-	return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, getCurrentClip(), noteRowIndex,
-	                                                          noteRow, soundDrum, &noteRow->paramManager);
-}
-
 ModelStackWithAutoParam* Param::getModelStackWithParam(void* memory) {
 	return getModelStack(memory);
 }
