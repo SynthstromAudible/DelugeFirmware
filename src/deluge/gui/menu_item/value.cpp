@@ -7,10 +7,11 @@
 
 template <typename T>
 
-ModelStackWithThreeMainThings* deluge::gui::menu_item::Value<T>::getModelStackFromSoundDrumForValue(void* memory, SoundDrum* soundDrum) {
+ModelStackWithThreeMainThings*
+deluge::gui::menu_item::Value<T>::getModelStackFromSoundDrumForValue(void* memory, SoundDrum* soundDrum) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	int32_t noteRowIndex;
 	NoteRow* noteRow = clip->getNoteRowForDrum(soundDrum, &noteRowIndex);
 	return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, getCurrentClip(), noteRowIndex,
-															  noteRow, soundDrum, &noteRow->paramManager);
+	                                                          noteRow, soundDrum, &noteRow->paramManager);
 }
