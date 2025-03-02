@@ -215,20 +215,18 @@ std::tuple<int32x4_t, uint32_t> generateSidPulseVector(uint32_t phase, uint32_t 
 	int32_t value4 = (phase_12 < pulseWidth) ? 0xFFF : 0;
 	phase += phaseIncrement;
 
-	// Create vector of pulse values
-	int32x4_t pulseValues = vdupq_n_s32(0);
-	pulseValues = vsetq_lane_s32(value1, pulseValues, 0);
-	pulseValues = vsetq_lane_s32(value2, pulseValues, 1);
-	pulseValues = vsetq_lane_s32(value3, pulseValues, 2);
-	pulseValues = vsetq_lane_s32(value4, pulseValues, 3);
-
-	// Apply compensation factor to boost output
-	pulseValues = vmulq_n_s32(pulseValues, compensationFactor);
+	// Create vector of pulse values with the compensated amplitude
+	int32_t compensatedValue = (int32_t)(0xFFF * compensationFactor / SID_AMPLITUDE_BOOST);
+	__simd128_int32_t pulseVector = vdupq_n_s32(0);
+	pulseVector = vsetq_lane_s32(value1 ? compensatedValue : 0, pulseVector, 0);
+	pulseVector = vsetq_lane_s32(value2 ? compensatedValue : 0, pulseVector, 1);
+	pulseVector = vsetq_lane_s32(value3 ? compensatedValue : 0, pulseVector, 2);
+	pulseVector = vsetq_lane_s32(value4 ? compensatedValue : 0, pulseVector, 3);
 
 	// Scale to 24-bit range and shift for proper alignment in Q format
-	pulseValues = vshlq_n_s32(pulseValues, 16);
+	pulseVector = vshlq_n_s32(pulseVector, 16);
 
-	return std::make_tuple(pulseValues, phase);
+	return std::make_tuple(pulseVector, phase);
 }
 
 // Helper function to update the shift register for noise generation
@@ -445,11 +443,35 @@ void renderSidPulse(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd,
 		currentPos += 4;
 	}
 
-	// Process any remaining samples
+	// Process any remaining samples one by one
 	while (currentPos < bufferEnd) {
-		// Get the 12-bit phase value
 		uint32_t phase_12 = (phase >> 20) & 0xFFF;
 		int32_t value = (phase_12 < pulseWidth) ? 0xFFF : 0;
+
+		// Calculate duty cycle for compensation
+		float compensationFactor = SID_AMPLITUDE_BOOST;
+		if (pulseWidth > 0 && pulseWidth < 0xFFF) {
+			uint32_t effectiveOnTime;
+			if (pulseWidth <= 0x800) {
+				effectiveOnTime = pulseWidth;
+			}
+			else {
+				effectiveOnTime = 0xFFF - pulseWidth;
+			}
+
+			if (effectiveOnTime < 0x800) {
+				compensationFactor = SID_AMPLITUDE_BOOST * (float)0x800 / (float)effectiveOnTime;
+				if (compensationFactor > SID_AMPLITUDE_BOOST * 16.0f) {
+					compensationFactor = SID_AMPLITUDE_BOOST * 16.0f;
+				}
+			}
+		}
+
+		// Apply compensation to the output value
+		if (value) {
+			value = (int32_t)(value * compensationFactor / SID_AMPLITUDE_BOOST);
+		}
+
 		value <<= 16; // Scale to match the vector implementation
 
 		if (applyAmplitude) {
