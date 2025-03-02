@@ -2513,7 +2513,6 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 // Note may be NULL if it's a note-off, in which case you don't get lift-velocity
 void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNote, int32_t ticksLate,
                        uint32_t samplesLate, bool noteMightBeConstant, PendingNoteOnList* pendingNoteOnList) {
-
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 	Output* output = clip->output;
 
@@ -2618,8 +2617,8 @@ storePendingNoteOn:
 
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStack->addOtherTwoThings(drum->toModControllable(), &paramManager);
-					drum->noteOn(modelStackWithThreeMainThings, thisNote->velocity, (Kit*)output, mpeValues,
-					             MIDI_CHANNEL_NONE, thisNote->length, ticksLate, samplesLate);
+					drum->kit->noteOnPreKitArp(modelStackWithThreeMainThings, drum, thisNote->velocity, mpeValues,
+					                           MIDI_CHANNEL_NONE, thisNote->length, ticksLate, samplesLate);
 				}
 			}
 		}
@@ -2629,7 +2628,7 @@ storePendingNoteOn:
 				lift = thisNote->getLift();
 			}
 
-			drum->noteOff(modelStackWithThreeMainThings, lift);
+			drum->kit->noteOffPreKitArp(modelStackWithThreeMainThings, drum, lift);
 		}
 	}
 
