@@ -25,8 +25,8 @@ void renderWave(const int16_t* __restrict__ table, int32_t tableSizeMagnitude, i
                 std::span<int32_t> buffer, uint32_t phaseIncrement, uint32_t phase, bool applyAmplitude,
                 uint32_t phaseToAdd, int32_t amplitudeIncrement);
 void renderPulseWave(const int16_t* __restrict__ table, int32_t tableSizeMagnitude, int32_t amplitude,
-                     int32_t* __restrict__ outputBuffer, int32_t* bufferEnd, uint32_t phaseIncrement, uint32_t phase,
-                     bool applyAmplitude, uint32_t phaseToAdd, int32_t amplitudeIncrement);
+                     std::span<int32_t> outputBuffer, uint32_t phaseIncrement, uint32_t phase, bool applyAmplitude,
+                     uint32_t phaseToAdd, int32_t amplitudeIncrement);
 uint32_t renderCrudeSawWaveWithAmplitude(int32_t* thisSample, int32_t* bufferEnd, uint32_t phaseNowNow,
                                          uint32_t phaseIncrementNow, int32_t amplitudeNow, int32_t amplitudeIncrement,
                                          int32_t numSamples);

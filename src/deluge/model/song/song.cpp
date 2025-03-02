@@ -4687,16 +4687,27 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 
 		// CV
 		if (outputType == OutputType::CV) {
+			int channelToSearch = 0;
+			Instrument* instrument = nullptr;
 			do {
 				newChannel = CVInstrument::navigateChannels(newChannel, offset);
 
 				if (newChannel == oldChannel) {
-cantDoIt:
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
 					return output;
 				}
-
-			} while (currentSong->getInstrumentFromPresetSlot(outputType, newChannel, -1, nullptr, nullptr, false));
+				if (newChannel == CVInstrumentMode::both) {
+					// in this case we just need to make sure the one were not about to give up is free
+					// there probably should be a gatekeeper managing the cv/gate resources but that's a lot to
+					// change and this doesn't matter much
+					channelToSearch = oldChannel == 0 ? 1 : 0;
+				}
+				else {
+					channelToSearch = newChannel;
+				}
+				instrument =
+				    currentSong->getInstrumentFromPresetSlot(outputType, channelToSearch, -1, nullptr, nullptr, false);
+			} while (instrument != nullptr && instrument != oldInstrument);
 		}
 
 		// Or MIDI
@@ -4725,7 +4736,8 @@ cantDoIt:
 
 				if (newChannel == oldChannel && newChannelSuffix == oldChannelSuffix) {
 					oldNonAudioInstrument->setChannel(oldChannel); // Put it back
-					goto cantDoIt;
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
+					return output;
 				}
 
 			} while (currentSong->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr,
@@ -5162,7 +5174,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Avai
 			}
 		}
 
-		newSlot = (newSlot + 1) & (numChannels - 1);
+		newSlot = (newSlot + 1) % numChannels;
 		newSubSlot = -1;
 
 		// If we've searched all channels...
