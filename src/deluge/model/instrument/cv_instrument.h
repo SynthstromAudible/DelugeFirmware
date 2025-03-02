@@ -23,7 +23,6 @@
 class ParamManagerForTimeline;
 class ModelStackWithThreeMainThings;
 class ModelStackWithSoundFlags;
-
 enum class CVMode : uint8_t { off, pitch, mod, aftertouch, velocity };
 enum class GateMode : uint8_t { off, gate, trigger };
 enum CVInstrumentMode { one, two, both };
@@ -54,7 +53,7 @@ public:
 		bool match{false};
 		if (type == otherType) {
 			auto ourChannel = getChannel();
-			match = ourChannel == otherChannel || ourChannel == 3 || otherChannel == 3; // 3 means both
+			match = ourChannel == otherChannel || ourChannel == both || otherChannel == both; // 3 means both
 		}
 		return match;
 	}
