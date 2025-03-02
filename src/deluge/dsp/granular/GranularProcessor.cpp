@@ -68,8 +68,8 @@ void GranularProcessor::processGrainFX(std::span<StereoSample> buffer, int32_t g
 			wetr = lpf_r.doFilter(wetr, 1 << 29);
 
 			// WET and DRY Vol
-			sample.l = add_saturation(q31_mult(sample.l, _grainDryVol), wetl);
-			sample.r = add_saturation(q31_mult(sample.r, _grainDryVol), wetr);
+			sample.l = add_saturate(q31_mult(sample.l, _grainDryVol), wetl);
+			sample.r = add_saturate(q31_mult(sample.r, _grainDryVol), wetr);
 
 			// adding a small amount of extra reverb covers a lot of the granular artifacts
 			AudioEngine::feedReverbBackdoorForGrain(i, q31_mult((wetl + wetr), reverbAmount));

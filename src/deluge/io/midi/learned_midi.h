@@ -32,15 +32,15 @@ public:
 	LearnedMIDI();
 	void clear();
 
-	inline bool equalsCable(MIDICable* newCable) {
+	constexpr bool equalsCable(MIDICable* newCable) const {
 		return (!MIDIDeviceManager::differentiatingInputsByDevice || !cable || newCable == cable);
 	}
 
-	inline bool equalsChannelOrZone(MIDICable* newCable, int32_t newChannelOrZone) {
+	constexpr bool equalsChannelOrZone(MIDICable* newCable, int32_t newChannelOrZone) const {
 		return (newChannelOrZone == channelOrZone && equalsCable(newCable));
 	}
 
-	inline bool equalsNoteOrCC(MIDICable* newCable, int32_t newChannel, int32_t newNoteOrCC) {
+	constexpr bool equalsNoteOrCC(MIDICable* newCable, int32_t newChannel, int32_t newNoteOrCC) const {
 		return (newNoteOrCC == noteOrCC && equalsChannelOrZone(newCable, newChannel));
 	}
 
