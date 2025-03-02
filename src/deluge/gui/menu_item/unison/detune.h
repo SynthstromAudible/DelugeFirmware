@@ -29,19 +29,35 @@ class Detune final : public Integer {
 public:
 	using Integer::Integer;
 
-	ModelStackWithThreeMainThings* getModelStackFromSoundDrum(void* memory, SoundDrum* soundDrum) {
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		int32_t noteRowIndex;
-		NoteRow* noteRow = clip->getNoteRowForDrum(soundDrum, &noteRowIndex);
-		return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, getCurrentClip(), noteRowIndex,
-		                                                          noteRow, soundDrum, &noteRow->paramManager);
-	}
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->unisonDetune); }
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
+		int32_t current_value = this->getValue();
 
-		soundEditor.currentSound->setUnisonDetune(this->getValue(), modelStack);
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+
+					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
+					ModelStackWithSoundFlags* modelStackForSoundDrum =
+					    getModelStackFromSoundDrumForInteger(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
+
+					soundDrum->setUnisonDetune(current_value, modelStackForSoundDrum);
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
+
+			soundEditor.currentSound->setUnisonDetune(current_value, modelStack);
+		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxUnisonDetune; }
 };

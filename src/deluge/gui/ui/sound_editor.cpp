@@ -432,7 +432,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Affect-entire button
 	else if (b == AFFECT_ENTIRE && isUIInstrumentClipView && !inNoteEditor() && !inNoteRowEditor()) {
-		if (editingKit() && getCurrentMenuItem()->usesAffectEntire()) {
+		if (editingKitRow() && getCurrentMenuItem()->usesAffectEntire()) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}

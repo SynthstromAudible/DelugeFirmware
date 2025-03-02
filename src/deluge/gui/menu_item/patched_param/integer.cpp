@@ -42,7 +42,7 @@ void Integer::writeCurrentValue() {
 	modelStack->autoParam->setCurrentValueInResponseToUserInput(value, modelStack);
 
 	// If affect-entire button held, do whole kit
-	if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
+	if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 
 		Kit* kit = getCurrentKit();
 
@@ -52,7 +52,7 @@ void Integer::writeCurrentValue() {
 
 				char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 				ModelStackWithAutoParam* modelStackForSoundDrum =
-				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
+				    getModelStackFromSoundDrumForInteger(modelStackMemoryForSoundDrum, soundDrum)
 				        ->getPatchedAutoParamFromId(getP());
 				modelStackForSoundDrum->autoParam->setCurrentValueInResponseToUserInput(value, modelStackForSoundDrum);
 			}

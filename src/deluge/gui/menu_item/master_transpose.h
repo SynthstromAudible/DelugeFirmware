@@ -38,7 +38,7 @@ public:
 		int16_t value = this->getValue();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -50,7 +50,7 @@ public:
 
 					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 					ModelStackWithSoundFlags* modelStackForSoundDrum =
-					    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
+					    getModelStackFromSoundDrumForParam(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
 					soundDrum->recalculateAllVoicePhaseIncrements(modelStackForSoundDrum);
 				}
 			}

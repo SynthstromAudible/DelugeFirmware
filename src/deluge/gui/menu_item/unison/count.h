@@ -31,21 +31,13 @@ class Count : public Integer {
 public:
 	using Integer::Integer;
 
-	ModelStackWithThreeMainThings* getModelStackFromSoundDrum(void* memory, SoundDrum* soundDrum) {
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		int32_t noteRowIndex;
-		NoteRow* noteRow = clip->getNoteRowForDrum(soundDrum, &noteRowIndex);
-		return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, getCurrentClip(), noteRowIndex,
-		                                                          noteRow, soundDrum, &noteRow->paramManager);
-	}
-
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->numUnison); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -55,7 +47,7 @@ public:
 
 					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 					ModelStackWithSoundFlags* modelStackForSoundDrum =
-					    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
+					    getModelStackFromSoundDrumForInteger(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
 
 					soundDrum->setNumUnison(current_value, modelStackForSoundDrum);
 				}
