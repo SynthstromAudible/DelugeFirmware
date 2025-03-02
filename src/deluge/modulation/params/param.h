@@ -186,13 +186,8 @@ enum UnpatchedShared : ParamType {
 	UNPATCHED_MOD_FX_FEEDBACK,
 	UNPATCHED_SIDECHAIN_SHAPE,
 	UNPATCHED_COMPRESSOR_THRESHOLD,
-	/// Special value for chaining the UNPATCHED_* params
-	UNPATCHED_NUM_SHARED,
-};
-
-/// Unpatched params which are only used for Sounds
-enum UnpatchedSound : ParamType {
-	UNPATCHED_ARP_GATE = UNPATCHED_NUM_SHARED,
+	// Arp
+	UNPATCHED_ARP_GATE,
 	UNPATCHED_ARP_RHYTHM,
 	UNPATCHED_ARP_SEQUENCE_LENGTH,
 	UNPATCHED_ARP_CHORD_POLYPHONY,
@@ -205,7 +200,13 @@ enum UnpatchedSound : ParamType {
 	UNPATCHED_ARP_SPREAD_GATE,
 	UNPATCHED_ARP_SPREAD_OCTAVE,
 	UNPATCHED_SPREAD_VELOCITY,
-	UNPATCHED_PORTAMENTO,
+	/// Special value for chaining the UNPATCHED_* params
+	UNPATCHED_NUM_SHARED,
+};
+
+/// Unpatched params which are only used for Sounds
+enum UnpatchedSound : ParamType {
+	UNPATCHED_PORTAMENTO = UNPATCHED_NUM_SHARED,
 	UNPATCHED_SOUND_MAX_NUM,
 };
 
@@ -215,6 +216,7 @@ enum UnpatchedGlobal : ParamType {
 	UNPATCHED_MOD_FX_DEPTH,
 	UNPATCHED_DELAY_RATE,
 	UNPATCHED_DELAY_AMOUNT,
+	UNPATCHED_ARP_RATE,
 	UNPATCHED_PAN,
 	UNPATCHED_LPF_FREQ,
 	UNPATCHED_LPF_RES,
@@ -352,7 +354,7 @@ const uint32_t unpatchedGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , UNPATCHED_LPF_MORPH	   , kNoParamID						, UNPATCHED_LPF_RES     , UNPATCHED_LPF_FREQ},
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , UNPATCHED_HPF_MORPH	   , kNoParamID						, UNPATCHED_HPF_RES     , UNPATCHED_HPF_FREQ},
     {kNoParamID          , kNoParamID            , UNPATCHED_SIDECHAIN_VOLUME, kNoParamID                  , UNPATCHED_SIDECHAIN_SHAPE , kNoParamID			   			, UNPATCHED_BASS        , UNPATCHED_BASS_FREQ},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, UNPATCHED_TREBLE      , UNPATCHED_TREBLE_FREQ},
+    {UNPATCHED_ARP_RATE  , kNoParamID            , UNPATCHED_ARP_GATE        , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, UNPATCHED_TREBLE      , UNPATCHED_TREBLE_FREQ},
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , UNPATCHED_MOD_FX_OFFSET   , UNPATCHED_MOD_FX_FEEDBACK		, UNPATCHED_MOD_FX_DEPTH, UNPATCHED_MOD_FX_RATE},
     {kNoParamID          , kNoParamID            , kNoParamID                , UNPATCHED_REVERB_SEND_AMOUNT, kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
     {UNPATCHED_DELAY_RATE, kNoParamID            , kNoParamID                , UNPATCHED_DELAY_AMOUNT      , kNoParamID				   , kNoParamID			  		 	, kNoParamID            , kNoParamID},

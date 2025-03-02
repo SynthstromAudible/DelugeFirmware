@@ -110,9 +110,24 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_BASS_FREQ].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_TREBLE_FREQ].setCurrentValueBasicForSetup(0);
 
+	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_NOTE_PROBABILITY].setCurrentValueBasicForSetup(2147483647);
+	unpatchedParams->params[params::UNPATCHED_ARP_BASS_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_REVERSE_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_POLYPHONY].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_RHYTHM].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_SPREAD_VELOCITY].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_GATE].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setCurrentValueBasicForSetup(-2147483648);
+
 	Stutterer::initParams(paramManager);
 
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_OFFSET].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
 
 	unpatchedParams->params[params::UNPATCHED_SAMPLE_RATE_REDUCTION].setCurrentValueBasicForSetup(-2147483648);
 
@@ -486,6 +501,30 @@ void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamM
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	unpatchedParams->writeParamAsAttribute(writer, "compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD,
 	                                       writeAutomation, false, valuesForOverride);
+
+	unpatchedParams->writeParamAsAttribute(writer, "arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "noteProbability", params::UNPATCHED_NOTE_PROBABILITY,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "bassProbability", params::UNPATCHED_ARP_BASS_PROBABILITY,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "reverseProbability", params::UNPATCHED_REVERSE_PROBABILITY,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "chordProbability", params::UNPATCHED_ARP_CHORD_PROBABILITY,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "chordPolyphony", params::UNPATCHED_ARP_CHORD_POLYPHONY,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "spreadVelocity", params::UNPATCHED_SPREAD_VELOCITY,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "spreadGate", params::UNPATCHED_ARP_SPREAD_GATE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "spreadOctave", params::UNPATCHED_ARP_SPREAD_OCTAVE,
+	                                       writeAutomation);
 }
 
 void ModControllableAudio::writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -571,6 +610,84 @@ bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const
 		reader.exitTag("compressorThreshold");
 	}
 
+	// Arpeggiator stuff
+
+	else if (!strcmp(tagName, "arpeggiatorGate")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_GATE, readAutomationUpToPos);
+		reader.exitTag("arpeggiatorGate");
+	}
+
+	else if (!strcmp(tagName, "ratchetAmount")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_AMOUNT,
+		                           readAutomationUpToPos);
+		reader.exitTag("ratchetAmount");
+	}
+
+	else if (!strcmp(tagName, "ratchetProbability")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("ratchetProbability");
+	}
+
+	else if (!strcmp(tagName, "chordPolyphony")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_CHORD_POLYPHONY,
+		                           readAutomationUpToPos);
+		reader.exitTag("chordPolyphony");
+	}
+
+	else if (!strcmp(tagName, "chordProbability")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_CHORD_PROBABILITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("chordProbability");
+	}
+
+	else if (!strcmp(tagName, "reverseProbability")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_REVERSE_PROBABILITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("reverseProbability");
+	}
+
+	else if (!strcmp(tagName, "bassProbability")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_BASS_PROBABILITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("bassProbability");
+	}
+
+	else if (!strcmp(tagName, "noteProbability")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_NOTE_PROBABILITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("noteProbability");
+	}
+
+	else if (!strcmp(tagName, "sequenceLength")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
+		                           readAutomationUpToPos);
+		reader.exitTag("sequenceLength");
+	}
+
+	else if (!strcmp(tagName, "rhythm")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
+		reader.exitTag("rhythm");
+	}
+
+	else if (!strcmp(tagName, "spreadVelocity")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_SPREAD_VELOCITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadVelocity");
+	}
+
+	else if (!strcmp(tagName, "spreadGate")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_GATE,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadGate");
+	}
+
+	else if (!strcmp(tagName, "spreadOctave")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_OCTAVE,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadOctave");
+	}
+
 	else {
 		return false;
 	}
@@ -581,7 +698,7 @@ bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const
 // paramManager is optional
 Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* tagName,
                                             ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
-                                            Song* song) {
+                                            ArpeggiatorSettings* arpSettings, Song* song) {
 
 	int32_t p;
 
@@ -602,6 +719,25 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 		clippingAmount = reader.readTagOrAttributeValueInt();
 		reader.exitTag("clippingAmount");
 	}
+
+	// Arpeggiator
+
+	else if (!strcmp(tagName, "arpeggiator") && arpSettings != nullptr) {
+		// Set default values in case they are not configured
+		arpSettings->syncType = SYNC_TYPE_EVEN;
+		arpSettings->syncLevel = SYNC_LEVEL_NONE;
+		reader.match('{');
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
+			bool readAndExited = arpSettings->readCommonTagsFromFile(reader, tagName, song);
+			if (!readAndExited) {
+				reader.exitTag(tagName);
+			}
+		}
+
+		reader.exitTag("arpeggiator", true);
+	}
+
+	// Stutter
 
 	else if (!strcmp(tagName, "stutter")) {
 		// Set default values in case they are not configured
