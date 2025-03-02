@@ -24,6 +24,10 @@ namespace deluge {
 namespace dsp {
 namespace sid {
 
+// Global amplitude boost factor to compensate for removed amplitude * 8 in oscillator.cpp
+// This makes it easy to adjust all SID oscillators consistently
+const float SID_AMPLITUDE_BOOST = 8.0f;
+
 // Define the wave tables
 std::array<int16_t, 4096> sidTriangleTable = {};
 std::array<int16_t, 4096> sidSawTable = {};
@@ -91,6 +95,9 @@ std::tuple<int32x4_t, uint32_t> generateSidTriangleVector(uint32_t phase, uint32
 	triangleValues = vsetq_lane_s32(value3, triangleValues, 2);
 	triangleValues = vsetq_lane_s32(value4, triangleValues, 3);
 
+	// BOOST: Apply consistent amplitude boost
+	triangleValues = vmulq_n_s32(triangleValues, SID_AMPLITUDE_BOOST);
+
 	// Scale to 24-bit range and shift for proper alignment in Q format
 	triangleValues = vshlq_n_s32(triangleValues, 16);
 
@@ -125,6 +132,9 @@ std::tuple<int32x4_t, uint32_t> generateSidSawVector(uint32_t phase, uint32_t ph
 	sawValues = vsetq_lane_s32(value3, sawValues, 2);
 	sawValues = vsetq_lane_s32(value4, sawValues, 3);
 
+	// BOOST: Apply consistent amplitude boost
+	sawValues = vmulq_n_s32(sawValues, SID_AMPLITUDE_BOOST);
+
 	// Scale to 24-bit range and shift for proper alignment in Q format
 	sawValues = vshlq_n_s32(sawValues, 16);
 
@@ -156,6 +166,35 @@ std::tuple<int32x4_t, uint32_t> generateSidPulseVector(uint32_t phase, uint32_t 
 		pulseWidth = 0xFFF - minPwStep;
 	}
 
+	// Calculate compensation factor based on pulse width
+	// Start with the base boost factor
+	float compensationFactor = SID_AMPLITUDE_BOOST;
+
+	// For duty cycles other than 0% and 100%
+	if (pulseWidth > 0 && pulseWidth < 0xFFF) {
+		// Calculate effective on-time (distance from 50%)
+		uint32_t effectiveOnTime;
+		if (pulseWidth <= 0x800) {
+			effectiveOnTime = pulseWidth; // For narrow pulses (0-50%)
+		}
+		else {
+			effectiveOnTime = 0xFFF - pulseWidth; // For wide pulses (50-100%)
+		}
+
+		// Apply much more aggressive compensation
+		// Use a square root relationship for more balanced compensation across the range
+		if (effectiveOnTime < 0x800) {
+			// Square root relationship provides more boost to wider range of values
+			float normalizedDuty = (float)effectiveOnTime / 0x800;
+			compensationFactor = SID_AMPLITUDE_BOOST * (float)0x800 / (float)effectiveOnTime;
+
+			// Increase compensation cap to 16x the base boost (128.0 at base of 8.0)
+			if (compensationFactor > SID_AMPLITUDE_BOOST * 16.0f) {
+				compensationFactor = SID_AMPLITUDE_BOOST * 16.0f;
+			}
+		}
+	}
+
 	// Get the 12-bit phase value for first sample
 	uint32_t phase_12 = (phase >> 20) & 0xFFF;
 	int32_t value1 = (phase_12 < pulseWidth) ? 0xFFF : 0;
@@ -182,6 +221,9 @@ std::tuple<int32x4_t, uint32_t> generateSidPulseVector(uint32_t phase, uint32_t 
 	pulseValues = vsetq_lane_s32(value2, pulseValues, 1);
 	pulseValues = vsetq_lane_s32(value3, pulseValues, 2);
 	pulseValues = vsetq_lane_s32(value4, pulseValues, 3);
+
+	// Apply compensation factor to boost output
+	pulseValues = vmulq_n_s32(pulseValues, compensationFactor);
 
 	// Scale to 24-bit range and shift for proper alignment in Q format
 	pulseValues = vshlq_n_s32(pulseValues, 16);
@@ -229,6 +271,9 @@ std::tuple<int32x4_t, uint32_t> generateSidNoiseVector(uint32_t phase, uint32_t 
 	// Create vector of noise values
 	int32x4_t noiseValues = vld1q_s32(values);
 
+	// BOOST: Apply consistent amplitude boost
+	noiseValues = vmulq_n_s32(noiseValues, SID_AMPLITUDE_BOOST);
+
 	// Scale to 24-bit range and shift for proper alignment in Q format
 	noiseValues = vshlq_n_s32(noiseValues, 16);
 
@@ -275,7 +320,12 @@ void renderSidTriangle(int32_t amplitude, int32_t* bufferStart, int32_t* bufferE
 	// Process any remaining samples
 	while (currentPos < bufferEnd) {
 		uint32_t index = getTableIndex(phase);
-		int32_t value = sidTriangleTable[index] << 16;
+		int32_t value = sidTriangleTable[index];
+
+		// BOOST: Apply consistent amplitude boost
+		value *= SID_AMPLITUDE_BOOST;
+
+		value <<= 16; // Scale to match the vector implementation
 
 		if (applyAmplitude) {
 			value = ((int64_t)value * amplitude) >> 31;
@@ -319,7 +369,12 @@ void renderSidSaw(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, u
 	// Process any remaining samples
 	while (currentPos < bufferEnd) {
 		uint32_t index = getTableIndex(phase);
-		int32_t value = sidSawTable[index] << 16;
+		int32_t value = sidSawTable[index];
+
+		// BOOST: Apply consistent amplitude boost
+		value *= SID_AMPLITUDE_BOOST;
+
+		value <<= 16; // Scale to match the vector implementation
 
 		if (applyAmplitude) {
 			value = ((int64_t)value * amplitude) >> 31;
@@ -450,6 +505,9 @@ void renderSidNoise(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd,
 		phase = nextPhase;
 
 		int32_t value = getNoiseOutput() << 16;
+
+		// BOOST: Apply consistent amplitude boost
+		value *= SID_AMPLITUDE_BOOST;
 
 		if (applyAmplitude) {
 			value = ((int64_t)value * amplitude) >> 31;
