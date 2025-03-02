@@ -55,7 +55,7 @@ public:
 	/// @param volAdjustL Linear gain to apply to the left channel as a 4.27 signed fixed point number.
 	/// @param volAdjustL Linear gain to apply to the right channel as a 4.27 signed fixed point number.
 	/// @param finalVolume Linear peak-to-peak volume scale, as a 3.29 fixed-point integer.
-	void render(std::span<StereoSample> buffer, q31_t volAdjustL, q31_t volAdjustR, q31_t finalVolume);
+	void render(std::span<StereoSampleFixed> buffer, q31_t volAdjustL, q31_t volAdjustR, q31_t finalVolume);
 
 	/// Render the compressor with neutral left/right gain and with the finalVolume tweaked so the compressor applies
 	/// 0db gain change at theshold zero. Used by the per-clip compressors because the clip volume is applied without
@@ -204,10 +204,10 @@ private:
 
 	/// State for the internal envelope follower
 	float state = 0;
-	/// Current left channel volume as a 5.26 signed fixed-point number
-	q31_t currentVolumeL = 0;
-	/// Current right channel volume as a 5.26 signed fixed-point number
-	q31_t currentVolumeR = 0;
+	/// Current left channel volume
+	FixedPoint<28> currentVolumeL = 0.f;
+	/// Current right channel volume
+	FixedPoint<28> currentVolumeR = 0.f;
 	/// Log-RMS value of the last render.
 	float rms = 0;
 	/// Mean value of the last render.

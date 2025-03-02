@@ -17,7 +17,7 @@
 
 #include "dsp/compressor/rms_feedback.h"
 #include "util/fixedpoint.h"
-std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> dryBuffer;
+std::array<StereoSampleFixed, SSI_TX_BUFFER_NUM_SAMPLES> dryBuffer;
 
 RMSFeedbackCompressor::RMSFeedbackCompressor() {
 	setAttack(5 << 24);
@@ -53,10 +53,10 @@ void RMSFeedbackCompressor::renderVolNeutral(std::span<StereoSample> buffer, q31
 	// this is a bit gross - the compressor can inherently apply volume changes, but in the case of the per clip
 	// compressor that's already been handled by the reverb send, and the logic there is tightly coupled such that
 	// I couldn't extract correct volume levels from it.
-	render(buffer, 1 << 27, 1 << 27, finalVolume >> 3);
+	render(buffer_cast(buffer), 1 << 27, 1 << 27, finalVolume >> 3);
 }
 constexpr uint8_t saturationAmount = 3;
-void RMSFeedbackCompressor::render(std::span<StereoSample> buffer, q31_t volAdjustL, q31_t volAdjustR,
+void RMSFeedbackCompressor::render(std::span<StereoSampleFixed> buffer, q31_t volAdjustL, q31_t volAdjustR,
                                    q31_t finalVolume) {
 	// make a copy for blending if we need to
 	if (wet != 1.f) {
@@ -66,9 +66,9 @@ void RMSFeedbackCompressor::render(std::span<StereoSample> buffer, q31_t volAdju
 	if (!onLastTime) {
 		// sets the "working level" for interpolation and anti aliasing
 		lastSaturationTanHWorkingValue[0] =
-		    (uint32_t)lshiftAndSaturateUnknown(buffer[0].l, saturationAmount) + 2147483648u;
+		    (uint32_t)lshiftAndSaturateUnknown(buffer[0].l.raw(), saturationAmount) + 2147483648u;
 		lastSaturationTanHWorkingValue[1] =
-		    (uint32_t)lshiftAndSaturateUnknown(buffer[0].r, saturationAmount) + 2147483648u;
+		    (uint32_t)lshiftAndSaturateUnknown(buffer[0].r.raw(), saturationAmount) + 2147483648u;
 		onLastTime = true;
 	}
 	// we update this every time since we won't know if the song volume changed
@@ -89,33 +89,36 @@ void RMSFeedbackCompressor::render(std::span<StereoSample> buffer, q31_t volAdju
 
 	// Compute linear volume adjustments as 13.18 signed fixed-point numbers (though stored as floats due to their
 	// use as an intermediate value prior to the increment computation below)
-	float finalVolumeL = gain * float(volAdjustL >> 9);
-	float finalVolumeR = gain * float(volAdjustR >> 9);
+	float finalVolumeL = gain * static_cast<float>(volAdjustL >> 9);
+	float finalVolumeR = gain * static_cast<float>(volAdjustR >> 9);
 
 	// The amount we need to step the current volume so that by the end of the rendering window
-	q31_t amplitudeIncrementL = ((int32_t)((finalVolumeL - (currentVolumeL >> 8)) / float(buffer.size()))) << 8;
-	q31_t amplitudeIncrementR = ((int32_t)((finalVolumeR - (currentVolumeR >> 8)) / float(buffer.size()))) << 8;
+	auto amplitudeIncrementL = FixedPoint<28>::from_raw(
+	    ((int32_t)((finalVolumeL - (currentVolumeL.raw() >> 8)) / static_cast<float>(buffer.size()))) << 8);
+	auto amplitudeIncrementR = FixedPoint<28>::from_raw(
+	    ((int32_t)((finalVolumeR - (currentVolumeR.raw() >> 8)) / static_cast<float>(buffer.size()))) << 8);
 
-	auto dry_it = dryBuffer.begin();
-	for (StereoSample& sample : buffer) {
+	auto* dry_it = dryBuffer.begin();
+	for (auto& sample : buffer) {
 		currentVolumeL += amplitudeIncrementL;
 		currentVolumeR += amplitudeIncrementR;
 
-		// Need to shift left by 4 because currentVolumeL is a 5.26 signed number rather than a 1.30 signed.
-		sample.l = multiply_32x32_rshift32(sample.l, currentVolumeL) << 4;
-		sample.l = getTanHAntialiased(sample.l, &lastSaturationTanHWorkingValue[0], saturationAmount);
+		sample.l *= currentVolumeL;
+		sample.l = FixedPoint<31>::from_raw(
+		    getTanHAntialiased(sample.l.raw(), &lastSaturationTanHWorkingValue[0], saturationAmount));
 
-		sample.r = multiply_32x32_rshift32(sample.r, currentVolumeR) << 4;
-		sample.r = getTanHAntialiased(sample.r, &lastSaturationTanHWorkingValue[1], saturationAmount);
+		sample.r *= currentVolumeR;
+		sample.r = FixedPoint<31>::from_raw(
+		    getTanHAntialiased(sample.r.raw(), &lastSaturationTanHWorkingValue[1], saturationAmount));
+
 		// wet/dry blend
 		if (wet != 1.f) {
-			sample.l = multiply_32x32_rshift32(sample.l, wet.raw());
-			sample.l = multiply_accumulate_32x32_rshift32_rounded(sample.l, dry_it->l, dry.raw());
-			sample.l <<= 1; // correct for the two multiplications
+			sample.l *= wet;
+			sample.l = sample.l.MultiplyAdd(dry_it->l, dry);
+
 			// same for r because StereoSample is a dumb class
-			sample.r = multiply_32x32_rshift32(sample.r, wet.raw());
-			sample.r = multiply_accumulate_32x32_rshift32_rounded(sample.r, dry_it->r, dry.raw());
-			sample.r <<= 1;
+			sample.r *= wet;
+			sample.r = sample.r.MultiplyAdd(dry_it->r, dry);
 			++dry_it; // this is a little gross but it's fine
 		}
 	}
@@ -124,7 +127,7 @@ void RMSFeedbackCompressor::render(std::span<StereoSample> buffer, q31_t volAdju
 	// 4 converts to dB, then quadrupled for display range since a 30db reduction is basically killing the signal
 	gainReduction = std::clamp<int32_t>(-(reduction) * 4 * 4, 0, 127);
 	// calc compression for next round (feedback compressor)
-	rms = calcRMS(buffer);
+	rms = calcRMS(buffer_cast(buffer));
 }
 
 float RMSFeedbackCompressor::runEnvelope(float current, float desired, float numSamples) const {

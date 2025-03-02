@@ -20,7 +20,9 @@
 
 #pragma once
 
+#include "util/fixedpoint.h"
 #include "util/functions.h"
+#include <span>
 
 struct StereoSample {
 	[[gnu::always_inline]] static constexpr StereoSample fromMono(q31_t sampleValue) {
@@ -67,3 +69,21 @@ struct StereoSample {
 	q31_t l = 0;
 	q31_t r = 0;
 };
+
+struct StereoSampleFixed {
+	FixedPoint<31> l = 0.f;
+	FixedPoint<31> r = 0.f;
+};
+
+struct StereoSampleFloat {
+	float l = 0.f;
+	float r = 0.f;
+};
+
+constexpr std::span<StereoSampleFixed> buffer_cast(std::span<StereoSample> buffer) {
+	return {reinterpret_cast<StereoSampleFixed*>(buffer.data()), buffer.size()};
+}
+
+constexpr std::span<StereoSample> buffer_cast(std::span<StereoSampleFixed> buffer) {
+	return {reinterpret_cast<StereoSample*>(buffer.data()), buffer.size()};
+}
