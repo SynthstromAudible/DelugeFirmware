@@ -31,18 +31,20 @@ public:
 
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
+		bool current_value = this->getValue() != 0;
+
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
-				thisDrum->arpSettings.randomizerLock = this->getValue() != 0;
+				thisDrum->arpSettings.randomizerLock = current_value;
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentArpSettings->randomizerLock = this->getValue() != 0;
+			soundEditor.currentArpSettings->randomizerLock = current_value;
 		}
 	}
 
