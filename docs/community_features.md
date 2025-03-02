@@ -214,6 +214,8 @@ as the micromonsta and the dreadbox nymphes.
 
 - ([#3079]) Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
 
+- ([#3425]) Extended the ability to batch change all drum sounds, by holding `Affect-Entire` while editing a parameters (indicated by flashing the `Affect-Entire` button), from the initially available handful of sample-related parameters, to ALL sound parameters (except for `Oscillator Type` and patch cable strengths).
+
 #### 3.7 - Global Interface
 
 - ([#118]) Sticky Shift - When enabled, tapping `SHIFT` will lock shift `ON` unless another button is also pressed
@@ -1648,6 +1650,8 @@ different firmware
 [#3352]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3352
 
 [#3388]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3388
+
+[#3425]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3425
 
 [Automation View Documentation]: features/automation_view.md
 

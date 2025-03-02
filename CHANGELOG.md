@@ -128,6 +128,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Sounds have now the ability to send MIDI notes at the same time as they play a sample. This will allow your synths and drums to trigger external devices. A new menu `MIDI` has been added at the bottom of the `SOUND` menu to set the MIDI channel and the note (in case of drum sounds).
 
 ##### Kit
+- Extended the ability to batch change all drum sounds, by holding `Affect-Entire` while editing a parameters (indicated by flashing the `Affect-Entire` button), from the initially available handful of sample-related parameters, to ALL sound parameters (except for `Oscillator Type` and patch cable strengths).
 
 ##### CV Clips
 - Added the ability to set a CV instrument to use both 1 and 2 channels, which makes the cv2 source selectable between mod wheel, velocity, and aftertouch
