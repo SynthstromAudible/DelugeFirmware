@@ -18,6 +18,7 @@
 #include "basic_waves.h"
 #include "arm_neon_shim.h"
 #include "processing/render_wave.h"
+#include "util/fixedpoint.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 namespace deluge::dsp {
@@ -81,90 +82,27 @@ void renderPulseWave(const int16_t* __restrict__ table, int32_t tableSizeMagnitu
 	} while (outputBufferPos < bufferEnd);
 }
 
-uint32_t renderCrudeSawWaveWithAmplitude(int32_t* thisSample, int32_t* bufferEnd, uint32_t phaseNowNow,
-                                         uint32_t phaseIncrementNow, int32_t amplitudeNow, int32_t amplitudeIncrement,
-                                         int32_t numSamples) {
-
-	int32_t* remainderSamplesEnd = thisSample + (numSamples & 3);
-
-	while (thisSample != remainderSamplesEnd) {
-		phaseNowNow += phaseIncrementNow;
-		amplitudeNow += amplitudeIncrement;
-		*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, (int32_t)phaseNowNow, amplitudeNow);
-		++thisSample;
+uint32_t renderCrudeSawWave(std::span<q31_t> buffer, uint32_t phase, uint32_t phase_increment, int32_t amplitude,
+                            int32_t amplitude_increment) {
+#pragma gcc unroll 4
+	for (q31_t& sample : buffer) {
+		phase += phase_increment;
+		amplitude += amplitude_increment;
+		sample = multiply_accumulate_32x32_rshift32_rounded(sample, (int32_t)phase, amplitude);
 	}
 
-	while (thisSample != bufferEnd) {
-		phaseNowNow += phaseIncrementNow;
-		amplitudeNow += amplitudeIncrement;
-		*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, (int32_t)phaseNowNow, amplitudeNow);
-		++thisSample;
-
-		phaseNowNow += phaseIncrementNow;
-		amplitudeNow += amplitudeIncrement;
-		*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, (int32_t)phaseNowNow, amplitudeNow);
-		++thisSample;
-
-		phaseNowNow += phaseIncrementNow;
-		amplitudeNow += amplitudeIncrement;
-		*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, (int32_t)phaseNowNow, amplitudeNow);
-		++thisSample;
-
-		phaseNowNow += phaseIncrementNow;
-		amplitudeNow += amplitudeIncrement;
-		*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, (int32_t)phaseNowNow, amplitudeNow);
-		++thisSample;
-	}
-
-	return phaseNowNow;
+	return phase;
 }
 
-uint32_t renderCrudeSawWaveWithoutAmplitude(int32_t* thisSample, int32_t* bufferEnd, uint32_t phaseNowNow,
-                                            uint32_t phaseIncrementNow, int32_t numSamples) {
+uint32_t renderCrudeSawWave(std::span<q31_t> buffer, uint32_t phase, uint32_t phase_increment) {
 
-	int32_t* remainderSamplesEnd = thisSample + (numSamples & 7);
-
-	while (thisSample != remainderSamplesEnd) {
-		phaseNowNow += phaseIncrementNow;
-		*thisSample = (int32_t)phaseNowNow >> 1;
-		++thisSample;
+#pragma gcc unroll 8
+	for (q31_t& sample : buffer) {
+		phase += phase_increment;
+		sample = (int32_t)phase >> 1;
 	}
 
-	while (thisSample != bufferEnd) {
-		phaseNowNow += phaseIncrementNow;
-		*thisSample = (int32_t)phaseNowNow >> 1;
-		++thisSample;
-
-		phaseNowNow += phaseIncrementNow;
-		*thisSample = (int32_t)phaseNowNow >> 1;
-		++thisSample;
-
-		phaseNowNow += phaseIncrementNow;
-		*thisSample = (int32_t)phaseNowNow >> 1;
-		++thisSample;
-
-		phaseNowNow += phaseIncrementNow;
-		*thisSample = (int32_t)phaseNowNow >> 1;
-		++thisSample;
-
-		phaseNowNow += phaseIncrementNow;
-		*thisSample = (int32_t)phaseNowNow >> 1;
-		++thisSample;
-
-		phaseNowNow += phaseIncrementNow;
-		*thisSample = (int32_t)phaseNowNow >> 1;
-		++thisSample;
-
-		phaseNowNow += phaseIncrementNow;
-		*thisSample = (int32_t)phaseNowNow >> 1;
-		++thisSample;
-
-		phaseNowNow += phaseIncrementNow;
-		*thisSample = (int32_t)phaseNowNow >> 1;
-		++thisSample;
-	}
-
-	return phaseNowNow;
+	return phase;
 }
 
 // Not used, obviously. Just experimenting.

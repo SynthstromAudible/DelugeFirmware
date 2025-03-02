@@ -274,12 +274,11 @@ doSaw:
 
 				if (!doOscSync) {
 					if (applyAmplitude) {
-						dsp::renderCrudeSawWaveWithAmplitude(bufferStart, bufferEnd, phase, phaseIncrement, amplitude,
-						                                     amplitudeIncrement, numSamples);
+						dsp::renderCrudeSawWave({bufferStart, numSamples}, phase, phaseIncrement, amplitude,
+						                        amplitudeIncrement);
 					}
 					else {
-						dsp::renderCrudeSawWaveWithoutAmplitude(bufferStart, bufferEnd, phase, phaseIncrement,
-						                                        numSamples);
+						dsp::renderCrudeSawWave({bufferStart, numSamples}, phase, phaseIncrement);
 					}
 					return;
 				}
