@@ -56,6 +56,11 @@ void Type::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY,
 	else if (wave == LFOType::SAMPLE_AND_HOLD) {
 		phaseIncrement = UINT32_MAX / (plotWidth / 12);
 	}
+	else if (wave == LFOType::WARBLER) {
+		phaseIncrement = UINT32_MAX / (plotWidth / 12);
+		// warbler is very peaky, so despite using the full range it's frequently filtered out by the resolution
+		extraScaling = 15;
+	}
 	else {
 		phaseIncrement = UINT32_MAX / (plotWidth / 3);
 	}
