@@ -34,6 +34,7 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_low_level_reader.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
@@ -3255,28 +3256,26 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 								newPart->carrierFeedback = oldPart->carrierFeedback;
 
 								newPart->voiceSample = AudioEngine::solicitVoiceSample();
-								if (!newPart->voiceSample) {
+								if (newPart->voiceSample == nullptr) {
 									newPart->active = false;
+									continue;
 								}
 
-								else {
-									VoiceSample* newVoiceSample = newPart->voiceSample;
-									VoiceSample* oldVoiceSample = oldPart->voiceSample;
+								VoiceSample& newVoiceSample = *newPart->voiceSample;
+								VoiceSample& oldVoiceSample = *oldPart->voiceSample;
 
-									newVoiceSample->cloneFrom(
-									    oldVoiceSample); // Just clones the SampleLowLevelReader stuff
-									newVoiceSample->pendingSamplesLate = oldVoiceSample->pendingSamplesLate;
+								// Just clones the SampleLowLevelReader stuff
+								newVoiceSample = SampleLowLevelReader(oldVoiceSample);
+								newVoiceSample.pendingSamplesLate = oldVoiceSample.pendingSamplesLate;
+								newVoiceSample.doneFirstRenderYet = true;
 
-									newVoiceSample->doneFirstRenderYet = true;
-
-									// Don't do any caching for new part. Old parts will stop using their cache anyway
-									// because their pitch will have changed
-									newVoiceSample->stopUsingCache(
-									    &thisVoice->guides[s], (Sample*)thisVoice->guides[s].audioFileHolder->audioFile,
-									    thisVoice->getPriorityRating(),
-									    thisVoice->guides[s].getLoopingType(sources[s]) == LoopType::LOW_LEVEL);
-									// TODO: should really check success of that...
-								}
+								// Don't do any caching for new part. Old parts will stop using their cache anyway
+								// because their pitch will have changed
+								newVoiceSample.stopUsingCache(
+								    &thisVoice->guides[s], (Sample*)thisVoice->guides[s].audioFileHolder->audioFile,
+								    thisVoice->getPriorityRating(),
+								    thisVoice->guides[s].getLoopingType(sources[s]) == LoopType::LOW_LEVEL);
+								// TODO: should really check success of that...
 							}
 						}
 						else if (newNum < oldNum) {
