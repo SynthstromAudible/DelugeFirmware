@@ -99,7 +99,7 @@ public:
 
 	void copyBasicsFrom(Clip const* otherClip) override;
 
-	ArpeggiatorSettings arpSettings; // Not valid for Kits
+	ArpeggiatorSettings arpSettings;
 
 	ParamManagerForTimeline backedUpParamManagerMIDI;
 

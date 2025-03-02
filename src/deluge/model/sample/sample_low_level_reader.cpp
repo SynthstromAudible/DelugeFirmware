@@ -1203,30 +1203,26 @@ bool SampleLowLevelReader::readSamplesForTimeStretching(
 	return true;
 }
 
-void SampleLowLevelReader::cloneFrom(SampleLowLevelReader* other, bool stealReasons) {
+SampleLowLevelReader::SampleLowLevelReader(SampleLowLevelReader& other, bool stealReasons)
+    : interpolator_{other.interpolator_}, oscPos{other.oscPos}, currentPlayPos{other.currentPlayPos},
+      reassessmentLocation{other.reassessmentLocation}, clusterStartLocation{other.clusterStartLocation},
+      reassessmentAction{other.reassessmentAction},
+      interpolationBufferSizeLastTime{other.interpolationBufferSizeLastTime} {
 
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		if (clusters[l]) {
+		if (clusters[l] != nullptr) {
 			audioFileManager.removeReasonFromCluster(*clusters[l], "E131", false);
 		}
 
-		clusters[l] = other->clusters[l];
+		clusters[l] = other.clusters[l];
 
-		if (clusters[l]) {
+		if (clusters[l] != nullptr) {
 			if (stealReasons) {
-				other->clusters[l] = nullptr;
+				other.clusters[l] = nullptr;
 			}
 			else {
 				clusters[l]->addReason();
 			}
 		}
 	}
-
-	interpolator_ = other->interpolator_;
-	oscPos = other->oscPos;
-	currentPlayPos = other->currentPlayPos;
-	reassessmentLocation = other->reassessmentLocation;
-	clusterStartLocation = other->clusterStartLocation;
-	reassessmentAction = other->reassessmentAction;
-	interpolationBufferSizeLastTime = other->interpolationBufferSizeLastTime;
 }

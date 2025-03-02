@@ -16,11 +16,12 @@
  */
 #include "oscillator.h"
 #include "basic_waves.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/render_wave.h"
 #include "storage/wave_table/wave_table.h"
+#include "util/fixedpoint.h"
 
-namespace deluge {
-namespace dsp {
+namespace deluge::dsp {
 PLACE_INTERNAL_FRUNK int32_t oscSyncRenderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES + 4]
     __attribute__((aligned(CACHE_LINE_SIZE)));
 __attribute__((optimize("unroll-loops"))) void
@@ -532,5 +533,4 @@ void Oscillator::maybeStorePhase(const OscType& type, uint32_t* startPhase, uint
 	}
 }
 
-} // namespace dsp
-} // namespace deluge
+} // namespace deluge::dsp

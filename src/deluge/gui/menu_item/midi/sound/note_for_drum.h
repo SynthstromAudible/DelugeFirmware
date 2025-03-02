@@ -32,7 +32,7 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMIDIValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingKit() && !soundEditor.editingNonAudioDrumRow();
+		return soundEditor.editingKitRow() && !soundEditor.editingNonAudioDrumRow();
 	}
 	void readCurrentValue() override {
 		int32_t value = soundEditor.currentSound->outputMidiNoteForDrum;
