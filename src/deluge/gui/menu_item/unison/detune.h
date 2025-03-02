@@ -45,7 +45,7 @@ public:
 
 					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 					ModelStackWithSoundFlags* modelStackForSoundDrum =
-					    getModelStackFromSoundDrumForInteger(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
+					    getModelStackFromSoundDrumForValue(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
 
 					soundDrum->setUnisonDetune(current_value, modelStackForSoundDrum);
 				}

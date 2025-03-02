@@ -19,16 +19,12 @@
 
 #include "number.h"
 
-class ModelStackWithThreeMainThings;
-class SoundDrum;
-
 namespace deluge::gui::menu_item {
 
 class Integer : public Number {
 public:
 	using Number::Number;
 	void selectEncoderAction(int32_t offset) override;
-	ModelStackWithThreeMainThings* getModelStackFromSoundDrumForInteger(void* memory, SoundDrum* soundDrum);
 
 protected:
 	virtual int32_t getDisplayValue() { return this->getValue(); }

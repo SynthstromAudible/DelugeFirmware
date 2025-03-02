@@ -22,6 +22,9 @@
 #include "menu_item.h"
 #include "util/misc.h"
 
+class SoundDrum;
+class ModelStackWithThreeMainThings;
+
 namespace deluge::gui::menu_item {
 template <typename T = int32_t>
 class Value : public MenuItem {
@@ -31,6 +34,8 @@ public:
 	void selectEncoderAction(int32_t offset) override;
 	void readValueAgain() override;
 	bool selectEncoderActionEditsInstrument() final { return true; }
+
+	ModelStackWithThreeMainThings* getModelStackFromSoundDrumForValue(void* memory, SoundDrum* soundDrum);
 
 	void setValue(T value) { value_ = value; }
 

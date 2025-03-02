@@ -18,10 +18,6 @@
 #include "integer.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "model/clip/clip.h"
-#include "model/clip/instrument_clip.h"
-#include "model/model_stack.h"
-#include "processing/sound/sound_drum.h"
 #include "util/cfunctions.h"
 
 namespace deluge::gui::menu_item {
@@ -44,14 +40,6 @@ void Integer::selectEncoderAction(int32_t offset) {
 
 void Integer::drawValue() {
 	display->setTextAsNumber(getDisplayValue());
-}
-
-ModelStackWithThreeMainThings* Integer::getModelStackFromSoundDrumForInteger(void* memory, SoundDrum* soundDrum) {
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	int32_t noteRowIndex;
-	NoteRow* noteRow = clip->getNoteRowForDrum(soundDrum, &noteRowIndex);
-	return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, getCurrentClip(), noteRowIndex,
-	                                                          noteRow, soundDrum, &noteRow->paramManager);
 }
 
 void IntegerWithOff::drawValue() {
