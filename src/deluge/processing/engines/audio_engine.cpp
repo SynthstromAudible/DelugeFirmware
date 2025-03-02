@@ -634,8 +634,8 @@ void renderAudioForStemExport(size_t numSamples);
 
 	// Want to round to be doing a multiple of 4 samples, so the NEON functions can be utilized most efficiently.
 	// Note - this can take numSamples up as high as SSI_TX_BUFFER_NUM_SAMPLES (currently 128).
-	if (numSamples >= 3) {
-		numSamples = (numSamples + 2) & ~3;
+	if (numSamples % 4 != 0) {
+		numSamples = (numSamples + 3) & ~3;
 	}
 
 	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs;

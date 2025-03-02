@@ -16,10 +16,11 @@
  */
 
 #include "basic_waves.h"
-#include "arm_neon_shim.h"
+#include "definitions.h"
 #include "processing/render_wave.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include <argon.hpp>
 namespace deluge::dsp {
 /* Before calling, you must:
     amplitude <<= 1;
@@ -55,30 +56,24 @@ void renderWave(const int16_t* __restrict__ table, int32_t tableSizeMagnitude, i
     amplitude <<= 1;
     amplitudeIncrement <<= 1;
 */
-void renderPulseWave(const int16_t* __restrict__ table, int32_t tableSizeMagnitude, int32_t amplitude,
-                     int32_t* __restrict__ outputBuffer, int32_t* bufferEnd, uint32_t phaseIncrement, uint32_t phase,
-                     bool applyAmplitude, uint32_t phaseToAdd, int32_t amplitudeIncrement) {
-	int32_t* __restrict__ outputBufferPos = outputBuffer;
+void renderPulseWave(const int16_t* __restrict__ table, int32_t table_size_magnitude, int32_t amplitude,
+                     std::span<q31_t> buffer, uint32_t phase_increment, uint32_t phase, bool apply_amplitude,
+                     uint32_t phase_to_add, int32_t amplitude_increment) {
+	Argon<q31_t> amplitude_vector = createAmplitudeVector(amplitude, amplitude_increment);
+	Argon<q31_t> amplitude_increment_vector = amplitude_increment << 1;
 
-	int32x4_t amplitudeVector = createAmplitudeVector(amplitude, amplitudeIncrement);
-	int32x4_t amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);
-	int32x4_t valueVector;
+	for (Argon<q31_t>& sample_vector : argon::vectorize(buffer)) {
+		auto [value_vector, new_phase] =
+		    waveRenderingFunctionPulse(phase, phase_increment, phase_to_add, table, table_size_magnitude);
 
-	do {
-		std::tie(valueVector, phase) =
-		    waveRenderingFunctionPulse(phase, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);
-
-		if (applyAmplitude) {
-			int32x4_t existingDataInBuffer = vld1q_s32(outputBufferPos);
-			valueVector = vqdmulhq_s32(amplitudeVector, valueVector);
-			amplitudeVector = vaddq_s32(amplitudeVector, amplitudeIncrementVector);
-			valueVector = vaddq_s32(valueVector, existingDataInBuffer);
+		if (apply_amplitude) {
+			value_vector = sample_vector.MultiplyAddFixedPoint(value_vector, amplitude_vector);
+			amplitude_vector = amplitude_vector + amplitude_increment_vector;
 		}
 
-		vst1q_s32(outputBufferPos, valueVector);
-
-		outputBufferPos += 4;
-	} while (outputBufferPos < bufferEnd);
+		sample_vector = value_vector;
+		phase = new_phase;
+	}
 }
 
 uint32_t renderCrudeSawWaveWithAmplitude(int32_t* thisSample, int32_t* bufferEnd, uint32_t phaseNowNow,
