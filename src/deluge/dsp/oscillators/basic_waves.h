@@ -24,8 +24,8 @@ void renderWave(const int16_t* __restrict__ table, int32_t tableSizeMagnitude, i
                 int32_t* __restrict__ outputBuffer, int32_t* bufferEnd, uint32_t phaseIncrement, uint32_t phase,
                 bool applyAmplitude, uint32_t phaseToAdd, int32_t amplitudeIncrement);
 void renderPulseWave(const int16_t* __restrict__ table, int32_t tableSizeMagnitude, int32_t amplitude,
-                     int32_t* __restrict__ outputBuffer, int32_t* bufferEnd, uint32_t phaseIncrement, uint32_t phase,
-                     bool applyAmplitude, uint32_t phaseToAdd, int32_t amplitudeIncrement);
+                     std::span<int32_t> outputBuffer, uint32_t phaseIncrement, uint32_t phase, bool applyAmplitude,
+                     uint32_t phaseToAdd, int32_t amplitudeIncrement);
 
 /// @brief Renders an aliased saw wave and applies an envelope to it
 uint32_t renderCrudeSawWave(std::span<int32_t> buffer, uint32_t phase, uint32_t phase_increment, int32_t amplitude,
