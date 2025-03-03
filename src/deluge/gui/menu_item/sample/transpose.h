@@ -81,7 +81,7 @@ public:
 						ModelStackWithSoundFlags* modelStackForSoundDrum =
 						    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
 
-						soundDrum->recalculateAllVoicePhaseIncrements(modelStackForSoundDrum);s
+						soundDrum->recalculateAllVoicePhaseIncrements(modelStackForSoundDrum);
 					}
 				}
 			}
