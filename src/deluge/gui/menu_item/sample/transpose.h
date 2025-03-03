@@ -49,7 +49,7 @@ public:
 		}
 		this->setValue(computeCurrentValueForTranspose(transpose, cents));
 	}
-
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t transpose, cents;
 		computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
