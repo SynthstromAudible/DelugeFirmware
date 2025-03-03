@@ -532,7 +532,6 @@ bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const
 	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
 	case params::GLOBAL_DELAY_FEEDBACK:
 	case params::GLOBAL_DELAY_RATE:
-	case params::GLOBAL_ARP_RATE:
 		return true;
 	default:
 		return false;

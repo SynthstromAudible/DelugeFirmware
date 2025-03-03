@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "aligned_buf.h"
 #include "fm_core.h"
 #include "fm_op_kernel.h"
 

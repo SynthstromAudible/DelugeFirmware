@@ -337,7 +337,7 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 
 		else {
 
-			Error result = GlobalEffectableForClip::readTagFromFile(reader, tagName, &paramManager, 0, song);
+			Error result = GlobalEffectableForClip::readTagFromFile(reader, tagName, &paramManager, 0, nullptr, song);
 			if (result == Error::NONE) {}
 			else if (result == Error::RESULT_TAG_UNUSED) {
 				reader.exitTag();

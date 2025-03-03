@@ -59,6 +59,7 @@
 #include "timers_interrupts/timers_interrupts.h"
 #include "util/functions.h"
 #include "util/misc.h"
+#include <cstdint>
 #include <cstring>
 #include <new>
 
@@ -111,10 +112,6 @@ extern "C" uint32_t getAudioSampleTimerMS() {
 int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 
 namespace AudioEngine {
-// statically allocate some of these to reduce allocations
-constexpr int32_t kNumVoicesStatic = 48;
-constexpr int32_t kNumVoiceSamplesStatic = 48;
-constexpr int32_t kNumTimeStretchersStatic = 48;
 
 // used for culling. This can be high now since it's decoupled from the time between renders, and
 // will spill into a second render and output if needed so as long as we always render 128 samples in under 128/44100
@@ -200,14 +197,6 @@ MonitoringAction monitoringAction;
 
 uint32_t saddr;
 
-std::array<VoiceSample, kNumVoiceSamplesStatic> voiceSamples{};
-VoiceSample* firstUnassignedVoiceSample = voiceSamples.begin();
-
-std::array<TimeStretcher, kNumTimeStretchersStatic> timeStretchers{};
-TimeStretcher* firstUnassignedTimeStretcher = timeStretchers.begin();
-std::array<Voice, kNumVoicesStatic> staticVoices{};
-Voice* firstUnassignedVoice = staticVoices.begin();
-
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
 void init() {
 	paramManagerForSamplePreview = new ((void*)paramManagerForSamplePreviewMemory) ParamManagerForTimeline();
@@ -228,22 +217,15 @@ void init() {
 
 	sampleForPreview->sideChainSendLevel = 2147483647;
 
-	for (int32_t i = 0; i < kNumVoiceSamplesStatic; i++) {
-		voiceSamples[i].nextUnassigned = (i == kNumVoiceSamplesStatic - 1) ? NULL : &voiceSamples[i + 1];
-	}
-
-	for (int32_t i = 0; i < kNumTimeStretchersStatic; i++) {
-		timeStretchers[i].nextUnassigned = (i == kNumTimeStretchersStatic - 1) ? NULL : &timeStretchers[i + 1];
-	}
-	for (int32_t i = 0; i < kNumVoicesStatic; i++) {
-		staticVoices[i].nextUnassigned = (i == kNumVoicesStatic - 1) ? NULL : &staticVoices[i + 1];
-	}
-
 	i2sTXBufferPos = (uint32_t)getTxBufferStart();
 
 	i2sRXBufferPos = (uint32_t)getRxBufferStart()
 	                 + ((SSI_RX_BUFFER_NUM_SAMPLES - SSI_TX_BUFFER_NUM_SAMPLES - 16)
 	                    << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE)); // Subtracting 5 or more seems fine
+
+	VoicePool::get().repopulate();
+	VoiceSamplePool::get().repopulate();
+	TimeStretcherPool::get().repopulate();
 }
 
 void unassignAllVoices(bool deletingSong) {
@@ -652,8 +634,8 @@ void renderAudioForStemExport(size_t numSamples);
 
 	// Want to round to be doing a multiple of 4 samples, so the NEON functions can be utilized most efficiently.
 	// Note - this can take numSamples up as high as SSI_TX_BUFFER_NUM_SAMPLES (currently 128).
-	if (numSamples >= 3) {
-		numSamples = (numSamples + 2) & ~3;
+	if (numSamples % 4 != 0) {
+		numSamples = (numSamples + 3) & ~3;
 	}
 
 	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs;
@@ -1459,26 +1441,16 @@ bool allowedToStartVoice() {
 Voice* solicitVoice(Sound* forSound) {
 	Voice* newVoice;
 
-	if (firstUnassignedVoice) {
-		newVoice = firstUnassignedVoice;
-		// reconstruct it
-		new (newVoice) Voice();
-		firstUnassignedVoice = firstUnassignedVoice->nextUnassigned;
-	}
-
-	else {
-
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Voice));
-		if (!memory) {
-			if (activeVoices.getNumElements()) {
-				memory = hardCullVoice(true, numSamplesLastTime, forSound);
-			}
-			else {
-				return nullptr;
-			}
+	try {
+		newVoice = VoicePool::get().acquire().release();
+	} catch (deluge::exception e) { // Out-of-memory exception
+		if (activeVoices.getNumElements()) {
+			newVoice = hardCullVoice(true, numSamplesLastTime, forSound);
+			new (newVoice) Voice();
 		}
-
-		newVoice = new (memory) Voice();
+		else {
+			return nullptr;
+		}
 	}
 
 	newVoice->assignedToSound = forSound;
@@ -1491,7 +1463,7 @@ Voice* solicitVoice(Sound* forSound) {
 	if (i == -1) {
 		// if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("E193"); // No, having run out of RAM here isn't a reason to
 		// not continue.
-		disposeOfVoice(newVoice);
+		VoicePool::recycle(newVoice);
 		return nullptr;
 	}
 
@@ -1518,73 +1490,33 @@ void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelSt
 	}
 
 	if (shouldDispose) {
-		if (voice >= staticVoices.begin() && voice < staticVoices.end()) {
-			voice->nextUnassigned = firstUnassignedVoice;
-			firstUnassignedVoice = voice;
-		}
-		else {
-			disposeOfVoice(voice);
-		}
+		VoicePool::recycle(voice);
 	}
-}
-
-void disposeOfVoice(Voice* voice) {
-	delugeDealloc(voice);
 }
 
 VoiceSample* solicitVoiceSample() {
-	if (firstUnassignedVoiceSample) [[likely]] {
-		VoiceSample* toReturn = firstUnassignedVoiceSample;
-		firstUnassignedVoiceSample = firstUnassignedVoiceSample->nextUnassigned;
-		return toReturn;
-	}
-	else {
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(VoiceSample));
-		if (!memory) {
-			return nullptr;
-		}
-
-		return new (memory) VoiceSample();
+	try {
+		return VoiceSamplePool::get().acquire().release();
+	} catch (deluge::exception e) {
+		return nullptr;
 	}
 }
 
 void voiceSampleUnassigned(VoiceSample* voiceSample) {
-	if (voiceSample >= voiceSamples.begin() && voiceSample < voiceSamples.end()) {
-		voiceSample->nextUnassigned = firstUnassignedVoiceSample;
-		firstUnassignedVoiceSample = voiceSample;
-	}
-	else {
-		delugeDealloc(voiceSample);
-	}
+	VoiceSamplePool::recycle(voiceSample);
 }
 
 TimeStretcher* solicitTimeStretcher() {
-	if (firstUnassignedTimeStretcher) {
-
-		TimeStretcher* toReturn = firstUnassignedTimeStretcher;
-		firstUnassignedTimeStretcher = firstUnassignedTimeStretcher->nextUnassigned;
-		return toReturn;
-	}
-
-	else {
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(TimeStretcher));
-		if (!memory) {
-			return nullptr;
-		}
-
-		return new (memory) TimeStretcher();
+	try {
+		return TimeStretcherPool::get().acquire().release();
+	} catch (deluge::exception e) {
+		return nullptr;
 	}
 }
 
 // There are no destructors. You gotta clean it up before you call this
 void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
-	if (timeStretcher >= timeStretchers.begin() && timeStretcher < timeStretchers.end()) {
-		timeStretcher->nextUnassigned = firstUnassignedTimeStretcher;
-		firstUnassignedTimeStretcher = timeStretcher;
-	}
-	else {
-		delugeDealloc(timeStretcher);
-	}
+	TimeStretcherPool::recycle(timeStretcher);
 }
 
 // TODO: delete unused ones
@@ -1779,5 +1711,3 @@ bool isAnyInternalRecordingHappening() {
 }
 
 } // namespace AudioEngine
-
-//     for (Voice* thisVoice = voices; thisVoice != &voices[numVoices]; thisVoice++) {

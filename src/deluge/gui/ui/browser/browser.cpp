@@ -119,6 +119,8 @@ bool Browser::checkFP() {
 
 void Browser::close() {
 	emptyFileItems();
+	favouritesManager.close();
+	favouritesVisible = false;
 	QwertyUI::close();
 }
 
@@ -475,6 +477,39 @@ deleteThisItem:
 	if (lastFileItemRemaining) {
 		fileItems.deleteAtIndex(fileItems.getNumElements() - 1);
 	}
+}
+
+Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
+	arrivedAtFileByTyping = true;
+	FilePointer tempfp;
+	bool fileExists = StorageManager::fileExists(fullPath, &tempfp);
+	if (!fileExists) {
+		return Error::FILE_NOT_FOUND;
+	}
+
+	const char* fileName = getFileNameFromEndOfPath(fullPath);
+	currentDir.set(getPathFromFullPath(fullPath));
+
+	// Change to the File Folder
+	Error error = arrivedInNewFolder(0, fileName);
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	//  Get the File Index
+	fileIndexSelected = fileItems.search(fileName);
+	if (fileIndexSelected > fileItems.getNumElements()) {
+		return Error::FILE_NOT_FOUND;
+	}
+
+	// Update the Display
+	scrollPosVertical = fileIndexSelected;
+	setEnteredTextFromCurrentFilename();
+	renderUIsForOled();
+
+	// Inform the Load UI that the File has changed
+	currentFileChanged(1);
+	return Error::NONE;
 }
 
 // song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when
@@ -1537,6 +1572,72 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
+
+	if (favouritesVisible && y == favouriteRow && on) {
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		if (Buttons::isShiftButtonPressed()) {
+			String filePath;
+			Error error = getCurrentFilePath(&filePath);
+			if (error != Error::NONE) {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_ERROR_FILE_NOT_FOUND));
+			}
+			if (favouritesManager.isEmpty(x)) {
+				if (!getCurrentFileItem()->isFolder) {
+					favouritesManager.setFavorite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
+					favouritesChanged();
+				}
+			}
+			else {
+				favouritesManager.unsetFavorite(x);
+				favouritesChanged();
+			}
+		}
+		else {
+			const std::string favoritePath = favouritesManager.getFavoriteFilename(x);
+			favouritesChanged();
+			if (!favoritePath.empty()) {
+				setFileByFullPath(outputTypeToLoad, favoritePath.c_str());
+			}
+			else {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_FAVOURITES_EMPTY));
+			}
+		}
+		return ActionResult::DEALT_WITH;
+	}
+	else if (favouritesVisible && banksVisible && y == favouriteBankRow && on) {
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		favouritesManager.selectFavouritesBank(x);
+		favouritesChanged();
+		return ActionResult::DEALT_WITH;
+	}
+	if (qwertyVisible) {
+		return QwertyUI::padAction(x, y, on);
+	}
+	return ActionResult::DEALT_WITH;
+}
+
+void Browser::favouritesChanged() {
+	favouritesVisible = true;
+	renderFavourites();
+}
+
+ActionResult Browser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	if (favouritesVisible) {
+		if (Buttons::isShiftButtonPressed()) {
+			if (favouritesManager.currentFavouriteNumber.has_value()) {
+				favouritesManager.changeColour(favouritesManager.currentFavouriteNumber.value(), offset);
+				favouritesChanged();
+			}
+		}
+	}
 	return ActionResult::DEALT_WITH;
 }
 

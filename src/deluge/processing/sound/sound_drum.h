@@ -33,18 +33,18 @@ public:
 
 	SoundDrum() : Drum(DrumType::SOUND) {}
 
+	using Sound::allowNoteTails;
 	using Sound::anyNoteIsOn;
 	using Sound::hasAnyVoices;
-	using Sound::unassignAllVoices;
-
-	using Sound::allowNoteTails;
 	using Sound::prepareForHibernation;
+	void unassignAllVoices() override;
 
 	bool isDrum() override { return true; }
-	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
+	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
 	            int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	            uint32_t samplesLate = 0) override;
-	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) override;
+	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) override;
+
 	void setupPatchingForAllParamManagers(Song* song) override;
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 	Error loadAllSamples(bool mayActuallyReadFiles) override;

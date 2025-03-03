@@ -54,8 +54,15 @@ set the stutter configuration independently of the song configuration if you wis
 #### <ins>Audio Export</ins>
 - Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
 
+
 #### <ins>Save/Load Patterns</ins>
 - Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synt, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ](docs/features/save_load_patterns.md) for more info.
+
+#### <ins>Favourites</ins>
+A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UT -> KEYBOARD -> FAVOURITES`.
+
+#### <ins>Favourites</ins>
+- Added a Favourites to Load Screens of different Filetypes displayed abote the QWERTY Keyboard.
 
 #### <ins>Arranger View</ins>
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
@@ -172,6 +179,7 @@ also affect normal sequenced notes while arpeggiator is Off.
 - Added `LOCK` parameter to allow you to freeze the current set of randomized values so the sequence has a repeatable pattern.
 - Added new `WALK1`, `WALK2`, `WALK3` and `PATTERN` note modes.
 - Exposed several parameters from the `Randomizer` also for non-arpeggiated notes: `Velocity Spread`, `Note probability`, and `Reverse Probability`.
+- Added `KIT ARPEGGIATOR` for `KIT` clips. This arpeggiator is a new layer on top of the kit rows, which will control which rows receive note ON's and note OFF's. That means that the kit rows can have their own arpeggiators also enabled. You can access the new menu when `Affect-Entire` is enabled in the `Kit` and you access the menu with `Select` knob.
 
 ### MIDI
 
