@@ -214,7 +214,9 @@ as the micromonsta and the dreadbox nymphes.
 
 - ([#3079]) Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
 
-- ([#3425]) Extended the ability to batch change all drum sounds, by holding `Affect-Entire` while editing a parameters (indicated by flashing the `Affect-Entire` button), from the initially available handful of sample-related parameters, to ALL sound parameters (except for `Oscillator Type` and patch cable strengths).
+- ([#3425]) Extended the ability to batch change all drum sounds, by holding `Affect-Entire` while editing a parameter
+  (indicated by flashing the `Affect-Entire` button), from the initially available handful of sample-related parameters,
+  to ALL sound parameters (except for `Oscillator Type` and patch cable strengths).
 
 #### 3.7 - Global Interface
 
