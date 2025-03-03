@@ -427,15 +427,11 @@ doSaw:
 					if (doOscSync) {
 						int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 						int32_t numSamplesThisOscSyncSession = numSamples;
-						auto storeVectorWaveForOneSync = [&](int32_t const* const bufferEndThisSyncRender,
-						                                     uint32_t phase, int32_t* __restrict__ writePos) {
-							int32x4_t valueVector;
-							do {
-								std::tie(valueVector, phase) = waveRenderingFunctionPulse(
+						auto storeVectorWaveForOneSync = [&](std::span<q31_t> buffer, uint32_t phase) {
+							for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
+								std::tie(value_vector, phase) = waveRenderingFunctionPulse(
 								    phase, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);
-								vst1q_s32(writePos, valueVector);
-								writePos += 4;
-							} while (writePos < bufferEndThisSyncRender);
+							}
 						};
 						renderOscSync(
 						    storeVectorWaveForOneSync, [](uint32_t) {}, phase, phaseIncrement, resetterPhase,
@@ -476,14 +472,11 @@ callRenderWave:
 			int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 			int32_t numSamplesThisOscSyncSession = numSamples;
 			auto storeVectorWaveForOneSync = //<
-			    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
-				    int32x4_t valueVector;
-				    do {
-					    std::tie(valueVector, phase) =
+			    [&](std::span<q31_t> buffer, uint32_t phase) {
+				    for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
+					    std::tie(value_vector, phase) =
 					        waveRenderingFunctionGeneral(phase, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);
-					    vst1q_s32(writePos, valueVector);
-					    writePos += 4;
-				    } while (writePos < bufferEndThisSyncRender);
+				    }
 			    };
 			renderOscSync(
 			    storeVectorWaveForOneSync, [](uint32_t) {}, phase, phaseIncrement, resetterPhase,
