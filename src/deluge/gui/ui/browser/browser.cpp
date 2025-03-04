@@ -1618,7 +1618,7 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 		favouritesChanged();
 		return ActionResult::DEALT_WITH;
 	}
-	if (qwertyVisible) {
+	else {
 		return QwertyUI::padAction(x, y, on);
 	}
 	return ActionResult::DEALT_WITH;
