@@ -31,7 +31,7 @@
 using std::max;
 using std::min;
 
-alignas(16) const int32_t zeros[DX_MAX_N] = {0};
+const int32_t __attribute__((aligned(16))) zeros[DX_MAX_N] = {0};
 
 static const uint16_t NEGATIVE_BIT = 0x8000;
 static const uint16_t ENV_BITDEPTH = 14;
@@ -255,7 +255,7 @@ void EngineMkI::render(int32_t* output, int n, FmOpParams* params, int algorithm
 		FmOpParams& param = params[op];
 		int inbus = (flags >> 4) & 3;
 		int outbus = flags & 3;
-		int32_t* outptr = (outbus == 0) ? output : buf_[outbus - 1].data();
+		int32_t* outptr = (outbus == 0) ? output : buf_[outbus - 1].get();
 		int32_t gain1 = param.gain_out == 0 ? (ENV_MAX - 1) : param.gain_out;
 		int32_t gain2 = ENV_MAX - (param.level_in >> (28 - ENV_BITDEPTH));
 		param.gain_out = gain2;
@@ -303,7 +303,7 @@ void EngineMkI::render(int32_t* output, int n, FmOpParams* params, int algorithm
 				}
 			}
 			else {
-				compute(outptr, n, buf_[inbus - 1].data(), param.phase, param.freq, gain1, gain2, dgain, add);
+				compute(outptr, n, buf_[inbus - 1].get(), param.phase, param.freq, gain1, gain2, dgain, add);
 			}
 
 			has_contents[outbus] = true;
