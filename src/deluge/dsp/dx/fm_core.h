@@ -16,8 +16,8 @@
 
 #pragma once
 
+#include "aligned_buf.h"
 #include "fm_op_kernel.h"
-#include <array>
 
 #define div_n(base, inv_n) ((int)((((int64_t)(base)) * (int64_t)(inv_n)) >> 30))
 
@@ -59,5 +59,5 @@ public:
 	bool neon = false;
 
 protected:
-	alignas(16) std::array<int32_t, DX_MAX_N> buf_[2];
+	AlignedBuf<int32_t, DX_MAX_N> buf_[2];
 };
