@@ -4256,6 +4256,14 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 		clip->noteRows.getElement(noteRowToShiftI)->y = -32768; // Need to remember not to try and use the yNote value
 		                                                        // of this NoteRow if we switch back out of Kit mode
 		clip->noteRows.swapElements(noteRowToShiftI, noteRowToSwapWithI);
+
+		// If the Kit arpeggiator is active and playback is stopped, we must reset it so notes are reassigned
+		// If playback is active, the rendering will take care of it
+		if (clip->output->type == OutputType::KIT && !playbackHandler.isEitherClockActive()) {
+			clip->noteRows.getElement(noteRowToShiftI)->drum->arpeggiator.reset();
+			clip->noteRows.getElement(noteRowToSwapWithI)->drum->arpeggiator.reset();
+			((Kit*)clip->output)->arpeggiator.reset();
+		}
 	}
 
 	// Do actual scroll

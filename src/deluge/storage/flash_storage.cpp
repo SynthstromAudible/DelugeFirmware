@@ -187,6 +187,7 @@ enum Entries {
 179: GlobalMIDICommand::NEXT_SONG channel + 1
 180: GlobalMIDICommand::NEXT_SONG noteCode + 1
 181-184: GlobalMIDICommand::NEXT_SONG product / vendor ids
+185: defaultFavouritesLayout
 */
 
 uint8_t defaultScale;
@@ -207,6 +208,8 @@ KeyboardLayoutType defaultKeyboardLayout;
 
 bool keyboardFunctionsVelocityGlide;
 bool keyboardFunctionsModwheelGlide;
+
+FavouritesDefaultLayout defaultFavouritesLayout;
 
 bool gridEmptyPadsUnarm;
 bool gridEmptyPadsCreateRec;
@@ -320,6 +323,8 @@ void resetSettings() {
 
 	defaultSessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 	defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
+
+	defaultFavouritesLayout = FavouritesDefaultLayoutFavorites;
 
 	gridEmptyPadsUnarm = false;
 	gridEmptyPadsCreateRec = false;
@@ -768,6 +773,13 @@ void readSettings() {
 	else {
 		defaultThresholdRecordingMode = static_cast<ThresholdRecordingMode>(buffer[178]);
 	}
+
+	if (buffer[185] >= util::to_underlying(FavouritesDefaultLayoutMaxElement)) {
+		defaultFavouritesLayout = FavouritesDefaultLayout::FavouritesDefaultLayoutFavorites;
+	}
+	else {
+		defaultFavouritesLayout = static_cast<FavouritesDefaultLayout>(buffer[185]);
+	}
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -1044,6 +1056,8 @@ void writeSettings() {
 	buffer[177] = defaultUseLastClipType;
 
 	buffer[178] = util::to_underlying(defaultThresholdRecordingMode);
+
+	buffer[185] = util::to_underlying(defaultFavouritesLayout);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

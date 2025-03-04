@@ -16,69 +16,59 @@
  */
 
 #include "basic_waves.h"
-#include "arm_neon_shim.h"
+#include "definitions.h"
 #include "processing/render_wave.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include <argon.hpp>
 namespace deluge::dsp {
 /* Before calling, you must:
-    amplitude <<= 1;
+    amplitude <<= 1; ( so that it is q31)
     amplitudeIncrement <<= 1;
 */
-void renderWave(const int16_t* __restrict__ table, int32_t tableSizeMagnitude, int32_t amplitude,
-                int32_t* __restrict__ outputBuffer, int32_t* bufferEnd, uint32_t phaseIncrement, uint32_t phase,
-                bool applyAmplitude, uint32_t phaseToAdd, int32_t amplitudeIncrement) {
-	int16x4_t const32767 = vdup_n_s16(32767);
-	int32_t* __restrict__ outputBufferPos = outputBuffer;
+void renderWave(const int16_t* __restrict__ table, int32_t table_size_magnitude, int32_t amplitude,
+                std::span<q31_t> buffer, uint32_t phase_increment, uint32_t phase, bool apply_amplitude,
+                uint32_t phase_to_add, int32_t amplitude_increment) {
 
-	int32x4_t amplitudeVector = createAmplitudeVector(amplitude, amplitudeIncrement);
-	int32x4_t amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);
-	int32x4_t valueVector;
-	do {
-		std::tie(valueVector, phase) =
-		    waveRenderingFunctionGeneral(phase, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);
+	Argon<q31_t> amplitude_vector = createAmplitudeVector(amplitude, amplitude_increment);
+	Argon<q31_t> amplitude_increment_vector = amplitude_increment << 1;
 
-		if (applyAmplitude) {
-			int32x4_t existingDataInBuffer = vld1q_s32(outputBufferPos);
-			valueVector = vqdmulhq_s32(amplitudeVector, valueVector);
-			amplitudeVector = vaddq_s32(amplitudeVector, amplitudeIncrementVector);
-			valueVector = vaddq_s32(valueVector, existingDataInBuffer);
+	for (Argon<q31_t>& sample_vector : argon::vectorize(buffer)) {
+		auto [value_vector, new_phase] =
+		    waveRenderingFunctionGeneral(phase, phase_increment, phase_to_add, table, table_size_magnitude);
+
+		if (apply_amplitude) {
+			value_vector = sample_vector.MultiplyAddFixedPoint(value_vector, amplitude_vector);
+			amplitude_vector = amplitude_vector + amplitude_increment_vector;
 		}
 
-		vst1q_s32(outputBufferPos, valueVector);
-
-		outputBufferPos += 4;
-	} while (outputBufferPos < bufferEnd);
+		sample_vector = value_vector;
+		phase = new_phase;
+	}
 }
 
 /* Before calling, you must:
     amplitude <<= 1;
     amplitudeIncrement <<= 1;
 */
-void renderPulseWave(const int16_t* __restrict__ table, int32_t tableSizeMagnitude, int32_t amplitude,
-                     int32_t* __restrict__ outputBuffer, int32_t* bufferEnd, uint32_t phaseIncrement, uint32_t phase,
-                     bool applyAmplitude, uint32_t phaseToAdd, int32_t amplitudeIncrement) {
-	int32_t* __restrict__ outputBufferPos = outputBuffer;
+void renderPulseWave(const int16_t* __restrict__ table, int32_t table_size_magnitude, int32_t amplitude,
+                     std::span<q31_t> buffer, uint32_t phase_increment, uint32_t phase, bool apply_amplitude,
+                     uint32_t phase_to_add, int32_t amplitude_increment) {
+	Argon<q31_t> amplitude_vector = createAmplitudeVector(amplitude, amplitude_increment);
+	Argon<q31_t> amplitude_increment_vector = amplitude_increment << 1;
 
-	int32x4_t amplitudeVector = createAmplitudeVector(amplitude, amplitudeIncrement);
-	int32x4_t amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);
-	int32x4_t valueVector;
+	for (Argon<q31_t>& sample_vector : argon::vectorize(buffer)) {
+		auto [value_vector, new_phase] =
+		    waveRenderingFunctionPulse(phase, phase_increment, phase_to_add, table, table_size_magnitude);
 
-	do {
-		std::tie(valueVector, phase) =
-		    waveRenderingFunctionPulse(phase, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);
-
-		if (applyAmplitude) {
-			int32x4_t existingDataInBuffer = vld1q_s32(outputBufferPos);
-			valueVector = vqdmulhq_s32(amplitudeVector, valueVector);
-			amplitudeVector = vaddq_s32(amplitudeVector, amplitudeIncrementVector);
-			valueVector = vaddq_s32(valueVector, existingDataInBuffer);
+		if (apply_amplitude) {
+			value_vector = sample_vector.MultiplyAddFixedPoint(value_vector, amplitude_vector);
+			amplitude_vector = amplitude_vector + amplitude_increment_vector;
 		}
 
-		vst1q_s32(outputBufferPos, valueVector);
-
-		outputBufferPos += 4;
-	} while (outputBufferPos < bufferEnd);
+		sample_vector = value_vector;
+		phase = new_phase;
+	}
 }
 
 uint32_t renderCrudeSawWaveWithAmplitude(int32_t* thisSample, int32_t* bufferEnd, uint32_t phaseNowNow,
@@ -165,71 +155,6 @@ uint32_t renderCrudeSawWaveWithoutAmplitude(int32_t* thisSample, int32_t* buffer
 	}
 
 	return phaseNowNow;
-}
-
-// Not used, obviously. Just experimenting.
-void renderPDWave(const int16_t* table, const int16_t* secondTable, int32_t numBitsInTableSize,
-                  int32_t numBitsInSecondTableSize, int32_t amplitude, int32_t* thisSample, int32_t* bufferEnd,
-                  int32_t numSamplesRemaining, uint32_t phaseIncrementNow, uint32_t* thisPhase, bool applyAmplitude,
-                  bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
-                  uint32_t resetterHalfPhaseIncrement, uint32_t resetterLower, int32_t resetterDivideByPhaseIncrement,
-                  uint32_t pulseWidth, uint32_t phaseToAdd, uint32_t retriggerPhase, uint32_t horizontalOffsetThing,
-                  int32_t amplitudeIncrement,
-                  int32_t (*waveValueFunction)(const int16_t*, int32_t, uint32_t, uint32_t, uint32_t)) {
-
-	amplitude <<= 1;
-	amplitudeIncrement <<= 1;
-
-	float w = (float)(int32_t)pulseWidth / 2147483648;
-
-	uint32_t phaseIncrementEachHalf[2];
-
-	phaseIncrementEachHalf[0] = phaseIncrementNow / (w + 1);
-	phaseIncrementEachHalf[1] = phaseIncrementNow / (1 - w);
-
-	const int16_t* eachTable[2];
-	eachTable[0] = table;
-	eachTable[1] = secondTable;
-
-	int32_t eachTableSize[2];
-	eachTableSize[0] = numBitsInTableSize;
-	eachTableSize[1] = numBitsInSecondTableSize;
-
-	do {
-
-		uint32_t whichHalfBefore = (*thisPhase) >> 31;
-
-		*thisPhase += phaseIncrementEachHalf[whichHalfBefore];
-
-		uint32_t whichHalfAfter = (*thisPhase) >> 31;
-
-		if (whichHalfAfter != whichHalfBefore) {
-			uint32_t howFarIntoNewHalf = *thisPhase & ~(uint32_t)2147483648u;
-
-			// Going into 2nd half
-			if (whichHalfAfter) {
-				howFarIntoNewHalf = howFarIntoNewHalf * (w + 1) / (1 - w);
-			}
-
-			// Going into 1st half
-			else {
-				howFarIntoNewHalf = howFarIntoNewHalf * (1 - w) / (w + 1);
-			}
-
-			*thisPhase = (whichHalfAfter << 31) | howFarIntoNewHalf;
-		}
-
-		int32_t value = waveValueFunction(eachTable[whichHalfAfter], eachTableSize[whichHalfAfter], *thisPhase,
-		                                  pulseWidth, phaseToAdd);
-
-		if (applyAmplitude) {
-			amplitude += amplitudeIncrement;
-			*thisSample += multiply_32x32_rshift32(value, amplitude);
-		}
-		else {
-			*thisSample = value;
-		}
-	} while (++thisSample != bufferEnd);
 }
 
 /**

@@ -43,10 +43,10 @@ public:
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<SampleRepeatMode>();
 
+		Kit* kit = getCurrentKit();
+
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
-
-			Kit* kit = getCurrentKit();
 
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
@@ -61,6 +61,20 @@ public:
 					else if (source->repeatMode == SampleRepeatMode::STRETCH) {
 						soundDrum->unassignAllVoices();
 						soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = false;
+					}
+
+					if (current_value == SampleRepeatMode::ONCE) {
+						// Send note-off for kit arpeggiator to avoid stuck notes
+						int32_t noteRowIndex;
+						NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowForDrum(soundDrum, &noteRowIndex);
+						char modelStackMemory[MODEL_STACK_MAX_SIZE];
+						ModelStack* modelStack = (ModelStack*)modelStackMemory;
+						ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+						    modelStack->addTimelineCounter(getCurrentClip())
+						        ->addNoteRow(noteRowIndex, noteRow)
+						        ->addOtherTwoThings(soundEditor.currentModControllable,
+						                            soundEditor.currentParamManager);
+						kit->noteOffPreKitArp(modelStackWithThreeMainThings, soundDrum);
 					}
 
 					source->repeatMode = current_value;
@@ -78,6 +92,19 @@ public:
 			else if (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH) {
 				soundEditor.currentSound->unassignAllVoices();
 				soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = false;
+			}
+
+			if (current_value == SampleRepeatMode::ONCE) {
+				// Send note-off for kit arpeggiator to avoid stuck notes
+				int32_t noteRowIndex;
+				NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowForDrum(kit->selectedDrum, &noteRowIndex);
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStack* modelStack = (ModelStack*)modelStackMemory;
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    modelStack->addTimelineCounter(getCurrentClip())
+				        ->addNoteRow(noteRowIndex, noteRow)
+				        ->addOtherTwoThings(soundEditor.currentModControllable, soundEditor.currentParamManager);
+				kit->noteOffPreKitArp(modelStackWithThreeMainThings, kit->selectedDrum);
 			}
 
 			soundEditor.currentSource->repeatMode = current_value;

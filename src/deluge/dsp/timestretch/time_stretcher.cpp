@@ -17,6 +17,7 @@
 
 #include "dsp/timestretch/time_stretcher.h"
 #include "definitions_cxx.hpp"
+#include "deluge/model/sample/sample_low_level_reader.h"
 #include "io/debug/log.h"
 #include "memory/memory_allocator_interface.h"
 #include "model/sample/sample.h"
@@ -79,7 +80,7 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 	else
 #endif
 	{
-		olderPartReader.cloneFrom(voiceSample, fudgingNumSamplesTilLoop); // Steals reasons if fudging
+		olderPartReader = SampleLowLevelReader(*voiceSample, fudgingNumSamplesTilLoop); // Steals reasons if fudging
 		olderHeadReadingFromBuffer = false;
 	}
 
@@ -281,7 +282,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 	olderHeadReadingFromBuffer = false;
 	oldHeadBytePos = voiceSample->getPlayByteLowLevel(sample, guide, true);
-	olderPartReader.cloneFrom(voiceSample, true); // Steals all reasons from the VoiceSample
+	olderPartReader = SampleLowLevelReader(*voiceSample, true); // Steals all reasons from the VoiceSample
 	playHeadStillActive[PLAY_HEAD_OLDER] = playHeadStillActive[PLAY_HEAD_NEWER];
 	playHeadStillActive[PLAY_HEAD_NEWER] = true;
 	hasLoopedBackIntoPreMargin = false; // Might get set to true below
@@ -930,7 +931,7 @@ optForDirectReading:
 
 			D_PRINTLN("setupNewPlayHead failed. Sticking with old");
 
-			voiceSample->cloneFrom(&olderPartReader, true); // Steals all reasons back
+			*voiceSample = SampleLowLevelReader(olderPartReader, true); // Steals all reasons back
 			playHeadStillActive[PLAY_HEAD_NEWER] = playHeadStillActive[PLAY_HEAD_OLDER];
 			playHeadStillActive[PLAY_HEAD_OLDER] = false;
 

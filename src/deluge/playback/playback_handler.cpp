@@ -121,6 +121,10 @@ extern "C" uint32_t triggerClockRisingEdgesReceived;
 extern "C" uint32_t triggerClockRisingEdgesProcessed;
 
 void PlaybackHandler::midiRoutine() {
+	if ((stemExport.processStarted && stemExport.renderOffline)) [[unlikely]] {
+		//  todo - should add the ability to block the task in the task manager instead but whatever
+		return;
+	}
 	// Check incoming USB MIDI
 	midiEngine.checkIncomingUsbMidi();
 

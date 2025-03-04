@@ -90,7 +90,7 @@ public:
 				// equal chance for next holdValue smaller or lager than current
 				// holdValue == -8 * range => (holdValue / -16) + (range / 2) ==
 				// range => next holdValue >= current holdValuie
-				holdValue = add_saturation((holdValue / -16) + (range / 2) - CONG % range, holdValue);
+				holdValue = add_saturate((holdValue / -16) + (range / 2) - CONG % range, holdValue);
 				value = holdValue;
 			}
 			else {
@@ -117,7 +117,7 @@ public:
 		// the difference. It makes a nice smooth random curve since the derivative is 0 at the start and end
 		auto targetSpeed = target - holdValue;
 		speed = speed + numSamples * (multiply_32x32_rshift32(targetSpeed, phaseIncrement >> 8));
-		holdValue = add_saturation(holdValue, speed);
+		holdValue = add_saturate(holdValue, speed);
 	}
 
 	void tick(int32_t numSamples, uint32_t phaseIncrement) {

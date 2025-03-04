@@ -98,6 +98,8 @@ bool SampleBrowser::opened() {
 		return false;
 	}
 
+	favouritesManager.setCategory("SAMPLES");
+	favouritesChanged();
 	actionLogger.deleteAllLogs();
 
 	allowedFileExtensions = allowedFileExtensionsAudio;
@@ -237,8 +239,9 @@ void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 
 	// Can start scrolling right now, while next preview loads
-	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible)) {
+	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible) && !qwertyAlwaysVisible) {
 		qwertyVisible = false;
+		favouritesVisible = false;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
@@ -482,7 +485,16 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 			indicator_leds::setLedState(IndicatorLED::LOAD, autoLoadEnabled);
 		}
 	}
-
+	else if (b == KEYBOARD && on) {
+		qwertyAlwaysVisible = !qwertyAlwaysVisible;
+		indicator_leds::setLedState(IndicatorLED::KEYBOARD, qwertyAlwaysVisible);
+		qwertyVisible = qwertyAlwaysVisible;
+		if (qwertyVisible) {
+			favouritesVisible = true;
+			qwertyCurrentlyDrawnOnscreen = true;
+			drawKeys();
+		}
+	}
 	else {
 		return Browser::buttonAction(b, on, inCardRoutine);
 	}
@@ -604,7 +616,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 				waveformBasicNavigator.opened();
 
 				// If want scrolling animation
-				if (movementDirection) {
+				if (movementDirection && !qwertyAlwaysVisible) {
 					waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 					                                  waveformBasicNavigator.xZoom, PadLEDs::imageStore,
 					                                  &waveformBasicNavigator.renderData);
@@ -616,10 +628,10 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 				// Or if want instant snap render
 				else {
-					if (qwertyVisible) {
+					if ((qwertyVisible && !qwertyCurrentlyDrawnOnscreen) || qwertyAlwaysVisible) {
 						drawKeys();
 					}
-					else {
+					else if (!qwertyVisible) {
 						waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 						                                  waveformBasicNavigator.xZoom, PadLEDs::image,
 						                                  &waveformBasicNavigator.renderData);
@@ -638,7 +650,8 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 	if (!didDraw) {
 
 		// But if we need to get rid of whatever was onscreen...
-		if (currentlyShowingSamplePreview || (qwertyCurrentlyDrawnOnscreen && !qwertyVisible)) {
+		if ((currentlyShowingSamplePreview || (qwertyCurrentlyDrawnOnscreen && !qwertyVisible))
+		    && !qwertyAlwaysVisible) {
 
 			currentlyShowingSamplePreview = false;
 			qwertyCurrentlyDrawnOnscreen = qwertyVisible;
@@ -701,6 +714,7 @@ possiblyExit:
 				}
 
 				qwertyVisible = true;
+				favouritesVisible = true;
 
 				uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 				PadLEDs::reassessGreyout(true);
@@ -713,9 +727,9 @@ possiblyExit:
 				displayText(false);
 			}
 		}
-
-		if (qwertyVisible) {
-			return QwertyUI::padAction(x, y, on);
+		// Only process the QWERTY keypress if Keyboard is visible to prevent blind keypresses
+		else if (qwertyVisible) {
+			return Browser::padAction(x, y, on);
 		}
 		else {
 			return ActionResult::DEALT_WITH;
@@ -2107,6 +2121,7 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 	}
 	else {
 		qwertyVisible = true;
+		favouritesVisible = true;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 		PadLEDs::reassessGreyout(true);
@@ -2120,6 +2135,9 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 }
 
 ActionResult SampleBrowser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	if (Buttons::isShiftButtonPressed()) {
+		return Browser::verticalEncoderAction(offset, false);
+	}
 	if (getRootUI() == &instrumentClipView) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 			return ActionResult::DEALT_WITH;
