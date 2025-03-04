@@ -82,7 +82,7 @@ void FmCore::render(int32_t* output, int n, FmOpParams* params, int algorithm, i
 		FmOpParams& param = params[op];
 		int inbus = (flags >> 4) & 3;
 		int outbus = flags & 3;
-		int32_t* outptr = (outbus == 0) ? output : buf_[outbus - 1].data();
+		int32_t* outptr = (outbus == 0) ? output : buf(outbus - 1);
 		int32_t gain1 = param.gain_out;
 		int32_t gain2 = Exp2::lookup(param.level_in - (14 * (1 << 24)));
 		param.gain_out = gain2;
@@ -106,8 +106,8 @@ void FmCore::render(int32_t* output, int n, FmOpParams* params, int algorithm, i
 			}
 			else {
 				// cout << op << " normal " << inbus << outbus << " " << param.freq << add << endl;
-				FmOpKernel::compute(outptr, simd_n, buf_[inbus - 1].data(), param.phase, param.freq, gain1, gain2,
-				                    dgain, add, neon);
+				FmOpKernel::compute(outptr, simd_n, buf(inbus - 1), param.phase, param.freq, gain1, gain2, dgain, add,
+				                    neon);
 			}
 			has_contents[outbus] = true;
 		}

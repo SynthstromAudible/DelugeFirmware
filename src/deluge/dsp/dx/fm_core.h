@@ -59,5 +59,9 @@ public:
 	bool neon = false;
 
 protected:
-	alignas(16) std::array<int32_t, DX_MAX_N> buf_[2];
+	// NEON alignment is 16 bytes (128 bits)
+	alignas(16) std::array<int32_t, DX_MAX_N> buf0_;
+	alignas(16) std::array<int32_t, DX_MAX_N> buf1_;
+
+	constexpr int32_t* buf(int bus) { return (bus == 0) ? buf0_.data() : buf1_.data(); }
 };

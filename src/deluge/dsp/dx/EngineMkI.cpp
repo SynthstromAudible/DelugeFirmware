@@ -255,7 +255,7 @@ void EngineMkI::render(int32_t* output, int n, FmOpParams* params, int algorithm
 		FmOpParams& param = params[op];
 		int inbus = (flags >> 4) & 3;
 		int outbus = flags & 3;
-		int32_t* outptr = (outbus == 0) ? output : buf_[outbus - 1].data();
+		int32_t* outptr = (outbus == 0) ? output : buf(outbus - 1);
 		int32_t gain1 = param.gain_out == 0 ? (ENV_MAX - 1) : param.gain_out;
 		int32_t gain2 = ENV_MAX - (param.level_in >> (28 - ENV_BITDEPTH));
 		param.gain_out = gain2;
@@ -303,7 +303,7 @@ void EngineMkI::render(int32_t* output, int n, FmOpParams* params, int algorithm
 				}
 			}
 			else {
-				compute(outptr, n, buf_[inbus - 1].data(), param.phase, param.freq, gain1, gain2, dgain, add);
+				compute(outptr, n, buf(inbus - 1), param.phase, param.freq, gain1, gain2, dgain, add);
 			}
 
 			has_contents[outbus] = true;

@@ -31,7 +31,7 @@
 extern "C" void neon_fm_kernel(const int32_t* in, const int32_t* busin, int32_t* out, int count, int32_t phase0,
                                int32_t freq, int32_t gain1, int32_t dgain);
 
-const int32_t __attribute__((aligned(16))) zeros[DX_MAX_N] = {0};
+alignas(16) const int32_t zeros[DX_MAX_N] = {0};
 
 #endif
 
