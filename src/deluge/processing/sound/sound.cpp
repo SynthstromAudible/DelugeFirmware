@@ -3081,7 +3081,7 @@ void Sound::doneReadingFromFile() {
 	}
 }
 
-bool Sound::hasAnyVoices(bool resetTimeEntered) {
+bool Sound::hasAnyVoices() {
 	return (numVoicesAssigned != 0);
 }
 
