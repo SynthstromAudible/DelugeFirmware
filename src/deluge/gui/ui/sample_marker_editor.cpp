@@ -47,7 +47,6 @@
 #include "storage/multi_range/multisample_range.h"
 #include "util/cfunctions.h"
 #include "util/misc.h"
-#include <bits/ranges_algo.h>
 
 using namespace deluge::gui;
 

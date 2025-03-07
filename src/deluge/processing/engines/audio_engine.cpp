@@ -60,7 +60,6 @@
 #include "util/functions.h"
 #include "util/misc.h"
 #include <algorithm>
-#include <bits/ranges_algo.h>
 #include <cstdint>
 #include <cstring>
 #include <new>

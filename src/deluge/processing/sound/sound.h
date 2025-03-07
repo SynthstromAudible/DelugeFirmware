@@ -70,6 +70,8 @@ struct ParamLPF {
 
 class Sound : public ModControllableAudio, public virtual Voiced {
 public:
+	using ActiveVoice = AudioEngine::VoicePool::pointer_type;
+
 	Sound();
 	~Sound() override { std::erase(AudioEngine::sounds, this); }
 
@@ -291,27 +293,27 @@ public:
 	}
 	uint32_t getSyncedLFOPhaseIncrement(const LFOConfig& config);
 
-	/// VOICE FUNCTIONS
-	using ActiveVoice = AudioEngine::VoicePool::pointer_type;
-
+	/// @brief Does this sound have any active voices?
 	[[nodiscard]] bool hasActiveVoices() const override { return !voices_.empty(); }
+
+	/// @brief Get the number of active voices
 	[[nodiscard]] size_t numActiveVoices() const { return voices_.size(); }
 
-	void freeActiveVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* modelStack = nullptr, bool erase = true);
+	/// @brief Immediately ends all active voices
 	void killAllVoices() override;
 
-	const ActiveVoice& stealOneActiveVoice();
-
-	/// Force a voice to release very quickly - will be almost instant but click-free
-	void terminateOneActiveVoice();
-
-	/// Force a voice to release, or speed up its release if it's already releasing
-	void forceReleaseOneActiveVoice();
-
-	/// Get the voice with the highest priority
+	/// @brief Get the voice with the lowest priority
+	/// @return The voice with the lowest priority
 	[[nodiscard]] const ActiveVoice& getLowestPriorityVoice() const;
 
+	/// @brief Get the voices for this sound
 	[[nodiscard]] const deluge::fast_vector<ActiveVoice>& voices() const { return voices_; }
+
+	/// @brief Releases a given voice from the Sound
+	/// @param voice The voice to release
+	/// @param modelStack The model stack to use for the release
+	/// @param erase Whether to erase the voice from the list of active voices (default: true)
+	void freeActiveVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* modelStack = nullptr, bool erase = true);
 
 	// Voiced overrides
 	bool anyNoteIsOn() override;
@@ -343,12 +345,27 @@ private:
 	                                                      ModelStackWithThreeMainThings* modelStack,
 	                                                      bool allowCreation = true);
 
-	// O(n) lookup is fine when most of the time we're iterating over all voices anyways,
-	// TODO(@stellar-aria): Investigate using a vector here instead of a list to reduce the number of constant
-	// allocations and fragmentation the list may cause
+	/// @brief the list of active voices for this sound
+	// O(n) lookup is fine when most of the time we're iterating over all voices anyways.
+	// Went with a vector instead of a list so that we don't need to always allocate if
+	// we're constantly cycling between a minimum and maximum number of voices.
 	deluge::fast_vector<ActiveVoice> voices_;
 
+	/// @brief Acquire a voice for use by a note
+	/// Internally this will either acquire a new voice or steal an existing one
+	/// @return The acquired voice
 	const ActiveVoice& acquireVoice() noexcept(false); // throws an exception if no memory is available
 
+	/// @brief Check if a voice exists in the list of active voices
 	void checkVoiceExists(const ActiveVoice& voice, const char* error) const;
+
+	/// @brief Steals a currently-in-use voice for use by another note
+	/// @return The stolen voice
+	const ActiveVoice& stealOneActiveVoice();
+
+	/// @brief Force a voice to release very quickly - will be almost instant but click-free
+	void terminateOneActiveVoice();
+
+	/// @brief Force a voice to release, or speed up its release if it's already releasing
+	void forceReleaseOneActiveVoice();
 };

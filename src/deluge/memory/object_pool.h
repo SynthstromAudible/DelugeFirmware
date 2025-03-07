@@ -89,6 +89,8 @@ public:
 	using pointer_type = std::unique_ptr<T, decltype(&recycle)>;
 
 	/// @brief Acquires an object from the pool
+	/// @tparam Args The types of arguments to pass to the object's constructor
+	/// @param args The arguments to pass to the object's constructor
 	/// @throws deluge::exception::BAD_ALLOC if memory allocation fails
 	/// @returns A managed pointer to the acquired object
 	template <typename... Args>
