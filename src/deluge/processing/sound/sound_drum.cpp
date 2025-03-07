@@ -26,7 +26,6 @@
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "model/voice/voice.h"
-#include "model/voice/voice_vector.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"

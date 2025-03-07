@@ -24,7 +24,6 @@
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "model/voice/voice.h"
-#include "model/voice/voice_vector.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
