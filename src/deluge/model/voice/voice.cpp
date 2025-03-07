@@ -87,7 +87,7 @@ Voice::Voice() : patcher(kPatcherConfigForVoice, sourceValues, paramFinalValues)
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
 // it. You'll normally want to call audioDriver.voiceUnassigned() after this.
-void Voice::setAsUnassigned(ModelStackWithVoice* modelStack, bool deletingSong) {
+void Voice::setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong) {
 
 	unassignStuff(deletingSong);
 
@@ -107,7 +107,7 @@ void Voice::unassignStuff(bool deletingSong) {
 uint32_t lastSoundOrder = 0;
 
 // Returns false if fail and we need to unassign again
-bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
+bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
                    int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength,
                    int32_t ticksLate, uint32_t samplesLate, bool resetEnvelopes, int32_t newFromMIDIChannel,
                    const int16_t* mpeValues) {
@@ -351,7 +351,7 @@ void Voice::expressionEventSmooth(int32_t newValue, int32_t s) {
 	expressionSourcesCurrentlySmoothing[expressionDimension] = true;
 }
 
-void Voice::changeNoteCode(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
+void Voice::changeNoteCode(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
                            int32_t newNoteCodeAfterArpeggiation, int32_t newInputMIDIChannel,
                            const int16_t* newMPEValues) {
 	inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = newNoteCodeBeforeArpeggiation;
@@ -411,7 +411,7 @@ void Voice::randomizeOscPhases(const Sound& sound) {
 }
 
 // Can accept NULL paramManager
-void Voice::calculatePhaseIncrements(ModelStackWithVoice* modelStack) {
+void Voice::calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack) {
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
@@ -567,7 +567,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 	}
 }
 
-void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
+void Voice::noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage) {
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		guides[s].noteOffReceived = true;
@@ -633,7 +633,7 @@ void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 }
 
 // Returns false if voice needs unassigning now
-bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, MarkerType markerType) {
+bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, MarkerType markerType) {
 
 	AudioFileHolder* holder = guides[s].audioFileHolder;
 	if (!holder) {
@@ -709,7 +709,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 // Before calling this, you must set the filterSetConfig's doLPF and doHPF to default values
 
 // Returns false if became inactive and needs unassigning
-[[gnu::hot]] bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples,
+[[gnu::hot]] bool Voice::render(ModelStackWithSoundFlags* modelStack, int32_t* soundBuffer, int32_t numSamples,
                                 bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
                                 bool doLPF, bool doHPF, int32_t externalPitchAdjust) {
 	// we spread out over a render cycle - allocating and starting the voice takes more time than rendering it so this
@@ -1664,7 +1664,7 @@ renderingDone:
 	return !unassignVoiceAfter;
 }
 
-bool Voice::areAllUnisonPartsInactive(ModelStackWithVoice& modelStack) const {
+bool Voice::areAllUnisonPartsInactive(ModelStackWithSoundFlags& modelStack) const {
 	// If no noise-source, then it might be time to unassign the voice...
 	if (!modelStack.paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
 	        -2147483648)) {
