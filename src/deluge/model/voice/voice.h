@@ -28,7 +28,7 @@
 #include <bitset>
 
 class StereoSample;
-class ModelStackWithVoice;
+class ModelStackWithSoundFlags;
 using namespace deluge;
 class Voice final {
 public:
@@ -90,20 +90,20 @@ public:
 	bool justCreated{false};
 
 	uint32_t getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param);
-	void setAsUnassigned(ModelStackWithVoice* modelStack, bool deletingSong = false);
-	bool render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples, bool soundRenderingInStereo,
-	            bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF, bool doHPF,
-	            int32_t externalPitchAdjust);
+	void setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong = false);
+	bool render(ModelStackWithSoundFlags* modelStack, int32_t* soundBuffer, int32_t numSamples,
+	            bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF,
+	            bool doHPF, int32_t externalPitchAdjust);
 
-	void calculatePhaseIncrements(ModelStackWithVoice* modelStack);
-	bool sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, MarkerType markerType);
-	bool noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
+	void calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack);
+	bool sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, MarkerType markerType);
+	bool noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
 	            int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength, int32_t ticksLate,
 	            uint32_t samplesLate, bool resetEnvelopes, int32_t fromMIDIChannel, const int16_t* mpeValues);
-	void noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage = true);
+	void noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage = true);
 
 	void randomizeOscPhases(const Sound& sound);
-	void changeNoteCode(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
+	void changeNoteCode(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
 	                    int32_t newNoteCodeAfterArpeggiation, int32_t newInputMIDIChannel, const int16_t* newMPEValues);
 	bool hasReleaseStage();
 	void unassignStuff(bool deletingSong);
@@ -143,7 +143,7 @@ private:
 	void renderFMWithFeedbackAdd(int32_t* thisSample, int32_t numSamples, int32_t* fmBuffer, uint32_t* phase,
 	                             int32_t amplitude, uint32_t phaseIncrement, int32_t feedbackAmount,
 	                             int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
-	bool areAllUnisonPartsInactive(ModelStackWithVoice& modelStackWithVoice) const;
+	bool areAllUnisonPartsInactive(ModelStackWithSoundFlags& modelStack) const;
 	void setupPorta(const Sound& sound);
 	int32_t combineExpressionValues(const Sound& sound, int32_t expressionDimension) const;
 };

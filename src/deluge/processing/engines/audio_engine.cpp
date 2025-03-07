@@ -1481,7 +1481,7 @@ void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelSt
 
 	activeVoices.checkVoiceExists(voice, sound, "E195");
 
-	voice->setAsUnassigned(modelStack ? modelStack->addVoice(voice) : nullptr);
+	voice->setAsUnassigned(modelStack);
 	if (removeFromVector) {
 		uint32_t keyWords[2];
 		keyWords[0] = (uint32_t)sound;
