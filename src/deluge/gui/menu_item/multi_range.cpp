@@ -200,7 +200,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 
 			// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned
 			// during memory allocation
-			soundEditor.currentSound->unassignAllVoices();
+			soundEditor.currentSound->killAllVoices();
 			AudioEngine::audioRoutineLocked = true;
 			::MultiRange* newRange = soundEditor.currentSource->ranges.insertMultiRange(newI);
 			AudioEngine::audioRoutineLocked = false;

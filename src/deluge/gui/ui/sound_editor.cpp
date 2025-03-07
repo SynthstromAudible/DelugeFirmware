@@ -1271,7 +1271,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 			// Read active voices
 			else if (x == 14) {
-				intToString(AudioEngine::activeVoices.getNumElements(), buffer);
+				intToString(AudioEngine::getNumVoices(), buffer);
 				display->displayPopup(buffer);
 				return ActionResult::DEALT_WITH;
 			}
@@ -1754,7 +1754,7 @@ void SoundEditor::cutSound() {
 		getCurrentAudioClip()->unassignVoiceSample(false);
 	}
 	else {
-		soundEditor.currentSound->unassignAllVoices();
+		soundEditor.currentSound->killAllVoices();
 	}
 }
 

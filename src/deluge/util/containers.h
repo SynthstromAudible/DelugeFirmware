@@ -53,6 +53,9 @@ using stack = std::stack<T, deque<T, Alloc>>;
 template <typename T, typename Alloc = memory::external_allocator<T>>
 using queue = std::queue<T, deque<T, Alloc>>;
 
+template <class T>
+using fast_list = std::list<T, memory::fast_allocator<T>>;
+
 // Vector (resizeable variable-length array, unknown size)
 template <typename T>
 using fast_vector = std::vector<T, memory::fast_allocator<T>>;

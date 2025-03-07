@@ -239,7 +239,7 @@ bool Source::hasAnyLoopEndPoint() {
 	return false;
 }
 
-// If setting to SAMPLE or WAVETABLE, you must call unassignAllVoices before this, because ranges is going to get
+// If setting to SAMPLE or WAVETABLE, you must call killAllVoices before this, because ranges is going to get
 // emptied.
 void Source::setOscType(OscType newType) {
 

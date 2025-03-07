@@ -68,8 +68,8 @@ void MIDIDrum::noteOffPostArp(int32_t noteCodePostArp) {
 	midiEngine.sendNote(this, false, noteCodePostArp, kDefaultNoteOffVelocity, channel, kMIDIOutputFilterNoMPE);
 }
 
-void MIDIDrum::unassignAllVoices() {
-	if (hasAnyVoices()) {
+void MIDIDrum::killAllVoices() {
+	if (hasActiveVoices()) {
 		noteOff(nullptr);
 	}
 	arpeggiator.reset();

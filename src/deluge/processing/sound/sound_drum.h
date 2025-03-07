@@ -35,9 +35,9 @@ public:
 
 	using Sound::allowNoteTails;
 	using Sound::anyNoteIsOn;
-	using Sound::hasAnyVoices;
+	using Sound::hasActiveVoices;
 	using Sound::prepareForHibernation;
-	void unassignAllVoices() override;
+	void killAllVoices() override;
 
 	bool isDrum() override { return true; }
 	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,

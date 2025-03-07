@@ -56,8 +56,8 @@ void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 	}
 }
 
-void GateDrum::unassignAllVoices() {
-	if (hasAnyVoices()) {
+void GateDrum::killAllVoices() {
+	if (hasActiveVoices()) {
 		noteOff(nullptr);
 	}
 	arpeggiator.reset();

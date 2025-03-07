@@ -52,11 +52,8 @@ bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 void SoundDrum::resetTimeEnteredState() {
 	// the sound drum might have multiple voices sounding, but only one will be sustaining and switched to hold
-	int32_t ends[2];
-	AudioEngine::activeVoices.getRangeForSound(this, ends);
-	for (int32_t v = ends[0]; v < ends[1]; v++) {
-		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
-		thisVoice->envelopes[0].resetTimeEntered();
+	for (const ActiveVoice& voice : this->voices()) {
+		voice->envelopes[0].resetTimeEntered();
 	}
 }
 
@@ -79,20 +76,15 @@ void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloc
 extern bool expressionValueChangesMustBeDoneSmoothly;
 
 void SoundDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
-
 	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
 
 	// sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
-
-	int32_t ends[2];
-	AudioEngine::activeVoices.getRangeForSound(this, ends);
-	for (int32_t v = ends[0]; v < ends[1]; v++) {
-		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
+	for (const ActiveVoice& voice : this->voices()) {
 		if (expressionValueChangesMustBeDoneSmoothly) {
-			thisVoice->expressionEventSmooth(newValue, s);
+			voice->expressionEventSmooth(newValue, s);
 		}
 		else {
-			thisVoice->expressionEventImmediate(*this, newValue, s);
+			voice->expressionEventImmediate(*this, newValue, s);
 		}
 	}
 
@@ -115,8 +107,8 @@ void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32
 	                                                whichCharacteristic);
 }
 
-void SoundDrum::unassignAllVoices() {
-	Sound::unassignAllVoices();
+void SoundDrum::killAllVoices() {
+	Sound::killAllVoices();
 	arpeggiator.reset();
 }
 
