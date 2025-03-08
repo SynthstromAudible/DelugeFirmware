@@ -80,6 +80,8 @@ extern bool defaultUseLastClipType;
 
 extern ThresholdRecordingMode defaultThresholdRecordingMode;
 
+extern bool defaultAlternativeSelectEncoderBehaviour;
+
 void readSettings();
 void writeSettings();
 void resetSettings();

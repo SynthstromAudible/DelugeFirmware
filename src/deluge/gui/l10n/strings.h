@@ -1051,6 +1051,10 @@ enum class String : size_t {
 	// string for favourites feature
 	STRING_FOR_FAVOURITES_EMPTY,
 
+	// string for horizontal menu
+	STRING_FOR_DEFAULT_HORIZONTAL_MENU,
+	STRING_FOR_DEFAULT_ALTERNATIVE_SELECT_ENCODER_BEHAVIOUR,
+
 	STRING_LAST
 };
 

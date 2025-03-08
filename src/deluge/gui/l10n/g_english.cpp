@@ -922,6 +922,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_NEW_CLIP_TYPE, "New Clip Type"},
         {STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, "Use Last Clip Type"},
         {STRING_FOR_FAVOURITES_EMPTY, "Empty"},
+        {STRING_FOR_DEFAULT_HORIZONTAL_MENU, "Horizontal Menu"},
+        {STRING_FOR_DEFAULT_ALTERNATIVE_SELECT_ENCODER_BEHAVIOUR, "Alternative Select Behaviour"},
     },
 };
 } // namespace deluge::l10n::built_in

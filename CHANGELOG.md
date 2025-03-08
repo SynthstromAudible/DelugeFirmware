@@ -27,10 +27,23 @@ set the stutter configuration independently of the song configuration if you wis
   - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
 
 #### <ins>Horizontal Menus</ins>
-- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
-  - Envelope 1 & 2.
+- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+  - Envelope 1-4.
   - LPF and HPF.
-  - LFOs.
+  - LFO 1-4.
+  - Arpegiattor
+- Horizontal Menu controls. There are two different behaviours that can be toggled between to edit values and select menu items within the horizontal menu. You can toggle between them by going to the `SETTINGS > DEFAULTS -> UI -> HORIZONTAL MENU (HORZ)` and toggling `Alternative Select Behaviour (SELE)` on or off.
+  - With `Alternative Select Behaviour (SELE)` DISABLED:
+    - `Hold audition pad` + turn select encoder to edit the value of the selected menu item
+    - With `Sticky Shift Enabled`:
+      - `Turn select encoder` to edit the value of the selected menu item
+      - `Hold shift + turn select encoder` OR `Press + Turn select encoder` to change the selected menu item
+    - With `Sticky Shift Disabled`:
+      - `Hold shift + turn select encoder` OR `Press + Turn select encoder` to change the value of the selected menu item
+      - `Turn select encoder` to change the selected menu item
+  - With `Alternative Select Behaviour (SELE)` ENABLED:
+    - `Don't hold shift + turn select encoder` or `Hold shift + Press + Turn select encoder` to change the value of the selected menu item
+    - `Hold shift + turn select encoder` OR `Press + Turn select encoder` to change the selected menu item
 
 #### <ins>Clip Name Display & Copying</ins>
 - If a clip has no named "SECTION N" is displayed in place of the clip name, indicating which section the clip is in.

@@ -40,6 +40,7 @@ namespace Buttons {
 
 bool recordButtonPressUsedUp;
 uint32_t timeRecordButtonPressed;
+bool selectButtonPressUsedUp;
 /**
  * AudioEngine::audioSampleTimer value at which the shift button was pressed. Used to distinguish between short and
  * long shift presses, for sticky keys.
@@ -143,6 +144,11 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 		if (on) {
 			// The next release has a chance of toggling cross screen mode
 			considerCrossScreenReleaseForCrossScreenMode = true;
+		}
+	}
+	else if (b == SELECT_ENC) {
+		if (on) {
+			selectButtonPressUsedUp = false;
 		}
 	}
 
@@ -303,6 +309,14 @@ bool isButtonPressed(deluge::hid::Button b) {
 
 bool isShiftButtonPressed() {
 	return shiftCurrentlyPressed;
+}
+
+bool isShiftStuckButNotPressed() {
+	return (shiftCurrentlyStuck && !isButtonPressed(deluge::hid::button::SHIFT));
+}
+
+bool isShiftPressedButNotStuck() {
+	return (isButtonPressed(deluge::hid::button::SHIFT) && !shiftCurrentlyStuck);
 }
 
 void clearShiftSticky() {
