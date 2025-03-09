@@ -50,6 +50,8 @@ set the stutter configuration independently of the song configuration if you wis
   - You can also view and temporarily change the current threshold recording setting as follows:
     - Press and hold `RECORD` + turn  `SELECT`
     - Enter the Song menu while in Song or Arranger View by pressing `SELECT` and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
+- Easier loop recording in `SONG VIEW` (similar to Kit Row sampling working). Added ability to trigger a loop recording for a specific clip in `SONG VIEW` by holding a `CLIP` and pressing `RECORD`. By default this will trigger the Global MIDI Command `LAYERING LOOP`, however this can be changed in the `SETTINGS > RECORDING > LOOP COMMAND (LOOP)` submenu.
+  - Note: to end a recording, you will send to send the Global MIDI Command again, which can be done by holding a clip and pressing record again.
 
 #### <ins>Audio Export</ins>
 - Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
