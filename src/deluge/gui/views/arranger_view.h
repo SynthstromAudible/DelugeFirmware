@@ -36,7 +36,7 @@ class ModelStackWithNoteRow;
 
 class ArrangerView final : public TimelineView {
 public:
-	ArrangerView();
+	ArrangerView() = default;
 	bool opened() override;
 	void focusRegained() override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
@@ -102,17 +102,17 @@ public:
 
 	bool blinkOn{};
 
-	bool doingAutoScrollNow;
+	bool doingAutoScrollNow = false;
 	bool mustRedrawTickSquares{};
 
 	int32_t autoScrollNumSquaresBehind{};
 
-	int32_t lastInteractedOutputIndex;
-	int32_t lastInteractedPos;
-	uint8_t lastInteractedSection;
-	ClipInstance* lastInteractedClipInstance;
+	int32_t lastInteractedOutputIndex = 0;
+	int32_t lastInteractedPos = -1;
+	uint8_t lastInteractedSection = 0;
+	ClipInstance* lastInteractedClipInstance = nullptr;
 
-	int32_t lastInteractedArrangementPos;
+	int32_t lastInteractedArrangementPos = -1;
 
 	int32_t lastTickSquare{};
 
