@@ -81,7 +81,7 @@ extern bool defaultUseLastClipType;
 extern ThresholdRecordingMode defaultThresholdRecordingMode;
 
 extern GlobalMIDICommand defaultLoopRecordingCommand;
-  
+
 extern bool defaultAlternativeSelectEncoderBehaviour;
 
 void readSettings();
