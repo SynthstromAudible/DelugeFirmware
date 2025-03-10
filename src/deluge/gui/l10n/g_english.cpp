@@ -414,6 +414,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_LOOP_MARGINS, "Loop margins"},
         {STRING_FOR_SAMPLING_MONITORING, "Sampling monitoring"},
         {STRING_FOR_THRESHOLD_RECORDING, "Threshold Recording"},
+        {STRING_FOR_LOOP_COMMAND, "Loop command"},
         {STRING_FOR_SAMPLE_PREVIEW, "Sample preview"},
         {STRING_FOR_PLAY_CURSOR, "Play-cursor"},
         {STRING_FOR_FIRMWARE_VERSION, "Firmware version"},
@@ -922,6 +923,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_NEW_CLIP_TYPE, "New Clip Type"},
         {STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, "Use Last Clip Type"},
         {STRING_FOR_FAVOURITES_EMPTY, "Empty"},
+        {STRING_FOR_DEFAULT_HORIZONTAL_MENU, "Horizontal Menu"},
+        {STRING_FOR_DEFAULT_ALTERNATIVE_SELECT_ENCODER_BEHAVIOUR, "Alternative Select Behaviour"},
     },
 };
 } // namespace deluge::l10n::built_in

@@ -36,8 +36,6 @@ class NoteRow;
 class ModelStackWithNoteRow;
 class ModelStackWithNoteRowId;
 class ModelStackWithModControllable;
-class ModelStackWithVoice;
-class Voice;
 class ModelStackWithSoundFlags;
 class ParamManager;
 class ParamCollectionSummary;
@@ -290,14 +288,8 @@ class ModelStackWithSoundFlags : public ModelStackWithThreeMainThings {
 public:
 	uint8_t soundFlags[NUM_SOUND_FLAGS];
 
-	ModelStackWithVoice* addVoice(Voice* voice) const;
 	bool checkSourceEverActiveDisregardingMissingSample(int32_t s);
 	bool checkSourceEverActive(int32_t s);
-};
-
-class ModelStackWithVoice : public ModelStackWithSoundFlags {
-public:
-	Voice* voice;
 };
 
 #define MODEL_STACK_MAX_SIZE sizeof(ModelStackWithAutoParam)
@@ -482,12 +474,6 @@ inline ModelStackWithSoundFlags* ModelStackWithThreeMainThings::addDummySoundFla
 		toReturn->soundFlags[i] = FLAG_SHOULDNT_BE_NEEDED;
 	}
 #endif
-	return toReturn;
-}
-
-inline ModelStackWithVoice* ModelStackWithSoundFlags::addVoice(Voice* voice) const {
-	ModelStackWithVoice* toReturn = (ModelStackWithVoice*)this;
-	toReturn->voice = voice;
 	return toReturn;
 }
 
