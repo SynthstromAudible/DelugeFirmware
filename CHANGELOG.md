@@ -17,6 +17,7 @@
 - A new menu has been added to the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song.
 - An extra menu has been added per sound source (either synths, kit rows, affect-entire kits, or audio clips) to
 set the stutter configuration independently of the song configuration if you wish.
+- Quantized stutter is enabled by default.
 
 ### User Interface
 
