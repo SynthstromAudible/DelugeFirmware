@@ -222,6 +222,9 @@ bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 }
 
 bool SoundEditor::opened() {
+	// we don't want to process select button release when entering menu
+	Buttons::selectButtonPressUsedUp = true;
+
 	bool success = beginScreen(); // Could fail for instance if going into WaveformView but sample not found on card, or
 	                              // going into SampleBrowser but card not present
 	if (!success) {
@@ -305,7 +308,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	if (b == SELECT_ENC) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
 		    || currentUIMode == UI_MODE_NOTES_PRESSED) {
-			if (on) {
+			if (!on && !Buttons::selectButtonPressUsedUp) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
