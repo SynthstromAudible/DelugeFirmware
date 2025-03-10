@@ -142,6 +142,7 @@
 #include "gui/menu_item/patched_param/pan.h"
 #include "gui/menu_item/performance_session_view/editing_mode.h"
 #include "gui/menu_item/record/countin.h"
+#include "gui/menu_item/record/loop_command.h"
 #include "gui/menu_item/record/quantize.h"
 #include "gui/menu_item/record/threshold_mode.h"
 #include "gui/menu_item/reverb/damping.h"
@@ -954,6 +955,8 @@ Submenu defaultThresholdRecordingSubmenu{
     },
 };
 
+record::LoopCommand defaultLoopCommandMenu{STRING_FOR_LOOP_COMMAND, STRING_FOR_LOOP_COMMAND};
+
 Submenu recordSubmenu{
     STRING_FOR_RECORDING,
     {
@@ -962,6 +965,7 @@ Submenu recordSubmenu{
         &recordMarginsMenu,
         &monitorModeMenu,
         &defaultThresholdRecordingSubmenu,
+        &defaultLoopCommandMenu,
     },
 };
 

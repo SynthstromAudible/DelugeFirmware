@@ -456,6 +456,7 @@
         "STRING_FOR_LOOP_MARGINS": "Loop margins",
         "STRING_FOR_SAMPLING_MONITORING": "Sampling monitoring",
         "STRING_FOR_THRESHOLD_RECORDING": "Threshold Recording",
+        "STRING_FOR_LOOP_COMMAND": "Loop command",
         "STRING_FOR_SAMPLE_PREVIEW": "Sample preview",
         "STRING_FOR_PLAY_CURSOR": "Play-cursor",
         "STRING_FOR_FIRMWARE_VERSION": "Firmware version",

@@ -351,6 +351,9 @@ NOTE: These options can change depending on how your default resolution is set
 			- Low
 			- Medium
 			- High
+	- Loop Command (LOOP)
+		- Loop
+		- Layering Loop
 </details>
 
 <details><summary>Community Features (FEAT)</summary>
