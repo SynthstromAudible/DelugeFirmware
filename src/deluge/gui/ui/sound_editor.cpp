@@ -975,7 +975,8 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 		// For Kit Instrument Clip with Affect Entire Enabled
 		else if (setupKitGlobalFXMenu) {
-			if (x <= (kDisplayWidth - 2)) {
+			// only handle the shortcut for velocity in the mod sources column
+			if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1)) {
 				item = paramShortcutsForKitGlobalFX[x][y];
 				parent = parentsForKitGlobalFXShortcuts[x][y];
 			}
