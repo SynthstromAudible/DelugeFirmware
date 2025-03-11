@@ -742,7 +742,7 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 	else if (!strcmp(tagName, "stutter")) {
 		// Set default values in case they are not configured
 		stutterConfig.useSongStutter = true;
-		stutterConfig.quantized = false;
+		stutterConfig.quantized = true;
 		stutterConfig.reversed = false;
 		stutterConfig.pingPong = false;
 		reader.match('{');
