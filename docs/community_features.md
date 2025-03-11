@@ -33,13 +33,26 @@ now stands out from the tail in proportion to its velocity. At velocity 127 it i
 at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
 
 #### 2.2 Horizontal Menus
-- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
-  - Envelope 1 & 2.
+- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+  - Envelope 1-4.
   - LPF and HPF.
-  - LFOs.
+  - LFO 1-4.
+  - Arpegiattor
+- Horizontal Menu controls. There are two different behaviours that can be toggled between to edit values and select menu items within the horizontal menu. You can toggle between them by going to the `SETTINGS > DEFAULTS -> UI -> HORIZONTAL MENU (HORZ)` and toggling `Alternative Select Behaviour (SELE)` on or off.
+  - With `Alternative Select Behaviour (SELE)` DISABLED:
+    - `Hold audition pad` + turn select encoder to edit the value of the selected menu item
+    - With `Sticky Shift Enabled`:
+      - `Turn select encoder` to edit the value of the selected menu item
+      - `Hold shift + turn select encoder` OR `Press + Turn select encoder` to change the selected menu item
+    - With `Sticky Shift Disabled`:
+      - `Hold shift + turn select encoder` OR `Press + Turn select encoder` to change the value of the selected menu item
+      - `Turn select encoder` to change the selected menu item
+  - With `Alternative Select Behaviour (SELE)` ENABLED:
+    - `Don't hold shift + turn select encoder` or `Hold shift + Press + Turn select encoder` to change the value of the selected menu item
+    - `Hold shift + turn select encoder` OR `Press + Turn select encoder` to change the selected menu item
 
 #### 2.3 Favourites
-A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UT -> KEYBOARD -> FAVOURITES`.
+A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UI -> KEYBOARD -> FAVOURITES`.
 - In the `Favourites Only (16)`-Mode , 16 Favourite Slots are available at the Toprow above the Keyboard.
 - In the `Favourites and Banks (256)`-Mode, the Toprow contains 16 Banks, each with 16 Favourites displayed on the second row.
 Usage:

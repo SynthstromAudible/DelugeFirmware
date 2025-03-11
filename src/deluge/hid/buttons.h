@@ -26,6 +26,8 @@ namespace Buttons {
 ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 bool isButtonPressed(deluge::hid::Button b);
 bool isShiftButtonPressed();
+bool isShiftStuckButNotPressed();
+bool isShiftPressedButNotStuck();
 void noPressesHappening(bool inCardRoutine);
 void ignoreCurrentShiftForSticky();
 const char* getButtonName(deluge::hid::Button b);
@@ -43,4 +45,5 @@ bool shiftHasChanged();
 
 extern bool recordButtonPressUsedUp;
 extern bool considerCrossScreenReleaseForCrossScreenMode;
+extern bool selectButtonPressUsedUp;
 } // namespace Buttons
