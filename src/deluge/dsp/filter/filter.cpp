@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+#include "definitions.h"
 #include "util/fixedpoint.h"
 namespace deluge::dsp::filter {
 q31_t blendBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2] = {0};

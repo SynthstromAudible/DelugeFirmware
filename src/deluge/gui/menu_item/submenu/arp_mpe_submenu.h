@@ -22,7 +22,7 @@ class ArpMpeSubmenu final : public Submenu {
 public:
 	using Submenu::Submenu;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingGateDrumRow();
+		return !soundEditor.editingGateDrumRow() && !soundEditor.editingKitAffectEntire();
 	}
 };
 

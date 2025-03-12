@@ -22,6 +22,7 @@
 #include "dsp/stereo_sample.h"
 #include "fatfs/fatfs.hpp"
 #include <cstddef>
+#include <gsl/gsl>
 #include <optional>
 
 enum class MonitoringAction {

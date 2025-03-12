@@ -166,6 +166,10 @@ The Settings menu contains the following menu hierarchy:
 				- Momentary Modwheel (MMOD)
 					- Disabled (OFF)
 					- Enabled (ON)
+			- Favourites (FAV)
+				- Favourites Only (16)
+				- Favourites and Banks (256)
+				- Off (OFF)
 		- Clip Type (CLIP)
 			- New Clip Type (TYPE)
 				- Synth
@@ -174,6 +178,10 @@ The Settings menu contains the following menu hierarchy:
 				- CV
 				- Audio
 			- Use Last Clip Type (LAST)
+				- Disabled (OFF)
+				- Enabled (ON)
+		- Horizontal Menu (HORZ)
+			- Alternative Select Behaviour (SELE)
 				- Disabled (OFF)
 				- Enabled (ON)
 	- Automation (AUTO)
@@ -347,6 +355,9 @@ NOTE: These options can change depending on how your default resolution is set
 			- Low
 			- Medium
 			- High
+	- Loop Command (LOOP)
+		- Loop
+		- Layering Loop
 </details>
 
 <details><summary>Community Features (FEAT)</summary>
@@ -748,6 +759,7 @@ The Sound menu contains the following menu hierarchy:
 			- Disabled (OFF)
 			- Aftertouch
 			- MPE Y (Y)
+	- Include in Kit Arp (KARP) (NOTE: available only for Kit Rows)
 </details>
 
 <details><summary>Randomizer (RAND)</summary>
@@ -1146,6 +1158,63 @@ The Kit FX menu contains the following menu hierarchy:
 	- Pitch (PITC)
 	- Pan
 </details>
+<details><summary>Kit Arpeggiator (KARP)</summary>
+
+	- Enabled (ON)
+	- Basic
+		- Gate
+		- Sync
+		NOTE: These options can change depending on how your default resolution is set
+
+			- Off
+			- 2-Bar
+			- 1-Bar
+			- 2nd-Notes
+			- 4th-Notes
+			- 8th-Notes
+			- 16th-Notes
+			- 32nd-Notes
+			- 64th-Notes
+			- 128th-Notes
+			- 2-Bar-TPLTS
+			- 1-Bar-TPLTS
+			- 2nd-TPLTS
+			- 4th-TPLTS
+			- 8th-TPLTS
+			- 16th-TPLTS
+			- 32nd-TPLTS
+			- 64th-TPLTS
+			- 128th-TPLTS
+			- 2-Bar-DTTED
+			- 1-Bar-DTTED
+			- 2nd-DTTED
+			- 4th-DTTED
+			- 8th-DTTED
+			- 16th-DTTED
+			- 32nd-DTTED
+			- 64th-DTTED
+			- 128th-DTTED
+		- Rate
+	- Pattern
+		- Note Mode (NMOD)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Played Order (PLAY)
+			- Random (RAND)
+		- Step Repeat (REPE)
+		- Rhythm (RHYT)
+		- Sequence Length (LENG)
+	- Randomizer
+		- Lock Randomizer (LOCK)
+		- Gate Spread (GATE)
+		- Velocity Spread (VELO)
+		- Ratchet Amount (RATC)
+		- Ratchet Probability (RPRO)
+		- Note Probability (NOTE)
+		- Bass Probability (BASS)
+		- Reverse Probability (RVRS)
+</details>
 <details><summary>Compressor (COMP)</summary>
 
 	- Threshold (THRE)
@@ -1398,6 +1467,7 @@ The MIDI menu contains the following menu hierarchy:
 			- Disabled (OFF)
 			- Aftertouch
 			- MPE Y (Y)
+	- Include in Kit Arp (KARP) (NOTE: available only for Kit Rows)
 </details>
 <details><summary>Randomizer (RAND)</summary>
 
@@ -1506,6 +1576,7 @@ The CV menu contains the following menu hierarchy:
 			- Disabled (OFF)
 			- Aftertouch
 			- MPE Y (Y)
+	- Include in Kit Arp (KARP) (NOTE: available only for Kit Rows)
 </details>
 <details><summary>Randomizer (RAND)</summary>
 

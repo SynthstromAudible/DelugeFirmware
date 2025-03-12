@@ -17,6 +17,7 @@
 - A new menu has been added to the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song.
 - An extra menu has been added per sound source (either synths, kit rows, affect-entire kits, or audio clips) to
 set the stutter configuration independently of the song configuration if you wish.
+- Quantized stutter is enabled by default.
 
 ### User Interface
 
@@ -27,10 +28,23 @@ set the stutter configuration independently of the song configuration if you wis
   - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
 
 #### <ins>Horizontal Menus</ins>
-- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
-  - Envelope 1 & 2.
+- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+  - Envelope 1-4.
   - LPF and HPF.
-  - LFOs.
+  - LFO 1-4.
+  - Arpegiattor
+- Horizontal Menu controls. There are two different behaviours that can be toggled between to edit values and select menu items within the horizontal menu. You can toggle between them by going to the `SETTINGS > DEFAULTS -> UI -> HORIZONTAL MENU (HORZ)` and toggling `Alternative Select Behaviour (SELE)` on or off.
+  - With `Alternative Select Behaviour (SELE)` DISABLED:
+    - `Hold audition pad` + turn select encoder to edit the value of the selected menu item
+    - With `Sticky Shift Enabled`:
+      - `Turn select encoder` to edit the value of the selected menu item
+      - `Hold shift + turn select encoder` OR `Press + Turn select encoder` to change the selected menu item
+    - With `Sticky Shift Disabled`:
+      - `Hold shift + turn select encoder` OR `Press + Turn select encoder` to change the value of the selected menu item
+      - `Turn select encoder` to change the selected menu item
+  - With `Alternative Select Behaviour (SELE)` ENABLED:
+    - `Don't hold shift + turn select encoder` or `Hold shift + Press + Turn select encoder` to change the value of the selected menu item
+    - `Hold shift + turn select encoder` OR `Press + Turn select encoder` to change the selected menu item
 
 #### <ins>Clip Name Display & Copying</ins>
 - If a clip has no named "SECTION N" is displayed in place of the clip name, indicating which section the clip is in.
@@ -50,12 +64,18 @@ set the stutter configuration independently of the song configuration if you wis
   - You can also view and temporarily change the current threshold recording setting as follows:
     - Press and hold `RECORD` + turn  `SELECT`
     - Enter the Song menu while in Song or Arranger View by pressing `SELECT` and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
+- Easier loop recording in `SONG VIEW` (similar to Kit Row sampling working). Added ability to trigger a loop recording for a specific clip in `SONG VIEW` by holding a `CLIP` and pressing `RECORD`. By default this will trigger the Global MIDI Command `LAYERING LOOP`, however this can be changed in the `SETTINGS > RECORDING > LOOP COMMAND (LOOP)` submenu.
+  - Note: to end a recording, you will send to send the Global MIDI Command again, which can be done by holding a clip and pressing record again.
 
 #### <ins>Audio Export</ins>
 - Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
 
+
 #### <ins>Save/Load Patterns</ins>
 - Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synt, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ](docs/features/save_load_patterns.md) for more info.
+
+#### <ins>Favourites</ins>
+A `Favourites` feature has been added to the browser for most file types. The `Favourites` are displayed above the QWERTY Keyboard and are only visible when that keyboard is shown. `Favourites` can be configured to either offer 16 favourites (default), 16 banks with 16 favourites each or be completely disabled via `SETTINGS > DEFAULTS -> UT -> KEYBOARD -> FAVOURITES`. Now also when pressing the `KEYBOARD` button, you can pin the QWERTY keyboard so it is not hidden every time you select a sample.
 
 #### <ins>Arranger View</ins>
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
@@ -77,6 +97,7 @@ set the stutter configuration independently of the song configuration if you wis
 
 ##### Selected Clip Pulsing
 - The selected clip in `Song Grid View` (which is the last clip you interacted with), now shows a `pulsing / breathing` animation whereby the clip pad will fade in and out between the clip's normal colour and a blurred colour.
+- This will help you keep track of what clip midi follow is currently controlling and what clip is selected for loop recording.
 
 #### <ins>Audio Clips</ins>
 - Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on
@@ -171,6 +192,7 @@ also affect normal sequenced notes while arpeggiator is Off.
 - Added `LOCK` parameter to allow you to freeze the current set of randomized values so the sequence has a repeatable pattern.
 - Added new `WALK1`, `WALK2`, `WALK3` and `PATTERN` note modes.
 - Exposed several parameters from the `Randomizer` also for non-arpeggiated notes: `Velocity Spread`, `Note probability`, and `Reverse Probability`.
+- Added `KIT ARPEGGIATOR` for `KIT` clips. This arpeggiator is a new layer on top of the kit rows, which will control which rows receive note ON's and note OFF's. That means that the kit rows can have their own arpeggiators also enabled. You can access the new menu when `Affect-Entire` is enabled in the `Kit` and you access the menu with `Select` knob.
 
 ### MIDI
 

@@ -55,12 +55,6 @@
 
 #define PITCH_DETECT_DEBUG_LEVEL 0
 
-// this is the owning raw pointer annotation used by clang tidy
-namespace gsl {
-template <typename T>
-using owner = T;
-}
-
 constexpr uint8_t kOctaveSize = 12;
 
 struct Cartesian {
@@ -598,6 +592,7 @@ enum class PatchCableAcceptance {
 	ALLOWED,
 	YET_TO_BE_DETERMINED,
 };
+
 enum class OverDubType { Normal, ContinuousLayering };
 
 enum class GlobalMIDICommand {
@@ -1035,6 +1030,13 @@ enum SessionLayoutType : uint8_t {
 	SessionLayoutTypeRows,
 	SessionLayoutTypeGrid,
 	SessionLayoutTypeMaxElement // Keep as boundary
+};
+
+enum FavouritesDefaultLayout : uint8_t {
+	FavouritesDefaultLayoutFavorites,
+	FavouritesDefaultLayoutFavoritesAndBanks,
+	FavouritesDefaultLayoutOff,
+	FavouritesDefaultLayoutMaxElement // Keep as boundary
 };
 
 enum GridDefaultActiveMode : uint8_t {

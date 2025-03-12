@@ -61,7 +61,7 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 	generateNewNotePattern();
 }
 
-ArpeggiatorForDrum::ArpeggiatorForDrum() {
+ArpeggiatorForDrum::ArpeggiatorForDrum() : invertReversedFromKitArp(false) {
 	arpNote.velocity = 0;
 }
 
@@ -71,6 +71,44 @@ Arpeggiator::Arpeggiator()
 	notes.emptyingShouldFreeMemory = false;
 	notesAsPlayed.emptyingShouldFreeMemory = false;
 	notesByPattern.emptyingShouldFreeMemory = false;
+}
+
+ArpeggiatorForKit::ArpeggiatorForKit() : Arpeggiator::Arpeggiator() {
+}
+
+void ArpeggiatorForKit::removeDrumIndex(ArpeggiatorSettings* arpSettings, int32_t drumIndex) {
+	int32_t n = notes.search(drumIndex, GREATER_OR_EQUAL);
+	int32_t numNotes = notes.getNumElements();
+	if (n < numNotes) {
+		// Delete drumIndex from notes array
+		notes.deleteAtIndex(n);
+		numNotes = notesAsPlayed.getNumElements();
+		int32_t nAsPlayed = 0;
+		for (int32_t i = 0; i < numNotes; i++) {
+			ArpJustNoteCode* arpAsPlayedNote = (ArpJustNoteCode*)notesAsPlayed.getElementAddress(i);
+			if (arpAsPlayedNote->noteCode == drumIndex) {
+				nAsPlayed = i;
+				notesAsPlayed.deleteAtIndex(i);
+				break;
+			}
+		}
+		// Now shift all the arpeggiator drumIndexes by 1
+		numNotes = notes.getNumElements();
+		for (int32_t i = n; i < numNotes; i++) {
+			ArpNote* arpNote = (ArpNote*)notes.getElementAddress(i);
+			arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] =
+			    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] - 1;
+		}
+		numNotes = notesAsPlayed.getNumElements();
+		for (int32_t i = 0; i < numNotes; i++) {
+			ArpJustNoteCode* arpAsPlayedNote = (ArpJustNoteCode*)notesAsPlayed.getElementAddress(i);
+			if (arpAsPlayedNote->noteCode > drumIndex) {
+				arpAsPlayedNote->noteCode = arpAsPlayedNote->noteCode - 1;
+			}
+		}
+		// Rearrange pattern
+		rearrangePatterntArpNotes(arpSettings);
+	}
 }
 
 void Arpeggiator::reset() {
@@ -161,7 +199,8 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 				noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
 				arpNote.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 			}
-			instruction->invertReversed = isPlayReverseForCurrentStep;
+			instruction->invertReversed =
+			    invertReversedFromKitArp ? !isPlayReverseForCurrentStep : isPlayReverseForCurrentStep;
 			instruction->arpNoteOn = &arpNote;
 		}
 	}
@@ -349,18 +388,15 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 				}
 			}
 
-			// Or if yes arpeggiation, we'll only stop right now if that was the last note to switch off. Otherwise,
-			// it'll turn off soon with the arpeggiation.
+			// Or if yes arpeggiation
 			else {
-				if (notes.getNumElements() == 1) {
-					if (whichNoteCurrentlyOnPostArp == notesKey && gateCurrentlyActive) {
-						for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-							// Set all chord notes
-							instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
-							instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
-							noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-							outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
-						}
+				if (whichNoteCurrentlyOnPostArp == notesKey && gateCurrentlyActive) {
+					for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+						// Set all chord notes
+						instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
+						instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+						noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+						outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
 					}
 				}
 			}
@@ -565,7 +601,7 @@ void ArpeggiatorBase::executeArpStep(ArpeggiatorSettings* settings, uint8_t numA
 		// If this is a normal note event (not ratchet) we take here the opportunity to setup a
 		// ratchet burst and also make all the necessary calculations for the next note to be played
 
-		if (shouldCarryOnRhythmNote) {
+		if (*shouldCarryOnRhythmNote) {
 			// Setup ratchet
 			maybeSetupNewRatchet(settings);
 
@@ -589,16 +625,16 @@ void ArpeggiatorBase::executeArpStep(ArpeggiatorSettings* settings, uint8_t numA
 			lastNormalNotePlayedFromRhythm = notesPlayedFromRhythm;
 
 			// Save last note played from probability
-			lastNormalNotePlayedFromNoteProbability = shouldPlayNote;
+			lastNormalNotePlayedFromNoteProbability = *shouldPlayNote;
 
 			// Save last note played from probability
-			lastNormalNotePlayedFromBassProbability = shouldPlayBassNote;
+			lastNormalNotePlayedFromBassProbability = *shouldPlayBassNote;
 
 			// Save last note played from probability
-			lastNormalNotePlayedFromReverseProbability = shouldPlayReverseNote;
+			lastNormalNotePlayedFromReverseProbability = *shouldPlayReverseNote;
 
 			// Save last note played from probability
-			lastNormalNotePlayedFromChordProbability = shouldPlayChordNote;
+			lastNormalNotePlayedFromChordProbability = *shouldPlayChordNote;
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
@@ -713,7 +749,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
 			arpNote.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 		}
-		instruction->invertReversed = shouldPlayReverseNote;
+		instruction->invertReversed = invertReversedFromKitArp ? !shouldPlayReverseNote : shouldPlayReverseNote;
 		instruction->arpNoteOn = &arpNote;
 	}
 }
@@ -1395,6 +1431,7 @@ void ArpeggiatorSettings::cloneFrom(ArpeggiatorSettings const* other) {
 	chordTypeIndex = other->chordTypeIndex;
 	numOctaves = other->numOctaves;
 	numStepRepeats = other->numStepRepeats;
+	includeInKitArp = other->includeInKitArp;
 	randomizerLock = other->randomizerLock;
 	syncType = other->syncType;
 	syncLevel = other->syncLevel;
@@ -1423,6 +1460,9 @@ bool ArpeggiatorSettings::readCommonTagsFromFile(Deserializer& reader, char cons
 	}
 	else if (!strcmp(tagName, "stepRepeat")) {
 		numStepRepeats = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "kitArp")) {
+		includeInKitArp = reader.readTagOrAttributeValueInt();
 	}
 	else if (!strcmp(tagName, "randomizerLock")) {
 		randomizerLock = reader.readTagOrAttributeValueInt();
@@ -1615,6 +1655,7 @@ void ArpeggiatorSettings::writeCommonParamsToFile(Serializer& writer, Song* song
 	writer.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(mpeVelocity));
 	writer.writeAttribute("stepRepeat", numStepRepeats);
 	writer.writeAttribute("randomizerLock", randomizerLock);
+	writer.writeAttribute("kitArp", includeInKitArp);
 
 	// Note probability
 	writer.writeAttribute("lastLockedNoteProb", lastLockedNoteProbabilityParameterValue);

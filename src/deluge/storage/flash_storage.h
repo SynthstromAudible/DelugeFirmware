@@ -46,6 +46,8 @@ extern KeyboardLayoutType defaultKeyboardLayout;
 extern bool keyboardFunctionsVelocityGlide;
 extern bool keyboardFunctionsModwheelGlide;
 
+extern FavouritesDefaultLayout defaultFavouritesLayout;
+
 extern bool gridEmptyPadsUnarm;
 extern bool gridEmptyPadsCreateRec;
 extern bool gridAllowGreenSelection;
@@ -77,6 +79,10 @@ extern OutputType defaultNewClipType;
 extern bool defaultUseLastClipType;
 
 extern ThresholdRecordingMode defaultThresholdRecordingMode;
+
+extern GlobalMIDICommand defaultLoopRecordingCommand;
+
+extern bool defaultAlternativeSelectEncoderBehaviour;
 
 void readSettings();
 void writeSettings();

@@ -21,6 +21,7 @@
 #include "dsp/stereo_sample.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
+#include "modulation/arpeggiator.h"
 class InstrumentClip;
 class Drum;
 class Sound;
@@ -33,6 +34,10 @@ enum class MIDIMatchType;
 class Kit final : public Instrument, public GlobalEffectableForClip {
 public:
 	Kit();
+
+	ArpeggiatorForKit arpeggiator;
+	ArpeggiatorSettings defaultArpSettings;
+
 	Drum* getNextDrum(Drum* fromSoundSource);
 	Drum* getPrevDrum(Drum* fromSoundSource);
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
@@ -98,8 +103,11 @@ public:
 	void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
 	                                      ModelStackWithTimelineCounter* modelStack) override {}
 
+	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr);
+	void beenEdited(bool shouldMoveToEmptySlot = true) override;
 	void choke();
 	void resyncLFOs() override;
+	void removeDrumFromKitArpeggiator(int32_t drumIndex);
 	void removeDrum(Drum* drum);
 	ModControllable* toModControllable() override;
 	SoundDrum* getDrumFromName(char const* name, bool onlyIfNoNoteRow = false);
@@ -155,6 +163,11 @@ public:
 	                                                         bool useMenuStack);
 
 	Drum* getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode);
+
+	void noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum, uint8_t velocity,
+	                     int16_t const* mpeValues, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE,
+	                     uint32_t sampleSyncLength = 0, int32_t ticksLate = 0, uint32_t samplesLate = 0);
+	void noteOffPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum, int32_t velocity = kDefaultLiftValue);
 
 protected:
 	bool isKit() override { return true; }

@@ -28,7 +28,7 @@
 #include <bitset>
 
 class StereoSample;
-class ModelStackWithVoice;
+class ModelStackWithSoundFlags;
 using namespace deluge;
 class Voice final {
 public:
@@ -37,11 +37,11 @@ public:
 	Patcher patcher;
 
 	// Stores all oscillator positions and stuff, for each Source within each Unison too
-	VoiceUnisonPart unisonParts[kMaxNumVoicesUnison];
+	std::array<VoiceUnisonPart, kMaxNumVoicesUnison> unisonParts;
 
 	// Stores overall info on each Source (basically just sample memory bounds), for the play-through associated with
 	// this Voice right now.
-	VoiceSamplePlaybackGuide guides[kNumSources];
+	std::array<VoiceSamplePlaybackGuide, kNumSources> guides;
 
 	Sound* assignedToSound;
 
@@ -56,25 +56,27 @@ public:
 
 	std::bitset<kNumExpressionDimensions> expressionSourcesCurrentlySmoothing;
 	std::bitset<kNumExpressionDimensions> expressionSourcesFinalValueChanged;
-	int32_t localExpressionSourceValuesBeforeSmoothing[kNumExpressionDimensions];
+	std::array<int32_t, kNumExpressionDimensions> localExpressionSourceValuesBeforeSmoothing;
 
-	Envelope envelopes[kNumEnvelopes];
+	std::array<Envelope, kNumEnvelopes> envelopes;
 	LFO lfo2;
 	LFO lfo4;
 
 	dsp::filter::FilterSet filterSet;
-	int32_t inputCharacteristics[2]; // Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
+
+	// Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
+	std::array<int32_t, 2> inputCharacteristics;
 	int32_t noteCodeAfterArpeggiation;
 
 	uint32_t portaEnvelopePos;
 	int32_t portaEnvelopeMaxAmplitude;
 
-	uint32_t lastSaturationTanHWorkingValue[2];
+	std::array<uint32_t, 2> lastSaturationTanHWorkingValue;
 
 	int32_t overallOscAmplitudeLastTime;
-	int32_t sourceAmplitudesLastTime[kNumSources];
-	int32_t modulatorAmplitudeLastTime[kNumModulators];
-	uint32_t sourceWaveIndexesLastTime[kNumSources];
+	std::array<int32_t, kNumSources> sourceAmplitudesLastTime;
+	std::array<int32_t, kNumModulators> modulatorAmplitudeLastTime;
+	std::array<uint32_t, kNumSources> sourceWaveIndexesLastTime;
 
 	int32_t filterGainLastTime;
 
@@ -85,24 +87,23 @@ public:
 
 	int32_t overrideAmplitudeEnvelopeReleaseRate;
 
-	Voice* nextUnassigned;
 	bool justCreated{false};
 
 	uint32_t getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param);
-	void setAsUnassigned(ModelStackWithVoice* modelStack, bool deletingSong = false);
-	bool render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples, bool soundRenderingInStereo,
-	            bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF, bool doHPF,
-	            int32_t externalPitchAdjust);
+	void setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong = false);
+	bool render(ModelStackWithSoundFlags* modelStack, int32_t* soundBuffer, int32_t numSamples,
+	            bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF,
+	            bool doHPF, int32_t externalPitchAdjust);
 
-	void calculatePhaseIncrements(ModelStackWithVoice* modelStack);
-	bool sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, MarkerType markerType);
-	bool noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
+	void calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack);
+	bool sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, MarkerType markerType);
+	bool noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
 	            int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength, int32_t ticksLate,
 	            uint32_t samplesLate, bool resetEnvelopes, int32_t fromMIDIChannel, const int16_t* mpeValues);
-	void noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage = true);
+	void noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage = true);
 
 	void randomizeOscPhases(const Sound& sound);
-	void changeNoteCode(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
+	void changeNoteCode(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
 	                    int32_t newNoteCodeAfterArpeggiation, int32_t newInputMIDIChannel, const int16_t* newMPEValues);
 	bool hasReleaseStage();
 	void unassignStuff(bool deletingSong);
@@ -142,7 +143,7 @@ private:
 	void renderFMWithFeedbackAdd(int32_t* thisSample, int32_t numSamples, int32_t* fmBuffer, uint32_t* phase,
 	                             int32_t amplitude, uint32_t phaseIncrement, int32_t feedbackAmount,
 	                             int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
-	bool areAllUnisonPartsInactive(ModelStackWithVoice& modelStackWithVoice) const;
+	bool areAllUnisonPartsInactive(ModelStackWithSoundFlags& modelStack) const;
 	void setupPorta(const Sound& sound);
 	int32_t combineExpressionValues(const Sound& sound, int32_t expressionDimension) const;
 };

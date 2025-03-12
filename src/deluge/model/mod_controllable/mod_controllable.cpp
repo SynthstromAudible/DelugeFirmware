@@ -20,9 +20,6 @@
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
 
-ModControllable::ModControllable() {
-}
-
 // modelStack->autoParam will be NULL in this rare case!!
 int32_t ModControllable::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) {
 	return -64;
@@ -40,7 +37,7 @@ ModelStackWithAutoParam* ModControllable::getParamFromModEncoder(int32_t whichMo
 	return (ModelStackWithAutoParam*)modelStack;
 }
 
-ModelStackWithAutoParam* ModControllable::getParamFromMIDIKnob(MIDIKnob* knob,
+ModelStackWithAutoParam* ModControllable::getParamFromMIDIKnob(MIDIKnob& knob,
                                                                ModelStackWithThreeMainThings* modelStack) {
 
 	setTheAutoParamToNull(modelStack);

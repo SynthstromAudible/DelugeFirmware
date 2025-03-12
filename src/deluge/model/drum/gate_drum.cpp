@@ -20,15 +20,14 @@
 #include "model/drum/non_audio_drum.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
-#include <string.h>
+#include <cstring>
 
 GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
 	channel = 2;
-
 	arpSettings.numOctaves = 1;
 }
 
-void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
+void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
                       int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction instruction;
@@ -55,6 +54,13 @@ void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 		}
 		noteOffPostArp(instruction.noteCodeOffPostArp[n]);
 	}
+}
+
+void GateDrum::unassignAllVoices() {
+	if (hasAnyVoices()) {
+		noteOff(nullptr);
+	}
+	arpeggiator.reset();
 }
 
 void GateDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
@@ -94,11 +100,11 @@ int32_t GateDrum::getNumChannels() {
 }
 
 void GateDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
+	NonAudioDrum::noteOnPostArp(noteCodePostArp, arpNote, noteIndex);
 	cvEngine.sendNote(true, channel, kNoteForDrum);
-	state = true;
 }
 
 void GateDrum::noteOffPostArp(int32_t noteCodePostArp) {
+	NonAudioDrum::noteOffPostArp(noteCodePostArp);
 	cvEngine.sendNote(false, channel, kNoteForDrum);
-	state = false;
 }

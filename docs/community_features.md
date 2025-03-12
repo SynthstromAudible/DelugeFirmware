@@ -33,10 +33,45 @@ now stands out from the tail in proportion to its velocity. At velocity 127 it i
 at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
 
 #### 2.2 Horizontal Menus
-- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
-  - Envelope 1 & 2.
+- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+  - Envelope 1-4.
   - LPF and HPF.
-  - LFOs.
+  - LFO 1-4.
+  - Arpegiattor
+- Horizontal Menu controls. There are two different behaviours that can be toggled between to edit values and select menu items within the horizontal menu. You can toggle between them by going to the `SETTINGS > DEFAULTS -> UI -> HORIZONTAL MENU (HORZ)` and toggling `Alternative Select Behaviour (SELE)` on or off.
+  - With `Alternative Select Behaviour (SELE)` DISABLED:
+    - `Hold audition pad` + turn select encoder to edit the value of the selected menu item
+    - With `Sticky Shift Enabled`:
+      - `Turn select encoder` to edit the value of the selected menu item
+      - `Hold shift + turn select encoder` OR `Press + Turn select encoder` to change the selected menu item
+    - With `Sticky Shift Disabled`:
+      - `Hold shift + turn select encoder` OR `Press + Turn select encoder` to change the value of the selected menu item
+      - `Turn select encoder` to change the selected menu item
+  - With `Alternative Select Behaviour (SELE)` ENABLED:
+    - `Don't hold shift + turn select encoder` or `Hold shift + Press + Turn select encoder` to change the value of the selected menu item
+    - `Hold shift + turn select encoder` OR `Press + Turn select encoder` to change the selected menu item
+
+#### 2.3 Favourites
+A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UI -> KEYBOARD -> FAVOURITES`.
+- In the `Favourites Only (16)`-Mode , 16 Favourite Slots are available at the Toprow above the Keyboard.
+- In the `Favourites and Banks (256)`-Mode, the Toprow contains 16 Banks, each with 16 Favourites displayed on the second row.
+Usage:
+- Save a Favourite
+  - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
+  - Browse to the File you want to save
+  - Hold `SHIFT` and select a empty Favourite Slot (light blue)
+- Delete a Favourite
+  - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
+  - Hold `SHIFT` and select the Favourite Slot you want to delete
+- Recall a Favourite
+  - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
+  - Select the Favourite
+- Change the Colour of a Favourite
+  - Select the Favourite you want to modify
+  - Hold `SHIFT` and turn `VERTICAL ENCODER`
+
+Tip:
+If you are Browsing Songs or Samples an dont want to have the Preview to hide the Keyboard on Scrolling, just press the `KEYBOARD`-Button to pin the Keyboard and the Favourites.
 
 ## 3. General Improvements
 
@@ -674,7 +709,7 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
 - ([#3226]) Now the stutter buffer can also be set to play in reverse, and ping-pong. A new menu has been added to
   the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song. An extra menu has been added
   per sound source (either synths, kit rows, affect-entire kits, or audio clips) to set the stutter configuration
-  independently of the song configuration if you wish.
+  independently of the song configuration if you wish. Quantized stutter is enabled by default.
 
 #### 4.2.9 - Reverb Improvements
 
@@ -856,6 +891,9 @@ to each individual note onset. ([#1978])
 
 - ([#1198] [#2978] [#2985] [#2990] [#3079] [#3285]) For a detailed description of this feature, please refer to the feature
   documentation: [Arpeggiator Documentation]
+- ([#3388]) Added `KIT ARPEGGIATOR` for `KIT` clips. This allows the user to engage an arpeggiator layer on top of the kit rows,
+  which will control which rows receive note ON's and note OFF's. That means that the kit rows can have their own arpeggiators also
+  enabled, which allows for unlimited possible pattern combinations. This feature is also explained in [Arpeggiator Documentation]
 
 #### 4.3.9 - Randomizer
 
@@ -1621,6 +1659,8 @@ different firmware
 [#3332]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3332
 
 [#3352]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3352
+
+[#3388]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3388
 
 [Automation View Documentation]: features/automation_view.md
 

@@ -1014,8 +1014,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 	// InstrumentClips / Samples
 	if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 
-		if (soundEditor.currentSound->hasAnyVoices(false)) {
-
+		if (soundEditor.currentSound->hasAnyVoices()) {
 			Voice* assignedVoice = nullptr;
 
 			int32_t ends[2];

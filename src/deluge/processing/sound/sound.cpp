@@ -34,6 +34,7 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_low_level_reader.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
@@ -162,20 +163,6 @@ void Sound::initParams(ParamManager* paramManager) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 	unpatchedParams->kind = params::Kind::UNPATCHED_SOUND;
 
-	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_NOTE_PROBABILITY].setCurrentValueBasicForSetup(2147483647);
-	unpatchedParams->params[params::UNPATCHED_ARP_BASS_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_REVERSE_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_POLYPHONY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RHYTHM].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_SPREAD_VELOCITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_GATE].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
@@ -622,31 +609,6 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		reader.exitTag("modulator2", true);
 	}
 
-	else if (!strcmp(tagName, "arpeggiator")) {
-		// Set default values in case they are not configured
-		arpSettings->syncType = SYNC_TYPE_EVEN;
-		arpSettings->syncLevel = SYNC_LEVEL_NONE;
-		reader.match('{');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName,
-			            "gate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs
-				                   // with firmware in September 2016
-				ENSURE_PARAM_MANAGER_EXISTS
-				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_GATE,
-				                           readAutomationUpToPos);
-				reader.exitTag("gate");
-			}
-			else if (arpSettings != nullptr) {
-				bool readAndExited = arpSettings->readCommonTagsFromFile(reader, tagName, song);
-				if (!readAndExited) {
-					reader.exitTag(tagName);
-				}
-			}
-		}
-
-		reader.exitTag("arpeggiator", true);
-	}
-
 	else if (!strcmp(tagName, "transpose")) {
 		transpose = reader.readTagOrAttributeValueInt();
 		reader.exitTag("transpose");
@@ -656,89 +618,6 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		ENSURE_PARAM_MANAGER_EXISTS
 		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_NOISE_VOLUME, readAutomationUpToPos);
 		reader.exitTag("noiseVolume");
-	}
-
-	else if (!strcmp(tagName, "ratchetAmount")) {
-		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_AMOUNT,
-		                           readAutomationUpToPos);
-		reader.exitTag("ratchetAmount");
-	}
-
-	else if (!strcmp(tagName, "ratchetProbability")) {
-		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("ratchetProbability");
-	}
-
-	else if (!strcmp(tagName, "chordPolyphony")) {
-		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_CHORD_POLYPHONY,
-		                           readAutomationUpToPos);
-		reader.exitTag("chordPolyphony");
-	}
-
-	else if (!strcmp(tagName, "chordProbability")) {
-		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_CHORD_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("chordProbability");
-	}
-
-	else if (!strcmp(tagName, "reverseProbability")) {
-		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_REVERSE_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("reverseProbability");
-	}
-
-	else if (!strcmp(tagName, "bassProbability")) {
-		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_BASS_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("bassProbability");
-	}
-
-	else if (!strcmp(tagName, "noteProbability")) {
-		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_NOTE_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("noteProbability");
-	}
-
-	else if (!strcmp(tagName, "sequenceLength")) {
-		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
-		                           readAutomationUpToPos);
-		reader.exitTag("sequenceLength");
-	}
-
-	else if (!strcmp(tagName, "rhythm")) {
-		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
-		reader.exitTag("rhythm");
-	}
-
-	else if (!strcmp(tagName, "spreadVelocity")) {
-		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_SPREAD_VELOCITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("spreadVelocity");
-	}
-
-	else if (!strcmp(tagName, "spreadGate")) {
-		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_GATE,
-		                           readAutomationUpToPos);
-		reader.exitTag("spreadGate");
-	}
-
-	else if (!strcmp(tagName, "spreadOctave")) {
-		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_OCTAVE,
-		                           readAutomationUpToPos);
-		reader.exitTag("spreadOctave");
 	}
 
 	else if (!strcmp(tagName,
@@ -930,19 +809,19 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 					if (p != params::GLOBAL_NONE
 					    && p != params::PLACEHOLDER_RANGE) { // Discard any unlikely "range" ones from before V3.2.0,
 						                                     // for complex reasons
-						ModKnob* newKnob = &modKnobs[k][w];
+						ModKnob& new_knob = modKnobs[k][w];
 
 						if (s == PatchSource::NOT_AVAILABLE) {
-							newKnob->paramDescriptor.setToHaveParamOnly(p);
+							new_knob.paramDescriptor.setToHaveParamOnly(p);
 						}
 						else if (s2 == PatchSource::NOT_AVAILABLE) {
-							newKnob->paramDescriptor.setToHaveParamAndSource(p, s);
+							new_knob.paramDescriptor.setToHaveParamAndSource(p, s);
 						}
 						else {
-							newKnob->paramDescriptor.setToHaveParamAndTwoSources(p, s, s2);
+							new_knob.paramDescriptor.setToHaveParamAndTwoSources(p, s, s2);
 						}
 
-						ensureKnobReferencesCorrectVolume(newKnob);
+						ensureKnobReferencesCorrectVolume(new_knob);
 					}
 				}
 
@@ -1449,8 +1328,8 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 	}
 
 	else {
-		Error result =
-		    ModControllableAudio::readTagFromFile(reader, tagName, paramManager, readAutomationUpToPos, song);
+		Error result = ModControllableAudio::readTagFromFile(reader, tagName, paramManager, readAutomationUpToPos,
+		                                                     arpSettings, song);
 		if (result == Error::NONE) {}
 		else if (result != Error::RESULT_TAG_UNUSED) {
 			return result;
@@ -1469,19 +1348,19 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 }
 
 // Exists for the purpose of potentially correcting an incorrect file as it's loaded
-void Sound::ensureKnobReferencesCorrectVolume(Knob* knob) {
-	int32_t p = knob->paramDescriptor.getJustTheParam();
+void Sound::ensureKnobReferencesCorrectVolume(Knob& knob) {
+	int32_t p = knob.paramDescriptor.getJustTheParam();
 
 	if (p == params::GLOBAL_VOLUME_POST_REVERB_SEND || p == params::GLOBAL_VOLUME_POST_FX
 	    || p == params::LOCAL_VOLUME) {
-		if (knob->paramDescriptor.isJustAParam()) {
-			knob->paramDescriptor.setToHaveParamOnly(params::GLOBAL_VOLUME_POST_FX);
+		if (knob.paramDescriptor.isJustAParam()) {
+			knob.paramDescriptor.setToHaveParamOnly(params::GLOBAL_VOLUME_POST_FX);
 		}
-		else if (knob->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN) {
-			knob->paramDescriptor.changeParam(params::GLOBAL_VOLUME_POST_REVERB_SEND);
+		else if (knob.paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN) {
+			knob.paramDescriptor.changeParam(params::GLOBAL_VOLUME_POST_REVERB_SEND);
 		}
 		else {
-			knob->paramDescriptor.changeParam(params::LOCAL_VOLUME);
+			knob.paramDescriptor.changeParam(params::LOCAL_VOLUME);
 		}
 	}
 }
@@ -1798,9 +1677,7 @@ justUnassign:
 	}
 
 	if (polyphonic == PolyphonyMode::LEGATO && voiceForLegato) [[unlikely]] {
-		ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(voiceForLegato);
-		voiceForLegato->changeNoteCode(modelStackWithVoice, noteCodePreArp, noteCodePostArp, fromMIDIChannel,
-		                               mpeValues);
+		voiceForLegato->changeNoteCode(modelStack, noteCodePreArp, noteCodePostArp, fromMIDIChannel, mpeValues);
 	}
 	else {
 
@@ -1833,11 +1710,8 @@ justUnassign:
 			AudioEngine::registerSideChainHit(sideChainSendLevel);
 		}
 
-		ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(newVoice);
-
-		bool success =
-		    newVoice->noteOn(modelStackWithVoice, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength,
-		                     ticksLate, samplesLate, voiceToReuse == nullptr, fromMIDIChannel, mpeValues);
+		bool success = newVoice->noteOn(modelStack, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength,
+		                                ticksLate, samplesLate, voiceToReuse == nullptr, fromMIDIChannel, mpeValues);
 		if (success) {
 			if (voiceToReuse) {
 				for (int32_t e = 0; e < kNumEnvelopes; e++) {
@@ -1940,8 +1814,6 @@ void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBa
 
 // noteCode = ALL_NOTES_OFF (default) means stop *any* voice, regardless of noteCode
 void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode) {
-	ArpeggiatorSettings* arpSettings = getArpSettings();
-
 	// Send midi note offs out for specific notes,
 	// but only if the type of sound allows note tails (if not, note off was already sent right after its note on)
 	if (outputMidiChannel != MIDI_CHANNEL_NONE && allowNoteTails(modelStack, true)) {
@@ -2004,14 +1876,14 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 		return;
 	}
 
+	ArpeggiatorSettings* arpSettings = getArpSettings();
+
 	int32_t ends[2];
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
 	for (int32_t v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if ((thisVoice->noteCodeAfterArpeggiation == noteCode || noteCode == ALL_NOTES_OFF)
 		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Don't bother if it's already "releasing"
-
-			ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(thisVoice);
 
 			// If we have actual arpeggiation, just switch off.
 			if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
@@ -2020,8 +1892,8 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 
 			// If we're in LEGATO or true-MONO mode and there's another note we can switch back to...
 			if ((polyphonic == PolyphonyMode::LEGATO || polyphonic == PolyphonyMode::MONO) && !isDrum()
-			    && allowNoteTails(modelStackWithVoice)) { // If no note-tails (i.e. yes one-shot samples etc.), the
-				                                          // Arpeggiator will be full of notes which
+			    && allowNoteTails(modelStack)) { // If no note-tails (i.e. yes one-shot samples etc.), the
+				                                 // Arpeggiator will be full of notes which
 				// might not be active anymore, cos we were keeping track of them for MPE purposes.
 				Arpeggiator* arpeggiator = &((SoundInstrument*)this)->arpeggiator;
 				if (arpeggiator->hasAnyInputNotesActive()) {
@@ -2031,7 +1903,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 
 					if (polyphonic == PolyphonyMode::LEGATO) {
 						thisVoice->changeNoteCode(
-						    modelStackWithVoice, newNoteCode, newNoteCode,
+						    modelStack, newNoteCode, newNoteCode,
 						    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)],
 						    arpNote->mpeValues);
 						lastNoteCode = newNoteCode;
@@ -2056,7 +1928,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 
 			else {
 justSwitchOff:
-				thisVoice->noteOff(modelStackWithVoice);
+				thisVoice->noteOff(modelStack);
 			}
 		}
 	}
@@ -2294,8 +2166,7 @@ void Sound::sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSo
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
 	for (int32_t v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
-		ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(thisVoice);
-		bool stillGoing = thisVoice->sampleZoneChanged(modelStackWithVoice, s, markerType);
+		bool stillGoing = thisVoice->sampleZoneChanged(modelStack, s, markerType);
 		if (!stillGoing) {
 			AudioEngine::activeVoices.checkVoiceExists(thisVoice, this, "E200");
 			AudioEngine::unassignVoice(thisVoice, this, modelStack);
@@ -2656,11 +2527,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		for (int32_t v = ends[0]; v < ends[1]; v++) {
 			Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 
-			ModelStackWithVoice* modelStackWithVoice = modelStackWithSoundFlags->addVoice(thisVoice);
-
-			bool stillGoing =
-			    thisVoice->render(modelStackWithVoice, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo,
-			                      applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust);
+			bool stillGoing = thisVoice->render(modelStackWithSoundFlags, sound_mono.data(), sound_mono.size(),
+			                                    voice_rendered_in_stereo, applyingPanAtVoiceLevel, sourcesChanged,
+			                                    doLPF, doHPF, pitchAdjust);
 			if (!stillGoing) {
 				AudioEngine::activeVoices.checkVoiceExists(thisVoice, this, "E201");
 				AudioEngine::unassignVoice(thisVoice, this, modelStackWithSoundFlags);
@@ -3150,15 +3019,14 @@ void Sound::ensureParamPresetValueWithoutKnobIsZero(ModelStackWithAutoParam* mod
 		}
 	}
 
-	for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
-		MIDIKnob* knob = midiKnobArray.getElement(k);
-		if (knob->paramDescriptor.isSetToParamWithNoSource(modelStack->paramId)) {
-			return;
-		}
-	}
+	bool any_assigned = std::ranges::any_of(midi_knobs, [&](const MIDIKnob& knob) {
+		return knob.paramDescriptor.isSetToParamWithNoSource(modelStack->paramId);
+	});
 
-	// If we're here, no knobs were assigned to this param, so make it 0
-	modelStack->autoParam->setCurrentValueWithNoReversionOrRecording(modelStack, 0);
+	// No knobs were assigned to this param, so make it 0
+	if (!any_assigned) {
+		modelStack->autoParam->setCurrentValueWithNoReversionOrRecording(modelStack, 0);
+	}
 }
 
 void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManager* paramManager, int32_t p) {
@@ -3178,15 +3046,14 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 		}
 	}
 
-	for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
-		MIDIKnob* knob = midiKnobArray.getElement(k);
-		if (knob->paramDescriptor.isSetToParamWithNoSource(p)) {
-			return;
-		}
-	}
+	bool any_assigned = std::ranges::any_of(midi_knobs, [&](const MIDIKnob& knob) {
+		return knob.paramDescriptor.isSetToParamWithNoSource(p); //<
+	});
 
-	// If we're here, no knobs were assigned to this param, so make it 0
-	param->setCurrentValueBasicForSetup(0);
+	// No knobs were assigned to this param, so make it 0
+	if (!any_assigned) {
+		param->setCurrentValueBasicForSetup(0);
+	}
 }
 
 void Sound::doneReadingFromFile() {
@@ -3204,13 +3071,13 @@ void Sound::doneReadingFromFile() {
 	}
 }
 
-bool Sound::hasAnyVoices(bool resetTimeEntered) {
+bool Sound::hasAnyVoices() {
 	return (numVoicesAssigned != 0);
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
 // it.
-void Sound::voiceUnassigned(ModelStackWithVoice* modelStack) {
+void Sound::voiceUnassigned(ModelStackWithSoundFlags* modelStack) {
 
 	numVoicesAssigned--;
 	reassessRenderSkippingStatus(modelStack);
@@ -3335,8 +3202,7 @@ void Sound::recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelSt
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
 	for (int32_t v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
-		ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(thisVoice);
-		thisVoice->calculatePhaseIncrements(modelStackWithVoice);
+		thisVoice->calculatePhaseIncrements(modelStack);
 	}
 }
 
@@ -3379,28 +3245,26 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 								newPart->carrierFeedback = oldPart->carrierFeedback;
 
 								newPart->voiceSample = AudioEngine::solicitVoiceSample();
-								if (!newPart->voiceSample) {
+								if (newPart->voiceSample == nullptr) {
 									newPart->active = false;
+									continue;
 								}
 
-								else {
-									VoiceSample* newVoiceSample = newPart->voiceSample;
-									VoiceSample* oldVoiceSample = oldPart->voiceSample;
+								VoiceSample& newVoiceSample = *newPart->voiceSample;
+								VoiceSample& oldVoiceSample = *oldPart->voiceSample;
 
-									newVoiceSample->cloneFrom(
-									    oldVoiceSample); // Just clones the SampleLowLevelReader stuff
-									newVoiceSample->pendingSamplesLate = oldVoiceSample->pendingSamplesLate;
+								// Just clones the SampleLowLevelReader stuff
+								newVoiceSample = SampleLowLevelReader(oldVoiceSample);
+								newVoiceSample.pendingSamplesLate = oldVoiceSample.pendingSamplesLate;
+								newVoiceSample.doneFirstRenderYet = true;
 
-									newVoiceSample->doneFirstRenderYet = true;
-
-									// Don't do any caching for new part. Old parts will stop using their cache anyway
-									// because their pitch will have changed
-									newVoiceSample->stopUsingCache(
-									    &thisVoice->guides[s], (Sample*)thisVoice->guides[s].audioFileHolder->audioFile,
-									    thisVoice->getPriorityRating(),
-									    thisVoice->guides[s].getLoopingType(sources[s]) == LoopType::LOW_LEVEL);
-									// TODO: should really check success of that...
-								}
+								// Don't do any caching for new part. Old parts will stop using their cache anyway
+								// because their pitch will have changed
+								newVoiceSample.stopUsingCache(
+								    &thisVoice->guides[s], (Sample*)thisVoice->guides[s].audioFileHolder->audioFile,
+								    thisVoice->getPriorityRating(),
+								    thisVoice->guides[s].getLoopingType(sources[s]) == LoopType::LOW_LEVEL);
+								// TODO: should really check success of that...
 							}
 						}
 						else if (newNum < oldNum) {
@@ -3501,8 +3365,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	doneReadingFromFile();
 
 	// Ensure all MIDI knobs reference correct volume...
-	for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
-		MIDIKnob* knob = midiKnobArray.getElement(k);
+	for (MIDIKnob& knob : midi_knobs) {
 		ensureKnobReferencesCorrectVolume(knob);
 	}
 
@@ -3995,70 +3858,7 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 	ParamCollectionSummary* patchedParamsSummary = paramManager->getPatchedParamSetSummary();
 	PatchedParamSet* patchedParams = (PatchedParamSet*)patchedParamsSummary->paramCollection;
 
-	if (!strcmp(tagName, "arpeggiatorGate")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_GATE, readAutomationUpToPos);
-		reader.exitTag("arpeggiatorGate");
-	}
-	else if (!strcmp(tagName, "noteProbability")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_NOTE_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("noteProbability");
-	}
-	else if (!strcmp(tagName, "bassProbability")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_BASS_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("bassProbability");
-	}
-	else if (!strcmp(tagName, "reverseProbability")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_REVERSE_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("reverseProbability");
-	}
-	else if (!strcmp(tagName, "chordProbability")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_CHORD_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("chordProbability");
-	}
-	else if (!strcmp(tagName, "chordPolyphony")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_CHORD_POLYPHONY,
-		                           readAutomationUpToPos);
-		reader.exitTag("chordPolyphony");
-	}
-	else if (!strcmp(tagName, "ratchetProbability")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("ratchetProbability");
-	}
-	else if (!strcmp(tagName, "ratchetAmount")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_AMOUNT,
-		                           readAutomationUpToPos);
-		reader.exitTag("ratchetAmount");
-	}
-	else if (!strcmp(tagName, "sequenceLength")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
-		                           readAutomationUpToPos);
-		reader.exitTag("sequenceLength");
-	}
-	else if (!strcmp(tagName, "rhythm")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
-		reader.exitTag("rhythm");
-	}
-	else if (!strcmp(tagName, "spreadVelocity")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_SPREAD_VELOCITY,
-		                           readAutomationUpToPos);
-		reader.exitTag("spreadVelocity");
-	}
-	else if (!strcmp(tagName, "spreadGate")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_GATE,
-		                           readAutomationUpToPos);
-		reader.exitTag("spreadGate");
-	}
-	else if (!strcmp(tagName, "spreadOctave")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_OCTAVE,
-		                           readAutomationUpToPos);
-		reader.exitTag("spreadOctave");
-	}
-	else if (!strcmp(tagName, "portamento")) {
+	if (!strcmp(tagName, "portamento")) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
 		reader.exitTag("portamento");
 	}
@@ -4343,7 +4143,6 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->writeParamAsAttribute(writer, "arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
 	                                       writeAutomation);
@@ -4410,29 +4209,6 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	patchedParams->writeParamAsAttribute(writer, "hpfMorph", params::LOCAL_HPF_MORPH, writeAutomation);
 
 	patchedParams->writeParamAsAttribute(writer, "waveFold", params::LOCAL_FOLD, writeAutomation);
-
-	unpatchedParams->writeParamAsAttribute(writer, "noteProbability", params::UNPATCHED_NOTE_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "bassProbability", params::UNPATCHED_ARP_BASS_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "reverseProbability", params::UNPATCHED_REVERSE_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "chordProbability", params::UNPATCHED_ARP_CHORD_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "chordPolyphony", params::UNPATCHED_ARP_CHORD_POLYPHONY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "spreadVelocity", params::UNPATCHED_SPREAD_VELOCITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "spreadGate", params::UNPATCHED_ARP_SPREAD_GATE, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "spreadOctave", params::UNPATCHED_ARP_SPREAD_OCTAVE,
-	                                       writeAutomation);
 
 	writer.writeOpeningTagEnd();
 
@@ -5178,14 +4954,14 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 	return false;
 }
 
-ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) {
+ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) {
 
 	ParamCollectionSummary* summary;
 	int32_t paramId;
 
-	if (knob->paramDescriptor.isJustAParam()) {
+	if (knob.paramDescriptor.isJustAParam()) {
 
-		int32_t p = knob->paramDescriptor.getJustTheParam();
+		int32_t p = knob.paramDescriptor.getJustTheParam();
 
 		// Unpatched parameter
 		if (p >= params::UNPATCHED_START) {
@@ -5202,7 +4978,7 @@ ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob* knob, ModelStackW
 	// Patch cable strength
 	else {
 		summary = modelStack->paramManager->getPatchCableSetSummary();
-		paramId = knob->paramDescriptor.data;
+		paramId = knob.paramDescriptor.data;
 	}
 
 	ModelStackWithParamId* modelStackWithParamId =
