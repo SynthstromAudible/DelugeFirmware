@@ -106,3 +106,13 @@ if not "%1" == "env" (
     cd "%DBT_ROOT%"
     cmd /k
 )
+
+endlocal & (
+    set "PATH=%PATH%"
+    set "HOME=%HOME%"
+    set "SSL_CERT_FILE=%SSL_CERT_FILE%"
+    set "PYTHONHOME=%PYTHONHOME%"
+    set "PYTHONPATH=%PYTHONPATH%"
+    set "PYTHONNOUSERSITE=%PYTHONNOUSERSITE%"
+    set "PROMPT=%PROMPT%"
+)
