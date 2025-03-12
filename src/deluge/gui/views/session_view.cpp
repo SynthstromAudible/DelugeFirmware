@@ -413,6 +413,10 @@ moveAfterClipInstance:
 					return ActionResult::DEALT_WITH;
 				}
 			}
+			// try loop recording if holding clip in song view
+			else if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+				playbackHandler.tryLoopCommand(FlashStorage::defaultLoopRecordingCommand);
+			}
 			else {
 				goto notDealtWith;
 			}

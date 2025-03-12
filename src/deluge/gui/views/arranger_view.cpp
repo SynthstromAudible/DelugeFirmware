@@ -91,17 +91,6 @@ using namespace gui;
 
 PLACE_SDRAM_BSS ArrangerView arrangerView{};
 
-ArrangerView::ArrangerView() {
-	doingAutoScrollNow = false;
-
-	lastInteractedOutputIndex = 0;
-	lastInteractedPos = -1;
-	lastInteractedSection = 0;
-	lastInteractedClipInstance = nullptr;
-
-	lastInteractedArrangementPos = -1;
-}
-
 void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	if (stemExport.processStarted) {
 		if (stemExport.exportMixdown) {
