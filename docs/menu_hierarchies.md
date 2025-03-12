@@ -180,6 +180,10 @@ The Settings menu contains the following menu hierarchy:
 			- Use Last Clip Type (LAST)
 				- Disabled (OFF)
 				- Enabled (ON)
+		- Horizontal Menu (HORZ)
+			- Alternative Select Behaviour (SELE)
+				- Disabled (OFF)
+				- Enabled (ON)
 	- Automation (AUTO)
 		- Interpolation (INTE)
 			- Disabled (OFF)
@@ -351,6 +355,9 @@ NOTE: These options can change depending on how your default resolution is set
 			- Low
 			- Medium
 			- High
+	- Loop Command (LOOP)
+		- Loop
+		- Layering Loop
 </details>
 
 <details><summary>Community Features (FEAT)</summary>

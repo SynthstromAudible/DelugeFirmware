@@ -20,11 +20,10 @@
 #include "model/drum/non_audio_drum.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
-#include <string.h>
+#include <cstring>
 
 GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
 	channel = 2;
-
 	arpSettings.numOctaves = 1;
 }
 
@@ -101,11 +100,11 @@ int32_t GateDrum::getNumChannels() {
 }
 
 void GateDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
+	NonAudioDrum::noteOnPostArp(noteCodePostArp, arpNote, noteIndex);
 	cvEngine.sendNote(true, channel, kNoteForDrum);
-	state = true;
 }
 
 void GateDrum::noteOffPostArp(int32_t noteCodePostArp) {
+	NonAudioDrum::noteOffPostArp(noteCodePostArp);
 	cvEngine.sendNote(false, channel, kNoteForDrum);
-	state = false;
 }
