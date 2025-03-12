@@ -34,6 +34,7 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_low_level_reader.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
@@ -1676,9 +1677,7 @@ justUnassign:
 	}
 
 	if (polyphonic == PolyphonyMode::LEGATO && voiceForLegato) [[unlikely]] {
-		ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(voiceForLegato);
-		voiceForLegato->changeNoteCode(modelStackWithVoice, noteCodePreArp, noteCodePostArp, fromMIDIChannel,
-		                               mpeValues);
+		voiceForLegato->changeNoteCode(modelStack, noteCodePreArp, noteCodePostArp, fromMIDIChannel, mpeValues);
 	}
 	else {
 
@@ -1711,11 +1710,8 @@ justUnassign:
 			AudioEngine::registerSideChainHit(sideChainSendLevel);
 		}
 
-		ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(newVoice);
-
-		bool success =
-		    newVoice->noteOn(modelStackWithVoice, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength,
-		                     ticksLate, samplesLate, voiceToReuse == nullptr, fromMIDIChannel, mpeValues);
+		bool success = newVoice->noteOn(modelStack, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength,
+		                                ticksLate, samplesLate, voiceToReuse == nullptr, fromMIDIChannel, mpeValues);
 		if (success) {
 			if (voiceToReuse) {
 				for (int32_t e = 0; e < kNumEnvelopes; e++) {
@@ -1889,8 +1885,6 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 		if ((thisVoice->noteCodeAfterArpeggiation == noteCode || noteCode == ALL_NOTES_OFF)
 		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Don't bother if it's already "releasing"
 
-			ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(thisVoice);
-
 			// If we have actual arpeggiation, just switch off.
 			if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
 				goto justSwitchOff;
@@ -1898,8 +1892,8 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 
 			// If we're in LEGATO or true-MONO mode and there's another note we can switch back to...
 			if ((polyphonic == PolyphonyMode::LEGATO || polyphonic == PolyphonyMode::MONO) && !isDrum()
-			    && allowNoteTails(modelStackWithVoice)) { // If no note-tails (i.e. yes one-shot samples etc.), the
-				                                          // Arpeggiator will be full of notes which
+			    && allowNoteTails(modelStack)) { // If no note-tails (i.e. yes one-shot samples etc.), the
+				                                 // Arpeggiator will be full of notes which
 				// might not be active anymore, cos we were keeping track of them for MPE purposes.
 				Arpeggiator* arpeggiator = &((SoundInstrument*)this)->arpeggiator;
 				if (arpeggiator->hasAnyInputNotesActive()) {
@@ -1909,7 +1903,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 
 					if (polyphonic == PolyphonyMode::LEGATO) {
 						thisVoice->changeNoteCode(
-						    modelStackWithVoice, newNoteCode, newNoteCode,
+						    modelStack, newNoteCode, newNoteCode,
 						    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)],
 						    arpNote->mpeValues);
 						lastNoteCode = newNoteCode;
@@ -1934,7 +1928,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 
 			else {
 justSwitchOff:
-				thisVoice->noteOff(modelStackWithVoice);
+				thisVoice->noteOff(modelStack);
 			}
 		}
 	}
@@ -2172,8 +2166,7 @@ void Sound::sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSo
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
 	for (int32_t v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
-		ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(thisVoice);
-		bool stillGoing = thisVoice->sampleZoneChanged(modelStackWithVoice, s, markerType);
+		bool stillGoing = thisVoice->sampleZoneChanged(modelStack, s, markerType);
 		if (!stillGoing) {
 			AudioEngine::activeVoices.checkVoiceExists(thisVoice, this, "E200");
 			AudioEngine::unassignVoice(thisVoice, this, modelStack);
@@ -2534,11 +2527,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		for (int32_t v = ends[0]; v < ends[1]; v++) {
 			Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 
-			ModelStackWithVoice* modelStackWithVoice = modelStackWithSoundFlags->addVoice(thisVoice);
-
-			bool stillGoing =
-			    thisVoice->render(modelStackWithVoice, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo,
-			                      applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust);
+			bool stillGoing = thisVoice->render(modelStackWithSoundFlags, sound_mono.data(), sound_mono.size(),
+			                                    voice_rendered_in_stereo, applyingPanAtVoiceLevel, sourcesChanged,
+			                                    doLPF, doHPF, pitchAdjust);
 			if (!stillGoing) {
 				AudioEngine::activeVoices.checkVoiceExists(thisVoice, this, "E201");
 				AudioEngine::unassignVoice(thisVoice, this, modelStackWithSoundFlags);
@@ -3080,13 +3071,13 @@ void Sound::doneReadingFromFile() {
 	}
 }
 
-bool Sound::hasAnyVoices(bool resetTimeEntered) {
+bool Sound::hasAnyVoices() {
 	return (numVoicesAssigned != 0);
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
 // it.
-void Sound::voiceUnassigned(ModelStackWithVoice* modelStack) {
+void Sound::voiceUnassigned(ModelStackWithSoundFlags* modelStack) {
 
 	numVoicesAssigned--;
 	reassessRenderSkippingStatus(modelStack);
@@ -3211,8 +3202,7 @@ void Sound::recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelSt
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
 	for (int32_t v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
-		ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(thisVoice);
-		thisVoice->calculatePhaseIncrements(modelStackWithVoice);
+		thisVoice->calculatePhaseIncrements(modelStack);
 	}
 }
 
@@ -3255,28 +3245,26 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 								newPart->carrierFeedback = oldPart->carrierFeedback;
 
 								newPart->voiceSample = AudioEngine::solicitVoiceSample();
-								if (!newPart->voiceSample) {
+								if (newPart->voiceSample == nullptr) {
 									newPart->active = false;
+									continue;
 								}
 
-								else {
-									VoiceSample* newVoiceSample = newPart->voiceSample;
-									VoiceSample* oldVoiceSample = oldPart->voiceSample;
+								VoiceSample& newVoiceSample = *newPart->voiceSample;
+								VoiceSample& oldVoiceSample = *oldPart->voiceSample;
 
-									newVoiceSample->cloneFrom(
-									    oldVoiceSample); // Just clones the SampleLowLevelReader stuff
-									newVoiceSample->pendingSamplesLate = oldVoiceSample->pendingSamplesLate;
+								// Just clones the SampleLowLevelReader stuff
+								newVoiceSample = SampleLowLevelReader(oldVoiceSample);
+								newVoiceSample.pendingSamplesLate = oldVoiceSample.pendingSamplesLate;
+								newVoiceSample.doneFirstRenderYet = true;
 
-									newVoiceSample->doneFirstRenderYet = true;
-
-									// Don't do any caching for new part. Old parts will stop using their cache anyway
-									// because their pitch will have changed
-									newVoiceSample->stopUsingCache(
-									    &thisVoice->guides[s], (Sample*)thisVoice->guides[s].audioFileHolder->audioFile,
-									    thisVoice->getPriorityRating(),
-									    thisVoice->guides[s].getLoopingType(sources[s]) == LoopType::LOW_LEVEL);
-									// TODO: should really check success of that...
-								}
+								// Don't do any caching for new part. Old parts will stop using their cache anyway
+								// because their pitch will have changed
+								newVoiceSample.stopUsingCache(
+								    &thisVoice->guides[s], (Sample*)thisVoice->guides[s].audioFileHolder->audioFile,
+								    thisVoice->getPriorityRating(),
+								    thisVoice->guides[s].getLoopingType(sources[s]) == LoopType::LOW_LEVEL);
+								// TODO: should really check success of that...
 							}
 						}
 						else if (newNum < oldNum) {

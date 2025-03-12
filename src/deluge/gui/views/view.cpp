@@ -2250,7 +2250,14 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					break;
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
-					if (!modelStack->song->doesNonAudioSlotHaveActiveClipInSession(outputType, newChannel)) {
+					int channelToSearch = newChannel;
+					if (newChannel == CVInstrumentMode::both) {
+						// in this case we just need to make sure the one were not about to give up is free
+						// there probably should be a gatekeeper managing the cv/gate resources but that's a lot to
+						// change and this doesn't matter much
+						channelToSearch = oldNonAudioInstrument->getChannel() == 0 ? 1 : 0;
+					}
+					if (!modelStack->song->doesNonAudioSlotHaveActiveClipInSession(outputType, channelToSearch)) {
 						break;
 					}
 				}
@@ -2334,6 +2341,10 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 
 		newInstrument = modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr,
 		                                                              nullptr, false);
+		// this can happen specifically with cv to handle channels 1+2 together
+		if (newInstrument == oldInstrument) {
+			newInstrument = nullptr;
+		}
 
 		shouldReplaceWholeInstrument = (oldInstrumentCanBeReplaced && !newInstrument);
 

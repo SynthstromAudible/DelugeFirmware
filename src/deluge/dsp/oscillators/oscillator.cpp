@@ -274,12 +274,11 @@ doSaw:
 
 				if (!doOscSync) {
 					if (applyAmplitude) {
-						dsp::renderCrudeSawWaveWithAmplitude(bufferStart, bufferEnd, phase, phaseIncrement, amplitude,
-						                                     amplitudeIncrement, numSamples);
+						dsp::renderCrudeSawWave({bufferStart, numSamples}, phase, phaseIncrement, amplitude,
+						                        amplitudeIncrement);
 					}
 					else {
-						dsp::renderCrudeSawWaveWithoutAmplitude(bufferStart, bufferEnd, phase, phaseIncrement,
-						                                        numSamples);
+						dsp::renderCrudeSawWave({bufferStart, numSamples}, phase, phaseIncrement);
 					}
 					return;
 				}
@@ -448,7 +447,7 @@ doSaw:
 						return;
 					}
 					else {
-						dsp::renderPulseWave(table, tableSizeMagnitude, amplitude, bufferStart, bufferEnd,
+						dsp::renderPulseWave(table, tableSizeMagnitude, amplitude, {bufferStart, bufferEnd},
 						                     phaseIncrement, phase, applyAmplitude, phaseToAdd, amplitudeIncrement);
 						return;
 					}
@@ -495,7 +494,7 @@ callRenderWave:
 			return;
 		}
 		else {
-			dsp::renderWave(table, tableSizeMagnitude, amplitude, bufferStart, bufferEnd, phaseIncrement, phase,
+			dsp::renderWave(table, tableSizeMagnitude, amplitude, {bufferStart, bufferEnd}, phaseIncrement, phase,
 			                applyAmplitude, phaseToAdd, amplitudeIncrement);
 			return;
 		}

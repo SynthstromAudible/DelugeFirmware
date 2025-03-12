@@ -34,10 +34,6 @@ extern "C" {}
 
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
-VoiceSample::VoiceSample() {
-	timeStretcher = nullptr;
-}
-
 void VoiceSample::beenUnassigned(bool wontBeUsedAgain) {
 	unassignAllReasons(wontBeUsedAgain);
 	endTimeStretching();
