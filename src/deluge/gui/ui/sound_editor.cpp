@@ -307,7 +307,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// Encoder button
 	if (b == SELECT_ENC) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
-		    || currentUIMode == UI_MODE_NOTES_PRESSED) {
+		    || currentUIMode == UI_MODE_NOTES_PRESSED
+		    || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
 			if (!on && !Buttons::selectButtonPressUsedUp) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -342,6 +343,14 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				}
 
 				handlePotentialParamMenuChange(b, on, inCardRoutine, currentMenuItem, getCurrentMenuItem());
+
+				if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+				    && getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
+					indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1);
+				}
+				else {
+					view.setModLedStates();
+				}
 			}
 		}
 		else if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
@@ -361,7 +370,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// Back button
 	else if (b == BACK) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
-		    || currentUIMode == UI_MODE_NOTES_PRESSED) {
+		    || currentUIMode == UI_MODE_NOTES_PRESSED
+		    || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
 			if (on) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -377,6 +387,14 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				}
 
 				handlePotentialParamMenuChange(b, on, inCardRoutine, currentMenuItem, getCurrentMenuItem());
+
+				if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+				    && getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
+					indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1);
+				}
+				else {
+					view.setModLedStates();
+				}
 			}
 		}
 	}
@@ -595,6 +613,8 @@ void SoundEditor::exitCompletely() {
 	patchCablesMenu.options.clear();
 
 	setupKitGlobalFXMenu = false;
+
+	currentUIMode = UI_MODE_NONE;
 }
 
 bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout) {
@@ -927,6 +947,14 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 				}
 			}
+
+			if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+			    && getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
+				indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1);
+			}
+			else {
+				view.setModLedStates();
+			}
 		}
 	}
 }
@@ -945,7 +973,7 @@ void SoundEditor::markInstrumentAsEdited() {
 	}
 }
 
-static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
+static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 	bool ignoreAction = false;
