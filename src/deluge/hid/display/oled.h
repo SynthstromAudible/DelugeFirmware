@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/l10n/language.h"
+#include <string_view>
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "display.h"
@@ -108,7 +109,7 @@ public:
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;
 	void consoleText(char const* text) override;
-	void freezeWithError(char const* text) override;
+	void freezeWithError(std::string_view) override;
 
 	//************************ Display Interface stuff ***************************/
 

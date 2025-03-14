@@ -1196,7 +1196,7 @@ checkTimeTilTimeout:
 	markChanged();
 }
 
-void OLED::freezeWithError(char const* text) {
+void OLED::freezeWithError(std::string_view text) {
 	OLED::clearMainImage();
 	int32_t yPixel = OLED_MAIN_TOPMOST_PIXEL;
 	main.drawString("Error:", 0, yPixel, kTextSpacingX, kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);

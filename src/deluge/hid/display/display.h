@@ -69,7 +69,7 @@ public:
 	virtual void setNextTransitionDirection(int8_t thisDirection) {};
 
 	virtual void cancelPopup() = 0;
-	virtual void freezeWithError(char const* text) = 0;
+	virtual void freezeWithError(std::string_view text) = 0;
 	virtual bool isLayerCurrentlyOnTop(NumericLayer* layer) = 0;
 	virtual void displayError(Error error) = 0;
 

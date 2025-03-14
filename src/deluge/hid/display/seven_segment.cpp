@@ -649,7 +649,7 @@ void SevenSegment::displayLoadingAnimation(bool delayed, bool transparent) {
 	setTopLayer(loadingAnimation);
 }
 
-void SevenSegment::setTextVeryBasicA1(char const* text) {
+void SevenSegment::setTextVeryBasicA1(std::string_view text) {
 	std::array<uint8_t, kNumericDisplayLength> segments;
 	encodeText(text, segments.data(), false, 255, true, 0);
 	PIC::update7SEG(segments);
@@ -658,7 +658,7 @@ void SevenSegment::setTextVeryBasicA1(char const* text) {
 // Highest error code used, main branch: E453
 // Highest error code used, fix branch: i041
 
-void SevenSegment::freezeWithError(char const* text) {
+void SevenSegment::freezeWithError(std::string_view text) {
 	setTextVeryBasicA1(text);
 
 	while (1) {

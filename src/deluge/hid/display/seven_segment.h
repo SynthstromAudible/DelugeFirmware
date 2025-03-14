@@ -38,7 +38,7 @@ public:
 	void setNextTransitionDirection(int8_t thisDirection) override;
 	void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false, uint8_t drawDot = 255,
 	                  int32_t blinkSpeed = 1, PopupType type = PopupType::GENERAL) override;
-	void freezeWithError(char const* text) override;
+	void freezeWithError(std::string_view) override;
 	void cancelPopup() override;
 	void displayError(Error error) override;
 
@@ -93,7 +93,7 @@ private:
 	void replaceBottomLayer(NumericLayer* newLayer);
 	void setTopLayer(NumericLayer* newTopLayer);
 	void transitionToNewLayer(NumericLayer* newLayer);
-	void setTextVeryBasicA1(char const* text);
+	void setTextVeryBasicA1(std::string_view text);
 	std::array<uint8_t, kNumericDisplayLength> lastDisplay_ = {0};
 	bool use_lowercase = false;
 };
