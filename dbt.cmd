@@ -80,7 +80,7 @@ if exist %DBT_ROOT%\toolchain\current (
     )
 
     REM Remove the known prefix "Print Name: " (including the space)
-    REM Adjust the number (here 12) if the prefix length differs.
+    REM Adjust the number (here 23) if the prefix length differs.
     set "target=!line:~23!"
 
     REM Compare the target with the expected values
