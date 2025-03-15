@@ -247,13 +247,11 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 	// }
 	if (x == kDisplayWidth - 1 && y == kDisplayHeight - 1) {
 		mode = ChordKeyboardMode::ROW;
-		char const* shortLong[2] = {"ROW", "Chord Row Mode"};
-		display->displayPopup(shortLong);
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_CHORD_KEYBOARD_MODE_ROW));
 	}
 	else if (x == kDisplayWidth - 1 && y == kDisplayHeight - 2) {
 		mode = ChordKeyboardMode::COLUMN;
-		char const* shortLong[2] = {"COLM", "Chord Column Mode"};
-		display->displayPopup(shortLong);
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_CHORD_KEYBOARD_MODE_COLUMN));
 	}
 }
 
