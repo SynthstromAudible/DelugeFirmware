@@ -41,15 +41,11 @@ startRenderingASync:
 	uint32_t distanceTilNextCrossoverSample = -resetterPhase - (resetterPhaseIncrement >> 1);
 	samplesIncludingNextCrossoverSample += (uint32_t)(distanceTilNextCrossoverSample - 1) / resetterPhaseIncrement;
 	bool shouldBeginNextSyncAfter = (numSamplesThisOscSyncSession >= samplesIncludingNextCrossoverSample);
-	int32_t numSamplesThisSyncRender = shouldBeginNextSyncAfter
-	                                       ? samplesIncludingNextCrossoverSample
-	                                       : numSamplesThisOscSyncSession; /* Just limit it, basically. */
+	size_t numSamplesThisSyncRender = shouldBeginNextSyncAfter
+	                                      ? samplesIncludingNextCrossoverSample
+	                                      : numSamplesThisOscSyncSession; /* Just limit it, basically. */
 
-	int32_t const* const bufferEndThisSyncRender = bufferStartThisSync + numSamplesThisSyncRender;
-	uint32_t phaseTemp = phase;
-	int32_t* __restrict__ writePos = bufferStartThisSync;
-
-	storageFunction(bufferEndThisSyncRender, phaseTemp, writePos);
+	storageFunction(std::span{bufferStartThisSync, numSamplesThisSyncRender}, phase);
 
 	/* Sort out the crossover sample at the *start* of that window we just did, if there was one. */
 	if (renderedASyncFromItsStartYet) {
