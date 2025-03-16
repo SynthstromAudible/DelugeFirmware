@@ -36,7 +36,7 @@ public:
 	             uint8_t* newBlinkMask = nullptr, bool blinkImmediately = false, bool shouldBlinkFast = false,
 	             int32_t scrollPos = 0, uint8_t* blinkAddition = nullptr, bool justReplaceBottomLayer = false) override;
 	void setNextTransitionDirection(int8_t thisDirection) override;
-	void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false, uint8_t drawDot = 255,
+	void displayPopup(std::string_view newText, int8_t numFlashes = 3, bool alignRight = false, uint8_t drawDot = 255,
 	                  int32_t blinkSpeed = 1, PopupType type = PopupType::GENERAL) override;
 	void freezeWithError(std::string_view) override;
 	void cancelPopup() override;
@@ -60,11 +60,11 @@ public:
 
 	constexpr size_t getNumBrowserAndMenuLines() override { return 1; }
 
-	void consoleText(char const* text) override { SevenSegment::displayPopup(text); }
-	void popupText(char const* text, PopupType type = PopupType::GENERAL) override {
+	void consoleText(std::string_view text) override { SevenSegment::displayPopup(text); }
+	void popupText(std::string_view text, PopupType type = PopupType::GENERAL) override {
 		SevenSegment::displayPopup(text, 0, false, 255, 1, type);
 	}
-	void popupTextTemporary(char const* text, PopupType type = PopupType::GENERAL) override {
+	void popupTextTemporary(std::string_view text, PopupType type = PopupType::GENERAL) override {
 		SevenSegment::displayPopup(text, 3, false, 255, 1, type);
 	}
 

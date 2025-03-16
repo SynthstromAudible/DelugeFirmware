@@ -48,7 +48,7 @@ public:
 	                     int32_t scrollPos = 0, uint8_t* blinkAddition = nullptr,
 	                     bool justReplaceBottomLayer = false) {};
 
-	virtual void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false,
+	virtual void displayPopup(std::string_view newText, int8_t numFlashes = 3, bool alignRight = false,
 	                          uint8_t drawDot = 255, int32_t blinkSpeed = 1, PopupType type = PopupType::GENERAL) = 0;
 
 	virtual void displayPopup(uint8_t val, int8_t numFlashes = 3, bool alignRight = false, uint8_t drawDot = 255,
@@ -58,8 +58,8 @@ public:
 		displayPopup(valStr, numFlashes, alignRight, drawDot, blinkSpeed, type);
 	}
 
-	virtual void popupText(char const* text, PopupType type = PopupType::GENERAL) = 0;
-	virtual void popupTextTemporary(char const* text, PopupType type = PopupType::GENERAL) = 0;
+	virtual void popupText(std::string_view text, PopupType type = PopupType::GENERAL) = 0;
+	virtual void popupTextTemporary(std::string_view text, PopupType type = PopupType::GENERAL) = 0;
 
 	virtual void setNextTransitionDirection(int8_t thisDirection) {};
 
@@ -78,7 +78,7 @@ public:
 	virtual bool hasPopup() = 0;
 	virtual bool hasPopupOfType(PopupType type) = 0;
 
-	virtual void consoleText(char const* text) = 0;
+	virtual void consoleText(std::string_view text) = 0;
 
 	virtual void timerRoutine() = 0;
 

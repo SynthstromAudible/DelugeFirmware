@@ -548,7 +548,7 @@ void SevenSegment::setNextTransitionDirection(int8_t thisDirection) {
 	nextTransitionDirection = thisDirection;
 }
 
-void SevenSegment::displayPopup(char const* newText, int8_t numFlashes, bool alignRight, uint8_t drawDot,
+void SevenSegment::displayPopup(std::string_view newText, int8_t numFlashes, bool alignRight, uint8_t drawDot,
                                 int32_t blinkSpeed, PopupType type) {
 	encodeText(newText, popup.segments, alignRight, drawDot);
 	memset(&popup.blinkedSegments, 0, kNumericDisplayLength);
