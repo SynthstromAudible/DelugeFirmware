@@ -58,7 +58,7 @@ public:
 	static bool isPopupPresentOfType(PopupType type = PopupType::GENERAL);
 	static bool isPermanentPopupPresent();
 
-	static void displayWorkingAnimation(char const* word);
+	static void displayWorkingAnimation(std::string_view word);
 
 	static int32_t setupConsole(int32_t height);
 	static void drawConsoleTopLine();
@@ -130,7 +130,7 @@ public:
 	void displayError(Error error) override;
 
 	// Loading animations
-	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) override {
+	void displayLoadingAnimationText(std::string_view text, bool delayed = false, bool transparent = false) override {
 		displayWorkingAnimation(text);
 	}
 	void removeLoadingAnimation() override { removeWorkingAnimation(); }

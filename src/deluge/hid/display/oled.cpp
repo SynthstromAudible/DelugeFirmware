@@ -33,9 +33,9 @@
 #include "util/d_string.h"
 #include <algorithm>
 #include <bits/ranges_algo.h>
+#include <cstring>
 #include <etl/vector.h>
 #include <ranges>
-#include <string.h>
 #include <string_view>
 
 extern "C" {
@@ -61,7 +61,7 @@ oled_canvas::Canvas OLED::console;
 bool OLED::needsSending;
 
 int32_t workingAnimationCount;
-char const* workingAnimationText; // NULL means animation not active
+std::string_view workingAnimationText; // empty means animation not active
 
 int32_t sideScrollerDirection; // 0 means none active
 
@@ -271,7 +271,7 @@ int32_t popupMinY;
 int32_t popupMaxY;
 
 void OLED::setupPopup(int32_t width, int32_t height) {
-	height = std::clamp(height, 0, OLED_MAIN_HEIGHT_PIXELS);
+	height = std::clamp<int32_t>(height, 0, OLED_MAIN_HEIGHT_PIXELS);
 	oledPopupWidth = width;
 	popupHeight = height;
 
@@ -281,8 +281,8 @@ void OLED::setupPopup(int32_t width, int32_t height) {
 	popupMinY = (OLED_MAIN_HEIGHT_PIXELS - height) / 2;
 	popupMaxY = OLED_MAIN_HEIGHT_PIXELS - popupMinY;
 
-	popupMinY = std::max(popupMinY, OLED_MAIN_TOPMOST_PIXEL);
-	popupMaxY = std::min(popupMaxY, OLED_MAIN_HEIGHT_PIXELS - 1);
+	popupMinY = std::max<int32_t>(popupMinY, OLED_MAIN_TOPMOST_PIXEL);
+	popupMaxY = std::min<int32_t>(popupMaxY, OLED_MAIN_HEIGHT_PIXELS - 1);
 
 	// Clear the popup's area, not including the rectangle we're about to draw
 	int32_t popupFirstRow = (popupMinY + 1) >> 3;
@@ -407,11 +407,9 @@ int32_t OLED::setupConsole(int32_t height) {
 }
 
 void OLED::removePopup() {
-	// if (!oledPopupWidth) return;
-
 	oledPopupWidth = 0;
 	popupType = PopupType::NONE;
-	workingAnimationText = nullptr;
+	workingAnimationText = {};
 	uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	markChanged();
 }
@@ -699,24 +697,18 @@ void OLED::popupText(std::string_view text, bool persistent, PopupType type) {
 }
 
 void updateWorkingAnimation() {
-	String textNow;
-	Error error = textNow.set(workingAnimationText);
-	if (error != Error::NONE) {
+	try {
+		std::string text(workingAnimationText);
+		for (int32_t i = 0; i < 3; i++) {
+			text += (i <= workingAnimationCount) ? '.' : ' ';
+		}
+		OLED::popupText(text, true, PopupType::LOADING);
+	} catch (deluge::exception e) {
 		return;
 	}
-
-	char buffer[4];
-	buffer[3] = 0;
-
-	for (int32_t i = 0; i < 3; i++) {
-		buffer[i] = (i <= workingAnimationCount) ? '.' : ' ';
-	}
-
-	error = textNow.concatenate(buffer);
-	OLED::popupText(textNow.get(), true, PopupType::LOADING);
 }
 
-void OLED::displayWorkingAnimation(char const* word) {
+void OLED::displayWorkingAnimation(std::string_view word) {
 	workingAnimationText = word;
 	workingAnimationCount = 0;
 	updateWorkingAnimation();
@@ -726,8 +718,8 @@ void OLED::removeWorkingAnimation() {
 	if (hasPopupOfType(PopupType::LOADING)) {
 		removePopup();
 	}
-	else if (workingAnimationText) {
-		workingAnimationText = nullptr;
+	else if (!workingAnimationText.empty()) {
+		workingAnimationText = {}; // clear the text
 	}
 }
 
@@ -894,8 +886,7 @@ void OLED::stopScrollingAnimation() {
 }
 
 void OLED::timerRoutine() {
-
-	if (workingAnimationText) {
+	if (!workingAnimationText.empty()) {
 		workingAnimationCount = (workingAnimationCount + 1) & 3;
 		updateWorkingAnimation();
 	}

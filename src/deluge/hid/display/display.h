@@ -72,7 +72,7 @@ public:
 
 	// Loading animations
 	virtual void displayLoadingAnimation() {};
-	virtual void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) = 0;
+	virtual void displayLoadingAnimationText(std::string_view text, bool delayed = false, bool transparent = false) = 0;
 	virtual void removeLoadingAnimation() = 0;
 
 	virtual bool hasPopup() = 0;

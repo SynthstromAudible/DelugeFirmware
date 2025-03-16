@@ -23,6 +23,7 @@
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
 #include <array>
 #include <string>
+#include <string_view>
 
 class NumericLayerScrollingText;
 
@@ -71,7 +72,7 @@ public:
 	void removeWorkingAnimation() override {}
 
 	// Loading animations
-	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) override {
+	void displayLoadingAnimationText(std::string_view text, bool delayed = false, bool transparent = false) override {
 		SevenSegment::displayLoadingAnimation(delayed, transparent);
 	}
 	void removeLoadingAnimation() override { SevenSegment::removeTopLayer(); }
