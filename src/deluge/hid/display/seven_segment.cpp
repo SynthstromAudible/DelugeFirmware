@@ -35,6 +35,7 @@
 #include <cstdint>
 #include <cstring>
 #include <new>
+#include <ranges>
 #include <string_view>
 
 extern "C" {
@@ -194,7 +195,7 @@ void SevenSegment::setText(std::string_view newText, bool alignRight, uint8_t dr
 	}
 }
 
-NumericLayerScrollingText* SevenSegment::setScrollingText(char const* newText, int32_t startAtTextPos,
+NumericLayerScrollingText* SevenSegment::setScrollingText(std::string_view newText, int32_t startAtTextPos,
                                                           int32_t initialDelay, int count, uint8_t fixedDot) {
 	// Paul: Render time could be lower putting this into internal
 	void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerScrollingText));
@@ -279,40 +280,35 @@ void SevenSegment::transitionToNewLayer(NumericLayer* newLayer) {
 }
 
 // Automatically stops at end of string
-int32_t SevenSegment::getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf) {
+int32_t SevenSegment::getEncodedPosFromLeft(int32_t text_position, std::string_view text, bool* andAHalf) {
 
-	int32_t encodedPos = 0;
-	bool lastSegmentHasDot =
+	int32_t encoded_position = 0;
+	bool last_character_dotted =
 	    true; // Pretend this initially, cos the segment before the first one doesn't exist, obviously
 	*andAHalf = false;
 
-	for (int32_t i = 0; true; i++) {
-		char thisChar = *text;
-		if (!thisChar) {
-			break; // Stop at end of string
-		}
-		bool isDot = (thisChar == '.' || thisChar == '#' || thisChar == ',');
+	for (auto [idx, c] : text | std::views::enumerate) {
+		bool is_dot = (c == '.' || c == '#' || c == ',');
 
 		// If dot here, and we haven't just had a dot previously, then this dot just gets crammed into prev encoded char
-		if (isDot && !lastSegmentHasDot) {
-			lastSegmentHasDot = true;
+		if (is_dot && !last_character_dotted) {
+			last_character_dotted = true;
 			*andAHalf = true;
-			encodedPos--;
+			encoded_position--;
 		}
 		else {
-			lastSegmentHasDot = (isDot || thisChar == '!');
+			last_character_dotted = (is_dot || c == '!');
 			*andAHalf = false;
 		}
 
-		if (i == textPos) {
+		if (idx == text_position) {
 			break;
 		}
 
-		text++;
-		encodedPos++;
+		encoded_position++;
 	}
 
-	return encodedPos;
+	return encoded_position;
 }
 
 void putDot(uint8_t* destination, uint8_t drawDot) {

@@ -48,9 +48,10 @@ public:
 	                   int32_t blinkPos = -1, bool blinkImmediately = false) override;
 	void timerRoutine() override;
 	void removeTopLayer();
-	NumericLayerScrollingText* setScrollingText(char const* newText, int32_t startAtPos = 0, int32_t initialDelay = 600,
-	                                            int count = -1, uint8_t fixedDot = 255) override;
-	int32_t getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf) override;
+	NumericLayerScrollingText* setScrollingText(std::string_view text, int32_t startAtPos = 0,
+	                                            int32_t initialDelay = 600, int count = -1,
+	                                            uint8_t fixedDot = 255) override;
+	int32_t getEncodedPosFromLeft(int32_t text_position, std::string_view text, bool* andAHalf) override;
 	void render();
 	void displayLoadingAnimation(bool delayed = false, bool transparent = false);
 	bool isLayerCurrentlyOnTop(NumericLayer* layer) override;
