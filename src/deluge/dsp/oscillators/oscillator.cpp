@@ -136,10 +136,9 @@ void Oscillator::renderTriangle(int32_t amplitude, int32_t* buffer_start, int32_
 		if (do_osc_sync) {
 			int32_t amplitude_now = amplitude << 1;
 			uint32_t phase_now = phase;
-			int32_t* this_sample = buffer_start;
 			uint32_t resetter_phase_now = resetter_phase;
 			amplitude_increment <<= 1;
-			do {
+			for (int32_t* this_sample = buffer_start; this_sample != buffer_end; ++this_sample) {
 				phase_now += phase_increment;
 				resetter_phase_now += resetter_phase_increment;
 
@@ -159,7 +158,7 @@ void Oscillator::renderTriangle(int32_t amplitude, int32_t* buffer_start, int32_
 				else {
 					*this_sample = value << 1;
 				}
-			} while (++this_sample != buffer_end);
+			}
 
 			phase = phase_now;
 			if (!do_pulse_wave) {
@@ -170,9 +169,8 @@ void Oscillator::renderTriangle(int32_t amplitude, int32_t* buffer_start, int32_
 		else {
 			int32_t amplitude_now = amplitude << 1;
 			uint32_t phase_now = phase;
-			int32_t* this_sample = buffer_start;
 			amplitude_increment <<= 1;
-			do {
+			for (int32_t* this_sample = buffer_start; this_sample != buffer_end; ++this_sample) {
 				phase_now += phase_increment;
 
 				int32_t value = getTriangleSmall(phase_now);
@@ -184,7 +182,7 @@ void Oscillator::renderTriangle(int32_t amplitude, int32_t* buffer_start, int32_
 				else {
 					*this_sample = value << 1;
 				}
-			} while (++this_sample != buffer_end);
+			}
 			return;
 		}
 	}
@@ -268,30 +266,27 @@ void Oscillator::renderSquare(int32_t amplitude, int32_t* buffer_start, int32_t*
 		int32_t amplitude_now = amplitude;
 		uint32_t phase_now = phase;
 		uint32_t resetter_phase_now = resetter_phase;
-		int32_t* this_sample = buffer_start;
 
 		if (!do_osc_sync) {
 			if (apply_amplitude) {
-				do {
+				for (int32_t* this_sample = buffer_start; this_sample != buffer_end; ++this_sample) {
 					phase_now += phase_increment;
 					amplitude_now += amplitude_increment;
 					*this_sample = multiply_accumulate_32x32_rshift32_rounded(
 					    *this_sample, getSquare(phase_now, pulse_width), amplitude_now);
-					++this_sample;
-				} while (this_sample != buffer_end);
+				}
 			}
 			else {
 #pragma GCC unroll 4
-				while (this_sample != buffer_end) {
+				for (int32_t* this_sample = buffer_start; this_sample != buffer_end; ++this_sample) {
 					phase_now += phase_increment;
 					*this_sample = getSquareSmall(phase_now, pulse_width);
-					++this_sample;
 				}
 			}
 			return;
 		}
 		else {
-			do {
+			for (int32_t* this_sample = buffer_start; this_sample != buffer_end; ++this_sample) {
 				phase_now += phase_increment;
 				resetter_phase_now += resetter_phase_increment;
 
@@ -310,7 +305,7 @@ void Oscillator::renderSquare(int32_t amplitude, int32_t* buffer_start, int32_t*
 				else {
 					*this_sample = getSquareSmall(phase_now, pulse_width);
 				}
-			} while (++this_sample != buffer_end);
+			}
 
 			phase = phase_now;
 			*start_phase = phase;
@@ -410,9 +405,8 @@ void Oscillator::renderSaw(int32_t amplitude, int32_t* buffer_start, int32_t* bu
 		int32_t amplitude_now = amplitude;
 		uint32_t phase_now = phase;
 		uint32_t resetter_phase_now = resetter_phase;
-		int32_t* this_sample = buffer_start;
 
-		do {
+		for (int32_t* this_sample = buffer_start; this_sample != buffer_end; ++this_sample) {
 			phase_now += phase_increment;
 			resetter_phase_now += resetter_phase_increment;
 
@@ -431,7 +425,7 @@ void Oscillator::renderSaw(int32_t amplitude, int32_t* buffer_start, int32_t* bu
 			else {
 				*this_sample = (int32_t)phase_now >> 1;
 			}
-		} while (++this_sample != buffer_end);
+		}
 
 		phase = phase_now;
 		if (!do_pulse_wave) {
