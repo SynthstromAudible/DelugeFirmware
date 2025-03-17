@@ -61,7 +61,9 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <execution>
 #include <new>
+#include <numeric>
 #include <ranges>
 
 namespace params = deluge::modulation::params;
@@ -348,8 +350,8 @@ int32_t getNumAudio() {
 }
 
 int32_t getNumVoices() {
-	auto all_voices = sounds | std::views::transform(&Sound::voices) | std::views::join;
-	return std::ranges::distance(all_voices);
+	return std::transform_reduce(sounds.cbegin(), sounds.cend(), 0, std::plus{},
+	                             [](auto sound) { return sound->voices().size(); });
 }
 
 void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
