@@ -33,39 +33,33 @@ Oscillator::renderOsc(OscType osc_type, int32_t amplitude, std::span<int32_t> bu
                       WaveTable* wave_table) {
 	switch (osc_type) {
 	case OscType::SINE:
-		renderSine(amplitude, buffer, phase_increment, pulse_width, start_phase, apply_amplitude, amplitude_increment,
-		           do_osc_sync, resetter_phase, resetter_phase_increment, retrigger_phase, wave_index_increment,
-		           source_wave_index_last_time, wave_table);
+		renderSine(amplitude, buffer, phase_increment, start_phase, apply_amplitude, amplitude_increment, do_osc_sync,
+		           resetter_phase, resetter_phase_increment, retrigger_phase);
 		break;
 	case OscType::TRIANGLE:
-		renderTriangle(amplitude, buffer, phase_increment, pulse_width, start_phase, apply_amplitude,
-		               amplitude_increment, do_osc_sync, resetter_phase, resetter_phase_increment, retrigger_phase,
-		               wave_index_increment, source_wave_index_last_time, wave_table);
+		renderTriangle(amplitude, buffer, phase_increment, start_phase, apply_amplitude, amplitude_increment,
+		               do_osc_sync, resetter_phase, resetter_phase_increment, retrigger_phase);
 		break;
 	case OscType::SQUARE:
 		renderSquare(amplitude, buffer, phase_increment, pulse_width, start_phase, apply_amplitude, amplitude_increment,
-		             do_osc_sync, resetter_phase, resetter_phase_increment, retrigger_phase, wave_index_increment,
-		             source_wave_index_last_time, wave_table);
+		             do_osc_sync, resetter_phase, resetter_phase_increment, retrigger_phase);
 		break;
 	case OscType::SAW:
-		renderSaw(amplitude, buffer, phase_increment, pulse_width, start_phase, apply_amplitude, amplitude_increment,
-		          do_osc_sync, resetter_phase, resetter_phase_increment, retrigger_phase, wave_index_increment,
-		          source_wave_index_last_time, wave_table);
+		renderSaw(amplitude, buffer, phase_increment, start_phase, apply_amplitude, amplitude_increment, do_osc_sync,
+		          resetter_phase, resetter_phase_increment, retrigger_phase);
 		break;
 	case OscType::WAVETABLE:
-		renderWavetable(amplitude, buffer, phase_increment, pulse_width, start_phase, apply_amplitude,
-		                amplitude_increment, do_osc_sync, resetter_phase, resetter_phase_increment, retrigger_phase,
-		                wave_index_increment, source_wave_index_last_time, wave_table);
+		renderWavetable(amplitude, buffer, phase_increment, start_phase, apply_amplitude, amplitude_increment,
+		                do_osc_sync, resetter_phase, resetter_phase_increment, retrigger_phase, wave_index_increment,
+		                source_wave_index_last_time, wave_table);
 		break;
 	case OscType::ANALOG_SAW_2:
-		renderAnalogSaw2(amplitude, buffer, phase_increment, pulse_width, start_phase, apply_amplitude,
-		                 amplitude_increment, do_osc_sync, resetter_phase, resetter_phase_increment, retrigger_phase,
-		                 wave_index_increment, source_wave_index_last_time, wave_table);
+		renderAnalogSaw2(amplitude, buffer, phase_increment, start_phase, apply_amplitude, amplitude_increment,
+		                 do_osc_sync, resetter_phase, resetter_phase_increment, retrigger_phase);
 		break;
 	case OscType::ANALOG_SQUARE:
 		renderAnalogSquare(amplitude, buffer, phase_increment, pulse_width, start_phase, apply_amplitude,
-		                   amplitude_increment, do_osc_sync, resetter_phase, resetter_phase_increment, retrigger_phase,
-		                   wave_index_increment, source_wave_index_last_time, wave_table);
+		                   amplitude_increment, do_osc_sync, resetter_phase, resetter_phase_increment, retrigger_phase);
 		break;
 	default:
 		// Handle default case if necessary
@@ -74,10 +68,8 @@ Oscillator::renderOsc(OscType osc_type, int32_t amplitude, std::span<int32_t> bu
 }
 
 void Oscillator::renderSine(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
-                            uint32_t pulse_width, uint32_t* start_phase, bool apply_amplitude,
-                            int32_t amplitude_increment, bool do_osc_sync, uint32_t resetter_phase,
-                            uint32_t resetter_phase_increment, uint32_t retrigger_phase, int32_t wave_index_increment,
-                            int source_wave_index_last_time, WaveTable* wave_table) {
+                            uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment, bool do_osc_sync,
+                            uint32_t resetter_phase, uint32_t resetter_phase_increment, uint32_t retrigger_phase) {
 	uint32_t phase = *start_phase;
 	*start_phase += phase_increment * buffer.size();
 
@@ -120,10 +112,9 @@ void Oscillator::renderSine(int32_t amplitude, std::span<int32_t> buffer, uint32
 }
 
 void Oscillator::renderTriangle(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
-                                uint32_t pulse_width, uint32_t* start_phase, bool apply_amplitude,
-                                int32_t amplitude_increment, bool do_osc_sync, uint32_t resetter_phase,
-                                uint32_t resetter_phase_increment, uint32_t retrigger_phase,
-                                int32_t wave_index_increment, int source_wave_index_last_time, WaveTable* wave_table) {
+                                uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment,
+                                bool do_osc_sync, uint32_t resetter_phase, uint32_t resetter_phase_increment,
+                                uint32_t retrigger_phase) {
 	uint32_t phase = *start_phase;
 	*start_phase += phase_increment * buffer.size();
 
@@ -242,8 +233,7 @@ void Oscillator::renderTriangle(int32_t amplitude, std::span<int32_t> buffer, ui
 void Oscillator::renderSquare(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
                               uint32_t pulse_width, uint32_t* start_phase, bool apply_amplitude,
                               int32_t amplitude_increment, bool do_osc_sync, uint32_t resetter_phase,
-                              uint32_t resetter_phase_increment, uint32_t retrigger_phase, int32_t wave_index_increment,
-                              int source_wave_index_last_time, WaveTable* wave_table) {
+                              uint32_t resetter_phase_increment, uint32_t retrigger_phase) {
 	uint32_t phase = *start_phase;
 	*start_phase += phase_increment * buffer.size();
 
@@ -374,10 +364,9 @@ void Oscillator::renderSquare(int32_t amplitude, std::span<int32_t> buffer, uint
 	}
 }
 
-void Oscillator::renderSaw(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment, uint32_t pulse_width,
+void Oscillator::renderSaw(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
                            uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment, bool do_osc_sync,
-                           uint32_t resetter_phase, uint32_t resetter_phase_increment, uint32_t retrigger_phase,
-                           int32_t wave_index_increment, int source_wave_index_last_time, WaveTable* wave_table) {
+                           uint32_t resetter_phase, uint32_t resetter_phase_increment, uint32_t retrigger_phase) {
 	uint32_t phase = *start_phase;
 	*start_phase += phase_increment * buffer.size();
 
@@ -462,10 +451,10 @@ void Oscillator::renderSaw(int32_t amplitude, std::span<int32_t> buffer, uint32_
 }
 
 void Oscillator::renderWavetable(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
-                                 uint32_t pulse_width, uint32_t* start_phase, bool apply_amplitude,
-                                 int32_t amplitude_increment, bool do_osc_sync, uint32_t resetter_phase,
-                                 uint32_t resetter_phase_increment, uint32_t retrigger_phase,
-                                 int32_t wave_index_increment, int source_wave_index_last_time, WaveTable* wave_table) {
+                                 uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment,
+                                 bool do_osc_sync, uint32_t resetter_phase, uint32_t resetter_phase_increment,
+                                 uint32_t retrigger_phase, int32_t wave_index_increment,
+                                 int source_wave_index_last_time, WaveTable* wave_table) {
 	uint32_t phase = *start_phase;
 	*start_phase += phase_increment * buffer.size();
 
@@ -494,11 +483,9 @@ void Oscillator::renderWavetable(int32_t amplitude, std::span<int32_t> buffer, u
 }
 
 void Oscillator::renderAnalogSaw2(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
-                                  uint32_t pulse_width, uint32_t* start_phase, bool apply_amplitude,
-                                  int32_t amplitude_increment, bool do_osc_sync, uint32_t resetter_phase,
-                                  uint32_t resetter_phase_increment, uint32_t retrigger_phase,
-                                  int32_t wave_index_increment, int source_wave_index_last_time,
-                                  WaveTable* wave_table) {
+                                  uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment,
+                                  bool do_osc_sync, uint32_t resetter_phase, uint32_t resetter_phase_increment,
+                                  uint32_t retrigger_phase) {
 	uint32_t phase = *start_phase;
 	*start_phase += phase_increment * buffer.size();
 
@@ -511,9 +498,8 @@ void Oscillator::renderAnalogSaw2(int32_t amplitude, std::span<int32_t> buffer, 
 	std::tie(table_number, table_size_magnitude) = dsp::getTableNumber(phase_increment);
 
 	if (table_number >= 8 && table_number < AudioEngine::cpuDireness + 6) {
-		renderSaw(amplitude, buffer, phase_increment, pulse_width, start_phase, apply_amplitude, amplitude_increment,
-		          do_osc_sync, resetter_phase, resetter_phase_increment, retrigger_phase, wave_index_increment,
-		          source_wave_index_last_time, wave_table);
+		renderSaw(amplitude, buffer, phase_increment, start_phase, apply_amplitude, amplitude_increment, do_osc_sync,
+		          resetter_phase, resetter_phase_increment, retrigger_phase);
 		return;
 	}
 
@@ -549,9 +535,7 @@ void Oscillator::renderAnalogSaw2(int32_t amplitude, std::span<int32_t> buffer, 
 void Oscillator::renderAnalogSquare(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
                                     uint32_t pulse_width, uint32_t* start_phase, bool apply_amplitude,
                                     int32_t amplitude_increment, bool do_osc_sync, uint32_t resetter_phase,
-                                    uint32_t resetter_phase_increment, uint32_t retrigger_phase,
-                                    int32_t wave_index_increment, int source_wave_index_last_time,
-                                    WaveTable* wave_table) {
+                                    uint32_t resetter_phase_increment, uint32_t retrigger_phase) {
 	uint32_t phase = *start_phase;
 	*start_phase += phase_increment * buffer.size();
 
