@@ -601,10 +601,10 @@ TextLineBreakdown::TextLineBreakdown(std::string_view text, size_t char_height, 
 		// If the new character would exceed the max width of a line, we need to break the line
 		if (line_width + char_width > max_width_per_line) {
 
-			// search for the first word break character (space or underscore)
-			size_t end_idx = text.find_first_of(" _");
+			// search for the latest word break character (space or underscore)
+			size_t end_idx = text.find_last_of(" _", std::distance(text.begin(), c));
 
-			// get the text up to the first word break character
+			// get the text up to the word break character
 			std::string_view text_upto_word_start = text.substr(0, end_idx);
 
 			// add the line to the lines vector
@@ -613,7 +613,7 @@ TextLineBreakdown::TextLineBreakdown(std::string_view text, size_t char_height, 
 			    .pixel_width = getWidthPixels(text_upto_word_start, char_height),
 			});
 
-			// remove the text up to the first word break character
+			// remove the text up to the word break character
 			text.remove_prefix(end_idx + 1);
 
 			// reset the current line width
