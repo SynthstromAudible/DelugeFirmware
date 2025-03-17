@@ -20,7 +20,6 @@
 namespace deluge::dsp {
 
 class Oscillator {
-	static void maybeStorePhase(const OscType& type, uint32_t* startPhase, uint32_t phase, bool doPulseWave);
 	static void applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamples, int32_t amplitudeIncrement,
 	                                         int32_t* outputBufferPos, int32_t* inputBuferPos);
 
@@ -30,33 +29,62 @@ public:
 	                      int32_t amplitude_increment, bool do_osc_sync, uint32_t resetter_phase,
 	                      uint32_t resetter_phase_increment, uint32_t retrigger_phase, int32_t wave_index_increment,
 	                      int source_wave_index_last_time, WaveTable* wave_table);
+
+	// Non-synced rendering
 	static void renderSine(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
-	                       uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment, bool do_osc_sync,
-	                       uint32_t resetter_phase, uint32_t resetter_phase_increment, uint32_t retrigger_phase);
+	                       uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment);
 	static void renderTriangle(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
-	                           uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment,
-	                           bool do_osc_sync, uint32_t resetter_phase, uint32_t resetter_phase_increment,
-	                           uint32_t retrigger_phase);
+	                           uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment);
 	static void renderSquare(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
-	                         uint32_t pulse_width, uint32_t* start_phase, bool apply_amplitude,
-	                         int32_t amplitude_increment, bool do_osc_sync, uint32_t resetter_phase,
-	                         uint32_t resetter_phase_increment, uint32_t retrigger_phase);
+	                         uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment);
+	static void renderPWM(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment, uint32_t pulse_width,
+	                      uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment);
 	static void renderSaw(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment, uint32_t* start_phase,
-	                      bool apply_amplitude, int32_t amplitude_increment, bool do_osc_sync, uint32_t resetter_phase,
-	                      uint32_t resetter_phase_increment, uint32_t retrigger_phase);
+	                      bool apply_amplitude, int32_t amplitude_increment);
+	static void renderAnalogSaw2(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
+	                             uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment);
+	static void renderAnalogSquare(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
+	                               uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment);
+	static void renderAnalogPWM(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
+	                            uint32_t pulse_width, uint32_t* start_phase, bool apply_amplitude,
+	                            int32_t amplitude_increment, uint32_t retrigger_phase);
+	// Synced rendering
+	static void renderSineSync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
+	                           uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment,
+	                           uint32_t resetter_phase, uint32_t resetter_phase_increment, uint32_t retrigger_phase);
+	static void renderTriangleSync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
+	                               uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment,
+	                               uint32_t resetter_phase, uint32_t resetter_phase_increment,
+	                               uint32_t retrigger_phase);
+	static void renderSquareSync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
+	                             uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment,
+	                             uint32_t resetter_phase, uint32_t resetter_phase_increment, uint32_t retrigger_phase);
+	static void renderPWMSync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
+	                          uint32_t pulse_width, uint32_t* start_phase, bool apply_amplitude,
+	                          int32_t amplitude_increment, uint32_t resetter_phase, uint32_t resetter_phase_increment,
+	                          uint32_t retrigger_phase);
+	static void renderSawSync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
+	                          uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment,
+	                          uint32_t resetter_phase, uint32_t resetter_phase_increment, uint32_t retrigger_phase);
+	static void renderAnalogSaw2Sync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
+	                                 uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment,
+	                                 uint32_t resetter_phase, uint32_t resetter_phase_increment,
+	                                 uint32_t retrigger_phase);
+	static void renderAnalogSquareSync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
+	                                   uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment,
+	                                   uint32_t resetter_phase, uint32_t resetter_phase_increment,
+	                                   uint32_t retrigger_phase);
+
+	static void renderAnalogPWMSync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
+	                                uint32_t pulse_width, uint32_t* start_phase, bool apply_amplitude,
+	                                int32_t amplitude_increment, uint32_t resetter_phase,
+	                                uint32_t resetter_phase_increment, uint32_t retrigger_phase);
+
 	static void renderWavetable(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
 	                            uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment,
 	                            bool do_osc_sync, uint32_t resetter_phase, uint32_t resetter_phase_increment,
 	                            uint32_t retrigger_phase, int32_t wave_index_increment, int source_wave_index_last_time,
 	                            WaveTable* wave_table);
-	static void renderAnalogSaw2(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
-	                             uint32_t* start_phase, bool apply_amplitude, int32_t amplitude_increment,
-	                             bool do_osc_sync, uint32_t resetter_phase, uint32_t resetter_phase_increment,
-	                             uint32_t retrigger_phase);
-	static void renderAnalogSquare(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
-	                               uint32_t pulse_width, uint32_t* start_phase, bool apply_amplitude,
-	                               int32_t amplitude_increment, bool do_osc_sync, uint32_t resetter_phase,
-	                               uint32_t resetter_phase_increment, uint32_t retrigger_phase);
 };
 
 } // namespace deluge::dsp
