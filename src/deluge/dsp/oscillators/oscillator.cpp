@@ -76,7 +76,6 @@ void Oscillator::renderSine(int32_t amplitude, std::span<int32_t> buffer, uint32
 	bool do_pulse_wave = false;
 
 	int32_t resetter_divide_by_phase_increment;
-	const int16_t* table;
 
 	retrigger_phase += 3221225472u;
 
@@ -85,7 +84,7 @@ void Oscillator::renderSine(int32_t amplitude, std::span<int32_t> buffer, uint32
 		    (uint32_t)2147483648u / (uint16_t)((resetter_phase_increment + 65535) >> 16);
 	}
 
-	table = sineWaveSmall;
+	const int16_t* table = sineWaveSmall;
 	int32_t table_size_magnitude = 8;
 
 	if (!do_osc_sync) {
@@ -121,7 +120,6 @@ void Oscillator::renderTriangle(int32_t amplitude, std::span<int32_t> buffer, ui
 	bool do_pulse_wave = false;
 
 	int32_t resetter_divide_by_phase_increment;
-	const int16_t* table;
 
 	if (phase_increment < 69273666 || AudioEngine::cpuDireness >= 7) {
 		if (do_osc_sync) {
@@ -178,6 +176,7 @@ void Oscillator::renderTriangle(int32_t amplitude, std::span<int32_t> buffer, ui
 		}
 	}
 	else {
+		const int16_t* table;
 		int32_t table_size_magnitude;
 		if (phase_increment <= 429496729) {
 			table_size_magnitude = 7;
@@ -240,7 +239,6 @@ void Oscillator::renderSquare(int32_t amplitude, std::span<int32_t> buffer, uint
 	bool do_pulse_wave = false;
 
 	int32_t resetter_divide_by_phase_increment;
-	const int16_t* table;
 
 	uint32_t phase_increment_for_calculations = phase_increment;
 
@@ -250,8 +248,7 @@ void Oscillator::renderSquare(int32_t amplitude, std::span<int32_t> buffer, uint
 		phase_increment_for_calculations = phase_increment * 0.6;
 	}
 
-	int32_t table_number, table_size_magnitude;
-	std::tie(table_number, table_size_magnitude) = dsp::getTableNumber(phase_increment_for_calculations);
+	const auto [table_number, table_size_magnitude] = dsp::getTableNumber(phase_increment_for_calculations);
 
 	if (table_number < AudioEngine::cpuDireness + 6) {
 		int32_t amplitude_now = amplitude;
@@ -304,7 +301,7 @@ void Oscillator::renderSquare(int32_t amplitude, std::span<int32_t> buffer, uint
 		}
 	}
 	else {
-		table = dsp::squareTables[table_number];
+		const int16_t* table = dsp::squareTables[table_number];
 
 		if (do_pulse_wave) {
 			amplitude <<= 1;
@@ -373,10 +370,8 @@ void Oscillator::renderSaw(int32_t amplitude, std::span<int32_t> buffer, uint32_
 	bool do_pulse_wave = false;
 
 	int32_t resetter_divide_by_phase_increment;
-	const int16_t* table;
 
-	int32_t table_number, table_size_magnitude;
-	std::tie(table_number, table_size_magnitude) = dsp::getTableNumber(phase_increment);
+	const auto [table_number, table_size_magnitude] = dsp::getTableNumber(phase_increment);
 
 	retrigger_phase += 2147483648u;
 
@@ -421,7 +416,7 @@ void Oscillator::renderSaw(int32_t amplitude, std::span<int32_t> buffer, uint32_
 		return;
 	}
 
-	table = dsp::sawTables[table_number];
+	const int16_t* table = dsp::sawTables[table_number];
 
 	amplitude <<= 1;
 	amplitude_increment <<= 1;
@@ -461,7 +456,6 @@ void Oscillator::renderWavetable(int32_t amplitude, std::span<int32_t> buffer, u
 	bool do_pulse_wave = false;
 
 	int32_t resetter_divide_by_phase_increment;
-	const int16_t* table;
 
 	int32_t wave_index = source_wave_index_last_time + 1073741824;
 
@@ -492,10 +486,8 @@ void Oscillator::renderAnalogSaw2(int32_t amplitude, std::span<int32_t> buffer, 
 	bool do_pulse_wave = false;
 
 	int32_t resetter_divide_by_phase_increment;
-	const int16_t* table;
 
-	int32_t table_number, table_size_magnitude;
-	std::tie(table_number, table_size_magnitude) = dsp::getTableNumber(phase_increment);
+	const auto [table_number, table_size_magnitude] = dsp::getTableNumber(phase_increment);
 
 	if (table_number >= 8 && table_number < AudioEngine::cpuDireness + 6) {
 		renderSaw(amplitude, buffer, phase_increment, start_phase, apply_amplitude, amplitude_increment, do_osc_sync,
@@ -503,7 +495,7 @@ void Oscillator::renderAnalogSaw2(int32_t amplitude, std::span<int32_t> buffer, 
 		return;
 	}
 
-	table = dsp::analogSawTables[table_number];
+	const int16_t* table = dsp::analogSawTables[table_number];
 
 	amplitude <<= 1;
 	amplitude_increment <<= 1;
@@ -542,10 +534,8 @@ void Oscillator::renderAnalogSquare(int32_t amplitude, std::span<int32_t> buffer
 	bool do_pulse_wave = false;
 
 	int32_t resetter_divide_by_phase_increment;
-	const int16_t* table;
 
-	int32_t table_number, table_size_magnitude;
-	std::tie(table_number, table_size_magnitude) = dsp::getTableNumber(phase_increment);
+	const auto [table_number, table_size_magnitude] = dsp::getTableNumber(phase_increment);
 
 	do_pulse_wave = (pulse_width && !do_osc_sync);
 	if (do_pulse_wave) {
@@ -568,7 +558,7 @@ void Oscillator::renderAnalogSquare(int32_t amplitude, std::span<int32_t> buffer
 		phase += retrigger_phase;
 	}
 
-	table = dsp::analogSquareTables[table_number];
+	const int16_t* table = dsp::analogSquareTables[table_number];
 
 	amplitude <<= 1;
 	amplitude_increment <<= 1;
