@@ -114,7 +114,9 @@ void Oscillator::renderSine(int32_t amplitude, int32_t* buffer_start, int32_t* b
 	    resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
 	    num_samples_this_osc_sync_session, buffer_start_this_sync);
 	applyAmplitudeVectorToBuffer(amplitude, num_samples, amplitude_increment, buffer_start, oscSyncRenderingBuffer);
-	maybeStorePhase(OscType::SINE, start_phase, phase, do_pulse_wave);
+	if (!do_pulse_wave) {
+		*start_phase = phase;
+	}
 }
 
 void Oscillator::renderTriangle(int32_t amplitude, int32_t* buffer_start, int32_t* buffer_end, int32_t num_samples,
@@ -160,7 +162,9 @@ void Oscillator::renderTriangle(int32_t amplitude, int32_t* buffer_start, int32_
 			} while (++this_sample != buffer_end);
 
 			phase = phase_now;
-			maybeStorePhase(OscType::TRIANGLE, start_phase, phase, do_pulse_wave);
+			if (!do_pulse_wave) {
+				*start_phase = phase;
+			}
 			return;
 		}
 		else {
@@ -229,7 +233,9 @@ void Oscillator::renderTriangle(int32_t amplitude, int32_t* buffer_start, int32_
 		    resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
 		    num_samples_this_osc_sync_session, buffer_start_this_sync);
 		applyAmplitudeVectorToBuffer(amplitude, num_samples, amplitude_increment, buffer_start, oscSyncRenderingBuffer);
-		maybeStorePhase(OscType::TRIANGLE, start_phase, phase, do_pulse_wave);
+		if (!do_pulse_wave) {
+			*start_phase = phase;
+		}
 		return;
 	}
 }
@@ -326,7 +332,7 @@ void Oscillator::renderSquare(int32_t amplitude, int32_t* buffer_start, int32_t*
 			} while (++this_sample != buffer_end);
 
 			phase = phase_now;
-			maybeStorePhase(OscType::SQUARE, start_phase, phase, do_pulse_wave);
+			*start_phase = phase;
 			return;
 		}
 	}
@@ -363,7 +369,7 @@ void Oscillator::renderSquare(int32_t amplitude, int32_t* buffer_start, int32_t*
 			phase <<= 1;
 			applyAmplitudeVectorToBuffer(amplitude, num_samples, amplitude_increment, buffer_start,
 			                             oscSyncRenderingBuffer);
-			maybeStorePhase(OscType::SQUARE, start_phase, phase, do_pulse_wave);
+			*start_phase = phase;
 		}
 
 		amplitude <<= 1;
@@ -447,7 +453,9 @@ void Oscillator::renderSaw(int32_t amplitude, int32_t* buffer_start, int32_t* bu
 		} while (++this_sample != buffer_end);
 
 		phase = phase_now;
-		maybeStorePhase(OscType::SAW, start_phase, phase, do_pulse_wave);
+		if (!do_pulse_wave) {
+			*start_phase = phase;
+		}
 		return;
 	}
 
@@ -475,7 +483,9 @@ void Oscillator::renderSaw(int32_t amplitude, int32_t* buffer_start, int32_t* bu
 	    resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
 	    num_samples_this_osc_sync_session, buffer_start_this_sync);
 	applyAmplitudeVectorToBuffer(amplitude, num_samples, amplitude_increment, buffer_start, oscSyncRenderingBuffer);
-	maybeStorePhase(OscType::SAW, start_phase, phase, do_pulse_wave);
+	if (!do_pulse_wave) {
+		*start_phase = phase;
+	}
 }
 
 void Oscillator::renderWavetable(int32_t amplitude, int32_t* buffer_start, int32_t* buffer_end, int32_t num_samples,
@@ -504,7 +514,9 @@ void Oscillator::renderWavetable(int32_t amplitude, int32_t* buffer_start, int32
 	if (apply_amplitude) {
 		applyAmplitudeVectorToBuffer(amplitude, num_samples, amplitude_increment, buffer_start, oscSyncRenderingBuffer);
 	}
-	maybeStorePhase(OscType::WAVETABLE, start_phase, phase, do_pulse_wave);
+	if (!do_pulse_wave) {
+		*start_phase = phase;
+	}
 }
 
 void Oscillator::renderAnalogSaw2(int32_t amplitude, int32_t* buffer_start, int32_t* buffer_end, int32_t num_samples,
@@ -555,7 +567,9 @@ void Oscillator::renderAnalogSaw2(int32_t amplitude, int32_t* buffer_start, int3
 	    resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
 	    num_samples_this_osc_sync_session, buffer_start_this_sync);
 	applyAmplitudeVectorToBuffer(amplitude, num_samples, amplitude_increment, buffer_start, oscSyncRenderingBuffer);
-	maybeStorePhase(OscType::ANALOG_SAW_2, start_phase, phase, do_pulse_wave);
+	if (!do_pulse_wave) {
+		*start_phase = phase;
+	}
 }
 
 void Oscillator::renderAnalogSquare(int32_t amplitude, int32_t* buffer_start, int32_t* buffer_end, int32_t num_samples,
@@ -620,7 +634,9 @@ void Oscillator::renderAnalogSquare(int32_t amplitude, int32_t* buffer_start, in
 	    resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
 	    num_samples_this_osc_sync_session, buffer_start_this_sync);
 	applyAmplitudeVectorToBuffer(amplitude, num_samples, amplitude_increment, buffer_start, oscSyncRenderingBuffer);
-	maybeStorePhase(OscType::ANALOG_SQUARE, start_phase, phase, do_pulse_wave);
+	if (!do_pulse_wave) {
+		*start_phase = phase;
+	}
 }
 
 void Oscillator::applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamples, int32_t amplitudeIncrement,
@@ -642,11 +658,6 @@ void Oscillator::applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamp
 		outputBufferPos += 4;
 		inputBuferPos += 4;
 	} while (outputBufferPos < bufferEnd);
-}
-void Oscillator::maybeStorePhase(const OscType& type, uint32_t* startPhase, uint32_t phase, bool doPulseWave) {
-	if (!(doPulseWave && type != OscType::SQUARE)) {
-		*startPhase = phase;
-	}
 }
 
 } // namespace deluge::dsp
