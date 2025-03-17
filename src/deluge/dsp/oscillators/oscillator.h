@@ -30,6 +30,41 @@ public:
 	                      int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
 	                      uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
 	                      int sourceWaveIndexLastTime, WaveTable* waveTable);
+	static void renderSine(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
+	                       uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
+	                       int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
+	                       uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
+	                       int sourceWaveIndexLastTime, WaveTable* waveTable);
+	static void renderTriangle(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
+	                           uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
+	                           int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
+	                           uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
+	                           int sourceWaveIndexLastTime, WaveTable* waveTable);
+	static void renderSquare(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
+	                         uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
+	                         int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
+	                         uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
+	                         int sourceWaveIndexLastTime, WaveTable* waveTable);
+	static void renderSaw(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
+	                      uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
+	                      int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
+	                      uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
+	                      int sourceWaveIndexLastTime, WaveTable* waveTable);
+	static void renderWavetable(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
+	                            uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
+	                            int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
+	                            uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
+	                            int sourceWaveIndexLastTime, WaveTable* waveTable);
+	static void renderAnalogSaw2(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
+	                             uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase,
+	                             bool applyAmplitude, int32_t amplitudeIncrement, bool doOscSync,
+	                             uint32_t resetterPhase, uint32_t resetterPhaseIncrement, uint32_t retriggerPhase,
+	                             int32_t waveIndexIncrement, int sourceWaveIndexLastTime, WaveTable* waveTable);
+	static void renderAnalogSquare(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
+	                               uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase,
+	                               bool applyAmplitude, int32_t amplitudeIncrement, bool doOscSync,
+	                               uint32_t resetterPhase, uint32_t resetterPhaseIncrement, uint32_t retriggerPhase,
+	                               int32_t waveIndexIncrement, int sourceWaveIndexLastTime, WaveTable* waveTable);
 };
 
 } // namespace deluge::dsp
