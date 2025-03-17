@@ -16,7 +16,6 @@
  */
 
 #pragma once
-#include "processing/vector_rendering_function.h"
 #include "util/fixedpoint.h"
 #include "util/waves.h"
 #include <argon.hpp>

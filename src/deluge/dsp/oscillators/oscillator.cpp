@@ -22,6 +22,7 @@
 #include "processing/render_wave.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/fixedpoint.h"
+#include "vector_rendering_function.h"
 #include <cstdint>
 
 namespace deluge::dsp {
@@ -388,7 +389,7 @@ void Oscillator::renderSquareSync(int32_t amplitude, std::span<int32_t> buffer, 
 	auto store_vector_wave_for_one_sync = [&](std::span<q31_t> buffer, uint32_t phase) {
 		for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
 			std::tie(value_vector, phase) =
-			    waveRenderingFunctionGeneral(phase, phase_increment, 0, table, table_size_magnitude);
+			    waveRenderingFunctionGeneral(phase, phase_increment, table, table_size_magnitude);
 		}
 	};
 	renderOscSync(
@@ -686,7 +687,7 @@ void Oscillator::renderAnalogSaw2Sync(int32_t amplitude, std::span<int32_t> buff
 	auto store_vector_wave_for_one_sync = [&](std::span<q31_t> buffer, uint32_t phase) {
 		for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
 			std::tie(value_vector, phase) =
-			    waveRenderingFunctionGeneral(phase, phase_increment, 0, table, table_size_magnitude);
+			    waveRenderingFunctionGeneral(phase, phase_increment, table, table_size_magnitude);
 		}
 	};
 	renderOscSync(
@@ -735,7 +736,7 @@ void Oscillator::renderAnalogSquareSync(int32_t amplitude, std::span<int32_t> bu
 	auto store_vector_wave_for_one_sync = [&](std::span<q31_t> buffer, uint32_t phase) {
 		for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
 			std::tie(value_vector, phase) =
-			    waveRenderingFunctionGeneral(phase, phase_increment, 0, table, table_size_magnitude);
+			    waveRenderingFunctionGeneral(phase, phase_increment, table, table_size_magnitude);
 		}
 	};
 	renderOscSync(
