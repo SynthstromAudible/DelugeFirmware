@@ -2647,8 +2647,8 @@ someError:
 			reader.match('{');
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				bool readAndExited = arpSettings.readCommonTagsFromFile(reader, tagName, nullptr);
-
-				if (!readAndExited && (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV)) {
+				if (!readAndExited
+				    && (outputTypeWhileLoading == OutputType::MIDI_OUT || outputTypeWhileLoading == OutputType::CV)) {
 					readAndExited = arpSettings.readNonAudioTagsFromFile(reader, tagName);
 				}
 
