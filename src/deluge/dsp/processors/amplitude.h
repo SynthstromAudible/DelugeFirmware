@@ -1,0 +1,50 @@
+/**
+ * Copyright (c) 2025 Katherine Whitlock
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "dsp/core/mixer.h"
+#include "dsp/core/processor.h"
+#include "util/fixedpoint.h"
+
+class AmplitudeMixer : public SIMDMixer<q31_t> {
+	Argon<int32_t> amplitude_;           ///< The current amplitude value (in q31 format).
+	Argon<int32_t> amplitude_increment_; ///< The increment value for the amplitude.
+public:
+	/// @brief Constructor for the Amplitude class.
+	/// @param amplitude The initial amplitude value (in q31 format).
+	/// @param amplitude_increment The increment value for the amplitude (in q31 format).
+
+	AmplitudeMixer(int32_t amplitude, int32_t amplitude_increment)
+	    : amplitude_{Argon{amplitude}.MultiplyAdd(amplitude_increment, int32x4_t{1, 2, 3, 4}) >> 1},
+	      amplitude_increment_{amplitude_increment << 1} {}
+
+	/// @brief Destructor for the Amplitude class.
+	virtual ~AmplitudeMixer() = default;
+
+	/// @brief Process a pair of input samples and return the mixed output sample.
+	/// @param input_a The input sample to apply the amplitude to.
+	/// @param input_b The existing sample to mix with.
+	/// @return The mixed output sample.
+	Argon<q31_t> process(Argon<q31_t> input_a, Argon<q31_t> input_b) override {
+		Argon<q31_t> output = input_b.MultiplyAddFixedPoint(input_a, amplitude_);
+		amplitude_ = amplitude_ + amplitude_increment_;
+		return output;
+	}
+};
+
+using AmplitudeProcessor = SIMDProcessorForSIMDMixer<AmplitudeMixer>;
