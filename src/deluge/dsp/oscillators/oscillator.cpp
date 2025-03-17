@@ -281,27 +281,8 @@ void Oscillator::renderSquare(int32_t amplitude, int32_t* buffer_start, int32_t*
 				} while (this_sample != buffer_end);
 			}
 			else {
-				int32_t* remainder_samples_end = buffer_start + (num_samples & 3);
-
-				while (this_sample != remainder_samples_end) {
-					phase_now += phase_increment;
-					*this_sample = getSquareSmall(phase_now, pulse_width);
-					++this_sample;
-				}
-
+#pragma GCC unroll 4
 				while (this_sample != buffer_end) {
-					phase_now += phase_increment;
-					*this_sample = getSquareSmall(phase_now, pulse_width);
-					++this_sample;
-
-					phase_now += phase_increment;
-					*this_sample = getSquareSmall(phase_now, pulse_width);
-					++this_sample;
-
-					phase_now += phase_increment;
-					*this_sample = getSquareSmall(phase_now, pulse_width);
-					++this_sample;
-
 					phase_now += phase_increment;
 					*this_sample = getSquareSmall(phase_now, pulse_width);
 					++this_sample;
