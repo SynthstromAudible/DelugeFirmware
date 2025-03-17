@@ -25,46 +25,47 @@ class Oscillator {
 	                                         int32_t* outputBufferPos, int32_t* inputBuferPos);
 
 public:
-	static void renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
-	                      uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
-	                      int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
-	                      uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
-	                      int sourceWaveIndexLastTime, WaveTable* waveTable);
-	static void renderSine(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
-	                       uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
-	                       int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
-	                       uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
-	                       int sourceWaveIndexLastTime, WaveTable* waveTable);
-	static void renderTriangle(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
-	                           uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
-	                           int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
-	                           uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
-	                           int sourceWaveIndexLastTime, WaveTable* waveTable);
-	static void renderSquare(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
-	                         uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
-	                         int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
-	                         uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
-	                         int sourceWaveIndexLastTime, WaveTable* waveTable);
-	static void renderSaw(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
-	                      uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
-	                      int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
-	                      uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
-	                      int sourceWaveIndexLastTime, WaveTable* waveTable);
-	static void renderWavetable(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
-	                            uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
-	                            int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
-	                            uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
-	                            int sourceWaveIndexLastTime, WaveTable* waveTable);
-	static void renderAnalogSaw2(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
-	                             uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase,
-	                             bool applyAmplitude, int32_t amplitudeIncrement, bool doOscSync,
-	                             uint32_t resetterPhase, uint32_t resetterPhaseIncrement, uint32_t retriggerPhase,
-	                             int32_t waveIndexIncrement, int sourceWaveIndexLastTime, WaveTable* waveTable);
-	static void renderAnalogSquare(int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
-	                               uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase,
-	                               bool applyAmplitude, int32_t amplitudeIncrement, bool doOscSync,
-	                               uint32_t resetterPhase, uint32_t resetterPhaseIncrement, uint32_t retriggerPhase,
-	                               int32_t waveIndexIncrement, int sourceWaveIndexLastTime, WaveTable* waveTable);
+	static void renderOsc(OscType type, int32_t amplitude, int32_t* buffer_start, int32_t* buffer_end,
+	                      int32_t num_samples, uint32_t phase_increment, uint32_t pulse_width, uint32_t* start_phase,
+	                      bool apply_amplitude, int32_t amplitude_increment, bool do_osc_sync, uint32_t resetter_phase,
+	                      uint32_t resetter_phase_increment, uint32_t retrigger_phase, int32_t wave_index_increment,
+	                      int source_wave_index_last_time, WaveTable* wave_table);
+	static void renderSine(int32_t amplitude, int32_t* buffer_start, int32_t* buffer_end, int32_t num_samples,
+	                       uint32_t phase_increment, uint32_t pulse_width, uint32_t* start_phase, bool apply_amplitude,
+	                       int32_t amplitude_increment, bool do_osc_sync, uint32_t resetter_phase,
+	                       uint32_t resetter_phase_increment, uint32_t retrigger_phase, int32_t wave_index_increment,
+	                       int source_wave_index_last_time, WaveTable* wave_table);
+	static void renderTriangle(int32_t amplitude, int32_t* buffer_start, int32_t* buffer_end, int32_t num_samples,
+	                           uint32_t phase_increment, uint32_t pulse_width, uint32_t* start_phase,
+	                           bool apply_amplitude, int32_t amplitude_increment, bool do_osc_sync,
+	                           uint32_t resetter_phase, uint32_t resetter_phase_increment, uint32_t retrigger_phase,
+	                           int32_t wave_index_increment, int source_wave_index_last_time, WaveTable* wave_table);
+	static void renderSquare(int32_t amplitude, int32_t* buffer_start, int32_t* buffer_end, int32_t num_samples,
+	                         uint32_t phase_increment, uint32_t pulse_width, uint32_t* start_phase,
+	                         bool apply_amplitude, int32_t amplitude_increment, bool do_osc_sync,
+	                         uint32_t resetter_phase, uint32_t resetter_phase_increment, uint32_t retrigger_phase,
+	                         int32_t wave_index_increment, int source_wave_index_last_time, WaveTable* wave_table);
+	static void renderSaw(int32_t amplitude, int32_t* buffer_start, int32_t* buffer_end, int32_t num_samples,
+	                      uint32_t phase_increment, uint32_t pulse_width, uint32_t* start_phase, bool apply_amplitude,
+	                      int32_t amplitude_increment, bool do_osc_sync, uint32_t resetter_phase,
+	                      uint32_t resetter_phase_increment, uint32_t retrigger_phase, int32_t wave_index_increment,
+	                      int source_wave_index_last_time, WaveTable* wave_table);
+	static void renderWavetable(int32_t amplitude, int32_t* buffer_start, int32_t* buffer_end, int32_t num_samples,
+	                            uint32_t phase_increment, uint32_t pulse_width, uint32_t* start_phase,
+	                            bool apply_amplitude, int32_t amplitude_increment, bool do_osc_sync,
+	                            uint32_t resetter_phase, uint32_t resetter_phase_increment, uint32_t retrigger_phase,
+	                            int32_t wave_index_increment, int source_wave_index_last_time, WaveTable* wave_table);
+	static void renderAnalogSaw2(int32_t amplitude, int32_t* buffer_start, int32_t* buffer_end, int32_t num_samples,
+	                             uint32_t phase_increment, uint32_t pulse_width, uint32_t* start_phase,
+	                             bool apply_amplitude, int32_t amplitude_increment, bool do_osc_sync,
+	                             uint32_t resetter_phase, uint32_t resetter_phase_increment, uint32_t retrigger_phase,
+	                             int32_t wave_index_increment, int source_wave_index_last_time, WaveTable* wave_table);
+	static void renderAnalogSquare(int32_t amplitude, int32_t* buffer_start, int32_t* buffer_end, int32_t num_samples,
+	                               uint32_t phase_increment, uint32_t pulse_width, uint32_t* start_phase,
+	                               bool apply_amplitude, int32_t amplitude_increment, bool do_osc_sync,
+	                               uint32_t resetter_phase, uint32_t resetter_phase_increment, uint32_t retrigger_phase,
+	                               int32_t wave_index_increment, int source_wave_index_last_time,
+	                               WaveTable* wave_table);
 };
 
 } // namespace deluge::dsp
