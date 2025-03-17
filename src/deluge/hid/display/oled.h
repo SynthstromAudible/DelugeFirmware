@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/l10n/language.h"
+#include <string_view>
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "display.h"
@@ -52,12 +53,12 @@ public:
 
 	static void setupPopup(int32_t width, int32_t height);
 	static void removePopup();
-	static void popupText(char const* text, bool persistent = false, PopupType type = PopupType::GENERAL);
+	static void popupText(std::string_view text, bool persistent = false, PopupType type = PopupType::GENERAL);
 	static bool isPopupPresent();
 	static bool isPopupPresentOfType(PopupType type = PopupType::GENERAL);
 	static bool isPermanentPopupPresent();
 
-	static void displayWorkingAnimation(char const* word);
+	static void displayWorkingAnimation(std::string_view word);
 
 	static int32_t setupConsole(int32_t height);
 	static void drawConsoleTopLine();
@@ -65,7 +66,7 @@ public:
 	static void stopScrollingAnimation();
 	static void setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
 	                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight);
-	static void drawPermanentPopupLookingText(char const* text);
+	static void drawPermanentPopupLookingText(std::string_view);
 
 	/// Call this after doing any rendering work so the next trip through the UI rendering loop actually sends the image
 	/// via \ref sendMainImage.
@@ -107,20 +108,20 @@ public:
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;
-	void consoleText(char const* text) override;
-	void freezeWithError(char const* text) override;
+	void consoleText(std::string_view text) override;
+	void freezeWithError(std::string_view) override;
 
 	//************************ Display Interface stuff ***************************/
 
 	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
 
-	void displayPopup(char const* newText, int8_t numFlashes = 3, bool = false, uint8_t = 255, int32_t = 1,
+	void displayPopup(std::string_view newText, int8_t numFlashes = 3, bool = false, uint8_t = 255, int32_t = 1,
 	                  PopupType type = PopupType::GENERAL) override {
 		popupText(newText, !numFlashes, type);
 	}
 
-	void popupText(char const* text, PopupType type = PopupType::GENERAL) override { popupText(text, true, type); }
-	void popupTextTemporary(char const* text, PopupType type = PopupType::GENERAL) override {
+	void popupText(std::string_view text, PopupType type = PopupType::GENERAL) override { popupText(text, true, type); }
+	void popupTextTemporary(std::string_view text, PopupType type = PopupType::GENERAL) override {
 		popupText(text, false, type);
 	}
 
@@ -129,7 +130,7 @@ public:
 	void displayError(Error error) override;
 
 	// Loading animations
-	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) override {
+	void displayLoadingAnimationText(std::string_view text, bool delayed = false, bool transparent = false) override {
 		displayWorkingAnimation(text);
 	}
 	void removeLoadingAnimation() override { removeWorkingAnimation(); }
