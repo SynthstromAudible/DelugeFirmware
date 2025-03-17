@@ -1332,11 +1332,10 @@ cantBeDoingOscSyncForFirstOsc:
 					OscType oscType = sound.sources[s].oscType;
 
 					dsp::Oscillator::renderOsc(
-					    oscType, 0, spareRenderingBuffer[s + 2], spareRenderingBuffer[s + 2] + numSamples, numSamples,
-					    phaseIncrements[s], pulseWidth, &unisonParts[u].sources[s].oscPos, false, 0,
-					    doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s],
-					    sourceWaveIndexIncrements[s], sourceWaveIndexesLastTime[s],
-					    static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile));
+					    oscType, 0, {spareRenderingBuffer[s + 2], numSamples}, phaseIncrements[s], pulseWidth,
+					    &unisonParts[u].sources[s].oscPos, false, 0, doingOscSyncThisOscillator, oscSyncPos[u],
+					    phaseIncrements[0], sound.oscRetriggerPhase[s], sourceWaveIndexIncrements[s],
+					    sourceWaveIndexesLastTime[s], static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile));
 
 					// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so
 					// we need to compensate
@@ -2416,17 +2415,14 @@ dontUseCache: {}
 				memset(renderBuffer, 0, SSI_TX_BUFFER_NUM_SAMPLES * sizeof(int32_t));
 			}
 
-			int32_t* oscBufferEnd =
-			    renderBuffer + numSamples; // TODO: we don't really want to be calculating this so early do we?
-
 			// Work out pulse width
 			uint32_t pulseWidth = (uint32_t)lshiftAndSaturate<1>(paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
 
 			dsp::Oscillator::renderOsc(
-			    sound.sources[s].oscType, sourceAmplitude, renderBuffer, oscBufferEnd, numSamples, phaseIncrement,
-			    pulseWidth, &unisonParts[u].sources[s].oscPos, true, amplitudeIncrement, doOscSync,
-			    oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase, waveIndexIncrement,
-			    sourceWaveIndexesLastTime[s], static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile));
+			    sound.sources[s].oscType, sourceAmplitude, {renderBuffer, numSamples}, phaseIncrement, pulseWidth,
+			    &unisonParts[u].sources[s].oscPos, true, amplitudeIncrement, doOscSync, oscSyncPosThisUnison,
+			    oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase, waveIndexIncrement, sourceWaveIndexesLastTime[s],
+			    static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile));
 
 			if (stereoBuffer) {
 				// TODO: if render buffer was typed we could use addPannedMono()
