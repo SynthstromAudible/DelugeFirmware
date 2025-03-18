@@ -23,8 +23,8 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
-void NonAudioDrum::unassignAllVoices() {
-	if (hasAnyVoices()) {
+void NonAudioDrum::killAllVoices() {
+	if (hasActiveVoices()) {
 		noteOff(nullptr);
 	}
 	arpeggiator.reset();

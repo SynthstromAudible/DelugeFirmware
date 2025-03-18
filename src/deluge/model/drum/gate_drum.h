@@ -38,5 +38,5 @@ public:
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	void getName(char* buffer) override;
 	int32_t getNumChannels() override;
-	void unassignAllVoices() override;
+	void killAllVoices() override;
 };

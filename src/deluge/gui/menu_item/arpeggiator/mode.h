@@ -44,7 +44,7 @@ public:
 					// Midi or CV drum
 					Drum* currentDrum = ((Kit*)getCurrentClip()->output)->selectedDrum;
 					if (currentDrum != nullptr) {
-						currentDrum->unassignAllVoices();
+						currentDrum->killAllVoices();
 					}
 				}
 				else if (soundEditor.editingCVOrMIDIClip()) {

@@ -1903,7 +1903,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 				// Assign new audio file
 				if (fileCount) {
 					AudioEngine::stopAnyPreviewing();
-					soundDrum->unassignAllVoices();
+					soundDrum->killAllVoices();
 
 					afh->setAudioFile(nullptr);
 					// set the slash to 0 again
