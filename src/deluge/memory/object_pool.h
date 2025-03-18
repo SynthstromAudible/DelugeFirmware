@@ -89,9 +89,12 @@ public:
 	using pointer_type = std::unique_ptr<T, decltype(&recycle)>;
 
 	/// @brief Acquires an object from the pool
+	/// @tparam Args The types of arguments to pass to the object's constructor
+	/// @param args The arguments to pass to the object's constructor
 	/// @throws deluge::exception::BAD_ALLOC if memory allocation fails
 	/// @returns A managed pointer to the acquired object
-	pointer_type acquire() noexcept(false) {
+	template <typename... Args>
+	[[nodiscard]] pointer_type acquire(Args&&... args) noexcept(false) {
 		T* obj = nullptr;
 		if (objects_.empty()) {
 			obj = alloc_.allocate(1);
@@ -100,7 +103,7 @@ public:
 			obj = objects_.top();
 			objects_.pop();
 		}
-		return {new (obj) T(), &recycle};
+		return {new (obj) T(std::forward<Args>(args)...), &recycle};
 	}
 
 	/// @brief Clears the pool

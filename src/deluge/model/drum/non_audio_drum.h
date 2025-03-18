@@ -31,8 +31,8 @@ public:
 
 	// Voiced overrides
 	bool anyNoteIsOn() final { return state_; };
-	bool hasAnyVoices() final { return state_; };
-	void unassignAllVoices() override;
+	[[nodiscard]] bool hasActiveVoices() const final { return state_; };
+	void killAllVoices() override;
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) final { return true; }
 
 	bool readDrumTagFromFile(Deserializer& reader, char const* tagName);

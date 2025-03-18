@@ -21,8 +21,8 @@ class ModelStackWithSoundFlags;
 struct Voiced {
 	virtual ~Voiced() = default;
 	virtual bool anyNoteIsOn() = 0;
-	virtual bool hasAnyVoices() = 0;
-	virtual void unassignAllVoices() = 0;
+	[[nodiscard]] virtual bool hasActiveVoices() const = 0;
+	virtual void killAllVoices() = 0;
 	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) = 0;
 	virtual void prepareForHibernation() {}
 };

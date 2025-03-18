@@ -40,6 +40,7 @@ class ModelStackWithSoundFlags;
 class ModControllable {
 public:
 	ModControllable() = default;
+	virtual ~ModControllable() = default;
 	virtual bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
 		return false;
 	} // Returns whether Instrument was changed

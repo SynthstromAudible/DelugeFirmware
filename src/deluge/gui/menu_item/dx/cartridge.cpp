@@ -98,7 +98,7 @@ void DxCartridge::readValueAgain() {
 
 	DxPatch* patch = soundEditor.currentSource->ensureDxPatch();
 	pd->unpackProgram(patch->params, currentValue);
-	soundEditor.currentSound->unassignAllVoices();
+	soundEditor.currentSound->killAllVoices();
 	Instrument* instrument = getCurrentInstrument();
 	if (instrument->type == OutputType::SYNTH && !instrument->existsOnCard) {
 		char name[11];

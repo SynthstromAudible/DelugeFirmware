@@ -46,7 +46,7 @@ public:
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
-					soundDrum->unassignAllVoices();
+					soundDrum->killAllVoices();
 					source->setReversed(this->getValue());
 				}
 			}
@@ -54,7 +54,7 @@ public:
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->unassignAllVoices();
+			soundEditor.currentSound->killAllVoices();
 			soundEditor.currentSource->setReversed(this->getValue());
 		}
 	}
