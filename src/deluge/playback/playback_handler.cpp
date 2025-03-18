@@ -1359,13 +1359,13 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 				preLoadedSong->timePerTimerTickBig = currentSong->timePerTimerTickBig;
 			}
 
-			// Any MIDI or gate notes wouldn't be stopped by our unassignAllVoices() call below
+			// Any MIDI or gate notes wouldn't be stopped by our killAllVoices() call below
 			currentSong->stopAllMIDIAndGateNotesPlaying();
 		}
 	}
 
 	// Swap stuff over
-	AudioEngine::unassignAllVoices(true);
+	AudioEngine::killAllVoices(true);
 	midiFollow.clearStoredClips(); // need to clear clip pointers stored for previous song
 	currentSong = preLoadedSong;
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
