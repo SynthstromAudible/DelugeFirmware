@@ -362,6 +362,29 @@ void Oscillator::renderSquare(int32_t amplitude, int32_t* bufferStart, int32_t* 
 			                             oscSyncRenderingBuffer);
 			maybeStorePhase(OscType::SQUARE, startPhase, phase, doPulseWave);
 		}
+
+		amplitude <<= 1;
+		amplitudeIncrement <<= 1;
+
+		if (!doOscSync) {
+			dsp::renderWave(table, tableSizeMagnitude, amplitude, {bufferStart, bufferEnd}, phaseIncrement, phase,
+			                applyAmplitude, 0, amplitudeIncrement);
+			return;
+		}
+
+		int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
+		int32_t numSamplesThisOscSyncSession = numSamples;
+		auto storeVectorWaveForOneSync = [&](std::span<q31_t> buffer, uint32_t phase) {
+			for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
+				std::tie(value_vector, phase) =
+				    waveRenderingFunctionPulse(phase, phaseIncrement, 0, table, tableSizeMagnitude);
+			}
+		};
+		renderOscSync(
+		    storeVectorWaveForOneSync, [](uint32_t) {}, phase, phaseIncrement, resetterPhase, resetterPhaseIncrement,
+		    resetterDivideByPhaseIncrement, retriggerPhase, numSamplesThisOscSyncSession, bufferStartThisSync);
+		applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart, oscSyncRenderingBuffer);
+		maybeStorePhase(OscType::SAW, startPhase, phase, doPulseWave);
 	}
 }
 
@@ -424,6 +447,9 @@ void Oscillator::renderSaw(int32_t amplitude, int32_t* bufferStart, int32_t* buf
 	}
 
 	table = dsp::sawTables[tableNumber];
+
+	amplitude <<= 1;
+	amplitudeIncrement <<= 1;
 
 	if (!doOscSync) {
 		dsp::renderWave(table, tableSizeMagnitude, amplitude, {bufferStart, bufferEnd}, phaseIncrement, phase,
@@ -500,6 +526,9 @@ void Oscillator::renderAnalogSaw2(int32_t amplitude, int32_t* bufferStart, int32
 
 	table = dsp::analogSawTables[tableNumber];
 
+	amplitude <<= 1;
+	amplitudeIncrement <<= 1;
+
 	if (!doOscSync) {
 		dsp::renderWave(table, tableSizeMagnitude, amplitude, {bufferStart, bufferEnd}, phaseIncrement, phase,
 		                applyAmplitude, 0, amplitudeIncrement);
@@ -559,6 +588,9 @@ void Oscillator::renderAnalogSquare(int32_t amplitude, int32_t* bufferStart, int
 	}
 
 	table = dsp::analogSquareTables[tableNumber];
+
+	amplitude <<= 1;
+	amplitudeIncrement <<= 1;
 
 	if (!doOscSync) {
 		dsp::renderWave(table, tableSizeMagnitude, amplitude, {bufferStart, bufferEnd}, phaseIncrement, phase,

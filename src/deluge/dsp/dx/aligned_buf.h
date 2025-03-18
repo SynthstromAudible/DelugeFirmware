@@ -20,7 +20,8 @@
 
 #pragma once
 
-#include <stddef.h>
+#include <cstddef>
+#include <cstdint>
 
 template <typename T, size_t size, size_t alignment = 16>
 class AlignedBuf {
