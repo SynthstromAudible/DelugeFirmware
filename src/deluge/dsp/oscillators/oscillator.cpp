@@ -17,12 +17,17 @@
 #include "oscillator.h"
 #include "basic_waves.h"
 #include "definitions_cxx.hpp"
+#include "dsp/core/conditional_processor.h"
+#include "dsp/core/pipeline.h"
+#include "dsp/core/unity_mixer.h"
 #include "dsp/oscillators/basic_waves.h"
+#include "dsp/processors/amplitude.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/render_wave.h"
+#include "render_wave.h"
 #include "storage/wave_table/wave_table.h"
+#include "table_oscillator.h"
 #include "util/fixedpoint.h"
-#include "vector_rendering_function.h"
+#include "util/lookuptables/lookuptables.h"
 #include <cstdint>
 
 namespace deluge::dsp {
@@ -132,13 +137,20 @@ void Oscillator::renderSine(int32_t amplitude, std::span<int32_t> buffer, uint32
 	uint32_t phase = *start_phase;
 	*start_phase += phase_increment * buffer.size();
 
-	bool do_pulse_wave = false;
+	Pipeline pipeline{
+	    TableOscillator(sineWaveSmall, 8),
+	    ConditionalProcessor{
+	        apply_amplitude,
+	        Pipeline{
+	            AmplitudeProcessor(amplitude, amplitude_increment),
+	            UnityMixerProcessor(buffer),
+	        },
+	    },
+	};
 
-	const int16_t* table = sineWaveSmall;
-	int32_t table_size_magnitude = 8;
+	std::get<TableOscillator>(pipeline).setPhase(phase, phase_increment);
 
-	dsp::renderWave(table, table_size_magnitude, amplitude, buffer, phase_increment, phase, apply_amplitude, 0,
-	                amplitude_increment);
+	pipeline.processBlock(buffer);
 }
 
 void Oscillator::renderSineSync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
@@ -154,22 +166,14 @@ void Oscillator::renderSineSync(int32_t amplitude, std::span<int32_t> buffer, ui
 	int32_t resetter_divide_by_phase_increment =
 	    (uint32_t)2147483648u / (uint16_t)((resetter_phase_increment + 65535) >> 16);
 
-	const int16_t* table = sineWaveSmall;
-	int32_t table_size_magnitude = 8;
-
 	int32_t* buffer_start_this_sync = apply_amplitude ? oscSyncRenderingBuffer : buffer.data();
 	int32_t num_samples_this_osc_sync_session = buffer.size();
-	auto store_vector_wave_for_one_sync = [&](std::span<q31_t> buffer, uint32_t phase) {
-		for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
-			std::tie(value_vector, phase) =
-			    waveRenderingFunctionPulse(phase, phase_increment, 0, table, table_size_magnitude);
-		}
-	};
+
 	renderOscSync(
-	    store_vector_wave_for_one_sync, [](uint32_t) {}, phase, phase_increment, resetter_phase,
+	    TableOscillator(sineWaveSmall, 8), [](uint32_t) {}, phase, phase_increment, resetter_phase,
 	    resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
 	    num_samples_this_osc_sync_session, buffer_start_this_sync);
-	applyAmplitudeVectorToBuffer(amplitude, buffer.size(), amplitude_increment, buffer.data(), oscSyncRenderingBuffer);
+	AmplitudeProcessor(amplitude, amplitude_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	if (!do_pulse_wave) {
 		*start_phase = phase;
 	}
@@ -205,8 +209,6 @@ void Oscillator::renderTriangle(int32_t amplitude, std::span<int32_t> buffer, ui
 	uint32_t phase = *start_phase;
 	*start_phase += phase_increment * buffer.size();
 
-	bool do_pulse_wave = false;
-
 	if (phase_increment < 69273666 || AudioEngine::cpuDireness >= 7) {
 		int32_t amplitude_now = amplitude << 1;
 		uint32_t phase_now = phase;
@@ -228,8 +230,20 @@ void Oscillator::renderTriangle(int32_t amplitude, std::span<int32_t> buffer, ui
 	}
 
 	auto [table, table_size_magnitude] = getTriangleTable(phase_increment);
-	dsp::renderWave(table, table_size_magnitude, amplitude, buffer, phase_increment, phase, apply_amplitude, 0,
-	                amplitude_increment);
+	Pipeline pipeline{
+	    TableOscillator(table, table_size_magnitude),
+	    ConditionalProcessor{
+	        apply_amplitude,
+	        Pipeline{
+	            AmplitudeProcessor(amplitude, amplitude_increment),
+	            UnityMixerProcessor(buffer),
+	        },
+	    },
+	};
+
+	std::get<TableOscillator>(pipeline).setPhase(phase, phase_increment);
+
+	pipeline.processBlock(buffer);
 }
 
 void Oscillator::renderTriangleSync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
@@ -238,8 +252,6 @@ void Oscillator::renderTriangleSync(int32_t amplitude, std::span<int32_t> buffer
                                     uint32_t retrigger_phase) {
 	uint32_t phase = *start_phase;
 	*start_phase += phase_increment * buffer.size();
-
-	bool do_pulse_wave = false;
 
 	int32_t resetter_divide_by_phase_increment =
 	    (uint32_t)2147483648u / (uint16_t)((resetter_phase_increment + 65535) >> 16);
@@ -272,29 +284,19 @@ void Oscillator::renderTriangleSync(int32_t amplitude, std::span<int32_t> buffer
 		}
 
 		phase = phase_now;
-		if (!do_pulse_wave) {
-			*start_phase = phase;
-		}
+		*start_phase = phase;
 		return;
 	}
 
 	auto [table, table_size_magnitude] = getTriangleTable(phase_increment);
 	int32_t* buffer_start_this_sync = apply_amplitude ? oscSyncRenderingBuffer : buffer.data();
 	int32_t num_samples_this_osc_sync_session = buffer.size();
-	auto store_vector_wave_for_one_sync = [&](std::span<q31_t> buffer, uint32_t phase) {
-		for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
-			std::tie(value_vector, phase) =
-			    waveRenderingFunctionPulse(phase, phase_increment, 0, table, table_size_magnitude);
-		}
-	};
 	renderOscSync(
-	    store_vector_wave_for_one_sync, [](uint32_t) {}, phase, phase_increment, resetter_phase,
+	    PWMTableOscillator(table, table_size_magnitude), [](uint32_t) {}, phase, phase_increment, resetter_phase,
 	    resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
 	    num_samples_this_osc_sync_session, buffer_start_this_sync);
-	applyAmplitudeVectorToBuffer(amplitude, buffer.size(), amplitude_increment, buffer.data(), oscSyncRenderingBuffer);
-	if (!do_pulse_wave) {
-		*start_phase = phase;
-	}
+	AmplitudeProcessor(amplitude, amplitude_increment).processBlock(oscSyncRenderingBuffer, buffer);
+	*start_phase = phase;
 }
 
 void Oscillator::renderSquare(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
@@ -327,13 +329,23 @@ void Oscillator::renderSquare(int32_t amplitude, std::span<int32_t> buffer, uint
 		return;
 	}
 
-	const int16_t* table = dsp::squareTables[table_number];
-
 	amplitude <<= 1;
 	amplitude_increment <<= 1;
 
-	dsp::renderWave(table, table_size_magnitude, amplitude, buffer, phase_increment, phase, apply_amplitude, 0,
-	                amplitude_increment);
+	Pipeline pipeline{
+	    TableOscillator(dsp::squareTables[table_number], table_size_magnitude),
+	    ConditionalProcessor{
+	        apply_amplitude,
+	        Pipeline{
+	            AmplitudeProcessor(amplitude, amplitude_increment),
+	            UnityMixerProcessor(buffer),
+	        },
+	    },
+	};
+
+	std::get<TableOscillator>(pipeline).setPhase(phase, phase_increment);
+
+	pipeline.processBlock(buffer);
 }
 
 void Oscillator::renderSquareSync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
@@ -386,17 +398,12 @@ void Oscillator::renderSquareSync(int32_t amplitude, std::span<int32_t> buffer, 
 
 	int32_t* buffer_start_this_sync = apply_amplitude ? oscSyncRenderingBuffer : buffer.data();
 	int32_t num_samples_this_osc_sync_session = buffer.size();
-	auto store_vector_wave_for_one_sync = [&](std::span<q31_t> buffer, uint32_t phase) {
-		for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
-			std::tie(value_vector, phase) =
-			    waveRenderingFunctionGeneral(phase, phase_increment, table, table_size_magnitude);
-		}
-	};
+
 	renderOscSync(
-	    store_vector_wave_for_one_sync, [](uint32_t) {}, phase, phase_increment, resetter_phase,
+	    TableOscillator(table, table_size_magnitude), [](uint32_t) {}, phase, phase_increment, resetter_phase,
 	    resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
 	    num_samples_this_osc_sync_session, buffer_start_this_sync);
-	applyAmplitudeVectorToBuffer(amplitude, buffer.size(), amplitude_increment, buffer.data(), oscSyncRenderingBuffer);
+	AmplitudeProcessor(amplitude, amplitude_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	*start_phase = phase;
 }
 
@@ -443,8 +450,21 @@ void Oscillator::renderPWM(int32_t amplitude, std::span<int32_t> buffer, uint32_
 	phase >>= 1;
 	phase_increment >>= 1;
 
-	dsp::renderPulseWave(table, table_size_magnitude, amplitude, buffer, phase_increment, phase, apply_amplitude,
-	                     phase_to_add, amplitude_increment);
+	Pipeline pipeline{
+	    PWMTableOscillator(dsp::squareTables[table_number], table_size_magnitude),
+	    ConditionalProcessor{
+	        apply_amplitude,
+	        Pipeline{
+	            AmplitudeProcessor(amplitude, amplitude_increment),
+	            UnityMixerProcessor(buffer),
+	        },
+	    },
+	};
+
+	std::get<PWMTableOscillator>(pipeline).setPhase(phase, phase_increment);
+	std::get<PWMTableOscillator>(pipeline).setPhaseToAdd(phase_to_add);
+
+	pipeline.processBlock(buffer);
 }
 
 void Oscillator::renderPWMSync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
@@ -494,7 +514,6 @@ void Oscillator::renderPWMSync(int32_t amplitude, std::span<int32_t> buffer, uin
 		*start_phase = phase;
 		return;
 	}
-	const int16_t* table = dsp::squareTables[table_number];
 
 	amplitude <<= 1;
 	amplitude_increment <<= 1;
@@ -506,18 +525,13 @@ void Oscillator::renderPWMSync(int32_t amplitude, std::span<int32_t> buffer, uin
 
 	int32_t* buffer_start_this_sync = apply_amplitude ? oscSyncRenderingBuffer : buffer.data();
 	int32_t num_samples_this_osc_sync_session = buffer.size();
-	auto store_vector_wave_for_one_sync = [&](std::span<q31_t> buffer, uint32_t phase) {
-		for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
-			std::tie(value_vector, phase) =
-			    waveRenderingFunctionPulse(phase, phase_increment, phase_to_add, table, table_size_magnitude);
-		}
-	};
+
 	renderOscSync(
-	    store_vector_wave_for_one_sync, [](uint32_t) {}, phase, phase_increment, resetter_phase,
-	    resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
+	    PWMTableOscillator(dsp::squareTables[table_number], table_size_magnitude), [](uint32_t) {}, phase,
+	    phase_increment, resetter_phase, resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
 	    num_samples_this_osc_sync_session, buffer_start_this_sync);
 	phase <<= 1;
-	applyAmplitudeVectorToBuffer(amplitude, buffer.size(), amplitude_increment, buffer.data(), oscSyncRenderingBuffer);
+	AmplitudeProcessor(amplitude, amplitude_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	*start_phase = phase;
 }
 
@@ -538,12 +552,23 @@ void Oscillator::renderSaw(int32_t amplitude, std::span<int32_t> buffer, uint32_
 		return;
 	}
 
-	const int16_t* table = dsp::sawTables[table_number];
 	amplitude <<= 1;
 	amplitude_increment <<= 1;
 
-	dsp::renderWave(table, table_size_magnitude, amplitude, buffer, phase_increment, phase, apply_amplitude, 0,
-	                amplitude_increment);
+	Pipeline pipeline{
+	    TableOscillator(dsp::sawTables[table_number], table_size_magnitude),
+	    ConditionalProcessor{
+	        apply_amplitude,
+	        Pipeline{
+	            AmplitudeProcessor(amplitude, amplitude_increment),
+	            UnityMixerProcessor(buffer),
+	        },
+	    },
+	};
+
+	std::get<TableOscillator>(pipeline).setPhase(phase, phase_increment);
+
+	pipeline.processBlock(buffer);
 }
 
 void Oscillator::renderSawSync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
@@ -589,24 +614,17 @@ void Oscillator::renderSawSync(int32_t amplitude, std::span<int32_t> buffer, uin
 		return;
 	}
 
-	const int16_t* table = dsp::sawTables[table_number];
-
 	amplitude <<= 1;
 	amplitude_increment <<= 1;
 
 	int32_t* buffer_start_this_sync = apply_amplitude ? oscSyncRenderingBuffer : buffer.data();
 	int32_t num_samples_this_osc_sync_session = buffer.size();
-	auto store_vector_wave_for_one_sync = [&](std::span<q31_t> buffer, uint32_t phase) {
-		for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
-			std::tie(value_vector, phase) =
-			    waveRenderingFunctionPulse(phase, phase_increment, 0, table, table_size_magnitude);
-		}
-	};
+
 	renderOscSync(
-	    store_vector_wave_for_one_sync, [](uint32_t) {}, phase, phase_increment, resetter_phase,
-	    resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
+	    PWMTableOscillator(dsp::sawTables[table_number], table_size_magnitude), [](uint32_t) {}, phase, phase_increment,
+	    resetter_phase, resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
 	    num_samples_this_osc_sync_session, buffer_start_this_sync);
-	applyAmplitudeVectorToBuffer(amplitude, buffer.size(), amplitude_increment, buffer.data(), oscSyncRenderingBuffer);
+	AmplitudeProcessor(amplitude, amplitude_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	*start_phase = phase;
 }
 
@@ -632,8 +650,7 @@ void Oscillator::renderWavetable(int32_t amplitude, std::span<int32_t> buffer, u
 	amplitude <<= 3;
 	amplitude_increment <<= 3;
 	if (apply_amplitude) {
-		applyAmplitudeVectorToBuffer(amplitude, buffer.size(), amplitude_increment, buffer.data(),
-		                             oscSyncRenderingBuffer);
+		AmplitudeProcessor(amplitude, amplitude_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	}
 	*start_phase = phase;
 }
@@ -650,13 +667,23 @@ void Oscillator::renderAnalogSaw2(int32_t amplitude, std::span<int32_t> buffer, 
 		return;
 	}
 
-	const int16_t* table = dsp::analogSawTables[table_number];
-
 	amplitude <<= 1;
 	amplitude_increment <<= 1;
 
-	dsp::renderWave(table, table_size_magnitude, amplitude, buffer, phase_increment, phase, apply_amplitude, 0,
-	                amplitude_increment);
+	Pipeline pipeline{
+	    TableOscillator(dsp::analogSawTables[table_number], table_size_magnitude),
+	    ConditionalProcessor{
+	        apply_amplitude,
+	        Pipeline{
+	            AmplitudeProcessor(amplitude, amplitude_increment),
+	            UnityMixerProcessor(buffer),
+	        },
+	    },
+	};
+
+	std::get<TableOscillator>(pipeline).setPhase(phase, phase_increment);
+
+	pipeline.processBlock(buffer);
 }
 
 void Oscillator::renderAnalogSaw2Sync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
@@ -684,17 +711,11 @@ void Oscillator::renderAnalogSaw2Sync(int32_t amplitude, std::span<int32_t> buff
 
 	int32_t* buffer_start_this_sync = apply_amplitude ? oscSyncRenderingBuffer : buffer.data();
 	int32_t num_samples_this_osc_sync_session = buffer.size();
-	auto store_vector_wave_for_one_sync = [&](std::span<q31_t> buffer, uint32_t phase) {
-		for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
-			std::tie(value_vector, phase) =
-			    waveRenderingFunctionGeneral(phase, phase_increment, table, table_size_magnitude);
-		}
-	};
 	renderOscSync(
-	    store_vector_wave_for_one_sync, [](uint32_t) {}, phase, phase_increment, resetter_phase,
+	    TableOscillator(table, table_size_magnitude), [](uint32_t) {}, phase, phase_increment, resetter_phase,
 	    resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
 	    num_samples_this_osc_sync_session, buffer_start_this_sync);
-	applyAmplitudeVectorToBuffer(amplitude, buffer.size(), amplitude_increment, buffer.data(), oscSyncRenderingBuffer);
+	AmplitudeProcessor(amplitude, amplitude_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	*start_phase = phase;
 }
 
@@ -705,13 +726,23 @@ void Oscillator::renderAnalogSquare(int32_t amplitude, std::span<int32_t> buffer
 
 	const auto [table_number, table_size_magnitude] = dsp::getTableNumber(phase_increment);
 
-	const int16_t* table = dsp::analogSquareTables[table_number];
-
 	amplitude <<= 1;
 	amplitude_increment <<= 1;
 
-	dsp::renderWave(table, table_size_magnitude, amplitude, buffer, phase_increment, phase, apply_amplitude, 0,
-	                amplitude_increment);
+	Pipeline pipeline{
+	    TableOscillator(dsp::analogSquareTables[table_number], table_size_magnitude),
+	    ConditionalProcessor{
+	        apply_amplitude,
+	        Pipeline{
+	            AmplitudeProcessor(amplitude, amplitude_increment),
+	            UnityMixerProcessor(buffer),
+	        },
+	    },
+	};
+
+	std::get<TableOscillator>(pipeline).setPhase(phase, phase_increment);
+
+	pipeline.processBlock(buffer);
 }
 
 void Oscillator::renderAnalogSquareSync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
@@ -726,24 +757,17 @@ void Oscillator::renderAnalogSquareSync(int32_t amplitude, std::span<int32_t> bu
 
 	const auto [table_number, table_size_magnitude] = dsp::getTableNumber(phase_increment);
 
-	const int16_t* table = dsp::analogSquareTables[table_number];
-
 	amplitude <<= 1;
 	amplitude_increment <<= 1;
 
 	int32_t* buffer_start_this_sync = apply_amplitude ? oscSyncRenderingBuffer : buffer.data();
 	int32_t num_samples_this_osc_sync_session = buffer.size();
-	auto store_vector_wave_for_one_sync = [&](std::span<q31_t> buffer, uint32_t phase) {
-		for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
-			std::tie(value_vector, phase) =
-			    waveRenderingFunctionGeneral(phase, phase_increment, table, table_size_magnitude);
-		}
-	};
+
 	renderOscSync(
-	    store_vector_wave_for_one_sync, [](uint32_t) {}, phase, phase_increment, resetter_phase,
-	    resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
+	    TableOscillator(dsp::analogSquareTables[table_number], table_size_magnitude), [](uint32_t) {}, phase,
+	    phase_increment, resetter_phase, resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
 	    num_samples_this_osc_sync_session, buffer_start_this_sync);
-	applyAmplitudeVectorToBuffer(amplitude, buffer.size(), amplitude_increment, buffer.data(), oscSyncRenderingBuffer);
+	AmplitudeProcessor(amplitude, amplitude_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	*start_phase = phase;
 }
 
@@ -774,25 +798,17 @@ void Oscillator::renderAnalogPWM(int32_t amplitude, std::span<int32_t> buffer, u
 	int32_t resetter_divide_by_phase_increment =
 	    (uint32_t)2147483648u / (uint16_t)((resetter_phase_increment + 65535) >> 16);
 
-	const int16_t* table = dsp::analogSquareTables[table_number];
-
 	amplitude <<= 1;
 	amplitude_increment <<= 1;
 
 	int32_t* buffer_start_this_sync = apply_amplitude ? oscSyncRenderingBuffer : buffer.data();
 	int32_t num_samples_this_osc_sync_session = buffer.size();
-	auto store_vector_wave_for_one_sync = [&](std::span<q31_t> buffer, uint32_t phase) {
-		for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
-			std::tie(value_vector, phase) =
-			    waveRenderingFunctionPulse(phase, phase_increment, 0, table, table_size_magnitude);
-		}
-	};
 
 	renderOscSync(
-	    store_vector_wave_for_one_sync, [](uint32_t) {}, phase, phase_increment, resetter_phase,
-	    resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
+	    PWMTableOscillator(dsp::analogSquareTables[table_number], table_size_magnitude), [](uint32_t) {}, phase,
+	    phase_increment, resetter_phase, resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
 	    num_samples_this_osc_sync_session, buffer_start_this_sync);
-	applyAmplitudeVectorToBuffer(amplitude, buffer.size(), amplitude_increment, buffer.data(), oscSyncRenderingBuffer);
+	AmplitudeProcessor(amplitude, amplitude_increment).processBlock(oscSyncRenderingBuffer, buffer);
 }
 
 void Oscillator::renderAnalogPWMSync(int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
@@ -807,47 +823,17 @@ void Oscillator::renderAnalogPWMSync(int32_t amplitude, std::span<int32_t> buffe
 	int32_t resetter_divide_by_phase_increment =
 	    (uint32_t)2147483648u / (uint16_t)((resetter_phase_increment + 65535) >> 16);
 
-	const int16_t* table = dsp::analogSquareTables[table_number];
-
 	amplitude <<= 1;
 	amplitude_increment <<= 1;
 
 	int32_t* buffer_start_this_sync = apply_amplitude ? oscSyncRenderingBuffer : buffer.data();
 	int32_t num_samples_this_osc_sync_session = buffer.size();
-	auto store_vector_wave_for_one_sync = [&](std::span<q31_t> buffer, uint32_t phase) {
-		for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
-			std::tie(value_vector, phase) =
-			    waveRenderingFunctionPulse(phase, phase_increment, 0, table, table_size_magnitude);
-		}
-	};
 
 	renderOscSync(
-	    store_vector_wave_for_one_sync, [](uint32_t) {}, phase, phase_increment, resetter_phase,
-	    resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
+	    PWMTableOscillator(dsp::analogSquareTables[table_number], table_size_magnitude), [](uint32_t) {}, phase,
+	    phase_increment, resetter_phase, resetter_phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
 	    num_samples_this_osc_sync_session, buffer_start_this_sync);
-	applyAmplitudeVectorToBuffer(amplitude, buffer.size(), amplitude_increment, buffer.data(), oscSyncRenderingBuffer);
+	AmplitudeProcessor(amplitude, amplitude_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	*start_phase = phase;
 }
-
-void Oscillator::applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamples, int32_t amplitudeIncrement,
-                                              int32_t* outputBufferPos, int32_t* inputBuferPos) {
-	int32_t const* const bufferEnd = outputBufferPos + numSamples;
-
-	int32x4_t amplitudeVector = createAmplitudeVector(amplitude, amplitudeIncrement);
-	int32x4_t amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);
-
-	do {
-		int32x4_t waveDataFromBefore = vld1q_s32(inputBuferPos);
-		int32x4_t existingDataInBuffer = vld1q_s32(outputBufferPos);
-		int32x4_t dataWithAmplitudeApplied = vqdmulhq_s32(amplitudeVector, waveDataFromBefore);
-		amplitudeVector = vaddq_s32(amplitudeVector, amplitudeIncrementVector);
-		int32x4_t sum = vaddq_s32(dataWithAmplitudeApplied, existingDataInBuffer);
-
-		vst1q_s32(outputBufferPos, sum);
-
-		outputBufferPos += 4;
-		inputBuferPos += 4;
-	} while (outputBufferPos < bufferEnd);
-}
-
 } // namespace deluge::dsp

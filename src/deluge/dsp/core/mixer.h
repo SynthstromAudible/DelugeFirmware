@@ -71,27 +71,3 @@ struct SIMDMixer : BlockMixer<T> {
 		}
 	}
 };
-
-template <typename MixerType>
-requires std::is_base_of_v<Mixer<typename MixerType::value_type>, MixerType>
-struct ProcessorForMixer final : MixerType, Processor<typename MixerType::value_type> {
-	using value_type = typename MixerType::value_type; ///< The type of the samples being processed
-
-	using MixerType::MixerType; /// Inherit constructors from the base class
-
-	value_type process(value_type input) override { return MixerType::process(input, 0); }
-
-	using Processor<typename MixerType::value_type>::processBlock;
-};
-
-template <typename MixerType>
-requires std::is_base_of_v<SIMDMixer<typename MixerType::value_type>, MixerType>
-struct SIMDProcessorForSIMDMixer final : MixerType, SIMDProcessor<typename MixerType::value_type> {
-	using value_type = typename MixerType::value_type; ///< The type of the samples being processed
-
-	using MixerType::MixerType; /// Inherit constructors from the base class
-
-	Argon<value_type> process(Argon<value_type> input) override { return MixerType::process(input, 0); }
-
-	using SIMDProcessor<typename MixerType::value_type>::processBlock;
-};

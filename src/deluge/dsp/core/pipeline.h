@@ -19,11 +19,19 @@
 #include "dsp/core/generator.h"
 #include "dsp/core/processor.h"
 #include <tuple>
+#include <type_traits>
+
+template <typename ProcessorType, typename = void, typename... Types>
+struct Pipeline;
 
 template <typename ProcessorType, typename... Types>
-requires std::is_base_of_v<Processor<typename ProcessorType::value_type>, ProcessorType>
-struct PipelineProcessor : std::tuple<ProcessorType, Types...>, Processor<typename ProcessorType::value_type> {
-	using std::tuple<Types...>::tuple; // Inherit constructors from std::tuple
+struct Pipeline<ProcessorType,
+                std::enable_if_t<std::conjunction_v<
+                    std::is_base_of<Processor<typename ProcessorType::value_type>, ProcessorType>,
+                    std::negation<std::is_base_of<SIMDProcessor<typename ProcessorType::value_type>, ProcessorType>>>>,
+                Types...> : std::tuple<ProcessorType, Types...>,
+                            Processor<typename ProcessorType::value_type> {
+	using std::tuple<ProcessorType, Types...>::tuple; // Inherit constructors from std::tuple
 
 	using value_type = typename ProcessorType::value_type;
 
@@ -34,19 +42,18 @@ struct PipelineProcessor : std::tuple<ProcessorType, Types...>, Processor<typena
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
 	value_type process(value_type sample) override {
-		// Call process() for each processor in the tuple
-		((sample = std::get<Types>(*this).process(sample)), ...);
+		sample = std::get<ProcessorType>(*this).process(sample);  // Call process() for the first processor
+		((sample = std::get<Types>(*this).process(sample)), ...); // Call process() for each processor in the tuple
 		return sample;
 	}
 };
 
 template <typename ProcessorType, typename... Types>
-PipelineProcessor(ProcessorType, Types...) -> PipelineProcessor<ProcessorType, Types...>;
-
-template <typename ProcessorType, typename... Types>
-requires std::is_base_of_v<SIMDProcessor<typename ProcessorType::value_type>, ProcessorType>
-struct SIMDPipelineProcessor : std::tuple<ProcessorType, Types...>, SIMDProcessor<typename ProcessorType::value_type> {
-	using std::tuple<Types...>::tuple; // Inherit constructors from std::tuple
+struct Pipeline<ProcessorType,
+                std::enable_if_t<std::is_base_of_v<SIMDProcessor<typename ProcessorType::value_type>, ProcessorType>>,
+                Types...> : std::tuple<ProcessorType, Types...>,
+                            SIMDProcessor<typename ProcessorType::value_type> {
+	using std::tuple<ProcessorType, Types...>::tuple; // Inherit constructors from std::tuple
 
 	using value_type = typename ProcessorType::value_type;
 
@@ -57,19 +64,19 @@ struct SIMDPipelineProcessor : std::tuple<ProcessorType, Types...>, SIMDProcesso
 	/// @param samples The input buffer of samples to process.
 	/// @return The processed buffer of samples.
 	Argon<value_type> process(Argon<value_type> sample) override {
-		// Call process() for each processor in the tuple
-		auto result = sample;
-		((result = std::get<Types>(*this).process(result)), ...);
-		return result;
+		sample = std::get<ProcessorType>(*this).process(sample);  // Call process() for the first processor
+		((sample = std::get<Types>(*this).process(sample)), ...); // Call process() for each processor in the tuple
+		return sample;
 	}
 };
 
-template <typename ProcessorType, typename... Types>
-SIMDPipelineProcessor(ProcessorType, Types...) -> SIMDPipelineProcessor<ProcessorType, Types...>;
-
 template <typename GeneratorType, typename... ProcessorTypes>
-requires std::is_base_of_v<Generator<typename GeneratorType::value_type>, GeneratorType>
-struct PipelineGenerator : std::tuple<GeneratorType, ProcessorTypes...>, Generator<typename GeneratorType::value_type> {
+struct Pipeline<GeneratorType,
+                std::enable_if_t<std::conjunction_v<
+                    std::is_base_of<Generator<typename GeneratorType::value_type>, GeneratorType>,
+                    std::negation<std::is_base_of<SIMDGenerator<typename GeneratorType::value_type>, GeneratorType>>>>,
+                ProcessorTypes...> : std::tuple<GeneratorType, ProcessorTypes...>,
+                                     Generator<typename GeneratorType::value_type> {
 	using std::tuple<GeneratorType, ProcessorTypes...>::tuple; // Inherit constructors from std::tuple
 
 	using value_type = typename GeneratorType::value_type;
@@ -87,12 +94,10 @@ struct PipelineGenerator : std::tuple<GeneratorType, ProcessorTypes...>, Generat
 };
 
 template <typename GeneratorType, typename... ProcessorTypes>
-PipelineGenerator(GeneratorType, ProcessorTypes...) -> PipelineGenerator<GeneratorType, ProcessorTypes...>;
-
-template <typename GeneratorType, typename... ProcessorTypes>
-requires std::is_base_of_v<SIMDGenerator<typename GeneratorType::value_type>, GeneratorType>
-struct SIMDPipelineGenerator : std::tuple<GeneratorType, ProcessorTypes...>,
-                               SIMDGenerator<typename GeneratorType::value_type> {
+struct Pipeline<GeneratorType,
+                std::enable_if_t<std::is_base_of_v<SIMDGenerator<typename GeneratorType::value_type>, GeneratorType>>,
+                ProcessorTypes...> : std::tuple<GeneratorType, ProcessorTypes...>,
+                                     SIMDGenerator<typename GeneratorType::value_type> {
 	using std::tuple<GeneratorType, ProcessorTypes...>::tuple; // Inherit constructors from std::tuple
 
 	using value_type = typename GeneratorType::value_type;
@@ -109,5 +114,5 @@ struct SIMDPipelineGenerator : std::tuple<GeneratorType, ProcessorTypes...>,
 	}
 };
 
-template <typename GeneratorType, typename... ProcessorTypes>
-SIMDPipelineGenerator(GeneratorType, ProcessorTypes...) -> SIMDPipelineGenerator<GeneratorType, ProcessorTypes...>;
+template <class ProcessorType, class... Types>
+Pipeline(ProcessorType, Types...) -> Pipeline<ProcessorType, void, Types...>;

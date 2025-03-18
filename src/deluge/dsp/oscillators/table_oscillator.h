@@ -34,7 +34,7 @@ protected:
 	int32_t table_size_magnitude_;
 
 	Argon<uint32_t> phase_ = 0;
-	uint32_t phase_increment_ = 0;
+	Argon<uint32_t> phase_increment_ = 0;
 
 public:
 	virtual ~TableOscillator() = default;
@@ -43,7 +43,7 @@ public:
 
 	void setPhase(uint32_t phase, uint32_t phase_increment) {
 		phase_ = Argon{phase}.MultiplyAdd(Argon<uint32_t>{1U, 2U, 3U, 4U}, phase_increment);
-		phase_increment_ = phase_increment;
+		phase_increment_ = phase_increment * 4;
 	}
 
 	Argon<q31_t> process() override {
@@ -55,7 +55,7 @@ public:
 		// this is a standard linear interpolation of a + (b - a) * fractional
 		Argon<q31_t> output = value1.ShiftLeftLong<16>().MultiplyDoubleAddSaturateLong(value2 - value1, fractional);
 
-		phase_ = phase_ + (phase_increment_ * 4); // advance the phase vector by 4 samples
+		phase_ = phase_ + phase_increment_; // advance the phase vector by 4 samples
 
 		return output;
 	}

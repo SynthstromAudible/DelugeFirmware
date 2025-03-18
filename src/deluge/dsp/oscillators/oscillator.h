@@ -20,9 +20,6 @@
 namespace deluge::dsp {
 
 class Oscillator {
-	static void applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamples, int32_t amplitudeIncrement,
-	                                         int32_t* outputBufferPos, int32_t* inputBuferPos);
-
 public:
 	static void renderOsc(OscType type, int32_t amplitude, std::span<int32_t> buffer, uint32_t phase_increment,
 	                      uint32_t pulse_width, uint32_t* start_phase, bool apply_amplitude,
