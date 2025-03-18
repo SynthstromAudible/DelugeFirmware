@@ -82,7 +82,7 @@ int32_t Voice::combineExpressionValues(const Sound& sound, int32_t expressionDim
 	return lshiftAndSaturate<1>(combinedValue);
 }
 
-Voice::Voice() : patcher(kPatcherConfigForVoice, sourceValues, paramFinalValues) {
+Voice::Voice(Sound& sound) : patcher(kPatcherConfigForVoice, sourceValues, paramFinalValues), sound{sound} {
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
@@ -92,13 +92,13 @@ void Voice::setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingS
 	unassignStuff(deletingSong);
 
 	if (!deletingSong) {
-		this->assignedToSound->voiceUnassigned(modelStack);
+		this->sound.voiceUnassigned(modelStack);
 	}
 }
 
 void Voice::unassignStuff(bool deletingSong) {
 	for (int32_t s = 0; s < kNumSources; s++) {
-		for (int32_t u = 0; u < this->assignedToSound->numUnison; u++) {
+		for (int32_t u = 0; u < this->sound.numUnison; u++) {
 			unisonParts[u].sources[s].unassign(deletingSong);
 		}
 	}
@@ -697,13 +697,11 @@ bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, M
 }
 
 uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param) {
-	LFOConfig& config = assignedToSound->lfoConfig[lfoId];
+	LFOConfig& config = sound.lfoConfig[lfoId];
 	if (config.syncLevel == SYNC_LEVEL_NONE) {
 		return paramFinalValues[param];
 	}
-	else {
-		return assignedToSound->getSyncedLFOPhaseIncrement(config);
-	}
+	return sound.getSyncedLFOPhaseIncrement(config);
 }
 
 // Before calling this, you must set the filterSetConfig's doLPF and doHPF to default values
@@ -2496,9 +2494,7 @@ bool Voice::doImmediateRelease() {
 	}
 
 	// Or if first render not done yet, we actually don't want to hear anything at all, so just unassign it
-	else {
-		return false;
-	}
+	return false;
 }
 
 bool Voice::hasReleaseStage() {
@@ -2510,16 +2506,16 @@ static_assert(kNumEnvelopeStages < 8, "Too many envelope stages");
 static_assert(kNumVoicePriorities < 4, "Too many priority options");
 
 // Higher numbers are lower priority. 1 is top priority. Will never return 0, because nextVoiceState starts at 1
-uint32_t Voice::getPriorityRating() {
+uint32_t Voice::getPriorityRating() const {
 	return
 	    // Bits 30-31 - manual priority setting
-	    ((uint32_t)(3 - util::to_underlying(assignedToSound->voicePriority)) << 30)
+	    ((uint32_t)(3 - util::to_underlying(sound.voicePriority)) << 30)
 
 	    // Bits 27-29 - how many voices that Sound has
 	    // - that one really does need to go above state, otherwise "once" samples can still cut out synth drones.
 	    // In a perfect world, culling for the purpose of "soliciting" a Voice would also count the new Voice being
 	    // solicited, preferring to cut out that same Sound's old, say, one Voice, than another Sound's only Voice
-	    + ((uint32_t)std::min(assignedToSound->numVoicesAssigned, 7_i32) << 27)
+	    + ((uint32_t)std::min<size_t>(sound.numActiveVoices(), 7) << 27)
 
 	    // Bits 24-26 - envelope state
 	    + ((uint32_t)envelopes[0].state << 24)

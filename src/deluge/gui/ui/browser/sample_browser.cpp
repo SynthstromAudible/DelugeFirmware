@@ -832,7 +832,7 @@ removeLoadingAnimationAndGetOut:
 	// Otherwise, we're something to do with an Instrument...
 	else {
 
-		soundEditor.currentSound->unassignAllVoices(); // We used to only do this if osc type wasn't already SAMPLE...
+		soundEditor.currentSound->killAllVoices(); // We used to only do this if osc type wasn't already SAMPLE...
 
 		bool makeWaveTableWorkAtAllCosts = (mayDoWaveTable == 2) || (mayDoSingleCycle == 2)
 		                                   || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD);
@@ -1646,7 +1646,7 @@ doReturnFalse:
 	// If we now want more than one range, be efficient by getting our array of ranges to pre-allocate all the memory
 	// it's going to use
 	if (numSamples > 1) {
-		soundEditor.currentSound->unassignAllVoices();
+		soundEditor.currentSound->killAllVoices();
 		AudioEngine::audioRoutineLocked = true;
 		bool success = soundEditor.currentSource->ranges.ensureEnoughSpaceAllocated(numSamples - 1);
 		AudioEngine::audioRoutineLocked = false;
@@ -1731,7 +1731,7 @@ skipOctaveCorrection:
 	int32_t numWithResultingLoopEndPoints = 0;
 
 	if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
-		soundEditor.currentSound->unassignAllVoices();
+		soundEditor.currentSound->killAllVoices();
 		soundEditor.currentSource->setOscType(OscType::SAMPLE);
 	}
 
@@ -1899,7 +1899,7 @@ getOut:
 
 				// Ensure osc type is "sample". For the later drums, calling setupAsSample() does this same thing
 				if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
-					soundEditor.currentSound->unassignAllVoices();
+					soundEditor.currentSound->killAllVoices();
 					soundEditor.currentSource->setOscType(OscType::SAMPLE);
 				}
 
@@ -1918,7 +1918,7 @@ getOut:
 					// getCurrentClip(), false);
 				}
 
-				drum->unassignAllVoices();
+				drum->killAllVoices();
 			}
 
 			// Or, for subsequent samples...

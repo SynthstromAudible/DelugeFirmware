@@ -125,7 +125,7 @@ void AudioFileManager::cardReinserted() {
 
 clusterSizeChangedButItsOk:
 		D_PRINTLN("cluster size changed, and smaller than original so it's ok");
-		AudioEngine::unassignAllVoices(); // Will also stop synth voices - too bad.
+		AudioEngine::killAllVoices(); // Will also stop synth voices - too bad.
 
 		// If any files aren't currently used, take this opportunity to remove them from memory
 		releaseAllUnused();

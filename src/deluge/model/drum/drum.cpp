@@ -73,7 +73,7 @@ void Drum::recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed) {
 }
 
 void Drum::drumWontBeRenderedForAWhile() { // This is virtual, and gets extended in SoundDrum
-	unassignAllVoices();
+	killAllVoices();
 }
 
 extern bool expressionValueChangesMustBeDoneSmoothly;

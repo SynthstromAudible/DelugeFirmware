@@ -3218,7 +3218,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 				if (clipIsActive && noteRow->drum) {
 
 					if (ALPHA_OR_BETA_VERSION && noteRow->drum->type == DrumType::SOUND
-					    && ((SoundDrum*)noteRow->drum)->hasAnyVoices()) {
+					    && static_cast<SoundDrum*>(noteRow->drum)->hasActiveVoices()) {
 						FREEZE_WITH_ERROR("E176");
 					}
 

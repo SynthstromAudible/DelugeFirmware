@@ -522,7 +522,7 @@ SoundDrum* Kit::getDrumFromName(char const* name, bool onlyIfNoNoteRow) {
 
 void Kit::cutAllSound() {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		thisDrum->unassignAllVoices();
+		thisDrum->killAllVoices();
 	}
 }
 
@@ -558,7 +558,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 			// the new Clip. In a perfect world, maybe we'd instead have it check and cut the voice / Drum on switch.
 			// This used to be E255
 			if (!thisNoteRow) {
-				soundDrum->unassignAllVoices();
+				soundDrum->killAllVoices();
 				continue;
 			}
 			drumParamManager = &thisNoteRow->paramManager;

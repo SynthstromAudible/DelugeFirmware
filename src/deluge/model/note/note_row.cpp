@@ -2596,7 +2596,7 @@ storePendingNoteOn:
 		    modelStack->addOtherTwoThings(drum->toModControllable(), &paramManager);
 
 		if (on) {
-			if (noteMightBeConstant && drum->hasAnyVoices()
+			if (noteMightBeConstant && drum->hasActiveVoices()
 			    && drum->allowNoteTails(modelStackWithThreeMainThings->addSoundFlags())) {
 				// Alright yup the note's still sounding from before - no need to do anything
 				if (drum->type == DrumType::SOUND) {

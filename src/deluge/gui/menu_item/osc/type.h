@@ -63,7 +63,7 @@ public:
 		};
 
 		if (util::one_of(oldValue, needs_unassignment) || util::one_of(newValue, needs_unassignment)) {
-			soundEditor.currentSound->unassignAllVoices();
+			soundEditor.currentSound->killAllVoices();
 		}
 
 		soundEditor.currentSource->setOscType(newValue);

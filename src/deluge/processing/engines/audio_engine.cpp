@@ -41,7 +41,6 @@
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
-#include "model/voice/voice_vector.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
@@ -59,9 +58,13 @@
 #include "timers_interrupts/timers_interrupts.h"
 #include "util/functions.h"
 #include "util/misc.h"
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <execution>
 #include <new>
+#include <numeric>
+#include <ranges>
 
 namespace params = deluge::modulation::params;
 
@@ -176,8 +179,6 @@ InputMonitoringMode inputMonitoringMode = InputMonitoringMode::SMART;
 bool routineBeenCalled;
 uint8_t numHopsEndedThisRoutineCall;
 
-VoiceVector activeVoices{};
-
 LiveInputBuffer* liveInputBuffers[3];
 
 // For debugging
@@ -196,6 +197,8 @@ bool doMonitoring;
 MonitoringAction monitoringAction;
 
 uint32_t saddr;
+
+deluge::fast_vector<Sound*> sounds;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
 void init() {
@@ -228,22 +231,19 @@ void init() {
 	TimeStretcherPool::get().repopulate();
 }
 
-void unassignAllVoices(bool deletingSong) {
-
-	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
-		Voice* thisVoice = activeVoices.getVoice(v);
-		unassignVoice(thisVoice, thisVoice->assignedToSound, nullptr, false);
+void killAllVoices(bool deletingSong) {
+	for (Sound* sound : sounds) {
+		sound->killAllVoices();
 	}
-	activeVoices.empty();
 
 	// Because we unfortunately don't have a master list of VoiceSamples or actively sounding AudioClips,
 	// we have to unassign all of those by going through all AudioOutputs.
 	// But if there's no currentSong, that's fine - it's already been deleted, and this has already been called for it
 	// before then.
-	if (currentSong) {
-		for (Output* output = currentSong->firstOutput; output; output = output->next) {
+	if (currentSong != nullptr) {
+		for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
 			if (output->type == OutputType::AUDIO) {
-				((AudioOutput*)output)->cutAllSound();
+				static_cast<AudioOutput*>(output)->cutAllSound();
 			}
 		}
 	}
@@ -269,175 +269,89 @@ char audioLogStrings[AUDIO_LOG_SIZE][64];
 int32_t numAudioLogItems = 0;
 #endif
 
-// To be called when CPU is incredibly overloaded or if there's not enough memory to create a new voice
-Voice* hardCullVoice(bool saveVoice, size_t numSamples, Sound* stopFrom) {
-	// Only include audio if doing a hard cull and not saving the voice
-	bool includeAudio = !saveVoice;
-
-	uint32_t bestRating = 0;
-	Voice* bestVoice = nullptr;
-	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
-		Voice* thisVoice = activeVoices.getVoice(v);
-
-		uint32_t ratingThisVoice = thisVoice->getPriorityRating();
-
-		if (ratingThisVoice > bestRating) {
-
-			if (stopFrom == nullptr || thisVoice->assignedToSound == stopFrom) {
-				bestRating = ratingThisVoice;
-				bestVoice = thisVoice;
-			}
-		}
-	}
-
-	if (bestVoice) {
-		activeVoices.checkVoiceExists(
-		    bestVoice, bestVoice->assignedToSound,
-		    "E196"); // ronronsen got!!
-		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
-
-		unassignVoice(bestVoice, bestVoice->assignedToSound, nullptr, true, !saveVoice);
-		D_PRINTLN("hard-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
-		          getNumVoices(), getNumAudio());
-	}
-
-	// Or if no Voices to cull, and we're not culling to make a new voice, try culling an AudioClip...
-	else if (includeAudio) {
-		if (currentSong) {
-			currentSong->cullAudioClipVoice();
-		}
-	}
-	return bestVoice;
-}
 /// Force a voice to stop within this render window. Will click slightly, especially if multiple are stopped in the
 /// same render
-Voice* immediateCullVoice(bool saveVoice, CullType type, size_t numSamples, Sound* stopFrom) {
+void killOneVoice(size_t num_samples) {
 	// Only include audio if doing a hard cull and not saving the voice
-	uint32_t bestRating = 0;
-	Voice* bestVoice = nullptr;
-	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
-		Voice* thisVoice = activeVoices.getVoice(v);
-
-		uint32_t ratingThisVoice = thisVoice->getPriorityRating();
-
-		if (ratingThisVoice > bestRating) {
-			if (stopFrom == nullptr || thisVoice->assignedToSound == stopFrom) {
-				bestRating = ratingThisVoice;
-				bestVoice = thisVoice;
-			}
-		}
+	auto lowest_priority_voices = sounds //<
+	                              | std::views::filter(&Sound::hasActiveVoices)
+	                              | std::views::transform(&Sound::getLowestPriorityVoice);
+	auto it = std::ranges::max_element(lowest_priority_voices);
+	if (it == lowest_priority_voices.end()) {
+		return;
 	}
 
-	if (bestVoice) {
-		activeVoices.checkVoiceExists(
-		    bestVoice, bestVoice->assignedToSound,
-		    "E196"); // ronronsen got!!
-		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
+	const Sound::ActiveVoice& voice = *it;
 
-		bool stillGoing = bestVoice->doImmediateRelease();
-
-		if (!stillGoing) {
-			unassignVoice(bestVoice, bestVoice->assignedToSound);
-		}
-
-		D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
-		          getNumVoices(), getNumAudio());
+	bool still_rendering = voice->doImmediateRelease();
+	if (!still_rendering) {
+		voice->sound.freeActiveVoice(voice);
 	}
 
-	return bestVoice;
+	D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
+	          getNumVoices(), getNumAudio());
 }
 
 /// Force a voice to release very quickly - will be almost instant but not click
-Voice* forceCullVoice(size_t numSamples, Sound* stopFrom) {
+void terminateOneVoice(size_t numSamples) {
+	auto all_voices = sounds | std::views::transform(&Sound::voices) | std::views::join;
 
-	uint32_t bestRating = 0;
-	Voice* bestVoice = nullptr;
-	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
-		Voice* thisVoice = activeVoices.getVoice(v);
-
-		uint32_t ratingThisVoice = thisVoice->getPriorityRating();
-
-		if (ratingThisVoice > bestRating) {
-			// if we're not skipping releasing voices, or if we are and this one isn't in fast release
-			if ((thisVoice->envelopes[0].state <= EnvelopeStage::FAST_RELEASE
-			     && thisVoice->envelopes[0].fastReleaseIncrement < SOFT_CULL_INCREMENT)) {
-				if (stopFrom == nullptr || thisVoice->assignedToSound == stopFrom) {
-					bestRating = ratingThisVoice;
-					bestVoice = thisVoice;
-				}
-			}
-		}
+	if (all_voices.empty()) {
+		return;
 	}
 
-	if (bestVoice) {
-		activeVoices.checkVoiceExists(
-		    bestVoice, bestVoice->assignedToSound,
-		    "E196"); // ronronsen got!!
-		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
-
-		bool stillGoing = bestVoice->doFastRelease(SOFT_CULL_INCREMENT);
-
-		if (!stillGoing) {
-			unassignVoice(bestVoice, bestVoice->assignedToSound);
+	auto& voice = *std::ranges::min_element(all_voices, [](const auto& best, const auto& voice) {
+		// if we're not skipping releasing voices, or if we are and this one isn't in fast release
+		if (voice->envelopes[0].state <= EnvelopeStage::FAST_RELEASE
+		    && voice->envelopes[0].fastReleaseIncrement < SOFT_CULL_INCREMENT) {
+			return voice->getPriorityRating() > best->getPriorityRating();
 		}
-		if (stopFrom == nullptr) {
+		return false;
+	});
 
-			D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
-			          getNumVoices(), getNumAudio());
-		}
+	bool still_rendering = voice->doFastRelease(SOFT_CULL_INCREMENT);
+	if (!still_rendering) {
+		voice->sound.freeActiveVoice(voice);
 	}
 
-	return bestVoice;
+	D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
+	          getNumVoices(), getNumAudio());
 }
 
 /// Force a voice to release, or speed up its release if the oldest voice is already releasing
-Voice* softCullVoice(size_t numSamples, Sound* stopFrom) {
-
-	uint32_t bestRating = 0;
-	Voice* bestVoice = nullptr;
-	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
-		Voice* thisVoice = activeVoices.getVoice(v);
-
-		uint32_t ratingThisVoice = thisVoice->getPriorityRating();
-
-		if (ratingThisVoice > bestRating) {
-			if ((thisVoice->envelopes[0].state <= EnvelopeStage::FAST_RELEASE
-			     && thisVoice->envelopes[0].fastReleaseIncrement <= 4096)) {
-				if (stopFrom == nullptr || thisVoice->assignedToSound == stopFrom) {
-					bestRating = ratingThisVoice;
-					bestVoice = thisVoice;
-				}
-			}
-		}
+void forceReleaseOneVoice(size_t num_samples) {
+	auto all_voices = sounds | std::views::transform(&Sound::voices) | std::views::join;
+	if (all_voices.empty()) {
+		return;
 	}
 
-	if (bestVoice) {
-		activeVoices.checkVoiceExists(
-		    bestVoice, bestVoice->assignedToSound,
-		    "E196"); // ronronsen got!!
-		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
-
-		auto stage = bestVoice->envelopes[0].state;
-
-		bool stillGoing = bestVoice->speedUpRelease();
-		if (stopFrom == nullptr && stage < EnvelopeStage::FAST_RELEASE) {
-
-			D_PRINTLN("soft-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
-			          getNumVoices(), getNumAudio());
+	auto& voice = *std::ranges::min_element(all_voices, [](const auto& best, const auto& voice) {
+		if (voice->envelopes[0].state <= EnvelopeStage::FAST_RELEASE
+		    && voice->envelopes[0].fastReleaseIncrement < 4096) {
+			return voice->getPriorityRating() > best->getPriorityRating();
 		}
+		return false;
+	});
 
-		if (!stillGoing) {
-			unassignVoice(bestVoice, bestVoice->assignedToSound);
-		}
+	auto stage = voice->envelopes[0].state;
+	if (stage < EnvelopeStage::FAST_RELEASE) {
+		D_PRINTLN("soft-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
+		          getNumVoices(), getNumAudio());
 	}
 
-	return bestVoice;
+	bool still_rendering = voice->speedUpRelease();
+	if (!still_rendering) {
+		voice->sound.freeActiveVoice(voice);
+	}
 }
+
 int32_t getNumAudio() {
-	return currentSong ? currentSong->countAudioClips() : 0;
+	return currentSong != nullptr ? currentSong->countAudioClips() : 0;
 }
+
 int32_t getNumVoices() {
-	return activeVoices.getNumElements();
+	return std::transform_reduce(sounds.cbegin(), sounds.cend(), 0, std::plus{},
+	                             [](auto sound) { return sound->voices().size(); });
 }
 
 void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
@@ -477,13 +391,13 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			numToCull = std::min(numToCull, numAudio + numVoice - MIN_VOICES);
 			for (int32_t i = numToCull / 2; i < numToCull; i++) {
 				// cull with fast release
-				forceCullVoice(numSamples, nullptr);
+				terminateOneVoice(numSamples);
 			}
 			for (int32_t i = 1; i < numToCull / 2; i++) {
 				// cull with immediate release
-				immediateCullVoice(false, CullType::FORCE, numSamples, nullptr);
+				killOneVoice(numSamples);
 			}
-			softCullVoice(numSamples, nullptr);
+			forceReleaseOneVoice(numSamples);
 
 #if ALPHA_OR_BETA_VERSION
 
@@ -500,7 +414,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 			// If not in first routine call this is inaccurate, so just release another voice since things are
 			// probably bad
-			softCullVoice(numSamples, nullptr);
+			forceReleaseOneVoice(numSamples);
 			logAction("soft cull");
 			if (numRoutines > 0) {
 				culled = true;
@@ -513,7 +427,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		// Cull anyway if things are bad
 		if (numSamplesOverLimit >= 40) {
 			D_PRINTLN("under min voices but culling anyway");
-			forceCullVoice(numSamples, nullptr);
+			terminateOneVoice(numSamples);
 			culled = true;
 		}
 	}
@@ -537,10 +451,7 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	// don't smooth this - used for other decisions as well
 	if (numSamples >= direnessThreshold) {
 
-		int32_t newDireness = numSamples - (direnessThreshold - 1);
-		if (newDireness > 14) {
-			newDireness = 14;
-		}
+		int32_t newDireness = std::min<int32_t>(numSamples - (direnessThreshold - 1), 14);
 
 		if (newDireness >= cpuDireness) {
 			cpuDireness = newDireness;
@@ -663,7 +574,7 @@ void renderAudio(size_t numSamples) {
 	memset(&renderingMemory, 0, renderingBuffer.size_bytes());
 	memset(&reverbMemory, 0, reverbBuffer.size_bytes());
 
-	if (sideChainHitPending) {
+	if (sideChainHitPending != 0) {
 		timeLastSideChainHit = audioSampleTimer;
 		sizeLastSideChainHit = sideChainHitPending;
 	}
@@ -671,8 +582,7 @@ void renderAudio(size_t numSamples) {
 	numHopsEndedThisRoutineCall = 0;
 
 	// Render audio for song
-	if (currentSong) {
-
+	if (currentSong != nullptr) {
 		currentSong->renderAudio(renderingBuffer, reverbBuffer.data(), sideChainHitPending);
 	}
 
@@ -1409,7 +1319,7 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 }
 
 void stopAnyPreviewing() {
-	sampleForPreview->unassignAllVoices();
+	sampleForPreview->killAllVoices();
 	if (sampleForPreview->sources[0].ranges.getNumElements()) {
 		MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].ranges.getElement(0);
 		range->sampleHolder.setAudioFile(nullptr);
@@ -1436,62 +1346,6 @@ bool allowedToStartVoice() {
 		return true;
 	}
 	return false;
-}
-
-Voice* solicitVoice(Sound* forSound) {
-	Voice* newVoice;
-
-	try {
-		newVoice = VoicePool::get().acquire().release();
-	} catch (deluge::exception e) { // Out-of-memory exception
-		if (activeVoices.getNumElements()) {
-			newVoice = hardCullVoice(true, numSamplesLastTime, forSound);
-			new (newVoice) Voice();
-		}
-		else {
-			return nullptr;
-		}
-	}
-
-	newVoice->assignedToSound = forSound;
-
-	uint32_t keyWords[2];
-	keyWords[0] = (uint32_t)forSound;
-	keyWords[1] = (uint32_t)newVoice;
-
-	int32_t i = activeVoices.insertAtKeyMultiWord(keyWords);
-	if (i == -1) {
-		// if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("E193"); // No, having run out of RAM here isn't a reason to
-		// not continue.
-		VoicePool::recycle(newVoice);
-		return nullptr;
-	}
-
-	if (forSound->numVoicesAssigned >= forSound->maxVoiceCount) {
-		forceCullVoice(numSamplesLastTime, forSound);
-	}
-	return newVoice;
-}
-
-// **** This is the main function that enacts the unassigning of the Voice
-// sound only required if removing from vector
-// modelStack can be NULL if you really insist
-void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelStack, bool removeFromVector,
-                   bool shouldDispose) {
-
-	activeVoices.checkVoiceExists(voice, sound, "E195");
-
-	voice->setAsUnassigned(modelStack);
-	if (removeFromVector) {
-		uint32_t keyWords[2];
-		keyWords[0] = (uint32_t)sound;
-		keyWords[1] = (uint32_t)voice;
-		activeVoices.deleteAtKeyMultiWord(keyWords);
-	}
-
-	if (shouldDispose) {
-		VoicePool::recycle(voice);
-	}
 }
 
 VoiceSample* solicitVoiceSample() {
