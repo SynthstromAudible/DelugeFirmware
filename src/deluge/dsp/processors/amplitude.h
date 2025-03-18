@@ -21,30 +21,27 @@
 #include "dsp/core/processor.h"
 #include "util/fixedpoint.h"
 
-class AmplitudeMixer : public SIMDMixer<q31_t> {
+class AmplitudeProcessor : public SIMDProcessor<q31_t> {
 	Argon<int32_t> amplitude_;           ///< The current amplitude value (in q31 format).
 	Argon<int32_t> amplitude_increment_; ///< The increment value for the amplitude.
 public:
 	/// @brief Constructor for the Amplitude class.
 	/// @param amplitude The initial amplitude value (in q31 format).
 	/// @param amplitude_increment The increment value for the amplitude (in q31 format).
-
-	AmplitudeMixer(int32_t amplitude, int32_t amplitude_increment)
+	AmplitudeProcessor(int32_t amplitude, int32_t amplitude_increment)
 	    : amplitude_{Argon{amplitude}.MultiplyAdd(amplitude_increment, int32x4_t{1, 2, 3, 4}) >> 1},
-	      amplitude_increment_{amplitude_increment << 1} {}
+	      amplitude_increment_{amplitude_increment * 2} {}
 
 	/// @brief Destructor for the Amplitude class.
-	virtual ~AmplitudeMixer() = default;
+	virtual ~AmplitudeProcessor() = default;
 
 	/// @brief Process a pair of input samples and return the mixed output sample.
 	/// @param input_a The input sample to apply the amplitude to.
 	/// @param input_b The existing sample to mix with.
 	/// @return The mixed output sample.
-	Argon<q31_t> process(Argon<q31_t> input_a, Argon<q31_t> input_b) override {
-		Argon<q31_t> output = input_b.MultiplyAddFixedPoint(input_a, amplitude_);
+	Argon<q31_t> process(Argon<q31_t> input) override {
+		Argon<q31_t> output = input.MultiplyFixedPoint(amplitude_);
 		amplitude_ = amplitude_ + amplitude_increment_;
 		return output;
 	}
 };
-
-using AmplitudeProcessor = SIMDProcessorForSIMDMixer<AmplitudeMixer>;
