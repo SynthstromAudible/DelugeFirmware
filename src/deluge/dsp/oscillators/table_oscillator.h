@@ -55,7 +55,7 @@ public:
 		// this is a standard linear interpolation of a + (b - a) * fractional
 		Argon<q31_t> output = value1.ShiftLeftLong<16>().MultiplyDoubleAddSaturateLong(value2 - value1, fractional);
 
-		phase_ = phase_ + (phase_increment_; // advance the phase vector by 4 samples
+		phase_ = phase_ + phase_increment_; // advance the phase vector by 4 samples
 
 		return output;
 	}
@@ -64,8 +64,7 @@ public:
 class PWMTableOscillator final : public TableOscillator {
 	uint32_t phase_to_add_ = 0; // used for pulse width modulation
 public:
-	PWMTableOscillator(const int16_t* table, int32_t table_size_magnitude)
-	    : TableOscillator(table, table_size_magnitude) {}
+	using TableOscillator::TableOscillator;
 
 	void setPhaseToAdd(uint32_t phase_to_add) { phase_to_add_ = phase_to_add; }
 
@@ -97,7 +96,7 @@ public:
 		                              .MultiplyDoubleAddSaturateLong(strength_b1, value_b1);
 
 		Argon<q31_t> output = output_a.MultiplyRoundFixedPoint(output_b) << 1; // (a *. b) << 1 (average?)
-		phase_ = phase_ + (phase_increment_ * 4);                              // advance the phase vector by 4 samples
+		phase_ = phase_ + phase_increment_;                                    // advance the phase vector by 4 samples
 		return output;
 	}
 };
