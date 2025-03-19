@@ -55,7 +55,7 @@ public:
 		// this is a standard linear interpolation of a + (b - a) * fractional
 		Argon<q31_t> output = value1.ShiftLeftLong<16>().MultiplyDoubleAddSaturateLong(value2 - value1, fractional);
 
-		phase_ = phase_ + phase_increment_; // advance the phase vector by 4 samples
+		phase_ = phase_ + (phase_increment_; // advance the phase vector by 4 samples
 
 		return output;
 	}

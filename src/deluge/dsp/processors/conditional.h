@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "processor.h"
+#include "dsp/core/processor.h"
 #include <argon.hpp>
 #include <type_traits>
 

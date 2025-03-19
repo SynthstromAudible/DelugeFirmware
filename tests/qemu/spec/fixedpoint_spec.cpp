@@ -29,6 +29,12 @@ describe fixedpoint("FixedPoint", ${
 			FixedPoint<31> fp{0.5f};
 			expect(fp.raw()).to_equal(0x40000000);
 		});
+
+		it("from another FixedPoint", _ {
+			FixedPoint<31> fp = FixedPoint<30>{1.f};
+			std::cout << std::hex << fp.raw() << std::endl;
+			expect(fp.raw()).to_equal(0x7fffffff);
+		});
 	});
 
 	context("copy constructor", _ {
