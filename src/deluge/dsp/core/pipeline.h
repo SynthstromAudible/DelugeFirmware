@@ -25,91 +25,124 @@ template <typename ProcessorType, typename = void, typename... Types>
 struct Pipeline;
 
 template <typename ProcessorType, typename... Types>
-struct Pipeline<ProcessorType,
-                std::enable_if_t<std::conjunction_v<
-                    std::is_base_of<Processor<typename ProcessorType::value_type>, ProcessorType>,
-                    std::negation<std::is_base_of<SIMDProcessor<typename ProcessorType::value_type>, ProcessorType>>>>,
-                Types...> : std::tuple<ProcessorType, Types...>,
-                            Processor<typename ProcessorType::value_type> {
+struct Pipeline<
+    ProcessorType,
+    std::enable_if_t<std::conjunction_v<
+        std::is_base_of<Processor<typename std::remove_pointer_t<ProcessorType>::value_type>,
+                        std::remove_pointer_t<ProcessorType>>,
+        std::negation<std::is_base_of<SIMDProcessor<typename std::remove_pointer_t<ProcessorType>::value_type>,
+                                      std::remove_pointer_t<ProcessorType>>>>>,
+    Types...> : std::tuple<ProcessorType, Types...>,
+                Processor<typename std::remove_pointer_t<ProcessorType>::value_type> {
 	using std::tuple<ProcessorType, Types...>::tuple; // Inherit constructors from std::tuple
 
-	using value_type = typename ProcessorType::value_type;
+	using value_type = typename std::remove_pointer_t<ProcessorType>::value_type;
 
-	static_assert((std::is_base_of_v<Processor<value_type>, Types> && ...),
+	static_assert((std::is_base_of_v<Processor<value_type>, std::remove_pointer_t<Types>> && ...),
 	              "All types in the pipeline must be sample processors");
 
 	/// @brief Process a sample using the processors in the pipeline.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
 	value_type process(value_type sample) override {
-		sample = std::get<ProcessorType>(*this).process(sample);  // Call process() for the first processor
-		((sample = std::get<Types>(*this).process(sample)), ...); // Call process() for each processor in the tuple
+		sample = std::invoke(static_cast<value_type (std::remove_pointer_t<ProcessorType>::*)(value_type)>(
+		                         &std::remove_pointer_t<ProcessorType>::process),
+		                     std::get<ProcessorType>(*this), sample); // Call process() for the first processor
+		((sample = std::invoke(static_cast<value_type (std::remove_pointer_t<Types>::*)(value_type)>(
+		                           &std::remove_pointer_t<Types>::process),
+		                       std::get<Types>(*this), sample)),
+		 ...); // Call process() for each processor in the tuple
 		return sample;
 	}
 };
 
 template <typename ProcessorType, typename... Types>
-struct Pipeline<ProcessorType,
-                std::enable_if_t<std::is_base_of_v<SIMDProcessor<typename ProcessorType::value_type>, ProcessorType>>,
-                Types...> : std::tuple<ProcessorType, Types...>,
-                            SIMDProcessor<typename ProcessorType::value_type> {
+struct Pipeline<
+    ProcessorType,
+    std::enable_if_t<std::is_base_of_v<SIMDProcessor<typename std::remove_pointer_t<ProcessorType>::value_type>,
+                                       std::remove_pointer_t<ProcessorType>>>,
+    Types...> : std::tuple<ProcessorType, Types...>,
+                SIMDProcessor<typename std::remove_pointer_t<ProcessorType>::value_type> {
 	using std::tuple<ProcessorType, Types...>::tuple; // Inherit constructors from std::tuple
 
-	using value_type = typename ProcessorType::value_type;
+	using value_type = typename std::remove_pointer_t<ProcessorType>::value_type;
 
-	static_assert((std::is_base_of_v<SIMDProcessor<value_type>, Types> && ...),
+	static_assert((std::is_base_of_v<SIMDProcessor<value_type>, std::remove_pointer_t<Types>> && ...),
 	              "All types in the pipeline must be SIMD processors with the same value type");
 
 	/// @brief Process a block of samples using SIMD operations.
 	/// @param samples The input buffer of samples to process.
 	/// @return The processed buffer of samples.
 	Argon<value_type> process(Argon<value_type> sample) override {
-		sample = std::get<ProcessorType>(*this).process(sample);  // Call process() for the first processor
-		((sample = std::get<Types>(*this).process(sample)), ...); // Call process() for each processor in the tuple
+		sample =
+		    std::invoke(static_cast<Argon<value_type> (std::remove_pointer_t<ProcessorType>::*)(Argon<value_type>)>(
+		                    &std::remove_pointer_t<ProcessorType>::process),
+		                std::get<ProcessorType>(*this), sample); // Call process() for the first processor
+		((sample = std::invoke(static_cast<Argon<value_type> (std::remove_pointer_t<Types>::*)(Argon<value_type>)>(
+		                           &std::remove_pointer_t<Types>::process),
+		                       std::get<Types>(*this), sample)),
+		 ...); // Call process() for each processor in the tuple
 		return sample;
 	}
 };
 
 template <typename GeneratorType, typename... ProcessorTypes>
-struct Pipeline<GeneratorType,
-                std::enable_if_t<std::conjunction_v<
-                    std::is_base_of<Generator<typename GeneratorType::value_type>, GeneratorType>,
-                    std::negation<std::is_base_of<SIMDGenerator<typename GeneratorType::value_type>, GeneratorType>>>>,
-                ProcessorTypes...> : std::tuple<GeneratorType, ProcessorTypes...>,
-                                     Generator<typename GeneratorType::value_type> {
+struct Pipeline<
+    GeneratorType,
+    std::enable_if_t<std::conjunction_v<
+        std::is_base_of<Generator<typename std::remove_pointer_t<GeneratorType>::value_type>,
+                        std::remove_pointer_t<GeneratorType>>,
+        std::negation<std::is_base_of<SIMDGenerator<typename std::remove_pointer_t<GeneratorType>::value_type>,
+                                      std::remove_pointer_t<GeneratorType>>>>>,
+    ProcessorTypes...> : std::tuple<GeneratorType, ProcessorTypes...>,
+                         Generator<typename std::remove_pointer_t<GeneratorType>::value_type> {
 	using std::tuple<GeneratorType, ProcessorTypes...>::tuple; // Inherit constructors from std::tuple
 
-	using value_type = typename GeneratorType::value_type;
+	using value_type = typename std::remove_pointer_t<GeneratorType>::value_type;
 
-	static_assert((std::is_base_of_v<Processor<value_type>, ProcessorTypes> && ...),
+	static_assert((std::is_base_of_v<Processor<value_type>, std::remove_pointer_t<ProcessorTypes>> && ...),
 	              "All processors in the pipeline must be sample processors with the same value type");
 
 	/// @brief Generate a sample using the generators in the pipeline.
 	/// @return The generated sample.
 	value_type process() override {
-		value_type sample = std::get<GeneratorType>(*this).process(); // Start with the first generator's output
-		((sample = std::get<ProcessorTypes>(*this).process(sample)), ...);
+		value_type sample = std::invoke(static_cast<value_type (std::remove_pointer_t<GeneratorType>::*)()>(
+		                                    &std::remove_pointer_t<GeneratorType>::process),
+		                                std::get<GeneratorType>(*this)); // Start with the first generator's output
+		((sample = std::invoke(static_cast<value_type (std::remove_pointer_t<ProcessorTypes>::*)(value_type)>(
+		                           &std::remove_pointer_t<ProcessorTypes>::process),
+		                       std::get<ProcessorTypes>(*this), sample)),
+		 ...);
 		return sample;
 	}
 };
 
 template <typename GeneratorType, typename... ProcessorTypes>
-struct Pipeline<GeneratorType,
-                std::enable_if_t<std::is_base_of_v<SIMDGenerator<typename GeneratorType::value_type>, GeneratorType>>,
-                ProcessorTypes...> : std::tuple<GeneratorType, ProcessorTypes...>,
-                                     SIMDGenerator<typename GeneratorType::value_type> {
+struct Pipeline<
+    GeneratorType,
+    std::enable_if_t<std::is_base_of_v<SIMDGenerator<typename std::remove_pointer_t<GeneratorType>::value_type>,
+                                       std::remove_pointer_t<GeneratorType>>>,
+    ProcessorTypes...> : std::tuple<GeneratorType, ProcessorTypes...>,
+                         SIMDGenerator<typename std::remove_pointer_t<GeneratorType>::value_type> {
 	using std::tuple<GeneratorType, ProcessorTypes...>::tuple; // Inherit constructors from std::tuple
 
-	using value_type = typename GeneratorType::value_type;
+	using value_type = typename std::remove_pointer_t<GeneratorType>::value_type;
 
-	static_assert((std::is_base_of_v<SIMDProcessor<value_type>, ProcessorTypes> && ...),
+	static_assert((std::is_base_of_v<SIMDProcessor<value_type>, std::remove_pointer_t<ProcessorTypes>> && ...),
 	              "All processors in the pipeline must be SIMD processors with the same value type");
 
 	/// @brief Generate a vector of samples using the generators in the pipeline.
 	/// @return The generated vector of samples.
 	Argon<value_type> process() override {
-		Argon<value_type> sample = std::get<GeneratorType>(*this).process(); // Start with the first generator's output
-		((sample = std::get<ProcessorTypes>(*this).process(sample)), ...);
+		Argon<value_type> sample =
+		    std::invoke(static_cast<Argon<value_type> (std::remove_pointer_t<GeneratorType>::*)()>(
+		                    &std::remove_pointer_t<GeneratorType>::process),
+		                std::get<GeneratorType>(*this)); // Start with the first generator's output
+		((sample =
+		      std::invoke(static_cast<Argon<value_type> (std::remove_pointer_t<ProcessorTypes>::*)(Argon<value_type>)>(
+		                      &std::remove_pointer_t<ProcessorTypes>::process),
+		                  std::get<ProcessorTypes>(*this), sample)),
+		 ...);
 		return sample;
 	}
 };

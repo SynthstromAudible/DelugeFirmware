@@ -16,12 +16,15 @@
  */
 #include "oscillator.h"
 #include "basic_waves.h"
+#include "classic/crude_saw.h"
+#include "classic/oscillator.h"
 #include "definitions_cxx.hpp"
+#include "dsp/core/conditional/processor.h"
 #include "dsp/core/pipeline.h"
 #include "dsp/oscillators/basic_waves.h"
 #include "dsp/processors/amplitude.h"
-#include "dsp/processors/conditional.h"
 #include "dsp/processors/gain.h"
+#include "dsp/stereo_sample.h"
 #include "processing/engines/audio_engine.h"
 #include "render_wave.h"
 #include "storage/wave_table/wave_table.h"
@@ -478,19 +481,15 @@ void Oscillator::renderSaw(std::span<int32_t> buffer, PhasorPair<uint32_t> osc, 
 
 	const auto [table_number, table_size_magnitude] = dsp::getTableNumber(osc.phase_increment);
 
-	if (table_number < AudioEngine::cpuDireness + 6) {
-		if (apply_amplitude) {
-			dsp::renderCrudeSawWave(buffer, osc.phase, osc.phase_increment, amplitude.phase.raw(),
-			                        amplitude.phase_increment.raw());
-		}
-		else {
-			dsp::renderCrudeSawWave(buffer, osc.phase, osc.phase_increment);
-		}
-		return;
-	}
+	CrudeSaw crude_saw(osc.phase, osc.phase_increment);
+	TableOscillator proper_saw(dsp::sawTables[table_number], table_size_magnitude);
+
+	ClassicOscillator& oscillator = (table_number < AudioEngine::cpuDireness + 6)
+	                                    ? static_cast<ClassicOscillator&>(crude_saw)
+	                                    : static_cast<ClassicOscillator&>(proper_saw);
 
 	Pipeline pipeline{
-	    TableOscillator(dsp::sawTables[table_number], table_size_magnitude),
+	    &oscillator,
 	    ConditionalProcessor{
 	        apply_amplitude,
 	        Pipeline{
@@ -500,7 +499,7 @@ void Oscillator::renderSaw(std::span<int32_t> buffer, PhasorPair<uint32_t> osc, 
 	    },
 	};
 
-	std::get<TableOscillator>(pipeline).setPhase(osc.phase, osc.phase_increment);
+	std::get<ClassicOscillator*>(pipeline)->setPhase(osc.phase, osc.phase_increment);
 
 	pipeline.processBlock(buffer);
 }

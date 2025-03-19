@@ -24,6 +24,8 @@ template <typename T>
 struct BlockGenerator {
 	using value_type = T;
 
+	virtual ~BlockGenerator() = default;
+
 	/// @brief Generate a block of samples.
 	/// @param buffer The output buffer to fill with generated samples.
 	/// @param size The number of samples to generate.

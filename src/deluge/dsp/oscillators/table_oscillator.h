@@ -18,7 +18,9 @@
 
 #pragma once
 
+#include "classic/oscillator.h"
 #include "dsp/core/generator.h"
+#include "dsp/core/phasor.h"
 #include "util/fixedpoint.h"
 #include <argon.hpp>
 #include <cstdint>
@@ -28,26 +30,17 @@
 /// @brief A base class for oscillators that use a lookup table for waveform generation.
 /// @details This class provides a mechanism to generate waveforms using a pre-defined table of values.
 /// It does linear interpolation between table values for smoother output.
-class TableOscillator : public SIMDGenerator<q31_t> {
+class TableOscillator : public ClassicOscillator {
 protected:
 	const int16_t* table_;
 	int32_t table_size_magnitude_;
 
-	Argon<uint32_t> phase_ = 0;
-	Argon<uint32_t> phase_increment_ = 0;
-
 public:
-	virtual ~TableOscillator() = default;
 	TableOscillator(const int16_t* table, int32_t table_size_magnitude)
 	    : table_(table), table_size_magnitude_(table_size_magnitude) {}
 
-	void setPhase(uint32_t phase, uint32_t phase_increment) {
-		phase_ = Argon{phase}.MultiplyAdd(Argon<uint32_t>{1U, 2U, 3U, 4U}, phase_increment);
-		phase_increment_ = phase_increment * 4;
-	}
-
 	Argon<q31_t> process() override {
-		Argon<uint32_t> indices = phase_ >> (32 - table_size_magnitude_);
+		Argon<uint32_t> indices = phasor_.phase >> (32 - table_size_magnitude_);
 
 		ArgonHalf<int16_t> fractional = (indices.ShiftRightNarrow<16>() >> 1).As<int16_t>();
 		auto [value1, value2] = ArgonHalf<int16_t>::LoadGatherInterleaved<2>(table_, indices);
@@ -55,7 +48,7 @@ public:
 		// this is a standard linear interpolation of a + (b - a) * fractional
 		Argon<q31_t> output = value1.ShiftLeftLong<16>().MultiplyDoubleAddSaturateLong(value2 - value1, fractional);
 
-		phase_ = phase_ + phase_increment_; // advance the phase vector by 4 samples
+		phasor_.process(); // advance the phasor
 
 		return output;
 	}
@@ -69,8 +62,8 @@ public:
 	void setPhaseToAdd(uint32_t phase_to_add) { phase_to_add_ = phase_to_add; }
 
 	Argon<q31_t> process() override {
-		Argon<uint32_t> phase_later = phase_ + phase_to_add_;
-		Argon<uint32_t> indices_a = phase_ >> (32 - table_size_magnitude_);
+		Argon<uint32_t> phase_later = phasor_.phase + phase_to_add_;
+		Argon<uint32_t> indices_a = phasor_.phase >> (32 - table_size_magnitude_);
 		ArgonHalf<int16_t> rshifted_a =
 		    indices_a.ShiftRightNarrow<16>().BitwiseAnd(std::numeric_limits<int16_t>::max()).As<int16_t>();
 		auto [value_a1, value_a2] = ArgonHalf<int16_t>::LoadGatherInterleaved<2>(table_, indices_a);
@@ -96,7 +89,7 @@ public:
 		                              .MultiplyDoubleAddSaturateLong(strength_b1, value_b1);
 
 		Argon<q31_t> output = output_a.MultiplyRoundFixedPoint(output_b) << 1; // (a *. b) << 1 (average?)
-		phase_ = phase_ + phase_increment_;                                    // advance the phase vector by 4 samples
+		phasor_.process();                                                     // advance the phasor
 		return output;
 	}
 };

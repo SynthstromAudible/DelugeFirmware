@@ -24,29 +24,6 @@
 #include <argon.hpp>
 namespace deluge::dsp {
 
-uint32_t renderCrudeSawWave(std::span<q31_t> buffer, uint32_t phase, uint32_t phase_increment, int32_t amplitude,
-                            int32_t amplitude_increment) {
-#pragma gcc unroll 4
-	for (q31_t& sample : buffer) {
-		phase += phase_increment;
-		amplitude += amplitude_increment;
-		sample = multiply_accumulate_32x32_rshift32_rounded(sample, (int32_t)phase, amplitude);
-	}
-
-	return phase;
-}
-
-uint32_t renderCrudeSawWave(std::span<q31_t> buffer, uint32_t phase, uint32_t phase_increment) {
-
-#pragma gcc unroll 8
-	for (q31_t& sample : buffer) {
-		phase += phase_increment;
-		sample = (int32_t)phase >> 1;
-	}
-
-	return phase;
-}
-
 /**
  * @brief Get a table number and size, depending on the increment
  *
