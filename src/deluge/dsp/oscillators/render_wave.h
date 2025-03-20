@@ -26,8 +26,9 @@
 renderOscSync(TableOscillator&& osc_core, auto extraInstructionsForCrossoverSampleRedo,
               // Params
               uint32_t& phase, uint32_t phaseIncrement, uint32_t& resetterPhase, uint32_t resetterPhaseIncrement,
-              int32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t numSamplesThisOscSyncSession,
-              int32_t*& bufferStartThisSync) {
+              uint32_t retriggerPhase, int32_t numSamplesThisOscSyncSession, int32_t*& bufferStartThisSync) {
+
+	int32_t resetterDivideByPhaseIncrement = (uint32_t)2147483648u / (uint16_t)((resetterPhaseIncrement + 65535) >> 16);
 
 	bool renderedASyncFromItsStartYet = false;
 	int32_t crossoverSampleBeforeSync;

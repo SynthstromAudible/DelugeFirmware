@@ -150,15 +150,11 @@ uint32_t Oscillator::renderSineSync(std::span<int32_t> buffer, PhasorPair<uint32
 
 	retrigger_phase += 3221225472u;
 
-	int32_t resetter_divide_by_phase_increment =
-	    (uint32_t)2147483648u / (uint16_t)((resetter.phase_increment + 65535) >> 16);
-
 	int32_t* buffer_start_this_sync = apply_amplitude ? oscSyncRenderingBuffer : buffer.data();
 
 	renderOscSync(
 	    TableOscillator(sineWaveSmall, 8), [](uint32_t) {}, osc.phase, osc.phase_increment, resetter.phase,
-	    resetter.phase_increment, resetter_divide_by_phase_increment, retrigger_phase, buffer.size(),
-	    buffer_start_this_sync);
+	    resetter.phase_increment, retrigger_phase, buffer.size(), buffer_start_this_sync);
 	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
 }
@@ -266,8 +262,8 @@ uint32_t Oscillator::renderTriangleSync(std::span<int32_t> buffer, PhasorPair<ui
 	int32_t num_samples_this_osc_sync_session = buffer.size();
 	renderOscSync(
 	    PWMTableOscillator(table, table_size_magnitude), [](uint32_t) {}, osc.phase, osc.phase_increment,
-	    resetter.phase, resetter.phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
-	    num_samples_this_osc_sync_session, buffer_start_this_sync);
+	    resetter.phase, resetter.phase_increment, retrigger_phase, num_samples_this_osc_sync_session,
+	    buffer_start_this_sync);
 	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
 }
@@ -359,8 +355,7 @@ uint32_t Oscillator::renderSquareSync(std::span<int32_t> buffer, PhasorPair<uint
 
 	renderOscSync(
 	    TableOscillator(table, table_size_magnitude), [](uint32_t) {}, osc.phase, osc.phase_increment, resetter.phase,
-	    resetter.phase_increment, resetter_divide_by_phase_increment, retrigger_phase,
-	    num_samples_this_osc_sync_session, buffer_start_this_sync);
+	    resetter.phase_increment, retrigger_phase, num_samples_this_osc_sync_session, buffer_start_this_sync);
 	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
 }
@@ -469,8 +464,8 @@ uint32_t Oscillator::renderPWMSync(std::span<int32_t> buffer, PhasorPair<uint32_
 
 	renderOscSync(
 	    PWMTableOscillator(dsp::squareTables[table_number], table_size_magnitude), [](uint32_t) {}, osc.phase,
-	    osc.phase_increment, resetter.phase, resetter.phase_increment, resetter_divide_by_phase_increment,
-	    retrigger_phase, num_samples_this_osc_sync_session, buffer_start_this_sync);
+	    osc.phase_increment, resetter.phase, resetter.phase_increment, retrigger_phase,
+	    num_samples_this_osc_sync_session, buffer_start_this_sync);
 	osc.phase <<= 1;
 	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
@@ -548,8 +543,8 @@ uint32_t Oscillator::renderSawSync(std::span<int32_t> buffer, PhasorPair<uint32_
 
 	renderOscSync(
 	    PWMTableOscillator(dsp::sawTables[table_number], table_size_magnitude), [](uint32_t) {}, osc.phase,
-	    osc.phase_increment, resetter.phase, resetter.phase_increment, resetter_divide_by_phase_increment,
-	    retrigger_phase, num_samples_this_osc_sync_session, buffer_start_this_sync);
+	    osc.phase_increment, resetter.phase, resetter.phase_increment, retrigger_phase,
+	    num_samples_this_osc_sync_session, buffer_start_this_sync);
 	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
 }
@@ -609,9 +604,6 @@ uint32_t Oscillator::renderAnalogSaw2Sync(std::span<int32_t> buffer, PhasorPair<
                                           PhasorPair<FixedPoint<30>> amplitude, PhasorPair<uint32_t> resetter,
                                           uint32_t retrigger_phase) {
 
-	int32_t resetter_divide_by_phase_increment =
-	    (uint32_t)2147483648u / (uint16_t)((resetter.phase_increment + 65535) >> 16);
-
 	const auto [table_number, table_size_magnitude] = dsp::getTableNumber(osc.phase_increment);
 
 	if (table_number >= 8 && table_number < AudioEngine::cpuDireness + 6) {
@@ -623,8 +615,7 @@ uint32_t Oscillator::renderAnalogSaw2Sync(std::span<int32_t> buffer, PhasorPair<
 	int32_t* buffer_start_this_sync = apply_amplitude ? oscSyncRenderingBuffer : buffer.data();
 	renderOscSync(
 	    TableOscillator(table, table_size_magnitude), [](uint32_t) {}, osc.phase, osc.phase_increment, resetter.phase,
-	    resetter.phase_increment, resetter_divide_by_phase_increment, retrigger_phase, buffer.size(),
-	    buffer_start_this_sync);
+	    resetter.phase_increment, retrigger_phase, buffer.size(), buffer_start_this_sync);
 	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
 }
@@ -654,17 +645,14 @@ uint32_t Oscillator::renderAnalogSquareSync(std::span<int32_t> buffer, PhasorPai
                                             PhasorPair<FixedPoint<30>> amplitude, PhasorPair<uint32_t> resetter,
                                             uint32_t retrigger_phase) {
 
-	int32_t resetter_divide_by_phase_increment =
-	    (uint32_t)2147483648u / (uint16_t)((resetter.phase_increment + 65535) >> 16);
-
 	const auto [table_number, table_size_magnitude] = dsp::getTableNumber(osc.phase_increment);
 
 	int32_t* buffer_start_this_sync = apply_amplitude ? oscSyncRenderingBuffer : buffer.data();
 
 	renderOscSync(
 	    TableOscillator(dsp::analogSquareTables[table_number], table_size_magnitude), [](uint32_t) {}, osc.phase,
-	    osc.phase_increment, resetter.phase, resetter.phase_increment, resetter_divide_by_phase_increment,
-	    retrigger_phase, buffer.size(), buffer_start_this_sync);
+	    osc.phase_increment, resetter.phase, resetter.phase_increment, retrigger_phase, buffer.size(),
+	    buffer_start_this_sync);
 	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
 }
@@ -692,15 +680,12 @@ void Oscillator::renderAnalogPWM(std::span<int32_t> buffer, PhasorPair<uint32_t>
 
 	osc.phase += retrigger_phase;
 
-	int32_t resetter_divide_by_phase_increment =
-	    (uint32_t)2147483648u / (uint16_t)((resetter.phase_increment + 65535) >> 16);
-
 	int32_t* buffer_start_this_sync = apply_amplitude ? oscSyncRenderingBuffer : buffer.data();
 
 	renderOscSync(
 	    PWMTableOscillator(dsp::analogSquareTables[table_number], table_size_magnitude), [](uint32_t) {}, osc.phase,
-	    osc.phase_increment, resetter.phase, resetter.phase_increment, resetter_divide_by_phase_increment,
-	    retrigger_phase, buffer.size(), buffer_start_this_sync);
+	    osc.phase_increment, resetter.phase, resetter.phase_increment, retrigger_phase, buffer.size(),
+	    buffer_start_this_sync);
 	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).processBlock(oscSyncRenderingBuffer, buffer);
 }
 
@@ -710,15 +695,12 @@ uint32_t Oscillator::renderAnalogPWMSync(std::span<int32_t> buffer, PhasorPair<u
 
 	const auto [table_number, table_size_magnitude] = dsp::getTableNumber(osc.phase_increment);
 
-	int32_t resetter_divide_by_phase_increment =
-	    (uint32_t)2147483648u / (uint16_t)((resetter.phase_increment + 65535) >> 16);
-
 	int32_t* buffer_start_this_sync = apply_amplitude ? oscSyncRenderingBuffer : buffer.data();
 
 	renderOscSync(
 	    PWMTableOscillator(dsp::analogSquareTables[table_number], table_size_magnitude), [](uint32_t) {}, osc.phase,
-	    osc.phase_increment, resetter.phase, resetter.phase_increment, resetter_divide_by_phase_increment,
-	    retrigger_phase, buffer.size(), buffer_start_this_sync);
+	    osc.phase_increment, resetter.phase, resetter.phase_increment, retrigger_phase, buffer.size(),
+	    buffer_start_this_sync);
 	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).processBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
 }
