@@ -27,7 +27,7 @@ struct BlockMixer {
 	/// @brief Mix a block of samples from two input buffers into an output buffer.
 	/// @param inputs A span of input buffers to mix.
 	/// @param output The output buffer to fill with the mixed samples.
-	virtual void processBlock(std::span<T> input_a, std::span<T> input_b, std::span<T> output) = 0;
+	virtual void renderBlock(std::span<T> input_a, std::span<T> input_b, std::span<T> output) = 0;
 };
 
 template <typename T>
@@ -36,14 +36,14 @@ struct Mixer : BlockMixer<T> {
 	/// @param input_a The first input sample to mix.
 	/// @param input_b The second input sample to mix.
 	/// @return The mixed sample.
-	virtual T process(T input_a, T input_b) = 0;
+	virtual T render(T input_a, T input_b) = 0;
 
 	/// @brief Mix a block of samples from two input buffers into an output buffer.
 	/// @param inputs A span of input buffers to mix.
 	/// @param output The output buffer to fill with the mixed samples.
-	void processBlock(std::span<T> input_a, std::span<T> input_b, std::span<T> output) override {
+	void renderBlock(std::span<T> input_a, std::span<T> input_b, std::span<T> output) override {
 		for (size_t i = 0; i < std::min(input_a.size(), std::min(input_b.size(), output.size())); ++i) {
-			output[i] = process(input_a[i], input_b[i]);
+			output[i] = render(input_a[i], input_b[i]);
 		}
 	}
 };
@@ -54,12 +54,12 @@ struct SIMDMixer : BlockMixer<T> {
 	/// @param input_a The first input sample to mix.
 	/// @param input_b The second input sample to mix.
 	/// @return The mixed sample.
-	virtual Argon<T> process(Argon<T> input_a, Argon<T> input_b) = 0;
+	virtual Argon<T> render(Argon<T> input_a, Argon<T> input_b) = 0;
 
 	/// @brief Mix a block of samples from two input buffers into an output buffer.
 	/// @param inputs A span of input buffers to mix.
 	/// @param output The output buffer to fill with the mixed samples.
-	void processBlock(std::span<T> input_a, std::span<T> input_b, std::span<T> output) override {
+	void renderBlock(std::span<T> input_a, std::span<T> input_b, std::span<T> output) override {
 		auto input_a_view = argon::vectorize(input_a);
 		auto input_b_view = argon::vectorize(input_b);
 		auto output_view = argon::vectorize(output);
@@ -67,7 +67,7 @@ struct SIMDMixer : BlockMixer<T> {
 		for (auto it_a = input_a_view.begin(), it_b = input_b_view.begin(), it_out = output_view.begin();
 		     it_a != input_a_view.end() && it_b != input_b_view.end() && it_out != output_view.end();
 		     ++it_a, ++it_b, ++it_out) {
-			*it_out = process(*it_a, *it_b);
+			*it_out = render(*it_a, *it_b);
 		}
 	}
 };

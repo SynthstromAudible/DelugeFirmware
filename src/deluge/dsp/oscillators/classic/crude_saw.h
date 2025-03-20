@@ -21,5 +21,5 @@
 
 struct CrudeSaw : ClassicOscillator {
 	using ClassicOscillator::ClassicOscillator;
-	Argon<q31_t> process() override { return phasor_.process().As<q31_t>() >> 1; }
+	Argon<q31_t> render() override { return phasor_.render().As<q31_t>() >> 1; }
 };

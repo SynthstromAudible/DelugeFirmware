@@ -44,14 +44,14 @@ struct Pipeline<
 	/// @brief Process a sample using the processors in the pipeline.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
-	value_type process(value_type sample) override {
+	value_type render(value_type sample) override {
 		sample = std::invoke(static_cast<value_type (std::remove_pointer_t<ProcessorType>::*)(value_type)>(
-		                         &std::remove_pointer_t<ProcessorType>::process),
-		                     std::get<ProcessorType>(*this), sample); // Call process() for the first processor
+		                         &std::remove_pointer_t<ProcessorType>::render),
+		                     std::get<ProcessorType>(*this), sample); // Call render() for the first processor
 		((sample = std::invoke(static_cast<value_type (std::remove_pointer_t<Types>::*)(value_type)>(
-		                           &std::remove_pointer_t<Types>::process),
+		                           &std::remove_pointer_t<Types>::render),
 		                       std::get<Types>(*this), sample)),
-		 ...); // Call process() for each processor in the tuple
+		 ...); // Call render() for each processor in the tuple
 		return sample;
 	}
 };
@@ -73,15 +73,15 @@ struct Pipeline<
 	/// @brief Process a block of samples using SIMD operations.
 	/// @param samples The input buffer of samples to process.
 	/// @return The processed buffer of samples.
-	Argon<value_type> process(Argon<value_type> sample) override {
+	Argon<value_type> render(Argon<value_type> sample) override {
 		sample =
 		    std::invoke(static_cast<Argon<value_type> (std::remove_pointer_t<ProcessorType>::*)(Argon<value_type>)>(
-		                    &std::remove_pointer_t<ProcessorType>::process),
-		                std::get<ProcessorType>(*this), sample); // Call process() for the first processor
+		                    &std::remove_pointer_t<ProcessorType>::render),
+		                std::get<ProcessorType>(*this), sample); // Call render() for the first processor
 		((sample = std::invoke(static_cast<Argon<value_type> (std::remove_pointer_t<Types>::*)(Argon<value_type>)>(
-		                           &std::remove_pointer_t<Types>::process),
+		                           &std::remove_pointer_t<Types>::render),
 		                       std::get<Types>(*this), sample)),
-		 ...); // Call process() for each processor in the tuple
+		 ...); // Call render() for each processor in the tuple
 		return sample;
 	}
 };
@@ -105,12 +105,12 @@ struct Pipeline<
 
 	/// @brief Generate a sample using the generators in the pipeline.
 	/// @return The generated sample.
-	value_type process() override {
+	value_type render() override {
 		value_type sample = std::invoke(static_cast<value_type (std::remove_pointer_t<GeneratorType>::*)()>(
-		                                    &std::remove_pointer_t<GeneratorType>::process),
+		                                    &std::remove_pointer_t<GeneratorType>::render),
 		                                std::get<GeneratorType>(*this)); // Start with the first generator's output
 		((sample = std::invoke(static_cast<value_type (std::remove_pointer_t<ProcessorTypes>::*)(value_type)>(
-		                           &std::remove_pointer_t<ProcessorTypes>::process),
+		                           &std::remove_pointer_t<ProcessorTypes>::render),
 		                       std::get<ProcessorTypes>(*this), sample)),
 		 ...);
 		return sample;
@@ -133,14 +133,14 @@ struct Pipeline<
 
 	/// @brief Generate a vector of samples using the generators in the pipeline.
 	/// @return The generated vector of samples.
-	Argon<value_type> process() override {
+	Argon<value_type> render() override {
 		Argon<value_type> sample =
 		    std::invoke(static_cast<Argon<value_type> (std::remove_pointer_t<GeneratorType>::*)()>(
-		                    &std::remove_pointer_t<GeneratorType>::process),
+		                    &std::remove_pointer_t<GeneratorType>::render),
 		                std::get<GeneratorType>(*this)); // Start with the first generator's output
 		((sample =
 		      std::invoke(static_cast<Argon<value_type> (std::remove_pointer_t<ProcessorTypes>::*)(Argon<value_type>)>(
-		                      &std::remove_pointer_t<ProcessorTypes>::process),
+		                      &std::remove_pointer_t<ProcessorTypes>::render),
 		                  std::get<ProcessorTypes>(*this), sample)),
 		 ...);
 		return sample;

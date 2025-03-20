@@ -39,7 +39,7 @@ template <typename T>
 struct Phasor : impl::PhasorState<T>, Generator<T> {
 	using impl::PhasorState<T>::PhasorState;
 
-	T process() override {
+	T render() override {
 		this->phase += this->step;
 		this->phase = (this->phase >= T(1.f)) ? this->phase - T(1.f) : this->phase;
 		return this->phase;
@@ -53,7 +53,7 @@ struct Phasor<uint32_t> : impl::PhasorState<uint32_t>, Generator<uint32_t> {
 	constexpr Phasor(Frequency frequency)
 	    : impl::PhasorState<uint32_t>{std::bit_cast<uint32_t>(FixedPoint<31>((1.f / kSampleRate) * frequency).raw())
 	                                  << 1} {}
-	uint32_t process() override { return phase += step; }
+	uint32_t render() override { return phase += step; }
 };
 
 template <>
@@ -63,7 +63,7 @@ struct Phasor<FixedPoint<31>> : impl::PhasorState<int32_t>, Generator<int32_t> {
 	constexpr Phasor(Frequency frequency)
 	    : impl::PhasorState<int32_t>{std::bit_cast<int32_t>(FixedPoint<31>((1.f / kSampleRate) * frequency).raw())} {}
 
-	int32_t process() override {
+	int32_t render() override {
 		phase += step;
 		phase = (phase >= FixedPoint<31>{1.f}.raw()) ? phase - FixedPoint<31>{1.f}.raw() : phase;
 		return phase;
@@ -74,7 +74,7 @@ template <typename T>
 struct SIMDPhasor : impl::PhasorState<Argon<T>>, SIMDGenerator<T> {
 	using impl::PhasorState<Argon<T>>::PhasorState;
 
-	Argon<T> process() override {
+	Argon<T> render() override {
 		this->phase = this->phase + this->step;
 		this->phase = argon::ternary(this->phase >= T{1}, this->phase - T{1}, this->phase);
 		return this->phase;
@@ -85,14 +85,14 @@ template <>
 struct SIMDPhasor<uint32_t> : impl::PhasorState<Argon<uint32_t>>, SIMDGenerator<uint32_t> {
 	using impl::PhasorState<Argon<uint32_t>>::PhasorState;
 
-	Argon<uint32_t> process() override { return phase = phase + step; }
+	Argon<uint32_t> render() override { return phase = phase + step; }
 };
 
 template <>
 struct SIMDPhasor<FixedPoint<31>> : impl::PhasorState<Argon<int32_t>>, SIMDGenerator<int32_t> {
 	using impl::PhasorState<Argon<int32_t>>::PhasorState;
 
-	Argon<q31_t> process() override {
+	Argon<q31_t> render() override {
 		phase = phase + step;
 		phase = argon::ternary(phase >= FixedPoint<31>{1.f}.raw(), phase - FixedPoint<31>{1.f}.raw(), phase);
 		return phase;

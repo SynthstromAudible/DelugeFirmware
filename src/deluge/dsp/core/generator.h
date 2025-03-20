@@ -29,7 +29,7 @@ struct BlockGenerator {
 	/// @brief Generate a block of samples.
 	/// @param buffer The output buffer to fill with generated samples.
 	/// @param size The number of samples to generate.
-	virtual void processBlock(std::span<T> buffer) = 0;
+	virtual void renderBlock(std::span<T> buffer) = 0;
 };
 
 /// @brief Generator is a base class for signal generators
@@ -37,17 +37,17 @@ template <typename T>
 struct Generator : BlockGenerator<T> {
 	/// @brief Generate a single sample of type T.
 	/// @return The generated sample.
-	virtual T process() = 0;
+	virtual T render() = 0;
 
 	// Note: typically there will also be some kind of function to
 	// configure the generator's parameters, e.g. set frequency, amplitude, etc
 	// before calling process.
 
-	/// @brief Generate a block of samples by calling process() for each sample.
+	/// @brief Generate a block of samples by calling render() for each sample.
 	/// @param buffer The output buffer to fill with generated samples.
-	void processBlock(std::span<T> buffer) override {
+	void renderBlock(std::span<T> buffer) override {
 		// If T is a scalar type, we process each sample sequentially
-		std::generate(buffer.begin(), buffer.end(), [this]() { return process(); });
+		std::generate(buffer.begin(), buffer.end(), [this]() { return render(); });
 	}
 };
 
@@ -56,13 +56,13 @@ template <typename T>
 struct SIMDGenerator : BlockGenerator<T> {
 	/// @brief Generate a vector of samples of type T.
 	/// @return The generated vector of samples.
-	virtual Argon<T> process() = 0;
+	virtual Argon<T> render() = 0;
 
-	/// @brief Generate a block of samples by calling process() for each sample.
+	/// @brief Generate a block of samples by calling render() for each sample.
 	/// @param buffer The output buffer to fill with generated samples.
-	void processBlock(std::span<T> buffer) override {
+	void renderBlock(std::span<T> buffer) override {
 		for (Argon<T>& sample : argon::vectorize(buffer)) {
-			sample = process();
+			sample = render();
 		}
 	}
 };

@@ -42,7 +42,7 @@ public:
 	/// @param input_a The input sample to apply the amplitude to.
 	/// @param input_b The existing sample to mix with.
 	/// @return The mixed output sample.
-	Argon<q31_t> process(Argon<q31_t> input) override {
+	Argon<q31_t> render(Argon<q31_t> input) override {
 		Argon<q31_t> output = input.MultiplyFixedPoint(amplitude_);
 		amplitude_ = amplitude_ + amplitude_increment_;
 		return output;

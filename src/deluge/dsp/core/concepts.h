@@ -20,27 +20,27 @@
 
 template <typename T>
 concept block_generator = requires(T t, std::span<typename T::value_type> buffer) {
-	{ t.processBlock(buffer) };
+	{ t.renderBlock(buffer) };
 };
 
 template <typename T>
 concept sample_generator = requires(T t) {
-	{ t.process() } -> std::same_as<typename T::value_type>;
+	{ t.render() } -> std::same_as<typename T::value_type>;
 };
 
 template <typename T>
 concept block_processor =
     requires(T t, std::span<typename T::value_type> input, std::span<typename T::value_type> output) {
-	    { t.processBlock(input, output) };
+	    { t.renderBlock(input, output) };
     };
 
 template <typename T>
 concept sample_processor = requires(T t, typename T::value_type sample) {
-	{ t.process(sample) } -> std::same_as<typename T::value_type>;
+	{ t.render(sample) } -> std::same_as<typename T::value_type>;
 };
 
 template <typename T>
 concept block_adapter =
     requires(T t, std::span<typename T::input_type> input, std::span<typename T::output_type> output) {
-	    { t.processBlock(input, output) };
+	    { t.renderBlock(input, output) };
     };

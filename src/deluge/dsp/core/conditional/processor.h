@@ -46,15 +46,15 @@ struct ConditionalProcessor<
 	/// @brief Process a block of samples using SIMD operations, conditionally applying processors.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
-	value_type process(value_type sample) override {
+	value_type render(value_type sample) override {
 		if (std::invoke(condition_)) { // Check the condition
 			return std::invoke(static_cast<value_type (std::remove_pointer_t<ProcessorType>::*)(value_type)>(
-			                       &std::remove_pointer_t<ProcessorType>::process),
+			                       &std::remove_pointer_t<ProcessorType>::render),
 			                   processor_, sample); // Apply the processor
 		}
 		if (elseProcessor_) { // Check if else processor exists
 			return std::invoke(static_cast<value_type (std::remove_pointer_t<ProcessorType>::*)(value_type)>(
-			                       &std::remove_pointer_t<ProcessorType>::process),
+			                       &std::remove_pointer_t<ProcessorType>::render),
 			                   *elseProcessor_, sample); // Apply the else processor
 		}
 		return sample; // Return the original sample if no processors are applied
@@ -80,15 +80,15 @@ struct ConditionalProcessor<
 	/// @brief Process a block of samples using SIMD operations, conditionally applying processors.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
-	value_type process(value_type sample) override {
+	value_type render(value_type sample) override {
 		if (condition_) { // Check the condition
 			return std::invoke(static_cast<value_type (std::remove_pointer_t<ProcessorType>::*)(value_type)>(
-			                       &std::remove_pointer_t<ProcessorType>::process),
+			                       &std::remove_pointer_t<ProcessorType>::render),
 			                   processor_, sample); // Apply the processor
 		}
 		if (elseProcessor_) { // Check if else processor exists
 			return std::invoke(static_cast<value_type (std::remove_pointer_t<ProcessorType>::*)(value_type)>(
-			                       &std::remove_pointer_t<ProcessorType>::process),
+			                       &std::remove_pointer_t<ProcessorType>::render),
 			                   *elseProcessor_, sample); // Apply the else processor
 		}
 		return sample; // Return the original sample if no processors are applied
@@ -114,17 +114,17 @@ struct ConditionalProcessor<
 	/// @brief Process a block of samples using SIMD operations, conditionally applying processors.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
-	Argon<value_type> process(Argon<value_type> sample) override {
+	Argon<value_type> render(Argon<value_type> sample) override {
 		if (std::invoke(condition_)) { // Check the condition
 			return std::invoke(
 			    static_cast<Argon<value_type> (std::remove_pointer_t<ProcessorType>::*)(Argon<value_type>)>(
-			        &std::remove_pointer_t<ProcessorType>::process),
+			        &std::remove_pointer_t<ProcessorType>::render),
 			    processor_, sample); // Apply the processor
 		}
 		if (elseProcessor_) { // Check if else processor exists
 			return std::invoke(
 			    static_cast<Argon<value_type> (std::remove_pointer_t<ProcessorType>::*)(Argon<value_type>)>(
-			        &std::remove_pointer_t<ProcessorType>::process),
+			        &std::remove_pointer_t<ProcessorType>::render),
 			    *elseProcessor_, sample); // Apply the else processor
 		}
 		return sample; // Return the original sample if no processors are applied
@@ -150,17 +150,17 @@ struct ConditionalProcessor<
 	/// @brief Process a block of samples using SIMD operations, conditionally applying processors.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
-	Argon<value_type> process(Argon<value_type> sample) override {
+	Argon<value_type> render(Argon<value_type> sample) override {
 		if (condition_) { // Check the condition
 			return std::invoke(
 			    static_cast<Argon<value_type> (std::remove_pointer_t<ProcessorType>::*)(Argon<value_type>)>(
-			        &std::remove_pointer_t<ProcessorType>::process),
+			        &std::remove_pointer_t<ProcessorType>::render),
 			    processor_, sample); // Apply the processor
 		}
 		if (elseProcessor_) { // Check if else processor exists
 			return std::invoke(
 			    static_cast<Argon<value_type> (std::remove_pointer_t<ProcessorType>::*)(Argon<value_type>)>(
-			        &std::remove_pointer_t<ProcessorType>::process),
+			        &std::remove_pointer_t<ProcessorType>::render),
 			    *elseProcessor_, sample); // Apply the else processor
 		}
 		return sample; // Return the original sample if no processors are applied

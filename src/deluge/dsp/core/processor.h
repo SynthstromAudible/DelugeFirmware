@@ -28,7 +28,7 @@ struct BlockProcessor {
 	/// @brief Process a block of samples.
 	/// @param input The input buffer of samples to process.
 	/// @param output The output buffer to fill with processed samples.
-	virtual void processBlock(std::span<T> input, std::span<T> output) = 0;
+	virtual void renderBlock(std::span<T> input, std::span<T> output) = 0;
 };
 
 template <typename T>
@@ -36,14 +36,14 @@ struct Processor : BlockProcessor<T> {
 	/// @brief Process a single sample of type T.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
-	virtual T process(T sample) = 0;
+	virtual T render(T sample) = 0;
 
-	/// @brief Process a block of samples by calling process() for each sample.
+	/// @brief Process a block of samples by calling render() for each sample.
 	/// @param input The input buffer of samples to process.
 	/// @param output The output buffer to fill with processed samples.
-	void processBlock(std::span<T> input, std::span<T> output) override {
+	void renderBlock(std::span<T> input, std::span<T> output) override {
 		// If T is a scalar type, we process each sample sequentially
-		std::ranges::transform(input, output.begin(), [this](T sample) { return process(sample); });
+		std::ranges::transform(input, output.begin(), [this](T sample) { return render(sample); });
 	}
 };
 
@@ -52,18 +52,18 @@ struct SIMDProcessor : BlockProcessor<T> {
 	/// @brief Process a block of samples using SIMD operations.
 	/// @param samples The input buffer of samples to process.
 	/// @return The processed buffer of samples.
-	virtual Argon<T> process(Argon<T> sample) = 0;
+	virtual Argon<T> render(Argon<T> sample) = 0;
 
-	/// @brief Process a block of samples by calling process() for each sample.
+	/// @brief Process a block of samples by calling render() for each sample.
 	/// @param input The input buffer of samples to process.
 	/// @param output The output buffer to fill with processed samples.
-	void processBlock(std::span<T> input, std::span<T> output) override {
+	void renderBlock(std::span<T> input, std::span<T> output) override {
 		auto input_view = argon::vectorize(input);
 		auto output_view = argon::vectorize(output);
 
 		for (auto input_it = input_view.begin(), output_it = output_view.begin();
 		     input_it != input_view.end() && output_it != output_view.end(); ++input_it, ++output_it) {
-			*output_it = process(*input_it);
+			*output_it = render(*input_it);
 		}
 	}
 };

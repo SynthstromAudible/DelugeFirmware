@@ -23,13 +23,13 @@ struct UnityMixer : SIMDMixer<T>, Mixer<T> {
 	/// @param input_a The first input sample to mix.
 	/// @param input_b The second input sample to mix (unity gain).
 	/// @return The mixed sample.
-	T process(T input_a, T input_b) override { return input_a + input_b; }
+	T render(T input_a, T input_b) override { return input_a + input_b; }
 
 	/// @brief Mix a vector of samples from two inputs into an output, treating the second input as a unity gain.
 	/// @param input_a The first input sample to mix.
 	/// @param input_b The second input sample to mix (unity gain).
 	/// @return The mixed sample.
-	Argon<T> process(Argon<T> input_a, Argon<T> input_b) override { return input_a + input_b; }
+	Argon<T> render(Argon<T> input_a, Argon<T> input_b) override { return input_a + input_b; }
 };
 
 /// @brief UnityMixerProcessor is a processor that mixes input samples with a unity-gain input buffer.
@@ -46,8 +46,8 @@ struct UnityMixerProcessor : SIMDProcessor<T>, Processor<T>, UnityMixer<T> {
 	/// @brief Process a block of samples by mixing the input with the unity-input buffer.
 	/// @param input The input samples to process.
 	/// @return The mixed output samples.
-	Argon<T> process(Argon<T> input) override {
-		auto output = UnityMixer<T>::process(input, Argon<T>::Load(&*unity_input_iterator));
+	Argon<T> render(Argon<T> input) override {
+		auto output = UnityMixer<T>::render(input, Argon<T>::Load(&*unity_input_iterator));
 		std::advance(unity_input_iterator, Argon<T>::lanes); ///< Advance the iterator for the next call
 		return output;
 	}
@@ -55,5 +55,5 @@ struct UnityMixerProcessor : SIMDProcessor<T>, Processor<T>, UnityMixer<T> {
 	/// @brief Process a single sample by mixing it with the current unity-input sample.
 	/// @param input The input sample to process.
 	/// @return The mixed output sample.
-	T process(T input) override { return UnityMixer<T>::process(input, *unity_input_iterator++); }
+	T render(T input) override { return UnityMixer<T>::render(input, *unity_input_iterator++); }
 };

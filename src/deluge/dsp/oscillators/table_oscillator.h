@@ -39,7 +39,7 @@ public:
 	TableOscillator(const int16_t* table, int32_t table_size_magnitude)
 	    : table_(table), table_size_magnitude_(table_size_magnitude) {}
 
-	Argon<q31_t> process() override {
+	Argon<q31_t> render() override {
 		Argon<uint32_t> indices = phasor_.phase >> (32 - table_size_magnitude_);
 
 		ArgonHalf<int16_t> fractional = (indices.ShiftRightNarrow<16>() >> 1).As<int16_t>();
@@ -48,7 +48,7 @@ public:
 		// this is a standard linear interpolation of a + (b - a) * fractional
 		Argon<q31_t> output = value1.ShiftLeftLong<16>().MultiplyDoubleAddSaturateLong(value2 - value1, fractional);
 
-		phasor_.process(); // advance the phasor
+		phasor_.render(); // advance the phasor
 
 		return output;
 	}
@@ -61,7 +61,7 @@ public:
 
 	void setPhaseToAdd(uint32_t phase_to_add) { phase_to_add_ = phase_to_add; }
 
-	Argon<q31_t> process() override {
+	Argon<q31_t> render() override {
 		Argon<uint32_t> phase_later = phasor_.phase + phase_to_add_;
 		Argon<uint32_t> indices_a = phasor_.phase >> (32 - table_size_magnitude_);
 		ArgonHalf<int16_t> rshifted_a =
@@ -89,7 +89,7 @@ public:
 		                              .MultiplyDoubleAddSaturateLong(strength_b1, value_b1);
 
 		Argon<q31_t> output = output_a.MultiplyRoundFixedPoint(output_b) << 1; // (a *. b) << 1 (average?)
-		phasor_.process();                                                     // advance the phasor
+		phasor_.render();                                                      // advance the phasor
 		return output;
 	}
 };
