@@ -84,6 +84,8 @@ extern GlobalMIDICommand defaultLoopRecordingCommand;
 
 extern bool defaultAlternativeSelectEncoderBehaviour;
 
+extern bool defaultUseFlats;
+
 void readSettings();
 void writeSettings();
 void resetSettings();

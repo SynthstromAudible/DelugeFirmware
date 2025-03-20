@@ -763,15 +763,14 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	else if (getCurrentOutputType() != OutputType::KIT && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED
 	         && getCurrentInstrumentClip()->inScaleMode) {
 
-		bool useFlats = runtimeFeatureSettings.get(RuntimeFeatureSettingType::UseFlats)
-			           == RuntimeFeatureStateToggle::On;
+		bool useFlats = FlashStorage::defaultUseFlats;
 		toggleScaleModeOnButtonRelease = false;
 		int32_t newRootNote = ((currentSong->key.rootNote + kOctaveSize) + offset) % kOctaveSize;
 		instrumentClipView.setupChangingOfRootNote(newRootNote);
 
 		char noteName[3] = {0};
 		noteName[0] = !useFlats ? noteCodeToNoteLetter[newRootNote] : noteCodeToNoteLetterFlats[newRootNote];
-	
+
 		if (display->haveOLED()) {
 			if (noteCodeIsSharp[newRootNote]) {
 				char accidential = !useFlats ? '#' : 'b';

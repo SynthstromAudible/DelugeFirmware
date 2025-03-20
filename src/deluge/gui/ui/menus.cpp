@@ -1234,7 +1234,11 @@ ToggleBool defaultAlternativeSelectEncoderBehaviour{STRING_FOR_DEFAULT_ALTERNATI
                                                     STRING_FOR_DEFAULT_ALTERNATIVE_SELECT_ENCODER_BEHAVIOUR,
                                                     FlashStorage::defaultAlternativeSelectEncoderBehaviour};
 
-Submenu defaultHorizontalMenu{STRING_FOR_DEFAULT_HORIZONTAL_MENU, {&defaultAlternativeSelectEncoderBehaviour}};
+ToggleBool defaultUseFlats{STRING_FOR_DEFAULT_UI_FLATS, STRING_FOR_DEFAULT_UI_FLATS, FlashStorage::defaultUseFlats};
+`
+
+    Submenu defaultHorizontalMenu{STRING_FOR_DEFAULT_HORIZONTAL_MENU,
+                                  {&defaultAlternativeSelectEncoderBehaviour, &defaultUseFlats}};
 
 Submenu defaultUI{
     STRING_FOR_DEFAULT_UI,
@@ -1286,6 +1290,7 @@ defaults::SliceMode defaultSliceMode{STRING_FOR_DEFAULT_SLICE_MODE, STRING_FOR_D
 ToggleBool defaultHighCPUUsageIndicatorMode{STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
                                             STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
                                             FlashStorage::highCPUUsageIndicator};
+
 defaults::HoldTime defaultHoldTimeMenu{STRING_FOR_HOLD_TIME, STRING_FOR_HOLD_TIME};
 
 ActiveScaleMenu defaultActiveScaleMenu{STRING_FOR_ACTIVE_SCALES, ActiveScaleMenu::DEFAULT};

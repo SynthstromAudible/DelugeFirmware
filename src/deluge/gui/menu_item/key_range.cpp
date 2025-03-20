@@ -19,9 +19,9 @@
 #include "gui/menu_item/range.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
-#include "util/functions.h"
 #include "model/settings/runtime_feature_settings.h"
-
+#include "storage/flash_storage.h"
+#include "util/functions.h"
 
 namespace deluge::gui::menu_item {
 
@@ -59,14 +59,11 @@ void KeyRange::selectEncoderAction(int32_t offset) {
 
 void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) {
 
-	bool useFlats = runtimeFeatureSettings.get(RuntimeFeatureSettingType::UseFlats)
-		== RuntimeFeatureStateToggle::On;
+	bool useFlats = FlashStorage::defaultUseFlats;
 	char accidential = !useFlats ? '#' : 'b';
-
 
 	*(buffer++) = !useFlats ? noteCodeToNoteLetter[lower] : noteCodeToNoteLetterFlats[lower];
 	int32_t leftLength = 1;
-
 
 	if (noteCodeIsSharp[lower]) {
 		*(buffer++) = (display->haveOLED()) ? accidential : '.';
