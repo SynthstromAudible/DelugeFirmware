@@ -121,10 +121,6 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES,
 	                  "catchNotes", RuntimeFeatureStateToggle::On);
 
-	// UseFlats
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::UseFlats], STRING_FOR_COMMUNITY_FEATURE_USE_FLATS,
-	                  "useFlats", RuntimeFeatureStateToggle::Off);
-
 	// DeleteUnusedKitRows
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows],
 	                  STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS, "deleteUnusedKitRows",

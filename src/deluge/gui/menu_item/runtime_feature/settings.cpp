@@ -32,7 +32,6 @@ SettingToggle menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
 SettingToggle menuQuantize(RuntimeFeatureSettingType::Quantize);
 SettingToggle menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
 SettingToggle menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
-SettingToggle menuUseFlats(RuntimeFeatureSettingType::UseFlats);
 SettingToggle menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 SettingToggle menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
@@ -58,7 +57,6 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuQuantize,
     &menuPatchCableResolution,
     &menuCatchNotes,
-    &menuUseFlats,
     &menuDeleteUnusedKitRows,
     &menuAltGoldenKnobDelayParams,
     &menuDevSysexAllowed,

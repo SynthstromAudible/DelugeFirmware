@@ -1235,15 +1235,12 @@ ToggleBool defaultAlternativeSelectEncoderBehaviour{STRING_FOR_DEFAULT_ALTERNATI
                                                     FlashStorage::defaultAlternativeSelectEncoderBehaviour};
 
 ToggleBool defaultUseFlats{STRING_FOR_DEFAULT_UI_FLATS, STRING_FOR_DEFAULT_UI_FLATS, FlashStorage::defaultUseFlats};
-`
 
-    Submenu defaultHorizontalMenu{STRING_FOR_DEFAULT_HORIZONTAL_MENU,
-                                  {&defaultAlternativeSelectEncoderBehaviour, &defaultUseFlats}};
+Submenu defaultHorizontalMenu{STRING_FOR_DEFAULT_HORIZONTAL_MENU, {&defaultAlternativeSelectEncoderBehaviour}};
 
-Submenu defaultUI{
-    STRING_FOR_DEFAULT_UI,
-    {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu, &defaultHorizontalMenu},
-};
+Submenu defaultUI{STRING_FOR_DEFAULT_UI,
+                  {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu,
+                   &defaultHorizontalMenu, &defaultUseFlats}};
 
 ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,
                                             STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,
