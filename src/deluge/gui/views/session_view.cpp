@@ -1336,7 +1336,6 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 	else {
 		auto ao = (AudioOutput*)clip->output;
 		ao->scrollAudioOutputMode(offset);
-		renderUIsForOled();
 	}
 }
 
