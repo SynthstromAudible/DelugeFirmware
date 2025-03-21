@@ -237,6 +237,8 @@ bool SoundEditor::opened() {
 }
 
 void SoundEditor::focusRegained() {
+	// we don't want to process select button release when re-entering menu
+	Buttons::selectButtonPressUsedUp = true;
 
 	// If just came back from a deeper nested UI...
 	if (shouldGoUpOneLevelOnBegin) {
