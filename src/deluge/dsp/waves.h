@@ -18,20 +18,32 @@
 #pragma once
 #include "util/fixedpoint.h"
 #include <argon.hpp>
+#include <cstdint>
 #include <limits>
 
 namespace deluge::dsp::waves {
 
+/// @brief Generate a pulse wave
+/// @param phase The phase of the waveform, in the range [0, 1)
+/// @param pulse_width The width of the pulse, in the range [0, 1)
+/// @return The value of the pulse wave at the given phase, in the range [-1, 1]
+/// @details The pulse width determines the duration of the high state (1) in the pulse wave.
+/// A pulse width of 0.5 is equivalent to a square wave.
+/// A pulse width of 0.0 or 1.0 results in a constant value of -1 or 1. So don't do that!
 template <typename T>
-constexpr T pulse(T phase, float pulse_width = 0.5f) {
+[[gnu::always_inline]] constexpr T pulse(T phase, float pulse_width = 0.5f) {
 	return (phase < T(pulse_width)) ? T(1) : T(-1);
 }
 
 template <>
 constexpr Argon<float> pulse(Argon<float> phase, float pulse_width) {
-	return argon::ternary(phase < Argon{pulse_width}, Argon{1.f}, Argon{-1.f});
+	return argon::ternary(phase < pulse_width, 1.f, -1.f);
 }
 
+/// @brief Generate a square wave
+/// @param phase The phase of the waveform, in the range [0, 1)
+/// @return The value of the square wave at the given phase, in the range [-1, 1]
+/// @details A square wave alternates between -1 and 1, with a 50% duty cycle.
 template <typename T>
 constexpr T square(T phase) {
 	return (phase < T(0.5)) ? T(1) : T(-1);
@@ -39,12 +51,12 @@ constexpr T square(T phase) {
 
 template <>
 constexpr Argon<float> square(Argon<float> phase) {
-	return argon::ternary(phase < Argon{0.5f}, Argon{1.f}, Argon{-1.f});
+	return argon::ternary(phase < 0.5f, 1.f, -1.f);
 }
 
 /// @deprecated
 constexpr Argon<q31_t> square(Argon<uint32_t> phase) {
-	return argon::ternary(phase < Argon<uint32_t>{0x80000000}, Argon{1.f}, Argon{-1.f}).As<q31_t>();
+	return argon::ternary(phase < 0x80000000u, FixedPoint<31>{1.f}.raw(), FixedPoint<31>{-1.f}.raw());
 }
 
 /// @brief Basic waveform generation functions
@@ -58,29 +70,22 @@ constexpr T triangle(T phase) {
 
 template <>
 Argon<float> triangle(Argon<float> phase) {
-	phase = argon::ternary(phase >= 0.5f, Argon{1.f}, Argon{0.f}) - phase;
+	phase = argon::ternary(phase > 0.5f, 1.f, 0.f) - phase;
 	return Argon{-1.f}.MultiplyAdd(phase.Absolute(), 4.f);
 }
 
 Argon<q31_t> triangle(Argon<uint32_t> phase) {
-	phase = argon::ternary(phase >= Argon<uint32_t>{0x80000000},
-	                       Argon<uint32_t>{std::numeric_limits<uint32_t>::max()} - phase, phase);
-	return (phase - Argon<uint32_t>{0x80000000u}).As<q31_t>(); // Q31 range [-1, 1]
-}
-
-/// @brief Generate a triangle wave using a fixed-point representation
-/// @param phase_uint The phase of the waveform as an unsigned integer (typically in the range [0, 2^32))
-/// @return The value of the triangle wave at the given phase as a FixedPoint<31> type
-constexpr FixedPoint<31> triangle(uint32_t phase_uint) {
-	return triangle(FixedPoint<31>::from_raw(static_cast<int32_t>(phase_uint >> 1)));
+	constexpr uint32_t midpoint = 0x80000000u;
+	phase = argon::ternary(phase >= midpoint, Argon{std::numeric_limits<uint32_t>::max()} - phase, phase);
+	return (phase - midpoint).As<q31_t>(); // Q31 range [-1, 1]
 }
 
 /// @deprecated
 constexpr FixedPoint<30> triangleFast(uint32_t phase) {
-	if (phase >= FixedPoint<31>::one()) {
+	if (phase >= 0x80000000u) {
 		phase = -phase;
 	}
-	return FixedPoint<30>::from_raw(static_cast<int32_t>(phase - FixedPoint<30>::one())); // Q30 range [-1, 1]
+	return FixedPoint<30>::from_raw(static_cast<int32_t>(phase - 0x80000000u)); // Q30 range [-1, 1]
 }
 
 template <typename T>
@@ -97,13 +102,12 @@ Argon<float> ramp(Argon<float> phase) {
 /// i.e. reset occurs at 0.5 instead of 0
 template <typename T>
 constexpr T saw(T phase) {
-	auto subtrahend = (phase < T(0.5)) ? T(1) : T(3); // Offset by 50%
-	return (phase * 2) - subtrahend;                  // Scale to range [-1, 1]
+	return (2 * phase) - (phase < T(0.5) ? T(1) : T(3));
 }
 
 template <>
 Argon<float> saw(Argon<float> phase) {
-	auto addend = argon::ternary(phase < Argon{0.5f}, Argon{-1.f}, Argon{-3.f});
+	auto addend = argon::ternary(phase < 0.5f, -1.f, -3.f);
 	return Argon{addend}.MultiplyAdd(phase, 2.f); // Scale to range [-1, 1]
 }
 
