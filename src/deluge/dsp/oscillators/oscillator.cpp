@@ -16,7 +16,6 @@
  */
 #include "oscillator.h"
 #include "basic_waves.h"
-#include "classic/crude_saw.h"
 #include "classic/oscillator.h"
 #include "definitions_cxx.hpp"
 #include "dsp/core/conditional/processor.h"
@@ -25,6 +24,7 @@
 #include "dsp/processors/amplitude.h"
 #include "dsp/processors/gain.h"
 #include "dsp/stereo_sample.h"
+#include "dsp/waves.h"
 #include "processing/engines/audio_engine.h"
 #include "render_wave.h"
 #include "storage/wave_table/wave_table.h"
@@ -186,28 +186,15 @@ std::pair<const int16_t*, int32_t> getTriangleTable(uint32_t phase_increment) {
 
 void Oscillator::renderTriangle(std::span<int32_t> buffer, PhasorPair<uint32_t> osc, bool apply_amplitude,
                                 PhasorPair<FixedPoint<30>> amplitude) {
-	if (osc.phase_increment < 69273666 || AudioEngine::cpuDireness >= 7) {
-		int32_t amplitude_now = amplitude.phase.raw() << 1;
-		uint32_t phase_now = osc.phase;
-		for (auto& sample : buffer) {
-			phase_now += osc.phase_increment;
+	bool fast_render = (osc.phase_increment < 69273666 || AudioEngine::cpuDireness >= 7);
 
-			int32_t value = getTriangleSmall(phase_now);
-
-			if (apply_amplitude) {
-				amplitude_now += amplitude.phase_increment.raw() << 1;
-				sample = multiply_accumulate_32x32_rshift32_rounded(sample, value, amplitude_now);
-			}
-			else {
-				sample = value << 1;
-			}
-		}
-		return;
-	}
-
+	SimpleOscillatorFor simple_triangle(&deluge::dsp::waves::triangle, osc.phase, osc.phase_increment);
 	auto [table, table_size_magnitude] = getTriangleTable(osc.phase_increment);
+	TableOscillator fancy_triangle(table, table_size_magnitude);
+	auto& oscillator = fast_render ? static_cast<ClassicOscillator&>(simple_triangle)
+	                               : static_cast<ClassicOscillator&>(fancy_triangle);
 	Pipeline pipeline{
-	    TableOscillator(table, table_size_magnitude),
+	    &oscillator,
 	    ConditionalProcessor{
 	        apply_amplitude,
 	        Pipeline{
@@ -217,7 +204,7 @@ void Oscillator::renderTriangle(std::span<int32_t> buffer, PhasorPair<uint32_t> 
 	    },
 	};
 
-	std::get<TableOscillator>(pipeline).setPhase(osc.phase, osc.phase_increment);
+	std::get<ClassicOscillator*>(pipeline)->setPhase(osc.phase, osc.phase_increment);
 
 	pipeline.renderBlock(buffer);
 }
@@ -476,11 +463,11 @@ void Oscillator::renderSaw(std::span<int32_t> buffer, PhasorPair<uint32_t> osc, 
 
 	const auto [table_number, table_size_magnitude] = dsp::getTableNumber(osc.phase_increment);
 
-	CrudeSaw crude_saw(osc.phase, osc.phase_increment);
+	SimpleOscillatorFor simple_saw(&deluge::dsp::waves::saw, osc.phase, osc.phase_increment);
 	TableOscillator proper_saw(dsp::sawTables[table_number], table_size_magnitude);
 
 	ClassicOscillator& oscillator = (table_number < AudioEngine::cpuDireness + 6)
-	                                    ? static_cast<ClassicOscillator&>(crude_saw)
+	                                    ? static_cast<ClassicOscillator&>(simple_saw)
 	                                    : static_cast<ClassicOscillator&>(proper_saw);
 
 	Pipeline pipeline{

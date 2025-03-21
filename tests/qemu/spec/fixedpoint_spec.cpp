@@ -22,7 +22,7 @@ describe fixedpoint("FixedPoint", ${
 
 		it("from a float", _ {
 			FixedPoint<16> fp{3.14f};
-			expect(fp.raw()).to_equal(0x000323d7);
+			expect(fp.raw()).to_equal(0x000323d8);
 		});
 
 		it("from a different float", _ {
@@ -30,10 +30,14 @@ describe fixedpoint("FixedPoint", ${
 			expect(fp.raw()).to_equal(0x40000000);
 		});
 
-		it("from another FixedPoint", _ {
+		it("from another FixedPoint upwards", _ {
 			FixedPoint<31> fp = FixedPoint<30>{1.f};
-			std::cout << std::hex << fp.raw() << std::endl;
 			expect(fp.raw()).to_equal(0x7fffffff);
+		});
+
+		it("from another FixedPoint downwards", _ {
+			FixedPoint<16> fp = FixedPoint<30>{1.f};
+			expect(fp.raw()).to_equal(FixedPoint<16>::one());
 		});
 	});
 

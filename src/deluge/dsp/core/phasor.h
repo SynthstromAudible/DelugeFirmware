@@ -39,10 +39,10 @@ template <typename T>
 struct Phasor : impl::PhasorState<T>, Generator<T> {
 	using impl::PhasorState<T>::PhasorState;
 
-	T render() override {
-		this->phase += this->step;
-		this->phase = (this->phase >= T(1.f)) ? this->phase - T(1.f) : this->phase;
-		return this->phase;
+	[[nodiscard]] T render() override {
+		auto new_phase = this->phase + this->step;
+		new_phase = (new_phase >= T(1.f)) ? new_phase - T(1.f) : new_phase;
+		return new_phase;
 	}
 };
 
@@ -53,7 +53,7 @@ struct Phasor<uint32_t> : impl::PhasorState<uint32_t>, Generator<uint32_t> {
 	constexpr Phasor(Frequency frequency)
 	    : impl::PhasorState<uint32_t>{std::bit_cast<uint32_t>(FixedPoint<31>((1.f / kSampleRate) * frequency).raw())
 	                                  << 1} {}
-	uint32_t render() override { return phase += step; }
+	[[nodiscard]] uint32_t render() override { return phase + step; }
 };
 
 template <>
@@ -63,10 +63,10 @@ struct Phasor<FixedPoint<31>> : impl::PhasorState<int32_t>, Generator<int32_t> {
 	constexpr Phasor(Frequency frequency)
 	    : impl::PhasorState<int32_t>{std::bit_cast<int32_t>(FixedPoint<31>((1.f / kSampleRate) * frequency).raw())} {}
 
-	int32_t render() override {
-		phase += step;
-		phase = (phase >= FixedPoint<31>{1.f}.raw()) ? phase - FixedPoint<31>{1.f}.raw() : phase;
-		return phase;
+	[[nodiscard]] int32_t render() override {
+		auto new_phase = phase + step;
+		new_phase = (new_phase >= FixedPoint<31>{1.f}.raw()) ? new_phase - FixedPoint<31>{1.f}.raw() : new_phase;
+		return new_phase;
 	}
 };
 
@@ -74,10 +74,10 @@ template <typename T>
 struct SIMDPhasor : impl::PhasorState<Argon<T>>, SIMDGenerator<T> {
 	using impl::PhasorState<Argon<T>>::PhasorState;
 
-	Argon<T> render() override {
-		this->phase = this->phase + this->step;
-		this->phase = argon::ternary(this->phase >= T{1}, this->phase - T{1}, this->phase);
-		return this->phase;
+	[[nodiscard]] Argon<T> render() override {
+		auto new_phase = this->phase + this->step;
+		new_phase = argon::ternary(new_phase >= T{1}, new_phase - T{1}, new_phase);
+		return new_phase;
 	}
 };
 
@@ -85,16 +85,17 @@ template <>
 struct SIMDPhasor<uint32_t> : impl::PhasorState<Argon<uint32_t>>, SIMDGenerator<uint32_t> {
 	using impl::PhasorState<Argon<uint32_t>>::PhasorState;
 
-	Argon<uint32_t> render() override { return phase = phase + step; }
+	[[nodiscard]] Argon<uint32_t> render() override { return phase + step; }
 };
 
 template <>
 struct SIMDPhasor<FixedPoint<31>> : impl::PhasorState<Argon<int32_t>>, SIMDGenerator<int32_t> {
 	using impl::PhasorState<Argon<int32_t>>::PhasorState;
 
-	Argon<q31_t> render() override {
-		phase = phase + step;
-		phase = argon::ternary(phase >= FixedPoint<31>{1.f}.raw(), phase - FixedPoint<31>{1.f}.raw(), phase);
-		return phase;
+	[[nodiscard]] Argon<q31_t> render() override {
+		auto new_phase = phase + step;
+		new_phase =
+		    argon::ternary(new_phase >= FixedPoint<31>{1.f}.raw(), new_phase - FixedPoint<31>{1.f}.raw(), phase);
+		return new_phase;
 	}
 };

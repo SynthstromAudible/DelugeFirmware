@@ -24,14 +24,28 @@ struct ClassicOscillator : SIMDGenerator<int32_t> {
 	SIMDPhasor<uint32_t> phasor_; ///< The phasor used to generate the waveform phase
 
 	constexpr ClassicOscillator() = default; ///< Default constructor
-	constexpr ClassicOscillator(uint32_t phase, uint32_t phase_increment) { setPhase(phase, phase_increment); }
+	constexpr ClassicOscillator(uint32_t phase, uint32_t step) { setPhase(phase, step); }
 
 	/// @brief Set the phase of the oscillator.
 	/// @param phase The new phase value to set.
-	constexpr void setPhase(uint32_t phase, uint32_t phase_increment) {
+	constexpr void setPhase(uint32_t phase, uint32_t step) {
 		phasor_ = SIMDPhasor<uint32_t>{
-		    Argon{phase}.MultiplyAdd(Argon<uint32_t>{1U, 2U, 3U, 4U}, phase_increment),
-		    phase_increment * 4,
+		    Argon{phase}.MultiplyAdd(Argon<uint32_t>{1U, 2U, 3U, 4U}, step),
+		    step * 4,
 		};
 	};
+};
+
+class SimpleOscillatorFor : public ClassicOscillator {
+	using FunctionType = Argon<q31_t> (*)(Argon<uint32_t>);
+	FunctionType func_;
+
+public:
+	SimpleOscillatorFor(FunctionType func, uint32_t phase, uint32_t step)
+	    : ClassicOscillator(phase, step), func_(func) {}
+	Argon<q31_t> render() override {
+		Argon<q31_t> output = func_(phasor_.phase);
+		phasor_.phase = phasor_.render();
+		return output;
+	}
 };

@@ -48,7 +48,7 @@ public:
 		// this is a standard linear interpolation of a + (b - a) * fractional
 		Argon<q31_t> output = value1.ShiftLeftLong<16>().MultiplyDoubleAddSaturateLong(value2 - value1, fractional);
 
-		phasor_.render(); // advance the phasor
+		phasor_.phase = phasor_.render(); // advance the phasor
 
 		return output;
 	}
@@ -89,7 +89,7 @@ public:
 		                              .MultiplyDoubleAddSaturateLong(strength_b1, value_b1);
 
 		Argon<q31_t> output = output_a.MultiplyRoundFixedPoint(output_b) << 1; // (a *. b) << 1 (average?)
-		phasor_.render();                                                      // advance the phasor
+		phasor_.phase = phasor_.render();                                      // advance the phasor
 		return output;
 	}
 };

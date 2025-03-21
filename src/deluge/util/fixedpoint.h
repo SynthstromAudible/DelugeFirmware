@@ -241,7 +241,7 @@ inline int32_t clz(uint32_t input) {
 /// @tparam FractionalBits The number of fractional bits
 /// @tparam Rounded Whether to round the result when performing operations
 /// @tparam FastApproximation Whether to use a fast approximation for operations
-template <std::size_t FractionalBits, bool Rounded = false, bool FastApproximation = true>
+template <std::size_t FractionalBits, bool Rounded = true, bool FastApproximation = true>
 class FixedPoint {
 	static_assert(FractionalBits > 0, "FractionalBits must be greater than 0");
 	static_assert(FractionalBits < 32, "FractionalBits must be less than 32");
@@ -269,16 +269,11 @@ class FixedPoint {
 		}
 	}
 
-	static constexpr BaseType one() noexcept {
-		if constexpr (fractional_bits == 31) {
-			return std::numeric_limits<BaseType>::max();
-		}
-		else {
-			return 1 << fractional_bits;
-		}
+public:
+	static constexpr uint32_t one() noexcept {
+		return 1 << FractionalBits; // 1.0 in fixed point representation
 	}
 
-public:
 	constexpr static std::size_t fractional_bits = FractionalBits;
 	constexpr static std::size_t integral_bits = 32 - FractionalBits;
 	constexpr static bool rounded = Rounded;
@@ -306,7 +301,8 @@ public:
 		else if constexpr (rounded) {
 			// round
 			constexpr int32_t shift = OtherFractionalBits - FractionalBits;
-			value_ >>= shift + ((1 << shift) - 1);
+			value_ += ((1 << shift) - 1);
+			value_ >>= shift;
 		}
 		else {
 			// truncate
@@ -341,6 +337,11 @@ public:
 			asm("vcvt.s32.f32 %0, %1, %2" : "=t"(value) : "t"(value), "I"(fractional_bits));
 			value_ = std::bit_cast<int32_t>(value); // NOLINT
 		}
+	}
+
+	template <std::size_t OtherFractionalBits, bool OtherRounded = Rounded, bool OtherApproximating = FastApproximation>
+	constexpr operator FixedPoint<OtherFractionalBits, OtherRounded, OtherApproximating>() const {
+		return FixedPoint<OtherFractionalBits, OtherRounded, OtherApproximating>{*this};
 	}
 
 	/// @brief Explicit conversion to float
@@ -510,6 +511,23 @@ public:
 	}
 
 	/// @brief Division operator
+	/// Divide two fixed point numbers with different number of fractional bits
+	template <std::size_t OtherFractionalBits>
+	constexpr FixedPoint<std::min(FractionalBits, OtherFractionalBits), Rounded, FastApproximation>
+	operator/(const FixedPoint<OtherFractionalBits>& rhs) const {
+		if (rhs.raw() == 0) {
+			return from_raw(std::numeric_limits<BaseType>::max());
+		}
+		if constexpr (rounded) {
+			IntermediateType value = (static_cast<IntermediateType>(value_) << (fractional_bits + 1)) / rhs.raw();
+			return from_raw(static_cast<BaseType>((value / 2) + (value % 2)));
+		}
+
+		IntermediateType value = (static_cast<IntermediateType>(value_) << fractional_bits) / rhs.raw();
+		return from_raw(static_cast<BaseType>(value));
+	}
+
+	/// @brief Division operator
 	/// Divide two fixed point numbers with the same number of fractional bits
 	constexpr FixedPoint operator/=(const FixedPoint& rhs) {
 		value_ = this->operator/(rhs).value_;
@@ -552,6 +570,15 @@ public:
 		int fractional_value = value_ & ((1 << fractional_bits) - 1);              // Mask out the integral part
 		int other_fractional_value = rhs.raw() & ((1 << OtherFractionalBits) - 1); // Mask out the integral parts
 
+		if constexpr (rounded) {
+			if (fractional_bits > OtherFractionalBits) {
+				fractional_value += (1 << (fractional_bits - OtherFractionalBits)) - 1;
+			}
+			else {
+				other_fractional_value += (1 << (OtherFractionalBits - fractional_bits)) - 1;
+			}
+		}
+
 		// Shift the fractional part if the number of fractional bits is different
 		if (fractional_bits > OtherFractionalBits) {
 			fractional_value >>= fractional_bits - OtherFractionalBits;
@@ -571,6 +598,15 @@ public:
 		int other_integral_value = rhs.raw() >> OtherFractionalBits;
 		int fractional_value = value_ & ((1 << fractional_bits) - 1);              // Mask out the integral part
 		int other_fractional_value = rhs.raw() & ((1 << OtherFractionalBits) - 1); // Mask out the integral part
+
+		if constexpr (rounded) {
+			if (fractional_bits > OtherFractionalBits) {
+				fractional_value += (1 << (fractional_bits - OtherFractionalBits)) - 1;
+			}
+			else {
+				other_fractional_value += (1 << (OtherFractionalBits - fractional_bits)) - 1;
+			}
+		}
 
 		// Shift the fractional part if the number of fractional bits is different
 		if (fractional_bits > OtherFractionalBits) {
@@ -605,13 +641,23 @@ public:
 	/// @brief Multiply by an integral type
 	template <std::integral T>
 	constexpr FixedPoint MultiplyInt(const T& rhs) const {
-		return FixedPoint::from_raw(value_ * rhs);
+		return FixedPoint::from_raw(value_ * static_cast<BaseType>(rhs));
 	}
 
 	/// @brief Divide by an integral type
 	template <std::integral T>
 	constexpr FixedPoint DivideInt(const T& rhs) const {
-		return FixedPoint::from_raw(value_ / rhs);
+		return FixedPoint::from_raw(value_ / static_cast<BaseType>(rhs));
+	}
+
+	template <std::integral T>
+	constexpr FixedPoint operator*(const T& rhs) const {
+		return MultiplyInt(rhs);
+	}
+
+	template <std::integral T>
+	constexpr FixedPoint operator/(const T& rhs) {
+		return DivideInt(rhs);
 	}
 
 	[[nodiscard]] constexpr int32_t integral() const { return static_cast<int32_t>(value_ >> fractional_bits); }
