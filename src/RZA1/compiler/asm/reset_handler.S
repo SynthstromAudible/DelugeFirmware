@@ -241,8 +241,14 @@ abort_handler:
 prefetch_handler:
 reserved_handler:
     CPSID   i                   /* Disable interrupt handling to preserve stack */
-    MOV     r0, LR              /* Store SYS LR value as first function parameter */
-    MOV     r1, SP              /* Store SYS SP value as second function parameter */
+
+
+    MRS     r4, CPSR            /* r4 <- current CPSR (exception mode bits) */
+    MSR     CPSR_c, #0x1F       /* Switch SYS mode */
+    MOV     r0, LR              /* Store SYS MODE LR value as first function parameter */
+    MOV     r1, SP              /* Store SYS mode SP value as second function parameter */
+    MSR     CPSR_c, r4          /* Switch back to original exception mode */
+
     MOV     r2, #0              /* USR LR - 0 since we don't currently use user mode */
     MOV     r3, #0              /* USR SP - 0 since we don't use user mode */
     LDR  r12,=handle_cpu_fault  /* Load address of handle_cpu_fault */

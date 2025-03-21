@@ -21,6 +21,7 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
+#include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
@@ -55,11 +56,11 @@ public:
 
 					// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
 					if (current_value == SampleRepeatMode::STRETCH) {
-						soundDrum->unassignAllVoices();
+						soundDrum->killAllVoices();
 						source->sampleControls.pitchAndSpeedAreIndependent = true;
 					}
 					else if (source->repeatMode == SampleRepeatMode::STRETCH) {
-						soundDrum->unassignAllVoices();
+						soundDrum->killAllVoices();
 						soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = false;
 					}
 
@@ -85,11 +86,11 @@ public:
 		else {
 			// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
 			if (static_cast<SampleRepeatMode>(current_value) == SampleRepeatMode::STRETCH) {
-				soundEditor.currentSound->unassignAllVoices();
+				soundEditor.currentSound->killAllVoices();
 				soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = true;
 			}
 			else if (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH) {
-				soundEditor.currentSound->unassignAllVoices();
+				soundEditor.currentSound->killAllVoices();
 				soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = false;
 			}
 

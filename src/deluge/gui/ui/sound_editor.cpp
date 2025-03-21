@@ -42,7 +42,6 @@
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "model/voice/voice_vector.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
@@ -238,6 +237,8 @@ bool SoundEditor::opened() {
 }
 
 void SoundEditor::focusRegained() {
+	// we don't want to process select button release when re-entering menu
+	Buttons::selectButtonPressUsedUp = true;
 
 	// If just came back from a deeper nested UI...
 	if (shouldGoUpOneLevelOnBegin) {
@@ -1315,7 +1316,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 			// Read active voices
 			else if (x == 14) {
-				intToString(AudioEngine::activeVoices.getNumElements(), buffer);
+				intToString(AudioEngine::getNumVoices(), buffer);
 				display->displayPopup(buffer);
 				return ActionResult::DEALT_WITH;
 			}
@@ -1798,7 +1799,7 @@ void SoundEditor::cutSound() {
 		getCurrentAudioClip()->unassignVoiceSample(false);
 	}
 	else {
-		soundEditor.currentSound->unassignAllVoices();
+		soundEditor.currentSound->killAllVoices();
 	}
 }
 

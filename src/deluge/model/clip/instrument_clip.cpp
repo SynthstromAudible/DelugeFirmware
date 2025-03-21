@@ -2647,8 +2647,8 @@ someError:
 			reader.match('{');
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				bool readAndExited = arpSettings.readCommonTagsFromFile(reader, tagName, nullptr);
-
-				if (!readAndExited && (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV)) {
+				if (!readAndExited
+				    && (outputTypeWhileLoading == OutputType::MIDI_OUT || outputTypeWhileLoading == OutputType::CV)) {
 					readAndExited = arpSettings.readNonAudioTagsFromFile(reader, tagName);
 				}
 
@@ -3218,7 +3218,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 				if (clipIsActive && noteRow->drum) {
 
 					if (ALPHA_OR_BETA_VERSION && noteRow->drum->type == DrumType::SOUND
-					    && ((SoundDrum*)noteRow->drum)->hasAnyVoices()) {
+					    && static_cast<SoundDrum*>(noteRow->drum)->hasActiveVoices()) {
 						FREEZE_WITH_ERROR("E176");
 					}
 

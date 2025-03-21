@@ -37,6 +37,7 @@
 #include "storage/flash_storage.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 #include "util/d_string.h"
+#include <limits>
 
 class MidiCommand;
 class Clip;
@@ -187,17 +188,18 @@ public:
 	ClipArray sessionClips;
 	ClipArray arrangementOnlyClips;
 
-	Output* firstOutput;
-	Instrument*
-	    firstHibernatingInstrument; // All Instruments have inValidState set to false when they're added to this list
+	Output* firstOutput = nullptr;
+	Instrument* firstHibernatingInstrument =
+	    nullptr; // All Instruments have inValidState set to false when they're added to this list
 
 	OrderedResizeableArrayWithMultiWordKey backedUpParamManagers;
 
-	uint32_t xZoom[2];  // Set default zoom at max zoom-out;
-	int32_t xScroll[2]; // Leave this as signed
-	int32_t xScrollForReturnToSongView;
+	uint32_t xZoom[2];        // Set default zoom at max zoom-out;
+	int32_t xScroll[2] = {0}; // Leave this as signed
+	int32_t xScrollForReturnToSongView = 0;
 	int32_t xZoomForReturnToSongView;
-	bool tripletsOn;
+
+	bool tripletsOn = false;
 	uint32_t tripletsLevel; // The number of ticks in one of the three triplets
 
 	uint64_t timePerTimerTickBig;
@@ -208,46 +210,46 @@ public:
 	// insideWorldTickMagnitude is 1, this means the inside world is spinning twice as fast as the external world, so
 	// MIDI sync coming in representing an 8th-note would be interpreted internally as a quarter-note (because two
 	// internal 8th-notes would have happened, twice as fast, making a quarter-note)
-	int32_t insideWorldTickMagnitude;
+	int32_t insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 
 	// Sometimes, we'll do weird stuff to insideWorldTickMagnitude for sync-scaling, which would make BPM values look
 	// weird. So, we keep insideWorldTickMagnitudeOffsetFromBPM
-	int32_t insideWorldTickMagnitudeOffsetFromBPM;
+	int32_t insideWorldTickMagnitudeOffsetFromBPM = 0;
 
-	int8_t swingAmount;
-	uint8_t swingInterval;
+	int8_t swingAmount = 0;
+	uint8_t swingInterval = FlashStorage::defaultSwingInterval;
 
 	Section sections[kMaxNumSections];
 
 	MusicalKey key;
-	std::bitset<NUM_PRESET_SCALES> disabledPresetScales;
+	std::bitset<NUM_PRESET_SCALES> disabledPresetScales = FlashStorage::defaultDisabledPresetScales;
 
-	uint16_t slot;
-	int8_t subSlot;
+	uint16_t slot = std::numeric_limits<int16_t>::max();
+	int8_t subSlot = -1;
 	String name;
 
-	bool affectEntire;
+	bool affectEntire = false;
 
 	SessionLayoutType sessionLayout = FlashStorage::defaultSessionLayout;
 	int32_t songGridScrollX = 0;
 	int32_t songGridScrollY = 0;
-	int32_t songViewYScroll;
-	int32_t arrangementYScroll;
+	int32_t songViewYScroll = 1 - kDisplayHeight;
+	int32_t arrangementYScroll = -kDisplayHeight;
 
 	uint8_t sectionToReturnToAfterSongEnd;
 
 	bool wasLastInArrangementEditor;
-	int32_t lastClipInstanceEnteredStartPos; // -1 means we are not "inside" an arrangement. While we're in the
-	                                         // ArrangementEditor, it's 0
+	int32_t lastClipInstanceEnteredStartPos = -1; // -1 means we are not "inside" an arrangement. While we're in the
+	                                              // ArrangementEditor, it's 0
 
-	bool arrangerAutoScrollModeActive;
+	bool arrangerAutoScrollModeActive = false;
 
-	MIDIInstrument* hibernatingMIDIInstrument;
+	MIDIInstrument* hibernatingMIDIInstrument = nullptr;
 
-	bool outputClipInstanceListIsCurrentlyInvalid; // Set to true during scenarios like replaceInstrument(), to warn
-	                                               // other functions not to look at Output::clipInstances
+	bool outputClipInstanceListIsCurrentlyInvalid = false; // Set to true during scenarios like replaceInstrument(), to
+	                                                       // warn other functions not to look at Output::clipInstances
 
-	bool paramsInAutomationMode;
+	bool paramsInAutomationMode = false;
 
 	bool inClipMinderViewOnLoad; // Temp variable only valid while loading Song
 
@@ -279,7 +281,7 @@ public:
 	void loadAllSamples(bool mayActuallyReadFiles = true);
 	void renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending);
 	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);
-	Clip* syncScalingClip;
+	Clip* syncScalingClip = nullptr;
 	void setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction = false);
 	bool hasAnySwing();
 	void resyncLFOs();
@@ -292,7 +294,7 @@ public:
 	uint32_t getTimePerTimerTickRounded();
 	int32_t getNumOutputs();
 	Clip* getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* prevClip);
-	bool anyClipsSoloing;
+	bool anyClipsSoloing = false;
 
 	ParamManager* getBackedUpParamManagerForExactClip(ModControllableAudio* modControllable, Clip* clip,
 	                                                  ParamManager* stealInto = nullptr);
@@ -329,7 +331,7 @@ public:
 	MIDIInstrument* grabHibernatingMIDIInstrument(int32_t newSlot, int32_t newSubSlot);
 	NoteRow* findNoteRowForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = nullptr);
 
-	bool anyOutputsSoloingInArrangement;
+	bool anyOutputsSoloingInArrangement = false;
 	bool getAnyOutputsSoloingInArrangement();
 	void reassessWhetherAnyOutputsSoloingInArrangement();
 	bool isOutputActiveInArrangement(Output* output);
@@ -394,30 +396,30 @@ public:
 	TimelineCounter* getTimelineCounterToRecordTo() override;
 
 	// Reverb params to be stored here between loading and song being made the active one
-	dsp::Reverb::Model model;
-	float reverbRoomSize;
-	float reverbHPF;
-	float reverbLPF;
-	float reverbDamp;
-	float reverbWidth;
-	int32_t reverbPan;
+	dsp::Reverb::Model model = deluge::dsp::Reverb::Model::MUTABLE;
+	float reverbRoomSize = 30 / 50.f;
+	float reverbHPF = 0;
+	float reverbLPF = 1;
+	float reverbDamp = 36 / 50.f;
+	float reverbWidth = 1;
+	int32_t reverbPan = 0;
 	int32_t reverbSidechainVolume;
-	int32_t reverbSidechainShape;
+	int32_t reverbSidechainShape = -601295438;
 	int32_t reverbSidechainAttack;
 	int32_t reverbSidechainRelease;
-	SyncLevel reverbSidechainSync;
+	SyncLevel reverbSidechainSync = SYNC_LEVEL_8TH;
 
 	// START ~ new Automation Arranger View Variables
-	int32_t lastSelectedParamID; // last selected Parameter to be edited in Automation Arranger View
-	deluge::modulation::params::Kind
-	    lastSelectedParamKind; // 0 = patched, 1 = unpatched, 2 = global effectable, 3 = none
-	int32_t lastSelectedParamShortcutX;
-	int32_t lastSelectedParamShortcutY;
-	int32_t lastSelectedParamArrayPosition;
+	int32_t lastSelectedParamID = kNoSelection; // last selected Parameter to be edited in Automation Arranger View
+	deluge::modulation::params::Kind lastSelectedParamKind =
+	    deluge::modulation::params::Kind::NONE; // 0 = patched, 1 = unpatched, 2 = global effectable, 3 = none
+	int32_t lastSelectedParamShortcutX = kNoSelection;
+	int32_t lastSelectedParamShortcutY = kNoSelection;
+	int32_t lastSelectedParamArrayPosition = 0;
 	// END ~ new Automation Arranger View Variables
 
 	// Song level transpose control (encoder actions)
-	int32_t masterTransposeInterval;
+	int32_t masterTransposeInterval = 0;
 	void transpose(int32_t interval);
 	void adjustMasterTransposeInterval(int32_t interval);
 	void displayMasterTransposeInterval();
@@ -457,12 +459,12 @@ public:
 	// Threshold
 	void changeThresholdRecordingMode(int8_t offset);
 	void displayThresholdRecordingMode();
-	ThresholdRecordingMode thresholdRecordingMode;
+	ThresholdRecordingMode thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 
 private:
 	ScaleMapper scaleMapper;
 	NoteSet userScaleNotes;
-	bool fillModeActive;
+	bool fillModeActive = false;
 	Clip* currentClip = nullptr;
 	Clip* previousClip = nullptr; // for future use, maybe finding an instrument clip or something
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);

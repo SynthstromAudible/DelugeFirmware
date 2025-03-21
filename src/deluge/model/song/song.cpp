@@ -129,79 +129,19 @@ OutputType getCurrentOutputType() {
 
 using namespace deluge;
 
-Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
-	outputClipInstanceListIsCurrentlyInvalid = false;
-	insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
-	insideWorldTickMagnitudeOffsetFromBPM = 0;
-	syncScalingClip = nullptr;
-	currentClip = nullptr;
-	slot = 32767;
-	subSlot = -1;
-
-	xScroll[NAVIGATION_CLIP] = 0;
-	xScroll[NAVIGATION_ARRANGEMENT] = 0;
-	xScrollForReturnToSongView = 0;
-
+Song::Song()
+    : backedUpParamManagers(sizeof(BackedUpParamManager)),
+      reverbSidechainVolume(getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1)) {
 	xZoom[NAVIGATION_CLIP] = increaseMagnitude(kDefaultClipLength, insideWorldTickMagnitude - kDisplayWidthMagnitude);
 	xZoom[NAVIGATION_ARRANGEMENT] = kDefaultArrangerZoom << insideWorldTickMagnitude;
 	xZoomForReturnToSongView = xZoom[NAVIGATION_CLIP];
 
-	tripletsOn = false;
-
-	affectEntire = false;
-
-	fillModeActive = false;
-
 	key.modeNotes = presetScaleNotes[MAJOR_SCALE];
-	disabledPresetScales = FlashStorage::defaultDisabledPresetScales;
-
-	swingAmount = 0;
-
-	swingInterval = FlashStorage::defaultSwingInterval;
-
-	songViewYScroll = 1 - kDisplayHeight;
-	arrangementYScroll = -kDisplayHeight;
-
-	anyClipsSoloing = false;
-	anyOutputsSoloingInArrangement = false;
-
-	firstOutput = nullptr;
-	firstHibernatingInstrument = nullptr;
-	hibernatingMIDIInstrument = nullptr;
-
-	lastClipInstanceEnteredStartPos = -1;
-	arrangerAutoScrollModeActive = false;
-
-	paramsInAutomationMode = false;
-
-	// Setup reverb temp variables
-	reverbRoomSize = (float)30 / 50;
-	reverbDamp = (float)36 / 50;
-	reverbHPF = 0;
-	reverbLPF = (float)50 / 50;
-	reverbWidth = 1;
-	reverbPan = 0;
-	reverbSidechainVolume = getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1);
-	reverbSidechainShape = -601295438;
-	reverbSidechainSync = SYNC_LEVEL_8TH;
-	model = deluge::dsp::Reverb::Model::MUTABLE;
 
 	// setup base compressor gain to match 1.0
 	globalEffectable.compressor.setBaseGain(0.85);
 
-	// initialize automation arranger view variables
-	lastSelectedParamID = kNoSelection;
-	lastSelectedParamKind = params::Kind::NONE;
-	lastSelectedParamShortcutX = kNoSelection;
-	lastSelectedParamShortcutY = kNoSelection;
-	lastSelectedParamArrayPosition = 0;
-	// end initialize of automation arranger view variables
-
-	masterTransposeInterval = 0;
-
 	dirPath.set("SONGS");
-
-	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
 
 Song::~Song() {
