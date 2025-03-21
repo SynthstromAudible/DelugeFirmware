@@ -41,7 +41,7 @@ public:
 
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
-	bool setupAndCheckAvailability();
+	virtual bool setupAndCheckAvailability();
 
 	virtual deluge::hid::Button getAcceptButton() { return deluge::hid::button::SELECT_ENC; }
 
