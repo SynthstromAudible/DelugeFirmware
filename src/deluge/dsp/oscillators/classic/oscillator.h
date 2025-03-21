@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "dsp/core/generator.h"
 #include "dsp/core/periodic.h"
 #include <cstdint>
 
@@ -25,25 +26,25 @@ class ClassicOscillator : public SIMDGenerator<int32_t> {
 	/// @note this can't be inherited due to being a SIMDGenerator<uint32_t>, which makes the return types for derived
 	/// class' render() functions non-matching
 public:
-	ClassicOscillator() = default; ///< Default constructor
-	ClassicOscillator(uint32_t phase, uint32_t increment) { setPhaseAndIncrement(phase, increment); }
+	constexpr ClassicOscillator() = default; ///< Default constructor
+	constexpr ClassicOscillator(uint32_t phase, uint32_t increment) { setPhaseAndIncrement(phase, increment); }
 
 	/// @brief Set the phase of the oscillator.
 	/// @param phase The new phase value to set.
-	void setPhaseAndIncrement(uint32_t phase, uint32_t increment) {
+	constexpr void setPhaseAndIncrement(uint32_t phase, uint32_t increment) {
 		periodic_component_.setPhase(Argon{phase}.MultiplyAdd(Argon<uint32_t>{1U, 2U, 3U, 4U}, increment));
 		periodic_component_.setPhaseIncrement(increment * 4);
 	};
 
 	/// @brief Advance the phase of the oscillator by one step.
-	void advance() { periodic_component_.advance(); }
+	constexpr void advance() { periodic_component_.advance(); }
 
 	/// @brief Get the current phase of the oscillator.
 	/// @return The current phase value.
-	[[nodiscard]] Argon<uint32_t> getPhase() const { return periodic_component_.getPhase(); }
+	[[nodiscard]] constexpr Argon<uint32_t> getPhase() const { return periodic_component_.getPhase(); }
 };
 
-class SimpleOscillatorFor : public ClassicOscillator {
+class SimpleOscillatorFor final : public ClassicOscillator {
 	using FunctionType = Argon<q31_t> (*)(Argon<uint32_t>);
 	FunctionType func_;
 
@@ -54,4 +55,14 @@ public:
 		this->advance();
 		return output;
 	}
+};
+
+class PWMOscillator : public SIMDGenerator<int32_t> {
+	uint32_t pulse_width_ = 0x80000000; ///< The width of the pulse in the PWM waveform
+public:
+	/// @brief Get the current phase width of the PWM oscillator.
+	[[nodiscard]] constexpr uint32_t getPulseWidth() const { return pulse_width_; }
+
+	/// @brief Set the phase width of the PWM oscillator.
+	void setPulseWidth(uint32_t width) { pulse_width_ = width; }
 };

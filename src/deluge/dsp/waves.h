@@ -23,13 +23,28 @@
 namespace deluge::dsp::waves {
 
 template <typename T>
-constexpr T square(T phase, float duty_cycle = 0.5f) {
-	return (phase < T(duty_cycle)) ? T(1) : T(-1);
+constexpr T pulse(T phase, float pulse_width = 0.5f) {
+	return (phase < T(pulse_width)) ? T(1) : T(-1);
 }
 
 template <>
-constexpr Argon<float> square(Argon<float> phase, float duty_cycle) {
-	return argon::ternary(phase < Argon{duty_cycle}, Argon{1.f}, Argon{-1.f});
+constexpr Argon<float> pulse(Argon<float> phase, float pulse_width) {
+	return argon::ternary(phase < Argon{pulse_width}, Argon{1.f}, Argon{-1.f});
+}
+
+template <typename T>
+constexpr T square(T phase) {
+	return (phase < T(0.5)) ? T(1) : T(-1);
+}
+
+template <>
+constexpr Argon<float> square(Argon<float> phase) {
+	return argon::ternary(phase < Argon{0.5f}, Argon{1.f}, Argon{-1.f});
+}
+
+/// @deprecated
+constexpr Argon<q31_t> square(Argon<uint32_t> phase) {
+	return argon::ternary(phase < Argon<uint32_t>{0x80000000}, Argon{1.f}, Argon{-1.f}).As<q31_t>();
 }
 
 /// @brief Basic waveform generation functions

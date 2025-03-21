@@ -18,8 +18,8 @@
 
 #pragma once
 
-#include "classic/oscillator.h"
 #include "dsp/core/generator.h"
+#include "oscillator.h"
 #include "util/fixedpoint.h"
 #include <argon.hpp>
 #include <cstdint>
@@ -53,15 +53,12 @@ public:
 	}
 };
 
-class PWMTableOscillator final : public TableOscillator {
-	uint32_t phase_to_add_ = 0; // used for pulse width modulation
-public:
+struct PWMTableOscillator final : PWMOscillator, TableOscillator {
 	using TableOscillator::TableOscillator;
 
-	void setPhaseToAdd(uint32_t phase_to_add) { phase_to_add_ = phase_to_add; }
-
 	Argon<q31_t> render() override {
-		Argon<uint32_t> phase_later = getPhase() + phase_to_add_;
+		auto phase_to_add = -(getPulseWidth() >> 1);
+		Argon<uint32_t> phase_later = getPhase() + phase_to_add;
 		Argon<uint32_t> indices_a = getPhase() >> (32 - table_size_magnitude_);
 		ArgonHalf<int16_t> rshifted_a =
 		    indices_a.ShiftRightNarrow<16>().BitwiseAnd(std::numeric_limits<int16_t>::max()).As<int16_t>();

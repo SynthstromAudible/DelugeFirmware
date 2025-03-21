@@ -16,7 +16,7 @@
  */
 
 #pragma once
-#include "table_oscillator.h"
+#include "classic/table_oscillator.h"
 #include "util/fixedpoint.h"
 #include "util/waves.h"
 #include <argon.hpp>

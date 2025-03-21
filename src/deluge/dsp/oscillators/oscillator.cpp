@@ -17,6 +17,8 @@
 #include "oscillator.h"
 #include "basic_waves.h"
 #include "classic/oscillator.h"
+#include "classic/simple_pulse.h"
+#include "classic/table_oscillator.h"
 #include "definitions_cxx.hpp"
 #include "dsp/core/conditional/processor.h"
 #include "dsp/core/pipeline.h"
@@ -28,7 +30,6 @@
 #include "processing/engines/audio_engine.h"
 #include "render_wave.h"
 #include "storage/wave_table/wave_table.h"
-#include "table_oscillator.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstdint>
@@ -254,29 +255,15 @@ void Oscillator::renderSquare(std::span<int32_t> buffer, PhasorPair<uint32_t> os
 
 	const auto [table_number, table_size_magnitude] = dsp::getTableNumber(osc.phase_increment);
 
-	if (table_number < AudioEngine::cpuDireness + 6) {
-		int32_t amplitude_now = amplitude.phase.raw();
-		uint32_t phase_now = osc.phase;
+	bool fast_render = (table_number < AudioEngine::cpuDireness + 6);
 
-		if (apply_amplitude) {
-			for (auto& sample : buffer) {
-				phase_now += osc.phase_increment;
-				amplitude_now += amplitude.phase_increment.raw();
-				sample = multiply_accumulate_32x32_rshift32_rounded(sample, getSquare(phase_now), amplitude_now);
-			}
-		}
-		else {
-#pragma GCC unroll 4
-			for (auto& sample : buffer) {
-				phase_now += osc.phase_increment;
-				sample = getSquareSmall(phase_now);
-			}
-		}
-		return;
-	}
+	auto simple_square = SimpleOscillatorFor(&deluge::dsp::waves::square);
+	auto table_square = TableOscillator(dsp::squareTables[table_number], table_size_magnitude);
+	auto& oscillator =
+	    fast_render ? static_cast<ClassicOscillator&>(simple_square) : static_cast<ClassicOscillator&>(table_square);
 
 	Pipeline pipeline{
-	    TableOscillator(dsp::squareTables[table_number], table_size_magnitude),
+	    &oscillator,
 	    ConditionalProcessor{
 	        apply_amplitude,
 	        Pipeline{
@@ -286,7 +273,7 @@ void Oscillator::renderSquare(std::span<int32_t> buffer, PhasorPair<uint32_t> os
 	    },
 	};
 
-	std::get<TableOscillator>(pipeline).setPhaseAndIncrement(osc.phase, osc.phase_increment);
+	std::get<ClassicOscillator*>(pipeline)->setPhaseAndIncrement(osc.phase, osc.phase_increment);
 
 	pipeline.renderBlock(buffer);
 }
@@ -344,39 +331,17 @@ uint32_t Oscillator::renderSquareSync(std::span<int32_t> buffer, PhasorPair<uint
 void Oscillator::renderPWM(std::span<int32_t> buffer, PhasorPair<uint32_t> osc, uint32_t pulse_width,
                            bool apply_amplitude, PhasorPair<FixedPoint<30>> amplitude) {
 
-	pulse_width += 2147483648u;
-
 	const auto [table_number, table_size_magnitude] = dsp::getTableNumber(osc.phase_increment * 0.6);
 
-	if (table_number < AudioEngine::cpuDireness + 6) {
-		int32_t amplitude_now = amplitude.phase.raw();
-		uint32_t phase_now = osc.phase;
+	bool fast_render = (table_number < AudioEngine::cpuDireness + 6);
 
-		if (apply_amplitude) {
-			for (auto& sample : buffer) {
-				phase_now += osc.phase_increment;
-				amplitude_now += amplitude.phase_increment.raw();
-				sample = multiply_accumulate_32x32_rshift32_rounded(sample, getSquare(phase_now, pulse_width),
-				                                                    amplitude_now);
-			}
-		}
-		else {
-#pragma GCC unroll 4
-			for (auto& sample : buffer) {
-				phase_now += osc.phase_increment;
-				sample = getSquareSmall(phase_now, pulse_width);
-			}
-		}
-		return;
-	}
-
-	uint32_t phase_to_add = -(pulse_width >> 1);
-
-	osc.phase >>= 1;
-	osc.phase_increment >>= 1;
+	SimplePulseOscillator simple_pulse{};
+	PWMTableOscillator table_pulse(dsp::squareTables[table_number], table_size_magnitude);
+	auto& oscillator =
+	    fast_render ? static_cast<PWMOscillator&>(simple_pulse) : static_cast<PWMOscillator&>(table_pulse);
 
 	Pipeline pipeline{
-	    PWMTableOscillator(dsp::squareTables[table_number], table_size_magnitude),
+	    &oscillator,
 	    ConditionalProcessor{
 	        apply_amplitude,
 	        Pipeline{
@@ -386,8 +351,18 @@ void Oscillator::renderPWM(std::span<int32_t> buffer, PhasorPair<uint32_t> osc, 
 	    },
 	};
 
-	std::get<PWMTableOscillator>(pipeline).setPhaseAndIncrement(osc.phase, osc.phase_increment);
-	std::get<PWMTableOscillator>(pipeline).setPhaseToAdd(phase_to_add);
+	/// @stellar-aria: For some reason the phase and phase_increment need to be halved for the table rendering to work
+	/// correctly
+	if (!fast_render) {
+		osc.phase >>= 1;
+		osc.phase_increment >>= 1;
+	}
+
+	// @stellar-aria: Both oscillator types are derived from ClassicOscillator, so we can safely reinterpret_cast
+	// the pointer to ClassicOscillator and call setPhaseAndIncrement on it
+	reinterpret_cast<ClassicOscillator*>(std::get<PWMOscillator*>(pipeline))
+	    ->setPhaseAndIncrement(osc.phase, osc.phase_increment);
+	std::get<PWMOscillator*>(pipeline)->setPulseWidth(pulse_width + FixedPoint<31>::one());
 
 	pipeline.renderBlock(buffer);
 }
