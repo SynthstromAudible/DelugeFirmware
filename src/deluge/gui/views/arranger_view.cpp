@@ -110,9 +110,14 @@ void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas)
 		else {
 			stemExport.displayStemExportProgressOLED(StemExportType::TRACK);
 		}
-		return;
 	}
-	sessionView.renderOLED(canvas);
+	else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
+		Output* output = outputsOnScreen[yPressedEffective];
+		view.displayOutputName(output);
+	}
+	else {
+		sessionView.renderOLED(canvas);
+	}
 }
 
 void ArrangerView::moveClipToSession() {
@@ -2554,6 +2559,8 @@ void ArrangerView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 void ArrangerView::navigateThroughPresets(int32_t offset) {
 	Output* output = outputsOnScreen[yPressedEffective];
 	if (output->type == OutputType::AUDIO) {
+		auto ao = (AudioOutput*)output;
+		ao->scrollAudioOutputMode(offset);
 		return;
 	}
 
