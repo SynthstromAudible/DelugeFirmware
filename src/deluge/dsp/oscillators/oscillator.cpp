@@ -139,7 +139,7 @@ void Oscillator::renderSine(std::span<int32_t> buffer, PhasorPair<uint32_t> osc,
 	    },
 	};
 
-	std::get<TableOscillator>(pipeline).setPhase(osc.phase, osc.phase_increment);
+	std::get<TableOscillator>(pipeline).setPhaseAndIncrement(osc.phase, osc.phase_increment);
 
 	pipeline.renderBlock(buffer);
 }
@@ -160,35 +160,29 @@ uint32_t Oscillator::renderSineSync(std::span<int32_t> buffer, PhasorPair<uint32
 }
 
 std::pair<const int16_t*, int32_t> getTriangleTable(uint32_t phase_increment) {
+	if (phase_increment <= 102261126) {
+		return {triangleWaveAntiAliasing21, 7};
+	}
+	if (phase_increment <= 143165576) {
+		return {triangleWaveAntiAliasing15, 7};
+	}
+	if (phase_increment <= 238609294) {
+		return {triangleWaveAntiAliasing9, 7};
+	}
 	if (phase_increment <= 429496729) {
-		if (phase_increment <= 102261126) {
-			return {triangleWaveAntiAliasing21, 7};
-		}
-		else if (phase_increment <= 143165576) {
-			return {triangleWaveAntiAliasing15, 7};
-		}
-		else if (phase_increment <= 238609294) {
-			return {triangleWaveAntiAliasing9, 7};
-		}
-		else {
-			return {triangleWaveAntiAliasing5, 7};
-		}
+		return {triangleWaveAntiAliasing5, 7};
 	}
-	else {
-		if (phase_increment <= 715827882) {
-			return {triangleWaveAntiAliasing3, 6};
-		}
-		else {
-			return {triangleWaveAntiAliasing1, 6};
-		}
+	if (phase_increment <= 715827882) {
+		return {triangleWaveAntiAliasing3, 6};
 	}
+	return {triangleWaveAntiAliasing1, 6};
 }
 
 void Oscillator::renderTriangle(std::span<int32_t> buffer, PhasorPair<uint32_t> osc, bool apply_amplitude,
                                 PhasorPair<FixedPoint<30>> amplitude) {
 	bool fast_render = (osc.phase_increment < 69273666 || AudioEngine::cpuDireness >= 7);
 
-	SimpleOscillatorFor simple_triangle(&deluge::dsp::waves::triangle, osc.phase, osc.phase_increment);
+	auto simple_triangle = SimpleOscillatorFor(&deluge::dsp::waves::triangle);
 	auto [table, table_size_magnitude] = getTriangleTable(osc.phase_increment);
 	TableOscillator fancy_triangle(table, table_size_magnitude);
 	auto& oscillator = fast_render ? static_cast<ClassicOscillator&>(simple_triangle)
@@ -204,7 +198,7 @@ void Oscillator::renderTriangle(std::span<int32_t> buffer, PhasorPair<uint32_t> 
 	    },
 	};
 
-	std::get<ClassicOscillator*>(pipeline)->setPhase(osc.phase, osc.phase_increment);
+	std::get<ClassicOscillator*>(pipeline)->setPhaseAndIncrement(osc.phase, osc.phase_increment);
 
 	pipeline.renderBlock(buffer);
 }
@@ -292,7 +286,7 @@ void Oscillator::renderSquare(std::span<int32_t> buffer, PhasorPair<uint32_t> os
 	    },
 	};
 
-	std::get<TableOscillator>(pipeline).setPhase(osc.phase, osc.phase_increment);
+	std::get<TableOscillator>(pipeline).setPhaseAndIncrement(osc.phase, osc.phase_increment);
 
 	pipeline.renderBlock(buffer);
 }
@@ -392,7 +386,7 @@ void Oscillator::renderPWM(std::span<int32_t> buffer, PhasorPair<uint32_t> osc, 
 	    },
 	};
 
-	std::get<PWMTableOscillator>(pipeline).setPhase(osc.phase, osc.phase_increment);
+	std::get<PWMTableOscillator>(pipeline).setPhaseAndIncrement(osc.phase, osc.phase_increment);
 	std::get<PWMTableOscillator>(pipeline).setPhaseToAdd(phase_to_add);
 
 	pipeline.renderBlock(buffer);
@@ -463,7 +457,7 @@ void Oscillator::renderSaw(std::span<int32_t> buffer, PhasorPair<uint32_t> osc, 
 
 	const auto [table_number, table_size_magnitude] = dsp::getTableNumber(osc.phase_increment);
 
-	SimpleOscillatorFor simple_saw(&deluge::dsp::waves::saw, osc.phase, osc.phase_increment);
+	auto simple_saw = SimpleOscillatorFor(&deluge::dsp::waves::saw);
 	TableOscillator proper_saw(dsp::sawTables[table_number], table_size_magnitude);
 
 	ClassicOscillator& oscillator = (table_number < AudioEngine::cpuDireness + 6)
@@ -481,7 +475,7 @@ void Oscillator::renderSaw(std::span<int32_t> buffer, PhasorPair<uint32_t> osc, 
 	    },
 	};
 
-	std::get<ClassicOscillator*>(pipeline)->setPhase(osc.phase, osc.phase_increment);
+	std::get<ClassicOscillator*>(pipeline)->setPhaseAndIncrement(osc.phase, osc.phase_increment);
 
 	pipeline.renderBlock(buffer);
 }
@@ -582,7 +576,7 @@ void Oscillator::renderAnalogSaw2(std::span<int32_t> buffer, PhasorPair<uint32_t
 	    },
 	};
 
-	std::get<TableOscillator>(pipeline).setPhase(osc.phase, osc.phase_increment);
+	std::get<TableOscillator>(pipeline).setPhaseAndIncrement(osc.phase, osc.phase_increment);
 
 	pipeline.renderBlock(buffer);
 }
@@ -623,7 +617,7 @@ void Oscillator::renderAnalogSquare(std::span<int32_t> buffer, PhasorPair<uint32
 	    },
 	};
 
-	std::get<TableOscillator>(pipeline).setPhase(osc.phase, osc.phase_increment);
+	std::get<TableOscillator>(pipeline).setPhaseAndIncrement(osc.phase, osc.phase_increment);
 
 	pipeline.renderBlock(buffer);
 }

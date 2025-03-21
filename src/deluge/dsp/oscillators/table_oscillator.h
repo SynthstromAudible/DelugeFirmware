@@ -20,7 +20,6 @@
 
 #include "classic/oscillator.h"
 #include "dsp/core/generator.h"
-#include "dsp/core/phasor.h"
 #include "util/fixedpoint.h"
 #include <argon.hpp>
 #include <cstdint>
@@ -40,7 +39,7 @@ public:
 	    : table_(table), table_size_magnitude_(table_size_magnitude) {}
 
 	Argon<q31_t> render() override {
-		Argon<uint32_t> indices = phasor_.phase >> (32 - table_size_magnitude_);
+		Argon<uint32_t> indices = getPhase() >> (32 - table_size_magnitude_);
 
 		ArgonHalf<int16_t> fractional = (indices.ShiftRightNarrow<16>() >> 1).As<int16_t>();
 		auto [value1, value2] = ArgonHalf<int16_t>::LoadGatherInterleaved<2>(table_, indices);
@@ -48,7 +47,7 @@ public:
 		// this is a standard linear interpolation of a + (b - a) * fractional
 		Argon<q31_t> output = value1.ShiftLeftLong<16>().MultiplyDoubleAddSaturateLong(value2 - value1, fractional);
 
-		phasor_.phase = phasor_.render(); // advance the phasor
+		this->advance(); // advance the phasor
 
 		return output;
 	}
@@ -62,8 +61,8 @@ public:
 	void setPhaseToAdd(uint32_t phase_to_add) { phase_to_add_ = phase_to_add; }
 
 	Argon<q31_t> render() override {
-		Argon<uint32_t> phase_later = phasor_.phase + phase_to_add_;
-		Argon<uint32_t> indices_a = phasor_.phase >> (32 - table_size_magnitude_);
+		Argon<uint32_t> phase_later = getPhase() + phase_to_add_;
+		Argon<uint32_t> indices_a = getPhase() >> (32 - table_size_magnitude_);
 		ArgonHalf<int16_t> rshifted_a =
 		    indices_a.ShiftRightNarrow<16>().BitwiseAnd(std::numeric_limits<int16_t>::max()).As<int16_t>();
 		auto [value_a1, value_a2] = ArgonHalf<int16_t>::LoadGatherInterleaved<2>(table_, indices_a);
@@ -89,7 +88,7 @@ public:
 		                              .MultiplyDoubleAddSaturateLong(strength_b1, value_b1);
 
 		Argon<q31_t> output = output_a.MultiplyRoundFixedPoint(output_b) << 1; // (a *. b) << 1 (average?)
-		phasor_.phase = phasor_.render();                                      // advance the phasor
+		this->advance();                                                       // advance the phase component
 		return output;
 	}
 };

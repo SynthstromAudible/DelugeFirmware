@@ -46,7 +46,7 @@ startRenderingASync:
 	                                      ? samplesIncludingNextCrossoverSample
 	                                      : numSamplesThisOscSyncSession; /* Just limit it, basically. */
 
-	osc_core.setPhase(phase, phaseIncrement);
+	osc_core.setPhaseAndIncrement(phase, phaseIncrement);
 	osc_core.renderBlock(std::span{bufferStartThisSync, numSamplesThisSyncRender});
 
 	/* Sort out the crossover sample at the *start* of that window we just did, if there was one. */

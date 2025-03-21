@@ -17,23 +17,30 @@
 
 #pragma once
 
-#include "dsp/core/phasor.h"
+#include "dsp/core/periodic.h"
 #include <cstdint>
 
-struct ClassicOscillator : SIMDGenerator<int32_t> {
-	SIMDPhasor<uint32_t> phasor_; ///< The phasor used to generate the waveform phase
-
-	constexpr ClassicOscillator() = default; ///< Default constructor
-	constexpr ClassicOscillator(uint32_t phase, uint32_t step) { setPhase(phase, step); }
+class ClassicOscillator : public SIMDGenerator<int32_t> {
+	Periodic<Argon<uint32_t>> periodic_component_; ///< The periodic component of the oscillator
+	/// @note this can't be inherited due to being a SIMDGenerator<uint32_t>, which makes the return types for derived
+	/// class' render() functions non-matching
+public:
+	ClassicOscillator() = default; ///< Default constructor
+	ClassicOscillator(uint32_t phase, uint32_t increment) { setPhaseAndIncrement(phase, increment); }
 
 	/// @brief Set the phase of the oscillator.
 	/// @param phase The new phase value to set.
-	constexpr void setPhase(uint32_t phase, uint32_t step) {
-		phasor_ = SIMDPhasor<uint32_t>{
-		    Argon{phase}.MultiplyAdd(Argon<uint32_t>{1U, 2U, 3U, 4U}, step),
-		    step * 4,
-		};
+	void setPhaseAndIncrement(uint32_t phase, uint32_t increment) {
+		periodic_component_.setPhase(Argon{phase}.MultiplyAdd(Argon<uint32_t>{1U, 2U, 3U, 4U}, increment));
+		periodic_component_.setPhaseIncrement(increment * 4);
 	};
+
+	/// @brief Advance the phase of the oscillator by one step.
+	void advance() { periodic_component_.advance(); }
+
+	/// @brief Get the current phase of the oscillator.
+	/// @return The current phase value.
+	[[nodiscard]] Argon<uint32_t> getPhase() const { return periodic_component_.getPhase(); }
 };
 
 class SimpleOscillatorFor : public ClassicOscillator {
@@ -41,11 +48,10 @@ class SimpleOscillatorFor : public ClassicOscillator {
 	FunctionType func_;
 
 public:
-	SimpleOscillatorFor(FunctionType func, uint32_t phase, uint32_t step)
-	    : ClassicOscillator(phase, step), func_(func) {}
+	SimpleOscillatorFor(FunctionType func) : func_(func) {}
 	Argon<q31_t> render() override {
-		Argon<q31_t> output = func_(phasor_.phase);
-		phasor_.phase = phasor_.render();
+		Argon<q31_t> output = func_(getPhase());
+		this->advance();
 		return output;
 	}
 };
