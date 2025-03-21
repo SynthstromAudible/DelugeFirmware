@@ -4792,6 +4792,10 @@ ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob& knob, ModelStackW
 }
 
 const Sound::ActiveVoice& Sound::acquireVoice() noexcept(false) {
+	if (voices_.size() >= maxVoiceCount - 1) {
+		this->terminateOneActiveVoice();
+	}
+
 	const ActiveVoice* voice = nullptr;
 	try {
 		voices_.push_back(AudioEngine::VoicePool::get().acquire(*this));
@@ -4800,15 +4804,11 @@ const Sound::ActiveVoice& Sound::acquireVoice() noexcept(false) {
 		if (voices_.empty()) {
 			throw deluge::exception::BAD_ALLOC;
 		}
-
 		// Guaranteed to have a voice to steal at this point,
 		// and it's already in the activeVoices list
 		voice = &this->stealOneActiveVoice();
 	}
 
-	if (voices_.size() >= maxVoiceCount) {
-		this->terminateOneActiveVoice();
-	}
 	return *voice;
 }
 
