@@ -42,6 +42,7 @@
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/envelope.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -64,6 +65,7 @@
 #include <array>
 #include <bits/ranges_algo.h>
 #include <limits>
+#include <ranges>
 
 namespace params = deluge::modulation::params;
 
@@ -4855,14 +4857,21 @@ void Sound::terminateOneActiveVoice() {
 		return;
 	}
 
-	const ActiveVoice& voice = *std::ranges::min_element(voices_, [](const auto& best, const auto& voice) {
+	ActiveVoice* best = nullptr;
+	for (ActiveVoice& voice : voices_) {
 		// if we're not skipping releasing voices, or if we are and this one isn't in fast release
-		if (voice->envelopes[0].state <= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement < SOFT_CULL_INCREMENT) {
-			return voice->getPriorityRating() > best->getPriorityRating();
+		if (voice->envelopes[0].state > EnvelopeStage::FAST_RELEASE
+		    || voice->envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT) {
+			continue;
 		}
-		return false;
-	});
+		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
+	}
+
+	if (best == nullptr) {
+		return;
+	}
+
+	const ActiveVoice& voice = *best;
 
 	bool still_rendering = voice->doFastRelease(SOFT_CULL_INCREMENT);
 
@@ -4876,14 +4885,21 @@ void Sound::forceReleaseOneActiveVoice() {
 		return;
 	}
 
-	const ActiveVoice& voice = *std::ranges::min_element(voices_, [](const auto& best, const auto& voice) {
+	ActiveVoice* best = nullptr;
+	for (ActiveVoice& voice : voices_) {
 		// if we're not skipping releasing voices, or if we are and this one isn't in fast release
-		if (voice->envelopes[0].state <= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement < 4096) {
-			return voice->getPriorityRating() > best->getPriorityRating();
+		if (voice->envelopes[0].state > EnvelopeStage::FAST_RELEASE
+		    || voice->envelopes[0].fastReleaseIncrement >= 4096) {
+			continue;
 		}
-		return false;
-	});
+		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
+	}
+
+	if (best == nullptr) {
+		return;
+	}
+
+	const ActiveVoice& voice = *best;
 
 	auto stage = voice->envelopes[0].state;
 
