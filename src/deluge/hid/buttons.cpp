@@ -311,6 +311,10 @@ bool isShiftButtonPressed() {
 	return shiftCurrentlyPressed;
 }
 
+bool isShiftStuck() {
+	return shiftCurrentlyStuck;
+}
+
 bool isShiftStuckButNotPressed() {
 	return (shiftCurrentlyStuck && !isButtonPressed(deluge::hid::button::SHIFT));
 }
