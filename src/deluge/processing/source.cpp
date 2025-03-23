@@ -113,8 +113,8 @@ Error Source::loadAllSamples(bool mayActuallyReadFiles) {
 		if (mayActuallyReadFiles && shouldAbortLoading()) {
 			return Error::ABORTED_BY_USER;
 		}
-		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.reversed, false, mayActuallyReadFiles,
-		                                                     CLUSTER_ENQUEUE, nullptr, true);
+		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.isCurrentlyReversed(), false,
+		                                                     mayActuallyReadFiles, CLUSTER_ENQUEUE, nullptr, true);
 	}
 
 	return Error::NONE;
@@ -128,10 +128,10 @@ void Source::setReversed(bool newReversed) {
 		SampleHolder* holder = (SampleHolder*)range->getAudioFileHolder();
 		Sample* sample = (Sample*)holder->audioFile;
 		if (sample) {
-			if (sampleControls.reversed && holder->endPos > sample->lengthInSamples) {
+			if (sampleControls.isCurrentlyReversed() && holder->endPos > sample->lengthInSamples) {
 				holder->endPos = sample->lengthInSamples;
 			}
-			holder->claimClusterReasons(sampleControls.reversed);
+			holder->claimClusterReasons(sampleControls.isCurrentlyReversed());
 		}
 	}
 }
@@ -239,7 +239,7 @@ bool Source::hasAnyLoopEndPoint() {
 	return false;
 }
 
-// If setting to SAMPLE or WAVETABLE, you must call unassignAllVoices before this, because ranges is going to get
+// If setting to SAMPLE or WAVETABLE, you must call killAllVoices before this, because ranges is going to get
 // emptied.
 void Source::setOscType(OscType newType) {
 

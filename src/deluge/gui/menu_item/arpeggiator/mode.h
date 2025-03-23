@@ -36,7 +36,7 @@ public:
 
 		// If was off, or is now becoming off...
 		if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpMode::OFF) {
-			if (getCurrentClip()->isActiveOnOutput()) {
+			if (getCurrentClip()->isActiveOnOutput() && !soundEditor.editingKitAffectEntire()) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 
@@ -44,7 +44,7 @@ public:
 					// Midi or CV drum
 					Drum* currentDrum = ((Kit*)getCurrentClip()->output)->selectedDrum;
 					if (currentDrum != nullptr) {
-						currentDrum->unassignAllVoices();
+						currentDrum->killAllVoices();
 					}
 				}
 				else if (soundEditor.editingCVOrMIDIClip()) {

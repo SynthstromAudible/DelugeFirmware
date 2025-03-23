@@ -28,7 +28,7 @@ MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 	note = 0;
 }
 
-void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
+void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
                       int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction instruction;
@@ -58,20 +58,21 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 }
 
 void MIDIDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
+	NonAudioDrum::noteOffPostArp(noteCodePostArp);
 	lastVelocity = arpNote->velocity;
 	midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, channel, kMIDIOutputFilterNoMPE);
-	state = true;
 }
 
 void MIDIDrum::noteOffPostArp(int32_t noteCodePostArp) {
-	midiEngine.sendNote(this, false, noteCodePostArp, 64, channel, kMIDIOutputFilterNoMPE);
-	state = false;
+	NonAudioDrum::noteOffPostArp(noteCodePostArp);
+	midiEngine.sendNote(this, false, noteCodePostArp, kDefaultNoteOffVelocity, channel, kMIDIOutputFilterNoMPE);
 }
 
-void MIDIDrum::unassignAllVoices() {
-	if (hasAnyVoices()) {
+void MIDIDrum::killAllVoices() {
+	if (hasActiveVoices()) {
 		noteOff(nullptr);
 	}
+	arpeggiator.reset();
 }
 
 void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
@@ -156,7 +157,10 @@ void MIDIDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
 	// Aftertouch only
 	if (expressionDimension == 2) {
 		int32_t value7 = newValue >> 24;
-		midiEngine.sendPolyphonicAftertouch(this, channel, value7, note, kMIDIOutputFilterNoMPE);
+		// Note: use the note code currently on post-arp, because this drum supports "Chord Simulator" and "Octaves" and
+		// the note code could be different
+		midiEngine.sendPolyphonicAftertouch(this, channel, value7, arpeggiator.arpNote.noteCodeOnPostArp[0],
+		                                    kMIDIOutputFilterNoMPE);
 	}
 }
 

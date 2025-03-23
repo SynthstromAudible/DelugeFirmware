@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <type_traits>
 
 /**
  * @brief This class represents the colour format most used by the Deluge globally
@@ -32,13 +33,18 @@ public:
 	/// Blue channel
 	channel_type b = 0;
 
+	/// Copies RGB values from a colour
+	constexpr RGB& operator=(const RGB& other) = default;
+
 	/**
 	 * @brief Construct a monochrome (white) shade
 	 *
 	 * @param brightness The brightness level
 	 * @return RGB The constructed colour
 	 */
-	static constexpr RGB monochrome(uint8_t brightness) { return RGB{brightness, brightness, brightness}; }
+	static constexpr RGB monochrome(uint8_t brightness) {
+		return RGB{.r = brightness, .g = brightness, .b = brightness};
+	}
 
 	/**
 	 * @brief Construct a colour from a hue
@@ -179,6 +185,13 @@ public:
 	}
 
 	/**
+	 * @brief Compare two colours to determine if they're the same
+	 *
+	 * @return bool The true / false result if they're the equal
+	 */
+	bool operator==(RGB const&) const = default;
+
+	/**
 	 * @brief Legacy access to the colour internals for ease of use
 	 *
 	 * @param idx The channel to access (order R G B)
@@ -307,3 +320,4 @@ private:
 		return std::clamp<uint32_t>(newRGB, 0, channel_max);
 	}
 };
+static_assert(std::is_trivially_copyable_v<RGB>, "RGB must be trivially copyable");

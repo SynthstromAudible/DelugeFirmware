@@ -47,6 +47,7 @@ enum class TimerName {
 	PAD_SELECTION_SHORTCUT_BLINK,
 	NOTE_ROW_BLINK,
 	LOADING_ANIMATION,
+	SELECTED_CLIP_PULSE,
 	/// Total number of timers
 	NUM_TIMERS
 };

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018-2023 Synthstrom Audible Limited
+ * Copyright © 2025 Katherine Whitlock
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,22 +14,15 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #pragma once
 
-#include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
+class ModelStackWithSoundFlags;
 
-class Voice;
-class Sound;
-
-struct VoiceVectorElement {
-	Sound* sound;
-	Voice* voice;
-};
-
-struct VoiceVector : OrderedResizeableArrayWithMultiWordKey {
-	void getRangeForSound(Sound* sound, int32_t* __restrict__ ends);
-	void checkVoiceExists(Voice* voice, Sound* sound, char const* errorCode);
-
-	inline Voice* getVoice(int32_t index) { return ((VoiceVectorElement*)getElementAddress(index))->voice; }
+struct Voiced {
+	virtual ~Voiced() = default;
+	virtual bool anyNoteIsOn() = 0;
+	[[nodiscard]] virtual bool hasActiveVoices() const = 0;
+	virtual void killAllVoices() = 0;
+	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) = 0;
+	virtual void prepareForHibernation() {}
 };

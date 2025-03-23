@@ -42,7 +42,6 @@
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "model/voice/voice_vector.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
@@ -71,7 +70,7 @@ PatchSource modSourceShortcuts[2][8] = {
         PatchSource::NOT_AVAILABLE,
         PatchSource::NOT_AVAILABLE,
         PatchSource::NOT_AVAILABLE,
-        PatchSource::LFO_GLOBAL,
+        PatchSource::LFO_GLOBAL_1,
         PatchSource::ENVELOPE_0,
         PatchSource::X,
     },
@@ -81,7 +80,7 @@ PatchSource modSourceShortcuts[2][8] = {
         PatchSource::RANDOM,
         PatchSource::NOTE,
         PatchSource::SIDECHAIN,
-        PatchSource::LFO_LOCAL,
+        PatchSource::LFO_LOCAL_1,
         PatchSource::ENVELOPE_1,
         PatchSource::Y,
     },
@@ -139,6 +138,14 @@ void SoundEditor::resetSourceBlinks() {
 
 bool SoundEditor::editingKit() {
 	return getCurrentOutputType() == OutputType::KIT;
+}
+
+bool SoundEditor::editingKitAffectEntire() {
+	return getCurrentOutputType() == OutputType::KIT && setupKitGlobalFXMenu;
+}
+
+bool SoundEditor::editingKitRow() {
+	return getCurrentOutputType() == OutputType::KIT && !setupKitGlobalFXMenu;
 }
 
 bool SoundEditor::editingCVOrMIDIClip() {
@@ -214,6 +221,9 @@ bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 }
 
 bool SoundEditor::opened() {
+	// we don't want to process select button release when entering menu
+	Buttons::selectButtonPressUsedUp = true;
+
 	bool success = beginScreen(); // Could fail for instance if going into WaveformView but sample not found on card, or
 	                              // going into SampleBrowser but card not present
 	if (!success) {
@@ -227,6 +237,8 @@ bool SoundEditor::opened() {
 }
 
 void SoundEditor::focusRegained() {
+	// we don't want to process select button release when re-entering menu
+	Buttons::selectButtonPressUsedUp = true;
 
 	// If just came back from a deeper nested UI...
 	if (shouldGoUpOneLevelOnBegin) {
@@ -297,7 +309,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	if (b == SELECT_ENC) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
 		    || currentUIMode == UI_MODE_NOTES_PRESSED) {
-			if (on) {
+			if (!on && !Buttons::selectButtonPressUsedUp) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
@@ -615,7 +627,8 @@ void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem
 }
 
 void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
-
+	resetSourceBlinks();
+	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
 	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
 	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&nameEditMenu)) {
@@ -966,7 +979,8 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 		// For Kit Instrument Clip with Affect Entire Enabled
 		else if (setupKitGlobalFXMenu) {
-			if (x <= (kDisplayWidth - 2)) {
+			// only handle the shortcut for velocity in the mod sources column
+			if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1)) {
 				item = paramShortcutsForKitGlobalFX[x][y];
 				parent = parentsForKitGlobalFXShortcuts[x][y];
 			}
@@ -1081,11 +1095,12 @@ getOut:
 						else {
 							item = midiOrCVParamShortcuts[y];
 						}
-						parent = parentsForMidiOrCVParamShortcuts[y];
+						parent = parentsForMidiOrCVParamShortcuts[x][y];
 					}
 					else if (x == 4) {
 						if (y == 7) {
 							item = &sequenceDirectionMenu;
+							parent = parentsForMidiOrCVParamShortcuts[x][y];
 						}
 					}
 					else {
@@ -1261,7 +1276,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 			// Read active voices
 			else if (x == 14) {
-				intToString(AudioEngine::activeVoices.getNumElements(), buffer);
+				intToString(AudioEngine::getNumVoices(), buffer);
 				display->displayPopup(buffer);
 				return ActionResult::DEALT_WITH;
 			}
@@ -1381,7 +1396,7 @@ void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 		if (currentUIMode == UI_MODE_MIDI_LEARN) {
 
 			// But, can't do it if it's a Kit and affect-entire is on!
-			if (editingKit() && getCurrentInstrumentClip()->affectEntire) {
+			if (editingKitAffectEntire()) {
 				// IndicatorLEDs::indicateErrorOnLed(affectEntireLedX, affectEntireLedY);
 			}
 
@@ -1447,6 +1462,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 				if (setupKitGlobalFXMenu) {
 					newModControllable = (ModControllableAudio*)(Instrument*)output->toModControllable();
 					newParamManager = &instrumentClip->paramManager;
+					newArpSettings = &instrumentClip->arpSettings;
 				}
 
 				// If a SoundDrum is selected...
@@ -1593,6 +1609,13 @@ doMIDIOrCV:
 		display->cancelPopup();
 	}
 
+	allowsNoteTails = true;
+	if (newSound != nullptr) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
+		allowsNoteTails = newSound->allowNoteTails(modelStack, true);
+	}
+
 	currentSound = newSound;
 	currentArpSettings = newArpSettings;
 	currentMultiRange = newRange;
@@ -1736,7 +1759,7 @@ void SoundEditor::cutSound() {
 		getCurrentAudioClip()->unassignVoiceSample(false);
 	}
 	else {
-		soundEditor.currentSound->unassignAllVoices();
+		soundEditor.currentSound->killAllVoices();
 	}
 }
 

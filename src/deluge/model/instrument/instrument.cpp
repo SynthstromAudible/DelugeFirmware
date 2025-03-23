@@ -29,12 +29,6 @@
 #include <cstring>
 #include <new>
 
-Instrument::Instrument(OutputType newType) : Output(newType) {
-	editedByUser = false;
-	existsOnCard = false;
-	defaultVelocity = FlashStorage::defaultVelocity;
-}
-
 /*
 Instrument::~Instrument() {
     // Arrangement-only Clips won't get deallocated here - that'll happen from the Song.

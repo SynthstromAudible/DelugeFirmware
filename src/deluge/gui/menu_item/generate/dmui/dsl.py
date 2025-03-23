@@ -255,7 +255,7 @@ class Submenu(Menu):
             name=name,
         )
 
-        if type(children) != list:
+        if type(children) is not list:
             raise ValueError("Children must be a list")
 
         if "%%CHILDREN%%" not in arg_template:
@@ -330,7 +330,7 @@ class MultiModeMenu(Menu):
 
         modes = list(modes)
         for i, mode in enumerate(modes):
-            if type(mode) != MultiModeMenuMode:
+            if type(mode) is not MultiModeMenuMode:
                 raise ValueError(f"Bad mode type at index {i}: {type(mode)}")
 
         self.modes = modes

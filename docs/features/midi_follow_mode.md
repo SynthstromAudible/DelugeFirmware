@@ -187,7 +187,7 @@ In this case, you will need to ensure that MIDI Feedback Filter Responses is set
 
 ## Appendix A - List of Deluge Parameters with Default Mapped CC's
 
-<img width="470" alt="image" src="https://github.com/user-attachments/assets/8e64ae13-7864-42a2-b537-a5f8d909efa4">
+<img width="470" alt="image" src="https://github.com/user-attachments/assets/c9695d8a-04e5-47e7-84d3-fd3889a08385">
 
 ## Appendix B - Loopy Pro Template for Deluge MIDI Follow Mode
 
@@ -219,7 +219,7 @@ For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MI
     - Open again the "Deluge Midi Follow" project and click the pencil to edit the UI, and drag a rectangle selection all the page.
       Copy it, open your own project and in an empy page, paste it. Do the same with the other page with Stepped Dials.
 
-<img alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/316279c5e091cdeb7d50828e407789966fb53abc/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.png">
+<img alt="image" src="https://raw.githubusercontent.com/SynthstromAudible/DelugeFirmware/refs/heads/community/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.png">
 
 ## Appendix C - Touch OSC Template for Deluge MIDI Follow Mode
 
@@ -239,9 +239,13 @@ For users of the Electra One, you will find a MIDI Follow template in the Electr
 
 <img width="536" alt="Screenshot 2024-03-28 at 7 35 59 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/039e52fb-a1f0-4bb0-8590-a025d734d40e">
 
+## Appendix E - Melbourne Instruments Roto-Control Templates for Deluge MIDI Follow Mode
+
+For users of Melbourne Instruments' Roto-Control, you will find MIDI Follow templates in this folder: [MIDI Follow Mode Roto-Control Templates]
+
+
 [MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
 [MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/touch_osc
 [MIDI Follow Mode Electra One Preset]:
 https://app.electra.one/preset/vZ6WBYb4xDpMGcpChejY
-
-
+[MIDI Follow Mode Roto-Control Templates]: ../../contrib/midi_follow/roto_control/

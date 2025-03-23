@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Copyright Kate Whitlock (2023)
-from typing import *
+from typing import Tuple
 from subprocess import Popen, PIPE
 from pathlib import Path
 import os
@@ -47,7 +47,7 @@ def progressbar(it, prefix: str, size: int = 60, out=sys.stdout):
     def show(j):
         x = int(size * j / count)
         print(
-            f"{prefix}[{u'#'*x}{('-'*(size-x))}] {j}/{count}",
+            f"{prefix}[{'#' * x}{('-' * (size - x))}] {j}/{count}",
             end="\r",
             file=out,
             flush=True,

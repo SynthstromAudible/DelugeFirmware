@@ -29,25 +29,28 @@ class SoundDrum final : public Sound, public Drum {
 public:
 	String name;
 	String path;
-	bool nameIsDiscardable;
+	bool nameIsDiscardable = false;
 
-	SoundDrum();
+	SoundDrum() : Drum(DrumType::SOUND) {}
+
+	using Sound::allowNoteTails;
+	using Sound::anyNoteIsOn;
+	using Sound::hasActiveVoices;
+	using Sound::prepareForHibernation;
+	void killAllVoices() override;
+
 	bool isDrum() override { return true; }
-	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) override;
-	bool anyNoteIsOn() override;
-	bool hasAnyVoices() override;
-	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
+	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
 	            int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	            uint32_t samplesLate = 0) override;
-	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) override;
-	void unassignAllVoices() override;
+	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) override;
+
 	void setupPatchingForAllParamManagers(Song* song) override;
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 	Error loadAllSamples(bool mayActuallyReadFiles) override;
-	void prepareForHibernation() override;
 	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) override;
 	void writeToFileAsInstrument(bool savingSong, ParamManager* paramManager);
-	void getName(char* buffer) override;
+	void getName(char* buffer) override {}
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	void choke(ModelStackWithSoundFlags* modelStack) override;
 	void setSkippingRendering(bool newSkipping) override;

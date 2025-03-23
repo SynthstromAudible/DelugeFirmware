@@ -27,6 +27,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
+#include "model/favourite/favourite_manager.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
@@ -60,10 +61,10 @@ void routineForSD(void);
 FirmwareVersion song_firmware_version = FirmwareVersion::current();
 FILINFO staticFNO;
 FatFS::Directory staticDIR;
-XMLSerializer smSerializer;
-XMLDeserializer smDeserializer;
-JsonSerializer smJsonSerializer;
-JsonDeserializer smJsonDeserializer;
+PLACE_SDRAM_BSS XMLSerializer smSerializer;
+PLACE_SDRAM_BSS XMLDeserializer smDeserializer;
+PLACE_SDRAM_BSS JsonSerializer smJsonSerializer;
+PLACE_SDRAM_BSS JsonDeserializer smJsonDeserializer;
 FileDeserializer* activeDeserializer = &smDeserializer;
 
 const bool writeJsonFlag = false;
@@ -462,6 +463,90 @@ Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrumen
 	}
 	else if (updateFileName) {
 		midiInstrument->deviceDefinitionFileName.set(fileName->get());
+	}
+
+	return Error::NONE;
+}
+
+Error StorageManager::openPatternFile(FilePointer* filePointer) {
+
+	AudioEngine::logAction("openPatternFile");
+	if (!filePointer->sclust) {
+		return Error::FILE_NOT_FOUND;
+	}
+	char const* firstTagName = "pattern";
+	char const* altTagName = "";
+
+	Error error = openXMLFile(filePointer, smDeserializer, firstTagName, altTagName);
+	return error;
+}
+
+Error StorageManager::openFavouriteFile(FilePointer* filePointer) {
+
+	AudioEngine::logAction("openFavouriteFile");
+	if (!filePointer->sclust) {
+		return Error::FILE_NOT_FOUND;
+	}
+	char const* firstTagName = "favourites";
+	char const* altTagName = "";
+
+	Error error = openXMLFile(filePointer, smDeserializer, firstTagName, altTagName);
+	return error;
+}
+
+// Returns error status
+Error StorageManager::loadPatternFile(FilePointer* filePointer, String* fileName, bool overwriteExisting,
+                                      bool noScaling, bool previewOnly, bool selectedDrumOnly) {
+
+	AudioEngine::logAction("loadPatternFile");
+
+	Error error = openPatternFile(filePointer);
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	AudioEngine::logAction("readPatternFile");
+
+	error = instrumentClipView.pasteNotesFromFile(smDeserializer, overwriteExisting, noScaling, previewOnly,
+	                                              selectedDrumOnly);
+
+	FRESULT fileSuccess = activeDeserializer->closeWriter();
+
+	// If that somehow didn't work...
+	if (error != Error::NONE || fileSuccess != FR_OK) {
+		if (!fileSuccess) {
+			error = Error::SD_CARD;
+		}
+
+		return error;
+	}
+
+	return Error::NONE;
+}
+
+// Returns error status
+Error StorageManager::loadFavouriteFile(FilePointer* filePointer, String* fileName) {
+
+	AudioEngine::logAction("loadFavouriteFile");
+
+	Error error = openFavouriteFile(filePointer);
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	AudioEngine::logAction("readFavouriteFile");
+
+	error = favouritesManager.loadFavouritesFromFile(smDeserializer);
+
+	FRESULT fileSuccess = activeDeserializer->closeWriter();
+
+	// If that somehow didn't work...
+	if (error != Error::NONE || fileSuccess != FR_OK) {
+		if (!fileSuccess) {
+			error = Error::SD_CARD;
+		}
+
+		return error;
 	}
 
 	return Error::NONE;

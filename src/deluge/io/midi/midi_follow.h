@@ -60,8 +60,7 @@ public:
 
 	// midi CC mappings
 	int32_t getCCFromParam(deluge::modulation::params::Kind paramKind, int32_t paramID);
-
-	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
+	bool isGlobalEffectableContext();
 
 	std::array<uint8_t, kMaxMIDIValue + 1> ccToSoundParam;
 	std::array<uint8_t, kMaxMIDIValue + 1> ccToGlobalParam;

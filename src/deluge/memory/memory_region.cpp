@@ -28,11 +28,10 @@
 #endif
 
 MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
-	numAllocations = 0;
 }
 
 void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin,
-                         uint32_t regionEnd) {
+                         uint32_t regionEnd, CacheManager* cacheManager) {
 	emptySpaces.setStaticMemory(emptySpacesMemory, emptySpacesMemorySize);
 	// bit of a hack - the allocations start with a 4 byte type+size header, this ensures the
 	// resulting allocations are still aligned to 16 bytes (which should generally be fine for anything?)
@@ -53,20 +52,21 @@ void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize,
 	EmptySpaceRecord* firstRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(0);
 	firstRecord->length = memorySizeWithoutHeaders;
 	firstRecord->address = regionBegin + 8;
-	pivot = 512;
+	cache_manager_ = cacheManager;
+	D_PRINTLN("%x to %x: Memory region %s", start, end, name);
 }
 
 uint32_t MemoryRegion::padSize(uint32_t requiredSize) {
 	requiredSize += 8; // dirty hack - we need the size with its headers to be aligned so we'll add it here then
 	                   // subtract 8 afterwards
-	if (requiredSize < minAlign) {
-		requiredSize = minAlign;
+	if (requiredSize < minAlign_) {
+		requiredSize = minAlign_;
 	}
 	else {
 		int extraSize = 0;
-		while (requiredSize > maxAlign) {
-			extraSize += maxAlign;
-			requiredSize -= maxAlign;
+		while (requiredSize > maxAlign_) {
+			extraSize += maxAlign_;
+			requiredSize -= maxAlign_;
 		}
 		// if it's not a power of 2 go up to the next power of 2
 		if (!((requiredSize & (requiredSize - 1)) == 0)) {
@@ -280,10 +280,10 @@ goingToReplaceOldRecord:
 
 void* MemoryRegion::alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom) {
 	requiredSize = padSize(requiredSize);
-	bool large = requiredSize > pivot;
+	bool large = requiredSize > pivot_;
 	// set a minimum size	requiredSize = padSize(requiredSize);
-	int32_t allocatedSize;
-	uint32_t allocatedAddress;
+	int32_t allocatedSize = 0;
+	uint32_t allocatedAddress = 0;
 	int32_t i;
 
 	if (!emptySpaces.getNumElements()) {
@@ -304,13 +304,17 @@ gotEmptySpace:
 
 		allocatedSize = emptySpaceRecord->length;
 		allocatedAddress = emptySpaceRecord->address;
-
+		if (allocatedAddress < start || allocatedAddress > end) {
+			// trying to allocate outside our region
+			D_PRINTLN("Memory region out of bounds at %x, start is %x and end is %x", allocatedAddress, start, end);
+			FREEZE_WITH_ERROR("M002");
+		}
 		int32_t extraSpaceSizeWithoutItsHeaders = allocatedSize - requiredSize - 8;
 		if (extraSpaceSizeWithoutItsHeaders < -8) {
 			FREEZE_WITH_ERROR("M003");
 		}
 		else {
-			if (extraSpaceSizeWithoutItsHeaders <= minAlign) {
+			if (extraSpaceSizeWithoutItsHeaders <= minAlign_) {
 				emptySpaces.deleteAtIndex(i);
 			}
 			else {
@@ -375,8 +379,10 @@ justUpdateRecord:
 	// Or if no empty space big enough, try stealing some memory
 	else {
 noEmptySpace:
-		allocatedAddress = cache_manager_.ReclaimMemory(*this, requiredSize, thingNotToStealFrom, &allocatedSize);
-		if (!allocatedAddress) {
+		if (cache_manager_) {
+			allocatedAddress = cache_manager_->ReclaimMemory(*this, requiredSize, thingNotToStealFrom, &allocatedSize);
+		}
+		if (allocatedAddress == 0u) {
 #if ALPHA_OR_BETA_VERSION
 			if (name) {
 				const uint32_t msgBufferLen = 32;
@@ -400,7 +406,7 @@ noEmptySpace:
 
 		// See if there was some extra space left over
 		int32_t extraSpaceSizeWithoutItsHeaders = allocatedSize - requiredSize - 8;
-		if (requiredSize && extraSpaceSizeWithoutItsHeaders > minAlign) {
+		if (requiredSize && extraSpaceSizeWithoutItsHeaders > minAlign_) {
 			allocatedSize = requiredSize;
 			markSpaceAsEmpty(allocatedAddress + allocatedSize + 8, extraSpaceSizeWithoutItsHeaders, false, false);
 		}
@@ -416,13 +422,12 @@ noEmptySpace:
 	*header = headerData;
 	*footer = headerData;
 
-#if TEST_GENERAL_MEMORY_ALLOCATION
-	numAllocations++;
-#endif
+	numAllocations_++;
 
 #if ALPHA_OR_BETA_VERSION
 	if (allocatedAddress < start || allocatedAddress > end) {
 		// trying to allocate outside our region
+		D_PRINTLN("Memory region out of bounds at %x, start is %x and end is %x", allocatedAddress, start, end);
 		FREEZE_WITH_ERROR("M002");
 	}
 #endif

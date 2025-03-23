@@ -1068,8 +1068,8 @@ void deleteOldSongBeforeLoadingNew() {
 
 	currentSong->stopAllAuditioning();
 
-	AudioEngine::unassignAllVoices(true); // Need to do this now that we're not bothering getting the old Song's
-	                                      // Instruments detached and everything on delete
+	AudioEngine::killAllVoices(true); // Need to do this now that we're not bothering getting the old Song's
+	                                  // Instruments detached and everything on delete
 
 	view.activeModControllableModelStack.modControllable = nullptr;
 	view.activeModControllableModelStack.setTimelineCounter(nullptr);

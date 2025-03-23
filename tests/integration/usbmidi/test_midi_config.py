@@ -1,8 +1,7 @@
 import rtmidi
-import usb
 import pytest
 import time
-from rtmidi.midiconstants import *
+from rtmidi.midiconstants import NOTE_ON, NOTE_OFF
 
 
 @pytest.fixture
@@ -50,7 +49,7 @@ def send_note(port):
 
 
 def receive_note(port):
-    midin, port_name = rtmidi.open_midiinput(name=f"Deluge MIDI {port}")
+    midiin, port_name = rtmidi.open_midiinput(name=f"Deluge MIDI {port}")
     with midiin:
         try:
             timer = time.time()

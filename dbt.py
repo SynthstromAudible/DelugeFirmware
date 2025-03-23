@@ -2,9 +2,7 @@
 
 import argparse
 import importlib
-import ntpath
 import os
-import subprocess
 import sys
 import textwrap
 from shutil import copytree
@@ -19,25 +17,11 @@ DBT_DEBUG_DIR = SCRIPTS_DIR / "debug"
 os.environ["DBT_DEBUG_DIR"] = str(DBT_DEBUG_DIR)
 os.environ["DELUGE_FW_ROOT"] = str(Path(".").resolve())
 
-if not "DBT_TOOLCHAIN_PATH" in os.environ:
+if "DBT_TOOLCHAIN_PATH" not in os.environ:
     os.environ["DBT_TOOLCHAIN_PATH"] = os.environ["DELUGE_FW_ROOT"]
 
 sys.path.append(str(TASKS_DIR))
 sys.path.insert(0, str(SCRIPTS_DIR))
-
-import util
-
-
-def setup():
-    if sys.platform == "win32" or (sys.platform == "cosmo" and cosmo.kernel == "nt"):
-        dbtenvcmd = str(SCRIPTS_DIR / "toolchain" / "dbtenv.cmd").replace(
-            os.sep, ntpath.sep
-        )
-        dbtenv = util.get_environment_from_batch_command([dbtenvcmd, "env"])
-        # print("Setup Windows DBT Env")
-    else:
-        dbtenvcmd = str(SCRIPTS_DIR / "toolchain" / "dbtenv.sh").encode()
-        subprocess.run([b"bash", dbtenvcmd])
 
 
 def setup_ide_configs():
@@ -53,7 +37,7 @@ def print_tasks_usage(tasks):
         try:
             module = importlib.import_module(stem)
             argparser = module.argparser()
-        except:
+        except:  # noqa: E722
             argparser = argparse.ArgumentParser(
                 prog=name, description="FAILED TO LOAD MODULE"
             )

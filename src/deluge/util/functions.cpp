@@ -101,8 +101,10 @@ int32_t getParamNeutralValue(int32_t p) {
 	case params::LOCAL_HPF_FREQ:
 		return 2672947;
 
-	case params::GLOBAL_LFO_FREQ:
-	case params::LOCAL_LFO_LOCAL_FREQ:
+	case params::GLOBAL_LFO_FREQ_1:
+	case params::GLOBAL_LFO_FREQ_2:
+	case params::LOCAL_LFO_LOCAL_FREQ_1:
+	case params::LOCAL_LFO_LOCAL_FREQ_2:
 	case params::GLOBAL_MOD_FX_RATE:
 		return 121739; // lfoRateTable[userValue];
 
@@ -224,8 +226,8 @@ int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedV
 
 int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedValue) {
 
-	// patchedValue's range is ideally +- 536870912, but may get up to 1610612736 due to multiple patch cables having
-	// been multiplied
+	// patchedValue's range is ideally +- 536870912 ('1'), but may get up to 1610612736 ('3') due to multiple patch
+	// cables having been multiplied
 
 	// No need for max/min here - it's already been taken care of in patchAllCablesToParameter(),
 	// ... or if we got here from patchSourceToAllExclusiveCables(), there's no way it could have been too big
@@ -264,17 +266,29 @@ int32_t cableToExpParamShortcut(int32_t sourceValue) {
 
 char const* sourceToString(PatchSource source) {
 	switch (source) {
-	case PatchSource::LFO_GLOBAL:
+	case PatchSource::LFO_GLOBAL_1:
 		return "lfo1";
 
-	case PatchSource::LFO_LOCAL:
+	case PatchSource::LFO_GLOBAL_2:
+		return "lfo3";
+
+	case PatchSource::LFO_LOCAL_1:
 		return "lfo2";
+
+	case PatchSource::LFO_LOCAL_2:
+		return "lfo4";
 
 	case PatchSource::ENVELOPE_0:
 		return "envelope1";
 
 	case PatchSource::ENVELOPE_1:
 		return "envelope2";
+
+	case PatchSource::ENVELOPE_2:
+		return "envelope3";
+
+	case PatchSource::ENVELOPE_3:
+		return "envelope4";
 
 	case PatchSource::VELOCITY:
 		return "velocity";
@@ -307,11 +321,17 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 	auto lang = l10n::chosenLanguage;
 
 	switch (s) {
-	case PatchSource::LFO_GLOBAL:
-		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_GLOBAL);
+	case PatchSource::LFO_GLOBAL_1:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_1);
 
-	case PatchSource::LFO_LOCAL:
-		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_LOCAL);
+	case PatchSource::LFO_GLOBAL_2:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_2);
+
+	case PatchSource::LFO_LOCAL_1:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_LOCAL_1);
+
+	case PatchSource::LFO_LOCAL_2:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_LOCAL_2);
 
 	case PatchSource::ENVELOPE_0:
 		return l10n::get(STRING_FOR_PATCH_SOURCE_ENVELOPE_0);
@@ -364,11 +384,17 @@ PatchSource stringToSource(char const* string) {
 // all should be four chars, to fit a fixed column layout
 char const* sourceToStringShort(PatchSource source) {
 	switch (source) {
-	case PatchSource::LFO_GLOBAL:
+	case PatchSource::LFO_GLOBAL_1:
 		return "lfo1";
 
-	case PatchSource::LFO_LOCAL:
+	case PatchSource::LFO_GLOBAL_2:
+		return "lfo3";
+
+	case PatchSource::LFO_LOCAL_1:
 		return "lfo2";
+
+	case PatchSource::LFO_LOCAL_2:
+		return "lfo4";
 
 	case PatchSource::ENVELOPE_0:
 		return "env1";
@@ -1050,30 +1076,6 @@ char const* oldArpModeToString(OldArpMode mode) {
 	}
 }
 
-char const* arpPresetToOldArpMode(ArpPreset preset) {
-	switch (preset) {
-	case ArpPreset::OFF:
-		return "off";
-
-	case ArpPreset::UP:
-		return "up";
-
-	case ArpPreset::DOWN:
-		return "down";
-
-	case ArpPreset::BOTH:
-		return "both";
-
-	case ArpPreset::RANDOM:
-		return "random";
-
-	default:
-		// In case the user selected a Custom mode, we don't know how to convert it to
-		// the old mode so we default to "up" cause at least the arp is ON for sure
-		return "up";
-	}
-}
-
 OldArpMode stringToOldArpMode(char const* string) {
 	if (!strcmp(string, "up")) {
 		return OldArpMode::UP;
@@ -1125,6 +1127,18 @@ char const* arpNoteModeToString(ArpNoteMode mode) {
 	case ArpNoteMode::RANDOM:
 		return "random";
 
+	case ArpNoteMode::WALK1:
+		return "walk1";
+
+	case ArpNoteMode::WALK2:
+		return "walk2";
+
+	case ArpNoteMode::WALK3:
+		return "walk3";
+
+	case ArpNoteMode::PATTERN:
+		return "pattern";
+
 	default:
 		return "up";
 	}
@@ -1139,6 +1153,18 @@ ArpNoteMode stringToArpNoteMode(char const* string) {
 	}
 	else if (!strcmp(string, "asPlayed")) {
 		return ArpNoteMode::AS_PLAYED;
+	}
+	else if (!strcmp(string, "walk1")) {
+		return ArpNoteMode::WALK1;
+	}
+	else if (!strcmp(string, "walk2")) {
+		return ArpNoteMode::WALK2;
+	}
+	else if (!strcmp(string, "walk3")) {
+		return ArpNoteMode::WALK3;
+	}
+	else if (!strcmp(string, "pattern")) {
+		return ArpNoteMode::PATTERN;
 	}
 	else if (!strcmp(string, "random")) {
 		return ArpNoteMode::RANDOM;
@@ -2114,6 +2140,11 @@ void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude,
 char const* getFileNameFromEndOfPath(char const* filePathChars) {
 	char const* slashPos = strrchr(filePathChars, '/');
 	return slashPos ? (slashPos + 1) : filePathChars;
+}
+
+char const* getPathFromFullPath(const char* fullPath) {
+	const char* slashPos = strrchr(fullPath, '/');
+	return slashPos ? std::string(fullPath, slashPos).c_str() : "";
 }
 
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int32_t prefixLength) {

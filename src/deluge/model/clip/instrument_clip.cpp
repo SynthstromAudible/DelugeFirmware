@@ -37,6 +37,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/iterance/iterance.h"
 #include "model/note/note.h"
+#include "model/output.h"
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
@@ -479,17 +480,17 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 			bool scaleAltered = false;
 
 			for (auto [note, noteInfo] : melodicInstrument->earlyNotes) {
-				const auto [velocity, stillActive] = noteInfo;
+				const auto [velocity, still_active] = noteInfo;
 
 				ModelStackWithNoteRow* modelStackWithNoteRow =
 				    getOrCreateNoteRowForYNote(note, modelStack, action, &scaleAltered);
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-				if (noteRow) {
+				if (noteRow != nullptr) {
 					int32_t probability = noteRow->getDefaultProbability();
 					Iterance iterance = noteRow->getDefaultIterance();
 					int32_t fill = noteRow->getDefaultFill(modelStackWithNoteRow);
 					noteRow->attemptNoteAdd(0, 1, velocity, probability, iterance, fill, modelStackWithNoteRow, action);
-					if (!stillActive) {
+					if (!still_active) {
 						// We just inserted a note-on for an "early" note that is still sounding at time 0, so ignore
 						// note-ons until at least tick 1 to avoid double-playing that note
 						noteRow->ignoreNoteOnsBefore_ = 1;
@@ -498,12 +499,11 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 			}
 
 			// If this caused the scale to change, update scroll
-			if (action && scaleAltered) {
+			if (action != nullptr && scaleAltered) {
 				action->updateYScrollClipViewAfter();
 			}
+			melodicInstrument->earlyNotes.clear();
 		}
-
-		melodicInstrument->earlyNotes.clear();
 	}
 
 	return Clip::beginLinearRecording(modelStack, buttonPressLatency);
@@ -919,9 +919,9 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThings(
 		    pendingNoteOn->noteRow->drum->toModControllable(), &pendingNoteOn->noteRow->paramManager);
 
-		pendingNoteOn->noteRow->drum->noteOn(modelStackWithThreeMainThings, pendingNoteOn->velocity, (Kit*)output,
-		                                     mpeValues, MIDI_CHANNEL_NONE, pendingNoteOn->sampleSyncLength,
-		                                     pendingNoteOn->ticksLate);
+		pendingNoteOn->noteRow->drum->kit->noteOnPreKitArp(modelStackWithThreeMainThings, pendingNoteOn->noteRow->drum,
+		                                                   pendingNoteOn->velocity, mpeValues, MIDI_CHANNEL_NONE,
+		                                                   pendingNoteOn->sampleSyncLength, pendingNoteOn->ticksLate);
 	}
 	else {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -2281,6 +2281,9 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 	if (newInstrument->type == OutputType::SYNTH) {
 		arpSettings.cloneFrom(&((SoundInstrument*)newInstrument)->defaultArpSettings);
 	}
+	else if (newInstrument->type == OutputType::KIT) {
+		arpSettings.cloneFrom(&((Kit*)newInstrument)->defaultArpSettings);
+	}
 
 	if (shouldSetupPatching) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -2368,17 +2371,15 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		paramManager.getMIDIParamCollection()->writeToFile(writer);
 	}
 
-	if (output->type != OutputType::KIT) {
-		writer.writeOpeningTagBeginning("arpeggiator");
+	writer.writeOpeningTagBeginning("arpeggiator");
 
-		arpSettings.writeCommonParamsToFile(writer, nullptr);
+	arpSettings.writeCommonParamsToFile(writer, nullptr);
 
-		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
-			arpSettings.writeNonAudioParamsToFile(writer);
-		}
-
-		writer.closeTag();
+	if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
+		arpSettings.writeNonAudioParamsToFile(writer);
 	}
+
+	writer.closeTag();
 
 	if (output->type == OutputType::KIT) {
 		writer.writeOpeningTagBeginning("kitParams");
@@ -2646,8 +2647,8 @@ someError:
 			reader.match('{');
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				bool readAndExited = arpSettings.readCommonTagsFromFile(reader, tagName, nullptr);
-
-				if (!readAndExited && (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV)) {
+				if (!readAndExited
+				    && (outputTypeWhileLoading == OutputType::MIDI_OUT || outputTypeWhileLoading == OutputType::CV)) {
 					readAndExited = arpSettings.readNonAudioTagsFromFile(reader, tagName);
 				}
 
@@ -2682,6 +2683,9 @@ someError:
 						if (outputTypeWhileLoading == OutputType::SYNTH) {
 							arpSettings.cloneFrom(&((SoundInstrument*)output)->defaultArpSettings);
 						}
+						else if (outputTypeWhileLoading == OutputType::KIT) {
+							arpSettings.cloneFrom(&((Kit*)output)->defaultArpSettings);
+						}
 					}
 					reader.exitTag("referToTrackId");
 				}
@@ -2715,6 +2719,9 @@ loadInstrument:
 
 				if (outputTypeWhileLoading == OutputType::SYNTH) {
 					arpSettings.cloneFrom(&((SoundInstrument*)output)->defaultArpSettings);
+				}
+				else if (outputTypeWhileLoading == OutputType::KIT) {
+					arpSettings.cloneFrom(&((Kit*)output)->defaultArpSettings);
 				}
 
 				// Add the Instrument to the Song
@@ -3211,7 +3218,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 				if (clipIsActive && noteRow->drum) {
 
 					if (ALPHA_OR_BETA_VERSION && noteRow->drum->type == DrumType::SOUND
-					    && ((SoundDrum*)noteRow->drum)->hasAnyVoices()) {
+					    && static_cast<SoundDrum*>(noteRow->drum)->hasActiveVoices()) {
 						FREEZE_WITH_ERROR("E176");
 					}
 
@@ -3250,6 +3257,9 @@ void InstrumentClip::deleteNoteRow(ModelStackWithTimelineCounter* modelStack, in
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(getNoteRowId(noteRow, noteRowIndex), noteRow);
 
 	noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
+
+	Kit* kit = (Kit*)output;
+	kit->removeDrumFromKitArpeggiator(noteRowIndex);
 
 	noteRow->setDrum(nullptr, (Kit*)output, modelStackWithNoteRow);
 	noteRows.deleteNoteRowAtIndex(noteRowIndex);
@@ -4652,7 +4662,7 @@ void InstrumentClip::yDisplayNoLongerAuditioning(int32_t yDisplay, Song* song) {
 
 	else {
 		int32_t yNote = getYNoteFromYDisplay(yDisplay, song);
-		((MelodicInstrument*)output)->notesAuditioned.erase(yNote);
+		static_cast<MelodicInstrument*>(output)->notesAuditioned.erase(yNote);
 	}
 
 	expectEvent();

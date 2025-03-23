@@ -97,6 +97,8 @@ bool SampleBrowser::opened() {
 		return false;
 	}
 
+	favouritesManager.setCategory("SAMPLES");
+	favouritesChanged();
 	actionLogger.deleteAllLogs();
 
 	allowedFileExtensions = allowedFileExtensionsAudio;
@@ -236,8 +238,9 @@ void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 
 	// Can start scrolling right now, while next preview loads
-	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible)) {
+	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible) && !qwertyAlwaysVisible) {
 		qwertyVisible = false;
+		favouritesVisible = false;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
@@ -481,7 +484,16 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 			indicator_leds::setLedState(IndicatorLED::LOAD, autoLoadEnabled);
 		}
 	}
-
+	else if (b == KEYBOARD && on) {
+		qwertyAlwaysVisible = !qwertyAlwaysVisible;
+		indicator_leds::setLedState(IndicatorLED::KEYBOARD, qwertyAlwaysVisible);
+		qwertyVisible = qwertyAlwaysVisible;
+		if (qwertyVisible) {
+			favouritesVisible = true;
+			qwertyCurrentlyDrawnOnscreen = true;
+			drawKeys();
+		}
+	}
 	else {
 		return Browser::buttonAction(b, on, inCardRoutine);
 	}
@@ -603,7 +615,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 				waveformBasicNavigator.opened();
 
 				// If want scrolling animation
-				if (movementDirection) {
+				if (movementDirection && !qwertyAlwaysVisible) {
 					waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 					                                  waveformBasicNavigator.xZoom, PadLEDs::imageStore,
 					                                  &waveformBasicNavigator.renderData);
@@ -615,10 +627,10 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 				// Or if want instant snap render
 				else {
-					if (qwertyVisible) {
+					if ((qwertyVisible && !qwertyCurrentlyDrawnOnscreen) || qwertyAlwaysVisible) {
 						drawKeys();
 					}
-					else {
+					else if (!qwertyVisible) {
 						waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 						                                  waveformBasicNavigator.xZoom, PadLEDs::image,
 						                                  &waveformBasicNavigator.renderData);
@@ -637,7 +649,8 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 	if (!didDraw) {
 
 		// But if we need to get rid of whatever was onscreen...
-		if (currentlyShowingSamplePreview || (qwertyCurrentlyDrawnOnscreen && !qwertyVisible)) {
+		if ((currentlyShowingSamplePreview || (qwertyCurrentlyDrawnOnscreen && !qwertyVisible))
+		    && !qwertyAlwaysVisible) {
 
 			currentlyShowingSamplePreview = false;
 			qwertyCurrentlyDrawnOnscreen = qwertyVisible;
@@ -700,6 +713,7 @@ possiblyExit:
 				}
 
 				qwertyVisible = true;
+				favouritesVisible = true;
 
 				uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 				PadLEDs::reassessGreyout(true);
@@ -712,9 +726,9 @@ possiblyExit:
 				displayText(false);
 			}
 		}
-
-		if (qwertyVisible) {
-			return QwertyUI::padAction(x, y, on);
+		// Only process the QWERTY keypress if Keyboard is visible to prevent blind keypresses
+		else if (qwertyVisible) {
+			return Browser::padAction(x, y, on);
 		}
 		else {
 			return ActionResult::DEALT_WITH;
@@ -734,8 +748,8 @@ Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCost
 		return error;
 	}
 
-	return holder->loadFile(soundEditor.currentSource->sampleControls.reversed, true, true, CLUSTER_ENQUEUE, nullptr,
-	                        makeWaveTableWorkAtAllCosts);
+	return holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true,
+	                        CLUSTER_ENQUEUE, nullptr, makeWaveTableWorkAtAllCosts);
 }
 
 Error SampleBrowser::claimAudioFileForAudioClip() {
@@ -748,7 +762,7 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 		return error;
 	}
 
-	bool reversed = getCurrentAudioClip()->sampleControls.reversed;
+	bool reversed = getCurrentAudioClip()->sampleControls.isCurrentlyReversed();
 	error = holder->loadFile(reversed, true, true);
 
 	// If there's a pre-margin, we want to set an attack-time
@@ -812,12 +826,13 @@ removeLoadingAnimationAndGetOut:
 		clip->sampleHolder.transpose = 0;
 		clip->sampleHolder.cents = 0;
 		clip->sampleControls.reversed = false;
+		clip->sampleControls.invertReversed = false;
 	}
 
 	// Otherwise, we're something to do with an Instrument...
 	else {
 
-		soundEditor.currentSound->unassignAllVoices(); // We used to only do this if osc type wasn't already SAMPLE...
+		soundEditor.currentSound->killAllVoices(); // We used to only do this if osc type wasn't already SAMPLE...
 
 		bool makeWaveTableWorkAtAllCosts = (mayDoWaveTable == 2) || (mayDoSingleCycle == 2)
 		                                   || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD);
@@ -876,7 +891,7 @@ doLoadAsWaveTable:
 				if (!soundEditor.currentSound->modKnobs[7][0].paramDescriptor.isSetToParamWithNoSource(
 				        params::LOCAL_OSC_B_WAVE_INDEX)) {
 					soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamAndSource(
-					    params::LOCAL_OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL);
+					    params::LOCAL_OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL_1);
 				}
 			}
 			else { // Osc 2
@@ -1631,7 +1646,7 @@ doReturnFalse:
 	// If we now want more than one range, be efficient by getting our array of ranges to pre-allocate all the memory
 	// it's going to use
 	if (numSamples > 1) {
-		soundEditor.currentSound->unassignAllVoices();
+		soundEditor.currentSound->killAllVoices();
 		AudioEngine::audioRoutineLocked = true;
 		bool success = soundEditor.currentSource->ranges.ensureEnoughSpaceAllocated(numSamples - 1);
 		AudioEngine::audioRoutineLocked = false;
@@ -1716,7 +1731,7 @@ skipOctaveCorrection:
 	int32_t numWithResultingLoopEndPoints = 0;
 
 	if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
-		soundEditor.currentSound->unassignAllVoices();
+		soundEditor.currentSound->killAllVoices();
 		soundEditor.currentSource->setOscType(OscType::SAMPLE);
 	}
 
@@ -1769,7 +1784,8 @@ skipOctaveCorrection:
 		range->topNote = topNote;
 
 		range->sampleHolder.filePath.set(&thisSample->filePath);
-		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.reversed, true);
+		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
+		                                 true);
 		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
 		range->sampleHolder.setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote,
 		                                                       topNote);
@@ -1883,7 +1899,7 @@ getOut:
 
 				// Ensure osc type is "sample". For the later drums, calling setupAsSample() does this same thing
 				if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
-					soundEditor.currentSound->unassignAllVoices();
+					soundEditor.currentSound->killAllVoices();
 					soundEditor.currentSource->setOscType(OscType::SAMPLE);
 				}
 
@@ -1902,7 +1918,7 @@ getOut:
 					// getCurrentClip(), false);
 				}
 
-				drum->unassignAllVoices();
+				drum->killAllVoices();
 			}
 
 			// Or, for subsequent samples...
@@ -1942,7 +1958,7 @@ getOut:
 			AudioFileHolder* holder = range->getAudioFileHolder();
 			holder->setAudioFile(nullptr);
 			holder->filePath.set(&thisSample->filePath);
-			holder->setAudioFile(thisSample, source->sampleControls.reversed, true);
+			holder->setAudioFile(thisSample, source->sampleControls.isCurrentlyReversed(), true);
 
 			autoDetectSideChainSending(drum, source, thisSample->filePath.get());
 
@@ -2030,6 +2046,7 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 	}
 	else {
 		qwertyVisible = true;
+		favouritesVisible = true;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 		PadLEDs::reassessGreyout(true);
@@ -2043,6 +2060,9 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 }
 
 ActionResult SampleBrowser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	if (Buttons::isShiftButtonPressed()) {
+		return Browser::verticalEncoderAction(offset, false);
+	}
 	if (getRootUI() == &instrumentClipView) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 			return ActionResult::DEALT_WITH;

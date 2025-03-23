@@ -1,9 +1,12 @@
 #include "submenu.h"
+
 #include "etl/vector.h"
 #include "gui/views/automation_view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "storage/flash_storage.h"
+#include <algorithm>
 
 namespace deluge::gui::menu_item {
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
@@ -22,7 +25,7 @@ bool Submenu::focusChild(const MenuItem* child) {
 	}
 	// If the item wasn't found or isn't relevant, set to first relevant one instead.
 	if (current_item_ == items.end() || !isItemRelevant(*current_item_)) {
-		current_item_ = std::find_if(items.begin(), items.end(), isItemRelevant);
+		current_item_ = std::ranges::find_if(items, isItemRelevant); // Find first relevant item.
 	}
 	// Log it.
 	if (current_item_ != items.end()) {
@@ -190,8 +193,30 @@ void Submenu::selectEncoderAction(int32_t offset) {
 		return;
 	}
 	bool horizontal = renderingStyle() == RenderingStyle::HORIZONTAL;
+	bool selectButtonPressed = Buttons::selectButtonPressUsedUp = Buttons::isButtonPressed(hid::button::SELECT_ENC);
+
+	/* turning select encoder while any of these conditions are true can change horizontal menu value
+	        i) Shift Button is stuck but not pressed; or
+	        ii) Shift button pressed but not stuck and alternative select encoder behaviour is disabled; or
+	        iii) Audition pad pressed and alternative select encoder behaviour is disabled; or
+	        iii) You're not holding shift button and Horizontal menu alternative select
+	 encoder behaviour is enabled
+	*/
+	bool horizontalMenuValueChangeModifierEnabled =
+	    Buttons::isShiftStuckButNotPressed()
+	    || (Buttons::isShiftPressedButNotStuck() && !FlashStorage::defaultAlternativeSelectEncoderBehaviour)
+	    || (isUIModeActive(UI_MODE_AUDITIONING) && !FlashStorage::defaultAlternativeSelectEncoderBehaviour)
+	    || (!Buttons::isButtonPressed(hid::button::SHIFT) && FlashStorage::defaultAlternativeSelectEncoderBehaviour);
+
+	// change horizontal menu value when either:
+	// A) You're not pressing select encoder AND value change modifier is true
+	// B) You're pressing select encoder AND value change modifier is disabled
+	bool changeHorizontalMenuValue = (!selectButtonPressed && horizontalMenuValueChangeModifierEnabled)
+	                                 || (selectButtonPressed && !horizontalMenuValueChangeModifierEnabled);
+
 	MenuItem* child = *current_item_;
-	if (horizontal && !child->isSubmenu() && Buttons::isShiftButtonPressed()) {
+
+	if (horizontal && !child->isSubmenu() && changeHorizontalMenuValue) {
 		child->selectEncoderAction(offset);
 		focusChild(child);
 		// We don't want to return true for selectEncoderEditsInstrument(), since

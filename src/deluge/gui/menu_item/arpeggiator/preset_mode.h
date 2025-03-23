@@ -37,7 +37,7 @@ public:
 
 		// If was off, or is now becoming off...
 		if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpPreset::OFF) {
-			if (getCurrentClip()->isActiveOnOutput()) {
+			if (getCurrentClip()->isActiveOnOutput() && !soundEditor.editingKitAffectEntire()) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 
@@ -45,7 +45,7 @@ public:
 					// Midi or CV drum
 					Drum* currentDrum = ((Kit*)getCurrentClip()->output)->selectedDrum;
 					if (currentDrum != nullptr) {
-						currentDrum->unassignAllVoices();
+						currentDrum->killAllVoices();
 					}
 				}
 				else if (soundEditor.editingCVOrMIDIClip()) {
@@ -76,6 +76,7 @@ public:
 		    l10n::getView(STRING_FOR_DOWN),   //<
 		    l10n::getView(STRING_FOR_BOTH),   //<
 		    l10n::getView(STRING_FOR_RANDOM), //<
+		    l10n::getView(STRING_FOR_WALK),   //<
 		    l10n::getView(STRING_FOR_CUSTOM), //<
 		};
 	}
@@ -83,6 +84,9 @@ public:
 	MenuItem* selectButtonPress() override {
 		auto current_value = this->getValue<ArpPreset>();
 		if (current_value == ArpPreset::CUSTOM) {
+			if (soundEditor.editingKitRow()) {
+				return &arpeggiator::arpOctaveModeToNoteModeMenuForDrums;
+			}
 			return &arpeggiator::arpOctaveModeToNoteModeMenu;
 		}
 		return nullptr;

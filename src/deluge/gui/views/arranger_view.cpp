@@ -89,30 +89,24 @@ extern uint8_t currentlyAccessingCard;
 using namespace deluge;
 using namespace gui;
 
-ArrangerView arrangerView{};
-
-ArrangerView::ArrangerView() {
-	doingAutoScrollNow = false;
-
-	lastInteractedOutputIndex = 0;
-	lastInteractedPos = -1;
-	lastInteractedSection = 0;
-	lastInteractedClipInstance = nullptr;
-
-	lastInteractedArrangementPos = -1;
-}
+PLACE_SDRAM_BSS ArrangerView arrangerView{};
 
 void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	if (stemExport.processStarted) {
-		if (stemExport.exportMasterArrangement) {
-			stemExport.displayStemExportProgressOLED(StemExportType::MASTER_ARRANGEMENT);
+		if (stemExport.exportMixdown) {
+			stemExport.displayStemExportProgressOLED(StemExportType::MIXDOWN);
 		}
 		else {
 			stemExport.displayStemExportProgressOLED(StemExportType::TRACK);
 		}
-		return;
 	}
-	sessionView.renderOLED(canvas);
+	else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
+		Output* output = outputsOnScreen[yPressedEffective];
+		view.displayOutputName(output);
+	}
+	else {
+		sessionView.renderOLED(canvas);
+	}
 }
 
 void ArrangerView::moveClipToSession() {
@@ -258,8 +252,8 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 					if (inCardRoutine) {
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
-					if (stemExport.exportMasterArrangement) {
-						stemExport.startStemExportProcess(StemExportType::MASTER_ARRANGEMENT);
+					if (stemExport.exportMixdown) {
+						stemExport.startStemExportProcess(StemExportType::MIXDOWN);
 					}
 					else {
 						stemExport.startStemExportProcess(StemExportType::TRACK);
@@ -589,95 +583,69 @@ bool ArrangerView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth +
 
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		if (whichRows & (1 << i)) {
-			drawMuteSquare(i, image[i]);
-			drawAuditionSquare(i, image[i]);
+			image[i][kDisplayWidth] = getMutePadColor(i);
+			image[i][kDisplayWidth + 1] = getAuditionPadColor(i);
 		}
 	}
 	return true;
 }
 
-void ArrangerView::drawMuteSquare(int32_t yDisplay, RGB thisImage[]) {
-	RGB& thisColour = thisImage[kDisplayWidth];
-
+RGB ArrangerView::getMutePadColor(int32_t yDisplay) {
 	// If no Instrument, black
-	if (!outputsOnScreen[yDisplay]) {
-		thisColour = colours::black;
+	if (outputsOnScreen[yDisplay] == nullptr) {
+		return colours::black;
 	}
 
-	else if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && outputsOnScreen[yDisplay]->armedForRecording) {
+	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && outputsOnScreen[yDisplay]->armedForRecording) {
 		if (blinkOn) {
 			if (outputsOnScreen[yDisplay]->wantsToBeginArrangementRecording()) {
-				thisColour = {255, 1, 0};
+				return RGB(255, 1, 0);
 			}
-			else {
-				thisColour = {60, 25, 15};
-			}
+			return RGB(60, 25, 15);
 		}
-		else {
-			thisColour = colours::black;
-		}
+		return colours::black;
 	}
 
 	// Soloing - blue
-	else if (outputsOnScreen[yDisplay]->soloingInArrangementMode) {
-		thisColour = menu_item::soloColourMenu.getRGB();
+	if (outputsOnScreen[yDisplay]->soloingInArrangementMode) {
+		return menu_item::soloColourMenu.getRGB();
 	}
 
 	// Or if not soloing...
-	else {
+	RGB colour = outputsOnScreen[yDisplay]->mutedInArrangementMode
+	                 ? menu_item::mutedColourMenu.getRGB()   // Muted - yellow
+	                 : menu_item::activeColourMenu.getRGB(); // Otherwise, green
 
-		// Muted - yellow
-		if (outputsOnScreen[yDisplay]->mutedInArrangementMode) {
-			thisColour = menu_item::mutedColourMenu.getRGB();
-		}
-
-		// Otherwise, green
-		else {
-			thisColour = menu_item::activeColourMenu.getRGB();
-		}
-
-		if (currentSong->getAnyOutputsSoloingInArrangement()) {
-			thisColour = thisColour.dull();
-		}
+	if (currentSong->getAnyOutputsSoloingInArrangement()) {
+		colour = colour.dull();
 	}
+	return colour;
 }
 
-void ArrangerView::drawAuditionSquare(int32_t yDisplay, RGB thisImage[]) {
-	RGB& thisColour = thisImage[kDisplayWidth + 1];
+RGB ArrangerView::getAuditionPadColor(int32_t yDisplay) {
+	RGB normal = (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yDisplay == yPressedEffective)
+	                 ? colours::red
+	                 : colours::black;
 
-	if (view.midiLearnFlashOn) {
-		Output* output = outputsOnScreen[yDisplay];
+	Output* output = outputsOnScreen[yDisplay];
 
-		if (!output || output->type == OutputType::AUDIO) {
-			goto drawNormally;
-		}
-
-		Instrument* melodicInstrument = (Instrument*)output;
-
-		// If MIDI command already assigned...
-		if (melodicInstrument->midiInput.containsSomething()) {
-			thisColour = colours::midi_command;
-		}
-
-		// Or if not assigned but we're holding it down...
-		else if (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
-		         && view.learnedThing == &melodicInstrument->midiInput) {
-			thisColour = colours::red.dim();
-		}
-		else {
-			goto drawNormally;
-		}
+	if (!view.midiLearnFlashOn || output == nullptr || output->type == OutputType::AUDIO) {
+		return normal;
 	}
 
-	else {
-drawNormally:
-		if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yDisplay == yPressedEffective) {
-			thisColour = colours::red;
-		}
-		else {
-			thisColour = colours::black;
-		}
+	auto* melodicInstrument = static_cast<Instrument*>(output);
+	// If MIDI command already assigned...
+	if (melodicInstrument->midiInput.containsSomething()) {
+		return colours::midi_command;
 	}
+
+	// Or if not assigned but we're holding it down...
+	if (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
+	    && view.learnedThing == &melodicInstrument->midiInput) {
+		return colours::red.dim();
+	}
+
+	return normal;
 }
 
 ModelStackWithNoteRow* ArrangerView::getNoteRowForAudition(ModelStack* modelStack, Kit* kit) {
@@ -2554,6 +2522,8 @@ void ArrangerView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 void ArrangerView::navigateThroughPresets(int32_t offset) {
 	Output* output = outputsOnScreen[yPressedEffective];
 	if (output->type == OutputType::AUDIO) {
+		auto ao = (AudioOutput*)output;
+		ao->scrollAudioOutputMode(offset);
 		return;
 	}
 

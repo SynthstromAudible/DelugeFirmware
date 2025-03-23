@@ -118,18 +118,18 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 	folderID = newFolderID;
 
 	// Didn't seem to make a difference forcing this into local RAM
-	void* sampleMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Sample));
-	if (!sampleMemory) {
+	void* sample_memory = GeneralMemoryAllocator::get().allocStealable(sizeof(Sample));
+	if (sample_memory == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	sample = new (sampleMemory) Sample;
+	sample = new (sample_memory) Sample;
 	sample->addReason(); // Must call this so it's protected from stealing, before we call initialize().
 	Error error = sample->initialize(1);
 	if (error != Error::NONE) {
 gotError:
 		sample->~Sample();
-		delugeDealloc(sampleMemory);
+		delugeDealloc(sample_memory);
 		return error;
 	}
 

@@ -23,6 +23,7 @@
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
 #include <array>
 #include <string>
+#include <string_view>
 
 class NumericLayerScrollingText;
 
@@ -36,9 +37,9 @@ public:
 	             uint8_t* newBlinkMask = nullptr, bool blinkImmediately = false, bool shouldBlinkFast = false,
 	             int32_t scrollPos = 0, uint8_t* blinkAddition = nullptr, bool justReplaceBottomLayer = false) override;
 	void setNextTransitionDirection(int8_t thisDirection) override;
-	void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false, uint8_t drawDot = 255,
+	void displayPopup(std::string_view newText, int8_t numFlashes = 3, bool alignRight = false, uint8_t drawDot = 255,
 	                  int32_t blinkSpeed = 1, PopupType type = PopupType::GENERAL) override;
-	void freezeWithError(char const* text) override;
+	void freezeWithError(std::string_view) override;
 	void cancelPopup() override;
 	void displayError(Error error) override;
 
@@ -47,9 +48,10 @@ public:
 	                   int32_t blinkPos = -1, bool blinkImmediately = false) override;
 	void timerRoutine() override;
 	void removeTopLayer();
-	NumericLayerScrollingText* setScrollingText(char const* newText, int32_t startAtPos = 0, int32_t initialDelay = 600,
-	                                            int count = -1, uint8_t fixedDot = 255) override;
-	int32_t getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf) override;
+	NumericLayerScrollingText* setScrollingText(std::string_view text, int32_t startAtPos = 0,
+	                                            int32_t initialDelay = 600, int count = -1,
+	                                            uint8_t fixedDot = 255) override;
+	int32_t getEncodedPosFromLeft(int32_t text_position, std::string_view text, bool* andAHalf) override;
 	void render();
 	void displayLoadingAnimation(bool delayed = false, bool transparent = false);
 	bool isLayerCurrentlyOnTop(NumericLayer* layer) override;
@@ -60,18 +62,18 @@ public:
 
 	constexpr size_t getNumBrowserAndMenuLines() override { return 1; }
 
-	void consoleText(char const* text) override { SevenSegment::displayPopup(text); }
-	void popupText(char const* text, PopupType type = PopupType::GENERAL) override {
+	void consoleText(std::string_view text) override { SevenSegment::displayPopup(text); }
+	void popupText(std::string_view text, PopupType type = PopupType::GENERAL) override {
 		SevenSegment::displayPopup(text, 0, false, 255, 1, type);
 	}
-	void popupTextTemporary(char const* text, PopupType type = PopupType::GENERAL) override {
+	void popupTextTemporary(std::string_view text, PopupType type = PopupType::GENERAL) override {
 		SevenSegment::displayPopup(text, 3, false, 255, 1, type);
 	}
 
 	void removeWorkingAnimation() override {}
 
 	// Loading animations
-	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) override {
+	void displayLoadingAnimationText(std::string_view text, bool delayed = false, bool transparent = false) override {
 		SevenSegment::displayLoadingAnimation(delayed, transparent);
 	}
 	void removeLoadingAnimation() override { SevenSegment::removeTopLayer(); }
@@ -93,7 +95,7 @@ private:
 	void replaceBottomLayer(NumericLayer* newLayer);
 	void setTopLayer(NumericLayer* newTopLayer);
 	void transitionToNewLayer(NumericLayer* newLayer);
-	void setTextVeryBasicA1(char const* text);
+	void setTextVeryBasicA1(std::string_view text);
 	std::array<uint8_t, kNumericDisplayLength> lastDisplay_ = {0};
 	bool use_lowercase = false;
 };

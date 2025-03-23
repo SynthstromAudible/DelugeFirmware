@@ -36,7 +36,7 @@ class ModelStackWithNoteRow;
 
 class ArrangerView final : public TimelineView {
 public:
-	ArrangerView();
+	ArrangerView() = default;
 	bool opened() override;
 	void focusRegained() override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
@@ -51,7 +51,6 @@ public:
 	void repopulateOutputsOnScreen(bool doRender = true);
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
-	void drawMuteSquare(int32_t yDisplay, RGB thisImage[]);
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	bool renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t xScroll, uint32_t xZoom, RGB* thisImage,
@@ -102,17 +101,17 @@ public:
 
 	bool blinkOn{};
 
-	bool doingAutoScrollNow;
+	bool doingAutoScrollNow = false;
 	bool mustRedrawTickSquares{};
 
 	int32_t autoScrollNumSquaresBehind{};
 
-	int32_t lastInteractedOutputIndex;
-	int32_t lastInteractedPos;
-	uint8_t lastInteractedSection;
-	ClipInstance* lastInteractedClipInstance;
+	int32_t lastInteractedOutputIndex = 0;
+	int32_t lastInteractedPos = -1;
+	uint8_t lastInteractedSection = 0;
+	ClipInstance* lastInteractedClipInstance = nullptr;
 
-	int32_t lastInteractedArrangementPos;
+	int32_t lastInteractedArrangementPos = -1;
 
 	int32_t lastTickSquare{};
 
@@ -126,6 +125,9 @@ public:
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 
 private:
+	RGB getMutePadColor(int32_t yDisplay);
+	RGB getAuditionPadColor(int32_t yDisplay);
+
 	void changeOutputType(OutputType newOutputType);
 	void moveClipToSession();
 	void auditionPadAction(bool on, int32_t y, UI* ui);
@@ -133,7 +135,6 @@ private:
 	void endAudition(Output* output, bool evenIfPlaying = false);
 	ModelStackWithNoteRow* getNoteRowForAudition(ModelStack* modelStack, Kit* kit);
 	Drum* getDrumForAudition(Kit* kit);
-	void drawAuditionSquare(int32_t yDisplay, RGB thisImage[]);
 	void setNoSubMode();
 	void outputActivated(Output* output);
 	void outputDeactivated(Output* output);

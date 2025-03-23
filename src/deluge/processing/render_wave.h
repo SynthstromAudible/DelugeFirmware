@@ -41,15 +41,11 @@ startRenderingASync:
 	uint32_t distanceTilNextCrossoverSample = -resetterPhase - (resetterPhaseIncrement >> 1);
 	samplesIncludingNextCrossoverSample += (uint32_t)(distanceTilNextCrossoverSample - 1) / resetterPhaseIncrement;
 	bool shouldBeginNextSyncAfter = (numSamplesThisOscSyncSession >= samplesIncludingNextCrossoverSample);
-	int32_t numSamplesThisSyncRender = shouldBeginNextSyncAfter
-	                                       ? samplesIncludingNextCrossoverSample
-	                                       : numSamplesThisOscSyncSession; /* Just limit it, basically. */
+	size_t numSamplesThisSyncRender = shouldBeginNextSyncAfter
+	                                      ? samplesIncludingNextCrossoverSample
+	                                      : numSamplesThisOscSyncSession; /* Just limit it, basically. */
 
-	int32_t const* const bufferEndThisSyncRender = bufferStartThisSync + numSamplesThisSyncRender;
-	uint32_t phaseTemp = phase;
-	int32_t* __restrict__ writePos = bufferStartThisSync;
-
-	storageFunction(bufferEndThisSyncRender, phaseTemp, writePos);
+	storageFunction(std::span{bufferStartThisSync, numSamplesThisSyncRender}, phase);
 
 	/* Sort out the crossover sample at the *start* of that window we just did, if there was one. */
 	if (renderedASyncFromItsStartYet) {
@@ -97,9 +93,9 @@ auto renderWavetableLoop(auto bufferStartThisSync, auto firstCycleNumber, auto b
 }
 
 /// @note amplitude and amplitudeIncrement multiplied by two before being passed to this function
-inline Argon<int32_t> createAmplitudeVector(int32_t amplitude, int32_t amplitudeIncrement) {
+inline Argon<int32_t> createAmplitudeVector(int32_t amplitude, int32_t amplitude_increment) {
 	// amplitude + amplitudeIncrement * lane_n
-	auto amplitudeVector = Argon<int32_t>{amplitude}.MultiplyAdd(amplitudeIncrement, int32x4_t{1, 2, 3, 4});
+	auto amplitudeVector = Argon<int32_t>{amplitude}.MultiplyAdd(amplitude_increment, int32x4_t{1, 2, 3, 4});
 
 	// TODO(@stellar-aria): investigate where the doubling comes from (likely an unshifted smmul)
 	return amplitudeVector >> 1; // halve amplitude

@@ -39,7 +39,8 @@ class ModelStackWithSoundFlags;
 /// interface to the rest of the system when displaying information about the underlying modulation state.
 class ModControllable {
 public:
-	ModControllable();
+	ModControllable() = default;
+	virtual ~ModControllable() = default;
 	virtual bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
 		return false;
 	} // Returns whether Instrument was changed
@@ -47,10 +48,11 @@ public:
 	virtual ModelStackWithAutoParam*
 	getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                       bool allowCreation = true); // Check that autoParam isn't NULL, after calling this.
-	virtual ModelStackWithAutoParam* getParamFromMIDIKnob(
-	    MIDIKnob* knob,
-	    ModelStackWithThreeMainThings* modelStack); // Check that autoParam isn't NULL, after calling this
-	virtual uint8_t* getModKnobMode();              // Return NULL if different modes not supported
+
+	/// Check that autoParam isn't NULL, after calling this
+	virtual ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack);
+
+	virtual uint8_t* getModKnobMode(); // Return NULL if different modes not supported
 	virtual bool isKit() { return false; }
 	virtual bool isSong() { return false; }
 	virtual bool isEditingComp() { return false; }

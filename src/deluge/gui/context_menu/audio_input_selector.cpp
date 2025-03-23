@@ -148,6 +148,7 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 
 	defaultAudioOutputInputChannel = audioOutput->inputChannel;
 }
+
 // if they're in session view and press a clip's pad, record from that output
 ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 	if (on && getUIUpOneLevel() == &sessionView) {

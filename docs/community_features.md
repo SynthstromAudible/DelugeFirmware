@@ -33,10 +33,45 @@ now stands out from the tail in proportion to its velocity. At velocity 127 it i
 at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
 
 #### 2.2 Horizontal Menus
-- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
-  - Envelope 1 & 2.
+- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+  - Envelope 1-4.
   - LPF and HPF.
-  - LFOs.
+  - LFO 1-4.
+  - Arpegiattor
+- Horizontal Menu controls. There are two different behaviours that can be toggled between to edit values and select menu items within the horizontal menu. You can toggle between them by going to the `SETTINGS > DEFAULTS -> UI -> HORIZONTAL MENU (HORZ)` and toggling `Alternative Select Behaviour (SELE)` on or off.
+  - With `Alternative Select Behaviour (SELE)` DISABLED:
+    - `Hold audition pad` + turn select encoder to edit the value of the selected menu item
+    - With `Sticky Shift Enabled`:
+      - `Turn select encoder` to edit the value of the selected menu item
+      - `Hold shift + turn select encoder` OR `Press + Turn select encoder` to change the selected menu item
+    - With `Sticky Shift Disabled`:
+      - `Hold shift + turn select encoder` OR `Press + Turn select encoder` to change the value of the selected menu item
+      - `Turn select encoder` to change the selected menu item
+  - With `Alternative Select Behaviour (SELE)` ENABLED:
+    - `Don't hold shift + turn select encoder` or `Hold shift + Press + Turn select encoder` to change the value of the selected menu item
+    - `Hold shift + turn select encoder` OR `Press + Turn select encoder` to change the selected menu item
+
+#### 2.3 Favourites
+A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UI -> KEYBOARD -> FAVOURITES`.
+- In the `Favourites Only (16)`-Mode , 16 Favourite Slots are available at the Toprow above the Keyboard.
+- In the `Favourites and Banks (256)`-Mode, the Toprow contains 16 Banks, each with 16 Favourites displayed on the second row.
+Usage:
+- Save a Favourite
+  - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
+  - Browse to the File you want to save
+  - Hold `SHIFT` and select a empty Favourite Slot (light blue)
+- Delete a Favourite
+  - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
+  - Hold `SHIFT` and select the Favourite Slot you want to delete
+- Recall a Favourite
+  - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
+  - Select the Favourite
+- Change the Colour of a Favourite
+  - Select the Favourite you want to modify
+  - Hold `SHIFT` and turn `VERTICAL ENCODER`
+
+Tip:
+If you are Browsing Songs or Samples an dont want to have the Preview to hide the Keyboard on Scrolling, just press the `KEYBOARD`-Button to pin the Keyboard and the Favourites.
 
 ## 3. General Improvements
 
@@ -190,7 +225,7 @@ as the micromonsta and the dreadbox nymphes.
 - ([#395]) Load synth presets into kit rows by holding the row's `AUDITION` + `SYNTH`. Saving can be done by holding the
   audition pad and pressing save.
 
-- ([#3062]) Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
+- ([#3079]) Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
 
 #### 3.7 - Global Interface
 
@@ -674,7 +709,7 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
 - ([#3226]) Now the stutter buffer can also be set to play in reverse, and ping-pong. A new menu has been added to
   the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song. An extra menu has been added
   per sound source (either synths, kit rows, affect-entire kits, or audio clips) to set the stutter configuration
-  independently of the song configuration if you wish.
+  independently of the song configuration if you wish. Quantized stutter is enabled by default.
 
 #### 4.2.9 - Reverb Improvements
 
@@ -688,6 +723,9 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
   it as smaller numbers. This change also fixes an issue with reverb values displaying differently than how they were
   set.
 - ([#2788]) Added LPF to Mutable Instruments Model. 50 (default) corresponds to 20khz and 0 corresponds to 0hz.
+
+#### 4.2.10 Launch Exclusively
+- ([#3213]) A new option, 'Launch Exclusively', isolates a clip section from all other launch activity. This option is found to the left of option 'Launch non-exclusively' when selecting the section's number of repetitions. As a complement to non-exclusive sections that arm and turn off when another section is launched, exclusive sections remain independant and continue playing.
 
 ### 4.3 - Instrument Clip View - General Features
 
@@ -851,15 +889,29 @@ to each individual note onset. ([#1978])
 
 #### 4.3.8 - Advanced Arpeggiator
 
-- ([#1198] [#2978] [#2985] [#2990] [#3062] [#3079]) For a detailed description of this feature, please refer to the feature
+- ([#1198] [#2978] [#2985] [#2990] [#3079] [#3285]) For a detailed description of this feature, please refer to the feature
   documentation: [Arpeggiator Documentation]
+- ([#3388]) Added `KIT ARPEGGIATOR` for `KIT` clips. This allows the user to engage an arpeggiator layer on top of the kit rows,
+  which will control which rows receive note ON's and note OFF's. That means that the kit rows can have their own arpeggiators also
+  enabled, which allows for unlimited possible pattern combinations. This feature is also explained in [Arpeggiator Documentation]
 
-#### 4.3.9 - Velocity View
+#### 4.3.9 - Randomizer
+
+- A new submenu has been added to the `Sound` menu called `Randomizer`. This menu includes some of the Randomizer parameters
+  present in the Arpeggiator submenu, which have been enabled to work also for non-arpeggiated notes. That is, regular notes
+  from the sequencer when the arpeggiator is off, which are the following:
+  - `Lock`: This parameter allows you to freeze the current set of randomized values so the sequence has a repeatable pattern.
+  - `Velocity Spread`: This parameters lets you apply some random variation to the notes.
+  - `Note probability`: This parameter determines the likelihood of a note being played or not (this is in addition to the Note/Row probability).
+  - `Reverse Probability`: This parameter determines the likelihood of a note's sample of being reversed.
+- For more detailed information about these parameters, refer to the [Arpeggiator Documentation].
+
+#### 4.3.10 - Velocity View
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Velocity View Documentation]
 - ([#2046]) Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
 
-#### 4.3.10 - Enhanced Note Probability, Iterance and Fill
+#### 4.3.11 - Enhanced Note Probability, Iterance and Fill
 
 - ([#2641], [#2751]) Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
   - To edit probability, hold a note / audition pad and turn the select encoder to the left to display current probability value / set new probability value.
@@ -867,15 +919,18 @@ to each individual note onset. ([#1978])
   - Note iteration now also supports custom iteration steps. To access them, hold a note and press the `SELECT` encoder to open the Note menu. Scroll to `NOTE ITERANCE` and press `SELECT` again to enter the Note Iterance menu, the default is `OFF`. Turn the `SELECT` encoder right through all options until you see `CUSTOM`, then press the `SELECT` encoder again. A new menu will appear with the `DIVISOR` parameter (from 1 to 8.) The number of `DIVISORS` you choose will set how many `ITERATION #` toggles appear. Each `ITERATION #` allows you to activate or deactivate an iteration step.
   - To edit fill, you need to access the new note and note row editor menu's.
 
-#### 4.3.11 - Added New Note and Note Row Editor Menu's
+#### 4.3.12 - Added New Note and Note Row Editor Menu's
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Note / Note Row Editor Documentation]
 - ([#2641]) Added new note and note row editor menu's to edit note and note row parameters.
   - Hold a note and press the select encoder to enter the note editor menu. While in the note editor menu, the selected note will blink. You can select other notes by pressing the notes on the grid.
   - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the select note row audition pad will blink. You can select other note row's by pressing the note row audition pad.
 
-#### 4.3.12 - Auto Load sample when browsing
+#### 4.3.13 - Auto Load sample when browsing
 
 - ([#2676]) When browsing for sample to assign to a Synth or to a Kit Row, you can now enable auto-load of previewed samples. To do this, open the sample browser (`SHIFT + BROWSE`), and engage `AUTO-LOAD` by pressing `LOAD`. While the `LOAD` LED is on, all the samples that you preview will automatically be loaded to the instrument as if you had confirmed the selection. This makes previewing single cycle waveforms way more convenient, for example.
+
+#### 4.3.14 - Save/Load Patterns
+- ([#3352]) Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synth, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ] for more info.
 
 ### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features
 
@@ -1082,6 +1137,17 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 
 - ([#3279]) Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
 
+#### 4.5.9 - More LFOs
+
+- ([#3332]) Added two more LFOs: LFO 3 (global) and LFO 4 (per voice), which you can access from the sound editor menu.
+
+#### 4.5.10 - Send Midi
+
+- ([#3313]) There is a new submenu `MIDI` added to the `SOUND` menu for synths and sound drums, where you can select the MIDI channel
+  (and also base note for drums) that will be sent at the same time as the sound triggers.
+  In case of drums, it is like having a Sound row + a Midi row together triggering at the same time. And in case of synths, it is like
+  having a Synth clip + a Midi clip together triggering at the same time. This feature is limited to regular MIDI (that is, not for MPE).
+
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
 #### 4.6.1 - Keyboard View
@@ -1154,6 +1220,17 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 
 - ([#141]) Holding `▼︎▲︎` down while turning `◀︎▶︎` will shift the waveform of an Audio clip, similar to Instrument
   clips.
+
+#### 4.9.2 - Trim from the start of the clip
+
+- ([#3291]) You can now trim/crop audio from the start of a clip
+  - Pressing a pad in the first column of an audio clip now makes it flash green allowing you to move the start position. Once trimmed, new start position snaps to column one.
+  - You can revert by pressing undo (or reverse the clip and altering as before).
+  - Previously, this was only possible by reversing the audio clip and trimming the start as if it were the end.
+  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+
+See this demo for more details:
+[Audio Clip View - Trimming Tips](https://www.youtube.com/watch?v=iWhVUsx40Mg&t=45s&ab_channel=RonCavagnaro).
 
 ### 4.10 Third Party Device Integration
 
@@ -1237,6 +1314,8 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
     * When On, the number of `TAP TEMPO` button presses to engage `TAP TEMPO` is changed to `FOUR (4)` to avoid mistakingly changing tempo.
 * `Horizontal menus (HORI)`
     * When On, some menu items render in horizontal menus, with multiple items visible and editable at the same time.
+* `Trim from start of audio clips (TRIM)`
+    * When On, the ability to trim from the start of an audio clip without needing to reverse it is enabled.
 
 ## 6. Sysex Handling
 
@@ -1563,13 +1642,25 @@ different firmware
 
 [#3195]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3195
 
-[#3062]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3062
-
 [#3079]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3079
+
+[#3213]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3213
 
 [#3226]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3226
 
 [#3279]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3279
+
+[#3285]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3285
+
+[#3291]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3291
+
+[#3313]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3313
+
+[#3332]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3332
+
+[#3352]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3352
+
+[#3388]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3388
 
 [Automation View Documentation]: features/automation_view.md
 
@@ -1592,3 +1683,5 @@ different firmware
 [Chord Keyboard Documentation]: features/chord_keyboard.md
 
 [Note / Note Row Editor Documentation]: features/note_noterow_editor.md
+
+[Save / Load Patterns feature ]: features/save_load_patterns.md

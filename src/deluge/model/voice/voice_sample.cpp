@@ -34,10 +34,6 @@ extern "C" {}
 
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
-VoiceSample::VoiceSample() {
-	timeStretcher = nullptr;
-}
-
 void VoiceSample::beenUnassigned(bool wontBeUsedAgain) {
 	unassignAllReasons(wontBeUsedAgain);
 	endTimeStretching();
@@ -89,8 +85,6 @@ void VoiceSample::endTimeStretching() {
 }
 
 void VoiceSample::setupCacheLoopPoints(SamplePlaybackGuide* guide, Sample* sample, LoopType loopingType) {
-	// D_PRINTLN("VoiceSample::setupCacheLoopPoints");
-
 	uint8_t bytesPerSample = sample->numChannels * sample->byteDepth;
 
 	uint64_t combinedIncrement = ((uint64_t)(uint32_t)cache->phaseIncrement * (uint32_t)cache->timeStretchRatio) >> 24;
@@ -1564,11 +1558,17 @@ finishedTimestretchedRead:
 }
 
 // Returns false if became inactive
-bool VoiceSample::sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, MarkerType markerType,
-                                    LoopType loopingType, int32_t priorityRating, bool forAudioClip) {
+bool VoiceSample::sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, bool reversed,
+                                    MarkerType markerType, LoopType loopingType, int32_t priorityRating,
+                                    bool forAudioClip) {
 
-	D_PRINTLN("VoiceSample::sampleZoneChanged");
-
+	if (cache && cache->reversed != reversed) {
+		// If the reversing has changed, then the cache is no longer valid
+		bool success = stopUsingCache(voiceSource, sample, priorityRating, loopingType == LoopType::LOW_LEVEL);
+		if (!success) {
+			return false;
+		}
+	}
 	// If cache, then update cache loop points - but not if it was the start marker that was moved, cos that means we'll
 	// stop using cache altogether
 	if (cache && markerType != MarkerType::START) {
@@ -1769,7 +1769,7 @@ bool VoiceSample::possiblySetUpCache(SampleControls* sampleControls, SamplePlayb
 	}
 
 	bool mayCreate = (sampleControls->getInterpolationBufferSize(phaseIncrement) == kInterpolationMaxNumSamples);
-	cache = ((Sample*)guide->audioFileHolder->audioFile)
+	cache = ((Sample*)(guide->audioFileHolder->audioFile))
 	            ->getOrCreateCache((SampleHolder*)guide->audioFileHolder, phaseIncrement, timeStretchRatio,
 	                               guide->playDirection == -1, mayCreate, &writingToCache);
 

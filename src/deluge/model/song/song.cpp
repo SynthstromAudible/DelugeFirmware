@@ -129,79 +129,19 @@ OutputType getCurrentOutputType() {
 
 using namespace deluge;
 
-Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
-	outputClipInstanceListIsCurrentlyInvalid = false;
-	insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
-	insideWorldTickMagnitudeOffsetFromBPM = 0;
-	syncScalingClip = nullptr;
-	currentClip = nullptr;
-	slot = 32767;
-	subSlot = -1;
-
-	xScroll[NAVIGATION_CLIP] = 0;
-	xScroll[NAVIGATION_ARRANGEMENT] = 0;
-	xScrollForReturnToSongView = 0;
-
+Song::Song()
+    : backedUpParamManagers(sizeof(BackedUpParamManager)),
+      reverbSidechainVolume(getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1)) {
 	xZoom[NAVIGATION_CLIP] = increaseMagnitude(kDefaultClipLength, insideWorldTickMagnitude - kDisplayWidthMagnitude);
 	xZoom[NAVIGATION_ARRANGEMENT] = kDefaultArrangerZoom << insideWorldTickMagnitude;
 	xZoomForReturnToSongView = xZoom[NAVIGATION_CLIP];
 
-	tripletsOn = false;
-
-	affectEntire = false;
-
-	fillModeActive = false;
-
 	key.modeNotes = presetScaleNotes[MAJOR_SCALE];
-	disabledPresetScales = FlashStorage::defaultDisabledPresetScales;
-
-	swingAmount = 0;
-
-	swingInterval = FlashStorage::defaultSwingInterval;
-
-	songViewYScroll = 1 - kDisplayHeight;
-	arrangementYScroll = -kDisplayHeight;
-
-	anyClipsSoloing = false;
-	anyOutputsSoloingInArrangement = false;
-
-	firstOutput = nullptr;
-	firstHibernatingInstrument = nullptr;
-	hibernatingMIDIInstrument = nullptr;
-
-	lastClipInstanceEnteredStartPos = -1;
-	arrangerAutoScrollModeActive = false;
-
-	paramsInAutomationMode = false;
-
-	// Setup reverb temp variables
-	reverbRoomSize = (float)30 / 50;
-	reverbDamp = (float)36 / 50;
-	reverbHPF = 0;
-	reverbLPF = (float)50 / 50;
-	reverbWidth = 1;
-	reverbPan = 0;
-	reverbSidechainVolume = getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1);
-	reverbSidechainShape = -601295438;
-	reverbSidechainSync = SYNC_LEVEL_8TH;
-	model = deluge::dsp::Reverb::Model::MUTABLE;
 
 	// setup base compressor gain to match 1.0
 	globalEffectable.compressor.setBaseGain(0.85);
 
-	// initialize automation arranger view variables
-	lastSelectedParamID = kNoSelection;
-	lastSelectedParamKind = params::Kind::NONE;
-	lastSelectedParamShortcutX = kNoSelection;
-	lastSelectedParamShortcutY = kNoSelection;
-	lastSelectedParamArrayPosition = 0;
-	// end initialize of automation arranger view variables
-
-	masterTransposeInterval = 0;
-
 	dirPath.set("SONGS");
-
-	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
 
 Song::~Song() {
@@ -1854,7 +1794,7 @@ unknownTag:
 
 							else if (!strcmp(tagName, "numRepeats")) {
 								numRepeats = reader.readTagOrAttributeValueInt();
-								if (numRepeats < -1 || numRepeats > 9999) {
+								if (numRepeats < -2 || numRepeats > 9999) {
 									numRepeats = 0;
 								}
 							}
@@ -2007,7 +1947,8 @@ loadOutput:
 			}
 
 			else {
-				Error result = globalEffectable.readTagFromFile(reader, tagName, &paramManager, 2147483647, this);
+				Error result =
+				    globalEffectable.readTagFromFile(reader, tagName, &paramManager, 2147483647, nullptr, this);
 				if (result == Error::NONE) {}
 				else if (result != Error::RESULT_TAG_UNUSED) {
 					return result;
@@ -3155,7 +3096,8 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 			// Just get rid of arming
 			for (int32_t l = 0; l < sessionClips.getNumElements(); l++) {
 				Clip* loopable = sessionClips.getClipAtIndex(l);
-				if (loopable->launchStyle == LaunchStyle::DEFAULT) {
+				if (loopable->launchStyle == LaunchStyle::DEFAULT
+				    && currentSong->sections[loopable->section].numRepetitions != -2) {
 					loopable->armState = ArmState::OFF;
 				}
 			}
@@ -3337,15 +3279,14 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 			// - you midi learn a controller to that clip's params
 			// - you then go to change the preset for that clip
 			// - you expect that you can continue controlling the same params for the new preset
-			ModControllableAudio* oldModControllableAudio = (ModControllableAudio*)oldOutput->toModControllable();
-			if (oldModControllableAudio) {
-				int32_t numKnobs = oldModControllableAudio->midiKnobArray.getNumElements();
-				if (numKnobs) {
-					ModControllableAudio* newModControllableAudio =
-					    (ModControllableAudio*)newOutput->toModControllable();
-					newModControllableAudio->midiKnobArray.cloneFrom(&oldModControllableAudio->midiKnobArray);
-					oldModControllableAudio->midiKnobArray.deleteAtIndex(0, numKnobs);
-					oldModControllableAudio->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
+			auto* old_mca = static_cast<ModControllableAudio*>(oldOutput->toModControllable());
+			if (old_mca != nullptr) {
+				size_t num_knobs = old_mca->midi_knobs.size();
+				if (num_knobs > 0) {
+					auto& new_mca = static_cast<ModControllableAudio&>(*newOutput->toModControllable());
+					new_mca.midi_knobs.clear();
+					std::swap(new_mca.midi_knobs, old_mca->midi_knobs);
+					old_mca->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
 				}
 			}
 		}
@@ -4205,6 +4146,9 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 				((SoundInstrument*)output)
 				    ->defaultArpSettings.cloneFrom(&((InstrumentClip*)output->getActiveClip())->arpSettings);
 			}
+			else if (output->type == OutputType::KIT) {
+				((Kit*)output)->defaultArpSettings.cloneFrom(&((InstrumentClip*)output->getActiveClip())->arpSettings);
+			}
 		}
 
 		// Ok, back to the main task - if there's no activeClip...
@@ -4683,16 +4627,27 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 
 		// CV
 		if (outputType == OutputType::CV) {
+			int channelToSearch = 0;
+			Instrument* instrument = nullptr;
 			do {
 				newChannel = CVInstrument::navigateChannels(newChannel, offset);
 
 				if (newChannel == oldChannel) {
-cantDoIt:
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
 					return output;
 				}
-
-			} while (currentSong->getInstrumentFromPresetSlot(outputType, newChannel, -1, nullptr, nullptr, false));
+				if (newChannel == CVInstrumentMode::both) {
+					// in this case we just need to make sure the one were not about to give up is free
+					// there probably should be a gatekeeper managing the cv/gate resources but that's a lot to
+					// change and this doesn't matter much
+					channelToSearch = oldChannel == 0 ? 1 : 0;
+				}
+				else {
+					channelToSearch = newChannel;
+				}
+				instrument =
+				    currentSong->getInstrumentFromPresetSlot(outputType, channelToSearch, -1, nullptr, nullptr, false);
+			} while (instrument != nullptr && instrument != oldInstrument);
 		}
 
 		// Or MIDI
@@ -4721,7 +4676,8 @@ cantDoIt:
 
 				if (newChannel == oldChannel && newChannelSuffix == oldChannelSuffix) {
 					oldNonAudioInstrument->setChannel(oldChannel); // Put it back
-					goto cantDoIt;
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
+					return output;
 				}
 
 			} while (currentSong->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr,
@@ -5158,7 +5114,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Avai
 			}
 		}
 
-		newSlot = (newSlot + 1) & (numChannels - 1);
+		newSlot = (newSlot + 1) % numChannels;
 		newSubSlot = -1;
 
 		// If we've searched all channels...

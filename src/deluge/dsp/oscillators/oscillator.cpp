@@ -16,11 +16,12 @@
  */
 #include "oscillator.h"
 #include "basic_waves.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/render_wave.h"
 #include "storage/wave_table/wave_table.h"
+#include "util/fixedpoint.h"
 
-namespace deluge {
-namespace dsp {
+namespace deluge::dsp {
 PLACE_INTERNAL_FRUNK int32_t oscSyncRenderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES + 4]
     __attribute__((aligned(CACHE_LINE_SIZE)));
 __attribute__((optimize("unroll-loops"))) void
@@ -273,12 +274,11 @@ doSaw:
 
 				if (!doOscSync) {
 					if (applyAmplitude) {
-						dsp::renderCrudeSawWaveWithAmplitude(bufferStart, bufferEnd, phase, phaseIncrement, amplitude,
-						                                     amplitudeIncrement, numSamples);
+						dsp::renderCrudeSawWave({bufferStart, numSamples}, phase, phaseIncrement, amplitude,
+						                        amplitudeIncrement);
 					}
 					else {
-						dsp::renderCrudeSawWaveWithoutAmplitude(bufferStart, bufferEnd, phase, phaseIncrement,
-						                                        numSamples);
+						dsp::renderCrudeSawWave({bufferStart, numSamples}, phase, phaseIncrement);
 					}
 					return;
 				}
@@ -426,15 +426,11 @@ doSaw:
 					if (doOscSync) {
 						int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 						int32_t numSamplesThisOscSyncSession = numSamples;
-						auto storeVectorWaveForOneSync = [&](int32_t const* const bufferEndThisSyncRender,
-						                                     uint32_t phase, int32_t* __restrict__ writePos) {
-							int32x4_t valueVector;
-							do {
-								std::tie(valueVector, phase) = waveRenderingFunctionPulse(
+						auto storeVectorWaveForOneSync = [&](std::span<q31_t> buffer, uint32_t phase) {
+							for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
+								std::tie(value_vector, phase) = waveRenderingFunctionPulse(
 								    phase, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);
-								vst1q_s32(writePos, valueVector);
-								writePos += 4;
-							} while (writePos < bufferEndThisSyncRender);
+							}
 						};
 						renderOscSync(
 						    storeVectorWaveForOneSync, [](uint32_t) {}, phase, phaseIncrement, resetterPhase,
@@ -447,7 +443,7 @@ doSaw:
 						return;
 					}
 					else {
-						dsp::renderPulseWave(table, tableSizeMagnitude, amplitude, bufferStart, bufferEnd,
+						dsp::renderPulseWave(table, tableSizeMagnitude, amplitude, {bufferStart, bufferEnd},
 						                     phaseIncrement, phase, applyAmplitude, phaseToAdd, amplitudeIncrement);
 						return;
 					}
@@ -475,14 +471,11 @@ callRenderWave:
 			int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 			int32_t numSamplesThisOscSyncSession = numSamples;
 			auto storeVectorWaveForOneSync = //<
-			    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
-				    int32x4_t valueVector;
-				    do {
-					    std::tie(valueVector, phase) =
+			    [&](std::span<q31_t> buffer, uint32_t phase) {
+				    for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
+					    std::tie(value_vector, phase) =
 					        waveRenderingFunctionGeneral(phase, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);
-					    vst1q_s32(writePos, valueVector);
-					    writePos += 4;
-				    } while (writePos < bufferEndThisSyncRender);
+				    }
 			    };
 			renderOscSync(
 			    storeVectorWaveForOneSync, [](uint32_t) {}, phase, phaseIncrement, resetterPhase,
@@ -494,7 +487,7 @@ callRenderWave:
 			return;
 		}
 		else {
-			dsp::renderWave(table, tableSizeMagnitude, amplitude, bufferStart, bufferEnd, phaseIncrement, phase,
+			dsp::renderWave(table, tableSizeMagnitude, amplitude, {bufferStart, bufferEnd}, phaseIncrement, phase,
 			                applyAmplitude, phaseToAdd, amplitudeIncrement);
 			return;
 		}
@@ -532,5 +525,4 @@ void Oscillator::maybeStorePhase(const OscType& type, uint32_t* startPhase, uint
 	}
 }
 
-} // namespace dsp
-} // namespace deluge
+} // namespace deluge::dsp

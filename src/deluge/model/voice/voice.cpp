@@ -61,18 +61,12 @@ extern "C" {
 using namespace deluge;
 namespace params = deluge::modulation::params;
 
-#pragma GCC diagnostic push
-// This is supported by GCC and other compilers should error (not warn), so turn off for this file
-#pragma GCC diagnostic ignored "-Winvalid-offsetof"
-
 PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[4][SSI_TX_BUFFER_NUM_SAMPLES]
     __attribute__((aligned(CACHE_LINE_SIZE)));
 
 // Hopefully I could make this use the spareRenderingBuffer instead...
 
-const PatchableInfo patchableInfoForVoice = {
-    .paramFinalValuesOffset = offsetof(Voice, paramFinalValues) - offsetof(Voice, patcher),
-    .sourceValuesOffset = offsetof(Voice, sourceValues) - offsetof(Voice, patcher),
+const Patcher::Config kPatcherConfigForVoice = {
     .firstParam = 0,
     .firstNonVolumeParam = params::FIRST_LOCAL_NON_VOLUME,
     .firstHybridParam = params::FIRST_LOCAL__HYBRID,
@@ -88,23 +82,23 @@ int32_t Voice::combineExpressionValues(const Sound& sound, int32_t expressionDim
 	return lshiftAndSaturate<1>(combinedValue);
 }
 
-Voice::Voice() : patcher(&patchableInfoForVoice) {
+Voice::Voice(Sound& sound) : patcher(kPatcherConfigForVoice, sourceValues, paramFinalValues), sound{sound} {
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
 // it. You'll normally want to call audioDriver.voiceUnassigned() after this.
-void Voice::setAsUnassigned(ModelStackWithVoice* modelStack, bool deletingSong) {
+void Voice::setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong) {
 
 	unassignStuff(deletingSong);
 
 	if (!deletingSong) {
-		this->assignedToSound->voiceUnassigned(modelStack);
+		this->sound.voiceUnassigned(modelStack);
 	}
 }
 
 void Voice::unassignStuff(bool deletingSong) {
 	for (int32_t s = 0; s < kNumSources; s++) {
-		for (int32_t u = 0; u < this->assignedToSound->numUnison; u++) {
+		for (int32_t u = 0; u < this->sound.numUnison; u++) {
 			unisonParts[u].sources[s].unassign(deletingSong);
 		}
 	}
@@ -113,7 +107,7 @@ void Voice::unassignStuff(bool deletingSong) {
 uint32_t lastSoundOrder = 0;
 
 // Returns false if fail and we need to unassign again
-bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
+bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
                    int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength,
                    int32_t ticksLate, uint32_t samplesLate, bool resetEnvelopes, int32_t newFromMIDIChannel,
                    const int16_t* mpeValues) {
@@ -156,8 +150,10 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	}
 
 	// Setup and render local LFO
-	lfo.setLocalInitialPhase(sound.lfoConfig[LFO2_ID]);
-	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = lfo.render(0, sound.lfoConfig[LFO2_ID], 0);
+	lfo2.setLocalInitialPhase(sound.lfoConfig[LFO2_ID]);
+	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] = lfo2.render(0, sound.lfoConfig[LFO2_ID], 0);
+	lfo4.setLocalInitialPhase(sound.lfoConfig[LFO4_ID]);
+	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] = lfo4.render(0, sound.lfoConfig[LFO4_ID], 0);
 
 	// Setup some sources which won't change for the duration of this note
 	sourceValues[util::to_underlying(PatchSource::VELOCITY)] =
@@ -172,8 +168,8 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	}
 
 	if (resetEnvelopes) {
-		memset(sourceAmplitudesLastTime, 0, sizeof(sourceAmplitudesLastTime));
-		memset(modulatorAmplitudeLastTime, 0, sizeof(modulatorAmplitudeLastTime));
+		sourceAmplitudesLastTime.fill(0);
+		modulatorAmplitudeLastTime.fill(0);
 		overallOscAmplitudeLastTime = 0;
 		doneFirstRender = false;
 
@@ -202,7 +198,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	for (int32_t s = 0; s < util::to_underlying(kFirstLocalSource); s++) {
 		sourceValues[s] = sound.globalSourceValues[s];
 	}
-	patcher.performInitialPatching(&sound, paramManager);
+	patcher.performInitialPatching(sound, *paramManager);
 
 	// Setup and render envelopes - again. Because they're local params (since mid-late 2017), we really need to render
 	// them *after* initial patching is performed.
@@ -241,7 +237,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 				AudioFileHolder* holder = range->getAudioFileHolder();
 				// Only actually set the Range as ours if it has an AudioFile - so that we'll always know that any
 				// VoiceSource's range definitely has a sample
-				if (!holder->audioFile) {
+				if (!holder || !holder->audioFile) {
 					goto gotInactive;
 				}
 
@@ -299,7 +295,8 @@ activenessDetermined:
 		// in STRETCH mode, cos that works differently
 
 		if (oscType == OscType::SAMPLE && guides[s].audioFileHolder) {
-			guides[s].setupPlaybackBounds(source->sampleControls.reversed);
+			source->sampleControls.invertReversed = sound.invertReversed; // Copy the temporary flag from the sound
+			guides[s].setupPlaybackBounds(source->sampleControls.isCurrentlyReversed());
 
 			// if (source->repeatMode == SampleRepeatMode::STRETCH) samplesLateHere = 0;
 		}
@@ -354,7 +351,7 @@ void Voice::expressionEventSmooth(int32_t newValue, int32_t s) {
 	expressionSourcesCurrentlySmoothing[expressionDimension] = true;
 }
 
-void Voice::changeNoteCode(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
+void Voice::changeNoteCode(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
                            int32_t newNoteCodeAfterArpeggiation, int32_t newInputMIDIChannel,
                            const int16_t* newMPEValues) {
 	inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = newNoteCodeBeforeArpeggiation;
@@ -414,7 +411,7 @@ void Voice::randomizeOscPhases(const Sound& sound) {
 }
 
 // Can accept NULL paramManager
-void Voice::calculatePhaseIncrements(ModelStackWithVoice* modelStack) {
+void Voice::calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack) {
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
@@ -528,7 +525,8 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 	if (sound.getSynthMode() == SynthMode::FM) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
 
-			if (sound.getSmoothedPatchedParamValue(params::LOCAL_MODULATOR_0_VOLUME + m, paramManager) == -2147483648) {
+			if (sound.getSmoothedPatchedParamValue(params::LOCAL_MODULATOR_0_VOLUME + m, *paramManager)
+			    == -2147483648) {
 				continue; // Only if modulator active
 			}
 
@@ -569,7 +567,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 	}
 }
 
-void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
+void Voice::noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage) {
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		guides[s].noteOffReceived = true;
@@ -625,10 +623,17 @@ void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 			}
 		}
 	}
+
+	for (int32_t s = 0; s < kNumSources; s++) {
+		Source* source = &sound.sources[s];
+		if (source->oscType == OscType::SAMPLE) {
+			source->sampleControls.invertReversed = false; // Reset temporary flag back to normal
+		}
+	}
 }
 
 // Returns false if voice needs unassigning now
-bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, MarkerType markerType) {
+bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, MarkerType markerType) {
 
 	AudioFileHolder* holder = guides[s].audioFileHolder;
 	if (!holder) {
@@ -642,7 +647,7 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	const Source& source = sound.sources[s];
 	Sample* sample = (Sample*)holder->audioFile;
 
-	guides[s].setupPlaybackBounds(source.sampleControls.reversed);
+	guides[s].setupPlaybackBounds(source.sampleControls.isCurrentlyReversed());
 
 	LoopType loopingType = guides[s].getLoopingType(sound.sources[s]);
 
@@ -656,8 +661,9 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 		VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
 		if (voiceUnisonPartSource->active) {
-			bool stillActive = voiceUnisonPartSource->voiceSample->sampleZoneChanged(&guides[s], sample, markerType,
-			                                                                         loopingType, getPriorityRating());
+			bool stillActive = voiceUnisonPartSource->voiceSample->sampleZoneChanged(
+			    &guides[s], sample, source.sampleControls.isCurrentlyReversed(), markerType, loopingType,
+			    getPriorityRating());
 			if (!stillActive) {
 				D_PRINTLN("returned false ---------");
 				voiceUnisonPartSource->unassign(false);
@@ -690,20 +696,18 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	return true;
 }
 
-uint32_t Voice::getLocalLFOPhaseIncrement() {
-	LFOConfig& config = assignedToSound->lfoConfig[LFO2_ID];
+uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param) {
+	LFOConfig& config = sound.lfoConfig[lfoId];
 	if (config.syncLevel == SYNC_LEVEL_NONE) {
-		return paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ];
+		return paramFinalValues[param];
 	}
-	else {
-		return assignedToSound->getSyncedLFOPhaseIncrement(config);
-	}
+	return sound.getSyncedLFOPhaseIncrement(config);
 }
 
 // Before calling this, you must set the filterSetConfig's doLPF and doHPF to default values
 
 // Returns false if became inactive and needs unassigning
-[[gnu::hot]] bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples,
+[[gnu::hot]] bool Voice::render(ModelStackWithSoundFlags* modelStack, int32_t* soundBuffer, int32_t numSamples,
                                 bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
                                 bool doLPF, bool doHPF, int32_t externalPitchAdjust) {
 	// we spread out over a render cycle - allocating and starting the voice takes more time than rendering it so this
@@ -750,14 +754,24 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 	        && sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] == std::numeric_limits<int32_t>::min());
 	// Local LFO
 	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
-	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
-		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)];
+	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL_1))) {
+		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)];
 		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
 		// for every sample.
-		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] =
-		    lfo.render(numSamples, sound.lfoConfig[LFO2_ID], getLocalLFOPhaseIncrement());
-		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)]);
-		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL);
+		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] = lfo2.render(
+		    numSamples, sound.lfoConfig[LFO2_ID], getLocalLFOPhaseIncrement(LFO2_ID, params::LOCAL_LFO_LOCAL_FREQ_1));
+		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)]);
+		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_1);
+	}
+	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
+	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL_2))) {
+		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)];
+		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
+		// for every sample.
+		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] = lfo4.render(
+		    numSamples, sound.lfoConfig[LFO4_ID], getLocalLFOPhaseIncrement(LFO4_ID, params::LOCAL_LFO_LOCAL_FREQ_2));
+		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)]);
+		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_2);
 	}
 
 	// MPE params
@@ -794,7 +808,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 		for (int32_t s = 0; s < util::to_underlying(kFirstLocalSource); s++) {
 			sourceValues[s] = sound.globalSourceValues[s];
 		}
-		patcher.performPatching(sourcesChanged, &sound, paramManager);
+		patcher.performPatching(sourcesChanged, sound, *paramManager);
 	}
 
 	// Sort out pitch
@@ -1648,7 +1662,7 @@ renderingDone:
 	return !unassignVoiceAfter;
 }
 
-bool Voice::areAllUnisonPartsInactive(ModelStackWithVoice& modelStack) const {
+bool Voice::areAllUnisonPartsInactive(ModelStackWithSoundFlags& modelStack) const {
 	// If no noise-source, then it might be time to unassign the voice...
 	if (!modelStack.paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
 	        -2147483648)) {
@@ -2127,7 +2141,8 @@ pitchTooHigh:
 
 							// And if it's an envelope or LFO or random...
 							if (cable->from == PatchSource::ENVELOPE_0 || cable->from == PatchSource::ENVELOPE_1
-							    || cable->from == PatchSource::LFO_GLOBAL || cable->from == PatchSource::LFO_LOCAL
+							    || cable->from == PatchSource::LFO_GLOBAL_1 || cable->from == PatchSource::LFO_LOCAL_1
+							    || cable->from == PatchSource::LFO_GLOBAL_2 || cable->from == PatchSource::LFO_LOCAL_2
 							    || cable->from == PatchSource::RANDOM) {
 								goto dontUseCache;
 							}
@@ -2479,9 +2494,7 @@ bool Voice::doImmediateRelease() {
 	}
 
 	// Or if first render not done yet, we actually don't want to hear anything at all, so just unassign it
-	else {
-		return false;
-	}
+	return false;
 }
 
 bool Voice::hasReleaseStage() {
@@ -2493,16 +2506,16 @@ static_assert(kNumEnvelopeStages < 8, "Too many envelope stages");
 static_assert(kNumVoicePriorities < 4, "Too many priority options");
 
 // Higher numbers are lower priority. 1 is top priority. Will never return 0, because nextVoiceState starts at 1
-uint32_t Voice::getPriorityRating() {
+uint32_t Voice::getPriorityRating() const {
 	return
 	    // Bits 30-31 - manual priority setting
-	    ((uint32_t)(3 - util::to_underlying(assignedToSound->voicePriority)) << 30)
+	    ((uint32_t)(3 - util::to_underlying(sound.voicePriority)) << 30)
 
 	    // Bits 27-29 - how many voices that Sound has
 	    // - that one really does need to go above state, otherwise "once" samples can still cut out synth drones.
 	    // In a perfect world, culling for the purpose of "soliciting" a Voice would also count the new Voice being
 	    // solicited, preferring to cut out that same Sound's old, say, one Voice, than another Sound's only Voice
-	    + ((uint32_t)std::min(assignedToSound->numVoicesAssigned, 7_i32) << 27)
+	    + ((uint32_t)std::min<size_t>(sound.numActiveVoices(), 7) << 27)
 
 	    // Bits 24-26 - envelope state
 	    + ((uint32_t)envelopes[0].state << 24)
@@ -2510,4 +2523,3 @@ uint32_t Voice::getPriorityRating() {
 	    // Bits  0-23 - time entered
 	    + ((uint32_t)(-envelopes[0].timeEnteredState) & (0xFFFFFFFF >> 8));
 }
-#pragma GCC diagnostic pop

@@ -24,13 +24,17 @@
 #include <cstdint>
 
 class NonAudioDrum : public Drum, public ModControllable {
-public:
-	NonAudioDrum(DrumType newType);
+	bool state_ = false;
 
-	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) final;
-	bool anyNoteIsOn() final;
-	bool hasAnyVoices() final;
-	void unassignAllVoices() override;
+public:
+	NonAudioDrum(DrumType newType) : Drum(newType) {}
+
+	// Voiced overrides
+	bool anyNoteIsOn() final { return state_; };
+	[[nodiscard]] bool hasActiveVoices() const final { return state_; };
+	void killAllVoices() override;
+	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) final { return true; }
+
 	bool readDrumTagFromFile(Deserializer& reader, char const* tagName);
 
 	virtual int32_t getNumChannels() = 0;
@@ -39,17 +43,16 @@ public:
 
 	ModControllable* toModControllable() override { return this; }
 
-	bool state;
 	uint8_t lastVelocity;
 
 	uint8_t channel;
-	int8_t channelEncoderCurrentOffset;
+	int8_t channelEncoderCurrentOffset = 0;
 
 	ArpeggiatorBase* getArp() { return &arpeggiator; }
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
 
-	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) = 0;
-	virtual void noteOffPostArp(int32_t noteCodePostArp) = 0;
+	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) { state_ = true; };
+	virtual void noteOffPostArp(int32_t noteCodePostArp) { state_ = false; };
 
 	void writeArpeggiatorToFile(Serializer& writer);
 

@@ -23,7 +23,7 @@ class MIDIDrum final : public NonAudioDrum {
 public:
 	MIDIDrum();
 
-	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
+	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
 	            int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	            uint32_t samplesLate = 0) override;
 	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) override;
@@ -33,7 +33,7 @@ public:
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	void getName(char* buffer) override;
 	int32_t getNumChannels() override { return 16; }
-	void unassignAllVoices() override;
+	void killAllVoices() override;
 
 	int8_t modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset, uint8_t whichModEncoder) override;
 

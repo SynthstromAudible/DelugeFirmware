@@ -27,27 +27,45 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->noteMode); }
 	void writeCurrentValue() override {
-		int32_t value = this->getValue();
 		soundEditor.currentArpSettings->noteMode = this->getValue<ArpNoteMode>();
 		soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
+		if (soundEditor.currentArpSettings->noteMode == ArpNoteMode::PATTERN) {
+			soundEditor.currentArpSettings->generateNewNotePattern();
+		}
 		soundEditor.currentArpSettings->flagForceArpRestart = true;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingGateDrumRow();
+		return !soundEditor.editingKitRow();
 	}
 	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
+		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
-		(void)optType;
 		using enum l10n::String;
+		if (optType == OptType::SHORT) {
+			return {
+			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_UP),        //<
+			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_DOWN),      //<
+			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_UP_DOWN),   //<
+			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_RANDOM),    //<
+			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_WALK1),     //<
+			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_WALK2),     //<
+			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_WALK3),     //<
+			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_AS_PLAYED), //<
+			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_PATTERN),   //<
+			};
+		}
 		return {
 		    l10n::getView(STRING_FOR_UP),        //<
 		    l10n::getView(STRING_FOR_DOWN),      //<
 		    l10n::getView(STRING_FOR_UP_DOWN),   //<
-		    l10n::getView(STRING_FOR_AS_PLAYED), //<
 		    l10n::getView(STRING_FOR_RANDOM),    //<
+		    l10n::getView(STRING_FOR_WALK1),     //<
+		    l10n::getView(STRING_FOR_WALK2),     //<
+		    l10n::getView(STRING_FOR_WALK3),     //<
+		    l10n::getView(STRING_FOR_AS_PLAYED), //<
+		    l10n::getView(STRING_FOR_PATTERN),   //<
 		};
 	}
 };
