@@ -761,8 +761,8 @@ void updateWorkingAnimation() {
 	}
 }
 
-void OLED::displayWorkingAnimation(char const* word) {
-	loading = (strcmp(word, "Loading") == 0);
+void OLED::displayWorkingAnimation(std::string_view word) {
+	loading = (word == "Loading");
 	if (working_animation_count)
 		uiTimerManager.unsetTimer(TimerName::LOADING_ANIMATION);
 	working_animation_count = 1;
