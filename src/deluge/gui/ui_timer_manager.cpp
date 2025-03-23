@@ -99,6 +99,17 @@ void UITimerManager::routine() {
 
 					break;
 
+				case TimerName::LOADING_ANIMATION:
+					if (display->haveOLED()) {
+						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
+						oled->timerRoutine();
+					}
+					else {
+						display->timerRoutine();
+					}
+
+					break;
+
 				case TimerName::LED_BLINK:
 				case TimerName::LED_BLINK_TYPE_1:
 					indicator_leds::ledBlinkTimeout(i - util::to_underlying(TimerName::LED_BLINK));
