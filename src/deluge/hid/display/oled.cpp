@@ -412,7 +412,6 @@ void OLED::removePopup() {
 	popupType = PopupType::NONE;
 	uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	markChanged();
-	// D_PRINTLN("remove popup");
 }
 
 bool OLED::isPopupPresent() {
@@ -698,7 +697,6 @@ void OLED::popupText(std::string_view text, bool persistent, PopupType type) {
 }
 
 void updateWorkingAnimation() {
-	// D_PRINTLN("working animation count: %d", working_animation_count);
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
 	int32_t w1 = 5;          // spacing between rectangles
@@ -715,9 +713,6 @@ void updateWorkingAnimation() {
 	int32_t x_pos2 = loading ? x2 - working_animation_count + 1 : x_min + 1 + working_animation_count;
 	int32_t t_reset = w1 + w2 + (h - 2) * offset;
 	if (!started_animation) { // initialize the animation
-		// for (int i = 0; i < OLED_MAIN_HEIGHT_PIXELS; i++) { // fills in screen for debug
-		// 	image.drawHorizontalLine(i, 0, OLED_MAIN_WIDTH_PIXELS);
-		// }
 		started_animation = true;
 		// clear space and draw outer borders that will not change during the animation
 		image.clearAreaExact(x_min - 1, OLED_MAIN_TOPMOST_PIXEL, x_max, y2 + 1);
