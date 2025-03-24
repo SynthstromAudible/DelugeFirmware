@@ -28,6 +28,8 @@ public:
 	// 7SEG Only
 	void drawValue() override { display->setTextAsNumber(this->getValue(), shouldDrawDotOnName()); }
 
+	bool usesAffectEntire() override { return true; }
+
 	ParamDescriptor getLearningThing() final { return PatchedParam::getLearningThing(); }
 	[[nodiscard]] int32_t getMaxValue() const override { return PatchedParam::getMaxValue(); }
 	[[nodiscard]] int32_t getMinValue() const override { return PatchedParam::getMinValue(); }

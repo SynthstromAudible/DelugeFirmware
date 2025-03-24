@@ -17,8 +17,12 @@
 #pragma once
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/song/song.h"
+#include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::stutter {
 
@@ -28,18 +32,41 @@ public:
 	void readCurrentValue() override {
 		this->setValue(soundEditor.currentModControllable->stutterConfig.useSongStutter);
 	}
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		bool value = this->getValue();
-		if (!value) {
-			// Copy current song settings to this clip settings
-			soundEditor.currentModControllable->stutterConfig.quantized =
-			    currentSong->globalEffectable.stutterConfig.quantized;
-			soundEditor.currentModControllable->stutterConfig.reversed =
-			    currentSong->globalEffectable.stutterConfig.reversed;
-			soundEditor.currentModControllable->stutterConfig.pingPong =
-			    currentSong->globalEffectable.stutterConfig.pingPong;
+		bool current_value = this->getValue();
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					if (!current_value) {
+						// Copy current song settings to this SoundDrum settings
+						soundDrum->stutterConfig.quantized = currentSong->globalEffectable.stutterConfig.quantized;
+						soundDrum->stutterConfig.reversed = currentSong->globalEffectable.stutterConfig.reversed;
+						soundDrum->stutterConfig.pingPong = currentSong->globalEffectable.stutterConfig.pingPong;
+					}
+					soundDrum->stutterConfig.useSongStutter = current_value;
+				}
+			}
 		}
-		soundEditor.currentModControllable->stutterConfig.useSongStutter = value;
+		// Or, the normal case of just one sound
+		else {
+			if (!current_value) {
+				// Copy current song settings to this Sound settings
+				soundEditor.currentModControllable->stutterConfig.quantized =
+				    currentSong->globalEffectable.stutterConfig.quantized;
+				soundEditor.currentModControllable->stutterConfig.reversed =
+				    currentSong->globalEffectable.stutterConfig.reversed;
+				soundEditor.currentModControllable->stutterConfig.pingPong =
+				    currentSong->globalEffectable.stutterConfig.pingPong;
+			}
+			soundEditor.currentModControllable->stutterConfig.useSongStutter = current_value;
+		}
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.currentModControllable->isSong();

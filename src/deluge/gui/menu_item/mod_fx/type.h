@@ -16,11 +16,14 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include "model/settings/runtime_feature_settings.h"
+#include "model/song/song.h"
+#include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::mod_fx {
 
@@ -29,9 +32,32 @@ public:
 	using Selection::Selection;
 
 	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->modFXType_); }
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		if (!soundEditor.currentModControllable->setModFXType(this->getValue<ModFXType>())) {
-			display->displayError(Error::INSUFFICIENT_RAM);
+		auto current_value = this->getValue<ModFXType>();
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			bool some_error = false;
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					if (!soundDrum->setModFXType(current_value)) {
+						some_error = true;
+					}
+				}
+			}
+			if (some_error) {
+				display->displayError(Error::INSUFFICIENT_RAM);
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			if (!soundEditor.currentModControllable->setModFXType(current_value)) {
+				display->displayError(Error::INSUFFICIENT_RAM);
+			}
 		}
 	}
 

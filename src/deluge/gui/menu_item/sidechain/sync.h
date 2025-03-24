@@ -17,8 +17,12 @@
 #pragma once
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
+#include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::sidechain {
 class Sync final : public SyncLevel {
@@ -30,9 +34,30 @@ public:
 		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSidechain->syncType,
 		                                            soundEditor.currentSidechain->syncLevel));
 	}
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		soundEditor.currentSidechain->syncType = syncValueToSyncType(this->getValue());
-		soundEditor.currentSidechain->syncLevel = syncValueToSyncLevel(this->getValue());
+		int32_t current_value = this->getValue();
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+
+					soundDrum->sidechain.syncType = syncValueToSyncType(current_value);
+					soundDrum->sidechain.syncLevel = syncValueToSyncLevel(current_value);
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			soundEditor.currentSidechain->syncType = syncValueToSyncType(current_value);
+			soundEditor.currentSidechain->syncLevel = syncValueToSyncLevel(current_value);
+		}
+
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

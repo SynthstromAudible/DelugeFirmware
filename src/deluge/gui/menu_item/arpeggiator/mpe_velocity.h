@@ -17,16 +17,39 @@
 #pragma once
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
+#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
 class ArpMpeVelocity final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->mpeVelocity); }
+
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		soundEditor.currentArpSettings->mpeVelocity = this->getValue<ArpMpeModSource>();
+		auto current_value = this->getValue<ArpMpeModSource>();
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				// Note: we need to apply the same filtering as stated in the isRelevant() function
+				if (thisDrum->type != DrumType::GATE) {
+					thisDrum->arpSettings.mpeVelocity = current_value;
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			soundEditor.currentArpSettings->mpeVelocity = current_value;
+		}
 	}
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingGateDrumRow();
 	}

@@ -18,6 +18,7 @@
 
 #include "gui/ui/sound_editor.h"
 #include "model/mod_controllable/filters/filter_config.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/patch/patch_cable_set.h"
 
 namespace deluge::gui::menu_item::filter {
@@ -55,17 +56,18 @@ public:
 			return std::min(selection, kNumLPFModes);
 		}
 	}
-	void setMode(int32_t value) const {
+	void setMode(int32_t value) const { setModeForModControllable(value, soundEditor.currentModControllable); }
+	void setModeForModControllable(int32_t value, ModControllableAudio* modControllable) const {
 		if (slot == FilterSlot::HPF) {
-			soundEditor.currentModControllable->hpfMode = static_cast<FilterMode>(value + kFirstHPFMode);
+			modControllable->hpfMode = static_cast<FilterMode>(value + kFirstHPFMode);
 		}
 		else {
 			// num lpf modes counts off but there's HPF modes in the middle
 			if (value >= kNumLPFModes) {
-				soundEditor.currentModControllable->lpfMode = FilterMode::OFF;
+				modControllable->lpfMode = FilterMode::OFF;
 			}
 			else {
-				soundEditor.currentModControllable->lpfMode = static_cast<FilterMode>(value);
+				modControllable->lpfMode = static_cast<FilterMode>(value);
 			}
 		}
 	}

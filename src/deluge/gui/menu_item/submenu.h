@@ -46,6 +46,7 @@ public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) final;
 	void readValueAgain() final { updateDisplay(); }
 	void unlearnAction() final;
+	bool usesAffectEntire() override;
 	bool allowsLearnMode() final;
 	void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final;
 	void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) override;

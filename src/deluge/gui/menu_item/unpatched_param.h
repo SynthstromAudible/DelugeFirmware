@@ -32,6 +32,7 @@ public:
 
 	UnpatchedParam(l10n::String newName, int32_t newP) : Param(newP), IntegerContinuous(newName) {}
 
+	bool usesAffectEntire() override { return true; }
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
 	ParamDescriptor getLearningThing() final;
