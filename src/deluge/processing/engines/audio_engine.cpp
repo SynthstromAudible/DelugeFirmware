@@ -304,8 +304,8 @@ void terminateOneVoice(size_t numSamples) {
 	const Sound::ActiveVoice* best = nullptr;
 	for (const auto& voice : all_voices) {
 		// if we're not skipping releasing voices, or if we are and this one isn't in fast release
-		if (voice->envelopes[0].state > EnvelopeStage::FAST_RELEASE
-		    || voice->envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT) {
+		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
+		    && voice->envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT) {
 			continue;
 		}
 		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
@@ -334,9 +334,9 @@ void forceReleaseOneVoice(size_t num_samples) {
 
 	const Sound::ActiveVoice* best = nullptr;
 	for (const auto& voice : all_voices) {
-		// if we're not skipping releasing voices, or if we are and this one isn't in fast release
-		if (voice->envelopes[0].state > EnvelopeStage::FAST_RELEASE
-		    || voice->envelopes[0].fastReleaseIncrement >= 4096) {
+		// if the voice is already releasing faste than this we'd rather release another voice
+		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
+		    && voice->envelopes[0].fastReleaseIncrement >= 4096) {
 			continue;
 		}
 		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
