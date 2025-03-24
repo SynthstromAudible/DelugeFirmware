@@ -21,9 +21,12 @@
 #include "gui/menu_item/filter/info.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::filter {
@@ -33,7 +36,28 @@ public:
 	FilterModeSelection(deluge::l10n::String newName, deluge::l10n::String newTitle, FilterSlot slot_)
 	    : Selection{newName, newTitle}, info{slot_, FilterParamType::MODE} {}
 	void readCurrentValue() override { this->setValue(info.getModeValue()); }
-	void writeCurrentValue() override { info.setMode(this->getValue()); }
+	bool usesAffectEntire() override { return true; }
+	void writeCurrentValue() override {
+		auto current_value = this->getValue();
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+
+					info.setModeForModControllable(current_value, soundDrum);
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			info.setMode(current_value);
+		}
+	}
 	bool wrapAround() override {
 		// We want the mode menus to wrap around when using horizontal menus: that way NONE -> turn clockwise
 		// turns the filter on.

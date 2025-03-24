@@ -17,7 +17,12 @@
 #pragma once
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/song/song.h"
+#include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::stutter {
 
@@ -25,7 +30,30 @@ class PingPongStutter final : public Toggle {
 public:
 	using Toggle::Toggle;
 	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->stutterConfig.pingPong); }
-	void writeCurrentValue() override { soundEditor.currentModControllable->stutterConfig.pingPong = this->getValue(); }
+	bool usesAffectEntire() override { return true; }
+	void writeCurrentValue() override {
+		bool current_value = this->getValue();
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					// Note: we need to apply the same filtering as stated in the isRelevant() function
+					if (!soundEditor.currentModControllable->stutterConfig.useSongStutter) {
+						soundDrum->stutterConfig.pingPong = current_value;
+					}
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			soundEditor.currentModControllable->stutterConfig.pingPong = current_value;
+		}
+	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return soundEditor.currentModControllable->isSong()
 		       || !soundEditor.currentModControllable->stutterConfig.useSongStutter;

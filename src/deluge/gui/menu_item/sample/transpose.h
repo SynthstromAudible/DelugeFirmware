@@ -17,7 +17,13 @@
 #pragma once
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/source/transpose.h"
+#include "gui/ui/sound_editor.h"
+#include "model/clip/instrument_clip.h"
+#include "model/instrument/kit.h"
+#include "model/model_stack.h"
+#include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 #include "storage/multi_range/multisample_range.h"
 
 // NOTE: This is actually the Oscillator transpose!
@@ -44,25 +50,58 @@ public:
 		}
 		this->setValue(computeCurrentValueForTranspose(transpose, cents));
 	}
-
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t transpose, cents;
 		computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
 
-		if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SynthMode::FM
-		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
-			(static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose = transpose;
-			(static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.setCents(cents);
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+
+					if (soundDrum->sources[soundEditor.currentSourceIndex].ranges.getNumElements()
+					    && soundDrum->getSynthMode() != SynthMode::FM
+					    && soundDrum->sources[soundEditor.currentSourceIndex].oscType == OscType::SAMPLE) {
+						MultisampleRange* multisampleRange = static_cast<MultisampleRange*>(
+						    soundDrum->sources[soundEditor.currentSourceIndex].ranges.getElement(0));
+						multisampleRange->sampleHolder.transpose = transpose;
+						multisampleRange->sampleHolder.setCents(cents);
+					}
+					else {
+						soundDrum->sources[soundEditor.currentSourceIndex].transpose = transpose;
+						soundDrum->sources[soundEditor.currentSourceIndex].setCents(cents);
+					}
+
+					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
+					ModelStackWithSoundFlags* modelStackForSoundDrum =
+					    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
+
+					soundDrum->recalculateAllVoicePhaseIncrements(modelStackForSoundDrum);
+				}
+			}
 		}
+		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSource->transpose = transpose;
-			soundEditor.currentSource->setCents(cents);
+			if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SynthMode::FM
+			    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
+				(static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose = transpose;
+				(static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.setCents(cents);
+			}
+			else {
+				soundEditor.currentSource->transpose = transpose;
+				soundEditor.currentSource->setCents(cents);
+			}
+
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
+
+			soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 		}
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
-
-		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 	}
 
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,

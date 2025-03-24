@@ -20,6 +20,8 @@
 #include "gui/menu_item/automation/automation.h"
 #include "gui/menu_item/menu_item.h"
 #include <cstdint>
+
+class SoundDrum;
 class ParamSet;
 class ModelStackWithAutoParam;
 
