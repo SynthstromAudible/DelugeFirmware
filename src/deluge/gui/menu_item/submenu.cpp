@@ -196,17 +196,12 @@ void Submenu::selectEncoderAction(int32_t offset) {
 	bool selectButtonPressed = Buttons::selectButtonPressUsedUp = Buttons::isButtonPressed(hid::button::SELECT_ENC);
 
 	/* turning select encoder while any of these conditions are true can change horizontal menu value
-	        i) Shift Button is stuck but not pressed; or
-	        ii) Shift button pressed but not stuck and alternative select encoder behaviour is disabled; or
-	        iii) Audition pad pressed and alternative select encoder behaviour is disabled; or
-	        iii) You're not holding shift button and Horizontal menu alternative select
-	 encoder behaviour is enabled
+	    i) Shift Button is stuck; or
+	    ii) Audition pad pressed; or
+	    iii) Horizontal menu alternative select encoder behaviour is enabled
 	*/
-	bool horizontalMenuValueChangeModifierEnabled =
-	    Buttons::isShiftStuckButNotPressed()
-	    || (Buttons::isShiftPressedButNotStuck() && !FlashStorage::defaultAlternativeSelectEncoderBehaviour)
-	    || (isUIModeActive(UI_MODE_AUDITIONING) && !FlashStorage::defaultAlternativeSelectEncoderBehaviour)
-	    || (!Buttons::isButtonPressed(hid::button::SHIFT) && FlashStorage::defaultAlternativeSelectEncoderBehaviour);
+	bool horizontalMenuValueChangeModifierEnabled = Buttons::isShiftStuck() || isUIModeActive(UI_MODE_AUDITIONING)
+	                                                || FlashStorage::defaultAlternativeSelectEncoderBehaviour;
 
 	// change horizontal menu value when either:
 	// A) You're not pressing select encoder AND value change modifier is true
