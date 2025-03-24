@@ -835,20 +835,10 @@ void updateWorkingAnimation() {
 		else
 			uiTimerManager.setTimer(TimerName::LOADING_ANIMATION, 70); // time interval between animation steps
 	}
-
-	char buffer[4];
-	buffer[3] = 0;
-
-	for (int32_t i = 0; i < 3; i++) {
-		buffer[i] = (i <= workingAnimationCount) ? '.' : ' ';
-	}
-
-	error = textNow.concatenate(buffer);
-	OLED::popupText(textNow.get(), true, PopupType::LOADING);
 }
 
-void OLED::displayWorkingAnimation(std::string_view word) {
-	loading = (word == "Loading");
+void OLED::displayWorkingAnimation(char const* word) {
+	loading = !strcmp(word, "Loading");
 	if (working_animation_count)
 		uiTimerManager.unsetTimer(TimerName::LOADING_ANIMATION);
 	working_animation_count = 1;
