@@ -359,6 +359,16 @@ void Submenu::updatePadLights() {
 	}
 }
 
+bool Submenu::usesAffectEntire() {
+	if (current_item_ != items.end()
+	    && (renderingStyle() == RenderingStyle::HORIZONTAL || !(*current_item_)->shouldEnterSubmenu())) {
+		// If the menu is Horizontal or is the focused menu item is a toggle,
+		// then we should use affect-entire from this item
+		return (*current_item_)->usesAffectEntire();
+	}
+	return false;
+}
+
 MenuItem* Submenu::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
 	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
 		return (*current_item_)->patchingSourceShortcutPress(s, previousPressStillActive);

@@ -19,7 +19,11 @@
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
+#include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::midi::sound {
 
@@ -38,6 +42,7 @@ public:
 		}
 		this->setValue(value);
 	}
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t value = this->getValue();
 		if (value == 0) {
@@ -46,7 +51,22 @@ public:
 		else {
 			value = value - 1;
 		}
-		soundEditor.currentSound->outputMidiChannel = value;
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					soundDrum->outputMidiChannel = value;
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			soundEditor.currentSound->outputMidiChannel = value;
+		}
 	}
 
 	void drawValue() override {

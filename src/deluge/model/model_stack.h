@@ -39,6 +39,7 @@ class ModelStackWithModControllable;
 class ModelStackWithSoundFlags;
 class ParamManager;
 class ParamCollectionSummary;
+class SoundDrum;
 
 /* ====================== ModelStacks =====================
  *
@@ -292,6 +293,8 @@ public:
 };
 
 #define MODEL_STACK_MAX_SIZE sizeof(ModelStackWithAutoParam)
+
+ModelStackWithThreeMainThings* getModelStackFromSoundDrum(void* memory, SoundDrum* soundDrum);
 
 inline ModelStack* setupModelStackWithSong(void* memory, Song* newSong) {
 	ModelStack* modelStack = (ModelStack*)memory;

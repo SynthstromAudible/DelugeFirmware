@@ -36,9 +36,30 @@ public:
 		}
 		this->setValue(voiceCount);
 	}
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		int32_t num = this->getValue();
-		soundEditor.currentSound->maxVoiceCount = num == 0 ? 127 : num;
+		int32_t current_value = this->getValue();
+		current_value = current_value == 0 ? 127 : current_value;
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					// Note: we need to apply the same filtering as stated in the isRelevant() function
+					if (soundDrum->polyphonic == PolyphonyMode::POLY) {
+						soundDrum->maxVoiceCount = current_value;
+					}
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			soundEditor.currentSound->maxVoiceCount = current_value;
+		}
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 16; }
@@ -54,11 +75,12 @@ class PolyphonyType final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->polyphonic); }
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<PolyphonyMode>();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -69,7 +91,6 @@ public:
 				}
 			}
 		}
-
 		// Or, the normal case of just one sound
 		else {
 			soundEditor.currentSound->polyphonic = current_value;
@@ -96,7 +117,5 @@ public:
 		}
 		return Selection::selectButtonPress();
 	}
-
-	bool usesAffectEntire() override { return true; }
 };
 } // namespace deluge::gui::menu_item::voice
