@@ -19,6 +19,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/song/song.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound.h"
@@ -106,6 +107,14 @@ int32_t ModelStackWithNoteRow::getRepeatCount() const {
 	else {
 		return ((Clip*)getTimelineCounter())->repeatCount;
 	}
+}
+
+ModelStackWithThreeMainThings* getModelStackFromSoundDrum(void* memory, SoundDrum* soundDrum) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	int32_t noteRowIndex;
+	NoteRow* noteRow = clip->getNoteRowForDrum(soundDrum, &noteRowIndex);
+	return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, getCurrentClip(), noteRowIndex,
+	                                                          noteRow, soundDrum, &noteRow->paramManager);
 }
 
 // That's *cut* - as in, cut out abruptly. If it's looping, and the user isn't stopping it, that's not a cut.

@@ -18,17 +18,34 @@
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
+#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
 class RandomizerLock final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->randomizerLock); }
-	void writeCurrentValue() override {
-		auto current_value = this->getValue();
 
-		soundEditor.currentArpSettings->randomizerLock = this->getValue() != 0;
+	bool usesAffectEntire() override { return true; }
+	void writeCurrentValue() override {
+		bool current_value = this->getValue() != 0;
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				thisDrum->arpSettings.randomizerLock = current_value;
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			soundEditor.currentArpSettings->randomizerLock = current_value;
+		}
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

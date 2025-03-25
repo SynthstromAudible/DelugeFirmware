@@ -37,7 +37,7 @@ public:
 	void writeCurrentValue() override {
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -51,7 +51,6 @@ public:
 				}
 			}
 		}
-
 		// Or, the normal case of just one sound
 		else {
 			soundEditor.currentSound->killAllVoices();
