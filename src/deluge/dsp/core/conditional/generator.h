@@ -20,6 +20,8 @@
 #include <optional>
 #include <type_traits>
 
+namespace deluge::dsp {
+
 /// @brief ConditionalGenerator is a generator that conditionally applies another generator based on a given condition.
 /// @tparam CondType The type of the condition (e.g., a boolean or a callable).
 /// @tparam GeneratorType The type of the generator to apply if the condition is true.
@@ -131,3 +133,4 @@ ConditionalGenerator(bool, GeneratorType, GeneratorType) -> ConditionalGenerator
 
 template <typename CondType, typename GeneratorType>
 ConditionalGenerator(CondType, GeneratorType, GeneratorType) -> ConditionalGenerator<CondType, GeneratorType>;
+} // namespace deluge::dsp

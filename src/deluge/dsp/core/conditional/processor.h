@@ -21,12 +21,15 @@
 #include <optional>   // For std::optional
 #include <type_traits>
 
+namespace deluge::dsp {
+
 /// @brief ConditionalProcessor is a processor that conditionally applies another processor based on a given condition.
 /// @tparam CondType The type of the condition (e.g., a boolean or a callable).
 /// @tparam ProcessorType The type of the processor to apply if the condition is true.
 template <typename CondType, typename ProcessorType, typename = void>
 struct ConditionalProcessor; // Forward declaration
 
+/// @copydoc ConditionalProcessor
 template <typename CondType, typename ProcessorType>
 struct ConditionalProcessor<
     CondType, ProcessorType,
@@ -178,3 +181,4 @@ ConditionalProcessor(bool, ProcessorType, ProcessorType) -> ConditionalProcessor
 
 template <typename CondType, typename ProcessorType>
 ConditionalProcessor(CondType, ProcessorType, ProcessorType) -> ConditionalProcessor<CondType, ProcessorType>;
+} // namespace deluge::dsp

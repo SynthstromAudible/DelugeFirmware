@@ -20,6 +20,9 @@
 #include <argon.hpp>
 #include <span>
 
+namespace deluge::dsp {
+/// @brief A base class for generators that process a stream of samples.
+/// @tparam T The type of the samples to generate.
 template <typename T>
 struct BlockGenerator {
 	using value_type = T;
@@ -32,7 +35,8 @@ struct BlockGenerator {
 	virtual void renderBlock(std::span<T> buffer) = 0;
 };
 
-/// @brief Generator is a base class for signal generators
+/// @brief A base class for generators that process a single sample at a time.
+/// @tparam T The type of the samples to generate.
 template <typename T>
 struct Generator : BlockGenerator<T> {
 	/// @brief Generate a single sample of type T.
@@ -51,7 +55,8 @@ struct Generator : BlockGenerator<T> {
 	}
 };
 
-/// @brief SIMDGenerator is a base class for SIMD signal generators
+/// @brief A base class for generators that generate a vector of samples using SIMD operations.
+/// @tparam T The type of the samples to generate.
 template <typename T>
 struct SIMDGenerator : BlockGenerator<T> {
 	/// @brief Generate a vector of samples of type T.
@@ -66,3 +71,4 @@ struct SIMDGenerator : BlockGenerator<T> {
 		}
 	}
 };
+} // namespace deluge::dsp

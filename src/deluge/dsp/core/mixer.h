@@ -20,9 +20,14 @@
 #include <argon.hpp>
 #include <span>
 
+namespace deluge::dsp {
+/// @brief A base class for mixers that process a stream of samples.
+/// @tparam T The type of the samples to mix.
 template <typename T>
 struct BlockMixer {
 	using value_type = T;
+
+	virtual ~BlockMixer() = default;
 
 	/// @brief Mix a block of samples from two input buffers into an output buffer.
 	/// @param inputs A span of input buffers to mix.
@@ -30,6 +35,8 @@ struct BlockMixer {
 	virtual void renderBlock(std::span<T> input_a, std::span<T> input_b, std::span<T> output) = 0;
 };
 
+/// @brief A base class for mixers that process a single sample at a time.
+/// @tparam T The type of the samples to mix.
 template <typename T>
 struct Mixer : BlockMixer<T> {
 	/// @brief Mix two input samples into an output.
@@ -48,6 +55,8 @@ struct Mixer : BlockMixer<T> {
 	}
 };
 
+/// @brief A base class for mixers that process a vector of samples using SIMD operations.
+/// @tparam T The type of the samples to mix.
 template <typename T>
 struct SIMDMixer : BlockMixer<T> {
 	/// @brief Mix a vector of samples from two inputs into an output.
@@ -71,3 +80,4 @@ struct SIMDMixer : BlockMixer<T> {
 		}
 	}
 };
+} // namespace deluge::dsp

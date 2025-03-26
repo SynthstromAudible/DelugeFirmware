@@ -16,11 +16,13 @@
  */
 
 #pragma once
-#include "classic/table_oscillator.h"
+#include "legacy/table_oscillator.h"
 #include "util/fixedpoint.h"
 #include "util/waves.h"
 #include <argon.hpp>
 #include <arm_neon.h>
+
+using namespace deluge::dsp::oscillator;
 
 [[gnu::always_inline]] static inline void //<
 renderOscSync(TableOscillator&& osc_core, auto extraInstructionsForCrossoverSampleRedo,

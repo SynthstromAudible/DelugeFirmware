@@ -16,9 +16,6 @@
  */
 #include "oscillator.h"
 #include "basic_waves.h"
-#include "classic/oscillator.h"
-#include "classic/simple_pulse.h"
-#include "classic/table_oscillator.h"
 #include "definitions_cxx.hpp"
 #include "dsp/core/conditional/processor.h"
 #include "dsp/core/pipeline.h"
@@ -27,12 +24,18 @@
 #include "dsp/processors/gain.h"
 #include "dsp/stereo_sample.h"
 #include "dsp/waves.h"
+#include "legacy/oscillator.h"
+#include "legacy/simple_pulse.h"
+#include "legacy/table_oscillator.h"
 #include "processing/engines/audio_engine.h"
 #include "render_wave.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstdint>
+
+using namespace deluge::dsp::oscillator;
+using namespace deluge::dsp::processor;
 
 namespace deluge::dsp {
 PLACE_INTERNAL_FRUNK int32_t oscSyncRenderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES + 4]
@@ -134,7 +137,7 @@ void Oscillator::renderSine(std::span<int32_t> buffer, PhasorPair<uint32_t> osc,
 	    ConditionalProcessor{
 	        apply_amplitude,
 	        Pipeline{
-	            AmplitudeProcessor(amplitude.phase, amplitude.phase_increment),
+	            AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment),
 	            GainMixerProcessor(FixedPoint<31>(0.5), buffer),
 	        },
 	    },
@@ -156,7 +159,7 @@ uint32_t Oscillator::renderSineSync(std::span<int32_t> buffer, PhasorPair<uint32
 	renderOscSync(
 	    TableOscillator(sineWaveSmall, 8), [](uint32_t) {}, osc.phase, osc.phase_increment, resetter.phase,
 	    resetter.phase_increment, retrigger_phase, buffer.size(), buffer_start_this_sync);
-	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
+	AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
 }
 
@@ -186,20 +189,20 @@ void Oscillator::renderTriangle(std::span<int32_t> buffer, PhasorPair<uint32_t> 
 	auto simple_triangle = SimpleOscillatorFor(&deluge::dsp::waves::triangle);
 	auto [table, table_size_magnitude] = getTriangleTable(osc.phase_increment);
 	TableOscillator fancy_triangle(table, table_size_magnitude);
-	auto& oscillator = fast_render ? static_cast<ClassicOscillator&>(simple_triangle)
-	                               : static_cast<ClassicOscillator&>(fancy_triangle);
+	auto& oscillator =
+	    fast_render ? static_cast<LegacyOscillator&>(simple_triangle) : static_cast<LegacyOscillator&>(fancy_triangle);
 	Pipeline pipeline{
 	    &oscillator,
 	    ConditionalProcessor{
 	        apply_amplitude,
 	        Pipeline{
-	            AmplitudeProcessor(amplitude.phase, amplitude.phase_increment),
+	            AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment),
 	            GainMixerProcessor(FixedPoint<31>(0.5), buffer),
 	        },
 	    },
 	};
 
-	std::get<ClassicOscillator*>(pipeline)->setPhaseAndIncrement(osc.phase, osc.phase_increment);
+	std::get<LegacyOscillator*>(pipeline)->setPhaseAndIncrement(osc.phase, osc.phase_increment);
 
 	pipeline.renderBlock(buffer);
 }
@@ -246,7 +249,7 @@ uint32_t Oscillator::renderTriangleSync(std::span<int32_t> buffer, PhasorPair<ui
 	    PWMTableOscillator(table, table_size_magnitude), [](uint32_t) {}, osc.phase, osc.phase_increment,
 	    resetter.phase, resetter.phase_increment, retrigger_phase, num_samples_this_osc_sync_session,
 	    buffer_start_this_sync);
-	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
+	AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
 }
 
@@ -260,20 +263,20 @@ void Oscillator::renderSquare(std::span<int32_t> buffer, PhasorPair<uint32_t> os
 	auto simple_square = SimpleOscillatorFor(&deluge::dsp::waves::square);
 	auto table_square = TableOscillator(dsp::squareTables[table_number], table_size_magnitude);
 	auto& oscillator =
-	    fast_render ? static_cast<ClassicOscillator&>(simple_square) : static_cast<ClassicOscillator&>(table_square);
+	    fast_render ? static_cast<LegacyOscillator&>(simple_square) : static_cast<LegacyOscillator&>(table_square);
 
 	Pipeline pipeline{
 	    &oscillator,
 	    ConditionalProcessor{
 	        apply_amplitude,
 	        Pipeline{
-	            AmplitudeProcessor(amplitude.phase, amplitude.phase_increment),
+	            AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment),
 	            GainMixerProcessor(FixedPoint<31>(0.5), buffer),
 	        },
 	    },
 	};
 
-	std::get<ClassicOscillator*>(pipeline)->setPhaseAndIncrement(osc.phase, osc.phase_increment);
+	std::get<LegacyOscillator*>(pipeline)->setPhaseAndIncrement(osc.phase, osc.phase_increment);
 
 	pipeline.renderBlock(buffer);
 }
@@ -324,7 +327,7 @@ uint32_t Oscillator::renderSquareSync(std::span<int32_t> buffer, PhasorPair<uint
 	renderOscSync(
 	    TableOscillator(table, table_size_magnitude), [](uint32_t) {}, osc.phase, osc.phase_increment, resetter.phase,
 	    resetter.phase_increment, retrigger_phase, num_samples_this_osc_sync_session, buffer_start_this_sync);
-	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
+	AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
 }
 
@@ -345,7 +348,7 @@ void Oscillator::renderPWM(std::span<int32_t> buffer, PhasorPair<uint32_t> osc, 
 	    ConditionalProcessor{
 	        apply_amplitude,
 	        Pipeline{
-	            AmplitudeProcessor(amplitude.phase, amplitude.phase_increment),
+	            AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment),
 	            GainMixerProcessor(FixedPoint<31>(0.5), buffer),
 	        },
 	    },
@@ -418,7 +421,7 @@ uint32_t Oscillator::renderPWMSync(std::span<int32_t> buffer, PhasorPair<uint32_
 	    osc.phase_increment, resetter.phase, resetter.phase_increment, retrigger_phase,
 	    num_samples_this_osc_sync_session, buffer_start_this_sync);
 	osc.phase <<= 1;
-	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
+	AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
 }
 
@@ -430,22 +433,22 @@ void Oscillator::renderSaw(std::span<int32_t> buffer, PhasorPair<uint32_t> osc, 
 	auto simple_saw = SimpleOscillatorFor(&deluge::dsp::waves::saw);
 	TableOscillator proper_saw(dsp::sawTables[table_number], table_size_magnitude);
 
-	ClassicOscillator& oscillator = (table_number < AudioEngine::cpuDireness + 6)
-	                                    ? static_cast<ClassicOscillator&>(simple_saw)
-	                                    : static_cast<ClassicOscillator&>(proper_saw);
+	LegacyOscillator& oscillator = (table_number < AudioEngine::cpuDireness + 6)
+	                                   ? static_cast<LegacyOscillator&>(simple_saw)
+	                                   : static_cast<LegacyOscillator&>(proper_saw);
 
 	Pipeline pipeline{
 	    &oscillator,
 	    ConditionalProcessor{
 	        apply_amplitude,
 	        Pipeline{
-	            AmplitudeProcessor(amplitude.phase, amplitude.phase_increment),
+	            AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment),
 	            GainMixerProcessor(FixedPoint<31>(0.5), buffer),
 	        },
 	    },
 	};
 
-	std::get<ClassicOscillator*>(pipeline)->setPhaseAndIncrement(osc.phase, osc.phase_increment);
+	std::get<LegacyOscillator*>(pipeline)->setPhaseAndIncrement(osc.phase, osc.phase_increment);
 
 	pipeline.renderBlock(buffer);
 }
@@ -496,7 +499,7 @@ uint32_t Oscillator::renderSawSync(std::span<int32_t> buffer, PhasorPair<uint32_
 	    PWMTableOscillator(dsp::sawTables[table_number], table_size_magnitude), [](uint32_t) {}, osc.phase,
 	    osc.phase_increment, resetter.phase, resetter.phase_increment, retrigger_phase,
 	    num_samples_this_osc_sync_session, buffer_start_this_sync);
-	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
+	AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
 }
 
@@ -519,7 +522,7 @@ uint32_t Oscillator::renderWavetable(std::span<int32_t> buffer, PhasorPair<uint3
 	                       retrigger_phase, wave_index, wave_index_increment);
 
 	if (apply_amplitude) {
-		AmplitudeProcessor(amplitude.phase.MultiplyInt(4), amplitude.phase_increment.MultiplyInt(4))
+		AmplitudeStepProcessor(amplitude.phase.MultiplyInt(4), amplitude.phase_increment.MultiplyInt(4))
 		    .renderBlock(oscSyncRenderingBuffer, buffer);
 	}
 	return osc.phase;
@@ -540,7 +543,7 @@ void Oscillator::renderAnalogSaw2(std::span<int32_t> buffer, PhasorPair<uint32_t
 	    ConditionalProcessor{
 	        apply_amplitude,
 	        Pipeline{
-	            AmplitudeProcessor(amplitude.phase, amplitude.phase_increment),
+	            AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment),
 	            GainMixerProcessor(FixedPoint<31>(0.5), buffer),
 	        },
 	    },
@@ -567,7 +570,7 @@ uint32_t Oscillator::renderAnalogSaw2Sync(std::span<int32_t> buffer, PhasorPair<
 	renderOscSync(
 	    TableOscillator(table, table_size_magnitude), [](uint32_t) {}, osc.phase, osc.phase_increment, resetter.phase,
 	    resetter.phase_increment, retrigger_phase, buffer.size(), buffer_start_this_sync);
-	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
+	AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
 }
 
@@ -581,7 +584,7 @@ void Oscillator::renderAnalogSquare(std::span<int32_t> buffer, PhasorPair<uint32
 	    ConditionalProcessor{
 	        apply_amplitude,
 	        Pipeline{
-	            AmplitudeProcessor(amplitude.phase, amplitude.phase_increment),
+	            AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment),
 	            GainMixerProcessor(FixedPoint<31>(0.5), buffer),
 	        },
 	    },
@@ -604,7 +607,7 @@ uint32_t Oscillator::renderAnalogSquareSync(std::span<int32_t> buffer, PhasorPai
 	    TableOscillator(dsp::analogSquareTables[table_number], table_size_magnitude), [](uint32_t) {}, osc.phase,
 	    osc.phase_increment, resetter.phase, resetter.phase_increment, retrigger_phase, buffer.size(),
 	    buffer_start_this_sync);
-	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
+	AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
 }
 
@@ -637,7 +640,7 @@ void Oscillator::renderAnalogPWM(std::span<int32_t> buffer, PhasorPair<uint32_t>
 	    PWMTableOscillator(dsp::analogSquareTables[table_number], table_size_magnitude), [](uint32_t) {}, osc.phase,
 	    osc.phase_increment, resetter.phase, resetter.phase_increment, retrigger_phase, buffer.size(),
 	    buffer_start_this_sync);
-	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
+	AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
 }
 
 uint32_t Oscillator::renderAnalogPWMSync(std::span<int32_t> buffer, PhasorPair<uint32_t> osc, uint32_t pulse_width,
@@ -652,7 +655,7 @@ uint32_t Oscillator::renderAnalogPWMSync(std::span<int32_t> buffer, PhasorPair<u
 	    PWMTableOscillator(dsp::analogSquareTables[table_number], table_size_magnitude), [](uint32_t) {}, osc.phase,
 	    osc.phase_increment, resetter.phase, resetter.phase_increment, retrigger_phase, buffer.size(),
 	    buffer_start_this_sync);
-	AmplitudeProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
+	AmplitudeStepProcessor(amplitude.phase, amplitude.phase_increment).renderBlock(oscSyncRenderingBuffer, buffer);
 	return osc.phase;
 }
 } // namespace deluge::dsp

@@ -23,13 +23,14 @@
 #include <cstdint>
 #include <limits>
 
-class ClassicOscillator : public SIMDGenerator<int32_t> {
+namespace deluge::dsp::oscillator {
+class LegacyOscillator : public SIMDGenerator<int32_t> {
 	Periodic<Argon<uint32_t>> periodic_component_; ///< The periodic component of the oscillator
 	/// @note this can't be inherited due to being a SIMDGenerator<uint32_t>, which makes the return types for derived
 	/// class' render() functions non-matching
 public:
-	constexpr ClassicOscillator() = default; ///< Default constructor
-	constexpr ClassicOscillator(uint32_t phase, uint32_t increment) { setPhaseAndIncrement(phase, increment); }
+	constexpr LegacyOscillator() = default; ///< Default constructor
+	constexpr LegacyOscillator(uint32_t phase, uint32_t increment) { setPhaseAndIncrement(phase, increment); }
 
 	/// @brief Set the phase of the oscillator.
 	/// @param phase The new phase value to set.
@@ -48,7 +49,6 @@ public:
 	/// @brief Get the current phase of the oscillator.
 	/// @return The current phase value.
 	[[nodiscard]] constexpr Argon<uint32_t> getPhase() const { return periodic_component_.getPhase(); }
-	[[nodiscard]] constexpr uint32_t getScalarPhase() const { return periodic_component_.getPhase().GetLane(0); }
 	[[nodiscard]] constexpr uint32_t getPhaseIncrement() const { return periodic_component_.getPhaseIncrement(); }
 
 	/// @brief Get the number of samples remaining until the next reset of the oscillator.
@@ -61,7 +61,7 @@ public:
 	}
 };
 
-class SimpleOscillatorFor final : public ClassicOscillator {
+class SimpleOscillatorFor final : public LegacyOscillator {
 	using FunctionType = Argon<q31_t> (*)(Argon<uint32_t>);
 	FunctionType func_;
 
@@ -83,3 +83,4 @@ public:
 	/// @brief Set the phase width of the PWM oscillator.
 	void setPulseWidth(uint32_t width) { pulse_width_ = width; }
 };
+} // namespace deluge::dsp::oscillator

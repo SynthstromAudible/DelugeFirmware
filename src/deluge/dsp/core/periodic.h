@@ -20,7 +20,9 @@
 #include "dsp/core/generator.h"
 #include "types.h"
 
+namespace deluge::dsp {
 namespace impl {
+/// @brief An inner state class for periodic generators
 template <typename PhaseType, typename IncrementType = PhaseType>
 class PeriodicState {
 	PhaseType phase_ = 0;               ///< Current phase of the oscillator
@@ -28,19 +30,14 @@ class PeriodicState {
 
 public:
 	constexpr PeriodicState(PhaseType phase, IncrementType phase_increment)
-	    : phase_{phase}, phase_increment_{phase_increment} {} ///< Constructor to initialize phase and step
-	constexpr PeriodicState(IncrementType phase_increment)
-	    : phase_increment_{phase_increment} {} ///< Constructor to initialize only the step, phase defaults to 0
-	constexpr PeriodicState(Frequency frequency)
-	    : phase_increment_{IncrementType((1.f / kSampleRate) * frequency)} {
-	} ///< Constructor to initialize step based on frequency
-	constexpr PeriodicState() = default;          ///< Default constructor
-	constexpr virtual ~PeriodicState() = default; ///< Default destructor
+	    : phase_{phase}, phase_increment_{phase_increment} {}
+	constexpr PeriodicState(IncrementType phase_increment) : phase_increment_{phase_increment} {}
+	constexpr PeriodicState(Frequency frequency) : phase_increment_{IncrementType((1.f / kSampleRate) * frequency)} {}
+	constexpr PeriodicState() = default;
+	constexpr virtual ~PeriodicState() = default;
 
-	[[nodiscard]] constexpr PhaseType getPhase() const { return phase_; } ///< Getter for the current phase
-	[[nodiscard]] constexpr IncrementType getPhaseIncrement() const {
-		return phase_increment_;
-	} ///< Getter for the current step
+	[[nodiscard]] constexpr PhaseType getPhase() const { return phase_; }
+	[[nodiscard]] constexpr IncrementType getPhaseIncrement() const { return phase_increment_; }
 
 	/// @brief Set the phase and step values
 	constexpr void setPhase(PhaseType new_phase) { phase_ = new_phase; }
@@ -91,3 +88,4 @@ struct Periodic<Argon<uint32_t>> : impl::PeriodicState<Argon<uint32_t>, uint32_t
 	}
 	void advance() { setPhase(Periodic::render()); }
 };
+} // namespace deluge::dsp

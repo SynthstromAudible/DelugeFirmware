@@ -21,7 +21,8 @@
 #include <arm_neon.h>
 #include <limits>
 
-struct SimplePulseOscillator : PWMOscillator, ClassicOscillator {
+namespace deluge::dsp::oscillator {
+struct SimplePulseOscillator : PWMOscillator, LegacyOscillator {
 	SimplePulseOscillator() = default;
 
 	Argon<q31_t> render() override {
@@ -32,3 +33,4 @@ struct SimplePulseOscillator : PWMOscillator, ClassicOscillator {
 		return output;
 	}
 };
+} // namespace deluge::dsp::oscillator

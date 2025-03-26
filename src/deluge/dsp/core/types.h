@@ -17,35 +17,37 @@
 
 #pragma once
 #include "util/fixedpoint.h"
-#include <string_view>
 
+namespace deluge::dsp {
+
+/// @brief A simple class to represent a value with a specific unit.
+/// @tparam T The type of the value.
 template <typename T>
 struct Value {
 	T value = 0;
+
+	Value(T value) : value{value} {}
+	constexpr Value() = default;
 	constexpr operator T() { return value; }
 	constexpr auto operator<=>(const Value<T>& o) const = default;
 	constexpr bool operator==(const Value<T>& o) const = default;
 };
 
 struct Frequency : Value<float> {
-	Frequency() = default;
 	Frequency(float value) : Value{value} {}
 
 	auto operator<=>(const Frequency& o) const { return this->value <=> o.value; };
 	constexpr operator float() const { return this->value; }
-
-	static constexpr std::string_view unit = "Hz";
 };
 
+/// @brief A class to represent a percentage value.
+/// @tparam T The type of the value.
 template <typename T>
 struct Percentage;
 
 template <>
 struct Percentage<float> : Value<float> {
-	static constexpr std::string_view unit = "%";
-
-	Percentage() = default;
-	Percentage(float value) : Value<float>{value} {}
+	using Value::Value;
 	Percentage(float value, float lower_bound, float upper_bound)
 	    : Value<float>{value}, lower_bound{lower_bound}, upper_bound{upper_bound} {}
 
@@ -67,31 +69,27 @@ struct Percentage<float> : Value<float> {
 	float upper_bound = 1.f;
 };
 
+/// @brief A class to represent a percentage value as a fixed-point number.
+/// @tparam T The type of the value.
 template <>
-struct Percentage<q31_t> : Value<q31_t> {
-	static constexpr std::string_view unit = "%";
+struct Percentage<FixedPoint<31>> : Value<FixedPoint<31>> {
+	using Value::Value;
+	Percentage(FixedPoint<31> value, FixedPoint<31> lower_bound, FixedPoint<31> upper_bound)
+	    : Value<FixedPoint<31>>{value}, lower_bound{lower_bound}, upper_bound{upper_bound} {}
 
-	Percentage() = default;
-	Percentage(q31_t value) : Value<q31_t>{value} {}
-	Percentage(q31_t value, q31_t lower_bound, q31_t upper_bound)
-	    : Value<q31_t>{value}, lower_bound{lower_bound}, upper_bound{upper_bound} {}
-
-	Percentage(float value) : Value<q31_t>{q31_from_float(value)} {}
+	Percentage(float value) : Value<FixedPoint<31>>{value} {}
 	Percentage(float value, float lower_bound, float upper_bound)
-	    : Value<q31_t>{q31_from_float(value)}, lower_bound{q31_from_float(lower_bound)},
-	      upper_bound{q31_from_float(upper_bound)} {}
+	    : Value<FixedPoint<31>>{value}, lower_bound{lower_bound}, upper_bound{upper_bound} {}
 
-	q31_t lower_bound = q31_from_float(0.f);
-	q31_t upper_bound = q31_from_float(1.f);
+	FixedPoint<31> lower_bound = 0.f;
+	FixedPoint<31> upper_bound = 1.f;
 };
 
+/// @brief A class to represent the Q-factor of a filter.
+/// @tparam T The type of the value.
 template <typename T>
 struct QFactor : Value<T> {
-	QFactor(T value) : Value<T>{value} {}
+	using Value<T>::Value;
 };
 
-struct Milliseconds : Value<int32_t> {
-	static constexpr std::string_view unit = "ms";
-	auto operator<=>(const Milliseconds& o) const { return this->value <=> o.value; }
-	constexpr bool operator==(const Milliseconds& o) const { return this->value == o.value; }
-};
+} // namespace deluge::dsp

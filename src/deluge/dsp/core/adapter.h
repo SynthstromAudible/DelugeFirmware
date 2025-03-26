@@ -20,6 +20,10 @@
 #include <argon.hpp>
 #include <span>
 
+namespace deluge::dsp {
+/// @brief A base class for adapters that process a stream of samples.
+/// @tparam T The type of the input samples.
+/// @tparam U The type of the output samples.
 template <typename T, typename U>
 struct BlockAdapter {
 	static_assert(!std::is_same_v<T, U>, "BlockAdapter requires different types T and U.");
@@ -33,6 +37,9 @@ struct BlockAdapter {
 	virtual void renderBlock(std::span<T> input, std::span<U> output) = 0;
 };
 
+/// @brief A base class for adapters that process a single sample at a time.
+/// @tparam T The type of the input samples.
+/// @tparam U The type of the output samples.
 template <typename T, typename U>
 struct Adapter : BlockAdapter<T, U> {
 	/// @brief Destructor for the Adaptor class.
@@ -52,6 +59,9 @@ struct Adapter : BlockAdapter<T, U> {
 	}
 };
 
+/// @brief A base class for adapters that process a vector of samples using SIMD operations.
+/// @tparam T The type of the input samples.
+/// @tparam U The type of the output samples.
 template <typename T, typename U>
 struct SIMDAdapter : BlockAdapter<T, U> {
 	/// @brief Destructor for the SIMDAdapter class.
@@ -74,3 +84,4 @@ struct SIMDAdapter : BlockAdapter<T, U> {
 		}
 	}
 };
+} // namespace deluge::dsp

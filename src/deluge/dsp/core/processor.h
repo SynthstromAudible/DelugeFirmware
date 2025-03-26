@@ -21,9 +21,16 @@
 #include <span>
 #include <tuple>
 
+namespace deluge::dsp {
+
+/// @brief A base class for generators that process a stream of samples.
+/// @tparam T The type of the samples to process.
 template <typename T>
 struct BlockProcessor {
+	/// @brief The type of the samples to process.
 	using value_type = T;
+
+	virtual ~BlockProcessor() = default;
 
 	/// @brief Process a block of samples.
 	/// @param input The input buffer of samples to process.
@@ -31,6 +38,8 @@ struct BlockProcessor {
 	virtual void renderBlock(std::span<T> input, std::span<T> output) = 0;
 };
 
+/// @brief A base class for processors that are able to process a single sample at a time.
+/// @tparam T The type of the samples to process.
 template <typename T>
 struct Processor : BlockProcessor<T> {
 	/// @brief Process a single sample of type T.
@@ -47,6 +56,8 @@ struct Processor : BlockProcessor<T> {
 	}
 };
 
+/// @brief A base class for processors that are able to process a vector of samples using SIMD operations.
+/// @tparam T The type of the samples to process.
 template <typename T>
 struct SIMDProcessor : BlockProcessor<T> {
 	/// @brief Process a block of samples using SIMD operations.
@@ -67,3 +78,4 @@ struct SIMDProcessor : BlockProcessor<T> {
 		}
 	}
 };
+} // namespace deluge::dsp

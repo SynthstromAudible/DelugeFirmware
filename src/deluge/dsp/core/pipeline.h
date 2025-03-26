@@ -21,15 +21,23 @@
 #include <tuple>
 #include <type_traits>
 
+namespace deluge::dsp {
+
+/// @brief A class to represent a static DSP pipeline.
 template <typename ProcessorType, typename = void, typename... Types>
 struct Pipeline;
 
+/// @brief A class to represent a static DSP pipeline composed of processors.
+/// @tparam ProcessorType The type of the first processor in the pipeline.
+/// @tparam Types The types of the remaining processors in the pipeline.
 template <typename ProcessorType, typename... Types>
 struct Pipeline<
     ProcessorType,
     std::enable_if_t<std::conjunction_v<
+        /// The first processor must be a sample processor
         std::is_base_of<Processor<typename std::remove_pointer_t<ProcessorType>::value_type>,
                         std::remove_pointer_t<ProcessorType>>,
+        /// And it must not be a SIMD processor
         std::negation<std::is_base_of<SIMDProcessor<typename std::remove_pointer_t<ProcessorType>::value_type>,
                                       std::remove_pointer_t<ProcessorType>>>>>,
     Types...> : std::tuple<ProcessorType, Types...>,
@@ -56,9 +64,13 @@ struct Pipeline<
 	}
 };
 
+/// @brief A class to represent a static DSP pipeline composed of SIMD processors.
+/// @tparam ProcessorType The type of the first processor in the pipeline.
+/// @tparam Types The types of the remaining processors in the pipeline.
 template <typename ProcessorType, typename... Types>
 struct Pipeline<
     ProcessorType,
+    /// The first processor must be a SIMD processor
     std::enable_if_t<std::is_base_of_v<SIMDProcessor<typename std::remove_pointer_t<ProcessorType>::value_type>,
                                        std::remove_pointer_t<ProcessorType>>>,
     Types...> : std::tuple<ProcessorType, Types...>,
@@ -86,12 +98,17 @@ struct Pipeline<
 	}
 };
 
+/// @brief A class to represent a static DSP pipeline composed of a generator and processors.
+/// @tparam GeneratorType The type of the generator in the pipeline.
+/// @tparam ProcessorTypes The types of the processors in the pipeline.
 template <typename GeneratorType, typename... ProcessorTypes>
 struct Pipeline<
     GeneratorType,
     std::enable_if_t<std::conjunction_v<
+        /// The generator must be a sample generator
         std::is_base_of<Generator<typename std::remove_pointer_t<GeneratorType>::value_type>,
                         std::remove_pointer_t<GeneratorType>>,
+        /// And it must not be a SIMD generator
         std::negation<std::is_base_of<SIMDGenerator<typename std::remove_pointer_t<GeneratorType>::value_type>,
                                       std::remove_pointer_t<GeneratorType>>>>>,
     ProcessorTypes...> : std::tuple<GeneratorType, ProcessorTypes...>,
@@ -117,6 +134,9 @@ struct Pipeline<
 	}
 };
 
+/// @brief A class to represent a static DSP pipeline composed of a SIMD generator and SIMD processors.
+/// @tparam GeneratorType The type of the generator in the pipeline.
+/// @tparam ProcessorTypes The types of the processors in the pipeline.
 template <typename GeneratorType, typename... ProcessorTypes>
 struct Pipeline<
     GeneratorType,
@@ -147,5 +167,7 @@ struct Pipeline<
 	}
 };
 
+/// @brief Deduction guide for Pipeline
 template <class ProcessorType, class... Types>
 Pipeline(ProcessorType, Types...) -> Pipeline<ProcessorType, void, Types...>;
+} // namespace deluge::dsp

@@ -20,6 +20,8 @@
 #include "dsp/core/processor.h"
 #include "util/fixedpoint.h"
 
+namespace deluge::dsp::processor {
+
 template <typename T>
 struct Gain {
 	T gain = 1.f; ///< The gain value to apply to the input sample
@@ -144,3 +146,4 @@ struct GainMixerProcessor : SIMDProcessor<T>, Processor<T> {
 };
 
 GainMixerProcessor(FixedPoint<31>, std::span<int32_t>) -> GainMixerProcessor<int32_t>;
+} // namespace deluge::dsp::processor

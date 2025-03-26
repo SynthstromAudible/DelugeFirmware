@@ -17,6 +17,10 @@
 #pragma once
 #include "mixer.h"
 
+namespace deluge::dsp {
+
+/// @brief UnityMixer is a mixer that simply adds two input samples together.
+/// @tparam T The type of the input samples.
 template <typename T>
 struct UnityMixer : SIMDMixer<T>, Mixer<T> {
 	/// @brief Mix two input samples into an output, treating the second input as a unity gain.
@@ -57,3 +61,4 @@ struct UnityMixerProcessor : SIMDProcessor<T>, Processor<T>, UnityMixer<T> {
 	/// @return The mixed output sample.
 	T render(T input) override { return UnityMixer<T>::render(input, *unity_input_iterator++); }
 };
+} // namespace deluge::dsp

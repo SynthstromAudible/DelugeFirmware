@@ -26,10 +26,12 @@
 #include <limits>
 #include <span>
 
+namespace deluge::dsp::oscillator {
+
 /// @brief A base class for oscillators that use a lookup table for waveform generation.
 /// @details This class provides a mechanism to generate waveforms using a pre-defined table of values.
 /// It does linear interpolation between table values for smoother output.
-class TableOscillator : public ClassicOscillator {
+class TableOscillator : public LegacyOscillator {
 protected:
 	const int16_t* table_;
 	int32_t table_size_magnitude_;
@@ -89,3 +91,4 @@ struct PWMTableOscillator final : PWMOscillator, TableOscillator {
 		return output;
 	}
 };
+} // namespace deluge::dsp::oscillator
