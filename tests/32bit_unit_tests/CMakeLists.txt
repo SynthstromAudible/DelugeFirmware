@@ -108,7 +108,7 @@ set_target_properties(SmallPointerTests
         LINK_FLAGS -m32
 )
 
-target_link_libraries(SmallPointerTests CppUTest CppUTestExt)
+target_link_libraries(SmallPointerTests CppUTest CppUTestExt etl::etl)
 
 # strchr is seemingly different in x86
 target_compile_options(SmallPointerTests PUBLIC
