@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "mixer.h"
+#include "dsp/core/mixer.h"
 
-namespace deluge::dsp {
+namespace deluge::dsp::mixer {
 
 /// @brief UnityMixer is a mixer that simply adds two input samples together.
 /// @tparam T The type of the input samples.
@@ -61,4 +61,4 @@ struct UnityMixerProcessor : SIMDProcessor<T>, Processor<T>, UnityMixer<T> {
 	/// @return The mixed output sample.
 	T render(T input) override { return UnityMixer<T>::render(input, *unity_input_iterator++); }
 };
-} // namespace deluge::dsp
+} // namespace deluge::dsp::mixer

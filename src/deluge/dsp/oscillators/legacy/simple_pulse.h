@@ -22,10 +22,10 @@
 #include <limits>
 
 namespace deluge::dsp::oscillator {
-struct SimplePulseOscillator : PWMOscillator, LegacyOscillator {
+struct SimplePulseOscillator final : PWMOscillator, LegacyOscillator {
 	SimplePulseOscillator() = default;
 
-	Argon<q31_t> render() override {
+	Argon<q31_t> render() final {
 		Argon<q31_t> output =
 		    argon::ternary(getPhase() < getPulseWidth(), Argon<int32_t>{std::numeric_limits<int32_t>::max()},
 		                   Argon<int32_t>{std::numeric_limits<int32_t>::min()});

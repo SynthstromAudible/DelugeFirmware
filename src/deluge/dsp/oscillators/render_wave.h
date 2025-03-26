@@ -25,7 +25,7 @@
 using namespace deluge::dsp::oscillator;
 
 [[gnu::always_inline]] static inline void //<
-renderOscSync(TableOscillator&& osc_core, auto extraInstructionsForCrossoverSampleRedo,
+renderOscSync(LegacyOscillator&& osc_core, auto extraInstructionsForCrossoverSampleRedo,
               // Params
               uint32_t& phase, uint32_t phaseIncrement, uint32_t& resetterPhase, uint32_t resetterPhaseIncrement,
               uint32_t retriggerPhase, int32_t numSamplesThisOscSyncSession, int32_t*& bufferStartThisSync) {

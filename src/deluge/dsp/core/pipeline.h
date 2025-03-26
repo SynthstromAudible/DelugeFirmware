@@ -40,8 +40,8 @@ struct Pipeline<
         /// And it must not be a SIMD processor
         std::negation<std::is_base_of<SIMDProcessor<typename std::remove_pointer_t<ProcessorType>::value_type>,
                                       std::remove_pointer_t<ProcessorType>>>>>,
-    Types...> : std::tuple<ProcessorType, Types...>,
-                Processor<typename std::remove_pointer_t<ProcessorType>::value_type> {
+    Types...>
+    final : std::tuple<ProcessorType, Types...>, Processor<typename std::remove_pointer_t<ProcessorType>::value_type> {
 	using std::tuple<ProcessorType, Types...>::tuple; // Inherit constructors from std::tuple
 
 	using value_type = typename std::remove_pointer_t<ProcessorType>::value_type;
@@ -52,7 +52,7 @@ struct Pipeline<
 	/// @brief Process a sample using the processors in the pipeline.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
-	value_type render(value_type sample) override {
+	value_type render(value_type sample) final {
 		sample = std::invoke(static_cast<value_type (std::remove_pointer_t<ProcessorType>::*)(value_type)>(
 		                         &std::remove_pointer_t<ProcessorType>::render),
 		                     std::get<ProcessorType>(*this), sample); // Call render() for the first processor
@@ -73,8 +73,9 @@ struct Pipeline<
     /// The first processor must be a SIMD processor
     std::enable_if_t<std::is_base_of_v<SIMDProcessor<typename std::remove_pointer_t<ProcessorType>::value_type>,
                                        std::remove_pointer_t<ProcessorType>>>,
-    Types...> : std::tuple<ProcessorType, Types...>,
-                SIMDProcessor<typename std::remove_pointer_t<ProcessorType>::value_type> {
+    Types...>
+    final : std::tuple<ProcessorType, Types...>,
+            SIMDProcessor<typename std::remove_pointer_t<ProcessorType>::value_type> {
 	using std::tuple<ProcessorType, Types...>::tuple; // Inherit constructors from std::tuple
 
 	using value_type = typename std::remove_pointer_t<ProcessorType>::value_type;
@@ -85,7 +86,7 @@ struct Pipeline<
 	/// @brief Process a block of samples using SIMD operations.
 	/// @param samples The input buffer of samples to process.
 	/// @return The processed buffer of samples.
-	Argon<value_type> render(Argon<value_type> sample) override {
+	Argon<value_type> render(Argon<value_type> sample) final {
 		sample =
 		    std::invoke(static_cast<Argon<value_type> (std::remove_pointer_t<ProcessorType>::*)(Argon<value_type>)>(
 		                    &std::remove_pointer_t<ProcessorType>::render),
@@ -111,8 +112,9 @@ struct Pipeline<
         /// And it must not be a SIMD generator
         std::negation<std::is_base_of<SIMDGenerator<typename std::remove_pointer_t<GeneratorType>::value_type>,
                                       std::remove_pointer_t<GeneratorType>>>>>,
-    ProcessorTypes...> : std::tuple<GeneratorType, ProcessorTypes...>,
-                         Generator<typename std::remove_pointer_t<GeneratorType>::value_type> {
+    ProcessorTypes...>
+    final : std::tuple<GeneratorType, ProcessorTypes...>,
+            Generator<typename std::remove_pointer_t<GeneratorType>::value_type> {
 	using std::tuple<GeneratorType, ProcessorTypes...>::tuple; // Inherit constructors from std::tuple
 
 	using value_type = typename std::remove_pointer_t<GeneratorType>::value_type;
@@ -122,7 +124,7 @@ struct Pipeline<
 
 	/// @brief Generate a sample using the generators in the pipeline.
 	/// @return The generated sample.
-	value_type render() override {
+	value_type render() final {
 		value_type sample = std::invoke(static_cast<value_type (std::remove_pointer_t<GeneratorType>::*)()>(
 		                                    &std::remove_pointer_t<GeneratorType>::render),
 		                                std::get<GeneratorType>(*this)); // Start with the first generator's output
@@ -142,8 +144,9 @@ struct Pipeline<
     GeneratorType,
     std::enable_if_t<std::is_base_of_v<SIMDGenerator<typename std::remove_pointer_t<GeneratorType>::value_type>,
                                        std::remove_pointer_t<GeneratorType>>>,
-    ProcessorTypes...> : std::tuple<GeneratorType, ProcessorTypes...>,
-                         SIMDGenerator<typename std::remove_pointer_t<GeneratorType>::value_type> {
+    ProcessorTypes...>
+    final : std::tuple<GeneratorType, ProcessorTypes...>,
+            SIMDGenerator<typename std::remove_pointer_t<GeneratorType>::value_type> {
 	using std::tuple<GeneratorType, ProcessorTypes...>::tuple; // Inherit constructors from std::tuple
 
 	using value_type = typename std::remove_pointer_t<GeneratorType>::value_type;
@@ -153,7 +156,7 @@ struct Pipeline<
 
 	/// @brief Generate a vector of samples using the generators in the pipeline.
 	/// @return The generated vector of samples.
-	Argon<value_type> render() override {
+	Argon<value_type> render() final {
 		Argon<value_type> sample =
 		    std::invoke(static_cast<Argon<value_type> (std::remove_pointer_t<GeneratorType>::*)()>(
 		                    &std::remove_pointer_t<GeneratorType>::render),

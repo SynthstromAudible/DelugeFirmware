@@ -42,9 +42,6 @@ struct BlockAdapter {
 /// @tparam U The type of the output samples.
 template <typename T, typename U>
 struct Adapter : BlockAdapter<T, U> {
-	/// @brief Destructor for the Adaptor class.
-	virtual ~Adapter() = default;
-
 	/// @brief Convert a single sample of type T to type U.
 	/// @param sample The input sample of type T to convert.
 	/// @return The converted sample of type U.
@@ -53,7 +50,7 @@ struct Adapter : BlockAdapter<T, U> {
 	/// @brief Convert a block of type T to type U by calling render() for each sample.
 	/// @param input The input buffer of type T to convert.
 	/// @param output The output buffer of type U to fill with converted samples.
-	virtual void renderBlock(std::span<T> input, std::span<U> output) {
+	virtual void renderBlock(std::span<T> input, std::span<U> output) final {
 		// If T and U are different types, we convert each sample sequentially
 		std::ranges::transform(input, output.begin(), [this](T sample) { return render(sample); });
 	}
@@ -64,9 +61,6 @@ struct Adapter : BlockAdapter<T, U> {
 /// @tparam U The type of the output samples.
 template <typename T, typename U>
 struct SIMDAdapter : BlockAdapter<T, U> {
-	/// @brief Destructor for the SIMDAdapter class.
-	virtual ~SIMDAdapter() = default;
-
 	/// @brief Convert a vector of samples of type T to type U using SIMD operations.
 	/// @param sample The input samples of type T to convert.
 	/// @return The converted samples of type U.
@@ -75,7 +69,7 @@ struct SIMDAdapter : BlockAdapter<T, U> {
 	/// @brief Convert a block of type T to type U using SIMD operations.
 	/// @param input The input buffer of type T to convert.
 	/// @param output The output buffer of type U to fill with converted samples.
-	virtual void renderBlock(std::span<T> input, std::span<U> output) {
+	virtual void renderBlock(std::span<T> input, std::span<U> output) final {
 		auto input_view = argon::vectorize(input);
 		auto output_view = argon::vectorize(output);
 		auto size = std::min(input_view.size(), output_view.size());

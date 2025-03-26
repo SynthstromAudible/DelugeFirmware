@@ -46,7 +46,7 @@ struct ConditionalGenerator<
 	/// @brief Generate a value conditionally applying generators.
 	/// @return The generated value.
 	value_type render() override {
-		if (std::invoke(condition_)) {                                                     // Check the condition
+		if (condition_()) {                                                                // Check the condition
 			return std::invoke(&std::remove_pointer_t<GeneratorType>::render, generator_); // Apply the generator
 		}
 		return std::invoke(&std::remove_pointer_t<GeneratorType>::render, elseGenerator_); // Apply the else generator
@@ -96,7 +96,7 @@ struct ConditionalGenerator<
 	/// @brief Generate a SIMD value conditionally applying generators.
 	/// @return The generated SIMD value.
 	Argon<value_type> render() override {
-		if (std::invoke(condition_)) {                                                     // Check the condition
+		if (condition_()) {                                                                // Check the condition
 			return std::invoke(&std::remove_pointer_t<GeneratorType>::render, generator_); // Apply the generator
 		}
 		return std::invoke(&std::remove_pointer_t<GeneratorType>::render, elseGenerator_); // Apply the else generator

@@ -49,7 +49,7 @@ template <typename T>
 struct Periodic : impl::PeriodicState<T>, Generator<T> {
 	using impl::PeriodicState<T>::PeriodicState;
 
-	[[nodiscard]] T render() override {
+	[[nodiscard]] T render() final {
 		auto new_phase = this->phase_ + this->phase_increment_;
 		new_phase = (new_phase >= T(1)) ? new_phase - T(1) : new_phase;
 		return new_phase;
@@ -64,7 +64,7 @@ struct Periodic<uint32_t> : impl::PeriodicState<uint32_t>, Generator<uint32_t> {
 	constexpr Periodic(Frequency frequency)
 	    : impl::PeriodicState<uint32_t>{std::bit_cast<uint32_t>(FixedPoint<31>((1.f / kSampleRate) * frequency).raw())
 	                                    << 1} {}
-	[[nodiscard]] uint32_t render() override { return getPhase() + getPhaseIncrement(); }
+	[[nodiscard]] uint32_t render() final { return getPhase() + getPhaseIncrement(); }
 	void advance() { setPhase(Periodic::render()); }
 };
 
@@ -72,7 +72,7 @@ template <typename T>
 struct Periodic<Argon<T>> : impl::PeriodicState<Argon<T>, T>, SIMDGenerator<T> {
 	using impl::PeriodicState<Argon<T>, T>::PeriodicState;
 
-	[[nodiscard]] Argon<T> render() override {
+	[[nodiscard]] Argon<T> render() final {
 		auto new_phase = this->getPhase() + (this->getPhaseIncrement() * Argon<T>::lanes);
 		return argon::ternary(new_phase >= T(1), new_phase - T(1), new_phase);
 	}
@@ -83,9 +83,7 @@ template <>
 struct Periodic<Argon<uint32_t>> : impl::PeriodicState<Argon<uint32_t>, uint32_t>, SIMDGenerator<uint32_t> {
 	using impl::PeriodicState<Argon<uint32_t>, uint32_t>::PeriodicState;
 
-	[[nodiscard]] Argon<uint32_t> render() override {
-		return getPhase() + (getPhaseIncrement() * Argon<uint32_t>::lanes);
-	}
+	[[nodiscard]] Argon<uint32_t> render() final { return getPhase() + (getPhaseIncrement() * Argon<uint32_t>::lanes); }
 	void advance() { setPhase(Periodic::render()); }
 };
 } // namespace deluge::dsp

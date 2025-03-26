@@ -50,7 +50,7 @@ struct Processor : BlockProcessor<T> {
 	/// @brief Process a block of samples by calling render() for each sample.
 	/// @param input The input buffer of samples to process.
 	/// @param output The output buffer to fill with processed samples.
-	void renderBlock(std::span<T> input, std::span<T> output) override {
+	void renderBlock(std::span<T> input, std::span<T> output) final {
 		// If T is a scalar type, we process each sample sequentially
 		std::ranges::transform(input, output.begin(), [this](T sample) { return render(sample); });
 	}
@@ -68,7 +68,7 @@ struct SIMDProcessor : BlockProcessor<T> {
 	/// @brief Process a block of samples by calling render() for each sample.
 	/// @param input The input buffer of samples to process.
 	/// @param output The output buffer to fill with processed samples.
-	void renderBlock(std::span<T> input, std::span<T> output) override {
+	void renderBlock(std::span<T> input, std::span<T> output) final {
 		auto input_view = argon::vectorize(input);
 		auto output_view = argon::vectorize(output);
 

@@ -23,7 +23,7 @@
 namespace deluge::dsp::processor {
 /// @brief A processor that applies a stepped gain to an input sample.
 /// @deprecated
-class AmplitudeStepProcessor : public SIMDProcessor<q31_t> {
+class AmplitudeStepProcessor final : public SIMDProcessor<q31_t> {
 	Argon<int32_t> amplitude_;           ///< The current amplitude value (in q30 format).
 	Argon<int32_t> amplitude_increment_; ///< The increment value for the amplitude (in q30 format).
 public:
@@ -42,7 +42,7 @@ public:
 	/// @param input_a The input sample to apply the amplitude to.
 	/// @param input_b The existing sample to mix with.
 	/// @return The mixed output sample.
-	Argon<q31_t> render(Argon<q31_t> input) override {
+	Argon<q31_t> render(Argon<q31_t> input) final {
 		Argon<q31_t> output = input.MultiplyFixedPoint(amplitude_);
 		amplitude_ = amplitude_ + amplitude_increment_;
 		return output;

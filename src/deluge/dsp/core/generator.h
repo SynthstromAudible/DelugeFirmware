@@ -49,7 +49,7 @@ struct Generator : BlockGenerator<T> {
 
 	/// @brief Generate a block of samples by calling render() for each sample.
 	/// @param buffer The output buffer to fill with generated samples.
-	void renderBlock(std::span<T> buffer) override {
+	void renderBlock(std::span<T> buffer) final {
 		// If T is a scalar type, we process each sample sequentially
 		std::generate(buffer.begin(), buffer.end(), [this]() { return render(); });
 	}
@@ -65,7 +65,7 @@ struct SIMDGenerator : BlockGenerator<T> {
 
 	/// @brief Generate a block of samples by calling render() for each sample.
 	/// @param buffer The output buffer to fill with generated samples.
-	void renderBlock(std::span<T> buffer) override {
+	void renderBlock(std::span<T> buffer) final {
 		for (Argon<T>& sample : argon::vectorize(buffer)) {
 			sample = render();
 		}
