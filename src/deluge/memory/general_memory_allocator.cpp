@@ -282,12 +282,12 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 	regions[getRegion(address)].dealloc(address);
 }
 
-void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, StealableQueue q) {
-	MemoryRegion& region = regions[getRegion(stealable)];
+void GeneralMemoryAllocator::putStealableInQueue(Stealable& stealable, StealableQueue q) {
+	MemoryRegion& region = regions[getRegion(&stealable)];
 	region.cache_manager().QueueForReclamation(q, stealable);
 }
 
-void GeneralMemoryAllocator::putStealableInAppropriateQueue(Stealable* stealable) {
-	StealableQueue q = stealable->getAppropriateQueue();
+void GeneralMemoryAllocator::putStealableInAppropriateQueue(Stealable& stealable) {
+	StealableQueue q = stealable.getAppropriateQueue();
 	putStealableInQueue(stealable, q);
 }

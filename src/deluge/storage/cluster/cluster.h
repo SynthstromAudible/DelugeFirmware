@@ -58,7 +58,7 @@ public:
 	void convertDataIfNecessary();
 	bool mayBeStolen(void* thingNotToStealFrom) override;
 	void steal(char const* errorCode) override;
-	StealableQueue getAppropriateQueue() override;
+	[[nodiscard]] StealableQueue getAppropriateQueue() const override;
 	void addReason();
 
 	Cluster::Type type;

@@ -28,7 +28,7 @@ public:
 		totalAllocated -= getAllocatedSize(this);
 	}
 	bool mayBeStolen(void* thingNotToStealFrom) { return true; }
-	StealableQueue getAppropriateQueue() { return StealableQueue{0}; }
+	[[nodiscard]] StealableQueue getAppropriateQueue() const { return StealableQueue{0}; }
 	int32_t testIndex;
 };
 

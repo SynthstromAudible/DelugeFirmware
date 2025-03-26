@@ -483,8 +483,8 @@ finishedWhileLoop:
 
 void AudioFile::addReason() {
 	// If it was zero before, it's no longer unused
-	if (!numReasonsToBeLoaded) {
-		remove();
+	if (numReasonsToBeLoaded == 0) {
+		this->unlink(); // Remove from stealables queue
 		numReasonsIncreasedFromZero();
 	}
 
@@ -498,7 +498,7 @@ void AudioFile::removeReason(char const* errorCode) {
 	// If it's now zero, it's become unused
 	if (numReasonsToBeLoaded == 0) {
 		numReasonsDecreasedToZero(errorCode);
-		GeneralMemoryAllocator::get().putStealableInQueue(this, StealableQueue::NO_SONG_AUDIO_FILE_OBJECTS);
+		GeneralMemoryAllocator::get().putStealableInQueue(*this, StealableQueue::NO_SONG_AUDIO_FILE_OBJECTS);
 	}
 
 	else if (numReasonsToBeLoaded < 0) {
@@ -509,6 +509,6 @@ void AudioFile::removeReason(char const* errorCode) {
 	}
 }
 
-StealableQueue AudioFile::getAppropriateQueue() {
+StealableQueue AudioFile::getAppropriateQueue() const {
 	return StealableQueue::NO_SONG_AUDIO_FILE_OBJECTS;
 }

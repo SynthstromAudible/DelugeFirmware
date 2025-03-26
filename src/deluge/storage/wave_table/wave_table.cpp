@@ -1185,9 +1185,9 @@ void WaveTable::numReasonsIncreasedFromZero() {
 
 	// Remove all bands' data from Stealable-queue, as it may no longer be stolen.
 	for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) {
-		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
+		auto* band = (WaveTableBand*)bands.getElementAddress(b);
 		if (band->data) {
-			band->data->remove();
+			band->data->unlink(); // Remove from queue
 		}
 	}
 }
@@ -1196,14 +1196,14 @@ void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
 
 	// Put all bands' data in queue to be stolen.
 	for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) {
-		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
-		if (band->data) {
+		auto* band = (WaveTableBand*)bands.getElementAddress(b);
+		if (band->data != nullptr) {
 #if ALPHA_OR_BETA_VERSION
-			if (band->data->list) {
+			if (band->data->is_linked()) {
 				FREEZE_WITH_ERROR("E388");
 			}
 #endif
-			GeneralMemoryAllocator::get().putStealableInQueue(band->data, StealableQueue::NO_SONG_WAVETABLE_BAND_DATA);
+			GeneralMemoryAllocator::get().putStealableInQueue(*band->data, StealableQueue::NO_SONG_WAVETABLE_BAND_DATA);
 		}
 	}
 }

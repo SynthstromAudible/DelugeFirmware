@@ -182,38 +182,39 @@ void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 		FREEZE_WITH_ERROR("C003"); // let's just check to make sure
 	}
 #endif
+	CacheManager& cache_manager = GeneralMemoryAllocator::get().regions[MEMORY_REGION_STEALABLE].cache_manager();
+	auto& queue = cache_manager.queue(StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE);
+	Cluster& cluster = *clusters[clusterIndex];
+
 	// First Cluster
 	if (clusterIndex == 0) {
-		const auto q = StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE;
-		CacheManager& cache_manager = GeneralMemoryAllocator::get().regions[MEMORY_REGION_STEALABLE].cache_manager();
-		Cluster* cluster = clusters[clusterIndex];
-		if (cluster->list != &cache_manager.queue(q) || !cluster->isLast()) {
-			cluster->remove(); // Remove from old list, if it was already in one (might not have been).
-			cache_manager.QueueForReclamation(q, cluster);
+		auto it = std::ranges::find(queue, cluster);
+		if (it != queue.end() && cluster != queue.back()) {
+			// Move to back
+			queue.splice(queue.end(), queue, it);
+			return;
 		}
+		if (cluster.is_linked()) {
+			cluster.unlink();
+		}
+		queue.push_back(cluster);
+		return;
 	}
 
 	// Later Clusters
-	else {
+	if (GeneralMemoryAllocator::get().getRegion(clusters[clusterIndex - 1]) != MEMORY_REGION_STEALABLE) {
+		// clusters not in external
+		FREEZE_WITH_ERROR("C001");
+		return; // Sorta just have to do this
+	}
 
-		if (GeneralMemoryAllocator::get().getRegion(clusters[clusterIndex - 1]) != MEMORY_REGION_STEALABLE) {
-			// clusters not in external
-			FREEZE_WITH_ERROR("C001");
-			return; // Sorta just have to do this
-		}
-
-		// In most cases, we'll want to do this thing to alter the ordering - including if the Cluster in question
-		// hasn't actually been added to a queue at all yet, because this functions serves the additional purpose of
-		// being what puts Clusters in their queue in the first place.
-		if (clusters[clusterIndex]->list
-		        != &GeneralMemoryAllocator::get().regions[MEMORY_REGION_STEALABLE].cache_manager().queue(
-		            StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE)
-		    || clusters[clusterIndex]->next != clusters[clusterIndex - 1]) {
-
-			clusters[clusterIndex]->remove(); // Remove from old list, if it was already in one (might not have been).
-			clusters[clusterIndex - 1]->insertOtherNodeBefore(clusters[clusterIndex]);
-			// TODO: invalidate longest run length on new queue?
-		}
+	// In most cases, we'll want to do this thing to alter the ordering - including if the Cluster in question
+	// hasn't actually been added to a queue at all yet, because this functions serves the additional purpose of
+	// being what puts Clusters in their queue in the first place.
+	if (!cluster.is_linked() || cluster.etl_next != clusters[clusterIndex - 1]) {
+		cluster.unlink(); // Remove from old list, if it was already in one (might not have been).
+		etl::link_splice<Stealable::link_type>(cluster, clusters[clusterIndex - 1]); // Add to new list
+		// TODO: invalidate longest run length on new queue?
 	}
 }
 

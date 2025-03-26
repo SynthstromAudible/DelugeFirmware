@@ -109,7 +109,9 @@ public:
 	void steal(char const* errorCode) override { owner->grainBufferStolen(); };
 
 	// gives it  a high priority - these are huge so reallocating them can be slow
-	StealableQueue getAppropriateQueue() override { return StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE; };
+	StealableQueue getAppropriateQueue() const override {
+		return StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE;
+	};
 	StereoSample& operator[](int32_t i) { return sampleBuffer[i]; }
 	StereoSample operator[](int32_t i) const { return sampleBuffer[i]; }
 	bool inUse{true};

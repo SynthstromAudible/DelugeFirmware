@@ -1354,7 +1354,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* err
 
 		else {
 			// It contains data we may want at some future point, so file it away
-			GeneralMemoryAllocator::get().putStealableInAppropriateQueue(&cluster);
+			GeneralMemoryAllocator::get().putStealableInAppropriateQueue(cluster);
 		}
 
 		//*cluster->getAnyReasonsPointer() = ANY_REASONS_NO;
