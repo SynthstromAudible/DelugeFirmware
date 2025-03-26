@@ -41,6 +41,7 @@
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
+#include "modulation/envelope.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
@@ -59,6 +60,7 @@
 #include "util/functions.h"
 #include "util/misc.h"
 #include <algorithm>
+#include <bits/ranges_algo.h>
 #include <cstdint>
 #include <cstring>
 #include <execution>
@@ -300,15 +302,17 @@ void terminateOneVoice(size_t numSamples) {
 		return;
 	}
 
-	auto& voice = *std::ranges::min_element(all_voices, [](const auto& best, const auto& voice) {
+	const Sound::ActiveVoice* best = &all_voices.front();
+	for (const auto& voice : all_voices | std::views::drop(1)) {
 		// if we're not skipping releasing voices, or if we are and this one isn't in fast release
-		if (voice->envelopes[0].state <= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement < SOFT_CULL_INCREMENT) {
-			return voice->getPriorityRating() > best->getPriorityRating();
+		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
+		    && voice->envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT) {
+			continue;
 		}
-		return false;
-	});
+		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
+	}
 
+	const Sound::ActiveVoice& voice = *best;
 	bool still_rendering = voice->doFastRelease(SOFT_CULL_INCREMENT);
 	if (!still_rendering) {
 		voice->sound.freeActiveVoice(voice);
@@ -325,13 +329,17 @@ void forceReleaseOneVoice(size_t num_samples) {
 		return;
 	}
 
-	auto& voice = *std::ranges::min_element(all_voices, [](const auto& best, const auto& voice) {
-		if (voice->envelopes[0].state <= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement < 4096) {
-			return voice->getPriorityRating() > best->getPriorityRating();
+	const Sound::ActiveVoice* best = &all_voices.front();
+	for (const auto& voice : all_voices | std::views::drop(1)) {
+		// if the voice is already releasing faste than this we'd rather release another voice
+		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
+		    && voice->envelopes[0].fastReleaseIncrement >= 4096) {
+			continue;
 		}
-		return false;
-	});
+		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
+	}
+
+	const Sound::ActiveVoice& voice = *best;
 
 	auto stage = voice->envelopes[0].state;
 	if (stage < EnvelopeStage::FAST_RELEASE) {
