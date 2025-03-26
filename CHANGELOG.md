@@ -27,12 +27,17 @@ set the stutter configuration independently of the song configuration if you wis
     - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
   - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
 
-#### <ins>Horizontal Menus</ins>
+#### <ins>OLED Display Improvements</ins>
+
+##### <ins>Saving/Loading Animation</ins>
+- Removed the saving and loading indicator popups which blocked the view of the screen and hindered the browsing of presets. In their place a small cyclical procedural animation will appear in the upper right corner of the screen. It is an abstract representation of data moving from the SD card to the system RAM and vice versa, with the saving animation being a mirror image of the loading animation.
+
+##### <ins>Horizontal Menus</ins>
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
   - Envelope 1-4.
   - LPF and HPF.
   - LFO 1-4.
-  - Arpegiattor
+  - Arpeggiator
 - Horizontal Menu controls. There are two different behaviours that can be toggled between to edit values and select menu items within the horizontal menu. You can toggle between them by going to the `SETTINGS > DEFAULTS -> UI -> HORIZONTAL MENU (HORZ)` and toggling `Alternative Select Behaviour (SELE)` on or off.
   - Note: regardless of the behaviour toggle selected, you will always be able to change the selected horizontal menu's item's value by turning the select encoder when you're holding audition pad or sticky shift is enabled.
     - Whenever you're holding audition pad or sticky shift is enabled, you can change the selected horizontal menu by `Pressing + Turning the select encoder`
@@ -43,6 +48,7 @@ set the stutter configuration independently of the song configuration if you wis
   - With `Alternative Select Behaviour (SELE)` ENABLED:
     - `Turn select encoder` to change the value of the selected menu item
     - `Press + Turn select encoder` to change the selected menu item
+
 
 #### <ins>Clip Name Display & Copying</ins>
 - If a clip has no named "SECTION N" is displayed in place of the clip name, indicating which section the clip is in.
