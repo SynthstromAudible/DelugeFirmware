@@ -1,5 +1,5 @@
 
-file (GLOB_RECURSE deluge_dsp_SOURCES
+file(GLOB_RECURSE deluge_dsp_SOURCES
   CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_LIST_DIR}/*.c
   ${CMAKE_CURRENT_LIST_DIR}/*.cpp
@@ -24,8 +24,14 @@ set_target_properties(deluge_dsp
         CXX_STANDARD ${DELUGE_CXX_STANDARD}
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS ON
-        UNITY_BUILD $<NOT:$<CONFIG:DEBUG>>
+        UNITY_BUILD ON
 )
+
+if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+  set_target_properties(deluge_dsp PROPERTIES 
+    UNITY_BUILD OFF
+  )
+endif()
 
 target_link_libraries(deluge_dsp PRIVATE
     NE10
