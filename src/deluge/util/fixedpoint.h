@@ -236,6 +236,12 @@ inline int32_t clz(uint32_t input) {
 }
 #endif
 
+template <size_t bit, typename T>
+requires(bit > 0)
+[[nodiscard]] constexpr T roundToBit(T value) {
+	return value + (T{1} << bit) - T{1};
+}
+
 /// @brief Fixed point number with a configurable number of fractional bits
 /// @note This class only supports 32-bit signed fixed point numbers
 /// @tparam FractionalBits The number of fractional bits
@@ -512,19 +518,40 @@ public:
 
 	/// @brief Division operator
 	/// Divide two fixed point numbers with different number of fractional bits
-	template <std::size_t OtherFractionalBits>
-	constexpr FixedPoint<std::min(FractionalBits, OtherFractionalBits), Rounded, FastApproximation>
+	template <std::size_t OtherFractionalBits,
+	          std::size_t ResultFractionalBits = std::max(FractionalBits, OtherFractionalBits)
+	                                             - std::min(FractionalBits, OtherFractionalBits)>
+
+	requires(ResultFractionalBits < std::max(FractionalBits, OtherFractionalBits))
+	        && (ResultFractionalBits > std::min(FractionalBits, OtherFractionalBits))
+	constexpr FixedPoint<ResultFractionalBits, Rounded, FastApproximation>
 	operator/(const FixedPoint<OtherFractionalBits>& rhs) const {
 		if (rhs.raw() == 0) {
-			return from_raw(std::numeric_limits<BaseType>::max());
-		}
-		if constexpr (rounded) {
-			IntermediateType value = (static_cast<IntermediateType>(value_) << (fractional_bits + 1)) / rhs.raw();
-			return from_raw(static_cast<BaseType>((value / 2) + (value % 2)));
+			return FixedPoint<ResultFractionalBits>::from_raw(std::numeric_limits<BaseType>::max());
 		}
 
-		IntermediateType value = (static_cast<IntermediateType>(value_) << fractional_bits) / rhs.raw();
-		return from_raw(static_cast<BaseType>(value));
+		constexpr int shift = static_cast<int32_t>(FractionalBits) - OtherFractionalBits;
+		IntermediateType result{};
+		if constexpr (shift > 0) {
+			// this means we have more fractional bits than the divisor
+			result = (static_cast<IntermediateType>(value_) << shift) / rhs.raw();
+		}
+		else if constexpr (shift < 0) {
+			// this means we have less fractional bits than the divisor
+			result = (static_cast<IntermediateType>(value_) / (rhs.raw() << -shift));
+		}
+		else {
+			// same number of fractional bits
+			result = static_cast<IntermediateType>(value_) / rhs.raw();
+		}
+		size_t result_shift = std::max(FractionalBits, OtherFractionalBits) - ResultFractionalBits;
+
+		if constexpr (rounded) {
+			// round the result
+			result += (1 << (result_shift - 1)); // add half to round
+		}
+		return FixedPoint<ResultFractionalBits, Rounded, FastApproximation>::from_raw(
+		    result >> result_shift); // shift to get the correct number of fractional bits
 	}
 
 	/// @brief Division operator

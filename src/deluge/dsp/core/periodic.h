@@ -21,27 +21,30 @@
 #include "types.h"
 
 namespace impl {
-template <typename T>
+template <typename PhaseType, typename IncrementType = PhaseType>
 class PeriodicState {
-	T phase_ = 0;           ///< Current phase of the oscillator
-	T phase_increment_ = 0; ///< Increment value for the phase, typically (1 / sample_rate) * frequency
+	PhaseType phase_ = 0;               ///< Current phase of the oscillator
+	IncrementType phase_increment_ = 0; ///< Increment value for the phase, typically (1 / sample_rate) * frequency
 
 public:
-	constexpr PeriodicState(T phase, T step)
-	    : phase_{phase}, phase_increment_{step} {} ///< Constructor to initialize phase and step
-	constexpr PeriodicState(T phase_increment)
+	constexpr PeriodicState(PhaseType phase, IncrementType phase_increment)
+	    : phase_{phase}, phase_increment_{phase_increment} {} ///< Constructor to initialize phase and step
+	constexpr PeriodicState(IncrementType phase_increment)
 	    : phase_increment_{phase_increment} {} ///< Constructor to initialize only the step, phase defaults to 0
 	constexpr PeriodicState(Frequency frequency)
-	    : phase_increment_{T((1.f / kSampleRate) * frequency)} {} ///< Constructor to initialize step based on frequency
-	constexpr PeriodicState() = default;                          ///< Default constructor
-	constexpr virtual ~PeriodicState() = default;                 ///< Default destructor
+	    : phase_increment_{IncrementType((1.f / kSampleRate) * frequency)} {
+	} ///< Constructor to initialize step based on frequency
+	constexpr PeriodicState() = default;          ///< Default constructor
+	constexpr virtual ~PeriodicState() = default; ///< Default destructor
 
-	[[nodiscard]] constexpr T getPhase() const { return phase_; }                    ///< Getter for the current phase
-	[[nodiscard]] constexpr T getPhaseIncrement() const { return phase_increment_; } ///< Getter for the current step
+	[[nodiscard]] constexpr PhaseType getPhase() const { return phase_; } ///< Getter for the current phase
+	[[nodiscard]] constexpr IncrementType getPhaseIncrement() const {
+		return phase_increment_;
+	} ///< Getter for the current step
 
 	/// @brief Set the phase and step values
-	constexpr void setPhase(T new_phase) { phase_ = new_phase; }
-	constexpr void setPhaseIncrement(T new_phase_increment) { phase_increment_ = new_phase_increment; }
+	constexpr void setPhase(PhaseType new_phase) { phase_ = new_phase; }
+	constexpr void setPhaseIncrement(IncrementType new_phase_increment) { phase_increment_ = new_phase_increment; }
 };
 } // namespace impl
 
@@ -51,7 +54,7 @@ struct Periodic : impl::PeriodicState<T>, Generator<T> {
 
 	[[nodiscard]] T render() override {
 		auto new_phase = this->phase_ + this->phase_increment_;
-		new_phase = (new_phase >= T(1.f)) ? new_phase - T(1.f) : new_phase;
+		new_phase = (new_phase >= T(1)) ? new_phase - T(1) : new_phase;
 		return new_phase;
 	}
 	void advance() { this->setPhase(Periodic::render()); }
@@ -69,20 +72,23 @@ struct Periodic<uint32_t> : impl::PeriodicState<uint32_t>, Generator<uint32_t> {
 };
 
 template <typename T>
-struct Periodic<Argon<T>> : impl::PeriodicState<Argon<T>>, SIMDGenerator<T> {
-	using impl::PeriodicState<Argon<T>>::PeriodicState;
+struct Periodic<Argon<T>> : impl::PeriodicState<Argon<T>, T>, SIMDGenerator<T> {
+	using impl::PeriodicState<Argon<T>, T>::PeriodicState;
 
 	[[nodiscard]] Argon<T> render() override {
-		auto new_phase = this->phase_ + this->phase_increment_;
-		new_phase = argon::ternary(new_phase >= T{1}, new_phase - T{1}, new_phase);
+		auto new_phase = this->phase_ + (this->phase_increment_ * Argon<T>::lanes);
+		new_phase = argon::ternary(new_phase >= T(1), new_phase - T(1), new_phase);
 		return new_phase;
 	}
+	void advance() { setPhase(Periodic::render()); }
 };
 
 template <>
-struct Periodic<Argon<uint32_t>> : impl::PeriodicState<Argon<uint32_t>>, SIMDGenerator<uint32_t> {
-	using impl::PeriodicState<Argon<uint32_t>>::PeriodicState;
+struct Periodic<Argon<uint32_t>> : impl::PeriodicState<Argon<uint32_t>, uint32_t>, SIMDGenerator<uint32_t> {
+	using impl::PeriodicState<Argon<uint32_t>, uint32_t>::PeriodicState;
 
-	[[nodiscard]] Argon<uint32_t> render() override { return getPhase() + getPhaseIncrement(); }
+	[[nodiscard]] Argon<uint32_t> render() override {
+		return getPhase() + (getPhaseIncrement() * Argon<uint32_t>::lanes);
+	}
 	void advance() { setPhase(Periodic::render()); }
 };

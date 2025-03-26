@@ -19,7 +19,9 @@
 
 #include "dsp/core/generator.h"
 #include "dsp/core/periodic.h"
+#include <cstddef>
 #include <cstdint>
+#include <limits>
 
 class ClassicOscillator : public SIMDGenerator<int32_t> {
 	Periodic<Argon<uint32_t>> periodic_component_; ///< The periodic component of the oscillator
@@ -33,8 +35,12 @@ public:
 	/// @param phase The new phase value to set.
 	constexpr void setPhaseAndIncrement(uint32_t phase, uint32_t increment) {
 		periodic_component_.setPhase(Argon{phase}.MultiplyAdd(Argon<uint32_t>{1U, 2U, 3U, 4U}, increment));
-		periodic_component_.setPhaseIncrement(increment * 4);
+		periodic_component_.setPhaseIncrement(increment);
 	};
+
+	constexpr void setPhase(uint32_t phase) {
+		periodic_component_.setPhase(Argon{phase}.MultiplyAdd(Argon<uint32_t>{1U, 2U, 3U, 4U}, getPhaseIncrement()));
+	}
 
 	/// @brief Advance the phase of the oscillator by one step.
 	constexpr void advance() { periodic_component_.advance(); }
@@ -42,6 +48,17 @@ public:
 	/// @brief Get the current phase of the oscillator.
 	/// @return The current phase value.
 	[[nodiscard]] constexpr Argon<uint32_t> getPhase() const { return periodic_component_.getPhase(); }
+	[[nodiscard]] constexpr uint32_t getScalarPhase() const { return periodic_component_.getPhase().GetLane(0); }
+	[[nodiscard]] constexpr uint32_t getPhaseIncrement() const { return periodic_component_.getPhaseIncrement(); }
+
+	/// @brief Get the number of samples remaining until the next reset of the oscillator.
+	/// @param offset An optional offset to include in the calculation, commonly used for phase adjustments.
+	/// @return An Argon object containing the number of samples remaining until the next reset.
+	[[nodiscard]] constexpr Argon<uint32_t> samplesRemaining() const {
+		uint32_t increment = getPhaseIncrement();
+		Argon<uint32_t> phase = std::numeric_limits<uint32_t>::max() - getPhase(); // Remaining phase
+		return phase * Argon{increment}.ReciprocalEstimate();
+	}
 };
 
 class SimpleOscillatorFor final : public ClassicOscillator {

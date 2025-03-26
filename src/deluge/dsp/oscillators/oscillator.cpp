@@ -371,8 +371,6 @@ uint32_t Oscillator::renderPWMSync(std::span<int32_t> buffer, PhasorPair<uint32_
                                    bool apply_amplitude, PhasorPair<FixedPoint<30>> amplitude,
                                    PhasorPair<uint32_t> resetter, uint32_t retrigger_phase) {
 
-	bool do_pulse_wave = false;
-
 	int32_t resetter_divide_by_phase_increment =
 	    (uint32_t)2147483648u / (uint16_t)((resetter.phase_increment + 65535) >> 16);
 
@@ -409,8 +407,6 @@ uint32_t Oscillator::renderPWMSync(std::span<int32_t> buffer, PhasorPair<uint32_
 
 		return phase_now;
 	}
-
-	uint32_t phase_to_add = -(pulse_width >> 1);
 
 	osc.phase >>= 1;
 	osc.phase_increment >>= 1;
