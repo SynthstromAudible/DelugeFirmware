@@ -4857,8 +4857,8 @@ void Sound::terminateOneActiveVoice() {
 		return;
 	}
 
-	ActiveVoice* best = nullptr;
-	for (ActiveVoice& voice : voices_) {
+	ActiveVoice* best = &voices_.front();
+	for (ActiveVoice& voice : voices_ | std::views::drop(1)) {
 		// skip voices which are already releasing faster than we're going to release them
 		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
 		    && voice->envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT) {
@@ -4872,7 +4872,6 @@ void Sound::terminateOneActiveVoice() {
 	}
 
 	const ActiveVoice& voice = *best;
-
 	bool still_rendering = voice->doFastRelease(SOFT_CULL_INCREMENT);
 
 	if (!still_rendering) {
@@ -4885,18 +4884,14 @@ void Sound::forceReleaseOneActiveVoice() {
 		return;
 	}
 
-	ActiveVoice* best = nullptr;
-	for (ActiveVoice& voice : voices_) {
+	ActiveVoice* best = &voices_.front();
+	for (ActiveVoice& voice : voices_ | std::views::drop(1)) {
 		// skip voices releasing faster than this - we'd rather release another voice
 		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
 		    && voice->envelopes[0].fastReleaseIncrement >= 4096) {
 			continue;
 		}
 		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
-	}
-
-	if (best == nullptr) {
-		return;
 	}
 
 	const ActiveVoice& voice = *best;
