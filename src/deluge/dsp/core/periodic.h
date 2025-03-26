@@ -76,9 +76,8 @@ struct Periodic<Argon<T>> : impl::PeriodicState<Argon<T>, T>, SIMDGenerator<T> {
 	using impl::PeriodicState<Argon<T>, T>::PeriodicState;
 
 	[[nodiscard]] Argon<T> render() override {
-		auto new_phase = this->phase_ + (this->phase_increment_ * Argon<T>::lanes);
-		new_phase = argon::ternary(new_phase >= T(1), new_phase - T(1), new_phase);
-		return new_phase;
+		auto new_phase = this->getPhase() + (this->getPhaseIncrement() * Argon<T>::lanes);
+		return argon::ternary(new_phase >= T(1), new_phase - T(1), new_phase);
 	}
 	void advance() { setPhase(Periodic::render()); }
 };

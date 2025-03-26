@@ -353,15 +353,14 @@ void Oscillator::renderPWM(std::span<int32_t> buffer, PhasorPair<uint32_t> osc, 
 
 	/// @stellar-aria: For some reason the phase and phase_increment need to be halved for the table rendering to work
 	/// correctly
-	if (!fast_render) {
-		osc.phase >>= 1;
-		osc.phase_increment >>= 1;
+	if (fast_render) {
+		static_cast<SimplePulseOscillator*>(std::get<PWMOscillator*>(pipeline))
+		    ->setPhaseAndIncrement(osc.phase, osc.phase_increment);
 	}
-
-	// @stellar-aria: Both oscillator types are derived from ClassicOscillator, so we can safely reinterpret_cast
-	// the pointer to ClassicOscillator and call setPhaseAndIncrement on it
-	reinterpret_cast<ClassicOscillator*>(std::get<PWMOscillator*>(pipeline))
-	    ->setPhaseAndIncrement(osc.phase, osc.phase_increment);
+	else {
+		static_cast<PWMTableOscillator*>(std::get<PWMOscillator*>(pipeline))
+		    ->setPhaseAndIncrement(osc.phase >> 1, osc.phase_increment >> 1);
+	}
 	std::get<PWMOscillator*>(pipeline)->setPulseWidth(pulse_width + FixedPoint<31>::one());
 
 	pipeline.renderBlock(buffer);
