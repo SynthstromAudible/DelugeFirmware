@@ -27,7 +27,7 @@ set_target_properties(deluge_dsp
         UNITY_BUILD ON
 )
 
-if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
   set_target_properties(deluge_dsp PROPERTIES 
     UNITY_BUILD OFF
   )
