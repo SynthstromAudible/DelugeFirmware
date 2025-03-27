@@ -49,7 +49,7 @@ struct ConditionalProcessor<
 	/// @brief Process a block of samples using SIMD operations, conditionally applying processors.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
-	value_type render(value_type sample) final {
+	[[gnu::always_inline]] value_type render(value_type sample) final {
 		if (condition_()) { // Check the condition
 			return std::invoke(static_cast<value_type (std::remove_pointer_t<ProcessorType>::*)(value_type)>(
 			                       &std::remove_pointer_t<ProcessorType>::render),
@@ -83,7 +83,7 @@ struct ConditionalProcessor<
 	/// @brief Process a block of samples using SIMD operations, conditionally applying processors.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
-	value_type render(value_type sample) final {
+	[[gnu::always_inline]] value_type render(value_type sample) final {
 		if (condition_) { // Check the condition
 			return std::invoke(static_cast<value_type (std::remove_pointer_t<ProcessorType>::*)(value_type)>(
 			                       &std::remove_pointer_t<ProcessorType>::render),
@@ -117,7 +117,7 @@ struct ConditionalProcessor<
 	/// @brief Process a block of samples using SIMD operations, conditionally applying processors.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
-	Argon<value_type> render(Argon<value_type> sample) final {
+	[[gnu::always_inline]] Argon<value_type> render(Argon<value_type> sample) final {
 		if (condition_()) { // Check the condition
 			return std::invoke(
 			    static_cast<Argon<value_type> (std::remove_pointer_t<ProcessorType>::*)(Argon<value_type>)>(
@@ -153,7 +153,7 @@ struct ConditionalProcessor<
 	/// @brief Process a block of samples using SIMD operations, conditionally applying processors.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
-	Argon<value_type> render(Argon<value_type> sample) final {
+	[[gnu::always_inline]] Argon<value_type> render(Argon<value_type> sample) final {
 		if (condition_) { // Check the condition
 			return std::invoke(
 			    static_cast<Argon<value_type> (std::remove_pointer_t<ProcessorType>::*)(Argon<value_type>)>(

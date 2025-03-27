@@ -45,7 +45,7 @@ struct ConditionalGenerator<
 
 	/// @brief Generate a value conditionally applying generators.
 	/// @return The generated value.
-	value_type render() final {
+	[[gnu::always_inline]] value_type render() final {
 		if (condition_()) {                                                                // Check the condition
 			return std::invoke(&std::remove_pointer_t<GeneratorType>::render, generator_); // Apply the generator
 		}
@@ -70,7 +70,7 @@ struct ConditionalGenerator<
 
 	/// @brief Generate a value conditionally applying generators.
 	/// @return The generated value.
-	value_type render() final {
+	[[gnu::always_inline]] value_type render() final {
 		if (condition_) {                                                                  // Check the condition
 			return std::invoke(&std::remove_pointer_t<GeneratorType>::render, generator_); // Apply the generator
 		}
@@ -95,7 +95,7 @@ struct ConditionalGenerator<
 
 	/// @brief Generate a SIMD value conditionally applying generators.
 	/// @return The generated SIMD value.
-	Argon<value_type> render() final {
+	[[gnu::always_inline]] Argon<value_type> render() final {
 		if (condition_()) {                                                                // Check the condition
 			return std::invoke(&std::remove_pointer_t<GeneratorType>::render, generator_); // Apply the generator
 		}
@@ -120,7 +120,7 @@ struct ConditionalGenerator<
 
 	/// @brief Generate a SIMD value conditionally applying generators.
 	/// @return The generated SIMD value.
-	Argon<value_type> render() final {
+	[[gnu::always_inline]] Argon<value_type> render() final {
 		if (condition_) {                                                                  // Check the condition
 			return std::invoke(&std::remove_pointer_t<GeneratorType>::render, generator_); // Apply the generator
 		}
