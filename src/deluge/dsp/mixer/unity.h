@@ -27,13 +27,13 @@ struct UnityMixer : SIMDMixer<T>, Mixer<T> {
 	/// @param input_a The first input sample to mix.
 	/// @param input_b The second input sample to mix (unity gain).
 	/// @return The mixed sample.
-	T render(T input_a, T input_b) override { return input_a + input_b; }
+	[[gnu::always_inline]] T render(T input_a, T input_b) final { return input_a + input_b; }
 
 	/// @brief Mix a vector of samples from two inputs into an output, treating the second input as a unity gain.
 	/// @param input_a The first input sample to mix.
 	/// @param input_b The second input sample to mix (unity gain).
 	/// @return The mixed sample.
-	Argon<T> render(Argon<T> input_a, Argon<T> input_b) override { return input_a + input_b; }
+	[[gnu::always_inline]] Argon<T> render(Argon<T> input_a, Argon<T> input_b) final { return input_a + input_b; }
 };
 
 /// @brief UnityMixerProcessor is a processor that mixes input samples with a unity-gain input buffer.
@@ -50,7 +50,7 @@ struct UnityMixerProcessor : SIMDProcessor<T>, Processor<T>, UnityMixer<T> {
 	/// @brief Process a block of samples by mixing the input with the unity-input buffer.
 	/// @param input The input samples to process.
 	/// @return The mixed output samples.
-	Argon<T> render(Argon<T> input) override {
+	[[gnu::always_inline]] Argon<T> render(Argon<T> input) final {
 		auto output = UnityMixer<T>::render(input, Argon<T>::Load(&*unity_input_iterator));
 		std::advance(unity_input_iterator, Argon<T>::lanes); ///< Advance the iterator for the next call
 		return output;
@@ -59,6 +59,6 @@ struct UnityMixerProcessor : SIMDProcessor<T>, Processor<T>, UnityMixer<T> {
 	/// @brief Process a single sample by mixing it with the current unity-input sample.
 	/// @param input The input sample to process.
 	/// @return The mixed output sample.
-	T render(T input) override { return UnityMixer<T>::render(input, *unity_input_iterator++); }
+	[[gnu::always_inline]] T render(T input) final { return UnityMixer<T>::render(input, *unity_input_iterator++); }
 };
 } // namespace deluge::dsp::mixer

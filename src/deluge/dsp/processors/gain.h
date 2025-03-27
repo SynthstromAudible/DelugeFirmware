@@ -43,15 +43,15 @@ template <typename T>
 struct GainProcessor final : Gain<T>, SIMDProcessor<T>, Processor<T> {
 	using Gain<T>::Gain;
 
-	/// @brief Render a single sample and apply the gain.
+	/// @brief Apply the gain to a single sample.
 	/// @param sample The input sample to render.
 	/// @return The processed sample with gain applied.
-	T render(T sample) final { return sample * Gain<T>::gain; } ///< Apply the gain to the input sample
+	[[gnu::always_inline]] T render(T sample) final { return sample * Gain<T>::gain; }
 
-	/// @brief Render a vector of samples and apply the gain.
+	/// @brief Apply the gain to a vector of samples.
 	/// @param input The input vector of samples to render.
 	/// @return The processed vector of samples with gain applied.
-	Argon<T> render(Argon<T> input) final { return input * Gain<T>::gain; } ///< Apply the gain to the input vector
+	[[gnu::always_inline]] Argon<T> render(Argon<T> input) final { return input * Gain<T>::gain; }
 };
 
 template <>
@@ -61,12 +61,16 @@ struct GainProcessor<FixedPoint<31>> final : Gain<FixedPoint<31>>, SIMDProcessor
 	/// @brief Process a single sample and apply the gain.
 	/// @param sample The input sample to process.
 	/// @return The processed sample with gain applied.
-	int32_t render(int32_t sample) final { return (FixedPoint<31>::from_raw(sample) * gain).raw(); }
+	[[gnu::always_inline]] int32_t render(int32_t sample) final {
+		return (FixedPoint<31>::from_raw(sample) * gain).raw();
+	}
 
 	/// @brief Process a vector of samples and apply the gain.
 	/// @param input The input vector of samples to process.
 	/// @return The processed vector of samples with gain applied.
-	Argon<int32_t> render(Argon<int32_t> input) final { return input.MultiplyFixedPoint(gain.raw()); }
+	[[gnu::always_inline]] Argon<int32_t> render(Argon<int32_t> input) final {
+		return input.MultiplyFixedPoint(gain.raw());
+	}
 };
 
 /// @brief Combines a Gain processor with a Unity Mixer to create a GainMixer.
@@ -80,13 +84,15 @@ struct GainMixer final : Gain<T>, SIMDMixer<T>, Mixer<T> {
 	/// @param input_a The first input sample to mix (adjustable gain).
 	/// @param input_b The second input sample to mix (unity gain).
 	/// @return The mixed sample.
-	T render(T input_a, T input_b) final { return (GainProcessor<T>::gain * input_a) + input_b; }
+	[[gnu::always_inline]] T render(T input_a, T input_b) final { return (GainProcessor<T>::gain * input_a) + input_b; }
 
 	/// @brief Mix a vector of samples from two inputs into an output, treating the second input as a unity gain.
 	/// @param input_a The first input sample to mix (adjustable gain).
 	/// @param input_b The second input sample to mix (unity gain).
 	/// @return The mixed sample.
-	Argon<T> render(Argon<T> input_a, Argon<T> input_b) final { return (GainProcessor<T>::gain * input_a) + input_b; }
+	[[gnu::always_inline]] Argon<T> render(Argon<T> input_a, Argon<T> input_b) final {
+		return (GainProcessor<T>::gain * input_a) + input_b;
+	}
 };
 
 /// @brief Combines a Gain processor with a Unity Mixer to create a GainMixer.
@@ -100,7 +106,7 @@ struct GainMixer<int32_t> final : Gain<FixedPoint<31>>, SIMDMixer<int32_t>, Mixe
 	/// @param input_a The first input sample to mix (adjustable gain).
 	/// @param input_b The second input sample to mix (unity gain).
 	/// @return The mixed sample.
-	int32_t render(int32_t input_a, int32_t input_b) final {
+	[[gnu::always_inline]] int32_t render(int32_t input_a, int32_t input_b) final {
 		return (FixedPoint<31>::from_raw(input_b).MultiplyAdd(FixedPoint<31>::from_raw(input_a), gain)).raw();
 	}
 
@@ -108,7 +114,7 @@ struct GainMixer<int32_t> final : Gain<FixedPoint<31>>, SIMDMixer<int32_t>, Mixe
 	/// @param input_a The first input sample to mix (adjustable gain).
 	/// @param input_b The second input sample to mix (unity gain).
 	/// @return The mixed sample.
-	Argon<int32_t> render(Argon<int32_t> input_a, Argon<int32_t> input_b) final {
+	[[gnu::always_inline]] Argon<int32_t> render(Argon<int32_t> input_a, Argon<int32_t> input_b) final {
 		return input_b.MultiplyAddFixedPoint(input_a, gain.raw()); ///< Use FMA for mixing
 	}
 };
@@ -131,7 +137,7 @@ struct GainMixerProcessor final : SIMDProcessor<T>, Processor<T> {
 	/// @brief Render a block of samples by mixing the input with the unity-input buffer.
 	/// @param input The input samples to render.
 	/// @return The mixed output samples.
-	Argon<T> render(Argon<T> input) final {
+	[[gnu::always_inline]] Argon<T> render(Argon<T> input) final {
 		auto output = gain_mixer.render(input, Argon<T>::Load(&*unity_input_iterator));
 		std::advance(unity_input_iterator, Argon<T>::lanes); ///< Advance the iterator for the next call
 		return output;
@@ -140,7 +146,7 @@ struct GainMixerProcessor final : SIMDProcessor<T>, Processor<T> {
 	/// @brief Render a single sample by mixing it with the current unity-input sample.
 	/// @param input The input sample to render.
 	/// @return The mixed output sample.
-	T render(T input) final { return gain_mixer.render(input, *unity_input_iterator++); }
+	[[gnu::always_inline]] T render(T input) final { return gain_mixer.render(input, *unity_input_iterator++); }
 };
 
 GainMixerProcessor(FixedPoint<31>, std::span<int32_t>) -> GainMixerProcessor<int32_t>;
