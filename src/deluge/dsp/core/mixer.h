@@ -48,7 +48,7 @@ struct Mixer : BlockMixer<T> {
 	/// @brief Mix a block of samples from two input buffers into an output buffer.
 	/// @param inputs A span of input buffers to mix.
 	/// @param output The output buffer to fill with the mixed samples.
-	void renderBlock(std::span<T> input_a, std::span<T> input_b, std::span<T> output) override {
+	void renderBlock(std::span<T> input_a, std::span<T> input_b, std::span<T> output) final {
 		for (size_t i = 0; i < std::min(input_a.size(), std::min(input_b.size(), output.size())); ++i) {
 			output[i] = render(input_a[i], input_b[i]);
 		}
@@ -68,7 +68,7 @@ struct SIMDMixer : BlockMixer<T> {
 	/// @brief Mix a block of samples from two input buffers into an output buffer.
 	/// @param inputs A span of input buffers to mix.
 	/// @param output The output buffer to fill with the mixed samples.
-	void renderBlock(std::span<T> input_a, std::span<T> input_b, std::span<T> output) override {
+	void renderBlock(std::span<T> input_a, std::span<T> input_b, std::span<T> output) final {
 		auto input_a_view = argon::vectorize(input_a);
 		auto input_b_view = argon::vectorize(input_b);
 		auto output_view = argon::vectorize(output);

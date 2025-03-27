@@ -33,7 +33,7 @@ struct ConditionalGenerator<
     CondType, GeneratorType,
     std::enable_if_t<std::is_base_of_v<Generator<typename std::remove_pointer_t<GeneratorType>::value_type>,
                                        std::remove_pointer_t<GeneratorType>>>>
-    : Generator<typename std::remove_pointer_t<GeneratorType>::value_type> {
+    final : Generator<typename std::remove_pointer_t<GeneratorType>::value_type> {
 	CondType condition_;          // Condition to apply the generators
 	GeneratorType generator_;     // Contained generator (can be a pointer)
 	GeneratorType elseGenerator_; // Else generator (required)
@@ -45,7 +45,7 @@ struct ConditionalGenerator<
 
 	/// @brief Generate a value conditionally applying generators.
 	/// @return The generated value.
-	value_type render() override {
+	value_type render() final {
 		if (condition_()) {                                                                // Check the condition
 			return std::invoke(&std::remove_pointer_t<GeneratorType>::render, generator_); // Apply the generator
 		}
@@ -58,7 +58,7 @@ struct ConditionalGenerator<
     bool, GeneratorType,
     std::enable_if_t<std::is_base_of_v<Generator<typename std::remove_pointer_t<GeneratorType>::value_type>,
                                        std::remove_pointer_t<GeneratorType>>>>
-    : Generator<typename std::remove_pointer_t<GeneratorType>::value_type> {
+    final : Generator<typename std::remove_pointer_t<GeneratorType>::value_type> {
 	bool condition_;              // Condition to apply the generators
 	GeneratorType generator_;     // Contained generator (can be a pointer)
 	GeneratorType elseGenerator_; // Else generator (required)
@@ -70,7 +70,7 @@ struct ConditionalGenerator<
 
 	/// @brief Generate a value conditionally applying generators.
 	/// @return The generated value.
-	value_type render() override {
+	value_type render() final {
 		if (condition_) {                                                                  // Check the condition
 			return std::invoke(&std::remove_pointer_t<GeneratorType>::render, generator_); // Apply the generator
 		}
@@ -83,7 +83,7 @@ struct ConditionalGenerator<
     CondType, GeneratorType,
     std::enable_if_t<std::is_base_of_v<SIMDGenerator<typename std::remove_pointer_t<GeneratorType>::value_type>,
                                        std::remove_pointer_t<GeneratorType>>>>
-    : SIMDGenerator<typename std::remove_pointer_t<GeneratorType>::value_type> {
+    final : SIMDGenerator<typename std::remove_pointer_t<GeneratorType>::value_type> {
 	CondType condition_;          // Condition to apply the generators
 	GeneratorType generator_;     // Contained generator (can be a pointer)
 	GeneratorType elseGenerator_; // Else generator (required)
@@ -95,7 +95,7 @@ struct ConditionalGenerator<
 
 	/// @brief Generate a SIMD value conditionally applying generators.
 	/// @return The generated SIMD value.
-	Argon<value_type> render() override {
+	Argon<value_type> render() final {
 		if (condition_()) {                                                                // Check the condition
 			return std::invoke(&std::remove_pointer_t<GeneratorType>::render, generator_); // Apply the generator
 		}
@@ -108,7 +108,7 @@ struct ConditionalGenerator<
     bool, GeneratorType,
     std::enable_if_t<std::is_base_of_v<SIMDGenerator<typename std::remove_pointer_t<GeneratorType>::value_type>,
                                        std::remove_pointer_t<GeneratorType>>>>
-    : SIMDGenerator<typename std::remove_pointer_t<GeneratorType>::value_type> {
+    final : SIMDGenerator<typename std::remove_pointer_t<GeneratorType>::value_type> {
 	bool condition_;              // Condition to apply the generators
 	GeneratorType generator_;     // Contained generator (can be a pointer)
 	GeneratorType elseGenerator_; // Else generator (required)
@@ -120,7 +120,7 @@ struct ConditionalGenerator<
 
 	/// @brief Generate a SIMD value conditionally applying generators.
 	/// @return The generated SIMD value.
-	Argon<value_type> render() override {
+	Argon<value_type> render() final {
 		if (condition_) {                                                                  // Check the condition
 			return std::invoke(&std::remove_pointer_t<GeneratorType>::render, generator_); // Apply the generator
 		}

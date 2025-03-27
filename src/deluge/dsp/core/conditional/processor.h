@@ -35,7 +35,7 @@ struct ConditionalProcessor<
     CondType, ProcessorType,
     std::enable_if_t<std::is_base_of_v<Processor<typename std::remove_pointer_t<ProcessorType>::value_type>,
                                        std::remove_pointer_t<ProcessorType>>>>
-    : Processor<typename std::remove_pointer_t<ProcessorType>::value_type> {
+    final : Processor<typename std::remove_pointer_t<ProcessorType>::value_type> {
 	CondType condition_;                         // Condition to apply the processors
 	ProcessorType processor_;                    // Contained processor (can be a pointer)
 	std::optional<ProcessorType> elseProcessor_; // Optional else processor (can be a pointer)
@@ -49,7 +49,7 @@ struct ConditionalProcessor<
 	/// @brief Process a block of samples using SIMD operations, conditionally applying processors.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
-	value_type render(value_type sample) override {
+	value_type render(value_type sample) final {
 		if (condition_()) { // Check the condition
 			return std::invoke(static_cast<value_type (std::remove_pointer_t<ProcessorType>::*)(value_type)>(
 			                       &std::remove_pointer_t<ProcessorType>::render),
@@ -69,7 +69,7 @@ struct ConditionalProcessor<
     bool, ProcessorType,
     std::enable_if_t<std::is_base_of_v<Processor<typename std::remove_pointer_t<ProcessorType>::value_type>,
                                        std::remove_pointer_t<ProcessorType>>>>
-    : Processor<typename std::remove_pointer_t<ProcessorType>::value_type> {
+    final : Processor<typename std::remove_pointer_t<ProcessorType>::value_type> {
 	bool condition_;                             // Condition to apply the processors
 	ProcessorType processor_;                    // Contained processor (can be a pointer)
 	std::optional<ProcessorType> elseProcessor_; // Optional else processor (can be a pointer)
@@ -83,7 +83,7 @@ struct ConditionalProcessor<
 	/// @brief Process a block of samples using SIMD operations, conditionally applying processors.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
-	value_type render(value_type sample) override {
+	value_type render(value_type sample) final {
 		if (condition_) { // Check the condition
 			return std::invoke(static_cast<value_type (std::remove_pointer_t<ProcessorType>::*)(value_type)>(
 			                       &std::remove_pointer_t<ProcessorType>::render),
@@ -103,7 +103,7 @@ struct ConditionalProcessor<
     CondType, ProcessorType,
     std::enable_if_t<std::is_base_of_v<SIMDProcessor<typename std::remove_pointer_t<ProcessorType>::value_type>,
                                        std::remove_pointer_t<ProcessorType>>>>
-    : SIMDProcessor<typename std::remove_pointer_t<ProcessorType>::value_type> {
+    final : SIMDProcessor<typename std::remove_pointer_t<ProcessorType>::value_type> {
 	CondType condition_;                         // Condition to apply the processors
 	ProcessorType processor_;                    // Contained processor (can be a pointer)
 	std::optional<ProcessorType> elseProcessor_; // Optional else processor (can be a pointer)
@@ -117,7 +117,7 @@ struct ConditionalProcessor<
 	/// @brief Process a block of samples using SIMD operations, conditionally applying processors.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
-	Argon<value_type> render(Argon<value_type> sample) override {
+	Argon<value_type> render(Argon<value_type> sample) final {
 		if (condition_()) { // Check the condition
 			return std::invoke(
 			    static_cast<Argon<value_type> (std::remove_pointer_t<ProcessorType>::*)(Argon<value_type>)>(
@@ -139,7 +139,7 @@ struct ConditionalProcessor<
     bool, ProcessorType,
     std::enable_if_t<std::is_base_of_v<SIMDProcessor<typename std::remove_pointer_t<ProcessorType>::value_type>,
                                        std::remove_pointer_t<ProcessorType>>>>
-    : SIMDProcessor<typename std::remove_pointer_t<ProcessorType>::value_type> {
+    final : SIMDProcessor<typename std::remove_pointer_t<ProcessorType>::value_type> {
 	bool condition_;                             // Condition to apply the processors
 	ProcessorType processor_;                    // Contained processor (can be a pointer)
 	std::optional<ProcessorType> elseProcessor_; // Optional else processor (can be a pointer)
@@ -153,7 +153,7 @@ struct ConditionalProcessor<
 	/// @brief Process a block of samples using SIMD operations, conditionally applying processors.
 	/// @param sample The input sample to process.
 	/// @return The processed sample.
-	Argon<value_type> render(Argon<value_type> sample) override {
+	Argon<value_type> render(Argon<value_type> sample) final {
 		if (condition_) { // Check the condition
 			return std::invoke(
 			    static_cast<Argon<value_type> (std::remove_pointer_t<ProcessorType>::*)(Argon<value_type>)>(

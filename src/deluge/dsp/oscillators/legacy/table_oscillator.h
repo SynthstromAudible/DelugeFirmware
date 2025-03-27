@@ -31,7 +31,7 @@ namespace deluge::dsp::oscillator {
 struct Table {
 	const int16_t* data;
 	int32_t size_magnitude;
-	Table(const int16_t* table, int32_t size_magnitude) : data(), size_magnitude(size_magnitude) {}
+	Table(const int16_t* table, int32_t size_magnitude) : data{table}, size_magnitude{size_magnitude} {}
 };
 
 /// @brief A base class for oscillators that use a lookup table for waveform generation.
