@@ -186,13 +186,29 @@ void Oscillator::renderTriangle(std::span<int32_t> buffer, PhasorPair<uint32_t> 
                                 PhasorPair<FixedPoint<30>> amplitude) {
 	bool fast_render = (osc.phase_increment < 69273666 || AudioEngine::cpuDireness >= 7);
 
-	auto simple_triangle = SimpleOscillatorFor(&deluge::dsp::waves::triangle);
+	if (fast_render) {
+		int32_t amplitude_now = amplitude.phase.raw() << 1;
+		uint32_t phase_now = osc.phase;
+		for (auto& sample : buffer) {
+			phase_now += osc.phase_increment;
+
+			int32_t value = getTriangleSmall(phase_now);
+
+			if (apply_amplitude) {
+				amplitude_now += amplitude.phase_increment.raw() << 1;
+				sample = multiply_accumulate_32x32_rshift32_rounded(sample, value, amplitude_now);
+			}
+			else {
+				sample = value << 1;
+			}
+		}
+		return;
+	}
+
 	auto [table, table_size_magnitude] = getTriangleTable(osc.phase_increment);
-	TableOscillator fancy_triangle(table, table_size_magnitude);
-	auto& oscillator =
-	    fast_render ? static_cast<LegacyOscillator&>(simple_triangle) : static_cast<LegacyOscillator&>(fancy_triangle);
+
 	Pipeline pipeline{
-	    &oscillator,
+	    TableOscillator(table, table_size_magnitude),
 	    ConditionalProcessor{
 	        apply_amplitude,
 	        Pipeline{
@@ -202,7 +218,7 @@ void Oscillator::renderTriangle(std::span<int32_t> buffer, PhasorPair<uint32_t> 
 	    },
 	};
 
-	std::get<LegacyOscillator*>(pipeline)->setPhaseAndIncrement(osc.phase, osc.phase_increment);
+	std::get<TableOscillator>(pipeline).setPhaseAndIncrement(osc.phase, osc.phase_increment);
 
 	pipeline.renderBlock(buffer);
 }
@@ -259,14 +275,29 @@ void Oscillator::renderSquare(std::span<int32_t> buffer, PhasorPair<uint32_t> os
 	const auto [table_number, table_size_magnitude] = dsp::getTableNumber(osc.phase_increment);
 
 	bool fast_render = (table_number < AudioEngine::cpuDireness + 6);
+	if (fast_render) {
+		int32_t amplitude_now = amplitude.phase.raw();
+		uint32_t phase_now = osc.phase;
 
-	auto simple_square = SimpleOscillatorFor(&deluge::dsp::waves::square);
-	auto table_square = TableOscillator(dsp::squareTables[table_number], table_size_magnitude);
-	auto& oscillator =
-	    fast_render ? static_cast<LegacyOscillator&>(simple_square) : static_cast<LegacyOscillator&>(table_square);
-
+		if (apply_amplitude) {
+#pragma GCC unroll 4
+			for (auto& sample : buffer) {
+				phase_now += osc.phase_increment;
+				amplitude_now += amplitude.phase_increment.raw();
+				sample = multiply_accumulate_32x32_rshift32_rounded(sample, getSquare(phase_now), amplitude_now);
+			}
+		}
+		else {
+#pragma GCC unroll 4
+			for (auto& sample : buffer) {
+				phase_now += osc.phase_increment;
+				sample = getSquareSmall(phase_now);
+			}
+		}
+		return;
+	}
 	Pipeline pipeline{
-	    &oscillator,
+	    TableOscillator(dsp::squareTables[table_number], table_size_magnitude),
 	    ConditionalProcessor{
 	        apply_amplitude,
 	        Pipeline{
@@ -276,7 +307,7 @@ void Oscillator::renderSquare(std::span<int32_t> buffer, PhasorPair<uint32_t> os
 	    },
 	};
 
-	std::get<LegacyOscillator*>(pipeline)->setPhaseAndIncrement(osc.phase, osc.phase_increment);
+	std::get<TableOscillator>(pipeline).setPhaseAndIncrement(osc.phase, osc.phase_increment);
 
 	pipeline.renderBlock(buffer);
 }
