@@ -26,7 +26,11 @@ struct Stealable : etl::bidirectional_link<0> {
 	using link_type = etl::bidirectional_link<0>;
 
 	Stealable() = default;
-	virtual ~Stealable() = default;
+	virtual ~Stealable() {
+		if (is_linked()) {
+			unlink();
+		}
+	};
 
 	virtual bool mayBeStolen(void* thingNotToStealFrom) = 0;
 	virtual void steal(char const* errorCode) = 0; // You gotta also call the destructor after this.
