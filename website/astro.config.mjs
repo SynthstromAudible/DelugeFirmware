@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import rehypeMermaid from 'rehype-mermaid'
 
 // https://astro.build/config
 export default defineConfig({
@@ -9,8 +10,8 @@ export default defineConfig({
 			title: 'Deluge Community',
 			social: {
 				github: 'https://github.com/SynthstromAudible/DelugeFirmware',
-        discord: 'https://discord.gg/s2MnkFqZgj',
-        patreon: 'https://www.patreon.com/Synthstrom'
+				discord: 'https://discord.gg/s2MnkFqZgj',
+				patreon: 'https://www.patreon.com/Synthstrom'
 			},
 			sidebar: [
         {
@@ -31,4 +32,9 @@ export default defineConfig({
 			],
 		}),
 	],
+	markdown: {
+		rehypePlugins: [
+			[rehypeMermaid, { strategy: 'img-svg', dark: true }],
+		],
+	},
 });
