@@ -38,6 +38,9 @@ public:
 	VoiceSample() = default;
 	explicit VoiceSample(VoiceSample& other) = default;
 	VoiceSample(SampleLowLevelReader&& other) : SampleLowLevelReader{std::move(other)} {}
+	~VoiceSample() override { endTimeStretching(); }
+	VoiceSample& operator=(const VoiceSample& other) = delete;
+	VoiceSample& operator=(VoiceSample&& other) = default;
 
 	void noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32_t priorityRating);
 	bool noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybackGuide* voiceSource);
