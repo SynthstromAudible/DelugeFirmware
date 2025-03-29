@@ -126,7 +126,7 @@ public:
 			value *= static_cast<double>(FixedPoint::one());
 			// convert from floating-point to fixed point
 			if constexpr (rounded) {
-				value = (value > 0.0) ? std::ceil(value) : std::floor(value);
+				value = std::round(value);
 			}
 
 			// saturate
@@ -169,7 +169,7 @@ public:
 			value *= FixedPoint::one();
 			// convert from floating-point to fixed point
 			if constexpr (rounded) {
-				value_ = (value > 0.0) ? std::ceil(value) : std::floor(value);
+				value = std::round(value);
 			}
 
 			// saturate
