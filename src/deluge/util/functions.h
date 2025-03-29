@@ -392,11 +392,11 @@ int32_t divide_round_negative(int32_t dividend, int32_t divisor);
 }
 
 [[gnu::always_inline]] inline int32_t getMagnitudeOld(uint32_t input) {
-	return 32 - clz(input);
+	return 32 - std::countl_zero(input);
 }
 
 [[gnu::always_inline]] inline int32_t getMagnitude(uint32_t input) {
-	return 31 - clz(input);
+	return 31 - std::countl_zero(input);
 }
 
 [[gnu::always_inline]] inline bool isPowerOfTwo(uint32_t input) {

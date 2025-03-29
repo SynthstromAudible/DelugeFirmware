@@ -29,6 +29,16 @@ describe fixedpoint("FixedPoint", ${
 			FixedPoint<31> fp{0.5f};
 			expect(fp.raw()).to_equal(0x40000000);
 		});
+
+		it("from another FixedPoint upwards", _ {
+			FixedPoint<31> fp = FixedPoint<30>{1.f};
+			expect(fp.raw()).to_equal(0x7fffffff);
+		});
+
+		it("from another FixedPoint downwards", _ {
+			FixedPoint<16> fp = FixedPoint<30>{1.f};
+			expect(fp.raw()).to_equal(FixedPoint<16>::one());
+		});	
 	});
 
 	context("copy constructor", _ {
@@ -49,7 +59,7 @@ describe fixedpoint("FixedPoint", ${
 	context("==", _ {
 		it("the original integer", _ {
 			FixedPoint<16> fp{42};
-			expect(fp).to_equal(42);
+			expect(fp).to_equal(42.f);
 		});
 
 		it("the original float", _ {
@@ -108,7 +118,7 @@ describe fixedpoint("FixedPoint", ${
 		it("adds another FixedPoint with an integral value", _ {
 			FixedPoint<16> fp1{42};
 			FixedPoint<16> fp2{2};
-			expect(fp1 + fp2).to_equal(44);
+			expect(fp1 + fp2).to_equal(44.f);
 		});
 
 		it("adds another FixedPoint with a fractional value", _ {
@@ -122,7 +132,7 @@ describe fixedpoint("FixedPoint", ${
 		it("subtracts another FixedPoint with an integral value", _ {
 			FixedPoint<16> fp1{42};
 			FixedPoint<16> fp2{2};
-			expect(fp1 - fp2).to_equal(40);
+			expect(fp1 - fp2).to_equal(40.f);
 		});
 
 		it("subtracts another FixedPoint with a fractional value", _ {
@@ -138,13 +148,13 @@ describe fixedpoint("FixedPoint", ${
 				it("multiplies by another FixedPoint with an integral value", _ {
 					FixedPoint<16> fp1{42};
 					FixedPoint<16> fp2{2};
-					expect(fp1 * fp2).to_equal(84);
+					expect(fp1 * fp2).to_equal(84.f);
 				});
 
 				it("multiplies by another FixedPoint with a fractional value", _ {
 					FixedPoint<16> fp1{42};
 					FixedPoint<16> fp2{2.5f};
-					expect(fp1 * fp2).to_equal(105);
+					expect(fp1 * fp2).to_equal(105.f);
 				});
 			});
 
@@ -152,13 +162,13 @@ describe fixedpoint("FixedPoint", ${
 				it("multiplies by another FixedPoint with an integral value", _ {
 					FixedPoint<16> fp1{42};
 					FixedPoint<28> fp2{2};
-					expect(fp1 * fp2).to_equal(84);
+					expect(fp1 * fp2).to_equal(84.f);
 				});
 
 				it("multiplies by another FixedPoint with a fractional value", _ {
 					FixedPoint<16> fp1{42};
 					FixedPoint<28> fp2{2.5f};
-					expect(fp1 * fp2).to_equal(105);
+					expect(fp1 * fp2).to_equal(105.f);
 				});
 			});
 		});
@@ -168,13 +178,13 @@ describe fixedpoint("FixedPoint", ${
 				it("multiplies by another FixedPoint with an integral value", _ {
 					FixedPointAccurate<16> fp1{42};
 					FixedPointAccurate<16> fp2{2};
-					expect(fp1 * fp2).to_equal(84);
+					expect(fp1 * fp2).to_equal(84.f);
 				});
 
 				it("multiplies by another FixedPoint with a fractional value", _ {
 					FixedPointAccurate<16> fp1{42};
 					FixedPointAccurate<16> fp2{2.5f};
-					expect(fp1 * fp2).to_equal(105);
+					expect(fp1 * fp2).to_equal(105.f);
 				});
 			});
 
@@ -182,13 +192,13 @@ describe fixedpoint("FixedPoint", ${
 				it("multiplies by another FixedPoint with an integral value", _ {
 					FixedPointAccurate<16> fp1{42};
 					FixedPointAccurate<28> fp2{2};
-					expect(fp1 * fp2).to_equal(84);
+					expect(fp1 * fp2).to_equal(84.f);
 				});
 
 				it("multiplies by another FixedPoint with a fractional value", _ {
 					FixedPointAccurate<16> fp1{42};
 					FixedPointAccurate<28> fp2{2.5f};
-					expect(fp1 * fp2).to_equal(105);
+					expect(fp1 * fp2).to_equal(105.f);
 				});
 			});
 		});
@@ -198,7 +208,7 @@ describe fixedpoint("FixedPoint", ${
 		it("divides by another FixedPoint with an integral value", _ {
 			FixedPoint<16> fp1{42};
 			FixedPoint<16> fp2{2};
-			expect(fp1 / fp2).to_equal(21);
+			expect(fp1 / fp2).to_equal(21.f);
 		});
 
 		it("divides by another FixedPoint with a fractional value", _ {
@@ -214,7 +224,7 @@ describe fixedpoint("FixedPoint", ${
 				FixedPoint<16> fp1{42};
 				FixedPoint<17> fp2{2};
 				FixedPoint<17> fp3{3};
-				expect(fp1.MultiplyAdd(fp2, fp3)).to_equal(48);
+				expect(fp1.MultiplyAdd(fp2, fp3)).to_equal(48.f);
 			});
 
 			it("multiplies and adds another FixedPoint with a fractional value", _ {

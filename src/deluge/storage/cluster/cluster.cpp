@@ -23,6 +23,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "util/misc.h"
 #include <algorithm>
+#include <bit>
 #include <cstddef>
 #include <cstring>
 
@@ -34,7 +35,7 @@ void Cluster::setSize(size_t size) {
 	Cluster::size = size;
 
 	// Find the highest bit set
-	Cluster::size_magnitude = 32 - __builtin_clz(size) - 1;
+	Cluster::size_magnitude = 32 - std::countl_zero(size) - 1;
 }
 
 Cluster* Cluster::create(Cluster::Type type, bool shouldAddReasons, void* dontStealFromThing) {
