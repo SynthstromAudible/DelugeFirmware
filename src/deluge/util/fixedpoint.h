@@ -151,7 +151,7 @@ public:
 
 	/// @brief Explicit conversion to float
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
-	[[gnu::always_inline]] constexpr FixedPoint to_float() noexcept {
+	[[gnu::always_inline]] [[nodiscard]] constexpr float to_float() const noexcept {
 		if constexpr (std::is_constant_evaluated() || !ARMv7a) {
 			return static_cast<float>(value_) / FixedPoint::one();
 		}
