@@ -547,7 +547,7 @@ void PatchCableSet::removeAllPatchingToParam(ModelStackWithParamCollection* mode
 	for (int32_t i = kNumUnsignedIntegersToRepPatchCables - 1; i >= 0; i--) {                                          \
 		uint32_t whichParamsHere = whichParams[i];                                                                     \
 		while (whichParamsHere) {                                                                                      \
-			int32_t whichBit = 31 - clz(whichParamsHere);                                                              \
+			int32_t whichBit = 31 - std::countl_zero(whichParamsHere);                                                 \
 			whichParamsHere &= ~((uint32_t)1 << whichBit);                                                             \
 			int32_t c = whichBit + (i << 5);
 

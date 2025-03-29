@@ -70,7 +70,7 @@ uint32_t MemoryRegion::padSize(uint32_t requiredSize) {
 		}
 		// if it's not a power of 2 go up to the next power of 2
 		if (!((requiredSize & (requiredSize - 1)) == 0)) {
-			int magnitude = 32 - clz(requiredSize);
+			int magnitude = 32 - std::countl_zero(requiredSize);
 			requiredSize = 1 << magnitude;
 		}
 		requiredSize += extraSize;
