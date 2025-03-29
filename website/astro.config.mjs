@@ -19,6 +19,10 @@ export default defineConfig({
 				  slug: 'downloads'
 				},
 				{
+					label: 'Changelog',
+					autogenerate: { directory: 'changelogs' },
+				},
+				{
 					label: 'Features',
 					autogenerate: { directory: 'features' },
 				},
@@ -36,6 +40,11 @@ export default defineConfig({
 				{
 					label: 'Development',
 					autogenerate: { directory: 'development' },
+				},
+				{
+					label: 'Other',
+					autogenerate: { directory: 'poc' },
+					badge: 'Testing Docs Features'
 				}
 			],
 		}),

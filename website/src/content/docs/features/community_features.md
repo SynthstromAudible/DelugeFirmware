@@ -1,5 +1,7 @@
 ---
-title: Community Features
+title: Overview
+sidebar:
+  order: 1
 ---
 
 ## 1. Introduction
