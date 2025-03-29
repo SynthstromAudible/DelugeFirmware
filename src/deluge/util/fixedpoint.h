@@ -96,7 +96,8 @@ public:
 		else if constexpr (FractionalBits > OtherFractionalBits) {
 			// saturate (shift left)
 			constexpr int32_t shift = FractionalBits - OtherFractionalBits;
-			value_ = shift_left_saturate<shift>(value_) + (value_ % 2);
+			value_ = signed_saturate<32 - shift>(value_);
+			value_ = (value_ << shift) + (value_ % 2);
 		}
 		else if constexpr (rounded) {
 			// round (shift right)
@@ -416,15 +417,6 @@ public:
 		int fractional_value = value_ & ((1 << fractional_bits) - 1);              // Mask out the integral part
 		int other_fractional_value = rhs.raw() & ((1 << OtherFractionalBits) - 1); // Mask out the integral parts
 
-		if constexpr (rounded) {
-			if constexpr (fractional_bits > OtherFractionalBits) {
-				fractional_value = roundToBit<fractional_bits - OtherFractionalBits>(fractional_value);
-			}
-			else {
-				other_fractional_value = roundToBit<OtherFractionalBits - fractional_bits>(other_fractional_value);
-			}
-		}
-
 		// Shift the fractional part if the number of fractional bits is different
 		if constexpr (fractional_bits > OtherFractionalBits) {
 			fractional_value >>= fractional_bits - OtherFractionalBits;
@@ -444,15 +436,6 @@ public:
 		int other_integral_value = rhs.raw() >> OtherFractionalBits;
 		int fractional_value = value_ & ((1 << fractional_bits) - 1);              // Mask out the integral part
 		int other_fractional_value = rhs.raw() & ((1 << OtherFractionalBits) - 1); // Mask out the integral part
-
-		if constexpr (rounded) {
-			if (fractional_bits > OtherFractionalBits) {
-				fractional_value += (1 << (fractional_bits - OtherFractionalBits)) - 1;
-			}
-			else {
-				other_fractional_value += (1 << (OtherFractionalBits - fractional_bits)) - 1;
-			}
-		}
 
 		// Shift the fractional part if the number of fractional bits is different
 		if (fractional_bits > OtherFractionalBits) {
