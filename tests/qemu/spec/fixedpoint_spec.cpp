@@ -29,6 +29,16 @@ describe fixedpoint("FixedPoint", ${
 			FixedPoint<31> fp{0.5f};
 			expect(fp.raw()).to_equal(0x40000000);
 		});
+
+		it("from another FixedPoint upwards", _ {
+			FixedPoint<31> fp = FixedPoint<30>{1.f};
+			expect(fp.raw()).to_equal(0x7fffffff);
+		});
+
+		it("from another FixedPoint downwards", _ {
+			FixedPoint<16> fp = FixedPoint<30>{1.f};
+			expect(fp.raw()).to_equal(FixedPoint<16>::one());
+		});	
 	});
 
 	context("copy constructor", _ {
