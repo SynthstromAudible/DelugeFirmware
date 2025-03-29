@@ -1,4 +1,6 @@
-# Arpeggiator
+---
+title: Arpeggiator
+---
 
 The arpeggiator has been completely redesigned from scratch. It can be used on Synth clips, Midi clips, and on any kind of
 Kit rows (Sound, Midi and CV).

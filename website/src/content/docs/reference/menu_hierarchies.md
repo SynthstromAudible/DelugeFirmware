@@ -1,4 +1,6 @@
-# Deluge Menu Hierarchies
+---
+title: Deluge Menu Hierarchies
+---
 
 This document will document the menu structure hierarchy currently in place in the deluge in order to help users understand what exists in the menu structure and how the hierarchy strings are defined for OLED and 7SEG users.
 

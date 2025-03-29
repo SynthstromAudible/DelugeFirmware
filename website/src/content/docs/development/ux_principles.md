@@ -1,4 +1,6 @@
-# Deluge UX Principles
+---
+title: Deluge UX Principles
+---
 ### What the Deluge Is
 
 The Deluge is a standalone instrument that also works as a controller/sequencer. It has two core features which set it apart from the competition:
@@ -47,4 +49,4 @@ This is a subset of issues where the current UX does not fully align with the pr
 
 ## Additional Information
 
-* Access more developer resources in [Additional Information](/docs/dev/additional_info.md)
+* Access more developer resources in [Additional Information](/website/src/content/docs/devsrc/content/docs/dev/additional_info.md)

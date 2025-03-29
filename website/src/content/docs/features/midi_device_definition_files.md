@@ -1,4 +1,6 @@
-# MIDI Device Definition Files
+---
+title: MIDI Device Definition Files
+---
 
 ## Description
 

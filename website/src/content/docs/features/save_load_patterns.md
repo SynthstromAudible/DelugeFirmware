@@ -1,3 +1,7 @@
+---
+title: Save / Load patterns
+---
+
 Added ability to save / load Patterns from/to Files. A Pattern represents all notes of the current Deluge screen, including the attributes Velocity, Probability, Lift, Iteration, and Fill. Patterns can be either melodic instruments (Synth, MIDI, CV) or rhythmic instruments (Kit, Drum).
 
 ## Creating Pattern Files
@@ -128,7 +132,7 @@ After loading a Patter, the Pattern is also copied into Clipboard and can be pas
 
 
 ### Additional Tools
-Under [contrib/midi2deluge](../../contrib/midi2deluge), you will find two simple Tools - a WebApp and a python Script - that can generate Pattern-Files for the Deluge from simple Midi-Files.
+Under [contrib/midi2deluge](../../../../../contrib/midi2deluge), you will find two simple Tools - a WebApp and a python Script - that can generate Pattern-Files for the Deluge from simple Midi-Files.
 Important:The Tools where tested with the [Wikipedia Midifile Sample](https://en.wikipedia.org/wiki/File:MIDI_sample.mid) and may will not work with very complex Midi-Files.
 
 

@@ -1,3 +1,7 @@
+---
+title: Note Row Editor
+---
+
 ## Enhance Note Probability, Iteration and Fill
 
 Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.

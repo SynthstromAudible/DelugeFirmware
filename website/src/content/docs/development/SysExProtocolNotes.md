@@ -1,4 +1,6 @@
-# How the SysEx protocol works
+---
+title: How the SysEx protocol works
+---
 
 Messages consist of a SysEx "packet" which has a header, a sequence number, a JSON body, an optional 0 separator and packed binary part.
 
@@ -48,4 +50,4 @@ The file routines work with Uint8Array objects. The assumption is that we have a
 
 ## Additional Developer Resources
 
-* Access more developer resources in [Additional Information](/docs/dev/additional_info.md).
+* Access more developer resources in [Additional Information](/website/src/content/docs/devsrc/content/docs/dev/additional_info.md).

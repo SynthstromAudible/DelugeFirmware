@@ -1,4 +1,6 @@
-# DX7 synth
+---
+title: DX7 synth
+---
 
 ## Description:
 

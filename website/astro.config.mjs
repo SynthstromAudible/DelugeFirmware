@@ -14,21 +14,29 @@ export default defineConfig({
 				patreon: 'https://www.patreon.com/Synthstrom'
 			},
 			sidebar: [
-        {
-          label: 'Downloads',
-          slug: 'downloads'
-        },
 				{
-					label: 'Guides',
-					items: [
-						// Each item here is one entry in the navigation menu.
-						{ label: 'Example Guide', slug: 'guides/example' },
-					],
+				  label: 'Downloads',
+				  slug: 'downloads'
 				},
+				{
+					label: 'Features',
+					autogenerate: { directory: 'features' },
+				},
+				// {
+				// 	label: 'Guides',
+				// 	items: [
+				// 		// Each item here is one entry in the navigation menu.
+				// 		{ label: 'Example Guide', slug: 'guides/example' },
+				// 	],
+				// },
 				{
 					label: 'Reference',
 					autogenerate: { directory: 'reference' },
 				},
+				{
+					label: 'Development',
+					autogenerate: { directory: 'development' },
+				}
 			],
 		}),
 	],

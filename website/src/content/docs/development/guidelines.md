@@ -1,4 +1,6 @@
-# Guidelines for Repository Contributions
+---
+title: Guidelines for Repository Contributions
+---
 
 Everybody is invited to contribute to this repository as further outlined below:
 
@@ -35,13 +37,13 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 * Automated and low effort Pull requests will not be will not be tolerated or accepted (
   see [Hacktoberfest](https://blog.domenic.me/hacktoberfest/) for an example on why this rule is necessary).
 
-</details>		
+</details>
 <details><summary>Code specific</summary>
 
 * All project files, especially source files need to have a compatible license with the project.
   See [LICENSE](../LICENSE).
 * There is no written standard on code guidelines yet but please make your code match the existing style as much as possible.
-* Exception: the old code uses GOTOs and single returns heavily - new C++ code should favour other flow control methods 
+* Exception: the old code uses GOTOs and single returns heavily - new C++ code should favour other flow control methods
   and early returns instead, the old code is a result of the project's roots in C.
 * Clang Format runs on CI following the config in .clang-format. As there are slight differences between versions, we
   provide a command "./dbt format" to run the CI version exactly, which should gaurantee that your PR passes the checks
@@ -52,7 +54,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 * Acceptance of the continuous integration (CI) system is also required. It will automatically build open pull requests
   and check for compilation, formatting and in the future possibly unit testing.
 
-</details>		
+</details>
 <details><summary>Application specific</summary>
 
 * Pull requests that change how users can interact with the device or massively alter system performance (> 3% permanent
@@ -74,7 +76,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
   feature and its options as a small manual to users. This includes all runtime and compile time flags which shall be
   named in respective sections.
 
-</details>		
+</details>
 <details><summary>UI Changes</summary>
 
 Changes to the existing UI should follow the following process:
@@ -124,4 +126,4 @@ project by:
 
 ## Additional Developer Resources
 
-* Access more developer resources in [Additional Information](/docs/dev/additional_info.md).
+* Access more developer resources in [Additional Information](/website/src/content/docs/devsrc/content/docs/dev/additional_info.md).

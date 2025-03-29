@@ -1,4 +1,8 @@
-# Description
+---
+title: Automation View
+---
+
+## Description
 
 Automation View is a new view that complements the existing Arranger and Clip Views.
 
@@ -106,7 +110,7 @@ The Automation View functionality covered by this feature can be broken down int
 
 A more detailed break-down of the above sections is found below.
 
-## Enter/Exit Automation View
+### Enter/Exit Automation View
 
 The Automation Arranger View can be accessed from the Arranger View by pressing the Shift + Song buttons.
 
@@ -125,7 +129,7 @@ Some additional things to note:
 - Automations that are recorded in using the Mod Encoders (Gold Knobs) are always recorded with Interpolation.
 - MPE automations are not covered/edited by the Automation Clip View. If MPE must be edited/nudged/shifted, it must be done in the current Instrument Clip View.
 
-## Automation Overview
+### Automation Overview
 
 The Automation Overview provides an overview of the Parameters that can be automated, are currently automated, and acts as a launchpad for the Automation Editor.
 
@@ -168,7 +172,7 @@ The Automation Overview **will not allow you to:**
 - re-arrange rows in a kit
 - enter the Automation Editor in Automation Arranger View if you are currently auditioning a clip
 
-## Parameter Selection
+### Parameter Selection
 
 You can select the Parameter that you want to edit in four ways:
 
@@ -181,7 +185,7 @@ Once you select a Parameter in the Automation Clip View, it will be remembered a
 
 > **Note:** This information is saved with the song.
 
-## Automation Editor
+### Automation Editor
 
 The Automation Editor enables you to view and edit parameter automation values.
 
@@ -320,13 +324,13 @@ The Automation Editor **will not allow you to:**
 - change root note in a synth/MIDI/CV clip
 - audition clips in Automation Arranger View
 
-## Default Settings
+### Default Settings
 
 Described below are a couple of toggable enhancements that change existing behaviour in the Clip View but are of benefit to the user now that Automation's can be edited separately from the Arranger / Clip View.
 
 These default settings are found in the `Settings` Menu under `Defaults/Automation/`.
 
-### Interpolation
+#### Interpolation
 
 Interpolation does not change existing behaviour. This toggle is only used in the new Automation View.
 
@@ -344,7 +348,7 @@ With interpolation turned off it will sound like a value is jumping from one val
 
 The default setting for Interpolation an be changed in the in the `Settings/Defaults/Automation/Interpolate` menu.
 
-### Clearing Automation
+#### Clearing Automation
 
 Currently in the Arranger View and Instrument Clip View if you press down on the Horizontal Encoder and press the Back button at the same time, all **Clips/Notes** AND **Automations** are cleared.
 
@@ -362,7 +366,7 @@ Through the `Settings/Defaults/Automation/Clear` submenu, you can disable this c
 
 > **Note:** MPE recorded will still be cleared as the scope of this PR does not cover editing MPE.
 
-### Shifting Automation Horizontally
+#### Shifting Automation Horizontally
 
 Currently in the Arranger View if you press down on Shift and turn the Horizontal Encoder, it will shift the arrangement of clips and ALL Automations of the entire arranagement horizontally.
 
@@ -376,7 +380,7 @@ Through the `Settings/Defaults/Automation/Shift` submenu, you can disable this c
 
 > **Note:** MPE recorded will still be shifted as the scope of this PR does not cover editing MPE.
 
-### Nudging Notes
+#### Nudging Notes
 
 Currently in the Instrument Clip View if you press down on a note and turn the Horizontal Encoder, it will nudge the Note AND the Automations for that same step.
 
@@ -390,7 +394,7 @@ Through the `Settings/Defaults/Automation/Nudge Notes` submenu, you can disable 
 
 > **Note:** MPE recorded will still be nudged as the scope of this PR does not cover editing MPE.
 
-### Disable Audition Pad Shortcuts
+#### Disable Audition Pad Shortcuts
 
 Currently in the Instrument Clip View if you hold down an audition pad and press a shortcut pad on the grid, it will open the menu corresponding to that shortcut pad.
 
@@ -400,9 +404,9 @@ Through the `Settings/Defaults/Automation/Disable Audition Pad Shortcuts` submen
 
 > **Note:** in automation view, shortcuts do not open the menu. They change the selected parameter for automation lane editing.
 
-# Fun things to try with the new Automation Clip View
+## Fun things to try with the new Automation Clip View
 
-## Two Hand Automation Drumming
+### Two Hand Automation Drumming
 
 1. Set a long sustaining clip length note.
 
@@ -414,7 +418,7 @@ Through the `Settings/Defaults/Automation/Disable Audition Pad Shortcuts` submen
 
 5. Now start drumming on the LPF Frequency Automation Lanes and see how much fun you can have adjusting automation with all your fingers at once
 
-## Editing Automations with your left hand and playing the piano roll with your right hand
+### Editing Automations with your left hand and playing the piano roll with your right hand
 
 1. While in the Automation Clip View, start playing the Piano roll in the sidebar
 
@@ -426,7 +430,7 @@ Through the `Settings/Defaults/Automation/Disable Audition Pad Shortcuts` submen
 
 5. Keep the flow going! Playing the Piano roll and switching between all the Parameters at the same time to create some amazing rhythmic sounds
 
-# Development Notes
+## Development Notes
 
 This view is tightly integrated with the Instrument Clip View and calls many of the functions and writes to many of the variables in the Instrument Clip View.
 
@@ -436,7 +440,7 @@ The Automation Clip View is recognized as a new UI so many of the calls that che
 
 Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" to tell other views (e.g. Song, Arranger) whether to open up the Keyboard screen (instead of the Instrument Clip View) when transitioning to/from the Instrument Clip View / Audio Clip View, the Automation Clip View also uses a similar variable "onAutomationClipView" for the same purpose.
 
-# De-scoped Items (Future Release)
+## De-scoped Items (Future Release)
 
 - Key Frames + Parameter value for each frame
 - Automation Shapes
@@ -448,31 +452,31 @@ Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" 
 - Can automation run at a sequence length independent of clip/row? (Currently no, the deluge isn't built that way)
 - MPE note automation view
 
-# Button Shortcuts/Combos
+## Button Shortcuts/Combos
 
 These are the main button shortcuts/combos that will be used in the Automation Clip View
 
-## Automation Overview
+### Automation Overview
 
 ![Automation Overview Shortcuts](https://github.com/user-attachments/assets/a2a58c06-f094-49dc-913c-b32ac4137b34)
 
-## Automation Editor
+### Automation Editor
 
 ![Automation Editor Shortcuts](https://github.com/user-attachments/assets/eff8f5d7-46dd-46da-b114-72b79ffdb076)
 
-## Additional Shortcut Combos for Automation Arranger View
+### Additional Shortcut Combos for Automation Arranger View
 
 - Hold `SHIFT` and press `SONG` to enter Automation Arranger View from Arranger View.
 - Press `SONG` while in Automation Arranger View to exit back to Arranger View
 - Press `AFFECT ENTIRE` while in Automation Arranger View to go back to Automation Overview
 - Press `CROSS SCREEN` while in Automation Arranger View to activate/de-activate automatic scrolling during playback
 
-## Additional Shortcut Combos for Entering the Automation Editor from the Sound Menu's
+### Additional Shortcut Combos for Entering the Automation Editor from the Sound Menu's
 
 - While in the Arranger Song Menu for a specific parameter, press `SONG` to enter the Automation Editor for that parameter
 - While in the Clip Sound Menu for a specific parameter, press `CLIP` to enter the Automation Editor for that parameter
 
-## Automation Overview of Grid Shortcuts mappings to MIDI CC's for MIDI Clips
+### Automation Overview of Grid Shortcuts mappings to MIDI CC's for MIDI Clips
 
 This image shows the default MIDI Follow CC to Grid Parameter Shortcut mappings. You can edit these mappings in MIDIFollow.XML which will update the CC to Grid Parameter Shortcut mappings used in Automation View for MIDI Clips.
 

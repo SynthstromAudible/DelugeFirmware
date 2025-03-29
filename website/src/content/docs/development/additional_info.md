@@ -1,4 +1,7 @@
-## Additional Information
+---
+title: Development Additional Info
+---
+
 Developers will want to review these resources:
 
 * [Getting Started with Deluge Development](getting_started.md)

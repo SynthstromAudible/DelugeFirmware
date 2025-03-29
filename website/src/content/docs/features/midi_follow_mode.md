@@ -1,4 +1,6 @@
-# MIDI Follow Mode with MIDI Feedback
+---
+title: MIDI Follow Mode with MIDI Feedback
+---
 
 ![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/9389ad30-9d5a-435d-aee0-ba3f54d3c8a8)
 

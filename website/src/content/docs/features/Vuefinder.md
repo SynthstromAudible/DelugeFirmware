@@ -1,4 +1,6 @@
-#### Vuefinder
+---
+title: Vuefinder
+---
 
 Vuefinder is a web-based "cloud" file browser written by Yusuf Özdemir (https://github.com/n1crack/vuefinder). Jamie Fenton has adapted this program to allow manipulation of the Deluge SD card contents from a web browser using Midi System Exclusive over USB.
 

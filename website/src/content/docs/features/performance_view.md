@@ -1,4 +1,6 @@
-# Performance View
+---
+title: Performance View
+---
 
 ![20907a86d7c1dbc258b98cb31aced7b2fd7a8055_2_1332x1000](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/5b1f4def-9f74-4f76-85cd-24f645973a7c)
 

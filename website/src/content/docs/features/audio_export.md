@@ -1,4 +1,6 @@
-# Automated Audio Exporting
+---
+title: Automated Audio Exporting
+---
 
 https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/044efe71-ac49-4c4b-bd5c-92b8eb269582
 
