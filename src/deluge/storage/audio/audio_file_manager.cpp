@@ -1363,7 +1363,8 @@ void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* err
 	else if (cluster.numReasonsToBeLoaded < 0) {
 #if ALPHA_OR_BETA_VERSION
 		if (cluster.sample != nullptr) { // "Should" always be true...
-			D_PRINTLN("reason remains on cluster of sample:  %d", cluster.sample->filePath.get());
+			D_PRINTLN("negative reasons on cluster %x from call %s for sample %s", (uintptr_t)&cluster, errorCode,
+			          cluster.sample->filePath.get());
 		}
 		FREEZE_WITH_ERROR(errorCode);
 #else
