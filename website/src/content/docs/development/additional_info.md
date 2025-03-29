@@ -1,14 +1,14 @@
 ---
-title: Development Additional Info
+title: Overview
 ---
 
 Developers will want to review these resources:
 
-* [Getting Started with Deluge Development](getting_started.md)
-* [Guidelines for Repository Contributions](guidelines.md)
-* [Developer Tools](tools.md)
-* [Deluge UX Principles](ux_principles.md)
-* [SYSEX Protocol Notes](SysExProtocolNotes.md)
+* [Getting Started with Deluge Development](../getting_started)
+* [Guidelines for Repository Contributions](../guidelines)
+* [Developer Tools](../tools)
+* [Deluge UX Principles](../ux_principles)
+* [SYSEX Protocol Notes](../SysExProtocolNotes)
 * [Doxygen Generated Developer Documentation](https://synthstromaudible.github.io/DelugeFirmware/docs/index.html)
 
 There are a lot more resources that help you getting started in the repository [Wiki](https://github.com/SynthstromAudible/DelugeFirmware/wiki) including but not limited to:

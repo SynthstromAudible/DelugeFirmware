@@ -18,7 +18,7 @@ about released versions can be found here:
 - [1.1.x (Beethoven)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.1/docs/community_features.md)
 - [1.0.x (Amadeus)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/community_features.md)
 
-For more detailed version information, see the [changelog](../changelogs/CHANGELOG.md).
+For more detailed version information, see the [changelog](../../changelogs/changelog).
 
 Reference the 'Community Features Menu' section at the end of this document to understand what each entry is and their
 7SEG abbreviations.

@@ -12,7 +12,7 @@ Everybody is invited to contribute to this repository as further outlined below:
   maintainability/ease modification/improve structure), feature improvements, new features, easier accessibility,
   toolchain improvements, unit tests and many, many more.
 * For information on the decision making process for accepting Pull requests please see below and also see
-  the [Governance](GOVERNANCE.md) documentation.
+  the [Governance](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/GOVERNANCE.md) documentation.
 * To keep the list manageable all Pull requests without author activity for longer than two weeks will be labelled "
   stale" and will be closed after another week. The author is welcome to submit a new PR for the same work at any time.
 
@@ -50,7 +50,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 * All changes to the firmware have to be tested on a best effort basis to make sure they work as expected and don't
   break any existing functionality before submitting as ready to merge. This does not apply to Draft Pull requests.
 * All changes need to be compatible with all available hardware variants, this currently includes OLED and 7-Segment.
-* All changes need to be compatible with the currently official toolchain as described in the [Readme](../README.md).
+* All changes need to be compatible with the currently official toolchain as described in [Tools](../tools).
 * Acceptance of the continuous integration (CI) system is also required. It will automatically build open pull requests
   and check for compilation, formatting and in the future possibly unit testing.
 
@@ -72,7 +72,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
       firmwares not having the change (downward compatibility). Older firmwares must not break if a newer configuration
       was stored on the device.
 * If the Pull request changes end user behavoir or introduces new features, a new entry in
-  the [CommunityFeatures.md](community_features.md) file needs to be created in the preexisting style describing the
+  the [CommunityFeatures.md](../community_features) file needs to be created in the preexisting style describing the
   feature and its options as a small manual to users. This includes all runtime and compile time flags which shall be
   named in respective sections.
 
@@ -81,7 +81,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 
 Changes to the existing UI should follow the following process:
 
-* Ensure they meet the guidelines set out in [UX Principles](ux_principles.md)
+* Ensure they meet the guidelines set out in [UX Principles](../ux_principles)
 * Place the change in the community feature menu for one beta cycle
 * Following a full beta cycle and user feedback, open a poll on the feature
 * At the end of the beta cycle there will be a community meeting on Discord to discuss changes
@@ -114,7 +114,7 @@ transparent as possible:
     * If one or more CODEOWNERS are sure the requirements have been met, they will merge the change into the `develop`
       branch.
     * For more information about governance and handling of decisional matters please take a look at
-      the [Governance](GOVERNANCE.md) document.
+      the [Governance](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/GOVERNANCE.md) document.
 
 In addition to this workflow it is not a requirement but would be nice if developers could help the maintenance of the
 project by:
@@ -123,7 +123,3 @@ project by:
 * Tagging the pull request appropriately where possible.
 * Trying to keep some sense of ownership over the touched areas of the codebase and provide support in case of problems,
   questions or future developments.
-
-## Additional Developer Resources
-
-* Access more developer resources in [Additional Information](/website/src/content/docs/devsrc/content/docs/dev/additional_info.md).

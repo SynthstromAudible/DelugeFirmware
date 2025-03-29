@@ -46,7 +46,3 @@ This is a subset of issues where the current UX does not fully align with the pr
 * Horizontal scrolling is column by column in the arranger but screen by screen in the clip or song
 * Clip nudging in the arranger is clip+ turn <>, note nudging in clip is note + press and turn <>
 * Sequencer parameters (probability, velocity, etc.) aren't accessible via the menu. Maybe holding a note and clicking select could open a sequencer menu?
-
-## Additional Information
-
-* Access more developer resources in [Additional Information](/website/src/content/docs/devsrc/content/docs/dev/additional_info.md)

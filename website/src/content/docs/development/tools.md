@@ -120,7 +120,3 @@ Then run the command that Deluge Crash Reader Bot outputs. This outputs the late
 [Black Box PR](https://github.com/SynthstromAudible/DelugeFirmware/pull/660)
 
 [Discord Bot Repo](https://github.com/0beron/delugeqr/)
-
-## Additional Developer Resources
-
-* Access more developer resources in [Additional Information](/website/src/content/docs/devsrc/content/docs/dev/additional_info.md).

@@ -80,8 +80,3 @@ Built files output to subdirectories named after the configuration (e.g. `build/
 #### CMake custom arguments
 
 Any additional arguments to CMake may be transparently passed via `dbt build`. Primarily this means `-j <jobs>` for limiting or defining the amount of parallelization. Most other relevant options are exposed via `dbt build`.
-
-
-## Additional Developer Resources
-
-* Access more developer resources in [Additional Information](/website/src/content/docs/devsrc/content/docs/dev/additional_info.md).
