@@ -35,7 +35,7 @@ using namespace deluge;
 class Voice final {
 public:
 	Voice(Sound& sound);
-
+	~Voice() { setAsUnassigned(nullptr); }
 	Patcher patcher;
 
 	// Stores all oscillator positions and stuff, for each Source within each Unison too
