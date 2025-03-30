@@ -12,7 +12,7 @@ import { withBase } from './src/utils'
 // https://astro.build/config
 const config = defineConfig({
   site: process.env.SITE_URL,
-  base: process.env.SITE_BASE_PATH,
+  base: process.env.SITE_BASE_PATH || "",
   trailingSlash: 'never',
   integrations: [
     starlight({
