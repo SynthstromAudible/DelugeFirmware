@@ -6,7 +6,7 @@ This folder contains the three setup `.json`-files
 - `D_2.json`
 - `D_3.json`
 
-that together cover all MIDI Follow parameters (and their CC#) described in [*Appendix A - List of Deluge Parameters with Default Mapped CC's*](../../../../docs/features/midi_follow_mode.md#appendix-a---list-of-deluge-parameters-with-default-mapped-ccs).
+that together cover all MIDI Follow parameters (and their CC#) described in [*Appendix A - List of Deluge Parameters with Default Mapped CC's*](../../../../website/src/content/docs/features/midi_follow_mode.md#appendix-a---list-of-deluge-parameters-with-default-mapped-ccs).
 
 The philosophy behind these three templates is to surface all available parameters so users can explore which parameters they might want to consolidate within, say, a single, more performance-oriented setup.
 
