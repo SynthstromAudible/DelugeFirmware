@@ -222,7 +222,7 @@ ModelStackWithAutoParam* MIDIParamCollection::getAutoParamFromId(ModelStackWithP
 	return modelStack->addAutoParam(&param);
 }
 
-int32_t MIDIParamCollection::autoparamValueToCc(int32_t newValue) {
+int32_t MIDIParamCollection::autoparamValueToCC(int32_t newValue) {
 	int32_t rShift = 25;
 	int32_t roundingAmountToAdd = 1 << (rShift - 1);
 	int32_t maxValue = 2147483647 - roundingAmountToAdd;
@@ -234,7 +234,7 @@ int32_t MIDIParamCollection::autoparamValueToCc(int32_t newValue) {
 }
 void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int32_t cc, int32_t newValue,
                                    int32_t midiOutputFilter) {
-	int32_t newValueSmall = autoparamValueToCc(newValue);
+	int32_t newValueSmall = autoparamValueToCC(newValue);
 
 	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64,
 	                  midiOutputFilter); // TODO: get master channel

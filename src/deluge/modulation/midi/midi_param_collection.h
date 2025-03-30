@@ -55,7 +55,7 @@ public:
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithParamCollection* modelStack) override;
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = true) override;
-	static int32_t autoparamValueToCc(int32_t newValue);
+	static int32_t autoparamValueToCC(int32_t newValue);
 
 	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
