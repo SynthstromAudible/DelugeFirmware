@@ -379,7 +379,12 @@ void ParamManagerForTimeline::processCurrentPos(ModelStackWithThreeMainThings* m
 		FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
 
 		summary->paramCollection->processCurrentPos(modelStackWithParamCollection, ticksSkipped, reversed, didPingpong,
-		                                            mayInterpolate);
+		                                            true);
+		// if we can't interpolate by samples then we'll interpolate by ticks here instead
+		if (!mayInterpolate && (summary->whichParamsAreInterpolating[0] != 0u)) {
+			summary->paramCollection->tickTicks(ticksSkipped, modelStackWithParamCollection);
+			ticksTilNextEvent = 0;
+		}
 		ticksTilNextEvent = std::min(ticksTilNextEvent, summary->paramCollection->ticksTilNextEvent);
 
 		FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END

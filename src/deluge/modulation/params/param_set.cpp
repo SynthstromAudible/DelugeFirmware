@@ -147,6 +147,21 @@ void ParamSet::tickSamples(int32_t numSamples, ModelStackWithParamCollection* mo
 
 	FOR_EACH_PARAM_END
 }
+void ParamSet::tickTicks(int32_t numTicks, ModelStackWithParamCollection* modelStack) {
+
+	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating);
+
+	AutoParam* param = &params[p];
+
+	int32_t oldValue = param->getCurrentValue();
+	bool shouldNotify = param->tickTicks(numTicks);
+	if (shouldNotify) { // Should always actually be true...
+		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
+		notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
+	}
+
+	FOR_EACH_PARAM_END
+}
 
 void ParamSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) {
 	modelStack->summary->resetInterpolationRecord(topUintToRepParams);
@@ -450,11 +465,12 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 
 	// If the Clip is active (or there isn't one)...
 	if (!modelStack->timelineCounterIsSet() || ((Clip*)modelStack->getTimelineCounter())->isActiveOnOutput()) {
-		int32_t currentValue = modelStack->autoParam->getCurrentValue();
-		bool currentValueChanged = (oldValue != currentValue);
-		if (currentValueChanged) {
+		int32_t current_value = modelStack->autoParam->getCurrentValue();
+		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
+		    oldValue, current_value, getParamKind(), modelStack->paramId);
+		if (current_value_changed) {
 			((Sound*)modelStack->modControllable)
-			    ->notifyValueChangeViaLPF(modelStack->paramId, true, modelStack, oldValue, currentValue, false);
+			    ->notifyValueChangeViaLPF(modelStack->paramId, true, modelStack, oldValue, current_value, false);
 		}
 
 		if (!automatedNow) {
@@ -564,19 +580,20 @@ void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam co
 
 	// If the Clip is active (or there isn't one)...
 	if (!modelStack->timelineCounterIsSet() || ((Clip*)modelStack->getTimelineCounter())->isActiveOnOutput()) {
-		int32_t currentValue = modelStack->autoParam->getCurrentValue();
-		bool currentValueChanged = (oldValue != currentValue);
-		if (currentValueChanged) {
+		int32_t current_value = modelStack->autoParam->getCurrentValue();
+		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
+		    oldValue, current_value, getParamKind(), modelStack->paramId);
+		if (current_value_changed) {
 			// TODO: tell it to deal with abrupt change by smoothing
 
 			NoteRow* noteRow = modelStack->getNoteRowAllowNull();
 
 			if (noteRow) {
 				modelStack->modControllable->polyphonicExpressionEventOnChannelOrNote(
-				    currentValue, modelStack->paramId, modelStack->getNoteRow()->y, MIDICharacteristic::NOTE);
+				    current_value, modelStack->paramId, modelStack->getNoteRow()->y, MIDICharacteristic::NOTE);
 			}
 			else {
-				modelStack->modControllable->monophonicExpressionEvent(currentValue, modelStack->paramId);
+				modelStack->modControllable->monophonicExpressionEvent(current_value, modelStack->paramId);
 			}
 		}
 	}
