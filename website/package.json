@@ -14,6 +14,8 @@
     "astro": "^5.5.3",
     "playwright": "^1.51.1",
     "rehype-mermaid": "^3.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-github": "^12.0.0",
     "sharp": "^0.32.5",
     "starlight-links-validator": "^0.14.3"
   }

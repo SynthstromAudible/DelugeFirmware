@@ -3,6 +3,8 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import rehypeMermaid from 'rehype-mermaid'
 import starlightLinksValidator from 'starlight-links-validator'
+import remarkGfm from 'remark-gfm'
+import remarkGithub from 'remark-github'
 
 // https://astro.build/config
 export default defineConfig({
@@ -57,6 +59,12 @@ export default defineConfig({
 		}),
 	],
 	markdown: {
+		remarkPlugins: [
+			remarkGfm,
+			[remarkGithub, {
+				repository: 'SynthstromAudible/DelugeFirmware'
+			}]
+		],
 		rehypePlugins: [
 			[rehypeMermaid, { strategy: 'img-svg', dark: true }],
 		],
