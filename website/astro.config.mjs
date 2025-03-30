@@ -9,6 +9,11 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Deluge Community',
+			logo: {
+				light: './src/assets/deluge_community_firmware_logo_inverted.png',
+				dark: './src/assets/deluge_community_firmware_logo.png',
+				replacesTitle: true,
+			},
 			social: {
 				github: 'https://github.com/SynthstromAudible/DelugeFirmware',
 				discord: 'https://discord.gg/s2MnkFqZgj',
