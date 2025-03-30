@@ -12,7 +12,7 @@ import { withBase } from './src/utils'
 // https://astro.build/config
 const config = defineConfig({
   site: process.env.SITE_URL,
-  base: "/DelugeFirmware",
+  base: process.env.SITE_BASE_PATH,
   trailingSlash: 'never',
   integrations: [
     starlight({
@@ -56,6 +56,7 @@ const config = defineConfig({
           label: 'Development',
           autogenerate: { directory: 'development' },
         },
+        { label: 'Doxygen', link: '/doxygen' },
         {
           label: 'Other',
           autogenerate: { directory: 'poc' },
@@ -84,9 +85,5 @@ const config = defineConfig({
     ],
   },
 });
-
-if (config.base !== "/DelugeFirmware") {
-  throw new Error(`Base path is not /DelugeFirmware, you need to update index.mdx links manually.`)
-}
 
 export default config;
