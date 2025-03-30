@@ -33,7 +33,7 @@ public:
 	~MIDIParamCollection() override;
 	/// to avoid spamming midi we interpolate in ticks instead of in samples like internal synths. This is mostly
 	/// unnoticeable but limits the amount of data sent
-	void tickTicks(int32_t numSamples, ModelStackWithParamCollection* modelStack)  override;
+	void tickTicks(int32_t numSamples, ModelStackWithParamCollection* modelStack) override;
 
 	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) override {};
 	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) override;
