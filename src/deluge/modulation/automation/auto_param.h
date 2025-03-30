@@ -56,7 +56,10 @@ public:
 	void setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
 	                               int32_t length, bool mayDeleteNodesInLinearRun = true);
 	int32_t getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed = false);
+	/// tick the interolator by a number of samples - used for internal synths
 	bool tickSamples(int32_t numSamples);
+	/// tick the interpolator by a number of ticks - used for midi
+	bool tickTicks(int32_t numTicks);
 	void setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed);
 	bool grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack);
 	void generateRepeats(uint32_t oldLength, uint32_t newLength, bool shouldPingpong);
