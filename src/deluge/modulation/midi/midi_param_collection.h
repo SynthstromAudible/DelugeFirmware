@@ -31,8 +31,11 @@ class MIDIParamCollection final : public ParamCollection {
 public:
 	MIDIParamCollection(ParamCollectionSummary* summary);
 	~MIDIParamCollection() override;
+	/// to avoid spamming midi we interpolate in ticks instead of in samples like internal synths. This is mostly
+	/// unnoticeable but limits the amount of data sent
+	void tickTicks(int32_t numSamples, ModelStackWithParamCollection* modelStack) override;
 
-	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) override {}
+	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) override {};
 	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) override;
 	void playbackHasEnded(ModelStackWithParamCollection* modelStack) override {}
 	void generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,
@@ -52,6 +55,7 @@ public:
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithParamCollection* modelStack) override;
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = true) override;
+	static int32_t autoparamValueToCC(int32_t newValue);
 
 	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;

@@ -30,7 +30,6 @@
 void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
                                       int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                       bool shouldLimitDelayFeedback, bool isClipActive) {
-
 	// MIDI / CV arpeggiator
 	if (activeClip) {
 		InstrumentClip* activeInstrumentClip = (InstrumentClip*)activeClip;

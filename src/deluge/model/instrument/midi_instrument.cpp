@@ -279,7 +279,6 @@ bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, Pg
 		else {
 			allNotesOff();
 			for (int i = 0; i < kNumExpressionDimensions; i++) {
-				lastMonoExpression[i] = 0;
 				lastCombinedPolyExpression[i] = 0;
 				sendMonophonicExpressionEvent(i);
 			}
