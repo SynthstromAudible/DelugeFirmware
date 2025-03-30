@@ -8,6 +8,7 @@ import remarkGithub from 'remark-github'
 // @ts-expect-error no types
 import RemarkLinkRewrite from 'remark-link-rewrite'
 import { withBase } from './src/utils'
+import tailwindcss from "@tailwindcss/vite"
 
 // https://astro.build/config
 const config = defineConfig({
@@ -19,7 +20,7 @@ const config = defineConfig({
       title: 'Deluge Community',
       logo: {
         light: './src/assets/deluge_community_firmware_logo_inverted.png',
-        dark: './src/assets/deluge_community_firmware_logo.png',
+        dark: './src/assets/banner.png',
         replacesTitle: true,
       },
       social: {
@@ -27,7 +28,9 @@ const config = defineConfig({
         discord: 'https://discord.gg/s2MnkFqZgj',
         patreon: 'https://www.patreon.com/Synthstrom'
       },
-      plugins: [starlightLinksValidator()],
+      editLink: {
+        baseUrl: 'https://github.com/SynthstromAudible/DelugeFirmware/tree/community/website',
+      },
       sidebar: [
         {
           label: 'Downloads',
@@ -63,6 +66,9 @@ const config = defineConfig({
           badge: 'Testing Docs Features'
         }
       ],
+      plugins: [starlightLinksValidator()],
+      customCss: ['./src/styles/global.css'],
+      credits: true,
     }),
   ],
   markdown: {
@@ -81,9 +87,14 @@ const config = defineConfig({
       }]
     ],
     rehypePlugins: [
+      // Known issue: diagrams follow the browser preferred dark mode, not the one selected in the header.
+      // See: https://github.com/remcohaszing/rehype-mermaid/issues/16
       [rehypeMermaid, { strategy: 'img-svg', dark: true }],
     ],
   },
+  vite: {
+    plugins: [tailwindcss()]
+  }
 });
 
 export default config;

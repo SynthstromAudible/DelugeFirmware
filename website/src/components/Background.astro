@@ -1,0 +1,48 @@
+---
+import { Image } from 'astro:assets';
+import background from '../assets/background.png'
+
+const rows = new Array(150).fill(1);
+const cols = new Array(100).fill(1);
+---
+
+<div class="absolute top-0 left-0 overflow-hidden z-[-1] pointer-events-none h-dvh w-dvw">
+  <Image src={background} alt="Background image" class="[mask-image:linear-gradient(270deg,transparent,white)] opacity-50 dark:opacity-75 mix-blend-color -scale-100"/>
+  <div class="absolute inset-0 h-dvh w-dvw bg-slate-400 dark:bg-slate-900 z-[-1] [mask-image:radial-gradient(transparent,white)] pointer-events-none" />
+
+  <div
+    style={{
+      transform: `translate(-40%,-60%) skewX(-48deg) skewY(14deg) scale(0.675) rotate(0deg) translateZ(0)`,
+    }}
+    class="absolute -top-1/4 left-1/4 z-[-2] flex h-dvh w-dvw -translate-x-1/2 -translate-y-1/2 p-4 opacity-75 dark:opacity-100"
+  >
+    {rows.map((_, i) => (
+      <div
+        class="relative h-8 w-16 border-l border-slate-400 dark:border-slate-700"
+      >
+        {cols.map((_, j) => (
+          <div
+            class="relative h-8 w-16 border-t border-r border-slate-400 dark:border-slate-700"
+          >
+            {j % 2 === 0 && i % 2 === 0 ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="pointer-events-none absolute -top-[14px] -left-[22px] h-6 w-10 stroke-[1px] text-slate-400 dark:text-slate-700"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 6v12m6-6H6"
+                />
+              </svg>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    ))}
+  </div>
+</div>
