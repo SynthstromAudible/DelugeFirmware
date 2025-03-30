@@ -37,12 +37,24 @@ MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
 	// Just to indicate there could be some automation, cos we don't actually use this variable properly.
 	// TODO: at least make this go to 0 when no MIDIParams present.
 	summary->whichParamsAreAutomated[0] = 1;
+	summary->whichParamsAreInterpolating[0] = 0;
 }
 
 MIDIParamCollection::~MIDIParamCollection() {
 	deleteAllParams(nullptr);
 }
-
+void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollection* modelStack) {
+	for (auto& [cc, param] : params) {
+		if (param.valueIncrementPerHalfTick != 0) {
+			int32_t oldValue = param.getCurrentValue();
+			bool shouldNotify = param.tickTicks(numTicks);
+			if (shouldNotify) { // Should always actually be true...
+				ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(cc, &param);
+				notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
+			}
+		}
+	}
+}
 void MIDIParamCollection::deleteAllParams(Action* action) {
 	if (action != nullptr) {
 		for (auto& [cc, param] : params) {
@@ -69,8 +81,8 @@ void MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirecti
 void MIDIParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) {
 
 	// Bend param is the only one which is actually gonna maybe want to set up some interpolation -
-	// but for the other ones we still need to initialize them and crucially make sure automation overriding is switched
-	// off
+	// but for the other ones we still need to initialize them and crucially make sure automation overriding is
+	// switched off
 	for (auto& [cc, param] : params) {
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(cc, &param);
 
@@ -126,18 +138,22 @@ void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* model
                                             bool reversed, bool didPingpong, bool mayInterpolate) {
 
 	ticksTilNextEvent -= ticksSkipped;
-
+	bool interpolating = false;
 	if (ticksTilNextEvent <= 0) {
 		ticksTilNextEvent = 2147483647;
 
 		for (auto& [cc, param] : params) {
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(cc, &param);
 
-			int32_t ticksTilNextEventThisParam = param.processCurrentPos(modelStackWithAutoParam, reversed, didPingpong,
-			                                                             false, true); // No interpolating
+			int32_t ticksTilNextEventThisParam =
+			    param.processCurrentPos(modelStackWithAutoParam, reversed, didPingpong, true, true); // No interpolating
 			ticksTilNextEvent = std::min(ticksTilNextEvent, ticksTilNextEventThisParam);
+			if (param.valueIncrementPerHalfTick) {
+				interpolating = true;
+			}
 		}
 	}
+	modelStack->summary->whichParamsAreInterpolating[0] = static_cast<uint32_t>(interpolating);
 }
 
 void MIDIParamCollection::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {
@@ -152,8 +168,8 @@ void MIDIParamCollection::remotelySwapParamState(AutoParamState* state, ModelSta
 			it = params.try_emplace(cc).first;
 		} catch (deluge::exception e) {
 			if (e == deluge::exception::BAD_ALLOC) {
-				// TODO(@stellar-aria): Early return due to allocation failure follows the original implementation,
-				// but is it a good idea?
+				// TODO(@stellar-aria): Early return due to allocation failure follows the original
+				// implementation, but is it a good idea?
 				return;
 			}
 			FREEZE_WITH_ERROR("EXMR");
@@ -206,8 +222,7 @@ ModelStackWithAutoParam* MIDIParamCollection::getAutoParamFromId(ModelStackWithP
 	return modelStack->addAutoParam(&param);
 }
 
-void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int32_t cc, int32_t newValue,
-                                   int32_t midiOutputFilter) {
+int32_t MIDIParamCollection::autoparamValueToCC(int32_t newValue) {
 	int32_t rShift = 25;
 	int32_t roundingAmountToAdd = 1 << (rShift - 1);
 	int32_t maxValue = 2147483647 - roundingAmountToAdd;
@@ -215,9 +230,14 @@ void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int
 	if (newValue > maxValue) {
 		newValue = maxValue;
 	}
-	int32_t newValueSmall = (newValue + roundingAmountToAdd) >> rShift;
+	return (newValue + roundingAmountToAdd) >> rShift;
+}
+void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int32_t cc, int32_t newValue,
+                                   int32_t midiOutputFilter) {
+	int32_t newValueSmall = autoparamValueToCC(newValue);
 
-	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64, midiOutputFilter); // TODO: get master channel
+	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64,
+	                  midiOutputFilter); // TODO: get master channel
 }
 
 // For MIDI CCs, which prior to V2.0 did interpolation
@@ -240,8 +260,8 @@ Error MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) {
 	for (auto& [cc, param] : params) {
 
-		// With MIDI, we only want to send these out if the param is actually automated and the value is actually
-		// different
+		// With MIDI, we only want to send these out if the param is actually automated and the value is
+		// actually different
 		if (param.isAutomated()) {
 
 			int32_t oldValue = param.getCurrentValue();
@@ -273,8 +293,10 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 	                                              automatedNow);
 
 	if (modelStack->song->isOutputActiveInArrangement((MIDIInstrument*)modelStack->modControllable)) {
-		bool currentValueChanged = (oldValue != modelStack->autoParam->getCurrentValue());
-		if (currentValueChanged) {
+		auto new_v = modelStack->autoParam->getCurrentValue();
+		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
+		    oldValue, new_v, getParamKind(), modelStack->paramId);
+		if (current_value_changed) {
 			MIDIInstrument* instrument = (MIDIInstrument*)modelStack->modControllable;
 			int32_t midiOutputFilter = instrument->getChannel();
 			int32_t masterChannel = instrument->getOutputMasterChannel();
