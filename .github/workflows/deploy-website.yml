@@ -32,26 +32,16 @@ jobs:
       run:
         working-directory: website
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "pnpm"
-          cache-dependency-path: "website/pnpm-lock.yaml"
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        run: pnpm install
+        run: bun install
 
       # Playwright is needed for rendering mermaid diagrams at build time
       # See: https://github.com/remcohaszing/rehype-mermaid?tab=readme-ov-file#installation
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps
+        run: bun playwright install --with-deps
 
       # This gets us the site base URL
       - name: Setup Pages
@@ -59,7 +49,7 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Build website
-        run: pnpm run build
+        run: bun run build
         env:
           SITE_URL: ${{ steps.setup_pages.outputs.base_url }}
           SITE_BASE_PATH: ${{ steps.setup_pages.outputs.base_path }}
