@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import rehypeMermaid from 'rehype-mermaid'
+import starlightLinksValidator from 'starlight-links-validator'
 
 // https://astro.build/config
 export default defineConfig({
@@ -13,6 +14,7 @@ export default defineConfig({
 				discord: 'https://discord.gg/s2MnkFqZgj',
 				patreon: 'https://www.patreon.com/Synthstrom'
 			},
+			plugins: [starlightLinksValidator()],
 			sidebar: [
 				{
 				  label: 'Downloads',

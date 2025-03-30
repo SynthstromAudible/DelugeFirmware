@@ -18,7 +18,7 @@ about released versions can be found here:
 - [1.1.x (Beethoven)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.1/docs/community_features.md)
 - [1.0.x (Amadeus)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/community_features.md)
 
-For more detailed version information, see the [changelog](../../changelogs/changelog).
+For more detailed version information, see the [changelog](/changelogs/changelog).
 
 Reference the 'Community Features Menu' section at the end of this document to understand what each entry is and their
 7SEG abbreviations.
@@ -1670,26 +1670,26 @@ different firmware
 
 [#3425]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3425
 
-[Automation View Documentation]: automation_view.md
+[Automation View Documentation]:/features/automation_view
 
-[Arpeggiator Documentation]: arpeggiator.md
+[Arpeggiator Documentation]:/features/arpeggiator
 
-[Velocity View Documentation]: velocity_view.md
+[Velocity View Documentation]:/features/velocity_view
 
-[Performance View Documentation]: performance_view.md
+[Performance View Documentation]:/features/performance_view
 
-[MIDI Follow Mode Documentation]: midi_follow_mode.md
+[MIDI Follow Mode Documentation]: /features/midi_follow_mode
 
-[MIDI Follow Mode Loopy Pro Template]: ../../../../../contrib/midi_follow/loopy_pro
+[MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
 
-[MIDI Follow Mode Touch OSC Template]: ../../../../../contrib/midi_follow/touch_osc
+[MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/touch_osc
 
-[DX7 Synth Documentation]: dx_synth.md
+[DX7 Synth Documentation]:/features/dx_synth
 
 [Stem Export Documentation]: features/stem_export.md
 
-[Chord Keyboard Documentation]: chord_keyboard.md
+[Chord Keyboard Documentation]:/features/chord_keyboard
 
-[Note / Note Row Editor Documentation]: note_noterow_editor.md
+[Note / Note Row Editor Documentation]:/features/note_noterow_editor
 
-[Save / Load Patterns feature ]: save_load_patterns.md
+[Save / Load Patterns feature ]:/features/save_load_patterns

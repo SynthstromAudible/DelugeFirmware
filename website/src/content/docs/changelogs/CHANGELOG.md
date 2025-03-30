@@ -2,7 +2,7 @@
 title: Deluge Community Firmware Change Log
 ---
 
-> To find a detailed list of how to use each feature, check here: [Community Features](../features/community_features.md)
+> To find a detailed list of how to use each feature, check here: [Community Features](/features/community_features)
 
 ## c1.3.0
 
@@ -78,7 +78,7 @@ set the stutter configuration independently of the song configuration if you wis
 
 
 #### <ins>Save/Load Patterns</ins>
-- Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synt, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ](../features/save_load_patterns.md) for more info.
+- Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synt, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ](/features/save_load_patterns) for more info.
 
 #### <ins>Favourites</ins>
 A `Favourites` feature has been added to the browser for most file types. The `Favourites` are displayed above the QWERTY Keyboard and are only visible when that keyboard is shown. `Favourites` can be configured to either offer 16 favourites (default), 16 banks with 16 favourites each or be completely disabled via `SETTINGS > DEFAULTS -> UT -> KEYBOARD -> FAVOURITES`. Now also when pressing the `KEYBOARD` button, you can pin the QWERTY keyboard so it is not hidden every time you select a sample.
@@ -158,7 +158,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - CV clips can now be named like other clips.
 
 ##### MIDI Clips
-- Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`. See documentation on [MIDI Device Definition Files](../features/midi_device_definition_files.md) for more info.
+- Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`. See documentation on [MIDI Device Definition Files](/features/midi_device_definition_files) for more info.
 - Added MIDI CC numbers and labels to `Gold (Mod) Encoder` popups.
 
 #### <ins>Automation View</ins>
@@ -224,7 +224,7 @@ also affect normal sequenced notes while arpeggiator is Off.
 #### <ins>MIDI_DEVICES folder</ins>
 - A new folder has been created in the root of the SD card titled `MIDI_DEVICES`
 - MIDI device definition files can be saved to / loaded from `MIDI_DEVICES/DEFINITION/`
-- See documentation on [MIDI Device Definition Files](../features/midi_device_definition_files.md) for more info.
+- See documentation on [MIDI Device Definition Files](/features/midi_device_definition_files) for more info.
 
 ## c1.2.0 Chopin
 
@@ -455,7 +455,7 @@ also affect normal sequenced notes while arpeggiator is Off.
 - Fixed several bugs with pad grid rendering.
 
 #### <ins>Documentation</ins>
-- Created a new menu hierarchies document that documents the Deluge menu structure for OLED and 7SEG and can be used as a reference for navigating the various menu's. See: [Menu Hierarchies](../reference/menu_hierarchies.md)
+- Created a new menu hierarchies document that documents the Deluge menu structure for OLED and 7SEG and can be used as a reference for navigating the various menu's. See: [Menu Hierarchies](/reference/menu_hierarchies)
 
 #### <ins>Menu UI Improvements</ins>
 - Holding back now fully exits the menu

@@ -41,7 +41,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 <details><summary>Code specific</summary>
 
 * All project files, especially source files need to have a compatible license with the project.
-  See [LICENSE](../LICENSE).
+  See [LICENSE](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/LICENSE).
 * There is no written standard on code guidelines yet but please make your code match the existing style as much as possible.
 * Exception: the old code uses GOTOs and single returns heavily - new C++ code should favour other flow control methods
   and early returns instead, the old code is a result of the project's roots in C.
@@ -50,7 +50,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 * All changes to the firmware have to be tested on a best effort basis to make sure they work as expected and don't
   break any existing functionality before submitting as ready to merge. This does not apply to Draft Pull requests.
 * All changes need to be compatible with all available hardware variants, this currently includes OLED and 7-Segment.
-* All changes need to be compatible with the currently official toolchain as described in [Tools](../tools).
+* All changes need to be compatible with the currently official toolchain as described in [Tools](/development/tools).
 * Acceptance of the continuous integration (CI) system is also required. It will automatically build open pull requests
   and check for compilation, formatting and in the future possibly unit testing.
 
@@ -72,7 +72,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
       firmwares not having the change (downward compatibility). Older firmwares must not break if a newer configuration
       was stored on the device.
 * If the Pull request changes end user behavoir or introduces new features, a new entry in
-  the [CommunityFeatures.md](../community_features) file needs to be created in the preexisting style describing the
+  the [CommunityFeatures.md](/features/community_features) file needs to be created in the preexisting style describing the
   feature and its options as a small manual to users. This includes all runtime and compile time flags which shall be
   named in respective sections.
 
@@ -81,7 +81,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 
 Changes to the existing UI should follow the following process:
 
-* Ensure they meet the guidelines set out in [UX Principles](../ux_principles)
+* Ensure they meet the guidelines set out in [UX Principles](/development/ux_principles)
 * Place the change in the community feature menu for one beta cycle
 * Following a full beta cycle and user feedback, open a poll on the feature
 * At the end of the beta cycle there will be a community meeting on Discord to discuss changes
@@ -103,9 +103,9 @@ transparent as possible:
 4. Once the Pull request is ready, fulfills all requirements outlined above, and is up to date with the `develop`
    branch, it can be converted from Draft and marked as ready for review.
 5. Having multiple reviews for every Pull request would be nice. Reviews from community members not mentioned in
-   the [CODEOWNERS](../CODEOWNERS) file should be taken seriously and used as an important source of feedback, but have
+   the [CODEOWNERS](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/CODEOWNERS) file should be taken seriously and used as an important source of feedback, but have
    no decisional power on what gets merged into the `develop` branch.
-6. At least one member of the [CODEOWNERS](../CODEOWNERS) file needs to review every pull request while also considering
+6. At least one member of the [CODEOWNERS](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/CODEOWNERS) file needs to review every pull request while also considering
    community reviews in their decision.
     * CODEOWNERS can decline merging a Pull request if it does not fulfill the requirements outlined above. They need to
       give clear feedback on which requirements have not been met and also provide an opportunity to improve the Pull

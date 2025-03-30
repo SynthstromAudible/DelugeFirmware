@@ -21,7 +21,7 @@ Another way to use this feature is by **converting MIDI files** into Deluge Patt
 
 - Two tools for conversion are described in the [Additional Tools](#additional-tools) section.
 - These tools allow you to import simple MIDI files and save them as **Pattern XML files**.
-- These XML files can then be copied to the [corresponding folder](#prerequisites) on your SD card and loaded into the Deluge using the **Pattern Load function**.
+- These XML files can then be copied to the [corresponding folder](#folder-structure) on your SD card and loaded into the Deluge using the **Pattern Load function**.
 
 ## Feature Benefits
 
@@ -132,7 +132,7 @@ After loading a Patter, the Pattern is also copied into Clipboard and can be pas
 
 
 ### Additional Tools
-Under [contrib/midi2deluge](../../../../../contrib/midi2deluge), you will find two simple Tools - a WebApp and a python Script - that can generate Pattern-Files for the Deluge from simple Midi-Files.
+Under [contrib/midi2deluge](https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi2deluge), you will find two simple Tools - a WebApp and a python Script - that can generate Pattern-Files for the Deluge from simple Midi-Files.
 Important:The Tools where tested with the [Wikipedia Midifile Sample](https://en.wikipedia.org/wiki/File:MIDI_sample.mid) and may will not work with very complex Midi-Files.
 
 
