@@ -39,6 +39,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      # Playwright is needed for rendering mermaid diagrams at build time
+      # See: https://github.com/remcohaszing/rehype-mermaid?tab=readme-ov-file#installation
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps
 
