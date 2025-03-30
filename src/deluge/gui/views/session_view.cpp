@@ -1904,7 +1904,6 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		stemExport.displayStemExportProgressOLED(StemExportType::CLIP);
 		return;
 	}
-
 	UI* currentUI = getCurrentUI();
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		view.displayOutputName(getCurrentClip()->output, true, getCurrentClip());
@@ -2214,7 +2213,6 @@ void SessionView::graphicsRoutine() {
 
 	bool reallyNoTickSquare = (!playbackHandler.isEitherClockActive() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
 	                           || currentUIMode == UI_MODE_IMPLODE_ANIMATION || !session.launchEventAtSwungTickCount);
-
 	int32_t sixteenthNotesRemaining = 0;
 
 	// display bars / notes remaining until launch event
@@ -2359,6 +2357,7 @@ void SessionView::graphicsRoutine() {
 // checks if tempo has changed since it was last rendered on the display and updates it if required
 void SessionView::displayPotentialTempoChange(UI* ui) {
 	// check UI in case graphics routine is called while we're in another UI (e.g. menu)
+
 	if (getCurrentUI() == ui) {
 		float tempo = playbackHandler.calculateBPMForDisplay();
 		float diff = std::abs(tempo - lastDisplayedTempo);

@@ -21,15 +21,15 @@
 /*
  * ================= DEBUGGING TEXT OUTPUT =================
  *
- * To get some debugging text output from the Deluge, ideally you’ll be using a J-link,
+ * To get some debugging text output from the Deluge, ideally you'll be using a J-link,
  * and can then use its RTT utility. To tell the firmware build to include this text
  * generation and outputting, go to src/drivers/All_CPUs/uart_all_cpus/uart_all_cpus.h and
- * set ENABLE_TEXT_OUTPUT to 1. The fact that this flag is in a file labelled “uart” will seem
+ * set ENABLE_TEXT_OUTPUT to 1. The fact that this flag is in a file labelled "uart" will seem
  * to make no sense because RTT output has nothing to do with UART. This is because before I
  * realised RTT was a thing, this flag would instead send the debugging text out of the MIDI DIN port,
- * and MIDI is UART. If you’re not using a J-link and want to see the debugging text,
+ * and MIDI is UART. If you're not using a J-link and want to see the debugging text,
  * this might be what you want to do. If so, go to src/drivers/RZA1/cpu_specific.h,
- * and set HAVE_RTT to 0. Though this configuration hasn’t been tested for a while...
+ * and set HAVE_RTT to 0. Though this configuration hasn't been tested for a while...
  */
 #ifndef ENABLE_TEXT_OUTPUT
 #define ENABLE_TEXT_OUTPUT 0

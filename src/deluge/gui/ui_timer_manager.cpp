@@ -33,6 +33,7 @@
 #include "io/midi/midi_follow.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "system/power_manager.h"
 #include "util/functions.h"
 
 #include <algorithm>
@@ -43,7 +44,6 @@ extern "C" {
 
 UITimerManager uiTimerManager{};
 extern void inputRoutine();
-extern void batteryLEDBlink();
 
 UITimerManager::UITimerManager() {
 	timeNextEvent = 2147483647;
@@ -209,7 +209,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::BATT_LED_BLINK:
-					batteryLEDBlink();
+					deluge::system::powerManager.batteryLEDBlink();
 					break;
 
 				case TimerName::GRAPHICS_ROUTINE:
