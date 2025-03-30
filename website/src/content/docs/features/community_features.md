@@ -1357,7 +1357,7 @@ different firmware
 
 [Arpeggiator Documentation]:/features/arpeggiator
 
-[Velocity View Documentation]:/features/velocity_view
+[Velocity View Documentation]:/features/automation_view_velocity_editor
 
 [Performance View Documentation]:/features/performance_view
 

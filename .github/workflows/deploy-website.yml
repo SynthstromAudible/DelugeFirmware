@@ -19,22 +19,33 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: "pnpm"
+          cache-dependency-path: "website/pnpm-lock.yaml"
 
       - name: Install dependencies
-        run: cd website && pnpm install
+        run: pnpm install
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps
 
       - name: Build website
-        run: cd website && pnpm run build
+        run: pnpm run build
+        env:
+          SITE_URL: "https://${{ github.repository_owner }}.github.io"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
