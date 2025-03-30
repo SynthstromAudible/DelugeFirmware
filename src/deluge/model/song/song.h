@@ -94,10 +94,10 @@ enum SessionMacroKind : int8_t {
 };
 
 struct SessionMacro {
-	SessionMacroKind kind;
-	Clip* clip;
-	Output* output;
-	uint8_t section;
+	SessionMacroKind kind{NO_MACRO};
+	Clip* clip{nullptr};
+	Output* output{nullptr};
+	uint8_t section{0};
 };
 
 class Song final : public TimelineCounter {
@@ -255,7 +255,7 @@ public:
 
 	String dirPath;
 
-	SessionMacro sessionMacros[8];
+	std::array<SessionMacro, 8> sessionMacros{};
 
 	bool getAnyClipsSoloing() const;
 	Clip* getCurrentClip();
