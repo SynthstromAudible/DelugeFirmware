@@ -56,6 +56,10 @@ public:
 	virtual bool isKit() { return false; }
 	virtual bool isSong() { return false; }
 	virtual bool isEditingComp() { return false; }
+	virtual bool valueChangedEnoughToMatter(int32_t old, int32_t new_value, deluge::modulation::params::Kind kind,
+	                                        uint32_t paramID) {
+		return old != new_value;
+	};
 	virtual int32_t getKnobPosForNonExistentParam(
 	    int32_t whichModEncoder,
 	    ModelStackWithAutoParam* modelStack); // modelStack->autoParam will be NULL in this rare case!!

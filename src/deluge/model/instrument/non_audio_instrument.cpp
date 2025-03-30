@@ -68,11 +68,6 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSa
 	        ->addOtherTwoThingsButNoNoteRow(this, getParamManager(modelStack->song));
 	ParamCollectionSummary* midiSummary = modelStackWithThreeMainThings->paramManager->getMIDIParamCollectionSummary();
 	ParamCollectionSummary* expSummary = modelStackWithThreeMainThings->paramManager->getExpressionParamSetSummary();
-
-	if (midiSummary->whichParamsAreInterpolating[0] || expSummary->whichParamsAreInterpolating[0]) {
-		modelStackWithThreeMainThings->paramManager->toForTimeline()->tickSamples(output.size(),
-		                                                                          modelStackWithThreeMainThings);
-	}
 }
 
 void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCodePreArp,

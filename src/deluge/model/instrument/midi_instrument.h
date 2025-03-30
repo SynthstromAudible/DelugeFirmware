@@ -125,6 +125,15 @@ public:
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
 	                                                bool affectEntire, bool useMenuStack) override;
 
+	bool valueChangedEnoughToMatter(int32_t old, int32_t new_value, deluge::modulation::params::Kind kind,
+	                                uint32_t paramID) override {
+		if (kind == deluge::modulation::params::Kind::EXPRESSION && paramID == X_PITCH_BEND) {
+			// pitch is in 14 bit instead of 7
+			return old >> 18 != new_value >> 18;
+		}
+		return old >> 25 != new_value >> 25;
+	}
+
 protected:
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
 	                                              int32_t expressionDimension, ArpNote* arpNote,

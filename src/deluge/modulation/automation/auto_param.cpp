@@ -827,7 +827,6 @@ void AutoParam::setupInterpolation(ParamNode* nextNodeInOurDirection, int32_t ef
 	}
 }
 
-// Returns whether a change was made to currentValue
 bool AutoParam::tickSamples(int32_t numSamples) {
 	if (!valueIncrementPerHalfTick) {
 		return false;
@@ -844,6 +843,16 @@ bool AutoParam::tickSamples(int32_t numSamples) {
 		currentValue = (valueIncrementPerHalfTick >= 0) ? 2147483647 : -2147483648;
 		valueIncrementPerHalfTick = 0;
 	}
+
+	return true;
+}
+
+bool AutoParam::tickTicks(int32_t numTicks) {
+	if (valueIncrementPerHalfTick == 0) {
+		return false;
+	}
+
+	currentValue = add_saturate(currentValue, valueIncrementPerHalfTick * numTicks);
 
 	return true;
 }

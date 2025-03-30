@@ -43,14 +43,11 @@ MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
 MIDIParamCollection::~MIDIParamCollection() {
 	deleteAllParams(nullptr);
 }
-void MIDIParamCollection::tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) {
-	if (modelStack->summary->whichParamsAreInterpolating[0] == 0) {
-		return;
-	}
+void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollection* modelStack) {
 	for (auto& [cc, param] : params) {
 		if (param.valueIncrementPerHalfTick != 0) {
 			int32_t oldValue = param.getCurrentValue();
-			bool shouldNotify = param.tickSamples(numSamples);
+			bool shouldNotify = param.tickTicks(numTicks);
 			if (shouldNotify) { // Should always actually be true...
 				ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(cc, &param);
 				notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
@@ -225,8 +222,7 @@ ModelStackWithAutoParam* MIDIParamCollection::getAutoParamFromId(ModelStackWithP
 	return modelStack->addAutoParam(&param);
 }
 
-void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int32_t cc, int32_t newValue,
-                                   int32_t midiOutputFilter) {
+int32_t MIDIParamCollection::autoparamValueToCc(int32_t newValue) {
 	int32_t rShift = 25;
 	int32_t roundingAmountToAdd = 1 << (rShift - 1);
 	int32_t maxValue = 2147483647 - roundingAmountToAdd;
@@ -234,7 +230,11 @@ void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int
 	if (newValue > maxValue) {
 		newValue = maxValue;
 	}
-	int32_t newValueSmall = (newValue + roundingAmountToAdd) >> rShift;
+	return (newValue + roundingAmountToAdd) >> rShift;
+}
+void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int32_t cc, int32_t newValue,
+                                   int32_t midiOutputFilter) {
+	int32_t newValueSmall = autoparamValueToCc(newValue);
 
 	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64,
 	                  midiOutputFilter); // TODO: get master channel
@@ -293,8 +293,10 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 	                                              automatedNow);
 
 	if (modelStack->song->isOutputActiveInArrangement((MIDIInstrument*)modelStack->modControllable)) {
-		bool currentValueChanged = (oldValue != modelStack->autoParam->getCurrentValue());
-		if (currentValueChanged) {
+		auto new_v = modelStack->autoParam->getCurrentValue();
+		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
+		    oldValue, new_v, getParamKind(), modelStack->paramId);
+		if (current_value_changed) {
 			MIDIInstrument* instrument = (MIDIInstrument*)modelStack->modControllable;
 			int32_t midiOutputFilter = instrument->getChannel();
 			int32_t masterChannel = instrument->getOutputMasterChannel();
