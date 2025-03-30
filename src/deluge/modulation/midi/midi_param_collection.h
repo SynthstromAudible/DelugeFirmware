@@ -32,7 +32,7 @@ public:
 	MIDIParamCollection(ParamCollectionSummary* summary);
 	~MIDIParamCollection() override;
 
-	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) override {}
+	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) override;
 	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) override;
 	void playbackHasEnded(ModelStackWithParamCollection* modelStack) override {}
 	void generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,

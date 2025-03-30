@@ -37,12 +37,27 @@ MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
 	// Just to indicate there could be some automation, cos we don't actually use this variable properly.
 	// TODO: at least make this go to 0 when no MIDIParams present.
 	summary->whichParamsAreAutomated[0] = 1;
+	summary->whichParamsAreInterpolating[0] = 0;
 }
 
 MIDIParamCollection::~MIDIParamCollection() {
 	deleteAllParams(nullptr);
 }
-
+void MIDIParamCollection::tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) {
+	if (modelStack->summary->whichParamsAreInterpolating[0] == 0) {
+		return;
+	}
+	for (auto& [cc, param] : params) {
+		if (param.valueIncrementPerHalfTick != 0) {
+			int32_t oldValue = param.getCurrentValue();
+			bool shouldNotify = param.tickSamples(numSamples);
+			if (shouldNotify) { // Should always actually be true...
+				ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(cc, &param);
+				notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
+			}
+		}
+	}
+}
 void MIDIParamCollection::deleteAllParams(Action* action) {
 	if (action != nullptr) {
 		for (auto& [cc, param] : params) {
@@ -69,8 +84,8 @@ void MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirecti
 void MIDIParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) {
 
 	// Bend param is the only one which is actually gonna maybe want to set up some interpolation -
-	// but for the other ones we still need to initialize them and crucially make sure automation overriding is switched
-	// off
+	// but for the other ones we still need to initialize them and crucially make sure automation overriding is
+	// switched off
 	for (auto& [cc, param] : params) {
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(cc, &param);
 
@@ -126,18 +141,22 @@ void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* model
                                             bool reversed, bool didPingpong, bool mayInterpolate) {
 
 	ticksTilNextEvent -= ticksSkipped;
-
+	bool interpolating = false;
 	if (ticksTilNextEvent <= 0) {
 		ticksTilNextEvent = 2147483647;
 
 		for (auto& [cc, param] : params) {
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(cc, &param);
 
-			int32_t ticksTilNextEventThisParam = param.processCurrentPos(modelStackWithAutoParam, reversed, didPingpong,
-			                                                             false, true); // No interpolating
+			int32_t ticksTilNextEventThisParam =
+			    param.processCurrentPos(modelStackWithAutoParam, reversed, didPingpong, true, true); // No interpolating
 			ticksTilNextEvent = std::min(ticksTilNextEvent, ticksTilNextEventThisParam);
+			if (param.valueIncrementPerHalfTick) {
+				interpolating = true;
+			}
 		}
 	}
+	modelStack->summary->whichParamsAreInterpolating[0] = static_cast<uint32_t>(interpolating);
 }
 
 void MIDIParamCollection::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {
@@ -152,8 +171,8 @@ void MIDIParamCollection::remotelySwapParamState(AutoParamState* state, ModelSta
 			it = params.try_emplace(cc).first;
 		} catch (deluge::exception e) {
 			if (e == deluge::exception::BAD_ALLOC) {
-				// TODO(@stellar-aria): Early return due to allocation failure follows the original implementation,
-				// but is it a good idea?
+				// TODO(@stellar-aria): Early return due to allocation failure follows the original
+				// implementation, but is it a good idea?
 				return;
 			}
 			FREEZE_WITH_ERROR("EXMR");
@@ -217,7 +236,8 @@ void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int
 	}
 	int32_t newValueSmall = (newValue + roundingAmountToAdd) >> rShift;
 
-	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64, midiOutputFilter); // TODO: get master channel
+	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64,
+	                  midiOutputFilter); // TODO: get master channel
 }
 
 // For MIDI CCs, which prior to V2.0 did interpolation
@@ -240,8 +260,8 @@ Error MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) {
 	for (auto& [cc, param] : params) {
 
-		// With MIDI, we only want to send these out if the param is actually automated and the value is actually
-		// different
+		// With MIDI, we only want to send these out if the param is actually automated and the value is
+		// actually different
 		if (param.isAutomated()) {
 
 			int32_t oldValue = param.getCurrentValue();

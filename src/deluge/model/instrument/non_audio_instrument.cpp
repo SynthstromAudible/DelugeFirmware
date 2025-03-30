@@ -30,7 +30,6 @@
 void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
                                       int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                       bool shouldLimitDelayFeedback, bool isClipActive) {
-
 	// MIDI / CV arpeggiator
 	if (activeClip) {
 		InstrumentClip* activeInstrumentClip = (InstrumentClip*)activeClip;
@@ -63,6 +62,16 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSa
 				}
 			}
 		}
+	}
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addTimelineCounter(activeClip)
+	        ->addOtherTwoThingsButNoNoteRow(this, getParamManager(modelStack->song));
+	ParamCollectionSummary* midiSummary = modelStackWithThreeMainThings->paramManager->getMIDIParamCollectionSummary();
+	ParamCollectionSummary* expSummary = modelStackWithThreeMainThings->paramManager->getExpressionParamSetSummary();
+
+	if (midiSummary->whichParamsAreInterpolating[0] || expSummary->whichParamsAreInterpolating[0]) {
+		modelStackWithThreeMainThings->paramManager->toForTimeline()->tickSamples(output.size(),
+		                                                                          modelStackWithThreeMainThings);
 	}
 }
 
