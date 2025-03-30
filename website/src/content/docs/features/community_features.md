@@ -162,7 +162,7 @@ as the micromonsta and the dreadbox nymphes.
 - (#889) `Master MIDI Follow Mode` whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit
   clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active or selected clip).
     - For a detailed description of this feature, please refer to the feature
-      documentation: [MIDI Follow Mode Documentation]
+      documentation: [MIDI Follow Mode Documentation](/features/midi_follow_mode)
     - Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for learned MIDI cc's.
       Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context
       are changed.
@@ -356,7 +356,7 @@ which track to record from. The source can also be selected by pressing a clip's
 
 #### 3.23 Automated Audio Exporting
 
-- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Audio Export Documentation]
+- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Audio Export Documentation](/features/audio_export)
 - (#2260) Added `AUDIO EXPORT`, an automated process for exporting `CLIP's` while in `SONG VIEW` and `TRACK's` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting audio. Press `BACK` to cancel the export and stop recording and playback.
 - (#2327) You can also start the export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 - (#2330) You can configure settings for the audio export via the `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Enter `SONG\EXPORT EXPORT\CONFIGURE EXPORT\` to configure various export settings.
@@ -434,7 +434,7 @@ which track to record from. The source can also be selected by pressing a clip's
 
 #### 3.35 Clip Names
 - (#2293, #2299, #3183) All clips can be named. Name must be unique per track. Clip name is displayed underneath the track name on OLED.
-  1. Via clip settings menu, see [#3-28-Add-Clip-Settings-Menu-in-Song-View-to-set-Clip-Mode-and-Clip-Name-and-convert-Instrument-Clips-to-Audio-Clips]
+  1. Via clip settings menu, see [Add Clip Settings Menu in Song View to set Clip Mode and Clip Name and convert Instrument Clips to Audio Clips](#328-add-clip-settings-menu-in-song-view-to-set-clip-mode-and-clip-name-and-convert-instrument-clips-to-audio-clips)
   2. Via `NAME` shortcut in the clip view for non-audio clips (in audio clips the `NAME` shortcut currently names the track instead). In KIT clips `AFFECT ALL` must be on, or the shortcut names the active drum instead.
 - (#3195) Clip name display includes the section number. If the clip has no name, it is displayed using just the section number, as "SECTION N". If the clip has a name, it is prefixed with the section number, as "N: CLIP NAME".
 - (#3195) When clips are copied, the clip name is copied as well. If the target track already has a clip with the same name, an integer suffix starting from 2 is added unless the name already has an integer suffix. This integer suffix is incremented until the clip name is unique on the target track. Ie. copying a clip named "BRIDGE" to the same otherwise empty track will first create "BRIDGE2", then "BRIDGE3", etc.
@@ -569,7 +569,7 @@ Here is a list of features that have been added to the firmware as a list, group
 #### 4.1.6 - Performance View
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature
-  documentation: [Performance View Documentation]
+  documentation: [Performance View Documentation](/features/performance_view)
 - (#711) Adds a new performance view, accessible from Song and Arranger View's using the Keyboard button.
     - Each column on the grid represents a different "FX" and each pad/row in the column corresponds to a different FX
       value.
@@ -782,7 +782,7 @@ to each individual note onset. (#1978)
 #### 4.3.5 - Automation View
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature
-  documentation: [Automation View Documentation]
+  documentation: [Automation View Documentation](/features/automation_view)
 - (#241) Automation Clip View is a new view that complements the existing Clip View.
     - It is accessed from within the Clip View by pressing  `CLIP` (which will blink to indicate you are in the
       Automation View).
@@ -896,10 +896,10 @@ to each individual note onset. (#1978)
 #### 4.3.8 - Advanced Arpeggiator
 
 - (#1198 #2978 #2985 #2990 #3079 #3285) For a detailed description of this feature, please refer to the feature
-  documentation: [Arpeggiator Documentation]
+  documentation: [Arpeggiator Documentation](/features/arpeggiator)
 - (#3388) Added `KIT ARPEGGIATOR` for `KIT` clips. This allows the user to engage an arpeggiator layer on top of the kit rows,
   which will control which rows receive note ON's and note OFF's. That means that the kit rows can have their own arpeggiators also
-  enabled, which allows for unlimited possible pattern combinations. This feature is also explained in [Arpeggiator Documentation]
+  enabled, which allows for unlimited possible pattern combinations. This feature is also explained in [Arpeggiator Documentation](/features/arpeggiator)
 
 #### 4.3.9 - Randomizer
 
@@ -910,11 +910,11 @@ to each individual note onset. (#1978)
   - `Velocity Spread`: This parameters lets you apply some random variation to the notes.
   - `Note probability`: This parameter determines the likelihood of a note being played or not (this is in addition to the Note/Row probability).
   - `Reverse Probability`: This parameter determines the likelihood of a note's sample of being reversed.
-- For more detailed information about these parameters, refer to the [Arpeggiator Documentation].
+- For more detailed information about these parameters, refer to the [Arpeggiator Documentation](/features/arpeggiator).
 
 #### 4.3.10 - Velocity View
 
-- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Velocity View Documentation]
+- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Velocity View Documentation](/features/automation_view_velocity_editor)
 - (#2046) Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
 
 #### 4.3.11 - Enhanced Note Probability, Iterance and Fill
@@ -926,7 +926,7 @@ to each individual note onset. (#1978)
   - To edit fill, you need to access the new note and note row editor menu's.
 
 #### 4.3.12 - Added New Note and Note Row Editor Menu's
-- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Note / Note Row Editor Documentation]
+- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Note / Note Row Editor Documentation](/features/note_noterow_editor)
 - (#2641) Added new note and note row editor menu's to edit note and note row parameters.
   - Hold a note and press the select encoder to enter the note editor menu. While in the note editor menu, the selected note will blink. You can select other notes by pressing the notes on the grid.
   - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the select note row audition pad will blink. You can select other note row's by pressing the note row audition pad.
@@ -936,7 +936,7 @@ to each individual note onset. (#1978)
 - (#2676) When browsing for sample to assign to a Synth or to a Kit Row, you can now enable auto-load of previewed samples. To do this, open the sample browser (`SHIFT + BROWSE`), and engage `AUTO-LOAD` by pressing `LOAD`. While the `LOAD` LED is on, all the samples that you preview will automatically be loaded to the instrument as if you had confirmed the selection. This makes previewing single cycle waveforms way more convenient, for example.
 
 #### 4.3.14 - Save/Load Patterns
-- (#3352) Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synth, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ] for more info.
+- (#3352) Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synth, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature](/features/save_load_patterns) for more info.
 
 ### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features
 
@@ -1034,7 +1034,7 @@ to each individual note onset. (#1978)
 #### 4.4.1.6 - Display Chord Keyboard Layout
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature
-  documentation: [Chord Keyboard Documentation]
+  documentation: [Chord Keyboard Documentation](/features/chord_keyboard)
 
 - (#2475) Enables `CHORD` keyboard, out of scale view with two modes, Column mode (providing in-scale harmonically similar chords for substitutions) and Row Mode (based largely on the Launchpad Pro's chord mode that spreads notes out on a row to allow users to build and play interesting chords across the rows). After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press `KEYBOARD` to enter into a `KEYBOARD` view, and then press and hold `KEYBOARD` + turn `SELECT` to cycle through layouts to find the `CHORD` keyboard layout.
 
@@ -1043,7 +1043,7 @@ to each individual note onset. (#1978)
 #### 4.4.1.7 - Display Chord Library Keyboard Layout
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature
-  documentation: [Chord Keyboard Documentation]
+  documentation: [Chord Keyboard Documentation](/features/chord_keyboard)
 
 - (#2385) Enables `CHORD LIBRARY` keyboard layout which displays a library of chords on the pads. After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD LIBRARY` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press `KEYBOARD` to enter into a `KEYBOARD` view, and then press `SELECT` + `KEYBOARD` to cycle through layouts to find the `CHORD LIBRARY` keyboard layout.
 
@@ -1130,7 +1130,7 @@ to each individual note onset. (#1978)
 #### 4.5.7 - DX7 Synth type
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature
-  documentation: [DX7 Synth Documentation]
+  documentation: [DX7 Synth Documentation](/features/dx_synth)
 
 - (#1114) A new synth type is added fully compatible with DX7 patches, including editing of all DX7 parameters. This is implemented
 as an oscillator type within the subtractive engine, so it can be combined with filters and other features of this engine.
@@ -1296,7 +1296,7 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
       sticky
       shift.
 * `Enable DX7 Engine (DX7)`
-    * When On, enables access to the DX7 synth engine (see [DX7 Synth Documentation]).
+    * When On, enables access to the DX7 synth engine (see [DX7 Synth Documentation](/features/dx_synth)).
 * `Emulated Display (EMUL)`
     * This allows you to emulate the 7SEG screen on a deluge with OLED hardware screen.
     * In "Toggle" mode, the "SHIFT" + "LEARN" + "AFFECT-ENTIRE" combination can used to switch between screen types at
@@ -1353,26 +1353,6 @@ different firmware
   Description of said feature, first new feature please replace this
 
 
-[Automation View Documentation]:/features/automation_view
-
-[Arpeggiator Documentation]:/features/arpeggiator
-
-[Velocity View Documentation]:/features/automation_view_velocity_editor
-
-[Performance View Documentation]:/features/performance_view
-
-[MIDI Follow Mode Documentation]: /features/midi_follow_mode
-
 [MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
 
 [MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/touch_osc
-
-[DX7 Synth Documentation]:/features/dx_synth
-
-[Stem Export Documentation]: features/stem_export.md
-
-[Chord Keyboard Documentation]:/features/chord_keyboard
-
-[Note / Note Row Editor Documentation]:/features/note_noterow_editor
-
-[Save / Load Patterns feature ]:/features/save_load_patterns

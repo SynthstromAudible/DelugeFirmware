@@ -1,5 +1,6 @@
 .DS_Store
 .vscode
+!website/.vscode
 /Release*/*
 /HardwareDebug*/*
 /.settings/*
