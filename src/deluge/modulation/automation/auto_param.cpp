@@ -852,7 +852,7 @@ bool AutoParam::tickTicks(int32_t numTicks) {
 		return false;
 	}
 
-	currentValue = add_saturate(currentValue, valueIncrementPerHalfTick * numTicks);
+	currentValue = add_saturate(currentValue, valueIncrementPerHalfTick * numTicks * 2);
 
 	return true;
 }

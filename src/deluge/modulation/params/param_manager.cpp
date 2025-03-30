@@ -382,7 +382,7 @@ void ParamManagerForTimeline::processCurrentPos(ModelStackWithThreeMainThings* m
 		                                            true);
 		// if we can't interpolate by samples then we'll interpolate by ticks here instead
 		if (!mayInterpolate && (summary->whichParamsAreInterpolating[0] != 0u)) {
-			summary->paramCollection->tickTicks(ticksSinceLast, modelStackWithParamCollection);
+			summary->paramCollection->tickTicks(ticksSkipped, modelStackWithParamCollection);
 			ticksTilNextEvent = 0;
 		}
 		ticksTilNextEvent = std::min(ticksTilNextEvent, summary->paramCollection->ticksTilNextEvent);
