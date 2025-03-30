@@ -1,5 +1,5 @@
 ---
-title: Guidelines for Repository Contributions
+title: Guidelines for Contributions
 ---
 
 Everybody is invited to contribute to this repository as further outlined below:

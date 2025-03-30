@@ -1,5 +1,5 @@
 ---
-title: Chord Keyboard and Chord Library Layouts
+title: Chord Keyboard and Library
 ---
 
 ## Description:

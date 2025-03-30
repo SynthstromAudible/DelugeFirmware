@@ -26,8 +26,8 @@ export default defineConfig({
 				  slug: 'downloads'
 				},
 				{
-					label: 'Changelog',
-					autogenerate: { directory: 'changelogs' },
+					label: 'Change Log',
+					slug: 'changelogs/changelog',
 				},
 				{
 					label: 'Features',

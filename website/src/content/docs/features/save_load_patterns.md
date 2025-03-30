@@ -1,5 +1,5 @@
 ---
-title: Save / Load patterns
+title: Save and Load Patterns
 ---
 
 Added ability to save / load Patterns from/to Files. A Pattern represents all notes of the current Deluge screen, including the attributes Velocity, Probability, Lift, Iteration, and Fill. Patterns can be either melodic instruments (Synth, MIDI, CV) or rhythmic instruments (Kit, Drum).

@@ -1,5 +1,5 @@
 ---
-title: Getting Started with Deluge Development
+title: Getting Started
 ---
 
 ## Obtaining the Source Code

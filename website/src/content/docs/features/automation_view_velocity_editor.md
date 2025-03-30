@@ -1,5 +1,7 @@
 ---
-title: Automation View Note Velocity Editor
+title: "Automation View: Note Velocity Editor"
+sidebar:
+  label: Note Velocity Editor
 ---
 
 New Note Velocity Editing View that has been added as part of the existing Automation View implementation so that you can edit the velocities and other parameters of notes in a single note row.
