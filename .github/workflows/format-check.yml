@@ -44,6 +44,7 @@ jobs:
       - name: Run website check
         uses: wearerequired/lint-action@v2
         with:
+          auto_fix: true
           eslint: true
           eslint_dir: website
           eslint_auto_fix: true
