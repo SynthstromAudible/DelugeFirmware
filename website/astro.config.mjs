@@ -5,7 +5,7 @@ import rehypeMermaid from 'rehype-mermaid'
 import starlightLinksValidator from 'starlight-links-validator'
 import remarkGfm from 'remark-gfm'
 import remarkGithub from 'remark-github'
-// @ts-expect-error no types
+// @ts-expect-error remark-link-rewrite has no types
 import RemarkLinkRewrite from 'remark-link-rewrite'
 import { withBase } from './src/utils'
 import tailwindcss from "@tailwindcss/vite"

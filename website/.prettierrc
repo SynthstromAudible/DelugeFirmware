@@ -1,0 +1,9 @@
+{
+	"trailingComma": "all",
+	"semi": false,
+	"useTabs": false,
+	"plugins": [
+		"prettier-plugin-astro",
+		"prettier-plugin-tailwindcss"
+	]
+}
