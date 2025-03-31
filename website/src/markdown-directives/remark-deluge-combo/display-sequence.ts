@@ -1,5 +1,5 @@
 import type { ElementContent } from "hast"
-import { type Action, CONTROLS, titleCase } from "./data.ts"
+import { type Action, CONTROLS, titleCase } from "./controls.ts"
 
 const icons = Object.fromEntries(
   await Promise.all(
