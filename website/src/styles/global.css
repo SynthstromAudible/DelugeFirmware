@@ -1,4 +1,35 @@
-@import "tailwindcss";
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
 
 /* https://tailwindcss.com/docs/dark-mode#using-a-data-attribute */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+span.button-sequence {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+}
+
+span.button-chord {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 1em;
+  padding: 0.1em 0.35em;
+  margin: 0 0.05em;
+  word-spacing: -0.5ch;
+}
+
+span.button-sequence img {
+  display: inline-block;
+  margin: 0;
+  height: 1.2em;
+  vertical-align: text-bottom;
+}
+
+span.button-pad {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 0.25em;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  padding: 0 0.1em;
+  margin: 0 0.05em;
+}

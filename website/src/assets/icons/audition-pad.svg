@@ -1,0 +1,44 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="none" x="0px" y="0px" width="128px" height="128px" viewBox="0 0 128 128">
+<defs/>
+
+<g transform="matrix( 1, 0, 0, 1, 64.05,64) ">
+<g id="SHAPE">
+<g id="Layer_4">
+<g id="Layer_1">
+<g>
+<g>
+<g>
+<path fill="#C6C6C6" stroke="none" d="
+M -46.15 -46.15
+L -46.15 46.15 46.15 46.15 46.15 -46.15 -46.15 -46.15 Z"/>
+</g>
+</g>
+
+<g>
+<path stroke="#ECECEC" stroke-width="8" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M -46.15 -46.15
+L 46.15 -46.15 46.15 46.15 -46.15 46.15 -46.15 -46.15 Z"/>
+</g>
+</g>
+</g>
+
+<g id="Layer_2"/>
+</g>
+
+<g id="Layer_6"/>
+
+<g id="Layer_5">
+<g>
+<g>
+<path stroke="#0089FF" stroke-width="8" stroke-linejoin="miter" stroke-linecap="square" stroke-miterlimit="60" fill="none" d="
+M -32.45 0
+L -23.55 0 -15.9 -19.65 -3.35 20 8.2 -9.1 16.8 10.8 23 0 32.45 0"/>
+</g>
+</g>
+</g>
+</g>
+
+<g id="ACTION"/>
+</g>
+</svg>
