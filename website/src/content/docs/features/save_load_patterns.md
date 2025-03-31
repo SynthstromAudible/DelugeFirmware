@@ -36,8 +36,8 @@ Here are a few examples of what can be stored as a Pattern:
 
 Everything you can think of and what can be copy/pasted can now also be stored an recalled to/from the SD Card.
 
-
 ### Folder Structure
+
 You will Find the Pattern Files nn the following Structure on the Root of your SD Card:
 
 ```
@@ -51,76 +51,80 @@ You will Find the Pattern Files nn the following Structure on the Root of your S
 **For Melodic Instruments (Synth, Midi, CV)**
 
 - Save Melodic Pattern:
-`SAVE+PUSH_HORIZONTAL_ENCODER`
+  `SAVE+PUSH_HORIZONTAL_ENCODER`
 
 - Load Melodic Pattern:
-`LOAD+PUSH_HORIZONTAL_ENCODER`
+  `LOAD+PUSH_HORIZONTAL_ENCODER`
 
 - Load Melodic Pattern without overwriting existing Notes:
-`LOAD+CROSS_SCREEN+PUSH_HORIZONTAL_ENCODER`
+  `LOAD+CROSS_SCREEN+PUSH_HORIZONTAL_ENCODER`
 
 - Load Melodic Pattern without scaling original File:
-`LOAD+SCALE_CHANGE+PUSH_HORIZONTAL_ENCODER`
+  `LOAD+SCALE_CHANGE+PUSH_HORIZONTAL_ENCODER`
 
 _Remark: If noScaling is set, Pattern will allways overwrite existing Notes and start from beginning of the Clip and not at the left Side of the Screen._
 
 Preview of Pattern:
 Press and hold `PLAY` while in Pattern-Load Menu
 
-
-
 **For Rhythmic Instruments (Kit, Drums)**
 
 - Save Kit Pattern:
-    1. Enable `AFFECT_ENTIRE`
-    2. `SAVE+PUSH_HORIZONTAL_ENCODER`
+
+  1. Enable `AFFECT_ENTIRE`
+  2. `SAVE+PUSH_HORIZONTAL_ENCODER`
 
 - Load Kit Pattern:
-    1. Enable `AFFECT_ENTIRE`
-    2. `LOAD+PUSH_HORIZONTAL_ENCODER`
+
+  1. Enable `AFFECT_ENTIRE`
+  2. `LOAD+PUSH_HORIZONTAL_ENCODER`
 
 - Load Kit Pattern without overwriting existing Notes:
-    1. Enable `AFFECT_ENTIRE`
-    2. `LOAD+CROSS_SCREEN+PUSH_HORIZONTAL_ENCODER`
+
+  1. Enable `AFFECT_ENTIRE`
+  2. `LOAD+CROSS_SCREEN+PUSH_HORIZONTAL_ENCODER`
 
 - Load Kit Pattern without scaling original File:
-    1. Enable `AFFECT_ENTIRE`
-    2. `LOAD+SCALE_CHANGE+PUSH_HORIZONTAL_ENCODER`
+  1. Enable `AFFECT_ENTIRE`
+  2. `LOAD+SCALE_CHANGE+PUSH_HORIZONTAL_ENCODER`
 
 _Remark: If noScaling is set, Pattern will allways overwrite existing Notes and start from beginning of the Clip and not at the left Side of the Screen._
 
 - Preview of Pattern:
-Press and hold `PLAY` while in Pattern-Load Menu
+  Press and hold `PLAY` while in Pattern-Load Menu
 
 - Save Drum Pattern:
-    1. Disable `AFFECT_ENTIRE`
-    2. Select Drum Row to save (Audition Pad)
-    5. `SAVE+PUSH_HORIZONTAL_ENCODER`
+
+  1. Disable `AFFECT_ENTIRE`
+  2. Select Drum Row to save (Audition Pad)
+  3. `SAVE+PUSH_HORIZONTAL_ENCODER`
 
 - Load Drum Pattern:
-    1. Disable `AFFECT_ENTIRE`
-    2. Select Drum Row to save (Audition Pad)
-    3. `LOAD+PUSH_HORIZONTAL_ENCODER`
+
+  1. Disable `AFFECT_ENTIRE`
+  2. Select Drum Row to save (Audition Pad)
+  3. `LOAD+PUSH_HORIZONTAL_ENCODER`
 
 - Load Drum Pattern without overwriting existing Notes:
-    1. Disable `AFFECT_ENTIRE`
-    2. Select Drum Row to save (Audition Pad)
-    3. `LOAD+CROSS_SCREEN+PUSH_HORIZONTAL_ENCODER`
+
+  1. Disable `AFFECT_ENTIRE`
+  2. Select Drum Row to save (Audition Pad)
+  3. `LOAD+CROSS_SCREEN+PUSH_HORIZONTAL_ENCODER`
 
 - Load Drum Pattern without scaling original File:
-    1. Disable `AFFECT_ENTIRE`
-    2. `LOAD+SCALE_CHANGE+PUSH_HORIZONTAL_ENCODER`
+  1. Disable `AFFECT_ENTIRE`
+  2. `LOAD+SCALE_CHANGE+PUSH_HORIZONTAL_ENCODER`
 
 _Remark: If noScaling is set, Pattern will allways overwrite existing Notes and start from beginning of the Clip and not at the left Side of the Screen._
 
 - Preview of Pattern:
-Press and hold `PLAY` while in Pattern-Load Menu
+  Press and hold `PLAY` while in Pattern-Load Menu
 
 Hint:
 After loading a Patter, the Pattern is also copied into Clipboard and can be pasted (`SHIFT+LEARN_INPUT+PUSH_HORIZONTAL_ENCODER`) or gently pasted (`SHIFT+CROSS_SCREEN+PUSH_HORIZONTAL_ENCODER`) as many Times as needed.
 
-
 ### Implemented Features
+
 - save/load of Pattern files for Synths, Midi, CV, Kit and Drums
 - Browsing and Preview of patterns (press and hold Play to audition them)
 - streching/compressing of patterns
@@ -130,11 +134,10 @@ After loading a Patter, the Pattern is also copied into Clipboard and can be pas
 - If Zoomlevel of the Loading Pattern is not identical to the actual Zoom level, a Popup with the Scaling is shown (Scale-Factor for 7Seg)
 - Auto-Creation of Folder Structure
 
-
 ### Additional Tools
+
 Under [contrib/midi2deluge](https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi2deluge), you will find two simple Tools - a WebApp and a python Script - that can generate Pattern-Files for the Deluge from simple Midi-Files.
 Important:The Tools where tested with the [Wikipedia Midifile Sample](https://en.wikipedia.org/wiki/File:MIDI_sample.mid) and may will not work with very complex Midi-Files.
-
 
 ![midi2Deluge](https://github.com/user-attachments/assets/902fdcd1-58e7-4992-8c02-6c0ad063233d)
 
@@ -145,4 +148,3 @@ Important:The Tools where tested with the [Wikipedia Midifile Sample](https://en
 - No Overwrite (aka gently Paste):`NOOW`
 - No Scaling:`NOSC`
 - Previwing:`PREV`
-

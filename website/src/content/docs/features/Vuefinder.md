@@ -22,7 +22,7 @@ Previewing a .WAV audio file causes the audio file to be loaded into the "Peaks"
 
 To upload, press the icon that looks like a tray with an up-arrow in it. You can choose a file, a directory either by browsing or "drag and drop". You should be able to upload a directory with its nested internals if desired.
 
-All of the credit for Vuefinder should go to Yusuf. He has made an outstanding file browser. Clicking on the circle with question mark at the lower right hand side will bring up an info page which includes "About" information, a Settings dialog, a Shortcuts list, and a Reset feature. The Settings dialog allows you to choose a dark or light Theme and Language, among 12 options which include Arabic, English, French, German, Persian, Hindi,  Russian, Swedish, Turkish, and Chinese. Unfortunately New Zealand is not an option yet.
+All of the credit for Vuefinder should go to Yusuf. He has made an outstanding file browser. Clicking on the circle with question mark at the lower right hand side will bring up an info page which includes "About" information, a Settings dialog, a Shortcuts list, and a Reset feature. The Settings dialog allows you to choose a dark or light Theme and Language, among 12 options which include Arabic, English, French, German, Persian, Hindi, Russian, Swedish, Turkish, and Chinese. Unfortunately New Zealand is not an option yet.
 
 Among the many loose-ends not yet addressed include an Abort feature to stop a long transfer and a progress meter that shows how long it will take. If you need to stop a transfer in its tracks, reloading the web page will work. (If you do too many of these forced-resets, you may have to reboot the Deluge too).
 

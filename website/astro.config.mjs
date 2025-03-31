@@ -1,48 +1,49 @@
 // @ts-check
-import { defineConfig } from 'astro/config';
-import starlight from '@astrojs/starlight';
-import rehypeMermaid from 'rehype-mermaid'
-import starlightLinksValidator from 'starlight-links-validator'
-import remarkGfm from 'remark-gfm'
-import remarkGithub from 'remark-github'
+import { defineConfig } from "astro/config"
+import starlight from "@astrojs/starlight"
+import rehypeMermaid from "rehype-mermaid"
+import starlightLinksValidator from "starlight-links-validator"
+import remarkGfm from "remark-gfm"
+import remarkGithub from "remark-github"
 // @ts-expect-error remark-link-rewrite has no types
-import RemarkLinkRewrite from 'remark-link-rewrite'
-import { withBase } from './src/utils'
+import RemarkLinkRewrite from "remark-link-rewrite"
+import { withBase } from "./src/utils"
 import tailwindcss from "@tailwindcss/vite"
 
 // https://astro.build/config
 const config = defineConfig({
   site: process.env.SITE_URL,
   base: process.env.SITE_BASE_PATH || "",
-  trailingSlash: 'never',
+  trailingSlash: "never",
   integrations: [
     starlight({
-      title: 'Deluge Community',
+      title: "Deluge Community",
       logo: {
-        light: './src/assets/deluge_community_firmware_logo_inverted.png',
-        dark: './src/assets/banner.png',
+        light: "./src/assets/deluge_community_firmware_logo_inverted.png",
+        dark: "./src/assets/banner.png",
         replacesTitle: true,
       },
       social: {
-        github: 'https://github.com/SynthstromAudible/DelugeFirmware',
-        discord: 'https://discord.gg/s2MnkFqZgj',
-        patreon: 'https://www.patreon.com/Synthstrom'
+        github: "https://github.com/SynthstromAudible/DelugeFirmware",
+        discord: "https://discord.gg/s2MnkFqZgj",
+        patreon: "https://www.patreon.com/Synthstrom",
       },
       editLink: {
-        baseUrl: 'https://github.com/SynthstromAudible/DelugeFirmware/tree/community/website',
+        baseUrl:
+          "https://github.com/SynthstromAudible/DelugeFirmware/tree/community/website",
       },
       sidebar: [
         {
-          label: 'Downloads',
-          slug: 'downloads'
+          label: "Downloads",
+          slug: "downloads",
         },
         {
-          label: 'Change Log',
-          slug: 'changelogs/changelog',
+          label: "Change Log",
+          slug: "changelogs/changelog",
         },
         {
-          label: 'Features',
-          autogenerate: { directory: 'features' },
+          label: "Features",
+          autogenerate: { directory: "features" },
         },
         // {
         // 	label: 'Guides',
@@ -52,49 +53,55 @@ const config = defineConfig({
         // 	],
         // },
         {
-          label: 'Reference',
-          autogenerate: { directory: 'reference' },
+          label: "Reference",
+          autogenerate: { directory: "reference" },
         },
         {
-          label: 'Development',
-          autogenerate: { directory: 'development' },
+          label: "Development",
+          autogenerate: { directory: "development" },
         },
-        { label: 'Doxygen', link: '/doxygen' },
+        { label: "Doxygen", link: "/doxygen" },
         {
-          label: 'Other',
-          autogenerate: { directory: 'poc' },
-          badge: 'Testing Docs Features'
-        }
+          label: "Other",
+          autogenerate: { directory: "poc" },
+          badge: "Testing Docs Features",
+        },
       ],
       plugins: [starlightLinksValidator()],
-      customCss: ['./src/styles/global.css'],
+      customCss: ["./src/styles/global.css"],
       credits: true,
     }),
   ],
   markdown: {
     remarkPlugins: [
       remarkGfm,
-      [remarkGithub, {
-        repository: 'SynthstromAudible/DelugeFirmware'
-      }],
-      [RemarkLinkRewrite, {
-        replacer: (/** @type {string} */ link) => {
-          if (link.startsWith('/')) {
-            return withBase(link)
-          }
-          return link
-        }
-      }]
+      [
+        remarkGithub,
+        {
+          repository: "SynthstromAudible/DelugeFirmware",
+        },
+      ],
+      [
+        RemarkLinkRewrite,
+        {
+          replacer: (/** @type {string} */ link) => {
+            if (link.startsWith("/")) {
+              return withBase(link)
+            }
+            return link
+          },
+        },
+      ],
     ],
     rehypePlugins: [
       // Known issue: diagrams follow the browser preferred dark mode, not the one selected in the header.
       // See: https://github.com/remcohaszing/rehype-mermaid/issues/16
-      [rehypeMermaid, { strategy: 'img-svg', dark: true }],
+      [rehypeMermaid, { strategy: "img-svg", dark: true }],
     ],
   },
   vite: {
-    plugins: [tailwindcss()]
-  }
-});
+    plugins: [tailwindcss()],
+  },
+})
 
-export default config;
+export default config

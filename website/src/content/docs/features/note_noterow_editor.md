@@ -35,10 +35,11 @@ Note: if you scroll, the note you previously selected will get de-selected and i
 ### Selected Note Auditioning
 
 By default when you select a note, the note will begin auditioning (so you can hear it) and it will continue auditioning until you either:
- - exit the note editor menu
- - press the note again
- - de-select the note by scrolling
- - select another note
+
+- exit the note editor menu
+- press the note again
+- de-select the note by scrolling
+- select another note
 
 ### Note Actions
 
@@ -66,6 +67,7 @@ While in the Note Row Editor Menu, the audition pads will not sound. They will f
 While in the note row editor menu, the selected note row audition pad will blink.
 
 You can select other note row's by:
+
 - pressing the note row audition pad
 - vertical scrolling with the vertical encoder
 
@@ -84,6 +86,7 @@ By physically holding an audition pad you can:
 ### Editing Notes
 
 While holding shift or sticky shift, you can:
+
 - add / remove notes on the grid
 - press and hold one or more notes to edit the same parameter selected for the row but for only for the notes you selected
 - with a note selected you can edit its velocity by turning the horizontal encoder <>

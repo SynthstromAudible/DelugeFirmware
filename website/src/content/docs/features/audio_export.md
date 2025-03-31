@@ -54,21 +54,25 @@ Exported files are given a meaningful name in the following format:
 ## Recording Parameters
 
 ### Recording Length
+
 - In terms of the length of each rendered audio file:
   - In Arranger, a track is played until the end of the arrangement's length is reached.
   - In Song, a clip is played until the end of the longest note row with notes in it is reached.
   - If `EXPORT TO SILENCE` is enabled, tails will be allowed to ring out and recording will continue past the track or clip length until silence is reached (see below).
 
 ### Silence
+
 - By default, files are rendered until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured
   - This can be turned off in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT TO SILENCE`
 - If silence is not reached within 60 seconds of playback stopping, then the recording will stop automatically as a safety precaution.
 
 ### Normalization
+
 - By default, normalization is off. Normalization sets the peak of the renders to be at 0dB (as loud as possible without distorting).
   - Normalization can be turned on in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\NORMALIZATION`
 
 ### Song FX
+
 - By default, song FX are excluded (these are the master FX in Song and Arranger Views when Affect Entire is enabled). They can be included in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\SONG FX`
 
 ### Clip Loop Points
@@ -76,10 +80,12 @@ Exported files are given a meaningful name in the following format:
 - For clip exports, a loop point marker is saved with the exported file to mark the clip's loop length. This makes it easy to load your rendered files so they will play back and loop properly in a DAW.
 
 ### Offline Rendering
+
 - By default, offline Rendering is enabled. Offline rendering enables you to render and export faster than if you recorded playback using live audio (e.g. resampling/online rendering). There are still improvements to be made to make offline rendering even faster, but it is significantly fast as is!
   - Offline rendering can be turned off in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\OFFLINE RENDERING`
 
 ### Mixdown Export
+
 - Exporting all unmuted tracks as a single stereo file is disabled by default. This can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
 
 ## Audio Export Menu
@@ -91,12 +97,12 @@ This menu allows you to start an export and configure various settings related t
 - Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 
 - Configure settings for the export by entering the `SONG\EXPORT AUDIO\CONFIGURE EXPORT\` menu.
-    - You can currently configure the following:
-      - `NORMALIZATION`: Normalization sets the peak of the render to be at 0dB (as loud as possible without distorting).
-      - `EXPORT TO SILENCE`: Exports are rendered until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured.
-      - `SONG FX`: Exports are rendered with or without Song FX applied.
-      - `OFFLINE RENDERING`: Exports are rendered offline. You will not hear any audio playback, as exports are rendered at a faster than real-time basis.
-      - `EXPORT MIXDOWN`: A single master mixdown track is exported for all unmuted tracks in Arranger View.
+  - You can currently configure the following:
+    - `NORMALIZATION`: Normalization sets the peak of the render to be at 0dB (as loud as possible without distorting).
+    - `EXPORT TO SILENCE`: Exports are rendered until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured.
+    - `SONG FX`: Exports are rendered with or without Song FX applied.
+    - `OFFLINE RENDERING`: Exports are rendered offline. You will not hear any audio playback, as exports are rendered at a faster than real-time basis.
+    - `EXPORT MIXDOWN`: A single master mixdown track is exported for all unmuted tracks in Arranger View.
 
 ## Troubleshooting
 
