@@ -72,6 +72,9 @@ const config = defineConfig({
       plugins: [starlightLinksValidator()],
       customCss: ["./src/styles/global.css"],
       credits: true,
+      components: {
+        Head: "./src/components/Head.astro",
+      },
     }),
   ],
   markdown: {
