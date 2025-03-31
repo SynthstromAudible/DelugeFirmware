@@ -1,0 +1,123 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="none" x="0px" y="0px" width="128px" height="128px" viewBox="0 0 128 128">
+<defs>
+<font horiz-adv-x="2048">
+<!--  Font Name: Arial Bold
+Vendor ID: TMC
+© 2017 The Monotype Corporation. All Rights Reserved.
+
+Hebrew OpenType Layout logic copyright © 2003 & 2007, Ralph Hancock & John Hudson. This layout logic for Biblical Hebrew is open source software under the MIT License; see embedded license description for details.
+URL for more Information: http://www.adobe.com/go/font_vendor_id?ID=TMC&Name=Arial&PSName=Arial-BoldMT&applanguage=en_US-->
+<font-face font-family="Arial_Bold" units-per-em="2048" ascent="1854" descent="434"/>
+
+<glyph unicode="S" horiz-adv-x="1366" d="
+M 74 477
+L 362 505
+Q 388 360 468 292 547 224 682 224 825 224 898 284 970 345 970 426 970 478 940 514 909 551 833 578 781 596 596 642 358 701 262 787 127 908 127 1082 127 1194 191 1291 254 1389 374 1440 493 1491 662 1491 938 1491 1078 1370 1217 1249 1224 1047
+L 928 1034
+Q 909 1147 847 1196 784 1246 659 1246 530 1246 457 1193 410 1159 410 1102 410 1050 454 1013 510 966 726 915 942 864 1046 809 1149 755 1208 660 1266 566 1266 427 1266 301 1196 191 1126 81 998 27 870 -26 679 -26 401 -26 252 102 103 231 74 477 Z"/>
+
+<glyph unicode="E" horiz-adv-x="1366" d="
+M 149 0
+L 149 1466 1236 1466 1236 1218 445 1218 445 893 1181 893 1181 646 445 646 445 247 1264 247 1264 0 149 0 Z"/>
+
+<glyph unicode="L" horiz-adv-x="1251" d="
+M 157 0
+L 157 1454 453 1454 453 247 1189 247 1189 0 157 0 Z"/>
+</font>
+</defs>
+
+<g transform="matrix( 1, 0, 0, 1, 64.05,64) ">
+<g id="SHAPE">
+<g id="Layer_4">
+<g id="Layer_1">
+<g>
+<g>
+<g>
+<path fill="#1E1E1E" stroke="none" d="
+M -0.05 -52.7
+Q -21.75 -52.7 -37.25 -37.35 -52.7 -21.75 -52.7 0 -52.7 21.75 -37.25 37.2 -21.75 52.7 -0.05 52.7 21.85 52.7 37.25 37.2 52.7 21.75 52.7 0 52.7 -21.75 37.25 -37.35 21.85 -52.7 -0.05 -52.7 Z"/>
+</g>
+</g>
+
+<g>
+<path stroke="#949494" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 52.7 0
+Q 52.7 21.75 37.25 37.2 21.85 52.7 -0.05 52.7 -21.75 52.7 -37.25 37.2 -52.7 21.75 -52.7 0 -52.7 -21.75 -37.25 -37.35 -21.75 -52.7 -0.05 -52.7 21.85 -52.7 37.25 -37.35 52.7 -21.75 52.7 0 Z"/>
+</g>
+</g>
+</g>
+</g>
+
+<g id="Layer_2">
+<g transform="matrix( 0.3791351318359375, 0, 0, 0.3791351318359375, -27.3,-22) ">
+<clipPath id="Mask_Mask_1">
+<rect x="-22.7" y="-2" width="189.4" height="120.2" fill="#FFFFFF" stroke="none"/>
+</clipPath>
+
+<text clip-path="url(#Mask_Mask_1)" writing-mode="lr"><tspan x="-20.65" y="94.15" baseline-shift="0%" kerning="0" font-family="Arial_Bold" font-weight="bold" font-size="104" fill="#D0D0D0" letter-spacing="-6" xml:space="preserve">S</tspan><tspan baseline-shift="0%" kerning="0" font-family="Arial_Bold" font-weight="bold" font-size="104" fill="#D0D0D0" letter-spacing="-5" xml:space="preserve">E</tspan><tspan baseline-shift="0%" kerning="0" font-family="Arial_Bold" font-weight="bold" font-size="104" fill="#D0D0D0" letter-spacing="-6" xml:space="preserve">L</tspan></text>
+</g>
+</g>
+</g>
+
+<g id="ACTION">
+<g id="ACTION">
+<g id="ARROW" transform="matrix( 1, 0, 0, 1, 0,-0.05) ">
+<g id="Layer_3" transform="matrix( 1, 0, 0, 1, -29.75,-22.9) ">
+<g>
+<g>
+<path stroke="#00FFCA" stroke-width="7" stroke-linejoin="miter" stroke-linecap="round" stroke-miterlimit="3" fill="none" d="
+M -19.05 43.225
+Q -22.95 33.8830078125 -22.95 22.95 -22.95 1.2 -7.5 -14.4"/>
+</g>
+</g>
+</g>
+
+<g id="Layer_1" transform="matrix( 1, 0, 0, 1, -29.75,-22.9) ">
+<g>
+<g>
+<path stroke="#00FFCA" stroke-width="7" stroke-linejoin="miter" stroke-linecap="round" stroke-miterlimit="3" fill="none" d="
+M 28.4 -29.75
+Q 7.422265625 -29.2736328125 -7.5 -14.4 -22.7939453125 0.993359375 -22.9 22.6 -22.9 22.75 -22.9 22.9"/>
+</g>
+</g>
+
+<g id="Layer_1" transform="matrix( 0.87713623046875, -0.4802093505859375, 0.4802093505859375, 0.87713623046875, -17.2,46.6) ">
+<g>
+<g>
+<g>
+<path fill="#36393F" fill-opacity="0" stroke="none" d="
+M 7.8 -3.9
+L 0.05 -3.9
+Q 0.05 -1.15 0.1 0.7
+L 0.2 3.7 7.8 -3.9 Z"/>
+</g>
+</g>
+
+<g>
+<path stroke="#00FFCA" stroke-width="6" stroke-linejoin="round" stroke-linecap="butt" fill="none" d="
+M 0.2 3.7
+L 7.8 -3.9 0.05 -3.9
+M -0.05 3.95
+L -7.85 -3.9 0.05 -3.9"/>
+</g>
+
+<g>
+<path stroke="#00FFCA" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 0.1 0.7
+L 0.2 3.7 -0.05 3.95"/>
+</g>
+
+<g>
+<path stroke="#00FFCA" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 0.05 -3.9
+Q 0.05 -1.15 0.1 0.7"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</svg>

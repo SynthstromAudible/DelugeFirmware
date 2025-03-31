@@ -15,14 +15,17 @@
     "@astrojs/starlight": "^0.32.5",
     "@tailwindcss/vite": "^4.0.17",
     "astro": "^5.5.5",
+    "mdast-util-to-string": "^4.0.0",
     "playwright": "^1.51.1",
     "rehype-mermaid": "^3.0.0",
+    "remark-directive": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "remark-github": "^12.0.0",
     "remark-link-rewrite": "^1.0.7",
     "sharp": "^0.32.5",
     "starlight-links-validator": "^0.14.3",
-    "tailwindcss": "^4.0.17"
+    "tailwindcss": "^4.0.17",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@typescript-eslint/parser": "^8.28.0",
