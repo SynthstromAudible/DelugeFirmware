@@ -85,9 +85,9 @@ const labelledButtonToAction =
       }
     }
 
-    if (modifiers.length > 0) {
+    if (remainingModifiers.length > 0) {
       throw new Error(
-        `Modifiers are not supported for ${name}. (Modifiers: ${modifiers.join(" ")})`,
+        `Modifiers are not supported for ${name}. (Modifiers: ${remainingModifiers.join(" ")})`,
       )
     }
 
@@ -138,13 +138,13 @@ export const CONTROLS = ControlData.parse({
   SHIFT: { toAction: labelledButtonToAction() },
   AFFECT_ENTIRE: {
     aliases: ["AFFECT"],
-    toAction: labelledButtonToAction(["ENTIRE"]),
+    toAction: labelledButtonToAction(["AFFECT", "ENTIRE"]),
     didYouMean: ["AFFECT_ALL", "ALL"],
   },
   CLIP: { toAction: labelledButtonToAction() },
   CROSS_SCREEN: {
     aliases: ["CROSS"],
-    toAction: labelledButtonToAction(["SCREEN"]),
+    toAction: labelledButtonToAction(["CROSS", "SCREEN"]),
   },
   CV: { toAction: labelledButtonToAction() },
   KEYBOARD: {
@@ -176,16 +176,16 @@ export const CONTROLS = ControlData.parse({
   SONG: { toAction: labelledButtonToAction() },
   SYNC_SCALING: {
     aliases: ["SYNC"],
-    toAction: labelledButtonToAction(["SCALING"]),
+    toAction: labelledButtonToAction(["SYNC", "SCALING"]),
   },
   SYNTH: { toAction: labelledButtonToAction() },
   TAP_TEMPO: {
     aliases: ["TAP"],
-    toAction: labelledButtonToAction(["TEMPO"]),
+    toAction: labelledButtonToAction(["TAP", "TEMPO"]),
   },
   TRIPLETS_VIEW: {
     aliases: ["TRIPLETS"],
-    toAction: labelledButtonToAction(["VIEW"]),
+    toAction: labelledButtonToAction(["TRIPLETS", "VIEW"]),
   },
   BACK: {
     aliases: ["UNDO" /* , "REDO" */],
