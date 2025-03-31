@@ -1,0 +1,73 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="none" x="0px" y="0px" width="128px" height="128px" viewBox="0 0 128 128">
+<defs>
+<font horiz-adv-x="2048">
+<!--  Font Name: Arial Bold
+Vendor ID: TMC
+© 2017 The Monotype Corporation. All Rights Reserved.
+
+Hebrew OpenType Layout logic copyright © 2003 & 2007, Ralph Hancock & John Hudson. This layout logic for Biblical Hebrew is open source software under the MIT License; see embedded license description for details.
+URL for more Information: http://www.adobe.com/go/font_vendor_id?ID=TMC&Name=Arial&PSName=Arial-BoldMT&applanguage=en_US-->
+<font-face font-family="Arial_Bold" units-per-em="2048" ascent="1854" descent="434"/>
+
+<hkern u1="A" u2="V" k="152"/>
+
+<glyph unicode="S" horiz-adv-x="1366" d="
+M 74 477
+L 362 505
+Q 388 360 468 292 547 224 682 224 825 224 898 284 970 345 970 426 970 478 940 514 909 551 833 578 781 596 596 642 358 701 262 787 127 908 127 1082 127 1194 191 1291 254 1389 374 1440 493 1491 662 1491 938 1491 1078 1370 1217 1249 1224 1047
+L 928 1034
+Q 909 1147 847 1196 784 1246 659 1246 530 1246 457 1193 410 1159 410 1102 410 1050 454 1013 510 966 726 915 942 864 1046 809 1149 755 1208 660 1266 566 1266 427 1266 301 1196 191 1126 81 998 27 870 -26 679 -26 401 -26 252 102 103 231 74 477 Z"/>
+
+<glyph unicode="A" horiz-adv-x="1479" d="
+M 1471 0
+L 1149 0 1021 333 435 333 314 0 0 0 571 1466 884 1466 1471 0 Z
+M 926 580
+L 724 1124 526 580 926 580 Z"/>
+
+<glyph unicode="V" horiz-adv-x="1366" d="
+M 523 0
+L -1 1466 320 1466 691 381 1050 1466 1364 1466 839 0 523 0 Z"/>
+
+<glyph unicode="E" horiz-adv-x="1366" d="
+M 149 0
+L 149 1466 1236 1466 1236 1218 445 1218 445 893 1181 893 1181 646 445 646 445 247 1264 247 1264 0 149 0 Z"/>
+</font>
+</defs>
+
+<g transform="matrix( 1, 0, 0, 1, 64.05,64) ">
+<g id="SHAPE">
+<g id="Layer_4">
+<g id="Layer_1" transform="matrix( 1, 0, 0, 1, 0,-23.3) ">
+<g>
+<g>
+<g>
+<path fill="#B1B1B1" stroke="none" d="
+M -0.05 -25.8
+Q -10.65 -25.8 -18.2 -18.25 -25.8 -10.65 -25.8 0 -25.8 10.65 -18.2 18.2 -10.65 25.8 -0.05 25.8 10.7 25.8 18.2 18.2 25.8 10.65 25.8 0 25.8 -10.65 18.2 -18.25 10.7 -25.8 -0.05 -25.8 Z"/>
+</g>
+</g>
+
+<g>
+<path stroke="#DEDEDE" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 25.8 0
+Q 25.8 10.65 18.2 18.2 10.7 25.8 -0.05 25.8 -10.65 25.8 -18.2 18.2 -25.8 10.65 -25.8 0 -25.8 -10.65 -18.2 -18.25 -10.65 -25.8 -0.05 -25.8 10.7 -25.8 18.2 -18.25 25.8 -10.65 25.8 0 Z"/>
+</g>
+</g>
+</g>
+</g>
+
+<g id="Layer_2">
+<g transform="matrix( 0.544097900390625, 0, 0, 0.544097900390625, -39.85,10.7) ">
+<clipPath id="Mask_Mask_1">
+<rect x="-25.9" y="-2" width="195.8" height="90" fill="#FFFFFF" stroke="none"/>
+</clipPath>
+
+<text clip-path="url(#Mask_Mask_1)" writing-mode="lr"><tspan x="-23.85" y="69.7" baseline-shift="0%" kerning="0" font-family="Arial_Bold" font-weight="bold" font-size="77" fill="#D0D0D0" letter-spacing="-6" xml:space="preserve">SA</tspan><tspan baseline-shift="0%" kerning="0" font-family="Arial_Bold" font-weight="bold" font-size="77" fill="#D0D0D0" xml:space="preserve">V</tspan><tspan baseline-shift="0%" kerning="0" font-family="Arial_Bold" font-weight="bold" font-size="77" fill="#D0D0D0" letter-spacing="-6" xml:space="preserve">E</tspan></text>
+</g>
+</g>
+</g>
+
+<g id="ACTION"/>
+</g>
+</svg>
