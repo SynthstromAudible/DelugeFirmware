@@ -4,8 +4,9 @@
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 span.button-sequence {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
 }
 
 span.button-chord {

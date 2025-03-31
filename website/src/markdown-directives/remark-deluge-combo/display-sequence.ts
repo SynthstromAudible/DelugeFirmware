@@ -50,14 +50,15 @@ const displayAction = ({ icon, text, isPad }: Action): ElementContent[] => {
         tagName: "span",
         properties: { class: "button-pad" },
         children: [createTextElement(text || "Pad")],
-      }
+      },
     ]
   }
 
   return [
     text && createTextElement(text),
     icon && createImageElement(icon),
-  ].filter(Boolean) as ElementContent[]}
+  ].filter(Boolean) as ElementContent[]
+}
 
 const createImageElement = (icon: string): ElementContent => {
   if (!icons[icon]) {
@@ -72,8 +73,9 @@ const createImageElement = (icon: string): ElementContent => {
       alt: titleCase(icon),
       title: titleCase(icon),
     },
-  children: [],
-}}
+    children: [],
+  }
+}
 
 const createTextElement = (value: string): ElementContent => ({
   type: "text",
