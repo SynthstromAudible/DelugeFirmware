@@ -132,7 +132,7 @@ When you re-load the Song or MIDI preset next time, it will load the CC labels f
 
 The same information saved to the Midi Device Definition File is also saved to the Song / MIDI Preset with the exception of the Definition File Name which is not saved to the Definition File.
 
-```
+```xml
 <midiDevice>
 	<definitionFile
 		name="" />
