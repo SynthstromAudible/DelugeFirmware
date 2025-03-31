@@ -37,17 +37,18 @@ The first time you run it, the command will ask you for the key code you from th
 More instructions available via:
 `./dbt loadfw -h`
 
-**NOTE:** loadfw *can not* flash the new firmware to the permanent memory of the Deluge.
+**NOTE:** loadfw _can not_ flash the new firmware to the permanent memory of the Deluge.
 It is only loaded to RAM and then executed. Consequences:
-* **Good:** After switching off and on again, Deluge will boot from the last firmware flashed to permanent memory *from the SD card*.
-This is great for development, because if your changes crash the Deluge, just switch it off and on again and you are instantly back to the last
-(hopefully stable) version that was flashed from SD card.
-* **Meh**: If you want to keep your updated firmware on the Deluge persistently, i.e. surviving a power cycle, you *have to* physically copy it to your SD card
-and update it as described in https://github.com/SynthstromAudible/DelugeFirmware/wiki#updating-firmware
-* **Possibly bad:** *In rare cases* the firmware can behave differently when uploaded via loadfw than when actually flashed from SD card.
-While this should only be relevant when changing low-level code executed at boot time,
-**please** always verify that your firmware also works when actually flashed from SD card,
-especially before making a pull request (ask me how I know...).
+
+- **Good:** After switching off and on again, Deluge will boot from the last firmware flashed to permanent memory _from the SD card_.
+  This is great for development, because if your changes crash the Deluge, just switch it off and on again and you are instantly back to the last
+  (hopefully stable) version that was flashed from SD card.
+- **Meh**: If you want to keep your updated firmware on the Deluge persistently, i.e. surviving a power cycle, you _have to_ physically copy it to your SD card
+  and update it as described in https://github.com/SynthstromAudible/DelugeFirmware/wiki#updating-firmware
+- **Possibly bad:** _In rare cases_ the firmware can behave differently when uploaded via loadfw than when actually flashed from SD card.
+  While this should only be relevant when changing low-level code executed at boot time,
+  **please** always verify that your firmware also works when actually flashed from SD card,
+  especially before making a pull request (ask me how I know...).
 
 ### Printing debug log messages on the console
 
@@ -82,6 +83,7 @@ Using the previously mentionned sysex debugging, the following option can be tog
 ```
 
 This is a sample of the output:
+
 ```
 @matrix_driver.cpp:71: UI=instrument_clip_view,PAD_X=17,PAD_Y=3,VEL=255
 @matrix_driver.cpp:71: UI=instrument_clip_view,PAD_X=17,PAD_Y=3,VEL=0

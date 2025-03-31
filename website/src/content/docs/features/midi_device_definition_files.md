@@ -91,6 +91,7 @@ B) you will need to save those label changes back to a `MIDI Device Definition F
 #### A) Make changes to labels without updating `MIDI Device Definition File`
 
 TLDR steps:
+
 ```
 1. Load song
 2. Load label file
@@ -112,6 +113,7 @@ When you re-load the Song or MIDI preset next time, it will load the CC labels f
 #### B) Make changes to labels and update `MIDI Device Definition File`
 
 TLDR steps:
+
 ```
 1. Load song
 2. Load label file

@@ -62,6 +62,7 @@ When the Keyboard view is active, the first 6 rows of the sidebar shows the oper
 1. Taping a single pad in isolation lets you switch an operator on or off.
 
 2. Pressing Shift+coloured pad opens the editor for that operator.
+
 - The first press of Shift+colored pad selects the level parameter.
 - Pressing Shift+coloured pad again select the COARSE tuning parameter.
 
@@ -80,7 +81,7 @@ to browse between parameters.
 ![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/7e0d160f-8b1d-4b2c-9534-2a3b0ec31cb8)
 
 2. If OLED screen is available a group of related parameters is displayed at a time, like all the envelope levels and rates
-for a specific envelope. With 7SEG the parameter name will be shown briefly before the value
+   for a specific envelope. With 7SEG the parameter name will be shown briefly before the value
 
 3. Press back/undo to exit the Editor View, and access the standard synth shortcuts again.
 
@@ -96,13 +97,14 @@ However when feedback is activated on algorithm 4 and 6 (those will multi-operat
 "vintage" engine is meant to more accurately model a DX7 synth, but has lower polyphony.
 
 ## Patch Sources
-Need some DX7 patches? Check out the following:
- - [DX7 factory banks](https://yamahablackboxes.com/collection/yamaha-dx7-synthesizer/patches/) from Yamaha Black Boxes.
- - [Bobby Blue's "All The Web"](http://bobbyblues.recup.ch/yamaha_dx7/dx7_patches.html) patch collection.
- - [This DX7 Cart Does Not Exist](https://www.thisdx7cartdoesnotexist.com/), a random patch bank generator.
- - [patches.fm](https://patches.fm/patches/) has over 20,000 individual patches.
- - [The Dexed home page](https://asb2m10.github.io/dexed/) links to "Dexed Cart 1.0" which is a collection of ~5000 DX7 patches. Reddit user [Finetales on /r/synthesizers](https://www.reddit.com/r/synthesizers/comments/e4jkt7/my_curated_dexeddx7_patches_3_banks/)  narrowed this down to just 3 carefully curated banks.
 
+Need some DX7 patches? Check out the following:
+
+- [DX7 factory banks](https://yamahablackboxes.com/collection/yamaha-dx7-synthesizer/patches/) from Yamaha Black Boxes.
+- [Bobby Blue's "All The Web"](http://bobbyblues.recup.ch/yamaha_dx7/dx7_patches.html) patch collection.
+- [This DX7 Cart Does Not Exist](https://www.thisdx7cartdoesnotexist.com/), a random patch bank generator.
+- [patches.fm](https://patches.fm/patches/) has over 20,000 individual patches.
+- [The Dexed home page](https://asb2m10.github.io/dexed/) links to "Dexed Cart 1.0" which is a collection of ~5000 DX7 patches. Reddit user [Finetales on /r/synthesizers](https://www.reddit.com/r/synthesizers/comments/e4jkt7/my_curated_dexeddx7_patches_3_banks/) narrowed this down to just 3 carefully curated banks.
 
 ## Missing features:
 

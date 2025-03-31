@@ -17,6 +17,7 @@ Comes with a MIDI feedback mode to send updated parameter values on the MIDI fol
 Comes with an XML file (`SETTINGS/MIDIFollow.XML`) with default CC to Deluge parameter mappings. You can customize this XML file to map CC's differently as required.
 
 **Simple summary:**
+
 - Set your follow and feedback channel(s)
 - Set your MIDI Controller(s) to the same channel(s)
 - Set a root note for your kits
@@ -36,17 +37,18 @@ To use MIDI follow mode, you will need to configure the various MIDI Follow Mode
 - In the MIDI-Follow > Channel submenu, set the channel between 1 and 16 for Non-MPE or MPE Lower/Upper for MPE. There are three channel's (A/B/C) available to accomodate learning multiple devices / channels to MIDI Follow Mode.
   - You can quickly learn a Channel (and Device) by pressing LEARN and sending a CC/Note while in the Channel submenu
   - You can quickly unlearn a Channel by pressing SHIFT + LEARN while in the Channel submenu
-      - Note: if no Channel has been set, MIDI Follow Mode will be Disabled
+    - Note: if no Channel has been set, MIDI Follow Mode will be Disabled
 - In the MIDI-Follow > Kit Root Note submenu, set the root note for kits between 1 and 127 in order to map MIDI Notes received to Kit rows. The root note corresponds to the bottom row in a Kit.
 - In the MIDI-Follow > Display Param submenu, enable or disable param pop-ups
 - In the MIDI-Follow > Feedback > Channel submenu, Enable or Disable MIDI follow feedback by setting a MIDI Follow Feedback Channel.
   - You can choose MIDI Follow Channel A/B/C or NONE. Thus, when you update MIDI Follow Channel A/B/C it will automatically update the channel used for MIDI Feedback.
-      - Note: if no Channel has been set, MIDI Feedback will be Disabled
+    - Note: if no Channel has been set, MIDI Feedback will be Disabled
 - In the MIDI-Follow > Feedback > Automation Feedback submenu, Enable or Disable MIDI follow feedback for automated parameters and set the rate at which feedback for automated parameters is sent
   - With Automation Feedback enabled, the Deluge will also send feedback while you are holding a note (e.g. step editing automation). This will override the sending of automation feedback until you release the note.
 - In the MIDI-Follow > Feedback > Filter Responses submenu, Enable or Disable filtering of responses received within 1 second of sending a MIDI feedback value update.
 
 ### **Input Device Differentiation**
+
 If you wish to use Input Device Differentiation with MIDI Follow Mode, you will need to enable Input Differentiation and learn your device to the required MIDI Follow Channel(s).
 
 To enable Input Differentiation, go to `SETTINGS > MIDI > Differentiate Inputs (DIFF)`
@@ -71,6 +73,7 @@ If set the MIDI Feedback channel to NONE, MIDI Feedback will be disabled.
 You can also unlearn a channel using the Select encoder by scrolling between MPE Upper Zone and Channel 1.
 
 ### **Notes:**
+
 Notes and note associated performance data received (e.g. CC1, MPE CC74) on the master MIDI channel will play the instrument in the active clip (e.g. a synth, MIDI clip, cv clip, or all kit rows).
 
 - Note 1: You can play a synth, kit, MIDI or cv clip without entering the clip from arranger or song view. Simply press and hold the clip in arranger or song view to preview the clip (as you would to change the parameters of that clip with the gold encoders) and then send notes from your MIDI controller.
@@ -80,6 +83,7 @@ Notes and note associated performance data received (e.g. CC1, MPE CC74) on the 
 - Note 3: MIDI Follow mode will always send notes to the active clip. This means that if you leave or unselect a clip, you can still send notes to that clip because in the Deluge, that clip is still recognized as the last active clip.
 
 ### **CC's:**
+
 CC's received on the master MIDI channel that have been mapped to a parameter will change the value of that parameter in the active context (e.g. audio clip or instrument clip).
 
 The parameters are controlled only in the current context.
@@ -90,6 +94,7 @@ The parameters are controlled only in the current context.
 - In other words it checks what context you’re in and controls the parameters of that context.
 
 #### Default MIDI CC Mappings
+
 A default set of MIDI CC # to Deluge Parameter mappings has been created for MIDI Follow Mode. When you launch the Deluge after installing the firmware with MIDI Follow Mode, an XML file will be created in the `SETTINGS` folder in the root of the SD card titled `MIDIFollow.XML`
 
 The default mappings have taken into account standard MIDI CC to parameter mappings and usages. It has also taken into account reserving of MIDI CC's for future Deluge functionality / feature implementations.
@@ -99,6 +104,7 @@ The default MIDI CC to parameter mappings, as mapped the to the parameter shortc
 ![image](https://github.com/user-attachments/assets/d0a82d14-99db-4c02-b618-7906238ec2c8)
 
 Additionally, there are other parameters not in the grid that are mapped to MIDI CC's, which are the following:
+
 - Compressor Threshold: CC 27
 - Stutter Rate: CC 20
 - New arpeggiator parameters:
@@ -113,13 +119,14 @@ Additionally, there are other parameters not in the grid that are mapped to MIDI
   - Spread Octave: CC 39
   - Spread Gate: CC 40
 
-> * See Appendix A for detailed listing and description of default CC # to Parameter mappings.
+> - See Appendix A for detailed listing and description of default CC # to Parameter mappings.
 
 Here are the MIDI CC #'s that have been reserved for other purposes:
 
 ![image](https://github.com/user-attachments/assets/530b8aa7-610c-411a-91b1-c98c3c4034ce)
 
 #### Adjust MIDI CC Mappings
+
 MIDI CC mappings for MIDI Follow Mode are saved to the `SETTINGS` folder in the root of your SD card in an XML file called `MIDIFollow.XML`
 
 Within `MIDIFollow.XML`, all Parameters that can mapped to a MIDI CC are listed. The MIDI CC value is enclosed between a Parameter XML tag - e.g. `<lpfFrequency>74</lpfFrequency>` indicates that MIDI CC 74 is mapped to the LPF Frequency parameter. Conversely when a value of 255 is entered (e.g. `<hpfFrequency>255</hpfFrequency>`) it indicates that no MIDI CC value has been mapped to that parameter.
@@ -153,13 +160,14 @@ Note: if the MIDI CC being received is for a Parameter that cannot be controlled
 - Enable or Disable MIDI Follow Feedback by setting/unsetting the MIDI Follow Feedback Channel
 - Enable or Disable MIDI Follow Feedback for Automated Parameters and set the MIDI Feedback Update Rate
 - Enable or Disable MIDI Follow Feedback Filtering of MIDI CC responses received within 1 second of sending feedback
+
 2. When MIDI Follow Mode is enabled, a MIDI Follow Channel has been set, and you have mapped your MIDI CC's, your external controller's Notes and MIDI CC's will be automatically directed to control the Notes of the Active Instrument (e.g. Synth, Kit, MIDI, CV) and Parameters of the Active Instrument or Selected Clip.
 3. By default, the root note for kit's is C1 for the bottom kit row but this can be configured in the MIDI Follow menu.
 4. Pop-up's are shown on the display for mapped MIDI CC's to show the name of the parameter being controlled and value being set for the parameter. This can be disabled in the menu.
 5. MIDI feedback is sent for mapped CC's when the active context changes, change presets, or you change the value of a mapped parameter on the deluge (e.g. using mod encoders or select encoder if you're int he menu). MIDI feedback can be disabled in the menu by setting the MIDI feedback channel to NONE.
 6. MIDI feedback for automated parameters can also be sent and can be enabled or disabled in the MIDI feedback sub menu. When enabled, you choose between 3 speeds at which to send feedback for automated parameters: Low (500 ms), Medium (150 ms), High (40 ms). Sending automated parameter feedback can be taxing on the deluge MIDI output system, so depending on the amount of automation you do, you may want to adjust the speed (e.g. slow it down) to not affect the performance of the Deluge.
 7. MIDI feedback can cause an undesirable result with certain applications when the application responds back to the Deluge after the Deluge has sent it an updated value (Loopy Pro and Drambo on iPad are known to do this). This can cause lag in the deluge and potential feedback loops. To handle this, a toggable filter was added which ignores messages received for the same ccNumber within 1 second of sending a MIDI feedback update. If the application receiving the MIDI feedback update does not send responses back to the Deluge, then this setting should be set to Disabled in the MIDI Feedback Filter Responses sub menu.
-    - Note: To control the deluge with midi follow while receiving midi automation feedback, MIDI Feedback Filter Responses needs to be disabled. If your device requires filter responses to be enabled to avoid a feedback loop, you cannot use that same device to control the deluge while automation feedback is being received - you will only be able to display the automation on your device.
+   - Note: To control the deluge with midi follow while receiving midi automation feedback, MIDI Feedback Filter Responses needs to be disabled. If your device requires filter responses to be enabled to avoid a feedback loop, you cannot use that same device to control the deluge while automation feedback is being received - you will only be able to display the automation on your device.
 
 ## Troubleshooting
 
@@ -169,11 +177,11 @@ If you experience MIDI stutter / lag while using MIDI follow mode, you may need 
 
 Things you can try:
 
-1) Disable MIDI Feedback altogether by setting the MIDI Feedback Channel to NONE in the following sub-menu: MIDI > MIDI-FOLLOW > FEEDBACK > CHANNEL
+1. Disable MIDI Feedback altogether by setting the MIDI Feedback Channel to NONE in the following sub-menu: MIDI > MIDI-FOLLOW > FEEDBACK > CHANNEL
 
-2) Disable MIDI Automation Feedback. Set the following menu to Disabled: MIDI > MIDI-FOLLOW > FEEDBACK > AUTOMATION FEEDBACK
+2. Disable MIDI Automation Feedback. Set the following menu to Disabled: MIDI > MIDI-FOLLOW > FEEDBACK > AUTOMATION FEEDBACK
 
-3) Slow down MIDI Automation Feedback. Choose a slower Automation Feedback speed (e.g. Low vs High) in the following menu: MIDI > MIDI-FOLLOW > FEEDBACK > AUTOMATION FEEDBACK
+3. Slow down MIDI Automation Feedback. Choose a slower Automation Feedback speed (e.g. Low vs High) in the following menu: MIDI > MIDI-FOLLOW > FEEDBACK > AUTOMATION FEEDBACK
 
 ### When using MIDI Follow, you are unable to record Automation
 
@@ -196,6 +204,7 @@ In this case, you will need to ensure that MIDI Feedback Filter Responses is set
 ## Appendix B - Loopy Pro Template for Deluge MIDI Follow Mode
 
 For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Loopy Pro Template]
+
 - The control surface is located in page "B". Page "A" is just the default page with donuts to loop. You can delete
   page "A" if you don't need it.
 - Page "C" contains the controls that are doing the heavy lifting of sending/receiving midi so it should NOT be deleted.
@@ -247,9 +256,7 @@ For users of the Electra One, you will find a MIDI Follow template in the Electr
 
 For users of Melbourne Instruments' Roto-Control, you will find MIDI Follow templates in this folder: [MIDI Follow Mode Roto-Control Templates]
 
-
 [MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
 [MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/touch_osc
-[MIDI Follow Mode Electra One Preset]:
-https://app.electra.one/preset/vZ6WBYb4xDpMGcpChejY
+[MIDI Follow Mode Electra One Preset]: https://app.electra.one/preset/vZ6WBYb4xDpMGcpChejY
 [MIDI Follow Mode Roto-Control Templates]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/roto_control

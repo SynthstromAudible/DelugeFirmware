@@ -4,7 +4,7 @@ title: How the SysEx protocol works
 
 Messages consist of a SysEx "packet" which has a header, a sequence number, a JSON body, an optional 0 separator and packed binary part.
 
-Packed binary is used to transfer file content to or from the Deluge.  So far only the read and write requests use it.
+Packed binary is used to transfer file content to or from the Deluge. So far only the read and write requests use it.
 
 The packed binary part, if present, is encoded in 7 byte to 8 byte format. In 7 to 8 format, we send the information about a 7 byte-long block as 8 bytes, with the first byte in the group holding the sign bits of the following 7 bytes. Those following 7 bytes have their high-order bit masked-off, resulting in valid SysEx data.
 
@@ -27,23 +27,23 @@ The code handling the basic request/response stuff is in JsonReplyHandler.js. Th
 Directory requests and read/write are examples of requests that only handle a small block of data at a time. The web side keeps track of the offsets into the file or directory involved.
 
 So far, the file protocol has:
-	open
-	close
-	dir
-	read
-	write
-	delete
-	mkdir
-	rename
-	ping
+open
+close
+dir
+read
+write
+delete
+mkdir
+rename
+ping
 
 The file routines include:
 
-	readFile
-	writeFile
-	recursiveDelete
-	downloadOneItem
-	recursiveDownload
-	getDirInfo
+    readFile
+    writeFile
+    recursiveDelete
+    downloadOneItem
+    recursiveDownload
+    getDirInfo
 
 The file routines work with Uint8Array objects. The assumption is that we have an enormous amount of free memory on the web side. Downloading uses the web File System API and can handle nested directories.
