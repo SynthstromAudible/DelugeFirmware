@@ -1,5 +1,5 @@
 import type { ElementContent } from "hast"
-import { type Action, ACTIONS, KEYS, KNOB_MODIFIERS } from "./data.ts"
+import { type Action, CONTROLS, titleCase } from "./data.ts"
 
 const icons = Object.fromEntries(
   await Promise.all(
@@ -16,47 +16,25 @@ const icons = Object.fromEntries(
 )
 
 const parseAction = (key: string): Action => {
-  let keywords = key.split(/\s/)
-  const modifiers = []
+  const keywords = key.split(/\s+/).map((keyword) => keyword.toUpperCase())
 
-  // Separate modifiers from keyword list
-  for (const modifier of KNOB_MODIFIERS) {
-    if (keywords.includes(modifier)) {
-      keywords = keywords.filter((keyword) => keyword !== modifier)
-      modifiers.push(modifier)
-    }
-  }
+  const control = Object.entries(CONTROLS).find(([control, { aliases }]) => {
+    return (
+      keywords.includes(control) ||
+      aliases.some((alias) => keywords.includes(alias))
+    )
+  })
 
-  // What remains should be the button or knob name
-  if (keywords.length === 0) {
-    throw new Error(`Can't parse modifiers or action in: ${key}`)
-  }
-  if (keywords.length !== 1 || !Object.keys(KEYS).includes(keywords[0])) {
-    // TODO: Check known aliases to show "Did you mean..." message
+  if (!control) {
     throw new Error(`Unknown action: ${keywords.join(" ")}`)
+    // TODO: Check known aliases to show "Did you mean..." message
   }
 
-  const { type, actionName } = KEYS[keywords[0]]
+  const [controlName, { toAction }] = control
 
-  if (type !== "knob" && modifiers.length > 0) {
-    throw new Error(`Can't use modifiers (${modifiers}) with ${keywords[0]}`)
-  }
+  const modifiers = keywords.filter((keyword) => keyword !== controlName)
 
-  // TODO: Process gold knobs
-
-  const action = [
-    type === "button" && "button",
-    actionName ? actionName : keywords[0].toLowerCase(),
-    modifiers.length > 0 && modifiers.map((m) => m.toLowerCase()).join("-"),
-  ]
-    .filter(Boolean)
-    .join("-")
-
-  if (!ACTIONS.includes(action as Action)) {
-    throw new Error(`Can't find icon for: ${key} (Looking for ${action})`)
-  }
-
-  return action as Action
+  return toAction(controlName, modifiers, keywords)
 }
 
 const parseSequence = (sequence: string): Action[][] =>
@@ -64,14 +42,38 @@ const parseSequence = (sequence: string): Action[][] =>
     .split(/\s?>\s?/)
     .map((chord) => chord.split(/\s?\+\s?/).map(parseAction))
 
-const createImageElement = (action: Action): ElementContent => ({
-  type: "element",
-  tagName: "img",
-  properties: {
-    src: icons[action] as unknown as string,
-  },
+const displayAction = ({ icon, text, isPad }: Action): ElementContent[] => {
+  if (isPad) {
+    return [
+      {
+        type: "element",
+        tagName: "span",
+        properties: { class: "button-pad" },
+        children: [createTextElement(text || "Pad")],
+      }
+    ]
+  }
+
+  return [
+    text && createTextElement(text),
+    icon && createImageElement(icon),
+  ].filter(Boolean) as ElementContent[]}
+
+const createImageElement = (icon: string): ElementContent => {
+  if (!icons[icon]) {
+    throw new Error(`Unknown icon: ${icon}`)
+  }
+
+  return {
+    type: "element",
+    tagName: "img",
+    properties: {
+      src: icons[icon] as unknown as string,
+      alt: titleCase(icon),
+      title: titleCase(icon),
+    },
   children: [],
-})
+}}
 
 const createTextElement = (value: string): ElementContent => ({
   type: "text",
@@ -86,9 +88,9 @@ export const displaySequence = (sequence: string): ElementContent[] => {
     // Create chord element with interleaved "+" between images
     const chordChildren: ElementContent[] = []
     chord.forEach((action, actionIndex) => {
-      chordChildren.push(createImageElement(action))
+      chordChildren.push(...displayAction(action))
       if (actionIndex < chord.length - 1) {
-        chordChildren.push(createTextElement("+"))
+        chordChildren.push(createTextElement(" + "))
       }
     })
 
