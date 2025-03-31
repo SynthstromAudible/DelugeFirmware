@@ -11,19 +11,20 @@ Polyend Play inspired Performance View for the Deluge.
 Each column represents a different "FX" and each pad/row in the column corresponds to a different FX value.
 
 Specifications:
-  - Perform FX menu to edit Song level parameters and enable/disable editing mode.
-  - 16 FX columns
-    - 1 Param assigned to each column
-  - 8 FX values per column
-    - Long press pads (>= 100ms by default) in a column to change the value momentarily and reset it (to the value before the pad was pressed) upon pad release
-    - Short press pads (< 100ms by default) in a column to change the value until you press the pad again (resetting it to the value before the pad was pressed)
-    - Quickly clear all held values by pressing `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` (resetting FX values back to their previous state)
-  - Editing mode to edit the FX values assigned to each pad and the parameter assigned to each FX column
-  - Save defaults as PerformanceView.xml file
-    - Adjustable default Values assigned to each FX column via `VALUE` editing mode or PerformanceView.xml
-    - Adjustable default Param assigned to each FX column via `PARAM` editing mode or PerformanceView.xml
-    - Adjustable default "held pad" settings for each FX column via Performance View or PerformanceView.xml (simply change a held pad in Performance View and save the layout to save the layout with the held pads).
-  - Load defaults from PerformanceView.xml file
+
+- Perform FX menu to edit Song level parameters and enable/disable editing mode.
+- 16 FX columns
+  - 1 Param assigned to each column
+- 8 FX values per column
+  - Long press pads (>= 100ms by default) in a column to change the value momentarily and reset it (to the value before the pad was pressed) upon pad release
+  - Short press pads (< 100ms by default) in a column to change the value until you press the pad again (resetting it to the value before the pad was pressed)
+  - Quickly clear all held values by pressing `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` (resetting FX values back to their previous state)
+- Editing mode to edit the FX values assigned to each pad and the parameter assigned to each FX column
+- Save defaults as PerformanceView.xml file
+  - Adjustable default Values assigned to each FX column via `VALUE` editing mode or PerformanceView.xml
+  - Adjustable default Param assigned to each FX column via `PARAM` editing mode or PerformanceView.xml
+  - Adjustable default "held pad" settings for each FX column via Performance View or PerformanceView.xml (simply change a held pad in Performance View and save the layout to save the layout with the held pads).
+- Load defaults from PerformanceView.xml file
 
 ## Usage:
 
@@ -54,6 +55,7 @@ or
 At any time you can Exit out of `VALUE EDITING MODE` using the `BACK` button
 
 Value Editing Mode:
+
 - While in the Value Editor, pressing any pad on the grid will display the current value assigned to that pad.
 - You can edit that pad's value by turning the select encoder while selecting a single pad (so it's highlighted white) or holding down on that pad. The updated value will be reflected on the display.
 - After you have edited a value, the Save button will start flashing to indicate that you have "Unsaved" changes. Press and hold the save button + press the keyboard button to save your changes. Once saved, the Save button will stop blinking. To avoid being distracting, the save button will only blink when you are in editing mode. If you exit editing mode it will stop blinking and if you re-enter editing mode it will blink again to remind you that you have unsaved changes.
@@ -76,6 +78,7 @@ or
 At any time you can Exit out of `VALUE EDITING MODE` using the `BACK` button
 
 Param Editing Mode:
+
 - Param Editing Mode will show you an overview of the parameters that are assignable to the FX columns in Performance View by lighting dimly the shortcut pads for these parameters.
 - Parameters that have been assigned to one or more columns will have their shortcut pads lit up bright white.
 - Press on a shortcut pad to illuminate the FX columns that that parameter has been assigned to.
@@ -88,9 +91,10 @@ Param Editing Mode:
 #### 7) You can Undo/Redo your changes in Performance View
 
 ## Default FX and Colour Assignments
-* The default Param and Colour Assignments for each FX column in Performance View are as follows
-* Note: if you re-arrange the parameters to different FX columns (e.g. using Param Editing Mode), they will bring the colours noted below with them.
-* Params marked "Unassigned" below are available to be assigned to a Performance View column with Param Editing Mode.
+
+- The default Param and Colour Assignments for each FX column in Performance View are as follows
+- Note: if you re-arrange the parameters to different FX columns (e.g. using Param Editing Mode), they will bring the colours noted below with them.
+- Params marked "Unassigned" below are available to be assigned to a Performance View column with Param Editing Mode.
 
 Columns:
 

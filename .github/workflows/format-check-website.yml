@@ -1,0 +1,37 @@
+name: Format Check
+
+on:
+  push:
+    branches:
+      - "community"
+    paths:
+      - "website/**"
+  pull_request:
+    branches:
+      - "community"
+      - "release/**"
+    paths:
+      - "website/**"
+  workflow_dispatch:
+
+jobs:
+  formatting-check:
+    name: Formatting Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies with npm (only npm is supported by lint-action)
+        working-directory: website
+        run: npm i
+
+      - name: Run website check
+        uses: wearerequired/lint-action@v2
+        with:
+          auto_fix: true
+          eslint: true
+          eslint_dir: website
+          eslint_auto_fix: true
+          prettier: true
+          prettier_dir: website
+          prettier_auto_fix: true
