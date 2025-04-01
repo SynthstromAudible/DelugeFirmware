@@ -147,13 +147,19 @@ void ModFXProcessor::processModFXBuffer(std::span<StereoSample> buffer, int32_t 
 		}
 		return;
 	}
-
-	for (StereoSample& sample : buffer) {
-		auto [lfo1, lfo2] = processModLFOs<modFXType>(modFXRate, modFXLFOWaveType);
-		sample = stereo ? processOneModFXSample<modFXType, true>(sample, modFXDelayOffset, thisModFXDelayDepth,
-		                                                         feedback, lfo1, lfo2)
-		                : processOneModFXSample<modFXType, false>(sample, modFXDelayOffset, thisModFXDelayDepth,
-		                                                          feedback, lfo1, -lfo1);
+	if (stereo) {
+		for (StereoSample& sample : buffer) {
+			auto [lfo1, lfo2] = processModLFOs<modFXType>(modFXRate, modFXLFOWaveType);
+			sample = processOneModFXSample<modFXType, true>(sample, modFXDelayOffset, thisModFXDelayDepth, feedback,
+			                                                lfo1, lfo2);
+		}
+	}
+	else {
+		for (StereoSample& sample : buffer) {
+			auto [lfo1, lfo2] = processModLFOs<modFXType>(modFXRate, modFXLFOWaveType);
+			sample = processOneModFXSample<modFXType, false>(sample, modFXDelayOffset, thisModFXDelayDepth, feedback,
+			                                                 lfo1, -lfo1);
+		}
 	}
 }
 
