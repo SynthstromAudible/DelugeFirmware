@@ -25,6 +25,10 @@ export const remarkDelugeShortcut = () => (tree: Root) => {
       data.hName = "span"
       data.hProperties = {
         class: "button-sequence",
+        "data-pagefind-weight": 10,
+        "data-pagefind-ignore": "index",
+        "data-pagefind-index-attrs": "data-shortcut-sequence",
+        "data-shortcut-sequence": `[${string.replaceAll(" ", "").replaceAll("+", "&#43;")}]`,
       }
       data.hChildren = displaySequence(string)
     }

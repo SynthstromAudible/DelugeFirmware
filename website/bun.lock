@@ -33,6 +33,12 @@
       },
     },
   },
+  "patchedDependencies": {
+    "@astrojs/starlight@0.32.5": "patches/@astrojs%2Fstarlight@0.32.5.patch",
+  },
+  "overrides": {
+    "pagefind": "1.4.0-alpha.1",
+  },
   "packages": {
     "@antfu/install-pkg": ["@antfu/install-pkg@1.0.0", "", { "dependencies": { "package-manager-detector": "^0.2.8", "tinyexec": "^0.3.2" } }, "sha512-xvX6P/lo1B3ej0OsaErAjqgFYzYVcJpamjLAFLYh9vRJngBrMoUG7aVnrGTeqM7yxbyTD5p3F2+0/QUEh8Vzhw=="],
 
@@ -222,17 +228,17 @@
 
     "@oslojs/encoding": ["@oslojs/encoding@1.1.0", "", {}, "sha512-70wQhgYmndg4GCPxPPxPGevRKqTIJ2Nh4OkiMWmDAVYsTQ+Ta7Sq+rPevXyXGdzr30/qZBnyOalCszoMxlyldQ=="],
 
-    "@pagefind/darwin-arm64": ["@pagefind/darwin-arm64@1.3.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-365BEGl6ChOsauRjyVpBjXybflXAOvoMROw3TucAROHIcdBvXk9/2AmEvGFU0r75+vdQI4LJdJdpH4Y6Yqaj4A=="],
+    "@pagefind/darwin-arm64": ["@pagefind/darwin-arm64@1.4.0-alpha.1", "", { "os": "darwin", "cpu": "arm64" }, "sha512-b9Pw+J8wX8o0OxeIQeQU3lmcE8n8/nKT8TKpUjKHYdsbVdgNbITHkVr/g5JFUl3zo/qet4ZY3ZZQkFL7l8kNzw=="],
 
-    "@pagefind/darwin-x64": ["@pagefind/darwin-x64@1.3.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-zlGHA23uuXmS8z3XxEGmbHpWDxXfPZ47QS06tGUq0HDcZjXjXHeLG+cboOy828QIV5FXsm9MjfkP5e4ZNbOkow=="],
+    "@pagefind/darwin-x64": ["@pagefind/darwin-x64@1.4.0-alpha.1", "", { "os": "darwin", "cpu": "x64" }, "sha512-bmsBhxuFwqZVzca579Z6mdgZe9bUHZ178nr1B2if1tkeuoxbWNnwjjfYj4t2FryO3RmVZyc3FJxkRKwAezNGHg=="],
 
     "@pagefind/default-ui": ["@pagefind/default-ui@1.3.0", "", {}, "sha512-CGKT9ccd3+oRK6STXGgfH+m0DbOKayX6QGlq38TfE1ZfUcPc5+ulTuzDbZUnMo+bubsEOIypm4Pl2iEyzZ1cNg=="],
 
-    "@pagefind/linux-arm64": ["@pagefind/linux-arm64@1.3.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-8lsxNAiBRUk72JvetSBXs4WRpYrQrVJXjlRRnOL6UCdBN9Nlsz0t7hWstRk36+JqHpGWOKYiuHLzGYqYAqoOnQ=="],
+    "@pagefind/linux-arm64": ["@pagefind/linux-arm64@1.4.0-alpha.1", "", { "os": "linux", "cpu": "arm64" }, "sha512-01pLGPSJ91JyL2WZHusQE/Ae39zZhIBDnU4lSlHfbNVlCxxezvFC/MifLGtRKxnUzlKJfDOZ7Oxj+LNnarngzQ=="],
 
-    "@pagefind/linux-x64": ["@pagefind/linux-x64@1.3.0", "", { "os": "linux", "cpu": "x64" }, "sha512-hAvqdPJv7A20Ucb6FQGE6jhjqy+vZ6pf+s2tFMNtMBG+fzcdc91uTw7aP/1Vo5plD0dAOHwdxfkyw0ugal4kcQ=="],
+    "@pagefind/linux-x64": ["@pagefind/linux-x64@1.4.0-alpha.1", "", { "os": "linux", "cpu": "x64" }, "sha512-4kpSAExjWP0K9R4rDYUXy3EBBlNnvp5VIhG6BNmY1/TlbFq9t8MEtkz3Xqir67BGSFPGL+2jVR2LA1Qu7UmFwQ=="],
 
-    "@pagefind/windows-x64": ["@pagefind/windows-x64@1.3.0", "", { "os": "win32", "cpu": "x64" }, "sha512-BR1bIRWOMqkf8IoU576YDhij1Wd/Zf2kX/kCI0b2qzCKC8wcc2GQJaaRMCpzvCCrmliO4vtJ6RITp/AnoYUUmQ=="],
+    "@pagefind/windows-x64": ["@pagefind/windows-x64@1.4.0-alpha.1", "", { "os": "win32", "cpu": "x64" }, "sha512-MVsMrE2UG4jdemBRknClybDlAMqEgy3yGNqvqIdMPXYgvlehNja7uHkKksuIe2tU/eyreYS4W6WBWLADE2BcrQ=="],
 
     "@pkgr/core": ["@pkgr/core@0.1.2", "", {}, "sha512-fdDH1LSGfZdTH2sxdpVMw31BanV28K/Gry0cVFxaNP77neJSkd82mM8ErPNYs9e+0O7SdHBLTDzDgwUuy18RnQ=="],
 
@@ -1292,7 +1298,7 @@
 
     "package-manager-detector": ["package-manager-detector@1.1.0", "", {}, "sha512-Y8f9qUlBzW8qauJjd/eu6jlpJZsuPJm2ZAV0cDVd420o4EdpH5RPdoCv+60/TdJflGatr4sDfpAL6ArWZbM5tA=="],
 
-    "pagefind": ["pagefind@1.3.0", "", { "optionalDependencies": { "@pagefind/darwin-arm64": "1.3.0", "@pagefind/darwin-x64": "1.3.0", "@pagefind/linux-arm64": "1.3.0", "@pagefind/linux-x64": "1.3.0", "@pagefind/windows-x64": "1.3.0" }, "bin": { "pagefind": "lib/runner/bin.cjs" } }, "sha512-8KPLGT5g9s+olKMRTU9LFekLizkVIu9tes90O1/aigJ0T5LmyPqTzGJrETnSw3meSYg58YH7JTzhTTW/3z6VAw=="],
+    "pagefind": ["pagefind@1.4.0-alpha.1", "", { "optionalDependencies": { "@pagefind/darwin-arm64": "1.4.0-alpha.1", "@pagefind/darwin-x64": "1.4.0-alpha.1", "@pagefind/linux-arm64": "1.4.0-alpha.1", "@pagefind/linux-x64": "1.4.0-alpha.1", "@pagefind/windows-x64": "1.4.0-alpha.1" }, "bin": { "pagefind": "lib/runner/bin.cjs" } }, "sha512-QFMnfpSNLR4e9Aw1zbVkLdbz07J5A8b6X/FyGC0nJEDZNs/DqTA2yF0S6mOmeUDKrNWjI3+xI1ae2S+kvNnInw=="],
 
     "parent-module": ["parent-module@1.0.1", "", { "dependencies": { "callsites": "^3.0.0" } }, "sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g=="],
 
