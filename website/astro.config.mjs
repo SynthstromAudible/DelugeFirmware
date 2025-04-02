@@ -32,7 +32,7 @@ const config = defineConfig({
       },
       editLink: {
         baseUrl:
-          "https://github.com/SynthstromAudible/DelugeFirmware/tree/community/website",
+          "https://vscode.dev/github/SynthstromAudible/DelugeFirmware/tree/community/website",
       },
       sidebar: [
         {
@@ -69,6 +69,17 @@ const config = defineConfig({
           badge: "Testing Docs Features",
         },
       ],
+      pagefind: {
+        // -@ts-expect-error This is a feature from pagefind 1.4.0-alpha.1, and it is not yet in the types
+        // include_characters: "<>+",
+        // ranking: {
+        //   // See: https://pagefind.app/docs/ranking/
+        //   termFrequency: 1,
+        //   termSimilarity: 10,
+        //   termSaturation: 0,
+        //   pageLength: 0.5, // 0-1, 1 favors shorter pages
+        // },
+      },
       plugins: [starlightLinksValidator()],
       customCss: ["./src/styles/global.css"],
       credits: true,
