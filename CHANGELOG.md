@@ -164,6 +164,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ##### Parameters
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
 - Added ability to automate all Monophonic (Channel) Expression parameters (X - Pitch Bend, Y - Mod Wheel, Z - Channel Pressure / Aftertouch) in Synth / Kit Row (with Affect Entire Off) / MIDI / CV
+- Fixed interpolation for MIDI CC's in MIDI clips
 
 ##### Copy/Paste
 - Added same shortcut that is used for copy / pasting notes in Instrument Clip View to Automation View to copy / paste automation. While in the Automation Editor, Copy with `Learn + <>`. Paste with `Shift + Learn + <>`.
