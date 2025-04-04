@@ -319,7 +319,7 @@ doEndMidiLearnPressSession:
 						indicator_leds::setLedState(IndicatorLED::LOAD, false);
 					}
 				}
-				else if (currentUIMode == UI_MODE_NONE) {
+				else if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 					indicator_leds::setLedState(IndicatorLED::LOAD, false);
 				}
 			}
