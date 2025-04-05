@@ -127,9 +127,8 @@ gotError:
 }
 
 void AudioRecorder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
-	if (!updatedRecordingStatus) {
-		canvas.drawStringCentred("Waiting", 19, kTextBigSpacingX, kTextBigSizeY);
-	}
+	auto currentStatusText = updatedRecordingStatus ? "Recording" : "Waiting";
+	canvas.drawStringCentred(currentStatusText, 19, kTextBigSpacingX, kTextBigSizeY);
 }
 
 bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels,
