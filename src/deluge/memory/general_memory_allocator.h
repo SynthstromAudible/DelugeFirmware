@@ -93,8 +93,8 @@ public:
 	int32_t getRegion(void* address);
 	void testMemoryDeallocated(void* address);
 
-	void putStealableInQueue(Stealable* stealable, StealableQueue q);
-	void putStealableInAppropriateQueue(Stealable* stealable);
+	void putStealableInQueue(Stealable& stealable, StealableQueue q);
+	void putStealableInAppropriateQueue(Stealable& stealable);
 
 	MemoryRegion regions[NUM_MEMORY_REGIONS];
 	// only used for managing stealables (audio files that we could deallocate and re load from sd later if needed)

@@ -23,5 +23,5 @@ class WaveTable;
 
 class WaveTableHolder final : public AudioFileHolder {
 public:
-	WaveTableHolder();
+	WaveTableHolder() { this->audioFileType = AudioFileType::WAVETABLE; }
 };

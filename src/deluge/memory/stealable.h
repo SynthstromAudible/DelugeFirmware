@@ -18,17 +18,29 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "util/container/list/bidirectional_linked_list.h"
+#include <etl/intrusive_links.h>
 
 // Please see explanation of memory allocation and "stealing" at the top of GeneralMemoryAllocator.h
 
-class Stealable : public BidirectionalLinkedListNode {
-public:
+struct Stealable : etl::bidirectional_link<0> {
+	using link_type = etl::bidirectional_link<0>;
+
 	Stealable() = default;
+	virtual ~Stealable() {
+		if (is_linked()) {
+			unlink();
+		}
+	};
 
 	virtual bool mayBeStolen(void* thingNotToStealFrom) = 0;
 	virtual void steal(char const* errorCode) = 0; // You gotta also call the destructor after this.
-	virtual StealableQueue getAppropriateQueue() = 0;
+	[[nodiscard]] virtual StealableQueue getAppropriateQueue() const = 0;
 
 	uint32_t lastTraversalNo = 0xFFFFFFFF;
+
+	/// Object equality is based on pointer equality
+	[[nodiscard]]
+	bool operator==(const Stealable& other) const {
+		return this == &other;
+	}
 };

@@ -161,7 +161,7 @@ void Cluster::convertDataIfNecessary() {
 	}
 }
 
-StealableQueue Cluster::getAppropriateQueue() {
+StealableQueue Cluster::getAppropriateQueue() const {
 	StealableQueue q;
 
 	// If it's a perc cache...
@@ -258,7 +258,7 @@ void Cluster::addReason() {
 	// If it's going to cease to be zero, it's become unavailable,
 	// so remove it from the stealables queue
 	if (this->numReasonsToBeLoaded == 0) {
-		this->remove();
+		this->unlink(); // Remove from stealables queue
 	}
 
 	this->numReasonsToBeLoaded++;

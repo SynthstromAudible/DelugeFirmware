@@ -4,6 +4,7 @@
 #include "memory/memory_region.h"
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
+#include <algorithm>
 #include <cstdint>
 
 extern bool skipConsistencyCheck;
@@ -21,7 +22,8 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 
 	uint32_t traversalNumberBeforeQueues = currentTraversalNo;
 
-	Stealable* stealable = nullptr;
+	list_type::iterator stealable_it;
+
 	uint32_t newSpaceAddress = 0;
 	uint32_t spaceSize = 0;
 
@@ -49,11 +51,11 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 
 		uint32_t longestRunSeenInThisQueue = 0;
 
-		stealable = static_cast<Stealable*>(reclamation_queue_[q].getFirst());
-		while (stealable != nullptr) {
+		for (stealable_it = reclamation_queue_[q].begin(); stealable_it != reclamation_queue_[q].end();
+		     stealable_it++) {
 			// If we've already looked at this one as part of a bigger run, move on
 			// this works because the uint cast makes negatives high numbers instead
-			uint32_t lastTraversalQueue = stealable->lastTraversalNo - traversalNumberBeforeQueues;
+			uint32_t lastTraversalQueue = stealable_it->lastTraversalNo - traversalNumberBeforeQueues;
 			if (lastTraversalQueue <= q) {
 
 				// If that previous look was in a different queue, it won't have been included in
@@ -62,13 +64,12 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 				if (lastTraversalQueue < q && longestRunSeenInThisQueue < longest_runs_[lastTraversalQueue]) {
 					longestRunSeenInThisQueue = longest_runs_[lastTraversalQueue];
 				}
-				stealable = static_cast<Stealable*>(reclamation_queue_[q].getNext(stealable));
 				continue;
 			}
 
 			// If we're forbidden from stealing from a particular thing (usually SampleCache), then make sure we don't
 			// TODO: this should never happen
-			if (!stealable->mayBeStolen(thingNotToStealFrom)) {
+			if (!stealable_it->mayBeStolen(thingNotToStealFrom)) {
 				numRefusedTheft++;
 
 				// If we've done this loads of times, it'll be seriously hurting CPU usage. There's a particular case to
@@ -80,7 +81,6 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 					AudioEngine::logAction("bypass culling - refused 512 times");
 					AudioEngine::bypassCulling = true;
 				}
-				stealable = static_cast<Stealable*>(reclamation_queue_[q].getNext(stealable));
 				continue;
 			}
 
@@ -89,34 +89,28 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 			if (q < kNumStealableQueue - 1 && numberReassessed < 4) {
 				numberReassessed++;
 
-				StealableQueue appropriateQueue = stealable->getAppropriateQueue();
+				StealableQueue appropriateQueue = stealable_it->getAppropriateQueue();
 
 				// If it was in the wrong queue, put it in the right queue and start again with the next one in our
 				// queue
 				if (appropriateQueue > queue) {
-
 					D_PRINTLN("changing queue from  %d  to  %d", q, appropriateQueue);
-
-					auto* next = static_cast<Stealable*>(reclamation_queue_[q].getNext(stealable));
-
-					stealable->remove();
-					this->QueueForReclamation(appropriateQueue, stealable);
-
-					stealable = next;
+					this->QueueForReclamation(appropriateQueue, *stealable_it);
+					stealable_it = reclamation_queue_[q].erase(stealable_it);
 					continue;
 				}
 			}
 
 			// Ok, we've got one Stealable
-			auto* __restrict__ header = std::bit_cast<uintptr_t*>((uint32_t)stealable - 4);
+			auto* __restrict__ header = std::bit_cast<uintptr_t*>((uint32_t)&*stealable_it - 4);
 			spaceSize = (*header & SPACE_SIZE_MASK);
 
-			stealable->lastTraversalNo = currentTraversalNo;
+			stealable_it->lastTraversalNo = currentTraversalNo;
 
 			// How much additional space would we need on top of this Stealable?
 			int32_t amountToExtend = totalSizeNeeded - spaceSize;
 
-			newSpaceAddress = (uint32_t)stealable;
+			newSpaceAddress = (uint32_t)&*stealable_it;
 
 			// If that one Stealable alone was big enough, that's great
 			if (amountToExtend <= 0) {
@@ -127,8 +121,9 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 			}
 
 			// Otherwise, see if available neighbouring memory adds up to make enough in total
-			NeighbouringMemoryGrabAttemptResult result = region.attemptToGrabNeighbouringMemory(
-			    stealable, spaceSize, amountToExtend, amountToExtend, thingNotToStealFrom, currentTraversalNo, true);
+			NeighbouringMemoryGrabAttemptResult result =
+			    region.attemptToGrabNeighbouringMemory(&*stealable_it, spaceSize, amountToExtend, amountToExtend,
+			                                           thingNotToStealFrom, currentTraversalNo, true);
 
 			// We also told that function to steal the initial main Stealable we are looking at, once it has ascertained
 			// that there is enough memory in total. Previously I attempted to have it steal everything but that central
@@ -141,10 +136,7 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 			// If that couldn't be done (in which case the original, central Stealable won't have been stolen either),
 			// move on to next Stealable to assess
 			if (!result.address) {
-				if (result.longestRunFound > longestRunSeenInThisQueue) {
-					longestRunSeenInThisQueue = result.longestRunFound;
-				}
-				stealable = static_cast<Stealable*>(reclamation_queue_[q].getNext(stealable));
+				longestRunSeenInThisQueue = std::max(result.longestRunFound, longestRunSeenInThisQueue);
 				continue;
 			}
 			// reset this since it's getting stolen
@@ -178,8 +170,8 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 	if (found && !stolen) {
 		// Warning - for perc cache Cluster, stealing one can cause it to want to allocate more memory for its list of
 		// zones
-		stealable->steal("i007");
-		stealable->~Stealable();
+		stealable_it->steal("i007");
+		stealable_it->~Stealable();
 	}
 
 	// At this point we have either found or stolen to be true

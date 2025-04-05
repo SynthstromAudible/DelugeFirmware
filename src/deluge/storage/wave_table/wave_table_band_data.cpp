@@ -41,6 +41,6 @@ void WaveTableBandData::steal(char const* errorCode) {
 	audioFileManager.releaseFile(*waveTable);
 }
 
-StealableQueue WaveTableBandData::getAppropriateQueue() {
+StealableQueue WaveTableBandData::getAppropriateQueue() const {
 	return StealableQueue::NO_SONG_WAVETABLE_BAND_DATA;
 }

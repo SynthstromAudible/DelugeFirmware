@@ -36,7 +36,7 @@ public:
 
 	// Stealable implementation (partial)
 	// Also implemented by children (WaveTable/Sample)
-	StealableQueue getAppropriateQueue() override;
+	[[nodiscard]] StealableQueue getAppropriateQueue() const override;
 
 	String filePath;
 

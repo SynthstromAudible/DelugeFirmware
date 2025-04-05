@@ -17,6 +17,8 @@ add_compile_definitions(
 
 FetchContent_MakeAvailable(CppUTest)
 
+include(../../lib/CMakeLists.txt)
+
 #
 # Find source files
 #
@@ -67,7 +69,7 @@ set_target_properties(MemoryManagerTests
         LINK_FLAGS -m32
 )
 
-target_link_libraries(MemoryManagerTests CppUTest CppUTestExt)
+target_link_libraries(MemoryManagerTests CppUTest CppUTestExt etl::etl)
 
 # strchr is seemingly different in x86
 target_compile_options(MemoryManagerTests PUBLIC
@@ -106,7 +108,7 @@ set_target_properties(SmallPointerTests
         LINK_FLAGS -m32
 )
 
-target_link_libraries(SmallPointerTests CppUTest CppUTestExt)
+target_link_libraries(SmallPointerTests CppUTest CppUTestExt etl::etl)
 
 # strchr is seemingly different in x86
 target_compile_options(SmallPointerTests PUBLIC

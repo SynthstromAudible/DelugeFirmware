@@ -28,7 +28,7 @@ public:
 		totalAllocated -= getAllocatedSize(this);
 	}
 	bool mayBeStolen(void* thingNotToStealFrom) { return true; }
-	StealableQueue getAppropriateQueue() { return StealableQueue{0}; }
+	[[nodiscard]] StealableQueue getAppropriateQueue() const { return StealableQueue{0}; }
 	int32_t testIndex;
 };
 
@@ -122,7 +122,7 @@ TEST(MemoryAllocation, allocstealable) {
 	StealableTest* stealable = new (testalloc) StealableTest();
 	stealable->testIndex = 0;
 
-	memreg.cache_manager().QueueForReclamation(StealableQueue{0}, stealable);
+	memreg.cache_manager().QueueForReclamation(StealableQueue{0}, *stealable);
 	vtableAddress = *(uint32_t*)testalloc;
 	CHECK(testalloc != NULL);
 	uint32_t actualSize = getAllocatedSize(testalloc);
@@ -144,7 +144,7 @@ TEST(MemoryAllocation, uniformAllocation) {
 		void* testalloc = memreg.alloc(size, true, NULL);
 		uint32_t actualSize = getAllocatedSize(testalloc);
 		StealableTest* stealable = new (testalloc) StealableTest();
-		memreg.cache_manager().QueueForReclamation(StealableQueue{0}, stealable);
+		memreg.cache_manager().QueueForReclamation(StealableQueue{0}, *stealable);
 		vtableAddress = *(uint32_t*)testalloc;
 
 		CHECK(testAllocationStructure(testalloc, actualSize, SPACE_HEADER_STEALABLE));
@@ -322,7 +322,7 @@ TEST(MemoryAllocation, stealableAllocations) {
 		totalAllocated += size;
 		StealableTest* stealable = new (testalloc) StealableTest();
 
-		memreg.cache_manager().QueueForReclamation(StealableQueue{0}, stealable);
+		memreg.cache_manager().QueueForReclamation(StealableQueue{0}, *stealable);
 		vtableAddress = *(uint32_t*)testalloc;
 		actualSize = getAllocatedSize(testalloc);
 
