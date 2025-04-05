@@ -1046,8 +1046,6 @@ doFinishCapturing:
 					}
 				}
 			}
-			// update our input view to exclude the chunk we just processed
-			input = input.subspan(numSamplesThisCycle);
 
 			// if we're not threshold recording or we're threshold recording and detected audio
 			if (!thresholdRecording || sample->audioStartDetected) {
@@ -1064,6 +1062,9 @@ doFinishCapturing:
 					sample->audioStartDetected = true;
 				}
 			}
+
+			// update our input view to exclude the chunk we just processed
+			input = input.subspan(numSamplesThisCycle);
 		}
 
 		numSamplesBeenRunning += numSamplesThisCycle;
