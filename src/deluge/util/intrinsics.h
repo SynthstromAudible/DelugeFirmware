@@ -44,7 +44,7 @@ constexpr bool kCompilerClang = COMPILER_CLANG;
 // be. Use this when several corrective shifts can be accumulated and then combined
 [[gnu::always_inline]] static constexpr int32_t multiply_32x32_rshift32(int32_t a, int32_t b) {
 	if !consteval {
-		if constexpr (ARMv7a || !kCompilerClang) {
+		if constexpr (ARMv7a && !kCompilerClang) {
 			int32_t out;
 			asm("smmul %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
 			return out;
@@ -57,7 +57,7 @@ constexpr bool kCompilerClang = COMPILER_CLANG;
 // This multiplies two numbers in signed Q31 fixed point and rounds the result
 [[gnu::always_inline]] static constexpr int32_t multiply_32x32_rshift32_rounded(int32_t a, int32_t b) {
 	if !consteval {
-		if constexpr (ARMv7a || !kCompilerClang) {
+		if constexpr (ARMv7a && !kCompilerClang) {
 			int32_t out;
 			asm("smmulr %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
 			return out;
