@@ -1235,7 +1235,7 @@ SampleLowLevelReader::SampleLowLevelReader(SampleLowLevelReader&& other) noexcep
 	steal_clusters(other, true);
 }
 SampleLowLevelReader& SampleLowLevelReader::operator=(SampleLowLevelReader&& other) noexcept {
-	if (this != &other) {
+	if (this == &other) {
 		return *this;
 	}
 	oscPos = other.oscPos;
