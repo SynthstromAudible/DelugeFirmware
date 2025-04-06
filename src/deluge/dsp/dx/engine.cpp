@@ -28,7 +28,10 @@
 DxEngine* dxEngine = nullptr;
 
 static void init_engine(void) {
-	void* engineMem = allocMaxSpeed(sizeof(DxEngine));
+	// get ourselves an aligned pointer to use placement new with
+	// todo: this should be a part of the allocator but not sure what the api should look like, easy bugfix for now
+	void* engineMem = allocMaxSpeed(sizeof(DxEngine) + alignof(DxEngine) - 1);
+	engineMem = (void*)((((intptr_t)engineMem) + alignof(DxEngine) - 1) & -alignof(DxEngine));
 	dxEngine = new (engineMem) DxEngine();
 
 	dx_init_lut_data();
