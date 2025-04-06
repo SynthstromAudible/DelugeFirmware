@@ -32,8 +32,10 @@ void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int3
 	// First update pitch bend for the new note
 	polyPitchBendValue = (int32_t)arpNote->mpeValues[0] << 16;
 	updatePitchBendOutput(false);
+	auto channel = getPitchChannel();
+	arpNote->outputMemberChannel[noteIndex] = channel;
 
-	cvEngine.sendNote(true, getPitchChannel(), noteCodePostArp);
+	cvEngine.sendNote(true, channel, noteCodePostArp);
 	if (cvmode[1] == CVMode::velocity) {
 		cvEngine.sendVoltageOut(1, arpNote->velocity << 8);
 	}
