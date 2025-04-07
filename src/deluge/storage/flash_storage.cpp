@@ -255,7 +255,7 @@ ThresholdRecordingMode defaultThresholdRecordingMode = ThresholdRecordingMode::O
 
 GlobalMIDICommand defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
 
-bool defaultAlternativeSelectEncoderBehaviour = false;
+bool defaultAlternativeSelectEncoderBehaviour = true;
 
 void resetSettings() {
 
@@ -364,7 +364,7 @@ void resetSettings() {
 
 	defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
 
-	defaultAlternativeSelectEncoderBehaviour = false;
+	defaultAlternativeSelectEncoderBehaviour = true;
 }
 
 void resetMidiFollowSettings() {
@@ -800,7 +800,7 @@ void readSettings() {
 	}
 
 	if (buffer[187] != 0 && buffer[187] != 1) {
-		defaultAlternativeSelectEncoderBehaviour = false;
+		defaultAlternativeSelectEncoderBehaviour = true;
 	}
 	else {
 		defaultAlternativeSelectEncoderBehaviour = buffer[187];
