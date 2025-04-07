@@ -212,7 +212,7 @@ void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 	// hasn't actually been added to a queue at all yet, because this functions serves the additional purpose of
 	// being what puts Clusters in their queue in the first place.
 	if (!cluster.is_linked() || cluster.etl_next != clusters[clusterIndex - 1]) {
-		cluster.unlink(); // Remove from old list, if it was already in one (might not have been).
+		(clusters[clusterIndex - 1])->unlink(); // Remove from old list, if it was already in one (might not have been).
 		etl::link_splice<Stealable::link_type>(cluster, clusters[clusterIndex - 1]); // Add to new list
 		// TODO: invalidate longest run length on new queue?
 	}
