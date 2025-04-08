@@ -933,6 +933,8 @@ char const* fxTypeToString(ModFXType fxType) {
 		return "flanger";
 	case ModFXType::WARBLE:
 		return "TapeWarble";
+	case ModFXType::DIMENSION:
+		return "dimension";
 
 	case ModFXType::CHORUS:
 		return "chorus";
@@ -956,6 +958,9 @@ ModFXType stringToFXType(char const* string) {
 	}
 	else if (!strcmp(string, "TapeWarble")) {
 		return ModFXType::WARBLE;
+	}
+	else if (!strcmp(string, "dimension")) {
+		return ModFXType::DIMENSION;
 	}
 	else if (!strcmp(string, "chorus")) {
 		return ModFXType::CHORUS;
