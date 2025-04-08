@@ -508,6 +508,7 @@ void tickSongFinalizeWindows(size_t& numSamples, int32_t& timeWithinWindowAtWhic
 void flushMIDIGateBuffers();
 void renderAudio(size_t numSamples);
 void renderAudioForStemExport(size_t numSamples);
+void dumpAudioLog();
 /// inner loop of audio rendering, deliberately not in header
 [[gnu::hot]] void routine_() {
 
@@ -1211,7 +1212,7 @@ void dumpAudioLog() {
 	uint16_t currentTime = *TCNT[TIMER_SYSTEM_FAST];
 	uint16_t timePassedA = (uint16_t)currentTime - lastRoutineTime;
 	uint32_t timePassedUSA = fastTimerCountToUS(timePassedA);
-	if (definitelyLog || timePassedUSA > (StorageManager::devVarA * 10)) {
+	if (definitelyLog || timePassedUSA > (1000)) {
 
 		D_PRINTLN("");
 		for (int32_t i = 0; i < numAudioLogItems; i++) {
