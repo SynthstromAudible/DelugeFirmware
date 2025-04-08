@@ -274,8 +274,7 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 	uint16_t startTime = MTU2.TCNT_0;
 #endif
 
-	int32_t reversed = (playDirection == 1) ? 0 : 1;
-
+	auto reversed = static_cast<int32_t>(playDirection != 1);
 	// If the start pos is already beyond the waveform, we can get out right now!
 	if (!reversed) {
 		if (startPosSamples >= lengthInSamples) {
