@@ -4794,7 +4794,7 @@ ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob& knob, ModelStackW
 }
 
 const Sound::ActiveVoice& Sound::acquireVoice() noexcept(false) {
-	if (voices_.size() >= maxVoiceCount - 1) {
+	if (voices_.size() >= maxVoiceCount) {
 		this->terminateOneActiveVoice();
 	}
 
