@@ -35,8 +35,8 @@ SampleHolderForVoice::SampleHolderForVoice() {
 	startMSec = 0;
 	endMSec = 0;
 
-	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		clustersForLoopStart[l] = nullptr;
+	for (auto& l : clustersForLoopStart) {
+		l = nullptr;
 	}
 }
 
