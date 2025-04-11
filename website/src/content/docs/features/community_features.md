@@ -1203,10 +1203,12 @@ to each individual note onset. (#1978)
 
 #### 4.6.2 - Drum Randomizer / Load Random Samples
 
-- (#122) Pressing `AUDITION` + `RANDOM` on a drum kit row will load a random sample from the same folder as the
-  currently enabled sample and load it as the sound for that row.
+- (#122) (#955): Add drum randomizer feature to load a random sample into one or more drum kit rows.
   - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
-- (#955) Pressing `SHIFT` + `RANDOM` randomizes all non-muted drum kit rows.
+  - Commands are:
+    - When no audition pads are pressed, randomize just the selected drum by: Pressing `LOAD` + `RANDOM`
+    - To randomize more than one selected drum at a time: Press `LOAD` + `AUDITION PADS` + `RANDOM`
+    - To randomize all active drums (not muted and have notes playing): Press `LOAD` + `AFFECT ENTIRE` + `RANDOM`
 
 #### 4.6.3 - Manual Slicing / Lazy Chop
 
