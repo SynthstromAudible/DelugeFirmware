@@ -77,23 +77,23 @@ public:
 
 	Patcher patcher;
 
-	ParamLPF paramLPF;
+	ParamLPF paramLPF{};
 
 	Source sources[kNumSources];
 
 	// This is for the *global* params only, and begins with FIRST_GLOBAL_PARAM, so subtract that from your p value
 	// before accessing this array!
 	std::array<int32_t, deluge::modulation::params::kNumParams - deluge::modulation::params::FIRST_GLOBAL>
-	    paramFinalValues;
-	std::array<int32_t, util::to_underlying(kFirstLocalSource)> globalSourceValues;
+	    paramFinalValues{};
+	std::array<int32_t, util::to_underlying(kFirstLocalSource)> globalSourceValues{};
 
-	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
+	uint32_t sourcesChanged{}; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
 	LFO globalLFO1;
 	LFO globalLFO3;
 	LFOConfig lfoConfig[LFO_COUNT];
 
-	bool invertReversed; // Used by the arpeggiator to invert the reverse flag just for the current voice
+	bool invertReversed{}; // Used by the arpeggiator to invert the reverse flag just for the current voice
 
 	// December 3, 2024
 	// @todo
@@ -131,12 +131,12 @@ public:
 	PhaseIncrementFineTuner modulatorTransposers[kNumModulators];
 
 	PhaseIncrementFineTuner unisonDetuners[kMaxNumVoicesUnison];
-	int32_t unisonPan[kMaxNumVoicesUnison];
+	int32_t unisonPan[kMaxNumVoicesUnison]{};
 
 	SynthMode synthMode = SynthMode::SUBTRACTIVE;
 	bool modulator1ToModulator0 = false;
 
-	int32_t volumeNeutralValueForUnison;
+	int32_t volumeNeutralValueForUnison{0};
 
 	int32_t lastNoteCode = std::numeric_limits<int32_t>::min();
 
@@ -146,19 +146,19 @@ public:
 
 	bool skippingRendering = true;
 
-	std::bitset<kNumExpressionDimensions> expressionSourcesChangedAtSynthLevel;
+	std::bitset<kNumExpressionDimensions> expressionSourcesChangedAtSynthLevel{0};
 
 	// I really didn't want to store these here, since they're stored in the ParamManager, but.... complications! Always
 	// 0 for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the
 	// "polyphonic" bit, and we don't want it to get referred to twice. These get manually refreshed in setActiveClip().
-	std::array<int32_t, kNumExpressionDimensions> monophonicExpressionValues;
+	std::array<int32_t, kNumExpressionDimensions> monophonicExpressionValues{};
 
-	std::array<uint32_t, kNumSources> oscRetriggerPhase; // 4294967295 means "off"
-	std::array<uint32_t, kNumModulators> modulatorRetriggerPhase;
+	std::array<uint32_t, kNumSources> oscRetriggerPhase{}; // 4294967295 means "off"
+	std::array<uint32_t, kNumModulators> modulatorRetriggerPhase{};
 
-	uint32_t timeStartedSkippingRenderingModFX;
-	uint32_t timeStartedSkippingRenderingLFO;
-	uint32_t timeStartedSkippingRenderingArp;
+	uint32_t timeStartedSkippingRenderingModFX{0};
+	uint32_t timeStartedSkippingRenderingLFO{0};
+	uint32_t timeStartedSkippingRenderingArp{0};
 	uint32_t startSkippingRenderingAtTime = 0; // Valid when not 0. Allows a wait-time before render skipping starts,
 	                                           // for if mod fx are on
 
