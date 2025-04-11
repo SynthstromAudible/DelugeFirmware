@@ -24,6 +24,7 @@
 #include <limits>
 
 using q31_t = int32_t;
+using q63_t = int64_t;
 
 template <size_t bit, typename T>
 requires(bit > 0 && bit < 32)
@@ -540,11 +541,12 @@ constexpr FixedPoint<FractionalBits, Rounded, FastApproximation>
 operator*(const T& lhs, const FixedPoint<FractionalBits, Rounded, FastApproximation>& rhs) {
 	return rhs * lhs;
 }
+
 /// Clang currently doesn't have constexpr std::round
-#ifdef __clang__
+#if __clang__
 constexpr int32_t ONE_Q31 = std::numeric_limits<int32_t>::max();
 constexpr float ONE_Q31f = static_cast<float>(ONE_Q31);
-constexpr int32_t ONE_Q16 = std::numeric_limits<int16_t>::max();
+constexpr int32_t ONE_Q15 = std::numeric_limits<int16_t>::max();
 constexpr int32_t NEGATIVE_ONE_Q31 = std::numeric_limits<int32_t>::min();
 constexpr int32_t ONE_OVER_SQRT2_Q31 = ONE_Q31 / std::numbers::sqrt2;
 #else
@@ -553,6 +555,7 @@ constexpr float ONE_Q31f = static_cast<float>(ONE_Q31);
 constexpr int32_t ONE_Q16 = FixedPoint<16>{1.f}.raw() - 1;
 constexpr int32_t NEGATIVE_ONE_Q31 = FixedPoint<31>{-1.f}.raw();
 constexpr int32_t ONE_OVER_SQRT2_Q31 = FixedPoint<31>{1 / std::numbers::sqrt2}.raw();
+#endif
 #endif
 
 static_assert(ONE_Q31 == std::numeric_limits<int32_t>::max());
