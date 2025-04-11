@@ -39,7 +39,8 @@ enum class RawDataFormat : uint8_t {
 	ENDIANNESS_WRONG_32 = 5,
 };
 
-enum { MIDI_NOTE_UNSET = (-999), MIDI_NOTE_ERROR = (-1000) };
+const float MIDI_NOTE_UNSET = (-999);
+const float MIDI_NOTE_ERROR = (-1000);
 class LoadedSamplePosReason;
 class SampleCache;
 class MultisampleRange;
