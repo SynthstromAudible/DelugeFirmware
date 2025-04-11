@@ -57,6 +57,7 @@
 #include "RZA1/system/iodefines/dmac_iodefine.h"
 #include "RZA1/uart/sio_char.h"
 #include "definitions.h"
+#include "drivers/ssi/ssi.h"
 #include "drivers/uart/uart.h"
 #include <version.h>
 
@@ -247,12 +248,13 @@ extern void fault_handler_print_freeze_pointers(uint32_t addrSYSLR, uint32_t add
                                                 uint32_t addrUSRSP) {
 	__disable_irq();
 	printPointers(addrSYSLR, addrSYSSP, addrUSRLR, addrUSRSP, false);
+	clearTxBuffer();
 	__enable_irq();
 }
 
 extern void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR, uint32_t addrUSRSP) {
 	printPointers(addrSYSLR, addrSYSSP, addrUSRLR, addrUSRSP, true);
-
+	clearTxBuffer();
 	// if we start using user mode then we'd want to do this to get an accurate call stack. We don't so just don't
 	//__asm__("CPS  0x10"); // Go to USR mode
 
