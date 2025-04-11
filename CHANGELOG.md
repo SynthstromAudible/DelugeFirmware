@@ -146,6 +146,10 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### Kit
 - Extended the ability to batch change all drum sounds, by holding `Affect-Entire` while editing a parameter (indicated by flashing the `Affect-Entire` button), from the initially available handful of sample-related parameters, to ALL sound parameters (except for `Oscillator Type` and patch cable strengths).
+- Updated shortcuts for randomizing drum samples:
+  - When no audition pads are pressed, randomize just the selected drum by: Pressing `LOAD` + `RANDOM`
+  - To randomize more than one selected drum at a time: Press `LOAD` + `AUDITION PADS` + `RANDOM`
+  - To randomize all active drums (not muted and have notes playing): Press `LOAD` + `AFFECT ENTIRE` + `RANDOM`
 
 ##### CV Clips
 - Added the ability to set a CV instrument to use both 1 and 2 channels, which makes the cv2 source selectable between mod wheel, velocity, and aftertouch

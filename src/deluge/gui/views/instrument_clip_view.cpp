@@ -1813,6 +1813,7 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING,
                                              UI_MODE_HORIZONTAL_SCROLL,
                                              UI_MODE_RECORD_COUNT_IN,
                                              UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
+                                             UI_MODE_HOLDING_LOAD_BUTTON,
                                              0};
 
 ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocity) {
@@ -1820,125 +1821,15 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 	// Drum Randomizer
 	if (x == 15 && y == 2 && velocity > 0
 	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::DrumRandomizer) == RuntimeFeatureStateToggle::On
-	    && getCurrentOutputType() == OutputType::KIT
-	    && (isUIModeActive(UI_MODE_AUDITIONING) || Buttons::isShiftButtonPressed())) {
+	    && getCurrentOutputType() == OutputType::KIT && Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
 
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
-		char chosenFilename[256] = "Nothing to randomize"; // not using "String" to avoid malloc etc. in hot loop
-
-		// Randomize rows with pressed audition pads, or all non-muted rows?
-		bool randomizeAll = false;
-		int32_t nRows = 8;
-		int32_t rowsRandomized = 0;
-		if (Buttons::isShiftButtonPressed()) {
-			nRows = getCurrentInstrumentClip()->noteRows.getNumElements();
-			randomizeAll = true;
-		}
-
-		for (int32_t i = 0; i < nRows; i++) {
-
-			// SHOULD this row be randomized?
-			if (randomizeAll || auditionPadIsPressed[i]) {
-				NoteRow* thisNoteRow;
-				if (randomizeAll) {
-					thisNoteRow = getCurrentInstrumentClip()->noteRows.getElement(i);
-					if (thisNoteRow->muted || thisNoteRow->hasNoNotes()) {
-						continue;
-					}
-				}
-				else {
-					thisNoteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(i, currentSong);
-				}
-
-				// CAN this row be randomized?
-				if (thisNoteRow == nullptr) {
-					continue;
-				}
-				Drum* drum = thisNoteRow->drum;
-				if (!drum || drum->type != DrumType::SOUND) {
-					continue;
-				}
-				SoundDrum* soundDrum = (SoundDrum*)drum;
-				MultiRange* r = soundDrum->sources[0].getRange(0);
-				if (r == nullptr) {
-					continue;
-				}
-				AudioFileHolder* afh = r->getAudioFileHolder();
-				if (afh == nullptr) {
-					continue;
-				}
-				char const* path = afh->filePath.get();
-				if (path == &nothing) {
-					continue;
-				}
-				char* slashAddress = strrchr(path, '/');
-				if (slashAddress == nullptr) {
-					continue;
-				}
-
-				// Open directory of current audio file
-				*slashAddress = 0;
-				staticDIR = D_TRY_CATCH(FatFS::Directory::open(path), error, {
-					*slashAddress = '/';
-					display->displayError(Error::SD_CARD);
-					return ActionResult::DEALT_WITH;
-				});
-				*slashAddress = '/';
-
-				// Select random audio file from directory
-				int32_t fileCount = 0;
-				while (f_readdir(&staticDIR.inner(), &staticFNO) == FR_OK && staticFNO.fname[0] != 0) {
-					audioFileManager.loadAnyEnqueuedClusters();
-					if (staticFNO.fattrib & AM_DIR || !isAudioFilename(staticFNO.fname)) {
-						continue;
-					}
-					if (random(fileCount++) == 0) { // Algorithm: Reservoir Sampling with k=1
-						strncpy(chosenFilename, staticFNO.fname, sizeof(chosenFilename));
-					}
-				}
-
-				// Assign new audio file
-				if (fileCount) {
-					AudioEngine::stopAnyPreviewing();
-					soundDrum->killAllVoices();
-
-					afh->setAudioFile(nullptr);
-					// set the slash to 0 again
-					*slashAddress = 0;
-					afh->filePath.set(path);
-
-					afh->filePath.concatenate("/");
-					afh->filePath.concatenate(chosenFilename);
-					afh->loadFile(false, true, true, 1, nullptr, false);
-
-					soundDrum->name.set(chosenFilename);
-					getCurrentInstrument()->beenEdited();
-					*slashAddress = '/';
-					rowsRandomized++;
-				}
-			}
-		}
-
-		switch (rowsRandomized) {
-		case 0:
-			break; // if no row was selected and shift was not pressed, we assume it was a regular edit pad press
-
-		case 1:
-			display->displayPopup(chosenFilename);
-			return ActionResult::DEALT_WITH;
-			break;
-
-		default:
-			if (randomizeAll) {
-				display->displayPopup("Randomized active rows");
-			}
-			else {
-				display->displayPopup("Randomized selected rows");
-			}
-			return ActionResult::DEALT_WITH;
+		ActionResult result = potentiallyRandomizeDrumSamples();
+		if (result == ActionResult::DEALT_WITH) {
+			return result;
 		}
 	}
 
@@ -2126,6 +2017,157 @@ possiblyAuditionPad:
 	}
 
 	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::potentiallyRandomizeDrumSamples() {
+	if (isUIModeActive(UI_MODE_HOLDING_LOAD_BUTTON)) {
+		exitUIMode(UI_MODE_HOLDING_LOAD_BUTTON);
+	}
+
+	char chosenFilename[256] = "Nothing to randomize"; // not using "String" to avoid malloc etc. in hot loop
+
+	InstrumentClip* instrumentClip = getCurrentInstrumentClip();
+
+	// Randomize rows with pressed audition pads, or all non-muted rows?
+	bool randomizeAll = false;
+	int32_t nRows = 8;
+	int32_t rowsRandomized = 0;
+	if (Buttons::isButtonPressed(deluge::hid::button::AFFECT_ENTIRE)) {
+		nRows = instrumentClip->noteRows.getNumElements();
+		randomizeAll = true;
+	}
+
+	Kit* kit = (Kit*)instrumentClip->output;
+
+	if (randomizeAll || isUIModeActive(UI_MODE_AUDITIONING)) {
+		for (int32_t i = 0; i < nRows; i++) {
+
+			// SHOULD this row be randomized?
+			if (randomizeAll || auditionPadIsPressed[i]) {
+				NoteRow* thisNoteRow;
+				if (randomizeAll) {
+					thisNoteRow = instrumentClip->noteRows.getElement(i);
+					if (thisNoteRow->muted || thisNoteRow->hasNoNotes()) {
+						continue;
+					}
+				}
+				else {
+					thisNoteRow = instrumentClip->getNoteRowOnScreen(i, currentSong);
+				}
+
+				// CAN this row be randomized?
+				if (thisNoteRow == nullptr) {
+					continue;
+				}
+				Drum* drum = thisNoteRow->drum;
+				ActionResult result = potentiallyRandomizeDrumSample(kit, drum, chosenFilename);
+				if (result == ActionResult::DEALT_WITH) {
+					return result;
+				}
+				else if (result == ActionResult::ACTIONED_AND_CAUSED_CHANGE) {
+					rowsRandomized++;
+				}
+			}
+		}
+	}
+	else {
+		ActionResult result = potentiallyRandomizeDrumSample(kit, kit->selectedDrum, chosenFilename);
+		if (result == ActionResult::DEALT_WITH) {
+			return result;
+		}
+		else if (result == ActionResult::ACTIONED_AND_CAUSED_CHANGE) {
+			rowsRandomized++;
+		}
+	}
+
+	switch (rowsRandomized) {
+	case 0:
+		// if no row was selected and shift was not pressed, we assume it was a regular edit pad press
+		return ActionResult::NOT_DEALT_WITH;
+
+	case 1:
+		display->displayPopup(chosenFilename);
+		return ActionResult::DEALT_WITH;
+
+	default:
+		if (randomizeAll) {
+			display->displayPopup("Randomized active rows");
+		}
+		else {
+			display->displayPopup("Randomized selected rows");
+		}
+		return ActionResult::DEALT_WITH;
+	}
+}
+
+ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* drum, char* chosenFilename) {
+	// we can only randomize a sound drum as only sound drum's have a sample
+	if (drum == nullptr || drum->type != DrumType::SOUND) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
+	SoundDrum* soundDrum = (SoundDrum*)drum;
+	MultiRange* r = soundDrum->sources[0].getRange(0);
+	if (r == nullptr) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
+	AudioFileHolder* afh = r->getAudioFileHolder();
+	if (afh == nullptr) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
+	char const* path = afh->filePath.get();
+	if (path == &nothing) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
+	char* slashAddress = strrchr(path, '/');
+	if (slashAddress == nullptr) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
+
+	// Open directory of current audio file
+	*slashAddress = 0;
+	staticDIR = D_TRY_CATCH(FatFS::Directory::open(path), error, {
+		*slashAddress = '/';
+		display->displayError(Error::SD_CARD);
+		return ActionResult::DEALT_WITH;
+	});
+	*slashAddress = '/';
+
+	// Select random audio file from directory
+	int32_t fileCount = 0;
+	while (f_readdir(&staticDIR.inner(), &staticFNO) == FR_OK && staticFNO.fname[0] != 0) {
+		audioFileManager.loadAnyEnqueuedClusters();
+		if (staticFNO.fattrib & AM_DIR || !isAudioFilename(staticFNO.fname)) {
+			continue;
+		}
+		if (random(fileCount++) == 0) { // Algorithm: Reservoir Sampling with k=1
+			strncpy(chosenFilename, staticFNO.fname, 256);
+		}
+	}
+
+	// Assign new audio file
+	if (fileCount) {
+		AudioEngine::stopAnyPreviewing();
+		soundDrum->killAllVoices();
+
+		afh->setAudioFile(nullptr);
+		// set the slash to 0 again
+		*slashAddress = 0;
+		afh->filePath.set(path);
+
+		afh->filePath.concatenate("/");
+		afh->filePath.concatenate(chosenFilename);
+		afh->loadFile(false, true, true, 1, nullptr, false);
+
+		soundDrum->name.set(chosenFilename);
+		kit->beenEdited();
+		*slashAddress = '/';
+
+		// we've randomized a drum sample
+		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+	}
+
+	// we didn't randomize a drum sample
+	return ActionResult::NOT_DEALT_WITH;
 }
 
 uint8_t InstrumentClipView::getEditPadPressXDisplayOnScreen(uint8_t yDisplay) {

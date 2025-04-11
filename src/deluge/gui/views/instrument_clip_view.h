@@ -83,6 +83,8 @@ public:
 	// PAD ACTION pad press / release handling
 
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult potentiallyRandomizeDrumSamples();
+	ActionResult potentiallyRandomizeDrumSample(Kit* kit, Drum* drum, char* chosenFilename);
 
 	// SCALE MODE related commands.
 
