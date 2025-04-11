@@ -26,6 +26,8 @@ void ssiInit(uint8_t ssiChannel, uint8_t dmaChannel);
 
 void* getTxBufferCurrentPlace();
 void* getRxBufferCurrentPlace();
+void clearTxBuffer();
+
 int32_t* getTxBufferStart();
 int32_t* getTxBufferEnd();
 int32_t* getRxBufferStart();
