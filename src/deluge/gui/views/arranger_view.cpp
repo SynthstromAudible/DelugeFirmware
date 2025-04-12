@@ -3003,17 +3003,10 @@ ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRout
 
 	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		if (currentUIMode == UI_MODE_NONE) {
-			if (Buttons::isShiftButtonPressed()) {
-				currentSong->adjustMasterTransposeInterval(offset);
-			}
-			else {
-				currentSong->transpose(offset);
-			}
+			currentSong->commandTranspose(offset);
 		}
-		return ActionResult::DEALT_WITH;
 	}
-
-	if (isUIModeWithinRange(verticalEncoderUIModes)) {
+	else if (isUIModeWithinRange(verticalEncoderUIModes)) {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 		}
