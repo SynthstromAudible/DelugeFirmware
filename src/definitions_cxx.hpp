@@ -226,10 +226,10 @@ enum class UIType : uint8_t {
 	NONE = 255,
 };
 
-enum class AutomationSubType : uint8_t {
-	ARRANGER,
-	INSTRUMENT,
-	AUDIO,
+// used for determining the active mod controllable context for a UI
+enum class UIModControllableContext : uint8_t {
+	SONG,
+	CLIP,
 	NONE = 255,
 };
 

@@ -1406,47 +1406,17 @@ void View::setModLedStates() {
 
 	RootUI* rootUI = getRootUI();
 	UIType uiType = UIType::NONE;
+	UIType uiContextType = UIType::NONE;
+	UIModControllableContext uiModControllableContext = UIModControllableContext::NONE;
 	if (rootUI) {
 		uiType = rootUI->getUIType();
-	}
-	AutomationSubType automationSubType = AutomationSubType::NONE;
-	if (uiType == UIType::AUTOMATION) {
-		automationSubType = automationView.getAutomationSubType();
+		uiContextType = rootUI->getUIContextType();
+		uiModControllableContext = rootUI->getUIModControllableContext();
 	}
 
 	// here we will set a boolean flag to let the function know whether we are dealing with the Song context
-	bool itsTheSong = (activeModControllableModelStack.getTimelineCounterAllowNull() == currentSong);
-
-	// let's check if we're in any of the song UI's
-	if (!itsTheSong && !activeModControllableModelStack.timelineCounterIsSet()) {
-		switch (uiType) {
-		case UIType::SESSION:
-			itsTheSong = true;
-			break;
-
-		case UIType::ARRANGER:
-			itsTheSong = true;
-			break;
-
-		case UIType::PERFORMANCE:
-			itsTheSong = true;
-			break;
-
-		case UIType::AUTOMATION:
-			if (automationSubType == AutomationSubType::ARRANGER) {
-				itsTheSong = true;
-			}
-			break;
-
-		default:
-		    // fallthrough for everything else -- to many UIs to list explicitly
-		    ;
-		}
-	}
-
-	// here we will set a boolean flag to let the function know whether we are dealing with the Clip context
-	bool itsAClip = activeModControllableModelStack.timelineCounterIsSet()
-	                && activeModControllableModelStack.getTimelineCounter() != currentSong;
+	bool itsTheSong = ((activeModControllableModelStack.getTimelineCounterAllowNull() == currentSong)
+	                   || (uiModControllableContext == UIModControllableContext::SONG));
 
 	// here we will set a boolean flag to let the function know if affect entire is enabled
 	// so that it can correctly illuminate the affect entire LED indicator
@@ -1460,29 +1430,7 @@ void View::setModLedStates() {
 		// if you're in an instrument clip, get affectEntire status from clip class
 		// otherwise you're in an audio clip or automation view for an audio clip, in which case affect entire is always
 		// enabled
-		switch (uiType) {
-		case UIType::INSTRUMENT_CLIP:
-			affectEntire = ((InstrumentClip*)clip)->affectEntire;
-			break;
-		case UIType::KEYBOARD_SCREEN:
-			affectEntire = ((InstrumentClip*)clip)->affectEntire;
-			break;
-		case UIType::AUTOMATION:
-			if (automationSubType == AutomationSubType::INSTRUMENT) {
-				affectEntire = ((InstrumentClip*)clip)->affectEntire;
-			}
-			// if it's not an instrument clip, then it's an audio clip
-			else {
-				affectEntire = true;
-			}
-			break;
-		case UIType::AUDIO_CLIP:
-			affectEntire = true;
-			break;
-		default:
-		    // fallthrough for everything else -- to many UIs to list explicitly
-		    ;
-		}
+		affectEntire = (uiContextType == UIType::INSTRUMENT_CLIP) ? ((InstrumentClip*)clip)->affectEntire : true;
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
 
@@ -1544,23 +1492,9 @@ void View::setModLedStates() {
 			indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW, 255, 1);
 		}
 		else {
-			switch (uiType) {
+			switch (uiContextType) {
 			case UIType::ARRANGER:
 				indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
-				break;
-			case UIType::AUTOMATION:
-				if (automationSubType == AutomationSubType::ARRANGER) {
-					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
-				}
-				break;
-			case UIType::PERFORMANCE:
-				// if performanceView was entered from arranger
-				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
-					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
-				}
-				else {
-					indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
-				}
 				break;
 			case UIType::SESSION:
 				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
@@ -2512,18 +2446,13 @@ getOut:
 			((Kit*)newInstrument)->selectedDrum = nullptr;
 		}
 
-		if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
+		RootUI* rootUI = getRootUI();
+		if (rootUI == &instrumentClipView || rootUI == &automationView) {
 			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
 			yield([]() { return true; });
 			instrumentClipView.recalculateColours();
-		}
 
-		if (getCurrentUI() == &instrumentClipView) {
-			uiNeedsRendering(&instrumentClipView);
-		}
-
-		else if (getCurrentUI() == &automationView) {
-			uiNeedsRendering(&automationView);
+			uiNeedsRendering(rootUI);
 		}
 
 		display->removeLoadingAnimation();
