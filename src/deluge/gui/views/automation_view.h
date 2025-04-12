@@ -213,7 +213,8 @@ private:
 	// audition pad action
 	ActionResult handleAuditionPadAction(InstrumentClip* instrumentClip, Output* output, OutputType outputType,
 	                                     int32_t y, int32_t velocity);
-	void auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
+	ActionResult auditionPadAction(InstrumentClip* clip, Output* output, OutputType outputType, int32_t yDisplay,
+	                               int32_t velocity, bool shiftButtonDown);
 
 	// Automation View Render Functions
 	void performActualRender(RGB image[][kDisplayWidth + kSideBarWidth],

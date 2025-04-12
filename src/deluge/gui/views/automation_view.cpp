@@ -2074,12 +2074,7 @@ void AutomationView::handleKitButtonAction(OutputType outputType, bool on) {
 		initParameterSelection();
 		blinkShortcuts();
 
-		if (Buttons::isShiftButtonPressed()) {
-			instrumentClipView.createNewInstrument(OutputType::KIT);
-		}
-		else {
-			instrumentClipView.changeOutputType(OutputType::KIT);
-		}
+		instrumentClipView.handleInstrumentChange(OutputType::KIT);
 	}
 }
 
@@ -2091,15 +2086,7 @@ void AutomationView::handleSynthButtonAction(OutputType outputType, bool on) {
 		initParameterSelection();
 		blinkShortcuts();
 
-		// this gets triggered when you change an existing clip to synth / create a new synth clip in
-		// song mode
-		if (Buttons::isShiftButtonPressed()) {
-			instrumentClipView.createNewInstrument(OutputType::SYNTH);
-		}
-		// this gets triggered when you change clip type to synth from within inside clip view
-		else {
-			instrumentClipView.changeOutputType(OutputType::SYNTH);
-		}
+		instrumentClipView.handleInstrumentChange(OutputType::SYNTH);
 	}
 }
 
@@ -3349,15 +3336,8 @@ ActionResult AutomationView::handleMutePadAction(ModelStackWithTimelineCounter* 
 		return arrangerView.handleStatusPadAction(y, velocity, this);
 	}
 	else {
-		if (currentUIMode == UI_MODE_MIDI_LEARN) {
-			if (outputType != OutputType::KIT) {
-				return ActionResult::DEALT_WITH;
-			}
-			NoteRow* noteRow = instrumentClip->getNoteRowOnScreen(y, currentSong);
-			if (!noteRow || !noteRow->drum) {
-				return ActionResult::DEALT_WITH;
-			}
-			view.noteRowMuteMidiLearnPadPressed(velocity, noteRow);
+		if (currentUIMode == UI_MODE_MIDI_LEARN) [[unlikely]] {
+			return instrumentClipView.commandLearnMutePad(y, velocity);
 		}
 		else if (isUIModeWithinRange(mutePadActionUIModes) && velocity) {
 			if (inAutomationEditor()) {
@@ -3395,58 +3375,19 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 	}
 	else {
 		// "Learning" to this audition pad:
-		if (isUIModeActiveExclusively(UI_MODE_MIDI_LEARN)) {
+		if (isUIModeActiveExclusively(UI_MODE_MIDI_LEARN)) [[unlikely]] {
 			if (getCurrentUI() == this) {
-				if (outputType == OutputType::KIT) {
-					NoteRow* thisNoteRow = instrumentClip->getNoteRowOnScreen(y, currentSong);
-					if (!thisNoteRow || !thisNoteRow->drum) {
-						return ActionResult::DEALT_WITH;
-					}
-					view.drumMidiLearnPadPressed(velocity, thisNoteRow->drum, (Kit*)output);
-				}
-				else {
-					view.instrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
-				}
+				return instrumentClipView.commandLearnAuditionPad(instrumentClip, output, outputType, y, velocity);
 			}
+		}
+
+		else if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && velocity) [[unlikely]] {
+			return instrumentClipView.commandSaveKitRow(instrumentClip, output, outputType, y);
 		}
 
 		// Actual basic audition pad press:
 		else if (!velocity || isUIModeWithinRange(auditionPadActionUIModes)) {
-			/* 	special handling of audition pad action for note editing mode:
-
-			    when we're in note editor mode, pressing audition pad changes note row selection
-			    in this case, when pressing audition pad, only allow audition pad actions
-			    if we're in pad selection mode as in pad selection mode we're only ever selecting
-			    one column at a time, so this makes it easier to release the selection before
-			    selecting a new note row
-			*/
-
-			int32_t previousY = instrumentClipView.lastAuditionedYDisplay;
-
-			// are we in note editor mode and holding a note?
-			if (previousY != y && inNoteEditor() && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-				// are we also in pad selection mode and selected a column?
-				if (padSelectionOn && (leftPadSelectedX != kNoSelection)) {
-					// release that column that was selected
-					recordNoteEditPadAction(leftPadSelectedX, 0);
-				}
-				// if we're not in pad selection mode or didn't select a column
-				// don't process audition pad action
-				else {
-					return ActionResult::DEALT_WITH;
-				}
-			}
-
-			// process audition pad action
-			auditionPadAction(velocity, y, Buttons::isShiftButtonPressed());
-
-			// now that we've processed audition pad action, we may now have changed note row selection
-			// if note row selection has changed, and we're in pad selection mode
-			// we'll re-select the previous column selection by recording a pad press
-			if (previousY != instrumentClipView.lastAuditionedYDisplay && inNoteEditor() && padSelectionOn
-			    && leftPadSelectedX != kNoSelection) {
-				recordNoteEditPadAction(leftPadSelectedX, 1);
-			}
+			return auditionPadAction(instrumentClip, output, outputType, velocity, y, Buttons::isShiftButtonPressed());
 		}
 	}
 	return ActionResult::DEALT_WITH;
@@ -3454,7 +3395,12 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 
 // audition pad action
 // not used with Audio Clip Automation View or Arranger Automation View
-void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown) {
+ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* output, OutputType outputType,
+                                               int32_t yDisplay, int32_t velocity, bool shiftButtonDown) {
+	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allowable sometimes if in card routine.
+	}
+
 	if (instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan && !velocity) {
 		// in case we were editing quantize/humanize
 		actionLogger.closeAction(ActionType::NOTE_NUDGE);
@@ -3463,11 +3409,7 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
-
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	Output* output = clip->output;
-	OutputType outputType = output->type;
+	bool clipIsActiveOnInstrument = InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
 
 	bool isKit = (outputType == OutputType::KIT);
 
@@ -3500,209 +3442,61 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 
 		// If NoteRow doesn't exist here, don't try to create one
 		else {
-			return;
+			return ActionResult::DEALT_WITH;
 		}
 	}
 
 	// Or if synth
 	else if (outputType == OutputType::SYNTH) {
-		if (velocity != 0) {
-			if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-				menu_item::multiRangeMenu.noteOnToChangeRange(clip->getYNoteFromYDisplay(yDisplay, currentSong)
-				                                              + ((SoundInstrument*)output)->transpose);
-			}
+		instrumentClipView.potentiallyUpdateMultiRangeMenu(velocity, yDisplay, (Instrument*)output);
+	}
+
+	instrumentClipView.potentiallyRecordAuditionPadAction(clipIsActiveOnInstrument, velocity, yDisplay,
+	                                                      (Instrument*)output, isKit, modelStackWithTimelineCounter,
+	                                                      modelStackWithNoteRowOnCurrentClip, drum);
+
+	NoteRow* noteRowOnActiveClip = instrumentClipView.getNoteRowOnActiveClip(
+	    yDisplay, (Instrument*)output, clipIsActiveOnInstrument, modelStackWithNoteRowOnCurrentClip, drum);
+
+	bool doRender = true;
+
+	// If note on...
+	if (velocity != 0) {
+		int32_t lastAuditionedYDisplay = instrumentClipView.lastAuditionedYDisplay;
+
+		doRender = instrumentClipView.startAuditioningRow(velocity, yDisplay, shiftButtonDown, isKit,
+		                                                  noteRowOnActiveClip, drum);
+
+		drawNoteCode = true;
+
+		if (!isKit && (instrumentClipView.lastAuditionedYDisplay != lastAuditionedYDisplay)) {
+			selectedRowChanged = true;
 		}
 	}
 
-	// Recording - only allowed if currentClip is activeClip
-	if (clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(clip)) {
-
-		// Note-on
-		if (velocity != 0) {
-
-			// If count-in is on, we only got here if it's very nearly finished, so pre-empt that note.
-			// This is basic. For MIDI input, we do this in a couple more cases - see
-			// noteMessageReceived() in MelodicInstrument and Kit
-			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) {
-				if (isKit) {
-					if (drum) {
-						drum->recordNoteOnEarly((velocity == USE_DEFAULT_VELOCITY)
-						                            ? (static_cast<Instrument*>(output)->defaultVelocity)
-						                            : velocity,
-						                        clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
-					}
-				}
-				else {
-					// NoteRow is allowed to be NULL in this case.
-					int32_t yNote = clip->getYNoteFromYDisplay(yDisplay, currentSong);
-					static_cast<MelodicInstrument*>(output)->earlyNotes[yNote] = {
-					    .velocity = (velocity == USE_DEFAULT_VELOCITY)
-					                    ? (static_cast<Instrument*>(output)->defaultVelocity)
-					                    : static_cast<uint8_t>(velocity),
-					    .still_active = clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip),
-					};
-				}
-			}
-
-			else {
-
-				// May need to create NoteRow if there wasn't one previously
-				if (!modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-
-					modelStackWithNoteRowOnCurrentClip =
-					    instrumentClipView.createNoteRowForYDisplay(modelStackWithTimelineCounter, yDisplay);
-				}
-
-				if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-					clip->recordNoteOn(modelStackWithNoteRowOnCurrentClip,
-					                   (velocity == USE_DEFAULT_VELOCITY)
-					                       ? static_cast<Instrument*>(output)->defaultVelocity
-					                       : velocity);
-				}
-			}
-		}
-
-		// Note-off
-		else {
-
-			if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-				clip->recordNoteOff(modelStackWithNoteRowOnCurrentClip);
-			}
+	// Or if auditioning this NoteRow just finished...
+	else {
+		instrumentClipView.finishAuditioningRow(yDisplay, modelStackWithNoteRowOnCurrentClip, noteRowOnActiveClip);
+		if (display->have7SEG()) {
+			renderDisplay();
 		}
 	}
-
-	{
-		NoteRow* noteRowOnActiveClip;
-
-		if (clipIsActiveOnInstrument) {
-			noteRowOnActiveClip = modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull();
-		}
-
-		else {
-			// Kit
-			if (isKit) {
-				noteRowOnActiveClip = ((InstrumentClip*)output->getActiveClip())->getNoteRowForDrum(drum);
-			}
-
-			// Non-kit
-			else {
-				int32_t yNote = clip->getYNoteFromYDisplay(yDisplay, currentSong);
-				noteRowOnActiveClip = ((InstrumentClip*)output->getActiveClip())->getNoteRowForYNote(yNote);
-			}
-		}
-
-		// If note on...
-		if (velocity != 0) {
-			int32_t velocityToSound = velocity;
-			if (velocityToSound == USE_DEFAULT_VELOCITY) {
-				velocityToSound = ((Instrument*)output)->defaultVelocity;
-			}
-
-			// Yup, need to do this even if we're going to do a "silent" audition, so pad lights up etc.
-			instrumentClipView.auditionPadIsPressed[yDisplay] = velocityToSound;
-
-			if (noteRowOnActiveClip != nullptr) {
-				// Ensure our auditioning doesn't override a note playing in the sequence
-				if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->sequenced) {
-					goto doSilentAudition;
-				}
-			}
-
-			// If won't be actually sounding Instrument...
-			if (shiftButtonDown || Buttons::isButtonPressed(hid::button::Y_ENC)) {
-
-				instrumentClipView.fileBrowserShouldNotPreview = true;
-doSilentAudition:
-				instrumentClipView.auditioningSilently = true;
-				instrumentClipView.reassessAllAuditionStatus();
-			}
-			else {
-				if (!instrumentClipView.auditioningSilently) {
-
-					instrumentClipView.fileBrowserShouldNotPreview = false;
-
-					instrumentClipView.sendAuditionNote(true, yDisplay, velocityToSound, 0);
-
-					{ instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] = velocityToSound; }
-				}
-			}
-
-			// If wasn't already auditioning...
-			if (!isUIModeActive(UI_MODE_AUDITIONING)) {
-				instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
-				instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
-				instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan = false;
-				enterUIMode(UI_MODE_AUDITIONING);
-			}
-
-			drawNoteCode = true;
-
-			if (!isKit && (instrumentClipView.lastAuditionedYDisplay != yDisplay)) {
-				selectedRowChanged = true;
-			}
-
-			instrumentClipView.lastAuditionedYDisplay = yDisplay;
-
-			// are we in a synth / midi / cv clip
-			// and have we changed our note row selection
-			if (selectedRowChanged) {
-				instrumentClipView.potentiallyRefreshNoteRowMenu();
-			}
-
-			// Begin resampling / output-recording
-			if (Buttons::isButtonPressed(hid::button::RECORD)
-			    && audioRecorder.recordingSource == AudioInputChannel::NONE) {
-				audioRecorder.beginOutputRecording();
-				Buttons::recordButtonPressUsedUp = true;
-			}
-
-			if (isKit) {
-				instrumentClipView.setSelectedDrum(drum);
-			}
-		}
-
-		// Or if auditioning this NoteRow just finished...
-		else {
-			if (instrumentClipView.auditionPadIsPressed[yDisplay]) {
-				instrumentClipView.auditionPadIsPressed[yDisplay] = 0;
-				instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] = 255;
-
-				// Stop the note sounding - but only if a sequenced note isn't in fact being played here.
-				// Or if it's drone note, end auditioning to transfer the note's sustain to the sequencer
-				if (!noteRowOnActiveClip || !noteRowOnActiveClip->sequenced
-				    || noteRowOnActiveClip->isDroning(modelStackWithNoteRowOnCurrentClip->getLoopLength())) {
-					instrumentClipView.sendAuditionNote(false, yDisplay, 64, 0);
-				}
-			}
-			display->cancelPopup();
-			// don't recalculateLastAuditionedNoteOnScreen if we're in the note editor because it
-			// messes up the note row selection	for velocity editing
-			instrumentClipView.someAuditioningHasEnded(!inNoteEditor());
-			actionLogger.closeAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT);
-			actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
-			if (display->have7SEG()) {
-				renderDisplay();
-			}
-		}
-	}
-
-getOut:
 
 	if (selectedRowChanged || (selectedDrumChanged && (!getAffectEntire() || inNoteEditor()))) {
 		if (inNoteEditor()) {
 			renderDisplay();
 			instrumentClipView.resetSelectedNoteRowBlinking();
 			instrumentClipView.blinkSelectedNoteRow(0xFFFFFFFF);
+			doRender = false;
 		}
 		else if (selectedDrumChanged) {
 			initParameterSelection();
-			uiNeedsRendering(this);
-		}
-		else {
-			renderingNeededRegardlessOfUI(0, 1 << yDisplay);
+			uiNeedsRendering(getRootUI());
+			doRender = false;
 		}
 	}
-	else {
+
+	if (doRender) {
 		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
 	}
 
@@ -3716,6 +3510,8 @@ getOut:
 	if (!clipIsActiveOnInstrument && velocity) {
 		indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
 	}
+
+	return ActionResult::DEALT_WITH;
 }
 
 // horizontal encoder actions:
@@ -3895,82 +3691,18 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 			}
 			// only allow euclidean while holding audition pad
 			else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
-				                             modelStack); // don't create
-				if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-					if (clip->output->type != OutputType::KIT) {
-						modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(
-						    modelStack, instrumentClipView.lastAuditionedYDisplay);
-					}
-				}
-
-				instrumentClipView.editNumEuclideanEvents(modelStackWithNoteRow, offset,
-				                                          instrumentClipView.lastAuditionedYDisplay);
-				instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
-				instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
+				instrumentClipView.commandEuclidean(offset);
 			}
 		}
 		// If user not wanting to move a noteCode, they want to transpose the key
 		else if (!currentUIMode && outputType != OutputType::KIT) {
-			actionLogger.deleteAllLogs();
-
-			auto nudgeType = Buttons::isShiftButtonPressed() ? VerticalNudgeType::ROW : VerticalNudgeType::OCTAVE;
-			clip->nudgeNotesVertically(offset, nudgeType, modelStack);
-
-			instrumentClipView.recalculateColours();
-			uiNeedsRendering(this, 0, 0xFFFFFFFF);
-			if (inNoteEditor()) {
-				renderDisplay();
-			}
+			return instrumentClipView.commandTransposeKey(offset, inCardRoutine);
 		}
 	}
 
 	// Or, if shift key is pressed
 	else if (Buttons::isShiftButtonPressed()) {
-		uint32_t whichRowsToRender = 0;
-
-		// If NoteRow(s) auditioned, shift its colour (Kits only)
-		if (isUIModeActive(UI_MODE_AUDITIONING)) {
-			instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
-			if (!instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress) {
-				if (outputType != OutputType::KIT) {
-					goto shiftAllColour;
-				}
-
-				for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-					if (instrumentClipView.auditionPadIsPressed[yDisplay]) {
-						ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
-						NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-						// This is fine. If we were in Kit mode, we could only be auditioning if there
-						// was a NoteRow already
-						if (noteRow) {
-							noteRow->colourOffset += offset;
-							if (noteRow->colourOffset >= 72) {
-								noteRow->colourOffset -= 72;
-							}
-							if (noteRow->colourOffset < 0) {
-								noteRow->colourOffset += 72;
-							}
-							instrumentClipView.recalculateColour(yDisplay);
-							whichRowsToRender |= (1 << yDisplay);
-						}
-					}
-				}
-			}
-		}
-
-		// Otherwise, adjust whole colour spectrum
-		else if (currentUIMode == UI_MODE_NONE) {
-shiftAllColour:
-			clip->colourOffset += offset;
-			instrumentClipView.recalculateColours();
-			whichRowsToRender = 0xFFFFFFFF;
-		}
-
-		if (whichRowsToRender) {
-			uiNeedsRendering(this, whichRowsToRender, whichRowsToRender);
-		}
+		instrumentClipView.commandShiftColour(offset);
 	}
 
 	// If neither button is pressed, we'll do vertical scrolling

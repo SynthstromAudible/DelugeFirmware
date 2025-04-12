@@ -443,7 +443,7 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 
 			int32_t velocity = thisDrum->earlyNoteVelocity;
 
-			if (velocity) {
+			if (velocity != 0) {
 				thisDrum->earlyNoteVelocity = 0;
 
 				int32_t noteRowIndex;
