@@ -130,15 +130,14 @@ public:
 			}
 		}
 		else {
-			double value_d = value;
-			value_d *= static_cast<double>(FixedPoint::one());
+			value_ *= static_cast<double>(FixedPoint::one());
 			// convert from floating-point to fixed point
 			if constexpr (rounded) {
-				value_d = std::round(value_d);
+				value_ = std::round(value);
 			}
 
 			// saturate
-			value_ = static_cast<BaseType>(std::clamp<int64_t>(static_cast<int64_t>(value_d),
+			value_ = static_cast<BaseType>(std::clamp<int64_t>(static_cast<int64_t>(value),
 			                                                   std::numeric_limits<BaseType>::min(),
 			                                                   std::numeric_limits<BaseType>::max()));
 		}
@@ -179,15 +178,14 @@ public:
 			}
 		}
 		else {
-			double value_d = value;
-			value_d *= static_cast<double>(FixedPoint::one());
+			value *= static_cast<double>(FixedPoint::one());
 			// convert from floating-point to fixed point
 			if constexpr (rounded) {
-				value_d = std::round(value_d);
+				value = std::round(value);
 			}
 
 			// saturate
-			value_ = static_cast<BaseType>(std::clamp<int64_t>(static_cast<int64_t>(value_d),
+			value_ = static_cast<BaseType>(std::clamp<int64_t>(static_cast<int64_t>(value),
 			                                                   std::numeric_limits<BaseType>::min(),
 			                                                   std::numeric_limits<BaseType>::max()));
 		}

@@ -123,12 +123,20 @@ constexpr bool kCompilerClang = COMPILER_CLANG;
 template <size_t bits>
 requires(bits < 32)
 [[gnu::always_inline]] static constexpr int32_t signed_saturate(int32_t val) {
+	if !consteval {
+		if constexpr (ARMv7a) {
+			int32_t out;
+			asm("ssat %0, %1, %2" : "=r"(out) : "I"(bits), "r"(val));
+			return out;
+		}
+	}
 	/// https://developer.arm.com/documentation/ddi0406/c/Application-Level-Architecture/Instruction-Details/Alphabetical-list-of-instructions/SSAT
 	return std::clamp<int32_t>(val, -(1LL << (bits - 1)), (1LL << (bits - 1)) - 1);
 
 	/// GCC and Clang both properly reduce this to a single SSAT instruction, so there's no need to use inline asm
 	/// See: https://gcc.godbolt.org/z/e5chEzej6
 }
+
 
 template <size_t bits>
 requires(bits <= 32)
