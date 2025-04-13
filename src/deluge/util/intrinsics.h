@@ -137,7 +137,6 @@ requires(bits < 32)
 	/// See: https://gcc.godbolt.org/z/e5chEzej6
 }
 
-
 template <size_t bits>
 requires(bits <= 32)
 [[gnu::always_inline]] static constexpr uint32_t unsigned_saturate(uint32_t val) {

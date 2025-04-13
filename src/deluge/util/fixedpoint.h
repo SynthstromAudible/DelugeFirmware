@@ -130,10 +130,10 @@ public:
 			}
 		}
 		else {
-			value_ *= static_cast<double>(FixedPoint::one());
+			value *= static_cast<double>(FixedPoint::one());
 			// convert from floating-point to fixed point
 			if constexpr (rounded) {
-				value_ = std::round(value);
+				value = std::round(value);
 			}
 
 			// saturate
