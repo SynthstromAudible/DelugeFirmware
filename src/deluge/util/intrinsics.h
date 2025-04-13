@@ -123,6 +123,13 @@ constexpr bool kCompilerClang = COMPILER_CLANG;
 template <size_t bits>
 requires(bits < 32)
 [[gnu::always_inline]] static constexpr int32_t signed_saturate(int32_t val) {
+	if !consteval {
+		if constexpr (ARMv7a) {
+			int32_t out;
+			asm("ssat %0, %1, %2" : "=r"(out) : "I"(bits), "r"(val));
+			return out;
+		}
+	}
 	/// https://developer.arm.com/documentation/ddi0406/c/Application-Level-Architecture/Instruction-Details/Alphabetical-list-of-instructions/SSAT
 	return std::clamp<int32_t>(val, -(1LL << (bits - 1)), (1LL << (bits - 1)) - 1);
 
