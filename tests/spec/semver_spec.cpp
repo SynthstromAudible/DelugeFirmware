@@ -30,4 +30,4 @@ describe semver("SemVer", $ {
 	});
 });
 
-CPPSPEC_SPEC(semver)
+CPPSPEC_MAIN(semver)

@@ -32,7 +32,7 @@ jobs:
         run: cmake --build build
 
       - name: Run CTest
-        run: ctest --test-dir build --output-junit results/ctest_results.xml
+        run: ctest --test-dir build --output-on-failure
 
       - name: Run 32 bit CppUTest
         run: |
@@ -81,7 +81,7 @@ jobs:
         run: cmake --build build
 
       - name: Run CTest
-        run: ctest --output-on-failure --test-dir build --output-junit results/ctest_results.xml
+        run: ctest --output-on-failure --test-dir build
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
