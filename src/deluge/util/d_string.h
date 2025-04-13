@@ -108,7 +108,12 @@ class StringBuf {
 public:
 	StringBuf(char* buf, size_t capacity) : capacity_(capacity), buf_(buf) { memset(buf_, '\0', capacity_); }
 	// NOLINTBEGIN (*-suspicious-stringview-data-usage)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow="
+	// this is fine, the second parameter in the min is the max we can safely copy and the first is to avoid using
+	// strcopy on a non null terminated string view
 	void append(std::string_view str) { ::strncat(buf_, str.data(), std::min(str.length(), capacity_ - size() - 1)); }
+#pragma GCC diagnostic pop
 	// NOLINTEND
 	void append(char c) { ::strncat(buf_, &c, 1); }
 	void removeSpaces() {

@@ -194,7 +194,7 @@ private:
 	/// The raw threshold value
 	float threshold = 1;
 	/// A parameter for the internal HPF
-	q31_t hpfA_ = ONE_Q15;
+	q31_t hpfA_ = ONE_Q16;
 
 	/// State for the internal envelope follower
 	float state = 0;

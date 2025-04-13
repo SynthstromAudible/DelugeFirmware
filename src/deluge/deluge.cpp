@@ -463,6 +463,8 @@ void setupBlankSong() {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
+#pragma GCC push
+#pragma GCC diagnostic ignored "-Wstack-usage="
 /// Can only happen after settings, which includes default settings, have been read
 void setupStartupSong() {
 
@@ -472,8 +474,13 @@ void setupStartupSong() {
 	    startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath : runtimeFeatureSettings.getStartupSong();
 	String failSafePath;
 	failSafePath.concatenate("SONGS/__STARTUP_OFF_CHECK_");
+	auto size = strlen(filename) + 1;
+	if (size > 2048) {
+		display->displayPopup("Error reading filename");
+		return;
+	}
 
-	char replaced[sizeof(char) * strlen(filename) + 1]; // +1 for NULL terminator
+	char replaced[sizeof(char) * size]; // +1 for NULL terminator
 	replace_char(replaced, filename, '/', '_');
 	failSafePath.concatenate(replaced);
 
@@ -526,6 +533,7 @@ void setupStartupSong() {
 		return;
 	}
 }
+#pragma GCC pop
 
 void setupOLED() {
 	// delayMS(10);
