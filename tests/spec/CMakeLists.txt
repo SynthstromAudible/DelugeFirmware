@@ -24,6 +24,6 @@ set_target_properties(deluge_spec PROPERTIES
   CXX_STANDARD 23
   CXX_STANDARD_REQUIRED YES
 )
-
+link_libraries(deluge_spec)
 discover_specs(${CMAKE_CURRENT_SOURCE_DIR} TRUE)
-target_link_libraries(all_specs PUBLIC deluge_spec)
+
