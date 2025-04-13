@@ -38,7 +38,15 @@ describe fixedpoint("FixedPoint", ${
 		it("from another FixedPoint downwards", _ {
 			FixedPoint<16> fp = FixedPoint<30>{1.f};
 			expect(fp.raw()).to_equal(FixedPoint<16>::one());
-		});	
+		});
+
+		it("with equivalent constexpr and non-constexpr values", _ {
+			int32_t value = std::bit_cast<int32_t>(16.8f);
+			asm("vcvt.s32.f32 %0, %1, %2" : "=t"(value) : "t"(value), "I"(16));
+			value = std::bit_cast<int32_t>(value); // NOLINT
+			constexpr FixedPoint<16> expected{16.8f};
+			expect(FixedPoint<16>::from_raw(value)).to_equal(expected);
+		});
 	});
 
 	context("copy constructor", _ {

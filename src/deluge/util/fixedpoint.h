@@ -41,7 +41,7 @@ requires(bit > 0 && bit < 32)
 /// @tparam FractionalBits The number of fractional bits
 /// @tparam Rounded Whether to round the result when performing operations
 /// @tparam FastApproximation Whether to use a fast approximation for operations
-template <std::size_t FractionalBits, bool Rounded = true, bool FastApproximation = (FractionalBits == 31 && ARMv7a)>
+template <std::size_t FractionalBits, bool Rounded = false, bool FastApproximation = (FractionalBits == 31 && ARMv7a)>
 class FixedPoint {
 	static_assert(FractionalBits > 0, "FractionalBits must be greater than 0");
 	static_assert(FractionalBits < 32, "FractionalBits must be less than 32");
@@ -559,4 +559,4 @@ static_assert(ONE_Q31 == std::numeric_limits<int32_t>::max());
 static_assert(ONE_Q31f == 1.0f * std::numeric_limits<int32_t>::max());
 static_assert(ONE_Q16 == std::numeric_limits<uint16_t>::max());
 static_assert(NEGATIVE_ONE_Q31 == std::numeric_limits<int32_t>::min());
-static_assert(ONE_OVER_SQRT2_Q31 == 1518500250);
+static_assert(ONE_OVER_SQRT2_Q31 == 1518500249);
