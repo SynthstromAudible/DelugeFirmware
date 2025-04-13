@@ -544,7 +544,7 @@ operator*(const T& lhs, const FixedPoint<FractionalBits, Rounded, FastApproximat
 #ifdef __clang__
 constexpr int32_t ONE_Q31 = std::numeric_limits<int32_t>::max();
 constexpr float ONE_Q31f = static_cast<float>(ONE_Q31);
-constexpr int32_t ONE_Q15 = std::numeric_limits<int16_t>::max();
+constexpr int32_t ONE_Q16 = std::numeric_limits<int16_t>::max();
 constexpr int32_t NEGATIVE_ONE_Q31 = std::numeric_limits<int32_t>::min();
 constexpr int32_t ONE_OVER_SQRT2_Q31 = ONE_Q31 / std::numbers::sqrt2;
 #else
