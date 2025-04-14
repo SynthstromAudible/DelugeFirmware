@@ -1,3 +1,12 @@
 CompileFlags:
-  Add: [-Wno-unknown-argument, -Wno-unknown-warning-option, -D__cpp_concepts=202002L]
-  Remove: [-mthumb-interwork, -fanalyzer, -fdevirtualize-at-ltrans]
+  #BuiltinHeaders: QueryDriver
+  Add: 
+    - -Wno-unknown-argument
+    - -Wno-unknown-warning-option
+    - -xc++
+    - -std=c++23
+
+  Remove: 
+    - -mthumb-interwork
+    - -fanalyzer
+    - -fdevirtualize-at-ltrans

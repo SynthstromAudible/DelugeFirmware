@@ -16,6 +16,7 @@
  */
 
 #include <algorithm>
+#include <bit>
 #include <cstdint>
 #include <type_traits>
 
@@ -26,6 +27,14 @@
 #else
 #define COMPILER_CLANG 0
 #define COMPILER_GCC 1
+#endif
+#else
+#ifdef __clang__
+#define COMPILER_CLANG 1
+#define COMPILER_GCC 0
+#else
+#define COMPILER_CLANG 0
+#define COMPILER_GCC 0
 #endif
 #endif
 
