@@ -856,7 +856,7 @@ stopSearch:
 		// The above is supposed to not go back beyond the start of the waveform, but there must be some bug because it
 		// does. Until I fix that, this check ensures we stay within the waveform
 		if ((newHeadBytePos - waveformStartByte) * playDirection < 0) {
-			D_PRINTLN("avoided going before 0: %s", newHeadBytePos - waveformStartByte);
+			D_PRINTLN("avoided going before 0: %i", newHeadBytePos - waveformStartByte);
 			newHeadBytePos = waveformStartByte;
 		}
 	}
