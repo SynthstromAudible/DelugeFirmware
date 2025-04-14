@@ -1,0 +1,13 @@
+#include <m_pd.h>
+
+#ifdef _WIN32
+#define EXPORT __declspec(dllexport)
+#else
+#define EXPORT
+#endif
+
+@FUNCTION_DECLARATIONS@
+
+EXPORT void deluge_dsp_setup(void) {
+  @FUNCTION_CALLS@
+}
