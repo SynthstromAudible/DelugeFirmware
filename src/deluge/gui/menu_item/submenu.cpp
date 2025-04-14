@@ -4,6 +4,7 @@
 #include "gui/views/automation_view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/led/indicator_leds.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "storage/flash_storage.h"
 #include <algorithm>
@@ -113,6 +114,14 @@ void Submenu::drawHorizontalMenu() {
 	int32_t currentPage = nBefore / pageSize;
 	int32_t posOnPage = mod(nBefore, pageSize);
 	int32_t pageStart = currentPage * pageSize;
+
+	// did the selected horizontal menu item position change?
+	// if yes, update the instrument LED corresponding to that menu item position
+	// store the last selected horizontal menu item position so that we don't update the LED's more than we have to
+	if (posOnPage != lastSelectedHorizontalMenuItemPosition) {
+		lastSelectedHorizontalMenuItemPosition = posOnPage;
+		updateSelectedHorizontalMenuItemLED(posOnPage);
+	}
 
 	// Scan to beginning of the visible page:
 	auto it = std::find_if(items.begin(), items.end(), isItemRelevant);
@@ -289,6 +298,108 @@ ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 	else {
 		return MenuItem::buttonAction(b, on, inCardRoutine);
 	}
+}
+
+ActionResult HorizontalMenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
+
+	// in horizontal menu, use SYNTH / KIT / MIDI / CV buttons to select menu item
+	// in currently displayed horizontal menu page
+	if (b == SYNTH) {
+		return selectHorizontalMenuItemOnVisiblePage(0);
+	}
+	else if (b == KIT) {
+		return selectHorizontalMenuItemOnVisiblePage(1);
+	}
+	else if (b == MIDI) {
+		return selectHorizontalMenuItemOnVisiblePage(2);
+	}
+	else if (b == CV) {
+		return selectHorizontalMenuItemOnVisiblePage(3);
+	}
+
+	// forward other button presses to be handled by parent
+	return Submenu::buttonAction(b, on, inCardRoutine);
+}
+
+/// Select a specific menu item on the currently displayed horizontal menu page
+ActionResult HorizontalMenu::selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber) {
+	int32_t nTotal = std::count_if(items.begin(), items.end(), isItemRelevant);
+	int32_t nBefore = std::count_if(items.begin(), current_item_, isItemRelevant);
+
+	int32_t pageSize = std::min<int32_t>(nTotal, 4);
+	int32_t pageCount = std::ceil(nTotal / (float)pageSize);
+	int32_t currentPage = nBefore / pageSize;
+	int32_t posOnPage = mod(nBefore, pageSize);
+	int32_t pageStart = currentPage * pageSize;
+
+	// Scan to beginning of the visible page:
+	auto it = std::find_if(items.begin(), items.end(), isItemRelevant);
+	for (size_t n = 0; n < pageStart; n++) {
+		it = std::find_if(std::next(it), items.end(), isItemRelevant);
+	}
+
+	// Find item you're looking for by iterating through all items on the current page
+	for (size_t n = 0; n < pageSize && it != items.end(); n++) {
+		// is this the item we're looking for?
+		if (n == itemNumber) {
+			// update currently selected item
+			current_item_ = it;
+			// re-render display
+			updateDisplay();
+			// update grid shortcuts for currently selected menu item
+			updatePadLights();
+			// update automation view editor parameter selection if it is currently open
+			(*current_item_)->updateAutomationViewParameter();
+			break;
+		}
+		// if we haven't found item we're looking for, check the next relevant item.
+		it = std::find_if(std::next(it), items.end(), isItemRelevant);
+	}
+	return ActionResult::DEALT_WITH;
+}
+
+/// When updating the selected horizontal menu item, you need to refresh the lit instrument LED's
+void Submenu::updateSelectedHorizontalMenuItemLED(int32_t itemNumber) {
+	switch (itemNumber) {
+	case 0:
+		indicator_leds::setLedState(IndicatorLED::SYNTH, true);
+		indicator_leds::setLedState(IndicatorLED::KIT, false);
+		indicator_leds::setLedState(IndicatorLED::MIDI, false);
+		indicator_leds::setLedState(IndicatorLED::CV, false);
+		break;
+	case 1:
+		indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+		indicator_leds::setLedState(IndicatorLED::KIT, true);
+		indicator_leds::setLedState(IndicatorLED::MIDI, false);
+		indicator_leds::setLedState(IndicatorLED::CV, false);
+		break;
+	case 2:
+		indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+		indicator_leds::setLedState(IndicatorLED::KIT, false);
+		indicator_leds::setLedState(IndicatorLED::MIDI, true);
+		indicator_leds::setLedState(IndicatorLED::CV, false);
+		break;
+	case 3:
+		indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+		indicator_leds::setLedState(IndicatorLED::KIT, false);
+		indicator_leds::setLedState(IndicatorLED::MIDI, false);
+		indicator_leds::setLedState(IndicatorLED::CV, true);
+		break;
+	default:
+	    // fallthrough
+	    ;
+	}
+}
+
+/// when exiting a horizontal menu, turn off the LED's and reset selected horizontal menu item position
+/// so that next time you open a horizontal menu it refreshes the LED for the selected horizontal menu item
+void HorizontalMenu::endSession() {
+	lastSelectedHorizontalMenuItemPosition = kNoSelection;
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
+	indicator_leds::setLedState(IndicatorLED::MIDI, false);
+	indicator_leds::setLedState(IndicatorLED::CV, false);
 }
 
 deluge::modulation::params::Kind Submenu::getParamKind() {
