@@ -34,6 +34,9 @@ jobs:
       - name: Run CTest
         run: ctest --test-dir build --output-on-failure
 
+      - name: Make results directory
+        run: mkdir -p build/results
+
       - name: Run 32 bit CppUTest
         run: |
           cd build/results
