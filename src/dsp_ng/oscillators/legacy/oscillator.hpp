@@ -24,8 +24,8 @@
 #include <cstdint>
 #include <limits>
 
-namespace deluge::dsp::oscillator {
-class LegacyOscillator : public Periodic<Argon<uint32_t>> {
+namespace deluge::dsp::oscillators {
+class LegacyOscillator : public Periodic<Argon<uint32_t>>, public Generator<Argon<q31_t>> {
 protected:
 public:
 	constexpr LegacyOscillator() = default; ///< Default constructor
@@ -48,7 +48,7 @@ public:
 	}
 };
 
-class SimpleOscillatorFor final : public LegacyOscillator, public Generator<Argon<q31_t>> {
+class SimpleOscillatorFor final : public LegacyOscillator {
 public:
 	using function_type = Argon<q31_t> (*)(Argon<uint32_t>);
 
@@ -71,4 +71,4 @@ public:
 	/// @brief Set the phase width of the PWM oscillator.
 	void setPulseWidth(uint32_t width) { pulse_width_ = width; }
 };
-} // namespace deluge::dsp::oscillator
+} // namespace deluge::dsp::oscillators

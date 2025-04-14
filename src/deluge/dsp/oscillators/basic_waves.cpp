@@ -17,169 +17,138 @@
 
 #include "basic_waves.h"
 #include "definitions.h"
-#include "processing/render_wave.h"
+#include "render_wave.h"
 #include "util/fixedpoint.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include <argon.hpp>
 namespace deluge::dsp {
-/* Before calling, you must:
-    amplitude <<= 1; ( so that it is q31)
-    amplitudeIncrement <<= 1;
-*/
-void renderWave(const int16_t* __restrict__ table, int32_t table_size_magnitude, int32_t amplitude,
-                std::span<q31_t> buffer, uint32_t phase_increment, uint32_t phase, bool apply_amplitude,
-                uint32_t phase_to_add, int32_t amplitude_increment) {
-
-	Argon<q31_t> amplitude_vector = createAmplitudeVector(amplitude, amplitude_increment);
-	Argon<q31_t> amplitude_increment_vector = amplitude_increment << 1;
-
-	for (Argon<q31_t>& sample_vector : argon::vectorize(buffer)) {
-		auto [value_vector, new_phase] =
-		    waveRenderingFunctionGeneral(phase, phase_increment, phase_to_add, table, table_size_magnitude);
-
-		if (apply_amplitude) {
-			value_vector = sample_vector.MultiplyAddFixedPoint(value_vector, amplitude_vector);
-			amplitude_vector = amplitude_vector + amplitude_increment_vector;
-		}
-
-		sample_vector = value_vector;
-		phase = new_phase;
-	}
-}
-
-/* Before calling, you must:
-    amplitude <<= 1;
-    amplitudeIncrement <<= 1;
-*/
-void renderPulseWave(const int16_t* __restrict__ table, int32_t table_size_magnitude, int32_t amplitude,
-                     std::span<q31_t> buffer, uint32_t phase_increment, uint32_t phase, bool apply_amplitude,
-                     uint32_t phase_to_add, int32_t amplitude_increment) {
-	Argon<q31_t> amplitude_vector = createAmplitudeVector(amplitude, amplitude_increment);
-	Argon<q31_t> amplitude_increment_vector = amplitude_increment << 1;
-
-	for (Argon<q31_t>& sample_vector : argon::vectorize(buffer)) {
-		auto [value_vector, new_phase] =
-		    waveRenderingFunctionPulse(phase, phase_increment, phase_to_add, table, table_size_magnitude);
-
-		if (apply_amplitude) {
-			value_vector = sample_vector.MultiplyAddFixedPoint(value_vector, amplitude_vector);
-			amplitude_vector = amplitude_vector + amplitude_increment_vector;
-		}
-
-		sample_vector = value_vector;
-		phase = new_phase;
-	}
-}
-
-uint32_t renderCrudeSawWave(std::span<q31_t> buffer, uint32_t phase, uint32_t phase_increment, int32_t amplitude,
-                            int32_t amplitude_increment) {
-#pragma gcc unroll 4
-	for (q31_t& sample : buffer) {
-		phase += phase_increment;
-		amplitude += amplitude_increment;
-		sample = multiply_accumulate_32x32_rshift32_rounded(sample, (int32_t)phase, amplitude);
-	}
-
-	return phase;
-}
-
-uint32_t renderCrudeSawWave(std::span<q31_t> buffer, uint32_t phase, uint32_t phase_increment) {
-
-#pragma gcc unroll 8
-	for (q31_t& sample : buffer) {
-		phase += phase_increment;
-		sample = (int32_t)phase >> 1;
-	}
-
-	return phase;
-}
 
 /**
  * @brief Get a table number and size, depending on the increment
  *
  * @return table_number, table_size
  */
-std::pair<int32_t, int32_t> getTableNumber(uint32_t phaseIncrement) {
+size_t getTableNumber(uint32_t phaseIncrement) {
 	if (phaseIncrement <= 1247086) {
-		return {0, 13};
+		return 0;
 	}
 	else if (phaseIncrement <= 1764571) {
-		return {1, 12};
+		return 1;
 	}
 	else if (phaseIncrement <= 2494173) {
-		return {2, 12};
+		return 2;
 	}
 	else if (phaseIncrement <= 3526245) {
-		return {3, 11};
+		return 3;
 	}
 	else if (phaseIncrement <= 4982560) {
-		return {4, 11};
+		return 4;
 	}
 	else if (phaseIncrement <= 7040929) {
-		return {5, 11};
+		return 5;
 	}
 	else if (phaseIncrement <= 9988296) {
-		return {6, 11};
+		return 6;
 	}
 	else if (phaseIncrement <= 14035840) {
-		return {7, 11};
+		return 7;
 	}
 	else if (phaseIncrement <= 19701684) {
-		return {8, 11};
+		return 8;
 	}
 	else if (phaseIncrement <= 28256363) {
-		return {9, 11};
+		return 9;
 	}
 	else if (phaseIncrement <= 40518559) {
-		return {10, 11};
+		return 10;
 	}
 	else if (phaseIncrement <= 55063683) {
-		return {11, 11};
+		return 11;
 	}
 	else if (phaseIncrement <= 79536431) {
-		return {12, 11};
+		return 12;
 	}
 	else if (phaseIncrement <= 113025455) {
-		return {13, 11};
+		return 13;
 	}
 	else if (phaseIncrement <= 165191049) {
-		return {14, 10};
+		return 14;
 	}
 	else if (phaseIncrement <= 238609294) {
-		return {15, 10};
+		return 15;
 	}
 	else if (phaseIncrement <= 306783378) {
-		return {16, 10};
+		return 16;
 	}
 	else if (phaseIncrement <= 429496729) {
-		return {17, 10};
+		return 17;
 	}
 	else if (phaseIncrement <= 715827882) {
-		return {18, 9};
+		return 1;
 	}
 	else {
-		return {19, 9};
+		return 1;
 	}
 }
 
-const int16_t* sawTables[20] = {NULL,       NULL,       NULL,      NULL,      NULL,      NULL,      sawWave215,
-                                sawWave153, sawWave109, sawWave76, sawWave53, sawWave39, sawWave27, sawWave19,
-                                sawWave13,  sawWave9,   sawWave7,  sawWave5,  sawWave3,  sawWave1};
-const int16_t* squareTables[20] = {NULL,         NULL,          NULL,          NULL,          NULL,
-                                   NULL,         squareWave215, squareWave153, squareWave109, squareWave76,
-                                   squareWave53, squareWave39,  squareWave27,  squareWave19,  squareWave13,
-                                   squareWave9,  squareWave7,   squareWave5,   squareWave3,   squareWave1};
-const int16_t* analogSquareTables[20] = {analogSquare_1722, analogSquare_1217, analogSquare_861, analogSquare_609,
-                                         analogSquare_431,  analogSquare_305,  analogSquare_215, analogSquare_153,
-                                         analogSquare_109,  analogSquare_76,   analogSquare_53,  analogSquare_39,
-                                         analogSquare_27,   analogSquare_19,   analogSquare_13,  analogSquare_9,
-                                         analogSquare_7,    analogSquare_5,    analogSquare_3,   analogSquare_1};
+std::array<std::span<const int16_t>, 20> sawTables = {
+    std::span<const int16_t>{}, // empty
+    std::span<const int16_t>{}, // empty
+    std::span<const int16_t>{}, // empty
+    std::span<const int16_t>{}, // empty
+    std::span<const int16_t>{}, // empty
+    std::span<const int16_t>{}, // empty
+    sawWave215,
+    sawWave153,
+    sawWave109,
+    sawWave76,
+    sawWave53,
+    sawWave39,
+    sawWave27,
+    sawWave19,
+    sawWave13,
+    sawWave9,
+    sawWave7,
+    sawWave5,
+    sawWave3,
+    sawWave1,
+};
+
+std::array<std::span<const int16_t>, 20> squareTables = {
+    std::span<const int16_t>{}, // empty
+    std::span<const int16_t>{}, // empty
+    std::span<const int16_t>{}, // empty
+    std::span<const int16_t>{}, // empty
+    std::span<const int16_t>{}, // empty
+    std::span<const int16_t>{}, // empty
+    squareWave215,
+    squareWave153,
+    squareWave109,
+    squareWave76,
+    squareWave53,
+    squareWave39,
+    squareWave27,
+    squareWave19,
+    squareWave13,
+    squareWave9,
+    squareWave7,
+    squareWave5,
+    squareWave3,
+    squareWave1,
+};
+std::array<std::span<const int16_t>, 20> analogSquareTables = {
+    analogSquare_1722, analogSquare_1217, analogSquare_861, analogSquare_609, analogSquare_431,
+    analogSquare_305,  analogSquare_215,  analogSquare_153, analogSquare_109, analogSquare_76,
+    analogSquare_53,   analogSquare_39,   analogSquare_27,  analogSquare_19,  analogSquare_13,
+    analogSquare_9,    analogSquare_7,    analogSquare_5,   analogSquare_3,   analogSquare_1,
+};
 
 // The lower 8 are from (mystery synth A) - higher than that, it's (mystery synth B)
-const int16_t* analogSawTables[20] = {
+std::array<std::span<const int16_t>, 20> analogSawTables = {
     mysterySynthASaw_1722, mysterySynthASaw_1217, mysterySynthASaw_861, mysterySynthASaw_609, mysterySynthASaw_431,
     mysterySynthASaw_305,  mysterySynthASaw_215,  mysterySynthASaw_153, mysterySynthBSaw_109, mysterySynthBSaw_76,
     mysterySynthBSaw_53,   mysterySynthBSaw_39,   mysterySynthBSaw_27,  mysterySynthBSaw_19,  mysterySynthBSaw_13,
-    mysterySynthBSaw_9,    mysterySynthBSaw_7,    mysterySynthBSaw_5,   mysterySynthBSaw_3,   mysterySynthBSaw_1};
+    mysterySynthBSaw_9,    mysterySynthBSaw_7,    mysterySynthBSaw_5,   mysterySynthBSaw_3,   mysterySynthBSaw_1,
+};
 } // namespace deluge::dsp

@@ -156,11 +156,10 @@ renderEnvelope:
 					amplitudeLastTime = amplitudeLocal;
 				}
 
-				int32_t amplitudeEffectiveStart =
-				    multiply_32x32_rshift32(amplitudeLastTime, amplitudeAtStart); // Reduces amplitude another >>1
-				int32_t amplitudeEffectiveEnd =
-				    multiply_32x32_rshift32(amplitudeLocal, amplitudeAtEnd); // Reduces amplitude another >>1
+				int32_t amplitudeEffectiveStart = multiply_32x32_rshift32(amplitudeLastTime, amplitudeAtStart); // Q30
+				int32_t amplitudeEffectiveEnd = multiply_32x32_rshift32(amplitudeLocal, amplitudeAtEnd);        // Q30
 
+				/// Q30
 				int32_t amplitudeIncrementEffective =
 				    static_cast<int32_t>(static_cast<double>(amplitudeEffectiveEnd - amplitudeEffectiveStart)
 				                         / static_cast<double>(render.size()));

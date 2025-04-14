@@ -18,11 +18,11 @@
 #pragma once
 #include "dsp_ng/core/generator.hpp"
 #include "dsp_ng/core/units.hpp"
+#include <argon.hpp>
 #include <cstdint>
 
-constexpr int32_t kSampleRate = 44100;
-
 namespace deluge::dsp {
+constexpr uint32_t kSampleRate = 44100; ///< The sample rate used in the system
 namespace impl {
 /// @brief Represents the internal state of a periodic generator, such as an oscillator.
 /// @tparam PhaseType The type used to represent the phase of the oscillator.
@@ -62,13 +62,15 @@ struct Periodic : impl::PeriodicState<T> {
 	using impl::PeriodicState<T>::PeriodicState;
 	static_assert(std::is_floating_point_v<T>, "Periodic generator only supports floating point or uint32_t types.");
 
-	constexpr Periodic(Frequency frequency) { setFrequency(frequency); }
+	constexpr Periodic(Frequency frequency) { impl::PeriodicState<T>::setFrequency(frequency); }
 
-	void setFrequency(Frequency frequency) { setPhaseIncrement((1.f / kSampleRate) * frequency); }
+	void setFrequency(Frequency frequency) {
+		impl::PeriodicState<T>::setPhaseIncrement((1.f / kSampleRate) * frequency);
+	}
 
 	[[nodiscard]] T advance() {
-		auto out = getPhase();
-		auto new_phase = out + getPhaseIncrement();
+		auto out = impl::PeriodicState<T>::getPhase();
+		auto new_phase = out + impl::PeriodicState<T>::getPhaseIncrement();
 		new_phase = (new_phase >= T(1)) ? new_phase - T(1) : new_phase;
 		return new_phase;
 	}
@@ -104,13 +106,14 @@ struct Periodic<Argon<T>> : impl::PeriodicState<Argon<T>, T> {
 
 	void setFrequency(Frequency frequency) {
 		auto phase_increment = (1.f / kSampleRate) * frequency;
-		setPhaseIncrement(phase_increment);
-		setPhase(Argon<T>::Iota(getPhase().template GetLane<0>()).Multiply(phase_increment));
+		impl::PeriodicState<Argon<T>, T>::setPhaseIncrement(phase_increment);
+		setPhase(Argon<T>::Iota(impl::PeriodicState<Argon<T>, T>::getPhase().template GetLane<0>())
+		             .Multiply(phase_increment));
 	}
 
 	[[nodiscard]] Argon<T> advance() {
-		auto out = getPhase();
-		auto new_phase = out + (getPhaseIncrement() * Argon<T>::lanes);
+		auto out = impl::PeriodicState<Argon<T>, T>::getPhase();
+		auto new_phase = out + (impl::PeriodicState<Argon<T>, T>::getPhaseIncrement() * Argon<T>::lanes);
 		setPhase(argon::ternary(new_phase >= T(1), new_phase - T(1), new_phase));
 		return out;
 	}

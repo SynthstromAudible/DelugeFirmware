@@ -26,22 +26,22 @@
 #include <limits>
 #include <span>
 
-namespace deluge::dsp::oscillator {
+namespace deluge::dsp::oscillators {
 
 /// @brief A base class for oscillators that use a lookup table for waveform generation.
 /// @details This class provides a mechanism to generate waveforms using a pre-defined table of values.
 /// It does linear interpolation between table values for smoother output.
-class TableOscillator : public LegacyOscillator, public Generator<Argon<q31_t>> {
-	std::span<int16_t> table_;
-	[[nodiscard]] static constexpr size_t getTableMagnitude(std::span<int16_t> table) {
+class TableOscillator : public LegacyOscillator {
+	std::span<const int16_t> table_;
+	[[nodiscard]] static constexpr size_t getTableMagnitude(std::span<const int16_t> table) {
 		return (8 * sizeof(size_t)) - std::countl_zero(table.size()) - 1;
 	}
 
 public:
-	TableOscillator(std::span<int16_t> table) : table_{table} {}
+	TableOscillator(std::span<const int16_t> table) : table_{table} {}
 	TableOscillator() = default;
 
-	void setTable(std::span<int16_t> table) { table_ = table; }
+	void setTable(std::span<const int16_t> table) { table_ = table; }
 
 	Argon<q31_t> render() final {
 		Argon<uint32_t> phase = advance();
@@ -58,17 +58,17 @@ public:
 	}
 };
 
-class PWMTableOscillator : public PWMOscillator, public LegacyOscillator, public Generator<Argon<q31_t>> {
-	std::span<int16_t> table_;
-	[[nodiscard]] static constexpr size_t getTableMagnitude(std::span<int16_t> table) {
+class PWMTableOscillator : public PWMOscillator, public LegacyOscillator {
+	std::span<const int16_t> table_;
+	[[nodiscard]] static constexpr size_t getTableMagnitude(std::span<const int16_t> table) {
 		return (8 * sizeof(size_t)) - std::countl_zero(table.size()) - 1;
 	}
 
 public:
-	PWMTableOscillator(std::span<int16_t> table) : table_{table} {}
+	PWMTableOscillator(std::span<const int16_t> table) : table_{table} {}
 	PWMTableOscillator() = default;
 
-	void setTable(std::span<int16_t> table) { table_ = table; }
+	void setTable(std::span<const int16_t> table) { table_ = table; }
 
 	[[gnu::always_inline]] Argon<q31_t> render() final {
 		auto phase_to_add = -(getPulseWidth() >> 1);
@@ -106,4 +106,4 @@ public:
 		return output;
 	}
 };
-} // namespace deluge::dsp::oscillator
+} // namespace deluge::dsp::oscillators

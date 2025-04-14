@@ -22,7 +22,7 @@
 #include "dsp_ng/core/processor.hpp"
 #include <argon.hpp>
 
-namespace deluge::dsp::oscillators {
+namespace deluge::dsp::oscillatorss {
 
 template <typename WaveFunction>
 class ParallelOscillatorFor : public ParallelProcessor<ParallelOscillatorFor<WaveFunction>, float, 4, Argon<float>> {
@@ -48,4 +48,4 @@ private:
 	Periodic<Argon<float>> periodic_component_{};
 	WaveFunction wave_function_;
 };
-} // namespace deluge::dsp::oscillators
+} // namespace deluge::dsp::oscillatorss

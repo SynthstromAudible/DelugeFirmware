@@ -79,4 +79,19 @@ struct Generator<Argon<T>> : SampleGenerator<Argon<T>>, BlockGenerator<T> {
 		}
 	}
 };
+
+/// @brief A base class for objects that generate a vector of samples using SIMD operations.
+/// @tparam T The type of the samples to generate.
+template <>
+struct Generator<Argon<q31_t>> : SampleGenerator<Argon<q31_t>>, BlockGenerator<fixed_point::Sample> {
+	using value_type = q31_t;
+
+	/// @brief Generate a block of samples by calling render() for each sample.
+	/// @param buffer The output buffer to fill with generated samples.
+	void renderBlock(fixed_point::Buffer buffer) final {
+		for (Argon<q31_t>& sample : argon::vectorize::store(reinterpret_cast<std::span<q31_t>&>(buffer))) {
+			sample = this->render();
+		}
+	}
+};
 } // namespace deluge::dsp

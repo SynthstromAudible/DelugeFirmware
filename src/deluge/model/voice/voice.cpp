@@ -38,7 +38,6 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/live/live_pitch_shifter.h"
-#include "processing/render_wave.h"
 #include "processing/sound/sound.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
@@ -1329,11 +1328,11 @@ cantBeDoingOscSyncForFirstOsc:
 
 					OscType oscType = sound.sources[s].oscType;
 
-					dsp::Oscillator::renderOsc(
-					    oscType, 0, spareRenderingBuffer[s + 2], spareRenderingBuffer[s + 2] + numSamples, numSamples,
-					    phaseIncrements[s], pulseWidth, &unisonParts[u].sources[s].oscPos, false, 0,
-					    doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s],
-					    sourceWaveIndexIncrements[s], sourceWaveIndexesLastTime[s],
+					unisonParts[u].sources[s].oscPos = dsp::Oscillator::renderOsc(
+					    oscType, false, {spareRenderingBuffer[s + 2], numSamples},
+					    {unisonParts[u].sources[s].oscPos, phaseIncrements[s]}, pulseWidth, false,
+					    {FixedPoint<30>{0.f}, FixedPoint<30>{0.f}}, {oscSyncPos[u], phaseIncrements[0]},
+					    sound.oscRetriggerPhase[s], sourceWaveIndexIncrements[s], sourceWaveIndexesLastTime[s],
 					    static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile));
 
 					// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so
@@ -2414,16 +2413,14 @@ dontUseCache: {}
 				memset(renderBuffer, 0, SSI_TX_BUFFER_NUM_SAMPLES * sizeof(int32_t));
 			}
 
-			int32_t* oscBufferEnd =
-			    renderBuffer + numSamples; // TODO: we don't really want to be calculating this so early do we?
-
 			// Work out pulse width
 			uint32_t pulseWidth = (uint32_t)lshiftAndSaturate<1>(paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
 
-			dsp::Oscillator::renderOsc(
-			    sound.sources[s].oscType, sourceAmplitude, renderBuffer, oscBufferEnd, numSamples, phaseIncrement,
-			    pulseWidth, &unisonParts[u].sources[s].oscPos, true, amplitudeIncrement, doOscSync,
-			    oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase, waveIndexIncrement,
+			unisonParts[u].sources[s].oscPos = dsp::Oscillator::renderOsc(
+			    sound.sources[s].oscType, doOscSync, {renderBuffer, numSamples},
+			    {unisonParts[u].sources[s].oscPos, phaseIncrement}, pulseWidth, true,
+			    {FixedPoint<30>::from_raw(sourceAmplitude), FixedPoint<30>::from_raw(amplitudeIncrement)},
+			    {oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison}, oscRetriggerPhase, waveIndexIncrement,
 			    sourceWaveIndexesLastTime[s], static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile));
 
 			if (stereoBuffer) {

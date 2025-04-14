@@ -22,7 +22,7 @@
 #include "table_oscillator.hpp"
 #include <cstdint>
 
-namespace deluge::dsp::oscillator {
+namespace deluge::dsp::oscillators {
 
 class Triangle : public TableOscillator {
 	static std::span<int16_t> getTriangleTable(uint32_t phase_increment);
@@ -39,4 +39,4 @@ public:
 		setTable(getTriangleTable(phase_increment));
 	}
 };
-} // namespace deluge::dsp::oscillator
+} // namespace deluge::dsp::oscillators

@@ -18,7 +18,9 @@
 #include "types.hpp"
 #include <argon.hpp>
 #include <argon/vectorize/load.hpp>
+#include <argon/vectorize/load_interleaved.hpp>
 #include <argon/vectorize/store.hpp>
+#include <argon/vectorize/store_interleaved.hpp>
 
 namespace deluge::dsp {
 
@@ -60,7 +62,7 @@ struct Processor : public SampleProcessor<T>, BlockProcessor<T> {
 	/// @param output The output buffer to fill with processed samples.
 	void renderBlock(Signal<T> input, Buffer<T> output) final {
 		for (size_t i = 0; i < input.size(); ++i) {
-			output[i] = render(input[i]); // Call the process function for each sample
+			output[i] = this->render(input[i]); // Call the process function for each sample
 		}
 	}
 };
@@ -79,7 +81,26 @@ struct Processor<Argon<T>> : SampleProcessor<Argon<T>>, BlockProcessor<T> {
 		auto input_it = input_view.begin();
 		auto output_it = output_view.begin();
 		for (; input_it != input_view.end(); ++input_it, ++output_it) {
-			*output_it = render(*input_it);
+			*output_it = this->render(*input_it);
+		}
+	};
+};
+
+/// @brief A base class for processors that are able to process a vector of samples using SIMD operations.
+/// @tparam T The type of the samples to process.
+template <>
+struct Processor<Argon<q31_t>> : SampleProcessor<Argon<q31_t>>, BlockProcessor<fixed_point::Sample> {
+	/// @brief Process a block of samples by calling render() for each sample.
+	/// @param input The input buffer of samples to process.
+	/// @param output The output buffer to fill with processed samples.
+	void renderBlock(fixed_point::Signal input, fixed_point::Buffer output) final {
+		auto input_view = argon::vectorize::load(reinterpret_cast<std::span<const q31_t>&>(input));
+		auto output_view = argon::vectorize::store(reinterpret_cast<std::span<q31_t>&>(output));
+
+		auto input_it = input_view.begin();
+		auto output_it = output_view.begin();
+		for (; input_it != input_view.end(); ++input_it, ++output_it) {
+			*output_it = this->render(*input_it);
 		}
 	};
 };
@@ -92,15 +113,36 @@ struct Processor<StereoSample<Argon<T>>> : SampleProcessor<StereoSample<Argon<T>
 	/// @param input The input buffer of samples to process.
 	/// @param output The output buffer to fill with processed samples.
 	void renderBlock(StereoSignal<T> input, StereoBuffer<T> output) final {
-		auto input_view = argon::vectorize::load(input);
-		auto output_view = argon::vectorize::store(output);
+		auto input_view = argon::vectorize::load_interleaved<q31_t, 2>(input);
+		auto output_view = argon::vectorize::store_interleaved<q31_t, 2>(output);
 
 		auto input_it = input_view.begin();
 		auto output_it = output_view.begin();
 		for (; input_it != input_view.end() && output_it != output_view.end(); ++input_it, ++output_it) {
-			auto [left, right] = Argon<T>::LoadInterleaved<2>(&*input_it);
-			auto [left_out, right_out] = render({left, right});
-			argon::store_interleaved<2>(&*output_it, left_out, right_out);
+			auto [left_in, right_in] = *input_it;
+			*output_it = this->render({left_in, right_in});
+		}
+	};
+};
+
+/// @brief A base class for processors that process stereo samples using SIMD operations.
+/// @tparam T The type of the samples to process.
+template <>
+struct Processor<StereoSample<Argon<q31_t>>> : SampleProcessor<StereoSample<Argon<q31_t>>>,
+                                               BlockProcessor<fixed_point::StereoSample> {
+	/// @brief Process a block of samples by calling render() for each sample.
+	/// @param input The input buffer of samples to process.
+	/// @param output The output buffer to fill with processed samples.
+	void renderBlock(fixed_point::StereoSignal input, fixed_point::StereoBuffer output) final {
+		auto input_view =
+		    argon::vectorize::load_interleaved<q31_t, 2>(reinterpret_cast<std::span<const q31_t>&>(input));
+		auto output_view = argon::vectorize::store_interleaved<q31_t, 2>(reinterpret_cast<std::span<q31_t>&>(output));
+
+		auto input_it = input_view.begin();
+		auto output_it = output_view.begin();
+		for (; input_it != input_view.end() && output_it != output_view.end(); ++input_it, ++output_it) {
+			auto [left_in, right_in] = *input_it;
+			*output_it = this->render({left_in, right_in});
 		}
 	};
 };

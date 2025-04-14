@@ -12,7 +12,7 @@ public:
 	enum class Mode { APPROX, EXACT };
 
 	template <Mode mode = Mode::APPROX>
-	constexpr DualCosineOscillator(std::array<float, 2> frequencies) : frequencies_(frequencies) {
+	constexpr DualCosineOscillator(float freq_a, float freq_b) : frequencies_{freq_a, freq_b} {
 		Init<mode>();
 	}
 	~DualCosineOscillator() = default;

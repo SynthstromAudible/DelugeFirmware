@@ -52,7 +52,8 @@ private:
 		Argon<uint32_t> indices = (phase >> (32 - kSineTableSizeMagnitude)) << 1;
 
 		//  load our two relevent table components
-		auto [sine, diff] = ArgonHalf<int16_t>::LoadGatherInterleaved<2>(sineWaveDiff.data(), indices);
+		auto [sine, diff] =
+		    ArgonHalf<int16_t>::LoadGatherOffsetIndexInterleaved<2>(sineWaveDiff.data(), indices.Narrow() / 2);
 
 		// Essentially a MultiplyAddFixedPoint, but without the reduction back down to q31
 		return sine.ShiftLeftLong<16>().MultiplyDoubleAddSaturateLong(diff, strength2);

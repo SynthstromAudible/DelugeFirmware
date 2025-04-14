@@ -21,6 +21,7 @@
 #include <cmath>
 #include <compare>
 #include <concepts>
+#include <cstdint>
 #include <limits>
 #include <numbers>
 
@@ -125,13 +126,13 @@ public:
 	/// @brief Convert from a float to a fixed point number
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	[[gnu::always_inline]] constexpr FixedPoint(float value) noexcept {
-#if __ARM_ARCH_7A__ && !defined(__clang__)
 		if !consteval {
-			asm("vcvt.s32.f32 %0, %1, %2" : "=t"(value) : "t"(value), "I"(fractional_bits));
-			value_ = std::bit_cast<int32_t>(value); // NOLINT
-			return;
+			if constexpr (ARMv7a && !kCompilerClang) {
+				asm("vcvt.s32.f32 %0, %1, %2" : "=t"(value) : "t"(value), "I"(fractional_bits));
+				value_ = std::bit_cast<int32_t>(value); // NOLINT
+				return;
+			}
 		}
-#endif
 
 		value *= static_cast<double>(FixedPoint::one());
 		// convert from floating-point to fixed point
@@ -156,13 +157,13 @@ public:
 	/// @brief Explicit conversion to float
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	[[gnu::always_inline]] [[nodiscard]] constexpr float to_float() const noexcept {
-#if __ARM_ARCH_7A__ && !defined(__clang__)
 		if !consteval {
-			int32_t output = value_;
-			asm("vcvt.f32.s32 %0, %1, %2" : "=t"(output) : "t"(output), "I"(fractional_bits));
-			return std::bit_cast<float>(output);
+			if constexpr (ARMv7a && !kCompilerClang) {
+				int32_t output = value_;
+				asm("vcvt.f32.s32 %0, %1, %2" : "=t"(output) : "t"(output), "I"(fractional_bits));
+				return std::bit_cast<float>(output);
+			}
 		}
-#endif
 
 		return static_cast<float>(value_) / FixedPoint::one();
 	}
@@ -170,14 +171,10 @@ public:
 	/// @brief Convert from a double to a fixed point number
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	[[gnu::always_inline]] constexpr FixedPoint(double value) noexcept {
-#if __ARM_ARCH_7A__ && !defined(__clang__)
-		if !consteval {
-			auto output = std::bit_cast<int64_t>(value);
-			asm("vcvt.s32.f64 %0, %1, %2" : "=w"(output) : "w"(output), "I"(fractional_bits));
-			value_ = static_cast<BaseType>(output);
-			return;
-		}
-#endif
+		// No DSP instruction for fixed-point <-> F64 conversion.
+		// See:
+		// https://developer.arm.com/documentation/dui0802/b/Advanced-SIMD-and-Floating-point-Programming--32-bit-/VCVT--between-fixed-point-or-integer--and-floating-point-
+
 		value *= static_cast<double>(FixedPoint::one());
 		// convert from floating-point to fixed point
 		if constexpr (rounded) {
@@ -192,14 +189,6 @@ public:
 	/// @brief Explicit conversion to double
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	[[gnu::always_inline]] explicit constexpr operator double() const noexcept {
-#if __ARM_ARCH_7A__ && !defined(__clang__)
-		if !consteval {
-			auto output = std::bit_cast<double>((int64_t)value_);
-			asm("vcvt.f64.s32 %0, %1, %2" : "=w"(output) : "w"(output), "I"(fractional_bits));
-			return output;
-		}
-#endif
-
 		return static_cast<double>(value_) / FixedPoint::one();
 	}
 
@@ -422,6 +411,15 @@ public:
 		int fractional_value = value_ & ((1 << fractional_bits) - 1);              // Mask out the integral part
 		int other_fractional_value = rhs.raw() & ((1 << OtherFractionalBits) - 1); // Mask out the integral parts
 
+		if constexpr (rounded) {
+			if (fractional_bits > OtherFractionalBits) {
+				fractional_value += (1 << (fractional_bits - OtherFractionalBits)) - 1;
+			}
+			else {
+				other_fractional_value += (1 << (OtherFractionalBits - fractional_bits)) - 1;
+			}
+		}
+
 		// Shift the fractional part if the number of fractional bits is different
 		if constexpr (fractional_bits > OtherFractionalBits) {
 			fractional_value >>= fractional_bits - OtherFractionalBits;
@@ -441,6 +439,15 @@ public:
 		int other_integral_value = rhs.raw() >> OtherFractionalBits;
 		int fractional_value = value_ & ((1 << fractional_bits) - 1);              // Mask out the integral part
 		int other_fractional_value = rhs.raw() & ((1 << OtherFractionalBits) - 1); // Mask out the integral part
+
+		if constexpr (rounded) {
+			if (fractional_bits > OtherFractionalBits) {
+				fractional_value += (1 << (fractional_bits - OtherFractionalBits)) - 1;
+			}
+			else {
+				other_fractional_value += (1 << (OtherFractionalBits - fractional_bits)) - 1;
+			}
+		}
 
 		// Shift the fractional part if the number of fractional bits is different
 		if (fractional_bits > OtherFractionalBits) {
@@ -549,7 +556,7 @@ constexpr int32_t ONE_Q31 = FixedPoint<31>{1.f}.raw();
 constexpr float ONE_Q31f = static_cast<float>(ONE_Q31);
 constexpr int32_t ONE_Q16 = FixedPoint<16>{1.f}.raw() - 1;
 constexpr int32_t NEGATIVE_ONE_Q31 = FixedPoint<31>{-1.f}.raw();
-constexpr int32_t ONE_OVER_SQRT2_Q31 = FixedPoint<31>{1 / std::numbers::sqrt2}.raw();
+constexpr int32_t ONE_OVER_SQRT2_Q31 = FixedPoint<31>{1.0 / std::numbers::sqrt2}.raw();
 #endif
 
 static_assert(ONE_Q31 == std::numeric_limits<int32_t>::max());

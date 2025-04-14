@@ -15,24 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "util/fixedpoint.h"
 #include "util/misc.h"
 #include <argon.hpp>
+#include <cstdint>
 #include <limits>
 #include <utility>
-
-// Renders 4 wave values (a "vector") together in one go.
-[[gnu::always_inline]] static inline std::pair<Argon<int32_t>, uint32_t> //<
-waveRenderingFunctionGeneral(uint32_t phase, int32_t phaseIncrement, uint32_t _phaseToAdd, const int16_t* table,
-                             int32_t tableSizeMagnitude) {
-	Argon<uint32_t> phaseVector = Argon<uint32_t>{phase}.MultiplyAdd(Argon<uint32_t>{1U, 2U, 3U, 4U}, phaseIncrement);
-	Argon<uint32_t> indices = phaseVector >> (32 - tableSizeMagnitude);
-	ArgonHalf<uint16_t> strength2 = indices.ShiftRightNarrow<16>() >> 1;
-	auto [value1, value2] = ArgonHalf<int16_t>::LoadGatherInterleaved<2>(table, indices);
-
-	// this is a standard linear interpolation of a + (b - a) * fractional
-	auto output = value1.ShiftLeftLong<16>().MultiplyDoubleAddSaturateLong(value2 - value1, strength2.As<int16_t>());
-	return {output, phase + phaseIncrement * 4};
-}
 
 // Renders 4 wave values (a "vector") together in one go - special case for pulse waves with variable width.
 [[gnu::always_inline]] static inline std::pair<Argon<int32_t>, uint32_t> //<

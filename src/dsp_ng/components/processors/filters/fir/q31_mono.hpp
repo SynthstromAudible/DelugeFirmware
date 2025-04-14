@@ -124,7 +124,7 @@ public:
 			}
 
 			/* The result is stored in the destination buffer. */
-			argon::store(&output[idx], std::array{accv0, accv1});
+			argon::store(&output[idx], accv0, accv1);
 		}
 
 		/* Tail */

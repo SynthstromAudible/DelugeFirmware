@@ -16,7 +16,7 @@
  */
 #include "triangle.hpp"
 
-using namespace deluge::dsp::oscillator;
+using namespace deluge::dsp::oscillators;
 
 // 64-value
 std::array<int16_t, 65> triangleWaveAntiAliasing1 = {

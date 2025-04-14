@@ -88,7 +88,7 @@ public:
 
 	Envelope envelope;
 
-	int32_t amplitudeLastTime;
+	int32_t amplitudeLastTime; // Q31
 
 	int32_t overrideAmplitudeEnvelopeReleaseRate;
 

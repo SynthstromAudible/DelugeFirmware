@@ -19,6 +19,7 @@
 #include "dsp_ng/core/generator.hpp"
 #include "dsp_ng/core/processor.hpp"
 #include "dsp_ng/core/util.hpp"
+#include <argon.hpp>
 #include <tuple>
 #include <type_traits>
 

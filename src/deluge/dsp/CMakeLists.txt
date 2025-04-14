@@ -1,5 +1,5 @@
 
-file (GLOB_RECURSE deluge_dsp_SOURCES
+file(GLOB_RECURSE deluge_dsp_SOURCES
   CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_LIST_DIR}/*.c
   ${CMAKE_CURRENT_LIST_DIR}/*.cpp
@@ -38,7 +38,7 @@ target_link_libraries(deluge_dsp PRIVATE
     eyalroz_printf
     etl::etl
     argon
-    etl::etl
+    deluge_dsp_ng
 )
 
 target_compile_definitions(deluge_dsp PUBLIC

@@ -21,7 +21,7 @@
 #include "dsp_ng/core/processor.hpp"
 #include "dsp_ng/core/types.hpp"
 
-namespace deluge::dsp::processor {
+namespace deluge::dsp::processors {
 
 template <typename T>
 struct Gain {
@@ -68,9 +68,7 @@ struct GainProcessor<fixed_point::Sample> final : Gain<FixedPoint<31>>,
 	/// @brief Process a vector of samples and apply the gain.
 	/// @param input The input vector of samples to process.
 	/// @return The processed vector of samples with gain applied.
-	[[gnu::always_inline]] Argon<q31_t> render(Argon<q31_t> input) final {
-		return input.MultiplyFixedPoint(gain.raw());
-	}
+	[[gnu::always_inline]] Argon<q31_t> render(Argon<q31_t> input) final { return input.MultiplyQMax(gain.raw()); }
 };
 
 /// @brief Combines a Gain processor with a Unity Mixer to create a GainMixer.
@@ -84,14 +82,14 @@ struct GainMixer final : Gain<T>, Mixer<Argon<T>>, Mixer<T> {
 	/// @param input_a The first input sample to mix (adjustable gain).
 	/// @param input_b The second input sample to mix (unity gain).
 	/// @return The mixed sample.
-	[[gnu::always_inline]] T render(T input_a, T input_b) final { return (GainProcessor<T>::gain * input_a) + input_b; }
+	[[gnu::always_inline]] T render(T input_a, T input_b) final { return (this->gain * input_a) + input_b; }
 
 	/// @brief Mix a vector of samples from two inputs into an output, treating the second input as a unity gain.
 	/// @param input_a The first input sample to mix (adjustable gain).
 	/// @param input_b The second input sample to mix (unity gain).
 	/// @return The mixed sample.
 	[[gnu::always_inline]] Argon<T> render(Argon<T> input_a, Argon<T> input_b) final {
-		return (GainProcessor<T>::gain * input_a) + input_b;
+		return (this->gain * input_a) + input_b;
 	}
 };
 
@@ -115,24 +113,22 @@ struct GainMixer<fixed_point::Sample> final : Gain<FixedPoint<31>>, Mixer<Argon<
 	/// @param input_b The second input sample to mix (unity gain).
 	/// @return The mixed sample.
 	[[gnu::always_inline]] Argon<q31_t> render(Argon<q31_t> input_a, Argon<q31_t> input_b) final {
-		return input_b.MultiplyAddFixedPoint(input_a, gain.raw());
+		return input_b.MultiplyAddQMax(input_a, gain.raw());
 	}
 };
 
 /// @brief GainMixerProcessor is a processor that mixes input samples with a unity-gain input buffer.
 template <typename T>
 struct GainMixerProcessor final : Processor<Argon<T>>, Processor<T> {
-	GainMixer<T> gain_mixer;                     ///< The GainMixer instance to apply gain and mix samples
-	std::span<T>::iterator unity_input_iterator; ///< Iterator for the unity-input buffer
+	GainMixer<T> gain_mixer;                  ///< The GainMixer instance to apply gain and mix samples
+	Signal<T>::iterator unity_input_iterator; ///< Iterator for the unity-input buffer
 
 	/// @brief Constructor for GainMixerProcessor.
 	/// @param unity_input A span of input samples to mix with (unity gain).
 	/// @details The iterator is initialized to the beginning of the unity input span.
-	GainMixerProcessor(T gain, std::span<T> unity_input)
-	    : gain_mixer{gain}, unity_input_iterator{unity_input.begin()} {}
-
-	GainMixerProcessor(FixedPoint<31> gain, std::span<T> unity_input)
-	    : gain_mixer{gain}, unity_input_iterator{unity_input.begin()} {}
+	GainMixerProcessor(T gain, Signal<T> unity_input) : gain_mixer{gain}, unity_input_iterator{unity_input.begin()} {}
+	GainMixerProcessor(T gain, Buffer<T> unity_input)
+	    : gain_mixer{gain}, unity_input_iterator{static_cast<Signal<T>>(unity_input).begin()} {}
 
 	/// @brief Render a block of samples by mixing the input with the unity-input buffer.
 	/// @param input The input samples to render.
@@ -149,5 +145,36 @@ struct GainMixerProcessor final : Processor<Argon<T>>, Processor<T> {
 	[[gnu::always_inline]] T render(T input) final { return gain_mixer.render(input, *unity_input_iterator++); }
 };
 
-GainMixerProcessor(FixedPoint<31>, fixed_point::Buffer) -> GainMixerProcessor<fixed_point::Sample>;
-} // namespace deluge::dsp::processor
+/// @brief GainMixerProcessor is a processor that mixes input samples with a unity-gain input buffer.
+template <>
+struct GainMixerProcessor<FixedPoint<31>> final : Processor<Argon<q31_t>>, Processor<fixed_point::Sample> {
+	GainMixer<FixedPoint<31>> gain_mixer;               ///< The GainMixer instance to apply gain and mix samples
+	fixed_point::Signal::iterator unity_input_iterator; ///< Iterator for the unity-input buffer
+
+	/// @brief Constructor for GainMixerProcessor.
+	/// @param unity_input A span of input samples to mix with (unity gain).
+	/// @details The iterator is initialized to the beginning of the unity input span.
+	GainMixerProcessor(FixedPoint<31> gain, fixed_point::Signal unity_input)
+	    : gain_mixer{gain}, unity_input_iterator{unity_input.begin()} {}
+
+	GainMixerProcessor(FixedPoint<31> gain, fixed_point::Buffer unity_input)
+	    : gain_mixer{gain}, unity_input_iterator{static_cast<fixed_point::Signal>(unity_input).begin()} {}
+
+	/// @brief Render a block of samples by mixing the input with the unity-input buffer.
+	/// @param input The input samples to render.
+	/// @return The mixed output samples.
+	[[gnu::always_inline]] Argon<q31_t> render(Argon<q31_t> input) final {
+		auto output = gain_mixer.render(input, Argon<q31_t>::Load((q31_t*)&*unity_input_iterator));
+		std::advance(unity_input_iterator, Argon<q31_t>::lanes); ///< Advance the iterator for the next call
+		return output;
+	}
+
+	/// @brief Render a single sample by mixing it with the current unity-input sample.
+	/// @param input The input sample to render.
+	/// @return The mixed output sample.
+	[[gnu::always_inline]] fixed_point::Sample render(fixed_point::Sample input) final {
+		return gain_mixer.render(input, *unity_input_iterator++);
+	}
+};
+
+} // namespace deluge::dsp::processors

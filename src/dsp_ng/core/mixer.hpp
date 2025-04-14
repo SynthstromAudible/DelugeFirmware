@@ -33,7 +33,7 @@ struct BlockMixer {
 	/// @brief Mix a block of samples from two input buffers into an output buffer.
 	/// @param inputs A span of input buffers to mix.
 	/// @param output The output buffer to fill with the mixed samples.
-	virtual void renderBlock(Buffer<T> input_a, Buffer<T> input_b, Buffer<T> output) = 0;
+	virtual void renderBlock(Signal<T> input_a, Signal<T> input_b, Buffer<T> output) = 0;
 };
 
 /// @brief A base class for mixers that process a single sample.
@@ -60,9 +60,9 @@ struct Mixer : SampleMixer<T>, BlockMixer<T> {
 	/// @brief Mix a block of samples from two input buffers into an output buffer.
 	/// @param inputs A span of input buffers to mix.
 	/// @param output The output buffer to fill with the mixed samples.
-	void renderBlock(Buffer<T> input_a, Buffer<T> input_b, Buffer<T> output) final {
+	void renderBlock(Signal<T> input_a, Signal<T> input_b, Buffer<T> output) final {
 		for (size_t i = 0; i < std::min(input_a.size(), std::min(input_b.size(), output.size())); ++i) {
-			output[i] = render(input_a[i], input_b[i]);
+			output[i] = this->render(input_a[i], input_b[i]);
 		}
 	}
 };
@@ -87,7 +87,7 @@ struct Mixer<Argon<T>> : SampleMixer<Argon<T>>, BlockMixer<T> {
 
 		for (; a_it != input_a_view.end() && b_it != input_b_view.end() && output_it != output_view.end();
 		     ++a_it, ++b_it, ++output_it) {
-			*output_it = render(*a_it, *b_it);
+			*output_it = this->render(*a_it, *b_it);
 		}
 	}
 };

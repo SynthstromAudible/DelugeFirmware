@@ -55,8 +55,10 @@ struct StereoSample {
 	StereoSample operator+(const StereoSample& other) const { return {l + other.l, r + other.r}; }
 	StereoSample operator-(const StereoSample& other) const { return {l - other.l, r - other.r}; }
 	StereoSample operator*(T scalar) const { return {l * scalar, r * scalar}; }
-};
 
+	[[nodiscard]] operator std::pair<T, T>() const { return {l, r}; }
+	[[nodiscard]] operator std::array<T, 2>() const { return {l, r}; }
+};
 template <typename T>
 using StereoBuffer = Buffer<StereoSample<T>>;
 

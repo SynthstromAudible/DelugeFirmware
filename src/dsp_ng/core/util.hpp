@@ -21,13 +21,13 @@ namespace deluge::dsp::util {
 
 /// @brief Dereference a pointer or reference.
 template <typename T>
-[[gnu::always_inline]] T& dereference(T* ptr) {
+[[gnu::always_inline]] inline T& dereference(T* ptr) {
 	return *ptr;
 }
 
 /// @copydoc dereference
 template <typename T>
-[[gnu::always_inline]] T& dereference(T& ref) {
+[[gnu::always_inline]] inline T& dereference(T& ref) {
 	return ref;
 }
 } // namespace deluge::dsp::util

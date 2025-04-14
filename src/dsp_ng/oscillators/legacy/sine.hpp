@@ -16,21 +16,11 @@
  */
 
 #pragma once
-
-#include "dsp_ng/core/types.hpp"
-#include "oscillator.hpp"
-#include <arm_neon.h>
-#include <limits>
+#include "deluge/util/lookuptables/lookuptables.h"
+#include "table_oscillator.hpp"
 
 namespace deluge::dsp::oscillators {
-struct SimplePulseOscillator final : PWMOscillator, LegacyOscillator {
-	SimplePulseOscillator() = default;
-
-	Argon<q31_t> render() final {
-		auto output = argon::ternary(LegacyOscillator::advance() < getPulseWidth(), // If phase is less than pulse width
-		                             std::numeric_limits<int32_t>::max(),           // Output max value
-		                             std::numeric_limits<int32_t>::min());          // Output min value
-		return output;
-	}
+struct Sine : TableOscillator {
+	Sine() : TableOscillator(sineWaveSmall) {}
 };
 } // namespace deluge::dsp::oscillators

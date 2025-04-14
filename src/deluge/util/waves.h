@@ -27,7 +27,7 @@ extern uint32_t z, w, jcong;
 }
 
 [[gnu::always_inline]] inline int32_t getSine(uint32_t phase, uint8_t numBitsInInput = 32) {
-	return interpolateTableSigned(phase, numBitsInInput, sineWaveSmall, 8);
+	return interpolateTableSigned(phase, numBitsInInput, sineWaveSmall.data(), 8);
 }
 
 [[gnu::always_inline]] inline int32_t getSquare(uint32_t phase, uint32_t phaseWidth = 2147483648u) {
@@ -44,10 +44,12 @@ extern uint32_t z, w, jcong;
     phase *= multiplier;
  */
 
+/// @returns the triangle wave value at the given phase, in the range [-1, 1] for Q30
 [[gnu::always_inline]] inline int32_t getTriangleSmall(uint32_t phase) {
-	if (phase >= 2147483648u)
+	if (phase >= 2147483648u) {
 		phase = -phase;
-	return phase - 1073741824;
+	}
+	return static_cast<int32_t>(phase - 1073741824);
 }
 
 [[gnu::always_inline]] inline int32_t getTriangle(uint32_t phase) {

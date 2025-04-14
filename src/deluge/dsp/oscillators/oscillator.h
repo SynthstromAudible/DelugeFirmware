@@ -15,21 +15,74 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-
+#include "dsp_ng/core/types.hpp"
 #include "storage/wave_table/wave_table.h"
+#include <cstdint>
+#include <span>
 namespace deluge::dsp {
 
-class Oscillator {
-	static void maybeStorePhase(const OscType& type, uint32_t* startPhase, uint32_t phase, bool doPulseWave);
-	static void applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamples, int32_t amplitudeIncrement,
-	                                         int32_t* outputBufferPos, int32_t* inputBuferPos);
+template <typename T>
+struct PhasorPair {
+	T phase;
+	T phase_increment;
+};
 
+class Oscillator {
 public:
-	static void renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
-	                      uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
-	                      int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
-	                      uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
-	                      int sourceWaveIndexLastTime, WaveTable* waveTable);
+	static uint32_t renderOsc(OscType type, bool do_osc_sync, std::span<int32_t> buffer, PhasorPair<uint32_t> osc,
+	                          uint32_t pulse_width, bool apply_amplitude, PhasorPair<FixedPoint<30>> amplitude,
+	                          PhasorPair<uint32_t> resetter, uint32_t retrigger_phase, int32_t wave_index_increment,
+	                          int source_wave_index_last_time, WaveTable* wave_table);
+
+	// Non-synced rendering
+	static void renderSine(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, bool apply_amplitude,
+	                       PhasorPair<FixedPoint<30>> amplitude);
+	static void renderTriangle(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, bool apply_amplitude,
+	                           PhasorPair<FixedPoint<30>> amplitude);
+	static void renderSquare(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, bool apply_amplitude,
+	                         PhasorPair<FixedPoint<30>> amplitude);
+	static void renderPWM(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, uint32_t pulse_width,
+	                      bool apply_amplitude, PhasorPair<FixedPoint<30>> amplitude);
+	static void renderSaw(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, bool apply_amplitude,
+	                      PhasorPair<FixedPoint<30>> amplitude);
+	static void renderAnalogSaw2(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, bool apply_amplitude,
+	                             PhasorPair<FixedPoint<30>> amplitude);
+	static void renderAnalogSquare(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, bool apply_amplitude,
+	                               PhasorPair<FixedPoint<30>> amplitude);
+	static void renderAnalogPWM(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, uint32_t pulse_width,
+	                            bool apply_amplitude, PhasorPair<FixedPoint<30>> amplitude, uint32_t retrigger_phase);
+	// Synced rendering
+	static uint32_t renderSineSync(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, bool apply_amplitude,
+	                               PhasorPair<FixedPoint<30>> amplitude, PhasorPair<uint32_t> resetter,
+	                               uint32_t retrigger_phase);
+	static uint32_t renderTriangleSync(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, bool apply_amplitude,
+	                                   PhasorPair<FixedPoint<30>> amplitude, PhasorPair<uint32_t> resetter,
+	                                   uint32_t retrigger_phase);
+	static uint32_t renderSquareSync(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, bool apply_amplitude,
+	                                 PhasorPair<FixedPoint<30>> amplitude, PhasorPair<uint32_t> resetter,
+	                                 uint32_t retrigger_phase);
+	static uint32_t renderPWMSync(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, uint32_t pulse_width,
+	                              bool apply_amplitude, PhasorPair<FixedPoint<30>> amplitude,
+	                              PhasorPair<uint32_t> resetter, uint32_t retrigger_phase);
+	static uint32_t renderSawSync(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, bool apply_amplitude,
+	                              PhasorPair<FixedPoint<30>> amplitude, PhasorPair<uint32_t> resetter,
+	                              uint32_t retrigger_phase);
+	static uint32_t renderAnalogSaw2Sync(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, bool apply_amplitude,
+	                                     PhasorPair<FixedPoint<30>> amplitude, PhasorPair<uint32_t> resetter,
+	                                     uint32_t retrigger_phase);
+	static uint32_t renderAnalogSquareSync(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, bool apply_amplitude,
+	                                       PhasorPair<FixedPoint<30>> amplitude, PhasorPair<uint32_t> resetter,
+	                                       uint32_t retrigger_phase);
+
+	static uint32_t renderAnalogPWMSync(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, uint32_t pulse_width,
+	                                    bool apply_amplitude, PhasorPair<FixedPoint<30>> amplitude,
+	                                    PhasorPair<uint32_t> resetter, uint32_t retrigger_phase);
+
+	static uint32_t renderWavetable(fixed_point::Buffer buffer, PhasorPair<uint32_t> osc, bool apply_amplitude,
+	                                PhasorPair<FixedPoint<30>> amplitude, bool do_osc_sync,
+	                                PhasorPair<uint32_t> resetter, uint32_t retrigger_phase,
+	                                int32_t wave_index_increment, int source_wave_index_last_time,
+	                                WaveTable* wave_table);
 };
 
 } // namespace deluge::dsp
