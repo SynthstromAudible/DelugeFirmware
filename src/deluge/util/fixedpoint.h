@@ -22,8 +22,10 @@
 #include <compare>
 #include <concepts>
 #include <limits>
+#include <numbers>
 
 using q31_t = int32_t;
+using q63_t = int64_t;
 
 template <size_t bit, typename T>
 requires(bit > 0 && bit < 32)
@@ -123,24 +125,23 @@ public:
 	/// @brief Convert from a float to a fixed point number
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	[[gnu::always_inline]] constexpr FixedPoint(float value) noexcept {
+#if __ARM_ARCH_7A__ && !defined(__clang__)
 		if !consteval {
-			if constexpr (ARMv7a && !kCompilerClang) {
-				asm("vcvt.s32.f32 %0, %1, %2" : "=t"(value) : "t"(value), "I"(fractional_bits));
-				value_ = std::bit_cast<int32_t>(value); // NOLINT
-			}
+			asm("vcvt.s32.f32 %0, %1, %2" : "=t"(value) : "t"(value), "I"(fractional_bits));
+			value_ = std::bit_cast<int32_t>(value); // NOLINT
+			return;
 		}
-		else {
-			value *= static_cast<double>(FixedPoint::one());
-			// convert from floating-point to fixed point
-			if constexpr (rounded) {
-				value = std::round(value);
-			}
+#endif
 
-			// saturate
-			value_ = static_cast<BaseType>(std::clamp<int64_t>(static_cast<int64_t>(value),
-			                                                   std::numeric_limits<BaseType>::min(),
-			                                                   std::numeric_limits<BaseType>::max()));
+		value *= static_cast<double>(FixedPoint::one());
+		// convert from floating-point to fixed point
+		if constexpr (rounded) {
+			value = std::round(value);
 		}
+
+		// saturate
+		value_ = static_cast<BaseType>(std::clamp<int64_t>(
+		    static_cast<int64_t>(value), std::numeric_limits<BaseType>::min(), std::numeric_limits<BaseType>::max()));
 	}
 
 	template <std::size_t OtherFractionalBits, bool OtherRounded = Rounded, bool OtherApproximating = FastApproximation>
@@ -155,13 +156,13 @@ public:
 	/// @brief Explicit conversion to float
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	[[gnu::always_inline]] [[nodiscard]] constexpr float to_float() const noexcept {
+#if __ARM_ARCH_7A__ && !defined(__clang__)
 		if !consteval {
-			if constexpr (ARMv7a && !kCompilerClang) {
-				int32_t output = value_;
-				asm("vcvt.f32.s32 %0, %1, %2" : "=t"(output) : "t"(output), "I"(fractional_bits));
-				return std::bit_cast<float>(output);
-			}
+			int32_t output = value_;
+			asm("vcvt.f32.s32 %0, %1, %2" : "=t"(output) : "t"(output), "I"(fractional_bits));
+			return std::bit_cast<float>(output);
 		}
+#endif
 
 		return static_cast<float>(value_) / FixedPoint::one();
 	}
@@ -169,42 +170,37 @@ public:
 	/// @brief Convert from a double to a fixed point number
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	[[gnu::always_inline]] constexpr FixedPoint(double value) noexcept {
-
+#if __ARM_ARCH_7A__ && !defined(__clang__)
 		if !consteval {
-			if constexpr (ARMv7a && !kCompilerClang) {
-				auto output = std::bit_cast<int64_t>(value);
-				asm("vcvt.s32.f64 %0, %1, %2" : "=w"(output) : "w"(output), "I"(fractional_bits));
-				value_ = static_cast<BaseType>(output);
-			}
+			auto output = std::bit_cast<int64_t>(value);
+			asm("vcvt.s32.f64 %0, %1, %2" : "=w"(output) : "w"(output), "I"(fractional_bits));
+			value_ = static_cast<BaseType>(output);
+			return;
 		}
-		else {
-			value *= static_cast<double>(FixedPoint::one());
-			// convert from floating-point to fixed point
-			if constexpr (rounded) {
-				value = std::round(value);
-			}
+#endif
+		value *= static_cast<double>(FixedPoint::one());
+		// convert from floating-point to fixed point
+		if constexpr (rounded) {
+			value = std::round(value);
+		}
 
-			// saturate
-			value_ = static_cast<BaseType>(std::clamp<int64_t>(static_cast<int64_t>(value),
-			                                                   std::numeric_limits<BaseType>::min(),
-			                                                   std::numeric_limits<BaseType>::max()));
-		}
+		// saturate
+		value_ = static_cast<BaseType>(std::clamp<int64_t>(
+		    static_cast<int64_t>(value), std::numeric_limits<BaseType>::min(), std::numeric_limits<BaseType>::max()));
 	}
 
 	/// @brief Explicit conversion to double
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	[[gnu::always_inline]] explicit constexpr operator double() const noexcept {
-
+#if __ARM_ARCH_7A__ && !defined(__clang__)
 		if !consteval {
-			if constexpr (ARMv7a) {
-				auto output = std::bit_cast<double>((int64_t)value_);
-				asm("vcvt.f64.s32 %0, %1, %2" : "=w"(output) : "w"(output), "I"(fractional_bits));
-				return output;
-			}
+			auto output = std::bit_cast<double>((int64_t)value_);
+			asm("vcvt.f64.s32 %0, %1, %2" : "=w"(output) : "w"(output), "I"(fractional_bits));
+			return output;
 		}
-		else {
-			return static_cast<double>(value_) / FixedPoint::one();
-		}
+#endif
+
+		return static_cast<double>(value_) / FixedPoint::one();
 	}
 
 	/// @brief Convert to a fixed point number with a different number of fractional bits
@@ -540,11 +536,12 @@ constexpr FixedPoint<FractionalBits, Rounded, FastApproximation>
 operator*(const T& lhs, const FixedPoint<FractionalBits, Rounded, FastApproximation>& rhs) {
 	return rhs * lhs;
 }
+
 /// Clang currently doesn't have constexpr std::round
 #ifdef __clang__
 constexpr int32_t ONE_Q31 = std::numeric_limits<int32_t>::max();
 constexpr float ONE_Q31f = static_cast<float>(ONE_Q31);
-constexpr int32_t ONE_Q16 = std::numeric_limits<int16_t>::max();
+constexpr int32_t ONE_Q16 = std::numeric_limits<uint16_t>::max();
 constexpr int32_t NEGATIVE_ONE_Q31 = std::numeric_limits<int32_t>::min();
 constexpr int32_t ONE_OVER_SQRT2_Q31 = ONE_Q31 / std::numbers::sqrt2;
 #else

@@ -24,14 +24,21 @@ set_target_properties(deluge_dsp
         CXX_STANDARD ${DELUGE_CXX_STANDARD}
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS ON
-        UNITY_BUILD true
+        UNITY_BUILD ON
 )
+
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+  set_target_properties(deluge_dsp PROPERTIES 
+    UNITY_BUILD OFF
+  )
+endif()
 
 target_link_libraries(deluge_dsp PRIVATE
     NE10
     eyalroz_printf
     etl::etl
     argon
+    etl::etl
 )
 
 target_compile_definitions(deluge_dsp PUBLIC
