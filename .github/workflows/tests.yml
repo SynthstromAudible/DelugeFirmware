@@ -32,7 +32,7 @@ jobs:
         run: cmake --build build
 
       - name: Run CTest
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --output-on-failure --output-junit results/ctest_results.xml
 
       - name: Make results directory
         run: mkdir -p build/results
