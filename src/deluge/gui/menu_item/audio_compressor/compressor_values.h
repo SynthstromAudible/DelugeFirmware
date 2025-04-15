@@ -92,19 +92,16 @@ class Blend final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		auto value = (uint64_t)soundEditor.currentModControllable->compressor.getBlend();
+		auto value = (uint64_t)soundEditor.currentModControllable->compressor.getBlend().raw();
 		this->setValue(value >> 24);
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto value = this->getValue();
 
-		q31_t knobPos;
+		FixedPoint<31> knobPos = 1.f;
 		if (value < kMaxKnobPos) {
-			knobPos = lshiftAndSaturate<24>(value);
-		}
-		else {
-			knobPos = ONE_Q31;
+			knobPos.raw() = lshiftAndSaturate<24>(value);
 		}
 
 		// If affect-entire button held, do whole kit

@@ -16,8 +16,10 @@
  */
 
 #include "dsp/compressor/rms_feedback.h"
+#include "dsp_ng/core/types.hpp"
 #include "util/fixedpoint.h"
-std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> dryBuffer;
+
+std::array<deluge::dsp::fixed_point::StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> dryBuffer;
 
 RMSFeedbackCompressor::RMSFeedbackCompressor() {
 	setAttack(5 << 24);
@@ -25,7 +27,7 @@ RMSFeedbackCompressor::RMSFeedbackCompressor() {
 	setThreshold(0);
 	setRatio(64 << 24);
 	setSidechain(0);
-	setBlend(ONE_Q31);
+	setBlend(1.f);
 	// Default to the maximum useful base gain
 	baseGain_ = 1.35f;
 }
@@ -59,7 +61,7 @@ constexpr uint8_t saturationAmount = 3;
 void RMSFeedbackCompressor::render(std::span<StereoSample> buffer, q31_t volAdjustL, q31_t volAdjustR,
                                    q31_t finalVolume) {
 	// make a copy for blending if we need to
-	if (wet != ONE_Q31) {
+	if (wet != 1.f) {
 		memcpy(dryBuffer.data(), buffer.data(), buffer.size_bytes());
 	}
 
@@ -97,25 +99,22 @@ void RMSFeedbackCompressor::render(std::span<StereoSample> buffer, q31_t volAdju
 	q31_t amplitudeIncrementR = ((int32_t)((finalVolumeR - (currentVolumeR >> 8)) / float(buffer.size()))) << 8;
 
 	auto dry_it = dryBuffer.begin();
-	for (StereoSample& sample : buffer) {
+	for (StereoSample& _sample : buffer) {
+		auto sample = reinterpret_cast<deluge::dsp::fixed_point::StereoSample&>(_sample);
 		currentVolumeL += amplitudeIncrementL;
 		currentVolumeR += amplitudeIncrementR;
 
 		// Need to shift left by 4 because currentVolumeL is a 5.26 signed number rather than a 1.30 signed.
-		sample.l = multiply_32x32_rshift32(sample.l, currentVolumeL) << 4;
-		sample.l = getTanHAntialiased(sample.l, &lastSaturationTanHWorkingValue[0], saturationAmount);
+		sample.l.raw() = multiply_32x32_rshift32(sample.l.raw(), currentVolumeL) << 4;
+		sample.l.raw() = getTanHAntialiased(sample.l.raw(), &lastSaturationTanHWorkingValue[0], saturationAmount);
 
-		sample.r = multiply_32x32_rshift32(sample.r, currentVolumeR) << 4;
-		sample.r = getTanHAntialiased(sample.r, &lastSaturationTanHWorkingValue[1], saturationAmount);
+		sample.r.raw() = multiply_32x32_rshift32(sample.r.raw(), currentVolumeR) << 4;
+		sample.r.raw() = getTanHAntialiased(sample.r.raw(), &lastSaturationTanHWorkingValue[1], saturationAmount);
 		// wet/dry blend
-		if (wet != ONE_Q31) {
-			sample.l = multiply_32x32_rshift32(sample.l, wet);
-			sample.l = multiply_accumulate_32x32_rshift32_rounded(sample.l, dry_it->l, dry);
-			sample.l <<= 1; // correct for the two multiplications
-			// same for r because StereoSample is a dumb class
-			sample.r = multiply_32x32_rshift32(sample.r, wet);
-			sample.r = multiply_accumulate_32x32_rshift32_rounded(sample.r, dry_it->r, dry);
-			sample.r <<= 1;
+		if (wet != 1.f) {
+			// sample = (sample * wet) + (dry_it * dry);
+			sample.l = (sample.l * wet).MultiplyAdd(dry_it->l, dry);
+			sample.r = (sample.r * wet).MultiplyAdd(dry_it->r, dry);
 			++dry_it; // this is a little gross but it's fine
 		}
 	}

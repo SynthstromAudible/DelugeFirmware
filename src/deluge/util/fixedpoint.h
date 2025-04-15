@@ -229,6 +229,7 @@ public:
 
 	/// @brief Get the internal value
 	[[gnu::always_inline]] [[nodiscard]] constexpr BaseType raw() const noexcept { return value_; }
+	[[gnu::always_inline]] constexpr BaseType& raw() noexcept { return value_; }
 
 	/// @brief Construct from a raw value
 	[[gnu::always_inline]] static constexpr FixedPoint from_raw(BaseType raw) noexcept {

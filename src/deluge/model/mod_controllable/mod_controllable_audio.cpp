@@ -473,7 +473,7 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 	writer.writeAttribute("thresh", compressor.getThreshold());
 	writer.writeAttribute("ratio", compressor.getRatio());
 	writer.writeAttribute("compHPF", compressor.getSidechain());
-	writer.writeAttribute("compBlend", compressor.getBlend());
+	writer.writeAttribute("compBlend", compressor.getBlend().raw());
 	writer.closeTag();
 
 	// Stutter
@@ -851,8 +851,7 @@ doReadPatchedParam:
 				reader.exitTag("compHPF");
 			}
 			else if (!strcmp(tagName, "compBlend")) {
-				q31_t masterCompressorBlend = reader.readTagOrAttributeValueInt();
-				compressor.setBlend(masterCompressorBlend);
+				compressor.setBlend(FixedPoint<31>::from_raw(reader.readTagOrAttributeValueInt()));
 				reader.exitTag("compBlend");
 			}
 			else {
