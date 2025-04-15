@@ -227,7 +227,7 @@ describe fixedpoint("FixedPoint", ${
 	});
 
 	context("MultiplyAdd", _ {
-		context("with FixedPoint with the same number of fractional bits", _{
+		context("with FixedPoint with different number of fractional bits", _{
 			it("multiplies and adds another FixedPoint with an integral value", _ {
 				FixedPoint<16> fp1{42};
 				FixedPoint<17> fp2{2};
@@ -245,6 +245,15 @@ describe fixedpoint("FixedPoint", ${
 
 			it("multiplies and adds quickly", _{
 				FixedPoint<30> fp1{0.5f};
+				FixedPoint<31> fp2{0.25f};
+				FixedPoint<31> fp3{0.75f};
+				expect(fp1.MultiplyAdd(fp2, fp3)).to_equal(0.6875f);
+			});
+		});
+		
+		context("with FixedPoint with the same number of fractional bits", _{
+			it("multiplies and adds another FixedPoint with a fractional value", _ {
+				FixedPoint<31> fp1{0.5f};
 				FixedPoint<31> fp2{0.25f};
 				FixedPoint<31> fp3{0.75f};
 				expect(fp1.MultiplyAdd(fp2, fp3)).to_equal(0.6875f);
