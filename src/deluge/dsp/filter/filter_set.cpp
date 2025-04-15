@@ -163,7 +163,7 @@ int32_t FilterSet::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 	}
 	// This changes the overall amplitude so that, with resonance on 50%, the amplitude is the same as it was pre June
 	// 2017
-	filterGain = multiply_32x32_rshift32(filterGain, 1720000000) << 1;
+	filterGain = q31_mult(filterGain, 1720000000);
 
 	// HPF
 	if (HPFOn) {

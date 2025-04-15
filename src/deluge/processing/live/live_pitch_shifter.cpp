@@ -252,13 +252,13 @@ startRenderAgain:
 		    (int32_t)(newerHopAmplitudeAfter - newerHopAmplitudeNow) / (int32_t)numSamplesThisTimestretchedRead;
 		int32_t olderHopAmplitudeIncrement = -newerHopAmplitudeIncrement;
 
-		int32_t hopAmplitudeChange = multiply_32x32_rshift32(amplitude, newerHopAmplitudeIncrement) << 1;
+		int32_t hopAmplitudeChange = q31_mult(amplitude, newerHopAmplitudeIncrement);
 
 		newerAmplitudeIncrementNow = amplitudeIncrement + hopAmplitudeChange;
-		newerSourceAmplitudeNow = multiply_32x32_rshift32(amplitude, newerHopAmplitudeNow) << 1;
+		newerSourceAmplitudeNow = q31_mult(amplitude, newerHopAmplitudeNow);
 
 		olderAmplitudeIncrementNow = amplitudeIncrement - hopAmplitudeChange;
-		olderSourceAmplitudeNow = multiply_32x32_rshift32(amplitude, olderHopAmplitudeNow) << 1;
+		olderSourceAmplitudeNow = q31_mult(amplitude, olderHopAmplitudeNow);
 	}
 
 	// Or, if we're just hearing the newer play-head

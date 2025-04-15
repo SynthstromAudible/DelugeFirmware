@@ -1271,10 +1271,10 @@ readTimestretched:
 				                             << 1;
 
 				newerAmplitudeIncrementNow = preCacheAmplitudeIncrement + hopAmplitudeChange;
-				newerSourceAmplitudeNow = multiply_32x32_rshift32(preCacheAmplitude, newerHopAmplitudeNow) << 1;
+				newerSourceAmplitudeNow = q31_mult(preCacheAmplitude, newerHopAmplitudeNow);
 
 				olderAmplitudeIncrementNow = preCacheAmplitudeIncrement - hopAmplitudeChange;
-				olderSourceAmplitudeNow = multiply_32x32_rshift32(preCacheAmplitude, olderHopAmplitudeNow) << 1;
+				olderSourceAmplitudeNow = q31_mult(preCacheAmplitude, olderHopAmplitudeNow);
 			}
 
 			// Or, if we're just hearing the newer play-head

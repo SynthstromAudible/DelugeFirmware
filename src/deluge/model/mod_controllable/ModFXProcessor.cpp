@@ -95,7 +95,7 @@ void ModFXProcessor::setupChorus(const ModFXType& modFXType, int32_t modFXDepth,
 		modFXLFOWaveType = LFOType::SINE;
 	}
 
-	*postFXVolume = multiply_32x32_rshift32(*postFXVolume, 1518500250) << 1; // Divide by sqrt(2)
+	*postFXVolume = q31_mult(*postFXVolume, 1518500250); // Divide by sqrt(2)
 }
 void ModFXProcessor::setupModFXWFeedback(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
                                          UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType,
@@ -109,9 +109,9 @@ void ModFXProcessor::setupModFXWFeedback(const ModFXType& modFXType, int32_t mod
 	feedback = 2147483648 - (d << 2);
 
 	// Adjust volume for flanger feedback
-	int32_t squared = multiply_32x32_rshift32(feedback, feedback) << 1;
-	int32_t squared2 = multiply_32x32_rshift32(squared, squared) << 1;
-	squared2 = multiply_32x32_rshift32(squared2, squared) << 1;
+	int32_t squared = q31_mult(feedback, feedback);
+	int32_t squared2 = q31_mult(squared, squared);
+	squared2 = q31_mult(squared2, squared);
 	squared2 = (multiply_32x32_rshift32(squared2, squared2) >> 4)
 	           * 23; // 22 // Make bigger to have more of a volume cut happen at high resonance
 	//*postFXVolume = (multiply_32x32_rshift32(*postFXVolume, 2147483647 - squared2) >> 1) * 3;
@@ -128,7 +128,7 @@ void ModFXProcessor::setupModFXWFeedback(const ModFXType& modFXType, int32_t mod
 		modFXDelayOffset = kFlangerOffset;
 		modFXDelayOffset += multiply_32x32_rshift32(
 		    kFlangerOffset, (unpatchedParams->getValue(deluge::modulation::params::UNPATCHED_MOD_FX_OFFSET)));
-		thisModFXDelayDepth = multiply_32x32_rshift32(modFXDelayOffset, modFXDepth) << 1;
+		thisModFXDelayDepth = q31_mult(modFXDelayOffset, modFXDepth);
 		modFXLFOWaveType = LFOType::WARBLER;
 	}
 
@@ -173,7 +173,7 @@ std::pair<int32_t, int32_t> ModFXProcessor::processModLFOs(int32_t modFXRate, LF
 		// this needs a second lfo because it's a random process - we can't flip it to make a second sample but
 		// these will always be different anyway
 
-		lfo2 = modFXLFOStereo.render(1, modFXLFOWaveType, multiply_32x32_rshift32(modFXRate, width) << 1);
+		lfo2 = modFXLFOStereo.render(1, modFXLFOWaveType, q31_mult(modFXRate, width));
 	}
 	else {
 		lfo2 = -lfo1;

@@ -244,7 +244,7 @@ void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> bu
 	for (StereoSample& sample : buffer) {
 		// Send to reverb
 		if (reverbSendAmount != 0) {
-			*(reverbBuffer++) += multiply_32x32_rshift32(sample.l + sample.r, reverbSendAmountAndPostFXVolume) << 1;
+			*(reverbBuffer++) += q31_mult(sample.l + sample.r, reverbSendAmountAndPostFXVolume);
 		}
 
 		if (doAmplitudeIncrement) {
@@ -376,8 +376,8 @@ inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inpu
 	if (doTreble) {
 		int32_t distanceToGoL = *inputL - withoutTrebleL;
 		int32_t distanceToGoR = *inputR - withoutTrebleR;
-		withoutTrebleL += multiply_32x32_rshift32(distanceToGoL, trebleFreq) << 1;
-		withoutTrebleR += multiply_32x32_rshift32(distanceToGoR, trebleFreq) << 1;
+		withoutTrebleL += q31_mult(distanceToGoL, trebleFreq);
+		withoutTrebleR += q31_mult(distanceToGoR, trebleFreq);
 		trebleOnlyL = *inputL - withoutTrebleL;
 		trebleOnlyR = *inputR - withoutTrebleR;
 		*inputL = withoutTrebleL; // Input now has had the treble removed. Or is this bad?
