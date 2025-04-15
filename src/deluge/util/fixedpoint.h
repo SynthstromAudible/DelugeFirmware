@@ -400,7 +400,7 @@ public:
 	[[nodiscard]] constexpr FixedPoint MultiplyAdd(const FixedPoint& a, const FixedPoint& b) const {
 		if constexpr (fast_approximation && (((fractional_bits * 2) - 32) == (fractional_bits - 1))) {
 			// fractional_bits - 1 is due to the left shift
-			return from_raw(signed_most_significant_word_multiply_add(value_, a.raw(), b.raw()) << 1);
+			return from_raw(signed_most_significant_word_multiply_add(value_ >> 1, a.raw(), b.raw()) << 1);
 		}
 		else {
 			return *this + (a * b);

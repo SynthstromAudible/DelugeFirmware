@@ -1007,16 +1007,13 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 		}
 
 		// We now have one value for each cycle, so linearly interpolate between those.
-		int32x2_t onesie = vpadd_s32(twosies[0], twosies[1]);
-		int32_t value1 = vget_lane_s32(onesie, 0);
-		int32_t difference = vget_lane_s32(onesie, 1) - value1;
+		ArgonHalf<q31_t> onesie = vpadd_s32(twosies[0], twosies[1]);
+		auto value1 = FixedPoint<31>::from_raw(onesie[0]);
+		auto difference = FixedPoint<31>::from_raw(onesie[1] - onesie[0]);
 
-		int32_t waveTableFinalValue = multiply_accumulate_32x32_rshift32_rounded(
-		    value1 >> 1, difference,
-		    crossCycleStrength2 >> 1); // Have to make value1 a magnitude smaller, because the difference is getting a
-		                               // magnitude smaller as a multiplication like this always does.
-
-		*thisSample = waveTableFinalValue;
+		// Have to make value1 a magnitude smaller, because the difference is getting a
+		// magnitude smaller as a multiplication like this always does.
+		*thisSample = value1.MultiplyAdd(difference, FixedPoint<31>::from_raw(crossCycleStrength2 >> 1)).raw();
 
 		crossCycleStrength2 += crossCycleStrength2Increment;
 
