@@ -168,11 +168,11 @@ void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType m
 
 	// Bass. No-change represented by 0. Off completely represented by -536870912
 	int32_t positive = (unpatchedParams->getValue(params::UNPATCHED_BASS) >> 1) + 1073741824;
-	int32_t bassAmount = (multiply_32x32_rshift32_rounded(positive, positive) << 1) - 536870912;
+	int32_t bassAmount = (q31_mult_rounded(positive, positive))-536870912;
 
 	// Treble. No-change represented by 536870912
 	positive = (unpatchedParams->getValue(params::UNPATCHED_TREBLE) >> 1) + 1073741824;
-	int32_t trebleAmount = multiply_32x32_rshift32_rounded(positive, positive) << 1;
+	int32_t trebleAmount = q31_mult_rounded(positive, positive);
 
 	if (thisDoBass || thisDoTreble) {
 

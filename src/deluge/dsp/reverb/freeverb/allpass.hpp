@@ -45,7 +45,7 @@ public:
 		int32_t output = -input + bufout;
 
 		buffer_[bufidx_] = input + (bufout >> 1); // Shortcut - because feedback was always one half by default anyway
-		// buffer[bufidx] = input + (multiply_32x32_rshift32_rounded(bufout, feedback) << 1);
+		// buffer[bufidx] = input + (q31_mult_rounded(bufout, feedback));
 
 		if (++bufidx_ >= buffer_.size()) {
 			bufidx_ = 0;

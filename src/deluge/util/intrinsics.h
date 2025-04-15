@@ -79,12 +79,13 @@ constexpr bool kCompilerClang = COMPILER_CLANG;
 /// @brief This multiplies two numbers in signed Q31 fixed point, returning the result in Q31.
 /// @deprecated This function is deprecated. Use FixedPoint<31>::multiply instead.
 [[gnu::always_inline]] static constexpr int32_t q31_mult(int32_t a, int32_t b) {
-	if !consteval {
-		if constexpr (ARMv7a) {
-			return multiply_32x32_rshift32(a, b) << 1;
-		}
-	}
-	return (int32_t)(((int64_t)a * b) >> 32) << 1;
+	return multiply_32x32_rshift32(a, b) << 1;
+}
+
+/// @brief This multiplies two numbers in signed Q31 fixed point, returning the result in Q31.
+/// @deprecated This function is deprecated. Use FixedPoint<31>::multiply instead.
+[[gnu::always_inline]] static constexpr int32_t q31_mult_rounded(int32_t a, int32_t b) {
+	return multiply_32x32_rshift32_rounded(a, b) << 1;
 }
 
 // Multiplies A and B, adds to sum, and returns output

@@ -839,8 +839,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 	// Porta
 	if (portaEnvelopePos < 8388608) {
 		int32_t envValue = getDecay4(portaEnvelopePos, 23);
-		int32_t pitchAdjustmentHere =
-		    kMaxSampleValue + (multiply_32x32_rshift32_rounded(envValue, portaEnvelopeMaxAmplitude) << 1);
+		int32_t pitchAdjustmentHere = kMaxSampleValue + (q31_mult_rounded(envValue, portaEnvelopeMaxAmplitude));
 
 		int32_t a = multiply_32x32_rshift32_rounded(overallPitchAdjust, pitchAdjustmentHere);
 		if (a > 8388607) {
@@ -1515,8 +1514,8 @@ skipUnisonPart: {}
 
 				overallOscAmplitudeNow += overallOscillatorAmplitudeIncrement;
 				if (synthMode != SynthMode::FM) {
-					outputSampleL = multiply_32x32_rshift32_rounded(outputSampleL, overallOscAmplitudeNow) << 1;
-					outputSampleR = multiply_32x32_rshift32_rounded(outputSampleR, overallOscAmplitudeNow) << 1;
+					outputSampleL = q31_mult_rounded(outputSampleL, overallOscAmplitudeNow);
+					outputSampleR = q31_mult_rounded(outputSampleR, overallOscAmplitudeNow);
 				}
 
 				// Write to the output buffer, panning or not
@@ -1544,8 +1543,8 @@ skipUnisonPart: {}
 
 				overallOscAmplitudeNow += overallOscillatorAmplitudeIncrement;
 				if (synthMode != SynthMode::FM) {
-					outputSampleL = multiply_32x32_rshift32_rounded(outputSampleL, overallOscAmplitudeNow) << 1;
-					outputSampleR = multiply_32x32_rshift32_rounded(outputSampleR, overallOscAmplitudeNow) << 1;
+					outputSampleL = q31_mult_rounded(outputSampleL, overallOscAmplitudeNow);
+					outputSampleR = q31_mult_rounded(outputSampleR, overallOscAmplitudeNow);
 				}
 
 				sound.saturate(&outputSampleL, &lastSaturationTanHWorkingValue[0]);
@@ -1596,7 +1595,7 @@ skipUnisonPart: {}
 
 				if (synthMode != SynthMode::FM) {
 					overallOscAmplitudeNow += overallOscillatorAmplitudeIncrement;
-					output = multiply_32x32_rshift32_rounded(output, overallOscAmplitudeNow) << 1;
+					output = q31_mult_rounded(output, overallOscAmplitudeNow);
 				}
 
 				if (soundRenderingInStereo) {
@@ -1626,7 +1625,7 @@ skipUnisonPart: {}
 
 				if (synthMode != SynthMode::FM) {
 					overallOscAmplitudeNow += overallOscillatorAmplitudeIncrement;
-					output = multiply_32x32_rshift32_rounded(output, overallOscAmplitudeNow) << 1;
+					output = q31_mult_rounded(output, overallOscAmplitudeNow);
 				}
 
 				sound.saturate(&output, &lastSaturationTanHWorkingValue[0]);

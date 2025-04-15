@@ -251,8 +251,8 @@ StereoSample ModFXProcessor::processOnePhaserSample(StereoSample sample, int32_t
 	int32_t _a1 =
 	    1073741824 - multiply_32x32_rshift32_rounded((((uint32_t)lfoOutput + (uint32_t)2147483648) >> 1), modFXDepth);
 
-	phaserMemory.l = sample.l + (multiply_32x32_rshift32_rounded(phaserMemory.l, feedback) << 1);
-	phaserMemory.r = sample.r + (multiply_32x32_rshift32_rounded(phaserMemory.r, feedback) << 1);
+	phaserMemory.l = sample.l + (q31_mult_rounded(phaserMemory.l, feedback));
+	phaserMemory.r = sample.r + (q31_mult_rounded(phaserMemory.r, feedback));
 
 	// Do the allpass filters
 	for (auto& sample : allpassMemory) {

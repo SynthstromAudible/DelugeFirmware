@@ -27,7 +27,7 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 	int32_t resonanceUpperLimit = 536870911;
 	int32_t resonance = ONE_Q31 - (std::min(hpfResonance, resonanceUpperLimit) << 2); // Limits it
 
-	resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
+	resonance = q31_mult_rounded(resonance, resonance);
 
 	// ONE_Q31 - rawResonance2; // Always between 0 and 2. 1 represented as 1073741824
 	hpfProcessedResonance = ONE_Q31 - resonance;

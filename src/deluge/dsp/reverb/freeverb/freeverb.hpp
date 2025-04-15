@@ -87,8 +87,8 @@ public:
 		}
 
 		// Calculate output
-		out_l = (out_l + multiply_32x32_rshift32_rounded(out_r, wet2)) << 1;
-		out_r = (out_r + multiply_32x32_rshift32_rounded(out_l, wet2)) << 1;
+		out_l = (out_l + q31_mult_rounded(out_r, wet2));
+		out_r = (out_r + q31_mult_rounded(out_l, wet2));
 
 		// Mix output
 		output_sample.l += multiply_32x32_rshift32_rounded(out_l, this->getPanLeft());
