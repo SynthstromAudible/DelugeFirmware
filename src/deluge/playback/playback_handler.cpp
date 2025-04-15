@@ -3201,8 +3201,8 @@ doCreateNextOverdub:
 
 			// If we're holding down a Clip in Session View, prioritize that
 			if (getRootUI() == &sessionView && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
-				clipToCreateOverdubFrom = sessionView.getClipOnScreen(sessionView.selectedClipPressYDisplay);
-				clipIndexToCreateOverdubFrom = sessionView.selectedClipPressYDisplay + currentSong->songViewYScroll;
+				clipToCreateOverdubFrom = sessionView.getClipForLayout();
+				clipIndexToCreateOverdubFrom = sessionView.getClipIndexForLayout();
 				sessionView.performActionOnPadRelease = false;
 			}
 
