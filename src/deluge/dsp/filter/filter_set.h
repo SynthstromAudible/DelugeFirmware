@@ -48,15 +48,15 @@ public:
 	                  q31_t hpfResonance, FilterMode hpfmode, q31_t hpfMorph, q31_t filterGain, FilterRoute routing,
 	                  bool adjustVolumeForHPFResonance, q31_t* overallOscAmplitude);
 
-	void renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt = 1);
+	void renderLong(std::span<q31_t> buffer);
 
 	// expects to receive an interleaved stereo stream
-	void renderLongStereo(q31_t* startSample, q31_t* endSample);
+	void renderLongStereo(std::span<StereoSample> buffer);
 
 	// used to check whether the filter is used at all
-	inline bool isLPFOn() { return LPFOn; }
-	inline bool isHPFOn() { return HPFOn; }
-	inline bool isOn() { return HPFOn || LPFOn; }
+	bool isLPFOn() { return LPFOn; }
+	bool isHPFOn() { return HPFOn; }
+	bool isOn() { return HPFOn || LPFOn; }
 
 private:
 	FilterMode lpfMode_;
@@ -65,10 +65,10 @@ private:
 	FilterMode lastHPFMode_;
 	FilterRoute routing_;
 
-	void renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement = 1);
-	void renderLPFLongStereo(q31_t* startSample, q31_t* endSample);
-	void renderHPFLongStereo(q31_t* startSample, q31_t* endSample);
-	void renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement = 1);
+	void renderLPFLong(std::span<q31_t> buffer);
+	void renderLPFLongStereo(std::span<StereoSample> buffer);
+	void renderHPFLongStereo(std::span<StereoSample> buffer);
+	void renderHPFLong(std::span<q31_t> buffer);
 
 	// all filters share a state. This is fine since they just hold plain data and initialization is handled by
 	// reset/configure calls.  This is faster than using a variant at the cost of not throwing on incorrect access.

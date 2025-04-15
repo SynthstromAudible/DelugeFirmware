@@ -18,7 +18,9 @@
 #pragma once
 #include "deluge/util/fixedpoint.h"
 #include "deluge/util/functions.h"
+#include "dsp/stereo_sample.h"
 #include <cmath>
+#include <span>
 
 namespace deluge::dsp {
 /**
@@ -63,32 +65,27 @@ inline q31_t polynomialOscillatorApproximation(q31_t x) {
 	return out;
 }
 
-inline void foldBufferPolyApproximation(q31_t* startSample, q31_t* endSample, q31_t level) {
-	q31_t* currentSample = startSample;
+inline void foldBufferPolyApproximation(std::span<q31_t> buffer, q31_t level) {
 	q31_t fold_level = add_saturate(level, FOLD_MIN);
-
-	do {
-		q31_t c = *currentSample;
-
-		q31_t x = lshiftAndSaturateUnknown(multiply_32x32_rshift32(fold_level, c), 8);
-
+	for (auto& sample : buffer) {
+		q31_t x = lshiftAndSaturateUnknown(multiply_32x32_rshift32(fold_level, sample), 8);
 		// volume compensation
-		*currentSample = polynomialOscillatorApproximation(x) >> 7;
-
-		currentSample += 1;
-	} while (currentSample < endSample);
+		sample = polynomialOscillatorApproximation(x) >> 7;
+	}
 }
+
+inline void foldBufferPolyApproximation(std::span<StereoSample> buffer, q31_t level) {
+	foldBufferPolyApproximation(std::span<q31_t>{reinterpret_cast<q31_t*>(buffer.data()), buffer.size() * 2}, level);
+}
+
 /**
  * foldBuffer folds a whole buffer. Works for stereo too
  */
-inline void foldBuffer(q31_t* startSample, q31_t* endSample, q31_t foldLevel) {
-	q31_t* currentSample = startSample;
-	do {
-		q31_t outs = fold(*currentSample, foldLevel);
+inline void foldBuffer(std::span<q31_t> buffer, q31_t foldLevel) {
+	for (auto& sample : buffer) {
+		auto out = fold(sample, foldLevel);
 		// volume compensation
-		*currentSample = outs + 4 * multiply_32x32_rshift32(outs, foldLevel);
-
-		currentSample += 1;
-	} while (currentSample < endSample);
+		sample = out + 4 * multiply_32x32_rshift32(out, foldLevel);
+	}
 }
 } // namespace deluge::dsp
