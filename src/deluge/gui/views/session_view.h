@@ -118,6 +118,7 @@ public:
 	int8_t selectedMacro = -1;
 
 	Clip* getClipForLayout();
+	int32_t getClipIndexForLayout();
 
 	void copyClipName(Clip* source, Clip* target, Output* targetOutput);
 
@@ -263,6 +264,7 @@ private:
 	int32_t gridTrackIndexFromX(uint32_t x, uint32_t maxTrack);
 	Output* gridTrackFromX(uint32_t x, uint32_t maxTrack);
 	Clip* gridClipFromCoords(uint32_t x, uint32_t y);
+	int32_t gridClipIndexFromCoords(uint32_t x, uint32_t y);
 	Cartesian gridXYFromClip(Clip& clip);
 
 	void gridSetDefaultMode() {
