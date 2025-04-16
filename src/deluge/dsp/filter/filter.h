@@ -95,8 +95,6 @@ public:
 		for (auto [dry, wet] : std::views::zip(blendBuffer, buffer)) {
 			wet.l = multiply_32x32_rshift32(wet.l, wetLevel);
 			wet.l = multiply_accumulate_32x32_rshift32_rounded(wet.l, dry.l, ONE_Q31 - wetLevel) << 1;
-			updateBlend();
-
 			wet.r = multiply_32x32_rshift32(wet.r, wetLevel);
 			wet.r = multiply_accumulate_32x32_rshift32_rounded(wet.r, dry.r, ONE_Q31 - wetLevel) << 1;
 			updateBlend();

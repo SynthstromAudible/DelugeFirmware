@@ -23,7 +23,7 @@ namespace deluge::dsp::filter {
 std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> temp_render_buffer;
 
 [[gnu::hot]] void FilterSet::renderHPFLong(std::span<q31_t> buffer) {
-	if (!HPFOn) {
+	if (!HPFOn) [[unlikely]] {
 		return;
 	}
 	if ((hpfMode_ == FilterMode::SVF_BAND) || (hpfMode_ == FilterMode::SVF_NOTCH)) {
@@ -35,7 +35,7 @@ std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> temp_render_buffer;
 }
 
 [[gnu::hot]] void FilterSet::renderHPFLongStereo(std::span<StereoSample> buffer) {
-	if (!HPFOn) {
+	if (!HPFOn) [[unlikely]] {
 		return;
 	}
 	if ((hpfMode_ == FilterMode::SVF_BAND) || (hpfMode_ == FilterMode::SVF_NOTCH)) {
