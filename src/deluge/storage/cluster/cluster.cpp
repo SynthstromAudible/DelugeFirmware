@@ -198,7 +198,7 @@ void Cluster::steal(char const* errorCode) {
 		if (ALPHA_OR_BETA_VERSION && sample == nullptr) {
 			FREEZE_WITH_ERROR("E181");
 		}
-		sample->clusters.getElement(clusterIndex)->cluster = nullptr;
+		sample->clusters[clusterIndex].cluster = nullptr;
 		break;
 
 	case Type::SAMPLE_CACHE:

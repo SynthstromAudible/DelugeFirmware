@@ -389,13 +389,13 @@ gotError5:
 				if (clusterIndex != clusterIndexCurrentlyLoaded) {
 
 					// First, unload the old Cluster if there was one
-					if (cluster) {
+					if (cluster != nullptr) {
 						audioFileManager.removeReasonFromCluster(*cluster, "E385");
 					}
 
-					cluster = sample->clusters.getElement(clusterIndex)
-					              ->getCluster(sample, clusterIndex, CLUSTER_LOAD_IMMEDIATELY, 0, &error);
-					if (!cluster) {
+					cluster = sample->clusters[clusterIndex].getCluster(sample, clusterIndex, CLUSTER_LOAD_IMMEDIATELY,
+					                                                    0, &error);
+					if (cluster == nullptr) {
 						goto gotError5;
 					}
 
