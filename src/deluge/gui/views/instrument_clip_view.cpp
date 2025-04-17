@@ -4167,19 +4167,91 @@ void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
 	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_RECALCULATE_COLOUR);
 }
 
-ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow) {
+ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow,
+                                                ModelStackWithTimelineCounter* modelStack) {
+
+	if (modelStack == nullptr) {
+		return ActionResult::DEALT_WITH;
+	}
+
 	InstrumentClip* clip = getCurrentInstrumentClip();
+	Output* output = clip->output;
+	OutputType outputType = output->type;
 
 	int32_t noteRowToShiftI;
 	int32_t noteRowToSwapWithI;
 
-	bool isKit = getCurrentOutputType() == OutputType::KIT;
+	bool isKit = outputType == OutputType::KIT;
 
-	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+	bool inSoundEditor = getCurrentUI() == &soundEditor;
+	bool inAutomationView = getRootUI() == &automationView;
+	bool inNoteRowEditor = inSoundEditor && soundEditor.inNoteRowEditor();
+	bool inAutomationNoteEditor = inAutomationView && automationView.inNoteEditor();
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	bool draggingNote = (numEditPadPresses > 0);
 
+	// if we're in the note row editor or in the automation note editor
+	// we don't want to over-scroll so that selected row is not a valid note row
+	bool preventOverScrolling = inNoteRowEditor || inAutomationNoteEditor;
+	// check if we've reached vertical scrolling limit
+	ActionResult result = scrollVertical_limit(scrollAmount, inCardRoutine, draggingNoteRow, modelStack, clip, isKit,
+	                                           preventOverScrolling, noteRowToShiftI, noteRowToSwapWithI);
+	if (result == ActionResult::DEALT_WITH) {
+		return result;
+	}
+
+	if (inCardRoutine && (draggingNote || draggingNoteRow)) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	bool currentClipIsActive = currentSong->isClipActive(clip);
+
+	// Switch off any auditioned notes. But leave on the one whose NoteRow we're moving, if we are
+	scrollVertical_potentiallySwitchOffAuditionedNotes(draggingNoteRow, modelStack, clip, currentClipIsActive);
+
+	// if we're not in automation view (note rows aren't moved around in automation view)
+	if (!inAutomationView) {
+		// If any presses happening, grab those Notes...
+		if (draggingNote) {
+			scrollVertical_grabNotesPressed(modelStack, clip);
+		}
+
+		// Shift the selected NoteRow, if that's what we're doing. We know we're in Kit mode then
+		if (draggingNoteRow) {
+			scrollVertical_dragSelectedNoteRow(clip, output, isKit, noteRowToShiftI, noteRowToSwapWithI);
+		}
+	}
+
+	// Do actual scroll
+	clip->yScroll += scrollAmount;
+
+	// Don't render - we'll do that after we've dealt with presses (potentially creating Notes)
+	recalculateColours();
+
+	// Switch on any auditioned notes - remembering that the one we're shifting (if we are) was left on before
+	bool renderDisplay = !inAutomationNoteEditor; // note code already on display in automation note editor
+	bool updateDrumSelection = !inNoteRowEditor && !inAutomationNoteEditor;
+	scrollVertical_potentiallySwitchOnAuditionedNotes(draggingNoteRow, modelStack, clip, output, outputType, isKit,
+	                                                  inSoundEditor, currentClipIsActive, renderDisplay,
+	                                                  updateDrumSelection);
+
+	// if we're not in automation view (note rows aren't moved around in automation view)
+	if (!inAutomationView) {
+		// If presses happening, place the Notes on the newly-aligned NoteRows
+		if (draggingNote) {
+			scrollVertical_placeNotesPressed(modelStack, clip, isKit);
+		}
+	}
+
+	uiNeedsRendering(getRootUI()); // Might be in waveform view
+
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::scrollVertical_limit(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow,
+                                                      ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
+                                                      bool isKit, bool preventOverScrolling, int32_t& noteRowToShiftI,
+                                                      int32_t& noteRowToSwapWithI) {
 	// If a Kit...
 	if (isKit) {
 		// Limit scrolling
@@ -4194,8 +4266,9 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 			}
 		}
 
-		// if we're in the note row editor we don't want to over-scroll so that selected row is not a valid note row
-		if (inNoteRowEditor) {
+		// if we're in the note row editor or automation note editor
+		// we don't want to over-scroll so that selected row is not a valid note row
+		if (preventOverScrolling) {
 			int32_t lastAuditionedYDisplayScrolled = lastAuditionedYDisplay + scrollAmount;
 			ModelStackWithNoteRow* modelStackWithNoteRow =
 			    clip->getNoteRowOnScreen(lastAuditionedYDisplayScrolled, modelStack);
@@ -4249,13 +4322,13 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 		}
 	}
 
-	if (inCardRoutine && (numEditPadPresses || draggingNoteRow)) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
+	return ActionResult::NOT_DEALT_WITH;
+}
 
-	bool currentClipIsActive = currentSong->isClipActive(clip);
-
-	// Switch off any auditioned notes. But leave on the one whose NoteRow we're moving, if we are
+void InstrumentClipView::scrollVertical_potentiallySwitchOffAuditionedNotes(bool draggingNoteRow,
+                                                                            ModelStackWithTimelineCounter* modelStack,
+                                                                            InstrumentClip* clip,
+                                                                            bool currentClipIsActive) {
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		if (lastAuditionedVelocityOnScreen[yDisplay] != 255
 		    && (!draggingNoteRow || lastAuditionedYDisplay != yDisplay)) {
@@ -4272,94 +4345,88 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 			}
 		}
 	}
+}
 
-	// If any presses happening, grab those Notes...
-	if (numEditPadPresses) {
+void InstrumentClipView::scrollVertical_grabNotesPressed(ModelStackWithTimelineCounter* modelStack,
+                                                         InstrumentClip* clip) {
+	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 
-		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		if (editPadPresses[i].isActive) {
+			if (editPadPresses[i].isBlurredSquare) {
+				endEditPadPress(i); // We can't deal with multiple notes per square
+				checkIfAllEditPadPressesEnded(false);
+				reassessAuditionStatus(editPadPresses[i].yDisplay);
+			}
+			else {
+				if (editPadPresses[i].deleteOnScroll) {
+					int32_t pos = editPadPresses[i].intendedPos;
+					ModelStackWithNoteRow* modelStackWithNoteRow =
+					    clip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
+					NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRow();
+					thisNoteRow->deleteNoteByPos(modelStackWithNoteRow, pos, action);
 
-		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-			if (editPadPresses[i].isActive) {
-				if (editPadPresses[i].isBlurredSquare) {
-					endEditPadPress(i); // We can't deal with multiple notes per square
-					checkIfAllEditPadPressesEnded(false);
-					reassessAuditionStatus(editPadPresses[i].yDisplay);
-				}
-				else {
-					if (editPadPresses[i].deleteOnScroll) {
-						int32_t pos = editPadPresses[i].intendedPos;
-						ModelStackWithNoteRow* modelStackWithNoteRow =
-						    clip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
-						NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRow();
-						thisNoteRow->deleteNoteByPos(modelStackWithNoteRow, pos, action);
+					ParamCollectionSummary* mpeParamsSummary = thisNoteRow->paramManager.getExpressionParamSetSummary();
+					ExpressionParamSet* mpeParams = (ExpressionParamSet*)mpeParamsSummary->paramCollection;
+					if (mpeParams != nullptr) {
+						int32_t distanceToNextNote = thisNoteRow->getDistanceToNextNote(pos, modelStackWithNoteRow);
+						int32_t loopLength = modelStackWithNoteRow->getLoopLength();
+						ModelStackWithParamCollection* modelStackWithParamCollection =
+						    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(
+						        mpeParams, mpeParamsSummary);
 
-						ParamCollectionSummary* mpeParamsSummary =
-						    thisNoteRow->paramManager.getExpressionParamSetSummary();
-						ExpressionParamSet* mpeParams = (ExpressionParamSet*)mpeParamsSummary->paramCollection;
-						if (mpeParams) {
-							int32_t distanceToNextNote = thisNoteRow->getDistanceToNextNote(pos, modelStackWithNoteRow);
-							int32_t loopLength = modelStackWithNoteRow->getLoopLength();
-							ModelStackWithParamCollection* modelStackWithParamCollection =
-							    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(
-							        mpeParams, mpeParamsSummary);
-
-							for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-								StolenParamNodes* stolenNodeRecord = nullptr;
-								if (!editPadPresses[i].mpeCachedYet) {
-									stolenNodeRecord = &editPadPresses[i].stolenMPE[m];
-								}
-								AutoParam* param = &mpeParams->params[m];
-								ModelStackWithAutoParam* modelStackWithAutoParam =
-								    modelStackWithParamCollection->addAutoParam(m, param);
-
-								param->stealNodes(modelStackWithAutoParam, pos, distanceToNextNote, loopLength, action,
-								                  stolenNodeRecord);
+						for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
+							StolenParamNodes* stolenNodeRecord = nullptr;
+							if (!editPadPresses[i].mpeCachedYet) {
+								stolenNodeRecord = &editPadPresses[i].stolenMPE[m];
 							}
-						}
+							AutoParam* param = &mpeParams->params[m];
+							ModelStackWithAutoParam* modelStackWithAutoParam =
+							    modelStackWithParamCollection->addAutoParam(m, param);
 
-						editPadPresses[i].mpeCachedYet = true;
+							param->stealNodes(modelStackWithAutoParam, pos, distanceToNextNote, loopLength, action,
+							                  stolenNodeRecord);
+						}
 					}
+
+					editPadPresses[i].mpeCachedYet = true;
 				}
 			}
 		}
 	}
+}
 
-	// Shift the selected NoteRow, if that's what we're doing. We know we're in Kit mode then
-	if (draggingNoteRow) {
+void InstrumentClipView::scrollVertical_dragSelectedNoteRow(InstrumentClip* clip, Output* output, bool isKit,
+                                                            int32_t noteRowToShiftI, int32_t noteRowToSwapWithI) {
+	actionLogger.deleteAllLogs(); // Can't undo past this!
 
-		actionLogger.deleteAllLogs(); // Can't undo past this!
+	clip->noteRows.getElement(noteRowToShiftI)->y = -32768; // Need to remember not to try and use the yNote value
+	                                                        // of this NoteRow if we switch back out of Kit mode
+	clip->noteRows.swapElements(noteRowToShiftI, noteRowToSwapWithI);
 
-		clip->noteRows.getElement(noteRowToShiftI)->y = -32768; // Need to remember not to try and use the yNote value
-		                                                        // of this NoteRow if we switch back out of Kit mode
-		clip->noteRows.swapElements(noteRowToShiftI, noteRowToSwapWithI);
-
-		// If the Kit arpeggiator is active and playback is stopped, we must reset it so notes are reassigned
-		// If playback is active, the rendering will take care of it
-		if (clip->output->type == OutputType::KIT && !playbackHandler.isEitherClockActive()) {
-			clip->noteRows.getElement(noteRowToShiftI)->drum->arpeggiator.reset();
-			clip->noteRows.getElement(noteRowToSwapWithI)->drum->arpeggiator.reset();
-			((Kit*)clip->output)->arpeggiator.reset();
-		}
+	// If the Kit arpeggiator is active and playback is stopped, we must reset it so notes are reassigned
+	// If playback is active, the rendering will take care of it
+	if (isKit && !playbackHandler.isEitherClockActive()) {
+		clip->noteRows.getElement(noteRowToShiftI)->drum->arpeggiator.reset();
+		clip->noteRows.getElement(noteRowToSwapWithI)->drum->arpeggiator.reset();
+		((Kit*)output)->arpeggiator.reset();
 	}
+}
 
-	// Do actual scroll
-	clip->yScroll += scrollAmount;
-
-	recalculateColours(); // Don't render - we'll do that after we've dealt with presses (potentially creating
-	                      // Notes)
-
+void InstrumentClipView::scrollVertical_potentiallySwitchOnAuditionedNotes(
+    bool draggingNoteRow, ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, Output* output,
+    OutputType outputType, bool isKit, bool inSoundEditor, bool currentClipIsActive, bool renderDisplay,
+    bool updateDrumSelection) {
 	// Switch on any auditioned notes - remembering that the one we're shifting (if we are) was left on before
 	bool drawnNoteCodeYet = false;
 	bool forceStoppedAnyAuditioning = false;
-	bool changedActiveModControllable = false;
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		if (lastAuditionedVelocityOnScreen[yDisplay] != 255) {
 			// If shifting a NoteRow..
 			if (draggingNoteRow && lastAuditionedYDisplay == yDisplay) {}
 
 			// Otherwise, switch its audition back on
-			// don't switch audition back on if we're in note row editor (we want to scroll silently)
-			else if (!inNoteRowEditor) {
+			else {
 				// Check NoteRow exists, incase we've got a Kit
 				ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
 
@@ -4378,13 +4445,12 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 							}
 
 							if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-								clip->recordNoteOn(modelStackWithNoteRow, getCurrentInstrument()->defaultVelocity);
+								clip->recordNoteOn(modelStackWithNoteRow, ((Instrument*)output)->defaultVelocity);
 							}
 						}
 
-						sendAuditionNote(
-						    true, yDisplay, lastAuditionedVelocityOnScreen[yDisplay],
-						    0); // Should this technically grab the note-length of the note if there is one?
+						// Should this technically grab the note-length of the note if there is one?
+						sendAuditionNote(true, yDisplay, lastAuditionedVelocityOnScreen[yDisplay], 0);
 					}
 				}
 				else {
@@ -4393,26 +4459,28 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 					forceStoppedAnyAuditioning = true;
 				}
 			}
-			if (!draggingNoteRow && !drawnNoteCodeYet
-			    && auditionPadIsPressed[yDisplay]) { // If we're shiftingNoteRow, no need to re-draw the noteCode,
-				                                     // because it'll be the same
-				drawNoteCode(yDisplay);
-				if (isKit) {
+
+			// If we're shiftingNoteRow, no need to re-draw the noteCode, because it'll be the same
+			if (!draggingNoteRow && !drawnNoteCodeYet && auditionPadIsPressed[yDisplay]) {
+				// don't draw note code if you're in the automation view note editor as the note is on the display
+				if (renderDisplay) {
+					drawNoteCode(yDisplay);
+				}
+				// don't update selected drum if you're in automation view note editor / note row editor
+				// as the selected drum was already updated when vertical scrolling was limited
+				if (isKit && updateDrumSelection) {
 					Drum* newSelectedDrum = nullptr;
 					NoteRow* noteRow = clip->getNoteRowOnScreen(yDisplay, currentSong);
 					if (noteRow) {
 						newSelectedDrum = noteRow->drum;
 					}
 					setSelectedDrum(newSelectedDrum, true);
-					changedActiveModControllable = !getAffectEntire();
 				}
 
-				if (getCurrentOutputType() == OutputType::SYNTH) {
-					if (getCurrentUI() == &soundEditor
-					    && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-						menu_item::multiRangeMenu.noteOnToChangeRange(
-						    clip->getYNoteFromYDisplay(yDisplay, currentSong)
-						    + ((SoundInstrument*)getCurrentOutput())->transpose);
+				if (outputType == OutputType::SYNTH) {
+					if (inSoundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
+						menu_item::multiRangeMenu.noteOnToChangeRange(clip->getYNoteFromYDisplay(yDisplay, currentSong)
+						                                              + ((SoundInstrument*)output)->transpose);
 					}
 				}
 
@@ -4423,91 +4491,89 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 	if (forceStoppedAnyAuditioning) {
 		someAuditioningHasEnded(true);
 	}
+}
 
-	// If presses happening, place the Notes on the newly-aligned NoteRows
-	if (numEditPadPresses > 0) {
+void InstrumentClipView::scrollVertical_placeNotesPressed(ModelStackWithTimelineCounter* modelStack,
+                                                          InstrumentClip* clip, bool isKit) {
+	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+	// if (!action) return; // Couldn't happen?
 
-		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-		// if (!action) return; // Couldn't happen?
+	action->updateYScrollClipViewAfter(clip);
 
-		action->updateYScrollClipViewAfter(clip);
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		if (editPadPresses[i].isActive) {
 
-		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-			if (editPadPresses[i].isActive) {
+			// Try getting existing NoteRow. If none...
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    clip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
+			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 
-				// Try getting existing NoteRow. If none...
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    clip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
-				if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-
-					if (isKit) {
-						goto cancelPress;
-					}
-
-					// Try creating NoteRow
-					modelStackWithNoteRow = createNoteRowForYDisplay(modelStack, editPadPresses[i].yDisplay);
-
-					if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-						display->displayError(Error::INSUFFICIENT_RAM);
-cancelPress:
-						endEditPadPress(i);
-						continue;
-					}
+				// don't create note row if you're in a kit
+				if (isKit) {
+					goto cancelPress;
 				}
 
-				NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
+				// Try creating NoteRow
+				modelStackWithNoteRow = createNoteRowForYDisplay(modelStack, editPadPresses[i].yDisplay);
 
-				int32_t pos = editPadPresses[i].intendedPos;
+				if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
+					display->displayError(Error::INSUFFICIENT_RAM);
+cancelPress:
+					endEditPadPress(i);
+					continue;
+				}
+			}
 
-				bool success =
-				    noteRow->attemptNoteAdd(pos, editPadPresses[i].intendedLength, editPadPresses[i].intendedVelocity,
-				                            editPadPresses[i].intendedProbability, editPadPresses[i].intendedIterance,
-				                            editPadPresses[i].intendedFill, modelStackWithNoteRow, action);
+			NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
 
-				editPadPresses[i].deleteOnDepress = false;
-				editPadPresses[i].deleteOnScroll = success;
+			int32_t pos = editPadPresses[i].intendedPos;
 
-				if (success) {
-					if (editPadPresses[i].mpeCachedYet) {
-						int32_t anyActualNodes = 0;
+			bool success =
+			    noteRow->attemptNoteAdd(pos, editPadPresses[i].intendedLength, editPadPresses[i].intendedVelocity,
+			                            editPadPresses[i].intendedProbability, editPadPresses[i].intendedIterance,
+			                            editPadPresses[i].intendedFill, modelStackWithNoteRow, action);
+
+			editPadPresses[i].deleteOnDepress = false;
+			editPadPresses[i].deleteOnScroll = success;
+
+			if (success) {
+				if (editPadPresses[i].mpeCachedYet) {
+					int32_t anyActualNodes = 0;
+					for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
+						anyActualNodes += editPadPresses[i].stolenMPE[m].num;
+					}
+
+					if (anyActualNodes) {
+						// If this fails, we'll detect that below.
+						noteRow->paramManager.ensureExpressionParamSetExists(isKit);
+					}
+
+					ParamCollectionSummary* mpeParamsSummary = noteRow->paramManager.getExpressionParamSetSummary();
+					ExpressionParamSet* mpeParams = (ExpressionParamSet*)mpeParamsSummary->paramCollection;
+
+					if (mpeParams) {
+						ModelStackWithParamCollection* modelStackWithParamCollection =
+						    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(
+						        mpeParams, mpeParamsSummary);
+
+						int32_t distanceToNextNote = noteRow->getDistanceToNextNote(pos, modelStackWithNoteRow);
+						int32_t loopLength = modelStackWithNoteRow->getLoopLength();
+
 						for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-							anyActualNodes += editPadPresses[i].stolenMPE[m].num;
-						}
+							AutoParam* param = &mpeParams->params[m];
+							ModelStackWithAutoParam* modelStackWithAutoParam =
+							    modelStackWithParamCollection->addAutoParam(m, param);
 
-						if (anyActualNodes) {
-							noteRow->paramManager.ensureExpressionParamSetExists(
-							    isKit); // If this fails, we'll detect that below.
-						}
-
-						ParamCollectionSummary* mpeParamsSummary = noteRow->paramManager.getExpressionParamSetSummary();
-						ExpressionParamSet* mpeParams = (ExpressionParamSet*)mpeParamsSummary->paramCollection;
-
-						if (mpeParams) {
-							ModelStackWithParamCollection* modelStackWithParamCollection =
-							    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(
-							        mpeParams, mpeParamsSummary);
-
-							int32_t distanceToNextNote = noteRow->getDistanceToNextNote(pos, modelStackWithNoteRow);
-							int32_t loopLength = modelStackWithNoteRow->getLoopLength();
-
-							for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-								AutoParam* param = &mpeParams->params[m];
-								ModelStackWithAutoParam* modelStackWithAutoParam =
-								    modelStackWithParamCollection->addAutoParam(m, param);
-
-								param->insertStolenNodes(modelStackWithAutoParam, pos, distanceToNextNote, loopLength,
-								                         action, &editPadPresses[i].stolenMPE[m]);
-							}
+							param->insertStolenNodes(modelStackWithAutoParam, pos, distanceToNextNote, loopLength,
+							                         action, &editPadPresses[i].stolenMPE[m]);
 						}
 					}
 				}
 			}
 		}
-		checkIfAllEditPadPressesEnded(false); // Don't allow to redraw sidebar - it's going to be redrawn below anyway
 	}
-
-	uiNeedsRendering(this); // Might be in waveform view
-	return ActionResult::DEALT_WITH;
+	// Don't allow to redraw sidebar - it's going to be redrawn below anyway
+	checkIfAllEditPadPressesEnded(false);
 }
 
 void InstrumentClipView::reassessAllAuditionStatus() {
@@ -6012,6 +6078,9 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 
 	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
 
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
 	// If encoder button pressed
 	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		// User may be trying to move a noteCode...
@@ -6043,7 +6112,7 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 			if (!shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress
 			    || (!isUIModeActive(UI_MODE_NOTES_PRESSED) && !isUIModeActive(UI_MODE_AUDITIONING))) {
 				bool draggingNoteRow = (isUIModeActive(UI_MODE_DRAGGING_KIT_NOTEROW));
-				return scrollVertical(offset, inCardRoutine, draggingNoteRow);
+				return scrollVertical(offset, inCardRoutine, draggingNoteRow, modelStack);
 			}
 		}
 	}
