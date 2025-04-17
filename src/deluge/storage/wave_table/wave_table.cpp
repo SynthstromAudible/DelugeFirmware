@@ -417,26 +417,25 @@ gotError5:
 				}
 			}
 
-			// Macro setup for below
-#define CONVERT_AND_STORE_SAMPLE                                                                                       \
-	{                                                                                                                  \
-		if (rawDataFormat == RawDataFormat::FLOAT) {                                                                   \
-			value32 = q31_from_float(std::bit_cast<float>(value32));                                                   \
-		}                                                                                                              \
-		else {                                                                                                         \
-			if (swappingEndianness) {                                                                                  \
-				value32 = swapEndianness32(value32);                                                                   \
-			}                                                                                                          \
-			value32 &= bitMask;                                                                                        \
-			if (rawDataFormat == RawDataFormat::UNSIGNED_8) {                                                          \
-				value32 += (1 << 31);                                                                                  \
-			}                                                                                                          \
-		}                                                                                                              \
-		*(cycleBufferDestination++) =                                                                                  \
-		    value32 >> MAGNITUDE_REDUCTION_FOR_FFT; /* Store full 32-bit value in cycle buffer (reduced in magnitude   \
-		                                               for FFT). */                                                    \
-		*(initialBandWritePos++) = value32 >> 16;   /* Bands only store 16-bit data. */                                \
-	}
+			// for below
+			auto convert_and_store_sample = [&](int32_t value32) {
+				if (rawDataFormat == RawDataFormat::FLOAT) {
+					value32 = q31_from_float(std::bit_cast<float>(value32));
+				}
+				else {
+					if (swappingEndianness) {
+						value32 = swapEndianness32(value32);
+					}
+					value32 &= bitMask;
+					if (rawDataFormat == RawDataFormat::UNSIGNED_8) {
+						value32 += (1 << 31);
+					}
+				}
+				*(cycleBufferDestination++) =
+				    value32 >> MAGNITUDE_REDUCTION_FOR_FFT; /* Store full 32-bit value in cycle buffer (reduced in
+				                                               magnitude for FFT). */
+				*(initialBandWritePos++) = value32 >> 16;   /* Bands only store 16-bit data. */
+			};
 
 			// If previous Cluster had overlapping sample at end...
 			if (byteIndexWithinCluster < 0) {
@@ -458,11 +457,9 @@ gotError5:
 				uint32_t bytesOverlappingThisCluster =
 				    *(uint32_t*)source & ((uint32_t)0xFFFFFFFF << (-byteIndexWithinClusterMisaligned * 8));
 
-				int32_t value32 = bytesOverlappingThisCluster | bytesOverlappingFromLastCluster;
+				convert_and_store_sample(bytesOverlappingThisCluster | bytesOverlappingFromLastCluster);
 
-				CONVERT_AND_STORE_SAMPLE;
-
-				if (!sample) {
+				if (sample == nullptr) {
 					reader->byteIndexWithinCluster +=
 					    byteDepth + byteIndexWithinCluster; // +byteIndexWithinCluster because we already moved forward
 					                                        // an extra -byteIndexWithinCluster, above.
@@ -499,7 +496,7 @@ gotError5:
 			// Read all the data we can before reaching either the end of the cycle, or the end of the file cluster
 			while (source < sourceStopAt) {
 				int32_t value32 = *(int32_t*)source;
-				CONVERT_AND_STORE_SAMPLE;
+				convert_and_store_sample(reinterpret_cast<const int32_t&>(source));
 				source += byteDepth;
 			}
 
