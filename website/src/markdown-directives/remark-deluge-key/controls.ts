@@ -59,40 +59,28 @@ const ControlDefinitionSchema = z
           .describe("All keywords (name and modifiers) in original order"),
       )
       .returns(ActionSchema),
+
+    display: z.string().optional(),
   })
   .strict()
 
 const ControlData = z.record(ControlDefinitionSchema)
 
-export const KNOB_MODIFIERS = ["PRESS", "TURN", "LEFT", "RIGHT"]
+export const KNOB_MODIFIERS = ["Press", "Turn", "Left", "Right"]
 
 const labelledButtonToAction =
   (
-    /**
-     * This is used to process controls that could be written as multiple words.
-     */
-    acceptedIgnoredModifiers: string[] = [],
     override: Partial<z.infer<typeof ActionSchema>> = {},
   ) =>
-  (name: string, modifiers: string[]) => {
-    // Remove accepted modifiers from the modifier list
-    let remainingModifiers = modifiers
-    for (const modifier of acceptedIgnoredModifiers) {
-      if (modifiers.includes(modifier)) {
-        remainingModifiers = remainingModifiers.filter(
-          (keyword) => keyword !== modifier,
-        )
-      }
-    }
-
-    if (remainingModifiers.length > 0) {
+  (text: string, modifiers: string[]) => {
+    if (modifiers.length > 0) {
       throw new Error(
-        `Modifiers are not supported for ${name}. (Modifiers: ${remainingModifiers.join(" ")})`,
+        `Modifiers are not supported for ${text}. (Modifiers: ${modifiers.join(" ")})`,
       )
     }
 
     return {
-      text: titleCase(name),
+      text,
       rounded: true,
       ...override,
     }
@@ -100,14 +88,14 @@ const labelledButtonToAction =
 
 const knobToAction =
   (idParser?: (modifiers: string[]) => string[] | undefined) =>
-  (name: string, modifiers: string[]) => {
+  (text: string, modifiers: string[]) => {
     // Separate icon modifiers from modifier list
     const iconModifiers = []
     let remainingModifiers = modifiers
     for (const modifier of KNOB_MODIFIERS) {
-      if (modifiers.includes(modifier)) {
+      if (modifiers.includes(modifier.toLowerCase())) {
         remainingModifiers = remainingModifiers.filter(
-          (keyword) => keyword !== modifier,
+          (keyword) => keyword.toLowerCase() !== modifier.toLowerCase(),
         )
         iconModifiers.push(modifier)
       }
@@ -116,7 +104,7 @@ const knobToAction =
     const id = idParser ? idParser(remainingModifiers) : undefined
 
     const icon = [
-      name.toLowerCase(),
+      text.toLowerCase(),
       iconModifiers.length > 0 &&
         iconModifiers.map((m) => m.toLowerCase()).join("-"),
     ]
@@ -135,86 +123,91 @@ const knobToAction =
 // The order also standardizes the order that the actions must be defined in a combo.
 export const CONTROLS = ControlData.parse({
   // Buttons
-  SHIFT: { toAction: labelledButtonToAction() },
-  AFFECT_ENTIRE: {
-    aliases: ["AFFECT"],
-    toAction: labelledButtonToAction(["AFFECT", "ENTIRE"]),
-    didYouMean: ["AFFECT_ALL", "ALL"],
+  Shift: { toAction: labelledButtonToAction() },
+  AffectEntire: {
+    toAction: labelledButtonToAction(),
+    didYouMean: ["AffectAll", "Affect", "Entire", "All", "Affect_Entire"],
+    display: "Affect Entire",
   },
-  CLIP: { toAction: labelledButtonToAction() },
-  CROSS_SCREEN: {
-    aliases: ["CROSS"],
-    toAction: labelledButtonToAction(["CROSS", "SCREEN"]),
+  Clip: { toAction: labelledButtonToAction() },
+  CrossScreen: {
+    toAction: labelledButtonToAction(),
+    didYouMean: ["Cross", "Screen", "Cross_Screen"],
+    display: "Cross Screen",
   },
   CV: { toAction: labelledButtonToAction() },
-  KEYBOARD: {
-    aliases: ["KEYS"],
-    toAction: labelledButtonToAction([], { icon: "button-keyboard" }),
+  Keyboard: {
+    toAction: labelledButtonToAction({ icon: "button-keyboard" }),
+    didYouMean: ["Keys"],
   },
-  KIT: { toAction: labelledButtonToAction() },
-  LEARN: {
-    aliases: ["INPUT"],
+  Kit: { toAction: labelledButtonToAction() },
+  Learn: {
     toAction: labelledButtonToAction(),
+    didYouMean: ["Input"],
   },
-  LOAD: {
-    // aliases: ["NEW"],
+  Load: {
     toAction: labelledButtonToAction(),
+    didYouMean: ["New"],
   },
   MIDI: { toAction: labelledButtonToAction() },
-  RECORD: {
-    aliases: ["REC"],
+  Record: {
+    toAction: labelledButtonToAction(),
+    didYouMean: ["Rec"],
+  },
+  Play: {
     toAction: labelledButtonToAction(),
   },
-  PLAY: {
+  Save: {
     toAction: labelledButtonToAction(),
+    didYouMean: ["Delete"],
   },
-  SAVE: {
-    // aliases: ["DELETE"],
+  Scale: { toAction: labelledButtonToAction() },
+  Song: { toAction: labelledButtonToAction() },
+  SyncScaling: {
     toAction: labelledButtonToAction(),
+    didYouMean: ["Sync", "Scaling", "Sync_Scaling"],
+    display: "Sync Scaling",
   },
-  SCALE: { toAction: labelledButtonToAction() },
-  SONG: { toAction: labelledButtonToAction() },
-  SYNC_SCALING: {
-    aliases: ["SYNC"],
-    toAction: labelledButtonToAction(["SYNC", "SCALING"]),
-  },
-  SYNTH: { toAction: labelledButtonToAction() },
-  TAP_TEMPO: {
-    aliases: ["TAP"],
-    toAction: labelledButtonToAction(["TAP", "TEMPO"]),
-  },
-  TRIPLETS_VIEW: {
-    aliases: ["TRIPLETS"],
-    toAction: labelledButtonToAction(["TRIPLETS", "VIEW"]),
-  },
-  BACK: {
-    aliases: ["UNDO" /* , "REDO" */],
+  Synth: { toAction: labelledButtonToAction() },
+  TapTempo: {
     toAction: labelledButtonToAction(),
+    didYouMean: ["Tap", "Tempo", "Tap_Tempo"],
+    display: "Tap Tempo",
   },
-  PARAM: { toAction: labelledButtonToAction() }, // TODO: ids
+  TripletsView: {
+    toAction: labelledButtonToAction(),
+    didYouMean: ["Triplets", "View", "Triplets_View"],
+    display: "Triplets View",
+  },
+  Back: {
+    toAction: labelledButtonToAction(),
+    didYouMean: ["Undo", "Redo", "Back_Undo", "Back_Redo"],
+    display: "Back",
+  },
+  Param: { toAction: labelledButtonToAction() }, // TODO: ids
 
   // Knobs
-  HORIZONTAL: { toAction: knobToAction() },
-  VERTICAL: { toAction: knobToAction() },
-  SELECT: { toAction: knobToAction() },
-  TEMPO: { toAction: knobToAction() },
-  GOLD: {
+  Horizontal: { toAction: knobToAction() },
+  Vertical: { toAction: knobToAction() },
+  Select: { toAction: knobToAction() },
+  Tempo: { toAction: knobToAction() },
+  Gold: {
     toAction: knobToAction((modifiers) => {
       if (modifiers.length > 1) {
         throw new Error(
-          `Gold knob takes only one Upper or Lower modifier. Got: [${modifiers.join(" ")}]`,
+          `Gold knob got invalid modifiers: [${modifiers.join(" ")}]`,
         )
       }
-      return modifiers.includes("UPPER")
-        ? ["UPPER"]
-        : modifiers.includes("LOWER")
-          ? ["LOWER"]
+      return modifiers.includes("Upper")
+        ? ["Upper"]
+        : modifiers.includes("Lower")
+          ? ["Lower"]
           : undefined
     }),
   },
 
   // Pads
-  PAD: {
+  Pad: {
     toAction: (name, modifiers) => ({
       text: titleCase(modifiers.length > 0 ? modifiers.join(" ") : name),
       isPad: true,

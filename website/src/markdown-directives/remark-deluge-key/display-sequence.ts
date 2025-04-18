@@ -16,25 +16,40 @@ const icons = Object.fromEntries(
 )
 
 const parseAction = (key: string): Action => {
-  const keywords = key.split(/\s+/).map((keyword) => keyword.toUpperCase())
+  const keywords = key
+    .split(/\s+/)
+    .map((keyword) => keyword.toLowerCase())
 
   const control = Object.entries(CONTROLS).find(([control, { aliases }]) => {
     return (
-      keywords.includes(control) ||
-      aliases.some((alias) => keywords.includes(alias))
+      keywords.includes(control.toLowerCase()) ||
+      aliases.some((alias) => keywords.includes(alias.toLowerCase()))
     )
   })
 
   if (!control) {
-    throw new Error(`Unknown action: ${keywords.join(" ")}`)
-    // TODO: Check known aliases to show "Did you mean..." message
+    const didYouMean = Object.entries(CONTROLS).find(([_, { didYouMean }]) => {
+      return didYouMean.some((alternative) =>
+        keywords.includes(alternative.toLowerCase()),
+      )
+    })
+
+    if (didYouMean) {
+      throw new Error(
+        `Unknown action: ${keywords.join(" ")}. Did you mean: ${didYouMean[0]}?`,
+      )
+    } else {
+      throw new Error(`Unknown action: ${keywords.join(" ")}`)
+    }
   }
 
-  const [controlName, { toAction }] = control
+  const [controlName, { toAction, display }] = control
 
-  const modifiers = keywords.filter((keyword) => keyword !== controlName)
+  const modifiers = keywords.filter(
+    (keyword) => keyword.toLowerCase() !== controlName.toLowerCase(),
+  )
 
-  return toAction(controlName, modifiers, keywords)
+  return toAction(display || controlName, modifiers, keywords)
 }
 
 const parseSequence = (sequence: string): Action[][] =>
@@ -87,7 +102,7 @@ export const displaySequence = (sequence: string): ElementContent[] => {
   const result: ElementContent[] = []
 
   chords.forEach((chord, chordIndex) => {
-    // Create chord element with interleaved "+" between images
+    // Create chord element with interleaved "+" between keys/modifiers
     const chordChildren: ElementContent[] = []
     chord.forEach((action, actionIndex) => {
       chordChildren.push(...displayAction(action))

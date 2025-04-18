@@ -9,7 +9,7 @@ import remarkGithub from "remark-github"
 import RemarkLinkRewrite from "remark-link-rewrite"
 import { withBase } from "./src/utils"
 import tailwindcss from "@tailwindcss/vite"
-import { remarkDelugeShortcut } from "./src/markdown-directives/remark-deluge-combo/remark-deluge-shortcut.ts"
+import { remarkDelugeShortcut } from "./src/markdown-directives/remark-deluge-key/remark-deluge-shortcut.ts"
 import remarkDirective from "remark-directive"
 
 // https://astro.build/config
@@ -62,12 +62,7 @@ const config = defineConfig({
           label: "Development",
           autogenerate: { directory: "development" },
         },
-        { label: "Doxygen", link: "/doxygen" },
-        {
-          label: "Other",
-          autogenerate: { directory: "poc" },
-          badge: "Testing Docs Features",
-        },
+        { label: "Doxygen Generated Docs", link: "/doxygen" },
       ],
       pagefind: {
         // -@ts-expect-error This is a feature from pagefind 1.4.0-alpha.1, and it is not yet in the types
