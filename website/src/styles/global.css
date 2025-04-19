@@ -9,24 +9,33 @@ span.button-sequence {
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
-}
-
-span.button-chord {
-  background-color: rgba(255, 255, 255, 0.05);
-  border-radius: 1em;
-  padding: 0.1em 0.35em;
-  margin: 0 0.05em;
-  word-spacing: -0.5ch;
+  letter-spacing: -0.02ch;
+  word-spacing: -0.7ch;
 }
 
 span.button-sequence img {
   display: inline-block;
-  margin: 0;
-  height: 1.2em;
+  /*margin: 0;*/
+  height: 1.5em;
   vertical-align: text-bottom;
+  margin-bottom: -0.15em;
 }
 
-span.button-pad {
+span.action {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 1em;
+  padding: 0.15em 0.5em;
+  margin: 0 0.05em;
+  word-spacing: -0.4ch;
+  white-space: nowrap
+}
+
+span.action img {
+  margin: 0 -0.3em -0.05em 0.35em;
+  height: 1.25em;
+}
+
+span.pad {
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: 0.25em;
   border: 3px solid rgba(255, 255, 255, 0.2);
@@ -35,11 +44,11 @@ span.button-pad {
 }
 
 /* Light mode styles */
-:not([data-theme="dark"]) span.button-pad {
-  background-color: rgba(0, 0, 0, 0.1);
-  border-color: rgba(0, 0, 0, 0.2);
+html:not([data-theme="dark"]) span.action {
+  background-color: rgba(0, 0, 0, 0.08);
 }
 
-:not([data-theme="dark"]) span.button-chord {
-  background-color: rgba(0, 0, 0, 0.08);
+html:not([data-theme="dark"]) span.action-pad {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.2);
 }

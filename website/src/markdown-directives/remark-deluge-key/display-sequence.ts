@@ -62,16 +62,33 @@ const displayAction = ({ icon, text, isPad }: Action): ElementContent[] => {
       {
         type: "element",
         tagName: "span",
-        properties: { class: "button-pad" },
+        properties: { class: "action pad" },
         children: [createTextElement(text || "Pad")],
       },
     ]
   }
 
-  return [
-    text && createTextElement(text),
-    icon && createImageElement(icon),
-  ].filter(Boolean) as ElementContent[]
+  if (text) {
+    return [
+      {
+        type: "element",
+        tagName: "span",
+        properties: { class: "action" },
+        children: [
+          createTextElement(text),
+          icon && createImageElement(icon),
+        ].filter(Boolean) as ElementContent[],
+      },
+    ]
+  }
+
+  if (icon) {
+    return [createImageElement(icon)]
+  }
+
+  throw new Error(
+    `No icon or text for action ${JSON.stringify({ icon, text, isPad }, null, 2)}`,
+  )
 }
 
 const createImageElement = (icon: string): ElementContent => {
