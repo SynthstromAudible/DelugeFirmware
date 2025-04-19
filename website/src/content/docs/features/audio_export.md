@@ -26,11 +26,13 @@ Exported files are given a meaningful name in the following format:
 
 `ClipType_ExportType_PresetName_Tempo_Root Note-Scale Name_FileNumber.WAV`
 
-> For example:
->
-> SYNTH_CLIP_PRESETNAME_###BPM_Root Note-Scale Name_000.WAV
-> SYNTH_TRACK_PRESETNAME_###BPM_Root Note-Scale Name_000.WAV
-> MIXDOWN_###BPM_Root Note-Scale Name.WAV
+For example:
+
+```
+SYNTH_CLIP_PRESETNAME_###BPM_Root Note-Scale Name_000.WAV
+SYNTH_TRACK_PRESETNAME_###BPM_Root Note-Scale Name_000.WAV
+MIXDOWN_###BPM_Root Note-Scale Name.WAV
+```
 
 ## Shortcuts to Start/Stop Exporting
 
