@@ -19,11 +19,8 @@ const icons = Object.fromEntries(
 const parseAction = (key: string): Action => {
   const keywords = key.split(/\s+/).map((keyword) => keyword.toLowerCase())
 
-  const control = Object.entries(CONTROLS).find(([control, { aliases }]) => {
-    return (
-      keywords.includes(control.toLowerCase()) ||
-      aliases.some((alias) => keywords.includes(alias.toLowerCase()))
-    )
+  const control = Object.entries(CONTROLS).find(([control]) => {
+    return keywords.includes(control.toLowerCase())
   })
 
   if (!control) {

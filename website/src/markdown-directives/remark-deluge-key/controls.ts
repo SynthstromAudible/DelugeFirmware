@@ -44,11 +44,6 @@ export type Action = z.infer<typeof ActionSchema>
 const ControlDefinitionSchema = z
   .object({
     /**
-     * We accept aliases
-     */
-    aliases: z.string().array().optional().default([]),
-
-    /**
      * Did you mean... (these we don't accept, but we give a hint)
      */
     didYouMean: z.string().array().optional().default([]),
@@ -178,10 +173,6 @@ export const CONTROLS = ControlData.parse({
     didYouMean: ["Keys"],
   },
   Kit: { toAction: labelledButtonToAction() },
-  Learn: {
-    toAction: labelledButtonToAction(),
-    didYouMean: ["Input"],
-  },
   Load: {
     toAction: labelledButtonToAction(),
     didYouMean: ["New"],
@@ -216,10 +207,21 @@ export const CONTROLS = ControlData.parse({
     didYouMean: ["Triplets", "View", "Triplets_View"],
     display: "Triplets View",
   },
-  Back: {
+
+  Learn: { toAction: labelledButtonToAction() },
+  Input: { toAction: labelledButtonToAction() },
+  LearnInput: {
     toAction: labelledButtonToAction(),
-    didYouMean: ["Undo", "Redo", "Back_Undo", "Back_Redo"],
-    display: "Back",
+    display: "Learn/Input",
+    didYouMean: ["Learn/Input", "Learn_Input"],
+  },
+
+  Back: { toAction: labelledButtonToAction() },
+  Undo: { toAction: labelledButtonToAction(), didYouMean: ["Redo"] },
+  BackUndo: {
+    toAction: labelledButtonToAction(),
+    display: "Back/Undo",
+    didYouMean: ["Back/Undo", "Back_Undo"],
   },
 
   // TODO: Implement parameter buttons (gold knob selectors)

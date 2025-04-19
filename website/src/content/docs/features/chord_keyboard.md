@@ -19,8 +19,8 @@ Enable the `Chord Keyboards (CHRD)` community setting for full access to the rel
 To access the Chord Keyboard Layout:
 
 1. Enable the `Chord Keyboards (CHRD)` community feature
-2. While in `SYNTH`, `MIDI`, or `CV` mode, press `KEYBOARD` to enter a keyboard view.
-3. Turn `SELECT` + `KEYBOARD` to cycle through layouts until you find the `CHORD` keyboard or `CHORD LIBRARY` keyboard.
+2. While in `SYNTH`, `MIDI`, or `CV` mode, press :key[Keyboard] to enter a keyboard view.
+3. Turn :key[Select + Keyboard] to cycle through layouts until you find the `CHORD` keyboard or `CHORD LIBRARY` keyboard.
 
 ## Chord Keyboard Layout
 
@@ -56,14 +56,14 @@ In Column mode, Chords are colored based on their quality, and in Row mode, the 
 
 ### Controls
 
-turning either `◀︎▶︎` or `▼︎▲︎` will move up or down by scale degrees.
+turning either :key[Horizontal] or :key[Vertical] will move up or down by scale degrees.
 
 #### Embedded Controls:
 
 Because the Chord Keyboard has more features than other keyboard layouts, controls are embedded into the two rightmost columns of the main grid. Currently it includes controls for switching between Row Mode and Column Mode, with more features planned for the future.
 
 - At the top of the rightmost main grid column, you can select the current mode (`ROW` and `COLUMN`) by pressing the corresponding pad. It defaults to Column Mode.
-  - In addition, you can use `SHIFT` + `◀︎▶︎` to also cycle through the `ROW` and `COLUMN` mode.
+  - In addition, you can use :key[Shift + Horizontal] to also cycle through the `ROW` and `COLUMN` mode.
 
 ### Scale Considerations
 
@@ -89,11 +89,11 @@ When out of scale mode, the final 2 columns change colors each 8 chords you scro
 
 #### Controls
 
-Turning `◀︎▶︎` scrolls through the scale, allowing you to raise or lower the chords. Turning `▼︎▲︎` scrolls up or down to access more chords.
+Turning :key[Horizontal] scrolls through the scale, allowing you to raise or lower the chords. Turning :key[Vertical] scrolls up or down to access more chords.
 
 #### Voicing Adjustment
 
-Holding a pad on a row and press and turning `◀︎▶︎` allows you to change the voicing for all the chords in that row simultaneously.
+Holding a pad on a row and press and turning :key[Horizontal] allows you to change the voicing for all the chords in that row simultaneously.
 
 ### Scale Considerations
 

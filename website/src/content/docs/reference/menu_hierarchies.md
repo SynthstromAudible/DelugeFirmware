@@ -668,7 +668,7 @@ The Perform FX menu contains the following menu hierarchy:
 <details>
 <summary>Sound Menu</summary>
 
-The Sound menu is accessible from Synth Clips and Kit clips when affect entire is disabled and a kit row is selected by pressing on the `SELECT ENCODER`
+The Sound menu is accessible from Synth Clips and Kit clips when :key[AffectEntire] is disabled and a kit row is selected by pressing :key[Select]
 
 The Sound menu contains the following menu hierarchy:
 
@@ -1155,7 +1155,7 @@ The Sound menu contains the following menu hierarchy:
 <details>
 <summary>Kit FX Menu</summary>
 
-The Kit FX menu is accessible from Kit clips when affect entire is enabled by pressing on the `SELECT ENCODER`
+The Kit FX menu is accessible from Kit clips when :key[AffectEntire] is enabled by pressing :key[Select]
 
 The Kit FX menu contains the following menu hierarchy:
 

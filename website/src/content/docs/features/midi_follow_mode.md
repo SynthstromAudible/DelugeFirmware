@@ -88,7 +88,7 @@ CC's received on the master MIDI channel that have been mapped to a parameter wi
 
 The parameters are controlled only in the current context.
 
-- So if you enter a specific synth clip, it will only control that synths filter. If you are in a kit clip it will either control the entire kit or a specific row in that clip (depending on whether you have affect entire enabled or not)
+- So if you enter a specific synth clip, it will only control that synths filter. If you are in a kit clip it will either control the entire kit or a specific row in that clip (depending on whether you have :key[AffectEntire] enabled or not)
 - If you are in song view or arranger view and holding down a clip (selecting it), it will only control the parameters for that selected clip.
 - If you are in song view and haven't selected a clip, it will control the parameters of the active instrument of the last clip selected.
 - In other words it checks what context you’re in and controls the parameters of that context.
@@ -146,7 +146,7 @@ For mapped MIDI CC's, a pop up is shown on the display whenever MIDI CC's are re
 
 <img width="170" alt="Screen Shot 2023-12-04 at 2 32 25 AM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/f4e8115c-c2af-4cfe-94cf-d2e117201cd5">
 
-Note: if the MIDI CC being received is for a Parameter that cannot be controlled in the current context (e.g. trying to control Attack while in a Kit with Affect Entire enabled), the pop-up message will say "Can't Control: Parameter Name".
+Note: if the MIDI CC being received is for a Parameter that cannot be controlled in the current context (e.g. trying to control Attack while in a Kit with :key[AffectEntire] enabled), the pop-up message will say "Can't Control: Parameter Name".
 
 <img width="191" alt="Screen Shot 2023-12-04 at 2 32 03 AM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/b2dcefb2-4f90-4b23-804c-3250bfd24862">
 
