@@ -31,7 +31,7 @@ span.action {
 }
 
 span.action img {
-  margin: 0 -0.3em -0.05em 0.35em;
+  margin: 0 -0.3em -0.05em 0.3em;
   height: 1.25em;
 }
 
@@ -48,7 +48,7 @@ html:not([data-theme="dark"]) span.action {
   background-color: rgba(0, 0, 0, 0.08);
 }
 
-html:not([data-theme="dark"]) span.action-pad {
+html:not([data-theme="dark"]) span.pad {
   background-color: rgba(0, 0, 0, 0.1);
   border-color: rgba(0, 0, 0, 0.2);
 }

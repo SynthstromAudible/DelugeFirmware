@@ -18,6 +18,11 @@ const ActionSchema = z.object({
   text: z.string().optional(),
 
   /**
+   * The text that the search indexer will see
+   */
+  searchText: z.string().optional(),
+
+  /**
    * This makes the rendering know that this should look like a pad
    */
   isPad: z.boolean().optional().default(false),
@@ -66,7 +71,8 @@ const ControlDefinitionSchema = z
 
 const ControlData = z.record(ControlDefinitionSchema)
 
-export const KNOB_MODIFIERS = ["Press", "Turn", "Left", "Right"]
+export const KNOB_MODIFIERS_BEFORE = ["Press", "Turn"]
+export const KNOB_MODIFIERS_AFTER = ["Left", "Right"]
 
 const labelledButtonToAction =
   (override: Partial<z.infer<typeof ActionSchema>> = {}) =>
@@ -86,32 +92,47 @@ const labelledButtonToAction =
 
 const knobToAction =
   (idParser?: (modifiers: string[]) => string[] | undefined) =>
-  (text: string, modifiers: string[]) => {
-    // Separate icon modifiers from modifier list
-    const iconModifiers = []
+  (text: string, modifiers: string[]): typeof ActionSchema._input => {
+    // Separate icon modifiers from the modifier list
+    const modifiersBefore = []
+    const modifiersAfter = []
     let remainingModifiers = modifiers
-    for (const modifier of KNOB_MODIFIERS) {
+
+    for (const modifier of KNOB_MODIFIERS_BEFORE) {
       if (modifiers.includes(modifier.toLowerCase())) {
         remainingModifiers = remainingModifiers.filter(
           (keyword) => keyword.toLowerCase() !== modifier.toLowerCase(),
         )
-        iconModifiers.push(modifier)
+        modifiersBefore.push(modifier)
+      }
+    }
+
+    for (const modifier of KNOB_MODIFIERS_AFTER) {
+      if (modifiers.includes(modifier.toLowerCase())) {
+        remainingModifiers = remainingModifiers.filter(
+          (keyword) => keyword.toLowerCase() !== modifier.toLowerCase(),
+        )
+        modifiersAfter.push(modifier)
       }
     }
 
     const id = idParser ? idParser(remainingModifiers) : undefined
 
-    const icon = [
-      text.toLowerCase(),
-      iconModifiers.length > 0 &&
-        iconModifiers.map((m) => m.toLowerCase()).join("-"),
-    ]
-      .filter(Boolean)
-      .join("-")
-
     return {
-      icon,
+      icon: [...modifiersBefore, text.toLowerCase(), ...modifiersAfter]
+        .filter(Boolean)
+        .map((m) => m.toLowerCase())
+        .join("-"),
       text: titleCase(remainingModifiers.join(" ")),
+      searchText: [
+        ...modifiersBefore,
+        ...remainingModifiers,
+        text.toLowerCase(),
+        ...modifiersAfter,
+      ]
+        .filter(Boolean)
+        .map((m) => titleCase(m))
+        .join(""),
       id,
     }
   }
@@ -182,7 +203,9 @@ export const CONTROLS = ControlData.parse({
     didYouMean: ["Undo", "Redo", "Back_Undo", "Back_Redo"],
     display: "Back",
   },
-  Param: { toAction: labelledButtonToAction() }, // TODO: ids
+
+  // TODO: Implement parameter buttons (gold knob selectors)
+  Param: { toAction: labelledButtonToAction() },
 
   // Knobs
   Horizontal: { toAction: knobToAction() },
@@ -209,7 +232,8 @@ export const CONTROLS = ControlData.parse({
     toAction: (name, modifiers) => ({
       text: titleCase(modifiers.length > 0 ? modifiers.join(" ") : name),
       isPad: true,
-      // TODO: parse IDs from modifiers
+      searchText: `${modifiers.map((m) => titleCase(m)).join("")}${name}`,
+      // TODO: parse pad ID from modifiers
     }),
   },
 } as typeof ControlData._input)

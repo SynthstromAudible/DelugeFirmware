@@ -113,21 +113,35 @@ const createTextElement = (value: string): ElementContent => ({
   value,
 })
 
-export const displaySequence = (sequence: string): ElementContent[] => {
+export const displaySequence = (
+  sequence: string,
+): { elements: ElementContent[]; searchText: string } => {
   const chords = parseSequence(sequence)
-  const result: ElementContent[] = []
+  const elements: ElementContent[] = []
+  let searchText = ""
 
   chords.forEach((chord, chordIndex) => {
-    // Create chord element with interleaved "+" between keys/modifiers
+    // Create a chord element with "+" inserted between actions
     const chordChildren: ElementContent[] = []
     chord.forEach((action, actionIndex) => {
       chordChildren.push(...displayAction(action))
+      searchText +=
+        action.searchText ||
+        [
+          action.text,
+          action.icon
+            ? titleCase(action.icon.replaceAll("-", " ")).replaceAll(" ", "")
+            : undefined,
+        ]
+          .filter(Boolean)
+          .join("")
       if (actionIndex < chord.length - 1) {
         chordChildren.push(createTextElement(" + "))
+        searchText += "+"
       }
     })
 
-    result.push({
+    elements.push({
       type: "element",
       tagName: "span",
       properties: { class: "button-chord" },
@@ -136,9 +150,13 @@ export const displaySequence = (sequence: string): ElementContent[] => {
 
     // Add ">" between chords
     if (chordIndex < chords.length - 1) {
-      result.push(createTextElement(">"))
+      elements.push(createTextElement(">"))
+      searchText += ">"
     }
   })
 
-  return result
+  return {
+    elements: elements,
+    searchText: `[${searchText}]`,
+  }
 }

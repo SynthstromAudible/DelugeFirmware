@@ -21,7 +21,7 @@ export const remarkDelugeShortcut = () => (tree: Root) => {
       // TODO: add variants with attributes (e.g. "minimal")
       // const attributes = node.attributes || {}
 
-      const string = toString(node)
+      const { searchText, elements } = displaySequence(toString(node))
 
       data.hName = "span"
       data.hProperties = {
@@ -29,9 +29,9 @@ export const remarkDelugeShortcut = () => (tree: Root) => {
         "data-pagefind-weight": 10,
         "data-pagefind-ignore": "index",
         "data-pagefind-index-attrs": "data-shortcut-sequence",
-        "data-shortcut-sequence": `[${titleCase(string).replaceAll(" ", "")}]`,
+        "data-shortcut-sequence": searchText,
       }
-      data.hChildren = displaySequence(string)
+      data.hChildren = elements
     }
   })
 }

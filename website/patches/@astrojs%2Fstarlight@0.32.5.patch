@@ -8,7 +8,7 @@ index 9e463bdf6487df40de24b4d18c2a83b89f6fd2ae..a4c32b540b9ad644de6953ee8c48948c
  				return new Promise<void>((resolve) => {
 -					spawn('npx', ['-y', 'pagefind', ...loglevelFlag, '--site', relativeDir], {
 +         // Note that this only works for bun, other package managers need e.g. `npm exec --`
-+					spawn(process.env.npm_execpath, ['pagefind', ...loglevelFlag, '--site', relativeDir, '--include-characters "+>"'], {
++					spawn(process.env.npm_execpath, ['pagefind', ...loglevelFlag, '--site', relativeDir, '--include-characters "+>[]"'], {
  						stdio: 'inherit',
  						shell: true,
  						cwd,
