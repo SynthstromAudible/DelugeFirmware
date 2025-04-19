@@ -71,8 +71,39 @@ const ControlDefinitionSchema = z
 
 const ControlData = z.record(ControlDefinitionSchema)
 
-export const KNOB_MODIFIERS_BEFORE = ["Press", "Turn"]
-export const KNOB_MODIFIERS_AFTER = ["Left", "Right"]
+const parseModifiers = (
+  modifiers: string[],
+  before: string[],
+  after: string[] = [],
+): { before: string[]; after: string[]; remaining: string[] } => {
+  const modifiersBefore = []
+  const modifiersAfter = []
+  let remainingModifiers = modifiers
+
+  for (const modifier of before) {
+    if (modifiers.includes(modifier.toLowerCase())) {
+      remainingModifiers = remainingModifiers.filter(
+        (keyword) => keyword.toLowerCase() !== modifier.toLowerCase(),
+      )
+      modifiersBefore.push(modifier)
+    }
+  }
+
+  for (const modifier of after) {
+    if (modifiers.includes(modifier.toLowerCase())) {
+      remainingModifiers = remainingModifiers.filter(
+        (keyword) => keyword.toLowerCase() !== modifier.toLowerCase(),
+      )
+      modifiersAfter.push(modifier)
+    }
+  }
+
+  return {
+    before: modifiersBefore,
+    after: modifiersAfter,
+    remaining: remainingModifiers,
+  }
+}
 
 const labelledButtonToAction =
   (override: Partial<z.infer<typeof ActionSchema>> = {}) =>
@@ -90,31 +121,18 @@ const labelledButtonToAction =
     }
   }
 
+const KNOB_MODIFIERS_BEFORE = ["Press", "Turn"]
+const KNOB_MODIFIERS_AFTER = ["Left", "Right"]
+
 const knobToAction =
   (idParser?: (modifiers: string[]) => string[] | undefined) =>
   (text: string, modifiers: string[]): typeof ActionSchema._input => {
     // Separate icon modifiers from the modifier list
-    const modifiersBefore = []
-    const modifiersAfter = []
-    let remainingModifiers = modifiers
-
-    for (const modifier of KNOB_MODIFIERS_BEFORE) {
-      if (modifiers.includes(modifier.toLowerCase())) {
-        remainingModifiers = remainingModifiers.filter(
-          (keyword) => keyword.toLowerCase() !== modifier.toLowerCase(),
-        )
-        modifiersBefore.push(modifier)
-      }
-    }
-
-    for (const modifier of KNOB_MODIFIERS_AFTER) {
-      if (modifiers.includes(modifier.toLowerCase())) {
-        remainingModifiers = remainingModifiers.filter(
-          (keyword) => keyword.toLowerCase() !== modifier.toLowerCase(),
-        )
-        modifiersAfter.push(modifier)
-      }
-    }
+    const {
+      before: modifiersBefore,
+      after: modifiersAfter,
+      remaining: remainingModifiers,
+    } = parseModifiers(modifiers, KNOB_MODIFIERS_BEFORE, KNOB_MODIFIERS_AFTER)
 
     const id = idParser ? idParser(remainingModifiers) : undefined
 
@@ -229,11 +247,15 @@ export const CONTROLS = ControlData.parse({
 
   // Pads
   Pad: {
-    toAction: (name, modifiers) => ({
-      text: titleCase(modifiers.length > 0 ? modifiers.join(" ") : name),
-      isPad: true,
-      searchText: `${modifiers.map((m) => titleCase(m)).join("")}${name}`,
-      // TODO: parse pad ID from modifiers
-    }),
+    // TODO: parse pad ID from modifiers
+    toAction: (name, modifiers) => {
+      return {
+        text: titleCase(modifiers.length > 0 ? modifiers.join(" ") : name),
+        isPad: true,
+        searchText: [...modifiers.map((m) => titleCase(m)), name]
+          .filter(Boolean)
+          .join(""),
+      }
+    },
   },
 } as typeof ControlData._input)

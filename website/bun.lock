@@ -34,6 +34,7 @@
     },
   },
   "patchedDependencies": {
+    "@astrojs/markdown-remark@6.3.1": "patches/@astrojs%2Fmarkdown-remark@6.3.1.patch",
     "@astrojs/starlight@0.32.5": "patches/@astrojs%2Fstarlight@0.32.5.patch",
   },
   "overrides": {

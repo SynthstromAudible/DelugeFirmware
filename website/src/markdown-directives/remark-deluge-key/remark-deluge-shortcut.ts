@@ -26,7 +26,7 @@ export const remarkDelugeShortcut = () => (tree: Root) => {
       data.hName = "span"
       data.hProperties = {
         class: "button-sequence",
-        "data-pagefind-weight": 10,
+        "data-pagefind-weight": 5, // Under H2 tags
         "data-pagefind-ignore": "index",
         "data-pagefind-index-attrs": "data-shortcut-sequence",
         "data-shortcut-sequence": searchText,
