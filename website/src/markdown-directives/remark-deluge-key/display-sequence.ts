@@ -4,21 +4,20 @@ import { type Action, CONTROLS, titleCase } from "./controls.ts"
 const icons = Object.fromEntries(
   await Promise.all(
     Object.entries(
-      import.meta.glob<{ default: ImageMetadata }>("../../assets/icons/*.svg"),
-    ).map(
-      async ([path, promise]) =>
-        [path.split("/").at(-1)?.split(".")[0], (await promise()).default] as [
-          string,
-          ImageMetadata,
-        ],
-    ),
+      import.meta.glob<ImageMetadata>("../../assets/icons/*.svg", {
+        eager: true,
+        import: "default",
+        query: "?inline",
+      }),
+    ).map(async ([path, image]) => [
+      path.split("/").at(-1)?.split(".")[0],
+      image,
+    ]),
   ),
 )
 
 const parseAction = (key: string): Action => {
-  const keywords = key
-    .split(/\s+/)
-    .map((keyword) => keyword.toLowerCase())
+  const keywords = key.split(/\s+/).map((keyword) => keyword.toLowerCase())
 
   const control = Object.entries(CONTROLS).find(([control, { aliases }]) => {
     return (
