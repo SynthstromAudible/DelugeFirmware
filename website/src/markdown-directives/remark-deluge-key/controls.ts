@@ -69,9 +69,7 @@ const ControlData = z.record(ControlDefinitionSchema)
 export const KNOB_MODIFIERS = ["Press", "Turn", "Left", "Right"]
 
 const labelledButtonToAction =
-  (
-    override: Partial<z.infer<typeof ActionSchema>> = {},
-  ) =>
+  (override: Partial<z.infer<typeof ActionSchema>> = {}) =>
   (text: string, modifiers: string[]) => {
     if (modifiers.length > 0) {
       throw new Error(

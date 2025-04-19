@@ -35,11 +35,11 @@ span.button-pad {
 }
 
 /* Light mode styles */
-:not([data-theme=dark]) span.button-pad {
+:not([data-theme="dark"]) span.button-pad {
   background-color: rgba(0, 0, 0, 0.1);
   border-color: rgba(0, 0, 0, 0.2);
 }
 
-:not([data-theme=dark]) span.button-chord {
+:not([data-theme="dark"]) span.button-chord {
   background-color: rgba(0, 0, 0, 0.08);
 }
