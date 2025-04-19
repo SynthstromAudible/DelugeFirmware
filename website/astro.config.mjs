@@ -65,15 +65,13 @@ const config = defineConfig({
         { label: "Doxygen Generated Docs", link: "/doxygen" },
       ],
       pagefind: {
-        // -@ts-expect-error This is a feature from pagefind 1.4.0-alpha.1, and it is not yet in the types
-        // include_characters: "<>+",
-        // ranking: {
-        //   // See: https://pagefind.app/docs/ranking/
-        //   termFrequency: 1,
-        //   termSimilarity: 10,
-        //   termSaturation: 0,
-        //   pageLength: 0.5, // 0-1, 1 favors shorter pages
-        // },
+        // See: https://pagefind.app/docs/ranking/
+        ranking: {
+          // termSimilarity: 1.0,
+          // termFrequency: 1.0,
+          // pageLength: 0.75,
+          // termSaturation: 1.4,
+        },
       },
       plugins: [starlightLinksValidator()],
       customCss: ["./src/styles/global.css"],

@@ -1,6 +1,7 @@
 import type { Root } from "mdast"
 import { visit } from "unist-util-visit"
 import { toString } from "mdast-util-to-string"
+import { titleCase } from "./controls.ts"
 import { displaySequence } from "./display-sequence.ts"
 
 /**
@@ -28,7 +29,7 @@ export const remarkDelugeShortcut = () => (tree: Root) => {
         "data-pagefind-weight": 10,
         "data-pagefind-ignore": "index",
         "data-pagefind-index-attrs": "data-shortcut-sequence",
-        "data-shortcut-sequence": `[${string.replaceAll(" ", "").replaceAll("+", "&#43;")}]`,
+        "data-shortcut-sequence": `[${titleCase(string).replaceAll(" ", "")}]`,
       }
       data.hChildren = displaySequence(string)
     }
