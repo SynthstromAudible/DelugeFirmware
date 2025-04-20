@@ -494,7 +494,7 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 				break;
 
 			case CompParam::BLEND:
-				current = compressor.getBlend() >> 24;
+				current = compressor.getBlend().raw() >> 24;
 				break;
 
 			// explicit fallthrough case
@@ -586,11 +586,12 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				if (display->haveOLED()) {
 					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_BLEND));
 				}
-				current = (compressor.getBlend() >> 24) - 64;
+				current = (compressor.getBlend().raw() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
-				q31_t level = current == 64 ? ONE_Q31 : lshiftAndSaturate<24>(current + 64);
+				FixedPoint<31> level =
+				    current == 64 ? 1.f : FixedPoint<31>::from_raw(lshiftAndSaturate<24>(current + 64));
 				displayLevel = compressor.setBlend(level);
 				unit = " %";
 				break;

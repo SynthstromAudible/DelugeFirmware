@@ -168,11 +168,11 @@ void ModControllableAudio::processFX(std::span<StereoSample> buffer, ModFXType m
 
 	// Bass. No-change represented by 0. Off completely represented by -536870912
 	int32_t positive = (unpatchedParams->getValue(params::UNPATCHED_BASS) >> 1) + 1073741824;
-	int32_t bassAmount = (multiply_32x32_rshift32_rounded(positive, positive) << 1) - 536870912;
+	int32_t bassAmount = (q31_mult_rounded(positive, positive))-536870912;
 
 	// Treble. No-change represented by 536870912
 	positive = (unpatchedParams->getValue(params::UNPATCHED_TREBLE) >> 1) + 1073741824;
-	int32_t trebleAmount = multiply_32x32_rshift32_rounded(positive, positive) << 1;
+	int32_t trebleAmount = q31_mult_rounded(positive, positive);
 
 	if (thisDoBass || thisDoTreble) {
 
@@ -244,7 +244,7 @@ void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> bu
 	for (StereoSample& sample : buffer) {
 		// Send to reverb
 		if (reverbSendAmount != 0) {
-			*(reverbBuffer++) += multiply_32x32_rshift32(sample.l + sample.r, reverbSendAmountAndPostFXVolume) << 1;
+			*(reverbBuffer++) += q31_mult(sample.l + sample.r, reverbSendAmountAndPostFXVolume);
 		}
 
 		if (doAmplitudeIncrement) {
@@ -376,8 +376,8 @@ inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inpu
 	if (doTreble) {
 		int32_t distanceToGoL = *inputL - withoutTrebleL;
 		int32_t distanceToGoR = *inputR - withoutTrebleR;
-		withoutTrebleL += multiply_32x32_rshift32(distanceToGoL, trebleFreq) << 1;
-		withoutTrebleR += multiply_32x32_rshift32(distanceToGoR, trebleFreq) << 1;
+		withoutTrebleL += q31_mult(distanceToGoL, trebleFreq);
+		withoutTrebleR += q31_mult(distanceToGoR, trebleFreq);
 		trebleOnlyL = *inputL - withoutTrebleL;
 		trebleOnlyR = *inputR - withoutTrebleR;
 		*inputL = withoutTrebleL; // Input now has had the treble removed. Or is this bad?
@@ -473,7 +473,7 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 	writer.writeAttribute("thresh", compressor.getThreshold());
 	writer.writeAttribute("ratio", compressor.getRatio());
 	writer.writeAttribute("compHPF", compressor.getSidechain());
-	writer.writeAttribute("compBlend", compressor.getBlend());
+	writer.writeAttribute("compBlend", compressor.getBlend().raw());
 	writer.closeTag();
 
 	// Stutter
@@ -851,8 +851,7 @@ doReadPatchedParam:
 				reader.exitTag("compHPF");
 			}
 			else if (!strcmp(tagName, "compBlend")) {
-				q31_t masterCompressorBlend = reader.readTagOrAttributeValueInt();
-				compressor.setBlend(masterCompressorBlend);
+				compressor.setBlend(FixedPoint<31>::from_raw(reader.readTagOrAttributeValueInt()));
 				reader.exitTag("compBlend");
 			}
 			else {

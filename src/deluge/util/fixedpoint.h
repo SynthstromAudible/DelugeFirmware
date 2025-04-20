@@ -124,15 +124,13 @@ public:
 
 	/// @brief Convert from a float to a fixed point number
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
-	[[gnu::always_inline]] constexpr FixedPoint(float value) noexcept {
+	[[gnu::always_inline]] static constexpr FixedPoint from_float(float value) noexcept {
 #if __ARM_ARCH_7A__ && !defined(__clang__)
 		if !consteval {
 			asm("vcvt.s32.f32 %0, %1, %2" : "=t"(value) : "t"(value), "I"(fractional_bits));
-			value_ = std::bit_cast<int32_t>(value); // NOLINT
-			return;
+			return FixedPoint::from_raw(std::bit_cast<int32_t>(value)); // NOLINT
 		}
 #endif
-
 		value *= static_cast<double>(FixedPoint::one());
 		// convert from floating-point to fixed point
 		if constexpr (rounded) {
@@ -140,9 +138,11 @@ public:
 		}
 
 		// saturate
-		value_ = static_cast<BaseType>(std::clamp<int64_t>(
-		    static_cast<int64_t>(value), std::numeric_limits<BaseType>::min(), std::numeric_limits<BaseType>::max()));
+		return FixedPoint::from_raw(static_cast<BaseType>(std::clamp<int64_t>(
+		    static_cast<int64_t>(value), std::numeric_limits<BaseType>::min(), std::numeric_limits<BaseType>::max())));
 	}
+
+	consteval FixedPoint(float value) noexcept : value_(from_float(value).raw()) {}
 
 	template <std::size_t OtherFractionalBits, bool OtherRounded = Rounded, bool OtherApproximating = FastApproximation>
 	constexpr operator FixedPoint<OtherFractionalBits, OtherRounded, OtherApproximating>() const {
@@ -169,13 +169,12 @@ public:
 
 	/// @brief Convert from a double to a fixed point number
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
-	[[gnu::always_inline]] constexpr FixedPoint(double value) noexcept {
+	[[gnu::always_inline]] static constexpr FixedPoint from_float(double value) noexcept {
 #if __ARM_ARCH_7A__ && !defined(__clang__)
 		if !consteval {
 			auto output = std::bit_cast<int64_t>(value);
 			asm("vcvt.s32.f64 %0, %1, %2" : "=w"(output) : "w"(output), "I"(fractional_bits));
-			value_ = static_cast<BaseType>(output);
-			return;
+			return FixedPoint::from_raw(static_cast<BaseType>(output));
 		}
 #endif
 		value *= static_cast<double>(FixedPoint::one());
@@ -185,9 +184,11 @@ public:
 		}
 
 		// saturate
-		value_ = static_cast<BaseType>(std::clamp<int64_t>(
-		    static_cast<int64_t>(value), std::numeric_limits<BaseType>::min(), std::numeric_limits<BaseType>::max()));
+		return FixedPoint::from_raw(static_cast<BaseType>(std::clamp<int64_t>(
+		    static_cast<int64_t>(value), std::numeric_limits<BaseType>::min(), std::numeric_limits<BaseType>::max())));
 	}
+
+	consteval FixedPoint(double value) noexcept : value_(from_float(value).raw()) {}
 
 	/// @brief Explicit conversion to double
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
@@ -229,6 +230,7 @@ public:
 
 	/// @brief Get the internal value
 	[[gnu::always_inline]] [[nodiscard]] constexpr BaseType raw() const noexcept { return value_; }
+	[[gnu::always_inline]] constexpr BaseType& raw() noexcept { return value_; }
 
 	/// @brief Construct from a raw value
 	[[gnu::always_inline]] static constexpr FixedPoint from_raw(BaseType raw) noexcept {
@@ -399,7 +401,7 @@ public:
 	[[nodiscard]] constexpr FixedPoint MultiplyAdd(const FixedPoint& a, const FixedPoint& b) const {
 		if constexpr (fast_approximation && (((fractional_bits * 2) - 32) == (fractional_bits - 1))) {
 			// fractional_bits - 1 is due to the left shift
-			return from_raw(signed_most_significant_word_multiply_add(value_, a.raw(), b.raw()) << 1);
+			return from_raw(signed_most_significant_word_multiply_add(value_ >> 1, a.raw(), b.raw()) << 1);
 		}
 		else {
 			return *this + (a * b);
@@ -465,34 +467,21 @@ public:
 		return std::strong_ordering::equal;
 	}
 
-	/// @brief Equality operator for integers and floating point numbers
-	template <typename T>
-	requires std::floating_point<T>
-	[[gnu::always_inline]] constexpr bool operator==(const T& rhs) const noexcept {
-		return value_ == FixedPoint{rhs}.value_;
-	}
-
 	/// @brief Multiply by an integral type
-	template <std::integral T>
-	[[gnu::always_inline]] constexpr FixedPoint MultiplyInt(const T& rhs) const {
+	[[gnu::always_inline]] constexpr FixedPoint MultiplyInt(const std::integral auto& rhs) const {
 		return FixedPoint::from_raw(value_ * static_cast<BaseType>(rhs));
 	}
 
 	/// @brief Divide by an integral type
-	template <std::integral T>
-	[[gnu::always_inline]] constexpr FixedPoint DivideInt(const T& rhs) const {
+	[[gnu::always_inline]] constexpr FixedPoint DivideInt(const std::integral auto& rhs) const {
 		return FixedPoint::from_raw(value_ / static_cast<BaseType>(rhs));
 	}
 
-	template <std::integral T>
-	[[gnu::always_inline]] constexpr FixedPoint operator*(const T& rhs) const {
+	[[gnu::always_inline]] constexpr FixedPoint operator*(const std::integral auto& rhs) const {
 		return MultiplyInt(rhs);
 	}
 
-	template <std::integral T>
-	[[gnu::always_inline]] constexpr FixedPoint operator/(const T& rhs) {
-		return DivideInt(rhs);
-	}
+	[[gnu::always_inline]] constexpr FixedPoint operator/(const std::integral auto& rhs) { return DivideInt(rhs); }
 
 	[[gnu::always_inline]] [[nodiscard]] constexpr int32_t integral() const {
 		return static_cast<int32_t>(value_ >> fractional_bits);
@@ -528,7 +517,7 @@ operator+(const T& lhs, const FixedPoint<FractionalBits, Rounded, FastApproximat
 template <std::floating_point T, std::size_t FractionalBits, bool Rounded, bool FastApproximation>
 constexpr FixedPoint<FractionalBits, Rounded, FastApproximation>
 operator-(const T& lhs, const FixedPoint<FractionalBits, Rounded, FastApproximation>& rhs) {
-	return FixedPoint<FractionalBits, Rounded, FastApproximation>{lhs} - rhs;
+	return FixedPoint<FractionalBits, Rounded, FastApproximation>::from_float(lhs) - rhs;
 }
 
 template <std::floating_point T, std::size_t FractionalBits, bool Rounded, bool FastApproximation>

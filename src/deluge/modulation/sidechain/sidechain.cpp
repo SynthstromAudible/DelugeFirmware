@@ -157,14 +157,14 @@ prepareForRelease:
 			envelopeHeight = ONE_Q31 - envelopeOffset;
 			goto doRelease;
 		}
-		// lastValue = (multiply_32x32_rshift32(envelopeHeight, decayTable4[pos >> 13]) << 1) + envelopeOffset; // Goes
+		// lastValue = (q31_mult(envelopeHeight, decayTable4[pos >> 13])) + envelopeOffset; // Goes
 		// down quickly at first. Bad lastValue = (multiply_32x32_rshift32(envelopeHeight, 2147483647 - (pos << 8)) <<
 		// 1) + envelopeOffset; // Straight line
-		lastValue = (multiply_32x32_rshift32(envelopeHeight, (ONE_Q31 - getDecay4(8388608 - pos, 23))) << 1)
+		lastValue = (q31_mult(envelopeHeight, (ONE_Q31 - getDecay4(8388608 - pos, 23))))
 		            + envelopeOffset; // Goes down slowly at first. Great squishiness
-		// lastValue = (multiply_32x32_rshift32(envelopeHeight, (2147483647 - decayTable8[1023 - (pos >> 13)])) << 1) +
+		// lastValue = (q31_mult(envelopeHeight, (2147483647 - decayTable8[1023 - (pos >> 13)]))) +
 		// envelopeOffset; // Even slower to accelerate. Loses punch slightly lastValue =
-		// (multiply_32x32_rshift32(envelopeHeight, (sineWave[((pos >> 14) + 256) & 1023] >> 1) + 1073741824) << 1) +
+		// (q31_mult(envelopeHeight, (sineWave[((pos >> 14) + 256) & 1023] >> 1) + 1073741824)) +
 		// envelopeOffset; // Sine wave. Sounds a bit flat lastValue = (multiply_32x32_rshift32(envelopeHeight,
 		// 2147483647 - pos * (pos >> 15)) << 1) + envelopeOffset; // Parabola. Not bad, but doesn't quite have
 		// punchiness
@@ -198,12 +198,12 @@ doRelease:
 			preValue = straightness * (pos >> 8) + (getDecay8(8388608 - pos, 23) >> 16) * curvedness16;
 		}
 
-		lastValue = ONE_Q31 - envelopeHeight + (multiply_32x32_rshift32(preValue, envelopeHeight) << 1);
+		lastValue = ONE_Q31 - envelopeHeight + (q31_mult(preValue, envelopeHeight));
 
-		// lastValue = 2147483647 - (multiply_32x32_rshift32(decayTable8[pos >> 13], envelopeHeight) << 1); // Upside
+		// lastValue = 2147483647 - (q31_mult(decayTable8[pos >> 13], envelopeHeight)); // Upside
 		// down exponential curve lastValue = 2147483647 - (((int64_t)((sineWave[((pos >> 14) + 256) & 1023] >> 1) +
 		// 1073741824) * (int64_t)envelopeHeight) >> 31); // Sine wave. Not great lastValue =
-		// (multiply_32x32_rshift32(pos * (pos >> 15), envelopeHeight) << 1); // Parabola. Doesn't "punch".
+		// (q31_mult(pos * (pos >> 15), envelopeHeight)); // Parabola. Doesn't "punch".
 	}
 	else { // Off
 doOff:

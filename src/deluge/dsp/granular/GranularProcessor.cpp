@@ -90,8 +90,8 @@ void GranularProcessor::setupGrainFX(int32_t grainRate, int32_t grainMix, int32_
 	if (!grainInitialized && bufferWriteIndex >= 65536) {
 		grainInitialized = true;
 	}
-	*postFXVolume = multiply_32x32_rshift32(*postFXVolume, ONE_OVER_SQRT2_Q31) << 1; // Divide by sqrt(2)
-	                                                                                 // Shift
+	*postFXVolume = q31_mult(*postFXVolume, ONE_OVER_SQRT2_Q31); // Divide by sqrt(2)
+	                                                             // Shift
 	_grainShift =
 	    44 * 300; // this is where we should tempo sync ( it's kSampleRate / 1000 * 300 for a 300ms base delay amount);
 	// Size depends on both density and rate

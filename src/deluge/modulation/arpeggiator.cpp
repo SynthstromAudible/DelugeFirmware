@@ -504,11 +504,11 @@ uint32_t ArpeggiatorBase::calculateSpreadVelocity(uint8_t velocity, int32_t spre
 	int32_t diff = 0;
 	if (spreadVelocityForCurrentStep < 0) {
 		// Reducing velocity
-		diff = -(multiply_32x32_rshift32((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1) << 1);
+		diff = -(q31_mult((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1));
 	}
 	else {
 		// Increasing velocity
-		diff = (multiply_32x32_rshift32(spreadVelocityForCurrentStep << 24, 127 - signedVelocity) << 1);
+		diff = (q31_mult(spreadVelocityForCurrentStep << 24, 127 - signedVelocity));
 	}
 	signedVelocity = signedVelocity + diff;
 	// And fix it if out of bounds
@@ -1310,11 +1310,11 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction
 		int32_t diff = 0;
 		if (spreadGateForCurrentStep < 0) {
 			// Reducing gate
-			diff = -(multiply_32x32_rshift32((-spreadGateForCurrentStep) << 24, signedGateThreshold) << 1);
+			diff = -(q31_mult((-spreadGateForCurrentStep) << 24, signedGateThreshold));
 		}
 		else {
 			// Increasing gate
-			diff = (multiply_32x32_rshift32(spreadGateForCurrentStep << 24, maxGate - signedGateThreshold) << 1);
+			diff = (q31_mult(spreadGateForCurrentStep << 24, maxGate - signedGateThreshold));
 		}
 		signedGateThreshold = signedGateThreshold + diff;
 		// And fix it if out of bounds

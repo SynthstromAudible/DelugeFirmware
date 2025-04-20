@@ -52,7 +52,7 @@ startRenderingASync:
 		int32_t average = (*bufferStartThisSync >> 1) + (crossoverSampleBeforeSync >> 1);
 		int32_t halfDifference = (*bufferStartThisSync >> 1) - (crossoverSampleBeforeSync >> 1);
 		int32_t sineValue = getSine(fadeBetweenSyncs >> 1);
-		*bufferStartThisSync = average + (multiply_32x32_rshift32(halfDifference, sineValue) << 1);
+		*bufferStartThisSync = average + (q31_mult(halfDifference, sineValue));
 	}
 
 	if (shouldBeginNextSyncAfter) {
