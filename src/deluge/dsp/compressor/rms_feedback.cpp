@@ -40,7 +40,7 @@ void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 	// We offset the final volume by a minuscule amount to avoid a finalVolume of zero resulting in NaNs propagating.
 	//
 	// Maximum value: 2.08 neppers, since finalVolume is at most 0x7fffffff (representing ~8 in 3.29 signed fixed point)
-	float songVolumedB = logf(finalVolume + 1e-10);
+	float songVolumedB = logf(finalVolume + 1e-10f);
 
 	threshdb = songVolumedB * threshold;
 	// this is effectively where song volume gets applied, so we'll stick an IIR filter (e.g. the envelope) here to
