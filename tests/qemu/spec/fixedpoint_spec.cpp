@@ -71,8 +71,9 @@ describe fixedpoint("FixedPoint", ${
 		});
 
 		it("the original float", _ {
-			FixedPoint<16> fp{3.14f};
-			expect(fp.to_float()).to_equal(3.14f);
+			float value = 3.14f;
+			FixedPoint<16> fp{value};
+			expect(fp.to_float()).to_equal(value);
 		});
 
 		it("another of equal value and the same number of fractional bits", _ {
@@ -222,7 +223,7 @@ describe fixedpoint("FixedPoint", ${
 		it("divides by another FixedPoint with a fractional value", _ {
 			FixedPoint<16> fp1{42};
 			FixedPoint<16> fp2{2.5f};
-			expect((fp1 / fp2).to_float()).to_equal(16.8f);
+			expect(fp1 / fp2).to_equal(FixedPoint<16>{16.8f});
 		});
 	});
 
