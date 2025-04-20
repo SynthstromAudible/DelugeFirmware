@@ -466,13 +466,6 @@ public:
 		return std::strong_ordering::equal;
 	}
 
-	/// @brief Equality operator for integers and floating point numbers
-	template <typename T>
-	requires std::floating_point<T>
-	[[gnu::always_inline]] constexpr bool operator==(const T& rhs) const noexcept {
-		return value_ == FixedPoint{rhs}.value_;
-	}
-
 	/// @brief Multiply by an integral type
 	template <std::integral T>
 	[[gnu::always_inline]] constexpr FixedPoint MultiplyInt(const T& rhs) const {
