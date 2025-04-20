@@ -67,13 +67,3 @@ span.pad {
   height: 1.75em; /* This is compensating for the border, but is not a good solution */
   padding: 0 0.15em;
 }
-
-/* Light mode styles */
-/*html:not([data-theme="dark"]) span.action {*/
-/*  background-color: rgba(0, 0, 0, 0.08);*/
-/*}*/
-
-/*html:not([data-theme="dark"]) span.pad {*/
-/*  background-color: rgba(0, 0, 0, 0.1);*/
-/*  border-color: rgba(0, 0, 0, 0.2);*/
-/*}*/
