@@ -171,35 +171,27 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 	return filterGain;
 }
 
-[[gnu::hot]] void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
+[[gnu::hot]] void LpLadderFilter::doFilter(std::span<q31_t> buffer) {
 
 	// Half ladder
 	if (lpfMode == FilterMode::TRANSISTOR_12DB) {
-
-		q31_t* currentSample = startSample;
-		do {
-			*currentSample = do12dBLPFOnSample(*currentSample, l);
-			currentSample += sampleIncrement;
-		} while (currentSample < endSample);
+		for (q31_t& sample : buffer) {
+			sample = do12dBLPFOnSample(sample, l);
+		}
 	}
 
 	// Full ladder (regular)
 	else if (lpfMode == FilterMode::TRANSISTOR_24DB) {
-
-		q31_t* currentSample = startSample;
-		do {
-			*currentSample = do24dBLPFOnSample(*currentSample, l);
-
-			currentSample += sampleIncrement;
-		} while (currentSample < endSample);
+		for (q31_t& sample : buffer) {
+			sample = do24dBLPFOnSample(sample, l);
+		}
 	}
 
 	// Full ladder (drive)
 	else if (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE) {
 		constexpr int32_t extraSaturationDrive = 1;
 		if (doOversampling) {
-			q31_t* currentSample = startSample;
-			do {
+			for (q31_t& sample : buffer) {
 				// Linear interpolation works surprisingly well here - it doesn't lead to audible aliasing. But its big
 				// problem is that it kills the highest frequencies, which is especially noticeable when resonance is
 				// low. This is because it'll turn all your high sine waves into triangles whose fundamental is lower in
@@ -215,62 +207,47 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 				// actual sample works very nearly as well as this, but gives a little bit more aliasing on high notes
 				// fed in.
 
-				doDriveLPFOnSample(*currentSample, l);
+				doDriveLPFOnSample(sample, l);
 
 				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the
 				// ladder LPF filter takes care of lots of those high harmonics!
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
+				q31_t outputSampleToKeep = doDriveLPFOnSample(sample, l);
 
 				// Only perform the final saturation stage on this one sample, which we want to keep
-				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
-
-				currentSample += sampleIncrement;
-			} while (currentSample < endSample);
+				sample = getTanHUnknown(outputSampleToKeep, 4);
+			}
 		}
 
 		else {
-			q31_t* currentSample = startSample;
-			do {
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
-				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
-
-				currentSample += sampleIncrement;
-			} while (currentSample < endSample);
+			for (q31_t& sample : buffer) {
+				q31_t outputSampleToKeep = doDriveLPFOnSample(sample, l);
+				sample = getTanHUnknown(outputSampleToKeep, 4);
+			}
 		}
 	}
 }
-[[gnu::hot]] void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
+[[gnu::hot]] void LpLadderFilter::doFilterStereo(std::span<StereoSample> buffer) {
 
 	// Half ladder
 	if (lpfMode == FilterMode::TRANSISTOR_12DB) {
-
-		q31_t* currentSample = startSample;
-		do {
-			*currentSample = do12dBLPFOnSample(*currentSample, l);
-			currentSample += 1;
-			*currentSample = do12dBLPFOnSample(*currentSample, r);
-			currentSample += 1;
-		} while (currentSample < endSample);
+		for (StereoSample& sample : buffer) {
+			sample.l = do12dBLPFOnSample(sample.l, l);
+			sample.r = do12dBLPFOnSample(sample.r, r);
+		}
 	}
 
 	// Full ladder (regular)
 	else if (lpfMode == FilterMode::TRANSISTOR_24DB) {
-		q31_t* currentSample = startSample;
-		do {
-			*currentSample = do24dBLPFOnSample(*currentSample, l);
-
-			currentSample += 1;
-			*currentSample = do24dBLPFOnSample(*currentSample, r);
-
-			currentSample += 1;
-		} while (currentSample < endSample);
+		for (StereoSample& sample : buffer) {
+			sample.l = do24dBLPFOnSample(sample.l, l);
+			sample.r = do24dBLPFOnSample(sample.r, r);
+		}
 	}
 
 	// Full ladder (drive)
 	else if (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE) {
 		if (doOversampling) {
-			q31_t* currentSample = startSample;
-			do {
+			for (StereoSample& sample : buffer) {
 				// Linear interpolation works surprisingly well here - it doesn't lead to audible aliasing. But its big
 				// problem is that it kills the highest frequencies, which is especially noticeable when resonance is
 				// low. This is because it'll turn all your high sine waves into triangles whose fundamental is lower in
@@ -286,41 +263,34 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 				// actual sample works very nearly as well as this, but gives a little bit more aliasing on high notes
 				// fed in.
 
-				doDriveLPFOnSample(*currentSample, l);
+				doDriveLPFOnSample(sample.l, l);
 
 				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the
 				// ladder LPF filter takes care of lots of those high harmonics!
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
+				q31_t outputSampleToKeep = doDriveLPFOnSample(sample.l, l);
 
 				// Only perform the final saturation stage on this one sample, which we want to keep
-				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
+				sample.l = getTanHUnknown(outputSampleToKeep, 4);
 
-				currentSample += 1;
-				doDriveLPFOnSample(*currentSample, r);
+				doDriveLPFOnSample(sample.r, r);
 
 				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the
 				// ladder LPF filter takes care of lots of those high harmonics!
-				outputSampleToKeep = doDriveLPFOnSample(*currentSample, r);
+				outputSampleToKeep = doDriveLPFOnSample(sample.r, r);
 
 				// Only perform the final saturation stage on this one sample, which we want to keep
-				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
-
-				currentSample += 1;
-			} while (currentSample < endSample);
+				sample.r = getTanHUnknown(outputSampleToKeep, 4);
+			}
 		}
 
 		else {
-			q31_t* currentSample = startSample;
-			do {
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
-				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
+			for (StereoSample& sample : buffer) {
+				q31_t outputSampleToKeep = doDriveLPFOnSample(sample.l, l);
+				sample.l = getTanHUnknown(outputSampleToKeep, 4);
 
-				currentSample += 1;
-				outputSampleToKeep = doDriveLPFOnSample(*currentSample, r);
-				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
-
-				currentSample += 1;
-			} while (currentSample < endSample);
+				outputSampleToKeep = doDriveLPFOnSample(sample.r, r);
+				sample.r = getTanHUnknown(outputSampleToKeep, 4);
+			}
 		}
 	}
 }

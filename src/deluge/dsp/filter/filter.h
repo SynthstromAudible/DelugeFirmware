@@ -17,15 +17,18 @@
 
 #pragma once
 
+#include "dsp/stereo_sample.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "util/fixedpoint.h"
 #include "util/functions.h"
 #include <cstdint>
+#include <ranges>
+#include <span>
 
 namespace deluge::dsp::filter {
 constexpr int32_t ONE_Q16 = 134217728;
 
-extern q31_t blendBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2];
+extern std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> blendBuffer;
 /**
  *  Interface for filters in the sound engine
  * This is a CRTP base class for all filters used in the sound engine. To implement a new filter,
@@ -57,50 +60,44 @@ public:
 	 * @param sampleIncrement increment between samples
 	 * @param extraSaturation extra saturation value
 	 */
-	[[gnu::hot]] void filterMono(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt = 1) {
+	[[gnu::hot]] void filterMono(std::span<q31_t> buffer) {
 		if (dryFade < 0.001) {
-			static_cast<T*>(this)->doFilter(startSample, endSample, sampleIncrememt);
+			static_cast<T*>(this)->doFilter(buffer);
+			return;
 		}
-		else {
-			memcpy(blendBuffer, startSample, (endSample - startSample) * sizeof(q31_t));
-			static_cast<T*>(this)->doFilter(startSample, endSample, sampleIncrememt);
 
-			q31_t* currentSample = startSample;
-			q31_t* currentDrySample = blendBuffer;
-			do {
-				q31_t wet = multiply_32x32_rshift32(*currentSample, wetLevel);
-				*currentSample = multiply_accumulate_32x32_rshift32_rounded(wet, *currentDrySample, ONE_Q31 - wetLevel)
-				                 << 1;
-				currentSample += 1;
-				currentDrySample += 1;
-				updateBlend(); // will go to one over 512 samples
-			} while (currentSample < endSample);
+		memcpy(blendBuffer.data(), buffer.data(), buffer.size_bytes());
+		static_cast<T*>(this)->doFilter(buffer);
+
+		std::span mono_blend_buffer{reinterpret_cast<q31_t*>(blendBuffer.data()), buffer.size()};
+
+		for (auto [dry, wet] : std::views::zip(mono_blend_buffer, buffer)) {
+			wet = multiply_32x32_rshift32(wet, wetLevel);
+			wet = multiply_accumulate_32x32_rshift32_rounded(wet, dry, ONE_Q31 - wetLevel) << 1;
+			updateBlend(); // will go to one over 512 samples
 		}
 	}
+
 	/**
 	 * Filter a buffer of interleaved stereo samples from startSample to endSample incrememnting by the increment
 	 * @param startSample pointer to first sample in buffer
 	 * @param endSample pointer to last sample
 	 * @param extraSaturation extra saturation value
 	 */
-	[[gnu::hot]] void filterStereo(q31_t* startSample, q31_t* endSample) {
+	[[gnu::hot]] void filterStereo(std::span<StereoSample> buffer) {
 		if (dryFade < 0.001) {
-			static_cast<T*>(this)->doFilterStereo(startSample, endSample);
+			static_cast<T*>(this)->doFilterStereo(buffer);
+			return;
 		}
-		else {
-			memcpy(blendBuffer, startSample, (endSample - startSample) * sizeof(q31_t));
-			static_cast<T*>(this)->doFilterStereo(startSample, endSample);
+		memcpy(blendBuffer.data(), buffer.data(), buffer.size_bytes());
+		static_cast<T*>(this)->doFilterStereo(buffer);
 
-			q31_t* currentSample = startSample;
-			q31_t* currentDrySample = blendBuffer;
-			do {
-				q31_t wet = multiply_32x32_rshift32(*currentSample, wetLevel);
-				*currentSample = multiply_accumulate_32x32_rshift32_rounded(wet, *currentDrySample, ONE_Q31 - wetLevel)
-				                 << 1;
-				currentSample += 1;
-				currentDrySample += 1;
-				updateBlend();
-			} while (currentSample < endSample);
+		for (auto [dry, wet] : std::views::zip(blendBuffer, buffer)) {
+			wet.l = multiply_32x32_rshift32(wet.l, wetLevel);
+			wet.l = multiply_accumulate_32x32_rshift32_rounded(wet.l, dry.l, ONE_Q31 - wetLevel) << 1;
+			wet.r = multiply_32x32_rshift32(wet.r, wetLevel);
+			wet.r = multiply_accumulate_32x32_rshift32_rounded(wet.r, dry.r, ONE_Q31 - wetLevel) << 1;
+			updateBlend();
 		}
 	}
 	/**
@@ -115,7 +112,7 @@ public:
 		}
 	}
 
-	inline void updateBlend() {
+	void updateBlend() {
 		// fades over around 500 samples
 		dryFade = dryFade * 0.99;
 		wetLevel = (q31_t)(ONE_Q31 * (1 - dryFade));

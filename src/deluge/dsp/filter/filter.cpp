@@ -15,7 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "definitions.h"
+#include "dsp/stereo_sample.h"
 #include "util/fixedpoint.h"
 namespace deluge::dsp::filter {
-q31_t blendBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2] = {0};
+std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> blendBuffer{};
 }

@@ -786,7 +786,7 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 }
 
 [[gnu::hot]] void GlobalEffectable::processFilters(std::span<StereoSample> buffer) {
-	filterSet.renderLongStereo(&buffer.data()->l, &(buffer.data() + buffer.size())->l);
+	filterSet.renderLongStereo(buffer);
 }
 
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
