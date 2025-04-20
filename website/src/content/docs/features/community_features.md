@@ -1215,7 +1215,7 @@ to each individual note onset. (#1978)
   it starts playing the first slice, and pressing any empty pad creates a new slice at the time you've pressed it.
   Turning :key[Select] to the left or pressing the `PAD` + `DELETE` button allows you to delete a slice.
 
-[//]: # (Pad + Delete: Is this actually Pad + Shift + Save? Do we want a shorthand for this?)
+[//]: # "Pad + Delete: Is this actually Pad + Shift + Save? Do we want a shorthand for this?"
 
 - Turning :key[Turn Horizontal] allows you to adjust the start point of the slice. Additionally, :key[Turn Vertical] transposes the slice by
   a semitone.

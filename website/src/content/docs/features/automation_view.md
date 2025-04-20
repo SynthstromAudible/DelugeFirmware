@@ -202,7 +202,7 @@ The Automation Editor **will:**
 - enable you to use either of the Mod Encoders (gold knobs) to quickly change the parameter value of the parameter in focus. The knobs automatically map to the selected parameter and you can use either knob (eliminating the guess work about which knob to turn).
 - enable you to quickly change parameters in focus for editing by turning select or using :key[Shift + Shortcut Pad] or going back to automation overview using :key[AffectEntire] or shift/audition pad + clip
 
-[//]: # (Does the above mean 1. shift + pad + clip or 2. shift or pad + clip?)
+[//]: # "Does the above mean 1. shift + pad + clip or 2. shift or pad + clip?"
 
 - enable you to view the current parameter value setting for the parameters that are currently automatable.
 - illuminate each pad row according to the current value within the range of 0-128. E.g. bottom pad = 0-16, then 17-32, 33-48, 49-64, 65-80, 81-96, 97-112, 113-128)

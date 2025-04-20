@@ -25,7 +25,9 @@ span.button-sequence {
 /*  cursor: pointer;*/
 /*}*/
 
-span.button-chord, span.action, span.img-wrapper {
+span.button-chord,
+span.action,
+span.img-wrapper {
   display: inline-flex;
   align-items: baseline;
   max-width: fit-content;
