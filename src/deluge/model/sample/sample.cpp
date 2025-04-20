@@ -100,9 +100,8 @@ Error Sample::initialize(int32_t newNumClusters) {
 	fileExplicitlySpecifiesSelfAsWaveTable = false;
 
 	try {
-		for (size_t c = 0; c < newNumClusters; c++) {
-			clusters.emplace_back();
-		}
+		clusters.reserve(clusters.size() + newNumClusters);
+		clusters.resize(clusters.size() + newNumClusters);
 	} catch (deluge::exception e) {
 		if (e == deluge::exception::BAD_ALLOC) {
 			return Error::INSUFFICIENT_RAM;
