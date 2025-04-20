@@ -29,7 +29,7 @@ void MIDICableUSBHosted::writeToFlash(uint8_t* memory) {
 	*(uint16_t*)(memory + 2) = productId;
 }
 
-char const* MIDICableUSBHosted::getDisplayName() {
+char const* MIDICableUSBHosted::getDisplayName() const {
 	return name.get();
 }
 

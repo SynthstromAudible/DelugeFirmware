@@ -38,10 +38,10 @@
 #include "RZA1/usb/userdef/r_usb_hmidi_config.h"
 
 #include "definitions.h"
-#include "deluge/io/midi/midi_device_manager.h"
-
 #include "deluge/drivers/uart/uart.h"
+#include "deluge/io/midi/midi_device_manager.h"
 #include "deluge/io/midi/midi_engine.h"
+#include "deluge/io/usb/usb_state.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "drivers/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
@@ -954,7 +954,7 @@ void usb_hstd_receive_start(usb_utr_t* ptr, uint16_t pipe)
 // I now just call the PSTD one instead of this - it does the same.
 /***********************************************************************************************************************
  Function Name   : usb_hstd_read_data
- Description     : Request to read data from USB FIFO, and manage the size of 
+ Description     : Request to read data from USB FIFO, and manage the size of
                  : the data read.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipe         : Pipe number.
@@ -1185,8 +1185,6 @@ void usb_hstd_data_end(usb_utr_t* ptr, uint16_t pipe, uint16_t status)
         }
     }
 } /* End of function usb_hstd_data_end() */
-
-extern usb_utr_t g_usb_midi_recv_utr[][MAX_NUM_USB_MIDI_DEVICES];
 
 // For when data has been received, as host. Hub stuff is on PIPE9
 void usb_hstd_brdy_pipe_process_rohan_midi_and_hub(usb_utr_t* ptr, uint16_t bitsts)

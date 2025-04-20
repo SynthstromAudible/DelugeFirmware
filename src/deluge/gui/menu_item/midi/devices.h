@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021-2023 Synthstrom Audible Limited
+ * Copyright © 2021-2025 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,22 +17,28 @@
 
 #pragma once
 
-#include "gui/menu_item/value.h"
+#include "gui/menu_item/menu_item.h"
+#include <cstddef>
 
 namespace deluge::gui::menu_item::midi {
 
-class Devices final : public Value<int32_t> {
+/// Menu item for the MIDI device selection menu.
+class Devices final : public MenuItem {
 public:
-	using Value::Value;
+	using MenuItem::MenuItem;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void selectEncoderAction(int32_t offset) override;
 	MIDICable* getCable(int32_t deviceIndex);
-	virtual void drawValue();
 	MenuItem* selectButtonPress() override;
-	void drawPixelsForOled();
+
+	void drawValue();
+	void drawPixelsForOled() override;
 
 private:
-	size_t currentScroll;
+	/// The currently selected cable. This is either 0 (for the DIN ports) or 1 + the index into the root USB cables.
+	int32_t current_cable_;
+	/// Scroll position within the displayed items for the OLED
+	int32_t scroll_pos_;
 };
 
 extern Devices devicesMenu;
