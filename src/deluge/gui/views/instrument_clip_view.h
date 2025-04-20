@@ -79,12 +79,19 @@ public:
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult handleScaleButtonAction(bool on, bool inCardRoutine);
+	bool handleInstrumentChange(OutputType outputType);
 
 	// PAD ACTION pad press / release handling
 
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult potentiallyRandomizeDrumSamples();
 	ActionResult potentiallyRandomizeDrumSample(Kit* kit, Drum* drum, char* chosenFilename);
+	ActionResult commandEnterNoteVelocityEditor(int32_t x, int32_t y);
+	ActionResult commandLearnMutePad(int32_t y, int32_t velocity);
+	ActionResult commandLearnAuditionPad(InstrumentClip* clip, Output* output, OutputType outputType, int32_t yDisplay,
+	                                     int32_t velocity);
+	ActionResult commandSaveKitRow(InstrumentClip* clip, Output* output, OutputType outputType, int32_t yDisplay);
+	ActionResult commandActivateSongMacro(int32_t y, int32_t velocity);
 
 	// SCALE MODE related commands.
 
@@ -120,12 +127,29 @@ public:
 	int32_t getYVisualFromYDisplay(int32_t yDisplay);
 	int32_t getYVisualWithinOctaveFromYDisplay(int32_t yDisplay);
 	ActionResult auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
+	void potentiallyUpdateMultiRangeMenu(int32_t velocity, int32_t yDisplay, Instrument* instrument);
+	void potentiallyRecordAuditionPadAction(bool clipIsActiveOnInstrument, int32_t velocity, int32_t yDisplay,
+	                                        Instrument* instrument, bool isKit,
+	                                        ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                                        ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
+	void recordNoteOnEarly(int32_t velocity, int32_t yDisplay, Instrument* instrument, bool isKit,
+	                       ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
+	void recordNoteOn(int32_t velocity, int32_t yDisplay, Instrument* instrument,
+	                  ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                  ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
+	NoteRow* getNoteRowOnActiveClip(int32_t yDisplay, Instrument* instrument, bool clipIsActiveOnInstrument,
+	                                ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
 	void potentiallyRefreshNoteRowMenu();
+	bool startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
+	                         NoteRow* noteRowOnActiveClip, Drum* drum);
+	void finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack, NoteRow* noteRowOnActiveClip);
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
 	void drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], uint8_t thisOccupancyMask[]);
 	void cutAuditionedNotesToOne();
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult commandTransposeKey(int32_t offset, bool inCardRoutine);
+	void commandShiftColour(int32_t offset);
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	void fillOffScreenImageStores();
 	void graphicsRoutine() override;
@@ -174,8 +198,8 @@ public:
 	void setLedStates();
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
 	void drawNoteCode(uint8_t yDisplay);
-	void createNewInstrument(OutputType instrumentType, bool is_fm = false);
-	void changeOutputType(OutputType newOutputType);
+	bool createNewInstrument(OutputType instrumentType, bool is_fm = false);
+	bool changeOutputType(OutputType newOutputType);
 	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
 	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
 	bool getAffectEntire() override;
@@ -284,6 +308,7 @@ public:
 	// other note row functions
 	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
 	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
+	void commandEuclidean(int32_t offset);
 	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
 	void editNoteRowLength(int32_t offset);
 	void rotateNoteRowHorizontally(int32_t offset);
@@ -354,19 +379,8 @@ private:
 	Drum* getAuditionedDrum(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, Instrument* instrument,
 	                        ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                        ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
-	void potentiallyUpdateMultiRangeMenu(int32_t velocity, int32_t yDisplay, Instrument* instrument);
-	void recordNoteOnEarly(int32_t velocity, int32_t yDisplay, Instrument* instrument, bool isKit,
-	                       ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
-	void recordNoteOn(int32_t velocity, int32_t yDisplay, Instrument* instrument,
-	                  ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                  ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
 	void recordNoteOff(int32_t yDisplay, ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
-	NoteRow* getNoteRowOnActiveClip(int32_t yDisplay, Instrument* instrument, bool clipIsActiveOnInstrument,
-	                                ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
 	int32_t getVelocityToSound(int32_t velocity);
-	bool startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
-	                         NoteRow* noteRowOnActiveClip, Drum* drum);
-	void finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack, NoteRow* noteRowOnActiveClip);
 };
 
 extern InstrumentClipView instrumentClipView;
