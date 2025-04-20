@@ -68,6 +68,7 @@ set the stutter configuration independently of the song configuration if you wis
 
 #### <ins>Audio Export</ins>
 - Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
+- Added Tempo, Root Note and Scale Information to file names
 
 
 #### <ins>Save/Load Patterns</ins>
