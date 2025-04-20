@@ -67,6 +67,8 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::PERFORMANCE; }
+	UIType getUIContextType() override;
+	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::SONG; }
 	[[nodiscard]] int32_t getNavSysId() const override;
 
 	// rendering

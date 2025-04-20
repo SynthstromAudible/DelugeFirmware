@@ -60,7 +60,19 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::AUTOMATION; }
-	AutomationSubType getAutomationSubType();
+	UIType getUIContextType() override;
+	UIModControllableContext getUIModControllableContext() override {
+		return getUIContextType() == UIType::ARRANGER ? UIModControllableContext::SONG : UIModControllableContext::CLIP;
+	}
+
+	// used to identify the UI as a clip UI or not.
+	ClipMinder* toClipMinder() override { return getUIContextType() == UIType::ARRANGER ? nullptr : this; }
+
+	void setAutomationParamType();
+
+	bool onAutomationOverview();
+	bool inAutomationEditor();
+	bool inNoteEditor();
 
 	// rendering
 	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
@@ -91,7 +103,7 @@ public:
 
 	// vertical encoder action
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
-	ActionResult scrollVertical(int32_t scrollAmount);
+	ActionResult scrollVertical(int32_t scrollAmount, ModelStackWithTimelineCounter* modelStack);
 	void potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output);
 
 	// mod encoder action
@@ -110,17 +122,6 @@ public:
 
 	// called by playback_handler.cpp
 	void notifyPlaybackBegun() override;
-
-	// used to identify the UI as a clip UI or not.
-	ClipMinder* toClipMinder() override {
-		return getAutomationSubType() == AutomationSubType::ARRANGER ? nullptr : this;
-	}
-
-	void setAutomationParamType();
-
-	bool onAutomationOverview();
-	bool inAutomationEditor();
-	bool inNoteEditor();
 
 	bool interpolation;
 	bool interpolationBefore;
@@ -212,7 +213,8 @@ private:
 	// audition pad action
 	ActionResult handleAuditionPadAction(InstrumentClip* instrumentClip, Output* output, OutputType outputType,
 	                                     int32_t y, int32_t velocity);
-	void auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
+	ActionResult auditionPadAction(InstrumentClip* clip, Output* output, OutputType outputType, int32_t yDisplay,
+	                               int32_t velocity, bool shiftButtonDown);
 
 	// Automation View Render Functions
 	void performActualRender(RGB image[][kDisplayWidth + kSideBarWidth],

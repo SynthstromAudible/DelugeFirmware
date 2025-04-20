@@ -45,7 +45,7 @@ q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMo
 	in = (q >> 1) + (ONE_Q31 >> 1);
 	// squared q is a better match for the ladders
 	// also the input scale needs to be sqrt(q) for the level compensation to work so it's a win win
-	q = multiply_32x32_rshift32_rounded(q, q) << 1;
+	q = q31_mult_rounded(q, q);
 
 	// note - the if statements are to avoid overflow issues
 	// do not remove

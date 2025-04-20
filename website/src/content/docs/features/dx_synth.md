@@ -83,7 +83,7 @@ to browse between parameters.
 2. If OLED screen is available a group of related parameters is displayed at a time, like all the envelope levels and rates
    for a specific envelope. With 7SEG the parameter name will be shown briefly before the value
 
-3. Press back/undo to exit the Editor View, and access the standard synth shortcuts again.
+3. Press :key[Back] to exit the Editor View, and access the standard synth shortcuts again.
 
 ## Engine versions
 

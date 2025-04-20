@@ -28,7 +28,7 @@ public:
 	RMSFeedbackCompressor();
 
 	/// takes in all values as knob positions in the range 0-ONE_Q31
-	constexpr void setup(q31_t a, q31_t r, q31_t t, q31_t rat, q31_t fc, q31_t blend, float baseGain) {
+	constexpr void setup(q31_t a, q31_t r, q31_t t, q31_t rat, q31_t fc, FixedPoint<31> blend, float baseGain) {
 		setAttack(a);
 		setRelease(r);
 		setThreshold(t);
@@ -147,15 +147,16 @@ public:
 	}
 
 	/// returns blend in q31
-	constexpr q31_t getBlend() { return wet; }
+	constexpr FixedPoint<31> getBlend() { return wet; }
+
 	/// returns blend as an integer percentage
-	constexpr int32_t getBlendForDisplay() { return wet > (127 << 24) ? 100 : 100 * (wet >> 24) >> 7; }
+	constexpr int32_t getBlendForDisplay() { return wet.raw() > (127 << 24) ? 100 : 100 * (wet.raw() >> 24) >> 7; }
 
 	/// update the blend level, where blend is the wet level (i.e. ONE_Q31 is full wet)
 	/// returns wet percentage
-	constexpr int32_t setBlend(q31_t blend) {
+	constexpr int32_t setBlend(FixedPoint<31> blend) {
 		// hack to allow it to get to full wet. Safe since this isn't a modulatable param and doesn't need the headroom
-		dry = ONE_Q31 - blend;
+		dry = 1.f - blend;
 		wet = blend;
 		return getBlendForDisplay();
 	}
@@ -229,6 +230,6 @@ private:
 	q31_t attackKnobPos = 0;
 	q31_t releaseKnobPos = 0;
 	q31_t sideChainKnobPos = 0;
-	q31_t dry;
-	q31_t wet;
+	FixedPoint<31> dry;
+	FixedPoint<31> wet;
 };

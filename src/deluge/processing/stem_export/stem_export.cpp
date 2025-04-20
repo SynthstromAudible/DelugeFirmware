@@ -901,8 +901,9 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 
 /// based on Stem Export Type, will set a WAV file name in the format of:
 /// /OutputType_StemExportType_OutputName_IndexNumber.WAV
-/// example: /SYNTH_CLIP_BASS SYNTH_00000.WAV
-/// example: /SYNTH_TRACK_BASS SYNTH_00000.WAV
+/// example: /SYNTH_CLIP_BASS SYNTH_TEMPO_ROOT NOTE-SCALE_00000.WAV
+/// example: /SYNTH_TRACK_BASS SYNTH_TEMPO_ROOT NOTE-SCALE_00000.WAV
+/// example: /MIXDOWN_TEMPO_ROOT NOTE-SCALE.WAV
 /// this wavFileName is then concatenate to the filePath name to export the WAV file
 void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Output* output, int32_t fileNumber) {
 	// wavFileNameForStemExport = "/"
@@ -911,16 +912,15 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 		return;
 	}
 
+	const char* outputType;
+	const char* exportType;
+
 	if (stemExportType == StemExportType::MIXDOWN) {
 		// wavFileNameForStemExport = "/MIXDOWN
-		error = wavFileNameForStemExport.concatenate("MIXDOWN");
-		if (error != Error::NONE) {
-			return;
-		}
+		exportType = "MIXDOWN";
 	}
 	else {
 		// wavFileNameForStemExport = "/OutputType
-		const char* outputType;
 		switch (output->type) {
 		case OutputType::AUDIO:
 			outputType = "AUDIO";
@@ -934,54 +934,47 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 		default:
 			break;
 		}
-		error = wavFileNameForStemExport.concatenate(outputType);
-		if (error != Error::NONE) {
-			return;
-		}
 	}
 
-	if (stemExportType != StemExportType::MIXDOWN) {
-		// wavFileNameForStemExport = "/OutputType_
-		error = wavFileNameForStemExport.concatenate("_");
-		if (error != Error::NONE) {
-			return;
-		}
+	const char* outputName;
 
+	if (stemExportType != StemExportType::MIXDOWN) {
 		// wavFileNameForStemExport = "/OutputType_StemExportType_
 		if (stemExportType == StemExportType::CLIP) {
-			error = wavFileNameForStemExport.concatenate("CLIP_");
-			if (error != Error::NONE) {
-				return;
-			}
+			exportType = "CLIP";
 		}
 		else if (stemExportType == StemExportType::TRACK) {
-			error = wavFileNameForStemExport.concatenate("TRACK_");
-			if (error != Error::NONE) {
-				return;
-			}
+			exportType = "TRACK";
 		}
 
 		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName
-		error = wavFileNameForStemExport.concatenate(output->name.get());
-		if (error != Error::NONE) {
-			return;
-		}
-
-		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_
-		error = wavFileNameForStemExport.concatenate("_");
-		if (error != Error::NONE) {
-			return;
-		}
-
-		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_###
-		error = wavFileNameForStemExport.concatenateInt(fileNumber, 3);
-		if (error != Error::NONE) {
-			return;
-		}
+		outputName = output->name.get();
 	}
 
-	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_###.WAV
-	error = wavFileNameForStemExport.concatenate(".WAV");
+	// get song tempo
+	int32_t tempo = std::round(playbackHandler.calculateBPMForDisplay());
+
+	// get song root note
+	char noteName[5];
+	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
+	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
+
+	// get song scale
+	const char* scaleName = getScaleName(currentSong->getCurrentScale());
+
+	char fileName[300];
+
+	// wavFileNameForStemExport = /StemExportType_tempo_noteName-scaleName.WAV
+	if (stemExportType == StemExportType::MIXDOWN) {
+		sprintf(fileName, "%s_%dBPM_%s-%s.WAV", exportType, tempo, noteName, scaleName);
+	}
+	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_tempo_noteName-scaleName_###.WAV
+	else {
+		sprintf(fileName, "%s_%s_%s_%dBPM_%s-%s_%03d.WAV", outputType, exportType, outputName, tempo, noteName,
+		        scaleName, fileNumber);
+	}
+
+	error = wavFileNameForStemExport.concatenate(fileName);
 	if (error != Error::NONE) {
 		return;
 	}

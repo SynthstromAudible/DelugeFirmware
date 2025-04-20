@@ -59,4 +59,4 @@ describe tracking_allocator("TrackingAllocator", $ {
 	});
 });
 
-CPPSPEC_SPEC(tracking_allocator)
+CPPSPEC_MAIN(tracking_allocator)

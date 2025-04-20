@@ -11,7 +11,7 @@ class [[gnu::hot]] SineOsc {
 	static std::array<int16_t, 512> sineWaveDiff;
 
 public:
-	static inline int32_t doFMNew(uint32_t carrierPhase, uint32_t phaseShift) {
+	static int32_t doFMNew(uint32_t carrierPhase, uint32_t phaseShift) {
 		// return getSineNew((((*carrierPhase += carrierPhaseIncrement) >> 8) + phaseShift) & 16777215, 24);
 
 		uint32_t phaseSmall = (carrierPhase >> 8) + phaseShift;
@@ -30,7 +30,7 @@ public:
 		// create a vector containing a ramp of incrementing phases:
 		// {phase + (phaseIncrement * 1), phase + (phaseIncrement * 2), phase + (phaseIncrement * 3), phase +
 		// (phaseIncrement * 4)}
-		auto phaseVector = Argon<uint32_t>::LoadCopy(thisPhase).MultiplyAdd(uint32x4_t{1, 2, 3, 4}, phaseIncrement);
+		auto phaseVector = Argon<uint32_t>::LoadCopy(thisPhase).MultiplyAdd(phaseIncrement, Argon<uint32_t>::Iota(1));
 		*thisPhase = *thisPhase + phaseIncrement * 4;
 
 		return render(phaseVector);
@@ -52,7 +52,8 @@ private:
 		Argon<uint32_t> indices = (phase >> (32 - kSineTableSizeMagnitude)) << 1;
 
 		//  load our two relevent table components
-		auto [sine, diff] = ArgonHalf<int16_t>::LoadGatherInterleaved<2>(sineWaveDiff.data(), indices);
+		auto [sine, diff] =
+		    ArgonHalf<int16_t>::LoadGatherOffsetIndexInterleaved<2>(sineWaveDiff.data(), indices.Narrow());
 
 		// Essentially a MultiplyAddFixedPoint, but without the reduction back down to q31
 		return sine.ShiftLeftLong<16>().MultiplyDoubleAddSaturateLong(diff, strength2);

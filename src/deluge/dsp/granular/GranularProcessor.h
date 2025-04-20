@@ -29,7 +29,7 @@
 class UnpatchedParamSet;
 
 struct Grain {
-	int32_t length;     // in samples 0=OFF
+	int32_t length = 0; // in samples 0=OFF
 	int32_t startPoint; // starttimepos in samples
 	int32_t counter;    // relative pos in samples
 	uint16_t pitch;     // 1024=1.0
@@ -45,7 +45,7 @@ class GrainBuffer;
 /// memory
 class GranularProcessor {
 public:
-	GranularProcessor();
+	GranularProcessor() { getBuffer(); }
 	GranularProcessor(const GranularProcessor& other); // copy constructor
 	~GranularProcessor();
 	[[nodiscard]] int32_t getSamplesToShutdown() const { return wrapsToShutdown * kModFXGrainBufferSize; }
@@ -69,29 +69,29 @@ private:
 	void setWrapsToShutdown();
 	void setupGrainsIfNeeded(int32_t writeIndex);
 	// parameters
-	uint32_t bufferWriteIndex;
-	int32_t _grainSize;
-	int32_t _grainRate;
-	int32_t _grainShift;
-	int32_t _grainFeedbackVol;
-	int32_t _grainVol;
-	int32_t _grainDryVol;
-	int32_t _pitchRandomness;
+	uint32_t bufferWriteIndex = 0;
+	int32_t _grainSize = 13230;                                 // 300ms
+	int32_t _grainRate = 1260;                                  // 35hz
+	int32_t _grainShift = 13230;                                // 300ms
+	int32_t _grainFeedbackVol = 161061273;                      // Q30: 0.15
+	int32_t _grainVol = 0;                                      // Q31: 0
+	int32_t _grainDryVol = std::numeric_limits<int32_t>::max(); // Q31: 1
+	int32_t _pitchRandomness = 0;
 
-	bool grainLastTickCountIsZero;
-	bool grainInitialized;
+	bool grainLastTickCountIsZero = true;
+	bool grainInitialized = false;
 
-	Grain grains[8];
+	std::array<Grain, 8> grains = {0};
 
-	int32_t wrapsToShutdown;
-	GrainBuffer* grainBuffer;
-	int32_t _densityKnobPos{0};
-	int32_t _rateKnobPos{0};
-	int32_t _mixKnobPos{0};
+	int32_t wrapsToShutdown = 0;
+	GrainBuffer* grainBuffer = nullptr;
+	int32_t _densityKnobPos = 0;
+	int32_t _rateKnobPos = 0;
+	int32_t _mixKnobPos = 0; // Q31
 	deluge::dsp::filter::BasicFilterComponent lpf_l{};
 	deluge::dsp::filter::BasicFilterComponent lpf_r{};
-	bool tempoSync{true};
-	bool bufferFull{false};
+	bool tempoSync = true;
+	bool bufferFull = false;
 };
 
 class GrainBuffer : public Stealable {
@@ -99,7 +99,7 @@ public:
 	GrainBuffer() = delete;
 	GrainBuffer(GrainBuffer& other) = delete;
 	GrainBuffer(const GrainBuffer& other) = delete;
-	explicit GrainBuffer(GranularProcessor* grainFX) { owner = grainFX; }
+	explicit GrainBuffer(GranularProcessor* grainFX) : owner(grainFX) {}
 	bool mayBeStolen(void* thingNotToStealFrom) override {
 		if (thingNotToStealFrom != this) {
 			return !inUse;
@@ -109,14 +109,14 @@ public:
 	void steal(char const* errorCode) override { owner->grainBufferStolen(); };
 
 	// gives it  a high priority - these are huge so reallocating them can be slow
-	StealableQueue getAppropriateQueue() const override {
+	[[nodiscard]] StealableQueue getAppropriateQueue() const override {
 		return StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE;
 	};
 	StereoSample& operator[](int32_t i) { return sampleBuffer[i]; }
 	StereoSample operator[](int32_t i) const { return sampleBuffer[i]; }
-	bool inUse{true};
+	bool inUse = true;
 
 private:
 	GranularProcessor* owner;
-	StereoSample sampleBuffer[kModFXGrainBufferSize * sizeof(StereoSample)];
+	std::array<StereoSample, kModFXGrainBufferSize * sizeof(StereoSample)> sampleBuffer;
 };

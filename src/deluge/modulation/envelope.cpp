@@ -80,10 +80,10 @@ considerEnvelopeStage:
 			lastValue = 0;
 			return -2147483648;
 		}
-		// int32_t thisValue = multiply_32x32_rshift32(getDecay8(pos, 23), lastValue) << 1;
+		// int32_t thisValue = q31_mult(getDecay8(pos, 23), lastValue);
 		// int32_t negativePos = (8388608 - pos) >> 13;
 		// int32_t thisValue = multiply_32x32_rshift32(negativePos * negativePos * negativePos, lastValue) << 2;
-		lastValue = multiply_32x32_rshift32(interpolateTable(pos, 23, releaseTable), lastValuePreCurrentStage) << 1;
+		lastValue = q31_mult(interpolateTable(pos, 23, releaseTable), lastValuePreCurrentStage);
 		break;
 
 	case EnvelopeStage::FAST_RELEASE:
@@ -97,7 +97,7 @@ considerEnvelopeStage:
 			return -2147483648;
 		}
 
-		// lastValue = multiply_32x32_rshift32((8388608 - pos) << 8, lastValuePreRelease) << 1;
+		// lastValue = q31_mult((8388608 - pos) << 8, lastValuePreRelease);
 
 		// This alternative line does the release in a sine shape, which you'd think would cause less high-frequency
 		// content than the above kinda "triangle" one, but it sounds about the same somehow Actually no it does sound a

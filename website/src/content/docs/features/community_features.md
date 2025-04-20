@@ -63,19 +63,19 @@ A Favourites-Feature has been added to the Load-UIs for most File-Types. The Fav
 - Save a Favourite
   - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
   - Browse to the File you want to save
-  - Hold `SHIFT` and select a empty Favourite Slot (light blue)
+  - Hold :key[Shift] and select a empty Favourite Slot (light blue)
 - Delete a Favourite
   - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
-  - Hold `SHIFT` and select the Favourite Slot you want to delete
+  - Hold :key[Shift] and select the Favourite Slot you want to delete
 - Recall a Favourite
   - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
   - Select the Favourite
 - Change the Colour of a Favourite
   - Select the Favourite you want to modify
-  - Hold `SHIFT` and turn `VERTICAL ENCODER`
+  - Hold :key[Shift] and turn `VERTICAL ENCODER`
 
 Tip:
-If you are Browsing Songs or Samples an dont want to have the Preview to hide the Keyboard on Scrolling, just press the `KEYBOARD`-Button to pin the Keyboard and the Favourites.
+If you are Browsing Songs or Samples an dont want to have the Preview to hide the Keyboard on Scrolling, just press :key[Keyboard] to pin the Keyboard and the Favourites.
 
 ## 3. General Improvements
 
@@ -237,13 +237,13 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - (#3079) Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
 
-- (#3425) Extended the ability to batch change all drum sounds, by holding `Affect-Entire` while editing a parameter
-  (indicated by flashing the `Affect-Entire` button), from the initially available handful of sample-related parameters,
+- (#3425) Extended the ability to batch change all drum sounds, by holding :key[AffectEntire] while editing a parameter
+  (indicated by flashing the :key[AffectEntire] button), from the initially available handful of sample-related parameters,
   to ALL sound parameters (except for `Oscillator Type` and patch cable strengths).
 
 #### 3.7 - Global Interface
 
-- (#118) Sticky Shift - When enabled, tapping `SHIFT` will lock shift `ON` unless another button is also pressed
+- (#118) Sticky Shift - When enabled, tapping :key[Shift] will lock shift `ON` unless another button is also pressed
   during the short press duration.
   - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 - (#118) Shift LED feedback can now be toggled manually, however it will turn ON or OFF in conjunction with Sticky
@@ -262,12 +262,11 @@ Here is a list of general improvements that have been made, ordered from newest 
   the same value range as displayed with the Mod Encoders.
   - This allows for better fine-tuning of values.
   - The value range displayed is 0-50 for non-MIDI parameters and 0-127 for MIDI parameters.
-  - Note: In the Menu, if you wish to scroll through the parameter value range faster at an accelerated rate of +/- 5,
-    hold `SHIFT` while turning the Select Encoder.
+  - Note: In the Menu, if you wish to scroll through the parameter value range faster at an accelerated rate of +/- 5, turn :key[Shift + Turn Select].
 
 #### 3.10 - Enable Stutter Rate Automation
 
-- (#653) Enabled ability to record stutter rate automation with mod (gold) encoder.
+- (#653) Enabled ability to record stutter rate automation with :key[Gold].
   - Note: This feature does not enable you to automate the triggering of stutter
 
 #### 3.11 - Adjust Metronome Volume
@@ -286,7 +285,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.13 - Automatically load the last open/saved song or user-defined template at startup.
 
 - (#1272) Added feature to load automatically projects at startup.
-  To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`.
+  To activate the feature, press :key[Shift + Select] : `MENU > DEFAULTS > STARTUP SONG`.
 - Four modes are available :
   - `NEW SONG` : default mode, empty project on clip view with default synth.
   - `TEMPLATE` : it will load `DEFAULT.XML` project that will be saved automatically when you select this mode, and
@@ -298,12 +297,12 @@ Here is a list of general improvements that have been made, ordered from newest 
   - the feature will be deactivated until either:
     - the canary file `SONGS/_STARTUP_OFF_CHECK{SONG}` is removed from UI song browser or from the sd card.
     - `LAST OPENED SONG`/ `LAST SAVED SONG` / `TEMPLATE` refers to another song, in which case previous canary file will be ignored (but still needs to be manually removed).
-- In case of the crash still persists, you can always factory reset by holding `SELECT` while powering on the Deluge, which will force to boot up on `NEW SONG`.
+- In case of the crash still persists, you can always factory reset by holding :key[Select] while powering on the Deluge, which will force to boot up on `NEW SONG`.
 
 #### 3.14 - Preserve Pad Brightness Preference Through Power Cycle
 
 - (#1312) Save user-defined pad brightness level and restore it at startup.
-  To use this feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > PAD BRIGHTNESS`.
+  To use this feature, press :key[Shift + Select] : `MENU > DEFAULTS > PAD BRIGHTNESS`.
   - Default : Full brightness (`100`).
   - Min value `4`, Max Value `100`.
 
@@ -323,7 +322,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 #### 3.17 - Select Audio Clip Source and Monitoring
 
-- (#1531) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
+- (#1531) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (:key[Shift + Select]) and Selecting the `AUDIO SOURCE` menu
   - Not included in c1.1.0
 - (#2371) Source can now also be set to a specific track on the deluge. This enables an additional TRACK menu to choose
   which track to record from. The source can also be selected by pressing a clip's pad while in the audio source selection menu.
@@ -338,14 +337,14 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.18 - Set Audio Clip Length Equal to Sample Length
 
 - (#1542) Added new shortcut to set the length of an audio clip to the same length as its sample at the current tempo. This functionally removes timestretching until the Audio Clip length or Song tempo is changed.
-  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample.
-    - This action is also available in the `Audio Clip Sound Menu` (Press `SELECT`) by Selecting the `ACTIONS` menu and Pressing `SELECT` on the `Set Clip Length to Sample Length` action.
-  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to adjust the audio clip's length independent of timestretching.
+  - Press :key[Vertical + Horizontal] to set the Audio Clip length equal to the length of the audio sample.
+    - This action is also available in the `Audio Clip Sound Menu` (Press :key[Select]) by Selecting the `ACTIONS` menu and Pressing :key[Select] on the `Set Clip Length to Sample Length` action.
+  - Press :key[Shift + Vertical + Turn Horizontal] to adjust the audio clip's length independent of timestretching.
 
 #### 3.19 - Sample Slice Default Mode
 
 - (#1589) Added a new default setting that controls which playback mode new slices of a kit will get.
-- To change the setting, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > SAMPLE SLICE MODE`.
+- To change the setting, press :key[Shift + Select] : `MENU > DEFAULTS > SAMPLE SLICE MODE`.
 - every new slice in a kit using the slicer will now get one of the modes by default
   - `CUT`, `ONCE`, `LOOP`, `STRETCH`
   - the setting is persistent after reboot
@@ -370,7 +369,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Audio Export Documentation](/features/audio_export)
 - (#2260) Added `AUDIO EXPORT`, an automated process for exporting `CLIP's` while in `SONG VIEW` and `TRACK's` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting audio. Press `BACK` to cancel the export and stop recording and playback.
-- (#2327) You can also start the export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
+- (#2327) You can also start the export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing :key[Select] on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 - (#2330) You can configure settings for the audio export via the `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Enter `SONG\EXPORT EXPORT\CONFIGURE EXPORT\` to configure various export settings.
 
 #### 3.24 Render Clip / Section Launch Event Playhead in Song Grid and Performance Views
@@ -384,7 +383,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 #### 3.26 Updated UI for Interacting with Toggle Menu's and Sub Menu's
 
-- (#2345) For toggle (ON/OFF) menu's, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
+- (#2345) For toggle (ON/OFF) menu's, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the :key[Select] encoder while the menu is selected.
 - OLED renders a checkbox that shows current ON/OFF status. Selecting that menu with select encoder will toggle the checkbox as opposed to entering the menu.
 - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
 - Submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
@@ -405,7 +404,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 #### 3.28 Add Clip Settings Menu in Song View to set Clip Mode and Clip Name and convert Instrument Clips to Audio Clips
 
-- (#2299) Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu.
+- (#2299) Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing :key[Select] brings up a `CLIP SETTINGS` menu.
 - If you open the menu with with an `INSTRUMENT CLIP` selected, then the menu will give you three options:
   1. `Convert to Audio`: Press select on this option to convert the selected `instrument clip` into an `audio clip`. The menu will exit after converting the clip.
   - Note: for `SONG ROW VIEW`, you can still convert an empty instrument clip to an audio clip the regular way by holding a pad for that clip in the main grid and pressing select.
@@ -446,13 +445,13 @@ Here is a list of general improvements that have been made, ordered from newest 
     - `MEDIUM`: Sets a medium threshold that is good for most signals (including the internal microphone with gain off).
     - `HIGH`: Sets a high threshold that is good for noisy signals / microphones with gain
   - You can also view and temporarily change the current threshold recording setting as follows:
-    - Press and hold `RECORD` + turn `SELECT`
-    - Enter the Song menu while in Song or Arranger View by pressing `SELECT` and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
+    - :key[Record + Turn Select]
+    - Enter the Song menu while in Song or Arranger View by pressing :key[Select] and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
 
 #### 3.34 Polyphony / Voice Count
 
-- (#1824) Added new `Max Voices (VCNT)` menu which lets you configure the Maximum number of Voices for a Polyphonic instrument, accessible by pressing `SELECT` in a `Synth clip` or `Kit clip with a Sound Drum selected and Affect Entire Off` under the `VOICE (VOIC)` menu.
-  - This menu is also accessible from the `VOICE (VOIC) > Polyphony Type (POLY)` type menu by selecting `Polyphonic` and pressing `SELECT`
+- (#1824) Added new `Max Voices (VCNT)` menu which lets you configure the Maximum number of Voices for a Polyphonic instrument, accessible by pressing :key[Select] in a `Synth clip` or `Kit clip with a Sound Drum selected and Affect Entire Off` under the `VOICE (VOIC)` menu.
+  - This menu is also accessible from the `VOICE (VOIC) > Polyphony Type (POLY)` type menu by selecting `Polyphonic` and pressing :key[Select]
 - Updated default `Max Voices` for new synth's to `8 voices`. Old synths for which a max number of voices has not been configured will default to `16 voices`.
 
 #### 3.35 Clip Names
@@ -492,17 +491,17 @@ Here is a list of features that have been added to the firmware as a list, group
   - `BLEND` : 0-100%
 
 - (#1173) In clip view, the settings are available under the COMPRESSOR menu entry. The same parameters exist there.
-  In kits there is both a per row compressor, accessed through the menu when affect entire is off, and a kit compressor
+  In kits there is both a per row compressor, accessed through the menu when :key[AffectEntire] is off, and a kit compressor
   accessed while it is on.
 
 #### 4.1.2 - Change Row Colour
 
-- (#163) In Song View, pressing a clip row pad + `SHIFT` + turning `▼︎▲︎` changes the selected row color. This is
+- (#163) In Song View, pressing a clip row pad + :key[Shift + Turn Vertical] changes the selected row color. This is
   similar to the shortcut when setting the color while in a clip view.
 
 #### 4.1.3 - Fill Clips and Once Clips
 
-- (#196 and #1018) Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu. In this menu, you will find a submenu for `CLIP MODE`.
+- (#196 and #1018) Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing :key[Select] brings up a `CLIP SETTINGS` menu. In this menu, you will find a submenu for `CLIP MODE`.
 
   The `CLIP MODE` menu enables you the set the following launch style options for a clip:
 
@@ -539,11 +538,11 @@ Here is a list of features that have been added to the firmware as a list, group
     them visible move the clips to other sections
   - The colored column on the right are all available sections, the columns are automatically filled with the tracks
     in the same order as in arrangement mode
-  - In song view hold `SONG` and turn `SELECT` knob to switch between row layout and grid layout
+  - In song view turn :key[Song + Select] to switch between row layout and grid layout
   - Compared to rows layout overdub recording and copying clips to arranger is currently not supported
   - Every track (column) has a random generated color that can be changed in edit mode (see below)
   - Launched clips are full color, unlaunched dimmed and during soloing all non soloed clips are greyed out
-  - New default settings that can be reached pressing both `SHIFT` + `SELECT`: `MENU > DEFAULTS > UI > SONG`
+  - New default settings that can be reached pressing both :key[Shift + Select]: `MENU > DEFAULTS > UI > SONG`
     - `Layout:` Select the default layout for all new songs
     - `Grid`
       - `Default active mode:` "Selection" allows changing the mode as described below, all other settings will
@@ -567,8 +566,8 @@ Here is a list of features that have been added to the firmware as a list, group
       - While holding a clip it can be copied to other empty slots by clicking on them, apart from
         audio/instrument conversion clips are automatically moved to that instrument/track and converted (e.g.
         Synth to MIDI target)
-      - Track color can be changed by holding any populated clip in a column and rotating `▼︎▲︎`. For fine changes
-        to the color press `▼︎▲︎` while turning it.
+      - Track color can be changed by holding any populated clip in a column and turning :key[Turn Vertical]. For fine changes
+        to the color :key[Press Turn Vertical].
       - Section pads (left sidebar column) will allow changing repeat count while held
 - (#970) Streamline recording new clips while Deluge is playing
   - This assumes the Deluge is in Grid mode, you are in Green mode, the Deluge is Playing, and Recording is enabled.
@@ -617,9 +616,9 @@ Here is a list of features that have been added to the firmware as a list, group
 
 ### 4.1.7 - Added Master Chromatic Transpose of All Scale Mode Instrument Clips
 
-- (#1159) Using the same combo as in a Synth / Midi / CV clip, press and turn `▼︎▲︎` to transpose all scale mode clips
+- (#1159) Using the same combo as in a Synth / Midi / CV clip, :key[Press Turn Vertical] to transpose all scale mode clips
   up or down by 1 semitone.
-  - You can customize the amount of semitones that clips are transposed by, by holding Shift and pressing and turning `▼︎▲︎`. The
+  - You can customize the amount of semitones that clips are transposed by with :key[Shift + Press Turn Vertical]. The
     display will show the number of semitones.
   - After transposing the display show the new Root Note (and Scale Name if you have an OLED display).
   - Does not affect audio clips or kit clips.
@@ -629,11 +628,11 @@ Here is a list of features that have been added to the firmware as a list, group
 
 - (#1344) Added `VU Meter` rendering in the sidebar in Song / Arranger / Performance Views.
   - To display the VU meter:
-    - turn `AFFECT ENTIRE` on
+    - turn :key[AffectEntire] on
     - select the `LEVEL/PAN` mod button
     - press the `LEVEL/PAN` mod button again to toggle the VU Meter on / off.
       - note: the `LEVEL/PAN` mod button will blink when the VU meter is on and displayed
-  - The VU meter will stop rendering if you switch mod button selections, turn affect entire off, select a clip, or
+  - The VU meter will stop rendering if you switch mod button selections, turn :key[AffectEntire] off, select a clip, or
     exit Song/Arranger views.
   - The VU meter will render the decibels below clipping on the grid with the colours green, yellow and red.
     - Red indicates DAC clipping and is rendered on the top row of the grid.
@@ -671,7 +670,7 @@ Inside a `CLIP TIMELINE VIEW`, hold `SONG` button and press the `LEFT SIDEBAR` t
 
 In `KEYBOARD VIEW`, macros are available as a sidebar control.
 
-`SHIFT` makes the launch immediate just like in song view.
+:key[Shift] makes the launch immediate just like in song view.
 
 `AFFECT ENTIRE` + `CLIP MACRO` can be used to jump to edit the clip.
 
@@ -802,7 +801,7 @@ to each individual note onset. (#1978)
   bright blue color when the Fill button is held. There are two ways to activate `FILL` mode - set it as a Global MIDI
   Command and/or set it to override the front panel `SYNC-SCALING` button. For Global MIDI Commands go
   to `SETTINGS > MIDI > CMD > FILL`. To override to `SYNC-SCALING`, set `SETTINGS > COMMUNITY FEATURES > SYNC`
-  to `FILL`. The orignal `SYNC-SCALING` function is moved to `SHIFT` + `SYNC-SCALING`.
+  to `FILL`. The orignal :key[SyncScaling] function is moved to :key[Shift + SyncScaling].
 - (#994) Additionaly, there is also the Not Fill Mode, which is right before the `FILL` setting in the probability
   selector. On the OLED Deluge, this is shown as `NOT FILL`, and on 7-SEG Deluge, this will be shown as `FILL.` (with a
   dot). Notes set to `NOT FILL` are only played when fill mode is NOT active, that is, while regular playback, and,
@@ -849,10 +848,10 @@ to each individual note onset. (#1978)
     MIDI Controller that was learned to that param.
   - (#966) Added automation view for audio clips
   - (#1039) Added automation view for arranger.
-    - Hold `SHIFT` and press `SONG` to enter Automation Arranger View from Arranger View.
-    - Press `SONG` while in Automation Arranger View to exit back to Arranger View
-    - Press `AFFECT ENTIRE` while in Automation Arranger View to go back to Automation Overview
-    - Press `CROSS SCREEN` while in Automation Arranger View to activate/de-activate automatic scrolling during
+    - Press :key[Shift + Song] to enter Automation Arranger View from Arranger View.
+    - Press :key[Song] while in Automation Arranger View to exit back to Arranger View
+    - Press :key[AffectEntire] while in Automation Arranger View to go back to Automation Overview
+    - Press :key[CrossScreen] while in Automation Arranger View to activate/de-activate automatic scrolling during
       playback
     - Also, moved automation community features to defaults menu found at `SETTINGS > DEFAULTS > AUTOMATION`
       - `Automation (AUTO)`
@@ -904,23 +903,23 @@ to each individual note onset. (#1978)
     - Note: per the functionality added in #887 mentioned above, you can set a param to the middle value by pressing the two pads in a column or you can use the fine tuning method with the gold encoders in or out of pad selection mode by selecting a pad and turning gold encoder.
     - To make it easier to set the middle value, functionality has been added to blink the LED indicators when you reach the middle value and it also makes it more difficult to turn the knob past the middle value as it currently did outside automation view editor.
   - (#1898 #2136) Change pad selection mode shortcut.
-    - Updated `AUTOMATION VIEW` to move `PAD SELECTION MODE` shortcut to the `WAVEFORM` pad in the first column of the Deluge grid (very top left pad). Toggle pad selection mode on/off using `SHIFT` + `WAVEFORM` shortcut pad. The Waveform shortcut pad will blink to indicate that pad selection mode is enabled.
+    - Updated `AUTOMATION VIEW` to move `PAD SELECTION MODE` shortcut to :key[Waveform Pad] in the first column of the Deluge grid (very top left pad). Toggle pad selection mode on/off using :key[Shift + Waveform Pad]. The Waveform shortcut pad will blink to indicate that pad selection mode is enabled.
 
 #### 4.3.6 - Set Probability By Row
 
-- (#368) Extends the probability system to set a row at a time. Hold an `AUDITION` pad and turn `SELECT` to change the
-  whole rows probability. This is particularly useful in combination with the euclidean sequencing to get a semi random
+- (#368) Extends the probability system to set a row at a time. Hold an `AUDITION` pad and turn :key[Select] to change the
+  whole rows probability. This is particularly useful in combination with the euclidean sequencing to get a semi-random
   pattern going
 
 #### 4.3.7 - Shorcut for "Transpose clip" is now "Nudge notes vertically for clip"
 
-- (#1183) The command `SHIFT` + hold and turn `▼︎▲︎` inside a clip was causing an unexpected behavior in which all
+- (#1183) The command :key[Shift + Press Turn Vertical] inside a clip was causing an unexpected behavior in which all
   other clips in the song were also transposed. This has been fixed by changing this command to a "Vertical nudge"
   command, based on current clip display (either in scale or non-scale mode). This saves user from the need to "zoom
   out, copy all notes, scroll up or down, and paste all notes" to nudge notes vertically.
   - If the clip is in scale mode, all the notes are shifted up or down by one step in the scale.
   - If the clip is not in scale mode, all the notes are shifted up or down by one semitone.
-  - Note: the other command for octave transposition, that is, hold and turn `▼︎▲︎`, keeps working in the same way, by
+  - Note: the other command for octave transposition, that is, :key[Press Turn Vertical], keeps working in the same way, by
     nudging notes by one octave, regardless of the clip scale mode.
 
 #### 4.3.8 - Advanced Arpeggiator
@@ -952,7 +951,7 @@ to each individual note onset. (#1978)
 - (#2641, #2751) Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
   - To edit probability, hold a note / audition pad and turn the select encoder to the left to display current probability value / set new probability value.
   - To edit iterance, hold a note / audition pad and turn the select encoder to the right to display current iterance value / set new iterance value.
-  - Note iteration now also supports custom iteration steps. To access them, hold a note and press the `SELECT` encoder to open the Note menu. Scroll to `NOTE ITERANCE` and press `SELECT` again to enter the Note Iterance menu, the default is `OFF`. Turn the `SELECT` encoder right through all options until you see `CUSTOM`, then press the `SELECT` encoder again. A new menu will appear with the `DIVISOR` parameter (from 1 to 8.) The number of `DIVISORS` you choose will set how many `ITERATION #` toggles appear. Each `ITERATION #` allows you to activate or deactivate an iteration step.
+  - Note iteration now also supports custom iteration steps. To access them, hold a note and press the :key[Select] encoder to open the Note menu. Scroll to `NOTE ITERANCE` and press :key[Select] again to enter the Note Iterance menu, the default is `OFF`. Turn the :key[Select] encoder right through all options until you see `CUSTOM`, then press the :key[Select] encoder again. A new menu will appear with the `DIVISOR` parameter (from 1 to 8.) The number of `DIVISORS` you choose will set how many `ITERATION #` toggles appear. Each `ITERATION #` allows you to activate or deactivate an iteration step.
   - To edit fill, you need to access the new note and note row editor menu's.
 
 #### 4.3.12 - Added New Note and Note Row Editor Menu's
@@ -976,20 +975,20 @@ to each individual note onset. (#1978)
 
 ##### 4.4.1.1 - Row Step
 
-- (#46) Row Step affects the offset between rows, `ROW STEP` is now configurable by holding `SHIFT` and
-  turning `◀︎▶︎`. The default Deluge Keyboard note offset is 5. A row step of 12 will produce a layout in which any
+- (#46) Row Step affects the offset between rows, `ROW STEP` is now configurable by holding :key[Shift] and
+  turning :key[Turn Horizontal]. The default Deluge Keyboard note offset is 5. A row step of 12 will produce a layout in which any
   given note's octave is directly above or below it. The setting is saved per clip in the song file.
 
 ##### 4.4.1.2 - Keyboard API and General Improvements
 
 - (#138 and #337)
-  - Users can switch between layouts by pressing `KEYBOARD` and turning `SELECT`
+  - Users can switch between layouts with :key[Keyboard + Turn Select]
   - Keyboard mode allows freely switch between all types (`SYNTH, KIT, MIDI, CV`) automatically getting the first
     compatible layout
-  - Drum trigger edge sizes in Drums layout for kits can now be changed between 1 and 8 with `SHIFT` + turn `◀︎▶︎`
+  - Drum trigger edge sizes in Drums layout for kits can now be changed between 1 and 8 with :key[Shift + Turn Horizontal]
   - A new in-key only layout that removes out of scale buttons/notes.
-  - New way to change `SCALE` in keyboard mode: Hold `SCALE` and press `SELECT`
-  - New way to change scale `ROOT NOTE` in keyboard mode: Hold `SCALE` and turn `SELECT`
+  - New way to change the scale in keyboard mode: press :key[Scale + Select]
+  - New way to change scale `ROOT NOTE` in keyboard mode: :key[Scale + Turn Select]
   - A new menu to select the default Keyboard Layout has been added in `MENU -> DEFAULTS -> UI -> KEYBOARD -> LAYOUT`
 
 ##### 4.4.1.3 - Highlight Incoming Notes
@@ -1021,8 +1020,8 @@ to each individual note onset. (#1978)
   **3.** Turn on two features in the `COMMUNITY FEATURES` menu (via `SETTINGS > COMMUNITY FEATURES`): "Highlight
   Incoming Notes" (HIGH) and "Norns Layout" (NORN) both set to ON.
   **4.** Create a MIDI clip on Deluge by pressing `MIDI` button in Clip View. Set MIDI output for the clip to channel 16
-  by turning the `SELECT` encoder.
-  **5.** Select the keyboard layout on the MIDI clip. Press and hold keyboard button and turn `SELECT` encoder to
+  by turning the :key[Select] encoder.
+  **5.** Select the keyboard layout on the MIDI clip. Press and hold keyboard button and turn :key[Select] encoder to
   select "Norns Layout" (NORN).
   **6.** Select a [script](https://norns.community/) on norns that supports grid controls (awake, boingg,
   rudiments, ... ).
@@ -1070,7 +1069,7 @@ to each individual note onset. (#1978)
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature
   documentation: [Chord Keyboard Documentation](/features/chord_keyboard)
 
-- (#2475) Enables `CHORD` keyboard, out of scale view with two modes, Column mode (providing in-scale harmonically similar chords for substitutions) and Row Mode (based largely on the Launchpad Pro's chord mode that spreads notes out on a row to allow users to build and play interesting chords across the rows). After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press `KEYBOARD` to enter into a `KEYBOARD` view, and then press and hold `KEYBOARD` + turn `SELECT` to cycle through layouts to find the `CHORD` keyboard layout.
+- (#2475) Enables `CHORD` keyboard, out of scale view with two modes, Column mode (providing in-scale harmonically similar chords for substitutions) and Row Mode (based largely on the Launchpad Pro's chord mode that spreads notes out on a row to allow users to build and play interesting chords across the rows). After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press :key[Keyboard] to enter into a keyboard view, and then :key[Keyboard + Turn Select] to cycle through layouts to find the `CHORD` keyboard layout.
 
 - As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD` keyboard. See the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information.
 
@@ -1079,7 +1078,7 @@ to each individual note onset. (#1978)
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature
   documentation: [Chord Keyboard Documentation](/features/chord_keyboard)
 
-- (#2385) Enables `CHORD LIBRARY` keyboard layout which displays a library of chords on the pads. After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD LIBRARY` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press `KEYBOARD` to enter into a `KEYBOARD` view, and then press `SELECT` + `KEYBOARD` to cycle through layouts to find the `CHORD LIBRARY` keyboard layout.
+- (#2385) Enables `CHORD LIBRARY` keyboard layout which displays a library of chords on the pads. After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD LIBRARY` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press :key[Keyboard] to enter into a keyboard view, and then press :key[Select + Keyboard] to cycle through layouts to find the `CHORD LIBRARY` keyboard layout.
 
 - As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD LIBRARY` keyboard. See the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information.
 
@@ -1115,8 +1114,8 @@ to each individual note onset. (#1978)
 
 - (#2365) Added learning a user specified scale.
 
-  - Hold `LEARN` and press `SCALE` while in clip view. Notes from current clip & all scale mode clips are learned as the "USER"
-    scale. This scale is part of the normal scale rotation, accessible with `SHIFT` + `SCALE`, and saved as part of the song.
+  - Press :key[Learn + Scale] while in clip view. Notes from current clip & all scale mode clips are learned as the "USER"
+    scale. This scale is part of the normal scale rotation, accessible with :key[Shift + Scale], and saved as part of the song.
     If another user scale is learned, the previous one is overwritten: currently each song can only have one user scale.
   - If you enter scale mode from a chromatic clip, and the implied scale cannot be represented by any of the existing
     preset scales, it will be learned as a user scale, overwriting the previous `USER` scale.
@@ -1137,14 +1136,14 @@ to each individual note onset. (#1978)
 
 #### 4.5.2 - Unison Stereo Spread
 
-- (#223) The unison parts can be spread accross the stereo field. Press `SELECT` when in the `UNISON NUMBER` menu to
+- (#223) The unison parts can be spread across the stereo field. Press :key[Select] when in the `UNISON NUMBER` menu to
   access the new unison spread parameter.
 
 #### 4.5.3 - Waveform Loop Lock
 
 - (#293) When a sample has `LOOP START` (CYAN) and `LOOP END` (MAGENTA) points set, holding down `LOOP START` and
   tapping `LOOP END` will `LOCK` the points together. Moving one will move the other, keeping them the same distance
-  apart. Use the same process to unlock the loop points. Use `SHIFT` + turn `◀︎▶︎` to double or half the loop length.
+  apart. Use the same process to unlock the loop points. Use :key[Shift + Turn Horizontal] to double or half the loop length.
 - **WARNING: If you shift loop points after being locked there is a chance when you delete a loop point, a loop point
   will exist outside of the SAMPLE START or SAMPLE END range and cause a crash. (Known Bug)**
 
@@ -1156,7 +1155,7 @@ to each individual note onset. (#1978)
 
 #### 4.5.5 - Paste gently
 
-- (#805) Pressing `SHIFT` + `CROSS SCREEN` + `◀︎▶︎` will paste any notes on the clipboard _over_ the existing notes
+- (#805) Pressing :key[Shift + CrossScreen + Horizontal] will paste any notes on the clipboard _over_ the existing notes
   i.e. the existing notes will not be deleted and the clipboard contents will be added to the existing notes.
   Positioning/scale/timing semantics have not changed, only whether the notes are cleared before pasting.
 
@@ -1195,8 +1194,8 @@ to each individual note onset. (#1978)
 
 #### 4.6.1 - Keyboard View
 
-- (#112) All-new use for the `KEYBOARD` button in kit clips, uses the main pad grid for MPC-style 16 level
-  playing. `◀︎▶︎` scrolls by one pad at a time, allowing positioning drums left to right, and `▼︎▲︎` jumps vertically by
+- (#112) All-new use for the :key[Keyboard] button in kit clips, uses the main pad grid for MPC-style 16 level
+  playing. :key[Horizontal] scrolls by one pad at a time, allowing positioning drums left to right, :key[Vertical] jumps vertically by
   rows.
 - Follow-up PR: (#317) Fixed the issue where audition pads would remain illuminated after pressing pads 9 to 16 and
   then returning to the Clip View.
@@ -1206,17 +1205,19 @@ to each individual note onset. (#1978)
 - (#122) (#955): Add drum randomizer feature to load a random sample into one or more drum kit rows.
   - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
   - Commands are:
-    - When no audition pads are pressed, randomize just the selected drum by: Pressing `LOAD` + `RANDOM`
-    - To randomize more than one selected drum at a time: Press `LOAD` + `AUDITION PADS` + `RANDOM`
-    - To randomize all active drums (not muted and have notes playing): Press `LOAD` + `AFFECT ENTIRE` + `RANDOM`
+    - When no audition pads are pressed, randomize just the selected drum by: Pressing :key[Load + Random Pad]
+    - To randomize more than one selected drum at a time: Press :key[Load + Audition Pad + Random Pad]
+    - To randomize all active drums (not muted and have notes playing): Press :key[Load + AffectEntire + Random Pad]
 
 #### 4.6.3 - Manual Slicing / Lazy Chop
 
-- (#198) In the `SLICE` menu, press `◀︎▶︎` to enter `MANUAL SLICING`. When you press the green pad in the bottom left,
+- (#198) In the `SLICE` menu, press :key[Horizontal] to enter `MANUAL SLICING`. When you press the green pad in the bottom left,
   it starts playing the first slice, and pressing any empty pad creates a new slice at the time you've pressed it.
-  Turning `SELECT` to the left or pressing the `PAD` + `DELETE` button allows you to delete a slice.
+  Turning :key[Select] to the left or pressing the `PAD` + `DELETE` button allows you to delete a slice.
 
-- Turning `◀︎▶︎` allows you to adjust the start point of the slice. Additionally, turning `▼︎▲︎` transposes the slice by
+[//]: # "Pad + Delete: Is this actually Pad + Shift + Save? Do we want a shorthand for this?"
+
+- Turning :key[Turn Horizontal] allows you to adjust the start point of the slice. Additionally, :key[Turn Vertical] transposes the slice by
   a semitone.
 
 - Follow-up PR: (#210) Changed to stop audio preview (played by the sample browser) when entering manual slicer mode.
@@ -1225,7 +1226,7 @@ to each individual note onset. (#1978)
 
 - (#234) While you can delete a kit row by holding a Note in a row and pressing `SAVE/DELETE`,
   the `DELETE UNUSED KIT ROWS` feature allows you to batch delete kit rows which does not contain any notes, freeing
-  kits from unused sounds (which take some precious RAM). While inside a Kit, hold `KIT` + `SHIFT` + `SAVE/DELETE`. A
+  kits from unused sounds (which take some precious RAM). While inside a Kit, press :key[Kit + Shift + Save]. A
   confirmation message will appear: "DELETE UNUSED ROWS". This command is not executed if there are no notes at all in
   the kit.
   - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
@@ -1241,10 +1242,10 @@ to each individual note onset. (#1978)
 
 - (#2823) Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`.
   - To rename a `MIDI CC`, enter `Automation View` and select the CC you wish to rename using the `Select Encoder` or using the `Grid Shortcut`.
-  - With the `MIDI CC` selected, press `Shift` + the `Name` grid shortcut to open the `MIDI CC Renaming UI`. Enter a new name and press `Select` or `Enter`.
-  - The new `MIDI CC` name will be immediately visible in `Automation View` and you can assign that CC to a `Gold Knob` in the MIDI clip and it will show that name when you press down on the `Gold (Mod) Encoder`.
-  - To save the `MIDI CC` labels to a `MIDI Device Definition File`, hold `Save` + Press down on either `Gold (Mod) Encoder`. It will ask you to enter a file name. Press `Select`, `Enter on the Keyboard` or `Save` to save the file.
-  - To load the `MIDI CC` labels from a `MIDI Device Definition File`, hold `Load` + Press down on either `Gold (Mod) Encoder`. It will ask you to select a file. Press `Select`, `Enter on the Keyboard` or `Load` to load the file.
+  - With the `MIDI CC` selected, press :key[Shift + Name Pad] to open the `MIDI CC Renaming UI`. Enter a new name and press :key[Select] or :key[Enter Pad].
+  - The new `MIDI CC` name will be immediately visible in `Automation View` and you can assign that CC to a :key[Gold] in the MIDI clip and it will show that name when you press down on the :key[Gold] encoder.
+  - To save the `MIDI CC` labels to a `MIDI Device Definition File`, press :key[Save + Gold]. It will ask you to enter a file name. Press :key[Select], :key[Enter Pad] or :key[Save] to save the file.
+  - To load the `MIDI CC` labels from a `MIDI Device Definition File`, :key[Load + Gold]. It will ask you to select a file. Press :key[Select], :key[Enter Pad] or :key[Load] to load the file.
   - Saving or Loading a `MIDI Device Definition File` will link that file to the current MIDI Instrument in the current song. If you save the song or save the current midi instrument as a preset, the song file and midi instrument preset file will include a file path to the `MIDI Device Definition File`. If you re-load the song or re-load the midi instrument preset, it will load information from the linked `MIDI Device Definition File`.
   - You can unlink a Song or Midi Instrument preset from the a `MIDI Device Definition File` via the `MIDI > Device Definition (DEVI)` menu. You will need to re-save the song and/or preset to save the changes.
   - You can also manually unlink the song file / preset file from the `MIDI Device Definition File` by searching for `definitionFile`. You should see `name="***"` right under it. Do not delete the name line from the preset. Instead replace the name with `name=""`
@@ -1255,8 +1256,8 @@ to each individual note onset. (#1978)
 #### 4.8.1 - Expression
 
 - Added the ability to set a CV instrument to use both 1 and 2 channels, which makes the cv2 source selectable between mod wheel, velocity, and aftertouch
-  - Turn `SELECT` to choose `1 AND 2 (BOTH)` CV / Gate channel.
-  - Press `SELECT` to enter the `CV Instrument Menu`
+  - Turn :key[Select] to choose `1 AND 2 (BOTH)` CV / Gate channel.
+  - Press :key[Select] to enter the `CV Instrument Menu`
   - Enter the `CV 2 Source (CV2)` submenu
   - Select from `OFF, Y, Aftertouch, Velocity`
 
@@ -1264,14 +1265,14 @@ to each individual note onset. (#1978)
 
 #### 4.9.1 - Shift Clip
 
-- (#141) Holding `▼︎▲︎` down while turning `◀︎▶︎` will shift the waveform of an Audio clip, similar to Instrument
+- (#141) :key[Press Turn Horizontal] will shift the waveform of an Audio clip, similar to Instrument
   clips.
 
 #### 4.9.2 - Trim from the start of the clip
 
 - (#3291) You can now trim/crop audio from the start of a clip
   - Pressing a pad in the first column of an audio clip now makes it flash green allowing you to move the start position. Once trimmed, new start position snaps to column one.
-  - You can revert by pressing undo (or reverse the clip and altering as before).
+  - You can revert by pressing :key[Undo] (or reverse the clip and altering as before).
   - Previously, this was only possible by reversing the audio clip and trimming the start as if it were the end.
   - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
@@ -1339,7 +1340,7 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
   - When On, enables access to the DX7 synth engine (see [DX7 Synth Documentation](/features/dx_synth)).
 - `Emulated Display (EMUL)`
   - This allows you to emulate the 7SEG screen on a deluge with OLED hardware screen.
-  - In "Toggle" mode, the "SHIFT" + "LEARN" + "AFFECT-ENTIRE" combination can used to switch between screen types at
+  - In "Toggle" mode, the :key[Shift + Learn + AffectEntire] combination can used to switch between screen types at
     any time.
   - With the "7SEG" mode, the deluge will boot with the emulated display.
   - This option is technically available also on deluge with 7SEG hardware. But as you need an external display to

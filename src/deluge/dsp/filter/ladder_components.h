@@ -25,13 +25,13 @@ public:
 	BasicFilterComponent() { reset(); }
 	// moveability is tan(f)/(1+tan(f))
 	[[gnu::always_inline]] q31_t doFilter(q31_t input, q31_t moveability) {
-		q31_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;
+		q31_t a = q31_mult_rounded(input - memory, moveability);
 		q31_t b = a + memory;
 		memory = b + a;
 		return b;
 	}
 	[[gnu::always_inline]] int32_t doAPF(q31_t input, int32_t moveability) {
-		q31_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;
+		q31_t a = q31_mult_rounded(input - memory, moveability);
 		q31_t b = a + memory;
 		memory = a + b;
 		return b * 2 - input;

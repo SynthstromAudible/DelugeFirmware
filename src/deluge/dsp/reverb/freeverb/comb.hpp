@@ -55,7 +55,7 @@ public:
 		                multiply_32x32_rshift32_rounded(filterstore_, damp1_))
 		               << 1;
 
-		buffer_[bufidx_] = input + (multiply_32x32_rshift32_rounded(filterstore_, feedback_) << 1);
+		buffer_[bufidx_] = input + (q31_mult_rounded(filterstore_, feedback_));
 
 		if (++bufidx_ >= buffer_.size()) {
 			bufidx_ = 0;

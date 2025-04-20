@@ -102,12 +102,12 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 		int32_t resonanceUpperLimit = 510000000; // Prone to feeding back lots
 
 		int32_t resonance = ONE_Q31 - (std::min(lpfResonance, resonanceUpperLimit) << 2); // Limits it
-		resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
+		resonance = q31_mult_rounded(resonance, resonance);
 
 		// ONE_Q31 - rawResonance2;
 		// Always between 0 and 2. 1 represented as 1073741824
 		processedResonance = ONE_Q31 - resonance;
-		processedResonance = multiply_32x32_rshift32_rounded(processedResonance, howMuchToKeep) << 1;
+		processedResonance = q31_mult_rounded(processedResonance, howMuchToKeep);
 	}
 
 	curveFrequency(lpfFrequency);
@@ -118,8 +118,8 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 	if (lpfMode == FilterMode::TRANSISTOR_12DB) {
 		// Between -2 and 0. 1 represented as 1073741824
 		int32_t moveabilityNegative = moveability - 1073741824;
-		lpf2Feedback = multiply_32x32_rshift32_rounded(moveabilityNegative, divideBy1PlusTannedFrequency) << 1;
-		lpf1Feedback = multiply_32x32_rshift32_rounded(lpf2Feedback, moveability) << 1;
+		lpf2Feedback = q31_mult_rounded(moveabilityNegative, divideBy1PlusTannedFrequency);
+		lpf1Feedback = q31_mult_rounded(lpf2Feedback, moveability);
 		divideByTotalMoveabilityAndProcessedResonance =
 		    (int64_t)67108864 * 1073741824
 		    / (67108864
@@ -132,8 +132,8 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 	// Full ladder
 	else {
 		lpf3Feedback = multiply_32x32_rshift32_rounded(divideBy1PlusTannedFrequency, moveability);
-		lpf2Feedback = multiply_32x32_rshift32_rounded(lpf3Feedback, moveability) << 1;
-		lpf1Feedback = multiply_32x32_rshift32_rounded(lpf2Feedback, moveability) << 1;
+		lpf2Feedback = q31_mult_rounded(lpf3Feedback, moveability);
+		lpf1Feedback = q31_mult_rounded(lpf2Feedback, moveability);
 
 		// 1 represented as 67108864
 		int32_t onePlusThing =
@@ -149,7 +149,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 	if (lpfMode != FilterMode::TRANSISTOR_24DB_DRIVE) { // Cold transistor ladder only
 		// Extra feedback - but only if freq isn't too high. Otherwise we get aliasing
 		if (tannedFrequency <= 304587486) {
-			processedResonance = multiply_32x32_rshift32_rounded(processedResonance, 1150000000) << 1;
+			processedResonance = q31_mult_rounded(processedResonance, 1150000000);
 		}
 		else {
 			processedResonance >>= 1;

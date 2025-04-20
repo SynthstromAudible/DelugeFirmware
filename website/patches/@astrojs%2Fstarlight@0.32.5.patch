@@ -1,0 +1,26 @@
+diff --git a/components/Search.astro b/components/Search.astro
+index 6ce176bbe27f56889f275a96d62090d7c155a5f8..dde72bb5c3f8f0e6c1c0f92bbd33deba72da433e 100644
+--- a/components/Search.astro
++++ b/components/Search.astro
+@@ -46,6 +46,7 @@ if (project.trailingSlash === 'never') dataAttributes['data-strip-trailing-slash
+ 				) : (
+ 					<div class="search-container">
+ 						<div id="starlight__search" />
++						<slot />
+ 					</div>
+ 				)
+ 			}
+diff --git a/index.ts b/index.ts
+index 9e463bdf6487df40de24b4d18c2a83b89f6fd2ae..b5256da056dcf4154a0e2b2f82a131986dd0953d 100644
+--- a/index.ts
++++ b/index.ts
+@@ -150,7 +150,8 @@ export default function StarlightIntegration(
+ 				const cwd = dirname(fileURLToPath(import.meta.url));
+ 				const relativeDir = relative(cwd, targetDir);
+ 				return new Promise<void>((resolve) => {
+-					spawn('npx', ['-y', 'pagefind', ...loglevelFlag, '--site', relativeDir], {
++					// Note that this only works for bun, other package managers need e.g. `npm exec --`
++					spawn(process.env.npm_execpath, ['pagefind', ...loglevelFlag, '--site', relativeDir, '--include-characters "+>"'], {
+ 						stdio: 'inherit',
+ 						shell: true,
+ 						cwd,
