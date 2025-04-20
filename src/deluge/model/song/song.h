@@ -417,7 +417,8 @@ public:
 	// END ~ new Automation Arranger View Variables
 
 	// Song level transpose control (encoder actions)
-	int32_t masterTransposeInterval;
+	void commandTranspose(int32_t interval);
+	int32_t masterTransposeInterval = 0;
 	void transpose(int32_t interval);
 	void adjustMasterTransposeInterval(int32_t interval);
 	void displayMasterTransposeInterval();
