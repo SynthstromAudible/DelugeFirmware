@@ -1,7 +1,7 @@
 name: Check Website
 
 on:
-  pull_request_target:
+  pull_request:
     paths:
       - "website/**"
   workflow_dispatch:
