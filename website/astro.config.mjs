@@ -78,6 +78,7 @@ const config = defineConfig({
       credits: true,
       components: {
         Head: "./src/components/Head.astro",
+        Search: "./src/components/Search.astro",
       },
     }),
   ],

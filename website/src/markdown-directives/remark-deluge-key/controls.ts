@@ -112,12 +112,13 @@ const labelledButtonToAction =
     return {
       text,
       rounded: true,
+      searchText: text,
       ...override,
     }
   }
 
-const KNOB_MODIFIERS_BEFORE = ["Press", "Turn"]
-const KNOB_MODIFIERS_AFTER = ["Left", "Right"]
+const KNOB_MODIFIERS_BEFORE = ["press", "turn"]
+const KNOB_MODIFIERS_AFTER = ["left", "right"]
 
 const knobToAction =
   (idParser?: (modifiers: string[]) => string[] | undefined) =>
@@ -140,12 +141,11 @@ const knobToAction =
       searchText: [
         ...modifiersBefore,
         ...remainingModifiers,
-        text.toLowerCase(),
+        titleCase(text),
         ...modifiersAfter,
       ]
         .filter(Boolean)
-        .map((m) => titleCase(m))
-        .join(""),
+        .join(" "),
       id,
     }
   }
@@ -256,7 +256,7 @@ export const CONTROLS = ControlData.parse({
         isPad: true,
         searchText: [...modifiers.map((m) => titleCase(m)), name]
           .filter(Boolean)
-          .join(""),
+          .join(" "),
       }
     },
   },

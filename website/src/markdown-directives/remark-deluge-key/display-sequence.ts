@@ -122,19 +122,10 @@ export const displaySequence = (
     const chordChildren: ElementContent[] = []
     chord.forEach((action, actionIndex) => {
       chordChildren.push(...displayAction(action))
-      searchText +=
-        action.searchText ||
-        [
-          action.text,
-          action.icon
-            ? titleCase(action.icon.replaceAll("-", " ")).replaceAll(" ", "")
-            : undefined,
-        ]
-          .filter(Boolean)
-          .join("")
+      searchText += action.searchText
       if (actionIndex < chord.length - 1) {
         chordChildren.push(createTextElement(" + "))
-        searchText += "+"
+        searchText += " + "
       }
     })
 
@@ -148,12 +139,12 @@ export const displaySequence = (
     // Add ">" between chords
     if (chordIndex < chords.length - 1) {
       elements.push(createTextElement(">"))
-      searchText += ">"
+      searchText += " > "
     }
   })
 
   return {
     elements: elements,
-    searchText: `[${searchText}]`,
+    searchText: searchText,
   }
 }
