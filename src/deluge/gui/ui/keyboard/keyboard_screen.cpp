@@ -109,7 +109,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 	int32_t markDead = -1;
 
 	// Pad pressed down, add to list if not full
-	if (velocity) {
+	if (velocity != 0) {
 		// TODO: Logic should be inverted as part of a bigger rewrite
 		if (currentUIMode == UI_MODE_IMPLODE_ANIMATION || currentUIMode == UI_MODE_ANIMATION_FADE
 		    || currentUIMode == UI_MODE_INSTRUMENT_CLIP_COLLAPSING) {
@@ -529,27 +529,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	// Kit button
 	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
-			bool result;
-			if (Buttons::isShiftButtonPressed()) {
-				result = createNewInstrument(OutputType::KIT);
-
-				// enter drum creator to select drum sample when creating new kit
-				if (result) {
-					char modelStackMemory[MODEL_STACK_MAX_SIZE];
-					ModelStackWithTimelineCounter* modelStack =
-					    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-					NoteRow* noteRow = getCurrentInstrumentClip()->noteRows.getElement(0);
-
-					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, noteRow);
-
-					instrumentClipView.enterDrumCreator(modelStackWithNoteRow);
-				}
-			}
-			else {
-				result = changeOutputType(OutputType::KIT);
-			}
-			if (result) {
+			if (instrumentClipView.handleInstrumentChange(OutputType::KIT)) {
 				selectLayout(0);
 			}
 		}
@@ -557,17 +537,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	else if (b == SYNTH && currentUIMode == UI_MODE_NONE) {
 		if (on) {
-			bool result;
-			if (Buttons::isButtonPressed(MOD7)) { // FM
-				result = createNewInstrument(OutputType::SYNTH, true);
-			}
-			else if (Buttons::isShiftButtonPressed()) {
-				result = createNewInstrument(OutputType::SYNTH);
-			}
-			else {
-				result = changeOutputType(OutputType::SYNTH);
-			}
-			if (result) {
+			if (instrumentClipView.handleInstrumentChange(OutputType::SYNTH)) {
 				selectLayout(0);
 			}
 		}
