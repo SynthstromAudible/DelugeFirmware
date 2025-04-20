@@ -162,7 +162,16 @@ private:
 	void renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]);
 	bool renderedVUMeter;
 
+	// mod encoder action
+	void modEncoderAction_nonExistentParam(int32_t whichModEncoder, int32_t offset,
+	                                       ModelStackWithAutoParam* modelStackWithParam);
+	void modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offset,
+	                                    ModelStackWithAutoParam* modelStackWithParam, bool noteTailsAllowedBefore);
 	ModelStackWithAutoParam* getModelStackWithParam(int32_t whichModEncoder, bool& noteTailsAllowedBefore);
+
+	// mod encoder button action
+	void modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder);
+	void modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder, bool on);
 };
 
 extern View view;
