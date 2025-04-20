@@ -290,16 +290,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 				return ActionResult::DEALT_WITH;
 			}
 
-			if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip()) {
-				bool success = arrangerView.transitionToArrangementEditor();
-				if (!success) {
-					goto doOther;
-				}
-			}
-			else {
-doOther:
-				sessionView.transitionToSessionView();
-			}
+			ClipMinder::transitionToArrangerOrSession();
 		}
 	}
 

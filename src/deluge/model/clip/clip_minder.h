@@ -23,4 +23,5 @@
 class ClipMinder {
 public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on);
+	void transitionToArrangerOrSession();
 };

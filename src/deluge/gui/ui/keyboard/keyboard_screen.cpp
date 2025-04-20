@@ -501,14 +501,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	// Song view button
 	else if (b == SESSION_VIEW && on && currentUIMode == UI_MODE_NONE) {
-		// Transition back to arranger
-		if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->section == 255) {
-			if (arrangerView.transitionToArrangementEditor()) {
-				return ActionResult::DEALT_WITH;
-			}
-		}
-
-		sessionView.transitionToSessionView();
+		ClipMinder::transitionToArrangerOrSession();
 	}
 
 	// toggle UI to go back to after you exit keyboard mode between automation instrument clip view and regular
