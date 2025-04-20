@@ -253,4 +253,4 @@ describe fixedpoint("FixedPoint", ${
 	});
 });
 
-CPPSPEC_SPEC(fixedpoint);
+CPPSPEC_MAIN(fixedpoint);

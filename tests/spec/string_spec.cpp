@@ -60,4 +60,4 @@ describe string("deluge::string", ${
 	});
 });
 
-CPPSPEC_SPEC(string);
+CPPSPEC_MAIN(string);

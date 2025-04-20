@@ -108,4 +108,4 @@ describe object_pool("ObjectPool", $ {
 	});
 });
 
-CPPSPEC_SPEC(object_pool);
+CPPSPEC_MAIN(object_pool);
