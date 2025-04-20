@@ -1955,19 +1955,14 @@ void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 		if (padSelectionOn) {
 			initPadSelection();
 		}
+		// automation arranger view transitioning back to arranger view
 		if (onArrangerView) {
 			onArrangerView = false;
 			changeRootUI(&arrangerView);
 		}
-		else if (currentSong->lastClipInstanceEnteredStartPos != -1 || clip->isArrangementOnlyClip()) {
-			bool success = arrangerView.transitionToArrangementEditor();
-			if (!success) {
-				goto doOther;
-			}
-		}
+		// automation clip view transitioning back to arranger or session view
 		else {
-doOther:
-			sessionView.transitionToSessionView();
+			ClipMinder::transitionToArrangerOrSession();
 		}
 		resetShortcutBlinking();
 	}
