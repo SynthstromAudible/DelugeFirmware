@@ -9,27 +9,61 @@ span.button-sequence {
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
+  word-spacing: -0.7ch;
+  letter-spacing: -0.02ch;
+
+  font-size: 0.95em;
+
+  --icon-height: 1.5em;
+  line-height: var(--icon-height);
+}
+
+/* This is preparation for when the shortcuts become clickable */
+/*span.button-sequence:hover {*/
+/*  background: linear-gradient(to bottom, transparent 0%,  rgba(200, 200, 200, 0.25) 50%, transparent 100%);*/
+/*  border-radius: 1em;*/
+/*  cursor: pointer;*/
+/*}*/
+
+span.button-chord,
+span.action,
+span.img-wrapper {
+  display: inline-flex;
+  align-items: baseline;
+  max-width: fit-content;
+  min-width: fit-content;
 }
 
 span.button-chord {
-  background-color: rgba(255, 255, 255, 0.05);
+  word-spacing: -0.4ch;
+  display: inline-flex;
+  gap: 0.1em;
+}
+
+span.action {
+  gap: 0.75em;
+  background-color: var(--sl-color-bg-inline-code);
   border-radius: 1em;
-  padding: 0.1em 0.35em;
-  margin: 0 0.05em;
-  word-spacing: -0.5ch;
+  padding: 0 0.35em;
+  white-space: nowrap;
+}
+
+span.button-sequence span.icon-wrapper {
+  display: inline-flex;
+  align-self: stretch;
+  align-items: center;
+  margin: 0 -0.6em 0 -0.3em;
 }
 
 span.button-sequence img {
   display: inline-block;
-  margin: 0;
-  height: 1.2em;
-  vertical-align: text-bottom;
+  height: var(--icon-height);
 }
 
-span.button-pad {
-  background-color: rgba(255, 255, 255, 0.1);
+span.pad {
+  background-color: var(--sl-color-bg-inline-code);
   border-radius: 0.25em;
-  border: 3px solid rgba(255, 255, 255, 0.2);
-  padding: 0 0.1em;
-  margin: 0 0.05em;
+  border: 3px solid var(--sl-color-gray-4);
+  height: 1.75em; /* This is compensating for the border, but is not a good solution */
+  padding: 0 0.15em;
 }

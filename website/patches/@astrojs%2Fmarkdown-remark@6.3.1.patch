@@ -1,0 +1,23 @@
+diff --git a/dist/rehype-collect-headings.js b/dist/rehype-collect-headings.js
+index f71a187439a6cae6fc44a2d8e0031804f380190c..0570a5c9a775937e1f19ac4f5dfd6c53efa2878d 100644
+--- a/dist/rehype-collect-headings.js
++++ b/dist/rehype-collect-headings.js
+@@ -1,5 +1,5 @@
+ import Slugger from "github-slugger";
+-import { visit } from "unist-util-visit";
++import { visit, SKIP } from "unist-util-visit";
+ const rawNodeTypes = /* @__PURE__ */ new Set(["text", "raw", "mdxTextExpression"]);
+ const codeTagNames = /* @__PURE__ */ new Set(["code", "pre"]);
+ function rehypeHeadingIds({
+@@ -19,6 +19,11 @@ function rehypeHeadingIds({
+       const depth = Number.parseInt(level);
+       let text = "";
+       visit(node, (child, __, parent) => {
++        child.properties = child.properties || {};
++        if (child.type === "element" && child.properties.dataShortcutSequence) {
++          text += child.properties.dataShortcutSequence;
++          return SKIP;
++        }
+         if (child.type === "element" || parent == null) {
+           return;
+         }

@@ -20,13 +20,17 @@ export const remarkDelugeShortcut = () => (tree: Root) => {
       // TODO: add variants with attributes (e.g. "minimal")
       // const attributes = node.attributes || {}
 
-      const string = toString(node)
+      const { searchText, elements } = displaySequence(toString(node))
 
       data.hName = "span"
       data.hProperties = {
         class: "button-sequence",
+        "data-pagefind-weight": 10, // Weight boosted to show partial matches higher
+        "data-pagefind-ignore": "index",
+        "data-pagefind-index-attrs": "data-shortcut-sequence",
+        "data-shortcut-sequence": searchText,
       }
-      data.hChildren = displaySequence(string)
+      data.hChildren = elements
     }
   })
 }

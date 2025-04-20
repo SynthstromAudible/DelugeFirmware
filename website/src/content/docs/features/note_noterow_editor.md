@@ -75,8 +75,8 @@ You can select other note row's by:
 
 While in the note row editing menu with a note row selected, you are able to perform other functions as if you were holding that note row's audition pad, including:
 
-- pressing and turning the vertical encoder to enter euclidean notes
-- pressing and turning the horizontal encoder to rotate the note row
+- :key[Press Turn Vertical] to enter euclidean notes
+- :key[Press Turn Horizontal] to rotate the note row
 
 By physically holding an audition pad you can:
 

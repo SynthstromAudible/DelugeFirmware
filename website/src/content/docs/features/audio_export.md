@@ -36,19 +36,19 @@ Exported files are given a meaningful name in the following format:
 
 ### Start Export
 
-- Hold `SAVE` + Press `RECORD` while Playback and Record are disabled to launch the export process
-- When the export is finished, a dialog will appear on the display that tells you that the export process has finished. Press `SELECT`, `BACK` or any `PAD` on the grid to exit the dialog.
+- Press :key[Save + Record] while Playback and Record are disabled to launch the export process
+- When the export is finished, a dialog will appear on the display that tells you that the export process has finished. Press :key[Select], :key[Back] or any :key[Pad] on the grid to exit the dialog.
 - Note 1: Master (Song) FX are excluded from the export by default (but can be included - see below)
 - Note 2: MIDI and CV Tracks and Clips are excluded from the export
 - Note 3: Tracks and Clips that are `EMPTY` (e.g. they have no Notes or Audio Files) are excluded from the export
 - Note 4: In Arranger View, any Tracks that are `MUTED` are excluded from the export
 
-- You can also start the export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
+- You can also start the export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing :key[Select] on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 
 ### Cancel Export
 
-- Press `BACK` to cancel the export process
-- When you cancel exporting, a dialog will appear on the screen asking you for confirmation. Press on the `SELECT` encoder to confirm that you want to cancel. Press `BACK` to exit out of the dialog and continue with export process.
+- Press :key[Back] to cancel the export process
+- When you cancel exporting, a dialog will appear on the screen asking you for confirmation. Press on the :key[Select] encoder to confirm that you want to cancel. Press :key[Back] to exit out of the dialog and continue with the export process.
 - Note: The export still continues in the background until you confirm you want to stop.
 
 ## Recording Parameters
@@ -73,7 +73,7 @@ Exported files are given a meaningful name in the following format:
 
 ### Song FX
 
-- By default, song FX are excluded (these are the master FX in Song and Arranger Views when Affect Entire is enabled). They can be included in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\SONG FX`
+- By default, song FX are excluded (these are the master FX in Song and Arranger Views when :key[AffectEntire] is enabled). They can be included in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\SONG FX`
 
 ### Clip Loop Points
 
@@ -94,7 +94,7 @@ A new `EXPORT AUDIO` menu has been added to the `SONG` menu accessible in Song a
 
 This menu allows you to start an export and configure various settings related to the export.
 
-- Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
+- Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing :key[Select] on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 
 - Configure settings for the export by entering the `SONG\EXPORT AUDIO\CONFIGURE EXPORT\` menu.
   - You can currently configure the following:

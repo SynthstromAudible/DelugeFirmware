@@ -222,7 +222,7 @@ This submenu contains parameters that are useful if you have an MPE controller c
 
 The `Kit Arpeggiator` is a new layer on top of the kit rows, which will control which rows receive note ON's and note OFF's.
 That means that the kit rows can have their own arpeggiators also enabled. If you want to use the `Kit Arpeggiator`, you need to
-enable `Affect-Entire` in the `Kit`. Then access the menu with `Select` knob and go to the `Kit Arpeggiator` submenu.
+enable :key[AffectEntire] in the `Kit`. Then access the menu with :key[Select] knob and go to the `Kit Arpeggiator` submenu.
 
 The `Kit Arpeggiator` parameters are also controllable with `MIDI FOLLOW`.
 
@@ -250,7 +250,7 @@ parameter for sounds. In this case it is able to "invert" the `Reverse` setting 
 ### Tips for using the Kit Arpeggiator
 
 - To be able to use the `Kit Arpeggiator` with a sliced sample, remember to set all kit rows to sample mode `Cut`. You can do this by
-  entering sample mode menu for any kit row, and while holding the `Affect-Entire` button, you can change the sample mode to `Cut`.
+  entering sample mode menu for any kit row, and while holding the :key[AffectEntire] button, you can change the sample mode to `Cut`.
   That will apply the change to all kit rows. Then it is up to you how you place the notes, but a simple experiment could be to
   place a long note occupying the whole length of the clip for all the kit rows, then enable the `Kit Arpeggiator` and have fun
   playing with the settings.
