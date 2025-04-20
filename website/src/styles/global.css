@@ -9,46 +9,69 @@ span.button-sequence {
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
-  letter-spacing: -0.02ch;
   word-spacing: -0.7ch;
+  letter-spacing: -0.02ch;
+
+  font-size: 0.95rem;
+
+  --icon-height: 1.5em;
+  line-height: var(--icon-height);
+}
+
+/* This is preparation for when the shortcuts become clickable */
+/*span.button-sequence:hover {*/
+/*  background: linear-gradient(to bottom, transparent 0%,  rgba(200, 200, 200, 0.25) 50%, transparent 100%);*/
+/*  border-radius: 1em;*/
+/*  cursor: pointer;*/
+/*}*/
+
+span.button-chord, span.action, span.img-wrapper {
+  display: inline-flex;
+  align-items: baseline;
+  max-width: fit-content;
+  min-width: fit-content;
+}
+
+span.button-chord {
+  word-spacing: -0.4ch;
+  display: inline-flex;
+  gap: 0.1em;
+}
+
+span.action {
+  gap: 0.75em;
+  background-color: var(--sl-color-bg-inline-code);
+  border-radius: 1em;
+  padding: 0 0.35em;
+  white-space: nowrap;
+}
+
+span.button-sequence span.icon-wrapper {
+  display: inline-flex;
+  align-self: stretch;
+  align-items: center;
+  margin: 0 -0.6em 0 -0.3em;
 }
 
 span.button-sequence img {
   display: inline-block;
-  /*margin: 0;*/
-  height: 1.5em;
-  vertical-align: text-bottom;
-  margin-bottom: -0.15em;
-}
-
-span.action {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 1em;
-  padding: 0.15em 0.5em;
-  margin: 0 0.05em;
-  word-spacing: -0.4ch;
-  white-space: nowrap
-}
-
-span.action img {
-  margin: 0 -0.3em -0.05em 0.3em;
-  height: 1.25em;
+  height: var(--icon-height);
 }
 
 span.pad {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--sl-color-bg-inline-code);
   border-radius: 0.25em;
-  border: 3px solid rgba(255, 255, 255, 0.2);
-  padding: 0 0.1em;
-  margin: 0 0.05em;
+  border: 3px solid var(--sl-color-gray-4);
+  height: 1.75em; /* This is compensating for the border, but is not a good solution */
+  padding: 0 0.15em;
 }
 
 /* Light mode styles */
-html:not([data-theme="dark"]) span.action {
-  background-color: rgba(0, 0, 0, 0.08);
-}
+/*html:not([data-theme="dark"]) span.action {*/
+/*  background-color: rgba(0, 0, 0, 0.08);*/
+/*}*/
 
-html:not([data-theme="dark"]) span.pad {
-  background-color: rgba(0, 0, 0, 0.1);
-  border-color: rgba(0, 0, 0, 0.2);
-}
+/*html:not([data-theme="dark"]) span.pad {*/
+/*  background-color: rgba(0, 0, 0, 0.1);*/
+/*  border-color: rgba(0, 0, 0, 0.2);*/
+/*}*/

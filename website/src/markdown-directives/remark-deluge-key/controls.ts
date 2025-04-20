@@ -8,17 +8,22 @@ export const titleCase = (str: string) =>
 
 const ActionSchema = z.object({
   /**
-   * The icon to display for the action.
+   * The icon to display for the action
    */
   icon: z.string().optional(),
 
   /**
-   * The text to display for the action.
+   * The text to display before the icon
    */
-  text: z.string().optional(),
+  labelBefore: z.string().optional(),
 
   /**
-   * The text that the search indexer will see
+   * The text to display after the icon
+   */
+  label: z.string().optional(),
+
+  /**
+   * The text that the search indexer and table of contents processor will see
    */
   searchText: z.string().optional(),
 
@@ -102,7 +107,7 @@ const parseModifiers = (
 
 const labelledButtonToAction =
   (override: Partial<z.infer<typeof ActionSchema>> = {}) =>
-  (text: string, modifiers: string[]) => {
+  (text: string, modifiers: string[]): typeof ActionSchema._input => {
     if (modifiers.length > 0) {
       throw new Error(
         `Modifiers are not supported for ${text}. (Modifiers: ${modifiers.join(" ")})`,
@@ -110,8 +115,7 @@ const labelledButtonToAction =
     }
 
     return {
-      text,
-      rounded: true,
+      label: text,
       searchText: text,
       ...override,
     }
@@ -137,7 +141,8 @@ const knobToAction =
         .filter(Boolean)
         .map((m) => m.toLowerCase())
         .join("-"),
-      text: titleCase(remainingModifiers.join(" ")),
+      labelBefore: [...modifiersBefore, ...remainingModifiers].join(" "),
+      label: [text, ...modifiersAfter].join(" "),
       searchText: [
         ...modifiersBefore,
         ...remainingModifiers,

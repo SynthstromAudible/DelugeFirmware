@@ -20,7 +20,7 @@ To access the Chord Keyboard Layout:
 
 1. Enable the `Chord Keyboards (CHRD)` community feature
 2. While in `SYNTH`, `MIDI`, or `CV` mode, press :key[Keyboard] to enter a keyboard view.
-3. Turn :key[Select + Keyboard] to cycle through layouts until you find the `CHORD` keyboard or `CHORD LIBRARY` keyboard.
+3. :key[Keyboard + turn Select] to cycle through layouts until you find the `CHORD` keyboard or `CHORD LIBRARY` keyboard.
 
 ## Chord Keyboard Layout
 

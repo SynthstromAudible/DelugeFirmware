@@ -53,39 +53,35 @@ const parseSequence = (sequence: string): Action[][] =>
     .split(/\s?>\s?/)
     .map((chord) => chord.split(/\s?\+\s?/).map(parseAction))
 
-const displayAction = ({ icon, text, isPad }: Action): ElementContent[] => {
+const displayAction = ({
+  icon,
+  labelBefore,
+  label,
+  isPad,
+}: Action): ElementContent[] => {
   if (isPad) {
     return [
       {
         type: "element",
         tagName: "span",
         properties: { class: "action pad" },
-        children: [createTextElement(text || "Pad")],
+        children: [createTextElement(label || "Pad")],
       },
     ]
   }
 
-  if (text) {
-    return [
-      {
-        type: "element",
-        tagName: "span",
-        properties: { class: "action" },
-        children: [
-          createTextElement(text),
-          icon && createImageElement(icon),
-        ].filter(Boolean) as ElementContent[],
-      },
-    ]
-  }
-
-  if (icon) {
-    return [createImageElement(icon)]
-  }
-
-  throw new Error(
-    `No icon or text for action ${JSON.stringify({ icon, text, isPad }, null, 2)}`,
-  )
+  return [
+    {
+      type: "element",
+      tagName: "span",
+      properties: { class: "action" },
+      children: [
+        labelBefore && createTextElement(labelBefore),
+        icon && createImageElement(icon),
+        label && createTextElement(label),
+      ].filter(Boolean) as ElementContent[],
+    },
+  ]
 }
 
 const createImageElement = (icon: string): ElementContent => {
@@ -95,13 +91,20 @@ const createImageElement = (icon: string): ElementContent => {
 
   return {
     type: "element",
-    tagName: "img",
-    properties: {
-      src: icons[icon] as unknown as string,
-      alt: titleCase(icon),
-      title: titleCase(icon),
-    },
-    children: [],
+    tagName: "span",
+    properties: { class: "icon-wrapper" },
+    children: [
+      {
+        type: "element",
+        tagName: "img",
+        properties: {
+          src: icons[icon] as unknown as string,
+          alt: titleCase(icon),
+          title: titleCase(icon),
+        },
+        children: [],
+      },
+    ],
   }
 }
 
@@ -138,7 +141,7 @@ export const displaySequence = (
 
     // Add ">" between chords
     if (chordIndex < chords.length - 1) {
-      elements.push(createTextElement(">"))
+      elements.push(createTextElement(" > "))
       searchText += " > "
     }
   })
