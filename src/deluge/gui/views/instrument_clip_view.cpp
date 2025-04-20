@@ -5875,7 +5875,7 @@ drawNormally:
 			// we turn it off when affect entire is on because the selected drum is not relevant in that context
 			// e.g. if you're in the affect entire menu, you're not editing params for the selected drum
 			UI* currentUI = getCurrentUI();
-			bool isInstrumentClipView = ((currentUI == &instrumentClipView) || (currentUI == &automationView));
+			bool isInstrumentClipView = (currentUI->getUIContextType() == UIType::INSTRUMENT_CLIP);
 			if (!isInstrumentClipView && getAffectEntire()) {
 				thisColour = colours::black;
 				return;

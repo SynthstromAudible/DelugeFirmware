@@ -129,6 +129,7 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::SESSION; }
+	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::SONG; }
 
 	Clip* createNewClip(OutputType outputType, int32_t yDisplay);
 	bool createClip{false};

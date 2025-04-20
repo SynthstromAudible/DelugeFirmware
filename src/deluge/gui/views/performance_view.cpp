@@ -298,6 +298,16 @@ void PerformanceView::focusRegained() {
 	uiNeedsRendering(this);
 }
 
+UIType PerformanceView::getUIContextType() {
+	// if performanceView was entered from arranger
+	if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+		return UIType::ARRANGER;
+	}
+	else {
+		return UIType::SESSION;
+	}
+}
+
 void PerformanceView::graphicsRoutine() {
 	static int counter = 0;
 	if (currentUIMode == UI_MODE_NONE) {

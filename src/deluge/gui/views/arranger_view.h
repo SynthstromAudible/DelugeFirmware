@@ -119,6 +119,7 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::ARRANGER; }
+	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::SONG; }
 
 	Clip* getClipForSelection();
 
