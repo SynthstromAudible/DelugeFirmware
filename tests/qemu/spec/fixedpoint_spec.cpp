@@ -71,7 +71,7 @@ describe fixedpoint("FixedPoint", ${
 		});
 
 		it("the original float", _ {
-			float value = 3.14f;
+			constexpr float value = 3.14f;
 			FixedPoint<16> fp{value};
 			expect(fp.to_float()).to_equal(value);
 		});
