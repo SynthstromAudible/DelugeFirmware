@@ -23,6 +23,8 @@
 #include "io/midi/root_complex/din.h"
 #include "io/midi/root_complex/usb_hosted.h"
 #include "util/container/vector/named_thing_vector.h"
+#include <gsl/gsl>
+
 class Serializer;
 class Deserializer;
 
