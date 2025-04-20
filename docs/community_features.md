@@ -48,6 +48,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - With `Alternative Select Behaviour (SELE)` ENABLED:
     - `Turn select encoder` to change the value of the selected menu item
     - `Press + Turn select encoder` to change the selected menu item
+  - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
+    - When in a Horizontal menu, the selected instrument LED corresponding to the Horizontal Menu item selected will light up
 
 #### 2.3 Favourites
 A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UI -> KEYBOARD -> FAVOURITES`.

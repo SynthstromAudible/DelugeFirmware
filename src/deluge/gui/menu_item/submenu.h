@@ -43,7 +43,7 @@ public:
 	void updateDisplay();
 	void selectEncoderAction(int32_t offset) final;
 	MenuItem* selectButtonPress() final;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) final;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void readValueAgain() final { updateDisplay(); }
 	void unlearnAction() final;
 	bool usesAffectEntire() override;
@@ -69,11 +69,13 @@ public:
 protected:
 	void drawVerticalMenu();
 	void drawHorizontalMenu();
+	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
+	int32_t lastSelectedHorizontalMenuItemPosition = kNoSelection;
+	deluge::vector<MenuItem*> items;
+	typename decltype(items)::iterator current_item_;
 
 private:
 	bool shouldForwardButtons();
-	deluge::vector<MenuItem*> items;
-	typename decltype(items)::iterator current_item_;
 };
 
 class HorizontalMenu : public Submenu {
@@ -85,6 +87,9 @@ public:
 	HorizontalMenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
 	    : Submenu(newName, title, newItems) {}
 	bool supportsHorizontalRendering() { return true; }
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber);
+	void endSession() override;
 };
 
 } // namespace deluge::gui::menu_item

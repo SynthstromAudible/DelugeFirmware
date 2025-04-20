@@ -48,6 +48,8 @@ set the stutter configuration independently of the song configuration if you wis
   - With `Alternative Select Behaviour (SELE)` ENABLED:
     - `Turn select encoder` to change the value of the selected menu item
     - `Press + Turn select encoder` to change the selected menu item
+  - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
+    - When in a Horizontal menu, the selected instrument LED corresponding to the Horizontal Menu item selected will light up
 
 
 #### <ins>Clip Name Display & Copying</ins>
