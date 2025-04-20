@@ -6,46 +6,59 @@
 
 ## Contributing
 
-Click the "Edit this page" link at the bottom of the page you wish to edit.
-If you add new files to the docs folders, they will show up in the sidebar automatically.
+You'll find an "Edit page" link at the bottom of each documentation page. Click this link to open the github.dev editor in your browser, where you can make changes to the documentation source files.
+
+For more info, check the [github.dev editor documentation](https://docs.github.com/en/codespaces/the-githubdev-web-based-editor)!
 
 For the basics on how to write documentation, check the Starlight documentation page on
 [Authoring Content in Markdown](https://starlight.astro.build/guides/authoring-content/)!
-Even if you are a seasoned markdown veteran, this page is a must-read so that you are aware of
+Even if you are a seasoned Markdown veteran, this page is a must-read so that you are aware of
 the cool extensions that Starlight has.
+
+If you add new files to the docs folders, they will show up in the sidebar automatically.
 
 Always use absolute paths for linking to other pages, the link validator will yell at you otherwise.
 E.g. `[Features Overview](/features/community_features)`
 
-Always use relative paths for images.
+Always use relative paths for referencing images.
 Feel free to place images into a folder next to the documentation page that uses them.
 E.g. `![My Photo](../photo.jpg)`.
 The `/src/assets` folder can be used for more general use assets.
 
-Write in .md or .mdx format instead of Markdoc wherever possible, for consistency.
+Write in `.md` or `.mdx` format. `.md` files are "pure" Markdown but with directives added. For example `:key[...]` can be used to reference Deluge shortcuts. `.mdx` files do everything that Markdown files can, but can also include Components. See the [Starlight docs](https://starlight.astro.build/components/using-components/) for more information.
 
-## Testing
+## Testing your changes
 
-Make sure that you have the [bun](https://bun.sh/) tool installed on your system.
+### Using GitHub Pages on your fork
 
-Run `bun install` and then `bun dev` in the terminal.
-Open http://localhost:4321 in your browser.
+1. In your fork of the DelugeFirmware repository, go to the `Actions` tab.
+2. Select the `Deploy to GitHub Pages` workflow.
+3. Click `Run workflow` on the right
+4. Select the branch you want to deploy
+5. Click `Run`
+6. Check https://your-github-username.github.io/DelugeFirmware/ to see your deployed website.
+
+### On your machine
+
+Make sure that you have [bun](https://bun.sh/) installed on your system. You can check by running `bun -v` in your terminal.
+
+If the `bun` command is not recognized by your terminal after a successful installation and restarting the terminal, follow these steps to add it manually to your system PATH: [How to add bun to your PATH](https://bun.sh/docs/installation#how-to-add-your-path)
+
+If `bun` has been successfully installed, you can go to the `website` folder in your terminal (by running `cd website`) and run `bun install` and then `bun dev`.
+Once the dev server has started, you can open http://localhost:4321 in your browser.
 The page will automatically refresh with the changes you make.
-
-This project is set up so that it can correctly deploy to the GitHub Pages site of a fork.
-Use this if you'd like to deploy a change to show to others.
 
 ## Links
 
-You most likely don't have to worry about the [base path](https://docs.astro.build/en/reference/configuration-reference/#base), but if a link is not working on a fork
+You most likely don't have to worry about the [base path](https://docs.astro.build/en/reference/configuration-reference/#base), but if a link is not working on a fork,
 then this is probably the reason.
 
-Links in markdown (md, mdx) files automatically have the base path added.
+Links in Markdown (md, mdx) files automatically have the base path added.
 So if your home page is available at `/DelugeFirmware`,
 the link from the above example would be converted to
 `/DelugeFirmware/features/community_features` automatically during the build.
 
-If you have links in a file that is not markdown, you need to use the [withBase](src/utils.ts)
+If you have links in a file that is not Markdown, you need to use the [withBase](src/utils.ts)
 utility function to ensure correct links are generated in all cases.
 See [index.astro](src/pages/index.astro) for an example usage.
 
@@ -58,7 +71,7 @@ Likewise, don't put anything behind the `/doxygen` URL path within Starlight to 
 
 ---
 
-Generated readme below. These are good resources to get you started.
+Find the generated Starlight readme below. These are good resources to get you started.
 Starlight docs are great, don't forget to use them!
 
 ## 🚀 Project Structure

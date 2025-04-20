@@ -32,7 +32,7 @@ const config = defineConfig({
       },
       editLink: {
         baseUrl:
-          "https://vscode.dev/github/SynthstromAudible/DelugeFirmware/tree/community/website",
+          "https://github.dev/SynthstromAudible/DelugeFirmware/blob/community/website",
       },
       sidebar: [
         {

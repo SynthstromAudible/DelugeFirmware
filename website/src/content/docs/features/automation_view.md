@@ -143,13 +143,13 @@ The Automation Overview **will:**
 > **Note:** While in the automation overview, if you hit play, record and then record in Master FX automations using the Mod Encoder (Gold Knobs), the automation overview grid will update to show you that those parameters are now automated by highlighting the corresponding pads on the grid white. Note: the update will happen after you turn record off.
 
 - be quickly accessible at any time from within the Automation Arranger View by pressing :key[AffectEntire]
-- be quickly accessible at any time from within the Automation Clip View by holding :key[Shift + Clip], "key[Audition Pad + Clip], or :key[AffectEntire].
+- be quickly accessible at any time from within the Automation Clip View by holding :key[Shift + Clip], :key[Audition Pad + Clip], or :key[AffectEntire].
 
 > **Note 1:** The Automation Overview will also be displayed if you change clip types (e.g. from Synth to MIDI).
 
 > **Note 2:** In a Kit clip, the Automation Overview will be displayed any time you change your kit row selection (e.g. by pressing on the mute or audition pads).
 
-> **Note 3:** In a Kit clip, if you press and hold an audition pad and turn the vertical encoder, you can quickly scroll through all automation overview's for kit clip's rows
+> **Note 3:** In a Kit clip, if you press and hold an audition pad and turn the vertical encoder, you can quickly scroll through all automation overviews for kit clip's rows
 
 - enable you to quickly access the Automation Editor for any automatable parameter by pressing any of the pads that are illuminated or by turning select
 - enable you to clear all automations using the current combo of pressing down on Horizontal Encoder at the same time as pressing the Back button (note: for kit clip the behaviour will operate differently than usual: with :key[AffectEntire] enabled you will only clear all kit level automations. with :key[AffectEntire] disabled it will clear all kit row level automations).
