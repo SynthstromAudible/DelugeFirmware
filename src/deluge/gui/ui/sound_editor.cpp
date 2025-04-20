@@ -266,11 +266,11 @@ void SoundEditor::displayOrLanguageChanged() {
 void SoundEditor::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::SAVE, false); // In case we came from the save-Instrument UI
 
-	indicator_leds::setLedState(IndicatorLED::SYNTH, !inSettingsMenu() && !editingKit() && currentSound);
-	indicator_leds::setLedState(IndicatorLED::KIT, !inSettingsMenu() && editingKit() && currentSound);
-	indicator_leds::setLedState(IndicatorLED::MIDI,
-	                            !inSettingsMenu() && getCurrentOutputType() == OutputType::MIDI_OUT);
-	indicator_leds::setLedState(IndicatorLED::CV, !inSettingsMenu() && getCurrentOutputType() == OutputType::CV);
+	// turn off all instrument LED's when entering menu
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
+	indicator_leds::setLedState(IndicatorLED::MIDI, false);
+	indicator_leds::setLedState(IndicatorLED::CV, false);
 
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
@@ -286,6 +286,9 @@ void SoundEditor::setLedStates() {
 }
 
 void SoundEditor::enterSubmenu(MenuItem* newItem) {
+	// end current menu item session before beginning new menu item session
+	endScreen();
+
 	navigationDepth++;
 	menuItemNavigationRecord[navigationDepth] = newItem;
 	display->setNextTransitionDirection(1);
@@ -569,6 +572,9 @@ void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool on,
 }
 
 void SoundEditor::goUpOneLevel() {
+	// end current menu item session before beginning new menu item session
+	endScreen();
+
 	do {
 		if (navigationDepth == 0) {
 			exitCompletely();
@@ -605,6 +611,10 @@ void SoundEditor::exitCompletely() {
 	else if (inNoteRowEditor()) {
 		instrumentClipView.exitNoteRowEditor();
 	}
+
+	// end current menu item session before exiting
+	endScreen();
+
 	display->setNextTransitionDirection(-1);
 	close();
 	possibleChangeToCurrentRangeDisplay();
@@ -781,6 +791,14 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 	possibleChangeToCurrentRangeDisplay();
 
 	return getCurrentUI() == &soundEditor;
+}
+
+/// end current menu item session before beginning new menu item session or exiting the sound editor
+void SoundEditor::endScreen() {
+	MenuItem* currentMenuItem = getCurrentMenuItem();
+	if (currentMenuItem != nullptr) {
+		currentMenuItem->endSession();
+	}
 }
 
 void SoundEditor::possibleChangeToCurrentRangeDisplay() {
@@ -1102,12 +1120,14 @@ getOut:
 
 					// Otherwise...
 					else {
-
 						// If we've been given a MenuItem to go into, do that
 						if (newMenuItem
 						    && newMenuItem->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
 						                                                  &currentMultiRange)
 						           != MenuPermission::NO) {
+							// end current menu item session before beginning new menu item session
+							endScreen();
+
 							modulationItemFound = true;
 							navigationDepth = newNavigationDepth + 1;
 							menuItemNavigationRecord[navigationDepth] = newMenuItem;
@@ -1688,10 +1708,12 @@ doMIDIOrCV:
 		currentPriority = &audioClip->voicePriority;
 	}
 
+	// end current menu item session before beginning new menu item session
+	endScreen();
+
 	navigationDepth = 0;
 	shouldGoUpOneLevelOnBegin = false;
 	menuItemNavigationRecord[navigationDepth] = newItem;
-
 	display->setNextTransitionDirection(1);
 
 	return true;
