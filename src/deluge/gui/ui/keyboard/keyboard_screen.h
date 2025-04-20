@@ -61,6 +61,8 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::KEYBOARD_SCREEN; }
+	UIType getUIContextType() override { return UIType::INSTRUMENT_CLIP; }
+	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 	void checkNewInstrument(Instrument* newInstrument);
 
 private:

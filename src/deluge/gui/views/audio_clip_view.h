@@ -61,6 +61,7 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::AUDIO_CLIP; }
+	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 
 private:
 	uint32_t timeSongButtonPressed;

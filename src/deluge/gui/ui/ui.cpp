@@ -96,9 +96,10 @@ bool changeUIAtLevel(UI* newUI, int32_t level) {
 	return success;
 }
 
-// Called when we navigate between "root" UIs, like sessionView, instrumentClipView, automationInstrumentClipView,
+// Called when we navigate between "root" UIs, like sessionView, instrumentClipView, automationView,
 // performanceView, etc.
 void changeRootUI(UI* newUI) {
+	newUI = newUI->getUI();
 	uiNavigationHierarchy[0] = newUI;
 	numUIsOpen = 1;
 
@@ -115,12 +116,14 @@ void changeRootUI(UI* newUI) {
 
 // Only called when setting up blank song, so don't worry about this
 void setRootUILowLevel(UI* newUI) {
+	newUI = newUI->getUI();
 	uiNavigationHierarchy[0] = newUI;
 	numUIsOpen = 1;
 	PadLEDs::reassessGreyout();
 }
 
 bool changeUISideways(UI* newUI) {
+	newUI = newUI->getUI();
 	bool success = changeUIAtLevel(newUI, numUIsOpen - 1);
 	if (display->haveOLED()) {
 		renderUIsForOled();
@@ -146,15 +149,16 @@ RootUI* getRootUI() {
 
 bool currentUIIsClipMinderScreen() {
 	UI* currentUI = getCurrentUI();
-	return (currentUI && currentUI->toClipMinder());
+	return (currentUI != nullptr && (currentUI->toClipMinder() != nullptr));
 }
 
 bool rootUIIsClipMinderScreen() {
 	UI* rootUI = getRootUI();
-	return (rootUI && rootUI->toClipMinder());
+	return (rootUI != nullptr && (rootUI->toClipMinder() != nullptr));
 }
 
 void swapOutRootUILowLevel(UI* newUI) {
+	newUI = newUI->getUI();
 	uiNavigationHierarchy[0] = newUI;
 }
 
@@ -221,6 +225,7 @@ void closeUI(UI* uiToClose) {
 }
 
 bool openUI(UI* newUI) {
+	newUI = newUI->getUI();
 	UI* oldUI = getCurrentUI();
 	uiNavigationHierarchy[numUIsOpen] = newUI;
 	numUIsOpen++;
