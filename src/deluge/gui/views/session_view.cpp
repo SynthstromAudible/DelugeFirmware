@@ -1414,12 +1414,7 @@ ActionResult SessionView::horizontalEncoderAction(int32_t offset) {
 ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
 	if (currentUIMode == UI_MODE_NONE && Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
-		if (Buttons::isShiftButtonPressed()) {
-			currentSong->adjustMasterTransposeInterval(offset);
-		}
-		else {
-			currentSong->transpose(offset);
-		}
+		currentSong->commandTranspose(offset);
 	}
 	else if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
 	         || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING
