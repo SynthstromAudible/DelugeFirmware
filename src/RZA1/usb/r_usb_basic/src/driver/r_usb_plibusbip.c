@@ -38,6 +38,7 @@
 #include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
 #include "deluge/io/midi/midi_device_manager.h"
 #include "deluge/io/midi/midi_engine.h"
+#include "deluge/io/usb/usb_state.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"

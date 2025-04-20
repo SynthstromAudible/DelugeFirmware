@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "io/debug/log.h"
 extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
@@ -34,27 +35,135 @@ void MIDICableDINPorts::writeToFlash(uint8_t* memory) {
 	*(uint16_t*)memory = VENDOR_ID_DIN;
 }
 
-char const* MIDICableDINPorts::getDisplayName() {
+char const* MIDICableDINPorts::getDisplayName() const {
 	return deluge::l10n::get(deluge::l10n::String::STRING_FOR_DIN_PORTS);
 }
 
-void MIDICableDINPorts::sendMessage(MIDIMessage message) {
-	midiEngine.sendSerialMidi(message);
+Error MIDICableDINPorts::sendMessage(MIDIMessage message) {
+	uint8_t status_byte = message.channel | (message.statusType << 4);
+	auto message_length = bytesPerStatusMessage(status_byte);
+
+	if (message_length > sendBufferSpace()) {
+		return Error::OUT_OF_BUFFER_SPACE;
+	}
+
+	bufferMIDIUart(status_byte);
+
+	if (message_length >= 2) {
+		bufferMIDIUart(message.data1);
+
+		if (message_length == 3) {
+			bufferMIDIUart(message.data2);
+		}
+	}
+
+	return Error::NONE;
 }
 
 size_t MIDICableDINPorts::sendBufferSpace() const {
 	return uartGetTxBufferSpace(UART_ITEM_MIDI);
 }
 
-void MIDICableDINPorts::sendSysex(const uint8_t* data, int32_t len) {
+Error MIDICableDINPorts::sendSysex(const uint8_t* data, int32_t len) {
 	if (len < 3 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
-		return;
+		return Error::OUT_OF_BUFFER_SPACE;
+	}
+	if (static_cast<size_t>(len) > sendBufferSpace()) {
+		return Error::OUT_OF_BUFFER_SPACE;
 	}
 
 	// NB: beware of MIDI_TX_BUFFER_SIZE
 	for (int32_t i = 0; i < len; i++) {
 		bufferMIDIUart(data[i]);
 	}
+
+	return Error::NONE;
+}
+
+Error MIDICableDINPorts::onReceiveByte(uint32_t timestamp, uint8_t thisSerialByte) {
+	// D_PRINTLN((uint32_t)thisSerialByte);
+	// If this is a status byte, then we have to store it as the first byte.
+	if ((thisSerialByte & 0x80) != 0) {
+
+		switch (thisSerialByte) {
+
+		// If it's a realtime message, we have to obey it right now, separately from any other message it was
+		// inserted into the middle of
+		case 0xF8 ... 0xFF:
+			midiEngine.midiMessageReceived(*this, thisSerialByte >> 4, thisSerialByte & 0x0F, 0, 0, &timestamp);
+			return Error::NONE;
+
+		// Or if it's a SysEx start...
+		case 0xF0:
+			currentlyReceivingSysex_ = true;
+			D_PRINTLN("Sysex start");
+			incomingSysexBuffer[0] = thisSerialByte;
+			incomingSysexPos = 1;
+			// numSerialMidiInput = 0; // This would throw away any running status stuff...
+			return Error::NONE;
+		default:
+			// Default case for non sysex/realtime input
+			break;
+		}
+
+		// If we didn't return for any of those, then it's just a regular old status message (or Sysex stop
+		// message). All these will end any ongoing SysEx
+
+		// If it was a Sysex stop, that's all we need to do
+		if (thisSerialByte == 0xF7) {
+			D_PRINTLN("Sysex end");
+			if (currentlyReceivingSysex_) {
+				currentlyReceivingSysex_ = false;
+				if (static_cast<size_t>(incomingSysexPos) < sizeof incomingSysexBuffer) {
+					incomingSysexBuffer[incomingSysexPos++] = thisSerialByte;
+					midiEngine.midiSysexReceived(*this, incomingSysexBuffer, incomingSysexPos);
+				}
+			}
+			return Error::NONE;
+		}
+
+		currentlyReceivingSysex_ = false;
+		currentByte_ = 0;
+	}
+
+	// If not a status byte...
+	else {
+		// If we're currently receiving a SysEx, don't throw it away
+		if (currentlyReceivingSysex_) {
+			// TODO: allocate a GMA buffer to some bigger size
+			if (static_cast<size_t>(incomingSysexPos) < sizeof incomingSysexBuffer) {
+				incomingSysexBuffer[incomingSysexPos++] = thisSerialByte;
+			}
+			D_PRINTLN("Sysex:  %d", thisSerialByte);
+			return Error::NONE;
+		}
+
+		// Ensure that we're not writing to the first byte of the buffer
+		if (currentByte_ == 0) {
+			return Error::NONE;
+		}
+	}
+
+	messageBytes_[currentByte_] = thisSerialByte;
+	currentByte_++;
+
+	// If we've received the whole MIDI message, deal with it
+	if (bytesPerStatusMessage(messageBytes_[0]) == currentByte_) {
+		uint8_t type = (messageBytes_[0]) >> 4;
+		uint8_t channel = messageBytes_[0] & 0x0F;
+
+		midiEngine.midiMessageReceived(*this, type, channel, messageBytes_[1], messageBytes_[2], &timestamp);
+
+		// If message was more than 1 byte long, and was a voice or mode message, then allow for running status
+		if (currentByte_ > 1 && type != 0xF) {
+			currentByte_ = 1;
+		}
+		else {
+			currentByte_ = 0;
+		}
+	}
+
+	return Error::NONE;
 }
 
 bool MIDICableDINPorts::wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const {

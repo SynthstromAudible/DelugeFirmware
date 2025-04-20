@@ -15,24 +15,35 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include "din.h"
 
-#include "deluge/io/midi//midi_device.h"
+#include "io/debug/log.h"
+#include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_engine.h"
 
-class MIDICableUSB : public MIDICable {
-public:
-	MIDICableUSB(uint8_t portNum = 0) : portNumber(portNum) {}
+extern "C" {
+#include "RZA1/uart/sio_char.h"
+}
 
-	[[nodiscard]] bool wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const override;
+DINRootComplex::DINRootComplex() = default;
+DINRootComplex::~DINRootComplex() = default;
 
-	[[nodiscard]] Error sendMessage(MIDIMessage message) override;
-	[[nodiscard]] Error sendSysex(const uint8_t* data, int32_t len) override;
-	[[nodiscard]] size_t sendBufferSpace() const override;
+void DINRootComplex::flush() {
+	uartFlushIfNotSending(UART_ITEM_MIDI);
+}
 
-	void checkIncomingSysex(uint8_t const* msg, int32_t ip, int32_t d);
-	void connectedNow(int32_t midiDeviceNum);
-	void sendMCMsNowIfNeeded();
+Error DINRootComplex::poll() {
+	uint8_t thisSerialByte;
+	uint32_t* timer = uartGetCharWithTiming(TIMING_CAPTURE_ITEM_MIDI, (char*)&thisSerialByte);
 
-	uint8_t portNumber;
-	uint8_t needsToSendMCMs = 0;
-};
+	while (timer != nullptr) {
+		auto err = cable.onReceiveByte(*timer, thisSerialByte);
+		if (err != Error::NONE) {
+			return err;
+		}
+
+		timer = uartGetCharWithTiming(TIMING_CAPTURE_ITEM_MIDI, (char*)&thisSerialByte);
+	}
+
+	return Error::NO_ERROR_BUT_GET_OUT;
+}

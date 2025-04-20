@@ -18,23 +18,74 @@
 #include "usb_common.h"
 #include "io/midi/midi_engine.h"
 
+void MIDICableUSB::checkIncomingSysex(uint8_t const* msg, [[maybe_unused]] int32_t ip, [[maybe_unused]] int32_t d) {
+	uint8_t status_type = msg[0] & 15;
+	int32_t to_read = 0;
+	bool will_end = false;
+	if (status_type == 0x4) {
+		// sysex start or continue
+		if (msg[1] == 0xf0) {
+			this->incomingSysexPos = 0;
+		}
+		to_read = 3;
+	}
+	else if (status_type >= 0x5 && status_type <= 0x7) {
+		to_read = status_type - 0x4; // read between 1-3 bytes
+		will_end = true;
+	}
+
+	for (int32_t i = 0; i < to_read; i++) {
+		if (this->incomingSysexPos >= sizeof(this->incomingSysexBuffer)) {
+			// TODO: allocate a GMA buffer to some bigger size
+			this->incomingSysexPos = 0;
+			return; // bail out
+		}
+		this->incomingSysexBuffer[this->incomingSysexPos++] = msg[i + 1];
+	}
+
+	if (will_end) {
+		if (this->incomingSysexBuffer[0] == 0xf0) {
+			midiEngine.midiSysexReceived(*this, this->incomingSysexBuffer, this->incomingSysexPos);
+		}
+		this->incomingSysexPos = 0;
+	}
+}
+
 void MIDICableUSB::connectedNow(int32_t midiDeviceNum) {
 	connectionFlags |= (1 << midiDeviceNum);
 	needsToSendMCMs = 2;
 }
 
 void MIDICableUSB::sendMCMsNowIfNeeded() {
-	if (needsToSendMCMs) {
+	if (needsToSendMCMs != 0u) {
 		needsToSendMCMs--;
-		if (!needsToSendMCMs) {
+		if (needsToSendMCMs == 0u) {
 			sendAllMCMs();
 		}
 	}
 }
 
-void MIDICableUSB::sendMessage(MIDIMessage message) {
+static uint32_t setupUSBMessage(MIDIMessage message) {
+	// format message per USB midi spec on virtual cable 0
+	uint8_t cin;
+	uint8_t first_byte = (message.channel & 15) | (message.statusType << 4);
+
+	switch (first_byte) {
+	case 0xF2: // Position pointer
+		cin = 0x03;
+		break;
+
+	default:
+		cin = message.statusType; // Good for voice commands
+		break;
+	}
+
+	return ((uint32_t)message.data2 << 24) | ((uint32_t)message.data1 << 16) | ((uint32_t)first_byte << 8) | cin;
+}
+
+Error MIDICableUSB::sendMessage(MIDIMessage message) {
 	if (!connectionFlags) {
-		return;
+		return Error::NONE;
 	}
 
 	int32_t ip = 0;
@@ -46,10 +97,12 @@ void MIDICableUSB::sendMessage(MIDIMessage message) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 			if (connectedDevice->canHaveMIDISent) {
 				uint32_t channeledMessage = fullMessage | (portNumber << 4);
-				connectedDevice->bufferMessage(fullMessage);
+				connectedDevice->bufferMessage(channeledMessage);
 			}
 		}
 	}
+
+	return Error::NONE;
 }
 
 size_t MIDICableUSB::sendBufferSpace() const {
@@ -74,9 +127,13 @@ size_t MIDICableUSB::sendBufferSpace() const {
 
 extern bool developerSysexCodeReceived;
 
-void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
+Error MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 	if (len < 6 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
-		return;
+		return Error::INVALID_SYSEX_FORMAT;
+	}
+
+	if (len > sendBufferSpace()) {
+		return Error::OUT_OF_BUFFER_SPACE;
 	}
 
 	int32_t ip = 0;
@@ -92,7 +149,7 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 	}
 
 	if (!connectedDevice) {
-		return;
+		return Error::NONE;
 	}
 
 	int32_t pos = 0;
@@ -132,6 +189,8 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		uint32_t packed = ((uint32_t)byte2 << 24) | ((uint32_t)byte1 << 16) | ((uint32_t)byte0 << 8) | status;
 		connectedDevice->bufferMessage(packed);
 	}
+
+	return Error::NONE;
 }
 
 bool MIDICableUSB::wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const {

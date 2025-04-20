@@ -40,6 +40,7 @@
 
 #include "deluge/deluge.h"
 #include "deluge/drivers/uart/uart.h"
+#include "deluge/io/usb/usb_state.h"
 
 /******************************************************************************
  Exported global variables
@@ -60,8 +61,6 @@ static void usb_hhid_class_request_trans_result(usb_utr_t* mess, uint16_t data1,
 static void usb_hmidi_check_result(usb_utr_t* ptr, uint16_t unused, uint16_t status);
 static usb_er_t usb_hhid_data_trans(usb_utr_t* ptr, uint16_t pipe, uint32_t size, uint8_t* table, usb_cb_t complete);
 static void usb_hmidi_enumeration_sequence(usb_utr_t* mess);
-
-extern uint8_t currentDeviceNumWithSendPipe[];
 
 /******************************************************************************
  Exported global variables (to be accessed by other files)

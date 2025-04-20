@@ -24,5 +24,5 @@ public:
 	MIDICableUSBUpstream(uint8_t portNum = 0) : MIDICableUSB(portNum) {}
 	void writeReferenceAttributesToFile(Serializer& writer) override;
 	void writeToFlash(uint8_t* memory) override;
-	char const* getDisplayName() override;
+	[[nodiscard]] char const* getDisplayName() const override;
 };
