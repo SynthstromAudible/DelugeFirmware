@@ -255,9 +255,9 @@ export const CONTROLS = ControlData.parse({
   // Pads
   Pad: {
     // TODO: parse pad ID from modifiers
-    toAction: (name, modifiers) => {
+    toAction: (name, modifiers): typeof ActionSchema._input => {
       return {
-        text: titleCase(modifiers.length > 0 ? modifiers.join(" ") : name),
+        label: titleCase(modifiers.length > 0 ? modifiers.join(" ") : name),
         isPad: true,
         searchText: [...modifiers.map((m) => titleCase(m)), name]
           .filter(Boolean)
