@@ -899,9 +899,14 @@ void SoundEditor::endScreen() {
 }
 
 void SoundEditor::possibleChangeToCurrentRangeDisplay() {
-	uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
-	uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
-	uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
+	RootUI* rootUI = getRootUI();
+
+	if (rootUI == &keyboardScreen) {
+		uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
+	}
+	else if (rootUI->getUIContextType() == UIType::INSTRUMENT_CLIP) {
+		uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
+	}
 }
 
 void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour) {

@@ -60,7 +60,19 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::AUTOMATION; }
-	AutomationSubType getAutomationSubType();
+	UIType getUIContextType() override;
+	UIModControllableContext getUIModControllableContext() override {
+		return getUIContextType() == UIType::ARRANGER ? UIModControllableContext::SONG : UIModControllableContext::CLIP;
+	}
+
+	// used to identify the UI as a clip UI or not.
+	ClipMinder* toClipMinder() override { return getUIContextType() == UIType::ARRANGER ? nullptr : this; }
+
+	void setAutomationParamType();
+
+	bool onAutomationOverview();
+	bool inAutomationEditor();
+	bool inNoteEditor();
 
 	// rendering
 	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
@@ -110,17 +122,6 @@ public:
 
 	// called by playback_handler.cpp
 	void notifyPlaybackBegun() override;
-
-	// used to identify the UI as a clip UI or not.
-	ClipMinder* toClipMinder() override {
-		return getAutomationSubType() == AutomationSubType::ARRANGER ? nullptr : this;
-	}
-
-	void setAutomationParamType();
-
-	bool onAutomationOverview();
-	bool inAutomationEditor();
-	bool inNoteEditor();
 
 	bool interpolation;
 	bool interpolationBefore;

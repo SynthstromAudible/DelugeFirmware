@@ -221,6 +221,7 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::INSTRUMENT_CLIP; }
+	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 
 	// note editor
 	bool enterNoteEditor();
