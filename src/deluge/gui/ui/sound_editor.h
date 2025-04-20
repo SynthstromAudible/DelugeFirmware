@@ -165,6 +165,7 @@ private:
 	void setupShortcutsBlinkFromTable(MenuItem const* currentItem,
 	                                  MenuItem const* const items[kDisplayWidth][kDisplayHeight]);
 	bool beginScreen(MenuItem* oldMenuItem = nullptr);
+	void endScreen();
 	uint8_t getActualParamFromScreen(uint8_t screen);
 	void setLedStates();
 	ActionResult handleAutomationViewPadAction(int32_t x, int32_t y, int32_t velocity);
