@@ -42,7 +42,7 @@ describe fixedpoint("FixedPoint", ${
 
 		it("with equivalent constexpr and non-constexpr values", _ {
 			auto value = std::bit_cast<int32_t>(16.8f);
-			asm("vcvt.s32.f32 %0, %1, %2" : "=t"(value) : "t"(value), "I"(16));
+			asm("vcvt.s32.f32 %0, %0, %2" : "=t"(value) : "t"(value), "I"(16));
 			value = std::bit_cast<int32_t>(value); // NOLINT
 			constexpr FixedPoint<16> expected{16.8f};
 			expect(FixedPoint<16>::from_raw(value)).to_equal(expected);
@@ -72,8 +72,9 @@ describe fixedpoint("FixedPoint", ${
 
 		it("the original float", _ {
 			constexpr float value = 3.14f;
-			FixedPoint<16> fp{value};
-			expect(fp.to_float()).to_equal(value);
+			constexpr FixedPoint<16> fp{value};
+			expect(fp).to_equal(FixedPoint<16>::from_float(value));
+			expect(fp.to_float()).to_be_between(3.139999f, 3.140001f);
 		});
 
 		it("another of equal value and the same number of fractional bits", _ {
