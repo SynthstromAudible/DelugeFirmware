@@ -9,7 +9,8 @@ import remarkGithub from "remark-github"
 import RemarkLinkRewrite from "remark-link-rewrite"
 import { withBase } from "./src/utils"
 import tailwindcss from "@tailwindcss/vite"
-import { remarkDelugeShortcut } from "./src/markdown-directives/remark-deluge-key/remark-deluge-shortcut.ts"
+import { remarkDelugeKey } from "./src/markdown-directives/remark-deluge-key/remark-deluge-key.ts"
+import { remarkDelugeScreen } from "./src/markdown-directives/remark-deluge-screen/remark-deluge-screen.ts"
 import remarkDirective from "remark-directive"
 
 // https://astro.build/config
@@ -92,7 +93,8 @@ const config = defineConfig({
         },
       ],
       remarkDirective,
-      remarkDelugeShortcut,
+      remarkDelugeKey,
+      remarkDelugeScreen,
       [
         RemarkLinkRewrite,
         {

@@ -6,15 +6,16 @@
     "dev": "astro dev",
     "start": "astro dev",
     "build": "astro build",
-    "preview": "astro preview",
+    "preview": "astro build && astro preview",
     "astro": "astro",
-    "check": "eslint . --max-warnings=0 && prettier . --check",
+    "check": "astro check && eslint . --max-warnings=0 && prettier . --check",
     "check:fix": "prettier . --write && eslint . --fix"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.32.5",
     "@tailwindcss/vite": "^4.0.17",
     "astro": "^5.5.5",
+    "canvas": "^3.0.0-rc3",
     "mdast-util-to-string": "^4.0.0",
     "playwright": "^1.51.1",
     "rehype-mermaid": "^3.0.0",
