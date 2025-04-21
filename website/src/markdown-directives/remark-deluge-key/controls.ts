@@ -6,8 +6,7 @@ export const titleCase = (str: string) =>
     .replace(/[_-]/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase())
 
-const ActionSchema = z.object(
-{
+const ActionSchema = z.object({
   /**
    * The icon to display for the action
    */
