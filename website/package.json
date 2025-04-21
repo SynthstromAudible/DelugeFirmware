@@ -29,6 +29,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.4",
     "@typescript-eslint/parser": "^8.28.0",
     "astro-eslint-parser": "^1.2.2",
     "eslint": "^9.23.0",
@@ -38,6 +39,7 @@
     "prettier": "^3.5.3",
     "prettier-plugin-astro": "^0.14.1",
     "prettier-plugin-tailwindcss": "^0.6.11",
+    "typescript": "^5.8.3",
     "typescript-eslint": "^8.28.0"
   },
   "overrides": {
