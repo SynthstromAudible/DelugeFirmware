@@ -1,4 +1,4 @@
-name: Check Website
+name: Build and Check Website
 
 on:
   pull_request:
@@ -11,27 +11,6 @@ permissions:
   contents: write
 
 jobs:
-  formatting-check:
-    name: Formatting Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies with npm (only npm is supported by lint-action)
-        working-directory: website
-        run: npm i
-
-      - name: Run website check
-        uses: wearerequired/lint-action@v2
-        with:
-          auto_fix: true
-          eslint: true
-          eslint_dir: website
-          eslint_auto_fix: true
-          prettier: true
-          prettier_dir: website
-          prettier_auto_fix: true
-
   build-website:
     runs-on: ubuntu-latest
     defaults:
@@ -54,12 +33,16 @@ jobs:
         id: setup_pages
         uses: actions/configure-pages@v5
 
+      - name: Run website checks
+        run: bun run check
+
       - name: Build website
         run: bun run build
         env:
           SITE_URL: ${{ steps.setup_pages.outputs.base_url }}
           SITE_BASE_PATH: ${{ steps.setup_pages.outputs.base_path }}
 
+      # We upload the artifact for manual downloading and opening locally
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
