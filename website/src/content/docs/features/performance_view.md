@@ -11,10 +11,12 @@ Polyend Play inspired Performance View for the Deluge.
 Please refer to these amazing video tutorials on Performance View to better understand the functionality:
 
 Ron Cavagnaro Tutorial:
-  - [DELUGE 1.1 PERFORMANCE VIEW BASICS /// SYNTHSTROM DELUGE TUTORIAL](https://www.youtube.com/watch?v=YykJfzpjMIM)
+
+- [DELUGE 1.1 PERFORMANCE VIEW BASICS /// SYNTHSTROM DELUGE TUTORIAL](https://www.youtube.com/watch?v=YykJfzpjMIM)
 
 Bay Mud Tutorial:
-  - [New Deluge Community Firmware 1.1 Features! Performance View](https://youtu.be/gxnK2XJthYo?t=1642&si=6gFneZqbJ8PJJmTe)
+
+- [New Deluge Community Firmware 1.1 Features! Performance View](https://youtu.be/gxnK2XJthYo?t=1642&si=6gFneZqbJ8PJJmTe)
 
 ## Description
 
