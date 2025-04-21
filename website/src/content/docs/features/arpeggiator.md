@@ -5,6 +5,15 @@ title: Arpeggiator
 The arpeggiator has been completely redesigned from scratch. It can be used on Synth clips, Midi clips, and on any kind of
 Kit rows (Sound, Midi and CV).
 
+## Video Tutorials
+
+Please refer to these amazing video tutorials on Audio Exporting to better understand the functionality:
+
+- Ron Cavagnaro Tutorial:
+  - [DELUGE 1.1 CHORD MEMORY & ARPEGGIATOR // DELUGE 1.1 BEETHOVEN FIRMWARE TUTORIAL](https://www.youtube.com/watch?v=VuAESUsW8bw)
+- Bay Mud Tutorial:
+  - [New Deluge Community Firmware 1.1 Features! New Arp](https://youtu.be/gxnK2XJthYo?t=521&si=LXp0QPM818l-buQm)
+
 ## Arpeggiator Modes (or Presets)
 
 Arpeggiator Modes were used to set the arpeggiator to play in different ways. On the official firmware you just had the

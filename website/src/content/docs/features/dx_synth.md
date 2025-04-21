@@ -2,7 +2,16 @@
 title: DX7 synth
 ---
 
-## Description:
+DX7 Synth oscillator type which enables you to load and edit existing DX7 patches and also create your own.
+
+## Video Tutorials
+
+Please refer to these amazing video tutorials on the DX7 Synth to better understand the functionality:
+
+- Bay Mud Tutorial:
+  - [New Deluge Community Firmware 1.2 Features! DX7](https://youtu.be/IiwvwLqUmq4?t=1478&si=BwNk3tKnwn3IQkE_)
+
+## Description
 
 Synth type fully compatible with DX7 patches with full editing support.
 
@@ -14,7 +23,7 @@ of .syx patch banks as well as a tuned "vintage" engine.
 Implemented as a special case of the subtractive engine, where OSC1 is changed to a new DX7 oscillator type.
 It is possible to use the filters on a DX7 patch (though this increase CPU usage and decrease polyphony).
 
-## Usage:
+## Usage
 
 ### Presets
 
@@ -106,7 +115,7 @@ Need some DX7 patches? Check out the following:
 - [patches.fm](https://patches.fm/patches/) has over 20,000 individual patches.
 - [The Dexed home page](https://asb2m10.github.io/dexed/) links to "Dexed Cart 1.0" which is a collection of ~5000 DX7 patches. Reddit user [Finetales on /r/synthesizers](https://www.reddit.com/r/synthesizers/comments/e4jkt7/my_curated_dexeddx7_patches_3_banks/) narrowed this down to just 3 carefully curated banks.
 
-## Missing features:
+## Missing features
 
 - [ ] midi implementation
 - [ ] modulating/automating individual operators

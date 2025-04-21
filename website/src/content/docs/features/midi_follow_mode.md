@@ -4,9 +4,21 @@ sidebar:
   label: MIDI Follow Mode
 ---
 
+MIDI control mode which enables you to learn your external controller to the Deluge only once and edit the active clip in the track you last interacted with. Provides a standard MIDI CC implementation to control Deluge parameters with ease.
+
 ![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/9389ad30-9d5a-435d-aee0-ba3f54d3c8a8)
 
-## Description:
+## Video Tutorials
+
+Please refer to these amazing video tutorials on MIDI follow mode to better understand the functionality:
+
+- Ron Cavagnaro Tutorial's:
+  - [DELUGE 1.1 MIDI FOLLOW BASICS // Deluge 1.1 Beethoven Firmware Tutorial](https://www.youtube.com/watch?v=avUcqCHGcUs)
+  - [DELUGE 1.1 NEW WORKFLOW MIDI FOLLOW GRID // DELUGE 1.1 BEETHOVEN FIRMWARE TUTORIAL](https://www.youtube.com/watch?v=WKI__I8qBIU)
+- Bay Mud Tutorial:
+  - [MIDI Follow on the Synthstrom Deluge Is Your Best Friend When Working with External Synth Gear](https://www.youtube.com/watch?v=G424fN_hcsQ)
+
+## Description
 
 Master MIDI follow mode whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active or selected clip. MIDI follow mode does not control song parameters.
 
@@ -28,7 +40,7 @@ Comes with an XML file (`SETTINGS/MIDIFollow.XML`) with default CC to Deluge par
 
 - Note: Your existing MIDI learnings will remain untouched and can be used together with the master MIDI follow mode.
 
-## Usage:
+## Usage
 
 ### Set Master MIDI Follow Channel(s), Set Kit Root Note, Enable/Disable Pop-ups and Enable/Disable MIDI Feedback
 
@@ -72,7 +84,7 @@ If set the MIDI Feedback channel to NONE, MIDI Feedback will be disabled.
 
 You can also unlearn a channel using the Select encoder by scrolling between MPE Upper Zone and Channel 1.
 
-### **Notes:**
+### **Notes**
 
 Notes and note associated performance data received (e.g. CC1, MPE CC74) on the master MIDI channel will play the instrument in the active clip (e.g. a synth, MIDI clip, cv clip, or all kit rows).
 
@@ -82,7 +94,7 @@ Notes and note associated performance data received (e.g. CC1, MPE CC74) on the 
 
 - Note 3: MIDI Follow mode will always send notes to the active clip. This means that if you leave or unselect a clip, you can still send notes to that clip because in the Deluge, that clip is still recognized as the last active clip.
 
-### **CC's:**
+### **CC's**
 
 CC's received on the master MIDI channel that have been mapped to a parameter will change the value of that parameter in the active context (e.g. audio clip or instrument clip).
 

@@ -2,11 +2,20 @@
 title: Performance View
 ---
 
+Polyend Play inspired Performance View for the Deluge.
+
 ![20907a86d7c1dbc258b98cb31aced7b2fd7a8055_2_1332x1000](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/5b1f4def-9f74-4f76-85cd-24f645973a7c)
 
-## Description:
+## Video Tutorials
 
-Polyend Play inspired Performance View for the Deluge.
+Please refer to these amazing video tutorials on Performance View to better understand the functionality:
+
+- Ron Cavagnaro Tutorial:
+  - [DELUGE 1.1 PERFORMANCE VIEW BASICS /// SYNTHSTROM DELUGE TUTORIAL](https://www.youtube.com/watch?v=YykJfzpjMIM)
+- Bay Mud Tutorial:
+  - [New Deluge Community Firmware 1.1 Features! Performance View](https://youtu.be/gxnK2XJthYo?t=1642&si=6gFneZqbJ8PJJmTe)
+
+## Description
 
 Each column represents a different "FX" and each pad/row in the column corresponds to a different FX value.
 
@@ -26,7 +35,7 @@ Specifications:
   - Adjustable default "held pad" settings for each FX column via Performance View or `PerformanceView.xml` (simply change a held pad in Performance View and save the layout to save the layout with the held pads).
 - Load defaults from `PerformanceView.xml` file
 
-## Usage:
+## Usage
 
 #### 1) Enter performance view from song / arranger views by pressing :key[KEYBOARD].
 

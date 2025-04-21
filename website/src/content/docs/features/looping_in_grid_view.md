@@ -2,6 +2,17 @@
 title: Looping in Grid View
 ---
 
+The Synthstrom Deluge offers several different workflows for looping audio and sequences.
+
+## Video Tutorials
+
+Please refer to these amazing video tutorials on Velocity View to better understand the functionality:
+
+- Ron Cavagnaro Tutorial's:
+  - [DELUGE 1.1 AUDIO CLIPS GRID NEW WORKFLOW // SYNTHSTROM DELUGE TUTORIAL](https://www.youtube.com/watch?v=GQkwBQYBOyc)
+  - [HOW TURN DELUGE TO YOUR DREAM GUITAR AUDIO LOOP SONGWRITING BOX AND //1.2 FIRMWARE DELUGE TUTORIAL](https://www.youtube.com/watch?v=IBIPGdaVrDs)
+  - [WORKFLOW 1.2 GRID MODE AUDIO CLIPS AND TEMPO AUTOMATION // 1.2 CHOPIN FIRMWARE DELUGE TUTORIAL](https://www.youtube.com/watch?v=wBb4Eganhpg)
+
 ## Description
 
 There are two different looping techniques that can be used in the new Song Grid View:

@@ -2,7 +2,16 @@
 title: Chord Keyboard and Library
 ---
 
-## Description:
+## Video Tutorials
+
+Please refer to these amazing video tutorials on Velocity View to better understand the functionality:
+
+- Ron Cavagnaro Tutorial:
+  - [1.2 NEW CHORD KEYBOARD CHORD LIBRARY CHORD MEMORY // 1.2 CHOPIN FIRMWARE DELUGE TUTORIAL](https://youtu.be/lBg1vCwBG0o?si=yl9yktl8dPu_XznE)
+- Bay Mud Tutorial:
+  - [New Deluge Community Firmware 1.2 Features! Chord Library](https://youtu.be/IiwvwLqUmq4?t=1181&si=LOxBHBqJqVHhQyh1)
+
+## Description
 
 Two new chord focused keyboards as an additional keyboard options.
 
