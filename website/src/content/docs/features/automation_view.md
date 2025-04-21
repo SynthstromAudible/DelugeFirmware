@@ -2,6 +2,19 @@
 title: Automation View
 ---
 
+Automation View that has been added in Clip and Arranger Views to edit parameter automation using the sequencer grid.
+
+## Video Tutorials
+
+Please refer to these amazing video tutorials on Automation View to better understand the functionality:
+
+- Ron Cavagnaro Tutorials:
+  - [DELUGE AUTOMATION MODE PART 1 - EXPERIMENTATION // SYNTHSTROM DELUGE TUTORIAL](https://youtu.be/KV5hWgcanxI?si=hj2AmMPztylEbb6H)
+  - [DELUGE IS NOW AN ADVANCED GLITCH EFFECTS PEDAL / AUTOMATION PART 2 // SYNTHSTROM DELUGE TUTORIAL](https://youtu.be/RGRlln8OW1s?si=JtBOUeGNye5wp0Z7)
+  - [DELUGE MIDI CC AND LINE IN FX / AUTOMATION PART 3 // SYNTHSTROM DELUGE TUTORIAL](https://youtu.be/KR3xTCeQj0Y?si=xTIgvDzQqsU8l23L)
+- Red Means Recording Tutorial:
+  - [The Synthstrom Deluge Just Got Even Better! Automation View](https://youtu.be/J8hibZYJhoY?t=956&si=rt-FsLvCjyJvTcum)
+
 ## Description
 
 Automation View is a new view that complements the existing Arranger and Clip Views.

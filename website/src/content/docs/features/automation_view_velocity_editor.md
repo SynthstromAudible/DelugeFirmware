@@ -4,17 +4,26 @@ sidebar:
   label: Note Velocity Editor
 ---
 
-New Note Velocity Editing View that has been added as part of the existing Automation View implementation so that you can edit the velocities and other parameters of notes in a single note row.
+Note Velocity Editing View that has been added as part of the existing Automation View implementation so that you can edit the velocities and other parameters of notes in a single note row.
 
 <img width="605" alt="Screenshot 2024-06-05 at 11 34 47 AM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/c0a1577c-5a10-4511-ab2e-1c40b3cb3d64">
 
-## **Description:**
+## Video Tutorials
+
+Please refer to these amazing video tutorials on Velocity View to better understand the functionality:
+
+- Ron Cavagnaro Tutorial:
+  - [NEW SEQUENCING IN VELOCITY MODE AND SEQ TRANSPOSE // 1.2 CHOPIN FIRMWARE DELUGE TUTORIAL](https://www.youtube.com/watch?v=VKbAr3fZe5I)
+- Bay Mud Tutorial:
+  - [New Deluge Community Firmware 1.2 Features! Velocity View](https://youtu.be/IiwvwLqUmq4?t=561&si=o8sRiguh-aXcm67N)
+
+## Description
 
 - imagine if the whole grid was just one note row, or one kit row
 - each column of colours represents a note
 - the vertical colours represents that notes velocity which you can edit by interacting with the grid (like you would with a parameter in automation view)
 
-## **Quick Overview:**
+## Quick Overview
 
 - Enter the Velocity Editor View by:
   - While in the Automation Instrument Clip View, use Shift + Velocity or press Velocity pad on Automation Overview to enter the Velocity Note Editor

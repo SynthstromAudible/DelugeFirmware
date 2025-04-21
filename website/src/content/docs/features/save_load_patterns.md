@@ -46,7 +46,7 @@ You will Find the Pattern Files nn the following Structure on the Root of your S
 "PATTERNS/MELODIC"
 ```
 
-### HowTo Use it:
+### How To Use it
 
 **For Melodic Instruments (Synth, Midi, CV)**
 

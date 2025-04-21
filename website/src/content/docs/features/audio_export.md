@@ -2,7 +2,16 @@
 title: Automated Audio Exporting
 ---
 
-https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/044efe71-ac49-4c4b-bd5c-92b8eb269582
+Automatically export your clips in Song View and tracks in Arranger View into audio WAV files.
+
+## Video Tutorials
+
+Please refer to these amazing video tutorials on Audio Exporting to better understand the functionality:
+
+- Ron Cavagnaro Tutorial:
+  - [HOW TO AUTO EXPORT STEMS ON DELUGE AND IT'S SO // 1.2 CHOPIN FIRMWARE DELUGE TUTORIAL](https://www.youtube.com/watch?v=yaHdBgO0kJ8)
+- Bay Mud Tutorial:
+  - [New Deluge Community Firmware 1.2 Features! Audio Export](https://youtu.be/IiwvwLqUmq4?t=1950&si=jqhiCaYhwt-RK3hW)
 
 ## Description
 
