@@ -2,29 +2,58 @@
 title: Test Page for ::screen[...] Directive
 ---
 
-import { Steps } from "@astrojs/starlight/components"
+import { Steps, Tabs, TabItem } from "@astrojs/starlight/components"
 
 ## How to use
 
 <Steps>
 
-1. Take a screenshot on [DEx](https://dex.silicak.es/) by pasting the following code snippet into your browser console:
+1.  Take a screenshot on [DEx](https://dex.silicak.es/) by pasting the following code snippet into your browser console:
 
-   ```js
-   new Response(
-     new Blob([lastOled]).stream().pipeThrough(new CompressionStream("gzip")),
-   )
-     .bytes()
-     .then((bytes) => console.log(bytes.toBase64()))
-   ```
+    <Tabs>
 
-2. Copy the output, this will be the `screen-data` in the directive below.
+      <TabItem label="All browsers">
 
-3. Add your screen directive to any markdown (`.md` or `.mdx`) file:
+          ```js
+          const reader = Object.assign(new FileReader(), {
+            onload: () => console.log(
+              reader.result.split("data:application/octet-stream;base64,")[1]
+            ),
+            onerror: () => console.error(reader.error),
+          });
 
-   ```mdx
-   ::screen[screen-data]{alt="Alt text"}
-   ```
+          new Response(new Blob([lastOled]).stream()
+            .pipeThrough(new CompressionStream("gzip")))
+            .bytes().then((bytes) =>
+              reader.readAsDataURL(
+                new File([bytes], "", { type: "application/octet-stream" })
+              )
+            )
+          ```
+
+      </TabItem>
+
+      <TabItem label="Firefox and Safari">
+
+          Firefox and Safari can use a simpler snippet because they support the new [`toBase64` method](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array/toBase64).
+
+          ```js
+          new Response(new Blob([lastOled]).stream()
+            .pipeThrough(new CompressionStream("gzip")))
+            .bytes().then((bytes) => console.log(bytes.toBase64()))
+          ```
+
+      </TabItem>
+
+    </Tabs>
+
+2.  Copy the output, this will be the `screen-data` in the directive below.
+
+3.  Add your screen directive to any markdown (`.md` or `.mdx`) file:
+
+    ```mdx
+    ::screen[screen-data]{alt="Alt text"}
+    ```
 
 </Steps>
 

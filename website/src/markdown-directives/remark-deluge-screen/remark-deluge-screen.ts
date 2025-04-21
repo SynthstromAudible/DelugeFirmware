@@ -57,8 +57,8 @@ export const remarkDelugeScreen = () => (tree: Root) => {
               : undefined,
         }
         data.hChildren = []
-      } catch {
-        throw new Error(`Invalid screen data for: "${alt}"`)
+      } catch (error) {
+        throw new Error(`Invalid screen data for: "${alt}"\n${error}`)
       }
     }
   })

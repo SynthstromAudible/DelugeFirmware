@@ -144,7 +144,7 @@ Note: A parameter can only be mapped to one MIDI CC, and viceversa.
 
 For mapped MIDI CC's, a pop up is shown on the display whenever MIDI CC's are received to indicate the name of the parameter that is being controlled by that MIDI CC and the current value being set for that parameter.
 
-<img width="170" alt="Screen Shot 2023-12-04 at 2 32 25 AM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/f4e8115c-c2af-4cfe-94cf-d2e117201cd5">
+::screen[H4sIAAAAAAAACs1S2w3EIAxzIBX3V0ZghI6QUToKIzBiRmCDe4TCld9TVZ0/rMhO7J8AfwFNd0On/qdxbVxK2Y3j4bb5rGuMUW2/dlcyqukJm2TZAMjIz5IqsL8TdGqc+wMzM0KbT25XyPGx43lxCzwz++8VBVPcuKCRQESB8DFpauxYH3dj/fVVrsULM66bqAADAAA=]{alt="MIDI Follow Mode Pop-up"}
 
 Note: if the MIDI CC being received is for a Parameter that cannot be controlled in the current context (e.g. trying to control Attack while in a Kit with :key[AffectEntire] enabled), the pop-up message will say "Can't Control: Parameter Name".
 
