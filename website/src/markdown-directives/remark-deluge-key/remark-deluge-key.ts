@@ -4,9 +4,9 @@ import { toString } from "mdast-util-to-string"
 import { displaySequence } from "./display-sequence.ts"
 
 /**
- * Process `:key[SHIFT + LOAD > LOAD]` and display it as a formatted shortcut
+ * Process `:key[Shift + Load > Load]` and display it as a formatted shortcut
  */
-export const remarkDelugeShortcut = () => (tree: Root) => {
+export const remarkDelugeKey = () => (tree: Root) => {
   visit(tree, function (node) {
     if (
       node.type === "containerDirective" ||

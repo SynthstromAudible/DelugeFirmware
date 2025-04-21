@@ -5,6 +5,8 @@
 /* https://tailwindcss.com/docs/dark-mode#using-a-data-attribute */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
+/* :key[] directive styles */
+
 span.button-sequence {
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
@@ -66,4 +68,11 @@ span.pad {
   border: 3px solid var(--sl-color-gray-4);
   height: 1.75em; /* This is compensating for the border, but is not a good solution */
   padding: 0 0.15em;
+}
+
+/* :screen[] directive styles */
+
+.deluge-screen-oled {
+  --border-radius: 5%;
+  border-radius: calc(var(--border-radius) * 48 / 128) / var(--border-radius);
 }
