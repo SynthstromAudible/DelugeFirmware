@@ -7,7 +7,7 @@ Kit rows (Sound, Midi and CV).
 
 ## Video Tutorials
 
-Please refer to these amazing video tutorials on Audio Exporting to better understand the functionality:
+Please refer to these amazing video tutorials on the Arpeggiator to better understand the functionality:
 
 - Ron Cavagnaro Tutorial:
   - [DELUGE 1.1 CHORD MEMORY & ARPEGGIATOR // DELUGE 1.1 BEETHOVEN FIRMWARE TUTORIAL](https://www.youtube.com/watch?v=VuAESUsW8bw)
