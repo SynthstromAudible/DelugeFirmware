@@ -10,6 +10,8 @@ Please refer to these amazing video tutorials on the DX7 Synth to better underst
 
 - Bay Mud Tutorial:
   - [New Deluge Community Firmware 1.2 Features! DX7](https://youtu.be/IiwvwLqUmq4?t=1478&si=BwNk3tKnwn3IQkE_)
+- Mark Young Tutorial:
+  - [Latest Community Firmware | D(eluge)X7](https://youtu.be/pmDlRK_uzLE?t=1590&si=uwbsEqC6tQy2ke1B)
 
 ## Description
 

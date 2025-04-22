@@ -10,6 +10,8 @@ Please refer to these amazing video tutorials on Velocity View to better underst
   - [1.2 NEW CHORD KEYBOARD CHORD LIBRARY CHORD MEMORY // 1.2 CHOPIN FIRMWARE DELUGE TUTORIAL](https://youtu.be/lBg1vCwBG0o?si=yl9yktl8dPu_XznE)
 - Bay Mud Tutorial:
   - [New Deluge Community Firmware 1.2 Features! Chord Library](https://youtu.be/IiwvwLqUmq4?t=1181&si=LOxBHBqJqVHhQyh1)
+- Mark Young Tutorial:
+  - [Latest Community Firmware | New Keyboard Layouts](https://youtu.be/pmDlRK_uzLE?t=1380&si=TG2T-EH0M621qlaE)
 
 ## Description
 

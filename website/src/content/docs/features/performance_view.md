@@ -14,6 +14,8 @@ Please refer to these amazing video tutorials on Performance View to better unde
   - [DELUGE 1.1 PERFORMANCE VIEW BASICS /// SYNTHSTROM DELUGE TUTORIAL](https://www.youtube.com/watch?v=YykJfzpjMIM)
 - Bay Mud Tutorial:
   - [New Deluge Community Firmware 1.1 Features! Performance View](https://youtu.be/gxnK2XJthYo?t=1642&si=6gFneZqbJ8PJJmTe)
+- Mark Young Tutorial:
+  - [Latest Community Firmware | Performance View](https://youtu.be/pmDlRK_uzLE?t=1325&si=_59_bRmrM9kzTiKm)
 
 ## Description
 
