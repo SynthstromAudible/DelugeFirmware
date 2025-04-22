@@ -13,6 +13,8 @@ Please refer to these amazing video tutorials on Audio Exporting to better under
   - [DELUGE 1.1 CHORD MEMORY & ARPEGGIATOR // DELUGE 1.1 BEETHOVEN FIRMWARE TUTORIAL](https://www.youtube.com/watch?v=VuAESUsW8bw)
 - Bay Mud Tutorial:
   - [New Deluge Community Firmware 1.1 Features! New Arp](https://youtu.be/gxnK2XJthYo?t=521&si=LXp0QPM818l-buQm)
+- Mark Young Tutorial:
+  - [Latest Community Firmware | Crazy Arpeggiator Updates](https://youtu.be/pmDlRK_uzLE?t=940&si=8q0Xz_BcKlhz0jF6)
 
 ## Arpeggiator Modes (or Presets)
 
