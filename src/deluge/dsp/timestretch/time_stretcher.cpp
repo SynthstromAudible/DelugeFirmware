@@ -44,12 +44,12 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 
 	// D_PRINTLN("TimeStretcher::init");
 
-	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		clustersForPercLookahead[l] = nullptr;
+	for (auto& l : clustersForPercLookahead) {
+		l = nullptr;
 	}
 
-	for (int32_t l = 0; l < 2; l++) {
-		percCacheClustersNearby[l] = nullptr;
+	for (auto& l : percCacheClustersNearby) {
+		l = nullptr;
 	}
 
 	playHeadStillActive[PLAY_HEAD_OLDER] = true;
@@ -97,7 +97,7 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 		int32_t bytesPerSample = sample->byteDepth * sample->numChannels;
 
 		int32_t newBytePos =
-		    guide->getBytePosToStartPlayback(true) - fudgingNumSamplesTilLoop * bytesPerSample * playDirection;
+		    guide->getBytePosToStartPlayback(true) - (fudgingNumSamplesTilLoop * bytesPerSample * playDirection);
 
 		int32_t startByte = sample->audioDataStartPosBytes;
 		if (playDirection != 1) {
@@ -177,10 +177,10 @@ void TimeStretcher::beenUnassigned() {
 }
 
 void TimeStretcher::unassignAllReasonsForPercLookahead() {
-	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		if (clustersForPercLookahead[l]) {
-			audioFileManager.removeReasonFromCluster(*clustersForPercLookahead[l], "E130");
-			clustersForPercLookahead[l] = nullptr;
+	for (auto& l : clustersForPercLookahead) {
+		if (l) {
+			audioFileManager.removeReasonFromCluster(*l, "E130");
+			l = nullptr;
 		}
 	}
 }
@@ -270,13 +270,13 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 	uint16_t startTime = MTU2.TCNT_0;
 #endif
 
-	int32_t reversed = (playDirection == 1) ? 0 : 1;
-
 	int32_t byteDepth = sample->byteDepth;
 	int32_t bytesPerSample = byteDepth * numChannels;
 
 	int32_t oldHeadBytePos;
-
+	if (byteDepth > 3) {
+		FREEZE_WITH_ERROR("read implausible depth");
+	}
 	// D_PRINTLN("");
 	// D_PRINTLN("hopEnd ------");
 
@@ -489,7 +489,9 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 			int32_t totalPercussiveness = 0;
 			int32_t bestTotal = 0;
 			int32_t bestPixellatedBeamWidth = 1;
-
+			if (byteDepth > 3) {
+				FREEZE_WITH_ERROR("searching with implausible depth");
+			}
 			for (uint32_t beamWidthNow = minBeamWidth; beamWidthNow < maxBeamWidth;
 			     beamWidthNow += kPercBufferReductionSize) {
 
@@ -591,6 +593,9 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		}
 
 		newHeadBytePos = sample->audioDataStartPosBytes + beamBackEdge * bytesPerSample;
+		if ((newHeadBytePos - waveformStartByte) * playDirection < 0) {
+			D_PRINTLN(" going before 0: %i", newHeadBytePos - waveformStartByte);
+		}
 	}
 
 skipPercStuff:
