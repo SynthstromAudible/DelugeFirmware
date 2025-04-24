@@ -13,12 +13,17 @@ span.button-sequence {
   line-height: var(--icon-height);
 }
 
- /* This is preparation for when the shortcuts become clickable  */
-span.button-sequence:hover {
-  background: linear-gradient(to bottom, transparent 0%,  rgba(200, 200, 200, 0.25) 50%, transparent 100%);
-  border-radius: 1em;
-  cursor: pointer;
-}
+/* This is preparation for when the shortcuts become clickable  */
+/*span.button-sequence:hover {*/
+/*  background: linear-gradient(*/
+/*    to bottom,*/
+/*    transparent 0%,*/
+/*    rgba(200, 200, 200, 0.25) 50%,*/
+/*    transparent 100%*/
+/*  );*/
+/*  border-radius: 1em;*/
+/*  cursor: pointer;*/
+/*}*/
 
 span.action {
   word-spacing: -0.2ch;
