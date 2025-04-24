@@ -48,10 +48,18 @@ const parseAction = (key: string): Action => {
   return toAction(display || controlName, modifiers, keywords)
 }
 
-const parseSequence = (sequence: string): Action[][] =>
-  sequence
+const parseSequence = (sequence: string): Action[][] => {
+  const invalidCharacters = [...sequence.matchAll(/[^a-zA-Z\d>+\s]/g)]
+
+  if (invalidCharacters.length)
+    throw new Error(
+      `Invalid character(s) found: ${JSON.stringify(invalidCharacters.flat())}`,
+    )
+
+  return sequence
     .split(/\s?>\s?/)
     .map((chord) => chord.split(/\s?\+\s?/).map(parseAction))
+}
 
 const displayAction = ({
   icon,

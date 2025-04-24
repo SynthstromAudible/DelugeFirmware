@@ -20,17 +20,21 @@ export const remarkDelugeKey = () => (tree: Root) => {
       // TODO: add variants with attributes (e.g. "minimal")
       // const attributes = node.attributes || {}
 
-      const { searchText, elements } = displaySequence(toString(node))
+      try {
+        const { searchText, elements } = displaySequence(toString(node))
 
-      data.hName = "span"
-      data.hProperties = {
-        class: "button-sequence",
-        "data-pagefind-weight": 10, // Weight boosted to show partial matches higher
-        "data-pagefind-ignore": "index",
-        "data-pagefind-index-attrs": "data-shortcut-sequence",
-        "data-shortcut-sequence": searchText,
+        data.hName = "span"
+        data.hProperties = {
+          class: "button-sequence",
+          "data-pagefind-weight": 10, // Weight boosted to show partial matches higher
+          "data-pagefind-ignore": "index",
+          "data-pagefind-index-attrs": "data-shortcut-sequence",
+          "data-shortcut-sequence": searchText,
+        }
+        data.hChildren = elements
+      } catch (error) {
+        throw new Error(`Invalid key: "${toString(node)}"\n${error}`)
       }
-      data.hChildren = elements
     }
   })
 }

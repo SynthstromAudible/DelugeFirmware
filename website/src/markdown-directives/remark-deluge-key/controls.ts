@@ -110,7 +110,7 @@ const labelledButtonToAction =
   (text: string, modifiers: string[]): typeof ActionSchema._input => {
     if (modifiers.length > 0) {
       throw new Error(
-        `Modifiers are not supported for ${text}. (Modifiers: ${modifiers.join(" ")})`,
+        `Can't add modifiets to ${text}. (Modifiers used: ${modifiers.join(" ")})`,
       )
     }
 
@@ -133,6 +133,24 @@ const knobToAction =
       after: modifiersAfter,
       remaining: remainingModifiers,
     } = parseModifiers(modifiers, KNOB_MODIFIERS_BEFORE, KNOB_MODIFIERS_AFTER)
+
+    if (
+      modifiersBefore.includes("press") &&
+      !modifiersBefore.includes("turn")
+    ) {
+      throw new Error(
+        `Can't use the "press" modifier without "turn". Pressing is the default action for knobs, like it is for buttons.`,
+      )
+    }
+
+    if (
+      (modifiersAfter.includes("left") || modifiersAfter.includes("right")) &&
+      !modifiersBefore.includes("turn")
+    ) {
+      throw new Error(
+        `Can't use the "left" or "right" modifiers without "turn".`,
+      )
+    }
 
     const id = idParser ? idParser(remainingModifiers) : undefined
 
