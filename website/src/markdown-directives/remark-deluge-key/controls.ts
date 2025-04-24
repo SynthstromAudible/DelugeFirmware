@@ -125,7 +125,16 @@ const KNOB_MODIFIERS_BEFORE = ["press", "turn"]
 const KNOB_MODIFIERS_AFTER = ["left", "right"]
 
 const knobToAction =
-  (idParser?: (modifiers: string[]) => string[] | undefined) =>
+  (
+    idParser: (modifiers: string[]) => string[] | undefined = (modifiers) => {
+      if (modifiers.length)
+        throw new Error(
+          `Invalid modifier(s): "${modifiers.join(" ")}". (Available modifiers: ${[...KNOB_MODIFIERS_BEFORE, ...KNOB_MODIFIERS_AFTER].join(", ")})`,
+        )
+
+      return undefined
+    },
+  ) =>
   (text: string, modifiers: string[]): typeof ActionSchema._input => {
     // Separate icon modifiers from the modifier list
     const {
@@ -268,7 +277,7 @@ export const CONTROLS = ControlData.parse({
     toAction: knobToAction((modifiers) => {
       if (modifiers.length > 1) {
         throw new Error(
-          `Gold knob got invalid modifiers: [${modifiers.join(" ")}]`,
+          `Invalid modifier(s) for Gold knob: "${modifiers.join(" ")}"`,
         )
       }
       return modifiers.includes("Upper")
