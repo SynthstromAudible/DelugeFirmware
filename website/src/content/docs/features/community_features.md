@@ -890,9 +890,9 @@ to each individual note onset. (#1978)
     - Updated `AUTOMATION VIEW` to move the Interpolation shortcut to the Interpolation pad in the first column of
       the Deluge grid (second pad from the top). Toggle interpolation on/off using Shift + Interpolation shortcut
       pad. The Interpolation shortcut pad will blink to indicate that interpolation is enabled.
-    - Updated `AUTOMATION VIEW` to provide access to Settings menu (hold shift + press select encoder)
-    - Updated `AUTOMATION VIEW` to provide access to the Sound menu (press select encoder)
-    - Updated automatable parameter editing menu's (accessed via Sound menu or Shift + parameter shortcut) to
+    - Updated `AUTOMATION VIEW` to provide access to Settings menu (:key[Shift + Select])
+    - Updated `AUTOMATION VIEW` to provide access to the Sound menu (:key[Select])
+    - Updated automatable parameter editing menu's (accessed via Sound menu or :key[Shift + Parameter Pad]) to
       provide the ability to access the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the menu
       press Clip (if you are in a clip) or Song (if you are in arranger) to open the `AUTOMATION VIEW EDITOR` while you are still in the menu. You will be able to interact with the grid to edit automation for the current parameter / patch cable selected in the menu.
   - (#1374) Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to access the `AUTOMATION VIEW EDITOR` for that specific Patch Cable / Modulation Depth.

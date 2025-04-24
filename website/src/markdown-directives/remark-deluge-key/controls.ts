@@ -110,7 +110,7 @@ const labelledButtonToAction =
   (text: string, modifiers: string[]): typeof ActionSchema._input => {
     if (modifiers.length > 0) {
       throw new Error(
-        `Modifiers are not supported for ${text}. (Modifiers: ${modifiers.join(" ")})`,
+        `Can't add modifiets to ${text}. (Modifiers used: ${modifiers.join(" ")})`,
       )
     }
 
@@ -125,7 +125,16 @@ const KNOB_MODIFIERS_BEFORE = ["press", "turn"]
 const KNOB_MODIFIERS_AFTER = ["left", "right"]
 
 const knobToAction =
-  (idParser?: (modifiers: string[]) => string[] | undefined) =>
+  (
+    idParser: (modifiers: string[]) => string[] | undefined = (modifiers) => {
+      if (modifiers.length)
+        throw new Error(
+          `Invalid modifier(s): "${modifiers.join(" ")}". (Available modifiers: ${[...KNOB_MODIFIERS_BEFORE, ...KNOB_MODIFIERS_AFTER].join(", ")})`,
+        )
+
+      return undefined
+    },
+  ) =>
   (text: string, modifiers: string[]): typeof ActionSchema._input => {
     // Separate icon modifiers from the modifier list
     const {
@@ -134,6 +143,33 @@ const knobToAction =
       remaining: remainingModifiers,
     } = parseModifiers(modifiers, KNOB_MODIFIERS_BEFORE, KNOB_MODIFIERS_AFTER)
 
+    if (
+      modifiersBefore.includes("press") &&
+      !modifiersBefore.includes("turn")
+    ) {
+      throw new Error(
+        `Can't use the "press" modifier without "turn". Pressing is the default action for knobs, like it is for buttons.`,
+      )
+    }
+
+    if (
+      (modifiersAfter.includes("left") || modifiersAfter.includes("right")) &&
+      !modifiersBefore.includes("turn")
+    ) {
+      throw new Error(
+        `Can't use the "left" or "right" modifiers without "turn".`,
+      )
+    }
+
+    const displayModifiersBefore = [...modifiersBefore]
+
+    // Add & after "press" modifier
+    if (displayModifiersBefore.includes("press")) {
+      displayModifiersBefore[
+        displayModifiersBefore.findIndex((m) => m === "press")
+      ] = "press\xA0&"
+    }
+
     const id = idParser ? idParser(remainingModifiers) : undefined
 
     return {
@@ -141,7 +177,7 @@ const knobToAction =
         .filter(Boolean)
         .map((m) => m.toLowerCase())
         .join("-"),
-      labelBefore: [...modifiersBefore, ...remainingModifiers].join(" "),
+      labelBefore: [...displayModifiersBefore, ...remainingModifiers].join(" "),
       label: [text, ...modifiersAfter].join(" "),
       searchText: [
         ...modifiersBefore,
@@ -241,7 +277,7 @@ export const CONTROLS = ControlData.parse({
     toAction: knobToAction((modifiers) => {
       if (modifiers.length > 1) {
         throw new Error(
-          `Gold knob got invalid modifiers: [${modifiers.join(" ")}]`,
+          `Invalid modifier(s) for Gold knob: "${modifiers.join(" ")}"`,
         )
       }
       return modifiers.includes("Upper")

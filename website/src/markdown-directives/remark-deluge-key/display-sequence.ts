@@ -48,10 +48,18 @@ const parseAction = (key: string): Action => {
   return toAction(display || controlName, modifiers, keywords)
 }
 
-const parseSequence = (sequence: string): Action[][] =>
-  sequence
+const parseSequence = (sequence: string): Action[][] => {
+  const invalidCharacters = [...sequence.matchAll(/[^a-zA-Z\d>+\s]/g)]
+
+  if (invalidCharacters.length)
+    throw new Error(
+      `Invalid character(s) found: ${JSON.stringify(invalidCharacters.flat())}`,
+    )
+
+  return sequence
     .split(/\s?>\s?/)
     .map((chord) => chord.split(/\s?\+\s?/).map(parseAction))
+}
 
 const displayAction = ({
   icon,
@@ -76,15 +84,16 @@ const displayAction = ({
       tagName: "span",
       properties: { class: "action" },
       children: [
-        labelBefore && createTextElement(labelBefore),
-        icon && createImageElement(icon),
-        label && createTextElement(label),
+        labelBefore && createTextElement(`${labelBefore} `),
+        icon
+          ? createImageElement(icon, label)
+          : label && createTextElement(label),
       ].filter(Boolean) as ElementContent[],
     },
   ]
 }
 
-const createImageElement = (icon: string): ElementContent => {
+const createImageElement = (icon: string, label?: string): ElementContent => {
   if (!icons[icon]) {
     throw new Error(`Unknown icon: ${icon}`)
   }
@@ -92,7 +101,7 @@ const createImageElement = (icon: string): ElementContent => {
   return {
     type: "element",
     tagName: "span",
-    properties: { class: "icon-wrapper" },
+    properties: { class: "icon-with-label" },
     children: [
       {
         type: "element",
@@ -104,7 +113,8 @@ const createImageElement = (icon: string): ElementContent => {
         },
         children: [],
       },
-    ],
+      label && createTextElement(label),
+    ].filter(Boolean) as ElementContent[],
   }
 }
 
@@ -127,8 +137,8 @@ export const displaySequence = (
       chordChildren.push(...displayAction(action))
       searchText += action.searchText
       if (actionIndex < chord.length - 1) {
-        chordChildren.push(createTextElement(" + "))
-        searchText += " + "
+        chordChildren.push(createTextElement("\xA0+ "))
+        searchText += "\xA0+ "
       }
     })
 
@@ -141,8 +151,8 @@ export const displaySequence = (
 
     // Add ">" between chords
     if (chordIndex < chords.length - 1) {
-      elements.push(createTextElement(" > "))
-      searchText += " > "
+      elements.push(createTextElement("\xA0> "))
+      searchText += "\xA0> "
     }
   })
 
