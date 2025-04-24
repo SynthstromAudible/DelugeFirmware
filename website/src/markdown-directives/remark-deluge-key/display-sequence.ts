@@ -76,15 +76,16 @@ const displayAction = ({
       tagName: "span",
       properties: { class: "action" },
       children: [
-        labelBefore && createTextElement(labelBefore),
-        icon && createImageElement(icon),
-        label && createTextElement(label),
+        labelBefore && createTextElement(`${labelBefore} `),
+        icon
+          ? createImageElement(icon, label)
+          : label && createTextElement(label),
       ].filter(Boolean) as ElementContent[],
     },
   ]
 }
 
-const createImageElement = (icon: string): ElementContent => {
+const createImageElement = (icon: string, label?: string): ElementContent => {
   if (!icons[icon]) {
     throw new Error(`Unknown icon: ${icon}`)
   }
@@ -92,7 +93,7 @@ const createImageElement = (icon: string): ElementContent => {
   return {
     type: "element",
     tagName: "span",
-    properties: { class: "icon-wrapper" },
+    properties: { class: "icon-with-label" },
     children: [
       {
         type: "element",
@@ -104,7 +105,8 @@ const createImageElement = (icon: string): ElementContent => {
         },
         children: [],
       },
-    ],
+      label && createTextElement(label),
+    ].filter(Boolean) as ElementContent[],
   }
 }
 

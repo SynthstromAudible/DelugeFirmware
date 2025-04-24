@@ -27,39 +27,24 @@ span.button-sequence {
 /*  cursor: pointer;*/
 /*}*/
 
-span.button-chord,
-span.action,
-span.img-wrapper {
-  display: inline-flex;
-  align-items: baseline;
-  max-width: fit-content;
-  min-width: fit-content;
-}
-
-span.button-chord {
-  word-spacing: -0.4ch;
-  display: inline-flex;
-  gap: 0.1em;
-}
-
 span.action {
-  gap: 0.75em;
+  word-spacing: -0.2ch;
   background-color: var(--sl-color-bg-inline-code);
   border-radius: 1em;
-  padding: 0 0.35em;
+  padding: 0.05em 0.35em;
+  white-space: break-spaces;
+}
+
+span.icon-with-label {
   white-space: nowrap;
 }
 
-span.button-sequence span.icon-wrapper {
-  display: inline-flex;
-  align-self: stretch;
-  align-items: center;
-  margin: 0 -0.6em 0 -0.3em;
-}
-
-span.button-sequence img {
+span.icon-with-label img {
   display: inline-block;
   height: var(--icon-height);
+  vertical-align: middle;
+  margin-top: -0.15em; /* Align to middle correctly */
+  margin-inline-start: -0.1em;
 }
 
 span.pad {
