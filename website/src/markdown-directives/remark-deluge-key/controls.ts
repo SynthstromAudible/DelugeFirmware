@@ -152,6 +152,15 @@ const knobToAction =
       )
     }
 
+    const displayModifiersBefore = [...modifiersBefore]
+
+    // Add & after "press" modifier
+    if (displayModifiersBefore.includes("press")) {
+      displayModifiersBefore[
+        displayModifiersBefore.findIndex((m) => m === "press")
+      ] = "press\xA0&"
+    }
+
     const id = idParser ? idParser(remainingModifiers) : undefined
 
     return {
@@ -159,7 +168,7 @@ const knobToAction =
         .filter(Boolean)
         .map((m) => m.toLowerCase())
         .join("-"),
-      labelBefore: [...modifiersBefore, ...remainingModifiers].join(" "),
+      labelBefore: [...displayModifiersBefore, ...remainingModifiers].join(" "),
       label: [text, ...modifiersAfter].join(" "),
       searchText: [
         ...modifiersBefore,

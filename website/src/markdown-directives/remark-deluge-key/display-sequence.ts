@@ -137,8 +137,8 @@ export const displaySequence = (
       chordChildren.push(...displayAction(action))
       searchText += action.searchText
       if (actionIndex < chord.length - 1) {
-        chordChildren.push(createTextElement(" + "))
-        searchText += " + "
+        chordChildren.push(createTextElement("\xA0+ "))
+        searchText += "\xA0+ "
       }
     })
 
@@ -151,8 +151,8 @@ export const displaySequence = (
 
     // Add ">" between chords
     if (chordIndex < chords.length - 1) {
-      elements.push(createTextElement(" > "))
-      searchText += " > "
+      elements.push(createTextElement("\xA0> "))
+      searchText += "\xA0> "
     }
   })
 
