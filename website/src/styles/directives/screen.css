@@ -1,0 +1,6 @@
+/* :screen[] directive styles */
+
+.deluge-screen-oled {
+  --border-radius: 5%;
+  border-radius: calc(var(--border-radius) * 48 / 128) / var(--border-radius);
+}
