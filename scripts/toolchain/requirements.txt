@@ -1,5 +1,5 @@
 certifi==2025.1.31
-setuptools==78.1.0
+setuptools==79.0.1
 pyserial==3.5
 ansi==0.3.7
 pre-commit==4.2.0
