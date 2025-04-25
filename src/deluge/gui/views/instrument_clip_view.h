@@ -111,13 +111,35 @@ public:
 	/// Change current root note. AUDITION + SCALE or SCALE + AUDITION in scale mod.
 	ActionResult commandChangeRootNote(uint8_t yDisplay);
 
+	/// VERTICAL ENCODER ACTION related
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult commandTransposeKey(int32_t offset, bool inCardRoutine);
+	void commandShiftColour(int32_t offset);
+	ActionResult scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow = false,
+	                            ModelStackWithTimelineCounter* modelStack = nullptr);
+	ActionResult scrollVertical_limit(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow,
+	                                  ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, bool isKit,
+	                                  bool preventOverScrolling, int32_t& noteRowToShiftI, int32_t& noteRowToSwapWithI);
+	void scrollVertical_potentiallySwitchOffAuditionedNotes(bool draggingNoteRow,
+	                                                        ModelStackWithTimelineCounter* modelStack,
+	                                                        InstrumentClip* clip, bool currentClipIsActive);
+	void scrollVertical_grabNotesPressed(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip);
+	void scrollVertical_dragSelectedNoteRow(InstrumentClip* clip, Output* output, bool isKit, int32_t noteRowToShiftI,
+	                                        int32_t noteRowToSwapWithI);
+	void scrollVertical_potentiallySwitchOnAuditionedNotes(bool draggingNoteRow,
+	                                                       ModelStackWithTimelineCounter* modelStack,
+	                                                       InstrumentClip* clip, Output* output, OutputType outputType,
+	                                                       bool isKit, bool inSoundEditor, bool currentClipIsActive,
+	                                                       bool renderDisplay, bool updateDrumSelection);
+	void scrollVertical_placeNotesPressed(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, bool isKit);
+
+	/// OTHER uncategorized (yet)
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
 	void mutePadPress(uint8_t yDisplay);
 	bool ensureNoteRowExistsForYDisplay(uint8_t yDisplay);
 	void recalculateColours();
 	void recalculateColour(uint8_t yDisplay);
-	ActionResult scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool shiftingNoteRow = false);
 	void reassessAllAuditionStatus();
 	void reassessAuditionStatus(uint8_t yDisplay);
 	uint8_t getVelocityForAudition(uint8_t yDisplay, uint32_t* sampleSyncLength);
@@ -147,9 +169,6 @@ public:
 	void exitScaleMode();
 	void drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], uint8_t thisOccupancyMask[]);
 	void cutAuditionedNotesToOne();
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
-	ActionResult commandTransposeKey(int32_t offset, bool inCardRoutine);
-	void commandShiftColour(int32_t offset);
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	void fillOffScreenImageStores();
 	void graphicsRoutine() override;
