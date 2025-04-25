@@ -3707,7 +3707,7 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 					instrumentClipView.endAllEditPadPresses();
 				}
 
-				scrollVertical(offset, modelStack);
+				instrumentClipView.scrollVertical(offset, inCardRoutine, false, modelStack);
 
 				// if we're in note editor pad selection mode, scrolling vertically will change note selected
 				// so we want to re-render the display to show the updated note
@@ -3759,173 +3759,11 @@ void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* cli
 				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 				int32_t yScrollAdjustment = noteRowIndex - lastAuditionedYDisplayScrolled;
-				scrollVertical(yScrollAdjustment, modelStack);
+
+				instrumentClipView.scrollVertical(yScrollAdjustment, sdRoutineLock, false, modelStack);
 			}
 		}
 	}
-}
-
-// Not used with Audio Clip Automation View or Arranger Automation View
-ActionResult AutomationView::scrollVertical(int32_t scrollAmount, ModelStackWithTimelineCounter* modelStack) {
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	Output* output = clip->output;
-	OutputType outputType = output->type;
-
-	int32_t noteRowToShiftI;
-	int32_t noteRowToSwapWithI;
-
-	bool isKit = outputType == OutputType::KIT;
-
-	// If a Kit...
-	if (isKit) {
-		// Limit scrolling
-		if (scrollAmount >= 0) {
-			if ((int16_t)(clip->yScroll + scrollAmount) > (int16_t)(clip->getNumNoteRows() - 1)) {
-				return ActionResult::DEALT_WITH;
-			}
-		}
-		else {
-			if (clip->yScroll + scrollAmount < 1 - kDisplayHeight) {
-				return ActionResult::DEALT_WITH;
-			}
-		}
-		// if we're in the note editor we don't want to over-scroll so that selected row is not a valid note row
-		if (inNoteEditor()) {
-			int32_t lastAuditionedYDisplayScrolled = instrumentClipView.lastAuditionedYDisplay + scrollAmount;
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    clip->getNoteRowOnScreen(lastAuditionedYDisplayScrolled, modelStack);
-			// over-scrolled, no valid note row, so return and don't do the actual scrolling
-			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-				return ActionResult::DEALT_WITH;
-			}
-			// we have a valid note row, so let's set selected drum equal to previous auditioned y display
-			else {
-				NoteRow* noteRow = clip->getNoteRowOnScreen(lastAuditionedYDisplayScrolled, currentSong);
-				if (noteRow) {
-					instrumentClipView.setSelectedDrum(noteRow->drum, true);
-				}
-			}
-		}
-	}
-
-	// Or if not a Kit...
-	else {
-		int32_t newYNote;
-		if (scrollAmount > 0) {
-			newYNote = clip->getYNoteFromYDisplay(kDisplayHeight - 1 + scrollAmount, currentSong);
-		}
-		else {
-			newYNote = clip->getYNoteFromYDisplay(scrollAmount, currentSong);
-		}
-
-		if (!clip->isScrollWithinRange(scrollAmount, newYNote)) {
-			return ActionResult::DEALT_WITH;
-		}
-	}
-
-	bool currentClipIsActive = currentSong->isClipActive(clip);
-
-	// Switch off any auditioned notes. But leave on the one whose NoteRow we're moving, if we are
-	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		if ((instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] != 255)
-		    && (instrumentClipView.lastAuditionedYDisplay != yDisplay)) {
-			instrumentClipView.sendAuditionNote(false, yDisplay, 127, 0);
-
-			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
-			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-
-			if (noteRow) {
-				// If recording, record a note-off for this NoteRow, if one exists
-				if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
-					clip->recordNoteOff(modelStackWithNoteRow);
-				}
-			}
-		}
-	}
-
-	// Do actual scroll
-	clip->yScroll += scrollAmount;
-
-	// Don't render - we'll do that after we've dealt with presses (potentially creating Notes)
-	instrumentClipView.recalculateColours();
-
-	// Switch on any auditioned notes - remembering that the one we're shifting (if we are) was left on
-	// before
-	bool drawnNoteCodeYet = false;
-	bool forceStoppedAnyAuditioning = false;
-	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		if (instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] != 255) {
-			// switch its audition back on
-			//  Check NoteRow exists, incase we've got a Kit
-			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
-
-			if (!isKit || modelStackWithNoteRow->getNoteRowAllowNull()) {
-
-				if (modelStackWithNoteRow->getNoteRowAllowNull() && modelStackWithNoteRow->getNoteRow()->sequenced) {}
-				else {
-
-					// Record note-on if we're recording
-					if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
-
-						// If no NoteRow existed before, try creating one
-						if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-							modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(modelStack, yDisplay);
-						}
-
-						if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-							clip->recordNoteOn(modelStackWithNoteRow, ((Instrument*)output)->defaultVelocity);
-						}
-					}
-
-					// Should this technically grab the note-length of the note if there is one?
-					instrumentClipView.sendAuditionNote(true, yDisplay,
-					                                    instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay], 0);
-				}
-			}
-			else {
-				instrumentClipView.auditionPadIsPressed[yDisplay] = false;
-				instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] = 255;
-				forceStoppedAnyAuditioning = true;
-			}
-			// If we're shiftingNoteRow, no need to re-draw the noteCode, because it'll be the same
-			if (!drawnNoteCodeYet && instrumentClipView.auditionPadIsPressed[yDisplay]) {
-				/* if you're in the note editor:
-				    - don't draw note code because the note code is already on the display
-				    - don't update selected drum as this was done above
-				*/
-				if (!inNoteEditor()) {
-					instrumentClipView.drawNoteCode(yDisplay);
-
-					if (isKit) {
-						Drum* newSelectedDrum = nullptr;
-						NoteRow* noteRow = clip->getNoteRowOnScreen(yDisplay, currentSong);
-						if (noteRow) {
-							newSelectedDrum = noteRow->drum;
-						}
-						instrumentClipView.setSelectedDrum(newSelectedDrum, true);
-					}
-				}
-
-				if (outputType == OutputType::SYNTH) {
-					if (getCurrentUI() == &soundEditor
-					    && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-						menu_item::multiRangeMenu.noteOnToChangeRange(clip->getYNoteFromYDisplay(yDisplay, currentSong)
-						                                              + ((SoundInstrument*)output)->transpose);
-					}
-				}
-
-				drawnNoteCodeYet = true;
-			}
-		}
-	}
-	if (forceStoppedAnyAuditioning) {
-		// don't recalculateLastAuditionedNoteOnScreen if we're in the note editor because it
-		// messes up the note row selection	for velocity editing
-		instrumentClipView.someAuditioningHasEnded(!inNoteEditor());
-	}
-
-	uiNeedsRendering(this);
-	return ActionResult::DEALT_WITH;
 }
 
 // mod encoder action
