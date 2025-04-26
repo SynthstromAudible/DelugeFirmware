@@ -188,7 +188,6 @@
 #include "gui/menu_item/submenu/envelope.h"
 #include "gui/menu_item/submenu/modulator.h"
 #include "gui/menu_item/submenu/sidechain.h"
-#include "gui/menu_item/submenu_referring_to_one_thing.h"
 #include "gui/menu_item/swing/interval.h"
 #include "gui/menu_item/synth_mode.h"
 #include "gui/menu_item/trigger/in/ppqn.h"
@@ -1328,7 +1327,6 @@ std::array<MenuItem*, 5> modulatorMenuItems = {
 submenu::Modulator modulator0Menu{STRING_FOR_FM_MODULATOR_1, modulatorMenuItems, 0};
 submenu::Modulator modulator1Menu{STRING_FOR_FM_MODULATOR_2, modulatorMenuItems, 1};
 
-// Submenu::SubmenuReferringToOneThing if we need to address osc1 and osc2 directly
 std::array<MenuItem*, 3> dxMenuItems = {
     &dxBrowseMenu,
     &dxGlobalParams,

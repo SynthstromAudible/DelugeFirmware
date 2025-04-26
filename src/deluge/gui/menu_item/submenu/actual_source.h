@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/submenu_referring_to_one_thing.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 #include "string.h"
@@ -23,14 +22,14 @@
 extern void setOscillatorNumberForTitles(int32_t);
 
 namespace deluge::gui::menu_item::submenu {
-class ActualSource final : public SubmenuReferringToOneThing {
+class ActualSource final : public Submenu {
 public:
-	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
+	using Submenu::Submenu;
 
 	// OLED Only
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
-		setOscillatorNumberForTitles(this->thingIndex);
-		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
+		setOscillatorNumberForTitles(this->thingIndex.value());
+		Submenu::beginSession(navigatedBackwardFrom);
 	}
 
 	// 7seg Only
@@ -38,11 +37,11 @@ public:
 		if (soundEditor.currentSound->getSynthMode() == SynthMode::FM) {
 			char buffer[5];
 			strcpy(buffer, "CAR");
-			intToString(this->thingIndex + 1, buffer + 3);
+			intToString(this->thingIndex.value() + 1, buffer + 3);
 			display->setText(buffer);
 		}
 		else {
-			SubmenuReferringToOneThing::drawName();
+			Submenu::drawName();
 		}
 	}
 };

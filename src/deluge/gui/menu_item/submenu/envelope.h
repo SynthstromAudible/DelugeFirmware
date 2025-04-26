@@ -15,21 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/submenu_referring_to_one_thing.h"
 
 extern void setEnvelopeNumberForTitles(int32_t);
 
 namespace deluge::gui::menu_item::submenu {
-class Envelope final : public SubmenuReferringToOneThing {
+class Envelope final : public HorizontalMenu {
 public:
-	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
+	Envelope(l10n::String newName, std::span<MenuItem*> newItems, int32_t newThingIndex)
+	    : HorizontalMenu(newName, newItems, newThingIndex) {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
-		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
-		setEnvelopeNumberForTitles(this->thingIndex);
+		HorizontalMenu::beginSession(navigatedBackwardFrom);
+		setEnvelopeNumberForTitles(this->thingIndex.value());
 	}
-
-	bool supportsHorizontalRendering() override { return true; }
 };
 
 } // namespace deluge::gui::menu_item::submenu
