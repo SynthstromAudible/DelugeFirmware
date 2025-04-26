@@ -292,25 +292,6 @@ MenuItem* Submenu::selectButtonPress() {
 }
 
 ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
-
-	if (renderingStyle() == RenderingStyle::HORIZONTAL) {
-		// in horizontal menu, use SYNTH / KIT / MIDI / CV buttons to select menu item
-		// in currently displayed horizontal menu page
-		if (b == SYNTH) {
-			return selectHorizontalMenuItemOnVisiblePage(0);
-		}
-		else if (b == KIT) {
-			return selectHorizontalMenuItemOnVisiblePage(1);
-		}
-		else if (b == MIDI) {
-			return selectHorizontalMenuItemOnVisiblePage(2);
-		}
-		else if (b == CV) {
-			return selectHorizontalMenuItemOnVisiblePage(3);
-		}
-	}
-
 	if (shouldForwardButtons()) {
 		return (*current_item_)->buttonAction(b, on, inCardRoutine);
 	}
@@ -319,8 +300,30 @@ ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 	}
 }
 
+ActionResult HorizontalMenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace hid::button;
+
+	// in horizontal menu, use SYNTH / KIT / MIDI / CV buttons to select menu item
+	// in currently displayed horizontal menu page
+	if (b == SYNTH) {
+		return selectHorizontalMenuItemOnVisiblePage(0);
+	}
+	else if (b == KIT) {
+		return selectHorizontalMenuItemOnVisiblePage(1);
+	}
+	else if (b == MIDI) {
+		return selectHorizontalMenuItemOnVisiblePage(2);
+	}
+	else if (b == CV) {
+		return selectHorizontalMenuItemOnVisiblePage(3);
+	}
+
+	// forward other button presses to be handled by parent
+	return Submenu::buttonAction(b, on, inCardRoutine);
+}
+
 /// Select a specific menu item on the currently displayed horizontal menu page
-ActionResult Submenu::selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber) {
+ActionResult HorizontalMenu::selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber) {
 	int32_t nTotal = std::count_if(items.begin(), items.end(), isItemRelevant);
 	int32_t nBefore = std::count_if(items.begin(), current_item_, isItemRelevant);
 
@@ -389,18 +392,14 @@ void Submenu::updateSelectedHorizontalMenuItemLED(int32_t itemNumber) {
 	}
 }
 
-void Submenu::endSession() {
-	if (renderingStyle() == RenderingStyle::HORIZONTAL) {
-		/// when exiting a horizontal menu, turn off the LED's and reset selected horizontal menu item position
-		/// so that next time you open a horizontal menu it refreshes the LED for the selected horizontal menu item
-		lastSelectedHorizontalMenuItemPosition = kNoSelection;
-		indicator_leds::setLedState(IndicatorLED::SYNTH, false);
-		indicator_leds::setLedState(IndicatorLED::KIT, false);
-		indicator_leds::setLedState(IndicatorLED::MIDI, false);
-		indicator_leds::setLedState(IndicatorLED::CV, false);
-	}
-
-	MenuItem::endSession();
+/// when exiting a horizontal menu, turn off the LED's and reset selected horizontal menu item position
+/// so that next time you open a horizontal menu it refreshes the LED for the selected horizontal menu item
+void HorizontalMenu::endSession() {
+	lastSelectedHorizontalMenuItemPosition = kNoSelection;
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
+	indicator_leds::setLedState(IndicatorLED::MIDI, false);
+	indicator_leds::setLedState(IndicatorLED::CV, false);
 }
 
 deluge::modulation::params::Kind Submenu::getParamKind() {

@@ -65,12 +65,10 @@ public:
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override;
 	deluge::modulation::params::Kind getParamKind() override;
 	uint32_t getParamIndex() override;
-	void endSession() override;
 
 protected:
 	void drawVerticalMenu();
 	void drawHorizontalMenu();
-	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber);
 	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
 	int32_t lastSelectedHorizontalMenuItemPosition = kNoSelection;
 	deluge::vector<MenuItem*> items;
@@ -89,6 +87,9 @@ public:
 	HorizontalMenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
 	    : Submenu(newName, title, newItems) {}
 	bool supportsHorizontalRendering() { return true; }
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber);
+	void endSession() override;
 };
 
 } // namespace deluge::gui::menu_item
