@@ -1,4 +1,5 @@
 #include "submenu.h"
+#include "processing/sound/sound.h"
 
 #include "etl/vector.h"
 #include "gui/views/automation_view.h"
@@ -12,6 +13,14 @@
 namespace deluge::gui::menu_item {
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.currentMultiRange = nullptr;
+
+	if (thingIndex.has_value()) {
+		const auto thingIndexValue = thingIndex.value();
+		soundEditor.currentSourceIndex = thingIndexValue;
+		soundEditor.currentSource = &soundEditor.currentSound->sources[thingIndexValue];
+		soundEditor.currentSampleControls = &soundEditor.currentSource->sampleControls;
+	}
+
 	focusChild(navigatedBackwardFrom);
 	if (display->have7SEG()) {
 		updateDisplay();

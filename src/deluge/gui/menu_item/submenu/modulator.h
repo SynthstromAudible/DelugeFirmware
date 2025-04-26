@@ -15,19 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/submenu_referring_to_one_thing.h"
 #include "processing/sound/sound.h"
 
 extern void setModulatorNumberForTitles(int32_t);
 
 namespace deluge::gui::menu_item::submenu {
-class Modulator final : public SubmenuReferringToOneThing {
+class Modulator final : public Submenu {
 public:
-	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
+	Modulator(l10n::String newName, std::span<MenuItem*> newItems, int32_t newThingIndex)
+	    : Submenu(newName, newItems, newThingIndex) {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
-		setModulatorNumberForTitles(this->thingIndex);
-		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
+		setModulatorNumberForTitles(this->thingIndex.value());
+		Submenu::beginSession(navigatedBackwardFrom);
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
