@@ -1,90 +1,105 @@
 ---
-import { getLinkPreview } from "link-preview-js";
+import { getLinkPreview } from "link-preview-js"
 
-type Props = ({
-  link: string;
-} | {
-  youtubeId: string
-}) & {
+type Props = (
+  | {
+      link: string
+    }
+  | {
+      youtubeId: string
+    }
+) & {
   title?: string
   description?: boolean
 }
 
-const link = 'link' in Astro.props ? Astro.props.link : `https://www.youtube.com/watch?v=${Astro.props.youtubeId}`
+const link =
+  "link" in Astro.props
+    ? Astro.props.link
+    : `https://www.youtube.com/watch?v=${Astro.props.youtubeId}`
 
-const { title, description } = Astro.props;
+const { title, description } = Astro.props
 
 const item = await getLinkPreview(link)
 
-const image = 'images' in item && item.images.length > 0 ? item.images[0] : item.favicons[0];
-const titleText = title || ('title' in item ? item.title : item.url);
-const descriptionText = description !== false && description || ('description' in item ? item.description : '');
+const image =
+  "images" in item && item.images.length > 0 ? item.images[0] : item.favicons[0]
+const titleText = title || ("title" in item ? item.title : item.url)
+const descriptionText =
+  (description !== false && description) ||
+  ("description" in item ? item.description : "")
 
 console.log(item)
 ---
 
-<div class="sl-link-card w-[calc(50%-1rem)] !mx-1 inline-flex">
-	<span class="sl-flex stack w-full">
-    <img src={image} class="aspect-video w-full rounded-md" />
-		<a href={item.url} rel="noopener noreferrer">
-			<span class="title">{titleText}</span>
-		</a>
-		{descriptionText && <span class="description w-full overflow-ellipsis">{descriptionText}</span>}
-	</span>
+<div class="sl-link-card !mx-1 inline-flex w-[calc(50%-1rem)]">
+  <span class="sl-flex stack w-full">
+    <img src={image} alt={titleText} class="aspect-video w-full rounded-md" />
+    <a href={item.url} rel="noopener noreferrer">
+      <span class="title">{titleText}</span>
+    </a>
+    {
+      descriptionText && (
+        <span class="description w-full overflow-ellipsis">
+          {descriptionText}
+        </span>
+      )
+    }
+  </span>
 </div>
 
 <style>
   /* Styles from Starlight LinkCard */
-	.sl-link-card {
-		/* display: grid;
+  .sl-link-card {
+    /* display: grid;
 		grid-template-columns: 1fr auto;
 		gap: 0.5rem; */
-		border: 1px solid var(--sl-color-gray-5);
-		border-radius: 0.5rem;
-		padding: 1rem;
-		box-shadow: var(--sl-shadow-sm);
-		position: relative;
-	}
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    box-shadow: var(--sl-shadow-sm);
+    position: relative;
+  }
 
-	a {
-		text-decoration: none;
-		line-height: var(--sl-line-height-headings);
-	}
+  a {
+    text-decoration: none;
+    line-height: var(--sl-line-height-headings);
+  }
 
-	/* a11y fix for https://github.com/withastro/starlight/issues/487 */
-	a::before {
-		content: '';
-		position: absolute;
-		inset: 0;
-	}
+  /* a11y fix for https://github.com/withastro/starlight/issues/487 */
+  a::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
 
-	.stack {
-		flex-direction: column;
-		gap: 0.5rem;
-	}
+  .stack {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 
-	.title {
-		color: var(--sl-color-white);
-		font-weight: 600;
-		font-size: var(--sl-text-lg);
-	}
+  .title {
+    color: var(--sl-color-white);
+    font-weight: 600;
+    font-size: var(--sl-text-lg);
+  }
 
-	.description {
-		color: var(--sl-color-gray-3);
-		line-height: 1.5;
-	}
+  .description {
+    color: var(--sl-color-gray-3);
+    line-height: 1.5;
+  }
 
-	.icon {
-		color: var(--sl-color-gray-3);
-	}
+  .icon {
+    color: var(--sl-color-gray-3);
+  }
 
-	/* Hover state */
-	.sl-link-card:hover {
-		background: var(--sl-color-gray-7, var(--sl-color-gray-6));
-		border-color: var(--sl-color-gray-2);
-	}
+  /* Hover state */
+  .sl-link-card:hover {
+    background: var(--sl-color-gray-7, var(--sl-color-gray-6));
+    border-color: var(--sl-color-gray-2);
+  }
 
-	.sl-link-card:hover .icon {
-		color: var(--sl-color-white);
-	}
+  .sl-link-card:hover .icon {
+    color: var(--sl-color-white);
+  }
 </style>
