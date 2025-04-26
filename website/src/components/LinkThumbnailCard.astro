@@ -3,7 +3,7 @@ import { getLinkPreview } from "link-preview-js"
 
 type Props = (
   | {
-      link: string
+      href: string
     }
   | {
       youtubeId: string
@@ -14,8 +14,8 @@ type Props = (
 }
 
 const link =
-  "link" in Astro.props
-    ? Astro.props.link
+  "href" in Astro.props
+    ? Astro.props.href
     : `https://www.youtube.com/watch?v=${Astro.props.youtubeId}`
 
 const { title, description } = Astro.props
@@ -28,8 +28,6 @@ const titleText = title || ("title" in item ? item.title : item.url)
 const descriptionText =
   (description !== false && description) ||
   ("description" in item ? item.description : "")
-
-console.log(item)
 ---
 
 <div class="sl-link-card !mx-1 inline-flex w-[calc(50%-1rem)]">
