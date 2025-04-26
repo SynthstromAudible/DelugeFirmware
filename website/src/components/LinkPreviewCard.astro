@@ -32,7 +32,11 @@ const {
   showSiteName: showSiteNameProp,
 } = Astro.props
 
-const item = await getLinkPreview(href)
+const item = await getLinkPreview(href, {
+  followRedirects: "follow"
+})
+
+console.log(item)
 
 const image =
   "images" in item && item.images.length > 0 ? item.images[0] : undefined
