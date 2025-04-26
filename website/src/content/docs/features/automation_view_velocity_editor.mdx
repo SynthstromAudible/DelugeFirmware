@@ -4,18 +4,24 @@ sidebar:
   label: Note Velocity Editor
 ---
 
+import LinkPreviewCard from "../../../components/LinkPreviewCard.astro"
+
 Note Velocity Editing View that has been added as part of the existing Automation View implementation so that you can edit the velocities and other parameters of notes in a single note row.
 
-<img width="605" alt="Screenshot 2024-06-05 at 11 34 47 AM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/c0a1577c-5a10-4511-ab2e-1c40b3cb3d64">
+<img width="605" alt="Screenshot 2024-06-05 at 11 34 47 AM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/c0a1577c-5a10-4511-ab2e-1c40b3cb3d64" />
 
 ## Video Tutorials
 
-Please refer to these amazing video tutorials on Velocity View to better understand the functionality:
-
-- Ron Cavagnaro Tutorial:
-  - [NEW SEQUENCING IN VELOCITY MODE AND SEQ TRANSPOSE // 1.2 CHOPIN FIRMWARE DELUGE TUTORIAL](https://www.youtube.com/watch?v=VKbAr3fZe5I)
-- Bay Mud Tutorial:
-  - [New Deluge Community Firmware 1.2 Features! Velocity View](https://youtu.be/IiwvwLqUmq4?t=561&si=o8sRiguh-aXcm67N)
+<LinkPreviewCard
+  youtubeId="VKbAr3fZe5I"
+  title="Sequencing in Velocity Mode and Sequence Transpose"
+  description="Ron Cavagnaro"
+/>
+<LinkPreviewCard
+  href="https://www.youtube.com/watch?v=IiwvwLqUmq4&t=561"
+  title="New Community Firmware Features: Velocity View"
+  description="Bay Mud"
+/>
 
 ## Description
 
@@ -42,10 +48,10 @@ Please refer to these amazing video tutorials on Velocity View to better underst
   - Short press top velocity pad in a note column to remove note
 - Select Note and Adjust Note Parameters:
   - Long press top velocity pad in a note column to see note's velocity and perform note related adjustment actions (e.g. adjust velocity, probability). Note press related actions include:
-    - **Adjust Velocity:** Turn horizontal encoder <>
-    - **Adjust Probability:** Turn Select Encoder
-    - **Adjust Note Repeat:** Press and Turn Vertical Encoder
-    - **Adjust Automation:** Turn gold knobs
+    - **Adjust Velocity:** :key[turn Horizontal]
+    - **Adjust Probability:** :key[turn Select]
+    - **Adjust Note Repeat:** :key[press turn Vertical]
+    - **Adjust Automation:** :key[turn Gold]
 - Adjust Note Row Transpose:
   - Press and turn vertical encoder
   - Note: does not work if you are holding a note (transpose gets replaced with editing note repeats)
@@ -56,16 +62,16 @@ Please refer to these amazing video tutorials on Velocity View to better underst
   - Hold Audition Pad + Press and turn vertical encoder
   - Note: The Euclidean action is replaced by note repeat editing if you have selected a note (either by holding a note outside pad selection mode or if you are in pad selection mode)
 - Change clip length:
-  - Hold Shift + turn horizontal encoder <>
+  - :key[Shift + turn Horizontal]
 - Change selected note row length by:
-  - Holding Audition pad + Turning horizontal encoder <>
+  - :key[Audition Pad + turn Horizontal]
   - Note: does not work if you have selected a note
 - Clear notes in selected note row by:
-  - Holding horizontal encoder <> + pressing Back
+  - :key[Horizontal + Back]
   - Note: does not work if you have selected a note
 - Rotate Note Row by:
-  - Holding vertical encoder + turning horizontal encoder <>
-  - Holding audition pad + pressing and turning horizontal encoder <>
+  - :key[Vertical + turn Horizontal]
+  - :key[Audition Pad + press turn Horizontal]
   - Note: does not work if you have selected a note
 - Quantize / Humanize notes by:
   - Enabling Quantize community feature

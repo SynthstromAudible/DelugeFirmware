@@ -1,90 +1,132 @@
 ---
-import { getLinkPreview } from "link-preview-js";
+import { getLinkPreview } from "link-preview-js"
 
-type Props = ({
-  link: string;
-} | {
-  ytId: string
-}) & {
-  title?: string
-  description?: boolean
+const SITE_NAME_OVERRIDES = {
+  "forums.synthstrom.com": "Synthstrom Forums",
+  "drive.google.com": "Google Drive",
 }
 
-const link = 'link' in Astro.props ? Astro.props.link : `https://www.youtube.com/watch?v=${Astro.props.ytId}`
+type Props = (
+  | {
+      href: string
+    }
+  | {
+      youtubeId: string
+    }
+) & {
+  title?: string
+  description: string | false | undefined
+  showImage?: boolean
+  showSiteName?: boolean
+}
 
-const { title, description } = Astro.props;
+const href =
+  "href" in Astro.props
+    ? Astro.props.href
+    : `https://www.youtube.com/watch?v=${Astro.props.youtubeId}`
 
-const item = await getLinkPreview(link)
+const {
+  title,
+  description,
+  showImage = true,
+  showSiteName: showSiteNameProp,
+} = Astro.props
 
-const image = 'images' in item && item.images.length > 0 ? item.images[0] : item.favicons[0];
-const titleText = title || ('title' in item ? item.title : item.url);
-const descriptionText = description !== false && description || ('description' in item ? item.description : '');
+const item = await getLinkPreview(href)
 
-console.log(item)
+const image =
+  "images" in item && item.images.length > 0 ? item.images[0] : undefined
+const titleText = title || ("title" in item ? item.title : item.url)
+const descriptionText =
+  description === false
+    ? undefined
+    : description || ("description" in item ? item.description : undefined)
+
+const showSiteName =
+  showSiteNameProp !== undefined ? showSiteNameProp : !descriptionText
+
+const hostname = new URL(item.url).hostname
+const originalSiteName = ("siteName" in item && item.siteName) || hostname
+
+const siteName =
+  hostname in SITE_NAME_OVERRIDES
+    ? SITE_NAME_OVERRIDES[hostname as keyof typeof SITE_NAME_OVERRIDES]
+    : originalSiteName
 ---
 
-<div class="sl-link-card w-[calc(50%-1rem)] !mx-1 inline-flex">
-	<span class="sl-flex stack w-full">
-    <img src={image} alt={title} class="aspect-video w-full rounded-md" />
-		<a href={item.url} rel="noopener noreferrer">
-			<span class="title">{titleText}</span>
-		</a>
-		{descriptionText && <span class="description w-full overflow-ellipsis">{descriptionText}</span>}
-	</span>
+<div class="sl-link-card !mr-2 inline-flex max-w-[21.5rem] align-text-top">
+  <span class="sl-flex stack w-full">
+    {
+      image && showImage && (
+        <img src={image} alt={title} class="aspect-video w-full rounded-md" />
+      )
+    }
+    <a href={item.url} rel="noopener noreferrer">
+      <span class="title">{titleText}</span>
+    </a>
+    {showSiteName && <span class="description">{siteName}</span>}
+    {
+      descriptionText && (
+        <span class="description w-full overflow-hidden text-ellipsis">
+          {descriptionText}
+        </span>
+      )
+    }
+  </span>
 </div>
 
 <style>
   /* Styles from Starlight LinkCard */
-	.sl-link-card {
-		/* display: grid;
+  .sl-link-card {
+    /* display: grid;
 		grid-template-columns: 1fr auto;
 		gap: 0.5rem; */
-		border: 1px solid var(--sl-color-gray-5);
-		border-radius: 0.5rem;
-		padding: 1rem;
-		box-shadow: var(--sl-shadow-sm);
-		position: relative;
-	}
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    box-shadow: var(--sl-shadow-sm);
+    position: relative;
+  }
 
-	a {
-		text-decoration: none;
-		line-height: var(--sl-line-height-headings);
-	}
+  a {
+    text-decoration: none;
+    line-height: var(--sl-line-height-headings);
+  }
 
-	/* a11y fix for https://github.com/withastro/starlight/issues/487 */
-	a::before {
-		content: '';
-		position: absolute;
-		inset: 0;
-	}
+  /* a11y fix for https://github.com/withastro/starlight/issues/487 */
+  a::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
 
-	.stack {
-		flex-direction: column;
-		gap: 0.5rem;
-	}
+  .stack {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 
-	.title {
-		color: var(--sl-color-white);
-		font-weight: 600;
-		font-size: var(--sl-text-lg);
-	}
+  .title {
+    color: var(--sl-color-white);
+    font-weight: 600;
+    font-size: var(--sl-text-lg);
+  }
 
-	.description {
-		color: var(--sl-color-gray-3);
-		line-height: 1.5;
-	}
+  .description {
+    color: var(--sl-color-gray-3);
+    line-height: 1.5;
+  }
 
-	.icon {
-		color: var(--sl-color-gray-3);
-	}
+  .icon {
+    color: var(--sl-color-gray-3);
+  }
 
-	/* Hover state */
-	.sl-link-card:hover {
-		background: var(--sl-color-gray-7, var(--sl-color-gray-6));
-		border-color: var(--sl-color-gray-2);
-	}
+  /* Hover state */
+  .sl-link-card:hover {
+    background: var(--sl-color-gray-7, var(--sl-color-gray-6));
+    border-color: var(--sl-color-gray-2);
+  }
 
-	.sl-link-card:hover .icon {
-		color: var(--sl-color-white);
-	}
+  .sl-link-card:hover .icon {
+    color: var(--sl-color-white);
+  }
 </style>
