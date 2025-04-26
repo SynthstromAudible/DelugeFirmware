@@ -38,6 +38,11 @@ public:
 	    : MenuItem(newName, title), items{newItems}, current_item_{items.end()} {}
 	Submenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
 	    : MenuItem(newName, title), items{newItems.begin(), newItems.end()}, current_item_{items.end()} {}
+	Submenu(l10n::String newName, std::span<MenuItem*> newItems, int32_t newThingIndex)
+	    : MenuItem(newName), items{newItems.begin(), newItems.end()}, current_item_{items.end()},
+	      thingIndex(newThingIndex) {}
+	Submenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, int32_t newThingIndex)
+	    : MenuItem(newName), items{newItems}, current_item_{items.end()}, thingIndex(newThingIndex) {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void updateDisplay();
@@ -71,6 +76,7 @@ protected:
 	void drawHorizontalMenu();
 	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
 	int32_t lastSelectedHorizontalMenuItemPosition = kNoSelection;
+	std::optional<uint8_t> thingIndex = std::nullopt;
 	deluge::vector<MenuItem*> items;
 	typename decltype(items)::iterator current_item_;
 
@@ -86,6 +92,11 @@ public:
 	    : Submenu(newName, title, newItems) {}
 	HorizontalMenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
 	    : Submenu(newName, title, newItems) {}
+	HorizontalMenu(l10n::String newName, std::span<MenuItem*> newItems, int32_t newThingIndex)
+	    : Submenu(newName, newItems, newThingIndex) {}
+	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, int32_t newThingIndex)
+	    : Submenu(newName, newItems, newThingIndex) {}
+
 	bool supportsHorizontalRendering() { return true; }
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber);
