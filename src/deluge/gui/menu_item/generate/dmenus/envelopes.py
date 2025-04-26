@@ -38,9 +38,9 @@ release = Menu(
 
 menus = [
     Submenu(
-        "HorizontalMenu",
+        "submenu::Envelope",
         f"env{i}Menu",
-        ["{name}", "%%CHILDREN%%"],
+        ["{name}", "%%CHILDREN%%", f"{i}"],
         "envelope/index.md",
         [attack, decay, sustain, release],
         name=f"STRING_FOR_ENVELOPE_{i + 1}",
