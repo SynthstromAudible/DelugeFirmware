@@ -2,6 +2,7 @@ import { chromium, type Page } from "playwright"
 import { getPreviewFromContent } from "link-preview-js"
 import { backOff } from "exponential-backoff"
 import { readFile, writeFile } from "node:fs/promises"
+import { existsSync } from "node:fs"
 
 export type LinkMetadata = {
   url: string
@@ -13,9 +14,11 @@ export type LinkMetadata = {
 
 const METADATA_CACHE_PATH = "./src/logic/generated/metadata-cache.json"
 
-const metadataCache: Record<string, LinkMetadata | undefined> = JSON.parse(
-  (await readFile(METADATA_CACHE_PATH)).toString("utf8"),
+const metadataCache: Record<string, LinkMetadata | undefined> = existsSync(
+  METADATA_CACHE_PATH,
 )
+  ? JSON.parse(await readFile(METADATA_CACHE_PATH, { encoding: "utf-8" }))
+  : {}
 
 const getFromMetadataCache = (key: string) => metadataCache[key]
 
@@ -51,6 +54,11 @@ export const getLinkMetadata = async (href: string): Promise<LinkMetadata> => {
         let response = await page.goto(href)
 
         if (!response) throw new Error("No response")
+
+        if (!response.ok())
+          throw new Error(
+            `Site gave an error: ${response.status} - ${response.statusText}`,
+          )
 
         // Special case for youtube cookie prompt on playlists page
         if (new URL(response.url()).hostname === "consent.youtube.com") {
