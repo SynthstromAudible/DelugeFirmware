@@ -217,7 +217,6 @@ In this case, you will need to ensure that MIDI Feedback Filter Responses is set
 
 There are premade MIDI Follow templates available for Loopy Pro for community firmware 1.2 and 1.3. For details, see [MIDI Follow Mode Loopy Pro Template].
 
-
 <img alt="image" src="https://raw.githubusercontent.com/SynthstromAudible/DelugeFirmware/refs/heads/community/contrib/midi_follow/loopy_pro/c1.3/Deluge%20c1.3%20Loopy%20Pro%20Template.png">
 
 ## Appendix C - Touch OSC Template for Deluge MIDI Follow Mode
