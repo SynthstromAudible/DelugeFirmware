@@ -3,6 +3,7 @@ import { getPreviewFromContent } from "link-preview-js"
 import { backOff } from "exponential-backoff"
 import { readFile, writeFile } from "node:fs/promises"
 import { existsSync } from "node:fs"
+import { sortKeysReplacer } from "../utils"
 
 export type LinkMetadata = {
   url: string
@@ -114,7 +115,7 @@ export const getLinkMetadata = async (href: string): Promise<LinkMetadata> => {
           metadataCache[href] = fetchedMetadata
           await writeFile(
             METADATA_CACHE_PATH,
-            `${JSON.stringify(metadataCache, null, 2)}\n`,
+            `${JSON.stringify(metadataCache, sortKeysReplacer, 2)}\n`,
           )
         }
 
