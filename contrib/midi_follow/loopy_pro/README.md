@@ -60,11 +60,16 @@ The template in [c1.3](c1.3/) provides a broad set of controls and includes feat
 Author: Dream Reactor
 
 ![c1.2 Template](c1.2/Deluge%20c1.2%20Loopy%20Pro%20Template.png)
+
+Video demo: [Loopy Pro, MIDI Fighter Twister, and Synthstrom Deluge Control Setup](https://www.youtube.com/watch?v=O0l5VL7sZfM)
+
 The template in [c1.2](c1.2/) is a branch of the [c1.3](c1.3/) template with a focused set of controls and includes features up to [Deluge community firmware 1.2 (Chopin)](https://delugecommunity.com/changelogs/changelog/#c120-chopin).
 
 The "Groove" (left) side of the Loopy Pro template focuses on volume and timing controls.
 
 The "Vibe" (right) side of the Loopy Pro template focuses on effect and filter controls.
+
+
 
 #### Companion MIDI Fighter Twister template![c1.2 Template](c1.2/Deluge%20c1.2%20Loopy%20Pro%20MFT%20Companion%20Template.png)
 The c1.2 Loopy Pro template includes a companion MIDI Fighter Twister (MFT) template, which allows Loopy Pro to provide visual feedback while the MFT provides tactile control. The MFT template communicates with Loopy Pro, which in turn communicates with the Deluge.
