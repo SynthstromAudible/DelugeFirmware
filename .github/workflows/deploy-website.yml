@@ -40,8 +40,8 @@ jobs:
 
       # Playwright is needed for rendering mermaid diagrams at build time
       # See: https://github.com/remcohaszing/rehype-mermaid?tab=readme-ov-file#installation
-      - name: Install Playwright browsers
-        run: bun playwright install --with-deps
+      - name: Install Chromium for Playwright
+        run: bun playwright install --with-deps chromium
 
       # This gets us the site base URL
       - name: Setup Pages

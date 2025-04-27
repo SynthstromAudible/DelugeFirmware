@@ -2,18 +2,28 @@
 title: Automation View
 ---
 
+import LinkPreviewCard from "../../../components/LinkPreviewCard.astro"
+
 Automation View that has been added in Clip and Arranger Views to edit parameter automation using the sequencer grid.
 
 ## Video Tutorials
 
-Please refer to these amazing video tutorials on Automation View to better understand the functionality:
-
-- Ron Cavagnaro Tutorials:
-  - [DELUGE AUTOMATION MODE PART 1 - EXPERIMENTATION // SYNTHSTROM DELUGE TUTORIAL](https://youtu.be/KV5hWgcanxI?si=hj2AmMPztylEbb6H)
-  - [DELUGE IS NOW AN ADVANCED GLITCH EFFECTS PEDAL / AUTOMATION PART 2 // SYNTHSTROM DELUGE TUTORIAL](https://youtu.be/RGRlln8OW1s?si=JtBOUeGNye5wp0Z7)
-  - [DELUGE MIDI CC AND LINE IN FX / AUTOMATION PART 3 // SYNTHSTROM DELUGE TUTORIAL](https://youtu.be/KR3xTCeQj0Y?si=xTIgvDzQqsU8l23L)
-- Red Means Recording Tutorial:
-  - [The Synthstrom Deluge Just Got Even Better! Automation View](https://youtu.be/J8hibZYJhoY?t=956&si=rt-FsLvCjyJvTcum)
+<LinkPreviewCard
+  href="https://www.youtube.com/watch?v=KV5hWgcanxI"
+  title="Automation Mode - Part 1: Experimentation"
+  description="Ron Cavagnaro"
+/>
+<LinkPreviewCard
+  youtubeId="RGRlln8OW1s"
+  title="Deluge Is Now an Advanced Glitch Effects Pedal - Automation Mode Part 2"
+  description="Ron Cavagnaro"
+/>
+<LinkPreviewCard
+  youtubeId="KR3xTCeQj0Y"
+  title="MIDI CC and Line In FX - Automation Mode Part 3"
+  description="Ron Cavagnaro"
+/>
+<LinkPreviewCard youtubeId="J8hibZYJhoY" description="Red Means Recording" />
 
 ## Description
 
@@ -223,7 +233,11 @@ The Automation Editor **will:**
 - edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-128) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 128. Pressing the rows in between increments/decrements the value by 18.29 (e.g. 0, 18, 37, 55, 73, 91, 110, 128).
   > **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
 
-<img width="297" alt="Screenshot 2024-03-16 at 5 13 50 PM" src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/3d5dded1-efc2-4cb6-ad07-df2942fdc66e">
+<img
+  width="297"
+  alt="Screenshot 2024-03-16 at 5 13 50 PM"
+  src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/3d5dded1-efc2-4cb6-ad07-df2942fdc66e"
+/>
 
 > **Note** For patch cables / modulation depth, the grid value ranges for each pad have been adapted to accomodate the full -50 to +50 range.
 >
@@ -235,7 +249,11 @@ The Automation Editor **will:**
 >
 > This diagram shows the updated value ranges for the pads when automating a patch cable / modulation depth.
 
-<img width="293" alt="Screenshot 2024-03-16 at 5 07 36 PM" src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/e6f853f7-56bc-4102-8cc3-9b5a86bd4bfb">
+<img
+  width="293"
+  alt="Screenshot 2024-03-16 at 5 07 36 PM"
+  src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/e6f853f7-56bc-4102-8cc3-9b5a86bd4bfb"
+/>
 
 - enable you to press two pads in a single automation column to set the value to the middle point between those two pads
 - enable you to enter long multi-step automations by pressing and holding one pad and then pressing a second pad

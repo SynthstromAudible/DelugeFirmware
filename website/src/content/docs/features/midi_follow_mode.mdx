@@ -4,19 +4,25 @@ sidebar:
   label: MIDI Follow Mode
 ---
 
+import LinkPreviewCard from "../../../components/LinkPreviewCard.astro"
+
 MIDI control mode which enables you to learn your external controller to the Deluge only once and edit the active clip in the track you last interacted with. Provides a standard MIDI CC implementation to control Deluge parameters with ease.
 
 ![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/9389ad30-9d5a-435d-aee0-ba3f54d3c8a8)
 
 ## Video Tutorials
 
-Please refer to these amazing video tutorials on MIDI follow mode to better understand the functionality:
-
-- Ron Cavagnaro Tutorial's:
-  - [DELUGE 1.1 MIDI FOLLOW BASICS // Deluge 1.1 Beethoven Firmware Tutorial](https://www.youtube.com/watch?v=avUcqCHGcUs)
-  - [DELUGE 1.1 NEW WORKFLOW MIDI FOLLOW GRID // DELUGE 1.1 BEETHOVEN FIRMWARE TUTORIAL](https://www.youtube.com/watch?v=WKI__I8qBIU)
-- Bay Mud Tutorial:
-  - [MIDI Follow on the Synthstrom Deluge Is Your Best Friend When Working with External Synth Gear](https://www.youtube.com/watch?v=G424fN_hcsQ)
+<LinkPreviewCard
+  youtubeId="avUcqCHGcUs"
+  title="Midi Follow Basics"
+  description="Ron Cavagnaro"
+/>
+<LinkPreviewCard
+  youtubeId="WKI__I8qBIU"
+  title="New Workflow: Midi Follow Grid"
+  description="Ron Cavagnaro"
+/>
+<LinkPreviewCard youtubeId="G424fN_hcsQ" description="Bay Mud" />
 
 ## Description
 
@@ -160,7 +166,11 @@ For mapped MIDI CC's, a pop up is shown on the display whenever MIDI CC's are re
 
 Note: if the MIDI CC being received is for a Parameter that cannot be controlled in the current context (e.g. trying to control Attack while in a Kit with :key[AffectEntire] enabled), the pop-up message will say "Can't Control: Parameter Name".
 
-<img width="191" alt="Screen Shot 2023-12-04 at 2 32 03 AM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/b2dcefb2-4f90-4b23-804c-3250bfd24862">
+<img
+  width="191"
+  alt="Screen Shot 2023-12-04 at 2 32 03 AM"
+  src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/b2dcefb2-4f90-4b23-804c-3250bfd24862"
+/>
 
 ## Re-cap of functionality
 
@@ -211,7 +221,11 @@ In this case, you will need to ensure that MIDI Feedback Filter Responses is set
 
 ## Appendix A - List of Deluge Parameters with Default Mapped CC's
 
-<img width="470" alt="image" src="https://github.com/user-attachments/assets/c9695d8a-04e5-47e7-84d3-fd3889a08385">
+<img
+  width="470"
+  alt="image"
+  src="https://github.com/user-attachments/assets/c9695d8a-04e5-47e7-84d3-fd3889a08385"
+/>
 
 ## Appendix B - Loopy Pro Template for Deluge MIDI Follow Mode
 
@@ -244,7 +258,10 @@ For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MI
     - Open again the "Deluge Midi Follow" project and click the pencil to edit the UI, and drag a rectangle selection all the page.
       Copy it, open your own project and in an empy page, paste it. Do the same with the other page with Stepped Dials.
 
-<img alt="image" src="https://raw.githubusercontent.com/SynthstromAudible/DelugeFirmware/refs/heads/community/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.png">
+<img
+  alt="image"
+  src="https://raw.githubusercontent.com/SynthstromAudible/DelugeFirmware/refs/heads/community/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.png"
+/>
 
 ## Appendix C - Touch OSC Template for Deluge MIDI Follow Mode
 
@@ -252,7 +269,11 @@ For users of Touch OSC, you will find a MIDI Follow template in this folder: [MI
 
 - It is setup to send and receive on Channel 15 when the Deluge is setup in the Touch OSC Connections menu
 
-<img width="560" alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/4cc496a5ca06616e9c75a334f08deead837cbf29/contrib/midi_follow/touch_osc/touch_osc.png">
+<img
+  width="560"
+  alt="image"
+  src="https://github.com/SynthstromAudible/DelugeFirmware/blob/4cc496a5ca06616e9c75a334f08deead837cbf29/contrib/midi_follow/touch_osc/touch_osc.png"
+/>
 
 ## Appendix D - Electra One Template for Deluge MIDI Follow Mode
 
@@ -260,9 +281,17 @@ For users of the Electra One, you will find a MIDI Follow template in the Electr
 
 - It is setup to send and receive on Channel 15 (MIDI Port 1).
 
-<img width="536" alt="Screenshot 2024-03-28 at 7 36 38 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/970fa714-3683-445e-9457-4ec07f780997">
+<img
+  width="536"
+  alt="Screenshot 2024-03-28 at 7 36 38 PM"
+  src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/970fa714-3683-445e-9457-4ec07f780997"
+/>
 
-<img width="536" alt="Screenshot 2024-03-28 at 7 35 59 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/039e52fb-a1f0-4bb0-8590-a025d734d40e">
+<img
+  width="536"
+  alt="Screenshot 2024-03-28 at 7 35 59 PM"
+  src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/039e52fb-a1f0-4bb0-8590-a025d734d40e"
+/>
 
 ## Appendix E - Melbourne Instruments Roto-Control Templates for Deluge MIDI Follow Mode
 

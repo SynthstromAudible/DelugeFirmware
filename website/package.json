@@ -16,6 +16,8 @@
     "@tailwindcss/vite": "^4.0.17",
     "astro": "^5.5.5",
     "canvas": "^3.0.0-rc3",
+    "exponential-backoff": "^3.1.2",
+    "link-preview-js": "^3.0.14",
     "mdast-util-to-string": "^4.0.0",
     "playwright": "^1.51.1",
     "rehype-mermaid": "^3.0.0",

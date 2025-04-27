@@ -116,6 +116,9 @@ const config = defineConfig({
   vite: {
     plugins: [tailwindcss()],
   },
+  experimental: {
+    contentIntellisense: true,
+  },
 })
 
 export default config
