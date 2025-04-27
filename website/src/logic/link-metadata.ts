@@ -106,7 +106,7 @@ export const getLinkMetadata = async (href: string): Promise<LinkMetadata> => {
           metadataCache[href] = fetchedMetadata
           await writeFile(
             METADATA_CACHE_PATH,
-            JSON.stringify(metadataCache, null, 2),
+            `${JSON.stringify(metadataCache, null, 2)}\n`,
           )
         }
 
