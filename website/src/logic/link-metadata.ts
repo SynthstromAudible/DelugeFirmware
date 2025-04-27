@@ -120,7 +120,10 @@ export const getLinkMetadata = async (href: string): Promise<LinkMetadata> => {
       },
     )
   } catch (e) {
-    if (!page.isClosed) console.log(await screenshot(page))
+    if (!page.isClosed) {
+      console.log(await screenshot(page))
+      await page.close()
+    }
     throw new Error(`Failed to get metadata for ${href}.\n${e}`)
   }
 }
