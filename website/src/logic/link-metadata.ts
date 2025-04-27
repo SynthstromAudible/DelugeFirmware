@@ -113,6 +113,8 @@ export const getLinkMetadata = async (href: string): Promise<LinkMetadata> => {
 
         if (!cached) {
           metadataCache[href] = fetchedMetadata
+          // It is very inefficient to write this each time, and might even have a race condition.
+          // TODO: Figure out a way to write the file once at the end of the build
           await writeFile(
             METADATA_CACHE_PATH,
             `${JSON.stringify(metadataCache, sortKeysReplacer, 2)}\n`,
