@@ -213,38 +213,12 @@ In this case, you will need to ensure that MIDI Feedback Filter Responses is set
 
 <img width="470" alt="image" src="https://github.com/user-attachments/assets/c9695d8a-04e5-47e7-84d3-fd3889a08385">
 
-## Appendix B - Loopy Pro Template for Deluge MIDI Follow Mode
+## Appendix B - Loopy Pro Templates for Deluge MIDI Follow Mode
 
-For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Loopy Pro Template]
+There are premade MIDI Follow templates available for Loopy Pro for community firmware 1.2 and 1.3. For details, see [MIDI Follow Mode Loopy Pro Template].
 
-- The control surface is located in page "B". Page "A" is just the default page with donuts to loop. You can delete
-  page "A" if you don't need it.
-- Page "C" contains the controls that are doing the heavy lifting of sending/receiving midi so it should NOT be deleted.
-  That is, page "B" are the "user facing" controls, tied to the stepped dials from page "C".
-- The controls are set up to send and receive on channel 15 when the Deluge is connected via USB (and detected as “Deluge Port
-  1”), so you must go to your Deluge, and do Shift + Select to enter the main menu, go to MIDI -> MIDI-FOLLOW -> CHANNEL A,
-  and set it to 15.
-- **How to setup Feedback:** In Loopy, go to Menu -> Control Settings -> MIDI Devices section -> Deluge Port 1 -> make sure
-  that Feedback switch is enabled.
-  In your Deluge, do Shift + Select to enter the main menu, go to MIDI -> MIDI-FOLLOW -> FEEDBACK. Here you can select the
-  Channel to send feedback to, the Rate at which feedback is sent for Automation, and you must set Filter Responses to DISABLED.
-- **Troubleshooting:**
-  - In case your port is detected with a different name in Loopy (it could happen if the language of your
-    iOS device is not English), like for example "Deluge **Puerto** 1" (in Spanish), you can always transfer the existing
-    midi bindings from one port to the other by going to Loopy's Menu -> Control Settings -> Current Project -> Default ->
-    look for the "Deluge Port 1" section and tap on "TRANSFER" to copy or move all the midi bindings to the real
-    port name of your Deluge.
-  - In case you already have a Loopy Pro project or template and you want to import the MIDI follow control surface into it, do
-    the following:
-    - Open the "Deluge Midi Follow"project and go to Settings -> Control Settings -> Current Project -> click "Midi Follow" profile.
-    - On the top right click "TRANSFER" and copy it to Global Profiles.
-    - Open your project and go to Settings -> Control Settings -> Global -> click "Midi Follow" profile.
-    - On the top right click "TRANSFER" and copy it to Current Project. Ok, now the MIDI bindings are imported. Now we need to import
-      the widgets.
-    - Open again the "Deluge Midi Follow" project and click the pencil to edit the UI, and drag a rectangle selection all the page.
-      Copy it, open your own project and in an empy page, paste it. Do the same with the other page with Stepped Dials.
 
-<img alt="image" src="https://raw.githubusercontent.com/SynthstromAudible/DelugeFirmware/refs/heads/community/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.png">
+<img alt="image" src="https://raw.githubusercontent.com/SynthstromAudible/DelugeFirmware/refs/heads/community/contrib/midi_follow/loopy_pro/c1.3/Deluge%20c1.3%20Loopy%20Pro%20Template.png">
 
 ## Appendix C - Touch OSC Template for Deluge MIDI Follow Mode
 
@@ -268,7 +242,7 @@ For users of the Electra One, you will find a MIDI Follow template in the Electr
 
 For users of Melbourne Instruments' Roto-Control, you will find MIDI Follow templates in this folder: [MIDI Follow Mode Roto-Control Templates]
 
-[MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
+[MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro/README.md
 [MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/touch_osc
 [MIDI Follow Mode Electra One Preset]: https://app.electra.one/preset/vZ6WBYb4xDpMGcpChejY
 [MIDI Follow Mode Roto-Control Templates]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/roto_control
