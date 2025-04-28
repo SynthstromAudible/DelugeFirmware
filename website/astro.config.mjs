@@ -12,6 +12,7 @@ import tailwindcss from "@tailwindcss/vite"
 import { remarkDelugeKey } from "./src/markdown-directives/remark-deluge-key/remark-deluge-key.ts"
 import { remarkDelugeScreen } from "./src/markdown-directives/remark-deluge-screen/remark-deluge-screen.ts"
 import remarkDirective from "remark-directive"
+import starlightSidebarTopics from "starlight-sidebar-topics"
 
 // https://astro.build/config
 const config = defineConfig({
@@ -35,36 +36,6 @@ const config = defineConfig({
         baseUrl:
           "https://github.dev/SynthstromAudible/DelugeFirmware/blob/community/website",
       },
-      sidebar: [
-        {
-          label: "Downloads",
-          slug: "downloads",
-        },
-        {
-          label: "Change Log",
-          slug: "changelogs/changelog",
-        },
-        {
-          label: "Features",
-          autogenerate: { directory: "features" },
-        },
-        // {
-        // 	label: 'Guides',
-        // 	items: [
-        // 		// Each item here is one entry in the navigation menu.
-        // 		{ label: 'Example Guide', slug: 'guides/example' },
-        // 	],
-        // },
-        {
-          label: "Reference",
-          autogenerate: { directory: "reference" },
-        },
-        {
-          label: "Development",
-          autogenerate: { directory: "development" },
-        },
-        { label: "Doxygen Generated Docs", link: "/doxygen" },
-      ],
       pagefind: {
         // See: https://pagefind.app/docs/ranking/
         ranking: {
@@ -74,7 +45,61 @@ const config = defineConfig({
           // termSaturation: 1.4,
         },
       },
-      plugins: [starlightLinksValidator()],
+      plugins: [
+        starlightLinksValidator(),
+        starlightSidebarTopics([
+          {
+            label: "Documentation",
+            icon: "open-book",
+            link: "/features/community_features",
+            items: [
+              {
+                label: "Downloads",
+                slug: "downloads",
+              },
+              {
+                label: "Change Log",
+                slug: "changelogs/changelog",
+              },
+              {
+                label: "Features",
+                autogenerate: { directory: "features" },
+              },
+              {
+                label: "Reference",
+                autogenerate: { directory: "reference" },
+              },
+            ],
+          },
+          {
+            label: "Resources",
+            icon: "star",
+            link: "/resources/applications/overview",
+            items: [
+              {
+                label: "Community Applications",
+                autogenerate: { directory: "resources/applications" },
+              },
+              {
+                label: "Tutorials",
+                link: "/resources/tutorials",
+              },
+            ],
+          },
+          {
+            label: "Development",
+            icon: "seti:json",
+            link: "/development/additional_info",
+            items: [
+              {
+                label: "Development",
+                autogenerate: { directory: "development" },
+              },
+              { label: "Doxygen Generated Docs", link: "/doxygen" },
+            ],
+          },
+        ]),
+      ],
       customCss: ["./src/styles/global.css"],
       credits: true,
       components: {
