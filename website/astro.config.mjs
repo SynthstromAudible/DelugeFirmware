@@ -46,7 +46,7 @@ const config = defineConfig({
         },
       },
       plugins: [
-        starlightLinksValidator(),
+        starlightLinksValidator({ exclude: ["/"] }),
         starlightSidebarTopics([
           {
             label: "Documentation",
