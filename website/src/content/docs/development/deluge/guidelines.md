@@ -50,7 +50,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 - All changes to the firmware have to be tested on a best effort basis to make sure they work as expected and don't
   break any existing functionality before submitting as ready to merge. This does not apply to Draft Pull requests.
 - All changes need to be compatible with all available hardware variants, this currently includes OLED and 7-Segment.
-- All changes need to be compatible with the currently official toolchain as described in [Tools](/development/tools).
+- All changes need to be compatible with the currently official toolchain as described in [Tools](/development/deluge/tools).
 - Acceptance of the continuous integration (CI) system is also required. It will automatically build open pull requests
   and check for compilation, formatting and in the future possibly unit testing.
 
@@ -81,7 +81,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 
 Changes to the existing UI should follow the following process:
 
-- Ensure they meet the guidelines set out in [UX Principles](/development/ux_principles)
+- Ensure they meet the guidelines set out in [UX Principles](/development/deluge/ux_principles)
 - Place the change in the community feature menu for one beta cycle
 - Following a full beta cycle and user feedback, open a poll on the feature
 - At the end of the beta cycle there will be a community meeting on Discord to discuss changes

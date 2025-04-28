@@ -1,0 +1,68 @@
+/* From https://github.com/HiDeoo/starlight-sidebar-topics/issues/24#issuecomment-2720839854 */
+.starlight-sidebar-topics {
+  --topic-background-color-current: var(--sl-color-black);
+  --topic-border-radius: 0.5rem;
+
+  --topics-background-color: var(--sl-color-gray-7, var(--sl-color-gray-6));
+  --topics-border-width: 1px;
+  --topics-padding: calc(0.25rem - var(--topics-border-width));
+  --topics-border-radius: calc(
+    var(--topic-border-radius) + var(--topics-padding) +
+      var(--topics-border-width)
+  );
+
+  background-color: var(--topics-background-color);
+  border: var(--topics-border-width) solid var(--sl-color-hairline-light);
+  border-radius: var(--topics-border-radius);
+  padding: var(--topics-padding);
+}
+
+.starlight-sidebar-topics::after {
+  display: none;
+}
+
+.starlight-sidebar-topics a {
+  border: 1px solid transparent;
+  border-radius: var(--topic-border-radius);
+  color: var(--sl-color-gray-2);
+  padding: calc(0.5rem - var(--topics-border-width));
+}
+
+.starlight-sidebar-topics a:is(:hover, :focus-visible) {
+  background-color: var(--topic-background-color-current);
+  color: var(--sl-color-white);
+}
+
+.starlight-sidebar-topics a.starlight-sidebar-topics-current {
+  background-color: var(--topic-background-color-current);
+  border-color: var(--sl-color-hairline-light);
+  color: var(--sl-color-white);
+}
+
+.starlight-sidebar-topics .starlight-sidebar-topics-icon {
+  border: none;
+}
+
+.starlight-sidebar-topics a .starlight-sidebar-topics-icon {
+  background-color: inherit;
+  color: var(--sl-color-gray-3);
+}
+
+.starlight-sidebar-topics
+  a:not(.starlight-sidebar-topics-current):is(:hover, :focus-visible)
+  .starlight-sidebar-topics-icon {
+  color: inherit;
+}
+
+.starlight-sidebar-topics
+  a.starlight-sidebar-topics-current
+  .starlight-sidebar-topics-icon {
+  color: var(--sl-color-text-accent);
+}
+
+@media (min-width: 50rem) {
+  .starlight-sidebar-topics {
+    --topic-background-color-current: var(--sl-color-gray-6);
+    --topics-background-color: var(--sl-color-black);
+  }
+}
