@@ -89,13 +89,17 @@ const config = defineConfig({
           {
             label: "Development",
             icon: "seti:json",
-            link: "/development/additional_info",
+            link: "/development/deluge/additional_info",
             items: [
               {
-                label: "Development",
-                autogenerate: { directory: "development" },
+                label: "Deluge Development",
+                autogenerate: { directory: "development/deluge" },
               },
               { label: "Doxygen Generated Docs", link: "/doxygen" },
+              {
+                label: "Website Development",
+                autogenerate: { directory: "development/website" },
+              },
             ],
           },
         ]),
