@@ -54,8 +54,8 @@ StereoSample Interpolator::interpolate(size_t channels, int32_t whichKernel, uin
 		for (size_t i = 0; i < kernelVector.size(); ++i) {
 			size_t idx = i * decltype(kernelVector)::value_type::lanes;
 			// TODO: auto [low, high] = ArgonHalf<int16_t>::LoadMulti<2>(&buffer_l[idx]);
-			auto low = ArgonHalf<int16_t>::Load(&buffer_l[idx]);
-			auto high = ArgonHalf<int16_t>::Load(&buffer_l[idx + ArgonHalf<int16_t>::lanes]);
+			auto low = ArgonHalf<int16_t>::Load(&buffer_r[idx]);
+			auto high = ArgonHalf<int16_t>::Load(&buffer_r[idx + ArgonHalf<int16_t>::lanes]);
 
 			multiplied = multiplied
 			                 .MultiplyAddLong(kernelVector[i].GetLow(), low)    // low half
