@@ -113,9 +113,9 @@ private:
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = (ModelStack*)modelStackMemory;
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-			modelStack->addTimelineCounter(getCurrentClip())
-				->addNoteRow(noteRowIndex, noteRow)
-				->addOtherTwoThings(soundEditor.currentModControllable, soundEditor.currentParamManager);
+		    modelStack->addTimelineCounter(getCurrentClip())
+		        ->addNoteRow(noteRowIndex, noteRow)
+		        ->addOtherTwoThings(soundEditor.currentModControllable, soundEditor.currentParamManager);
 		kit->noteOffPreKitArp(modelStackWithThreeMainThings, kit->selectedDrum);
 	}
 };
