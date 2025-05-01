@@ -45,8 +45,8 @@ Error SampleReader::readNewCluster() {
 
 	auto& sampleFile = static_cast<Sample&>(*audioFile);
 
-	currentCluster = sampleFile.clusters.getElement(currentClusterIndex)
-	                     ->getCluster(&sampleFile, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
+	currentCluster =
+	    sampleFile.clusters[currentClusterIndex].getCluster(&sampleFile, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
 	if (currentCluster == nullptr) {
 		return Error::SD_CARD; // Failed to load cluster from card
 	}
