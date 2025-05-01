@@ -4,45 +4,77 @@ This folder contains template files for [Loopy Pro](https://loopypro.com/). They
 
 ## Template Design
 
-- The control surface is located in page "B". Page "A" is just the default page with donuts to loop. You can delete
-  page "A" if you don't need it.
-- Page "C" contains the controls that are doing the heavy lifting of sending/receiving midi so it should NOT be deleted.
-  That is, page "B" are the "user facing" controls, tied to the stepped dials from page "C".
-- The controls are set up to send and receive on channel 15 when the Deluge is connected via USB (and detected as “Deluge Port
-  1”), so you must go to your Deluge, and do Shift + Select to enter the main menu, go to MIDI -> MIDI-FOLLOW -> CHANNEL A,
-  and set it to 15.
+
+### Pages
+Each template includes two main pages:
+
+- One page contains the interactive controls that let you play the Deluge. You can customize this page by removing, resizing, or reorganizing the elements.
+- Another page contains the functional elements. Stepped Dials on this page are synced with the interactive controls and communicate with the Deluge via MIDI. They restore the state of the controls when you save and load your Loopy Pro project. Don't delete this page or any of its elements.
+
+### MIDI communication
+
+This template works with the Deluge connected via USB and communicating over MIDI channel 15. It supports two-way control feedback between the Deluge and Loopy Pro.
 
 ## Setup
 
-#### Turn on MIDI Follow Feedback
+### Set up your Deluge
 
-In Loopy, go to Menu -> Control Settings -> MIDI Devices section -> Deluge Port 1 -> make sure
-  that Feedback switch is enabled.
-  In your Deluge, do Shift + Select to enter the main menu, go to MIDI -> MIDI-FOLLOW -> FEEDBACK. Here you can select the
-  Channel to send feedback to, the Rate at which feedback is sent for Automation, and you must set Filter Responses to DISABLED.
+Set your Deluge to use MIDI channel 15 and enable feedback for MIDI Follow Mode.
 
+1. On the Deluge, open the settings by pressing Shift+Select.
+1. Go to **MIDI** > **MIDI-Follow** and do the following:
+    1. In **Channel** > **Channel A**, set the value to 15.
+    1. In **Feedback** > **Channel**, select **Channel A**.
+    1. In **Feedback** > **Automation Feedback**, select **High**.
+    1. In **Feedback** turn off **Filter Responses**.
+1. Hold Back to exit settings.
 
-#### Start a new project
+### Set up Loopy Pro
 
-Copy the Loopy Pro template from [c1.2](c1.2/) or [c1.3](c1.3/) to your Apple device and open the template in Loopy Pro.
+1. In Loopy Pro, go to **Settings (≡)** > **Control Settings**.
+1. In the **MIDI Devices** section, tap **Deluge Port 1**.
+1. Check that **Feedback Enabled** is turned on.
 
+**Note:** If your Deluge doesn't appear as "Deluge Port 1", see the Troubleshooting section on this page.
 
-#### Import the MIDI Follow template into an existing project
-  - In case you already have a Loopy Pro project or template and you want to import the MIDI follow control surface into it, do
-    the following:
-    - Open the "Deluge Midi Follow"project and go to Settings -> Control Settings -> Current Project -> click "Midi Follow" profile.
-    - On the top right click "TRANSFER" and copy it to Global Profiles.
-    - Open your project and go to Settings -> Control Settings -> Global -> click "Midi Follow" profile.
-    - On the top right click "TRANSFER" and copy it to Current Project. Ok, now the MIDI bindings are imported. Now we need to import
-      the widgets.
-    - Open again the "Deluge Midi Follow" project and click the pencil to edit the UI, and drag a rectangle selection all the page.
-      Copy it, open your own project and in an empy page, paste it. Do the same with the other page with Stepped Dials.
+### Get the Loopy Pro template
+
+On your Apple device, go to [c1.2](c1.2/) or [c1.3](c1.3/), tap the `.lpproj` file, then tap **Raw** to download the template.
+
+### Start a project
+
+Do one of the following.
+
+#### Use the template to create a new project
+
+ In the **Files** app, find and tap the template file to open it in Loopy Pro.
+
+#### Import the template into an existing project
+If you have an existing Loopy Pro project and you want to import the MIDI follow control surface into it, do the following:
+
+#### Import the MIDI bindings
+1. In the **Files** app, find and tap the template file to open it in Loopy Pro.
+1. Go to **Settings (≡)** > **Control Settings**.
+1. In the **Current Project** section, tap the **MIDI Follow** profile.
+1. Tap **Transfer**, then tap **Global Profiles**.
+1. Open your existing project and go to **Settings (≡)** > **Control Settings**.
+1. In the **Global Profiles** section, tap the **MIDI Follow** profile.
+Tap **Transfer**, then tap **Current Project**.
+
+#### Import the widgets
+1. Open the Deluge MIDI Follow template again.
+1. Turn on the UI editor by tapping Edit (pencil icon).
+1. On the page with the coloured interactive controls, drag a rectangle to select the whole page.
+1. Press and hold an element, then tap **Copy**.
+1. Open your existing project, add an empty page.
+1. On the empty page, hold, then tap **Paste**.
+1. Repeat these steps 1-6 to copy the page with Stepped Dials from the template to another page in your project.
 
 ### Troubleshooting
 
 #### Error: "Couldn't import project: failed to open zip file"
 
-If download the raw template file from GitHub on your Apple device gives you the error above, download the on a computer and transfer it to your device through iCloud or USB.
+If your Apple device shows the error above when you try to open the template file, download the `.lpproj` file on a computer and transfer it to your device through iCloud or USB.
   
 #### Deluge appears in Loopy Pro under a different name
 
@@ -56,6 +88,11 @@ Author: Monitus
 ![c1.3 Template](c1.3/Deluge%20c1.3%20Loopy%20Pro%20Template.png)
 The template in [c1.3](c1.3/) provides a broad set of controls and includes features up to [Deluge community firmware 1.3](https://delugecommunity.com/changelogs/changelog/#c130), such as ENV3+4 and LFO 3+4.
 
+#### Pages
+- Page **A** is a generic page with loop elements. You can delete page **A** if you don't need it.
+- Page **B** contains the interactive controls.
+- Page **C** contains the functional elements.
+
 ### Template for Community Firmware 1.2
 Author: Dream Reactor
 
@@ -65,13 +102,20 @@ Video demo: [Loopy Pro, MIDI Fighter Twister, and Synthstrom Deluge Control Setu
 
 The template in [c1.2](c1.2/) is a branch of the [c1.3](c1.3/) template with a focused set of controls and includes features up to [Deluge community firmware 1.2 (Chopin)](https://delugecommunity.com/changelogs/changelog/#c120-chopin).
 
+#### Pages
+- Page **D** contains the interactive controls.
+- Page **.** contains the functional elements.
+
+#### Interactive control layout
 The "Groove" (left) side of the Loopy Pro template focuses on volume and timing controls.
 
 The "Vibe" (right) side of the Loopy Pro template focuses on effect and filter controls.
 
 
+#### Companion MIDI Fighter Twister template
 
-#### Companion MIDI Fighter Twister template![c1.2 Template](c1.2/Deluge%20c1.2%20Loopy%20Pro%20MFT%20Companion%20Template.png)
+![c1.2 Template](c1.2/Deluge%20c1.2%20Loopy%20Pro%20MFT%20Companion%20Template.png)
+
 The c1.2 Loopy Pro template includes a companion MIDI Fighter Twister (MFT) template, which allows Loopy Pro to provide visual feedback while the MFT provides tactile control. The MFT template communicates with Loopy Pro, which in turn communicates with the Deluge.
 
 #### Control layout
