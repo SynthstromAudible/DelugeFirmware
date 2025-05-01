@@ -105,7 +105,7 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 	int32_t finalClusterIndex = guide->getFinalClusterIndex(sample, shouldObeyMarkers());
 	if ((clusterIndex - finalClusterIndex) * guide->playDirection > 0) {
 		D_PRINTLN("saving from being past finalCluster");
-		Cluster* finalCluster = sample->clusters.getElement(finalClusterIndex)->cluster;
+		Cluster* finalCluster = sample->clusters[finalClusterIndex].cluster;
 		if (!finalCluster) {
 			return false;
 		}
@@ -301,8 +301,7 @@ bool SampleLowLevelReader::assignClusters(SamplePlaybackGuide* guide, Sample* sa
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 
 		// Grab it.
-		clusters[l] = sample->clusters.getElement(clusterIndex)
-		                  ->getCluster(sample, clusterIndex, CLUSTER_ENQUEUE, priorityRating);
+		clusters[l] = sample->clusters[clusterIndex].getCluster(sample, clusterIndex, CLUSTER_ENQUEUE, priorityRating);
 
 		// The first one is required to not only have returned an object to us (which it might not have if insufficient
 		// RAM or maybe other reasons), but also to be fully loaded.
@@ -378,8 +377,7 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 
 			// Grab it.
 			clusters[kNumClustersLoadedAhead - 1] =
-			    sample->clusters.getElement(newClusterIndex)
-			        ->getCluster(sample, newClusterIndex, CLUSTER_ENQUEUE, priorityRating);
+			    sample->clusters[newClusterIndex].getCluster(sample, newClusterIndex, CLUSTER_ENQUEUE, priorityRating);
 
 			// If that failed (because no free RAM), no damage gets done.
 		}
