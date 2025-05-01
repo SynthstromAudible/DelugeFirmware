@@ -106,6 +106,7 @@ public:
 		    l10n::getView(l10n::String::STRING_FOR_STRETCH),
 		};
 	}
+
 private:
 	void sendNoteOffForKitArpeggiator(Kit* kit) {
 		int32_t noteRowIndex;
