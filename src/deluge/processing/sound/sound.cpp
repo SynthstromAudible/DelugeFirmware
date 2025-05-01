@@ -1598,10 +1598,10 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			bool needs_unassign = //<
 			    synthMode == SynthMode::FM
 			    || std::ranges::any_of(std::views::iota(0, kNumSources),
-			                            [&](int32_t s) {
-				                            return isSourceActiveCurrently(s, paramManager)
-				                                   && sources[s].oscType != OscType::SAMPLE;
-			                            })
+			                           [&](int32_t s) {
+				                           return isSourceActiveCurrently(s, paramManager)
+				                                  && sources[s].oscType != OscType::SAMPLE;
+			                           })
 			    || (voice->envelopes[0].state != EnvelopeStage::FAST_RELEASE && !voice->doFastRelease());
 
 			if (needs_unassign) {
