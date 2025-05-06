@@ -31,6 +31,7 @@ public:
 	size_t size() override { return NUM_SYNC_VALUES; }
 	/// Implementation of Enumeration::getShortOption(): note length name or OFF
 	void getShortOption(StringBuf&) override;
+	int32_t getColumnSpan() const override { return 2; };
 
 protected:
 	void drawValue() final;

@@ -9,7 +9,7 @@ std::array<MenuItem*, 4> child0 = {
     &lpfMorphMenu,
     &lpfModeMenu,
 };
-HorizontalMenu lpfMenu{STRING_FOR_LPF, child0};
+HorizontalMenu lpfMenu{STRING_FOR_LPF, child0, HorizontalMenu::Layout::FIXED};
 filter::FilterParam hpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY, params::LOCAL_HPF_FREQ, filter::FilterSlot::HPF, filter::FilterParamType::FREQUENCY};
 filter::FilterParam hpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, params::LOCAL_HPF_RESONANCE, filter::FilterSlot::HPF, filter::FilterParamType::RESONANCE};
 filter::FilterParam hpfMorphMenu{STRING_FOR_HPF_MORPH, params::LOCAL_HPF_MORPH, filter::FilterSlot::HPF, filter::FilterParamType::MORPH};
@@ -20,7 +20,7 @@ std::array<MenuItem*, 4> child1 = {
     &hpfMorphMenu,
     &hpfModeMenu,
 };
-HorizontalMenu hpfMenu{STRING_FOR_HPF, child1};
+HorizontalMenu hpfMenu{STRING_FOR_HPF, child1, HorizontalMenu::Layout::FIXED};
 FilterRouting filterRoutingMenu{STRING_FOR_FILTER_ROUTE};
 std::array<MenuItem*, 3> child2 = {
     &lpfMenu,
