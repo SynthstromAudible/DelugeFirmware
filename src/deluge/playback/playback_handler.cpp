@@ -2795,10 +2795,15 @@ void PlaybackHandler::programChangeReceived(MIDICable& cable, int32_t channel, i
 			view.pcReceivedForMIDILearn(cable, channel, program);
 		}
 	}
+	else if (getCurrentUI() == &soundEditor) {}
 	else {
 		// we build ontop of the CC hack
 		offerNoteToLearnedThings(cable, true, channel + IS_A_PC, program);
 	}
+
+	char buffer[13];
+	sprintf(buffer, "CH %d PC %d", channel + 1, program + 1);
+	display->displayPopup(buffer);
 }
 bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_t channel, int32_t note) {
 
