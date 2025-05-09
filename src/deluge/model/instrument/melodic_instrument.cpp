@@ -384,6 +384,22 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 			if (doingMidiThru && ((MIDIInstrument*)this)->getChannel() == channel) {
 				*doingMidiThru = false;
 			}
+			if (playbackHandler.recording != RecordingMode::OFF) {
+				if (ccNumber == 0) {
+					((InstrumentClip*)activeClip)->midiBank = value;
+					if (getCurrentUI() == &soundEditor) {
+						soundEditor.midiCCReceived(cable, channel, ccNumber, value);
+					}
+					return;
+				}
+				else if (ccNumber == 32) {
+					((InstrumentClip*)activeClip)->midiSub = value;
+					if (getCurrentUI() == &soundEditor) {
+						soundEditor.midiCCReceived(cable, channel, ccNumber, value);
+					}
+					return;
+				}
+			}
 		}
 		if (ccNumber == CC_EXTERNAL_MOD_WHEEL) {
 			// this is the same range as mpe Y axis but unipolar
@@ -412,8 +428,7 @@ void MelodicInstrument::offerReceivedPC(ModelStackWithTimelineCounter* modelStac
 
 void MelodicInstrument::receivedPC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                                    MIDIMatchType match, uint8_t channel, uint8_t program, bool* doingMidiThru) {
-	switch (match) {
-	case MIDIMatchType::CHANNEL:
+	if (match == MIDIMatchType::CHANNEL) {
 		// If it's a MIDI Clip...
 		if (type == OutputType::MIDI_OUT) {
 			if (playbackHandler.recording != RecordingMode::OFF) {
