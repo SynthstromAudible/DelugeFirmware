@@ -57,7 +57,7 @@ void Program::horizontalEncoderAction(int32_t offset) {
 }
 
 void Program::drawValueAtPos(int32_t v, int32_t x) {
-	int32_t baseY = OLED_MAIN_TOPMOST_PIXEL + 15 + kTextSpacingY;
+	int32_t baseY = OLED_MAIN_TOPMOST_PIXEL + 15 + kTextSpacingY + 4;
 	char buffer[8];
 	deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main;
 	if (v == 128) {
@@ -70,7 +70,8 @@ void Program::drawValueAtPos(int32_t v, int32_t x) {
 }
 
 void Program::drawPixelsForOled() {
-	int32_t baseY = OLED_MAIN_TOPMOST_PIXEL + 15;
+	int32_t baseY = OLED_MAIN_TOPMOST_PIXEL + 14;
+	int32_t w;
 	deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main;
 	canvas.drawStringCentred(l10n::get(l10n::String::STRING_FOR_BANK), baseY, kTextSpacingX * 5, kTextSpacingY, 21);
 	canvas.drawStringCentred(l10n::get(l10n::String::STRING_FOR_SUB_BANK), baseY, kTextSpacingX * 8, kTextSpacingY, 64);
@@ -80,8 +81,16 @@ void Program::drawPixelsForOled() {
 	this->drawValueAtPos(this->getSub(), 64);
 	this->drawValueAtPos(this->getPgm(), 107);
 
+	baseY += kTextSpacingY;
+	w = 2 * kTextSpacingX;
+	canvas.drawHorizontalLine(baseY, 20 - w, 20 + w);
+	w = 4 * kTextSpacingX;
+	canvas.drawHorizontalLine(baseY, 63 - w, 64 + w);
+	w = 3 * kTextSpacingX / 2;
+	canvas.drawHorizontalLine(baseY, 106 - w, 106 + w);
+
 	int32_t cursorX = 21 + (cursorPos * 43);
-	hid::display::OLED::setupBlink(cursorX - 20, 40, 41, 42, movingCursor);
+	hid::display::OLED::setupBlink(cursorX - kTextSpacingX * 2, kTextSpacingX * 4, 45, 47, movingCursor);
 }
 
 int32_t wrapValue(int32_t value) {
