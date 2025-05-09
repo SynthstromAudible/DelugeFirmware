@@ -416,7 +416,7 @@ void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8
 				break;
 
 			case 0x0C: // Program change message
-				playbackHandler.programChangeReceived(cable, channel, data1);
+				playbackHandler.programChangeReceived(cable, channel, data1, &shouldDoMidiThruNow);
 				break;
 
 			case 0x0D: // Channel pressure
