@@ -564,7 +564,7 @@ submenu::Sidechain sidechainMenu{
 
 submenu::Sidechain reverbSidechainMenu{
     STRING_FOR_REVERB_SIDECHAIN,
-    STRING_FOR_REVERB_SIDECH_MENU_TITLE,
+	STRING_FOR_REVERB_SIDECH_MENU_TITLE,
     {
         &reverbSidechainVolumeMenu,
         &sidechainSyncMenu,
@@ -588,14 +588,14 @@ reverb::LPF reverbLPFMenu{STRING_FOR_LPF};
 HorizontalMenu reverbMenu{
     STRING_FOR_REVERB,
     {
-        &reverbAmountMenu,
-        &reverbModelMenu,
+		&reverbModelMenu,
         &reverbRoomSizeMenu,
         &reverbDampingMenu,
         &reverbWidthMenu,
+		&reverbAmountMenu,
+		&reverbPanMenu,
         &reverbHPFMenu,
         &reverbLPFMenu,
-        &reverbPanMenu,
         &reverbSidechainMenu,
     },
 };

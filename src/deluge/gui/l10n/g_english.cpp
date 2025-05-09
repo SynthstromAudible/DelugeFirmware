@@ -410,7 +410,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SHAPE, "SHAPE"},
         {STRING_FOR_MOD_FX, "Mod-fx"},
         {STRING_FOR_POLY_FINGER_MPE, "Poly / finger / MPE"},
-        {STRING_FOR_REVERB_SIDECHAIN, "Reverb sidechain"},
+        {STRING_FOR_REVERB_SIDECHAIN, "Sidechain"},
         {STRING_FOR_ROOM_SIZE, "Room size"},
         {STRING_FOR_SUB_BANK, "Sub-bank"},
         {STRING_FOR_PLAY_DIRECTION, "Play direction"},
