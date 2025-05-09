@@ -51,6 +51,11 @@ public:
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxUnisonStereoSpread; }
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		Sound* sound = static_cast<Sound*>(modControllable);
+		return sound == nullptr || sound->numUnison > 1;
+	}
 };
 
 extern StereoSpread stereoSpreadMenu;

@@ -60,5 +60,10 @@ public:
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxUnisonDetune; }
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		Sound* sound = static_cast<Sound*>(modControllable);
+		return sound == nullptr || sound->numUnison > 1;
+	}
 };
 } // namespace deluge::gui::menu_item::unison
