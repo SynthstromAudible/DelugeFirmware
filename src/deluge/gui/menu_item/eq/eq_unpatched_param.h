@@ -23,9 +23,12 @@ class EqUnpatchedParam final : public UnpatchedParam {
 public:
 	EqUnpatchedParam(l10n::String name, l10n::String columnLabel, int32_t newP)
 	    : UnpatchedParam(name, newP), columnLabel{columnLabel} {}
-	EqUnpatchedParam(l10n::String name, int32_t newP) : UnpatchedParam(name, newP), columnLabel{name} {}
+	EqUnpatchedParam(l10n::String name, int32_t newP)
+	    : UnpatchedParam(name, newP), columnLabel{name} {}
 
-	void getColumnLabel(StringBuf& label) override { label.append(deluge::l10n::getView(columnLabel)); }
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::getView(columnLabel));
+	}
 
 private:
 	l10n::String columnLabel;
