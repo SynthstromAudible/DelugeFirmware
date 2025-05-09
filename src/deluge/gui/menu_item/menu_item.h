@@ -249,6 +249,11 @@ public:
 	/// By default this redirects to getName(), but can be overriden.
 	virtual void getColumnLabel(StringBuf& label) { label.append(getName().data()); }
 
+	/// @brief Get the number of occupied virtual columns in the horizontal menu.
+	///
+	/// 1 by default, but can be overridden
+	[[nodiscard]] virtual int32_t getColumnSpan() const { return 1; };
+
 	/// @brief Check if this MenuItem should show up in a containing deluge::gui::menu_item::Submenu.
 	///
 	/// @param sound Sound we would edit if we were to be entered.

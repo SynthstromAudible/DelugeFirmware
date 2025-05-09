@@ -60,15 +60,6 @@ void Submenu::updateDisplay() {
 }
 
 void Submenu::drawPixelsForOled() {
-	if (renderingStyle() == RenderingStyle::VERTICAL) {
-		drawVerticalMenu();
-	}
-	else {
-		drawHorizontalMenu();
-	}
-}
-
-void Submenu::drawVerticalMenu() {
 	// Collect items before the current item, this is possibly more than we need.
 	etl::vector<MenuItem*, kOLEDMenuNumOptionsVisible> before = {};
 	for (auto it = current_item_ - 1; it != items.begin() - 1 && before.size() < before.capacity(); it--) {
@@ -109,14 +100,23 @@ void Submenu::drawVerticalMenu() {
 	drawSubmenuItemsForOled(visible, pos);
 }
 
-void Submenu::drawHorizontalMenu() {
+void HorizontalMenu::drawPixelsForOled() {
+	if (renderingStyle() != RenderingStyle::HORIZONTAL) {
+		Submenu::drawPixelsForOled();
+		return;
+	}
+
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
 
-	int32_t nTotal = std::count_if(items.begin(), items.end(), isItemRelevant);
-	int32_t nBefore = std::count_if(items.begin(), current_item_, isItemRelevant);
+	const auto showItem = [this](MenuItem* item) {
+		return horizontalMenuLayout == Layout::FIXED || isItemRelevant(item);
+	};
+
+	int32_t nTotal = std::count_if(items.begin(), items.end(), showItem);
+	int32_t nBefore = std::count_if(items.begin(), current_item_, showItem);
 
 	int32_t pageSize = std::min<int32_t>(nTotal, 4);
 	int32_t pageCount = std::ceil(nTotal / (float)pageSize);
@@ -133,22 +133,58 @@ void Submenu::drawHorizontalMenu() {
 	}
 
 	// Scan to beginning of the visible page:
-	auto it = std::find_if(items.begin(), items.end(), isItemRelevant);
+	auto it = std::find_if(items.begin(), items.end(), showItem);
 	for (size_t n = 0; n < pageStart; n++) {
-		it = std::find_if(std::next(it), items.end(), isItemRelevant);
+		it = std::find_if(std::next(it), items.end(), showItem);
 	}
 
 	int32_t boxHeight = OLED_MAIN_VISIBLE_HEIGHT - baseY;
-	int32_t boxWidth = OLED_MAIN_WIDTH_PIXELS / std::min<int32_t>(nTotal - pageStart, 4);
+	int32_t totalWidth = OLED_MAIN_WIDTH_PIXELS;
+	int32_t totalSpanBlocks = std::accumulate(it, items.end(), 0, [&, count = 0](int32_t sum, MenuItem* item) mutable {
+		if (count < pageSize && showItem(item)) {
+			++count;
+			return sum + item->getColumnSpan();
+		}
+		return sum;
+	});
 
 	// Render the page
+	int32_t currentX = 0;
+	int32_t selectedStartX = 0;
+	int32_t selectedWidth = 0;
+
 	for (size_t n = 0; n < pageSize && it != items.end(); n++) {
 		MenuItem* item = *it;
-		int32_t startX = boxWidth * n;
-		item->readCurrentValue();
-		item->renderInHorizontalMenu(startX + 1, boxWidth, baseY, boxHeight);
-		// next relevant item.
-		it = std::find_if(std::next(it), items.end(), isItemRelevant);
+		int32_t columnSpan = item->getColumnSpan();
+		int32_t boxWidth = (totalWidth * columnSpan) / totalSpanBlocks;
+
+		if (currentX + boxWidth > totalWidth) {
+			// Overflow occured: the item doesn't fit in the current row
+			FREEZE_WITH_ERROR("DHOR");
+		}
+
+		if (n == posOnPage) {
+			selectedStartX = currentX;
+			selectedWidth = boxWidth;
+		}
+
+		if (horizontalMenuLayout == Layout::FIXED && !isItemRelevant(item)) {
+			// In the fixed layout we just "disable" unrelevant item by drawing a dash as value
+			item->renderColumnLabel(currentX + 1, boxWidth, baseY);
+
+			const char disabledItemValueDash = '-';
+			int32_t pxLen = image.getCharWidthInPixels(disabledItemValueDash, kTextTitleSizeY);
+			int32_t pad = (boxWidth + 1 - pxLen) / 2;
+			image.drawChar(disabledItemValueDash, currentX + pad, baseY + kTextSpacingY + 2, kTextTitleSpacingX,
+			               kTextTitleSizeY, 0, currentX + boxWidth);
+		}
+		else {
+			item->readCurrentValue();
+			item->renderInHorizontalMenu(currentX + 1, boxWidth, baseY, boxHeight);
+		}
+
+		currentX += boxWidth;
+		it = std::find_if(std::next(it), items.end(), showItem);
 	}
 
 	// Render the page counters
@@ -169,7 +205,9 @@ void Submenu::drawHorizontalMenu() {
 			}
 		}
 	}
-	image.invertArea(boxWidth * posOnPage, boxWidth, baseY, baseY + boxHeight);
+
+	// Highlight the selected item
+	image.invertArea(selectedStartX, selectedWidth, baseY, baseY + boxHeight);
 }
 
 void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption) {
@@ -333,8 +371,12 @@ ActionResult HorizontalMenu::buttonAction(deluge::hid::Button b, bool on, bool i
 
 /// Select a specific menu item on the currently displayed horizontal menu page
 ActionResult HorizontalMenu::selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber) {
-	int32_t nTotal = std::count_if(items.begin(), items.end(), isItemRelevant);
-	int32_t nBefore = std::count_if(items.begin(), current_item_, isItemRelevant);
+	const auto showItem = [this](MenuItem* item) {
+		return horizontalMenuLayout == Layout::FIXED || isItemRelevant(item);
+	};
+
+	int32_t nTotal = std::count_if(items.begin(), items.end(), showItem);
+	int32_t nBefore = std::count_if(items.begin(), current_item_, showItem);
 
 	int32_t pageSize = std::min<int32_t>(nTotal, 4);
 	int32_t pageCount = std::ceil(nTotal / (float)pageSize);
@@ -343,15 +385,20 @@ ActionResult HorizontalMenu::selectHorizontalMenuItemOnVisiblePage(int32_t itemN
 	int32_t pageStart = currentPage * pageSize;
 
 	// Scan to beginning of the visible page:
-	auto it = std::find_if(items.begin(), items.end(), isItemRelevant);
+	auto it = std::find_if(items.begin(), items.end(), showItem);
 	for (size_t n = 0; n < pageStart; n++) {
-		it = std::find_if(std::next(it), items.end(), isItemRelevant);
+		it = std::find_if(std::next(it), items.end(), showItem);
 	}
 
 	// Find item you're looking for by iterating through all items on the current page
 	for (size_t n = 0; n < pageSize && it != items.end(); n++) {
 		// is this the item we're looking for?
 		if (n == itemNumber) {
+			if (horizontalMenuLayout == Layout::FIXED && !isItemRelevant(*it)) {
+				// item is disabled, we can't select it so do nothing
+				break;
+			}
+
 			// update currently selected item
 			current_item_ = it;
 			// re-render display
@@ -363,13 +410,13 @@ ActionResult HorizontalMenu::selectHorizontalMenuItemOnVisiblePage(int32_t itemN
 			break;
 		}
 		// if we haven't found item we're looking for, check the next relevant item.
-		it = std::find_if(std::next(it), items.end(), isItemRelevant);
+		it = std::find_if(std::next(it), items.end(), showItem);
 	}
 	return ActionResult::DEALT_WITH;
 }
 
 /// When updating the selected horizontal menu item, you need to refresh the lit instrument LED's
-void Submenu::updateSelectedHorizontalMenuItemLED(int32_t itemNumber) {
+void HorizontalMenu::updateSelectedHorizontalMenuItemLED(int32_t itemNumber) {
 	switch (itemNumber) {
 	case 0:
 		indicator_leds::setLedState(IndicatorLED::SYNTH, true);
@@ -460,14 +507,11 @@ bool Submenu::learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) {
 	return false;
 }
 
-Submenu::RenderingStyle Submenu::renderingStyle() {
-	if (display->haveOLED() && this->supportsHorizontalRendering()
-	    && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus)) {
+Submenu::RenderingStyle HorizontalMenu::renderingStyle() {
+	if (display->haveOLED() && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus)) {
 		return RenderingStyle::HORIZONTAL;
 	}
-	else {
-		return RenderingStyle::VERTICAL;
-	}
+	return RenderingStyle::VERTICAL;
 }
 
 void Submenu::updatePadLights() {
