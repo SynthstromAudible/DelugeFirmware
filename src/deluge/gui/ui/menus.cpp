@@ -299,11 +299,13 @@ arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD
                                                                STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
 
 // Arp: Basic
-HorizontalMenu arpBasicMenu{STRING_FOR_BASIC,
-                            {// Gate
-                             &arpGateMenu, &arpGateMenuMIDIOrCV,
-                             // Sync
-                             &arpSyncMenu, &arpRateMenu, &arpKitRateMenu, &arpRateMenuMIDIOrCV}};
+HorizontalMenu arpBasicMenu{
+    STRING_FOR_BASIC, {&arpGateMenu, &arpSyncMenu, &arpRateMenu}, HorizontalMenu::Layout::FIXED};
+HorizontalMenu arpBasicMenuKit{
+    STRING_FOR_BASIC, {&arpGateMenu, &arpSyncMenu, &arpKitRateMenu}, HorizontalMenu::Layout::FIXED};
+HorizontalMenu arpBasicMenuMIDIOrCV{
+    STRING_FOR_BASIC, {&arpGateMenuMIDIOrCV, &arpSyncMenu, &arpRateMenuMIDIOrCV}, HorizontalMenu::Layout::FIXED};
+
 // Arp: Pattern
 HorizontalMenu arpPatternMenu{STRING_FOR_PATTERN,
                               {// Pattern
@@ -369,13 +371,31 @@ Submenu arpMenu{
     },
 };
 
+Submenu arpMenuMIDIOrCV{
+    STRING_FOR_ARPEGGIATOR,
+    {
+        // Mode
+        &arpModeMenu,
+        // Basic
+        &arpBasicMenuMIDIOrCV,
+        // Pattern
+        &arpPatternMenu,
+        // Randomizer
+        &arpRandomizerMenu,
+        // MPE
+        &arpMpeMenu,
+        // Include in kit arp
+        &arpIncludeInKitArpMenu,
+    },
+};
+
 Submenu kitArpMenu{
     STRING_FOR_KIT_ARPEGGIATOR,
     {
         // Mode
         &arpModeMenu,
         // Basic
-        &arpBasicMenu,
+        &arpBasicMenuKit,
         // Pattern
         &arpPatternMenu,
         // Randomizer
@@ -410,14 +430,14 @@ lfo::Type lfo1TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO1_TYPE, LFO1_ID};
 lfo::Rate lfo1RateMenu{STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ_1, LFO1_ID};
 lfo::Sync lfo1SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO1_SYNC, LFO1_ID};
 
-HorizontalMenu lfo1Menu{STRING_FOR_LFO1, {&lfo1TypeMenu, &lfo1SyncMenu, &lfo1RateMenu}};
+HorizontalMenu lfo1Menu{STRING_FOR_LFO1, {&lfo1TypeMenu, &lfo1SyncMenu, &lfo1RateMenu}, HorizontalMenu::Layout::FIXED};
 
 // LFO2 menu ---------------------------------------------------------------------------------
 lfo::Type lfo2TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO2_TYPE, LFO2_ID};
 lfo::Rate lfo2RateMenu{STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ_1, LFO2_ID};
 lfo::Sync lfo2SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO2_SYNC, LFO2_ID};
 
-HorizontalMenu lfo2Menu{STRING_FOR_LFO2, {&lfo2TypeMenu, &lfo2SyncMenu, &lfo2RateMenu}};
+HorizontalMenu lfo2Menu{STRING_FOR_LFO2, {&lfo2TypeMenu, &lfo2SyncMenu, &lfo2RateMenu}, HorizontalMenu::Layout::FIXED};
 
 // LFO3 menu ---------------------------------------------------------------------------------
 
@@ -425,14 +445,14 @@ lfo::Type lfo3TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO3_TYPE, LFO3_ID};
 lfo::Rate lfo3RateMenu{STRING_FOR_RATE, STRING_FOR_LFO3_RATE, params::GLOBAL_LFO_FREQ_2, LFO3_ID};
 lfo::Sync lfo3SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO3_SYNC, LFO3_ID};
 
-HorizontalMenu lfo3Menu{STRING_FOR_LFO3, {&lfo3TypeMenu, &lfo3SyncMenu, &lfo3RateMenu}};
+HorizontalMenu lfo3Menu{STRING_FOR_LFO3, {&lfo3TypeMenu, &lfo3SyncMenu, &lfo3RateMenu}, HorizontalMenu::Layout::FIXED};
 
 // LFO4 menu ---------------------------------------------------------------------------------
 lfo::Type lfo4TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO4_TYPE, LFO4_ID};
 lfo::Rate lfo4RateMenu{STRING_FOR_RATE, STRING_FOR_LFO4_RATE, params::LOCAL_LFO_LOCAL_FREQ_2, LFO4_ID};
 lfo::Sync lfo4SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO4_SYNC, LFO4_ID};
 
-HorizontalMenu lfo4Menu{STRING_FOR_LFO4, {&lfo4TypeMenu, &lfo4SyncMenu, &lfo4RateMenu}};
+HorizontalMenu lfo4Menu{STRING_FOR_LFO4, {&lfo4TypeMenu, &lfo4SyncMenu, &lfo4RateMenu}, HorizontalMenu::Layout::FIXED};
 
 // Mod FX ----------------------------------------------------------------------------------
 mod_fx::Type modFXTypeMenu{STRING_FOR_TYPE, STRING_FOR_MODFX_TYPE};
@@ -662,15 +682,14 @@ filter::UnpatchedFilterParam globalLPFResMenu{STRING_FOR_RESONANCE, STRING_FOR_L
                                               filter::FilterSlot::LPF, filter::FilterParamType::RESONANCE};
 filter::UnpatchedFilterParam globalLPFMorphMenu{STRING_FOR_MORPH, STRING_FOR_LPF_MORPH, params::UNPATCHED_LPF_MORPH,
                                                 filter::FilterSlot::LPF, filter::FilterParamType::MORPH};
-HorizontalMenu globalLPFMenu{
-    STRING_FOR_LPF,
-    {
-        &globalLPFFreqMenu,
-        &globalLPFResMenu,
-        &globalLPFMorphMenu,
-        &lpfModeMenu,
-    },
-};
+HorizontalMenu globalLPFMenu{STRING_FOR_LPF,
+                             {
+                                 &globalLPFFreqMenu,
+                                 &globalLPFResMenu,
+                                 &globalLPFMorphMenu,
+                                 &lpfModeMenu,
+                             },
+                             HorizontalMenu::Layout::FIXED};
 
 // HPF Menu
 filter::UnpatchedFilterParam globalHPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY,
@@ -681,15 +700,14 @@ filter::UnpatchedFilterParam globalHPFResMenu{STRING_FOR_RESONANCE, STRING_FOR_H
 filter::UnpatchedFilterParam globalHPFMorphMenu{STRING_FOR_MORPH, STRING_FOR_HPF_MORPH, params::UNPATCHED_HPF_MORPH,
                                                 filter::FilterSlot::HPF, filter::FilterParamType::MORPH};
 
-HorizontalMenu globalHPFMenu{
-    STRING_FOR_HPF,
-    {
-        &globalHPFFreqMenu,
-        &globalHPFResMenu,
-        &globalHPFMorphMenu,
-        &hpfModeMenu,
-    },
-};
+HorizontalMenu globalHPFMenu{STRING_FOR_HPF,
+                             {
+                                 &globalHPFFreqMenu,
+                                 &globalHPFResMenu,
+                                 &globalHPFMorphMenu,
+                                 &hpfModeMenu,
+                             },
+                             HorizontalMenu::Layout::FIXED};
 
 Submenu globalFiltersMenu{
     STRING_FOR_FILTERS,
@@ -1496,7 +1514,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
         &midiPGMMenu,
         &midiBankMenu,
         &midiSubMenu,
-        &arpMenu,
+        &arpMenuMIDIOrCV,
         &globalRandomizerMenu,
         &bendMenu,
         &cv2SourceMenu,
@@ -1510,14 +1528,14 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
 menu_item::Submenu soundEditorRootMenuMidiDrum{
     STRING_FOR_MIDI,
     {
-        &arpMenu,
+        &arpMenuMIDIOrCV,
         &globalRandomizerMenu,
     },
 };
 menu_item::Submenu soundEditorRootMenuGateDrum{
     STRING_FOR_GATE,
     {
-        &arpMenu,
+        &arpMenuMIDIOrCV,
         &globalRandomizerMenu,
     },
 };
@@ -1788,7 +1806,7 @@ PLACE_SDRAM_DATA Submenu* parentsForKitGlobalFXShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalLPFMenu,              &globalLPFMenu,         &globalLPFMenu,           &globalLPFMenu,                    },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalHPFMenu,              &globalHPFMenu,         &globalHPFMenu,           &globalHPFMenu,                    },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
-    {&arpBasicMenu,           &arpBasicMenu,           &arpBasicMenu,                  &arpPatternMenu,                &arpPresetAndRandomizerMenu, nullptr,                nullptr,                  nullptr,                           },
+    {&arpBasicMenuKit,        &arpBasicMenuKit,        &arpBasicMenuKit,               &arpPatternMenu,                &arpPresetAndRandomizerMenu, nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
@@ -1806,7 +1824,7 @@ PLACE_SDRAM_DATA Submenu* parentsForMidiOrCVParamShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
-    {&arpBasicMenu,           &arpBasicMenu,           &arpBasicMenu,                  &arpPatternMenu,                &arpPresetAndRandomizerMenu, nullptr,                nullptr,                  nullptr,                           },
+    {&arpBasicMenuMIDIOrCV,   &arpBasicMenuMIDIOrCV,   &arpBasicMenuMIDIOrCV,          &arpPatternMenu,                &arpPresetAndRandomizerMenu, nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
