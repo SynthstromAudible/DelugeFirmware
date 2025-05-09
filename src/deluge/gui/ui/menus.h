@@ -4,6 +4,9 @@
 #include "gui/menu_item/defaults/swing_interval.h"
 #include "gui/menu_item/edit_name.h"
 #include "gui/menu_item/firmware/version.h"
+#include "gui/menu_item/midi/bank.h"
+#include "gui/menu_item/midi/pgm.h"
+#include "gui/menu_item/midi/sub.h"
 #include "gui/menu_item/note/fill.h"
 #include "gui/menu_item/note/iterance_divisor.h"
 #include "gui/menu_item/note/iterance_preset.h"
@@ -95,6 +98,10 @@ extern deluge::gui::menu_item::Submenu* parentsForAudioShortcuts[kDisplayWidth][
 extern deluge::gui::menu_item::Submenu* parentsForSongShortcuts[kDisplayWidth][kDisplayHeight];
 extern deluge::gui::menu_item::Submenu* parentsForKitGlobalFXShortcuts[kDisplayWidth][kDisplayHeight];
 extern deluge::gui::menu_item::Submenu* parentsForMidiOrCVParamShortcuts[kDisplayWidth][kDisplayHeight];
+
+extern deluge::gui::menu_item::midi::PGM midiPGMMenu;
+extern deluge::gui::menu_item::midi::Bank midiBankMenu;
+extern deluge::gui::menu_item::midi::Sub midiSubMenu;
 
 void setOscillatorNumberForTitles(int32_t);
 void setModulatorNumberForTitles(int32_t);

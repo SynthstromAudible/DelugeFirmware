@@ -1452,6 +1452,16 @@ bool SoundEditor::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t d
 	return false;
 }
 
+bool SoundEditor::midiPCReceived(MIDICable& cable, uint8_t channel, uint8_t program) {
+
+	if (getCurrentMenuItem() == &midiPGMMenu) {
+		midiPGMMenu.readValueAgain();
+		return true;
+	}
+
+	return false;
+}
+
 void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	if (getRootUI() == &automationView) {
 		automationView.modEncoderAction(whichModEncoder, offset);
