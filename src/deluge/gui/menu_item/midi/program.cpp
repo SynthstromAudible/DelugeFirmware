@@ -52,7 +52,7 @@ void Program::horizontalEncoderAction(int32_t offset) {
 		movingCursor = false;
 	}
 	else {
-		// drawActualValue(true); // TODO
+		drawActualValue(true);
 	}
 }
 
@@ -94,28 +94,100 @@ int32_t wrapValue(int32_t value) {
 	return value;
 }
 
-void Program::selectEncoderAction(int32_t offset) {
+int32_t Program::getCursorValue() {
 	switch (cursorPos) {
 	case 0:
-		this->setBank(wrapValue(this->getBank() + offset));
+		return this->getBank();
+	case 1:
+		return this->getSub();
+	case 2:
+		return this->getPgm();
+	default:
+		return 128;
+	}
+}
+
+void Program::setCursorValue(int32_t value) {
+	switch (cursorPos) {
+	case 0:
+		this->setBank(value);
 		break;
 	case 1:
-		this->setSub(wrapValue(this->getSub() + offset));
+		this->setSub(value);
 		break;
 	case 2:
-		this->setPgm(wrapValue(this->getPgm() + offset));
+		this->setPgm(value);
 		break;
 	default:
 		return;
 	}
+}
+
+void Program::selectEncoderAction(int32_t offset) {
+	this->setCursorValue(wrapValue(this->getCursorValue() + offset));
 
 	writeCurrentValue();
 	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 	else {
-		drawValue(); // Probably not necessary either...
+		drawValue();
 	}
+}
+
+void Program::drawValue() {
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		drawActualValue();
+	}
+}
+
+void Program::drawActualValue(bool justDidHorizontalScroll) {
+	int32_t stringLength = 0;
+	char buffer[12];
+
+	int32_t v = this->getCursorValue();
+	if (v == 128) {
+		if (cursorPos == 0) {
+			// strcpy(buffer, l10n::get(l10n::String::STRING_FOR_NONE));
+			strcpy(buffer, "BANK.");
+		}
+		else if (cursorPos == 1) {
+			strcpy(buffer, ".SUB.");
+		}
+		else {
+			strcpy(buffer, ".PGM");
+		}
+	}
+	else if (cursorPos == 0) {
+		buffer[0] = 'b';
+		intToString(v + 1, buffer + 1, 3);
+		buffer[4] = '.';
+	}
+	else if (cursorPos == 1) {
+		buffer[0] = 's';
+		buffer[1] = '.';
+		intToString(v + 1, buffer + 2, 3);
+		buffer[5] = '.';
+		buffer[6] = '\0';
+	}
+	else if (cursorPos == 2) {
+		buffer[0] = 'p';
+		buffer[1] = '.';
+		intToString(v + 1, buffer + 2, 3);
+		buffer[5] = '\0';
+	}
+	for (int i = 1; i < strlen(buffer); i++) {
+		if (buffer[i] == '.')
+			continue;
+		if (buffer[i] == '0')
+			buffer[i] = ' ';
+		else
+			break;
+	}
+	display->setText(buffer);
 }
 
 } // namespace deluge::gui::menu_item::midi

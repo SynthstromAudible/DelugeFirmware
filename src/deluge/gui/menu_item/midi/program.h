@@ -32,6 +32,9 @@ public:
 	void setSub(int32_t sub) { this->setValue((this->getValue() & 0xFF00FF) | (sub << 8)); }
 	void setPgm(int32_t pgm) { this->setValue((this->getValue() & 0xFFFF00) | pgm); }
 
+	void setCursorValue(int32_t);
+	int32_t getCursorValue();
+
 	void selectEncoderAction(int32_t offset) final;
 	void horizontalEncoderAction(int32_t offset) final;
 
@@ -54,15 +57,9 @@ public:
 
 	void drawValueAtPos(int32_t v, int32_t x);
 
-	void drawValue() override {
-		if (this->getPgm() == 128) {
-			display->setText(l10n::get(l10n::String::STRING_FOR_NONE));
-		}
-		else {
-			display->setTextAsNumber(this->getPgm() + 1);
-		}
-	}
+	void drawValue() override;
 
+	void drawActualValue(bool justDidHorizontalScroll = false);
 	// OLED ONLY
 	void drawPixelsForOled();
 
