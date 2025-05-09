@@ -2787,7 +2787,7 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDICable& cable, int32_t channel
 	return foundAnything;
 }
 
-void PlaybackHandler::programChangeReceived(MIDICable& cable, int32_t channel, int32_t program) {
+void PlaybackHandler::programChangeReceived(MIDICable& cable, int32_t channel, int32_t program, bool* doingMidiThru) {
 	// If user assigning MIDI commands, do that
 	if (currentUIMode == UI_MODE_MIDI_LEARN) {
 		if (getCurrentUI()->pcReceivedForMidiLearn(cable, channel, program)) {}
@@ -2795,15 +2795,25 @@ void PlaybackHandler::programChangeReceived(MIDICable& cable, int32_t channel, i
 			view.pcReceivedForMIDILearn(cable, channel, program);
 		}
 	}
-	else if (getCurrentUI() == &soundEditor) {}
 	else {
 		// we build ontop of the CC hack
-		offerNoteToLearnedThings(cable, true, channel + IS_A_PC, program);
+		if (offerNoteToLearnedThings(cable, true, channel + IS_A_PC, program)) {
+			return;
+		}
 	}
 
-	char buffer[13];
-	sprintf(buffer, "CH %d PC %d", channel + 1, program + 1);
-	display->displayPopup(buffer);
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+
+	// Go through all Outputs...
+	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+		if (thisOutput->getActiveClip()) {
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+			    modelStack->addTimelineCounter(thisOutput->getActiveClip());
+
+			thisOutput->offerReceivedPC(modelStackWithTimelineCounter, fromDevice, channel, program, doingMidiThru);
+		}
+	}
 }
 bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_t channel, int32_t note) {
 
