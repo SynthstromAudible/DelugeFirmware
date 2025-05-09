@@ -68,8 +68,8 @@
 #include "gui/menu_item/dx/global_params.h"
 #include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/edit_name.h"
-#include "gui/menu_item/eq/eq_unpatched_param.h"
 #include "gui/menu_item/envelope/segment.h"
+#include "gui/menu_item/eq/eq_unpatched_param.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/filter/mode.h"
 #include "gui/menu_item/filter/param.h"
@@ -298,11 +298,11 @@ arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD
 
 // Arp: Basic
 HorizontalMenu arpBasicMenu{
-    STRING_FOR_BASIC, {&arpGateMenu, &arpSyncMenu, &arpRateMenu}, HorizontalMenu::Layout::FIXED};
+    STRING_FOR_BASIC, {&arpGateMenu, &arpRateMenu, &arpSyncMenu}, HorizontalMenu::Layout::FIXED};
 HorizontalMenu arpBasicMenuKit{
-    STRING_FOR_BASIC, {&arpGateMenu, &arpSyncMenu, &arpKitRateMenu}, HorizontalMenu::Layout::FIXED};
+    STRING_FOR_BASIC, {&arpGateMenu, &arpKitRateMenu, &arpSyncMenu}, HorizontalMenu::Layout::FIXED};
 HorizontalMenu arpBasicMenuMIDIOrCV{
-    STRING_FOR_BASIC, {&arpGateMenuMIDIOrCV, &arpSyncMenu, &arpRateMenuMIDIOrCV}, HorizontalMenu::Layout::FIXED};
+    STRING_FOR_BASIC, {&arpGateMenuMIDIOrCV, &arpRateMenuMIDIOrCV, &arpSyncMenu}, HorizontalMenu::Layout::FIXED};
 
 // Arp: Pattern
 HorizontalMenu arpPatternMenu{STRING_FOR_PATTERN,
@@ -428,14 +428,14 @@ lfo::Type lfo1TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO1_TYPE, LFO1_ID};
 lfo::Rate lfo1RateMenu{STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ_1, LFO1_ID};
 lfo::Sync lfo1SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO1_SYNC, LFO1_ID};
 
-HorizontalMenu lfo1Menu{STRING_FOR_LFO1, {&lfo1TypeMenu, &lfo1SyncMenu, &lfo1RateMenu}, HorizontalMenu::Layout::FIXED};
+HorizontalMenu lfo1Menu{STRING_FOR_LFO1, {&lfo1TypeMenu, &lfo1RateMenu, &lfo1SyncMenu}, HorizontalMenu::Layout::FIXED};
 
 // LFO2 menu ---------------------------------------------------------------------------------
 lfo::Type lfo2TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO2_TYPE, LFO2_ID};
 lfo::Rate lfo2RateMenu{STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ_1, LFO2_ID};
 lfo::Sync lfo2SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO2_SYNC, LFO2_ID};
 
-HorizontalMenu lfo2Menu{STRING_FOR_LFO2, {&lfo2TypeMenu, &lfo2SyncMenu, &lfo2RateMenu}, HorizontalMenu::Layout::FIXED};
+HorizontalMenu lfo2Menu{STRING_FOR_LFO2, {&lfo2TypeMenu, &lfo2RateMenu, &lfo2SyncMenu}, HorizontalMenu::Layout::FIXED};
 
 // LFO3 menu ---------------------------------------------------------------------------------
 
@@ -443,14 +443,14 @@ lfo::Type lfo3TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO3_TYPE, LFO3_ID};
 lfo::Rate lfo3RateMenu{STRING_FOR_RATE, STRING_FOR_LFO3_RATE, params::GLOBAL_LFO_FREQ_2, LFO3_ID};
 lfo::Sync lfo3SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO3_SYNC, LFO3_ID};
 
-HorizontalMenu lfo3Menu{STRING_FOR_LFO3, {&lfo3TypeMenu, &lfo3SyncMenu, &lfo3RateMenu}, HorizontalMenu::Layout::FIXED};
+HorizontalMenu lfo3Menu{STRING_FOR_LFO3, {&lfo3TypeMenu, &lfo3RateMenu, &lfo3SyncMenu}, HorizontalMenu::Layout::FIXED};
 
 // LFO4 menu ---------------------------------------------------------------------------------
 lfo::Type lfo4TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO4_TYPE, LFO4_ID};
 lfo::Rate lfo4RateMenu{STRING_FOR_RATE, STRING_FOR_LFO4_RATE, params::LOCAL_LFO_LOCAL_FREQ_2, LFO4_ID};
 lfo::Sync lfo4SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO4_SYNC, LFO4_ID};
 
-HorizontalMenu lfo4Menu{STRING_FOR_LFO4, {&lfo4TypeMenu, &lfo4SyncMenu, &lfo4RateMenu}, HorizontalMenu::Layout::FIXED};
+HorizontalMenu lfo4Menu{STRING_FOR_LFO4, {&lfo4TypeMenu, &lfo4RateMenu, &lfo4SyncMenu}, HorizontalMenu::Layout::FIXED};
 
 // Mod FX ----------------------------------------------------------------------------------
 mod_fx::Type modFXTypeMenu{STRING_FOR_TYPE, STRING_FOR_MODFX_TYPE};
@@ -473,15 +473,17 @@ Submenu modFXMenu{
 // EQ -------------------------------------------------------------------------------------
 eq::EqUnpatchedParam bassMenu{STRING_FOR_BASS, params::UNPATCHED_BASS};
 eq::EqUnpatchedParam trebleMenu{STRING_FOR_TREBLE, params::UNPATCHED_TREBLE};
-eq::EqUnpatchedParam bassFreqMenu{STRING_FOR_BASS_FREQUENCY, STRING_FOR_BASS_FREQUENCY_SHORT, params::UNPATCHED_BASS_FREQ};
-eq::EqUnpatchedParam trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY, STRING_FOR_TREBLE_FREQUENCY_SHORT, params::UNPATCHED_TREBLE_FREQ};
+eq::EqUnpatchedParam bassFreqMenu{STRING_FOR_BASS_FREQUENCY, STRING_FOR_BASS_FREQUENCY_SHORT,
+                                  params::UNPATCHED_BASS_FREQ};
+eq::EqUnpatchedParam trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY, STRING_FOR_TREBLE_FREQUENCY_SHORT,
+                                    params::UNPATCHED_TREBLE_FREQ};
 
 HorizontalMenu eqMenu{
     STRING_FOR_EQ,
     {
         &bassMenu,
-		&trebleMenu,
-		&bassFreqMenu,
+        &trebleMenu,
+        &bassFreqMenu,
         &trebleFreqMenu,
     },
 };
@@ -718,7 +720,7 @@ Submenu globalFiltersMenu{
 
 // EQ Menu
 
-Submenu globalEQMenu{
+HorizontalMenu globalEQMenu{
     STRING_FOR_EQ,
     {
         &bassMenu,
