@@ -68,8 +68,8 @@
 #include "gui/menu_item/dx/global_params.h"
 #include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/edit_name.h"
-#include "gui/menu_item/eq/eq_unpatched_param.h"
 #include "gui/menu_item/envelope/segment.h"
+#include "gui/menu_item/eq/eq_unpatched_param.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/filter/mode.h"
 #include "gui/menu_item/filter/param.h"
@@ -473,15 +473,17 @@ Submenu modFXMenu{
 // EQ -------------------------------------------------------------------------------------
 eq::EqUnpatchedParam bassMenu{STRING_FOR_BASS, params::UNPATCHED_BASS};
 eq::EqUnpatchedParam trebleMenu{STRING_FOR_TREBLE, params::UNPATCHED_TREBLE};
-eq::EqUnpatchedParam bassFreqMenu{STRING_FOR_BASS_FREQUENCY, STRING_FOR_BASS_FREQUENCY_SHORT, params::UNPATCHED_BASS_FREQ};
-eq::EqUnpatchedParam trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY, STRING_FOR_TREBLE_FREQUENCY_SHORT, params::UNPATCHED_TREBLE_FREQ};
+eq::EqUnpatchedParam bassFreqMenu{STRING_FOR_BASS_FREQUENCY, STRING_FOR_BASS_FREQUENCY_SHORT,
+                                  params::UNPATCHED_BASS_FREQ};
+eq::EqUnpatchedParam trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY, STRING_FOR_TREBLE_FREQUENCY_SHORT,
+                                    params::UNPATCHED_TREBLE_FREQ};
 
 HorizontalMenu eqMenu{
     STRING_FOR_EQ,
     {
         &bassMenu,
-		&trebleMenu,
-		&bassFreqMenu,
+        &trebleMenu,
+        &bassFreqMenu,
         &trebleFreqMenu,
     },
 };
@@ -583,7 +585,7 @@ reverb::Model reverbModelMenu{STRING_FOR_MODEL};
 reverb::HPF reverbHPFMenu{STRING_FOR_HPF};
 reverb::LPF reverbLPFMenu{STRING_FOR_LPF};
 
-Submenu reverbMenu{
+HorizontalMenu reverbMenu{
     STRING_FOR_REVERB,
     {
         &reverbAmountMenu,
@@ -609,8 +611,8 @@ HorizontalMenu soundDistortionMenu{
     STRING_FOR_DISTORTION,
     {
         &clippingMenu,
-        &srrMenu,
         &bitcrushMenu,
+		&srrMenu,
         &foldMenu,
     },
 };
@@ -1688,14 +1690,14 @@ PLACE_SDRAM_DATA Submenu* parentsForSoundShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &soundDistortionMenu,   &soundDistortionMenu,     &soundDistortionMenu,                           },
-    {nullptr,                 nullptr,                 nullptr,                        &unisonMenu,                    &unisonMenu,          nullptr,                nullptr,                  &soundDistortionMenu,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &soundDistortionMenu,   &soundDistortionMenu,     &soundDistortionMenu,              },
+    {nullptr,                 nullptr,                 nullptr,                        &unisonMenu,                    &unisonMenu,          nullptr,                nullptr,                  &soundDistortionMenu,              },
     {&env0Menu,               &env0Menu,               &env0Menu,                      &env0Menu,                      &lpfMenu,             &lpfMenu,               &lpfMenu,                 &lpfMenu,                          },
     {&env1Menu,               &env1Menu,               &env1Menu,                      &env1Menu,                      &hpfMenu,             &hpfMenu,               &hpfMenu,                 &hpfMenu,                          },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &eqMenu,                  &eqMenu,                           },
     {&arpBasicMenu,           &arpBasicMenu,           &arpBasicMenu,                  &arpPatternMenu,                &arpPresetAndRandomizerMenu, nullptr,         &eqMenu,                  &eqMenu,                           },
     {&lfo1Menu,               &lfo1Menu,               &lfo1Menu,                      nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
-    {&lfo2Menu,               &lfo2Menu,               &lfo2Menu,                      nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {&lfo2Menu,               &lfo2Menu,               &lfo2Menu,                      &reverbMenu,                    &reverbMenu,          &reverbMenu,            &reverbMenu,                  &reverbMenu,                       },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 &globalRandomizerMenu,   nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
 };
