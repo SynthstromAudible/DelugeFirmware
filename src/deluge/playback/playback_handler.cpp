@@ -2811,7 +2811,7 @@ void PlaybackHandler::programChangeReceived(MIDICable& cable, int32_t channel, i
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    modelStack->addTimelineCounter(thisOutput->getActiveClip());
 
-			thisOutput->offerReceivedPC(modelStackWithTimelineCounter, fromDevice, channel, program, doingMidiThru);
+			thisOutput->offerReceivedPC(modelStackWithTimelineCounter, cable, channel, program, doingMidiThru);
 		}
 	}
 }
