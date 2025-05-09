@@ -159,7 +159,7 @@ void HorizontalMenu::drawPixelsForOled() {
 		int32_t boxWidth = (totalWidth * columnSpan) / totalSpanBlocks;
 
 		if (currentX + boxWidth > totalWidth) {
-			// Overflow occured: the item doesn't fit in the current row
+			// Overflow occured: the item doesn't fit in the current page
 			FREEZE_WITH_ERROR("DHOR");
 		}
 

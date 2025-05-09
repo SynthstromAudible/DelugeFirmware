@@ -68,6 +68,7 @@
 #include "gui/menu_item/dx/global_params.h"
 #include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/edit_name.h"
+#include "gui/menu_item/eq/eq_unpatched_param.h"
 #include "gui/menu_item/envelope/segment.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/filter/mode.h"
@@ -470,10 +471,10 @@ Submenu modFXMenu{
 };
 
 // EQ -------------------------------------------------------------------------------------
-UnpatchedParam bassMenu{STRING_FOR_BASS, params::UNPATCHED_BASS};
-UnpatchedParam trebleMenu{STRING_FOR_TREBLE, params::UNPATCHED_TREBLE};
-UnpatchedParam bassFreqMenu{STRING_FOR_BASS_FREQUENCY_SHORT, STRING_FOR_BASS_FREQUENCY, params::UNPATCHED_BASS_FREQ};
-UnpatchedParam trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY_SHORT, STRING_FOR_TREBLE_FREQUENCY, params::UNPATCHED_TREBLE_FREQ};
+eq::EqUnpatchedParam bassMenu{STRING_FOR_BASS, params::UNPATCHED_BASS};
+eq::EqUnpatchedParam trebleMenu{STRING_FOR_TREBLE, params::UNPATCHED_TREBLE};
+eq::EqUnpatchedParam bassFreqMenu{STRING_FOR_BASS_FREQUENCY, STRING_FOR_BASS_FREQUENCY_SHORT, params::UNPATCHED_BASS_FREQ};
+eq::EqUnpatchedParam trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY, STRING_FOR_TREBLE_FREQUENCY_SHORT, params::UNPATCHED_TREBLE_FREQ};
 
 HorizontalMenu eqMenu{
     STRING_FOR_EQ,

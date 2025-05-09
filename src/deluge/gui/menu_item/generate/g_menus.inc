@@ -43,9 +43,9 @@ std::array<MenuItem*, 6> child3 = {
     &compBlend,
 };
 Submenu audioCompMenu{STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR, child3};
-unison::CountToStereoSpread numUnisonMenu{STRING_FOR_UNISON_NUMBER_SHORT, STRING_FOR_UNISON_NUMBER};
-unison::Detune unisonDetuneMenu{STRING_FOR_UNISON_DETUNE_SHORT, STRING_FOR_UNISON_DETUNE};
-unison::StereoSpread unison::stereoSpreadMenu{STRING_FOR_UNISON_STEREO_SPREAD_SHORT, STRING_FOR_UNISON_STEREO_SPREAD};
+unison::CountToStereoSpread numUnisonMenu{STRING_FOR_UNISON_NUMBER};
+unison::Detune unisonDetuneMenu{STRING_FOR_UNISON_DETUNE};
+unison::StereoSpread unison::stereoSpreadMenu{STRING_FOR_UNISON_STEREO_SPREAD};
 std::array<MenuItem*, 3> child4 = {
     &numUnisonMenu,
     &unisonDetuneMenu,
