@@ -359,7 +359,7 @@ ActionResult HorizontalMenu::selectHorizontalMenuItemOnVisiblePage(int32_t itemN
 			}
 
 			// update currently selected item
-			current_item_ = it;
+			current_item_ = std::find(items.begin(), items.end(), *it);
 			// re-render display
 			updateDisplay();
 			// update grid shortcuts for currently selected menu item
