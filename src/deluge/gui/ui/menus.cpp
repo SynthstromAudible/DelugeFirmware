@@ -585,6 +585,21 @@ reverb::Model reverbModelMenu{STRING_FOR_MODEL};
 reverb::HPF reverbHPFMenu{STRING_FOR_HPF};
 reverb::LPF reverbLPFMenu{STRING_FOR_LPF};
 
+HorizontalMenu reverbMenu{
+    STRING_FOR_REVERB,
+    {
+        &reverbModelMenu,
+        &reverbRoomSizeMenu,
+        &reverbDampingMenu,
+        &reverbWidthMenu,
+        &reverbAmountMenu,
+        &reverbPanMenu,
+        &reverbHPFMenu,
+        &reverbLPFMenu,
+        &reverbSidechainMenu,
+    },
+};
+
 // FX ----------------------------------------------------------------------------------------
 
 fx::Clipping clippingMenu{STRING_FOR_SATURATION};
@@ -1363,7 +1378,7 @@ Submenu soundFXMenu{
     {
         &eqMenu,
         &delayMenu,
-        &globalReverbMenu,
+        &reverbMenu,
         &stutterMenu,
         &modFXMenu,
         &soundDistortionMenu,
@@ -1676,7 +1691,7 @@ PLACE_SDRAM_DATA Submenu* parentsForSoundShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &eqMenu,                  &eqMenu,                           },
     {&arpBasicMenu,           &arpBasicMenu,           &arpBasicMenu,                  &arpPatternMenu,                &arpPresetAndRandomizerMenu, nullptr,         &eqMenu,                  &eqMenu,                           },
     {&lfo1Menu,               &lfo1Menu,               &lfo1Menu,                      nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
-    {&lfo2Menu,               &lfo2Menu,               &lfo2Menu,                      &globalReverbMenu,              &globalReverbMenu,    &globalReverbMenu,      &globalReverbMenu,        &globalReverbMenu,                 },
+    {&lfo2Menu,               &lfo2Menu,               &lfo2Menu,                      &reverbMenu,              	   &reverbMenu,    	 	 &reverbMenu,      		 &reverbMenu,        	   &reverbMenu,                 	  },
     {&delayMenu,              &delayMenu,              &delayMenu,                     &delayMenu,                     &delayMenu,           nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 &globalRandomizerMenu,   nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
 };

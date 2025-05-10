@@ -341,16 +341,24 @@ ActionResult HorizontalMenu::buttonAction(deluge::hid::Button b, bool on, bool i
 }
 
 ActionResult HorizontalMenu::switchVisiblePage(int32_t direction) {
-	const auto currentPage = paging.getVisiblePage();
-	const auto targetPageNumber = currentPage.number + direction;
+	int32_t targetPageNumber = paging.visiblePageNumber + direction;
 
-	if (targetPageNumber >= 0 && targetPageNumber < paging.pages.size()) {
-		const auto& targetPage = paging.pages[targetPageNumber];
-		current_item_ = std::find(items.begin(), items.end(), *targetPage.items.begin());
-		updateDisplay();
-		// update automation view editor parameter selection if it is currently open
-		(*current_item_)->updateAutomationViewParameter();
+	// Adjust targetPageNumber to cycle through pages
+	if (targetPageNumber < 0) {
+		// Wrap to the last page
+		targetPageNumber = paging.pages.size() - 1;
 	}
+	else if (targetPageNumber >= paging.pages.size()) {
+		// Wrap to the first page
+		targetPageNumber = 0;
+	}
+
+	const auto& targetPage = paging.pages[targetPageNumber];
+	current_item_ = std::find(items.begin(), items.end(), *targetPage.items.begin());
+	updateDisplay();
+	// Update automation view editor parameter selection if it is currently open
+	(*current_item_)->updateAutomationViewParameter();
+
 	return ActionResult::DEALT_WITH;
 }
 
