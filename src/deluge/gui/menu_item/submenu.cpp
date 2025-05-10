@@ -360,7 +360,7 @@ ActionResult HorizontalMenu::selectHorizontalMenuItemOnVisiblePage(int32_t itemN
 	return ActionResult::DEALT_WITH;
 }
 
-HorizontalMenuPaging HorizontalMenu::calculateHorizontalMenuPaging() {
+HorizontalMenu::Paging HorizontalMenu::calculateHorizontalMenuPaging() {
 	deluge::vector<MenuItem*> currentPageItems;
 	int32_t currentPageNumber = 0;
 	int32_t currentPageSpan = 0;

@@ -78,18 +78,18 @@ private:
 	bool shouldForwardButtons();
 };
 
-class HorizontalMenuPaging {
-public:
-	deluge::vector<MenuItem*> currentPageItems;
-	const int32_t currentPageNumber;
-	const int32_t currentPageSpan;
-	const int32_t currentItemPositionOnPage;
-	const int32_t pagesCount;
-};
-
 class HorizontalMenu : public Submenu {
 public:
 	enum Layout { FIXED, DYNAMIC };
+
+	class Paging {
+	public:
+		const deluge::vector<MenuItem*> currentPageItems;
+		const int32_t currentPageNumber;
+		const int32_t currentPageSpan;
+		const int32_t currentItemPositionOnPage;
+		const int32_t pagesCount;
+	};
 
 	using Submenu::Submenu;
 
@@ -106,7 +106,7 @@ public:
 private:
 	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber);
 	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
-	HorizontalMenuPaging calculateHorizontalMenuPaging();
+	HorizontalMenu::Paging calculateHorizontalMenuPaging();
 	int32_t lastSelectedHorizontalMenuItemPosition = kNoSelection;
 	Layout horizontalMenuLayout = Layout::DYNAMIC;
 };
