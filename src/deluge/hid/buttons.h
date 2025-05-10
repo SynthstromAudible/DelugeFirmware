@@ -1,4 +1,3 @@
-
 /*
  * Copyright © 2014-2023 Synthstrom Audible Limited
  *
