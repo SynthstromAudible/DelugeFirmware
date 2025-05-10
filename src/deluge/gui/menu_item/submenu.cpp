@@ -108,55 +108,31 @@ void HorizontalMenu::drawPixelsForOled() {
 
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
-	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
-	baseY += OLED_MAIN_TOPMOST_PIXEL;
-
-	const auto showItem = [this](MenuItem* item) {
-		return horizontalMenuLayout == Layout::FIXED || isItemRelevant(item);
-	};
-
-	int32_t nTotal = std::count_if(items.begin(), items.end(), showItem);
-	int32_t nBefore = std::count_if(items.begin(), current_item_, showItem);
-
-	int32_t pageSize = std::min<int32_t>(nTotal, 4);
-	int32_t pageCount = std::ceil(nTotal / (float)pageSize);
-	int32_t currentPage = nBefore / pageSize;
-	int32_t posOnPage = mod(nBefore, pageSize);
-	int32_t pageStart = currentPage * pageSize;
+	auto paging = calculateHorizontalMenuPaging();
 
 	// did the selected horizontal menu item position change?
 	// if yes, update the instrument LED corresponding to that menu item position
 	// store the last selected horizontal menu item position so that we don't update the LED's more than we have to
+	auto posOnPage = paging.currentItemPositionOnPage;
 	if (posOnPage != lastSelectedHorizontalMenuItemPosition) {
 		lastSelectedHorizontalMenuItemPosition = posOnPage;
 		updateSelectedHorizontalMenuItemLED(posOnPage);
 	}
 
-	// Scan to beginning of the visible page:
-	auto it = std::find_if(items.begin(), items.end(), showItem);
-	for (size_t n = 0; n < pageStart; n++) {
-		it = std::find_if(std::next(it), items.end(), showItem);
-	}
-
+	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
+	baseY += OLED_MAIN_TOPMOST_PIXEL;
 	int32_t boxHeight = OLED_MAIN_VISIBLE_HEIGHT - baseY;
 	int32_t totalWidth = OLED_MAIN_WIDTH_PIXELS;
-	int32_t totalSpanBlocks = std::accumulate(it, items.end(), 0, [&, count = 0](int32_t sum, MenuItem* item) mutable {
-		if (count < pageSize && showItem(item)) {
-			++count;
-			return sum + item->getColumnSpan();
-		}
-		return sum;
-	});
-
-	// Render the page
 	int32_t currentX = 0;
 	int32_t selectedStartX = 0;
 	int32_t selectedWidth = 0;
 
-	for (size_t n = 0; n < pageSize && it != items.end(); n++) {
+	auto it = paging.currentPageItems.begin();
+
+	// Render the page
+	for (size_t n = 0; it != paging.currentPageItems.end(); n++) {
 		MenuItem* item = *it;
-		int32_t columnSpan = item->getColumnSpan();
-		int32_t boxWidth = (totalWidth * columnSpan) / totalSpanBlocks;
+		int32_t boxWidth = (totalWidth * item->getColumnSpan()) / paging.currentPageSpan;
 
 		if (currentX + boxWidth > totalWidth) {
 			// Overflow occured: the item doesn't fit in the current page
@@ -184,23 +160,22 @@ void HorizontalMenu::drawPixelsForOled() {
 		}
 
 		currentX += boxWidth;
-		it = std::find_if(std::next(it), items.end(), showItem);
+		it = std::next(it);
 	}
 
 	// Render the page counters
-	if (pageCount > 1) {
+	if (paging.pagesCount > 1) {
 		int32_t extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
 		int32_t pageY = extraY + OLED_MAIN_TOPMOST_PIXEL;
-
 		int32_t endX = OLED_MAIN_WIDTH_PIXELS;
 
-		for (int32_t p = pageCount; p > 0; p--) {
+		for (int32_t p = paging.pagesCount; p > 0; p--) {
 			DEF_STACK_STRING_BUF(pageNum, 2);
 			pageNum.appendInt(p);
 			int32_t w = image.getStringWidthInPixels(pageNum.c_str(), kTextSpacingY);
 			image.drawString(pageNum.c_str(), endX - w, pageY, kTextSpacingX, kTextSpacingY);
 			endX -= w + 1;
-			if (p - 1 == currentPage) {
+			if (p - 1 == paging.currentPageNumber) {
 				image.invertArea(endX, w + 1, pageY, pageY + kTextSpacingY);
 			}
 		}
@@ -371,27 +346,11 @@ ActionResult HorizontalMenu::buttonAction(deluge::hid::Button b, bool on, bool i
 
 /// Select a specific menu item on the currently displayed horizontal menu page
 ActionResult HorizontalMenu::selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber) {
-	const auto showItem = [this](MenuItem* item) {
-		return horizontalMenuLayout == Layout::FIXED || isItemRelevant(item);
-	};
-
-	int32_t nTotal = std::count_if(items.begin(), items.end(), showItem);
-	int32_t nBefore = std::count_if(items.begin(), current_item_, showItem);
-
-	int32_t pageSize = std::min<int32_t>(nTotal, 4);
-	int32_t pageCount = std::ceil(nTotal / (float)pageSize);
-	int32_t currentPage = nBefore / pageSize;
-	int32_t posOnPage = mod(nBefore, pageSize);
-	int32_t pageStart = currentPage * pageSize;
-
-	// Scan to beginning of the visible page:
-	auto it = std::find_if(items.begin(), items.end(), showItem);
-	for (size_t n = 0; n < pageStart; n++) {
-		it = std::find_if(std::next(it), items.end(), showItem);
-	}
+	auto paging = calculateHorizontalMenuPaging();
+	auto it = paging.currentPageItems.begin();
 
 	// Find item you're looking for by iterating through all items on the current page
-	for (size_t n = 0; n < pageSize && it != items.end(); n++) {
+	for (size_t n = 0; n < paging.currentPageItems.size() && it != paging.currentPageItems.end(); n++) {
 		// is this the item we're looking for?
 		if (n == itemNumber) {
 			if (horizontalMenuLayout == Layout::FIXED && !isItemRelevant(*it)) {
@@ -409,10 +368,67 @@ ActionResult HorizontalMenu::selectHorizontalMenuItemOnVisiblePage(int32_t itemN
 			(*current_item_)->updateAutomationViewParameter();
 			break;
 		}
-		// if we haven't found item we're looking for, check the next relevant item.
-		it = std::find_if(std::next(it), items.end(), showItem);
+		// if we haven't found item we're looking for, check the next item.
+		it = std::next(it);
 	}
 	return ActionResult::DEALT_WITH;
+}
+
+HorizontalMenuPaging HorizontalMenu::calculateHorizontalMenuPaging() {
+	deluge::vector<MenuItem*> currentPageItems;
+	int32_t currentPageNumber = 0;
+	int32_t currentPageSpan = 0;
+	int32_t currentItemPositionOnPage = 0;
+	int32_t pagesCount = 1;
+
+	std::vector<MenuItem*> relevantItems;
+	std::ranges::copy_if(items, std::back_inserter(relevantItems), [this](MenuItem* item) {
+		return horizontalMenuLayout == HorizontalMenu::Layout::FIXED || isItemRelevant(item);
+	});
+
+	struct ItemOnPage {
+		MenuItem* item;
+		int32_t pageNumber;
+	};
+
+	int32_t totalSpan = 0;
+	deluge::vector<ItemOnPage> itemsOnPage;
+
+	// For each item calc which page it belongs to, and calc total page count
+	for (auto item : relevantItems) {
+		int32_t itemSpan = item->getColumnSpan();
+		if (totalSpan + itemSpan > 4) {
+			++pagesCount;
+			totalSpan = 0;
+		}
+		itemsOnPage.push_back({item, pagesCount - 1});
+		totalSpan += itemSpan;
+	}
+
+	// Find the page number of the selected item
+	for (auto& itemOnPage : itemsOnPage) {
+		if (itemOnPage.item == *current_item_) {
+			currentPageNumber = itemOnPage.pageNumber;
+			break;
+		}
+	}
+
+	// Find current page items & total span
+	for (auto& itemOnPage : itemsOnPage) {
+		if (itemOnPage.pageNumber == currentPageNumber) {
+			currentPageItems.push_back(itemOnPage.item);
+			currentPageSpan += itemOnPage.item->getColumnSpan();
+		}
+	}
+
+	// Find current item position on page
+	for (int32_t i = 0; i < currentPageItems.size(); i++) {
+		if (currentPageItems[i] == *current_item_) {
+			currentItemPositionOnPage = i;
+			break;
+		}
+	}
+	return {currentPageItems, currentPageNumber, currentPageSpan, currentItemPositionOnPage, pagesCount};
 }
 
 /// When updating the selected horizontal menu item, you need to refresh the lit instrument LED's
