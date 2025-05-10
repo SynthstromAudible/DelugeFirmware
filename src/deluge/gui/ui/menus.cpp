@@ -1247,15 +1247,9 @@ Submenu defaultClipTypeMenu{STRING_FOR_DEFAULT_CLIP_TYPE,
                                 &defaultUseLastClipTypeMenu,
                             }};
 
-ToggleBool defaultAlternativeSelectEncoderBehaviour{STRING_FOR_DEFAULT_ALTERNATIVE_SELECT_ENCODER_BEHAVIOUR,
-                                                    STRING_FOR_DEFAULT_ALTERNATIVE_SELECT_ENCODER_BEHAVIOUR,
-                                                    FlashStorage::defaultAlternativeSelectEncoderBehaviour};
-
-Submenu defaultHorizontalMenu{STRING_FOR_DEFAULT_HORIZONTAL_MENU, {&defaultAlternativeSelectEncoderBehaviour}};
-
 Submenu defaultUI{
     STRING_FOR_DEFAULT_UI,
-    {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu, &defaultHorizontalMenu},
+    {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu},
 };
 
 ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,
