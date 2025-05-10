@@ -81,22 +81,26 @@ private:
 class HorizontalMenu : public Submenu {
 public:
 	enum Layout { FIXED, DYNAMIC };
-
-	class Paging {
+	struct Page {
 	public:
-		const deluge::vector<MenuItem*> currentPageItems;
-		const int32_t currentPageNumber;
-		const int32_t currentPageSpan;
-		const int32_t currentItemPositionOnPage;
-		const int32_t pagesCount;
+		int32_t number;
+		int32_t totalColumnSpan;
+		std::vector<MenuItem*> items;
+	};
+	struct Paging {
+	public:
+		int32_t visiblePageNumber;
+		int32_t selectedItemPositionOnPage;
+		std::vector<Page> pages;
+		Page& getVisiblePage() { return pages[visiblePageNumber]; }
 	};
 
 	using Submenu::Submenu;
 
 	HorizontalMenu(l10n::String newName, std::span<MenuItem*> newItems, Layout layout)
-	    : Submenu(newName, newItems), horizontalMenuLayout(layout) {}
+	    : Submenu(newName, newItems), horizontalMenuLayout(layout), paging{} {}
 	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, Layout layout)
-	    : Submenu(newName, newItems), horizontalMenuLayout(layout) {}
+	    : Submenu(newName, newItems), horizontalMenuLayout(layout), paging{} {}
 
 	RenderingStyle renderingStyle() override;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
@@ -107,6 +111,7 @@ private:
 	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber);
 	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
 	HorizontalMenu::Paging calculateHorizontalMenuPaging();
+	HorizontalMenu::Paging paging;
 	int32_t lastSelectedHorizontalMenuItemPosition = kNoSelection;
 	Layout horizontalMenuLayout = Layout::DYNAMIC;
 };
