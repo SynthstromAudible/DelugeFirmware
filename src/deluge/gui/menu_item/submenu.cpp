@@ -341,15 +341,18 @@ ActionResult HorizontalMenu::buttonAction(deluge::hid::Button b, bool on, bool i
 }
 
 ActionResult HorizontalMenu::switchVisiblePage(int32_t direction) {
+	if (paging.pages.size() <= 1) {
+		// No need to switch pages if there's only one page
+		return ActionResult::DEALT_WITH;
+	}
+
 	int32_t targetPageNumber = paging.visiblePageNumber + direction;
 
 	// Adjust targetPageNumber to cycle through pages
 	if (targetPageNumber < 0) {
-		// Wrap to the last page
 		targetPageNumber = paging.pages.size() - 1;
 	}
 	else if (targetPageNumber >= paging.pages.size()) {
-		// Wrap to the first page
 		targetPageNumber = 0;
 	}
 
