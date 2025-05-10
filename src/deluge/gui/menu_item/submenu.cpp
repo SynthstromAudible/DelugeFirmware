@@ -251,23 +251,9 @@ void Submenu::selectEncoderAction(int32_t offset) {
 	bool horizontal = renderingStyle() == RenderingStyle::HORIZONTAL;
 	bool selectButtonPressed = Buttons::selectButtonPressUsedUp = Buttons::isButtonPressed(hid::button::SELECT_ENC);
 
-	/* turning select encoder while any of these conditions are true can change horizontal menu value
-	    i) Shift Button is stuck; or
-	    ii) Audition pad pressed; or
-	    iii) Horizontal menu alternative select encoder behaviour is enabled
-	*/
-	bool horizontalMenuValueChangeModifierEnabled = Buttons::isShiftStuck() || isUIModeActive(UI_MODE_AUDITIONING)
-	                                                || FlashStorage::defaultAlternativeSelectEncoderBehaviour;
-
-	// change horizontal menu value when either:
-	// A) You're not pressing select encoder AND value change modifier is true
-	// B) You're pressing select encoder AND value change modifier is disabled
-	bool changeHorizontalMenuValue = (!selectButtonPressed && horizontalMenuValueChangeModifierEnabled)
-	                                 || (selectButtonPressed && !horizontalMenuValueChangeModifierEnabled);
-
 	MenuItem* child = *current_item_;
 
-	if (horizontal && !child->isSubmenu() && changeHorizontalMenuValue) {
+	if (horizontal && !child->isSubmenu() && !selectButtonPressed) {
 		child->selectEncoderAction(offset);
 		focusChild(child);
 		// We don't want to return true for selectEncoderEditsInstrument(), since
