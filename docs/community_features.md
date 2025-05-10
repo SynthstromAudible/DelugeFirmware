@@ -38,18 +38,9 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - LPF and HPF.
   - LFO 1-4.
   - Arpegiattor
-- Horizontal Menu controls. There are two different behaviours that can be toggled between to edit values and select menu items within the horizontal menu. You can toggle between them by going to the `SETTINGS > DEFAULTS -> UI -> HORIZONTAL MENU (HORZ)` and toggling `Alternative Select Behaviour (SELE)` on or off.
-  - Note: regardless of the behaviour toggle selected, you will always be able to change the selected horizontal menu's item's value by turning the select encoder when you're holding audition pad or sticky shift is enabled.
-    - Whenever you're holding audition pad or sticky shift is enabled, you can change the selected horizontal menu by `Pressing + Turning the select encoder`
-  - If you're not holding an audition pad or sticky shift is disabled, then the following select behaviours apply.
-  - With `Alternative Select Behaviour (SELE)` DISABLED:
-    - `Turn select encoder` to change the selected menu item
-    - `Press + Turn select encoder` to change the value of the selected menu item
-  - With `Alternative Select Behaviour (SELE)` ENABLED:
-    - `Turn select encoder` to change the value of the selected menu item
-    - `Press + Turn select encoder` to change the selected menu item
-  - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
-    - When in a Horizontal menu, the selected instrument LED corresponding to the Horizontal Menu item selected will light up
+- Horizontal Menu controls.
+  - `Turn select encoder` to change the value of the selected menu item
+  - `Press + Turn select encoder` to change the selected menu item
 
 #### 2.3 Favourites
 A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UI -> KEYBOARD -> FAVOURITES`.
