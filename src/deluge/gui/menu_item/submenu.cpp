@@ -313,6 +313,10 @@ ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 ActionResult HorizontalMenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
+	if (!on) {
+		return Submenu::buttonAction(b, on, inCardRoutine);
+	}
+
 	// in horizontal menu, use SYNTH / KIT / MIDI / CV buttons to select menu item
 	// in currently displayed horizontal menu page
 	if (b == SYNTH) {
@@ -327,9 +331,27 @@ ActionResult HorizontalMenu::buttonAction(deluge::hid::Button b, bool on, bool i
 	else if (b == CV) {
 		return selectHorizontalMenuItemOnVisiblePage(3);
 	}
+	else if (b == CROSS_SCREEN_EDIT || b == SCALE_MODE) {
+		const auto direction = (b == CROSS_SCREEN_EDIT) ? 1 : -1;
+		return switchVisiblePage(direction);
+	}
 
 	// forward other button presses to be handled by parent
 	return Submenu::buttonAction(b, on, inCardRoutine);
+}
+
+ActionResult HorizontalMenu::switchVisiblePage(int32_t direction) {
+	const auto currentPage = paging.getVisiblePage();
+	const auto targetPageNumber = currentPage.number + direction;
+
+	if (targetPageNumber >= 0 && targetPageNumber < paging.pages.size()) {
+		const auto& targetPage = paging.pages[targetPageNumber];
+		current_item_ = std::find(items.begin(), items.end(), *targetPage.items.begin());
+		updateDisplay();
+		// update automation view editor parameter selection if it is currently open
+		(*current_item_)->updateAutomationViewParameter();
+	}
+	return ActionResult::DEALT_WITH;
 }
 
 /// Select a specific menu item on the currently displayed horizontal menu page
@@ -363,7 +385,7 @@ ActionResult HorizontalMenu::selectHorizontalMenuItemOnVisiblePage(int32_t itemN
 }
 
 HorizontalMenu::Paging HorizontalMenu::calculateHorizontalMenuPaging() {
-	std::vector<Page> pages;
+	std::vector<PageInfo> pages;
 
 	std::vector<MenuItem*> currentPageItems;
 	int32_t currentPageNumber = 0;
@@ -382,7 +404,7 @@ HorizontalMenu::Paging HorizontalMenu::calculateHorizontalMenuPaging() {
 
 		if (currentPageSpan + itemSpan > 4) {
 			// Finalize the current page
-			pages.push_back(Page{currentPageNumber, currentPageSpan, currentPageItems});
+			pages.push_back(PageInfo{currentPageNumber, currentPageSpan, currentPageItems});
 
 			// Start a new page
 			currentPageItems = {};
@@ -401,7 +423,7 @@ HorizontalMenu::Paging HorizontalMenu::calculateHorizontalMenuPaging() {
 
 	if (!currentPageItems.empty()) {
 		// Finalize the current page
-		pages.push_back(Page{currentPageNumber, currentPageSpan, currentPageItems});
+		pages.push_back(PageInfo{currentPageNumber, currentPageSpan, currentPageItems});
 	}
 
 	return Paging{visiblePageNumber, selectedItemPositionOnPage, pages};

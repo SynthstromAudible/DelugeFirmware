@@ -81,7 +81,7 @@ private:
 class HorizontalMenu : public Submenu {
 public:
 	enum Layout { FIXED, DYNAMIC };
-	struct Page {
+	struct PageInfo {
 	public:
 		int32_t number;
 		int32_t totalColumnSpan;
@@ -91,8 +91,8 @@ public:
 	public:
 		int32_t visiblePageNumber;
 		int32_t selectedItemPositionOnPage;
-		std::vector<Page> pages;
-		Page& getVisiblePage() { return pages[visiblePageNumber]; }
+		std::vector<PageInfo> pages;
+		PageInfo& getVisiblePage() { return pages[visiblePageNumber]; }
 	};
 
 	using Submenu::Submenu;
@@ -109,6 +109,7 @@ public:
 
 private:
 	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber);
+	ActionResult switchVisiblePage(int32_t direction);
 	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
 	HorizontalMenu::Paging calculateHorizontalMenuPaging();
 	HorizontalMenu::Paging paging;
