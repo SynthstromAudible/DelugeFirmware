@@ -1231,6 +1231,28 @@ const char* getParamName(ModFXType type, ModFXParam param) {
 	}
 	}
 }
+
+const char* getParamNameShort(ModFXType type, ModFXParam param) {
+	using enum deluge::l10n::String;
+	using namespace deluge;
+
+	if (type == ModFXType::GRAIN) {
+		switch (param) {
+			using enum deluge::l10n::String;
+		case ModFXParam::DEPTH:
+			return l10n::get(STRING_FOR_GRAIN_AMOUNT_SHORT);
+		case ModFXParam::FEEDBACK:
+			return l10n::get(STRING_FOR_GRAIN_RANDOMNESS_SHORT);
+		case ModFXParam::OFFSET:
+			return l10n::get(STRING_FOR_GRAIN_DENSITY_SHORT);
+		default:
+			return l10n::get(STRING_FOR_NONE);
+		}
+	}
+
+	return getParamName(type, param);
+}
+
 const char* modFXToString(ModFXType type) {
 	switch (type) {
 		using namespace deluge;
