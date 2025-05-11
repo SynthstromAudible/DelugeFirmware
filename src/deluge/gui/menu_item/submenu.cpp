@@ -110,6 +110,11 @@ void HorizontalMenu::drawPixelsForOled() {
 
 	paging = splitMenuItemsByPages();
 
+	// Lit the scale and cross-screen buttons LEDs to indicate that they can be used to switch between pages
+	const auto hasPages = paging.pages.size() > 1;
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, hasPages);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, hasPages);
+
 	// did the selected horizontal menu item position change?
 	// if yes, update the instrument LED corresponding to that menu item position
 	// store the last selected horizontal menu item position so that we don't update the LED's more than we have to
@@ -316,23 +321,20 @@ ActionResult HorizontalMenu::buttonAction(deluge::hid::Button b, bool on, bool i
 		return Submenu::buttonAction(b, on, inCardRoutine);
 	}
 
-	// in horizontal menu, use SYNTH / KIT / MIDI / CV buttons to select menu item
-	// in currently displayed horizontal menu page
-	if (b == SYNTH) {
+	// use SYNTH / KIT / MIDI / CV buttons to select menu item in currently displayed horizontal menu page
+	// use SCALE / CROSS SCREEN buttons to switch between pages
+	switch (b) {
+	case SYNTH:
 		return selectHorizontalMenuItemOnVisiblePage(0);
-	}
-	else if (b == KIT) {
+	case KIT:
 		return selectHorizontalMenuItemOnVisiblePage(1);
-	}
-	else if (b == MIDI) {
+	case MIDI:
 		return selectHorizontalMenuItemOnVisiblePage(2);
-	}
-	else if (b == CV) {
+	case CV:
 		return selectHorizontalMenuItemOnVisiblePage(3);
-	}
-	else if (b == CROSS_SCREEN_EDIT || b == SCALE_MODE) {
-		const auto direction = (b == CROSS_SCREEN_EDIT) ? 1 : -1;
-		return switchVisiblePage(direction);
+	case CROSS_SCREEN_EDIT:
+	case SCALE_MODE:
+		return switchVisiblePage(b == CROSS_SCREEN_EDIT ? 1 : -1);
 	}
 
 	// forward other button presses to be handled by parent
@@ -356,8 +358,10 @@ ActionResult HorizontalMenu::switchVisiblePage(int32_t direction) {
 	}
 
 	const auto& targetPage = paging.pages[targetPageNumber];
+	// update currently selected item
 	current_item_ = std::find(items.begin(), items.end(), *targetPage.items.begin());
 	updateDisplay();
+	updatePadLights();
 	// Update automation view editor parameter selection if it is currently open
 	(*current_item_)->updateAutomationViewParameter();
 
@@ -434,11 +438,6 @@ HorizontalMenu::Paging HorizontalMenu::splitMenuItemsByPages() {
 		// Finalize the current page
 		pages.push_back(PageInfo{currentPageNumber, currentPageSpan, currentPageItems});
 	}
-
-	// Lit the scale and cross-screen buttons LEDs to indicate that they can be used to switch between pages
-	const auto hasPages = pages.size() > 1;
-	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, hasPages);
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, hasPages);
 
 	return Paging{visiblePageNumber, selectedItemPositionOnPage, pages};
 }
