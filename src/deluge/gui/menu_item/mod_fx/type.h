@@ -66,7 +66,7 @@ public:
 		return modfx::getModNames();
 	}
 
-	int32_t getColumnSpan() const override {
+	[[nodiscard]] int32_t getColumnSpan() const override {
 		// Occupy the whole page in the horizontal menu
 		return 4;
 	}

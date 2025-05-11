@@ -22,12 +22,12 @@ namespace deluge::gui::menu_item::eq {
 class EqUnpatchedParam final : public UnpatchedParam {
 public:
 	EqUnpatchedParam(l10n::String name, l10n::String columnLabel, int32_t newP)
-	    : UnpatchedParam(name, newP), columnLabel{columnLabel} {}
-	EqUnpatchedParam(l10n::String name, int32_t newP) : UnpatchedParam(name, newP), columnLabel{name} {}
+	    : UnpatchedParam(name, newP), columnLabel_{columnLabel} {}
+	EqUnpatchedParam(l10n::String name, int32_t newP) : UnpatchedParam(name, newP), columnLabel_{name} {}
 
-	void getColumnLabel(StringBuf& label) override { label.append(deluge::l10n::getView(columnLabel)); }
+	void getColumnLabel(StringBuf& label) override { label.append(deluge::l10n::getView(columnLabel_)); }
 
 private:
-	l10n::String columnLabel;
+	l10n::String columnLabel_;
 };
 } // namespace deluge::gui::menu_item::eq

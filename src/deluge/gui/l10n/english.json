@@ -129,11 +129,11 @@
 
         "STRING_FOR_BASS": "BASS",
         "STRING_FOR_BASS_FREQUENCY": "Bass frequency",
-        "STRING_FOR_BASS_FREQUENCY_SHORT": "BFREQ",
+        "STRING_FOR_BASS_FREQUENCY_SHORT": "Bfreq",
 
         "STRING_FOR_TREBLE": "TREBLE",
         "STRING_FOR_TREBLE_FREQUENCY": "Treble frequency",
-        "STRING_FOR_TREBLE_FREQUENCY_SHORT": "TFREQ",
+        "STRING_FOR_TREBLE_FREQUENCY_SHORT": "Tfreq",
 
         "STRING_FOR_REVERB_AMOUNT": "Reverb amount",
 

@@ -465,8 +465,8 @@ HorizontalMenu modFXMenu{
     {
         &modFXTypeMenu,
         &modFXRateMenu,
-        &modFXFeedbackMenu,
         &modFXDepthMenu,
+        &modFXFeedbackMenu,
         &modFXOffsetMenu,
     },
 };
