@@ -15,32 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/unpatched_param.h"
-#include "gui/ui/sound_editor.h"
+#include "definitions_cxx.hpp"
+#include "gui/menu_item/patched_param/integer.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include "util/comparison.h"
 
 namespace deluge::gui::menu_item::mod_fx {
-
-class Offset final : public UnpatchedParam {
+class Rate final : public patched_param::Integer {
 public:
-	using UnpatchedParam::UnpatchedParam;
+	using patched_param::Integer::Integer;
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
-		return (
-		    util::one_of(modControllable->getModFXType(), {ModFXType::CHORUS, ModFXType::CHORUS_STEREO,
-		                                                   ModFXType::GRAIN, ModFXType::WARBLE, ModFXType::DIMENSION}));
-	}
-	[[nodiscard]] std::string_view getName() const override {
-		return modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::OFFSET);
-	}
-	[[nodiscard]] virtual std::string_view getTitle() const { return getName(); }
-
-	void getColumnLabel(StringBuf& label) override {
-		const auto& shortName =
-		    modfx::getParamNameShort(soundEditor.currentModControllable->getModFXType(), ModFXParam::OFFSET);
-		label.append(shortName);
+		return modControllable->getModFXType() != ModFXType::NONE;
 	}
 };
-
 } // namespace deluge::gui::menu_item::mod_fx

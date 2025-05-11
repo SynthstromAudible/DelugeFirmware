@@ -111,7 +111,7 @@ private:
 	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber);
 	ActionResult switchVisiblePage(int32_t direction);
 	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
-	HorizontalMenu::Paging calculateHorizontalMenuPaging();
+	HorizontalMenu::Paging splitMenuItemsByPages();
 	HorizontalMenu::Paging paging;
 	int32_t lastSelectedHorizontalMenuItemPosition = kNoSelection;
 	Layout horizontalMenuLayout = Layout::DYNAMIC;

@@ -108,7 +108,7 @@ void HorizontalMenu::drawPixelsForOled() {
 
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
-	paging = calculateHorizontalMenuPaging();
+	paging = splitMenuItemsByPages();
 
 	// did the selected horizontal menu item position change?
 	// if yes, update the instrument LED corresponding to that menu item position
@@ -146,7 +146,6 @@ void HorizontalMenu::drawPixelsForOled() {
 		}
 
 		if (horizontalMenuLayout == Layout::FIXED && !isItemRelevant(item)) {
-			FREEZE_WITH_ERROR("Render dash");
 			// In the fixed layout we just "disable" unrelevant item by drawing a dash as value
 			item->renderColumnLabel(currentX + 1, boxWidth, baseY);
 
@@ -395,9 +394,8 @@ ActionResult HorizontalMenu::selectHorizontalMenuItemOnVisiblePage(int32_t itemN
 	return ActionResult::DEALT_WITH;
 }
 
-HorizontalMenu::Paging HorizontalMenu::calculateHorizontalMenuPaging() {
+HorizontalMenu::Paging HorizontalMenu::splitMenuItemsByPages() {
 	std::vector<PageInfo> pages;
-
 	std::vector<MenuItem*> currentPageItems;
 	int32_t currentPageNumber = 0;
 	int32_t currentPageSpan = 0;
@@ -406,8 +404,8 @@ HorizontalMenu::Paging HorizontalMenu::calculateHorizontalMenuPaging() {
 	int32_t selectedItemPositionOnPage = 0;
 
 	for (auto* item : items) {
-		const auto skipItem = horizontalMenuLayout != HorizontalMenu::Layout::FIXED && !isItemRelevant(item);
-		if (skipItem) {
+		const auto renderItem = horizontalMenuLayout == HorizontalMenu::Layout::FIXED || isItemRelevant(item);
+		if (!renderItem) {
 			continue;
 		}
 
@@ -435,6 +433,12 @@ HorizontalMenu::Paging HorizontalMenu::calculateHorizontalMenuPaging() {
 	if (!currentPageItems.empty()) {
 		// Finalize the current page
 		pages.push_back(PageInfo{currentPageNumber, currentPageSpan, currentPageItems});
+	}
+
+	if (pages.size() > 1) {
+		// Lit the scale and cross-screen buttons LEDs to indicate that they can be used to switch between pages
+		indicator_leds::setLedState(IndicatorLED::SCALE_MODE, true);
+		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
 	}
 
 	return Paging{visiblePageNumber, selectedItemPositionOnPage, pages};
@@ -481,6 +485,8 @@ void HorizontalMenu::endSession() {
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 }
 
 deluge::modulation::params::Kind Submenu::getParamKind() {
