@@ -555,8 +555,11 @@ cantReadData:
 			if (nextCluster) {
 				audioFileManager.removeReasonFromCluster(nextCluster, "9700");
 			}
-			// just yield to run a single thing (probably audio)
-			yield([]() { return true; });
+			if (!AudioEngine::audioRoutineLocked) {
+				// Sean: replace routineWithClusterLoading call, yield until AudioRoutine is called
+				AudioEngine::routineBeenCalled = false;
+				yield([]() { return (AudioEngine::routineBeenCalled == true); });
+			}
 		}
 	}
 

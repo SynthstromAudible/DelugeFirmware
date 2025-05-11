@@ -193,6 +193,7 @@ extern uint32_t i2sRXBufferPos;
 extern int32_t cpuDireness;
 extern InputMonitoringMode inputMonitoringMode;
 extern bool audioRoutineLocked;
+extern bool routineBeenCalled;
 extern uint8_t numHopsEndedThisRoutineCall;
 extern SideChain reverbSidechain;
 extern uint32_t timeThereWasLastSomeReverb;

@@ -996,7 +996,6 @@ void routine() {
 			}
 #endif
 			routine_();
-			routineBeenCalled = true;
 			numRoutines += 1;
 		}
 	}
@@ -1023,6 +1022,7 @@ void routine() {
 		}
 	}
 	audioRoutineLocked = false;
+	routineBeenCalled = true;
 }
 
 int32_t getNumSamplesLeftToOutputFromPreviousRender() {
