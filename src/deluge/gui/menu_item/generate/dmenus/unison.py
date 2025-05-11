@@ -1,7 +1,7 @@
 from dmui.dsl import Menu, Submenu
 
 count = Menu(
-    "unison::Count",
+    "unison::CountToStereoSpread",
     "numUnisonMenu",
     ["{name}"],
     "oscillator/unison/count.md",
@@ -25,9 +25,9 @@ stereo_spread = Menu(
 )
 
 menu = Submenu(
-    "Submenu",
+    "HorizontalMenu",
     "unisonMenu",
-    ["{name}", "%%CHILDREN%%"],
+    ["{name}", "%%CHILDREN%%", "HorizontalMenu::Layout::FIXED"],
     "oscillator/unison/index.md",
     [
         count,

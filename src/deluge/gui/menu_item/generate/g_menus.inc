@@ -43,7 +43,7 @@ std::array<MenuItem*, 6> child3 = {
     &compBlend,
 };
 Submenu audioCompMenu{STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR, child3};
-unison::Count numUnisonMenu{STRING_FOR_UNISON_NUMBER};
+unison::CountToStereoSpread numUnisonMenu{STRING_FOR_UNISON_NUMBER};
 unison::Detune unisonDetuneMenu{STRING_FOR_UNISON_DETUNE};
 unison::StereoSpread unison::stereoSpreadMenu{STRING_FOR_UNISON_STEREO_SPREAD};
 std::array<MenuItem*, 3> child4 = {
@@ -51,7 +51,7 @@ std::array<MenuItem*, 3> child4 = {
     &unisonDetuneMenu,
     &unison::stereoSpreadMenu,
 };
-Submenu unisonMenu{STRING_FOR_UNISON, child4};
+HorizontalMenu unisonMenu{STRING_FOR_UNISON, child4, HorizontalMenu::Layout::FIXED};
 envelope::Segment envAttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
 envelope::Segment envDecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY};
 envelope::Segment envSustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};

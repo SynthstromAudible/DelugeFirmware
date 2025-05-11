@@ -65,5 +65,10 @@ public:
 		(void)optType;
 		return modfx::getModNames();
 	}
+
+	[[nodiscard]] int32_t getColumnSpan() const override {
+		// Occupy the whole page in the horizontal menu
+		return 4;
+	}
 };
 } // namespace deluge::gui::menu_item::mod_fx
