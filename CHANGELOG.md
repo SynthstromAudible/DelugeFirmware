@@ -2,6 +2,12 @@
 
 > To find a detailed list of how to use each feature, check here: [Community Features](docs/community_features.md)
 
+## c1.2.1 Chopin
+
+### Sound Engine
+
+- Fixed a bug that was causing audio clicks when recording audio and when scrolling / zooming in song row view and the audio waveform renderer.
+
 ## c1.2.0 Chopin
 
 ### Sound Engine

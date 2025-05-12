@@ -41,6 +41,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "task_scheduler.h"
 #include <string.h>
 
 AudioRecorder audioRecorder{};
@@ -186,8 +187,11 @@ void AudioRecorder::slowRoutine() {
 
 void AudioRecorder::process() {
 	while (true) {
-
-		AudioEngine::routineWithClusterLoading();
+		if (!AudioEngine::audioRoutineLocked) {
+			// Sean: replace routineWithClusterLoading call, yield until AudioRoutine is called
+			AudioEngine::routineBeenCalled = false;
+			yield([]() { return (AudioEngine::routineBeenCalled == true); });
+		}
 
 		uiTimerManager.routine();
 

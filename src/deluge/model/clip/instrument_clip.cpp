@@ -48,6 +48,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "task_scheduler.h"
 #include "util/firmware_version.h"
 #include <cmath>
 #include <new>
@@ -1450,7 +1451,11 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
 		if (!(i & 15)) {
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			if (!AudioEngine::audioRoutineLocked) {
+				// Sean: replace routineWithClusterLoading call, yield until AudioRoutine is called
+				AudioEngine::routineBeenCalled = false;
+				yield([]() { return (AudioEngine::routineBeenCalled == true); });
+			}
 			AudioEngine::logAction("renderAsSingleRow still");
 		}
 
