@@ -224,6 +224,12 @@ also affect normal sequenced notes while arpeggiator is Off.
 - MIDI device definition files can be saved to / loaded from `MIDI_DEVICES/DEFINITION/`
 - See documentation on [MIDI Device Definition Files](docs/features/midi_device_definition_files.md) for more info.
 
+## c1.2.1 Chopin
+
+### Sound Engine
+
+- Fixed a bug that was causing audio clicks when recording audio and when scrolling / zooming in song row view and the audio waveform renderer.
+
 ## c1.2.0 Chopin
 
 ### Sound Engine
