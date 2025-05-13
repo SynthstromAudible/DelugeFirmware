@@ -67,7 +67,7 @@ morph = MultiModeMenu(
 menu = Submenu(
     "HorizontalMenu",
     "hpfMenu",
-    ["{title}", "%%CHILDREN%%"],
+    ["{title}", "%%CHILDREN%%", "HorizontalMenu::Layout::FIXED"],
     "filter/hpf/index.md",
     [freq, res, morph, mode],
     name="STRING_FOR_HPF",

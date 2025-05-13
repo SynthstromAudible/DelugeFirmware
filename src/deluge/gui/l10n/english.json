@@ -129,9 +129,11 @@
 
         "STRING_FOR_BASS": "BASS",
         "STRING_FOR_BASS_FREQUENCY": "Bass frequency",
+        "STRING_FOR_BASS_FREQUENCY_SHORT": "Bfreq",
 
         "STRING_FOR_TREBLE": "TREBLE",
         "STRING_FOR_TREBLE_FREQUENCY": "Treble frequency",
+        "STRING_FOR_TREBLE_FREQUENCY_SHORT": "Tfreq",
 
         "STRING_FOR_REVERB_AMOUNT": "Reverb amount",
 
@@ -419,8 +421,11 @@
         "STRING_FOR_OSCILLATOR_1": "Oscillator 1",
         "STRING_FOR_OSCILLATOR_2": "Oscillator 2",
         "STRING_FOR_UNISON_NUMBER": "Unison number",
+        "STRING_FOR_UNISON_NUMBER_SHORT": "Number",
         "STRING_FOR_UNISON_DETUNE": "Unison detune",
+        "STRING_FOR_UNISON_DETUNE_SHORT": "Detune",
         "STRING_FOR_UNISON_STEREO_SPREAD": "Unison stereo spread",
+        "STRING_FOR_UNISON_STEREO_SPREAD_SHORT": "Spread",
         "STRING_FOR_NUMBER_OF_OCTAVES": "Octaves",
         "STRING_FOR_STEP_REPEAT": "Step Repeat",
         "STRING_FOR_RHYTHM": "Rhythm",
@@ -447,7 +452,7 @@
         "STRING_FOR_SHAPE": "SHAPE",
         "STRING_FOR_MOD_FX": "Mod-fx",
         "STRING_FOR_POLY_FINGER_MPE": "Poly / finger / MPE",
-        "STRING_FOR_REVERB_SIDECHAIN": "Reverb sidechain",
+        "STRING_FOR_REVERB_SIDECHAIN": "Sidechain",
         "STRING_FOR_ROOM_SIZE": "Room size",
         "STRING_FOR_SUB_BANK": "Sub-bank",
         "STRING_FOR_PLAY_DIRECTION": "Play direction",
@@ -660,8 +665,11 @@
         "STRING_FOR_DEPTH": "DEPTH",
         "STRING_FOR_MOD_FX_DEPTH": "MOD FX depth",
         "STRING_FOR_GRAIN_DENSITY": "Grain Density",
+        "STRING_FOR_GRAIN_DENSITY_SHORT": "Density",
         "STRING_FOR_GRAIN_RANDOMNESS": "Pitch Spread",
+        "STRING_FOR_GRAIN_RANDOMNESS_SHORT": "Spread",
         "STRING_FOR_GRAIN_AMOUNT": "Grain Mix",
+        "STRING_FOR_GRAIN_AMOUNT_SHORT": "Mix",
         "STRING_FOR_RATE": "RATE",
         "STRING_FOR_DELAY": "DELAY",
         "STRING_FOR_AMOUNT": "AMOUNT",
@@ -1006,7 +1014,6 @@
         "STRING_FOR_FAVOURITES_EMPTY": "Empty",
 
         "STRING_FOR_DEFAULT_HORIZONTAL_MENU": "Horizontal Menu",
-        "STRING_FOR_DEFAULT_ALTERNATIVE_SELECT_ENCODER_BEHAVIOUR": "Alternative Select Behaviour",
 
         "STRING_FOR_CHORD_KEYBOARD_MODE_ROW": "Chord Row Mode",
         "STRING_FOR_CHORD_KEYBOARD_MODE_COLUMN": "Chord Column Mode"
