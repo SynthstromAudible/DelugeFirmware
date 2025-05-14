@@ -63,6 +63,7 @@
 #include "gui/menu_item/delay/analog.h"
 #include "gui/menu_item/delay/ping_pong.h"
 #include "gui/menu_item/delay/sync.h"
+#include "gui/menu_item/dummy.h"
 #include "gui/menu_item/dx/browse.h"
 #include "gui/menu_item/dx/engine_select.h"
 #include "gui/menu_item/dx/global_params.h"
@@ -221,6 +222,9 @@ namespace params = deluge::modulation::params;
 #include "gui/menu_item/audio_clip/specific_output_source_selector.h"
 #include "gui/menu_item/generate/g_menus.inc"
 #include "gui/menu_item/midi/y_axis_to_cc1.h"
+
+// Dummy item
+Dummy dummyMenuItem{};
 
 // Arp --------------------------------------------------------------------------------------
 arpeggiator::PresetMode arpPresetModeMenu{STRING_FOR_PRESET, STRING_FOR_ARP_PRESET_MENU_TITLE};

@@ -2,6 +2,7 @@
 #include "processing/sound/sound.h"
 
 #include "etl/vector.h"
+#include "gui/ui/menus.h"
 #include "gui/views/automation_view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -435,6 +436,12 @@ HorizontalMenu::Paging HorizontalMenu::splitMenuItemsByPages() {
 	}
 
 	if (!currentPageItems.empty()) {
+		if (currentPageItems.size() == 3) {
+			// If the last page has only 3 items, we need to add a dummy item to fill the page
+			currentPageItems.push_back(&dummyMenuItem);
+			currentPageSpan += 1;
+		}
+
 		// Finalize the current page
 		pages.push_back(PageInfo{currentPageNumber, currentPageSpan, currentPageItems});
 	}
