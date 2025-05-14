@@ -28,7 +28,7 @@
 
 LivePitchShifter::LivePitchShifter(OscType newInputType, int32_t phaseIncrement) {
 	inputType = newInputType;
-	numChannels = (newInputType == OscType::INPUT_STEREO) ? 2 : 1;
+	numChannels = isOscTypeStereoInput(newInputType) ? 2 : 1;
 
 	if (phaseIncrement < kMaxSampleValue) {
 		nextCrossfadeLength = samplesTilHopEnd = kInterpolationMaxNumSamples * 2;
@@ -98,7 +98,7 @@ void LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t numSam
 			// Feed this 1 input sample into interpolation buffer
 			StereoSample* inputSample = audioDriver.getInputSample(i);
 
-			interpolationBuffer[0][0] = (inputType == OscType::INPUT_R) ? inputSample->r : inputSample->l;
+			interpolationBuffer[0][0] = isOscTypeRightInput(inputType) ? inputSample->r : inputSample->l;
 
 			if (numChannels == 2) {
 				interpolationBuffer[1][0] = inputSample->r;

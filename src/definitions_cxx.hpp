@@ -393,11 +393,14 @@ enum class OscType : uint8_t {
 	INPUT_L,
 	INPUT_R,
 	INPUT_STEREO,
+	INPUT_L_UNPITCHED,
+	INPUT_R_UNPITCHED,
+	INPUT_STEREO_UNPITCHED,
 };
 
 constexpr OscType kLastRingmoddableOscType = OscType::WAVETABLE;
 constexpr int32_t kNumOscTypesRingModdable = util::to_underlying(kLastRingmoddableOscType) + 1;
-constexpr int32_t kNumOscTypes = util::to_underlying(OscType::INPUT_STEREO) + 1;
+constexpr int32_t kNumOscTypes = util::to_underlying(OscType::INPUT_STEREO_UNPITCHED) + 1;
 
 /** Integer index into Sound::lfoConfig[].
  *

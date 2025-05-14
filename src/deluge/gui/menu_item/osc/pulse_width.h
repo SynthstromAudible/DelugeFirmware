@@ -42,8 +42,8 @@ public:
 			return false;
 		}
 		OscType oscType = sound->sources[whichThing].oscType;
-		return (oscType != OscType::SAMPLE && oscType != OscType::INPUT_L && oscType != OscType::INPUT_R
-		        && oscType != OscType::INPUT_STEREO);
+
+		return (!isOscTypeSampleOrInput(oscType));
 	}
 };
 

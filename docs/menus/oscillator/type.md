@@ -24,3 +24,15 @@ Can select from:
  - <string-for name="STRING_FOR_INPUT_STEREO">INPUT_STEREO</string-for>
    Monitor of both input channels. Available only if something is plugged in to mic or line-in inputs and the
    oscillator is in <string-for name="STRING_FOR_SUBTRACTIVE">SUBTRACTIVE</string-for> mode.
+ - <string-for name="STRING_FOR_INPUT_UNPITCHED">INPUT_UNPITCHED</string-for>
+   Monitor of the built-in microphone with live pitch shifting disabled. Available only if nothing is plugged in to mic or line-in inputs and the
+   oscillator is in <string-for name="STRING_FOR_SUBTRACTIVE">SUBTRACTIVE</string-for> mode.
+ - <string-for name="STRING_FOR_INPUT_LEFT_UNPITCHED">INPUT_LEFT_UNPITCHED</string-for>
+   Monitor of the left input channel with live pitch shifting disabled. Available only if something is plugged in to mic or line-in inputs and the
+   oscillator is in <string-for name="STRING_FOR_SUBTRACTIVE">SUBTRACTIVE</string-for> mode.
+ - <string-for name="STRING_FOR_INPUT_RIGHT_UNPITCHED">INPUT_RIGHT_UNPITCHED</string-for>
+   Monitor of the right input  with live pitch shifting disabled. Available only if something is plugged in to mic or line-in inputs and the
+   oscillator is in <string-for name="STRING_FOR_SUBTRACTIVE">SUBTRACTIVE</string-for> mode.
+ - <string-for name="STRING_FOR_INPUT_STEREO_UNPITCHED">INPUT_STEREO_UNPITCHED</string-for>
+   Monitor of both input channels with live pitch shifting disabled. Available only if something is plugged in to mic or line-in inputs and the
+   oscillator is in <string-for name="STRING_FOR_SUBTRACTIVE">SUBTRACTIVE</string-for> mode.
