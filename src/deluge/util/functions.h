@@ -436,3 +436,32 @@ constexpr size_t kShortStringBufferSize = 64;
 extern char shortStringBuffer[];
 
 float sigmoidLikeCurve(const float x, const float xMax, const float softening);
+
+[[gnu::always_inline]] bool inline isOscTypeSample(OscType oscType) {
+	return (oscType == OscType::SAMPLE);
+}
+
+[[gnu::always_inline]] inline bool isOscTypeLeftInput(OscType oscType) {
+	return (oscType == OscType::INPUT_L || oscType == OscType::INPUT_L_UNPITCHED);
+}
+
+[[gnu::always_inline]] inline bool isOscTypeRightInput(OscType oscType) {
+	return (oscType == OscType::INPUT_R || oscType == OscType::INPUT_R_UNPITCHED);
+}
+
+[[gnu::always_inline]] inline bool isOscTypeStereoInput(OscType oscType) {
+	return (oscType == OscType::INPUT_STEREO || oscType == OscType::INPUT_STEREO_UNPITCHED);
+}
+
+[[gnu::always_inline]] inline bool isOscTypeInput(OscType oscType) {
+	return (isOscTypeLeftInput(oscType) || isOscTypeRightInput(oscType) || isOscTypeStereoInput(oscType));
+}
+
+[[gnu::always_inline]] bool inline isOscTypeSampleOrInput(OscType oscType) {
+	return (isOscTypeSample(oscType) || isOscTypeInput(oscType));
+}
+
+[[gnu::always_inline]] inline bool isOscTypeUnpitchedInput(OscType oscType) {
+	return (oscType == OscType::INPUT_L_UNPITCHED || oscType == OscType::INPUT_R_UNPITCHED
+	        || oscType == OscType::INPUT_STEREO_UNPITCHED);
+}

@@ -59,9 +59,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 		return voiceSample->setupClusersForInitialPlay(guide, (Sample*)guide->audioFileHolder->audioFile, 0, false, 1);
 	}
 
-	if (synthMode != SynthMode::FM
-	    && (source->oscType == OscType::SAMPLE || source->oscType == OscType::INPUT_L
-	        || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO)) {
+	if (synthMode != SynthMode::FM && isOscTypeSampleOrInput(source->oscType)) {
 		// oscPos = 0;
 	}
 	else if (synthMode != SynthMode::FM && source->oscType == OscType::DX7) [[unlikely]] {

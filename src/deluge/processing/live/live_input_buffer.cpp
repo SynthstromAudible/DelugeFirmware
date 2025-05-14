@@ -52,11 +52,11 @@ void LiveInputBuffer::giveInput(int32_t numSamples, uint32_t currentTime, OscTyp
 
 		int32_t thisSampleRead;
 
-		if (inputType == OscType::INPUT_L) {
+		if (isOscTypeLeftInput(inputType)) {
 			thisSampleRead = inputReadPos[0] >> 2;
 			rawBuffer[numRawSamplesProcessed & (kInputRawBufferSize - 1)] = inputReadPos[0];
 		}
-		else if (inputType == OscType::INPUT_R) {
+		else if (isOscTypeRightInput(inputType)) {
 			thisSampleRead = inputReadPos[1] >> 2;
 			rawBuffer[numRawSamplesProcessed & (kInputRawBufferSize - 1)] = inputReadPos[1];
 		}

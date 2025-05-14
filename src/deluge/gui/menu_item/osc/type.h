@@ -55,6 +55,9 @@ public:
 		    OscType::INPUT_L,
 		    OscType::INPUT_R,
 		    OscType::INPUT_STEREO,
+		    OscType::INPUT_L_UNPITCHED,
+		    OscType::INPUT_R_UNPITCHED,
+		    OscType::INPUT_STEREO_UNPITCHED,
 		    OscType::SAMPLE,
 		    OscType::DX7,
 
@@ -102,9 +105,13 @@ public:
 			options.emplace_back(l10n::getView(STRING_FOR_INPUT_LEFT));
 			options.emplace_back(l10n::getView(STRING_FOR_INPUT_RIGHT));
 			options.emplace_back(l10n::getView(STRING_FOR_INPUT_STEREO));
+			options.emplace_back(l10n::getView(STRING_FOR_INPUT_LEFT_UNPITCHED));
+			options.emplace_back(l10n::getView(STRING_FOR_INPUT_RIGHT_UNPITCHED));
+			options.emplace_back(l10n::getView(STRING_FOR_INPUT_STEREO_UNPITCHED));
 		}
 		else {
 			options.emplace_back(l10n::getView(STRING_FOR_INPUT));
+			options.emplace_back(l10n::getView(STRING_FOR_INPUT_UNPITCHED));
 		}
 
 		return options;
