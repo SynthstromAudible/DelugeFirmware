@@ -29,30 +29,31 @@ public:
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
 		deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main;
 
-		const int32_t margin = 4;
-		int32_t maxSquare = std::min(width, height) - 2 * margin;
+		const int32_t pixelSize = 3;
+		int32_t maxCellsX = (width - 6) / pixelSize;
+		int32_t maxCellsY = (height - 4) / pixelSize;
 
-		// Force odd size for better dotted border appearance
-		if (maxSquare % 2 == 0)
-			maxSquare--;
+		// Force odd number of cells for symmetry
+		if (maxCellsX % 2 == 0)
+			maxCellsX--;
+		if (maxCellsY % 2 == 0)
+			maxCellsY--;
 
-		int32_t boxSize = maxSquare;
-		int32_t boxLeft = startX + (width - boxSize) / 2;
-		int32_t boxTop = startY + (height - boxSize) / 2;
-		int32_t boxRight = boxLeft + boxSize - 1;
-		int32_t boxBottom = boxTop + boxSize - 1;
+		int32_t boxWidth = maxCellsX * pixelSize;
+		int32_t boxHeight = maxCellsY * pixelSize;
+		int32_t boxLeft = startX + (width - boxWidth) / 2;
+		int32_t boxTop = startY + (height - boxHeight) / 2;
 
-		// Draw dotted square border
-		for (int x = boxLeft; x <= boxRight; ++x) {
-			if ((x - boxLeft) % 2 == 0) {
-				canvas.drawPixel(x, boxTop);
-				canvas.drawPixel(x, boxBottom);
-			}
-		}
-		for (int y = boxTop; y <= boxBottom; ++y) {
-			if ((y - boxTop) % 2 == 0) {
-				canvas.drawPixel(boxLeft, y);
-				canvas.drawPixel(boxRight, y);
+		// Draw checkerboard with larger "pixels"
+		for (int cellY = 0; cellY < maxCellsY; ++cellY) {
+			for (int cellX = 0; cellX < maxCellsX; ++cellX) {
+				if ((cellX + cellY) % 2 == 1) {
+					for (int dy = 0; dy < pixelSize; ++dy) {
+						for (int dx = 0; dx < pixelSize; ++dx) {
+							canvas.drawPixel(boxLeft + cellX * pixelSize + dx, boxTop + cellY * pixelSize + dy);
+						}
+					}
+				}
 			}
 		}
 	}

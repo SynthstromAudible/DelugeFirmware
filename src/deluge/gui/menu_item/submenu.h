@@ -108,7 +108,7 @@ public:
 	void endSession() override;
 
 private:
-	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber);
+	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t selectedColumn);
 	ActionResult switchVisiblePage(int32_t direction);
 	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
 	HorizontalMenu::Paging splitMenuItemsByPages();

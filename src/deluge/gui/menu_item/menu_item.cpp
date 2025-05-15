@@ -84,8 +84,10 @@ void MenuItem::renderColumnLabel(int32_t startX, int32_t width, int32_t startY) 
 
 	DEF_STACK_STRING_BUF(label, kShortStringBufferSize);
 	getColumnLabel(label);
+
 	// Remove any spaces
 	label.removeSpaces();
+
 	int32_t pxLen = image.getStringWidthInPixels(label.c_str(), kTextSpacingY);
 	// If the name fits as-is, we'll squeeze it in. Otherwise we chop off letters until
 	// we have some padding between columns.
@@ -95,8 +97,13 @@ void MenuItem::renderColumnLabel(int32_t startX, int32_t width, int32_t startY) 
 			label.truncate(label.size() - 1);
 		}
 	}
+
+	// If the item occupies more than 1 slot, center the label, otherwise just add as small padding
+	int32_t centeredX = (startX + (width - pxLen) / 2) - 1;
+	startX = width > (OLED_MAIN_WIDTH_PIXELS / 4) ? startX + 3 : centeredX;
+
 	deluge::hid::display::OLED::main.drawString(label.c_str(), startX, startY, kTextSpacingX, kTextSpacingY, 0,
-	                                            startX + width - kTextSpacingX);
+	                                            startX + pxLen);
 }
 
 void MenuItem::updatePadLights() {
