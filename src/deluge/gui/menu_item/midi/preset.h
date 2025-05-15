@@ -80,7 +80,7 @@ public:
 			sizeY = kTextSpacingY;
 		}
 		else {
-			paramValue.appendInt(getValue());
+			paramValue.appendInt(getValue() + 1);
 			sizeX = kTextTitleSpacingX;
 			sizeY = kTextTitleSizeY;
 		}
