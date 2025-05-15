@@ -69,7 +69,7 @@ void Number::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t start
 	paramValue.appendInt(getValue());
 
 	int32_t pxLen = image.getStringWidthInPixels(paramValue.c_str(), kTextTitleSizeY);
-	int32_t pad = (width + 1 - pxLen) / 2;
+	int32_t pad = ((width - pxLen) / 2) - 1;
 	image.drawString(paramValue.c_str(), startX + pad, startY + kTextSpacingY + 2, kTextTitleSpacingX, kTextTitleSizeY,
 	                 0, startX + width);
 }

@@ -40,5 +40,9 @@ public:
 		}
 	}
 	[[nodiscard]] std::string_view getTitle() const override { return getName(); }
+
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_WIDTH_SHORT));
+	}
 };
 } // namespace deluge::gui::menu_item::reverb

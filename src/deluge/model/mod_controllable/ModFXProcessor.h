@@ -81,8 +81,7 @@ public:
 namespace modfx {
 deluge::vector<std::string_view> getModNames();
 
-const char* getParamName(ModFXType type, ModFXParam param);
-const char* getParamNameShort(ModFXType type, ModFXParam param);
+const char* getParamName(ModFXType type, ModFXParam param, bool shortName = false);
 
 const char* modFXToString(ModFXType type);
 } // namespace modfx
