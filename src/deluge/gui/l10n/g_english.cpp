@@ -736,6 +736,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SIDECH_SHAPE_MENU_TITLE, "Sidech shape"},
         {STRING_FOR_REVERB_SIDECH_MENU_TITLE, "Reverb sidech"},
         {STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE, "MIDI PGM number"},
+        {STRING_FOR_MIDI_PROGRAM_MENU_TITLE, "MIDI Program"},
         {STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE, "CV* V/octave"},
         {STRING_FOR_CV_TRANSPOSE_MENU_TITLE, "CV* transpose"},
         {STRING_FOR_SHORTCUTS_VER_MENU_TITLE, "Shortcuts vers"},

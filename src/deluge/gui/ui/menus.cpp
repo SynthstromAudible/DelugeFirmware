@@ -1501,14 +1501,20 @@ menu_item::Submenu noteRowEditorRootMenu{
     },
 };
 
+HorizontalMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TITLE,
+                               {
+                                   &midiPGMMenu,
+                                   &midiBankMenu,
+                                   &midiSubMenu,
+                               },
+                               HorizontalMenu::Layout::FIXED};
+
 // Root menu for MIDI / CV
 menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     STRING_FOR_MIDI_INST_MENU_TITLE,
     {
         &midiDeviceDefinitionMenu,
-        &midiPGMMenu,
-        &midiBankMenu,
-        &midiSubMenu,
+        &midiProgramMenu,
         &arpMenuMIDIOrCV,
         &globalRandomizerMenu,
         &bendMenu,
