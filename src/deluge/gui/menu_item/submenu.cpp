@@ -2,7 +2,6 @@
 #include "processing/sound/sound.h"
 
 #include "etl/vector.h"
-#include "gui/ui/menus.h"
 #include "gui/views/automation_view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -139,7 +138,7 @@ void HorizontalMenu::drawPixelsForOled() {
 	// Render the page
 	for (size_t n = 0; n < visiblePage.items.size() && it != visiblePage.items.end(); n++) {
 		MenuItem* item = *it;
-		int32_t boxWidth = (totalWidth * item->getColumnSpan()) / visiblePage.totalColumnSpan;
+		int32_t boxWidth = (totalWidth * item->getColumnSpan() * visiblePage.spanMultiplier) / 4;
 
 		if (currentX + boxWidth > totalWidth) {
 			// Overflow occured: the item doesn't fit in the current page
@@ -166,6 +165,15 @@ void HorizontalMenu::drawPixelsForOled() {
 			item->renderInHorizontalMenu(currentX + 1, boxWidth, baseY, boxHeight);
 		}
 
+		// Draw dotted vertical line at the end of the menu item
+		// Only if this item is not the selected item or its immediate neighbors
+		if (n != posOnPage - 1 && n != posOnPage && currentX + boxWidth != totalWidth) {
+			int32_t lineX = currentX + boxWidth - 1;
+			for (int32_t y = baseY; y < baseY + boxHeight + 2; y += 2) {
+				image.drawPixel(lineX, y);
+			}
+		}
+
 		currentX += boxWidth;
 		it = std::next(it);
 	}
@@ -188,10 +196,8 @@ void HorizontalMenu::drawPixelsForOled() {
 		}
 	}
 
-	if (visiblePage.items.size() > 1) {
-		// Highlight the selected item
-		image.invertArea(selectedStartX, selectedWidth, baseY, baseY + boxHeight);
-	}
+	// Highlight the selected item
+	image.invertArea(selectedStartX, selectedWidth, baseY, baseY + boxHeight);
 }
 
 void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption) {
@@ -331,21 +337,25 @@ ActionResult HorizontalMenu::switchVisiblePage(int32_t direction) {
 ActionResult HorizontalMenu::selectHorizontalMenuItemOnVisiblePage(int32_t selectedColumn) {
 	auto& visiblePage = paging.getVisiblePage();
 
+	// Find item you're looking for by iterating through all items on the current page
 	int32_t currentColumn = 0;
 	for (size_t n = 0; n < visiblePage.items.size(); n++) {
 		MenuItem* item = visiblePage.items[n];
-		int32_t actualItemSpan = (4 / visiblePage.totalColumnSpan) * item->getColumnSpan();
+		int32_t actualItemSpan = item->getColumnSpan() * visiblePage.spanMultiplier;
 
+		// is this item covering the selected virtual column?
 		if (selectedColumn >= currentColumn && selectedColumn < currentColumn + actualItemSpan) {
 			if (horizontalMenuLayout == Layout::FIXED && !isItemRelevant(item)) {
+				// item is disabled, do nothing
 				break;
 			}
-			if (item == &dummyMenuItem) {
-				break;
-			}
+			// update currently selected item
 			current_item_ = std::find(items.begin(), items.end(), item);
+			// re-render display
 			updateDisplay();
+			// update grid shortcuts for currently selected menu item
 			updatePadLights();
+			// update automation view editor parameter selection if it is currently open
 			(*current_item_)->updateAutomationViewParameter();
 			break;
 		}
@@ -372,13 +382,8 @@ HorizontalMenu::Paging HorizontalMenu::splitMenuItemsByPages() {
 		int32_t itemSpan = item->getColumnSpan();
 		if (currentPageSpan + itemSpan > 4) {
 			// Finalize the current page
-			if (currentPageSpan == 3) {
-				// If the page has only 3 items with all of them having columnSpan = 1,
-				// add a dummy item to fill the rest of page
-				currentPageItems.push_back(&dummyMenuItem);
-				currentPageSpan += 1;
-			}
-			pages.push_back(PageInfo{currentPageNumber, currentPageSpan, currentPageItems});
+			const auto spanMultiplier = currentPageSpan == 3 ? 1 : 4 / currentPageSpan;
+			pages.push_back(PageInfo{currentPageNumber, spanMultiplier, currentPageItems});
 
 			// Start a new page
 			currentPageItems = {};
@@ -397,13 +402,8 @@ HorizontalMenu::Paging HorizontalMenu::splitMenuItemsByPages() {
 
 	if (!currentPageItems.empty()) {
 		// Finalize the current page
-		if (currentPageSpan == 3) {
-			// If the page has only 3 items with all of them having columnSpan = 1,
-			// add a dummy item to fill the rest of page
-			currentPageItems.push_back(&dummyMenuItem);
-			currentPageSpan += 1;
-		}
-		pages.push_back(PageInfo{currentPageNumber, currentPageSpan, currentPageItems});
+		const auto spanMultiplier = currentPageSpan == 3 ? 1 : 4 / currentPageSpan;
+		pages.push_back(PageInfo{currentPageNumber, spanMultiplier, currentPageItems});
 	}
 
 	return Paging{visiblePageNumber, selectedItemPositionOnPage, pages};
@@ -417,7 +417,7 @@ void HorizontalMenu::updateSelectedHorizontalMenuItemLED(int32_t itemNumber) {
 	int32_t startColumn = 0;
 	int32_t endColumn = 0;
 	for (auto it = visiblePage.items.begin(); it != visiblePage.items.end(); ++it) {
-		const auto actualItemSpan = (4 / visiblePage.totalColumnSpan) * (*it)->getColumnSpan();
+		const auto actualItemSpan = (*it)->getColumnSpan() * visiblePage.spanMultiplier;
 		if (*it == selectedItem) {
 			endColumn = startColumn + actualItemSpan;
 			break;

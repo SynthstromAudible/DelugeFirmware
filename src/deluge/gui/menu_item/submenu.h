@@ -84,7 +84,7 @@ public:
 	struct PageInfo {
 	public:
 		int32_t number;
-		int32_t totalColumnSpan;
+		int32_t spanMultiplier;
 		std::vector<MenuItem*> items;
 	};
 	struct Paging {

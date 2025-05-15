@@ -2,7 +2,6 @@
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
 #include "gui/menu_item/defaults/swing_interval.h"
-#include "gui/menu_item/dummy.h"
 #include "gui/menu_item/edit_name.h"
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/note/fill.h"
@@ -25,8 +24,6 @@
 #include "gui/menu_item/source/patched_param/fm.h"
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
-
-extern deluge::gui::menu_item::Dummy dummyMenuItem;
 
 extern deluge::gui::menu_item::patched_param::IntegerNonFM noiseMenu;
 extern deluge::gui::menu_item::osc::Sync oscSyncMenu;
