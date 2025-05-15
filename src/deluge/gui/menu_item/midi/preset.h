@@ -72,19 +72,16 @@ public:
 		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 		renderColumnLabel(startX, width, startY);
 
-		DEF_STACK_STRING_BUF(paramValue, 5);
-		int sizeX, sizeY;
+		DEF_STACK_STRING_BUF(paramValue, 5); // 1-128 or NONE
+		constexpr int32_t sizeX = kTextTitleSpacingX;
+		constexpr int32_t sizeY = kTextTitleSizeY;
 		if (this->getValue() == 128) {
 			paramValue.append(l10n::get(l10n::String::STRING_FOR_NONE));
-			sizeX = kTextSpacingX;
-			sizeY = kTextSpacingY;
 		}
 		else {
 			paramValue.appendInt(getValue() + 1);
-			sizeX = kTextTitleSpacingX;
-			sizeY = kTextTitleSizeY;
 		}
-		int32_t pxLen = image.getStringWidthInPixels(paramValue.c_str(), kTextSpacingY);
+		int32_t pxLen = image.getStringWidthInPixels(paramValue.c_str(), sizeY);
 		int32_t pad = (width + 1 - pxLen) / 2;
 		image.drawString(paramValue.c_str(), startX + pad, startY + sizeY + 2, sizeX, sizeY, 0, startX + width);
 	}

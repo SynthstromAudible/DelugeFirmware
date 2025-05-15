@@ -635,7 +635,7 @@ midi::device_definition::DeviceDefinitionSubmenu midiDeviceDefinitionMenu{
 };
 
 midi::Bank midiBankMenu{STRING_FOR_BANK, STRING_FOR_MIDI_BANK};
-midi::Sub midiSubMenu{STRING_FOR_SUB_BANK, STRING_FOR_MIDI_SUB_BANK};
+midi::Sub midiSubMenu{STRING_FOR_SUB, STRING_FOR_MIDI_SUB_BANK};
 midi::PGM midiPGMMenu{STRING_FOR_PGM, STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE};
 midi::MPEYToModWheel mpeyToModWheelMenu{STRING_FOR_Y_AXIS_CONVERSION, STRING_FOR_Y_AXIS_CONVERSION};
 cv::DualCVSelection cv2SourceMenu{STRING_FOR_CV2_SOURCE};
