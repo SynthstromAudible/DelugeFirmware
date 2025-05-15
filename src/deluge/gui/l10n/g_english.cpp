@@ -583,7 +583,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_FEEDBACK, "FEEDBACK"},
         {STRING_FOR_FEEDBACK_SHORT, "FDBK"},
         {STRING_FOR_OFFSET, "OFFSET"},
-        {STRING_FOR_OFFSET_SHORT, "OFFS"},
+        {STRING_FOR_OFFSET_SHORT, "OFST"},
         {STRING_FOR_EQ, "EQ"},
         {STRING_FOR_PINGPONG, "Pingpong"},
         {STRING_FOR_DELAY_PINGPONG, "Delay pingpong"},
