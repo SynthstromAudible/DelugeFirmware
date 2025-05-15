@@ -447,17 +447,45 @@ HorizontalMenu::Paging HorizontalMenu::splitMenuItemsByPages() {
 
 /// When updating the selected horizontal menu item, you need to refresh the lit instrument LED's
 void HorizontalMenu::updateSelectedHorizontalMenuItemLED(int32_t itemNumber) {
-	indicator_leds::setLedState(IndicatorLED::SYNTH, itemNumber == 0);
-	indicator_leds::setLedState(IndicatorLED::KIT, itemNumber == 1);
-	indicator_leds::setLedState(IndicatorLED::MIDI, itemNumber == 2);
-	indicator_leds::setLedState(IndicatorLED::CV, itemNumber == 3);
+	switch (itemNumber) {
+	case 0:
+		indicator_leds::setLedState(IndicatorLED::SYNTH, true);
+		indicator_leds::setLedState(IndicatorLED::KIT, false);
+		indicator_leds::setLedState(IndicatorLED::MIDI, false);
+		indicator_leds::setLedState(IndicatorLED::CV, false);
+		break;
+	case 1:
+		indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+		indicator_leds::setLedState(IndicatorLED::KIT, true);
+		indicator_leds::setLedState(IndicatorLED::MIDI, false);
+		indicator_leds::setLedState(IndicatorLED::CV, false);
+		break;
+	case 2:
+		indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+		indicator_leds::setLedState(IndicatorLED::KIT, false);
+		indicator_leds::setLedState(IndicatorLED::MIDI, true);
+		indicator_leds::setLedState(IndicatorLED::CV, false);
+		break;
+	case 3:
+		indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+		indicator_leds::setLedState(IndicatorLED::KIT, false);
+		indicator_leds::setLedState(IndicatorLED::MIDI, false);
+		indicator_leds::setLedState(IndicatorLED::CV, true);
+		break;
+	default:
+	    // fallthrough
+	    ;
+	}
 }
 
 /// when exiting a horizontal menu, turn off the LED's and reset selected horizontal menu item position
 /// so that next time you open a horizontal menu it refreshes the LED for the selected horizontal menu item
 void HorizontalMenu::endSession() {
 	lastSelectedHorizontalMenuItemPosition = kNoSelection;
-	updateSelectedHorizontalMenuItemLED(kNoSelection);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
+	indicator_leds::setLedState(IndicatorLED::MIDI, false);
+	indicator_leds::setLedState(IndicatorLED::CV, false);
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 }
