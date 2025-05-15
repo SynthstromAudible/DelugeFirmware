@@ -1198,7 +1198,7 @@ deluge::vector<std::string_view> getModNames() {
 	};
 }
 
-const char* getParamName(ModFXType type, ModFXParam param, bool shortName = false) {
+const char* getParamName(ModFXType type, ModFXParam param, bool shortName) {
 	using enum deluge::l10n::String;
 	using namespace deluge;
 
