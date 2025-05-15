@@ -91,20 +91,20 @@ void MenuItem::renderColumnLabel(int32_t startX, int32_t width, int32_t startY) 
 	int32_t pxLen = image.getStringWidthInPixels(label.c_str(), kTextSpacingY);
 	// If the name fits as-is, we'll squeeze it in. Otherwise we chop off letters until
 	// we have some padding between columns.
-	if (pxLen >= width) {
+	if (pxLen >= width - 2) {
 		const int32_t padding = 4;
 		while ((pxLen = image.getStringWidthInPixels(label.c_str(), kTextSpacingY)) + padding >= width) {
 			label.truncate(label.size() - 1);
 		}
 	}
 
-	if (width > OLED_MAIN_WIDTH_PIXELS / 4) {
-		// the item occupies more than one slot, just add a small padding
-		startX += 3;
-	}
-	else {
+	if (width <= OLED_MAIN_WIDTH_PIXELS / 4) {
 		// the item occupies only one slot, center the label
 		startX = (startX + (width - pxLen) / 2) - 1;
+	}
+	else {
+		// otherwise just add a small left padding
+		startX += 3;
 	}
 
 	deluge::hid::display::OLED::main.drawString(label.c_str(), startX, startY, kTextSpacingX, kTextSpacingY, 0,

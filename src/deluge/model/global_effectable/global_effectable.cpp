@@ -1198,19 +1198,19 @@ deluge::vector<std::string_view> getModNames() {
 	};
 }
 
-const char* getParamName(ModFXType type, ModFXParam param) {
+const char* getParamName(ModFXType type, ModFXParam param, bool shortName = false) {
 	using enum deluge::l10n::String;
 	using namespace deluge;
+
 	switch (type) {
 	case ModFXType::GRAIN: {
 		switch (param) {
-			using enum deluge::l10n::String;
 		case ModFXParam::DEPTH:
-			return l10n::get(STRING_FOR_GRAIN_AMOUNT);
+			return l10n::get(shortName ? STRING_FOR_GRAIN_AMOUNT_SHORT : STRING_FOR_GRAIN_AMOUNT);
 		case ModFXParam::FEEDBACK:
-			return l10n::get(STRING_FOR_GRAIN_RANDOMNESS);
+			return l10n::get(shortName ? STRING_FOR_GRAIN_RANDOMNESS_SHORT : STRING_FOR_GRAIN_RANDOMNESS);
 		case ModFXParam::OFFSET:
-			return l10n::get(STRING_FOR_GRAIN_DENSITY);
+			return l10n::get(shortName ? STRING_FOR_GRAIN_DENSITY_SHORT : STRING_FOR_GRAIN_DENSITY);
 		default:
 			return l10n::get(STRING_FOR_NONE);
 		}
@@ -1218,39 +1218,17 @@ const char* getParamName(ModFXType type, ModFXParam param) {
 
 	default: {
 		switch (param) {
-			using enum deluge::l10n::String;
 		case ModFXParam::DEPTH:
-			return l10n::get(STRING_FOR_DEPTH);
+			return l10n::get(shortName ? STRING_FOR_DEPTH_SHORT : STRING_FOR_DEPTH);
 		case ModFXParam::FEEDBACK:
-			return l10n::get(STRING_FOR_FEEDBACK);
+			return l10n::get(shortName ? STRING_FOR_FEEDBACK_SHORT : STRING_FOR_FEEDBACK);
 		case ModFXParam::OFFSET:
-			return l10n::get(STRING_FOR_OFFSET);
+			return l10n::get(shortName ? STRING_FOR_OFFSET_SHORT : STRING_FOR_OFFSET);
 		default:
 			return l10n::get(STRING_FOR_NONE);
 		}
 	}
 	}
-}
-
-const char* getParamNameShort(ModFXType type, ModFXParam param) {
-	using enum deluge::l10n::String;
-	using namespace deluge;
-
-	if (type == ModFXType::GRAIN) {
-		switch (param) {
-			using enum deluge::l10n::String;
-		case ModFXParam::DEPTH:
-			return l10n::get(STRING_FOR_GRAIN_AMOUNT_SHORT);
-		case ModFXParam::FEEDBACK:
-			return l10n::get(STRING_FOR_GRAIN_RANDOMNESS_SHORT);
-		case ModFXParam::OFFSET:
-			return l10n::get(STRING_FOR_GRAIN_DENSITY_SHORT);
-		default:
-			return l10n::get(STRING_FOR_NONE);
-		}
-	}
-
-	return getParamName(type, param);
 }
 
 const char* modFXToString(ModFXType type) {

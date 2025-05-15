@@ -36,7 +36,7 @@ public:
 
 	void getColumnLabel(StringBuf& label) override {
 		const auto& shortName =
-		    modfx::getParamNameShort(soundEditor.currentModControllable->getModFXType(), ModFXParam::FEEDBACK);
+		    modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::FEEDBACK, true);
 		label.append(shortName);
 	}
 };
