@@ -29,5 +29,6 @@ public:
 			currentClip.sendMIDIPGM();
 		}
 	}
+	int32_t getColumnSpan() const override { return 2; };
 };
 } // namespace deluge::gui::menu_item::midi

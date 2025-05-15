@@ -67,5 +67,26 @@ public:
 		}
 		Number::selectEncoderAction(offset);
 	}
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+		renderColumnLabel(startX, width, startY);
+
+		DEF_STACK_STRING_BUF(paramValue, 5);
+		int sizeX, sizeY;
+		if (this->getValue() == 128) {
+			paramValue.append(l10n::get(l10n::String::STRING_FOR_NONE));
+			sizeX = kTextSpacingX;
+			sizeY = kTextSpacingY;
+		}
+		else {
+			paramValue.appendInt(getValue());
+			sizeX = kTextTitleSpacingX;
+			sizeY = kTextTitleSizeY;
+		}
+		int32_t pxLen = image.getStringWidthInPixels(paramValue.c_str(), kTextSpacingY);
+		int32_t pad = (width + 1 - pxLen) / 2;
+		image.drawString(paramValue.c_str(), startX + pad, startY + sizeY + 2, sizeX, sizeY, 0, startX + width);
+	}
 };
 } // namespace deluge::gui::menu_item::midi
