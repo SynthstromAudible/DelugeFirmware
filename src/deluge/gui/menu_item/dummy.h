@@ -29,32 +29,31 @@ public:
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
 		deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main;
 
-		// Center box in the given area
-		const int32_t boxWidth = (width < 48) ? width - 4 : 48;
-		const int32_t boxHeight = (height < 32) ? height - 4 : 32;
-		const int32_t boxLeft = startX + (width - boxWidth) / 2;
-		const int32_t boxTop = startY + (height - boxHeight) / 2;
-		const int32_t boxRight = boxLeft + boxWidth - 1;
-		const int32_t boxBottom = boxTop + boxHeight - 1;
-
-		// Draw rectangle (inclusive coordinates)
-		canvas.drawRectangle(boxLeft, boxTop, boxRight, boxBottom);
-
-		// Draw X inside the box using pixels, with 4px margin on all sides
 		const int32_t margin = 4;
-		const int32_t innerWidth = boxRight - boxLeft + 1 - 2 * margin;
-		const int32_t innerHeight = boxBottom - boxTop + 1 - 2 * margin;
-		const int32_t squareLen = std::min(innerWidth, innerHeight);
+		int32_t maxSquare = std::min(width, height) - 2 * margin;
 
-		// Center the square inside the box
-		const int32_t xStart = boxLeft + margin + (innerWidth - squareLen) / 2;
-		const int32_t yStart = boxTop + margin + (innerHeight - squareLen) / 2;
-		const int32_t xEnd = xStart + squareLen - 1;
-		const int32_t yEnd = yStart + squareLen - 1;
+		// Force odd size for better dotted border appearance
+		if (maxSquare % 2 == 0)
+			maxSquare--;
 
-		for (int i = 0; i < squareLen; ++i) {
-			canvas.drawPixel(xStart + i, yStart + i); // top-left to bottom-right
-			canvas.drawPixel(xStart + i, yEnd - i);   // bottom-left to top-right
+		int32_t boxSize = maxSquare;
+		int32_t boxLeft = startX + (width - boxSize) / 2;
+		int32_t boxTop = startY + (height - boxSize) / 2;
+		int32_t boxRight = boxLeft + boxSize - 1;
+		int32_t boxBottom = boxTop + boxSize - 1;
+
+		// Draw dotted square border
+		for (int x = boxLeft; x <= boxRight; ++x) {
+			if ((x - boxLeft) % 2 == 0) {
+				canvas.drawPixel(x, boxTop);
+				canvas.drawPixel(x, boxBottom);
+			}
+		}
+		for (int y = boxTop; y <= boxBottom; ++y) {
+			if ((y - boxTop) % 2 == 0) {
+				canvas.drawPixel(boxLeft, y);
+				canvas.drawPixel(boxRight, y);
+			}
 		}
 	}
 };

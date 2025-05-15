@@ -379,7 +379,11 @@ ActionResult HorizontalMenu::selectHorizontalMenuItemOnVisiblePage(int32_t itemN
 		// is this the item we're looking for?
 		if (n == itemNumber) {
 			if (horizontalMenuLayout == Layout::FIXED && !isItemRelevant(*it)) {
-				// item is disabled, we can't select it so do nothing
+				// item is disabled, do nothing
+				break;
+			}
+			if (*it == &dummyMenuItem) {
+				// dummy item is not selectable, do nothing
 				break;
 			}
 
