@@ -138,7 +138,8 @@ void HorizontalMenu::drawPixelsForOled() {
 	// Render the page
 	for (size_t n = 0; n < visiblePage.items.size() && it != visiblePage.items.end(); n++) {
 		MenuItem* item = *it;
-		int32_t boxWidth = (totalWidth * item->getColumnSpan() * visiblePage.spanMultiplier) / 4;
+		const int32_t boxWidthRelative = 4 / (item->getColumnSpan() * visiblePage.spanMultiplier);
+		const int32_t boxWidth = totalWidth / boxWidthRelative;
 
 		if (currentX + boxWidth > totalWidth) {
 			// Overflow occured: the item doesn't fit in the current page
@@ -151,7 +152,7 @@ void HorizontalMenu::drawPixelsForOled() {
 		}
 
 		if (horizontalMenuLayout == Layout::FIXED && !isItemRelevant(item)) {
-			// In the fixed layout we just "disable" unrelevant item by drawing a dash as value
+			// Draw a dash as value indicating that the item is disabled
 			item->renderColumnLabel(currentX + 1, boxWidth, baseY);
 
 			const char disabledItemValueDash = '-';
@@ -165,7 +166,7 @@ void HorizontalMenu::drawPixelsForOled() {
 			item->renderInHorizontalMenu(currentX + 1, boxWidth, baseY, boxHeight);
 		}
 
-		// Draw dotted vertical line at the end of the menu item
+		// Draw dotted separator at the end of the menu item
 		// Only if this item is not the selected item or its immediate neighbors
 		if (n != posOnPage - 1 && n != posOnPage && currentX + boxWidth != totalWidth) {
 			int32_t lineX = currentX + boxWidth - 1;
@@ -239,18 +240,64 @@ void Submenu::selectEncoderAction(int32_t offset) {
 		return;
 	}
 
-	bool horizontal = renderingStyle() == RenderingStyle::HORIZONTAL;
-	bool selectButtonPressed = Buttons::selectButtonPressUsedUp = Buttons::isButtonPressed(hid::button::SELECT_ENC);
-
 	MenuItem* child = *current_item_;
 
-	if (horizontal && !child->isSubmenu() && !selectButtonPressed) {
-		child->selectEncoderAction(offset);
-		focusChild(child);
-		// We don't want to return true for selectEncoderEditsInstrument(), since
-		// that would trigger for scrolling in the menu as well.
-		return soundEditor.markInstrumentAsEdited();
+	bool horizontal = renderingStyle() == RenderingStyle::HORIZONTAL;
+	if (horizontal) {
+		bool selectButtonPressed = Buttons::selectButtonPressUsedUp = Buttons::isButtonPressed(hid::button::SELECT_ENC);
+		if (!child->isSubmenu() && !selectButtonPressed) {
+			child->selectEncoderAction(offset);
+			focusChild(child);
+			// We don't want to return true for selectEncoderEditsInstrument(), since
+			// that would trigger for scrolling in the menu as well.
+			soundEditor.markInstrumentAsEdited();
+		}
+		return;
 	}
+
+	if (offset > 0) {
+		// Scan items forward, counting relevant items.
+		auto lastRelevant = current_item_;
+		do {
+			current_item_++;
+			if (current_item_ == items.end()) {
+				if (wrapAround()) {
+					current_item_ = items.begin();
+				}
+				else {
+					current_item_ = lastRelevant;
+					break;
+				}
+			}
+			if ((*current_item_)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+				lastRelevant = current_item_;
+				offset--;
+			}
+		} while (offset > 0);
+	}
+	else if (offset < 0) {
+		// Scan items backwad, counting relevant items.
+		auto lastRelevant = current_item_;
+		do {
+			if (current_item_ == items.begin()) {
+				if (wrapAround()) {
+					current_item_ = items.end();
+				}
+				else {
+					current_item_ = lastRelevant;
+					break;
+				}
+			}
+			current_item_--;
+			if ((*current_item_)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+				lastRelevant = current_item_;
+				offset++;
+			}
+		} while (offset < 0);
+	}
+	updateDisplay();
+	updatePadLights();
+	(*current_item_)->updateAutomationViewParameter();
 }
 
 bool Submenu::shouldForwardButtons() {
@@ -416,9 +463,9 @@ void HorizontalMenu::updateSelectedHorizontalMenuItemLED(int32_t itemNumber) {
 
 	int32_t startColumn = 0;
 	int32_t endColumn = 0;
-	for (auto it = visiblePage.items.begin(); it != visiblePage.items.end(); ++it) {
-		const auto actualItemSpan = (*it)->getColumnSpan() * visiblePage.spanMultiplier;
-		if (*it == selectedItem) {
+	for (auto* item : visiblePage.items) {
+		const auto actualItemSpan = item->getColumnSpan() * visiblePage.spanMultiplier;
+		if (item == selectedItem) {
 			endColumn = startColumn + actualItemSpan;
 			break;
 		}

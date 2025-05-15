@@ -98,12 +98,17 @@ void MenuItem::renderColumnLabel(int32_t startX, int32_t width, int32_t startY) 
 		}
 	}
 
-	// If the item occupies more than 1 slot, center the label, otherwise just add as small padding
-	int32_t centeredX = (startX + (width - pxLen) / 2) - 1;
-	startX = width > (OLED_MAIN_WIDTH_PIXELS / 4) ? startX + 3 : centeredX;
+	if (width > OLED_MAIN_WIDTH_PIXELS / 4) {
+		// the item occupies more than one slot, just add a small padding
+		startX += 3;
+	}
+	else {
+		// the item occupies only one slot, center the label
+		startX = (startX + (width - pxLen) / 2) - 1;
+	}
 
 	deluge::hid::display::OLED::main.drawString(label.c_str(), startX, startY, kTextSpacingX, kTextSpacingY, 0,
-	                                            startX + pxLen);
+	                                            startX + width - kTextSpacingX);
 }
 
 void MenuItem::updatePadLights() {
