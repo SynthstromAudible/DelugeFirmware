@@ -1437,13 +1437,13 @@ bool SoundEditor::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNu
 		getCurrentMenuItem()->learnCC(cable, channel, ccNumber, value);
 		return true;
 	}
-	if (ccNumber == 0 || ccNumber == 32) {
-		auto currentItem = getCurrentMenuItem();
-		if (currentItem == &midiBankMenu || currentItem == &midiSubMenu) {
-			if (playbackHandler.recording != RecordingMode::OFF) {
-				currentItem->readValueAgain();
-				return false; // allow flow into MelodicInstrument
-			}
+
+	if (playbackHandler.recording != RecordingMode::OFF) {
+		if (ccNumber == 0) {
+			midiBankMenu.readValueAgain();
+		}
+		if (ccNumber == 32) {
+			midiSubMenu.readValueAgain();
 		}
 	}
 
@@ -1463,9 +1463,8 @@ bool SoundEditor::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t d
 
 bool SoundEditor::midiPCReceived(MIDICable& cable, uint8_t channel, uint8_t program) {
 
-	if (getCurrentMenuItem() == &midiPGMMenu) {
+	if (playbackHandler.recording != RecordingMode::OFF) {
 		midiPGMMenu.readValueAgain();
-		return true;
 	}
 
 	return false;
