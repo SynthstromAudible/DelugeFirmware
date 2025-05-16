@@ -71,6 +71,7 @@ public:
 
 protected:
 	std::optional<uint8_t> thingIndex = std::nullopt;
+	uint32_t initial_index_ = 0;
 	deluge::vector<MenuItem*> items;
 	typename decltype(items)::iterator current_item_;
 
@@ -84,7 +85,7 @@ public:
 	struct PageInfo {
 	public:
 		int32_t number;
-		int32_t totalColumnSpan;
+		int32_t spanMultiplier;
 		std::vector<MenuItem*> items;
 	};
 	struct Paging {
@@ -102,13 +103,19 @@ public:
 	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, Layout layout)
 	    : Submenu(newName, newItems), horizontalMenuLayout(layout), paging{} {}
 
+	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, Layout layout,
+	               uint32_t initialSelection)
+	    : Submenu(newName, newItems), horizontalMenuLayout(layout), paging{} {
+		initial_index_ = initialSelection;
+	}
+
 	RenderingStyle renderingStyle() override;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void drawPixelsForOled() override;
 	void endSession() override;
 
 private:
-	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber);
+	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t selectedColumn);
 	ActionResult switchVisiblePage(int32_t direction);
 	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
 	HorizontalMenu::Paging splitMenuItemsByPages();

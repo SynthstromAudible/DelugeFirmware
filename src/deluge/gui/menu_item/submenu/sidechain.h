@@ -32,6 +32,8 @@ public:
 		Submenu::beginSession(navigatedBackwardFrom);
 	}
 
+	[[nodiscard]] int32_t getColumnSpan() const override { return 2; };
+
 	bool forReverbSidechain;
 };
 

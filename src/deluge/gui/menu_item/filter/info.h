@@ -74,11 +74,11 @@ public:
 	FilterParamType getFilterParamType() const { return type; }
 	FilterSlot getSlot() const { return slot; }
 	/// Returns morphname for morph parameters, and the alt argument for others.
-	[[nodiscard]] std::string_view getMorphNameOr(std::string_view alt) const {
+	[[nodiscard]] std::string_view getMorphNameOr(std::string_view alt, bool shortName = false) const {
 		if (type == FilterParamType::MORPH) {
 			using enum l10n::String;
 			auto filt = deluge::dsp::filter::SpecificFilter(getMode());
-			return l10n::getView(filt.getMorphName());
+			return l10n::getView(filt.getMorphName(shortName));
 		}
 		else {
 			return alt;
