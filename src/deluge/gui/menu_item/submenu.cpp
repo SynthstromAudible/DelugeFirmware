@@ -21,7 +21,7 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 		soundEditor.currentSampleControls = &soundEditor.currentSource->sampleControls;
 	}
 
-	if (navigatedBackwardFrom == nullptr) {
+	if (navigatedBackwardFrom == nullptr && initial_index_ > 0) {
 		navigatedBackwardFrom = items[initial_index_];
 	}
 	focusChild(navigatedBackwardFrom);
