@@ -134,6 +134,9 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 	else if (controlNumber == CC_NUMBER_AFTERTOUCH) {
 		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
 	}
+	else if (controlNumber == CC_NUMBER_PROGRAM_CHANGE) {
+		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PGM));
+	}
 	else if (controlNumber == CC_NUMBER_Y_AXIS) {
 		// in mono expression this is mod wheel, and y-axis is not directly controllable
 		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));

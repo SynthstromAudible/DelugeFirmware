@@ -316,6 +316,9 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 			else if (cc == CC_NUMBER_AFTERTOUCH) {
 				writer.writeAttribute("cc", "aftertouch");
 			}
+			else if (cc == CC_NUMBER_PROGRAM_CHANGE) {
+				writer.writeAttribute("cc", "program");
+			}
 			else {
 				writer.writeAttribute("cc", cc);
 			}
@@ -564,6 +567,9 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 			}
 			else if (!strcasecmp(contents, "aftertouch")) {
 				cc = CC_NUMBER_AFTERTOUCH;
+			}
+			else if (!strcasecmp(contents, "program")) {
+				cc = CC_NUMBER_PROGRAM_CHANGE;
 			}
 			else if (!strcasecmp(contents, "none")) {
 				cc = CC_NUMBER_NONE;

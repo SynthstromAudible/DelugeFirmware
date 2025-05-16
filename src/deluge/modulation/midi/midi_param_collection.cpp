@@ -236,6 +236,11 @@ void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int
                                    int32_t midiOutputFilter) {
 	int32_t newValueSmall = autoparamValueToCC(newValue);
 
+	if (cc == CC_NUMBER_PROGRAM_CHANGE) {
+		midiEngine.sendPGMChange(source, masterChannel, newValueSmall + 64, midiOutputFilter);
+		return;
+	}
+
 	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64,
 	                  midiOutputFilter); // TODO: get master channel
 }
