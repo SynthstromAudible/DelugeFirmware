@@ -23,6 +23,7 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	if (navigatedBackwardFrom == nullptr && initial_index_ > 0) {
 		navigatedBackwardFrom = items[initial_index_];
+		initial_index_ = 0; // only set on first access, remember previously accessed menu otherwise.
 	}
 	focusChild(navigatedBackwardFrom);
 	if (display->have7SEG()) {
