@@ -71,6 +71,7 @@ public:
 
 protected:
 	std::optional<uint8_t> thingIndex = std::nullopt;
+	uint32_t initial_index_ = 0;
 	deluge::vector<MenuItem*> items;
 	typename decltype(items)::iterator current_item_;
 
@@ -101,6 +102,12 @@ public:
 	    : Submenu(newName, newItems), horizontalMenuLayout(layout), paging{} {}
 	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, Layout layout)
 	    : Submenu(newName, newItems), horizontalMenuLayout(layout), paging{} {}
+
+	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, Layout layout,
+	               uint32_t initialSelection)
+	    : Submenu(newName, newItems), horizontalMenuLayout(layout), paging{} {
+		initial_index_ = initialSelection;
+	}
 
 	RenderingStyle renderingStyle() override;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
