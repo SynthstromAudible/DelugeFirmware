@@ -85,7 +85,7 @@ public:
 	struct PageInfo {
 	public:
 		int32_t number;
-		int32_t totalColumnSpan;
+		int32_t spanMultiplier;
 		std::vector<MenuItem*> items;
 	};
 	struct Paging {
@@ -115,7 +115,7 @@ public:
 	void endSession() override;
 
 private:
-	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber);
+	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t selectedColumn);
 	ActionResult switchVisiblePage(int32_t direction);
 	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
 	HorizontalMenu::Paging splitMenuItemsByPages();
