@@ -360,6 +360,7 @@ ActionResult HorizontalMenu::switchVisiblePage(int32_t direction) {
 		return ActionResult::DEALT_WITH;
 	}
 
+	int32_t itemPosition = paging.selectedItemPositionOnPage;
 	int32_t targetPageNumber = paging.visiblePageNumber + direction;
 
 	// Adjust targetPageNumber to cycle through pages
@@ -372,11 +373,15 @@ ActionResult HorizontalMenu::switchVisiblePage(int32_t direction) {
 
 	paging.visiblePageNumber = targetPageNumber;
 
+	// Keep the selected item position on the new page
+	const auto pageItems = paging.getVisiblePage().items;
+	const auto targetPosition = std::min(itemPosition, static_cast<int32_t>(pageItems.size() - 1));
+
 	// update currently selected item
-	current_item_ = std::find(items.begin(), items.end(), *paging.getVisiblePage().items.begin());
+	current_item_ = std::find(items.begin(), items.end(), pageItems[targetPosition]);
 	updateDisplay();
 	updatePadLights();
-	updateSelectedHorizontalMenuItemLED(0);
+	updateSelectedHorizontalMenuItemLED(targetPosition);
 
 	// Update automation view editor parameter selection if it is currently open
 	(*current_item_)->updateAutomationViewParameter();
@@ -400,8 +405,19 @@ ActionResult HorizontalMenu::selectHorizontalMenuItemOnVisiblePage(int32_t selec
 				// item is disabled, do nothing
 				break;
 			}
+
 			// update currently selected item
+			const auto previous_item = current_item_;
 			current_item_ = std::find(items.begin(), items.end(), item);
+
+			if (current_item_ == previous_item) {
+				// item is already selected
+				if ((*current_item_)->isSubmenu()) {
+					soundEditor.enterSubmenu(*current_item_);
+				}
+				break;
+			}
+
 			// re-render display
 			updateDisplay();
 			// update grid shortcuts for currently selected menu item
