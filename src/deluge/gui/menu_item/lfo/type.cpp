@@ -20,6 +20,8 @@
 #include "hid/display/oled.h"
 #include "modulation/lfo.h"
 
+using namespace deluge::hid::display;
+
 namespace deluge::gui::menu_item::lfo {
 
 void Type::getColumnLabel(StringBuf& label) {
@@ -29,60 +31,30 @@ void Type::getColumnLabel(StringBuf& label) {
 }
 
 void Type::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-
+	oled_canvas::Canvas& image = OLED::main;
 	renderColumnLabel(startX, width, startY);
 
-	// Draw the LFO shape
-	int32_t plotHeight = height - kTextSpacingY - 2;
-	int32_t plotWidth = width - 2;
-	int32_t baseline = OLED_MAIN_VISIBLE_HEIGHT - 1;
-	LFOType wave = soundEditor.currentSound->lfoConfig[lfoId_].waveType;
-	LFOConfig config{wave};
-	LFO lfo;
-	if (lfoId_ == 0) {
-		lfo.setGlobalInitialPhase(config);
-	}
-	else {
-		lfo.setLocalInitialPhase(config);
-	}
-	int32_t phaseIncrement;
-	int32_t extraScaling = 1;
-	if (wave == LFOType::RANDOM_WALK) {
-		phaseIncrement = UINT32_MAX / (plotWidth / 9);
-		// RANDOM walk range is smaller, so we magnify for display.
-		extraScaling = 5;
-	}
-	else if (wave == LFOType::SAMPLE_AND_HOLD) {
-		phaseIncrement = UINT32_MAX / (plotWidth / 9);
-	}
-	else if (wave == LFOType::WARBLER) {
-		phaseIncrement = UINT32_MAX / (plotWidth / 9);
-		// warbler is very peaky, so despite using the full range it's frequently filtered out by the resolution
-		extraScaling = 15;
-	}
-	else {
-		phaseIncrement = UINT32_MAX / (plotWidth / 2.4);
-	}
-	bool first = true;
-	int32_t prevY = 0;
-	float yScale = ((int64_t)INT32_MAX * 2) / plotHeight;
-	for (size_t x = 0; x < plotWidth; x++) {
-		int32_t yBig = lfo.render(1, wave, phaseIncrement) * extraScaling;
-		int32_t y = (yBig / yScale) + plotHeight / 2;
-		// We're subtracting the Y because the screen coordinates grow down.
-		image.drawVerticalLine(startX + x, baseline - y - 1, baseline - y);
-		if (!first) {
-			int32_t delta = y - prevY;
-			if (delta > 1) {
-				image.drawVerticalLine(startX + x, baseline - y, baseline - prevY);
-			}
-			else if (delta < -1) {
-				image.drawVerticalLine(startX + x, baseline - prevY, baseline - y);
-			}
-		}
-		first = false;
-		prevY = y;
+	const uint8_t* bitmap = getLfoIconBitmap();
+	image.drawGraphicMultiLine(bitmap, startX + 1, startY + kTextSpacingX + 3, 32, 16,
+	                           2); // Note numBytesTall = 2
+}
+
+const uint8_t* Type::getLfoIconBitmap() {
+	switch (soundEditor.currentSound->lfoConfig[lfoId_].waveType) {
+	case LFOType::SINE:
+		return OLED::lfoIconSine;
+	case LFOType::TRIANGLE:
+		return OLED::lfoIconTriangle;
+	case LFOType::SQUARE:
+		return OLED::lfoIconSquare;
+	case LFOType::SAW:
+		return OLED::lfoIconSaw;
+	case LFOType::SAMPLE_AND_HOLD:
+		return OLED::lfoIconSampleHold;
+	case LFOType::RANDOM_WALK:
+		return OLED::lfoIconRandomWalk;
+	case LFOType::WARBLER:
+		return OLED::lfoIconWarbler;
 	}
 }
 
