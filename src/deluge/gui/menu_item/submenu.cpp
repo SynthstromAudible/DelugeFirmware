@@ -243,22 +243,23 @@ void Submenu::selectEncoderAction(int32_t offset) {
 	if (current_item_ == items.end()) {
 		return;
 	}
+	bool horizontal = renderingStyle() == RenderingStyle::HORIZONTAL;
+	bool selectButtonPressed = Buttons::selectButtonPressUsedUp = Buttons::isButtonPressed(hid::button::SELECT_ENC);
 
 	MenuItem* child = *current_item_;
 
-	bool horizontal = renderingStyle() == RenderingStyle::HORIZONTAL;
-	if (horizontal) {
-		bool selectButtonPressed = Buttons::selectButtonPressUsedUp = Buttons::isButtonPressed(hid::button::SELECT_ENC);
-		if (!child->isSubmenu() && !selectButtonPressed) {
-			child->selectEncoderAction(offset);
-			focusChild(child);
-			// We don't want to return true for selectEncoderEditsInstrument(), since
-			// that would trigger for scrolling in the menu as well.
-			soundEditor.markInstrumentAsEdited();
-		}
-		return;
+	if (horizontal && !child->isSubmenu() && !selectButtonPressed) {
+		child->selectEncoderAction(offset);
+		focusChild(child);
+		// We don't want to return true for selectEncoderEditsInstrument(), since
+		// that would trigger for scrolling in the menu as well.
+		return soundEditor.markInstrumentAsEdited();
 	}
-
+	if (horizontal) {
+		// Undo any acceleration: we only want it for the items, not the menu itself.
+		// We only do this for horizontal menus to allow fast scrolling with shift in vertical menus.
+		offset = std::clamp(offset, (int32_t)-1, (int32_t)1);
+	}
 	if (offset > 0) {
 		// Scan items forward, counting relevant items.
 		auto lastRelevant = current_item_;
