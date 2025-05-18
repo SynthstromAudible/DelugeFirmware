@@ -111,7 +111,6 @@
 #include "gui/menu_item/mod_fx/depth_patched.h"
 #include "gui/menu_item/mod_fx/depth_unpatched.h"
 #include "gui/menu_item/mod_fx/feedback.h"
-#include "gui/menu_item/mod_fx/horizontal.h"
 #include "gui/menu_item/mod_fx/offset.h"
 #include "gui/menu_item/mod_fx/rate.h"
 #include "gui/menu_item/mod_fx/type.h"
