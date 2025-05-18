@@ -17,17 +17,20 @@
 #pragma once
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
-#include "processing/sound/sound.h"
+#include "processing/engines/audio_engine.h"
 
 namespace deluge::gui::menu_item::submenu {
-class Sidechain final : public Submenu {
+class ReverbSidechain final : public HorizontalMenu {
 public:
-	using Submenu::Submenu;
+	ReverbSidechain(l10n::String newName, l10n::String newTitle, std::initializer_list<MenuItem*> newItems)
+	    : HorizontalMenu(newName, newTitle, newItems, HorizontalMenu::Layout::FIXED) {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
-		soundEditor.currentSidechain = &soundEditor.currentSound->sidechain;
+		soundEditor.currentSidechain = &AudioEngine::reverbSidechain;
 		Submenu::beginSession(navigatedBackwardFrom);
 	}
+
+	[[nodiscard]] int32_t getColumnSpan() const override { return 2; };
 };
 
 } // namespace deluge::gui::menu_item::submenu
