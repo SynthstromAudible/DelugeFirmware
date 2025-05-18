@@ -57,6 +57,7 @@ public:
 	void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) override;
 	bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) final;
 	virtual RenderingStyle renderingStyle() { return RenderingStyle::VERTICAL; };
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 	void drawPixelsForOled() override;
 	void drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption);
 	/// @brief 	Indicates if the menu-like object should wrap-around. Destined to be virtualized.
@@ -114,7 +115,7 @@ public:
 	void drawPixelsForOled() override;
 	void endSession() override;
 
-private:
+protected:
 	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t selectedColumn);
 	ActionResult switchVisiblePage(int32_t direction);
 	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
