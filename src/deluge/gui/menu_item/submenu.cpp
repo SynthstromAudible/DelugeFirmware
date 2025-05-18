@@ -63,6 +63,17 @@ void Submenu::updateDisplay() {
 	}
 }
 
+void Submenu::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
+	renderColumnLabel(startX, width, startY);
+
+	// Draw arrow icon centered indicating that there is another layer
+	const int32_t arrowY = startY + kTextSpacingY + 2;
+	const int32_t arrowX = startX + (width - kSubmenuIconSpacingX) / 2;
+	image.drawGraphicMultiLine(deluge::hid::display::OLED::submenuArrowIconBold, arrowX, arrowY, kSubmenuIconSpacingX);
+}
+
 void Submenu::drawPixelsForOled() {
 	// Collect items before the current item, this is possibly more than we need.
 	etl::vector<MenuItem*, kOLEDMenuNumOptionsVisible> before = {};
