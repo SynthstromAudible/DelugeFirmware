@@ -115,6 +115,14 @@ void Submenu::drawPixelsForOled() {
 	drawSubmenuItemsForOled(visible, pos);
 }
 
+void HorizontalMenu::renderOLED() {
+	// need to draw the content first because the title can depend on the content.
+	// example: mod-fx menu where the second page title is depending on the selected mod-fx type
+	drawPixelsForOled();
+	deluge::hid::display::OLED::main.drawScreenTitle(getTitle());
+	deluge::hid::display::OLED::markChanged();
+}
+
 void HorizontalMenu::drawPixelsForOled() {
 	if (renderingStyle() != RenderingStyle::HORIZONTAL) {
 		Submenu::drawPixelsForOled();
@@ -452,22 +460,29 @@ HorizontalMenu::Paging HorizontalMenu::splitMenuItemsByPages() {
 	int32_t visiblePageNumber = 0;
 	int32_t selectedItemPositionOnPage = 0;
 
+	const bool isFixedLayout = horizontalMenuLayout == HorizontalMenu::Layout::FIXED;
+	const auto shouldIncludePage = [&](std::vector<MenuItem*>& pageItems) {
+		return !isFixedLayout
+		       || std::any_of(pageItems.begin(), pageItems.end(), [](MenuItem* item) { return isItemRelevant(item); });
+	};
+
 	for (auto* item : items) {
-		const auto renderItem = horizontalMenuLayout == HorizontalMenu::Layout::FIXED || isItemRelevant(item);
-		if (!renderItem) {
+		if (!isFixedLayout && !isItemRelevant(item)) {
 			continue;
 		}
 
 		int32_t itemSpan = item->getColumnSpan();
 		if (currentPageSpan + itemSpan > 4) {
 			// Finalize the current page
-			const auto spanMultiplier = currentPageSpan == 3 ? 1 : 4 / currentPageSpan;
-			pages.push_back(PageInfo{currentPageNumber, spanMultiplier, currentPageItems});
+			if (shouldIncludePage(currentPageItems)) {
+				const auto spanMultiplier = currentPageSpan == 3 ? 1 : 4 / currentPageSpan;
+				pages.push_back(PageInfo{currentPageNumber, spanMultiplier, currentPageItems});
+				++currentPageNumber;
+			}
 
 			// Start a new page
 			currentPageItems = {};
 			currentPageSpan = 0;
-			++currentPageNumber;
 		}
 
 		if (item == *current_item_) {
@@ -479,7 +494,7 @@ HorizontalMenu::Paging HorizontalMenu::splitMenuItemsByPages() {
 		currentPageSpan += itemSpan;
 	}
 
-	if (!currentPageItems.empty()) {
+	if (!currentPageItems.empty() && shouldIncludePage(currentPageItems)) {
 		// Finalize the current page
 		const auto spanMultiplier = currentPageSpan == 3 ? 1 : 4 / currentPageSpan;
 		pages.push_back(PageInfo{currentPageNumber, spanMultiplier, currentPageItems});
@@ -506,10 +521,8 @@ void HorizontalMenu::updateSelectedHorizontalMenuItemLED(int32_t itemNumber) {
 
 	// Light up all buttons whose columns are covered by the selected item
 	std::vector<bool> ledStates{false, false, false, false};
-	if (visiblePage.items.size() > 1) {
-		for (int32_t i = 0; i < ledStates.size(); ++i) {
-			ledStates[i] = i >= startColumn && i < endColumn;
-		}
+	for (int32_t i = 0; i < ledStates.size(); ++i) {
+		ledStates[i] = i >= startColumn && i < endColumn;
 	}
 
 	indicator_leds::setLedState(IndicatorLED::SYNTH, ledStates[0]);
