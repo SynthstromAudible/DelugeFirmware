@@ -243,22 +243,23 @@ void Submenu::selectEncoderAction(int32_t offset) {
 	if (current_item_ == items.end()) {
 		return;
 	}
+	bool horizontal = renderingStyle() == RenderingStyle::HORIZONTAL;
+	bool selectButtonPressed = Buttons::selectButtonPressUsedUp = Buttons::isButtonPressed(hid::button::SELECT_ENC);
 
 	MenuItem* child = *current_item_;
 
-	bool horizontal = renderingStyle() == RenderingStyle::HORIZONTAL;
-	if (horizontal) {
-		bool selectButtonPressed = Buttons::selectButtonPressUsedUp = Buttons::isButtonPressed(hid::button::SELECT_ENC);
-		if (!child->isSubmenu() && !selectButtonPressed) {
-			child->selectEncoderAction(offset);
-			focusChild(child);
-			// We don't want to return true for selectEncoderEditsInstrument(), since
-			// that would trigger for scrolling in the menu as well.
-			soundEditor.markInstrumentAsEdited();
-		}
-		return;
+	if (horizontal && !child->isSubmenu() && !selectButtonPressed) {
+		child->selectEncoderAction(offset);
+		focusChild(child);
+		// We don't want to return true for selectEncoderEditsInstrument(), since
+		// that would trigger for scrolling in the menu as well.
+		return soundEditor.markInstrumentAsEdited();
 	}
-
+	if (horizontal) {
+		// Undo any acceleration: we only want it for the items, not the menu itself.
+		// We only do this for horizontal menus to allow fast scrolling with shift in vertical menus.
+		offset = std::clamp(offset, (int32_t)-1, (int32_t)1);
+	}
 	if (offset > 0) {
 		// Scan items forward, counting relevant items.
 		auto lastRelevant = current_item_;
@@ -360,6 +361,7 @@ ActionResult HorizontalMenu::switchVisiblePage(int32_t direction) {
 		return ActionResult::DEALT_WITH;
 	}
 
+	int32_t itemPosition = paging.selectedItemPositionOnPage;
 	int32_t targetPageNumber = paging.visiblePageNumber + direction;
 
 	// Adjust targetPageNumber to cycle through pages
@@ -372,11 +374,15 @@ ActionResult HorizontalMenu::switchVisiblePage(int32_t direction) {
 
 	paging.visiblePageNumber = targetPageNumber;
 
+	// Keep the selected item position on the new page
+	const auto pageItems = paging.getVisiblePage().items;
+	const auto targetPosition = std::min(itemPosition, static_cast<int32_t>(pageItems.size() - 1));
+
 	// update currently selected item
-	current_item_ = std::find(items.begin(), items.end(), *paging.getVisiblePage().items.begin());
+	current_item_ = std::find(items.begin(), items.end(), pageItems[targetPosition]);
 	updateDisplay();
 	updatePadLights();
-	updateSelectedHorizontalMenuItemLED(0);
+	updateSelectedHorizontalMenuItemLED(targetPosition);
 
 	// Update automation view editor parameter selection if it is currently open
 	(*current_item_)->updateAutomationViewParameter();
@@ -400,8 +406,19 @@ ActionResult HorizontalMenu::selectHorizontalMenuItemOnVisiblePage(int32_t selec
 				// item is disabled, do nothing
 				break;
 			}
+
 			// update currently selected item
+			const auto previous_item = current_item_;
 			current_item_ = std::find(items.begin(), items.end(), item);
+
+			if (current_item_ == previous_item) {
+				// item is already selected
+				if ((*current_item_)->isSubmenu()) {
+					soundEditor.enterSubmenu(*current_item_);
+				}
+				break;
+			}
+
 			// re-render display
 			updateDisplay();
 			// update grid shortcuts for currently selected menu item

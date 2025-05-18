@@ -62,6 +62,7 @@ public:
 	void getColumnLabel(StringBuf&) override;
 
 private:
+	const uint8_t* getLfoIconBitmap();
 	uint8_t lfoId_;
 };
 
