@@ -45,6 +45,7 @@ public:
 		using enum l10n::String;
 		switch (AudioEngine::reverb.getModel()) {
 		case dsp::Reverb::Model::DIGITAL:
+			[[fallthrough]];
 		case dsp::Reverb::Model::MUTABLE:
 			label.append(deluge::l10n::get(l10n::String::STRING_FOR_DIFFUSION));
 			break;
