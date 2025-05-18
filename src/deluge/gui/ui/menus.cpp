@@ -111,6 +111,7 @@
 #include "gui/menu_item/mod_fx/depth_patched.h"
 #include "gui/menu_item/mod_fx/depth_unpatched.h"
 #include "gui/menu_item/mod_fx/feedback.h"
+#include "gui/menu_item/mod_fx/horizontal.h"
 #include "gui/menu_item/mod_fx/offset.h"
 #include "gui/menu_item/mod_fx/rate.h"
 #include "gui/menu_item/mod_fx/type.h"
@@ -460,7 +461,7 @@ mod_fx::Feedback modFXFeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_MODFX_FEEDBAC
 mod_fx::Depth_Patched modFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MODFX_DEPTH, params::GLOBAL_MOD_FX_DEPTH};
 mod_fx::Offset modFXOffsetMenu{STRING_FOR_OFFSET, STRING_FOR_MODFX_OFFSET, params::UNPATCHED_MOD_FX_OFFSET};
 
-HorizontalMenu modFXMenu{
+mod_fx::HorizontalMenu modFXMenu{
     STRING_FOR_MOD_FX,
     {
         &modFXTypeMenu,
@@ -774,7 +775,7 @@ HorizontalMenu globalReverbMenu{
 mod_fx::Depth_Unpatched globalModFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MOD_FX_DEPTH, params::UNPATCHED_MOD_FX_DEPTH};
 UnpatchedParam globalModFXRateMenu{STRING_FOR_RATE, STRING_FOR_MOD_FX_RATE, params::UNPATCHED_MOD_FX_RATE};
 
-HorizontalMenu globalModFXMenu{
+mod_fx::HorizontalMenu globalModFXMenu{
     STRING_FOR_MOD_FX,
     {
         &modFXTypeMenu,

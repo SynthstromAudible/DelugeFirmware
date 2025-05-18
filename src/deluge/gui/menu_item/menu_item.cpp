@@ -93,13 +93,13 @@ void MenuItem::renderColumnLabel(int32_t startX, int32_t width, int32_t startY) 
 	// we have some padding between columns.
 	if (pxLen >= width - 2) {
 		const int32_t padding = 4;
-		while ((pxLen = image.getStringWidthInPixels(label.c_str(), kTextSpacingY)) + padding >= width) {
+		do {
 			label.truncate(label.size() - 1);
-		}
+		} while ((pxLen = image.getStringWidthInPixels(label.c_str(), kTextSpacingY)) + padding >= width);
 	}
 
-	if (width <= OLED_MAIN_WIDTH_PIXELS / 4) {
-		// the item occupies only one slot, center the label
+	if (width <= OLED_MAIN_WIDTH_PIXELS / 4 || pxLen * 1.5 >= width) {
+		// the item occupies only one slot or the label long enough, center the label
 		startX = (startX + (width - pxLen) / 2) - 1;
 	}
 	else {
