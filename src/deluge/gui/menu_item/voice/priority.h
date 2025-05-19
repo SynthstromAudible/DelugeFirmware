@@ -52,10 +52,10 @@ public:
 		}
 	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
-		(void)optType;
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_LOW),
-		    l10n::getView(l10n::String::STRING_FOR_MEDIUM),
+		    l10n::getView(optType == OptType::SHORT ? l10n::String::STRING_FOR_MEDIUM_SHORT
+		                                            : l10n::String::STRING_FOR_MEDIUM),
 		    l10n::getView(l10n::String::STRING_FOR_HIGH),
 		};
 	}

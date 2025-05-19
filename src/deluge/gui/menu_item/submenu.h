@@ -57,6 +57,7 @@ public:
 	void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) override;
 	bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) final;
 	virtual RenderingStyle renderingStyle() { return RenderingStyle::VERTICAL; };
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 	void drawPixelsForOled() override;
 	void drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption);
 	/// @brief 	Indicates if the menu-like object should wrap-around. Destined to be virtualized.
@@ -102,7 +103,9 @@ public:
 	    : Submenu(newName, newItems), horizontalMenuLayout(layout), paging{} {}
 	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, Layout layout)
 	    : Submenu(newName, newItems), horizontalMenuLayout(layout), paging{} {}
-
+	HorizontalMenu(l10n::String newName, l10n::String newTitle, std::initializer_list<MenuItem*> newItems,
+	               Layout layout)
+	    : Submenu(newName, newTitle, newItems), horizontalMenuLayout(layout), paging{} {}
 	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, Layout layout,
 	               uint32_t initialSelection)
 	    : Submenu(newName, newItems), horizontalMenuLayout(layout), paging{} {
@@ -111,10 +114,11 @@ public:
 
 	RenderingStyle renderingStyle() override;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	void renderOLED() override;
 	void drawPixelsForOled() override;
 	void endSession() override;
 
-private:
+protected:
 	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t selectedColumn);
 	ActionResult switchVisiblePage(int32_t direction);
 	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
