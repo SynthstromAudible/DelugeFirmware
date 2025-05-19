@@ -504,89 +504,92 @@ The Song menu contains the following menu hierarchy:
 </details>
 <details><summary>FX</summary>
 
-	- EQ
-		- Bass
-		- Treble (TREB)
-		- Bass Frequency (BAFR)
-		- Treble Frequency (TRFR)
-	- Delay (DELA)
-		- Amount (AMOU)
-		- Rate
-		- Pingpong (PING)
-			- Disabled (OFF)
-			- Enabled (ON)
-		- Type
-			- Digital (DIGI)
-			- Analog (ANA)
-		- Sync
-		NOTE: These options can change depending on how your default resolution is set
+    - EQ
+    	- Bass
+    	- Treble (TREB)
+    	- Bass Frequency (BAFR)
+    	- Treble Frequency (TRFR)
+    - Delay (DELA)
+    	- Pingpong (PING)
+    		- Disabled (OFF)
+    		- Enabled (ON)
+    	- Sync
+    	NOTE: These options can change depending on how your default resolution is set
+    		- Off
+    		- 2-Bar
+    		- 1-Bar
+    		- 2nd-Notes
+    		- 4th-Notes
+    		- 8th-Notes
+    		- 16th-Notes
+    		- 32nd-Notes
+    		- 64th-Notes
+    		- 128th-Notes
+    		- 2-Bar-TPLTS
+    		- 1-Bar-TPLTS
+    		- 2nd-TPLTS
+    		- 4th-TPLTS
+    		- 8th-TPLTS
+    		- 16th-TPLTS
+    		- 32nd-TPLTS
+    		- 64th-TPLTS
+    		- 128th-TPLTS
+    		- 2-Bar-DTTED
+    		- 1-Bar-DTTED
+    		- 2nd-DTTED
+    		- 4th-DTTED
+    		- 8th-DTTED
+    		- 16th-DTTED
+    		- 32nd-DTTED
+    		- 64th-DTTED
+    		- 128th-DTTED
+    	- Rate
+    	- Amount (AMOU)
+    	- Type
+    		- Digital (DIGI)
+    		- Analog (ANA)
 
-			- Off
-			- 2-Bar
-			- 1-Bar
-			- 2nd-Notes
-			- 4th-Notes
-			- 8th-Notes
-			- 16th-Notes
-			- 32nd-Notes
-			- 64th-Notes
-			- 128th-Notes
-			- 2-Bar-TPLTS
-			- 1-Bar-TPLTS
-			- 2nd-TPLTS
-			- 4th-TPLTS
-			- 8th-TPLTS
-			- 16th-TPLTS
-			- 32nd-TPLTS
-			- 64th-TPLTS
-			- 128th-TPLTS
-			- 2-Bar-DTTED
-			- 1-Bar-DTTED
-			- 2nd-DTTED
-			- 4th-DTTED
-			- 8th-DTTED
-			- 16th-DTTED
-			- 32nd-DTTED
-			- 64th-DTTED
-			- 128th-DTTED
-	- Reverb (REVE)
-		- Amount (AMOU)
-  			- Freeverb (FVRB)
-          		- Mutable (MTBL)
-		- Model (MODE)
-		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
-		- Damping (DAMP)
-		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
-  		- HPF (if Mutable is Selected)
-  		- LPF (if Mutable is Selected)
-		- Pan
-		- Reverb Sidechain (SIDE)
-			- Volume Ducking (VOLU)
+    - Reverb (REVE)
+    	- Model (MODE)
+    		- Freeverb (FVRB)
+    		- Mutable (MTBL)
+    	- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
+    	- Damping (DAMP)
+    	- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+    	- Amount (AMOU)
+    	- Pan
+    	- HPF (if Mutable is Selected)
+    	- LPF (if Mutable is Selected)
+    	- Reverb Sidechain (SIDE)
+    		- Volume Ducking (VOLU)
 
-	- Stutter (STUT)
-		- Quantize (QTZ)
-		- Reverse (REVE)
-		- Ping-Pong (PING)
+    - Stutter (STUT)
+    	- Use Song Settings (SONG)
+    	- Quantize (QTZ)
+    	- Reverse (REVE)
+    	- Ping-Pong (PING)
 
-	- Mod-FX (MODU)
-		- Type
-			- Disabled (OFF)
-			- Flanger (FLAN)
-			- Chorus (CHOR)
-			- Phaser (PHAS)
-			- Stereo Chorus (S.CHO)
-			- Warble (WARB)
-			- Grain (GRAI)
-		- Rate
-		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
-			- Displayed as Grain Amount (Amnt) if Grain is selected
-		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
-			- Displayed as Grain Type (GRTY) if Grain is selected
-		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
-			- Displayed as Grain Size (SIZE) if Grain is selected
-	- Distortion (DIST)
-		- Decimation (DECI)
-		- Bitcrush (CRUS)
+    - Mod-FX (MODU)
+    - Type
+    	- Disabled (OFF)
+    	- Flanger (FLAN)
+    	- Chorus (CHOR)
+    	- Phaser (PHAS)
+    	- Stereo Chorus (S.CHO)
+    	- Warble (WARB)
+    	- Grain (GRAI)
+    - Rate
+    - Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+    	- Displayed as Grain Amount (Amnt) if Grain is selected
+    - Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+    	- Displayed as Grain Type (GRTY) if Grain is selected
+    - Offset (OFFS) (if Chorus, Warble or Grain is selected)
+    	- Displayed as Grain Size (SIZE) if Grain is selected
+    - Distortion (DIST)
+    	- Saturation (SATU)
+    	- Bitcrush (CRUS)
+    	- Decimation (DECI)
+    	- Wavefold (WAVE)
 </details>
 <details><summary>Swing Interval (SWII)</summary></details>
 <details><summary>Active Scales</summary>
@@ -1108,21 +1111,21 @@ The Sound menu contains the following menu hierarchy:
 </details>
 <details><summary>Voice (VOIC) </summary>
 
-	- Polyphony Type (POLY)
-		- Auto (Can play chords, but starting a new note ends any releasing ones)
-		- Polyphonic (Can play up to MAX VOICES notes. Click for MAX VOICES sub menu to set number of voices)
-		- Monophonic (Each note stops all other notes, retriggers envelope)
-		- Legato (Each note stops all other notes, does not retrigger envelope)
-	- Unison (UNIS)
-		- Unison Number (NUM)
-		- Unison Detune (DETU)
-		- Unison Stereo Spread (SPRE)
-    - Max Voices (VCNT)
-	- Portamento (PORT)
-	- Priority (PRIO)
-		- Low
-		- Medium
-		- High
+- Priority (PRIO)
+    - Low
+    - Medium
+    - High
+- Polyphony Type (POLY)
+  - Auto (Can play chords, but starting a new note ends any releasing ones)
+  - Polyphonic (Can play up to MAX VOICES notes. Click for MAX VOICES sub menu to set number of voices)
+  - Monophonic (Each note stops all other notes, retriggers envelope)
+  - Legato (Each note stops all other notes, does not retrigger envelope)
+- Max Voices (VCNT)
+- Portamento (PORT)
+- Unison (UNIS)
+  - Unison Number (NUM)
+  - Unison Detune (DETU)
+  - Unison Stereo Spread (SPRE)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 
