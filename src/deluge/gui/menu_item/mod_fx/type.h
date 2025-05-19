@@ -99,7 +99,7 @@ public:
 		image.drawString(shortOpt.c_str(), textStartX, textStartY, kTextSpacingX, kTextSpacingY);
 
 		if (getValue() < size() - 1) {
-			image.drawString(">", startX + width - arrowSpace, textStartY, kTextTitleSpacingX, kTextTitleSizeY);
+			image.drawString(">", OLED_MAIN_WIDTH_PIXELS - arrowSpace, textStartY, kTextTitleSpacingX, kTextTitleSizeY);
 		}
 	}
 };
