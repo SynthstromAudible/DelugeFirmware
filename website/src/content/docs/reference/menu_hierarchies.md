@@ -1310,7 +1310,7 @@ The Kit FX menu contains the following menu hierarchy:
     - Reverb (REVE)
 		- Model (MODE)
 			- Freeverb (FVRB)
-  			- Mutable (MTBL)
+			- Mutable (MTBL)
 		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
 		- Damping (DAMP)
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
