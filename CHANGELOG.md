@@ -171,6 +171,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ##### MIDI Clips
 - Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`. See documentation on [MIDI Device Definition Files](docs/features/midi_device_definition_files.md) for more info.
 - Added MIDI CC numbers and labels to `Gold (Mod) Encoder` popups.
+- Updated MIDI Program menu to show values 0-127.
+  - Values for program, bank and sub-bank were previously shown as 1-128, but now reflect the actual transmitted MIDI values.
 
 #### <ins>Automation View</ins>
 
