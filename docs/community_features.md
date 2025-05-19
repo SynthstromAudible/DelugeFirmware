@@ -35,14 +35,28 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 #### 2.2 Horizontal Menus
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
   - Envelope 1-4.
-  - LPF and HPF.
   - LFO 1-4.
-  - Arpegiattor
+  - LPF and HPF.
+  - EQ.
+  - Distortion.
+  - Reverb.
+  - Reverb sidechain.
+  - Delay.
+  - Mod FX.
+  - Compressor.
+  - Unison.
+  - Voice.
+  - Arpeggiator.
 - Horizontal Menu controls.
   - `Turn select encoder` to change the value of the selected menu item
   - `Press + Turn select encoder` to change the selected menu item
   - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
-    - When in a Horizontal menu, the selected instrument LED corresponding to the Horizontal Menu item selected will light up
+    - When in a Horizontal Menu, the selected instruments LED corresponding to the Horizontal Menu item selected will light up
+  - You can switch between the different pages of the horizontal menu using the `SCALE` and `CROSS-SCREEN` buttons
+    - When in a Horizontal Menu, the `SCALE` and `CROSS-SCREEN` buttons LED will light up if the Horizontal Menu has more than one page.
+    - Use `CROSS-SCREEN` button to switch to the next page
+    - Use `SCALE` button to switch to the previous page
+  - If the selected menu item is a submenu, you can enter the submenu by pressing the SELECT encoder or the lit SYNTH, KIT, MIDI, or CV buttons under the submenu item selected
 
 #### 2.3 Favourites
 A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UI -> KEYBOARD -> FAVOURITES`.
