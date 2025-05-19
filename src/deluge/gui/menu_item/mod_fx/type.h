@@ -70,5 +70,37 @@ public:
 		// Occupy the whole page in the horizontal menu
 		return 4;
 	}
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
+		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
+		getShortOption(shortOpt);
+
+		constexpr int32_t arrowSpace = 10; // Space reserved for each arrow
+
+		// Get main text width and trim if needed
+		int32_t pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
+		while (pxLen >= width - (2 * arrowSpace)) {
+			shortOpt.truncate(shortOpt.size() - 1);
+			pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
+		}
+
+		// Calculate center positions
+		int32_t textStartX = startX + ((width - pxLen) / 2);
+		int32_t textStartY = startY + ((height - kTextSpacingY) / 2) + 1;
+
+		// Draw arrows if needed
+		if (getValue() > 0) {
+			image.drawString("<", startX + 2, textStartY, kTextTitleSpacingX, kTextTitleSizeY);
+		}
+
+		// Draw main text
+		image.drawString(shortOpt.c_str(), textStartX, textStartY, kTextSpacingX, kTextSpacingY);
+
+		if (getValue() < size() - 1) {
+			image.drawString(">", startX + width - arrowSpace, textStartY, kTextTitleSpacingX, kTextTitleSizeY);
+		}
+	}
 };
 } // namespace deluge::gui::menu_item::mod_fx

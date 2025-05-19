@@ -180,7 +180,7 @@ void HorizontalMenu::drawPixelsForOled() {
 
 			const char disabledItemValueDash = '-';
 			int32_t pxLen = image.getCharWidthInPixels(disabledItemValueDash, kTextTitleSizeY);
-			int32_t pad = ((boxWidth - pxLen) / 2) - 1;
+			int32_t pad = ((boxWidth - pxLen) / 2) - 2;
 			image.drawChar(disabledItemValueDash, currentX + pad, baseY + kTextSpacingY + 2, kTextTitleSpacingX,
 			               kTextTitleSizeY, 0, currentX + boxWidth);
 		}
