@@ -65,7 +65,7 @@ void Enumeration::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t 
 	}
 	// Padding to center the string. If we can't center exactly, 1px right is better than 1px left.
 	int32_t pad = ((width - pxLen) / 2) - 1;
-	image.drawString(shortOpt.c_str(), startX + pad, startY + kTextSpacingY + 2, kTextSpacingX, kTextSpacingY, 0,
+	image.drawString(shortOpt.c_str(), startX + pad, startY + kTextSpacingY + 3, kTextSpacingX, kTextSpacingY, 0,
 	                 startX + width - kTextSpacingX);
 }
 

@@ -86,7 +86,7 @@ public:
 	struct PageInfo {
 	public:
 		int32_t number;
-		int32_t spanMultiplier;
+		int32_t itemsWidthScaling;
 		std::vector<MenuItem*> items;
 	};
 	struct Paging {
@@ -119,13 +119,17 @@ public:
 	void endSession() override;
 
 protected:
+	HorizontalMenu::Paging paging;
+	int32_t lastSelectedHorizontalMenuItemPosition = kNoSelection;
+	Layout horizontalMenuLayout = Layout::DYNAMIC;
+
+private:
 	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t selectedColumn);
 	ActionResult switchVisiblePage(int32_t direction);
 	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
 	HorizontalMenu::Paging splitMenuItemsByPages();
-	HorizontalMenu::Paging paging;
-	int32_t lastSelectedHorizontalMenuItemPosition = kNoSelection;
-	Layout horizontalMenuLayout = Layout::DYNAMIC;
+	int32_t calcPageItemsWidthScaling(int32_t totalItemsSpan, std::vector<MenuItem*>& pageItems,
+	                                  bool isLastPage = false) const;
 };
 
 } // namespace deluge::gui::menu_item
