@@ -63,9 +63,14 @@ public:
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 16; }
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return (sound->polyphonic == PolyphonyMode::POLY);
+	}
+
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MAX_VOICES_SHORT));
 	}
 };
 
@@ -116,6 +121,10 @@ public:
 			return &polyphonicVoiceCountMenu;
 		}
 		return Selection::selectButtonPress();
+	}
+
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_POLYPHONY_SHORT));
 	}
 };
 } // namespace deluge::gui::menu_item::voice

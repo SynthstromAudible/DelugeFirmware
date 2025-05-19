@@ -203,6 +203,7 @@
 #include "gui/menu_item/unpatched_param/pan.h"
 #include "gui/menu_item/unpatched_param/updating_reverb_params.h"
 #include "gui/menu_item/voice/polyphony.h"
+#include "gui/menu_item/voice/portamento.h"
 #include "gui/menu_item/voice/priority.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
@@ -408,11 +409,15 @@ Submenu kitArpMenu{
 
 voice::PolyphonyType polyphonyMenu{STRING_FOR_POLYPHONY};
 voice::VoiceCount voice::polyphonicVoiceCountMenu{STRING_FOR_MAX_VOICES};
-UnpatchedParam portaMenu{STRING_FOR_PORTAMENTO, params::UNPATCHED_PORTAMENTO};
+voice::Portamento portaMenu{STRING_FOR_PORTAMENTO};
 voice::Priority priorityMenu{STRING_FOR_PRIORITY};
 
 Submenu voiceMenu{STRING_FOR_VOICE,
                   {&polyphonyMenu, &unisonMenu, &voice::polyphonicVoiceCountMenu, &portaMenu, &priorityMenu}};
+
+HorizontalMenu voiceHorizontalMenu{STRING_FOR_VOICE,
+                                   {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &portaMenu},
+                                   HorizontalMenu::Layout::FIXED};
 
 // Modulator menu -----------------------------------------------------------------------
 
@@ -1689,7 +1694,7 @@ PLACE_SDRAM_DATA Submenu* parentsForSoundShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &soundDistortionMenu,   &soundDistortionMenu,     &soundDistortionMenu,              },
-    {nullptr,                 nullptr,                 nullptr,                        &unisonMenu,                    &unisonMenu,          nullptr,                nullptr,                  &soundDistortionMenu,              },
+    {&voiceHorizontalMenu,    &voiceHorizontalMenu,    &voiceHorizontalMenu,           &unisonMenu,                    &unisonMenu,          nullptr,                nullptr,                  &soundDistortionMenu,              },
     {&env0Menu,               &env0Menu,               &env0Menu,                      &env0Menu,                      &lpfMenu,             &lpfMenu,               &lpfMenu,                 &lpfMenu,                          },
     {&env1Menu,               &env1Menu,               &env1Menu,                      &env1Menu,                      &hpfMenu,             &hpfMenu,               &hpfMenu,                 &hpfMenu,                          },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &eqMenu,                  &eqMenu,                           },
