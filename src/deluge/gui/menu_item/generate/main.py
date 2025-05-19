@@ -6,8 +6,7 @@ import json
 top_level_menus = (
     [
         dmenus.filter.sound_filters,
-        dmenus.compressor.menu,
-        dmenus.unison.menu,
+        dmenus.compressor.menu
     ]
     + dmenus.envelopes.menus
     + dmenus.oscillator.menus
