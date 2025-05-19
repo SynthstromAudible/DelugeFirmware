@@ -521,8 +521,10 @@ void HorizontalMenu::updateSelectedHorizontalMenuItemLED(int32_t itemNumber) {
 
 	// Light up all buttons whose columns are covered by the selected item
 	std::vector<bool> ledStates{false, false, false, false};
-	for (int32_t i = 0; i < ledStates.size(); ++i) {
-		ledStates[i] = i >= startColumn && i < endColumn;
+	if (visiblePage.items.size() > 1 || visiblePage.items[0]->isSubmenu()) {
+		for (int32_t i = 0; i < ledStates.size(); ++i) {
+			ledStates[i] = i >= startColumn && i < endColumn;
+		}
 	}
 
 	indicator_leds::setLedState(IndicatorLED::SYNTH, ledStates[0]);
