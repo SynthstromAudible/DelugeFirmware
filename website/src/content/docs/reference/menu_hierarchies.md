@@ -1128,11 +1128,12 @@ The Sound menu contains the following menu hierarchy:
 - Max Voices (VCNT)
 - Portamento (PORT)
 - Unison (UNIS)
+
   - Unison Number (NUM)
   - Unison Detune (DETU)
   - Unison Stereo Spread (SPRE)
-</details>
-<details><summary>Bend Range (BEND) </summary>
+  </details>
+  <details><summary>Bend Range (BEND) </summary>
 
 - Normal (NORM)
 - Poly / Finger / MPE (MPE)
@@ -1268,10 +1269,10 @@ The Kit FX menu contains the following menu hierarchy:
     	- Bass Frequency (BAFR)
     	- Treble Frequency (TRFR)
     - Delay (DELA)
-		- Pingpong (PING)
-			- Disabled (OFF)
-			- Enabled (ON)
-		- Sync
+    	- Pingpong (PING)
+    		- Disabled (OFF)
+    		- Enabled (ON)
+    	- Sync
     	NOTE: These options can change depending on how your default resolution is set
     		- Off
     		- 2-Bar
@@ -1301,53 +1302,54 @@ The Kit FX menu contains the following menu hierarchy:
     		- 32nd-DTTED
     		- 64th-DTTED
     		- 128th-DTTED
-		- Rate
+    	- Rate
     	- Amount (AMOU)
     	- Type
     		- Digital (DIGI)
     		- Analog (ANA)
 
     - Reverb (REVE)
-		- Model (MODE)
-			- Freeverb (FVRB)
-			- Mutable (MTBL)
-		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
-		- Damping (DAMP)
-		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
-		- Amount (AMOU)
-		- Pan
-		- HPF (if Mutable is Selected)
-		- LPF (if Mutable is Selected)
-		- Reverb Sidechain (SIDE)
-			- Volume Ducking (VOLU)
+    	- Model (MODE)
+    		- Freeverb (FVRB)
+    		- Mutable (MTBL)
+    	- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
+    	- Damping (DAMP)
+    	- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+    	- Amount (AMOU)
+    	- Pan
+    	- HPF (if Mutable is Selected)
+    	- LPF (if Mutable is Selected)
+    	- Reverb Sidechain (SIDE)
+    		- Volume Ducking (VOLU)
 
-	- Stutter (STUT)
-		- Use Song Settings (SONG)
-		- Quantize (QTZ)
-		- Reverse (REVE)
-		- Ping-Pong (PING)
+    - Stutter (STUT)
+    	- Use Song Settings (SONG)
+    	- Quantize (QTZ)
+    	- Reverse (REVE)
+    	- Ping-Pong (PING)
 
-	- Mod-FX (MODU)
-	- Type
-		- Disabled (OFF)
-		- Flanger (FLAN)
-		- Chorus (CHOR)
-		- Phaser (PHAS)
-		- Stereo Chorus (S.CHO)
-		- Warble (WARB)
-		- Grain (GRAI)
-	- Rate
-	- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
-		- Displayed as Grain Amount (Amnt) if Grain is selected
-	- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
-		- Displayed as Grain Type (GRTY) if Grain is selected
-	- Offset (OFFS) (if Chorus, Warble or Grain is selected)
-		- Displayed as Grain Size (SIZE) if Grain is selected
-	- Distortion (DIST)
-		- Saturation (SATU)
-		- Bitcrush (CRUS)
-		- Decimation (DECI)
-		- Wavefold (WAVE)
+    - Mod-FX (MODU)
+    - Type
+    	- Disabled (OFF)
+    	- Flanger (FLAN)
+    	- Chorus (CHOR)
+    	- Phaser (PHAS)
+    	- Stereo Chorus (S.CHO)
+    	- Warble (WARB)
+    	- Grain (GRAI)
+    - Rate
+    - Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+    	- Displayed as Grain Amount (Amnt) if Grain is selected
+    - Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+    	- Displayed as Grain Type (GRTY) if Grain is selected
+    - Offset (OFFS) (if Chorus, Warble or Grain is selected)
+    	- Displayed as Grain Size (SIZE) if Grain is selected
+    - Distortion (DIST)
+    	- Saturation (SATU)
+    	- Bitcrush (CRUS)
+    	- Decimation (DECI)
+    	- Wavefold (WAVE)
+
 </details>
 <details><summary>Sidechain (SIDE) </summary>
 
