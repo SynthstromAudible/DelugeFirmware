@@ -1076,17 +1076,17 @@ void MidiFollow::writeDefaultMappingsToFile() {
 			intToString(ccNumber, buffer);
 			writer.writeTag(paramNameSound, buffer);
 		}
-
-		writeTag = false;
-		if (globalParamId != PARAM_ID_NONE) {
-			paramNameGlobal =
-			    params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_START + globalParamId);
-			writeTag = strcmp(paramNameGlobal, paramNameSound) != 0;
-		}
-		if (writeTag) {
-			char buffer[10];
-			intToString(ccNumber, buffer);
-			writer.writeTag(paramNameGlobal, buffer);
+		else {
+			if (globalParamId != PARAM_ID_NONE) {
+				paramNameGlobal =
+				    params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_START + globalParamId);
+				writeTag = strcmp(paramNameGlobal, paramNameSound) != 0;
+			}
+			if (writeTag) {
+				char buffer[10];
+				intToString(ccNumber, buffer);
+				writer.writeTag(paramNameGlobal, buffer);
+			}
 		}
 	}
 }

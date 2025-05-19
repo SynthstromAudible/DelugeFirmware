@@ -188,7 +188,9 @@
 #include "gui/menu_item/submenu/arp_mpe_submenu.h"
 #include "gui/menu_item/submenu/bend.h"
 #include "gui/menu_item/submenu/envelope.h"
+#include "gui/menu_item/submenu/mod_fx.h"
 #include "gui/menu_item/submenu/modulator.h"
+#include "gui/menu_item/submenu/reverb_sidechain.h"
 #include "gui/menu_item/submenu/sidechain.h"
 #include "gui/menu_item/swing/interval.h"
 #include "gui/menu_item/synth_mode.h"
@@ -201,6 +203,7 @@
 #include "gui/menu_item/unpatched_param/pan.h"
 #include "gui/menu_item/unpatched_param/updating_reverb_params.h"
 #include "gui/menu_item/voice/polyphony.h"
+#include "gui/menu_item/voice/portamento.h"
 #include "gui/menu_item/voice/priority.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
@@ -406,11 +409,12 @@ Submenu kitArpMenu{
 
 voice::PolyphonyType polyphonyMenu{STRING_FOR_POLYPHONY};
 voice::VoiceCount voice::polyphonicVoiceCountMenu{STRING_FOR_MAX_VOICES};
-UnpatchedParam portaMenu{STRING_FOR_PORTAMENTO, params::UNPATCHED_PORTAMENTO};
+voice::Portamento portaMenu{STRING_FOR_PORTAMENTO};
 voice::Priority priorityMenu{STRING_FOR_PRIORITY};
 
-Submenu voiceMenu{STRING_FOR_VOICE,
-                  {&polyphonyMenu, &unisonMenu, &voice::polyphonicVoiceCountMenu, &portaMenu, &priorityMenu}};
+HorizontalMenu voiceMenu{STRING_FOR_VOICE,
+                         {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &portaMenu, &unisonMenu},
+                         HorizontalMenu::Layout::FIXED};
 
 // Modulator menu -----------------------------------------------------------------------
 
@@ -460,7 +464,7 @@ mod_fx::Feedback modFXFeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_MODFX_FEEDBAC
 mod_fx::Depth_Patched modFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MODFX_DEPTH, params::GLOBAL_MOD_FX_DEPTH};
 mod_fx::Offset modFXOffsetMenu{STRING_FOR_OFFSET, STRING_FOR_MODFX_OFFSET, params::UNPATCHED_MOD_FX_OFFSET};
 
-HorizontalMenu modFXMenu{
+submenu::ModFxHorizontalMenu modFXMenu{
     STRING_FOR_MOD_FX,
     {
         &modFXTypeMenu,
@@ -549,32 +553,26 @@ unpatched_param::UpdatingReverbParams sidechainShapeMenu{STRING_FOR_SHAPE, STRIN
                                                          params::UNPATCHED_SIDECHAIN_SHAPE};
 reverb::sidechain::Shape reverbSidechainShapeMenu{STRING_FOR_SHAPE, STRING_FOR_SIDECH_SHAPE_MENU_TITLE};
 
-submenu::Sidechain sidechainMenu{
-    STRING_FOR_SIDECHAIN,
-    STRING_FOR_SIDECHAIN,
-    {
-        &sidechainSendMenu,
-        &sidechainVolumeShortcutMenu,
-        &sidechainSyncMenu,
-        &sidechainAttackMenu,
-        &sidechainReleaseMenu,
-        &sidechainShapeMenu,
-    },
-    false,
-};
+submenu::Sidechain sidechainMenu{STRING_FOR_SIDECHAIN,
+                                 STRING_FOR_SIDECHAIN,
+                                 {
+                                     &sidechainSendMenu,
+                                     &sidechainVolumeShortcutMenu,
+                                     &sidechainSyncMenu,
+                                     &sidechainAttackMenu,
+                                     &sidechainReleaseMenu,
+                                     &sidechainShapeMenu,
+                                 }};
 
-submenu::Sidechain reverbSidechainMenu{
-    STRING_FOR_REVERB_SIDECHAIN,
-    STRING_FOR_REVERB_SIDECH_MENU_TITLE,
-    {
-        &reverbSidechainVolumeMenu,
-        &sidechainSyncMenu,
-        &sidechainAttackMenu,
-        &sidechainReleaseMenu,
-        &reverbSidechainShapeMenu,
-    },
-    true,
-};
+submenu::ReverbSidechain reverbSidechainMenu{STRING_FOR_REVERB_SIDECHAIN,
+                                             STRING_FOR_REVERB_SIDECH_MENU_TITLE,
+                                             {
+                                                 &reverbSidechainVolumeMenu,
+                                                 &sidechainSyncMenu,
+                                                 &sidechainAttackMenu,
+                                                 &sidechainReleaseMenu,
+                                                 &reverbSidechainShapeMenu,
+                                             }};
 
 // Reverb ----------------------------------------------------------------------------------
 patched_param::Integer reverbAmountMenu{STRING_FOR_AMOUNT, STRING_FOR_REVERB_AMOUNT, params::GLOBAL_REVERB_AMOUNT};
@@ -774,7 +772,7 @@ HorizontalMenu globalReverbMenu{
 mod_fx::Depth_Unpatched globalModFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MOD_FX_DEPTH, params::UNPATCHED_MOD_FX_DEPTH};
 UnpatchedParam globalModFXRateMenu{STRING_FOR_RATE, STRING_FOR_MOD_FX_RATE, params::UNPATCHED_MOD_FX_RATE};
 
-HorizontalMenu globalModFXMenu{
+submenu::ModFxHorizontalMenu globalModFXMenu{
     STRING_FOR_MOD_FX,
     {
         &modFXTypeMenu,
@@ -1693,7 +1691,7 @@ PLACE_SDRAM_DATA Submenu* parentsForSoundShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &soundDistortionMenu,   &soundDistortionMenu,     &soundDistortionMenu,              },
-    {nullptr,                 nullptr,                 nullptr,                        &unisonMenu,                    &unisonMenu,          nullptr,                nullptr,                  &soundDistortionMenu,              },
+    {&voiceMenu,              &voiceMenu,              &voiceMenu,                     &unisonMenu,                    &unisonMenu,          nullptr,                nullptr,                  &soundDistortionMenu,              },
     {&env0Menu,               &env0Menu,               &env0Menu,                      &env0Menu,                      &lpfMenu,             &lpfMenu,               &lpfMenu,                 &lpfMenu,                          },
     {&env1Menu,               &env1Menu,               &env1Menu,                      &env1Menu,                      &hpfMenu,             &hpfMenu,               &hpfMenu,                 &hpfMenu,                          },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &eqMenu,                  &eqMenu,                           },
