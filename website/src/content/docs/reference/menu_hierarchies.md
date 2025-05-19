@@ -1119,7 +1119,10 @@ The Sound menu contains the following menu hierarchy:
 </details>
 <details><summary>Voice (VOIC) </summary>
 
-- Priority (PRIO) - Low - Medium - High
+- Priority (PRIO)
+	- Low
+	- Medium
+	- High
 - Polyphony Type (POLY)
   - Auto (Can play chords, but starting a new note ends any releasing ones)
   - Polyphonic (Can play up to MAX VOICES notes. Click for MAX VOICES sub menu to set number of voices)
@@ -1128,12 +1131,11 @@ The Sound menu contains the following menu hierarchy:
 - Max Voices (VCNT)
 - Portamento (PORT)
 - Unison (UNIS)
-
   - Unison Number (NUM)
   - Unison Detune (DETU)
   - Unison Stereo Spread (SPRE)
-  </details>
-  <details><summary>Bend Range (BEND) </summary>
+</details>
+<details><summary>Bend Range (BEND) </summary>
 
 - Normal (NORM)
 - Poly / Finger / MPE (MPE)
