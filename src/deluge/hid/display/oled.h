@@ -104,7 +104,15 @@ public:
 	static const uint8_t checkedBoxIcon[];
 	static const uint8_t uncheckedBoxIcon[];
 	static const uint8_t submenuArrowIcon[];
+	static const uint8_t submenuArrowIconBold[];
 	static const uint8_t metronomeIcon[];
+	static const uint8_t lfoIconSine[];
+	static const uint8_t lfoIconSquare[];
+	static const uint8_t lfoIconSaw[];
+	static const uint8_t lfoIconTriangle[];
+	static const uint8_t lfoIconSampleHold[];
+	static const uint8_t lfoIconRandomWalk[];
+	static const uint8_t lfoIconWarbler[];
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;

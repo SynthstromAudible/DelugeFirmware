@@ -63,7 +63,7 @@ public:
 		}
 		int32_t pxLen;
 		// Trim characters from the end until it fits.
-		while ((pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY)) >= width) {
+		while ((pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY)) >= width - 2) {
 			shortOpt.truncate(shortOpt.size() - 1);
 		}
 		// Padding to center the string. If we can't center exactly, 1px right is better than 1px left.

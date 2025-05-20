@@ -4,20 +4,20 @@ TabWidth: 4
 UseTab: ForIndentation
 BreakBeforeBraces: Custom
 BraceWrapping:
-  BeforeElse: True
+  BeforeElse: true
 ColumnLimit: 120
-ReflowComments: True
+ReflowComments: true
 AllowShortBlocksOnASingleLine: Empty
 AllowShortFunctionsOnASingleLine: InlineOnly
 AllowShortIfStatementsOnASingleLine: Never
-AllowShortEnumsOnASingleLine: True
-IndentGotoLabels: False
+AllowShortEnumsOnASingleLine: true
+IndentGotoLabels: false
 PointerAlignment: Left
 BreakBeforeBinaryOperators: NonAssignment
-BreakBeforeTernaryOperators: True
+BreakBeforeTernaryOperators: true
 AccessModifierOffset: -4
 AlwaysBreakTemplateDeclarations: Yes
-IndentRequiresClause: False
+IndentRequiresClause: false
 RequiresClausePosition: OwnLine
 
 SortIncludes: CaseSensitive

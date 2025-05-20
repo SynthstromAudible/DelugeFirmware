@@ -51,8 +51,8 @@ appreciated.
 * Code reviews are intended to increase quality and should not go into nitpicking, please remember
   the [Code of Conduct](CODE_OF_CONDUCT.md).
 * Final decisions about merging of Pull requests is up to the code owners, see [Governance](GOVERNANCE.md).
-* If you have a contribution to make then review the [Guidelines for Repository Contributions](/website/src/content/docs/development/guidelines.md). 
+* If you have a contribution to make then review the [Guidelines for Repository Contributions](https://delugecommunity.com/development/deluge/guidelines/). 
 
 ## Additional Developer Resources
 
-* Access more developer resources in [Additional Information](/website/src/content/docs/development/additional_info.md).
+* Access more developer resources in [Additional Information](https://delugecommunity.com/development/deluge/additional_info/).

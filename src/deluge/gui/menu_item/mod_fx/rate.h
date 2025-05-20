@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright (c) 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,30 +14,18 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
-#include "model/sample/sample_cluster_array.h"
+#pragma once
 #include "definitions_cxx.hpp"
-#include "model/sample/sample_cluster.h"
-#include <new>
+#include "gui/menu_item/patched_param/integer.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 
-SampleClusterArray::SampleClusterArray() : ResizeableArray(sizeof(SampleCluster)) {
-}
+namespace deluge::gui::menu_item::mod_fx {
+class Rate final : public patched_param::Integer {
+public:
+	using patched_param::Integer::Integer;
 
-Error SampleClusterArray::insertSampleClustersAtEnd(int32_t numToInsert) {
-	int32_t oldNum = getNumElements();
-	Error error = insertAtIndex(oldNum, numToInsert);
-	if (error != Error::NONE) {
-		return error;
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return modControllable->getModFXType() != ModFXType::NONE;
 	}
-
-	for (int32_t i = oldNum; i < oldNum + numToInsert; i++) {
-		void* address = getElementAddress(i);
-		SampleCluster* sampleCluster = new (address) SampleCluster();
-	}
-
-	return Error::NONE;
-}
-
-SampleCluster* SampleClusterArray::getElement(int32_t i) {
-	return (SampleCluster*)getElementAddress(i);
-}
+};
+} // namespace deluge::gui::menu_item::mod_fx

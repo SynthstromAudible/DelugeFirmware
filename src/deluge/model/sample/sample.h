@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "model/sample/sample_cluster.h"
-#include "model/sample/sample_cluster_array.h"
 #include "storage/audio/audio_file.h"
 #include "util/container/array/ordered_resizeable_array.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
@@ -152,7 +151,7 @@ public:
 
 	uint32_t waveTableCycleSize{0}; // In case this later gets used for a WaveTable
 
-	SampleClusterArray clusters;
+	std::vector<SampleCluster> clusters;
 
 	// Stealable Implementation
 	bool mayBeStolen(void* thingNotToStealFrom = nullptr) override;

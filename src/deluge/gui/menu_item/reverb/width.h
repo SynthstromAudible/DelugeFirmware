@@ -40,5 +40,19 @@ public:
 		}
 	}
 	[[nodiscard]] std::string_view getTitle() const override { return getName(); }
+
+	void getColumnLabel(StringBuf& label) override {
+		using enum l10n::String;
+		switch (AudioEngine::reverb.getModel()) {
+		case dsp::Reverb::Model::DIGITAL:
+			[[fallthrough]];
+		case dsp::Reverb::Model::MUTABLE:
+			label.append(deluge::l10n::get(l10n::String::STRING_FOR_DIFFUSION));
+			break;
+		default:
+			label.append(deluge::l10n::get(l10n::String::STRING_FOR_WIDTH_SHORT));
+			break;
+		}
+	}
 };
 } // namespace deluge::gui::menu_item::reverb

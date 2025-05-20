@@ -2,19 +2,28 @@
 title: Arpeggiator
 ---
 
+import LinkPreviewCard from "../../../components/LinkPreviewCard.astro"
+
 The arpeggiator has been completely redesigned from scratch. It can be used on Synth clips, Midi clips, and on any kind of
 Kit rows (Sound, Midi and CV).
 
 ## Video Tutorials
 
-Please refer to these amazing video tutorials on the Arpeggiator to better understand the functionality:
-
-- Ron Cavagnaro Tutorial:
-  - [DELUGE 1.1 CHORD MEMORY & ARPEGGIATOR // DELUGE 1.1 BEETHOVEN FIRMWARE TUTORIAL](https://www.youtube.com/watch?v=VuAESUsW8bw)
-- Bay Mud Tutorial:
-  - [New Deluge Community Firmware 1.1 Features! New Arp](https://youtu.be/gxnK2XJthYo?t=521&si=LXp0QPM818l-buQm)
-- Mark Young Tutorial:
-  - [Latest Community Firmware | Crazy Arpeggiator Updates](https://youtu.be/pmDlRK_uzLE?t=940&si=8q0Xz_BcKlhz0jF6)
+<LinkPreviewCard
+  youtubeId="VuAESUsW8bw"
+  title="Chord Memory & Arpeggiator"
+  description="Ron Cavagnaro"
+/>
+<LinkPreviewCard
+  href="https://www.youtube.com/watch?v=gxnK2XJthYo&t=521"
+  title="New Community Firmware Features: New Arp"
+  description="Bay Mud"
+/>
+<LinkPreviewCard
+  href="https://www.youtube.com/watch?v=pmDlRK_uzLE&t=940"
+  title="Latest Community Firmware: Crazy Arpeggiator Updates"
+  description="Mark Young"
+/>
 
 ## Arpeggiator Modes (or Presets)
 
@@ -106,7 +115,7 @@ setting how many times they are repeated, and setting the direction in which the
   "0" means "play note", and "-" means "don't play note" (or play a silence). It can be **automated** and **learned** to
   golden knobs and MIDI CC (not automatable in MIDI clips). The available options are:
   <details>
-  <summary>Rhythm Options</summary>
+    <summary>Rhythm Options</summary>
     <ul>
       <li> 0: None (play all notes)</li>
       <li> 1: 0--</li>

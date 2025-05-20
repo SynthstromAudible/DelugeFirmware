@@ -39,21 +39,28 @@ back up your SD card!
 
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
   - Envelope 1-4.
-  - LPF and HPF.
   - LFO 1-4.
-  - Arpegiattor
-- Horizontal Menu controls. There are two different behaviours that can be toggled between to edit values and select menu items within the horizontal menu. You can toggle between them by going to the `SETTINGS > DEFAULTS -> UI -> HORIZONTAL MENU (HORZ)` and toggling `Alternative Select Behaviour (SELE)` on or off.
-  - Note: regardless of the behaviour toggle selected, you will always be able to change the selected horizontal menu's item's value by turning the select encoder when you're holding audition pad or sticky shift is enabled.
-    - Whenever you're holding audition pad or sticky shift is enabled, you can change the selected horizontal menu by `Pressing + Turning the select encoder`
-  - If you're not holding an audition pad or sticky shift is disabled, then the following select behaviours apply.
-  - With `Alternative Select Behaviour (SELE)` DISABLED:
-    - `Turn select encoder` to change the selected menu item
-    - `Press + Turn select encoder` to change the value of the selected menu item
-  - With `Alternative Select Behaviour (SELE)` ENABLED:
-    - `Turn select encoder` to change the value of the selected menu item
-    - `Press + Turn select encoder` to change the selected menu item
+  - LPF and HPF.
+  - EQ.
+  - Distortion.
+  - Reverb.
+  - Reverb sidechain.
+  - Delay.
+  - Mod FX.
+  - Compressor.
+  - Unison.
+  - Voice.
+  - Arpeggiator.
+- Horizontal Menu controls.
+  - `Turn select encoder` to change the value of the selected menu item
+  - `Press + Turn select encoder` to change the selected menu item
   - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
-    - When in a Horizontal menu, the selected instrument LED corresponding to the Horizontal Menu item selected will light up
+    - When in a Horizontal Menu, the selected instruments LED corresponding to the Horizontal Menu item selected will light up
+  - You can switch between the different pages of the horizontal menu using the `SCALE` and `CROSS-SCREEN` buttons
+    - When in a Horizontal Menu, the `SCALE` and `CROSS-SCREEN` buttons LED will light up if the Horizontal Menu has more than one page.
+    - Use `CROSS-SCREEN` button to switch to the next page
+    - Use `SCALE` button to switch to the previous page
+  - If the selected menu item is a submenu, you can enter the submenu by pressing the SELECT encoder or the lit SYNTH, KIT, MIDI, or CV buttons under the submenu item selected
 
 #### 2.3 Favourites
 

@@ -15,7 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "deluge/modulation/params/param.h"
 #include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/param.h"
 #include "gui/menu_item/source/patched_param.h"
 
 namespace deluge::gui::menu_item::envelope {
@@ -25,9 +27,25 @@ public:
 	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+
 	void getColumnLabel(StringBuf& label) override {
-		// For envelope segments the first letter is perfect short name: ADSR is well known.
-		label.append(MenuItem::getName().data()[0]);
+		const auto& l10nString = getStringForEnvelopeParam(menu_item::PatchedParam::getP());
+		label.append(deluge::l10n::get(l10nString));
+	}
+
+private:
+	const deluge::l10n::String getStringForEnvelopeParam(uint8_t param) const {
+		using namespace deluge::modulation;
+		switch (param) {
+		case deluge::modulation::params::LOCAL_ENV_0_ATTACK:
+			return deluge::l10n::String::STRING_FOR_ATTACK_SHORT;
+		case deluge::modulation::params::LOCAL_ENV_0_DECAY:
+			return deluge::l10n::String::STRING_FOR_DECAY_SHORT;
+		case deluge::modulation::params::LOCAL_ENV_0_SUSTAIN:
+			return deluge::l10n::String::STRING_FOR_SUSTAIN_SHORT;
+		case deluge::modulation::params::LOCAL_ENV_0_RELEASE:
+			return deluge::l10n::String::STRING_FOR_RELEASE_SHORT;
+		}
 	}
 };
 } // namespace deluge::gui::menu_item::envelope

@@ -9,7 +9,7 @@ std::array<MenuItem*, 4> child0 = {
     &lpfMorphMenu,
     &lpfModeMenu,
 };
-HorizontalMenu lpfMenu{STRING_FOR_LPF, child0};
+HorizontalMenu lpfMenu{STRING_FOR_LPF, child0, HorizontalMenu::Layout::FIXED};
 filter::FilterParam hpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY, params::LOCAL_HPF_FREQ, filter::FilterSlot::HPF, filter::FilterParamType::FREQUENCY};
 filter::FilterParam hpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, params::LOCAL_HPF_RESONANCE, filter::FilterSlot::HPF, filter::FilterParamType::RESONANCE};
 filter::FilterParam hpfMorphMenu{STRING_FOR_HPF_MORPH, params::LOCAL_HPF_MORPH, filter::FilterSlot::HPF, filter::FilterParamType::MORPH};
@@ -20,7 +20,7 @@ std::array<MenuItem*, 4> child1 = {
     &hpfMorphMenu,
     &hpfModeMenu,
 };
-HorizontalMenu hpfMenu{STRING_FOR_HPF, child1};
+HorizontalMenu hpfMenu{STRING_FOR_HPF, child1, HorizontalMenu::Layout::FIXED};
 FilterRouting filterRoutingMenu{STRING_FOR_FILTER_ROUTE};
 std::array<MenuItem*, 3> child2 = {
     &lpfMenu,
@@ -43,7 +43,7 @@ std::array<MenuItem*, 6> child3 = {
     &compBlend,
 };
 Submenu audioCompMenu{STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR, child3};
-unison::Count numUnisonMenu{STRING_FOR_UNISON_NUMBER};
+unison::CountToStereoSpread numUnisonMenu{STRING_FOR_UNISON_NUMBER};
 unison::Detune unisonDetuneMenu{STRING_FOR_UNISON_DETUNE};
 unison::StereoSpread unison::stereoSpreadMenu{STRING_FOR_UNISON_STEREO_SPREAD};
 std::array<MenuItem*, 3> child4 = {
@@ -51,7 +51,7 @@ std::array<MenuItem*, 3> child4 = {
     &unisonDetuneMenu,
     &unison::stereoSpreadMenu,
 };
-Submenu unisonMenu{STRING_FOR_UNISON, child4};
+HorizontalMenu unisonMenu{STRING_FOR_UNISON, child4, HorizontalMenu::Layout::FIXED};
 envelope::Segment envAttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
 envelope::Segment envDecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY};
 envelope::Segment envSustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};

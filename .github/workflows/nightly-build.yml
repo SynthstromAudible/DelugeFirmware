@@ -35,7 +35,7 @@ jobs:
     needs: nightly-build
     with:
       tag: 'nightly'
-      
+
   beta-detect:
     runs-on: ubuntu-latest
     outputs:

@@ -1,0 +1,126 @@
+---
+import { getLinkMetadata } from "../logic/link-metadata"
+
+const SITE_NAME_OVERRIDES = {
+  "forums.synthstrom.com": "Synthstrom Forums",
+  "drive.google.com": "Google Drive",
+}
+
+type Props = (
+  | {
+      href: string
+    }
+  | {
+      youtubeId: string
+    }
+) & {
+  title?: string
+  description: string | false | undefined
+  showImage?: boolean
+  showSiteName?: boolean
+}
+
+const href =
+  "href" in Astro.props
+    ? Astro.props.href
+    : `https://www.youtube.com/watch?v=${Astro.props.youtubeId}`
+
+const {
+  title: titleProp,
+  description: descriptionProp,
+  showImage = true,
+  showSiteName: showSiteNameProp,
+} = Astro.props
+
+const { url, title, description, siteName, image } = await getLinkMetadata(href)
+
+const descriptionText =
+  descriptionProp === false ? undefined : descriptionProp || description
+
+const showSiteName =
+  showSiteNameProp !== undefined ? showSiteNameProp : !descriptionText
+
+const hostname = new URL(url).hostname
+
+const siteNameText =
+  hostname in SITE_NAME_OVERRIDES
+    ? SITE_NAME_OVERRIDES[hostname as keyof typeof SITE_NAME_OVERRIDES]
+    : siteName
+---
+
+<div class="sl-link-card !mr-2 inline-flex max-w-[21.5rem] align-text-top">
+  <span class="sl-flex stack w-full">
+    {
+      image && showImage && (
+        <img src={image} alt={title} class="aspect-video w-full rounded-md" />
+      )
+    }
+    <a href={url} rel="noopener noreferrer">
+      <span class="title">{titleProp || title}</span>
+    </a>
+    {showSiteName && <span class="description">{siteNameText}</span>}
+    {
+      descriptionText && (
+        <span class="description w-full overflow-hidden text-ellipsis">
+          {descriptionText}
+        </span>
+      )
+    }
+  </span>
+</div>
+
+<style>
+  /* Styles from Starlight LinkCard */
+  .sl-link-card {
+    /* display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 0.5rem; */
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    box-shadow: var(--sl-shadow-sm);
+    position: relative;
+  }
+
+  a {
+    text-decoration: none;
+    line-height: var(--sl-line-height-headings);
+  }
+
+  /* a11y fix for https://github.com/withastro/starlight/issues/487 */
+  a::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+
+  .stack {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .title {
+    color: var(--sl-color-white);
+    font-weight: 600;
+    font-size: var(--sl-text-lg);
+  }
+
+  .description {
+    color: var(--sl-color-gray-3);
+    line-height: 1.5;
+  }
+
+  .icon {
+    color: var(--sl-color-gray-3);
+  }
+
+  /* Hover state */
+  .sl-link-card:hover {
+    background: var(--sl-color-gray-7, var(--sl-color-gray-6));
+    border-color: var(--sl-color-gray-2);
+  }
+
+  .sl-link-card:hover .icon {
+    color: var(--sl-color-white);
+  }
+</style>

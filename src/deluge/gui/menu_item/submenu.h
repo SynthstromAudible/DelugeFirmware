@@ -56,6 +56,8 @@ public:
 	void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final;
 	void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) override;
 	bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) final;
+	virtual RenderingStyle renderingStyle() { return RenderingStyle::VERTICAL; };
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 	void drawPixelsForOled() override;
 	void drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption);
 	/// @brief 	Indicates if the menu-like object should wrap-around. Destined to be virtualized.
@@ -63,20 +65,14 @@ public:
 	bool wrapAround();
 	bool isSubmenu() override { return true; }
 	virtual bool focusChild(const MenuItem* child);
-	/// Submenus which support horizontal rendering need to override this.
-	virtual bool supportsHorizontalRendering() { return false; }
-	RenderingStyle renderingStyle();
 	void updatePadLights() override;
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override;
 	deluge::modulation::params::Kind getParamKind() override;
 	uint32_t getParamIndex() override;
 
 protected:
-	void drawVerticalMenu();
-	void drawHorizontalMenu();
-	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
-	int32_t lastSelectedHorizontalMenuItemPosition = kNoSelection;
 	std::optional<uint8_t> thingIndex = std::nullopt;
+	uint32_t initial_index_ = 0;
 	deluge::vector<MenuItem*> items;
 	typename decltype(items)::iterator current_item_;
 
@@ -86,21 +82,50 @@ private:
 
 class HorizontalMenu : public Submenu {
 public:
-	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems) : Submenu(newName, newItems) {}
-	HorizontalMenu(l10n::String newName, std::span<MenuItem*> newItems) : Submenu(newName, newItems) {}
-	HorizontalMenu(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems)
-	    : Submenu(newName, title, newItems) {}
-	HorizontalMenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
-	    : Submenu(newName, title, newItems) {}
-	HorizontalMenu(l10n::String newName, std::span<MenuItem*> newItems, int32_t newThingIndex)
-	    : Submenu(newName, newItems, newThingIndex) {}
-	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, int32_t newThingIndex)
-	    : Submenu(newName, newItems, newThingIndex) {}
+	enum Layout { FIXED, DYNAMIC };
+	struct PageInfo {
+	public:
+		int32_t number;
+		int32_t spanMultiplier;
+		std::vector<MenuItem*> items;
+	};
+	struct Paging {
+	public:
+		int32_t visiblePageNumber;
+		int32_t selectedItemPositionOnPage;
+		std::vector<PageInfo> pages;
+		PageInfo& getVisiblePage() { return pages[visiblePageNumber]; }
+	};
 
-	bool supportsHorizontalRendering() { return true; }
+	using Submenu::Submenu;
+
+	HorizontalMenu(l10n::String newName, std::span<MenuItem*> newItems, Layout layout)
+	    : Submenu(newName, newItems), horizontalMenuLayout(layout), paging{} {}
+	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, Layout layout)
+	    : Submenu(newName, newItems), horizontalMenuLayout(layout), paging{} {}
+	HorizontalMenu(l10n::String newName, l10n::String newTitle, std::initializer_list<MenuItem*> newItems,
+	               Layout layout)
+	    : Submenu(newName, newTitle, newItems), horizontalMenuLayout(layout), paging{} {}
+	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, Layout layout,
+	               uint32_t initialSelection)
+	    : Submenu(newName, newItems), horizontalMenuLayout(layout), paging{} {
+		initial_index_ = initialSelection;
+	}
+
+	RenderingStyle renderingStyle() override;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
-	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t itemNumber);
+	void renderOLED() override;
+	void drawPixelsForOled() override;
 	void endSession() override;
+
+protected:
+	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t selectedColumn);
+	ActionResult switchVisiblePage(int32_t direction);
+	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
+	HorizontalMenu::Paging splitMenuItemsByPages();
+	HorizontalMenu::Paging paging;
+	int32_t lastSelectedHorizontalMenuItemPosition = kNoSelection;
+	Layout horizontalMenuLayout = Layout::DYNAMIC;
 };
 
 } // namespace deluge::gui::menu_item

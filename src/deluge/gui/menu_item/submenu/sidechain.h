@@ -17,22 +17,17 @@
 #pragma once
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
-#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::submenu {
 class Sidechain final : public Submenu {
 public:
-	Sidechain(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems,
-	          bool newForReverbSidechain)
-	    : Submenu(newName, title, newItems), forReverbSidechain(newForReverbSidechain) {}
+	using Submenu::Submenu;
+
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
-		soundEditor.currentSidechain =
-		    forReverbSidechain ? &AudioEngine::reverbSidechain : &soundEditor.currentSound->sidechain;
+		soundEditor.currentSidechain = &soundEditor.currentSound->sidechain;
 		Submenu::beginSession(navigatedBackwardFrom);
 	}
-
-	bool forReverbSidechain;
 };
 
 } // namespace deluge::gui::menu_item::submenu

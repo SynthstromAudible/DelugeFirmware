@@ -56,8 +56,13 @@ public:
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingReverbSidechain() || AudioEngine::reverbSidechainVolume >= 0;
+	}
+
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RELEASE_SHORT));
 	}
 };
 } // namespace deluge::gui::menu_item::sidechain
