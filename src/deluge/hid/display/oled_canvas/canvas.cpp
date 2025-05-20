@@ -216,8 +216,11 @@ void Canvas::drawStringCentredShrinkIfNecessary(char const* string, int32_t pixe
 		else if (newHeight >= 10) {
 			newHeight = 10;
 		}
-		else {
+		else if (newHeight >= 7) {
 			newHeight = 7;
+		}
+		else {
+			newHeight = 5;
 		}
 
 		textWidth = maxTextWidth;
@@ -254,6 +257,14 @@ void Canvas::drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, int32_t s
 	int32_t fontNativeHeight;
 
 	switch (textHeight) {
+	case 5:
+		[[fallthrough]];
+	case 6:
+		textHeight = 5;
+		descriptor = font_5px_desc;
+		font = font_5px;
+		fontNativeHeight = 5;
+		break;
 	case 9:
 		pixelY++;
 		[[fallthrough]];
@@ -330,13 +341,16 @@ int32_t Canvas::getCharWidthInPixels(uint8_t theChar, int32_t textHeight) {
 	if (charIndex <= 0) {
 		return 0;
 	}
-	// the smaller apple ][ is monospaced, so return standard width of each character
-	else if (textHeight <= 9) {
+	else if (textHeight >= 7 && textHeight <= 9) {
+		// the smaller apple ][ is monospaced, so return standard width of each character
 		return kTextSpacingX;
 	}
 
 	lv_font_glyph_dsc_t const* descriptor;
 	switch (textHeight) {
+	case 5:
+		descriptor = font_5px_desc;
+		break;
 	case 10:
 		descriptor = font_metric_bold_9px_desc;
 		break;
