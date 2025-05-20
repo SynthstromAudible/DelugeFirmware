@@ -138,7 +138,9 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 			if (!useTextWidth) {
 				int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
 				charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
-				// if (textHeight <= 6) { charWidth++; }
+				if (textHeight <= 6) {
+					charWidth++;
+				}
 			}
 			charStartX += charWidth;
 			// are we past the scroll position?
