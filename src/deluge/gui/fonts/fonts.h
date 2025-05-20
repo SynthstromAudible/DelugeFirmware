@@ -33,5 +33,8 @@ extern const lv_font_glyph_dsc_t font_metric_bold_9px_desc[];
 extern const uint8_t font_apple[];
 extern const lv_font_glyph_dsc_t font_apple_desc[];
 
+extern const uint8_t font_5px[];
+extern const lv_font_glyph_dsc_t font_5px_desc[];
+
 extern const uint8_t font_metric_bold_13px[];
 extern const lv_font_glyph_dsc_t font_metric_bold_13px_desc[];
