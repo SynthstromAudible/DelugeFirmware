@@ -28,11 +28,11 @@
 
 
 /***********************************************************************************
- * 5 px Font in U+0020 ( ) .. U+005a (Z)  range with 1 bpp
+ * Original 5 px Font in U+0020 ( ) .. U+005a (Z)  range with 1 bpp
 ***********************************************************************************/
 
 /*Store the image of the letters (glyph)*/
-// Height 5, scale 160, base line offset 1.
+// Height 5, scale 160, base line offset 0.
 const uint8_t font_5px[] = {
         0b00000,		// spacebar
         0b00000,
@@ -383,7 +383,7 @@ const lv_font_glyph_dsc_t font_5px_desc[] = {
 
 
 /*Store the image of the letters (glyph)*/
-// Height 7, scale 160, base line offset -5.
+// Height 7, scale 160, base line offset 1.
 const uint8_t font_apple[] = {
         0b00000000,		// spacebar
         0b00000000,
