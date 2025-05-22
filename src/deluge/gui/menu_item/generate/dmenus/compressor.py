@@ -50,10 +50,10 @@ blend = Menu(
 )
 
 menu = Submenu(
-    "Submenu",
+    "HorizontalMenu",
     "audioCompMenu",
     ["{name}", "%%CHILDREN%%"],
     "compressor/index.md",
-    [threshold, ratio, attack, release, hpf, blend],
+    [threshold, ratio, blend, attack, release, hpf],
     name="STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR",
 )
