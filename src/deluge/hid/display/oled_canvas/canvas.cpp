@@ -138,9 +138,6 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 			if (!useTextWidth) {
 				int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
 				charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
-				if (textHeight <= 6) {
-					charWidth++;
-				}
 			}
 			charStartX += charWidth;
 			// are we past the scroll position?
@@ -172,9 +169,6 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		if (!useTextWidth) {
 			int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
 			charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
-			if (textHeight <= 6) {
-				charWidth++;
-			}
 		}
 		drawChar(c, pixelX, pixelY, charWidth, textHeight, scrollPos, endX);
 
@@ -375,7 +369,7 @@ int32_t Canvas::getCharWidthInPixels(uint8_t theChar, int32_t textHeight) {
 }
 
 int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool isLastChar) {
-	bool monospacedFont = (textHeight <= 9);
+	bool monospacedFont = (textHeight >= 7 and textHeight <= 9);
 	// don't add space to the last character
 	if (isLastChar) {
 		return 0;
@@ -384,6 +378,10 @@ int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool
 		// smaller apple ][ font is monospaced, so spacing is different
 		if (monospacedFont) {
 			return kTextSpacingX;
+		}
+		// small font is spaced 2px
+		else if (textHeight <= 6) {
+			return 2;
 		}
 		// if character is a space, make spacing 6px instead
 		// (just need to add 5 since previous character added 1 after it)
@@ -396,6 +394,10 @@ int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool
 		// as it's handled by the standard char width
 		if (monospacedFont) {
 			return 0;
+		}
+		// small font
+		else if (textHeight <= 6) {
+			return 1;
 		}
 		// default spacing is 2 pixels for bold fonts
 		else {
