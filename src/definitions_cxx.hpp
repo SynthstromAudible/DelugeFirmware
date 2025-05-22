@@ -942,7 +942,7 @@ constexpr int32_t kConsoleImageHeight = (OLED_MAIN_HEIGHT_PIXELS);
 constexpr int32_t kConsoleImageNumRows = (OLED_MAIN_HEIGHT_PIXELS >> 3);
 
 // small characters
-constexpr int32_t kTextSmallSpacingX = 5;
+constexpr int32_t kTextSmallSpacingX = 4;
 constexpr int32_t kTextSmallSizeY = 5;
 
 // non-title characters
