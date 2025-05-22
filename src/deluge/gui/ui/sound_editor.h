@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/submenu.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "modulation/arpeggiator.h"
@@ -83,7 +84,7 @@ public:
 	bool editingKitRow();
 
 	ActionResult timerCallback() override;
-	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency);
+	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour = 0L);
 	bool findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout);
 	void updateSourceBlinks(MenuItem* currentItem);
 	void resetSourceBlinks();
@@ -92,6 +93,7 @@ public:
 	uint8_t patchingParamSelected;
 	uint8_t currentParamShorcutX;
 	uint8_t currentParamShorcutY;
+	uint8_t currentParamColour;
 	uint8_t paramShortcutBlinkFrequency;
 	uint32_t shortcutBlinkCounter;
 
@@ -106,6 +108,7 @@ public:
 	MenuItem* menuItemNavigationRecord[16];
 
 	bool shouldGoUpOneLevelOnBegin;
+	bool secondPageToggled;
 
 	bool programChangeReceived(MIDICable& cable, uint8_t channel, uint8_t program) { return false; }
 	bool midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value);

@@ -115,6 +115,12 @@ void MenuItem::updatePadLights() {
 	soundEditor.updatePadLightsFor(this);
 }
 
+void MenuItem::endSession() {
+	// need to reset current coords for correct work of the second page shortcuts
+	soundEditor.currentParamShorcutX = 255;
+	soundEditor.currentParamShorcutY = 255;
+}
+
 bool isItemRelevant(MenuItem* item) {
 	if (item == nullptr) {
 		return false;
