@@ -536,6 +536,8 @@ void HorizontalMenu::updateSelectedHorizontalMenuItemLED(int32_t itemNumber) {
 /// when exiting a horizontal menu, turn off the LED's and reset selected horizontal menu item position
 /// so that next time you open a horizontal menu it refreshes the LED for the selected horizontal menu item
 void HorizontalMenu::endSession() {
+	Submenu::endSession();
+
 	lastSelectedHorizontalMenuItemPosition = kNoSelection;
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
