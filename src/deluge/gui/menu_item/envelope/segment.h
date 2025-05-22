@@ -21,12 +21,9 @@
 #include "gui/menu_item/source/patched_param.h"
 
 namespace deluge::gui::menu_item::envelope {
-class Segment : public source::PatchedParam, public FormattedTitle {
+class Segment : public source::PatchedParam {
 public:
-	Segment(l10n::String name, l10n::String title_format_str, int32_t newP)
-	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
-
-	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+	using source::PatchedParam::PatchedParam;
 
 	void getColumnLabel(StringBuf& label) override {
 		const auto& l10nString = getStringForEnvelopeParam(menu_item::PatchedParam::getP());

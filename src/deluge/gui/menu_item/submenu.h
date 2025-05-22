@@ -69,6 +69,7 @@ public:
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override;
 	deluge::modulation::params::Kind getParamKind() override;
 	uint32_t getParamIndex() override;
+	std::optional<uint8_t> getThingIndex() { return thingIndex; }
 
 protected:
 	std::optional<uint8_t> thingIndex = std::nullopt;

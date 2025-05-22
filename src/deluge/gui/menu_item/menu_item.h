@@ -112,7 +112,7 @@ public:
 	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr) {};
 
 	/// @brief End an editing session with this menu item
-	virtual void endSession() {};
+	virtual void endSession();
 
 	/// Re-read the value from the system and redraw the display to match.
 	virtual void readValueAgain() {}
