@@ -206,18 +206,14 @@ const uint8_t font_5px[] = {
         0b10000,
 
         0b11111,		// M
-        0b00010,
-        0b01100,
-        0b00010,
+        0b00110,
         0b11111,
 
         0b11111,		// N
-        0b00010,
-        0b00100,
-        0b11111,
+        0b00001,
+        0b11110,
 
         0b01110,		// O
-        0b10001,
         0b10001,
         0b01110,
 
@@ -227,8 +223,7 @@ const uint8_t font_5px[] = {
 
         0b01110,		// Q
         0b10001,
-        0b01001,
-        0b10110,
+        0b11110,
 
         0b11111,		// R
         0b00101,
@@ -251,9 +246,7 @@ const uint8_t font_5px[] = {
         0b01111,
 
         0b11111,		// W
-        0b01000,
-        0b00110,
-        0b01000,
+        0b01100,
         0b11111,
 
         0b11011,		// X
@@ -351,30 +344,30 @@ const lv_font_glyph_dsc_t font_5px_desc[] = {
         {.w_px = 3,     .glyph_index = 117},	// J
         {.w_px = 3,     .glyph_index = 120},	// K
         {.w_px = 3,     .glyph_index = 123},	// L
-        {.w_px = 5,     .glyph_index = 126},	// M
-        {.w_px = 4,     .glyph_index = 131},	// N
-        {.w_px = 4,     .glyph_index = 135},	// O
-        {.w_px = 3,     .glyph_index = 139},	// P
-        {.w_px = 4,     .glyph_index = 142},	// Q
-        {.w_px = 3,     .glyph_index = 146},	// R
-        {.w_px = 3,     .glyph_index = 149},	// S
-        {.w_px = 3,     .glyph_index = 152},	// T
-        {.w_px = 3,     .glyph_index = 155},	// U
-        {.w_px = 3,     .glyph_index = 158},	// V
-        {.w_px = 5,     .glyph_index = 161},	// W
-        {.w_px = 3,     .glyph_index = 166},	// X
-        {.w_px = 3,     .glyph_index = 169},	// Y
-        {.w_px = 3,     .glyph_index = 172},	// Z
-        {.w_px = 2,     .glyph_index = 175},	// [
-        {.w_px = 3,     .glyph_index = 177},	// \ (backslash)
-        {.w_px = 2,     .glyph_index = 180},	// ]
-        {.w_px = 3,     .glyph_index = 182},	// ^
-        {.w_px = 3,     .glyph_index = 185},	// _
-        {.w_px = 2,     .glyph_index = 188},	// `
-        {.w_px = 3,     .glyph_index = 190},	// {
-        {.w_px = 1,     .glyph_index = 193},	// |
-        {.w_px = 3,     .glyph_index = 194},	// }
-        {.w_px = 4,     .glyph_index = 197},	// ~
+        {.w_px = 3,     .glyph_index = 126},	// M
+        {.w_px = 3,     .glyph_index = 129},	// N
+        {.w_px = 3,     .glyph_index = 132},	// O
+        {.w_px = 3,     .glyph_index = 135},	// P
+        {.w_px = 3,     .glyph_index = 138},	// Q
+        {.w_px = 3,     .glyph_index = 141},	// R
+        {.w_px = 3,     .glyph_index = 144},	// S
+        {.w_px = 3,     .glyph_index = 147},	// T
+        {.w_px = 3,     .glyph_index = 150},	// U
+        {.w_px = 3,     .glyph_index = 153},	// V
+        {.w_px = 3,     .glyph_index = 156},	// W
+        {.w_px = 3,     .glyph_index = 159},	// X
+        {.w_px = 3,     .glyph_index = 162},	// Y
+        {.w_px = 3,     .glyph_index = 165},	// Z
+        {.w_px = 2,     .glyph_index = 168},	// [
+        {.w_px = 3,     .glyph_index = 170},	// \ (backslash)
+        {.w_px = 2,     .glyph_index = 173},	// ]
+        {.w_px = 3,     .glyph_index = 175},	// ^
+        {.w_px = 3,     .glyph_index = 178},	// _
+        {.w_px = 2,     .glyph_index = 181},	// `
+        {.w_px = 3,     .glyph_index = 183},	// {
+        {.w_px = 1,     .glyph_index = 186},	// |
+        {.w_px = 3,     .glyph_index = 187},	// }
+        {.w_px = 4,     .glyph_index = 190},	// ~
 };
 
 /***********************************************************************************
