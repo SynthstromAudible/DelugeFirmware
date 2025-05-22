@@ -88,15 +88,13 @@ public:
 	float getDisplayValue() final { return soundEditor.currentModControllable->compressor.getSidechainForDisplay(); }
 	const char* getUnit() final { return "HZ"; }
 };
-class Blend final : public Integer {
+class Blend final : public CompressorValue {
 public:
-	using Integer::Integer;
-	void readCurrentValue() override {
-		auto value = (uint64_t)soundEditor.currentModControllable->compressor.getBlend();
-		this->setValue(value >> 24);
+	using CompressorValue::CompressorValue;
+	uint64_t getCompressorValue() final {
+		return (uint64_t)soundEditor.currentModControllable->compressor.getBlend().raw();
 	}
-	bool usesAffectEntire() override { return true; }
-	void writeCurrentValue() override {
+	void setCompressorValue(q31_t, RMSFeedbackCompressor* compressor) final {
 		auto value = this->getValue();
 
 		q31_t knobPos;
@@ -106,27 +104,12 @@ public:
 		else {
 			knobPos = ONE_Q31;
 		}
-
-		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
-
-			Kit* kit = getCurrentKit();
-
-			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
-				if (thisDrum->type == DrumType::SOUND) {
-					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-
-					soundDrum->compressor.setBlend(knobPos);
-				}
-			}
-		}
-		// Or, the normal case of just one sound
-		else {
-			soundEditor.currentModControllable->compressor.setBlend(knobPos);
-		}
+		compressor->setBlend(knobPos);
 	}
-	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getBlendForDisplay(); }
-	const char* getUnit() override { return "%"; }
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
+
+	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getBlendForDisplay(); }
+	const char* getUnit() override { return " %"; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const final { return 0; }
+	[[nodiscard]] int32_t getColumnSpan() const override { return 1; }
 };
 } // namespace deluge::gui::menu_item::audio_compressor
