@@ -60,7 +60,7 @@ public:
 			const auto stringForAuto = l10n::get(l10n::String::STRING_FOR_AUTO);
 			const auto pxLen = canvas.getStringWidthInPixels(stringForAuto, kTextSpacingY);
 			const auto pad = ((width - pxLen) / 2) - 1;
-			canvas.drawString(stringForAuto, startX + pad, startY + kTextSpacingY + 2, kTextSpacingX, kTextSpacingY, 0,
+			canvas.drawString(stringForAuto, startX + pad, startY + kTextSpacingY + 3, kTextSpacingX, kTextSpacingY, 0,
 			                  startX + width - kTextSpacingX);
 		}
 		else {
