@@ -23,8 +23,7 @@
 namespace deluge::gui::menu_item::submenu {
 class ModFxHorizontalMenu final : public HorizontalMenu {
 public:
-	ModFxHorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems)
-	    : HorizontalMenu(newName, newItems, HorizontalMenu::Layout::FIXED) {}
+	using HorizontalMenu::HorizontalMenu;
 
 	[[nodiscard]] std::string_view getTitle() const override {
 		// Sorry, a bit of hacky casts here
