@@ -187,7 +187,6 @@
 #include "gui/menu_item/submenu/actual_source.h"
 #include "gui/menu_item/submenu/arp_mpe_submenu.h"
 #include "gui/menu_item/submenu/bend.h"
-#include "gui/menu_item/submenu/envelope.h"
 #include "gui/menu_item/submenu/mod_fx.h"
 #include "gui/menu_item/submenu/modulator.h"
 #include "gui/menu_item/submenu/reverb_sidechain.h"
@@ -426,6 +425,42 @@ source::patched_param::FM modulatorFeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_
                                                 params::LOCAL_MODULATOR_0_FEEDBACK};
 modulator::Destination modulatorDestMenu{STRING_FOR_DESTINATION, STRING_FOR_FM_MOD2_DEST_MENU_TITLE};
 osc::RetriggerPhase modulatorPhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_FM_MOD_RETRIG_MENU_TITLE, true};
+
+// Envelope 1 menu ---------------------------------------------------------------------------------
+envelope::Segment env1AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV1_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
+envelope::Segment env1DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV1_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY};
+envelope::Segment env1SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV1_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
+envelope::Segment env1ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV1_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
+
+HorizontalMenu env1Menu{
+    STRING_FOR_ENVELOPE_1, {&env1AttackMenu, &env1DecayMenu, &env1SustainMenu, &env1ReleaseMenu}, 0};
+
+// Envelope 2 menu ---------------------------------------------------------------------------------
+envelope::Segment env2AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV2_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
+envelope::Segment env2DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV2_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY};
+envelope::Segment env2SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV2_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
+envelope::Segment env2ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV2_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
+
+HorizontalMenu env2Menu{
+    STRING_FOR_ENVELOPE_2, {&env2AttackMenu, &env2DecayMenu, &env2SustainMenu, &env2ReleaseMenu}, 1};
+
+// Envelope 3 menu ---------------------------------------------------------------------------------
+envelope::Segment env3AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV3_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
+envelope::Segment env3DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV3_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY};
+envelope::Segment env3SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV3_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
+envelope::Segment env3ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV3_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
+
+HorizontalMenu env3Menu{
+    STRING_FOR_ENVELOPE_3, {&env3AttackMenu, &env3DecayMenu, &env3SustainMenu, &env3ReleaseMenu}, 2};
+
+// Envelope 4 menu ---------------------------------------------------------------------------------
+envelope::Segment env4AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV4_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
+envelope::Segment env4DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV4_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY};
+envelope::Segment env4SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV4_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
+envelope::Segment env4ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV4_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
+
+HorizontalMenu env4Menu{
+    STRING_FOR_ENVELOPE_4, {&env4AttackMenu, &env4DecayMenu, &env4SustainMenu, &env4ReleaseMenu}, 3};
 
 // LFO1 menu ---------------------------------------------------------------------------------
 
@@ -1391,8 +1426,8 @@ menu_item::Submenu soundEditorRootMenu{
         &soundMasterMenu,   &arpMenu,          &globalRandomizerMenu,
         &audioCompMenu,     &soundFiltersMenu, &soundFXMenu,
         &sidechainMenu,     &source0Menu,      &source1Menu,
-        &modulator0Menu,    &modulator1Menu,   &env0Menu,
-        &env1Menu,          &env2Menu,         &env3Menu,
+        &modulator0Menu,    &modulator1Menu,   &env1Menu,
+        &env2Menu,          &env3Menu,         &env4Menu,
         &lfo1Menu,          &lfo2Menu,         &lfo3Menu,
         &lfo4Menu,          &voiceMenu,        &bendMenu,
         &drumBendRangeMenu, &patchCablesMenu,  &sequenceDirectionMenu,
@@ -1671,11 +1706,11 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForSounds[][kDisplayHeight] = {
     {&sourceVolumeMenu,       &sourceTransposeMenu,    &oscTypeMenu,                   &pulseWidthMenu,                &oscPhaseMenu,        &sourceFeedbackMenu,    &sourceWaveIndexMenu,     &noiseMenu                         },
     {&sourceVolumeMenu,       &sourceTransposeMenu,    &oscTypeMenu,                   &pulseWidthMenu,                &oscPhaseMenu,        &sourceFeedbackMenu,    &sourceWaveIndexMenu,     &oscSyncMenu                       },
     {&modulatorVolume,        &modulatorTransposeMenu, comingSoonMenu,                 comingSoonMenu,                 &modulatorPhaseMenu,  &modulatorFeedbackMenu, comingSoonMenu,           &sequenceDirectionMenu             },
-    {&modulatorVolume,        &modulatorTransposeMenu, comingSoonMenu,                 comingSoonMenu,                 &modulatorPhaseMenu,  &modulatorFeedbackMenu, &modulatorDestMenu,       nullptr                            },
+    {&modulatorVolume,        &modulatorTransposeMenu, comingSoonMenu,                 comingSoonMenu,                 &modulatorPhaseMenu,  &modulatorFeedbackMenu, &modulatorDestMenu,       &audioCompMenu                     },
     {&volumeMenu,             &masterTransposeMenu,    &vibratoMenu,                   &panMenu,                       &synthModeMenu,       &srrMenu,               &bitcrushMenu,            &clippingMenu                      },
     {&portaMenu,              &polyphonyMenu,          &priorityMenu,                  &unisonDetuneMenu,              &numUnisonMenu,       nullptr,  				 nullptr,                  &foldMenu                          },
-    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &lpfMorphMenu,        &lpfModeMenu,           &lpfResMenu,              &lpfFreqMenu                       },
-    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &hpfMorphMenu,        &hpfModeMenu,           &hpfResMenu,              &hpfFreqMenu                       },
+    {&env1ReleaseMenu,        &env1SustainMenu,        &env1DecayMenu,                 &env1AttackMenu,                &lpfMorphMenu,        &lpfModeMenu,           &lpfResMenu,              &lpfFreqMenu                       },
+    {&env2ReleaseMenu,        &env2SustainMenu,        &env2DecayMenu,                 &env2AttackMenu,                &hpfMorphMenu,        &hpfModeMenu,           &hpfResMenu,              &hpfFreqMenu                       },
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &sidechainVolumeShortcutMenu,   &sidechainAttackMenu,           &sidechainShapeMenu,  &sidechainSendMenu,     &bassMenu,                &bassFreqMenu                      },
     {&arpRateMenu,            &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpPresetModeMenu,   &nameEditMenu,          &trebleMenu,              &trebleFreqMenu                    },
     {&lfo1RateMenu,           &lfo1SyncMenu,           &lfo1TypeMenu,                  &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &modFXDepthMenu,          &modFXRateMenu                     },
@@ -1683,23 +1718,64 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForSounds[][kDisplayHeight] = {
     {&delayRateMenu,          &delaySyncMenu,          &delayAnalogMenu,               &delayFeedbackMenu,             &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
     {nullptr,          	      &arpSpreadVelocityMenu,  nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
 };
+
 PLACE_SDRAM_DATA Submenu* parentsForSoundShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  &audioCompMenu,                    },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &soundDistortionMenu,   &soundDistortionMenu,     &soundDistortionMenu,              },
     {&voiceMenu,              &voiceMenu,              &voiceMenu,                     &unisonMenu,                    &unisonMenu,          nullptr,                nullptr,                  &soundDistortionMenu,              },
-    {&env0Menu,               &env0Menu,               &env0Menu,                      &env0Menu,                      &lpfMenu,             &lpfMenu,               &lpfMenu,                 &lpfMenu,                          },
-    {&env1Menu,               &env1Menu,               &env1Menu,                      &env1Menu,                      &hpfMenu,             &hpfMenu,               &hpfMenu,                 &hpfMenu,                          },
+    {&env1Menu,               &env1Menu,               &env1Menu,                      &env1Menu,                      &lpfMenu,             &lpfMenu,               &lpfMenu,                 &lpfMenu,                          },
+    {&env2Menu,               &env2Menu,               &env2Menu,                      &env2Menu,                      &hpfMenu,             &hpfMenu,               &hpfMenu,                 &hpfMenu,                          },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &eqMenu,                  &eqMenu,                           },
     {&arpBasicMenu,           &arpBasicMenu,           &arpBasicMenu,                  &arpPatternMenu,                &arpPresetAndRandomizerMenu, nullptr,         &eqMenu,                  &eqMenu,                           },
     {&lfo1Menu,               &lfo1Menu,               &lfo1Menu,                      &modFXMenu,                     &modFXMenu,           &modFXMenu,             &modFXMenu,               &modFXMenu,                        },
     {&lfo2Menu,               &lfo2Menu,               &lfo2Menu,                      &reverbMenu,              	   &reverbMenu,    	 	 &reverbMenu,      		 &reverbMenu,        	   &reverbMenu,                 	  },
     {&delayMenu,              &delayMenu,              &delayMenu,                     &delayMenu,                     &delayMenu,           nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 &globalRandomizerMenu,   nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+};
+
+PLACE_SDRAM_DATA MenuItem* paramShortcutsForSoundsSecondPage[][kDisplayHeight] = {
+    // Post V3
+    {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr},
+    {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr},
+    {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr},
+    {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr},
+    {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr},
+    {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr},
+    {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr},
+    {nullptr,	        nullptr,	            nullptr,	    nullptr,	        &unison::stereoSpreadMenu,  nullptr,	nullptr,	nullptr},
+    {&env3ReleaseMenu,	&env3SustainMenu,	    &env3DecayMenu,	&env3AttackMenu,	nullptr,	                nullptr,	nullptr,	nullptr},
+    {&env4ReleaseMenu,	&env4SustainMenu,	    &env4DecayMenu,	&env4AttackMenu,	nullptr,	                nullptr,	nullptr,	nullptr},
+    {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr},
+    {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr},
+    {&lfo3RateMenu,	    &lfo3SyncMenu,	        &lfo3TypeMenu,	nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr},
+    {&lfo4RateMenu,	    &lfo4SyncMenu,	        &lfo4TypeMenu,	nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr},
+    {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,                    nullptr,	nullptr,	nullptr},
+    {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,                    nullptr,	nullptr,	nullptr},
+};
+
+PLACE_SDRAM_DATA Submenu* parentsForSoundShortcutsSecondPage[][kDisplayHeight] = {
+    // Post V3
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	&unisonMenu,nullptr,	nullptr,	nullptr},
+    {&env3Menu,	&env3Menu,	&env3Menu,	&env3Menu,	nullptr,	nullptr,	nullptr,	nullptr},
+    {&env4Menu,	&env4Menu,	&env4Menu,	&env4Menu,	nullptr,	nullptr,	nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr},
+    {&lfo3Menu,	&lfo3Menu,	&lfo3Menu,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr},
+    {&lfo4Menu,	&lfo4Menu,	&lfo4Menu,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr},
 };
 
 PLACE_SDRAM_DATA MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight] = {
@@ -1850,14 +1926,6 @@ void setOscillatorNumberForTitles(int32_t num) {
 	sampleRepeatMenu.format(num);
 	timeStretchMenu.format(num);
 	interpolationMenu.format(num);
-}
-
-void setEnvelopeNumberForTitles(int32_t num) {
-	num += 1;
-	envAttackMenu.format(num);
-	envDecayMenu.format(num);
-	envSustainMenu.format(num);
-	envReleaseMenu.format(num);
 }
 
 void setModulatorNumberForTitles(int32_t num) {

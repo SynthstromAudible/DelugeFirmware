@@ -723,8 +723,12 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
 			for (int32_t x = 0; x < kDisplayWidth; x++) {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
-					if (paramShortcutsForSounds[x][y] == currentItem) {
+					if (paramShortcutsForSoundsSecondPage[x][y] == currentItem) {
+						setupShortcutBlink(x, y, 0, 0b00000011); // yellow
+						goto stopThat;
+					}
 
+					if (paramShortcutsForSounds[x][y] == currentItem) {
 						if (x == 10 && y < 6 && editingReverbSidechain()) {
 							goto stopThat;
 						}
@@ -807,9 +811,10 @@ void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 	uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 }
 
-void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency) {
+void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour) {
 	currentParamShorcutX = x;
 	currentParamShorcutY = y;
+	currentParamColour = colour;
 
 	shortcutBlinkCounter = 0;
 	paramShortcutBlinkFrequency = frequency;
@@ -822,15 +827,15 @@ void SoundEditor::setupExclusiveShortcutBlink(int32_t x, int32_t y) {
 }
 
 void SoundEditor::blinkShortcut() {
-	// We have to blink params and shortcuts at slightly different times, because blinking two pads on the same row at
-	// same time doesn't work
+	// We have to blink params and shortcuts at slightly different times, because blinking two pads on the same row
+	// at same time doesn't work
 
 	uint32_t counterForNow = shortcutBlinkCounter >> 1;
 
 	if (shortcutBlinkCounter & 1) {
 		// Blink param
 		if ((counterForNow & paramShortcutBlinkFrequency) == 0) {
-			PadLEDs::flashMainPad(currentParamShorcutX, currentParamShorcutY);
+			PadLEDs::flashMainPad(currentParamShorcutX, currentParamShorcutY, currentParamColour);
 		}
 		uiTimerManager.setTimer(TimerName::SHORTCUT_BLINK, 180);
 	}
@@ -1170,6 +1175,21 @@ getOut:
 				else {
 					item = paramShortcutsForSounds[x][y];
 					parent = parentsForSoundShortcuts[x][y];
+
+					if (x == currentParamShorcutX && y == currentParamShorcutY) {
+						secondPageToggled = !secondPageToggled;
+						if (secondPageToggled) {
+							const auto itemSecondPage = paramShortcutsForSoundsSecondPage[x][y];
+							const auto parentSecondPage = parentsForSoundShortcutsSecondPage[x][y];
+							if (itemSecondPage != nullptr && parentSecondPage != nullptr) {
+								item = itemSecondPage;
+								parent = parentSecondPage;
+							}
+						}
+					}
+					else {
+						secondPageToggled = false;
+					}
 				}
 
 doSetup:
@@ -1203,22 +1223,20 @@ doSetup:
 						}
 					}
 
+					const auto thingIndexOpt = parent->getThingIndex();
+					const auto thingIndex = thingIndexOpt.value_or(0);
+
 					if (display->haveOLED()) {
 						switch (x) {
 						case 0 ... 3:
-							setOscillatorNumberForTitles(x & 1);
+							setOscillatorNumberForTitles(thingIndex);
 							break;
 
 						case 4 ... 5:
-							setModulatorNumberForTitles(x & 1);
-							break;
-
-						case 8 ... 9:
-							setEnvelopeNumberForTitles(x & 1);
+							setModulatorNumberForTitles(thingIndex);
 							break;
 						}
 					}
-					int32_t thingIndex = x & 1;
 
 					bool setupSuccess = setup(getCurrentClip(), item, thingIndex);
 
@@ -1236,6 +1254,7 @@ doSetup:
 			}
 		}
 	}
+
 	return ActionResult::DEALT_WITH;
 }
 

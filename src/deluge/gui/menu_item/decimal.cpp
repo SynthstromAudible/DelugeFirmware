@@ -243,4 +243,43 @@ void DecimalWithoutScrolling::drawActualValue(bool justDidHorizontalScroll) {
 	}
 	display->setText(buffer, dotPos);
 }
+
+void DecimalWithoutScrolling::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+	renderColumnLabel(startX, width, startY);
+
+	const int32_t numDecimalPlaces = getNumDecimalPlaces();
+	const float displayValue = getDisplayValue();
+
+	// Prepare value string and trim spaces
+	char valueBuf[12];
+	floatToString(displayValue, valueBuf, numDecimalPlaces, numDecimalPlaces);
+	DEF_STACK_STRING_BUF(valueString, 12);
+	valueString.append(valueBuf);
+	valueString.removeSpaces();
+
+	// Prepare unit string and trim spaces
+	const char* unitRaw = getUnit();
+	DEF_STACK_STRING_BUF(unitString, 8);
+	unitString.append(unitRaw);
+	unitString.removeSpaces();
+
+	const int valuePxLen = image.getStringWidthInPixels(valueString.c_str(), kTextSpacingY);
+	const int unitPxLen = image.getStringWidthInPixels(unitString.c_str(), kTextSpacingY);
+	const int paddingBetweenPxLen = 2;
+	const int totalPxLen = valuePxLen + (unitPxLen > 0 ? paddingBetweenPxLen + unitPxLen : 0);
+
+	// Draw the resulting string centered
+	const int pad = ((width - totalPxLen) / 2) - 1;
+	startX += pad;
+	startY += kTextSpacingY + 3;
+
+	image.drawString(valueString.c_str(), startX, startY, kTextSpacingX, kTextSpacingY, 0,
+	                 startX + width - kTextSpacingX);
+	if (unitPxLen > 0) {
+		startX += valuePxLen + paddingBetweenPxLen;
+		image.drawString(unitString.c_str(), startX, startY, kTextSpacingX, kTextSpacingY, 0,
+		                 startX + width - kTextSpacingX);
+	}
+}
 } // namespace deluge::gui::menu_item
