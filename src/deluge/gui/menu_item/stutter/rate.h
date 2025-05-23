@@ -26,9 +26,21 @@ public:
 	Rate(l10n::String newName, l10n::String title)
 	    : UnpatchedParam(newName, title, deluge::modulation::params::UNPATCHED_STUTTER_RATE) {}
 
+	void selectEncoderAction(int32_t offset);
+	void drawValue() override;
+	void drawPixelsForOled() override;
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RATE));
 	}
+
+private:
+	int32_t getClosestQuantizedOptionIndex(int32_t value) const;
+	const char* getQuantizedOptionLabel();
+	bool isStutterQuantized();
+	static std::vector<const char*> optionLabels;
+	static std::vector<int32_t> optionValues;
 };
 
 } // namespace deluge::gui::menu_item::stutter

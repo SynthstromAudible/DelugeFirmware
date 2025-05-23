@@ -29,20 +29,21 @@ class StutterDirection final : public Selection {
 public:
 	using Selection::Selection;
 
-	enum : uint8_t { USE_SONG_STUTTER = 0, NORMAL, REVERSED, PING_PONG };
+	enum Direction : int32_t { USE_SONG_STUTTER = 0, NORMAL, REVERSED, FORWARD_PING_PONG, REVERSED_PING_PONG };
 
 	deluge::vector<std::string_view> getOptions(OptType optType = OptType::FULL) override {
 		using namespace deluge::l10n;
 
 		deluge::vector<std::string_view> result;
 
-		if (!soundEditor.currentModControllable->isSong()) {
+		if (showUseSongOption()) {
 			result.push_back(l10n::getView(optType == OptType::SHORT ? String::STRING_FOR_USE_SONG_SHORT
 			                                                         : String::STRING_FOR_USE_SONG));
 		}
 		result.push_back(l10n::getView(String::STRING_FOR_FORWARD));
 		result.push_back(l10n::getView(String::STRING_FOR_REVERSED));
-		result.push_back(l10n::getView(String::STRING_FOR_PING_PONG));
+		result.push_back(l10n::getView(String::STRING_FOR_FORWARD_PING_PONG));
+		result.push_back(l10n::getView(String::STRING_FOR_REVERSED_PING_PONG));
 
 		return result;
 	}
@@ -50,23 +51,30 @@ public:
 	void readCurrentValue() override {
 		auto* stutter = &soundEditor.currentModControllable->stutterConfig;
 		if (stutter->useSongStutter) {
-			this->setValue(USE_SONG_STUTTER);
+			applyConfigFromCurrentSong(*stutter);
+		}
+
+		if (showUseSongOption() && stutter->useSongStutter) {
+			setValue(USE_SONG_STUTTER);
+		}
+		else if (stutter->reversed && stutter->pingPong) {
+			setValue(REVERSED_PING_PONG);
 		}
 		else if (stutter->reversed) {
-			this->setValue(REVERSED);
+			setValue(REVERSED);
 		}
 		else if (stutter->pingPong) {
-			this->setValue(PING_PONG);
+			setValue(FORWARD_PING_PONG);
 		}
 		else {
-			this->setValue(NORMAL);
+			setValue(NORMAL);
 		}
 	}
 
 	bool usesAffectEntire() override { return true; }
 
 	void writeCurrentValue() override {
-		int32_t option = this->getValue();
+		Direction value = getValue();
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
@@ -74,30 +82,47 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					applyOptionToStutterConfig(option, soundDrum->stutterConfig);
+					applyOptionToStutterConfig(value, soundDrum->stutterConfig);
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			applyOptionToStutterConfig(option, soundEditor.currentModControllable->stutterConfig);
-		}
-	}
-
-	static void applyOptionToStutterConfig(uint8_t option, StutterConfig& stutter) {
-		stutter.useSongStutter = option == USE_SONG_STUTTER;
-		stutter.reversed = option == REVERSED;
-		stutter.pingPong = option == PING_PONG;
-
-		if (stutter.useSongStutter) {
-			// Copy current song settings
-			stutter.quantized = currentSong->globalEffectable.stutterConfig.quantized;
-			stutter.reversed = currentSong->globalEffectable.stutterConfig.reversed;
-			stutter.pingPong = currentSong->globalEffectable.stutterConfig.pingPong;
+			applyOptionToStutterConfig(value, soundEditor.currentModControllable->stutterConfig);
 		}
 	}
 
 	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
+
+private:
+	Direction getValue() {
+		const auto value = Selection::getValue();
+		const auto shift = showUseSongOption() ? 0 : 1;
+		return static_cast<Direction>(value + shift);
+	}
+
+	void setValue(Direction value) {
+		const auto shift = showUseSongOption() ? 0 : 1;
+		return Selection::setValue(value - shift);
+	}
+
+	bool showUseSongOption() { return !soundEditor.currentModControllable->isSong(); }
+
+	void applyOptionToStutterConfig(Direction value, StutterConfig& stutter) {
+		stutter.useSongStutter = value == USE_SONG_STUTTER;
+		stutter.reversed = value == REVERSED || value == REVERSED_PING_PONG;
+		stutter.pingPong = value == FORWARD_PING_PONG || value == REVERSED_PING_PONG;
+
+		if (stutter.useSongStutter) {
+			applyConfigFromCurrentSong(stutter);
+		}
+	}
+
+	void applyConfigFromCurrentSong(StutterConfig& stutter) {
+		stutter.quantized = currentSong->globalEffectable.stutterConfig.quantized;
+		stutter.reversed = currentSong->globalEffectable.stutterConfig.reversed;
+		stutter.pingPong = currentSong->globalEffectable.stutterConfig.pingPong;
+	}
 };
 
 } // namespace deluge::gui::menu_item::stutter

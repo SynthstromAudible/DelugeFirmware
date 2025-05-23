@@ -1,0 +1,109 @@
+/*
+ * Copyright (c) 2025 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+#include "rate.h"
+#include "gui/ui/sound_editor.h"
+#include "hid/display/display.h"
+#include "hid/display/oled.h"
+
+namespace deluge::gui::menu_item::stutter {
+
+std::vector<const char*> Rate::optionLabels{"4ths", "8ths", "16ths", "32nds", "64ths"};
+std::vector<int32_t> Rate::optionValues{0, 12, 25, 37, 50};
+
+void Rate::selectEncoderAction(int32_t offset) {
+	if (!isStutterQuantized()) {
+		return UnpatchedParam::selectEncoderAction(offset);
+	}
+
+	const int32_t value = getValue(); // 0-50
+	int32_t idx = getClosestQuantizedOptionIndex(value);
+	idx += offset;
+	idx = std::clamp<int32_t>(idx, 0, static_cast<int32_t>(optionLabels.size()) - 1);
+
+	setValue(optionValues[idx]);
+	writeCurrentValue();
+	drawValue();
+}
+
+// For 7SEG display
+void Rate::drawValue() {
+	if (!isStutterQuantized()) {
+		return UnpatchedParam::drawValue();
+	}
+
+	const char* label = getQuantizedOptionLabel();
+	display->setText(label);
+}
+
+void Rate::drawPixelsForOled() {
+	if (!isStutterQuantized()) {
+		return UnpatchedParam::drawValue();
+	}
+
+	const char* label = getQuantizedOptionLabel();
+	deluge::hid::display::OLED::main.drawStringCentred(label, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
+	                                                   kTextHugeSizeY);
+}
+
+void Rate::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+	if (!isStutterQuantized()) {
+		return UnpatchedParam::renderInHorizontalMenu(startX, width, startY, height);
+	}
+
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+	renderColumnLabel(startX, width, startY);
+
+	// Render current value
+	const char* label = getQuantizedOptionLabel();
+	DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
+	shortOpt.append(label);
+
+	int32_t pxLen;
+	// Trim characters from the end until it fits.
+	while ((pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY)) >= width - 2) {
+		shortOpt.truncate(shortOpt.size() - 1);
+	}
+	// Padding to center the string. If we can't center exactly, 1px right is better than 1px left.
+	int32_t pad = ((width - pxLen) / 2) - 1;
+	image.drawString(shortOpt.c_str(), startX + pad, startY + kTextSpacingY + 3, kTextSpacingX, kTextSpacingY, 0,
+	                 startX + width - kTextSpacingX);
+}
+
+bool Rate::isStutterQuantized() {
+	return soundEditor.currentModControllable->stutterConfig.quantized;
+}
+
+const char* Rate::getQuantizedOptionLabel() {
+	int32_t value = getValue(); // 0-50
+	int32_t idx = getClosestQuantizedOptionIndex(value);
+	return optionLabels[idx];
+}
+
+int32_t Rate::getClosestQuantizedOptionIndex(int32_t value) const {
+	int32_t idx = 0;
+	int32_t minDiff = std::abs(value - optionValues[0]);
+	for (int i = 1; i < static_cast<int32_t>(optionValues.size()); ++i) {
+		int32_t diff = std::abs(value - optionValues[i]);
+		if (diff < minDiff) {
+			minDiff = diff;
+			idx = i;
+		}
+	}
+	return idx;
+}
+
+} // namespace deluge::gui::menu_item::stutter
