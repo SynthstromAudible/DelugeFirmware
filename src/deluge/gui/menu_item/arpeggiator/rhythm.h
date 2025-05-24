@@ -59,7 +59,7 @@ public:
 		while ((pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY)) >= width - 2) {
 			shortOpt.truncate(shortOpt.size() - 1);
 		}
-		// Padding to center the string. If we can't center exactly, 1px right is better than 1px left.
+		// Padding to center the string. If we can't center exactly, 1px left is better than 1px right.
 		int32_t pad = (width + 1 - pxLen) / 2;
 		image.drawString(shortOpt.c_str(), startX + pad, startY + kTextSpacingY + 3, kTextSpacingX, kTextSpacingY, 0,
 		                 startX + width - kTextSpacingX);
