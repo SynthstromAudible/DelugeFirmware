@@ -15,9 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "rate.h"
+#include "deluge.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "model/song/song.h"
 
 namespace deluge::gui::menu_item::stutter {
 
@@ -31,8 +33,7 @@ void Rate::selectEncoderAction(int32_t offset) {
 
 	const int32_t value = getValue(); // 0-50
 	int32_t idx = getClosestQuantizedOptionIndex(value);
-	idx += offset;
-	idx = std::clamp<int32_t>(idx, 0, static_cast<int32_t>(optionLabels.size()) - 1);
+	idx = std::clamp<int32_t>(idx + offset, 0, static_cast<int32_t>(optionLabels.size()) - 1);
 
 	setValue(optionValues[idx]);
 	writeCurrentValue();
@@ -77,19 +78,23 @@ void Rate::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY,
 	while ((pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY)) >= width - 2) {
 		shortOpt.truncate(shortOpt.size() - 1);
 	}
-	// Padding to center the string. If we can't center exactly, 1px right is better than 1px left.
+	// Padding to center the string. If we can't center exactly, 1px left is better than 1px right.
 	int32_t pad = ((width - pxLen) / 2) - 1;
 	image.drawString(shortOpt.c_str(), startX + pad, startY + kTextSpacingY + 3, kTextSpacingX, kTextSpacingY, 0,
 	                 startX + width - kTextSpacingX);
 }
 
 bool Rate::isStutterQuantized() {
+	if (soundEditor.currentModControllable->stutterConfig.useSongStutter) {
+		return currentSong->globalEffectable.stutterConfig.quantized;
+	}
+
 	return soundEditor.currentModControllable->stutterConfig.quantized;
 }
 
 const char* Rate::getQuantizedOptionLabel() {
-	int32_t value = getValue(); // 0-50
-	int32_t idx = getClosestQuantizedOptionIndex(value);
+	const int32_t value = getValue(); // 0-50
+	const int32_t idx = getClosestQuantizedOptionIndex(value);
 	return optionLabels[idx];
 }
 
