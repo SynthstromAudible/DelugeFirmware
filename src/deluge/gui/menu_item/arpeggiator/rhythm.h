@@ -49,15 +49,10 @@ public:
 		// Render current value
 
 		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
-		if (soundEditor.editingKit() && !soundEditor.editingGateDrumRow()) {
-			shortOpt.append(arpRhythmPatternNames[this->getValue()]);
-		}
-		else {
-			char name[12];
-			// Index:Name
-			snprintf(name, sizeof(name), "%d: %s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
-			shortOpt.append(name);
-		}
+		char name[12];
+		// Index:Name
+		snprintf(name, sizeof(name), "%d: %s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
+		shortOpt.append(name);
 
 		int32_t pxLen;
 		// Trim characters from the end until it fits.
@@ -73,6 +68,9 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
 	}
+
+protected:
+	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
 };
 
 } // namespace deluge::gui::menu_item::arpeggiator
