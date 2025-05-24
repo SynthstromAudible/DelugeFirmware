@@ -1127,7 +1127,9 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 				const int32_t modSourceX = x - 14;
 				PatchSource source = modSourceShortcuts[modSourceX][y];
 
-				if (sourceShortcutBlinkFrequencies[modSourceX][y] != 255) {
+				// Replace with the second layer shortcut (e.g. env3, lfo3) if the pad was pressed twice
+				if (sourceShortcutBlinkFrequencies[modSourceX][y] != 255
+				    && getCurrentMenuItem()->getParamKind() == deluge::modulation::params::Kind::PATCH_CABLE) {
 					secondLayerModSourceShortcutsToggled = !secondLayerModSourceShortcutsToggled;
 					if (secondLayerModSourceShortcutsToggled) {
 						const auto secondLayerSource = modSourceShortcutsSecondLayer[modSourceX][y];
@@ -1241,6 +1243,7 @@ getOut:
 					item = paramShortcutsForSounds[x][y];
 					parent = parentsForSoundShortcuts[x][y];
 
+					// Replace with the second layer shortcut (e.g. env3 attack, lfo3 rate) if the pad was pressed twice
 					if (x == currentParamShorcutX && y == currentParamShorcutY) {
 						secondLayerShortcutsToggled = !secondLayerShortcutsToggled;
 						if (secondLayerShortcutsToggled) {
