@@ -1599,6 +1599,7 @@ The CV menu contains the following menu hierarchy:
     	- Chord Probability (CPRO) (NOTE: NOT available for Gate Kit Rows)
     	- Note Probability (NOTE)
     	- Bass Probability (BASS) (NOTE: NOT available for Gate Kit Rows)
+    	- Step Probability (BASS) (NOTE: NOT available for Gate Kit Rows)
     - MPE (NOTE: NOT available for Gate Kit Rows)
     	- Velocity (VELO)
     		- Disabled (OFF)
