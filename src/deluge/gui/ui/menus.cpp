@@ -113,6 +113,7 @@
 #include "gui/menu_item/mod_fx/feedback.h"
 #include "gui/menu_item/mod_fx/offset.h"
 #include "gui/menu_item/mod_fx/rate.h"
+#include "gui/menu_item/mod_fx/rate_unpatched.h"
 #include "gui/menu_item/mod_fx/type.h"
 #include "gui/menu_item/modulator/destination.h"
 #include "gui/menu_item/modulator/transpose.h"
@@ -797,7 +798,7 @@ HorizontalMenu globalReverbMenu{
 // Mod FX Menu
 
 mod_fx::Depth_Unpatched globalModFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MOD_FX_DEPTH, params::UNPATCHED_MOD_FX_DEPTH};
-UnpatchedParam globalModFXRateMenu{STRING_FOR_RATE, STRING_FOR_MOD_FX_RATE, params::UNPATCHED_MOD_FX_RATE};
+mod_fx::Rate_Unpatched globalModFXRateMenu{STRING_FOR_RATE, STRING_FOR_MOD_FX_RATE, params::UNPATCHED_MOD_FX_RATE};
 
 submenu::ModFxHorizontalMenu globalModFXMenu{
     STRING_FOR_MOD_FX,
@@ -1723,7 +1724,7 @@ PLACE_SDRAM_DATA Submenu* parentsForSoundShortcuts[][kDisplayHeight] = {
     {nullptr,                 &globalRandomizerMenu,   nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
 };
 
-PLACE_SDRAM_DATA MenuItem* paramShortcutsForSoundsSecondPage[][kDisplayHeight] = {
+PLACE_SDRAM_DATA MenuItem* paramShortcutsForSoundsSecondLayer[][kDisplayHeight] = {
     {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
     {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
     {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
@@ -1735,30 +1736,30 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForSoundsSecondPage[][kDisplayHeight] =
     {&env3ReleaseMenu,	&env3SustainMenu,	    &env3DecayMenu,	&env3AttackMenu,	nullptr,	                nullptr,	nullptr,	nullptr              },
     {&env4ReleaseMenu,	&env4SustainMenu,	    &env4DecayMenu,	&env4AttackMenu,	nullptr,	                nullptr,	nullptr,	nullptr              },
     {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
-    {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
+    {nullptr,	        nullptr,	            nullptr,	    nullptr,	        &arpRandomizerLockMenu,	    nullptr,	nullptr,	nullptr              },
     {&lfo3RateMenu,	    &lfo3SyncMenu,	        &lfo3TypeMenu,	nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
     {&lfo4RateMenu,	    &lfo4SyncMenu,	        &lfo4TypeMenu,	nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
     {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,                    nullptr,	nullptr,	nullptr              },
     {nullptr,	        nullptr,	            nullptr,	    nullptr,	        nullptr,                    nullptr,	nullptr,	nullptr              },
 };
 
-PLACE_SDRAM_DATA Submenu* parentsForSoundShortcutsSecondPage[][kDisplayHeight] = {
-    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	    nullptr,	nullptr},
-    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	    nullptr,	nullptr},
-    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	    nullptr,	nullptr},
-    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	    nullptr,	nullptr},
-    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	    nullptr,	nullptr},
-    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	    nullptr,	&stutterMenu},
-    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	    nullptr,	nullptr},
-    {nullptr,	nullptr,	nullptr,	nullptr,	&unisonMenu,&audioCompMenu,	nullptr,	nullptr},
-    {&env3Menu,	&env3Menu,	&env3Menu,	&env3Menu,	nullptr,	nullptr,	    nullptr,	nullptr},
-    {&env4Menu,	&env4Menu,	&env4Menu,	&env4Menu,	nullptr,	nullptr,	    nullptr,	nullptr},
-    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	    nullptr,	nullptr},
-    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	    nullptr,	nullptr},
-    {&lfo3Menu,	&lfo3Menu,	&lfo3Menu,	nullptr,	nullptr,	nullptr,	    nullptr,	nullptr},
-    {&lfo4Menu,	&lfo4Menu,	&lfo4Menu,	nullptr,	nullptr,	nullptr,	    nullptr,	nullptr},
-    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	    nullptr,	nullptr},
-    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	    nullptr,	nullptr},
+PLACE_SDRAM_DATA Submenu* parentsForSoundShortcutsSecondLayer[][kDisplayHeight] = {
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	&stutterMenu},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	&unisonMenu,            &audioCompMenu,	nullptr,	nullptr},
+    {&env3Menu,	&env3Menu,	&env3Menu,	&env3Menu,	nullptr,	            nullptr,	    nullptr,	nullptr},
+    {&env4Menu,	&env4Menu,	&env4Menu,	&env4Menu,	nullptr,	            nullptr,	    nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	&arpRandomizerMenu,	    nullptr,	    nullptr,	nullptr},
+    {&lfo3Menu,	&lfo3Menu,	&lfo3Menu,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr},
+    {&lfo4Menu,	&lfo4Menu,	&lfo4Menu,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr},
 };
 
 PLACE_SDRAM_DATA MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight] = {
