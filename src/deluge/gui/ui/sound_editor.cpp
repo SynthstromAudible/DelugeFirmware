@@ -1290,8 +1290,7 @@ doSetup:
 						}
 					}
 
-					const auto thingIndexOpt = parent->getThingIndex();
-					const auto thingIndex = thingIndexOpt.value_or(0);
+					const int32_t thingIndex = x & 1;
 
 					if (display->haveOLED()) {
 						switch (x) {
