@@ -187,6 +187,8 @@ The following parameters are all **automatable** and **learnable** to golden kno
 - **`Bass Probability (BASS)`**: It applies a chance of replacing the current note to be played with the lowest note of arpeggiator
   pattern. The higher the value, the more likely that the note played is the bass note of the arpeggiated chord.
   This can be used as a performance tool to open up or close the arpeggio's pitch range.
+- **`Step Probability (STEP)`**: It applies a chance of replacing the current note to be played from the sequence pattern with a random
+  note picked from the pattern. The higher the value, the more likely that the note played is random instead of the next note in the sequence.
 - **`Reverse Probability (RVRS)`**: It applies a chance of inverting the `Reverse` sample setting just for the current note to be played.
   This probability only affects the oscillator whose type is set to `Sample`.
   Note: you can find this parameter also at the root level of the sound menu, under `Randomizer`, because this parameter affects
