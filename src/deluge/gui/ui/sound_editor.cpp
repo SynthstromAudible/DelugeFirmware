@@ -86,6 +86,29 @@ PatchSource modSourceShortcuts[2][8] = {
     },
 };
 
+PatchSource modSourceShortcutsSecondLayer[2][8] = {
+    {
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::LFO_GLOBAL_2,
+        PatchSource::ENVELOPE_2,
+        PatchSource::NOT_AVAILABLE,
+    },
+    {
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::LFO_LOCAL_2,
+        PatchSource::ENVELOPE_3,
+        PatchSource::NOT_AVAILABLE,
+    },
+};
+
 void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 
 	shortcutsVersion = newVersion;
@@ -628,12 +651,19 @@ void SoundEditor::exitCompletely() {
 	currentUIMode = UI_MODE_NONE;
 }
 
-bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout) {
+bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout, bool* isSecondLayerParamOut) {
 	bool found = false;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			if (deluge::modulation::params::patchedParamShortcuts[x][y] == paramLookingFor) {
+				*isSecondLayerParamOut = false;
+				*xout = x;
+				*yout = y;
 
+				return true;
+			}
+			if (deluge::modulation::params::patchedParamShortcutsSecondLayer[x][y] == paramLookingFor) {
+				*isSecondLayerParamOut = true;
 				*xout = x;
 				*yout = y;
 
@@ -648,9 +678,23 @@ void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
 	for (int32_t x = 0; x < 2; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			PatchSource source = modSourceShortcuts[x][y];
+			bool isSecondLayerSource = false;
+
+			if (secondLayerModSourceShortcutsToggled) {
+				const auto secondLayerSource = modSourceShortcutsSecondLayer[x][y];
+				if (secondLayerSource != PatchSource::NOT_AVAILABLE) {
+					source = secondLayerSource;
+					isSecondLayerSource = true;
+				}
+			}
+
 			if (source < kLastPatchSource) {
 				sourceShortcutBlinkFrequencies[x][y] =
 				    currentItem->shouldBlinkPatchingSourceShortcut(source, &sourceShortcutBlinkColours[x][y]);
+
+				if (sourceShortcutBlinkFrequencies[x][y] != 255 && isSecondLayerSource) {
+					sourceShortcutBlinkColours[x][y] = 0b00000011; // blink yellow on the second layer
+				}
 			}
 		}
 	}
@@ -723,8 +767,8 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
 			for (int32_t x = 0; x < kDisplayWidth; x++) {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
-					if (paramShortcutsForSoundsSecondPage[x][y] == currentItem) {
-						setupShortcutBlink(x, y, 0, 0b00000011); // yellow
+					if (paramShortcutsForSoundsSecondLayer[x][y] == currentItem) {
+						setupShortcutBlink(x, y, 0, 0b00000011 /* yellow */);
 						goto stopThat;
 					}
 
@@ -747,8 +791,9 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 				int32_t paramLookingFor = currentItem->getIndexOfPatchedParamToBlink();
 				if (paramLookingFor != 255) {
 					int32_t x, y;
-					if (findPatchedParam(paramLookingFor, &x, &y)) {
-						setupShortcutBlink(x, y, 3);
+					bool isSecondLayerParam;
+					if (findPatchedParam(paramLookingFor, &x, &y, &isSecondLayerParam)) {
+						setupShortcutBlink(x, y, 3, isSecondLayerParam ? 0b00000011 /*yellow*/ : 0L);
 					}
 				}
 			}
@@ -1079,7 +1124,22 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			// Shortcut to patch a modulation source to the parameter we're already looking at
 			if (getCurrentUI() == &soundEditor && ((x == 14 && y >= 5) || x == 15)) {
 
-				PatchSource source = modSourceShortcuts[x - 14][y];
+				const int32_t modSourceX = x - 14;
+				PatchSource source = modSourceShortcuts[modSourceX][y];
+
+				if (sourceShortcutBlinkFrequencies[modSourceX][y] != 255) {
+					secondLayerModSourceShortcutsToggled = !secondLayerModSourceShortcutsToggled;
+					if (secondLayerModSourceShortcutsToggled) {
+						const auto secondLayerSource = modSourceShortcutsSecondLayer[modSourceX][y];
+						if (secondLayerSource != PatchSource::NOT_AVAILABLE) {
+							source = secondLayerSource;
+						}
+					}
+				}
+				else {
+					secondLayerModSourceShortcutsToggled = false;
+				}
+
 				if (source == PatchSource::SOON) {
 					display->displayPopup("SOON");
 				}
@@ -1182,21 +1242,20 @@ getOut:
 					parent = parentsForSoundShortcuts[x][y];
 
 					if (x == currentParamShorcutX && y == currentParamShorcutY) {
-						secondPageToggled = !secondPageToggled;
-						if (secondPageToggled) {
-							const auto itemSecondPage = paramShortcutsForSoundsSecondPage[x][y];
-							const auto parentSecondPage = parentsForSoundShortcutsSecondPage[x][y];
-							if (itemSecondPage != nullptr && parentSecondPage != nullptr) {
-								item = itemSecondPage;
-								parent = parentSecondPage;
+						secondLayerShortcutsToggled = !secondLayerShortcutsToggled;
+						if (secondLayerShortcutsToggled) {
+							const auto secondLayerItem = paramShortcutsForSoundsSecondLayer[x][y];
+							const auto secondLayerParent = parentsForSoundShortcutsSecondLayer[x][y];
+							if (secondLayerItem != nullptr && secondLayerParent != nullptr) {
+								item = secondLayerItem;
+								parent = secondLayerParent;
 							}
 						}
 					}
 					else {
-						secondPageToggled = false;
+						secondLayerShortcutsToggled = false;
 					}
 				}
-
 doSetup:
 				if (item) {
 

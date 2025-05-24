@@ -164,8 +164,9 @@ void PatchCables::blinkShortcuts() {
 	}
 
 	int32_t x, y;
-	if (soundEditor.findPatchedParam(dest, &x, &y)) {
-		soundEditor.setupShortcutBlink(x, y, 3);
+	bool isSecondLayerParam;
+	if (soundEditor.findPatchedParam(dest, &x, &y, &isSecondLayerParam)) {
+		soundEditor.setupShortcutBlink(x, y, 3, isSecondLayerParam ? 0b00000011 /*yellow*/ : 0L);
 	}
 
 	PatchSource src = cable->from;
