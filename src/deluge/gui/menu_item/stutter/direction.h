@@ -29,7 +29,7 @@ class StutterDirection final : public Selection {
 public:
 	using Selection::Selection;
 
-	enum Direction : int32_t { USE_SONG_STUTTER = 0, NORMAL, REVERSED, FORWARD_PING_PONG, REVERSED_PING_PONG };
+	enum Direction : uint8_t { USE_SONG_STUTTER = 0, FORWARD, REVERSED, FORWARD_PING_PONG, REVERSED_PING_PONG };
 
 	deluge::vector<std::string_view> getOptions(OptType optType = OptType::FULL) override {
 		using namespace deluge::l10n;
@@ -50,9 +50,6 @@ public:
 
 	void readCurrentValue() override {
 		auto* stutter = &soundEditor.currentModControllable->stutterConfig;
-		if (stutter->useSongStutter) {
-			applyConfigFromCurrentSong(*stutter);
-		}
 
 		if (showUseSongOption() && stutter->useSongStutter) {
 			setValue(USE_SONG_STUTTER);
@@ -67,7 +64,7 @@ public:
 			setValue(FORWARD_PING_PONG);
 		}
 		else {
-			setValue(NORMAL);
+			setValue(FORWARD);
 		}
 	}
 
@@ -114,14 +111,10 @@ private:
 		stutter.pingPong = value == FORWARD_PING_PONG || value == REVERSED_PING_PONG;
 
 		if (stutter.useSongStutter) {
-			applyConfigFromCurrentSong(stutter);
+			stutter.quantized = currentSong->globalEffectable.stutterConfig.quantized;
+			stutter.reversed = currentSong->globalEffectable.stutterConfig.reversed;
+			stutter.pingPong = currentSong->globalEffectable.stutterConfig.pingPong;
 		}
-	}
-
-	void applyConfigFromCurrentSong(StutterConfig& stutter) {
-		stutter.quantized = currentSong->globalEffectable.stutterConfig.quantized;
-		stutter.reversed = currentSong->globalEffectable.stutterConfig.reversed;
-		stutter.pingPong = currentSong->globalEffectable.stutterConfig.pingPong;
 	}
 };
 
