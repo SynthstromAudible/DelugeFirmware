@@ -16,6 +16,7 @@
 #include "gui/menu_item/arpeggiator/midi_cv/spread_gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/spread_octave.h"
 #include "gui/menu_item/arpeggiator/midi_cv/spread_velocity.h"
+#include "gui/menu_item/arpeggiator/midi_cv/step_probability.h"
 #include "gui/menu_item/arpeggiator/mode.h"
 #include "gui/menu_item/arpeggiator/mpe_velocity.h"
 #include "gui/menu_item/arpeggiator/note_mode.h"
@@ -275,6 +276,10 @@ arpeggiator::ArpUnpatchedParam arpBassProbabilityMenu{
     STRING_FOR_BASS_PROBABILITY, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_BASS_PROBABILITY};
 arpeggiator::midi_cv::BassProbability arpBassProbabilityMenuMIDIOrCV{STRING_FOR_BASS_PROBABILITY,
                                                                      STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE};
+arpeggiator::ArpUnpatchedParam arpStepProbabilityMenu{
+    STRING_FOR_STEP_PROBABILITY, STRING_FOR_ARP_STEP_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_STEP_PROBABILITY};
+arpeggiator::midi_cv::StepProbability arpStepProbabilityMenuMIDIOrCV{STRING_FOR_STEP_PROBABILITY,
+                                                                     STRING_FOR_ARP_STEP_PROBABILITY_MENU_TITLE};
 arpeggiator::ArpNonKitSoundUnpatchedParam arpChordProbabilityMenu{
     STRING_FOR_CHORD_PROBABILITY, STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_PROBABILITY};
 arpeggiator::midi_cv::ChordProbability arpChordProbabilityMenuMIDIOrCV{STRING_FOR_CHORD_PROBABILITY,
@@ -332,6 +337,8 @@ HorizontalMenu arpRandomizerMenu{STRING_FOR_RANDOMIZER,
                                   &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
                                   // Bass
                                   &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV,
+                                  // Step
+                                  &arpStepProbabilityMenu, &arpStepProbabilityMenuMIDIOrCV,
                                   // Reverse
                                   &arpReverseProbabilityMenu}};
 // Arp: Preset and Randomizer

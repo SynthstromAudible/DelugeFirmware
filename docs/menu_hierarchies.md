@@ -756,6 +756,7 @@ The Sound menu contains the following menu hierarchy:
 		- Chord Probability (CPRO) (NOTE: NOT available for Sound Kit Rows)
 		- Note Probability (NOTE)
 		- Bass Probability (BASS)
+    	- Step Probability (STEP)
 		- Reverse Probability (RVRS)
 	- MPE
 		- Velocity (VELO)
@@ -1216,6 +1217,7 @@ The Kit FX menu contains the following menu hierarchy:
 		- Ratchet Probability (RPRO)
 		- Note Probability (NOTE)
 		- Bass Probability (BASS)
+    	- Step Probability (STEP)
 		- Reverse Probability (RVRS)
 </details>
 <details><summary>Compressor (COMP)</summary>
@@ -1465,6 +1467,7 @@ The MIDI menu contains the following menu hierarchy:
 		- Chord Probability (CPRO) (NOTE: NOT available for Midi Kit Rows)
 		- Note Probability (NOTE)
 		- Bass Probability (BASS)
+    	- Step Probability (STEP)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
@@ -1574,6 +1577,7 @@ The CV menu contains the following menu hierarchy:
 		- Chord Probability (CPRO) (NOTE: NOT available for Gate Kit Rows)
 		- Note Probability (NOTE)
 		- Bass Probability (BASS) (NOTE: NOT available for Gate Kit Rows)
+    	- Step Probability (STEP) (NOTE: NOT available for Gate Kit Rows)
 	- MPE (NOTE: NOT available for Gate Kit Rows)
 		- Velocity (VELO)
 			- Disabled (OFF)
