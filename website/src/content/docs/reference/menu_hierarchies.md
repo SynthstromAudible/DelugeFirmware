@@ -753,6 +753,7 @@ The Sound menu contains the following menu hierarchy:
     	- Note Probability (NOTE)
     	- Bass Probability (BASS)
     	- Step Probability (STEP)
+    	- Glide Probability (GLID)
     	- Reverse Probability (RVRS)
     - MPE
     	- Velocity (VELO)
@@ -1228,6 +1229,7 @@ The Kit FX menu contains the following menu hierarchy:
     	- Note Probability (NOTE)
     	- Bass Probability (BASS)
     	- Step Probability (STEP)
+    	- Glide Probability (GLID)
     	- Reverse Probability (RVRS)
 
 </details>
@@ -1485,6 +1487,7 @@ The MIDI menu contains the following menu hierarchy:
     	- Note Probability (NOTE)
     	- Bass Probability (BASS)
     	- Step Probability (STEP)
+    	- Glide Probability (GLID)
     - MPE
     	- Velocity (VELO)
     		- Disabled (OFF)

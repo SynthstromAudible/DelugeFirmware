@@ -100,6 +100,7 @@ public:
 	uint32_t lastLockedNoteProbabilityParameterValue{0};
 	uint32_t lastLockedBassProbabilityParameterValue{0};
 	uint32_t lastLockedStepProbabilityParameterValue{0};
+	uint32_t lastLockedGlideProbabilityParameterValue{0};
 	uint32_t lastLockedReverseProbabilityParameterValue{0};
 	uint32_t lastLockedChordProbabilityParameterValue{0};
 	uint32_t lastLockedRatchetProbabilityParameterValue{0};
@@ -111,6 +112,7 @@ public:
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedNoteProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedBassProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedStepProbabilityValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedGlideProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedReverseProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedChordProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedRatchetProbabilityValues;
@@ -134,6 +136,7 @@ public:
 	uint32_t noteProbability{4294967295u}; // Default to 25 if not set in XML
 	uint32_t bassProbability{0};
 	uint32_t stepProbability{0};
+	uint32_t glideProbability{0};
 	uint32_t reverseProbability{0};
 	uint32_t chordProbability{0};
 	uint32_t ratchetProbability{0};
@@ -240,6 +243,9 @@ public:
 	// Step probability state
 	bool lastNormalNotePlayedFromStepProbability = false;
 
+	// Glide probability state
+	bool lastNormalNotePlayedFromGlideProbability = false;
+
 	// Reverse probability state
 	bool lastNormalNotePlayedFromReverseProbability = false;
 
@@ -265,6 +271,7 @@ public:
 	bool isPlayReverseForCurrentStep = false;
 	bool isPlayChordForCurrentStep = false;
 	bool isPlayRatchetForCurrentStep = false;
+	bool isPlayGlideForCurrentStep = false;
 	int32_t spreadVelocityForCurrentStep = 0;
 	int32_t spreadGateForCurrentStep = 0;
 	int32_t spreadOctaveForCurrentStep = 0;
@@ -278,7 +285,7 @@ protected:
 	void executeArpStep(ArpeggiatorSettings* settings, uint8_t numActiveNotes, bool isRatchet,
 	                    uint32_t maxSequenceLength, uint32_t rhythm, bool* shouldCarryOnRhythmNote,
 	                    bool* shouldPlayNote, bool* shouldPlayBassNote, bool* shouldPlayRandomStep,
-	                    bool* shouldPlayReverseNote, bool* shouldPlayChordNote);
+	                    bool* shouldPlayGlideNote, bool* shouldPlayReverseNote, bool* shouldPlayChordNote);
 	void increasePatternIndexes(uint8_t numStepRepeats);
 	void increaseSequenceIndexes(uint32_t maxSequenceLength, uint32_t rhythm);
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
@@ -286,6 +293,7 @@ protected:
 	bool evaluateNoteProbability(bool isRatchet);
 	bool evaluateBassProbability(bool isRatchet);
 	bool evaluateStepProbability(bool isRatchet);
+	bool evaluateGlideProbability(bool isRatchet);
 	bool evaluateReverseProbability(bool isRatchet);
 	bool evaluateChordProbability(bool isRatchet);
 	uint32_t calculateSpreadVelocity(uint8_t velocity, int32_t spreadVelocityForCurrentStep);
