@@ -44,6 +44,7 @@ const uint8_t DELUGE_SYSEX_ID_BYTE3 = 0x01;
 const uint8_t SYSEX_UNIVERSAL_NONRT = 0x7E;
 const uint8_t SYSEX_UNIVERSAL_RT = 0x7F;
 const uint8_t SYSEX_UNIVERSAL_IDENTITY = 0x06;
+const uint8_t SYSEX_MIDI_TUNING_STANDARD = 0x08;
 
 const uint8_t SYSEX_END = 0xF7;
 
@@ -56,5 +57,32 @@ enum SysexCommands : uint8_t {
 	JsonReply,  // Json Response
 	Pong = 0x7F // Pong reply
 };
+
+// e.g. F0 7E 08 03 bb tt F7
+// SYSEX_START, UNIVERSAL_NONRT, TUNING, bank, preset, SYSEX_END
+enum TuningCommands : uint8_t {
+	BulkDump = 0x00,       // preset                                // BULK TUNING DUMP REQUEST
+	BulkDumpReply,         // preset name[16] {xx yy zz}[128]       // BULK TUNING DUMP
+	NoteChange,            // preset len {key xx yy zz}[len]        // SINGLE NOTE TUNING CHANGE (REAL-TIME)
+	BankDump,              // bank preset                           // BULK TUNING DUMP REQUEST (BANK)
+	KeyBasedDumpReply,     // bank preset name[16] {xx yy zz}[128]  // KEY-BASED TUNING DUMP
+	ScaleOctaveDumpReply1, // bank preset name[16] ss[12] csum      // SCALE/OCTAVE TUNING DUMP, 1 byte format
+	ScaleOctaveDumpReply2, // bank preset name[16] {ss tt}[12] csum // SCALE/OCTAVE TUNING DUMP, 2 byte format
+	BankNoteChange, // bank preset len {key xx yy zz}[len]   // SINGLE NOTE TUNING CHANGE (REAL-TIME / NON REAL-TIME)
+	                // (BANK)
+	ScaleOctave1,   // ff gg hh ss[12]                       // SCALE/OCTAVE TUNING 1-BYTE FORM (REAL-TIME / NON
+	                // REAL-TIME)
+	ScaleOctave2 // ff gg hh {ss tt}[12]                  // SCALE/OCTAVE TUNING 2-BYTE FORM (REAL-TIME / NON REAL-TIME)
+};
+/*
+xx yy zz : absolute frequency in Hz. xx=semitone, yyzz=(100/2^14) cents
+key      : MIDI key number
+len      : length / number of changes
+name     : 7-bit ASCII bytes
+ff gg hh : channel mask as 00000ff 0ggggggg 0hhhhhhh 16-15, 14-8, 7-1
+ss       : relative cents.  -64 to +63, integer step, 0x40 represents equal temperament
+ss tt    : relative cents. -100 to +100, fractional step (100/2^13), 0x40 0x00 represents equal temperament
+csum     : checksum. can be ignored by receiver
+*/
 
 } // namespace SysEx
