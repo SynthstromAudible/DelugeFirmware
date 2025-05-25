@@ -32,22 +32,22 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 bool Submenu::focusChild(const MenuItem* child) {
-	// Set new current item.
-	auto prev = current_item_;
 	if (child != nullptr) {
-		current_item_ = std::find(items.begin(), items.end(), child);
+		// if the specific child is passed, try to find it
+		// in case we didn't find it, we just do nothing and keep the previous selection
+		auto candidate = std::find(items.begin(), items.end(), child);
+		if (candidate != items.end() && isItemRelevant(*candidate)) {
+			current_item_ = candidate;
+		}
+		return true;
 	}
-	// If the item wasn't found or isn't relevant, set to first relevant one instead.
+
+	// If the current item is not set or isn't relevant, set to first relevant one instead.
 	if (current_item_ == items.end() || !isItemRelevant(*current_item_)) {
 		current_item_ = std::ranges::find_if(items, isItemRelevant); // Find first relevant item.
 	}
-	// Log it.
-	if (current_item_ != items.end()) {
-		return true;
-	}
-	else {
-		return false;
-	}
+
+	return current_item_ != items.end();
 }
 
 void Submenu::updateDisplay() {
