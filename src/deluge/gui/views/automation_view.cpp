@@ -121,8 +121,8 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumNonGlobalParamsForAutomation = 82;
-constexpr int32_t kNumGlobalParamsForAutomation = 38;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 83;
+constexpr int32_t kNumGlobalParamsForAutomation = 39;
 constexpr int32_t kParamNodeWidth = 3;
 
 // synth and kit rows FX - sorted in the order that Parameters are scrolled through on the display
