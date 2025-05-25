@@ -32,6 +32,7 @@
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/song/song.h"
+#include "model/tuning.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -383,7 +384,7 @@ void Voice::setupPorta(const Sound& sound) {
 	int32_t noteWithinOctave = (semitoneAdjustment + 120) % 12;
 	int32_t octave = (semitoneAdjustment + 120) / 12;
 
-	int32_t phaseIncrement = noteIntervalTable[noteWithinOctave];
+	int32_t phaseIncrement = tuningSystem.noteInterval(noteWithinOctave);
 
 	int32_t shiftRightAmount = 16 - octave;
 	if (shiftRightAmount >= 0) {
@@ -459,7 +460,8 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 			int32_t noteWithinOctave = (uint16_t)(transposedNoteCode + 240) % 12;
 			int32_t octave = (uint16_t)(transposedNoteCode + 120) / 12;
 
-			phaseIncrement = multiply_32x32_rshift32(noteIntervalTable[noteWithinOctave], pitchAdjustNeutralValue);
+			phaseIncrement =
+			    multiply_32x32_rshift32(tuningSystem.noteInterval(noteWithinOctave), pitchAdjustNeutralValue);
 
 			int32_t shiftRightAmount = 13 - octave;
 
@@ -492,7 +494,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
 			int32_t shiftRightAmount = 20 - octave;
 			if (shiftRightAmount >= 0) {
-				phaseIncrement = noteFrequencyTable[noteWithinOctave] >> shiftRightAmount;
+				phaseIncrement = tuningSystem.noteFrequency(noteWithinOctave) >> shiftRightAmount;
 			}
 
 			else {
@@ -538,7 +540,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 			int32_t phaseIncrement;
 
 			if (shiftRightAmount >= 0) {
-				phaseIncrement = noteFrequencyTable[noteWithinOctave] >> shiftRightAmount;
+				phaseIncrement = tuningSystem.noteFrequency(noteWithinOctave) >> shiftRightAmount;
 			}
 
 			else {
