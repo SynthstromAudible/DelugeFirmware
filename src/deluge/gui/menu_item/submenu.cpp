@@ -33,16 +33,15 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 
 bool Submenu::focusChild(const MenuItem* child) {
 	if (child != nullptr) {
-		// if the specific child is passed, try to find it
-		// in case we didn't find it, we just do nothing and keep the previous selection
+		// if the specific child is passed, try to find it among the items
+		// if not found or not relevant, keep the previous selection
 		auto candidate = std::find(items.begin(), items.end(), child);
 		if (candidate != items.end() && isItemRelevant(*candidate)) {
 			current_item_ = candidate;
 		}
-		return true;
 	}
 
-	// If the current item is not set or isn't relevant, set to first relevant one instead.
+	// If the current item isn't valid or isn't relevant, set to first relevant one instead.
 	if (current_item_ == items.end() || !isItemRelevant(*current_item_)) {
 		current_item_ = std::ranges::find_if(items, isItemRelevant); // Find first relevant item.
 	}
@@ -617,7 +616,7 @@ bool Submenu::learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) {
 	return false;
 }
 
-Submenu::RenderingStyle HorizontalMenu::renderingStyle() {
+Submenu::RenderingStyle HorizontalMenu::renderingStyle() const {
 	if (display->haveOLED() && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus)) {
 		return RenderingStyle::HORIZONTAL;
 	}
