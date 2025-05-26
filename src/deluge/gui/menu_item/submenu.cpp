@@ -34,12 +34,11 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 bool Submenu::focusChild(const MenuItem* child) {
 	if (child != nullptr) {
 		// if the specific child is passed, try to find it
-		// in case we didn't find it, we just do nothing and keep the previous selection
+		// in case we didn't find it, keep the previous selection
 		auto candidate = std::find(items.begin(), items.end(), child);
 		if (candidate != items.end() && isItemRelevant(*candidate)) {
 			current_item_ = candidate;
 		}
-		return true;
 	}
 
 	// If the current item is not set or isn't relevant, set to first relevant one instead.
