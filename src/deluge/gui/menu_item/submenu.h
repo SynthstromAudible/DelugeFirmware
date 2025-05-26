@@ -56,7 +56,7 @@ public:
 	void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final;
 	void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) override;
 	bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) final;
-	virtual RenderingStyle renderingStyle() { return RenderingStyle::VERTICAL; };
+	virtual RenderingStyle renderingStyle() const { return RenderingStyle::VERTICAL; };
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 	void drawPixelsForOled() override;
 	void drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption);
@@ -113,7 +113,7 @@ public:
 		initial_index_ = initialSelection;
 	}
 
-	RenderingStyle renderingStyle() override;
+	RenderingStyle renderingStyle() const override;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void renderOLED() override;
 	void drawPixelsForOled() override;
