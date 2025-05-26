@@ -28,6 +28,7 @@
 #include "io/midi/sysex.h"
 #include "mem_functions.h"
 #include "model/song/song.h"
+#include "model/tuning/tuning_sysex.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/smsysex.h"
@@ -238,24 +239,33 @@ void MidiEngine::midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len)
 	}
 	unsigned payloadOffset = 2;
 	// Non-real time universal SysEx broadcast
-	if (data[1] == SysEx::SYSEX_UNIVERSAL_NONRT && data[2] == 0x7f) {
-		// Identity request
-		if (data[3] == SysEx::SYSEX_UNIVERSAL_IDENTITY && data[4] == 0x01) {
-			const uint8_t reply[] = {
-			    SysEx::SYSEX_START, SysEx::SYSEX_UNIVERSAL_NONRT,
-			    0x7f, // Device channel, we don't have one yet
-			    SysEx::SYSEX_UNIVERSAL_IDENTITY, 0x02,
-			    // Manufacturer ID
-			    SysEx::DELUGE_SYSEX_ID_BYTE0, SysEx::DELUGE_SYSEX_ID_BYTE1, SysEx::DELUGE_SYSEX_ID_BYTE2,
-			    // 14bit device family LSB, MSB
-			    SysEx::DELUGE_SYSEX_ID_BYTE3, 0,
-			    // 14bit device family member LSB, MSB
-			    0, 0,
-			    // Four byte firmware version in human readable order
-			    FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, FIRMWARE_VERSION_PATCH, 0, SysEx::SYSEX_END};
-			cable.sendSysex(reply, sizeof(reply));
+	if (data[1] == SysEx::SYSEX_UNIVERSAL_NONRT) {
+		// Any device ID
+		if (data[2] == 0x7f) {
+			// Identity request
+			if (data[3] == SysEx::SYSEX_UNIVERSAL_IDENTITY && data[4] == 0x01) {
+				const uint8_t reply[] = {
+				    SysEx::SYSEX_START, SysEx::SYSEX_UNIVERSAL_NONRT,
+				    0x7f, // Device channel, we don't have one yet
+				    SysEx::SYSEX_UNIVERSAL_IDENTITY, 0x02,
+				    // Manufacturer ID
+				    SysEx::DELUGE_SYSEX_ID_BYTE0, SysEx::DELUGE_SYSEX_ID_BYTE1, SysEx::DELUGE_SYSEX_ID_BYTE2,
+				    // 14bit device family LSB, MSB
+				    SysEx::DELUGE_SYSEX_ID_BYTE3, 0,
+				    // 14bit device family member LSB, MSB
+				    0, 0,
+				    // Four byte firmware version in human readable order
+				    FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, FIRMWARE_VERSION_PATCH, 0, SysEx::SYSEX_END};
+				cable.sendSysex(reply, sizeof(reply));
+			}
+			return;
 		}
-		return;
+
+		// Ignore device ID
+		if (data[3] == SysEx::SYSEX_MIDI_TUNING_STANDARD) {
+			// forward the rest of the message to TuningSysex
+			TuningSysex::sysexReceived(cable, data + 4, len - 4);
+		}
 	}
 
 	if (data[1] == SysEx::DELUGE_SYSEX_ID_BYTE0 && data[2] == SysEx::DELUGE_SYSEX_ID_BYTE1
