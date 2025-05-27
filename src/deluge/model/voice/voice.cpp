@@ -384,7 +384,7 @@ void Voice::setupPorta(const Sound& sound) {
 	int32_t noteWithinOctave = (semitoneAdjustment + 120) % 12;
 	int32_t octave = (semitoneAdjustment + 120) / 12;
 
-	int32_t phaseIncrement = tuningSystem.noteInterval(noteWithinOctave);
+	int32_t phaseIncrement = TuningSystem::tuning->noteInterval(noteWithinOctave);
 
 	int32_t shiftRightAmount = 16 - octave;
 	if (shiftRightAmount >= 0) {
@@ -461,7 +461,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 			int32_t octave = (uint16_t)(transposedNoteCode + 120) / 12;
 
 			phaseIncrement =
-			    multiply_32x32_rshift32(tuningSystem.noteInterval(noteWithinOctave), pitchAdjustNeutralValue);
+			    multiply_32x32_rshift32(TuningSystem::tuning->noteInterval(noteWithinOctave), pitchAdjustNeutralValue);
 
 			int32_t shiftRightAmount = 13 - octave;
 
@@ -494,7 +494,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
 			int32_t shiftRightAmount = 20 - octave;
 			if (shiftRightAmount >= 0) {
-				phaseIncrement = tuningSystem.noteFrequency(noteWithinOctave) >> shiftRightAmount;
+				phaseIncrement = TuningSystem::tuning->noteFrequency(noteWithinOctave) >> shiftRightAmount;
 			}
 
 			else {
@@ -540,7 +540,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 			int32_t phaseIncrement;
 
 			if (shiftRightAmount >= 0) {
-				phaseIncrement = tuningSystem.noteFrequency(noteWithinOctave) >> shiftRightAmount;
+				phaseIncrement = TuningSystem::tuning->noteFrequency(noteWithinOctave) >> shiftRightAmount;
 			}
 
 			else {

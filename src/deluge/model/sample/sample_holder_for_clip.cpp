@@ -43,7 +43,7 @@ void SampleHolderForClip::recalculateNeutralPhaseIncrement() {
 		int32_t noteWithinOctave = (uint16_t)(transpose + 240) % 12;
 		int32_t octave = ((uint16_t)(transpose + 120) / 12) - 10;
 
-		neutralPhaseIncrement = tuningSystem.noteInterval(noteWithinOctave) >> (6 - octave);
+		neutralPhaseIncrement = TuningSystem::tuning->noteInterval(noteWithinOctave) >> (6 - octave);
 
 		if (((Sample*)audioFile)->sampleRate != kSampleRate) {
 			neutralPhaseIncrement = (uint64_t)neutralPhaseIncrement * ((Sample*)audioFile)->sampleRate / kSampleRate;

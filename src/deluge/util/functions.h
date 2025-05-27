@@ -139,6 +139,7 @@ void replace_char(char* str, const char* in_str, char find, char replace);
 
 int32_t stringToInt(char const* string);
 int32_t stringToUIntOrError(char const* mem);
+double stringToDouble(char const* string);
 int32_t memToUIntOrError(char const* mem, char const* const memEnd);
 void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, int8_t presetSubslotNumber,
                                  char* fileName);

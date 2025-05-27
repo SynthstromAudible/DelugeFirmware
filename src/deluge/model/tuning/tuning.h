@@ -19,20 +19,14 @@
 
 #include "RZA1/system/r_typedefs.h"
 
-#define NUM_TUNING_BANKS 1
-
-extern int32_t tuningFrequencyTable[12];
-extern int32_t tuningIntervalTable[12];
-extern int32_t selectedTuningBank;
+#define NUM_TUNINGS 1
 
 #define MAX_DIVISIONS 12
 
-class TuningSystem {
+class Tuning {
 public:
-	TuningSystem();
-	void setDefaultTuning();
+	Tuning();
 	void setOffset(int, int32_t);
-	void setBank(int);
 
 	int referenceNote; // default 5=A
 	double referenceFrequency;
@@ -55,12 +49,21 @@ public:
 	void setDivisions(int);
 
 private:
+	int32_t tuningFrequencyTable[12];
+	int32_t tuningIntervalTable[12];
+
 	void calculateAll();
 	void calculateNote(int);
-	void calculateUserTuning();
 
 	int nextNote;
 	int divisions;
 };
 
-extern TuningSystem tuningSystem;
+namespace TuningSystem {
+extern Tuning tunings[NUM_TUNINGS];
+extern Tuning* tuning;
+extern int32_t selectedTuning;
+
+void initialize();
+void select(int32_t);
+} // namespace TuningSystem

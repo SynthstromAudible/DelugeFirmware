@@ -746,6 +746,26 @@ Error StorageManager::openJsonFile(FilePointer* filePointer, JsonDeserializer& r
 	return Error::FILE_CORRUPTED;
 }
 
+Error StorageManager::openScalaFile(FilePointer* filePointer, ScalaDeserializer& reader) {
+
+	reader.reset();
+	// Prep to read first Cluster shortly
+	openFilePointer(filePointer, reader);
+
+	AudioEngine::logAction("openScalaFile");
+	if (!filePointer->sclust) {
+		return Error::FILE_NOT_FOUND;
+	}
+	Error err = reader.openScalaFile(filePointer);
+	activeDeserializer = &reader;
+	if (err == Error::NONE)
+		return Error::NONE;
+
+	reader.closeWriter();
+
+	return Error::FILE_CORRUPTED;
+}
+
 Error StorageManager::openDelugeFile(FileItem* currentFileItem, char const* firstTagName, char const* altTagName,
                                      bool ignoreIncorrectFirmware) {
 	Error error;
@@ -871,6 +891,24 @@ bool FileReader::readFileCluster() {
 
 	fileReadBufferCurrentPos = 0;
 
+	return true;
+}
+
+bool FileReader::readLine(char* thisLine) {
+
+	if (memoryBased) {
+		return true;
+	}
+
+	auto got = f_gets((TCHAR*)fileClusterBuffer, Cluster::size, &readFIL);
+	if (got == 0) {
+		return false;
+	}
+
+	currentReadBufferEndPos = strlen(fileClusterBuffer);
+
+	thisLine = fileClusterBuffer;
+	fileReadBufferCurrentPos = 0;
 	return true;
 }
 

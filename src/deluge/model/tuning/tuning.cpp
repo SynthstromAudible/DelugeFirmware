@@ -18,14 +18,7 @@
 #include "tuning.h"
 #include <math.h>
 
-int32_t tuningFrequencyTable[12];
-int32_t tuningIntervalTable[12];
-
-TuningSystem tuningSystem;
-
-int32_t selectedTuningBank;
-
-void TuningSystem::calculateNote(int noteWithinOctave) {
+void Tuning::calculateNote(int noteWithinOctave) {
 
 	double cents = 100 * (noteWithinOctave - referenceNote);
 	cents += offsets[noteWithinOctave] / 100.0;
@@ -39,73 +32,61 @@ void TuningSystem::calculateNote(int noteWithinOctave) {
 	tuningIntervalTable[noteWithinOctave] = lround(value);
 }
 
-void TuningSystem::calculateAll() {
+void Tuning::calculateAll() {
 
 	for (int i = 0; i < 12; i++) {
 		calculateNote(i);
 	}
 }
 
-int32_t TuningSystem::noteFrequency(int noteWithinOctave) {
+int32_t Tuning::noteFrequency(int noteWithinOctave) {
 
 	return tuningFrequencyTable[noteWithinOctave];
 }
 
-int32_t TuningSystem::noteInterval(int noteWithinOctave) {
+int32_t Tuning::noteInterval(int noteWithinOctave) {
 
 	return tuningIntervalTable[noteWithinOctave];
 }
 
-int32_t TuningSystem::getReference() {
+int32_t Tuning::getReference() {
 
 	return int(referenceFrequency * 10.0);
 }
 
-void TuningSystem::setReference(int32_t scaled) {
+void Tuning::setReference(int32_t scaled) {
 
 	referenceFrequency = scaled / 10.0;
 	calculateAll();
 }
 
-void TuningSystem::setNoteCents(int noteWithinOctave, double cents) {
+void Tuning::setNoteCents(int noteWithinOctave, double cents) {
 	noteCents[noteWithinOctave] = cents;
 	offsets[noteWithinOctave] = cents - 100.0 * noteWithinOctave;
 }
 
-void TuningSystem::setOffset(int noteWithinOctave, int32_t offset) {
+void Tuning::setOffset(int noteWithinOctave, int32_t offset) {
 
 	offsets[noteWithinOctave] = offset;
 	noteCents[noteWithinOctave] = noteWithinOctave * 100.0 + offset;
 	calculateNote(noteWithinOctave);
 }
 
-void TuningSystem::setBank(int bank) {
+void Tuning::setNextCents(double cents) {
 
-	if (bank == 0) {
-		setDefaultTuning();
-	}
-
-	else {
-		// TODO load other tunings
-		calculateAll();
-	}
+	if (nextNote >= MAX_DIVISIONS)
+		return;
+	setNoteCents(nextNote++, cents);
 }
 
-void TuningSystem::setNextCents(double cents) {
+void Tuning::setNextRatio(int numerator, int denominator) {
 
-	int note = nextNote++;
-	noteCents[note] = cents;
-	offsets[note] = cents - 100.0 * note;
+	if (nextNote >= MAX_DIVISIONS)
+		return;
+	setNoteCents(nextNote++, 1200.0 * log2(numerator / (double)denominator));
 }
 
-void TuningSystem::setNextRatio(int numerator, int denominator) {
-
-	int note = nextNote++;
-	noteCents[note] = 1200.0 * log2(numerator / (double)denominator);
-	offsets[note] = noteCents[note] - 100.0 * note;
-}
-
-void TuningSystem::setDivisions(int divs) {
+void Tuning::setDivisions(int divs) {
 
 	divisions = divs;
 	if (divisions > MAX_DIVISIONS) {
@@ -114,22 +95,38 @@ void TuningSystem::setDivisions(int divs) {
 	}
 }
 
-void TuningSystem::setup(const char* description) {
+void Tuning::setup(const char* description) {
 
 	nextNote = 0;
 }
 
-void TuningSystem::setDefaultTuning() {
-
-	selectedTuningBank = 0;
-	setDivisions(12);
-	for (int i = 0; i < divisions; i++) {
-		setOffset(i, 0);
-	}
-	setReference(4400);
+Tuning::Tuning() : referenceNote(5) {
+	// noteWithinOctave: 0=E, 2=F#, 4=G#, 5=A=440 Hz
 }
 
-TuningSystem::TuningSystem() {
-	referenceNote = 5; // noteWithinOctave: 0=E, 2=F#, 4=G#, 5=A=440 Hz
-	setDefaultTuning();
+// TuningSystem namespace follows
+
+namespace TuningSystem {
+Tuning tunings[NUM_TUNINGS];
+Tuning* tuning;
+int32_t selectedTuning;
+} // namespace TuningSystem
+
+void TuningSystem::initialize() {
+	selectedTuning = 0;
+	select(0);
+
+	const int divisions = 12;
+	tuning->setDivisions(divisions);
+	for (int i = 0; i < divisions; i++) {
+		tuning->setOffset(i, 0);
+	}
+	tuning->setReference(4400);
+}
+
+void TuningSystem::select(int32_t index) {
+	if (index >= NUM_TUNINGS || index < 0) {
+		return;
+	}
+	selectedTuning = index;
 }
