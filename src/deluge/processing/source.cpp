@@ -209,8 +209,9 @@ void Source::doneReadingFromFile(Sound* sound) {
 		for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 			MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
 			if (isActualSampleOscillator) {
+				// Why do we add transpose and cents to sample? Why do we do this after loading?
 				range->sampleHolder.transpose += transpose;
-				range->sampleHolder.setCents(range->sampleHolder.cents + cents);
+				range->sampleHolder.setCents(range->sampleHolder.getCents() + cents);
 			}
 			else {
 				range->sampleHolder.recalculateFineTuner();
