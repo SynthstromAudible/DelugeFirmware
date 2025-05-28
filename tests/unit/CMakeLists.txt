@@ -58,6 +58,8 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/model/sync.cpp
         # For chord tests
         ../../src/deluge/gui/ui/keyboard/chords.cpp
+        # For tuning tests
+        ../../src/deluge/model/tuning/tuning.cpp
 )
 
 add_executable(UnitTests
@@ -71,6 +73,7 @@ add_executable(UnitTests
         sync_tests.cpp
         chord_tests.cpp
         time_tests.cpp
+        tuning_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)
