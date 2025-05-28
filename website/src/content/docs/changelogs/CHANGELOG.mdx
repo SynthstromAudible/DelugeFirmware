@@ -34,10 +34,10 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 - Added a boss/roland style Dimension effect
 - Made grain much faster and updated controls
 - Added LPF to Mutable Instruments Reverb
-- Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
-- Added two more LFOs (LFO 3 -global- and LFO 4 -per voice-), which you can access from the sound editor menu.
+- Added two more envelopes (Envelope 3 and Envelope 4)
+- Added two more LFOs (LFO 3 -global- and LFO 4 -per voice-)
 
-#### <ins>Per-clip Stutter with options: Quantize, Reverse, and Ping-Pong</ins>
+#### <ins>Per-clip Stutter with options: Direction and Quantize</ins>
 
 - Now the stutter buffer can also be set to play in reverse, and ping-pong.
 - A new menu has been added to the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song.
@@ -46,6 +46,20 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 - Quantized stutter is enabled by default.
 
 ### User Interface
+
+#### <ins>New Shortcuts</ins>
+- Added a shortcut for the `COMPRESSOR THRESHOLD` between the `DECIMATION` and `LPF db/OCT` shortcuts.
+- Added a shortcut for the `STUTTER RATE` between the `PLAY DIRECTION` and `SATURATION` shortcuts.
+
+#### <ins>Layered Shortcuts</ins>
+- Layered Shortcuts mechanism allows multiple shortcuts to be accessed under a single shortcut pad. Holding shift and pressing the same shortcut again cycles between shortcuts. The items available under layered shortcuts can also be accessed from menu: layered shortcut is never the only access method.
+- Following shortcuts have layers:
+  - `ENV` shortcuts: cycles between envelope 1 and 3 (ENV1 shortcuts), and envelope 2 and 4 (ENV2 shortcuts). This also applies to ENV modulator shortcuts.
+  - `LFO` shortcuts: cycles between LFO 1 and 3 (LFO1 shortcuts), and between LFO 2 and 4 (LFO2 shortcuts). This also applies to LFO modulator shortcuts.
+  - `UNISON NUMBER`: cycles between `UNISON AMOUNT` and `UNISON STEREO SPREAD`, in addition to the previous "press select when in `UNISON AMOUNT` access mechanism for `UNISON STEREO SPREAD`.
+  - `COMPRESSOR THRESHOLD`: cycles between `COMPRESSOR THRESHOLD` and `COMPRESSOR RATIO`
+  - `STUTTER RATE`: cycles between `STUTTER RATE` and `STUTTER DIRECTION`
+  - `ARP MODE`: cycles between `ARP MODE` and the arp randomizer `LOCK`. This is mostly for OLED users to quickly access the `RANDOMIZER` submenu.
 
 #### <ins>Accessibility</ins>
 
@@ -73,9 +87,10 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
   - Delay.
   - Mod FX.
   - Compressor.
+  - Stutter.
   - Unison.
   - Voice.
-  - Arpeggiator
+  - Arpeggiator.
 - Horizontal Menu controls.
   - `Turn select encoder` to change the value of the selected menu item
   - `Press + Turn select encoder` to change the selected menu item
