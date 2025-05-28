@@ -262,7 +262,8 @@ public:
 	virtual bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) { return true; }
 
 	/// Internal helper which can draw the standard deluge::gui::menu_item::Submenu layout.
-	static void drawItemsForOled(std::span<std::string_view> options, int32_t selectedOption, int32_t offset = 0);
+	static void drawItemsForOled(std::span<std::string_view> options, int32_t selectedOption, int32_t offset = 0,
+	                             int32_t startX = kTextSpacingX);
 
 	/// @brief Check if selecting this menu item (with select encoder) should enter a submenu
 	virtual bool shouldEnterSubmenu() { return true; }

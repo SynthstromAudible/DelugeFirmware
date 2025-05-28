@@ -28,10 +28,10 @@ void KeyRange::selectEncoderAction(int32_t offset) {
 	int32_t const KEY_MAX = 11;
 
 	// If editing the range
-	if (soundEditor.editingRangeEdge != RangeEdit::OFF) {
+	if (soundEditor.editingColumn != RangeEdit::OFF) {
 
 		// Editing lower
-		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
+		if (soundEditor.editingColumn == RangeEdit::LEFT) {
 			// Do not allow lower to pass upper
 			lower = std::clamp(lower + offset, KEY_MIN, upper);
 		}

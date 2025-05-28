@@ -3460,7 +3460,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 								reader.exitTag("transpose");
 							}
 							else if (!strcmp(tagName, "cents")) {
-								((SampleHolderForVoice*)holder)->cents = reader.readTagOrAttributeValueInt();
+								((SampleHolderForVoice*)holder)->setCents(reader.readTagOrAttributeValueInt());
 								reader.exitTag("cents");
 							}
 							else {
@@ -3559,8 +3559,8 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			if (range->sampleHolder.transpose) {
 				writer.writeAttribute("transpose", range->sampleHolder.transpose);
 			}
-			if (range->sampleHolder.cents) {
-				writer.writeAttribute("cents", range->sampleHolder.cents);
+			if (range->sampleHolder.getCents()) {
+				writer.writeAttribute("cents", range->sampleHolder.getCents());
 			}
 
 			writer.writeOpeningTagEnd();

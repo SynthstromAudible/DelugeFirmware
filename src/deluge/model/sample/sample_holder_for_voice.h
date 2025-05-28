@@ -28,6 +28,7 @@ public:
 	~SampleHolderForVoice() override;
 	void unassignAllClusterReasons(bool beingDestructed = false) override;
 	void setCents(int32_t newCents);
+	int32_t getCents() { return cents; }
 	void recalculateFineTuner();
 	void claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE) override;
 	void setTransposeAccordingToSamplePitch(bool minimizeOctaves = false, bool doingSingleCycle = false,
@@ -42,7 +43,6 @@ public:
 	uint32_t loopEndPos;
 
 	int16_t transpose;
-	int8_t cents;
 	/// Whether the loop length should be kept constant when updating the start/end position.
 	bool loopLocked;
 	PhaseIncrementFineTuner fineTuner;
@@ -56,5 +56,6 @@ public:
 	[[nodiscard]] uint32_t loopLength() const { return loopEndPos - loopStartPos; }
 
 protected:
+	int8_t cents;
 	void sampleBeenSet(bool reversed, bool manuallySelected) override;
 };

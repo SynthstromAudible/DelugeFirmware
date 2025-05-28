@@ -21,10 +21,11 @@
 
 namespace deluge::gui::menu_item {
 
-enum class RangeEdit : uint8_t {
+enum RangeEdit {
 	OFF = 0,
 	LEFT = 1,
 	RIGHT = 2,
+	EXT = 3,
 };
 
 class Range : public Value<int32_t> {
@@ -36,10 +37,12 @@ public:
 	bool cancelEditingIfItsOn();
 
 protected:
+	void editColumn(int32_t col);
 	virtual void getText(char* buffer, int32_t* getLeftLength = nullptr, int32_t* getRightLength = nullptr,
 	                     bool mayShowJustOne = true) = 0;
-	virtual bool mayEditRangeEdge(RangeEdit whichEdge) { return true; }
+	virtual bool mayEditRangeEdge(int32_t column) { return true; }
 	virtual void drawValue() { this->drawValue(0); }
+	[[nodiscard]] virtual int32_t columnCount() { return 2; }
 	void drawValue(int32_t startPos, bool renderSidebarToo = true);
 	void drawValueForEditingRange(bool blinkImmediately);
 

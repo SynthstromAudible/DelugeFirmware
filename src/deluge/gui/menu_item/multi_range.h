@@ -28,21 +28,24 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void selectEncoderAction(int32_t offset) override;
 	MenuItem* selectButtonPress() override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCard) override;
 	void noteOnToChangeRange(int32_t noteCode);
 	bool isRangeDependent() override { return true; }
 	void deletePress();
 	MenuItem* menuItemHeadingTo;
 
 protected:
+	ActionResult tryToggleColumn(int32_t col);
 	void getText(char* buffer, int32_t* getLeftLength = nullptr, int32_t* getRightLength = nullptr,
 
 	             bool mayShowJustOne = true) override;
-	bool mayEditRangeEdge(RangeEdit whichEdge) override;
+	bool mayEditRangeEdge(int32_t col) override;
 
 	[[nodiscard]] std::string_view getTitle() const override {
 		return l10n::getView(l10n::String::STRING_FOR_NOTE_RANGE);
 	};
 	void drawPixelsForOled() override;
+	[[nodiscard]] virtual int32_t columnCount() { return 4; }
 
 	// NOTE: this isn't strictly speaking needed, but refactoring the selectEncoderAction() and
 	// displayPixelsForOled() to not use additional storage for scroll position was more work
