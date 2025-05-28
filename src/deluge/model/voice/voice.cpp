@@ -1578,10 +1578,10 @@ skipUnisonPart: {}
 		if (paramFinalValues[params::LOCAL_FOLD] > 0) {
 			q31_t foldAmount = paramFinalValues[params::LOCAL_FOLD];
 
-			dsp::foldBufferPolyApproximation(std::span{oscBuffer, numSamples}, foldAmount);
+			dsp::foldBufferPolyApproximation(std::span{oscBuffer, static_cast<unsigned int>(numSamples)}, foldAmount);
 		}
 
-		filterSet.renderLong(std::span{oscBuffer, numSamples});
+		filterSet.renderLong(std::span{oscBuffer, static_cast<unsigned int>(numSamples)});
 
 		// No clipping
 		if (!sound.clippingAmount) {

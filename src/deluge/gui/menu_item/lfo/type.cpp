@@ -56,6 +56,7 @@ const uint8_t* Type::getLfoIconBitmap() {
 	case LFOType::WARBLER:
 		return OLED::lfoIconWarbler;
 	}
+	return OLED::lfoIconSine;
 }
 
 } // namespace deluge::gui::menu_item::lfo

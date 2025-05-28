@@ -108,6 +108,7 @@ Error Sample::initialize(int32_t newNumClusters) {
 		}
 		throw e;
 	}
+	return Error::NONE;
 }
 
 Sample::~Sample() {

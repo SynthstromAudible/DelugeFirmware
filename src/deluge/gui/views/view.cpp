@@ -1893,6 +1893,8 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 	deluge::hid::display::OLED::markChanged();
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstack-usage="
 void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int32_t channelSuffix, char const* name,
                                      bool isNameEmpty, bool editedByUser, bool doBlink, Clip* clip) {
 	if (doBlink) {
@@ -2104,6 +2106,7 @@ oledOutputBuffer:
 		}
 	}
 }
+#pragma GCC diagnostic pop
 
 void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* clip, bool doBlink) {
 

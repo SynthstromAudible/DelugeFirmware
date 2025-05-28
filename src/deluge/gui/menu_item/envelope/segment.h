@@ -43,6 +43,7 @@ private:
 		case deluge::modulation::params::LOCAL_ENV_0_RELEASE:
 			return deluge::l10n::String::STRING_FOR_RELEASE_SHORT;
 		}
+		return deluge::l10n::String::EMPTY_STRING;
 	}
 };
 } // namespace deluge::gui::menu_item::envelope

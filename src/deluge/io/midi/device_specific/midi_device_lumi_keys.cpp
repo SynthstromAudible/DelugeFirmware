@@ -175,7 +175,7 @@ void MIDIDeviceLumiKeys::sendLumiCommand(uint8_t* command, uint8_t length) {
 	sysexMsg[14] = sysexChecksum(&sysexMsg[6], 8);
 	sysexMsg[15] = MIDI_DEVICE_LUMI_KEYS_SYSEX_END;
 
-	sendSysex(sysexMsg, 16);
+	auto _ = sendSysex(sysexMsg, 16);
 }
 
 /// @brief Fills the first 6 values at the pointer location with a 7-bit, offset representation of the 32-bit signed
