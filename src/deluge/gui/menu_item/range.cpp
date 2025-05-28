@@ -29,7 +29,7 @@ namespace deluge::gui::menu_item {
 
 void Range::beginSession(MenuItem* navigatedBackwardFrom) {
 
-	soundEditor.editingRangeEdge = RangeEdit::OFF;
+	soundEditor.editingColumn = RangeEdit::OFF;
 
 	if (display->have7SEG()) {
 		drawValue(0, false);
@@ -42,70 +42,44 @@ void Range::horizontalEncoderAction(int32_t offset) {
 		return;
 	}
 
-	// Turn left
-	if (offset < 0) {
+	int32_t minCol = 1;
+	int32_t maxCol = columnCount();
+	int32_t tmpCol = soundEditor.editingColumn;
 
-		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
-switchOff:
-			soundEditor.editingRangeEdge = RangeEdit::OFF;
-			if (display->haveOLED()) {
-				goto justDrawValueForEditingRange;
-			}
-			else {
-				int32_t startPos = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) ? 999 : 0;
-				drawValue(startPos);
-			}
+	offset = offset > 0 ? 1 : -1;
+
+	for (;;) {
+		tmpCol = mod(tmpCol + offset, maxCol + 1);
+
+		// Scrolled past all columns, turn off.
+		if (tmpCol < minCol || maxCol < tmpCol) {
+			cancelEditingIfItsOn();
+			return;
 		}
 
-		else {
-
-			if (mayEditRangeEdge(RangeEdit::LEFT)) {
-				soundEditor.editingRangeEdge = RangeEdit::LEFT;
-justDrawValueForEditingRange:
-				if (display->haveOLED()) {
-					renderUIsForOled();
-				}
-				else {
-					drawValueForEditingRange(true);
-				}
-			}
-			else {
-				if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
-					goto switchOff;
-				}
-			}
+		// Can edit this, stop here.
+		if (mayEditRangeEdge(tmpCol)) {
+			editColumn(tmpCol);
+			return;
 		}
+
+		// Next column!
 	}
+}
 
-	// Turn right
-	else {
-		if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
-			goto switchOff;
-		}
-
-		else {
-
-			if (mayEditRangeEdge(RangeEdit::RIGHT)) {
-				soundEditor.editingRangeEdge = RangeEdit::RIGHT;
-				goto justDrawValueForEditingRange;
-			}
-			else {
-				if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
-					goto switchOff;
-				}
-			}
-		}
-	}
+void Range::editColumn(int32_t col) {
+	soundEditor.editingColumn = col;
+	drawValueForEditingRange(true);
 }
 
 // Returns whether there was anything to cancel
 bool Range::cancelEditingIfItsOn() {
-	if (soundEditor.editingRangeEdge == RangeEdit::OFF) {
+	if (soundEditor.editingColumn == 0) {
 		return false;
 	}
 
-	int32_t startPos = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) ? 999 : 0;
-	soundEditor.editingRangeEdge = RangeEdit::OFF;
+	int32_t startPos = (soundEditor.editingColumn > 1) ? 999 : 0;
+	soundEditor.editingColumn = 0;
 	drawValue(startPos);
 	return true;
 }
@@ -142,7 +116,7 @@ void Range::drawValueForEditingRange(bool blinkImmediately) {
 	int32_t textLength = leftLength + rightLength + 1;
 
 	uint8_t blinkMask[kNumericDisplayLength];
-	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
+	if (soundEditor.editingColumn == 1) {
 		for (int32_t i = 0; i < kNumericDisplayLength; i++) {
 			if (i < leftLength + kNumericDisplayLength - std::min(4_i32, textLength))
 				blinkMask[i] = 0;
@@ -160,7 +134,7 @@ void Range::drawValueForEditingRange(bool blinkImmediately) {
 		}
 	}
 
-	bool alignRight = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) || (textLength < kNumericDisplayLength);
+	bool alignRight = (soundEditor.editingColumn > 1) || (textLength < kNumericDisplayLength);
 
 	// Sorta hackish, to reset timing of blinking LED and always show text "on" initially on edit value
 	indicator_leds::blinkLed(IndicatorLED::BACK, 255, 0, !blinkImmediately);
@@ -175,7 +149,7 @@ void Range::drawPixelsForOled() {
 	int32_t leftLength, rightLength;
 	char* buffer = shortStringBuffer;
 
-	getText(buffer, &leftLength, &rightLength, soundEditor.editingRangeEdge == RangeEdit::OFF);
+	getText(buffer, &leftLength, &rightLength, soundEditor.editingColumn == RangeEdit::OFF);
 
 	int32_t textLength = leftLength + rightLength + (bool)rightLength;
 
@@ -190,7 +164,7 @@ void Range::drawPixelsForOled() {
 
 	int32_t highlightStartX, highlightWidth;
 
-	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
+	if (soundEditor.editingColumn == RangeEdit::LEFT) {
 		highlightStartX = stringStartX;
 		highlightWidth = digitWidth * leftLength;
 doHighlightJustOneEdge:
@@ -198,7 +172,7 @@ doHighlightJustOneEdge:
 		baseY += OLED_MAIN_TOPMOST_PIXEL - 1;
 		canvas.invertArea(highlightStartX, highlightWidth, baseY, baseY + digitHeight + 1);
 	}
-	else if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
+	else if (soundEditor.editingColumn == RangeEdit::RIGHT) {
 		int32_t stringEndX = (OLED_MAIN_WIDTH_PIXELS + stringWidth) >> 1;
 		highlightWidth = digitWidth * rightLength;
 		highlightStartX = stringEndX - highlightWidth;
