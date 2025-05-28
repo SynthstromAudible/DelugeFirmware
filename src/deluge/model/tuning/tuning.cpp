@@ -16,6 +16,7 @@
  */
 
 #include "tuning.h"
+#include <cstring>
 #include <math.h>
 
 void Tuning::calculateNote(int noteWithinOctave) {
@@ -63,6 +64,7 @@ void Tuning::setReference(int32_t scaled) {
 void Tuning::setNoteCents(int noteWithinOctave, double cents) {
 	noteCents[noteWithinOctave] = cents;
 	offsets[noteWithinOctave] = cents - 100.0 * noteWithinOctave;
+	calculateNote(noteWithinOctave);
 }
 
 void Tuning::setOffset(int noteWithinOctave, int32_t offset) {
@@ -91,17 +93,26 @@ void Tuning::setDivisions(int divs) {
 	divisions = divs;
 	if (divisions > MAX_DIVISIONS) {
 		divisions = MAX_DIVISIONS;
-		// TODO flash a warning
 	}
 }
 
 void Tuning::setup(const char* description) {
 
 	nextNote = 0;
+	strncpy(name, description, 16);
 }
 
-Tuning::Tuning() : referenceNote(5) {
+Tuning::Tuning() : referenceNote(5), divisions(12), nextNote(0), referenceFrequency(440.0) {
 	// noteWithinOctave: 0=E, 2=F#, 4=G#, 5=A=440 Hz
+	calculateAll();
+}
+
+Tuning::Tuning(Tuning& other)
+    : referenceNote(other.referenceNote), divisions(other.divisions), nextNote(0),
+      referenceFrequency(other.referenceFrequency) {
+	for (int i = 0; i < divisions; i++) {
+		setOffset(i, other.offsets[i]);
+	}
 }
 
 // TuningSystem namespace follows
@@ -116,12 +127,15 @@ void TuningSystem::initialize() {
 	selectedTuning = 0;
 	select(0);
 
+	// example usage
+	/*
 	const int divisions = 12;
 	tuning->setDivisions(divisions);
 	for (int i = 0; i < divisions; i++) {
-		tuning->setOffset(i, 0);
+	    tuning->setOffset(i, 0);
 	}
 	tuning->setReference(4400);
+	*/
 }
 
 void TuningSystem::select(int32_t index) {
@@ -129,4 +143,5 @@ void TuningSystem::select(int32_t index) {
 		return;
 	}
 	selectedTuning = index;
+	tuning = &(tunings[selectedTuning]);
 }

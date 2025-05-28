@@ -19,19 +19,19 @@
 
 #include "RZA1/system/r_typedefs.h"
 
-#define NUM_TUNINGS 1
+#define NUM_TUNINGS 10
 
 #define MAX_DIVISIONS 12
 
 class Tuning {
 public:
 	Tuning();
+	Tuning(Tuning& other);
 	void setOffset(int, int32_t);
 
+	char name[17];
 	int referenceNote; // default 5=A
 	double referenceFrequency;
-	int currentNote;
-	int currentValue;
 	int32_t offsets[MAX_DIVISIONS]; // cents -5000..+5000
 	int32_t noteCents[MAX_DIVISIONS];
 

@@ -69,7 +69,7 @@ void ScalaDeserializer::truncateNumber(char allow) {
 }
 
 Error ScalaDeserializer::readDescription() {
-	TuningSystem::tuning->setup(readStart);
+	// not used
 	return Error::NONE;
 }
 
@@ -142,11 +142,13 @@ void ScalaDeserializer::skipWhiteSpace() {
 	}
 }
 
-Error ScalaDeserializer::openScalaFile(FilePointer* filePointer) {
+Error ScalaDeserializer::openScalaFile(FilePointer* filePointer, const char* name) {
 
 	effectiveLine = 0;
 	divisions = 0;
 	Error err;
+
+	TuningSystem::tuning->setup(name);
 
 	while (readLine(readStart)) {
 

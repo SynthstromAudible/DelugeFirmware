@@ -746,7 +746,7 @@ Error StorageManager::openJsonFile(FilePointer* filePointer, JsonDeserializer& r
 	return Error::FILE_CORRUPTED;
 }
 
-Error StorageManager::openScalaFile(FilePointer* filePointer, ScalaDeserializer& reader) {
+Error StorageManager::openScalaFile(FilePointer* filePointer, ScalaDeserializer& reader, const char* name) {
 
 	reader.reset();
 	// Prep to read first Cluster shortly
@@ -756,7 +756,7 @@ Error StorageManager::openScalaFile(FilePointer* filePointer, ScalaDeserializer&
 	if (!filePointer->sclust) {
 		return Error::FILE_NOT_FOUND;
 	}
-	Error err = reader.openScalaFile(filePointer);
+	Error err = reader.openScalaFile(filePointer, name);
 	activeDeserializer = &reader;
 	if (err == Error::NONE)
 		return Error::NONE;

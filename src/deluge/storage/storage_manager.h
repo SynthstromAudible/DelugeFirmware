@@ -357,7 +357,7 @@ public:
 	~ScalaDeserializer() override = default;
 
 	void reset();
-	Error openScalaFile(FilePointer* filePointer);
+	Error openScalaFile(FilePointer* filePointer, const char* name);
 
 private:
 	int divisions;
@@ -395,7 +395,7 @@ Error openJsonFile(FilePointer* filePointer, JsonDeserializer& reader, char cons
                    char const* altTagName = "", bool ignoreIncorrectFirmware = false);
 Error openDelugeFile(FileItem* currentFileItem, char const* firstTagName, char const* altTagName = "",
                      bool ignoreIncorrectFirmware = false);
-Error openScalaFile(FilePointer* filePointer, ScalaDeserializer& reader);
+Error openScalaFile(FilePointer* filePointer, ScalaDeserializer& reader, const char* name);
 Error initSD();
 
 bool fileExists(char const* pathName);
