@@ -19,6 +19,10 @@
 #include <cstring>
 #include <math.h>
 
+constexpr double two14 = 0x1.p14;
+constexpr double two30 = 0x1.p30;
+constexpr double two32 = 0x1.p32;
+
 void Tuning::calculateNote(int noteWithinOctave) {
 
 	double cents = 100 * (noteWithinOctave - referenceNote);
@@ -26,10 +30,10 @@ void Tuning::calculateNote(int noteWithinOctave) {
 	double frequency = referenceFrequency * pow(2.0, cents / 1200.0);
 
 	double value = frequency / 1378.125; //  44,100 Hz / 32
-	value *= pow(2.0, 32);
+	value *= two32;
 	tuningFrequencyTable[noteWithinOctave] = lround(value);
 
-	value = pow(2.0, noteWithinOctave / 12.0) * pow(2.0, 30);
+	value = pow(2.0, noteWithinOctave / 12.0) * two30;
 	tuningIntervalTable[noteWithinOctave] = lround(value);
 }
 
@@ -99,7 +103,19 @@ void Tuning::setFrequency(int note, TuningSysex::frequency_t freq) {
 double Tuning::getFrequency(int note) {
 	int noteWithinOctave = note % 12; // double check ±4
 	auto span = double(tuningFrequencyTable[noteWithinOctave]);
-	return (span / 4294967296.0) * 1378.125;
+	return (span / two32) * 1378.125;
+}
+
+void Tuning::getSysexFrequency(int note, TuningSysex::frequency_t& ret) {
+	auto freq = getFrequency(note);
+	double semitone;
+	double estimate = 12.0 * log2(freq / 440.0) + 69;
+	double c = two14 * modf(estimate, &semitone);
+
+	int cents = std::min(16383, int(cents));
+	ret.semitone = int(semitone);
+	ret.cents.msb = (cents >> 7) & 0x7f;
+	ret.cents.lsb = cents & 0x7f;
 }
 
 void Tuning::setNextCents(double cents) {
@@ -124,10 +140,18 @@ void Tuning::setDivisions(int divs) {
 	}
 }
 
-void Tuning::setup(const char* description) {
+void Tuning::setName(const char* tuning_name) {
+	for (int i = 0; i < 16; i++) {
+		if (tuning_name[i] == '\0')
+			break;
+		name[i] = tuning_name[i] & 0x7f;
+	}
+}
+
+void Tuning::setup(const char* tuning_name) {
 
 	nextNote = 0;
-	strncpy(name, description, 16);
+	setName(tuning_name);
 }
 
 Tuning::Tuning() : referenceNote(5), divisions(12), nextNote(0), referenceFrequency(440.0) {
@@ -172,4 +196,13 @@ void TuningSystem::select(int32_t index) {
 	}
 	selectedTuning = index;
 	tuning = &(tunings[selectedTuning]);
+}
+
+bool TuningSystem::selectForWrite(int32_t index) {
+	if (index == 0) {
+		// since Tuning 0 is read-only 12TET
+		index = 1;
+	}
+	select(index);
+	return true;
 }

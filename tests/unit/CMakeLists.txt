@@ -60,6 +60,7 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/gui/ui/keyboard/chords.cpp
         # For tuning tests
         ../../src/deluge/model/tuning/tuning.cpp
+        ../../src/deluge/model/tuning/types.cpp
 )
 
 add_executable(UnitTests

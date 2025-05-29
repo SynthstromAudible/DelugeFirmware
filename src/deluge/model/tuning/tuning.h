@@ -18,7 +18,7 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
-#include "tuning_sysex.h"
+#include "types.h"
 
 #define NUM_TUNINGS 10
 
@@ -35,6 +35,8 @@ public:
 	double referenceFrequency;
 	int32_t offsets[MAX_DIVISIONS]; // cents -5000..+5000
 	// int32_t noteCents[MAX_DIVISIONS];
+
+	void setName(const char* name);
 
 	int32_t noteInterval(int);
 	int32_t noteFrequency(int);
@@ -53,6 +55,7 @@ public:
 	void setFrequency(int note, TuningSysex::frequency_t freq);
 
 	double getFrequency(int note);
+	void getSysexFrequency(int note, TuningSysex::frequency_t& ret);
 
 private:
 	int32_t tuningFrequencyTable[12];
@@ -72,4 +75,5 @@ extern int32_t selectedTuning;
 
 void initialize();
 void select(int32_t);
+bool selectForWrite(int32_t);
 } // namespace TuningSystem
