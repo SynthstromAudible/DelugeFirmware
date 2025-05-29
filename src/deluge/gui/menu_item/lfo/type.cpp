@@ -55,6 +55,8 @@ const uint8_t* Type::getLfoIconBitmap() {
 		return OLED::lfoIconRandomWalk;
 	case LFOType::WARBLER:
 		return OLED::lfoIconWarbler;
+	default:
+		__unreachable();
 	}
 }
 
