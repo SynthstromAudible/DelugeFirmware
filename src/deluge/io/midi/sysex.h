@@ -61,16 +61,16 @@ enum SysexCommands : uint8_t {
 // e.g. F0 7E 08 03 bb tt F7
 // SYSEX_START, UNIVERSAL_NONRT, TUNING, bank, preset, SYSEX_END
 enum TuningCommands : uint8_t {
-	BulkDump = 0x00,       // BULK TUNING DUMP REQUEST
-	BulkDumpReply,         // BULK TUNING DUMP
-	NoteChange,            // SINGLE NOTE TUNING CHANGE (REAL-TIME)
-	BankDump,              // BULK TUNING DUMP REQUEST (BANK)
-	KeyBasedDumpReply,     // KEY-BASED TUNING DUMP
-	ScaleOctaveDumpReply1, // SCALE/OCTAVE TUNING DUMP, 1 byte format
-	ScaleOctaveDumpReply2, // SCALE/OCTAVE TUNING DUMP, 2 byte format
-	BankNoteChange,        // SINGLE NOTE TUNING CHANGE (REAL-TIME / NON REAL-TIME) (BANK)
-	ScaleOctave1,          // SCALE/OCTAVE TUNING 1-BYTE FORM (REAL-TIME / NON REAL-TIME)
-	ScaleOctave2           // SCALE/OCTAVE TUNING 2-BYTE FORM (REAL-TIME / NON REAL-TIME)
+	BulkDumpRequest = 0x00, // BULK TUNING DUMP REQUEST
+	BulkDump,               // BULK TUNING DUMP
+	NoteChange,             // SINGLE NOTE TUNING CHANGE (REAL-TIME)
+	BankDumpRequest,        // BULK TUNING DUMP REQUEST (BANK)
+	KeyBasedDump,           // KEY-BASED TUNING DUMP
+	ScaleOctaveDump1,       // SCALE/OCTAVE TUNING DUMP, 1 byte format
+	ScaleOctaveDump2,       // SCALE/OCTAVE TUNING DUMP, 2 byte format
+	BankNoteChange,         // SINGLE NOTE TUNING CHANGE (REAL-TIME / NON REAL-TIME) (BANK)
+	ScaleOctave1,           // SCALE/OCTAVE TUNING 1-BYTE FORM (REAL-TIME / NON REAL-TIME)
+	ScaleOctave2            // SCALE/OCTAVE TUNING 2-BYTE FORM (REAL-TIME / NON REAL-TIME)
 };
 
 } // namespace SysEx

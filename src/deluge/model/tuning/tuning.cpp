@@ -25,7 +25,7 @@ void Tuning::calculateNote(int noteWithinOctave) {
 	cents += offsets[noteWithinOctave] / 100.0;
 	double frequency = referenceFrequency * pow(2.0, cents / 1200.0);
 
-	double value = frequency / 1378.125;
+	double value = frequency / 1378.125; //  44,100 Hz / 32
 	value *= pow(2.0, 32);
 	tuningFrequencyTable[noteWithinOctave] = lround(value);
 
@@ -61,8 +61,8 @@ void Tuning::setReference(int32_t scaled) {
 	calculateAll();
 }
 
-void Tuning::setNoteCents(int noteWithinOctave, double cents) {
-	noteCents[noteWithinOctave] = cents;
+void Tuning::setCents(int noteWithinOctave, double cents) {
+	// noteCents[noteWithinOctave] = cents;
 	offsets[noteWithinOctave] = cents - 100.0 * noteWithinOctave;
 	calculateNote(noteWithinOctave);
 }
@@ -70,22 +70,50 @@ void Tuning::setNoteCents(int noteWithinOctave, double cents) {
 void Tuning::setOffset(int noteWithinOctave, int32_t offset) {
 
 	offsets[noteWithinOctave] = offset;
-	noteCents[noteWithinOctave] = noteWithinOctave * 100.0 + offset;
+	// noteCents[noteWithinOctave] = noteWithinOctave * 100.0 + offset;
 	calculateNote(noteWithinOctave);
+}
+
+void Tuning::setFrequency(int note, double freq) {
+	int noteWithinOctave = note % 12; // double check ±4
+
+	double semitone;
+	double estimate = 12.0 * log2(freq / 440.0) + 69;
+	double c = 100.0 * modf(estimate, &semitone);
+
+	auto ds = semitone - note;
+	setCents(noteWithinOctave, 100.0 * (noteWithinOctave + ds) + c);
+	// double c = 100 * (noteWithinOctave - referenceNote);
+	//  TODO
+}
+
+void Tuning::setFrequency(int note, TuningSysex::frequency_t freq) {
+	int noteWithinOctave = note % 12; // double check ±4
+
+	int ds = freq.semitone - note;
+	double c = TuningSysex::cents(freq);
+
+	setCents(noteWithinOctave, 100.0 * (noteWithinOctave + ds) + c);
+}
+
+double Tuning::getFrequency(int note) {
+	int noteWithinOctave = note % 12; // double check ±4
+	auto span = double(tuningFrequencyTable[noteWithinOctave]);
+	return (span / 4294967296.0) * 1378.125;
 }
 
 void Tuning::setNextCents(double cents) {
 
 	if (nextNote >= MAX_DIVISIONS)
 		return;
-	setNoteCents(nextNote++, cents);
+	setCents(nextNote++, cents);
 }
 
 void Tuning::setNextRatio(int numerator, int denominator) {
 
 	if (nextNote >= MAX_DIVISIONS)
 		return;
-	setNoteCents(nextNote++, 1200.0 * log2(numerator / (double)denominator));
+	setCents(nextNote++, 1200.0 * log2(numerator / (double)denominator));
 }
 
 void Tuning::setDivisions(int divs) {
