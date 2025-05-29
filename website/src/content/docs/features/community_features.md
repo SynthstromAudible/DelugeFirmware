@@ -48,6 +48,7 @@ back up your SD card!
   - Delay.
   - Mod FX.
   - Compressor.
+  - Stutter.
   - Unison.
   - Voice.
   - Arpeggiator.
@@ -62,7 +63,18 @@ back up your SD card!
     - Use `SCALE` button to switch to the previous page
   - If the selected menu item is a submenu, you can enter the submenu by pressing the SELECT encoder or the lit SYNTH, KIT, MIDI, or CV buttons under the submenu item selected
 
-#### 2.3 Favourites
+#### 2.3 Layered Shortcuts
+
+- Layered Shortcuts mechanism allows multiple shortcuts to be accessed under a single shortcut pad. Holding shift and pressing the same shortcut again cycles between shortcuts. The items available under layered shortcuts can also be accessed from menu: layered shortcut is never the only access method.
+- Following shortcuts have layers:
+  - `ENV` shortcuts: cycles between envelope 1 and 3 (ENV1 shortcuts), and envelope 2 and 4 (ENV2 shortcuts). This also applies to ENV modulator shortcuts.
+  - `LFO` shortcuts: cycles between LFO 1 and 3 (LFO1 shortcuts), and between LFO 2 and 4 (LFO2 shortcuts). This also applies to LFO modulator shortcuts.
+  - `UNISON NUMBER`: cycles between `UNISON AMOUNT` and `UNISON STEREO SPREAD`, in addition to the previous "press select when in `UNISON AMOUNT` access mechanism for `UNISON STEREO SPREAD`.
+  - `COMPRESSOR THRESHOLD`: cycles between `COMPRESSOR THRESHOLD` and `COMPRESSOR RATIO`
+  - `STUTTER RATE`: cycles between `STUTTER RATE` and `STUTTER DIRECTION`
+  - `ARP MODE`: cycles between `ARP MODE` and the arp randomizer `LOCK`. This is mostly for OLED users to quickly access the `RANDOMIZER` submenu.
+
+#### 2.4 Favourites
 
 A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UI -> KEYBOARD -> FAVOURITES`.
 
@@ -746,7 +758,7 @@ In `KEYBOARD VIEW`, macros are available as a sidebar control.
   removes itself from the signal path.
   - Note that it has no effect on square waves, it's best with sines and triangles
 
-#### 4.2.8 - Per-clip Stutter with options: Quantize, Reverse, and Ping-Pong
+#### 4.2.8 - Per-clip Stutter with options: Direction and Quantize
 
 - (#3226) Now the stutter buffer can also be set to play in reverse, and ping-pong. A new menu has been added to
   the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song. An extra menu has been added
@@ -1186,11 +1198,11 @@ to each individual note onset. (#1978)
 
 #### 4.5.8 - More envelopes
 
-- (#3279) Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
+- (#3279) Added two more envelopes (Envelope 3 and Envelope 4). Pressing the ENV1 shortcuts toggles between ENV1 and ENV3, while the ENV2 shortcuts toggle between ENV2 and ENV4.
 
 #### 4.5.9 - More LFOs
 
-- (#3332) Added two more LFOs: LFO 3 (global) and LFO 4 (per voice), which you can access from the sound editor menu.
+- (#3332) Added two more LFOs: LFO3 (global) and LFO4 (per voice). Pressing the LFO1 shortcuts toggles between LFO1 and LFO3, while the LFO2 shortcuts toggle between LFO2 and LFO4.
 
 #### 4.5.10 - Send Midi
 
