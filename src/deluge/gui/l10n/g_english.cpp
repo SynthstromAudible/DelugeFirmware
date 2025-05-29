@@ -458,6 +458,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_TEMPLATE, "Template song (Default.xml)"},
         {STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_LAST_OPENED, "Last opened song"},
         {STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_LAST_SAVED, "Last saved song"},
+        {STRING_FOR_DEFAULT_UI_SHARPS, "Use Sharps (#)"},
         {STRING_FOR_TEMPO_MAGNITUDE_MATCHING, "Tempo magnitude matching"},
         {STRING_FOR_TRIGGER_CLOCK, "Trigger clock"},
         {STRING_FOR_FM_MODULATOR_1, "FM modulator 1"},

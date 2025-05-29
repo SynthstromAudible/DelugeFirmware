@@ -483,6 +483,8 @@ const int16_t lanczosKernelA16[1025] = {
 
 
 const uint8_t noteCodeToNoteLetter[12] = {67, 67, 68, 68, 69, 70, 70, 71, 71, 65, 65, 66};
+const uint8_t noteCodeToNoteLetterFlats[12] = {67, 68, 68, 69, 69, 70, 71, 71, 65, 65, 66, 66};
+//This constant is used for both sharp and flat determination.
 const bool noteCodeIsSharp[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
 
 /**
