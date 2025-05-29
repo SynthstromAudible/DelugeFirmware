@@ -60,6 +60,7 @@ public:
 	}
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 	void getColumnLabel(StringBuf&) override;
+	void getColumnLabelForSmallFont(StringBuf&) override;
 
 private:
 	const uint8_t* getLfoIconBitmap();
