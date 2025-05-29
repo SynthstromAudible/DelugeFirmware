@@ -98,7 +98,17 @@ Error Sample::initialize(int32_t newNumClusters) {
 	waveTableCycleSize = 2048; // Default
 	fileExplicitlySpecifiesSelfAsWaveTable = false;
 
-	return clusters.insertSampleClustersAtEnd(newNumClusters);
+	try {
+		clusters.reserve(clusters.size() + newNumClusters);
+		clusters.resize(clusters.size() + newNumClusters);
+	} catch (deluge::exception e) {
+		if (e == deluge::exception::BAD_ALLOC) {
+			return Error::INSUFFICIENT_RAM;
+		}
+		throw e;
+	}
+
+	return Error::NONE;
 }
 
 Sample::~Sample() {
