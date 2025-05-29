@@ -195,6 +195,11 @@ void RuntimeFeatureSettings::init() {
 	                  STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS, "enableHorizontalMenus",
 	                  RuntimeFeatureStateToggle::On);
 
+	// Horizontal menus, small font for labels
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HorizontalMenusSmallFontForLabels],
+	                  STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS_SMALL_FONT_FOR_LABELS,
+	                  "enableHorizontalMenusSmallFontForLabels", RuntimeFeatureStateToggle::Off);
+
 	// Trim from start of audio clip
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrimFromStartOfAudioClip],
 	                  STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP, "trimFromStartOfAudioClip",
