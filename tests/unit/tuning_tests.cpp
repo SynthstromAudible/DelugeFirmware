@@ -1,7 +1,16 @@
+#include <CppUTest/TestHarness.h>
+
+#define IN_TUNING_TESTS 1
+#include "storage/ScalaReader.h"
+#undef IN_TUNING_TESTS
+
 #include "midi_engine_mocks.h"
 #include "model/tuning/tuning.h"
 #include "model/tuning/tuning_sysex.h"
-#include <CppUTest/TestHarness.h>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <string>
 
 struct {
 	int32_t freq[12];
@@ -42,11 +51,23 @@ struct {
 double stringToDouble(char const* __restrict__ mem) {
 	return atof(mem);
 }
+double stringToInt(char const* __restrict__ mem) {
+	return atoi(mem);
+}
+uint32_t memToUIntOrError(char const* mem, char const* end) {
+	char buf[128];
+	memset(buf, 0, sizeof(buf));
+	memcpy(buf, mem, (end - mem));
+	auto i = atoi(buf);
+	return (i > 0) ? i : -1;
+}
 
-TEST_GROUP(TestTuningSystem){};
+TEST_GROUP(TestTuningSystem){void setup(){TuningSystem::initialize();
+}
+}
+;
 
 TEST(TestTuningSystem, FirstTest) {
-	TuningSystem::initialize();
 
 	printf("\nDeg\tOffset\t\tfrequency\tinterval\n");
 	for (int i = 0; i < 12; i++) {
@@ -87,7 +108,6 @@ TEST(TestTuningSystem, TestStringToDouble) {
 };
 
 TEST(TestTuningSystem, TestBanks) {
-	TuningSystem::initialize();
 
 	TuningSystem::select(0);
 	CHECK_EQUAL(4400, TuningSystem::tuning->getReference());
@@ -103,7 +123,6 @@ TEST(TestTuningSystem, TestBanks) {
 };
 
 TEST(TestTuningSystem, TestSysex) {
-	TuningSystem::initialize();
 	// TuningSystem::tuning->setOffset(3, 2);
 
 	uint8_t msg[] = {0xF0, 0x7E, 0x7F, 0x08, 0x00, 0x00, 0xF7};
@@ -117,4 +136,26 @@ TEST(TestTuningSystem, TestSysex) {
 	memset(cable.buffer, '\0', 1024);
 	TuningSysex::sysexReceived(cable, msg, sizeof(msg));
 	MEMCMP_EQUAL(exp, cable.buffer, sizeof(exp));
+}
+
+TEST(TestTuningSystem, TestScala) {
+	ScalaReader reader;
+	char scale_12tet[] = {
+#embed "../fixtures/12tet.scl"
+	};
+	reader.fileClusterBuffer = scale_12tet;
+	reader.fileSize = sizeof(scale_12tet);
+	reader.openScalaFile(NULL, "12TET");
+	CHECK_EQUAL(0, TuningSystem::tuning->offsets[0]);
+	CHECK_EQUAL(0, TuningSystem::tuning->offsets[1]);
+	CHECK_EQUAL(0, TuningSystem::tuning->offsets[2]);
+	CHECK_EQUAL(0, TuningSystem::tuning->offsets[3]);
+	CHECK_EQUAL(0, TuningSystem::tuning->offsets[4]);
+	CHECK_EQUAL(0, TuningSystem::tuning->offsets[5]);
+	CHECK_EQUAL(0, TuningSystem::tuning->offsets[6]);
+	CHECK_EQUAL(0, TuningSystem::tuning->offsets[7]);
+	CHECK_EQUAL(0, TuningSystem::tuning->offsets[8]);
+	CHECK_EQUAL(0, TuningSystem::tuning->offsets[9]);
+	CHECK_EQUAL(0, TuningSystem::tuning->offsets[10]);
+	CHECK_EQUAL(0, TuningSystem::tuning->offsets[11]);
 }

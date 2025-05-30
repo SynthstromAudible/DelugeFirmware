@@ -350,36 +350,14 @@ private:
 	Error readStringUntilChar(String* string, char endChar);
 };
 
-class ScalaDeserializer : public FileDeserializer {
-public:
-	ScalaDeserializer();
-	ScalaDeserializer(uint8_t* inbuf, size_t buflen);
-	~ScalaDeserializer() override = default;
-
-	void reset();
-	Error openScalaFile(FilePointer* filePointer, const char* name);
-
-private:
-	int divisions;
-	int effectiveLine;
-	char* readStart;
-
-	void truncateNumber(char allow);
-	Error readDescription();
-	Error readDivisions();
-	Error readRatio(char* slash);
-	Error readCents();
-	Error readInteger();
-	Error readPitch();
-	void skipWhiteSpace();
-};
+#include "ScalaReader.h"
 
 extern XMLSerializer smSerializer;
 extern XMLDeserializer smDeserializer;
 extern JsonSerializer smJsonSerializer;
 extern JsonDeserializer smJsonDeserializer;
 // TODO extern ScalaSerializer smScalaSerializer;
-extern ScalaDeserializer smScalaReader;
+extern ScalaReader smScalaReader;
 extern Serializer& GetSerializer();
 extern FileDeserializer* activeDeserializer;
 
@@ -395,7 +373,7 @@ Error openJsonFile(FilePointer* filePointer, JsonDeserializer& reader, char cons
                    char const* altTagName = "", bool ignoreIncorrectFirmware = false);
 Error openDelugeFile(FileItem* currentFileItem, char const* firstTagName, char const* altTagName = "",
                      bool ignoreIncorrectFirmware = false);
-Error openScalaFile(FilePointer* filePointer, ScalaDeserializer& reader, const char* name);
+Error openScalaFile(FilePointer* filePointer, ScalaReader& reader, const char* name);
 Error initSD();
 
 bool fileExists(char const* pathName);

@@ -24,12 +24,14 @@ if (WIN32)
     # We use things like strncat, which Windows wants to warn about: silence those.
     add_compile_definitions(
             IN_UNIT_TESTS=1
+            IN_TUNING_TESTS=1
             _CRT_SECURE_NO_WARNINGS=1
     )
 else ()
     add_compile_definitions(
             CPPUTEST_MEM_LEAK_DETECTION_DISABLED
             IN_UNIT_TESTS=1
+            IN_TUNING_TESTS=1
     )
 endif ()
 
@@ -38,9 +40,9 @@ FetchContent_MakeAvailable(CppUTest)
 file(GLOB_RECURSE deluge_SOURCES
         # Mock implementations
         mocks/*
-        mocks/midi_engine_mocks.cpp
         # For LFO
         ../../src/deluge/util/lookuptables.cpp
+        ../../src/deluge/util/cfunctions.cpp
         ../../src/deluge/util/waves.cpp
         ../../src/deluge/modulation/lfo.cpp
         # For value scaling
@@ -60,6 +62,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # For chord tests
         ../../src/deluge/gui/ui/keyboard/chords.cpp
         # For tuning tests
+        ../../src/deluge/storage/ScalaReader.cpp
         ../../src/deluge/model/tuning/types.cpp
         ../../src/deluge/model/tuning/tuning.cpp
         ../../src/deluge/model/tuning/tuning_sysex.cpp

@@ -67,7 +67,7 @@ void Tuning::setReference(int32_t scaled) {
 
 void Tuning::setCents(int noteWithinOctave, double cents) {
 	// noteCents[noteWithinOctave] = cents;
-	offsets[noteWithinOctave] = cents - 100.0 * noteWithinOctave;
+	offsets[noteWithinOctave] = 100.0 * (cents - 100.0 * noteWithinOctave);
 	calculateNote(noteWithinOctave);
 }
 
@@ -135,16 +135,21 @@ void Tuning::getSysexFrequency(int note, TuningSysex::frequency_t& ret) {
 
 void Tuning::setNextCents(double cents) {
 
-	if (nextNote >= MAX_DIVISIONS)
-		return;
+	if (nextNote >= MAX_DIVISIONS) {
+		nextNote = 0;
+		cents -= 1200.0;
+	}
 	setCents(nextNote++, cents);
 }
 
 void Tuning::setNextRatio(int numerator, int denominator) {
 
-	if (nextNote >= MAX_DIVISIONS)
-		return;
-	setCents(nextNote++, 1200.0 * log2(numerator / (double)denominator));
+	double c = 1200.0 * log2(numerator / (double)denominator);
+	if (nextNote >= MAX_DIVISIONS) {
+		nextNote = 0;
+		c -= 1200.0;
+	}
+	setCents(nextNote++, c);
 }
 
 void Tuning::setDivisions(int divs) {

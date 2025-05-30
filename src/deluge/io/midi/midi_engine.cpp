@@ -263,8 +263,8 @@ void MidiEngine::midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len)
 
 		// Ignore device ID
 		if (data[3] == SysEx::SYSEX_MIDI_TUNING_STANDARD) {
-			// forward the rest of the message to TuningSysex
-			TuningSysex::sysexReceived(cable, data + 4, len - 4);
+			// forward the message to TuningSysex
+			TuningSysex::sysexReceived(cable, data, len);
 		}
 	}
 

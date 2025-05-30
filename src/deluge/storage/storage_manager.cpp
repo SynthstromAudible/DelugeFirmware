@@ -65,6 +65,7 @@ PLACE_SDRAM_BSS XMLSerializer smSerializer;
 PLACE_SDRAM_BSS XMLDeserializer smDeserializer;
 PLACE_SDRAM_BSS JsonSerializer smJsonSerializer;
 PLACE_SDRAM_BSS JsonDeserializer smJsonDeserializer;
+PLACE_SDRAM_BSS ScalaReader smScalaReader;
 FileDeserializer* activeDeserializer = &smDeserializer;
 
 const bool writeJsonFlag = false;
@@ -746,7 +747,7 @@ Error StorageManager::openJsonFile(FilePointer* filePointer, JsonDeserializer& r
 	return Error::FILE_CORRUPTED;
 }
 
-Error StorageManager::openScalaFile(FilePointer* filePointer, ScalaDeserializer& reader, const char* name) {
+Error StorageManager::openScalaFile(FilePointer* filePointer, ScalaReader& reader, const char* name) {
 
 	reader.reset();
 	// Prep to read first Cluster shortly
@@ -757,7 +758,6 @@ Error StorageManager::openScalaFile(FilePointer* filePointer, ScalaDeserializer&
 		return Error::FILE_NOT_FOUND;
 	}
 	Error err = reader.openScalaFile(filePointer, name);
-	activeDeserializer = &reader;
 	if (err == Error::NONE)
 		return Error::NONE;
 
