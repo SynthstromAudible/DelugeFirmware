@@ -102,18 +102,33 @@ void Tuning::setFrequency(int note, TuningSysex::frequency_t freq) {
 
 double Tuning::getFrequency(int note) {
 	int noteWithinOctave = note % 12; // double check ±4
+	int octave = note / 12;
 	auto span = double(tuningFrequencyTable[noteWithinOctave]);
-	return (span / two32) * 1378.125;
+	return pow(2.0, octave) * (span / two32) * 1378.125;
 }
 
 void Tuning::getSysexFrequency(int note, TuningSysex::frequency_t& ret) {
 	auto freq = getFrequency(note);
+	/*
 	double semitone;
 	double estimate = 12.0 * log2(freq / 440.0) + 69;
 	double c = two14 * modf(estimate, &semitone);
 
-	int cents = std::min(16383, int(cents));
-	ret.semitone = int(semitone);
+	int cents = std::min(16383, int(c));
+	*/
+	int noteWithinOctave = note % 12; // double check ±4
+	int octave = note / 12;
+	double o = offsets[noteWithinOctave] / 10000.0;
+	int cents;
+	double semitone;
+
+	double c = modf(o, &semitone);
+	if (o < 0)
+		o -= 1;
+	int d = note + int(o);
+	cents = c * 16383;
+
+	ret.semitone = d & 0x7f;
 	ret.cents.msb = (cents >> 7) & 0x7f;
 	ret.cents.lsb = cents & 0x7f;
 }
@@ -142,9 +157,9 @@ void Tuning::setDivisions(int divs) {
 
 void Tuning::setName(const char* tuning_name) {
 	for (int i = 0; i < 16; i++) {
+		name[i] = tuning_name[i] & 0x7f;
 		if (tuning_name[i] == '\0')
 			break;
-		name[i] = tuning_name[i] & 0x7f;
 	}
 }
 
@@ -178,6 +193,11 @@ int32_t selectedTuning;
 void TuningSystem::initialize() {
 	selectedTuning = 0;
 	select(0);
+
+	for (int i = 0; i < MAX_DIVISIONS; i++) {
+		tuning->setOffset(i, 0);
+	}
+	tuning->setName("12TET");
 
 	// example usage
 	/*

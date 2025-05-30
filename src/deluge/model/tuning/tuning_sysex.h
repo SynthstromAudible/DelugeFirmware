@@ -1,7 +1,14 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+
+#ifndef IN_UNIT_TESTS
 #include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_engine.h"
+#else
+#include "midi_engine_mocks.h"
+#endif
+
 #include "types.h"
 
 namespace TuningSysex {
@@ -81,5 +88,7 @@ void scaleOctaveDump2(MIDICable& cable, scale_octave_dump_2_t& msg);
 void bankNoteChange(MIDICable& cable, bank_note_change_t& msg);
 void scaleOctave1(MIDICable& cable, scale_octave_1_t& msg);
 void scaleOctave2(MIDICable& cable, scale_octave_2_t& msg);
+
+extern uint8_t* sysex_fmt_buffer;
 
 } // namespace TuningSysex

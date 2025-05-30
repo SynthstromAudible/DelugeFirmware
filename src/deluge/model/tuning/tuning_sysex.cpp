@@ -1,9 +1,16 @@
 #include "tuning_sysex.h"
-#include "io/midi/midi_engine.h"
-#include "io/midi/sysex.h"
 #include "tuning.h"
 
+#ifndef IN_UNIT_TESTS
+#include "io/midi/sysex.h"
+uint8_t* TuningSysex::sysex_fmt_buffer = midiEngine.sysex_fmt_buffer;
+#else
+uint8_t fmt_buf[1024];
+uint8_t* TuningSysex::sysex_fmt_buffer = fmt_buf;
+#endif
+
 void TuningSysex::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
+
 	if (len < 3)
 		return;
 
@@ -80,7 +87,7 @@ void TuningSysex::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 
 uint8_t TuningSysex::calculateChecksum(int32_t len) {
 	uint8_t chksum = 0;
-	auto* buf = midiEngine.sysex_fmt_buffer;
+	auto* buf = sysex_fmt_buffer;
 	for (int i = 1; i < len; i++) {
 		chksum ^= buf[i];
 	}
@@ -104,7 +111,7 @@ void TuningSysex::bulkDumpRequest(MIDICable& cable, bulk_dump_request_t& msg) {
 	// should reply with BulkDump for the given preset
 	// BulkDump                01 preset name[16] {xx yy zz}[128]
 
-	uint8_t* buf = midiEngine.sysex_fmt_buffer;
+	uint8_t* buf = sysex_fmt_buffer;
 	uint8_t header[5] = {0xF0, 0x7E, 0x00, SysEx::SYSEX_MIDI_TUNING_STANDARD, SysEx::TuningCommands::BulkDump};
 	memcpy(buf, header, sizeof(header));
 	auto& reply = *reinterpret_cast<bulk_dump_t*>(buf + sizeof(header));
@@ -158,7 +165,7 @@ void TuningSysex::bankDumpRequest(MIDICable& cable, bank_dump_request_t& msg) {
 	// ScaleOctaveDump 06         bank preset name[16] {ss tt}[12] csum
 
 	// reply with KeyBasedDump
-	uint8_t* buf = midiEngine.sysex_fmt_buffer;
+	uint8_t* buf = sysex_fmt_buffer;
 	uint8_t header[5] = {0xF0, 0x7E, 0x00, SysEx::SYSEX_MIDI_TUNING_STANDARD, SysEx::TuningCommands::KeyBasedDump};
 	memcpy(buf, header, sizeof(header));
 	auto& reply = *reinterpret_cast<key_based_dump_t*>(buf + sizeof(header));

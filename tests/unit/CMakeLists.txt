@@ -38,6 +38,7 @@ FetchContent_MakeAvailable(CppUTest)
 file(GLOB_RECURSE deluge_SOURCES
         # Mock implementations
         mocks/*
+        mocks/midi_engine_mocks.cpp
         # For LFO
         ../../src/deluge/util/lookuptables.cpp
         ../../src/deluge/util/waves.cpp
@@ -59,8 +60,9 @@ file(GLOB_RECURSE deluge_SOURCES
         # For chord tests
         ../../src/deluge/gui/ui/keyboard/chords.cpp
         # For tuning tests
-        ../../src/deluge/model/tuning/tuning.cpp
         ../../src/deluge/model/tuning/types.cpp
+        ../../src/deluge/model/tuning/tuning.cpp
+        ../../src/deluge/model/tuning/tuning_sysex.cpp
 )
 
 add_executable(UnitTests
