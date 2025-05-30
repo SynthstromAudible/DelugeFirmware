@@ -11,73 +11,66 @@ uint8_t* TuningSysex::sysex_fmt_buffer = fmt_buf;
 
 void TuningSysex::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 
+	// F0 7E 7F 08 ...
+	uint8_t cmd = data[4];
+	data += 4;
+	len -= 4;
+
 	if (len < 3)
 		return;
 
-	uint8_t cmd = data[0];
-	data++;
-	len--;
+	auto& msg = *reinterpret_cast<midi_tuning_t*>(data);
 
-	switch (data[0]) {
+	switch (cmd) {
 	case SysEx::TuningCommands::BulkDumpRequest:
-		if (len < sizeof(bulk_dump_request_t))
-			return;
-		bulkDumpRequest(cable, *reinterpret_cast<bulk_dump_request_t*>(data));
+		if (len >= sizeof(bulk_dump_request_t))
+			bulkDumpRequest(cable, msg.bulk_dump_request);
 		break;
 
 	case SysEx::TuningCommands::BulkDump:
-		if (len < sizeof(bulk_dump_t))
-			return;
-		bulkDump(cable, *reinterpret_cast<bulk_dump_t*>(data));
+		if (len >= sizeof(bulk_dump_t))
+			bulkDump(cable, msg.bulk_dump);
 		break;
 
 	case SysEx::TuningCommands::NoteChange: {
-		auto& msg = *reinterpret_cast<single_note_tuning_change_t*>(data);
-		if (msg.len > 0x7f || len < 2 + msg.len * (sizeof(key_freq_t)))
-			return; // if the message is truncated, ignore
-		noteChange(cable, msg);
+		auto ll = msg.single_note_tuning_change.len;
+		if (ll <= 0x7f && len >= 2 + ll * (sizeof(key_freq_t)))
+			noteChange(cable, msg.single_note_tuning_change);
 	} break;
 
 	case SysEx::TuningCommands::BankDumpRequest:
-		if (len < sizeof(bulk_dump_request_t))
-			return;
-		bankDumpRequest(cable, *reinterpret_cast<bank_dump_request_t*>(data));
+		if (len >= sizeof(bank_dump_request_t))
+			bankDumpRequest(cable, msg.bank_dump_request);
 		break;
 
 	case SysEx::TuningCommands::KeyBasedDump:
-		if (len < sizeof(key_based_dump_t))
-			return;
-		keyBasedDump(cable, *reinterpret_cast<key_based_dump_t*>(data));
+		if (len >= sizeof(key_based_dump_t))
+			keyBasedDump(cable, msg.key_based_dump);
 		break;
 
 	case SysEx::TuningCommands::ScaleOctaveDump1:
-		if (len < sizeof(scale_octave_dump_1_t))
-			return;
-		scaleOctaveDump1(cable, *reinterpret_cast<scale_octave_dump_1_t*>(data));
+		if (len >= sizeof(scale_octave_dump_1_t))
+			scaleOctaveDump1(cable, msg.scale_octave_dump_1);
 		break;
 
 	case SysEx::TuningCommands::ScaleOctaveDump2:
-		if (len < sizeof(scale_octave_dump_2_t))
-			return;
-		scaleOctaveDump2(cable, *reinterpret_cast<scale_octave_dump_2_t*>(data));
+		if (len >= sizeof(scale_octave_dump_2_t))
+			scaleOctaveDump2(cable, msg.scale_octave_dump_2);
 		break;
 
 	case SysEx::TuningCommands::BankNoteChange:
-		if (len < sizeof(bank_note_change_t))
-			return;
-		bankNoteChange(cable, *reinterpret_cast<bank_note_change_t*>(data));
+		if (len >= sizeof(bank_note_change_t))
+			bankNoteChange(cable, msg.bank_note_change);
 		break;
 
 	case SysEx::TuningCommands::ScaleOctave1:
-		if (len < sizeof(scale_octave_1_t))
-			return;
-		scaleOctave1(cable, *reinterpret_cast<scale_octave_1_t*>(data));
+		if (len >= sizeof(scale_octave_1_t))
+			scaleOctave1(cable, msg.scale_octave_1);
 		break;
 
 	case SysEx::TuningCommands::ScaleOctave2:
-		if (len < sizeof(scale_octave_2_t))
-			return;
-		scaleOctave2(cable, *reinterpret_cast<scale_octave_2_t*>(data));
+		if (len >= sizeof(scale_octave_2_t))
+			scaleOctave2(cable, msg.scale_octave_2);
 		break;
 
 	default:
@@ -95,21 +88,7 @@ uint8_t TuningSysex::calculateChecksum(int32_t len) {
 	return chksum;
 }
 
-// Glossary
-//
-// xx yy zz : absolute frequency in Hz. xx=semitone, yyzz=(100/2^14) cents
-// key      : MIDI key number
-// len      : length / number of changes
-// name     : 7-bit ASCII bytes
-// ff gg hh : channel mask as 00000ff 0ggggggg 0hhhhhhh 16-15, 14-8, 7-1
-// ss       : relative cents.  -64 to +63, integer step, 0x40 represents equal temperament
-// ss tt    : relative cents. -100 to +100, fractional step (100/2^13), 0x40 0x00 represents equal temperament
-// csum     : checksum. can be ignored by receiver
-
 void TuningSysex::bulkDumpRequest(MIDICable& cable, bulk_dump_request_t& msg) {
-	// BulkDumpRequest         00 preset
-	// should reply with BulkDump for the given preset
-	// BulkDump                01 preset name[16] {xx yy zz}[128]
 
 	uint8_t* buf = sysex_fmt_buffer;
 	uint8_t header[5] = {0xF0, 0x7E, 0x00, SysEx::SYSEX_MIDI_TUNING_STANDARD, SysEx::TuningCommands::BulkDump};
@@ -133,8 +112,6 @@ void TuningSysex::bulkDumpRequest(MIDICable& cable, bulk_dump_request_t& msg) {
 }
 
 void TuningSysex::bulkDump(MIDICable& cable, bulk_dump_t& msg) {
-	// BulkDump 01               preset name[16] {xx yy zz}[128]
-	// should retune all notes to the absolute frequencies in given preset
 
 	if (!TuningSystem::selectForWrite(msg.preset))
 		return;
@@ -146,8 +123,6 @@ void TuningSysex::bulkDump(MIDICable& cable, bulk_dump_t& msg) {
 }
 
 void TuningSysex::noteChange(MIDICable& cable, single_note_tuning_change_t& msg) {
-	// NoteChange 02             preset len {key xx yy zz}[len]
-	// should retune notes to absolute frequencies in given preset
 
 	if (!TuningSystem::selectForWrite(msg.preset))
 		return;
@@ -158,11 +133,6 @@ void TuningSysex::noteChange(MIDICable& cable, single_note_tuning_change_t& msg)
 }
 
 void TuningSysex::bankDumpRequest(MIDICable& cable, bank_dump_request_t& msg) {
-	// BankDump 03                bank preset
-	// should reply with one of the following messages for the given bank and preset
-	// KeyBasedDump 04            bank preset name[16] {xx yy zz}[128] csum
-	// ScaleOctaveDump 05         bank preset name[16] ss[12] csum
-	// ScaleOctaveDump 06         bank preset name[16] {ss tt}[12] csum
 
 	// reply with KeyBasedDump
 	uint8_t* buf = sysex_fmt_buffer;
@@ -188,8 +158,6 @@ void TuningSysex::bankDumpRequest(MIDICable& cable, bank_dump_request_t& msg) {
 }
 
 void TuningSysex::keyBasedDump(MIDICable& cable, key_based_dump_t& msg) {
-	// BulkDump 04               bank preset name[16] {xx yy zz}[128] csum
-	// should retune all notes to the absolute frequencies in given bank and preset
 
 	if (!TuningSystem::selectForWrite(msg.preset))
 		return;
@@ -200,8 +168,6 @@ void TuningSysex::keyBasedDump(MIDICable& cable, key_based_dump_t& msg) {
 }
 
 void TuningSysex::scaleOctaveDump1(MIDICable& cable, scale_octave_dump_1_t& msg) {
-	// ScaleOctaveDump1          05 bank preset name[16] {ss}[12]
-	// should retune the octave for the specified channels with 7-bit precision cents in given bank and preset
 
 	if (!TuningSystem::selectForWrite(msg.preset))
 		return;
@@ -213,8 +179,6 @@ void TuningSysex::scaleOctaveDump1(MIDICable& cable, scale_octave_dump_1_t& msg)
 }
 
 void TuningSysex::scaleOctaveDump2(MIDICable& cable, scale_octave_dump_2_t& msg) {
-	// ScaleOctaveDump2          06 bank preset name[16] {ss tt}[12]
-	// should retune the octave for the specified channels with 14-bit precision cents in given bank and preset
 
 	if (!TuningSystem::selectForWrite(msg.preset))
 		return;
@@ -226,8 +190,6 @@ void TuningSysex::scaleOctaveDump2(MIDICable& cable, scale_octave_dump_2_t& msg)
 }
 
 void TuningSysex::bankNoteChange(MIDICable& cable, bank_note_change_t& msg) {
-	// BankNoteChange          07 bank preset len {key xx yy zz}[len]
-	// should retune notes to absolute frequencies in given bank and preset
 
 	if (!TuningSystem::selectForWrite(msg.preset))
 		return;
@@ -238,8 +200,6 @@ void TuningSysex::bankNoteChange(MIDICable& cable, bank_note_change_t& msg) {
 }
 
 void TuningSysex::scaleOctave1(MIDICable& cable, scale_octave_1_t& msg) {
-	// ScaleOctave1            08 ff gg hh ss[12]
-	// should retune the octave for the specified channels with 7-bit precision cents
 
 	for (int i = 0; i < 12; i++) {
 		TuningSystem::tuning->setCents(i, cents(msg.cents[i]));
@@ -247,8 +207,6 @@ void TuningSysex::scaleOctave1(MIDICable& cable, scale_octave_1_t& msg) {
 }
 
 void TuningSysex::scaleOctave2(MIDICable& cable, scale_octave_2_t& msg) {
-	// ScaleOctave2            09 ff gg hh {ss tt}[12]
-	// should retune the octave for the specified channels with 14-bit precision cents
 
 	for (int i = 0; i < 12; i++) {
 		TuningSystem::tuning->setCents(i, cents(msg.cents[i]));

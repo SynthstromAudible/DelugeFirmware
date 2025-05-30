@@ -1,6 +1,17 @@
 #pragma once
 #include <cstdint>
 
+// Glossary
+//
+// xx yy zz : absolute frequency in Hz. xx=semitone, yyzz=(100/2^14) cents
+// key      : MIDI key number
+// len      : length / number of changes
+// name     : 7-bit ASCII bytes
+// ff gg hh : channel mask as 00000ff 0ggggggg 0hhhhhhh 16-15, 14-8, 7-1
+// ss       : relative cents.  -64 to +63, integer step, 0x40 represents equal temperament
+// ss tt    : relative cents. -100 to +100, fractional step (100/2^13), 0x40 0x00 represents equal temperament
+// csum     : checksum. can be ignored by receiver
+
 namespace TuningSysex {
 
 struct cents_t {
