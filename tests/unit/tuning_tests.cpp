@@ -15,6 +15,7 @@
 struct {
 	int32_t freq[12];
 	int32_t ival[12];
+	int32_t offsets[12];
 } expected = {
     .freq =
         {
@@ -46,6 +47,7 @@ struct {
             1913190429,
             2026954652,
         },
+    .offsets = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 };
 
 double stringToDouble(char const* __restrict__ mem) {
@@ -62,7 +64,15 @@ uint32_t memToUIntOrError(char const* mem, char const* end) {
 	return (i > 0) ? i : -1;
 }
 
-TEST_GROUP(TestTuningSystem){void setup(){TuningSystem::initialize();
+TEST_GROUP(TestTuningSystem){//
+                             void setup(){TuningSystem::initialize();
+
+// overwrite tuning 1 with garbage
+TuningSystem::selectForWrite(1);
+for (int i = 0; i < 12; i++) {
+	TuningSystem::tuning->setOffset(i, -999 + i);
+}
+TuningSystem::select(0);
 }
 }
 ;
@@ -138,10 +148,7 @@ TEST(TestTuningSystem, TestSysex) {
 	MEMCMP_EQUAL(exp, cable.buffer, sizeof(exp));
 }
 
-TEST(TestTuningSystem, TestScala) {
-	ScalaReader reader;
-	char scale_12tet[] = R"SCL(
-! 12TET.scl
+char scale_12tet[] = R"SCL(! 12TET.scl
 !
 Twelve tone equal temperament
  12
@@ -157,21 +164,24 @@ Twelve tone equal temperament
  900.00
 1000.00
 1100.00
-2/1
+ 2/1
 )SCL";
+
+void check_offsets(int32_t* ex, int32_t* ac, int32_t num) {
+	char fixme[128];
+	for (int i = 0; i < 12; i++) {
+		auto o = ac[i];
+		auto e = ex[i];
+		sprintf(fixme, "actual[%d] = %d, expected[%d] = %d\n", i, ac[i], i, ex[i]);
+		CHECK_EQUAL_TEXT(ex[i], ac[i], fixme);
+	}
+}
+
+TEST(TestTuningSystem, TestScala) {
+	TuningSystem::selectForWrite(1);
+	ScalaReader reader;
 	reader.fileClusterBuffer = scale_12tet;
 	reader.fileSize = sizeof(scale_12tet);
 	reader.openScalaFile(NULL, "12TET");
-	CHECK_EQUAL(0, TuningSystem::tuning->offsets[0]);
-	CHECK_EQUAL(0, TuningSystem::tuning->offsets[1]);
-	CHECK_EQUAL(0, TuningSystem::tuning->offsets[2]);
-	CHECK_EQUAL(0, TuningSystem::tuning->offsets[3]);
-	CHECK_EQUAL(0, TuningSystem::tuning->offsets[4]);
-	CHECK_EQUAL(0, TuningSystem::tuning->offsets[5]);
-	CHECK_EQUAL(0, TuningSystem::tuning->offsets[6]);
-	CHECK_EQUAL(0, TuningSystem::tuning->offsets[7]);
-	CHECK_EQUAL(0, TuningSystem::tuning->offsets[8]);
-	CHECK_EQUAL(0, TuningSystem::tuning->offsets[9]);
-	CHECK_EQUAL(0, TuningSystem::tuning->offsets[10]);
-	CHECK_EQUAL(0, TuningSystem::tuning->offsets[11]);
+	check_offsets(expected.offsets, TuningSystem::tuning->offsets, 12);
 }

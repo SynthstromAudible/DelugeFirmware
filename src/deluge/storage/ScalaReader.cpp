@@ -144,11 +144,11 @@ void ScalaReader::skipWhiteSpace() {
 }
 
 Error ScalaReader::parseLine() {
-	Error err;
+	Error err = Error::NONE;
 
 	// skip comments
 	if (*readStart == '!')
-		return Error::NONE;
+		return err;
 
 	skipWhiteSpace();
 
@@ -158,11 +158,14 @@ Error ScalaReader::parseLine() {
 	}
 	else if (*readStart == '\0') {
 		// skip empty lines
-		return Error::NONE;
+		return err;
 	}
 	else if (effectiveLine == 1) {
 		// second non-commented line is the number of notes
 		err = readDivisions();
+		if (err != Error::NONE) {
+			printf("invalid divisions\n");
+		}
 	}
 	else if (effectiveLine - 1 <= divisions) {
 		// all remaining non-commented lines are pitch values
@@ -183,7 +186,7 @@ Error ScalaReader::openScalaFile(FilePointer* filePointer, const char* name) {
 	Error err;
 
 	TuningSystem::tuning->setup(name);
-	TuningSystem::tuning->setNextCents(0);
+	TuningSystem::tuning->setNextCents(0); // first pitch is C# not C
 	readStart = fileClusterBuffer;
 
 	while (readLine(readStart)) {
@@ -191,6 +194,7 @@ Error ScalaReader::openScalaFile(FilePointer* filePointer, const char* name) {
 		err = parseLine();
 
 		if (err != Error::NONE) {
+			printf("%s:%d\n", name, effectiveLine);
 			return err;
 		}
 		readStart = fileClusterBuffer;

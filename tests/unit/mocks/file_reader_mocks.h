@@ -15,7 +15,7 @@ public:
 			fileClusterBuffer++;
 			fileSize--;
 		}
-		if (fileSize >= 0) {
+		if (fileSize > 0) {
 			*fileClusterBuffer = '\0';
 			fileClusterBuffer++;
 			fileSize--;
