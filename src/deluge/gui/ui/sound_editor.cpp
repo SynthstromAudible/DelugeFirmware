@@ -1267,14 +1267,6 @@ doSetup:
 						return ActionResult::DEALT_WITH;
 					}
 
-					// If we're on OLED, a parent menu & horizontal menus are in play,
-					// then we swap the parent in place of the child.
-					if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
-						if (parent->focusChild(item)) {
-							item = parent;
-						}
-					}
-
 					// if we're in the menu and automation view is the root (background) UI
 					// and you're using a grid shortcut, only allow use of shortcuts for parameters / patch cables
 					MenuItem* newItem;
@@ -1304,11 +1296,11 @@ doSetup:
 						}
 					}
 
-					bool setupSuccess = setup(getCurrentClip(), item, thingIndex);
+					bool setupSuccess = setup(getCurrentClip(), item, parent, thingIndex);
 
 					if (!setupSuccess && item == &modulatorVolume && currentSource->oscType == OscType::DX7) {
 						item = &dxParam;
-						setupSuccess = setup(getCurrentClip(), item, thingIndex);
+						setupSuccess = setup(getCurrentClip(), item, parent, thingIndex);
 					}
 
 					if (!setupSuccess) {
@@ -1567,7 +1559,7 @@ void SoundEditor::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 }
 
-bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
+bool SoundEditor::setup(Clip* clip, const MenuItem* item, Submenu* parent, int32_t sourceIndex) {
 
 	Sound* newSound = nullptr;
 	ParamManagerForTimeline* newParamManager = nullptr;
@@ -1724,16 +1716,26 @@ doMIDIOrCV:
 		}
 	}
 
+	// This isn't a very nice solution, but we have to set currentParamManager before calling
+	// checkPermissionToBeginSession(), because in a minority of cases, like "patch cable strength" / "modulation
+	// depth", it needs this.
+	currentParamManager = newParamManager;
+	// And we also have to set currentModControllable before focusing on the child item in a horizontal menu
+	currentModControllable = newModControllable;
+
+	// If we're on OLED, a parent menu & horizontal menus are in play,
+	// then we swap the parent in place of the child.
+	if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+		if (parent->focusChild(item)) {
+			newItem = parent;
+		}
+	}
+
 	::MultiRange* newRange = currentMultiRange;
 
 	if ((currentUI != &soundEditor && currentUI != &sampleMarkerEditor) || sourceIndex != currentSourceIndex) {
 		newRange = nullptr;
 	}
-
-	// This isn't a very nice solution, but we have to set currentParamManager before calling
-	// checkPermissionToBeginSession(), because in a minority of cases, like "patch cable strength" / "modulation
-	// depth", it needs this.
-	currentParamManager = newParamManager;
 
 	MenuPermission result = newItem->checkPermissionToBeginSession(newModControllable, sourceIndex, &newRange);
 
@@ -1764,7 +1766,6 @@ doMIDIOrCV:
 	currentSound = newSound;
 	currentArpSettings = newArpSettings;
 	currentMultiRange = newRange;
-	currentModControllable = newModControllable;
 
 	if (currentModControllable) {
 		currentSidechain = &currentModControllable->sidechain;
