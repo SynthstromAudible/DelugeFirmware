@@ -140,9 +140,25 @@ TEST(TestTuningSystem, TestSysex) {
 
 TEST(TestTuningSystem, TestScala) {
 	ScalaReader reader;
-	char scale_12tet[] = {
-#embed "../fixtures/12tet.scl"
-	};
+	char scale_12tet[] = R"SCL(
+! 12TET.scl
+!
+Twelve tone equal temperament
+ 12
+!
+ 100.00
+ 200.00
+ 300.00
+ 400.00
+ 500.00
+ 600.00
+ 700.00
+ 800.00
+ 900.00
+1000.00
+1100.00
+2/1
+)SCL";
 	reader.fileClusterBuffer = scale_12tet;
 	reader.fileSize = sizeof(scale_12tet);
 	reader.openScalaFile(NULL, "12TET");
