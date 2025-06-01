@@ -381,12 +381,10 @@ void Voice::setupPorta(const Sound& sound) {
 	portaEnvelopePos = 0;
 	int32_t semitoneAdjustment = sound.lastNoteCode - noteCodeAfterArpeggiation;
 
-	int32_t noteWithinOctave = (semitoneAdjustment + 120) % 12;
-	int32_t octave = (semitoneAdjustment + 120) / 12;
+	auto nwo = TuningSystem::tuning->noteWithinOctave(semitoneAdjustment);
+	int32_t phaseIncrement = TuningSystem::tuning->noteInterval(nwo.noteWithin);
 
-	int32_t phaseIncrement = TuningSystem::tuning->noteInterval(noteWithinOctave);
-
-	int32_t shiftRightAmount = 16 - octave;
+	int32_t shiftRightAmount = 16 - nwo.octave;
 	if (shiftRightAmount >= 0) {
 		phaseIncrement >>= shiftRightAmount;
 	}
@@ -457,13 +455,12 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 				pitchAdjustNeutralValue = kMaxSampleValue;
 			}
 
-			int32_t noteWithinOctave = (uint16_t)(transposedNoteCode + 240) % 12;
-			int32_t octave = (uint16_t)(transposedNoteCode + 120) / 12;
+			auto nwo = TuningSystem::tuning->noteWithinOctave(transposedNoteCode);
 
 			phaseIncrement =
-			    multiply_32x32_rshift32(TuningSystem::tuning->noteInterval(noteWithinOctave), pitchAdjustNeutralValue);
+			    multiply_32x32_rshift32(TuningSystem::tuning->noteInterval(nwo.noteWithin), pitchAdjustNeutralValue);
 
-			int32_t shiftRightAmount = 13 - octave;
+			int32_t shiftRightAmount = 3 - nwo.octave;
 
 			// If shifting right...
 			if (shiftRightAmount >= 0) {
@@ -489,12 +486,10 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
 		// Regular wave osc
 		else {
-			int32_t noteWithinOctave = (uint16_t)(transposedNoteCode + 240 - 4) % 12;
-			int32_t octave = (transposedNoteCode + 120 - 4) / 12;
-
-			int32_t shiftRightAmount = 20 - octave;
+			auto nwo = TuningSystem::tuning->noteWithinOctave(transposedNoteCode - 4); // should this be -4?
+			int32_t shiftRightAmount = 10 - nwo.octave;
 			if (shiftRightAmount >= 0) {
-				phaseIncrement = TuningSystem::tuning->noteFrequency(noteWithinOctave) >> shiftRightAmount;
+				phaseIncrement = TuningSystem::tuning->noteFrequency(nwo.noteWithin) >> shiftRightAmount;
 			}
 
 			else {
@@ -533,14 +528,13 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 			}
 
 			int32_t transposedNoteCode = noteCodeWithMasterTranspose + sound.modulatorTranspose[m];
-			int32_t noteWithinOctave = (transposedNoteCode + 120 - 4) % 12;
-			int32_t octave = (transposedNoteCode + 120 - 4) / 12;
-			int32_t shiftRightAmount = 20 - octave;
+			auto nwo = TuningSystem::tuning->noteWithinOctave(transposedNoteCode - 4); // should this be -4?
+			int32_t shiftRightAmount = 10 - nwo.octave;
 
 			int32_t phaseIncrement;
 
 			if (shiftRightAmount >= 0) {
-				phaseIncrement = TuningSystem::tuning->noteFrequency(noteWithinOctave) >> shiftRightAmount;
+				phaseIncrement = TuningSystem::tuning->noteFrequency(nwo.noteWithin) >> shiftRightAmount;
 			}
 
 			else {

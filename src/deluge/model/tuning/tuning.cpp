@@ -23,18 +23,18 @@ constexpr double two14 = 0x1.p14;
 constexpr double two30 = 0x1.p30;
 constexpr double two32 = 0x1.p32;
 
-void Tuning::calculateNote(int noteWithinOctave) {
+void Tuning::calculateNote(int noteWithin) {
 
-	double cents = 100 * (noteWithinOctave - referenceNote);
-	cents += offsets[noteWithinOctave] / 100.0;
+	double cents = 100 * (noteWithin - referenceNote);
+	cents += offsets[noteWithin] / 100.0;
 	double frequency = referenceFrequency * pow(2.0, cents / 1200.0);
 
 	double value = frequency / 1378.125; //  44,100 Hz / 32
 	value *= two32;
-	tuningFrequencyTable[noteWithinOctave] = lround(value);
+	tuningFrequencyTable[noteWithin] = lround(value);
 
-	value = pow(2.0, noteWithinOctave / 12.0) * two30;
-	tuningIntervalTable[noteWithinOctave] = lround(value);
+	value = pow(2.0, noteWithin / 12.0) * two30;
+	tuningIntervalTable[noteWithin] = lround(value);
 }
 
 void Tuning::calculateAll() {
@@ -44,14 +44,14 @@ void Tuning::calculateAll() {
 	}
 }
 
-int32_t Tuning::noteFrequency(int noteWithinOctave) {
+int32_t Tuning::noteFrequency(int noteWithin) {
 
-	return tuningFrequencyTable[noteWithinOctave];
+	return tuningFrequencyTable[noteWithin];
 }
 
-int32_t Tuning::noteInterval(int noteWithinOctave) {
+int32_t Tuning::noteInterval(int noteWithin) {
 
-	return tuningIntervalTable[noteWithinOctave];
+	return tuningIntervalTable[noteWithin];
 }
 
 int32_t Tuning::getReference() {
@@ -65,60 +65,52 @@ void Tuning::setReference(int32_t scaled) {
 	calculateAll();
 }
 
-void Tuning::setCents(int noteWithinOctave, double cents) {
-	// noteCents[noteWithinOctave] = cents;
-	offsets[noteWithinOctave] = 100.0 * (cents - 100.0 * noteWithinOctave);
-	calculateNote(noteWithinOctave);
+void Tuning::setCents(int noteWithin, double cents) {
+	// noteCents[noteWithin] = cents;
+	offsets[noteWithin] = 100.0 * (cents - 100.0 * noteWithin);
+	calculateNote(noteWithin);
 }
 
-void Tuning::setOffset(int noteWithinOctave, int32_t offset) {
+void Tuning::setOffset(int noteWithin, int32_t offset) {
 
-	offsets[noteWithinOctave] = offset;
-	// noteCents[noteWithinOctave] = noteWithinOctave * 100.0 + offset;
-	calculateNote(noteWithinOctave);
+	offsets[noteWithin] = offset;
+	// noteCents[noteWithin] = noteWithin * 100.0 + offset;
+	calculateNote(noteWithin);
 }
 
 void Tuning::setFrequency(int note, double freq) {
-	int noteWithinOctave = note % 12; // double check ±4
+
+	auto nwo = noteWithinOctave(note); // double check ±4
 
 	double semitone;
 	double estimate = 12.0 * log2(freq / 440.0) + 69;
 	double c = 100.0 * modf(estimate, &semitone);
 
 	auto ds = semitone - note;
-	setCents(noteWithinOctave, 100.0 * (noteWithinOctave + ds) + c);
-	// double c = 100 * (noteWithinOctave - referenceNote);
-	//  TODO
+	setCents(nwo.noteWithin, 100.0 * (nwo.noteWithin + ds) + c);
 }
 
 void Tuning::setFrequency(int note, TuningSysex::frequency_t freq) {
-	int noteWithinOctave = note % 12; // double check ±4
+
+	auto nwo = noteWithinOctave(note); // double check ±4
 
 	int ds = freq.semitone - note;
 	double c = TuningSysex::cents(freq);
 
-	setCents(noteWithinOctave, 100.0 * (noteWithinOctave + ds) + c);
+	setCents(nwo.noteWithin, 100.0 * (nwo.noteWithin + ds) + c);
 }
 
 double Tuning::getFrequency(int note) {
-	int noteWithinOctave = note % 12; // double check ±4
-	int octave = note / 12;
-	auto span = double(tuningFrequencyTable[noteWithinOctave]);
-	return pow(2.0, octave) * (span / two32) * 1378.125;
+
+	auto nwo = noteWithinOctave(note); // double check ±4
+	auto span = double(tuningFrequencyTable[nwo.noteWithin]);
+	return pow(2.0, nwo.octave) * (span / two32) * 1378.125;
 }
 
 void Tuning::getSysexFrequency(int note, TuningSysex::frequency_t& ret) {
-	auto freq = getFrequency(note);
-	/*
-	double semitone;
-	double estimate = 12.0 * log2(freq / 440.0) + 69;
-	double c = two14 * modf(estimate, &semitone);
 
-	int cents = std::min(16383, int(c));
-	*/
-	int noteWithinOctave = note % 12; // double check ±4
-	int octave = note / 12;
-	double o = offsets[noteWithinOctave] / 10000.0;
+	auto nwo = noteWithinOctave(note); // double check ±4
+	double o = offsets[nwo.noteWithin] / 10000.0;
 	int cents;
 	double semitone;
 
@@ -131,6 +123,13 @@ void Tuning::getSysexFrequency(int note, TuningSysex::frequency_t& ret) {
 	ret.semitone = d & 0x7f;
 	ret.cents.msb = (cents >> 7) & 0x7f;
 	ret.cents.lsb = cents & 0x7f;
+}
+
+NoteWithinOctave Tuning::noteWithinOctave(int noteCode) {
+	return {
+	    .octave = int16_t((noteCode + 120) / kOctaveSize),
+	    .noteWithin = int16_t((noteCode + 120) % kOctaveSize),
+	};
 }
 
 void Tuning::setNextCents(double cents) {
@@ -175,7 +174,7 @@ void Tuning::setup(const char* tuning_name) {
 }
 
 Tuning::Tuning() : referenceNote(5), divisions(12), nextNote(0), referenceFrequency(440.0) {
-	// noteWithinOctave: 0=E, 2=F#, 4=G#, 5=A=440 Hz
+	// noteWithin: 0=E, 2=F#, 4=G#, 5=A=440 Hz
 	calculateAll();
 }
 

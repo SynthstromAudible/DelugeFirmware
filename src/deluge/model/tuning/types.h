@@ -1,4 +1,5 @@
 #pragma once
+#include "definitions_cxx.hpp"
 #include <cstdint>
 
 // Glossary
@@ -44,3 +45,8 @@ double cents(cents_1_t c);
 double cents(cents_2_t c);
 
 } // namespace TuningSysex
+
+struct NoteWithinOctave {
+	int16_t octave;
+	int16_t noteWithin;
+};

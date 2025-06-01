@@ -25,5 +25,5 @@ public:
 	ConsequenceScaleAddNote(int32_t newNoteWithinOctave);
 	Error revert(TimeType time, ModelStack* modelStack) override;
 
-	uint8_t noteWithinOctave;
+	uint8_t noteWithin;
 };

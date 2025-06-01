@@ -101,6 +101,11 @@ struct SessionMacro {
 	uint8_t section{0};
 };
 
+struct OctaveNote {
+	int octave;
+	int noteWithin;
+};
+
 class Song final : public TimelineCounter {
 public:
 	Song();

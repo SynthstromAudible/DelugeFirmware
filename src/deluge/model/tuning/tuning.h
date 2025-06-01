@@ -57,6 +57,8 @@ public:
 	double getFrequency(int note);
 	void getSysexFrequency(int note, TuningSysex::frequency_t& ret);
 
+	NoteWithinOctave noteWithinOctave(int noteCode);
+
 private:
 	int32_t tuningFrequencyTable[12];
 	int32_t tuningIntervalTable[12];

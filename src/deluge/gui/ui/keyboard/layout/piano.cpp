@@ -19,6 +19,7 @@
 #include "gui/colour/colour.h"
 #include "hid/display/display.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/tuning/tuning.h"
 #include "util/functions.h"
 
 namespace deluge::gui::ui::keyboard::layout {
@@ -95,10 +96,10 @@ void KeyboardLayoutPiano::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 			auto noteInterval = intervalFromCoords(x, y);
 			if (noteInterval != 0) {
 				auto note = noteFromCoords(x, y);
-				int32_t noteWithinOctave = (uint16_t)((note + kOctaveSize) - getRootNote()) % kOctaveSize;
+				auto nwo = TuningSystem::tuning->noteWithinOctave((note + kOctaveSize) - getRootNote());
 				RGB colourSource = noteColours[y / 2];
 				// Active Root Note: Full brightness and colour
-				if (noteWithinOctave == 0 && octaveActiveNotes[noteWithinOctave]) {
+				if (nwo.noteWithin == 0 && octaveActiveNotes[nwo.noteWithin]) {
 					image[y][x] = colourSource.adjust(255, 1);
 				}
 				// Highlight incomming notes
@@ -108,15 +109,15 @@ void KeyboardLayoutPiano::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 					image[y][x] = colourSource.adjust(getHighlightedNotes()[note], 1);
 				}
 				// Inactive Root Note: Full colour but less brightness
-				else if (noteWithinOctave == 0) {
+				else if (nwo.noteWithin == 0) {
 					image[y][x] = colourSource.adjust(255, 2);
 				}
 				// Active Non-Root note in other octaves: Toned down colour but high brightness
-				else if (octaveActiveNotes[noteWithinOctave]) {
+				else if (octaveActiveNotes[nwo.noteWithin]) {
 					image[y][x] = colourSource.adjust(127, 1);
 				}
 				// Other notes in a scale (or all notes if no scale): Toned down a little and low brighness
-				else if (octaveScaleNotes.has(noteWithinOctave) || !getScaleModeEnabled()) {
+				else if (octaveScaleNotes.has(nwo.noteWithin) || !getScaleModeEnabled()) {
 					image[y][x] = colourSource.adjust(186, 3);
 				}
 				// Non-scale notes: Dark tone, low brightness
