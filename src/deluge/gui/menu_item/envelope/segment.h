@@ -45,7 +45,6 @@ private:
 		default:
 			return deluge::l10n::String::STRING_FOR_NONE;
 		}
-		return deluge::l10n::String::EMPTY_STRING;
 	}
 };
 } // namespace deluge::gui::menu_item::envelope

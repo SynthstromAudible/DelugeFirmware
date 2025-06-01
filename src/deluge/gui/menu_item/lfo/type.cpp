@@ -73,7 +73,6 @@ const std::vector<uint8_t>& Type::getLfoIconBitmap(LFOType type) {
 	default:
 		__unreachable();
 	}
-	return OLED::lfoIconSine;
 }
 
 const uint8_t Type::getLfoIconBitmapXOffset(LFOType type) {
