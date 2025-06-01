@@ -70,9 +70,8 @@ const std::vector<uint8_t>& Type::getLfoIconBitmap(LFOType type) {
 		return OLED::lfoIconRandomWalk;
 	case LFOType::WARBLER:
 		return OLED::lfoIconWarbler;
-	default:
-		__unreachable();
 	}
+	return OLED::lfoIconSine; // satisfies -Wreturn-type
 }
 
 const uint8_t Type::getLfoIconBitmapXOffset(LFOType type) {
