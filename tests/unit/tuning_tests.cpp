@@ -12,6 +12,8 @@
 #include <iostream>
 #include <string>
 
+#include "tuning_tests.h"
+
 struct {
 	int32_t freq[12];
 	int32_t ival[12];
@@ -148,25 +150,6 @@ TEST(TestTuningSystem, TestSysex) {
 	MEMCMP_EQUAL(exp, cable.buffer, sizeof(exp));
 }
 
-char scale_12tet[] = R"SCL(! 12TET.scl
-!
-Twelve tone equal temperament
- 12
-!
- 100.00
- 200.00
- 300.00
- 400.00
- 500.00
- 600.00
- 700.00
- 800.00
- 900.00
-1000.00
-1100.00
- 2/1
-)SCL";
-
 void check_offsets(int32_t* ex, int32_t* ac, int32_t num) {
 	char fixme[128];
 	for (int i = 0; i < 12; i++) {
@@ -184,4 +167,10 @@ TEST(TestTuningSystem, TestScala) {
 	reader.fileSize = sizeof(scale_12tet);
 	reader.openScalaFile(NULL, "12TET");
 	check_offsets(expected.offsets, TuningSystem::tuning->offsets, 12);
+
+	reader.fileClusterBuffer = scale_pythagorean;
+	reader.fileSize = sizeof(scale_pythagorean);
+	reader.openScalaFile(NULL, "PYTHAGOREAN");
+	int32_t ex[] = {0, -978, 391, -587, 782, -196, 1173, 196, -782, 587, -391, 978};
+	check_offsets(ex, TuningSystem::tuning->offsets, 12);
 }

@@ -67,7 +67,8 @@ void Tuning::setReference(int32_t scaled) {
 
 void Tuning::setCents(int noteWithin, double cents) {
 	// noteCents[noteWithin] = cents;
-	offsets[noteWithin] = 100.0 * (cents - 100.0 * noteWithin);
+	auto c = lround(cents * 100);
+	offsets[noteWithin] = c - 10000 * noteWithin;
 	calculateNote(noteWithin);
 }
 
