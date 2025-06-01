@@ -18,6 +18,7 @@
 #include <gsl/gsl>
 #include <memory>
 #include <stack>
+#include <vector>
 
 namespace deluge::memory {
 /// @brief A simple object pool implementation
