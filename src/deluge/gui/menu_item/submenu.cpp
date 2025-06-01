@@ -68,7 +68,7 @@ void Submenu::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t star
 	renderColumnLabel(startX, width, startY);
 
 	// Draw arrow icon centered indicating that there is another layer
-	const int32_t arrowY = startY + kTextSpacingY + 3;
+	const int32_t arrowY = startY + kTextSpacingY + 4;
 	const int32_t arrowX = startX + (width - kSubmenuIconSpacingX) / 2;
 	image.drawGraphicMultiLine(deluge::hid::display::OLED::submenuArrowIconBold, arrowX, arrowY, kSubmenuIconSpacingX);
 }
@@ -176,12 +176,8 @@ void HorizontalMenu::drawPixelsForOled() {
 		if (horizontalMenuLayout == Layout::FIXED && !isItemRelevant(item)) {
 			// Draw a dash as value indicating that the item is disabled
 			item->renderColumnLabel(currentX + 1, boxWidth, baseY);
-
-			const char disabledItemValueDash = '-';
-			int32_t pxLen = image.getCharWidthInPixels(disabledItemValueDash, kTextTitleSizeY);
-			int32_t pad = ((boxWidth - pxLen) / 2) - 2;
-			image.drawChar(disabledItemValueDash, currentX + pad, baseY + kTextSpacingY + 3, kTextTitleSpacingX,
-			               kTextTitleSizeY, 0, currentX + boxWidth);
+			image.drawStringCentered("-", currentX, baseY + kTextSpacingY + 4, kTextTitleSpacingX, kTextTitleSizeY,
+			                         boxWidth);
 		}
 		else {
 			item->readCurrentValue();

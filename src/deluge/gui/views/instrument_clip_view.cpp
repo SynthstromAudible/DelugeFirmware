@@ -1338,6 +1338,8 @@ void InstrumentClipView::patternClear() {
 	getCurrentInstrumentClip()->clear(action, modelStack, false, false);
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstack-usage="
 void InstrumentClipView::pasteNotes(bool overwriteExisting, bool pasteFromFile, bool noScaling, bool previewOnly,
                                     bool selectedDrumOnly) {
 
@@ -1489,6 +1491,7 @@ getOut:
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTES_PASTED));
 	}
 }
+#pragma GCC diagnostic pop
 
 Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool noScaling,
                                              bool previewOnly, bool selectedDrumOnly) {
