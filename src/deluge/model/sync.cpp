@@ -86,3 +86,21 @@ void syncValueToString(uint32_t value, StringBuf& buffer, int32_t tickMagnitude)
 		}
 	}
 }
+
+void syncValueToStringForHorzMenuLabel(SyncType type, SyncLevel level, StringBuf& buffer, int32_t tickMagnitude) {
+	uint32_t shift = SYNC_LEVEL_256TH - level;
+	uint32_t noteLength = uint32_t{3} << shift;
+
+	getNoteLengthNameFromMagnitude(buffer, getNoteMagnitudeFfromNoteLength(noteLength, tickMagnitude), nullptr, false);
+
+	// Remove all '-' characters
+	DEF_STACK_STRING_BUF(tempBuf, 12);
+	for (uint32_t i = 0; i < buffer.size(); ++i) {
+		const char currentChar = buffer.c_str()[i];
+		if (currentChar != '-' && currentChar != '\0') {
+			tempBuf.append(currentChar);
+		}
+	}
+	buffer.clear();
+	buffer.append(tempBuf.c_str());
+}
