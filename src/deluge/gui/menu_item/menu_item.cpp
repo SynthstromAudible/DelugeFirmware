@@ -94,7 +94,8 @@ void MenuItem::renderColumnLabel(int32_t startX, int32_t width, int32_t startY) 
 
 	const int32_t textSpacingX = useSmallFont ? kTextSmallSpacingX : kTextSpacingX;
 	const int32_t textSpacingY = useSmallFont ? kTextSmallSizeY : kTextSpacingY;
-	const int32_t topPadding = useSmallFont ? 2 : 0;
+	const int32_t topPadding = useSmallFont ? 3 : 1;
+	const int32_t leftPadding = useSmallFont ? 5 : 3;
 
 	int32_t pxLen = image.getStringWidthInPixels(label.c_str(), textSpacingY);
 	// If the name fits as-is, we'll squeeze it in. Otherwise we chop off letters until
@@ -106,13 +107,13 @@ void MenuItem::renderColumnLabel(int32_t startX, int32_t width, int32_t startY) 
 		} while ((pxLen = image.getStringWidthInPixels(label.c_str(), textSpacingY)) + padding >= width);
 	}
 
-	if (width <= OLED_MAIN_WIDTH_PIXELS / 4 || pxLen * 1.5 >= width) {
+	if (width <= OLED_MAIN_WIDTH_PIXELS / 4 || width - pxLen < 10) {
 		// the item occupies only one slot or the label long enough, center the label
 		startX = (startX + (width - pxLen) / 2) - 1;
 	}
 	else {
 		// otherwise just add a small left padding
-		startX += useSmallFont ? 3 : 5;
+		startX += leftPadding;
 	}
 
 	deluge::hid::display::OLED::main.drawString(label.c_str(), startX, startY + topPadding, textSpacingX, textSpacingY,
