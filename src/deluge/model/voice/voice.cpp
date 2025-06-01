@@ -1574,14 +1574,17 @@ skipUnisonPart: {}
 		oscBufferPos = oscBuffer;
 		*/
 
+		// cast to unsigned to avoid narrowing-warnings from span{} below.
+		auto n = static_cast<uint32_t>(numSamples);
+
 		// wavefolding pre filter
 		if (paramFinalValues[params::LOCAL_FOLD] > 0) {
 			q31_t foldAmount = paramFinalValues[params::LOCAL_FOLD];
 
-			dsp::foldBufferPolyApproximation(std::span{oscBuffer, static_cast<unsigned int>(numSamples)}, foldAmount);
+			dsp::foldBufferPolyApproximation(std::span{oscBuffer, n}, foldAmount);
 		}
 
-		filterSet.renderLong(std::span{oscBuffer, static_cast<unsigned int>(numSamples)});
+		filterSet.renderLong(std::span{oscBuffer, n});
 
 		// No clipping
 		if (!sound.clippingAmount) {

@@ -30,6 +30,10 @@ void Type::getColumnLabel(StringBuf& label) {
 	getShortOption(label);
 }
 
+void Type::getColumnLabelForSmallFont(StringBuf& label) {
+	getColumnLabel(label);
+}
+
 void Type::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
 	oled_canvas::Canvas& image = OLED::main;
 	renderColumnLabel(startX, width, startY);
@@ -55,6 +59,8 @@ const uint8_t* Type::getLfoIconBitmap() {
 		return OLED::lfoIconRandomWalk;
 	case LFOType::WARBLER:
 		return OLED::lfoIconWarbler;
+	default:
+		__unreachable();
 	}
 	return OLED::lfoIconSine;
 }

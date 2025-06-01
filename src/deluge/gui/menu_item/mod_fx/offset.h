@@ -41,6 +41,7 @@ public:
 		    modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::OFFSET, true);
 		label.append(shortName);
 	}
+	void getColumnLabelForSmallFont(StringBuf& label) override { getColumnLabel(label); }
 };
 
 } // namespace deluge::gui::menu_item::mod_fx

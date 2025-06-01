@@ -1726,7 +1726,7 @@ doMIDIOrCV:
 	// If we're on OLED, a parent menu & horizontal menus are in play,
 	// then we swap the parent in place of the child.
 	if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
-		if (parent->focusChild(newItem)) {
+		if (parent->focusChild(item)) {
 			newItem = parent;
 		}
 	}
