@@ -42,9 +42,8 @@ private:
 			return deluge::l10n::String::STRING_FOR_SUSTAIN_SHORT;
 		case deluge::modulation::params::LOCAL_ENV_0_RELEASE:
 			return deluge::l10n::String::STRING_FOR_RELEASE_SHORT;
-		default:
-			return deluge::l10n::String::STRING_FOR_NONE;
 		}
+		return deluge::l10n::String::STRING_FOR_NONE;
 	}
 };
 } // namespace deluge::gui::menu_item::envelope
