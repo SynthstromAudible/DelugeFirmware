@@ -22,6 +22,7 @@
 #include "definitions_cxx.hpp"
 #include "display.h"
 #include "oled_canvas/canvas.h"
+#include <vector>
 
 #define OLED_LOG_TIMING (0 && ENABLE_TEXT_OUTPUT)
 
@@ -105,13 +106,16 @@ public:
 	static const uint8_t submenuArrowIcon[];
 	static const uint8_t submenuArrowIconBold[];
 	static const uint8_t metronomeIcon[];
-	static const uint8_t lfoIconSine[];
-	static const uint8_t lfoIconSquare[];
-	static const uint8_t lfoIconSaw[];
-	static const uint8_t lfoIconTriangle[];
-	static const uint8_t lfoIconSampleHold[];
-	static const uint8_t lfoIconRandomWalk[];
-	static const uint8_t lfoIconWarbler[];
+	static const std::vector<uint8_t> lfoIconSine;
+	static const std::vector<uint8_t> lfoIconSquare;
+	static const std::vector<uint8_t> lfoIconSaw;
+	static const std::vector<uint8_t> lfoIconTriangle;
+	static const std::vector<uint8_t> lfoIconSampleHold;
+	static const std::vector<uint8_t> lfoIconRandomWalk;
+	static const std::vector<uint8_t> lfoIconWarbler;
+	static const std::vector<uint8_t> syncTypeEvenIcon;
+	static const std::vector<uint8_t> syncTypeDottedIcon;
+	static const std::vector<uint8_t> syncTypeTripletsIcon;
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;

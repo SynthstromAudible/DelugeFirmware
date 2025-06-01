@@ -84,7 +84,7 @@ void Toggle::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t start
 	constexpr int32_t iconWidth = 8, iconHeight = 8;
 
 	int32_t xPixel = startX + (width - iconWidth) / 2;
-	int32_t yPixel = startY + kTextSpacingY + 3;
+	int32_t yPixel = startY + kTextSpacingY + 4;
 
 	if (getToggleValue()) {
 		image.drawGraphicMultiLine(deluge::hid::display::OLED::checkedBoxIcon, xPixel, yPixel, kSubmenuIconSpacingX);
