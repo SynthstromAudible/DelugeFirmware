@@ -545,9 +545,9 @@ HorizontalMenu delayMenu{
     STRING_FOR_DELAY,
     {
         &delayPingPongMenu,
+        &delayFeedbackMenu,
         &delaySyncMenu,
         &delayRateMenu,
-        &delayFeedbackMenu,
         &delayAnalogMenu,
     },
 };
@@ -771,9 +771,9 @@ HorizontalMenu globalDelayMenu{
     STRING_FOR_DELAY,
     {
         &delayPingPongMenu,
+        &globalDelayFeedbackMenu,
         &delaySyncMenu,
         &globalDelayRateMenu,
-        &globalDelayFeedbackMenu,
         &delayAnalogMenu,
     },
 };

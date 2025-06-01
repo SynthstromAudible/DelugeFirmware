@@ -84,9 +84,7 @@ public:
 			sizeX = kTextTitleSpacingX;
 			sizeY = kTextTitleSizeY;
 		}
-		int32_t pxLen = image.getStringWidthInPixels(paramValue.c_str(), kTextSpacingY);
-		int32_t pad = ((width - pxLen) / 2) - 1;
-		image.drawString(paramValue.c_str(), startX + pad, startY + sizeY + 2, sizeX, sizeY, 0, startX + width);
+		image.drawStringCentered(paramValue, startX, startY + sizeY + 2, sizeX, sizeY, width);
 	}
 };
 } // namespace deluge::gui::menu_item::midi

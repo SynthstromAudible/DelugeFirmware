@@ -272,7 +272,7 @@ void DecimalWithoutScrolling::renderInHorizontalMenu(int32_t startX, int32_t wid
 	// Draw the resulting string centered
 	const int pad = ((width - totalPxLen) / 2) - 1;
 	startX += pad;
-	startY += kTextSpacingY + 3;
+	startY += kTextSpacingY + 4;
 
 	image.drawString(valueString.c_str(), startX, startY, kTextSpacingX, kTextSpacingY, 0,
 	                 startX + width - kTextSpacingX);

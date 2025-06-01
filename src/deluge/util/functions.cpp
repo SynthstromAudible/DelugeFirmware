@@ -2087,7 +2087,9 @@ void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude,
 			// for "rd")
 			char const* suffix = ((division % 10) == 2) ? "nd" : "th";
 			noteLengthBuf.append(suffix);
-			noteLengthBuf.append(notesString);
+			if (notesString != nullptr) {
+				noteLengthBuf.append(notesString);
+			}
 		}
 		else {
 			uint32_t numBars = (uint32_t)1 << magnitude;
