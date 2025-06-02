@@ -50,22 +50,13 @@ public:
 		renderColumnLabel(startX, width, startY);
 
 		// Render current value
-
 		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
 		char name[12];
 		// Index:Name
 		snprintf(name, sizeof(name), "%d: %s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
 		shortOpt.append(name);
 
-		int32_t pxLen;
-		// Trim characters from the end until it fits.
-		while ((pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY)) >= width - 2) {
-			shortOpt.truncate(shortOpt.size() - 1);
-		}
-		// Padding to center the string. If we can't center exactly, 1px right is better than 1px left.
-		int32_t pad = ((width - pxLen) / 2) - 1;
-		image.drawString(shortOpt.c_str(), startX + pad, startY + kTextSpacingY + 3, kTextSpacingX, kTextSpacingY, 0,
-		                 startX + width - kTextSpacingX);
+		image.drawStringCentered(shortOpt, startX, startY + kTextSpacingY + 4, kTextSpacingX, kTextSpacingY, width);
 	}
 
 protected:

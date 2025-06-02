@@ -32,22 +32,21 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 bool Submenu::focusChild(const MenuItem* child) {
-	// Set new current item.
-	auto prev = current_item_;
 	if (child != nullptr) {
-		current_item_ = std::find(items.begin(), items.end(), child);
+		// if the specific child is passed, try to find it among the items
+		// if not found or not relevant, keep the previous selection
+		auto candidate = std::find(items.begin(), items.end(), child);
+		if (candidate != items.end() && isItemRelevant(*candidate)) {
+			current_item_ = candidate;
+		}
 	}
-	// If the item wasn't found or isn't relevant, set to first relevant one instead.
+
+	// If the current item isn't valid or isn't relevant, set to first relevant one instead.
 	if (current_item_ == items.end() || !isItemRelevant(*current_item_)) {
 		current_item_ = std::ranges::find_if(items, isItemRelevant); // Find first relevant item.
 	}
-	// Log it.
-	if (current_item_ != items.end()) {
-		return true;
-	}
-	else {
-		return false;
-	}
+
+	return current_item_ != items.end();
 }
 
 void Submenu::updateDisplay() {
@@ -69,7 +68,7 @@ void Submenu::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t star
 	renderColumnLabel(startX, width, startY);
 
 	// Draw arrow icon centered indicating that there is another layer
-	const int32_t arrowY = startY + kTextSpacingY + 3;
+	const int32_t arrowY = startY + kTextSpacingY + 4;
 	const int32_t arrowX = startX + (width - kSubmenuIconSpacingX) / 2;
 	image.drawGraphicMultiLine(deluge::hid::display::OLED::submenuArrowIconBold, arrowX, arrowY, kSubmenuIconSpacingX);
 }
@@ -177,12 +176,8 @@ void HorizontalMenu::drawPixelsForOled() {
 		if (horizontalMenuLayout == Layout::FIXED && !isItemRelevant(item)) {
 			// Draw a dash as value indicating that the item is disabled
 			item->renderColumnLabel(currentX + 1, boxWidth, baseY);
-
-			const char disabledItemValueDash = '-';
-			int32_t pxLen = image.getCharWidthInPixels(disabledItemValueDash, kTextTitleSizeY);
-			int32_t pad = ((boxWidth - pxLen) / 2) - 2;
-			image.drawChar(disabledItemValueDash, currentX + pad, baseY + kTextSpacingY + 3, kTextTitleSpacingX,
-			               kTextTitleSizeY, 0, currentX + boxWidth);
+			image.drawStringCentered("-", currentX, baseY + kTextSpacingY + 4, kTextTitleSpacingX, kTextTitleSizeY,
+			                         boxWidth);
 		}
 		else {
 			item->readCurrentValue();
@@ -617,7 +612,7 @@ bool Submenu::learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) {
 	return false;
 }
 
-Submenu::RenderingStyle HorizontalMenu::renderingStyle() {
+Submenu::RenderingStyle HorizontalMenu::renderingStyle() const {
 	if (display->haveOLED() && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus)) {
 		return RenderingStyle::HORIZONTAL;
 	}
