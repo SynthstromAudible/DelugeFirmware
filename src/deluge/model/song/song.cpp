@@ -541,14 +541,14 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 	}
 
 	// Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed
-	// in enterScaleMode();
+	// in instrumentClipView.enterScaleMode();
 	int32_t numMoreNotes = (int32_t)key.modeNotes.count() - oldNumModeNotes;
 
 	// Compensation for the change in root note itself
 	int32_t rootNoteChange = key.rootNote - oldRootNote;
-	int32_t rootNoteChangeEffect =
-	    rootNoteChange * (12 - key.modeNotes.count())
-	    / 12; // I wasn't quite sure whether this should use key.modeNotes.count() or oldNumModeNotes
+
+	// I wasn't quite sure whether this should use key.modeNotes.count() or oldNumModeNotes
+	int32_t rootNoteChangeEffect = rootNoteChange * (kOctaveSize - key.modeNotes.count()) / kOctaveSize;
 
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
 		if (instrumentClip != clipToAvoidAdjustingScrollFor && instrumentClip->isScaleModeClip()) {
@@ -589,7 +589,7 @@ void Song::rotateMusicalMode(int8_t change) {
 	for (int8_t i = 0; i < noteCount; i++) {
 		changes[i] = (key.modeNotes[(i + steps) % noteCount] - newRoot) - key.modeNotes[i];
 		if (i >= noteCount - steps) {
-			changes[i] += 12;
+			changes[i] += kOctaveSize;
 		}
 	}
 
@@ -644,16 +644,13 @@ int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKe
 	if (!inKeyMode) {
 		return yNote;
 	}
-	int32_t yNoteRelativeToRoot = yNote - key.rootNote;
-	int32_t yNoteWithinOctave = (uint16_t)(yNoteRelativeToRoot + 120) % 12;
-
-	int32_t octave = (uint16_t)(yNoteRelativeToRoot + 120 - yNoteWithinOctave) / 12 - 10;
+	auto nwo = getTuning().noteWithOctave(yNote - key.rootNote);
 
 	int32_t yVisualWithinOctave = 0;
-	for (int32_t i = 0; i < key.modeNotes.count() && key.modeNotes[i] <= yNoteWithinOctave; i++) {
+	for (int32_t i = 0; i < key.modeNotes.count() && key.modeNotes[i] <= nwo.noteWithin; i++) {
 		yVisualWithinOctave = i;
 	}
-	return yVisualWithinOctave + octave * key.modeNotes.count() + key.rootNote;
+	return yVisualWithinOctave + nwo.octave * key.modeNotes.count() + key.rootNote;
 }
 
 int32_t Song::getYNoteFromYVisual(int32_t yVisual, bool inKeyMode) {
@@ -673,30 +670,32 @@ int32_t Song::getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, const Musical
 	int32_t octave = (yVisualRelativeToRoot - yVisualWithinOctave) / key.modeNotes.count();
 
 	int32_t yNoteWithinOctave = key.modeNotes[yVisualWithinOctave];
-	return yNoteWithinOctave + octave * 12 + key.rootNote;
+	return yNoteWithinOctave + octave * kOctaveSize + key.rootNote;
 }
 
 bool Song::mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset) {
 	// If it's the root note and moving down, special criteria
 	if (yVisualWithinOctave == 0 && newOffset == -1) {
-		return (key.modeNotes[key.modeNotes.count() - 1]
-		        < 11); // May ony move down if the top note in scale isn't directly below (at semitone 11)
+		// May only move down if top note in scale isn't directly below (at semitone N-1)
+		return (key.modeNotes[key.modeNotes.count() - 1] < kOctaveSize - 1);
 	}
 
 	else {
-		return ((newOffset == 1 &&                          // We're moving up and
-		         key.modeNotes[yVisualWithinOctave] < 11 && // We're not already at the top of the scale and
-		         (yVisualWithinOctave == key.modeNotes.count() - 1
-		          || // Either we're the top note, so don't need to check for a higher neighbour
-		          key.modeNotes[yVisualWithinOctave + 1]
-		              > key.modeNotes[yVisualWithinOctave] + 1) // Or the next note up has left us space to move up
-		         )
-		        || (newOffset == -1 && // We're moving down and
-		            key.modeNotes[yVisualWithinOctave] > 1
-		            && // We're not already at the bottom of the scale (apart from the root note) and
-		            key.modeNotes[yVisualWithinOctave - 1]
-		                < key.modeNotes[yVisualWithinOctave] - 1 // The next note down has left us space to move down
-		            ));
+		return (
+		           // We're moving up and we're not already at the top of the scale and
+		           newOffset == 1 && key.modeNotes[yVisualWithinOctave] < kOctaveSize - 1
+		           && (
+		               // Either we're the top note, so don't need to check for a higher neighbour
+		               yVisualWithinOctave == key.modeNotes.count() - 1 ||
+		               // Or the next note up has left us space to move up
+		               key.modeNotes[yVisualWithinOctave + 1] > key.modeNotes[yVisualWithinOctave] + 1) //
+		           )
+		       || (
+		           // We're moving down and we're not already at the bottom of the scale (apart from the root note)
+		           newOffset == -1 && key.modeNotes[yVisualWithinOctave] > 1 &&
+		           // and the next note down has left us space to move down
+		           key.modeNotes[yVisualWithinOctave - 1] < key.modeNotes[yVisualWithinOctave] - 1 //
+		       );
 	}
 }
 
