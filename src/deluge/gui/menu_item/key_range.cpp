@@ -59,7 +59,8 @@ void KeyRange::selectEncoderAction(int32_t offset) {
 void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) {
 
 	bool useSharps = FlashStorage::defaultUseSharps;
-	char accidential = useSharps ? '#' : 'b';
+	// 129 should be flat glyph
+	char accidential = useSharps ? '#' : 129;
 
 	*(buffer++) = useSharps ? noteCodeToNoteLetter[lower] : noteCodeToNoteLetterFlats[lower];
 

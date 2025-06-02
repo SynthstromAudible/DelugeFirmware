@@ -1926,7 +1926,8 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 
 	thisChar++;
 	if (noteCodeIsSharp[noteCodeWithinOctave]) {
-		char accidential = useSharps ? '#' : 'b';
+		// 129 should be flat glyph
+		char accidential = useSharps ? '#' : 129;
 		*thisChar = display->haveOLED() ? accidential : '.';
 		thisChar++;
 	}
