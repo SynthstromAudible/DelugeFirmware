@@ -58,6 +58,10 @@ double stringToDouble(char const* __restrict__ mem) {
 double stringToInt(char const* __restrict__ mem) {
 	return atoi(mem);
 }
+void intToString(int32_t number, char* __restrict__ buffer, int32_t minNumDigits) {
+	auto x = std::to_string(number);
+	strcpy(buffer, x.c_str());
+}
 uint32_t memToUIntOrError(char const* mem, char const* end) {
 	char buf[128];
 	memset(buf, 0, sizeof(buf));

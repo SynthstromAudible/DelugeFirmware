@@ -1043,7 +1043,7 @@ void Sample::workOutMIDINote(bool doingSingleCycle, float minFreqHz, float maxFr
 
 			else {
 calculateMIDINote:
-				midiNote = 69 + log2f(freq / 440) * 12;
+				midiNote = 69 + log2f(freq / 440) * kOctaveSize;
 			}
 		}
 	}

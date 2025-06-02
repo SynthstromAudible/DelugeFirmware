@@ -1296,6 +1296,7 @@ void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) 
 	}
 }
 
+// Only call this if using 12-tone system.
 void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOctavePresent, MusicalKey key) {
 	for (int32_t i = 0; i < noteRows.getNumElements();) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
@@ -1521,15 +1522,8 @@ int32_t InstrumentClip::guessRootNote(Song* song, int32_t previousRoot) {
 		return previousRoot;
 	}
 
-	previousRoot = previousRoot % kOctaveSize;
-	if (previousRoot < 0) {
-		previousRoot += kOctaveSize;
-	}
-
-	int32_t lowestNote = noteRows.getElement(0)->getNoteCode() % kOctaveSize;
-	if (lowestNote < 0) {
-		lowestNote += kOctaveSize;
-	}
+	auto previousRootNoteWithin = getTuning().noteWithinOctave(previousRoot).noteWithin;
+	auto lowestNoteWithin = getTuning().noteWithinOctave(noteRows.getElement(0)->getNoteCode()).noteWithin;
 
 	uint8_t lowestIncompatibility = 255;
 	uint8_t mostViableRoot = 0;
@@ -1579,7 +1573,8 @@ int32_t InstrumentClip::guessRootNote(Song* song, int32_t previousRoot) {
 
 		if (incompatibility < lowestIncompatibility
 		    || (incompatibility == lowestIncompatibility
-		        && (root == lowestNote || root == previousRoot // Favour the previous root and the lowest note
+		        && (root == lowestNoteWithin
+		            || root == previousRootNoteWithin // Favour the previous root and the lowest note
 		            ))) {
 			lowestIncompatibility = incompatibility;
 			mostViableRoot = root;
