@@ -57,11 +57,9 @@ public:
 		if (this->getValue() < 0) {
 			renderColumnLabel(startX, width, startY);
 
-			const auto stringForAuto = l10n::get(l10n::String::STRING_FOR_AUTO);
-			const auto pxLen = canvas.getStringWidthInPixels(stringForAuto, kTextSpacingY);
-			const auto pad = ((width - pxLen) / 2) - 1;
-			canvas.drawString(stringForAuto, startX + pad, startY + kTextSpacingY + 3, kTextSpacingX, kTextSpacingY, 0,
-			                  startX + width - kTextSpacingX);
+			const char* stringForAuto = l10n::get(l10n::String::STRING_FOR_AUTO);
+			canvas.drawStringCentered(stringForAuto, startX, startY + kTextSpacingY + 4, kTextSpacingX, kTextSpacingY,
+			                          width);
 		}
 		else {
 			Integer::renderInHorizontalMenu(startX, width, startY, height);
@@ -71,8 +69,6 @@ public:
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING_SHORT));
 	}
-
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
 };
 
 } // namespace deluge::gui::menu_item::reverb::sidechain

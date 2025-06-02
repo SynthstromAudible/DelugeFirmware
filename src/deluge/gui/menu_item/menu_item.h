@@ -249,6 +249,11 @@ public:
 	/// By default this redirects to getName(), but can be overriden.
 	virtual void getColumnLabel(StringBuf& label) { label.append(getName().data()); }
 
+	/// @brief Get the name for use on horizontal menus, if the 'use small font for labels' setting enabled
+	///
+	/// By default this redirects to getName(), but can be overriden.
+	virtual void getColumnLabelForSmallFont(StringBuf& label) { label.append(getName().data()); }
+
 	/// @brief Get the number of occupied virtual columns in the horizontal menu.
 	///
 	/// 1 by default, but can be overridden

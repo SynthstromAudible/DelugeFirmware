@@ -1,4 +1,11 @@
 {
+  "https://apps.apple.com/es/app/deluge-display/id6745803020": {
+    "description": "Deluge Display is an iOS application designed to mirror the display of a Synthstrom Audible Deluge groovebox onto your iOS screen. This allows for better visibi…",
+    "image": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/cb/a6/fa/cba6fa03-ed69-7c27-3f3d-1d781bb4ef5d/AppIcon-0-0-1x_U007epad-0-1-85-220.png/1200x630wa.png",
+    "siteName": "App Store",
+    "title": "‎Deluge Display",
+    "url": "https://apps.apple.com/es/app/deluge-display/id6745803020"
+  },
   "https://deluge-kit-generator.vercel.app": {
     "description": "A web application used to build kits, multisamples and presets for the synthstrom deluge",
     "siteName": "deluge-kit-generator.vercel.app",
@@ -103,6 +110,13 @@
     "siteName": "GitHub",
     "title": "DelugeWeb/vuefinder at main · SynthstromAudible/DelugeWeb",
     "url": "https://github.com/SynthstromAudible/DelugeWeb/tree/main/vuefinder"
+  },
+  "https://github.com/douglas-carmichael/DelugeDisplay/releases": {
+    "description": "Contribute to douglas-carmichael/DelugeDisplay development by creating an account on GitHub.",
+    "image": "https://opengraph.githubassets.com/b10a060d9068de618b7428b886c13bff83b56a368496b787d9a3995af409ed7b/douglas-carmichael/DelugeDisplay",
+    "siteName": "GitHub",
+    "title": "Releases · douglas-carmichael/DelugeDisplay",
+    "url": "https://github.com/douglas-carmichael/DelugeDisplay/releases"
   },
   "https://github.com/drbourbon/deluge-commander": {
     "description": "Utility to keep Synthstrom Deluge sample folders organized - drbourbon/deluge-commander",

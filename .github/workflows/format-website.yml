@@ -37,6 +37,9 @@ jobs:
           eslint: true
           eslint_dir: website
           eslint_auto_fix: true
+          eslint_args: "--max-warnings 0"
           prettier: true
           prettier_dir: website
           prettier_auto_fix: true
+          # mdx added, defaults are from here https://github.com/wearerequired/lint-action/blob/master/action.yml
+          prettier_extensions: "css,html,js,json,jsx,md,mdx,sass,scss,ts,tsx,vue,yaml,yml"
