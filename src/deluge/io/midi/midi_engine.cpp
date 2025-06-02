@@ -133,6 +133,20 @@ void MidiEngine::sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, 
 	sendMidi(source, MIDIMessage::programChange(channel, pgm), filter);
 }
 
+void MidiEngine::sendRPN(MIDISource source, int32_t channel, int32_t rpn, int32_t value, int32_t filter) {
+	auto rpn_msb = (rpn >> 7) & 0x7f;
+	auto rpn_lsb = rpn & 0x7f;
+	auto value_lsb = value & 0x7f;
+	auto value_msb = (value >> 7) & 0x7f;
+	sendMidi(source, MIDIMessage::cc(channel, 100, rpn_lsb), filter);
+	sendMidi(source, MIDIMessage::cc(channel, 101, rpn_msb), filter);
+	sendMidi(source, MIDIMessage::cc(channel, 6, value_lsb), filter);
+	sendMidi(source, MIDIMessage::cc(channel, 38, value_msb), filter);
+	// deselect RPN
+	sendMidi(source, MIDIMessage::cc(channel, 0x7f, rpn_lsb), filter);
+	sendMidi(source, MIDIMessage::cc(channel, 0x7f, rpn_msb), filter);
+}
+
 void MidiEngine::sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter) {
 	sendMidi(source, MIDIMessage::pitchBend(channel, bend), filter);
 }

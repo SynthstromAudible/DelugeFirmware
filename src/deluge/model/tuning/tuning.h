@@ -20,7 +20,7 @@
 #include "RZA1/system/r_typedefs.h"
 #include "types.h"
 
-#define NUM_TUNINGS 10
+#define NUM_TUNINGS 10 // must not exceed 127
 
 #define MAX_DIVISIONS 12
 
@@ -71,6 +71,7 @@ private:
 };
 
 namespace TuningSystem {
+
 extern Tuning tunings[NUM_TUNINGS];
 extern Tuning* tuning;
 extern int32_t selectedTuning;
@@ -78,4 +79,5 @@ extern int32_t selectedTuning;
 void initialize();
 void select(int32_t);
 bool selectForWrite(int32_t);
+
 } // namespace TuningSystem

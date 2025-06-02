@@ -561,6 +561,14 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 	}
 }
 
+NoteWithinOctave Song::getRootNoteWithinOctave() {
+	return TuningSystem::tuning->noteWithinOctave(key.rootNote);
+}
+
+Tuning& Song::getTuning() {
+	return *TuningSystem::tuning;
+}
+
 /* Moves the intervals in the current modeNotes by some number of steps
     in a circular way. For example, starting in major
     and going up one step (change == 1) results in Dorian:
@@ -4036,6 +4044,12 @@ bool Song::isClipActive(Clip const* clip) const {
 void Song::sendAllMIDIPGMs() {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		thisOutput->sendMIDIPGM();
+	}
+}
+
+void Song::sendAllMIDITunings() {
+	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
+		thisOutput->sendMIDITuning();
 	}
 }
 

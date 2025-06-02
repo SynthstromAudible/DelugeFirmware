@@ -66,6 +66,7 @@ public:
 
 	void sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter);
 	void sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter);
+	void sendRPN(MIDISource source, int32_t channel, int32_t rpn, int32_t value, int32_t filter);
 
 	void sendMidi(MIDISource source, MIDIMessage message, int32_t filter = kMIDIOutputFilterNoMPE, bool sendUSB = true);
 	void sendClock(MIDISource source, bool sendUSB = true, int32_t howMany = 1);

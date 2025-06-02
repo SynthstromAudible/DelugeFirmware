@@ -166,6 +166,7 @@ public:
 	virtual void resyncLFOs() {};
 
 	virtual void sendMIDIPGM() {};
+	virtual void sendMIDITuning() {};
 	virtual void deleteBackedUpParamManagers(Song* song) {}
 	virtual void prepareForHibernationOrDeletion() {}
 

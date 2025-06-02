@@ -60,9 +60,10 @@ namespace params = deluge::modulation::params;
 
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
 InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRows() {
-	midiBank = 128; // Means none
-	midiSub = 128;  // Means none
-	midiPGM = 128;  // Means none
+	midiBank = 128;       // Means none
+	midiSub = 128;        // Means none
+	midiPGM = 128;        // Means none
+	selectedTuning = 128; // Means none
 
 	currentlyRecordingLinearly = false;
 
@@ -82,9 +83,9 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRow
 	onKeyboardScreen = false;
 
 	if (song) {
-		int32_t yNote = ((uint16_t)(song->key.rootNote + 120) % 12) + 60;
+		int32_t yNote = song->getRootNoteWithinOctave().noteWithin + 60;
 		if (yNote > 66) {
-			yNote -= 12;
+			yNote -= kOctaveSize;
 		}
 		yScroll = getYVisualFromYNote(yNote,
 		                              song); // This takes into account the rootNote, which could be anything. Must be
@@ -122,6 +123,7 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	midiBank = otherInstrumentClip->midiBank;
 	midiSub = otherInstrumentClip->midiSub;
 	midiPGM = otherInstrumentClip->midiPGM;
+	selectedTuning = otherInstrumentClip->selectedTuning;
 
 	onKeyboardScreen = otherInstrumentClip->onKeyboardScreen;
 	inScaleMode = otherInstrumentClip->inScaleMode;
@@ -271,6 +273,13 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 	}
 
 	loopLength = newLength;
+}
+
+Tuning& InstrumentClip::getTuning() {
+	if (selectedTuning > NUM_TUNINGS) {
+		return *TuningSystem::tuning;
+	}
+	return TuningSystem::tunings[selectedTuning];
 }
 
 // If action is NULL, that means this is being called as part of an undo
@@ -1109,8 +1118,8 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 					void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceScaleAddNote));
 
 					if (consMemory) {
-						ConsequenceScaleAddNote* newConsequence =
-						    new (consMemory) ConsequenceScaleAddNote((yNote + 120) % 12);
+						ConsequenceScaleAddNote* newConsequence = new (consMemory)
+						    ConsequenceScaleAddNote(TuningSystem::tuning->noteWithinOctave(yNote).noteWithin);
 						action->addConsequence(newConsequence);
 					}
 
@@ -1278,7 +1287,7 @@ void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) 
 	for (int32_t i = 0; i < noteRows.getNumElements();) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
-		if ((thisNoteRow->y + 120) % 12 == yNoteWithinOctave) {
+		if (TuningSystem::tuning->noteWithinOctave(thisNoteRow->y).noteWithin == yNoteWithinOctave) {
 			noteRows.deleteNoteRowAtIndex(i);
 		}
 		else {
@@ -1341,7 +1350,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 			change *= modelStack->song->key.modeNotes.count();
 		}
 		else {
-			change *= 12;
+			change *= kOctaveSize;
 		}
 	}
 
@@ -1361,7 +1370,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 
 		// wanting to change a full octave
 		if (std::abs(change) == modelStack->song->key.modeNotes.count()) {
-			int32_t changeInSemitones = (change > 0) ? 12 : -12;
+			int32_t changeInSemitones = (change > 0) ? kOctaveSize : -kOctaveSize;
 			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 				NoteRow* thisNoteRow = noteRows.getElement(i);
 				// transpose by semitones or by octave
@@ -1397,13 +1406,13 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 					if (change > 0) {
 						// go up an octave
 						changeInSemitones = modelStack->song->key.modeNotes[newModeNoteIndex]
-						                    - modelStack->song->key.modeNotes[oldModeNoteIndex] + 12;
+						                    - modelStack->song->key.modeNotes[oldModeNoteIndex] + kOctaveSize;
 						s = 2;
 					}
 					else {
 						// go down an octave
 						changeInSemitones = modelStack->song->key.modeNotes[newModeNoteIndex]
-						                    - modelStack->song->key.modeNotes[oldModeNoteIndex] - 12;
+						                    - modelStack->song->key.modeNotes[oldModeNoteIndex] - kOctaveSize;
 						s = 3;
 					}
 				}
@@ -1497,6 +1506,10 @@ int32_t InstrumentClip::getYNoteFromYVisual(int32_t yVisual, Song* song) {
 }
 
 int32_t InstrumentClip::guessRootNote(Song* song, int32_t previousRoot) {
+
+	if (kOctaveSize != 12) // const until we allow changing the octave size
+		return previousRoot;
+
 	NoteSet notesPresent;
 
 	// It's important this comes before noteRows.getNumElements(), since fetching
@@ -1508,56 +1521,56 @@ int32_t InstrumentClip::guessRootNote(Song* song, int32_t previousRoot) {
 		return previousRoot;
 	}
 
-	previousRoot = previousRoot % 12;
+	previousRoot = previousRoot % kOctaveSize;
 	if (previousRoot < 0) {
-		previousRoot += 12;
+		previousRoot += kOctaveSize;
 	}
 
-	int32_t lowestNote = noteRows.getElement(0)->getNoteCode() % 12;
+	int32_t lowestNote = noteRows.getElement(0)->getNoteCode() % kOctaveSize;
 	if (lowestNote < 0) {
-		lowestNote += 12;
+		lowestNote += kOctaveSize;
 	}
 
 	uint8_t lowestIncompatibility = 255;
 	uint8_t mostViableRoot = 0;
 
 	// Go through each possible root note
-	for (int32_t root = 0; root < 12; root++) {
+	for (int32_t root = 0; root < kOctaveSize; root++) {
 		uint8_t incompatibility = 255;
 
 		if (notesPresent.has(root)) { // || root == previousRoot) {
 			// Assess viability of this being the root note
 			uint8_t majorIncompatibility = 0;
-			if (notesPresent.has((root + 1) % 12)) {
+			if (notesPresent.has((root + 1) % kOctaveSize)) {
 				majorIncompatibility++;
 			}
-			if (notesPresent.has((root + 3) % 12)) {
+			if (notesPresent.has((root + 3) % kOctaveSize)) {
 				majorIncompatibility += 2;
 			}
-			if (notesPresent.has((root + 6) % 12)) {
+			if (notesPresent.has((root + 6) % kOctaveSize)) {
 				majorIncompatibility++;
 			}
-			if (notesPresent.has((root + 8) % 12)) {
+			if (notesPresent.has((root + 8) % kOctaveSize)) {
 				majorIncompatibility++;
 			}
-			if (notesPresent.has((root + 10) % 12)) {
+			if (notesPresent.has((root + 10) % kOctaveSize)) {
 				majorIncompatibility++;
 			}
 
 			uint8_t minorIncompatibility = 0;
-			if (notesPresent.has((root + 1) % 12)) {
+			if (notesPresent.has((root + 1) % kOctaveSize)) {
 				minorIncompatibility++;
 			}
-			if (notesPresent.has((root + 4) % 12)) {
+			if (notesPresent.has((root + 4) % kOctaveSize)) {
 				minorIncompatibility += 2;
 			}
-			if (notesPresent.has((root + 6) % 12)) {
+			if (notesPresent.has((root + 6) % kOctaveSize)) {
 				minorIncompatibility++;
 			}
-			if (notesPresent.has((root + 9) % 12)) {
+			if (notesPresent.has((root + 9) % kOctaveSize)) {
 				minorIncompatibility++;
 			}
-			if (notesPresent.has((root + 11) % 12)) {
+			if (notesPresent.has((root + 11) % kOctaveSize)) {
 				minorIncompatibility++;
 			}
 
@@ -2344,6 +2357,11 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		if (midiPGM != 128) {
 			writer.writeAttribute("midiPGM", midiPGM);
 		}
+
+		// Tuning
+		if (selectedTuning != 128) {
+			writer.writeAttribute("selectedTuning", selectedTuning);
+		}
 	}
 	else if (output->type == OutputType::CV) {
 		writer.writeAttribute("cvChannel", ((CVInstrument*)instrument)->getChannel());
@@ -2532,6 +2550,10 @@ someError:
 
 		else if (!strcmp(tagName, "midiPGM")) {
 			midiPGM = reader.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "selectedTuning")) {
+			selectedTuning = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "yScroll")) {
@@ -3176,7 +3198,8 @@ noteRowFailed: {}
 		chosenNoteRow = noteRows.getElement(0);
 		chosenNoteRowIndex = 0;
 useRootNote:
-		chosenNoteRow->y = (song->key.rootNote % 12) + 60; // Just do this even if we're not in key-mode
+		chosenNoteRow->y =
+		    song->getRootNoteWithinOctave().noteWithin + 60; // Just do this even if we're not in key-mode
 	}
 
 	// Now, give all the other NoteRows yNotes
@@ -3512,6 +3535,18 @@ void InstrumentClip::sendMIDIPGM() {
 	}
 	if (midiPGM != 128) {
 		midiEngine.sendPGMChange(midiInstrument, masterChannel, midiPGM, outputFilter);
+	}
+}
+
+void InstrumentClip::sendMIDITuning() {
+	MIDIInstrument* midiInstrument = (MIDIInstrument*)output;
+
+	int32_t outputFilter = midiInstrument->getChannel();
+	int32_t masterChannel = midiInstrument->getOutputMasterChannel();
+
+	if (selectedTuning != 128) {
+		// change tuning preset with RPN 3
+		midiEngine.sendRPN(midiInstrument, masterChannel, 3, selectedTuning, outputFilter);
 	}
 }
 
