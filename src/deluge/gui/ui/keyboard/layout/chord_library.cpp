@@ -130,7 +130,7 @@ void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBar
 	// Iterate over grid image
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		int32_t noteCode = noteFromCoords(x);
-		auto nwo = TuningSystem::tuning->noteWithinOctave((noteCode + kOctaveSize) - getRootNote());
+		auto noteWithin = TuningSystem::tuning->noteWithinOctave((noteCode + kOctaveSize) - getRootNote()).noteWithin;
 
 		for (int32_t y = 0; y < kDisplayHeight; ++y) {
 			int32_t chordNo = getChordNo(y);
@@ -138,7 +138,7 @@ void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBar
 
 			if (inScaleMode) {
 				NoteSet intervalSet = state.chordList.chords[chordNo].intervalSet;
-				NoteSet modulatedNoteSet = intervalSet.modulateByOffset(nwo.noteWithin);
+				NoteSet modulatedNoteSet = intervalSet.modulateByOffset(noteWithin);
 
 				if (modulatedNoteSet.isSubsetOf(octaveScaleNotes)) {
 					image[y][x] = noteColours[x % noteColours.size()];
@@ -153,7 +153,7 @@ void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBar
 					image[y][x] = pageColours[pageNo % pageColours.size()].dim(1);
 				}
 				// If not in scale mode, highlight the root note
-				else if (nwo.noteWithin == 0) {
+				else if (noteWithin == 0) {
 					image[y][x] = noteColours[x % noteColours.size()];
 				}
 				else {

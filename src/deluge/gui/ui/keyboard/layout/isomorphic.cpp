@@ -117,11 +117,11 @@ void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		int32_t noteCode = noteFromCoords(0, y);
 		int32_t normalizedPadOffset = noteCode - getState().isomorphic.scrollOffset;
-		auto nwo = TuningSystem::tuning->noteWithinOctave((noteCode + kOctaveSize) - getRootNote());
+		auto noteWithin = TuningSystem::tuning->noteWithinOctave((noteCode + kOctaveSize) - getRootNote()).noteWithin;
 
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			// Full colour for every octaves root and active notes
-			if (octaveActiveNotes[nwo.noteWithin] || nwo.noteWithin == 0) {
+			if (octaveActiveNotes[noteWithin] || noteWithin == 0) {
 				image[y][x] = noteColours[normalizedPadOffset];
 			}
 			// If highlighting notes is active, do it
@@ -132,7 +132,7 @@ void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 			}
 
 			// Or, if this note is just within the current scale, show it dim
-			else if (octaveScaleNotes.has(nwo.noteWithin)) {
+			else if (octaveScaleNotes.has(noteWithin)) {
 				image[y][x] = noteColours[normalizedPadOffset].forTail();
 			}
 
@@ -155,7 +155,7 @@ void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 
 			++noteCode;
 			++normalizedPadOffset;
-			nwo.noteWithin = (nwo.noteWithin + 1) % kOctaveSize;
+			noteWithin = (noteWithin + 1) % kOctaveSize;
 		}
 	}
 }

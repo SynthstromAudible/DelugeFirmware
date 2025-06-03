@@ -644,13 +644,13 @@ int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKe
 	if (!inKeyMode) {
 		return yNote;
 	}
-	auto nwo = getTuning().noteWithOctave(yNote - key.rootNote);
+	auto nwo = getTuning().noteWithinOctave(yNote - key.rootNote);
 
 	int32_t yVisualWithinOctave = 0;
 	for (int32_t i = 0; i < key.modeNotes.count() && key.modeNotes[i] <= nwo.noteWithin; i++) {
 		yVisualWithinOctave = i;
 	}
-	return yVisualWithinOctave + nwo.octave * key.modeNotes.count() + key.rootNote;
+	return yVisualWithinOctave + (nwo.octave - 10) * key.modeNotes.count() + key.rootNote;
 }
 
 int32_t Song::getYNoteFromYVisual(int32_t yVisual, bool inKeyMode) {

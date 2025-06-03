@@ -128,8 +128,8 @@ void Tuning::getSysexFrequency(int note, TuningSysex::frequency_t& ret) {
 
 NoteWithinOctave Tuning::noteWithinOctave(int noteCode) {
 	return {
-	    .octave = int16_t((noteCode + 120) / kOctaveSize),
-	    .noteWithin = int16_t((noteCode + 120) % kOctaveSize),
+	    .octave = int16_t((noteCode + 10 * kOctaveSize) / kOctaveSize),
+	    .noteWithin = int16_t((noteCode + 10 * kOctaveSize) % kOctaveSize),
 	};
 }
 

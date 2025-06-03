@@ -96,10 +96,11 @@ void KeyboardLayoutPiano::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 			auto noteInterval = intervalFromCoords(x, y);
 			if (noteInterval != 0) {
 				auto note = noteFromCoords(x, y);
-				auto nwo = TuningSystem::tuning->noteWithinOctave((note + kOctaveSize) - getRootNote());
+				auto noteWithin =
+				    TuningSystem::tuning->noteWithinOctave((note + kOctaveSize) - getRootNote()).noteWithin;
 				RGB colourSource = noteColours[y / 2];
 				// Active Root Note: Full brightness and colour
-				if (nwo.noteWithin == 0 && octaveActiveNotes[nwo.noteWithin]) {
+				if (noteWithin == 0 && octaveActiveNotes[noteWithin]) {
 					image[y][x] = colourSource.adjust(255, 1);
 				}
 				// Highlight incomming notes
@@ -109,15 +110,15 @@ void KeyboardLayoutPiano::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 					image[y][x] = colourSource.adjust(getHighlightedNotes()[note], 1);
 				}
 				// Inactive Root Note: Full colour but less brightness
-				else if (nwo.noteWithin == 0) {
+				else if (noteWithin == 0) {
 					image[y][x] = colourSource.adjust(255, 2);
 				}
 				// Active Non-Root note in other octaves: Toned down colour but high brightness
-				else if (octaveActiveNotes[nwo.noteWithin]) {
+				else if (octaveActiveNotes[noteWithin]) {
 					image[y][x] = colourSource.adjust(127, 1);
 				}
 				// Other notes in a scale (or all notes if no scale): Toned down a little and low brighness
-				else if (octaveScaleNotes.has(nwo.noteWithin) || !getScaleModeEnabled()) {
+				else if (octaveScaleNotes.has(noteWithin) || !getScaleModeEnabled()) {
 					image[y][x] = colourSource.adjust(186, 3);
 				}
 				// Non-scale notes: Dark tone, low brightness
