@@ -1,6 +1,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/tuning/tuning.h"
 
 #ifdef IN_TUNING_TESTS
 #include "fatfs/ff.h"
@@ -32,4 +33,6 @@ private:
 	Error readInteger();
 	Error readPitch();
 	void skipWhiteSpace();
+
+	Tuning* tuning;
 };

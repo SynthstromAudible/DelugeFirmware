@@ -96,8 +96,7 @@ void KeyboardLayoutPiano::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 			auto noteInterval = intervalFromCoords(x, y);
 			if (noteInterval != 0) {
 				auto note = noteFromCoords(x, y);
-				auto noteWithin =
-				    TuningSystem::tuning->noteWithinOctave((note + kOctaveSize) - getRootNote()).noteWithin;
+				auto noteWithin = getTuning().noteWithinOctave((note + kOctaveSize) - getRootNote()).noteWithin;
 				RGB colourSource = noteColours[y / 2];
 				// Active Root Note: Full brightness and colour
 				if (noteWithin == 0 && octaveActiveNotes[noteWithin]) {

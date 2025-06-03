@@ -20,7 +20,7 @@
 #include "RZA1/system/r_typedefs.h"
 #include "types.h"
 
-#define NUM_TUNINGS 10 // must not exceed 127
+#define NUM_TUNINGS 10 // must not exceed 128
 
 #define MAX_DIVISIONS 12
 

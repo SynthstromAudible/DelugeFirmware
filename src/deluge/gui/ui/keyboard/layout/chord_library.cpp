@@ -130,7 +130,7 @@ void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBar
 	// Iterate over grid image
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		int32_t noteCode = noteFromCoords(x);
-		auto noteWithin = TuningSystem::tuning->noteWithinOctave((noteCode + kOctaveSize) - getRootNote()).noteWithin;
+		auto noteWithin = getTuning().noteWithinOctave((noteCode + kOctaveSize) - getRootNote()).noteWithin;
 
 		for (int32_t y = 0; y < kDisplayHeight; ++y) {
 			int32_t chordNo = getChordNo(y);

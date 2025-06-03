@@ -60,10 +60,9 @@ namespace params = deluge::modulation::params;
 
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
 InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRows() {
-	midiBank = 128;       // Means none
-	midiSub = 128;        // Means none
-	midiPGM = 128;        // Means none
-	selectedTuning = 128; // Means none
+	midiBank = 128; // Means none
+	midiSub = 128;  // Means none
+	midiPGM = 128;  // Means none
 
 	currentlyRecordingLinearly = false;
 
@@ -273,13 +272,6 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 	}
 
 	loopLength = newLength;
-}
-
-Tuning& InstrumentClip::getTuning() {
-	if (selectedTuning > NUM_TUNINGS) {
-		return *TuningSystem::tuning;
-	}
-	return TuningSystem::tunings[selectedTuning];
 }
 
 // If action is NULL, that means this is being called as part of an undo
@@ -1118,8 +1110,8 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 					void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceScaleAddNote));
 
 					if (consMemory) {
-						ConsequenceScaleAddNote* newConsequence = new (consMemory)
-						    ConsequenceScaleAddNote(TuningSystem::tuning->noteWithinOctave(yNote).noteWithin);
+						ConsequenceScaleAddNote* newConsequence =
+						    new (consMemory) ConsequenceScaleAddNote(getTuning().noteWithinOctave(yNote).noteWithin);
 						action->addConsequence(newConsequence);
 					}
 
@@ -1287,7 +1279,7 @@ void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) 
 	for (int32_t i = 0; i < noteRows.getNumElements();) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
-		if (TuningSystem::tuning->noteWithinOctave(thisNoteRow->y).noteWithin == yNoteWithinOctave) {
+		if (getTuning().noteWithinOctave(thisNoteRow->y).noteWithin == yNoteWithinOctave) {
 			noteRows.deleteNoteRowAtIndex(i);
 		}
 		else {
@@ -1522,8 +1514,9 @@ int32_t InstrumentClip::guessRootNote(Song* song, int32_t previousRoot) {
 		return previousRoot;
 	}
 
-	auto previousRootNoteWithin = getTuning().noteWithinOctave(previousRoot).noteWithin;
-	auto lowestNoteWithin = getTuning().noteWithinOctave(noteRows.getElement(0)->getNoteCode()).noteWithin;
+	Tuning& tuning = getTuning();
+	auto previousRootNoteWithin = tuning.noteWithinOctave(previousRoot).noteWithin;
+	auto lowestNoteWithin = tuning.noteWithinOctave(noteRows.getElement(0)->getNoteCode()).noteWithin;
 
 	uint8_t lowestIncompatibility = 255;
 	uint8_t mostViableRoot = 0;

@@ -117,7 +117,7 @@ void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		int32_t noteCode = noteFromCoords(0, y);
 		int32_t normalizedPadOffset = noteCode - getState().isomorphic.scrollOffset;
-		auto noteWithin = TuningSystem::tuning->noteWithinOctave((noteCode + kOctaveSize) - getRootNote()).noteWithin;
+		auto noteWithin = getTuning().noteWithinOctave((noteCode + kOctaveSize) - getRootNote()).noteWithin;
 
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			// Full colour for every octaves root and active notes

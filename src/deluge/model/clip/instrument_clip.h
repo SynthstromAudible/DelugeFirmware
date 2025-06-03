@@ -131,12 +131,9 @@ public:
 
 	bool onKeyboardScreen;
 
-	uint8_t midiBank;       // 128 means none
-	uint8_t midiSub;        // 128 means none
-	uint8_t midiPGM;        // 128 means none
-	uint8_t selectedTuning; // 128 means none
-
-	Tuning& getTuning();
+	uint8_t midiBank; // 128 means none
+	uint8_t midiSub;  // 128 means none
+	uint8_t midiPGM;  // 128 means none
 
 	OutputType outputTypeWhileLoading; // For use only while loading song
 

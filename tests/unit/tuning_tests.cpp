@@ -70,13 +70,16 @@ uint32_t memToUIntOrError(char const* mem, char const* end) {
 	return (i > 0) ? i : -1;
 }
 
+Tuning* tuning;
+
 TEST_GROUP(TestTuningSystem){//
                              void setup(){TuningSystem::initialize();
 
 // overwrite tuning 1 with garbage
 TuningSystem::selectForWrite(1);
+tuning = TuningSystem::tuning;
 for (int i = 0; i < 12; i++) {
-	TuningSystem::tuning->setOffset(i, -999 + i);
+	tuning->setOffset(i, -999 + i);
 }
 TuningSystem::select(0);
 }
@@ -85,11 +88,12 @@ TuningSystem::select(0);
 
 TEST(TestTuningSystem, FirstTest) {
 
+	tuning = TuningSystem::tuning;
 	printf("\nDeg\tOffset\t\tfrequency\tinterval\n");
 	for (int i = 0; i < 12; i++) {
-		int32_t o = TuningSystem::tuning->offsets[i];
-		int32_t freq = TuningSystem::tuning->noteFrequency(i);
-		int32_t ival = TuningSystem::tuning->noteInterval(i);
+		int32_t o = tuning->offsets[i];
+		int32_t freq = tuning->noteFrequency(i);
+		int32_t ival = tuning->noteInterval(i);
 		printf("%d:\t%d\t:\t%d\t%d\n", i, o, freq, ival);
 
 		CHECK_EQUAL(expected.freq[i], freq);
@@ -97,9 +101,9 @@ TEST(TestTuningSystem, FirstTest) {
 	}
 
 	const unsigned int umax = 0x80000000u;
-	TuningSystem::tuning->setReference(4598);
-	int64_t freq = ((uint64_t)TuningSystem::tuning->noteFrequency(0)) << 1;
-	int64_t ival = ((uint64_t)TuningSystem::tuning->noteInterval(0)) << 1;
+	tuning->setReference(4598);
+	int64_t freq = ((uint64_t)tuning->noteFrequency(0)) << 1;
+	int64_t ival = ((uint64_t)tuning->noteInterval(0)) << 1;
 	CHECK_FALSE(freq > umax);
 	CHECK_FALSE(ival > umax);
 
@@ -112,6 +116,7 @@ TEST(TestTuningSystem, FirstTest) {
 };
 
 TEST(TestTuningSystem, TestStringToDouble) {
+
 	CHECK_EQUAL(123.45, stringToDouble("123.45"));
 	CHECK_EQUAL(-123.45, stringToDouble("-123.45"));
 	CHECK_EQUAL(1.0, stringToDouble("1.0"));
@@ -126,20 +131,23 @@ TEST(TestTuningSystem, TestStringToDouble) {
 TEST(TestTuningSystem, TestBanks) {
 
 	TuningSystem::select(0);
-	CHECK_EQUAL(4400, TuningSystem::tuning->getReference());
+	tuning = TuningSystem::tuning;
+
+	CHECK_EQUAL(4400, tuning->getReference());
 	for (int i = 0; i < 12; i++) {
-		int32_t freq = TuningSystem::tuning->noteFrequency(i);
-		int32_t ival = TuningSystem::tuning->noteInterval(i);
+		int32_t freq = tuning->noteFrequency(i);
+		int32_t ival = tuning->noteInterval(i);
 		CHECK_EQUAL(expected.freq[i], freq);
 		CHECK_EQUAL(expected.ival[i], ival);
 	}
 
 	TuningSystem::select(1);
+	tuning = TuningSystem::tuning;
 	// TODO check applied tuning
 };
 
 TEST(TestTuningSystem, TestSysex) {
-	// TuningSystem::tuning->setOffset(3, 2);
+	// tuning->setOffset(3, 2);
 
 	uint8_t msg[] = {0xF0, 0x7E, 0x7F, 0x08, 0x00, 0x00, 0xF7};
 	uint8_t exp[] = {
@@ -166,15 +174,16 @@ void check_offsets(int32_t* ex, int32_t* ac, int32_t num) {
 
 TEST(TestTuningSystem, TestScala) {
 	TuningSystem::selectForWrite(1);
+	tuning = TuningSystem::tuning;
 	ScalaReader reader;
 	reader.fileClusterBuffer = scale_12tet;
 	reader.fileSize = sizeof(scale_12tet);
 	reader.openScalaFile(NULL, "12TET");
-	check_offsets(expected.offsets, TuningSystem::tuning->offsets, 12);
+	check_offsets(expected.offsets, tuning->offsets, 12);
 
 	reader.fileClusterBuffer = scale_pythagorean;
 	reader.fileSize = sizeof(scale_pythagorean);
 	reader.openScalaFile(NULL, "PYTHAGOREAN");
 	int32_t ex[] = {0, -978, 391, -587, 782, -196, 1173, 196, -782, 587, -391, 978};
-	check_offsets(ex, TuningSystem::tuning->offsets, 12);
+	check_offsets(ex, tuning->offsets, 12);
 }

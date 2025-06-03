@@ -562,10 +562,11 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 }
 
 NoteWithinOctave Song::getRootNoteWithinOctave() {
-	return TuningSystem::tuning->noteWithinOctave(key.rootNote);
+	return getTuning().noteWithinOctave(key.rootNote);
 }
 
-Tuning& Song::getTuning() {
+inline Tuning& Song::getTuning() {
+	// Song directly accesses the tuning system.
 	return *TuningSystem::tuning;
 }
 

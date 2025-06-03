@@ -81,7 +81,7 @@ Error ScalaReader::readDivisions() {
 	if (divisions > MAX_DIVISIONS)
 		return Error::FILE_UNSUPPORTED;
 
-	TuningSystem::tuning->setDivisions(divisions);
+	tuning->setDivisions(divisions);
 	return Error::NONE;
 }
 
@@ -93,14 +93,14 @@ Error ScalaReader::readRatio(char* slash) {
 		// no negative ratios
 		return Error::INVALID_SCALA_FORMAT;
 	}
-	TuningSystem::tuning->setNextRatio(numerator, denominator);
+	tuning->setNextRatio(numerator, denominator);
 	return Error::NONE;
 }
 
 Error ScalaReader::readCents() {
 	truncateNumber('.');
 	double cents = stringToDouble(readStart);
-	TuningSystem::tuning->setNextCents(cents);
+	tuning->setNextCents(cents);
 	return Error::NONE;
 }
 
@@ -111,7 +111,7 @@ Error ScalaReader::readInteger() {
 		// no negative ratios
 		return Error::INVALID_SCALA_FORMAT;
 	}
-	TuningSystem::tuning->setNextRatio(integer, 1);
+	tuning->setNextRatio(integer, 1);
 	return Error::NONE;
 }
 
@@ -185,8 +185,10 @@ Error ScalaReader::openScalaFile(FilePointer* filePointer, const char* name) {
 	divisions = 0;
 	Error err;
 
-	TuningSystem::tuning->setup(name);
-	TuningSystem::tuning->setNextCents(0); // first pitch is C# not C
+	// ScalaReader reads into the current Tuning
+	tuning = TuningSystem::tuning;
+	tuning->setup(name);
+	tuning->setNextCents(0); // first pitch is C# not C
 	readStart = fileClusterBuffer;
 
 	while (readLine(readStart)) {

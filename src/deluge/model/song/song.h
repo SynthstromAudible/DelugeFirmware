@@ -154,7 +154,7 @@ public:
 	/// Returns a NoteSet with all notes currently in used in scale mdoe clips.
 	NoteSet notesInScaleModeClips();
 
-	Tuning& getTuning();
+	inline Tuning& getTuning();
 
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();
