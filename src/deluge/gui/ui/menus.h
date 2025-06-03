@@ -25,6 +25,9 @@
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
 
+#include <gui/menu_item/horizontal_menu.h>
+#include <gui/menu_item/submenu/arp_mpe_submenu.h>
+
 extern deluge::gui::menu_item::patched_param::IntegerNonFM noiseMenu;
 extern deluge::gui::menu_item::osc::Sync oscSyncMenu;
 extern deluge::gui::menu_item::osc::source::WaveIndex sourceWaveIndexMenu;

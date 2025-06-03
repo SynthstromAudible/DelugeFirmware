@@ -41,8 +41,8 @@ public:
 	[[nodiscard]] bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return info.isOn();
 	}
-	void getColumnLabel(StringBuf& label) override {
-		label.append(info.getMorphNameOr(patched_param::Integer::getName(), true));
+	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
+		label.append(info.getMorphNameOr(patched_param::Integer::getName(), !forSmallFont));
 	}
 
 private:
