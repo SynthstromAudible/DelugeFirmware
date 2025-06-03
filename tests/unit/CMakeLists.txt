@@ -41,6 +41,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # Mock implementations
         mocks/*
         # For LFO
+        ../../src/deluge/util/d_stringbuf.cpp
         ../../src/deluge/util/lookuptables.cpp
         ../../src/deluge/util/cfunctions.cpp
         ../../src/deluge/util/waves.cpp
