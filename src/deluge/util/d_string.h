@@ -80,7 +80,7 @@ public:
 		return equalsCaseIrrespective(otherString->get());
 	}
 
-	[[nodiscard]] inline char const* get() const {
+	[[nodiscard]] char const* get() const {
 		if (!stringMemory) {
 			return &nothing;
 		}
