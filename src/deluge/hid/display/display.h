@@ -29,6 +29,8 @@ enum class PopupType {
 	QUANTIZE,
 	/// Threshold Recording Mode
 	THRESHOLD_RECORDING_MODE,
+
+	TOP_LEFT,
 	// Note: Add here more popup types
 };
 

@@ -35,6 +35,7 @@ public:
 	void setValue(T value) {
 		D_PRINTLN("%d", value);
 		value_ = value;
+		onValueChanged();
 	}
 
 	template <util::enumeration E>
@@ -54,6 +55,8 @@ protected:
 
 	// 7SEG ONLY
 	virtual void drawValue() = 0;
+
+	virtual void onValueChanged() {}
 
 private:
 	T value_;

@@ -124,26 +124,26 @@ int32_t popupMaxX;
 int32_t popupMinY;
 int32_t popupMaxY;
 
-void OLED::setupPopup(int32_t width, int32_t height) {
+void OLED::setupPopup(int32_t width, int32_t height, int32_t x, int32_t y) {
 	height = std::clamp<int32_t>(height, 0, OLED_MAIN_HEIGHT_PIXELS);
 	oledPopupWidth = width;
 	popupHeight = height;
 
-	popupMinX = (OLED_MAIN_WIDTH_PIXELS - width) / 2;
-	popupMaxX = OLED_MAIN_WIDTH_PIXELS - popupMinX;
+	if (x == -1) {
+		popupMinX = (OLED_MAIN_WIDTH_PIXELS - width) / 2;
+	}
+	else {
+		popupMinX = std::clamp<int32_t>(x, 0, OLED_MAIN_WIDTH_PIXELS - width);
+	}
+	popupMaxX = popupMinX + width;
 
-	popupMinY = (OLED_MAIN_HEIGHT_PIXELS - height) / 2;
-	popupMaxY = OLED_MAIN_HEIGHT_PIXELS - popupMinY;
-
-	popupMinY = std::max<int32_t>(popupMinY, OLED_MAIN_TOPMOST_PIXEL);
-	popupMaxY = std::min<int32_t>(popupMaxY, OLED_MAIN_HEIGHT_PIXELS - 1);
-
-	// Clear the popup's area, not including the rectangle we're about to draw
-	int32_t popupFirstRow = (popupMinY + 1) >> 3;
-	int32_t popupLastRow = (popupMaxY - 1) >> 3;
-
-	popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
-	popup.drawRectangle(popupMinX, popupMinY, popupMaxX, popupMaxY);
+	if (y == -1) {
+		popupMinY = (OLED_MAIN_HEIGHT_PIXELS - height) / 2;
+	}
+	else {
+		popupMinY = std::clamp<int32_t>(y, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS - height);
+	}
+	popupMaxY = popupMinY + height;
 }
 
 int32_t consoleMaxX;
@@ -524,18 +524,43 @@ void OLED::popupText(std::string_view text, bool persistent, PopupType type) {
 	auto total_width = static_cast<int32_t>(breakdown.maxPixelWidth());
 	auto total_height = static_cast<int32_t>(breakdown.lines.size() * kTextSpacingY);
 
-	setupPopup(total_width + double_margin, total_height + double_margin);
-	popupType = type;
+	if (type == PopupType::TOP_LEFT) {
+		// Set up the popup dimensions for the top-left corner
+		setupPopup(OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingY, 1, OLED_MAIN_TOPMOST_PIXEL);
+		popupType = type;
+		popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
 
-	int32_t text_pixel_y = std::max<int32_t>((OLED_MAIN_HEIGHT_PIXELS - total_height) / 2, 0);
-
-	for (TextLine& line : breakdown.lines) {
-		if (text_pixel_y >= OLED_MAIN_HEIGHT_PIXELS) {
-			continue;
+		// Draw the text in black
+		int32_t text_pixel_y = OLED_MAIN_TOPMOST_PIXEL + 1;
+		int32_t string_width;
+		for (TextLine& line : breakdown.lines) {
+			int32_t text_pixel_x = 4;
+			popup.drawString(line.text, text_pixel_x, text_pixel_y, kTextSpacingX, kTextSpacingY);
+			text_pixel_y += kTextSpacingY;
+			string_width = popup.getStringWidthInPixels(line.text.data(), kTextSpacingY);
 		}
-		int32_t text_pixel_x = (OLED_MAIN_WIDTH_PIXELS - static_cast<int32_t>(line.pixel_width)) / 2;
-		popup.drawString(line.text, text_pixel_x, text_pixel_y, kTextSpacingX, kTextSpacingY);
-		text_pixel_y += kTextSpacingY;
+
+		// popup.invertArea(1, string_width + 4, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_TOPMOST_PIXEL + kTextSpacingY);
+	}
+	else {
+		// Default behavior for other popup types
+		setupPopup(total_width + double_margin, total_height + double_margin);
+		popupType = type;
+
+		// Clear the popup's area, not including the rectangle we're about to draw
+		popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
+		popup.drawRectangle(popupMinX, popupMinY, popupMaxX, popupMaxY);
+
+		int32_t text_pixel_y = std::max<int32_t>((OLED_MAIN_HEIGHT_PIXELS - total_height) / 2, 0);
+
+		for (TextLine& line : breakdown.lines) {
+			if (text_pixel_y >= OLED_MAIN_HEIGHT_PIXELS) {
+				continue;
+			}
+			int32_t text_pixel_x = (OLED_MAIN_WIDTH_PIXELS - static_cast<int32_t>(line.pixel_width)) / 2;
+			popup.drawString(line.text, text_pixel_x, text_pixel_y, kTextSpacingX, kTextSpacingY);
+			text_pixel_y += kTextSpacingY;
+		}
 	}
 
 	markChanged();

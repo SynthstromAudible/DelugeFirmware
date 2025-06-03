@@ -72,4 +72,14 @@ void Number::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t start
 	                         width);
 }
 
+void Number::selectEncoderAction(int32_t offset) {
+	Value::selectEncoderAction(offset);
+
+	DEF_STACK_STRING_BUF(popupBuf, 15);
+	popupBuf.append(getName());
+	popupBuf.append(": ");
+	popupBuf.appendInt(getValue());
+	display->displayPopup(popupBuf.c_str(), 3, false, 255U, 1, PopupType::TOP_LEFT);
+}
+
 } // namespace deluge::gui::menu_item

@@ -52,7 +52,7 @@ public:
 
 	static void sendMainImage();
 
-	static void setupPopup(int32_t width, int32_t height);
+	static void setupPopup(int32_t width, int32_t height, int32_t x = -1, int32_t y = -1);
 	static void removePopup();
 	static void popupText(std::string_view text, bool persistent = false, PopupType type = PopupType::GENERAL);
 	static bool isPopupPresent();

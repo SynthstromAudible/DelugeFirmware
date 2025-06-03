@@ -33,6 +33,12 @@ void Enumeration::selectEncoderAction(int32_t offset) {
 	// reset offset to account for wrapping
 	offset = nextValue - startValue;
 	Value::selectEncoderAction(offset);
+
+	DEF_STACK_STRING_BUF(popupBuf, 15);
+	popupBuf.append(getName());
+	popupBuf.append(": ");
+	getShortOption(popupBuf);
+	display->displayPopup(popupBuf.c_str(), 3, false, 255U, 1, PopupType::TOP_LEFT);
 }
 
 void Enumeration::drawValue() {
