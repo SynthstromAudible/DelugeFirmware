@@ -42,6 +42,22 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
+/*
+Segments are repersented by 8 bits
+0x01234567
+
+ -1-
+|   |
+6   2
+|   |
+ -7-
+|   |
+5   3
+|   |
+ -4-
+
+*/
+
 namespace deluge::hid::display {
 uint8_t numberSegments[10] = {0x7E, 0x30, 0x6D, 0x79, 0x33, 0x5B, 0x5F, 0x70, 0x7F, 0x7B};
 
@@ -362,7 +378,7 @@ int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination,
 		uint8_t* segments = &destination[std::max(writePos, 0_i32)];
 
 		// First, check if it's a dot, which we might want to add to a previous position
-		bool isDot = (thisChar == '.' || thisChar == '#' || thisChar == ',');
+		bool isDot = (thisChar == '.' || thisChar == ',');
 
 		if (isDot) {
 			if (alignRight) {
@@ -449,6 +465,14 @@ int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination,
 
 			case '^':
 				*segments = 0b01100010;
+				break;
+
+			case '#': // sharp
+				*segments = 0b10110110;
+				break;
+
+			case FLAT_CHAR:
+				*segments = 0b10011110;
 				break;
 
 			default:
