@@ -39,7 +39,7 @@ void Tuning::calculateNote(int noteWithin) {
 
 void Tuning::calculateAll() {
 
-	for (int i = 0; i < 12; i++) {
+	for (int i = 0; i < divisions; i++) {
 		calculateNote(i);
 	}
 }
@@ -199,10 +199,16 @@ void TuningSystem::initialize() {
 	selectedTuning = 0;
 	select(0);
 
-	for (int i = 0; i < MAX_DIVISIONS; i++) {
-		tuning->setOffset(i, 0);
+	for (int t = 0; t < NUM_TUNINGS; t++) {
+		selectForWrite(t);
+		intToString(t, tuning->name, 2);
+		for (int i = 0; i < MAX_DIVISIONS; i++) {
+			tuning->setOffset(i, 0);
+		}
 	}
-	tuning->setName("12TET");
+
+	select(0);
+	tuning->setName("TWELVE TONE EDO");
 
 	// example usage
 	/*

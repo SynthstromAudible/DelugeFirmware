@@ -10,7 +10,7 @@ void Tuning::writeToFile(Serializer& writer) {
 	writer.writeArrayStart("offsets");
 	for (int i = 0; i < divisions; i++) {
 		writer.writeOpeningTagBeginning("offset");
-		writer.writeAttribute("cents", offsets[i]);
+		writer.writeAttribute("cents", offsets[i], false);
 		writer.closeTag(true);
 	}
 	writer.writeArrayEnding("offsets");
@@ -46,5 +46,7 @@ void Tuning::readTagFromFile(Deserializer& reader, char const* tagName) {
 			}
 			reader.exitTag();
 		}
+		calculateAll();
 	}
+	reader.exitTag();
 }

@@ -1280,8 +1280,9 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeClosingTag("scales");
 
 	// Tuning stuff
-	writer.writeOpeningTag("tuningSystem");
+	writer.writeOpeningTagBeginning("tuningSystem");
 	writer.writeAttribute("selectedTuning", selectedTuning);
+	writer.writeOpeningTagEnd(true);
 	writer.writeArrayStart("tunings");
 	for (int i = 0; i < NUM_TUNINGS; i++) {
 		TuningSystem::tunings[i].writeToFile(writer);
