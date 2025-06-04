@@ -23,12 +23,10 @@
 namespace deluge::gui::menu_item::submenu {
 class ModFxHorizontalMenu final : public HorizontalMenu {
 public:
-	ModFxHorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems)
-	    : HorizontalMenu(newName, newItems, HorizontalMenu::Layout::FIXED) {}
+	using HorizontalMenu::HorizontalMenu;
 
 	[[nodiscard]] std::string_view getTitle() const override {
-		// Sorry, a bit of hacky casts here
-		if (const_cast<ModFxHorizontalMenu*>(this)->renderingStyle() == HorizontalMenu::RenderingStyle::VERTICAL) {
+		if (renderingStyle() == HorizontalMenu::RenderingStyle::VERTICAL) {
 			return Submenu::getTitle();
 		}
 
@@ -38,6 +36,7 @@ public:
 		}
 
 		// On other pages user can tweak params related to the selected mod fx type, so we show the type name
+		// Sorry, a bit of hacky casts here
 		const auto* modFxTypeMenuItem = static_cast<mod_fx::Type*>(paging.pages[0].items[0]);
 		const auto modFxTypeMenuItemValue = const_cast<mod_fx::Type*>(modFxTypeMenuItem)->getValue();
 		return modfx::getModNames()[modFxTypeMenuItemValue];

@@ -5726,6 +5726,8 @@ String Song::getSongFullPath() {
 	return fullPath;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstack-usage="
 void Song::setSongFullPath(const char* fullPath) {
 	if (char* filename = strrchr((char*)fullPath, '/')) {
 		auto fullPathLength = strlen(fullPath);
@@ -5741,6 +5743,7 @@ void Song::setSongFullPath(const char* fullPath) {
 		name.set(fullPath);
 	}
 }
+#pragma GCC diagnostic pop
 
 void Song::midiCableBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone,
                                                int32_t whichBendRange, int32_t bendSemitones) {

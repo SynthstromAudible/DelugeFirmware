@@ -16,19 +16,15 @@
  */
 #pragma once
 #include "gui/menu_item/unpatched_param.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 
-namespace deluge::gui::menu_item::eq {
-
-class EqUnpatchedParam final : public UnpatchedParam {
+namespace deluge::gui::menu_item::mod_fx {
+class Rate_Unpatched final : public UnpatchedParam {
 public:
-	EqUnpatchedParam(l10n::String name, l10n::String columnLabel, int32_t newP)
-	    : UnpatchedParam(name, newP), columnLabel_{columnLabel} {}
-	EqUnpatchedParam(l10n::String name, int32_t newP) : UnpatchedParam(name, newP), columnLabel_{name} {}
+	using UnpatchedParam::UnpatchedParam;
 
-	void getColumnLabel(StringBuf& label) override { label.append(deluge::l10n::getView(columnLabel_)); }
-	void getColumnLabelForSmallFont(StringBuf& label) override { getColumnLabel(label); };
-
-private:
-	l10n::String columnLabel_;
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+		return modControllable->getModFXType() != ModFXType::NONE;
+	}
 };
-} // namespace deluge::gui::menu_item::eq
+} // namespace deluge::gui::menu_item::mod_fx

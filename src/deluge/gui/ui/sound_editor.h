@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
-#include "gui/menu_item/submenu.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "modulation/arpeggiator.h"
@@ -46,9 +45,11 @@ class ModControllableAudio;
 class ModelStackWithThreeMainThings;
 class AudioFileHolder;
 class MIDICable;
+
 namespace deluge::gui::menu_item {
+class Submenu;
 enum class RangeEdit : uint8_t;
-}
+} // namespace deluge::gui::menu_item
 
 class SoundEditor final : public UI {
 public:
@@ -85,7 +86,7 @@ public:
 
 	ActionResult timerCallback() override;
 	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour = 0L);
-	bool findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout);
+	bool findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout, bool* isSecondLayerParamOut);
 	void updateSourceBlinks(MenuItem* currentItem);
 	void resetSourceBlinks();
 
@@ -108,14 +109,16 @@ public:
 	MenuItem* menuItemNavigationRecord[16];
 
 	bool shouldGoUpOneLevelOnBegin;
-	bool secondPageToggled;
+	bool secondLayerShortcutsToggled;
+	bool secondLayerModSourceShortcutsToggled;
 
 	bool programChangeReceived(MIDICable& cable, uint8_t channel, uint8_t program) { return false; }
 	bool midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value);
 	bool pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2);
 	void selectEncoderAction(int8_t offset) override;
 	bool canSeeViewUnderneath() override { return true; }
-	bool setup(Clip* clip = nullptr, const MenuItem* item = nullptr, int32_t sourceIndex = 0);
+	bool setup(Clip* clip = nullptr, const MenuItem* item = nullptr, deluge::gui::menu_item::Submenu* parent = nullptr,
+	           int32_t sourceIndex = 0);
 	void enterOrUpdateSoundEditor(bool on);
 	void blinkShortcut();
 	ActionResult potentialShortcutPadAction(int32_t x, int32_t y, bool on);
@@ -175,7 +178,6 @@ private:
 	bool isEditingAutomationViewParam();
 	void handlePotentialParamMenuChange(deluge::hid::Button b, bool on, bool inCardRoutine, MenuItem* previousItem,
 	                                    MenuItem* currentItem);
-	bool handleClipName();
 
 	uint8_t sourceShortcutBlinkFrequencies[2][kDisplayHeight];
 	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight];

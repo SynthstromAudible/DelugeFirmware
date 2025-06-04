@@ -52,11 +52,13 @@ public:
 protected:
 	virtual float getDisplayValue() { return this->getValue(); }
 	virtual const char* getUnit() { return ""; }
+	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
 
 	void drawPixelsForOled() override;
 	void drawDecimal(int32_t textWidth, int32_t textHeight, int32_t yPixel);
 	// 7Seg Only
 	void drawActualValue(bool justDidHorizontalScroll = false) override;
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 };
 
 } // namespace deluge::gui::menu_item

@@ -17,6 +17,7 @@
 
 #include "canvas.h"
 #include "definitions_cxx.hpp"
+#include "deluge/util/d_string.h"
 #include "gui/fonts/fonts.h"
 #include "storage/flash_storage.h"
 
@@ -192,6 +193,27 @@ void Canvas::drawStringCentred(char const* string, int32_t pixelY, int32_t textW
 	int32_t stringWidth = getStringWidthInPixels(string, textHeight);
 	int32_t pixelX = centrePos - (stringWidth >> 1);
 	drawString(str, pixelX, pixelY, textWidth, textHeight);
+}
+
+void Canvas::drawStringCentered(char const* string, int32_t pixelX, int32_t pixelY, int32_t textSpacingX,
+                                int32_t textSpacingY, int32_t totalWidth) {
+	DEF_STACK_STRING_BUF(stringBuf, 12);
+	stringBuf.append(string);
+	drawStringCentered(stringBuf, pixelX, pixelY, textSpacingX, textSpacingY, totalWidth);
+}
+
+void Canvas::drawStringCentered(StringBuf& stringBuf, int32_t pixelX, int32_t pixelY, int32_t textSpacingX,
+                                int32_t textSpacingY, int32_t totalWidth) {
+	int32_t stringWidth;
+
+	// Trim characters from the end until it fits.
+	while ((stringWidth = getStringWidthInPixels(stringBuf.c_str(), textSpacingY)) >= totalWidth - 3) {
+		stringBuf.truncate(stringBuf.size() - 1);
+	}
+
+	// Padding to center the string. If we can't center exactly, 1px left is better than 1px right.
+	const int32_t padding = ((totalWidth - stringWidth) / 2) - 1;
+	drawString(stringBuf.c_str(), pixelX + padding, pixelY, stringWidth, textSpacingY);
 }
 
 /// Draw a string, reducing its height so the string fits within the specified width

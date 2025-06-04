@@ -252,6 +252,8 @@ void MidiFollow::initDefaultMappings() {
 	soundParamToCC[params::GLOBAL_LFO_FREQ_2] = 110;
 	ccToSoundParam[111] = params::LOCAL_LFO_LOCAL_FREQ_2;
 	soundParamToCC[params::LOCAL_LFO_LOCAL_FREQ_2] = 111;
+	ccToSoundParam[112] = params::UNPATCHED_START + params::UNPATCHED_ARP_STEP_PROBABILITY;
+	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_STEP_PROBABILITY] = 112;
 
 	// GLOBAL PARAMS
 	// NOTE: Here you add the global param, assigning the same CC as its relative sound param

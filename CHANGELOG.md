@@ -9,10 +9,10 @@
 - Added a boss/roland style Dimension effect
 - Made grain much faster and updated controls
 - Added LPF to Mutable Instruments Reverb
-- Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
-- Added two more LFOs (LFO 3 -global- and LFO 4 -per voice-), which you can access from the sound editor menu.
+- Added two more envelopes (Envelope 3 and Envelope 4)
+- Added two more LFOs (LFO 3 -global- and LFO 4 -per voice-)
 
-#### <ins>Per-clip Stutter with options: Quantize, Reverse, and Ping-Pong</ins>
+#### <ins>Per-clip Stutter with options: Direction and Quantize</ins>
 - Now the stutter buffer can also be set to play in reverse, and ping-pong.
 - A new menu has been added to the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song.
 - An extra menu has been added per sound source (either synths, kit rows, affect-entire kits, or audio clips) to
@@ -20,6 +20,20 @@ set the stutter configuration independently of the song configuration if you wis
 - Quantized stutter is enabled by default.
 
 ### User Interface
+
+#### <ins>New Shortcuts</ins>
+- Added a shortcut for the `COMPRESSOR THRESHOLD` between the `DECIMATION` and `LPF db/OCT` shortcuts.
+- Added a shortcut for the `STUTTER RATE` between the `PLAY DIRECTION` and `SATURATION` shortcuts.
+
+#### <ins>Layered Shortcuts</ins>
+- Layered Shortcuts mechanism allows multiple shortcuts to be accessed under a single shortcut pad. Holding shift and pressing the same shortcut again cycles between shortcuts. The items available under layered shortcuts can also be accessed from menu: layered shortcut is never the only access method.
+- Following shortcuts have layers:
+  - `ENV` shortcuts: cycles between envelope 1 and 3 (ENV1 shortcuts), and envelope 2 and 4 (ENV2 shortcuts). This also applies to ENV modulator shortcuts.
+  - `LFO` shortcuts: cycles between LFO 1 and 3 (LFO1 shortcuts), and between LFO 2 and 4 (LFO2 shortcuts). This also applies to LFO modulator shortcuts.
+  - `UNISON NUMBER`: cycles between `UNISON AMOUNT` and `UNISON STEREO SPREAD`, in addition to the previous "press select when in `UNISON AMOUNT` access mechanism for `UNISON STEREO SPREAD`.
+  - `COMPRESSOR THRESHOLD`: cycles between `COMPRESSOR THRESHOLD` and `COMPRESSOR RATIO`
+  - `STUTTER RATE`: cycles between `STUTTER RATE` and `STUTTER DIRECTION`
+  - `ARP MODE`: cycles between `ARP MODE` and the arp randomizer `LOCK`. This is mostly for OLED users to quickly access the `RANDOMIZER` submenu.
 
 #### <ins>Accessibility</ins>
 - Added `DEFAULTS (DEFA) > UI > ACCESSIBILITY (ACCE)` menu which contains accessibility changes to the Deluge UI to make the deluge more accessible to users with disabilities. These changes include:
@@ -44,9 +58,10 @@ set the stutter configuration independently of the song configuration if you wis
   - Delay.
   - Mod FX.
   - Compressor.
+  - Stutter.
   - Unison.
   - Voice.
-  - Arpeggiator
+  - Arpeggiator.
 - Horizontal Menu controls.
   - `Turn select encoder` to change the value of the selected menu item
   - `Press + Turn select encoder` to change the selected menu item
@@ -81,6 +96,7 @@ set the stutter configuration independently of the song configuration if you wis
 
 #### <ins>Audio Export</ins>
 - Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
+- Added Tempo, Root Note and Scale Information to file names
 
 
 #### <ins>Save/Load Patterns</ins>
@@ -170,6 +186,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ##### MIDI Clips
 - Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`. See documentation on [MIDI Device Definition Files](docs/features/midi_device_definition_files.md) for more info.
 - Added MIDI CC numbers and labels to `Gold (Mod) Encoder` popups.
+- Updated MIDI Program menu to show values 0-127.
+  - Values for program, bank and sub-bank were previously shown as 1-128, but now reflect the actual transmitted MIDI values.
 
 #### <ins>Automation View</ins>
 
@@ -205,6 +223,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added `SPREAD` parameters (Velocity, Gate, and Octave) that will allow you to control how those parameters of each arp step are deviated from its base value. Additionally, a `LOCK` parameter will allow you to lock the generated values to create a repeating pattern. Velocity Spread
 also affect normal sequenced notes while arpeggiator is Off.
 - Added `BASS PROBABILITY (BASS)` paramater that will allow you to control the chance of a note being replaced the bass (lowest) note of the inputted notes.
+- Added `STEP PROBABILITY (STEP)` paramater that will allow you to control the chance of a note in the pattern being replaced by a random note from the pattern.
 - Added `STEP REPEAT (REPE)` paramater (with values 1 to 8) that makes walked notes in the pattern be repeated X times before moving to the next note+octave in the pattern.
 - Added `CHORD PROBABILITY (CHRD)` paramater that will allow you to control the chance of a note to play, at the same time, itself and other notes to form a chord (5th, 3rd and 7th).
 - Added `CHORD POLYPHONY (POLY)` paramater that works together with the previous parameter, and this one will dictate how big is the chord, that is, how many notes will be played at the same time.

@@ -3612,6 +3612,8 @@ void SessionView::setupNewClip(Clip* newClip) {
 	}
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstack-usage="
 void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput) {
 	if (source->name.isEmpty()) {
 		return;
@@ -3642,6 +3644,7 @@ void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput)
 	}
 	target->name.set(newName.data());
 }
+#pragma GCC diagnostic pop
 
 Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, Clip* sourceClip) {
 	actionLogger.deleteAllLogs();

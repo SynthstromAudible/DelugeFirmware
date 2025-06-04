@@ -56,7 +56,7 @@ public:
 	void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final;
 	void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) override;
 	bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) final;
-	virtual RenderingStyle renderingStyle() { return RenderingStyle::VERTICAL; };
+	virtual RenderingStyle renderingStyle() const { return RenderingStyle::VERTICAL; };
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 	void drawPixelsForOled() override;
 	void drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption);
@@ -87,7 +87,7 @@ public:
 	struct PageInfo {
 	public:
 		int32_t number;
-		int32_t spanMultiplier;
+		int32_t itemsWidthScaling;
 		std::vector<MenuItem*> items;
 	};
 	struct Paging {
@@ -113,20 +113,24 @@ public:
 		initial_index_ = initialSelection;
 	}
 
-	RenderingStyle renderingStyle() override;
+	RenderingStyle renderingStyle() const override;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void renderOLED() override;
 	void drawPixelsForOled() override;
 	void endSession() override;
 
 protected:
+	HorizontalMenu::Paging paging;
+	int32_t lastSelectedHorizontalMenuItemPosition = kNoSelection;
+	Layout horizontalMenuLayout = Layout::DYNAMIC;
+
+private:
 	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t selectedColumn);
 	ActionResult switchVisiblePage(int32_t direction);
 	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
 	HorizontalMenu::Paging splitMenuItemsByPages();
-	HorizontalMenu::Paging paging;
-	int32_t lastSelectedHorizontalMenuItemPosition = kNoSelection;
-	Layout horizontalMenuLayout = Layout::DYNAMIC;
+	int32_t calcPageItemsWidthScaling(int32_t totalItemsSpan, std::vector<MenuItem*>& pageItems,
+	                                  bool isLastPage = false) const;
 };
 
 } // namespace deluge::gui::menu_item
