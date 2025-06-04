@@ -16,6 +16,7 @@
  */
 
 #include "key_range.h"
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/range.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
@@ -59,8 +60,7 @@ void KeyRange::selectEncoderAction(int32_t offset) {
 void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) {
 
 	bool useSharps = FlashStorage::defaultUseSharps;
-	// 129 should be flat glyph
-	char accidential = useSharps ? '#' : 129;
+	char accidential = useSharps ? '#' : FLAT_CHAR;
 
 	*(buffer++) = useSharps ? noteCodeToNoteLetter[lower] : noteCodeToNoteLetterFlats[lower];
 

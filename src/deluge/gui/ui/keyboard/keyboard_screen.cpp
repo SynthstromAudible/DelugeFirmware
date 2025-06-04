@@ -735,8 +735,7 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 		noteName[0] = useSharps ? noteCodeToNoteLetter[newRootNote] : noteCodeToNoteLetterFlats[newRootNote];
 		if (display->haveOLED()) {
 			if (noteCodeIsSharp[newRootNote]) {
-				// 129 should be flat glyph
-				char accidential = useSharps ? '#' : 129;
+				char accidential = useSharps ? '#' : FLAT_CHAR;
 				noteName[1] = accidential;
 			}
 		}
