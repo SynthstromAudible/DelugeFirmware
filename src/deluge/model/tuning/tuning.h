@@ -24,6 +24,9 @@
 
 #define MAX_DIVISIONS 12
 
+class Serializer;
+class Deserializer;
+
 class Tuning {
 public:
 	Tuning();
@@ -58,6 +61,9 @@ public:
 	void getSysexFrequency(int note, TuningSysex::frequency_t& ret);
 
 	NoteWithinOctave noteWithinOctave(int noteCode);
+
+	void writeToFile(Serializer& writer);
+	void readTagFromFile(Deserializer& reader, char const* tagName);
 
 private:
 	int32_t tuningFrequencyTable[12];

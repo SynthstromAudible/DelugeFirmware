@@ -690,6 +690,11 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 	if (launchStyle != LaunchStyle::DEFAULT) {
 		writer.writeAttribute("launchStyle", launchStyleToString(launchStyle));
 	}
+
+	// Tuning
+	if (selectedTuning != 128) {
+		writer.writeAttribute("selectedTuning", selectedTuning);
+	}
 }
 
 void Clip::writeMidiCommandsToFile(Serializer& writer, Song* song) {
@@ -766,6 +771,10 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 
 	else if (!strcmp(tagName, "launchStyle")) {
 		launchStyle = stringToLaunchStyle(reader.readTagOrAttributeValue());
+	}
+
+	else if (!strcmp(tagName, "selectedTuning")) {
+		selectedTuning = reader.readTagOrAttributeValueInt();
 	}
 
 	/*

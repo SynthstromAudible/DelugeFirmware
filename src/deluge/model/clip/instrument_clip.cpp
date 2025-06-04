@@ -2345,11 +2345,6 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		if (midiPGM != 128) {
 			writer.writeAttribute("midiPGM", midiPGM);
 		}
-
-		// Tuning
-		if (selectedTuning != 128) {
-			writer.writeAttribute("selectedTuning", selectedTuning);
-		}
 	}
 	else if (output->type == OutputType::CV) {
 		writer.writeAttribute("cvChannel", ((CVInstrument*)instrument)->getChannel());
@@ -2538,10 +2533,6 @@ someError:
 
 		else if (!strcmp(tagName, "midiPGM")) {
 			midiPGM = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "selectedTuning")) {
-			selectedTuning = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "yScroll")) {

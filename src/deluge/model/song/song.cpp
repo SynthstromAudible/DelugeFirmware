@@ -566,8 +566,10 @@ NoteWithinOctave Song::getRootNoteWithinOctave() {
 }
 
 inline Tuning& Song::getTuning() {
-	// Song directly accesses the tuning system.
-	return *TuningSystem::tuning;
+	if (selectedTuning >= NUM_TUNINGS) {
+		return *TuningSystem::tuning;
+	}
+	return TuningSystem::tunings[selectedTuning];
 }
 
 /* Moves the intervals in the current modeNotes by some number of steps
@@ -1277,6 +1279,16 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeTag("disabledPresetScales", disabledPresetScales.to_ulong());
 	writer.writeClosingTag("scales");
 
+	// Tuning stuff
+	writer.writeOpeningTag("tuningSystem");
+	writer.writeAttribute("selectedTuning", selectedTuning);
+	writer.writeArrayStart("tunings");
+	for (int i = 0; i < NUM_TUNINGS; i++) {
+		TuningSystem::tunings[i].writeToFile(writer);
+	}
+	writer.writeArrayEnding("tunings");
+	writer.writeClosingTag("tuningSystem");
+
 	writer.writeClosingTag("song", true, true);
 }
 
@@ -1930,6 +1942,25 @@ loadOutput:
 				}
 				reader.exitTag("instruments");
 				reader.match(']');
+			}
+
+			else if (!strcmp(tagName, "tuningSystem")) {
+				while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
+					if (!strcmp(tagName, "selectedTuning")) {
+						selectedTuning = reader.readTagOrAttributeValueInt();
+					}
+					else if (!strcmp(tagName, "tunings")) {
+						reader.match('[');
+						int currentTuning = 0;
+						while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
+							TuningSystem::tunings[currentTuning].readTagFromFile(reader, tagName);
+							currentTuning++;
+							reader.match('}');
+						}
+						reader.exitTag("tunings");
+						reader.match(']');
+					}
+				}
 			}
 
 			else if (!strcmp(tagName, "songParams")) {

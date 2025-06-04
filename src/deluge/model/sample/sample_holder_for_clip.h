@@ -34,7 +34,8 @@ public:
 	int8_t cents;
 
 protected:
-	uint8_t& selectedTuning;
 	void sampleBeenSet(bool reversed, bool manuallySelected) override;
+
+	uint8_t& selectedTuning;
 	inline Tuning& getTuning();
 };
