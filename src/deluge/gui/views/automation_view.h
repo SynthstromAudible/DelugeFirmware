@@ -320,6 +320,8 @@ private:
 	void handleAutomationParameterChange(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
 	                                     OutputType outputType, int32_t xDisplay, int32_t yDisplay,
 	                                     int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
+	ActionResult handleRandomizedParamChange(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+	                                         int32_t effectiveLength);
 	int32_t calculateAutomationKnobPosForPadPress(ModelStackWithAutoParam* modelStackWithParam, OutputType outputType,
 	                                              int32_t yDisplay);
 	int32_t calculateAutomationKnobPosForMiddlePadPress(deluge::modulation::params::Kind kind, int32_t yDisplay);
