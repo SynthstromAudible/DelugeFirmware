@@ -2,38 +2,6 @@
 title: How the SysEx protocol works
 ---
 
-## Table of Contents
-
-1. [Overview](#overview)
-2. [Protocol Fundamentals](#protocol-fundamentals)
-   - [Key Specifications](#key-specifications)
-   - [Message Format](#message-format)
-   - [Data Encoding](#data-encoding)
-   - [JSON Structure](#json-structure)
-3. [Session Management](#session-management)
-   - [Assign Session](#assign-session)
-4. [File Operations](#file-operations)
-   - [Open File](#open-file)
-   - [Close File](#close-file)
-   - [Read Block](#read-block)
-   - [Write Block](#write-block)
-5. [Directory Operations](#directory-operations)
-   - [Get Directory Entries](#get-directory-entries)
-   - [Create Directory](#create-directory)
-6. [File Management](#file-management)
-   - [Delete File](#delete-file)
-   - [Rename/Move](#renamemove)
-   - [Copy File](#copy-file)
-   - [Move File](#move-file)
-   - [Update Timestamp](#update-timestamp)
-7. [Utility Operations](#utility-operations)
-   - [Ping](#ping)
-8. [Implementation Details](#implementation-details)
-   - [Operations Summary](#operations-summary)
-   - [High-Level Routines](#high-level-routines)
-   - [Error Codes](#error-codes)
-   - [System Limitations](#system-limitations)
-
 ## Overview
 
 The SysEx File System API provides remote file system access to the Deluge device through MIDI System Exclusive (SysEx) messages. The protocol uses JSON-encoded commands sent over MIDI SysEx to perform file operations like reading, writing, directory listing, and file management.
