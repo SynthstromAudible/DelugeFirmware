@@ -102,10 +102,11 @@ public:
 	int16_t numRepeatsTilLaunch;
 	int32_t currentArmedLaunchLengthForOneRepeat;
 	bool switchToArrangementAtLaunchEvent;
+	void armClipToStopAction(Clip* clip);
 
 private:
 	bool giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clipIndex, int32_t buttonPressLatency);
-	void armClipToStopAction(Clip* clip);
+
 	void cancelArmingForClip(Clip* clip, int32_t* clipIndex);
 	void armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t section, bool stopAllOtherClips);
 	void armClipsAlongWithExistingLaunching(ArmState armState, uint8_t section, Clip* clip);

@@ -297,7 +297,16 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 	// Clip view button
 	else if (b == CLIP_VIEW) {
 		D_PRINTLN("InstrumentClipView::buttonAction(CLIP_VIEW) %d", (int)b);
+		if (on) {
+			if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)
+			    || Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+				auto soloMode = Buttons::isButtonPressed(deluge::hid::button::X_ENC);
+				sessionView.soloOrMuteClip(getCurrentClip(), soloMode, Buttons::isShiftButtonPressed());
+				return ActionResult::DEALT_WITH;
+			}
+		}
 		if (on && currentUIMode == UI_MODE_NONE) {
+
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}

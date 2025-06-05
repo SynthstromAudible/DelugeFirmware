@@ -4283,6 +4283,15 @@ ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
+void SessionView::soloOrMuteClip(Clip* clip, bool isSolo, bool immediate) {
+	if (isSolo) {
+		session.soloClipAction(clip, kInternalButtonPressLatency);
+	}
+	else {
+		session.toggleClipStatus(clip, nullptr, immediate, kInternalButtonPressLatency);
+	}
+}
+
 void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
 	if (immediate) {
 		if (horizontalEncoderPressed) {

@@ -48,6 +48,7 @@ public:
 	bool opened() override;
 	void focusRegained() override;
 
+	void soloOrMuteClip(Clip* clip, bool isSolo, bool immediate);
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult clipCreationButtonPressed(hid::Button i, bool on, bool routine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
