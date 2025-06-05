@@ -104,6 +104,7 @@
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
 #include "gui/menu_item/midi/mpe_to_mono.h"
 #include "gui/menu_item/midi/pgm.h"
+#include "gui/menu_item/midi/program.h"
 #include "gui/menu_item/midi/sound/channel.h"
 #include "gui/menu_item/midi/sound/note_for_drum.h"
 #include "gui/menu_item/midi/sub.h"
@@ -1533,14 +1534,14 @@ menu_item::Submenu noteRowEditorRootMenu{
     },
 };
 
-HorizontalMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TITLE,
-                               {
-                                   &midiBankMenu,
-                                   &midiSubMenu,
-                                   &midiPGMMenu,
-                               },
-                               HorizontalMenu::Layout::FIXED,
-                               2};
+menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TITLE,
+                                                {
+                                                    &midiBankMenu,
+                                                    &midiSubMenu,
+                                                    &midiPGMMenu,
+                                                },
+                                                HorizontalMenu::Layout::FIXED,
+                                                2};
 
 // Root menu for MIDI / CV
 menu_item::Submenu soundEditorRootMenuMIDIOrCV{
