@@ -22,6 +22,7 @@ The SysEx File System API provides remote file system access to the Deluge devic
 Messages consist of a SysEx "packet" which has a header, a sequence number, a JSON body, an optional 0 separator and packed binary part.
 
 All messages follow the standard SysEx format:
+
 ```
 F0 00 21 7B 01 <command> <sequence_number> <json_data> F7
 ```
@@ -41,6 +42,7 @@ Packed binary is used to transfer file content to or from the Deluge. So far onl
 The packed binary part, if present, is encoded in 7 byte to 8 byte format. In 7 to 8 format, we send the information about a 7 byte-long block as 8 bytes, with the first byte in the group holding the sign bits of the following 7 bytes. Those following 7 bytes have their high-order bit masked-off, resulting in valid SysEx data.
 
 Binary data in read/write operations uses 7-bit MIDI-safe encoding:
+
 - Every 7 bytes of data are encoded as 8 bytes
 - The first byte contains the high bits of the following 7 bytes
 - This ensures all bytes are ≤ 0x7F (MIDI-safe)
@@ -50,13 +52,15 @@ Binary data in read/write operations uses 7-bit MIDI-safe encoding:
 The JSON body is always a JSON object with one key/value pair. The key is the request code and the value contains the parameters for the request. We did things this way so that the order-of-appearance of keys does not matter.
 
 An example request:
+
 ```json
-{"open": {"path": "/SONGS/SONG004.XML", "write": 1}}
+{ "open": { "path": "/SONGS/SONG004.XML", "write": 1 } }
 ```
 
 And a response:
+
 ```json
-{"^open": {"fid": 2, "size": 0, "err": 0}}
+{ "^open": { "fid": 2, "size": 0, "err": 0 } }
 ```
 
 The caret in front of the response is used as a convention, but is not required. The way responses are matched up with requests is by using a sequence number that wraps from 1 to 127. The web side keeps track of sequence numbers and stores a callback function for each outgoing message to handle the reply.
@@ -74,6 +78,7 @@ The Deluge can initiate a message exchange by sending a request to the web-side 
 Assigns a session ID for client tracking and message correlation.
 
 **Request:**
+
 ```json
 {
   "session": {
@@ -83,9 +88,11 @@ Assigns a session ID for client tracking and message correlation.
 ```
 
 **Parameters:**
+
 - `tag` (string, optional): Client-specified tag for session identification
 
 **Response:**
+
 ```json
 {
   "^session": {
@@ -99,6 +106,7 @@ Assigns a session ID for client tracking and message correlation.
 ```
 
 **Response Fields:**
+
 - `sid`: Session ID (1-15)
 - `tag`: Echo of request tag
 - `midBase`: Base message ID for this session
@@ -107,13 +115,14 @@ Assigns a session ID for client tracking and message correlation.
 
 ## File Operations
 
-*Basic file I/O operations using file descriptors (max 4 concurrent files)*
+_Basic file I/O operations using file descriptors (max 4 concurrent files)_
 
 ### Open File
 
 Opens a file for reading or writing and returns a file descriptor.
 
 **Request:**
+
 ```json
 {
   "open": {
@@ -126,12 +135,14 @@ Opens a file for reading or writing and returns a file descriptor.
 ```
 
 **Parameters:**
+
 - `path` (string, required): Full path to the file
 - `write` (integer, required): 0=read, 1=write (create new), 2=write (append)
 - `date` (integer, optional): Date for directory creation (FAT format)
 - `time` (integer, optional): Time for directory creation (FAT format)
 
 **Response:**
+
 ```json
 {
   "^open": {
@@ -143,6 +154,7 @@ Opens a file for reading or writing and returns a file descriptor.
 ```
 
 **Response Fields:**
+
 - `fid`: File descriptor ID (0 if error)
 - `size`: File size in bytes
 - `err`: Error code (FRESULT)
@@ -152,6 +164,7 @@ Opens a file for reading or writing and returns a file descriptor.
 Closes an open file descriptor.
 
 **Request:**
+
 ```json
 {
   "close": {
@@ -161,9 +174,11 @@ Closes an open file descriptor.
 ```
 
 **Parameters:**
+
 - `fid` (integer, required): File descriptor ID to close
 
 **Response:**
+
 ```json
 {
   "^close": {
@@ -174,6 +189,7 @@ Closes an open file descriptor.
 ```
 
 **Response Fields:**
+
 - `fid`: Echo of file descriptor ID
 - `err`: Error code (FRESULT)
 
@@ -182,6 +198,7 @@ Closes an open file descriptor.
 Reads a block of data from an open file.
 
 **Request:**
+
 ```json
 {
   "read": {
@@ -193,11 +210,13 @@ Reads a block of data from an open file.
 ```
 
 **Parameters:**
+
 - `fid` (integer, required): File descriptor ID
 - `addr` (integer, required): File offset to read from
 - `size` (integer, optional): Number of bytes to read (max 1024)
 
 **Response:**
+
 ```json
 {
   "^read": {
@@ -210,6 +229,7 @@ Reads a block of data from an open file.
 ```
 
 **Response Fields:**
+
 - `fid`: Echo of file descriptor ID
 - `addr`: Echo of file offset
 - `size`: Actual bytes read
@@ -222,6 +242,7 @@ Reads a block of data from an open file.
 Writes a block of data to an open file.
 
 **Request:**
+
 ```json
 {
   "write": {
@@ -233,6 +254,7 @@ Writes a block of data to an open file.
 ```
 
 **Parameters:**
+
 - `fid` (integer, required): File descriptor ID
 - `addr` (integer, required): File offset to write to
 - `size` (integer, required): Number of bytes to write (max 1024)
@@ -240,6 +262,7 @@ Writes a block of data to an open file.
 **Note:** Binary data follows the JSON header, encoded using 7-bit MIDI-safe encoding.
 
 **Response:**
+
 ```json
 {
   "^write": {
@@ -252,6 +275,7 @@ Writes a block of data to an open file.
 ```
 
 **Response Fields:**
+
 - `fid`: Echo of file descriptor ID
 - `addr`: Echo of file offset
 - `size`: Actual bytes written
@@ -259,13 +283,14 @@ Writes a block of data to an open file.
 
 ## Directory Operations
 
-*Browse and manage directories (max 25 entries per request)*
+_Browse and manage directories (max 25 entries per request)_
 
 ### Get Directory Entries
 
 Lists files and directories in a specified path.
 
 **Request:**
+
 ```json
 {
   "dir": {
@@ -277,11 +302,13 @@ Lists files and directories in a specified path.
 ```
 
 **Parameters:**
+
 - `path` (string, optional): Directory path (default: "/")
 - `offset` (integer, optional): Starting entry offset (default: 0)
 - `lines` (integer, optional): Number of entries to return (max 25, default: 20)
 
 **Response:**
+
 ```json
 {
   "^dir": {
@@ -300,6 +327,7 @@ Lists files and directories in a specified path.
 ```
 
 **Response Fields:**
+
 - `list`: Array of directory entries
   - `name`: File/directory name
   - `size`: File size in bytes
@@ -313,6 +341,7 @@ Lists files and directories in a specified path.
 Creates a new directory.
 
 **Request:**
+
 ```json
 {
   "mkdir": {
@@ -324,11 +353,13 @@ Creates a new directory.
 ```
 
 **Parameters:**
+
 - `path` (string, required): Directory path to create
 - `date` (integer, optional): Creation date (FAT format)
 - `time` (integer, optional): Creation time (FAT format)
 
 **Response:**
+
 ```json
 {
   "^mkdir": {
@@ -339,18 +370,20 @@ Creates a new directory.
 ```
 
 **Response Fields:**
+
 - `path`: Echo of directory path
 - `err`: Error code (FRESULT)
 
 ## File Management
 
-*Advanced file operations: delete, rename, copy, move, timestamps*
+_Advanced file operations: delete, rename, copy, move, timestamps_
 
 ### Delete File
 
 Deletes a file or directory.
 
 **Request:**
+
 ```json
 {
   "delete": {
@@ -360,9 +393,11 @@ Deletes a file or directory.
 ```
 
 **Parameters:**
+
 - `path` (string, required): Path to file/directory to delete
 
 **Response:**
+
 ```json
 {
   "^delete": {
@@ -372,6 +407,7 @@ Deletes a file or directory.
 ```
 
 **Response Fields:**
+
 - `err`: Error code (FRESULT)
 
 ### Rename/Move
@@ -379,6 +415,7 @@ Deletes a file or directory.
 Renames or moves a file/directory.
 
 **Request:**
+
 ```json
 {
   "rename": {
@@ -389,10 +426,12 @@ Renames or moves a file/directory.
 ```
 
 **Parameters:**
+
 - `from` (string, required): Source path
 - `to` (string, required): Destination path
 
 **Response:**
+
 ```json
 {
   "^rename": {
@@ -404,6 +443,7 @@ Renames or moves a file/directory.
 ```
 
 **Response Fields:**
+
 - `from`: Echo of source path
 - `to`: Echo of destination path
 - `err`: Error code (FRESULT)
@@ -413,6 +453,7 @@ Renames or moves a file/directory.
 Copies a file to a new location.
 
 **Request:**
+
 ```json
 {
   "copy": {
@@ -425,12 +466,14 @@ Copies a file to a new location.
 ```
 
 **Parameters:**
+
 - `from` (string, required): Source file path
 - `to` (string, required): Destination file path
 - `date` (integer, optional): Timestamp for destination file (FAT format)
 - `time` (integer, optional): Timestamp for destination file (FAT format)
 
 **Response:**
+
 ```json
 {
   "^copy": {
@@ -442,6 +485,7 @@ Copies a file to a new location.
 ```
 
 **Response Fields:**
+
 - `from`: Echo of source path
 - `to`: Echo of destination path
 - `err`: Error code (FRESULT)
@@ -451,6 +495,7 @@ Copies a file to a new location.
 Moves a file to a new location (rename or copy+delete for cross-filesystem moves).
 
 **Request:**
+
 ```json
 {
   "move": {
@@ -463,12 +508,14 @@ Moves a file to a new location (rename or copy+delete for cross-filesystem moves
 ```
 
 **Parameters:**
+
 - `from` (string, required): Source file path
 - `to` (string, required): Destination file path
 - `date` (integer, optional): Timestamp for destination file (FAT format)
 - `time` (integer, optional): Timestamp for destination file (FAT format)
 
 **Response:**
+
 ```json
 {
   "^move": {
@@ -480,6 +527,7 @@ Moves a file to a new location (rename or copy+delete for cross-filesystem moves
 ```
 
 **Response Fields:**
+
 - `from`: Echo of source path
 - `to`: Echo of destination path
 - `err`: Error code (FRESULT)
@@ -489,6 +537,7 @@ Moves a file to a new location (rename or copy+delete for cross-filesystem moves
 Updates the timestamp of a file or directory.
 
 **Request:**
+
 ```json
 {
   "utime": {
@@ -500,11 +549,13 @@ Updates the timestamp of a file or directory.
 ```
 
 **Parameters:**
+
 - `path` (string, required): Path to file/directory
 - `date` (integer, required): New date (FAT format)
 - `time` (integer, required): New time (FAT format)
 
 **Response:**
+
 ```json
 {
   "^utime": {
@@ -514,17 +565,19 @@ Updates the timestamp of a file or directory.
 ```
 
 **Response Fields:**
+
 - `err`: Error code (FRESULT)
 
 ## Utility Operations
 
-*Simple connectivity and status operations*
+_Simple connectivity and status operations_
 
 ### Ping
 
 Simple connectivity test.
 
 **Request:**
+
 ```json
 {
   "ping": {}
@@ -532,6 +585,7 @@ Simple connectivity test.
 ```
 
 **Response:**
+
 ```json
 {
   "^ping": {}
@@ -540,11 +594,12 @@ Simple connectivity test.
 
 ## Implementation Details
 
-*Technical specifications, error codes, and system constraints*
+_Technical specifications, error codes, and system constraints_
 
 ### Operations Summary
 
 So far, the file protocol has:
+
 - **session** - Assign session ID
 - **open** - Open file for reading/writing
 - **close** - Close file descriptor
@@ -562,6 +617,7 @@ So far, the file protocol has:
 ### High-Level Routines
 
 The file routines include:
+
 - **readFile** - Complete file reading
 - **writeFile** - Complete file writing
 - **recursiveDelete** - Delete directory tree
