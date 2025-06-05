@@ -195,6 +195,7 @@
 #include "gui/menu_item/synth_mode.h"
 #include "gui/menu_item/trigger/in/ppqn.h"
 #include "gui/menu_item/trigger/out/ppqn.h"
+#include "gui/menu_item/tuning/tuning_menu.h"
 #include "gui/menu_item/unison/count.h"
 #include "gui/menu_item/unison/detune.h"
 #include "gui/menu_item/unison/stereoSpread.h"
@@ -690,11 +691,15 @@ UnpatchedParam globalPitchMenu{STRING_FOR_PITCH, params::UNPATCHED_PITCH_ADJUST}
 // Pan
 unpatched_param::Pan globalPanMenu{STRING_FOR_PAN, params::UNPATCHED_PAN};
 
+// Tuning
+tuning::TuningMenu tuningMenu{STRING_FOR_TUNING};
+
 Submenu songMasterMenu{
     STRING_FOR_MASTER,
     {
         &globalLevelMenu,
         &globalPanMenu,
+        &tuningMenu,
     },
 };
 
@@ -704,6 +709,7 @@ Submenu kitClipMasterMenu{
         &globalLevelMenu,
         &globalPitchMenu,
         &globalPanMenu,
+        &tuningMenu,
     },
 };
 
@@ -873,6 +879,7 @@ Submenu audioClipMasterMenu{
         &globalLevelMenu,
         &audioClipTransposeMenu,
         &globalPanMenu,
+        &tuningMenu,
     },
 };
 
@@ -1396,6 +1403,7 @@ Submenu soundMasterMenu{
         &panMenu,
         &synthModeMenu,
         &nameEditMenu,
+        &tuningMenu,
     },
 };
 
@@ -1548,6 +1556,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
         &mpeyToModWheelMenu,
         &midiMPEMenu,
         &sequenceDirectionMenu,
+        &tuningMenu,
     },
 };
 
