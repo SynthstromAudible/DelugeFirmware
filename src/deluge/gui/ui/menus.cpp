@@ -693,6 +693,7 @@ unpatched_param::Pan globalPanMenu{STRING_FOR_PAN, params::UNPATCHED_PAN};
 
 // Tuning
 tuning::TuningMenu tuningMenu{STRING_FOR_TUNING};
+tuning::Octave octaveTuningMenu{STRING_FOR_TUNING};
 
 Submenu songMasterMenu{
     STRING_FOR_MASTER,

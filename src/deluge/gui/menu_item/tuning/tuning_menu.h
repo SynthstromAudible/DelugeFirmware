@@ -3,7 +3,9 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
+#include "octave.h"
 
+extern deluge::gui::menu_item::tuning::Octave octaveTuningMenu;
 extern deluge::gui::menu_item::Submenu songMasterMenu;
 namespace deluge::gui::menu_item::tuning {
 class TuningMenu final : public Selection {
@@ -27,11 +29,18 @@ class TuningMenu final : public Selection {
 		if (forClip()) {
 			auto* clip = currentSong->getCurrentClip();
 			if (clip != nullptr) {
-				clip->selectedTuning = (value == 0) ? 128 : value - 1;
+				if (value == 0) {
+					clip->selectedTuning = 128;
+				}
+				else {
+					clip->selectedTuning = value - 1;
+					TuningSystem::select(value - 1);
+				}
 			}
 		}
 		else {
 			currentSong->selectedTuning = value;
+			TuningSystem::select(value);
 		}
 	}
 	static bool forClip() {
@@ -58,6 +67,6 @@ class TuningMenu final : public Selection {
 		}
 		return ret;
 	}
-	MenuItem* selectButtonPress() override { return NO_NAVIGATION; }
+	MenuItem* selectButtonPress() override { return &octaveTuningMenu; }
 };
 } // namespace deluge::gui::menu_item::tuning
