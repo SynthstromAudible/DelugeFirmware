@@ -26,6 +26,13 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 
 - Various structural improvements to Sound Engine architecture which may result in performance improvements.
 
+### Clip View
+
+#### <ins>Solo/Mute clip from ClipView</ins>
+- Added community feature to be able to solo or mute a clip from its clip view :
+  - Press `HORIZONTAL ENCODER ◀︎▶︎` + `CLIP`: solo or unsolo the active clip. Combine with Shift button to make it immediate.
+  - Press `VERTICAL ENCODER ◀︎▶︎` + `CLIP` : mute or unmute the active clip. Combine with Shift button to make it immediate.
+
 ## c1.3.0 <Badge text="Upcoming" variant="tip" />
 
 ### Sound Engine
@@ -109,13 +116,6 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 - If a clip has no named "SECTION N" is displayed in place of the clip name, indicating which section the clip is in.
 - If a clip has a name, it is displayed with a number prefix, indicating its section, eg. "3: CHORUS".
 - When clips are copied, the clip name is copied as well. If the target track already has a clip with the same name, an integer suffix starting from 2 is added unless the name already has an integer suffix. This integer suffix is incremented until the clip name is unique on the target track. Ie. copying a clip named "BRIDGE" to the same otherwise empty track will first create "BRIDGE2", then "BRIDGE3", etc.
-
-#### <ins>Solo/Mute clip from ClipView</ins>
-
-- Added community feature to be able to solo or mute a clip from its clipview.
-- From Clip view :
-  - Press Horizontal Encoder + clip : solo or unsolo the active clip. Combine with Shift button to make it immediate.
-  - Press Vertical Encoder + clip : mute or unmute the active clip. Combine with Shift button to make it immediate.
 
 #### <ins>Tempo</ins>
 
