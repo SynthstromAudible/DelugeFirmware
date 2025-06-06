@@ -94,6 +94,7 @@ private:
 	PressedPad pressedPads[kMaxNumKeyboardPadPresses];
 	NotesState lastNotesState;
 	NotesState currentNotesState;
+	uint8_t maxLastNoteCount;
 
 	bool keyboardButtonActive = false;
 	bool keyboardButtonUsed = false;

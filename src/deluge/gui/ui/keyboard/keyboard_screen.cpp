@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/menu_item/multi_range.h"
+#include "gui/menu_item/tuning/octave.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
@@ -78,6 +79,7 @@ KeyboardScreen::KeyboardScreen() {
 	memset(&pressedPads, 0, sizeof(pressedPads));
 	currentNotesState = {0};
 	lastNotesState = {0};
+	maxLastNoteCount = 0;
 }
 
 static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
@@ -365,7 +367,15 @@ void KeyboardScreen::updateActiveNotes() {
 		noteOff(*modelStack, *activeInstrument, clipIsActiveOnInstrument, oldNote);
 	}
 
+	maxLastNoteCount = std::max(lastNotesState.count, maxLastNoteCount);
+
 	if (lastNotesState.count != 0 && currentNotesState.count == 0) {
+		if (getCurrentUI() == &soundEditor
+		    && soundEditor.getCurrentMenuItem() == &menu_item::tuning::octaveTuningMenu) {
+			if (maxLastNoteCount == 1) {
+				menu_item::tuning::octaveTuningMenu.selectNote(lastNotesState.notes[0].note);
+			}
+		}
 		exitUIMode(UI_MODE_AUDITIONING);
 
 		if (display->haveOLED()) {
@@ -374,6 +384,7 @@ void KeyboardScreen::updateActiveNotes() {
 		else {
 			redrawNumericDisplay();
 		}
+		maxLastNoteCount = 0;
 	}
 }
 

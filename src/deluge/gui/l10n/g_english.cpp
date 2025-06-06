@@ -703,6 +703,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_TUNING, "Tuning"},
         {STRING_FOR_SONG_TUNING, "Song Tuning"},
         {STRING_FOR_CLIP_TUNING, "Clip Tuning"},
+        {STRING_FOR_TUNING_FORMAT, "*  Cents       "},
         {STRING_FOR_SOUND, "Sound"},
         {STRING_FOR_AUDIO_CLIP, "Audio clip"},
         {STRING_FOR_SONG, "Song"},
