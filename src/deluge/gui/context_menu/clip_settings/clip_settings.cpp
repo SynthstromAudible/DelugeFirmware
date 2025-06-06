@@ -19,8 +19,10 @@
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clip_settings/launch_style.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/menus.h"
 #include "gui/ui/rename/rename_clip_ui.h"
 #include "gui/ui/root_ui.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/views/session_view.h"
 #include "hid/display/display.h"
 #include "model/clip/clip.h"
@@ -40,17 +42,19 @@ std::span<char const*> ClipSettingsMenu::getOptions() {
 	if (clip->type == ClipType::AUDIO) {
 		static const char* optionsls[] = {
 		    l10n::get(STRING_FOR_CLIP_MODE),
+		    l10n::get(STRING_FOR_TEMPO),
 		    l10n::get(STRING_FOR_CLIP_NAME),
 		};
-		return {optionsls, 2};
+		return {optionsls, 3};
 	}
 	else {
 		static const char* optionsls[] = {
 		    l10n::get(STRING_FOR_CONVERT_TO_AUDIO),
 		    l10n::get(STRING_FOR_CLIP_MODE),
+		    l10n::get(STRING_FOR_TEMPO),
 		    l10n::get(STRING_FOR_CLIP_NAME),
 		};
-		return {optionsls, 3};
+		return {optionsls, 4};
 	}
 }
 
@@ -74,11 +78,21 @@ bool ClipSettingsMenu::acceptCurrentOption() {
 			option--; // rebase option selection to 0
 		}
 		if (option == 0) {
+			// Clip Mode
 			launchStyle.clip = clip;
 			launchStyle.setupAndCheckAvailability();
 			openUI(&launchStyle);
 		}
+		else if (option == 1) {
+			// Tempo
+			currentUIMode = UI_MODE_NONE;
+			currentSong->setCurrentClip(clip);
+			soundEditor.setup(clip);
+			soundEditor.enterSubmenu(&sequenceTempoMenu);
+			openUI(&soundEditor);
+		}
 		else {
+			// Clip Name
 			currentUIMode = UI_MODE_NONE;
 			renameClipUI.clip = clip;
 			openUI(&renameClipUI);

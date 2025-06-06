@@ -170,6 +170,7 @@
 #include "gui/menu_item/sample/time_stretch.h"
 #include "gui/menu_item/sample/transpose.h"
 #include "gui/menu_item/sequence/direction.h"
+#include "gui/menu_item/sequence/tempo.h"
 #include "gui/menu_item/shortcuts/version.h"
 #include "gui/menu_item/sidechain/attack.h"
 #include "gui/menu_item/sidechain/release.h"
@@ -679,6 +680,7 @@ submenu::PolyMonoConversion midiMPEMenu{STRING_FOR_MPE_MONO, {&midiAftertouchCol
 // Clip-level stuff --------------------------------------------------------------------------
 
 sequence::Direction sequenceDirectionMenu{STRING_FOR_PLAY_DIRECTION};
+sequence::Tempo sequenceTempoMenu{STRING_FOR_TEMPO};
 
 // Global FX Menu
 
@@ -1416,15 +1418,15 @@ Submenu soundFXMenu{
 menu_item::Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,
     {
-        &soundMasterMenu,   &arpMenu,          &globalRandomizerMenu,
-        &audioCompMenu,     &soundFiltersMenu, &soundFXMenu,
-        &sidechainMenu,     &source0Menu,      &source1Menu,
-        &modulator0Menu,    &modulator1Menu,   &env1Menu,
-        &env2Menu,          &env3Menu,         &env4Menu,
-        &lfo1Menu,          &lfo2Menu,         &lfo3Menu,
-        &lfo4Menu,          &voiceMenu,        &bendMenu,
-        &drumBendRangeMenu, &patchCablesMenu,  &sequenceDirectionMenu,
-        &outputMidiSubmenu,
+        &soundMasterMenu,   &arpMenu,           &globalRandomizerMenu,
+        &audioCompMenu,     &soundFiltersMenu,  &soundFXMenu,
+        &sidechainMenu,     &source0Menu,       &source1Menu,
+        &modulator0Menu,    &modulator1Menu,    &env1Menu,
+        &env2Menu,          &env3Menu,          &env4Menu,
+        &lfo1Menu,          &lfo2Menu,          &lfo3Menu,
+        &lfo4Menu,          &voiceMenu,         &bendMenu,
+        &drumBendRangeMenu, &patchCablesMenu,   &sequenceDirectionMenu,
+        &sequenceTempoMenu, &outputMidiSubmenu,
     },
 };
 
@@ -1549,6 +1551,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
         &mpeyToModWheelMenu,
         &midiMPEMenu,
         &sequenceDirectionMenu,
+        &sequenceTempoMenu,
     },
 };
 
@@ -1583,6 +1586,8 @@ menu_item::Submenu soundEditorRootMenuAudioClip{
         &audioClipSampleMenu,
         &audioClipAttackMenu,
         &priorityMenu,
+        &sequenceDirectionMenu,
+        &sequenceTempoMenu,
     },
 };
 

@@ -70,6 +70,11 @@ Clip::Clip(ClipType newType) : type(newType) {
 	lastSelectedPatchSource = PatchSource::NONE;
 	// end initialize of automation clip view variables
 
+	// initialize per-clip tempo override fields
+	timePerTimerTickBigOverride = 0; // 0 = use global tempo
+	hasIndependentTempo = false;
+	// end initialize per-clip tempo override fields
+
 #if HAVE_SEQUENCE_STEP_CONTROL
 	sequenceDirectionMode = SequenceDirection::FORWARD;
 #endif
@@ -103,6 +108,9 @@ void Clip::copyBasicsFrom(Clip const* otherClip) {
 	section = otherClip->section;
 	launchStyle = otherClip->launchStyle;
 	onAutomationClipView = otherClip->onAutomationClipView;
+	// Copy tempo override settings
+	timePerTimerTickBigOverride = otherClip->timePerTimerTickBigOverride;
+	hasIndependentTempo = otherClip->hasIndependentTempo;
 }
 
 void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDubType newOverdubNature) {
@@ -151,6 +159,29 @@ uint32_t Clip::getLivePos() const {
 
 	int32_t numSwungTicksInSinceLastActioned = playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
 
+	// CRITICAL FIX: For clips with independent tempo, convert global ticks to clip ticks
+	if (hasIndependentTempo) {
+		uint64_t globalTempo = currentSong->timePerTimerTickBig;
+		uint64_t clipTempo = timePerTimerTickBigOverride;
+
+		if (clipTempo != 0) {
+			// Convert global ticks to clip ticks: clipTicks = globalTicks * (globalTempo / clipTempo)
+			// Higher BPM (smaller timePerTimerTickBig) = more ticks per unit time
+			uint64_t result = ((uint64_t)numSwungTicksInSinceLastActioned * globalTempo) / clipTempo;
+
+			// Clamp to reasonable bounds
+			if (result > INT32_MAX) {
+				numSwungTicksInSinceLastActioned = INT32_MAX;
+			}
+			else if (result < INT32_MIN) {
+				numSwungTicksInSinceLastActioned = INT32_MIN;
+			}
+			else {
+				numSwungTicksInSinceLastActioned = (int32_t)result;
+			}
+		}
+	}
+
 	if (currentlyPlayingReversed) {
 		numSwungTicksInSinceLastActioned = -numSwungTicksInSinceLastActioned;
 	}
@@ -167,6 +198,29 @@ uint32_t Clip::getActualCurrentPosAsIfPlayingInForwardDirection() {
 	int32_t actualPos = lastProcessedPos;
 
 	int32_t numSwungTicksInSinceLastActioned = playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
+
+	// CRITICAL FIX: For clips with independent tempo, convert global ticks to clip ticks
+	if (hasIndependentTempo) {
+		uint64_t globalTempo = currentSong->timePerTimerTickBig;
+		uint64_t clipTempo = timePerTimerTickBigOverride;
+
+		if (clipTempo != 0) {
+			// Convert global ticks to clip ticks: clipTicks = globalTicks * (globalTempo / clipTempo)
+			// Higher BPM (smaller timePerTimerTickBig) = more ticks per unit time
+			uint64_t result = ((uint64_t)numSwungTicksInSinceLastActioned * globalTempo) / clipTempo;
+
+			// Clamp to reasonable bounds
+			if (result > INT32_MAX) {
+				numSwungTicksInSinceLastActioned = INT32_MAX;
+			}
+			else if (result < INT32_MIN) {
+				numSwungTicksInSinceLastActioned = INT32_MIN;
+			}
+			else {
+				numSwungTicksInSinceLastActioned = (int32_t)result;
+			}
+		}
+	}
 
 #if HAVE_SEQUENCE_STEP_CONTROL
 	if (currentlyPlayingReversed) {
@@ -319,7 +373,60 @@ playingForwardNow:
 
 	// At least make sure we come back at the end of this Clip
 	if (ticksTilEnd < playbackHandler.swungTicksTilNextEvent) {
-		playbackHandler.swungTicksTilNextEvent = ticksTilEnd;
+		int32_t globalTicksTilEnd = ticksTilEnd;
+
+		// CRITICAL FIX: Convert clip tempo scale to global tempo scale for scheduling
+		if (hasIndependentTempo) {
+			uint64_t globalTempo = currentSong->timePerTimerTickBig;
+			uint64_t clipTempo = timePerTimerTickBigOverride;
+
+			D_PRINTLN("TEMPO_DEBUG: processCurrentPos scheduling - clipTempo=%llu, globalTempo=%llu, ticksTilEnd=%d",
+			          clipTempo, globalTempo, ticksTilEnd);
+
+			// CRITICAL FIX: Prevent scheduling catastrophe from overflow
+			// If ticksTilEnd is extremely negative (close to INT32_MIN), reset to reasonable value
+			if (ticksTilEnd < -1000000000) { // Catch values near INT32_MIN (-2.1 billion)
+				D_PRINTLN("TEMPO_DEBUG: WARNING - ticksTilEnd extremely negative (%d), resetting to loop length",
+				          ticksTilEnd);
+				globalTicksTilEnd = loopLength;
+			}
+			// Ensure we never work with negative scheduling values
+			else if (ticksTilEnd <= 0) {
+				D_PRINTLN("TEMPO_DEBUG: WARNING - ticksTilEnd <= 0 (%d), setting to 1", ticksTilEnd);
+				globalTicksTilEnd = 1;
+			}
+			else if (clipTempo != 0) {
+				// Convert clip ticks to global ticks: globalTicks = clipTicks * (globalTempo / clipTempo)
+				// Use double precision to prevent overflow during calculation
+				double conversion = (double)ticksTilEnd * (double)globalTempo / (double)clipTempo;
+
+				// Clamp to safe positive range
+				if (conversion > INT32_MAX || conversion < 1.0) {
+					globalTicksTilEnd = (conversion > INT32_MAX) ? INT32_MAX : 1;
+					D_PRINTLN("TEMPO_DEBUG: Conversion out of range (%.0f), clamped to %d", conversion,
+					          globalTicksTilEnd);
+				}
+				else {
+					globalTicksTilEnd = (int32_t)conversion;
+				}
+
+				D_PRINTLN("TEMPO_DEBUG: Converted scheduling: clipTicks=%d -> globalTicks=%d (conversion=%.0f)",
+				          ticksTilEnd, globalTicksTilEnd, conversion);
+			}
+			else {
+				globalTicksTilEnd = 1; // Fallback
+			}
+		}
+
+		// FINAL SAFETY: Never set negative scheduling values - they break the playback system
+		if (globalTicksTilEnd <= 0) {
+			D_PRINTLN("TEMPO_DEBUG: CRITICAL - preventing negative scheduling value, setting to 1");
+			globalTicksTilEnd = 1;
+		}
+
+		D_PRINTLN("TEMPO_DEBUG: Final scheduling value: %d (was %d)", globalTicksTilEnd,
+		          playbackHandler.swungTicksTilNextEvent);
+		playbackHandler.swungTicksTilNextEvent = globalTicksTilEnd;
 	}
 }
 
@@ -667,6 +774,9 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 	if (sequenceDirectionMode != SequenceDirection::FORWARD) {
 		writer.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
 	}
+	if (hasIndependentTempo) {
+		writer.writeAttribute("tempoOverride", getEffectiveTempo());
+	}
 	writer.writeAttribute("colourOffset", colourOffset);
 	if (section != 255) {
 		writer.writeAttribute("section", section);
@@ -760,6 +870,38 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 
 	else if (!strcmp(tagName, "sequenceDirection")) {
 		sequenceDirectionMode = stringToSequenceDirectionMode(reader.readTagOrAttributeValue());
+	}
+
+	else if (!strcmp(tagName, "tempoOverride")) {
+		char const* bpmString = reader.readTagOrAttributeValue();
+
+		// Simple float parsing without standard library dependencies
+		float bpm = 0.0f;
+		float decimal = 0.0f;
+		float divisor = 1.0f;
+		bool afterDecimal = false;
+
+		for (int i = 0; bpmString[i] != '\0'; i++) {
+			char c = bpmString[i];
+			if (c >= '0' && c <= '9') {
+				if (afterDecimal) {
+					divisor *= 10.0f;
+					decimal = decimal * 10.0f + (c - '0');
+				}
+				else {
+					bpm = bpm * 10.0f + (c - '0');
+				}
+			}
+			else if (c == '.' && !afterDecimal) {
+				afterDecimal = true;
+			}
+		}
+
+		if (afterDecimal) {
+			bpm += decimal / divisor;
+		}
+
+		setTempoOverride(bpm);
 	}
 
 	else if (!strcmp(tagName, "launchStyle")) {
@@ -1171,11 +1313,73 @@ void Clip::incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTi
 		numTicks = -numTicks;
 	}
 	lastProcessedPos += numTicks;
+
+	D_PRINTLN("TEMPO_DEBUG: incrementPos final - lastProcessedPos=%d, repeatCount=%d", lastProcessedPos, repeatCount);
 }
+
 void Clip::setupOverdubInPlace(OverDubType type) {
 	originalLength = loopLength;
 	armState = ArmState::ON_TO_RECORD;
 	// This is used to indicate a cloned overdub clip that doesn't have anything in it, not overdub in place
 	isPendingOverdub = false;
 	overdubNature = type;
+}
+
+// Per-clip tempo override methods
+void Clip::setTempoOverride(float bpm) {
+	D_PRINTLN("TEMPO_DEBUG: setTempoOverride called with BPM=%.1f (clip=%p)", bpm, this);
+
+	if (bpm < 1.0f || bpm > 20000.0f) {
+		D_PRINTLN("TEMPO_DEBUG: BPM out of range, returning");
+		return; // BPM validation - match menu range (1-20000)
+	}
+
+	// For now, let's try a much simpler approach - just copy from global tempo scaling
+	// Get the current global timePerTimerTickBig
+	uint64_t globalTimePerTimerTickBig = currentSong->timePerTimerTickBig;
+	float globalBPM = currentSong->calculateBPM();
+
+	D_PRINTLN("TEMPO_DEBUG: globalBPM=%.1f, globalTimePerTimerTickBig=%llu", globalBPM, globalTimePerTimerTickBig);
+
+	// Calculate the ratio and scale the global value
+	float ratio = globalBPM / bpm;
+	timePerTimerTickBigOverride = (uint64_t)(globalTimePerTimerTickBig * ratio);
+
+	hasIndependentTempo = true;
+
+	D_PRINTLN("TEMPO_DEBUG: Set override - ratio=%.3f, timePerTimerTickBigOverride=%llu, hasIndependentTempo=%d", ratio,
+	          timePerTimerTickBigOverride, hasIndependentTempo);
+}
+
+void Clip::clearTempoOverride() {
+	D_PRINTLN("TEMPO_DEBUG: clearTempoOverride called (clip=%p), hasIndependentTempo was %d", this,
+	          hasIndependentTempo);
+	timePerTimerTickBigOverride = 0;
+	hasIndependentTempo = false;
+	D_PRINTLN("TEMPO_DEBUG: Cleared tempo override - now hasIndependentTempo=%d", hasIndependentTempo);
+}
+
+uint64_t Clip::getEffectiveTimePerTimerTickBig() {
+	if (hasIndependentTempo && timePerTimerTickBigOverride != 0) {
+		return timePerTimerTickBigOverride;
+	}
+	return currentSong->timePerTimerTickBig;
+}
+
+float Clip::getEffectiveTempo() {
+	if (!hasIndependentTempo || timePerTimerTickBigOverride == 0) {
+		return currentSong->calculateBPM();
+	}
+
+	// Use ratio-based conversion to match setTempoOverride
+	uint64_t globalTimePerTimerTickBig = currentSong->timePerTimerTickBig;
+	float globalBPM = currentSong->calculateBPM();
+
+	// Calculate the ratio and reverse it
+	float ratio = (float)globalTimePerTimerTickBig / (float)timePerTimerTickBigOverride;
+	return globalBPM * ratio;
+}
+
+bool Clip::isTempoIndependent() const {
+	return hasIndependentTempo;
 }

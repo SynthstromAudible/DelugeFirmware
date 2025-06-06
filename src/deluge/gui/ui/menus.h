@@ -21,6 +21,7 @@
 #include "gui/menu_item/sample/end.h"
 #include "gui/menu_item/sample/start.h"
 #include "gui/menu_item/sequence/direction.h"
+#include "gui/menu_item/sequence/tempo.h"
 #include "gui/menu_item/source/patched_param/fm.h"
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
@@ -40,6 +41,7 @@ extern deluge::gui::menu_item::stem_export::Start startStemExportMenu;
 
 extern deluge::gui::menu_item::firmware::Version firmwareVersionMenu;
 extern deluge::gui::menu_item::sequence::Direction sequenceDirectionMenu;
+extern deluge::gui::menu_item::sequence::Tempo sequenceTempoMenu;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuMIDIOrCV;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuMidiDrum;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuGateDrum;

@@ -165,10 +165,12 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 				}
 
 				// Tick forward the Clip being recorded to
-				output->getActiveClip()->lastProcessedPos += posIncrement;
+				Clip* activeClip = output->getActiveClip();
+				int32_t clipIncrement = calculateClipPosIncrement(activeClip, posIncrement);
+				activeClip->lastProcessedPos += clipIncrement;
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-				    modelStack->addTimelineCounter(output->getActiveClip());
-				output->getActiveClip()->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
+				    modelStack->addTimelineCounter(activeClip);
+				activeClip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
 			}
 
 			else {
@@ -223,8 +225,9 @@ notRecording:
 								    modelStack->addTimelineCounter(thisClip);
 
 								// Tick it forward and process it
-								thisClip->incrementPos(modelStackWithTimelineCounter, posIncrement);
-								thisClip->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
+								int32_t clipIncrement = calculateClipPosIncrement(thisClip, posIncrement);
+								thisClip->incrementPos(modelStackWithTimelineCounter, clipIncrement);
+								thisClip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
 
 								// Make sure we come back here when the clipInstance ends
 								int32_t ticksTilEnd = endPos - lastProcessedPos;
@@ -669,4 +672,45 @@ void Arrangement::endAnyLinearRecording() {
 	arrangerView.mustRedrawTickSquares = true; // Tick square shouldn't be red anymore
 
 	uiNeedsRendering(&arrangerView, 0xFFFFFFFF, 0);
+}
+
+// Per-clip tempo support: Calculate position increment for a clip based on its tempo override
+int32_t Arrangement::calculateClipPosIncrement(Clip* clip, int32_t globalIncrement) {
+	if (!clip->hasIndependentTempo) {
+		return globalIncrement;
+	}
+
+	uint64_t globalTempo = currentSong->timePerTimerTickBig;
+	uint64_t clipTempo = clip->timePerTimerTickBigOverride;
+
+	D_PRINTLN("TEMPO_DEBUG: Arrangement::calculateClipPosIncrement - input globalIncrement=%d, globalTempo=%llu, "
+	          "clipTempo=%llu",
+	          globalIncrement, globalTempo, clipTempo);
+
+	// Avoid division by zero
+	if (clipTempo == 0) {
+		D_PRINTLN("TEMPO_DEBUG: Arrangement::calculateClipPosIncrement - clipTempo=0, returning globalIncrement");
+		return globalIncrement;
+	}
+
+	// Calculate relative tempo ratio and apply to increment
+	// clipIncrement = globalIncrement * (globalTempo / clipTempo)
+	// Use signed 64-bit arithmetic to handle negative values correctly
+	int64_t signedResult = ((int64_t)globalIncrement * (int64_t)globalTempo) / (int64_t)clipTempo;
+
+	// Clamp to int32_t bounds
+	if (signedResult > INT32_MAX) {
+		D_PRINTLN("TEMPO_DEBUG: Arrangement::calculateClipPosIncrement - result overflow, clamped to INT32_MAX");
+		return INT32_MAX;
+	}
+	if (signedResult < INT32_MIN) {
+		D_PRINTLN("TEMPO_DEBUG: Arrangement::calculateClipPosIncrement - result underflow, clamped to INT32_MIN");
+		return INT32_MIN;
+	}
+
+	int32_t finalResult = (int32_t)signedResult;
+
+	D_PRINTLN("TEMPO_DEBUG: Arrangement::calculateClipPosIncrement - converted %d -> %d", globalIncrement, finalResult);
+
+	return finalResult;
 }

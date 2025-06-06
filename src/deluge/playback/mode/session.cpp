@@ -2261,7 +2261,9 @@ traverseClips:
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-		clip->incrementPos(modelStackWithTimelineCounter, numTicksBeingIncremented);
+		// Calculate clip-specific position increment for per-clip tempo support
+		int32_t clipIncrement = calculateClipPosIncrement(clip, numTicksBeingIncremented);
+		clip->incrementPos(modelStackWithTimelineCounter, clipIncrement);
 	}
 	if (clipArray != &currentSong->arrangementOnlyClips) {
 		clipArray = &currentSong->arrangementOnlyClips;
@@ -2438,7 +2440,16 @@ void Session::doTickForward(int32_t posIncrement) {
 			// launched), up in considerLaunchEvent()
 
 			// May create new Clip and put it in the ModelStack - we'll check below.
-			clip->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
+			// Calculate clip-specific position increment for per-clip tempo support
+			int32_t clipIncrement = calculateClipPosIncrement(clip, posIncrement);
+
+			// Debug: Show clip processing info
+			if (clip->hasIndependentTempo) {
+				// Simple debug - just display a dot to show independent tempo clips are being processed
+				display->setNextTransitionDirection(1);
+			}
+
+			clip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
 
 			// NOTE: posIncrement is the number of ticks which we incremented by in considerLaunchEvent(). But for Clips
 			// which were only just launched in there, well the won't have been incremented, so it would be more correct
@@ -2675,7 +2686,7 @@ bool Session::willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* 
 	}
 	// keep playing just after its Clip has stopped, and we don't wanna think it needs to loop
 
-	// Note: this isn't quite perfect - it doesn’t know if Clip will cut out due to another one launching. But the ill
+	// Note: this isn't quite perfect - it doesn't know if Clip will cut out due to another one launching. But the ill
 	// effects of this are pretty minor.
 	bool willLoop =
 	    !launchEventAtSwungTickCount             // If no launch event scheduled, obviously it'll loop
@@ -2720,4 +2731,44 @@ bool Session::deletingClipWhichCouldBeAbandonedOverdub(Clip* clip) {
 	}
 
 	return shouldBeActiveWhileExistent;
+}
+
+// Per-clip tempo support: Calculate position increment for a clip based on its tempo override
+int32_t Session::calculateClipPosIncrement(Clip* clip, int32_t globalIncrement) {
+	if (!clip->hasIndependentTempo) {
+		return globalIncrement;
+	}
+
+	uint64_t globalTempo = currentSong->timePerTimerTickBig;
+	uint64_t clipTempo = clip->timePerTimerTickBigOverride;
+
+	D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - input globalIncrement=%d, globalTempo=%llu, clipTempo=%llu",
+	          globalIncrement, globalTempo, clipTempo);
+
+	// Avoid division by zero
+	if (clipTempo == 0) {
+		D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - clipTempo=0, returning globalIncrement");
+		return globalIncrement;
+	}
+
+	// Calculate relative tempo ratio and apply to increment
+	// clipIncrement = globalIncrement * (globalTempo / clipTempo)
+	// Use signed 64-bit arithmetic to handle negative values correctly
+	int64_t signedResult = ((int64_t)globalIncrement * (int64_t)globalTempo) / (int64_t)clipTempo;
+
+	// Clamp to int32_t bounds
+	if (signedResult > INT32_MAX) {
+		D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - result overflow, clamped to INT32_MAX");
+		return INT32_MAX;
+	}
+	if (signedResult < INT32_MIN) {
+		D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - result underflow, clamped to INT32_MIN");
+		return INT32_MIN;
+	}
+
+	int32_t finalResult = (int32_t)signedResult;
+
+	D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - converted %d -> %d", globalIncrement, finalResult);
+
+	return finalResult;
 }

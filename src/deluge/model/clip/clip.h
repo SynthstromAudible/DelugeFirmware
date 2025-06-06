@@ -186,6 +186,10 @@ public:
 	SequenceDirection sequenceDirectionMode;
 #endif
 
+	// Per-clip tempo override (following sequenceDirectionMode pattern)
+	uint64_t timePerTimerTickBigOverride; // 0 = use global tempo
+	bool hasIndependentTempo;             // UI/performance flag
+
 	int32_t loopLength;
 
 	// Before linear recording of this Clip began, and this Clip started getting extended to multiples of this
@@ -223,6 +227,13 @@ public:
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 	// Setup the name per clip on session/song/grid view and to be selectable on the arranger
 	String name;
+
+	// Tempo override methods (per-clip tempo functionality)
+	void setTempoOverride(float bpm);
+	void clearTempoOverride();
+	uint64_t getEffectiveTimePerTimerTickBig();
+	float getEffectiveTempo();
+	bool isTempoIndependent() const;
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the
