@@ -16,23 +16,295 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/number.h"
+#include "gui/l10n/l10n.h"
+#include "gui/menu_item/integer.h"
+#include "gui/menu_item/selection.h"
+#include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
-#include "gui/views/instrument_clip_view.h"
+#include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "io/debug/log.h"
-#include "model/clip/instrument_clip.h"
-#include "model/instrument/kit.h"
+#include "model/clip/clip.h"
 #include "model/model_stack.h"
-#include "model/note/note_row.h"
 #include "model/song/song.h"
-#include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
+#include <algorithm>
+#include <iterator>
 
 namespace deluge::gui::menu_item::sequence {
-class Tempo final : public Number {
+
+// Individual tempo ratio preset options
+class TempoRatioGlobal final : public MenuItem {
 public:
-	using Number::Number;
+	using MenuItem::MenuItem;
+
+	std::string_view getName() const override { return "Global"; }
+
+	bool shouldEnterSubmenu() override { return false; }
+
+	MenuItem* selectButtonPress() override {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
+
+		if (clip && clip->hasTempoRatio) {
+			bool wasActive = currentSong->isClipActive(clip);
+			clip->clearTempoRatio();
+			display->displayPopup("Global tempo");
+
+			// Ensure clip remains active if it was active before tempo change
+			if (wasActive && playbackHandler.isEitherClockActive()) {
+				currentSong->assertActiveness(modelStack);
+				clip->resumePlayback(modelStack, false);
+			}
+		}
+
+		// Refresh parent menu to update title
+		if (soundEditor.getCurrentMenuItem() && soundEditor.getCurrentMenuItem()->isSubmenu()) {
+			soundEditor.getCurrentMenuItem()->readValueAgain();
+		}
+
+		return NO_NAVIGATION; // Stay in menu after setting ratio
+	}
+};
+
+class TempoRatioHalf final : public MenuItem {
+public:
+	using MenuItem::MenuItem;
+
+	std::string_view getName() const override { return "1/2 Half"; }
+
+	bool shouldEnterSubmenu() override { return false; }
+
+	MenuItem* selectButtonPress() override {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
+
+		if (clip) {
+			bool wasActive = currentSong->isClipActive(clip);
+			clip->setTempoRatio(1, 2);
+			display->displayPopup("Half speed");
+
+			// Ensure clip remains active if it was active before tempo change
+			if (wasActive && playbackHandler.isEitherClockActive()) {
+				currentSong->assertActiveness(modelStack);
+				clip->resumePlayback(modelStack, false);
+			}
+		}
+
+		// Refresh parent menu to update title
+		if (soundEditor.getCurrentMenuItem() && soundEditor.getCurrentMenuItem()->isSubmenu()) {
+			soundEditor.getCurrentMenuItem()->readValueAgain();
+		}
+
+		return NO_NAVIGATION; // Stay in menu after setting ratio
+	}
+};
+
+class TempoRatioDouble final : public MenuItem {
+public:
+	using MenuItem::MenuItem;
+
+	std::string_view getName() const override { return "2/1 Double"; }
+
+	bool shouldEnterSubmenu() override { return false; }
+
+	MenuItem* selectButtonPress() override {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
+
+		if (clip) {
+			bool wasActive = currentSong->isClipActive(clip);
+			clip->setTempoRatio(2, 1);
+			display->displayPopup("Double speed");
+
+			// Ensure clip remains active if it was active before tempo change
+			if (wasActive && playbackHandler.isEitherClockActive()) {
+				currentSong->assertActiveness(modelStack);
+				clip->resumePlayback(modelStack, false);
+			}
+		}
+
+		// Refresh parent menu to update title
+		if (soundEditor.getCurrentMenuItem() && soundEditor.getCurrentMenuItem()->isSubmenu()) {
+			soundEditor.getCurrentMenuItem()->readValueAgain();
+		}
+
+		return NO_NAVIGATION; // Stay in menu after setting ratio
+	}
+};
+
+class TempoRatioThreeFour final : public MenuItem {
+public:
+	using MenuItem::MenuItem;
+
+	std::string_view getName() const override { return "3/4"; }
+
+	bool shouldEnterSubmenu() override { return false; }
+
+	MenuItem* selectButtonPress() override {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
+
+		if (clip) {
+			bool wasActive = currentSong->isClipActive(clip);
+			clip->setTempoRatio(3, 4);
+			display->displayPopup("3/4 speed");
+
+			// Ensure clip remains active if it was active before tempo change
+			if (wasActive && playbackHandler.isEitherClockActive()) {
+				currentSong->assertActiveness(modelStack);
+				clip->resumePlayback(modelStack, false);
+			}
+		}
+
+		// Refresh parent menu to update title
+		if (soundEditor.getCurrentMenuItem() && soundEditor.getCurrentMenuItem()->isSubmenu()) {
+			soundEditor.getCurrentMenuItem()->readValueAgain();
+		}
+
+		return NO_NAVIGATION; // Stay in menu after setting ratio
+	}
+};
+
+class TempoRatioFourThree final : public MenuItem {
+public:
+	using MenuItem::MenuItem;
+
+	std::string_view getName() const override { return "4/3"; }
+
+	bool shouldEnterSubmenu() override { return false; }
+
+	MenuItem* selectButtonPress() override {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
+
+		if (clip) {
+			bool wasActive = currentSong->isClipActive(clip);
+			clip->setTempoRatio(4, 3);
+			display->displayPopup("4/3 speed");
+
+			// Ensure clip remains active if it was active before tempo change
+			if (wasActive && playbackHandler.isEitherClockActive()) {
+				currentSong->assertActiveness(modelStack);
+				clip->resumePlayback(modelStack, false);
+			}
+		}
+
+		// Refresh parent menu to update title
+		if (soundEditor.getCurrentMenuItem() && soundEditor.getCurrentMenuItem()->isSubmenu()) {
+			soundEditor.getCurrentMenuItem()->readValueAgain();
+		}
+
+		return NO_NAVIGATION; // Stay in menu after setting ratio
+	}
+};
+
+// Custom ratio numerator input
+class TempoRatioNumerator final : public Integer {
+public:
+	using Integer::Integer;
+
+	std::string_view getName() const override { return "Numerator"; }
+
+	int32_t getMinValue() const override { return 1; }
+	int32_t getMaxValue() const override { return 32; }
+
+	void readCurrentValue() override {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
+
+		if (clip && clip->hasTempoRatio) {
+			this->setValue(clip->tempoRatioNumerator);
+		}
+		else {
+			this->setValue(1);
+		}
+	}
+
+	void writeCurrentValue() override {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
+
+		if (clip) {
+			uint16_t numerator = this->getValue();
+			uint16_t denominator = clip->hasTempoRatio ? clip->tempoRatioDenominator : 1;
+
+			bool wasActive = currentSong->isClipActive(clip);
+			clip->setTempoRatio(numerator, denominator);
+
+			// Ensure clip remains active if it was active before tempo change
+			if (wasActive && playbackHandler.isEitherClockActive()) {
+				currentSong->assertActiveness(modelStack);
+				clip->resumePlayback(modelStack, false);
+			}
+		}
+
+		// Trigger a redraw to update any dynamic titles in parent menus
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+	}
+};
+
+// Custom ratio denominator input
+class TempoRatioDenominator final : public Integer {
+public:
+	using Integer::Integer;
+
+	std::string_view getName() const override { return "Denominator"; }
+
+	int32_t getMinValue() const override { return 1; }
+	int32_t getMaxValue() const override { return 32; }
+
+	void readCurrentValue() override {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
+
+		if (clip && clip->hasTempoRatio) {
+			this->setValue(clip->tempoRatioDenominator);
+		}
+		else {
+			this->setValue(1);
+		}
+	}
+
+	void writeCurrentValue() override {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
+
+		if (clip) {
+			uint16_t numerator = clip->hasTempoRatio ? clip->tempoRatioNumerator : 1;
+			uint16_t denominator = this->getValue();
+
+			bool wasActive = currentSong->isClipActive(clip);
+			clip->setTempoRatio(numerator, denominator);
+
+			// Ensure clip remains active if it was active before tempo change
+			if (wasActive && playbackHandler.isEitherClockActive()) {
+				currentSong->assertActiveness(modelStack);
+				clip->resumePlayback(modelStack, false);
+			}
+		}
+
+		// Trigger a redraw to update any dynamic titles in parent menus
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+	}
+};
+
+// Main tempo ratio submenu
+class TempoRatio final : public Submenu {
+public:
+	using Submenu::Submenu;
 
 	bool shouldEnterSubmenu() override {
 		if (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor() && !isUIModeActive(UI_MODE_AUDITIONING)) {
@@ -42,199 +314,29 @@ public:
 		return true;
 	}
 
-	void readCurrentValue() override {
+	void renderOLED() override {
+		// Get current clip status for dynamic title
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
 
-		if (!clip) {
-			// No clip context - use global tempo
-			int32_t globalTempo = (int32_t)currentSong->calculateBPM();
-			this->setValue(globalTempo);
-			return;
-		}
-
-		if (clip->hasIndependentTempo) {
-			// Set to actual BPM value if clip has override
-			float effectiveTempo = clip->getEffectiveTempo();
-			this->setValue((int32_t)effectiveTempo);
+		// Create dynamic title showing current ratio
+		char titleBuffer[32];
+		if (clip && clip->hasTempoRatio) {
+			snprintf(titleBuffer, sizeof(titleBuffer), "TEMPO: %d:%d", clip->tempoRatioNumerator,
+			         clip->tempoRatioDenominator);
 		}
 		else {
-			// Initialize to current global tempo when no override is set
-			int32_t globalTempo = (int32_t)currentSong->calculateBPM();
-			this->setValue(globalTempo);
-		}
-	}
-
-	void writeCurrentValue() override {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
-
-		if (!clip) {
-			// No clip context available
-			D_PRINTLN("TEMPO_MENU_DEBUG: No clip context available");
-			display->displayPopup("No clip");
-			return;
+			snprintf(titleBuffer, sizeof(titleBuffer), "TEMPO: Global");
 		}
 
-		int32_t newValue = this->getValue();
-		int32_t globalTempo = (int32_t)currentSong->calculateBPM();
+		// Draw the custom title
+		deluge::hid::display::OLED::main.drawScreenTitle(titleBuffer);
 
-		D_PRINTLN("TEMPO_MENU_DEBUG: writeCurrentValue - newValue=%d, globalTempo=%d, clip->hasIndependentTempo=%d, "
-		          "clip->repeatCount=%d",
-		          newValue, globalTempo, clip->hasIndependentTempo, clip->repeatCount);
+		// Use standard submenu drawing for menu items
+		drawPixelsForOled();
 
-		// Debug display
-		char debugBuffer[20];
-		snprintf(debugBuffer, sizeof(debugBuffer), "Set:%d G:%d", newValue, globalTempo);
-		display->displayPopup(debugBuffer);
-
-		if (newValue == globalTempo && !clip->hasIndependentTempo) {
-			// Value equals global tempo and no override exists - no change needed
-			D_PRINTLN("TEMPO_MENU_DEBUG: No change needed - already at global tempo without override");
-			return;
-		}
-		else if (newValue == globalTempo && clip->hasIndependentTempo) {
-			// User set value back to global tempo - clear override
-			D_PRINTLN("TEMPO_MENU_DEBUG: Clearing tempo override - returning to global tempo");
-			bool wasActive = currentSong->isClipActive(clip);
-			D_PRINTLN("TEMPO_MENU_DEBUG: Clip was active: %d", wasActive);
-
-			clip->clearTempoOverride();
-
-			// If clip was active during tempo change, handle reconciliation
-			if (wasActive && playbackHandler.isEitherClockActive()) {
-				// SMART FIX: Only use reSyncClip if clip hasn't crossed bar boundaries
-				// This prevents position resets while still making clips playable
-				if (clip->repeatCount == 0) {
-					// Clip is still in first loop - safe to resync to global timing
-					D_PRINTLN("TEMPO_MENU_DEBUG: Using reSyncClip (repeatCount=0)");
-					currentPlaybackMode->reSyncClip(modelStack, true, true);
-				}
-				else {
-					// Clip has crossed bar boundaries - preserve position and just ensure playback
-					D_PRINTLN("TEMPO_MENU_DEBUG: Using manual resume (repeatCount=%d)", clip->repeatCount);
-					currentSong->assertActiveness(modelStack);
-					clip->resumePlayback(modelStack, false); // Don't make sound on resume
-				}
-
-				// Debug: Check if clip is still active after clearing tempo
-				bool stillActive = currentSong->isClipActive(clip);
-				D_PRINTLN("TEMPO_MENU_DEBUG: After clearing - stillActive=%d", stillActive);
-				char activeDebug[20];
-				snprintf(activeDebug, sizeof(activeDebug), "ClrWas:%d Now:%d R:%d", wasActive ? 1 : 0,
-				         stillActive ? 1 : 0, clip->repeatCount);
-				display->displayPopup(activeDebug);
-			}
-		}
-		else if (newValue >= 1 && newValue <= 20000) {
-			// Valid BPM range - set tempo override
-			D_PRINTLN("TEMPO_MENU_DEBUG: Setting tempo override to %d BPM", newValue);
-			float bpm = (float)newValue;
-			bool wasActive = currentSong->isClipActive(clip);
-			D_PRINTLN("TEMPO_MENU_DEBUG: Clip was active: %d", wasActive);
-
-			clip->setTempoOverride(bpm);
-
-			// If clip was active during tempo change, ensure it continues playing with independent timing
-			if (wasActive && playbackHandler.isEitherClockActive()) {
-				// For clips with independent tempo, don't try to sync to other clips
-				// Just ensure the clip is active and resume playback
-				D_PRINTLN("TEMPO_MENU_DEBUG: Ensuring clip remains active after setting tempo");
-				currentSong->assertActiveness(modelStack);
-				clip->resumePlayback(modelStack, false); // Don't make sound on resume
-
-				// Debug: Check if clip is still active after setting tempo
-				bool stillActive = currentSong->isClipActive(clip);
-				D_PRINTLN("TEMPO_MENU_DEBUG: After setting - stillActive=%d", stillActive);
-				char activeDebug[20];
-				snprintf(activeDebug, sizeof(activeDebug), "SetWas:%d Now:%d", wasActive ? 1 : 0, stillActive ? 1 : 0);
-				display->displayPopup(activeDebug);
-			}
-
-			// Debug: Check what was actually stored
-			float stored = clip->getEffectiveTempo();
-			D_PRINTLN("TEMPO_MENU_DEBUG: Stored tempo: %.1f", stored);
-			char debugBuffer2[20];
-			snprintf(debugBuffer2, sizeof(debugBuffer2), "Stored:%.1f", stored);
-			display->displayPopup(debugBuffer2);
-		}
-	}
-
-	// BPM range: 1-20000 (matching global tempo system)
-	int32_t getMinValue() const override { return 1; }
-	int32_t getMaxValue() const override { return 20000; }
-
-	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-	                                             ::MultiRange** currentRange) override {
-		return MenuPermission::YES;
-	}
-
-	void selectEncoderAction(int32_t offset) override {
-		// Update the value based on encoder input
-		this->setValue(this->getValue() + offset);
-
-		// Clamp to valid range
-		int32_t maxValue = getMaxValue();
-		if (this->getValue() > maxValue) {
-			this->setValue(maxValue);
-		}
-		else {
-			int32_t minValue = getMinValue();
-			if (this->getValue() < minValue) {
-				this->setValue(minValue);
-			}
-		}
-
-		// Call the Number base class method
-		Number::selectEncoderAction(offset);
-	}
-
-	void drawPixelsForOled() override {
-		int32_t value = this->getValue();
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
-
-		char buffer[16];
-		if (clip && clip->hasIndependentTempo && value != (int32_t)currentSong->calculateBPM()) {
-			snprintf(buffer, sizeof(buffer), "%d*", value);
-		}
-		else {
-			snprintf(buffer, sizeof(buffer), "%d", value);
-		}
-
-		deluge::hid::display::OLED::main.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
-		                                                   kTextHugeSizeY);
-	}
-
-protected:
-	void drawValue() override {
-		int32_t value = this->getValue();
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
-
-		if (!clip) {
-			// No clip context - just show the value
-			display->setTextAsNumber(value);
-			return;
-		}
-
-		int32_t globalTempo = (int32_t)currentSong->calculateBPM();
-
-		// Show an asterisk (*) if the clip has an independent tempo override
-		if (clip->hasIndependentTempo && value != globalTempo) {
-			char buffer[16];
-			snprintf(buffer, sizeof(buffer), "%d*", value);
-			display->setText(buffer);
-		}
-		else {
-			display->setTextAsNumber(value);
-		}
+		deluge::hid::display::OLED::markChanged();
 	}
 };
 } // namespace deluge::gui::menu_item::sequence

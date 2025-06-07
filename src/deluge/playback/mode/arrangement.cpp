@@ -177,7 +177,7 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 				    modelStack->addTimelineCounter(activeClip);
 
 				// CRITICAL FIX: For large increments, process in multiple smaller steps to prevent note skipping
-				if (abs(clipIncrement) > MAX_STEP_SIZE && activeClip->hasIndependentTempo) {
+				if (abs(clipIncrement) > MAX_STEP_SIZE && activeClip->hasTempoRatio) {
 					D_PRINTLN("TEMPO_DEBUG: Arrangement Recording - Processing large increment %d in multiple steps",
 					          clipIncrement);
 
@@ -255,7 +255,7 @@ notRecording:
 
 								// CRITICAL FIX: For large increments, increment position in multiple smaller steps to
 								// prevent note skipping
-								if (abs(clipIncrement) > MAX_STEP_SIZE && thisClip->hasIndependentTempo) {
+								if (abs(clipIncrement) > MAX_STEP_SIZE && thisClip->hasTempoRatio) {
 									D_PRINTLN(
 									    "TEMPO_DEBUG: Arrangement - incrementPos large increment %d in multiple steps",
 									    clipIncrement);
@@ -279,7 +279,7 @@ notRecording:
 
 								// CRITICAL FIX: For large increments, process in multiple smaller steps to prevent note
 								// skipping
-								if (abs(clipIncrement) > MAX_STEP_SIZE && thisClip->hasIndependentTempo) {
+								if (abs(clipIncrement) > MAX_STEP_SIZE && thisClip->hasTempoRatio) {
 									D_PRINTLN(
 									    "TEMPO_DEBUG: Arrangement - Processing large increment %d in multiple steps",
 									    clipIncrement);
@@ -746,33 +746,25 @@ void Arrangement::endAnyLinearRecording() {
 	uiNeedsRendering(&arrangerView, 0xFFFFFFFF, 0);
 }
 
-// Per-clip tempo support: Calculate position increment for a clip based on its tempo override
+// Per-clip tempo support: Calculate position increment for a clip based on its tempo ratio
 int32_t Arrangement::calculateClipPosIncrement(Clip* clip, int32_t globalIncrement) {
-	if (!clip->hasIndependentTempo) {
+	if (!clip->hasTempoRatio) {
 		return globalIncrement;
 	}
 
-	uint64_t globalTempo = currentSong->timePerTimerTickBig;
-	uint64_t clipTempo = clip->timePerTimerTickBigOverride;
-
-	D_PRINTLN("TEMPO_DEBUG: Arrangement::calculateClipPosIncrement - input globalIncrement=%d, globalTempo=%llu, "
-	          "clipTempo=%llu",
-	          globalIncrement, globalTempo, clipTempo);
-
-	// Avoid division by zero
-	if (clipTempo == 0) {
-		D_PRINTLN("TEMPO_DEBUG: Arrangement::calculateClipPosIncrement - clipTempo=0, returning globalIncrement");
+	// Safety check for division by zero
+	if (clip->tempoRatioDenominator == 0) {
+		D_PRINTLN("TEMPO_DEBUG: WARNING - tempoRatioDenominator is 0, returning globalIncrement");
 		return globalIncrement;
 	}
 
-	// CRITICAL FIX: Use floating-point arithmetic to preserve precision for all tempo ratios
-	// clipIncrement = globalIncrement * (globalTempo / clipTempo)
-	double ratio = (double)globalTempo / (double)clipTempo;
-	double result = (double)globalIncrement * ratio;
+	D_PRINTLN("TEMPO_DEBUG: Arrangement::calculateClipPosIncrement - input globalIncrement=%d, ratio=%d:%d",
+	          globalIncrement, clip->tempoRatioNumerator, clip->tempoRatioDenominator);
 
-	D_PRINTLN("TEMPO_DEBUG: Arrangement::calculateClipPosIncrement - ratio=%.6f, rawResult=%.3f", ratio, result);
+	// Integer-based ratio calculation: clipIncrement = globalIncrement * numerator / denominator
+	int64_t result = ((int64_t)globalIncrement * clip->tempoRatioNumerator) / clip->tempoRatioDenominator;
 
-	// Clamp to reasonable bounds (prevent extreme values that could break playback)
+	// Clamp to reasonable bounds
 	if (result > INT32_MAX) {
 		D_PRINTLN("TEMPO_DEBUG: Arrangement::calculateClipPosIncrement - result overflow, clamped to INT32_MAX");
 		return INT32_MAX;
@@ -782,17 +774,7 @@ int32_t Arrangement::calculateClipPosIncrement(Clip* clip, int32_t globalIncreme
 		return INT32_MIN;
 	}
 
-	// For very small increments, ensure we don't get stuck at zero
-	if (result > 0.0 && result < 1.0) {
-		D_PRINTLN("TEMPO_DEBUG: Arrangement::calculateClipPosIncrement - small positive result, rounding up to 1");
-		return 1;
-	}
-	if (result < 0.0 && result > -1.0) {
-		D_PRINTLN("TEMPO_DEBUG: Arrangement::calculateClipPosIncrement - small negative result, rounding down to -1");
-		return -1;
-	}
-
-	int32_t finalResult = (int32_t)round(result);
+	int32_t finalResult = (int32_t)result;
 
 	D_PRINTLN("TEMPO_DEBUG: Arrangement::calculateClipPosIncrement - converted %d -> %d", globalIncrement, finalResult);
 

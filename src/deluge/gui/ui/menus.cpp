@@ -680,7 +680,36 @@ submenu::PolyMonoConversion midiMPEMenu{STRING_FOR_MPE_MONO, {&midiAftertouchCol
 // Clip-level stuff --------------------------------------------------------------------------
 
 sequence::Direction sequenceDirectionMenu{STRING_FOR_PLAY_DIRECTION};
-sequence::Tempo sequenceTempoMenu{STRING_FOR_TEMPO};
+// Tempo ratio menu instances - using empty strings to rely on getName() methods
+sequence::TempoRatioGlobal tempoRatioGlobalMenu{EMPTY_STRING};           // Will use getName() -> "Global"
+sequence::TempoRatioHalf tempoRatioHalfMenu{EMPTY_STRING};               // Will use getName() -> "1/2 Half"
+sequence::TempoRatioDouble tempoRatioDoubleMenu{EMPTY_STRING};           // Will use getName() -> "2/1 Double"
+sequence::TempoRatioThreeFour tempoRatioThreeFourMenu{EMPTY_STRING};     // Will use getName() -> "3/4"
+sequence::TempoRatioFourThree tempoRatioFourThreeMenu{EMPTY_STRING};     // Will use getName() -> "4/3"
+sequence::TempoRatioNumerator tempoRatioNumeratorMenu{EMPTY_STRING};     // Will use getName() -> "Numerator"
+sequence::TempoRatioDenominator tempoRatioDenominatorMenu{EMPTY_STRING}; // Will use getName() -> "Denominator"
+
+// Custom ratio submenu
+menu_item::Submenu tempoRatioCustomMenu{
+    STRING_FOR_CUSTOM,
+    {
+        &tempoRatioNumeratorMenu,
+        &tempoRatioDenominatorMenu,
+    },
+};
+
+// Main tempo ratio submenu
+sequence::TempoRatio sequenceTempoMenu{
+    STRING_FOR_TEMPO,
+    {
+        &tempoRatioGlobalMenu,
+        &tempoRatioHalfMenu,
+        &tempoRatioDoubleMenu,
+        &tempoRatioThreeFourMenu,
+        &tempoRatioFourThreeMenu,
+        &tempoRatioCustomMenu,
+    },
+};
 
 // Global FX Menu
 

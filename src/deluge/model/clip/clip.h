@@ -186,9 +186,10 @@ public:
 	SequenceDirection sequenceDirectionMode;
 #endif
 
-	// Per-clip tempo override (following sequenceDirectionMode pattern)
-	uint64_t timePerTimerTickBigOverride; // 0 = use global tempo
-	bool hasIndependentTempo;             // UI/performance flag
+	// Ratio-based tempo override (replacing floating-point BPM system)
+	uint16_t tempoRatioNumerator;   // Default: 1
+	uint16_t tempoRatioDenominator; // Default: 1
+	bool hasTempoRatio;             // Flag: false = use global tempo
 
 	int32_t loopLength;
 
@@ -228,12 +229,20 @@ public:
 	// Setup the name per clip on session/song/grid view and to be selectable on the arranger
 	String name;
 
-	// Tempo override methods (per-clip tempo functionality)
-	void setTempoOverride(float bpm);
-	void clearTempoOverride();
+	// Ratio-based tempo methods (replacing BPM-based system)
+	void setTempoRatio(uint16_t numerator, uint16_t denominator);
+	void clearTempoRatio();
 	uint64_t getEffectiveTimePerTimerTickBig();
-	float getEffectiveTempo();
+	float getEffectiveTempoRatio(); // Returns numerator/denominator as float
+	float getEffectiveTempo();      // Returns effective BPM for display
 	bool isTempoIndependent() const;
+
+	// Legacy methods for backward compatibility
+	void setTempoOverride(float bpm); // Converts BPM to ratio internally
+	void clearTempoOverride();        // Calls clearTempoRatio()
+
+	// Helper method for GCD calculation
+	static uint16_t calculateGCD(uint16_t a, uint16_t b);
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the

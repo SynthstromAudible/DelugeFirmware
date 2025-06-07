@@ -2269,7 +2269,7 @@ traverseClips:
 		// CRITICAL FIX: For large increments, increment position in multiple smaller steps to prevent note skipping
 		const int32_t MAX_STEP_SIZE = 32; // Process in chunks of max 32 ticks to catch all events
 
-		if (abs(clipIncrement) > MAX_STEP_SIZE && clip->hasIndependentTempo) {
+		if (abs(clipIncrement) > MAX_STEP_SIZE && clip->hasTempoRatio) {
 			D_PRINTLN("TEMPO_DEBUG: considerLaunchEvent - Processing large increment %d in multiple steps",
 			          clipIncrement);
 
@@ -2469,7 +2469,7 @@ void Session::doTickForward(int32_t posIncrement) {
 			int32_t clipIncrement = calculateClipPosIncrement(clip, posIncrement);
 
 			// Debug: Show clip processing info
-			if (clip->hasIndependentTempo) {
+			if (clip->hasTempoRatio) {
 				// Simple debug - just display a dot to show independent tempo clips are being processed
 				display->setNextTransitionDirection(1);
 			}
@@ -2477,7 +2477,7 @@ void Session::doTickForward(int32_t posIncrement) {
 			// CRITICAL FIX: For large increments, process in multiple smaller steps to prevent note skipping
 			const int32_t MAX_STEP_SIZE = 32; // Process in chunks of max 32 ticks to catch all events
 
-			if (abs(clipIncrement) > MAX_STEP_SIZE && clip->hasIndependentTempo) {
+			if (abs(clipIncrement) > MAX_STEP_SIZE && clip->hasTempoRatio) {
 				D_PRINTLN("TEMPO_DEBUG: Processing large increment %d in multiple steps", clipIncrement);
 
 				int32_t remainingIncrement = clipIncrement;
@@ -2779,54 +2779,37 @@ bool Session::deletingClipWhichCouldBeAbandonedOverdub(Clip* clip) {
 	return shouldBeActiveWhileExistent;
 }
 
-// Per-clip tempo support: Calculate position increment for a clip based on its tempo override
+// Per-clip tempo support: Calculate position increment for a clip based on its tempo ratio
 int32_t Session::calculateClipPosIncrement(Clip* clip, int32_t globalIncrement) {
-	if (!clip->hasIndependentTempo) {
+	if (!clip->hasTempoRatio) {
 		return globalIncrement;
 	}
 
-	uint64_t globalTempo = currentSong->timePerTimerTickBig;
-	uint64_t clipTempo = clip->timePerTimerTickBigOverride;
-
-	D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - input globalIncrement=%d, globalTempo=%llu, clipTempo=%llu",
-	          globalIncrement, globalTempo, clipTempo);
-
-	// Avoid division by zero
-	if (clipTempo == 0) {
-		D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - clipTempo=0, returning globalIncrement");
+	// Safety check for division by zero
+	if (clip->tempoRatioDenominator == 0) {
+		D_PRINTLN("TEMPO_DEBUG: WARNING - tempoRatioDenominator is 0, returning globalIncrement");
 		return globalIncrement;
 	}
 
-	// CRITICAL FIX: Use floating-point arithmetic to preserve precision for all tempo ratios
-	// clipIncrement = globalIncrement * (globalTempo / clipTempo)
-	double ratio = (double)globalTempo / (double)clipTempo;
-	double result = (double)globalIncrement * ratio;
+	D_PRINTLN("TEMPO_DEBUG: Session::calculateClipPosIncrement - input globalIncrement=%d, ratio=%d:%d",
+	          globalIncrement, clip->tempoRatioNumerator, clip->tempoRatioDenominator);
 
-	D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - ratio=%.6f, rawResult=%.3f", ratio, result);
+	// Integer-based ratio calculation: clipIncrement = globalIncrement * numerator / denominator
+	int64_t result = ((int64_t)globalIncrement * clip->tempoRatioNumerator) / clip->tempoRatioDenominator;
 
-	// Clamp to reasonable bounds (prevent extreme values that could break playback)
+	// Clamp to reasonable bounds
 	if (result > INT32_MAX) {
-		D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - result overflow, clamped to INT32_MAX");
+		D_PRINTLN("TEMPO_DEBUG: Session::calculateClipPosIncrement - result overflow, clamped to INT32_MAX");
 		return INT32_MAX;
 	}
 	if (result < INT32_MIN) {
-		D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - result underflow, clamped to INT32_MIN");
+		D_PRINTLN("TEMPO_DEBUG: Session::calculateClipPosIncrement - result underflow, clamped to INT32_MIN");
 		return INT32_MIN;
 	}
 
-	// For very small increments, ensure we don't get stuck at zero
-	if (result > 0.0 && result < 1.0) {
-		D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - small positive result, rounding up to 1");
-		return 1;
-	}
-	if (result < 0.0 && result > -1.0) {
-		D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - small negative result, rounding down to -1");
-		return -1;
-	}
+	int32_t finalResult = (int32_t)result;
 
-	int32_t finalResult = (int32_t)round(result);
-
-	D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - converted %d -> %d", globalIncrement, finalResult);
+	D_PRINTLN("TEMPO_DEBUG: Session::calculateClipPosIncrement - converted %d -> %d", globalIncrement, finalResult);
 
 	return finalResult;
 }

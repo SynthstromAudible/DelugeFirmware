@@ -903,28 +903,23 @@ doNewProbability:
 	}
 
 	if (ticksTilNextNoteRowEvent < playbackHandler.swungTicksTilNextEvent) {
-		// CRITICAL FIX: Convert clip timing to global timing for clips with independent tempo
+		// CRITICAL FIX: Convert clip timing to global timing for clips with ratio-based tempo
 		int32_t globalTicksTilNextEvent = ticksTilNextNoteRowEvent;
 
-		// For clips with independent tempo, we need to convert clip ticks to global ticks
-		if (hasIndependentTempo) {
-			uint64_t globalTempo = currentSong->timePerTimerTickBig;
-			uint64_t clipTempo = timePerTimerTickBigOverride;
+		// For clips with ratio-based tempo, we need to convert clip ticks to global ticks
+		if (hasTempoRatio) {
+			// Convert clip ticks to global ticks: globalTicks = clipTicks * denominator / numerator
+			int64_t result = ((int64_t)ticksTilNextNoteRowEvent * tempoRatioDenominator) / tempoRatioNumerator;
 
-			if (clipTempo != 0) {
-				// Convert clip ticks to global ticks: globalTicks = clipTicks * (clipTempo / globalTempo)
-				uint64_t result = ((uint64_t)ticksTilNextNoteRowEvent * clipTempo) / globalTempo;
-
-				// Clamp to reasonable bounds
-				if (result > INT32_MAX) {
-					globalTicksTilNextEvent = INT32_MAX;
-				}
-				else if (result < 1) {
-					globalTicksTilNextEvent = 1; // Ensure we get scheduled soon
-				}
-				else {
-					globalTicksTilNextEvent = (int32_t)result;
-				}
+			// Clamp to reasonable bounds
+			if (result > INT32_MAX) {
+				globalTicksTilNextEvent = INT32_MAX;
+			}
+			else if (result < 1) {
+				globalTicksTilNextEvent = 1; // Ensure we get scheduled soon
+			}
+			else {
+				globalTicksTilNextEvent = (int32_t)result;
 			}
 		}
 

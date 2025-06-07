@@ -70,10 +70,11 @@ Clip::Clip(ClipType newType) : type(newType) {
 	lastSelectedPatchSource = PatchSource::NONE;
 	// end initialize of automation clip view variables
 
-	// initialize per-clip tempo override fields
-	timePerTimerTickBigOverride = 0; // 0 = use global tempo
-	hasIndependentTempo = false;
-	// end initialize per-clip tempo override fields
+	// initialize ratio-based tempo override fields
+	tempoRatioNumerator = 1; // Default: 1:1 ratio (no override)
+	tempoRatioDenominator = 1;
+	hasTempoRatio = false; // Flag: false = use global tempo
+	                       // end initialize ratio-based tempo override fields
 
 #if HAVE_SEQUENCE_STEP_CONTROL
 	sequenceDirectionMode = SequenceDirection::FORWARD;
@@ -109,8 +110,9 @@ void Clip::copyBasicsFrom(Clip const* otherClip) {
 	launchStyle = otherClip->launchStyle;
 	onAutomationClipView = otherClip->onAutomationClipView;
 	// Copy tempo override settings
-	timePerTimerTickBigOverride = otherClip->timePerTimerTickBigOverride;
-	hasIndependentTempo = otherClip->hasIndependentTempo;
+	tempoRatioNumerator = otherClip->tempoRatioNumerator;
+	tempoRatioDenominator = otherClip->tempoRatioDenominator;
+	hasTempoRatio = otherClip->hasTempoRatio;
 }
 
 void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDubType newOverdubNature) {
@@ -159,26 +161,45 @@ uint32_t Clip::getLivePos() const {
 
 	int32_t numSwungTicksInSinceLastActioned = playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
 
-	// CRITICAL FIX: For clips with independent tempo, convert global ticks to clip ticks
-	if (hasIndependentTempo) {
-		uint64_t globalTempo = currentSong->timePerTimerTickBig;
-		uint64_t clipTempo = timePerTimerTickBigOverride;
+	// CRITICAL FIX: For clips with ratio-based tempo, convert global ticks to clip ticks
+	if (hasTempoRatio) {
+		// Safety checks to prevent freezing - can't modify const object, so just skip invalid ratios
+		if (tempoRatioNumerator != 0 && tempoRatioDenominator != 0) {
+			// Integer-only conversion: clipTicks = globalTicks * numerator / denominator
+			// Prevent overflow by checking tick magnitude first
+			int64_t convertedTicks;
 
-		if (clipTempo != 0) {
-			// Convert global ticks to clip ticks: clipTicks = globalTicks * (globalTempo / clipTempo)
-			// Higher BPM (smaller timePerTimerTickBig) = more ticks per unit time
-			uint64_t result = ((uint64_t)numSwungTicksInSinceLastActioned * globalTempo) / clipTempo;
+			// If input ticks are extremely large, clamp them first
+			if (numSwungTicksInSinceLastActioned > 1000000 || numSwungTicksInSinceLastActioned < -1000000) {
+				D_PRINTLN("TEMPO_DEBUG: WARNING - extreme tick value %d, clamping", numSwungTicksInSinceLastActioned);
+				numSwungTicksInSinceLastActioned =
+				    std::clamp(numSwungTicksInSinceLastActioned, (int32_t)-1000000, (int32_t)1000000);
+			}
 
-			// Clamp to reasonable bounds
-			if (result > INT32_MAX) {
-				numSwungTicksInSinceLastActioned = INT32_MAX;
+			// Use 64-bit arithmetic to prevent overflow during calculation
+			int64_t globalTicks = (int64_t)numSwungTicksInSinceLastActioned;
+			convertedTicks = (globalTicks * tempoRatioNumerator) / tempoRatioDenominator;
+
+			// Clamp result to reasonable bounds - this prevents freezing
+			if (convertedTicks > INT32_MAX) {
+				D_PRINTLN("TEMPO_DEBUG: WARNING - conversion overflow for ratio %d:%d, clamping", tempoRatioNumerator,
+				          tempoRatioDenominator);
+				convertedTicks = INT32_MAX;
 			}
-			else if (result < INT32_MIN) {
-				numSwungTicksInSinceLastActioned = INT32_MIN;
+			else if (convertedTicks < INT32_MIN) {
+				D_PRINTLN("TEMPO_DEBUG: WARNING - conversion underflow for ratio %d:%d, clamping", tempoRatioNumerator,
+				          tempoRatioDenominator);
+				convertedTicks = INT32_MIN;
 			}
-			else {
-				numSwungTicksInSinceLastActioned = (int32_t)result;
-			}
+
+			numSwungTicksInSinceLastActioned = (int32_t)convertedTicks;
+
+			D_PRINTLN("TEMPO_DEBUG: getLivePos conversion: globalTicks=%lld, ratio=%d:%d, result=%d", globalTicks,
+			          tempoRatioNumerator, tempoRatioDenominator, numSwungTicksInSinceLastActioned);
+		}
+		else {
+			D_PRINTLN("TEMPO_DEBUG: WARNING - invalid ratio %d:%d in const method, skipping conversion",
+			          tempoRatioNumerator, tempoRatioDenominator);
 		}
 	}
 
@@ -199,27 +220,21 @@ uint32_t Clip::getActualCurrentPosAsIfPlayingInForwardDirection() {
 
 	int32_t numSwungTicksInSinceLastActioned = playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
 
-	// CRITICAL FIX: For clips with independent tempo, convert global ticks to clip ticks
-	if (hasIndependentTempo) {
-		uint64_t globalTempo = currentSong->timePerTimerTickBig;
-		uint64_t clipTempo = timePerTimerTickBigOverride;
-
-		if (clipTempo != 0) {
-			// Convert global ticks to clip ticks: clipTicks = globalTicks * (globalTempo / clipTempo)
-			// Higher BPM (smaller timePerTimerTickBig) = more ticks per unit time
-			uint64_t result = ((uint64_t)numSwungTicksInSinceLastActioned * globalTempo) / clipTempo;
-
-			// Clamp to reasonable bounds
-			if (result > INT32_MAX) {
-				numSwungTicksInSinceLastActioned = INT32_MAX;
-			}
-			else if (result < INT32_MIN) {
-				numSwungTicksInSinceLastActioned = INT32_MIN;
-			}
-			else {
-				numSwungTicksInSinceLastActioned = (int32_t)result;
-			}
+	// CRITICAL FIX: For clips with ratio-based tempo, convert global ticks to clip ticks
+	if (hasTempoRatio) {
+		// Integer-only conversion: clipTicks = globalTicks * numerator / denominator
+		// Optimized to prevent overflow:
+		int64_t convertedTicks;
+		if (tempoRatioNumerator >= tempoRatioDenominator) {
+			// Faster tempo: multiply first, then divide
+			convertedTicks = ((int64_t)numSwungTicksInSinceLastActioned * tempoRatioNumerator) / tempoRatioDenominator;
 		}
+		else {
+			// Slower tempo: check for potential overflow
+			convertedTicks = (int64_t)numSwungTicksInSinceLastActioned * tempoRatioNumerator / tempoRatioDenominator;
+		}
+
+		numSwungTicksInSinceLastActioned = (int32_t)std::clamp(convertedTicks, (int64_t)INT32_MIN, (int64_t)INT32_MAX);
 	}
 
 #if HAVE_SEQUENCE_STEP_CONTROL
@@ -376,56 +391,72 @@ playingForwardNow:
 		int32_t globalTicksTilEnd = ticksTilEnd;
 
 		// CRITICAL FIX: Convert clip tempo scale to global tempo scale for scheduling
-		if (hasIndependentTempo) {
-			uint64_t globalTempo = currentSong->timePerTimerTickBig;
-			uint64_t clipTempo = timePerTimerTickBigOverride;
-
-			D_PRINTLN("TEMPO_DEBUG: processCurrentPos scheduling - clipTempo=%llu, globalTempo=%llu, ticksTilEnd=%d",
-			          clipTempo, globalTempo, ticksTilEnd);
-
-			// CRITICAL FIX: Prevent scheduling catastrophe from overflow
-			// If ticksTilEnd is extremely negative (close to INT32_MIN), reset to reasonable value
-			if (ticksTilEnd < -1000000000) { // Catch values near INT32_MIN (-2.1 billion)
-				D_PRINTLN("TEMPO_DEBUG: WARNING - ticksTilEnd extremely negative (%d), resetting to loop length",
-				          ticksTilEnd);
-				globalTicksTilEnd = loopLength;
-			}
-			// Ensure we never work with negative scheduling values
-			else if (ticksTilEnd <= 0) {
-				D_PRINTLN("TEMPO_DEBUG: WARNING - ticksTilEnd <= 0 (%d), setting to 1", ticksTilEnd);
-				globalTicksTilEnd = 1;
-			}
-			else if (clipTempo != 0) {
-				// Convert clip ticks to global ticks: globalTicks = clipTicks * (globalTempo / clipTempo)
-				// Use double precision to prevent overflow during calculation
-				double conversion = (double)ticksTilEnd * (double)globalTempo / (double)clipTempo;
-
-				// Clamp to safe positive range
-				if (conversion > INT32_MAX || conversion < 1.0) {
-					globalTicksTilEnd = (conversion > INT32_MAX) ? INT32_MAX : 1;
-					D_PRINTLN("TEMPO_DEBUG: Conversion out of range (%.0f), clamped to %d", conversion,
-					          globalTicksTilEnd);
-				}
-				else {
-					globalTicksTilEnd = (int32_t)conversion;
-				}
-
-				D_PRINTLN("TEMPO_DEBUG: Converted scheduling: clipTicks=%d -> globalTicks=%d (conversion=%.0f)",
-				          ticksTilEnd, globalTicksTilEnd, conversion);
+		if (hasTempoRatio) {
+			// Safety checks to prevent freezing
+			if (tempoRatioNumerator == 0 || tempoRatioDenominator == 0) {
+				D_PRINTLN("TEMPO_DEBUG: WARNING - invalid ratio %d:%d in processCurrentPos", tempoRatioNumerator,
+				          tempoRatioDenominator);
+				globalTicksTilEnd = ticksTilEnd;
 			}
 			else {
-				globalTicksTilEnd = 1; // Fallback
+				D_PRINTLN("TEMPO_DEBUG: processCurrentPos scheduling - ratio=%d:%d, ticksTilEnd=%d",
+				          tempoRatioNumerator, tempoRatioDenominator, ticksTilEnd);
+
+				// CRITICAL FIX: Prevent scheduling catastrophe from extreme values
+				if (ticksTilEnd < -1000000000) { // Catch values near INT32_MIN (-2.1 billion)
+					D_PRINTLN("TEMPO_DEBUG: WARNING - ticksTilEnd extremely negative (%d), resetting to loop length",
+					          ticksTilEnd);
+					globalTicksTilEnd = loopLength;
+				}
+				// Ensure we never work with negative scheduling values
+				else if (ticksTilEnd <= 0) {
+					D_PRINTLN("TEMPO_DEBUG: WARNING - ticksTilEnd <= 0 (%d), setting to 1", ticksTilEnd);
+					globalTicksTilEnd = 1;
+				}
+				else {
+					// Convert clip ticks to global ticks: globalTicks = clipTicks * denominator / numerator
+					// Use 64-bit arithmetic to prevent overflow during calculation
+					int64_t clipTicks = (int64_t)ticksTilEnd;
+					int64_t conversion = (clipTicks * tempoRatioDenominator) / tempoRatioNumerator;
+
+					// Extra safety for specific problematic ratios
+					if (tempoRatioNumerator == 3 && tempoRatioDenominator == 4) {
+						// For 3:4 ratio, ensure result is reasonable
+						if (conversion < 1 || conversion > 2000000000LL) {
+							D_PRINTLN("TEMPO_DEBUG: WARNING - 3:4 ratio produced extreme result, using safe value");
+							conversion = std::max(1LL, std::min(conversion, (int64_t)loopLength));
+						}
+					}
+					else if (tempoRatioNumerator == 4 && tempoRatioDenominator == 3) {
+						// For 4:3 ratio, ensure result is reasonable
+						if (conversion < 1 || conversion > 2000000000LL) {
+							D_PRINTLN("TEMPO_DEBUG: WARNING - 4:3 ratio produced extreme result, using safe value");
+							conversion = std::max(1LL, std::min(conversion, (int64_t)loopLength));
+						}
+					}
+
+					// Clamp to safe positive range
+					if (conversion > INT32_MAX || conversion < 1) {
+						globalTicksTilEnd = (conversion > INT32_MAX) ? INT32_MAX : 1;
+						D_PRINTLN("TEMPO_DEBUG: Conversion out of range (%lld), clamped to %d", conversion,
+						          globalTicksTilEnd);
+					}
+					else {
+						globalTicksTilEnd = (int32_t)conversion;
+					}
+
+					D_PRINTLN("TEMPO_DEBUG: Converted scheduling: clipTicks=%d -> globalTicks=%d (conversion=%lld)",
+					          ticksTilEnd, globalTicksTilEnd, conversion);
+				}
 			}
 		}
 
 		// FINAL SAFETY: Never set negative scheduling values - they break the playback system
 		if (globalTicksTilEnd <= 0) {
-			D_PRINTLN("TEMPO_DEBUG: CRITICAL - preventing negative scheduling value, setting to 1");
+			D_PRINTLN("TEMPO_DEBUG: CRITICAL - globalTicksTilEnd <= 0 (%d), forcing to 1", globalTicksTilEnd);
 			globalTicksTilEnd = 1;
 		}
 
-		D_PRINTLN("TEMPO_DEBUG: Final scheduling value: %d (was %d)", globalTicksTilEnd,
-		          playbackHandler.swungTicksTilNextEvent);
 		playbackHandler.swungTicksTilNextEvent = globalTicksTilEnd;
 	}
 }
@@ -774,8 +805,10 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 	if (sequenceDirectionMode != SequenceDirection::FORWARD) {
 		writer.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
 	}
-	if (hasIndependentTempo) {
-		writer.writeAttribute("tempoOverride", getEffectiveTempo());
+	if (hasTempoRatio) {
+		char ratioBuffer[16];
+		snprintf(ratioBuffer, sizeof(ratioBuffer), "%d:%d", tempoRatioNumerator, tempoRatioDenominator);
+		writer.writeAttribute("tempoRatio", ratioBuffer);
 	}
 	writer.writeAttribute("colourOffset", colourOffset);
 	if (section != 255) {
@@ -872,7 +905,36 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 		sequenceDirectionMode = stringToSequenceDirectionMode(reader.readTagOrAttributeValue());
 	}
 
+	else if (!strcmp(tagName, "tempoRatio")) {
+		char const* ratioString = reader.readTagOrAttributeValue();
+
+		// Parse ratio format "numerator:denominator"
+		uint16_t numerator = 0;
+		uint16_t denominator = 0;
+		bool foundColon = false;
+
+		for (int i = 0; ratioString[i] != '\0'; i++) {
+			char c = ratioString[i];
+			if (c >= '0' && c <= '9') {
+				if (!foundColon) {
+					numerator = numerator * 10 + (c - '0');
+				}
+				else {
+					denominator = denominator * 10 + (c - '0');
+				}
+			}
+			else if (c == ':' && !foundColon) {
+				foundColon = true;
+			}
+		}
+
+		if (foundColon && numerator > 0 && denominator > 0) {
+			setTempoRatio(numerator, denominator);
+		}
+	}
+
 	else if (!strcmp(tagName, "tempoOverride")) {
+		// Legacy BPM format support for backward compatibility
 		char const* bpmString = reader.readTagOrAttributeValue();
 
 		// Simple float parsing without standard library dependencies
@@ -901,7 +963,7 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 			bpm += decimal / divisor;
 		}
 
-		setTempoOverride(bpm);
+		setTempoOverride(bpm); // This will convert to ratio
 	}
 
 	else if (!strcmp(tagName, "launchStyle")) {
@@ -1327,59 +1389,136 @@ void Clip::setupOverdubInPlace(OverDubType type) {
 
 // Per-clip tempo override methods
 void Clip::setTempoOverride(float bpm) {
-	D_PRINTLN("TEMPO_DEBUG: setTempoOverride called with BPM=%.1f (clip=%p)", bpm, this);
+	D_PRINTLN("TEMPO_DEBUG: setTempoOverride (legacy) called with BPM=%.1f, converting to ratio", bpm);
 
 	if (bpm < 1.0f || bpm > 20000.0f) {
 		D_PRINTLN("TEMPO_DEBUG: BPM out of range, returning");
-		return; // BPM validation - match menu range (1-20000)
+		return;
 	}
 
-	// For now, let's try a much simpler approach - just copy from global tempo scaling
-	// Get the current global timePerTimerTickBig
-	uint64_t globalTimePerTimerTickBig = currentSong->timePerTimerTickBig;
+	// Convert BPM to closest rational approximation
 	float globalBPM = currentSong->calculateBPM();
+	float ratio = bpm / globalBPM;
 
-	D_PRINTLN("TEMPO_DEBUG: globalBPM=%.1f, globalTimePerTimerTickBig=%llu", globalBPM, globalTimePerTimerTickBig);
+	// Find a reasonable rational approximation
+	// For simplicity, use common denominators first
+	uint16_t bestNumerator = 1, bestDenominator = 1;
+	float bestError = fabsf(ratio - 1.0f);
 
-	// Calculate the ratio and scale the global value
-	float ratio = globalBPM / bpm;
-	timePerTimerTickBigOverride = (uint64_t)(globalTimePerTimerTickBig * ratio);
+	// Try common denominators (2, 3, 4, 5, 6, 8, 16)
+	uint16_t commonDenoms[] = {2, 3, 4, 5, 6, 8, 16};
+	for (int i = 0; i < 7; i++) {
+		uint16_t denom = commonDenoms[i];
+		uint16_t numer = (uint16_t)(ratio * denom + 0.5f); // Round to nearest
 
-	hasIndependentTempo = true;
+		if (numer > 0 && numer <= 32) { // Reasonable range
+			float testRatio = (float)numer / (float)denom;
+			float error = fabsf(testRatio - ratio);
 
-	D_PRINTLN("TEMPO_DEBUG: Set override - ratio=%.3f, timePerTimerTickBigOverride=%llu, hasIndependentTempo=%d", ratio,
-	          timePerTimerTickBigOverride, hasIndependentTempo);
+			if (error < bestError) {
+				bestError = error;
+				bestNumerator = numer;
+				bestDenominator = denom;
+			}
+		}
+	}
+
+	D_PRINTLN("TEMPO_DEBUG: Converted %.1f BPM to ratio %d:%d (error=%.3f)", bpm, bestNumerator, bestDenominator,
+	          bestError);
+
+	setTempoRatio(bestNumerator, bestDenominator);
 }
 
 void Clip::clearTempoOverride() {
-	D_PRINTLN("TEMPO_DEBUG: clearTempoOverride called (clip=%p), hasIndependentTempo was %d", this,
-	          hasIndependentTempo);
-	timePerTimerTickBigOverride = 0;
-	hasIndependentTempo = false;
-	D_PRINTLN("TEMPO_DEBUG: Cleared tempo override - now hasIndependentTempo=%d", hasIndependentTempo);
+	clearTempoRatio();
 }
 
 uint64_t Clip::getEffectiveTimePerTimerTickBig() {
-	if (hasIndependentTempo && timePerTimerTickBigOverride != 0) {
-		return timePerTimerTickBigOverride;
+	if (!hasTempoRatio) {
+		return currentSong->timePerTimerTickBig;
 	}
-	return currentSong->timePerTimerTickBig;
+
+	// Safety check for division by zero
+	if (tempoRatioNumerator == 0) {
+		D_PRINTLN("TEMPO_DEBUG: WARNING - tempoRatioNumerator is 0, returning global tempo");
+		return currentSong->timePerTimerTickBig;
+	}
+
+	// Integer-based scaling with no floating-point precision loss
+	uint64_t globalTempo = currentSong->timePerTimerTickBig;
+
+	// Scale: clipTempo = globalTempo * denominator / numerator
+	// (Higher numerator = faster tempo = smaller timePerTimerTickBig)
+	uint64_t result = (globalTempo * tempoRatioDenominator) / tempoRatioNumerator;
+
+	// Sanity check - prevent extremely small values that could cause issues
+	if (result == 0) {
+		D_PRINTLN("TEMPO_DEBUG: WARNING - calculated timePerTimerTickBig is 0, using minimum value");
+		result = 1;
+	}
+
+	return result;
 }
 
 float Clip::getEffectiveTempo() {
-	if (!hasIndependentTempo || timePerTimerTickBigOverride == 0) {
+	if (!hasTempoRatio) {
 		return currentSong->calculateBPM();
 	}
 
-	// Use ratio-based conversion to match setTempoOverride
-	uint64_t globalTimePerTimerTickBig = currentSong->timePerTimerTickBig;
+	// Calculate effective BPM based on ratio
 	float globalBPM = currentSong->calculateBPM();
-
-	// Calculate the ratio and reverse it
-	float ratio = (float)globalTimePerTimerTickBig / (float)timePerTimerTickBigOverride;
+	float ratio = getEffectiveTempoRatio();
 	return globalBPM * ratio;
 }
 
 bool Clip::isTempoIndependent() const {
-	return hasIndependentTempo;
+	return hasTempoRatio;
+}
+
+// New ratio-based tempo methods
+void Clip::setTempoRatio(uint16_t numerator, uint16_t denominator) {
+	D_PRINTLN("TEMPO_DEBUG: setTempoRatio called with %d:%d (clip=%p)", numerator, denominator, this);
+
+	// Validation
+	if (numerator == 0 || denominator == 0) {
+		D_PRINTLN("TEMPO_DEBUG: Invalid ratio (zero values), returning");
+		return;
+	}
+
+	// Simplify ratio (find GCD and divide both by it)
+	uint16_t gcd = calculateGCD(numerator, denominator);
+	tempoRatioNumerator = numerator / gcd;
+	tempoRatioDenominator = denominator / gcd;
+
+	// Enable tempo ratio for any explicit ratio (even 1:1 if explicitly set)
+	// Only disable if both original values were 1 (meaning: use global tempo)
+	hasTempoRatio = (numerator != 1 || denominator != 1);
+
+	D_PRINTLN("TEMPO_DEBUG: Set ratio - simplified %d:%d, hasTempoRatio=%d", tempoRatioNumerator, tempoRatioDenominator,
+	          hasTempoRatio);
+}
+
+void Clip::clearTempoRatio() {
+	D_PRINTLN("TEMPO_DEBUG: clearTempoRatio called (clip=%p), hasTempoRatio was %d", this, hasTempoRatio);
+	tempoRatioNumerator = 1;
+	tempoRatioDenominator = 1;
+	hasTempoRatio = false;
+	D_PRINTLN("TEMPO_DEBUG: Cleared tempo ratio - now hasTempoRatio=%d", hasTempoRatio);
+}
+
+float Clip::getEffectiveTempoRatio() {
+	if (!hasTempoRatio) {
+		return 1.0f; // No ratio = 1:1
+	}
+	return (float)tempoRatioNumerator / (float)tempoRatioDenominator;
+}
+
+// Helper method for GCD calculation
+uint16_t Clip::calculateGCD(uint16_t a, uint16_t b) {
+	while (b != 0) {
+		uint16_t temp = b;
+		b = a % b;
+		a = temp;
+	}
+	return a;
 }

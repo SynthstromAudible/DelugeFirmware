@@ -41,7 +41,7 @@ extern deluge::gui::menu_item::stem_export::Start startStemExportMenu;
 
 extern deluge::gui::menu_item::firmware::Version firmwareVersionMenu;
 extern deluge::gui::menu_item::sequence::Direction sequenceDirectionMenu;
-extern deluge::gui::menu_item::sequence::Tempo sequenceTempoMenu;
+extern deluge::gui::menu_item::sequence::TempoRatio sequenceTempoMenu;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuMIDIOrCV;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuMidiDrum;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuGateDrum;
