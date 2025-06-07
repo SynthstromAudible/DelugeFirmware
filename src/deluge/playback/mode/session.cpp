@@ -39,6 +39,8 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
+#include <cmath>
+#include <cstdlib>
 #include <string.h>
 // #include <algorithm>
 #include "gui/ui/load/load_song_ui.h"
@@ -2263,7 +2265,30 @@ traverseClips:
 
 		// Calculate clip-specific position increment for per-clip tempo support
 		int32_t clipIncrement = calculateClipPosIncrement(clip, numTicksBeingIncremented);
-		clip->incrementPos(modelStackWithTimelineCounter, clipIncrement);
+
+		// CRITICAL FIX: For large increments, increment position in multiple smaller steps to prevent note skipping
+		const int32_t MAX_STEP_SIZE = 32; // Process in chunks of max 32 ticks to catch all events
+
+		if (abs(clipIncrement) > MAX_STEP_SIZE && clip->hasIndependentTempo) {
+			D_PRINTLN("TEMPO_DEBUG: considerLaunchEvent - Processing large increment %d in multiple steps",
+			          clipIncrement);
+
+			int32_t remainingIncrement = clipIncrement;
+			int32_t stepSize = (clipIncrement > 0) ? MAX_STEP_SIZE : -MAX_STEP_SIZE;
+
+			while (abs(remainingIncrement) > MAX_STEP_SIZE) {
+				clip->incrementPos(modelStackWithTimelineCounter, stepSize);
+				remainingIncrement -= stepSize;
+			}
+
+			// Process any remaining increment
+			if (remainingIncrement != 0) {
+				clip->incrementPos(modelStackWithTimelineCounter, remainingIncrement);
+			}
+		}
+		else {
+			clip->incrementPos(modelStackWithTimelineCounter, clipIncrement);
+		}
 	}
 	if (clipArray != &currentSong->arrangementOnlyClips) {
 		clipArray = &currentSong->arrangementOnlyClips;
@@ -2449,7 +2474,28 @@ void Session::doTickForward(int32_t posIncrement) {
 				display->setNextTransitionDirection(1);
 			}
 
-			clip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
+			// CRITICAL FIX: For large increments, process in multiple smaller steps to prevent note skipping
+			const int32_t MAX_STEP_SIZE = 32; // Process in chunks of max 32 ticks to catch all events
+
+			if (abs(clipIncrement) > MAX_STEP_SIZE && clip->hasIndependentTempo) {
+				D_PRINTLN("TEMPO_DEBUG: Processing large increment %d in multiple steps", clipIncrement);
+
+				int32_t remainingIncrement = clipIncrement;
+				int32_t stepSize = (clipIncrement > 0) ? MAX_STEP_SIZE : -MAX_STEP_SIZE;
+
+				while (abs(remainingIncrement) > MAX_STEP_SIZE) {
+					clip->processCurrentPos(modelStackWithTimelineCounter, stepSize);
+					remainingIncrement -= stepSize;
+				}
+
+				// Process any remaining increment
+				if (remainingIncrement != 0) {
+					clip->processCurrentPos(modelStackWithTimelineCounter, remainingIncrement);
+				}
+			}
+			else {
+				clip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
+			}
 
 			// NOTE: posIncrement is the number of ticks which we incremented by in considerLaunchEvent(). But for Clips
 			// which were only just launched in there, well the won't have been incremented, so it would be more correct
@@ -2751,22 +2797,34 @@ int32_t Session::calculateClipPosIncrement(Clip* clip, int32_t globalIncrement) 
 		return globalIncrement;
 	}
 
-	// Calculate relative tempo ratio and apply to increment
+	// CRITICAL FIX: Use floating-point arithmetic to preserve precision for all tempo ratios
 	// clipIncrement = globalIncrement * (globalTempo / clipTempo)
-	// Use signed 64-bit arithmetic to handle negative values correctly
-	int64_t signedResult = ((int64_t)globalIncrement * (int64_t)globalTempo) / (int64_t)clipTempo;
+	double ratio = (double)globalTempo / (double)clipTempo;
+	double result = (double)globalIncrement * ratio;
 
-	// Clamp to int32_t bounds
-	if (signedResult > INT32_MAX) {
+	D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - ratio=%.6f, rawResult=%.3f", ratio, result);
+
+	// Clamp to reasonable bounds (prevent extreme values that could break playback)
+	if (result > INT32_MAX) {
 		D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - result overflow, clamped to INT32_MAX");
 		return INT32_MAX;
 	}
-	if (signedResult < INT32_MIN) {
+	if (result < INT32_MIN) {
 		D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - result underflow, clamped to INT32_MIN");
 		return INT32_MIN;
 	}
 
-	int32_t finalResult = (int32_t)signedResult;
+	// For very small increments, ensure we don't get stuck at zero
+	if (result > 0.0 && result < 1.0) {
+		D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - small positive result, rounding up to 1");
+		return 1;
+	}
+	if (result < 0.0 && result > -1.0) {
+		D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - small negative result, rounding down to -1");
+		return -1;
+	}
+
+	int32_t finalResult = (int32_t)round(result);
 
 	D_PRINTLN("TEMPO_DEBUG: calculateClipPosIncrement - converted %d -> %d", globalIncrement, finalResult);
 
