@@ -103,6 +103,7 @@
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
 #include "gui/menu_item/midi/mpe_to_mono.h"
 #include "gui/menu_item/midi/pgm.h"
+#include "gui/menu_item/midi/program.h"
 #include "gui/menu_item/midi/sound/channel.h"
 #include "gui/menu_item/midi/sound/note_for_drum.h"
 #include "gui/menu_item/midi/sub.h"
@@ -1526,14 +1527,14 @@ menu_item::Submenu noteRowEditorRootMenu{
     },
 };
 
-HorizontalMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TITLE,
-                               {
-                                   &midiBankMenu,
-                                   &midiSubMenu,
-                                   &midiPGMMenu,
-                               },
-                               HorizontalMenu::Layout::FIXED,
-                               2};
+menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TITLE,
+                                                {
+                                                    &midiBankMenu,
+                                                    &midiSubMenu,
+                                                    &midiPGMMenu,
+                                                },
+                                                HorizontalMenu::Layout::FIXED,
+                                                2};
 
 // Root menu for MIDI / CV
 menu_item::Submenu soundEditorRootMenuMIDIOrCV{
@@ -1708,7 +1709,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForSounds[][kDisplayHeight] = {
     {&lfo1RateMenu,           &lfo1SyncMenu,           &lfo1TypeMenu,                  &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &modFXDepthMenu,          &modFXRateMenu                     },
     {&lfo2RateMenu,           &lfo2SyncMenu,           &lfo2TypeMenu,                  &reverbAmountMenu,              &reverbPanMenu,       &reverbWidthMenu,       &reverbDampingMenu,       &reverbRoomSizeMenu                },
     {&delayRateMenu,          &delaySyncMenu,          &delayAnalogMenu,               &delayFeedbackMenu,             &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
-    {nullptr,          	      &arpSpreadVelocityMenu,  nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
+    {nullptr,          	      &arpSpreadVelocityMenu,  nullptr,                        &arpNoteProbabilityMenu,        nullptr,              nullptr,                nullptr,                  nullptr                            },
 };
 
 PLACE_SDRAM_DATA Submenu* parentsForSoundShortcuts[][kDisplayHeight] = {
@@ -1727,7 +1728,7 @@ PLACE_SDRAM_DATA Submenu* parentsForSoundShortcuts[][kDisplayHeight] = {
     {&lfo1Menu,               &lfo1Menu,               &lfo1Menu,                      &modFXMenu,                     &modFXMenu,           &modFXMenu,             &modFXMenu,               &modFXMenu,                        },
     {&lfo2Menu,               &lfo2Menu,               &lfo2Menu,                      &reverbMenu,              	   &reverbMenu,    	 	 &reverbMenu,      		 &reverbMenu,        	   &reverbMenu,                 	  },
     {&delayMenu,              &delayMenu,              &delayMenu,                     &delayMenu,                     &delayMenu,           nullptr,                nullptr,                  nullptr,                           },
-    {nullptr,                 &globalRandomizerMenu,   nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 &globalRandomizerMenu,   nullptr,                        &globalRandomizerMenu,          nullptr,              nullptr,                nullptr,                  nullptr,                           },
 };
 
 PLACE_SDRAM_DATA MenuItem* paramShortcutsForSoundsSecondLayer[][kDisplayHeight] = {
@@ -1858,7 +1859,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        &modFXTypeMenu,                 &modFXOffsetMenu,            &modFXFeedbackMenu,     &globalModFXDepthMenu,    &globalModFXRateMenu               },
     {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,              &reverbWidthMenu,       &reverbDampingMenu,       &reverbRoomSizeMenu                },
     {&globalDelayRateMenu,    &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,          nullptr,                nullptr,                  nullptr                            },
-    {nullptr,          	      &arpSpreadVelocityMenu,  nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr                            },
+    {nullptr,          	      &arpSpreadVelocityMenu,  nullptr,                        &arpNoteProbabilityMenu,        nullptr,                     nullptr,                nullptr,                  nullptr                            },
 };
 PLACE_SDRAM_DATA Submenu* parentsForKitGlobalFXShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
@@ -1876,7 +1877,7 @@ PLACE_SDRAM_DATA Submenu* parentsForKitGlobalFXShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        &globalModFXMenu,               &globalModFXMenu,            &globalModFXMenu,       &globalModFXMenu,         &globalModFXMenu,                  },
     {nullptr,                 nullptr,                 nullptr,                        &globalReverbMenu,              &globalReverbMenu,           &globalReverbMenu,      &globalReverbMenu,        &globalReverbMenu,                 },
     {&globalDelayMenu,        &globalDelayMenu,        &globalDelayMenu,               &globalDelayMenu,               &globalDelayMenu,            nullptr,                nullptr,                  nullptr,                           },
-    {nullptr,                 &globalRandomizerMenu,   nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 &globalRandomizerMenu,   nullptr,                        &globalRandomizerMenu,          nullptr,                     nullptr,                nullptr,                  nullptr,                           },
 };
 PLACE_SDRAM_DATA Submenu* parentsForMidiOrCVParamShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
@@ -1894,7 +1895,7 @@ PLACE_SDRAM_DATA Submenu* parentsForMidiOrCVParamShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
-    {nullptr,                 &globalRandomizerMenu,   nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 &globalRandomizerMenu,   nullptr,                        &globalRandomizerMenu,          nullptr,                     nullptr,                nullptr,                  nullptr,                           },
 };
 
 //clang-format on
