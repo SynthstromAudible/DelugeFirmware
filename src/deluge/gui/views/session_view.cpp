@@ -4650,6 +4650,27 @@ int32_t SessionView::gridSectionFromY(uint32_t y) {
 	return result;
 }
 
+Clip* SessionView::getClipFromSection(Output* track, uint8_t section) {
+	uint8_t maxSection = 0;
+	Clip* lastClipFromTrack = nullptr;
+
+	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
+		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+		if (clip->output == track) {
+			if (section == kMaxNumSections) {
+				if (clip->section >= maxSection) {
+					lastClipFromTrack = clip;
+					maxSection = lastClipFromTrack->section;
+				}
+			}
+			else if (clip->section == section) {
+				return clip;
+			}
+		}
+	}
+	return lastClipFromTrack;
+}
+
 int32_t SessionView::gridXFromTrack(uint32_t trackIndex) {
 	int32_t result = trackIndex - currentSong->songGridScrollX;
 	if (result >= kDisplayWidth) {

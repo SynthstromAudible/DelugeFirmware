@@ -293,11 +293,17 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 			ClipMinder::transitionToArrangerOrSession();
 		}
 	}
-
 	// Clip view button
-	else if (b == CLIP_VIEW) {
+	else if (b == CLIP_VIEW && !on) {
+		if (toggleNavigateBetweenClipsOnButtonRelease == true) {
+			if (currentUIMode == UI_MODE_HORIZONTAL_SCROLL || currentUIMode == UI_MODE_VERTICAL_SCROLL) {
+				currentUIMode = UI_MODE_NONE;
+			}
+			toggleNavigateBetweenClipsOnButtonRelease = false;
+			return ActionResult::DEALT_WITH;
+		}
 		D_PRINTLN("InstrumentClipView::buttonAction(CLIP_VIEW) %d", (int)b);
-		if (on && currentUIMode == UI_MODE_NONE) {
+		if (currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -6081,6 +6087,26 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 
 	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
 
+	if (Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW)) {
+		currentUIMode = UI_MODE_VERTICAL_SCROLL;
+
+		auto currentClipXY = sessionView.gridXYFromClip(*getCurrentClip());
+		auto lastClip = sessionView.getClipFromSection(getCurrentClip()->output);
+
+		Clip* clip = nullptr;
+		if (getCurrentClip()->section == 0 && offset < 0) {
+			clip = sessionView.getClipFromSection(getCurrentClip()->output);
+		}
+		else if (getCurrentClip()->section == lastClip->section && offset > 0) {
+			clip = sessionView.getClipFromSection(getCurrentClip()->output, 0);
+		}
+		else {
+			clip = sessionView.gridClipFromCoords(currentClipXY.x, currentClipXY.y + -offset);
+		}
+		sessionView.transitionToViewForClip(clip);
+		return ActionResult::DEALT_WITH;
+	}
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
@@ -6197,6 +6223,22 @@ static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDI
 ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
+	}
+
+	if (Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW)) {
+		toggleNavigateBetweenClipsOnButtonRelease = true;
+		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
+		auto currentClipXY = sessionView.gridXYFromClip(*getCurrentClip());
+		auto x = currentClipXY.x + offset == sessionView.gridTrackCount() ? 0
+		         : (currentClipXY.x + offset < 0)                         ? sessionView.gridTrackCount() - 1
+		                                                                  : currentClipXY.x + offset;
+		Clip* clip = nullptr;
+		clip = sessionView.gridClipFromCoords(x, currentClipXY.y);
+		if (clip == nullptr) {
+			clip = sessionView.getClipFromSection(sessionView.gridTrackFromX(x, sessionView.gridTrackCount()));
+		}
+		sessionView.transitionToViewForClip(clip);
+		return ActionResult::DEALT_WITH;
 	}
 
 	// If holding down notes

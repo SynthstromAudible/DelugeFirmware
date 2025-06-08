@@ -160,6 +160,13 @@ public:
 	// pulse selected clip in grid view
 	void gridPulseSelectedClip();
 
+	Clip* gridClipFromCoords(uint32_t x, uint32_t y);
+	[[nodiscard]] const size_t gridTrackCount() const;
+	Cartesian gridXYFromClip(Clip& clip);
+	uint32_t gridClipCountForTrack(Output* track);
+	Clip* getClipFromSection(Output* track, uint8_t section = kMaxNumSections);
+	Output* gridTrackFromX(uint32_t x, uint32_t maxTrack);
+
 private:
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
 	// no dispatch logic.
@@ -255,18 +262,13 @@ private:
 	void gridStartSection(uint32_t section, bool instant);
 	void gridToggleClipPlay(Clip* clip, bool instant);
 
-	[[nodiscard]] const size_t gridTrackCount() const;
-	uint32_t gridClipCountForTrack(Output* track);
 	uint32_t gridTrackIndexFromTrack(Output* track, uint32_t maxTrack);
 	Output* gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack);
 	int32_t gridYFromSection(uint32_t section);
 	int32_t gridSectionFromY(uint32_t y);
 	int32_t gridXFromTrack(uint32_t trackIndex);
 	int32_t gridTrackIndexFromX(uint32_t x, uint32_t maxTrack);
-	Output* gridTrackFromX(uint32_t x, uint32_t maxTrack);
-	Clip* gridClipFromCoords(uint32_t x, uint32_t y);
 	int32_t gridClipIndexFromCoords(uint32_t x, uint32_t y);
-	Cartesian gridXYFromClip(Clip& clip);
 
 	void gridSetDefaultMode() {
 		switch (FlashStorage::defaultGridActiveMode) {
