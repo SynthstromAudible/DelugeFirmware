@@ -82,12 +82,21 @@ public:
 
 		if (clip) {
 			bool wasActive = currentSong->isClipActive(clip);
+
 			clip->setTempoRatio(1, 2);
 			display->displayPopup("Half speed");
 
 			// Ensure clip remains active if it was active before tempo change
 			if (wasActive && playbackHandler.isEitherClockActive()) {
 				currentSong->assertActiveness(modelStack);
+
+				// CRITICAL FIX: Force complete playback restart on ANY ratio change
+				// to ensure proper timing state initialization and prevent accumulated drift
+				// Stop current playback state cleanly
+				clip->expectNoFurtherTicks(currentSong, false);
+				// Force a fresh restart with proper ratio-based timing
+				clip->setPos(modelStack, clip->lastProcessedPos, true);
+
 				clip->resumePlayback(modelStack, false);
 			}
 		}
@@ -116,12 +125,21 @@ public:
 
 		if (clip) {
 			bool wasActive = currentSong->isClipActive(clip);
+
 			clip->setTempoRatio(2, 1);
 			display->displayPopup("Double speed");
 
 			// Ensure clip remains active if it was active before tempo change
 			if (wasActive && playbackHandler.isEitherClockActive()) {
 				currentSong->assertActiveness(modelStack);
+
+				// CRITICAL FIX: Force complete playback restart on ANY ratio change
+				// to ensure proper timing state initialization and prevent accumulated drift
+				// Stop current playback state cleanly
+				clip->expectNoFurtherTicks(currentSong, false);
+				// Force a fresh restart with proper ratio-based timing
+				clip->setPos(modelStack, clip->lastProcessedPos, true);
+
 				clip->resumePlayback(modelStack, false);
 			}
 		}
@@ -150,12 +168,21 @@ public:
 
 		if (clip) {
 			bool wasActive = currentSong->isClipActive(clip);
+
 			clip->setTempoRatio(3, 4);
 			display->displayPopup("3/4 speed");
 
 			// Ensure clip remains active if it was active before tempo change
 			if (wasActive && playbackHandler.isEitherClockActive()) {
 				currentSong->assertActiveness(modelStack);
+
+				// CRITICAL FIX: Force complete playback restart on ANY ratio change
+				// to ensure proper timing state initialization and prevent accumulated drift
+				// Stop current playback state cleanly
+				clip->expectNoFurtherTicks(currentSong, false);
+				// Force a fresh restart with proper ratio-based timing
+				clip->setPos(modelStack, clip->lastProcessedPos, true);
+
 				clip->resumePlayback(modelStack, false);
 			}
 		}
@@ -184,12 +211,21 @@ public:
 
 		if (clip) {
 			bool wasActive = currentSong->isClipActive(clip);
+
 			clip->setTempoRatio(4, 3);
 			display->displayPopup("4/3 speed");
 
 			// Ensure clip remains active if it was active before tempo change
 			if (wasActive && playbackHandler.isEitherClockActive()) {
 				currentSong->assertActiveness(modelStack);
+
+				// CRITICAL FIX: Force complete playback restart on ANY ratio change
+				// to ensure proper timing state initialization and prevent accumulated drift
+				// Stop current playback state cleanly
+				clip->expectNoFurtherTicks(currentSong, false);
+				// Force a fresh restart with proper ratio-based timing
+				clip->setPos(modelStack, clip->lastProcessedPos, true);
+
 				clip->resumePlayback(modelStack, false);
 			}
 		}
@@ -236,11 +272,20 @@ public:
 			uint16_t denominator = clip->hasTempoRatio ? clip->tempoRatioDenominator : 1;
 
 			bool wasActive = currentSong->isClipActive(clip);
+
 			clip->setTempoRatio(numerator, denominator);
 
 			// Ensure clip remains active if it was active before tempo change
 			if (wasActive && playbackHandler.isEitherClockActive()) {
 				currentSong->assertActiveness(modelStack);
+
+				// CRITICAL FIX: Force complete playback restart on ANY ratio change
+				// to ensure proper timing state initialization and prevent accumulated drift
+				// Stop current playback state cleanly
+				clip->expectNoFurtherTicks(currentSong, false);
+				// Force a fresh restart with proper ratio-based timing
+				clip->setPos(modelStack, clip->lastProcessedPos, true);
+
 				clip->resumePlayback(modelStack, false);
 			}
 		}
@@ -285,11 +330,20 @@ public:
 			uint16_t denominator = this->getValue();
 
 			bool wasActive = currentSong->isClipActive(clip);
+
 			clip->setTempoRatio(numerator, denominator);
 
 			// Ensure clip remains active if it was active before tempo change
 			if (wasActive && playbackHandler.isEitherClockActive()) {
 				currentSong->assertActiveness(modelStack);
+
+				// CRITICAL FIX: Force complete playback restart on ANY ratio change
+				// to ensure proper timing state initialization and prevent accumulated drift
+				// Stop current playback state cleanly
+				clip->expectNoFurtherTicks(currentSong, false);
+				// Force a fresh restart with proper ratio-based timing
+				clip->setPos(modelStack, clip->lastProcessedPos, true);
+
 				clip->resumePlayback(modelStack, false);
 			}
 		}

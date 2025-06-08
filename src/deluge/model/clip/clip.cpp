@@ -165,41 +165,27 @@ uint32_t Clip::getLivePos() const {
 	if (hasTempoRatio) {
 		// Safety checks to prevent freezing - can't modify const object, so just skip invalid ratios
 		if (tempoRatioNumerator != 0 && tempoRatioDenominator != 0) {
-			// Integer-only conversion: clipTicks = globalTicks * numerator / denominator
-			// Prevent overflow by checking tick magnitude first
-			int64_t convertedTicks;
+			// Use 64-bit arithmetic for precise conversion: clipTicks = globalTicks * numerator / denominator
+			int64_t globalTicks = (int64_t)numSwungTicksInSinceLastActioned;
+			int64_t convertedTicks = (globalTicks * tempoRatioNumerator) / tempoRatioDenominator;
 
-			// If input ticks are extremely large, clamp them first
-			if (numSwungTicksInSinceLastActioned > 1000000 || numSwungTicksInSinceLastActioned < -1000000) {
-				D_PRINTLN("TEMPO_DEBUG: WARNING - extreme tick value %d, clamping", numSwungTicksInSinceLastActioned);
-				numSwungTicksInSinceLastActioned =
-				    std::clamp(numSwungTicksInSinceLastActioned, (int32_t)-1000000, (int32_t)1000000);
+			// For slower ratios (numerator < denominator), ensure we don't lose precision
+			// by accumulating fractional ticks that would be lost to integer division
+			if (tempoRatioNumerator < tempoRatioDenominator && globalTicks != 0 && convertedTicks == 0) {
+				// When integer division would result in 0, give at least 1 tick to maintain progress
+				// but only for positive input ticks
+				convertedTicks = (globalTicks > 0) ? 1 : ((globalTicks < 0) ? -1 : 0);
 			}
 
-			// Use 64-bit arithmetic to prevent overflow during calculation
-			int64_t globalTicks = (int64_t)numSwungTicksInSinceLastActioned;
-			convertedTicks = (globalTicks * tempoRatioNumerator) / tempoRatioDenominator;
-
-			// Clamp result to reasonable bounds - this prevents freezing
+			// Clamp result to reasonable bounds
 			if (convertedTicks > INT32_MAX) {
-				D_PRINTLN("TEMPO_DEBUG: WARNING - conversion overflow for ratio %d:%d, clamping", tempoRatioNumerator,
-				          tempoRatioDenominator);
 				convertedTicks = INT32_MAX;
 			}
 			else if (convertedTicks < INT32_MIN) {
-				D_PRINTLN("TEMPO_DEBUG: WARNING - conversion underflow for ratio %d:%d, clamping", tempoRatioNumerator,
-				          tempoRatioDenominator);
 				convertedTicks = INT32_MIN;
 			}
 
 			numSwungTicksInSinceLastActioned = (int32_t)convertedTicks;
-
-			D_PRINTLN("TEMPO_DEBUG: getLivePos conversion: globalTicks=%lld, ratio=%d:%d, result=%d", globalTicks,
-			          tempoRatioNumerator, tempoRatioDenominator, numSwungTicksInSinceLastActioned);
-		}
-		else {
-			D_PRINTLN("TEMPO_DEBUG: WARNING - invalid ratio %d:%d in const method, skipping conversion",
-			          tempoRatioNumerator, tempoRatioDenominator);
 		}
 	}
 
@@ -222,16 +208,16 @@ uint32_t Clip::getActualCurrentPosAsIfPlayingInForwardDirection() {
 
 	// CRITICAL FIX: For clips with ratio-based tempo, convert global ticks to clip ticks
 	if (hasTempoRatio) {
-		// Integer-only conversion: clipTicks = globalTicks * numerator / denominator
-		// Optimized to prevent overflow:
-		int64_t convertedTicks;
-		if (tempoRatioNumerator >= tempoRatioDenominator) {
-			// Faster tempo: multiply first, then divide
-			convertedTicks = ((int64_t)numSwungTicksInSinceLastActioned * tempoRatioNumerator) / tempoRatioDenominator;
-		}
-		else {
-			// Slower tempo: check for potential overflow
-			convertedTicks = (int64_t)numSwungTicksInSinceLastActioned * tempoRatioNumerator / tempoRatioDenominator;
+		// Use 64-bit arithmetic for precise conversion: clipTicks = globalTicks * numerator / denominator
+		int64_t globalTicks = (int64_t)numSwungTicksInSinceLastActioned;
+		int64_t convertedTicks = (globalTicks * tempoRatioNumerator) / tempoRatioDenominator;
+
+		// For slower ratios (numerator < denominator), ensure we don't lose precision
+		// by accumulating fractional ticks that would be lost to integer division
+		if (tempoRatioNumerator < tempoRatioDenominator && globalTicks != 0 && convertedTicks == 0) {
+			// When integer division would result in 0, give at least 1 tick to maintain progress
+			// but only for positive input ticks
+			convertedTicks = (globalTicks > 0) ? 1 : ((globalTicks < 0) ? -1 : 0);
 		}
 
 		numSwungTicksInSinceLastActioned = (int32_t)std::clamp(convertedTicks, (int64_t)INT32_MIN, (int64_t)INT32_MAX);
@@ -390,70 +376,36 @@ playingForwardNow:
 	if (ticksTilEnd < playbackHandler.swungTicksTilNextEvent) {
 		int32_t globalTicksTilEnd = ticksTilEnd;
 
-		// CRITICAL FIX: Convert clip tempo scale to global tempo scale for scheduling
+		// Convert clip tempo scale to global tempo scale for scheduling
 		if (hasTempoRatio) {
 			// Safety checks to prevent freezing
 			if (tempoRatioNumerator == 0 || tempoRatioDenominator == 0) {
-				D_PRINTLN("TEMPO_DEBUG: WARNING - invalid ratio %d:%d in processCurrentPos", tempoRatioNumerator,
-				          tempoRatioDenominator);
 				globalTicksTilEnd = ticksTilEnd;
 			}
+			else if (ticksTilEnd <= 0) {
+				// Ensure we never work with negative or zero scheduling values
+				globalTicksTilEnd = 1;
+			}
 			else {
-				D_PRINTLN("TEMPO_DEBUG: processCurrentPos scheduling - ratio=%d:%d, ticksTilEnd=%d",
-				          tempoRatioNumerator, tempoRatioDenominator, ticksTilEnd);
+				// Convert clip ticks to global ticks: globalTicks = clipTicks * denominator / numerator
+				int64_t clipTicks = (int64_t)ticksTilEnd;
+				int64_t conversion = (clipTicks * tempoRatioDenominator) / tempoRatioNumerator;
 
-				// CRITICAL FIX: Prevent scheduling catastrophe from extreme values
-				if (ticksTilEnd < -1000000000) { // Catch values near INT32_MIN (-2.1 billion)
-					D_PRINTLN("TEMPO_DEBUG: WARNING - ticksTilEnd extremely negative (%d), resetting to loop length",
-					          ticksTilEnd);
-					globalTicksTilEnd = loopLength;
+				// Clamp to safe positive range
+				if (conversion > INT32_MAX) {
+					globalTicksTilEnd = INT32_MAX;
 				}
-				// Ensure we never work with negative scheduling values
-				else if (ticksTilEnd <= 0) {
-					D_PRINTLN("TEMPO_DEBUG: WARNING - ticksTilEnd <= 0 (%d), setting to 1", ticksTilEnd);
+				else if (conversion < 1) {
 					globalTicksTilEnd = 1;
 				}
 				else {
-					// Convert clip ticks to global ticks: globalTicks = clipTicks * denominator / numerator
-					// Use 64-bit arithmetic to prevent overflow during calculation
-					int64_t clipTicks = (int64_t)ticksTilEnd;
-					int64_t conversion = (clipTicks * tempoRatioDenominator) / tempoRatioNumerator;
-
-					// Extra safety for specific problematic ratios
-					if (tempoRatioNumerator == 3 && tempoRatioDenominator == 4) {
-						// For 3:4 ratio, ensure result is reasonable
-						if (conversion < 1 || conversion > 2000000000LL) {
-							D_PRINTLN("TEMPO_DEBUG: WARNING - 3:4 ratio produced extreme result, using safe value");
-							conversion = std::max(1LL, std::min(conversion, (int64_t)loopLength));
-						}
-					}
-					else if (tempoRatioNumerator == 4 && tempoRatioDenominator == 3) {
-						// For 4:3 ratio, ensure result is reasonable
-						if (conversion < 1 || conversion > 2000000000LL) {
-							D_PRINTLN("TEMPO_DEBUG: WARNING - 4:3 ratio produced extreme result, using safe value");
-							conversion = std::max(1LL, std::min(conversion, (int64_t)loopLength));
-						}
-					}
-
-					// Clamp to safe positive range
-					if (conversion > INT32_MAX || conversion < 1) {
-						globalTicksTilEnd = (conversion > INT32_MAX) ? INT32_MAX : 1;
-						D_PRINTLN("TEMPO_DEBUG: Conversion out of range (%lld), clamped to %d", conversion,
-						          globalTicksTilEnd);
-					}
-					else {
-						globalTicksTilEnd = (int32_t)conversion;
-					}
-
-					D_PRINTLN("TEMPO_DEBUG: Converted scheduling: clipTicks=%d -> globalTicks=%d (conversion=%lld)",
-					          ticksTilEnd, globalTicksTilEnd, conversion);
+					globalTicksTilEnd = (int32_t)conversion;
 				}
 			}
 		}
 
-		// FINAL SAFETY: Never set negative scheduling values - they break the playback system
+		// Final safety: Never set negative scheduling values - they break the playback system
 		if (globalTicksTilEnd <= 0) {
-			D_PRINTLN("TEMPO_DEBUG: CRITICAL - globalTicksTilEnd <= 0 (%d), forcing to 1", globalTicksTilEnd);
 			globalTicksTilEnd = 1;
 		}
 
