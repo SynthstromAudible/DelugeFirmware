@@ -124,26 +124,23 @@ int32_t popupMaxX;
 int32_t popupMinY;
 int32_t popupMaxY;
 
-void OLED::setupPopup(int32_t width, int32_t height, int32_t x, int32_t y) {
+void OLED::setupPopup(PopupType type, int32_t width, int32_t height, std::optional<int32_t> startX,
+                      std::optional<int32_t> startY) {
 	height = std::clamp<int32_t>(height, 0, OLED_MAIN_HEIGHT_PIXELS);
 	oledPopupWidth = width;
 	popupHeight = height;
+	popupType = type;
 
-	if (x == -1) {
-		popupMinX = (OLED_MAIN_WIDTH_PIXELS - width) / 2;
-	}
-	else {
-		popupMinX = std::clamp<int32_t>(x, 0, OLED_MAIN_WIDTH_PIXELS - width);
-	}
+	popupMinX = startX.has_value() ? startX.value() : (OLED_MAIN_WIDTH_PIXELS - width) / 2;
 	popupMaxX = popupMinX + width;
-
-	if (y == -1) {
-		popupMinY = (OLED_MAIN_HEIGHT_PIXELS - height) / 2;
-	}
-	else {
-		popupMinY = std::clamp<int32_t>(y, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS - height);
-	}
+	popupMinY = startY.has_value() ? startY.value() : (OLED_MAIN_HEIGHT_PIXELS - height) / 2;
 	popupMaxY = popupMinY + height;
+
+	popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
+
+	if (type != PopupType::HORIZONTAL_MENU) {
+		popup.drawRectangle(popupMinX, popupMinY, popupMaxX, popupMaxY);
+	}
 }
 
 int32_t consoleMaxX;
@@ -524,43 +521,17 @@ void OLED::popupText(std::string_view text, bool persistent, PopupType type) {
 	auto total_width = static_cast<int32_t>(breakdown.maxPixelWidth());
 	auto total_height = static_cast<int32_t>(breakdown.lines.size() * kTextSpacingY);
 
-	if (type == PopupType::TOP_LEFT) {
-		// Set up the popup dimensions for the top-left corner
-		setupPopup(OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingY, 1, OLED_MAIN_TOPMOST_PIXEL);
-		popupType = type;
-		popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
+	setupPopup(type, total_width + double_margin, total_height + double_margin);
 
-		// Draw the text in black
-		int32_t text_pixel_y = OLED_MAIN_TOPMOST_PIXEL + 1;
-		int32_t string_width;
-		for (TextLine& line : breakdown.lines) {
-			int32_t text_pixel_x = 4;
-			popup.drawString(line.text, text_pixel_x, text_pixel_y, kTextSpacingX, kTextSpacingY);
-			text_pixel_y += kTextSpacingY;
-			string_width = popup.getStringWidthInPixels(line.text.data(), kTextSpacingY);
+	int32_t text_pixel_y = std::max<int32_t>((OLED_MAIN_HEIGHT_PIXELS - total_height) / 2, 0);
+
+	for (TextLine& line : breakdown.lines) {
+		if (text_pixel_y >= OLED_MAIN_HEIGHT_PIXELS) {
+			continue;
 		}
-
-		// popup.invertArea(1, string_width + 4, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_TOPMOST_PIXEL + kTextSpacingY);
-	}
-	else {
-		// Default behavior for other popup types
-		setupPopup(total_width + double_margin, total_height + double_margin);
-		popupType = type;
-
-		// Clear the popup's area, not including the rectangle we're about to draw
-		popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
-		popup.drawRectangle(popupMinX, popupMinY, popupMaxX, popupMaxY);
-
-		int32_t text_pixel_y = std::max<int32_t>((OLED_MAIN_HEIGHT_PIXELS - total_height) / 2, 0);
-
-		for (TextLine& line : breakdown.lines) {
-			if (text_pixel_y >= OLED_MAIN_HEIGHT_PIXELS) {
-				continue;
-			}
-			int32_t text_pixel_x = (OLED_MAIN_WIDTH_PIXELS - static_cast<int32_t>(line.pixel_width)) / 2;
-			popup.drawString(line.text, text_pixel_x, text_pixel_y, kTextSpacingX, kTextSpacingY);
-			text_pixel_y += kTextSpacingY;
-		}
+		int32_t text_pixel_x = (OLED_MAIN_WIDTH_PIXELS - static_cast<int32_t>(line.pixel_width)) / 2;
+		popup.drawString(line.text, text_pixel_x, text_pixel_y, kTextSpacingX, kTextSpacingY);
+		text_pixel_y += kTextSpacingY;
 	}
 
 	markChanged();
@@ -656,6 +627,39 @@ void OLED::removeWorkingAnimation() {
 		uiTimerManager.unsetTimer(TimerName::LOADING_ANIMATION);
 		working_animation_count = 0;
 	}
+}
+
+void OLED::displayHorizontalMenuPopup(std::string_view paramTitle, std::optional<std::string_view> paramValue) {
+	DEF_STACK_STRING_BUF(titleBuf, 25);
+	titleBuf.append(paramTitle);
+
+	// Calculate the width of the strings
+	int32_t titleWidth = popup.getStringWidthInPixels(paramTitle.data(), kTextSpacingY);
+	const int32_t valueWidth =
+	    paramValue.has_value() ? popup.getStringWidthInPixels(paramValue.value().data(), kTextSpacingY) : 0;
+
+	constexpr int32_t paddingLeft = 4;
+
+	if (valueWidth > 0) {
+		// Truncate the title string until we have space to display the value
+		while (titleWidth + paddingLeft + valueWidth > OLED_MAIN_WIDTH_PIXELS - 7) {
+			titleBuf.truncate(titleBuf.size() - 1);
+			titleWidth = popup.getStringWidthInPixels(titleBuf.data(), kTextSpacingY);
+		}
+	}
+
+	setupPopup(PopupType::HORIZONTAL_MENU, OLED_MAIN_WIDTH_PIXELS - 1, kTextSpacingY + 2, 0, OLED_MAIN_TOPMOST_PIXEL);
+
+	// Draw the title & value
+	popup.drawString(titleBuf.data(), paddingLeft, OLED_MAIN_TOPMOST_PIXEL + 1, kTextSpacingX, kTextSpacingY);
+	if (valueWidth > 0) {
+		popup.drawChar(':', paddingLeft + titleWidth, OLED_MAIN_TOPMOST_PIXEL + 1, kTextSpacingX, kTextSpacingY);
+		popup.drawString(paramValue.value().data(), paddingLeft + titleWidth + 8, OLED_MAIN_TOPMOST_PIXEL + 1,
+		                 kTextSpacingX, kTextSpacingY);
+	}
+
+	markChanged();
+	uiTimerManager.setTimer(TimerName::DISPLAY, 800);
 }
 
 void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display) {

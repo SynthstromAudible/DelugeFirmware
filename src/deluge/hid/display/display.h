@@ -2,6 +2,7 @@
 #include "definitions_cxx.hpp"
 #include "util/string.h"
 #include <array>
+#include <optional>
 #include <string_view>
 
 extern "C" {
@@ -29,8 +30,8 @@ enum class PopupType {
 	QUANTIZE,
 	/// Threshold Recording Mode
 	THRESHOLD_RECORDING_MODE,
-
-	TOP_LEFT,
+	/// Used for popups in the horizontal menu when changing value
+	HORIZONTAL_MENU,
 	// Note: Add here more popup types
 };
 
@@ -75,6 +76,8 @@ public:
 	virtual void displayLoadingAnimation() {};
 	virtual void displayLoadingAnimationText(std::string_view text, bool delayed = false, bool transparent = false) = 0;
 	virtual void removeLoadingAnimation() = 0;
+
+	virtual void displayHorizontalMenuPopup(std::string_view paramTitle, std::optional<std::string_view> paramValue) {}
 
 	virtual bool hasPopup() = 0;
 	virtual bool hasPopupOfType(PopupType type) = 0;

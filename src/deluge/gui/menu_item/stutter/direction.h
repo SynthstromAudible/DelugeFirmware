@@ -23,6 +23,8 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 
+#include <hid/display/oled.h>
+
 namespace deluge::gui::menu_item::stutter {
 
 class StutterDirection final : public Selection {
@@ -49,7 +51,7 @@ public:
 	}
 
 	void readCurrentValue() override {
-		auto* stutter = &soundEditor.currentModControllable->stutterConfig;
+		const auto* stutter = &soundEditor.currentModControllable->stutterConfig;
 
 		if (showUseSongOption() && stutter->useSongStutter) {
 			setValue(USE_SONG_STUTTER);
@@ -89,8 +91,6 @@ public:
 		}
 	}
 
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
-
 private:
 	Direction getValue() {
 		const auto value = Selection::getValue();
@@ -103,9 +103,9 @@ private:
 		return Selection::setValue(value - shift);
 	}
 
-	bool showUseSongOption() { return !soundEditor.currentModControllable->isSong(); }
+	static bool showUseSongOption() { return !soundEditor.currentModControllable->isSong(); }
 
-	void applyOptionToStutterConfig(Direction value, StutterConfig& stutter) {
+	static void applyOptionToStutterConfig(const Direction value, StutterConfig& stutter) {
 		stutter.useSongStutter = value == USE_SONG_STUTTER;
 		stutter.reversed = value == REVERSED || value == REVERSED_PING_PONG;
 		stutter.pingPong = value == FORWARD_PING_PONG || value == REVERSED_PING_PONG;
@@ -115,6 +115,69 @@ private:
 			stutter.reversed = currentSong->globalEffectable.stutterConfig.reversed;
 			stutter.pingPong = currentSong->globalEffectable.stutterConfig.pingPong;
 		}
+	}
+
+	void getValueForPopup(StringBuf& valueBuf) override {
+		const auto value = getValue();
+		valueBuf.append(getOptions(OptType::SHORT)[value]);
+	}
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		using namespace deluge::hid::display;
+		oled_canvas::Canvas& image = OLED::main;
+
+		const auto value = getValue();
+
+		if (value == USE_SONG_STUTTER) {
+			const auto& icon = OLED::songIcon;
+			constexpr int32_t songIconWidth = 9;
+
+			// Draw a song icon centered
+			const int32_t x = startX + ((width - songIconWidth) / 2) - 2;
+			const int32_t y = startY + ((height - songIconWidth) / 2) + 2;
+			return image.drawGraphicMultiLine(icon, x, y, songIconWidth);
+		}
+
+		constexpr int32_t numBytesTall = 2;
+		const bool reversed = value == REVERSED || value == REVERSED_PING_PONG;
+		const auto icon =
+		    reversed ? reverseBitmap(OLED::stutterDirectionIcon, numBytesTall) : OLED::stutterDirectionIcon;
+
+		constexpr int32_t iconHeight = numBytesTall * 8;
+		const int32_t iconWidth = icon.size() / numBytesTall;
+
+		if (value == FORWARD_PING_PONG || value == REVERSED_PING_PONG) {
+			// Draw the "P" indicator and the icon centered
+			constexpr int32_t iconOffset = 4;
+			image.drawChar('P', startX + 3, startY + 4, 5, kTextSpacingY);
+			image.drawGraphicMultiLine(reversed ? icon.data() : icon.data() + iconOffset * numBytesTall, startX + 11,
+			                           startY + 1, iconWidth - iconOffset, iconHeight, numBytesTall);
+		}
+		else {
+			// Draw the icon centered
+			const int32_t x = startX + (width - iconWidth) / 2 - 1;
+			image.drawGraphicMultiLine(icon.data(), x, startY + 1, iconWidth, iconHeight, numBytesTall);
+		}
+	}
+
+	static std::vector<uint8_t> reverseBitmap(const std::vector<uint8_t>& bitmap, int32_t numBytesTall) {
+		const int32_t columnCount = bitmap.size() / numBytesTall;
+
+		std::vector<uint8_t> output(bitmap.size());
+
+		for (size_t col = 0; col < columnCount; ++col) {
+			const int32_t inputIndex = col * numBytesTall;
+			const int32_t reversedCol = columnCount - 1 - col;
+			const int32_t outputIndex = reversedCol * numBytesTall;
+
+			for (int32_t byte = 0; byte < numBytesTall; ++byte) {
+				uint8_t b = bitmap[inputIndex + byte];
+				const uint8_t reversed = std::bit_cast<uint8_t>(b);
+				output[outputIndex + byte] = reversed;
+			}
+		}
+
+		return output;
 	}
 };
 

@@ -21,6 +21,8 @@
 #include "gui/fonts/fonts.h"
 #include "storage/flash_storage.h"
 
+#include <math.h>
+
 using deluge::hid::display::oled_canvas::Canvas;
 
 void Canvas::clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {

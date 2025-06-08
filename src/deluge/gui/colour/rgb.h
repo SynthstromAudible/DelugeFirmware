@@ -290,7 +290,7 @@ private:
 	static constexpr uint32_t RMat[4][4] = {
 	    {(uint32_t)(c * ONE_Q16), 0, (uint32_t)(s* ONE_Q16), 0},
 	    {(uint32_t)(s * ONE_Q16), (uint32_t)(c* ONE_Q16), 0, 0},
-	    {0, (uint32_t)(s* ONE_Q16), (uint32_t)(c* ONE_Q16), 0},
+	    {0, (uint32_t)(s * ONE_Q16), (uint32_t)(c* ONE_Q16), 0},
 	    {0, 0, 0, ONE_Q16},
 	};
 

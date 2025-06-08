@@ -33,12 +33,6 @@ void Enumeration::selectEncoderAction(int32_t offset) {
 	// reset offset to account for wrapping
 	offset = nextValue - startValue;
 	Value::selectEncoderAction(offset);
-
-	DEF_STACK_STRING_BUF(popupBuf, 15);
-	popupBuf.append(getName());
-	popupBuf.append(": ");
-	getShortOption(popupBuf);
-	display->displayPopup(popupBuf.c_str(), 3, false, 255U, 1, PopupType::TOP_LEFT);
 }
 
 void Enumeration::drawValue() {
@@ -57,13 +51,11 @@ void Enumeration::getShortOption(StringBuf& opt) {
 void Enumeration::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
-	renderColumnLabel(startX, width, startY);
-
 	// Render current value
 	DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
 	getShortOption(shortOpt);
 
-	image.drawStringCentered(shortOpt, startX, startY + kTextSpacingY + 4, kTextSpacingX, kTextSpacingY, width);
+	image.drawStringCentered(shortOpt, startX, startY + 4, kTextSpacingX, kTextSpacingY, width);
 }
 
 } // namespace deluge::gui::menu_item

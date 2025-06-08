@@ -68,14 +68,14 @@ Exported global variables (to be accessed by other files)
  * Used by host to enumerate device - e.g. what is this
  * bytes 4-7 declares that the device is specified at the interface level
  * bytes 8-16 declare that it's a synthstrom deluge (presumably)
- * byte 17 says how many configurations are available - e.g. it could
+	* byte 17 says how many configurations are available - e.g. it could
  * offer both an FS and HS configuration and allow the host to choose,
  * but in this case we offer a single USB midi FS config
  */
 uint8_t g_midi_device[USB_DD_BLENGTH + (USB_DD_BLENGTH % 2)] = {
     USB_DD_BLENGTH,                                        /*  0:bLength */
     USB_DT_DEVICE,                                         /*  1:bDescriptorType */
-    (uint8_t)(USB_BCDNUM&(uint8_t)0xff),                   /*  2:bcdUSB_lo */
+    (uint8_t)(USB_BCDNUM&(uint8_t)0xff),                 /*  2:bcdUSB_lo */
     (uint8_t)((uint8_t)(USB_BCDNUM >> 8) & (uint8_t)0xff), /*  3:bcdUSB_hi */
                                                            // Device to be specified at interface level
     0x00,                                                  /*  4:bDeviceClass */
@@ -83,11 +83,11 @@ uint8_t g_midi_device[USB_DD_BLENGTH + (USB_DD_BLENGTH % 2)] = {
     0x00,                                                  /*  6:bDeviceProtocol */
 
     (uint8_t)USB_DCPMAXP,                                     /*  7:bMAXPacketSize(for DCP) */
-    (uint8_t)(USB_VENDORID&(uint8_t)0xff),                    /*  8:idVendor_lo */
+    (uint8_t)(USB_VENDORID&(uint8_t)0xff),                  /*  8:idVendor_lo */
     (uint8_t)((uint8_t)(USB_VENDORID >> 8) & (uint8_t)0xff),  /*  9:idVendor_hi */
-    (uint8_t)(USB_PRODUCTID&(uint8_t)0xff),                   /* 10:idProduct_lo */
+    (uint8_t)(USB_PRODUCTID&(uint8_t)0xff),                 /* 10:idProduct_lo */
     (uint8_t)((uint8_t)(USB_PRODUCTID >> 8) & (uint8_t)0xff), /* 11:idProduct_hi */
-    (uint8_t)(USB_RELEASE&(uint8_t)0xff),                     /* 12:bcdDevice_lo */
+    (uint8_t)(USB_RELEASE&(uint8_t)0xff),                   /* 12:bcdDevice_lo */
     (uint8_t)((uint8_t)(USB_RELEASE >> 8) & (uint8_t)0xff),   /* 13:bcdDevice_hi */
     1,                                                        /* 14:iManufacturer */
     2,                                                        /* 15:iProduct */

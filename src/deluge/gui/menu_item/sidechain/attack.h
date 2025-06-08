@@ -61,8 +61,9 @@ public:
 		return !soundEditor.editingReverbSidechain() || AudioEngine::reverbSidechainVolume >= 0;
 	}
 
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ATTACK_SHORT));
+	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
+		label.append(
+		    deluge::l10n::get(forSmallFont ? l10n::String::STRING_FOR_ATTACK : l10n::String::STRING_FOR_ATTACK_SHORT));
 	}
 };
 } // namespace deluge::gui::menu_item::sidechain
