@@ -1122,19 +1122,18 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 				const int32_t modSourceX = x - 14;
 				PatchSource source = modSourceShortcuts[modSourceX][y];
 
+				secondLayerModSourceShortcutsToggled =
+				    sourceShortcutBlinkFrequencies[modSourceX][y] != 255
+				            && getCurrentMenuItem()->getParamKind() == deluge::modulation::params::Kind::PATCH_CABLE
+				        ? !secondLayerModSourceShortcutsToggled
+				        : false;
+
 				// Replace with the second layer shortcut (e.g. env3, lfo3) if the pad was pressed twice
-				if (sourceShortcutBlinkFrequencies[modSourceX][y] != 255
-				    && getCurrentMenuItem()->getParamKind() == deluge::modulation::params::Kind::PATCH_CABLE) {
-					secondLayerModSourceShortcutsToggled = !secondLayerModSourceShortcutsToggled;
-					if (secondLayerModSourceShortcutsToggled) {
-						const auto secondLayerSource = modSourceShortcutsSecondLayer[modSourceX][y];
-						if (secondLayerSource != PatchSource::NOT_AVAILABLE) {
-							source = secondLayerSource;
-						}
+				if (secondLayerModSourceShortcutsToggled) {
+					const auto secondLayerSource = modSourceShortcutsSecondLayer[modSourceX][y];
+					if (secondLayerSource != PatchSource::NOT_AVAILABLE) {
+						source = secondLayerSource;
 					}
-				}
-				else {
-					secondLayerModSourceShortcutsToggled = false;
 				}
 
 				if (source == PatchSource::SOON) {
@@ -1212,7 +1211,9 @@ getOut:
 			}
 
 			// Shortcut to edit a parameter
-			if (!modulationItemFound && (x < 14 || (x == 14 && y < 5) || (x == 15 && y == 1))) {
+			if (!modulationItemFound
+			    && (x < 14 || (x == 14 && y < 5) ||     //< regular shortcuts
+			        (x == 15 && (y == 1 || y == 3)))) { //< note & velocity probability
 
 				if (editingCVOrMIDIClip() || editingNonAudioDrumRow()) {
 					if (x == 11) {
@@ -1239,24 +1240,23 @@ getOut:
 					parent = parentsForSoundShortcuts[x][y];
 
 					// Replace with the second layer shortcut (e.g. env3 attack, lfo3 rate) if the pad was pressed twice
-					if (x == currentParamShorcutX && y == currentParamShorcutY) {
-						secondLayerShortcutsToggled = !secondLayerShortcutsToggled;
-						if (secondLayerShortcutsToggled) {
-							const auto secondLayerItem = paramShortcutsForSoundsSecondLayer[x][y];
-							const auto secondLayerParent = parentsForSoundShortcutsSecondLayer[x][y];
-							if (secondLayerItem != nullptr && secondLayerParent != nullptr) {
-								item = secondLayerItem;
-								parent = secondLayerParent;
-							}
+					secondLayerShortcutsToggled =
+					    x == currentParamShorcutX && y == currentParamShorcutY
+					            && getCurrentMenuItem()->getParamKind() != deluge::modulation::params::Kind::PATCH_CABLE
+					        ? !secondLayerShortcutsToggled
+					        : false;
+
+					if (secondLayerShortcutsToggled) {
+						const auto secondLayerItem = paramShortcutsForSoundsSecondLayer[x][y];
+						const auto secondLayerParent = parentsForSoundShortcutsSecondLayer[x][y];
+						if (secondLayerItem != nullptr && secondLayerParent != nullptr) {
+							item = secondLayerItem;
+							parent = secondLayerParent;
 						}
-					}
-					else {
-						secondLayerShortcutsToggled = false;
 					}
 				}
 doSetup:
 				if (item) {
-
 					if (item == comingSoonMenu) {
 						display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 						return ActionResult::DEALT_WITH;
