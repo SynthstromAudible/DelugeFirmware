@@ -504,6 +504,7 @@ enum class Error {
 	INVALID_PATTERN_VERSION,
 	OUT_OF_BUFFER_SPACE,
 	INVALID_SYSEX_FORMAT,
+	POS_PAST_STRING,
 };
 
 enum class SampleRepeatMode {
