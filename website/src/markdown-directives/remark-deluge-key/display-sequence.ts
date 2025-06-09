@@ -49,7 +49,7 @@ const parseAction = (key: string): Action => {
 }
 
 const parseSequence = (sequence: string): Action[][] => {
-  const invalidCharacters = [...sequence.matchAll(/[^a-zA-Z\d>+\s]/g)]
+  const invalidCharacters = [...sequence.matchAll(/[^a-zA-Z\d>+\\\s]/g)]
 
   if (invalidCharacters.length)
     throw new Error(
