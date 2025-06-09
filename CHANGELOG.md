@@ -23,12 +23,12 @@ set the stutter configuration independently of the song configuration if you wis
 
 #### <ins>New Shortcuts</ins>
 Added main grid pad shortcuts for the following parameters:
-- `COMPRESSOR THRESHOLD`: accessed using `SHIFT` / `AUDITION` + Pad between the `DECIMATION` and `LPF db/OCT` pads
-- `STUTTER RATE`: accessed using `SHIFT` / `AUDITION` + Pad between the `PLAY DIRECTION` and `SATURATION` pads
-- `NOTE PROBABILITY`: accessed using `SHIFT + NOTE` pad in Patch Source column between the `RANDOM` and `SIDECHAIN` pads
-  - Note: `AUDITION + NOTE` is reserved for future functionality
-- `VELOCITY PROBABILITY`: accessed using `SHIFT + VELOCITY` pad in Patch Source column between the `AFTERTOUCH` and `RANDOM` pads
-  - Note: `AUDITION + VELOCITY` is reserved for entering Velocity Automation View
+- `COMPRESSOR THRESHOLD`: accessed using `SHIFT` / `AUDITION PAD` + `PAD` between the `DECIMATION PAD` and `LPF db/OCT PAD`
+- `STUTTER RATE`: accessed using `SHIFT` / `AUDITION PAD` + `PAD` between the `PLAY DIRECTION PAD` and `SATURATION PAD`
+- `NOTE PROBABILITY`: accessed using `SHIFT` + `NOTE PAD` in the `PATCH SOURCE` column between the `RANDOM PAD` and `SIDECHAIN PAD`
+  - Note: `AUDITION PAD` + `NOTE PAD` is reserved for future functionality
+- `VELOCITY PROBABILITY`: accessed using `SHIFT` + `VELOCITY PAD` in the `PATCH SOURCE` column between the `AFTERTOUCH PAD` and `RANDOM PAD`
+  - Note: `AUDITION PAD` + `VELOCITY PAD` is reserved for entering the Velocity Automation View
 
 #### <ins>Layered Shortcuts</ins>
 - Layered Shortcuts mechanism allows multiple shortcuts to be accessed under a single shortcut pad. Holding shift and pressing the same shortcut again cycles between shortcuts. The items available under layered shortcuts can also be accessed from menu: layered shortcut is never the only access method.
