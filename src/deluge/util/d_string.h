@@ -41,13 +41,16 @@ extern const char nothing;
 class String {
 public:
 	String() = default;
+	String(const String& other);
+	String& operator=(const String& other);
+
 	// String(String* otherString); // BEWARE - using this on stack instances sometimes just caused crashes and stuff.
 	// Made no sense. Instead, constructing then calling set() works
 	~String();
 	void clear(bool destructing = false);
 	Error set(char const* newChars, int32_t newLength = -1);
 	void set(String const* otherString);
-	void beenCloned();
+	void beenCloned() const;
 	size_t getLength();
 	Error shorten(int32_t newLength);
 	Error concatenateAtPos(char const* newChars, int32_t pos, int32_t newCharsLength = -1);
@@ -56,6 +59,7 @@ public:
 	Error setChar(char newChar, int32_t pos);
 	Error concatenate(String* otherString);
 	Error concatenate(char const* newChars);
+	Error get_new_memory(int32_t newCharsLength);
 	bool equals(char const* otherChars);
 	bool equalsCaseIrrespective(char const* otherChars);
 
@@ -88,10 +92,10 @@ public:
 	}
 
 	inline bool isEmpty() { return !stringMemory; }
+	int32_t getNumReasons() const;
 
 private:
-	int32_t getNumReasons();
-	void setNumReasons(int32_t newNum);
+	void setNumReasons(int32_t newNum) const;
 
 	char* stringMemory = nullptr;
 };
