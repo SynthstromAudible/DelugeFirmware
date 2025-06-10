@@ -37,6 +37,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_ERROR_SD_CARD_FULL, "SD card full"},
         {STRING_FOR_ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE, "File does not contain wavetable data"},
         {STRING_FOR_ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO, "Stereo files cannot be used as wavetables"},
+        {STRING_FOR_STRING_ERROR, "Messed up moving strings around"},
         {STRING_FOR_ERROR_WRITE_PROTECTED, "Card is write-protected"},
         {STRING_FOR_ERROR_GENERIC, "You've encountered an unspecified error. Please report this bug."},
         {STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_1, "LFO1"},
