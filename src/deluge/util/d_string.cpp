@@ -21,18 +21,29 @@
 #include "util/cfunctions.h"
 #include <bit>
 #include <cstring>
+#include <io/debug/log.h>
 
 const char nothing = 0;
+
+String::String(const String& other) {
+	set(&other);
+}
+String& String::operator=(const String& other) {
+	if (this != &other) {
+		set(&other);
+	}
+	return *this;
+}
 
 String::~String() {
 	clear(true);
 }
 
-int32_t String::getNumReasons() {
+int32_t String::getNumReasons() const {
 	return *std::bit_cast<intptr_t*>(stringMemory - 4);
 }
 
-void String::setNumReasons(int32_t newNum) {
+void String::setNumReasons(int32_t newNum) const {
 	*std::bit_cast<intptr_t*>(stringMemory - 4) = newNum;
 }
 
@@ -40,15 +51,15 @@ void String::clear(bool destructing) {
 	if (stringMemory) {
 		int32_t numReasons = getNumReasons();
 		if (numReasons > 1) {
+			D_PRINTLN("Lowering reasons on string at %x", stringMemory);
 			setNumReasons(numReasons - 1);
 		}
 		else {
+			D_PRINTLN("clearing string at %x", stringMemory);
 			delugeDealloc(stringMemory - 4);
 		}
 
-		if (!destructing) {
-			stringMemory = nullptr;
-		}
+		stringMemory = nullptr;
 	}
 }
 
@@ -124,6 +135,10 @@ doCopy:
 // This one can't fail!
 void String::set(String const* otherString) {
 	char* sm = otherString->stringMemory;
+	if (sm && sm == stringMemory) {
+		D_PRINTLN("setting string to itself");
+		return;
+	}
 #if ALPHA_OR_BETA_VERSION
 	// if the other string has memory and it's not in the non audio region
 	if (sm != nullptr) {
@@ -138,13 +153,13 @@ void String::set(String const* otherString) {
 		}
 	}
 #endif
+	otherString->beenCloned();
+
 	clear();
 	stringMemory = sm;
-
-	beenCloned();
 }
 
-void String::beenCloned() {
+void String::beenCloned() const {
 	if (stringMemory != nullptr) {
 		setNumReasons(getNumReasons() + 1);
 	}
@@ -190,6 +205,9 @@ Error String::shorten(int32_t newLength) {
 Error String::concatenate(String* otherString) {
 	if (!stringMemory) {
 		set(otherString);
+		if (getNumReasons() < 2 && otherString->stringMemory != nullptr) {
+			FREEZE_WITH_ERROR("S003");
+		}
 		return Error::NONE;
 	}
 
@@ -204,7 +222,11 @@ Error String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newCha
 	if (pos == 0) {
 		return set(newChars, newCharsLength);
 	}
-
+	if (pos > getLength()) {
+		// this hopefully never happens? If it does it's super broken
+		FREEZE_WITH_ERROR("S004");
+		return Error::POS_PAST_STRING;
+	}
 	if (newCharsLength == -1) {
 		newCharsLength = strlen(newChars);
 	}

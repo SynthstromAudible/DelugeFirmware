@@ -742,12 +742,13 @@ struct SideScroller {
 	int32_t boxLengthPixels;
 	bool finished;
 	bool doHighlight;
+	String string_;
 };
 
 #define NUM_SIDE_SCROLLERS 2
 
 SideScroller sideScrollers[NUM_SIDE_SCROLLERS];
-
+// text will be copied into the scroller, caller does not need to keep it allocated
 void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight) {
 
@@ -769,7 +770,8 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 		return;
 	}
 
-	scroller->text = text.data();
+	scroller->string_.set(text.data(), static_cast<int32_t>(text.size()));
+	scroller->text = scroller->string_.get();
 	scroller->pos = 0;
 	scroller->startX = startX;
 	scroller->endX = endX;
@@ -789,6 +791,7 @@ void OLED::stopScrollingAnimation() {
 		sideScrollerDirection = 0;
 		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 			SideScroller* scroller = &sideScrollers[s];
+			scroller->string_.clear();
 			scroller->text = nullptr;
 		}
 		uiTimerManager.unsetTimer(TimerName::OLED_SCROLLING_AND_BLINKING);
