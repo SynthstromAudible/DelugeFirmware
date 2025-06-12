@@ -30,7 +30,7 @@ public:
 		                     {ModFXType::FLANGER, ModFXType::PHASER, ModFXType::GRAIN, ModFXType::WARBLE}));
 	}
 	[[nodiscard]] std::string_view getName() const override {
-		return modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::FEEDBACK);
+		return modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::FEEDBACK, true);
 	}
 	[[nodiscard]] virtual std::string_view getTitle() const { return getName(); }
 
@@ -39,5 +39,6 @@ public:
 		    modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::FEEDBACK, true);
 		label.append(shortName);
 	}
+	void getColumnLabelForSmallFont(StringBuf& label) override { getColumnLabel(label); }
 };
 } // namespace deluge::gui::menu_item::mod_fx

@@ -296,6 +296,10 @@ const uint8_t font_5px[] = {
         0b00010,
         0b00100,
         0b00110,
+
+        0b11111,		// ♭ (flat)
+        0b10100,
+        0b01100,
 };
 
 const lv_font_glyph_dsc_t font_5px_desc[] = {
@@ -368,6 +372,7 @@ const lv_font_glyph_dsc_t font_5px_desc[] = {
         {.w_px = 1,     .glyph_index = 186},	// |
         {.w_px = 3,     .glyph_index = 187},	// }
         {.w_px = 4,     .glyph_index = 190},	// ~
+        {.w_px = 3,     .glyph_index = 194},	// ♭ (flat)
 };
 
 /***********************************************************************************
