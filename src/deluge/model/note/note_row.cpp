@@ -2370,6 +2370,32 @@ gotValidNoteIndex:
 						if (AudioEngine::allowedToStartVoice()) {
 							playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
 							ignoredNoteOn = false;
+
+							// CRITICAL FIX: Multi-note processing for ratio clips with large position jumps
+							// This prevents note skipping when ratio clips jump multiple ticks at once
+							InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+							if (clip->hasTempoRatio && !playingReversedNow && ticksSinceLast > 1) {
+								// Calculate the range we jumped over
+								int32_t startPos = effectiveCurrentPos - ticksSinceLast;
+								int32_t endPos = effectiveCurrentPos;
+
+								// Scan through remaining notes to find any within the jumped range
+								for (int32_t checkI = nextNoteI + 1; checkI < notes.getNumElements(); checkI++) {
+									Note* checkNote = notes.getElement(checkI);
+
+									// Stop if we've gone past our jump range
+									if (checkNote->pos >= endPos) {
+										break;
+									}
+
+									// Trigger any note found within the jumped range
+									if (checkNote->pos > startPos) {
+										if (AudioEngine::allowedToStartVoice()) {
+											playNote(true, modelStack, checkNote, 0, 0, false, pendingNoteOnList);
+										}
+									}
+								}
+							}
 						}
 						else {
 							ignoredNoteOn = true;

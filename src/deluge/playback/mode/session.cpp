@@ -2266,29 +2266,8 @@ traverseClips:
 		// Calculate clip-specific position increment for per-clip tempo support
 		int32_t clipIncrement = calculateClipPosIncrement(clip, numTicksBeingIncremented);
 
-		// CRITICAL FIX: For large increments, increment position in multiple smaller steps to prevent note skipping
-		const int32_t MAX_STEP_SIZE = 32; // Process in chunks of max 32 ticks to catch all events
-
-		if (abs(clipIncrement) > MAX_STEP_SIZE && clip->hasTempoRatio) {
-			D_PRINTLN("TEMPO_DEBUG: considerLaunchEvent - Processing large increment %d in multiple steps",
-			          clipIncrement);
-
-			int32_t remainingIncrement = clipIncrement;
-			int32_t stepSize = (clipIncrement > 0) ? MAX_STEP_SIZE : -MAX_STEP_SIZE;
-
-			while (abs(remainingIncrement) > MAX_STEP_SIZE) {
-				clip->incrementPos(modelStackWithTimelineCounter, stepSize);
-				remainingIncrement -= stepSize;
-			}
-
-			// Process any remaining increment
-			if (remainingIncrement != 0) {
-				clip->incrementPos(modelStackWithTimelineCounter, remainingIncrement);
-			}
-		}
-		else {
-			clip->incrementPos(modelStackWithTimelineCounter, clipIncrement);
-		}
+		// Increment position normally - multi-note processing handles ratio timing at note level
+		clip->incrementPos(modelStackWithTimelineCounter, clipIncrement);
 	}
 	if (clipArray != &currentSong->arrangementOnlyClips) {
 		clipArray = &currentSong->arrangementOnlyClips;
@@ -2474,28 +2453,8 @@ void Session::doTickForward(int32_t posIncrement) {
 				display->setNextTransitionDirection(1);
 			}
 
-			// CRITICAL FIX: For large increments, process in multiple smaller steps to prevent note skipping
-			const int32_t MAX_STEP_SIZE = 32; // Process in chunks of max 32 ticks to catch all events
-
-			if (abs(clipIncrement) > MAX_STEP_SIZE && clip->hasTempoRatio) {
-				D_PRINTLN("TEMPO_DEBUG: Processing large increment %d in multiple steps", clipIncrement);
-
-				int32_t remainingIncrement = clipIncrement;
-				int32_t stepSize = (clipIncrement > 0) ? MAX_STEP_SIZE : -MAX_STEP_SIZE;
-
-				while (abs(remainingIncrement) > MAX_STEP_SIZE) {
-					clip->processCurrentPos(modelStackWithTimelineCounter, stepSize);
-					remainingIncrement -= stepSize;
-				}
-
-				// Process any remaining increment
-				if (remainingIncrement != 0) {
-					clip->processCurrentPos(modelStackWithTimelineCounter, remainingIncrement);
-				}
-			}
-			else {
-				clip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
-			}
+			// Process normally - multi-note processing handles ratio timing at note level
+			clip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
 
 			// NOTE: posIncrement is the number of ticks which we incremented by in considerLaunchEvent(). But for Clips
 			// which were only just launched in there, well the won't have been incremented, so it would be more correct

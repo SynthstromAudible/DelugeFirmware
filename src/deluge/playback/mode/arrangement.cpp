@@ -119,8 +119,7 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	// CRITICAL FIX: Constant for multi-step processing to prevent note skipping
-	const int32_t MAX_STEP_SIZE = 32; // Process in chunks of max 32 ticks to catch all events
+	// Position increment calculation handles ratio timing at note level
 
 	bool songParamManagerMightContainAutomation = currentSong->paramManager.mightContainAutomation();
 
@@ -176,27 +175,8 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 				    modelStack->addTimelineCounter(activeClip);
 
-				// CRITICAL FIX: For large increments, process in multiple smaller steps to prevent note skipping
-				if (abs(clipIncrement) > MAX_STEP_SIZE && activeClip->hasTempoRatio) {
-					D_PRINTLN("TEMPO_DEBUG: Arrangement Recording - Processing large increment %d in multiple steps",
-					          clipIncrement);
-
-					int32_t remainingIncrement = clipIncrement;
-					int32_t stepSize = (clipIncrement > 0) ? MAX_STEP_SIZE : -MAX_STEP_SIZE;
-
-					while (abs(remainingIncrement) > MAX_STEP_SIZE) {
-						activeClip->processCurrentPos(modelStackWithTimelineCounter, stepSize);
-						remainingIncrement -= stepSize;
-					}
-
-					// Process any remaining increment
-					if (remainingIncrement != 0) {
-						activeClip->processCurrentPos(modelStackWithTimelineCounter, remainingIncrement);
-					}
-				}
-				else {
-					activeClip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
-				}
+				// Process clip normally - multi-note processing handles ratio timing at note level
+				activeClip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
 			}
 
 			else {
@@ -253,53 +233,11 @@ notRecording:
 								// Tick it forward and process it
 								int32_t clipIncrement = calculateClipPosIncrement(thisClip, posIncrement);
 
-								// CRITICAL FIX: For large increments, increment position in multiple smaller steps to
-								// prevent note skipping
-								if (abs(clipIncrement) > MAX_STEP_SIZE && thisClip->hasTempoRatio) {
-									D_PRINTLN(
-									    "TEMPO_DEBUG: Arrangement - incrementPos large increment %d in multiple steps",
-									    clipIncrement);
+								// Increment position normally
+								thisClip->incrementPos(modelStackWithTimelineCounter, clipIncrement);
 
-									int32_t remainingIncrement = clipIncrement;
-									int32_t stepSize = (clipIncrement > 0) ? MAX_STEP_SIZE : -MAX_STEP_SIZE;
-
-									while (abs(remainingIncrement) > MAX_STEP_SIZE) {
-										thisClip->incrementPos(modelStackWithTimelineCounter, stepSize);
-										remainingIncrement -= stepSize;
-									}
-
-									// Process any remaining increment
-									if (remainingIncrement != 0) {
-										thisClip->incrementPos(modelStackWithTimelineCounter, remainingIncrement);
-									}
-								}
-								else {
-									thisClip->incrementPos(modelStackWithTimelineCounter, clipIncrement);
-								}
-
-								// CRITICAL FIX: For large increments, process in multiple smaller steps to prevent note
-								// skipping
-								if (abs(clipIncrement) > MAX_STEP_SIZE && thisClip->hasTempoRatio) {
-									D_PRINTLN(
-									    "TEMPO_DEBUG: Arrangement - Processing large increment %d in multiple steps",
-									    clipIncrement);
-
-									int32_t remainingIncrement = clipIncrement;
-									int32_t stepSize = (clipIncrement > 0) ? MAX_STEP_SIZE : -MAX_STEP_SIZE;
-
-									while (abs(remainingIncrement) > MAX_STEP_SIZE) {
-										thisClip->processCurrentPos(modelStackWithTimelineCounter, stepSize);
-										remainingIncrement -= stepSize;
-									}
-
-									// Process any remaining increment
-									if (remainingIncrement != 0) {
-										thisClip->processCurrentPos(modelStackWithTimelineCounter, remainingIncrement);
-									}
-								}
-								else {
-									thisClip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
-								}
+								// Process normally - multi-note processing handles ratio timing at note level
+								thisClip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
 
 								// Make sure we come back here when the clipInstance ends
 								int32_t ticksTilEnd = endPos - lastProcessedPos;
