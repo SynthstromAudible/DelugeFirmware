@@ -54,7 +54,7 @@ Segments are repersented by 8 bits
 |   |
 5   3
 |   |
- -4-
+ -4-  .0
 
 */
 
@@ -468,11 +468,11 @@ int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination,
 				break;
 
 			case '#': // sharp
-				*segments = 0b10110110;
+				*segments = 0b10100111;
 				break;
 
 			case FLAT_CHAR:
-				*segments = 0b10011110;
+				*segments = 0b10011111;
 				break;
 
 			default:
