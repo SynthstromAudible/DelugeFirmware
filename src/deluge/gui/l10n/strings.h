@@ -30,6 +30,7 @@ enum class String : size_t {
 	STRING_FOR_ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE,
 	STRING_FOR_ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO,
 	STRING_FOR_ERROR_WRITE_PROTECTED,
+	STRING_FOR_STRING_ERROR, // note this is different because string_for_string_error seems wrong
 	STRING_FOR_ERROR_GENERIC,
 
 	// Param sources (from functions.cpp)
