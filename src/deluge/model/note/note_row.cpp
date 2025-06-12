@@ -2138,6 +2138,38 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 	int32_t effectiveForwardPos =
 	    playingReversedNow ? (effectiveLength - effectiveCurrentPos - 1) : effectiveCurrentPos;
 
+	// CRITICAL FIX: For ratio clips, scan for notes between previous and current positions
+	// This prevents note skipping when large position jumps occur due to tempo ratios
+	if (clip->hasTempoRatio && !playingReversedNow && ticksSinceLast > 1) {
+		// Calculate previous position
+		int32_t previousPos = effectiveCurrentPos - ticksSinceLast;
+		if (previousPos < 0) {
+			previousPos += effectiveLength; // Handle wrap-around
+		}
+
+		// Find all notes between previous and current positions
+		for (int32_t i = 0; i < notes.getNumElements(); i++) {
+			Note* note = notes.getElement(i);
+
+			// Check if note falls within the range we jumped over
+			bool noteInRange = false;
+			if (previousPos < effectiveCurrentPos) {
+				// Normal case: no wrap-around
+				noteInRange = (note->pos > previousPos && note->pos <= effectiveCurrentPos);
+			}
+			else {
+				// Wrap-around case
+				noteInRange = (note->pos > previousPos || note->pos <= effectiveCurrentPos);
+			}
+
+			if (noteInRange && effectiveForwardPos >= ignoreNoteOnsBefore_) {
+				if (AudioEngine::allowedToStartVoice()) {
+					playNote(true, modelStack, note, 0, 0, false, pendingNoteOnList);
+				}
+			}
+		}
+	}
+
 	// If we've "arrived" at a note we actually just recorded, reset the ignore state
 	if (effectiveForwardPos >= ignoreNoteOnsBefore_
 	    || (effectiveForwardPos < ticksSinceLast
@@ -2370,32 +2402,6 @@ gotValidNoteIndex:
 						if (AudioEngine::allowedToStartVoice()) {
 							playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
 							ignoredNoteOn = false;
-
-							// CRITICAL FIX: Multi-note processing for ratio clips with large position jumps
-							// This prevents note skipping when ratio clips jump multiple ticks at once
-							InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
-							if (clip->hasTempoRatio && !playingReversedNow && ticksSinceLast > 1) {
-								// Calculate the range we jumped over
-								int32_t startPos = effectiveCurrentPos - ticksSinceLast;
-								int32_t endPos = effectiveCurrentPos;
-
-								// Scan through remaining notes to find any within the jumped range
-								for (int32_t checkI = nextNoteI + 1; checkI < notes.getNumElements(); checkI++) {
-									Note* checkNote = notes.getElement(checkI);
-
-									// Stop if we've gone past our jump range
-									if (checkNote->pos >= endPos) {
-										break;
-									}
-
-									// Trigger any note found within the jumped range
-									if (checkNote->pos > startPos) {
-										if (AudioEngine::allowedToStartVoice()) {
-											playNote(true, modelStack, checkNote, 0, 0, false, pendingNoteOnList);
-										}
-									}
-								}
-							}
 						}
 						else {
 							ignoredNoteOn = true;
