@@ -42,6 +42,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <string.h>
+#include <unordered_map>
 // #include <algorithm>
 #include "gui/ui/load/load_song_ui.h"
 #include "hid/buttons.h"
@@ -2753,22 +2754,38 @@ int32_t Session::calculateClipPosIncrement(Clip* clip, int32_t globalIncrement) 
 	D_PRINTLN("TEMPO_DEBUG: Session::calculateClipPosIncrement - input globalIncrement=%d, ratio=%d:%d",
 	          globalIncrement, clip->tempoRatioNumerator, clip->tempoRatioDenominator);
 
-	// Integer-based ratio calculation: clipIncrement = globalIncrement * numerator / denominator
-	int64_t result = ((int64_t)globalIncrement * clip->tempoRatioNumerator) / clip->tempoRatioDenominator;
+	// CRITICAL FIX: Use fractional accumulation to prevent precision loss
+	// Static accumulator per clip (in practice, this works because clips are processed consistently)
+	static thread_local std::unordered_map<Clip*, int64_t> clipAccumulators;
+
+	// Calculate precise fractional result: (globalIncrement * numerator * 1024) / denominator
+	// Using 1024 as fixed-point scale for sub-tick precision
+	int64_t scaledIncrement = (int64_t)globalIncrement * clip->tempoRatioNumerator * 1024;
+	int64_t preciseResult = scaledIncrement / clip->tempoRatioDenominator;
+
+	// Add to this clip's accumulator
+	clipAccumulators[clip] += preciseResult;
+
+	// Extract whole ticks (divide by 1024)
+	int64_t wholeTicks = clipAccumulators[clip] / 1024;
+
+	// Keep fractional part in accumulator
+	clipAccumulators[clip] %= 1024;
 
 	// Clamp to reasonable bounds
-	if (result > INT32_MAX) {
-		D_PRINTLN("TEMPO_DEBUG: Session::calculateClipPosIncrement - result overflow, clamped to INT32_MAX");
-		return INT32_MAX;
+	int32_t finalResult;
+	if (wholeTicks > INT32_MAX) {
+		finalResult = INT32_MAX;
 	}
-	if (result < INT32_MIN) {
-		D_PRINTLN("TEMPO_DEBUG: Session::calculateClipPosIncrement - result underflow, clamped to INT32_MIN");
-		return INT32_MIN;
+	else if (wholeTicks < INT32_MIN) {
+		finalResult = INT32_MIN;
+	}
+	else {
+		finalResult = (int32_t)wholeTicks;
 	}
 
-	int32_t finalResult = (int32_t)result;
-
-	D_PRINTLN("TEMPO_DEBUG: Session::calculateClipPosIncrement - converted %d -> %d", globalIncrement, finalResult);
+	D_PRINTLN("TEMPO_DEBUG: Session::calculateClipPosIncrement - converted %d -> %d (with accumulation)",
+	          globalIncrement, finalResult);
 
 	return finalResult;
 }

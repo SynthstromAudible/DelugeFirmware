@@ -32,6 +32,39 @@
 
 namespace deluge::gui::menu_item::sequence {
 
+// Helper function to restart playback after ratio change - prevents position contamination
+inline void restartPlaybackForRatioChange(Clip* clip, ModelStackWithTimelineCounter* modelStack, bool wasActive) {
+	if (wasActive && playbackHandler.isEitherClockActive()) {
+		currentSong->assertActiveness(modelStack);
+
+		// CRITICAL FIX: Preserve musical position within clip rather than trying to convert global positions
+		// The issue was that setPos() expects clip-domain positions, not global-domain positions
+
+		// Get current live position in the clip's current timing domain
+		uint32_t currentLivePos = clip->getLivePos();
+
+		// Calculate position as fraction of loop to preserve musical location
+		uint32_t loopLength = clip->loopLength;
+		uint32_t positionInLoop = currentLivePos % loopLength;
+
+		D_PRINTLN("RATIO_DEBUG: Ratio change - preserving musical position");
+		D_PRINTLN("  currentLivePos=%d, loopLength=%d, positionInLoop=%d", currentLivePos, loopLength, positionInLoop);
+		D_PRINTLN("  oldRatio=%d:%d -> newRatio=%d:%d", clip->tempoRatioNumerator, clip->tempoRatioDenominator,
+		          clip->tempoRatioNumerator, clip->tempoRatioDenominator);
+
+		clip->expectNoFurtherTicks(currentSong, false);
+
+		// Use the current position within the loop - this preserves musical position
+		// regardless of timing domain changes
+		clip->setPos(modelStack, positionInLoop, true);
+
+		uint32_t livePosAfter = clip->getLivePos();
+		D_PRINTLN("RATIO_DEBUG: After restart - livePosAfter=%d (should be ~%d)", livePosAfter, positionInLoop);
+
+		clip->resumePlayback(modelStack, false);
+	}
+}
+
 // Unified tempo ratio preset class - replaces 5 individual classes with one parameterized class
 class TempoRatioPreset final : public MenuItem {
 private:
@@ -73,16 +106,13 @@ public:
 
 			display->displayPopup(popupMessage_.data());
 
-			// Ensure clip remains active if it was active before tempo change
-			if (wasActive && playbackHandler.isEitherClockActive()) {
+			// Restart playback for non-global ratios to prevent position contamination
+			if (!isGlobal_) {
+				restartPlaybackForRatioChange(clip, modelStack, wasActive);
+			}
+			// For global, just resume normally without restart
+			else if (wasActive && playbackHandler.isEitherClockActive()) {
 				currentSong->assertActiveness(modelStack);
-
-				// CRITICAL FIX: Force complete playback restart on ANY ratio change
-				if (!isGlobal_) {
-					clip->expectNoFurtherTicks(currentSong, false);
-					clip->setPos(modelStack, clip->lastProcessedPos, true);
-				}
-
 				clip->resumePlayback(modelStack, false);
 			}
 		}
@@ -132,15 +162,8 @@ public:
 
 			clip->setTempoRatio(numerator, denominator);
 
-			// Ensure clip remains active if it was active before tempo change
-			if (wasActive && playbackHandler.isEitherClockActive()) {
-				currentSong->assertActiveness(modelStack);
-
-				// CRITICAL FIX: Force complete playback restart on ANY ratio change
-				clip->expectNoFurtherTicks(currentSong, false);
-				clip->setPos(modelStack, clip->lastProcessedPos, true);
-				clip->resumePlayback(modelStack, false);
-			}
+			// Restart playback to prevent position contamination from ratio change
+			restartPlaybackForRatioChange(clip, modelStack, wasActive);
 		}
 
 		// Trigger a redraw to update any dynamic titles in parent menus
@@ -186,15 +209,8 @@ public:
 
 			clip->setTempoRatio(numerator, denominator);
 
-			// Ensure clip remains active if it was active before tempo change
-			if (wasActive && playbackHandler.isEitherClockActive()) {
-				currentSong->assertActiveness(modelStack);
-
-				// CRITICAL FIX: Force complete playback restart on ANY ratio change
-				clip->expectNoFurtherTicks(currentSong, false);
-				clip->setPos(modelStack, clip->lastProcessedPos, true);
-				clip->resumePlayback(modelStack, false);
-			}
+			// Restart playback to prevent position contamination from ratio change
+			restartPlaybackForRatioChange(clip, modelStack, wasActive);
 		}
 
 		// Trigger a redraw to update any dynamic titles in parent menus
