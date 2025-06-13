@@ -680,12 +680,12 @@ submenu::PolyMonoConversion midiMPEMenu{STRING_FOR_MPE_MONO, {&midiAftertouchCol
 // Clip-level stuff --------------------------------------------------------------------------
 
 sequence::Direction sequenceDirectionMenu{STRING_FOR_PLAY_DIRECTION};
-// Tempo ratio menu instances - using empty strings to rely on getName() methods
-sequence::TempoRatioGlobal tempoRatioGlobalMenu{EMPTY_STRING};           // Will use getName() -> "Global"
-sequence::TempoRatioHalf tempoRatioHalfMenu{EMPTY_STRING};               // Will use getName() -> "1/2 Half"
-sequence::TempoRatioDouble tempoRatioDoubleMenu{EMPTY_STRING};           // Will use getName() -> "2/1 Double"
-sequence::TempoRatioThreeFour tempoRatioThreeFourMenu{EMPTY_STRING};     // Will use getName() -> "3/4"
-sequence::TempoRatioFourThree tempoRatioFourThreeMenu{EMPTY_STRING};     // Will use getName() -> "4/3"
+// Tempo ratio menu instances - using new parameterized class
+sequence::TempoRatioPreset tempoRatioGlobalMenu{"Global"};                           // Special global constructor
+sequence::TempoRatioPreset tempoRatioHalfMenu{"1/2 Half", "Half speed", 1, 2};       // 1:2 ratio
+sequence::TempoRatioPreset tempoRatioDoubleMenu{"2/1 Double", "Double speed", 2, 1}; // 2:1 ratio
+sequence::TempoRatioPreset tempoRatioThreeFourMenu{"3/4", "3/4 speed", 3, 4};        // 3:4 ratio
+sequence::TempoRatioPreset tempoRatioFourThreeMenu{"4/3", "4/3 speed", 4, 3};        // 4:3 ratio
 sequence::TempoRatioNumerator tempoRatioNumeratorMenu{EMPTY_STRING};     // Will use getName() -> "Numerator"
 sequence::TempoRatioDenominator tempoRatioDenominatorMenu{EMPTY_STRING}; // Will use getName() -> "Denominator"
 

@@ -32,47 +32,27 @@
 
 namespace deluge::gui::menu_item::sequence {
 
-// Individual tempo ratio preset options
-class TempoRatioGlobal final : public MenuItem {
+// Unified tempo ratio preset class - replaces 5 individual classes with one parameterized class
+class TempoRatioPreset final : public MenuItem {
+private:
+	uint16_t numerator_;
+	uint16_t denominator_;
+	std::string_view displayName_;
+	std::string_view popupMessage_;
+	bool isGlobal_;
+
 public:
-	using MenuItem::MenuItem;
+	// Constructor for regular ratio presets
+	TempoRatioPreset(std::string_view name, std::string_view popup, uint16_t num, uint16_t den)
+	    : MenuItem(deluge::l10n::String::EMPTY_STRING), numerator_(num), denominator_(den), displayName_(name),
+	      popupMessage_(popup), isGlobal_(false) {}
 
-	std::string_view getName() const override { return "Global"; }
+	// Constructor for global tempo option
+	explicit TempoRatioPreset(std::string_view name)
+	    : MenuItem(deluge::l10n::String::EMPTY_STRING), numerator_(1), denominator_(1), displayName_(name),
+	      popupMessage_("Global tempo"), isGlobal_(true) {}
 
-	bool shouldEnterSubmenu() override { return false; }
-
-	MenuItem* selectButtonPress() override {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
-
-		if (clip && clip->hasTempoRatio) {
-			bool wasActive = currentSong->isClipActive(clip);
-			clip->clearTempoRatio();
-			display->displayPopup("Global tempo");
-
-			// Ensure clip remains active if it was active before tempo change
-			if (wasActive && playbackHandler.isEitherClockActive()) {
-				currentSong->assertActiveness(modelStack);
-				clip->resumePlayback(modelStack, false);
-			}
-		}
-
-		// Refresh parent menu to update title
-		if (soundEditor.getCurrentMenuItem() && soundEditor.getCurrentMenuItem()->isSubmenu()) {
-			soundEditor.getCurrentMenuItem()->readValueAgain();
-		}
-
-		return NO_NAVIGATION; // Stay in menu after setting ratio
-	}
-};
-
-class TempoRatioHalf final : public MenuItem {
-public:
-	using MenuItem::MenuItem;
-
-	std::string_view getName() const override { return "1/2 Half"; }
-
+	std::string_view getName() const override { return displayName_; }
 	bool shouldEnterSubmenu() override { return false; }
 
 	MenuItem* selectButtonPress() override {
@@ -83,148 +63,25 @@ public:
 		if (clip) {
 			bool wasActive = currentSong->isClipActive(clip);
 
-			clip->setTempoRatio(1, 2);
-			display->displayPopup("Half speed");
-
-			// Ensure clip remains active if it was active before tempo change
-			if (wasActive && playbackHandler.isEitherClockActive()) {
-				currentSong->assertActiveness(modelStack);
-
-				// CRITICAL FIX: Force complete playback restart on ANY ratio change
-				// to ensure proper timing state initialization and prevent accumulated drift
-				// Stop current playback state cleanly
-				clip->expectNoFurtherTicks(currentSong, false);
-				// Force a fresh restart with proper ratio-based timing
-				clip->setPos(modelStack, clip->lastProcessedPos, true);
-
-				clip->resumePlayback(modelStack, false);
+			// Set ratio or clear to global
+			if (isGlobal_) {
+				clip->clearTempoRatio();
 			}
-		}
-
-		// Refresh parent menu to update title
-		if (soundEditor.getCurrentMenuItem() && soundEditor.getCurrentMenuItem()->isSubmenu()) {
-			soundEditor.getCurrentMenuItem()->readValueAgain();
-		}
-
-		return NO_NAVIGATION; // Stay in menu after setting ratio
-	}
-};
-
-class TempoRatioDouble final : public MenuItem {
-public:
-	using MenuItem::MenuItem;
-
-	std::string_view getName() const override { return "2/1 Double"; }
-
-	bool shouldEnterSubmenu() override { return false; }
-
-	MenuItem* selectButtonPress() override {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
-
-		if (clip) {
-			bool wasActive = currentSong->isClipActive(clip);
-
-			clip->setTempoRatio(2, 1);
-			display->displayPopup("Double speed");
-
-			// Ensure clip remains active if it was active before tempo change
-			if (wasActive && playbackHandler.isEitherClockActive()) {
-				currentSong->assertActiveness(modelStack);
-
-				// CRITICAL FIX: Force complete playback restart on ANY ratio change
-				// to ensure proper timing state initialization and prevent accumulated drift
-				// Stop current playback state cleanly
-				clip->expectNoFurtherTicks(currentSong, false);
-				// Force a fresh restart with proper ratio-based timing
-				clip->setPos(modelStack, clip->lastProcessedPos, true);
-
-				clip->resumePlayback(modelStack, false);
+			else {
+				clip->setTempoRatio(numerator_, denominator_);
 			}
-		}
 
-		// Refresh parent menu to update title
-		if (soundEditor.getCurrentMenuItem() && soundEditor.getCurrentMenuItem()->isSubmenu()) {
-			soundEditor.getCurrentMenuItem()->readValueAgain();
-		}
-
-		return NO_NAVIGATION; // Stay in menu after setting ratio
-	}
-};
-
-class TempoRatioThreeFour final : public MenuItem {
-public:
-	using MenuItem::MenuItem;
-
-	std::string_view getName() const override { return "3/4"; }
-
-	bool shouldEnterSubmenu() override { return false; }
-
-	MenuItem* selectButtonPress() override {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
-
-		if (clip) {
-			bool wasActive = currentSong->isClipActive(clip);
-
-			clip->setTempoRatio(3, 4);
-			display->displayPopup("3/4 speed");
+			display->displayPopup(popupMessage_.data());
 
 			// Ensure clip remains active if it was active before tempo change
 			if (wasActive && playbackHandler.isEitherClockActive()) {
 				currentSong->assertActiveness(modelStack);
 
 				// CRITICAL FIX: Force complete playback restart on ANY ratio change
-				// to ensure proper timing state initialization and prevent accumulated drift
-				// Stop current playback state cleanly
-				clip->expectNoFurtherTicks(currentSong, false);
-				// Force a fresh restart with proper ratio-based timing
-				clip->setPos(modelStack, clip->lastProcessedPos, true);
-
-				clip->resumePlayback(modelStack, false);
-			}
-		}
-
-		// Refresh parent menu to update title
-		if (soundEditor.getCurrentMenuItem() && soundEditor.getCurrentMenuItem()->isSubmenu()) {
-			soundEditor.getCurrentMenuItem()->readValueAgain();
-		}
-
-		return NO_NAVIGATION; // Stay in menu after setting ratio
-	}
-};
-
-class TempoRatioFourThree final : public MenuItem {
-public:
-	using MenuItem::MenuItem;
-
-	std::string_view getName() const override { return "4/3"; }
-
-	bool shouldEnterSubmenu() override { return false; }
-
-	MenuItem* selectButtonPress() override {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
-
-		if (clip) {
-			bool wasActive = currentSong->isClipActive(clip);
-
-			clip->setTempoRatio(4, 3);
-			display->displayPopup("4/3 speed");
-
-			// Ensure clip remains active if it was active before tempo change
-			if (wasActive && playbackHandler.isEitherClockActive()) {
-				currentSong->assertActiveness(modelStack);
-
-				// CRITICAL FIX: Force complete playback restart on ANY ratio change
-				// to ensure proper timing state initialization and prevent accumulated drift
-				// Stop current playback state cleanly
-				clip->expectNoFurtherTicks(currentSong, false);
-				// Force a fresh restart with proper ratio-based timing
-				clip->setPos(modelStack, clip->lastProcessedPos, true);
+				if (!isGlobal_) {
+					clip->expectNoFurtherTicks(currentSong, false);
+					clip->setPos(modelStack, clip->lastProcessedPos, true);
+				}
 
 				clip->resumePlayback(modelStack, false);
 			}
@@ -280,12 +137,8 @@ public:
 				currentSong->assertActiveness(modelStack);
 
 				// CRITICAL FIX: Force complete playback restart on ANY ratio change
-				// to ensure proper timing state initialization and prevent accumulated drift
-				// Stop current playback state cleanly
 				clip->expectNoFurtherTicks(currentSong, false);
-				// Force a fresh restart with proper ratio-based timing
 				clip->setPos(modelStack, clip->lastProcessedPos, true);
-
 				clip->resumePlayback(modelStack, false);
 			}
 		}
@@ -338,12 +191,8 @@ public:
 				currentSong->assertActiveness(modelStack);
 
 				// CRITICAL FIX: Force complete playback restart on ANY ratio change
-				// to ensure proper timing state initialization and prevent accumulated drift
-				// Stop current playback state cleanly
 				clip->expectNoFurtherTicks(currentSong, false);
-				// Force a fresh restart with proper ratio-based timing
 				clip->setPos(modelStack, clip->lastProcessedPos, true);
-
 				clip->resumePlayback(modelStack, false);
 			}
 		}
