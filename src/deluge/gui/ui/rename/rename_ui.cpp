@@ -35,8 +35,7 @@ bool RenameUI::opened() {
 	}
 
 	String name = getName();
-	enteredText.clear();
-	enteredText.concatenate(&name);
+	enteredText.set(&name);
 
 	displayText();
 	drawKeys();
