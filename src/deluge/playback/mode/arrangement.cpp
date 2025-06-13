@@ -693,12 +693,8 @@ int32_t Arrangement::calculateClipPosIncrement(Clip* clip, int32_t globalIncreme
 
 	// Safety check for division by zero
 	if (clip->tempoRatioDenominator == 0) {
-		D_PRINTLN("TEMPO_DEBUG: WARNING - tempoRatioDenominator is 0, returning globalIncrement");
 		return globalIncrement;
 	}
-
-	D_PRINTLN("TEMPO_DEBUG: Arrangement::calculateClipPosIncrement - input globalIncrement=%d, ratio=%d:%d",
-	          globalIncrement, clip->tempoRatioNumerator, clip->tempoRatioDenominator);
 
 	// CRITICAL FIX: Use fractional accumulation to prevent precision loss
 	// Static accumulator per clip (in practice, this works because clips are processed consistently)
@@ -729,9 +725,6 @@ int32_t Arrangement::calculateClipPosIncrement(Clip* clip, int32_t globalIncreme
 	else {
 		finalResult = (int32_t)wholeTicks;
 	}
-
-	D_PRINTLN("TEMPO_DEBUG: Arrangement::calculateClipPosIncrement - converted %d -> %d (with accumulation)",
-	          globalIncrement, finalResult);
 
 	return finalResult;
 }

@@ -2448,12 +2448,6 @@ void Session::doTickForward(int32_t posIncrement) {
 			// Calculate clip-specific position increment for per-clip tempo support
 			int32_t clipIncrement = calculateClipPosIncrement(clip, posIncrement);
 
-			// Debug: Show clip processing info
-			if (clip->hasTempoRatio) {
-				// Simple debug - just display a dot to show independent tempo clips are being processed
-				display->setNextTransitionDirection(1);
-			}
-
 			// Process normally - multi-note processing handles ratio timing at note level
 			clip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
 
@@ -2747,12 +2741,8 @@ int32_t Session::calculateClipPosIncrement(Clip* clip, int32_t globalIncrement) 
 
 	// Safety check for division by zero
 	if (clip->tempoRatioDenominator == 0) {
-		D_PRINTLN("TEMPO_DEBUG: WARNING - tempoRatioDenominator is 0, returning globalIncrement");
 		return globalIncrement;
 	}
-
-	D_PRINTLN("TEMPO_DEBUG: Session::calculateClipPosIncrement - input globalIncrement=%d, ratio=%d:%d",
-	          globalIncrement, clip->tempoRatioNumerator, clip->tempoRatioDenominator);
 
 	// CRITICAL FIX: Use fractional accumulation to prevent precision loss
 	// Static accumulator per clip (in practice, this works because clips are processed consistently)
@@ -2783,9 +2773,6 @@ int32_t Session::calculateClipPosIncrement(Clip* clip, int32_t globalIncrement) 
 	else {
 		finalResult = (int32_t)wholeTicks;
 	}
-
-	D_PRINTLN("TEMPO_DEBUG: Session::calculateClipPosIncrement - converted %d -> %d (with accumulation)",
-	          globalIncrement, finalResult);
 
 	return finalResult;
 }

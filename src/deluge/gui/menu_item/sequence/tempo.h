@@ -47,19 +47,11 @@ inline void restartPlaybackForRatioChange(Clip* clip, ModelStackWithTimelineCoun
 		uint32_t loopLength = clip->loopLength;
 		uint32_t positionInLoop = currentLivePos % loopLength;
 
-		D_PRINTLN("RATIO_DEBUG: Ratio change - preserving musical position");
-		D_PRINTLN("  currentLivePos=%d, loopLength=%d, positionInLoop=%d", currentLivePos, loopLength, positionInLoop);
-		D_PRINTLN("  oldRatio=%d:%d -> newRatio=%d:%d", clip->tempoRatioNumerator, clip->tempoRatioDenominator,
-		          clip->tempoRatioNumerator, clip->tempoRatioDenominator);
-
 		clip->expectNoFurtherTicks(currentSong, false);
 
 		// Use the current position within the loop - this preserves musical position
 		// regardless of timing domain changes
 		clip->setPos(modelStack, positionInLoop, true);
-
-		uint32_t livePosAfter = clip->getLivePos();
-		D_PRINTLN("RATIO_DEBUG: After restart - livePosAfter=%d (should be ~%d)", livePosAfter, positionInLoop);
 
 		clip->resumePlayback(modelStack, false);
 	}

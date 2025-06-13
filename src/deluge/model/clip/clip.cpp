@@ -1327,8 +1327,6 @@ void Clip::incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTi
 		numTicks = -numTicks;
 	}
 	lastProcessedPos += numTicks;
-
-	D_PRINTLN("TEMPO_DEBUG: incrementPos final - lastProcessedPos=%d, repeatCount=%d", lastProcessedPos, repeatCount);
 }
 
 void Clip::setupOverdubInPlace(OverDubType type) {
@@ -1341,10 +1339,7 @@ void Clip::setupOverdubInPlace(OverDubType type) {
 
 // Per-clip tempo override methods
 void Clip::setTempoOverride(float bpm) {
-	D_PRINTLN("TEMPO_DEBUG: setTempoOverride (legacy) called with BPM=%.1f, converting to ratio", bpm);
-
 	if (bpm < 1.0f || bpm > 20000.0f) {
-		D_PRINTLN("TEMPO_DEBUG: BPM out of range, returning");
 		return;
 	}
 
@@ -1375,9 +1370,6 @@ void Clip::setTempoOverride(float bpm) {
 		}
 	}
 
-	D_PRINTLN("TEMPO_DEBUG: Converted %.1f BPM to ratio %d:%d (error=%.3f)", bpm, bestNumerator, bestDenominator,
-	          bestError);
-
 	setTempoRatio(bestNumerator, bestDenominator);
 }
 
@@ -1392,7 +1384,6 @@ uint64_t Clip::getEffectiveTimePerTimerTickBig() {
 
 	// Safety check for division by zero
 	if (tempoRatioNumerator == 0) {
-		D_PRINTLN("TEMPO_DEBUG: WARNING - tempoRatioNumerator is 0, returning global tempo");
 		return currentSong->timePerTimerTickBig;
 	}
 
@@ -1405,7 +1396,6 @@ uint64_t Clip::getEffectiveTimePerTimerTickBig() {
 
 	// Sanity check - prevent extremely small values that could cause issues
 	if (result == 0) {
-		D_PRINTLN("TEMPO_DEBUG: WARNING - calculated timePerTimerTickBig is 0, using minimum value");
 		result = 1;
 	}
 
@@ -1429,11 +1419,8 @@ bool Clip::isTempoIndependent() const {
 
 // New ratio-based tempo methods
 void Clip::setTempoRatio(uint16_t numerator, uint16_t denominator) {
-	D_PRINTLN("TEMPO_DEBUG: setTempoRatio called with %d:%d (clip=%p)", numerator, denominator, this);
-
 	// Validation
 	if (numerator == 0 || denominator == 0) {
-		D_PRINTLN("TEMPO_DEBUG: Invalid ratio (zero values), returning");
 		return;
 	}
 
@@ -1445,17 +1432,12 @@ void Clip::setTempoRatio(uint16_t numerator, uint16_t denominator) {
 	// Enable tempo ratio for any explicit ratio (even 1:1 if explicitly set)
 	// Only disable if both original values were 1 (meaning: use global tempo)
 	hasTempoRatio = (numerator != 1 || denominator != 1);
-
-	D_PRINTLN("TEMPO_DEBUG: Set ratio - simplified %d:%d, hasTempoRatio=%d", tempoRatioNumerator, tempoRatioDenominator,
-	          hasTempoRatio);
 }
 
 void Clip::clearTempoRatio() {
-	D_PRINTLN("TEMPO_DEBUG: clearTempoRatio called (clip=%p), hasTempoRatio was %d", this, hasTempoRatio);
 	tempoRatioNumerator = 1;
 	tempoRatioDenominator = 1;
 	hasTempoRatio = false;
-	D_PRINTLN("TEMPO_DEBUG: Cleared tempo ratio - now hasTempoRatio=%d", hasTempoRatio);
 }
 
 float Clip::getEffectiveTempoRatio() {
