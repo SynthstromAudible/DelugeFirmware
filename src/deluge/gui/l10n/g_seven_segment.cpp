@@ -527,6 +527,8 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_DEFAULT_HORIZONTAL_MENU, "HORZ"},
         {STRING_FOR_CHORD_KEYBOARD_MODE_ROW, "ROW"},
         {STRING_FOR_CHORD_KEYBOARD_MODE_COLUMN, "COLM"},
+        {STRING_FOR_TEMPO, "TEMP"},
+        {STRING_FOR_TEMPO_RATIO, "RATIO"},
     },
     &built_in::english,
 };

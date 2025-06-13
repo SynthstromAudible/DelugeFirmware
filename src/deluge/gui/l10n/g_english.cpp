@@ -686,6 +686,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_AUTO_START, "Auto-start"},
         {STRING_FOR_OUTPUT_PPQN, "Output PPQN"},
         {STRING_FOR_TEMPO, "TEMPO"},
+        {STRING_FOR_TEMPO_RATIO, "TEMPO RATIO"},
         {STRING_FOR_DEFAULT_TEMPO, "Default tempo"},
         {STRING_FOR_SWING_AMOUNT, "Swing amount"},
         {STRING_FOR_SWING_INTERVAL, "Swing interval"},

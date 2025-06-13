@@ -700,7 +700,7 @@ menu_item::Submenu tempoRatioCustomMenu{
 
 // Main tempo ratio submenu
 sequence::TempoRatio sequenceTempoMenu{
-    STRING_FOR_TEMPO,
+    STRING_FOR_TEMPO_RATIO,
     {
         &tempoRatioGlobalMenu,
         &tempoRatioHalfMenu,
