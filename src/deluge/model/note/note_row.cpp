@@ -2140,26 +2140,53 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 
 	// CRITICAL FIX: For ratio clips, scan for notes between previous and current positions
 	// This prevents note skipping when large position jumps occur due to tempo ratios
-	if (clip->hasTempoRatio && !playingReversedNow && ticksSinceLast > 1) {
-		// Calculate previous position
-		int32_t previousPos = effectiveCurrentPos - ticksSinceLast;
-		if (previousPos < 0) {
-			previousPos += effectiveLength; // Handle wrap-around
+	// FIXED: Now works for both forward AND reverse playback (including ping-pong reverse)
+	if (clip->hasTempoRatio && ticksSinceLast > 1) {
+		int32_t previousPos, startRange, endRange;
+
+		if (playingReversedNow) {
+			// Reverse playback: scan from current to previous position
+			// In reverse, ticksSinceLast represents how far back we moved
+			previousPos = effectiveCurrentPos + ticksSinceLast;
+			if (previousPos >= effectiveLength) {
+				previousPos -= effectiveLength; // Handle wrap-around
+			}
+			startRange = effectiveCurrentPos;
+			endRange = previousPos;
+		}
+		else {
+			// Forward playback: scan from previous to current position
+			previousPos = effectiveCurrentPos - ticksSinceLast;
+			if (previousPos < 0) {
+				previousPos += effectiveLength; // Handle wrap-around
+			}
+			startRange = previousPos;
+			endRange = effectiveCurrentPos;
 		}
 
-		// Find all notes between previous and current positions
+		// Find all notes between the range we jumped over
 		for (int32_t i = 0; i < notes.getNumElements(); i++) {
 			Note* note = notes.getElement(i);
 
 			// Check if note falls within the range we jumped over
 			bool noteInRange = false;
-			if (previousPos < effectiveCurrentPos) {
+			if (startRange < endRange) {
 				// Normal case: no wrap-around
-				noteInRange = (note->pos > previousPos && note->pos <= effectiveCurrentPos);
+				if (playingReversedNow) {
+					noteInRange = (note->pos >= startRange && note->pos < endRange);
+				}
+				else {
+					noteInRange = (note->pos > startRange && note->pos <= endRange);
+				}
 			}
 			else {
 				// Wrap-around case
-				noteInRange = (note->pos > previousPos || note->pos <= effectiveCurrentPos);
+				if (playingReversedNow) {
+					noteInRange = (note->pos >= startRange || note->pos < endRange);
+				}
+				else {
+					noteInRange = (note->pos > startRange || note->pos <= endRange);
+				}
 			}
 
 			if (noteInRange && effectiveForwardPos >= ignoreNoteOnsBefore_) {
