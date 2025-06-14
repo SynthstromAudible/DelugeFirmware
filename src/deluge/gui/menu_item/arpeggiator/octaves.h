@@ -55,9 +55,13 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingGateDrumRow() && !soundEditor.editingKitAffectEntire();
 	}
-	void getColumnLabel(StringBuf& label) override {
+	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
+		if (forSmallFont) {
+			return label.append(getName().data());
+		}
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
-	void getColumnLabelForSmallFont(StringBuf& label) override { getColumnLabel(label); }
+
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return NUMBER; }
 };
 } // namespace deluge::gui::menu_item::arpeggiator

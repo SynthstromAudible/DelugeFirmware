@@ -51,7 +51,8 @@ public:
 
 	static void sendMainImage();
 
-	static void setupPopup(int32_t width, int32_t height);
+	static void setupPopup(PopupType type, int32_t width, int32_t height, std::optional<int32_t> startX = std::nullopt,
+	                       std::optional<int32_t> startY = std::nullopt);
 	static void removePopup();
 	static void popupText(char const* text, bool persistent = false, PopupType type = PopupType::GENERAL);
 	static bool isPopupPresent();
@@ -116,6 +117,14 @@ public:
 	static const std::vector<uint8_t> syncTypeEvenIcon;
 	static const std::vector<uint8_t> syncTypeDottedIcon;
 	static const std::vector<uint8_t> syncTypeTripletsIcon;
+	static const std::vector<uint8_t> switcherIconOff;
+	static const std::vector<uint8_t> switcherIconOn;
+	static const std::vector<uint8_t> arpModeIconUp;
+	static const std::vector<uint8_t> arpModeIconDown;
+	static const std::vector<uint8_t> arpModeIconWalk;
+	static const std::vector<uint8_t> arpModeIconCustom;
+	static const std::vector<uint8_t> diceIcon;
+	static const std::vector<uint8_t> stutterDirectionIcon;
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;
@@ -148,6 +157,9 @@ public:
 
 	bool hasPopup() override { return isPopupPresent(); }
 	bool hasPopupOfType(PopupType type) override { return isPopupPresentOfType(type); }
+
+	// Horizontal menus
+	void displayHorizontalMenuPopup(std::string_view paramTitle, std::optional<std::string_view> paramValue) override;
 
 private:
 	static bool needsSending;

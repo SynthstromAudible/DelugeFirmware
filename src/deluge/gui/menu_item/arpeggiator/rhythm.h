@@ -42,18 +42,16 @@ public:
 	}
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
-		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-
-		renderColumnLabel(startX, width, startY);
+		hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 		// Render current value
 		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
 		char name[12];
 		// Index:Name
-		snprintf(name, sizeof(name), "%d: %s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
+		snprintf(name, sizeof(name), "%d:%s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
 		shortOpt.append(name);
 
-		image.drawStringCentered(shortOpt, startX, startY + kTextSpacingY + 4, kTextSpacingX, kTextSpacingY, width);
+		image.drawStringCentered(shortOpt, startX, startY + 4, kTextSpacingX, kTextSpacingY, width);
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

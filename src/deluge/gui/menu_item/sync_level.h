@@ -38,8 +38,8 @@ protected:
 	virtual void getNoteLengthName(StringBuf& buffer);
 	void drawPixelsForOled() override;
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
-	void getColumnLabel(StringBuf& label) override;
-	void getColumnLabelForSmallFont(StringBuf& label) override { getColumnLabel(label); }
+	void getColumnLabel(StringBuf& label, bool forSmallFont) override;
+	[[nodiscard]] bool showValueInPopup() const override { return true; };
 
 private:
 	const std::vector<uint8_t>& getSyncTypeIcon();
