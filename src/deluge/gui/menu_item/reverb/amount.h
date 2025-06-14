@@ -15,21 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "deluge/modulation/params/param.h"
-#include "gui/menu_item/unpatched_param.h"
-#include "gui/ui/sound_editor.h"
 
-namespace deluge::gui::menu_item::voice {
-class Portamento final : public UnpatchedParam {
+#include "gui/menu_item/integer.h"
+
+namespace deluge::gui::menu_item::reverb {
+class Amount final : public patched_param::Integer {
 public:
-	using UnpatchedParam::UnpatchedParam;
+	using Integer::Integer;
 
-	Portamento(l10n::String newName) : UnpatchedParam(newName, deluge::modulation::params::UNPATCHED_PORTAMENTO) {}
-
-	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
-		label.append(deluge::l10n::get(forSmallFont ? l10n::String::STRING_FOR_PORTAMENTO
-		                                            : l10n::String::STRING_FOR_PORTAMENTO_SHORT));
-	}
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return VERTICAL_BAR; }
 };
-
-} // namespace deluge::gui::menu_item::voice
+} // namespace deluge::gui::menu_item::reverb

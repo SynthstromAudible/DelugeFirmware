@@ -12,10 +12,7 @@ void Toggle::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void Toggle::selectEncoderAction(int32_t offset) {
-	const bool flip = offset & 0b1;
-	if (flip) {
-		this->setValue(!this->getValue());
-	}
+	this->setValue(offset > 0);
 	Value::selectEncoderAction(offset);
 }
 
@@ -65,33 +62,24 @@ void Toggle::displayToggleValue() {
 }
 
 void Toggle::renderSubmenuItemTypeForOled(int32_t yPixel) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+	using namespace deluge::hid::display;
+	oled_canvas::Canvas& image = OLED::main;
 
-	int32_t startX = getSubmenuItemTypeRenderIconStart();
-
-	if (getToggleValue()) {
-		image.drawGraphicMultiLine(deluge::hid::display::OLED::checkedBoxIcon, startX, yPixel, kSubmenuIconSpacingX);
-	}
-	else {
-		image.drawGraphicMultiLine(deluge::hid::display::OLED::uncheckedBoxIcon, startX, yPixel, kSubmenuIconSpacingX);
-	}
+	const int32_t startX = getSubmenuItemTypeRenderIconStart();
+	image.drawGraphicMultiLine(getToggleValue() ? OLED::checkedBoxIcon : OLED::uncheckedBoxIcon, startX, yPixel,
+	                           kSubmenuIconSpacingX);
 }
 
 void Toggle::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-	renderColumnLabel(startX, width, startY);
+	using namespace deluge::hid::display;
+	const auto iconBitmap = this->getValue() ? &OLED::switcherIconOn : &OLED::switcherIconOff;
 
-	constexpr int32_t iconWidth = 8, iconHeight = 8;
-
-	int32_t xPixel = startX + (width - iconWidth) / 2;
-	int32_t yPixel = startY + kTextSpacingY + 4;
-
-	if (getToggleValue()) {
-		image.drawGraphicMultiLine(deluge::hid::display::OLED::checkedBoxIcon, xPixel, yPixel, kSubmenuIconSpacingX);
-	}
-	else {
-		image.drawGraphicMultiLine(deluge::hid::display::OLED::uncheckedBoxIcon, xPixel, yPixel, kSubmenuIconSpacingX);
-	}
+	oled_canvas::Canvas& image = OLED::main;
+	constexpr int32_t numBytesTall = 2;
+	constexpr int32_t iconHeight = numBytesTall * 8;
+	const int32_t iconWidth = iconBitmap->size() / numBytesTall;
+	const int32_t x = startX + (width - iconWidth) / 2 - 1;
+	image.drawGraphicMultiLine(iconBitmap->data(), x, startY, iconWidth, iconHeight, numBytesTall);
 }
 
 } // namespace deluge::gui::menu_item

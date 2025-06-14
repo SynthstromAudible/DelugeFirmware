@@ -65,12 +65,11 @@ void Rate::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY,
 		return UnpatchedParam::renderInHorizontalMenu(startX, width, startY, height);
 	}
 
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-	renderColumnLabel(startX, width, startY);
+	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 	// Render current value
 	const char* label = getQuantizedOptionLabel();
-	image.drawStringCentered(label, startX, startY + kTextSpacingY + 4, kTextSpacingX, kTextSpacingY, width);
+	image.drawStringCentered(label, startX, startY + 4, kTextSpacingX, kTextSpacingY, width);
 }
 
 bool Rate::isStutterQuantized() {
