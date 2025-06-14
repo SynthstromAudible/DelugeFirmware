@@ -68,56 +68,11 @@ void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32
 
 // renders the default sub menu item type ("  >")
 void MenuItem::renderSubmenuItemTypeForOled(int32_t yPixel) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
-	int32_t startX = getSubmenuItemTypeRenderIconStart();
+	const int32_t startX = getSubmenuItemTypeRenderIconStart();
 
-	image.drawGraphicMultiLine(deluge::hid::display::OLED::submenuArrowIcon, startX, yPixel, kSubmenuIconSpacingX);
-}
-
-void MenuItem::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
-	// Default implementation: just render the label.
-	renderColumnLabel(startX, width, startY);
-}
-
-void MenuItem::renderColumnLabel(int32_t startX, int32_t width, int32_t startY) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-
-	const bool useSmallFont = runtimeFeatureSettings.get(RuntimeFeatureSettingType::HorizontalMenusSmallFontForLabels)
-	                          == RuntimeFeatureStateToggle::On;
-
-	DEF_STACK_STRING_BUF(label, kShortStringBufferSize);
-	useSmallFont ? getColumnLabelForSmallFont(label) : getColumnLabel(label);
-
-	// Remove any spaces
-	label.removeSpaces();
-
-	const int32_t textSpacingX = useSmallFont ? kTextSmallSpacingX : kTextSpacingX;
-	const int32_t textSpacingY = useSmallFont ? kTextSmallSizeY : kTextSpacingY;
-	const int32_t topPadding = useSmallFont ? 3 : 1;
-	const int32_t leftPadding = useSmallFont ? 5 : 3;
-
-	int32_t pxLen = image.getStringWidthInPixels(label.c_str(), textSpacingY);
-	// If the name fits as-is, we'll squeeze it in. Otherwise we chop off letters until
-	// we have some padding between columns.
-	if (pxLen >= width - 2) {
-		const int32_t padding = 4;
-		do {
-			label.truncate(label.size() - 1);
-		} while ((pxLen = image.getStringWidthInPixels(label.c_str(), textSpacingY)) + padding >= width);
-	}
-
-	if (width <= OLED_MAIN_WIDTH_PIXELS / 4 || width - pxLen < 10) {
-		// the item occupies only one slot or the label long enough, center the label
-		startX = (startX + (width - pxLen) / 2) - 1;
-	}
-	else {
-		// otherwise just add a small left padding
-		startX += leftPadding;
-	}
-
-	deluge::hid::display::OLED::main.drawString(label.c_str(), startX, startY + topPadding, textSpacingX, textSpacingY,
-	                                            0, startX + width - textSpacingX);
+	image.drawGraphicMultiLine(hid::display::OLED::submenuArrowIcon, startX, yPixel, kSubmenuIconSpacingX);
 }
 
 void MenuItem::updatePadLights() {
@@ -135,7 +90,5 @@ bool isItemRelevant(MenuItem* item) {
 	if (item == nullptr) {
 		return false;
 	}
-	else {
-		return item->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex);
-	}
+	return item->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex);
 }
