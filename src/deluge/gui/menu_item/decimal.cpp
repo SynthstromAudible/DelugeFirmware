@@ -244,9 +244,18 @@ void DecimalWithoutScrolling::drawActualValue(bool justDidHorizontalScroll) {
 	display->setText(buffer, dotPos);
 }
 
+void DecimalWithoutScrolling::getValueForPopup(StringBuf& value) {
+	const int32_t numDecimalPlaces = this->getNumDecimalPlaces();
+	value.appendFloat(this->getDisplayValue(), numDecimalPlaces, numDecimalPlaces);
+	value.append(getUnit());
+}
+
 void DecimalWithoutScrolling::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-	renderColumnLabel(startX, width, startY);
+	if (runtimeFeatureSettings.get(HorizontalMenuStyle) != Numeric) {
+		return Number::renderInHorizontalMenu(startX, width, startY, height);
+	}
+
+	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 	const int32_t numDecimalPlaces = getNumDecimalPlaces();
 	const float displayValue = getDisplayValue();
@@ -266,13 +275,13 @@ void DecimalWithoutScrolling::renderInHorizontalMenu(int32_t startX, int32_t wid
 
 	const int valuePxLen = image.getStringWidthInPixels(valueString.c_str(), kTextSpacingY);
 	const int unitPxLen = image.getStringWidthInPixels(unitString.c_str(), kTextSpacingY);
-	const int paddingBetweenPxLen = 2;
+	constexpr int paddingBetweenPxLen = 2;
 	const int totalPxLen = valuePxLen + (unitPxLen > 0 ? paddingBetweenPxLen + unitPxLen : 0);
 
 	// Draw the resulting string centered
 	const int pad = ((width - totalPxLen) / 2) - 1;
 	startX += pad;
-	startY += kTextSpacingY + 4;
+	startY += 4;
 
 	image.drawString(valueString.c_str(), startX, startY, kTextSpacingX, kTextSpacingY, 0,
 	                 startX + width - kTextSpacingX);

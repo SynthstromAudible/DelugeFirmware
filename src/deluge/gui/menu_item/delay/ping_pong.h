@@ -59,6 +59,18 @@ public:
 		    l10n::getView(STRING_FOR_ON),
 		};
 	}
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		using namespace deluge::hid::display;
+		const auto iconBitmap = this->getValue() ? &OLED::switcherIconOn : &OLED::switcherIconOff;
+
+		oled_canvas::Canvas& image = OLED::main;
+		constexpr int32_t numBytesTall = 2;
+		constexpr int32_t iconHeight = numBytesTall * 8;
+		const int32_t iconWidth = iconBitmap->size() / numBytesTall;
+		const int32_t x = startX + (width - iconWidth) / 2 - 1;
+		image.drawGraphicMultiLine(iconBitmap->data(), x, startY, iconWidth, iconHeight, numBytesTall);
+	}
 };
 
 } // namespace deluge::gui::menu_item::delay
