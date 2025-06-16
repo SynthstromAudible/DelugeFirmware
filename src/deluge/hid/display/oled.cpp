@@ -734,7 +734,7 @@ void OLED::displayHorizontalMenuPopup(std::string_view paramTitle, std::optional
 	}
 
 	markChanged();
-	uiTimerManager.setTimer(TimerName::DISPLAY, 800);
+	uiTimerManager.setTimer(TimerName::DISPLAY, 1200);
 }
 
 void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display) {
