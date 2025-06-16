@@ -20,6 +20,12 @@
 
 namespace deluge::gui::menu_item {
 
+float Number::getValuePercent() {
+	const int32_t minValue = getMinValue();
+	const int32_t maxValue = getMaxValue();
+	return static_cast<float>(getValue() - minValue) / static_cast<float>(maxValue - minValue);
+}
+
 void Number::drawBar(int32_t yTop, int32_t marginL, int32_t marginR) {
 	hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 	if (marginR == -1) {
@@ -64,10 +70,7 @@ void Number::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t start
 	}
 
 	if (numberStyle == KNOB) {
-		constexpr int32_t knobRadius = 10;
-		const int32_t centerX = (startX + width / 2) - 2;
-		const int32_t centerY = startY + knobRadius + 3;
-		return drawKnob(knobRadius, centerX, centerY);
+		return drawKnob(startX, startY, width, height);
 	}
 
 	if (numberStyle == VERTICAL_BAR) {
@@ -75,50 +78,43 @@ void Number::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t start
 	}
 }
 
-void Number::drawKnob(int32_t radius, int32_t centerX, int32_t centerY) {
+void Number::drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t height) {
 	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 	// Draw the background arc
-	constexpr int32_t numSteps = 32;
-	constexpr float angleStep = 180.0f / numSteps;
+	// Easier to adjust pixel-perfect, so we use a bitmap
+	const auto& arcIcon = hid::display::OLED::knobArcIcon;
+	const int32_t arcIconWidth = arcIcon.size() / 2;
+	const int32_t leftPadding = ((width - arcIconWidth) / 2) - 1;
+	image.drawGraphicMultiLine(arcIcon.data(), startX + leftPadding, startY + 1, arcIconWidth, 16, 2);
 
-	for (int32_t i = 0; i <= numSteps; i++) {
-		const float angle = 180.0f + (i * angleStep);
-		const float radians = (angle * M_PI) / 180.0f;
-
-		const int32_t x = centerX + static_cast<int32_t>(round(radius * cos(radians)));
-		const int32_t y = centerY + static_cast<int32_t>(round(radius * sin(radians)));
-		image.drawPixel(x, y);
-	}
-
-	// Calculate current value position
-	const int32_t minValue = getMinValue();
-	const int32_t maxValue = getMaxValue();
-	const float valuePercent = static_cast<float>(getValue() - minValue) / static_cast<float>(maxValue - minValue);
-
-	// Discretize the angle to help with aliasing
-	constexpr int32_t numPositions = 15;
-	const float discretePercent = round(valuePercent * (numPositions - 1)) / (numPositions - 1);
+	// Calculate current value angle
+	constexpr int32_t knobRadius = 10;
+	const int32_t centerX = (startX + width / 2) - 2;
+	const int32_t centerY = startY + knobRadius + 2;
+	constexpr int32_t arcRangeAngle = 210, beginningAngle = 165;
+	const float valuePercent = getValuePercent();
+	const float currentAngle = beginningAngle + (arcRangeAngle * valuePercent);
 
 	// Draw the indicator line
-	const float currentAngle = 180.0f + (180.0f * discretePercent);
 	const float radians = (currentAngle * M_PI) / 180.0f;
-	const int32_t startRadius = radius / 3;
-	constexpr int32_t numStepsLine = 32;
+	constexpr float innerRadius = knobRadius - 1.0f;
+	constexpr float outerRadius = 3.5f;
+	const float cosA = cos(radians);
+	const float sinA = sin(radians);
+	const float xStart = centerX + outerRadius * cosA;
+	const float yStart = centerY + outerRadius * sinA;
+	const float xEnd = centerX + innerRadius * cosA;
+	const float yEnd = centerY + innerRadius * sinA;
+	image.drawLine(round(xStart), round(yStart), round(xEnd), round(yEnd), true);
 
-	for (int32_t i = 0; i <= numStepsLine; i++) {
-		const float r = startRadius + (static_cast<float>(i) * (radius - startRadius - 1) / numStepsLine);
-		const int32_t x = centerX + static_cast<int32_t>(round(r * cos(radians)));
-		const int32_t y = centerY + static_cast<int32_t>(round(r * sin(radians)));
-		image.drawPixel(x, y);
-
-		// Add thickness based on the angle
-		if (abs(sin(radians)) > 0.707f) {
-			image.drawPixel(x + 1, y);
-		}
-		else {
-			image.drawPixel(x, y - 1);
-		}
+	// If the knob's position is near left or near right, fill the gap on the bitmap (the gap exists purely for
+	// stylistic effect)
+	if (currentAngle < 180.0f) {
+		image.drawPixel(centerX - knobRadius, startY + height - 2);
+	}
+	if (currentAngle > 360.0f) {
+		image.drawPixel(centerX + knobRadius, startY + height - 2);
 	}
 }
 
@@ -128,28 +124,26 @@ void Number::drawVerticalBar(int32_t startX, int32_t startY, int32_t slotWidth, 
 	constexpr int32_t barWidth = 18;
 
 	constexpr int32_t dotsInterval = 3;
-	constexpr int32_t topBottomPadding = 3;
+	constexpr int32_t topPadding = 2;
+	constexpr int32_t bottomPadding = 3;
 	constexpr int32_t fillPadding = 3;
 	const int32_t leftPadding = ((slotWidth - barWidth) / 2) - 2;
 
 	const int32_t minX = startX + leftPadding;
 	const int32_t maxX = minX + barWidth;
-	const int32_t minY = startY + topBottomPadding;
-	const int32_t maxY = minY + slotHeight - topBottomPadding - 2;
+	const int32_t minY = startY + topPadding;
+	const int32_t maxY = minY + slotHeight - bottomPadding;
 	const int32_t barHeight = maxY - minY;
 
 	// Draw the dots at left and right sides
 	// 1px offset from the bottom is better than 1px offset from the top
-	for (int32_t y = minY; y < maxY; y += dotsInterval) {
+	for (int32_t y = minY; y <= maxY; y += dotsInterval) {
 		image.drawPixel(minX, y);
 		image.drawPixel(maxX, y);
 	}
 
 	// Calculate fill height based on value
-	const int32_t minValue = getMinValue();
-	const int32_t maxValue = getMaxValue();
-	const float valuePercent = static_cast<float>(getValue() - minValue) / static_cast<float>(maxValue - minValue);
-
+	const float valuePercent = getValuePercent();
 	const int32_t fillHeight = static_cast<int32_t>(valuePercent * barHeight);
 	if (fillHeight != barHeight) {
 		// Draw the top dots
@@ -169,4 +163,5 @@ void Number::drawVerticalBar(int32_t startX, int32_t startY, int32_t slotWidth, 
 		image.invertArea(minX + fillPadding, barWidth - fillPadding - 2, maxY - fillHeight, maxY);
 	}
 }
+
 } // namespace deluge::gui::menu_item

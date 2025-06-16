@@ -72,6 +72,13 @@ void Rate::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY,
 	image.drawStringCentered(label, startX, startY + 4, kTextSpacingX, kTextSpacingY, width);
 }
 
+void Rate::getValueForPopup(StringBuf& valueBuf) {
+	if (!isStutterQuantized()) {
+		return valueBuf.appendInt(getValue());
+	}
+	valueBuf.append(getQuantizedOptionLabel());
+}
+
 bool Rate::isStutterQuantized() {
 	if (soundEditor.currentModControllable->stutterConfig.useSongStutter) {
 		return currentSong->globalEffectable.stutterConfig.quantized;

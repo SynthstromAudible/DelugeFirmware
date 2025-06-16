@@ -157,13 +157,14 @@ void HorizontalMenu::drawPixelsForOled() {
 
 void HorizontalMenu::selectEncoderAction(int32_t offset) {
 	if (renderingStyle() == HORIZONTAL) {
-		MenuItem* child = *current_item_;
-		if (child->isSubmenu()) {
-			return;
-		}
-
-		bool selectButtonPressed = Buttons::selectButtonPressUsedUp = Buttons::isButtonPressed(hid::button::SELECT_ENC);
+		const bool selectButtonPressed = Buttons::selectButtonPressUsedUp =
+		    Buttons::isButtonPressed(hid::button::SELECT_ENC);
 		if (!selectButtonPressed) {
+			MenuItem* child = *current_item_;
+			if (child->isSubmenu()) {
+				return;
+			}
+
 			child->selectEncoderAction(offset);
 			focusChild(child);
 			displayPopup(child);
@@ -172,6 +173,7 @@ void HorizontalMenu::selectEncoderAction(int32_t offset) {
 			// that would trigger for scrolling in the menu as well.
 			return soundEditor.markInstrumentAsEdited();
 		}
+
 		// Undo any acceleration: we only want it for the items, not the menu itself.
 		// We only do this for horizontal menus to allow fast scrolling with shift in vertical menus.
 		offset = std::clamp<int32_t>(offset, -1, 1);
@@ -243,7 +245,6 @@ ActionResult HorizontalMenu::selectMenuItemOnVisiblePage(int32_t selectedColumn)
 				break;
 			}
 
-			// Update the currently selected item
 			const auto previous_item = current_item_;
 			current_item_ = std::ranges::find(items, item);
 
@@ -258,9 +259,11 @@ ActionResult HorizontalMenu::selectMenuItemOnVisiblePage(int32_t selectedColumn)
 				break;
 			}
 
+			// Update the currently selected item
 			updateDisplay();
 			updatePadLights();
 			(*current_item_)->updateAutomationViewParameter();
+			displayPopup(*current_item_);
 			break;
 		}
 		currentColumn += item->getColumnSpan();
