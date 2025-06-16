@@ -37,10 +37,12 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingKitRow();
 	}
-	void getColumnLabel(StringBuf& label) override {
+	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
+		if (forSmallFont) {
+			return label.append(getName().data());
+		}
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
-	void getColumnLabelForSmallFont(StringBuf& label) override { getColumnLabel(label); }
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		using enum l10n::String;
