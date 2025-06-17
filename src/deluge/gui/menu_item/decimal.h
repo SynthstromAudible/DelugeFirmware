@@ -52,8 +52,10 @@ public:
 protected:
 	virtual float getDisplayValue() { return this->getValue(); }
 	virtual const char* getUnit() { return ""; }
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
-
+	[[nodiscard]] int32_t getColumnSpan() const override {
+		return runtimeFeatureSettings.get(HorizontalMenuStyle) == Numeric ? 2 : 1;
+	}
+	void getValueForPopup(StringBuf& value) override;
 	void drawPixelsForOled() override;
 	void drawDecimal(int32_t textWidth, int32_t textHeight, int32_t yPixel);
 	// 7Seg Only

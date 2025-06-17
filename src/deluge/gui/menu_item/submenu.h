@@ -46,7 +46,7 @@ public:
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void updateDisplay();
-	void selectEncoderAction(int32_t offset) final;
+	void selectEncoderAction(int32_t offset) override;
 	MenuItem* selectButtonPress() final;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void readValueAgain() final { updateDisplay(); }
@@ -70,6 +70,7 @@ public:
 	deluge::modulation::params::Kind getParamKind() override;
 	uint32_t getParamIndex() override;
 	std::optional<uint8_t> getThingIndex() { return thingIndex; }
+	int32_t getColumnSpan() const override { return 2; };
 
 protected:
 	std::optional<uint8_t> thingIndex = std::nullopt;
@@ -79,53 +80,6 @@ protected:
 
 private:
 	bool shouldForwardButtons();
-};
-
-class HorizontalMenu : public Submenu {
-public:
-	enum Layout { FIXED, DYNAMIC };
-	struct PageInfo {
-	public:
-		int32_t number;
-		int32_t itemsWidthScaling;
-		std::vector<MenuItem*> items;
-	};
-	struct Paging {
-	public:
-		int32_t visiblePageNumber;
-		int32_t selectedItemPositionOnPage;
-		std::vector<PageInfo> pages;
-		PageInfo& getVisiblePage() { return pages[visiblePageNumber]; }
-	};
-
-	using Submenu::Submenu;
-
-	HorizontalMenu(l10n::String newName, std::span<MenuItem*> newItems, Layout layout)
-	    : Submenu(newName, newItems), horizontalMenuLayout(layout), paging{} {}
-	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, Layout layout)
-	    : Submenu(newName, newItems), horizontalMenuLayout(layout), paging{} {}
-	HorizontalMenu(l10n::String newName, l10n::String newTitle, std::initializer_list<MenuItem*> newItems,
-	               Layout layout)
-	    : Submenu(newName, newTitle, newItems), horizontalMenuLayout(layout), paging{} {}
-
-	RenderingStyle renderingStyle() const override;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
-	void renderOLED() override;
-	void drawPixelsForOled() override;
-	void endSession() override;
-
-protected:
-	HorizontalMenu::Paging paging;
-	int32_t lastSelectedHorizontalMenuItemPosition = kNoSelection;
-	Layout horizontalMenuLayout = Layout::DYNAMIC;
-
-private:
-	ActionResult selectHorizontalMenuItemOnVisiblePage(int32_t selectedColumn);
-	ActionResult switchVisiblePage(int32_t direction);
-	void updateSelectedHorizontalMenuItemLED(int32_t itemNumber);
-	HorizontalMenu::Paging splitMenuItemsByPages();
-	int32_t calcPageItemsWidthScaling(int32_t totalItemsSpan, std::vector<MenuItem*>& pageItems,
-	                                  bool isLastPage = false) const;
 };
 
 } // namespace deluge::gui::menu_item

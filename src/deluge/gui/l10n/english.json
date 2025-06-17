@@ -24,6 +24,7 @@
         "STRING_FOR_ERROR_SD_CARD_FULL": "SD card full",
         "STRING_FOR_ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE": "File does not contain wavetable data",
         "STRING_FOR_ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO": "Stereo files cannot be used as wavetables",
+        "STRING_FOR_STRING_ERROR": "Messed up moving strings around",
         "STRING_FOR_ERROR_WRITE_PROTECTED": "Card is write-protected",
         "STRING_FOR_ERROR_GENERIC": "You've encountered an unspecified error. Please report this bug.",
 
@@ -229,6 +230,7 @@
 
         "STRING_FOR_DIGITAL": "Digital",
         "STRING_FOR_ANALOG": "Analog",
+        "STRING_FOR_ANALOG_SHORT": "ANLG",
 
         "STRING_FOR_DRIVE": "Drive",
         "STRING_FOR_DRIVE_SHORT": "DRV",
@@ -341,7 +343,7 @@
         "STRING_FOR_QUANTIZE_ALL": "QUANTIZE ALL",
         "STRING_FOR_QUANTIZE": "QUANTIZE",
         "STRING_FOR_USE_SONG": "USE SONG SETTINGS",
-	"STRING_FOR_USE_SONG_SHORT": "USE SONG",
+	    "STRING_FOR_USE_SONG_SHORT": "USE SONG",
         "STRING_FOR_HUMANIZE_ALL": "HUMANIZE ALL",
         "STRING_FOR_HUMANIZE": "HUMANIZE",
         "STRING_FOR_VELOCITY_DECREASED": "Velocity decreased",
@@ -570,9 +572,10 @@
         "STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR": "Alternative Playback Start Behaviour",
         "STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS": "Grid View Loop Layer Pads",
         "STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR": "Alternative Tap Tempo Behaviour",
-        "STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS": "Horizontal menus",
-	"STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS_SMALL_FONT_FOR_LABELS": "Small font for horz menu labels",
-        "STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP": "Trim from start of audio clips",
+        "STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS": "Horizontal Menus",
+        "STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS_STYLE": "Horizontal Menu style",
+	    "STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS_SMALL_FONT_FOR_LABELS": "Small Font For Horizontal Menu Labels",
+        "STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP": "Trim From Start Of Audio Clips",
 
         "STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION": "Track still has clips in session",
         "STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST": "Delete all track's clips first",

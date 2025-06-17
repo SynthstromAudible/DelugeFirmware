@@ -69,8 +69,7 @@ public:
 	}
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
-		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-		renderColumnLabel(startX, width, startY);
+		hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 		DEF_STACK_STRING_BUF(paramValue, 5);
 		int sizeX, sizeY;
