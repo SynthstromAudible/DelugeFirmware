@@ -74,6 +74,14 @@ public:
 	/// @param endY Y coordinate of the line, inclusive
 	void drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY);
 
+	/// Draw a line using Bresenham's algorithm
+	/// @param x0 Start X coordinate of the line
+	/// @param y0 Start Y coordinate of the line
+	/// @param x1 End X coordinate of the line
+	/// @param y1 End Y coordinate of the line
+	/// @param thick Set to true if you want 2px line
+	void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool thick = false);
+
 	/// Draw a 1-px wide rectangle.
 	///
 	/// @param minX Minimum X coordinate, inclusive

@@ -115,6 +115,46 @@ drawSolid:
 	}
 }
 
+void Canvas::drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool thick) {
+	const bool steep = abs(y1 - y0) > abs(x1 - x0);
+	if (steep) {
+		std::swap(x0, y0);
+		std::swap(x1, y1);
+	}
+	if (x0 > x1) {
+		std::swap(x0, x1);
+		std::swap(y0, y1);
+	}
+
+	const int32_t dx = x1 - x0;
+	const int32_t dy = abs(y1 - y0);
+	int32_t error = dx / 2;
+	int32_t y = y0;
+	const int32_t y_step = (y0 < y1) ? 1 : -1;
+
+	for (int x = x0; x <= x1; x++) {
+		if (steep) {
+			// Draw the line vertically
+			drawPixel(y, x);
+			if (thick) {
+				drawPixel(y + 1, x);
+			}
+		}
+		else {
+			// Draw the line horizontally
+			drawPixel(x, y);
+			if (thick) {
+				drawPixel(x, y - 1);
+			}
+		}
+		error -= dy;
+		if (error < 0) {
+			y += y_step;
+			error += dx;
+		}
+	}
+}
+
 void Canvas::drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {
 	drawVerticalLine(minX, minY, maxY);
 	drawVerticalLine(maxX, minY, maxY);
