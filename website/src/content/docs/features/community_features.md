@@ -487,7 +487,6 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - (#3794) Added toggle in `SETTINGS > DEFAULTS > UI > USE SHARPS(#) (SHRP)` to allow users to choose which accidentals to display. When enabled in OLED mode, notes will be displayed as A# or D#, as they did prior to this change. When disabled, notes will be displayed as B♭ or E♭. In 7SEG mode, a dot is used to indicade when the note has the configured accidental. If selected, `D.` will mean D#. If not selected, `D.` will mean D♭.
 
-
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
