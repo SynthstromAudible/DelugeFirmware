@@ -173,6 +173,8 @@ public:
 		arpNoteOn = nullptr;
 		outputMIDIChannelOff.fill(MIDI_CHANNEL_NONE);
 		noteCodeOffPostArp.fill(ARP_NOTE_NONE);
+		glideOutputMIDIChannelOff.fill(MIDI_CHANNEL_NONE);
+		glideNoteCodeOffPostArp.fill(ARP_NOTE_NONE);
 	}
 
 	// These are only valid if doing a note-on, or when releasing the most recently played with the arp off when other
@@ -189,13 +191,17 @@ public:
 	// And these are only valid if doing a note-off
 	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelOff; // For MPE
 	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOffPostArp;
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> glideOutputMIDIChannelOff; // For MPE
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeOffPostArp;
 };
 
 class ArpeggiatorBase {
 public:
 	ArpeggiatorBase() {
 		noteCodeCurrentlyOnPostArp.fill(ARP_NOTE_NONE);
+		glideNoteCodeCurrentlyOnPostArp.fill(ARP_NOTE_NONE);
 		outputMIDIChannelForNoteCurrentlyOnPostArp.fill(0);
+		outputMIDIChannelForGlideNoteCurrentlyOnPostArp.fill(0);
 	}
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
@@ -215,7 +221,9 @@ public:
 	bool playedFirstArpeggiatedNoteYet = false;
 	uint8_t lastVelocity = 0;
 	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeCurrentlyOnPostArp;
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeCurrentlyOnPostArp;
 	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForNoteCurrentlyOnPostArp;
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForGlideNoteCurrentlyOnPostArp;
 
 	// Playing state
 	uint32_t notesPlayedFromSequence = 0;

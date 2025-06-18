@@ -230,6 +230,13 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, int32_t noteCode
 	else {
 		if (gateCurrentlyActive) {
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				// Set all glide chord notes
+				instruction->glideNoteCodeOffPostArp[n] = glideNoteCodeCurrentlyOnPostArp[n];
+				instruction->glideOutputMIDIChannelOff[n] = outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n];
+				// Clean the temp state
+				glideNoteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+				outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
+
 				// Set all chord notes
 				instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
 				instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
@@ -394,9 +401,18 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 			else {
 				if (whichNoteCurrentlyOnPostArp == notesKey && gateCurrentlyActive) {
 					for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+						// Set all glide chord notes
+						instruction->glideNoteCodeOffPostArp[n] = glideNoteCodeCurrentlyOnPostArp[n];
+						instruction->glideOutputMIDIChannelOff[n] = outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n];
+						// Clean the temp state
+						glideNoteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+						outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
+
 						// Set all chord notes
 						instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
 						instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+						;
+						// Clean the temp state
 						noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
 						outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
 					}
@@ -459,6 +475,14 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 	if (gateCurrentlyActive) {
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			// TODO RAUL quid de la question
+			// Set all glide chord notes
+			instruction->glideNoteCodeOffPostArp[n] = glideNoteCodeCurrentlyOnPostArp[n];
+			instruction->glideOutputMIDIChannelOff[n] = outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n];
+			// Clean the temp state
+			glideNoteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+			outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
+
 			// Set all chord notes
 			instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
 			instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
