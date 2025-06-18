@@ -251,9 +251,6 @@ public:
 	// Step probability state
 	bool lastNormalNotePlayedFromStepProbability = false;
 
-	// Glide probability state
-	bool lastNormalNotePlayedFromGlideProbability = false;
-
 	// Reverse probability state
 	bool lastNormalNotePlayedFromReverseProbability = false;
 
@@ -269,10 +266,10 @@ public:
 	uint32_t ratchetNotesCount = 0;
 	bool isRatcheting = false;
 
-	// Chord state
-	uint32_t chordNotesCount = 0;
+	// Glide state
+	bool glideOnNextNoteOff = false;
 
-	// Calculated spread amounts
+	// Calculated randomizer values
 	bool isPlayNoteForCurrentStep = true;
 	bool isPlayBassForCurrentStep = false;
 	bool isPlayRandomStepForCurrentStep = false;
@@ -293,7 +290,7 @@ protected:
 	void executeArpStep(ArpeggiatorSettings* settings, uint8_t numActiveNotes, bool isRatchet,
 	                    uint32_t maxSequenceLength, uint32_t rhythm, bool* shouldCarryOnRhythmNote,
 	                    bool* shouldPlayNote, bool* shouldPlayBassNote, bool* shouldPlayRandomStep,
-	                    bool* shouldPlayGlideNote, bool* shouldPlayReverseNote, bool* shouldPlayChordNote);
+	                    bool* shouldPlayReverseNote, bool* shouldPlayChordNote);
 	void increasePatternIndexes(uint8_t numStepRepeats);
 	void increaseSequenceIndexes(uint32_t maxSequenceLength, uint32_t rhythm);
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
@@ -301,7 +298,6 @@ protected:
 	bool evaluateNoteProbability(bool isRatchet);
 	bool evaluateBassProbability(bool isRatchet);
 	bool evaluateStepProbability(bool isRatchet);
-	bool evaluateGlideProbability(bool isRatchet);
 	bool evaluateReverseProbability(bool isRatchet);
 	bool evaluateChordProbability(bool isRatchet);
 	uint32_t calculateSpreadVelocity(uint8_t velocity, int32_t spreadVelocityForCurrentStep);
