@@ -36,6 +36,8 @@ using namespace deluge;
 
 SaveMidiDeviceDefinitionUI saveMidiDeviceDefinitionUI{};
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstack-usage="
 bool SaveMidiDeviceDefinitionUI::opened() {
 	if (!getRootUI()->toClipMinder() || getCurrentOutputType() != OutputType::MIDI_OUT) {
 		return false;
@@ -93,6 +95,7 @@ gotError:
 
 	return true;
 }
+#pragma GCC diagnostic pop
 
 bool SaveMidiDeviceDefinitionUI::performSave(bool mayOverwrite) {
 	if (display->have7SEG()) {

@@ -35,6 +35,11 @@ public:
 		return modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::OFFSET);
 	}
 	[[nodiscard]] virtual std::string_view getTitle() const { return getName(); }
+
+	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
+		label.append(
+		    modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::OFFSET, !forSmallFont));
+	}
 };
 
 } // namespace deluge::gui::menu_item::mod_fx

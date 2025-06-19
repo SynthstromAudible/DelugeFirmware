@@ -82,7 +82,10 @@ public:
 		return soundEditor.editingKitRow();
 	}
 
-	void getColumnLabel(StringBuf& label) override {
+	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
+		if (forSmallFont) {
+			return label.append(getName().data());
+		}
 		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
 	}
 

@@ -27,6 +27,8 @@
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 
+#include <hid/display/oled.h>
+
 namespace deluge::gui::menu_item::arpeggiator {
 class PresetMode final : public Selection {
 public:
@@ -37,7 +39,7 @@ public:
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<ArpPreset>();
 
-		// If affect-entire button held, do whole kit
+		// If affect-entire button held, do the whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
@@ -108,11 +110,67 @@ public:
 		auto current_value = this->getValue<ArpPreset>();
 		if (current_value == ArpPreset::CUSTOM) {
 			if (soundEditor.editingKitRow()) {
-				return &arpeggiator::arpOctaveModeToNoteModeMenuForDrums;
+				return &arpOctaveModeToNoteModeMenuForDrums;
 			}
-			return &arpeggiator::arpOctaveModeToNoteModeMenu;
+			return &arpOctaveModeToNoteModeMenu;
 		}
 		return nullptr;
+	}
+
+	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
+	[[nodiscard]] bool showColumnLabel() const override { return false; }
+	[[nodiscard]] bool showPopup() const override { return false; }
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		using namespace deluge::hid::display;
+		oled_canvas::Canvas& image = OLED::main;
+
+		const std::vector<std::reference_wrapper<const std::vector<uint8_t>>> bitmaps = [&] {
+			switch (this->getValue<ArpPreset>()) {
+			case ArpPreset::OFF:
+				return std::vector{std::cref(OLED::switcherIconOff)};
+			case ArpPreset::UP:
+				return std::vector{std::cref(OLED::arpModeIconUp)};
+			case ArpPreset::DOWN:
+				return std::vector{std::cref(OLED::arpModeIconDown)};
+			case ArpPreset::BOTH:
+				return std::vector{std::cref(OLED::arpModeIconUp), std::cref(OLED::arpModeIconDown)};
+			case ArpPreset::RANDOM:
+				return std::vector{std::cref(OLED::diceIcon)};
+			case ArpPreset::WALK:
+				return std::vector{std::cref(OLED::arpModeIconWalk)};
+			case ArpPreset::CUSTOM:
+				return std::vector{std::cref(OLED::arpModeIconCustom)};
+			}
+
+			return std::vector{std::cref(OLED::switcherIconOff)};
+		}();
+
+		const std::string_view option = getOptions(OptType::FULL)[this->getValue()];
+
+		constexpr int32_t paddingBetween = 3;
+		constexpr int32_t numBytesTall = 2;
+		const int32_t textWidth = image.getStringWidthInPixels(option.data(), kTextSpacingY);
+		const int32_t bitmapsWidth = std::accumulate(
+		    bitmaps.begin(), bitmaps.end(), 0, [](int32_t acc, auto v) { return acc + v.get().size() / numBytesTall; });
+
+		const int32_t totalWidth = textWidth + paddingBetween + bitmapsWidth;
+
+		// Calc center position
+		int32_t x = startX + ((width - totalWidth) / 2) - 1;
+		int32_t y = startY + ((height - numBytesTall * 8) / 2) + 1;
+
+		// Draw icons
+		for (auto bitmap : bitmaps) {
+			image.drawGraphicMultiLine(bitmap.get().data(), x, y, bitmap.get().size() / numBytesTall, numBytesTall * 8,
+			                           numBytesTall);
+			x += bitmap.get().size() / numBytesTall;
+		}
+
+		// Draw mode text
+		x += paddingBetween;
+		y = startY + ((height - kTextSpacingY) / 2) + 2;
+		image.drawString(option.data(), x, y, kTextSpacingX, kTextSpacingY, 0, x + width - kTextSpacingX);
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator

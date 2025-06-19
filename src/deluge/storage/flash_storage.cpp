@@ -189,7 +189,6 @@ enum Entries {
 181-184: GlobalMIDICommand::NEXT_SONG product / vendor ids
 185: defaultFavouritesLayout
 186: defaultLoopRecordingCommand
-187: defaultAlternativeSelectEncoderBehaviour
 */
 
 uint8_t defaultScale;
@@ -254,8 +253,6 @@ bool defaultUseLastClipType = true;
 ThresholdRecordingMode defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 
 GlobalMIDICommand defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
-
-bool defaultAlternativeSelectEncoderBehaviour = true;
 
 void resetSettings() {
 
@@ -363,8 +360,6 @@ void resetSettings() {
 	defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 
 	defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
-
-	defaultAlternativeSelectEncoderBehaviour = true;
 }
 
 void resetMidiFollowSettings() {
@@ -798,13 +793,6 @@ void readSettings() {
 	else {
 		defaultLoopRecordingCommand = static_cast<GlobalMIDICommand>(buffer[186]);
 	}
-
-	if (buffer[187] != 0 && buffer[187] != 1) {
-		defaultAlternativeSelectEncoderBehaviour = true;
-	}
-	else {
-		defaultAlternativeSelectEncoderBehaviour = buffer[187];
-	}
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -1085,8 +1073,6 @@ void writeSettings() {
 	buffer[185] = util::to_underlying(defaultFavouritesLayout);
 
 	buffer[186] = util::to_underlying(defaultLoopRecordingCommand);
-
-	buffer[187] = defaultAlternativeSelectEncoderBehaviour;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

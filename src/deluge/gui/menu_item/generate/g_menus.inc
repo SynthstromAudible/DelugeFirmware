@@ -9,7 +9,7 @@ std::array<MenuItem*, 4> child0 = {
     &lpfMorphMenu,
     &lpfModeMenu,
 };
-HorizontalMenu lpfMenu{STRING_FOR_LPF, child0};
+HorizontalMenu lpfMenu{STRING_FOR_LPF, child0, HorizontalMenu::Layout::FIXED};
 filter::FilterParam hpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY, params::LOCAL_HPF_FREQ, filter::FilterSlot::HPF, filter::FilterParamType::FREQUENCY};
 filter::FilterParam hpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, params::LOCAL_HPF_RESONANCE, filter::FilterSlot::HPF, filter::FilterParamType::RESONANCE};
 filter::FilterParam hpfMorphMenu{STRING_FOR_HPF_MORPH, params::LOCAL_HPF_MORPH, filter::FilterSlot::HPF, filter::FilterParamType::MORPH};
@@ -20,7 +20,7 @@ std::array<MenuItem*, 4> child1 = {
     &hpfMorphMenu,
     &hpfModeMenu,
 };
-HorizontalMenu hpfMenu{STRING_FOR_HPF, child1};
+HorizontalMenu hpfMenu{STRING_FOR_HPF, child1, HorizontalMenu::Layout::FIXED};
 FilterRouting filterRoutingMenu{STRING_FOR_FILTER_ROUTE};
 std::array<MenuItem*, 3> child2 = {
     &lpfMenu,
@@ -30,42 +30,28 @@ std::array<MenuItem*, 3> child2 = {
 Submenu soundFiltersMenu{STRING_FOR_FILTERS, child2};
 audio_compressor::CompParam threshold{STRING_FOR_THRESHOLD, STRING_FOR_COMP_THRESHOLD_MENU_TITLE, params::UNPATCHED_COMPRESSOR_THRESHOLD};
 audio_compressor::Ratio compRatio{STRING_FOR_RATIO, STRING_FOR_RATIO};
+audio_compressor::Blend compBlend{STRING_FOR_BLEND, STRING_FOR_BLEND};
 audio_compressor::Attack compAttack{STRING_FOR_ATTACK, STRING_FOR_ATTACK};
 audio_compressor::Release compRelease{STRING_FOR_RELEASE, STRING_FOR_RELEASE};
 audio_compressor::SideHPF compHPF{STRING_FOR_HPF, STRING_FOR_HPF};
-audio_compressor::Blend compBlend{STRING_FOR_BLEND, STRING_FOR_BLEND};
 std::array<MenuItem*, 6> child3 = {
     &threshold,
     &compRatio,
+    &compBlend,
     &compAttack,
     &compRelease,
     &compHPF,
-    &compBlend,
 };
-Submenu audioCompMenu{STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR, child3};
-unison::Count numUnisonMenu{STRING_FOR_UNISON_NUMBER};
-unison::Detune unisonDetuneMenu{STRING_FOR_UNISON_DETUNE};
-unison::StereoSpread unison::stereoSpreadMenu{STRING_FOR_UNISON_STEREO_SPREAD};
+HorizontalMenu audioCompMenu{STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR, child3};
+unison::CountToStereoSpread numUnisonMenu{STRING_FOR_UNISON_NUMBER, STRING_FOR_UNISON_NUMBER_MENU_TITLE};
+unison::Detune unisonDetuneMenu{STRING_FOR_UNISON_DETUNE, STRING_FOR_UNISON_DETUNE_MENU_TITLE};
+unison::StereoSpread unison::stereoSpreadMenu{STRING_FOR_UNISON_STEREO_SPREAD, STRING_FOR_UNISON_STEREO_SPREAD_MENU_TITLE};
 std::array<MenuItem*, 3> child4 = {
     &numUnisonMenu,
     &unisonDetuneMenu,
     &unison::stereoSpreadMenu,
 };
-Submenu unisonMenu{STRING_FOR_UNISON, child4};
-envelope::Segment envAttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
-envelope::Segment envDecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY};
-envelope::Segment envSustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
-envelope::Segment envReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
-std::array<MenuItem*, 4> child5 = {
-    &envAttackMenu,
-    &envDecayMenu,
-    &envSustainMenu,
-    &envReleaseMenu,
-};
-submenu::Envelope env0Menu{STRING_FOR_ENVELOPE_1, child5, 0};
-submenu::Envelope env1Menu{STRING_FOR_ENVELOPE_2, child5, 1};
-submenu::Envelope env2Menu{STRING_FOR_ENVELOPE_3, child5, 2};
-submenu::Envelope env3Menu{STRING_FOR_ENVELOPE_4, child5, 3};
+HorizontalMenu unisonMenu{STRING_FOR_UNISON, child4, HorizontalMenu::Layout::FIXED};
 osc::Type oscTypeMenu{STRING_FOR_TYPE, STRING_FOR_OSC_TYPE_MENU_TITLE};
 osc::source::Volume sourceVolumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_OSC_LEVEL_MENU_TITLE, params::LOCAL_OSC_A_VOLUME};
 osc::source::WaveIndex sourceWaveIndexMenu{STRING_FOR_WAVE_INDEX, STRING_FOR_OSC_WAVE_IND_MENU_TITLE, params::LOCAL_OSC_A_WAVE_INDEX};
@@ -83,7 +69,7 @@ sample::Interpolation interpolationMenu{STRING_FOR_INTERPOLATION, STRING_FOR_SAM
 osc::PulseWidth pulseWidthMenu{STRING_FOR_PULSE_WIDTH, STRING_FOR_OSC_P_WIDTH_MENU_TITLE, params::LOCAL_OSC_A_PHASE_WIDTH};
 osc::Sync oscSyncMenu{STRING_FOR_OSCILLATOR_SYNC};
 osc::RetriggerPhase oscPhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_OSC_R_PHASE_MENU_TITLE, false};
-std::array<MenuItem*, 17> child6 = {
+std::array<MenuItem*, 17> child5 = {
     &oscTypeMenu,
     &sourceVolumeMenu,
     &sourceWaveIndexMenu,
@@ -102,6 +88,6 @@ std::array<MenuItem*, 17> child6 = {
     &oscSyncMenu,
     &oscPhaseMenu,
 };
-submenu::ActualSource source0Menu{STRING_FOR_OSCILLATOR_1, child6, 0};
-submenu::ActualSource source1Menu{STRING_FOR_OSCILLATOR_2, child6, 1};
+submenu::ActualSource source0Menu{STRING_FOR_OSCILLATOR_1, child5, 0};
+submenu::ActualSource source1Menu{STRING_FOR_OSCILLATOR_2, child5, 1};
 // clang-format on

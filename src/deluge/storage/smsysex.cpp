@@ -408,8 +408,9 @@ void smSysex::rename(MIDICable& cable, JsonDeserializer& reader) {
 		D_PRINTLN(toTC);
 		errCode = f_rename(fromTC, toTC);
 		startReply(jWriter, reader);
-		jWriter.writeOpeningTag("^mkdir", false, true);
-		jWriter.writeAttribute("path", toName.get());
+		jWriter.writeOpeningTag("^rename", false, true);
+		jWriter.writeAttribute("from", fromVal);
+		jWriter.writeAttribute("to", toVal);
 		jWriter.writeAttribute("err", errCode);
 		jWriter.closeTag(true);
 		sendMsg(cable, jWriter);
@@ -821,6 +822,14 @@ void smSysex::handleNextSysEx() {
 			rename(de.cable, parser);
 			goto done;
 		}
+		else if (!strcmp(tagName, "copy")) {
+			copyFile(de.cable, parser);
+			goto done;
+		}
+		else if (!strcmp(tagName, "move")) {
+			moveFile(de.cable, parser);
+			goto done;
+		}
 		else if (!strcmp(tagName, "utime")) {
 			updateTime(de.cable, parser);
 			goto done;
@@ -837,4 +846,182 @@ void smSysex::handleNextSysEx() {
 	}
 done:
 	SysExQ.pop_front();
+}
+
+// Helper function to parse file operation parameters
+bool smSysex::parseFileOpParams(JsonDeserializer& reader, FileOpParams& params) {
+	char const* tagName;
+	reader.match('{');
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "from")) {
+			reader.readTagOrAttributeValueString(&params.fromName);
+		}
+		else if (!strcmp(tagName, "to")) {
+			reader.readTagOrAttributeValueString(&params.toName);
+		}
+		else if (!strcmp(tagName, "date")) {
+			params.date = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "time")) {
+			params.time = reader.readTagOrAttributeValueInt();
+		}
+		else {
+			reader.exitTag();
+		}
+	}
+	reader.match('}');
+
+	return params.getFromTC() && strlen(params.getFromTC()) && params.getToTC() && strlen(params.getToTC());
+}
+
+// Helper function to set file timestamp
+void smSysex::setFileTimestamp(const TCHAR* path, uint32_t date, uint32_t time) {
+	if (date != 0 || time != 0) {
+		FILINFO finfo;
+		finfo.fdate = date;
+		finfo.ftime = time;
+		f_utime(path, &finfo);
+	}
+}
+
+// Helper function to perform file copy operation
+FRESULT smSysex::performFileCopy(const FileOpParams& params) {
+	FRESULT errCode = FRESULT::FR_OK;
+	const TCHAR* fromTC = params.getFromTC();
+	const TCHAR* toTC = params.getToTC();
+
+	D_PRINTLN(fromTC);
+	D_PRINTLN(toTC);
+
+	// Create destination directory if needed
+	bool pathCreateTried = false;
+retry_copy:
+	// Open source file for reading
+	FIL srcFile, dstFile;
+	errCode = f_open(&srcFile, fromTC, FA_READ);
+	if (errCode == FRESULT::FR_OK) {
+		// Open destination file for writing
+		errCode = f_open(&dstFile, toTC, FA_WRITE | FA_CREATE_ALWAYS);
+		if (errCode == FRESULT::FR_NO_PATH && !pathCreateTried) {
+			// Try to create the destination directory
+			// Don't set timestamps on directories - let them use current time
+			String toNameCopy = params.toName;
+			createPathDirectories(toNameCopy, 0, 0);
+			pathCreateTried = true;
+			f_close(&srcFile);
+			goto retry_copy;
+		}
+
+		if (errCode == FRESULT::FR_OK) {
+			// Copy file contents
+			uint8_t* copyBuffer = nullptr;
+			if (!readBlockBuffer) {
+				readBlockBuffer = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(blockBufferMax);
+			}
+			copyBuffer = readBlockBuffer;
+
+			if (copyBuffer) {
+				UINT bytesRead, bytesWritten;
+				do {
+					errCode = f_read(&srcFile, copyBuffer, blockBufferMax, &bytesRead);
+					if (errCode == FRESULT::FR_OK && bytesRead > 0) {
+						errCode = f_write(&dstFile, copyBuffer, bytesRead, &bytesWritten);
+						if (errCode != FRESULT::FR_OK || bytesWritten != bytesRead) {
+							break;
+						}
+					}
+				} while (errCode == FRESULT::FR_OK && bytesRead == blockBufferMax);
+			}
+			else {
+				errCode = FRESULT::FR_NOT_ENOUGH_CORE;
+			}
+
+			f_close(&dstFile);
+
+			// Set timestamp if provided and copy was successful
+			if (errCode == FRESULT::FR_OK && params.hasTimestamp()) {
+				setFileTimestamp(toTC, params.date, params.time);
+			}
+		}
+		f_close(&srcFile);
+	}
+
+	return errCode;
+}
+
+void smSysex::copyFile(MIDICable& cable, JsonDeserializer& reader) {
+	FileOpParams params;
+
+	if (!parseFileOpParams(reader, params)) {
+		return;
+	}
+
+	FRESULT errCode = performFileCopy(params);
+
+	startReply(jWriter, reader);
+	jWriter.writeOpeningTag("^copy", false, true);
+	jWriter.writeAttribute("from", params.getFromPath());
+	jWriter.writeAttribute("to", params.getToPath());
+	jWriter.writeAttribute("err", errCode);
+	jWriter.closeTag(true);
+	sendMsg(cable, jWriter);
+}
+
+void smSysex::moveFile(MIDICable& cable, JsonDeserializer& reader) {
+	FileOpParams params;
+
+	if (!parseFileOpParams(reader, params)) {
+		return;
+	}
+
+	FRESULT errCode = FRESULT::FR_OK;
+	const TCHAR* fromTC = params.getFromTC();
+	const TCHAR* toTC = params.getToTC();
+
+	D_PRINTLN(fromTC);
+	D_PRINTLN(toTC);
+
+	// Try rename first (works if source and destination are on same filesystem)
+	errCode = f_rename(fromTC, toTC);
+
+	// If rename failed due to missing path, try creating directories
+	if (errCode == FRESULT::FR_NO_PATH) {
+		// Don't set timestamps on directories - let them use current time
+		String toNameCopy = params.toName;
+		createPathDirectories(toNameCopy, 0, 0);
+		errCode = f_rename(fromTC, toTC);
+	}
+
+	// If rename still fails (e.g., cross-filesystem move), fall back to copy+delete
+	if (errCode != FRESULT::FR_OK) {
+		// Use the shared copy function
+		errCode = performFileCopy(params);
+
+		// If copy was successful, delete the source file
+		if (errCode == FRESULT::FR_OK) {
+			FRESULT deleteResult = f_unlink(fromTC);
+
+			// For move operation, both copy and delete must succeed
+			if (deleteResult != FRESULT::FR_OK) {
+				D_PRINTLN("Move: copy succeeded but delete failed: %d", deleteResult);
+				// Clean up the destination file since move failed
+				f_unlink(toTC);
+				errCode = deleteResult;
+			}
+		}
+	}
+	else {
+		// Rename was successful, set timestamp if provided
+		if (params.hasTimestamp()) {
+			setFileTimestamp(toTC, params.date, params.time);
+		}
+	}
+
+	startReply(jWriter, reader);
+	jWriter.writeOpeningTag("^move", false, true);
+	jWriter.writeAttribute("from", params.getFromPath());
+	jWriter.writeAttribute("to", params.getToPath());
+	jWriter.writeAttribute("err", errCode);
+	jWriter.closeTag(true);
+	sendMsg(cable, jWriter);
 }

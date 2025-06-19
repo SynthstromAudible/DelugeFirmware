@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "hid/buttons.h"
@@ -112,7 +113,7 @@ public:
 	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr) {};
 
 	/// @brief End an editing session with this menu item
-	virtual void endSession() {};
+	virtual void endSession();
 
 	/// Re-read the value from the system and redraw the display to match.
 	virtual void readValueAgain() {}
@@ -244,10 +245,6 @@ public:
 	///
 	/// By default this is just the l10n string for \ref name, but can be overriden.
 	[[nodiscard]] virtual std::string_view getName() const { return deluge::l10n::getView(name); }
-	/// @brief Get the name for use on horizontal menus.
-	///
-	/// By default this redirects to getName(), but can be overriden.
-	virtual void getColumnLabel(StringBuf& label) { label.append(getName().data()); }
 
 	/// @brief Check if this MenuItem should show up in a containing deluge::gui::menu_item::Submenu.
 	///
@@ -272,15 +269,50 @@ public:
 	virtual int32_t getSubmenuItemTypeRenderIconStart() { return (OLED_MAIN_WIDTH_PIXELS - kSubmenuIconSpacingX - 3); }
 	// render the submenu item type (icon or value)
 	virtual void renderSubmenuItemTypeForOled(int32_t yPixel);
-
-	virtual void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height);
 	virtual bool isSubmenu() { return false; }
 	virtual void setupNumberEditor() {}
 	virtual void updatePadLights();
 	/// Called to inform automation view that the active parameter has changed. Parameters inheriting
 	/// from Automation forward there, no-op for everything else.
 	virtual void updateAutomationViewParameter() { return; }
-	void renderColumnLabel(int32_t startX, int32_t width, int32_t startY);
+
+	/// @}
+	/// @name Horizontal menus
+	/// @{
+	///
+	/// @brief Get the name for use on horizontal menus.
+	///
+	/// By default this redirects to getName(), but can be overridden.
+	virtual void getColumnLabel(StringBuf& label, bool forSmallFont) { label.append(getName().data()); }
+
+	/// @brief Show a label for the parameter in the horizontal menu
+	///
+	/// true by default, but can be overridden
+	[[nodiscard]] virtual bool showColumnLabel() const { return true; }
+
+	/// @brief Get the number of occupied virtual columns in the horizontal menu.
+	///
+	/// 1 by default, but can be overridden
+	[[nodiscard]] virtual int32_t getColumnSpan() const { return 1; };
+
+	/// @brief Show a popup with the full name of the editing parameter at the top of the horizontal menu
+	///
+	/// true by default, but can be overridden
+	[[nodiscard]] virtual bool showPopup() const { return true; }
+
+	/// @brief Show a parameter value in the popup at the top of the horizontal menu
+	///
+	/// by default we show the value only when graphical style is enabled
+	[[nodiscard]] virtual bool showValueInPopup() const {
+		return runtimeFeatureSettings.get(HorizontalMenuStyle) == Graphical;
+	}
+
+	/// @brief Get the parameter value string to show in the popup
+	///
+	/// Needs to be overridden
+	virtual void getValueForPopup(StringBuf& valueBuf) {};
+
+	virtual void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {};
 
 	/// @}
 };

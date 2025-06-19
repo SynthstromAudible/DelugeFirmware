@@ -24,9 +24,10 @@
 
 namespace deluge::gui::menu_item::delay {
 
-class PingPong final : public Toggle {
+class PingPong final : public Selection {
 public:
-	using Toggle::Toggle;
+	using Selection::Selection;
+	bool isToggle() override { return true; }
 	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.pingPong); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
@@ -48,6 +49,27 @@ public:
 		else {
 			soundEditor.currentModControllable->delay.pingPong = current_value;
 		}
+	}
+
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_OFF),
+		    l10n::getView(STRING_FOR_ON),
+		};
+	}
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		using namespace deluge::hid::display;
+		const auto iconBitmap = this->getValue() ? &OLED::switcherIconOn : &OLED::switcherIconOff;
+
+		oled_canvas::Canvas& image = OLED::main;
+		constexpr int32_t numBytesTall = 2;
+		constexpr int32_t iconHeight = numBytesTall * 8;
+		const int32_t iconWidth = iconBitmap->size() / numBytesTall;
+		const int32_t x = startX + (width - iconWidth) / 2 - 1;
+		image.drawGraphicMultiLine(iconBitmap->data(), x, startY, iconWidth, iconHeight, numBytesTall);
 	}
 };
 

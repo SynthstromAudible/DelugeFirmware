@@ -102,6 +102,24 @@ static void SetupEmulatedDisplaySetting(RuntimeFeatureSetting& setting, deluge::
 	};
 }
 
+static void SetupHorizontalMenuStyleSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
+                                            std::string_view xmlName, RuntimeFeatureStateHorizontalMenuStyle def) {
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = static_cast<uint32_t>(def);
+
+	setting.options = {
+	    {
+	        .displayName = display->haveOLED() ? "Numeric" : "NUM",
+	        .value = RuntimeFeatureStateHorizontalMenuStyle::Numeric,
+	    },
+	    {
+	        .displayName = display->haveOLED() ? "Graphical" : "GRPH",
+	        .value = RuntimeFeatureStateHorizontalMenuStyle::Graphical,
+	    },
+	};
+}
+
 void RuntimeFeatureSettings::init() {
 	using enum deluge::l10n::String;
 	// Drum randomizer
@@ -194,6 +212,16 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HorizontalMenus],
 	                  STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS, "enableHorizontalMenus",
 	                  RuntimeFeatureStateToggle::On);
+
+	// Horizontal menus, small font for labels
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HorizontalMenusSmallFontForLabels],
+	                  STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS_SMALL_FONT_FOR_LABELS,
+	                  "enableHorizontalMenusSmallFontForLabels", RuntimeFeatureStateToggle::Off);
+
+	// Horizontal menus, style
+	SetupHorizontalMenuStyleSetting(settings[RuntimeFeatureSettingType::HorizontalMenuStyle],
+	                                STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS_STYLE, "horizontalMenuStyle",
+	                                RuntimeFeatureStateHorizontalMenuStyle::Numeric);
 
 	// Trim from start of audio clip
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrimFromStartOfAudioClip],

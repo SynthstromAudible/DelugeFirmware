@@ -19,6 +19,7 @@
 
 #include "RZA1/cpu_specific.h"
 #include "definitions.h"
+#include "deluge/util/d_string.h"
 #include <cstdint>
 #include <cstring>
 #include <string_view>
@@ -73,6 +74,14 @@ public:
 	/// @param endY Y coordinate of the line, inclusive
 	void drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY);
 
+	/// Draw a line using Bresenham's algorithm
+	/// @param x0 Start X coordinate of the line
+	/// @param y0 Start Y coordinate of the line
+	/// @param x1 End X coordinate of the line
+	/// @param y1 End Y coordinate of the line
+	/// @param thick Set to true if you want 2px line
+	void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool thick = false);
+
 	/// Draw a 1-px wide rectangle.
 	///
 	/// @param minX Minimum X coordinate, inclusive
@@ -105,6 +114,28 @@ public:
 	///             rendered is endX + textWidth, as the individual character rendering work can overshoot.
 	void drawStringCentred(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
 	                       int32_t centrePos = OLED_MAIN_WIDTH_PIXELS / 2);
+
+	/// Draw a string, centered between the provided startX and startX + totalWidth
+	///
+	/// @param string A null-terminated C string
+	/// @param startX Beginning X coordinate for center calculation
+	/// @param startY Y coordinate of the top side of the string
+	/// @param textSpacingX Base width in pixels of each character
+	/// @param textSpacingY Height in pixels of each character
+	/// @param totalWidth Total width for center calculation
+	void drawStringCentered(char const* string, int32_t startX, int32_t startY, int32_t textSpacingX,
+	                        int32_t textSpacingY, int32_t totalWidth);
+
+	/// Draw a string, centered between the provided startX and startX + totalWidth
+	///
+	/// @param stringBuf A string buffer
+	/// @param startX Beginning X coordinate for center calculation
+	/// @param startY Y coordinate of the top side of the string
+	/// @param textSpacingX Base width in pixels of each character
+	/// @param textSpacingY Height in pixels of each character
+	/// @param totalWidth Total width for center calculation
+	void drawStringCentered(StringBuf& stringBuf, int32_t startX, int32_t startY, int32_t textSpacingX,
+	                        int32_t textSpacingY, int32_t totalWidth);
 
 	/// Draw a string, reducing its height so the string fits within the specified width
 	///

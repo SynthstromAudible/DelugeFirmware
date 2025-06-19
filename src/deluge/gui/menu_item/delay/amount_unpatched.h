@@ -15,21 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/patched_param/integer.h"
-#include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::lfo {
-class Rate final : public patched_param::Integer {
+#include "gui/menu_item/integer.h"
+
+namespace deluge::gui::menu_item::delay {
+class Amount_Unpatched final : public UnpatchedParam {
 public:
-	Rate(deluge::l10n::String name, deluge::l10n::String type, int32_t newP, uint8_t lfoId)
-	    : Integer(name, type, newP), lfoId_(lfoId) {}
+	using UnpatchedParam::UnpatchedParam;
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		Sound* sound = static_cast<Sound*>(modControllable);
-		return sound->lfoConfig[lfoId_].syncLevel == SYNC_LEVEL_NONE;
-	}
-
-private:
-	uint8_t lfoId_;
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return VERTICAL_BAR; }
 };
-} // namespace deluge::gui::menu_item::lfo
+} // namespace deluge::gui::menu_item::delay

@@ -986,7 +986,6 @@ void routine() {
 			}
 #endif
 			routine_();
-			routineBeenCalled = true;
 			numRoutines += 1;
 		}
 	}
@@ -1013,6 +1012,7 @@ void routine() {
 		}
 	}
 	audioRoutineLocked = false;
+	routineBeenCalled = true;
 }
 
 int32_t getNumSamplesLeftToOutputFromPreviousRender() {
@@ -1226,6 +1226,7 @@ void dumpAudioLog() {
 	definitelyLog = false;
 	lastRoutineTime = *TCNT[TIMER_SYSTEM_FAST];
 	numAudioLogItems = 0;
+	memset(audioLogStrings, 0, sizeof(audioLogStrings));
 #endif
 }
 

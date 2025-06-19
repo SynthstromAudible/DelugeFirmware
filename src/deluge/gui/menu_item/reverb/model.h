@@ -20,5 +20,12 @@ public:
 		return {l10n::getView(STRING_FOR_FREEVERB), l10n::getView(STRING_FOR_MUTABLE),
 		        l10n::getView(STRING_FOR_DIGITAL)};
 	}
+
+	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
+		if (forSmallFont) {
+			return label.append(getName().data());
+		}
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_MODEL_SHORT));
+	}
 };
 } // namespace deluge::gui::menu_item::reverb

@@ -15,19 +15,38 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "deluge/modulation/params/param.h"
 #include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/param.h"
 #include "gui/menu_item/source/patched_param.h"
 
 namespace deluge::gui::menu_item::envelope {
-class Segment : public source::PatchedParam, public FormattedTitle {
+class Segment : public source::PatchedParam {
 public:
-	Segment(l10n::String name, l10n::String title_format_str, int32_t newP)
-	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
+	using PatchedParam::PatchedParam;
 
-	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
-	void getColumnLabel(StringBuf& label) override {
-		// For envelope segments the first letter is perfect short name: ADSR is well known.
-		label.append(MenuItem::getName().data()[0]);
+	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
+		if (forSmallFont) {
+			return label.append(getName().data());
+		}
+		const auto& shortNameString = getShortEnvelopeParamName(menu_item::PatchedParam::getP());
+		label.append(deluge::l10n::get(shortNameString));
+	}
+
+private:
+	static l10n::String getShortEnvelopeParamName(uint8_t param) {
+		using namespace deluge::modulation;
+		switch (param) {
+		case params::LOCAL_ENV_0_ATTACK:
+			return l10n::String::STRING_FOR_ATTACK_SHORT;
+		case params::LOCAL_ENV_0_DECAY:
+			return l10n::String::STRING_FOR_DECAY_SHORT;
+		case params::LOCAL_ENV_0_SUSTAIN:
+			return l10n::String::STRING_FOR_SUSTAIN_SHORT;
+		case params::LOCAL_ENV_0_RELEASE:
+			return l10n::String::STRING_FOR_RELEASE_SHORT;
+		}
+		return l10n::String::STRING_FOR_NONE;
 	}
 };
 } // namespace deluge::gui::menu_item::envelope
