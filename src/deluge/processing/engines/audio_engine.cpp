@@ -1226,6 +1226,7 @@ void dumpAudioLog() {
 	definitelyLog = false;
 	lastRoutineTime = *TCNT[TIMER_SYSTEM_FAST];
 	numAudioLogItems = 0;
+	memset(audioLogStrings, 0, sizeof(audioLogStrings));
 #endif
 }
 
