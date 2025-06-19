@@ -1504,13 +1504,12 @@ skipUnisonPart: {}
 		// No clipping
 		if (!sound.clippingAmount) {
 
-			int32_t const* __restrict__ oscBufferPos = oscBuffer; // For traversal
 			StereoSample* __restrict__ outputSample = (StereoSample*)soundBuffer;
 			int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
 
-			do {
-				int32_t outputSampleL = *(oscBufferPos++);
-				int32_t outputSampleR = *(oscBufferPos++);
+			for (StereoSample& osc_sample : stereo_osc_buffer) {
+				int32_t outputSampleL = osc_sample.l;
+				int32_t outputSampleR = osc_sample.r;
 
 				overallOscAmplitudeNow += overallOscillatorAmplitudeIncrement;
 				if (synthMode != SynthMode::FM) {
@@ -1527,7 +1526,7 @@ skipUnisonPart: {}
 				}
 
 				outputSample++;
-			} while (oscBufferPos != oscBufferEnd);
+			}
 		}
 
 		// Yes clipping
@@ -1650,7 +1649,6 @@ skipUnisonPart: {}
 	}
 
 renderingDone:
-
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sourceAmplitudesLastTime[s] = sourceAmplitudes[s];
 		sourceWaveIndexesLastTime[s] = paramFinalValues[params::LOCAL_OSC_A_WAVE_INDEX + s];
