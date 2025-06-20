@@ -1105,19 +1105,9 @@ void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* par
 }
 
 ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
-	ModFXType modFXTypeNow = modFXType_;
-
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	if ((currentModFXParam == ModFXParam::DEPTH
-	     && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_DEPTH) == -2147483648)
-	    || (currentModFXParam == ModFXParam::FEEDBACK
-	        && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK) == -2147483648)
-	    || (currentModFXParam == ModFXParam::OFFSET
-	        && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET) == -2147483648)) {
-		modFXTypeNow = ModFXType::NONE;
-	}
-	return modFXTypeNow;
+	// todo: should this have a per modfx switch of whether they're active for given parameter values?
+	// otoh we offer disabled as an explicit option now so shouldn't be needed
+	return modFXType_;
 }
 
 Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManager, bool shouldLimitDelayFeedback,
