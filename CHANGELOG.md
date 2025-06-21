@@ -229,6 +229,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 also affect normal sequenced notes while arpeggiator is Off.
 - Added `BASS PROBABILITY (BASS)` paramater that will allow you to control the chance of a note being replaced the bass (lowest) note of the inputted notes.
 - Added `STEP PROBABILITY (STEP)` paramater that will allow you to control the chance of a note in the pattern being replaced by a random note from the pattern.
+- Added `GLIDE PROBABILITY (GLID)` paramater that will allow you to control the chance of delaying a note's note-off event to be executed at the same time as the following arp note. If your sound has some `Portamento` applied, then it will produce a glide effect.
 - Added `STEP REPEAT (REPE)` paramater (with values 1 to 8) that makes walked notes in the pattern be repeated X times before moving to the next note+octave in the pattern.
 - Added `CHORD PROBABILITY (CHRD)` paramater that will allow you to control the chance of a note to play, at the same time, itself and other notes to form a chord (5th, 3rd and 7th).
 - Added `CHORD POLYPHONY (POLY)` paramater that works together with the previous parameter, and this one will dictate how big is the chord, that is, how many notes will be played at the same time.

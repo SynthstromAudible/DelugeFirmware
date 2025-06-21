@@ -7,6 +7,7 @@
 #include "gui/menu_item/arpeggiator/midi_cv/chord_polyphony.h"
 #include "gui/menu_item/arpeggiator/midi_cv/chord_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
+#include "gui/menu_item/arpeggiator/midi_cv/glide_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/note_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_amount.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_probability.h"
@@ -286,6 +287,10 @@ arpeggiator::ArpUnpatchedParam arpStepProbabilityMenu{
     STRING_FOR_STEP_PROBABILITY, STRING_FOR_ARP_STEP_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_STEP_PROBABILITY};
 arpeggiator::midi_cv::StepProbability arpStepProbabilityMenuMIDIOrCV{STRING_FOR_STEP_PROBABILITY,
                                                                      STRING_FOR_ARP_STEP_PROBABILITY_MENU_TITLE};
+arpeggiator::ArpUnpatchedParam arpGlideProbabilityMenu{
+    STRING_FOR_GLIDE_PROBABILITY, STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_GLIDE_PROBABILITY};
+arpeggiator::midi_cv::GlideProbability arpGlideProbabilityMenuMIDIOrCV{STRING_FOR_GLIDE_PROBABILITY,
+                                                                       STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE};
 arpeggiator::ArpNonKitSoundUnpatchedParam arpChordProbabilityMenu{
     STRING_FOR_CHORD_PROBABILITY, STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_PROBABILITY};
 arpeggiator::midi_cv::ChordProbability arpChordProbabilityMenuMIDIOrCV{STRING_FOR_CHORD_PROBABILITY,
@@ -324,26 +329,31 @@ HorizontalMenu arpPatternMenu{STRING_FOR_PATTERN,
                                &arpRhythmMenu, &arpRhythmMenuMIDIOrCV, &arpSequenceLengthMenu,
                                &arpSequenceLengthMenuMIDIOrCV}};
 // Arp: Randomizer
-arpeggiator::Randomizer arpRandomizerMenu{
-    STRING_FOR_RANDOMIZER,
-    {// Lock
-     &arpRandomizerLockMenu,
-     // Spreads
-     &arpSpreadGateMenu, &arpSpreadGateMenuMIDIOrCV, &arpSpreadOctaveMenu, &arpSpreadOctaveMenuMIDIOrCV,
-     &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV,
-     // Ratchets
-     &arpRatchetAmountMenu, &arpRatchetAmountMenuMIDIOrCV, &arpRatchetProbabilityMenu,
-     &arpRatchetProbabilityMenuMIDIOrCV,
-     // Chords
-     &arpChordPolyphonyMenu, &arpChordPolyphonyMenuMIDIOrCV, &arpChordProbabilityMenu, &arpChordProbabilityMenuMIDIOrCV,
-     // Note
-     &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
-     // Bass
-     &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV,
-     // Step
-     &arpStepProbabilityMenu, &arpStepProbabilityMenuMIDIOrCV,
-     // Reverse
-     &arpReverseProbabilityMenu}};
+arpeggiator::Randomizer arpRandomizerMenu{STRING_FOR_RANDOMIZER,
+                                          {// Lock
+                                           &arpRandomizerLockMenu,
+                                           // Spreads
+                                           &arpSpreadGateMenu, &arpSpreadGateMenuMIDIOrCV, &arpSpreadOctaveMenu,
+                                           &arpSpreadOctaveMenuMIDIOrCV, &arpSpreadVelocityMenu,
+                                           &arpSpreadVelocityMenuMIDIOrCV,
+                                           // Ratchets: Amount
+                                           &arpRatchetAmountMenu, &arpRatchetAmountMenuMIDIOrCV,
+                                           // Ratchets: Probability
+                                           &arpRatchetProbabilityMenu, &arpRatchetProbabilityMenuMIDIOrCV,
+                                           // Chords: Polyphony
+                                           &arpChordPolyphonyMenu, &arpChordPolyphonyMenuMIDIOrCV,
+                                           // Chords: Probability
+                                           &arpChordProbabilityMenu, &arpChordProbabilityMenuMIDIOrCV,
+                                           // Note
+                                           &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
+                                           // Step
+                                           &arpStepProbabilityMenu, &arpStepProbabilityMenuMIDIOrCV,
+                                           // Bass
+                                           &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV,
+                                           // Glide
+                                           &arpGlideProbabilityMenu, &arpGlideProbabilityMenuMIDIOrCV,
+                                           // Reverse
+                                           &arpReverseProbabilityMenu}};
 // Arp: Preset and Randomizer
 HorizontalMenu arpPresetAndRandomizerMenu{STRING_FOR_ARPEGGIATOR, {&arpPresetModeMenu, &arpRandomizerMenu}};
 // Global: Randomizer

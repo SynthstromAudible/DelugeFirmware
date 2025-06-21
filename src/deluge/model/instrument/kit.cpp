@@ -750,6 +750,12 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, output.size(), gateThreshold,
 			                                 phaseIncrement);
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+					break;
+				}
+				nonAudioDrum->noteOffPostArp(instruction.glideNoteCodeOffPostArp[n]);
+			}
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
@@ -1156,6 +1162,12 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				    modelStackWithNoteRow->addOtherTwoThings(soundDrum, &thisNoteRow->paramManager)->addSoundFlags();
 
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+						break;
+					}
+					soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+				}
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
@@ -1177,6 +1189,12 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 			else if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
 				NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
 
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+						break;
+					}
+					nonAudioDrum->noteOffPostArp(instruction.glideNoteCodeOffPostArp[n]);
+				}
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 						break;
