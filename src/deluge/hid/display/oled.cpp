@@ -131,7 +131,28 @@ void OLED::setupPopup(PopupType type, int32_t width, int32_t height, std::option
 	popupMaxX = popupMinX + width;
 	popupMinY = startY.has_value() ? startY.value() : (OLED_MAIN_HEIGHT_PIXELS - height) / 2;
 	popupMaxY = popupMinY + height;
+#if ALPHA_OR_BETA_VERSION
+	if (popupMaxX < 0 || popupMinX < 0 || popupMaxX < popupMinX || popupMinX > OLED_MAIN_WIDTH_PIXELS
+	    || popupMaxX > OLED_MAIN_WIDTH_PIXELS) {
 
+		uint32_t regLR = 0;
+		uint32_t regSP = 0;
+		asm volatile("MOV %0, LR\n" : "=r"(regLR));
+		asm volatile("MOV %0, SP\n" : "=r"(regSP));
+		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);
+		::freezeWithError("D003");
+	}
+	if (popupMaxY < 0 || popupMinY < 0 || popupMaxY < popupMinY || popupMinY > OLED_MAIN_WIDTH_PIXELS
+	    || popupMaxY > OLED_MAIN_WIDTH_PIXELS) {
+
+		uint32_t regLR = 0;
+		uint32_t regSP = 0;
+		asm volatile("MOV %0, LR\n" : "=r"(regLR));
+		asm volatile("MOV %0, SP\n" : "=r"(regSP));
+		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);
+		::freezeWithError("D003");
+	}
+#endif
 	popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
 
 	if (type != PopupType::HORIZONTAL_MENU) {
@@ -361,7 +382,12 @@ void OLED::sendMainImage() {
 	needsSending = false;
 }
 
-#define TEXT_MAX_NUM_LINES 8
+struct TextLine {
+	std::string_view text;
+	size_t pixel_width{0};
+};
+
+constexpr std::size_t kMaxNumLines = 8;
 struct TextLineBreakdown {
 	char const* lines[TEXT_MAX_NUM_LINES];
 	uint8_t lineLengths[TEXT_MAX_NUM_LINES];
@@ -406,35 +432,22 @@ bool addCharacterToLine(char c, int32_t maxWidthPerLine, int32_t textHeight, int
 	}
 }
 
-/// used with breakStringIntoLines function below
-/// here we iterate through every character in the string until we reach a "break" in a word
-/// which can be due to a new line, a space, an underscore or the end of the string (0)
-/// returns the following:
-/// 1) the string remaining after the split point
-/// 2) updated textLineBreakdown struct
-/// 3) width of the line in pixels from start of the line up to the split point
-/// 4) returns number of characters from start of the line up to the split point
-/// 5) returns number of spacing in pixels added after the last character
-char const* findLineSplitPoint(char const* wordStart, int32_t maxWidthPerLine, int32_t textHeight, int32_t& lineWidth,
-                               int32_t& lineLength, int32_t& charSpacing) {
-	bool lineWidthLimitReached = false;
-	char const* space = wordStart;
-	while (true) {
-		// we've reached end of a word
-		if (*space == '\n' || *space == ' ' || *space == 0 || *space == '_') {
-			break;
+/// @brief get the total width of a string in pixels
+/// @param text the string to get the width for
+/// @param height the desired height of the font in pixels
+/// @return the total width of the string in pixels
+size_t getWidthPixels(std::string_view text, size_t height) {
+	size_t total_width = 0;
+	size_t index = 0;
+	auto l = text.length();
+	for (char c : text) {
+		auto [char_width, char_spacing] = getWidthPixels(c, height);
+		if (index++ == l - 1) {
+			total_width += char_width;
 		}
-		// add character and check if the character we just aded takes us over the line width
-		if (!addCharacterToLine(*space, maxWidthPerLine, textHeight, lineWidth, lineLength, charSpacing)) {
-			// character took us over line width, so return here
-			return space;
+		else {
+			total_width += char_spacing + char_width;
 		}
-		space++; // increment to see what next character is
-	}
-
-	// we're here because we reached end of a word
-	if (*space == '_' || *space == ' ') {
-		addCharacterToLine(*space, maxWidthPerLine, textHeight, lineWidth, lineLength, charSpacing);
 	}
 	return space;
 }
@@ -458,56 +471,48 @@ void addLine(TextLineBreakdown* textLineBreakdown, char const* lineStart, int32_
 	textLineBreakdown->numLines++;
 }
 
-/// this function takes a string and breaks it into multiple lines
-/// it does so by iterating through each character in a string, calculating the width in pixels
-/// for each character and comparing that width to the maximum width of a line
-/// as characters are processed, the width and length of a given line is incremented so that it can be
-/// compared against. If a character cannot be drawn because a line's width and length is reached
-/// then that character is evaluated to determine what to do with it
-/// for example:
-/// a) if the character is part of a word, then that word will be rendered on the next line
-/// b) if the character is a space, then the space gets ignored and the next character will be drawn on
-///    the next line
-void breakStringIntoLines(char const* text, TextLineBreakdown* textLineBreakdown, int32_t textHeight) {
-	textLineBreakdown->numLines = 0;
-	textLineBreakdown->longestLineLength = 0;
-	textLineBreakdown->longestLineWidth = 0;
+/// Take a string and break it down into lines that fit within a given width
+/// @param text the string to be broken down
+/// @param text_height the height of the text in pixels
+/// @param max_pixels_per_line the maximum width of a line in pixels
+/// This function iterates through the string character by character, calculating the width of each character and the
+/// spacing after it. If adding a character would exceed the maximum width, it looks for the first word break character
+/// (space or underscore) to break the line. If no word break character is found, it breaks at the end of the string.
+/// The function also handles newline characters by breaking the line at that point. The resulting lines are stored in
+/// the `lines` vector and their pixel widths are calculated. The function also keeps track of the maximum width of any
+/// line for later use.
+/// @note The function assumes that the input string is valid and does not contain any invalid characters.
+TextLineBreakdown::TextLineBreakdown(std::string_view text, size_t char_height, size_t max_pixels_per_line)
+    : max_width_per_line{max_pixels_per_line} {
+	size_t line_width = 0;
+	size_t last_char_spacing = 0;
 
-	char const* lineStart = text;
-	char const* wordStart = lineStart;
+	for (const char* c = text.begin(); c != text.end(); ++c) {
+		// If we hit a newline character, we need to break the line
+		if (*c == '\n') {
+			// get the index of the newline character
+			size_t end_idx = std::distance(text.begin(), c);
 
-	int32_t lineWidth = 0;                // width in pixels of a line
-	int32_t lineLength = 0;               // number of characters in a line
-	int32_t lineWidthBeforeThisWord = 0;  // line width in pixels up to the current word
-	int32_t lineLengthBeforeThisWord = 0; // line length in characters up to the current word
-	int32_t charSpacing = 0;              // number of pixels last added after a character
-
-findNextStringSplitPoint:
-	// save current lineWidth / lineLength in case we need to cut off drawing on a line before current word
-	lineWidthBeforeThisWord = lineWidth;
-	lineLengthBeforeThisWord = lineLength;
-
-	char const* space = findLineSplitPoint(wordStart, textLineBreakdown->maxWidthPerLine, textHeight, lineWidth,
-	                                       lineLength, charSpacing);
-
-	// If line not too long yet
-	if (lineWidth <= textLineBreakdown->maxWidthPerLine) {
-		// If end of whole line, or whole string...
-		if (*space == '\n' || *space == 0) {
-			// if we reached line break or end of string, we don't need extra spacing after it
-			lineWidth -= charSpacing;
-			addLine(textLineBreakdown, lineStart, lineWidth, lineLength);
-			// did we reach the end of the original string? or the max number of lines?
-			// then return, we're done
-			if (!*space || textLineBreakdown->numLines == TEXT_MAX_NUM_LINES) {
-				return;
+			// add the current line to the lines vector
+			auto t = text.substr(0, end_idx);
+			auto l = getWidthPixels(t, char_height);
+			if (l > max_pixels_per_line) {
+				FREEZE_WITH_ERROR("P002");
 			}
-			// set character to start drawing from on the next line
-			lineStart = space + 1;
-			// reset line width and line length as we'll start counting from 0 for the next line
-			lineWidth = 0;
-			lineLength = 0;
-			charSpacing = 0;
+			lines.push_back({
+			    .text = t,
+			    .pixel_width = l,
+			});
+
+			// remove the text up to and including the newline
+			text.remove_prefix(end_idx + 1);
+
+			// reset the current line width
+			line_width = 0;
+
+			// reset the iterator to the start of the new text
+			c = text.begin();
+			continue;
 		}
 		// set character to start iterating from on
 		wordStart = space + 1;
@@ -575,6 +580,10 @@ void OLED::drawPermanentPopupLookingText(char const* text) {
 		                textPixelY, kTextSpacingX, kTextSpacingY);
 		textPixelY += kTextSpacingY;
 	}
+	if (maxPixelWidth() > max_pixels_per_line) {
+		FREEZE_WITH_ERROR("p001");
+	}
+}
 
 	drawnPermanentPopup = true;
 }
