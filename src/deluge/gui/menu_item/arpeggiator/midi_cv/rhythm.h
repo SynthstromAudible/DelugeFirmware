@@ -54,7 +54,7 @@ public:
 		snprintf(name, sizeof(name), "%d:%s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
 		shortOpt.append(name);
 
-		image.drawStringCentered(shortOpt, startX, startY + 4, kTextSpacingX, kTextSpacingY, width);
+		image.drawStringCentered(shortOpt, startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
 	}
 
 protected:

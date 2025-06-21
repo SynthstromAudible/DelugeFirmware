@@ -49,8 +49,6 @@ SettingToggle menuAlternativePlaybackStartBehaviour(RuntimeFeatureSettingType::A
 SettingToggle menuEnableGridViewLoopPads(RuntimeFeatureSettingType::EnableGridViewLoopPads);
 SettingToggle menuAlternativeTapTempoBehaviour(RuntimeFeatureSettingType::AlternativeTapTempoBehaviour);
 SettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalMenus);
-SettingToggle menuHorizontalMenusSmallFontForLabels(RuntimeFeatureSettingType::HorizontalMenusSmallFontForLabels);
-Setting menuHorizontalMenuStyle(RuntimeFeatureSettingType::HorizontalMenuStyle);
 SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
@@ -76,8 +74,6 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuEnableGridViewLoopPads,
     &menuAlternativeTapTempoBehaviour,
     &menuHorizontalMenus,
-    &menuHorizontalMenuStyle,
-    &menuHorizontalMenusSmallFontForLabels,
     &menuTrimFromStartOfAudioClip};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {

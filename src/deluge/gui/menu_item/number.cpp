@@ -60,13 +60,15 @@ void Number::drawBar(int32_t yTop, int32_t marginL, int32_t marginR) {
 void Number::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
 	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
-	const auto horizontalMenuStyle = runtimeFeatureSettings.get(HorizontalMenuStyle);
 	const auto numberStyle = getNumberStyle();
 
-	if (horizontalMenuStyle == Numeric || numberStyle == NUMBER) {
+	if (numberStyle == NUMBER) {
 		DEF_STACK_STRING_BUF(paramValue, 10);
 		paramValue.appendInt(getValue());
-		return image.drawStringCentered(paramValue, startX, startY + 4, kTextTitleSpacingX, kTextTitleSizeY, width);
+		return image.drawStringCentered(paramValue, startX, startY + 3, kTextTitleSpacingX, kTextTitleSizeY, width);
+	}
+	if (numberStyle == PERCENT) {
+		return drawPercent(startX, startY, width, height);
 	}
 
 	if (numberStyle == KNOB) {
@@ -78,6 +80,27 @@ void Number::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t start
 	}
 }
 
+void Number::drawPercent(int32_t startX, int32_t startY, int32_t width, int32_t height) {
+	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
+
+	DEF_STACK_STRING_BUF(valueString, 12);
+	const int32_t percents = getValuePercent() * 100;
+	valueString.appendInt(percents);
+
+	constexpr char percentChar = '%';
+	const int32_t valueWidth = image.getStringWidthInPixels(valueString.c_str(), kTextSpacingY);
+	const int32_t percentCharWidth = image.getCharWidthInPixels(percentChar, kTextSpacingY);
+	constexpr int32_t paddingBetween = 2;
+	const int32_t totalWidth = valueWidth + percentCharWidth + paddingBetween;
+
+	int32_t x = startX + (width - totalWidth) / 2 - 1;
+	int32_t y = startY + 3;
+	image.drawString(valueString.c_str(), x, y, kTextSpacingX, kTextSpacingY);
+
+	x += valueWidth + paddingBetween;
+	image.drawChar(percentChar, x, y, kTextSpacingX, kTextSpacingY);
+}
+
 void Number::drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t height) {
 	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
@@ -86,12 +109,12 @@ void Number::drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t hei
 	const auto& arcIcon = hid::display::OLED::knobArcIcon;
 	const int32_t arcIconWidth = arcIcon.size() / 2;
 	const int32_t leftPadding = ((width - arcIconWidth) / 2) - 1;
-	image.drawGraphicMultiLine(arcIcon.data(), startX + leftPadding, startY + 1, arcIconWidth, 16, 2);
+	image.drawGraphicMultiLine(arcIcon.data(), startX + leftPadding, startY, arcIconWidth, 16, 2);
 
 	// Calculate current value angle
 	constexpr int32_t knobRadius = 10;
 	const int32_t centerX = (startX + width / 2) - 2;
-	const int32_t centerY = startY + knobRadius + 2;
+	const int32_t centerY = startY + knobRadius + 1;
 	constexpr int32_t arcRangeAngle = 210, beginningAngle = 165;
 	const float valuePercent = getValuePercent();
 	const float currentAngle = beginningAngle + (arcRangeAngle * valuePercent);
@@ -111,10 +134,10 @@ void Number::drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t hei
 	// If the knob's position is near left or near right, fill the gap on the bitmap (the gap exists purely for
 	// stylistic effect)
 	if (currentAngle < 180.0f) {
-		image.drawPixel(centerX - knobRadius, startY + height - 2);
+		image.drawPixel(centerX - knobRadius, startY + height - 4);
 	}
 	if (currentAngle > 360.0f) {
-		image.drawPixel(centerX + knobRadius, startY + height - 2);
+		image.drawPixel(centerX + knobRadius, startY + height - 4);
 	}
 }
 
@@ -124,15 +147,13 @@ void Number::drawVerticalBar(int32_t startX, int32_t startY, int32_t slotWidth, 
 	constexpr int32_t barWidth = 18;
 
 	constexpr int32_t dotsInterval = 3;
-	constexpr int32_t topPadding = 2;
-	constexpr int32_t bottomPadding = 3;
 	constexpr int32_t fillPadding = 3;
 	const int32_t leftPadding = ((slotWidth - barWidth) / 2) - 2;
 
 	const int32_t minX = startX + leftPadding;
 	const int32_t maxX = minX + barWidth;
-	const int32_t minY = startY + topPadding;
-	const int32_t maxY = minY + slotHeight - bottomPadding;
+	const int32_t minY = startY + 1;
+	const int32_t maxY = minY + slotHeight - 4;
 	const int32_t barHeight = maxY - minY;
 
 	// Draw the dots at left and right sides

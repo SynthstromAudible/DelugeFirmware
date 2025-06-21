@@ -302,10 +302,8 @@ public:
 
 	/// @brief Show a parameter value in the popup at the top of the horizontal menu
 	///
-	/// by default we show the value only when graphical style is enabled
-	[[nodiscard]] virtual bool showValueInPopup() const {
-		return runtimeFeatureSettings.get(HorizontalMenuStyle) == Graphical;
-	}
+	/// true by default, but can be overridden
+	[[nodiscard]] virtual bool showValueInPopup() const { return true; }
 
 	/// @brief Get the parameter value string to show in the popup
 	///

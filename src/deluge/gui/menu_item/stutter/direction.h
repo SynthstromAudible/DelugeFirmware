@@ -118,7 +118,7 @@ private:
 	}
 
 	void getValueForPopup(StringBuf& valueBuf) override {
-		const auto value = getValue();
+		const auto value = Selection::getValue();
 		valueBuf.append(getOptions(OptType::SHORT)[value]);
 	}
 
@@ -134,7 +134,7 @@ private:
 
 			// Draw a song icon centered
 			const int32_t x = startX + ((width - songIconWidth) / 2) - 2;
-			const int32_t y = startY + ((height - songIconWidth) / 2) + 2;
+			const int32_t y = startY + ((height - songIconWidth) / 2);
 			return image.drawGraphicMultiLine(icon, x, y, songIconWidth);
 		}
 
@@ -149,14 +149,14 @@ private:
 		if (value == FORWARD_PING_PONG || value == REVERSED_PING_PONG) {
 			// Draw the "P" indicator and the icon centered
 			constexpr int32_t iconOffset = 4;
-			image.drawChar('P', startX + 3, startY + 4, 5, kTextSpacingY);
+			image.drawChar('P', startX + 3, startY + 3, 5, kTextSpacingY);
 			image.drawGraphicMultiLine(reversed ? icon.data() : icon.data() + iconOffset * numBytesTall, startX + 11,
-			                           startY + 1, iconWidth - iconOffset, iconHeight, numBytesTall);
+			                           startY, iconWidth - iconOffset, iconHeight, numBytesTall);
 		}
 		else {
 			// Draw the icon centered
 			const int32_t x = startX + (width - iconWidth) / 2 - 1;
-			image.drawGraphicMultiLine(icon.data(), x, startY + 1, iconWidth, iconHeight, numBytesTall);
+			image.drawGraphicMultiLine(icon.data(), x, startY, iconWidth, iconHeight, numBytesTall);
 		}
 	}
 
