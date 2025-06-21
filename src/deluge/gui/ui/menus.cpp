@@ -329,28 +329,31 @@ HorizontalMenu arpPatternMenu{STRING_FOR_PATTERN,
                                &arpRhythmMenu, &arpRhythmMenuMIDIOrCV, &arpSequenceLengthMenu,
                                &arpSequenceLengthMenuMIDIOrCV}};
 // Arp: Randomizer
-arpeggiator::Randomizer arpRandomizerMenu{
-    STRING_FOR_RANDOMIZER,
-    {// Lock
-     &arpRandomizerLockMenu,
-     // Spreads
-     &arpSpreadGateMenu, &arpSpreadGateMenuMIDIOrCV, &arpSpreadOctaveMenu, &arpSpreadOctaveMenuMIDIOrCV,
-     &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV,
-     // Ratchets
-     &arpRatchetAmountMenu, &arpRatchetAmountMenuMIDIOrCV, &arpRatchetProbabilityMenu,
-     &arpRatchetProbabilityMenuMIDIOrCV,
-     // Chords
-     &arpChordPolyphonyMenu, &arpChordPolyphonyMenuMIDIOrCV, &arpChordProbabilityMenu, &arpChordProbabilityMenuMIDIOrCV,
-     // Note
-     &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
-     // Bass
-     &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV,
-     // Step
-     &arpStepProbabilityMenu, &arpStepProbabilityMenuMIDIOrCV,
-     // Glide
-     &arpGlideProbabilityMenu, &arpGlideProbabilityMenuMIDIOrCV,
-     // Reverse
-     &arpReverseProbabilityMenu}};
+arpeggiator::Randomizer arpRandomizerMenu{STRING_FOR_RANDOMIZER,
+                                          {// Lock
+                                           &arpRandomizerLockMenu,
+                                           // Spreads
+                                           &arpSpreadGateMenu, &arpSpreadGateMenuMIDIOrCV, &arpSpreadOctaveMenu,
+                                           &arpSpreadOctaveMenuMIDIOrCV, &arpSpreadVelocityMenu,
+                                           &arpSpreadVelocityMenuMIDIOrCV,
+                                           // Ratchets: Amount
+                                           &arpRatchetAmountMenu, &arpRatchetAmountMenuMIDIOrCV,
+                                           // Ratchets: Probability
+                                           &arpRatchetProbabilityMenu, &arpRatchetProbabilityMenuMIDIOrCV,
+                                           // Chords: Polyphony
+                                           &arpChordPolyphonyMenu, &arpChordPolyphonyMenuMIDIOrCV,
+                                           // Chords: Probability
+                                           &arpChordProbabilityMenu, &arpChordProbabilityMenuMIDIOrCV,
+                                           // Note
+                                           &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
+                                           // Step
+                                           &arpStepProbabilityMenu, &arpStepProbabilityMenuMIDIOrCV,
+                                           // Bass
+                                           &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV,
+                                           // Glide
+                                           &arpGlideProbabilityMenu, &arpGlideProbabilityMenuMIDIOrCV,
+                                           // Reverse
+                                           &arpReverseProbabilityMenu}};
 // Arp: Preset and Randomizer
 HorizontalMenu arpPresetAndRandomizerMenu{STRING_FOR_ARPEGGIATOR, {&arpPresetModeMenu, &arpRandomizerMenu}};
 // Global: Randomizer
