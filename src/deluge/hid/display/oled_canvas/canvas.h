@@ -60,6 +60,9 @@ public:
 	/// Set a single pixel
 	void drawPixel(int32_t x, int32_t y);
 
+	/// Clear a single pixel
+	void clearPixel(int32_t x, int32_t y);
+
 	/// Draw a horizontal line.
 	///
 	/// @param pixelY Y coordinate of the line to draw

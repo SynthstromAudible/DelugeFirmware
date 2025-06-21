@@ -139,7 +139,7 @@ void OLED::setupPopup(PopupType type, int32_t width, int32_t height, std::option
 	popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
 
 	if (type != PopupType::HORIZONTAL_MENU) {
-		popup.drawRectangle(popupMinX, popupMinY, popupMaxX, popupMaxY);
+		popup.drawRectangleRounded(popupMinX, popupMinY, popupMaxX, popupMaxY);
 	}
 }
 
@@ -658,8 +658,11 @@ void OLED::displayHorizontalMenuPopup(std::string_view paramTitle, std::optional
 		                 kTextSpacingX, kTextSpacingY);
 	}
 
-	// Make the popup inverted (white)
-	popup.invertAreaRounded(0, OLED_MAIN_WIDTH_PIXELS - 1, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_TOPMOST_PIXEL + kTextSpacingY + 1);
+	if (!FlashStorage::accessibilityMenuHighlighting) {
+		// Make the popup inverted (white)
+		popup.invertAreaRounded(0, OLED_MAIN_WIDTH_PIXELS - 1, OLED_MAIN_TOPMOST_PIXEL,
+		                        OLED_MAIN_TOPMOST_PIXEL + kTextSpacingY + 1);
+	}
 
 	markChanged();
 	uiTimerManager.setTimer(TimerName::DISPLAY, 1200);

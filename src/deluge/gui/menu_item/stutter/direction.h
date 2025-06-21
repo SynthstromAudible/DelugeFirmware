@@ -118,7 +118,7 @@ private:
 	}
 
 	void getValueForPopup(StringBuf& valueBuf) override {
-		const auto value = getValue();
+		const auto value = Selection::getValue();
 		valueBuf.append(getOptions(OptType::SHORT)[value]);
 	}
 

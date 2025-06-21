@@ -290,8 +290,9 @@ arpeggiator::ArpUnpatchedParam arpStepProbabilityMenu{STRING_FOR_STEP_PROBABILIT
                                                       params::UNPATCHED_ARP_STEP_PROBABILITY, PERCENT};
 arpeggiator::midi_cv::StepProbability arpStepProbabilityMenuMIDIOrCV{STRING_FOR_STEP_PROBABILITY,
                                                                      STRING_FOR_ARP_STEP_PROBABILITY_MENU_TITLE};
-arpeggiator::ArpUnpatchedParam arpGlideProbabilityMenu{
-    STRING_FOR_GLIDE_PROBABILITY, STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_GLIDE_PROBABILITY};
+arpeggiator::ArpUnpatchedParam arpGlideProbabilityMenu{STRING_FOR_GLIDE_PROBABILITY,
+                                                       STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE,
+                                                       params::UNPATCHED_ARP_GLIDE_PROBABILITY, PERCENT};
 arpeggiator::midi_cv::GlideProbability arpGlideProbabilityMenuMIDIOrCV{STRING_FOR_GLIDE_PROBABILITY,
                                                                        STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE};
 arpeggiator::ArpNonKitSoundUnpatchedParam arpChordProbabilityMenu{STRING_FOR_CHORD_PROBABILITY,
@@ -362,7 +363,7 @@ arpeggiator::Randomizer arpRandomizerMenu{STRING_FOR_RANDOMIZER,
 // Arp: Preset and Randomizer
 HorizontalMenu arpPresetAndRandomizerMenu{STRING_FOR_ARPEGGIATOR, {&arpPresetModeMenu, &arpRandomizerMenu}};
 // Global: Randomizer
-HorizontalMenu globalRandomizerMenu{STRING_FOR_RANDOMIZER,
+HorizontalMenu globalRandomizerMenu{STRING_FOR_NOTE_RANDOMIZER,
                                     {
                                         // Lock
                                         &arpRandomizerLockMenu,

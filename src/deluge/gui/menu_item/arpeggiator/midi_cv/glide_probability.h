@@ -35,5 +35,6 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow();
 	}
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return PERCENT; }
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv
