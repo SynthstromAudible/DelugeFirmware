@@ -650,13 +650,16 @@ void OLED::displayHorizontalMenuPopup(std::string_view paramTitle, std::optional
 
 	setupPopup(PopupType::HORIZONTAL_MENU, OLED_MAIN_WIDTH_PIXELS - 1, kTextSpacingY + 2, 0, OLED_MAIN_TOPMOST_PIXEL);
 
-	// Draw the title & value
+	// Draw the title and value
 	popup.drawString(titleBuf.data(), paddingLeft, OLED_MAIN_TOPMOST_PIXEL + 1, kTextSpacingX, kTextSpacingY);
 	if (valueWidth > 0) {
 		popup.drawChar(':', paddingLeft + titleWidth, OLED_MAIN_TOPMOST_PIXEL + 1, kTextSpacingX, kTextSpacingY);
 		popup.drawString(paramValue.value().data(), paddingLeft + titleWidth + 8, OLED_MAIN_TOPMOST_PIXEL + 1,
 		                 kTextSpacingX, kTextSpacingY);
 	}
+
+	// Make the popup inverted (white)
+	popup.invertAreaRounded(0, OLED_MAIN_WIDTH_PIXELS - 1, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_TOPMOST_PIXEL + kTextSpacingY + 1);
 
 	markChanged();
 	uiTimerManager.setTimer(TimerName::DISPLAY, 1200);

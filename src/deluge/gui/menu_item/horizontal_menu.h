@@ -23,9 +23,7 @@ public:
 	};
 	struct ColumnLabelPosition {
 		int32_t startX;
-		int32_t startY;
 		int32_t width;
-		int32_t height;
 	};
 
 	using Submenu::Submenu;
@@ -38,7 +36,7 @@ public:
 	               Layout layout)
 	    : Submenu(newName, newTitle, newItems), layout(layout), paging{} {}
 
-	Submenu::RenderingStyle renderingStyle() const override;
+	RenderingStyle renderingStyle() const override;
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
 	void selectEncoderAction(int32_t offset) override;
 	void renderOLED() override;
@@ -49,14 +47,11 @@ protected:
 	Paging paging;
 	Layout layout = DYNAMIC;
 	int32_t lastSelectedItemPosition = kNoSelection;
-
-private:
 	ActionResult selectMenuItemOnVisiblePage(int32_t selectedColumn);
 	ActionResult switchVisiblePage(int32_t direction);
 	void updateSelectedMenuItemLED(int32_t itemNumber);
 	Paging splitMenuItemsByPages() const;
 	static void displayPopup(MenuItem* menuItem);
-	static ColumnLabelPosition renderColumnLabel(MenuItem* menuItem, int32_t startY, int32_t slotStartX,
-	                                             int32_t slotWidth);
+	static ColumnLabelPosition renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32_t slotStartX, int32_t slotWidth);
 };
 } // namespace deluge::gui::menu_item

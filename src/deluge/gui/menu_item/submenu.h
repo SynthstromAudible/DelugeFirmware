@@ -70,7 +70,8 @@ public:
 	deluge::modulation::params::Kind getParamKind() override;
 	uint32_t getParamIndex() override;
 	std::optional<uint8_t> getThingIndex() { return thingIndex; }
-	int32_t getColumnSpan() const override { return 2; };
+	[[nodiscard]] int32_t getColumnSpan() const override { return 2; };
+	[[nodiscard]] bool showPopup() const override { return false;}
 
 protected:
 	std::optional<uint8_t> thingIndex = std::nullopt;

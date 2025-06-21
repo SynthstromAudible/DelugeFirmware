@@ -169,7 +169,7 @@ public:
 
 		// Draw mode text
 		x += paddingBetween;
-		y = startY + ((height - kTextSpacingY) / 2) + 2;
+		y = startY + ((height - kTextSpacingY) / 2);
 		image.drawString(option.data(), x, y, kTextSpacingX, kTextSpacingY, 0, x + width - kTextSpacingX);
 	}
 };

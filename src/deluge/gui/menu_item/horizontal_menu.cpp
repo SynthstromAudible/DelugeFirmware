@@ -43,7 +43,7 @@ void HorizontalMenu::renderOLED() {
 	// need to draw the content first because the title can depend on the content.
 	// example: mod-fx menu where the second page title is depending on the selected mod-fx type
 	drawPixelsForOled();
-	hid::display::OLED::main.drawScreenTitle(getTitle());
+	hid::display::OLED::main.drawScreenTitle(getTitle(), false);
 	hid::display::OLED::markChanged();
 }
 
@@ -70,11 +70,12 @@ void HorizontalMenu::drawPixelsForOled() {
 		updateSelectedMenuItemLED(posOnPage);
 	}
 
-	constexpr int32_t baseY = 14 + OLED_MAIN_TOPMOST_PIXEL;
-	constexpr int32_t boxHeight = OLED_MAIN_VISIBLE_HEIGHT - baseY;
+	constexpr int32_t baseY = 13 + OLED_MAIN_TOPMOST_PIXEL;
+	constexpr int32_t boxHeight = 25;
+	constexpr int32_t labelHeight = 9;
+	constexpr int32_t labelY = baseY + boxHeight - labelHeight;
 	int32_t currentX = 0;
 
-	const auto menuStyle = runtimeFeatureSettings.get(HorizontalMenuStyle);
 	auto& [pageNumber, pageItems] = paging.getVisiblePage();
 	auto it = pageItems.begin();
 
@@ -84,51 +85,33 @@ void HorizontalMenu::drawPixelsForOled() {
 		item->readCurrentValue();
 
 		const int32_t boxWidth = OLED_MAIN_WIDTH_PIXELS / (4 / item->getColumnSpan());
-		int32_t contentY = baseY;
 		int32_t contentHeight = boxHeight;
 		std::optional<ColumnLabelPosition> labelPos;
 
 		if (item->showColumnLabel()) {
-			// Draw the label at the bottom if the graphics enabled, otherwise draw the label at the top
-			const int32_t labelY = menuStyle == Graphical ? OLED_MAIN_HEIGHT_PIXELS - kTextSpacingY - 4 : baseY;
+			// Draw the label at the bottom
 			labelPos = renderColumnLabel(item, labelY, currentX, boxWidth);
-
-			contentY = menuStyle == Graphical ? baseY : baseY + kTextSpacingY;
-			contentHeight = boxHeight - labelPos->height;
+			contentHeight -= labelHeight;
 		}
 
 		if (layout == FIXED && !isItemRelevant(item)) {
 			// Draw a dash as a value indicating that the item is disabled
-			image.drawStringCentered("-", currentX, contentY + 4, kTextTitleSpacingX, kTextTitleSizeY, boxWidth);
+			image.drawStringCentered("-", currentX, baseY + 4, kTextTitleSpacingX, kTextTitleSizeY, boxWidth);
 		}
 		else {
 			// Draw content of the menu item
-			item->renderInHorizontalMenu(currentX + 1, boxWidth, contentY, contentHeight);
-		}
-
-		// Draw a dotted separator at the end of the menu item
-		// Only if:
-		// - this item is not the selected item or its immediate neighbors
-		// - not the closest item to the right side
-		// - we have numeric style enabled
-		if (menuStyle == Numeric && n != posOnPage - 1 && n != posOnPage
-		    && currentX + boxWidth != OLED_MAIN_WIDTH_PIXELS) {
-			const int32_t lineX = currentX + boxWidth - 1;
-			for (int32_t y = baseY; y < baseY + boxHeight + 2; y += 2) {
-				image.drawPixel(lineX, y);
-			}
+			item->renderInHorizontalMenu(currentX + 1, boxWidth, baseY, contentHeight);
 		}
 
 		// Highlight the selected item if it doesn't occupy the whole page
 		if (n == posOnPage && (pageItems.size() > 1 || pageItems[0]->getColumnSpan() < 4)) {
-			if (menuStyle == Numeric || !labelPos.has_value() || item->isSubmenu()) {
-				// highlight the whole slot
-				image.invertArea(currentX, boxWidth, baseY, baseY + boxHeight + 1);
+			if (!labelPos.has_value() || item->isSubmenu()) {
+				// highlight the whole slot if has no label or is submenu
+				image.invertAreaRounded(currentX, boxWidth, baseY, baseY + boxHeight - 1);
 			}
 			else {
-				// highlight only label
-				image.invertArea(labelPos->startX - 2, labelPos->width + 3, labelPos->startY,
-				                 labelPos->startY + labelPos->height - 1);
+				// otherwise highlight only label
+				image.invertAreaRounded(labelPos->startX - 3, labelPos->width + 5, labelY, labelY + labelHeight - 1);
 			}
 		}
 
@@ -138,18 +121,17 @@ void HorizontalMenu::drawPixelsForOled() {
 
 	// Render the page counters
 	if (paging.pages.size() > 1) {
-		int32_t extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
-		int32_t pageY = extraY + OLED_MAIN_TOPMOST_PIXEL;
+		constexpr int32_t pageY = 1 + OLED_MAIN_TOPMOST_PIXEL;
 		int32_t endX = OLED_MAIN_WIDTH_PIXELS;
 
 		for (int32_t p = paging.pages.size(); p > 0; p--) {
 			DEF_STACK_STRING_BUF(pageNum, 2);
 			pageNum.appendInt(p);
-			int32_t w = image.getStringWidthInPixels(pageNum.c_str(), kTextSpacingY);
-			image.drawString(pageNum.c_str(), endX - w, pageY, kTextSpacingX, kTextSpacingY);
-			endX -= w + 1;
+			const int32_t pageNumWidth = image.getStringWidthInPixels(pageNum.c_str(), kTextSpacingY);
+			image.drawString(pageNum.c_str(), endX - pageNumWidth, pageY, kTextSpacingX, kTextSpacingY);
+			endX -= pageNumWidth + 1;
 			if (p - 1 == pageNumber) {
-				image.invertArea(endX, w + 1, pageY, pageY + kTextSpacingY);
+				image.invertAreaRounded(endX, pageNumWidth + 1, pageY, pageY + kTextSpacingY);
 			}
 		}
 	}
@@ -373,39 +355,28 @@ Submenu::RenderingStyle HorizontalMenu::renderingStyle() const {
 	return VERTICAL;
 }
 
-HorizontalMenu::ColumnLabelPosition HorizontalMenu::renderColumnLabel(MenuItem* menuItem, int32_t startY,
+HorizontalMenu::ColumnLabelPosition HorizontalMenu::renderColumnLabel(MenuItem* menuItem, int32_t labelY,
                                                                       int32_t slotStartX, int32_t slotWidth) {
 	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
-	const bool useSmallFont = runtimeFeatureSettings.get(HorizontalMenusSmallFontForLabels) == On;
-
 	DEF_STACK_STRING_BUF(label, kShortStringBufferSize);
-	menuItem->getColumnLabel(label, useSmallFont);
+	menuItem->getColumnLabel(label, false);
 
 	// Remove any spaces
 	label.removeSpaces();
 
-	const int32_t textSpacingX = useSmallFont ? kTextSmallSpacingX : kTextSpacingX;
-	const int32_t textSpacingY = useSmallFont ? kTextSmallSizeY : kTextSpacingY;
-	const int32_t topPadding = useSmallFont ? 3 : 1;
-
-	int32_t labelWidth = image.getStringWidthInPixels(label.c_str(), textSpacingY);
 	// If the name fits as-is, we'll squeeze it in. Otherwise, we chop off letters until
 	// we have some padding between columns.
-	if (labelWidth >= slotWidth - 2) {
-		do {
-			label.truncate(label.size() - 1);
-		} while ((labelWidth = image.getStringWidthInPixels(label.c_str(), textSpacingY)) + 4 >= slotWidth);
+	int32_t labelWidth;
+	while ((labelWidth = image.getStringWidthInPixels(label.c_str(), kTextSpacingY)) + 4 >= slotWidth) {
+		label.truncate(label.size() - 1);
 	}
 
 	// center the label
 	const int32_t labelStartX = (slotStartX + (slotWidth - labelWidth) / 2);
-	const int32_t labelStartY = startY + topPadding;
+	hid::display::OLED::main.drawString(label.c_str(), labelStartX, labelY, kTextSpacingX, kTextSpacingY);
 
-	hid::display::OLED::main.drawString(label.c_str(), labelStartX, labelStartY, textSpacingX, textSpacingY, 0,
-	                                    labelStartX + slotWidth - textSpacingX);
-
-	return {labelStartX, labelStartY, labelWidth, textSpacingY};
+	return {labelStartX, labelWidth};
 }
 
 } // namespace deluge::gui::menu_item
