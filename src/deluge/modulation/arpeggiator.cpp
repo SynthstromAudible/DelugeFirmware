@@ -52,6 +52,7 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 	lockedNoteProbabilityValues.fill(0);
 	lockedBassProbabilityValues.fill(0);
 	lockedStepProbabilityValues.fill(0);
+	lockedGlideProbabilityValues.fill(0);
 	lockedChordProbabilityValues.fill(0);
 	lockedRatchetProbabilityValues.fill(0);
 	lockedReverseProbabilityValues.fill(0);
@@ -138,6 +139,8 @@ void ArpeggiatorBase::resetBase() {
 	lastNormalNotePlayedFromRhythm = 0;
 	// Step repeat
 	stepRepeatIndex = 0;
+	// Glide
+	glideOnNextNoteOff = false;
 }
 
 void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t originalVelocity,
@@ -227,15 +230,20 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, int32_t noteCode
 
 	// Or if yes arpeggiation...
 	else {
-		if (gateCurrentlyActive) {
-			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-				// Set all chord notes
-				instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
-				instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
-				// Clean the temp state
-				noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-				outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
-			}
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			// Set all glide chord notes
+			instruction->glideNoteCodeOffPostArp[n] = glideNoteCodeCurrentlyOnPostArp[n];
+			instruction->glideOutputMIDIChannelOff[n] = outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n];
+			// Clean the temp state
+			glideNoteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+			outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
+
+			// Set all chord notes
+			instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
+			instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+			// Clean the temp state
+			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+			outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
 		}
 	}
 
@@ -391,11 +399,20 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 
 			// Or if yes arpeggiation
 			else {
-				if (whichNoteCurrentlyOnPostArp == notesKey && gateCurrentlyActive) {
+				if (whichNoteCurrentlyOnPostArp == notesKey) {
 					for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+						// Set all glide chord notes
+						instruction->glideNoteCodeOffPostArp[n] = glideNoteCodeCurrentlyOnPostArp[n];
+						instruction->glideOutputMIDIChannelOff[n] = outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n];
+						// Clean the temp state
+						glideNoteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+						outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
+
 						// Set all chord notes
 						instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
 						instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+						;
+						// Clean the temp state
 						noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
 						outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
 					}
@@ -457,13 +474,38 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 
 void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 	if (gateCurrentlyActive) {
+		// Schedule any glided note to be turned off
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			// Set all chord notes
-			instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
-			instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+			// Set all glide chord notes (if there were any saved from a previous switchAnyNoteOff call)
+			instruction->glideNoteCodeOffPostArp[n] = glideNoteCodeCurrentlyOnPostArp[n];
+			instruction->glideOutputMIDIChannelOff[n] = outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n];
 			// Clean the temp state
-			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-			outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
+			glideNoteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+			outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
+		}
+		if (glideOnNextNoteOff) {
+			// The notes currently on post arp need to be saved to the glidenote temp array for the next note off to
+			// also send them
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				// Move note codes from normal to glide
+				glideNoteCodeCurrentlyOnPostArp[n] = noteCodeCurrentlyOnPostArp[n];
+				outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+				// Clean the temp state
+				noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+				outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
+			}
+			glideOnNextNoteOff = false;
+		}
+		else {
+			// Schedule normal note to be turned off (if no glide set to happen now)
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				// Set all chord notes
+				instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
+				instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+				// Clean the temp state
+				noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+				outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
+			}
 		}
 		gateCurrentlyActive = false;
 	}
@@ -487,6 +529,11 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 			// If the sync level is 64th, the maximum ratchet can be of 4 notes (8 not allowed)
 			ratchetNotesMultiplier = std::max(2_u32, ratchetNotesMultiplier);
 			ratchetNotesCount = std::max(4_u32, ratchetNotesCount);
+		}
+		if (ratchetNotesMultiplier == 0) {
+			// Ratchet probability evaluated to "no ratchet", so we update the status as if ratchet didn't happen
+			isRatcheting = false;
+			ratchetNotesCount = 0;
 		}
 	}
 	else {
@@ -586,6 +633,7 @@ void ArpeggiatorBase::executeArpStep(ArpeggiatorSettings* settings, uint8_t numA
 		randomNotesPlayedFromOctave = 0;
 		stepRepeatIndex = 0;
 		whichNoteCurrentlyOnPostArp = 0;
+		glideOnNextNoteOff = false;
 	}
 
 	// Probabilities
@@ -772,6 +820,11 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		}
 		instruction->invertReversed = invertReversedFromKitArp ? !shouldPlayReverseNote : shouldPlayReverseNote;
 		instruction->arpNoteOn = &arpNote;
+
+		// If this is going to be a glide note, we need to flag it (not compatible with ratchets)
+		if (isPlayGlideForCurrentStep && !isRatcheting) {
+			glideOnNextNoteOff = true;
+		}
 	}
 }
 
@@ -831,6 +884,13 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 			settings->lastLockedStepProbabilityParameterValue = settings->stepProbability;
 		}
 		if (resetLockedRandomizerValuesNextTime
+		    || settings->lastLockedGlideProbabilityParameterValue != settings->glideProbability) {
+			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
+				settings->lockedGlideProbabilityValues[i] = getRandomProbabilityResult(settings->glideProbability);
+			}
+			settings->lastLockedGlideProbabilityParameterValue = settings->glideProbability;
+		}
+		if (resetLockedRandomizerValuesNextTime
 		    || settings->lastLockedReverseProbabilityParameterValue != settings->reverseProbability) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
 				settings->lockedReverseProbabilityValues[i] = getRandomProbabilityResult(settings->reverseProbability);
@@ -884,6 +944,9 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		isPlayRandomStepForCurrentStep =
 		    settings->lockedStepProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES]
 		    != 0;
+		isPlayGlideForCurrentStep =
+		    settings->lockedGlideProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES]
+		    != 0;
 		isPlayReverseForCurrentStep =
 		    settings->lockedReverseProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES]
 		    != 0;
@@ -905,6 +968,7 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		isPlayNoteForCurrentStep = getRandomProbabilityResult(settings->noteProbability);
 		isPlayBassForCurrentStep = getRandomProbabilityResult(settings->bassProbability);
 		isPlayRandomStepForCurrentStep = getRandomProbabilityResult(settings->stepProbability);
+		isPlayGlideForCurrentStep = getRandomProbabilityResult(settings->glideProbability);
 		isPlayReverseForCurrentStep = getRandomProbabilityResult(settings->reverseProbability);
 		isPlayChordForCurrentStep = getRandomProbabilityResult(settings->chordProbability);
 		isPlayRatchetForCurrentStep = getRandomProbabilityResult(settings->ratchetProbability);
@@ -1330,6 +1394,11 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		}
 		instruction->invertReversed = shouldPlayReverseNote;
 		instruction->arpNoteOn = arpNote;
+
+		// If this is going to be a glide note, we need to flag it (not compatible with ratchets)
+		if (isPlayGlideForCurrentStep && !isRatcheting) {
+			glideOnNextNoteOff = true;
+		}
 	}
 }
 
@@ -1495,6 +1564,7 @@ void ArpeggiatorSettings::cloneFrom(ArpeggiatorSettings const* other) {
 	noteProbability = other->noteProbability;
 	bassProbability = other->bassProbability;
 	stepProbability = other->stepProbability;
+	glideProbability = other->glideProbability;
 	reverseProbability = other->reverseProbability;
 	chordProbability = other->chordProbability;
 	ratchetProbability = other->ratchetProbability;
@@ -1527,9 +1597,6 @@ bool ArpeggiatorSettings::readCommonTagsFromFile(Deserializer& reader, char cons
 	else if (!strcmp(tagName, "lastLockedBassProb")) {
 		lastLockedBassProbabilityParameterValue = reader.readTagOrAttributeValueInt();
 	}
-	else if (!strcmp(tagName, "lastLockedStepProb")) {
-		lastLockedStepProbabilityParameterValue = reader.readTagOrAttributeValueInt();
-	}
 	else if (!strcmp(tagName, "lockedBassProbArray")) {
 		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedBassProbabilityValues.data(),
 		                                                 lockedBassProbabilityValues.size());
@@ -1540,6 +1607,13 @@ bool ArpeggiatorSettings::readCommonTagsFromFile(Deserializer& reader, char cons
 	else if (!strcmp(tagName, "lockedStepProbArray")) {
 		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedStepProbabilityValues.data(),
 		                                                 lockedStepProbabilityValues.size());
+	}
+	else if (!strcmp(tagName, "lastLockedGlideProb")) {
+		lastLockedGlideProbabilityParameterValue = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "lockedGlideProbArray")) {
+		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedGlideProbabilityValues.data(),
+		                                                 lockedGlideProbabilityValues.size());
 	}
 	else if (!strcmp(tagName, "lastLockedReverseProb")) {
 		lastLockedReverseProbabilityParameterValue = reader.readTagOrAttributeValueInt();
@@ -1657,6 +1731,9 @@ bool ArpeggiatorSettings::readNonAudioTagsFromFile(Deserializer& reader, char co
 	else if (!strcmp(tagName, "stepProbability")) {
 		stepProbability = reader.readTagOrAttributeValueInt();
 	}
+	else if (!strcmp(tagName, "glideProbability")) {
+		glideProbability = reader.readTagOrAttributeValueInt();
+	}
 	else if (!strcmp(tagName, "reverseProbability")) {
 		reverseProbability = reader.readTagOrAttributeValueInt();
 	}
@@ -1732,6 +1809,10 @@ void ArpeggiatorSettings::writeCommonParamsToFile(Serializer& writer, Song* song
 	writer.writeAttribute("lastLockedStepProb", lastLockedStepProbabilityParameterValue);
 	writer.writeAttributeHexBytes("lockedStepProbArray", (uint8_t*)lockedStepProbabilityValues.data(),
 	                              lockedStepProbabilityValues.size());
+	// Glide probability
+	writer.writeAttribute("lastLockedGlideProb", lastLockedGlideProbabilityParameterValue);
+	writer.writeAttributeHexBytes("lockedGlideProbArray", (uint8_t*)lockedGlideProbabilityValues.data(),
+	                              lockedGlideProbabilityValues.size());
 	// Reverse probability
 	writer.writeAttribute("lastLockedReverseProb", lastLockedReverseProbabilityParameterValue);
 	writer.writeAttributeHexBytes("lockedReverseProbArray", (uint8_t*)lockedReverseProbabilityValues.data(),
@@ -1768,6 +1849,7 @@ void ArpeggiatorSettings::writeNonAudioParamsToFile(Serializer& writer) {
 	writer.writeAttribute("noteProbability", noteProbability);
 	writer.writeAttribute("bassProbability", bassProbability);
 	writer.writeAttribute("stepProbability", stepProbability);
+	writer.writeAttribute("glideProbability", glideProbability);
 	writer.writeAttribute("reverseProbability", reverseProbability);
 	writer.writeAttribute("chordProbability", chordProbability);
 	writer.writeAttribute("ratchetProbability", ratchetProbability);
@@ -1818,6 +1900,7 @@ void ArpeggiatorSettings::updateParamsFromUnpatchedParamSet(UnpatchedParamSet* u
 	noteProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_NOTE_PROBABILITY) + 2147483648;
 	bassProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_PROBABILITY) + 2147483648;
 	stepProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_STEP_PROBABILITY) + 2147483648;
+	glideProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GLIDE_PROBABILITY) + 2147483648;
 	reverseProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_REVERSE_PROBABILITY) + 2147483648;
 	chordProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_PROBABILITY) + 2147483648;
 	ratchetProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
