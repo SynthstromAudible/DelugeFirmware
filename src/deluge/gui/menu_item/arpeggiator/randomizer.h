@@ -48,7 +48,7 @@ public:
 		constexpr int32_t arrowIconHeight = 8;
 
 		x += diceIconWidth + 1;
-		y = startY + ((height - arrowIconHeight) / 2) + 1;
+		y = startY + ((height - arrowIconHeight) / 2);
 		image.drawGraphicMultiLine(arrowIcon, x, y, arrowIconWidth);
 	}
 };

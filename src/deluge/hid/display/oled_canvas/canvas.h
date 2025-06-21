@@ -60,6 +60,9 @@ public:
 	/// Set a single pixel
 	void drawPixel(int32_t x, int32_t y);
 
+	/// Clear a single pixel
+	void clearPixel(int32_t x, int32_t y);
+
 	/// Draw a horizontal line.
 	///
 	/// @param pixelY Y coordinate of the line to draw
@@ -89,6 +92,14 @@ public:
 	/// @param maxX Maximum X coordinate, inclusive
 	/// @param maxY Maximum Y coordinate, inclusive
 	void drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY);
+
+	/// Draw a 1-px wide rectangle with 1px rounded corners
+	///
+	/// @param minX Minimum X coordinate, inclusive
+	/// @param minY Minimum Y coordinate, inclusive
+	/// @param maxX Maximum X coordinate, inclusive
+	/// @param maxY Maximum Y coordinate, inclusive
+	void drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY);
 
 	/// Draw a string
 	///
@@ -199,7 +210,7 @@ public:
 	/// Draw a screen title and underline it.
 	///
 	/// @param text Title text
-	void drawScreenTitle(std::string_view text);
+	void drawScreenTitle(std::string_view text, bool drawSeparator = true);
 
 	/// Invert an area of the canvas.
 	///
@@ -208,6 +219,14 @@ public:
 	/// @param startY Minimum Y coordinate, inclusive
 	/// @param endY Maximum Y coordinate, inclusive
 	void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
+
+	/// Invert an area of the canvas with 1px rounded corners
+	///
+	/// @param xMin Minimum X coordinate, inclusive
+	/// @param width Width of the region to invert. End coordinate is excluded.
+	/// @param startY Minimum Y coordinate, inclusive
+	/// @param endY Maximum Y coordinate, inclusive
+	void invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
 
 	/// Invert just the left edge of the canvas.
 	///
