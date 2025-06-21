@@ -975,7 +975,7 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 			auto value2 = Argon<int16_t>::Load(sincKernelReadPos + 16 + (i * 8));
 
 			auto difference = value2 - value1;
-			auto multipliedDifference = difference.MultiplyQMax(strength2);
+			auto multipliedDifference = difference.MultiplyFixedPoint(strength2);
 			kernelVector[i] = value1 + multipliedDifference;
 		}
 
