@@ -71,6 +71,11 @@ void Canvas::drawPixel(int32_t x, int32_t y) {
 	image_[yRow][x] |= 1 << (y & 0x7);
 }
 
+void Canvas::clearPixel(int32_t x, int32_t y) {
+	int32_t yRow = y >> 3;
+	image_[yRow][x] &= ~(1 << (y & 0x7));
+}
+
 void Canvas::drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX) {
 	uint8_t mask = 1 << (pixelY & 7);
 
@@ -158,6 +163,14 @@ void Canvas::drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool thick
 void Canvas::drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {
 	drawVerticalLine(minX, minY, maxY);
 	drawVerticalLine(maxX, minY, maxY);
+
+	drawHorizontalLine(minY, minX + 1, maxX - 1);
+	drawHorizontalLine(maxY, minX + 1, maxX - 1);
+}
+
+void Canvas::drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {
+	drawVerticalLine(minX, minY + 1, maxY - 1);
+	drawVerticalLine(maxX, minY + 1, maxY - 1);
 
 	drawHorizontalLine(minY, minX + 1, maxX - 1);
 	drawHorizontalLine(maxY, minX + 1, maxX - 1);
@@ -550,13 +563,15 @@ void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_
 /// Draw a screen title and underline it.
 ///
 /// @param text Title text
-void Canvas::drawScreenTitle(std::string_view title) {
+void Canvas::drawScreenTitle(std::string_view title, bool drawSeparator) {
 	int32_t extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
 
 	int32_t startY = extraY + OLED_MAIN_TOPMOST_PIXEL;
 
 	drawString(title, 0, startY, kTextTitleSpacingX, kTextTitleSizeY);
-	drawHorizontalLine(extraY + 11 + OLED_MAIN_TOPMOST_PIXEL, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+	if (drawSeparator) {
+		drawHorizontalLine(extraY + 11 + OLED_MAIN_TOPMOST_PIXEL, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+	}
 }
 
 void Canvas::invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
@@ -585,10 +600,51 @@ void Canvas::invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t end
 	}
 }
 
+void Canvas::invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
+	int32_t xMax = xMin + width - 1;
+
+	int32_t firstRowY = startY >> 3;
+	int32_t lastRowY = endY >> 3;
+
+	uint8_t startMask = 0xFF << (startY & 7);
+	uint8_t endMask = 0xFF >> (7 - (endY & 7));
+
+	for (int32_t rowY = firstRowY; rowY <= lastRowY; ++rowY) {
+		uint8_t rowMask = 0xFF;
+
+		if (rowY == firstRowY) {
+			rowMask &= startMask;
+		}
+		else if (rowY == lastRowY) {
+			rowMask &= endMask;
+		}
+
+		int32_t yBase = rowY << 3;
+
+		for (int32_t x = xMin; x <= xMax; ++x) {
+			uint8_t mask = rowMask;
+
+			// Mask out any rounded corner pixels
+			if (x == xMin || x == xMax) {
+				if (startY >= yBase && startY < yBase + 8) {
+					mask &= ~(1 << (startY & 7)); // top corners
+				}
+				if (endY >= yBase && endY < yBase + 8) {
+					mask &= ~(1 << (endY & 7)); // bottom corners
+				}
+			}
+
+			if (mask) {
+				image_[rowY][x] ^= mask;
+			}
+		}
+	}
+}
+
 /// inverts just the left edge
 void Canvas::invertLeftEdgeForMenuHighlighting(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
 	if (!FlashStorage::accessibilityMenuHighlighting) {
-		return invertArea(xMin, width, startY, endY);
+		return invertAreaRounded(xMin, width, startY, endY);
 	}
 
 	int32_t firstRowY = startY >> 3;

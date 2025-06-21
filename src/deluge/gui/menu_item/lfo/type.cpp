@@ -46,7 +46,7 @@ void Type::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY,
 			drawWidth = remaining;
 		}
 
-		image.drawGraphicMultiLine(bitmap.data() + currentOffset * numBytesTall, currentX, startY + 5, drawWidth, 16,
+		image.drawGraphicMultiLine(bitmap.data() + currentOffset * numBytesTall, currentX, startY + 4, drawWidth, 16,
 		                           numBytesTall);
 		currentX += drawWidth;
 		currentOffset = 0; // After the first draw, always start from 0 of the bitmap

@@ -69,7 +69,7 @@ void Rate::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY,
 
 	// Render current value
 	const char* label = getQuantizedOptionLabel();
-	image.drawStringCentered(label, startX, startY + 4, kTextSpacingX, kTextSpacingY, width);
+	image.drawStringCentered(label, startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
 }
 
 void Rate::getValueForPopup(StringBuf& valueBuf) {
