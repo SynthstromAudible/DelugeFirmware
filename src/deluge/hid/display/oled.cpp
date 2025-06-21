@@ -135,7 +135,28 @@ void OLED::setupPopup(PopupType type, int32_t width, int32_t height, std::option
 	popupMaxX = popupMinX + width;
 	popupMinY = startY.has_value() ? startY.value() : (OLED_MAIN_HEIGHT_PIXELS - height) / 2;
 	popupMaxY = popupMinY + height;
+#if ALPHA_OR_BETA_VERSION
+	if (popupMaxX < 0 || popupMinX < 0 || popupMaxX < popupMinX || popupMinX > OLED_MAIN_WIDTH_PIXELS
+	    || popupMaxX > OLED_MAIN_WIDTH_PIXELS) {
 
+		uint32_t regLR = 0;
+		uint32_t regSP = 0;
+		asm volatile("MOV %0, LR\n" : "=r"(regLR));
+		asm volatile("MOV %0, SP\n" : "=r"(regSP));
+		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);
+		::freezeWithError("D003");
+	}
+	if (popupMaxY < 0 || popupMinY < 0 || popupMaxY < popupMinY || popupMinY > OLED_MAIN_WIDTH_PIXELS
+	    || popupMaxY > OLED_MAIN_WIDTH_PIXELS) {
+
+		uint32_t regLR = 0;
+		uint32_t regSP = 0;
+		asm volatile("MOV %0, LR\n" : "=r"(regLR));
+		asm volatile("MOV %0, SP\n" : "=r"(regSP));
+		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);
+		::freezeWithError("D003");
+	}
+#endif
 	popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
 
 	if (type != PopupType::HORIZONTAL_MENU) {
@@ -365,7 +386,7 @@ void OLED::sendMainImage() {
 
 struct TextLine {
 	std::string_view text;
-	size_t pixel_width;
+	size_t pixel_width{0};
 };
 
 constexpr std::size_t kMaxNumLines = 8;
@@ -397,10 +418,16 @@ std::pair<size_t, size_t> getWidthPixels(char c, size_t height) {
 /// @return the total width of the string in pixels
 size_t getWidthPixels(std::string_view text, size_t height) {
 	size_t total_width = 0;
-
+	size_t index = 0;
+	auto l = text.length();
 	for (char c : text) {
 		auto [char_width, char_spacing] = getWidthPixels(c, height);
-		total_width += char_spacing + char_width;
+		if (index++ == l - 1) {
+			total_width += char_width;
+		}
+		else {
+			total_width += char_spacing + char_width;
+		}
 	}
 
 	return total_width;
@@ -419,7 +446,6 @@ size_t getWidthPixels(std::string_view text, size_t height) {
 /// @note The function assumes that the input string is valid and does not contain any invalid characters.
 TextLineBreakdown::TextLineBreakdown(std::string_view text, size_t char_height, size_t max_pixels_per_line)
     : max_width_per_line{max_pixels_per_line} {
-
 	size_t line_width = 0;
 	size_t last_char_spacing = 0;
 
@@ -430,9 +456,14 @@ TextLineBreakdown::TextLineBreakdown(std::string_view text, size_t char_height, 
 			size_t end_idx = std::distance(text.begin(), c);
 
 			// add the current line to the lines vector
+			auto t = text.substr(0, end_idx);
+			auto l = getWidthPixels(t, char_height);
+			if (l > max_pixels_per_line) {
+				FREEZE_WITH_ERROR("P002");
+			}
 			lines.push_back({
-			    .text = text.substr(0, end_idx),
-			    .pixel_width = line_width,
+			    .text = t,
+			    .pixel_width = l,
 			});
 
 			// remove the text up to and including the newline
@@ -484,6 +515,9 @@ TextLineBreakdown::TextLineBreakdown(std::string_view text, size_t char_height, 
 		    .text = text,
 		    .pixel_width = getWidthPixels(text, char_height),
 		});
+	}
+	if (maxPixelWidth() > max_pixels_per_line) {
+		FREEZE_WITH_ERROR("p001");
 	}
 }
 
