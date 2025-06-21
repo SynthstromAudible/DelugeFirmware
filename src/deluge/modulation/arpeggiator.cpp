@@ -530,6 +530,11 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 			ratchetNotesMultiplier = std::max(2_u32, ratchetNotesMultiplier);
 			ratchetNotesCount = std::max(4_u32, ratchetNotesCount);
 		}
+		if (ratchetNotesMultiplier == 0) {
+			// Ratchet probability evaluated to "no ratchet", so we update the status as if ratchet didn't happen
+			isRatcheting = false;
+			ratchetNotesCount = 0;
+		}
 	}
 	else {
 		ratchetNotesMultiplier = 0;
