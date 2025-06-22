@@ -9,6 +9,7 @@
 #include "hid/led/indicator_leds.h"
 #include "model/settings/runtime_feature_settings.h"
 #include <algorithm>
+#include <storage/flash_storage.h>
 
 namespace deluge::gui::menu_item {
 
@@ -64,16 +65,13 @@ void HorizontalMenu::drawPixelsForOled() {
 	// did the selected horizontal menu item position change?
 	// if yes, update the instrument LED corresponding to that menu item position
 	// store the last selected horizontal menu item position so that we don't update the LED's more than we have to
-	auto posOnPage = paging.selectedItemPositionOnPage;
+	const auto posOnPage = paging.selectedItemPositionOnPage;
 	if (posOnPage != lastSelectedItemPosition) {
 		lastSelectedItemPosition = posOnPage;
 		updateSelectedMenuItemLED(posOnPage);
 	}
 
 	constexpr int32_t baseY = 14 + OLED_MAIN_TOPMOST_PIXEL;
-	constexpr int32_t boxHeight = 25;
-	constexpr int32_t labelHeight = kTextSpacingY;
-	constexpr int32_t labelY = baseY + boxHeight - labelHeight;
 	int32_t currentX = 0;
 
 	auto& [pageNumber, pageItems] = paging.getVisiblePage();
@@ -85,7 +83,11 @@ void HorizontalMenu::drawPixelsForOled() {
 		item->readCurrentValue();
 
 		const int32_t boxWidth = OLED_MAIN_WIDTH_PIXELS / (4 / item->getColumnSpan());
+		constexpr int32_t boxHeight = 25;
 		int32_t contentHeight = boxHeight;
+
+		constexpr int32_t labelHeight = kTextSpacingY;
+		constexpr int32_t labelY = baseY + boxHeight - labelHeight;;
 		std::optional<ColumnLabelPosition> labelPos;
 
 		if (item->showColumnLabel()) {
@@ -105,12 +107,16 @@ void HorizontalMenu::drawPixelsForOled() {
 
 		// Highlight the selected item if it doesn't occupy the whole page
 		if (n == posOnPage && (pageItems.size() > 1 || pageItems[0]->getColumnSpan() < 4)) {
-			if (!labelPos.has_value() || item->isSubmenu()) {
-				// highlight the whole slot if has no label or is submenu
+			if (FlashStorage::accessibilityMenuHighlighting) {
+				// Highlight just by drawing a line below
+				image.invertArea(currentX, boxWidth - 1, baseY + boxHeight, OLED_MAIN_VISIBLE_HEIGHT + 1);
+			}
+			else if (!labelPos.has_value() || item->isSubmenu()) {
+				// Highlight the whole slot if it has no label or is a submenu
 				image.invertAreaRounded(currentX, boxWidth, baseY, baseY + boxHeight - 1);
 			}
 			else {
-				// otherwise highlight only label
+				// Otherwise highlight only label
 				image.invertAreaRounded(labelPos->startX - 3, labelPos->width + 5, labelY, labelY + labelHeight - 1);
 			}
 		}
@@ -138,29 +144,32 @@ void HorizontalMenu::drawPixelsForOled() {
 }
 
 void HorizontalMenu::selectEncoderAction(int32_t offset) {
-	if (renderingStyle() == HORIZONTAL) {
-		const bool selectButtonPressed = Buttons::selectButtonPressUsedUp =
-		    Buttons::isButtonPressed(hid::button::SELECT_ENC);
-		if (!selectButtonPressed) {
-			MenuItem* child = *current_item_;
-			if (child->isSubmenu()) {
-				return;
-			}
-
-			child->selectEncoderAction(offset);
-			focusChild(child);
-			displayPopup(child);
-
-			// We don't want to return true for selectEncoderEditsInstrument(), since
-			// that would trigger for scrolling in the menu as well.
-			return soundEditor.markInstrumentAsEdited();
-		}
-
-		// Undo any acceleration: we only want it for the items, not the menu itself.
-		// We only do this for horizontal menus to allow fast scrolling with shift in vertical menus.
-		offset = std::clamp<int32_t>(offset, -1, 1);
+	if (renderingStyle() != HORIZONTAL) {
+		Submenu::selectEncoderAction(offset);
 	}
 
+	const bool selectButtonPressed = Buttons::selectButtonPressUsedUp =
+	    Buttons::isButtonPressed(hid::button::SELECT_ENC);
+
+	if (!selectButtonPressed) {
+		MenuItem* child = *current_item_;
+		if (child->isSubmenu()) {
+			// No action for a submenu
+			return;
+		}
+
+		child->selectEncoderAction(offset);
+		focusChild(child);
+		displayPopup(child);
+
+		// We don't want to return true for selectEncoderEditsInstrument(), since
+		// that would trigger for scrolling in the menu as well.
+		return soundEditor.markInstrumentAsEdited();
+	}
+
+	// Undo any acceleration: we only want it for the items, not the menu itself.
+	// We only do this for horizontal menus to allow fast scrolling with shift in vertical menus.
+	offset = std::clamp<int32_t>(offset, -1, 1);
 	Submenu::selectEncoderAction(offset);
 }
 
