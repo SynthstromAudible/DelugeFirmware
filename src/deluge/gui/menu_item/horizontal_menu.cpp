@@ -88,7 +88,6 @@ void HorizontalMenu::drawPixelsForOled() {
 
 		constexpr int32_t labelHeight = kTextSpacingY;
 		constexpr int32_t labelY = baseY + boxHeight - labelHeight;
-		;
 		std::optional<ColumnLabelPosition> labelPos;
 
 		if (item->showColumnLabel()) {
@@ -146,7 +145,7 @@ void HorizontalMenu::drawPixelsForOled() {
 
 void HorizontalMenu::selectEncoderAction(int32_t offset) {
 	if (renderingStyle() != HORIZONTAL) {
-		Submenu::selectEncoderAction(offset);
+		return Submenu::selectEncoderAction(offset);
 	}
 
 	const bool selectButtonPressed = Buttons::selectButtonPressUsedUp =
