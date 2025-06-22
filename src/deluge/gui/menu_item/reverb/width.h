@@ -41,7 +41,7 @@ public:
 	}
 	[[nodiscard]] std::string_view getTitle() const override { return getName(); }
 
-	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
+	void getColumnLabel(StringBuf& label) override {
 		using enum l10n::String;
 		switch (AudioEngine::reverb.getModel()) {
 		case dsp::Reverb::Model::DIGITAL:
@@ -50,7 +50,7 @@ public:
 			label.append(deluge::l10n::get(STRING_FOR_DIFFUSION));
 			break;
 		default:
-			label.append(deluge::l10n::get(forSmallFont ? STRING_FOR_WIDTH : STRING_FOR_WIDTH_SHORT));
+			label.append(deluge::l10n::get(STRING_FOR_WIDTH_SHORT));
 			break;
 		}
 	}

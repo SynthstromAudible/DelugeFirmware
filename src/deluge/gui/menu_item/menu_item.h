@@ -283,7 +283,7 @@ public:
 	/// @brief Get the name for use on horizontal menus.
 	///
 	/// By default this redirects to getName(), but can be overridden.
-	virtual void getColumnLabel(StringBuf& label, bool forSmallFont) { label.append(getName().data()); }
+	virtual void getColumnLabel(StringBuf& label) { label.append(getName().data()); }
 
 	/// @brief Show a label for the parameter in the horizontal menu
 	///

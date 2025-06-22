@@ -360,7 +360,7 @@ HorizontalMenu::ColumnLabelPosition HorizontalMenu::renderColumnLabel(MenuItem* 
 	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 	DEF_STACK_STRING_BUF(label, kShortStringBufferSize);
-	menuItem->getColumnLabel(label, false);
+	menuItem->getColumnLabel(label);
 
 	// Remove any spaces
 	label.removeSpaces();

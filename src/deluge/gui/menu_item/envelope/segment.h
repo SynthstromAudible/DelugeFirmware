@@ -25,10 +25,7 @@ class Segment : public source::PatchedParam {
 public:
 	using PatchedParam::PatchedParam;
 
-	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
-		if (forSmallFont) {
-			return label.append(getName().data());
-		}
+	void getColumnLabel(StringBuf& label) override {
 		const auto& shortNameString = getShortEnvelopeParamName(menu_item::PatchedParam::getP());
 		label.append(deluge::l10n::get(shortNameString));
 	}
