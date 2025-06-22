@@ -104,33 +104,33 @@ template <std::integral T>
 } // namespace util
 
 // unsigned literal operators
-consteval uint_least64_t operator"" _u64(unsigned long long arg) {
+consteval uint_least64_t operator""_u64(unsigned long long arg) {
 	return arg;
 };
-consteval uint_least32_t operator"" _u32(unsigned long long arg) {
+consteval uint_least32_t operator""_u32(unsigned long long arg) {
 	return arg;
 };
-consteval uint_least16_t operator"" _u16(unsigned long long arg) {
+consteval uint_least16_t operator""_u16(unsigned long long arg) {
 	return arg;
 };
-consteval uint_least8_t operator"" _u8(unsigned long long arg) {
+consteval uint_least8_t operator""_u8(unsigned long long arg) {
 	return arg;
 };
 
 // signed literal operators
-consteval int_least64_t operator"" _i64(unsigned long long arg) {
+consteval int_least64_t operator""_i64(unsigned long long arg) {
 	return arg;
 };
-consteval int_least32_t operator"" _i32(unsigned long long arg) {
+consteval int_least32_t operator""_i32(unsigned long long arg) {
 	return arg;
 };
-consteval int_least16_t operator"" _i16(unsigned long long arg) {
+consteval int_least16_t operator""_i16(unsigned long long arg) {
 	return arg;
 };
-consteval int_least8_t operator"" _i8(unsigned long long arg) {
+consteval int_least8_t operator""_i8(unsigned long long arg) {
 	return arg;
 };
 
-consteval std::byte operator"" _b(unsigned long long arg) {
+consteval std::byte operator""_b(unsigned long long arg) {
 	return std::byte(arg);
 };

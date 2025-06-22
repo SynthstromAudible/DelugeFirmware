@@ -504,6 +504,7 @@ enum class Error {
 	INVALID_PATTERN_VERSION,
 	OUT_OF_BUFFER_SPACE,
 	INVALID_SYSEX_FORMAT,
+	POS_PAST_STRING,
 };
 
 enum class SampleRepeatMode {
@@ -943,6 +944,10 @@ constexpr int32_t kOLEDMenuNumOptionsVisible = (OLED_HEIGHT_CHARS - 1);
 /// size.
 constexpr int32_t kConsoleImageHeight = (OLED_MAIN_HEIGHT_PIXELS);
 constexpr int32_t kConsoleImageNumRows = (OLED_MAIN_HEIGHT_PIXELS >> 3);
+
+// small characters
+constexpr int32_t kTextSmallSpacingX = 4;
+constexpr int32_t kTextSmallSizeY = 5;
 
 // non-title characters
 constexpr int32_t kTextSpacingX = 6; // the width of a character (5 px) + the space after it (1 px)

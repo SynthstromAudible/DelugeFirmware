@@ -50,6 +50,12 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 	// Run everything by the Arp...
 	arpeggiator.noteOff(arpSettings, note, &instruction);
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		noteOffPostArp(instruction.glideNoteCodeOffPostArp[n]);
+	}
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
@@ -58,7 +64,7 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 }
 
 void MIDIDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
-	NonAudioDrum::noteOffPostArp(noteCodePostArp);
+	NonAudioDrum::noteOnPostArp(noteCodePostArp, arpNote, noteIndex);
 	lastVelocity = arpNote->velocity;
 	midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, channel, kMIDIOutputFilterNoMPE);
 }

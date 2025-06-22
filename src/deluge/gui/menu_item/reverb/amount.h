@@ -16,18 +16,13 @@
  */
 #pragma once
 
-extern void setEnvelopeNumberForTitles(int32_t);
+#include "gui/menu_item/integer.h"
 
-namespace deluge::gui::menu_item::submenu {
-class Envelope final : public HorizontalMenu {
+namespace deluge::gui::menu_item::reverb {
+class Amount final : public patched_param::Integer {
 public:
-	Envelope(l10n::String newName, std::span<MenuItem*> newItems, int32_t newThingIndex)
-	    : HorizontalMenu(newName, newItems, newThingIndex) {}
+	using Integer::Integer;
 
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
-		HorizontalMenu::beginSession(navigatedBackwardFrom);
-		setEnvelopeNumberForTitles(this->thingIndex.value());
-	}
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return VERTICAL_BAR; }
 };
-
-} // namespace deluge::gui::menu_item::submenu
+} // namespace deluge::gui::menu_item::reverb

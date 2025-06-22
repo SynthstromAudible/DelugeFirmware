@@ -243,4 +243,11 @@ void DecimalWithoutScrolling::drawActualValue(bool justDidHorizontalScroll) {
 	}
 	display->setText(buffer, dotPos);
 }
+
+void DecimalWithoutScrolling::getValueForPopup(StringBuf& value) {
+	const int32_t numDecimalPlaces = this->getNumDecimalPlaces();
+	value.appendFloat(this->getDisplayValue(), numDecimalPlaces, numDecimalPlaces);
+	value.append(getUnit());
+}
+
 } // namespace deluge::gui::menu_item

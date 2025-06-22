@@ -15,21 +15,26 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/patched_param/integer.h"
-#include "processing/sound/sound.h"
+#include "definitions_cxx.hpp"
+#include "gui/menu_item/arpeggiator/midi_cv/arp_integer.h"
+#include "gui/menu_item/value_scaling.h"
+#include "gui/ui/sound_editor.h"
+#include "model/song/song.h"
 
-namespace deluge::gui::menu_item::lfo {
-class Rate final : public patched_param::Integer {
+namespace deluge::gui::menu_item::arpeggiator::midi_cv {
+class GlideProbability final : public ArpNonSoundInteger {
 public:
-	Rate(deluge::l10n::String name, deluge::l10n::String type, int32_t newP, uint8_t lfoId)
-	    : Integer(name, type, newP), lfoId_(lfoId) {}
-
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		Sound* sound = static_cast<Sound*>(modControllable);
-		return sound->lfoConfig[lfoId_].syncLevel == SYNC_LEVEL_NONE;
+	using ArpNonSoundInteger::ArpNonSoundInteger;
+	void readCurrentValue() override {
+		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->glideProbability));
 	}
-
-private:
-	uint8_t lfoId_;
+	void writeCurrentValue() override {
+		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
+		soundEditor.currentArpSettings->glideProbability = value;
+	}
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow();
+	}
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return PERCENT; }
 };
-} // namespace deluge::gui::menu_item::lfo
+} // namespace deluge::gui::menu_item::arpeggiator::midi_cv

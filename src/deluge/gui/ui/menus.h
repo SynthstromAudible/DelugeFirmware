@@ -25,6 +25,9 @@
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
 
+#include <gui/menu_item/horizontal_menu.h>
+#include <gui/menu_item/submenu/arp_mpe_submenu.h>
+
 extern deluge::gui::menu_item::patched_param::IntegerNonFM noiseMenu;
 extern deluge::gui::menu_item::osc::Sync oscSyncMenu;
 extern deluge::gui::menu_item::osc::source::WaveIndex sourceWaveIndexMenu;
@@ -86,11 +89,13 @@ extern MenuItem* midiOrCVParamShortcuts[kDisplayHeight];
 
 extern MenuItem* gateDrumParamShortcuts[kDisplayHeight];
 extern MenuItem* paramShortcutsForSounds[kDisplayWidth][kDisplayHeight];
+extern MenuItem* paramShortcutsForSoundsSecondLayer[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForSongView[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForKitGlobalFX[kDisplayWidth][kDisplayHeight];
 
 extern deluge::gui::menu_item::Submenu* parentsForSoundShortcuts[kDisplayWidth][kDisplayHeight];
+extern deluge::gui::menu_item::Submenu* parentsForSoundShortcutsSecondLayer[kDisplayWidth][kDisplayHeight];
 extern deluge::gui::menu_item::Submenu* parentsForAudioShortcuts[kDisplayWidth][kDisplayHeight];
 extern deluge::gui::menu_item::Submenu* parentsForSongShortcuts[kDisplayWidth][kDisplayHeight];
 extern deluge::gui::menu_item::Submenu* parentsForKitGlobalFXShortcuts[kDisplayWidth][kDisplayHeight];
@@ -98,4 +103,3 @@ extern deluge::gui::menu_item::Submenu* parentsForMidiOrCVParamShortcuts[kDispla
 
 void setOscillatorNumberForTitles(int32_t);
 void setModulatorNumberForTitles(int32_t);
-void setEnvelopeNumberForTitles(int32_t);

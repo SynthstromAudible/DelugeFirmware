@@ -63,6 +63,7 @@ public:
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 16; }
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return NUMBER; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
@@ -70,7 +71,7 @@ public:
 	}
 
 	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MAX_VOICES_SHORT));
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_MAX_VOICES_SHORT));
 	}
 };
 

@@ -138,8 +138,9 @@ void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* model
                                             bool reversed, bool didPingpong, bool mayInterpolate) {
 
 	ticksTilNextEvent -= ticksSkipped;
-	bool interpolating = false;
 	if (ticksTilNextEvent <= 0) {
+		bool interpolating = false;
+
 		ticksTilNextEvent = 2147483647;
 
 		for (auto& [cc, param] : params) {
@@ -152,8 +153,8 @@ void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* model
 				interpolating = true;
 			}
 		}
+		modelStack->summary->whichParamsAreInterpolating[0] = static_cast<uint32_t>(interpolating);
 	}
-	modelStack->summary->whichParamsAreInterpolating[0] = static_cast<uint32_t>(interpolating);
 }
 
 void MIDIParamCollection::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {

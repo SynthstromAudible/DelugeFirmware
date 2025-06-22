@@ -86,6 +86,29 @@ PatchSource modSourceShortcuts[2][8] = {
     },
 };
 
+PatchSource modSourceShortcutsSecondLayer[2][8] = {
+    {
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::LFO_GLOBAL_2,
+        PatchSource::ENVELOPE_2,
+        PatchSource::NOT_AVAILABLE,
+    },
+    {
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::NOT_AVAILABLE,
+        PatchSource::LFO_LOCAL_2,
+        PatchSource::ENVELOPE_3,
+        PatchSource::NOT_AVAILABLE,
+    },
+};
+
 void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 
 	shortcutsVersion = newVersion;
@@ -628,12 +651,19 @@ void SoundEditor::exitCompletely() {
 	currentUIMode = UI_MODE_NONE;
 }
 
-bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout) {
+bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout, bool* isSecondLayerParamOut) {
 	bool found = false;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			if (deluge::modulation::params::patchedParamShortcuts[x][y] == paramLookingFor) {
+				*isSecondLayerParamOut = false;
+				*xout = x;
+				*yout = y;
 
+				return true;
+			}
+			if (deluge::modulation::params::patchedParamShortcutsSecondLayer[x][y] == paramLookingFor) {
+				*isSecondLayerParamOut = true;
 				*xout = x;
 				*yout = y;
 
@@ -648,9 +678,23 @@ void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
 	for (int32_t x = 0; x < 2; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			PatchSource source = modSourceShortcuts[x][y];
+			bool isSecondLayerSource = false;
+
+			if (secondLayerModSourceShortcutsToggled) {
+				const auto secondLayerSource = modSourceShortcutsSecondLayer[x][y];
+				if (secondLayerSource != PatchSource::NOT_AVAILABLE) {
+					source = secondLayerSource;
+					isSecondLayerSource = true;
+				}
+			}
+
 			if (source < kLastPatchSource) {
 				sourceShortcutBlinkFrequencies[x][y] =
 				    currentItem->shouldBlinkPatchingSourceShortcut(source, &sourceShortcutBlinkColours[x][y]);
+
+				if (sourceShortcutBlinkFrequencies[x][y] != 255 && isSecondLayerSource) {
+					sourceShortcutBlinkColours[x][y] = 0b00000011; // blink yellow on the second layer
+				}
 			}
 		}
 	}
@@ -723,8 +767,12 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
 			for (int32_t x = 0; x < kDisplayWidth; x++) {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
-					if (paramShortcutsForSounds[x][y] == currentItem) {
+					if (paramShortcutsForSoundsSecondLayer[x][y] == currentItem) {
+						setupShortcutBlink(x, y, 0, 0b00000011 /* yellow */);
+						goto stopThat;
+					}
 
+					if (paramShortcutsForSounds[x][y] == currentItem) {
 						if (x == 10 && y < 6 && editingReverbSidechain()) {
 							goto stopThat;
 						}
@@ -743,8 +791,9 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 				int32_t paramLookingFor = currentItem->getIndexOfPatchedParamToBlink();
 				if (paramLookingFor != 255) {
 					int32_t x, y;
-					if (findPatchedParam(paramLookingFor, &x, &y)) {
-						setupShortcutBlink(x, y, 3);
+					bool isSecondLayerParam;
+					if (findPatchedParam(paramLookingFor, &x, &y, &isSecondLayerParam)) {
+						setupShortcutBlink(x, y, 3, isSecondLayerParam ? 0b00000011 /*yellow*/ : 0L);
 					}
 				}
 			}
@@ -812,9 +861,10 @@ void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 	}
 }
 
-void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency) {
+void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour) {
 	currentParamShorcutX = x;
 	currentParamShorcutY = y;
+	currentParamColour = colour;
 
 	shortcutBlinkCounter = 0;
 	paramShortcutBlinkFrequency = frequency;
@@ -827,15 +877,15 @@ void SoundEditor::setupExclusiveShortcutBlink(int32_t x, int32_t y) {
 }
 
 void SoundEditor::blinkShortcut() {
-	// We have to blink params and shortcuts at slightly different times, because blinking two pads on the same row at
-	// same time doesn't work
+	// We have to blink params and shortcuts at slightly different times, because blinking two pads on the same row
+	// at same time doesn't work
 
 	uint32_t counterForNow = shortcutBlinkCounter >> 1;
 
 	if (shortcutBlinkCounter & 1) {
 		// Blink param
 		if ((counterForNow & paramShortcutBlinkFrequency) == 0) {
-			PadLEDs::flashMainPad(currentParamShorcutX, currentParamShorcutY);
+			PadLEDs::flashMainPad(currentParamShorcutX, currentParamShorcutY, currentParamColour);
 		}
 		uiTimerManager.setTimer(TimerName::SHORTCUT_BLINK, 180);
 	}
@@ -1074,7 +1124,23 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			// Shortcut to patch a modulation source to the parameter we're already looking at
 			if (getCurrentUI() == &soundEditor && ((x == 14 && y >= 5) || x == 15)) {
 
-				PatchSource source = modSourceShortcuts[x - 14][y];
+				const int32_t modSourceX = x - 14;
+				PatchSource source = modSourceShortcuts[modSourceX][y];
+
+				secondLayerModSourceShortcutsToggled =
+				    sourceShortcutBlinkFrequencies[modSourceX][y] != 255
+				            && getCurrentMenuItem()->getParamKind() == deluge::modulation::params::Kind::PATCH_CABLE
+				        ? !secondLayerModSourceShortcutsToggled
+				        : false;
+
+				// Replace with the second layer shortcut (e.g. env3, lfo3) if the pad was pressed twice
+				if (secondLayerModSourceShortcutsToggled) {
+					const auto secondLayerSource = modSourceShortcutsSecondLayer[modSourceX][y];
+					if (secondLayerSource != PatchSource::NOT_AVAILABLE) {
+						source = secondLayerSource;
+					}
+				}
+
 				if (source == PatchSource::SOON) {
 					display->displayPopup("SOON");
 				}
@@ -1150,7 +1216,9 @@ getOut:
 			}
 
 			// Shortcut to edit a parameter
-			if (!modulationItemFound && (x < 14 || (x == 14 && y < 5) || (x == 15 && y == 1))) {
+			if (!modulationItemFound
+			    && (x < 14 || (x == 14 && y < 5) ||     //< regular shortcuts
+			        (x == 15 && (y == 1 || y == 3)))) { //< note & velocity probability
 
 				if (editingCVOrMIDIClip() || editingNonAudioDrumRow()) {
 					if (x == 11) {
@@ -1175,22 +1243,28 @@ getOut:
 				else {
 					item = paramShortcutsForSounds[x][y];
 					parent = parentsForSoundShortcuts[x][y];
-				}
 
+					// Replace with the second layer shortcut (e.g. env3 attack, lfo3 rate) if the pad was pressed twice
+					secondLayerShortcutsToggled =
+					    x == currentParamShorcutX && y == currentParamShorcutY
+					            && getCurrentMenuItem()->getParamKind() != deluge::modulation::params::Kind::PATCH_CABLE
+					        ? !secondLayerShortcutsToggled
+					        : false;
+
+					if (secondLayerShortcutsToggled) {
+						const auto secondLayerItem = paramShortcutsForSoundsSecondLayer[x][y];
+						const auto secondLayerParent = parentsForSoundShortcutsSecondLayer[x][y];
+						if (secondLayerItem != nullptr && secondLayerParent != nullptr) {
+							item = secondLayerItem;
+							parent = secondLayerParent;
+						}
+					}
+				}
 doSetup:
 				if (item) {
-
 					if (item == comingSoonMenu) {
 						display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 						return ActionResult::DEALT_WITH;
-					}
-
-					// If we're on OLED, a parent menu & horizontal menus are in play,
-					// then we swap the parent in place of the child.
-					if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
-						if (parent->focusChild(item)) {
-							item = parent;
-						}
 					}
 
 					// if we're in the menu and automation view is the root (background) UI
@@ -1208,28 +1282,25 @@ doSetup:
 						}
 					}
 
+					const int32_t thingIndex = x & 1;
+
 					if (display->haveOLED()) {
 						switch (x) {
 						case 0 ... 3:
-							setOscillatorNumberForTitles(x & 1);
+							setOscillatorNumberForTitles(thingIndex);
 							break;
 
 						case 4 ... 5:
-							setModulatorNumberForTitles(x & 1);
-							break;
-
-						case 8 ... 9:
-							setEnvelopeNumberForTitles(x & 1);
+							setModulatorNumberForTitles(thingIndex);
 							break;
 						}
 					}
-					int32_t thingIndex = x & 1;
 
-					bool setupSuccess = setup(getCurrentClip(), item, thingIndex);
+					bool setupSuccess = setup(getCurrentClip(), item, parent, thingIndex);
 
 					if (!setupSuccess && item == &modulatorVolume && currentSource->oscType == OscType::DX7) {
 						item = &dxParam;
-						setupSuccess = setup(getCurrentClip(), item, thingIndex);
+						setupSuccess = setup(getCurrentClip(), item, parent, thingIndex);
 					}
 
 					if (!setupSuccess) {
@@ -1241,6 +1312,7 @@ doSetup:
 			}
 		}
 	}
+
 	return ActionResult::DEALT_WITH;
 }
 
@@ -1492,7 +1564,7 @@ void SoundEditor::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 }
 
-bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
+bool SoundEditor::setup(Clip* clip, const MenuItem* item, Submenu* parent, int32_t sourceIndex) {
 
 	Sound* newSound = nullptr;
 	ParamManagerForTimeline* newParamManager = nullptr;
@@ -1649,16 +1721,26 @@ doMIDIOrCV:
 		}
 	}
 
+	// This isn't a very nice solution, but we have to set currentParamManager before calling
+	// checkPermissionToBeginSession(), because in a minority of cases, like "patch cable strength" / "modulation
+	// depth", it needs this.
+	currentParamManager = newParamManager;
+	// And we also have to set currentModControllable before focusing on the child item in a horizontal menu
+	currentModControllable = newModControllable;
+
+	// If we're on OLED, a parent menu & horizontal menus are in play,
+	// then we swap the parent in place of the child.
+	if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+		if (parent->focusChild(item)) {
+			newItem = parent;
+		}
+	}
+
 	::MultiRange* newRange = currentMultiRange;
 
 	if ((currentUI != &soundEditor && currentUI != &sampleMarkerEditor) || sourceIndex != currentSourceIndex) {
 		newRange = nullptr;
 	}
-
-	// This isn't a very nice solution, but we have to set currentParamManager before calling
-	// checkPermissionToBeginSession(), because in a minority of cases, like "patch cable strength" / "modulation
-	// depth", it needs this.
-	currentParamManager = newParamManager;
 
 	MenuPermission result = newItem->checkPermissionToBeginSession(newModControllable, sourceIndex, &newRange);
 
@@ -1689,7 +1771,6 @@ doMIDIOrCV:
 	currentSound = newSound;
 	currentArpSettings = newArpSettings;
 	currentMultiRange = newRange;
-	currentModControllable = newModControllable;
 
 	if (currentModControllable) {
 		currentSidechain = &currentModControllable->sidechain;

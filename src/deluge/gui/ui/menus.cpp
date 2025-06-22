@@ -7,6 +7,7 @@
 #include "gui/menu_item/arpeggiator/midi_cv/chord_polyphony.h"
 #include "gui/menu_item/arpeggiator/midi_cv/chord_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
+#include "gui/menu_item/arpeggiator/midi_cv/glide_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/note_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_amount.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_probability.h"
@@ -16,6 +17,7 @@
 #include "gui/menu_item/arpeggiator/midi_cv/spread_gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/spread_octave.h"
 #include "gui/menu_item/arpeggiator/midi_cv/spread_velocity.h"
+#include "gui/menu_item/arpeggiator/midi_cv/step_probability.h"
 #include "gui/menu_item/arpeggiator/mode.h"
 #include "gui/menu_item/arpeggiator/mpe_velocity.h"
 #include "gui/menu_item/arpeggiator/note_mode.h"
@@ -23,6 +25,7 @@
 #include "gui/menu_item/arpeggiator/octave_mode.h"
 #include "gui/menu_item/arpeggiator/octaves.h"
 #include "gui/menu_item/arpeggiator/preset_mode.h"
+#include "gui/menu_item/arpeggiator/randomizer.h"
 #include "gui/menu_item/arpeggiator/randomizer_lock.h"
 #include "gui/menu_item/arpeggiator/rate.h"
 #include "gui/menu_item/arpeggiator/rhythm.h"
@@ -60,6 +63,8 @@
 #include "gui/menu_item/defaults/swing_interval.h"
 #include "gui/menu_item/defaults/ui/clip_type/default_new_clip_type.h"
 #include "gui/menu_item/defaults/velocity.h"
+#include "gui/menu_item/delay/amount.h"
+#include "gui/menu_item/delay/amount_unpatched.h"
 #include "gui/menu_item/delay/analog.h"
 #include "gui/menu_item/delay/ping_pong.h"
 #include "gui/menu_item/delay/sync.h"
@@ -68,6 +73,7 @@
 #include "gui/menu_item/dx/global_params.h"
 #include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/edit_name.h"
+#include "gui/menu_item/envelope/envelope_menu.h"
 #include "gui/menu_item/envelope/segment.h"
 #include "gui/menu_item/eq/eq_unpatched_param.h"
 #include "gui/menu_item/file_selector.h"
@@ -80,10 +86,10 @@
 #include "gui/menu_item/gate/mode.h"
 #include "gui/menu_item/gate/off_time.h"
 #include "gui/menu_item/gate/selection.h"
+#include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
 #include "gui/menu_item/keyboard/layout.h"
-#include "gui/menu_item/lfo/rate.h"
 #include "gui/menu_item/lfo/sync.h"
 #include "gui/menu_item/lfo/type.h"
 #include "gui/menu_item/master_transpose.h"
@@ -103,6 +109,7 @@
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
 #include "gui/menu_item/midi/mpe_to_mono.h"
 #include "gui/menu_item/midi/pgm.h"
+#include "gui/menu_item/midi/program.h"
 #include "gui/menu_item/midi/sound/channel.h"
 #include "gui/menu_item/midi/sound/note_for_drum.h"
 #include "gui/menu_item/midi/sub.h"
@@ -113,6 +120,7 @@
 #include "gui/menu_item/mod_fx/feedback.h"
 #include "gui/menu_item/mod_fx/offset.h"
 #include "gui/menu_item/mod_fx/rate.h"
+#include "gui/menu_item/mod_fx/rate_unpatched.h"
 #include "gui/menu_item/mod_fx/type.h"
 #include "gui/menu_item/modulator/destination.h"
 #include "gui/menu_item/modulator/transpose.h"
@@ -147,6 +155,8 @@
 #include "gui/menu_item/record/loop_command.h"
 #include "gui/menu_item/record/quantize.h"
 #include "gui/menu_item/record/threshold_mode.h"
+#include "gui/menu_item/reverb/amount.h"
+#include "gui/menu_item/reverb/amount_unpatched.h"
 #include "gui/menu_item/reverb/damping.h"
 #include "gui/menu_item/reverb/hpf.h"
 #include "gui/menu_item/reverb/lpf.h"
@@ -178,16 +188,14 @@
 #include "gui/menu_item/song/midi_learn.h"
 #include "gui/menu_item/source/patched_param/fm.h"
 #include "gui/menu_item/stem_export/start.h"
-#include "gui/menu_item/stutter/ping_pong.h"
+#include "gui/menu_item/stutter/direction.h"
 #include "gui/menu_item/stutter/quantized.h"
-#include "gui/menu_item/stutter/reversed.h"
-#include "gui/menu_item/stutter/use_song_stutter.h"
+#include "gui/menu_item/stutter/rate.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/menu_item/submenu/MPE.h"
 #include "gui/menu_item/submenu/actual_source.h"
 #include "gui/menu_item/submenu/arp_mpe_submenu.h"
 #include "gui/menu_item/submenu/bend.h"
-#include "gui/menu_item/submenu/envelope.h"
 #include "gui/menu_item/submenu/mod_fx.h"
 #include "gui/menu_item/submenu/modulator.h"
 #include "gui/menu_item/submenu/reverb_sidechain.h"
@@ -269,24 +277,37 @@ arpeggiator::midi_cv::RatchetAmount arpRatchetAmountMenuMIDIOrCV{STRING_FOR_NUMB
 arpeggiator::IncludeInKitArp arpIncludeInKitArpMenu{STRING_FOR_INCLUDE_IN_KIT_ARP, STRING_FOR_INCLUDE_IN_KIT_ARP};
 arpeggiator::RandomizerLock arpRandomizerLockMenu{STRING_FOR_RANDOMIZER_LOCK, STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE};
 arpeggiator::ArpUnpatchedParam arpNoteProbabilityMenu{
-    STRING_FOR_NOTE_PROBABILITY, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE, params::UNPATCHED_NOTE_PROBABILITY};
+    STRING_FOR_NOTE_PROBABILITY, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE, params::UNPATCHED_NOTE_PROBABILITY, PERCENT};
 arpeggiator::midi_cv::NoteProbability arpNoteProbabilityMenuMIDIOrCV{STRING_FOR_NOTE_PROBABILITY,
                                                                      STRING_FOR_NOTE_PROBABILITY_MENU_TITLE};
-arpeggiator::ArpUnpatchedParam arpBassProbabilityMenu{
-    STRING_FOR_BASS_PROBABILITY, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_BASS_PROBABILITY};
+arpeggiator::ArpUnpatchedParam arpBassProbabilityMenu{STRING_FOR_BASS_PROBABILITY,
+                                                      STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE,
+                                                      params::UNPATCHED_ARP_BASS_PROBABILITY, PERCENT};
 arpeggiator::midi_cv::BassProbability arpBassProbabilityMenuMIDIOrCV{STRING_FOR_BASS_PROBABILITY,
                                                                      STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE};
-arpeggiator::ArpNonKitSoundUnpatchedParam arpChordProbabilityMenu{
-    STRING_FOR_CHORD_PROBABILITY, STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_PROBABILITY};
+arpeggiator::ArpUnpatchedParam arpStepProbabilityMenu{STRING_FOR_STEP_PROBABILITY,
+                                                      STRING_FOR_ARP_STEP_PROBABILITY_MENU_TITLE,
+                                                      params::UNPATCHED_ARP_STEP_PROBABILITY, PERCENT};
+arpeggiator::midi_cv::StepProbability arpStepProbabilityMenuMIDIOrCV{STRING_FOR_STEP_PROBABILITY,
+                                                                     STRING_FOR_ARP_STEP_PROBABILITY_MENU_TITLE};
+arpeggiator::ArpUnpatchedParam arpGlideProbabilityMenu{STRING_FOR_GLIDE_PROBABILITY,
+                                                       STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE,
+                                                       params::UNPATCHED_ARP_GLIDE_PROBABILITY, PERCENT};
+arpeggiator::midi_cv::GlideProbability arpGlideProbabilityMenuMIDIOrCV{STRING_FOR_GLIDE_PROBABILITY,
+                                                                       STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE};
+arpeggiator::ArpNonKitSoundUnpatchedParam arpChordProbabilityMenu{STRING_FOR_CHORD_PROBABILITY,
+                                                                  STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE,
+                                                                  params::UNPATCHED_ARP_CHORD_PROBABILITY, PERCENT};
 arpeggiator::midi_cv::ChordProbability arpChordProbabilityMenuMIDIOrCV{STRING_FOR_CHORD_PROBABILITY,
                                                                        STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE};
 arpeggiator::ArpUnpatchedParam arpRatchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY,
                                                          STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
-                                                         params::UNPATCHED_ARP_RATCHET_PROBABILITY};
+                                                         params::UNPATCHED_ARP_RATCHET_PROBABILITY, PERCENT};
 arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
     STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
-arpeggiator::ArpUnpatchedParam arpReverseProbabilityMenu{
-    STRING_FOR_REVERSE_PROBABILITY, STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE, params::UNPATCHED_REVERSE_PROBABILITY};
+arpeggiator::ArpUnpatchedParam arpReverseProbabilityMenu{STRING_FOR_REVERSE_PROBABILITY,
+                                                         STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE,
+                                                         params::UNPATCHED_REVERSE_PROBABILITY, PERCENT};
 arpeggiator::ArpUnpatchedParam arpSpreadVelocityMenu{STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE,
                                                      params::UNPATCHED_SPREAD_VELOCITY};
 arpeggiator::midi_cv::SpreadVelocity arpSpreadVelocityMenuMIDIOrCV{STRING_FOR_SPREAD_VELOCITY,
@@ -301,12 +322,9 @@ arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD
                                                                STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
 
 // Arp: Basic
-HorizontalMenu arpBasicMenu{
-    STRING_FOR_BASIC, {&arpGateMenu, &arpSyncMenu, &arpRateMenu}, HorizontalMenu::Layout::FIXED};
-HorizontalMenu arpBasicMenuKit{
-    STRING_FOR_BASIC, {&arpGateMenu, &arpSyncMenu, &arpKitRateMenu}, HorizontalMenu::Layout::FIXED};
-HorizontalMenu arpBasicMenuMIDIOrCV{
-    STRING_FOR_BASIC, {&arpGateMenuMIDIOrCV, &arpSyncMenu, &arpRateMenuMIDIOrCV}, HorizontalMenu::Layout::FIXED};
+HorizontalMenu arpBasicMenu{STRING_FOR_BASIC, {&arpGateMenu, &arpSyncMenu, &arpRateMenu}};
+HorizontalMenu arpBasicMenuKit{STRING_FOR_BASIC, {&arpGateMenu, &arpSyncMenu, &arpKitRateMenu}};
+HorizontalMenu arpBasicMenuMIDIOrCV{STRING_FOR_BASIC, {&arpGateMenuMIDIOrCV, &arpSyncMenu, &arpRateMenuMIDIOrCV}};
 
 // Arp: Pattern
 HorizontalMenu arpPatternMenu{STRING_FOR_PATTERN,
@@ -317,28 +335,35 @@ HorizontalMenu arpPatternMenu{STRING_FOR_PATTERN,
                                &arpRhythmMenu, &arpRhythmMenuMIDIOrCV, &arpSequenceLengthMenu,
                                &arpSequenceLengthMenuMIDIOrCV}};
 // Arp: Randomizer
-HorizontalMenu arpRandomizerMenu{STRING_FOR_RANDOMIZER,
-                                 {// Lock
-                                  &arpRandomizerLockMenu,
-                                  // Spreads
-                                  &arpSpreadGateMenu, &arpSpreadGateMenuMIDIOrCV, &arpSpreadOctaveMenu,
-                                  &arpSpreadOctaveMenuMIDIOrCV, &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV,
-                                  // Ratchets
-                                  &arpRatchetAmountMenu, &arpRatchetAmountMenuMIDIOrCV, &arpRatchetProbabilityMenu,
-                                  &arpRatchetProbabilityMenuMIDIOrCV,
-                                  // Chords
-                                  &arpChordPolyphonyMenu, &arpChordPolyphonyMenuMIDIOrCV, &arpChordProbabilityMenu,
-                                  &arpChordProbabilityMenuMIDIOrCV,
-                                  // Note
-                                  &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
-                                  // Bass
-                                  &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV,
-                                  // Reverse
-                                  &arpReverseProbabilityMenu}};
+arpeggiator::Randomizer arpRandomizerMenu{STRING_FOR_RANDOMIZER,
+                                          {// Lock
+                                           &arpRandomizerLockMenu,
+                                           // Spreads
+                                           &arpSpreadGateMenu, &arpSpreadGateMenuMIDIOrCV, &arpSpreadOctaveMenu,
+                                           &arpSpreadOctaveMenuMIDIOrCV, &arpSpreadVelocityMenu,
+                                           &arpSpreadVelocityMenuMIDIOrCV,
+                                           // Ratchets: Amount
+                                           &arpRatchetAmountMenu, &arpRatchetAmountMenuMIDIOrCV,
+                                           // Ratchets: Probability
+                                           &arpRatchetProbabilityMenu, &arpRatchetProbabilityMenuMIDIOrCV,
+                                           // Chords: Polyphony
+                                           &arpChordPolyphonyMenu, &arpChordPolyphonyMenuMIDIOrCV,
+                                           // Chords: Probability
+                                           &arpChordProbabilityMenu, &arpChordProbabilityMenuMIDIOrCV,
+                                           // Note
+                                           &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
+                                           // Step
+                                           &arpStepProbabilityMenu, &arpStepProbabilityMenuMIDIOrCV,
+                                           // Bass
+                                           &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV,
+                                           // Glide
+                                           &arpGlideProbabilityMenu, &arpGlideProbabilityMenuMIDIOrCV,
+                                           // Reverse
+                                           &arpReverseProbabilityMenu}};
 // Arp: Preset and Randomizer
 HorizontalMenu arpPresetAndRandomizerMenu{STRING_FOR_ARPEGGIATOR, {&arpPresetModeMenu, &arpRandomizerMenu}};
 // Global: Randomizer
-HorizontalMenu globalRandomizerMenu{STRING_FOR_RANDOMIZER,
+HorizontalMenu globalRandomizerMenu{STRING_FOR_NOTE_RANDOMIZER,
                                     {
                                         // Lock
                                         &arpRandomizerLockMenu,
@@ -427,35 +452,71 @@ source::patched_param::FM modulatorFeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_
 modulator::Destination modulatorDestMenu{STRING_FOR_DESTINATION, STRING_FOR_FM_MOD2_DEST_MENU_TITLE};
 osc::RetriggerPhase modulatorPhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_FM_MOD_RETRIG_MENU_TITLE, true};
 
+// Envelope 1 menu ---------------------------------------------------------------------------------
+envelope::Segment env1AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV1_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
+envelope::Segment env1DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV1_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY};
+envelope::Segment env1SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV1_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
+envelope::Segment env1ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV1_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
+
+envelope::EnvelopeMenu env1Menu{
+    STRING_FOR_ENVELOPE_1, {&env1AttackMenu, &env1DecayMenu, &env1SustainMenu, &env1ReleaseMenu}, 0};
+
+// Envelope 2 menu ---------------------------------------------------------------------------------
+envelope::Segment env2AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV2_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
+envelope::Segment env2DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV2_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY};
+envelope::Segment env2SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV2_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
+envelope::Segment env2ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV2_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
+
+envelope::EnvelopeMenu env2Menu{
+    STRING_FOR_ENVELOPE_2, {&env2AttackMenu, &env2DecayMenu, &env2SustainMenu, &env2ReleaseMenu}, 1};
+
+// Envelope 3 menu ---------------------------------------------------------------------------------
+envelope::Segment env3AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV3_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
+envelope::Segment env3DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV3_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY};
+envelope::Segment env3SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV3_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
+envelope::Segment env3ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV3_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
+
+envelope::EnvelopeMenu env3Menu{
+    STRING_FOR_ENVELOPE_3, {&env3AttackMenu, &env3DecayMenu, &env3SustainMenu, &env3ReleaseMenu}, 2};
+
+// Envelope 4 menu ---------------------------------------------------------------------------------
+envelope::Segment env4AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV4_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
+envelope::Segment env4DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV4_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY};
+envelope::Segment env4SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV4_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
+envelope::Segment env4ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV4_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
+
+envelope::EnvelopeMenu env4Menu{
+    STRING_FOR_ENVELOPE_4, {&env4AttackMenu, &env4DecayMenu, &env4SustainMenu, &env4ReleaseMenu}, 3};
+
 // LFO1 menu ---------------------------------------------------------------------------------
 
 lfo::Type lfo1TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO1_TYPE, LFO1_ID};
-lfo::Rate lfo1RateMenu{STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ_1, LFO1_ID};
 lfo::Sync lfo1SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO1_SYNC, LFO1_ID};
+patched_param::Integer lfo1RateMenu{STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ_1};
 
-HorizontalMenu lfo1Menu{STRING_FOR_LFO1, {&lfo1TypeMenu, &lfo1SyncMenu, &lfo1RateMenu}, HorizontalMenu::Layout::FIXED};
+HorizontalMenu lfo1Menu{STRING_FOR_LFO1, {&lfo1TypeMenu, &lfo1SyncMenu, &lfo1RateMenu}};
 
 // LFO2 menu ---------------------------------------------------------------------------------
 lfo::Type lfo2TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO2_TYPE, LFO2_ID};
-lfo::Rate lfo2RateMenu{STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ_1, LFO2_ID};
 lfo::Sync lfo2SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO2_SYNC, LFO2_ID};
+patched_param::Integer lfo2RateMenu{STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ_1};
 
-HorizontalMenu lfo2Menu{STRING_FOR_LFO2, {&lfo2TypeMenu, &lfo2SyncMenu, &lfo2RateMenu}, HorizontalMenu::Layout::FIXED};
+HorizontalMenu lfo2Menu{STRING_FOR_LFO2, {&lfo2TypeMenu, &lfo2SyncMenu, &lfo2RateMenu}};
 
 // LFO3 menu ---------------------------------------------------------------------------------
 
 lfo::Type lfo3TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO3_TYPE, LFO3_ID};
-lfo::Rate lfo3RateMenu{STRING_FOR_RATE, STRING_FOR_LFO3_RATE, params::GLOBAL_LFO_FREQ_2, LFO3_ID};
 lfo::Sync lfo3SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO3_SYNC, LFO3_ID};
+patched_param::Integer lfo3RateMenu{STRING_FOR_RATE, STRING_FOR_LFO3_RATE, params::GLOBAL_LFO_FREQ_2};
 
-HorizontalMenu lfo3Menu{STRING_FOR_LFO3, {&lfo3TypeMenu, &lfo3SyncMenu, &lfo3RateMenu}, HorizontalMenu::Layout::FIXED};
+HorizontalMenu lfo3Menu{STRING_FOR_LFO3, {&lfo3TypeMenu, &lfo3SyncMenu, &lfo3RateMenu}};
 
 // LFO4 menu ---------------------------------------------------------------------------------
 lfo::Type lfo4TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO4_TYPE, LFO4_ID};
-lfo::Rate lfo4RateMenu{STRING_FOR_RATE, STRING_FOR_LFO4_RATE, params::LOCAL_LFO_LOCAL_FREQ_2, LFO4_ID};
 lfo::Sync lfo4SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO4_SYNC, LFO4_ID};
+patched_param::Integer lfo4RateMenu{STRING_FOR_RATE, STRING_FOR_LFO4_RATE, params::LOCAL_LFO_LOCAL_FREQ_2};
 
-HorizontalMenu lfo4Menu{STRING_FOR_LFO4, {&lfo4TypeMenu, &lfo4SyncMenu, &lfo4RateMenu}, HorizontalMenu::Layout::FIXED};
+HorizontalMenu lfo4Menu{STRING_FOR_LFO4, {&lfo4TypeMenu, &lfo4SyncMenu, &lfo4RateMenu}};
 
 // Mod FX ----------------------------------------------------------------------------------
 mod_fx::Type modFXTypeMenu{STRING_FOR_TYPE, STRING_FOR_MODFX_TYPE};
@@ -468,8 +529,8 @@ submenu::ModFxHorizontalMenu modFXMenu{
     STRING_FOR_MOD_FX,
     {
         &modFXTypeMenu,
-        &modFXRateMenu,
         &modFXDepthMenu,
+        &modFXRateMenu,
         &modFXFeedbackMenu,
         &modFXOffsetMenu,
     },
@@ -494,7 +555,7 @@ HorizontalMenu eqMenu{
 };
 
 // Delay ---------------------------------------------------------------------------------
-patched_param::Integer delayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT, params::GLOBAL_DELAY_FEEDBACK};
+delay::Amount delayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT, params::GLOBAL_DELAY_FEEDBACK};
 patched_param::Integer delayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE, params::GLOBAL_DELAY_RATE};
 delay::PingPong delayPingPongMenu{STRING_FOR_PINGPONG, STRING_FOR_DELAY_PINGPONG};
 delay::Analog delayAnalogMenu{STRING_FOR_TYPE, STRING_FOR_DELAY_TYPE};
@@ -503,29 +564,22 @@ delay::Sync delaySyncMenu{STRING_FOR_SYNC, STRING_FOR_DELAY_SYNC};
 HorizontalMenu delayMenu{
     STRING_FOR_DELAY,
     {
+        &delayFeedbackMenu,
         &delayPingPongMenu,
         &delaySyncMenu,
         &delayRateMenu,
-        &delayFeedbackMenu,
         &delayAnalogMenu,
     },
 };
 
 // Stutter ----------------------------------------------------------------------------------
-stutter::UseSongStutter stutterUseSongMenu{STRING_FOR_USE_SONG, STRING_FOR_USE_SONG};
+stutter::StutterDirection stutterDirectionMenu{STRING_FOR_DIRECTION, STRING_FOR_DIRECTION};
 stutter::QuantizedStutter stutterQuantizedMenu{STRING_FOR_QUANTIZE, STRING_FOR_QUANTIZE};
-stutter::ReversedStutter stutterReversedMenu{STRING_FOR_REVERSE, STRING_FOR_REVERSE};
-stutter::PingPongStutter stutterPingPongMenu{STRING_FOR_PING_PONG, STRING_FOR_PING_PONG};
+stutter::Rate stutterRateMenu{STRING_FOR_RATE, STRING_FOR_STUTTER_RATE};
 
-Submenu stutterMenu{
-    STRING_FOR_STUTTER,
-    {
-        &stutterUseSongMenu,
-        &stutterQuantizedMenu,
-        &stutterReversedMenu,
-        &stutterPingPongMenu,
-    },
-};
+HorizontalMenu stutterMenu{STRING_FOR_STUTTER,
+                           {&stutterRateMenu, &stutterDirectionMenu, &stutterQuantizedMenu},
+                           HorizontalMenu::Layout::FIXED};
 
 // Bend Ranges -------------------------------------------------------------------------------
 
@@ -568,14 +622,14 @@ submenu::ReverbSidechain reverbSidechainMenu{STRING_FOR_REVERB_SIDECHAIN,
                                              STRING_FOR_REVERB_SIDECH_MENU_TITLE,
                                              {
                                                  &reverbSidechainVolumeMenu,
-                                                 &sidechainSyncMenu,
+                                                 &reverbSidechainShapeMenu,
                                                  &sidechainAttackMenu,
                                                  &sidechainReleaseMenu,
-                                                 &reverbSidechainShapeMenu,
+                                                 &sidechainSyncMenu,
                                              }};
 
 // Reverb ----------------------------------------------------------------------------------
-patched_param::Integer reverbAmountMenu{STRING_FOR_AMOUNT, STRING_FOR_REVERB_AMOUNT, params::GLOBAL_REVERB_AMOUNT};
+reverb::Amount reverbAmountMenu{STRING_FOR_AMOUNT, STRING_FOR_REVERB_AMOUNT, params::GLOBAL_REVERB_AMOUNT};
 reverb::RoomSize reverbRoomSizeMenu{STRING_FOR_ROOM_SIZE};
 reverb::Damping reverbDampingMenu{STRING_FOR_DAMPING};
 reverb::Width reverbWidthMenu{STRING_FOR_WIDTH, STRING_FOR_REVERB_WIDTH};
@@ -587,11 +641,11 @@ reverb::LPF reverbLPFMenu{STRING_FOR_LPF};
 HorizontalMenu reverbMenu{
     STRING_FOR_REVERB,
     {
-        &reverbModelMenu,
+        &reverbAmountMenu,
         &reverbRoomSizeMenu,
         &reverbDampingMenu,
         &reverbWidthMenu,
-        &reverbAmountMenu,
+        &reverbModelMenu,
         &reverbPanMenu,
         &reverbHPFMenu,
         &reverbLPFMenu,
@@ -730,23 +784,24 @@ HorizontalMenu globalEQMenu{
 };
 
 // Delay Menu
-UnpatchedParam globalDelayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT, params::UNPATCHED_DELAY_AMOUNT};
+delay::Amount_Unpatched globalDelayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT,
+                                                params::UNPATCHED_DELAY_AMOUNT};
 UnpatchedParam globalDelayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE, params::UNPATCHED_DELAY_RATE};
 
 HorizontalMenu globalDelayMenu{
     STRING_FOR_DELAY,
     {
+        &globalDelayFeedbackMenu,
         &delayPingPongMenu,
         &delaySyncMenu,
         &globalDelayRateMenu,
-        &globalDelayFeedbackMenu,
         &delayAnalogMenu,
     },
 };
 
 // Reverb Menu
 
-UnpatchedParam globalReverbSendAmountMenu{
+reverb::Amount_Unpatched globalReverbSendAmountMenu{
     STRING_FOR_AMOUNT,
     STRING_FOR_REVERB_AMOUNT,
     params::UNPATCHED_REVERB_SEND_AMOUNT,
@@ -755,11 +810,11 @@ UnpatchedParam globalReverbSendAmountMenu{
 HorizontalMenu globalReverbMenu{
     STRING_FOR_REVERB,
     {
-        &reverbModelMenu,
+        &globalReverbSendAmountMenu,
         &reverbRoomSizeMenu,
         &reverbDampingMenu,
         &reverbWidthMenu,
-        &globalReverbSendAmountMenu,
+        &reverbModelMenu,
         &reverbPanMenu,
         &reverbHPFMenu,
         &reverbLPFMenu,
@@ -770,14 +825,14 @@ HorizontalMenu globalReverbMenu{
 // Mod FX Menu
 
 mod_fx::Depth_Unpatched globalModFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MOD_FX_DEPTH, params::UNPATCHED_MOD_FX_DEPTH};
-UnpatchedParam globalModFXRateMenu{STRING_FOR_RATE, STRING_FOR_MOD_FX_RATE, params::UNPATCHED_MOD_FX_RATE};
+mod_fx::Rate_Unpatched globalModFXRateMenu{STRING_FOR_RATE, STRING_FOR_MOD_FX_RATE, params::UNPATCHED_MOD_FX_RATE};
 
 submenu::ModFxHorizontalMenu globalModFXMenu{
     STRING_FOR_MOD_FX,
     {
         &modFXTypeMenu,
-        &globalModFXRateMenu,
         &globalModFXDepthMenu,
+        &globalModFXRateMenu,
         &modFXFeedbackMenu,
         &modFXOffsetMenu,
     },
@@ -801,13 +856,6 @@ Submenu globalFXMenu{
         &globalModFXMenu,
         &globalDistortionMenu,
     },
-};
-
-// Stutter Menu
-UnpatchedParam globalStutterRateMenu{
-    STRING_FOR_STUTTER,
-    STRING_FOR_STUTTER_RATE,
-    params::UNPATCHED_STUTTER_RATE,
 };
 
 // Sidechain menu
@@ -1391,8 +1439,8 @@ menu_item::Submenu soundEditorRootMenu{
         &soundMasterMenu,   &arpMenu,          &globalRandomizerMenu,
         &audioCompMenu,     &soundFiltersMenu, &soundFXMenu,
         &sidechainMenu,     &source0Menu,      &source1Menu,
-        &modulator0Menu,    &modulator1Menu,   &env0Menu,
-        &env1Menu,          &env2Menu,         &env3Menu,
+        &modulator0Menu,    &modulator1Menu,   &env1Menu,
+        &env2Menu,          &env3Menu,         &env4Menu,
         &lfo1Menu,          &lfo2Menu,         &lfo3Menu,
         &lfo4Menu,          &voiceMenu,        &bendMenu,
         &drumBendRangeMenu, &patchCablesMenu,  &sequenceDirectionMenu,
@@ -1499,14 +1547,14 @@ menu_item::Submenu noteRowEditorRootMenu{
     },
 };
 
-HorizontalMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TITLE,
-                               {
-                                   &midiBankMenu,
-                                   &midiSubMenu,
-                                   &midiPGMMenu,
-                               },
-                               HorizontalMenu::Layout::FIXED,
-                               2};
+menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TITLE,
+                                                {
+                                                    &midiBankMenu,
+                                                    &midiSubMenu,
+                                                    &midiPGMMenu,
+                                                },
+                                                HorizontalMenu::Layout::FIXED,
+                                                2};
 
 // Root menu for MIDI / CV
 menu_item::Submenu soundEditorRootMenuMIDIOrCV{
@@ -1671,35 +1719,74 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForSounds[][kDisplayHeight] = {
     {&sourceVolumeMenu,       &sourceTransposeMenu,    &oscTypeMenu,                   &pulseWidthMenu,                &oscPhaseMenu,        &sourceFeedbackMenu,    &sourceWaveIndexMenu,     &noiseMenu                         },
     {&sourceVolumeMenu,       &sourceTransposeMenu,    &oscTypeMenu,                   &pulseWidthMenu,                &oscPhaseMenu,        &sourceFeedbackMenu,    &sourceWaveIndexMenu,     &oscSyncMenu                       },
     {&modulatorVolume,        &modulatorTransposeMenu, comingSoonMenu,                 comingSoonMenu,                 &modulatorPhaseMenu,  &modulatorFeedbackMenu, comingSoonMenu,           &sequenceDirectionMenu             },
-    {&modulatorVolume,        &modulatorTransposeMenu, comingSoonMenu,                 comingSoonMenu,                 &modulatorPhaseMenu,  &modulatorFeedbackMenu, &modulatorDestMenu,       nullptr                            },
+    {&modulatorVolume,        &modulatorTransposeMenu, comingSoonMenu,                 comingSoonMenu,                 &modulatorPhaseMenu,  &modulatorFeedbackMenu, &modulatorDestMenu,       &stutterRateMenu                   },
     {&volumeMenu,             &masterTransposeMenu,    &vibratoMenu,                   &panMenu,                       &synthModeMenu,       &srrMenu,               &bitcrushMenu,            &clippingMenu                      },
-    {&portaMenu,              &polyphonyMenu,          &priorityMenu,                  &unisonDetuneMenu,              &numUnisonMenu,       nullptr,  				 nullptr,                  &foldMenu                          },
-    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &lpfMorphMenu,        &lpfModeMenu,           &lpfResMenu,              &lpfFreqMenu                       },
-    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &hpfMorphMenu,        &hpfModeMenu,           &hpfResMenu,              &hpfFreqMenu                       },
+    {&portaMenu,              &polyphonyMenu,          &priorityMenu,                  &unisonDetuneMenu,              &numUnisonMenu,       &threshold,             nullptr,                  &foldMenu                          },
+    {&env1ReleaseMenu,        &env1SustainMenu,        &env1DecayMenu,                 &env1AttackMenu,                &lpfMorphMenu,        &lpfModeMenu,           &lpfResMenu,              &lpfFreqMenu                       },
+    {&env2ReleaseMenu,        &env2SustainMenu,        &env2DecayMenu,                 &env2AttackMenu,                &hpfMorphMenu,        &hpfModeMenu,           &hpfResMenu,              &hpfFreqMenu                       },
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &sidechainVolumeShortcutMenu,   &sidechainAttackMenu,           &sidechainShapeMenu,  &sidechainSendMenu,     &bassMenu,                &bassFreqMenu                      },
     {&arpRateMenu,            &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpPresetModeMenu,   &nameEditMenu,          &trebleMenu,              &trebleFreqMenu                    },
     {&lfo1RateMenu,           &lfo1SyncMenu,           &lfo1TypeMenu,                  &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &modFXDepthMenu,          &modFXRateMenu                     },
     {&lfo2RateMenu,           &lfo2SyncMenu,           &lfo2TypeMenu,                  &reverbAmountMenu,              &reverbPanMenu,       &reverbWidthMenu,       &reverbDampingMenu,       &reverbRoomSizeMenu                },
     {&delayRateMenu,          &delaySyncMenu,          &delayAnalogMenu,               &delayFeedbackMenu,             &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
-    {nullptr,          	      &arpSpreadVelocityMenu,  nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
+    {nullptr,          	      &arpSpreadVelocityMenu,  nullptr,                        &arpNoteProbabilityMenu,        nullptr,              nullptr,                nullptr,                  nullptr                            },
 };
+
 PLACE_SDRAM_DATA Submenu* parentsForSoundShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  &stutterMenu                       },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &soundDistortionMenu,   &soundDistortionMenu,     &soundDistortionMenu,              },
-    {&voiceMenu,              &voiceMenu,              &voiceMenu,                     &unisonMenu,                    &unisonMenu,          nullptr,                nullptr,                  &soundDistortionMenu,              },
-    {&env0Menu,               &env0Menu,               &env0Menu,                      &env0Menu,                      &lpfMenu,             &lpfMenu,               &lpfMenu,                 &lpfMenu,                          },
-    {&env1Menu,               &env1Menu,               &env1Menu,                      &env1Menu,                      &hpfMenu,             &hpfMenu,               &hpfMenu,                 &hpfMenu,                          },
+    {&voiceMenu,              &voiceMenu,              &voiceMenu,                     &unisonMenu,                    &unisonMenu,          &audioCompMenu,         nullptr,                  &soundDistortionMenu,              },
+    {&env1Menu,               &env1Menu,               &env1Menu,                      &env1Menu,                      &lpfMenu,             &lpfMenu,               &lpfMenu,                 &lpfMenu,                          },
+    {&env2Menu,               &env2Menu,               &env2Menu,                      &env2Menu,                      &hpfMenu,             &hpfMenu,               &hpfMenu,                 &hpfMenu,                          },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &eqMenu,                  &eqMenu,                           },
     {&arpBasicMenu,           &arpBasicMenu,           &arpBasicMenu,                  &arpPatternMenu,                &arpPresetAndRandomizerMenu, nullptr,         &eqMenu,                  &eqMenu,                           },
     {&lfo1Menu,               &lfo1Menu,               &lfo1Menu,                      &modFXMenu,                     &modFXMenu,           &modFXMenu,             &modFXMenu,               &modFXMenu,                        },
     {&lfo2Menu,               &lfo2Menu,               &lfo2Menu,                      &reverbMenu,              	   &reverbMenu,    	 	 &reverbMenu,      		 &reverbMenu,        	   &reverbMenu,                 	  },
     {&delayMenu,              &delayMenu,              &delayMenu,                     &delayMenu,                     &delayMenu,           nullptr,                nullptr,                  nullptr,                           },
-    {nullptr,                 &globalRandomizerMenu,   nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 &globalRandomizerMenu,   nullptr,                        &globalRandomizerMenu,          nullptr,              nullptr,                nullptr,                  nullptr,                           },
+};
+
+PLACE_SDRAM_DATA MenuItem* paramShortcutsForSoundsSecondLayer[][kDisplayHeight] = {
+    {nullptr,	        nullptr,	            nullptr,	        nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
+    {nullptr,	        nullptr,	            nullptr,	        nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
+    {nullptr,	        nullptr,	            nullptr,	        nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
+    {nullptr,	        nullptr,	            nullptr,	        nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
+    {nullptr,	        nullptr,	            nullptr,	        nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
+    {nullptr,	        nullptr,	            nullptr,	        nullptr,	        nullptr,	                nullptr,	nullptr,	&stutterDirectionMenu},
+    {nullptr,	        nullptr,	            nullptr,	        nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
+    {nullptr,	        &voice::polyphonicVoiceCountMenu, nullptr,  nullptr,	        &unison::stereoSpreadMenu,  &compRatio,	nullptr,	nullptr              },
+    {&env3ReleaseMenu,	&env3SustainMenu,	    &env3DecayMenu,	    &env3AttackMenu,	nullptr,	                nullptr,	nullptr,	nullptr              },
+    {&env4ReleaseMenu,	&env4SustainMenu,	    &env4DecayMenu,	    &env4AttackMenu,	nullptr,	                nullptr,	nullptr,	nullptr              },
+    {nullptr,	        nullptr,	            nullptr,	        nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
+    {nullptr,	        nullptr,	            nullptr,	        nullptr,	        &arpRandomizerLockMenu,	    nullptr,	nullptr,	nullptr              },
+    {&lfo3RateMenu,	    &lfo3SyncMenu,	        &lfo3TypeMenu,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
+    {&lfo4RateMenu,	    &lfo4SyncMenu,	        &lfo4TypeMenu,	    nullptr,	        nullptr,	                nullptr,	nullptr,	nullptr              },
+    {nullptr,	        nullptr,	            nullptr,	        nullptr,	        nullptr,                    nullptr,	nullptr,	nullptr              },
+    {nullptr,	        nullptr,	            nullptr,	        nullptr,	        nullptr,                    nullptr,	nullptr,	nullptr              },
+};
+
+PLACE_SDRAM_DATA Submenu* parentsForSoundShortcutsSecondLayer[][kDisplayHeight] = {
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	&stutterMenu},
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,	&voiceMenu,	nullptr,	nullptr,	&unisonMenu,            &audioCompMenu,	nullptr,	nullptr     },
+    {&env3Menu,	&env3Menu,	&env3Menu,	&env3Menu,	nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {&env4Menu,	&env4Menu,	&env4Menu,	&env4Menu,	nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,	nullptr,	nullptr,	nullptr,	&arpRandomizerMenu,	    nullptr,	    nullptr,	nullptr     },
+    {&lfo3Menu,	&lfo3Menu,	&lfo3Menu,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {&lfo4Menu,	&lfo4Menu,	&lfo4Menu,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,	nullptr,	nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
 };
 
 PLACE_SDRAM_DATA MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight] = {
@@ -1708,9 +1795,9 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHe
     {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  nullptr                            },
-    {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  nullptr                            },
+    {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  &stutterRateMenu                   },
     {&globalLevelMenu,        &audioClipTransposeMenu, nullptr,                    &globalPanMenu,              nullptr,              &srrMenu,           &bitcrushMenu,            &clippingMenu                      },
-    {nullptr,                 nullptr,                 &priorityMenu,              nullptr,                     nullptr,              nullptr,            nullptr,                  comingSoonMenu                     },
+    {nullptr,                 nullptr,                 &priorityMenu,              nullptr,                     nullptr,              &threshold,         nullptr,                  comingSoonMenu                     },
     {nullptr,                 nullptr,                 nullptr,                    &audioClipAttackMenu,        &globalLPFMorphMenu,  &lpfModeMenu,       &globalLPFResMenu,        &globalLPFFreqMenu                 },
     {nullptr,                 nullptr,                 nullptr,                    &audioClipAttackMenu,        &globalHPFMorphMenu,  &hpfModeMenu,       &globalHPFResMenu,        &globalHPFFreqMenu                 },
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &globalSidechainVolumeMenu, &sidechainAttackMenu,        &sidechainShapeMenu,  nullptr,            &bassMenu,                &bassFreqMenu                      },
@@ -1726,9 +1813,9 @@ PLACE_SDRAM_DATA Submenu* parentsForAudioShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              	nullptr,                 nullptr,                  nullptr,                        },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              	nullptr,                 nullptr,                  nullptr,                        },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              	nullptr,                 nullptr,                  nullptr,                        },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              	nullptr,                 nullptr,                  nullptr,                        },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              	nullptr,                 nullptr,                  &stutterMenu,                   },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,					&audioClipDistortionMenu,&audioClipDistortionMenu, &audioClipDistortionMenu,       },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              	nullptr,                 nullptr,                  nullptr,                        },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              	&audioCompMenu,          nullptr,                  nullptr,                        },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalLPFMenu,       	&globalLPFMenu,          &globalLPFMenu,           &globalLPFMenu,                 },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalHPFMenu,       	&globalHPFMenu,          &globalHPFMenu,           &globalHPFMenu,                 },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              	nullptr,                 &eqMenu,                  &eqMenu,                        },
@@ -1745,9 +1832,9 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForSongView[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  &globalStutterRateMenu             },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  &stutterRateMenu                   },
     {&globalLevelMenu,        nullptr,                 nullptr,                        &globalPanMenu,                 nullptr,              &srrMenu,               &bitcrushMenu,            nullptr                            },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &threshold,             nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalLPFMorphMenu,  &lpfModeMenu,           &globalLPFResMenu,        &globalLPFFreqMenu                 },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalHPFMorphMenu,  &hpfModeMenu,           &globalHPFResMenu,        &globalHPFFreqMenu                 },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &bassMenu,                &bassFreqMenu                      },
@@ -1763,14 +1850,14 @@ PLACE_SDRAM_DATA Submenu* parentsForSongShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &globalDistortionMenu,  &globalDistortionMenu,    nullptr,                           },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  &stutterMenu,                      },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &globalDistortionMenu,  &globalDistortionMenu,    &globalDistortionMenu,             },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &audioCompMenu,         nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalLPFMenu,       &globalLPFMenu,         &globalLPFMenu,           &globalLPFMenu,                    },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalHPFMenu,       &globalHPFMenu,         &globalHPFMenu,           &globalHPFMenu,                    },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &globalEQMenu,            &globalEQMenu,                     },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &globalEQMenu,            &globalEQMenu,                     },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalModFXMenu,     &globalModFXMenu,       &globalModFXMenu,         &globalModFXMenu,                  },
+    {nullptr,                 nullptr,                 nullptr,                        &globalModFXMenu,               &globalModFXMenu,     &globalModFXMenu,       &globalModFXMenu,         &globalModFXMenu,                  },
     {nullptr,                 nullptr,                 nullptr,                        &globalReverbMenu,              &globalReverbMenu,    &globalReverbMenu,      &globalReverbMenu,        &globalReverbMenu,                 },
     {&globalDelayMenu,        &globalDelayMenu,        &globalDelayMenu,               &globalDelayMenu,               &globalDelayMenu,     nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr,                           },
@@ -1784,7 +1871,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr             				 },
     {&globalLevelMenu,        &globalPitchMenu,        nullptr,                        &globalPanMenu,                 nullptr,                     &srrMenu,               &bitcrushMenu,            nullptr                            },
-    {nullptr,              	  nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr                            },
+    {nullptr,              	  nullptr,                 nullptr,                        nullptr,                        nullptr,                     &threshold,             nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalLPFMorphMenu,         &lpfModeMenu,           &globalLPFResMenu,        &globalLPFFreqMenu                 },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalHPFMorphMenu,         &hpfModeMenu,           &globalHPFResMenu,        &globalHPFFreqMenu                 },
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &globalSidechainVolumeMenu,     &sidechainAttackMenu,           &sidechainShapeMenu,         nullptr,                &bassMenu,                &bassFreqMenu                      },
@@ -1792,7 +1879,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        &modFXTypeMenu,                 &modFXOffsetMenu,            &modFXFeedbackMenu,     &globalModFXDepthMenu,    &globalModFXRateMenu               },
     {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,              &reverbWidthMenu,       &reverbDampingMenu,       &reverbRoomSizeMenu                },
     {&globalDelayRateMenu,    &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,          nullptr,                nullptr,                  nullptr                            },
-    {nullptr,          	      &arpSpreadVelocityMenu,  nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr                            },
+    {nullptr,          	      &arpSpreadVelocityMenu,  nullptr,                        &arpNoteProbabilityMenu,        nullptr,                     nullptr,                nullptr,                  nullptr                            },
 };
 PLACE_SDRAM_DATA Submenu* parentsForKitGlobalFXShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
@@ -1802,17 +1889,15 @@ PLACE_SDRAM_DATA Submenu* parentsForKitGlobalFXShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     &globalDistortionMenu,  &globalDistortionMenu,    nullptr,                           },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     &audioCompMenu,         nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalLPFMenu,              &globalLPFMenu,         &globalLPFMenu,           &globalLPFMenu,                    },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalHPFMenu,              &globalHPFMenu,         &globalHPFMenu,           &globalHPFMenu,                    },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                &globalEQMenu,            &globalEQMenu,                     },
     {&arpBasicMenuKit,        &arpBasicMenuKit,        &arpBasicMenuKit,               &arpPatternMenu,                &arpPresetAndRandomizerMenu, nullptr,                &globalEQMenu,            &globalEQMenu,                     },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
-    {&arpBasicMenuKit,        &arpBasicMenuKit,        &arpBasicMenuKit,               &arpPatternMenu,                &arpPresetAndRandomizerMenu, nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        &globalModFXMenu,               &globalModFXMenu,            &globalModFXMenu,       &globalModFXMenu,         &globalModFXMenu,                  },
     {nullptr,                 nullptr,                 nullptr,                        &globalReverbMenu,              &globalReverbMenu,           &globalReverbMenu,      &globalReverbMenu,        &globalReverbMenu,                 },
     {&globalDelayMenu,        &globalDelayMenu,        &globalDelayMenu,               &globalDelayMenu,               &globalDelayMenu,            nullptr,                nullptr,                  nullptr,                           },
-    {nullptr,                 &globalRandomizerMenu,   nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 &globalRandomizerMenu,   nullptr,                        &globalRandomizerMenu,          nullptr,                     nullptr,                nullptr,                  nullptr,                           },
 };
 PLACE_SDRAM_DATA Submenu* parentsForMidiOrCVParamShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
@@ -1830,7 +1915,7 @@ PLACE_SDRAM_DATA Submenu* parentsForMidiOrCVParamShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
-    {nullptr,                 &globalRandomizerMenu,   nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
+    {nullptr,                 &globalRandomizerMenu,   nullptr,                        &globalRandomizerMenu,          nullptr,                     nullptr,                nullptr,                  nullptr,                           },
 };
 
 //clang-format on
@@ -1850,14 +1935,6 @@ void setOscillatorNumberForTitles(int32_t num) {
 	sampleRepeatMenu.format(num);
 	timeStretchMenu.format(num);
 	interpolationMenu.format(num);
-}
-
-void setEnvelopeNumberForTitles(int32_t num) {
-	num += 1;
-	envAttackMenu.format(num);
-	envDecayMenu.format(num);
-	envSustainMenu.format(num);
-	envReleaseMenu.format(num);
 }
 
 void setModulatorNumberForTitles(int32_t num) {

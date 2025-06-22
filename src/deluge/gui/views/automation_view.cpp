@@ -121,8 +121,8 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumNonGlobalParamsForAutomation = 81;
-constexpr int32_t kNumGlobalParamsForAutomation = 37;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 83;
+constexpr int32_t kNumGlobalParamsForAutomation = 39;
 constexpr int32_t kParamNodeWidth = 3;
 
 // synth and kit rows FX - sorted in the order that Parameters are scrolled through on the display
@@ -222,6 +222,8 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_CHORD_PROBABILITY},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_NOTE_PROBABILITY},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_BASS_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_STEP_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_GLIDE_PROBABILITY},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_REVERSE_PROBABILITY},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RHYTHM},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
@@ -292,6 +294,8 @@ const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomati
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_NOTE_PROBABILITY},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_BASS_PROBABILITY},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_STEP_PROBABILITY},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_GLIDE_PROBABILITY},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_REVERSE_PROBABILITY},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_RHYTHM},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_SEQUENCE_LENGTH},

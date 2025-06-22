@@ -14,6 +14,7 @@ public:
 	virtual void drawValue();
 	void drawPixelsForOled();
 	void displayToggleValue();
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 
 	// don't enter menu on select button press
 	bool shouldEnterSubmenu() override { return false; }
