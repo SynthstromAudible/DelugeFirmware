@@ -564,9 +564,8 @@ void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_
 ///
 /// @param text Title text
 void Canvas::drawScreenTitle(std::string_view title, bool drawSeparator) {
-	int32_t extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
-
-	int32_t startY = extraY + OLED_MAIN_TOPMOST_PIXEL;
+	constexpr int32_t extraY = 1;
+	constexpr int32_t startY = extraY + OLED_MAIN_TOPMOST_PIXEL;
 
 	drawString(title, 0, startY, kTextTitleSpacingX, kTextTitleSizeY);
 	if (drawSeparator) {
@@ -601,44 +600,14 @@ void Canvas::invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t end
 }
 
 void Canvas::invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
-	int32_t xMax = xMin + width - 1;
+	invertArea(xMin, width, startY, endY);
 
-	int32_t firstRowY = startY >> 3;
-	int32_t lastRowY = endY >> 3;
-
-	uint8_t startMask = 0xFF << (startY & 7);
-	uint8_t endMask = 0xFF >> (7 - (endY & 7));
-
-	for (int32_t rowY = firstRowY; rowY <= lastRowY; ++rowY) {
-		uint8_t rowMask = 0xFF;
-
-		if (rowY == firstRowY) {
-			rowMask &= startMask;
-		}
-		else if (rowY == lastRowY) {
-			rowMask &= endMask;
-		}
-
-		int32_t yBase = rowY << 3;
-
-		for (int32_t x = xMin; x <= xMax; ++x) {
-			uint8_t mask = rowMask;
-
-			// Mask out any rounded corner pixels
-			if (x == xMin || x == xMax) {
-				if (startY >= yBase && startY < yBase + 8) {
-					mask &= ~(1 << (startY & 7)); // top corners
-				}
-				if (endY >= yBase && endY < yBase + 8) {
-					mask &= ~(1 << (endY & 7)); // bottom corners
-				}
-			}
-
-			if (mask) {
-				image_[rowY][x] ^= mask;
-			}
-		}
-	}
+	// restore corners back
+	const int32_t xMax = xMin + width - 1;
+	invertArea(xMin, 1, startY, startY);
+	invertArea(xMax, 1, startY, startY);
+	invertArea(xMin, 1, endY, endY);
+	invertArea(xMax, 1, endY, endY);
 }
 
 /// inverts just the left edge
