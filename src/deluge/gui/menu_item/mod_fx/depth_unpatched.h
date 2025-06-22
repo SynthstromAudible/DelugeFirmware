@@ -37,9 +37,8 @@ public:
 
 	[[nodiscard]] NumberStyle getNumberStyle() const override { return VERTICAL_BAR; }
 
-	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
-		label.append(
-		    modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::DEPTH, !forSmallFont));
+	void getColumnLabel(StringBuf& label) override {
+		label.append(modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::DEPTH, true));
 	}
 };
 } // namespace deluge::gui::menu_item::mod_fx

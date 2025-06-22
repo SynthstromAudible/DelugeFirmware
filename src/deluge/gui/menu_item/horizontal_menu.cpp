@@ -70,9 +70,9 @@ void HorizontalMenu::drawPixelsForOled() {
 		updateSelectedMenuItemLED(posOnPage);
 	}
 
-	constexpr int32_t baseY = 13 + OLED_MAIN_TOPMOST_PIXEL;
+	constexpr int32_t baseY = 14 + OLED_MAIN_TOPMOST_PIXEL;
 	constexpr int32_t boxHeight = 25;
-	constexpr int32_t labelHeight = 9;
+	constexpr int32_t labelHeight = kTextSpacingY;
 	constexpr int32_t labelY = baseY + boxHeight - labelHeight;
 	int32_t currentX = 0;
 
@@ -360,7 +360,7 @@ HorizontalMenu::ColumnLabelPosition HorizontalMenu::renderColumnLabel(MenuItem* 
 	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 	DEF_STACK_STRING_BUF(label, kShortStringBufferSize);
-	menuItem->getColumnLabel(label, false);
+	menuItem->getColumnLabel(label);
 
 	// Remove any spaces
 	label.removeSpaces();

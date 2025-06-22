@@ -38,7 +38,7 @@ protected:
 	virtual void getNoteLengthName(StringBuf& buffer);
 	void drawPixelsForOled() override;
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
-	void getColumnLabel(StringBuf& label, bool forSmallFont) override;
+	void getColumnLabel(StringBuf& label) override;
 	[[nodiscard]] bool showValueInPopup() const override { return true; };
 
 private:

@@ -458,7 +458,8 @@ envelope::Segment env1DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV1_DECAY_MENU_TIT
 envelope::Segment env1SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV1_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
 envelope::Segment env1ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV1_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
 
-EnvelopeMenu env1Menu{STRING_FOR_ENVELOPE_1, {&env1AttackMenu, &env1DecayMenu, &env1SustainMenu, &env1ReleaseMenu}, 0};
+envelope::EnvelopeMenu env1Menu{
+    STRING_FOR_ENVELOPE_1, {&env1AttackMenu, &env1DecayMenu, &env1SustainMenu, &env1ReleaseMenu}, 0};
 
 // Envelope 2 menu ---------------------------------------------------------------------------------
 envelope::Segment env2AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV2_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
@@ -466,7 +467,8 @@ envelope::Segment env2DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV2_DECAY_MENU_TIT
 envelope::Segment env2SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV2_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
 envelope::Segment env2ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV2_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
 
-EnvelopeMenu env2Menu{STRING_FOR_ENVELOPE_2, {&env2AttackMenu, &env2DecayMenu, &env2SustainMenu, &env2ReleaseMenu}, 1};
+envelope::EnvelopeMenu env2Menu{
+    STRING_FOR_ENVELOPE_2, {&env2AttackMenu, &env2DecayMenu, &env2SustainMenu, &env2ReleaseMenu}, 1};
 
 // Envelope 3 menu ---------------------------------------------------------------------------------
 envelope::Segment env3AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV3_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
@@ -474,7 +476,8 @@ envelope::Segment env3DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV3_DECAY_MENU_TIT
 envelope::Segment env3SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV3_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
 envelope::Segment env3ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV3_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
 
-EnvelopeMenu env3Menu{STRING_FOR_ENVELOPE_3, {&env3AttackMenu, &env3DecayMenu, &env3SustainMenu, &env3ReleaseMenu}, 2};
+envelope::EnvelopeMenu env3Menu{
+    STRING_FOR_ENVELOPE_3, {&env3AttackMenu, &env3DecayMenu, &env3SustainMenu, &env3ReleaseMenu}, 2};
 
 // Envelope 4 menu ---------------------------------------------------------------------------------
 envelope::Segment env4AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV4_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
@@ -482,7 +485,8 @@ envelope::Segment env4DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV4_DECAY_MENU_TIT
 envelope::Segment env4SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV4_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
 envelope::Segment env4ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV4_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
 
-EnvelopeMenu env4Menu{STRING_FOR_ENVELOPE_4, {&env4AttackMenu, &env4DecayMenu, &env4SustainMenu, &env4ReleaseMenu}, 3};
+envelope::EnvelopeMenu env4Menu{
+    STRING_FOR_ENVELOPE_4, {&env4AttackMenu, &env4DecayMenu, &env4SustainMenu, &env4ReleaseMenu}, 3};
 
 // LFO1 menu ---------------------------------------------------------------------------------
 
