@@ -21,9 +21,9 @@
 #include "segment.h"
 
 using namespace deluge::hid::display;
-using namespace gui::menu_item::envelope;
 
-class EnvelopeMenu final : public gui::menu_item::HorizontalMenu {
+namespace deluge::gui::menu_item::envelope {
+class EnvelopeMenu final : public HorizontalMenu {
 public:
 	using HorizontalMenu::HorizontalMenu;
 
@@ -66,7 +66,8 @@ public:
 
 		// Calculate widths
 		const float attackWidth = (attack / 50.0f) * maxSegmentWidth;
-		const float decayWidth = (decay / 50.0f) * maxSegmentWidth;
+		const float decayNormalized = sigmoidLikeCurve(decay / 5.0f, 1.5f); // Maps 0-50 to 0-1 range with steep start
+		const float decayWidth = decayNormalized * maxSegmentWidth;
 
 		// X positions
 		const float attackX = round(drawX + attackWidth);
@@ -144,4 +145,9 @@ private:
 		// Draw a transition square
 		image.drawRectangle(ix - squareSize, iy - squareSize, ix + squareSize, iy + squareSize);
 	};
+
+	// --- Helper functions ----
+	static float sigmoidLikeCurve(const float x, const float softening) { return x / (x + softening); };
 };
+
+} // namespace deluge::gui::menu_item::envelope

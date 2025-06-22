@@ -32,9 +32,7 @@ public:
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 	void getValueForPopup(StringBuf& valueBuf) override;
 
-	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
-		label.append(deluge::l10n::get(l10n::String::STRING_FOR_RATE));
-	}
+	void getColumnLabel(StringBuf& label) override { label.append(deluge::l10n::get(l10n::String::STRING_FOR_RATE)); }
 
 private:
 	int32_t getClosestQuantizedOptionIndex(int32_t value) const;

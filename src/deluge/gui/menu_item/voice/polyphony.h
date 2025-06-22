@@ -70,9 +70,8 @@ public:
 		return (sound->polyphonic == PolyphonyMode::POLY);
 	}
 
-	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
-		label.append(deluge::l10n::get(forSmallFont ? l10n::String::STRING_FOR_MAX_VOICES
-		                                            : l10n::String::STRING_FOR_MAX_VOICES_SHORT));
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_MAX_VOICES_SHORT));
 	}
 };
 
@@ -125,9 +124,8 @@ public:
 		return Selection::selectButtonPress();
 	}
 
-	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
-		label.append(deluge::l10n::get(forSmallFont ? l10n::String::STRING_FOR_POLYPHONY
-		                                            : l10n::String::STRING_FOR_POLYPHONY_SHORT));
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_POLYPHONY_SHORT));
 	}
 };
 } // namespace deluge::gui::menu_item::voice
