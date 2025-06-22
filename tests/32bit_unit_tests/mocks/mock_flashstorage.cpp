@@ -1,0 +1,4 @@
+
+namespace FlashStorage {
+bool defaultUseSharps;
+}

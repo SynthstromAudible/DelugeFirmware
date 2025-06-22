@@ -82,6 +82,8 @@ extern ThresholdRecordingMode defaultThresholdRecordingMode;
 
 extern GlobalMIDICommand defaultLoopRecordingCommand;
 
+extern bool defaultUseSharps;
+
 void readSettings();
 void writeSettings();
 void resetSettings();

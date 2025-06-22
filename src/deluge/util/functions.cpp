@@ -28,6 +28,7 @@
 #include "modulation/arpeggiator.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
+#include "storage/flash_storage.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cmath>
 #include <cstdint>
@@ -1918,10 +1919,15 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 	int32_t octave = (noteCode) / 12 - 2;
 	int32_t noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
 
-	*thisChar = noteCodeToNoteLetter[noteCodeWithinOctave];
+	bool useSharps = FlashStorage::defaultUseSharps;
+
+	*thisChar =
+	    useSharps ? noteCodeToNoteLetter[noteCodeWithinOctave] : noteCodeToNoteLetterFlats[noteCodeWithinOctave];
+
 	thisChar++;
 	if (noteCodeIsSharp[noteCodeWithinOctave]) {
-		*thisChar = display->haveOLED() ? '#' : '.';
+		char accidential = useSharps ? '#' : FLAT_CHAR;
+		*thisChar = display->haveOLED() ? accidential : '.';
 		thisChar++;
 	}
 	if (appendOctaveNo) {

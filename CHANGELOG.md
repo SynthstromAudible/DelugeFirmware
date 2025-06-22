@@ -220,6 +220,11 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ##### Layout
 - Added the classic piano keyboard layout.
 
+#### <ins>Scales/Key</ins>
+
+- Added toggle in `SETTINGS > DEFAULTS > UI > USE SHARPS(#) (SHRP)` to allow users to choose which accidentals to display. When enabled in OLED mode, notes will be displayed as A# or D#, as they did prior to this change. When disabled, notes will be displayed as B♭ or E♭. In 7SEG mode, a dot is used to indicade when the note has the configured accidental.
+
+
 ### Sequencer
 
 #### <ins>Arpeggiator</ins>
