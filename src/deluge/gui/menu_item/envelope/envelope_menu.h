@@ -66,8 +66,7 @@ public:
 
 		// Calculate widths
 		const float attackWidth = (attack / 50.0f) * maxSegmentWidth;
-		const float decayNormalized =
-		    sigmoidLikeCurve(decay, 10.0f, 50.0f); // Maps 0-50 to 0-1 range with steep start
+		const float decayNormalized = sigmoidLikeCurve(decay, 10.0f, 50.0f); // Maps 0-50 to 0-1 range with steep start
 		const float decayWidth = decayNormalized * maxSegmentWidth;
 
 		// X positions

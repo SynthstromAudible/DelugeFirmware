@@ -87,7 +87,8 @@ void HorizontalMenu::drawPixelsForOled() {
 		int32_t contentHeight = boxHeight;
 
 		constexpr int32_t labelHeight = kTextSpacingY;
-		constexpr int32_t labelY = baseY + boxHeight - labelHeight;;
+		constexpr int32_t labelY = baseY + boxHeight - labelHeight;
+		;
 		std::optional<ColumnLabelPosition> labelPos;
 
 		if (item->showColumnLabel()) {
