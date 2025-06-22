@@ -688,7 +688,25 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 		ArpReturnInstruction kitInstruction;
 		arpeggiator.render(arpSettings, &kitInstruction, output.size(), gateThreshold, phaseIncrement);
 
+		if (kitInstruction.glideNoteCodeOffPostArp[0] != ARP_NOTE_NONE) {
+			// Glide note off
+			if (kitInstruction.glideNoteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
+				NoteRow* thisNoteRow =
+				    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.glideNoteCodeOffPostArp[0]);
+				if (thisNoteRow->drum != nullptr) {
+					// Reset invertReverse for drum arpeggiator (done for every noteOff)
+					thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
+					// Do row note off
+					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+					    modelStackWithTimelineCounter
+					        ->addNoteRow(kitInstruction.glideNoteCodeOffPostArp[0], thisNoteRow)
+					        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+					thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
+				}
+			}
+		}
 		if (kitInstruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE) {
+			// Normal note off
 			if (kitInstruction.noteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 				NoteRow* thisNoteRow =
 				    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.noteCodeOffPostArp[0]);
@@ -704,6 +722,7 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 			}
 		}
 		if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+			// Note on
 			if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0]
 			    < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 				NoteRow* thisNoteRow =
@@ -1101,7 +1120,24 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	int32_t ticksTilNextKitArpEvent =
 	    arpeggiator.doTickForward(arpSettings, &kitInstruction, currentPos, activeClip->currentlyPlayingReversed);
 
+	if (kitInstruction.glideNoteCodeOffPostArp[0] != ARP_NOTE_NONE) {
+		// Glide note off
+		if (kitInstruction.glideNoteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
+			NoteRow* thisNoteRow =
+			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.glideNoteCodeOffPostArp[0]);
+			if (thisNoteRow->drum != nullptr) {
+				// reset invertReverse for drum arpeggiator (done for every noteOff)
+				thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
+				// Do row note off
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    modelStackWithTimelineCounter->addNoteRow(kitInstruction.glideNoteCodeOffPostArp[0], thisNoteRow)
+				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+				thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
+			}
+		}
+	}
 	if (kitInstruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE) {
+		// Normal note off
 		if (kitInstruction.noteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 			NoteRow* thisNoteRow =
 			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.noteCodeOffPostArp[0]);
@@ -1117,6 +1153,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 		}
 	}
 	if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+		// Note on
 		if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 			NoteRow* thisNoteRow =
 			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.arpNoteOn->noteCodeOnPostArp[0]);
