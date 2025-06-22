@@ -1393,12 +1393,14 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 
 	valueIncrementPerHalfTick = 0; // We may calculate this, below
 	renewedOverridingAtTime = 0;
-	if (nodes.getNumElements()) {
+	int32_t numNodes = nodes.getNumElements();
+	int32_t nextPos = pos + (reversed ? 0 : 1);
+	if (nextPos <= numNodes) {
 		int32_t oldValue = currentValue;
 		currentValue = getValueAtPos(pos, modelStack, reversed);
 
 		// Get next node
-		int32_t rightI = nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
+		int32_t rightI = nodes.search(nextPos, GREATER_OR_EQUAL);
 		if (rightI == nodes.getNumElements()) {
 			rightI = 0;
 		}
