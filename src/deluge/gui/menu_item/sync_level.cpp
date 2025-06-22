@@ -48,13 +48,12 @@ void SyncLevel::drawPixelsForOled() {
 	hid::display::OLED::main.drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, kTextBigSpacingX, kTextBigSizeY);
 }
 
-void SyncLevel::getColumnLabel(StringBuf& label, bool forSmallFont) {
+void SyncLevel::getColumnLabel(StringBuf& label) {
 	const int32_t value = getValue();
 	const ::SyncLevel level = syncValueToSyncLevel(value);
 
 	if (level == SYNC_LEVEL_NONE) {
-		Enumeration::getColumnLabel(label, forSmallFont);
-		return;
+		return Enumeration::getColumnLabel(label);
 	}
 
 	// Draw the sync level as a label

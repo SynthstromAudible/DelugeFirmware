@@ -63,9 +63,8 @@ public:
 		}
 	}
 
-	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
-		label.append(deluge::l10n::get(forSmallFont ? l10n::String::STRING_FOR_VOLUME_DUCKING
-		                                            : l10n::String::STRING_FOR_VOLUME_DUCKING_SHORT));
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_VOLUME_DUCKING_SHORT));
 	}
 
 	void getValueForPopup(StringBuf& valueBuf) override {
