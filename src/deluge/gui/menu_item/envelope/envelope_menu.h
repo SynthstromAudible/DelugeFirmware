@@ -66,7 +66,7 @@ public:
 
 		// Calculate widths
 		const float attackWidth = (attack / 50.0f) * maxSegmentWidth;
-		const float decayNormalized = sigmoidLikeCurve(decay / 5.0f, 1.5f); // Maps 0-50 to 0-1 range with steep start
+		const float decayNormalized = sigmoidLikeCurve(decay, 10.0f, 50.0f); // Maps 0-50 to 0-1 range with steep start
 		const float decayWidth = decayNormalized * maxSegmentWidth;
 
 		// X positions
@@ -147,7 +147,11 @@ private:
 	};
 
 	// --- Helper functions ----
-	static float sigmoidLikeCurve(const float x, const float softening) { return x / (x + softening); };
+	static float sigmoidLikeCurve(const float x, const float softening, const float xMax) {
+		const float raw = x / (x + softening);
+		const float maxVal = xMax / (xMax + softening);
+		return raw / maxVal;
+	};
 };
 
 } // namespace deluge::gui::menu_item::envelope
