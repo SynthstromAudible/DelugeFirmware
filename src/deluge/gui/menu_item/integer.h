@@ -30,7 +30,7 @@ protected:
 	virtual int32_t getDisplayValue() { return this->getValue(); }
 	virtual const char* getUnit() { return ""; }
 
-	void drawPixelsForOled();
+	void drawPixelsForOled() override;
 	virtual void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel);
 
 	// 7Seg Only
@@ -51,7 +51,7 @@ public:
 	using Integer::Integer;
 
 protected:
-	void drawPixelsForOled();
+	void drawPixelsForOled() override;
 };
 
 } // namespace deluge::gui::menu_item
