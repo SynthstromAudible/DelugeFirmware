@@ -476,7 +476,7 @@ which track to record from. The source can also be selected by pressing a clip's
 
 #### 3.36 Configurable Accidental
 
-- (#3794) Added toggle in `SETTINGS > DEFAULTS > UI > USE SHARPS(#) (SHRP)` to allow users to choose which accidentals to display. When enabled in OLED mode, notes will be displayed as A# or D#, as they did prior to this change. When disabled, notes will be displayed as B♭ or E♭. In 7SEG mode, a dot is used to indicade when the note has the configured accidental. If selected, `D.` will mean D#. If not selected, `D.` will mean D♭.
+- ([#3794]) Added toggle in `SETTINGS > DEFAULTS > UI > USE SHARPS(#) (SHRP)` to allow users to choose which accidentals to display. When enabled in OLED mode, notes will be displayed as A# or D#, as they did prior to this change. When disabled, notes will be displayed as B♭ or E♭. In 7SEG mode, a dot is used to indicade when the note has the configured accidental. If selected, `D.` will mean D#. If not selected, `D.` will mean D♭.
 
 ## 4. New Features Added
 
@@ -1710,6 +1710,8 @@ different firmware
 [#3388]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3388
 
 [#3425]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3425
+
+[#3794]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3794
 
 [Automation View Documentation]: features/automation_view.md
 
