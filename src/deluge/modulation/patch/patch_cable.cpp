@@ -20,12 +20,14 @@
 #include "util/fixedpoint.h"
 
 Polarity stringToPolarity(const std::string_view string) {
-	switch (string) {
-	case "unipolar":
+	if (string == "unipolar") {
 		return Polarity::UNIPOLAR;
-	case "bipolar":
+	}
+	else if (string == "bipolar") {
 		return Polarity::BIPOLAR;
-	default:
+	}
+	else {
+
 		return Polarity::BIPOLAR; // Default to bipolar
 	}
 }
