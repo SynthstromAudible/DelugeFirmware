@@ -141,20 +141,17 @@ Here is a list of general improvements that have been made, ordered from newest 
   **2. `PICKUP`:** The Deluge will ignore changes to its internal encoder position/Parameter value until the MIDI
   encoder/Fader's position is equal to the Deluge encoder position. After which the MIDI encoder/Fader will move in sync
   with the Deluge.
-
   - Note: this mode will behave like the `JUMP` mode when you are recording or step editing automation.
 
   **3. `SCALE`:** The Deluge will increase/decrease its internal encoder position/Parameter value relative to the change
   of the MIDI encoder/Fader position and the amount of "runway" remaining on the MIDI controller. Once the MIDI
   controller reaches its maximum or minimum position, the MIDI encoder/Fader will move in sync with the Deluge. The
   Deluge value will always decrease/increase in the same direction as the MIDI controller.
-
   - Note: this mode will behave like the `JUMP` mode when you are recording or step editing automation.
 
   **4. `RELATIVE`:** The Deluge will increase/decrease its internal encoder position/Parameter value using the relative value changes (offset) sent by the controller. The controller must be actually sending relative value changes (127 for down and 1 for up) in order for this to work.
 
 - (#837) `MIDI control over transpose / scale.`
-
   - Accessed via external MIDI via a new learnable global MIDI command in `SETTINGS > MIDI > CMD > TRANSPOSE`. It
     learns the entire channel, not just a single note.
   - Accessed internally from a MIDI clip. Turn the channel to the end of the list past the MPE zones to 'Transpose'.
@@ -187,7 +184,6 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - (#889) `Master MIDI Follow Mode` whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit
   clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active or selected clip).
-
   - For a detailed description of this feature, please refer to the feature
     documentation: [MIDI Follow Mode Documentation](/features/midi_follow_mode)
   - Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for learned MIDI cc's.
@@ -233,7 +229,6 @@ Here is a list of general improvements that have been made, ordered from newest 
 - (#178) New option (`FINE TEMPO` in the `COMMUNITY FEATURES` menu). Inverts the push+turn behavior of the `TEMPO`
   encoder. With this option enabled the tempo changes by 1 when unpushed and ~4 when pushed (vs ~4 unpushed and 1 pushed
   in the official firmware).
-
   - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
 - (#2264) Swing interval can now be changed by holding `TAP TEMPO` button while turning the `TEMPO` encoder. To view current
@@ -348,7 +343,6 @@ Here is a list of general improvements that have been made, ordered from newest 
 - (#2371) Source can now also be set to a specific track on the deluge. This enables an additional TRACK menu to choose
   which track to record from. The source can also be selected by pressing a clip's pad while in the audio source selection menu.
 - (#2702) Monitoring is now set by the audio output mode. This is done by turning the select encoder
-
   - Player: Monitoring is off, overdubs work by cloning. This is intended to be used for playing a static audio file or recording without monitoring.
 
   - Sampler: Monitoring is on, monitoring turns off after recording, overdubs work by cloning. This is intended to be used for sampling from an ongoing audio stream where you only want to hear the part you're looping afterwards
@@ -502,7 +496,6 @@ Here is a list of features that have been added to the firmware as a list, group
   milliseconds) and Sidechain `HPF` (shown in Hz). The sidechain HPF is useful to remove some bass from the compressor
   level detection, which sounds like an increase in bass allowed through the compression. There is also a blend control
   to allow parallel compression.
-
   - `ATTACK`: 0ms - 63ms
 
   - `RELEASE`: 50ms - 363ms
@@ -529,7 +522,6 @@ Here is a list of features that have been added to the firmware as a list, group
 - (#196 and #1018) Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing :key[Select] brings up a `CLIP SETTINGS` menu. In this menu, you will find a submenu for `CLIP MODE`.
 
   The `CLIP MODE` menu enables you the set the following launch style options for a clip:
-
   - **`INFINITE (INF)`** - the default Deluge launch style.
   - **`Fill (FILL)`** - Fill clip.
     - When launched it will schedule itself to start at such a time that it _finishes_ at the start of the next
@@ -743,7 +735,6 @@ In `KEYBOARD VIEW`, macros are available as a sidebar control.
 #### 4.2.5 - Grain FX
 
 - (#363 and #2815) New `GRAIN` added to Mod FX.
-
   - Parameters:
     - **`MOD RATE`:** Sets Grain Rate (0.5hz - 180hz)
     - **`MOD DEPTH - GRAIN AMOUNT (AMNT)`:** Controls Grain Volume / Dry Wet Mix
@@ -772,7 +763,6 @@ In `KEYBOARD VIEW`, macros are available as a sidebar control.
 #### 4.2.9 - Reverb Improvements
 
 - (#1065) New reverb models are available for selection inside of the `FX > REVERB > MODEL` menu. These include:
-
   - Freeverb (the original Deluge reverb)
   - Mutable (an adapted version of the reverb found in Mutable Instruments' Rings module)
     - The Mutable reverb model has been set as the default reverb model for new songs. Old songs will respect the
@@ -1026,7 +1016,6 @@ to each individual note onset. (#1978)
 
 - (#250) Enables keyboard layout which emulates a monome grid for monome norns using Midigrid mod on norns by
   rendering incoming MIDI notes on channel 16 as white pads using velocity for pad brightness.
-
   - This feature is `OFF` by default and can be set to `ON` or `OFF` in the `COMMUNITY FEATURES` menu (
     via `SETTINGS > COMMUNITY FEATURES`).
   - Deluge has multiple USB ports, 3 as of this writing. Use Deluge 1 as the device on norns.
@@ -1057,7 +1046,6 @@ to each individual note onset. (#1978)
 
 - (#901) In the keyboard view, a control can be mapped to each column of pads in the sidebar. You can change which
   control is selected by holding the top pad and turning the horizontal encoder. Controls include:
-
   - **`Velocity (VEL - Red):`** Low velocity is on the bottom pad and high on the top pad scaled linearly.
     The range can be adjusted by holding the top or bottom pad and scrolling the vertical encoder.
     Hold a pad down to change the velocity of notes played while held. The velocity will return to
@@ -1119,7 +1107,6 @@ to each individual note onset. (#1978)
 #### 4.4.2 - Scales
 
 - (#991) Added new scales for instrument clips.
-
   - The new set of scales is:
     - `7-note scales:` Major, Minor, Dorian, Phrygian, Lydian, Mixolydian, Locrian, Melodic Minor, Hungarian Minor,
       Marva (Indian), Arabian
@@ -1138,7 +1125,6 @@ to each individual note onset. (#1978)
     Major scale).
 
 - (#2365) Added learning a user specified scale.
-
   - Press :key[Learn + Scale] while in clip view. Notes from current clip & all scale mode clips are learned as the "USER"
     scale. This scale is part of the normal scale rotation, accessible with :key[Shift + Scale], and saved as part of the song.
     If another user scale is learned, the previous one is overwritten: currently each song can only have one user scale.
@@ -1195,7 +1181,6 @@ to each individual note onset. (#1978)
 
 - (#1114) A new synth type is added fully compatible with DX7 patches, including editing of all DX7 parameters. This is implemented
   as an oscillator type within the subtractive engine, so it can be combined with filters and other features of this engine.
-
   - Patches can be imported from the common 32-patch bank syx-file format, and afterwards saved as SYNTH presets or as part of songs.
 
   - As the UI and implementation is still experimental, a community setting has to be activated to create new DX7 patches. See the separate document for details.
