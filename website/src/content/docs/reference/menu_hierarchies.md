@@ -576,11 +576,9 @@ The Song menu contains the following menu hierarchy:
 - LPF (if Mutable is Selected)
 - Pan
 - Reverb Sidechain (SIDE)
-
   - Volume Ducking (VOLU)
 
 - Stutter (STUT)
-
   - Quantize (QTZ)
   - Reverse (REVE)
   - Ping-Pong (PING)
@@ -866,11 +864,9 @@ The Sound menu contains the following menu hierarchy:
 - LPF (if Mutable is Selected)
 - Pan
 - Reverb Sidechain (SIDE)
-
   - Volume Ducking (VOLU)
 
 - Stutter (STUT)
-
   - Use Song Settings (SONG)
   - Quantize (QTZ)
   - Reverse (REVE)
@@ -941,7 +937,6 @@ The Sound menu contains the following menu hierarchy:
 <details><summary>Oscillator 1 (OSC1) </summary>
 
 - Type
-
   - Sine
   - Triangle (TRIA)
   - Square (SQUA)
@@ -980,7 +975,6 @@ The Sound menu contains the following menu hierarchy:
 <details><summary>Oscillator 2 (OSC2) </summary>
 
 - Type
-
   - Sine
   - Triangle (TRIA)
   - Square (SQUA)
@@ -1133,7 +1127,6 @@ The Sound menu contains the following menu hierarchy:
 - Max Voices (VCNT)
 - Portamento (PORT)
 - Unison (UNIS)
-
   - Unison Number (NUM)
   - Unison Detune (DETU)
   - Unison Stereo Spread (SPRE)
@@ -1935,11 +1928,9 @@ The Audio Clip menu contains the following menu hierarchy:
 - LPF (if Mutable is Selected)
 - Pan
 - Reverb Sidechain (SIDE)
-
   - Volume Ducking (VOLU)
 
 - Stutter (STUT)
-
   - Use Song Settings (SONG)
   - Quantize (QTZ)
   - Reverse (REVE)
