@@ -30,6 +30,8 @@ enum class Polarity : uint8_t {
 	UNIPOLAR = 0,
 	BIPOLAR = 1,
 };
+Polarity stringToPolarity(std::string_view string);
+std::string_view polarityToString(Polarity polarity);
 
 class PatchCable {
 public:

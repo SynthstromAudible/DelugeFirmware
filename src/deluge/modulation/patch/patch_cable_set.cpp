@@ -837,12 +837,16 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 							reader.match('{');
 							PatchSource rangeSource = PatchSource::NONE;
 							AutoParam tempRangeParam;
+							Polarity polarity = Polarity::BIPOLAR;
 							while (*(tagName = reader.readNextTagOrAttributeName())) {
 								if (!strcmp(tagName, "source")) {
 									rangeSource = stringToSource(reader.readTagOrAttributeValue());
 								}
 								else if (!strcmp(tagName, "amount")) {
 									tempRangeParam.readFromFile(reader, readAutomationUpToPos);
+								}
+								else if (!strcmp(tagName, "polarity")) {
+									polarity = stringToPolarity(reader.readTagOrAttributeValue());
 								}
 								reader.exitTag();
 							}
@@ -859,7 +863,7 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 								// And write this range-adjusting cable's details
 								patchCables[numPatchCables].from = rangeSource;
 								patchCables[numPatchCables].param.cloneFrom(&tempRangeParam, true);
-
+								patchCables[numPatchCables].polarity = polarity;
 								numPatchCables++;
 							}
 						} // end of patchcable
@@ -955,6 +959,10 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 		writer.writeAttribute("destination",
 		                      params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
 		                                               patchCables[c].destinationParamDescriptor.getJustTheParam()));
+		writer.writeAttribute(
+		    "polarity",
+		    polarityToString(patchCables[c].polarity).data()); // If this is a range-adjusting cable, this will
+		                                                       // be BIPOLAR, otherwise it will be UNIPOLAR.)
 		writer.insertCommaIfNeeded();
 		writer.write("\n");
 		writer.printIndents();
