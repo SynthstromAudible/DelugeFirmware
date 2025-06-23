@@ -38,6 +38,8 @@
 #include "source_selection.h"
 #include "util/functions.h"
 
+#include <hid/led/indicator_leds.h>
+
 using deluge::hid::display::OLED;
 
 namespace deluge::gui::menu_item {
@@ -147,6 +149,12 @@ void PatchCableStrength::readCurrentValue() {
 		// the internal values are stored in the range -(2^30) to 2^30.
 		// rescale them to the range -5000 to 5000 and round to nearest.
 		this->setValue(((int64_t)paramValue * kMaxMenuPatchCableValue + (1 << 29)) >> 30);
+		if (patchCableSet->patchCables[c].polarity == Polarity::UNIPOLAR) {
+			setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
+		}
+		else {
+			setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+		}
 	}
 }
 
@@ -241,7 +249,17 @@ MenuItem* PatchCableStrength::selectButtonPress() {
 	return Automation::selectButtonPress();
 }
 
-ActionResult PatchCableStrength::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult PatchCableStrength::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	if (b == hid::button::CROSS_SCREEN_EDIT && on) { // Cross button to toggle between bipolar and unipolar
+		PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
+		uint32_t c = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
+		if (c == 255) {
+			return ActionResult::DEALT_WITH;
+		}
+		PatchCable& cable = patchCableSet->patchCables[c];
+		cable.polarity = cable.polarity == Polarity::BIPOLAR ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
+		setLedState(IndicatorLED::CROSS_SCREEN_EDIT, cable.polarity == Polarity::UNIPOLAR);
+	}
 	return Automation::buttonAction(b, on, inCardRoutine);
 }
 

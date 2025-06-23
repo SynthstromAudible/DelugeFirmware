@@ -19,6 +19,28 @@
 #include "definitions_cxx.hpp"
 #include "util/fixedpoint.h"
 
+Polarity stringToPolarity(const std::string_view string) {
+	if (string == "unipolar") {
+		return Polarity::UNIPOLAR;
+	}
+	else if (string == "bipolar") {
+		return Polarity::BIPOLAR;
+	}
+	else {
+
+		return Polarity::BIPOLAR; // Default to bipolar
+	}
+}
+std::string_view polarityToString(const Polarity polarity) {
+	switch (polarity) {
+	case Polarity::UNIPOLAR:
+		return "unipolar";
+	case Polarity::BIPOLAR:
+		return "bipolar";
+	default:
+		return "bipolar";
+	}
+}
 void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 	from = newFrom;
 	destinationParamDescriptor.setToHaveParamOnly(newTo);
