@@ -70,14 +70,17 @@ Press and hold `PLAY` while in Pattern-Load Menu
 **For Rhythmic Instruments (Kit, Drums)**
 
 - Save Kit Pattern:
+
   1. Enable `AFFECT_ENTIRE`
   2. `SAVE+PUSH_HORIZONTAL_ENCODER`
 
 - Load Kit Pattern:
+
   1. Enable `AFFECT_ENTIRE`
   2. `LOAD+PUSH_HORIZONTAL_ENCODER`
 
 - Load Kit Pattern without overwriting existing Notes:
+
   1. Enable `AFFECT_ENTIRE`
   2. `LOAD+CROSS_SCREEN+PUSH_HORIZONTAL_ENCODER`
 
@@ -91,16 +94,19 @@ _Remark: If noScaling is set, Pattern will allways overwrite existing Notes and 
   Press and hold `PLAY` while in Pattern-Load Menu
 
 - Save Drum Pattern:
+
   1. Disable `AFFECT_ENTIRE`
   2. Select Drum Row to save (Audition Pad)
   3. `SAVE+PUSH_HORIZONTAL_ENCODER`
 
 - Load Drum Pattern:
+
   1. Disable `AFFECT_ENTIRE`
   2. Select Drum Row to save (Audition Pad)
   3. `LOAD+PUSH_HORIZONTAL_ENCODER`
 
 - Load Drum Pattern without overwriting existing Notes:
+
   1. Disable `AFFECT_ENTIRE`
   2. Select Drum Row to save (Audition Pad)
   3. `LOAD+CROSS_SCREEN+PUSH_HORIZONTAL_ENCODER`
