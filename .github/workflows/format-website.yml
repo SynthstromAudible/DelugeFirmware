@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: |
-          bun
+          bun install
           bun run check:fix
       - uses: autofix-ci/action@v1
         with:
