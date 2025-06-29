@@ -31,6 +31,7 @@
 #include "util/functions.h"
 #include "util/misc.h"
 #include <cstdint>
+#include <modulation/patch/patch_cable.h>
 
 extern "C" {
 #include "RZA1/spibsc/r_spibsc_flash_api.h"
@@ -252,6 +253,8 @@ OutputType defaultNewClipType = OutputType::SYNTH;
 bool defaultUseLastClipType = true;
 
 ThresholdRecordingMode defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
+
+Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
 
 GlobalMIDICommand defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
 
@@ -805,6 +808,14 @@ void readSettings() {
 	else {
 		defaultUseSharps = buffer[188];
 	}
+
+	if (buffer[189] != util::to_underlying(Polarity::BIPOLAR)
+	    && buffer[189] != util::to_underlying(Polarity::UNIPOLAR)) {
+		defaultPatchCablePolarity = Polarity::BIPOLAR;
+	}
+	else {
+		defaultPatchCablePolarity = static_cast<Polarity>(buffer[189]);
+	}
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -1087,6 +1098,8 @@ void writeSettings() {
 	buffer[186] = util::to_underlying(defaultLoopRecordingCommand);
 
 	buffer[188] = defaultUseSharps;
+
+	buffer[189] = util::to_underlying(defaultPatchCablePolarity);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

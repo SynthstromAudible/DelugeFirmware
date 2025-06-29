@@ -28,7 +28,7 @@ class Number : public Value<int32_t> {
 public:
 	using Value::Value;
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
-	void drawBar(int32_t yTop, int32_t marginL, int32_t marginR = -1);
+	void drawBar(int32_t yTop, int32_t marginL, int32_t marginR = -1, int32_t height = 8);
 	void drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t height);
 	void drawVerticalBar(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
 	void drawPercent(int32_t startX, int32_t startY, int32_t width, int32_t height);
