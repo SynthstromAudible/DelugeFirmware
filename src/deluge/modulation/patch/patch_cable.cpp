@@ -23,13 +23,10 @@ Polarity stringToPolarity(const std::string_view string) {
 	if (string == "unipolar") {
 		return Polarity::UNIPOLAR;
 	}
-	else if (string == "bipolar") {
+	if (string == "bipolar") {
 		return Polarity::BIPOLAR;
 	}
-	else {
-
-		return Polarity::BIPOLAR; // Default to bipolar
-	}
+	return Polarity::BIPOLAR; // Default to bipolar
 }
 std::string_view polarityToString(const Polarity polarity) {
 	switch (polarity) {
@@ -41,6 +38,17 @@ std::string_view polarityToString(const Polarity polarity) {
 		return "bipolar";
 	}
 }
+std::string_view polarityToStringShort(const Polarity polarity) {
+	switch (polarity) {
+	case Polarity::UNIPOLAR:
+		return "UPLR";
+	case Polarity::BIPOLAR:
+		return "BPLR";
+	default:
+		return "BPLR";
+	}
+}
+
 void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 	from = newFrom;
 	destinationParamDescriptor.setToHaveParamOnly(newTo);

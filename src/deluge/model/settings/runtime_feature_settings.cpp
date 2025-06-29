@@ -113,10 +113,6 @@ void RuntimeFeatureSettings::init() {
 	// FineTempoKnob
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob], STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB,
 	                  "fineTempoKnob", RuntimeFeatureStateToggle::On);
-	// PatchCableResolution
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution],
-	                  STRING_FOR_COMMUNITY_FEATURE_MOD_DEPTH_DECIMALS, "modDepthDecimals",
-	                  RuntimeFeatureStateToggle::On);
 	// CatchNotes
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES,
 	                  "catchNotes", RuntimeFeatureStateToggle::On);

@@ -798,6 +798,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_ACCESSIBILITY, "Accessibility"},
         {STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS, "Shortcuts"},
         {STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING, "Menu Highlighting"},
+        {STRING_FOR_DEFAULT_POLARITY, "Patch cable polarity"},
         {STRING_FOR_CV_INSTRUMENT, "CV instrument"},
         {STRING_FOR_ACTIVE, "ACTIVE"},
         {STRING_FOR_STOPPED, "STOPPED"},

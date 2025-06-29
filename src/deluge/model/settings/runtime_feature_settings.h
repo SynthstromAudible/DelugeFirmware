@@ -46,7 +46,6 @@ enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
 	Quantize,
 	FineTempoKnob,
-	PatchCableResolution,
 	CatchNotes,
 	DeleteUnusedKitRows,
 	AltGoldenKnobDelayParams,
