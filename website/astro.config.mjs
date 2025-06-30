@@ -82,6 +82,10 @@ const config = defineConfig({
             link: "/resources/applications/overview",
             items: [
               {
+                label: "Community Presets",
+                autogenerate: { directory: "resources/presets" },
+              },
+              {
                 label: "Community Applications",
                 autogenerate: { directory: "resources/applications" },
               },
