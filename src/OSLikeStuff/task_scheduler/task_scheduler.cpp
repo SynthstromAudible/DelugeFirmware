@@ -196,17 +196,17 @@ void TaskManager::runTask(TaskID id) {
 	auto* current_task = &list[currentID];
 	current_task->lastCallTime = timeNow;
 	current_task->handle();
-	Time startTime = current_task->lastCallTime;
 
+	Time start_time = current_task->lastCallTime;
 	timeNow = getSecondsFromStart();
-	Time runtime = (timeNow - startTime);
+	Time runtime = (timeNow - start_time);
 	cpuTime += runtime;
 	if (current_task->removeAfterUse) {
 		removeTask(id);
 	}
 	else {
 		if (countThisTask) {
-			current_task->updateNextTimes(startTime, runtime, timeNow);
+			current_task->updateNextTimes(start_time, runtime, timeNow);
 		}
 		else {
 			current_task->lastFinishTime = timeNow;
@@ -227,23 +227,20 @@ bool TaskManager::yield(RunCondition until, Time timeout) {
 #endif
 	Task* yielding_task = &list[currentID];
 	auto yielding_id = currentID;
-	bool task_removed = false;
 	auto time_now = getSecondsFromStart();
 	Time runtime = (time_now - yielding_task->lastCallTime);
+	cpuTime += runtime;
 	bool skip_timeout = timeout < Time(1 / 10000.);
-
+	yielding_task->lastFinishTime = time_now; // update this so it's in its back off window
+	Time start_time = yielding_task->lastCallTime;
 	// for now we first end this as if the task finished - might be advantageous to replace with a context switch later
 	if (yielding_task->removeAfterUse) {
-		removeTask(currentID);
-		task_removed = true;
+		yielding_task->state = State::BLOCKED; // mark it as blocked so it won't be run again
 	}
-	else {
-		yielding_task->lastFinishTime = time_now; // update this so it's in its back off window
-		Time start_time = yielding_task->lastCallTime;
-		if (countThisTask) {
-			yielding_task->updateNextTimes(start_time, runtime, time_now);
-		}
+	if (countThisTask) {
+		yielding_task->updateNextTimes(start_time, runtime, time_now);
 	}
+
 	// continue the main loop. The yielding task is still on the stack but that should be fine
 	// run at least once so this can be used for yielding a single call as well
 	Time new_time = getSecondsFromStart();
@@ -262,11 +259,10 @@ bool TaskManager::yield(RunCondition until, Time timeout) {
 			}
 		}
 	} while (!until() && (skip_timeout || getSecondsFromStart() < time_now + timeout));
-	if (!task_removed) {
 
-		auto finishTime = getSecondsFromStart();
-		yielding_task->lastCallTime = finishTime; // hack so it won't get called again immediately
-	}
+	auto finishTime = getSecondsFromStart();
+	yielding_task->lastCallTime = finishTime; // hack so it won't get called again immediately
+
 	return (getSecondsFromStart() < time_now + timeout);
 }
 
@@ -297,6 +293,8 @@ void TaskManager::start(Time duration) {
 				// couldn't find anything so here we go
 				printStats();
 			}
+			// run the highest pri task (which is audio) since it's always ready and we might as well
+			runTask(sortedList[numActiveTasks - 1].task);
 		}
 	}
 }
@@ -312,7 +310,7 @@ void TaskManager::startClock() {
 bool TaskManager::checkConditionalTasks() {
 	bool addedTask = false;
 	for (int i = 0; i < kMaxTasks; i++) {
-		struct Task* t = &list[i];
+		Task* t = &list[i];
 		if (t->checkCondition()) {
 			addedTask = true;
 		}
@@ -343,21 +341,21 @@ void TaskManager::printStats() {
 	D_PRINTLN("Dumping task manager stats: (min/ average/ max)");
 	for (auto task : list) {
 		if (task.handle) {
-			constexpr const float latencyScale = 1000.0;
-			constexpr const float durationScale = 1000000.0;
+			constexpr float latencyScale = 1000.0;
+			constexpr float durationScale = 1000000.0;
 #if SCHEDULER_DETAILED_STATS
-			D_PRINTLN("Load: %5.2f, "                                     //<
-			          "Dur: %8.3f/%8.3f/%9.3f us "                        //<
-			          "Latency: %8.3f/%8.3f/%8.3f ms "                    //<
-			          "N: %10d, Task: %s",                                //<
-			          100.0 * double(task.totalTime) / double(cpuTime),   //<
-			          durationScale * double(task.durationStats.min),     //<
-			          durationScale * double(task.durationStats.average), //<
-			          durationScale * double(task.durationStats.max),     //<
-			          latencyScale * double(task.latency.min),            //<
-			          latencyScale * double(task.latency.average),        //<
-			          latencyScale * double(task.latency.max),            //<
-			          task.timesCalled, task.name);
+			D_PRINTLN("Load: %5.2f, "                                                    //<
+			          "Dur: %8.3f/%8.3f/%9.3f us "                                       //<
+			          "Latency: %8.3f/%8.3f/%8.3f ms "                                   //<
+			          "N: %10d hz, Task: %s",                                            //<
+			          100.0 * double(task.totalTime) / double(cpuTime),                  //<
+			          durationScale * double(task.durationStats.min),                    //<
+			          durationScale * double(task.totalTime) / double(task.timesCalled), //<
+			          durationScale * double(task.durationStats.max),                    //<
+			          latencyScale * double(task.latency.min),                           //<
+			          latencyScale * double(task.latency.average),                       //<
+			          latencyScale * double(task.latency.max),                           //<
+			          task.timesCalled / 10, task.name);
 #else
 #ifdef NEVER
 			D_PRINTLN("Load: %5.2f "                  //<
@@ -371,7 +369,8 @@ void TaskManager::printStats() {
 	}
 	auto totalTime = cpuTime + overhead;
 	D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds",
-	          double(cpuTime * 100) / double(totalTime), double(overhead * 100) / double(totalTime), runningTime);
+	          double(cpuTime * 100) / double(totalTime), double(overhead * 100) / double(totalTime),
+	          double(runningTime));
 	resetStats();
 }
 Time getTimerValueSeconds(int timerNo) {
