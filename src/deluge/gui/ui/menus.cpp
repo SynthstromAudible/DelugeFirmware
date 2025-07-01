@@ -1339,7 +1339,7 @@ defaults::Velocity defaultVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_DEFAULT_V
 defaults::Magnitude defaultMagnitudeMenu{STRING_FOR_RESOLUTION, STRING_FOR_DEFAULT_RESOL_MENU_TITLE};
 defaults::BendRange defaultBendRangeMenu{STRING_FOR_BEND_RANGE, STRING_FOR_DEFAULT_BEND_R};
 defaults::MetronomeVolume defaultMetronomeVolumeMenu{STRING_FOR_METRONOME, STRING_FOR_DEFAULT_METRO_MENU_TITLE};
-defaults::PatchCablePolarity defaultPatchCablePolarityMenu{};
+defaults::PatchCablePolarity defaultPatchCablePolarityMenu{STRING_FOR_DEFAULT_POLARITY, STRING_FOR_DEFAULT_POLARITY};
 defaults::StartupSongModeMenu defaultStartupSongMenu{STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE,
                                                      STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE};
 defaults::PadBrightness defaultPadBrightness{STRING_FOR_DEFAULT_PAD_BRIGHTNESS,
