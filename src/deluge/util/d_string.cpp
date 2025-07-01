@@ -51,11 +51,9 @@ void String::clear(bool destructing) {
 	if (stringMemory) {
 		int32_t numReasons = getNumReasons();
 		if (numReasons > 1) {
-			D_PRINTLN("Lowering reasons on string at %x", stringMemory);
 			setNumReasons(numReasons - 1);
 		}
 		else {
-			D_PRINTLN("clearing string at %x", stringMemory);
 			delugeDealloc(stringMemory - 4);
 		}
 
