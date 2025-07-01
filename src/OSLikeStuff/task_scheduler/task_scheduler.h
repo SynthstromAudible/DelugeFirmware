@@ -8,8 +8,6 @@
 #include "OSLikeStuff/task_scheduler/task.h"
 #include <array>
 
-#define SCHEDULER_DETAILED_STATS (0 && ENABLE_TEXT_OUTPUT)
-
 struct SortedTask {
 	uint8_t priority = UINT8_MAX;
 	TaskID task = -1;

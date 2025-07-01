@@ -577,15 +577,15 @@ void registerTasks() {
 
 	// 0-9: High priority (10 for dyn tasks)
 	uint8_t p = 0;
-	addRepeatingTask(&(AudioEngine::routine), p++, 0.00001, 16 / 44100., 24 / 44100., "audio  routine", RESOURCE_NONE);
-	// this one runs quickly and frequently to check for encoder changes
-	addRepeatingTask([]() { encoders::readEncoders(); }, p++, 0.0005, 0.001, 0.001, "read encoders", RESOURCE_NONE);
-	// formerly part of audio routine, updates midi and clock
-	addRepeatingTask([]() { playbackHandler.routine(); }, p++, 2 / 44100., 16 / 44100, 32 / 44100., "playback routine",
+	addRepeatingTask(&(AudioEngine::routine_task), p++, 8 / 44100., 64 / 44100., 128 / 44100., "audio  routine",
 	                 RESOURCE_NONE);
-	addRepeatingTask([]() { playbackHandler.midiRoutine(); }, p++, 2 / 44100., 16 / 44100, 32 / 44100.,
-	                 "playback routine", RESOURCE_SD | RESOURCE_USB);
-	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(128, false); }, p++, 0.00001, 0.00001, 0.00002,
+	// this one runs quickly and frequently to check for encoder changes
+	addRepeatingTask([]() { encoders::readEncoders(); }, p++, 0.0005, 0.001, 0.002, "read encoders", RESOURCE_NONE);
+	// formerly part of audio routine, updates midi and clock
+	addRepeatingTask([]() { playbackHandler.routine(); }, p++, 0.0005, 0.001, 0.002, "playback routine", RESOURCE_NONE);
+	addRepeatingTask([]() { playbackHandler.midiRoutine(); }, p++, 0.0005, 0.001, 0.002, "midi routine",
+	                 RESOURCE_SD | RESOURCE_USB);
+	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(128, false); }, p++, 0.0001, 0.0001, 0.0002,
 	                 "load clusters", RESOURCE_NONE);
 	// handles sd card recorders
 	// named "slow" but isn't actually, it handles audio recording setup
@@ -594,7 +594,7 @@ void registerTasks() {
 
 	// 11-19: Medium priority (20 for dyn tasks)
 	p = 11;
-	addRepeatingTask([]() { encoders::interpretEncoders(true); }, p++, 0.005, 0.005, 0.01, "interpret encoders fast",
+	addRepeatingTask([]() { encoders::interpretEncoders(true); }, p++, 0.002, 0.003, 0.006, "interpret encoders fast",
 	                 RESOURCE_NONE);
 	// 30 Hz update desired?
 	addRepeatingTask(&doAnyPendingUIRendering, p++, 0.01, 0.01, 0.03, "pending UI", RESOURCE_NONE);
@@ -611,9 +611,10 @@ void registerTasks() {
 	// these ones are actually "slow" -> file manager just checks if an sd card has been inserted, audio recorder checks
 	// if recordings are finished
 	addRepeatingTask([]() { audioFileManager.slowRoutine(); }, p++, 0.1, 0.1, 0.2, "audio file slow", RESOURCE_SD);
-	addRepeatingTask([]() { audioRecorder.slowRoutine(); }, p++, 0.01, 0.1, 0.1, "audio recorder slow", RESOURCE_NONE);
+	addRepeatingTask([]() { audioRecorder.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "audio recorder slow", RESOURCE_NONE);
 	// formerly part of cluster loading (why? no idea), actions undo/redo midi commands
-	addRepeatingTask([]() { playbackHandler.slowRoutine(); }, p++, 0.01, 0.1, 0.1, "playback routine", RESOURCE_SD);
+	addRepeatingTask([]() { playbackHandler.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "playback slow routine",
+	                 RESOURCE_SD);
 	// 31-39: Idle priority (40 for dyn tasks)
 	p = 31;
 	addRepeatingTask(&(PIC::flush), p++, 0.001, 0.001, 0.02, "PIC flush", RESOURCE_NONE);
