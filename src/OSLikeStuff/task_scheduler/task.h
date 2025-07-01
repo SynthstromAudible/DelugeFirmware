@@ -19,8 +19,6 @@
 #define DELUGE_TASK_H
 #include "OSLikeStuff/scheduler_api.h"
 #include "resource_checker.h"
-
-#include <io/debug/log.h>
 #define SCHEDULER_DETAILED_STATS (1 && ENABLE_TEXT_OUTPUT)
 
 // internal to the scheduler - do not include from anywhere else
@@ -88,11 +86,8 @@ struct Task {
 	}
 
 	void updateNextTimes(Time startTime, Time runtime, Time finishTime) {
-		if (runtime > Time(0.003)) {
-			D_PRINTLN("Task %s took too long: %.3fms", name, double(runtime) * 1000.);
-		}
-		durationStats.update(runtime);
 
+		durationStats.update(runtime);
 #if SCHEDULER_DETAILED_STATS
 		latency.update(lastCallTime - idealCallTime);
 #endif
