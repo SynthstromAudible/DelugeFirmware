@@ -26,35 +26,45 @@ float Number::getValuePercent() {
 	return static_cast<float>(getValue() - minValue) / static_cast<float>(maxValue - minValue);
 }
 
-void Number::drawBar(int32_t yTop, int32_t marginL, int32_t marginR) {
+void Number::drawHorizontalBar(int32_t yTop, int32_t marginL, int32_t marginR, int32_t height) {
 	hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 	if (marginR == -1) {
 		marginR = marginL;
 	}
-	constexpr int32_t height = 7;
+	const int32_t leftMost = marginL + 2;
+	const int32_t rightMost = OLED_MAIN_WIDTH_PIXELS - marginR - 3;
+	canvas.drawRectangleRounded(leftMost - 2, yTop, rightMost + 2, yTop + height);
 
-	const int32_t leftMost = marginL;
-	const int32_t rightMost = OLED_MAIN_WIDTH_PIXELS - marginR - 1;
-
+	const int32_t value = getValue();
 	const int32_t minValue = getMinValue();
+	if (minValue == 0 && value == 0) {
+		return;
+	}
+
 	const int32_t maxValue = getMaxValue();
 	const uint32_t range = maxValue - minValue;
-	const float posFractional = static_cast<float>(this->getValue() - minValue) / range;
+	const float posFractional = static_cast<float>(value - minValue) / range;
 	const float zeroPosFractional = static_cast<float>(-minValue) / range;
 
 	const int32_t width = rightMost - leftMost;
-	const int32_t posHorizontal = static_cast<int32_t>(posFractional * width + 0.5);
+	const int32_t posHorizontal = static_cast<int32_t>(posFractional * width);
 
-	if (int32_t zeroPosHorizontal = static_cast<int32_t>(zeroPosFractional * width);
-	    posHorizontal <= zeroPosHorizontal) {
+	if (const int32_t zeroPosHorizontal = static_cast<int32_t>(zeroPosFractional * width);
+	    posHorizontal == zeroPosHorizontal) {
+		// = 0, draw vertical line in the middle
+		const int32_t xMin = leftMost + zeroPosHorizontal;
+		canvas.invertArea(xMin, 1, yTop + 1, yTop + height - 1);
+	}
+	else if (posHorizontal < zeroPosHorizontal) {
+		// < 0, draw the bar to the left
 		const int32_t xMin = leftMost + posHorizontal;
-		canvas.invertArea(xMin, zeroPosHorizontal - posHorizontal + 1, yTop, yTop + height);
+		canvas.invertArea(xMin, zeroPosHorizontal - posHorizontal + 1, yTop + 2, yTop + height - 2);
 	}
 	else {
+		// > 0, draw the bar to the right
 		const int32_t xMin = leftMost + zeroPosHorizontal;
-		canvas.invertArea(xMin, posHorizontal - zeroPosHorizontal, yTop, yTop + height);
+		canvas.invertArea(xMin, posHorizontal - zeroPosHorizontal + 1, yTop + 2, yTop + height - 2);
 	}
-	canvas.drawRectangle(leftMost, yTop, rightMost, yTop + height);
 }
 
 void Number::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {

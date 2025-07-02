@@ -16,22 +16,20 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/patch_cable_strength.h"
+#include "gui/menu_item/selection.h"
+#include "storage/flash_storage.h"
 
-namespace deluge::gui::menu_item::patch_cable_strength {
+#include <modulation/patch/patch_cable.h>
 
-class Regular : public PatchCableStrength {
+namespace deluge::gui::menu_item::defaults {
+class PatchCablePolarity final : public Selection {
 public:
-	using PatchCableStrength::PatchCableStrength;
-
-	ParamDescriptor getDestinationDescriptor() final;
-	PatchSource getS() final;
-	ParamDescriptor getLearningThing() final;
-	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-	                                             MultiRange** currentRange) override;
-	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) override;
-	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) override;
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(FlashStorage::defaultPatchCablePolarity); }
+	void writeCurrentValue() override { FlashStorage::defaultPatchCablePolarity = this->getValue<Polarity>(); }
+	vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
+		return {polarityToString(Polarity::UNIPOLAR), polarityToString(Polarity::BIPOLAR)};
+	}
 };
-
-extern Regular regularMenu;
-} // namespace deluge::gui::menu_item::patch_cable_strength
+} // namespace deluge::gui::menu_item::defaults

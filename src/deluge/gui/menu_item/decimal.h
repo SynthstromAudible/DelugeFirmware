@@ -37,6 +37,9 @@ protected:
 
 	// 7Seg Only
 	virtual void drawActualValue(bool justDidHorizontalScroll = false);
+	virtual void appendAdditionalDots(std::vector<uint8_t>& dotPositions) {};
+
+	int32_t getNonZeroDecimalPlacesCount();
 
 private:
 	void scrollToGoodPos();

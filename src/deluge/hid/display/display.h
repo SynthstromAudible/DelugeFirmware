@@ -3,6 +3,7 @@
 #include <array>
 #include <optional>
 #include <string_view>
+#include <vector>
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -96,7 +97,11 @@ public:
 	virtual int32_t getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf) { return 0; }
 	virtual void setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink = false,
 	                           int32_t blinkPos = -1, bool blinkImmediately = false) {}
-	virtual NumericLayerScrollingText* setScrollingText(char const* newText, int32_t startAtPos = 0,
+	virtual void setTextWithMultipleDots(std::string_view newText, std::vector<uint8_t> dotPositions,
+	                                     bool alignRight = false, bool doBlink = false, uint8_t* newBlinkMask = nullptr,
+	                                     bool blinkImmediately = false) {}
+
+	virtual NumericLayerScrollingText* setScrollingText(std::string_view newText, int32_t startAtPos = 0,
 	                                                    int32_t initialDelay = 600, int count = -1,
 	                                                    uint8_t fixedDot = 255) {
 		return nullptr;
