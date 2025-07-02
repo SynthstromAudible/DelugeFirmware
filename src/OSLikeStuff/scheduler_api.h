@@ -52,17 +52,18 @@ typedef uint32_t ResourceID;
 /// @param backOffTime Minimum time from completing the task to calling it again in seconds.
 /// @param targetTimeBetweenCalls Desired time between calls to the task, including the runtime for the task itself.
 /// @param resource
-uint8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
-                         double maxTimeBetweenCalls, const char* name, ResourceID resource);
+int8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
+                        double maxTimeBetweenCalls, const char* name, ResourceID resource);
 
 /// Add a task to run once, aiming to run at current time + timeToWait and worst case run at timeToWait*10
-uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name, ResourceID resources);
+int8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name, ResourceID resources);
 
 /// add a task that runs only after the condition returns true. Condition checks should be very fast or they could
 /// interfere with scheduling
-uint8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name,
-                           ResourceID resources);
+int8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name,
+                          ResourceID resources);
 void ignoreForStats();
+double getAverageRunTimeForTask(TaskID id);
 double getAverageRunTimeforCurrentTask();
 double getSystemTime();
 void setNextRunTimeforCurrentTask(double seconds);

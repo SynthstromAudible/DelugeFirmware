@@ -201,6 +201,7 @@ MonitoringAction monitoringAction;
 uint32_t saddr;
 
 deluge::fast_vector<Sound*> sounds;
+TaskID routine_task_id = -1;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
 void init() {
@@ -451,7 +452,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 /// set the direness level and cull any voices
 inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
 	// number of samples it took to do the last render
-	auto dspTime = (int32_t)(getAverageRunTimeforCurrentTask() * 44100.);
+	auto dspTime = (int32_t)(getAverageRunTimeForTask(routine_task_id) * 44100.);
 	size_t nonDSP = numSamples - dspTime;
 	// we don't care about the number that were rendered in the last go, only the ones taken by the first routine call
 	numSamples = std::max<int32_t>(dspTime - (int32_t)(numRoutines * numSamples), 0);
@@ -472,8 +473,8 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 		}
 		else {
 
-			size_t numSamplesOverLimit = numSamples - numSamplesLimit;
-			if (numSamplesOverLimit >= 0) {
+			int32_t num_samples_over_limit = (int32_t)numSamples - numSamplesLimit;
+			if (num_samples_over_limit >= 0) {
 #if DO_AUDIO_LOG
 				definitelyLog = true;
 #endif
@@ -509,6 +510,8 @@ void flushMIDIGateBuffers();
 void renderAudio(size_t numSamples);
 void renderAudioForStemExport(size_t numSamples);
 void dumpAudioLog();
+bool calledFromScheduler = false;
+
 /// inner loop of audio rendering, deliberately not in header
 [[gnu::hot]] void routine_() {
 
@@ -525,7 +528,7 @@ void dumpAudioLog();
 	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 
 	if (numSamples <= (10 * numRoutines)) {
-		if (!numRoutines) {
+		if (!numRoutines && calledFromScheduler) {
 			ignoreForStats();
 		}
 		return;
@@ -966,9 +969,10 @@ void routine_task() {
 		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
 		        // called from within this!
 	}
+	calledFromScheduler = true;
 	routine();
+	calledFromScheduler = false;
 }
-
 void routine() {
 
 	logAction("AudioDriver::routine");
