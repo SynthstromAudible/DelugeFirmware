@@ -1214,6 +1214,12 @@ to each individual note onset. (#1978)
   In case of drums, it is like having a Sound row + a Midi row together triggering at the same time. And in case of synths, it is like
   having a Synth clip + a Midi clip together triggering at the same time. This feature is limited to regular MIDI (that is, not for MPE).
 
+#### 4.5.11 - Solo/Mute clip from ClipView
+
+- (#3823) Added community feature to be able to solo or mute a clip from its clip view :
+  - Press `HORIZONTAL ENCODER ◀︎▶︎` + `CLIP`: solo or unsolo the active clip. Combine with Shift button to make it immediate.
+  - Press `VERTICAL ENCODER ◀︎▶︎` + `CLIP` : mute or unmute the active clip. Combine with Shift button to make it immediate.
+
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
 #### 4.6.1 - Keyboard View
