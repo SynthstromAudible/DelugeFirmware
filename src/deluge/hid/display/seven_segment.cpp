@@ -160,9 +160,21 @@ void SevenSegment::removeTopLayer() {
 	}
 }
 
+void SevenSegment::setTextWithMultipleDots(std::string_view newText, std::vector<uint8_t> dotPositions, bool alignRight,
+                                           bool doBlink, uint8_t* newBlinkMask, bool blinkImmediately) {
+	innerSetText(newText, alignRight, dotPositions, doBlink, newBlinkMask, blinkImmediately);
+};
+
 void SevenSegment::setText(std::string_view newText, bool alignRight, uint8_t drawDot, bool doBlink,
                            uint8_t* newBlinkMask, bool blinkImmediately, bool shouldBlinkFast, int32_t scrollPos,
                            uint8_t* encodedAddition, bool justReplaceBottomLayer) {
+	innerSetText(newText, alignRight, {drawDot}, doBlink, newBlinkMask, blinkImmediately, shouldBlinkFast, scrollPos,
+	             encodedAddition, justReplaceBottomLayer);
+}
+
+void SevenSegment::innerSetText(std::string_view newText, bool alignRight, std::vector<uint8_t> dotPositions,
+                                bool doBlink, uint8_t* newBlinkMask, bool blinkImmediately, bool shouldBlinkFast,
+                                int32_t scrollPos, uint8_t* encodedAddition, bool justReplaceBottomLayer) {
 	// Paul: Render time could be lower putting this into internal
 	void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerBasicText));
 	if (!layerSpace) {
@@ -170,7 +182,7 @@ void SevenSegment::setText(std::string_view newText, bool alignRight, uint8_t dr
 	}
 	NumericLayerBasicText* newLayer = new (layerSpace) NumericLayerBasicText();
 
-	encodeText(newText, newLayer->segments, alignRight, drawDot, true, scrollPos);
+	encodeText(newText, newLayer->segments, alignRight, dotPositions, true, scrollPos);
 
 	if (encodedAddition) {
 		for (int32_t i = 0; i < kNumericDisplayLength; i++) {
@@ -219,7 +231,7 @@ NumericLayerScrollingText* SevenSegment::setScrollingText(char const* newText, i
 	}
 	NumericLayerScrollingText* newLayer = new (layerSpace) NumericLayerScrollingText(fixedDot);
 
-	newLayer->length = encodeText(newText, newLayer->text, false, 255, false);
+	newLayer->length = encodeText(newText, newLayer->text, false, {}, false);
 
 	bool andAHalf;
 	int32_t startAtEncodedPos = getEncodedPosFromLeft(startAtTextPos, newText, &andAHalf);
@@ -359,9 +371,9 @@ void clearDot(uint8_t* destination, uint8_t drawDot) {
 
 // Returns encoded length
 // scrollPos may only be set when aligning left
-int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination, bool alignRight, uint8_t drawDot,
-                                 bool limitToDisplayLength, int32_t scrollPos) {
-
+int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination, bool alignRight,
+                                 const std::vector<uint8_t>& dotPositions, bool limitToDisplayLength,
+                                 int32_t scrollPos) const {
 	int32_t writePos;
 	int32_t readPos;
 
@@ -534,7 +546,9 @@ int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination,
 			}
 		}
 
-		putDot(destination, drawDot);
+		for (const int32_t dotPos : dotPositions) {
+			putDot(destination, dotPos);
+		}
 	}
 	return writePos;
 }
@@ -574,7 +588,7 @@ void SevenSegment::setNextTransitionDirection(int8_t thisDirection) {
 
 void SevenSegment::displayPopup(char const* newText, int8_t numFlashes, bool alignRight, uint8_t drawDot,
                                 int32_t blinkSpeed, PopupType type) {
-	encodeText(newText, popup.segments, alignRight, drawDot);
+	encodeText(newText, popup.segments, alignRight, {drawDot});
 	memset(&popup.blinkedSegments, 0, kNumericDisplayLength);
 	if (numFlashes == 0) {
 		popup.blinkCount = -1;
@@ -675,7 +689,7 @@ void SevenSegment::displayLoadingAnimation(bool delayed, bool transparent) {
 
 void SevenSegment::setTextVeryBasicA1(char const* text) {
 	std::array<uint8_t, kNumericDisplayLength> segments;
-	encodeText(text, segments.data(), false, 255, true, 0);
+	encodeText(text, segments.data(), false, {}, true, 0);
 	PIC::update7SEG(segments);
 }
 
