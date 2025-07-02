@@ -786,9 +786,9 @@
         "STRING_FOR_SAMP_INTERP_MENU_TITLE": "Samp* interp",
         "STRING_FOR_OSC_P_WIDTH_MENU_TITLE": "Osc* p. width",
         "STRING_FOR_OSC_R_PHASE_MENU_TITLE": "Osc* r. phase",
-	"STRING_FOR_UNISON_NUMBER_MENU_TITLE": "Unison number",
-	"STRING_FOR_UNISON_DETUNE_MENU_TITLE": "Unison detune",
-	"STRING_FOR_UNISON_STEREO_SPREAD_MENU_TITLE": "Unison stereo spread",
+	    "STRING_FOR_UNISON_NUMBER_MENU_TITLE": "Unison number",
+	    "STRING_FOR_UNISON_DETUNE_MENU_TITLE": "Unison detune",
+	    "STRING_FOR_UNISON_STEREO_SPREAD_MENU_TITLE": "Unison stereo spread",
         "STRING_FOR_ARP_PRESET_MENU_TITLE": "Arp preset",
         "STRING_FOR_ARP_GATE_MENU_TITLE": "Arp gate",
         "STRING_FOR_ARP_RATE_MENU_TITLE": "Arp rate",
@@ -848,6 +848,7 @@
         "STRING_FOR_DEFAULT_ACCESSIBILITY": "Accessibility",
         "STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS": "Shortcuts",
         "STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING": "Menu Highlighting",
+        "STRING_FOR_DEFAULT_POLARITY": "Patch cable polarity",
 
         "STRING_FOR_CV_INSTRUMENT": "CV instrument",
 

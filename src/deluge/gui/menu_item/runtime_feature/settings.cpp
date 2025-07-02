@@ -30,7 +30,6 @@ namespace deluge::gui::menu_item::runtime_feature {
 SettingToggle menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
 SettingToggle menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
 SettingToggle menuQuantize(RuntimeFeatureSettingType::Quantize);
-SettingToggle menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
 SettingToggle menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 SettingToggle menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 SettingToggle menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
@@ -55,7 +54,6 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuDrumRandomizer,
     &menuFineTempo,
     &menuQuantize,
-    &menuPatchCableResolution,
     &menuCatchNotes,
     &menuDeleteUnusedKitRows,
     &menuAltGoldenKnobDelayParams,

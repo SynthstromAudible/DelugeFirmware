@@ -118,7 +118,7 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [LOCAL_NOISE_VOLUME]             = "Noise",
 	    [LOCAL_MODULATOR_0_VOLUME]       = "Mod1 level",
 	    [LOCAL_MODULATOR_1_VOLUME]       = "Mod2 level",
-	    [LOCAL_FOLD]                     = "Fold",
+	    [LOCAL_FOLD]                     = "Wavefold",
 	    [LOCAL_MODULATOR_0_FEEDBACK]     = "Mod1 feed",
 	    [LOCAL_MODULATOR_1_FEEDBACK]     = "Mod2 feed",
 	    [LOCAL_CARRIER_0_FEEDBACK]       = "Osc1 feed",
