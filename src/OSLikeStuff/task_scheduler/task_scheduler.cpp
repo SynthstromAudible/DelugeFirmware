@@ -189,16 +189,20 @@ void TaskManager::setNextRunTimeforCurrentTask(Time seconds) {
 
 void TaskManager::runTask(TaskID id) {
 	countThisTask = true;
-	auto timeNow = getSecondsFromStart();
-	// this includes ISR time as well as the scheduler's own time, such as calculating and printing stats
-	overhead += timeNow - lastFinishTime;
 	currentID = id;
 	auto* current_task = &list[currentID];
-	current_task->lastCallTime = timeNow;
-	current_task->handle();
 
+setup: {
+	Time timeNow = getSecondsFromStart();
+	// this includes ISR time as well as the scheduler's own time, such as calculating and printing stats
+	overhead += timeNow - lastFinishTime;
+	current_task->lastCallTime = timeNow;
+	current_task->yielded = false;
+}
+	current_task->handle();
+teardown: {
 	Time start_time = current_task->lastCallTime;
-	timeNow = getSecondsFromStart();
+	Time timeNow = getSecondsFromStart();
 	Time runtime = (timeNow - start_time);
 	cpuTime += runtime;
 	if (current_task->removeAfterUse) {
@@ -214,6 +218,7 @@ void TaskManager::runTask(TaskID id) {
 	}
 	lastFinishTime = timeNow;
 }
+}
 
 /// pause current task, continue to run scheduler loop until a condition is met, then return to it
 /// current task can be called again if it's repeating - this is to match behaviour of busy waiting with routineForSD
@@ -226,7 +231,7 @@ bool TaskManager::yield(RunCondition until, Time timeout) {
 	GeneralMemoryAllocator::get().checkStack("ensure resizeable space");
 #endif
 	Task* yielding_task = &list[currentID];
-	auto yielding_id = currentID;
+	yielding_task->yielded = true;
 	auto time_now = getSecondsFromStart();
 	Time runtime = (time_now - yielding_task->lastCallTime);
 	cpuTime += runtime;
@@ -256,6 +261,10 @@ bool TaskManager::yield(RunCondition until, Time timeout) {
 				lastPrintedStats = new_time;
 				// couldn't find anything so here we go
 				printStats();
+			}
+			// run the highest pri task (which is audio) since it's always ready and we might as well
+			if (numActiveTasks > 0) {
+				runTask(sortedList[numActiveTasks - 1].task);
 			}
 		}
 	} while (!until() && (skip_timeout || getSecondsFromStart() < time_now + timeout));
