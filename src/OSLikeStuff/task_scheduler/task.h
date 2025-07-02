@@ -146,6 +146,7 @@ struct Task {
 	Time lastRunTime;
 
 	ResourceChecker _checker;
+	bool yielded = false;
 };
 
 #endif // DELUGE_TASK_H
