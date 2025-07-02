@@ -928,6 +928,7 @@ to each individual note onset. (#1978)
     - To make it easier to set the middle value, functionality has been added to blink the LED indicators when you reach the middle value and it also makes it more difficult to turn the knob past the middle value as it currently did outside automation view editor.
   - (#1898 #2136) Change pad selection mode shortcut.
     - Updated `AUTOMATION VIEW` to move `PAD SELECTION MODE` shortcut to :key[Waveform Pad] in the first column of the Deluge grid (very top left pad). Toggle pad selection mode on/off using :key[Shift + Waveform Pad]. The Waveform shortcut pad will blink to indicate that pad selection mode is enabled.
+  - (#3824) Add Randomization feature for any automatable parameter by pressing Shift + Random pad.
 
 #### 4.3.6 - Set Probability By Row
 

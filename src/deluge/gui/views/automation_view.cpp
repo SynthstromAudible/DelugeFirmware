@@ -369,6 +369,8 @@ constexpr uint8_t kPadSelectionShortcutX = 0;
 constexpr uint8_t kPadSelectionShortcutY = 7;
 constexpr uint8_t kVelocityShortcutX = 15;
 constexpr uint8_t kVelocityShortcutY = 1;
+constexpr uint8_t kRandomShortcutX = 15;
+constexpr uint8_t kRandomShortcutY = 2;
 
 PLACE_SDRAM_BSS AutomationView automationView{};
 
@@ -2402,8 +2404,14 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 		effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 	}
 
+	if (velocity > 0 && inAutomationEditor() && Buttons::isShiftButtonPressed() && x == kRandomShortcutX
+	    && y == kRandomShortcutY) {
+		return handleRandomizedParamChange(modelStackWithParam, clip, effectiveLength);
+	}
+
 	// Edit pad action...
 	if (x < kDisplayWidth) {
+
 		return handleEditPadAction(modelStackWithParam, modelStackWithNoteRow, noteRow, clip, output, outputType,
 		                           effectiveLength, x, y, velocity, squareInfo);
 	}
@@ -4925,6 +4933,21 @@ void AutomationView::updateAutomationModPosition(ModelStackWithAutoParam* modelS
 			}
 		}
 	}
+}
+
+ActionResult AutomationView::handleRandomizedParamChange(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+                                                         int32_t effectiveLength) {
+	Output* output = clip->output;
+	OutputType outputType = output->type;
+	int32_t xScroll = currentSong->xScroll[navSysId];
+	int32_t xZoom = currentSong->xZoom[navSysId];
+	seedRandom();
+	for (int x = 0; x <= kRandomShortcutX; x++) {
+		auto y = random(kPadSelectionShortcutY);
+		handleAutomationParameterChange(modelStackWithParam, clip, outputType, x, y, effectiveLength, xScroll, xZoom);
+	}
+	uiNeedsRendering(this);
+	return ActionResult::DEALT_WITH;
 }
 
 // takes care of setting the automation value for the single pad that was pressed
