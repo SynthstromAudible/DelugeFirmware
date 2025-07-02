@@ -2002,7 +2002,7 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 		uiNeedsRendering(this);
 	}
 	// go back to clip view
-	else if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
+	else if (!on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		if (padSelectionOn) {
 			initPadSelection();
 		}

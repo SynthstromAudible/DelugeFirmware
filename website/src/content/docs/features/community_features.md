@@ -1214,6 +1214,11 @@ to each individual note onset. (#1978)
   In case of drums, it is like having a Sound row + a Midi row together triggering at the same time. And in case of synths, it is like
   having a Synth clip + a Midi clip together triggering at the same time. This feature is limited to regular MIDI (that is, not for MPE).
 
+#### 4.5.12 - Ability to navigate between clips from clip view :
+
+- In Grid Mode, using `HORIZONTAL ENCODER ◀︎▶︎` + `CLIP` will navigate to previous/next track clip, using `VERTICAL ENCODER ◀︎▶︎` + `CLIP` will navigate to previous/next clip within the track.
+- In Song Mode using `HORIZONTAL ENCODER ◀︎▶︎` + `CLIP` : will navigate to previous/next track clip.
+
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
 #### 4.6.1 - Keyboard View
