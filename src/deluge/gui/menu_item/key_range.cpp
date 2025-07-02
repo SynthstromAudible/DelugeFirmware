@@ -16,9 +16,11 @@
  */
 
 #include "key_range.h"
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/range.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
+#include "storage/flash_storage.h"
 #include "util/functions.h"
 
 namespace deluge::gui::menu_item {
@@ -57,11 +59,15 @@ void KeyRange::selectEncoderAction(int32_t offset) {
 
 void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) {
 
-	*(buffer++) = noteCodeToNoteLetter[lower];
+	bool useSharps = FlashStorage::defaultUseSharps;
+	char accidential = useSharps ? '#' : FLAT_CHAR;
+
+	*(buffer++) = useSharps ? noteCodeToNoteLetter[lower] : noteCodeToNoteLetterFlats[lower];
+
 	int32_t leftLength = 1;
 
 	if (noteCodeIsSharp[lower]) {
-		*(buffer++) = (display->haveOLED()) ? '#' : '.';
+		*(buffer++) = (display->haveOLED()) ? accidential : '.';
 		if (display->haveOLED()) {
 			leftLength++;
 		}
@@ -81,10 +87,10 @@ void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLe
 
 	*(buffer++) = '-';
 
-	*(buffer++) = noteCodeToNoteLetter[upper];
+	*(buffer++) = useSharps ? noteCodeToNoteLetter[upper] : noteCodeToNoteLetterFlats[upper];
 	int32_t rightLength = 1;
 	if (noteCodeIsSharp[upper]) {
-		*(buffer++) = (display->haveOLED()) ? '#' : '.';
+		*(buffer++) = (display->haveOLED()) ? accidential : '.';
 		if (display->haveOLED()) {
 			rightLength++;
 		}

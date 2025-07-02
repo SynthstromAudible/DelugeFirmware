@@ -40,6 +40,7 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 - Added LPF to Mutable Instruments Reverb
 - Added two more envelopes (Envelope 3 and Envelope 4)
 - Added two more LFOs (LFO 3 -global- and LFO 4 -per voice-)
+- Patch cables can be toggled to unipolar or bipolar mode. Cross screen will toggle the mode of the currently selected patch cable, and is lit in unipolar mode. (UI will be improved later)
 
 #### <ins>Per-clip Stutter with options: Direction and Quantize</ins>
 
@@ -53,8 +54,14 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 
 #### <ins>New Shortcuts</ins>
 
-- Added a shortcut for the `COMPRESSOR THRESHOLD` between the `DECIMATION` and `LPF db/OCT` shortcuts.
-- Added a shortcut for the `STUTTER RATE` between the `PLAY DIRECTION` and `SATURATION` shortcuts.
+Added main grid pad shortcuts for the following parameters:
+
+- `COMPRESSOR THRESHOLD`: accessed using :key[SHIFT] / :key[AUDITION PAD] + :key[PAD] between :key[DECIMATION PAD] and :key[LPF db/OCT PAD]
+- `STUTTER RATE`: accessed using :key[SHIFT] / :key[AUDITION PAD] + :key[PAD] between :key[DIRECTION PAD] and :key[SATURATION PAD]
+- `NOTE PROBABILITY`: accessed using :key[SHIFT] + :key[NOTE PAD] in the `PATCH SOURCE` column between :key[RANDOM PAD] and :key[SIDECHAIN PAD]
+  - Note: :key[AUDITION PAD] + :key[NOTE PAD] is reserved for future functionality
+- `VELOCITY PROBABILITY`: accessed using :key[SHIFT] + :key[VELOCITY PAD] in the `PATCH SOURCE` column between :key[AFTERTOUCH PAD] and :key[RANDOM PAD]
+  - Note: :key[AUDITION PAD] + :key[VELOCITY PAD] is reserved for entering the Velocity Automation View
 
 #### <ins>Layered Shortcuts</ins>
 
@@ -274,6 +281,10 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 - Added the classic piano keyboard layout.
 
+#### <ins>Scales/Key</ins>
+
+- Added toggle in `SETTINGS > DEFAULTS > UI > USE SHARPS(#)` to allow users to choose which accidentals to display. When enabled in OLED mode, notes will be displayed as A# or D#, as they did prior to this change. When disabled, notes will be displayed as B♭ or E♭. In 7SEG mode, a dot is used to indicade when the note has the configured accidental.
+
 ### Sequencer
 
 #### <ins>Arpeggiator</ins>
@@ -284,6 +295,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
   also affect normal sequenced notes while arpeggiator is Off.
 - Added `BASS PROBABILITY (BASS)` paramater that will allow you to control the chance of a note being replaced the bass (lowest) note of the inputted notes.
 - Added `STEP PROBABILITY (STEP)` paramater that will allow you to control the chance of a note in the pattern being replaced by a random note from the pattern.
+- Added `GLIDE PROBABILITY (GLID)` paramater that will allow you to control the chance of delaying a note's note-off event to be executed at the same time as the following arp note. If your sound has some `Portamento` applied, then it will produce a glide effect.
 - Added `STEP REPEAT (REPE)` paramater (with values 1 to 8) that makes walked notes in the pattern be repeated X times before moving to the next note+octave in the pattern.
 - Added `CHORD PROBABILITY (CHRD)` paramater that will allow you to control the chance of a note to play, at the same time, itself and other notes to form a chord (5th, 3rd and 7th).
 - Added `CHORD POLYPHONY (POLY)` paramater that works together with the previous parameter, and this one will dictate how big is the chord, that is, how many notes will be played at the same time.

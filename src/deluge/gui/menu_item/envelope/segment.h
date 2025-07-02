@@ -23,27 +23,27 @@
 namespace deluge::gui::menu_item::envelope {
 class Segment : public source::PatchedParam {
 public:
-	using source::PatchedParam::PatchedParam;
+	using PatchedParam::PatchedParam;
 
 	void getColumnLabel(StringBuf& label) override {
-		const auto& l10nString = getStringForEnvelopeParam(menu_item::PatchedParam::getP());
-		label.append(deluge::l10n::get(l10nString));
+		const auto& shortNameString = getShortEnvelopeParamName(menu_item::PatchedParam::getP());
+		label.append(deluge::l10n::get(shortNameString));
 	}
 
 private:
-	const deluge::l10n::String getStringForEnvelopeParam(uint8_t param) const {
+	static l10n::String getShortEnvelopeParamName(uint8_t param) {
 		using namespace deluge::modulation;
 		switch (param) {
-		case deluge::modulation::params::LOCAL_ENV_0_ATTACK:
-			return deluge::l10n::String::STRING_FOR_ATTACK_SHORT;
-		case deluge::modulation::params::LOCAL_ENV_0_DECAY:
-			return deluge::l10n::String::STRING_FOR_DECAY_SHORT;
-		case deluge::modulation::params::LOCAL_ENV_0_SUSTAIN:
-			return deluge::l10n::String::STRING_FOR_SUSTAIN_SHORT;
-		case deluge::modulation::params::LOCAL_ENV_0_RELEASE:
-			return deluge::l10n::String::STRING_FOR_RELEASE_SHORT;
+		case params::LOCAL_ENV_0_ATTACK:
+			return l10n::String::STRING_FOR_ATTACK_SHORT;
+		case params::LOCAL_ENV_0_DECAY:
+			return l10n::String::STRING_FOR_DECAY_SHORT;
+		case params::LOCAL_ENV_0_SUSTAIN:
+			return l10n::String::STRING_FOR_SUSTAIN_SHORT;
+		case params::LOCAL_ENV_0_RELEASE:
+			return l10n::String::STRING_FOR_RELEASE_SHORT;
 		}
-		return deluge::l10n::String::STRING_FOR_NONE;
+		return l10n::String::STRING_FOR_NONE;
 	}
 };
 } // namespace deluge::gui::menu_item::envelope

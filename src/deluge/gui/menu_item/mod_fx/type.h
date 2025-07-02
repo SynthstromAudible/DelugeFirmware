@@ -71,15 +71,18 @@ public:
 		return 4;
 	}
 
+	[[nodiscard]] bool showPopup() const override { return false; }
+	[[nodiscard]] bool showColumnLabel() const override { return false; }
+
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
-		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+		hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
 		getShortOption(shortOpt);
 
 		constexpr int32_t arrowSpace = 10; // Space reserved for each arrow
 
-		// Get main text width and trim if needed
+		// Get the main text width and trim if needed
 		int32_t pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
 		while (pxLen >= width - (2 * arrowSpace)) {
 			shortOpt.truncate(shortOpt.size() - 1);
@@ -87,8 +90,8 @@ public:
 		}
 
 		// Calculate center positions
-		int32_t textStartX = startX + ((width - pxLen) / 2);
-		int32_t textStartY = startY + ((height - kTextSpacingY) / 2) + 1;
+		const int32_t textStartX = startX + ((width - pxLen) / 2);
+		const int32_t textStartY = startY + ((height - kTextSpacingY) / 2) + 1;
 
 		// Draw arrows if needed
 		if (getValue() > 0) {

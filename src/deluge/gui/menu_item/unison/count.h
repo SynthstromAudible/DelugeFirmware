@@ -67,6 +67,8 @@ public:
 	void getColumnLabel(StringBuf& buf) override {
 		buf.append(l10n::getView(l10n::String::STRING_FOR_UNISON_NUMBER_SHORT));
 	}
+
+	NumberStyle getNumberStyle() const override { return NUMBER; }
 };
 
 class CountToStereoSpread final : public Count {

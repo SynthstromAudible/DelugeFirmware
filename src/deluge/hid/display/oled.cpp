@@ -124,26 +124,44 @@ int32_t popupMaxX;
 int32_t popupMinY;
 int32_t popupMaxY;
 
-void OLED::setupPopup(int32_t width, int32_t height) {
+void OLED::setupPopup(PopupType type, int32_t width, int32_t height, std::optional<int32_t> startX,
+                      std::optional<int32_t> startY) {
 	height = std::clamp<int32_t>(height, 0, OLED_MAIN_HEIGHT_PIXELS);
 	oledPopupWidth = width;
 	popupHeight = height;
+	popupType = type;
 
-	popupMinX = (OLED_MAIN_WIDTH_PIXELS - width) / 2;
-	popupMaxX = OLED_MAIN_WIDTH_PIXELS - popupMinX;
+	popupMinX = startX.has_value() ? startX.value() : (OLED_MAIN_WIDTH_PIXELS - width) / 2;
+	popupMaxX = popupMinX + width;
+	popupMinY = startY.has_value() ? startY.value() : (OLED_MAIN_HEIGHT_PIXELS - height) / 2;
+	popupMaxY = popupMinY + height;
+#if ALPHA_OR_BETA_VERSION
+	if (popupMaxX < 0 || popupMinX < 0 || popupMaxX < popupMinX || popupMinX > OLED_MAIN_WIDTH_PIXELS
+	    || popupMaxX > OLED_MAIN_WIDTH_PIXELS) {
 
-	popupMinY = (OLED_MAIN_HEIGHT_PIXELS - height) / 2;
-	popupMaxY = OLED_MAIN_HEIGHT_PIXELS - popupMinY;
+		uint32_t regLR = 0;
+		uint32_t regSP = 0;
+		asm volatile("MOV %0, LR\n" : "=r"(regLR));
+		asm volatile("MOV %0, SP\n" : "=r"(regSP));
+		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);
+		::freezeWithError("D003");
+	}
+	if (popupMaxY < 0 || popupMinY < 0 || popupMaxY < popupMinY || popupMinY > OLED_MAIN_WIDTH_PIXELS
+	    || popupMaxY > OLED_MAIN_WIDTH_PIXELS) {
 
-	popupMinY = std::max<int32_t>(popupMinY, OLED_MAIN_TOPMOST_PIXEL);
-	popupMaxY = std::min<int32_t>(popupMaxY, OLED_MAIN_HEIGHT_PIXELS - 1);
-
-	// Clear the popup's area, not including the rectangle we're about to draw
-	int32_t popupFirstRow = (popupMinY + 1) >> 3;
-	int32_t popupLastRow = (popupMaxY - 1) >> 3;
-
+		uint32_t regLR = 0;
+		uint32_t regSP = 0;
+		asm volatile("MOV %0, LR\n" : "=r"(regLR));
+		asm volatile("MOV %0, SP\n" : "=r"(regSP));
+		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);
+		::freezeWithError("D003");
+	}
+#endif
 	popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
-	popup.drawRectangle(popupMinX, popupMinY, popupMaxX, popupMaxY);
+
+	if (type != PopupType::HORIZONTAL_MENU) {
+		popup.drawRectangleRounded(popupMinX, popupMinY, popupMaxX, popupMaxY);
+	}
 }
 
 int32_t consoleMaxX;
@@ -368,7 +386,7 @@ void OLED::sendMainImage() {
 
 struct TextLine {
 	std::string_view text;
-	size_t pixel_width;
+	size_t pixel_width{0};
 };
 
 constexpr std::size_t kMaxNumLines = 8;
@@ -400,10 +418,16 @@ std::pair<size_t, size_t> getWidthPixels(char c, size_t height) {
 /// @return the total width of the string in pixels
 size_t getWidthPixels(std::string_view text, size_t height) {
 	size_t total_width = 0;
-
+	size_t index = 0;
+	auto l = text.length();
 	for (char c : text) {
 		auto [char_width, char_spacing] = getWidthPixels(c, height);
-		total_width += char_spacing + char_width;
+		if (index++ == l - 1) {
+			total_width += char_width;
+		}
+		else {
+			total_width += char_spacing + char_width;
+		}
 	}
 
 	return total_width;
@@ -422,7 +446,6 @@ size_t getWidthPixels(std::string_view text, size_t height) {
 /// @note The function assumes that the input string is valid and does not contain any invalid characters.
 TextLineBreakdown::TextLineBreakdown(std::string_view text, size_t char_height, size_t max_pixels_per_line)
     : max_width_per_line{max_pixels_per_line} {
-
 	size_t line_width = 0;
 	size_t last_char_spacing = 0;
 
@@ -433,9 +456,14 @@ TextLineBreakdown::TextLineBreakdown(std::string_view text, size_t char_height, 
 			size_t end_idx = std::distance(text.begin(), c);
 
 			// add the current line to the lines vector
+			auto t = text.substr(0, end_idx);
+			auto l = getWidthPixels(t, char_height);
+			if (l > max_pixels_per_line) {
+				FREEZE_WITH_ERROR("P002");
+			}
 			lines.push_back({
-			    .text = text.substr(0, end_idx),
-			    .pixel_width = line_width,
+			    .text = t,
+			    .pixel_width = l,
 			});
 
 			// remove the text up to and including the newline
@@ -488,6 +516,9 @@ TextLineBreakdown::TextLineBreakdown(std::string_view text, size_t char_height, 
 		    .pixel_width = getWidthPixels(text, char_height),
 		});
 	}
+	if (maxPixelWidth() > max_pixels_per_line) {
+		FREEZE_WITH_ERROR("p001");
+	}
 }
 
 void OLED::drawPermanentPopupLookingText(std::string_view text) {
@@ -524,8 +555,7 @@ void OLED::popupText(std::string_view text, bool persistent, PopupType type) {
 	auto total_width = static_cast<int32_t>(breakdown.maxPixelWidth());
 	auto total_height = static_cast<int32_t>(breakdown.lines.size() * kTextSpacingY);
 
-	setupPopup(total_width + double_margin, total_height + double_margin);
-	popupType = type;
+	setupPopup(type, total_width + double_margin, total_height + double_margin);
 
 	int32_t text_pixel_y = std::max<int32_t>((OLED_MAIN_HEIGHT_PIXELS - total_height) / 2, 0);
 
@@ -631,6 +661,45 @@ void OLED::removeWorkingAnimation() {
 		uiTimerManager.unsetTimer(TimerName::LOADING_ANIMATION);
 		working_animation_count = 0;
 	}
+}
+
+void OLED::displayHorizontalMenuPopup(std::string_view paramTitle, std::optional<std::string_view> paramValue) {
+	DEF_STACK_STRING_BUF(titleBuf, 25);
+	titleBuf.append(paramTitle);
+
+	// Calculate the width of the strings
+	int32_t titleWidth = popup.getStringWidthInPixels(paramTitle.data(), kTextSpacingY);
+	const int32_t valueWidth =
+	    paramValue.has_value() ? popup.getStringWidthInPixels(paramValue.value().data(), kTextSpacingY) : 0;
+
+	constexpr int32_t paddingLeft = 4;
+
+	if (valueWidth > 0) {
+		// Truncate the title string until we have space to display the value
+		while (titleWidth + paddingLeft + valueWidth > OLED_MAIN_WIDTH_PIXELS - 7) {
+			titleBuf.truncate(titleBuf.size() - 1);
+			titleWidth = popup.getStringWidthInPixels(titleBuf.data(), kTextSpacingY);
+		}
+	}
+
+	setupPopup(PopupType::HORIZONTAL_MENU, OLED_MAIN_WIDTH_PIXELS - 1, kTextSpacingY + 2, 0, OLED_MAIN_TOPMOST_PIXEL);
+
+	// Draw the title and value
+	popup.drawString(titleBuf.data(), paddingLeft, OLED_MAIN_TOPMOST_PIXEL + 1, kTextSpacingX, kTextSpacingY);
+	if (valueWidth > 0) {
+		popup.drawChar(':', paddingLeft + titleWidth, OLED_MAIN_TOPMOST_PIXEL + 1, kTextSpacingX, kTextSpacingY);
+		popup.drawString(paramValue.value().data(), paddingLeft + titleWidth + 8, OLED_MAIN_TOPMOST_PIXEL + 1,
+		                 kTextSpacingX, kTextSpacingY);
+	}
+
+	if (!FlashStorage::accessibilityMenuHighlighting) {
+		// Make the popup inverted (white)
+		popup.invertAreaRounded(0, OLED_MAIN_WIDTH_PIXELS - 1, OLED_MAIN_TOPMOST_PIXEL,
+		                        OLED_MAIN_TOPMOST_PIXEL + kTextSpacingY + 1);
+	}
+
+	markChanged();
+	uiTimerManager.setTimer(TimerName::DISPLAY, 1200);
 }
 
 void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display) {
@@ -742,12 +811,13 @@ struct SideScroller {
 	int32_t boxLengthPixels;
 	bool finished;
 	bool doHighlight;
+	String string_;
 };
 
 #define NUM_SIDE_SCROLLERS 2
 
 SideScroller sideScrollers[NUM_SIDE_SCROLLERS];
-
+// text will be copied into the scroller, caller does not need to keep it allocated
 void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight) {
 
@@ -769,7 +839,8 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 		return;
 	}
 
-	scroller->text = text.data();
+	scroller->string_.set(text.data(), static_cast<int32_t>(text.size()));
+	scroller->text = scroller->string_.get();
 	scroller->pos = 0;
 	scroller->startX = startX;
 	scroller->endX = endX;
@@ -789,6 +860,7 @@ void OLED::stopScrollingAnimation() {
 		sideScrollerDirection = 0;
 		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 			SideScroller* scroller = &sideScrollers[s];
+			scroller->string_.clear();
 			scroller->text = nullptr;
 		}
 		uiTimerManager.unsetTimer(TimerName::OLED_SCROLLING_AND_BLINKING);

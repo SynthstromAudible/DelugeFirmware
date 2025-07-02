@@ -7,6 +7,7 @@
 #include "gui/menu_item/arpeggiator/midi_cv/chord_polyphony.h"
 #include "gui/menu_item/arpeggiator/midi_cv/chord_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
+#include "gui/menu_item/arpeggiator/midi_cv/glide_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/note_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_amount.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_probability.h"
@@ -24,6 +25,7 @@
 #include "gui/menu_item/arpeggiator/octave_mode.h"
 #include "gui/menu_item/arpeggiator/octaves.h"
 #include "gui/menu_item/arpeggiator/preset_mode.h"
+#include "gui/menu_item/arpeggiator/randomizer.h"
 #include "gui/menu_item/arpeggiator/randomizer_lock.h"
 #include "gui/menu_item/arpeggiator/rate.h"
 #include "gui/menu_item/arpeggiator/rhythm.h"
@@ -54,6 +56,7 @@
 #include "gui/menu_item/defaults/magnitude.h"
 #include "gui/menu_item/defaults/metronome_volume.h"
 #include "gui/menu_item/defaults/pad_brightness.h"
+#include "gui/menu_item/defaults/patch_cable_polarity.h"
 #include "gui/menu_item/defaults/scale.h"
 #include "gui/menu_item/defaults/session_layout.h"
 #include "gui/menu_item/defaults/slice_mode.h"
@@ -61,6 +64,8 @@
 #include "gui/menu_item/defaults/swing_interval.h"
 #include "gui/menu_item/defaults/ui/clip_type/default_new_clip_type.h"
 #include "gui/menu_item/defaults/velocity.h"
+#include "gui/menu_item/delay/amount.h"
+#include "gui/menu_item/delay/amount_unpatched.h"
 #include "gui/menu_item/delay/analog.h"
 #include "gui/menu_item/delay/ping_pong.h"
 #include "gui/menu_item/delay/sync.h"
@@ -69,6 +74,7 @@
 #include "gui/menu_item/dx/global_params.h"
 #include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/edit_name.h"
+#include "gui/menu_item/envelope/envelope_menu.h"
 #include "gui/menu_item/envelope/segment.h"
 #include "gui/menu_item/eq/eq_unpatched_param.h"
 #include "gui/menu_item/file_selector.h"
@@ -81,6 +87,7 @@
 #include "gui/menu_item/gate/mode.h"
 #include "gui/menu_item/gate/off_time.h"
 #include "gui/menu_item/gate/selection.h"
+#include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
 #include "gui/menu_item/keyboard/layout.h"
@@ -149,6 +156,8 @@
 #include "gui/menu_item/record/loop_command.h"
 #include "gui/menu_item/record/quantize.h"
 #include "gui/menu_item/record/threshold_mode.h"
+#include "gui/menu_item/reverb/amount.h"
+#include "gui/menu_item/reverb/amount_unpatched.h"
 #include "gui/menu_item/reverb/damping.h"
 #include "gui/menu_item/reverb/hpf.h"
 #include "gui/menu_item/reverb/lpf.h"
@@ -269,28 +278,37 @@ arpeggiator::midi_cv::RatchetAmount arpRatchetAmountMenuMIDIOrCV{STRING_FOR_NUMB
 arpeggiator::IncludeInKitArp arpIncludeInKitArpMenu{STRING_FOR_INCLUDE_IN_KIT_ARP, STRING_FOR_INCLUDE_IN_KIT_ARP};
 arpeggiator::RandomizerLock arpRandomizerLockMenu{STRING_FOR_RANDOMIZER_LOCK, STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE};
 arpeggiator::ArpUnpatchedParam arpNoteProbabilityMenu{
-    STRING_FOR_NOTE_PROBABILITY, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE, params::UNPATCHED_NOTE_PROBABILITY};
+    STRING_FOR_NOTE_PROBABILITY, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE, params::UNPATCHED_NOTE_PROBABILITY, PERCENT};
 arpeggiator::midi_cv::NoteProbability arpNoteProbabilityMenuMIDIOrCV{STRING_FOR_NOTE_PROBABILITY,
                                                                      STRING_FOR_NOTE_PROBABILITY_MENU_TITLE};
-arpeggiator::ArpUnpatchedParam arpBassProbabilityMenu{
-    STRING_FOR_BASS_PROBABILITY, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_BASS_PROBABILITY};
+arpeggiator::ArpUnpatchedParam arpBassProbabilityMenu{STRING_FOR_BASS_PROBABILITY,
+                                                      STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE,
+                                                      params::UNPATCHED_ARP_BASS_PROBABILITY, PERCENT};
 arpeggiator::midi_cv::BassProbability arpBassProbabilityMenuMIDIOrCV{STRING_FOR_BASS_PROBABILITY,
                                                                      STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE};
-arpeggiator::ArpUnpatchedParam arpStepProbabilityMenu{
-    STRING_FOR_STEP_PROBABILITY, STRING_FOR_ARP_STEP_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_STEP_PROBABILITY};
+arpeggiator::ArpUnpatchedParam arpStepProbabilityMenu{STRING_FOR_STEP_PROBABILITY,
+                                                      STRING_FOR_ARP_STEP_PROBABILITY_MENU_TITLE,
+                                                      params::UNPATCHED_ARP_STEP_PROBABILITY, PERCENT};
 arpeggiator::midi_cv::StepProbability arpStepProbabilityMenuMIDIOrCV{STRING_FOR_STEP_PROBABILITY,
                                                                      STRING_FOR_ARP_STEP_PROBABILITY_MENU_TITLE};
-arpeggiator::ArpNonKitSoundUnpatchedParam arpChordProbabilityMenu{
-    STRING_FOR_CHORD_PROBABILITY, STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_PROBABILITY};
+arpeggiator::ArpUnpatchedParam arpGlideProbabilityMenu{STRING_FOR_GLIDE_PROBABILITY,
+                                                       STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE,
+                                                       params::UNPATCHED_ARP_GLIDE_PROBABILITY, PERCENT};
+arpeggiator::midi_cv::GlideProbability arpGlideProbabilityMenuMIDIOrCV{STRING_FOR_GLIDE_PROBABILITY,
+                                                                       STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE};
+arpeggiator::ArpNonKitSoundUnpatchedParam arpChordProbabilityMenu{STRING_FOR_CHORD_PROBABILITY,
+                                                                  STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE,
+                                                                  params::UNPATCHED_ARP_CHORD_PROBABILITY, PERCENT};
 arpeggiator::midi_cv::ChordProbability arpChordProbabilityMenuMIDIOrCV{STRING_FOR_CHORD_PROBABILITY,
                                                                        STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE};
 arpeggiator::ArpUnpatchedParam arpRatchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY,
                                                          STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
-                                                         params::UNPATCHED_ARP_RATCHET_PROBABILITY};
+                                                         params::UNPATCHED_ARP_RATCHET_PROBABILITY, PERCENT};
 arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
     STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
-arpeggiator::ArpUnpatchedParam arpReverseProbabilityMenu{
-    STRING_FOR_REVERSE_PROBABILITY, STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE, params::UNPATCHED_REVERSE_PROBABILITY};
+arpeggiator::ArpUnpatchedParam arpReverseProbabilityMenu{STRING_FOR_REVERSE_PROBABILITY,
+                                                         STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE,
+                                                         params::UNPATCHED_REVERSE_PROBABILITY, PERCENT};
 arpeggiator::ArpUnpatchedParam arpSpreadVelocityMenu{STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE,
                                                      params::UNPATCHED_SPREAD_VELOCITY};
 arpeggiator::midi_cv::SpreadVelocity arpSpreadVelocityMenuMIDIOrCV{STRING_FOR_SPREAD_VELOCITY,
@@ -305,12 +323,9 @@ arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD
                                                                STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
 
 // Arp: Basic
-HorizontalMenu arpBasicMenu{
-    STRING_FOR_BASIC, {&arpGateMenu, &arpSyncMenu, &arpRateMenu}, HorizontalMenu::Layout::FIXED};
-HorizontalMenu arpBasicMenuKit{
-    STRING_FOR_BASIC, {&arpGateMenu, &arpSyncMenu, &arpKitRateMenu}, HorizontalMenu::Layout::FIXED};
-HorizontalMenu arpBasicMenuMIDIOrCV{
-    STRING_FOR_BASIC, {&arpGateMenuMIDIOrCV, &arpSyncMenu, &arpRateMenuMIDIOrCV}, HorizontalMenu::Layout::FIXED};
+HorizontalMenu arpBasicMenu{STRING_FOR_BASIC, {&arpGateMenu, &arpSyncMenu, &arpRateMenu}};
+HorizontalMenu arpBasicMenuKit{STRING_FOR_BASIC, {&arpGateMenu, &arpSyncMenu, &arpKitRateMenu}};
+HorizontalMenu arpBasicMenuMIDIOrCV{STRING_FOR_BASIC, {&arpGateMenuMIDIOrCV, &arpSyncMenu, &arpRateMenuMIDIOrCV}};
 
 // Arp: Pattern
 HorizontalMenu arpPatternMenu{STRING_FOR_PATTERN,
@@ -321,30 +336,35 @@ HorizontalMenu arpPatternMenu{STRING_FOR_PATTERN,
                                &arpRhythmMenu, &arpRhythmMenuMIDIOrCV, &arpSequenceLengthMenu,
                                &arpSequenceLengthMenuMIDIOrCV}};
 // Arp: Randomizer
-HorizontalMenu arpRandomizerMenu{STRING_FOR_RANDOMIZER,
-                                 {// Lock
-                                  &arpRandomizerLockMenu,
-                                  // Spreads
-                                  &arpSpreadGateMenu, &arpSpreadGateMenuMIDIOrCV, &arpSpreadOctaveMenu,
-                                  &arpSpreadOctaveMenuMIDIOrCV, &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV,
-                                  // Ratchets
-                                  &arpRatchetAmountMenu, &arpRatchetAmountMenuMIDIOrCV, &arpRatchetProbabilityMenu,
-                                  &arpRatchetProbabilityMenuMIDIOrCV,
-                                  // Chords
-                                  &arpChordPolyphonyMenu, &arpChordPolyphonyMenuMIDIOrCV, &arpChordProbabilityMenu,
-                                  &arpChordProbabilityMenuMIDIOrCV,
-                                  // Note
-                                  &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
-                                  // Bass
-                                  &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV,
-                                  // Step
-                                  &arpStepProbabilityMenu, &arpStepProbabilityMenuMIDIOrCV,
-                                  // Reverse
-                                  &arpReverseProbabilityMenu}};
+arpeggiator::Randomizer arpRandomizerMenu{STRING_FOR_RANDOMIZER,
+                                          {// Lock
+                                           &arpRandomizerLockMenu,
+                                           // Spreads
+                                           &arpSpreadGateMenu, &arpSpreadGateMenuMIDIOrCV, &arpSpreadOctaveMenu,
+                                           &arpSpreadOctaveMenuMIDIOrCV, &arpSpreadVelocityMenu,
+                                           &arpSpreadVelocityMenuMIDIOrCV,
+                                           // Ratchets: Amount
+                                           &arpRatchetAmountMenu, &arpRatchetAmountMenuMIDIOrCV,
+                                           // Ratchets: Probability
+                                           &arpRatchetProbabilityMenu, &arpRatchetProbabilityMenuMIDIOrCV,
+                                           // Chords: Polyphony
+                                           &arpChordPolyphonyMenu, &arpChordPolyphonyMenuMIDIOrCV,
+                                           // Chords: Probability
+                                           &arpChordProbabilityMenu, &arpChordProbabilityMenuMIDIOrCV,
+                                           // Note
+                                           &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
+                                           // Step
+                                           &arpStepProbabilityMenu, &arpStepProbabilityMenuMIDIOrCV,
+                                           // Bass
+                                           &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV,
+                                           // Glide
+                                           &arpGlideProbabilityMenu, &arpGlideProbabilityMenuMIDIOrCV,
+                                           // Reverse
+                                           &arpReverseProbabilityMenu}};
 // Arp: Preset and Randomizer
 HorizontalMenu arpPresetAndRandomizerMenu{STRING_FOR_ARPEGGIATOR, {&arpPresetModeMenu, &arpRandomizerMenu}};
 // Global: Randomizer
-HorizontalMenu globalRandomizerMenu{STRING_FOR_RANDOMIZER,
+HorizontalMenu globalRandomizerMenu{STRING_FOR_NOTE_RANDOMIZER,
                                     {
                                         // Lock
                                         &arpRandomizerLockMenu,
@@ -439,7 +459,7 @@ envelope::Segment env1DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV1_DECAY_MENU_TIT
 envelope::Segment env1SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV1_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
 envelope::Segment env1ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV1_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
 
-HorizontalMenu env1Menu{
+envelope::EnvelopeMenu env1Menu{
     STRING_FOR_ENVELOPE_1, {&env1AttackMenu, &env1DecayMenu, &env1SustainMenu, &env1ReleaseMenu}, 0};
 
 // Envelope 2 menu ---------------------------------------------------------------------------------
@@ -448,7 +468,7 @@ envelope::Segment env2DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV2_DECAY_MENU_TIT
 envelope::Segment env2SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV2_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
 envelope::Segment env2ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV2_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
 
-HorizontalMenu env2Menu{
+envelope::EnvelopeMenu env2Menu{
     STRING_FOR_ENVELOPE_2, {&env2AttackMenu, &env2DecayMenu, &env2SustainMenu, &env2ReleaseMenu}, 1};
 
 // Envelope 3 menu ---------------------------------------------------------------------------------
@@ -457,7 +477,7 @@ envelope::Segment env3DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV3_DECAY_MENU_TIT
 envelope::Segment env3SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV3_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
 envelope::Segment env3ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV3_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
 
-HorizontalMenu env3Menu{
+envelope::EnvelopeMenu env3Menu{
     STRING_FOR_ENVELOPE_3, {&env3AttackMenu, &env3DecayMenu, &env3SustainMenu, &env3ReleaseMenu}, 2};
 
 // Envelope 4 menu ---------------------------------------------------------------------------------
@@ -466,7 +486,7 @@ envelope::Segment env4DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV4_DECAY_MENU_TIT
 envelope::Segment env4SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV4_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
 envelope::Segment env4ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV4_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
 
-HorizontalMenu env4Menu{
+envelope::EnvelopeMenu env4Menu{
     STRING_FOR_ENVELOPE_4, {&env4AttackMenu, &env4DecayMenu, &env4SustainMenu, &env4ReleaseMenu}, 3};
 
 // LFO1 menu ---------------------------------------------------------------------------------
@@ -510,8 +530,8 @@ submenu::ModFxHorizontalMenu modFXMenu{
     STRING_FOR_MOD_FX,
     {
         &modFXTypeMenu,
-        &modFXRateMenu,
         &modFXDepthMenu,
+        &modFXRateMenu,
         &modFXFeedbackMenu,
         &modFXOffsetMenu,
     },
@@ -536,7 +556,7 @@ HorizontalMenu eqMenu{
 };
 
 // Delay ---------------------------------------------------------------------------------
-patched_param::Integer delayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT, params::GLOBAL_DELAY_FEEDBACK};
+delay::Amount delayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT, params::GLOBAL_DELAY_FEEDBACK};
 patched_param::Integer delayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE, params::GLOBAL_DELAY_RATE};
 delay::PingPong delayPingPongMenu{STRING_FOR_PINGPONG, STRING_FOR_DELAY_PINGPONG};
 delay::Analog delayAnalogMenu{STRING_FOR_TYPE, STRING_FOR_DELAY_TYPE};
@@ -545,8 +565,8 @@ delay::Sync delaySyncMenu{STRING_FOR_SYNC, STRING_FOR_DELAY_SYNC};
 HorizontalMenu delayMenu{
     STRING_FOR_DELAY,
     {
-        &delayPingPongMenu,
         &delayFeedbackMenu,
+        &delayPingPongMenu,
         &delaySyncMenu,
         &delayRateMenu,
         &delayAnalogMenu,
@@ -603,14 +623,14 @@ submenu::ReverbSidechain reverbSidechainMenu{STRING_FOR_REVERB_SIDECHAIN,
                                              STRING_FOR_REVERB_SIDECH_MENU_TITLE,
                                              {
                                                  &reverbSidechainVolumeMenu,
-                                                 &sidechainSyncMenu,
+                                                 &reverbSidechainShapeMenu,
                                                  &sidechainAttackMenu,
                                                  &sidechainReleaseMenu,
-                                                 &reverbSidechainShapeMenu,
+                                                 &sidechainSyncMenu,
                                              }};
 
 // Reverb ----------------------------------------------------------------------------------
-patched_param::Integer reverbAmountMenu{STRING_FOR_AMOUNT, STRING_FOR_REVERB_AMOUNT, params::GLOBAL_REVERB_AMOUNT};
+reverb::Amount reverbAmountMenu{STRING_FOR_AMOUNT, STRING_FOR_REVERB_AMOUNT, params::GLOBAL_REVERB_AMOUNT};
 reverb::RoomSize reverbRoomSizeMenu{STRING_FOR_ROOM_SIZE};
 reverb::Damping reverbDampingMenu{STRING_FOR_DAMPING};
 reverb::Width reverbWidthMenu{STRING_FOR_WIDTH, STRING_FOR_REVERB_WIDTH};
@@ -622,11 +642,11 @@ reverb::LPF reverbLPFMenu{STRING_FOR_LPF};
 HorizontalMenu reverbMenu{
     STRING_FOR_REVERB,
     {
-        &reverbModelMenu,
+        &reverbAmountMenu,
         &reverbRoomSizeMenu,
         &reverbDampingMenu,
         &reverbWidthMenu,
-        &reverbAmountMenu,
+        &reverbModelMenu,
         &reverbPanMenu,
         &reverbHPFMenu,
         &reverbLPFMenu,
@@ -765,14 +785,15 @@ HorizontalMenu globalEQMenu{
 };
 
 // Delay Menu
-UnpatchedParam globalDelayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT, params::UNPATCHED_DELAY_AMOUNT};
+delay::Amount_Unpatched globalDelayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT,
+                                                params::UNPATCHED_DELAY_AMOUNT};
 UnpatchedParam globalDelayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE, params::UNPATCHED_DELAY_RATE};
 
 HorizontalMenu globalDelayMenu{
     STRING_FOR_DELAY,
     {
-        &delayPingPongMenu,
         &globalDelayFeedbackMenu,
+        &delayPingPongMenu,
         &delaySyncMenu,
         &globalDelayRateMenu,
         &delayAnalogMenu,
@@ -781,7 +802,7 @@ HorizontalMenu globalDelayMenu{
 
 // Reverb Menu
 
-UnpatchedParam globalReverbSendAmountMenu{
+reverb::Amount_Unpatched globalReverbSendAmountMenu{
     STRING_FOR_AMOUNT,
     STRING_FOR_REVERB_AMOUNT,
     params::UNPATCHED_REVERB_SEND_AMOUNT,
@@ -790,11 +811,11 @@ UnpatchedParam globalReverbSendAmountMenu{
 HorizontalMenu globalReverbMenu{
     STRING_FOR_REVERB,
     {
-        &reverbModelMenu,
+        &globalReverbSendAmountMenu,
         &reverbRoomSizeMenu,
         &reverbDampingMenu,
         &reverbWidthMenu,
-        &globalReverbSendAmountMenu,
+        &reverbModelMenu,
         &reverbPanMenu,
         &reverbHPFMenu,
         &reverbLPFMenu,
@@ -811,8 +832,8 @@ submenu::ModFxHorizontalMenu globalModFXMenu{
     STRING_FOR_MOD_FX,
     {
         &modFXTypeMenu,
-        &globalModFXRateMenu,
         &globalModFXDepthMenu,
+        &globalModFXRateMenu,
         &modFXFeedbackMenu,
         &modFXOffsetMenu,
     },
@@ -1274,9 +1295,11 @@ Submenu defaultClipTypeMenu{STRING_FOR_DEFAULT_CLIP_TYPE,
                                 &defaultUseLastClipTypeMenu,
                             }};
 
+ToggleBool defaultUseSharps{STRING_FOR_DEFAULT_UI_SHARPS, STRING_FOR_DEFAULT_UI_SHARPS, FlashStorage::defaultUseSharps};
+
 Submenu defaultUI{
     STRING_FOR_DEFAULT_UI,
-    {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu},
+    {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu, &defaultUseSharps},
 };
 
 ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,
@@ -1316,6 +1339,7 @@ defaults::Velocity defaultVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_DEFAULT_V
 defaults::Magnitude defaultMagnitudeMenu{STRING_FOR_RESOLUTION, STRING_FOR_DEFAULT_RESOL_MENU_TITLE};
 defaults::BendRange defaultBendRangeMenu{STRING_FOR_BEND_RANGE, STRING_FOR_DEFAULT_BEND_R};
 defaults::MetronomeVolume defaultMetronomeVolumeMenu{STRING_FOR_METRONOME, STRING_FOR_DEFAULT_METRO_MENU_TITLE};
+defaults::PatchCablePolarity defaultPatchCablePolarityMenu{STRING_FOR_DEFAULT_POLARITY, STRING_FOR_DEFAULT_POLARITY};
 defaults::StartupSongModeMenu defaultStartupSongMenu{STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE,
                                                      STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE};
 defaults::PadBrightness defaultPadBrightness{STRING_FOR_DEFAULT_PAD_BRIGHTNESS,
@@ -1348,6 +1372,7 @@ Submenu defaultsSubmenu{
         &defaultMagnitudeMenu,
         &defaultBendRangeMenu,
         &defaultMetronomeVolumeMenu,
+        &defaultPatchCablePolarityMenu,
         &defaultStartupSongMenu,
         &defaultPadBrightness,
         &defaultSliceMode,
