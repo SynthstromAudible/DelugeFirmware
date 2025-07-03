@@ -1,0 +1,1635 @@
+diff --git a/src/deluge/model/song/song.cpp b/src/deluge/model/song/song.cpp
+index d58436ce..ab5d93c2 100644
+--- a/src/deluge/model/song/song.cpp
++++ b/src/deluge/model/song/song.cpp
+@@ -142,6 +142,9 @@ Song::Song()
+ 	globalEffectable.compressor.setBaseGain(0.85);
+ 
+ 	dirPath.set("SONGS");
++
++	// Initialize loop handle with default 8 bars
++	loopHandleLastLength = 8 * 3072; // 8 bars at 3072 ticks per bar
+ }
+ 
+ Song::~Song() {
+@@ -3014,7 +3017,7 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
+ 	if (!songBeingDestroyedToo) {
+ 
+ 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+-		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, this, clip);
++		ModelStack* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, this, clip);
+ 
+ 		clip->prepareForDestruction(modelStack, instrumentRemovalInstruction);
+ 	}
+@@ -3406,16 +3409,15 @@ void Song::deleteOrHibernateOutput(Output* output) {
+ 	}
+ 
+ 	// Otherwise, we can delete it
+-	else {
+-deleteIt:
++	deleteIt:
+ 		deleteOutputThatIsInMainList(output);
+-	}
+ }
+ 
+ void Song::deleteOutput(Output* output) {
+ 	for (int y = 0; y < 8; y++) {
+ 		auto& m = sessionMacros[y];
+-		if (m.kind == OUTPUT_CYCLE && m.output == output) {
++		if ((m.kind == CLIP_LAUNCH && m.clip && m.clip->output == output) ||
++		    (m.kind == OUTPUT_CYCLE && m.output == output)) {
+ 			m.kind = NO_MACRO;
+ 		}
+ 	}
+@@ -3524,6 +3526,8 @@ AudioOutput* Song::getAudioOutputFromName(String* name) {
+ 	return nullptr;
+ }
+ 
++// You can put name as NULL if it's MIDI or CV
++
+ // You can put name as NULL if it's MIDI or CV
+ Instrument* Song::getInstrumentFromPresetSlot(OutputType outputType, int32_t channel, int32_t channelSuffix,
+                                               char const* name, char const* dirPath, bool searchHibernating,
+@@ -3649,43 +3653,46 @@ ParamManager* Song::getBackedUpParamManagerPreferablyWithClip(ModControllableAud
+                                                               ParamManager* stealInto) {
+ 
+ 	int32_t iAnyClip =
+-	    backedUpParamManagers.search((uint32_t)modControllable, GREATER_OR_EQUAL); // Search just by first word
+-	if (iAnyClip >= backedUpParamManagers.getNumElements()) {
+-		return nullptr;
+-	}
+-	BackedUpParamManager* elementAnyClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iAnyClip);
+-	if (elementAnyClip->modControllable != modControllable) {
+-		return nullptr; // If nothing with even the correct modControllable at all, get out
+-	}
++	    backedUpParamManagers.search((uint32_t)modControllable, GREATER_OR_EQUAL); // Search just by first word only
++
++	while (true) {
++		if (iAnyClip >= backedUpParamManagers.getNumElements()) {
++			return nullptr;
++		}
++		BackedUpParamManager* elementAnyClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iAnyClip);
++		if (elementAnyClip->modControllable != modControllable) {
++			return nullptr; // If nothing with even the correct modControllable at all, get out
++		}
+ 
+-	int32_t iCorrectClip;
+-	BackedUpParamManager* elementCorrectClip;
++		int32_t iCorrectClip;
++		BackedUpParamManager* elementCorrectClip;
+ 
+-	if (!clip || elementAnyClip->clip == clip) {
++		if (!clip || elementAnyClip->clip == clip) {
+ returnFirstForModControllableEvenIfNotRightClip:
+-		iCorrectClip = iAnyClip;
+-		elementCorrectClip = elementAnyClip;
+-	}
+-	else {
+-		uint32_t keyWords[2];
+-		keyWords[0] = (uint32_t)modControllable;
+-		keyWords[1] = (uint32_t)clip;
+-		iCorrectClip = backedUpParamManagers.searchMultiWordExact(keyWords, nullptr, iAnyClip + 1);
+-		if (iCorrectClip == -1) {
+-			goto returnFirstForModControllableEvenIfNotRightClip;
++			iCorrectClip = iAnyClip;
++			elementCorrectClip = elementAnyClip;
++		}
++		else {
++			uint32_t keyWords[2];
++			keyWords[0] = (uint32_t)modControllable;
++			keyWords[1] = (uint32_t)clip;
++			iCorrectClip = backedUpParamManagers.searchMultiWordExact(keyWords, nullptr, iAnyClip + 1);
++			if (iCorrectClip == -1) {
++				goto returnFirstForModControllableEvenIfNotRightClip;
++			}
++			elementCorrectClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iCorrectClip);
+ 		}
+-		elementCorrectClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iCorrectClip);
+-	}
+ 
+-	if (stealInto) {
+-		stealInto->stealParamCollectionsFrom(
+-		    &elementCorrectClip->paramManager,
+-		    true); // Steal expression params too - if they're here (slightly rare case).
+-		backedUpParamManagers.deleteAtIndex(iCorrectClip);
+-		return stealInto;
+-	}
+-	else {
+-		return &elementCorrectClip->paramManager;
++		if (stealInto) {
++			stealInto->stealParamCollectionsFrom(
++			    &elementCorrectClip->paramManager,
++			    true); // Steal expression params too - if they're here (slightly rare case).
++			backedUpParamManagers.deleteAtIndex(iCorrectClip);
++			return stealInto;
++		}
++		else {
++			return &elementCorrectClip->paramManager;
++		}
+ 	}
+ }
+ 
+@@ -4071,13 +4078,6 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
+ 		for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
+ 			Clip* clip = sessionClips.getClipAtIndex(c);
+ 
+-			if (!(count & 3)) {
+-				AudioEngine::routineWithClusterLoading(); // -----------------------------------
+-				AudioEngine::logAction("aaa5.114");
+-			}
+-			count++;
+-
+-			// If Clip is supposedly active...
+ 			if (isClipActive(clip)) {
+ 
+ 				// If the Instrument already had a Clip, we gotta be inactive...
+@@ -4097,8 +4097,6 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
+ 			}
+ 		}
+ 
+-		AudioEngine::logAction("aaa5.115");
+-
+ 		// We still want as many Outputs as possible to have activeClips, even if those Clips are not "active".
+ 		// First, try arranger-only Clips
+ 		for (Output* output = firstOutput; output; output = output->next) {
+@@ -4456,7 +4454,7 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
+ 	paramManager.trimToLength(pos, modelStack, action, false);
+ 
+ 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
+-		int32_t i = thisOutput->clipInstances.search(pos, GREATER_OR_EQUAL);
++		int32_t i = thisOutput->clipInstances.search(pos + 1, GREATER_OR_EQUAL);
+ 
+ 		// We go through deleting the ClipInstances one by one. This is actually quite inefficient, but complicated
+ 		// to improve on because the deletion of the Clips themselves, where there are arrangement-only ones, causes
+@@ -4568,1427 +4566,72 @@ void Song::setParamsInAutomationMode(bool newState) {
+ 	view.notifyParamAutomationOccurred(&paramManager, true);
+ }
+ 
+-// returns true if the whole instrument should be replaced, and not just the instrument for the given clip
+-// returns false iff in clip view for a clip that does not have an instance in arranger. Or if called with no clip
+-// which could happen from the arranger audition pad availability will be unused in session or arranger view,
+-// available in session for active clips in clip view, and any for inactive clips
+-bool Song::shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement) {
+-	// If Clip has an "instance" within its Output in arranger, then we can only change the entire Output to a
+-	// different Output If in session view, change the whole instrument
+-	if (!clip || clip->output->clipHasInstance(clip) || getRootUI() == &sessionView) {
+-		if (availabilityRequirement) {
+-			*availabilityRequirement = Availability::INSTRUMENT_UNUSED;
+-		}
+-		return true;
++// Loop Handle methods
++void Song::setLoopHandle(int32_t start, int32_t end) {
++	if (start >= end) {
++		clearLoopHandle();
++		return;
+ 	}
+ 
+-	else {
+-
+-		if (availabilityRequirement) {
+-			// If Clip is "active", just make sure we pick an Output that doesn't have a Clip "active" in session
+-			if (isClipActive(clip)) {
+-				*availabilityRequirement = Availability::INSTRUMENT_AVAILABLE_IN_SESSION;
+-			}
+-
+-			// Or if it's not "active", we can give it any Output we like
+-			else {
+-				*availabilityRequirement = Availability::ANY;
+-			}
+-		}
+-
+-		// We still may as well replace the Output so long as it doesn't have any *other* Clips
+-		return (getClipWithOutput(clip->output, false, clip) == nullptr);
+-	}
++	loopHandleStart = start;
++	loopHandleEnd = end;
++	loopHandleActive = true;
++	loopHandleLastLength = end - start;
+ }
+ 
+-Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset) {
+-	if (output->type == OutputType::AUDIO) {
+-		return output;
+-	}
+-
+-	actionLogger.deleteAllLogs();
+-
+-	Instrument* oldInstrument = (Instrument*)output;
+-
+-	OutputType outputType = oldInstrument->type;
+-
+-	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E063", "H063");
+-
+-	// If we're in MIDI or CV mode, easy - just change the channel
+-	if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
+-
+-		NonAudioInstrument* oldNonAudioInstrument = (NonAudioInstrument*)oldInstrument;
+-
+-		int32_t oldChannel = oldNonAudioInstrument->getChannel();
+-		int32_t newChannel = oldNonAudioInstrument->getChannel();
+-
+-		int32_t oldChannelSuffix, newChannelSuffix;
+-		if (outputType == OutputType::MIDI_OUT) {
+-			oldChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
+-			newChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
+-		}
+-
+-		// CV
+-		if (outputType == OutputType::CV) {
+-			int channelToSearch = 0;
+-			Instrument* instrument = nullptr;
+-			do {
+-				newChannel = CVInstrument::navigateChannels(newChannel, offset);
+-
+-				if (newChannel == oldChannel) {
+-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
+-					return output;
+-				}
+-				if (newChannel == CVInstrumentMode::both) {
+-					// in this case we just need to make sure the one were not about to give up is free
+-					// there probably should be a gatekeeper managing the cv/gate resources but that's a lot to
+-					// change and this doesn't matter much
+-					channelToSearch = oldChannel == 0 ? 1 : 0;
+-				}
+-				else {
+-					channelToSearch = newChannel;
+-				}
+-				instrument =
+-				    currentSong->getInstrumentFromPresetSlot(outputType, channelToSearch, -1, nullptr, nullptr, false);
+-			} while (instrument != nullptr && instrument != oldInstrument);
+-		}
+-
+-		// Or MIDI
+-		else {
+-
+-			oldNonAudioInstrument->setChannel(-1); // Get it out of the way
+-
+-			do {
+-				newChannelSuffix += offset;
+-
+-				// Turned left
+-				if (offset == -1) {
+-					if (newChannelSuffix < -1) {
+-						newChannel = (newChannel + offset) & 15;
+-						newChannelSuffix = currentSong->getMaxMIDIChannelSuffix(newChannel);
+-					}
+-				}
+-
+-				// Turned right
+-				else {
+-					if (newChannelSuffix >= 26 || newChannelSuffix > currentSong->getMaxMIDIChannelSuffix(newChannel)) {
+-						newChannel = (newChannel + offset) & 15;
+-						newChannelSuffix = -1;
+-					}
+-				}
+-
+-				if (newChannel == oldChannel && newChannelSuffix == oldChannelSuffix) {
+-					oldNonAudioInstrument->setChannel(oldChannel); // Put it back
+-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
+-					return output;
+-				}
+-
+-			} while (currentSong->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr,
+-			                                                  nullptr, false));
+-
+-			oldNonAudioInstrument->setChannel(oldChannel); // Put it back, before switching notes off etc
+-		}
+-
+-		if (oldNonAudioInstrument->getActiveClip() && playbackHandler.isEitherClockActive()) {
+-			oldNonAudioInstrument->getActiveClip()->expectNoFurtherTicks(currentSong);
+-		}
+-
+-		// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change
+-		// the existing Instrument object!
+-		oldNonAudioInstrument->setChannel(newChannel);
+-		if (outputType == OutputType::MIDI_OUT) {
+-			((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
+-		}
+-
+-		view.displayOutputName(oldNonAudioInstrument);
+-	}
+-
+-	// Or if we're on a Kit or Synth...
+-	else {
+-		PresetNavigationResult results =
+-		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
+-		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
+-removeWorkingAnimationAndGetOut:
+-			if (display->haveOLED()) {
+-				auto oled = static_cast<deluge::hid::display::OLED*>(display);
+-				oled->consoleTimerEvent();
+-				oled->removeWorkingAnimation();
+-			}
+-			return output;
+-		}
+-		else if (results.error != Error::NONE) {
+-			display->displayError(results.error);
+-			goto removeWorkingAnimationAndGetOut;
+-		}
+-
+-		Instrument* newInstrument = results.fileItem->instrument;
+-		Browser::emptyFileItems();
+-
+-		currentSong->replaceInstrument(oldInstrument, newInstrument);
+-
+-		oldInstrument = newInstrument;
+-		display->removeLoadingAnimation();
+-	}
+-
+-	currentSong->instrumentSwapped(oldInstrument);
+-
+-	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E064", "H064");
+-
+-	return oldInstrument;
++void Song::clearLoopHandle() {
++	loopHandleActive = false;
++	loopHandleStart = 0;
++	loopHandleEnd = 0;
+ }
+ 
+-void Song::instrumentSwapped(Instrument* newInstrument) {
+-
+-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
+-
+-	// If we're playing, in this arrangement mode... (TODO: what if it just switched on while we were loading?)
+-	if (arrangement.hasPlaybackActive()) {
+-		int32_t i = newInstrument->clipInstances.search(arrangement.getLivePos() + 1, LESS);
+-
+-tryAgain:
+-		if (i >= 0) {
+-
+-			ClipInstance* clipInstance = newInstrument->clipInstances.getElement(i);
+-
+-			// If it didn't have an actual Clip, look further back in time
+-			if (!clipInstance->clip) {
+-				i--;
+-				goto tryAgain;
+-			}
+-
+-			// Ok, we've got one with a Clip.
+-
+-			// If it's still playing...
+-			if (clipInstance->pos + clipInstance->length > playbackHandler.getActualSwungTickCount()) {
+-				arrangement.resumeClipInstancePlayback(clipInstance); // Sets activeClip
+-			}
+-
+-			// Otherwise, just set the activeClip anyway
+-			else {
+-				ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+-				    modelStack->addTimelineCounter(clipInstance->clip);
+-				newInstrument->setActiveClip(modelStackWithTimelineCounter);
+-			}
+-		}
+-	}
+-
+-	// Or if not, is there another Clip which is active, which needs sorting out with the newInstrument?
+-	else {
+-		Clip* thisClip = getClipWithOutput(newInstrument, true);
+-		if (thisClip) {
+-
+-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(thisClip);
+-
+-			// Assert that thisClip is the active Clip with this Instrument - make any other Clips inactive
+-			// (activity status could have changed while we were loading...)
+-			assertActiveness(modelStackWithTimelineCounter);
+-
+-			if (playbackHandler.isEitherClockActive()) {
+-
+-				thisClip->setPosForParamManagers(modelStackWithTimelineCounter);
+-			}
+-		}
++bool Song::isPositionInLoop(int32_t position) const {
++	if (!loopHandleActive) {
++		return false;
+ 	}
+-
+-	// If all else failed, just try to get any activeClip possible
+-	newInstrument->pickAnActiveClipIfPossible(modelStack);
++	return position >= loopHandleStart && position < loopHandleEnd;
+ }
+ 
+-Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutputType) {
+-
+-	int16_t newSlot = 0;
+-	int8_t newSubSlot = -1;
+-
+-	int32_t oldSlot = newSlot;
+-
+-	Instrument* newInstrument = nullptr;
+-
+-	// MIDI / CV
+-	if (newOutputType == OutputType::MIDI_OUT || newOutputType == OutputType::CV) {
+-
+-		int32_t numChannels = (newOutputType == OutputType::MIDI_OUT) ? 16 : kNumCVInstrumentChannels;
+-
+-		while (true) {
+-
+-			if (!getInstrumentFromPresetSlot(newOutputType, newSlot, newSubSlot, nullptr, nullptr, false)) {
+-				break;
+-			}
+-
+-			newSlot = (newSlot + 1) % numChannels;
+-			newSubSlot = -1;
+-
+-			// If we've searched all channels...
+-			if (newSlot == oldSlot) {
+-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_AVAILABLE_CHANNELS));
+-				return nullptr;
+-			}
+-		}
+-
+-		if (newOutputType == OutputType::MIDI_OUT) {
+-			newInstrument = grabHibernatingMIDIInstrument(newSlot, newSubSlot);
+-			if (newInstrument) {
+-				goto gotAnInstrument;
+-			}
+-		}
+-		newInstrument = StorageManager::createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
+-		if (!newInstrument) {
+-			display->displayError(Error::INSUFFICIENT_RAM);
+-			return nullptr;
+-		}
+-
+-gotAnInstrument: {}
++void Song::convertLoopToSection() {
++	if (!loopHandleActive) {
++		return;
+ 	}
+ 
+-	// Synth or Kit
+-	else {
+-		Error error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
+-		if (error != Error::NONE) {
+-			display->displayError(error);
+-			return nullptr;
+-		}
+-
+-		FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
+-		                                     this, newOutputType, Availability::INSTRUMENT_UNUSED),
+-		                                 error, {
+-			                                 display->displayError(error);
+-			                                 return nullptr;
+-		                                 });
+-
+-		newInstrument = fileItem->instrument;
+-		bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
+-
+-		if (!newInstrument) {
+-			String newPresetName;
+-			fileItem->getDisplayNameWithoutExtension(&newPresetName);
+-			error =
+-			    StorageManager::loadInstrumentFromFile(this, nullptr, newOutputType, false, &newInstrument,
+-			                                           &fileItem->filePointer, &newPresetName, &Browser::currentDir);
+-		}
+-
+-		Browser::emptyFileItems();
+-
+-		if (error != Error::NONE) {
+-			display->displayError(error);
+-			return nullptr;
+-		}
+-
+-		if (isHibernating) {
+-			removeInstrumentFromHibernationList(newInstrument);
++	// Find the next available section
++	int32_t newSectionIndex = 0;
++	for (int32_t i = 0; i < kMaxNumSections; i++) {
++		if (sections[i].numRepetitions == 0) {
++			newSectionIndex = i;
++			break;
+ 		}
+-
+-		display->displayLoadingAnimationText("Loading");
+-
+-		newInstrument->loadAllAudioFiles(true);
+-
+-		display->removeWorkingAnimation();
+-	}
+-
+-#if ALPHA_OR_BETA_VERSION
+-	display->setText("A002");
+-#endif
+-	replaceInstrument(oldInstrument, newInstrument);
+-#if ALPHA_OR_BETA_VERSION
+-	if (display->have7SEG()) {
+-		view.displayOutputName(newInstrument);
+-	}
+-#endif
+-
+-	instrumentSwapped(newInstrument);
+-
+-	return newInstrument;
+-}
+-
+-void Song::setupClipIndexesForSaving() {
+-	// For each Clip in session and arranger
+-	ClipArray* clipArray = &sessionClips;
+-	int32_t sessionIndex = 0;
+-	for (Clip* clip : AllClips::inSession(this)) {
+-		clip->indexForSaving = sessionIndex++;
+-	}
+-	int32_t arrangerOnlyIndex = 0;
+-	for (Clip* clip : AllClips::inArrangementOnly(this)) {
+-		clip->indexForSaving = arrangerOnlyIndex++;
+ 	}
+-}
+ 
+-AudioOutput* Song::getFirstAudioOutput() {
+-	for (Output* output = firstOutput; output; output = output->next) {
+-		if (output->type == OutputType::AUDIO) {
+-			return (AudioOutput*)output;
+-		}
++	if (newSectionIndex >= kMaxNumSections) {
++		return; // No available sections
+ 	}
+-	return nullptr;
+-}
+-
+-AudioInputChannel defaultAudioOutputInputChannel = AudioInputChannel::UNSET;
+ 
+-AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
+-	int32_t highestNumber = 0;
++	// Create a new section with the loop content
++	sections[newSectionIndex].numRepetitions = 1;
+ 
+-	// Find highest number existent so far
++	// Go through all outputs and copy clips within the loop range
+ 	for (Output* output = firstOutput; output; output = output->next) {
+-		if (output->type == OutputType::AUDIO) {
+-			char const* nameChars = output->name.get();
+-			if (memcasecmp(nameChars, "AUDIO", 5)) {
+-				continue;
+-			}
+-
+-			int32_t nameLength = strlen(nameChars);
+-			if (nameLength < 1) {
+-				continue;
+-			}
+-
+-			if (!memIsNumericChars(&nameChars[5], nameLength - 5)) {
+-				continue;
+-			}
+-
+-			int32_t number = stringToInt(&nameChars[5]);
+-			if (number > highestNumber) {
+-				highestNumber = number;
+-			}
+-		}
+-	}
+-
+-	String newName;
+-	Error error = newName.set("AUDIO");
+-	if (error != Error::NONE) {
+-		return nullptr;
+-	}
+-
+-	error = newName.concatenateInt(highestNumber + 1);
+-	if (error != Error::NONE) {
+-		return nullptr;
+-	}
+-
+-	ParamManagerForTimeline newParamManager;
+-	error = newParamManager.setupUnpatched();
+-	if (error != Error::NONE) {
+-		return nullptr;
+-	}
+-
+-	void* outputMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioOutput));
+-	if (!outputMemory) {
+-		return nullptr;
+-	}
++		for (int32_t i = 0; i < output->clipInstances.getNumElements(); i++) {
++			ClipInstance* clipInstance = output->clipInstances.getElement(i);
++			if (!clipInstance->clip) continue;
+ 
+-	auto* newOutput = new (outputMemory) AudioOutput();
+-	newOutput->name.set(&newName);
++			// Check if clip overlaps with loop
++			int32_t clipStart = clipInstance->pos;
++			int32_t clipEnd = clipInstance->pos + clipInstance->length;
+ 
+-	// Set input channel to previously used one. If none selected, see what's in Song
+-	if (defaultAudioOutputInputChannel == AudioInputChannel::UNSET) {
+-
+-		defaultAudioOutputInputChannel = AudioInputChannel::LEFT;
+-		for (Output* output = firstOutput; output; output = output->next) {
+-			if (output->type == OutputType::AUDIO) {
+-				defaultAudioOutputInputChannel = ((AudioOutput*)output)->inputChannel;
+-				break;
++			if (clipStart < loopHandleEnd && clipEnd > loopHandleStart) {
++				// Clip overlaps with loop, copy it to the new section
++				// This is a simplified implementation - in a full implementation
++				// we would need to create proper clip copies and handle automation
++				clipInstance->clip->section = newSectionIndex;
+ 			}
+ 		}
+ 	}
+ 
+-	newOutput->inputChannel = defaultAudioOutputInputChannel;
+-
+-	GlobalEffectableForClip::initParamsForAudioClip(&newParamManager);
+-
+-	backUpParamManager((ModControllableAudio*)newOutput->toModControllable(), nullptr, &newParamManager, true);
+-
+-	if (replaceOutput) {
+-		replaceOutputLowLevel(newOutput, replaceOutput);
+-	}
+-
+-	else {
+-		addOutput(newOutput);
+-	}
+-	return newOutput;
++	// Clear the loop handle after conversion
++	clearLoopHandle();
+ }
+-
+-Output* Song::getNextAudioOutput(int32_t offset, Output* oldOutput, Availability availabilityRequirement) {
+-
+-	Output* newOutput = oldOutput;
+-
+-	// Forward
+-	if (offset < 0) { // Reverses direction
+-		while (true) {
+-			newOutput = newOutput->next;
+-			if (!newOutput) {
+-				newOutput = firstOutput;
+-			}
+-			if (newOutput == oldOutput) {
+-				break;
+-			}
+-			if (availabilityRequirement >= Availability::INSTRUMENT_AVAILABLE_IN_SESSION
+-			    && doesOutputHaveActiveClipInSession(newOutput)) {
+-				continue;
+-			}
+-			if (newOutput->type == OutputType::AUDIO) {
+-				break;
+-			}
+-		}
+-	}
+-
+-	// Backward
+-	else {
+-		Output* investigatingOutput = oldOutput;
+-		while (true) {
+-			investigatingOutput = investigatingOutput->next;
+-			if (!investigatingOutput) {
+-				investigatingOutput = firstOutput;
+-			}
+-			if (investigatingOutput == oldOutput) {
+-				break;
+-			}
+-			if (availabilityRequirement >= Availability::INSTRUMENT_AVAILABLE_IN_SESSION
+-			    && doesOutputHaveActiveClipInSession(investigatingOutput)) {
+-				continue;
+-			}
+-			if (investigatingOutput->type == OutputType::AUDIO) {
+-				newOutput = investigatingOutput;
+-			}
+-		}
+-	}
+-
+-	return newOutput;
+-}
+-
+-// Unassign all Voices first
+-void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
+-
+-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
+-
+-	oldOutput->stopAnyAuditioning(modelStack);
+-
+-	Output** prevPointer;
+-	for (prevPointer = &firstOutput; *prevPointer != oldOutput; prevPointer = &(*prevPointer)->next) {}
+-	newOutput->next = oldOutput->next;
+-	*prevPointer = newOutput;
+-
+-	// Migrate all ClipInstances from oldInstrument to newInstrument
+-	newOutput->clipInstances.swapStateWith(&oldOutput->clipInstances);
+-
+-	newOutput->colour = oldOutput->colour;
+-	oldOutput->colour = 0;
+-
+-	newOutput->mutedInArrangementMode = oldOutput->mutedInArrangementMode;
+-	oldOutput->mutedInArrangementMode = false;
+-
+-	newOutput->soloingInArrangementMode = oldOutput->soloingInArrangementMode;
+-	oldOutput->soloingInArrangementMode = false;
+-
+-	newOutput->armedForRecording = oldOutput->armedForRecording;
+-	oldOutput->armedForRecording = false;
+-
+-	// Properly do away with the oldInstrument
+-	deleteOrAddToHibernationListOutput(oldOutput);
+-
+-	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+-}
+-
+-void Song::getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const* const notesString,
+-                             bool clarifyPerColumn) const {
+-	getNoteLengthNameFromMagnitude(buffer, getNoteMagnitudeFfromNoteLength(noteLength, getInputTickMagnitude()),
+-	                               notesString, clarifyPerColumn);
+-}
+-
+-Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Availability availabilityRequirement,
+-                                                  int16_t newSlot, int8_t newSubSlot,
+-                                                  bool* instrumentWasAlreadyInSong) {
+-	int32_t numChannels = (newOutputType == OutputType::MIDI_OUT) ? 16 : kNumCVInstrumentChannels;
+-	Instrument* newInstrument;
+-	int32_t oldSlot = newSlot;
+-
+-	while (true) {
+-
+-		newInstrument = getInstrumentFromPresetSlot(newOutputType, newSlot, newSubSlot, nullptr, nullptr,
+-		                                            false); // This will always be false! Might rework this though
+-
+-		if (availabilityRequirement == Availability::ANY) {
+-			break;
+-		}
+-		else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
+-			if (!newInstrument || !getClipWithOutput(newInstrument, true)) {
+-				break;
+-			}
+-		}
+-		else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
+-			if (!newInstrument) {
+-				break;
+-			}
+-		}
+-
+-		newSlot = (newSlot + 1) % numChannels;
+-		newSubSlot = -1;
+-
+-		// If we've searched all channels...
+-		if (newSlot == oldSlot) {
+-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS_AVAILABLE));
+-			return nullptr;
+-		}
+-	}
+-
+-	*instrumentWasAlreadyInSong = (newInstrument != nullptr);
+-
+-	// If that didn't work... make a new Instrument to switch to
+-	if (!newInstrument) {
+-
+-		if (newOutputType == OutputType::MIDI_OUT) {
+-			newInstrument = grabHibernatingMIDIInstrument(newSlot, newSubSlot);
+-			if (newInstrument) {
+-				goto gotAnInstrument;
+-			}
+-		}
+-		newInstrument = StorageManager::createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
+-		if (!newInstrument) {
+-			display->displayError(Error::INSUFFICIENT_RAM);
+-			return nullptr;
+-		}
+-	}
+-
+-gotAnInstrument:
+-	return newInstrument;
+-}
+-
+-void Song::removeSessionClip(Clip* clip, int32_t clipIndex, bool forceClipsAboveToMoveVertically) {
+-
+-	// If this is the current Clip for the ClipView...
+-	if (currentClip == clip) {
+-		currentClip = nullptr;
+-	}
+-
+-	// Must unsolo the Clip before we delete it, in case its play-pos needs to be grabbed for another Clip
+-	if (clip->soloingInSessionMode) {
+-		session.unsoloClip(clip);
+-	}
+-
+-	// See if any instances in arranger
+-	bool foundAtLeastOneInstanceInArranger = false;
+-	Output* output = clip->output;
+-
+-	for (int32_t i = 0; i < output->clipInstances.getNumElements(); i++) {
+-		ClipInstance* clipInstance = output->clipInstances.getElement(i);
+-		if (clipInstance->clip == clip) {
+-
+-			int32_t lengthGotUpTo = clipInstance->length;
+-			int32_t startPos = clipInstance->pos;
+-
+-			bool deletedAnyElements = false;
+-
+-lookAtNextOne:
+-			if (i + 1 < output->clipInstances.getNumElements() && (lengthGotUpTo % clip->loopLength) == 0) {
+-
+-				// See if next ClipInstance has the same Clip and lines up as a repeat...
+-				ClipInstance* nextClipInstance =
+-				    output->clipInstances.getElement(i + 1); // We already checked that this exists
+-				if (nextClipInstance->clip == clip && startPos + lengthGotUpTo == nextClipInstance->pos) {
+-
+-					lengthGotUpTo += nextClipInstance->length;
+-
+-					// Delete that later ClipInstance
+-					arrangement.rowEdited(output, nextClipInstance->pos,
+-					                      nextClipInstance->pos + nextClipInstance->length, clip, nullptr);
+-					output->clipInstances.deleteAtIndex(i + 1);
+-					deletedAnyElements = true;
+-					goto lookAtNextOne;
+-				}
+-			}
+-
+-			if (deletedAnyElements) {
+-				clipInstance = output->clipInstances.getElement(i); // Gotta re-get, since storage has changed
+-			}
+-
+-			// If we'd already found one, we'll have to create a clone for this one - and possibly extend it
+-			if (foundAtLeastOneInstanceInArranger) {
+-				arrangement.doUniqueCloneOnClipInstance(clipInstance, lengthGotUpTo);
+-			}
+-
+-			// Otherwise, just extend its length if needed
+-			else {
+-				if (deletedAnyElements) {
+-					int32_t oldLength = clipInstance->length;
+-					clipInstance->length = lengthGotUpTo;
+-					arrangement.rowEdited(output, startPos + oldLength, startPos + lengthGotUpTo, nullptr,
+-					                      clipInstance);
+-				}
+-			}
+-
+-			foundAtLeastOneInstanceInArranger = true;
+-		}
+-	}
+-
+-	int32_t clipYDisplay = clipIndex - songViewYScroll;
+-	int32_t bottomYDisplay = -songViewYScroll;
+-	int32_t topYDisplay = bottomYDisplay + sessionClips.getNumElements() - 1;
+-	bottomYDisplay = std::max(bottomYDisplay, 0_i32);
+-	topYDisplay = std::min(topYDisplay, kDisplayHeight - 1);
+-	int32_t amountOfStuffAbove = topYDisplay - clipYDisplay;
+-	int32_t amountOfStuffBelow = clipYDisplay - bottomYDisplay;
+-
+-	removeSessionClipLowLevel(clip, clipIndex);
+-
+-	// If there was at least one instance, don't properly delete the Clip - just put it in the arranger only. But do
+-	// stop it playing!
+-	if (foundAtLeastOneInstanceInArranger) {
+-
+-		arrangementOnlyClips.insertClipAtIndex((InstrumentClip*)clip, 0);
+-		clip->section = 255;
+-	}
+-
+-	// Otherwise, delete as usual
+-	else {
+-		deleteClipObject(clip, false, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
+-	}
+-
+-	if (forceClipsAboveToMoveVertically || amountOfStuffAbove > amountOfStuffBelow) {
+-		songViewYScroll--;
+-	}
+-
+-	AudioEngine::mustUpdateReverbParamsBeforeNextRender =
+-	    true; // Necessary? Maybe the Instrument would get deleted from the master list?
+-}
+-
+-// Please stop the Clip from soloing before calling this
+-void Song::removeSessionClipLowLevel(Clip* clip, int32_t clipIndex) {
+-
+-	if (playbackHandler.isEitherClockActive() && currentPlaybackMode == &session && clip->activeIfNoSolo) {
+-		clip->expectNoFurtherTicks(this);
+-		clip->activeIfNoSolo = false;
+-	}
+-
+-	for (int y = 0; y < 8; y++) {
+-		auto& m = sessionMacros[y];
+-		if (m.kind == CLIP_LAUNCH && m.clip == clip) {
+-			m.kind = NO_MACRO;
+-		}
+-	}
+-
+-	sessionClips.deleteAtIndex(clipIndex);
+-}
+-
+-// originalClipIndex is optional
+-bool Song::deletePendingOverdubs(Output* onlyWithOutput, int32_t* originalClipIndex,
+-                                 bool createConsequencesForOtherLinearlyRecordingClips) {
+-
+-	// You'd kind of think that we'd want to just not bother with this if playback isn't active, but we're not
+-	// allowed to apply that logic, cos this will get called as playback ends, but after playbackState is set to 0
+-
+-	// But, we're still allowed to do this check
+-	if (playbackHandler.isEitherClockActive() && currentPlaybackMode != &session) {
+-		return false;
+-	}
+-
+-	bool anyDeleted = false;
+-
+-	// For each Clip in session
+-	for (int32_t c = sessionClips.getNumElements() - 1; c >= 0; c--) {
+-		Clip* clip = sessionClips.getClipAtIndex(c);
+-
+-		if (clip->isPendingOverdub && (!onlyWithOutput || clip->output == onlyWithOutput)) {
+-			removeSessionClip(clip, c, true);
+-
+-			if (originalClipIndex && *originalClipIndex > c) {
+-				(*originalClipIndex)--;
+-			}
+-
+-			anyDeleted = true;
+-		}
+-		// this isn't actually deleting, but it is clearing a pending overdub which is what matters for the caller
+-		else if (clip->armState == ArmState::ON_TO_RECORD) {
+-			clip->armState = ArmState::OFF;
+-			anyDeleted = true;
+-		}
+-	}
+-	D_PRINTLN("Deleted pending overdubs");
+-	return anyDeleted;
+-}
+-
+-int32_t Song::getYScrollSongViewWithoutPendingOverdubs() {
+-	int32_t numToSearch = std::min(sessionClips.getNumElements(), songViewYScroll + kDisplayHeight);
+-
+-	int32_t outputValue = songViewYScroll;
+-
+-	for (int32_t i = 0; i < numToSearch; i++) {
+-		Clip* clip = sessionClips.getClipAtIndex(i);
+-		if (clip->isPendingOverdub) {
+-			outputValue--;
+-		}
+-	}
+-
+-	return outputValue;
+-}
+-
+-Clip* Song::getPendingOverdubWithOutput(Output* output) {
+-
+-	// For each Clip in session
+-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
+-		Clip* clip = sessionClips.getClipAtIndex(c);
+-
+-		if (clip->isPendingOverdub && clip->output == output) {
+-			return clip;
+-		}
+-	}
+-
+-	return nullptr;
+-}
+-
+-Clip* Song::getClipWithOutputAboutToBeginLinearRecording(Output* output) {
+-
+-	// For each Clip in session
+-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
+-		Clip* clip = sessionClips.getClipAtIndex(c);
+-
+-		if (clip->output == output && clip->armState != ArmState::OFF && !isClipActive(clip)
+-		    && clip->wantsToBeginLinearRecording(this)) {
+-			return clip;
+-		}
+-	}
+-
+-	return nullptr;
+-}
+-
+-Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, OverDubType newOverdubNature) {
+-	Clip* newClip = clip; // we're returning the clip to be scheduled, default to this one
+-	// No automatic overdubs are allowed during soloing, cos that's just too complicated
+-	if (anyClipsSoloing) {
+-		return nullptr;
+-	}
+-	// if we're in rows or the clip can't support in place overdub then use the traditional deluge cloning looper
+-	if (sessionLayout == SessionLayoutType::SessionLayoutTypeRows || clip->shouldCloneForOverdubs()) {
+-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+-		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
+-
+-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+-
+-		newClip = clip->cloneAsNewOverdub(modelStackWithTimelineCounter, newOverdubNature);
+-
+-		if (newClip && newClip != clip) {
+-			newClip->overdubNature = newOverdubNature;
+-			sessionClips.insertClipAtIndex(newClip, clipIndex);
+-			if (clipIndex != songViewYScroll) {
+-				songViewYScroll++;
+-			}
+-
+-			// use root UI in case this is called from performance view
+-			sessionView.requestRendering(getRootUI());
+-		}
+-	}
+-	else {
+-		clip->setupOverdubInPlace(newOverdubNature);
+-	}
+-
+-	return newClip;
+-}
+-
+-bool Song::hasAnyPendingNextOverdubs() {
+-
+-	// For each Clip in session
+-	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
+-		Clip* clip = sessionClips.getClipAtIndex(c);
+-
+-		if (clip->isPendingOverdub) {
+-			return true;
+-		}
+-	}
+-
+-	return false;
+-}
+-
+-int32_t Song::countAudioClips() const {
+-	int32_t i = 0;
+-	for (Output* output = firstOutput; output; output = output->next) {
+-		if (output->type == OutputType::AUDIO) {
+-			if (output->getActiveClip()) {
+-				AudioClip* clip = (AudioClip*)output->getActiveClip();
+-				// this seems to be the only way to find whether the voice is sounding
+-				if (isClipActive(clip)) {
+-					i++;
+-				}
+-			}
+-		}
+-	}
+-	return i;
+-}
+-
+-void Song::cullAudioClipVoice() {
+-	AudioClip* bestClip = nullptr;
+-	uint64_t lowestImmunity = 0xFFFFFFFFFFFFFFFF;
+-
+-	for (Output* output = firstOutput; output; output = output->next) {
+-		if (output->type == OutputType::AUDIO) {
+-			if (output->getActiveClip()) {
+-				AudioClip* clip = (AudioClip*)output->getActiveClip();
+-				if (clip->voiceSample && clip->voiceSample->oscPos > 0) {
+-					uint64_t immunity = clip->getCullImmunity();
+-					lowestImmunity = immunity;
+-					bestClip = clip;
+-				}
+-			}
+-		}
+-	}
+-
+-	if (bestClip) {
+-		bestClip->unassignVoiceSample(false);
+-		D_PRINTLN("audio clip voice culled!");
+-	}
+-}
+-
+-void Song::swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex) {
+-	sessionClips.setPointerAtIndex(newClip, clipIndex);
+-
+-	if (oldClip == getSyncScalingClip()) {
+-		syncScalingClip = newClip;
+-	}
+-
+-	if (oldClip == currentClip) {
+-		currentClip = newClip;
+-	}
+-
+-	deleteClipObject(oldClip);
+-}
+-
+-Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex) {
+-
+-	// Allocate memory for audio clip
+-	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
+-	if (!clipMemory) {
+-		return nullptr;
+-	}
+-
+-	// Suss output
+-	AudioOutput* newOutput = createNewAudioOutput();
+-	if (!newOutput) {
+-		delugeDealloc(clipMemory);
+-		return nullptr;
+-	}
+-
+-	newOutput->colour = oldClip->output->colour;
+-
+-	// Create the audio clip and ParamManager
+-	AudioClip* newClip = new (clipMemory) AudioClip();
+-
+-	// Give the new clip its stuff
+-	newClip->cloneFrom(oldClip);
+-	newClip->colourOffset = random(72);
+-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
+-	newClip->setOutput(modelStack->addTimelineCounter(newClip), newOutput);
+-
+-	if (defaultAudioClipOverdubOutputCloning == -1) {
+-		defaultAudioClipOverdubOutputCloning = 1;
+-		// For each Clip in session
+-		for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
+-			Clip* clip = sessionClips.getClipAtIndex(c);
+-
+-			if (clip->type == ClipType::AUDIO && clip->armedForRecording) {
+-				defaultAudioClipOverdubOutputCloning = ((AudioClip*)clip)->overdubsShouldCloneOutput;
+-				break;
+-			}
+-		}
+-	}
+-	newClip->overdubsShouldCloneOutput = defaultAudioClipOverdubOutputCloning;
+-
+-	// Might want to prevent new audio clip from being active if playback is on
+-	if (playbackHandler.playbackState && isClipActive(oldClip)) {
+-		newClip->activeIfNoSolo = false;
+-
+-		// Must unsolo the Clip before we delete it, in case its play-pos needs to be grabbed for another Clip
+-		if (oldClip->soloingInSessionMode) {
+-			session.unsoloClip(oldClip);
+-		}
+-	}
+-
+-	swapClips(newClip, oldClip, clipIndex);
+-
+-	return newClip;
+-}
+-
+-void Song::changeSwingInterval(int32_t newValue) {
+-
+-	swingInterval = newValue;
+-
+-	if (playbackHandler.isInternalClockActive()) {
+-
+-		int32_t leftShift = 10 - swingInterval;
+-		leftShift = std::max(leftShift, 0_i32);
+-		uint32_t doubleSwingInterval = 3 << (leftShift);
+-
+-		// Rejig the timer tick stuff
+-		uint64_t currentInternalTick = playbackHandler.getCurrentInternalTickCount();
+-
+-		uint64_t startOfSwingWindow = currentInternalTick / doubleSwingInterval * doubleSwingInterval;
+-
+-		if (startOfSwingWindow != playbackHandler.lastTimerTickActioned) {
+-			playbackHandler.timeLastTimerTickBig = (uint64_t)playbackHandler.getInternalTickTime(startOfSwingWindow)
+-			                                       << 32;
+-
+-			playbackHandler.lastTimerTickActioned = startOfSwingWindow;
+-		}
+-
+-		playbackHandler.scheduleNextTimerTick(doubleSwingInterval);
+-
+-		// Reschedule all the other stuff
+-		playbackHandler.swungTickScheduled = false;
+-		playbackHandler.scheduleSwungTickFromInternalClock();
+-
+-		if (playbackHandler.currentlySendingMIDIOutputClocks()) {
+-			playbackHandler.midiClockOutTickScheduled = false;
+-			playbackHandler.scheduleMIDIClockOutTick();
+-		}
+-
+-		if (cvEngine.isTriggerClockOutputEnabled()) {
+-			playbackHandler.triggerClockOutTickScheduled = false;
+-			playbackHandler.scheduleTriggerClockOutTick();
+-		}
+-	}
+-}
+-
+-uint32_t Song::getSixteenthNoteLength() {
+-	return increaseMagnitude(6, getInputTickMagnitude());
+-}
+-
+-uint32_t Song::getQuarterNoteLength() {
+-	return increaseMagnitude(24, getInputTickMagnitude());
+-}
+-
+-uint32_t Song::getBarLength() {
+-	return increaseMagnitude(96, getInputTickMagnitude());
+-}
+-
+-// ----- PlayPositionCounter implementation -------
+-
+-bool Song::isPlayingAutomationNow() const {
+-	return (currentPlaybackMode == &arrangement || playbackHandler.recording == RecordingMode::ARRANGEMENT);
+-}
+-
+-bool Song::backtrackingCouldLoopBackToEnd() const {
+-	return false;
+-}
+-
+-int32_t Song::getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack) const {
+-	return 2147483647;
+-}
+-
+-void Song::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
+-	if (affectEntire) {
+-		modelStack->setTimelineCounter(this);
+-		modelStack->addOtherTwoThingsButNoNoteRow(&globalEffectable, &paramManager);
+-	}
+-	else {
+-		modelStack->setTimelineCounter(nullptr);
+-		modelStack->addOtherTwoThingsButNoNoteRow(nullptr, nullptr);
+-	}
+-}
+-
+-void Song::expectEvent() {
+-	playbackHandler.expectEvent();
+-}
+-
+-uint32_t Song::getLivePos() const {
+-
+-	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+-		return playbackHandler.getActualArrangementRecordPos();
+-	}
+-	else {
+-		return arrangement.getLivePos();
+-	}
+-}
+-
+-// I think I created this function to be called during the actioning of a swung tick, when we know that no further
+-// swung ticks have passed since the last actioned one
+-int32_t Song::getLastProcessedPos() const {
+-
+-	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+-		return playbackHandler.getArrangementRecordPosAtLastActionedSwungTick();
+-	}
+-	else {
+-		return arrangement.lastProcessedPos;
+-	}
+-}
+-
+-int32_t Song::getLoopLength() const {
+-	return 2147483647;
+-}
+-
+-TimelineCounter* Song::getTimelineCounterToRecordTo() {
+-	return this;
+-}
+-
+-void Song::setDefaultVelocityForAllInstruments(uint8_t newDefaultVelocity) {
+-	for (Output* output = firstOutput; output; output = output->next) {
+-		if (output->type != OutputType::AUDIO) {
+-			((Instrument*)output)->defaultVelocity = newDefaultVelocity;
+-		}
+-	}
+-
+-	for (Instrument* instrument = firstHibernatingInstrument; instrument; instrument = (Instrument*)instrument->next) {
+-		instrument->defaultVelocity = newDefaultVelocity;
+-	}
+-}
+-
+-int32_t Song::convertSyncLevelFromFileValueToInternalValue(int32_t fileValue) {
+-
+-	// The file value is relative to insideWorldTickMagnitude etc, though if insideWorldTickMagnitude is 1 (which
+-	// used to be the default), it comes out as the same value anyway (kind of a side point)
+-
+-	if (fileValue == 0) {
+-		return 0; // 0 means "off"
+-	}
+-	int32_t internalValue = fileValue + 1 - (getInputTickMagnitude());
+-	if (internalValue < 1) {
+-		internalValue = 1;
+-	}
+-	else if (internalValue > 9) {
+-		internalValue = 9;
+-	}
+-
+-	return internalValue;
+-}
+-
+-int32_t Song::convertSyncLevelFromInternalValueToFileValue(int32_t internalValue) {
+-
+-	if (internalValue == 0) {
+-		return 0; // 0 means "off"
+-	}
+-	int32_t fileValue = internalValue - 1 + (getInputTickMagnitude());
+-	if (fileValue < 1) {
+-		fileValue = 1;
+-	}
+-
+-	return fileValue;
+-}
+-
+-String Song::getSongFullPath() {
+-	String fullPath;
+-	fullPath.concatenate(&dirPath);
+-	fullPath.concatenate("/");
+-	fullPath.concatenate(&name);
+-	fullPath.concatenate(".XML");
+-	return fullPath;
+-}
+-
+-#pragma GCC diagnostic push
+-#pragma GCC diagnostic ignored "-Wstack-usage="
+-void Song::setSongFullPath(const char* fullPath) {
+-	if (char* filename = strrchr((char*)fullPath, '/')) {
+-		auto fullPathLength = strlen(fullPath);
+-		char dir[sizeof(char) * fullPathLength + 1];
+-
+-		memset(dir, 0, sizeof(char) * fullPathLength + 1);
+-		strncpy(dir, fullPath, fullPathLength - strlen(filename));
+-
+-		dirPath.set(dir);
+-		name.set(++filename);
+-	}
+-	else {
+-		name.set(fullPath);
+-	}
+-}
+-#pragma GCC diagnostic pop
+-
+-void Song::midiCableBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone,
+-                                               int32_t whichBendRange, int32_t bendSemitones) {
+-
+-	// Go through all Instruments...
+-	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+-		thisOutput->offerBendRangeUpdate(modelStack, cable, channelOrZone, whichBendRange, bendSemitones);
+-	}
+-}
+-
+-Error Song::addInstrumentsToFileItems(OutputType outputType) {
+-	bool doingHibernatingOnes;
+-	Output* thisOutput;
+-	if (false) {
+-doHibernatingInstruments:
+-		thisOutput = firstHibernatingInstrument;
+-		doingHibernatingOnes = true;
+-	}
+-	else {
+-		thisOutput = firstOutput;
+-		doingHibernatingOnes = false;
+-	}
+-
+-	// First, check all other Instruments in memory, in case the next one in line isn't saved
+-	for (; thisOutput; thisOutput = thisOutput->next) {
+-
+-		if (thisOutput->type != outputType) {
+-			continue;
+-		}
+-
+-		Instrument* thisInstrument = (Instrument*)thisOutput;
+-
+-		// If different path, it's not relevant.
+-		if (!thisInstrument->dirPath.equals(&Browser::currentDir)) {
+-			continue;
+-		}
+-
+-		FileItem* thisItem = loadInstrumentPresetUI.getNewFileItem();
+-
+-		if (!thisItem) {
+-			return Error::INSUFFICIENT_RAM;
+-		}
+-
+-		Error error = thisItem->setupWithInstrument(thisInstrument, doingHibernatingOnes);
+-
+-		if (error != Error::NONE) {
+-			return error;
+-		}
+-	}
+-
+-	if (!doingHibernatingOnes) {
+-		goto doHibernatingInstruments;
+-	}
+-
+-	return Error::NONE;
+-}
+-
+-void Song::getCurrentRootNoteAndScaleName(StringBuf& buffer) {
+-	char noteName[5];
+-	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
+-	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
+-
+-	buffer.append(noteName);
+-	if (display->haveOLED()) {
+-		buffer.append(" ");
+-		buffer.append(getScaleName(getCurrentScale()));
+-	}
+-}
+-
+-void Song::displayCurrentRootNoteAndScaleName() {
+-	DEF_STACK_STRING_BUF(popupMsg, 40);
+-	getCurrentRootNoteAndScaleName(popupMsg);
+-	if (display->haveOLED()) {
+-		UI* currentUI = getCurrentUI();
+-		bool isSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
+-		// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
+-		if (isSessionView && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
+-			sessionView.displayCurrentRootNoteAndScaleName(deluge::hid::display::OLED::main, popupMsg, true);
+-			deluge::hid::display::OLED::markChanged();
+-			return;
+-		}
+-	}
+-	display->displayPopup(popupMsg.c_str());
+-}
+-
+-void Song::commandTranspose(int32_t interval) {
+-	if (Buttons::isShiftButtonPressed()) {
+-		adjustMasterTransposeInterval(interval);
+-	}
+-	else {
+-		transpose(interval);
+-	}
+-}
+-
+-void Song::transpose(int32_t interval) {
+-	if (anyScaleModeClips()) {
+-		if (masterTransposeInterval != 0) {
+-			interval *= currentSong->masterTransposeInterval;
+-		}
+-		transposeAllScaleModeClips(interval);
+-		displayCurrentRootNoteAndScaleName();
+-	}
+-	else {
+-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_TRANSPOSE));
+-	}
+-}
+-
+-void Song::adjustMasterTransposeInterval(int32_t interval) {
+-	masterTransposeInterval += interval;
+-	if (masterTransposeInterval < 0) {
+-		masterTransposeInterval = 0;
+-	}
+-	displayMasterTransposeInterval();
+-}
+-
+-void Song::displayMasterTransposeInterval() {
+-	DEF_STACK_STRING_BUF(popupMsg, 40);
+-
+-	if (display->haveOLED()) {
+-		popupMsg.append("Transpose Interval: \n");
+-		if (masterTransposeInterval == 0) {
+-			popupMsg.append("Encoder");
+-		}
+-		else {
+-			popupMsg.appendInt(masterTransposeInterval);
+-			popupMsg.append(" Semitones");
+-		}
+-	}
+-	else {
+-		if (masterTransposeInterval == 0) {
+-			popupMsg.append("ENC");
+-		}
+-		else {
+-			popupMsg.appendInt(masterTransposeInterval);
+-		}
+-	}
+-	display->displayPopup(popupMsg.c_str());
+-}
+-
+-ModelStackWithThreeMainThings* Song::setupModelStackWithSongAsTimelineCounter(void* memory) {
+-	return setupModelStackWithThreeMainThingsButNoNoteRow(memory, this, &globalEffectable, this, &paramManager);
+-}
+-
+-ModelStackWithTimelineCounter* Song::setupModelStackWithCurrentClip(void* memory) {
+-	return setupModelStackWithTimelineCounter(memory, this, currentClip);
+-}
+-
+-ModelStackWithThreeMainThings* Song::addToModelStack(ModelStack* modelStack) {
+-	return modelStack->addTimelineCounter(this)->addOtherTwoThingsButNoNoteRow(&globalEffectable, &paramManager);
+-}
+-
+-ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID) {
+-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+-
+-	if (modelStack) {
+-		modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(paramID);
+-	}
+-
+-	return modelStackWithParam;
+-}
+-
+-void Song::updateBPMFromAutomation() {
+-	// There seems to be a param manager bug where it occasionally reports unautomated params as 0 so just ignore
+-	// that
+-	int32_t currentTempo = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO);
+-	if (currentTempo && currentTempo != intBPM) {
+-		setBPMInner((float)currentTempo / 100, false);
+-		intBPM = currentTempo;
+-	}
+-}
+-
+-void Song::changeThresholdRecordingMode(int8_t offset) {
+-	// have we displayed the current threshold recording mode?
+-	// if yes, allow user to edit threshold recording mode
+-	if (display->hasPopupOfType(PopupType::THRESHOLD_RECORDING_MODE)) {
+-		int8_t newThresholdRecordingMode = util::to_underlying(currentSong->thresholdRecordingMode);
+-		if (offset < 0) {
+-			newThresholdRecordingMode = std::clamp(int8_t(newThresholdRecordingMode + offset),
+-			                                       kFirstThresholdRecordingMode, newThresholdRecordingMode);
+-		}
+-		else if (offset > 0) {
+-			newThresholdRecordingMode = std::clamp(int8_t(newThresholdRecordingMode + offset),
+-			                                       newThresholdRecordingMode, kLastThresholdRecordingMode);
+-		}
+-
+-		currentSong->thresholdRecordingMode = static_cast<ThresholdRecordingMode>(newThresholdRecordingMode);
+-	}
+-
+-	displayThresholdRecordingMode();
+-}
+-
+-void Song::displayThresholdRecordingMode() {
+-	DEF_STACK_STRING_BUF(popupMsg, 40);
+-	if (display->haveOLED()) {
+-		popupMsg.append("Threshold: ");
+-	}
+-
+-	switch (currentSong->thresholdRecordingMode) {
+-	case ThresholdRecordingMode::OFF:
+-		popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DISABLED));
+-		break;
+-
+-	case ThresholdRecordingMode::LOW:
+-		popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_LOW));
+-		break;
+-
+-	case ThresholdRecordingMode::MEDIUM:
+-		popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MEDIUM));
+-		break;
+-
+-	case ThresholdRecordingMode::HIGH:
+-		popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HIGH));
+-		break;
+-
+-	default:
+-		break;
+-	}
+-
+-	display->popupText(popupMsg.c_str(), PopupType::THRESHOLD_RECORDING_MODE);
+-}
+-
+-/*
+-    // For each Clip in session and arranger
+-    ClipArray* clipArray = &sessionClips;
+-traverseClips:
+-    for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
+-        Clip* clip = clipArray->getClipAtIndex(c);
+-
+-    }
+-    if (clipArray != &arrangementOnlyClips) { clipArray = &arrangementOnlyClips; goto traverseClips; }
+-
+-
+-
+-    // For each InstrumentClip in session and arranger
+-    ClipArray* clipArray = &sessionClips;
+-traverseClips:
+-    for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
+-        Clip* clip = clipArray->getClipAtIndex(c);
+-        if (clip->type != ClipType::INSTRUMENT) continue;
+-        Clip* instrumentClip = (Clip*)clip;
+-
+-    }
+-    if (clipArray != &arrangementOnlyClips) { clipArray = &arrangementOnlyClips; goto traverseClips; }
+-
+-
+-
+-    // For each Clip in session
+-    for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
+-        Clip* clip = sessionClips.getClipAtIndex(c);
+-
+-    }
+-
+-
+-    // For each Clip in arrangement
+-    for (int32_t c = 0; c < arrangementOnlyClips.getNumElements(); c++) {
+-        Clip* clip = arrangementOnlyClips.getClipAtIndex(c);
+-
+-    }
+-
+-
+-
+-    // For each Clip in session and arranger for specific Output
+-    int32_t numElements = sessionClips.getNumElements();
+-    bool doingArrangementClips = false;
+-traverseClips:
+-    for (int32_t c = 0; c < numElements; c++) {
+-        Clip* clip;
+-        if (!doingArrangementClips) {
+-            clip = sessionClips.getClipAtIndex(c);
+-            if (clip->output != output) continue;
+-        }
+-        else {
+-            ClipInstance* clipInstance = output->clipInstances.getElement(c);
+-            if (!clipInstance->clip) continue;
+-            if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+-            clip = clipInstance->clip;
+-        }
+-
+-    }
+-    if (!doingArrangementClips) { doingArrangementClips = true; numElements =
+-output->clipInstances.getNumElements(); goto traverseClips; }
+-
+-
+-
+-
+-
+-    // For each Clip in session and arranger for specific Output - but if currentlySwappingInstrument, use master
+-list for arranger Clips ClipArray* clipArray = &sessionClips; bool doingClipsProvidedByOutput = false;
+-decideNumElements: int32_t numElements = clipArray->getNumElements(); traverseClips: for (int32_t c = 0; c <
+-numElements; c++) { Clip* clip; if (!doingClipsProvidedByOutput) { clip = clipArray->getClipAtIndex(c); if
+-(clip->output != output) continue;
+-        }
+-        else {
+-            ClipInstance* clipInstance = output->clipInstances.getElement(c);
+-            if (!clipInstance->clip) continue;
+-            if (!clipInstance->clip->isArrangementOnlyClip()) continue;
+-            clip = clipInstance->clip;
+-        }
+-
+-    }
+-    if (!doingClipsProvidedByOutput && clipArray == &sessionClips) {
+-        if (currentlySwappingInstrument) { clipArray = &arrangementOnlyClips; goto decideNumElements; }
+-        else { doingClipsProvidedByOutput = true; numElements = output->clipInstances.getNumElements(); goto
+-traverseClips; }
+-    }
+- */
+-
+-//    for (Output* output = firstOutput; output; output = output->next) {

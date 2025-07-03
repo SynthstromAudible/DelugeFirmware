@@ -1,0 +1,283 @@
+diff --git a/docs/community_features.md b/docs/community_features.md
+index 123f8c6d..21d453f6 100644
+--- a/docs/community_features.md
++++ b/docs/community_features.md
+@@ -309,6 +309,10 @@ which track to record from. To run the instrument through the audio clip's FX ch
+ - ([#2299]) `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG GRID VIEW` will now always open the `CLIP MODE` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
+ - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
+ 
++### 3.29 Added ability to Start / Restart Playback from Specific Clip Pad in Arranger View
++- ([#2615]) Added ability to start / restart arrangement playback from the clip pad you're holding in arranger view.
++  - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
++
+ ## 4. New Features Added
+ 
+ Here is a list of features that have been added to the firmware as a list, grouped by category:
+@@ -1497,6 +1501,8 @@ different firmware
+ 
+ [#2475]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2475
+ 
++[#2615]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2475
++
+ [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
+ 
+ [Velocity View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/velocity_view.md
+diff --git a/src/deluge/gui/views/arranger_view.cpp b/src/deluge/gui/views/arranger_view.cpp
+index 4920f6bd..4cb53cca 100644
+--- a/src/deluge/gui/views/arranger_view.cpp
++++ b/src/deluge/gui/views/arranger_view.cpp
+@@ -99,6 +99,10 @@ ArrangerView::ArrangerView() {
+ 	lastInteractedClipInstance = nullptr;
+ 
+ 	lastInteractedArrangementPos = -1;
++
++	isLooping = false;
++	loopStartPos = -1;
++	loopEndPos = -1;
+ }
+ 
+ void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+@@ -387,7 +391,15 @@ doActualSimpleChange:
+ 			if (inCardRoutine) {
+ 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+ 			}
+-			clearArrangement();
++			if (isLooping) {
++				isLooping = false;
++				loopStartPos = -1;
++				loopEndPos = -1;
++				uiNeedsRendering(this);
++			}
++			else {
++				clearArrangement();
++			}
+ 		}
+ 	}
+ 
+@@ -409,6 +421,15 @@ doActualSimpleChange:
+ 	}
+ 
+ 	else {
++		if (on && b == PLAY) {
++			if (playbackHandler.isInternalClockActive()) {
++				stoppingPlayback = true;
++			}
++			else {
++				stoppingPlayback = false;
++			}
++		}
++
+ 		return TimelineView::buttonAction(b, on, inCardRoutine);
+ 	}
+ 
+@@ -1237,6 +1258,58 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
+ 		}
+ 	}
+ 
++	else if (Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT)) {
++		if (on) {
++			int32_t squareStart = getPosFromSquare(x, xScroll);
++			int32_t squareEnd = getPosFromSquare(x + 1, xScroll);
++
++			if (squareStart >= squareEnd) {
++				FREEZE_WITH_ERROR("E210");
++			}
++
++			Buttons::considerCrossScreenReleaseForCrossScreenMode = false;
++
++			bool looping = true;
++
++			if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
++				if (squareEnd > lastInteractedArrangementPos) {
++					loopEndPos = squareEnd;
++					if (loopStartPos != lastInteractedArrangementPos) {
++						loopStartPos = lastInteractedArrangementPos;
++					}
++				}
++				else {
++					looping = false;
++				}
++			}
++			else {
++				if (loopEndPos >= squareStart && loopEndPos <= squareEnd) { // exit looping
++					loopEndSelected = true;
++					loopStartSelected = false;
++				}
++				else if (loopStartPos >= squareStart && loopStartPos <= squareEnd) { // remove start marker
++					loopStartSelected = true;
++					loopEndSelected = false;
++				}
++				else {
++					if (loopStartSelected) {
++						loopStartPos = squareStart;
++					}
++					else if (loopEndSelected) {
++						loopEndPos = squareEnd;
++					}
++					else {
++						loopStartPos = squareStart;
++						loopEndPos = getPosFromSquare(kDisplayWidth, xScroll);
++					}
++				}
++			}
++
++			isLooping = looping;
++
++			uiNeedsRendering(this);
++		}
++	}
+ 	else {
+ 
+ 		if (on) {
+@@ -2263,6 +2336,20 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
+ 		}
+ 	}
+ 
++	if (isLooping) {
++		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
++			int32_t squareStart = getPosFromSquare(xDisplay, xScroll);
++			int32_t squareEnd = getPosFromSquare(xDisplay + 1, xScroll);
++
++			if (squareStart == loopStartPos) {
++				imageThisRow[xDisplay] = colours::cyan;
++			}
++			else if (squareEnd == loopEndPos) {
++				imageThisRow[xDisplay] = colours::magenta;
++			}
++		}
++	}
++
+ 	return true;
+ }
+ 
+diff --git a/src/deluge/gui/views/arranger_view.h b/src/deluge/gui/views/arranger_view.h
+index b18fc08e..11c2af9e 100644
+--- a/src/deluge/gui/views/arranger_view.h
++++ b/src/deluge/gui/views/arranger_view.h
+@@ -116,6 +116,13 @@ public:
+ 
+ 	int32_t lastInteractedArrangementPos;
+ 
++	bool isLooping;
++	int32_t loopStartPos;
++	int32_t loopEndPos;
++	bool loopStartSelected = false;
++	bool loopEndSelected = false;
++	bool stoppingPlayback = false;
++
+ 	int32_t lastTickSquare;
+ 
+ 	int32_t xScrollWhenPlaybackStarted;
+diff --git a/src/deluge/playback/mode/arrangement.cpp b/src/deluge/playback/mode/arrangement.cpp
+index 396173e2..9f70fd5d 100644
+--- a/src/deluge/playback/mode/arrangement.cpp
++++ b/src/deluge/playback/mode/arrangement.cpp
+@@ -112,6 +112,12 @@ void Arrangement::doTickForward(int32_t posIncrement) {
+ 
+ 	bool anyChangeToSessionClipsPlaying = false;
+ 
++	if (playbackHandler.isInternalClockActive() && arrangerView.isLooping
++	    && (lastProcessedPos >= (arrangerView.loopEndPos - 1))) {
++		playbackHandler.forceResetPlayPos(currentSong);
++		return;
++	}
++
+ 	lastProcessedPos += posIncrement;
+ 
+ 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+diff --git a/src/deluge/playback/playback_handler.cpp b/src/deluge/playback/playback_handler.cpp
+index 80cf810d..b7082751 100644
+--- a/src/deluge/playback/playback_handler.cpp
++++ b/src/deluge/playback/playback_handler.cpp
+@@ -190,7 +190,11 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
+ 		bool accessibility = runtimeFeatureSettings.get(RuntimeFeatureSettingType::AccessibilityShortcuts)
+ 		                     == RuntimeFeatureStateToggle::On;
+ 
+-		bool isArrangerView = getCurrentUI() == &arrangerView;
++		RootUI* rootUI = getRootUI();
++
++		bool isArrangerView =
++		    rootUI == &arrangerView
++		    || (rootUI == &performanceSessionView && currentSong->lastClipInstanceEnteredStartPos != -1);
+ 
+ 		bool isRestartShortcutPressed =
+ 		    (accessibility && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))
+@@ -201,16 +205,21 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
+ 		// isSongPadPressed = restart playhead in song view
+ 		// isClipPadPressed = restart playhead in clip view
+ 
++		bool isArrangementLooping = isArrangerView && arrangerView.isLooping;
++
+ 		bool isSequencerPadPressed = isArrangementPadPressed; // add isSongPadPressed and isClipPadPressed here
+ 
+ 		// If holding restart shortcut down...
+ 		// or holding pad in arranger view (and eventually song and clip views)
+-		if (isRestartShortcutPressed || isSequencerPadPressed) {
++		if (isRestartShortcutPressed || isSequencerPadPressed || isArrangementLooping) {
+ 			// If wanting to switch into arranger...
+ 			if (currentPlaybackMode == &session && isArrangerView) {
+ 				if (isArrangementPadPressed) {
+ 					arrangementPosToStartAtOnSwitch = arrangerView.lastInteractedArrangementPos;
+ 				}
++				else if (isArrangementLooping) {
++					arrangementPosToStartAtOnSwitch = arrangerView.loopStartPos;
++				}
+ 				else {
+ 					arrangementPosToStartAtOnSwitch = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+ 				}
+@@ -317,7 +326,8 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
+ 
+ 	RootUI* rootUI = getRootUI();
+ 
+-	bool isArrangerView = rootUI == &arrangerView;
++	bool isArrangerView = rootUI == &arrangerView
++	                      || (rootUI == &performanceSessionView && currentSong->lastClipInstanceEnteredStartPos != -1);
+ 
+ 	bool alternativePlaybackStartBehaviour =
+ 	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour)
+@@ -337,9 +347,12 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
+ 	// isSongPadPressed = restart playhead in song view
+ 	// isClipPadPressed = restart playhead in clip view
+ 
++	bool isArrangementLooping = (currentSong->lastClipInstanceEnteredStartPos != -1) && arrangerView.isLooping;
++
+ 	bool useScrollPosition = isRestartShortcutPressed || useArrangementScrollPosition;
+ 
+-	bool useSpecificPosition = isArrangementPadPressed; // add isSongPadPressed and isClipPadPressed here
++	bool useSpecificPosition =
++	    isArrangementPadPressed || isArrangementLooping; // add isSongPadPressed and isClipPadPressed here
+ 
+ 	// 	  Allow playback to start from current scroll if:
+ 	//    1) horizontal encoder (<>) or cross screen is held and alternative playback start behaviour
+@@ -352,7 +365,6 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
+ 	//	  1) you're in arranger view and holding a pad in the arrangement
+ 
+ 	if (useScrollPosition || useSpecificPosition) {
+-
+ 		int32_t navSys;
+ 		if (rootUI) {
+ 			if (auto* timelineView = rootUI->toTimelineView()) {
+@@ -366,6 +378,9 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
+ 		if (isArrangementPadPressed) {
+ 			newPos = arrangerView.lastInteractedArrangementPos;
+ 		}
++		else if (isArrangementLooping) {
++			newPos = arrangerView.loopStartPos;
++		}
+ 		else {
+ 			newPos = currentSong->xScroll[navSys];
+ 		}
+@@ -477,7 +492,12 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
+ 	actionLogger.closeAction(ActionType::RECORD);
+ 
+ 	if (shouldShiftAccordingToClipInstance && currentPlaybackMode == &arrangement && rootUIIsClipMinderScreen()) {
+-		playFromPos += currentSong->lastClipInstanceEnteredStartPos;
++		if (arrangerView.isLooping) {
++			playFromPos = arrangerView.loopStartPos;
++		}
++		else {
++			playFromPos += currentSong->lastClipInstanceEnteredStartPos;
++		}
+ 	}
+ 
+ 	ignoringMidiClockInput = false;

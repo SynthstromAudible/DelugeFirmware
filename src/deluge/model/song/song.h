@@ -462,6 +462,21 @@ public:
 	void displayThresholdRecordingMode();
 	ThresholdRecordingMode thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 
+	// Loop Handle state for Arranger View
+	bool loopHandleActive = false;
+	int32_t loopHandleStart = 0;
+	int32_t loopHandleEnd = 0;
+	int32_t loopHandleLastLength = 0; // Last used loop length for quick restoration
+
+	// Loop Handle methods
+	void setLoopHandle(int32_t start, int32_t end);
+	void clearLoopHandle();
+	bool isLoopHandleActive() const { return loopHandleActive; }
+	int32_t getLoopHandleStart() const { return loopHandleStart; }
+	int32_t getLoopHandleEnd() const { return loopHandleEnd; }
+	bool isPositionInLoop(int32_t position) const;
+	void convertLoopToSection();
+
 private:
 	ScaleMapper scaleMapper;
 	NoteSet userScaleNotes;

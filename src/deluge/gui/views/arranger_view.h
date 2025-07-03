@@ -117,6 +117,15 @@ public:
 
 	int32_t xScrollWhenPlaybackStarted{};
 
+	// Loop handle interaction state
+	bool loopHandlePressed = false;
+	bool loopHandleDragging = false;
+	bool loopHandleDraggingStart = false;
+	int32_t loopHandlePressedX = -1;
+	int32_t loopHandlePressedSquare = -1;
+	int32_t loopHandleDragStartPos = -1;
+	int32_t loopHandleDragEndPos = -1;
+
 	// ui
 	UIType getUIType() override { return UIType::ARRANGER; }
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::SONG; }
@@ -168,6 +177,13 @@ private:
 	void deleteClipInstance(Output* output, ClipInstance* clipInstance);
 	void createNewClipForClipInstance(Output* output, ClipInstance* clipInstance);
 	void recordEditPadPress(Output* output, ClipInstance* clipInstance, int32_t x, int32_t y, int32_t xScroll);
+
+	// Loop row rendering and interaction
+	void renderLoopRow(RGB* imageThisRow, uint8_t* occupancyMask, int32_t renderWidth, int32_t xScroll, uint32_t xZoom);
+	RGB getLoopHandleColor(int32_t position);
+	bool handleLoopRowPadAction(int32_t x, int32_t velocity);
+	void updateLoopHandleFromDrag(int32_t x, int32_t xScroll, uint32_t xZoom);
+	void createNewLoopHandle(int32_t x, int32_t xScroll, uint32_t xZoom);
 };
 
 extern ArrangerView arrangerView;

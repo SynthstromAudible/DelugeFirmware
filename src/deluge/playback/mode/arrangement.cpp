@@ -114,6 +114,23 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 
 	lastProcessedPos += posIncrement;
 
+	// Check for loop handle boundary
+	if (currentSong->isLoopHandleActive()) {
+		if (lastProcessedPos >= currentSong->getLoopHandleEnd()) {
+			// Stop any recording that's happening due to loop boundary
+			for (Output* output = currentSong->firstOutput; output; output = output->next) {
+				if (output->recordingInArrangement) {
+					output->endAnyArrangementRecording(currentSong, currentSong->getLoopHandleEnd(), 0);
+				}
+			}
+
+			// Loop back to the start
+			lastProcessedPos = currentSong->getLoopHandleStart();
+			playbackHandler.forceResetPlayPos(currentSong, false);
+			return;
+		}
+	}
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 

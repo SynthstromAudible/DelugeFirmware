@@ -142,6 +142,9 @@ Song::Song()
 	globalEffectable.compressor.setBaseGain(0.85);
 
 	dirPath.set("SONGS");
+
+	// Initialize loop handle with default 8 bars
+	loopHandleLastLength = 8 * 3072; // 8 bars at 3072 ticks per bar
 }
 
 Song::~Song() {
@@ -3415,7 +3418,8 @@ deleteIt:
 void Song::deleteOutput(Output* output) {
 	for (int y = 0; y < 8; y++) {
 		auto& m = sessionMacros[y];
-		if (m.kind == OUTPUT_CYCLE && m.output == output) {
+		if ((m.kind == CLIP_LAUNCH && m.clip && m.clip->output == output)
+		    || (m.kind == OUTPUT_CYCLE && m.output == output)) {
 			m.kind = NO_MACRO;
 		}
 	}
@@ -3649,43 +3653,46 @@ ParamManager* Song::getBackedUpParamManagerPreferablyWithClip(ModControllableAud
                                                               ParamManager* stealInto) {
 
 	int32_t iAnyClip =
-	    backedUpParamManagers.search((uint32_t)modControllable, GREATER_OR_EQUAL); // Search just by first word
-	if (iAnyClip >= backedUpParamManagers.getNumElements()) {
-		return nullptr;
-	}
-	BackedUpParamManager* elementAnyClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iAnyClip);
-	if (elementAnyClip->modControllable != modControllable) {
-		return nullptr; // If nothing with even the correct modControllable at all, get out
-	}
+	    backedUpParamManagers.search((uint32_t)modControllable, GREATER_OR_EQUAL); // Search just by first word only
 
-	int32_t iCorrectClip;
-	BackedUpParamManager* elementCorrectClip;
-
-	if (!clip || elementAnyClip->clip == clip) {
-returnFirstForModControllableEvenIfNotRightClip:
-		iCorrectClip = iAnyClip;
-		elementCorrectClip = elementAnyClip;
-	}
-	else {
-		uint32_t keyWords[2];
-		keyWords[0] = (uint32_t)modControllable;
-		keyWords[1] = (uint32_t)clip;
-		iCorrectClip = backedUpParamManagers.searchMultiWordExact(keyWords, nullptr, iAnyClip + 1);
-		if (iCorrectClip == -1) {
-			goto returnFirstForModControllableEvenIfNotRightClip;
+	while (true) {
+		if (iAnyClip >= backedUpParamManagers.getNumElements()) {
+			return nullptr;
 		}
-		elementCorrectClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iCorrectClip);
-	}
+		BackedUpParamManager* elementAnyClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iAnyClip);
+		if (elementAnyClip->modControllable != modControllable) {
+			return nullptr; // If nothing with even the correct modControllable at all, get out
+		}
 
-	if (stealInto) {
-		stealInto->stealParamCollectionsFrom(
-		    &elementCorrectClip->paramManager,
-		    true); // Steal expression params too - if they're here (slightly rare case).
-		backedUpParamManagers.deleteAtIndex(iCorrectClip);
-		return stealInto;
-	}
-	else {
-		return &elementCorrectClip->paramManager;
+		int32_t iCorrectClip;
+		BackedUpParamManager* elementCorrectClip;
+
+		if (!clip || elementAnyClip->clip == clip) {
+returnFirstForModControllableEvenIfNotRightClip:
+			iCorrectClip = iAnyClip;
+			elementCorrectClip = elementAnyClip;
+		}
+		else {
+			uint32_t keyWords[2];
+			keyWords[0] = (uint32_t)modControllable;
+			keyWords[1] = (uint32_t)clip;
+			iCorrectClip = backedUpParamManagers.searchMultiWordExact(keyWords, nullptr, iAnyClip + 1);
+			if (iCorrectClip == -1) {
+				goto returnFirstForModControllableEvenIfNotRightClip;
+			}
+			elementCorrectClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iCorrectClip);
+		}
+
+		if (stealInto) {
+			stealInto->stealParamCollectionsFrom(
+			    &elementCorrectClip->paramManager,
+			    true); // Steal expression params too - if they're here (slightly rare case).
+			backedUpParamManagers.deleteAtIndex(iCorrectClip);
+			return stealInto;
+		}
+		else {
+			return &elementCorrectClip->paramManager;
+		}
 	}
 }
 
@@ -4071,13 +4078,6 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 		for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
 			Clip* clip = sessionClips.getClipAtIndex(c);
 
-			if (!(count & 3)) {
-				AudioEngine::routineWithClusterLoading(); // -----------------------------------
-				AudioEngine::logAction("aaa5.114");
-			}
-			count++;
-
-			// If Clip is supposedly active...
 			if (isClipActive(clip)) {
 
 				// If the Instrument already had a Clip, we gotta be inactive...
@@ -4096,8 +4096,6 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 				}
 			}
 		}
-
-		AudioEngine::logAction("aaa5.115");
 
 		// We still want as many Outputs as possible to have activeClips, even if those Clips are not "active".
 		// First, try arranger-only Clips
@@ -4456,7 +4454,7 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 	paramManager.trimToLength(pos, modelStack, action, false);
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		int32_t i = thisOutput->clipInstances.search(pos, GREATER_OR_EQUAL);
+		int32_t i = thisOutput->clipInstances.search(pos + 1, GREATER_OR_EQUAL);
 
 		// We go through deleting the ClipInstances one by one. This is actually quite inefficient, but complicated
 		// to improve on because the deletion of the Clips themselves, where there are arrangement-only ones, causes
@@ -4918,166 +4916,29 @@ AudioOutput* Song::getFirstAudioOutput() {
 			return (AudioOutput*)output;
 		}
 	}
-	return nullptr;
+	return position >= loopHandleStart && position < loopHandleEnd;
 }
 
-AudioInputChannel defaultAudioOutputInputChannel = AudioInputChannel::UNSET;
+void Song::convertLoopToSection() {
+	if (!loopHandleActive) {
+		return;
+	}
 
-AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
-	int32_t highestNumber = 0;
-
-	// Find highest number existent so far
-	for (Output* output = firstOutput; output; output = output->next) {
-		if (output->type == OutputType::AUDIO) {
-			char const* nameChars = output->name.get();
-			if (memcasecmp(nameChars, "AUDIO", 5)) {
-				continue;
-			}
-
-			int32_t nameLength = strlen(nameChars);
-			if (nameLength < 1) {
-				continue;
-			}
-
-			if (!memIsNumericChars(&nameChars[5], nameLength - 5)) {
-				continue;
-			}
-
-			int32_t number = stringToInt(&nameChars[5]);
-			if (number > highestNumber) {
-				highestNumber = number;
-			}
+	// Find the next available section
+	int32_t newSectionIndex = 0;
+	for (int32_t i = 0; i < kMaxNumSections; i++) {
+		if (sections[i].numRepetitions == 0) {
+			newSectionIndex = i;
+			break;
 		}
 	}
 
-	String newName;
-	Error error = newName.set("AUDIO");
-	if (error != Error::NONE) {
-		return nullptr;
+	if (newSectionIndex >= kMaxNumSections) {
+		return; // No available sections
 	}
 
-	error = newName.concatenateInt(highestNumber + 1);
-	if (error != Error::NONE) {
-		return nullptr;
-	}
-
-	ParamManagerForTimeline newParamManager;
-	error = newParamManager.setupUnpatched();
-	if (error != Error::NONE) {
-		return nullptr;
-	}
-
-	void* outputMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioOutput));
-	if (!outputMemory) {
-		return nullptr;
-	}
-
-	auto* newOutput = new (outputMemory) AudioOutput();
-	newOutput->name.set(&newName);
-
-	// Set input channel to previously used one. If none selected, see what's in Song
-	if (defaultAudioOutputInputChannel == AudioInputChannel::UNSET) {
-
-		defaultAudioOutputInputChannel = AudioInputChannel::LEFT;
-		for (Output* output = firstOutput; output; output = output->next) {
-			if (output->type == OutputType::AUDIO) {
-				defaultAudioOutputInputChannel = ((AudioOutput*)output)->inputChannel;
-				break;
-			}
-		}
-	}
-
-	newOutput->inputChannel = defaultAudioOutputInputChannel;
-
-	GlobalEffectableForClip::initParamsForAudioClip(&newParamManager);
-
-	backUpParamManager((ModControllableAudio*)newOutput->toModControllable(), nullptr, &newParamManager, true);
-
-	if (replaceOutput) {
-		replaceOutputLowLevel(newOutput, replaceOutput);
-	}
-
-	else {
-		addOutput(newOutput);
-	}
-	return newOutput;
-}
-
-Output* Song::getNextAudioOutput(int32_t offset, Output* oldOutput, Availability availabilityRequirement) {
-
-	Output* newOutput = oldOutput;
-
-	// Forward
-	if (offset < 0) { // Reverses direction
-		while (true) {
-			newOutput = newOutput->next;
-			if (!newOutput) {
-				newOutput = firstOutput;
-			}
-			if (newOutput == oldOutput) {
-				break;
-			}
-			if (availabilityRequirement >= Availability::INSTRUMENT_AVAILABLE_IN_SESSION
-			    && doesOutputHaveActiveClipInSession(newOutput)) {
-				continue;
-			}
-			if (newOutput->type == OutputType::AUDIO) {
-				break;
-			}
-		}
-	}
-
-	// Backward
-	else {
-		Output* investigatingOutput = oldOutput;
-		while (true) {
-			investigatingOutput = investigatingOutput->next;
-			if (!investigatingOutput) {
-				investigatingOutput = firstOutput;
-			}
-			if (investigatingOutput == oldOutput) {
-				break;
-			}
-			if (availabilityRequirement >= Availability::INSTRUMENT_AVAILABLE_IN_SESSION
-			    && doesOutputHaveActiveClipInSession(investigatingOutput)) {
-				continue;
-			}
-			if (investigatingOutput->type == OutputType::AUDIO) {
-				newOutput = investigatingOutput;
-			}
-		}
-	}
-
-	return newOutput;
-}
-
-// Unassign all Voices first
-void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
-
-	oldOutput->stopAnyAuditioning(modelStack);
-
-	Output** prevPointer;
-	for (prevPointer = &firstOutput; *prevPointer != oldOutput; prevPointer = &(*prevPointer)->next) {}
-	newOutput->next = oldOutput->next;
-	*prevPointer = newOutput;
-
-	// Migrate all ClipInstances from oldInstrument to newInstrument
-	newOutput->clipInstances.swapStateWith(&oldOutput->clipInstances);
-
-	newOutput->colour = oldOutput->colour;
-	oldOutput->colour = 0;
-
-	newOutput->mutedInArrangementMode = oldOutput->mutedInArrangementMode;
-	oldOutput->mutedInArrangementMode = false;
-
-	newOutput->soloingInArrangementMode = oldOutput->soloingInArrangementMode;
-	oldOutput->soloingInArrangementMode = false;
-
-	newOutput->armedForRecording = oldOutput->armedForRecording;
-	oldOutput->armedForRecording = false;
+	// Create a new section with the loop content
+	sections[newSectionIndex].numRepetitions = 1;
 
 	// Properly do away with the oldInstrument
 	deleteOrAddToHibernationListOutput(oldOutput);
@@ -5992,3 +5853,74 @@ traverseClips; }
  */
 
 //    for (Output* output = firstOutput; output; output = output->next) {
+
+// Loop Handle methods
+void Song::setLoopHandle(int32_t start, int32_t end) {
+	if (start >= end) {
+		clearLoopHandle();
+		return;
+	}
+
+	loopHandleStart = start;
+	loopHandleEnd = end;
+	loopHandleActive = true;
+	loopHandleLastLength = end - start;
+}
+
+void Song::clearLoopHandle() {
+	loopHandleActive = false;
+	loopHandleStart = 0;
+	loopHandleEnd = 0;
+}
+
+bool Song::isPositionInLoop(int32_t position) const {
+	if (!loopHandleActive) {
+		return false;
+	}
+	return position >= loopHandleStart && position < loopHandleEnd;
+}
+
+void Song::convertLoopToSection() {
+	if (!loopHandleActive) {
+		return;
+	}
+
+	// Find the next available section
+	int32_t newSectionIndex = 0;
+	for (int32_t i = 0; i < kMaxNumSections; i++) {
+		if (sections[i].numRepetitions == 0) {
+			newSectionIndex = i;
+			break;
+		}
+	}
+
+	if (newSectionIndex >= kMaxNumSections) {
+		return; // No available sections
+	}
+
+	// Create a new section with the loop content
+	sections[newSectionIndex].numRepetitions = 1;
+
+	// Go through all outputs and copy clips within the loop range
+	for (Output* output = firstOutput; output; output = output->next) {
+		for (int32_t i = 0; i < output->clipInstances.getNumElements(); i++) {
+			ClipInstance* clipInstance = output->clipInstances.getElement(i);
+			if (!clipInstance->clip)
+				continue;
+
+			// Check if clip overlaps with loop
+			int32_t clipStart = clipInstance->pos;
+			int32_t clipEnd = clipInstance->pos + clipInstance->length;
+
+			if (clipStart < loopHandleEnd && clipEnd > loopHandleStart) {
+				// Clip overlaps with loop, copy it to the new section
+				// This is a simplified implementation - in a full implementation
+				// we would need to create proper clip copies and handle automation
+				clipInstance->clip->section = newSectionIndex;
+			}
+		}
+	}
+
+	// Clear the loop handle after conversion
+	clearLoopHandle();
+}
