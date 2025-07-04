@@ -19,7 +19,7 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class ArpUnpatchedParam final : public UnpatchedParam {
+class ArpUnpatchedParam : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 

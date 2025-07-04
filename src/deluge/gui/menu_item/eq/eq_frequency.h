@@ -15,19 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "eq_unpatched_param.h"
 #include "gui/menu_item/unpatched_param.h"
 
 namespace deluge::gui::menu_item::eq {
 
-class EqUnpatchedParam : public UnpatchedParam {
+class EqFrequency final : public EqUnpatchedParam {
 public:
-	EqUnpatchedParam(l10n::String name, l10n::String columnLabel, int32_t newP)
-	    : UnpatchedParam(name, newP), columnLabel_{columnLabel} {}
-	EqUnpatchedParam(l10n::String name, int32_t newP) : UnpatchedParam(name, newP), columnLabel_{name} {}
+	using EqUnpatchedParam::EqUnpatchedParam;
 
-	void getColumnLabel(StringBuf& label) override { label.append(deluge::l10n::getView(columnLabel_)); }
-
-private:
-	l10n::String columnLabel_;
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return SLIDER; }
 };
 } // namespace deluge::gui::menu_item::eq

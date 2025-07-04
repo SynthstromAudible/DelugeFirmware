@@ -96,13 +96,13 @@ public:
 		(void)optType;
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_OFF),    //<
-		    l10n::getView(STRING_FOR_UP),     //<
-		    l10n::getView(STRING_FOR_DOWN),   //<
-		    l10n::getView(STRING_FOR_BOTH),   //<
-		    l10n::getView(STRING_FOR_RANDOM), //<
-		    l10n::getView(STRING_FOR_WALK),   //<
-		    l10n::getView(STRING_FOR_CUSTOM), //<
+		    l10n::getView(STRING_FOR_DISABLED), //<
+		    l10n::getView(STRING_FOR_UP),       //<
+		    l10n::getView(STRING_FOR_DOWN),     //<
+		    l10n::getView(STRING_FOR_BOTH),     //<
+		    l10n::getView(STRING_FOR_RANDOM),   //<
+		    l10n::getView(STRING_FOR_WALK),     //<
+		    l10n::getView(STRING_FOR_CUSTOM),   //<
 		};
 	}
 
@@ -128,7 +128,7 @@ public:
 		const std::vector<std::reference_wrapper<const std::vector<uint8_t>>> bitmaps = [&] {
 			switch (this->getValue<ArpPreset>()) {
 			case ArpPreset::OFF:
-				return std::vector{std::cref(OLED::switcherIconOff)};
+				return std::vector<std::reference_wrapper<const std::vector<uint8_t>>>{};
 			case ArpPreset::UP:
 				return std::vector{std::cref(OLED::arpModeIconUp)};
 			case ArpPreset::DOWN:

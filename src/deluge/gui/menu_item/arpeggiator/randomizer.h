@@ -27,7 +27,6 @@ public:
 	using HorizontalMenu::HorizontalMenu;
 
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
-	[[nodiscard]] int32_t getColumnSpan() const override { return 1; }
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
 		using namespace deluge::hid::display;
@@ -38,17 +37,23 @@ public:
 		const int32_t diceIconWidth = diceIcon.size() / 2;
 		constexpr int32_t diceIconHeight = 16;
 
-		int32_t x = startX + ((width - diceIconWidth) / 2) - 3;
-		int32_t y = startY + ((height - diceIconHeight) / 2) + 1;
+		int32_t x = startX + 8;
+		int32_t y = startY + (height - diceIconHeight) / 2 + 1;
 		image.drawGraphicMultiLine(diceIcon.data(), x, y, diceIconWidth, diceIconHeight, 2);
+
+		// Draw string
+		constexpr auto randomizerStr = "-ZER";
+		const auto strWidth = image.getStringWidthInPixels(randomizerStr, kTextSpacingY);
+		x += diceIconWidth + 1;
+		image.drawString(randomizerStr, x, y + 3, kTextSpacingX, kTextSpacingY);
+		image.clearPixel(x, y + 7);
 
 		// Draw arrow
 		const auto& arrowIcon = OLED::submenuArrowIconBold;
 		constexpr int32_t arrowIconWidth = 7;
 		constexpr int32_t arrowIconHeight = 8;
-
-		x += diceIconWidth + 1;
-		y = startY + ((height - arrowIconHeight) / 2);
+		x += strWidth + 1;
+		y = startY + (height - arrowIconHeight) / 2;
 		image.drawGraphicMultiLine(arrowIcon, x, y, arrowIconWidth);
 	}
 };

@@ -27,28 +27,12 @@ class EnvelopeMenu final : public HorizontalMenu {
 public:
 	using HorizontalMenu::HorizontalMenu;
 
-	void renderOLED() override {
-		OLED::main.drawScreenTitle(getTitle(), false);
-		drawPixelsForOled();
-		OLED::markChanged();
-	}
-
 	void drawPixelsForOled() override {
 		if (renderingStyle() != HORIZONTAL) {
 			return Submenu::drawPixelsForOled();
 		}
 
-		// Update the synth-kit-midi-cv buttons LEDs
-		paging = splitMenuItemsByPages();
-		if (paging.selectedItemPositionOnPage != lastSelectedItemPosition) {
-			lastSelectedItemPosition = paging.selectedItemPositionOnPage;
-			updateSelectedMenuItemLED(lastSelectedItemPosition);
-		}
-
 		// Get the values in 0-50 range
-		for (const auto item : items) {
-			item->readCurrentValue();
-		}
 		const int32_t attack = static_cast<Segment*>(items[0])->getValue();
 		const int32_t decay = static_cast<Segment*>(items[1])->getValue();
 		const int32_t sustain = static_cast<Segment*>(items[2])->getValue();
@@ -144,13 +128,6 @@ private:
 
 		// Draw a transition square
 		image.drawRectangle(ix - squareSize, iy - squareSize, ix + squareSize, iy + squareSize);
-	};
-
-	// --- Helper functions ----
-	static float sigmoidLikeCurve(const float x, const float softening, const float xMax) {
-		const float raw = x / (x + softening);
-		const float maxVal = xMax / (xMax + softening);
-		return raw / maxVal;
 	};
 };
 

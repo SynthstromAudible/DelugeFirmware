@@ -127,6 +127,7 @@ public:
 	static const std::vector<uint8_t> diceIcon;
 	static const std::vector<uint8_t> stutterDirectionIcon;
 	static const std::vector<uint8_t> knobArcIcon;
+	static const std::vector<uint8_t> infinityIcon;
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;
