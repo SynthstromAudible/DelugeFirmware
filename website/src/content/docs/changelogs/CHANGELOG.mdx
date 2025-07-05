@@ -79,11 +79,11 @@ Added main grid pad shortcuts for the following parameters:
 
 #### <ins>OLED Display Improvements</ins>
 
-##### <ins>Saving/Loading Animation</ins>
+##### Saving/Loading Animation
 
 - Removed the saving and loading indicator popups which blocked the view of the screen and hindered the browsing of presets. In their place a small cyclical procedural animation will appear in the upper right corner of the screen. It is an abstract representation of data moving from the SD card to the system RAM and vice versa, with the saving animation being a mirror image of the loading animation.
 
-##### <ins>Horizontal Menus</ins>
+##### Horizontal Menus
 
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
   - Envelope 1-4.
@@ -123,6 +123,8 @@ Added main grid pad shortcuts for the following parameters:
 
 #### <ins>Recording</ins>
 
+##### Threshold Recording
+
 - Added `THRESHOLD RECORDING` default setting which can be turned on in the `SETTINGS > RECORDING > THRESHOLD RECORDING (THRE) > MODE` submenu
   - When this is enabled, recording of external audio input (e.g. Line In / Microphone) will only begin when it detects an audio signal according the Recording Threshold mode that has been set. There are four Threshold Recording modes that can be selected from:
     - `DISABLED (OFF)`: Standard Deluge behaviour. Recording starts right away.
@@ -132,6 +134,9 @@ Added main grid pad shortcuts for the following parameters:
   - You can also view and temporarily change the current threshold recording setting as follows:
     - :key[Record + Turn Select]
     - Enter the Song menu while in Song or Arranger View by pressing :key[Select] and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
+
+##### Loop Recording
+
 - Easier loop recording in `SONG VIEW` (similar to Kit Row sampling working). Added ability to trigger a loop recording for a specific clip in `SONG VIEW` by holding a `CLIP` and pressing `RECORD`. By default this will trigger the Global MIDI Command `LAYERING LOOP`, however this can be changed in the `SETTINGS > RECORDING > LOOP COMMAND (LOOP)` submenu.
   - Note: to end a recording, you will send to send the Global MIDI Command again, which can be done by holding a clip and pressing record again.
 
@@ -156,6 +161,10 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 #### <ins>Song View</ins>
 
 - Doubled the number of Song View sections from 12 to 24.
+
+##### <ins>Clip/Section Launching</ins>
+
+- A new option, 'Launch Exclusively', isolates a clip section from all other launch activity. This option is found to the left of option 'Launch non-exclusively' when selecting the section's number of repetitions. As a complement to non-exclusive sections that arm and turn off when another section is launched, exclusive sections remain independant.
 
 #### <ins>Song Grid View</ins>
 
@@ -423,7 +432,6 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 - A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
   - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
 - The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
-- A new option, 'Launch Exclusively', isolates a clip section from all other launch activity. This option is found to the left of option 'Launch non-exclusively' when selecting the section's number of repetitions. As a complement to non-exclusive sections that arm and turn off when another section is launched, exclusive sections remain independant.
 
 #### <ins>Audio Clips</ins>
 

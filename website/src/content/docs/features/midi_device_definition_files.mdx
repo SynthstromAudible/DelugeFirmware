@@ -2,51 +2,53 @@
 title: MIDI Device Definition Files
 ---
 
-## Description
+import { Badge } from "@astrojs/starlight/components"
+
+<Badge text="c1.3 Feature" variant="tip" />
 
 Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, and to a `MIDI device definition file`.
 
 The `MIDI Device Definition File` is saved on the SD Card in the folder path: `MIDI_DEVICES/DEFINITION/`.
 
-Updated MIDI CC name's will be displayed when pressing / turning the `Gold (Mod) Encoder` the CC is assigned to and also when automating that CC in `Automation View`
+Updated MIDI CC name's will be displayed when you press :key[GOLD ENCODER] / :key[TURN GOLD ENCODER] the CC is assigned to and also when automating that CC in `Automation View`
 
-### Rename a MIDI CC
+## Rename a MIDI CC
 
-To rename a `MIDI CC`, enter `Automation View` and select the CC you wish to rename using the `Select Encoder` or using the `Grid Shortcut`.
+To rename a `MIDI CC`, enter `Automation View` and select the CC you wish to rename using the :key[TURN SELECT] or using the :key[SHIFT] + :key[SHORTCUT PAD].
 
 With the `MIDI CC` selected, press :key[Shift + Name Pad] to open the `MIDI CC Renaming UI`. Enter a new name and press :key[Select] or :key[Enter Pad].
 
-The new `MIDI CC` name will be immediately visible in `Automation View` and you can assign that CC to a `Gold Knob` in the MIDI clip and it will show that name when you press down on the `Gold (Mod) Encoder` and when you turn the `Gold (Mod) Encoder` to change the CC value.
+The new `MIDI CC` name will be immediately visible in `Automation View` and you can assign that CC to a `Gold Knob` in the MIDI clip and it will show that name when you press :key[GOLD ENCODER] and when you :key[TURN GOLD ENCODER] to change the CC value.
 
-### Save MIDI CC Name(s)
+## Save MIDI CC Name(s)
 
 If you made changes to the name of a `MIDI CC`, they will need to be saved so that you can use them should you reboot the Deluge. They can be saved to the `Song`, to a `MIDI Preset` or to a `MIDI Device Definition File`.
 
-#### Save to the Song
+### Save to the Song
 
-Simply save the song by pressing `Save`
+Simply save the song by pressing :key[SAVE]
 
 If you had previously linked a `MIDI Device Definition File` to the Song, then the file path to that definition file will be saved to the Song.
 
 In addition, the last edited midi cc name(s)'s will also be saved with the song in case the `MIDI Device Definition File` cannot be found.
 
-#### Save to the MIDI Preset
+### Save to the MIDI Preset
 
-While in the MIDI clip, press `Save + MIDI`
+While in the MIDI clip, press :key[SAVE] + :key[MIDI]
 
 If you had previously linked a `MIDI Device Definition File` to the MIDI Instrument, then the file path to that definition file will be saved to the preset.
 
 In addition, the last edited midi cc name(s)'s will also be saved with the preset in case the `MIDI Device Definition File` cannot be found.
 
-#### Save to the MIDI Device Definition File
+### Save to the MIDI Device Definition File
 
 To save the `MIDI CC` labels to a `MIDI Device Definition File`, press :key[Save + Gold]. It will ask you to enter a file name. Press :key[Select], :key[Enter Pad] or :key[Save] to save the file.
 
 A `MIDI Device Definition File` is saved on the SD Card in the folder path: `MIDI_DEVICES/DEFINITION/`.
 
-### Load MIDI CC Name(s)
+## Load MIDI CC Name(s)
 
-#### Load with the Song
+### Load with the Song
 
 When you load a song for which MIDI CC name changes were previously saved, those name changes will be re-loaded.
 
@@ -54,7 +56,7 @@ If you linked the Song to a `MIDI Device Definition File`, then the changes will
 
 If the Song is not linked to a definition file, then the name changes will be loaded from the Song.
 
-#### Load from Midi Preset
+### Load from Midi Preset
 
 When you load a MIDI preset for which MIDI cc name changes were previously saved, those name changes will be re-loaded.
 
@@ -62,13 +64,13 @@ If you linked the preset to a `MIDI Device Definition File`, then the changes wi
 
 If the preset is not linked to a definition file, then the name changes will be loaded from the preset.
 
-#### Load from Midi Device Definition File
+### Load from Midi Device Definition File
 
 To load the `MIDI CC` labels from a `MIDI Device Definition File`, :key[Load + Gold]. It will ask you to select a file. Press :key[Select], :key[Enter Pad] or :key[Load] to load the file.
 
 Saving or Loading a `MIDI Device Definition File` will link that file to the current MIDI Instrument in the current song. If you save the song or save the current midi instrument as a preset, the song file and midi instrument preset file will include a file path to the `MIDI Device Definition File`. If you re-load the song or re-load the midi instrument preset, it will load information from the linked `MIDI Device Definition File`.
 
-### Linking / Unlinking a MIDI Device Definition File
+## Linking / Unlinking a MIDI Device Definition File
 
 You can unlink a Song or Midi Instrument preset from the a `MIDI Device Definition File` via the `MIDI > Device Definition (DEVI)` menu. You will need to re-save the song and/or preset to save the changes.
 
