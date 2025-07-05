@@ -66,10 +66,9 @@ public:
 
 		oled_canvas::Canvas& image = OLED::main;
 		constexpr int32_t numBytesTall = 2;
-		constexpr int32_t iconHeight = numBytesTall * 8;
 		const int32_t iconWidth = iconBitmap->size() / numBytesTall;
-		const int32_t x = startX + (width - iconWidth) / 2 - 1;
-		image.drawGraphicMultiLine(iconBitmap->data(), x, startY, iconWidth, iconHeight, numBytesTall);
+		const int32_t x = startX + (width - iconWidth) / 2;
+		image.drawGraphicMultiLine(iconBitmap->data(), x, startY, iconWidth, numBytesTall * 8, numBytesTall);
 	}
 };
 

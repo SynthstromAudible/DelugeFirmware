@@ -739,6 +739,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_UNISON_NUMBER_MENU_TITLE, "Unison number"},
         {STRING_FOR_UNISON_DETUNE_MENU_TITLE, "Unison detune"},
         {STRING_FOR_UNISON_STEREO_SPREAD_MENU_TITLE, "Unison stereo spread"},
+        {STRING_FOR_ARP_BASIC_MENU_TITLE, "Arp basic"},
+        {STRING_FOR_ARP_PATTERN_MENU_TITLE, "Arp pattern"},
         {STRING_FOR_ARP_PRESET_MENU_TITLE, "Arp preset"},
         {STRING_FOR_ARP_GATE_MENU_TITLE, "Arp gate"},
         {STRING_FOR_ARP_RATE_MENU_TITLE, "Arp rate"},

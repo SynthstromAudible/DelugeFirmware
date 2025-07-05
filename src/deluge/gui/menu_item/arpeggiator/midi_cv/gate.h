@@ -21,6 +21,8 @@
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
 
+#include <hid/display/oled.h>
+
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
 class Gate final : public ArpNonSoundInteger {
 public:
@@ -32,5 +34,6 @@ public:
 		int32_t value = computeFinalValueForStandardMenuItem(this->getValue());
 		soundEditor.currentArpSettings->gate = value;
 	}
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return LENGTH_SLIDER; }
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

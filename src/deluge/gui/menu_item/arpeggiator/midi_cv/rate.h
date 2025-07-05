@@ -32,9 +32,5 @@ public:
 		int32_t value = computeFinalValueForStandardMenuItem(this->getValue());
 		soundEditor.currentArpSettings->rate = value;
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return (soundEditor.editingCVOrMIDIClip() || soundEditor.editingNonAudioDrumRow())
-		       && soundEditor.currentArpSettings->syncLevel == SYNC_LEVEL_NONE;
-	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv
