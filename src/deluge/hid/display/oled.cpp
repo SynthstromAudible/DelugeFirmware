@@ -735,8 +735,10 @@ void OLED::displayHorizontalMenuPopup(std::string_view paramTitle, std::optional
 
 	if (!FlashStorage::accessibilityMenuHighlighting) {
 		// Make the popup inverted (white)
-		popup.invertAreaRounded(0, OLED_MAIN_WIDTH_PIXELS - 1, OLED_MAIN_TOPMOST_PIXEL,
+		popup.invertAreaRounded(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL,
 		                        OLED_MAIN_TOPMOST_PIXEL + kTextSpacingY + 1);
+		popup.drawPixel(0, OLED_MAIN_TOPMOST_PIXEL);
+		popup.drawPixel(OLED_MAIN_WIDTH_PIXELS - 1, OLED_MAIN_TOPMOST_PIXEL);
 	}
 
 	markChanged();

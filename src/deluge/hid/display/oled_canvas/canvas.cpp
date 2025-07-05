@@ -22,6 +22,7 @@
 #include "storage/flash_storage.h"
 
 #include <math.h>
+#include <vector>
 
 using deluge::hid::display::oled_canvas::Canvas;
 
@@ -266,15 +267,21 @@ void Canvas::drawStringCentered(StringBuf& stringBuf, int32_t pixelX, int32_t pi
 		stringBuf.truncate(stringBuf.size() - 1);
 	}
 
-	// Padding to center the string. If we can't center exactly, 1px left is better than 1px right.
-	const int32_t padding = ((totalWidth - stringWidth) / 2) - 1;
-	drawString(stringBuf.c_str(), pixelX + padding, pixelY, stringWidth, textSpacingY);
+	// Padding to center the string
+	const float padding = (totalWidth - stringWidth) / 2.0f;
+	int32_t paddingAsInt = static_cast<int32_t>(padding);
+
+	if (padding != paddingAsInt) {
+		// If we can't center exactly, 1px right is better than 1px left.
+		paddingAsInt++;
+	}
+
+	drawString(stringBuf.c_str(), pixelX + paddingAsInt, pixelY, stringWidth, textSpacingY);
 }
 
 /// Draw a string, reducing its height so the string fits within the specified width
 ///
 /// @param string A null-terminated C string
-/// @param pixelY The Y coordinate of the top of the string
 /// @param textWidth Requested width for each character in the string
 /// @param textHeight Requested height for each character in the string
 void Canvas::drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, int32_t textWidth,
@@ -502,7 +509,21 @@ int32_t Canvas::getStringWidthInPixels(char const* string, int32_t textHeight) {
 }
 
 void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height,
-                                  int32_t numBytesTall) {
+                                  int32_t numBytesTall, bool reversed) {
+	if (reversed) {
+		std::vector<uint8_t> reversedGraphic(width);
+		int32_t columnCount = width / numBytesTall;
+		for (int32_t col = 0; col < columnCount; ++col) {
+			int32_t inputIndex = col * numBytesTall;
+			int32_t reversedCol = columnCount - 1 - col;
+			int32_t outputIndex = reversedCol * numBytesTall;
+			for (int32_t byte = 0; byte < numBytesTall; ++byte) {
+				reversedGraphic[outputIndex + byte] = graphic[inputIndex + byte];
+			}
+		}
+		return drawGraphicMultiLine(reversedGraphic.data(), startX, startY, width, height, numBytesTall);
+	}
+
 	int32_t rowOnDisplay = startY >> 3;
 	int32_t yOffset = startY & 7;
 	int32_t rowOnGraphic = 0;
@@ -608,10 +629,10 @@ void Canvas::invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int3
 
 	// restore corners back
 	const int32_t xMax = xMin + width - 1;
-	invertArea(xMin, 1, startY, startY);
-	invertArea(xMax, 1, startY, startY);
-	invertArea(xMin, 1, endY, endY);
-	invertArea(xMax, 1, endY, endY);
+	clearPixel(xMin, startY);
+	clearPixel(xMax, startY);
+	clearPixel(xMin, endY);
+	clearPixel(xMax, endY);
 }
 
 /// inverts just the left edge

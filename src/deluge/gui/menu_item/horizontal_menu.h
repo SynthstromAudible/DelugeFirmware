@@ -10,20 +10,18 @@ namespace deluge::gui::menu_item {
 
 class HorizontalMenu : public Submenu {
 public:
+	friend class HorizontalMenuCombined;
+
 	enum Layout { FIXED, DYNAMIC };
-	struct PageInfo {
-		int32_t number;
+	struct Page {
+		mutable int32_t number;
 		std::vector<MenuItem*> items;
 	};
 	struct Paging {
 		int32_t visiblePageNumber;
 		int32_t selectedItemPositionOnPage;
-		std::vector<PageInfo> pages;
-		PageInfo& getVisiblePage() { return pages[visiblePageNumber]; }
-	};
-	struct ColumnLabelPosition {
-		int32_t startX;
-		int32_t width;
+		std::vector<Page> pages;
+		Page& getVisiblePage() { return pages[visiblePageNumber]; }
 	};
 
 	using Submenu::Submenu;
@@ -47,12 +45,15 @@ protected:
 	Paging paging;
 	Layout layout = DYNAMIC;
 	int32_t lastSelectedItemPosition = kNoSelection;
+
 	ActionResult selectMenuItemOnVisiblePage(int32_t selectedColumn);
 	ActionResult switchVisiblePage(int32_t direction);
-	void updateSelectedMenuItemLED(int32_t itemNumber);
-	Paging splitMenuItemsByPages() const;
 	static void displayPopup(MenuItem* menuItem);
-	static ColumnLabelPosition renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32_t slotStartX,
-	                                             int32_t slotWidth);
+	virtual Paging splitMenuItemsByPages(std::span<MenuItem*> items);
+
+private:
+	void updateSelectedMenuItemLED(int32_t itemNumber);
+	static void renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32_t slotStartX, int32_t slotWidth,
+	                              bool isSelected);
 };
 } // namespace deluge::gui::menu_item

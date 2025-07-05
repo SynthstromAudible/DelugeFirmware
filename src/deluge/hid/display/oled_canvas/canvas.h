@@ -28,6 +28,7 @@ namespace deluge::hid::display {
 class OLED;
 
 namespace oled_canvas {
+
 class Canvas {
 public:
 	Canvas() = default;
@@ -205,7 +206,7 @@ public:
 	/// @param height Height of the graphic in pixels
 	/// @param numBytesTall Number of bytes in the Y direction, determines the stride in the graphic array
 	void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height = 8,
-	                          int32_t numBytesTall = 1);
+	                          int32_t numBytesTall = 1, bool reversed = false);
 
 	/// Draw a screen title and underline it.
 	///
