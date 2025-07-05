@@ -3,6 +3,9 @@ title: Automation View
 ---
 
 import LinkPreviewCard from "../../../components/LinkPreviewCard.astro"
+import { Badge } from "@astrojs/starlight/components"
+
+<Badge text="c1.0 Feature" variant="tip" />
 
 Automation View that has been added in Clip and Arranger Views to edit parameter automation using the sequencer grid.
 
@@ -133,7 +136,7 @@ The Automation View functionality covered by this feature can be broken down int
 
 A more detailed break-down of the above sections is found below.
 
-### Enter/Exit Automation View
+## Enter/Exit Automation View
 
 The Automation Arranger View can be accessed from the Arranger View by pressing the :key[Shift + Song] buttons.
 
@@ -152,7 +155,7 @@ Some additional things to note:
 - Automations that are recorded in using :key[Gold] are always recorded with Interpolation.
 - MPE automations are not covered/edited by the Automation Clip View. If MPE must be edited/nudged/shifted, it must be done in the current Instrument Clip View.
 
-### Automation Overview
+## Automation Overview
 
 The Automation Overview provides an overview of the Parameters that can be automated, are currently automated, and acts as a launchpad for the Automation Editor.
 
@@ -195,7 +198,7 @@ The Automation Overview **will not allow you to:**
 - re-arrange rows in a kit
 - enter the Automation Editor in Automation Arranger View if you are currently auditioning a clip
 
-### Parameter Selection
+## Parameter Selection
 
 You can select the Parameter that you want to edit in four ways:
 
@@ -208,7 +211,7 @@ Once you select a Parameter in the Automation Clip View, it will be remembered a
 
 > **Note:** This information is saved with the song.
 
-### Automation Editor
+## Automation Editor
 
 The Automation Editor enables you to view and edit parameter automation values.
 
@@ -358,13 +361,13 @@ The Automation Editor **will not allow you to:**
 - change root note in a synth/MIDI/CV clip
 - audition clips in Automation Arranger View
 
-### Default Settings
+## Default Settings
 
 Described below are a couple of toggable enhancements that change existing behaviour in the Clip View but are of benefit to the user now that Automation's can be edited separately from the Arranger / Clip View.
 
 These default settings are found in the `Settings` Menu under `Defaults/Automation/`.
 
-#### Interpolation
+### Interpolation
 
 Interpolation does not change existing behaviour. This toggle is only used in the new Automation View.
 
@@ -382,7 +385,7 @@ With interpolation turned off it will sound like a value is jumping from one val
 
 The default setting for Interpolation an be changed in the in the `Settings/Defaults/Automation/Interpolate` menu.
 
-#### Clearing Automation
+### Clearing Automation
 
 Currently in the Arranger View and Instrument Clip View if you press down on the Horizontal Encoder and press the Back button at the same time, all **Clips/Notes** AND **Automations** are cleared.
 
@@ -400,7 +403,7 @@ Through the `Settings/Defaults/Automation/Clear` submenu, you can disable this c
 
 > **Note:** MPE recorded will still be cleared as the scope of this PR does not cover editing MPE.
 
-#### Shifting Automation Horizontally
+### Shifting Automation Horizontally
 
 Currently in the Arranger View if you press down on Shift and turn the Horizontal Encoder, it will shift the arrangement of clips and ALL Automations of the entire arranagement horizontally.
 
@@ -414,7 +417,7 @@ Through the `Settings/Defaults/Automation/Shift` submenu, you can disable this c
 
 > **Note:** MPE recorded will still be shifted as the scope of this PR does not cover editing MPE.
 
-#### Nudging Notes
+### Nudging Notes
 
 Currently in the Instrument Clip View if you press down on a note and turn the Horizontal Encoder, it will nudge the Note AND the Automations for that same step.
 
@@ -428,7 +431,7 @@ Through the `Settings/Defaults/Automation/Nudge Notes` submenu, you can disable 
 
 > **Note:** MPE recorded will still be nudged as the scope of this PR does not cover editing MPE.
 
-#### Disable Audition Pad Shortcuts
+### Disable Audition Pad Shortcuts
 
 Currently in the Instrument Clip View if you hold down an audition pad and press a shortcut pad on the grid, it will open the menu corresponding to that shortcut pad.
 

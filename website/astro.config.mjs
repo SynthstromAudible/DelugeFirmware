@@ -71,6 +71,36 @@ const config = defineConfig({
                 autogenerate: { directory: "features" },
               },
               {
+                label: "Manual",
+                items: [
+                  {
+                    label: "Introduction",
+                    collapsed: true,
+                    autogenerate: { directory: "manual/introduction" },
+                  },
+                  {
+                    label: "Device Overview",
+                    collapsed: true,
+                    autogenerate: { directory: "manual/device_overview" },
+                  },
+                  {
+                    label: "User Interface",
+                    collapsed: true,
+                    autogenerate: { directory: "manual/user_interface" },
+                  },
+                  {
+                    label: "Sequencer",
+                    collapsed: true,
+                    autogenerate: { directory: "manual/sequencer" },
+                  },
+                  {
+                    label: "Engine",
+                    collapsed: true,
+                    autogenerate: { directory: "manual/engine" },
+                  },
+                ],
+              },
+              {
                 label: "Reference",
                 autogenerate: { directory: "reference" },
               },

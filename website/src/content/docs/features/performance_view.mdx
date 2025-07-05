@@ -3,6 +3,9 @@ title: Performance View
 ---
 
 import LinkPreviewCard from "../../../components/LinkPreviewCard.astro"
+import { Badge } from "@astrojs/starlight/components"
+
+<Badge text="c1.1 Feature" variant="tip" />
 
 Polyend Play inspired Performance View for the Deluge.
 
@@ -116,40 +119,25 @@ Param Editing Mode:
 - Note: if you re-arrange the parameters to different FX columns (e.g. using Param Editing Mode), they will bring the colours noted below with them.
 - Params marked "Unassigned" below are available to be assigned to a Performance View column with Param Editing Mode.
 
-Columns:
-
-Red:
-1 = LPF Cutoff
-2 = LPF Resonance
-Unassigned = LPF Morph
-
-Orange:
-3 = HPF Cutoff
-4 = HPF Resonance
-Unassigned = HPF Morph
-
-Yellow:
-5 = Bass EQ
-6 = Treble EQ
-Unassigned = Bass Frequency
-Unassigned = Treble Frequency
-
-Light Green:
-7 = Reverb
-
-Light Blue:
-8 = Delay Amount
-9 = Delay Rate
-
-Light Pink:
-10 = MOD-FX Rate
-11 = MOD-FX Depth
-12 = MOD-FX Feedback
-13 = MOD-FX Offset
-
-Dark Pink:
-14 = Decimation
-15 = Bitcrush
-
-Dark Blue:
-16 = Stutter Rate + Stutter Trigger
+| Column Colour | Column Number | Parameter Name         |
+| ------------- | ------------- | ---------------------- |
+| Red           | 1             | LPF Cutoff             |
+| Red           | 2             | LPF Resonance          |
+| Red           | Unassigned    | LPF Morph              |
+| Orange        | 3             | HPF Cutoff             |
+| Orange        | 4             | HPF Resonance          |
+| Orange        | Unassigned    | HPF Morph              |
+| Yellow        | 5             | Bass EQ                |
+| Yellow        | 6             | Treble EQ              |
+| Yellow        | Unassigned    | Bass Frequency         |
+| Yellow        | Unassigned    | Treble Frequency       |
+| Light Green   | 7             | Reverb Amount          |
+| Light Blue    | 8             | Delay Amount           |
+| Light Blue    | 9             | Delay Rate             |
+| Light Pink    | 10            | MOD-FX Rate            |
+| Light Pink    | 11            | MOD-FX Depth           |
+| Light Pink    | 12            | MOD-FX Feedback        |
+| Light Pink    | 13            | MOD-FX Offset          |
+| Dark Pink     | 14            | Decimation             |
+| Dark Pink     | 15            | Bitcrush               |
+| Dark Blue     | 16            | Stutter Rate + Trigger |

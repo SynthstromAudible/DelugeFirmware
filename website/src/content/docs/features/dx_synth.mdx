@@ -3,6 +3,9 @@ title: DX7 Synth
 ---
 
 import LinkPreviewCard from "../../../components/LinkPreviewCard.astro"
+import { Badge } from "@astrojs/starlight/components"
+
+<Badge text="c1.2 Feature" variant="tip" />
 
 DX7 Synth oscillator type which enables you to load and edit existing DX7 patches and also create your own.
 
@@ -45,7 +48,7 @@ Enable the "DX7 ENGINE" community setting for full access to the relevant UI beh
 
 #### Shortcut
 
-To create a new synth in DX7 mode, use the new shortcut "CUSTOM 1" + "SYNTH".
+To create a new synth in DX7 mode, use the new shortcut "CUSTOM 1" + :key[SYNTH]
 
 This shortcut has to be used to create a new DX7 synth
 rather than changing the osc type of a existing patch (or the default init patch)
@@ -58,12 +61,12 @@ modulation, as velocity sensitivity is set per operator anyway.
 This shortcut will show up a menu. The first option in this menu lets you load patches.
 First you browse for .syx files in the folder (nested subdirs are allowed).
 After selecting a file, you will get a list with the 32 patches in the back.
-Make sure to enable "KEYBOARD", to be able to audition different patches while browsing through.
+Make sure to enable :key[KEYBOARD], to be able to audition different patches while browsing through.
 
 If you want to create a patch from scratch, you can use the second "DX7 PARAMETERS" option,
 or just exit the menu to use the shortcuts for editing (see Community Feature Setting above for access to all shortcuts).
 
-To re-enter this menu later, use the shift+osc1 type shortcut and press SELECT when DX7 value is active.
+To re-enter this menu later, use the :key[SHIFT] + :key[OSC1 PAD] shortcut and press :key[SELECT] when DX7 value is active.
 
 #### Community Feature UI
 
@@ -76,18 +79,18 @@ unless it was manually set to something else.
 
 When the Keyboard view is active, the first 6 rows of the sidebar shows the operators as green for a carrier and blue for a modulator.
 
-1. Taping a single pad in isolation lets you switch an operator on or off.
+1. Taping a single :key[PAD] in isolation lets you switch an operator on or off.
 
-2. Pressing Shift+coloured pad opens the editor for that operator.
+2. Pressing :key[SHIFT] + :key[COLOURED PAD] pad opens the editor for that operator.
 
-- The first press of Shift+colored pad selects the level parameter.
-- Pressing Shift+coloured pad again select the COARSE tuning parameter.
+- The first press of :key[SHIFT] + :key[COLOURED PAD] pad selects the level parameter.
+- Pressing :key[SHIFT] + :key[COLOURED PAD] pad again selects the COARSE tuning parameter.
 
-3. Pressing shift+the seventh pad will open up the editor for global parameters, starting with algorithm and feedback.
+3. Pressing :key[SHIFT] + :key[SEVENTH PAD] pad will open up the editor for global parameters, starting with algorithm and feedback.
 
 ##### Editor View
 
-Inside the editor view (when the sidebar is flashing), the LEFT-RIGHT encoder can be used
+Inside the editor view (when the sidebar is flashing), the :key[HORIZONTAL] encoder can be used
 to browse between parameters.
 
 1. Some parameters have a shortcut in a layer which is only active when editing any DX7 parameter (otherwise the regular synth shortcuts apply). This shortcut layer is outlined as follows:
