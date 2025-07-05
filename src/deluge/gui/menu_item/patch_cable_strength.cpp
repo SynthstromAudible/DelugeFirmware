@@ -130,8 +130,8 @@ void PatchCableStrength::renderOLED() {
 		image.drawPixel(endX + 1, startY - 1);
 
 		// Draw strings
-		image.drawStringCentered("BI", startX + 2, startY, kTextSpacingX, kTextSpacingY, biSlotWidth);
-		image.drawStringCentered("UNI", startX + 2 + biSlotWidth, startY, kTextSpacingX, kTextSpacingY, uniSlotWidth);
+		image.drawStringCentered("BI", startX, startY, kTextSpacingX, kTextSpacingY, biSlotWidth);
+		image.drawStringCentered("UNI", startX + biSlotWidth + 1, startY, kTextSpacingX, kTextSpacingY, uniSlotWidth);
 
 		// Highlight selected
 		if (polarity_ == Polarity::BIPOLAR) {

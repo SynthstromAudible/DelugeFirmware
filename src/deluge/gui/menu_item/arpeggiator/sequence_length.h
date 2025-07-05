@@ -15,23 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "definitions_cxx.hpp"
-#include "gui/menu_item/arpeggiator/midi_cv/arp_integer.h"
-#include "gui/menu_item/value_scaling.h"
-#include "gui/ui/sound_editor.h"
-#include "model/song/song.h"
+#include "gui/menu_item/sync_level.h"
 
-namespace deluge::gui::menu_item::arpeggiator::midi_cv {
-class SequenceLength final : public ArpNonSoundInteger {
+namespace deluge::gui::menu_item::arpeggiator {
+class SequenceLength final : public ArpUnpatchedParam {
 public:
-	using ArpNonSoundInteger::ArpNonSoundInteger;
-	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->sequenceLength));
-	}
-	void writeCurrentValue() override {
-		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->sequenceLength = value;
-	}
+	using ArpUnpatchedParam::ArpUnpatchedParam;
 
 	[[nodiscard]] NumberStyle getNumberStyle() const override { return NUMBER; }
 
@@ -40,7 +29,7 @@ public:
 			const auto offString = l10n::get(l10n::String::STRING_FOR_OFF);
 			return OLED::main.drawStringCentered(offString, startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
 		}
-		ArpNonSoundInteger::renderInHorizontalMenu(startX, width, startY, height);
+		ArpUnpatchedParam::renderInHorizontalMenu(startX, width, startY, height);
 	}
 
 	void getValueForPopup(StringBuf& valueBuf) override {
@@ -52,4 +41,5 @@ public:
 		}
 	}
 };
-} // namespace deluge::gui::menu_item::arpeggiator::midi_cv
+
+} // namespace deluge::gui::menu_item::arpeggiator

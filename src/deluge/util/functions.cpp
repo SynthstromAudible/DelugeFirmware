@@ -2238,3 +2238,9 @@ Error fatfsErrorToDelugeError(FatFS::Error result) {
 
 char miscStringBuffer[kFilenameBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
 char shortStringBuffer[kShortStringBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
+
+float sigmoidLikeCurve(const float x, const float xMax, const float softening) {
+	const float raw = x / (x + softening);
+	const float maxVal = xMax / (xMax + softening);
+	return raw / maxVal;
+};

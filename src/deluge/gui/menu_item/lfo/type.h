@@ -63,7 +63,6 @@ public:
 
 private:
 	static const std::vector<uint8_t>& getLfoIconBitmap(LFOType type);
-	static uint8_t getLfoIconBitmapXOffset(LFOType type);
 	uint8_t lfoId_;
 };
 
