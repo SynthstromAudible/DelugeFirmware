@@ -45,7 +45,7 @@ ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRou
 void HorizontalMenu::renderOLED() {
 	const bool isHorizontal = renderingStyle() == HORIZONTAL;
 	if (isHorizontal) {
-		paging = splitMenuItemsByPages();
+		paging = splitMenuItemsByPages(items);
 
 		// Lit the scale and cross-screen buttons LEDs to indicate that they can be used to switch between pages
 		const auto hasPages = paging.pages.size() > 1;
@@ -93,9 +93,9 @@ void HorizontalMenu::drawPixelsForOled() {
 
 		const int32_t boxWidth = columnWidth * item->getColumnSpan();
 		constexpr int32_t boxHeight = 25;
-		int32_t contentHeight = boxHeight;
 		constexpr int32_t labelHeight = kTextSpacingY;
 		constexpr int32_t labelY = baseY + boxHeight - labelHeight;
+		int32_t contentHeight = boxHeight;
 
 		const bool isSelected = n == paging.selectedItemPositionOnPage;
 
@@ -153,20 +153,24 @@ void HorizontalMenu::drawPixelsForOled() {
 	}
 
 	// Render the page counters
-	if (paging.pages.size() > 1) {
-		constexpr int32_t pageY = 1 + OLED_MAIN_TOPMOST_PIXEL;
-		int32_t endX = OLED_MAIN_WIDTH_PIXELS;
+	if (const int32_t pagesCount = paging.pages.size(); pagesCount > 1) {
+		constexpr int32_t y = 1 + OLED_MAIN_TOPMOST_PIXEL;
+		int32_t x = OLED_MAIN_WIDTH_PIXELS - kTextSpacingX - 1;
 
-		for (int32_t p = paging.pages.size(); p > 0; p--) {
-			DEF_STACK_STRING_BUF(pageNum, 2);
-			pageNum.appendInt(p);
-			const int32_t pageNumWidth = image.getStringWidthInPixels(pageNum.c_str(), kTextSpacingY);
-			image.drawString(pageNum.c_str(), endX - pageNumWidth, pageY, kTextSpacingX, kTextSpacingY);
-			endX -= pageNumWidth + 1;
-			if (p - 1 == pageNumber) {
-				image.invertAreaRounded(endX, pageNumWidth + 1, pageY, pageY + kTextSpacingY);
-			}
-		}
+		// Draw total count
+		DEF_STACK_STRING_BUF(currentPageNum, 2);
+		currentPageNum.appendInt(pagesCount);
+		image.drawString(currentPageNum.c_str(), x, y, kTextSpacingX, kTextSpacingY);
+		x -= kTextSpacingX - 1;
+
+		// Draw separator line
+		image.drawLine(x, y + kTextSpacingY - 2, x + 2, y + 1);
+		x -= 6;
+
+		// Draw the current one
+		currentPageNum.clear();
+		currentPageNum.appendInt(paging.visiblePageNumber + 1);
+		image.drawString(currentPageNum.c_str(), x, y, kTextSpacingX, kTextSpacingY);
 	}
 }
 
@@ -289,7 +293,7 @@ ActionResult HorizontalMenu::selectMenuItemOnVisiblePage(int32_t selectedColumn)
 	return ActionResult::DEALT_WITH;
 }
 
-HorizontalMenu::Paging HorizontalMenu::splitMenuItemsByPages() const {
+HorizontalMenu::Paging HorizontalMenu::splitMenuItemsByPages(std::span<MenuItem*> menuItems) {
 	std::vector<Page> pages;
 	std::vector<MenuItem*> currentPageItems;
 	int32_t currentPageNumber = 0;
@@ -302,7 +306,7 @@ HorizontalMenu::Paging HorizontalMenu::splitMenuItemsByPages() const {
 		return layout != FIXED || std::ranges::any_of(pageItems, [](MenuItem* item) { return isItemRelevant(item); });
 	};
 
-	for (auto* item : items) {
+	for (auto* item : menuItems) {
 		if (layout != FIXED && !isItemRelevant(item)) {
 			continue;
 		}

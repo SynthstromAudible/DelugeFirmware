@@ -10,9 +10,11 @@ namespace deluge::gui::menu_item {
 
 class HorizontalMenu : public Submenu {
 public:
+	friend class HorizontalMenuCombined;
+
 	enum Layout { FIXED, DYNAMIC };
 	struct Page {
-		int32_t number;
+		mutable int32_t number;
 		std::vector<MenuItem*> items;
 	};
 	struct Paging {
@@ -47,10 +49,10 @@ protected:
 	ActionResult selectMenuItemOnVisiblePage(int32_t selectedColumn);
 	ActionResult switchVisiblePage(int32_t direction);
 	static void displayPopup(MenuItem* menuItem);
+	virtual Paging splitMenuItemsByPages(std::span<MenuItem*> items);
 
 private:
 	void updateSelectedMenuItemLED(int32_t itemNumber);
-	Paging splitMenuItemsByPages() const;
 	static void renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32_t slotStartX, int32_t slotWidth,
 	                              bool isSelected);
 };
