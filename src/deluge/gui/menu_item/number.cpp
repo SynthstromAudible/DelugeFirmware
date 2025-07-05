@@ -210,7 +210,7 @@ void Number::drawSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32
 	const int32_t valueLineX = valueLineMinX + valueLineWidth;
 
 	const int32_t centerY = minY + (maxY - minY) / 2;
-	for (int32_t x = maxX; x >= minX; x -= 3) {
+	for (int32_t x = minX; x <= maxX; x += 3) {
 		if (x != valueLineX - 1 && x != valueLineX + 2) {
 			image.drawPixel(x, centerY - 1);
 			image.drawPixel(x, centerY + 1);
