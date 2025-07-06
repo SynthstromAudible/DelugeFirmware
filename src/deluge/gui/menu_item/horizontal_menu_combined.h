@@ -26,7 +26,11 @@ namespace deluge::gui::menu_item {
 class HorizontalMenuCombined final : public HorizontalMenu {
 public:
 	HorizontalMenuCombined(std::initializer_list<HorizontalMenu*> submenus)
-	    : HorizontalMenu(l10n::String::STRING_FOR_NONE, makeCombinedItems(submenus)), submenus_{submenus} {}
+	    : HorizontalMenu(l10n::String::STRING_FOR_NONE, {}), submenus_{submenus} {
+		for (const auto submenu : submenus) {
+			items.insert(items.end(), submenu->items.begin(), submenu->items.end());
+		}
+	}
 
 	[[nodiscard]] std::string_view getTitle() const override { return current_submenu_->getTitle(); }
 
@@ -64,16 +68,7 @@ public:
 	}
 
 private:
-	std::vector<MenuItem*> combined_items_{};
 	std::vector<HorizontalMenu*> submenus_{};
 	HorizontalMenu* current_submenu_{nullptr};
-
-	std::span<MenuItem*> makeCombinedItems(std::initializer_list<HorizontalMenu*> submenus) {
-		for (const auto submenu : submenus) {
-			const auto items = submenu->items;
-			combined_items_.insert(combined_items_.end(), items.begin(), items.end());
-		}
-		return combined_items_;
-	}
 };
 } // namespace deluge::gui::menu_item
