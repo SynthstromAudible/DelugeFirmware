@@ -9,6 +9,7 @@
 #include "hid/led/indicator_leds.h"
 #include "model/settings/runtime_feature_settings.h"
 #include <algorithm>
+#include <model/instrument/kit.h>
 #include <storage/flash_storage.h>
 
 namespace deluge::gui::menu_item {
@@ -22,20 +23,15 @@ ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRou
 		return Submenu::buttonAction(b, on, inCardRoutine);
 	}
 
-	// use SYNTH / KIT / MIDI / CV buttons to select menu item in the currently displayed horizontal menu page
 	// use SCALE / CROSS SCREEN buttons to switch between pages
-	switch (b) {
-	case SYNTH:
-		return selectMenuItemOnVisiblePage(0);
-	case KIT:
-		return selectMenuItemOnVisiblePage(1);
-	case MIDI:
-		return selectMenuItemOnVisiblePage(2);
-	case CV:
-		return selectMenuItemOnVisiblePage(3);
-	case CROSS_SCREEN_EDIT:
-	case SCALE_MODE:
+	if (b == CROSS_SCREEN_EDIT || b == SCALE_MODE) {
 		return switchVisiblePage(b == CROSS_SCREEN_EDIT ? 1 : -1);
+	}
+
+	// use SYNTH / KIT / MIDI / CV buttons to select menu item in the currently displayed horizontal menu page
+	std::map<hid::Button, int32_t> selectMap = {{SYNTH, 0}, {KIT, 1}, {MIDI, 2}, {CV, 3}};
+	if (selectMap.contains(b)) {
+		return selectMenuItem(paging.getVisiblePage().items, *current_item_, selectMap[b]);
 	}
 
 	// forward other button presses to be handled by the parent
@@ -236,19 +232,27 @@ ActionResult HorizontalMenu::switchVisiblePage(int32_t direction) {
 	const auto targetPosition = std::min(paging.selectedItemPositionOnPage, static_cast<int32_t>(pageItems.size() - 1));
 
 	// Update the currently selected item
-	current_item_ = std::ranges::find(items, pageItems[targetPosition]);
+	for (int32_t pos = targetPosition; pos >= 0; pos--) {
+		if (const auto item = pageItems[pos]; isItemRelevant(item)) {
+			current_item_ = std::ranges::find(items, item);
+			break;
+		}
+	}
+
 	updateDisplay();
 	updatePadLights();
 	updateSelectedMenuItemLED(targetPosition);
 	(*current_item_)->updateAutomationViewParameter();
 
+	if (display->hasPopupOfType(PopupType::HORIZONTAL_MENU)) {
+		display->cancelPopup();
+	}
+
 	return ActionResult::DEALT_WITH;
 }
 
-/// Selects the menu item covering the given virtual column on the visible page
-ActionResult HorizontalMenu::selectMenuItemOnVisiblePage(int32_t selectedColumn) {
-	auto& pageItems = paging.getVisiblePage().items;
-
+ActionResult HorizontalMenu::selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous,
+                                            int32_t selectedColumn) {
 	// Find the item you're looking for by iterating through all items on the current page
 	int32_t currentColumn = 0;
 	for (size_t n = 0; n < pageItems.size(); n++) {
@@ -261,10 +265,8 @@ ActionResult HorizontalMenu::selectMenuItemOnVisiblePage(int32_t selectedColumn)
 				break;
 			}
 
-			const auto previous_item = current_item_;
 			current_item_ = std::ranges::find(items, item);
-
-			if (current_item_ == previous_item) {
+			if (*(current_item_) == previous) {
 				// item is already selected
 				if ((*current_item_)->isSubmenu()) {
 					soundEditor.enterSubmenu(*current_item_);

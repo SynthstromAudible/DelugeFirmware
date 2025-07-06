@@ -45,14 +45,15 @@ protected:
 	Layout layout = DYNAMIC;
 	int32_t lastSelectedItemPosition = kNoSelection;
 
-	ActionResult selectMenuItemOnVisiblePage(int32_t selectedColumn);
-	ActionResult switchVisiblePage(int32_t direction);
+private:
 	virtual void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem);
 	virtual Paging splitMenuItemsByPages(MenuItem* currentItem);
-	static void displayPopup(MenuItem* menuItem);
-
-private:
+	virtual ActionResult selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous,
+	                                    int32_t selectedColumn);
 	void updateSelectedMenuItemLED(int32_t itemNumber);
+	ActionResult switchVisiblePage(int32_t direction);
+
+	static void displayPopup(MenuItem* menuItem);
 	static void renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32_t slotStartX, int32_t slotWidth,
 	                              bool isSelected);
 };
