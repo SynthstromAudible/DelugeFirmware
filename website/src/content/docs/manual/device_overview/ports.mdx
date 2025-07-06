@@ -7,7 +7,7 @@ sidebar:
 import { Card } from "@astrojs/starlight/components"
 import { Steps } from "@astrojs/starlight/components"
 
-This page provides information on the physical hardware inputs and outputs used to transmit audio and non-audio (e.g. MIDI, CV, Gate, Trigger Clock).
+This page provides information on the Deluge's physical hardware inputs and outputs used to transmit audio and non-audio data (e.g. MIDI, CV, Gate, Trigger Clock).
 
 ## Audio
 
@@ -15,13 +15,13 @@ This page provides information on the physical hardware inputs and outputs used 
 
 #### Line
 
-For recording from another device’s line output. The line input uses TRS 1/4” / 6.35mm connector, which may accept a single-ended / unbalanced signal, a differential / balanced signal, or a stereo signal.
+For monitoring and recording from another device’s line output use the line input TRS 1/4” / 6.35mm connector, which may accept a single-ended / unbalanced signal, a differential / balanced signal, or a stereo signal.
 
 Input impedance: 4k.
 
 #### Microphone
 
-For recording with an external microphone use the 3.5mm / 1/8” jack. Gain is set via the “mic gain” switch, which also affects the internal microphone. Stereo and mono microphones are supported. 4.5V plug-in power is supplied on the tip and ring of the connector, each through a 3.9k resistor.
+For monitoring and recording from an external microphone use the 3.5mm / 1/8” jack. Gain is set via the “mic gain” switch, which also affects the internal microphone. Stereo and mono microphones are supported. 4.5V plug-in power is supplied on the tip and ring of the connector, each through a 3.9k resistor.
 
 ### Outputs
 
@@ -31,9 +31,9 @@ The Deluge’s main audio outputs are two quasi-balanced (that is, resistor-bala
 
 Output impedance: 47 ohms.
 
-Deluge will detect if only the “L / MONO” output has a cable inserted (but not the “R” output or headphone output), and will output all sound in mono.
+The Deluge will detect if only the “L / MONO” output has a cable inserted (but not the “R” output or headphone output), and will output all sound in mono.
 
-In this case all panning and ping-pong delay will be deactivated, and stereo samples will be condensed to mono. This allows you to work on your music on a stereo setup, but not necessarily need to change anything if you are faced with a mono setup.
+- In this case all panning and ping-pong delay will be deactivated, and stereo samples will be condensed to mono. This allows you to work on your music on a stereo setup, but not necessarily need to change anything if you are faced with a mono setup.
 
 #### Headphone
 
@@ -109,7 +109,7 @@ The Deluge’s USB type-B connection can be used as a connection to your compute
 
 #### USB host
 
-The Deluge can use its USB type-B connection to act as a USB Host. This requires Deluge to be DC powered, a USB device connected and then Deluge to be powered up.
+The Deluge can use its USB type-B connection to act as a USB Host. This requires the Deluge to be DC powered and a USB device connected before the Deluge is powered up.
 
 #### MIDI implementation chart
 
@@ -141,7 +141,9 @@ The Deluge can use its USB type-B connection to act as a USB Host. This requires
 | System real-time      | Active sensing               | NO                                                                        | NO                                                                            |
 | System real-time      | Reset                        | NO                                                                        | NO                                                                            |
 
-- Only if MIDI clock output is enabled. See the settings menu.
+```
+* Only if MIDI clock output is enabled. See the settings menu.
+```
 
 #### Outputting MIDI in a Kit
 
