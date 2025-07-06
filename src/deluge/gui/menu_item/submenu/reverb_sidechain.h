@@ -20,8 +20,7 @@
 #include "processing/engines/audio_engine.h"
 
 namespace deluge::gui::menu_item::submenu {
-
-class Reverb final : public HorizontalMenu {
+class ReverbSidechain final : public HorizontalMenu {
 public:
 	using HorizontalMenu::HorizontalMenu;
 
@@ -30,5 +29,4 @@ public:
 		Submenu::beginSession(navigatedBackwardFrom);
 	}
 };
-
 } // namespace deluge::gui::menu_item::submenu
