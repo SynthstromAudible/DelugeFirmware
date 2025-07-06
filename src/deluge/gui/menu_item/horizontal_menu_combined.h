@@ -22,13 +22,46 @@
 
 namespace deluge::gui::menu_item {
 
-// A class to combine multiple Horizontal menus into one long Horizontal menu with paging
+// A class to combine multiple Horizontal menus into a single long Horizontal menu with paging
 class HorizontalMenuCombined final : public HorizontalMenu {
 public:
 	HorizontalMenuCombined(std::initializer_list<HorizontalMenu*> submenus)
 	    : HorizontalMenu(l10n::String::STRING_FOR_NONE, makeCombinedItems(submenus)), submenus_{submenus} {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return current_submenu_->getTitle(); }
+
+	void renderMenuItems(std::span<MenuItem*> items, const MenuItem*) override {
+		current_submenu_->renderMenuItems(items, *current_item_);
+	}
+
+	Paging splitMenuItemsByPages(MenuItem*) override {
+		// Combine all pages of all submenus into one list
+		std::vector<Page> pages{};
+
+		int32_t visiblePageNumber = 0;
+		int32_t selectedItemPositionOnPage = 0;
+		int32_t currentPage = 0;
+
+		for (const auto& submenu : submenus_) {
+			auto submenuPaging = submenu->splitMenuItemsByPages(*current_item_);
+
+			for (const auto& submenuPage : submenuPaging.pages) {
+				pages.push_back({currentPage, submenuPage.items});
+
+				for (const auto& it : submenuPage.items) {
+					if (it == *current_item_) {
+						current_submenu_ = submenu;
+						current_submenu_->beginSession();
+						visiblePageNumber = currentPage;
+						selectedItemPositionOnPage = submenuPaging.selectedItemPositionOnPage;
+						break;
+					}
+				}
+				currentPage++;
+			}
+		}
+		return Paging{visiblePageNumber, selectedItemPositionOnPage, pages};
+	}
 
 private:
 	std::vector<MenuItem*> combined_items_{};
@@ -41,33 +74,6 @@ private:
 			combined_items_.insert(combined_items_.end(), items.begin(), items.end());
 		}
 		return combined_items_;
-	}
-
-	Paging splitMenuItemsByPages(std::span<MenuItem*>) override {
-		// Combine all pages of all submenus into one list
-		std::vector<Page> pages{};
-
-		int32_t visiblePageNumber = 0;
-		int32_t selectedItemPositionOnPage = 0;
-		int32_t currentPage = 0;
-
-		for (const auto& submenu : submenus_) {
-			auto submenuPaging = HorizontalMenu::splitMenuItemsByPages(submenu->items);
-			for (const auto& submenuPage : submenuPaging.pages) {
-				submenuPage.number = currentPage;
-				currentPage++;
-				pages.push_back(submenuPage);
-			}
-			for (const auto it : submenu->items) {
-				if (it == *current_item_) {
-					current_submenu_ = submenu;
-					visiblePageNumber = currentPage - submenuPaging.pages.size() + submenuPaging.visiblePageNumber;
-					selectedItemPositionOnPage = submenuPaging.selectedItemPositionOnPage;
-					break;
-				}
-			}
-		}
-		return Paging{visiblePageNumber, selectedItemPositionOnPage, pages};
 	}
 };
 } // namespace deluge::gui::menu_item

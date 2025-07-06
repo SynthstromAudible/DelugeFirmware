@@ -507,6 +507,9 @@ envelope::Segment env4ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV4_RELEASE_ME
 envelope::EnvelopeMenu env4Menu{
     STRING_FOR_ENVELOPE_4, {&env4AttackMenu, &env4DecayMenu, &env4SustainMenu, &env4ReleaseMenu}, 3};
 
+// Combined Envelope 1-4 menu -----------------------------------------------------------------------------
+HorizontalMenuCombined envMenuCombined{{&env1Menu, &env2Menu, &env3Menu, &env4Menu}};
+
 // LFO1 menu ---------------------------------------------------------------------------------
 
 lfo::Type lfo1TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO1_TYPE, LFO1_ID};
@@ -536,6 +539,9 @@ lfo::Sync lfo4SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO4_SYNC, LFO4_ID};
 patched_param::Integer lfo4RateMenu{STRING_FOR_RATE, STRING_FOR_LFO4_RATE, params::LOCAL_LFO_LOCAL_FREQ_2};
 
 HorizontalMenu lfo4Menu{STRING_FOR_LFO4, {&lfo4TypeMenu, &lfo4SyncMenu, &lfo4RateMenu}};
+
+// Combined LFO 1-4 menu -----------------------------------------------------------------------------
+HorizontalMenuCombined lfoMenuCombined{{&lfo1Menu, &lfo2Menu, &lfo3Menu, &lfo4Menu}};
 
 // Mod FX ----------------------------------------------------------------------------------
 mod_fx::Type modFXTypeMenu{STRING_FOR_TYPE, STRING_FOR_MODFX_TYPE};
@@ -1763,12 +1769,12 @@ PLACE_SDRAM_DATA Submenu* parentsForSoundShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  &stutterMenu                       },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &soundDistortionMenu,   &soundDistortionMenu,     &soundDistortionMenu,              },
     {&voiceMenuCombined,		 &voiceMenuCombined,      &voiceMenuCombined,             &voiceMenuCombined,             &voiceMenuCombined,   &audioCompMenu,         nullptr,                  &soundDistortionMenu,              },
-    {&env1Menu,               &env1Menu,               &env1Menu,                      &env1Menu,                      &lpfMenu,             &lpfMenu,               &lpfMenu,                 &lpfMenu,                          },
-    {&env2Menu,               &env2Menu,               &env2Menu,                      &env2Menu,                      &hpfMenu,             &hpfMenu,               &hpfMenu,                 &hpfMenu,                          },
+    {&envMenuCombined,        &envMenuCombined,        &envMenuCombined,               &envMenuCombined,				  &lpfMenu,             &lpfMenu,               &lpfMenu,                 &lpfMenu,                          },
+    {&envMenuCombined,        &envMenuCombined,		  &envMenuCombined,               &envMenuCombined,               &hpfMenu,             &hpfMenu,               &hpfMenu,                 &hpfMenu,                          },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &eqMenu,                  &eqMenu,                           },
     {&arpMenuCombined,		 &arpMenuCombined,		  &arpMenuCombined,				  &arpMenuCombined,				  &arpMenuCombined,		nullptr,				&eqMenu,                  &eqMenu,                           },
-    {&lfo1Menu,               &lfo1Menu,               &lfo1Menu,                      &modFXMenu,                     &modFXMenu,           &modFXMenu,             &modFXMenu,               &modFXMenu,                        },
-    {&lfo2Menu,               &lfo2Menu,               &lfo2Menu,                      &reverbMenu,              	  &reverbMenu,    	 	&reverbMenu,      		&reverbMenu,        	  &reverbMenu,                 		 },
+    {&lfoMenuCombined,        &lfoMenuCombined,		  &lfoMenuCombined,               &modFXMenu,                     &modFXMenu,           &modFXMenu,             &modFXMenu,               &modFXMenu,                        },
+    {&lfoMenuCombined,		 &lfoMenuCombined,		  &lfoMenuCombined,				  &reverbMenu,              	  &reverbMenu,    	 	&reverbMenu,      		&reverbMenu,        	  &reverbMenu,                 		 },
     {&delayMenu,              &delayMenu,              &delayMenu,                     &delayMenu,                     &delayMenu,           nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 &globalRandomizerMenu,   nullptr,                        &globalRandomizerMenu,          nullptr,              nullptr,                nullptr,                  nullptr,                           },
 };
@@ -1793,22 +1799,22 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForSoundsSecondLayer[][kDisplayHeight] 
 };
 
 PLACE_SDRAM_DATA Submenu* parentsForSoundShortcutsSecondLayer[][kDisplayHeight] = {
-    {nullptr,	nullptr,			nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
-    {nullptr,	nullptr,			nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
-    {nullptr,	nullptr,			nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
-    {nullptr,	nullptr,			nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
-    {nullptr,	nullptr,			nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
-    {nullptr,	nullptr,			nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	&stutterMenu},
-    {nullptr,	nullptr,			nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
-    {nullptr,	&voiceMenuCombined,	nullptr,	nullptr,	&voiceMenuCombined,     &audioCompMenu,	nullptr,	nullptr     },
-    {&env3Menu,	&env3Menu,			&env3Menu,	&env3Menu,	nullptr,	            nullptr,	    nullptr,	nullptr     },
-    {&env4Menu,	&env4Menu,			&env4Menu,	&env4Menu,	nullptr,	            nullptr,	    nullptr,	nullptr     },
-    {nullptr,	nullptr,			nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
-    {nullptr,	nullptr,			nullptr,	nullptr,	&arpMenuCombined,		nullptr,	    nullptr,	nullptr     },
-    {&lfo3Menu,	&lfo3Menu,			&lfo3Menu,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
-    {&lfo4Menu,	&lfo4Menu,			&lfo4Menu,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
-    {nullptr,	nullptr,			nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
-    {nullptr,	nullptr,			nullptr,	nullptr,	nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,			nullptr,			nullptr,			nullptr,			nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,			nullptr,			nullptr,			nullptr,			nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,			nullptr,			nullptr,			nullptr,			nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,			nullptr,			nullptr,			nullptr,			nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,			nullptr,			nullptr,			nullptr,			nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,			nullptr,			nullptr,			nullptr,			nullptr,	            nullptr,	    nullptr,	&stutterMenu},
+    {nullptr,			nullptr,			nullptr,			nullptr,			nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,			&voiceMenuCombined,	nullptr,			nullptr,			&voiceMenuCombined,     &audioCompMenu,	nullptr,	nullptr     },
+    {&envMenuCombined,	&envMenuCombined,	&envMenuCombined,	&envMenuCombined,	nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {&envMenuCombined,	&envMenuCombined,	&envMenuCombined,	&envMenuCombined,	nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,			nullptr,			nullptr,			nullptr,			nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,			nullptr,			nullptr,			nullptr,			&arpMenuCombined,		nullptr,	    nullptr,	nullptr     },
+    {&lfoMenuCombined,	&lfoMenuCombined,	&lfoMenuCombined,	nullptr,			nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {&lfoMenuCombined,	&lfoMenuCombined,	&lfoMenuCombined,	nullptr,			nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,			nullptr,			nullptr,			nullptr,			nullptr,	            nullptr,	    nullptr,	nullptr     },
+    {nullptr,			nullptr,			nullptr,			nullptr,			nullptr,	            nullptr,	    nullptr,	nullptr     },
 };
 
 PLACE_SDRAM_DATA MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight] = {
