@@ -108,4 +108,81 @@ HorizontalMenu::Paging HorizontalMenuCombined::splitMenuItemsByPages(std::span<M
 	return Paging{visiblePageNumber, selectedItemPositionOnPage, pages};
 }
 
+void HorizontalMenuCombined::selectEncoderAction(int32_t offset) {
+	const bool selectButtonPressed = Buttons::selectButtonPressUsedUp =
+	    Buttons::isButtonPressed(hid::button::SELECT_ENC);
+	if (renderingStyle() != HORIZONTAL || !selectButtonPressed) {
+		return HorizontalMenu::selectEncoderAction(offset);
+	}
+
+	// Undo any acceleration: we only want it for the items, not the menu itself.
+	// We only do this for horizontal menus to allow fast scrolling with shift in vertical menus.
+	offset = std::clamp<int32_t>(offset, -1, 1);
+
+	// Traverse through menu items
+	int32_t submenuIndex = std::distance(submenus_.begin(), std::ranges::find(submenus_, current_submenu_));
+	int32_t itemIndex = std::distance(current_submenu_->items.begin(), current_item_);
+
+	auto moveForward = [&](int32_t& submenuIdx, int32_t& itemIdx) {
+		++itemIdx;
+		while (submenuIdx < static_cast<int32_t>(submenus_.size())) {
+			if (itemIdx < static_cast<int32_t>(submenus_[submenuIdx]->items.size())) {
+				return true;
+			}
+			++submenuIdx;
+			itemIdx = 0;
+		}
+		if (wrapAround()) {
+			submenuIdx = 0;
+			itemIdx = 0;
+			return true;
+		}
+		return false;
+	};
+
+	auto moveBackward = [&](int32_t& submenuIdx, int32_t& itemIdx) {
+		--itemIdx;
+		while (submenuIdx >= 0) {
+			if (itemIdx >= 0) {
+				return true;
+			}
+			--submenuIdx;
+			if (submenuIdx >= 0) {
+				itemIdx = static_cast<int32_t>(submenus_[submenuIdx]->items.size()) - 1;
+			}
+		}
+		if (wrapAround()) {
+			submenuIdx = static_cast<int32_t>(submenus_.size()) - 1;
+			itemIdx = static_cast<int32_t>(submenus_[submenuIdx]->items.size()) - 1;
+			return true;
+		}
+		return false;
+	};
+
+	if (offset > 0) {
+		do {
+			if (!moveForward(submenuIndex, itemIndex))
+				break;
+			if (auto* item = submenus_[submenuIndex]->items[itemIndex]; isItemRelevant(item)) {
+				current_item_ = submenus_[submenuIndex]->items.begin() + itemIndex;
+				offset--;
+			}
+		} while (offset > 0);
+	}
+	else if (offset < 0) {
+		do {
+			if (!moveBackward(submenuIndex, itemIndex))
+				break;
+			if (auto* item = submenus_[submenuIndex]->items[itemIndex]; isItemRelevant(item)) {
+				current_item_ = submenus_[submenuIndex]->items.begin() + itemIndex;
+				offset++;
+			}
+		} while (offset < 0);
+	}
+
+	updateDisplay();
+	updatePadLights();
+	(*current_item_)->updateAutomationViewParameter();
+}
+
 } // namespace deluge::gui::menu_item

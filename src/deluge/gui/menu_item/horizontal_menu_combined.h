@@ -31,6 +31,7 @@ public:
 	[[nodiscard]] std::string_view getTitle() const override;
 	bool focusChild(const MenuItem* child) override;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	void selectEncoderAction(int32_t offset) override;
 	void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) override;
 	ActionResult selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous,
 	                            int32_t selectedColumn) override;
