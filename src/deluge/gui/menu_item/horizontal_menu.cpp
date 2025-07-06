@@ -9,7 +9,6 @@
 #include "hid/led/indicator_leds.h"
 #include "model/settings/runtime_feature_settings.h"
 #include <algorithm>
-#include <model/instrument/kit.h>
 #include <storage/flash_storage.h>
 
 namespace deluge::gui::menu_item {
