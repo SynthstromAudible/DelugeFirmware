@@ -37,6 +37,7 @@ public:
 	Paging splitMenuItemsByPages(MenuItem*) override {
 		// Combine all pages of all submenus into one list
 		std::vector<Page> pages{};
+		current_submenu_ = nullptr;
 
 		int32_t visiblePageNumber = 0;
 		int32_t selectedItemPositionOnPage = 0;
@@ -45,18 +46,17 @@ public:
 		for (const auto& submenu : submenus_) {
 			auto submenuPaging = submenu->splitMenuItemsByPages(*current_item_);
 
-			for (const auto& submenuPage : submenuPaging.pages) {
-				pages.push_back({currentPage, submenuPage.items});
+			for (const auto& page : submenuPaging.pages) {
+				pages.push_back({currentPage, page.items});
 
-				for (const auto& it : submenuPage.items) {
-					if (it == *current_item_) {
-						current_submenu_ = submenu;
-						current_submenu_->beginSession();
-						visiblePageNumber = currentPage;
-						selectedItemPositionOnPage = submenuPaging.selectedItemPositionOnPage;
-						break;
-					}
+				if (current_submenu_ == nullptr
+				    && std::ranges::any_of(page.items, [&](const auto& item) { return item == *current_item_; })) {
+					current_submenu_ = submenu;
+					current_submenu_->beginSession();
+					visiblePageNumber = currentPage;
+					selectedItemPositionOnPage = submenuPaging.selectedItemPositionOnPage;
 				}
+
 				currentPage++;
 			}
 		}
