@@ -99,7 +99,7 @@ public:
 	// Spread last lock
 	uint32_t lastLockedNoteProbabilityParameterValue{0};
 	uint32_t lastLockedBassProbabilityParameterValue{0};
-	uint32_t lastLockedStepProbabilityParameterValue{0};
+	uint32_t lastLockedSwapProbabilityParameterValue{0};
 	uint32_t lastLockedGlideProbabilityParameterValue{0};
 	uint32_t lastLockedReverseProbabilityParameterValue{0};
 	uint32_t lastLockedChordProbabilityParameterValue{0};
@@ -111,7 +111,7 @@ public:
 	// Pre-calculated randomized values for each parameter
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedNoteProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedBassProbabilityValues;
-	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedStepProbabilityValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSwapProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedGlideProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedReverseProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedChordProbabilityValues;
@@ -135,7 +135,7 @@ public:
 	uint32_t ratchetAmount{0};
 	uint32_t noteProbability{4294967295u}; // Default to 25 if not set in XML
 	uint32_t bassProbability{0};
-	uint32_t stepProbability{0};
+	uint32_t swapProbability{0};
 	uint32_t glideProbability{0};
 	uint32_t reverseProbability{0};
 	uint32_t chordProbability{0};
@@ -248,8 +248,8 @@ public:
 	// Bass probability state
 	bool lastNormalNotePlayedFromBassProbability = false;
 
-	// Step probability state
-	bool lastNormalNotePlayedFromStepProbability = false;
+	// Swap probability state
+	bool lastNormalNotePlayedFromSwapProbability = false;
 
 	// Reverse probability state
 	bool lastNormalNotePlayedFromReverseProbability = false;
@@ -297,7 +297,7 @@ protected:
 	bool evaluateRhythm(uint32_t rhythm, bool isRatchet);
 	bool evaluateNoteProbability(bool isRatchet);
 	bool evaluateBassProbability(bool isRatchet);
-	bool evaluateStepProbability(bool isRatchet);
+	bool evaluateSwapProbability(bool isRatchet);
 	bool evaluateReverseProbability(bool isRatchet);
 	bool evaluateChordProbability(bool isRatchet);
 	uint32_t calculateSpreadVelocity(uint8_t velocity, int32_t spreadVelocityForCurrentStep);
