@@ -170,27 +170,25 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 }
 
 void HorizontalMenu::selectEncoderAction(int32_t offset) {
-	if (renderingStyle() != HORIZONTAL) {
-		return Submenu::selectEncoderAction(offset);
-	}
+	if (renderingStyle() == HORIZONTAL) {
+		const bool selectButtonPressed = Buttons::selectButtonPressUsedUp =
+		    Buttons::isButtonPressed(hid::button::SELECT_ENC);
 
-	const bool selectButtonPressed = Buttons::selectButtonPressUsedUp =
-	    Buttons::isButtonPressed(hid::button::SELECT_ENC);
+		if (!selectButtonPressed) {
+			MenuItem* child = *current_item_;
+			if (child->isSubmenu()) {
+				// No action for a submenu
+				return;
+			}
 
-	if (!selectButtonPressed) {
-		MenuItem* child = *current_item_;
-		if (child->isSubmenu()) {
-			// No action for a submenu
-			return;
+			child->selectEncoderAction(offset);
+			focusChild(child);
+			displayPopup(child);
+
+			// We don't want to return true for selectEncoderEditsInstrument(), since
+			// that would trigger for scrolling in the menu as well.
+			return soundEditor.markInstrumentAsEdited();
 		}
-
-		child->selectEncoderAction(offset);
-		focusChild(child);
-		displayPopup(child);
-
-		// We don't want to return true for selectEncoderEditsInstrument(), since
-		// that would trigger for scrolling in the menu as well.
-		return soundEditor.markInstrumentAsEdited();
 	}
 
 	// Undo any acceleration: we only want it for the items, not the menu itself.
