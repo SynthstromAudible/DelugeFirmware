@@ -202,7 +202,7 @@
 #include "gui/menu_item/submenu/bend.h"
 #include "gui/menu_item/submenu/mod_fx.h"
 #include "gui/menu_item/submenu/modulator.h"
-#include "gui/menu_item/submenu/reverb.h"
+#include "gui/menu_item/submenu/reverb_sidechain.h"
 #include "gui/menu_item/submenu/sidechain.h"
 #include "gui/menu_item/swing/interval.h"
 #include "gui/menu_item/synth_mode.h"
@@ -642,16 +642,16 @@ submenu::Sidechain sidechainMenu{STRING_FOR_SIDECHAIN,
                                      &sidechainShapeMenu,
                                  }};
 
-submenu::Reverb reverbSidechainMenu{STRING_FOR_REVERB_SIDECHAIN,
-                                    STRING_FOR_REVERB_SIDECH_MENU_TITLE,
-                                    {
-                                        &reverbSidechainVolumeMenu,
-                                        &reverbSidechainShapeMenu,
-                                        &sidechainAttackMenu,
-                                        &sidechainReleaseMenu,
-                                        &sidechainSyncMenu,
-                                    },
-                                    HorizontalMenu::FIXED};
+submenu::ReverbSidechain reverbSidechainMenu{STRING_FOR_REVERB_SIDECHAIN,
+                                             STRING_FOR_REVERB_SIDECH_MENU_TITLE,
+                                             {
+                                                 &reverbSidechainVolumeMenu,
+                                                 &reverbSidechainShapeMenu,
+                                                 &sidechainAttackMenu,
+                                                 &sidechainReleaseMenu,
+                                                 &sidechainSyncMenu,
+                                             },
+                                             HorizontalMenu::FIXED};
 
 // Reverb ----------------------------------------------------------------------------------
 reverb::Amount reverbAmountMenu{STRING_FOR_AMOUNT, STRING_FOR_REVERB_AMOUNT, params::GLOBAL_REVERB_AMOUNT};
@@ -677,8 +677,7 @@ HorizontalMenu reverbMenu{
         &reverbSidechainMenu,
     },
 };
-
-submenu::Reverb reverbMenuWithoutSidechain{
+HorizontalMenu reverbMenuWithoutSidechain{
     STRING_FOR_REVERB,
     {&reverbAmountMenu, &reverbRoomSizeMenu, &reverbDampingMenu, &reverbWidthMenu, &reverbModelMenu, &reverbPanMenu,
      &reverbHPFMenu, &reverbLPFMenu},
@@ -854,7 +853,7 @@ HorizontalMenu globalReverbMenu{
     },
 };
 
-submenu::Reverb globalReverbMenuWithoutSidechain{
+HorizontalMenu globalReverbMenuWithoutSidechain{
     STRING_FOR_REVERB,
     {
         &globalReverbSendAmountMenu,
