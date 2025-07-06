@@ -27,16 +27,12 @@ class EnvelopeMenu final : public HorizontalMenu {
 public:
 	using HorizontalMenu::HorizontalMenu;
 
-	void drawPixelsForOled() override {
-		if (renderingStyle() != HORIZONTAL) {
-			return Submenu::drawPixelsForOled();
-		}
-
+	void renderMenuItems(std::span<MenuItem*> menuItems, const MenuItem* currentItem) override {
 		// Get the values in 0-50 range
-		const int32_t attack = static_cast<Segment*>(items[0])->getValue();
-		const int32_t decay = static_cast<Segment*>(items[1])->getValue();
-		const int32_t sustain = static_cast<Segment*>(items[2])->getValue();
-		const int32_t release = static_cast<Segment*>(items[3])->getValue();
+		const int32_t attack = static_cast<Segment*>(menuItems[0])->getValue();
+		const int32_t decay = static_cast<Segment*>(menuItems[1])->getValue();
+		const int32_t sustain = static_cast<Segment*>(menuItems[2])->getValue();
+		const int32_t release = static_cast<Segment*>(menuItems[3])->getValue();
 
 		// Constants
 		constexpr int32_t totalWidth = OLED_MAIN_WIDTH_PIXELS;
@@ -88,26 +84,28 @@ public:
 
 		// Draw transition squares
 		selectedX = -1, selectedY = -1;
+		const int32_t selectedPos = std::distance(menuItems.begin(), std::ranges::find(menuItems, currentItem));
+
 		// Attack → Decay
-		drawTransitionSquare(attackX, peakY, 0);
+		drawTransitionSquare(attackX, peakY, selectedPos == 0);
 		// Decay → Sustain
-		drawTransitionSquare(decayX, sustainY, 1);
+		drawTransitionSquare(decayX, sustainY, selectedPos == 1);
 		// Sustain
-		drawTransitionSquare(decayX + (sustainX - decayX) / 2, sustainY, 2);
+		drawTransitionSquare(decayX + (sustainX - decayX) / 2, sustainY, selectedPos == 2);
 		// Release → End
-		drawTransitionSquare(releaseX, baseY, 3);
+		drawTransitionSquare(releaseX, baseY, selectedPos == 3);
 	}
 
 private:
 	int32_t selectedX, selectedY;
 
-	void drawTransitionSquare(const float centerX, const float centerY, const int32_t pos) {
+	void drawTransitionSquare(const float centerX, const float centerY, const bool isSelected) {
 		oled_canvas::Canvas& image = OLED::main;
 
 		const int32_t ix = static_cast<int32_t>(centerX);
 		const int32_t iy = static_cast<int32_t>(centerY);
 
-		if (pos != paging.selectedItemPositionOnPage && ix == selectedX && iy == selectedY) {
+		if (!isSelected && ix == selectedX && iy == selectedY) {
 			// Overlap occurred, skip drawing
 			return;
 		}
@@ -120,7 +118,7 @@ private:
 			}
 		}
 
-		if (pos == paging.selectedItemPositionOnPage) {
+		if (isSelected) {
 			// Invert region inside to highlight selection
 			selectedX = ix, selectedY = iy;
 			image.invertArea(ix - innerSquareSize, (squareSize * 2) - 1, iy - innerSquareSize, iy + innerSquareSize);
