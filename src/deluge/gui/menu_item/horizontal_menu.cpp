@@ -62,7 +62,9 @@ void HorizontalMenu::renderOLED() {
 
 		// Read all the values beforehand as content can depend on the values
 		for (const auto it : items) {
-			it->readCurrentValue();
+			if (isItemRelevant(it)) {
+				it->readCurrentValue();
+			}
 		}
 	}
 
