@@ -20,7 +20,7 @@ Considerations for CPU power:
 - Arpeggiation can generate a lot of CPU-eating voices very rapidly, which can add up if polyphony is on (is set to POLY) and if the release time is long. Try changing these parameters if you notice voices cutting out on your song.
 - There is a slight CPU overhead for each sound present in the Deluge’s currently loaded song - even if it is not sounding at a given moment. This may begin to affect CPU performance if you have more than 50 to 100 sounds loaded. For this reason, you may wish to refrain from importing large folders of samples as kits where these are not in-fact used. Multi-sampled instruments, count as just one sound regardless of how many separate samples they contain.
 - Voice priority can be manually set for a sound, to tell the Deluge which voices to consider (or not) dropping first - see sound editor .
-- 32-bit floating point audio files, have a slight processing overhead, so are less recommended in CPU-heavy projects.
+- .aiff and 32-bit floating point audio files have a slight processing overhead, so are less recommended in CPU-heavy projects.
 - See sample interpolation / pitch for some additional notes on CPU usage.
 
 ## Sampler Interpolation / Pitch

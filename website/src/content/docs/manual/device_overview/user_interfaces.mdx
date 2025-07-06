@@ -1,0 +1,28 @@
+---
+title: User Interfaces
+sidebar:
+  order: 9
+---
+
+import { Steps } from "@astrojs/starlight/components"
+
+The Deluge has a number of user interfaces which have been designed to allow the user to interact with the Deluge's various functionality.
+
+What UI you can open / switch to depends on the UI context that a user is currently interacting with. For example, Audio Clip Menu can only be opened when you have are in Audio Clip View.
+
+These user interfaces include:
+
+| User Interface             | Description                                                                                                                                                                                                                                                                                          |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| File Browser               | For browsing, saving, and loading files on the SD card. Can also be used to create folders and delete files.                                                                                                                                                                                         |
+| Menu                       | For viewing and changing existing settings, including system defaults and instrument parameters. Also used to launch other UI's and execute UI based actions.                                                                                                                                        |
+| Session View               | For interacting with Session Mode. There are two Session View layouts which change the manner of interaction with Session Mode: Row and Grid                                                                                                                                                         |
+| Arranger View              | For interacting with Arranger Mode.                                                                                                                                                                                                                                                                  |
+| Performance View           | For interacting with Session Mode or Arranger Mode based on the current Active Playback Mode and whether it was opened from Session View or Arranger View.                                                                                                                                           |
+| Audio Clip View            | For interacting with Audio Clips.                                                                                                                                                                                                                                                                    |
+| Synth Instrument Clip View | For interacting with Synth Instrument Clips.                                                                                                                                                                                                                                                         |
+| Kit Instrument Clip View   | For interacting with Kit Instrument Clips.                                                                                                                                                                                                                                                           |
+| MIDI Instrument Clip View  | For interacting with MIDI Instrument Clips.                                                                                                                                                                                                                                                          |
+| CV Instrument Clip View    | For interacting with CV Instrument Clips.                                                                                                                                                                                                                                                            |
+| Keyboard View              | For interacting with the Sounds of the Active Context from which Keyboard View was opened - e.g. Synth presets if opened from Synth Instrument Clip View, Kit presets if opened from Kit Instrument Clip View. There are different layouts that can be selected to change the manner of interaction. |
+| Automation View            | For interacting with the Parameters of the Active Context from which Automation View was opened - e.g. Song Parameters if opened from Arranger View, Audio Clip Parameters if opened from Audio Clip View, etc.                                                                                      |
