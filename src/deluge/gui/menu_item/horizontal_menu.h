@@ -47,7 +47,8 @@ protected:
 
 	virtual void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem);
 	virtual Paging splitMenuItemsByPages(std::span<MenuItem*> items, const MenuItem* currentItem);
-	virtual ActionResult selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous, int32_t selectedColumn);
+	virtual ActionResult selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous,
+	                                    int32_t selectedColumn);
 
 private:
 	void updateSelectedMenuItemLED(int32_t itemNumber);
