@@ -26,64 +26,15 @@ namespace deluge::gui::menu_item {
 class HorizontalMenuCombined final : public HorizontalMenu {
 public:
 	HorizontalMenuCombined(std::initializer_list<HorizontalMenu*> submenus)
-	    : HorizontalMenu(l10n::String::STRING_FOR_NONE, {}), submenus_{submenus} {
-		for (const auto submenu : submenus) {
-			items.insert(items.end(), submenu->items.begin(), submenu->items.end());
-		}
-	}
+	    : HorizontalMenu(l10n::String::STRING_FOR_NONE, {}), submenus_{submenus} {}
 
-	[[nodiscard]] std::string_view getTitle() const override { return current_submenu_->getTitle(); }
-
-	void beginSession(MenuItem* navigatedBackwardFrom) override {
-		navigated_backward_from = navigatedBackwardFrom;
-
-		// Some of submenus tweak soundEditor params on the session beginning,
-		// so we need to call it for each of the submenus to correctly count pages
-		for (const auto submenu : submenus_) {
-			submenu->beginSession();
-		}
-	}
-
-	void renderMenuItems(std::span<MenuItem*> items, const MenuItem*) override {
-		current_submenu_->renderMenuItems(items, *current_item_);
-	}
-
-	ActionResult selectMenuItem(std::span<MenuItem*> items, const MenuItem* previous, int32_t selectedColumn) override {
-		const auto result = current_submenu_->selectMenuItem(items, previous, selectedColumn);
-		current_item_ = current_submenu_->current_item_;
-		return result;
-	}
-
-	Paging splitMenuItemsByPages(MenuItem*) override {
-		// Combine all pages of all submenus into one list
-		std::vector<Page> pages{};
-		current_submenu_ = nullptr;
-
-		int32_t visiblePageNumber = 0;
-		int32_t selectedItemPositionOnPage = 0;
-		int32_t currentPage = 0;
-
-		for (const auto& submenu : submenus_) {
-			auto submenuPaging = submenu->splitMenuItemsByPages(*current_item_);
-
-			for (const auto& page : submenuPaging.pages) {
-				pages.push_back({currentPage, page.items});
-
-				if (current_submenu_ == nullptr
-				    && std::ranges::any_of(page.items, [&](const auto& item) { return item == *current_item_; })) {
-					current_submenu_ = submenu;
-					current_submenu_->beginSession(navigated_backward_from);
-					navigated_backward_from = nullptr;
-
-					visiblePageNumber = currentPage;
-					selectedItemPositionOnPage = submenuPaging.selectedItemPositionOnPage;
-				}
-
-				currentPage++;
-			}
-		}
-		return Paging{visiblePageNumber, selectedItemPositionOnPage, pages};
-	}
+	[[nodiscard]] std::string_view getTitle() const override;
+	bool focusChild(const MenuItem* child) override;
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) override;
+	ActionResult selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous,
+	                            int32_t selectedColumn) override;
+	Paging splitMenuItemsByPages(std::span<MenuItem*> items, const MenuItem*) override;
 
 private:
 	std::vector<HorizontalMenu*> submenus_{};

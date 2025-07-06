@@ -42,7 +42,7 @@ void HorizontalMenu::renderOLED() {
 		return Submenu::renderOLED();
 	}
 
-	paging = splitMenuItemsByPages(*current_item_);
+	paging = splitMenuItemsByPages(items, *current_item_);
 
 	// Lit the scale and cross-screen buttons LEDs to indicate that they can be used to switch between pages
 	const auto hasPages = paging.pages.size() > 1;
@@ -57,6 +57,23 @@ void HorizontalMenu::renderOLED() {
 		updateSelectedMenuItemLED(posOnPage);
 	}
 
+	// Read all the values beforehand as content can depend on the values
+	for (const auto [_, items] : paging.pages) {
+		for (const auto it : items) {
+			if (isItemRelevant(it)) {
+				it->readCurrentValue();
+			}
+		}
+	}
+
+	OLED::main.drawScreenTitle(getTitle(), false);
+	renderPageCounters();
+	renderMenuItems(paging.getVisiblePage().items, *current_item_);
+
+	OLED::markChanged();
+}
+
+void HorizontalMenu::renderPageCounters() const {
 	// Render the page counters
 	if (const int32_t pagesCount = paging.pages.size(); pagesCount > 1) {
 		oled_canvas::Canvas& image = OLED::main;
@@ -78,28 +95,17 @@ void HorizontalMenu::renderOLED() {
 		currentPageNum.appendInt(paging.visiblePageNumber + 1);
 		image.drawString(currentPageNum.c_str(), x, y, kTextSpacingX, kTextSpacingY);
 	}
-
-	// Read all the values beforehand as content can depend on the values
-	for (const auto it : items) {
-		if (isItemRelevant(it)) {
-			it->readCurrentValue();
-		}
-	}
-
-	OLED::main.drawScreenTitle(getTitle(), false);
-	renderMenuItems(paging.getVisiblePage().items, *current_item_);
-	OLED::markChanged();
 }
 
-void HorizontalMenu::renderMenuItems(std::span<MenuItem*> menuItems, const MenuItem* currentItem) {
+void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr int32_t baseY = 14 + OLED_MAIN_TOPMOST_PIXEL;
 	constexpr int32_t columnWidth = OLED_MAIN_WIDTH_PIXELS / 4;
 	int32_t currentX = 0;
 
-	auto it = menuItems.begin();
-	for (size_t n = 0; n < menuItems.size() && it != menuItems.end(); n++) {
+	auto it = items.begin();
+	for (size_t n = 0; n < items.size() && it != items.end(); n++) {
 		MenuItem* item = *it;
 		const bool isSelected = item == currentItem;
 
@@ -125,7 +131,7 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> menuItems, const MenuI
 		}
 
 		// Highlight the selected item if it doesn't occupy the whole page
-		if (isSelected && (menuItems.size() > 1 || menuItems[0]->getColumnSpan() < 4)) {
+		if (isSelected && (items.size() > 1 || items[0]->getColumnSpan() < 4)) {
 			if (FlashStorage::accessibilityMenuHighlighting) {
 				// Highlight just by drawing a line below
 				image.invertArea(currentX, boxWidth - 1, baseY + boxHeight, OLED_MAIN_VISIBLE_HEIGHT + 1);
@@ -231,13 +237,7 @@ ActionResult HorizontalMenu::switchVisiblePage(int32_t direction) {
 	const auto targetPosition = std::min(paging.selectedItemPositionOnPage, static_cast<int32_t>(pageItems.size() - 1));
 
 	// Update the currently selected item
-	for (int32_t pos = targetPosition; pos >= 0; pos--) {
-		if (const auto item = pageItems[pos]; isItemRelevant(item)) {
-			current_item_ = std::ranges::find(items, item);
-			break;
-		}
-	}
-
+	focusChild(pageItems[targetPosition]);
 	updateDisplay();
 	updatePadLights();
 	updateSelectedMenuItemLED(targetPosition);
@@ -254,6 +254,7 @@ ActionResult HorizontalMenu::selectMenuItem(std::span<MenuItem*> pageItems, cons
                                             int32_t selectedColumn) {
 	// Find the item you're looking for by iterating through all items on the current page
 	int32_t currentColumn = 0;
+
 	for (size_t n = 0; n < pageItems.size(); n++) {
 		MenuItem* item = pageItems[n];
 
@@ -288,7 +289,7 @@ ActionResult HorizontalMenu::selectMenuItem(std::span<MenuItem*> pageItems, cons
 	return ActionResult::DEALT_WITH;
 }
 
-HorizontalMenu::Paging HorizontalMenu::splitMenuItemsByPages(MenuItem* currentItem) {
+HorizontalMenu::Paging HorizontalMenu::splitMenuItemsByPages(std::span<MenuItem*> items, const MenuItem* currentItem) {
 	std::vector<Page> pages;
 	std::vector<MenuItem*> currentPageItems;
 	int32_t currentPageNumber = 0;

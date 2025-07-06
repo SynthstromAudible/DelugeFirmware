@@ -27,12 +27,12 @@ class EnvelopeMenu final : public HorizontalMenu {
 public:
 	using HorizontalMenu::HorizontalMenu;
 
-	void renderMenuItems(std::span<MenuItem*> menuItems, const MenuItem* currentItem) override {
+	void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) override {
 		// Get the values in 0-50 range
-		const int32_t attack = static_cast<Segment*>(menuItems[0])->getValue();
-		const int32_t decay = static_cast<Segment*>(menuItems[1])->getValue();
-		const int32_t sustain = static_cast<Segment*>(menuItems[2])->getValue();
-		const int32_t release = static_cast<Segment*>(menuItems[3])->getValue();
+		const int32_t attack = static_cast<Segment*>(items[0])->getValue();
+		const int32_t decay = static_cast<Segment*>(items[1])->getValue();
+		const int32_t sustain = static_cast<Segment*>(items[2])->getValue();
+		const int32_t release = static_cast<Segment*>(items[3])->getValue();
 
 		// Constants
 		constexpr int32_t totalWidth = OLED_MAIN_WIDTH_PIXELS;
@@ -84,7 +84,7 @@ public:
 
 		// Draw transition squares
 		selectedX = -1, selectedY = -1;
-		const int32_t selectedPos = std::distance(menuItems.begin(), std::ranges::find(menuItems, currentItem));
+		const int32_t selectedPos = std::distance(items.begin(), std::ranges::find(items, currentItem));
 
 		// Attack → Decay
 		drawTransitionSquare(attackX, peakY, selectedPos == 0);
