@@ -34,8 +34,24 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override { return current_submenu_->getTitle(); }
 
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
+		navigated_backward_from = navigatedBackwardFrom;
+
+		// Some of submenus tweak soundEditor params on the session beginning,
+		// so we need to call it for each of the submenus to correctly count pages
+		for (const auto submenu : submenus_) {
+			submenu->beginSession();
+		}
+	}
+
 	void renderMenuItems(std::span<MenuItem*> items, const MenuItem*) override {
 		current_submenu_->renderMenuItems(items, *current_item_);
+	}
+
+	ActionResult selectMenuItem(std::span<MenuItem*> items, const MenuItem* previous, int32_t selectedColumn) override {
+		const auto result = current_submenu_->selectMenuItem(items, previous, selectedColumn);
+		current_item_ = current_submenu_->current_item_;
+		return result;
 	}
 
 	Paging splitMenuItemsByPages(MenuItem*) override {
@@ -56,7 +72,9 @@ public:
 				if (current_submenu_ == nullptr
 				    && std::ranges::any_of(page.items, [&](const auto& item) { return item == *current_item_; })) {
 					current_submenu_ = submenu;
-					current_submenu_->beginSession();
+					current_submenu_->beginSession(navigated_backward_from);
+					navigated_backward_from = nullptr;
+
 					visiblePageNumber = currentPage;
 					selectedItemPositionOnPage = submenuPaging.selectedItemPositionOnPage;
 				}
@@ -70,5 +88,6 @@ public:
 private:
 	std::vector<HorizontalMenu*> submenus_{};
 	HorizontalMenu* current_submenu_{nullptr};
+	MenuItem* navigated_backward_from{nullptr};
 };
 } // namespace deluge::gui::menu_item
