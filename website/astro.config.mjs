@@ -84,19 +84,14 @@ const config = defineConfig({
                     autogenerate: { directory: "manual/device_overview" },
                   },
                   {
-                    label: "User Interface",
+                    label: "User Interfaces",
                     collapsed: true,
-                    autogenerate: { directory: "manual/user_interface" },
+                    autogenerate: { directory: "manual/user_interfaces" },
                   },
                   {
-                    label: "Sequencer",
+                    label: "Engines",
                     collapsed: true,
-                    autogenerate: { directory: "manual/sequencer" },
-                  },
-                  {
-                    label: "Engine",
-                    collapsed: true,
-                    autogenerate: { directory: "manual/engine" },
+                    autogenerate: { directory: "manual/engines" },
                   },
                 ],
               },
