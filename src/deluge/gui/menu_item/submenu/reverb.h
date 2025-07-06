@@ -20,17 +20,15 @@
 #include "processing/engines/audio_engine.h"
 
 namespace deluge::gui::menu_item::submenu {
-class ReverbSidechain final : public HorizontalMenu {
+
+class Reverb final : public HorizontalMenu {
 public:
-	ReverbSidechain(l10n::String newName, l10n::String newTitle, std::initializer_list<MenuItem*> newItems)
-	    : HorizontalMenu(newName, newTitle, newItems, HorizontalMenu::Layout::FIXED) {}
+	using HorizontalMenu::HorizontalMenu;
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
 		soundEditor.currentSidechain = &AudioEngine::reverbSidechain;
 		Submenu::beginSession(navigatedBackwardFrom);
 	}
-
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; };
 };
 
 } // namespace deluge::gui::menu_item::submenu

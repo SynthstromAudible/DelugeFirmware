@@ -14,7 +14,7 @@ public:
 
 	enum Layout { FIXED, DYNAMIC };
 	struct Page {
-		mutable int32_t number;
+		int32_t number;
 		std::vector<MenuItem*> items;
 	};
 	struct Paging {
@@ -38,7 +38,6 @@ public:
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
 	void selectEncoderAction(int32_t offset) override;
 	void renderOLED() override;
-	void drawPixelsForOled() override;
 	void endSession() override;
 
 protected:
@@ -48,8 +47,9 @@ protected:
 
 	ActionResult selectMenuItemOnVisiblePage(int32_t selectedColumn);
 	ActionResult switchVisiblePage(int32_t direction);
+	virtual void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem);
+	virtual Paging splitMenuItemsByPages(MenuItem* currentItem);
 	static void displayPopup(MenuItem* menuItem);
-	virtual Paging splitMenuItemsByPages(std::span<MenuItem*> items);
 
 private:
 	void updateSelectedMenuItemLED(int32_t itemNumber);
