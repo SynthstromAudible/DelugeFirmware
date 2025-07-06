@@ -17,7 +17,7 @@
 #include "gui/menu_item/arpeggiator/midi_cv/spread_gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/spread_octave.h"
 #include "gui/menu_item/arpeggiator/midi_cv/spread_velocity.h"
-#include "gui/menu_item/arpeggiator/midi_cv/step_probability.h"
+#include "gui/menu_item/arpeggiator/midi_cv/swap_probability.h"
 #include "gui/menu_item/arpeggiator/mode.h"
 #include "gui/menu_item/arpeggiator/mpe_velocity.h"
 #include "gui/menu_item/arpeggiator/note_mode.h"
@@ -290,11 +290,11 @@ arpeggiator::ArpUnpatchedParam arpBassProbabilityMenu{STRING_FOR_BASS_PROBABILIT
                                                       params::UNPATCHED_ARP_BASS_PROBABILITY, PERCENT};
 arpeggiator::midi_cv::BassProbability arpBassProbabilityMenuMIDIOrCV{STRING_FOR_BASS_PROBABILITY,
                                                                      STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE};
-arpeggiator::ArpUnpatchedParam arpStepProbabilityMenu{STRING_FOR_STEP_PROBABILITY,
-                                                      STRING_FOR_ARP_STEP_PROBABILITY_MENU_TITLE,
-                                                      params::UNPATCHED_ARP_STEP_PROBABILITY, PERCENT};
-arpeggiator::midi_cv::StepProbability arpStepProbabilityMenuMIDIOrCV{STRING_FOR_STEP_PROBABILITY,
-                                                                     STRING_FOR_ARP_STEP_PROBABILITY_MENU_TITLE};
+arpeggiator::ArpUnpatchedParam arpSwapProbabilityMenu{STRING_FOR_SWAP_PROBABILITY,
+                                                      STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE,
+                                                      params::UNPATCHED_ARP_SWAP_PROBABILITY, PERCENT};
+arpeggiator::midi_cv::SwapProbability arpSwapProbabilityMenuMIDIOrCV{STRING_FOR_SWAP_PROBABILITY,
+                                                                     STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE};
 arpeggiator::ArpUnpatchedParam arpGlideProbabilityMenu{STRING_FOR_GLIDE_PROBABILITY,
                                                        STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE,
                                                        params::UNPATCHED_ARP_GLIDE_PROBABILITY, PERCENT};
@@ -344,8 +344,8 @@ arpeggiator::Randomizer arpRandomizerMenu{STRING_FOR_RANDOMIZER,
                                            &arpChordProbabilityMenu, &arpChordProbabilityMenuMIDIOrCV,
                                            // Note
                                            &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
-                                           // Step
-                                           &arpStepProbabilityMenu, &arpStepProbabilityMenuMIDIOrCV,
+                                           // Swap
+                                           &arpSwapProbabilityMenu, &arpSwapProbabilityMenuMIDIOrCV,
                                            // Bass
                                            &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV,
                                            // Glide

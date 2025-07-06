@@ -51,7 +51,7 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 
 	lockedNoteProbabilityValues.fill(0);
 	lockedBassProbabilityValues.fill(0);
-	lockedStepProbabilityValues.fill(0);
+	lockedSwapProbabilityValues.fill(0);
 	lockedGlideProbabilityValues.fill(0);
 	lockedChordProbabilityValues.fill(0);
 	lockedRatchetProbabilityValues.fill(0);
@@ -591,9 +591,9 @@ bool ArpeggiatorBase::evaluateBassProbability(bool isRatchet) {
 	return isRatchet ? lastNormalNotePlayedFromBassProbability : isPlayBassForCurrentStep;
 }
 
-bool ArpeggiatorBase::evaluateStepProbability(bool isRatchet) {
+bool ArpeggiatorBase::evaluateSwapProbability(bool isRatchet) {
 	// If it is a rachet, use the last value, but it it is not a ratchet, use the calculated value
-	return isRatchet ? lastNormalNotePlayedFromStepProbability : isPlayRandomStepForCurrentStep;
+	return isRatchet ? lastNormalNotePlayedFromSwapProbability : isPlayRandomStepForCurrentStep;
 }
 
 // Returns if the arpeggiator should play the bass note instead of the normal note
@@ -644,7 +644,7 @@ void ArpeggiatorBase::executeArpStep(ArpeggiatorSettings* settings, uint8_t numA
 	}
 	*shouldPlayNote = evaluateNoteProbability(isRatchet);
 	*shouldPlayBassNote = evaluateBassProbability(isRatchet);
-	*shouldPlayRandomStep = evaluateStepProbability(isRatchet);
+	*shouldPlayRandomStep = evaluateSwapProbability(isRatchet);
 	*shouldPlayReverseNote = evaluateReverseProbability(isRatchet);
 	*shouldPlayChordNote = evaluateChordProbability(isRatchet);
 
@@ -686,7 +686,7 @@ void ArpeggiatorBase::executeArpStep(ArpeggiatorSettings* settings, uint8_t numA
 			lastNormalNotePlayedFromBassProbability = *shouldPlayBassNote;
 
 			// Save last note played from probability
-			lastNormalNotePlayedFromStepProbability = *shouldPlayRandomStep;
+			lastNormalNotePlayedFromSwapProbability = *shouldPlayRandomStep;
 
 			// Save last note played from probability
 			lastNormalNotePlayedFromReverseProbability = *shouldPlayReverseNote;
@@ -877,11 +877,11 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 			settings->lastLockedBassProbabilityParameterValue = settings->bassProbability;
 		}
 		if (resetLockedRandomizerValuesNextTime
-		    || settings->lastLockedStepProbabilityParameterValue != settings->stepProbability) {
+		    || settings->lastLockedSwapProbabilityParameterValue != settings->swapProbability) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedStepProbabilityValues[i] = getRandomProbabilityResult(settings->stepProbability);
+				settings->lockedSwapProbabilityValues[i] = getRandomProbabilityResult(settings->swapProbability);
 			}
-			settings->lastLockedStepProbabilityParameterValue = settings->stepProbability;
+			settings->lastLockedSwapProbabilityParameterValue = settings->swapProbability;
 		}
 		if (resetLockedRandomizerValuesNextTime
 		    || settings->lastLockedGlideProbabilityParameterValue != settings->glideProbability) {
@@ -942,7 +942,7 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		    settings->lockedBassProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES]
 		    != 0;
 		isPlayRandomStepForCurrentStep =
-		    settings->lockedStepProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES]
+		    settings->lockedSwapProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES]
 		    != 0;
 		isPlayGlideForCurrentStep =
 		    settings->lockedGlideProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES]
@@ -967,7 +967,7 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		// Lively create new randomized values on the fly each time a note is played
 		isPlayNoteForCurrentStep = getRandomProbabilityResult(settings->noteProbability);
 		isPlayBassForCurrentStep = getRandomProbabilityResult(settings->bassProbability);
-		isPlayRandomStepForCurrentStep = getRandomProbabilityResult(settings->stepProbability);
+		isPlayRandomStepForCurrentStep = getRandomProbabilityResult(settings->swapProbability);
 		isPlayGlideForCurrentStep = getRandomProbabilityResult(settings->glideProbability);
 		isPlayReverseForCurrentStep = getRandomProbabilityResult(settings->reverseProbability);
 		isPlayChordForCurrentStep = getRandomProbabilityResult(settings->chordProbability);
@@ -1563,7 +1563,7 @@ void ArpeggiatorSettings::cloneFrom(ArpeggiatorSettings const* other) {
 	ratchetAmount = other->ratchetAmount;
 	noteProbability = other->noteProbability;
 	bassProbability = other->bassProbability;
-	stepProbability = other->stepProbability;
+	swapProbability = other->swapProbability;
 	glideProbability = other->glideProbability;
 	reverseProbability = other->reverseProbability;
 	chordProbability = other->chordProbability;
@@ -1601,12 +1601,12 @@ bool ArpeggiatorSettings::readCommonTagsFromFile(Deserializer& reader, char cons
 		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedBassProbabilityValues.data(),
 		                                                 lockedBassProbabilityValues.size());
 	}
-	else if (!strcmp(tagName, "lastLockedStepProb")) {
-		lastLockedStepProbabilityParameterValue = reader.readTagOrAttributeValueInt();
+	else if (!strcmp(tagName, "lastLockedSwapProb")) {
+		lastLockedSwapProbabilityParameterValue = reader.readTagOrAttributeValueInt();
 	}
-	else if (!strcmp(tagName, "lockedStepProbArray")) {
-		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedStepProbabilityValues.data(),
-		                                                 lockedStepProbabilityValues.size());
+	else if (!strcmp(tagName, "lockedSwapProbArray")) {
+		int len = reader.readTagOrAttributeValueHexBytes((uint8_t*)lockedSwapProbabilityValues.data(),
+		                                                 lockedSwapProbabilityValues.size());
 	}
 	else if (!strcmp(tagName, "lastLockedGlideProb")) {
 		lastLockedGlideProbabilityParameterValue = reader.readTagOrAttributeValueInt();
@@ -1728,8 +1728,8 @@ bool ArpeggiatorSettings::readNonAudioTagsFromFile(Deserializer& reader, char co
 	else if (!strcmp(tagName, "bassProbability")) {
 		bassProbability = reader.readTagOrAttributeValueInt();
 	}
-	else if (!strcmp(tagName, "stepProbability")) {
-		stepProbability = reader.readTagOrAttributeValueInt();
+	else if (!strcmp(tagName, "swapProbability")) {
+		swapProbability = reader.readTagOrAttributeValueInt();
 	}
 	else if (!strcmp(tagName, "glideProbability")) {
 		glideProbability = reader.readTagOrAttributeValueInt();
@@ -1805,10 +1805,10 @@ void ArpeggiatorSettings::writeCommonParamsToFile(Serializer& writer, Song* song
 	writer.writeAttribute("lastLockedBassProb", lastLockedBassProbabilityParameterValue);
 	writer.writeAttributeHexBytes("lockedBassProbArray", (uint8_t*)lockedBassProbabilityValues.data(),
 	                              lockedBassProbabilityValues.size());
-	// Step probability
-	writer.writeAttribute("lastLockedStepProb", lastLockedStepProbabilityParameterValue);
-	writer.writeAttributeHexBytes("lockedStepProbArray", (uint8_t*)lockedStepProbabilityValues.data(),
-	                              lockedStepProbabilityValues.size());
+	// Swap probability
+	writer.writeAttribute("lastLockedSwapProb", lastLockedSwapProbabilityParameterValue);
+	writer.writeAttributeHexBytes("lockedSwapProbArray", (uint8_t*)lockedSwapProbabilityValues.data(),
+	                              lockedSwapProbabilityValues.size());
 	// Glide probability
 	writer.writeAttribute("lastLockedGlideProb", lastLockedGlideProbabilityParameterValue);
 	writer.writeAttributeHexBytes("lockedGlideProbArray", (uint8_t*)lockedGlideProbabilityValues.data(),
@@ -1848,7 +1848,7 @@ void ArpeggiatorSettings::writeNonAudioParamsToFile(Serializer& writer) {
 	// tag)
 	writer.writeAttribute("noteProbability", noteProbability);
 	writer.writeAttribute("bassProbability", bassProbability);
-	writer.writeAttribute("stepProbability", stepProbability);
+	writer.writeAttribute("swapProbability", swapProbability);
 	writer.writeAttribute("glideProbability", glideProbability);
 	writer.writeAttribute("reverseProbability", reverseProbability);
 	writer.writeAttribute("chordProbability", chordProbability);
@@ -1899,7 +1899,7 @@ void ArpeggiatorSettings::updateParamsFromUnpatchedParamSet(UnpatchedParamSet* u
 	ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
 	noteProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_NOTE_PROBABILITY) + 2147483648;
 	bassProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_PROBABILITY) + 2147483648;
-	stepProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_STEP_PROBABILITY) + 2147483648;
+	swapProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SWAP_PROBABILITY) + 2147483648;
 	glideProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GLIDE_PROBABILITY) + 2147483648;
 	reverseProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_REVERSE_PROBABILITY) + 2147483648;
 	chordProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_PROBABILITY) + 2147483648;

@@ -104,7 +104,7 @@ Additionally, there are other parameters not in the grid that are mapped to MIDI
   - Ratchet Amount: CC 45
   - Note Probability: CC 46
   - Bass Probability: CC 47
-  - Step Probability: CC 112
+  - Swap Probability: CC 112
   - Glide Probability: CC 113
   - Chord Probability: CC 48
   - Ratchet Probability: CC 49
