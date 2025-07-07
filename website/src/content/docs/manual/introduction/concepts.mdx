@@ -1,165 +1,8 @@
 ---
 title: Concepts
 sidebar:
-  order: 2
+  order: 3
 ---
-
-## Getting Oriented
-
-Songs are the project files for the Deluge. Songs contain all the file references and settings to make the sounds (internally or externally) you want to play and perform. Only one song can be played or edited at a time so loading a new song will remove access to any previous song information. (Make sure you save your work before loading a song. The Deluge does not auto-save.)
-
-If the song is the container for your audio project then clips are the primary things that you create, edit, and align to fill that container. Clips define the sounds that can be made through audio files (samples) and using the synth engines in the Deluge and can send commands via MIDI or CV (control voltage) to external sound devices. Clips also define the timing of those sounds and commands through sequencing.
-
-Clips on the Deluge can be any length of beats and bars (including fractional beats). Multiple clips can play at the same time but only one clip per track or instrument can play. Layering clips and timing their launch and repeating is the primary method of arranging or performing a sound experience.
-
-This diagram provides an overview of the various components of a Song.
-
-```mermaid
-stateDiagram-v2
-  Song --> SongSettings
-  Song --> SongFX
-  Song --> Track
-  Song --> SongFile
-  Track --> AudioTrack
-  AudioTrack --> AudioClip
-  AudioClip --> AudioClipFX
-  Track --> InstrumentTrack
-  InstrumentTrack --> SynthTrack
-  InstrumentTrack --> KitTrack
-  InstrumentTrack --> MIDITrack
-  InstrumentTrack --> CVTrack
-  SynthTrack --> SynthClip
-  SynthClip --> SynthClipFX
-  SynthClip --> SynthClipAudioFile
-  KitTrack --> KitClip
-  KitClip --> KitClipFX
-  KitClip --> Drum
-  Drum --> SoundDrum
-  SoundDrum --> SoundDrumFX
-  SoundDrum --> SoundDrumAudioFile
-  Drum --> MIDIDrum
-  Drum --> GateDrum
-  MIDITrack --> MIDIClip
-  CVTrack --> CVClip
-
-  SongSettings: Song settings
-  SongFX: Song FX
-  SongFile: Song file
-  AudioTrack: Audio track
-  AudioClip: Audio clip
-  AudioClipFX: Audio clip FX
-  InstrumentTrack: Instrument track
-  SynthTrack: Synth track
-  SynthClip: Synth clip
-  SynthClipFX: Synth clip FX
-  SynthClipAudioFile: Synth clip audio file
-  KitTrack: Kit track
-  KitClip: Kit clip
-  KitClipFX: Kit clip FX
-  SoundDrum: Sound drum
-  SoundDrumFX: Sound drum FX
-  SoundDrumAudioFile: Sound drum audio file
-  MIDIDrum: MIDI drum
-  GateDrum: Gate drum
-  MIDITrack: MIDI track
-  MIDIClip: MIDI clip
-  CVTrack: CV track
-  CVClip: CV clip
-```
-
-## Song Modes and Workflow
-
-Like many Digital Audio Workstations (DAWs) the Deluge provides two modes to manage clips in the song. The Session mode provides two clip launcher workflows that are oriented towards performance and experimentation. The Arranger mode provides a view that manages the tracks and execution of clips along a strict timeline which is a workflow more oriented towards creating a repeatable project.
-
-```mermaid
-stateDiagram-v2
-  Song --> SessionMode
-  Song --> Tracks
-  Tracks --> Clips
-  Song --> ArrangerMode
-  Clips --> SessionMode
-  Clips --> ArrangerMode
-
-  SessionMode: Session mode
-  ArrangerMode: Arranger mode
-```
-
-A song can use both Session and Arranger modes and views to continue to refine a project and there's interaction and sharing of information between the two, but only one mode can be played or performed at a time.
-
-An example high level workflow for working with Songs on the Deluge:
-
-```mermaid
-stateDiagram-v2
-    Start --> NewSong: New song <br> [SHIFT] + [LOAD], [LOAD]
-    Start --> ExistingSong: Load song <br> [LOAD], turn (SELECT)
-    NewSong --> SessionMode
-    ExistingSong --> SessionMode
-    SessionMode --> RowView: Default
-    SessionMode --> GridView: Optional <br> Hold [SONG] + Turn (SELECT)
-    RowView --> EditSong
-    GridView --> EditSong
-    EditSong --> EditClip: Select the clip to edit <br> Hold [PAD] or the row to edit or select a clip
-    EditClip --> ClipParameters: Edit clip parameters while in Session Mode <br> Hold clip [PAD] and adjust
-    EditClip --> ClipView: Edit clips <br> Press [CLIP] or [PAD]
-    ClipView --> EditSong: Continue building a song <br> Option to arrange <br> Press [SONG]
-    ClipView --> AutomationView: Edit clip parameter automation <br> Press [CLIP] to enter
-    EditSong --> SongFX: Tweak the Song master parameters in Session mode <br> Enable [AFFECT ENTIRE]
-    EditSong --> ArrangerMode: Capture a full arrangement by recording from Session Mode to Arranger Mode <br> Press [RECORD] + [SONG]
-    ArrangerMode --> ArrangerView: Edit arrangement
-    EditSong --> AudioExport: Export Audio <br> Press [SAVE] + [RECORD]
-    EditSong --> Save: Save project <br> [SAVE] to save the song.
-    Save --> End
-
-    NewSong: New song
-    ExistingSong: Existing song
-    SessionMode: Session mode
-    RowView: Session 'Row' view
-    GridView: Session 'Grid' view
-    EditSong: Edit song
-    EditClip: Edit clip
-    ClipParameters: Clip 'Affect Entire' controls
-    ClipView: Clip view
-    AutomationView: Automation view
-    SongFX: Song FX
-    ArrangerMode: Arranger mode
-    ArrangerView: Arranger view
-    AudioExport: Audio export
-    Save: Save
-```
-
-## Clip Types
-
-There are five types of clips in the Deluge: three that generate sounds using the Deluge's internal synth, sampling, and recording capabilities and two that send synchronized commands to external sound generators.
-
-```mermaid
-stateDiagram-v2
-  Song --> Track
-  Track --> AudioTrack
-  AudioTrack --> AudioClip
-  Track --> SynthTrack
-  SynthTrack --> SynthClip
-  Track --> KitTrack
-  KitTrack --> KitClip
-  Track --> MIDITrack
-  MIDITrack --> MIDIClip
-  Track --> CVTrack
-  CVTrack --> CVClip
-
-  AudioTrack: Audio track
-  AudioClip: Audio clip
-  SynthTrack: Synth track
-  SynthClip: Synth clip
-  KitTrack: Kit track
-  KitClip: Kit clip
-  MIDITrack: MIDI track
-  MIDIClip: MIDI clip
-  CVTrack: CV track
-  CVClip: CV clip
-```
-
-The two command clip types are MIDI and CV clips. These clips are used to define signals that send note and control voltage signals in addition to timing synchronization (i.e. clock) commands to sound notes on the external equipment. There's also the ability to send non-note commands to the external gear to change parameters and edit the sound while performing.
-
-The three sound generating clip types are Synth, Kit, and Audio clips. Synth clips focus on the sound synthesis engines within the Deluge to create melodic sounds. Kit clips coordinate multiple samples focused on rhythmic sounds and effects. Audio clips focus on playing sampled recorded sounds and resampled internally generated sounds.
 
 ## Song
 
@@ -169,111 +12,154 @@ A discrete creative endeavour, such as an arrangement, sketch, 8-bar loop, jam, 
 stateDiagram-v2
   Song --> SongSettings
   Song --> SongFX
+  Song --> Track
+  Song --> Mode
+  Track --> Clip
+  Clip --> ClipFX
+  Clip --> ClipAudioFile
+  Clip --> ClipNoteSequence
+  Track --> TrackPresetFile
   Song --> SongFile
 
   SongSettings: Song settings
-  SongFX: Song FX
+  SongFX: Song FX <br> (Master Parameter)
   SongFile: Song file
+  TrackPresetFile: Track preset file
+  ClipFX: Clip FX
+  ClipAudioFile: Clip audio file
+  ClipNoteSequence: Clip note sequence
 ```
 
 ### Settings
 
-- User configurable settings that dictate how a song should operate - e.g. swing, tempo.
+User configurable settings that dictate how a song should operate - e.g. swing, tempo.
 
-### Song FX
+### Song FX (Master Parameter)
 
-- The name of an adjustable value, such as LPF Frequency, that can be manipulated and saved as part the Song and which adjust the output generated by each song component (e.g. clip).
+The name of an adjustable value, such as LPF Frequency, that can be manipulated and saved as part the Song and which adjust the output generated by each song component (e.g. clip).
 
 ### Song file
 
-- A file on the SD card that stores all of the information about a song.
+A file on the SD card that stores all of the information about a song.
 
 ## Track
 
-- A single instrument or layer in a song.
+A single instrument or layer in a song.
+
 - Each track is either an audio track or an instrument track.
 - An instrument track is either a kit instrument track or a melodic instrument track (synth, MIDI, CV).
+- All instrument tracks (except for CV) can be saved as an instrument preset file.
+- A MIDI track can also be associated with a MIDI device definition file.
 - Tracks contain one or more clips.
 - Only one clip can be active (playing) in a track at a time.
 
+```mermaid
+stateDiagram-v2
+  Song --> AudioTrack
+  Song --> SynthTrack
+  Song --> KitTrack
+  Song --> MIDITrack
+  Song --> CVTrack
+
+  AudioTrack: Audio track
+  SynthTrack: Synth track
+  KitTrack: Kit track
+  MIDITrack: MIDI track
+  CVTrack: CV track
+```
+
 ### Instrument preset file
 
-- A preset file can be saved for synth, kit and MIDI instrument tracks.
+A preset file can be saved for synth, kit and MIDI instrument tracks.
+
 - A preset file contains track information configured in a clip (such as base parameter values, synth engine settings, kit drum information, samples used), but not all track information.
   - For example, note sequences and parameter automation sequences are not saved in the track preset file (that information is only saved as part of the song file).
 
+```mermaid
+stateDiagram-v2
+  Song --> SynthTrack
+  SynthTrack --> SynthTrackPresetFile
+  Song --> KitTrack
+  KitTrack --> KitTrackPresetFile
+  Song --> MIDITrack
+  MIDITrack --> MIDITrackPresetFile
+
+  SynthTrack: Synth track
+  SynthTrackPresetFile: Synth preset file
+  KitTrack: Kit track
+  KitTrackPresetFile: Kit preset file
+  MIDITrack: MIDI track
+  MIDITrackPresetFile: MIDI preset file
+```
+
+#### Synth preset file
+
+Saving a synth preset only saves the synth setting data and sample links. No patterns are stored with synth presets.
+
+#### Kit preset file
+
+Saving a kit preset only saves the kit setting data and sample links. No patterns are stored with kit presets.
+
+#### MIDI preset file
+
+Saving a MIDI preset only saves the MIDI track setting data and MIDI device definition file link. No patterns are stored with MIDI presets.
+
+### MIDI device definition file
+
+A MIDI device definition file can be saved for a MIDI instrument track.
+
+- A MIDI device definition file includes labels for CC's used to control a specific MIDI device.
+- A MIDI device definition file can be linked in a song file and/or MIDI instrument preset file so that the MIDI device definition file can be updated separately but changes are loaded with the Song / MIDI instrument preset files.
+
+```mermaid
+stateDiagram-v2
+  Song --> MIDITrack
+  MIDITrack --> MIDITrackDeviceDefinitionFile
+
+  MIDITrack: MIDI track
+  MIDITrackDeviceDefinitionFile: MIDI device definition file
+```
+
 ## Clip
 
-- A unique instance of a track that stores information required to generate an output (for example, samples, note sequences, parameter automation sequences, and other track settings).
+A unique instance of a track that stores information required to generate an output (for example, samples, note sequences, parameter automation sequences, and other track settings).
+
 - Each clip is either an audio clip or an instrument clip.
   - Each instrument clip is either a melodic instrument clip (synth, MIDI, CV) or a kit instrument clip.
 - Each clip is assigned to a section.
 
-### Section
+```mermaid
+stateDiagram-v2
+  Song --> AudioTrack
+  AudioTrack --> AudioClip
+  Song --> SynthTrack
+  SynthTrack --> SynthClip
+  Song --> KitTrack
+  KitTrack --> KitClip
+  Song --> MIDITrack
+  MIDITrack --> MIDIClip
+  Song --> CVTrack
+  CVTrack --> CVClip
 
-- In session mode, a section groups clips from separate tracks together so that they can be launched together.
-- A clip can only belong to one section. Sections have settings that dictate the number of times a section should playback before stopping or moving to the next section.
-- Each section has a distinct colour.
-- In arranger mode, section colours to identify the different clip instances of a track.
+  AudioTrack: Audio track
+  AudioClip: Audio clip
+  SynthTrack: Synth track
+  SynthClip: Synth clip
+  KitTrack: Kit track
+  KitClip: Kit clip
+  MIDITrack: MIDI track
+  MIDIClip: MIDI clip
+  CVTrack: CV track
+  CVClip: CV clip
+```
 
-### Parameter
+### Audio clip
 
-- The name of an adjustable value, such as LPF Frequency, Reverb Room Size, or OSC1 Level, that can be manipulated and saved as part of a clip and which influence the output generated by that clip.
-- Parameters do not generate an output on their own. A trigger, such as the playback of a sample (in an audio clip) and a note event in an instrument clip, is required in order for parameters to impact the output of a clip.
-- Some parameters can be modulated and automated.
+Audio clips can be used to playback audio samples or to process the audio from external input or internal tracks.
 
-### Sample
+### Instrument clip
 
-- An audio file that can be played back as part of an audio clip or sequenced as part of an instrument clip.
-
-### Audio Clip
-
-- Audio clips can be used to playback audio samples or to process the audio from external input or internal tracks.
-
-### Instrument Clip
-
-- Instrument clips enable you to sequence patterns by entering events in the sequencer. Without these events, an instrument clip does not generate an output.
-
-#### Synth
-
-- The Deluge synth engine allows sound design by configuration of subtractive or FM synthesis, or the playback and
-  manipulation of samples.
-- Synth clips are typically used to create a melody for both lead and bass-style instruments.
-- Notes are populated across the pad grid with the pitch affected by the up / down position on the grid rows.
-- A colour is indicated for the notes on a synth clip and set by pitch.
-  - Colour can be edited.
-
-##### Synth preset file
-
-- Saving a synth preset only saves the synth setting data. No patterns are stored with synth presets.
-
-#### Kit
-
-- Kits consist of unique outputs per row. Typically based on samples but also may be synthesized sounds, or MIDI or CV outputs.
-- While the obvious and common use of kits is to trigger drum sounds such as a kick or snare, longer loops and non-percussive samples can also be used within kits.
-- Kit sounds are mapped across rows of the sequencer - each individual sound is represented on its own row.
-- Each row of the clip is coloured independently.
-  - Colour can be edited.
-
-##### Kit preset file
-
-- Saving a kit preset only saves the kit setting data and sample links. No patterns are stored with kit presets.
-
-#### MIDI
-
-- Placeholder to add information about MIDI clips
-
-##### MIDI preset file
-
-- Placeholder to add information on MIDI device definition files
-
-##### MIDI device definition file
-
-- Placeholder to add information on MIDI device definition files
-
-#### CV
-
-- Placeholder to add information about CV clips
+Instrument clips enable you to sequence patterns by entering events in the sequencer. Without these events, an instrument clip does not generate an output.
 
 #### Row
 
@@ -286,9 +172,134 @@ stateDiagram-v2
 - The name of an event that can be programmed in an instrument clip row in order to generate audio (for example, a synthesized sound or sample) or non-audio (for example, MIDI, CV, Gate) output.
 - Each note has specific parameters that determine when and how a note is to be triggered (e.g. note position, note velocity, note probability, note iterance, note fill, note lift).
 
-#### Drum
+#### Synth instrument clip
+
+The Deluge synth engine allows sound design by configuration of subtractive or FM synthesis, or the playback and manipulation of samples.
+
+- Synth clips are typically used to create a melody for both lead and bass-style instruments.
+- Notes are populated across the pad grid with the pitch affected by the up / down position on the grid rows.
+- A colour is indicated for the notes on a synth clip and set by pitch.
+  - Colour can be edited.
+
+#### Kit instrument clip
+
+Kits consist of unique outputs per row. Typically based on samples but also may be synthesized sounds, or MIDI or CV outputs.
+
+- While the obvious and common use of kits is to trigger drum sounds such as a kick or snare, longer loops and non-percussive samples can also be used within kits.
+- Kit sounds are mapped across rows of the sequencer - each individual sound is represented on its own row.
+- Each row of the clip is coloured independently.
+  - Colour can be edited.
+
+##### Drum
 
 A unique instance of a kit instrument clip row that is associated with a sequence to generate an output. A drum is either an audio drum (synthesizer or sample) or non-audio drum (MIDI, Gate).
+
+#### MIDI instrument clip
+
+- Placeholder to add information about MIDI instrument clips
+
+#### CV instrument clip
+
+- Placeholder to add information about CV instrument clips
+
+### Section
+
+A clip can only belong to one section. Sections have settings that dictate the number of times a section should playback before stopping or moving to the next section.
+
+- Each section has a distinct colour.
+- In session mode, a section groups clips from separate tracks together so that they can be launched together.
+- In arranger mode, section colours are used to identify the different clip instances of a track.
+
+```mermaid
+stateDiagram-v2
+  Song --> Section1
+  Song --> Section2
+  Song --> Section3
+  Song --> Section4
+  Song --> Section5
+  Section1 --> AudioClip
+  Section2 --> SynthClip
+  Section3 --> KitClip
+  Section4 --> MIDIClip
+  Section5 --> CVClip
+
+  Section1: Section
+  Section2: Section
+  Section3: Section
+  Section4: Section
+  Section5: Section
+
+  AudioClip: Audio clip
+  SynthClip: Synth clip
+  KitClip: Kit clip
+  MIDIClip: MIDI clip
+  CVClip: CV clip
+```
+
+### Clip FX (Parameter)
+
+The name of an adjustable value, such as LPF Frequency, Reverb Room Size, or OSC1 Level, that can be manipulated and saved as part of a clip and which influence the output generated by that clip.
+
+- With exception for MIDI and CV clips, parameters do not generate an output on their own. A trigger, such as the playback of a sample (in an audio clip) and a note event in an instrument clip, is required in order for parameters to impact the output of a clip.
+  - Exception: MIDI clips can send MIDI CC parameters, and CV clips can send CV monophonic expression without any note triggers.
+- For a Kit, there are two layers of FX:
+  1. at the clip level (after all kit sound drum's have been processed); and
+  1. at the sound drum level;
+- Some parameters can be modulated and automated.
+  - Audio clip, MIDI clip, and CV clip parameters cannot be modulated.
+
+```mermaid
+stateDiagram-v2
+  Song --> AudioClipFX
+  Song --> SynthClipFX
+  Song --> KitClipFX
+  Song --> MIDIClipFX
+  Song --> CVClipFX
+  AudioClipFX --> AudioClip
+  SynthClipFX --> SynthClip
+  KitClipFX --> KitClip
+  KitClip --> KitClipSoundDrumFX
+  KitClipSoundDrumFX --> KitClipSoundDrum
+  MIDIClipFX --> MIDIClip
+  CVClipFX --> CVClip
+
+  AudioClipFX: Audio clip FX
+  SynthClipFX: Synth clip FX
+  KitClipFX: Kit clip FX
+  KitClipSoundDrumFX: Kit clip sound drum FX
+  MIDIClipFX: MIDI clip FX
+  CVClipFX: CV clip FX
+
+  AudioClip: Audio clip
+  SynthClip: Synth clip
+  KitClip: Kit clip
+  KitClipSoundDrum: Kit clip sound drum
+  MIDIClip: MIDI clip
+  CVClip: CV clip
+```
+
+### Audio file / sample
+
+An audio file that can be played back as part of an audio clip or sequenced as part of an instrument clip (excl. MIDI and CV)
+
+```mermaid
+stateDiagram-v2
+  Song --> AudioClip
+  AudioClip --> AudioClipAudioFile
+  Song --> SynthClip
+  SynthClip --> SynthClipAudioFile
+  Song --> KitClip
+  KitClip --> KitClipSoundDrum
+  KitClipSoundDrum --> KitClipSoundDrumAudioFile
+
+  AudioClip: Audio clip
+  AudioClipAudioFile: Audio clip audio file
+  SynthClip: Synth clip
+  SynthClipAudioFile: Synth clip audio file
+  KitClip: Kit clip
+  KitClipSoundDrum: Kit clip sound drum
+  KitClipSoundDrumAudioFile: Kit clip sound drum audio file
+```
 
 ### Output
 
@@ -302,14 +313,7 @@ Modes provide different ways of working with tracks and clips and contain the co
 stateDiagram-v2
   Song --> SessionMode
   Song --> ArrangerMode
-  Song --> SongSettings
-  Song --> SongFX
-  Song --> SongFile
 
-
-  SongSettings: Song settings
-  SongFX: Song FX
-  SongFile: Song file
   SessionMode: Session mode
   ArrangerMode: Arranger mode
 ```
@@ -332,15 +336,11 @@ stateDiagram-v2
   ArrangerMode --> ArrangerView
   ArrangerMode --> ArrangerAutomationView
   ArrangerMode --> ArrangerPerformanceView
-  Song --> SongSettings
   Song --> SongFX
   SongFX --> ArrangerAutomationView
   SongFX --> ArrangerPerformanceView
-  Song --> SongFile
 
-  SongSettings: Song settings
   SongFX: Song FX
-  SongFile: Song file
   ArrangerMode: Arranger mode
   ArrangerView: Arranger view
   ArrangerAutomationView: Arranger parameter automation view
@@ -364,20 +364,14 @@ The user interface for interacting with the song parameters of Arranger Mode
 ```mermaid
 stateDiagram-v2
   Song --> SessionMode
-  SessionMode --> SessionView
-  SessionView --> SessionRowView
-  SessionView --> SessionGridView
+  SessionMode --> SessionRowView
+  SessionMode --> SessionGridView
   SessionMode --> SessionPerformanceView
-  Song --> SongSettings
   Song --> SongFX
-  Song --> SongFile
   SongFX --> SessionPerformanceView
 
-  SongSettings: Song settings
   SongFX: Song FX
-  SongFile: Song file
   SessionMode: Session mode
-  SessionView: Session view
   SessionRowView: Session row view
   SessionGridView: Session grid view
   SessionPerformanceView: Session performance view
@@ -432,7 +426,6 @@ The user interface for interacting with the Audio File loaded into an Audio clip
 stateDiagram-v2
   Song --> SynthTrack
   SynthTrack --> SynthClip
-  SynthTrack --> SynthPresetFile
   SynthClip --> SynthClipView
   SynthClip --> SynthClipFX
   SynthClipFX --> SynthClipAutomationView
@@ -443,7 +436,6 @@ stateDiagram-v2
   SynthClipNote --> SynthClipNoteVelocityAutomationView
 
   SynthTrack: Synth track
-  SynthPresetFile: Synth preset file
   SynthClip: Synth clip
   SynthClipFX: Synth clip FX
   SynthClipView: Synth clip view
@@ -483,7 +475,6 @@ The user interface for interacting with the note velocities of a note row in a S
 stateDiagram-v2
   Song --> KitTrack
   KitTrack --> KitClip
-  KitTrack --> KitPresetFile
   KitClip --> KitClipView
   KitClip --> KitClipFX
   KitClipFX --> KitClipAutomationView
@@ -498,7 +489,6 @@ stateDiagram-v2
   KitClip --> KitClipKeyboardView
 
   KitTrack: Kit track
-  KitPresetFile: Kit preset file
   KitClip: Kit clip
   KitClipView: Kit clip view
   KitClipFX: Kit clip FX
@@ -546,8 +536,6 @@ The user interface for interacting with the note velocities of a drum row in a K
 stateDiagram-v2
   Song --> MIDITrack
   MIDITrack --> MIDIClip
-  MIDITrack --> MIDIPresetFile
-  MIDITrack --> MIDIDeviceDefinitionFile
   MIDIClip --> MIDIClipView
   MIDIClip --> MIDIClipCC
   MIDIClipCC --> MIDIClipAutomationView
@@ -556,8 +544,6 @@ stateDiagram-v2
   MIDIClip --> MIDIClipKeyboardView
 
   MIDITrack: MIDI track
-  MIDIPresetFile: MIDI preset file
-  MIDIDeviceDefinitionFile: MIDI device definition file
   MIDIClip: MIDI clip
   MIDIClipView: MIDI clip view
   MIDIClipCC: MIDI clip CC
