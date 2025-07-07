@@ -1,0 +1,180 @@
+---
+title: Getting Oriented
+sidebar:
+  order: 2
+---
+
+Songs are the project files for the Deluge. Songs contain all the file references and settings to make the sounds (internally or externally) you want to play and perform. Only one song can be played or edited at a time so loading a new song will remove access to any previous song information. (Make sure you save your work before loading a song. The Deluge does not auto-save.)
+
+If the song is the container for your audio project then clips are the primary things that you create, edit, and align to fill that container. Clips define the sounds that can be made through audio files (samples) and using the synth engines in the Deluge and can send commands via MIDI or CV (control voltage) to external sound devices. Clips also define the timing of those sounds and commands through sequencing.
+
+Clips on the Deluge can be any length of beats and bars (including fractional beats). Multiple clips can play at the same time but only one clip per track or instrument can play. Layering clips and timing their launch and repeating is the primary method of arranging or performing a sound experience.
+
+This diagram provides an overview of the various components of a Song.
+
+```mermaid
+stateDiagram-v2
+  Song --> SongSettings
+  Song --> SongFX
+  Song --> Track
+  Song --> SongFile
+  Track --> AudioTrack
+  AudioTrack --> AudioClip
+  AudioClip --> AudioClipFX
+  AudioClip --> AudioClipAudioFile
+  Track --> InstrumentTrack
+  InstrumentTrack --> SynthTrack
+  InstrumentTrack --> KitTrack
+  InstrumentTrack --> MIDITrack
+  InstrumentTrack --> CVTrack
+  SynthTrack --> SynthClip
+  SynthTrack --> SynthTrackPresetFile
+  SynthClip --> SynthClipFX
+  SynthClip --> SynthClipAudioFile
+  KitTrack --> KitClip
+  KitTrack --> KitTrackPresetFile
+  KitClip --> KitClipFX
+  KitClip --> Drum
+  Drum --> SoundDrum
+  SoundDrum --> SoundDrumFX
+  SoundDrum --> SoundDrumAudioFile
+  Drum --> MIDIDrum
+  Drum --> GateDrum
+  MIDITrack --> MIDIClip
+  MIDITrack --> MIDITrackPresetFile
+  MIDITrack --> MIDITrackDeviceDefinitionFile
+  CVTrack --> CVClip
+
+  SongSettings: Song settings
+  SongFX: Song FX
+  SongFile: Song file
+  AudioTrack: Audio track
+  AudioClip: Audio clip
+  AudioClipFX: Audio clip FX
+  AudioClipAudioFile: Audio clip audio file
+  InstrumentTrack: Instrument track
+  SynthTrack: Synth track
+  SynthTrackPresetFile: Synth track preset file
+  SynthClip: Synth clip
+  SynthClipFX: Synth clip FX
+  SynthClipAudioFile: Synth clip audio file
+  KitTrack: Kit track
+  KitTrackPresetFile: Kit track preset file
+  KitClip: Kit clip
+  KitClipFX: Kit clip FX
+  SoundDrum: Sound drum
+  SoundDrumFX: Sound drum FX
+  SoundDrumAudioFile: Sound drum audio file
+  MIDIDrum: MIDI drum
+  GateDrum: Gate drum
+  MIDITrack: MIDI track
+  MIDITrackPresetFile: MIDI track preset file
+  MIDITrackDeviceDefinitionFile: MIDI track device definition file
+  MIDIClip: MIDI clip
+  CVTrack: CV track
+  CVClip: CV clip
+```
+
+## Song Modes and Workflow
+
+Like many Digital Audio Workstations (DAWs) the Deluge provides two modes to manage clips in the song. The Session mode provides two clip launcher workflows that are oriented towards performance and experimentation. The Arranger mode provides a view that manages the tracks and execution of clips along a strict timeline which is a workflow more oriented towards creating a repeatable project.
+
+```mermaid
+stateDiagram-v2
+  Song --> SessionMode
+  Song --> Tracks
+  Tracks --> Clips
+  Song --> ArrangerMode
+  Clips --> SessionMode
+  Clips --> ArrangerMode
+
+  SessionMode: Session mode
+  ArrangerMode: Arranger mode
+```
+
+A song can use both Session and Arranger modes and views to continue to refine a project and there's interaction and sharing of information between the two, but only one mode can be played or performed at a time.
+
+An example high level workflow for working with Songs on the Deluge:
+
+```mermaid
+stateDiagram-v2
+    Start --> NewSong: New song <br> [SHIFT] + [LOAD], [LOAD]
+    Start --> ExistingSong: Load song <br> [LOAD], turn (SELECT)
+    NewSong --> SessionMode
+    ExistingSong --> SessionMode
+    SessionMode --> RowView: Default
+    SessionMode --> GridView: Optional <br> Hold [SONG] + Turn (SELECT)
+    SessionMode --> SessionPerformanceView: Perform session <br> Press [KEYBOARD] to enter
+    RowView --> EditSong
+    GridView --> EditSong
+    SessionPerformanceView --> EditSong
+    EditSong --> EditClip: Select the clip to edit <br> Hold [PAD] or the row to edit or select a clip
+    EditClip --> ClipParameters: Edit clip parameters while in session mode <br> Hold clip [PAD] and adjust
+    EditClip --> ClipView: Edit clips <br> Press [CLIP] or [PAD]
+    ClipView --> EditSong: Continue building a song <br> Option to arrange <br> Press [SONG]
+    ClipView --> ClipAutomationView: Edit clip parameter automation <br> Press [CLIP] to enter
+    EditSong --> SongFX: Tweak the song FX in session mode <br> Enable [AFFECT ENTIRE]
+    EditSong --> ArrangerMode: Capture a full arrangement by recording from session Mode to arranger mode <br> Press [RECORD] + [SONG]
+    SongFX --> EditArrangement
+    ArrangerMode --> EditArrangement
+    EditArrangement --> ArrangerView: Edit arrangement <br> Press [SONG] to enter
+    ArrangerView --> ArrangerAutomationView: Edit arrangement parameter automation <br> Press [SHIFT] + [SONG] to enter
+    ArrangerView --> ArrangerPerformanceView: Perform arrangement <br> Press [KEYBOARD] to enter
+    EditSong --> Save: Save project <br> [SAVE] to save the song.
+    EditSong --> AudioExport: Export Audio <br> Press [SAVE] + [RECORD]
+    Save --> End
+
+    NewSong: New song
+    ExistingSong: Existing song
+    SessionMode: Session mode
+    RowView: Session 'Row' view
+    GridView: Session 'Grid' view
+    SessionPerformanceView: Session 'Performance' view
+    EditSong: Edit song
+    EditClip: Edit clip
+    ClipParameters: Clip 'Affect Entire' controls
+    ClipView: Clip view
+    ClipAutomationView: Clip 'Automation' view
+    SongFX: Song FX
+    ArrangerMode: Arranger mode
+    EditArrangement: Edit arrangement
+    ArrangerView: Arranger view
+    ArrangerAutomationView: Arranger 'Automation' view
+    ArrangerPerformanceView: Arranger 'Performance' view
+    AudioExport: Audio export
+    Save: Save
+```
+
+## Clip Types
+
+There are five types of clips in the Deluge: three that generate sounds using the Deluge's internal synth, sampling, and recording capabilities and two that send synchronized commands to external sound generators.
+
+```mermaid
+stateDiagram-v2
+  Song --> Track
+  Track --> AudioTrack
+  AudioTrack --> AudioClip
+  Track --> SynthTrack
+  SynthTrack --> SynthClip
+  Track --> KitTrack
+  KitTrack --> KitClip
+  Track --> MIDITrack
+  MIDITrack --> MIDIClip
+  Track --> CVTrack
+  CVTrack --> CVClip
+
+  AudioTrack: Audio track
+  AudioClip: Audio clip
+  SynthTrack: Synth track
+  SynthClip: Synth clip
+  KitTrack: Kit track
+  KitClip: Kit clip
+  MIDITrack: MIDI track
+  MIDIClip: MIDI clip
+  CVTrack: CV track
+  CVClip: CV clip
+```
+
+The two command clip types are MIDI and CV clips. These clips are used to define signals that send note and control voltage signals in addition to timing synchronization (i.e. clock) commands to sound notes on the external equipment. There's also the ability to send non-note commands to the external gear to change parameters and edit the sound while performing.
+
+The three sound generating clip types are Synth, Kit, and Audio clips. Synth clips focus on the sound synthesis engines within the Deluge to create melodic sounds. Kit clips coordinate multiple samples focused on rhythmic sounds and effects. Audio clips focus on playing sampled recorded sounds and resampled internally generated sounds.
