@@ -12,15 +12,150 @@ If the song is the container for your audio project then clips are the primary t
 
 Clips on the Deluge can be any length of beats and bars (including fractional beats). Multiple clips can play at the same time but only one clip per track or instrument can play. Layering clips and timing their launch and repeating is the primary method of arranging or performing a sound experience.
 
+This diagram provides an overview of the various components of a Song.
+
+```mermaid
+stateDiagram-v2
+  Song --> SongSettings
+  Song --> SongFX
+  Song --> Track
+  Song --> SongFile
+  Track --> AudioTrack
+  AudioTrack --> AudioClip
+  AudioClip --> AudioClipFX
+  Track --> InstrumentTrack
+  InstrumentTrack --> SynthTrack
+  InstrumentTrack --> KitTrack
+  InstrumentTrack --> MIDITrack
+  InstrumentTrack --> CVTrack
+  SynthTrack --> SynthClip
+  SynthClip --> SynthClipFX
+  SynthClip --> SynthClipAudioFile
+  KitTrack --> KitClip
+  KitClip --> KitClipFX
+  KitClip --> Drum
+  Drum --> SoundDrum
+  SoundDrum --> SoundDrumFX
+  SoundDrum --> SoundDrumAudioFile
+  Drum --> MIDIDrum
+  Drum --> GateDrum
+  MIDITrack --> MIDIClip
+  CVTrack --> CVClip
+
+  SongSettings: Song settings
+  SongFX: Song FX
+  SongFile: Song file
+  AudioTrack: Audio track
+  AudioClip: Audio clip
+  AudioClipFX: Audio clip FX
+  InstrumentTrack: Instrument track
+  SynthTrack: Synth track
+  SynthClip: Synth clip
+  SynthClipFX: Synth clip FX
+  SynthClipAudioFile: Synth clip audio file
+  KitTrack: Kit track
+  KitClip: Kit clip
+  KitClipFX: Kit clip FX
+  SoundDrum: Sound drum
+  SoundDrumFX: Sound drum FX
+  SoundDrumAudioFile: Sound drum audio file
+  MIDIDrum: MIDI drum
+  GateDrum: Gate drum
+  MIDITrack: MIDI track
+  MIDIClip: MIDI clip
+  CVTrack: CV track
+  CVClip: CV clip
+```
+
 ## Song Modes and Workflow
 
 Like many Digital Audio Workstations (DAWs) the Deluge provides two modes to manage clips in the song. The Session mode provides two clip launcher workflows that are oriented towards performance and experimentation. The Arranger mode provides a view that manages the tracks and execution of clips along a strict timeline which is a workflow more oriented towards creating a repeatable project.
 
+```mermaid
+stateDiagram-v2
+  Song --> SessionMode
+  Song --> Tracks
+  Tracks --> Clips
+  Song --> ArrangerMode
+  Clips --> SessionMode
+  Clips --> ArrangerMode
+
+  SessionMode: Session mode
+  ArrangerMode: Arranger mode
+```
+
 A song can use both Session and Arranger modes and views to continue to refine a project and there's interaction and sharing of information between the two, but only one mode can be played or performed at a time.
+
+An example high level workflow for working with Songs on the Deluge:
+
+```mermaid
+stateDiagram-v2
+    Start --> NewSong: New song <br> [SHIFT] + [LOAD], [LOAD]
+    Start --> ExistingSong: Load song <br> [LOAD], turn (SELECT)
+    NewSong --> SessionMode
+    ExistingSong --> SessionMode
+    SessionMode --> RowView: Default
+    SessionMode --> GridView: Optional <br> Hold [SONG] + Turn (SELECT)
+    RowView --> EditSong
+    GridView --> EditSong
+    EditSong --> EditClip: Select the clip to edit <br> Hold [PAD] or the row to edit or select a clip
+    EditClip --> ClipParameters: Edit clip parameters while in Session Mode <br> Hold clip [PAD] and adjust
+    EditClip --> ClipView: Edit clips <br> Press [CLIP] or [PAD]
+    ClipView --> EditSong: Continue building a song <br> Option to arrange <br> Press [SONG]
+    ClipView --> AutomationView: Edit clip parameter automation <br> Press [CLIP] to enter
+    EditSong --> SongFX: Tweak the Song master parameters in Session mode <br> Enable [AFFECT ENTIRE]
+    EditSong --> ArrangerMode: Capture a full arrangement by recording from Session Mode to Arranger Mode <br> Press [RECORD] + [SONG]
+    ArrangerMode --> ArrangerView: Edit arrangement
+    EditSong --> AudioExport: Export Audio <br> Press [SAVE] + [RECORD]
+    EditSong --> Save: Save project <br> [SAVE] to save the song.
+    Save --> End
+
+    NewSong: New song
+    ExistingSong: Existing song
+    SessionMode: Session mode
+    RowView: Session 'Row' view
+    GridView: Session 'Grid' view
+    EditSong: Edit song
+    EditClip: Edit clip
+    ClipParameters: Clip 'Affect Entire' controls
+    ClipView: Clip view
+    AutomationView: Automation view
+    SongFX: Song FX
+    ArrangerMode: Arranger mode
+    ArrangerView: Arranger view
+    AudioExport: Audio export
+    Save: Save
+```
 
 ## Clip Types
 
 There are five types of clips in the Deluge: three that generate sounds using the Deluge's internal synth, sampling, and recording capabilities and two that send synchronized commands to external sound generators.
+
+```mermaid
+stateDiagram-v2
+  Song --> Track
+  Track --> AudioTrack
+  AudioTrack --> AudioClip
+  Track --> SynthTrack
+  SynthTrack --> SynthClip
+  Track --> KitTrack
+  KitTrack --> KitClip
+  Track --> MIDITrack
+  MIDITrack --> MIDIClip
+  Track --> CVTrack
+  CVTrack --> CVClip
+
+  AudioTrack: Audio track
+  AudioClip: Audio clip
+  SynthTrack: Synth track
+  SynthClip: Synth clip
+  KitTrack: Kit track
+  KitClip: Kit clip
+  MIDITrack: MIDI track
+  MIDIClip: MIDI clip
+  CVTrack: CV track
+  CVClip: CV clip
+```
 
 The two command clip types are MIDI and CV clips. These clips are used to define signals that send note and control voltage signals in addition to timing synchronization (i.e. clock) commands to sound notes on the external equipment. There's also the ability to send non-note commands to the external gear to change parameters and edit the sound while performing.
 
@@ -28,13 +163,24 @@ The three sound generating clip types are Synth, Kit, and Audio clips. Synth cli
 
 ## Song
 
-- A discrete creative endeavour, such as an arrangement, sketch, 8-bar loop, jam, live recording template, or musical experiment. A song is always associated with at least one song file on the Deluge.
+A discrete creative endeavour, such as an arrangement, sketch, 8-bar loop, jam, live recording template, or musical experiment. A song is always associated with at least one song file on the Deluge.
+
+```mermaid
+stateDiagram-v2
+  Song --> SongSettings
+  Song --> SongFX
+  Song --> SongFile
+
+  SongSettings: Song settings
+  SongFX: Song FX
+  SongFile: Song file
+```
 
 ### Settings
 
 - User configurable settings that dictate how a song should operate - e.g. swing, tempo.
 
-### Master Parameters
+### Song FX
 
 - The name of an adjustable value, such as LPF Frequency, that can be manipulated and saved as part the Song and which adjust the output generated by each song component (e.g. clip).
 
@@ -48,6 +194,7 @@ The three sound generating clip types are Synth, Kit, and Audio clips. Synth cli
 - Each track is either an audio track or an instrument track.
 - An instrument track is either a kit instrument track or a melodic instrument track (synth, MIDI, CV).
 - Tracks contain one or more clips.
+- Only one clip can be active (playing) in a track at a time.
 
 ### Instrument preset file
 
@@ -62,18 +209,18 @@ The three sound generating clip types are Synth, Kit, and Audio clips. Synth cli
   - Each instrument clip is either a melodic instrument clip (synth, MIDI, CV) or a kit instrument clip.
 - Each clip is assigned to a section.
 
-### Parameter
-
-- The name of an adjustable value, such as LPF Frequency, Reverb Room Size, or OSC1 Level, that can be manipulated and saved as part of a clip and which influence the output generated by that clip.
-- Parameters do not generate an output on their own. A trigger, such as the playback of a sample (in an audio clip) and a note event in an instrument clip, is required in order for parameters to impact the output of a clip.
-- Some parameters can be modulated and automated.
-
 ### Section
 
 - In session mode, a section groups clips from separate tracks together so that they can be launched together.
 - A clip can only belong to one section. Sections have settings that dictate the number of times a section should playback before stopping or moving to the next section.
 - Each section has a distinct colour.
 - In arranger mode, section colours to identify the different clip instances of a track.
+
+### Parameter
+
+- The name of an adjustable value, such as LPF Frequency, Reverb Room Size, or OSC1 Level, that can be manipulated and saved as part of a clip and which influence the output generated by that clip.
+- Parameters do not generate an output on their own. A trigger, such as the playback of a sample (in an audio clip) and a note event in an instrument clip, is required in order for parameters to impact the output of a clip.
+- Some parameters can be modulated and automated.
 
 ### Sample
 
@@ -141,63 +288,343 @@ The three sound generating clip types are Synth, Kit, and Audio clips. Synth cli
 
 #### Drum
 
-- A unique instance of a kit instrument clip row that is associated with a sequence to generate an output. A drum is either an audio drum (synthesizer or sample) or non-audio drum (MIDI, Gate).
+A unique instance of a kit instrument clip row that is associated with a sequence to generate an output. A drum is either an audio drum (synthesizer or sample) or non-audio drum (MIDI, Gate).
 
 ### Output
 
-- The information stored in a clip (samples, notes, parameters) generates an output. An output either generates audio (synthesizer sound or sample) or non-audio (MIDI, CV, Gate).
+The information stored in a clip (samples, notes, parameters) generates an output. An output either generates audio (synthesizer sound or sample) or non-audio (MIDI, CV, Gate).
 
 ## Modes
 
-- Modes provide different ways of working with tracks and clips and contain the configuration settings for which tracks and clips are playing at any given time. They are mutually exclusive, meaning only one mode can be played at a time. Each mode is associated with a View which is the user interface for configuring the mode.
+Modes provide different ways of working with tracks and clips and contain the configuration settings for which tracks and clips are playing at any given time. They are mutually exclusive, meaning only one mode can be played at a time. Each mode is associated with a View which is the user interface for configuring the mode.
 
-### Arranger Mode
+```mermaid
+stateDiagram-v2
+  Song --> SessionMode
+  Song --> ArrangerMode
+  Song --> SongSettings
+  Song --> SongFX
+  Song --> SongFile
 
-- Allows you to arrange a song chronologically from beginning to end using Arranger View. Each track is represented by a single row on a timeline. The clips for a given track are placed in sequence from left to right.
 
-### Session Mode
+  SongSettings: Song settings
+  SongFX: Song FX
+  SongFile: Song file
+  SessionMode: Session mode
+  ArrangerMode: Arranger mode
+```
 
-- Allows you to work with tracks and clips using two main Session View layouts: Rows and Grid.
+### Arranger mode
+
+Allows you to arrange a song chronologically from beginning to end using Arranger View. Each track is represented by a single row on a timeline. The clips for a given track are placed in sequence from left to right.
+
+### Session mode
+
+Allows you to work with tracks and clips using two main Session View layouts: Rows and Grid.
 
 ## Views
 
-### Arranger View
+### Arranger mode
 
-- The user interface for interacting with Arranger Mode
+```mermaid
+stateDiagram-v2
+  Song --> ArrangerMode
+  ArrangerMode --> ArrangerView
+  ArrangerMode --> ArrangerAutomationView
+  ArrangerMode --> ArrangerPerformanceView
+  Song --> SongSettings
+  Song --> SongFX
+  SongFX --> ArrangerAutomationView
+  SongFX --> ArrangerPerformanceView
+  Song --> SongFile
 
-### Session Rows / Grid Views
+  SongSettings: Song settings
+  SongFX: Song FX
+  SongFile: Song file
+  ArrangerMode: Arranger mode
+  ArrangerView: Arranger view
+  ArrangerAutomationView: Arranger parameter automation view
+  ArrangerPerformanceView: Arranger performance view
+```
 
-- The user interfaces for interacting with the Session Mode
+#### Arranger view
 
-### Audio Clip View
+The user interface for interacting with Arranger Mode
 
-- The user interface for interacting with Audio Clips
+#### Arranger parameter automation view
 
-### Melodic Instrument Clip View
+The user interface for interacting with the automatable song parameters of Arranger Mode
 
-- The user interface for interacting with Melodic Instrument Clips (Synth, MIDI, CV)
+#### Arranger performance view
 
-### Kit Instrument Clip View
+The user interface for interacting with the song parameters of Arranger Mode
 
-- The user interface for interacting with Kit Instrument Clips
+### Session mode
 
-### Melodic Instrument Keyboard View
+```mermaid
+stateDiagram-v2
+  Song --> SessionMode
+  SessionMode --> SessionView
+  SessionView --> SessionRowView
+  SessionView --> SessionGridView
+  SessionMode --> SessionPerformanceView
+  Song --> SongSettings
+  Song --> SongFX
+  Song --> SongFile
+  SongFX --> SessionPerformanceView
 
-- The user interface for interacting with Melodic Instrument Keyboard Layouts
-- Includes several layouts: isomorphic, in-key, chord, chord library
+  SongSettings: Song settings
+  SongFX: Song FX
+  SongFile: Song file
+  SessionMode: Session mode
+  SessionView: Session view
+  SessionRowView: Session row view
+  SessionGridView: Session grid view
+  SessionPerformanceView: Session performance view
+```
 
-### Kit Instrument Keyboard View
+#### Session Rows / Grid views
 
-- The user interface for interacting with Kit Instrument Keyboard Layouts
-- Includes the Drum Velocity layout
+The user interfaces for interacting with Session mode
 
-### Automation View
+#### Session Performance view
 
-- the user interface for interacting with Parameter and Note automation for Arranger and Clip Parameters
+The user interface for interacting with the song parameters of Session Mode
 
-### Performance View
+### Audio clip
 
-- the user interface for interacting with the Song's Master Parameters
+```mermaid
+stateDiagram-v2
+  Song --> AudioTrack
+  AudioTrack --> AudioTrackInputSource
+  AudioTrack --> AudioClip
+  AudioClip --> AudioClipView
+  AudioClip --> AudioClipFX
+  AudioClipFX --> AudioClipAutomationView
+  AudioClip --> AudioClipAudioFile
+  AudioClipAudioFile --> AudioClipWaveformView
+
+  AudioTrack: Audio track
+  AudioTrackInputSource: Audio input source
+  AudioClip: Audio clip
+  AudioClipView: Audio clip view
+  AudioClipFX: Audio clip FX
+  AudioClipAutomationView: Audio clip parameter automation view
+  AudioClipAudioFile: Audio clip audio file
+  AudioClipWaveformView: Audio clip audio file waveform view
+```
+
+#### Audio clip view
+
+The user interface for interacting with an Audio clip.
+
+#### Audio clip parameter automation view
+
+The user interface for interacting with the automatable parameter's of an Audio clip.
+
+#### Audio clip audio file waveform view
+
+The user interface for interacting with the Audio File loaded into an Audio clip.
+
+### Synth clip
+
+```mermaid
+stateDiagram-v2
+  Song --> SynthTrack
+  SynthTrack --> SynthClip
+  SynthTrack --> SynthPresetFile
+  SynthClip --> SynthClipView
+  SynthClip --> SynthClipFX
+  SynthClipFX --> SynthClipAutomationView
+  SynthClip --> SynthClipAudioFile
+  SynthClipAudioFile --> SynthClipAudioFileWaveformView
+  SynthClip --> SynthClipKeyboardView
+  SynthClip --> SynthClipNote
+  SynthClipNote --> SynthClipNoteVelocityAutomationView
+
+  SynthTrack: Synth track
+  SynthPresetFile: Synth preset file
+  SynthClip: Synth clip
+  SynthClipFX: Synth clip FX
+  SynthClipView: Synth clip view
+  SynthClipAutomationView: Synth clip parameter automation view
+  SynthClipAudioFile: Synth clip audio file
+  SynthClipAudioFileWaveformView: Synth clip audio file waveform view
+  SynthClipKeyboardView: Synth clip keyboard view
+  SynthClipNote: Synth clip note
+  SynthClipNoteVelocityAutomationView: Synth clip note velocity automation view
+```
+
+#### Synth clip view
+
+The user interface for interacting with a Synth clip.
+
+#### Synth clip keyboard view
+
+The user interface for interacting with the Melodic Instrument Keyboard Layouts for a Synth clip.
+
+Includes several layouts: isomorphic, in-key, norns, chord, chord library, piano.
+
+#### Synth clip parameter automation view
+
+The user interface for interacting with the automatable parameter's of a Synth clip.
+
+#### Synth clip audio file waveform view
+
+The user interface for interacting with the Audio File(s) loaded into a Synth clip.
+
+#### Synth clip note velocity automation view
+
+The user interface for interacting with the note velocities of a note row in a Synth clip.
+
+### Kit clip
+
+```mermaid
+stateDiagram-v2
+  Song --> KitTrack
+  KitTrack --> KitClip
+  KitTrack --> KitPresetFile
+  KitClip --> KitClipView
+  KitClip --> KitClipFX
+  KitClipFX --> KitClipAutomationView
+  KitClip --> KitClipDrum
+  KitClipDrum --> KitClipSoundDrum
+  KitClipSoundDrum --> KitClipSoundDrumFX
+  KitClipSoundDrumFX --> KitClipSoundDrumAutomationView
+  KitClipSoundDrum --> KitClipSoundDrumAudioFile
+  KitClipSoundDrumAudioFile --> KitClipSoundDrumWaveformView
+  KitClipDrum --> KitClipDrumNote
+  KitClipDrumNote --> KitClipDrumNoteVelocityAutomationView
+  KitClip --> KitClipKeyboardView
+
+  KitTrack: Kit track
+  KitPresetFile: Kit preset file
+  KitClip: Kit clip
+  KitClipView: Kit clip view
+  KitClipFX: Kit clip FX
+  KitClipAutomationView: Kit clip parameter automation view
+  KitClipDrum: Kit clip drum
+  KitClipSoundDrum: Kit clip sound drum
+  KitClipSoundDrumFX: Kit clip sound drum FX
+  KitClipSoundDrumAutomationView: Kit clip sound drum parameter automation view
+  KitClipSoundDrumAudioFile: Kit clip sound drum audio file
+  KitClipSoundDrumWaveformView: Kit clip sound drum audio file waveform view
+  KitClipDrumNote: Kit clip drum note
+  KitClipDrumNoteVelocityAutomationView: Kit clip drum note velocity automation view
+  KitClipKeyboardView: Kit clip keyboard view
+```
+
+#### Kit clip view
+
+The user interface for interacting with a Kit clip.
+
+#### Kit clip keyboard view
+
+The user interface for interacting with Kit Instrument Keyboard Layouts.
+
+Includes the Drum Velocity layout.
+
+#### Kit clip parameter automation view
+
+The user interface for interacting with the automatable parameter's of a Kit clip.
+
+#### Kit clip sound drum parameter automation view
+
+The user interface for interacting with the automatable parameter's of a sound drum row in a Kit clip.
+
+#### Kit clip sound drum audio file waveform view
+
+The user interface for interacting with the Audio File loaded into a sound drum row in a Kit clip.
+
+#### Kit clip drum note velocity automation view
+
+The user interface for interacting with the note velocities of a drum row in a Kit clip.
+
+### MIDI clip
+
+```mermaid
+stateDiagram-v2
+  Song --> MIDITrack
+  MIDITrack --> MIDIClip
+  MIDITrack --> MIDIPresetFile
+  MIDITrack --> MIDIDeviceDefinitionFile
+  MIDIClip --> MIDIClipView
+  MIDIClip --> MIDIClipCC
+  MIDIClipCC --> MIDIClipAutomationView
+  MIDIClip --> MIDIClipNote
+  MIDIClipNote --> MIDIClipNoteVelocityAutomationView
+  MIDIClip --> MIDIClipKeyboardView
+
+  MIDITrack: MIDI track
+  MIDIPresetFile: MIDI preset file
+  MIDIDeviceDefinitionFile: MIDI device definition file
+  MIDIClip: MIDI clip
+  MIDIClipView: MIDI clip view
+  MIDIClipCC: MIDI clip CC
+  MIDIClipAutomationView: MIDI clip parameter automation view
+  MIDIClipNote: MIDI clip note
+  MIDIClipNoteVelocityAutomationView: MIDI clip note velocity automation view
+  MIDIClipKeyboardView: MIDI clip keyboard view
+```
+
+#### MIDI clip view
+
+The user interface for interacting with a MIDI clip.
+
+#### MIDI clip keyboard view
+
+The user interface for interacting with the Melodic Instrument Keyboard Layouts for a MIDI clip.
+
+Includes several layouts: isomorphic, in-key, norns, chord, chord library, piano.
+
+#### MIDI clip parameter automation view
+
+The user interface for interacting with the automatable parameter's of a MIDI clip.
+
+#### MIDI clip note velocity automation view
+
+The user interface for interacting with the note velocities of a note row in a MIDI clip.
+
+### CV clip
+
+```mermaid
+stateDiagram-v2
+  Song --> CVTrack
+  CVTrack --> CVClip
+  CVClip --> CVClipView
+  CVClip --> CVClipExpression
+  CVClipExpression --> CVClipAutomationView
+  CVClip --> CVClipNote
+  CVClipNote --> CVClipNoteVelocityAutomationView
+  CVClip --> CVClipKeyboardView
+
+  CVTrack: CV track
+  CVClip: CV clip
+  CVClipView: CV clip view
+  CVClipExpression: CV clip monophonic expression
+  CVClipAutomationView: CV clip parameter automation view
+  CVClipNote: CV clip note
+  CVClipNoteVelocityAutomationView: CV clip note velocity automation view
+  CVClipKeyboardView: CV clip keyboard view
+```
+
+#### CV clip view
+
+The user interface for interacting with a CV clip.
+
+#### CV clip keyboard view
+
+The user interface for interacting with the Melodic Instrument Keyboard Layouts for a CV clip.
+
+Includes several layouts: isomorphic, in-key, norns, chord, chord library, piano.
+
+#### CV clip parameter automation view
+
+The user interface for interacting with the automatable parameter's of a CV clip.
+
+#### CV clip note velocity automation view
+
+The user interface for interacting with the note velocities of a note row in a CV clip.
 
 ## Menus
 
