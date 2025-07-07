@@ -75,7 +75,6 @@ const config = defineConfig({
                 items: [
                   {
                     label: "Introduction",
-                    collapsed: true,
                     autogenerate: { directory: "manual/introduction" },
                   },
                   {
