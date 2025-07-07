@@ -4919,6 +4919,171 @@ AudioOutput* Song::getFirstAudioOutput() {
 	return position >= loopHandleStart && position < loopHandleEnd;
 }
 
+AudioInputChannel defaultAudioOutputInputChannel = AudioInputChannel::UNSET;
+
+AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
+	int32_t highestNumber = 0;
+
+	// Find highest number existent so far
+	for (Output* output = firstOutput; output; output = output->next) {
+		if (output->type == OutputType::AUDIO) {
+			char const* nameChars = output->name.get();
+			if (memcasecmp(nameChars, "AUDIO", 5)) {
+				continue;
+			}
+
+			int32_t nameLength = strlen(nameChars);
+			if (nameLength < 1) {
+				continue;
+			}
+
+			if (!memIsNumericChars(&nameChars[5], nameLength - 5)) {
+				continue;
+			}
+
+			int32_t number = stringToInt(&nameChars[5]);
+			if (number > highestNumber) {
+				highestNumber = number;
+			}
+		}
+	}
+
+	String newName;
+	Error error = newName.set("AUDIO");
+	if (error != Error::NONE) {
+		return nullptr;
+	}
+
+	error = newName.concatenateInt(highestNumber + 1);
+	if (error != Error::NONE) {
+		return nullptr;
+	}
+
+	ParamManagerForTimeline newParamManager;
+	error = newParamManager.setupUnpatched();
+	if (error != Error::NONE) {
+		return nullptr;
+	}
+
+	void* outputMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioOutput));
+	if (!outputMemory) {
+		return nullptr;
+	}
+
+	auto* newOutput = new (outputMemory) AudioOutput();
+	newOutput->name.set(&newName);
+
+	// Set input channel to previously used one. If none selected, see what's in Song
+	if (defaultAudioOutputInputChannel == AudioInputChannel::UNSET) {
+
+		defaultAudioOutputInputChannel = AudioInputChannel::LEFT;
+		for (Output* output = firstOutput; output; output = output->next) {
+			if (output->type == OutputType::AUDIO) {
+				defaultAudioOutputInputChannel = ((AudioOutput*)output)->inputChannel;
+				break;
+			}
+		}
+	}
+
+	newOutput->inputChannel = defaultAudioOutputInputChannel;
+
+	GlobalEffectableForClip::initParamsForAudioClip(&newParamManager);
+
+	backUpParamManager((ModControllableAudio*)newOutput->toModControllable(), nullptr, &newParamManager, true);
+
+	if (replaceOutput) {
+		replaceOutputLowLevel(newOutput, replaceOutput);
+	}
+
+	else {
+		addOutput(newOutput);
+	}
+	return newOutput;
+}
+
+Output* Song::getNextAudioOutput(int32_t offset, Output* oldOutput, Availability availabilityRequirement) {
+
+	Output* newOutput = oldOutput;
+
+	// Forward
+	if (offset < 0) { // Reverses direction
+		while (true) {
+			newOutput = newOutput->next;
+			if (!newOutput) {
+				newOutput = firstOutput;
+			}
+			if (newOutput == oldOutput) {
+				break;
+			}
+			if (availabilityRequirement >= Availability::INSTRUMENT_AVAILABLE_IN_SESSION
+			    && doesOutputHaveActiveClipInSession(newOutput)) {
+				continue;
+			}
+			if (newOutput->type == OutputType::AUDIO) {
+				break;
+			}
+		}
+	}
+
+	// Backward
+	else {
+		Output* investigatingOutput = oldOutput;
+		while (true) {
+			investigatingOutput = investigatingOutput->next;
+			if (!investigatingOutput) {
+				investigatingOutput = firstOutput;
+			}
+			if (investigatingOutput == oldOutput) {
+				break;
+			}
+			if (availabilityRequirement >= Availability::INSTRUMENT_AVAILABLE_IN_SESSION
+			    && doesOutputHaveActiveClipInSession(investigatingOutput)) {
+				continue;
+			}
+			if (investigatingOutput->type == OutputType::AUDIO) {
+				newOutput = investigatingOutput;
+			}
+		}
+	}
+
+	return newOutput;
+}
+
+
+// Unassign all Voices first
+void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
+
+	oldOutput->stopAnyAuditioning(modelStack);
+
+	Output** prevPointer;
+	for (prevPointer = &firstOutput; *prevPointer != oldOutput; prevPointer = &(*prevPointer)->next) {}
+	newOutput->next = oldOutput->next;
+	*prevPointer = newOutput;
+
+	// Migrate all ClipInstances from oldInstrument to newInstrument
+	newOutput->clipInstances.swapStateWith(&oldOutput->clipInstances);
+
+	newOutput->colour = oldOutput->colour;
+	oldOutput->colour = 0;
+
+	newOutput->mutedInArrangementMode = oldOutput->mutedInArrangementMode;
+	oldOutput->mutedInArrangementMode = false;
+
+	newOutput->soloingInArrangementMode = oldOutput->soloingInArrangementMode;
+	oldOutput->soloingInArrangementMode = false;
+
+	newOutput->armedForRecording = oldOutput->armedForRecording;
+	oldOutput->armedForRecording = false;
+
+	// Properly do away with the oldInstrument
+	deleteOrAddToHibernationListOutput(oldOutput);
+
+	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+}
+
 void Song::convertLoopToSection() {
 	if (!loopHandleActive) {
 		return;
