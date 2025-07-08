@@ -257,6 +257,7 @@ enum class OutputType : uint8_t {
 enum class StemExportType : uint8_t {
 	CLIP,
 	TRACK,
+	DRUM,
 	MIXDOWN,
 };
 
