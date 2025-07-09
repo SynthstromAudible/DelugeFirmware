@@ -931,39 +931,6 @@ void SoundEditor::scrollFinished() {
 const uint32_t selectEncoderUIModes[] = {UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, UI_MODE_NOTES_PRESSED,
                                          UI_MODE_AUDITIONING, 0};
 
-// inertia and acceleration controls how fast the knob accelerates in horizontal menus
-// speedScale controls how we go from "raw speed" to speed used as offset multiplier
-// min and max speed clamp the max effective speed
-//
-// current values have been tuned to be slow enough to feel easy to control, but fast
-// enough to go from 0 to 50 with one fast turn of the encoder. speedScale and min/max
-// could potentially be user configurable in a small range.
-const double acceleration = 0.1;
-const double inertia = 1.0 - acceleration;
-const double speedScale = 0.15;
-const double minSpeed = 1.0;
-const double maxSpeed = 5.0;
-
-double getKnobSpeed(int8_t offset) {
-	// speed is current raw knob speed
-	static double speed = 0.0;
-	// lastOffset and lastEncoderTime keep track of our direction and time
-	static int8_t lastOffset = 0;
-	static double lastEncoderTime = 0.0;
-	double time = getSystemTime();
-	if (offset == lastOffset) {
-		// moving in the same direction, update speed
-		speed = speed * inertia + (1.0 / (time - lastEncoderTime)) * acceleration;
-	}
-	else {
-		// change of direction, reset speed
-		speed = 0.0;
-	}
-	lastEncoderTime = time;
-	lastOffset = offset;
-	return std::clamp((speed * speedScale), minSpeed, maxSpeed);
-}
-
 void SoundEditor::selectEncoderAction(int8_t offset) {
 	int8_t scaledOffset = offset;
 	// 5x acceleration of select encoder when holding the shift button
@@ -998,7 +965,7 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 			hadNoteTails = currentSound->allowNoteTails(modelStack);
 		}
 
-		item->selectEncoderAction(item->isSubmenu() ? offset * getKnobSpeed(offset) : scaledOffset);
+		item->selectEncoderAction(item->isSubmenu() ? offset : scaledOffset);
 
 		if (currentSound) {
 			if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) {
