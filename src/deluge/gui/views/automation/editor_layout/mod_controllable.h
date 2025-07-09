@@ -19,7 +19,7 @@
 
 #include "gui/views/automation/editor_layout.h"
 
-namespace deluge::gui::views::automation::editor_layout {
+// namespace deluge::gui::views::automation::editor_layout {
 
 class AutomationEditorLayoutModControllable : public AutomationEditorLayout {
 public:
@@ -118,7 +118,9 @@ private:
 	int32_t calculateAutomationKnobPosForModEncoderTurn(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
 	                                                    int32_t offset);
 };
-}; // namespace deluge::gui::views::automation::editor_layout
+//}; // namespace deluge::gui::views::automation::editor_layout
 
-extern deluge::gui::views::automation::editor_layout::AutomationEditorLayoutModControllable
-    automationEditorLayoutModControllable;
+// extern deluge::gui::views::automation::editor_layout::AutomationEditorLayoutModControllable
+//     automationEditorLayoutModControllable;
+
+extern AutomationEditorLayoutModControllable automationEditorLayoutModControllable;

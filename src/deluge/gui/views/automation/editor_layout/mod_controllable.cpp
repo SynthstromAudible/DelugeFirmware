@@ -28,7 +28,7 @@
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 
-namespace deluge::gui::views::automation::editor_layout {
+// namespace deluge::gui::views::automation::editor_layout {
 
 namespace params = deluge::modulation::params;
 
@@ -1467,4 +1467,4 @@ int32_t AutomationEditorLayoutModControllable::calculateAutomationKnobPosForModE
 	return newKnobPos;
 }
 
-}; // namespace deluge::gui::views::automation::editor_layout
+//}; // namespace deluge::gui::views::automation::editor_layout

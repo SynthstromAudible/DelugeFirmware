@@ -19,7 +19,7 @@
 
 #include "gui/views/automation/editor_layout.h"
 
-namespace deluge::gui::views::automation::editor_layout {
+// namespace deluge::gui::views::automation::editor_layout {
 
 class AutomationEditorLayoutNote : public AutomationEditorLayout {
 public:
@@ -65,6 +65,8 @@ public:
 	void renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType, int32_t knobPosLeft);
 };
 
-}; // namespace deluge::gui::views::automation::editor_layout
+// }; // namespace deluge::gui::views::automation::editor_layout
 
-extern deluge::gui::views::automation::editor_layout::AutomationEditorLayoutNote automationEditorLayoutNote;
+// extern deluge::gui::views::automation::editor_layout::AutomationEditorLayoutNote automationEditorLayoutNote;
+
+extern AutomationEditorLayoutNote automationEditorLayoutNote;

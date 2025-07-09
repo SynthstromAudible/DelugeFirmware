@@ -19,7 +19,7 @@
 
 #include "gui/views/automation_view.h"
 
-namespace deluge::gui::views::automation {
+// namespace deluge::gui::views::automation {
 
 class AutomationEditorLayout {
 public:
@@ -91,4 +91,4 @@ protected:
 	}
 };
 
-}; // namespace deluge::gui::views::automation
+// }; // namespace deluge::gui::views::automation

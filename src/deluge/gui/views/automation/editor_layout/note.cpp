@@ -21,7 +21,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/note/note.h"
 
-namespace deluge::gui::views::automation::editor_layout {
+// namespace deluge::gui::views::automation::editor_layout {
 
 using namespace deluge::gui;
 
@@ -633,4 +633,4 @@ void AutomationEditorLayoutNote::recordNoteEditPadAction(int32_t x, int32_t velo
 	                                 currentSong->xZoom[NAVIGATION_CLIP]);
 }
 
-}; // namespace deluge::gui::views::automation::editor_layout
+// }; // namespace deluge::gui::views::automation::editor_layout
