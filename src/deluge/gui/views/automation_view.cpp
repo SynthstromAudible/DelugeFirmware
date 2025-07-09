@@ -3583,13 +3583,7 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 		if (isUIModeWithinRange(verticalScrollUIModes)) {
 			if ((!instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress
 			     || (!isUIModeActive(UI_MODE_NOTES_PRESSED) && !isUIModeActive(UI_MODE_AUDITIONING)))
-			    && (!(isUIModeActive(UI_MODE_NOTES_PRESSED) && inNoteEditor() && !padSelectionOn))) {
-				// if we're in the note editor pad selection mode and vertical scrolling,
-				// we want to end any presses first (which will end any note auditioning as well)
-				if (inNoteEditor() && padSelectionOn) {
-					instrumentClipView.endAllEditPadPresses();
-				}
-
+			    && (!(isUIModeActive(UI_MODE_NOTES_PRESSED) && inNoteEditor()))) {
 				instrumentClipView.scrollVertical(offset, inCardRoutine, false, modelStack);
 
 				// if we're in note editor scrolling vertically will change note selected
