@@ -179,15 +179,12 @@ private:
 	                       OutputType outputType, int32_t effectiveLength, int32_t x, int32_t y, int32_t velocity,
 	                       int32_t xScroll, int32_t xZoom, SquareInfo& squareInfo);
 	bool toggleAutomationInterpolation();
-	bool toggleVelocityPadSelectionMode(SquareInfo& squareInfo);
 	bool toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength,
 	                                      int32_t xScroll, int32_t xZoom);
 	void handleParameterSelection(Clip* clip, Output* output, OutputType outputType, int32_t xDisplay,
 	                              int32_t yDisplay);
 	void noteEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,
 	                       int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo);
-	void velocityPadSelectionAction(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip, int32_t x,
-	                                int32_t y, int32_t velocity, SquareInfo& squareInfo);
 	void velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,
 	                           int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo);
 	int32_t getVelocityFromY(int32_t y);
@@ -352,8 +349,6 @@ private:
 	int32_t rightPadSelectedX;
 	int32_t rightPadSelectedY;
 	int32_t lastPadSelectedKnobPos;
-	int32_t numNotesSelected;
-	int32_t selectedPadPressed;
 
 	bool playbackStopped;
 
