@@ -28,7 +28,7 @@ ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRou
 	}
 
 	// use SYNTH / KIT / MIDI / CV buttons to select menu item in the currently displayed horizontal menu page
-	std::map<hid::Button, int32_t> selectMap = {{SYNTH, 0}, {KIT, 1}, {MIDI, 2}, {CV, 3}};
+	static std::map<hid::Button, int32_t> selectMap = {{SYNTH, 0}, {KIT, 1}, {MIDI, 2}, {CV, 3}};
 	if (selectMap.contains(b)) {
 		return selectMenuItem(paging.getVisiblePage().items, *current_item_, selectMap[b]);
 	}
@@ -54,6 +54,7 @@ void HorizontalMenu::renderOLED() {
 	// store the last selected horizontal menu item position so that we don't update the LED's more than we have to
 	if (const auto posOnPage = paging.selectedItemPositionOnPage; posOnPage != lastSelectedItemPosition) {
 		lastSelectedItemPosition = posOnPage;
+		currentKnobSpeed = 0.0f;
 		updateSelectedMenuItemLED(posOnPage);
 	}
 
@@ -74,7 +75,6 @@ void HorizontalMenu::renderOLED() {
 }
 
 void HorizontalMenu::renderPageCounters() const {
-	// Render the page counters
 	if (const int32_t pagesCount = paging.pages.size(); pagesCount > 1) {
 		oled_canvas::Canvas& image = OLED::main;
 		constexpr int32_t y = 1 + OLED_MAIN_TOPMOST_PIXEL;
@@ -170,30 +170,29 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 }
 
 void HorizontalMenu::selectEncoderAction(int32_t offset) {
-	if (renderingStyle() == HORIZONTAL) {
-		const bool selectButtonPressed = Buttons::selectButtonPressUsedUp =
-		    Buttons::isButtonPressed(hid::button::SELECT_ENC);
-
-		if (!selectButtonPressed) {
-			MenuItem* child = *current_item_;
-			if (child->isSubmenu()) {
-				// No action for a submenu
-				return;
-			}
-
-			child->selectEncoderAction(offset);
-			focusChild(child);
-			displayPopup(child);
-
-			// We don't want to return true for selectEncoderEditsInstrument(), since
-			// that would trigger for scrolling in the menu as well.
-			return soundEditor.markInstrumentAsEdited();
-		}
+	if (renderingStyle() != HORIZONTAL) {
+		return Submenu::selectEncoderAction(offset);
 	}
 
-	// Undo any acceleration: we only want it for the items, not the menu itself.
-	// We only do this for horizontal menus to allow fast scrolling with shift in vertical menus.
-	offset = std::clamp<int32_t>(offset, -1, 1);
+	const bool selectButtonPressed = Buttons::selectButtonPressUsedUp =
+	    Buttons::isButtonPressed(hid::button::SELECT_ENC);
+
+	if (!selectButtonPressed) {
+		MenuItem* child = *current_item_;
+		if (child->isSubmenu()) {
+			// No action for a submenu
+			return;
+		}
+
+		child->selectEncoderAction(offset * calcNextKnobSpeed(offset));
+		focusChild(child);
+		displayPopup(child);
+
+		// We don't want to return true for selectEncoderEditsInstrument(), since
+		// that would trigger for scrolling in the menu as well.
+		return soundEditor.markInstrumentAsEdited();
+	}
+
 	Submenu::selectEncoderAction(offset);
 }
 
@@ -414,6 +413,38 @@ void HorizontalMenu::renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32
 		image.drawHorizontalLine(y, slotStartX + 4, labelStartX - 4);
 		image.drawHorizontalLine(y, labelStartX + labelWidth + 2, slotStartX + slotWidth - 6);
 	}
+}
+
+double HorizontalMenu::calcNextKnobSpeed(int8_t offset) {
+	// - inertia and acceleration controls how fast the knob accelerates in horizontal menus
+	// - speedScale controls how we go from "raw speed" to speed used as offset multiplier
+	// - min and max speed clamp the max effective speed
+	//
+	// current values have been tuned to be slow enough to feel easy to control, but fast
+	// enough to go from 0 to 50 with one fast turn of the encoder. speedScale and min/max
+	// could potentially be user configurable in a small range.
+	static constexpr double acceleration = 0.1;
+	static constexpr double inertia = 1.0 - acceleration;
+	static constexpr double speedScale = 0.15;
+	static constexpr double minSpeed = 1.0;
+	static constexpr double maxSpeed = 5.0;
+
+	// lastOffset and lastEncoderTime keep track of our direction and time
+	static int8_t lastOffset = 0;
+	static double lastEncoderTime = 0.0;
+	const double time = getSystemTime();
+
+	if (time - lastEncoderTime >= 0.7 || offset != lastOffset) {
+		// too much time passed, or the knob direction changed, reset the speed
+		currentKnobSpeed = 0.0;
+	}
+	else {
+		// moving in the same direction, update speed
+		currentKnobSpeed = currentKnobSpeed * inertia + 1.0 / (time - lastEncoderTime) * acceleration;
+	}
+	lastEncoderTime = time;
+	lastOffset = offset;
+	return std::clamp((currentKnobSpeed * speedScale), minSpeed, maxSpeed);
 }
 
 } // namespace deluge::gui::menu_item

@@ -57,5 +57,8 @@ private:
 	static void displayPopup(MenuItem* menuItem);
 	static void renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32_t slotStartX, int32_t slotWidth,
 	                              bool isSelected);
+
+	double currentKnobSpeed{0.0};
+	double calcNextKnobSpeed(int8_t offset);
 };
 } // namespace deluge::gui::menu_item

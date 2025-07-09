@@ -66,12 +66,14 @@ bool HorizontalMenuCombined::focusChild(const MenuItem* child) {
 	return true;
 }
 
-void HorizontalMenuCombined::renderMenuItems(std::span<MenuItem*> items, const MenuItem*) {
-	current_submenu_->renderMenuItems(items, *current_item_);
+void HorizontalMenuCombined::renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) {
+	// Redirect rendering to the current submenu
+	current_submenu_->renderMenuItems(items, currentItem);
 }
 
 ActionResult HorizontalMenuCombined::selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous,
                                                     int32_t selectedColumn) {
+	// Redirect selecting to the current submenu
 	const auto result = current_submenu_->selectMenuItem(pageItems, previous, selectedColumn);
 	current_item_ = current_submenu_->current_item_;
 	return result;
@@ -115,10 +117,6 @@ void HorizontalMenuCombined::selectEncoderAction(int32_t offset) {
 		return HorizontalMenu::selectEncoderAction(offset);
 	}
 
-	// Undo any acceleration: we only want it for the items, not the menu itself.
-	// We only do this for horizontal menus to allow fast scrolling with shift in vertical menus.
-	offset = std::clamp<int32_t>(offset, -1, 1);
-
 	// Traverse through menu items
 	int32_t submenuIndex = std::distance(submenus_.begin(), std::ranges::find(submenus_, current_submenu_));
 	int32_t itemIndex = std::distance(current_submenu_->items.begin(), current_item_);
@@ -127,42 +125,33 @@ void HorizontalMenuCombined::selectEncoderAction(int32_t offset) {
 		++itemIdx;
 		while (submenuIdx < static_cast<int32_t>(submenus_.size())) {
 			if (itemIdx < static_cast<int32_t>(submenus_[submenuIdx]->items.size())) {
-				return true;
+				return;
 			}
 			++submenuIdx;
 			itemIdx = 0;
 		}
-		if (wrapAround()) {
-			submenuIdx = 0;
-			itemIdx = 0;
-			return true;
-		}
-		return false;
+		submenuIdx = 0;
+		itemIdx = 0;
 	};
 
 	auto moveBackward = [&](int32_t& submenuIdx, int32_t& itemIdx) {
 		--itemIdx;
 		while (submenuIdx >= 0) {
 			if (itemIdx >= 0) {
-				return true;
+				return;
 			}
 			--submenuIdx;
 			if (submenuIdx >= 0) {
 				itemIdx = static_cast<int32_t>(submenus_[submenuIdx]->items.size()) - 1;
 			}
 		}
-		if (wrapAround()) {
-			submenuIdx = static_cast<int32_t>(submenus_.size()) - 1;
-			itemIdx = static_cast<int32_t>(submenus_[submenuIdx]->items.size()) - 1;
-			return true;
-		}
-		return false;
+		submenuIdx = static_cast<int32_t>(submenus_.size()) - 1;
+		itemIdx = static_cast<int32_t>(submenus_[submenuIdx]->items.size()) - 1;
 	};
 
 	if (offset > 0) {
 		do {
-			if (!moveForward(submenuIndex, itemIndex))
-				break;
+			moveForward(submenuIndex, itemIndex);
 			if (auto* item = submenus_[submenuIndex]->items[itemIndex]; isItemRelevant(item)) {
 				current_item_ = submenus_[submenuIndex]->items.begin() + itemIndex;
 				offset--;
@@ -171,8 +160,7 @@ void HorizontalMenuCombined::selectEncoderAction(int32_t offset) {
 	}
 	else if (offset < 0) {
 		do {
-			if (!moveBackward(submenuIndex, itemIndex))
-				break;
+			moveBackward(submenuIndex, itemIndex);
 			if (auto* item = submenus_[submenuIndex]->items[itemIndex]; isItemRelevant(item)) {
 				current_item_ = submenus_[submenuIndex]->items.begin() + itemIndex;
 				offset++;
