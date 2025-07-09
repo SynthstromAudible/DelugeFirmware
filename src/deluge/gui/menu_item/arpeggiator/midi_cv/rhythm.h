@@ -24,6 +24,9 @@
 #include "modulation/arpeggiator_rhythms.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
+
+using namespace hid::display;
+
 class Rhythm final : public ArpNonSoundInteger {
 public:
 	using ArpNonSoundInteger::ArpNonSoundInteger;
@@ -38,25 +41,29 @@ public:
 	void drawValue() override { display->setScrollingText(arpRhythmPatternNames[this->getValue()]); }
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
-		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+		oled_canvas::Canvas& canvas = OLED::main;
 
 		canvas.drawStringCentred(arpRhythmPatternNames[this->getValue()], yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth,
 		                         textHeight);
 	}
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
-		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+		oled_canvas::Canvas& image = OLED::main;
 
-		renderColumnLabel(startX, width, startY);
+		const auto value = this->getValue();
+		const auto pattern = std::string_view(arpRhythmPatternNames[value]);
+		if (value == 0) {
+			return image.drawStringCentered(pattern.data(), startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+		}
 
-		// Render current value
-		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
-		char name[12];
-		// Index:Name
-		snprintf(name, sizeof(name), "%d: %s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
-		shortOpt.append(name);
+		constexpr int32_t paddingBetween = 2;
+		const int32_t rhythmWidth = pattern.size() * kTextSpacingX + pattern.size() * paddingBetween;
 
-		image.drawStringCentered(shortOpt, startX, startY + kTextSpacingY + 4, kTextSpacingX, kTextSpacingY, width);
+		int32_t x = startX + (width - rhythmWidth) / 2 + 1;
+		for (const char character : pattern) {
+			image.drawChar(character == '0' ? 'X' : character, x, startY + 3, kTextSpacingX, kTextSpacingY);
+			x += kTextSpacingX + paddingBetween;
+		}
 	}
 
 protected:

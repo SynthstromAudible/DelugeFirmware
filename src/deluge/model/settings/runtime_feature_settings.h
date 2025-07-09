@@ -46,7 +46,6 @@ enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
 	Quantize,
 	FineTempoKnob,
-	PatchCableResolution,
 	CatchNotes,
 	DeleteUnusedKitRows,
 	AltGoldenKnobDelayParams,
@@ -65,7 +64,6 @@ enum RuntimeFeatureSettingType : uint32_t {
 	EnableGridViewLoopPads,
 	AlternativeTapTempoBehaviour,
 	HorizontalMenus,
-	HorizontalMenusSmallFontForLabels,
 	TrimFromStartOfAudioClip,
 	MaxElement // Keep as boundary
 };

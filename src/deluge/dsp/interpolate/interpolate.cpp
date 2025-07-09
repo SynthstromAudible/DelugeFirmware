@@ -31,7 +31,7 @@ StereoSample Interpolator::interpolate(size_t channels, int32_t whichKernel, uin
 		auto value2 = Argon<int16_t>::Load(&windowedSincKernel[whichKernel][progressSmall + 1][i * 8]);
 
 		// standard linear a + (b - a) * fractional
-		kernelVector[i] = value1.MultiplyAddQMax((value2 - value1), strength2);
+		kernelVector[i] = value1.MultiplyAddFixedPoint((value2 - value1), strength2);
 	}
 
 	Argon<int32_t> multiplied = 0;

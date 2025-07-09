@@ -45,20 +45,18 @@ void SyncLevel::drawPixelsForOled() {
 		text = buffer.data();
 		getNoteLengthName(buffer);
 	}
-	deluge::hid::display::OLED::main.drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, kTextBigSpacingX,
-	                                                   kTextBigSizeY);
+	hid::display::OLED::main.drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, kTextBigSpacingX, kTextBigSizeY);
 }
 
 void SyncLevel::getColumnLabel(StringBuf& label) {
 	const int32_t value = getValue();
 	const ::SyncLevel level = syncValueToSyncLevel(value);
 
-	if (level == SYNC_LEVEL_NONE || !isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-		Enumeration::getColumnLabel(label);
-		return;
+	if (level == SYNC_LEVEL_NONE) {
+		return Enumeration::getColumnLabel(label);
 	}
 
-	// Draw the sync level as label
+	// Draw the sync level as a label
 	syncValueToStringForHorzMenuLabel(syncValueToSyncType(value), level, label, currentSong->getInputTickMagnitude());
 }
 
@@ -66,22 +64,18 @@ void SyncLevel::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t st
 	using namespace deluge::hid::display;
 	oled_canvas::Canvas& image = OLED::main;
 
-	renderColumnLabel(startX, width, startY);
-
 	const int32_t value = getValue();
-	const ::SyncLevel level = syncValueToSyncLevel(value);
 
-	if (level == SYNC_LEVEL_NONE) {
-		const char* text = l10n::get(l10n::String::STRING_FOR_OFF);
-		image.drawStringCentered(text, startX, startY + kTextSpacingY + 4, kTextSpacingX, kTextSpacingY, width);
-		return;
+	if (const ::SyncLevel level = syncValueToSyncLevel(value); level == SYNC_LEVEL_NONE) {
+		const auto offString = l10n::get(l10n::String::STRING_FOR_OFF);
+		return image.drawStringCentered(offString, startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
 	}
 
-	// Draw only the sync type icon, sync level already drawn as label
+	// Draw only the sync type icon, sync level already drawn as a label
 	const std::vector<uint8_t>& typeIcon = getSyncTypeIcon();
 	const int32_t typeIconWidth = typeIcon.size() / 2;
-	const int32_t padding = ((width - typeIconWidth) / 2) - 2;
-	image.drawGraphicMultiLine(typeIcon.data(), startX + padding, startY + kTextSpacingY, typeIconWidth, 16, 2);
+	const int32_t padding = (width - typeIconWidth) / 2;
+	image.drawGraphicMultiLine(typeIcon.data(), startX + padding, startY - 1, typeIconWidth, 16, 2);
 }
 
 int32_t SyncLevel::syncTypeAndLevelToMenuOption(::SyncType type, ::SyncLevel level) {

@@ -113,7 +113,8 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_NOTE_PROBABILITY].setCurrentValueBasicForSetup(2147483647);
 	unpatchedParams->params[params::UNPATCHED_ARP_BASS_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_STEP_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SWAP_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_GLIDE_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_REVERSE_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
@@ -508,7 +509,9 @@ void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamM
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "bassProbability", params::UNPATCHED_ARP_BASS_PROBABILITY,
 	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "stepProbability", params::UNPATCHED_ARP_STEP_PROBABILITY,
+	unpatchedParams->writeParamAsAttribute(writer, "swapProbability", params::UNPATCHED_ARP_SWAP_PROBABILITY,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "glideProbability", params::UNPATCHED_ARP_GLIDE_PROBABILITY,
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "reverseProbability", params::UNPATCHED_REVERSE_PROBABILITY,
 	                                       writeAutomation);
@@ -656,10 +659,16 @@ bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const
 		reader.exitTag("bassProbability");
 	}
 
-	else if (!strcmp(tagName, "stepProbability")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_STEP_PROBABILITY,
+	else if (!strcmp(tagName, "swapProbability")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SWAP_PROBABILITY,
 		                           readAutomationUpToPos);
-		reader.exitTag("stepProbability");
+		reader.exitTag("swapProbability");
+	}
+
+	else if (!strcmp(tagName, "glideProbability")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_GLIDE_PROBABILITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("glideProbability");
 	}
 
 	else if (!strcmp(tagName, "noteProbability")) {

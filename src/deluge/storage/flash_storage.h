@@ -27,6 +27,7 @@
 #define PREVIEW_ONLY_WHILE_NOT_PLAYING 1
 #define PREVIEW_ON 2
 
+enum class Polarity : uint8_t;
 namespace FlashStorage {
 
 extern uint8_t defaultScale;
@@ -80,7 +81,11 @@ extern bool defaultUseLastClipType;
 
 extern ThresholdRecordingMode defaultThresholdRecordingMode;
 
+extern Polarity defaultPatchCablePolarity;
+
 extern GlobalMIDICommand defaultLoopRecordingCommand;
+
+extern bool defaultUseSharps;
 
 void readSettings();
 void writeSettings();

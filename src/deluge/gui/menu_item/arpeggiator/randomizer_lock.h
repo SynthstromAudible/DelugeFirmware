@@ -60,12 +60,22 @@ public:
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
-	void getColumnLabelForSmallFont(StringBuf& label) override { getColumnLabel(label); }
 
 	// flag this selection menu as a toggle menu so we can use a checkbox to toggle value
 	bool isToggle() override { return true; }
 
 	// don't enter menu on select button press
 	bool shouldEnterSubmenu() override { return false; }
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		using namespace deluge::hid::display;
+		const auto iconBitmap = this->getValue() ? &OLED::switcherIconOn : &OLED::switcherIconOff;
+
+		oled_canvas::Canvas& image = OLED::main;
+		constexpr int32_t numBytesTall = 2;
+		const int32_t iconWidth = iconBitmap->size() / numBytesTall;
+		const int32_t x = startX + (width - iconWidth) / 2;
+		image.drawGraphicMultiLine(iconBitmap->data(), x, startY, iconWidth, numBytesTall * 8, numBytesTall);
+	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator

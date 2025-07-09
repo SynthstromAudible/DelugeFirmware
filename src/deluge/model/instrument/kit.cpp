@@ -670,6 +670,19 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	// Beware - modelStackWithThreeMainThings might have a NULL timelineCounter
 
+	// Kit arp, get arp settings, perform setup and render arp pre-output
+	setupAndRenderArpPreOutput(modelStackWithTimelineCounter, paramManager, output);
+
+	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
+	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
+	                                      isClipActive, OutputType::KIT, recorder);
+
+	// For Midi and Gate rows, we need to call the render method of the arpeggiator post-output
+	renderNonAudioArpPostOutput(output);
+}
+
+void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                     ParamManager* paramManager, std::span<StereoSample> output) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
@@ -688,7 +701,25 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 		ArpReturnInstruction kitInstruction;
 		arpeggiator.render(arpSettings, &kitInstruction, output.size(), gateThreshold, phaseIncrement);
 
+		if (kitInstruction.glideNoteCodeOffPostArp[0] != ARP_NOTE_NONE) {
+			// Glide note off
+			if (kitInstruction.glideNoteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
+				NoteRow* thisNoteRow =
+				    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.glideNoteCodeOffPostArp[0]);
+				if (thisNoteRow->drum != nullptr) {
+					// Reset invertReverse for drum arpeggiator (done for every noteOff)
+					thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
+					// Do row note off
+					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+					    modelStackWithTimelineCounter
+					        ->addNoteRow(kitInstruction.glideNoteCodeOffPostArp[0], thisNoteRow)
+					        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+					thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
+				}
+			}
+		}
 		if (kitInstruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE) {
+			// Normal note off
 			if (kitInstruction.noteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 				NoteRow* thisNoteRow =
 				    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.noteCodeOffPostArp[0]);
@@ -704,6 +735,7 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 			}
 		}
 		if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+			// Note on
 			if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0]
 			    < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 				NoteRow* thisNoteRow =
@@ -723,11 +755,21 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 			}
 		}
 	}
+}
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
-	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
-	                                      isClipActive, OutputType::KIT, recorder);
+ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {
+	if (clip != nullptr) {
+		return &clip->arpSettings;
+	}
+	else if (activeClip != nullptr) {
+		return &((InstrumentClip*)activeClip)->arpSettings;
+	}
+	else {
+		return nullptr;
+	}
+}
 
+void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 		// For Midi and Gate rows, we need to call the render method of the arpeggiator
@@ -750,6 +792,12 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, output.size(), gateThreshold,
 			                                 phaseIncrement);
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+					break;
+				}
+				nonAudioDrum->noteOffPostArp(instruction.glideNoteCodeOffPostArp[n]);
+			}
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
@@ -764,18 +812,6 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 				}
 			}
 		}
-	}
-}
-
-ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {
-	if (clip) {
-		return &clip->arpSettings;
-	}
-	else if (activeClip) {
-		return &((InstrumentClip*)activeClip)->arpSettings;
-	}
-	else {
-		return nullptr;
 	}
 }
 
@@ -1095,7 +1131,24 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	int32_t ticksTilNextKitArpEvent =
 	    arpeggiator.doTickForward(arpSettings, &kitInstruction, currentPos, activeClip->currentlyPlayingReversed);
 
+	if (kitInstruction.glideNoteCodeOffPostArp[0] != ARP_NOTE_NONE) {
+		// Glide note off
+		if (kitInstruction.glideNoteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
+			NoteRow* thisNoteRow =
+			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.glideNoteCodeOffPostArp[0]);
+			if (thisNoteRow->drum != nullptr) {
+				// reset invertReverse for drum arpeggiator (done for every noteOff)
+				thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = false;
+				// Do row note off
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    modelStackWithTimelineCounter->addNoteRow(kitInstruction.glideNoteCodeOffPostArp[0], thisNoteRow)
+				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+				thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
+			}
+		}
+	}
 	if (kitInstruction.noteCodeOffPostArp[0] != ARP_NOTE_NONE) {
+		// Normal note off
 		if (kitInstruction.noteCodeOffPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 			NoteRow* thisNoteRow =
 			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.noteCodeOffPostArp[0]);
@@ -1111,6 +1164,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 		}
 	}
 	if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+		// Note on
 		if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 			NoteRow* thisNoteRow =
 			    ((InstrumentClip*)activeClip)->noteRows.getElement(kitInstruction.arpNoteOn->noteCodeOnPostArp[0]);
@@ -1156,6 +1210,12 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				    modelStackWithNoteRow->addOtherTwoThings(soundDrum, &thisNoteRow->paramManager)->addSoundFlags();
 
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+						break;
+					}
+					soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+				}
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
@@ -1177,6 +1237,12 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 			else if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
 				NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
 
+				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+						break;
+					}
+					nonAudioDrum->noteOffPostArp(instruction.glideNoteCodeOffPostArp[n]);
+				}
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 						break;

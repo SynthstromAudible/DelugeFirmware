@@ -25,6 +25,8 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 
+#include <hid/display/oled.h>
+
 namespace deluge::gui::menu_item::voice {
 class VoiceCount : public IntegerWithOff {
 public:
@@ -63,6 +65,7 @@ public:
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 16; }
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return NUMBER; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
@@ -70,7 +73,26 @@ public:
 	}
 
 	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MAX_VOICES_SHORT));
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_MAX_VOICES_SHORT));
+	}
+
+	void getValueForPopup(StringBuf& valueBuf) override {
+		if (const auto value = getValue(); value == 0) {
+			valueBuf.append(l10n::get(l10n::String::STRING_FOR_OFF));
+		}
+		else {
+			valueBuf.appendInt(value);
+		}
+	}
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		if (getValue() == 0) {
+			const auto& icon = OLED::infinityIcon;
+			const int32_t y = startY + (height - 8) / 2;
+			const int32_t x = startX + (width - icon.size()) / 2;
+			return OLED::main.drawGraphicMultiLine(icon.data(), x, y, icon.size());
+		}
+		IntegerWithOff::renderInHorizontalMenu(startX, width, startY, height);
 	}
 };
 

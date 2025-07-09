@@ -441,3 +441,5 @@ struct StereoFloatSample {
 	float l;
 	float r;
 };
+
+float sigmoidLikeCurve(const float x, const float xMax, const float softening);

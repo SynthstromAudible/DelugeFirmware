@@ -1,0 +1,385 @@
+---
+title: Sequencer
+sidebar:
+  order: 12
+---
+
+import { Card } from "@astrojs/starlight/components"
+import { Steps } from "@astrojs/starlight/components"
+
+The Deluge sequencer is used for triggering clip / section launch events and the Deluge’s Engine for recording input and generating audio and non audio output when playback is active at the current position of the Deluge playhead.
+
+The sequencer functions differently depending on the context:
+
+- For audio clips, the sequencer triggers the playback of the sample loaded / audio previously recorded, and applies FX (including automation) to the sample and any other audio being monitored through the audio clip (eg internal routing from another clip, or externally from another device).
+- For instrument clips (eg synth, kit, MIDI, CV) the sequencer triggers notes placed on / recorded into the sequencer grid. Based on the type of clip and the Deluge Engine’s configuration, the Deluge will generate audio and/or non audio output, after applying FX (including automation).
+
+The sequencer can also be configured by the user, affecting its behaviour. The following sequencer configuration options are available:
+
+<Card title="Sequencer configuration options" icon="information">
+
+- Playhead direction
+- Note parameters:
+  - position
+  - length
+  - velocity
+  - probability
+  - iteration
+  - fill
+  - repeat
+- Randomizer
+- Arpeggiator
+- Automation parameters:
+  - position
+  - length
+  - value
+
+</Card>
+
+## Playhead direction
+
+You can set the playhead direction for all rows in a clip or independently for specific rows in a clip.
+
+The available sequencer playhead direction options are:
+
+- FORWARD. Will play the sequencer from the start - left to right. This is the normally expected playback behaviour.
+- REVERSE. Will play the sequencer in reverse where the start will be the end of the sequence - right to left.
+- PING-PONG. Will play the sequencer firstly from the start - left to right, then at the end will reverse back right to left.
+- NONE. This sets the current row direction to operate based on the global clip direction setting.
+
+### Setting the sequencer playhead direction for all rows in a clip
+
+<Steps>
+
+1. Press [CLIP] to select clip view. This is indicated by the clip button illuminated blue.
+1. Press [SHIFT] + [DIRECTION] to open the setup menu options. The button will flash and the display will indicate the current play direction. The default is Forward.
+1. Turn (SELECT) to choose the desired direction from the available options.
+1. Once the direction is selected, press [PLAY] to start playback. Button is lit green. Press [PLAY] again to stop the sequence. Button is off.
+
+</Steps>
+
+### Setting the sequencer playhead direction for a specific row in a clip
+
+<Steps>
+
+1. Press [CLIP] to select clip view. This is indicated by the clip button illuminated blue.
+1. Hold [AUDITION] + [DIRECTION] to open the setup menu options. The button will flash and the display will indicate the current play direction. The default is Forward.
+1. Turn (SELECT) to choose the desired direction from the available options.
+1. Once the direction is selected, press [PLAY] to start playback. Button is lit green. Press [PLAY] again to stop the sequence. Button is off.
+
+</Steps>
+
+<Card title="Note regarding Kits" icon="information">
+
+Kit rows can be set to have independent direction control settings. Independent direction for rows are set in a KIT and when [AFFECT ENTIRE] is set to OFF. To set the global direction for all rows in a kit clip, set the direction setting while the [AFFECT ENTIRE] option is set to ON. This will therefore apply the direction to all rows.
+
+</Card>
+
+## Note sequence
+
+### Editing
+
+Powering on the Deluge automatically creates a blank song with one blank clip with a synth assigned to it, and puts the device into clip view for this clip.
+
+In this view, the main 16x8 grid of pads represents a piano-roll-style view of the sequence of notes that the track contains.
+
+The leftmost column of pads represents the first beat in the sequence, while the columns further to the right represent increasingly later points (steps) in time.
+
+Vertically, pitch is represented (except for kit clips) - the bottom row of pads represents the lowest note on display, and higher rows represent increasingly higher notes.
+
+Pressing the Deluge’s play button plays the entered sequence.
+
+With each row representing a different pitch, the user may wish to audition any of the available pitches before actually placing those notes in the sequence.
+
+This can be achieved by pressing the very rightmost pad (the “audition” pad) for a given row.
+
+Notes in the sequence itself may be created by pressing a pad in the main 16x8 group corresponding to a pitch and a moment in time. The pad will light up to indicate the presence of a note. If the Deluge is not in play-mode, the note will sound immediately, as an aid to the user. This will not happen if the Deluge is in play-mode, when the user might be in the middle of a performance and would likely prefer for their editing to be allowed without additional audible aids.
+
+Editing notes in this way may be undone or redone by pressing back or shift+back respectively - see undo / redo.
+
+The colour of the notes on display is arbitrary, and may be changed by the user. This is handy when the user has created multiple clips and wishes for them to appear as different colours in song view.
+
+Simply hold down the shift button and turn the ▼▲ knob to change the colour of a clip.
+
+To adjust the brightness of the Deluge’s LEDs, hold down the shift button and the learn button and turn the ▼▲ knob.
+
+### Editing cross-screen
+
+Suppose you have a simple drum beat, 1 bar long. Perhaps you want to add a couple of extra snare hits at the end of each 4-bar phrase. The way to achieve this is to “multiply” the sequence (twice) so that it is 4 bars long (see Editing track length), and then make whatever changes you wish to the final bar. However, you have now ended up with 4 duplicates of almost the same beat, and this could cause problems: what if you want to change, say, the hi-hat pattern - do you have to go and do it 4 times?
+
+This is the situation in which the Deluge’s cross-screen edit mode is helpful. At any given zoom level, if you enter cross-screen edit mode, then any editing you do will apply not only to the part of the sequence that you are currently scrolled to, but also to all other “screens” which could be scrolled to by turning the ◄► knob.
+
+So, continuing the above example where you have 1 bar copied 4 times to make 4 bars total, you would zoom so that 1 bar occupies the entire 16x8 grid (that’s the 16th-note zoom level), then enter cross-screen edit mode. Any changes you subsequently make to your 1 bar will then be applied to all 4 bars.
+
+Cross-screen edit mode always remains functionally locked to the zoom level you were at when it was activated. Continuing the example, even if, while in cross-screen edit mode, you zoomed in so that just half a bar now occupied the 16x8 grid, your edits would still be applied on a per-bar basis, not a per-half-bar basis.
+
+Clips individually remember whether, and at what zoom level, they have cross-screen edit mode applied - if you enter the mode for one track, it will not automatically be active for any other track that you then edit.
+
+### Recording
+
+See recording (insert link)
+
+### Deleting
+
+Tapping a pad for which a note is already present will delete the note.
+
+A clip may have all its notes cleared by holding down the ◄► knob and pressing the back button.
+
+### Copying and pasting
+
+The Deluge allows you to copy and paste the notes in the time-region occupied by its pads (the “current view / screen”) at your current scroll and zoom position.
+
+To copy notes, hold the learn button and press down on the ◄► knob.
+
+To paste notes, hold learn and shift, and press down on the ◄► knob.
+
+You can copy and paste between different clips or even song files. The part which is copied and pasted is the horizontal "length" of your “view”, or the time-region that your view makes up. This will also include notes which are "offscreen" above or below what you can see, because these are in the same time-region. Your vertical scroll position is taken into account. You could "transpose" a part by copying it, scrolling up or down, then pasting it.
+
+You can even change your zoom level after copying and before pasting: if your zoom level is different when you paste, the notes will be stretched out or squeezed in to fit your new zoom level.
+
+## Note parameters
+
+Several basic parameters of notes can be changed. Some can be changed in settings, others can be changed in the sequencer. Parameters include: position (quantization), length, velocity, probability, iterance, fill, and repeat.
+
+### Position
+
+#### Nudging individual note horizontally
+
+<Steps>
+
+1. Hold [PAD] + Press and turn (SCROLL◄►) to nudge the selected [PAD] note event forward or backwards, indicated by +/- values.
+1. This will nudge at the song’s minimum resolution, default is 384th notes.
+
+</Steps>
+
+#### Adjusting the position of all notes in a clip horizontally
+
+<Steps>
+
+1. Press (SCROLL▼▲) + Turn (SCROLL◄►) control to adjust the clip note events i.e. notes and automation move horizontally across the grid.
+
+</Steps>
+
+- The note events will move 1 step incrementally across the horizontal grid. The steps are based on the zoom level.
+- Note events which scroll off the edge left or right will wrap back onto the grid from the opposite side.
+- Placeholder: talk about how you can disable moving automation in clip view.
+
+#### Adjusting the position of all notes in a note row horizontally
+
+<Steps>
+
+1. Hold [ÂUDITION PAD] + Press and turn (SCROLL◄►) to adjust the note row events i.e. notes in a specific row move horizontally across the grid.
+
+</Steps>
+
+#### Quantizing / Humanizing Instrument Clip Rows
+
+This is a destructive process and the option is set ON by default in the Settings > Community Features.
+
+<Steps>
+
+1. Select [CLIP] view, button lit blue.
+1. Hold the [AUDITION] + Turn (TEMPO) clockwise to quantize the selected row or counter clockwise to humanize the selected row.
+1. Hold any [AUDITION] Pad + Press & Turn (TEMPO) clockwise to quantize the all rows or counter clockwise to humanize all rows.
+
+</Steps>
+
+### Length
+
+At any zoom level, in most cases, a note created on a given pad lasts up until the “start” of the next pad to the right. Or in other words, if you are zoomed such that you are looking at 16th notes (press down on the ◄► knob to be reminded of your zoom level), then the pads are spaced apart by 16th notes and all notes created will be a 16th note long.
+
+(It should be pointed out that for longer samples such as many of those provided in the Deluge’s supplied kits, notes longer than one pad will automatically be created - see Kit clips.)
+
+To manually create a note which is longer, hold down on the note’s pad, and then press some other pad further to the right on the same row. The note will extend to occupy all pads in between. You will notice that only the leftmost pad occupied by the note is brightly coloured - the other pads are dimmer. This is to indicate that they are the extension of an existing note, rather than representing a new note beginning on that pad.
+
+A long note may be shortened by “deleting” the portion of if that falls beyond a certain pad which it currently occupies, by simply pressing that pad.
+
+Note that some sound presets do not allow notes’ length to be altered. Those consisting of short, percussive sounds (e.g. drums), are intended to always sound the same, without note-length as an option. In these cases, notes will always appear to occupy just one pad at all zoom levels.
+
+Since the Clip view edits a sequence which will play repeatedly, it is foreseeable that you may wish to create a note which begins toward the end of the sequence, and extends so that it continues back into the beginning of the sequence - to continue sounding even after the sequence has restarted. To do this, create the note at the point in time where you wish it to begin, and then (even after scrolling or zooming if you wish) hold down on the ◄► knob and press the final pad that you wish the note to occupy (this will presumably be to the left of where the note started).
+
+For a “drone” note which stays on permanently, simply create a note which occupies the entire length of the clip (enter a note at the first, leftmost column, then hold ◄► while pressing the last pad at the rightmost column). The Deluge treats such notes as a special case, and will keep the note permanently sounding rather than restarting it each time the clip’s sequence loops.
+
+#### Set length when entering notes
+
+<Steps>
+
+1. Press the note START [PAD] + END [PAD] on the same row.
+
+</Steps>
+
+<Card title="Note" icon="information">
+
+For kits, samples will automatically map across the pads matching the sample length.
+
+</Card>
+
+#### Reduce note length
+
+<Steps>
+
+1. Reduce the note length by pressing one of the extension [PAD]’s to shorten it.
+
+</Steps>
+
+#### Extend note length across multiple sequencer grid pages
+
+<Steps>
+
+1. Press the [PAD] for the note start.
+1. Scroll to the next grid view ‘page’ using (SCROLL◄►). This would be further in time from the original note.
+1. On the same row, press (SCROLL◄►) + [PAD] at the end position.
+1. The note will be extended across the ‘page’.
+
+</Steps>
+
+#### Create a 'drone' note / note equal to clip length
+
+<Steps>
+
+1. Press the [PAD] for the note start on the first column (left position) of the clip.
+1. On the same row, press (SCROLL◄►) + [PAD] at the last column (right position).
+1. The note will be extended across the full clip.
+1. Deluge will ensure that these type of notes play continuously through the clip and will loop. This is handled as a special case and the note does not restart.
+
+</Steps>
+
+### Velocity
+
+The Deluge’s pads are not velocity-sensitive, but notes created as part of a sequence may have their velocity manually edited. To do this, hold down the pad corresponding to a note and turn the ◄► encoder. The velocity value will show on the Deluge’s numeric display. Velocity values range between 1 and 127.
+
+Newly created notes, and notes sounded with the audition pads, will default to the same velocity as the last sequence-note touched on that clip - with 64 being the initial default.
+
+For those not familiar with the concept of note velocity, it is intended as an electronic representation of the physical force with which a note is played (e.g. how hard a guitar string is plucked). With electronic music equipment in general, the resulting effect is most commonly a difference in volume. This is how most of the Deluge’s included synth and kit presets are set up to respond to velocity. However, velocity can in fact be patched to almost any parameter in the Deluge’s synthesis- and sampling engine, making it simply a tool with which you can make different notes sound different, in any way you care to configure. See the modulation section in the chapter on the sound editor
+
+You can hold multiple notes simultaneously to edit their velocity together.
+
+Any notes recorded via MIDI will have their velocity recorded.
+
+#### Editing
+
+##### Hold a note
+
+<Steps>
+
+1. After a pattern has been recorded, notes will be at a default velocity level.
+1. Press & hold one or more [PAD]’s for the note to change and turn (SCROLL◄►).
+1. The system default velocity is 64, however the velocity used on the last note entry / edited will be applied to the next note entered.
+1. Velocity will be displayed and its value.
+
+</Steps>
+
+##### Note editor
+
+Velocity can also be changed in the Note Editor.
+
+_placeholder for more info_
+
+##### Velocity view
+
+Velocity can also be changed in Velocity View.
+
+_placeholder for more info_
+
+### Probability, Iteration Dependence, and Fill
+
+The Deluge allows each sequenced note to have a condition set to decide, at each playback iteration (i.e. repeat), whether that note plays or not. These may be based on an element of
+randomness, (“probability”), dependent on how many times the clip has played through (e.g. “play only on the third of every four iterations”) and/or whether a fill-condition is met.
+
+To set a probability or iteration dependence for a note, hold down its pad and turn the select knob. (Anti-clockwise for a probability, which will display as a numeric percentage, or clockwise for an iteration dependence, which will display in the form of “3of4” which would mean the 3rd out of every 4 repeats).
+
+For notes at the same time (horizontal) position, if their given probabilities add up to 100, then a special function is performed: always exactly one of the notes will play, as opposed to the notes’ probabilities being treated independently. This allows you to have a point in your sequence where, at random at each iteration, one of several different potential notes will sound - but never more than one of them.
+
+There is another special function, for notes at the same time (horizontal) position that have the same probability number: they will always either all play together, or all not play - so you could have a whole chord which either all plays, or all doesn't play. (Make sure that the note’s probabilities don’t add up to 100, otherwise the previous paragraph’s logic will apply instead.)
+
+Notes' triggering may be set to depend on an earlier note in the sequence being triggered. Let's say you've set a note's probability to 70%. If you make another note at a different time-position and set its probability to 70% also, you'll notice that you're offered an additional option - a 70 with a dot (.) after it. This means "trigger me only if the previous 70% note was successfully triggered". There will additionally be an extra option of 30% with a dot after it, which in this case will mean "play me only if the previous 70% note was not triggered". (30% being 100% minus 70%.)
+
+As a shortcut to automatically set up the above for you, you can hold multiple notes simultaneously (even at different time-positions) and turn the select knob to set them to always play together.
+
+In addition to setting a note's probability and iteration dependence, you can also set a note's fill condition to "FILL" or "NOT-FILL". When a Note is set with a "FILL" condition, it will only play if the FILL command is active. Conversely, if a note is set with a "NOT-FILL" condition, it will only play if the FILL command is innactive.
+
+Prior to c1.3, probability, iteration dependence, and fill conditions were mutually exclusively meaning that only one condition could be set for a note at a time.
+
+As of c1.3, a note may have multiple conditions set for probability, iteration dependence, and fill.
+
+#### Probability
+
+- placeholder \*
+
+#### Iteration
+
+- placeholder \*
+
+#### Fill
+
+- placeholder \*
+
+### Repeat
+
+<Steps>
+
+1. After a pattern has been recorded, notes will be trigger individually
+1. Hold [PAD] + Press & turn (SCROLL▼▲). [PAD] is the note to repeat.
+1. The value selected will determine the number of repeats to assign to the selected note, positioned equally in the time interval of the pad.
+
+</Steps>
+
+## Randomizer
+
+- placeholder \*
+
+## Arpeggiator
+
+- placeholder \*
+
+## Automation sequence
+
+Above, we looked at how to affect sound parameters using the gold parameter knobs. These are useful to play with live, to achieve effects like sweeping a filter's frequency up and down.
+
+But you can also automate changes to any parameters (within clips and also in arranger) that the parameter knobs may control (except stutter), so that their values change automatically. (And the parameter knobs can be set to control almost any of the Deluge's internal sound parameters, or parameters on external equipment via MIDI CC messages.)
+
+When the clip is then played back (or when it loops back to its start - potentially very soon), you will hear the automated parameter movement play back and see the level-meter for the corresponding parameter knob move automatically.
+
+Once a parameter has automation applied in some region of a clip, the Deluge considers the parameter to be automated entirely, with its previous unautomated value applying in all other regions. It is also worth noting that all parameter automation, once created, exists independently of any notes, meaning that even if notes are deleted, or more notes added, the parameter automation will still exist in its region.
+
+Automation edits and recording can be undone or redone by pressing back or shift+back respectively - see undo / redo.
+
+### Editing
+
+#### Hold a Note
+
+Automation can be manually set for a time-region based on a note which is present in the sequence. Simply hold down the note's pad in clip view, and turn a parameter knob. The parameter value will be set just for the region of time beginning at that note and ending at the start of the next note. Having the region extended to the start of the next note in this way is helpful in many cases, preventing a return to the original parameter value from cutting in suddenly as the note’s sound releases.
+
+Automation can also be manually set using an external MIDI controller, if a parameter is set up to be controlled in this way.
+
+#### Automation View
+
+- placeholder \*
+
+### Recording
+
+See recording (insert link)
+
+### Deleting
+
+To delete all automation for a given parameter, hold down the "shift" button and press down on the parameter knob for that parameter. Or, if the parameter was instead controlled via a knob on an external MIDI controller, automation may be deleted by putting the Deluge into record mode with playback on, holding down "shift", and turning the knob on the MIDI controller.
+
+A clip may have all its automation cleared by holding down the ◄► knob and pressing the back button.
+
+** add note about automation view **
+
+### Copying and pasting
+
+Parameter automation may be copied and pasted in a similar way to notes (see above).
+
+Automation is copied one parameter at a time, and just for the time-region occupied by the Deluge’s pads (the “current view”) at your current scroll and zoom position.
+
+To copy an automated parameter, hold the learn button and press down on the gold parameter knob belonging to the parameter.
+
+To paste automation to a parameter, hold learn and shift, and press down on the parameter knob.
+
+You can copy and paste between different parameters, different tracks, and even different song files. The part which is copied and pasted is the horizontal "length" of your “view”, or the time-region that your view makes up.
+
+You can even change your zoom level after copying and before pasting: if your zoom level is different when you paste, the automation will be stretched out or squeezed in to fit your new zoom level.
+
+## Automation parameters

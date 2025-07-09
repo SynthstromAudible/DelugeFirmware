@@ -80,6 +80,6 @@ void IntegerContinuous::drawPixelsForOled() {
 	drawInteger(kTextBigSpacingX, kTextBigSizeY, 15);
 #endif
 
-	drawBar(35, 10);
+	drawHorizontalBar(35, 10);
 }
 } // namespace deluge::gui::menu_item

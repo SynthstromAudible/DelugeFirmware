@@ -2,6 +2,10 @@
 title: Save and Load Patterns
 ---
 
+import { Badge } from "@astrojs/starlight/components"
+
+<Badge text="c1.3 Feature" variant="tip" />
+
 Added ability to save / load Patterns from/to Files. A Pattern represents all notes of the current Deluge screen, including the attributes Velocity, Probability, Lift, Iteration, and Fill. Patterns can be either melodic instruments (Synth, MIDI, CV) or rhythmic instruments (Kit, Drum).
 
 ## Creating Pattern Files
@@ -50,78 +54,70 @@ You will Find the Pattern Files nn the following Structure on the Root of your S
 
 **For Melodic Instruments (Synth, Midi, CV)**
 
-- Save Melodic Pattern:
-  `SAVE+PUSH_HORIZONTAL_ENCODER`
+- Save Melodic Pattern: :key[SAVE] + :key[HORIZONTAL]
 
-- Load Melodic Pattern:
-  `LOAD+PUSH_HORIZONTAL_ENCODER`
+- Load Melodic Pattern: :key[LOAD] + :key[HORIZONTAL]
 
 - Load Melodic Pattern without overwriting existing Notes:
-  `LOAD+CROSS_SCREEN+PUSH_HORIZONTAL_ENCODER`
+  :key[SAVE] + :key[CROSSSCREEN] + :key[HORIZONTAL]
 
 - Load Melodic Pattern without scaling original File:
-  `LOAD+SCALE_CHANGE+PUSH_HORIZONTAL_ENCODER`
+  :key[LOAD] + :key[SCALE] + :key[HORIZONTAL]
 
 _Remark: If noScaling is set, Pattern will allways overwrite existing Notes and start from beginning of the Clip and not at the left Side of the Screen._
 
 Preview of Pattern:
-Press and hold `PLAY` while in Pattern-Load Menu
+Press and hold :key[PLAY] while in Pattern-Load Menu
 
 **For Rhythmic Instruments (Kit, Drums)**
 
 - Save Kit Pattern:
-
-  1. Enable `AFFECT_ENTIRE`
-  2. `SAVE+PUSH_HORIZONTAL_ENCODER`
+  1. Enable :key[AFFECTENTIRE]
+  2. :key[SAVE] + :key[HORIZONTAL]
 
 - Load Kit Pattern:
-
-  1. Enable `AFFECT_ENTIRE`
-  2. `LOAD+PUSH_HORIZONTAL_ENCODER`
+  1. Enable :key[AFFECTENTIRE]
+  2. :key[LOAD] + :key[HORIZONTAL]
 
 - Load Kit Pattern without overwriting existing Notes:
-
-  1. Enable `AFFECT_ENTIRE`
-  2. `LOAD+CROSS_SCREEN+PUSH_HORIZONTAL_ENCODER`
+  1. Enable :key[AFFECTENTIRE]
+  2. :key[SAVE] + :key[CROSSSCREEN] + :key[HORIZONTAL]
 
 - Load Kit Pattern without scaling original File:
-  1. Enable `AFFECT_ENTIRE`
-  2. `LOAD+SCALE_CHANGE+PUSH_HORIZONTAL_ENCODER`
+  1. Enable :key[AFFECTENTIRE]
+  2. :key[LOAD] + :key[SCALE] + :key[HORIZONTAL]
 
 _Remark: If noScaling is set, Pattern will allways overwrite existing Notes and start from beginning of the Clip and not at the left Side of the Screen._
 
 - Preview of Pattern:
-  Press and hold `PLAY` while in Pattern-Load Menu
+  Press and hold :key[PLAY] while in Pattern-Load Menu
 
 - Save Drum Pattern:
-
-  1. Disable `AFFECT_ENTIRE`
-  2. Select Drum Row to save (Audition Pad)
-  3. `SAVE+PUSH_HORIZONTAL_ENCODER`
+  1. Disable :key[AFFECTENTIRE]
+  2. Select Drum Row to save (:key[AUDITION PAD])
+  3. :key[SAVE] + :key[HORIZONTAL]
 
 - Load Drum Pattern:
-
-  1. Disable `AFFECT_ENTIRE`
-  2. Select Drum Row to save (Audition Pad)
-  3. `LOAD+PUSH_HORIZONTAL_ENCODER`
+  1. Disable :key[AFFECTENTIRE]
+  2. Select Drum Row to save (:key[AUDITION PAD])
+  3. :key[LOAD] + :key[HORIZONTAL]
 
 - Load Drum Pattern without overwriting existing Notes:
-
-  1. Disable `AFFECT_ENTIRE`
-  2. Select Drum Row to save (Audition Pad)
-  3. `LOAD+CROSS_SCREEN+PUSH_HORIZONTAL_ENCODER`
+  1. Disable :key[AFFECTENTIRE]
+  2. Select Drum Row to save (:key[AUDITION PAD])
+  3. :key[SAVE] + :key[CROSSSCREEN] + :key[HORIZONTAL]
 
 - Load Drum Pattern without scaling original File:
-  1. Disable `AFFECT_ENTIRE`
-  2. `LOAD+SCALE_CHANGE+PUSH_HORIZONTAL_ENCODER`
+  1. Disable :key[AFFECTENTIRE]
+  2. :key[LOAD] + :key[SCALE] + :key[HORIZONTAL]
 
 _Remark: If noScaling is set, Pattern will allways overwrite existing Notes and start from beginning of the Clip and not at the left Side of the Screen._
 
 - Preview of Pattern:
-  Press and hold `PLAY` while in Pattern-Load Menu
+  Press and hold :key[PLAY] while in Pattern-Load Menu
 
 Hint:
-After loading a Patter, the Pattern is also copied into Clipboard and can be pasted (`SHIFT+LEARN_INPUT+PUSH_HORIZONTAL_ENCODER`) or gently pasted (`SHIFT+CROSS_SCREEN+PUSH_HORIZONTAL_ENCODER`) as many Times as needed.
+After loading a Pattern, the Pattern is also copied into Clipboard and can be pasted (:key[SHIFT] + :key[LEARN] + :key[HORIZONTAL]) or gently pasted (:key[SHIFT] + :key[CROSSSCREEN] + :key[HORIZONTAL]) as many Times as needed.
 
 ### Implemented Features
 

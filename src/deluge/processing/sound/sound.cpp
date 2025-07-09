@@ -1564,6 +1564,12 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 	arpeggiator->noteOff(arpSettings, noteCode, &instruction);
 
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+	}
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
@@ -1756,6 +1762,34 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 		if (noteCode == ALL_NOTES_OFF) {
 			// We must send note offs for all active notes
 			// so we will search for the current notes on postArp phase, if any
+
+			// First any glide notes
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (getArp()->glideNoteCodeCurrentlyOnPostArp[n] == ARP_NOTE_NONE) {
+					break;
+				}
+				int32_t outputNoteCode = getArp()->glideNoteCodeCurrentlyOnPostArp[n];
+				if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
+					// If note for drums is set then this is a SoundDrum and we must use the relative note code
+					// (relative to kNoteForDrum)
+					int32_t noteCodeDiff = outputNoteCode - kNoteForDrum;
+					outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
+					// Correct if out of bounds
+					if (outputNoteCode < 0) {
+						outputNoteCode = 0;
+					}
+					else if (outputNoteCode > 127) {
+						outputNoteCode = 127;
+					}
+				}
+				midiEngine.sendNote(this, false, outputNoteCode, kDefaultNoteOffVelocity, outputMidiChannel, 0);
+
+				// The "voice" related code below will switch off the voice anyway, so it is safe to clean this flag so
+				// we don't send two note offs if a normal noteOff or playback stop is received later
+				getArp()->glideNoteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+			}
+
+			// Then any normal notes
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (getArp()->noteCodeCurrentlyOnPostArp[n] == ARP_NOTE_NONE) {
 					break;
@@ -2383,6 +2417,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
 
 		bool atLeastOneOff = false;
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+				break;
+			}
+			atLeastOneOff = true;
+			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+		}
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 				break;

@@ -55,6 +55,10 @@
 
 #define PITCH_DETECT_DEBUG_LEVEL 0
 
+// Constants for the char value of the flat(♭) accidental glyph
+#define FLAT_CHAR_STR "\x81"
+#define FLAT_CHAR 0x81u
+
 constexpr uint8_t kOctaveSize = 12;
 
 struct Cartesian {
