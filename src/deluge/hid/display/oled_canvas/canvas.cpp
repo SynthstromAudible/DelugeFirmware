@@ -179,7 +179,7 @@ void Canvas::drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int3
 
 void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
                         int32_t scrollPos, int32_t endX, bool useTextWidth) {
-	int32_t stringLength = string.length();
+	int32_t lastIndex = string.length() - 1;
 	int32_t charIdx = 0;
 	int32_t charWidth = textWidth;
 	// if the string is currently scrolling we want to identify the number of characters
@@ -193,7 +193,7 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		int32_t charStartX = 0;
 		for (char const c : string) {
 			if (!useTextWidth) {
-				int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
+				int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == lastIndex);
 				charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
 			}
 			charStartX += charWidth;
@@ -214,8 +214,8 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		string = string.substr(numCharsToChopOff);
 		// adjust scroll position to indicate how far we've scrolled
 		scrollPos -= widthOfCharsToChopOff;
-		// calculate new string length
-		stringLength = string.length();
+		// calculate new last index
+		lastIndex = string.length() - 1;
 		// reset index
 		charIdx = 0;
 	}
@@ -224,7 +224,7 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 	// here we're going to draw the remaining characters in the string
 	for (char const c : string) {
 		if (!useTextWidth) {
-			int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
+			int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == lastIndex);
 			charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
 		}
 		drawChar(c, pixelX, pixelY, charWidth, textHeight, scrollPos, endX);
