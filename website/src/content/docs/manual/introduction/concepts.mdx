@@ -4,6 +4,8 @@ sidebar:
   order: 3
 ---
 
+import { Badge } from "@astrojs/starlight/components"
+
 ## Song
 
 A discrete creative endeavour, such as an arrangement, sketch, 8-bar loop, jam, live recording template, or musical experiment. A song is always associated with at least one song file on the Deluge.
@@ -12,27 +14,60 @@ A discrete creative endeavour, such as an arrangement, sketch, 8-bar loop, jam, 
 stateDiagram-v2
   Song --> SongSettings
   Song --> SongFX
+  SongFX --> SongFXSequence
   Song --> Track
   Song --> Mode
+  Mode --> Session
+  Mode --> Arranger
   Track --> Clip
   Clip --> ClipFX
   Clip --> ClipAudioFile
   Clip --> ClipNoteSequence
+  ClipFX --> ClipFXSequence
+  Clip --> Drum
+  Drum --> DrumFX
+  DrumFX --> DrumFXSequence
   Track --> TrackPresetFile
   Song --> SongFile
 
   SongSettings: Song settings
-  SongFX: Song FX <br> (Master Parameter)
+  SongFX: Song FX <br> (Song parameter)
+  SongFXSequence: Parameter sequence <br> (Arranger Mode)
   SongFile: Song file
   TrackPresetFile: Preset file
-  ClipFX: Clip FX
+  ClipFX: Clip FX <br> (Clip parameter)
   ClipAudioFile: Audio file
   ClipNoteSequence: Note sequence
+  ClipFXSequence: Parameter sequence
+  DrumFX: Drum FX <br> (Drum parameter)
+  DrumFXSequence: Parameter sequence
 ```
 
 ### Song settings
 
-User configurable settings that dictate how a song should operate - e.g. swing, tempo.
+User configurable settings that dictate how a song should operate
+
+```mermaid
+stateDiagram-v2
+  Song --> SongSettings
+  SongSettings --> Tempo
+  SongSettings --> Swing
+  SongSettings --> SongScale
+  SongSettings --> Macros
+  SongSettings --> ClipSettings
+  SongSettings --> SectionSettings
+  SongSettings --> MIDILearn
+  SongSettings --> ThresholdRecording
+  SongSettings --> AudioExport
+
+  SongSettings: Song <br> settings
+  ClipSettings: Clip <br> settings
+  SectionSettings: Section <br> settings
+  SongScale: Scale
+  AudioExport: Audio <br> export
+  ThresholdRecording: Threshold <br> recording
+  MIDILearn: MIDI <br> learn
+```
 
 ### Song FX (Master Parameters)
 
@@ -56,12 +91,14 @@ A single instrument or layer in a song.
 ```mermaid
 stateDiagram-v2
   Song --> AudioTrack
-  Song --> SynthTrack
+  Song --> MelodicTrack
+  MelodicTrack --> SynthTrack
+  MelodicTrack --> MIDITrack
+  MelodicTrack --> CVTrack
   Song --> KitTrack
-  Song --> MIDITrack
-  Song --> CVTrack
 
   AudioTrack: Audio track
+  MelodicTrack: Melodic track
   SynthTrack: Synth track
   KitTrack: Kit track
   MIDITrack: MIDI track
@@ -74,6 +111,7 @@ A preset file can be saved for synth, kit and MIDI instrument tracks.
 
 - A preset file contains track information configured in a clip (such as base parameter values, synth engine settings, kit drum information, samples used), but not all track information.
   - For example, note sequences and parameter automation sequences are not saved in the track preset file (that information is only saved as part of the song file).
+  - New in <Badge text="c1.3" variant="tip" />: Note sequence patterns can be saved to and loaded from a pattern file.
 
 ```mermaid
 stateDiagram-v2
@@ -126,7 +164,7 @@ A unique instance of a track that stores information required to generate an out
 
 - Each clip is either an audio clip or an instrument clip.
   - Each instrument clip is either a melodic instrument clip (synth, MIDI, CV) or a kit instrument clip.
-- Each clip is assigned to a section.
+- Each clip is assigned to a section and clips from different tracks can be grouped by / assigned to the same section.
 
 ```mermaid
 stateDiagram-v2
@@ -155,7 +193,24 @@ stateDiagram-v2
 
 ### Audio clip
 
-Audio clips can be used to playback audio samples or to process the audio from external input or internal tracks.
+Audio clips can be used to playback audio samples and/or to process and/or record the audio from external input or internal tracks.
+
+```mermaid
+stateDiagram-v2
+  Song --> AudioClip
+  Song --> OtherAudioTrack
+  Monitoring --> AudioClip
+  AudioFile --> AudioClip
+  OtherAudioTrack --> Monitoring: Audio thru / <br> FX processing
+  OtherAudioTrack --> AudioFile: Record
+  ExternalAudio --> Monitoring: Audio thru / <br> FX processing
+  ExternalAudio --> AudioFile: Record
+
+  AudioClip: Audio clip
+  OtherAudioTrack: Other internal track
+  ExternalAudio: External audio
+  AudioFile: Audio file
+```
 
 ### Instrument clip
 
@@ -183,7 +238,7 @@ The Deluge synth engine allows sound design by configuration of subtractive or F
 
 #### Kit instrument clip
 
-Kits consist of unique outputs per row. Typically based on samples but also may be synthesized sounds, or MIDI or CV outputs.
+Kits consist of unique outputs per row. Typically based on samples but also may be synthesized sounds, or MIDI or Gate outputs.
 
 - While the obvious and common use of kits is to trigger drum sounds such as a kick or snare, longer loops and non-percussive samples can also be used within kits.
 - Kit sounds are mapped across rows of the sequencer - each individual sound is represented on its own row.
@@ -349,15 +404,17 @@ stateDiagram-v2
 
 #### Arranger view
 
-The user interface for interacting with Arranger Mode
+The user interface for interacting with Arranger mode.
 
 #### Arranger parameter automation view
 
-The user interface for interacting with the automatable song parameters of Arranger Mode
+The user interface for interacting with the automatable song parameters of Arranger mode.
 
 #### Arranger performance view
 
-The user interface for interacting with the song parameters of Arranger Mode
+The user interface for interacting with the song parameters of Arranger Mode and for muting / unmuting Arranger tracks.
+
+- Song parameter changes can be recorded as automation in Arranger mode.
 
 ### Session mode
 
@@ -379,11 +436,15 @@ stateDiagram-v2
 
 #### Session Rows / Grid views
 
-The user interfaces for interacting with Session mode
+The user interfaces for interacting with Session mode.
+
+- You can record a session to Arranger mode.
 
 #### Session Performance view
 
-The user interface for interacting with the song parameters of Session Mode
+The user interface for interacting with the song parameters of Session mode and for launching / stopping session sections.
+
+- You can record as performance to Arranger mode.
 
 ### Audio clip
 
