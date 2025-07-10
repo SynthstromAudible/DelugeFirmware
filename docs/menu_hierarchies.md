@@ -1157,6 +1157,27 @@ The Kit FX menu is accessible from Kit clips when affect entire is enabled by pr
 The Kit FX menu contains the following menu hierarchy:
 
 <blockquote>
+<details>
+<summary>Actions</summary>
+	- Audio Export (EXPO)
+		- Start Export (EXPO)
+		- Configure Export (CONF)
+			- Kit FX (KIT)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Normalization (NORM)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Export to Silence (SILE)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Song FX (SONG)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Offline Rendering (OFFR)
+				- Disabled (OFF)
+				- Enabled (ON)
+</details>
 <details><summary>Master (MASTR)</summary>
 
 	- Volume (VOLU)
