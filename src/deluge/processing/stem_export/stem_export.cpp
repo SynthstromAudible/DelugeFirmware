@@ -65,8 +65,10 @@ StemExport::StemExport() {
 	loopEndPointInSamplesForAudioFile = 0;
 
 	allowNormalization = false;
+	allowNormalizationForDrums = true;
 	exportToSilence = true;
 	includeSongFX = false;
+	includeKitFX = false;
 	renderOffline = true;
 	exportMixdown = false;
 
@@ -168,7 +170,9 @@ void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
 				channel = AudioInputChannel::OUTPUT;
 			}
 		}
-		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, channel, writeLoopEndPos(), allowNormalization);
+		bool normalization =
+		    currentStemExportType == StemExportType::DRUM ? allowNormalizationForDrums : allowNormalization;
+		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, channel, writeLoopEndPos(), normalization);
 		if (audioRecorder.recordingSource > AudioInputChannel::NONE) {
 			stopRecording = true;
 		}
