@@ -2054,7 +2054,14 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 
 		// Actual basic audition pad press:
 		else if (!velocity || isUIModeWithinRange(auditionPadActionUIModes)) {
-			return auditionPadAction(instrumentClip, output, outputType, velocity, y, Buttons::isShiftButtonPressed());
+			if (inNoteEditor() && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+				// special handling for note editor and holding a note and we changed row selection
+				// don't process audition pad action as it leads to stuck notes
+				if (instrumentClipView.lastAuditionedYDisplay != y) {
+					return ActionResult::DEALT_WITH;
+				}
+			}
+			return auditionPadAction(instrumentClip, output, outputType, y, velocity, Buttons::isShiftButtonPressed());
 		}
 	}
 	return ActionResult::DEALT_WITH;
@@ -2131,10 +2138,11 @@ ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* out
 	if (velocity != 0) {
 		int32_t lastAuditionedYDisplay = instrumentClipView.lastAuditionedYDisplay;
 
-		doRender = instrumentClipView.startAuditioningRow(velocity, yDisplay, shiftButtonDown, isKit,
-		                                                  noteRowOnActiveClip, drum);
+		// don't draw if you're in note editor because note code is already on the display
+		drawNoteCode = !inNoteEditor();
 
-		drawNoteCode = true;
+		doRender = instrumentClipView.startAuditioningRow(velocity, yDisplay, shiftButtonDown, isKit,
+		                                                  noteRowOnActiveClip, drum, drawNoteCode);
 
 		if (!isKit && (instrumentClipView.lastAuditionedYDisplay != lastAuditionedYDisplay)) {
 			selectedRowChanged = true;
@@ -2168,8 +2176,7 @@ ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* out
 	}
 
 	// draw note code on top of the automation view display which may have just been refreshed
-	// don't draw if you're in note editor because note code is already on the display
-	if (drawNoteCode && !inNoteEditor()) {
+	if (drawNoteCode) {
 		instrumentClipView.drawNoteCode(yDisplay);
 	}
 
