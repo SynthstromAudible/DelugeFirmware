@@ -46,8 +46,10 @@ public:
 
 	// export config variables
 	bool allowNormalization;
+	bool allowNormalizationForDrums;
 	bool exportToSilence;
 	bool includeSongFX;
+	bool includeKitFX;
 	bool renderOffline;
 	bool exportMixdown;
 
