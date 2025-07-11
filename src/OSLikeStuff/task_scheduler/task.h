@@ -104,6 +104,7 @@ struct Task {
 		idealCallTime = std::max(earliestCallTime, idealCallTime);
 		latestCallTime = lastCallTime + schedule.maxInterval - durationStats.average;
 		latestCallTime = std::max(earliestCallTime, latestCallTime);
+		lastFinishTime = finishTime;
 	}
 	// returns true if the task becomes runnable
 	bool checkCondition() {
@@ -120,9 +121,7 @@ struct Task {
 		return state == State::READY && isReleased(currentTime) && resourcesAvailable();
 	};
 	[[nodiscard]] bool isRunnable() const { return state == State::READY && resourcesAvailable(); }
-	[[nodiscard]] bool isReleased(Time currentTime) const {
-		return currentTime - lastFinishTime > schedule.backOffPeriod;
-	}
+	[[nodiscard]] bool isReleased(Time currentTime) const { return currentTime > earliestCallTime; }
 	[[nodiscard]] bool resourcesAvailable() const { return _checker.checkResources(); }
 	TaskHandle handle{nullptr};
 	TaskSchedule schedule{0, 0, 0, 0};
