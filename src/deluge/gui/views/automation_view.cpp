@@ -2345,7 +2345,12 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 		}
 		// If user not wanting to move a noteCode, they want to transpose the key
 		else if (!currentUIMode && outputType != OutputType::KIT) {
-			return instrumentClipView.commandTransposeKey(offset, inCardRoutine);
+			ActionResult result = instrumentClipView.commandTransposeKey(offset, inCardRoutine);
+			// if we're in note editor transposing will the change note selected
+			// so we want to re-render the display to show the updated note
+			if (inNoteEditor()) {
+				renderDisplay();
+			}
 		}
 	}
 
