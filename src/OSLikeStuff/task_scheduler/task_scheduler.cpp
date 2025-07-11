@@ -20,7 +20,6 @@
 #include "io/debug/log.h"
 #include "resource_checker.h"
 #include <algorithm>
-
 #if !IN_UNIT_TESTS
 #include "memory/general_memory_allocator.h"
 #endif
@@ -65,18 +64,18 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 			continue;
 		}
 		// ensure every routine is within its target
-		if (currentTime - t->lastCallTime > s->maxInterval) {
+		if (currentTime - t->lastCallTime > s->maxInterval && t->isReady(currentTime)) {
 			mandatoryTask = sortedList[i].task;
 		}
 		if (t->idealCallTime < currentTime || t->latestCallTime < nextFinishTime) {
 			if (deadline < Time(0) || currentTime + t->durationStats.average < deadline) {
 
-				if (s->priority < bestPriority && t->handle) {
+				if (s->priority < bestPriority && (t->handle != nullptr)) {
 					if (t->isReady(currentTime)) {
 						bestTask = sortedList[i].task;
 						nextFinishTime = currentTime + t->durationStats.average;
 					}
-					else {
+					else if (nextFinishTime > t->latestCallTime) {
 						bestTask = -1;
 						nextFinishTime = t->latestCallTime;
 					}
@@ -94,7 +93,7 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 		// first look based on target time
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
 			struct Task* t = &list[sortedList[i].task];
-			if (!t->isRunnable()) {
+			if (!t->isReady(currentTime)) {
 				continue;
 			}
 			struct TaskSchedule* s = &t->schedule;
@@ -106,7 +105,7 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 		// then look based on min time just to avoid busy waiting
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
 			Task* t = &list[sortedList[i].task];
-			if (!t->isRunnable()) {
+			if (!t->isReady(currentTime)) {
 				continue;
 			}
 			TaskSchedule* s = &t->schedule;
@@ -192,34 +191,45 @@ void TaskManager::runTask(TaskID id) {
 	currentID = id;
 	auto* current_task = &list[currentID];
 
-setup: {
-	Time timeNow = getSecondsFromStart();
-	// this includes ISR time as well as the scheduler's own time, such as calculating and printing stats
-	overhead += timeNow - lastFinishTime;
-	current_task->lastCallTime = timeNow;
-	current_task->yielded = false;
-}
-	current_task->handle();
-teardown: {
-	Time start_time = current_task->lastCallTime;
-	Time timeNow = getSecondsFromStart();
-	Time runtime = (timeNow - start_time);
-	cpuTime += runtime;
-	if (current_task->removeAfterUse) {
-		removeTask(id);
+	{
+		Time timeNow = getSecondsFromStart();
+
+		// this includes ISR time as well as the scheduler's own time, such as calculating and printing stats
+		overhead += timeNow - lastFinishTime;
+		current_task->lastCallTime = timeNow;
+		current_task->yielded = false;
 	}
-	else {
-		if (countThisTask) {
-			current_task->updateNextTimes(start_time, runtime, timeNow);
+	current_task->handle();
+
+	{
+		Time start_time = current_task->lastCallTime;
+		Time timeNow = getSecondsFromStart();
+		Time runtime = (timeNow - start_time);
+		cpuTime += runtime;
+		if (current_task->removeAfterUse) {
+			removeTask(id);
 		}
 		else {
-			current_task->lastFinishTime = timeNow;
+			if (countThisTask) {
+				current_task->updateNextTimes(start_time, runtime, timeNow);
+			}
+			else {
+				current_task->lastFinishTime = timeNow;
+			}
 		}
+		lastFinishTime = timeNow;
 	}
-	lastFinishTime = timeNow;
-}
 }
 
+void TaskManager::runHighestPriTask() {
+	// run the highest pri task (which is audio) since it's always ready and we might as well
+	if (numActiveTasks > 0) {
+		auto highest_pri_task = sortedList[numActiveTasks - 1].task;
+		if (list[highest_pri_task].isReady(getSecondsFromStart())) {
+			runTask(sortedList[numActiveTasks - 1].task);
+		}
+	}
+}
 /// pause current task, continue to run scheduler loop until a condition is met, then return to it
 /// current task can be called again if it's repeating - this is to match behaviour of busy waiting with routineForSD
 /// returns whether the condition was met
@@ -262,10 +272,7 @@ bool TaskManager::yield(RunCondition until, Time timeout) {
 				// couldn't find anything so here we go
 				printStats();
 			}
-			// run the highest pri task (which is audio) since it's always ready and we might as well
-			if (numActiveTasks > 0) {
-				runTask(sortedList[numActiveTasks - 1].task);
-			}
+			runHighestPriTask();
 		}
 	} while (!until() && (skip_timeout || getSecondsFromStart() < time_now + timeout));
 
@@ -303,7 +310,7 @@ void TaskManager::start(Time duration) {
 				printStats();
 			}
 			// run the highest pri task (which is audio) since it's always ready and we might as well
-			runTask(sortedList[numActiveTasks - 1].task);
+			runHighestPriTask();
 		}
 	}
 }
