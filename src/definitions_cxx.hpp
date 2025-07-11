@@ -711,16 +711,19 @@ enum class ExistenceChangeType {
 };
 
 enum CCNumber {
+	CC_BANK = 0,
 	/// note - only for incoming/outgoing midi. Internally use CC_NUMBER_Y_AXIS
 	CC_EXTERNAL_MOD_WHEEL = 1,
+	CC_SUB_BANK = 32,
 	CC_EXTERNAL_MPE_Y = 74,
 	CC_NUMBER_PITCH_BEND = 120,
 	CC_NUMBER_AFTERTOUCH = 121,
 	CC_NUMBER_Y_AXIS = 122,
-	CC_NUMBER_NONE = 123,
+	CC_NUMBER_PROGRAM_CHANGE = 123,
+	CC_NUMBER_NONE = 124,
 };
-constexpr int32_t kNumCCNumbersIncludingFake = 124;
-constexpr int32_t kNumCCExpression = kNumCCNumbersIncludingFake - 1;
+constexpr int32_t kNumCCNumbersIncludingFake = 125;
+constexpr int32_t kNumCCExpression = kNumCCNumbersIncludingFake - 2;
 constexpr int32_t kNumRealCCNumbers = 120;
 constexpr int32_t kMaxMIDIValue = 127;
 constexpr int32_t ALL_NOTES_OFF = -32768;

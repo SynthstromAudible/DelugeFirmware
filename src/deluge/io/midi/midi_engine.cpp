@@ -121,11 +121,11 @@ void MidiEngine::sendPositionPointer(MIDISource source, uint16_t positionPointer
 }
 
 void MidiEngine::sendBank(MIDISource source, int32_t channel, int32_t num, int32_t filter) {
-	sendCC(source, channel, 0, num, filter);
+	sendCC(source, channel, CC_BANK, num, filter);
 }
 
 void MidiEngine::sendSubBank(MIDISource source, int32_t channel, int32_t num, int32_t filter) {
-	sendCC(source, channel, 32, num, filter);
+	sendCC(source, channel, CC_SUB_BANK, num, filter);
 }
 
 void MidiEngine::sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter) {
@@ -416,7 +416,7 @@ void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8
 				break;
 
 			case 0x0C: // Program change message
-				playbackHandler.programChangeReceived(cable, channel, data1);
+				playbackHandler.programChangeReceived(cable, channel, data1, &shouldDoMidiThruNow);
 				break;
 
 			case 0x0D: // Channel pressure
