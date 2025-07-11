@@ -36,7 +36,11 @@ public:
 	constexpr operator dTime() { return time; }
 	constexpr Time operator+(Time r) { return time + r.time; }
 	constexpr Time operator-(Time r) { return time - r.time; }
+	constexpr Time operator/(Time r) { return time / r.time; }
+
 	constexpr Time operator*(int r) { return time * r; }
+	constexpr Time operator*(double r) { return time * r; }
+	constexpr Time operator*(float r) { return time * r; }
 	auto operator<=>(const Time&) const = default;
 	constexpr Time& operator+=(const Time& r) {
 		time = time + r.time;
