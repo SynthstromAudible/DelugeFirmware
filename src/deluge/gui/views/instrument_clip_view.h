@@ -163,7 +163,7 @@ public:
 	                                ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
 	void potentiallyRefreshNoteRowMenu();
 	bool startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
-	                         NoteRow* noteRowOnActiveClip, Drum* drum);
+	                         NoteRow* noteRowOnActiveClip, Drum* drum, bool displayNoteCode = true);
 	void finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack, NoteRow* noteRowOnActiveClip);
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
