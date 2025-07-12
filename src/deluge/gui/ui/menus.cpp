@@ -1674,10 +1674,15 @@ menu_item::stem_export::Start startStemExportMenu{STRING_FOR_START_EXPORT};
 
 ToggleBool configureNormalizationMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
                                       STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION, stemExport.allowNormalization};
+ToggleBool configureNormalizationForDrumsMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
+                                              STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
+                                              stemExport.allowNormalizationForDrums};
 ToggleBool configureSilenceMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE, STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE,
                                 stemExport.exportToSilence};
 ToggleBool configureSongFXMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX, STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX,
                                stemExport.includeSongFX};
+ToggleBool configureKitFXMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_KITFX, STRING_FOR_CONFIGURE_EXPORT_STEMS_KITFX,
+                              stemExport.includeKitFX};
 ToggleBool configureOfflineRenderingMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING,
                                          STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING, stemExport.renderOffline};
 ToggleBool configureMixdownMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN, STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN,
@@ -1696,6 +1701,23 @@ menu_item::Submenu stemExportMenu{
     {
         &startStemExportMenu,
         &configureStemExportMenu,
+    },
+};
+
+menu_item::Submenu kitGlobalFXConfigureStemExportMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS,
+                                                      {
+                                                          &configureKitFXMenu,
+                                                          &configureNormalizationForDrumsMenu,
+                                                          &configureSilenceMenu,
+                                                          &configureSongFXMenu,
+                                                          &configureOfflineRenderingMenu,
+                                                      }};
+
+menu_item::Submenu kitGlobalFXStemExportMenu{
+    STRING_FOR_EXPORT_AUDIO,
+    {
+        &startStemExportMenu,
+        &kitGlobalFXConfigureStemExportMenu,
     },
 };
 
@@ -1728,10 +1750,18 @@ menu_item::Submenu soundEditorRootMenuSongView{
     },
 };
 
+menu_item::Submenu kitGlobalFXActionsMenu{
+    STRING_FOR_ACTIONS,
+    {
+        &kitGlobalFXStemExportMenu,
+    },
+};
+
 // Root menu for Kit Global FX
 menu_item::Submenu soundEditorRootMenuKitGlobalFX{
     STRING_FOR_KIT_GLOBAL_FX,
     {
+        &kitGlobalFXActionsMenu,
         &kitClipMasterMenu,
         &kitArpMenu,
         &audioCompMenu,
