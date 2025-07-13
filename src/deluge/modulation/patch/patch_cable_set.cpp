@@ -818,6 +818,9 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "source")) {
 					source = stringToSource(reader.readTagOrAttributeValue());
+					if (source == PatchSource::AFTERTOUCH) {
+						polarity = Polarity::UNIPOLAR;
+					}
 				}
 				else if (!strcmp(tagName, "destination")) {
 					destinationParamDescriptor.setToHaveParamOnly(params::fileStringToParam(
