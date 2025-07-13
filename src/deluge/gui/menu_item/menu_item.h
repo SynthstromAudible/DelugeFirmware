@@ -283,7 +283,7 @@ public:
 	/// @brief Get the name for use on horizontal menus.
 	///
 	/// By default this redirects to getName(), but can be overridden.
-	virtual void getColumnLabel(StringBuf& label, bool forSmallFont) { label.append(getName().data()); }
+	virtual void getColumnLabel(StringBuf& label) { label.append(getName().data()); }
 
 	/// @brief Show a label for the parameter in the horizontal menu
 	///
@@ -302,10 +302,8 @@ public:
 
 	/// @brief Show a parameter value in the popup at the top of the horizontal menu
 	///
-	/// by default we show the value only when graphical style is enabled
-	[[nodiscard]] virtual bool showValueInPopup() const {
-		return runtimeFeatureSettings.get(HorizontalMenuStyle) == Graphical;
-	}
+	/// true by default, but can be overridden
+	[[nodiscard]] virtual bool showValueInPopup() const { return true; }
 
 	/// @brief Get the parameter value string to show in the popup
 	///

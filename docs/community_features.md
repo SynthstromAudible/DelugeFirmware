@@ -474,6 +474,10 @@ which track to record from. The source can also be selected by pressing a clip's
 - ([#3195]) Clip name display includes the section number. If the clip has no name, it is displayed using just the section number, as "SECTION N". If the clip has a name, it is prefixed with the section number, as "N: CLIP NAME".
 - ([#3195]) When clips are copied, the clip name is copied as well. If the target track already has a clip with the same name, an integer suffix starting from 2 is added unless the name already has an integer suffix. This integer suffix is incremented until the clip name is unique on the target track. Ie. copying a clip named "BRIDGE" to the same otherwise empty track will first create "BRIDGE2", then "BRIDGE3", etc.
 
+#### 3.36 Configurable Accidental
+
+- ([#3794]) Added toggle in `SETTINGS > DEFAULTS > UI > USE SHARPS(#) (SHRP)` to allow users to choose which accidentals to display. When enabled in OLED mode, notes will be displayed as A# or D#, as they did prior to this change. When disabled, notes will be displayed as B♭ or E♭. In 7SEG mode, a dot is used to indicade when the note has the configured accidental. If selected, `D.` will mean D#. If not selected, `D.` will mean D♭.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1706,6 +1710,8 @@ different firmware
 [#3388]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3388
 
 [#3425]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3425
+
+[#3794]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3794
 
 [Automation View Documentation]: features/automation_view.md
 

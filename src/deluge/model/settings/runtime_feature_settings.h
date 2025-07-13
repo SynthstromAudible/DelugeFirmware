@@ -41,14 +41,11 @@ enum RuntimeFeatureStateSyncScalingAction : uint32_t { SyncScaling = 0, Fill = 1
 
 enum RuntimeFeatureStateEmulatedDisplay : uint32_t { Hardware = 0, Toggle = 1, OnBoot = 2 };
 
-enum RuntimeFeatureStateHorizontalMenuStyle : uint32_t { Numeric = 0, Graphical = 1 };
-
 /// Every setting needs to be declared in here
 enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
 	Quantize,
 	FineTempoKnob,
-	PatchCableResolution,
 	CatchNotes,
 	DeleteUnusedKitRows,
 	AltGoldenKnobDelayParams,
@@ -67,8 +64,6 @@ enum RuntimeFeatureSettingType : uint32_t {
 	EnableGridViewLoopPads,
 	AlternativeTapTempoBehaviour,
 	HorizontalMenus,
-	HorizontalMenusSmallFontForLabels,
-	HorizontalMenuStyle,
 	TrimFromStartOfAudioClip,
 	MaxElement // Keep as boundary
 };

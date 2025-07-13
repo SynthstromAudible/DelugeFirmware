@@ -62,6 +62,7 @@ NoteRow::NoteRow(int16_t newY) {
 	fillValue = FillMode::OFF;
 	loopLengthIfIndependent = 0;
 	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
+	exportStem = false;
 }
 
 NoteRow::~NoteRow() {

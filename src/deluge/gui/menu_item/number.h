@@ -22,22 +22,27 @@
 
 namespace deluge::gui::menu_item {
 
-enum NumberStyle { NUMBER, KNOB, VERTICAL_BAR };
+enum NumberStyle { NUMBER, KNOB, VERTICAL_BAR, PERCENT, SLIDER, LENGTH_SLIDER };
 
 class Number : public Value<int32_t> {
 public:
 	using Value::Value;
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
-	void getValueForPopup(StringBuf& value) override { value.appendInt(getValue()); }
-	void drawBar(int32_t yTop, int32_t marginL, int32_t marginR = -1);
-	void drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t height);
-	void drawVerticalBar(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
+	void drawHorizontalBar(int32_t yTop, int32_t marginL, int32_t marginR = -1, int32_t height = 8);
 
 protected:
 	[[nodiscard]] virtual int32_t getMaxValue() const = 0;
 	[[nodiscard]] virtual int32_t getMinValue() const { return 0; }
 	[[nodiscard]] virtual NumberStyle getNumberStyle() const { return KNOB; }
-	float getValuePercent();
+	void getValueForPopup(StringBuf& value) override { value.appendInt(getValue()); }
+	bool showValueInPopup() const override { return getNumberStyle() != PERCENT; }
+	float getNormalizedValue();
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+	void drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t height);
+	void drawVerticalBar(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
+	void drawPercent(int32_t startX, int32_t startY, int32_t width, int32_t height);
+	void drawSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
+	void drawLengthSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight, bool minSliderPos = 3);
 };
 
 } // namespace deluge::gui::menu_item

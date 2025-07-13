@@ -99,7 +99,8 @@ public:
 	// Spread last lock
 	uint32_t lastLockedNoteProbabilityParameterValue{0};
 	uint32_t lastLockedBassProbabilityParameterValue{0};
-	uint32_t lastLockedStepProbabilityParameterValue{0};
+	uint32_t lastLockedSwapProbabilityParameterValue{0};
+	uint32_t lastLockedGlideProbabilityParameterValue{0};
 	uint32_t lastLockedReverseProbabilityParameterValue{0};
 	uint32_t lastLockedChordProbabilityParameterValue{0};
 	uint32_t lastLockedRatchetProbabilityParameterValue{0};
@@ -110,7 +111,8 @@ public:
 	// Pre-calculated randomized values for each parameter
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedNoteProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedBassProbabilityValues;
-	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedStepProbabilityValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedSwapProbabilityValues;
+	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedGlideProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedReverseProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedChordProbabilityValues;
 	std::array<int8_t, RANDOMIZER_LOCK_MAX_SAVED_VALUES> lockedRatchetProbabilityValues;
@@ -133,7 +135,8 @@ public:
 	uint32_t ratchetAmount{0};
 	uint32_t noteProbability{4294967295u}; // Default to 25 if not set in XML
 	uint32_t bassProbability{0};
-	uint32_t stepProbability{0};
+	uint32_t swapProbability{0};
+	uint32_t glideProbability{0};
 	uint32_t reverseProbability{0};
 	uint32_t chordProbability{0};
 	uint32_t ratchetProbability{0};
@@ -170,6 +173,8 @@ public:
 		arpNoteOn = nullptr;
 		outputMIDIChannelOff.fill(MIDI_CHANNEL_NONE);
 		noteCodeOffPostArp.fill(ARP_NOTE_NONE);
+		glideOutputMIDIChannelOff.fill(MIDI_CHANNEL_NONE);
+		glideNoteCodeOffPostArp.fill(ARP_NOTE_NONE);
 	}
 
 	// These are only valid if doing a note-on, or when releasing the most recently played with the arp off when other
@@ -186,13 +191,17 @@ public:
 	// And these are only valid if doing a note-off
 	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelOff; // For MPE
 	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOffPostArp;
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> glideOutputMIDIChannelOff; // For MPE
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeOffPostArp;
 };
 
 class ArpeggiatorBase {
 public:
 	ArpeggiatorBase() {
 		noteCodeCurrentlyOnPostArp.fill(ARP_NOTE_NONE);
+		glideNoteCodeCurrentlyOnPostArp.fill(ARP_NOTE_NONE);
 		outputMIDIChannelForNoteCurrentlyOnPostArp.fill(0);
+		outputMIDIChannelForGlideNoteCurrentlyOnPostArp.fill(0);
 	}
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
@@ -212,7 +221,9 @@ public:
 	bool playedFirstArpeggiatedNoteYet = false;
 	uint8_t lastVelocity = 0;
 	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeCurrentlyOnPostArp;
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeCurrentlyOnPostArp;
 	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForNoteCurrentlyOnPostArp;
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForGlideNoteCurrentlyOnPostArp;
 
 	// Playing state
 	uint32_t notesPlayedFromSequence = 0;
@@ -237,8 +248,8 @@ public:
 	// Bass probability state
 	bool lastNormalNotePlayedFromBassProbability = false;
 
-	// Step probability state
-	bool lastNormalNotePlayedFromStepProbability = false;
+	// Swap probability state
+	bool lastNormalNotePlayedFromSwapProbability = false;
 
 	// Reverse probability state
 	bool lastNormalNotePlayedFromReverseProbability = false;
@@ -255,16 +266,17 @@ public:
 	uint32_t ratchetNotesCount = 0;
 	bool isRatcheting = false;
 
-	// Chord state
-	uint32_t chordNotesCount = 0;
+	// Glide state
+	bool glideOnNextNoteOff = false;
 
-	// Calculated spread amounts
+	// Calculated randomizer values
 	bool isPlayNoteForCurrentStep = true;
 	bool isPlayBassForCurrentStep = false;
 	bool isPlayRandomStepForCurrentStep = false;
 	bool isPlayReverseForCurrentStep = false;
 	bool isPlayChordForCurrentStep = false;
 	bool isPlayRatchetForCurrentStep = false;
+	bool isPlayGlideForCurrentStep = false;
 	int32_t spreadVelocityForCurrentStep = 0;
 	int32_t spreadGateForCurrentStep = 0;
 	int32_t spreadOctaveForCurrentStep = 0;
@@ -285,7 +297,7 @@ protected:
 	bool evaluateRhythm(uint32_t rhythm, bool isRatchet);
 	bool evaluateNoteProbability(bool isRatchet);
 	bool evaluateBassProbability(bool isRatchet);
-	bool evaluateStepProbability(bool isRatchet);
+	bool evaluateSwapProbability(bool isRatchet);
 	bool evaluateReverseProbability(bool isRatchet);
 	bool evaluateChordProbability(bool isRatchet);
 	uint32_t calculateSpreadVelocity(uint8_t velocity, int32_t spreadVelocityForCurrentStep);

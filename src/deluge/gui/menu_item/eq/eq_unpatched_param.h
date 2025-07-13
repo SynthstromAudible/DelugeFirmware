@@ -19,18 +19,13 @@
 
 namespace deluge::gui::menu_item::eq {
 
-class EqUnpatchedParam final : public UnpatchedParam {
+class EqUnpatchedParam : public UnpatchedParam {
 public:
 	EqUnpatchedParam(l10n::String name, l10n::String columnLabel, int32_t newP)
 	    : UnpatchedParam(name, newP), columnLabel_{columnLabel} {}
 	EqUnpatchedParam(l10n::String name, int32_t newP) : UnpatchedParam(name, newP), columnLabel_{name} {}
 
-	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
-		if (forSmallFont) {
-			return label.append(getName().data());
-		}
-		label.append(deluge::l10n::getView(columnLabel_));
-	}
+	void getColumnLabel(StringBuf& label) override { label.append(deluge::l10n::getView(columnLabel_)); }
 
 private:
 	l10n::String columnLabel_;

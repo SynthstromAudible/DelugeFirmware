@@ -48,13 +48,12 @@ void SyncLevel::drawPixelsForOled() {
 	hid::display::OLED::main.drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, kTextBigSpacingX, kTextBigSizeY);
 }
 
-void SyncLevel::getColumnLabel(StringBuf& label, bool forSmallFont) {
+void SyncLevel::getColumnLabel(StringBuf& label) {
 	const int32_t value = getValue();
 	const ::SyncLevel level = syncValueToSyncLevel(value);
 
 	if (level == SYNC_LEVEL_NONE) {
-		Enumeration::getColumnLabel(label, forSmallFont);
-		return;
+		return Enumeration::getColumnLabel(label);
 	}
 
 	// Draw the sync level as a label
@@ -68,20 +67,15 @@ void SyncLevel::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t st
 	const int32_t value = getValue();
 
 	if (const ::SyncLevel level = syncValueToSyncLevel(value); level == SYNC_LEVEL_NONE) {
-		// Draw the "off" switcher icon
-		const auto iconBitmap = &OLED::switcherIconOff;
-		constexpr int32_t numBytesTall = 2;
-		constexpr int32_t iconHeight = numBytesTall * 8;
-		const int32_t iconWidth = iconBitmap->size() / numBytesTall;
-		const int32_t x = startX + (width - iconWidth) / 2 - 1;
-		return image.drawGraphicMultiLine(iconBitmap->data(), x, startY, iconWidth, iconHeight, numBytesTall);
+		const auto offString = l10n::get(l10n::String::STRING_FOR_OFF);
+		return image.drawStringCentered(offString, startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
 	}
 
 	// Draw only the sync type icon, sync level already drawn as a label
 	const std::vector<uint8_t>& typeIcon = getSyncTypeIcon();
 	const int32_t typeIconWidth = typeIcon.size() / 2;
-	const int32_t padding = ((width - typeIconWidth) / 2) - 2;
-	image.drawGraphicMultiLine(typeIcon.data(), startX + padding, startY, typeIconWidth, 16, 2);
+	const int32_t padding = (width - typeIconWidth) / 2;
+	image.drawGraphicMultiLine(typeIcon.data(), startX + padding, startY - 1, typeIconWidth, 16, 2);
 }
 
 int32_t SyncLevel::syncTypeAndLevelToMenuOption(::SyncType type, ::SyncLevel level) {

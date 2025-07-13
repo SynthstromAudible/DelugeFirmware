@@ -17,7 +17,6 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
-#include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -60,5 +59,48 @@ public:
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxUnisonDetune; }
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		oled_canvas::Canvas& image = OLED::main;
+
+		const float t = getValue() / 50.0f;
+
+		for (int i = 0; i < 3; ++i) {
+			constexpr int32_t lineSpacing = 5;
+			constexpr int32_t maxYOffset = 4;
+
+			const int32_t y = startY + 3 + i * lineSpacing;
+			const int32_t x0 = startX + 7;
+			const int32_t x1 = startX + width - 7;
+
+			if (i == 0) {
+				// Top line
+				const int32_t offset = static_cast<int32_t>(maxYOffset * t * 0.30f);
+				image.drawLine(x0, y, x1, y + offset);
+			}
+			else if (i == 1) {
+				// Middle line
+				const int32_t offset = static_cast<int32_t>(maxYOffset * t * 0.5f);
+				image.drawLine(x0, y - offset, x1, y + offset);
+
+				if (t > 0.7 && t < 1) {
+					image.clearPixel(x0, y - offset);
+					image.clearPixel(x1, y + offset);
+					image.drawPixel(x0, y - offset - 1);
+					image.drawPixel(x1, y + offset + 1);
+				}
+			}
+			else if (i == 2) {
+				// Bottom line
+				int32_t offset = y - static_cast<int32_t>(maxYOffset * t * 0.8f);
+				if (t > 0 && offset == y) {
+					offset -= 1;
+				}
+
+				image.drawLine(x0, offset, x1 - 8, y);
+				image.drawHorizontalLine(y, x1 - 8, x1);
+			}
+		}
+	}
 };
 } // namespace deluge::gui::menu_item::unison

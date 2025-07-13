@@ -101,6 +101,7 @@ Added main grid pad shortcuts for the following parameters:
 
 #### <ins>Audio Export</ins>
 - Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
+- Added `AUDIO EXPORT` for `KIT DRUMS`, an automated process for exporting `DRUM's` while in `KIT INSTRUMENT CLIP VIEW`. Press :key[SAVE] + :key[RECORD] to start exporting.
 - Added Tempo, Root Note and Scale Information to file names
 
 
@@ -220,6 +221,11 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ##### Layout
 - Added the classic piano keyboard layout.
 
+#### <ins>Scales/Key</ins>
+
+- Added toggle in `SETTINGS > DEFAULTS > UI > USE SHARPS(#) (SHRP)` to allow users to choose which accidentals to display. When enabled in OLED mode, notes will be displayed as A# or D#, as they did prior to this change. When disabled, notes will be displayed as B♭ or E♭. In 7SEG mode, a dot is used to indicade when the note has the configured accidental.
+
+
 ### Sequencer
 
 #### <ins>Arpeggiator</ins>
@@ -228,7 +234,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added `SPREAD` parameters (Velocity, Gate, and Octave) that will allow you to control how those parameters of each arp step are deviated from its base value. Additionally, a `LOCK` parameter will allow you to lock the generated values to create a repeating pattern. Velocity Spread
 also affect normal sequenced notes while arpeggiator is Off.
 - Added `BASS PROBABILITY (BASS)` paramater that will allow you to control the chance of a note being replaced the bass (lowest) note of the inputted notes.
-- Added `STEP PROBABILITY (STEP)` paramater that will allow you to control the chance of a note in the pattern being replaced by a random note from the pattern.
+- Added `SWAP PROBABILITY (SWAP)` paramater that will allow you to control the chance of a note in the pattern being replaced by a random note from the pattern.
+- Added `GLIDE PROBABILITY (GLID)` paramater that will allow you to control the chance of delaying a note's note-off event to be executed at the same time as the following arp note. If your sound has some `Portamento` applied, then it will produce a glide effect.
 - Added `STEP REPEAT (REPE)` paramater (with values 1 to 8) that makes walked notes in the pattern be repeated X times before moving to the next note+octave in the pattern.
 - Added `CHORD PROBABILITY (CHRD)` paramater that will allow you to control the chance of a note to play, at the same time, itself and other notes to form a chord (5th, 3rd and 7th).
 - Added `CHORD POLYPHONY (POLY)` paramater that works together with the previous parameter, and this one will dictate how big is the chord, that is, how many notes will be played at the same time.

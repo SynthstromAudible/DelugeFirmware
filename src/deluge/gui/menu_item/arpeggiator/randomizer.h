@@ -38,17 +38,16 @@ public:
 		const int32_t diceIconWidth = diceIcon.size() / 2;
 		constexpr int32_t diceIconHeight = 16;
 
-		int32_t x = startX + ((width - diceIconWidth) / 2) - 3;
-		int32_t y = startY + ((height - diceIconHeight) / 2) + 1;
+		int32_t x = startX + 6;
+		int32_t y = startY + (height - diceIconHeight) / 2 + 1;
 		image.drawGraphicMultiLine(diceIcon.data(), x, y, diceIconWidth, diceIconHeight, 2);
 
 		// Draw arrow
 		const auto& arrowIcon = OLED::submenuArrowIconBold;
 		constexpr int32_t arrowIconWidth = 7;
 		constexpr int32_t arrowIconHeight = 8;
-
 		x += diceIconWidth + 1;
-		y = startY + ((height - arrowIconHeight) / 2) + 1;
+		y = startY + (height - arrowIconHeight) / 2;
 		image.drawGraphicMultiLine(arrowIcon, x, y, arrowIconWidth);
 	}
 };

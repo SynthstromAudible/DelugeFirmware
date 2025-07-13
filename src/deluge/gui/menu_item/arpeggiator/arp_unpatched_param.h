@@ -19,18 +19,23 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class ArpUnpatchedParam final : public UnpatchedParam {
+class ArpUnpatchedParam : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
+
+	ArpUnpatchedParam(l10n::String newName, l10n::String title, int32_t newP, NumberStyle style)
+	    : UnpatchedParam(newName, title, newP), style_(style) {}
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
 	}
-	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
-		if (forSmallFont) {
-			return label.append(getName().data());
-		}
+	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return style_; }
+
+private:
+	NumberStyle style_ = KNOB;
 };
 
 class ArpSoundOnlyUnpatchedParam final : public UnpatchedParam {
@@ -40,10 +45,7 @@ public:
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKitAffectEntire()
 		       && !soundEditor.editingNonAudioDrumRow();
 	}
-	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
-		if (forSmallFont) {
-			return label.append(getName().data());
-		}
+	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
 	}
 };
@@ -51,15 +53,20 @@ public:
 class ArpNonKitSoundUnpatchedParam final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
+
+	ArpNonKitSoundUnpatchedParam(l10n::String newName, l10n::String title, int32_t newP, NumberStyle style)
+	    : UnpatchedParam(newName, title, newP), style_(style) {}
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKit();
 	}
-	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
-		if (forSmallFont) {
-			return label.append(getName().data());
-		}
+	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return style_; }
+
+private:
+	NumberStyle style_ = KNOB;
 };
 
 } // namespace deluge::gui::menu_item::arpeggiator

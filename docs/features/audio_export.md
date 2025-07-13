@@ -1,12 +1,14 @@
 # Automated Audio Exporting
 
+Automatically export your clips in Session View, tracks in Arranger View, and drums in Kit Instrument Clip View into audio WAV files.
+
 https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/044efe71-ac49-4c4b-bd5c-92b8eb269582
 
 ## Description
 
-Added `AUDIO EXPORT`, an automated process for exporting `CLIP's` while in `SONG VIEW` and `TRACK's` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting.
+Added `AUDIO EXPORT`, an automated process for exporting `CLIP's` while in `SESSION VIEW`, `TRACK's` while in `ARRANGER VIEW`, and `DRUM's` while in `KIT INSTRUMENT CLIP VIEW`. Press `SAVE` + `RECORD` to start exporting.
 
-Now with one quick action you can start an export job, walk away from your Deluge and come back to a collection of renders from all your clips and arranger tracks.
+Now with one quick action you can start an export job, walk away from your Deluge and come back to a collection of renders from all your clips, arranger tracks, and kit drums.
 
 ## Exports Folder
 
@@ -14,9 +16,9 @@ Audio exports are placed in a new `SAMPLES/EXPORTS/` folder.
 
 Within the `EXPORTS` folder, a folder with the `SONG NAME` is created if it does not already exist when exporting. Unsaved songs are saved with the song name `UNSAVED`. Thus, you will have a new folder named `SAMPLES/EXPORTS/SONG NAME/`.
 
-Within the `SONG NAME` folder, a folder for the type of export (e.g. `CLIPS` or `TRACKS`) is created for each export job which contains all the WAV file recordings.
+Within the `SONG NAME` folder, a folder for the type of export (e.g. `CLIPS` or `TRACKS` or `DRUMS`) is created for each export job which contains all the WAV file recordings.
 
-If the same SONG and EXPORT TYPE is exported more than once, a 2 digit number incremental number is appended to that export type's folder name (e.g. TRACKS## or CLIPS##).
+If the same SONG and EXPORT TYPE is exported more than once, a 2 digit number incremental number is appended to that export type's folder name (e.g. TRACKS## or CLIPS## or DRUMS##).
 
 ## File Names
 
@@ -30,73 +32,100 @@ For example:
 SYNTH_CLIP_PRESETNAME_###BPM_Root Note-Scale Name_000.WAV
 SYNTH_TRACK_PRESETNAME_###BPM_Root Note-Scale Name_000.WAV
 MIXDOWN_###BPM_Root Note-Scale Name.WAV
+KIT_DRUM_KITNAME_DRUMNAME_Root Note-Scale Name_000.WAV
 ```
 
 ## Shortcuts to Start/Stop Exporting
 
 ### Start Export
 
-- Hold `SAVE` + Press `RECORD` while Playback and Record are disabled to launch the export process
-- When the export is finished, a dialog will appear on the display that tells you that the export process has finished. Press `SELECT`, `BACK` or any `PAD` on the grid to exit the dialog.
+- Press `Save + Record` while Playback and Record are disabled to launch the export process
+- When the export is finished, a dialog will appear on the display that tells you that the export process has finished. Press `Select`, `Back` or any `Pad` on the grid to exit the dialog.
 - Note 1: Master (Song) FX are excluded from the export by default (but can be included - see below)
 - Note 2: MIDI and CV Tracks and Clips are excluded from the export
-- Note 3: Tracks and Clips that are `EMPTY` (e.g. they have no Notes or Audio Files) are excluded from the export
+- Note 3: Tracks, Clips and Drums that are `EMPTY` (e.g. they have no Notes or Audio Files) are excluded from the export
 - Note 4: In Arranger View, any Tracks that are `MUTED` are excluded from the export
+- Note 5: In Kit Instrument Clip View, any Drums that are `MUTED` are excluded from the export
 
-- You can also start the export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
+- You can also start the export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Session and Arranger Views and in the `KIT FX/ACTIONS` menu accessible in Kit Instrument Clip View when Affect Entire is enabled.
+  - In Session and Arranger Views, start the export by entering the `SONG/EXPORT AUDIO/` menu and pressing `Select` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
+  - In Kit Instrument Clip View, start the export by entering the `KIT FX/ACTIONS/EXPORT AUDIO/` menu and pressing `Select` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 
 ### Cancel Export
 
-- Press `BACK` to cancel the export process
-- When you cancel exporting, a dialog will appear on the screen asking you for confirmation. Press on the `SELECT` encoder to confirm that you want to cancel. Press `BACK` to exit out of the dialog and continue with export process.
+- Press `Back` to cancel the export process
+- When you cancel exporting, a dialog will appear on the screen asking you for confirmation. Press on the `Select` encoder to confirm that you want to cancel. Press `Back` to exit out of the dialog and continue with the export process.
 - Note: The export still continues in the background until you confirm you want to stop.
 
 ## Recording Parameters
 
 ### Recording Length
+
 - In terms of the length of each rendered audio file:
   - In Arranger, a track is played until the end of the arrangement's length is reached.
-  - In Song, a clip is played until the end of the longest note row with notes in it is reached.
-  - If `EXPORT TO SILENCE` is enabled, tails will be allowed to ring out and recording will continue past the track or clip length until silence is reached (see below).
+  - In Session, a clip is played until the end of the longest note row with notes in it is reached.
+  - In Kit Instrument Clip View, a drum is played until the end of the drum row is reached.
+  - If `EXPORT TO SILENCE` is enabled, tails will be allowed to ring out and recording will continue past the track, clip or drum length until silence is reached (see below).
 
 ### Silence
+
 - By default, files are rendered until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured
-  - This can be turned off in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT TO SILENCE`
+  - This can be turned off in the export configuration menu located at:
+    - In Session and Arranger: `SONG/EXPORT AUDIO/CONFIGURE EXPORT/EXPORT TO SILENCE`;
+    - In Kit Instrument Clip: `KIT FX/ACTIONS//EXPORT AUDIO/CONFIGURE EXPORT/EXPORT TO SILENCE`;
 - If silence is not reached within 60 seconds of playback stopping, then the recording will stop automatically as a safety precaution.
 
 ### Normalization
+
 - By default, normalization is off. Normalization sets the peak of the renders to be at 0dB (as loud as possible without distorting).
-  - Normalization can be turned on in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\NORMALIZATION`
+  - Normalization can be turned on in the export configuration menu located at:
+    - In Session and Arranger: `SONG/EXPORT AUDIO/CONFIGURE EXPORT/NORMALIZATION`
+    - In Kit Instrument Clip: `KIT FX/ACTIONS/EXPORT AUDIO/CONFIGURE EXPORT/NORMALIZATION`
 
 ### Song FX
-- By default, song FX are excluded (these are the master FX in Song and Arranger Views when Affect Entire is enabled). They can be included in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\SONG FX`
 
-### Clip Loop Points
+- By default, Song FX are excluded (these are the master FX in Session and Arranger Views when `Affect Entire` is enabled). They can be included in the export configuration menu located at: `SONG/EXPORT AUDIO/CONFIGURE EXPORT/SONG FX`
 
-- For clip exports, a loop point marker is saved with the exported file to mark the clip's loop length. This makes it easy to load your rendered files so they will play back and loop properly in a DAW.
+### Kit FX
+
+- This is applicable for exporting Kit Drums only and is not visible in the Session and Arranger Audio Export menu's
+- By default, Kit FX are excluded (these are the Kit Global FX in Kit Instrument Clips when `Affect Entire` is enabled).
+- They can be included in the export configuration menu located at: `KIT FX/ACTIONS/EXPORT AUDIO/CONFIGURE EXPORT/KIT FX`
+  - Note: When Kit FX are excluded, the Kit Global FX pitch adjustment will still be included
+
+### Clip / Drum Loop Points
+
+- For clip and drum exports, a loop point marker is saved with the exported file to mark the clip's / drum's loop length. This makes it easy to load your rendered files so they will play back and loop properly in a DAW.
 
 ### Offline Rendering
+
 - By default, offline Rendering is enabled. Offline rendering enables you to render and export faster than if you recorded playback using live audio (e.g. resampling/online rendering). There are still improvements to be made to make offline rendering even faster, but it is significantly fast as is!
-  - Offline rendering can be turned off in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\OFFLINE RENDERING`
+  - Offline rendering can be turned off in the export configuration menu located at:
+    - In Session and Arranger: `SONG/EXPORT AUDIO/CONFIGURE EXPORT/OFFLINE RENDERING`
+    - In Kit Instrument Clip: `KIT FX/ACTIONS/EXPORT AUDIO/CONFIGURE EXPORT/OFFLINE RENDERING`
 
 ### Mixdown Export
-- Exporting all unmuted tracks as a single stereo file is disabled by default. This can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
+
+- This is only applicable when exporting from Arranger
+- Exporting all unmuted tracks as a single stereo file is disabled by default.
+- This can be enabled in the export configuration menu located at: `SONG/EXPORT AUDIO/CONFIGURE EXPORT/EXPORT MIXDOWN`
 
 ## Audio Export Menu
 
-A new `EXPORT AUDIO` menu has been added to the `SONG` menu accessible in Song and Arranger Views.
+A new `EXPORT AUDIO` menu has been added to the `SONG` menu accessible in Session and Arranger Views and the `KIT FX/ACTIONS/` menu accessible in Kit Instrument Clip View.
 
 This menu allows you to start an export and configure various settings related to the export.
 
-- Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
+- Start the export by entering the `SONG/EXPORT AUDIO/` or `KIT FX/ACTIONS/EXPORT AUDIO/` menu and pressing `Select` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 
-- Configure settings for the export by entering the `SONG\EXPORT AUDIO\CONFIGURE EXPORT\` menu.
-    - You can currently configure the following:
-      - `NORMALIZATION`: Normalization sets the peak of the render to be at 0dB (as loud as possible without distorting).
-      - `EXPORT TO SILENCE`: Exports are rendered until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured.
-      - `SONG FX`: Exports are rendered with or without Song FX applied.
-      - `OFFLINE RENDERING`: Exports are rendered offline. You will not hear any audio playback, as exports are rendered at a faster than real-time basis.
-      - `EXPORT MIXDOWN`: A single master mixdown track is exported for all unmuted tracks in Arranger View.
+- Configure settings for the export by entering the `SONG/EXPORT AUDIO/CONFIGURE EXPORT/` or `KIT FX/ACTIONS/EXPORT AUDIO/CONFIGURE EXPORT\` menu.
+  - You can currently configure the following:
+    - `KIT FX` (for Drum Exports only): Exports are rendered with or without Kit FX applied. Kit FX pitch adjustment is always rendered.
+    - `NORMALIZATION`: Normalization sets the peak of the render to be at 0dB (as loud as possible without distorting).
+    - `EXPORT TO SILENCE`: Exports are rendered until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured.
+    - `SONG FX`: Exports are rendered with or without Song FX applied.
+    - `OFFLINE RENDERING`: Exports are rendered offline. You will not hear any audio playback, as exports are rendered at a faster than real-time basis.
+    - `EXPORT MIXDOWN`: A single master mixdown track is exported for all unmuted tracks in Arranger View.
 
 ## Troubleshooting
 
@@ -122,7 +151,7 @@ One user reported that they were unable to export a track even though the export
 
 Solution:
 
-Check that the track name doesn't have any special characters. In this case, the user had a track called << Organ >>. Removing the characters "<< >>" and just naming the track "Organ" allowed the track to be exported.
+Check that the track name doesn't have any special characters. In this case, the user had a track called `<< Organ >>`. Removing the characters `<< >>` and just naming the track "Organ" allowed the track to be exported.
 
 ### I have a track that takes much longer to export than others
 

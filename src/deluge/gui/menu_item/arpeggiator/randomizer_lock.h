@@ -57,10 +57,7 @@ public:
 		};
 	}
 
-	void getColumnLabel(StringBuf& label, bool forSmallFont) override {
-		if (forSmallFont) {
-			return label.append(getName().data());
-		}
+	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
 
@@ -76,10 +73,9 @@ public:
 
 		oled_canvas::Canvas& image = OLED::main;
 		constexpr int32_t numBytesTall = 2;
-		constexpr int32_t iconHeight = numBytesTall * 8;
 		const int32_t iconWidth = iconBitmap->size() / numBytesTall;
-		const int32_t x = startX + (width - iconWidth) / 2 - 1;
-		image.drawGraphicMultiLine(iconBitmap->data(), x, startY, iconWidth, iconHeight, numBytesTall);
+		const int32_t x = startX + (width - iconWidth) / 2;
+		image.drawGraphicMultiLine(iconBitmap->data(), x, startY, iconWidth, numBytesTall * 8, numBytesTall);
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator

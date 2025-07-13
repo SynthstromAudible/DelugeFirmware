@@ -15,7 +15,9 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+
 #include "gui/ui/keyboard/chords.h"
+#include "definitions_cxx.hpp"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include <array>
@@ -197,15 +199,16 @@ PLACE_SDRAM_DATA const Chord kMinorMaj7 = {"-M7",
                                            {{ROOT, MIN3, P5, MAJ7, NONE, NONE, NONE},
                                             {ROOT, MIN3 + OCT, P5, MAJ7, NONE, NONE, NONE},
                                             {ROOT, MIN3 + OCT, P5, MAJ7 + OCT, NONE, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kMinor7b5 = {"-7flat5",
+PLACE_SDRAM_DATA const Chord kMinor7b5 = {"-7" FLAT_CHAR_STR "5",
                                           NoteSet({ROOT, MIN3, DIM5, MIN7}),
                                           {{ROOT, MIN3, DIM5, MIN7, NONE, NONE, NONE},
                                            {ROOT, MIN3 + OCT, DIM5, MIN7, NONE, NONE, NONE},
                                            {ROOT, MIN3 + OCT, DIM5, MIN7 + OCT, NONE, NONE, NONE}}};
 PLACE_SDRAM_DATA const Chord kMinor9b5 = {
-    "-9flat5", NoteSet({ROOT, MIN3, DIM5, MIN7, MAJ2}), {{ROOT, MIN3, DIM5, MIN7, MAJ9, NONE, NONE}}};
-PLACE_SDRAM_DATA const Chord kMinor7b5b9 = {
-    "-7flat5flat9", NoteSet({ROOT, MIN3, DIM5, MIN7, MIN2}), {{ROOT, MIN3, DIM5, MIN7, MIN9, NONE, NONE}}};
+    "-9" FLAT_CHAR_STR "5", NoteSet({ROOT, MIN3, DIM5, MIN7, MAJ2}), {{ROOT, MIN3, DIM5, MIN7, MAJ9, NONE, NONE}}};
+PLACE_SDRAM_DATA const Chord kMinor7b5b9 = {"-7" FLAT_CHAR_STR "5" FLAT_CHAR_STR "9",
+                                            NoteSet({ROOT, MIN3, DIM5, MIN7, MIN2}),
+                                            {{ROOT, MIN3, DIM5, MIN7, MIN9, NONE, NONE}}};
 PLACE_SDRAM_DATA const Chord k9 = {"9",
                                    NoteSet({ROOT, MAJ3, P5, MIN7, MAJ2}),
                                    {{ROOT, MAJ3, P5, MIN7, MAJ9, NONE, NONE},

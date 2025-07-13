@@ -754,10 +754,11 @@ The Sound menu contains the following menu hierarchy:
 		- Ratchet Probability (RPRO)
 		- Chord Polyphony (CHRD) (NOTE: NOT available for Sound Kit Rows)
 		- Chord Probability (CPRO) (NOTE: NOT available for Sound Kit Rows)
-		- Note Probability (NOTE)
-		- Bass Probability (BASS)
-    	- Step Probability (STEP)
-		- Reverse Probability (RVRS)
+    	- Note Probability (NOTE)
+    	- Swap Probability (SWAP)
+    	- Bass Probability (BASS)
+    	- Glide Probability (GLID)
+    	- Reverse Probability (RVRS)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
@@ -1156,6 +1157,27 @@ The Kit FX menu is accessible from Kit clips when affect entire is enabled by pr
 The Kit FX menu contains the following menu hierarchy:
 
 <blockquote>
+<details>
+<summary>Actions</summary>
+	- Audio Export (EXPO)
+		- Start Export (EXPO)
+		- Configure Export (CONF)
+			- Kit FX (KIT)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Normalization (NORM)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Export to Silence (SILE)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Song FX (SONG)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Offline Rendering (OFFR)
+				- Disabled (OFF)
+				- Enabled (ON)
+</details>
 <details><summary>Master (MASTR)</summary>
 
 	- Volume (VOLU)
@@ -1215,10 +1237,11 @@ The Kit FX menu contains the following menu hierarchy:
 		- Velocity Spread (VELO)
 		- Ratchet Amount (RATC)
 		- Ratchet Probability (RPRO)
-		- Note Probability (NOTE)
-		- Bass Probability (BASS)
-    	- Step Probability (STEP)
-		- Reverse Probability (RVRS)
+    	- Note Probability (NOTE)
+    	- Swap Probability (SWAP)
+    	- Bass Probability (BASS)
+    	- Glide Probability (GLID)
+    	- Reverse Probability (RVRS)
 </details>
 <details><summary>Compressor (COMP)</summary>
 
@@ -1465,9 +1488,10 @@ The MIDI menu contains the following menu hierarchy:
 		- Ratchet Probability (RPRO)
 		- Chord Polyphony (CHRD) (NOTE: NOT available for Midi Kit Rows)
 		- Chord Probability (CPRO) (NOTE: NOT available for Midi Kit Rows)
-		- Note Probability (NOTE)
-		- Bass Probability (BASS)
-    	- Step Probability (STEP)
+    	- Note Probability (NOTE)
+    	- Swap Probability (SWAP)
+    	- Bass Probability (BASS)
+    	- Glide Probability (GLID)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
@@ -1576,8 +1600,9 @@ The CV menu contains the following menu hierarchy:
 		- Chord Polyphony (CHRD) (NOTE: NOT available for Gate Kit Rows)
 		- Chord Probability (CPRO) (NOTE: NOT available for Gate Kit Rows)
 		- Note Probability (NOTE)
-		- Bass Probability (BASS) (NOTE: NOT available for Gate Kit Rows)
-    	- Step Probability (STEP) (NOTE: NOT available for Gate Kit Rows)
+    	- Swap Probability (SWAP) (NOTE: NOT available for Gate Kit Rows)
+    	- Bass Probability (BASS) (NOTE: NOT available for Gate Kit Rows)
+    	- Glide Probability (GLID) (NOTE: NOT available for Gate Kit Rows)
 	- MPE (NOTE: NOT available for Gate Kit Rows)
 		- Velocity (VELO)
 			- Disabled (OFF)

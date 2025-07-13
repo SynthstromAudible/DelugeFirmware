@@ -22,6 +22,7 @@
 #include "storage/flash_storage.h"
 
 #include <math.h>
+#include <vector>
 
 using deluge::hid::display::oled_canvas::Canvas;
 
@@ -69,6 +70,11 @@ void Canvas::clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t ma
 void Canvas::drawPixel(int32_t x, int32_t y) {
 	int32_t yRow = y >> 3;
 	image_[yRow][x] |= 1 << (y & 0x7);
+}
+
+void Canvas::clearPixel(int32_t x, int32_t y) {
+	int32_t yRow = y >> 3;
+	image_[yRow][x] &= ~(1 << (y & 0x7));
 }
 
 void Canvas::drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX) {
@@ -163,9 +169,17 @@ void Canvas::drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t max
 	drawHorizontalLine(maxY, minX + 1, maxX - 1);
 }
 
+void Canvas::drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {
+	drawVerticalLine(minX, minY + 1, maxY - 1);
+	drawVerticalLine(maxX, minY + 1, maxY - 1);
+
+	drawHorizontalLine(minY, minX + 1, maxX - 1);
+	drawHorizontalLine(maxY, minX + 1, maxX - 1);
+}
+
 void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
                         int32_t scrollPos, int32_t endX, bool useTextWidth) {
-	int32_t stringLength = string.length();
+	int32_t lastIndex = string.length() - 1;
 	int32_t charIdx = 0;
 	int32_t charWidth = textWidth;
 	// if the string is currently scrolling we want to identify the number of characters
@@ -179,7 +193,7 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		int32_t charStartX = 0;
 		for (char const c : string) {
 			if (!useTextWidth) {
-				int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
+				int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == lastIndex);
 				charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
 			}
 			charStartX += charWidth;
@@ -200,8 +214,8 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		string = string.substr(numCharsToChopOff);
 		// adjust scroll position to indicate how far we've scrolled
 		scrollPos -= widthOfCharsToChopOff;
-		// calculate new string length
-		stringLength = string.length();
+		// calculate new last index
+		lastIndex = string.length() - 1;
 		// reset index
 		charIdx = 0;
 	}
@@ -210,7 +224,7 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 	// here we're going to draw the remaining characters in the string
 	for (char const c : string) {
 		if (!useTextWidth) {
-			int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
+			int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == lastIndex);
 			charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
 		}
 		drawChar(c, pixelX, pixelY, charWidth, textHeight, scrollPos, endX);
@@ -253,15 +267,21 @@ void Canvas::drawStringCentered(StringBuf& stringBuf, int32_t pixelX, int32_t pi
 		stringBuf.truncate(stringBuf.size() - 1);
 	}
 
-	// Padding to center the string. If we can't center exactly, 1px left is better than 1px right.
-	const int32_t padding = ((totalWidth - stringWidth) / 2) - 1;
-	drawString(stringBuf.c_str(), pixelX + padding, pixelY, stringWidth, textSpacingY);
+	// Padding to center the string
+	const float padding = (totalWidth - stringWidth) / 2.0f;
+	int32_t paddingAsInt = static_cast<int32_t>(padding);
+
+	if (padding != paddingAsInt) {
+		// If we can't center exactly, 1px right is better than 1px left.
+		paddingAsInt++;
+	}
+
+	drawString(stringBuf.c_str(), pixelX + paddingAsInt, pixelY, stringWidth, textSpacingY);
 }
 
 /// Draw a string, reducing its height so the string fits within the specified width
 ///
 /// @param string A null-terminated C string
-/// @param pixelY The Y coordinate of the top of the string
 /// @param textWidth Requested width for each character in the string
 /// @param textHeight Requested height for each character in the string
 void Canvas::drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, int32_t textWidth,
@@ -383,7 +403,11 @@ void Canvas::drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, int32_t s
 }
 
 int32_t Canvas::getCharIndex(uint8_t theChar) {
-	if (theChar > '~') {
+	// 129 represents flat glyph
+	if (theChar == 129) {
+		theChar = '~' + 1;
+	}
+	else if (theChar > '~') {
 		return 0;
 	}
 
@@ -485,7 +509,21 @@ int32_t Canvas::getStringWidthInPixels(char const* string, int32_t textHeight) {
 }
 
 void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height,
-                                  int32_t numBytesTall) {
+                                  int32_t numBytesTall, bool reversed) {
+	if (reversed) {
+		std::vector<uint8_t> reversedGraphic(width);
+		int32_t columnCount = width / numBytesTall;
+		for (int32_t col = 0; col < columnCount; ++col) {
+			int32_t inputIndex = col * numBytesTall;
+			int32_t reversedCol = columnCount - 1 - col;
+			int32_t outputIndex = reversedCol * numBytesTall;
+			for (int32_t byte = 0; byte < numBytesTall; ++byte) {
+				reversedGraphic[outputIndex + byte] = graphic[inputIndex + byte];
+			}
+		}
+		return drawGraphicMultiLine(reversedGraphic.data(), startX, startY, width, height, numBytesTall);
+	}
+
 	int32_t rowOnDisplay = startY >> 3;
 	int32_t yOffset = startY & 7;
 	int32_t rowOnGraphic = 0;
@@ -550,13 +588,14 @@ void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_
 /// Draw a screen title and underline it.
 ///
 /// @param text Title text
-void Canvas::drawScreenTitle(std::string_view title) {
-	int32_t extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
-
-	int32_t startY = extraY + OLED_MAIN_TOPMOST_PIXEL;
+void Canvas::drawScreenTitle(std::string_view title, bool drawSeparator) {
+	constexpr int32_t extraY = 1;
+	constexpr int32_t startY = extraY + OLED_MAIN_TOPMOST_PIXEL;
 
 	drawString(title, 0, startY, kTextTitleSpacingX, kTextTitleSizeY);
-	drawHorizontalLine(extraY + 11 + OLED_MAIN_TOPMOST_PIXEL, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+	if (drawSeparator) {
+		drawHorizontalLine(extraY + 11 + OLED_MAIN_TOPMOST_PIXEL, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+	}
 }
 
 void Canvas::invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
@@ -585,10 +624,21 @@ void Canvas::invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t end
 	}
 }
 
+void Canvas::invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
+	invertArea(xMin, width, startY, endY);
+
+	// restore corners back
+	const int32_t xMax = xMin + width - 1;
+	clearPixel(xMin, startY);
+	clearPixel(xMax, startY);
+	clearPixel(xMin, endY);
+	clearPixel(xMax, endY);
+}
+
 /// inverts just the left edge
 void Canvas::invertLeftEdgeForMenuHighlighting(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
 	if (!FlashStorage::accessibilityMenuHighlighting) {
-		return invertArea(xMin, width, startY, endY);
+		return invertAreaRounded(xMin, width, startY, endY);
 	}
 
 	int32_t firstRowY = startY >> 3;

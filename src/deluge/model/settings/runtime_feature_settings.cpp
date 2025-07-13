@@ -102,24 +102,6 @@ static void SetupEmulatedDisplaySetting(RuntimeFeatureSetting& setting, deluge::
 	};
 }
 
-static void SetupHorizontalMenuStyleSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
-                                            std::string_view xmlName, RuntimeFeatureStateHorizontalMenuStyle def) {
-	setting.displayName = displayName;
-	setting.xmlName = xmlName;
-	setting.value = static_cast<uint32_t>(def);
-
-	setting.options = {
-	    {
-	        .displayName = display->haveOLED() ? "Numeric" : "NUM",
-	        .value = RuntimeFeatureStateHorizontalMenuStyle::Numeric,
-	    },
-	    {
-	        .displayName = display->haveOLED() ? "Graphical" : "GRPH",
-	        .value = RuntimeFeatureStateHorizontalMenuStyle::Graphical,
-	    },
-	};
-}
-
 void RuntimeFeatureSettings::init() {
 	using enum deluge::l10n::String;
 	// Drum randomizer
@@ -131,10 +113,6 @@ void RuntimeFeatureSettings::init() {
 	// FineTempoKnob
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob], STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB,
 	                  "fineTempoKnob", RuntimeFeatureStateToggle::On);
-	// PatchCableResolution
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution],
-	                  STRING_FOR_COMMUNITY_FEATURE_MOD_DEPTH_DECIMALS, "modDepthDecimals",
-	                  RuntimeFeatureStateToggle::On);
 	// CatchNotes
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES,
 	                  "catchNotes", RuntimeFeatureStateToggle::On);
@@ -212,16 +190,6 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HorizontalMenus],
 	                  STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS, "enableHorizontalMenus",
 	                  RuntimeFeatureStateToggle::On);
-
-	// Horizontal menus, small font for labels
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HorizontalMenusSmallFontForLabels],
-	                  STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS_SMALL_FONT_FOR_LABELS,
-	                  "enableHorizontalMenusSmallFontForLabels", RuntimeFeatureStateToggle::Off);
-
-	// Horizontal menus, style
-	SetupHorizontalMenuStyleSetting(settings[RuntimeFeatureSettingType::HorizontalMenuStyle],
-	                                STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS_STYLE, "horizontalMenuStyle",
-	                                RuntimeFeatureStateHorizontalMenuStyle::Numeric);
 
 	// Trim from start of audio clip
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrimFromStartOfAudioClip],

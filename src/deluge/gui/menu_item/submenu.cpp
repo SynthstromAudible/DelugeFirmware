@@ -66,7 +66,7 @@ void Submenu::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t star
 	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 	// Draw arrow icon centered indicating that there is another layer
-	const int32_t arrowY = startY + 4;
+	const int32_t arrowY = startY + 3;
 	const int32_t arrowX = startX + (width - kSubmenuIconSpacingX) / 2 - 1;
 	image.drawGraphicMultiLine(hid::display::OLED::submenuArrowIconBold, arrowX, arrowY, kSubmenuIconSpacingX);
 }

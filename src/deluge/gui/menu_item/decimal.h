@@ -37,6 +37,9 @@ protected:
 
 	// 7Seg Only
 	virtual void drawActualValue(bool justDidHorizontalScroll = false);
+	virtual void appendAdditionalDots(std::vector<uint8_t>& dotPositions) {};
+
+	int32_t getNonZeroDecimalPlacesCount();
 
 private:
 	void scrollToGoodPos();
@@ -52,15 +55,11 @@ public:
 protected:
 	virtual float getDisplayValue() { return this->getValue(); }
 	virtual const char* getUnit() { return ""; }
-	[[nodiscard]] int32_t getColumnSpan() const override {
-		return runtimeFeatureSettings.get(HorizontalMenuStyle) == Numeric ? 2 : 1;
-	}
 	void getValueForPopup(StringBuf& value) override;
 	void drawPixelsForOled() override;
 	void drawDecimal(int32_t textWidth, int32_t textHeight, int32_t yPixel);
 	// 7Seg Only
 	void drawActualValue(bool justDidHorizontalScroll = false) override;
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 };
 
 } // namespace deluge::gui::menu_item

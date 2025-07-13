@@ -17,7 +17,6 @@
 
 #include "patch_cable_strength.h"
 #include "definitions_cxx.hpp"
-#include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -27,8 +26,6 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "model/action/action.h"
-#include "model/action/action_logger.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_descriptor.h"
@@ -36,9 +33,13 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "source_selection.h"
+#include "source_selection/range.h"
 #include "util/functions.h"
 
-using deluge::hid::display::OLED;
+#include <hid/led/indicator_leds.h>
+#include <util/comparison.h>
+
+using hid::display::OLED;
 
 namespace deluge::gui::menu_item {
 extern bool movingCursor;
@@ -46,93 +47,139 @@ extern bool movingCursor;
 void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
 	Decimal::beginSession(navigatedBackwardFrom);
 
-	preferBarDrawing =
-	    (runtimeFeatureSettings.get(RuntimeFeatureSettingType::PatchCableResolution) == RuntimeFeatureStateToggle::Off);
+	auto* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
+	const uint32_t patchCableIndex = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
+	const Polarity polarity = patchCableIndex == kNoSelection ? FlashStorage::defaultPatchCablePolarity
+	                                                          : patchCableSet->patchCables[patchCableIndex].polarity;
+	updatePolarity(polarity);
 
 	delayHorizontalScrollUntil = 0;
 }
 
+void PatchCableStrength::endSession() {
+	if (display->haveOLED()) {
+		setLedState(IndicatorLED::MIDI, false);
+		setLedState(IndicatorLED::CV, false);
+	}
+}
+
 void PatchCableStrength::renderOLED() {
+	hid::display::oled_canvas::Canvas& image = OLED::main;
 
-	int32_t extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
+	constexpr int32_t extraY = 1;
 
-	PatchSource s = getS();
+	// Draw patch sources and destination
+	{
+		const ParamDescriptor destinationDescriptor = getDestinationDescriptor();
+		const PatchSource source = getS();
+		const bool isJustAParam = destinationDescriptor.isJustAParam();
 
-	int32_t yTop = extraY + OLED_MAIN_TOPMOST_PIXEL;
-	int32_t ySpacing;
+		constexpr int32_t leftPadding = 2;
+		const int32_t ySpacing = isJustAParam ? kTextSpacingY : 8;
+		int32_t y = extraY + OLED_MAIN_TOPMOST_PIXEL;
+		y += isJustAParam ? 4 : 1;
 
-	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
-	if (destinationDescriptor.isJustAParam()) {
-		yTop += 3;
-		ySpacing = kTextSpacingY;
-	}
-	else {
-		yTop++;
-		ySpacing = 8;
-	}
+		// Draw the source name
+		image.drawString(sourceToStringShort(source), leftPadding, y, kTextSpacingX, kTextSizeYUpdated);
+		y += ySpacing;
 
-	int32_t yPixel = yTop;
+		if (!isJustAParam) {
+			// Draw arrow line to the second source
+			const int32_t horizontalLineY = y + (ySpacing << 1);
+			image.drawVerticalLine(leftPadding + 4, y + 1, horizontalLineY);
+			image.drawHorizontalLine(horizontalLineY, leftPadding + 4, leftPadding + kTextSpacingX * 2 + 4);
+			image.drawGraphicMultiLine(OLED::rightArrowIcon, leftPadding + 3 + kTextSpacingX, horizontalLineY - 2, 3);
+			y += ySpacing - 1;
 
-	OLED::main.drawString(getSourceDisplayNameForOLED(s), 0, yPixel, kTextSpacingX, kTextSizeYUpdated);
-	yPixel += ySpacing;
+			// Draw the second source name
+			image.drawString(sourceToStringShort(destinationDescriptor.getTopLevelSource()),
+			                 leftPadding + kTextSpacingX * 2, y - 3, kTextSpacingX, kTextSizeYUpdated);
+			y += ySpacing;
 
-	if (!destinationDescriptor.isJustAParam()) {
-		// deluge::hid::display::OLED::drawGraphicMultiLine(deluge::hid::display::OLED::downArrowIcon, 0, yPixel, 8,
-		// deluge::hid::display::OLED::oledMainImage[0]);
-		int32_t horizontalLineY = yPixel + (ySpacing << 1);
-		OLED::main.drawVerticalLine(4, yPixel + 1, horizontalLineY);
-		int32_t rightArrowX = 3 + kTextSpacingX;
-		OLED::main.drawHorizontalLine(horizontalLineY, 4, kTextSpacingX * 2 + 4);
-		OLED::main.drawGraphicMultiLine(deluge::hid::display::OLED::rightArrowIcon, rightArrowX, horizontalLineY - 2,
-		                                3);
+			// Draw arrow line to the destination
+			image.drawVerticalLine(leftPadding + kTextSpacingX * 2 + 4, y - 2, y + 2);
+			image.drawGraphicMultiLine(OLED::downArrowIcon, leftPadding + kTextSpacingX * 2 + 2, y, 5);
+			y += ySpacing;
+		}
+		else {
+			// Draw arrow line to the destination
+			image.drawVerticalLine(leftPadding + 3, y + 2, y + 5);
+			image.drawGraphicMultiLine(OLED::downArrowIcon, leftPadding + 1, y + 6, 5);
+			y += 16;
+		}
 
-		yPixel += ySpacing - 1;
-
-		PatchSource s2 = destinationDescriptor.getTopLevelSource();
-		OLED::main.drawString(getSourceDisplayNameForOLED(s2), kTextSpacingX * 2, yPixel - 3, kTextSpacingX,
-		                      kTextSizeYUpdated);
-		yPixel += ySpacing;
-
-		OLED::main.drawVerticalLine(kTextSpacingX * 2 + 4, yPixel - 2, yPixel + 2);
-	}
-
-	OLED::main.drawGraphicMultiLine(deluge::hid::display::OLED::downArrowIcon,
-	                                destinationDescriptor.isJustAParam() ? 2 : (kTextSpacingX * 2 + 2), yPixel, 5);
-	yPixel += ySpacing;
-
-	int32_t p = destinationDescriptor.getJustTheParam();
-
-	OLED::main.drawString(deluge::modulation::params::getPatchedParamDisplayName(p), 0, yPixel, kTextSpacingX,
-	                      kTextSizeYUpdated);
-
-	if (soundEditor.numberEditPos != getDefaultEditPos()) {
-		preferBarDrawing = false;
+		// Draw the destination name
+		image.drawString(modulation::params::getPatchedParamShortName(destinationDescriptor.getJustTheParam()),
+		                 leftPadding, y, kTextSpacingX, kTextSizeYUpdated);
 	}
 
-	char buffer[12];
-	if (preferBarDrawing) {
-		int32_t rounded = this->getValue() / 100;
-		intToString(rounded, buffer, 1);
-		OLED::main.drawStringAlignRight(
-		    buffer, extraY + OLED_MAIN_TOPMOST_PIXEL + 4 + destinationDescriptor.isJustAParam(), 18, 20);
+	// Draw the polarity switcher
+	{
+		constexpr int32_t startX = 73;
+		constexpr int32_t biSlotWidth = 25;
+		constexpr int32_t uniSlotWidth = 28;
+		constexpr int32_t endX = startX + biSlotWidth + uniSlotWidth - 1;
+		constexpr int32_t startY = 34;
+		constexpr int32_t endY = startY + kTextSpacingY;
 
-		int32_t marginL = destinationDescriptor.isJustAParam() ? 0 : 80;
-		int32_t yBar = destinationDescriptor.isJustAParam() ? 36 : 37;
-		drawBar(yBar, marginL, 0);
+		// Draw border
+		image.drawVerticalLine(startX - 2, startY, endY);
+		image.drawVerticalLine(endX + 2, startY, endY);
+		image.drawHorizontalLine(startY - 2, startX, endX);
+		image.drawPixel(startX - 1, startY - 1);
+		image.drawPixel(endX + 1, startY - 1);
+
+		// Draw strings
+		image.drawStringCentered("BI", startX, startY, kTextSpacingX, kTextSpacingY, biSlotWidth);
+		image.drawStringCentered("UNI", startX + biSlotWidth + 1, startY, kTextSpacingX, kTextSpacingY, uniSlotWidth);
+
+		// Highlight selected
+		if (polarity_ == Polarity::BIPOLAR) {
+			image.invertAreaRounded(startX, biSlotWidth, startY, endY);
+		}
+		else {
+			image.invertAreaRounded(startX + biSlotWidth, uniSlotWidth, startY, endY);
+		}
 	}
-	else {
-		const int32_t digitWidth = kTextBigSpacingX;
-		const int32_t digitHeight = kTextBigSizeY;
-		intToString(this->getValue(), buffer, 3);
-		int32_t textPixelY = extraY + OLED_MAIN_TOPMOST_PIXEL + 10 + destinationDescriptor.isJustAParam();
-		OLED::main.drawStringAlignRight(buffer, textPixelY, digitWidth, digitHeight);
 
-		int32_t ourDigitStartX = OLED_MAIN_WIDTH_PIXELS - (soundEditor.numberEditPos + 1) * digitWidth;
-		OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
-		OLED::main.drawVerticalLine(OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth, textPixelY + digitHeight + 1,
-		                            textPixelY + digitHeight + 3);
-		OLED::main.drawVerticalLine(OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth - 1, textPixelY + digitHeight + 1,
-		                            textPixelY + digitHeight + 3);
+	// Draw the number
+	{
+		const int32_t value = getValue();
+		const int32_t decimalPlacesCount = getNonZeroDecimalPlacesCount();
+
+		// We hide the fractional part digit if it's zero and the cursor is not on the fractional part
+		const int32_t hiddenDigitsCount = [&] {
+			if (soundEditor.numberEditPos > 1) {
+				return decimalPlacesCount == 2 ? 0 : decimalPlacesCount == 1 ? 1 : 2;
+			}
+			if (soundEditor.numberEditPos == 1) {
+				return decimalPlacesCount == 2 ? 0 : 1;
+			}
+			return 0;
+		}();
+		const int32_t numberEditPos = soundEditor.numberEditPos - hiddenDigitsCount;
+		const int32_t numberStr = value / std::pow(10, hiddenDigitsCount);
+
+		char numberBuf[6];
+		intToString(numberStr, numberBuf, 3 - hiddenDigitsCount);
+
+		constexpr int32_t digitWidth = kTextBigSpacingX;
+		constexpr int32_t digitHeight = kTextBigSizeY;
+
+		constexpr int32_t textY = extraY + OLED_MAIN_TOPMOST_PIXEL + 4;
+		constexpr int32_t rightPadding = 3;
+		image.drawStringAlignRight(numberBuf, textY, digitWidth, digitHeight, OLED_MAIN_WIDTH_PIXELS - rightPadding);
+
+		// Setup blinking for cursor
+		const int32_t cursorStartX = OLED_MAIN_WIDTH_PIXELS - (numberEditPos + 1) * digitWidth - rightPadding;
+		OLED::setupBlink(cursorStartX, digitWidth, textY + digitHeight + 1, textY + digitHeight + 1, movingCursor);
+
+		// Draw the cursor
+		if (const int32_t fractionalDigitsCount = 2 - hiddenDigitsCount; fractionalDigitsCount > 0) {
+			const int32_t separatorX = OLED_MAIN_WIDTH_PIXELS - fractionalDigitsCount * digitWidth - rightPadding;
+			image.drawVerticalLine(separatorX, textY + digitHeight + 1, textY + digitHeight + 3);
+			image.drawVerticalLine(separatorX - 1, textY + digitHeight + 1, textY + digitHeight + 3);
+		}
 	}
 }
 
@@ -143,10 +190,17 @@ void PatchCableStrength::readCurrentValue() {
 		this->setValue(0);
 	}
 	else {
-		int32_t paramValue = patchCableSet->patchCables[c].param.getCurrentValue();
+		PatchCable& patchCable = patchCableSet->patchCables[c];
+		const int32_t paramValue = patchCable.param.getCurrentValue();
 		// the internal values are stored in the range -(2^30) to 2^30.
 		// rescale them to the range -5000 to 5000 and round to nearest.
 		this->setValue(((int64_t)paramValue * kMaxMenuPatchCableValue + (1 << 29)) >> 30);
+
+		if (polarity_ != patchCable.polarity) {
+			// could happen if the polarity was changed in the UI on detached patch cable (when the value is 0)
+			// in this case just correct the polarity
+			patchCable.polarity = polarity_;
+		}
 	}
 }
 
@@ -238,11 +292,41 @@ PatchSource PatchCableStrength::getPatchSource() {
 }
 
 MenuItem* PatchCableStrength::selectButtonPress() {
-	return Automation::selectButtonPress();
+	// Cancel the polarity popup on the 7SEG
+	if (display->have7SEG() && display->hasPopup()) {
+		display->cancelPopup();
+		return NO_NAVIGATION;
+	}
+	// If shift held down, delete automation
+	if (Buttons::isShiftButtonPressed()) {
+		return Automation::selectButtonPress();
+	}
+	// Go to the range menu or back if we in the range menu already
+	return &source_selection::rangeMenu;
 }
 
-ActionResult PatchCableStrength::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult PatchCableStrength::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	if (on && (b == hid::button::MIDI || b == hid::button::CV) && display->haveOLED()) {
+		updatePolarity(b == hid::button::MIDI ? Polarity::BIPOLAR : Polarity::UNIPOLAR);
+		return ActionResult::DEALT_WITH;
+	}
 	return Automation::buttonAction(b, on, inCardRoutine);
+}
+
+void PatchCableStrength::selectEncoderAction(int32_t offset) {
+	if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
+		updatePolarity(offset > 0 ? Polarity::UNIPOLAR : Polarity::BIPOLAR);
+
+		if (display->haveOLED()) {
+			Buttons::selectButtonPressUsedUp = true;
+		}
+		else {
+			display->popupText(polarityToStringShort(polarity_).data());
+		}
+		return;
+	}
+
+	return Decimal::selectEncoderAction(offset);
 }
 
 void PatchCableStrength::horizontalEncoderAction(int32_t offset) {
@@ -276,6 +360,31 @@ void PatchCableStrength::horizontalEncoderAction(int32_t offset) {
 
 void PatchCableStrength::updateAutomationViewParameter() {
 	Automation::handleAutomationViewParameterUpdate();
+}
+
+void PatchCableStrength::updatePolarity(Polarity newPolarity) {
+	polarity_ = newPolarity;
+
+	auto* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
+	if (const int32_t index = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
+	    index != kNoSelection) {
+		patchCableSet->patchCables[index].polarity = newPolarity;
+	}
+
+	if (display->haveOLED()) {
+		setLedState(IndicatorLED::MIDI, newPolarity == Polarity::BIPOLAR);
+		setLedState(IndicatorLED::CV, newPolarity == Polarity::UNIPOLAR);
+		renderUIsForOled();
+	}
+	else {
+		drawActualValue();
+	}
+}
+
+void PatchCableStrength::appendAdditionalDots(std::vector<uint8_t>& dotPositions) {
+	if (polarity_ == Polarity::UNIPOLAR) {
+		dotPositions.push_back(3);
+	}
 }
 
 } // namespace deluge::gui::menu_item

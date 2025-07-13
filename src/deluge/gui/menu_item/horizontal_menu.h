@@ -10,22 +10,18 @@ namespace deluge::gui::menu_item {
 
 class HorizontalMenu : public Submenu {
 public:
+	friend class HorizontalMenuCombined;
+
 	enum Layout { FIXED, DYNAMIC };
-	struct PageInfo {
+	struct Page {
 		int32_t number;
 		std::vector<MenuItem*> items;
 	};
 	struct Paging {
 		int32_t visiblePageNumber;
 		int32_t selectedItemPositionOnPage;
-		std::vector<PageInfo> pages;
-		PageInfo& getVisiblePage() { return pages[visiblePageNumber]; }
-	};
-	struct ColumnLabelPosition {
-		int32_t startX;
-		int32_t startY;
-		int32_t width;
-		int32_t height;
+		std::vector<Page> pages;
+		Page& getVisiblePage() { return pages[visiblePageNumber]; }
 	};
 
 	using Submenu::Submenu;
@@ -38,11 +34,10 @@ public:
 	               Layout layout)
 	    : Submenu(newName, newTitle, newItems), layout(layout), paging{} {}
 
-	Submenu::RenderingStyle renderingStyle() const override;
+	RenderingStyle renderingStyle() const override;
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
 	void selectEncoderAction(int32_t offset) override;
 	void renderOLED() override;
-	void drawPixelsForOled() override;
 	void endSession() override;
 
 protected:
@@ -50,13 +45,20 @@ protected:
 	Layout layout = DYNAMIC;
 	int32_t lastSelectedItemPosition = kNoSelection;
 
+	virtual void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem);
+	virtual Paging splitMenuItemsByPages(std::span<MenuItem*> items, const MenuItem* currentItem);
+	virtual ActionResult selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous,
+	                                    int32_t selectedColumn);
+
 private:
-	ActionResult selectMenuItemOnVisiblePage(int32_t selectedColumn);
-	ActionResult switchVisiblePage(int32_t direction);
 	void updateSelectedMenuItemLED(int32_t itemNumber);
-	Paging splitMenuItemsByPages() const;
+	void renderPageCounters() const;
+	ActionResult switchVisiblePage(int32_t direction);
 	static void displayPopup(MenuItem* menuItem);
-	static ColumnLabelPosition renderColumnLabel(MenuItem* menuItem, int32_t startY, int32_t slotStartX,
-	                                             int32_t slotWidth);
+	static void renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32_t slotStartX, int32_t slotWidth,
+	                              bool isSelected);
+
+	double currentKnobSpeed{0.0};
+	double calcNextKnobSpeed(int8_t offset);
 };
 } // namespace deluge::gui::menu_item

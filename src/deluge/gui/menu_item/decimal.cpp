@@ -181,11 +181,11 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 		outputText[4] = 0;
 	}
 
-	int32_t dotPos;
-	if (getNumDecimalPlaces())
-		dotPos = soundEditor.numberScrollAmount + 3 - getNumDecimalPlaces();
-	else
-		dotPos = 255;
+	std::vector<uint8_t> dotPositions{};
+	if (getNumDecimalPlaces()) {
+		dotPositions.push_back(soundEditor.numberScrollAmount + 3 - getNumDecimalPlaces());
+	}
+	appendAdditionalDots(dotPositions);
 
 	indicator_leds::blinkLed(IndicatorLED::BACK, 255, 0, !justDidHorizontalScroll);
 
@@ -193,12 +193,22 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	memset(&blinkMask, 255, kNumericDisplayLength);
 	blinkMask[3 + soundEditor.numberScrollAmount - soundEditor.numberEditPos] = 0b10000000;
 
-	display->setText(outputText,
-	                 true,   // alignRight
-	                 dotPos, // drawDot
-	                 true,   // doBlink
-	                 blinkMask,
-	                 false); // blinkImmediately
+	display->setTextWithMultipleDots(outputText, dotPositions,
+	                                 true, // alignRight
+	                                 true, // doBlink
+	                                 blinkMask,
+	                                 false); // blinkImmediately
+}
+
+int32_t Decimal::getNonZeroDecimalPlacesCount() {
+	const int32_t value = this->getValue();
+	const float remaining = std::abs(value / 100 - value / 100.0f);
+	if (remaining == 0) {
+		return 0;
+	}
+	DEF_STACK_STRING_BUF(remainingBuf, 8);
+	remainingBuf.appendFloat(remaining, 0, 2);
+	return remainingBuf.size() - 2;
 }
 
 void DecimalWithoutScrolling::selectEncoderAction(int32_t offset) {
@@ -218,11 +228,11 @@ void DecimalWithoutScrolling::selectEncoderAction(int32_t offset) {
 }
 
 void DecimalWithoutScrolling::drawDecimal(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
-	int32_t numDecimalPlaces = getNumDecimalPlaces();
+	const int32_t numDecimalPlaces = getNumDecimalPlaces();
 	char buffer[12];
 	floatToString(getDisplayValue(), buffer, numDecimalPlaces, numDecimalPlaces);
 	strncat(buffer, getUnit(), 4);
-	deluge::hid::display::OLED::main.drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
+	hid::display::OLED::main.drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
 }
 
 void DecimalWithoutScrolling::drawPixelsForOled() {
@@ -230,18 +240,11 @@ void DecimalWithoutScrolling::drawPixelsForOled() {
 }
 
 void DecimalWithoutScrolling::drawActualValue(bool justDidHorizontalScroll) {
-	int32_t dotPos;
-	float displayValue = getDisplayValue();
-	int32_t numDecimalPlaces = displayValue > 100 ? 1 : 2;
+	const float displayValue = getDisplayValue();
+	const int32_t numDecimalPlaces = displayValue > 100 ? 1 : 2;
 	char buffer[12];
 	floatToString(displayValue, buffer, numDecimalPlaces, numDecimalPlaces);
-	if (numDecimalPlaces) {
-		dotPos = 3 - numDecimalPlaces;
-	}
-	else {
-		dotPos = 255;
-	}
-	display->setText(buffer, dotPos);
+	display->setText(buffer, true, 3 - numDecimalPlaces);
 }
 
 void DecimalWithoutScrolling::getValueForPopup(StringBuf& value) {
@@ -250,45 +253,4 @@ void DecimalWithoutScrolling::getValueForPopup(StringBuf& value) {
 	value.append(getUnit());
 }
 
-void DecimalWithoutScrolling::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
-	if (runtimeFeatureSettings.get(HorizontalMenuStyle) != Numeric) {
-		return Number::renderInHorizontalMenu(startX, width, startY, height);
-	}
-
-	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
-
-	const int32_t numDecimalPlaces = getNumDecimalPlaces();
-	const float displayValue = getDisplayValue();
-
-	// Prepare value string and trim spaces
-	char valueBuf[12];
-	floatToString(displayValue, valueBuf, numDecimalPlaces, numDecimalPlaces);
-	DEF_STACK_STRING_BUF(valueString, 12);
-	valueString.append(valueBuf);
-	valueString.removeSpaces();
-
-	// Prepare unit string and trim spaces
-	const char* unitRaw = getUnit();
-	DEF_STACK_STRING_BUF(unitString, 8);
-	unitString.append(unitRaw);
-	unitString.removeSpaces();
-
-	const int valuePxLen = image.getStringWidthInPixels(valueString.c_str(), kTextSpacingY);
-	const int unitPxLen = image.getStringWidthInPixels(unitString.c_str(), kTextSpacingY);
-	constexpr int paddingBetweenPxLen = 2;
-	const int totalPxLen = valuePxLen + (unitPxLen > 0 ? paddingBetweenPxLen + unitPxLen : 0);
-
-	// Draw the resulting string centered
-	const int pad = ((width - totalPxLen) / 2) - 1;
-	startX += pad;
-	startY += 4;
-
-	image.drawString(valueString.c_str(), startX, startY, kTextSpacingX, kTextSpacingY, 0,
-	                 startX + width - kTextSpacingX);
-	if (unitPxLen > 0) {
-		startX += valuePxLen + paddingBetweenPxLen;
-		image.drawString(unitString.c_str(), startX, startY, kTextSpacingX, kTextSpacingY, 0,
-		                 startX + width - kTextSpacingX);
-	}
-}
 } // namespace deluge::gui::menu_item
