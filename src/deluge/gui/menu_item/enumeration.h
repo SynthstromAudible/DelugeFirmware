@@ -23,7 +23,7 @@ protected:
 	/// Writes to a buffer instead of returning a value, since some subclasses (SyncLevel) must generate
 	/// their option names. Default implementation renders the current value as number.
 	virtual void getShortOption(StringBuf&);
-	void getValueForPopup(StringBuf& value) override { getShortOption(value); }
+	void getNotificationValue(StringBuf& value) override { getShortOption(value); }
 };
 
 } // namespace deluge::gui::menu_item

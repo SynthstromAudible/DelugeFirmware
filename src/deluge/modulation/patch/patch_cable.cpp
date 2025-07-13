@@ -64,7 +64,7 @@ Polarity PatchCable::getDefaultPolarity(PatchSource source) {
 		// Aftertouch is stored unipolar, using bipolar here causes near zero volume with the default patch to level
 		return Polarity::UNIPOLAR;
 	}
-	if (source == PatchSource::Y || source == PatchSource::X) {
+	if (source == PatchSource::Y || source == PatchSource::X || source == PatchSource::SIDECHAIN) {
 		// mod wheel is stored unipolar but MPE Y is bipolar, so stuck using bipolar
 		return Polarity::BIPOLAR;
 	}

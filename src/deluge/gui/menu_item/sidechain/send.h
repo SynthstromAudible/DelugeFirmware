@@ -28,6 +28,7 @@ namespace deluge::gui::menu_item::sidechain {
 class Send final : public Integer {
 public:
 	using Integer::Integer;
+
 	void readCurrentValue() override {
 		this->setValue(((uint64_t)soundEditor.currentSound->sideChainSendLevel * kMaxMenuValue + 1073741824) >> 31);
 	}
@@ -60,8 +61,9 @@ public:
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return VERTICAL_BAR; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return (soundEditor.editingKit());
+		return soundEditor.editingKit();
 	}
 };
 } // namespace deluge::gui::menu_item::sidechain
