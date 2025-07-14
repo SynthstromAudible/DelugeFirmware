@@ -74,6 +74,8 @@ protected:
 
 private:
 	void updatePolarity(Polarity newPolarity);
+	// if polarity is set before the patch cable is created then we'll need to update the patch cable when it exists
+	bool patchCableExists_ = false;
 };
 
 } // namespace deluge::gui::menu_item
