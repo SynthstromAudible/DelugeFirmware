@@ -42,6 +42,13 @@ public:
 	bool isActive();
 	void initAmount(int32_t value);
 	void makeUnusable();
+	/// @brief Initialize patch cable polarity
+	/// This is only needed for aftertouch where bipolar default is not correct
+	void initPolarity(PatchSource newFrom) {
+		if (newFrom == PatchSource::AFTERTOUCH) {
+			polarity = Polarity::UNIPOLAR;
+		}
+	}
 	/// @brief Converts a patch cable source to the correct polarity.
 	/// The source is required because some sources are stored unipolar
 	int32_t toPolarity(int32_t value) {

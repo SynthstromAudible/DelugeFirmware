@@ -53,6 +53,7 @@ void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 	from = newFrom;
 	destinationParamDescriptor.setToHaveParamOnly(newTo);
 	initAmount(newAmount);
+	initPolarity(newFrom);
 }
 
 bool PatchCable::isActive() {
