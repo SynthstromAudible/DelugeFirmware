@@ -370,17 +370,18 @@ void PatchCableStrength::updateAutomationViewParameter() {
 }
 
 void PatchCableStrength::updatePolarity(Polarity newPolarity) {
-	polarity_ = newPolarity;
-
-	auto* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
-	if (const int32_t index = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
-	    index != kNoSelection) {
-		patchCableSet->patchCables[index].polarity = newPolarity;
+	if (PatchCable::hasPolarity(getS())) {
+		polarity_ = newPolarity;
+		auto* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
+		if (const int32_t index = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
+		    index != kNoSelection) {
+			patchCableSet->patchCables[index].polarity = polarity_;
+		}
 	}
 
 	if (display->haveOLED()) {
-		setLedState(IndicatorLED::MIDI, newPolarity == Polarity::BIPOLAR);
-		setLedState(IndicatorLED::CV, newPolarity == Polarity::UNIPOLAR);
+		setLedState(IndicatorLED::MIDI, polarity_ == Polarity::BIPOLAR);
+		setLedState(IndicatorLED::CV, polarity_ == Polarity::UNIPOLAR);
 		renderUIsForOled();
 	}
 	else {

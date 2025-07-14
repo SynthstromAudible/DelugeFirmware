@@ -51,6 +51,14 @@ std::string_view polarityToStringShort(const Polarity polarity) {
 	}
 }
 
+bool PatchCable::hasPolarity(PatchSource source) {
+	if (source == PatchSource::Y || source == PatchSource::X) {
+		// these can't be converted so they ignore the actual setting
+		return false;
+	}
+	return true;
+}
+
 Polarity PatchCable::getDefaultPolarity(PatchSource source) {
 	if (source == PatchSource::AFTERTOUCH) {
 		// Aftertouch is stored unipolar, using bipolar here causes near zero volume with the default patch to level
