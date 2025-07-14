@@ -670,6 +670,35 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	// Beware - modelStackWithThreeMainThings might have a NULL timelineCounter
 
+	// Kit arp, get arp settings, perform setup and render arp pre-output
+	setupAndRenderArpPreOutput(modelStackWithTimelineCounter, paramManager, output);
+
+	// if you're exporting drum stems and includeKitFX configuration setting is disabled
+	// render kit row without kit affect entire FX (but leave in kit affect entire pitch adjustment)
+	if (stemExport.processStarted && (stemExport.currentStemExportType == StemExportType::DRUM)
+	    && !stemExport.includeKitFX) [[unlikely]] {
+		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+
+		int32_t pitchAdjust =
+		    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+
+		GlobalEffectableForClip::renderedLastTime = renderGlobalEffectableForClip(
+		    modelStackWithTimelineCounter, output, nullptr, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
+		    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
+	}
+	// render kit row with kit affect entire FX
+	else {
+		GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
+		                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
+		                                      isClipActive, OutputType::KIT, recorder);
+	}
+
+	// For Midi and Gate rows, we need to call the render method of the arpeggiator post-output
+	renderNonAudioArpPostOutput(output);
+}
+
+void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                     ParamManager* paramManager, std::span<StereoSample> output) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
@@ -742,11 +771,21 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 			}
 		}
 	}
+}
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
-	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
-	                                      isClipActive, OutputType::KIT, recorder);
+ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {
+	if (clip != nullptr) {
+		return &clip->arpSettings;
+	}
+	else if (activeClip != nullptr) {
+		return &((InstrumentClip*)activeClip)->arpSettings;
+	}
+	else {
+		return nullptr;
+	}
+}
 
+void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 		// For Midi and Gate rows, we need to call the render method of the arpeggiator
@@ -789,18 +828,6 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 				}
 			}
 		}
-	}
-}
-
-ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {
-	if (clip) {
-		return &clip->arpSettings;
-	}
-	else if (activeClip) {
-		return &((InstrumentClip*)activeClip)->arpSettings;
-	}
-	else {
-		return nullptr;
 	}
 }
 

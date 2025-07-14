@@ -6,7 +6,7 @@
 #include "mocks/timer_mocks.h"
 #include <iostream>
 #include <stdlib.h>
-
+#include <print>
 #ifdef _WIN32
 #include <Windows.h>
 #else
@@ -58,10 +58,11 @@ void yield_2ms() {
 }
 
 void yield_2ms_with_lock() {
+	std::print("yield_2ms_with_lock at {:f}\n", double(getTimerValueSeconds(0)));
 	mock().actualCall("yield_2ms");
 	started = getTimerValueSeconds(0);
 
-	deluge::io::usb::USBAutoLock lock_;
+	deluge::io::usb::USBAutoLock lock_{};
 	yield([]() { return getTimerValueSeconds(0) > started + Time(0.002); });
 }
 
@@ -75,8 +76,7 @@ TEST_GROUP(Scheduler){
 TEST(Scheduler, schedule) {
 
 	mock().clear();
-	// will be called one less time due to the time the sleep takes not being zero
-	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_50ns");
+	mock().expectNCalls(0.01 / 0.001, "sleep_50ns");
 	addRepeatingTask(sleep_50ns, 0, 0.001, 0.001, 0.001, "sleep_50ns", RESOURCE_NONE);
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.0095);
@@ -90,7 +90,6 @@ TEST(Scheduler, remove) {
 	                             RESOURCE_NONE);
 	selfRemoving.id = id;
 	mock().clear();
-	// will be called one less time due to the time the sleep takes not being zero
 	mock().expectNCalls(5, "runFiveTimes");
 
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
@@ -130,10 +129,9 @@ TEST(Scheduler, scheduleConditionalDoesntRun) {
 
 TEST(Scheduler, backOffTime) {
 	mock().clear();
-	// will be called one less time due to the time the sleep takes not being zero
-	mock().expectNCalls(9, "sleep_50ns");
+	mock().expectNCalls(10, "sleep_50ns");
 	addRepeatingTask(sleep_50ns, 1, 0.01, 0.001, 1.0, "sleep_50ns", RESOURCE_NONE);
-	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
+	// run the scheduler for 100ms, calling the function to sleep 50ns every 10ms
 	taskManager.start(0.1);
 	mock().checkExpectations();
 };
@@ -153,8 +151,7 @@ TEST(Scheduler, scheduleOnceWithRepeating) {
 
 TEST(Scheduler, yield) {
 	mock().clear();
-	// runs an extra time as sleep2ms yields
-	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_50ns");
+	mock().expectNCalls(0.01 / 0.001, "sleep_50ns");
 	mock().expectNCalls(1, "yield_2ms");
 	// every 1ms sleep for 50ns and 10ns
 	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep_50ns", RESOURCE_NONE);
@@ -166,7 +163,7 @@ TEST(Scheduler, yield) {
 
 TEST(Scheduler, removeWithPriZero) {
 	mock().clear();
-	mock().expectNCalls((0.01 - 0.002) / 0.001 - 1, "sleep_50ns");
+	mock().expectNCalls((0.01 - 0.002) / 0.001, "sleep_50ns");
 	mock().expectNCalls(2, "sleep_2ms");
 	// every 1ms sleep for 50ns and 10ns
 	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep 50ns", RESOURCE_NONE);
@@ -234,16 +231,15 @@ TEST(Scheduler, overSchedule) {
 	// will take one call to get duration, second call at its maximum time between calls
 	mock().expectNCalls(2, "sleep_2ms");
 	// will be missing 4ms from the two sleeps
-	mock().expectNCalls(0.006 / 0.001, "sleep_50ns");
-	mock().expectNCalls(0.006 / 0.001, "sleep_20ns");
+	mock().expectNCalls(0.006 / 0.001 + 1, "sleep_50ns");
+	mock().expectNCalls(0.006 / 0.001 + 1, "sleep_20ns");
 
 	// every 1ms sleep for 50ns and 10ns
 	auto fiftynshandle = addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep 50ns", RESOURCE_NONE);
 	auto tennshandle = addRepeatingTask(sleep_20ns, 0, 0.001, 0.001, 0.001, "sleep 20ns", RESOURCE_NONE);
 	auto twomsHandle = addRepeatingTask(sleep_2ms, 100, 0.001, 0.002, 0.005, "sleep 2ms", RESOURCE_NONE);
 	// run the scheduler for 10ms
-	taskManager.start(0.0099);
-
+	taskManager.start(0.01);
 	mock().checkExpectations();
 };
 TEST(Scheduler, yield_with_lock) {
@@ -255,7 +251,7 @@ TEST(Scheduler, yield_with_lock) {
 	addRepeatingTask(sleep_50ns, 10, 0.0001, 0.0001, 0.0001, "sleep_50ns", RESOURCE_USB);
 
 	addOnceTask(yield_2ms_with_lock, 2, 0, "sleep 2ms", RESOURCE_USB);
-	// run the scheduler for 10ms
+	// run the scheduler for 2ms
 	taskManager.start(0.002);
 	mock().checkExpectations();
 };

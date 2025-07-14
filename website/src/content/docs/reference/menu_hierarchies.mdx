@@ -4,6 +4,8 @@ sidebar:
   order: 2
 ---
 
+import { Badge } from "@astrojs/starlight/components"
+
 This document will document the menu structure hierarchy currently in place in the deluge in order to help users understand what exists in the menu structure and how the hierarchy strings are defined for OLED and 7SEG users.
 
 The hierarchy's illustrated below will follow the format of OLED (7SEG) in order to show the Menu name on OLED and the Menu name on 7SEG in brackets.
@@ -635,7 +637,7 @@ NOTE: These options can change depending on how your default resolution is set
 		- Offline Rendering (OFFR)
 			- Disabled (OFF)
 			- Enabled (ON)
-		- Export Mixdown (MIXD)
+		- Export Mixdown (MIXD) <Badge text="c1.3" variant="tip" />
 			- Disabled (OFF)
 			- Enabled (ON)
 </details>
@@ -1470,6 +1472,27 @@ The Kit FX menu is accessible from Kit clips when :key[AffectEntire] is enabled 
 
 The Kit FX menu contains the following menu hierarchy:
 
+<details>
+<summary>Actions</summary>
+	- Audio Export (EXPO) <Badge text="c1.3" variant="tip" />
+		- Start Export (EXPO)
+		- Configure Export (CONF)
+			- Kit FX (KIT)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Normalization (NORM)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Export to Silence (SILE)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Song FX (SONG)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Offline Rendering (OFFR)
+				- Disabled (OFF)
+				- Enabled (ON)
+</details>
 <details>
 <summary>Master (MSTR)</summary>
     - Volume (VOLU)

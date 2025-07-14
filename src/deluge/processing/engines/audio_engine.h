@@ -138,6 +138,7 @@ using VoiceSamplePool = deluge::memory::ObjectPool<VoiceSample, deluge::memory::
 using TimeStretcherPool = deluge::memory::ObjectPool<TimeStretcher, deluge::memory::fast_allocator>;
 
 void routine();
+void routine_task();
 void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
 
 void init();
