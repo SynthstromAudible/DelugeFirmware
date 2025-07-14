@@ -19,6 +19,8 @@
 #include "definitions_cxx.hpp"
 #include "util/fixedpoint.h"
 
+#include <storage/flash_storage.h>
+
 Polarity stringToPolarity(const std::string_view string) {
 	if (string == "unipolar") {
 		return Polarity::UNIPOLAR;
@@ -49,10 +51,27 @@ std::string_view polarityToStringShort(const Polarity polarity) {
 	}
 }
 
+Polarity PatchCable::getDefaultPolarity(PatchSource source) {
+	if (source == PatchSource::AFTERTOUCH) {
+		// Aftertouch is stored unipolar, using bipolar here causes near zero volume with the default patch to level
+		return Polarity::UNIPOLAR;
+	}
+	if (source == PatchSource::Y || source == PatchSource::X) {
+		// mod wheel is stored unipolar but MPE Y is bipolar, so stuck using bipolar
+		return Polarity::BIPOLAR;
+	}
+	return FlashStorage::defaultPatchCablePolarity; // Use the default polarity from flash storage
+}
+
+void PatchCable::setDefaultPolarity() {
+	polarity = getDefaultPolarity(from);
+}
+
 void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 	from = newFrom;
 	destinationParamDescriptor.setToHaveParamOnly(newTo);
 	initAmount(newAmount);
+	setDefaultPolarity();
 }
 
 bool PatchCable::isActive() {

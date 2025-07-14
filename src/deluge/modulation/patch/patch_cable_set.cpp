@@ -437,7 +437,7 @@ claimPatchCable:
 		patchCables[c].initAmount(0);
 		patchCables[c].from = from;
 		patchCables[c].destinationParamDescriptor = destinationParamDescriptor;
-
+		patchCables[c].setDefaultPolarity();
 		// Re-setup the patching, to place this cable where it needs to be
 		if (modelStack) {
 			setupPatching(modelStack);

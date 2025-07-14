@@ -47,10 +47,17 @@ extern bool movingCursor;
 void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
 	Decimal::beginSession(navigatedBackwardFrom);
 
-	auto* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
-	const uint32_t patchCableIndex = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
-	const Polarity polarity = patchCableIndex == kNoSelection ? FlashStorage::defaultPatchCablePolarity
-	                                                          : patchCableSet->patchCables[patchCableIndex].polarity;
+	auto* patch_cable_set = soundEditor.currentParamManager->getPatchCableSet();
+	const uint32_t patch_cable_index = patch_cable_set->getPatchCableIndex(getS(), getDestinationDescriptor());
+	Polarity polarity;
+	if (patch_cable_index == kNoSelection) {
+		patchCableExists_ = false;
+		polarity = PatchCable::getDefaultPolarity(getS());
+	}
+	else {
+		patchCableExists_ = true;
+		polarity = patch_cable_set->patchCables[patch_cable_index].polarity;
+	}
 	updatePolarity(polarity);
 
 	delayHorizontalScrollUntil = 0;
@@ -195,12 +202,6 @@ void PatchCableStrength::readCurrentValue() {
 		// the internal values are stored in the range -(2^30) to 2^30.
 		// rescale them to the range -5000 to 5000 and round to nearest.
 		this->setValue(((int64_t)paramValue * kMaxMenuPatchCableValue + (1 << 29)) >> 30);
-
-		if (polarity_ != patchCable.polarity) {
-			// could happen if the polarity was changed in the UI on detached patch cable (when the value is 0)
-			// in this case just correct the polarity
-			patchCable.polarity = polarity_;
-		}
 	}
 }
 
@@ -216,8 +217,14 @@ ModelStackWithAutoParam* PatchCableStrength::getModelStack(void* memory, bool al
 	ModelStackWithParamCollection* modelStackWithParamCollection =
 	    modelStack->addParamCollectionSummary(paramSetSummary);
 	ModelStackWithParamId* ModelStackWithParamId = modelStackWithParamCollection->addParamId(getLearningThing().data);
-
-	return paramSetSummary->paramCollection->getAutoParamFromId(ModelStackWithParamId, allowCreation);
+	ModelStackWithAutoParam* modelStackMaybeWithAutoParam =
+	    paramSetSummary->paramCollection->getAutoParamFromId(ModelStackWithParamId, allowCreation);
+	if (allowCreation && modelStackMaybeWithAutoParam->autoParam && !patchCableExists_) {
+		// If we created a patch cable then set the polarity to match the menus
+		updatePolarity(polarity_);
+		patchCableExists_ = true;
+	}
+	return modelStackMaybeWithAutoParam;
 }
 
 void PatchCableStrength::writeCurrentValue() {
