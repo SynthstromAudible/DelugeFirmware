@@ -29,7 +29,7 @@ class OLED;
 
 namespace oled_canvas {
 
-enum BorderRadius {
+enum BorderRadius : uint8_t {
 	SMALL = 0, //< 1px
 	BIG = 1    //< 2px
 };
@@ -99,7 +99,7 @@ public:
 	/// @param maxY Maximum Y coordinate, inclusive
 	void drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY);
 
-	/// Draw a 1-px wide rectangle with 1px rounded corners
+	/// Draw a 1-px wide rectangle with rounded corners
 	///
 	/// @param minX Minimum X coordinate, inclusive
 	/// @param minY Minimum Y coordinate, inclusive

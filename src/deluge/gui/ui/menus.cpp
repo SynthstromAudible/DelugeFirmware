@@ -49,6 +49,7 @@
 #include "gui/menu_item/cv/submenu.h"
 #include "gui/menu_item/cv/transpose.h"
 #include "gui/menu_item/cv/volts.h"
+#include "gui/menu_item/defaults/accessibility_menu_highlighting.h"
 #include "gui/menu_item/defaults/bend_range.h"
 #include "gui/menu_item/defaults/favourites_layout.h"
 #include "gui/menu_item/defaults/grid_default_active_mode.h"
@@ -1317,9 +1318,8 @@ Submenu defaultUISession{
 ToggleBool defaultAccessibilityShortcuts{STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS,
                                          STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS,
                                          FlashStorage::accessibilityShortcuts};
-ToggleBool defaultAccessibilityMenuHighlighting{STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING,
-                                                STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING,
-                                                FlashStorage::accessibilityMenuHighlighting};
+defaults::AccessibilityMenuHighlighting defaultAccessibilityMenuHighlighting{
+    STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING, STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING};
 
 Submenu defaultAccessibilityMenu{STRING_FOR_DEFAULT_ACCESSIBILITY,
                                  {

@@ -645,7 +645,7 @@ void Canvas::invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int3
 
 /// inverts just the left edge
 void Canvas::invertLeftEdgeForMenuHighlighting(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
-	if (!FlashStorage::accessibilityMenuHighlighting) {
+	if (FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION) {
 		return invertAreaRounded(xMin, width, startY, endY);
 	}
 
