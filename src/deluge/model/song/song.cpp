@@ -64,6 +64,7 @@
 #include "util/lookuptables/lookuptables.h"
 #include "util/try.h"
 #include <cstring>
+#include <hid/buttons.h>
 #include <new>
 #include <stdint.h>
 

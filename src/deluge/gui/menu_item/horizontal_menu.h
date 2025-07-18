@@ -27,17 +27,18 @@ public:
 	using Submenu::Submenu;
 
 	HorizontalMenu(l10n::String newName, std::span<MenuItem*> newItems, Layout layout)
-	    : Submenu(newName, newItems), layout(layout), paging{} {}
+	    : Submenu(newName, newItems), paging{}, layout(layout) {}
 	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, Layout layout)
-	    : Submenu(newName, newItems), layout(layout), paging{} {}
+	    : Submenu(newName, newItems), paging{}, layout(layout) {}
 	HorizontalMenu(l10n::String newName, l10n::String newTitle, std::initializer_list<MenuItem*> newItems,
 	               Layout layout)
-	    : Submenu(newName, newTitle, newItems), layout(layout), paging{} {}
+	    : Submenu(newName, newTitle, newItems), paging{}, layout(layout) {}
 
 	RenderingStyle renderingStyle() const override;
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
 	void selectEncoderAction(int32_t offset) override;
 	void renderOLED() override;
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void endSession() override;
 
 protected:
@@ -52,9 +53,9 @@ protected:
 
 private:
 	void updateSelectedMenuItemLED(int32_t itemNumber);
-	void renderPageCounters() const;
 	ActionResult switchVisiblePage(int32_t direction);
-	static void displayPopup(MenuItem* menuItem);
+	static void displayNotification(MenuItem* menuItem);
+	static void renderPageCounters(Paging& paging);
 	static void renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32_t slotStartX, int32_t slotWidth,
 	                              bool isSelected);
 

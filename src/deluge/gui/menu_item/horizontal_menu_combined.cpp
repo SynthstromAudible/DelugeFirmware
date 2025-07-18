@@ -18,6 +18,7 @@
 #include "horizontal_menu_combined.h"
 #include "deluge/gui/menu_item/submenu.h"
 #include <gui/menu_item/horizontal_menu.h>
+#include <hid/buttons.h>
 #include <string_view>
 
 namespace deluge::gui::menu_item {
@@ -32,7 +33,7 @@ void HorizontalMenuCombined::beginSession(MenuItem* navigatedBackwardFrom) {
 	// Some submenus modify soundEditor parameters at the start of the session,
 	// so we need to call it for each submenu to ensure pages are counted correctly
 	for (const auto submenu : submenus_) {
-		submenu->beginSession();
+		submenu->beginSession(navigatedBackwardFrom);
 	}
 }
 

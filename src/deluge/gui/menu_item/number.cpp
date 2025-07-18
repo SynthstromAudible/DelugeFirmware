@@ -116,7 +116,7 @@ void Number::drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t hei
 
 	// Draw the background arc
 	// Easier to adjust pixel-perfect, so we use a bitmap
-	const auto& arcIcon = hid::display::OLED::knobArcIcon;
+	const auto& arcIcon = OLED::knobArcIcon;
 	const int32_t arcIconWidth = arcIcon.size() / 2;
 	const int32_t leftPadding = (width - arcIconWidth) / 2;
 	image.drawGraphicMultiLine(arcIcon.data(), startX + leftPadding, startY, arcIconWidth, 16, 2);
@@ -167,7 +167,6 @@ void Number::drawVerticalBar(int32_t startX, int32_t startY, int32_t slotWidth, 
 	const int32_t barHeight = maxY - minY;
 
 	// Draw the dots at left and right sides
-	// 1px offset from the bottom is better than 1px offset from the top
 	for (int32_t y = minY; y <= maxY; y += dotsInterval) {
 		image.drawPixel(minX, y);
 		image.drawPixel(maxX, y);
@@ -176,12 +175,6 @@ void Number::drawVerticalBar(int32_t startX, int32_t startY, int32_t slotWidth, 
 	// Calculate fill height based on value
 	const float valuePercent = getNormalizedValue();
 	const int32_t fillHeight = static_cast<int32_t>(valuePercent * barHeight);
-	if (fillHeight != barHeight) {
-		// Draw the top dots
-		for (int32_t x = minX + fillPadding; x < minX + barWidth; x += dotsInterval) {
-			image.drawPixel(x, minY);
-		}
-	}
 	if (fillHeight == 0) {
 		// Draw the bottom dots
 		for (int32_t x = minX + fillPadding; x < minX + barWidth; x += dotsInterval) {

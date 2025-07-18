@@ -33,8 +33,8 @@ protected:
 	[[nodiscard]] virtual int32_t getMaxValue() const = 0;
 	[[nodiscard]] virtual int32_t getMinValue() const { return 0; }
 	[[nodiscard]] virtual NumberStyle getNumberStyle() const { return KNOB; }
-	void getValueForPopup(StringBuf& value) override { value.appendInt(getValue()); }
-	bool showValueInPopup() const override { return getNumberStyle() != PERCENT; }
+	void getNotificationValue(StringBuf& value) override { value.appendInt(getValue()); }
+	bool showValueInNotification() const override { return getNumberStyle() != PERCENT; }
 	float getNormalizedValue();
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;

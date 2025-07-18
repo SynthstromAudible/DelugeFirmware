@@ -84,7 +84,7 @@ public:
 
 protected:
 	void getShortOption(StringBuf&) override;
-	void getValueForPopup(StringBuf&) override;
-	[[nodiscard]] bool showValueInPopup() const override { return true; }
+	void getNotificationValue(StringBuf&) override;
+	[[nodiscard]] bool showValueInNotification() const override { return true; }
 };
 } // namespace deluge::gui::menu_item

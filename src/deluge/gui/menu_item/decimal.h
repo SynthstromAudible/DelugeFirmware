@@ -38,8 +38,7 @@ protected:
 	// 7Seg Only
 	virtual void drawActualValue(bool justDidHorizontalScroll = false);
 	virtual void appendAdditionalDots(std::vector<uint8_t>& dotPositions) {};
-
-	int32_t getNonZeroDecimalPlacesCount();
+	static int32_t getNumNonZeroDecimals(int32_t value);
 
 private:
 	void scrollToGoodPos();
@@ -54,8 +53,8 @@ public:
 
 protected:
 	virtual float getDisplayValue() { return this->getValue(); }
+	void getNotificationValue(StringBuf& value) override;
 	virtual const char* getUnit() { return ""; }
-	void getValueForPopup(StringBuf& value) override;
 	void drawPixelsForOled() override;
 	void drawDecimal(int32_t textWidth, int32_t textHeight, int32_t yPixel);
 	// 7Seg Only
