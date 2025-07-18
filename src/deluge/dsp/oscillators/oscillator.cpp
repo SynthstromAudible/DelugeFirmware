@@ -20,6 +20,7 @@
 #include "processing/render_wave.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/fixedpoint.h"
+#include <argon/vectorize/store.hpp>
 
 namespace deluge::dsp {
 PLACE_INTERNAL_FRUNK int32_t oscSyncRenderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES + 4]
@@ -427,7 +428,7 @@ doSaw:
 						int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 						int32_t numSamplesThisOscSyncSession = numSamples;
 						auto storeVectorWaveForOneSync = [&](std::span<q31_t> buffer, uint32_t phase) {
-							for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
+							for (Argon<q31_t>& value_vector : argon::vectorize::store(buffer)) {
 								std::tie(value_vector, phase) = waveRenderingFunctionPulse(
 								    phase, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);
 							}
@@ -472,7 +473,7 @@ callRenderWave:
 			int32_t numSamplesThisOscSyncSession = numSamples;
 			auto storeVectorWaveForOneSync = //<
 			    [&](std::span<q31_t> buffer, uint32_t phase) {
-				    for (Argon<q31_t>& value_vector : argon::vectorize(buffer)) {
+				    for (Argon<q31_t>& value_vector : argon::vectorize::store(buffer)) {
 					    std::tie(value_vector, phase) =
 					        waveRenderingFunctionGeneral(phase, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);
 				    }
