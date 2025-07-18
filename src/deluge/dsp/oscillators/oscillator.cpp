@@ -21,6 +21,8 @@
 #include "processing/render_wave.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/fixedpoint.h"
+#include <argon/vectorize/load.hpp>
+#include <argon/vectorize/load_store.hpp>
 #include <argon/vectorize/store.hpp>
 
 namespace deluge::dsp {
@@ -507,12 +509,9 @@ void Oscillator::applyAmplitude(std::span<q31_t> input_span, std::span<q31_t> ou
 	Argon<q31_t> amplitude_vector = createAmplitudeVector(amplitude, amplitude_increment);
 	Argon<q31_t> amplitude_increment_vector = amplitude_increment << 1;
 
-	auto input_view = argon::vectorize(input_span.first(num_samples));
-	auto output_view = argon::vectorize(output_span.first(num_samples));
-
-	auto output_it = input_view.begin();
-	for (auto input_it = input_view.cbegin(); input_it != input_view.cend(); ++input_it, ++output_it) {
-		*output_it = output_it->MultiplyAddFixedPoint(*input_it, amplitude_vector);
+	auto output_it = argon::vectorize::load_store(output_span.first(num_samples)).begin();
+	for (auto input : argon::vectorize::load(input_span.first(num_samples))) {
+		*output_it++ = output_it->MultiplyAddFixedQMax(input, amplitude_vector); // output = output + input * amplitude
 		amplitude_vector = amplitude_vector + amplitude_increment_vector;
 	}
 }
