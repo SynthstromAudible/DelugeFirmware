@@ -19,6 +19,7 @@
 #include "hid/display/display.h"
 #include "model/instrument/kit.h"
 #include "util/functions.h"
+#include <hid/buttons.h>
 #include <stdint.h>
 
 namespace deluge::gui::ui::keyboard::layout {

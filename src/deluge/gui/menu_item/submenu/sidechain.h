@@ -20,13 +20,13 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::submenu {
-class Sidechain final : public Submenu {
+class Sidechain final : public HorizontalMenu {
 public:
-	using Submenu::Submenu;
+	using HorizontalMenu::HorizontalMenu;
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
 		soundEditor.currentSidechain = &soundEditor.currentSound->sidechain;
-		Submenu::beginSession(navigatedBackwardFrom);
+		HorizontalMenu::beginSession(navigatedBackwardFrom);
 	}
 };
 

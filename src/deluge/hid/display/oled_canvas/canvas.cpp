@@ -169,12 +169,20 @@ void Canvas::drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t max
 	drawHorizontalLine(maxY, minX + 1, maxX - 1);
 }
 
-void Canvas::drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {
-	drawVerticalLine(minX, minY + 1, maxY - 1);
-	drawVerticalLine(maxX, minY + 1, maxY - 1);
+void Canvas::drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, BorderRadius radius) {
+	const int32_t radiusPixels = radius == SMALL ? 1 : 2;
 
-	drawHorizontalLine(minY, minX + 1, maxX - 1);
-	drawHorizontalLine(maxY, minX + 1, maxX - 1);
+	drawVerticalLine(minX, minY + radiusPixels, maxY - radiusPixels);
+	drawVerticalLine(maxX, minY + radiusPixels, maxY - radiusPixels);
+	drawHorizontalLine(minY, minX + radiusPixels, maxX - radiusPixels);
+	drawHorizontalLine(maxY, minX + radiusPixels, maxX - radiusPixels);
+
+	if (radiusPixels == 2) {
+		drawPixel(minX + 1, minY + 1); //< Top-left corner
+		drawPixel(maxX - 1, minY + 1); //< Top-right corner
+		drawPixel(minX + 1, maxY - 1); //< Bottom-left corner
+		drawPixel(maxX - 1, maxY - 1); //< Bottom-right corner
+	}
 }
 
 void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
