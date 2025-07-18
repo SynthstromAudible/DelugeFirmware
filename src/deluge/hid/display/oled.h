@@ -161,7 +161,7 @@ public:
 	bool hasPopupOfType(PopupType type) override { return isPopupPresentOfType(type); }
 
 	// Horizontal menus
-	void displayHorizontalMenuPopup(std::string_view paramTitle, std::optional<std::string_view> paramValue) override;
+	void displayNotification(std::string_view paramTitle, std::optional<std::string_view> paramValue) override;
 
 private:
 	static bool needsSending;

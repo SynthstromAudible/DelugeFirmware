@@ -134,7 +134,7 @@ void OLED::setupPopup(PopupType type, int32_t width, int32_t height, std::option
 
 	popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
 
-	if (type != PopupType::HORIZONTAL_MENU) {
+	if (type != PopupType::NOTIFICATION) {
 		popup.drawRectangleRounded(popupMinX, popupMinY, popupMaxX, popupMaxY);
 	}
 }
@@ -704,7 +704,7 @@ void OLED::removeWorkingAnimation() {
 	}
 }
 
-void OLED::displayHorizontalMenuPopup(std::string_view paramTitle, std::optional<std::string_view> paramValue) {
+void OLED::displayNotification(std::string_view paramTitle, std::optional<std::string_view> paramValue) {
 	DEF_STACK_STRING_BUF(titleBuf, 25);
 	titleBuf.append(paramTitle);
 
@@ -723,7 +723,7 @@ void OLED::displayHorizontalMenuPopup(std::string_view paramTitle, std::optional
 		}
 	}
 
-	setupPopup(PopupType::HORIZONTAL_MENU, OLED_MAIN_WIDTH_PIXELS - 1, kTextSpacingY + 2, 0, OLED_MAIN_TOPMOST_PIXEL);
+	setupPopup(PopupType::NOTIFICATION, OLED_MAIN_WIDTH_PIXELS - 1, kTextSpacingY + 2, 0, OLED_MAIN_TOPMOST_PIXEL);
 
 	// Draw the title and value
 	popup.drawString(titleBuf.data(), paddingLeft, OLED_MAIN_TOPMOST_PIXEL + 1, kTextSpacingX, kTextSpacingY);
@@ -734,7 +734,7 @@ void OLED::displayHorizontalMenuPopup(std::string_view paramTitle, std::optional
 	}
 
 	if (!FlashStorage::accessibilityMenuHighlighting) {
-		// Make the popup inverted (white)
+		// Make the notification inverted (white)
 		popup.invertAreaRounded(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL,
 		                        OLED_MAIN_TOPMOST_PIXEL + kTextSpacingY + 1);
 		popup.drawPixel(0, OLED_MAIN_TOPMOST_PIXEL);

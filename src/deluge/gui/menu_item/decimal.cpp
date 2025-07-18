@@ -53,7 +53,6 @@ void Decimal::drawValue() {
 }
 
 void Decimal::selectEncoderAction(int32_t offset) {
-
 	this->setValue(this->getValue() + offset * soundEditor.numberEditSize);
 
 	// If turned down
@@ -200,8 +199,7 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	                                 false); // blinkImmediately
 }
 
-int32_t Decimal::getNonZeroDecimalPlacesCount() {
-	const int32_t value = this->getValue();
+int32_t Decimal::getNumNonZeroDecimals(int32_t value) {
 	const float remaining = std::abs(value / 100 - value / 100.0f);
 	if (remaining == 0) {
 		return 0;
@@ -247,7 +245,7 @@ void DecimalWithoutScrolling::drawActualValue(bool justDidHorizontalScroll) {
 	display->setText(buffer, true, 3 - numDecimalPlaces);
 }
 
-void DecimalWithoutScrolling::getValueForPopup(StringBuf& value) {
+void DecimalWithoutScrolling::getNotificationValue(StringBuf& value) {
 	const int32_t numDecimalPlaces = this->getNumDecimalPlaces();
 	value.appendFloat(this->getDisplayValue(), numDecimalPlaces, numDecimalPlaces);
 	value.append(getUnit());

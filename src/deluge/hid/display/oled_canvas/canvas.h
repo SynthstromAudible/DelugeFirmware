@@ -29,6 +29,11 @@ class OLED;
 
 namespace oled_canvas {
 
+enum BorderRadius {
+	SMALL = 0, //< 1px
+	BIG = 1    //< 2px
+};
+
 class Canvas {
 public:
 	Canvas() = default;
@@ -100,7 +105,7 @@ public:
 	/// @param minY Minimum Y coordinate, inclusive
 	/// @param maxX Maximum X coordinate, inclusive
 	/// @param maxY Maximum Y coordinate, inclusive
-	void drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY);
+	void drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, BorderRadius radius = SMALL);
 
 	/// Draw a string
 	///
