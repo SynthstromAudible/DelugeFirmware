@@ -1344,7 +1344,7 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 
 	int32_t textStartX = 14;
 	int32_t iconStartX = 1;
-	if (FlashStorage::accessibilityMenuHighlighting) {
+	if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION) {
 		textStartX += kTextSpacingX;
 		iconStartX = kTextSpacingX;
 	}

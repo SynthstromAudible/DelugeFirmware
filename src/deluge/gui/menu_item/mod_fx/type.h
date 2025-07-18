@@ -99,9 +99,21 @@ public:
 
 		// Draw main text
 		image.drawString(shortOpt.c_str(), textStartX, textStartY, kTextSpacingX, kTextSpacingY);
-		constexpr int32_t highlightOffset = 22;
-		image.drawRectangleRounded(startX + highlightOffset, textStartY - 3, startX + width - highlightOffset,
-		                           textStartY + kTextSpacingY + 2, oled_canvas::BorderRadius::BIG);
+
+		// Highlight the text
+		constexpr int32_t highlightOffset = 21;
+		switch (FlashStorage::accessibilityMenuHighlighting) {
+		case MenuHighlighting::FULL_INVERSION:
+			image.invertAreaRounded(startX + highlightOffset, width - highlightOffset * 2, textStartY - 2,
+			                        textStartY + kTextSpacingY + 1);
+			break;
+		case MenuHighlighting::PARTIAL_INVERSION:
+			image.drawRectangleRounded(startX + highlightOffset, textStartY - 3, startX + width - highlightOffset,
+			                           textStartY + kTextSpacingY + 2, oled_canvas::BorderRadius::BIG);
+			break;
+		case MenuHighlighting::NO_INVERSION:
+			break;
+		}
 
 		// Draw arrows if needed
 		if (getValue() < size() - 1) {

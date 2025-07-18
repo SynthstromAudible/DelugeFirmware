@@ -74,7 +74,7 @@ extern uint8_t defaultSwingInterval;
 extern std::bitset<NUM_PRESET_SCALES> defaultDisabledPresetScales;
 
 extern bool accessibilityShortcuts;
-extern bool accessibilityMenuHighlighting;
+extern MenuHighlighting accessibilityMenuHighlighting;
 
 extern OutputType defaultNewClipType;
 extern bool defaultUseLastClipType;

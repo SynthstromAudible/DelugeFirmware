@@ -92,7 +92,7 @@ void ContextMenu::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		if (isCurrentOptionAvailable()) {
 			int32_t invertStartX = 22;
 			int32_t textPixelX = invertStartX + 1;
-			if (FlashStorage::accessibilityMenuHighlighting) {
+			if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION) {
 				textPixelX += kTextSpacingX;
 			}
 			canvas.drawString(options[currentOption], textPixelX, textPixelY, kTextSpacingX, kTextSpacingY, 0,
