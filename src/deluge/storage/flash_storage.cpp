@@ -191,6 +191,7 @@ enum Entries {
 185: defaultFavouritesLayout
 186: defaultLoopRecordingCommand
 188: defaultUseSharps
+189: default patch cable polarity
 */
 
 uint8_t defaultScale;
@@ -247,7 +248,7 @@ std::bitset<NUM_PRESET_SCALES> defaultDisabledPresetScales;
 static_assert(NUM_PRESET_SCALES <= 16);
 
 bool accessibilityShortcuts = false;
-bool accessibilityMenuHighlighting = true;
+MenuHighlighting accessibilityMenuHighlighting = MenuHighlighting::PARTIAL_INVERSION;
 
 OutputType defaultNewClipType = OutputType::SYNTH;
 bool defaultUseLastClipType = true;
@@ -358,7 +359,7 @@ void resetSettings() {
 	defaultDisabledPresetScales = {0};
 
 	accessibilityShortcuts = false;
-	accessibilityMenuHighlighting = true;
+	accessibilityMenuHighlighting = MenuHighlighting::PARTIAL_INVERSION;
 
 	defaultNewClipType = OutputType::SYNTH;
 	defaultUseLastClipType = true;
@@ -759,11 +760,11 @@ void readSettings() {
 		accessibilityShortcuts = buffer[174];
 	}
 
-	if (buffer[175] != 0 && buffer[175] != 1) {
-		accessibilityMenuHighlighting = false;
+	if (buffer[175] < 0 && buffer[175] > util::to_underlying(MenuHighlighting::NO_INVERSION)) {
+		accessibilityMenuHighlighting = MenuHighlighting::PARTIAL_INVERSION;
 	}
 	else {
-		accessibilityMenuHighlighting = buffer[175];
+		accessibilityMenuHighlighting = static_cast<MenuHighlighting>(buffer[175]);
 	}
 
 	if (buffer[176] < 0 && buffer[176] > util::to_underlying(OutputType::AUDIO)) {
@@ -1086,7 +1087,7 @@ void writeSettings() {
 	buffer[173] = 0xff & (disabledBits >> 8);
 
 	buffer[174] = accessibilityShortcuts;
-	buffer[175] = accessibilityMenuHighlighting;
+	buffer[175] = util::to_underlying(accessibilityMenuHighlighting);
 
 	buffer[176] = util::to_underlying(defaultNewClipType);
 	buffer[177] = defaultUseLastClipType;

@@ -162,7 +162,7 @@ void Number::drawVerticalBar(int32_t startX, int32_t startY, int32_t slotWidth, 
 
 	const int32_t minX = startX + leftPadding;
 	const int32_t maxX = minX + barWidth;
-	const int32_t minY = startY + 1;
+	const int32_t minY = startY + 2;
 	const int32_t maxY = minY + slotHeight - 4;
 	const int32_t barHeight = maxY - minY;
 

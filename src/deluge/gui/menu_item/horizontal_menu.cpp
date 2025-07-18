@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <hid/buttons.h>
 #include <ranges>
+#include <storage/flash_storage.h>
 
 namespace deluge::gui::menu_item {
 
@@ -144,8 +145,27 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 
 		// Highlight the selected item if it doesn't occupy the whole page
 		if (isSelected && (items.size() > 1 || items[0]->getColumnSpan() < 4)) {
-			image.drawRectangleRounded(currentX, baseY - 2, currentX + boxWidth - 2, baseY + boxHeight + 1,
-			                           oled_canvas::BorderRadius::BIG);
+			switch (FlashStorage::accessibilityMenuHighlighting) {
+			case MenuHighlighting::FULL_INVERSION: {
+				// Highlight by inversion of the label or whole slot
+				const bool highlightWholeSlot = !item->showColumnLabel() || item->isSubmenu();
+				const int32_t startX = highlightWholeSlot ? currentX : currentX + 1;
+				const int32_t width = highlightWholeSlot ? boxWidth - 1 : boxWidth - 3;
+				const int32_t startY = highlightWholeSlot ? baseY : labelY;
+				const int32_t endY = highlightWholeSlot ? baseY + boxHeight - 1 : labelY + labelHeight - 1;
+				image.invertAreaRounded(startX, width, startY, endY);
+				break;
+			}
+			case MenuHighlighting::PARTIAL_INVERSION:
+				// Highlight by drawing outline
+				image.drawRectangleRounded(currentX, baseY - 2, currentX + boxWidth - 2, baseY + boxHeight + 1,
+				                           oled_canvas::BorderRadius::BIG);
+				break;
+			case MenuHighlighting::NO_INVERSION:
+				// Highlight by drawing a line below the item
+				image.invertArea(currentX, boxWidth - 1, baseY + boxHeight, OLED_MAIN_VISIBLE_HEIGHT + 1);
+				break;
+			}
 		}
 
 		currentX += boxWidth;
