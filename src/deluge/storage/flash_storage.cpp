@@ -248,7 +248,7 @@ std::bitset<NUM_PRESET_SCALES> defaultDisabledPresetScales;
 static_assert(NUM_PRESET_SCALES <= 16);
 
 bool accessibilityShortcuts = false;
-MenuHighlighting accessibilityMenuHighlighting = MenuHighlighting::PARTIAL_INVERSION;
+MenuHighlighting accessibilityMenuHighlighting = MenuHighlighting::FULL_INVERSION;
 
 OutputType defaultNewClipType = OutputType::SYNTH;
 bool defaultUseLastClipType = true;
