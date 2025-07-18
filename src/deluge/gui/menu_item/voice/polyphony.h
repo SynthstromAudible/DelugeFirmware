@@ -76,7 +76,7 @@ public:
 		label.append(deluge::l10n::get(l10n::String::STRING_FOR_MAX_VOICES_SHORT));
 	}
 
-	void getValueForPopup(StringBuf& valueBuf) override {
+	void getNotificationValue(StringBuf& valueBuf) override {
 		if (const auto value = getValue(); value == 0) {
 			valueBuf.append(l10n::get(l10n::String::STRING_FOR_OFF));
 		}

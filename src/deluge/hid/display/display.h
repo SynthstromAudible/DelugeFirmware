@@ -32,7 +32,7 @@ enum class PopupType {
 	/// Threshold Recording Mode
 	THRESHOLD_RECORDING_MODE,
 	/// Used for popups in the horizontal menu when changing value
-	HORIZONTAL_MENU,
+	NOTIFICATION,
 	// Note: Add here more popup types
 };
 
@@ -85,7 +85,7 @@ public:
 	virtual void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) = 0;
 	virtual void removeLoadingAnimation() = 0;
 
-	virtual void displayHorizontalMenuPopup(std::string_view paramTitle, std::optional<std::string_view> paramValue) {}
+	virtual void displayNotification(std::string_view paramTitle, std::optional<std::string_view> paramValue) {}
 
 	virtual bool hasPopup() = 0;
 	virtual bool hasPopupOfType(PopupType type) = 0;

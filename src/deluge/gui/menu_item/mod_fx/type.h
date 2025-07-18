@@ -80,7 +80,7 @@ public:
 		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
 		getShortOption(shortOpt);
 
-		constexpr int32_t arrowSpace = 10; // Space reserved for each arrow
+		constexpr int32_t arrowSpace = 10;
 
 		// Get the main text width and trim if needed
 		int32_t textWidth = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
@@ -89,7 +89,6 @@ public:
 			textWidth = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
 		}
 
-		// Calculate center positions
 		const int32_t textStartX = startX + (width - textWidth) / 2 + 1;
 		const int32_t textStartY = startY + (height - kTextSpacingY) / 2 + 1;
 
@@ -100,13 +99,9 @@ public:
 
 		// Draw main text
 		image.drawString(shortOpt.c_str(), textStartX, textStartY, kTextSpacingX, kTextSpacingY);
-
-		if (!FlashStorage::accessibilityMenuHighlighting) {
-			// Highlight the text
-			constexpr int32_t highlightOffset = 22;
-			image.invertAreaRounded(startX + highlightOffset, width - highlightOffset * 2, textStartY - 2,
-			                        textStartY + kTextSpacingY + 1);
-		}
+		constexpr int32_t highlightOffset = 22;
+		image.drawRectangleRounded(startX + highlightOffset, textStartY - 3, startX + width - highlightOffset,
+		                           textStartY + kTextSpacingY + 2, oled_canvas::BorderRadius::BIG);
 
 		// Draw arrows if needed
 		if (getValue() < size() - 1) {
