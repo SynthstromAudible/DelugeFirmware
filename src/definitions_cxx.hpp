@@ -268,6 +268,8 @@ enum class ThingType : uint8_t {
 	NONE,
 };
 
+enum class MenuHighlighting : uint8_t { FULL_INVERSION, PARTIAL_INVERSION, NO_INVERSION };
+
 constexpr int32_t kModFXBufferSize = 512;
 constexpr int32_t kModFXBufferIndexMask = (kModFXBufferSize - 1);
 constexpr int32_t kModFXMaxDelay = ((kModFXBufferSize - 1) << 16);
