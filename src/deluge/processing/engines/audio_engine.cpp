@@ -959,13 +959,22 @@ void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSampl
 	}
 }
 
+void routine_task() {
+	if (audioRoutineLocked) {
+		logAction("AudioDriver::routine locked");
+		ignoreForStats();
+		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
+		        // called from within this!
+	}
+	routine();
+}
+
 void routine() {
 
 	logAction("AudioDriver::routine");
 
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
-		ignoreForStats();
 		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
 		        // called from within this!
 	}
@@ -1226,6 +1235,7 @@ void dumpAudioLog() {
 	definitelyLog = false;
 	lastRoutineTime = *TCNT[TIMER_SYSTEM_FAST];
 	numAudioLogItems = 0;
+	memset(audioLogStrings, 0, sizeof(audioLogStrings));
 #endif
 }
 

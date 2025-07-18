@@ -20,8 +20,9 @@
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+
+#include <hid/display/oled.h>
 
 namespace deluge::gui::menu_item::stutter {
 
@@ -49,7 +50,7 @@ public:
 	}
 
 	void readCurrentValue() override {
-		auto* stutter = &soundEditor.currentModControllable->stutterConfig;
+		const auto* stutter = &soundEditor.currentModControllable->stutterConfig;
 
 		if (showUseSongOption() && stutter->useSongStutter) {
 			setValue(USE_SONG_STUTTER);
@@ -89,8 +90,6 @@ public:
 		}
 	}
 
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
-
 private:
 	Direction getValue() {
 		const auto value = Selection::getValue();
@@ -103,9 +102,9 @@ private:
 		return Selection::setValue(value - shift);
 	}
 
-	bool showUseSongOption() { return !soundEditor.currentModControllable->isSong(); }
+	static bool showUseSongOption() { return !soundEditor.currentModControllable->isSong(); }
 
-	void applyOptionToStutterConfig(Direction value, StutterConfig& stutter) {
+	static void applyOptionToStutterConfig(const Direction value, StutterConfig& stutter) {
 		stutter.useSongStutter = value == USE_SONG_STUTTER;
 		stutter.reversed = value == REVERSED || value == REVERSED_PING_PONG;
 		stutter.pingPong = value == FORWARD_PING_PONG || value == REVERSED_PING_PONG;
@@ -114,6 +113,39 @@ private:
 			stutter.quantized = currentSong->globalEffectable.stutterConfig.quantized;
 			stutter.reversed = currentSong->globalEffectable.stutterConfig.reversed;
 			stutter.pingPong = currentSong->globalEffectable.stutterConfig.pingPong;
+		}
+	}
+
+	void getValueForPopup(StringBuf& valueBuf) override {
+		const auto value = Selection::getValue();
+		valueBuf.append(getOptions(OptType::SHORT)[value]);
+	}
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		using namespace deluge::hid::display;
+		oled_canvas::Canvas& image = OLED::main;
+
+		const auto value = getValue();
+
+		if (value == USE_SONG_STUTTER) {
+			// Draw a song icon centered
+			const auto& icon = OLED::songIcon;
+			constexpr int32_t songIconWidth = 9;
+			const int32_t x = startX + (width - songIconWidth) / 2;
+			return image.drawGraphicMultiLine(icon, x, startY + 3, songIconWidth);
+		}
+
+		// Draw the direction icon centered
+		const bool reversed = value == REVERSED || value == REVERSED_PING_PONG;
+		const auto& icon = OLED::stutterDirectionIcon;
+		int32_t x = startX + (width - icon.size()) / 2;
+		image.drawGraphicMultiLine(icon.data(), x, startY + 3, icon.size(), 8, 1, reversed);
+
+		if (value == FORWARD_PING_PONG || value == REVERSED_PING_PONG) {
+			// Draw ping-pong dots
+			x += icon.size() / 2;
+			image.drawPixel(x, startY + 3);
+			image.drawPixel(x, startY + 10);
 		}
 	}
 };

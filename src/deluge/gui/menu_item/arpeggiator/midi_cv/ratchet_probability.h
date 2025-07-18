@@ -32,5 +32,6 @@ public:
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
 		soundEditor.currentArpSettings->ratchetProbability = value;
 	}
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return PERCENT; }
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

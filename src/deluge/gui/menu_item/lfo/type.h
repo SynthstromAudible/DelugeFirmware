@@ -59,11 +59,10 @@ public:
 		}
 	}
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
+	[[nodiscard]] bool showColumnLabel() const override { return false; }
 
 private:
-	const std::vector<uint8_t>& getLfoIconBitmap(LFOType type);
-	const uint8_t getLfoIconBitmapXOffset(LFOType type);
+	static const std::vector<uint8_t>& getLfoIconBitmap(LFOType type);
 	uint8_t lfoId_;
 };
 

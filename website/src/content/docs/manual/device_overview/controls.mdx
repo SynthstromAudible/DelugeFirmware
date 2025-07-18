@@ -1,0 +1,431 @@
+---
+title: Controls
+sidebar:
+  order: 7
+---
+
+import { Card } from "@astrojs/starlight/components"
+import { Steps } from "@astrojs/starlight/components"
+
+This page provides information on the physical hardware controls used to interact with the Deluge's firmware user interface. This includes:
+
+- Knobs (Encoders)
+- Buttons
+- Pads
+
+## Knobs
+
+### Volume
+
+#### Adjusting the main volume level
+
+<Steps>
+
+1. In any view, turn the (OUTPUT LEVEL) gold coloured rotary control.
+
+1. This control adjusts the main output audio and headphone output levels. Care should be taken when adjusting as there is no display or indicator of the current level.
+
+</Steps>
+
+### :key[Tempo]
+
+#### Display the song tempo
+
+<Steps>
+
+1. In any view, press the :key[Tempo] black coloured rotary control.
+2. The display will indicate the current tempo BPM.
+
+</Steps>
+
+#### Adjusting the song tempo
+
+<Steps>
+
+1. In any view, turn the :key[Tempo] black coloured rotary control.
+
+1. Tempo changes in incremental +/- 1 BPM Steps. For larger resolution increments press & turn (TEMPO) control. This behaviour can be reversed in the settings under the community features, ‘fine tempo knob’ parameter.
+
+1. The display will indicate the tempo change in BPM (beats per minute).
+
+</Steps>
+
+#### Adjusting song swing
+
+The Deluge supports swing rhythms, and you can dial in the exact amount of swing that you want.
+
+<Steps>
+
+1. Press :key[Shift + Turn Tempo] black coloured rotary control.
+2. Swing amount is adjusted as a percentage between 1 and 99.
+
+</Steps>
+
+<Card title="Swing values" icon="information">
+
+- 50 means no swing.
+- Values greater than 50 cause every second 16th-note (by default) to be swung late.
+- Values less than 50 cause every second 16th-note (by default) to be swung early.
+- The swing “interval” is 16th-notes by default, but there is an editable setting for this - see the Settings menu.
+
+</Card>
+
+#### Adjusting song sync
+
+The Deluge can be synchronised with other music equipment or software by sending or receiving a MIDI beat clock (via either hardware or USB MIDI) or a trigger clock signal.
+
+The Deluge will begin playing as a slave as soon as it begins to receive a MIDI beat clock or trigger clock (if trigger clock auto-start is enabled - see the Settings menu). While playing as a slave, the tempo cannot be changed, as this is determined by the master device (the device sending the MIDI beat clock).
+
+By default, the Deluge itself outputs a MIDI beat clock on both its hardware MIDI output and USB port whenever it is playing (except when it is playing as a slave). This means that any other connected equipment or software may be configured to play as a slave, treating the Deluge as a master. See the Settings menu for instructions on turning this off if you wish.
+
+If your Deluge somehow ends up out of sync with your other device(s) while playing, you can “nudge” the sync forward or backward in time.
+
+<Steps>
+
+1. Hold down :key[Horizontal] + :key[Turn Tempo].
+1. One “click” of the tempo knob corresponds to one MIDI “clock” message, which is one 96th-note.
+1. The Deluge will blink the word “NUDGe” to indicate that the action has been performed.
+
+</Steps>
+
+<Card title="Sync slave vs. Sync master" icon="information">
+
+- If the Deluge is the syncing slave, then it is its timing that will be nudged in either direction relative to the syncing master.
+- If the Deluge is the syncing master, then it will adjust the MIDI beat clock that it is sending so that it is the syncing slave’s time which is nudged relative to the Deluge’s.
+- See Tempo magnitude matching below for additional steps on adjusting tempo sync for master/slave scenarios
+
+</Card>
+
+The Deluge is also capable of outputting a trigger clock signal - see CV, gate and trigger clock for instructions.
+
+#### Tempo magnitude matching
+
+When playing as a slave via MIDI beat clock (but not via trigger clock), if the incoming clock is around half or around double the tempo that the user had previously set the song to, then the Deluge will accordingly multiply or divide the tempo of the incoming clock so that the tempo at which the song on the Deluge plays is as close as possible to the tempo that the user had it set to.
+
+This is useful in a couple of scenarios:
+
+- Perhaps the user doesn’t understand, or doesn’t like to think in terms of, the labelling of time divisions (8th-notes, 16th-notes, etc.) and nonetheless wants to sync the Deluge as a slave without worrying about whether their song will play at the intended tempo rather than twice as fast or half as fast, etc.
+- Some loop pedals (though it is a rare feature) have the ability to act as a syncing master by outputting a MIDI beat clock whose exact tempo is determined on the fly according to the length of the loop that the user creates. The user may wish, for example, to record a guitar loop with their loop pedal (with no kind of metronome or anything determining the tempo in advance), and then have the Deluge play a drum beat along to it, perfectly in sync. With a compatible loop pedal, this works. However, the loop pedal would not necessarily know the difference, say, between a loop that the user intended to be at 160bpm, and one intended to be at 80bpm (160 being double 80), and may pick the wrong option. The Deluge, knowing what tempo to approximately expect, can automatically correct the incoming MIDI beat clock if it is around double or half the tempo expected, making it a certainty that the Deluge will begin playback at somewhere near the expected tempo.
+
+If you wish to deactivate tempo magnitude matching, instructions can be found in the chapter on the Settings menu.
+
+##### Adjust relative speed of Deluge
+
+If the Deluge got it wrong and you find your song playing too fast or too slow relative to the syncing master, then the relative speed of the Deluge can be manually halved or doubled by:
+
+<Steps>
+
+1. Hold down :key[Learn] + :key[Turn Tempo] anti-clockwise or clockwise, respectively.
+
+</Steps>
+
+##### Adjust relative speed of Sync Slave
+
+For further flexibility, if the Deluge is the syncing master and some other piece of hardware or software is playing as a slave to it, and you find that the slave is playing at half or double the speed you would have liked relative to the Deluge, the speed of the MIDI beat clock or trigger clock that the Deluge outputs can be changed by:
+
+<Steps>
+
+1. Hold down :key[Learn] + :key[Turn Tempo] anti-clockwise or clockwise, respectively.
+
+</Steps>
+
+### :key[Select]
+
+The :key[Select] encoder is primarily used to scroll the menu's and to scroll between presets.
+
+#### Scrolling faster in the menu
+
+While in the menu, you can speed up scrolling by holding :key[Shift + Turn Select] knob
+
+### :key[Horizontal]
+
+Being limited to a 16x8 working area would be quite constrictive.
+
+The Deluge allows the user to scroll and zoom horizontally to allow for longer sequences and / or finer time divisions.
+
+#### Zooming
+
+By default, each column of pads represents a 16th-note step. Pressing down on the ◄► knob will cause the Deluge to indicate this “zoom-level” on its numeric display: “16th”.
+
+Suppose you wish to instead edit “finer” detail in our sequence - 32nd-notes. By holding down the ◄► knob and turning it clockwise at the same time, you zoom in: the notes which had previously occupied the left-hand half of the 16x8 pad grid now expand to take up the whole grid. And the notes which had occupied the right-hand half of the grid are now “offscreen” to the right.
+
+If you wish to see those notes, offscreen to the right, you may scroll horizontally to them (see below).
+
+You may zoom in multiple times in order to access finer and finer detail, all the way to 64th-notes. And you may zoom back out by turning the ◄► knob anti-clockwise - remembering to first press down on the knob.
+
+After zooming back out, you will not be able to see all of the fine “detail” that you created while zoomed in. Pads which “contain” detail which is too fine to see will appear an almost-white colour. Simply zoom back in to expose the detail. Tapping such a pad will delete everything it “contains”.
+
+#### Scrolling
+
+Horizontal scrolling is achieved by turning the ◄► knob, but without pressing down on it as with zooming.
+
+Whenever you scroll horizontally, your scroll position is shown momentarily on the Deluge’s display as two or three numbers, depending on your zoom level.
+
+- The first is the bar number.
+- The second is the beat number within the current bar.
+- The third, if visible, is the 16th-note within the current beat.
+
+##### Playback from Scroll Position
+
+To begin playback from your current scroll position rather than the beginning of the clip, hold down the ◄► knob and press play.
+
+#### Editing clip length
+
+The length of a clip may also be altered. If made longer than the default 1 bar, the clip will extend beyond the length of the “display” even at 16th-notes zoom level, meaning that you will now be able to scroll horizontally at this zoom level too, or even zoom out another zoom level (8th-notes would be next), to see the entirety of the clip.
+
+Editing clip length is achieved by holding the shift button and turning the ◄► knob. At each click of the knob, the clip’s new length will blink momentarily on the Deluge’s numeric display, formatted as three numbers (bars, beats, then 16th-notes). Clips may be any length, including unusual ones - e.g. 15 16th-notes long (which would display as “0.3.3”, meaning 3 quarter-notes plus 3 16th-notes).
+
+The clip’s length will also be indicated visually: columns of pads which are beyond the clip’s end will appear dim and grey. If you extend a clip’s length beyond the right-hand side of the current grid, you will be scrolled right automatically to see the new “space” you have created. Or if you reduce a clip’s length to half or less of the grid, the Deluge will automatically zoom in to display the remaining area in more detail.
+
+Sometimes you may wish to “multiply” an existing clip’s length - that is, to make a copy of the clip’s existing sequence of notes, and place that copy after the original. To do this, hold down the shift button and press down on the ◄► knob. The Deluge will then automatically zoom out to reveal the entirety of the multiplied clip. When multiplying a clip containing notes with iteration dependence set, the resulting notes automatically have their iteration dependence modified, or are left out entirely, in order to keep the resulting composition sounding the same as the unmultiplied clip wherever possible.
+
+#### Shifting clips contents horizontally
+
+If you wish to shift all notes and automation in a clip sideways (in the “time” dimension), hold down the ▼▲ knob and turn the ◄► knob. Your clip’s contents will be moved sideways in steps of one square at your current zoom level. If the contents move past either end of the clip, they will wrap around and appear at the other end.
+
+### :key[Vertical]
+
+Being limited to a 16x8 working area would be quite constrictive.
+
+The Deluge allows the user to scroll vertically to allow for more than eight different notes’ pitches or sounds
+
+To scroll vertically, turn the ▼▲ knob. For synth, MIDI and CV clips, scrolling up will give you access to new “rows” of higher pitches, and scrolling down will give you lower pitches. For kit clips, scrolling vertically will expose additional sounds. Any notes already created which fall offscreen as a result of scrolling will still exist, will still sound when in play-mode, and will reappear when their row is scrolled back to.
+
+### :key[Gold]
+
+The parameter knobs (the two gold knobs) control parameters of the synthesizer or sampler engine. Each has a level-meter to its left, indicating the current value of the parameter it controls.
+
+Three of the parameter functions are labeled “custom” (1, 2 and 3). The function of these depends on the sound preset.
+
+Custom 1 typically controls pitch for sample-based sounds, or portamento for synth sounds.
+
+Custom 2 and 3 control sample rate reduction and bitcrushing respectively for kits or songs in “affect entire” mode, and for most sample-based sounds.
+
+More parameters are available for editing than just the 16 that you have access to with the parameter knobs. See the chapter on the sound editor for instructions on editing further parameters or remapping the parameter knobs or external MIDI knobs to control different parameters.
+
+Several parameter knob functions have an additional function which can be enacted by pressing down on the knob. Most of these toggle related parameters, notifying the user of the new value via the Deluge’s text display.
+
+| Parameter knob function / label | Press-down function                                                                                                                                                                                                                                                                                                               |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cutoff                          | Toggles the function of the “cutoff” and “res” function to affect the LPF (default), HPF, or to become treble and bass controls (“EQ”)                                                                                                                                                                                            |
+| Res (resonance)                 | Toggles the dB/octave slope of the filter between 24dB and 12dB (LPF only)                                                                                                                                                                                                                                                        |
+| Delay time                      | Toggles ping-pong delay (a stereo effect) on (default) and off                                                                                                                                                                                                                                                                    |
+| Delay amount                    | Toggles analog simulation on and off (default) for delay. Note that analog simulation consumes a relatively high amount of CPU power, lowering the number of voices that may sound at once                                                                                                                                        |
+| Sidechain                       | Toggles sidechain speed between fast (synced to 32nd-notes) and slow (synced to 8th-notes)                                                                                                                                                                                                                                        |
+| Reverb                          | Toggles reverb presets - “small”, “medium”, and "large". These apply to all reverb in the whole song - not just to the current sound                                                                                                                                                                                              |
+| Mod rate                        | (Only for “affect-entire” mode for songs and kit clips.) Where mod rate and depth are controlling a modulation effect (chorus, flanger or phaser), the effect switches to the next in that list                                                                                                                                   |
+| Mod depth                       | (Only for “affect-entire” mode for songs and kit clips.) Where mod rate and depth are controlling a modulation effect (chorus, flanger or phaser), the “mod depth” function toggles between controlling depth, feedback, and offset, depending on the active effect                                                               |
+| Stutter                         | Pressing down on the knob enacts the stutter effect. Releasing it stops the effect. Turning the knob controls the length and speed of stuttering. You can also turn it while held down to speed the short stuttering loop up and down. The stutter effect exists only as a parameter knob function, not in the sound editor menu. |
+
+#### Synth parameter control
+
+For synth clips, the parameter knobs affect the sound of the synth.
+
+#### Kit parameter control
+
+For kit clips, by default the parameter knobs affect just the sound of the currently selected row. To select a sound, tap the audition pad (far-right) for that row. If you don’t wish for the sound to in fact be sounded audibly while you press it’s audition pad, hold down the shift button first. The currently selected sound is indicated with its audition pad dimly illuminated.
+
+If you wish to instead affect the sound of the entire kit clip, press the “affect entire” button so that it is illuminated. The parameter knobs will now affect the output of all sounds within the kit.
+
+#### MIDI parameter control
+
+For MIDI clips, the parameter knobs can control parameters on external equipment via MIDI CC
+
+#### :key[Gold upper]
+
+#### :key[Gold lower]
+
+## Buttons
+
+... Add Content ...
+
+### :key[Play]
+
+#### Playing and stopping a song
+
+<Steps>
+
+1. In any view, press [PLAY] the button illuminates green when playing.
+
+1. To stop the sequencer press [PLAY] while its running. The button will be unlit and the sequencer resets to the beginning when play is resumed.
+
+</Steps>
+
+### :key[TapTempo]
+
+#### Setting the Tempo
+
+<Steps>
+
+1. Tap the :key[Taptempo] button two or more taps. The button will flash green while tapping.
+
+1. Tempo will adjust automatically and more accurately as more taps are captured.
+
+1. The display will show tempo settings when tapping.
+
+</Steps>
+
+#### Toggling the Metronome
+
+<Steps>
+
+1. Press :key[Shift + TapTempo]. The button will illuminate green to signify that the metronome is turned on.
+
+1. The metronome will sound out when the sequence is in play and running. A higher pitch at each bar start and lower pitch on the beat.
+
+1. (OUTPUT LEVEL) will adjust the entire volume output and headphone output. This will also affect the metronome volume. The metronome volume level with respect to the main output audio level can be set in the global setting defaults.
+
+1. Press :key[Shift + TapTempo] when metronome is on to turn it off. The button will be unlit to signify that the metronome is turned off.
+
+</Steps>
+
+### Gold :key[Param]
+
+Which parameters the gold knobs control (their function) can be quickly switched by the row of 8 buttons indicating options such as volume/pan, attack/release, etc.
+
+### :key[AffectEntire]
+
+### :key[Song]
+
+### :key[Clip]
+
+### :key[Keyboard]
+
+### :key[Synth]
+
+### :key[Kit]
+
+### :key[Midi]
+
+### :key[CV]
+
+### :key[Scale]
+
+By default, all new synth, MIDI and CV clips are put into scale mode - locked to a major scale. There are many other options, however.
+
+The first alternative worth mentioning is to exit scale mode entirely, by pressing the “scale” button so that it is no longer illuminated. Neighbouring rows of pads will now be only a semitone apart, giving you access to a chromatic scale. Any notes that you previously created, while in scale mode, will still exist, but you will likely see some of them move to a different pad-row as you exit scale mode to make room for a newly-accessible semitone’s row. Remember that you can scroll up and down - this may be even more necessary now that the “working area” has expanded vertically. You can press the “scale” button again at any time to re-enter scale mode.
+
+To change to a different scale, press shift+scale. The Deluge will cycle through the 7 Western-music “modes”, displaying the name of each on the text display: major (ionian), minor (aeolian), dorian, phrygian, lydian, mixolydian, and locrian. If the Deluge instead displays the error message “CAN’T”, this is because the current scale has more than 7 notes. See below for how to create a custom scale - perhaps you did so accidentally.
+
+When re-entering scale mode (pressing the “scale” button when it was not previously illuminated), the Deluge will examine the notes that are present, and make an educated guess as to their scale and the scale’s root note / key. For instance, if the Deluge detects the presence of a minor third note relative to the root note, it will be likely to conclude that the scale is minor. Scales on the Deluge will usually contain seven different notes (eight if you count the octave - the same as most Western scales). However, sometimes there will be more notes - for instance, if both a major 3rd and a minor 3rd are present when entering scale mode, both will be added to the scale.
+
+The root note (at every octave) is indicated, anytime that a clip is in scale mode, with its audition pad permanently illuminated. If you wish to change the root note (e.g. if the Deluge guessed incorrectly what root note you intended), simply hold down the “scale” button and press the audition pad (or note on the keyboard if in keyboard view) for the note that you intend. You may do this whether or not you were already in scale mode.
+
+The other way that the scale may be altered and customized is by sharpening or flattening the notes present in an existing scale. So long as you are already in scale mode, you may do this as follows: Hold down the audition pad for a given row / note. The note will sound, and the text display will indicate the name of the note (a dot (.) means “sharp”). While holding the audition pad, additionally hold down the select knob and turn it to sharpen or flatten the note. Most times, you can move a note just one semitone in either direction - any further and it would become the same as the next note in the scale, which is not allowed. If you wish to perform this function without the note sounding as you press the audition pad (e.g. because you’re in the middle of a performance), this can be achieved by holding down the shift button before pressing the audition pad.
+
+For songs with multiple clips, all clips that are in scale mode are always locked to the same scale, for convenience. Any change that you make to the scale while editing one clip will affect all others that are also in scale mode. Correspondingly, when the Deluge guesses the scale and root note when re-entering scale mode, the contents of all scale clips will be considered. So if you’re wondering why the Deluge threw some extra notes into your scale that you didn’t expect, it’s likely because you have a different clip which contains those notes!
+
+If you wish to transpose a clip up or down, this can be achieved by holding down the ▼▲ knob and turning it. Doing this alone will transpose a whole octave at a time. If you wish to transpose just a semitone, then hold down the shift button as well while turning.
+
+If you transpose by semitones while in scale mode, then any other clips that are also in scale mode will also be transposed.
+
+### :key[Crossscreen]
+
+### :key[Syncscaling]
+
+For users syncing the Deluge as a slave and wanting to make use of unusual time signatures, sync-scaling is a fun feature. A clip of an unusual time signature may be created by setting its length to an unusual number of beats - e.g. seven 8th-notes. Using sync-scaling, the Deluge, when synced as a slave, can make those seven 8th-notes take up the same amount of time that the incoming MIDI beat clock says that eight 8th-notes are meant to take up.
+
+There are a couple of applications for this:
+
+- The user may wish to create polyrhythms by e.g. having an external device (the syncing master) playing a sequence in 4:4 timing, while the Deluge (the slave) squeezes 7 notes into a bar instead of 8.
+- As mentioned above, some loop pedals may act as a syncing master. However, they are likely to assume that any loop created (e.g. with a guitar) is in 4:4 timing. If the user had in fact played a guitar loop in 7:8 timing, the loop pedal would still be outputting a 4:4 MIDI beat clock - dividing the entire loop into, say, fours rather than sevens. The solution is to tell the Deluge to scale the incoming 4:4 MIDI beat clock into a 7:8 one, so that a 7:8 sequence created on the Deluge would play perfectly synced to the 7:8 guitar loop, despite the incorrect 4:4 MIDI beat clock passing between the two devices.
+
+Sync-scaling is tied to the length of one clip in a song, and tells the Deluge that that clip’s length should be squeezed into 1 bar of incoming MIDI beat clock (or 2 bars, or 4 or 8 bars, depending on how long the clip is; the Deluge will use whatever magnitude of sync-scaling causes the smallest change in tempo).
+
+To enable sync-scaling:
+
+<Steps>
+
+1. Enter clip view for the clip that you wish to tie sync-scaling to.
+1. Press the sync-scaling button to set this clip as the sync-scaling clip.
+1. The button will blink continuously, indicating that this is the sync-scaling clip.
+1. If you leave clip view for this clip, the button will remain illuminated, but will cease to blink, indicating that sync-scaling is active, but not for this clip.
+1. Sync-scaling may be switched off at any time by pressing the sync-scaling button.
+
+</Steps>
+
+Even while the gDeluge is playing synced as a slave, sync-scaling may be switched on or off, and the sync-scaling clip may have its length changed. Despite any such changes, the Deluge will keep the sync-scaling clip playing in time to the syncing master. It will also attempt to keep all other clips in time; this works best if the other clips are of the same time signature as the sync-scaling clip (that is, their lengths are the same, or half our double, or 4 times shorter or longer, etc.)
+
+### :key[TripletsView]
+
+Triplets view is activated by pressing the “triplets view” button, and basically changes the pad grid’s function to divide time into threes rather than fours, allowing you to create triplets.
+
+Your zoom level when you enter triplets view makes a difference. Let’s say you were zoomed to be viewing 16th notes (press down on the ◄► knob to be reminded of your zoom level). After entering triplets view, rather than each quarter of the 16x8 pad grid giving you 4 columns of 16th-notes, each quarter is instead divided into 3, with the fourth column greyed out and not used in this view. These 3 divisions will total the same amount of time that the 4 divisions previously did, despite looking slightly different.
+
+Or, if you had been zoomed to be viewing 8th notes, the same effect would have been applied to them. Once in triplets view, even if you change your zoom level, same time-division which had previously been divided into 4 remains now divided into 3. If you wish to create triplets for a different time-division (e.g. 8th-notes if you’d previously created triplets for 16th-notes), you may exit and then re-enter triplets view.
+
+### :key[Record]
+
+### :key[Shift]
+
+### :key[Undo]
+
+In the Deluge’s four main views (clip, song, arranger and keyboard), you can undo your most recent editing action by pressing the back button. You may step backward through as many past actions as you like, subject to the Deluge’s RAM capacity. You may also redo by pressing shift+back.
+
+Most actions involving the editing of notes (in clip view), clip-instances (in arranger view), and the recording of notes and automation may be undone and redone. So may the recording of clips and overdubs in song view.
+
+There are also global MIDI commands for undo and redo - particularly useful for foot-control during live looping.
+
+If you enter the sound editor, or otherwise perform an action which can’t be undone (e.g. changing a preset), your undo history will be deleted.
+
+### :key[Save]
+
+Songs are stored on the SD card. To save a song, press the save button. By default, a new song will be given a number, and you may turn the select knob to change that number. Numbers shown with a dot next to them already have a song saved.
+
+Alternatively, you may begin typing on the Deluge’s alphanumeric keyboard, to give your song a text-based name.
+
+While in this save song mode, you may press the back button at any time to exit.
+
+When a song is saved a subsequent time, its name or number will default to a higher variant.
+
+For numbered songs it will get a letter-based suffix appended - e.g. song 3A. Or for songs with text-based names, a number will be appended to the end - e.g. SONGNAME 2.
+
+Press the save button a second time to save your song with its selected name or number. The song will be saved, and you will be returned to either clip view, song view or arranger view, whichever you were in. Or, if you will be overwriting an existing song, the Deluge will prompt “OVER” on its display - press the save button again to confirm, or the back button to cancel the overwrite.
+
+If you have saved a lot of songs with lettered sub-slots and wish to skip past these when scrolling songs, simply hold down the shift button as you turn the select knob to skip the sub-slots.
+
+Saving may be performed while the Deluge is playing, without interruption to playback.
+
+#### Collect-media tool
+
+This tool collects together all contents and sample files which a song file uses, allowing you to transfer the song to another SD card, or give it to another Deluge user.
+
+When saving your song, after selecting the slot number, long-press the save button. A context menu will appear with just one option, COLLect. Select that by pressing the save button again. Now, as the song is saved, a new folder is created with the same name as your song file (inside the SONGS folder on your card), containing copies of all your song’s samples.
+
+To transfer the song to another card or user, both the song file (e.g. “SONG100.XML”) and the song folder (“SONG100”) need to be placed in the SONGS folder on the destination card. The song can now be loaded from that card with all its samples.
+
+As soon as a song loaded in such a way (that is, imported from another card) is then re-saved by the Deluge on its new card, the samples are all copied into that card’s normal SAMPLES folder - into the same subfolder locations that they had originally been referenced from.
+
+When collecting media in this way, the Deluge automatically adds a string of random characters onto the ends of Deluge-recorded samples, so there won't be confusion / overwriting between Deluge users who all have a different e.g. "REC00001.wav" file present.
+
+### :key[Load]
+
+Very similarly to saving a song, loading a song is achieved by pressing the load button, which takes you into load song mode, which is also exit-able by pressing the back button. A song number / name is selected by turning the select encoder, and numbers / names can be navigated and searched using the keyboard. While browsing existing songs, you can see a “preview” of each song on the pad grid. To load the selected song, press the load button again.
+
+Loading may be performed while the Deluge is playing, without interruption to playback. Loading during playback will cause the song to switch perfectly at the end of a loop.
+
+To delete a song, enter load song mode and browse to it with the select knob and/or alphanumeric keyboard. Then press shift+save to access the delete song function. The Deluge will blink the text “DELE”. Press the save button again to delete the song, or the back button to cancel the delete song function.
+
+To create a new, empty song, as if the Deluge had just been switched on, activate the new song function by holding the shift button and pressing the load button. You may do this from song view, clip view or arranger view. The Deluge will blink the text “NEW”, warning that whatever song is currently in memory will be cleared. Press the load button again to clear the song and begin a new one, or the back button to cancel the new song function.
+
+#### Switching song during playback
+
+The Deluge can switch songs while playing, perfectly on the beat. In fact, this is the default behaviour - simply enter load song mode during playback, select the song you wish to switch to, press load again, and after your new song has loaded, it will become armed to begin playing immediately when the old song completes a loop (when the longest playing clip loops).
+
+As your new song may take up to a few seconds to load if it contains a lot of samples, there is a way to more precisely specify its launch-time, too. After selecting the song you wish to switch to, hold down the load button rather than pressing it momentarily. While holding the button down, the Deluge will load the song, indicating “DONE” when loading is complete. Then only when you release your press on the load button will the Deluge become armed to switch the song at the completion of the current loop.
+
+Just like the arming of clip and sections, the arming of a new song causes the number of remaining complete or partial loops remaining before the launch event to blink fast on the Deluge's numeric display. For songs, this will be 1 by default, but you can increase it by turning the select knob.
+
+If you wish to maintain the tempo of the old song into the new one, press down on the tempo knob while you press the load button. And if tempo magnitude matching is enabled, then a multiple of the old song’s tempo may be used if it means a less drastic change to the new song’s tempo.
+
+Or, if the Deluge is playing synced as a slave, the tempo will remain the same regardless, with the tempo magnitude matching setting taking effect if enabled.
+
+## Pads
+
+... Add Content ...
+
+### :key[Main Grid Pad]
+
+### :key[Mute Sidebar Pad]
+
+### :key[Audition Sidebar Pad]

@@ -26,12 +26,12 @@ public:
 	using HorizontalMenu::HorizontalMenu;
 
 	[[nodiscard]] std::string_view getTitle() const override {
-		if (renderingStyle() == HorizontalMenu::RenderingStyle::VERTICAL) {
+		if (renderingStyle() == VERTICAL) {
 			return Submenu::getTitle();
 		}
 
 		if (paging.visiblePageNumber == 0) {
-			// On the first page we show the mod fx type selector, so we display regular MOD-FX title
+			// On the first page we show the mod fx type selector, so we display a regular MOD-FX title
 			return deluge::l10n::getView(title);
 		}
 

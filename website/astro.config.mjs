@@ -71,6 +71,30 @@ const config = defineConfig({
                 autogenerate: { directory: "features" },
               },
               {
+                label: "Manual",
+                items: [
+                  {
+                    label: "Introduction",
+                    autogenerate: { directory: "manual/introduction" },
+                  },
+                  {
+                    label: "Device Overview",
+                    collapsed: true,
+                    autogenerate: { directory: "manual/device_overview" },
+                  },
+                  {
+                    label: "User Interfaces",
+                    collapsed: true,
+                    autogenerate: { directory: "manual/user_interfaces" },
+                  },
+                  {
+                    label: "Engines",
+                    collapsed: true,
+                    autogenerate: { directory: "manual/engines" },
+                  },
+                ],
+              },
+              {
                 label: "Reference",
                 autogenerate: { directory: "reference" },
               },
@@ -81,6 +105,10 @@ const config = defineConfig({
             icon: "star",
             link: "/resources/applications/overview",
             items: [
+              {
+                label: "Community Presets",
+                autogenerate: { directory: "resources/presets" },
+              },
               {
                 label: "Community Applications",
                 autogenerate: { directory: "resources/applications" },

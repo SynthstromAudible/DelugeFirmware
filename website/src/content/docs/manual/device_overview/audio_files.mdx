@@ -1,0 +1,166 @@
+---
+title: Audio Files
+sidebar:
+  order: 11
+---
+
+import { Steps } from "@astrojs/starlight/components"
+
+The Deluge supports .wav and .aiff files up to 32-bit / 96kHz.
+
+Its native sample rate is 44.1kHz, so audio files at this rate will play most optimally. .aiff files, and also 32-bit floating point files, have a slight processing overhead, so are less recommended in CPU-heavy projects.
+
+Audio files can be loaded from the SD card for use in two different contexts:
+
+- as audio clips, which play back perfectly synced and time-stretched if necessary to all other clips in the song;
+- as samples, which can be sequenced rhythmically or sounded as a live instrument.
+  - This option will often involve a kit, made up of many sample-based sounds, or may also take the form of a melodic synth instrument with samples in place of its oscillators - possibly even multisamples..
+
+Audio files are loaded using the file browser (insert link) which allows you to browse the folder structure of the "SAMPLES" folder on the SD card.
+
+- turning the select knob flips through the files in the current folder (playing each one for you to hear);
+- pressing down on the select knob:
+  - loads the selected audio file into memory; or
+  - if a folder is selected then it is entered;
+- pressing the back button:
+  - goes up a level to the parent folder; or
+  - if no higher levels remain, the file browser is exited.
+- pressing one of the mute pads:
+  - the file browser is exited.
+- shift + save:
+  - deletes the selected audio file from the SD card;
+
+## Audio file tags
+
+### Loop points
+
+Some .wav and .aiff files contain tags specifying sample loop points. The Deluge will read these if they are present. See waveform view for further info.
+
+### Pitch detection
+
+Some .wav and .aiff files contain tags explicitly stating what note the file contains a sample of. Where these tags are present, they will override the Deluge’s own pitch detection. (See sample pitch detection below)
+
+## Loading into Audio clip
+
+Much like instrument clips, which play sequenced notes in sync and as part of the currently loaded song on the Deluge, audio clips allow an audio recording to be consistently played or looped, or even recorded, in sync with the Deluge’s other functions.
+
+Audio clips will always be time-stretched (or pitch-adjusted if set to link pitch and speed) if needed to keep them in-sync
+with the song.
+
+Common uses of audio clips on the Deluge include live looping, simple playback of pre-recorded beats or loops as an alternative to sequencing individual notes, or multitrack audio recording.
+
+Audio clips can either be created or recorded in song view (suitable for looping), or created or recorded in arranger view (for multitrack “DAW-like” recording).
+
+### Blank Audio clip
+
+If you have opted to create a blank audio clip as opposed to recording audio into one, you are likely to want to load an audio file into it.
+
+From audio clip view, you may enter the file browser by using the “browse” shortcut, or by pressing the select knob to enter the sound editor and navigating to FILE.
+
+## Loading into Kit clip
+
+A common way to make use of samples on the Deluge is in a kit clip.
+
+### New Kit
+
+If you are in clip view (e.g. immediately after powering on the Deluge), you can create a new, blank kit for your clip by pressing shift+kit. Upon doing this, the file browser is immediately entered, so that you can load your first sample for this new kit.
+
+After loading the first sample for your kit, you will be returned to clip view, where the loaded sample will have been assigned a row of pads, indicated by its green-illuminated “mute” pad.
+
+- You can audition the sample by pressing the row’s “audition” pad (far-right).
+
+Samples shorter than 2 seconds will by default have their “MODE” set to “ONCE”, to behave as a one-shot sample: any time the sample is triggered, the whole sample will play. Samples longer than 2 seconds will instead be set to “CUT” mode, to play only as long as the user is holding down the row’s “audition” pad - or as long as a sequenced note is sounding on that row.
+
+### Existing Kit
+
+To load further samples into an existing kit (such as the one you created in the step above), hold down the audition pad on an unoccupied (or occupied if you wish) row and press the kit button again. The file browser will be re-entered, and an additional sample may be selected. This process may be repeated as many times as desired.
+
+The file browser may also be manually entered via the sound editor, including the BROWSE shortcut, for a particular existing sound, allowing the user to change its sample but retain all other settings or fx set for it.
+
+### Import entire folder of samples
+
+To quickly import all audio files within a folder, create a new kit as above, but when selecting your file, press and hold down on the select knob. You can do this either while “looking at” one of the files within the folder, or the folder’s name itself. A context menu will appear, with options you may select from by turning the select knob. Select the “ALL” option by pressing down on the select knob again. Each audio file within the folder will automatically be placed on a “row” of pads. (You will have to scroll vertically to see them all if there are more than 8.)
+
+### Slicer
+
+The Deluge has a basic slicer function, to allow you to create a kit whose sounds are the various evenly-sized slices of one audio file.
+
+To do this, create a new kit as above, but when selecting your file, press and hold down on the select knob. A context menu will appear, with options you may select from by turning the select knob. Select the “SLICer” option and press down on the select knob again. The Deluge will then prompt you to select a number of slices. The default is 16, and you may change this by turning the select knob. Then press down on the select knob again, and your new kit will be created, containing the selected number of slices from your audio file.
+
+## Loading into Synth clip
+
+Samples may also be used as the basis for a melodic instrument which, just like any other synth on the Deluge, may have a melody sequenced for it in clip view, or may be played in keyboard view.
+
+### Create Single Sample based synth
+
+The most basic case of this would be the use of a single sample - say a note played on a piano - whose pitch the Deluge will then adjust to allow the sounding of any note which the user might play or might appear in the entered sequence.
+
+To create a "synth" instrument on the Deluge which is based on a single sample:
+
+<Steps>
+
+1. first ensure you are in clip view or keyboard view;
+1. then create a new synth by pressing shift+synth. By default this new synth will have just one, square-wave oscillator, and no other filters or effects applied.
+1. Now hold down any of the audition pads and press the load button.
+1. Before entering the file browser, the Deluge will ask what “range” of notes we wish to apply this sample to - see multisampling below. The default range is displayed as “BOT-TOP”, or bottom-to-top, meaning applying to all notes. Let’s go with this option initially - by pressing down on the select knob.
+1. The file browser (described above) will then be entered, and you may select an audio file to replace the synth’s square-wave oscillator. This is the simpler case of having just one sample - instructions for importing multisamples are below. Once that is done, you will be returned to clip view or keyboard view. When you play a note now, you will hear your selected sample, with its pitch adjusted up or down to sound whichever notes you choose to play. It will be automatically tuned so that a “C” note played on the Deluge truly comes out as a “C” note - see sample pitch detection, below.
+
+</Steps>
+
+### Create Multi Sample based synth
+
+When adjusting pitch by more than a few semitones, most acoustic instrument samples will cease to sound like an authentic replication of that instrument, so a common approach is to sample various notes played on that instrument (a piano in our example) - either sampling every single key, or perhaps at some other interval like two keys per octave and having playback of a given note derived by adjusting the pitch of the closest-by sampled note.
+
+- This approach is called multisampling, and is supported flexibly on the Deluge.
+
+To set up an instrument based on multisamples, the easiest way is by importing a whole folder containing your various samples of one instrument.
+
+<Steps>
+
+1. first ensure you are in clip view or keyboard view;
+1. then create a new synth by pressing shift+synth. By default this new synth will have just one, square-wave oscillator, and no other filters or effects applied.
+1. Now hold down any of the audition pads and press the load button.
+1. Before entering the file browser, the Deluge will ask what “range” of notes we wish to apply this sample to. The default range is displayed as “BOT-TOP”, or bottom-to-top, meaning applying to all notes. Let’s go with this option initially - by pressing down on the select knob.
+1. The file browser (described above) will then be entered.
+1. Press and hold the select encoder for half a second.
+1. A context menu will appear, blinking several options which you can navigate through by turning the select knob.
+1. The first option is MULTisamples. Select this by pressing down on the select knob.
+1. The Deluge will proceed to import all the samples in the folder, automatically detecting their pitch and setting up their corresponding note-ranges for you. This will work whether you have a separate sample for every single note, or a smaller selection of samples and notes, in which case the Deluge will set up ranges with bounds halfway between neighbouring samples’ pitches.
+
+</Steps>
+
+You can also manually edit and set up multisample note ranges.
+
+<Steps>
+
+1. When selecting a range (e.g. after pressing the “browse” shortcut), the existing ranges may be flicked through by turning the select knob. They will display in the format of “A2-D2”, meaning that the range covers the notes A2 to D2, inclusive of those notes. Sharps are represented with a “.”, and “BOT” and “TOP” are used to mean that the range applies all the way to the bottom or the top.
+1. To edit a note range’s bounds, turn the ◄► knob to select either the lower or upper bound (it will blink). Then turn the select knob to edit it. The corresponding boundary of the neighbouring range will be moved as well to accommodate the change.
+1. To insert a new range, hold the shift button and turn the select knob clockwise or anticlockwise to create a new range above or below the currently selected one, respectively. And to delete the currently selected range, press the save/delete button.
+
+</Steps>
+
+### Sample pitch detection
+
+The Deluge automatically detects the pitch of all samples loaded into “synth” instruments, using this information to set up multisample note-ranges and adjust transpose so that the correct pitches are played.
+
+The Deluge’s pitch detection algorithm gets good results on its own, but will then also compare its results to the sample files’ names. If it realises that its pitch detection has got the samples in the wrong order, it will re-evaluate the pitches. For this reason, it’s a good idea to have your samples named alphabetically from low notes to high notes. Numbers and note names are taken into account when looking at the order - e.g. the Deluge knows that “B#2” comes before “A3”, and that “Eb comes before “E”. Only the ordering of the files is important though - the
+
+Deluge does not read the actual note names - just looks at the files’ ordering and then uses its pitch detection for the rest.
+
+Some .wav and .aiff files contain tags explicitly stating what note the file contains a sample of. Where these tags are present, they will override the Deluge’s own pitch detection.
+
+### Single-cycle waveforms
+
+Single-cycle waveforms are very short audio files which represent just one cycle of a waveform.
+
+These are available for all kinds of interesting waveforms which couldn’t otherwise be synthesized easily, and are intended to be played back looping as an instrument’s oscillator, with pitch (or playback speed) adjusted to sound different pitches.
+
+The Deluge will interpret any audio file loaded into a synth instrument which is less than 20mS in length as a single-cycle waveform, and will set it to loop. It will also look at the waveform’s length, adjusting oscillator transpose accordingly so that a “C” note will be played back as one.
+
+You can also manually force the loading of a sample (perhaps a longer one) as a single-cycle waveform.
+
+- To do this, when selecting the audio file, long-press the select knob to bring up a context menu for the file. Select the “SINGle” option. The other options (at least within a synth instrument) are “MULTisamples”, covered above, and “BASIc”, which loads the sample in the most basic way possible with no pitch detection or single-cycle setup.
+
+## Deleting audio files
+
+While in the file browser, you can hold shift and press the save button to delete the selected audio file - it'll prompt you "DELE" first, after which press the save button again to complete the deletion. Take care not to delete an audio file that you have used in other songs.

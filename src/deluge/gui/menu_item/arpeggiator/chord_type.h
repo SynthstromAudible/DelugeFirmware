@@ -65,7 +65,6 @@ public:
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
 	}
-	void getColumnLabelForSmallFont(StringBuf& label) override { getColumnLabel(label); }
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;

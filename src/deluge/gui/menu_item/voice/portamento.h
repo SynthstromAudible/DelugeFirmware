@@ -27,7 +27,7 @@ public:
 	Portamento(l10n::String newName) : UnpatchedParam(newName, deluge::modulation::params::UNPATCHED_PORTAMENTO) {}
 
 	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PORTAMENTO_SHORT));
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_PORTAMENTO_SHORT));
 	}
 };
 

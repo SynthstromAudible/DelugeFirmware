@@ -71,6 +71,5 @@ protected:
 
 	virtual bool willRenderAsOneChannelOnlyWhichWillNeedCopying() { return false; }
 
-private:
 	bool renderedLastTime = false;
 };

@@ -30,7 +30,6 @@ namespace deluge::gui::menu_item::runtime_feature {
 SettingToggle menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
 SettingToggle menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
 SettingToggle menuQuantize(RuntimeFeatureSettingType::Quantize);
-SettingToggle menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
 SettingToggle menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 SettingToggle menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 SettingToggle menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
@@ -49,14 +48,12 @@ SettingToggle menuAlternativePlaybackStartBehaviour(RuntimeFeatureSettingType::A
 SettingToggle menuEnableGridViewLoopPads(RuntimeFeatureSettingType::EnableGridViewLoopPads);
 SettingToggle menuAlternativeTapTempoBehaviour(RuntimeFeatureSettingType::AlternativeTapTempoBehaviour);
 SettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalMenus);
-SettingToggle menuHorizontalMenusSmallFontForLabels(RuntimeFeatureSettingType::HorizontalMenusSmallFontForLabels);
 SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
     &menuFineTempo,
     &menuQuantize,
-    &menuPatchCableResolution,
     &menuCatchNotes,
     &menuDeleteUnusedKitRows,
     &menuAltGoldenKnobDelayParams,
@@ -75,7 +72,6 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuEnableGridViewLoopPads,
     &menuAlternativeTapTempoBehaviour,
     &menuHorizontalMenus,
-    &menuHorizontalMenusSmallFontForLabels,
     &menuTrimFromStartOfAudioClip};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {

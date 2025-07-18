@@ -39,7 +39,7 @@ public:
 	}
 
 	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SHAPE_SHORT));
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_SHAPE_SHORT));
 	}
 };
 } // namespace deluge::gui::menu_item::reverb::sidechain

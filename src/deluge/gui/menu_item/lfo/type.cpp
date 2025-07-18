@@ -28,30 +28,8 @@ void Type::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY,
 	oled_canvas::Canvas& image = OLED::main;
 
 	const LFOType type = soundEditor.currentSound->lfoConfig[lfoId_].waveType;
-	const std::vector<uint8_t>& bitmap = getLfoIconBitmap(type);
-	const uint8_t bitmapXOffset = getLfoIconBitmapXOffset(type);
-
-	constexpr uint8_t numBytesTall = 2;
-	constexpr uint8_t bitmapHeight = 16;
-	const uint8_t bitmapWidth = bitmap.size() / numBytesTall;
-
-	uint8_t currentX = startX + 3;
-	uint8_t currentOffset = bitmapXOffset;
-	uint8_t endX = startX + width - 7;
-
-	// Draw looped lfo shape image until it fits the width
-	while (currentX < endX) {
-		uint8_t remaining = endX - currentX;
-		uint8_t drawWidth = bitmapWidth - currentOffset;
-		if (drawWidth > remaining) {
-			drawWidth = remaining;
-		}
-
-		image.drawGraphicMultiLine(bitmap.data() + currentOffset * numBytesTall, currentX, startY + 5, drawWidth,
-		                           bitmapHeight, numBytesTall);
-		currentX += drawWidth;
-		currentOffset = 0; // After the first draw, always start from 0 of the bitmap
-	}
+	const auto& bitmap = getLfoIconBitmap(type);
+	image.drawGraphicMultiLine(bitmap.data(), startX + 3, startY + 4, 25, 16, 2);
 }
 
 const std::vector<uint8_t>& Type::getLfoIconBitmap(LFOType type) {
@@ -72,17 +50,6 @@ const std::vector<uint8_t>& Type::getLfoIconBitmap(LFOType type) {
 		return OLED::lfoIconWarbler;
 	}
 	return OLED::lfoIconSine; // satisfies -Wreturn-type
-}
-
-const uint8_t Type::getLfoIconBitmapXOffset(LFOType type) {
-	switch (type) {
-	case LFOType::SQUARE:
-		return 3;
-	case LFOType::SAW:
-		return 10;
-	default:
-		return 1;
-	}
 }
 
 } // namespace deluge::gui::menu_item::lfo

@@ -40,7 +40,7 @@ const ActionSchema = z.object({
    * Gold knobs are assigned UPPER or LOWER.
    * Parameter buttons are assigned 1-8.
    * Grid pads have IDs from A1 to P8.
-   * Audion and mute pads are AUDITION1-8 and MUTE1-8.
+   * Audition and mute pads are AUDITION1-8 and MUTE1-8.
    */
   id: z.string().array().optional(),
 })
