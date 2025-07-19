@@ -42,9 +42,6 @@ public:
 	bool willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* modelStack) override;
 	void reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSetPosToSomething, bool mayResumeClip) override;
 
-	// Per-clip tempo support
-	int32_t calculateClipPosIncrement(Clip* clip, int32_t globalIncrement);
-
 	// Clips remain "active" even after playback has stopped, or after they've finished playing but the next Clip for
 	// the Instrument / row hasn't started yet. It'll also become active if the user starts editing one
 	void resumeClipInstancePlayback(ClipInstance* clipInstance, bool doingComplete = true,

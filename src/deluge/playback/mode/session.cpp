@@ -42,7 +42,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <string.h>
-#include <unordered_map>
 // #include <algorithm>
 #include "gui/ui/load/load_song_ui.h"
 #include "hid/buttons.h"
@@ -2265,7 +2264,7 @@ traverseClips:
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 		// Calculate clip-specific position increment for per-clip tempo support
-		int32_t clipIncrement = calculateClipPosIncrement(clip, numTicksBeingIncremented);
+		int32_t clipIncrement = clip->convertGlobalTicksToLocal(numTicksBeingIncremented);
 
 		// Increment position normally - multi-note processing handles ratio timing at note level
 		clip->incrementPos(modelStackWithTimelineCounter, clipIncrement);
@@ -2446,7 +2445,7 @@ void Session::doTickForward(int32_t posIncrement) {
 
 			// May create new Clip and put it in the ModelStack - we'll check below.
 			// Calculate clip-specific position increment for per-clip tempo support
-			int32_t clipIncrement = calculateClipPosIncrement(clip, posIncrement);
+			int32_t clipIncrement = clip->convertGlobalTicksToLocal(posIncrement);
 
 			// Process normally - multi-note processing handles ratio timing at note level
 			clip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
@@ -2731,48 +2730,4 @@ bool Session::deletingClipWhichCouldBeAbandonedOverdub(Clip* clip) {
 	}
 
 	return shouldBeActiveWhileExistent;
-}
-
-// Per-clip tempo support: Calculate position increment for a clip based on its tempo ratio
-int32_t Session::calculateClipPosIncrement(Clip* clip, int32_t globalIncrement) {
-	if (!clip->hasTempoRatio) {
-		return globalIncrement;
-	}
-
-	// Safety check for division by zero
-	if (clip->tempoRatioDenominator == 0) {
-		return globalIncrement;
-	}
-
-	// CRITICAL FIX: Use fractional accumulation to prevent precision loss
-	// Static accumulator per clip (in practice, this works because clips are processed consistently)
-	static thread_local std::unordered_map<Clip*, int64_t> clipAccumulators;
-
-	// Calculate precise fractional result: (globalIncrement * numerator * 1024) / denominator
-	// Using 1024 as fixed-point scale for sub-tick precision
-	int64_t scaledIncrement = (int64_t)globalIncrement * clip->tempoRatioNumerator * 1024;
-	int64_t preciseResult = scaledIncrement / clip->tempoRatioDenominator;
-
-	// Add to this clip's accumulator
-	clipAccumulators[clip] += preciseResult;
-
-	// Extract whole ticks (divide by 1024)
-	int64_t wholeTicks = clipAccumulators[clip] / 1024;
-
-	// Keep fractional part in accumulator
-	clipAccumulators[clip] %= 1024;
-
-	// Clamp to reasonable bounds
-	int32_t finalResult;
-	if (wholeTicks > INT32_MAX) {
-		finalResult = INT32_MAX;
-	}
-	else if (wholeTicks < INT32_MIN) {
-		finalResult = INT32_MIN;
-	}
-	else {
-		finalResult = (int32_t)wholeTicks;
-	}
-
-	return finalResult;
 }

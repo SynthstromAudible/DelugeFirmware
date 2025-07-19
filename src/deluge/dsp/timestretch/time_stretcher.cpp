@@ -1234,7 +1234,19 @@ int32_t TimeStretcher::getSamplePos(int32_t playDirection) {
 		return samplePosBig >> 24;
 	}
 	else {
-		return (samplePosBig + 16777215) >> 24;
+		// REVERSE PLAYBACK FIX: Proper bounds checking for reverse playback
+		// When samplePosBig goes significantly negative, ensure we return a negative position
+		// to trigger proper termination logic instead of wrapping to positive values
+		int64_t adjustedPos = samplePosBig + 16777215;
+		int32_t position = adjustedPos >> 24;
+
+		// If we've gone significantly past the beginning of the sample in reverse,
+		// ensure we return a clearly negative value to trigger termination
+		if (samplePosBig < -16777215) { // Past beginning by more than 1 sample unit
+			return -1;                  // Force termination
+		}
+
+		return position;
 	}
 }
 

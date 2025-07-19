@@ -2135,14 +2135,19 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 	}
 
 	int32_t ticksTilNextNoteEvent = 2147483647;
-	int32_t effectiveCurrentPos = modelStack->getLastProcessedPos(); // May have got incremented above
+	// Use original time domain for note comparisons - notes are stored in original time
+	int32_t effectiveCurrentPos = modelStack->getLastProcessedPos();
+
+	// DEBUG: Show time domain - should now be consistent
+	bool hasTempoRatio = clip->hasTempoRatio;
 	int32_t effectiveForwardPos =
 	    playingReversedNow ? (effectiveLength - effectiveCurrentPos - 1) : effectiveCurrentPos;
 
-	// CRITICAL FIX: For ratio clips, scan for notes between previous and current positions
+	// For tempo ratio clips, scan for notes between previous and current positions
 	// This prevents note skipping when large position jumps occur due to tempo ratios
 	// FIXED: Now works for both forward AND reverse playback (including ping-pong reverse)
-	if (clip->hasTempoRatio && ticksSinceLast > 1) {
+	// PINGPONG FIX: Skip tempo ratio scanning if we just did a ping-pong to prevent note retriggering
+	if (clip->hasTempoRatio && ticksSinceLast > 1 && !clip->justDidPingpong) {
 		int32_t previousPos, startRange, endRange;
 
 		if (playingReversedNow) {
@@ -2206,6 +2211,7 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 	}
 
 	if (muted) {
+skipNoteTriggering:
 noFurtherNotes:
 		// If this NoteRow has independent length set, make sure we come back at its end. Otherwise, the Clip
 		// handles this.
@@ -2267,15 +2273,18 @@ stopNote:
 				}
 				thisNote = notes.getElement(i);
 
-				// If playing reversed, we have to check that we've even reached this note yet. Maybe we
-				// haven't, and there's actually no note that should be currently playing (e.g. after an undo).
-				if (playingReversedNow) {
+				// SIMPLE FIX: For reverse playback with tempo ratios, add slight delay before stopping notes
+				// This prevents the aggressive stop+retrigger cycle that causes hanging
+				if (playingReversedNow && hasTempoRatio && sequenced) {
+					// Use original DelugeFirmware logic but with small tolerance for tempo ratio timing
 					int32_t posRelativeToNoteLeftEdge = effectiveCurrentPos - thisNote->pos;
 					if (posRelativeToNoteLeftEdge < 0) {
 						posRelativeToNoteLeftEdge += effectiveLength;
 					}
-					if (posRelativeToNoteLeftEdge >= thisNote->length) {
-						goto stopNote; // This is probably fine as either ">" or ">="
+
+					// In reverse+tempo ratios, be less aggressive about stopping - add small buffer
+					if (posRelativeToNoteLeftEdge >= (thisNote->length + 3)) {
+						goto stopNote;
 					}
 				}
 
@@ -2285,8 +2294,16 @@ stopNote:
 					noteLateEdgePos += thisNote->length;
 				}
 
+				// ROOT CAUSE FIX: Properly handle position wrapping to prevent negative values
+				// The old logic could create negative noteLateEdgePos, causing notes to never terminate
 				if (wrapping) {
-					noteLateEdgePos -= effectiveLength;
+					if (noteLateEdgePos >= effectiveLength) {
+						noteLateEdgePos -= effectiveLength;
+					}
+					else {
+						// For reverse playback, ensure proper wrapping without going negative
+						noteLateEdgePos = (noteLateEdgePos + effectiveLength) % effectiveLength;
+					}
 				}
 
 				ticksTilNextNoteEvent = noteLateEdgePos - effectiveCurrentPos;
@@ -2294,9 +2311,14 @@ stopNote:
 					ticksTilNextNoteEvent = -ticksTilNextNoteEvent;
 				}
 
+				// DEBUG: Show the time domain mismatch in next event calculation
+				if (hasTempoRatio) {}
+
 				// If note ends right now (or even earlier, which shouldn't normally happen but let's be
 				// safe)...
-				if (ticksTilNextNoteEvent <= 0) {
+				// For tempo ratios (any direction), add tiny tolerance to prevent exact timing collisions
+				int32_t threshold = hasTempoRatio ? -1 : 0;
+				if (ticksTilNextNoteEvent <= threshold) {
 
 					// If it's a droning, full-length note...
 					if (thisNote->isDrone(effectiveLength)) {
@@ -2339,7 +2361,8 @@ stopNote:
 		}
 
 		// Now, if no note is playing (even if that only became the case just now as one ended, above)...
-		if (!sequenced) {
+		// MINIMAL FIX: Prevent immediate retrigger for reverse+tempo ratios to break hanging note cycle
+		if (!sequenced && !(playingReversedNow && hasTempoRatio && ticksSinceLast < 5)) {
 currentlyOff:
 			ticksTilNextNoteEvent = 2147483647; // Do it again
 

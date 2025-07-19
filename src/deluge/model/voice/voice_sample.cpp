@@ -1673,9 +1673,18 @@ loopBackToStartCached:
 				        || !((VoiceSamplePlaybackGuide*)voiceSource)
 				                ->noteOffReceived)) { // Wait, wouldn't there always be a
 					                                  // voiceSource->endPlaybackAtByte()?
-					int32_t bytePos = timeStretcher->getSamplePos(voiceSource->playDirection)
-					                      * (sample->byteDepth * sample->numChannels)
-					                  + sample->audioDataStartPosBytes;
+					int32_t samplePos = timeStretcher->getSamplePos(voiceSource->playDirection);
+
+					// REVERSE PLAYBACK FIX: Check for reverse playback termination
+					// If playing in reverse and position has gone negative (past sample start), terminate
+					if (voiceSource->playDirection == -1 && samplePos < 0) {
+						D_PRINTLN("TIMESTRETCHER: Terminating reverse playback - position went negative: %d",
+						          samplePos);
+						return false; // Voice should terminate
+					}
+
+					int32_t bytePos =
+					    samplePos * (sample->byteDepth * sample->numChannels) + sample->audioDataStartPosBytes;
 					int32_t overshootBytes = (bytePos - voiceSource->endPlaybackAtByte) * voiceSource->playDirection;
 
 					if (overshootBytes >= 0) {

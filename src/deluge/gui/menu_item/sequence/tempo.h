@@ -35,6 +35,7 @@ namespace deluge::gui::menu_item::sequence {
 // Helper function to restart playback after ratio change - prevents position contamination
 inline void restartPlaybackForRatioChange(Clip* clip, ModelStackWithTimelineCounter* modelStack, bool wasActive) {
 	if (wasActive && playbackHandler.isEitherClockActive()) {
+		D_PRINTLN("TEMPO_RATIO_DEBUG: Starting playback restart");
 		currentSong->assertActiveness(modelStack);
 
 		// CRITICAL FIX: Preserve musical position within clip rather than trying to convert global positions
@@ -42,18 +43,28 @@ inline void restartPlaybackForRatioChange(Clip* clip, ModelStackWithTimelineCoun
 
 		// Get current live position in the clip's current timing domain
 		uint32_t currentLivePos = clip->getLivePos();
+		D_PRINTLN("TEMPO_RATIO_DEBUG: Current live pos: %d", currentLivePos);
 
 		// Calculate position as fraction of loop to preserve musical location
 		uint32_t loopLength = clip->loopLength;
 		uint32_t positionInLoop = currentLivePos % loopLength;
+		D_PRINTLN("TEMPO_RATIO_DEBUG: Loop length: %d, Position in loop: %d", loopLength, positionInLoop);
 
+		D_PRINTLN("TEMPO_RATIO_DEBUG: Calling expectNoFurtherTicks()");
 		clip->expectNoFurtherTicks(currentSong, false);
 
 		// Use the current position within the loop - this preserves musical position
 		// regardless of timing domain changes
+		D_PRINTLN("TEMPO_RATIO_DEBUG: Calling setPos() with position: %d", positionInLoop);
 		clip->setPos(modelStack, positionInLoop, true);
 
+		D_PRINTLN("TEMPO_RATIO_DEBUG: Calling resumePlayback()");
 		clip->resumePlayback(modelStack, false);
+		D_PRINTLN("TEMPO_RATIO_DEBUG: Playback restart completed");
+	}
+	else {
+		D_PRINTLN("TEMPO_RATIO_DEBUG: Skipping restart - wasActive: %d, clockActive: %d", wasActive,
+		          playbackHandler.isEitherClockActive());
 	}
 }
 

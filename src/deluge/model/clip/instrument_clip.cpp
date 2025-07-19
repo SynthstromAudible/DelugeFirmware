@@ -1204,6 +1204,21 @@ void InstrumentClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) 
 		}
 	}
 
+	// TEMPO RATIO FIX: Additional aggressive voice management for tempo ratio mode
+	// This ensures voices are properly cleaned up when playback stops, preventing
+	// stuck notes that persist after normal note-off handling
+	if (hasTempoRatio && actuallySoundChange) {
+		if (output->type == OutputType::SYNTH) {
+			SoundInstrument* soundInstrument = static_cast<SoundInstrument*>(output);
+			soundInstrument->wontBeRenderedForAWhile();
+			// Extra aggressive: also call cutAllSound directly for full voice cleanup
+			soundInstrument->cutAllSound();
+		}
+		else if (output->type == OutputType::KIT) {
+			static_cast<Kit*>(output)->cutAllSound();
+		}
+	}
+
 	currentlyRecordingLinearly = false;
 }
 

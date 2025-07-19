@@ -25,8 +25,10 @@
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_instance.h"
+#include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_begin_linear_record.h"
 #include "model/consequence/consequence_output_existence.h"
+#include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
@@ -78,7 +80,16 @@ Clip::Clip(ClipType newType) : type(newType) {
 
 #if HAVE_SEQUENCE_STEP_CONTROL
 	sequenceDirectionMode = SequenceDirection::FORWARD;
+	justDidPingpong = false;
 #endif
+
+	// Initialize position cache to prevent excessive getLivePos() calculations
+	cachedLivePos = 0;
+	cacheValidForProcessedPos = -1;
+	livePoseCacheValid = false;
+
+	// Initialize fractional tick accumulator for tempo ratio calculations
+	tickAccumulator = 0;
 }
 
 Clip::~Clip() {
@@ -97,6 +108,7 @@ void Clip::cloneFrom(Clip const* otherClip) {
 	wasActiveBefore = otherClip->wasActiveBefore;
 	muteMIDICommand = otherClip->muteMIDICommand;
 	lastProcessedPos = otherClip->lastProcessedPos;
+	livePoseCacheValid = false; // Invalidate cache when position changes
 	repeatCount = otherClip->repeatCount;
 	armedForRecording = otherClip->armedForRecording;
 	launchStyle = otherClip->launchStyle;
@@ -113,6 +125,8 @@ void Clip::copyBasicsFrom(Clip const* otherClip) {
 	tempoRatioNumerator = otherClip->tempoRatioNumerator;
 	tempoRatioDenominator = otherClip->tempoRatioDenominator;
 	hasTempoRatio = otherClip->hasTempoRatio;
+	// Reset accumulator for cloned clips to prevent inherited timing artifacts
+	tickAccumulator = 0;
 }
 
 void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDubType newOverdubNature) {
@@ -157,12 +171,26 @@ int32_t Clip::getMaxZoom() {
 }
 
 uint32_t Clip::getLivePos() const {
+	// PERFORMANCE FIX: Cache position calculation to prevent excessive calls per tick
+	// Check if we already calculated this position for the current processed position
+	if (livePoseCacheValid && cacheValidForProcessedPos == lastProcessedPos) {
+		return cachedLivePos;
+	}
+
 	int32_t currentPosHere = lastProcessedPos;
 
 	int32_t numSwungTicksInSinceLastActioned = playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
 
-	// CRITICAL FIX: For clips with ratio-based tempo, convert global ticks to clip ticks
-	if (hasTempoRatio) {
+	// Follow DelugeFirmware ecosystem: normalize direction FIRST, then do tempo conversion
+	// This ensures tempo ratios work with the existing reverse playback system
+	if (currentlyPlayingReversed) {
+		numSwungTicksInSinceLastActioned = -numSwungTicksInSinceLastActioned;
+	}
+
+	// SHIPPING FIX: Disable tempo ratios for ping-pong mode to prevent hanging notes
+	// This allows the feature to ship while avoiding the complex reverse+ratio interaction
+	bool isPingPong = (sequenceDirectionMode == SequenceDirection::PINGPONG);
+	if (hasTempoRatio && !isPingPong) {
 		// Safety checks to prevent freezing - can't modify const object, so just skip invalid ratios
 		if (tempoRatioNumerator != 0 && tempoRatioDenominator != 0) {
 			// Use 64-bit arithmetic for precise conversion: clipTicks = globalTicks * numerator / denominator
@@ -189,14 +217,15 @@ uint32_t Clip::getLivePos() const {
 		}
 	}
 
-	if (currentlyPlayingReversed) {
-		numSwungTicksInSinceLastActioned = -numSwungTicksInSinceLastActioned;
-	}
-
 	int32_t livePos = currentPosHere + numSwungTicksInSinceLastActioned;
 	if (livePos < 0) {
 		livePos += loopLength; // Could happen if reversing and currentPosHere is 0.
 	}
+
+	// Cache the result to prevent redundant calculations within the same processing cycle
+	cachedLivePos = livePos;
+	cacheValidForProcessedPos = lastProcessedPos;
+	livePoseCacheValid = true;
 
 	return livePos;
 }
@@ -206,7 +235,15 @@ uint32_t Clip::getActualCurrentPosAsIfPlayingInForwardDirection() {
 
 	int32_t numSwungTicksInSinceLastActioned = playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
 
-	// CRITICAL FIX: For clips with ratio-based tempo, convert global ticks to clip ticks
+#if HAVE_SEQUENCE_STEP_CONTROL
+	if (currentlyPlayingReversed) {
+		actualPos = loopLength - actualPos;
+		// Also normalize the tick direction to match the ecosystem pattern
+		numSwungTicksInSinceLastActioned = -numSwungTicksInSinceLastActioned;
+	}
+#endif
+
+	// Apply tempo ratio conversion after direction normalization
 	if (hasTempoRatio) {
 		// Use 64-bit arithmetic for precise conversion: clipTicks = globalTicks * numerator / denominator
 		int64_t globalTicks = (int64_t)numSwungTicksInSinceLastActioned;
@@ -222,12 +259,6 @@ uint32_t Clip::getActualCurrentPosAsIfPlayingInForwardDirection() {
 
 		numSwungTicksInSinceLastActioned = (int32_t)std::clamp(convertedTicks, (int64_t)INT32_MIN, (int64_t)INT32_MAX);
 	}
-
-#if HAVE_SEQUENCE_STEP_CONTROL
-	if (currentlyPlayingReversed) {
-		actualPos = loopLength - actualPos;
-	}
-#endif
 	actualPos += numSwungTicksInSinceLastActioned;
 
 	return actualPos;
@@ -268,6 +299,11 @@ bool Clip::isActiveOnOutput() {
 // Note: it's now the caller's job to increment currentPos before calling this! But we check here whether it's looped
 // and needs setting back to "0". We may change the TimelineCounter in the modelStack if new Clip got created.
 void Clip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast) {
+	static uint32_t debugCallCount = 0;
+	if (sequenceDirectionMode == SequenceDirection::PINGPONG && (++debugCallCount % 1000) == 0) {
+		D_PRINTLN("PINGPONG: processCurrentPos called %d times, pos=%d, reversed=%d, hasTempoRatio=%d", debugCallCount,
+		          lastProcessedPos, currentlyPlayingReversed, hasTempoRatio);
+	}
 
 	// Firstly, a bit of stuff that has to be dealt with ideally before calling posReachedEnd(), and definitely before
 	// we think about pingponging while in reverse. The consequence of not doing this is only apparent in one special
@@ -308,6 +344,7 @@ void Clip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t
 
 	int32_t ticksTilEnd;
 	bool didPingpong = false;
+	// Note: Don't reset justDidPingpong here - it needs to persist across multiple render cycles
 
 	if (currentlyPlayingReversed) {
 		// Normally we do the pingpong when we hit pos 0, so the direction will change and we'll start going right again
@@ -316,10 +353,39 @@ void Clip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t
 		if (!lastProcessedPos) { // Possibly only just became the case, above.
 			repeatCount++;
 			if (sequenceDirectionMode == SequenceDirection::PINGPONG) {
+				D_PRINTLN("PINGPONG: Reversing from REVERSE to FORWARD at pos 0");
+				if (type == ClipType::INSTRUMENT) {
+					D_PRINTLN("PINGPONG: Clip is INSTRUMENT type");
+					if (output->type == OutputType::SYNTH) {
+						SoundInstrument* sound = static_cast<SoundInstrument*>(output);
+						D_PRINTLN("PINGPONG: Output is SYNTH, checking if this is active clip");
+						if (sound->getActiveClip() == this) {
+							D_PRINTLN("PINGPONG: This is the active clip, using aggressive sound stopping");
+							sound->wontBeRenderedForAWhile();
+							D_PRINTLN("PINGPONG: Aggressive sound stopping applied for SYNTH");
+						}
+						else {
+							D_PRINTLN("PINGPONG: This is NOT the active clip, skipping sound stopping");
+						}
+					}
+					else if (output->type == OutputType::KIT) {
+						D_PRINTLN("PINGPONG: Output is KIT, cutting all sound");
+						static_cast<Kit*>(output)->cutAllSound();
+						D_PRINTLN("PINGPONG: All sound cut for KIT");
+					}
+					else {
+						D_PRINTLN("PINGPONG: Output type not SYNTH or KIT: %d", (int)output->type);
+					}
+				}
+				else {
+					D_PRINTLN("PINGPONG: Clip type not INSTRUMENT: %d", (int)type);
+				}
 				lastProcessedPos = -lastProcessedPos; // In case it did get left of zero.
 				currentlyPlayingReversed = !currentlyPlayingReversed;
 				pingpongOccurred(modelStack);
 				didPingpong = true;
+				justDidPingpong = true; // Set flag to prevent tempo ratio retriggering
+
 				goto playingForwardNow;
 			}
 		}
@@ -342,6 +408,33 @@ playingForwardNow:
 			repeatCount++;
 
 			if (sequenceDirectionMode == SequenceDirection::PINGPONG) {
+				D_PRINTLN("PINGPONG: Reversing from FORWARD to REVERSE at loop end");
+				if (type == ClipType::INSTRUMENT) {
+					D_PRINTLN("PINGPONG: Clip is INSTRUMENT type");
+					if (output->type == OutputType::SYNTH) {
+						SoundInstrument* sound = static_cast<SoundInstrument*>(output);
+						D_PRINTLN("PINGPONG: Output is SYNTH, checking if this is active clip");
+						if (sound->getActiveClip() == this) {
+							D_PRINTLN("PINGPONG: This is the active clip, using aggressive sound stopping");
+							sound->wontBeRenderedForAWhile();
+							D_PRINTLN("PINGPONG: Aggressive sound stopping applied for SYNTH");
+						}
+						else {
+							D_PRINTLN("PINGPONG: This is NOT the active clip, skipping sound stopping");
+						}
+					}
+					else if (output->type == OutputType::KIT) {
+						D_PRINTLN("PINGPONG: Output is KIT, cutting all sound");
+						static_cast<Kit*>(output)->cutAllSound();
+						D_PRINTLN("PINGPONG: All sound cut for KIT");
+					}
+					else {
+						D_PRINTLN("PINGPONG: Output type not SYNTH or KIT: %d", (int)output->type);
+					}
+				}
+				else {
+					D_PRINTLN("PINGPONG: Clip type not INSTRUMENT: %d", (int)type);
+				}
 				// Normally we'll have hit the exact loop point, meaning lastProcessedPos will have wrapped to 0, above.
 				// But just in case we went further, and need to wrap back to somewhere nearish the right-hand edge of
 				// the Clip...
@@ -351,6 +444,7 @@ playingForwardNow:
 				currentlyPlayingReversed = !currentlyPlayingReversed;
 				pingpongOccurred(modelStack);
 				didPingpong = true;
+				justDidPingpong = true; // Set flag to prevent tempo ratio retriggering
 			}
 			ticksTilEnd += loopLength; // Yes, we might not be right at the loop point - see comment above.
 		}
@@ -372,12 +466,18 @@ playingForwardNow:
 		}
 	}
 
+	// Clear the justDidPingpong flag after processing - it's only needed for one tick
+	// to prevent retriggering during the direction change tick itself
+	justDidPingpong = false;
+
 	// At least make sure we come back at the end of this Clip
 	if (ticksTilEnd < playbackHandler.swungTicksTilNextEvent) {
 		int32_t globalTicksTilEnd = ticksTilEnd;
 
 		// Convert clip tempo scale to global tempo scale for scheduling
-		if (hasTempoRatio) {
+		// PINGPONG FIX: Skip tempo ratio processing if we just did a pingpong to prevent immediate retriggering
+		// ADDITIONAL FIX: Ensure voice management happens synchronously with ping-pong detection
+		if (hasTempoRatio && !didPingpong) {
 			// Safety checks to prevent freezing
 			if (tempoRatioNumerator == 0 || tempoRatioDenominator == 0) {
 				globalTicksTilEnd = ticksTilEnd;
@@ -474,6 +574,7 @@ void Clip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, boo
 	}
 
 	lastProcessedPos = newPos;
+	livePoseCacheValid = false; // Invalidate cache when position changes
 
 	expectEvent(); // Remember, this is a virtual function call - extended in InstrumentClip
 }
@@ -1010,6 +1111,7 @@ void Clip::lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldL
 			if (lastProcessedPos >= loopLength) {
 				int32_t extraLengthsDone = (uint32_t)lastProcessedPos / (uint32_t)loopLength;
 				lastProcessedPos -= loopLength * extraLengthsDone;
+				livePoseCacheValid = false; // Invalidate cache when position changes
 				repeatCount += extraLengthsDone;
 			}
 			expectEvent();
@@ -1199,6 +1301,7 @@ void Clip::setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, S
 
 		if (reversedBefore != currentlyPlayingReversed) {
 			lastProcessedPos = loopLength - lastProcessedPos;
+			livePoseCacheValid = false; // Invalidate cache when position changes
 			if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
 				resumePlayback(modelStack, true);
 			}
@@ -1327,6 +1430,7 @@ void Clip::incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTi
 		numTicks = -numTicks;
 	}
 	lastProcessedPos += numTicks;
+	livePoseCacheValid = false; // Invalidate cache when position changes
 }
 
 void Clip::setupOverdubInPlace(OverDubType type) {
@@ -1455,4 +1559,31 @@ uint16_t Clip::calculateGCD(uint16_t a, uint16_t b) {
 		a = temp;
 	}
 	return a;
+}
+
+// Centralized time conversion function (replaces scattered logic and fixes memory leak)
+int32_t Clip::convertGlobalTicksToLocal(int32_t globalTicks) {
+	if (!hasTempoRatio) {
+		return globalTicks;
+	}
+
+	// Safety check for division by zero
+	if (tempoRatioDenominator == 0) {
+		return globalTicks;
+	}
+
+	// Use clip-owned accumulator to prevent memory leaks
+	// Calculate precise fractional result: (globalTicks * numerator * 1024) / denominator
+	// Using 1024 as fixed-point scale for sub-tick precision
+	int64_t scaledIncrement = (int64_t)globalTicks * tempoRatioNumerator * 1024;
+	int64_t preciseResult = scaledIncrement / tempoRatioDenominator;
+
+	// Add to this clip's own accumulator (fixes memory leak)
+	tickAccumulator += preciseResult;
+
+	// Extract integer ticks and keep fractional part
+	int32_t ticks = (int32_t)(tickAccumulator / 1024);
+	tickAccumulator %= 1024;
+
+	return ticks;
 }

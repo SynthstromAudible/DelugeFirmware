@@ -95,9 +95,6 @@ public:
 	bool willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* modelStack) override;
 	bool wantsToDoTempolessRecord(int32_t newPos) override;
 
-	// Per-clip tempo support
-	int32_t calculateClipPosIncrement(Clip* clip, int32_t globalIncrement);
-
 	uint8_t lastSectionArmed; // 255 means none. 254 means the action was switch-off-all-sections
 	uint32_t timeLastSectionPlayed;
 

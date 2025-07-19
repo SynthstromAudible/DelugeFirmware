@@ -184,6 +184,7 @@ public:
 #if HAVE_SEQUENCE_STEP_CONTROL
 	bool currentlyPlayingReversed;
 	SequenceDirection sequenceDirectionMode;
+	bool justDidPingpong; // Flag to prevent tempo ratio retriggering after ping-pong
 #endif
 
 	// Ratio-based tempo override (replacing floating-point BPM system)
@@ -197,6 +198,14 @@ public:
 	int32_t originalLength;
 
 	int32_t lastProcessedPos;
+
+	// Position caching to prevent excessive getLivePos() calculations
+	mutable uint32_t cachedLivePos;
+	mutable int32_t cacheValidForProcessedPos;
+	mutable bool livePoseCacheValid;
+
+	// Fractional tick accumulator for tempo ratio calculations (fixes memory leak)
+	int64_t tickAccumulator;
 
 	Clip* beingRecordedFromClip;
 
@@ -236,6 +245,9 @@ public:
 	float getEffectiveTempoRatio(); // Returns numerator/denominator as float
 	float getEffectiveTempo();      // Returns effective BPM for display
 	bool isTempoIndependent() const;
+
+	// Centralized time conversion (fixes scattered logic and memory leak)
+	int32_t convertGlobalTicksToLocal(int32_t globalTicks);
 
 	// Legacy methods for backward compatibility
 	void setTempoOverride(float bpm); // Converts BPM to ratio internally
