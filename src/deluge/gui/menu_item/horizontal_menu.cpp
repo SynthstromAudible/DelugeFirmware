@@ -18,6 +18,8 @@ namespace deluge::gui::menu_item {
 using namespace hid::display;
 
 void HorizontalMenu::beginSession(MenuItem* navigatedBackwardFrom) {
+	Submenu::beginSession(navigatedBackwardFrom);
+
 	for (const auto it : items) {
 		if (it->checkPermissionToBeginSession(soundEditor.currentModControllable, soundEditor.currentSourceIndex,
 		                                      &soundEditor.currentMultiRange)
