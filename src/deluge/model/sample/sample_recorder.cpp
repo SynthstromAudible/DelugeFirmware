@@ -909,7 +909,7 @@ void SampleRecorder::finishCapturing() {
 
 // Only call this after checking that status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING
 // Watch out - this could be called during SD writing - including during cardRoutine() for this class!
-void SampleRecorder::feedAudio(std::span<StereoSample> input, bool applyGain, uint8_t gainToApply) {
+void SampleRecorder::feedAudio(deluge::dsp::StereoBuffer<q31_t> input, bool applyGain, uint8_t gainToApply) {
 	int32_t numSamples = input.size();
 	do {
 		int32_t numSamplesThisCycle = input.size();
@@ -974,7 +974,7 @@ doFinishCapturing:
 			// Balanced input. For this, we skip a bunch of stat-grabbing, cos we know this is just for AudioClips.
 			// We also know that applyGain is false - that's just for the MIX option
 			if (mode == AudioInputChannel::BALANCED) {
-				for (StereoSample sample : input.first(numSamplesThisCycle)) {
+				for (deluge::dsp::StereoSample<q31_t> sample : input.first(numSamplesThisCycle)) {
 					q31_t rxBalanced = (sample.l / 2) - (sample.r / 2);
 
 					// Copy the last 24 bits (lower 3 bytes) to writePosNow
@@ -1056,7 +1056,7 @@ doFinishCapturing:
 			// if we're threshold recording and didn't detect audio in previous cycles
 			// check if there's any audio in this cycle
 			else {
-				StereoFloatSample approxRMSLevel = envelopeFollower.calcApproxRMS(input);
+				deluge::dsp::StereoSample<float> approxRMSLevel = envelopeFollower.calcApproxRMS(input);
 				if (std::max(approxRMSLevel.l, approxRMSLevel.r) > startValueThreshold) {
 					writePos = reinterpret_cast<char*>(writePosNow);
 					numSamplesCaptured += numSamplesThisCycle;

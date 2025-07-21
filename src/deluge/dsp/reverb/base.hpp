@@ -1,5 +1,6 @@
 #pragma once
-#include "dsp/stereo_sample.h"
+#include "definitions_cxx.hpp"
+#include "dsp_ng/core/types.hpp"
 #include <cmath>
 #include <span>
 
@@ -8,7 +9,7 @@ struct Base {
 	Base() = default;
 	virtual ~Base() = default;
 
-	virtual void process(std::span<int32_t> input, std::span<StereoSample> output) = 0;
+	virtual void process(std::span<int32_t> input, StereoBuffer<q31_t> output) = 0;
 
 	constexpr void setPanLevels(const int32_t amplitude_left, const int32_t amplitude_right) {
 		amplitude_right_ = amplitude_right;

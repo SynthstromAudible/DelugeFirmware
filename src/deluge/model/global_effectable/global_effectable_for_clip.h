@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include "model/global_effectable/global_effectable.h"
 #include "model/sample/sample_recorder.h"
 
@@ -58,12 +58,12 @@ public:
 protected:
 	int32_t getParameterFromKnob(int32_t whichModEncoder) final;
 	void renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
-	                  std::span<StereoSample> output, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+	                  deluge::dsp::StereoBuffer<q31_t> output, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
 	                  int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
 	                  OutputType outputType, SampleRecorder* recorder);
 
 	virtual bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
-	                                           std::span<StereoSample> globalEffectableBuffer,
+	                                           deluge::dsp::StereoBuffer<q31_t> globalEffectableBuffer,
 	                                           int32_t* bufferToTransferTo, int32_t* reverbBuffer,
 	                                           int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                                           bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,

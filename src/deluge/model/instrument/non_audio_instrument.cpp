@@ -17,7 +17,7 @@
 
 #include "model/instrument/non_audio_instrument.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "modulation/arpeggiator.h"
@@ -27,8 +27,8 @@
 #include "util/functions.h"
 #include <cstring>
 
-void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
-                                      int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+void NonAudioInstrument::renderOutput(ModelStack* modelStack, deluge::dsp::StereoBuffer<q31_t> output,
+                                      int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                       bool shouldLimitDelayFeedback, bool isClipActive) {
 	// MIDI / CV arpeggiator
 	if (activeClip) {

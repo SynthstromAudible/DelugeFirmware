@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
 #include "modulation/arpeggiator.h"
@@ -51,7 +51,7 @@ public:
 
 	Error loadAllAudioFiles(bool mayActuallyReadFiles) override;
 	void cutAllSound() override;
-	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, int32_t* reverbBuffer,
+	void renderOutput(ModelStack* modelStack, deluge::dsp::StereoBuffer<q31_t> buffer, int32_t* reverbBuffer,
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
 	                  bool isClipActive) override;
 
@@ -138,10 +138,10 @@ public:
 	                          int32_t bendSemitones) override;
 
 	bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
-	                                   std::span<StereoSample> globalEffectableBuffer, int32_t* bufferToTransferTo,
-	                                   int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
-	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd) override;
+	                                   deluge::dsp::StereoBuffer<q31_t> globalEffectableBuffer,
+	                                   int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+	                                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
+	                                   int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd) override;
 
 	char const* getXMLTag() override { return "kit"; }
 
@@ -182,7 +182,7 @@ private:
 
 	// Kit Arp
 	void setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                ParamManager* paramManager, std::span<StereoSample> output);
+	                                ParamManager* paramManager, deluge::dsp::StereoBuffer<q31_t> output);
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr);
-	void renderNonAudioArpPostOutput(std::span<StereoSample> output);
+	void renderNonAudioArpPostOutput(deluge::dsp::StereoBuffer<q31_t> output);
 };
