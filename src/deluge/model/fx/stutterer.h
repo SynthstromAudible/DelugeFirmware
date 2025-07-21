@@ -40,8 +40,8 @@ public:
 	// on currentSong and playbackhandler...
 	[[nodiscard]] Error beginStutter(void* source, ParamManagerForTimeline* paramManager, StutterConfig stutterConfig,
 	                                 int32_t magnitude, uint32_t timePerTickInverse);
-	void processStutter(std::span<deluge::dsp::StereoSample<q31_t>> audio, ParamManager* paramManager,
-	                    int32_t magnitude, uint32_t timePerTickInverse);
+	void processStutter(deluge::dsp::StereoBuffer<q31_t> audio, ParamManager* paramManager, int32_t magnitude,
+	                    uint32_t timePerTickInverse);
 	void endStutter(ParamManagerForTimeline* paramManager = nullptr);
 
 private:

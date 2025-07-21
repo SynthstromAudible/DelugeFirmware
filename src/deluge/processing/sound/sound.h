@@ -170,7 +170,7 @@ public:
 
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
 	                                    int32_t newValue);
-	void render(ModelStackWithThreeMainThings* modelStack, std::span<deluge::dsp::StereoSample<q31_t>> output,
+	void render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::StereoBuffer<q31_t> output,
 	            int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
 	            bool shouldLimitDelayFeedback = false, int32_t pitchAdjust = kMaxSampleValue,
 	            SampleRecorder* recorder = nullptr);

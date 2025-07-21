@@ -74,7 +74,7 @@ inline void foldBufferPolyApproximation(std::span<q31_t> buffer, q31_t level) {
 	}
 }
 
-inline void foldBufferPolyApproximation(std::span<deluge::dsp::StereoSample<q31_t>> buffer, q31_t level) {
+inline void foldBufferPolyApproximation(StereoBuffer<q31_t> buffer, q31_t level) {
 	foldBufferPolyApproximation(std::span<q31_t>{reinterpret_cast<q31_t*>(buffer.data()), buffer.size() * 2}, level);
 }
 

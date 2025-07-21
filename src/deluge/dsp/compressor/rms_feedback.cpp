@@ -54,15 +54,14 @@ void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 	er = runEnvelope(lastER, er, numSamples);
 }
 /// This renders at a 'neutral' volume, so that at threshold zero the volume in unchanged
-void RMSFeedbackCompressor::renderVolNeutral(std::span<deluge::dsp::StereoSample<q31_t>> buffer, q31_t finalVolume) {
+void RMSFeedbackCompressor::renderVolNeutral(StereoBuffer<q31_t> buffer, q31_t finalVolume) {
 	// this is a bit gross - the compressor can inherently apply volume changes, but in the case of the per clip
 	// compressor that's already been handled by the reverb send, and the logic there is tightly coupled such that
 	// I couldn't extract correct volume levels from it.
 	render(buffer, 1 << 27, 1 << 27, finalVolume >> 3);
 }
 constexpr uint8_t saturationAmount = 3;
-void RMSFeedbackCompressor::render(std::span<deluge::dsp::StereoSample<q31_t>> buffer, q31_t volAdjustL,
-                                   q31_t volAdjustR, q31_t finalVolume) {
+void RMSFeedbackCompressor::render(StereoBuffer<q31_t> buffer, q31_t volAdjustL, q31_t volAdjustR, q31_t finalVolume) {
 	// make a copy for blending if we need to
 	if (wet != 1.f) {
 		memcpy(dryBuffer.data(), buffer.data(), buffer.size_bytes());
