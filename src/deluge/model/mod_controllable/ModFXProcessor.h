@@ -17,7 +17,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include "modulation/lfo.h"
 #include "util/containers.h"
 #include <cstdint>
@@ -35,7 +35,7 @@ class ModFXProcessor {
 	                         int32_t& thisModFXDelayDepth, int32_t& feedback) const;
 	// not grain!
 	template <ModFXType modFXType>
-	void processModFXBuffer(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth,
+	void processModFXBuffer(deluge::dsp::StereoBuffer<q31_t> buffer, int32_t modFXRate, int32_t modFXDepth,
 	                        LFOType& modFXLFOWaveType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
 	                        int32_t feedback, bool stereo);
 
@@ -43,9 +43,11 @@ class ModFXProcessor {
 	std::pair<int32_t, int32_t> processModLFOs(int32_t modFXRate, LFOType modFXLFOWaveType);
 
 	template <ModFXType modFXType, bool stereo>
-	StereoSample processOneModFXSample(StereoSample sample, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
-	                                   int32_t feedback, int32_t lfoOutput, int32_t lfo2Output);
-	StereoSample processOnePhaserSample(StereoSample sample, int32_t modFXDepth, int32_t feedback, int32_t lfoOutput);
+	deluge::dsp::StereoSample<q31_t> processOneModFXSample(deluge::dsp::StereoSample<q31_t> sample,
+	                                                       int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
+	                                                       int32_t feedback, int32_t lfoOutput, int32_t lfo2Output);
+	deluge::dsp::StereoSample<q31_t> processOnePhaserSample(deluge::dsp::StereoSample<q31_t> sample, int32_t modFXDepth,
+	                                                        int32_t feedback, int32_t lfoOutput);
 
 public:
 	ModFXProcessor() {
@@ -61,14 +63,15 @@ public:
 		}
 	}
 	// Phaser
-	StereoSample phaserMemory{0, 0};
-	StereoSample allpassMemory[kNumAllpassFiltersPhaser];
-	StereoSample* modFXBuffer{nullptr};
+	deluge::dsp::StereoSample<q31_t> phaserMemory{0, 0};
+	deluge::dsp::StereoSample<q31_t> allpassMemory[kNumAllpassFiltersPhaser];
+	deluge::dsp::StereoSample<q31_t>* modFXBuffer{nullptr};
 	uint16_t modFXBufferWriteIndex{0};
 	LFO modFXLFO;
 	LFO modFXLFOStereo;
-	void processModFX(std::span<StereoSample> buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
-	                  int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams, bool anySoundComingIn);
+	void processModFX(deluge::dsp::StereoBuffer<q31_t> buffer, const ModFXType& modFXType, int32_t modFXRate,
+	                  int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
+	                  bool anySoundComingIn);
 	void resetMemory();
 	void setupBuffer();
 	void disableBuffer();

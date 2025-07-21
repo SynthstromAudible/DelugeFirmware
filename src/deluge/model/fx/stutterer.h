@@ -23,7 +23,6 @@
 
 class ParamManagerForTimeline;
 class ParamManager;
-class StereoSample;
 
 struct StutterConfig {
 	bool useSongStutter = true;
@@ -41,7 +40,7 @@ public:
 	// on currentSong and playbackhandler...
 	[[nodiscard]] Error beginStutter(void* source, ParamManagerForTimeline* paramManager, StutterConfig stutterConfig,
 	                                 int32_t magnitude, uint32_t timePerTickInverse);
-	void processStutter(std::span<StereoSample> audio, ParamManager* paramManager, int32_t magnitude,
+	void processStutter(deluge::dsp::StereoBuffer<q31_t> audio, ParamManager* paramManager, int32_t magnitude,
 	                    uint32_t timePerTickInverse);
 	void endStutter(ParamManagerForTimeline* paramManager = nullptr);
 
@@ -53,7 +52,7 @@ private:
 	};
 	int32_t getStutterRate(ParamManager* paramManager, int32_t magnitude, uint32_t timePerTickInverse);
 	bool currentReverse;
-	DelayBuffer buffer;
+	deluge::dsp::DelayBuffer buffer;
 	Status status = Status::OFF;
 	// TODO: This is currently unused! It's set to 7 initially, and never modified. Either we should set it depending
 	// on sync, or get rid of it entirely.

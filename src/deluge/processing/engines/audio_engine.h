@@ -32,7 +32,6 @@ extern "C" {
 }
 
 class Song;
-class StereoSample;
 class Instrument;
 class Sound;
 class ParamManagerForTimeline;
@@ -46,14 +45,14 @@ class SideChain;
 class VoiceVector;
 class Freeverb;
 class Metronome;
-class RMSFeedbackCompressor;
 class ModelStackWithSoundFlags;
 class SoundDrum;
-class AbsValueFollower;
 
 namespace deluge::dsp {
+class AbsValueFollower;
 class Reverb;
-}
+class RMSFeedbackCompressor;
+} // namespace deluge::dsp
 
 /*
  * ================== Audio rendering ==================
@@ -210,11 +209,11 @@ extern int32_t reverbSidechainShape;
 extern int32_t reverbPan;
 extern SampleRecorder* firstRecorder;
 extern Metronome metronome;
-extern RMSFeedbackCompressor mastercompressor;
+extern deluge::dsp::RMSFeedbackCompressor mastercompressor;
 extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
-extern StereoFloatSample approxRMSLevel;
-extern AbsValueFollower envelopeFollower;
+extern deluge::dsp::StereoSample<float> approxRMSLevel;
+extern deluge::dsp::AbsValueFollower envelopeFollower;
 void feedReverbBackdoorForGrain(int index, q31_t value);
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick

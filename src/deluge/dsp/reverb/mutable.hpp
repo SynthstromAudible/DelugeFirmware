@@ -20,7 +20,7 @@ public:
 
 	~Mutable() override = default;
 
-	void process(std::span<int32_t> in, std::span<StereoSample> output) override {
+	void process(std::span<int32_t> in, StereoBuffer<q31_t> output) override {
 		// This is the Griesinger topology described in the Dattorro paper
 		// (4 AP diffusers on the input, then a loop of 2x 2AP+1Delay).
 		// Modulation is applied in the loop of the first diffuser AP for additional
@@ -55,7 +55,7 @@ public:
 		float lp_2 = lp_decay_2_;
 
 		for (size_t frame = 0; frame < in.size(); frame++) {
-			StereoSample& s = output[frame];
+			StereoSample<q31_t>& s = output[frame];
 			float wet = 0;
 			float apout = 0.0f;
 			engine_.Advance();

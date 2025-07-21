@@ -74,7 +74,7 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 }
 
 /// filter an interleaved stereo buffer
-[[gnu::hot]] void HpLadderFilter::doFilterStereo(std::span<StereoSample> buffer) {
+[[gnu::hot]] void HpLadderFilter::doFilterStereo(StereoBuffer<q31_t> buffer) {
 	for (auto& sample : buffer) {
 		sample.l = doHPF(sample.l, l);
 		sample.r = doHPF(sample.r, r);

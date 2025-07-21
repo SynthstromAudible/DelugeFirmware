@@ -226,11 +226,11 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 		}
 	}
 }
-[[gnu::hot]] void LpLadderFilter::doFilterStereo(std::span<StereoSample> buffer) {
+[[gnu::hot]] void LpLadderFilter::doFilterStereo(StereoBuffer<q31_t> buffer) {
 
 	// Half ladder
 	if (lpfMode == FilterMode::TRANSISTOR_12DB) {
-		for (StereoSample& sample : buffer) {
+		for (StereoSample<q31_t>& sample : buffer) {
 			sample.l = do12dBLPFOnSample(sample.l, l);
 			sample.r = do12dBLPFOnSample(sample.r, r);
 		}
@@ -238,7 +238,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 
 	// Full ladder (regular)
 	else if (lpfMode == FilterMode::TRANSISTOR_24DB) {
-		for (StereoSample& sample : buffer) {
+		for (StereoSample<q31_t>& sample : buffer) {
 			sample.l = do24dBLPFOnSample(sample.l, l);
 			sample.r = do24dBLPFOnSample(sample.r, r);
 		}
@@ -247,7 +247,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 	// Full ladder (drive)
 	else if (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE) {
 		if (doOversampling) {
-			for (StereoSample& sample : buffer) {
+			for (StereoSample<q31_t>& sample : buffer) {
 				// Linear interpolation works surprisingly well here - it doesn't lead to audible aliasing. But its big
 				// problem is that it kills the highest frequencies, which is especially noticeable when resonance is
 				// low. This is because it'll turn all your high sine waves into triangles whose fundamental is lower in
@@ -284,7 +284,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 		}
 
 		else {
-			for (StereoSample& sample : buffer) {
+			for (StereoSample<q31_t>& sample : buffer) {
 				q31_t outputSampleToKeep = doDriveLPFOnSample(sample.l, l);
 				sample.l = getTanHUnknown(outputSampleToKeep, 4);
 

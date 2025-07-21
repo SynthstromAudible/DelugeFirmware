@@ -19,10 +19,11 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/filter/ladder_components.h"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include <cmath>
 #include <span>
 
+namespace deluge::dsp {
 class [[gnu::hot]] RMSFeedbackCompressor {
 public:
 	RMSFeedbackCompressor();
@@ -55,12 +56,12 @@ public:
 	/// @param volAdjustL Linear gain to apply to the left channel as a 4.27 signed fixed point number.
 	/// @param volAdjustL Linear gain to apply to the right channel as a 4.27 signed fixed point number.
 	/// @param finalVolume Linear peak-to-peak volume scale, as a 3.29 fixed-point integer.
-	void render(std::span<StereoSample> buffer, q31_t volAdjustL, q31_t volAdjustR, q31_t finalVolume);
+	void render(StereoBuffer<q31_t> buffer, q31_t volAdjustL, q31_t volAdjustR, q31_t finalVolume);
 
 	/// Render the compressor with neutral left/right gain and with the finalVolume tweaked so the compressor applies
 	/// 0db gain change at theshold zero. Used by the per-clip compressors because the clip volume is applied without
 	/// the compressor being involved.
-	void renderVolNeutral(std::span<StereoSample> buffer, q31_t finalVolume);
+	void renderVolNeutral(StereoBuffer<q31_t> buffer, q31_t finalVolume);
 
 	/// Compute an updated envelope value, using the attack time constant if desired > current and the release time
 	/// constant otherwise.
@@ -171,7 +172,7 @@ public:
 	void updateER(float numSamples, q31_t finalVolume);
 
 	/// Calculate the RMS amplitude, post internal HPF, of the samples.
-	float calcRMS(std::span<StereoSample> buffer);
+	float calcRMS(StereoBuffer<q31_t> buffer);
 
 	/// Amount of gain reduction applied during the last render pass, in 6.2 fixed point decibels
 	uint8_t gainReduction = 0;
@@ -233,3 +234,4 @@ private:
 	FixedPoint<31> dry;
 	FixedPoint<31> wet;
 };
+} // namespace deluge::dsp

@@ -25,6 +25,8 @@
 #include <cstdint>
 #include <span>
 
+namespace deluge::dsp {
+
 class Delay {
 public:
 	struct State {
@@ -79,9 +81,10 @@ public:
 
 	uint8_t repeatsUntilAbandon = 0; // 0 means never abandon
 
-	void process(std::span<StereoSample> buffer, const State& delayWorkingState);
+	void process(StereoBuffer<q31_t> buffer, const State& delayWorkingState);
 
 private:
 	void prepareToBeginWriting();
 	[[nodiscard]] constexpr int32_t getAmountToWriteBeforeReadingBegins() const { return secondaryBuffer.size(); }
 };
+} // namespace deluge::dsp

@@ -25,6 +25,9 @@
 #include "modulation/lfo.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "util/functions.h"
+
+namespace deluge::dsp {
 
 void GranularProcessor::setWrapsToShutdown() {
 
@@ -44,7 +47,7 @@ void GranularProcessor::setWrapsToShutdown() {
 	grainBuffer->inUse = true;
 }
 
-void GranularProcessor::processGrainFX(std::span<StereoSample> buffer, int32_t grainRate, int32_t grainMix,
+void GranularProcessor::processGrainFX(StereoBuffer<q31_t> buffer, int32_t grainRate, int32_t grainMix,
                                        int32_t grainDensity, int32_t pitchRandomness, int32_t* postFXVolume,
                                        bool anySoundComingIn, float tempoBPM, q31_t reverbAmount) {
 	if (anySoundComingIn || wrapsToShutdown >= 0) {
@@ -59,7 +62,7 @@ void GranularProcessor::processGrainFX(std::span<StereoSample> buffer, int32_t g
 		}
 		setupGrainFX(grainRate, grainMix, grainDensity, pitchRandomness, postFXVolume, tempoBPM);
 		int i = 0;
-		for (StereoSample& sample : buffer) {
+		for (StereoSample<q31_t>& sample : buffer) {
 			StereoSample grainWet = processOneGrainSample(sample);
 			auto wetl = q31_mult(grainWet.l, _grainVol);
 			auto wetr = q31_mult(grainWet.r, _grainVol);
@@ -125,7 +128,7 @@ void GranularProcessor::setupGrainFX(int32_t grainRate, int32_t grainMix, int32_
 		_grainFeedbackVol = _grainVol >> 1;
 	}
 }
-StereoSample GranularProcessor::processOneGrainSample(StereoSample currentSample) {
+StereoSample<q31_t> GranularProcessor::processOneGrainSample(StereoSample<q31_t> currentSample) {
 	if (bufferWriteIndex >= kModFXGrainBufferSize) {
 		bufferWriteIndex = 0;
 		wrapsToShutdown -= 1;
@@ -318,3 +321,4 @@ void GranularProcessor::startSkippingRendering() {
 		grainBuffer->inUse = false;
 	}
 }
+} // namespace deluge::dsp

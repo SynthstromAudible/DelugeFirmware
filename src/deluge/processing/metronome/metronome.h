@@ -17,17 +17,16 @@
 
 #pragma once
 
+#include "dsp_ng/core/types.hpp"
 #include <cmath>
 #include <cstdint>
 #include <span>
-
-class StereoSample;
 
 class Metronome {
 public:
 	Metronome();
 	void trigger(uint32_t newPhaseIncrement);
-	void render(std::span<StereoSample> buffer);
+	void render(deluge::dsp::StereoBuffer<q31_t> buffer);
 	void setVolume(int32_t linearParam) { metronomeVolume = (exp(float(linearParam) / 200.0f) - 1.0) * float(1 << 27); }
 
 	uint32_t phase;
