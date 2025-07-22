@@ -6,23 +6,16 @@ FetchContent_MakeAvailable(CppSpec)
 
 add_subdirectory(../../../lib lib)
 
-add_library(deluge STATIC
-  ../../../src/deluge/dsp/blocks/gain_ramp.cpp
-)
+add_library(deluge INTERFACE)
 
-target_include_directories(deluge PUBLIC 
+target_include_directories(deluge INTERFACE 
   ../../../src/deluge/dsp/blocks/
   ../../../src/deluge/dsp/
   ../../../src/deluge/
   ../../../src/
 )
 
-target_link_libraries(deluge PUBLIC argon)
-
-set_target_properties(deluge PROPERTIES
-  CXX_STANDARD 23
-  CXX_STANDARD_REQUIRED YES
-)
+target_link_libraries(deluge INTERFACE argon)
 
 function(create_specs_driver driver_name spec_dir)
   # Discover Specs
