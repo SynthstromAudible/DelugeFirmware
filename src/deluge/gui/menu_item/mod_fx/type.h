@@ -71,7 +71,7 @@ public:
 		return 4;
 	}
 
-	[[nodiscard]] bool showPopup() const override { return false; }
+	[[nodiscard]] bool showNotification() const override { return false; }
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {

@@ -33,8 +33,6 @@ protected:
 	[[nodiscard]] virtual int32_t getMaxValue() const = 0;
 	[[nodiscard]] virtual int32_t getMinValue() const { return 0; }
 	[[nodiscard]] virtual NumberStyle getNumberStyle() const { return KNOB; }
-	void getNotificationValue(StringBuf& value) override { value.appendInt(getValue()); }
-	bool showValueInNotification() const override { return getNumberStyle() != PERCENT; }
 	float getNormalizedValue();
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
@@ -43,6 +41,7 @@ protected:
 	void drawPercent(int32_t startX, int32_t startY, int32_t width, int32_t height);
 	void drawSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
 	void drawLengthSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight, bool minSliderPos = 3);
+	void getNotificationValue(StringBuf& value);
 };
 
 } // namespace deluge::gui::menu_item
