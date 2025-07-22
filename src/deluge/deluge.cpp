@@ -580,7 +580,7 @@ void registerTasks() {
 	addRepeatingTask(&(AudioEngine::routine_task), p++, 8 / 44100., 64 / 44100., 128 / 44100., "audio  routine",
 	                 RESOURCE_NONE);
 	// this one runs quickly and frequently to check for encoder changes
-	addRepeatingTask([]() { encoders::readEncoders(); }, p++, 0.0005, 0.001, 0.002, "read encoders", RESOURCE_NONE);
+	addRepeatingTask([]() { encoders::readEncoders(); }, p++, 0.0001, 0.0001, 0.0002, "read encoders", RESOURCE_NONE);
 	// formerly part of audio routine, updates midi and clock
 	addRepeatingTask([]() { playbackHandler.routine(); }, p++, 0.0005, 0.001, 0.002, "playback routine", RESOURCE_NONE);
 	addRepeatingTask([]() { playbackHandler.midiRoutine(); }, p++, 0.0005, 0.001, 0.002, "midi routine",
