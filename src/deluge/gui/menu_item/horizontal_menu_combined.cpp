@@ -140,14 +140,18 @@ void HorizontalMenuCombined::switchVisiblePage(int32_t direction) {
 
 	// Find the item we're looking for on the switched submenu
 	const auto submenu = submenus_[submenuIndex];
-	const auto dummyItemIndex = direction >= 0 ? 0 : submenu->items.size() - 1;
-	const auto submenuPaging = submenu->preparePaging(submenu->items, submenu->items[dummyItemIndex]);
-	const auto& firstOrLastPageItems = submenuPaging.visiblePageItems;
+	const auto firstOrLastItem = submenu->items[direction >= 0 ? 0 : submenu->items.size() - 1];
+	const auto firstOrLastPageItems = submenu->preparePaging(submenu->items, firstOrLastItem).visiblePageItems;
+
+	if (firstOrLastPageItems.size() == 0) {
+		// No relevant items on the switched submenu, go to the next submenu
+		return switchVisiblePage(direction >= 0 ? direction + 1 : direction - 1);
+	}
 
 	int32_t currentPos = -1;
 	for (const auto& item : firstOrLastPageItems) {
-		// If possible we select item with the same position as on previous page
-		// If not possible, we select the closest item (to the left)
+		// Select an item with the same position as on the previous selected page
+		// If the item is not relevant, select the closest item instead
 		if (isItemRelevant(item)) {
 			current_item_ = std::ranges::find(submenu->items, item);
 			if (++currentPos >= paging.selectedItemPositionOnPage) {
@@ -159,6 +163,7 @@ void HorizontalMenuCombined::switchVisiblePage(int32_t direction) {
 	updateDisplay();
 	updatePadLights();
 	(*current_item_)->updateAutomationViewParameter();
+	lastSelectedItemPosition = kNoSelection;
 
 	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
 		display->cancelPopup();
