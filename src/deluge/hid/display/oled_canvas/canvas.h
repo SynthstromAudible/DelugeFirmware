@@ -226,13 +226,13 @@ public:
 	/// @param endY Maximum Y coordinate, inclusive
 	void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
 
-	/// Invert an area of the canvas with 1px rounded corners
+	/// Invert an area of the canvas with rounded corners
 	///
 	/// @param xMin Minimum X coordinate, inclusive
 	/// @param width Width of the region to invert. End coordinate is excluded.
 	/// @param startY Minimum Y coordinate, inclusive
 	/// @param endY Maximum Y coordinate, inclusive
-	void invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
+	void invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY, BorderRadius radius = SMALL);
 
 	/// Invert just the left edge of the canvas.
 	///

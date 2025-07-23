@@ -36,10 +36,8 @@ public:
 		}
 
 		// On other pages user can tweak params related to the selected mod fx type, so we show the type name
-		// Sorry, a bit of hacky casts here
-		const auto* modFxTypeMenuItem = static_cast<mod_fx::Type*>(paging.pages[0].items[0]);
-		const auto modFxTypeMenuItemValue = const_cast<mod_fx::Type*>(modFxTypeMenuItem)->getValue();
-		return modfx::getModNames()[modFxTypeMenuItemValue];
+		const ModFXType modFxType = soundEditor.currentModControllable->modFXType_;
+		return modfx::getModNames()[static_cast<uint8_t>(modFxType)];
 	}
 };
 } // namespace deluge::gui::menu_item::submenu

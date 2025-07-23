@@ -13,15 +13,12 @@ public:
 	friend class HorizontalMenuCombined;
 
 	enum Layout { FIXED, DYNAMIC };
-	struct Page {
-		int32_t number;
-		std::vector<MenuItem*> items;
-	};
+
 	struct Paging {
-		int32_t visiblePageNumber;
-		int32_t selectedItemPositionOnPage;
-		std::vector<Page> pages;
-		Page& getVisiblePage() { return pages[visiblePageNumber]; }
+		uint8_t visiblePageNumber;
+		std::span<MenuItem*> visiblePageItems;
+		uint8_t selectedItemPositionOnPage;
+		uint8_t totalPages;
 	};
 
 	using Submenu::Submenu;
@@ -47,15 +44,14 @@ protected:
 	int32_t lastSelectedItemPosition = kNoSelection;
 
 	virtual void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem);
-	virtual Paging splitMenuItemsByPages(std::span<MenuItem*> items, const MenuItem* currentItem);
-	virtual ActionResult selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous,
-	                                    int32_t selectedColumn);
+	virtual Paging preparePaging(std::span<MenuItem*> items, const MenuItem* currentItem);
+	virtual void selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous, int32_t selectedColumn);
+	virtual void switchVisiblePage(int32_t direction);
 
 private:
-	void updateSelectedMenuItemLED(int32_t itemNumber);
-	ActionResult switchVisiblePage(int32_t direction);
+	void updateSelectedMenuItemLED(int32_t itemNumber) const;
 	static void displayNotification(MenuItem* menuItem);
-	static void renderPageCounters(Paging& paging);
+	static void renderPageCounters(const Paging& paging);
 	static void renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32_t slotStartX, int32_t slotWidth,
 	                              bool isSelected);
 
