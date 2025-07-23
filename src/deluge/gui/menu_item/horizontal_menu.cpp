@@ -244,7 +244,7 @@ void HorizontalMenu::switchVisiblePage(int32_t direction) {
 
 	// Find the target item on the next / previous page
 	for (const auto it : items) {
-		if (isItemRelevant(it)) {
+		if (layout == FIXED || isItemRelevant(it)) {
 			const auto itemSpan = it->getColumnSpan();
 
 			// Check if we need to move to the next page
@@ -254,14 +254,13 @@ void HorizontalMenu::switchVisiblePage(int32_t direction) {
 				positionOnPage = 0;
 			}
 
-			// Process item if we're on the target page
+			// Select an item with the same position as on the previous selected page
+			// If the item is not relevant, select the closest item instead
 			if (currentPageNumber == targetPageNumber) {
-				if (positionOnPage <= paging.selectedItemPositionOnPage) {
-					current_item_ = std::ranges::find(items, it);
-				}
-				else {
+				if (positionOnPage > paging.selectedItemPositionOnPage && isItemRelevant(*current_item_)) {
 					break; // Past target position
 				}
+				current_item_ = std::ranges::find(items, it);
 			}
 			currentPageSpan += itemSpan;
 			positionOnPage++;
@@ -271,6 +270,7 @@ void HorizontalMenu::switchVisiblePage(int32_t direction) {
 	updateDisplay();
 	updatePadLights();
 	(*current_item_)->updateAutomationViewParameter();
+	lastSelectedItemPosition = kNoSelection;
 
 	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
 		display->cancelPopup();
@@ -372,6 +372,10 @@ HorizontalMenu::Paging HorizontalMenu::preparePaging(std::span<MenuItem*> items,
 	// Handle the last page
 	if (currentItemInThisPage) {
 		visiblePageNumber = totalPages - 1;
+	}
+	// Check if the page is single and has no items to render
+	if (totalPages == 1 && currentPageSpan == 0) {
+		totalPages = 0;
 	}
 
 	return Paging{visiblePageNumber, visiblePageItems, selectedItemPositionOnPage, totalPages};
