@@ -72,48 +72,103 @@ void HorizontalMenuCombined::renderMenuItems(std::span<MenuItem*> items, const M
 	current_submenu_->renderMenuItems(items, currentItem);
 }
 
-ActionResult HorizontalMenuCombined::selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous,
-                                                    int32_t selectedColumn) {
+void HorizontalMenuCombined::selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous,
+                                            int32_t selectedColumn) {
 	// Redirect selecting to the current submenu
-	const auto result = current_submenu_->selectMenuItem(pageItems, previous, selectedColumn);
+	current_submenu_->selectMenuItem(pageItems, previous, selectedColumn);
 	current_item_ = current_submenu_->current_item_;
-	return result;
 }
 
-HorizontalMenu::Paging HorizontalMenuCombined::splitMenuItemsByPages(std::span<MenuItem*>, const MenuItem*) {
-	// Combine all pages of all submenus into one list
-	std::vector<Page> pages{};
-	current_submenu_ = nullptr;
+HorizontalMenu::Paging HorizontalMenuCombined::preparePaging(std::span<MenuItem*>, const MenuItem* currentItem) {
+	static std::vector<MenuItem*> visiblePageItems;
+	visiblePageItems.clear();
+	visiblePageItems.reserve(4);
 
-	int32_t visiblePageNumber = 0;
-	int32_t selectedItemPositionOnPage = 0;
-	int32_t currentPage = 0;
+	uint8_t visiblePageNumber = 0;
+	uint8_t selectedItemPositionOnPage = 0;
+	uint8_t totalPages = 0;
 
-	for (const auto& submenu : submenus_) {
-		auto submenuPaging = submenu->splitMenuItemsByPages(submenu->items, *current_item_);
+	for (const auto submenu : submenus_) {
+		const auto submenuPaging = submenu->preparePaging(submenu->items, currentItem);
 
-		for (const auto& page : submenuPaging.pages) {
-			pages.push_back({currentPage, page.items});
+		for (const auto* item : submenu->items) {
+			if (item == currentItem) {
+				// Found current submenu
+				visiblePageItems.assign(submenuPaging.visiblePageItems.begin(), submenuPaging.visiblePageItems.end());
+				visiblePageNumber = totalPages + submenuPaging.visiblePageNumber;
+				selectedItemPositionOnPage = submenuPaging.selectedItemPositionOnPage;
 
-			if (current_submenu_ == nullptr
-			    && std::ranges::any_of(page.items, [&](const auto& item) { return item == *current_item_; })) {
 				current_submenu_ = submenu;
+				current_submenu_->paging = submenuPaging;
 				current_submenu_->beginSession(navigated_backward_from);
 				navigated_backward_from = nullptr;
-
-				visiblePageNumber = currentPage;
-				selectedItemPositionOnPage = submenuPaging.selectedItemPositionOnPage;
 			}
+		}
 
-			currentPage++;
+		totalPages += submenuPaging.totalPages;
+	}
+
+	return Paging{visiblePageNumber, visiblePageItems, selectedItemPositionOnPage, totalPages};
+}
+
+void HorizontalMenuCombined::switchVisiblePage(int32_t direction) {
+	// Try switching page within the current submenu first
+	if (current_submenu_->paging.totalPages > 1) {
+		// If we can stay within the current submenu, do it
+		const int32_t newPage = current_submenu_->paging.visiblePageNumber + direction;
+		if (newPage >= 0 && newPage < current_submenu_->paging.totalPages) {
+			current_submenu_->switchVisiblePage(direction);
+			current_item_ = current_submenu_->current_item_;
+			return;
 		}
 	}
-	return Paging{visiblePageNumber, selectedItemPositionOnPage, pages};
+
+	// Need to switch submenus - find the current submenu index
+	const auto currentSubmenuIt = std::ranges::find(submenus_, current_submenu_);
+	int32_t submenuIndex = std::distance(submenus_.begin(), currentSubmenuIt);
+
+	// Move to the next / previous submenu
+	submenuIndex += direction;
+
+	// Wrap around
+	if (submenuIndex < 0) {
+		submenuIndex = submenus_.size() - 1;
+	}
+	else if (submenuIndex >= static_cast<int32_t>(submenus_.size())) {
+		submenuIndex = 0;
+	}
+
+	// Find the item we're looking for on the switched submenu
+	const auto submenu = submenus_[submenuIndex];
+	const auto dummyItemIndex = direction >= 0 ? 0 : submenu->items.size() - 1;
+	const auto submenuPaging = submenu->preparePaging(submenu->items, submenu->items[dummyItemIndex]);
+	const auto& firstOrLastPageItems = submenuPaging.visiblePageItems;
+
+	int32_t currentPos = -1;
+	for (const auto& item : firstOrLastPageItems) {
+		// If possible we select item with the same position as on previous page
+		// If not possible, we select the closest item (to the left)
+		if (isItemRelevant(item)) {
+			current_item_ = std::ranges::find(submenu->items, item);
+			if (++currentPos >= paging.selectedItemPositionOnPage) {
+				break;
+			}
+		}
+	}
+
+	updateDisplay();
+	updatePadLights();
+	(*current_item_)->updateAutomationViewParameter();
+
+	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
+		display->cancelPopup();
+	}
 }
 
 void HorizontalMenuCombined::selectEncoderAction(int32_t offset) {
 	const bool selectButtonPressed = Buttons::selectButtonPressUsedUp =
 	    Buttons::isButtonPressed(hid::button::SELECT_ENC);
+
 	if (renderingStyle() != HORIZONTAL || !selectButtonPressed) {
 		return HorizontalMenu::selectEncoderAction(offset);
 	}

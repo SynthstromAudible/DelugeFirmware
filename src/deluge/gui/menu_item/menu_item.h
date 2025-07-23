@@ -300,12 +300,7 @@ public:
 	/// @brief Show a popup with the full name of the editing parameter at the top of the horizontal menu
 	///
 	/// true by default, but can be overridden
-	[[nodiscard]] virtual bool showPopup() const { return true; }
-
-	/// @brief Show a parameter value in the popup at the top of the horizontal menu
-	///
-	/// true by default, but can be overridden
-	[[nodiscard]] virtual bool showValueInNotification() const { return true; }
+	[[nodiscard]] virtual bool showNotification() const { return true; }
 
 	/// @brief Get the parameter value string to show in the popup
 	///
