@@ -94,8 +94,7 @@ void Number::drawPercent(int32_t startX, int32_t startY, int32_t width, int32_t 
 	oled_canvas::Canvas& image = OLED::main;
 
 	DEF_STACK_STRING_BUF(valueString, 12);
-	const int32_t percents = getNormalizedValue() * 100;
-	valueString.appendInt(percents);
+	valueString.appendInt(getValue() * 2);
 
 	constexpr char percentChar = '%';
 	const int32_t valueWidth = image.getStringWidthInPixels(valueString.c_str(), kTextSpacingY);
@@ -240,6 +239,15 @@ void Number::drawLengthSlider(int32_t startX, int32_t startY, int32_t slotWidth,
 	for (int32_t x = maxX; x >= valueLineMinX; x -= 3) {
 		image.drawPixel(x, centerY - 1);
 		image.drawPixel(x, centerY + 1);
+	}
+}
+
+void Number::getNotificationValue(StringBuf& value) {
+	if (getNumberStyle() == PERCENT) {
+		value.appendInt(getValue() * 2);
+	}
+	else {
+		value.appendInt(getValue());
 	}
 }
 

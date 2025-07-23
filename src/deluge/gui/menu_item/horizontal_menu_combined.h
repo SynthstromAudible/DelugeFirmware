@@ -33,9 +33,9 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void selectEncoderAction(int32_t offset) override;
 	void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) override;
-	ActionResult selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous,
-	                            int32_t selectedColumn) override;
-	Paging splitMenuItemsByPages(std::span<MenuItem*> items, const MenuItem*) override;
+	void selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous, int32_t selectedColumn) override;
+	Paging preparePaging(std::span<MenuItem*> items, const MenuItem*) override;
+	void switchVisiblePage(int32_t direction) override;
 
 private:
 	std::vector<HorizontalMenu*> submenus_{};

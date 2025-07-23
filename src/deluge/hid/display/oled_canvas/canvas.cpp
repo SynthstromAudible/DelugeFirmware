@@ -632,15 +632,43 @@ void Canvas::invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t end
 	}
 }
 
-void Canvas::invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
+void Canvas::invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY, BorderRadius radius) {
+	const int32_t radiusPixels = radius == SMALL ? 1 : 2;
+
 	invertArea(xMin, width, startY, endY);
 
 	// restore corners back
 	const int32_t xMax = xMin + width - 1;
-	clearPixel(xMin, startY);
-	clearPixel(xMax, startY);
-	clearPixel(xMin, endY);
-	clearPixel(xMax, endY);
+
+	if (radiusPixels == 1) {
+		// For 1px radius, clear just the corner pixels
+		clearPixel(xMin, startY); // Top-left corner
+		clearPixel(xMax, startY); // Top-right corner
+		clearPixel(xMin, endY);   // Bottom-left corner
+		clearPixel(xMax, endY);   // Bottom-right corner
+	}
+	else if (radiusPixels == 2) {
+		// For 2px radius, clear 3 pixels per corner
+		// Top-left corner
+		clearPixel(xMin, startY);
+		clearPixel(xMin + 1, startY);
+		clearPixel(xMin, startY + 1);
+
+		// Top-right corner
+		clearPixel(xMax, startY);
+		clearPixel(xMax - 1, startY);
+		clearPixel(xMax, startY + 1);
+
+		// Bottom-left corner
+		clearPixel(xMin, endY);
+		clearPixel(xMin + 1, endY);
+		clearPixel(xMin, endY - 1);
+
+		// Bottom-right corner
+		clearPixel(xMax, endY);
+		clearPixel(xMax - 1, endY);
+		clearPixel(xMax, endY - 1);
+	}
 }
 
 /// inverts just the left edge
