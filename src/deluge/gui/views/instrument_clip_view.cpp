@@ -1802,7 +1802,7 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 		}
 	}
 
-	// Or, if user holding a note(s) down, we'll adjust proability / iterance instead
+	// Or, if user holding a note(s) down, we'll adjust probability / iterance instead
 	else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
 		bool hasProbabilityPopup = display->hasPopupOfType(PopupType::PROBABILITY);
 		bool hasIterancePopup = display->hasPopupOfType(PopupType::ITERANCE);
@@ -5313,9 +5313,6 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 		enterUIMode(UI_MODE_AUDITIONING);
 	}
 
-	if (displayNoteCode) {
-		drawNoteCode(yDisplay);
-	}
 	bool lastAuditionedYDisplayChanged = lastAuditionedYDisplay != yDisplay;
 	lastAuditionedYDisplay = yDisplay;
 
@@ -5334,8 +5331,13 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 
 	if (isKit) {
 		setSelectedDrum(drum);
+		drawNoteCode(yDisplay);
 		return false; // No need to redraw any squares, because setSelectedDrum() has done it
 	}
+	else {
+		drawNoteCode(yDisplay);
+	}
+
 	return true;
 }
 
@@ -5551,7 +5553,11 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 		drawActualNoteCode(getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong));
 	}
 	else {
-		drawDrumName(getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong)->drum);
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		Kit* thisKit = (Kit*)clip->output;
+		if (thisKit->selectedDrum != nullptr) {
+			drawDrumName(thisKit->selectedDrum);
+		}
 	}
 }
 
