@@ -5331,14 +5331,13 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 
 	if (isKit) {
 		setSelectedDrum(drum);
-		drawNoteCode(yDisplay);
-		return false; // No need to redraw any squares, because setSelectedDrum() has done it
 	}
-	else {
+
+	if (displayNoteCode) {
 		drawNoteCode(yDisplay);
 	}
 
-	return true;
+	return !isKit; // No need to redraw any squares in kit, because setSelectedDrum() has done it
 }
 
 // sub-function of AuditionPadAction
