@@ -1,7 +1,6 @@
 #pragma once
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
-#include "gui/menu_item/defaults/swing_interval.h"
 #include "gui/menu_item/edit_name.h"
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/note/fill.h"
@@ -21,19 +20,20 @@
 #include "gui/menu_item/sample/end.h"
 #include "gui/menu_item/sample/start.h"
 #include "gui/menu_item/sequence/direction.h"
-#include "gui/menu_item/source/patched_param/fm.h"
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
 
-#include <gui/menu_item/horizontal_menu.h>
-#include <gui/menu_item/submenu/arp_mpe_submenu.h>
+#include <gui/menu_item/source/patched_param/modulator_level.h>
 
 extern deluge::gui::menu_item::patched_param::IntegerNonFM noiseMenu;
 extern deluge::gui::menu_item::osc::Sync oscSyncMenu;
-extern deluge::gui::menu_item::osc::source::WaveIndex sourceWaveIndexMenu;
+extern deluge::gui::menu_item::osc::source::WaveIndex source0WaveIndexMenu;
+extern deluge::gui::menu_item::osc::source::WaveIndex source1WaveIndexMenu;
 
-extern deluge::gui::menu_item::sample::Start sampleStartMenu;
-extern deluge::gui::menu_item::sample::End sampleEndMenu;
+extern deluge::gui::menu_item::sample::Start sample0StartMenu;
+extern deluge::gui::menu_item::sample::Start sample1StartMenu;
+extern deluge::gui::menu_item::sample::End sample0EndMenu;
+extern deluge::gui::menu_item::sample::End sample1EndMenu;
 extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart;
 extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd;
 extern deluge::gui::menu_item::EditName nameEditMenu;
@@ -83,7 +83,8 @@ extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranc
 extern deluge::gui::menu_item::note_row::Fill noteRowFillMenu;
 
 extern deluge::gui::menu_item::PatchCables patchCablesMenu;
-extern deluge::gui::menu_item::source::patched_param::FM modulatorVolume;
+extern deluge::gui::menu_item::source::patched_param::ModulatorLevel modulator0Volume;
+extern deluge::gui::menu_item::source::patched_param::ModulatorLevel modulator1Volume;
 
 extern MenuItem* midiOrCVParamShortcuts[kDisplayHeight];
 
@@ -100,6 +101,3 @@ extern deluge::gui::menu_item::Submenu* parentsForAudioShortcuts[kDisplayWidth][
 extern deluge::gui::menu_item::Submenu* parentsForSongShortcuts[kDisplayWidth][kDisplayHeight];
 extern deluge::gui::menu_item::Submenu* parentsForKitGlobalFXShortcuts[kDisplayWidth][kDisplayHeight];
 extern deluge::gui::menu_item::Submenu* parentsForMidiOrCVParamShortcuts[kDisplayWidth][kDisplayHeight];
-
-void setOscillatorNumberForTitles(int32_t);
-void setModulatorNumberForTitles(int32_t);

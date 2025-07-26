@@ -282,30 +282,35 @@ public:
 	/// @name Horizontal menus
 	/// @{
 	///
-	/// @brief Get the name for use on horizontal menus.
+	/// @brief Get the name for use on Horizontal menus.
 	///
 	/// By default this redirects to getName(), but can be overridden.
 	virtual void getColumnLabel(StringBuf& label) { label.append(getName().data()); }
 
-	/// @brief Show a label for the parameter in the horizontal menu
+	/// @brief Show a label for the parameter in Horizontal menu
 	///
 	/// true by default, but can be overridden
 	[[nodiscard]] virtual bool showColumnLabel() const { return true; }
 
-	/// @brief Get the number of occupied virtual columns in the horizontal menu.
+	/// @brief Get the number of occupied virtual columns in Horizontal menu.
 	///
 	/// 1 by default, but can be overridden
 	[[nodiscard]] virtual int32_t getColumnSpan() const { return 1; };
 
-	/// @brief Show a popup with the full name of the editing parameter at the top of the horizontal menu
+	/// @brief Show a popup with the full name and value of the editing parameter at the top of Horizontal menu
 	///
 	/// true by default, but can be overridden
 	[[nodiscard]] virtual bool showNotification() const { return true; }
 
+	/// @brief Allow entering menu session by selecting the menu item twice in Horizontal menu
+	///
+	/// false by default, but can be overridden
+	[[nodiscard]] virtual bool allowToBeginSessionFromHorizontalMenu() { return false; }
+
 	/// @brief Get the parameter value string to show in the popup
 	///
 	/// Needs to be overridden
-	virtual void getNotificationValue(StringBuf& valueBuf) {};
+	virtual void getNotificationValue(StringBuf& valueBuf) {}
 
 	virtual void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {};
 

@@ -30,7 +30,6 @@
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
-#include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -42,17 +41,12 @@
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "modulation/params/param_set.h"
-#include "modulation/patch/patch_cable_set.h"
-#include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
-#include "storage/storage_manager.h"
-#include "util/functions.h"
 
 #include "menus.h"
 
@@ -123,14 +117,14 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 		paramShortcutsForAudioClips[0][6] = &audioClipSampleMarkerEditorMenuEnd;
 		paramShortcutsForAudioClips[1][6] = &audioClipSampleMarkerEditorMenuEnd;
 
-		paramShortcutsForSounds[0][6] = &sampleEndMenu;
-		paramShortcutsForSounds[1][6] = &sampleEndMenu;
+		paramShortcutsForSounds[0][6] = &sample0EndMenu;
+		paramShortcutsForSounds[1][6] = &sample1EndMenu;
 
-		paramShortcutsForSounds[2][6] = &noiseMenu;
-		paramShortcutsForSounds[3][6] = &oscSyncMenu;
+		paramShortcutsForSounds[2][6] = &source0WaveIndexMenu;
+		paramShortcutsForSounds[3][6] = &source1WaveIndexMenu;
 
-		paramShortcutsForSounds[2][7] = &sourceWaveIndexMenu;
-		paramShortcutsForSounds[3][7] = &sourceWaveIndexMenu;
+		paramShortcutsForSounds[2][7] = &noiseMenu;
+		paramShortcutsForSounds[3][7] = &oscSyncMenu;
 
 		modSourceShortcuts[0][7] = PatchSource::NOT_AVAILABLE;
 		modSourceShortcuts[1][7] = PatchSource::NOT_AVAILABLE;
@@ -200,6 +194,16 @@ bool SoundEditor::editingGateDrumRow() {
 	}
 	auto selectedDrumType = kit->selectedDrum->type;
 	return selectedDrumType == DrumType::GATE;
+}
+
+void SoundEditor::setCurrentSource(int32_t sourceIndex) {
+	currentSource = &currentSound->sources[sourceIndex];
+	currentSourceIndex = sourceIndex;
+	currentSampleControls = &currentSource->sampleControls;
+
+	if (currentMultiRange == nullptr && currentSource->ranges.getNumElements()) {
+		currentMultiRange = static_cast<MultisampleRange*>(currentSource->ranges.getElement(0));
+	}
 }
 
 bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -715,9 +719,11 @@ void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem
 void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 	resetSourceBlinks();
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
-	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
+
+	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sample0StartMenu && currentItem != &sample1StartMenu
+	    && currentItem != &sample0EndMenu && currentItem != &sample1EndMenu
 	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
-	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&nameEditMenu)) {
+	    && currentItem != static_cast<void*>(&nameEditMenu)) {
 
 		memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 		memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
@@ -1250,22 +1256,9 @@ doSetup:
 					}
 
 					const int32_t thingIndex = x & 1;
-
-					if (display->haveOLED()) {
-						switch (x) {
-						case 0 ... 3:
-							setOscillatorNumberForTitles(thingIndex);
-							break;
-
-						case 4 ... 5:
-							setModulatorNumberForTitles(thingIndex);
-							break;
-						}
-					}
-
 					bool setupSuccess = setup(getCurrentClip(), item, parent, thingIndex);
 
-					if (!setupSuccess && item == &modulatorVolume && currentSource->oscType == OscType::DX7) {
+					if (!setupSuccess && item == &modulator0Volume && currentSource->oscType == OscType::DX7) {
 						item = &dxParam;
 						setupSuccess = setup(getCurrentClip(), item, parent, thingIndex);
 					}
@@ -1619,6 +1612,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, Submenu* parent, int32
 	}
 
 	MenuItem* newItem;
+	MenuItem* oneLevelDownItem = nullptr;
 
 	if (item) {
 		newItem = (MenuItem*)item;
@@ -1693,7 +1687,12 @@ doMIDIOrCV:
 	// If we're on OLED, a parent menu & horizontal menus are in play,
 	// then we swap the parent in place of the child.
 	if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
-		if (parent->focusChild(item)) {
+		const bool focused = parent->focusChild(newItem);
+
+		if (newItem == &file0SelectorMenu || newItem == &file1SelectorMenu) {
+			oneLevelDownItem = parent;
+		}
+		else if (focused) {
 			newItem = parent;
 		}
 	}
@@ -1710,13 +1709,13 @@ doMIDIOrCV:
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 		return false;
 	}
-	else if (result == MenuPermission::MUST_SELECT_RANGE) {
+	if (result == MenuPermission::MUST_SELECT_RANGE) {
 
 		D_PRINTLN("must select range");
 
 		newRange = nullptr;
-		menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
-		newItem = &menu_item::multiRangeMenu;
+		multiRangeMenu.menuItemHeadingTo = newItem;
+		newItem = &multiRangeMenu;
 	}
 
 	if (display->haveOLED()) {
@@ -1763,6 +1762,12 @@ doMIDIOrCV:
 	shouldGoUpOneLevelOnBegin = false;
 	menuItemNavigationRecord[navigationDepth] = newItem;
 	display->setNextTransitionDirection(1);
+
+	if (oneLevelDownItem != nullptr) {
+		menuItemNavigationRecord[navigationDepth] = oneLevelDownItem;
+		navigationDepth++;
+		menuItemNavigationRecord[navigationDepth] = newItem;
+	}
 
 	return true;
 }

@@ -5,21 +5,11 @@
 #include "gui/views/automation_view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "hid/led/indicator_leds.h"
-#include "model/settings/runtime_feature_settings.h"
-#include "storage/flash_storage.h"
 #include <algorithm>
 
 namespace deluge::gui::menu_item {
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.currentMultiRange = nullptr;
-
-	if (thingIndex.has_value()) {
-		const auto thingIndexValue = thingIndex.value();
-		soundEditor.currentSourceIndex = thingIndexValue;
-		soundEditor.currentSource = &soundEditor.currentSound->sources[thingIndexValue];
-		soundEditor.currentSampleControls = &soundEditor.currentSource->sampleControls;
-	}
 
 	if (navigatedBackwardFrom == nullptr && initial_index_ > 0) {
 		navigatedBackwardFrom = items[initial_index_];

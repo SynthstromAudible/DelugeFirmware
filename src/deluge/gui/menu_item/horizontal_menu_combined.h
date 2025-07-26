@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
+ * Copyright (c) 2025 Leonid Burygin
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -34,7 +34,7 @@ public:
 	void selectEncoderAction(int32_t offset) override;
 	void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) override;
 	void selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous, int32_t selectedColumn) override;
-	Paging preparePaging(std::span<MenuItem*> items, const MenuItem*) override;
+	Paging& preparePaging(std::span<MenuItem*> items, const MenuItem*) override;
 	void switchVisiblePage(int32_t direction) override;
 
 private:

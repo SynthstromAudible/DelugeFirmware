@@ -22,7 +22,7 @@
 
 namespace deluge::gui::menu_item {
 
-enum NumberStyle { NUMBER, KNOB, VERTICAL_BAR, PERCENT, SLIDER, LENGTH_SLIDER };
+enum NumberStyle { NUMBER, KNOB, VERTICAL_BAR, LEVEL, PERCENT, SLIDER, LENGTH_SLIDER };
 
 class Number : public Value<int32_t> {
 public:
@@ -38,6 +38,7 @@ protected:
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 	void drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t height);
 	void drawVerticalBar(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
+	void drawLevel(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
 	void drawPercent(int32_t startX, int32_t startY, int32_t width, int32_t height);
 	void drawSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
 	void drawLengthSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight, bool minSliderPos = 3);

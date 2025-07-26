@@ -72,14 +72,8 @@ void Toggle::renderSubmenuItemTypeForOled(int32_t yPixel) {
 
 void Toggle::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
 	using namespace deluge::hid::display;
-	const auto iconBitmap = this->getValue() ? &OLED::switcherIconOn : &OLED::switcherIconOff;
-
-	oled_canvas::Canvas& image = OLED::main;
-	constexpr int32_t numBytesTall = 2;
-	constexpr int32_t iconHeight = numBytesTall * 8;
-	const int32_t iconWidth = iconBitmap->size() / numBytesTall;
-	const int32_t x = startX + (width - iconWidth) / 2;
-	image.drawGraphicMultiLine(iconBitmap->data(), x, startY, iconWidth, iconHeight, numBytesTall);
+	const Icon& icon = getValue() ? OLED::switcherIconOn : OLED::switcherIconOff;
+	OLED::main.drawIconCentered(icon, startX, width, startY);
 }
 
 } // namespace deluge::gui::menu_item

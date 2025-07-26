@@ -15,10 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/submenu.h"
-#include "gui/ui/sound_editor.h"
-#include "processing/engines/audio_engine.h"
-
 #include <gui/menu_item/horizontal_menu.h>
 
 namespace deluge::gui::menu_item::arpeggiator {
@@ -34,19 +30,16 @@ public:
 		oled_canvas::Canvas& image = OLED::main;
 
 		// Draw dice icon
-		const auto& diceIcon = OLED::diceIcon;
-		const int32_t diceIconWidth = diceIcon.size() / 2;
-		constexpr int32_t diceIconHeight = 16;
-
+		const Icon& diceIcon = OLED::diceIcon;
 		int32_t x = startX + 6;
-		int32_t y = startY + (height - diceIconHeight) / 2 + 1;
-		image.drawGraphicMultiLine(diceIcon.data(), x, y, diceIconWidth, diceIconHeight, 2);
+		int32_t y = startY + (height - diceIcon.height) / 2 + 1;
+		image.drawIcon(diceIcon, x, y);
 
 		// Draw arrow
-		const auto& arrowIcon = OLED::submenuArrowIconBold;
+		const uint8_t* arrowIcon = OLED::submenuArrowIconBold;
 		constexpr int32_t arrowIconWidth = 7;
 		constexpr int32_t arrowIconHeight = 8;
-		x += diceIconWidth + 1;
+		x += diceIcon.width + 1;
 		y = startY + (height - arrowIconHeight) / 2;
 		image.drawGraphicMultiLine(arrowIcon, x, y, arrowIconWidth);
 	}

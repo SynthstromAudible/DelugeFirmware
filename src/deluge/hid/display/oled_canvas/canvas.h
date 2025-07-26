@@ -20,12 +20,12 @@
 #include "RZA1/cpu_specific.h"
 #include "definitions.h"
 #include "deluge/util/d_string.h"
-#include <cstdint>
 #include <cstring>
 #include <string_view>
 
 namespace deluge::hid::display {
 class OLED;
+struct Icon;
 
 namespace oled_canvas {
 
@@ -212,6 +212,22 @@ public:
 	/// @param numBytesTall Number of bytes in the Y direction, determines the stride in the graphic array
 	void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height = 8,
 	                          int32_t numBytesTall = 1, bool reversed = false);
+	/// Draw an icon.
+	///
+	/// @param icon Reference to the icon
+	/// @param x X coodinate of the left edge of the icon
+	/// @param y Y coordinate of the top of the icon
+	/// @param reversed Should reverse the icon horizontally
+	void drawIcon(const Icon& icon, int32_t x, int32_t y, bool reversed = false);
+
+	/// Draw an icon, centered between the provided startX and startX + totalWidth
+	///
+	/// @param icon Reference to the icon
+	/// @param startX Beginning X coordinate for center calculation
+	/// @param totalWidth Total width for center calculation
+	/// @param y Y coordinate of the top of the icon
+	/// @param reversed Should reverse the icon horizontally
+	void drawIconCentered(const Icon& icon, int32_t startX, int32_t totalWidth, int32_t y, bool reversed = false);
 
 	/// Draw a screen title and underline it.
 	///

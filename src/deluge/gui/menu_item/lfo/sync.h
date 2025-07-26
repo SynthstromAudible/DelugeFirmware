@@ -25,11 +25,14 @@
 
 namespace deluge::gui::menu_item::lfo {
 
-class Sync final : public SyncLevel {
+class Sync final : public SyncLevel, FormattedTitle {
 public:
-	Sync(deluge::l10n::String name, deluge::l10n::String type, uint8_t lfoId) : SyncLevel(name, type), lfoId_(lfoId) {}
+	Sync(l10n::String name, l10n::String title, uint8_t lfoId)
+	    : SyncLevel(name, title), FormattedTitle(title, lfoId + 1), lfoId_(lfoId) {}
 
-	void readCurrentValue() {
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+
+	void readCurrentValue() override {
 		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoConfig[lfoId_].syncType,
 		                                            soundEditor.currentSound->lfoConfig[lfoId_].syncLevel));
 	}

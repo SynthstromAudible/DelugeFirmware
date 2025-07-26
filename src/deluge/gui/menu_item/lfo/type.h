@@ -16,7 +16,6 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/lfo/shape.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -26,9 +25,27 @@
 
 namespace deluge::gui::menu_item::lfo {
 
-class Type final : public Shape {
+class Type final : public Selection, FormattedTitle {
 public:
-	Type(deluge::l10n::String name, deluge::l10n::String type, uint8_t lfoId) : Shape(name, type), lfoId_(lfoId) {}
+	Type(l10n::String name, l10n::String title, uint8_t lfoId)
+	    : Selection(name, title), FormattedTitle(title, lfoId + 1), lfoId_(lfoId) {}
+
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		using enum l10n::String;
+		bool shortOpt = optType == OptType::SHORT;
+		return {
+		    l10n::getView(STRING_FOR_SINE),
+		    l10n::getView(STRING_FOR_TRIANGLE),
+		    l10n::getView(STRING_FOR_SQUARE),
+		    l10n::getView(STRING_FOR_SAW),
+		    l10n::getView(STRING_FOR_SAMPLE_AND_HOLD),
+		    l10n::getView(shortOpt ? STRING_FOR_RANDOM_WALK_SHORT : STRING_FOR_RANDOM_WALK),
+		    l10n::getView(STRING_FOR_WARBLE),
+		};
+	}
+
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->lfoConfig[lfoId_].waveType); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
@@ -58,11 +75,35 @@ public:
 			soundEditor.currentSound->resyncGlobalLFOs();
 		}
 	}
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		oled_canvas::Canvas& image = OLED::main;
+
+		const Icon& icon = [&] {
+			switch (soundEditor.currentSound->lfoConfig[lfoId_].waveType) {
+			case LFOType::SINE:
+				return OLED::sineIcon;
+			case LFOType::TRIANGLE:
+				return OLED::triangleIcon;
+			case LFOType::SQUARE:
+				return OLED::squareIcon;
+			case LFOType::SAW:
+				return OLED::sawIcon;
+			case LFOType::SAMPLE_AND_HOLD:
+				return OLED::sampleHoldIcon;
+			case LFOType::RANDOM_WALK:
+				return OLED::randomWalkIcon;
+			case LFOType::WARBLER:
+				return OLED::warblerIcon;
+			}
+			return OLED::sineIcon;
+		}();
+
+		image.drawIconCentered(icon, startX, width, startY + 4);
+	}
 
 private:
-	static const std::vector<uint8_t>& getLfoIconBitmap(LFOType type);
 	uint8_t lfoId_;
 };
 
