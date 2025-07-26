@@ -4151,7 +4151,7 @@ doDisplayError:
 		}
 	}
 
-	// Or, if a kit
+	// If a kit, add scrolling limits to keep at least the top row or bottom row of the kit on the screen
 	else {
 		// If it's more than one row below, we can't do it
 		if (yDisplay < -1 - clip->yScroll) {
@@ -4161,16 +4161,6 @@ doDisplayError:
 		// If it's more than one row above, we can't do it
 		if (yDisplay > clip->getNumNoteRows() - clip->yScroll) {
 			goto getOut;
-		}
-
-		noteRow = createNewNoteRowForKit(modelStack, yDisplay, &noteRowId);
-
-		if (!noteRow) {
-			goto doDisplayError;
-		}
-
-		else {
-			uiNeedsRendering(this, 0, 1 << yDisplay);
 		}
 	}
 
