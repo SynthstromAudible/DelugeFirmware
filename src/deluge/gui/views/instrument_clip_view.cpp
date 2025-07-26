@@ -4151,7 +4151,7 @@ doDisplayError:
 		}
 	}
 
-	// If a kit, add scrolling limits to keep at least the top row or bottom row of the kit on the screen
+	// If a kit, prevents creating a new kit row beyond the adjacent empty rows
 	else {
 		// If it's more than one row below, we can't do it
 		if (yDisplay < -1 - clip->yScroll) {
