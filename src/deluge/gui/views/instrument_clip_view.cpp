@@ -4117,7 +4117,7 @@ doDisplayError:
 		}
 	}
 
-	// Or, if a kit
+	// If a kit, prevents creating a new kit row beyond the adjacent empty rows
 	else {
 		// If it's more than one row below, we can't do it
 		if (yDisplay < -1 - clip->yScroll) {
@@ -4127,16 +4127,6 @@ doDisplayError:
 		// If it's more than one row above, we can't do it
 		if (yDisplay > clip->getNumNoteRows() - clip->yScroll) {
 			goto getOut;
-		}
-
-		noteRow = createNewNoteRowForKit(modelStack, yDisplay, &noteRowId);
-
-		if (!noteRow) {
-			goto doDisplayError;
-		}
-
-		else {
-			uiNeedsRendering(this, 0, 1 << yDisplay);
 		}
 	}
 
