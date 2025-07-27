@@ -20,6 +20,31 @@
 #include "gui/colour/colour.h"
 #include "model/settings/runtime_feature_settings.h"
 
+/**
+ * Note Color Mapping (Chromatic / Harmonic)
+ *
+ * WHY:
+ *  - Provide a consistent, musical way to color notes so the grid communicates theory at a glance.
+ *  - The "Harmonic" mode follows circle‑of‑fifths relationships rather than repeating a hue per octave.
+ *  - Improves readability and workflow when composing/performing, especially for players who think in
+ *    functional harmony (key centers, closely related keys, secondary dominants).
+ *
+ * WHAT:
+ *  - Adds a runtime‑configurable setting: Off / Chromatic / Harmonic.
+ *  - "Chromatic" maps pitch class → color evenly around the 12‑tone wheel.
+ *  - "Harmonic" remaps those hues so adjacent colors reflect the circle of fifths
+ *    (…C–G–D–A–E–B–F♯–C♯–G♯–D♯–A♯–F…), aiding harmonic navigation.
+ *
+ * DESIGN NOTES:
+ *  - Keeps defaults unchanged; users must opt in via Community Features.
+ *  - Localization covered (OLED labels and 7‑segment abbreviations).
+ *  - Backwards‑compatible: existing songs/clips render as before when the feature is Off.
+ *
+ * ATTRIBUTION:
+ *  - Contributed by Myles de Bastion.
+ *  - Intended to align with an emerging, open, standardized approach for mapping music theory to color.
+ */
+
 namespace deluge::gui::colour {
 
 /**
