@@ -50,6 +50,7 @@ SettingToggle menuDisplayChordLayout(RuntimeFeatureSettingType::DisplayChordKeyb
 SettingToggle menuAlternativePlaybackStartBehaviour(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour);
 SettingToggle menuAccessibilityShortcuts(RuntimeFeatureSettingType::AccessibilityShortcuts);
 SettingToggle menuEnableGridViewLoopPads(RuntimeFeatureSettingType::EnableGridViewLoopPads);
+Setting menuNoteColorMapping(RuntimeFeatureSettingType::NoteColorMapping);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
@@ -74,7 +75,8 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuDisplayChordLayout,
     &menuAlternativePlaybackStartBehaviour,
     &menuAccessibilityShortcuts,
-    &menuEnableGridViewLoopPads};
+    &menuEnableGridViewLoopPads,
+    &menuNoteColorMapping};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }
