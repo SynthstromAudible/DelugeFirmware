@@ -101,6 +101,28 @@ static void SetupEmulatedDisplaySetting(RuntimeFeatureSetting& setting, deluge::
 	};
 }
 
+static void SetupNoteColorMappingSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
+                                         std::string_view xmlName, RuntimeFeatureStateNoteColorMapping def) {
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = static_cast<uint32_t>(def);
+
+	setting.options = {
+	    {
+	        .displayName = "Off",
+	        .value = RuntimeFeatureStateNoteColorMapping::NoteColorMappingOff,
+	    },
+	    {
+	        .displayName = "Chromatic",
+	        .value = RuntimeFeatureStateNoteColorMapping::NoteColorMappingChromatic,
+	    },
+	    {
+	        .displayName = "Harmonic",
+	        .value = RuntimeFeatureStateNoteColorMapping::NoteColorMappingHarmonic,
+	    },
+	};
+}
+
 void RuntimeFeatureSettings::init() {
 	using enum deluge::l10n::String;
 	// Drum randomizer
@@ -195,6 +217,11 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableGridViewLoopPads],
 	                  STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS, "enableGridViewLoopPads",
 	                  RuntimeFeatureStateToggle::Off);
+
+	// NoteColorMapping
+	SetupNoteColorMappingSetting(settings[RuntimeFeatureSettingType::NoteColorMapping],
+	                             STRING_FOR_COMMUNITY_FEATURE_NOTE_COLOR_MAPPING, "noteColorMapping",
+	                             RuntimeFeatureStateNoteColorMapping::NoteColorMappingOff);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {

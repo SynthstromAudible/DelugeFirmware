@@ -50,6 +50,9 @@
 #include "storage/storage_manager.h"
 #include "task_scheduler.h"
 #include "util/firmware_version.h"
+#include "gui/colour/harmonic_colors.h"
+#include "model/settings/runtime_feature_settings.h"
+
 #include <cmath>
 #include <new>
 
@@ -1242,7 +1245,16 @@ NoteRow* InstrumentClip::createNewNoteRowForKit(ModelStackWithTimelineCounter* m
 }
 
 RGB InstrumentClip::getMainColourFromY(int32_t yNote, int8_t noteRowColourOffset) {
-	return RGB::fromHue((yNote + colourOffset + noteRowColourOffset) * -8 / 3);
+	// Check if note color mapping is enabled
+	auto mappingMode = static_cast<RuntimeFeatureStateNoteColorMapping>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::NoteColorMapping));
+	if (mappingMode != RuntimeFeatureStateNoteColorMapping::NoteColorMappingOff) {
+		// Use the harmonic color mapping system
+		return deluge::gui::colour::NoteColorMapping::getNoteColor(yNote + colourOffset + noteRowColourOffset);
+	}
+	else {
+		// Use the original color calculation
+		return RGB::fromHue((yNote + colourOffset + noteRowColourOffset) * -8 / 3);
+	}
 }
 
 void InstrumentClip::replaceMusicalMode(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack) {

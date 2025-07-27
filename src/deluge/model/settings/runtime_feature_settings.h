@@ -41,6 +41,12 @@ enum RuntimeFeatureStateSyncScalingAction : uint32_t { SyncScaling = 0, Fill = 1
 
 enum RuntimeFeatureStateEmulatedDisplay : uint32_t { Hardware = 0, Toggle = 1, OnBoot = 2 };
 
+enum RuntimeFeatureStateNoteColorMapping : uint32_t {
+	NoteColorMappingOff = 0,
+	NoteColorMappingChromatic = 1,
+	NoteColorMappingHarmonic = 2
+};
+
 /// Every setting needs to be declared in here
 enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
@@ -66,6 +72,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	AlternativePlaybackStartBehaviour,
 	AccessibilityShortcuts,
 	EnableGridViewLoopPads,
+	NoteColorMapping,
 	MaxElement // Keep as boundary
 };
 
