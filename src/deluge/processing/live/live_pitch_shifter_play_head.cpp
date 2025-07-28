@@ -89,9 +89,9 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 
 			amplitude += amplitudeIncrement;
 
-			StereoSample sampleRead = (interpolationBufferSize > 2)
-			                              ? interpolator_.interpolate(numChannels, whichKernel, oscPos)
-			                              : interpolator_.interpolateLinear(numChannels, oscPos);
+			deluge::dsp::StereoSample<q31_t> sampleRead =
+			    (interpolationBufferSize > 2) ? interpolator_.interpolate(numChannels, whichKernel, oscPos)
+			                                  : interpolator_.interpolateLinear(numChannels, oscPos);
 
 			*outputBuffer += multiply_32x32_rshift32_rounded(sampleRead.l, amplitude) << 5;
 			outputBuffer++;

@@ -35,6 +35,7 @@
 #include <bits/ranges_algo.h>
 #include <cstring>
 #include <etl/vector.h>
+#include <gui/ui/ui.h>
 #include <ranges>
 #include <string_view>
 
@@ -159,7 +160,7 @@ void OLED::setupPopup(PopupType type, int32_t width, int32_t height, std::option
 #endif
 	popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
 
-	if (type != PopupType::HORIZONTAL_MENU) {
+	if (type != PopupType::NOTIFICATION) {
 		popup.drawRectangleRounded(popupMinX, popupMinY, popupMaxX, popupMaxY);
 	}
 }
@@ -663,7 +664,7 @@ void OLED::removeWorkingAnimation() {
 	}
 }
 
-void OLED::displayHorizontalMenuPopup(std::string_view paramTitle, std::optional<std::string_view> paramValue) {
+void OLED::displayNotification(std::string_view paramTitle, std::optional<std::string_view> paramValue) {
 	DEF_STACK_STRING_BUF(titleBuf, 25);
 	titleBuf.append(paramTitle);
 
@@ -682,7 +683,7 @@ void OLED::displayHorizontalMenuPopup(std::string_view paramTitle, std::optional
 		}
 	}
 
-	setupPopup(PopupType::HORIZONTAL_MENU, OLED_MAIN_WIDTH_PIXELS - 1, kTextSpacingY + 2, 0, OLED_MAIN_TOPMOST_PIXEL);
+	setupPopup(PopupType::NOTIFICATION, OLED_MAIN_WIDTH_PIXELS - 1, kTextSpacingY + 2, 0, OLED_MAIN_TOPMOST_PIXEL);
 
 	// Draw the title and value
 	popup.drawString(titleBuf.data(), paddingLeft, OLED_MAIN_TOPMOST_PIXEL + 1, kTextSpacingX, kTextSpacingY);
@@ -692,8 +693,8 @@ void OLED::displayHorizontalMenuPopup(std::string_view paramTitle, std::optional
 		                 kTextSpacingX, kTextSpacingY);
 	}
 
-	if (!FlashStorage::accessibilityMenuHighlighting) {
-		// Make the popup inverted (white)
+	if (FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION) {
+		// Make the notification inverted
 		popup.invertAreaRounded(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL,
 		                        OLED_MAIN_TOPMOST_PIXEL + kTextSpacingY + 1);
 		popup.drawPixel(0, OLED_MAIN_TOPMOST_PIXEL);
@@ -925,7 +926,8 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 
 			if (doRender) {
 				int32_t endX = scroller->endX;
-				if (FlashStorage::accessibilityMenuHighlighting) {
+				bool doInversion = FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION;
+				if (!doInversion) {
 					// for submenu's, this is the padding before the icon's are rendered
 					// need to clear this area otherwise it leaves a white pixels
 					endX += 4;
@@ -934,7 +936,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 				main.clearAreaExact(scroller->startX, scroller->startY, endX - 1, scroller->endY);
 				main.drawString(scroller->text, scroller->startX, scroller->startY, scroller->textSpacingX,
 				                scroller->textSizeY, scroller->pos, scroller->endX);
-				if (scroller->doHighlight && !FlashStorage::accessibilityMenuHighlighting) {
+				if (scroller->doHighlight && doInversion) {
 					main.invertArea(scroller->startX, scroller->endX - scroller->startX, scroller->startY,
 					                scroller->endY);
 				}

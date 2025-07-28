@@ -1802,7 +1802,7 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 		}
 	}
 
-	// Or, if user holding a note(s) down, we'll adjust proability / iterance instead
+	// Or, if user holding a note(s) down, we'll adjust probability / iterance instead
 	else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
 		bool hasProbabilityPopup = display->hasPopupOfType(PopupType::PROBABILITY);
 		bool hasIterancePopup = display->hasPopupOfType(PopupType::ITERANCE);
@@ -4151,7 +4151,7 @@ doDisplayError:
 		}
 	}
 
-	// Or, if a kit
+	// If a kit, prevents creating a new kit row beyond the adjacent empty rows
 	else {
 		// If it's more than one row below, we can't do it
 		if (yDisplay < -1 - clip->yScroll) {
@@ -4161,16 +4161,6 @@ doDisplayError:
 		// If it's more than one row above, we can't do it
 		if (yDisplay > clip->getNumNoteRows() - clip->yScroll) {
 			goto getOut;
-		}
-
-		noteRow = createNewNoteRowForKit(modelStack, yDisplay, &noteRowId);
-
-		if (!noteRow) {
-			goto doDisplayError;
-		}
-
-		else {
-			uiNeedsRendering(this, 0, 1 << yDisplay);
 		}
 	}
 
@@ -5313,9 +5303,6 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 		enterUIMode(UI_MODE_AUDITIONING);
 	}
 
-	if (displayNoteCode) {
-		drawNoteCode(yDisplay);
-	}
 	bool lastAuditionedYDisplayChanged = lastAuditionedYDisplay != yDisplay;
 	lastAuditionedYDisplay = yDisplay;
 
@@ -5334,9 +5321,13 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 
 	if (isKit) {
 		setSelectedDrum(drum);
-		return false; // No need to redraw any squares, because setSelectedDrum() has done it
 	}
-	return true;
+
+	if (displayNoteCode) {
+		drawNoteCode(yDisplay);
+	}
+
+	return !isKit; // No need to redraw any squares in kit, because setSelectedDrum() has done it
 }
 
 // sub-function of AuditionPadAction
@@ -5551,7 +5542,11 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 		drawActualNoteCode(getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong));
 	}
 	else {
-		drawDrumName(getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong)->drum);
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		Kit* thisKit = (Kit*)clip->output;
+		if (thisKit->selectedDrum != nullptr) {
+			drawDrumName(thisKit->selectedDrum);
+		}
 	}
 }
 

@@ -21,9 +21,7 @@
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "hid/buttons.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include <cstdint>
 #include <span>
 
 enum class MenuPermission {
@@ -35,6 +33,10 @@ enum class MenuPermission {
 class Sound;
 class MultiRange;
 class MIDICable;
+
+namespace deluge::gui::menu_item {
+class Submenu;
+}
 
 /// Base class for all menu items.
 class MenuItem {
@@ -298,19 +300,16 @@ public:
 	/// @brief Show a popup with the full name of the editing parameter at the top of the horizontal menu
 	///
 	/// true by default, but can be overridden
-	[[nodiscard]] virtual bool showPopup() const { return true; }
-
-	/// @brief Show a parameter value in the popup at the top of the horizontal menu
-	///
-	/// true by default, but can be overridden
-	[[nodiscard]] virtual bool showValueInPopup() const { return true; }
+	[[nodiscard]] virtual bool showNotification() const { return true; }
 
 	/// @brief Get the parameter value string to show in the popup
 	///
 	/// Needs to be overridden
-	virtual void getValueForPopup(StringBuf& valueBuf) {};
+	virtual void getNotificationValue(StringBuf& valueBuf) {};
 
 	virtual void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {};
+
+	deluge::gui::menu_item::Submenu* parent{nullptr};
 
 	/// @}
 };

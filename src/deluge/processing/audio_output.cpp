@@ -18,7 +18,7 @@
 #include "processing/audio_output.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
@@ -39,6 +39,8 @@
 extern "C" {
 #include "drivers/ssi/ssi.h"
 }
+
+using namespace deluge::dsp;
 
 namespace params = deluge::modulation::params;
 EnumStringMap<AudioOutputMode, kNumAudioOutputModes> aoModeStringMap({{
@@ -94,7 +96,7 @@ void AudioOutput::cloneFrom(ModControllableAudio* other) {
 	}
 }
 
-void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+void AudioOutput::renderOutput(ModelStack* modelStack, deluge::dsp::StereoBuffer<q31_t> output, int32_t* reverbBuffer,
                                int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
                                bool isClipActive) {
 
@@ -120,7 +122,7 @@ void AudioOutput::resetEnvelope() {
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
 bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
-                                                std::span<StereoSample> render, int32_t* bufferToTransferTo,
+                                                deluge::dsp::StereoBuffer<q31_t> render, int32_t* bufferToTransferTo,
                                                 int32_t* reverbBuffer, int32_t reverbAmountAdjust,
                                                 int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
                                                 bool isClipActive, int32_t pitchAdjust, int32_t amplitudeAtStart,
@@ -175,23 +177,24 @@ renderEnvelope:
 				if (AudioOutput::willRenderAsOneChannelOnlyWhichWillNeedCopying()) {
 					// If can write directly into Song buffer...
 					if (bufferToTransferTo != nullptr) {
-						std::ranges::transform(render_mono, reinterpret_cast<StereoSample*>(bufferToTransferTo),
-						                       StereoSample::fromMono);
+						std::ranges::transform(render_mono, reinterpret_cast<StereoSample<q31_t>*>(bufferToTransferTo),
+						                       StereoSample<q31_t>::fromMono);
 					}
 
 					// Or, if duplicating within same rendering buffer (cos there's FX to be applied)
 					else {
 						std::ranges::transform(render_mono.rbegin(), render_mono.rend(), render.rbegin(),
-						                       StereoSample::fromMono);
+						                       StereoSample<q31_t>::fromMono);
 					}
 				}
 			}
 		}
 	}
 
-	std::span<StereoSample> output = (bufferToTransferTo != nullptr)
-	                                     ? std::span{reinterpret_cast<StereoSample*>(bufferToTransferTo), render.size()}
-	                                     : render;
+	deluge::dsp::StereoBuffer<q31_t> output =
+	    (bufferToTransferTo != nullptr)
+	        ? std::span{reinterpret_cast<StereoSample<q31_t>*>(bufferToTransferTo), render.size()}
+	        : render;
 
 	// add in the monitored audio if in sampler or looper mode
 	if (mode != AudioOutputMode::player && modelStack->song->isOutputActiveInArrangement(this)
@@ -208,7 +211,7 @@ renderEnvelope:
 		                                                 / static_cast<double>(render.size())));
 		int32_t amplitude = amplitudeAtStart;
 
-		for (StereoSample& output_sample : output) {
+		for (deluge::dsp::StereoSample<q31_t>& output_sample : output) {
 			amplitude += amplitude_increment;
 
 			StereoSample input = {
@@ -218,19 +221,19 @@ renderEnvelope:
 
 			switch (input_channel) {
 			case AudioInputChannel::LEFT:
-				output_sample += StereoSample::fromMono(input.l);
+				output_sample += StereoSample<q31_t>::fromMono(input.l);
 				break;
 
 			case AudioInputChannel::RIGHT:
-				output_sample += StereoSample::fromMono(input.r);
+				output_sample += StereoSample<q31_t>::fromMono(input.r);
 				break;
 
 			case AudioInputChannel::BALANCED:
-				output_sample += StereoSample::fromMono((input.l / 2) - (input.r / 2));
+				output_sample += StereoSample<q31_t>::fromMono((input.l / 2) - (input.r / 2));
 				break;
 
 			case AudioInputChannel::NONE: // Means combine channels
-				output_sample += StereoSample::fromMono((input.l / 2) + (input.r / 2));
+				output_sample += StereoSample<q31_t>::fromMono((input.l / 2) + (input.r / 2));
 				break;
 
 			default: // STEREO

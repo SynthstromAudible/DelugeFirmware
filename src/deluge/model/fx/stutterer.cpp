@@ -16,9 +16,10 @@
  */
 
 #include "model/fx/stutterer.h"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "util/functions.h"
 
 namespace params = deluge::modulation::params;
 
@@ -106,14 +107,14 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 	}
 	return error;
 }
-void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* paramManager, int32_t magnitude,
+void Stutterer::processStutter(deluge::dsp::StereoBuffer<q31_t> audio, ParamManager* paramManager, int32_t magnitude,
                                uint32_t timePerTickInverse) {
 	int32_t rate = getStutterRate(paramManager, magnitude, timePerTickInverse);
 
 	buffer.setupForRender(rate);
 
 	if (status == Status::RECORDING) {
-		for (StereoSample sample : audio) {
+		for (deluge::dsp::StereoSample<q31_t> sample : audio) {
 			int32_t strength1;
 			int32_t strength2;
 
@@ -143,7 +144,7 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 		}
 	}
 	else { // PLAYING
-		for (StereoSample& sample : audio) {
+		for (deluge::dsp::StereoSample<q31_t>& sample : audio) {
 			int32_t strength1;
 			int32_t strength2;
 
@@ -168,12 +169,12 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 				strength1 = 65536 - strength2;
 
 				if (currentReverse) {
-					StereoSample* prevPos = &buffer.current() - 1;
+					deluge::dsp::StereoSample<q31_t>* prevPos = &buffer.current() - 1;
 					if (prevPos < buffer.begin()) {
 						prevPos = buffer.end() - 1; // Wrap around to the end of the buffer
 					}
-					StereoSample& fromDelay1 = buffer.current();
-					StereoSample& fromDelay2 = *prevPos;
+					deluge::dsp::StereoSample<q31_t>& fromDelay1 = buffer.current();
+					deluge::dsp::StereoSample<q31_t>& fromDelay2 = *prevPos;
 					sample.l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
 					            + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
 					           << 2;
@@ -182,12 +183,12 @@ void Stutterer::processStutter(std::span<StereoSample> audio, ParamManager* para
 					           << 2;
 				}
 				else {
-					StereoSample* nextPos = &buffer.current() + 1;
+					deluge::dsp::StereoSample<q31_t>* nextPos = &buffer.current() + 1;
 					if (nextPos == buffer.end()) {
 						nextPos = buffer.begin();
 					}
-					StereoSample& fromDelay1 = buffer.current();
-					StereoSample& fromDelay2 = *nextPos;
+					deluge::dsp::StereoSample<q31_t>& fromDelay1 = buffer.current();
+					deluge::dsp::StereoSample<q31_t>& fromDelay2 = *nextPos;
 					sample.l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
 					            + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
 					           << 2;

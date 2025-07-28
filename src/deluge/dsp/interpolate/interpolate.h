@@ -1,6 +1,6 @@
 #pragma once
 #include "definitions_cxx.hpp"
-#include "deluge/dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include <array>
 #include <cstdint>
 
@@ -10,8 +10,8 @@ namespace deluge::dsp {
 struct [[gnu::hot]] Interpolator {
 
 	Interpolator() = default;
-	StereoSample interpolate(size_t channels, int32_t whichKernel, uint32_t oscPos);
-	StereoSample interpolateLinear(size_t channels, uint32_t oscPos);
+	StereoSample<q31_t> interpolate(size_t channels, int32_t whichKernel, uint32_t oscPos);
+	StereoSample<q31_t> interpolateLinear(size_t channels, uint32_t oscPos);
 
 	[[gnu::always_inline]] constexpr void pushL(int16_t value) {
 #pragma unroll

@@ -21,7 +21,7 @@
 #include "deluge/dsp/granular/GranularProcessor.h"
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/delay/delay.h"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include "hid/button.h"
 #include "model/fx/stutterer.h"
 #include "model/mod_controllable/ModFXProcessor.h"
@@ -50,15 +50,16 @@ public:
 	virtual ~ModControllableAudio();
 	virtual void cloneFrom(ModControllableAudio* other);
 
-	void processStutter(std::span<StereoSample> buffer, ParamManager* paramManager);
-	void processReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* reverbBuffer, int32_t postFXVolume,
-	                                int32_t postReverbVolume, int32_t reverbSendAmount, int32_t pan = 0,
-	                                bool doAmplitudeIncrement = false);
+	void processStutter(deluge::dsp::StereoBuffer<q31_t> buffer, ParamManager* paramManager);
+	void processReverbSendAndVolume(deluge::dsp::StereoBuffer<q31_t> buffer, int32_t* reverbBuffer,
+	                                int32_t postFXVolume, int32_t postReverbVolume, int32_t reverbSendAmount,
+	                                int32_t pan = 0, bool doAmplitudeIncrement = false);
 	void writeAttributesToFile(Serializer& writer);
 	void writeTagsToFile(Serializer& writer);
 	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
-	void processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume, ParamManager* paramManager);
+	void processSRRAndBitcrushing(deluge::dsp::StereoBuffer<q31_t> buffer, int32_t* postFXVolume,
+	                              ParamManager* paramManager);
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = nullptr);
 	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -100,7 +101,7 @@ public:
 	int32_t bassOnlyR;
 
 	// Delay
-	Delay delay;
+	deluge::dsp::Delay delay;
 	StutterConfig stutterConfig;
 
 	bool sampleRateReductionOnLastTime;
@@ -112,14 +113,14 @@ public:
 	// Mod FX
 	ModFXType modFXType_;
 	ModFXProcessor modfx{};
-	RMSFeedbackCompressor compressor;
-	GranularProcessor* grainFX{nullptr};
+	deluge::dsp::RMSFeedbackCompressor compressor;
+	deluge::dsp::GranularProcessor* grainFX{nullptr};
 
 	uint32_t lowSampleRatePos{};
 	uint32_t highSampleRatePos{};
-	StereoSample lastSample;
-	StereoSample grabbedSample;
-	StereoSample lastGrabbedSample;
+	deluge::dsp::StereoSample<q31_t> lastSample;
+	deluge::dsp::StereoSample<q31_t> grabbedSample;
+	deluge::dsp::StereoSample<q31_t> lastGrabbedSample;
 
 	SideChain sidechain; // Song doesn't use this, despite extending this class
 
@@ -127,9 +128,9 @@ public:
 	int32_t postReverbVolumeLastTime{};
 
 protected:
-	void processFX(std::span<StereoSample> buffer, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
-	               const Delay::State& delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
-	               bool anySoundComingIn, q31_t reverbSendAmount);
+	void processFX(deluge::dsp::StereoBuffer<q31_t> buffer, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
+	               const deluge::dsp::Delay::State& delayWorkingState, int32_t* postFXVolume,
+	               ParamManager* paramManager, bool anySoundComingIn, q31_t reverbSendAmount);
 	void switchDelayPingPong();
 	void switchDelayAnalog();
 	void switchDelaySyncType();
@@ -171,6 +172,7 @@ private:
 	void switchHPFModeWithOff();
 	void switchLPFModeWithOff();
 
-	void processGrainFX(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
-	                    UnpatchedParamSet* unpatchedParams, bool anySoundComingIn, q31_t verbAmount);
+	void processGrainFX(deluge::dsp::StereoBuffer<q31_t> buffer, int32_t modFXRate, int32_t modFXDepth,
+	                    int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams, bool anySoundComingIn,
+	                    q31_t verbAmount);
 };

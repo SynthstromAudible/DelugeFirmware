@@ -71,7 +71,7 @@ public:
 		return 4;
 	}
 
-	[[nodiscard]] bool showPopup() const override { return false; }
+	[[nodiscard]] bool showNotification() const override { return false; }
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
@@ -80,7 +80,7 @@ public:
 		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
 		getShortOption(shortOpt);
 
-		constexpr int32_t arrowSpace = 10; // Space reserved for each arrow
+		constexpr int32_t arrowSpace = 10;
 
 		// Get the main text width and trim if needed
 		int32_t textWidth = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
@@ -89,7 +89,6 @@ public:
 			textWidth = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
 		}
 
-		// Calculate center positions
 		const int32_t textStartX = startX + (width - textWidth) / 2 + 1;
 		const int32_t textStartY = startY + (height - kTextSpacingY) / 2 + 1;
 
@@ -101,11 +100,19 @@ public:
 		// Draw main text
 		image.drawString(shortOpt.c_str(), textStartX, textStartY, kTextSpacingX, kTextSpacingY);
 
-		if (!FlashStorage::accessibilityMenuHighlighting) {
-			// Highlight the text
-			constexpr int32_t highlightOffset = 22;
+		// Highlight the text
+		constexpr int32_t highlightOffset = 21;
+		switch (FlashStorage::accessibilityMenuHighlighting) {
+		case MenuHighlighting::FULL_INVERSION:
 			image.invertAreaRounded(startX + highlightOffset, width - highlightOffset * 2, textStartY - 2,
 			                        textStartY + kTextSpacingY + 1);
+			break;
+		case MenuHighlighting::PARTIAL_INVERSION:
+			image.drawRectangleRounded(startX + highlightOffset, textStartY - 3, startX + width - highlightOffset,
+			                           textStartY + kTextSpacingY + 2, oled_canvas::BorderRadius::BIG);
+			break;
+		case MenuHighlighting::NO_INVERSION:
+			break;
 		}
 
 		// Draw arrows if needed

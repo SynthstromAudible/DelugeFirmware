@@ -55,6 +55,11 @@ struct StereoSample {
 	StereoSample operator+(const StereoSample& other) const { return {l + other.l, r + other.r}; }
 	StereoSample operator-(const StereoSample& other) const { return {l - other.l, r - other.r}; }
 	StereoSample operator*(T scalar) const { return {l * scalar, r * scalar}; }
+	StereoSample& operator+=(const StereoSample& other) {
+		l += other.l;
+		r += other.r;
+		return *this;
+	}
 };
 
 template <typename T>

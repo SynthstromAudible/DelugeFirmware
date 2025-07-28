@@ -18,7 +18,7 @@
 #pragma once
 #include "deluge/util/fixedpoint.h"
 #include "deluge/util/functions.h"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include <cmath>
 #include <span>
 
@@ -74,7 +74,7 @@ inline void foldBufferPolyApproximation(std::span<q31_t> buffer, q31_t level) {
 	}
 }
 
-inline void foldBufferPolyApproximation(std::span<StereoSample> buffer, q31_t level) {
+inline void foldBufferPolyApproximation(StereoBuffer<q31_t> buffer, q31_t level) {
 	foldBufferPolyApproximation(std::span<q31_t>{reinterpret_cast<q31_t*>(buffer.data()), buffer.size() * 2}, level);
 }
 

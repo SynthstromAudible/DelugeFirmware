@@ -153,7 +153,7 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 
 	int32_t highlightStartX;
 	int32_t scrollAmount = enteredTextEditPos - scrollPosHorizontal;
-	if (FlashStorage::accessibilityMenuHighlighting && !scrollAmount) {
+	if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION && !scrollAmount) {
 		highlightStartX = 0;
 	}
 	else {

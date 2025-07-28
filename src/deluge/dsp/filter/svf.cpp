@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "dsp/filter/svf.h"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 
 namespace deluge::dsp::filter {
 [[gnu::hot]] void SVFilter::doFilter(std::span<q31_t> buffer) {
@@ -24,7 +24,7 @@ namespace deluge::dsp::filter {
 	}
 }
 
-[[gnu::hot]] void SVFilter::doFilterStereo(std::span<StereoSample> buffer) {
+[[gnu::hot]] void SVFilter::doFilterStereo(StereoBuffer<q31_t> buffer) {
 	for (auto& sample : buffer) {
 		sample.l = doSVF(sample.l, l);
 		sample.r = doSVF(sample.r, r);

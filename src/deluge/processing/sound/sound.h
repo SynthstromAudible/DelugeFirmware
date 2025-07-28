@@ -31,12 +31,12 @@
 #include "modulation/sidechain/sidechain.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
+#include "util/functions.h"
 #include "util/misc.h"
 #include <bitset>
 #include <memory>
 
 struct CableGroup;
-class StereoSample;
 class Voice;
 class Kit;
 class ParamManagerForTimeline;
@@ -170,8 +170,8 @@ public:
 
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
 	                                    int32_t newValue);
-	void render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
-	            int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
+	void render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::StereoBuffer<q31_t> output,
+	            int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
 	            bool shouldLimitDelayFeedback = false, int32_t pitchAdjust = kMaxSampleValue,
 	            SampleRecorder* recorder = nullptr);
 

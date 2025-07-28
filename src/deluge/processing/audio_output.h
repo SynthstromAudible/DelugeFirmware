@@ -40,15 +40,15 @@ public:
 	~AudioOutput() override;
 	void cloneFrom(ModControllableAudio* other) override;
 
-	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, int32_t* reverbBuffer,
+	void renderOutput(ModelStack* modelStack, deluge::dsp::StereoBuffer<q31_t> buffer, int32_t* reverbBuffer,
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
 	                  bool isClipActive) override;
 
 	bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
-	                                   std::span<StereoSample> globalEffectableBuffer, int32_t* bufferToTransferTo,
-	                                   int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
-	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd) override;
+	                                   deluge::dsp::StereoBuffer<q31_t> globalEffectableBuffer,
+	                                   int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+	                                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
+	                                   int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd) override;
 
 	void resetEnvelope();
 	bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,

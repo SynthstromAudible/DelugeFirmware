@@ -2,6 +2,7 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "util/functions.h"
 
 namespace deluge::gui::menu_item {
 void Enumeration::beginSession(MenuItem* navigatedBackwardFrom) {

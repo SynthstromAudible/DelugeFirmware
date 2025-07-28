@@ -18,15 +18,19 @@
 #include "dsp/delay/delay.h"
 #include "definitions_cxx.hpp"
 #include "dsp/delay/delay_buffer.h"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sync.h"
 #include "processing/engines/audio_engine.h"
+#include "util/functions.h"
+#include <algorithm>
 #include <cstdlib>
 #include <ranges>
 
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
+
+namespace deluge::dsp {
 
 void Delay::informWhetherActive(bool newActive, int32_t userDelayRate) {
 
@@ -221,7 +225,7 @@ void Delay::initializeSecondaryBuffer(int32_t newNativeRate, bool makeNativeRate
 	sizeLeftUntilBufferSwap = secondaryBuffer.size() + 5;
 }
 
-void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingState) {
+void Delay::process(StereoBuffer<q31_t> buffer, const State& delayWorkingState) {
 	if (!delayWorkingState.doDelay) {
 		return;
 	}
@@ -270,17 +274,17 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 
 	bool wrapped = false;
 
-	std::span<StereoSample> working_buffer{reinterpret_cast<StereoSample*>(spareRenderingBuffer[0]), buffer.size()};
+	StereoBuffer<q31_t> working_buffer{reinterpret_cast<StereoSample<q31_t>*>(spareRenderingBuffer[0]), buffer.size()};
 
 	GeneralMemoryAllocator::get().checkStack("delay");
 
-	StereoSample* primaryBufferOldPos;
+	StereoSample<q31_t>* primaryBufferOldPos;
 	uint32_t primaryBufferOldLongPos;
 	uint8_t primaryBufferOldLastShortPos;
 
 	// If nothing to read yet, easy
 	if (!primaryBuffer.isActive()) {
-		std::fill(working_buffer.begin(), working_buffer.end(), StereoSample{0, 0});
+		std::ranges::fill(working_buffer, StereoSample<q31_t>{0, 0});
 	}
 
 	// Or...
@@ -292,7 +296,7 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 
 		// Native read
 		if (primaryBuffer.isNative()) {
-			for (StereoSample& sample : working_buffer) {
+			for (StereoSample<q31_t>& sample : working_buffer) {
 				wrapped = primaryBuffer.clearAndMoveOn() || wrapped;
 				sample = primaryBuffer.current();
 			}
@@ -301,7 +305,7 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 		// Or, resampling read
 		else {
 
-			for (StereoSample& sample : working_buffer) {
+			for (StereoSample<q31_t>& sample : working_buffer) {
 				// Move forward, and clear buffer as we go
 				int32_t primaryStrength2 = primaryBuffer.advance([&] {
 					wrapped = primaryBuffer.clearAndMoveOn() || wrapped; //<
@@ -309,12 +313,12 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 
 				int32_t primaryStrength1 = 65536 - primaryStrength2;
 
-				StereoSample* nextPos = &primaryBuffer.current() + 1;
+				StereoSample<q31_t>* nextPos = &primaryBuffer.current() + 1;
 				if (nextPos == primaryBuffer.end()) {
 					nextPos = primaryBuffer.begin();
 				}
-				StereoSample fromDelay1 = primaryBuffer.current();
-				StereoSample fromDelay2 = *nextPos;
+				StereoSample<q31_t> fromDelay1 = primaryBuffer.current();
+				StereoSample<q31_t> fromDelay2 = *nextPos;
 
 				sample.l = (multiply_32x32_rshift32(fromDelay1.l, primaryStrength1 << 14)
 				            + multiply_32x32_rshift32(fromDelay2.l, primaryStrength2 << 14))
@@ -328,11 +332,11 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 
 	if (analog) {
 
-		for (StereoSample& sample : working_buffer) {
+		for (StereoSample<q31_t>& sample : working_buffer) {
 			ir_processor.process(sample, sample);
 		}
 
-		for (StereoSample& sample : working_buffer) {
+		for (StereoSample<q31_t>& sample : working_buffer) {
 			// impulseResponseProcessor.process(sample, sample);
 
 			// Reduce headroom, since this sounds ok with analog sim
@@ -346,7 +350,7 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 	}
 
 	else {
-		for (StereoSample& sample : working_buffer) {
+		for (StereoSample<q31_t>& sample : working_buffer) {
 			// Leave more headroom, because making it clip sounds bad with pure digital
 			sample.l = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.l, delayWorkingState.delayFeedbackAmount))
 			           << 2;
@@ -357,7 +361,7 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 
 	// HPF on delay output, to stop it "farting out". Corner frequency is somewhere around 40Hz after many
 	// repetitions
-	for (StereoSample& sample : working_buffer) {
+	for (StereoSample<q31_t>& sample : working_buffer) {
 		int32_t distanceToGoL = sample.l - postLPFL;
 		postLPFL += distanceToGoL >> 11;
 		sample.l -= postLPFL;
@@ -370,7 +374,7 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 	// Go through what we grabbed, sending it to the audio output buffer, and also preparing it to be fed back
 	// into the delay
 	for (auto [input, output] : std::views::zip(working_buffer, buffer)) {
-		StereoSample current = input;
+		StereoSample<q31_t> current = input;
 
 		// Feedback calculation, and combination with input
 		if (pingPong && AudioEngine::renderInStereo) {
@@ -378,11 +382,11 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 			input.r = ((output.l + output.r) >> 1) + current.l;
 		}
 		else {
-			input += output;
+			input = input + output;
 		}
 
 		// Output
-		output += current;
+		output = output + current;
 	}
 
 	// And actually feedback being applied back into the actual delay primary buffer...
@@ -390,12 +394,12 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 
 		// Native
 		if (primaryBuffer.isNative()) {
-			StereoSample* writePos = primaryBufferOldPos - delaySpaceBetweenReadAndWrite;
+			StereoSample<q31_t>* writePos = primaryBufferOldPos - delaySpaceBetweenReadAndWrite;
 			if (writePos < primaryBuffer.begin()) {
 				writePos += primaryBuffer.sizeIncludingExtra;
 			}
 
-			for (StereoSample sample : working_buffer) {
+			for (StereoSample<q31_t> sample : working_buffer) {
 				primaryBuffer.writeNativeAndMoveOn(sample, &writePos);
 			}
 		}
@@ -462,3 +466,4 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 		hasWrapped();
 	}
 }
+} // namespace deluge::dsp
