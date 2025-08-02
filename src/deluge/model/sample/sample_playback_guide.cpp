@@ -24,7 +24,7 @@
 #include "storage/audio/audio_file_manager.h"
 
 SamplePlaybackGuide::SamplePlaybackGuide() {
-	// TODO Auto-generated constructor stub
+	effectiveTimePerTimerTickBig = 0; // 0 = use global tempo
 }
 
 int32_t SamplePlaybackGuide::getFinalClusterIndex(Sample* sample, bool obeyMarkers, int32_t* getEndPlaybackAtByte) {

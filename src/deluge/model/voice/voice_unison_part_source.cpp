@@ -121,8 +121,14 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 		// That is, after converted to 44.1kHz
 		uint32_t sampleLengthInSamples =
 		    ((SampleHolder*)guide->audioFileHolder)->getLengthInSamplesAtSystemSampleRate(true);
-		*noteLengthInSamples = (playbackHandler.getTimePerInternalTickBig() * guide->sequenceSyncLengthTicks)
-		                       >> 32; // No rounding. Should be fine?
+
+		// CRITICAL FIX: Use guide's effective tempo for per-clip tempo support
+		uint64_t effectiveTempo = guide->effectiveTimePerTimerTickBig;
+		if (effectiveTempo == 0) {
+			effectiveTempo = playbackHandler.getTimePerInternalTickBig(); // Fallback to global tempo
+		}
+
+		*noteLengthInSamples = (effectiveTempo * guide->sequenceSyncLengthTicks) >> 32; // No rounding. Should be fine?
 
 		// To stop things getting insane, limit to 32x speed
 		if ((sampleLengthInSamples >> 5) > *noteLengthInSamples) {

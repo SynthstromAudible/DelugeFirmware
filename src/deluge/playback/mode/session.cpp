@@ -39,6 +39,8 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
+#include <cmath>
+#include <cstdlib>
 #include <string.h>
 // #include <algorithm>
 #include "gui/ui/load/load_song_ui.h"
@@ -2261,7 +2263,11 @@ traverseClips:
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-		clip->incrementPos(modelStackWithTimelineCounter, numTicksBeingIncremented);
+		// Calculate clip-specific position increment for per-clip tempo support
+		int32_t clipIncrement = clip->convertGlobalTicksToLocal(numTicksBeingIncremented);
+
+		// Increment position normally - multi-note processing handles ratio timing at note level
+		clip->incrementPos(modelStackWithTimelineCounter, clipIncrement);
 	}
 	if (clipArray != &currentSong->arrangementOnlyClips) {
 		clipArray = &currentSong->arrangementOnlyClips;
@@ -2438,7 +2444,11 @@ void Session::doTickForward(int32_t posIncrement) {
 			// launched), up in considerLaunchEvent()
 
 			// May create new Clip and put it in the ModelStack - we'll check below.
-			clip->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
+			// Calculate clip-specific position increment for per-clip tempo support
+			int32_t clipIncrement = clip->convertGlobalTicksToLocal(posIncrement);
+
+			// Process normally - multi-note processing handles ratio timing at note level
+			clip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
 
 			// NOTE: posIncrement is the number of ticks which we incremented by in considerLaunchEvent(). But for Clips
 			// which were only just launched in there, well the won't have been incremented, so it would be more correct
@@ -2675,7 +2685,7 @@ bool Session::willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* 
 	}
 	// keep playing just after its Clip has stopped, and we don't wanna think it needs to loop
 
-	// Note: this isn't quite perfect - it doesn’t know if Clip will cut out due to another one launching. But the ill
+	// Note: this isn't quite perfect - it doesn't know if Clip will cut out due to another one launching. But the ill
 	// effects of this are pretty minor.
 	bool willLoop =
 	    !launchEventAtSwungTickCount             // If no launch event scheduled, obviously it'll loop

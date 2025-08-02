@@ -53,5 +53,6 @@ public:
 	uint32_t endPlaybackAtByte;
 
 	int32_t sequenceSyncStartedAtTick;
-	uint32_t sequenceSyncLengthTicks; // When 0, means no syncing happening
+	uint32_t sequenceSyncLengthTicks;      // When 0, means no syncing happening
+	uint64_t effectiveTimePerTimerTickBig; // Per-clip tempo support: 0 = use global tempo
 };

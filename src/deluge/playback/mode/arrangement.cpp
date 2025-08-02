@@ -35,6 +35,8 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
+#include <cmath>
+#include <cstdlib>
 
 extern "C" {}
 
@@ -117,6 +119,8 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
+	// Position increment calculation handles ratio timing at note level
+
 	bool songParamManagerMightContainAutomation = currentSong->paramManager.mightContainAutomation();
 
 	if (songParamManagerMightContainAutomation) {
@@ -165,10 +169,14 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 				}
 
 				// Tick forward the Clip being recorded to
-				output->getActiveClip()->lastProcessedPos += posIncrement;
+				Clip* activeClip = output->getActiveClip();
+				int32_t clipIncrement = activeClip->convertGlobalTicksToLocal(posIncrement);
+				activeClip->lastProcessedPos += clipIncrement;
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-				    modelStack->addTimelineCounter(output->getActiveClip());
-				output->getActiveClip()->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
+				    modelStack->addTimelineCounter(activeClip);
+
+				// Process clip normally - multi-note processing handles ratio timing at note level
+				activeClip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
 			}
 
 			else {
@@ -223,8 +231,13 @@ notRecording:
 								    modelStack->addTimelineCounter(thisClip);
 
 								// Tick it forward and process it
-								thisClip->incrementPos(modelStackWithTimelineCounter, posIncrement);
-								thisClip->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
+								int32_t clipIncrement = thisClip->convertGlobalTicksToLocal(posIncrement);
+
+								// Increment position normally
+								thisClip->incrementPos(modelStackWithTimelineCounter, clipIncrement);
+
+								// Process normally - multi-note processing handles ratio timing at note level
+								thisClip->processCurrentPos(modelStackWithTimelineCounter, clipIncrement);
 
 								// Make sure we come back here when the clipInstance ends
 								int32_t ticksTilEnd = endPos - lastProcessedPos;

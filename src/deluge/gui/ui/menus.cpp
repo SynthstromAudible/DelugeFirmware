@@ -182,6 +182,7 @@
 #include "gui/menu_item/sample/time_stretch.h"
 #include "gui/menu_item/sample/transpose.h"
 #include "gui/menu_item/sequence/direction.h"
+#include "gui/menu_item/sequence/tempo.h"
 #include "gui/menu_item/shortcuts/version.h"
 #include "gui/menu_item/sidechain/attack.h"
 #include "gui/menu_item/sidechain/release.h"
@@ -733,6 +734,36 @@ submenu::PolyMonoConversion midiMPEMenu{STRING_FOR_MPE_MONO, {&midiAftertouchCol
 // Clip-level stuff --------------------------------------------------------------------------
 
 sequence::Direction sequenceDirectionMenu{STRING_FOR_PLAY_DIRECTION};
+// Tempo ratio menu instances - using new parameterized class
+sequence::TempoRatioPreset tempoRatioGlobalMenu{"Global"};                           // Special global constructor
+sequence::TempoRatioPreset tempoRatioHalfMenu{"1/2 Half", "Half speed", 1, 2};       // 1:2 ratio
+sequence::TempoRatioPreset tempoRatioDoubleMenu{"2/1 Double", "Double speed", 2, 1}; // 2:1 ratio
+sequence::TempoRatioPreset tempoRatioThreeFourMenu{"3/4", "3/4 speed", 3, 4};        // 3:4 ratio
+sequence::TempoRatioPreset tempoRatioFourThreeMenu{"4/3", "4/3 speed", 4, 3};        // 4:3 ratio
+sequence::TempoRatioNumerator tempoRatioNumeratorMenu{EMPTY_STRING};     // Will use getName() -> "Numerator"
+sequence::TempoRatioDenominator tempoRatioDenominatorMenu{EMPTY_STRING}; // Will use getName() -> "Denominator"
+
+// Custom ratio submenu
+menu_item::Submenu tempoRatioCustomMenu{
+    STRING_FOR_CUSTOM,
+    {
+        &tempoRatioNumeratorMenu,
+        &tempoRatioDenominatorMenu,
+    },
+};
+
+// Main tempo ratio submenu
+sequence::TempoRatio sequenceTempoMenu{
+    STRING_FOR_TEMPO_RATIO,
+    {
+        &tempoRatioGlobalMenu,
+        &tempoRatioHalfMenu,
+        &tempoRatioDoubleMenu,
+        &tempoRatioThreeFourMenu,
+        &tempoRatioFourThreeMenu,
+        &tempoRatioCustomMenu,
+    },
+};
 
 // Global FX Menu
 
@@ -1490,15 +1521,15 @@ Submenu soundFXMenu{
 menu_item::Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,
     {
-        &soundMasterMenu,   &arpMenu,          &globalRandomizerMenu,
-        &audioCompMenu,     &soundFiltersMenu, &soundFXMenu,
-        &sidechainMenu,     &source0Menu,      &source1Menu,
-        &modulator0Menu,    &modulator1Menu,   &env1Menu,
-        &env2Menu,          &env3Menu,         &env4Menu,
-        &lfo1Menu,          &lfo2Menu,         &lfo3Menu,
-        &lfo4Menu,          &voiceMenu,        &bendMenu,
-        &drumBendRangeMenu, &patchCablesMenu,  &sequenceDirectionMenu,
-        &outputMidiSubmenu,
+        &soundMasterMenu,   &arpMenu,           &globalRandomizerMenu,
+        &audioCompMenu,     &soundFiltersMenu,  &soundFXMenu,
+        &sidechainMenu,     &source0Menu,       &source1Menu,
+        &modulator0Menu,    &modulator1Menu,    &env1Menu,
+        &env2Menu,          &env3Menu,          &env4Menu,
+        &lfo1Menu,          &lfo2Menu,          &lfo3Menu,
+        &lfo4Menu,          &voiceMenu,         &bendMenu,
+        &drumBendRangeMenu, &patchCablesMenu,   &sequenceDirectionMenu,
+        &sequenceTempoMenu, &outputMidiSubmenu,
     },
 };
 
@@ -1623,6 +1654,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
         &mpeyToModWheelMenu,
         &midiMPEMenu,
         &sequenceDirectionMenu,
+        &sequenceTempoMenu,
     },
 };
 
@@ -1657,6 +1689,8 @@ menu_item::Submenu soundEditorRootMenuAudioClip{
         &audioClipSampleMenu,
         &audioClipAttackMenu,
         &priorityMenu,
+        &sequenceDirectionMenu,
+        &sequenceTempoMenu,
     },
 };
 

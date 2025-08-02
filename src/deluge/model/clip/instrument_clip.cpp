@@ -903,7 +903,27 @@ doNewProbability:
 	}
 
 	if (ticksTilNextNoteRowEvent < playbackHandler.swungTicksTilNextEvent) {
-		playbackHandler.swungTicksTilNextEvent = ticksTilNextNoteRowEvent;
+		// CRITICAL FIX: Convert clip timing to global timing for clips with ratio-based tempo
+		int32_t globalTicksTilNextEvent = ticksTilNextNoteRowEvent;
+
+		// For clips with ratio-based tempo, we need to convert clip ticks to global ticks
+		if (hasTempoRatio) {
+			// Convert clip ticks to global ticks: globalTicks = clipTicks * denominator / numerator
+			int64_t result = ((int64_t)ticksTilNextNoteRowEvent * tempoRatioDenominator) / tempoRatioNumerator;
+
+			// Clamp to reasonable bounds
+			if (result > INT32_MAX) {
+				globalTicksTilNextEvent = INT32_MAX;
+			}
+			else if (result < 1) {
+				globalTicksTilNextEvent = 1; // Ensure we get scheduled soon
+			}
+			else {
+				globalTicksTilNextEvent = (int32_t)result;
+			}
+		}
+
+		playbackHandler.swungTicksTilNextEvent = globalTicksTilNextEvent;
 	}
 }
 
@@ -1181,6 +1201,21 @@ void InstrumentClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) 
 				((ExpressionParamSet*)modelStackWithParamCollection->paramCollection)
 				    ->clearValues(modelStackWithParamCollection);
 			}
+		}
+	}
+
+	// TEMPO RATIO FIX: Additional aggressive voice management for tempo ratio mode
+	// This ensures voices are properly cleaned up when playback stops, preventing
+	// stuck notes that persist after normal note-off handling
+	if (hasTempoRatio && actuallySoundChange) {
+		if (output->type == OutputType::SYNTH) {
+			SoundInstrument* soundInstrument = static_cast<SoundInstrument*>(output);
+			soundInstrument->wontBeRenderedForAWhile();
+			// Extra aggressive: also call cutAllSound directly for full voice cleanup
+			soundInstrument->cutAllSound();
+		}
+		else if (output->type == OutputType::KIT) {
+			static_cast<Kit*>(output)->cutAllSound();
 		}
 	}
 
