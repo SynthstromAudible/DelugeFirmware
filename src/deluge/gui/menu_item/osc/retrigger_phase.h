@@ -97,14 +97,14 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) override {
-		if (offset > 0 && getValue() < 0) {
-			setValue(0);
-		}
-
 		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
 			// In Horizontal menus we edit with 0.10 step by default, and with 0.01 step if the shift is pressed
 			soundEditor.numberEditSize = Buttons::isButtonPressed(hid::button::SHIFT) ? 1 : 10;
 		}
+		if (offset > 0 && getValue() < 0) {
+			setValue(-soundEditor.numberEditSize);
+		}
+
 		Decimal::selectEncoderAction(offset);
 	}
 
