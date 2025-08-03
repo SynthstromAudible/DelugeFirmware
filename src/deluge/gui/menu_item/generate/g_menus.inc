@@ -147,13 +147,17 @@ source::patched_param::ModulatorLevel modulator0Volume{STRING_FOR_FM_MOD_LEVEL_M
 source::patched_param::ModulatorLevel modulator1Volume{STRING_FOR_FM_MOD_LEVEL_MENU_TITLE, params::LOCAL_MODULATOR_0_VOLUME, 1};
 patched_param::IntegerNonFM noiseMenu{STRING_FOR_NOISE_LEVEL, params::LOCAL_NOISE_VOLUME};
 osc::Sync oscSyncMenu{STRING_FOR_OSCILLATOR_SYNC};
-std::array<MenuItem*, 6> child10 = {
+osc::Tracking osc0TrackingMenu{STRING_FOR_PITCH_TRACKING, STRING_FOR_OSC_PITCH_TRACKING_MENU_TITLE, 0};
+osc::Tracking osc1TrackingMenu{STRING_FOR_PITCH_TRACKING, STRING_FOR_OSC_PITCH_TRACKING_MENU_TITLE, 1};
+std::array<MenuItem*, 8> child10 = {
     &source0VolumeMenu,
     &source1VolumeMenu,
     &modulator0Volume,
     &modulator1Volume,
     &noiseMenu,
     &oscSyncMenu,
+    &osc0TrackingMenu,
+    &osc1TrackingMenu,
 };
 HorizontalMenu oscMixerMenu{STRING_FOR_OSCILLATOR_MIXER, child10};
 envelope::Segment env1AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK, 0};

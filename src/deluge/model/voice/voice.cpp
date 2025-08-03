@@ -416,8 +416,10 @@ void Voice::makeUnisonPartsInactive(const Sound& sound, int32_t source_index) {
 	}
 }
 
-void Voice::calculatePhaseIncrementForSource(Sound& sound, int32_t source_index, int32_t noteCodeWithMasterTranspose) {
+void Voice::calculatePhaseIncrementForSource(Sound& sound, int32_t source_index) {
 	Source* source = &sound.sources[source_index];
+
+	int32_t noteCode = source->isTracking ? noteCodeAfterArpeggiation : kC3NoteCode;
 
 	int32_t oscillatorTranspose;
 	if (source->oscType == OscType::SAMPLE && guides[source_index].audioFileHolder) { // Do not do this for WaveTables
@@ -427,7 +429,7 @@ void Voice::calculatePhaseIncrementForSource(Sound& sound, int32_t source_index,
 		oscillatorTranspose = source->transpose;
 	}
 
-	int32_t transposedNoteCode = noteCodeWithMasterTranspose + oscillatorTranspose;
+	int32_t transposedNoteCode = noteCode + sound.transpose + oscillatorTranspose;
 
 	uint32_t phaseIncrement;
 
@@ -508,8 +510,8 @@ void Voice::calculatePhaseIncrementForSource(Sound& sound, int32_t source_index,
 	}
 }
 
-void Voice::calculatePhaseIncrementForFmMod(Sound& sound, int32_t mod_index, int32_t noteCodeWithMasterTranspose) {
-	int32_t transposedNoteCode = noteCodeWithMasterTranspose + sound.modulatorTranspose[mod_index];
+void Voice::calculatePhaseIncrementForFmMod(Sound& sound, int32_t mod_index) {
+	int32_t transposedNoteCode = noteCodeAfterArpeggiation + sound.transpose + sound.modulatorTranspose[mod_index];
 	int32_t noteWithinOctave = (transposedNoteCode + 120 - 4) % 12;
 	int32_t octave = (transposedNoteCode + 120 - 4) / 12;
 	int32_t shiftRightAmount = 20 - octave;
@@ -552,11 +554,9 @@ void Voice::calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack) {
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
 
-	int32_t noteCodeWithMasterTranspose = noteCodeAfterArpeggiation + sound.transpose;
-
 	for (int32_t source_index = 0; source_index < kNumSources; source_index++) {
 		if (modelStack->checkSourceEverActive(source_index)) {
-			calculatePhaseIncrementForSource(sound, source_index, noteCodeWithMasterTranspose);
+			calculatePhaseIncrementForSource(sound, source_index);
 		}
 		else {
 			makeUnisonPartsInactive(sound, source_index);
@@ -566,7 +566,7 @@ void Voice::calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack) {
 	if (sound.getSynthMode() == SynthMode::FM) {
 		for (int32_t mod_index = 0; mod_index < kNumModulators; mod_index++) {
 			if (isFmModActive(sound, mod_index, paramManager)) {
-				calculatePhaseIncrementForFmMod(sound, mod_index, noteCodeWithMasterTranspose);
+				calculatePhaseIncrementForFmMod(sound, mod_index);
 			}
 		}
 	}

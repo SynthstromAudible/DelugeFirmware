@@ -57,6 +57,7 @@ menus.append(
             *modulator.volumes,
             source.noise,
             source.sync,
+            *source.pitches,
         ],
         name="STRING_FOR_OSCILLATOR_MIXER",
     )

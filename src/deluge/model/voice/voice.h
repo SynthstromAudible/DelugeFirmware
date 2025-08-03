@@ -153,6 +153,6 @@ private:
 	void setupPorta(const Sound& sound);
 	int32_t combineExpressionValues(const Sound& sound, int32_t expressionDimension) const;
 	void makeUnisonPartsInactive(const Sound& sound, int32_t source_index);
-	void calculatePhaseIncrementForSource(Sound& sound, int32_t source_index, int32_t noteCodeWithMasterTranspose);
-	void calculatePhaseIncrementForFmMod(Sound& sound, int32_t mod_index, int32_t noteCodeWithMasterTranspose);
+	void calculatePhaseIncrementForSource(Sound& sound, int32_t source_index);
+	void calculatePhaseIncrementForFmMod(Sound& sound, int32_t mod_index);
 };
