@@ -50,21 +50,23 @@ void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	delayHorizontalScrollUntil = 0;
 
-	if (showPolaritySwitcher()) {
-		auto* patch_cable_set = soundEditor.currentParamManager->getPatchCableSet();
-		const uint32_t patch_cable_index = patch_cable_set->getPatchCableIndex(getS(), getDestinationDescriptor());
-
-		if (patch_cable_index == kNoSelection) {
-			patchCableExists_ = false;
-			polarityInTheUI_ = PatchCable::getDefaultPolarity(getS());
-		}
-		else {
-			patchCableExists_ = true;
-			polarityInTheUI_ = patch_cable_set->patchCables[patch_cable_index].polarity;
-		}
-		setPatchCablePolarity(polarityInTheUI_);
-		updatePolarityUI();
+	if (isInHorizontalMenu()) {
+		return;
 	}
+
+	auto* patch_cable_set = soundEditor.currentParamManager->getPatchCableSet();
+	const uint32_t patch_cable_index = patch_cable_set->getPatchCableIndex(getS(), getDestinationDescriptor());
+
+	if (patch_cable_index == kNoSelection) {
+		patchCableExists_ = false;
+		polarityInTheUI_ = PatchCable::getDefaultPolarity(getS());
+	}
+	else {
+		patchCableExists_ = true;
+		polarityInTheUI_ = patch_cable_set->patchCables[patch_cable_index].polarity;
+	}
+	setPatchCablePolarity(polarityInTheUI_);
+	updatePolarityUI();
 }
 
 void PatchCableStrength::endSession() {
@@ -221,7 +223,7 @@ ModelStackWithAutoParam* PatchCableStrength::getModelStack(void* memory, bool al
 	ModelStackWithAutoParam* modelStackMaybeWithAutoParam =
 	    paramSetSummary->paramCollection->getAutoParamFromId(ModelStackWithParamId, allowCreation);
 
-	if (allowCreation && modelStackMaybeWithAutoParam->autoParam && !patchCableExists_ && showPolaritySwitcher()) {
+	if (allowCreation && modelStackMaybeWithAutoParam->autoParam && !patchCableExists_ && !isInHorizontalMenu()) {
 		// If we created a patch cable then set the polarity to match the menus
 		setPatchCablePolarity(polarityInTheUI_);
 		patchCableExists_ = true;
@@ -343,9 +345,9 @@ void PatchCableStrength::selectEncoderAction(int32_t offset) {
 		return;
 	}
 
-	if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+	if (isInHorizontalMenu()) {
 		// In Horizontal menus we edit with 1.00 step by default, and with 0.01 step if the shift is pressed
-		soundEditor.numberEditSize = Buttons::isShiftButtonPressed() ? 1 : 100;
+		soundEditor.numberEditSize = Buttons::isButtonPressed(hid::button::SHIFT) ? 1 : 100;
 	}
 
 	return Decimal::selectEncoderAction(offset);
@@ -384,8 +386,8 @@ void PatchCableStrength::updateAutomationViewParameter() {
 	Automation::handleAutomationViewParameterUpdate();
 }
 
-bool PatchCableStrength::showPolaritySwitcher() const {
-	return parent == nullptr || parent->renderingStyle() != Submenu::RenderingStyle::HORIZONTAL;
+bool PatchCableStrength::isInHorizontalMenu() const {
+	return parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL;
 }
 
 void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {

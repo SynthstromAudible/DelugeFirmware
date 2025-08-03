@@ -31,18 +31,22 @@ namespace deluge::gui::menu_item::sample {
 
 class Repeat final : public Selection, public FormattedTitle {
 public:
-	Repeat(l10n::String name, l10n::String title_format_str) : Selection(name), FormattedTitle(title_format_str) {}
+	Repeat(l10n::String name, l10n::String title_format_str, uint8_t source_id)
+	    : Selection(name), FormattedTitle(title_format_str), source_id_{source_id} {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) final {
-		return isSampleModeSample(modControllable, whichThing);
+	bool isRelevant(ModControllableAudio* modControllable, int32_t) override {
+		return isSampleModeSample(modControllable, source_id_);
 	}
 
 	bool usesAffectEntire() override { return true; }
-	void readCurrentValue() override { this->setValue(soundEditor.currentSource->repeatMode); }
+	void readCurrentValue() override {
+		const auto& source = soundEditor.currentSound->sources[source_id_];
+		setValue(source.repeatMode);
+	}
 	void writeCurrentValue() override {
-		auto current_value = this->getValue<SampleRepeatMode>();
+		const auto current_value = getValue<SampleRepeatMode>();
 
 		Kit* kit = getCurrentKit();
 
@@ -52,7 +56,7 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
+					Source* source = &soundDrum->sources[source_id_];
 
 					// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
 					if (current_value == SampleRepeatMode::STRETCH) {
@@ -61,7 +65,7 @@ public:
 					}
 					else if (source->repeatMode == SampleRepeatMode::STRETCH) {
 						soundDrum->killAllVoices();
-						soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = false;
+						source->sampleControls.pitchAndSpeedAreIndependent = false;
 					}
 
 					if (current_value == SampleRepeatMode::ONCE) {
@@ -75,14 +79,16 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
+			Source& source = soundEditor.currentSound->sources[source_id_];
+
 			// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
-			if (static_cast<SampleRepeatMode>(current_value) == SampleRepeatMode::STRETCH) {
+			if (current_value == SampleRepeatMode::STRETCH) {
 				soundEditor.currentSound->killAllVoices();
-				soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = true;
+				source.sampleControls.pitchAndSpeedAreIndependent = true;
 			}
-			else if (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH) {
+			else if (source.repeatMode == SampleRepeatMode::STRETCH) {
 				soundEditor.currentSound->killAllVoices();
-				soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = false;
+				source.sampleControls.pitchAndSpeedAreIndependent = false;
 			}
 
 			if (kit != nullptr && current_value == SampleRepeatMode::ONCE) {
@@ -90,7 +96,7 @@ public:
 				sendNoteOffForKitArpeggiator(kit);
 			}
 
-			soundEditor.currentSource->repeatMode = current_value;
+			source.repeatMode = current_value;
 		}
 
 		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just
@@ -107,8 +113,30 @@ public:
 		};
 	}
 
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		const auto& source = soundEditor.currentSound->sources[source_id_];
+		const Icon& icon = [&] {
+			switch (source.repeatMode) {
+			case SampleRepeatMode::CUT:
+				return OLED::sampleModeCutIcon;
+			case SampleRepeatMode::ONCE:
+				return OLED::sampleModeOnceIcon;
+			case SampleRepeatMode::LOOP:
+				return OLED::sampleModeLoopIcon;
+			case SampleRepeatMode::STRETCH:
+				return OLED::sampleModeStretchIcon;
+			}
+			return OLED::sampleModeCutIcon;
+		}();
+		OLED::main.drawIcon(icon, startX + 4, startY - 1);
+	}
+
+	void getColumnLabel(StringBuf& label) override { label.append(getOptions(OptType::SHORT)[getValue()]); }
+
 private:
-	void sendNoteOffForKitArpeggiator(Kit* kit) {
+	uint8_t source_id_;
+
+	static void sendNoteOffForKitArpeggiator(Kit* kit) {
 		int32_t noteRowIndex;
 		NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowForDrum(kit->selectedDrum, &noteRowIndex);
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];

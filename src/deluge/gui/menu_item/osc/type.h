@@ -26,32 +26,34 @@
 #include "processing/source.h"
 #include "util/comparison.h"
 
-extern deluge::gui::menu_item::Submenu dxMenu;
+#include <hid/display/oled.h>
+
+extern gui::menu_item::Submenu dxMenu;
 
 namespace deluge::gui::menu_item::osc {
 class Type final : public Selection, public FormattedTitle {
 public:
-	Type(l10n::String name, l10n::String title_format_str) : Selection(name), FormattedTitle(title_format_str) {};
+	Type(l10n::String name, l10n::String title_format_str, uint8_t source_id)
+	    : Selection(name), FormattedTitle(title_format_str, source_id + 1), sourceId_{source_id} {};
 	void beginSession(MenuItem* navigatedBackwardFrom) override { Selection::beginSession(navigatedBackwardFrom); }
 
-	bool mayUseDx() { return !soundEditor.editingKit() && soundEditor.currentSourceIndex == 0; }
+	bool mayUseDx() const { return !soundEditor.editingKit() && sourceId_ == 0; }
 
 	void readCurrentValue() override {
-		int32_t rawVal = (int32_t)soundEditor.currentSource->oscType;
-		if (!mayUseDx() && rawVal > (int32_t)OscType::DX7) {
+		int32_t rawVal = static_cast<int32_t>(soundEditor.currentSound->sources[sourceId_].oscType);
+		if (!mayUseDx() && rawVal > static_cast<int32_t>(OscType::DX7)) {
 			rawVal -= 1;
 		}
-		this->setValue(rawVal);
+		setValue(rawVal);
 	}
 	void writeCurrentValue() override {
-
-		OscType oldValue = soundEditor.currentSource->oscType;
-		auto newValue = this->getValue<OscType>();
-		if (!mayUseDx() && (int32_t)newValue >= (int32_t)OscType::DX7) {
-			newValue = (OscType)((int32_t)newValue + 1);
+		OscType oldValue = soundEditor.currentSound->sources[sourceId_].oscType;
+		auto newValue = getValue<OscType>();
+		if (!mayUseDx() && static_cast<int32_t>(newValue) >= static_cast<int32_t>(OscType::DX7)) {
+			newValue = static_cast<OscType>(static_cast<int32_t>(newValue) + 1);
 		}
 
-		auto needs_unassignment = {
+		const auto needs_unassignment = {
 		    OscType::INPUT_L,
 		    OscType::INPUT_R,
 		    OscType::INPUT_STEREO,
@@ -66,7 +68,7 @@ public:
 			soundEditor.currentSound->killAllVoices();
 		}
 
-		soundEditor.currentSource->setOscType(newValue);
+		soundEditor.currentSound->sources[sourceId_].setOscType(newValue);
 
 		if (oldValue == OscType::SQUARE || newValue == OscType::SQUARE) {
 			soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
@@ -78,7 +80,7 @@ public:
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;
 		using enum l10n::String;
-		deluge::vector<std::string_view> options = {
+		deluge::vector options = {
 		    l10n::getView(STRING_FOR_SINE),          //<
 		    l10n::getView(STRING_FOR_TRIANGLE),      //<
 		    l10n::getView(STRING_FOR_SQUARE),        //<
@@ -115,12 +117,61 @@ public:
 		return (sound->getSynthMode() != SynthMode::FM);
 	}
 
-	MenuItem* selectButtonPress() final {
-		if (soundEditor.currentSource->oscType != OscType::DX7) {
+	MenuItem* selectButtonPress() override {
+		if (soundEditor.currentSound->sources[sourceId_].oscType != OscType::DX7) {
 			return nullptr;
 		}
-		return (MenuItem*)&dxMenu;
+		return &dxMenu;
 	}
+
+	[[nodiscard]] bool showColumnLabel() const override { return false; }
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		oled_canvas::Canvas& image = OLED::main;
+
+		const OscType oscType = soundEditor.currentSound->sources[sourceId_].oscType;
+		if (oscType == OscType::DX7) {
+			const auto option = getOptions(OptType::FULL)[getValue()].data();
+			return image.drawStringCentered(option, startX, startY + 8, kTextTitleSpacingX, kTextTitleSizeY, width);
+		}
+
+		const Icon& icon = [&] {
+			switch (oscType) {
+			case OscType::SINE:
+				return OLED::sineIcon;
+			case OscType::TRIANGLE:
+				return OLED::triangleIcon;
+			case OscType::SQUARE:
+			case OscType::ANALOG_SQUARE:
+				return OLED::squareIcon;
+			case OscType::SAW:
+			case OscType::ANALOG_SAW_2:
+				return OLED::sawIcon;
+			case OscType::SAMPLE:
+				return OLED::sampleIcon;
+			case OscType::INPUT_STEREO:
+			case OscType::INPUT_L:
+			case OscType::INPUT_R:
+				return OLED::inputIcon;
+			case OscType::WAVETABLE:
+				return OLED::wavetableIcon;
+			default:
+				return OLED::sineIcon;
+			}
+		}();
+
+		image.drawIconCentered(icon, startX, width, startY + 4);
+
+		if (oscType == OscType::ANALOG_SQUARE || oscType == OscType::ANALOG_SAW_2) {
+			const int32_t x = startX + 4;
+			constexpr int32_t y = OLED_MAIN_HEIGHT_PIXELS - kTextSpacingY - 8;
+			image.clearAreaExact(x - 1, y - 1, x + kTextSpacingX + 1, y + kTextSpacingY + 1);
+			image.drawChar('A', x, y, kTextSpacingX, kTextSpacingY);
+		}
+	}
+
+private:
+	uint8_t sourceId_;
 };
 
 } // namespace deluge::gui::menu_item::osc

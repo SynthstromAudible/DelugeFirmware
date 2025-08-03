@@ -79,6 +79,8 @@ void Number::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t start
 		return drawKnob(startX, startY, width, height);
 	case VERTICAL_BAR:
 		return drawVerticalBar(startX, startY, width, height);
+	case LEVEL:
+		return drawLevel(startX, startY, width, height);
 	case SLIDER:
 		return drawSlider(startX, startY, width, height);
 	case LENGTH_SLIDER:
@@ -116,10 +118,7 @@ void Number::drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t hei
 
 	// Draw the background arc
 	// Easier to adjust pixel-perfect, so we use a bitmap
-	const auto& arcIcon = OLED::knobArcIcon;
-	const int32_t arcIconWidth = arcIcon.size() / 2;
-	const int32_t leftPadding = (width - arcIconWidth) / 2;
-	image.drawGraphicMultiLine(arcIcon.data(), startX + leftPadding, startY, arcIconWidth, 16, 2);
+	image.drawIconCentered(OLED::knobArcIcon, startX, width, startY);
 
 	// Calculate current value angle
 	constexpr int32_t knobRadius = 10;
@@ -188,6 +187,35 @@ void Number::drawVerticalBar(int32_t startX, int32_t startY, int32_t slotWidth, 
 	}
 }
 
+void Number::drawLevel(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight) {
+	oled_canvas::Canvas& image = OLED::main;
+
+	constexpr int32_t barWidth = 13;
+
+	const int32_t leftPadding = (slotWidth - barWidth) / 2;
+	const int32_t minX = startX + leftPadding;
+	const int32_t minY = startY + 1;
+	const int32_t maxY = startY + slotHeight - 2;
+	const int32_t barHeight = maxY - minY;
+
+	// Calculate fill height based on value
+	const float valuePercent = getNormalizedValue();
+	const int32_t fillHeight = static_cast<int32_t>(valuePercent * barHeight);
+
+	// Draw dots for not filled space
+	constexpr int32_t dotsInterval = 4;
+	for (int32_t y = minY; y < maxY - fillHeight; y += dotsInterval) {
+		for (int32_t x = minX; x <= minX + barWidth; x += dotsInterval) {
+			image.drawPixel(x, y);
+		}
+	}
+
+	if (fillHeight > 0) {
+		// Fill from bottom to value
+		image.invertArea(minX, barWidth, maxY - fillHeight, maxY);
+	}
+}
+
 void Number::drawSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight) {
 	oled_canvas::Canvas& image = OLED::main;
 
@@ -224,11 +252,9 @@ void Number::drawLengthSlider(int32_t startX, int32_t startY, int32_t slotWidth,
 	const int32_t minY = startY + 2;
 	const int32_t maxY = startY + slotHeight - 4;
 
-	const float value = getValue();
-	const float normalized = sigmoidLikeCurve(value, 50, 35.0f);
-
+	const float valueNormalized = getNormalizedValue();
 	const int32_t valueLineMinX = minX + minSliderPos;
-	const int32_t valueLineWidth = static_cast<int32_t>(normalized * (maxX - valueLineMinX));
+	const int32_t valueLineWidth = static_cast<int32_t>(valueNormalized * (maxX - valueLineMinX));
 	const int32_t valueLineX = valueLineMinX + valueLineWidth;
 
 	const int32_t centerY = minY + (maxY - minY) / 2;

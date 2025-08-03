@@ -18,7 +18,6 @@
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/source/transpose.h"
 #include "gui/ui/sound_editor.h"
-#include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -31,26 +30,32 @@
 namespace deluge::gui::menu_item::sample {
 class Transpose final : public source::Transpose, public FormattedTitle {
 public:
-	Transpose(l10n::String name, l10n::String title_format_str, int32_t newP)
-	    : source::Transpose(name, newP), FormattedTitle(title_format_str) {}
+	Transpose(l10n::String name, l10n::String title_format_str, int32_t newP, uint8_t source_id)
+	    : source::Transpose(name, newP, source_id), FormattedTitle(title_format_str, source_id + 1) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	void readCurrentValue() override {
 		int32_t transpose = 0;
 		int32_t cents = 0;
-		if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SynthMode::FM
-		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
-			transpose = (static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose;
-			cents = (static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.cents;
+
+		Source& source = soundEditor.currentSound->sources[source_id_];
+
+		if (source.ranges.getNumElements() && soundEditor.currentSound->getSynthMode() != SynthMode::FM
+		    && source.oscType == OscType::SAMPLE) {
+			const auto* multiRange = static_cast<MultisampleRange*>(source.ranges.getElement(0));
+			transpose = multiRange->sampleHolder.transpose;
+			cents = multiRange->sampleHolder.cents;
 		}
 		else {
-			transpose = soundEditor.currentSource->transpose;
-			cents = soundEditor.currentSource->cents;
+			transpose = source.transpose;
+			cents = source.cents;
 		}
 		this->setValue(computeCurrentValueForTranspose(transpose, cents));
 	}
+
 	bool usesAffectEntire() override { return true; }
+
 	void writeCurrentValue() override {
 		int32_t transpose, cents;
 		computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
@@ -63,18 +68,17 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					Source& source = soundDrum->sources[source_id_];
 
-					if (soundDrum->sources[soundEditor.currentSourceIndex].ranges.getNumElements()
-					    && soundDrum->getSynthMode() != SynthMode::FM
-					    && soundDrum->sources[soundEditor.currentSourceIndex].oscType == OscType::SAMPLE) {
-						MultisampleRange* multisampleRange = static_cast<MultisampleRange*>(
-						    soundDrum->sources[soundEditor.currentSourceIndex].ranges.getElement(0));
+					if (source.ranges.getNumElements() && soundDrum->getSynthMode() != SynthMode::FM
+					    && source.oscType == OscType::SAMPLE) {
+						auto* multisampleRange = static_cast<MultisampleRange*>(source.ranges.getElement(0));
 						multisampleRange->sampleHolder.transpose = transpose;
 						multisampleRange->sampleHolder.setCents(cents);
 					}
 					else {
-						soundDrum->sources[soundEditor.currentSourceIndex].transpose = transpose;
-						soundDrum->sources[soundEditor.currentSourceIndex].setCents(cents);
+						source.transpose = transpose;
+						source.setCents(cents);
 					}
 
 					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
@@ -87,14 +91,17 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SynthMode::FM
-			    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
-				(static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose = transpose;
-				(static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.setCents(cents);
+			Source& source = soundEditor.currentSound->sources[source_id_];
+
+			if (source.ranges.getNumElements() && soundEditor.currentSound->getSynthMode() != SynthMode::FM
+			    && source.oscType == OscType::SAMPLE) {
+				auto* multisampleRange = static_cast<MultisampleRange*>(source.ranges.getElement(0));
+				multisampleRange->sampleHolder.transpose = transpose;
+				multisampleRange->sampleHolder.setCents(cents);
 			}
 			else {
-				soundEditor.currentSource->transpose = transpose;
-				soundEditor.currentSource->setCents(cents);
+				source.transpose = transpose;
+				source.setCents(cents);
 			}
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -104,24 +111,32 @@ public:
 		}
 	}
 
-	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t,
 	                                             ::MultiRange** currentRange) override {
-
-		if (!isRelevant(modControllable, whichThing)) {
+		if (!isRelevant(modControllable, source_id_)) {
 			return MenuPermission::NO;
 		}
 
-		Sound* sound = static_cast<Sound*>(modControllable);
-		Source* source = &sound->sources[whichThing];
+		const auto sound = static_cast<Sound*>(modControllable);
+		const Source& source = sound->sources[source_id_];
 
 		if (sound->getSynthMode() == SynthMode::FM
-		    || (source->oscType != OscType::SAMPLE && source->oscType != OscType::WAVETABLE)) {
+		    || (source.oscType != OscType::SAMPLE && source.oscType != OscType::WAVETABLE)) {
 			return MenuPermission::YES;
 		}
 
-		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, currentRange);
+		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, source_id_, currentRange);
 	}
 
 	bool isRangeDependent() override { return true; }
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t) override {
+		const auto sound = static_cast<Sound*>(modControllable);
+		if (Source& source = sound->sources[source_id_];
+		    source.oscType == OscType::SAMPLE || source.oscType == OscType::WAVETABLE) {
+			return source.hasAtLeastOneAudioFileLoaded();
+		}
+		return true;
+	}
 };
 } // namespace deluge::gui::menu_item::sample

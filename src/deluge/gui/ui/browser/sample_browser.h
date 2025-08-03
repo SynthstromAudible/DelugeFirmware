@@ -34,6 +34,7 @@ class SoundDrum;
 class NumericLayerScrollingText;
 class Source;
 class Sample;
+class MenuItem;
 
 class SampleBrowser final : public Browser {
 public:

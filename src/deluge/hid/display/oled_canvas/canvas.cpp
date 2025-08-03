@@ -21,6 +21,7 @@
 #include "gui/fonts/fonts.h"
 #include "storage/flash_storage.h"
 
+#include <hid/display/oled.h>
 #include <math.h>
 #include <vector>
 
@@ -591,6 +592,14 @@ void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_
 		currentPos++;
 		graphicPos += numBytesTall;
 	}
+}
+
+void Canvas::drawIcon(const Icon& icon, int32_t x, int32_t y, bool reversed) {
+	drawGraphicMultiLine(icon.data, x, y, icon.width, icon.height, icon.numBytesTall, reversed);
+}
+void Canvas::drawIconCentered(const Icon& icon, int32_t startX, int32_t totalWidth, int32_t y, bool reversed) {
+	int32_t padding = (totalWidth - icon.width) >> 1;
+	drawIcon(icon, startX + padding, y, reversed);
 }
 
 /// Draw a screen title and underline it.
