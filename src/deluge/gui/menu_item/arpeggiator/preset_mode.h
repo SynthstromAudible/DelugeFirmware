@@ -130,14 +130,14 @@ public:
 			return image.drawStringCentered(offString, startX, startY + 8, kTextTitleSpacingX, kTextTitleSizeY, width);
 		}
 
+		const auto arpPreset = getValue<ArpPreset>();
 		const Icon& icon = [&] {
-			switch (this->getValue<ArpPreset>()) {
+			switch (arpPreset) {
 			case ArpPreset::UP:
-				return OLED::arpModeIconUp;
 			case ArpPreset::DOWN:
-				return OLED::arpModeIconDown;
+				return OLED::arpModeIconUp;
 			case ArpPreset::BOTH:
-				return OLED::arpModeIconDown;
+				return OLED::arpModeIconUpDown;
 			case ArpPreset::RANDOM:
 				return OLED::diceIcon;
 			case ArpPreset::WALK:
@@ -149,8 +149,8 @@ public:
 			}
 		}();
 
-		const int32_t y = startY + (height - 2 * 8) / 2;
-		image.drawIconCentered(icon, startX, width, y);
+		const bool reversed = arpPreset == ArpPreset::DOWN;
+		image.drawIconCentered(icon, startX, width, startY + 4, reversed);
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator
