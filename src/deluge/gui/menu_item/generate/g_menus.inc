@@ -62,8 +62,8 @@ HorizontalMenu recorderMenu{STRING_FOR_SAMPLE_RECORDER, child5};
 osc::Type osc0TypeMenu{STRING_FOR_TYPE, STRING_FOR_OSC_TYPE_MENU_TITLE, 0};
 FileSelector deluge::gui::menu_item::file0SelectorMenu{STRING_FOR_FILE_BROWSER, 0};
 sample::Transpose source0TransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, params::LOCAL_OSC_A_PITCH_ADJUST, 0};
-osc::PulseWidth osc0PulseWidthMenu{STRING_FOR_PULSE_WIDTH, STRING_FOR_OSC_P_WIDTH_MENU_TITLE, params::LOCAL_OSC_A_PHASE_WIDTH, 0};
 osc::source::WaveIndex source0WaveIndexMenu{STRING_FOR_WAVE_INDEX, STRING_FOR_OSC_WAVE_IND_MENU_TITLE, params::LOCAL_OSC_A_WAVE_INDEX, 0};
+osc::PulseWidth osc0PulseWidthMenu{STRING_FOR_PULSE_WIDTH, STRING_FOR_OSC_P_WIDTH_MENU_TITLE, params::LOCAL_OSC_A_PHASE_WIDTH, 0};
 osc::source::Feedback source0FeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_CARRIER_FEED_MENU_TITLE, params::LOCAL_CARRIER_0_FEEDBACK, 0};
 osc::RetriggerPhase osc0PhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_OSC_R_PHASE_MENU_TITLE, 0, false};
 sample::Reverse sample0ReverseMenu{STRING_FOR_REVERSE, STRING_FOR_SAMP_REVERSE_MENU_TITLE, 0};
@@ -77,8 +77,8 @@ std::array<MenuItem*, 14> child6 = {
     &osc0TypeMenu,
     &deluge::gui::menu_item::file0SelectorMenu,
     &source0TransposeMenu,
-    &osc0PulseWidthMenu,
     &source0WaveIndexMenu,
+    &osc0PulseWidthMenu,
     &source0FeedbackMenu,
     &osc0PhaseMenu,
     &sample0ReverseMenu,
@@ -93,8 +93,8 @@ submenu::ActualSource source0Menu{STRING_FOR_OSCILLATOR_1, child6, 0};
 osc::Type osc1TypeMenu{STRING_FOR_TYPE, STRING_FOR_OSC_TYPE_MENU_TITLE, 1};
 FileSelector deluge::gui::menu_item::file1SelectorMenu{STRING_FOR_FILE_BROWSER, 1};
 sample::Transpose source1TransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, params::LOCAL_OSC_A_PITCH_ADJUST, 1};
-osc::PulseWidth osc1PulseWidthMenu{STRING_FOR_PULSE_WIDTH, STRING_FOR_OSC_P_WIDTH_MENU_TITLE, params::LOCAL_OSC_A_PHASE_WIDTH, 1};
 osc::source::WaveIndex source1WaveIndexMenu{STRING_FOR_WAVE_INDEX, STRING_FOR_OSC_WAVE_IND_MENU_TITLE, params::LOCAL_OSC_A_WAVE_INDEX, 1};
+osc::PulseWidth osc1PulseWidthMenu{STRING_FOR_PULSE_WIDTH, STRING_FOR_OSC_P_WIDTH_MENU_TITLE, params::LOCAL_OSC_A_PHASE_WIDTH, 1};
 osc::source::Feedback source1FeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_CARRIER_FEED_MENU_TITLE, params::LOCAL_CARRIER_0_FEEDBACK, 1};
 osc::RetriggerPhase osc1PhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_OSC_R_PHASE_MENU_TITLE, 1, false};
 sample::Reverse sample1ReverseMenu{STRING_FOR_REVERSE, STRING_FOR_SAMP_REVERSE_MENU_TITLE, 1};
@@ -108,8 +108,8 @@ std::array<MenuItem*, 14> child7 = {
     &osc1TypeMenu,
     &deluge::gui::menu_item::file1SelectorMenu,
     &source1TransposeMenu,
-    &osc1PulseWidthMenu,
     &source1WaveIndexMenu,
+    &osc1PulseWidthMenu,
     &source1FeedbackMenu,
     &osc1PhaseMenu,
     &sample1ReverseMenu,
