@@ -42,7 +42,7 @@ public:
 		if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 			transpose = (static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose;
-			cents = (static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.cents;
+			cents = (static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.getCents();
 		}
 		else {
 			transpose = soundEditor.currentSource->transpose;

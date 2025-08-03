@@ -48,7 +48,6 @@ class MIDICable;
 
 namespace deluge::gui::menu_item {
 class Submenu;
-enum class RangeEdit : uint8_t;
 } // namespace deluge::gui::menu_item
 
 class SoundEditor final : public UI {
@@ -71,7 +70,9 @@ public:
 	VoicePriority* currentPriority;
 	int16_t currentMultiRangeIndex;
 	MIDICable* currentMIDICable;
-	deluge::gui::menu_item::RangeEdit editingRangeEdge;
+	// 0 is not editing, index from 1. This mainly used with RangeEdit enum values, but in case
+	// of more than 2 columns things "just work".
+	int32_t editingColumn;
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
