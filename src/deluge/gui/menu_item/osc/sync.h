@@ -55,9 +55,11 @@ public:
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return (whichThing == 1 && sound->synthMode != SynthMode::FM && sound->sources[0].oscType != OscType::SAMPLE
-		        && sound->sources[1].oscType != OscType::SAMPLE);
+		return sound->synthMode != SynthMode::FM && sound->sources[0].oscType != OscType::SAMPLE
+		       && sound->sources[1].oscType != OscType::SAMPLE;
 	}
+
+	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_SYNC)); }
 };
 
 } // namespace deluge::gui::menu_item::osc

@@ -25,6 +25,9 @@
 #include "playback/playback_handler.h"
 
 namespace deluge::gui::menu_item::audio_clip {
+
+using namespace hid::display;
+
 class Reverse final : public Toggle {
 public:
 	using Toggle::Toggle;
@@ -58,6 +61,25 @@ public:
 
 			uiNeedsRendering(&audioClipView, 0xFFFFFFFF, 0);
 		}
+	}
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		const bool reversed = getValue();
+		OLED::main.drawIconCentered(OLED::directionIcon, startX, width, startY + 3, reversed);
+	}
+
+	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_PLAY)); }
+
+	void selectEncoderAction(int32_t offset) override {
+		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+			// reverse direction
+			offset *= -1;
+		}
+		Toggle::selectEncoderAction(offset);
+	}
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return getCurrentAudioClip()->sampleHolder.audioFile != nullptr;
 	}
 };
 } // namespace deluge::gui::menu_item::audio_clip

@@ -62,13 +62,8 @@ public:
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
 		using namespace deluge::hid::display;
-		const auto iconBitmap = this->getValue() ? &OLED::switcherIconOn : &OLED::switcherIconOff;
-
-		oled_canvas::Canvas& image = OLED::main;
-		constexpr int32_t numBytesTall = 2;
-		const int32_t iconWidth = iconBitmap->size() / numBytesTall;
-		const int32_t x = startX + (width - iconWidth) / 2;
-		image.drawGraphicMultiLine(iconBitmap->data(), x, startY, iconWidth, numBytesTall * 8, numBytesTall);
+		const Icon& icon = getValue() ? OLED::switcherIconOn : OLED::switcherIconOff;
+		OLED::main.drawIconCentered(icon, startX, width, startY);
 	}
 };
 

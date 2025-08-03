@@ -1,0 +1,1 @@
+Speed of the LFO.

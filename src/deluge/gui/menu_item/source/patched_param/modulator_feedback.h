@@ -15,28 +15,22 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/l10n/l10n.h"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/source/patched_param.h"
+#include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::lfo {
-
-class Shape : public Selection {
+namespace deluge::gui::menu_item::source::patched_param {
+class ModulatorFeedback final : public PatchedParam, public FormattedTitle {
 public:
-	using Selection::Selection;
+	ModulatorFeedback(l10n::String name, l10n::String title_format_str, int32_t newP, uint8_t source_id)
+	    : PatchedParam(name, newP, source_id), FormattedTitle(title_format_str, source_id + 1) {}
 
-	deluge::vector<std::string_view> getOptions(OptType optType) override {
-		using enum l10n::String;
-		bool shortOpt = optType == OptType::SHORT;
-		return {
-		    l10n::getView(STRING_FOR_SINE),
-		    l10n::getView(STRING_FOR_TRIANGLE),
-		    l10n::getView(STRING_FOR_SQUARE),
-		    l10n::getView(STRING_FOR_SAW),
-		    l10n::getView(STRING_FOR_SAMPLE_AND_HOLD),
-		    l10n::getView(shortOpt ? STRING_FOR_RANDOM_WALK_SHORT : STRING_FOR_RANDOM_WALK),
-		    l10n::getView(STRING_FOR_WARBLE),
-		};
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		Sound* sound = static_cast<Sound*>(modControllable);
+		return (sound->getSynthMode() == SynthMode::FM);
 	}
 };
 
-} // namespace deluge::gui::menu_item::lfo
+} // namespace deluge::gui::menu_item::source::patched_param
