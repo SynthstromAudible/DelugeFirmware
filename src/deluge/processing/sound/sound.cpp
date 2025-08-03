@@ -463,10 +463,10 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 			else if (!strcmp(tagName, "note")) {
 				int32_t presetNote = std::clamp<int32_t>(reader.readTagOrAttributeValueInt(), 1, 127);
 
-				sources[0].transpose += presetNote - 60;
-				sources[1].transpose += presetNote - 60;
-				modulatorTranspose[0] += presetNote - 60;
-				modulatorTranspose[1] += presetNote - 60;
+				sources[0].transpose += presetNote - kC3NoteCode;
+				sources[1].transpose += presetNote - kC3NoteCode;
+				modulatorTranspose[0] += presetNote - kC3NoteCode;
+				modulatorTranspose[1] += presetNote - kC3NoteCode;
 				reader.exitTag("note");
 			}
 			else {

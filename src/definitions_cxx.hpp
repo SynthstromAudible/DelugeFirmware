@@ -722,11 +722,14 @@ enum CCNumber {
 	CC_NUMBER_Y_AXIS = 122,
 	CC_NUMBER_NONE = 123,
 };
+
 constexpr int32_t kNumCCNumbersIncludingFake = 124;
 constexpr int32_t kNumCCExpression = kNumCCNumbersIncludingFake - 1;
 constexpr int32_t kNumRealCCNumbers = 120;
 constexpr int32_t kMaxMIDIValue = 127;
 constexpr int32_t ALL_NOTES_OFF = -32768;
+constexpr int32_t kC3NoteCode = 60;
+
 enum class InstrumentRemoval {
 	NONE,
 	DELETE_OR_HIBERNATE_IF_UNUSED,
