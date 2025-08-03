@@ -1,3 +1,20 @@
+/*
+ * Copyright (c) 2024 Nikodemus Siivola, Leonid Burygin
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #pragma once
 
 #include "gui/menu_item/menu_item.h"
@@ -44,12 +61,13 @@ protected:
 	int32_t lastSelectedItemPosition = kNoSelection;
 
 	virtual void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem);
-	virtual Paging preparePaging(std::span<MenuItem*> items, const MenuItem* currentItem);
+	virtual Paging& preparePaging(std::span<MenuItem*> items, const MenuItem* currentItem);
 	virtual void selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous, int32_t selectedColumn);
 	virtual void switchVisiblePage(int32_t direction);
 
 private:
 	void updateSelectedMenuItemLED(int32_t itemNumber) const;
+	static void handleItemAction(MenuItem* menuItem);
 	static void displayNotification(MenuItem* menuItem);
 	static void renderPageCounters(const Paging& paging);
 	static void renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32_t slotStartX, int32_t slotWidth,

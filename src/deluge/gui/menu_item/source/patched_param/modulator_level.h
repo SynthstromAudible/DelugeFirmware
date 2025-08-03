@@ -20,16 +20,22 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::source::patched_param {
-class FM final : public source::PatchedParam, public FormattedTitle {
+class ModulatorLevel final : public PatchedParam, public FormattedTitle {
 public:
-	FM(l10n::String name, l10n::String title_format_str, int32_t newP)
-	    : source::PatchedParam(name, newP), FormattedTitle(title_format_str) {}
+	ModulatorLevel(l10n::String name, int32_t newP, uint8_t source_id)
+	    : PatchedParam(name, newP, source_id), FormattedTitle(name, source_id + 1) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getName() const override { return FormattedTitle::title(); }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return (sound->getSynthMode() == SynthMode::FM);
+		return sound->getSynthMode() == SynthMode::FM;
 	}
+
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return LEVEL; }
+
+	void getColumnLabel(StringBuf& label) override { label.append(getName().substr(2).data()); }
 };
+
 } // namespace deluge::gui::menu_item::source::patched_param

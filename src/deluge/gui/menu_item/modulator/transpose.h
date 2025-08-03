@@ -27,15 +27,14 @@ namespace deluge::gui::menu_item::modulator {
 
 class Transpose final : public source::Transpose, public FormattedTitle {
 public:
-	Transpose(l10n::String name, l10n::String title_format_str, int32_t newP)
-	    : source::Transpose(name, newP), FormattedTitle(title_format_str) {}
+	Transpose(l10n::String name, l10n::String title_format_str, int32_t newP, uint8_t source_id)
+	    : source::Transpose(name, newP, source_id), FormattedTitle(title_format_str, source_id + 1) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForTranspose(
-		    soundEditor.currentSound->modulatorTranspose[soundEditor.currentSourceIndex],
-		    soundEditor.currentSound->modulatorCents[soundEditor.currentSourceIndex]));
+		this->setValue(computeCurrentValueForTranspose(soundEditor.currentSound->modulatorTranspose[source_id_],
+		                                               soundEditor.currentSound->modulatorCents[source_id_]));
 	}
 
 	bool usesAffectEntire() override { return true; }
@@ -58,9 +57,8 @@ public:
 						ModelStackWithSoundFlags* modelStackForSoundDrum =
 						    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
 
-						soundDrum->setModulatorTranspose(soundEditor.currentSourceIndex, transpose,
-						                                 modelStackForSoundDrum);
-						soundDrum->setModulatorCents(soundEditor.currentSourceIndex, cents, modelStackForSoundDrum);
+						soundDrum->setModulatorTranspose(source_id_, transpose, modelStackForSoundDrum);
+						soundDrum->setModulatorCents(source_id_, cents, modelStackForSoundDrum);
 					}
 				}
 			}
@@ -70,8 +68,8 @@ public:
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-			soundEditor.currentSound->setModulatorTranspose(soundEditor.currentSourceIndex, transpose, modelStack);
-			soundEditor.currentSound->setModulatorCents(soundEditor.currentSourceIndex, cents, modelStack);
+			soundEditor.currentSound->setModulatorTranspose(source_id_, transpose, modelStack);
+			soundEditor.currentSound->setModulatorCents(source_id_, cents, modelStack);
 		}
 	}
 
