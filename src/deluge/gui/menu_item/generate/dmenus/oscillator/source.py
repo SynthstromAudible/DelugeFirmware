@@ -48,15 +48,6 @@ for i in range(2):
             title="STRING_FOR_OSC_TRANSPOSE_MENU_TITLE",
         ),
         Menu(
-            "osc::PulseWidth",
-            f"osc{i}PulseWidthMenu",
-            ["{name}", "{title}", "params::LOCAL_OSC_A_PHASE_WIDTH", f"{i}"],
-            "oscillator/pulse_width.md",
-            name="STRING_FOR_PULSE_WIDTH",
-            title="STRING_FOR_OSC_P_WIDTH_MENU_TITLE",
-            available_when="Voice is in subtractive or ring-mod mode and oscillator is not in a sample or input monitoring mode",
-        ),
-        Menu(
             "osc::source::WaveIndex",
             f"source{i}WaveIndexMenu",
             ["{name}", "{title}", "params::LOCAL_OSC_A_WAVE_INDEX", f"{i}"],
@@ -64,6 +55,15 @@ for i in range(2):
             name="STRING_FOR_WAVE_INDEX",
             title="STRING_FOR_OSC_WAVE_IND_MENU_TITLE",
             available_when="Oscillator must be in wavetable mode",
+        ),
+        Menu(
+            "osc::PulseWidth",
+            f"osc{i}PulseWidthMenu",
+            ["{name}", "{title}", "params::LOCAL_OSC_A_PHASE_WIDTH", f"{i}"],
+            "oscillator/pulse_width.md",
+            name="STRING_FOR_PULSE_WIDTH",
+            title="STRING_FOR_OSC_P_WIDTH_MENU_TITLE",
+            available_when="Voice is in subtractive or ring-mod mode and oscillator is not in a sample or input monitoring mode",
         ),
         Menu(
             "osc::source::Feedback",

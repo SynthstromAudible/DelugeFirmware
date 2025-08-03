@@ -129,7 +129,7 @@ public:
 	static const Icon switcherIconOff;
 	static const Icon switcherIconOn;
 	static const Icon arpModeIconUp;
-	static const Icon arpModeIconDown;
+	static const Icon arpModeIconUpDown;
 	static const Icon arpModeIconWalk;
 	static const Icon arpModeIconCustom;
 	static const Icon diceIcon;
