@@ -83,6 +83,7 @@ public:
 	bool editingKit();
 	bool editingKitAffectEntire();
 	bool editingKitRow();
+	void setCurrentSource(int32_t sourceIndex);
 
 	ActionResult timerCallback() override;
 	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour = 0L);

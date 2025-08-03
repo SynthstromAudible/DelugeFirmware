@@ -59,10 +59,7 @@ public:
 		(void)optType;
 		return {"HPF2LPF", "LPF2HPF", l10n::getView(l10n::String::STRING_FOR_PARALLEL)};
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		Sound* sound = static_cast<Sound*>(modControllable);
-		return ((sound == nullptr) || (sound->lpfMode != FilterMode::OFF && sound->hpfMode != FilterMode::OFF));
-	}
+
 	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 	[[nodiscard]] bool showNotification() const override { return false; }

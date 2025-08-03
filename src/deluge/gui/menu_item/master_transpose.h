@@ -85,5 +85,10 @@ public:
 
 	[[nodiscard]] int32_t getMinValue() const override { return -96; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 96; }
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return NUMBER; }
+
+	void getColumnLabel(StringBuf& label) override {
+		return label.append(l10n::get(l10n::String::STRING_FOR_TRANSPOSE));
+	}
 };
 } // namespace deluge::gui::menu_item

@@ -20,6 +20,8 @@
 namespace deluge::gui::menu_item::sample {
 class End final : public LoopPoint {
 public:
-	End(l10n::String newName) : LoopPoint(newName) { markerType = MarkerType::END; }
+	End(l10n::String newName, uint8_t sourceId) : LoopPoint(newName, sourceId) { markerType = MarkerType::END; }
+
+	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
 };
 } // namespace deluge::gui::menu_item::sample

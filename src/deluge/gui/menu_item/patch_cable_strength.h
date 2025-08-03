@@ -74,7 +74,7 @@ protected:
 	void getNotificationValue(StringBuf& valueBuf) override { return valueBuf.appendFloat(getValue() / 100.0f, 2, 2); }
 
 private:
-	bool showPolaritySwitcher() const;
+	bool isInHorizontalMenu() const;
 	void setPatchCablePolarity(Polarity newPolarity);
 	void updatePolarityUI();
 	Polarity polarityInTheUI_;

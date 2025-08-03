@@ -72,10 +72,18 @@ void SyncLevel::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t st
 	}
 
 	// Draw only the sync type icon, sync level already drawn as a label
-	const std::vector<uint8_t>& typeIcon = getSyncTypeIcon();
-	const int32_t typeIconWidth = typeIcon.size() / 2;
-	const int32_t padding = (width - typeIconWidth) / 2;
-	image.drawGraphicMultiLine(typeIcon.data(), startX + padding, startY - 1, typeIconWidth, 16, 2);
+	const Icon& typeIcon = [&] {
+		switch (syncValueToSyncType(getValue())) {
+		case SYNC_TYPE_EVEN:
+			return OLED::syncTypeEvenIcon;
+		case SYNC_TYPE_DOTTED:
+			return OLED::syncTypeDottedIcon;
+		case SYNC_TYPE_TRIPLET:
+			return OLED::syncTypeTripletsIcon;
+		}
+		return OLED::syncTypeEvenIcon;
+	}();
+	image.drawIconCentered(typeIcon, startX, width, startY - 1);
 }
 
 int32_t SyncLevel::syncTypeAndLevelToMenuOption(::SyncType type, ::SyncLevel level) {
@@ -89,21 +97,6 @@ void SyncLevel::getShortOption(StringBuf& opt) {
 	}
 	else {
 		opt.append(l10n::get(l10n::String::STRING_FOR_OFF));
-	}
-}
-
-const std::vector<uint8_t>& SyncLevel::getSyncTypeIcon() {
-	using namespace deluge::hid::display;
-
-	switch (syncValueToSyncType(getValue())) {
-	case SYNC_TYPE_EVEN:
-		return OLED::syncTypeEvenIcon;
-	case SYNC_TYPE_DOTTED:
-		return OLED::syncTypeDottedIcon;
-	case SYNC_TYPE_TRIPLET:
-		return OLED::syncTypeTripletsIcon;
-	default:
-		__unreachable();
 	}
 }
 

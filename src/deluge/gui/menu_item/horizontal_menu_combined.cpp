@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
+ * Copyright (c) 2025 Leonid Burygin
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -19,6 +19,7 @@
 #include "deluge/gui/menu_item/submenu.h"
 #include <gui/menu_item/horizontal_menu.h>
 #include <hid/buttons.h>
+#include <ranges>
 #include <string_view>
 
 namespace deluge::gui::menu_item {
@@ -30,8 +31,9 @@ std::string_view HorizontalMenuCombined::getTitle() const {
 void HorizontalMenuCombined::beginSession(MenuItem* navigatedBackwardFrom) {
 	navigated_backward_from = navigatedBackwardFrom;
 
-	// Some submenus modify soundEditor parameters at the start of the session,
-	// so we need to call it for each submenu to ensure pages are counted correctly
+	// A submenu can modify soundEditor parameters at the beginning of a session,
+	// which in their turn can affect whether an item is relevant or not.
+	// So we need to begin a session for each submenu beforehand to ensure pages are counted correctly
 	for (const auto submenu : submenus_) {
 		submenu->beginSession(navigatedBackwardFrom);
 	}
@@ -63,8 +65,16 @@ bool HorizontalMenuCombined::focusChild(const MenuItem* child) {
 				return true;
 			}
 		}
+
+		// Last resort - find among all items
+		for (it = items.begin(); it != items.end(); ++it) {
+			if (isItemRelevant(*it)) {
+				current_item_ = it;
+				return true;
+			}
+		}
 	}
-	return true;
+	return false;
 }
 
 void HorizontalMenuCombined::renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) {
@@ -79,7 +89,7 @@ void HorizontalMenuCombined::selectMenuItem(std::span<MenuItem*> pageItems, cons
 	current_item_ = current_submenu_->current_item_;
 }
 
-HorizontalMenu::Paging HorizontalMenuCombined::preparePaging(std::span<MenuItem*>, const MenuItem* currentItem) {
+HorizontalMenu::Paging& HorizontalMenuCombined::preparePaging(std::span<MenuItem*>, const MenuItem* currentItem) {
 	static std::vector<MenuItem*> visiblePageItems;
 	visiblePageItems.clear();
 	visiblePageItems.reserve(4);
@@ -89,26 +99,34 @@ HorizontalMenu::Paging HorizontalMenuCombined::preparePaging(std::span<MenuItem*
 	uint8_t totalPages = 0;
 
 	for (const auto submenu : submenus_) {
-		const auto submenuPaging = submenu->preparePaging(submenu->items, currentItem);
+		std::optional<uint8_t> pagesCount;
 
-		for (const auto* item : submenu->items) {
-			if (item == currentItem) {
-				// Found current submenu
-				visiblePageItems.assign(submenuPaging.visiblePageItems.begin(), submenuPaging.visiblePageItems.end());
-				visiblePageNumber = totalPages + submenuPaging.visiblePageNumber;
-				selectedItemPositionOnPage = submenuPaging.selectedItemPositionOnPage;
-
-				current_submenu_ = submenu;
-				current_submenu_->paging = submenuPaging;
-				current_submenu_->beginSession(navigated_backward_from);
-				navigated_backward_from = nullptr;
+		for (int32_t i = 0; i < submenu->items.size(); ++i) {
+			if (const auto* item = submenu->items[i]; item != currentItem) {
+				continue;
 			}
+
+			// Found current submenu
+			submenu->beginSession(navigated_backward_from);
+
+			const auto& p = submenu->preparePaging(submenu->items, currentItem);
+			visiblePageItems.assign(p.visiblePageItems.begin(), p.visiblePageItems.end());
+			visiblePageNumber = totalPages + p.visiblePageNumber;
+			selectedItemPositionOnPage = p.selectedItemPositionOnPage;
+
+			current_submenu_ = submenu;
+			navigated_backward_from = nullptr;
+			pagesCount = p.totalPages;
 		}
 
-		totalPages += submenuPaging.totalPages;
+		if (!pagesCount.has_value()) {
+			pagesCount = submenu->preparePaging(submenu->items, currentItem).totalPages;
+		}
+		totalPages += pagesCount.value();
 	}
 
-	return Paging{visiblePageNumber, visiblePageItems, selectedItemPositionOnPage, totalPages};
+	paging = Paging{visiblePageNumber, visiblePageItems, selectedItemPositionOnPage, totalPages};
+	return paging;
 }
 
 void HorizontalMenuCombined::switchVisiblePage(int32_t direction) {
@@ -131,12 +149,8 @@ void HorizontalMenuCombined::switchVisiblePage(int32_t direction) {
 	submenuIndex += direction;
 
 	// Wrap around
-	if (submenuIndex < 0) {
-		submenuIndex = submenus_.size() - 1;
-	}
-	else if (submenuIndex >= static_cast<int32_t>(submenus_.size())) {
-		submenuIndex = 0;
-	}
+	const int32_t count = static_cast<int32_t>(submenus_.size());
+	submenuIndex = (submenuIndex % count + count) % count;
 
 	// Find the item we're looking for on the switched submenu
 	const auto submenu = submenus_[submenuIndex];
@@ -148,18 +162,18 @@ void HorizontalMenuCombined::switchVisiblePage(int32_t direction) {
 		return switchVisiblePage(direction >= 0 ? direction + 1 : direction - 1);
 	}
 
+	// Select an item with the same position as on the previous selected page
+	// If the item is not relevant, select the closest item instead
 	int32_t currentPos = -1;
-	for (const auto& item : firstOrLastPageItems) {
-		// Select an item with the same position as on the previous selected page
-		// If the item is not relevant, select the closest item instead
-		if (isItemRelevant(item)) {
-			current_item_ = std::ranges::find(submenu->items, item);
-			if (++currentPos >= paging.selectedItemPositionOnPage) {
-				break;
-			}
+	for (const auto& item : std::views::filter(firstOrLastPageItems, [&](MenuItem* i) { return isItemRelevant(i); })) {
+		current_item_ = std::ranges::find(submenu->items, item);
+		if (++currentPos >= paging.selectedItemPositionOnPage) {
+			break;
 		}
 	}
 
+	// Item is selected, start a session and render UI
+	submenu->beginSession(nullptr);
 	updateDisplay();
 	updatePadLights();
 	(*current_item_)->updateAutomationViewParameter();

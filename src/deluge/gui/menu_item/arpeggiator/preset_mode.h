@@ -131,39 +131,27 @@ public:
 			return image.drawStringCentered(offString, startX, startY + 8, kTextTitleSpacingX, kTextTitleSizeY, width);
 		}
 
-		const std::vector<std::reference_wrapper<const std::vector<uint8_t>>> bitmaps = [&] {
+		const Icon& icon = [&] {
 			switch (this->getValue<ArpPreset>()) {
 			case ArpPreset::UP:
-				return std::vector{std::cref(OLED::arpModeIconUp)};
+				return OLED::arpModeIconUp;
 			case ArpPreset::DOWN:
-				return std::vector{std::cref(OLED::arpModeIconDown)};
+				return OLED::arpModeIconDown;
 			case ArpPreset::BOTH:
-				return std::vector{std::cref(OLED::arpModeIconUp), std::cref(OLED::arpModeIconDown)};
+				return OLED::arpModeIconDown;
 			case ArpPreset::RANDOM:
-				return std::vector{std::cref(OLED::diceIcon)};
+				return OLED::diceIcon;
 			case ArpPreset::WALK:
-				return std::vector{std::cref(OLED::arpModeIconWalk)};
+				return OLED::arpModeIconWalk;
 			case ArpPreset::CUSTOM:
-				return std::vector{std::cref(OLED::arpModeIconCustom)};
+				return OLED::arpModeIconCustom;
 			default:
-				return std::vector<std::reference_wrapper<const std::vector<uint8_t>>>{};
+				return OLED::arpModeIconUp;
 			}
 		}();
 
-		constexpr int32_t numBytesTall = 2;
-		const int32_t bitmapsWidth = std::accumulate(
-		    bitmaps.begin(), bitmaps.end(), 0, [](int32_t acc, auto v) { return acc + v.get().size() / numBytesTall; });
-
-		// Calc center position
-		int32_t x = startX + (width - bitmapsWidth) / 2;
-		int32_t y = startY + (height - numBytesTall * 8) / 2;
-
-		// Draw icons
-		for (auto bitmap : bitmaps) {
-			image.drawGraphicMultiLine(bitmap.get().data(), x, y, bitmap.get().size() / numBytesTall, numBytesTall * 8,
-			                           numBytesTall);
-			x += bitmap.get().size() / numBytesTall;
-		}
+		const int32_t y = startY + (height - 2 * 8) / 2;
+		image.drawIconCentered(icon, startX, width, y);
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator

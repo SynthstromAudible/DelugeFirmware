@@ -1,4 +1,23 @@
+/*
+ * Copyright (c) 2024 Nikodemus Siivola / Leonid Burygin
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include "horizontal_menu.h"
+
+#include "multi_range.h"
 #include "processing/sound/sound.h"
 #include "submenu.h"
 
@@ -21,12 +40,16 @@ void HorizontalMenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	Submenu::beginSession(navigatedBackwardFrom);
 
 	for (const auto it : items) {
-		if (it->checkPermissionToBeginSession(soundEditor.currentModControllable, soundEditor.currentSourceIndex,
-		                                      &soundEditor.currentMultiRange)
-		    == MenuPermission::YES) {
-			it->parent = this;
-			it->beginSession();
-		}
+		it->parent = this;
+		// Important initialization stuff may happen in this check
+		// E.g. the patch cable strength menu sets the current source there
+		it->checkPermissionToBeginSession(soundEditor.currentModControllable, soundEditor.currentSourceIndex,
+		                                  &soundEditor.currentMultiRange);
+	}
+
+	// Workaround: checkPermissionToBeginSession could cause unnecessary popups
+	if (display->hasPopupOfType(PopupType::GENERAL)) {
+		display->cancelPopup();
 	}
 }
 
@@ -59,7 +82,7 @@ void HorizontalMenu::renderOLED() {
 		return Submenu::renderOLED();
 	}
 
-	paging = preparePaging(items, *current_item_);
+	preparePaging(items, *current_item_);
 
 	// Lit the scale and cross-screen buttons LEDs to indicate that they can be used to switch between pages
 	const auto hasPages = paging.totalPages > 1;
@@ -288,33 +311,28 @@ void HorizontalMenu::selectMenuItem(std::span<MenuItem*> pageItems, const MenuIt
 		if (selectedColumn >= currentColumn && selectedColumn < currentColumn + item->getColumnSpan()) {
 			if (layout == FIXED && !isItemRelevant(item)) {
 				// Item is disabled, do nothing
-				break;
+				return;
 			}
 
 			current_item_ = std::ranges::find(items, item);
-			if (*(current_item_) == previous) {
-				// item is already selected
-				if ((*current_item_)->isSubmenu()) {
-					soundEditor.enterSubmenu(*current_item_);
-				}
-				else {
-					displayNotification(*current_item_);
-				}
-				break;
+
+			// is the item already selected?
+			if (*current_item_ == previous) {
+				return handleItemAction(*current_item_);
 			}
 
 			// Update the currently selected item
 			updateDisplay();
 			updatePadLights();
 			(*current_item_)->updateAutomationViewParameter();
-			displayNotification(*current_item_);
-			break;
+			return displayNotification(*current_item_);
 		}
+
 		currentColumn += item->getColumnSpan();
 	}
 }
 
-HorizontalMenu::Paging HorizontalMenu::preparePaging(std::span<MenuItem*> items, const MenuItem* currentItem) {
+HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items, const MenuItem* currentItem) {
 	static std::vector<MenuItem*> visiblePageItems;
 	visiblePageItems.clear();
 	visiblePageItems.reserve(4);
@@ -378,7 +396,8 @@ HorizontalMenu::Paging HorizontalMenu::preparePaging(std::span<MenuItem*> items,
 		totalPages = 0;
 	}
 
-	return Paging{visiblePageNumber, visiblePageItems, selectedItemPositionOnPage, totalPages};
+	paging = Paging{visiblePageNumber, visiblePageItems, selectedItemPositionOnPage, totalPages};
+	return paging;
 }
 
 /// When updating the selected horizontal menu item, you need to refresh the lit instrument LED's
@@ -475,7 +494,7 @@ double HorizontalMenu::calcNextKnobSpeed(int8_t offset) {
 	constexpr double speedScale = 0.15;
 	constexpr double minSpeed = 1.0;
 	constexpr double maxSpeed = 5.0;
-	constexpr double resetSpeedTimeThreshold = 0.5;
+	constexpr double resetSpeedTimeThreshold = 0.3;
 
 	// lastOffset and lastEncoderTime keep track of our direction and time
 	static int8_t lastOffset = 0;
@@ -493,6 +512,23 @@ double HorizontalMenu::calcNextKnobSpeed(int8_t offset) {
 	lastEncoderTime = time;
 	lastOffset = offset;
 	return std::clamp((currentKnobSpeed * speedScale), minSpeed, maxSpeed);
+}
+
+void HorizontalMenu::handleItemAction(MenuItem* menuItem) {
+	if (!menuItem->isSubmenu() && !menuItem->allowToBeginSessionFromHorizontalMenu()) {
+		return displayNotification(menuItem);
+	}
+
+	const auto result = menuItem->checkPermissionToBeginSession(
+	    soundEditor.currentModControllable, soundEditor.currentSourceIndex, &soundEditor.currentMultiRange);
+
+	if (result == MenuPermission::MUST_SELECT_RANGE) {
+		soundEditor.currentMultiRange = nullptr;
+		multiRangeMenu.menuItemHeadingTo = menuItem;
+		menuItem = &multiRangeMenu;
+	}
+
+	soundEditor.enterSubmenu(menuItem);
 }
 
 } // namespace deluge::gui::menu_item
