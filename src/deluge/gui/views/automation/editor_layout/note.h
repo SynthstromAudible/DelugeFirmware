@@ -28,18 +28,6 @@ public:
 	// edit pad action
 	void noteEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,
 	                       int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo);
-	void velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,
-	                           int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo);
-
-private:
-	int32_t getVelocityFromY(int32_t y);
-	int32_t getYFromVelocity(int32_t velocity);
-	void addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity);
-	void adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t velocity,
-	                        int32_t newVelocity, uint8_t squareType);
-	void setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t newVelocity);
-	void setVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
-	                     SquareInfo rowSquareInfo[kDisplayWidth], int32_t velocityIncrement);
 	void recordNoteEditPadAction(int32_t x, int32_t velocity);
 
 public:
@@ -49,15 +37,6 @@ public:
 	                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth, int32_t xScroll,
 	                      uint32_t xZoom, int32_t effectiveLength, int32_t xDisplay, bool drawUndefinedArea,
 	                      SquareInfo& squareInfo);
-
-private:
-	void renderNoteColumn(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip,
-	                      RGB image[][kDisplayWidth + kSideBarWidth],
-	                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay, int32_t xScroll,
-	                      int32_t xZoom, SquareInfo& squareInfo);
-	void renderNoteSquare(RGB image[][kDisplayWidth + kSideBarWidth],
-	                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay, int32_t yDisplay,
-	                      uint8_t squareType, int32_t value);
 
 public:
 	void renderNoteEditorDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas, InstrumentClip* clip,
