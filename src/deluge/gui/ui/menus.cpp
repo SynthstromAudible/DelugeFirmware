@@ -1382,7 +1382,7 @@ HorizontalMenu soundMasterMenu{
 };
 
 HorizontalMenuCombined sourceMenuCombined{
-    {&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu, &soundMasterMenu}};
+    {&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu, &oscTrackingMenu, &soundMasterMenu}};
 
 Submenu soundFXMenu{
     STRING_FOR_FX,
@@ -1418,6 +1418,7 @@ Submenu soundEditorRootMenu{
         &modulator0Menu,
         &modulator1Menu,
         &oscMixerMenu,
+        &oscTrackingMenu,
         &env1Menu,
         &env2Menu,
         &env3Menu,

@@ -19,14 +19,13 @@ noise = Menu(
     name="STRING_FOR_NOISE_LEVEL",
 )
 
-pitches = [
+tracking = [
     Menu(
         "osc::Tracking",
         f"osc{i}TrackingMenu",
-        ["{name}", "{title}", f"{i}"],
+        ["{title}", f"{i}"],
         "oscillator/tracking.md",
-        name="STRING_FOR_PITCH_TRACKING",
-        title="STRING_FOR_OSC_PITCH_TRACKING_MENU_TITLE",
+        title="STRING_FOR_OSC_TRACKING_MENU_TITLE",
     )
     for i in range(2)
 ]

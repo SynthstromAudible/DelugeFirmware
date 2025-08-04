@@ -25,15 +25,18 @@ namespace deluge::gui::menu_item::osc {
 class Tracking final : public Toggle, public FormattedTitle {
 public:
 	using Toggle::Toggle;
-	Tracking(l10n::String name, l10n::String title_format_str, uint8_t source_id)
-	    : Toggle(name), FormattedTitle(title_format_str, source_id + 1), source_id_{source_id} {}
+	Tracking(l10n::String title_format_str, uint8_t source_id)
+	    : Toggle(), FormattedTitle(title_format_str, source_id + 1), source_id_{source_id} {}
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->sources[source_id_].isTracking); }
 	void writeCurrentValue() override { soundEditor.currentSound->sources[source_id_].isTracking = this->getValue(); }
 
 	[[nodiscard]] std::string_view getName() const override { return FormattedTitle::title(); }
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_PITCH)); }
+	void getColumnLabel(StringBuf& label) override {
+		label.append(getName());
+		label.truncate(4);
+	}
 
 private:
 	uint8_t source_id_;
