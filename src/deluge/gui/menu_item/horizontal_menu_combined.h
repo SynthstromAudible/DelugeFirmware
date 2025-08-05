@@ -30,6 +30,8 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override;
 	bool focusChild(const MenuItem* child) override;
+	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+	                                             MultiRange** currentRange) override;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void selectEncoderAction(int32_t offset) override;
 	void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) override;
