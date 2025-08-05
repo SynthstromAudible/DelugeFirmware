@@ -3300,6 +3300,10 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			source->setOscType(stringToOscType(reader.readTagOrAttributeValue()));
 			reader.exitTag("type");
 		}
+		else if (!strcmp(tagName, "isTracking")) {
+			source->isTracking = reader.readTagOrAttributeValueInt();
+			reader.exitTag("isTracking");
+		}
 		else if (!strcmp(tagName, "phaseWidth")) {
 			ENSURE_PARAM_MANAGER_EXISTS
 			patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_PHASE_WIDTH + s,
@@ -3565,6 +3569,7 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 	if (synthMode != SynthMode::FM) {
 		writer.writeAttribute("type", oscTypeToString(source->oscType));
 	}
+	writer.writeAttribute("isTracking", source->isTracking);
 
 	// If (multi)sample...
 	if (source->oscType == OscType::SAMPLE
