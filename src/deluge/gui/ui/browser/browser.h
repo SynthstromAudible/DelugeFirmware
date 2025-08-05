@@ -129,6 +129,16 @@ protected:
 	                                       int32_t newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
 	void favouritesChanged();
 
+	// Helper methods for selectEncoderAction refactoring
+	int32_t calculateNewFileIndex(int8_t offset);
+	Error handleIndexBoundsAndReload(int32_t& new_file_index, int8_t offset);
+	Error handleIndexBelowZero(int32_t& new_file_index, int8_t offset);
+	Error handleIndexAboveMax(int32_t& new_file_index, int8_t offset);
+	Error reloadItemsAndUpdateIndex(int32_t& new_file_index, int8_t offset, bool use_entered_text,
+	                                int32_t original_movement = 1);
+	Error reloadFromOneEnd(int32_t& new_file_index, int32_t search_direction);
+	void updateUIState();
+
 	static int32_t fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or
 	                                  // maybe we're typing a new name.
 	static int32_t scrollPosVertical;
@@ -138,7 +148,9 @@ protected:
 	static bool arrivedAtFileByTyping;
 	static bool allowFoldersSharingNameWithFile;
 	static char const** allowedFileExtensions;
-
+	static int8_t previous_offset_direction;
+	static bool loading_delayed_during_fast_scroll;
+	static int32_t reversal_screen_top_index; // INT32_MIN when not in reversal mode
 	const uint8_t* fileIcon;
 	const uint8_t* fileIconPt2;
 	int32_t fileIconPt2Width;
