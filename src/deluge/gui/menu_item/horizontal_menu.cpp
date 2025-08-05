@@ -36,9 +36,8 @@ namespace deluge::gui::menu_item {
 
 using namespace hid::display;
 
-void HorizontalMenu::beginSession(MenuItem* navigatedBackwardFrom) {
-	Submenu::beginSession(navigatedBackwardFrom);
-
+MenuPermission HorizontalMenu::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+                                                             ::MultiRange** currentRange) {
 	for (const auto it : items) {
 		it->parent = this;
 		// Important initialization stuff may happen in this check
@@ -47,10 +46,12 @@ void HorizontalMenu::beginSession(MenuItem* navigatedBackwardFrom) {
 		                                  &soundEditor.currentMultiRange);
 	}
 
-	// Workaround: checkPermissionToBeginSession could cause unnecessary popups
+	// Workaround: calling checkPermissionToBeginSession on a specific menu item could cause unnecessary popups
 	if (display->hasPopupOfType(PopupType::GENERAL)) {
 		display->cancelPopup();
 	}
+
+	return Submenu::checkPermissionToBeginSession(modControllable, whichThing, currentRange);
 }
 
 ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {

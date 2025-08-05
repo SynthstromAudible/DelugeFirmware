@@ -28,6 +28,14 @@ std::string_view HorizontalMenuCombined::getTitle() const {
 	return current_submenu_->getTitle();
 }
 
+MenuPermission HorizontalMenuCombined::checkPermissionToBeginSession(ModControllableAudio* modControllable,
+                                                                     int32_t whichThing, MultiRange** currentRange) {
+	for (const auto submenu : submenus_) {
+		submenu->checkPermissionToBeginSession(modControllable, whichThing, currentRange);
+	}
+	return MenuPermission::YES;
+}
+
 void HorizontalMenuCombined::beginSession(MenuItem* navigatedBackwardFrom) {
 	navigated_backward_from = navigatedBackwardFrom;
 
