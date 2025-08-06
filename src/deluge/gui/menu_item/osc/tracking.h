@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
+ * Copyright (c) 2025 Nikodemus Siivola
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
