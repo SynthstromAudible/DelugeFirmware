@@ -18,13 +18,16 @@
 
 #include "gui/menu_item/filter/info.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
-#include "gui/ui/sound_editor.h"
-#include "model/mod_controllable/filters/filter_config.h"
+#include "gui/menu_item/unpatched_param.h"
+#include "gui/menu_item/value_scaling.h"
 #include "modulation/params/param.h"
+
+#include <util/comparison.h>
 
 namespace deluge::gui::menu_item::filter {
 
-namespace params = deluge::modulation::params;
+using namespace deluge::modulation;
+using namespace hid::display;
 
 class FilterParam : public patched_param::Integer {
 public:
@@ -32,16 +35,24 @@ public:
 	    : Integer{newName, newP}, info{slot_, type_} {}
 	FilterParam(l10n::String newName, l10n::String title, int32_t newP, FilterSlot slot_, FilterParamType type_)
 	    : Integer{newName, title, newP}, info{slot_, type_} {}
-	[[nodiscard]] std::string_view getName() const override {
-		return info.getMorphNameOr(patched_param::Integer::getName());
-	}
-	[[nodiscard]] std::string_view getTitle() const override {
-		return info.getMorphNameOr(patched_param::Integer::getTitle());
-	}
+
+	[[nodiscard]] std::string_view getName() const override { return info.getMorphNameOr(Integer::getName()); }
+	[[nodiscard]] std::string_view getTitle() const override { return info.getMorphNameOr(Integer::getTitle()); }
 	[[nodiscard]] bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return info.isOn();
 	}
+
 	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
+
+	[[nodiscard]] NumberStyle getNumberStyle() const override {
+		const auto p = static_cast<params::Local>(const_cast<FilterParam*>(this)->getP());
+		if (util::one_of(p, {params::LOCAL_LPF_MORPH, params::LOCAL_HPF_MORPH})) {
+			return LEVEL;
+		}
+		return KNOB;
+	}
+
+	FilterInfo const& getInfo() const { return info; }
 
 private:
 	FilterInfo info;
@@ -57,6 +68,18 @@ public:
 	[[nodiscard]] bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return info.isOn();
 	}
+
+	[[nodiscard]] NumberStyle getNumberStyle() const override {
+		const auto p = static_cast<params::UnpatchedGlobal>(const_cast<UnpatchedFilterParam*>(this)->getP());
+		if (util::one_of(p, {params::UNPATCHED_LPF_MORPH, params::UNPATCHED_HPF_MORPH})) {
+			return LEVEL;
+		}
+		return KNOB;
+	}
+
+	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
+
+	FilterInfo const& getInfo() const { return info; }
 
 private:
 	FilterInfo info;

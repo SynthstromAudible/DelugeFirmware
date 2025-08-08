@@ -55,7 +55,10 @@ public:
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             ::MultiRange** currentRange) override;
 	void endSession() override;
+
 	virtual bool hasItem(const MenuItem* item);
+	virtual void setCurrentItem(const MenuItem* item);
+	decltype(items)& getItems() { return items; }
 
 protected:
 	Paging paging;
@@ -64,9 +67,9 @@ protected:
 
 	virtual void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem);
 	virtual Paging& preparePaging(std::span<MenuItem*> items, const MenuItem* currentItem);
-	virtual void handleInstrumentButtonPress(std::span<MenuItem*> visiblePageItems, const MenuItem* previous,
-	                                         int32_t pressedButtonPosition);
-	virtual void selectMenuItem(int32_t pageNumber, int32_t itemPos);
+	virtual void handleInstrumentButtonPress(std::span<MenuItem*> visible_page_items, const MenuItem* previous,
+	                                         int32_t pressed_button_position);
+	virtual void selectMenuItem(int32_t page_number, int32_t item_pos);
 	virtual void switchVisiblePage(int32_t direction);
 	virtual void switchHorizontalMenu(int32_t direction, std::span<HorizontalMenu* const> chain);
 
