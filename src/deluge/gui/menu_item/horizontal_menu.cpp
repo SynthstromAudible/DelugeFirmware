@@ -16,21 +16,20 @@
  */
 
 #include "horizontal_menu.h"
-
-#include "multi_range.h"
-#include "processing/sound/sound.h"
-#include "submenu.h"
-
 #include "etl/vector.h"
+#include "gui/ui/menus.h"
 #include "gui/views/automation_view.h"
+#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "multi_range.h"
+#include "processing/sound/sound.h"
+#include "storage/flash_storage.h"
+#include "submenu.h"
 #include <algorithm>
-#include <hid/buttons.h>
 #include <ranges>
-#include <storage/flash_storage.h>
 
 namespace deluge::gui::menu_item {
 
@@ -54,6 +53,11 @@ MenuPermission HorizontalMenu::checkPermissionToBeginSession(ModControllableAudi
 	return Submenu::checkPermissionToBeginSession(modControllable, whichThing, currentRange);
 }
 
+void HorizontalMenu::beginSession(MenuItem* navigatedBackwardFrom) {
+	Submenu::beginSession(navigatedBackwardFrom);
+	chain = soundEditor.getCurrentHorizontalMenusChain();
+}
+
 ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
@@ -61,16 +65,24 @@ ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRou
 		return Submenu::buttonAction(b, on, inCardRoutine);
 	}
 
-	// use SCALE / CROSS SCREEN buttons to switch between pages
+	// use SCALE / CROSS SCREEN buttons to switch between pages or chained horizontal menus
 	if (b == CROSS_SCREEN_EDIT || b == SCALE_MODE) {
-		switchVisiblePage(b == CROSS_SCREEN_EDIT ? 1 : -1);
+		const int32_t direction = b == CROSS_SCREEN_EDIT ? 1 : -1;
+
+		if (chain.has_value() && Buttons::isButtonPressed(SHIFT)) {
+			switchHorizontalMenu(direction, chain.value(), true);
+		}
+		else {
+			switchVisiblePage(direction);
+		}
+
 		return ActionResult::DEALT_WITH;
 	}
 
 	// use SYNTH / KIT / MIDI / CV buttons to select menu item in the currently displayed horizontal menu page
 	static std::map<hid::Button, int32_t> selectMap = {{SYNTH, 0}, {KIT, 1}, {MIDI, 2}, {CV, 3}};
 	if (selectMap.contains(b)) {
-		selectMenuItem(paging.visiblePageItems, *current_item_, selectMap[b]);
+		handleInstrumentButtonPress(paging.visiblePageItems, *current_item_, selectMap[b]);
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -83,12 +95,12 @@ void HorizontalMenu::renderOLED() {
 		return Submenu::renderOLED();
 	}
 
-	preparePaging(items, *current_item_);
+	const auto& paging = preparePaging(items, *current_item_);
 
-	// Lit the scale and cross-screen buttons LEDs to indicate that they can be used to switch between pages
-	const auto hasPages = paging.totalPages > 1;
-	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, hasPages);
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, hasPages);
+	// Light up the scale and cross-screen buttons LEDs to indicate they can be used to switch between pages
+	const auto hasPagesOrChain = paging.totalPages > 1 || chain.has_value();
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, hasPagesOrChain);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, hasPagesOrChain);
 
 	// did the selected horizontal menu item position change?
 	// if yes, update the instrument LED corresponding to that menu item position
@@ -248,11 +260,12 @@ void HorizontalMenu::displayNotification(MenuItem* menuItem) {
 }
 
 void HorizontalMenu::switchVisiblePage(int32_t direction) {
-	if (paging.totalPages <= 1) {
-		return;
-	}
-
 	int32_t targetPageNumber = paging.visiblePageNumber + direction;
+
+	// If we're going outside the current menu, switch to the next / previous menu from the chain
+	if (chain.has_value() && (targetPageNumber < 0 || targetPageNumber >= paging.totalPages)) {
+		return switchHorizontalMenu(direction, chain.value());
+	}
 
 	// Wrap around
 	if (targetPageNumber < 0) {
@@ -262,54 +275,73 @@ void HorizontalMenu::switchVisiblePage(int32_t direction) {
 		targetPageNumber = 0;
 	}
 
-	int32_t currentPageSpan = 0;
-	int32_t currentPageNumber = 0;
-	int32_t positionOnPage = 0;
+	// Select an item on the next / previous page, keeping the previous position if possible
+	selectMenuItem(targetPageNumber, paging.selectedItemPositionOnPage);
 
-	// Find the target item on the next / previous page
-	for (const auto it : items) {
-		if (layout == FIXED || isItemRelevant(it)) {
-			const auto itemSpan = it->getColumnSpan();
-
-			// Check if we need to move to the next page
-			if (currentPageSpan + itemSpan > 4) {
-				currentPageNumber++;
-				currentPageSpan = 0;
-				positionOnPage = 0;
-			}
-
-			// Select an item with the same position as on the previous selected page
-			// If the item is not relevant, select the closest item instead
-			if (currentPageNumber == targetPageNumber) {
-				if (positionOnPage > paging.selectedItemPositionOnPage && isItemRelevant(*current_item_)) {
-					break; // Past target position
-				}
-				current_item_ = std::ranges::find(items, it);
-			}
-			currentPageSpan += itemSpan;
-			positionOnPage++;
-		}
-	}
-
-	updateDisplay();
+	renderUIsForOled();
 	updatePadLights();
 	(*current_item_)->updateAutomationViewParameter();
-	lastSelectedItemPosition = kNoSelection;
 
 	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
 		display->cancelPopup();
 	}
 }
 
-void HorizontalMenu::selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous, int32_t selectedColumn) {
+void HorizontalMenu::switchHorizontalMenu(int32_t direction, std::span<HorizontalMenu* const> chain,
+                                          bool forceSelectFirstItem) {
+	const auto it = std::ranges::find(chain, this);
+	const int32_t currentMenuPos = std::distance(chain.begin(), it);
+	int32_t targetMenuPos = currentMenuPos + direction;
+
+	// Wrap around
+	if (targetMenuPos < 0) {
+		targetMenuPos = chain.size() - 1;
+	}
+	else if (targetMenuPos >= chain.size()) {
+		targetMenuPos = 0;
+	}
+
+	const auto targetMenu = chain[targetMenuPos];
+	const auto previousItemPos = paging.selectedItemPositionOnPage;
+
+	targetMenu->checkPermissionToBeginSession(soundEditor.currentModControllable, soundEditor.currentSourceIndex,
+	                                          &soundEditor.currentMultiRange);
+	targetMenu->beginSession(nullptr);
+
+	if (forceSelectFirstItem) {
+		// Select the first item on the first page
+		targetMenu->selectMenuItem(0, 0);
+	}
+	else if (direction < 0) {
+		// going backward, select an item on the last page, keeping the previously selected position if possible
+		const auto pagesCount = targetMenu->preparePaging(targetMenu->items, nullptr).totalPages;
+		targetMenu->selectMenuItem(pagesCount - 1, previousItemPos);
+	}
+	else {
+		// going forward, select an item on the first page, keeping the previously selected position if possible
+		targetMenu->selectMenuItem(0, previousItemPos);
+	}
+
+	soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth] = targetMenu;
+	renderUIsForOled();
+	targetMenu->updatePadLights();
+	(*targetMenu->current_item_)->updateAutomationViewParameter();
+
+	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
+		display->cancelPopup();
+	}
+}
+
+void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visiblePageItems, const MenuItem* previous,
+                                                 int32_t pressedButtonPosition) {
 	// Find the item you're looking for by iterating through all items on the current page
 	int32_t currentColumn = 0;
 
-	for (size_t n = 0; n < pageItems.size(); n++) {
-		MenuItem* item = pageItems[n];
+	for (size_t n = 0; n < visiblePageItems.size(); n++) {
+		MenuItem* item = visiblePageItems[n];
 
-		// Is this item covering the selected virtual column?
-		if (selectedColumn >= currentColumn && selectedColumn < currentColumn + item->getColumnSpan()) {
+		// Is this item covering the selected column?
+		if (pressedButtonPosition >= currentColumn && pressedButtonPosition < currentColumn + item->getColumnSpan()) {
 			if (layout == FIXED && !isItemRelevant(item)) {
 				// Item is disabled, do nothing
 				return;
@@ -330,6 +362,37 @@ void HorizontalMenu::selectMenuItem(std::span<MenuItem*> pageItems, const MenuIt
 		}
 
 		currentColumn += item->getColumnSpan();
+	}
+}
+
+void HorizontalMenu::selectMenuItem(int32_t pageNumber, int32_t itemPos) {
+	lastSelectedItemPosition = kNoSelection;
+
+	int32_t currentPageSpan = 0;
+	int32_t currentPageNumber = 0;
+	int32_t positionOnPage = 0;
+
+	// Find the target item on the next / previous page
+	for (const auto it : std::views::filter(items, [&](auto it) { return layout == FIXED || isItemRelevant(it); })) {
+		const auto itemSpan = it->getColumnSpan();
+
+		// Check if we need to move to the next page
+		if (currentPageSpan + itemSpan > 4) {
+			currentPageNumber++;
+			currentPageSpan = 0;
+			positionOnPage = 0;
+		}
+
+		// Select an item with the target position
+		// If the item at a given position is not relevant, select the closest item instead
+		if (currentPageNumber == pageNumber) {
+			if (positionOnPage > itemPos && isItemRelevant(*current_item_)) {
+				break; // Past target position
+			}
+			current_item_ = std::ranges::find(items, it);
+		}
+		currentPageSpan += itemSpan;
+		positionOnPage++;
 	}
 }
 

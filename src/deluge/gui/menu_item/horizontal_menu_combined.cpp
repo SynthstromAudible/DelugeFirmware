@@ -38,6 +38,7 @@ MenuPermission HorizontalMenuCombined::checkPermissionToBeginSession(ModControll
 
 void HorizontalMenuCombined::beginSession(MenuItem* navigatedBackwardFrom) {
 	navigated_backward_from = navigatedBackwardFrom;
+	chain = soundEditor.getCurrentHorizontalMenusChain();
 
 	// A submenu can modify soundEditor parameters at the beginning of a session,
 	// which in their turn can affect whether an item is relevant or not.
@@ -49,6 +50,10 @@ void HorizontalMenuCombined::beginSession(MenuItem* navigatedBackwardFrom) {
 
 bool HorizontalMenuCombined::focusChild(const MenuItem* child) {
 	if (child == nullptr) {
+		// Select the first relevant item if the current item is not valid or relevant
+		if (current_item_ == items.end() || !isItemRelevant(*current_item_)) {
+			current_item_ = std::ranges::find_if(submenus_[0]->items, isItemRelevant);
+		}
 		return true;
 	}
 
@@ -66,20 +71,10 @@ bool HorizontalMenuCombined::focusChild(const MenuItem* child) {
 			return true;
 		}
 
-		// Child is not relevant — search left for the closest relevant item
-		for (int32_t i = std::distance(items.begin(), it); i >= 0; --i) {
-			if (isItemRelevant(items[i])) {
-				current_item_ = items.begin() + i;
-				return true;
-			}
-		}
-
-		// Last resort - find among all items
-		for (it = items.begin(); it != items.end(); ++it) {
-			if (isItemRelevant(*it)) {
-				current_item_ = it;
-				return true;
-			}
+		// Child is not relevant — find first relevant among all items
+		current_item_ = std::ranges::find_if(items, isItemRelevant);
+		if (current_item_ != items.end()) {
+			return true;
 		}
 	}
 	return false;
@@ -90,11 +85,29 @@ void HorizontalMenuCombined::renderMenuItems(std::span<MenuItem*> items, const M
 	current_submenu_->renderMenuItems(items, currentItem);
 }
 
-void HorizontalMenuCombined::selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous,
-                                            int32_t selectedColumn) {
-	// Redirect selecting to the current submenu
-	current_submenu_->selectMenuItem(pageItems, previous, selectedColumn);
+void HorizontalMenuCombined::handleInstrumentButtonPress(std::span<MenuItem*> visiblePageItems,
+                                                         const MenuItem* previous, int32_t pressedButtonPosition) {
+	// Redirect handling to the current submenu
+	current_submenu_->handleInstrumentButtonPress(visiblePageItems, previous, pressedButtonPosition);
 	current_item_ = current_submenu_->current_item_;
+}
+
+void HorizontalMenuCombined::selectMenuItem(int32_t pageNumber, int32_t itemPos) {
+	int32_t currentPageNumber = 0;
+
+	for (const auto submenu : submenus_) {
+		const auto submenuPagesCount = submenu->preparePaging(submenu->items, nullptr).totalPages;
+
+		// Is the page number we want in this submenu?
+		if (pageNumber <= currentPageNumber + submenuPagesCount - 1) {
+			submenu->selectMenuItem(pageNumber - currentPageNumber, itemPos);
+			current_item_ = submenu->current_item_;
+			lastSelectedItemPosition = kNoSelection;
+			return;
+		}
+
+		currentPageNumber += submenuPagesCount;
+	}
 }
 
 HorizontalMenu::Paging& HorizontalMenuCombined::preparePaging(std::span<MenuItem*>, const MenuItem* currentItem) {
@@ -145,6 +158,7 @@ void HorizontalMenuCombined::switchVisiblePage(int32_t direction) {
 		if (newPage >= 0 && newPage < current_submenu_->paging.totalPages) {
 			current_submenu_->switchVisiblePage(direction);
 			current_item_ = current_submenu_->current_item_;
+			lastSelectedItemPosition = kNoSelection;
 			return;
 		}
 	}
@@ -156,36 +170,33 @@ void HorizontalMenuCombined::switchVisiblePage(int32_t direction) {
 	// Move to the next / previous submenu
 	submenuIndex += direction;
 
+	// If we're outside the current combined menu, switch to the next / previous menu from the chain
+	if (chain.has_value() && (submenuIndex < 0 || submenuIndex > static_cast<int32_t>(submenus_.size()) - 1)) {
+		return switchHorizontalMenu(std::clamp<int32_t>(direction, -1, 1), chain.value());
+	}
+
 	// Wrap around
 	const int32_t count = static_cast<int32_t>(submenus_.size());
 	submenuIndex = (submenuIndex % count + count) % count;
 
-	// Find the item we're looking for on the switched submenu
 	const auto submenu = submenus_[submenuIndex];
-	const auto firstOrLastItem = submenu->items[direction >= 0 ? 0 : submenu->items.size() - 1];
-	const auto firstOrLastPageItems = submenu->preparePaging(submenu->items, firstOrLastItem).visiblePageItems;
-
-	if (firstOrLastPageItems.size() == 0) {
+	const auto submenuPagesCount = submenu->preparePaging(submenu->items, nullptr).totalPages;
+	if (submenuPagesCount == 0) {
 		// No relevant items on the switched submenu, go to the next submenu
 		return switchVisiblePage(direction >= 0 ? direction + 1 : direction - 1);
 	}
 
-	// Select an item with the same position as on the previous selected page
-	// If the item is not relevant, select the closest item instead
-	int32_t currentPos = -1;
-	for (const auto& item : std::views::filter(firstOrLastPageItems, [&](MenuItem* i) { return isItemRelevant(i); })) {
-		current_item_ = std::ranges::find(submenu->items, item);
-		if (++currentPos >= paging.selectedItemPositionOnPage) {
-			break;
-		}
-	}
+	// Select an item with the same position as on the previously selected page if possible
+	const auto firstOrLastPage = direction >= 0 ? 0 : submenuPagesCount - 1;
+	submenu->selectMenuItem(firstOrLastPage, paging.selectedItemPositionOnPage);
+	current_item_ = submenu->current_item_;
+	lastSelectedItemPosition = kNoSelection;
 
 	// Item is selected, start a session and render UI
 	submenu->beginSession(nullptr);
 	updateDisplay();
 	updatePadLights();
 	(*current_item_)->updateAutomationViewParameter();
-	lastSelectedItemPosition = kNoSelection;
 
 	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
 		display->cancelPopup();
