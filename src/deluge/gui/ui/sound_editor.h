@@ -48,6 +48,7 @@ class MIDICable;
 
 namespace deluge::gui::menu_item {
 class Submenu;
+class HorizontalMenu;
 enum class RangeEdit : uint8_t;
 } // namespace deluge::gui::menu_item
 
@@ -166,6 +167,9 @@ public:
 	bool inNoteRowEditor();
 	void toggleNoteEditorParamMenu(int32_t on);
 	void updatePadLightsFor(MenuItem* item);
+
+	// Horizontal menus
+	std::optional<std::span<deluge::gui::menu_item::HorizontalMenu* const>> getCurrentHorizontalMenusChain();
 
 private:
 	/// Setup shortcut blinking by finding the given menu item in the provided item map

@@ -366,8 +366,8 @@ HorizontalMenu arpBasicMenuMIDIOrCV{STRING_FOR_BASIC,
 HorizontalMenu arpPatternMenu{STRING_FOR_PATTERN,
                               STRING_FOR_ARP_PATTERN_MENU_TITLE,
                               {// Pattern
-                               &arpOctavesMenu, &arpOctaveModeMenu, &arpChordSimulatorMenuKit, &arpNoteModeMenu,
-                               &arpNoteModeMenuForDrums, &arpStepRepeatMenu,
+                               &arpOctavesMenu, &arpStepRepeatMenu, &arpOctaveModeMenu, &arpNoteModeMenu,
+                               &arpNoteModeMenuForDrums, &arpChordSimulatorMenuKit,
                                // Note and rhythm settings
                                &arpRhythmMenu, &arpRhythmMenuMIDIOrCV, &arpSequenceLengthMenu,
                                &arpSequenceLengthMenuMIDIOrCV}};
@@ -457,7 +457,6 @@ HorizontalMenu voiceMenu{STRING_FOR_VOICE,
 HorizontalMenu voiceMenuWithoutUnison{STRING_FOR_VOICE,
                                       {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &portaMenu},
                                       HorizontalMenu::Layout::FIXED};
-HorizontalMenuCombined voiceMenuCombined{{&voiceMenuWithoutUnison, &unisonMenu}};
 
 // Combined Envelope 1-4 menu -----------------------------------------------------------------------------
 HorizontalMenuCombined envMenuCombined{{&env1Menu, &env2Menu, &env3Menu, &env4Menu}};
@@ -667,7 +666,7 @@ UnpatchedParam globalPitchMenu{STRING_FOR_PITCH, params::UNPATCHED_PITCH_ADJUST}
 // Pan
 unpatched_param::Pan globalPanMenu{STRING_FOR_PAN, params::UNPATCHED_PAN};
 
-Submenu songMasterMenu{
+HorizontalMenu songMasterMenu{
     STRING_FOR_MASTER,
     {
         &globalLevelMenu,
@@ -675,12 +674,12 @@ Submenu songMasterMenu{
     },
 };
 
-Submenu kitClipMasterMenu{
+HorizontalMenu kitClipMasterMenu{
     STRING_FOR_MASTER,
     {
         &globalLevelMenu,
-        &globalPitchMenu,
         &globalPanMenu,
+        &globalPitchMenu,
     },
 };
 
@@ -861,13 +860,9 @@ audio_clip::AudioSourceSelector audioSourceSelectorMenu{STRING_FOR_AUDIO_SOURCE}
 audio_clip::SpecificSourceOutputSelector specificOutputSelectorMenu{STRING_FOR_TRACK};
 audio_clip::Transpose audioClipTransposeMenu{STRING_FOR_TRANSPOSE};
 
-Submenu audioClipMasterMenu{
+HorizontalMenu audioClipMasterMenu{
     STRING_FOR_MASTER,
-    {
-        &globalLevelMenu,
-        &audioClipTransposeMenu,
-        &globalPanMenu,
-    },
+    {&globalLevelMenu, &globalPanMenu},
 };
 
 HorizontalMenu audioClipDistortionMenu{
@@ -901,6 +896,7 @@ HorizontalMenu audioClipSampleMenu{
     STRING_FOR_SAMPLE,
     {
         &file0SelectorMenu,
+        &audioClipTransposeMenu,
         &audioClipReverseMenu,
         &sample0PitchSpeedMenu,
         &audioClipSampleMarkerEditorMenuEnd,
@@ -1377,11 +1373,11 @@ PatchCables patchCablesMenu{STRING_FOR_MOD_MATRIX};
 
 HorizontalMenu soundMasterMenu{
     STRING_FOR_MASTER,
-    {&synthModeMenu, &masterTransposeMenu, &panMenu, &volumeMenu, &vibratoMenu},
+    {&volumeMenu, &panMenu, &masterTransposeMenu, &synthModeMenu, &vibratoMenu},
 };
 
 HorizontalMenuCombined sourceMenuCombined{
-    {&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu, &soundMasterMenu}};
+    {&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu}};
 
 Submenu soundFXMenu{
     STRING_FOR_FX,
@@ -1755,8 +1751,8 @@ PLACE_SDRAM_DATA Submenu* parentsForSoundShortcuts[][kDisplayHeight] = {
     {&sourceMenuCombined,	&sourceMenuCombined,	&sourceMenuCombined,	&sourceMenuCombined,			&sourceMenuCombined,	&sourceMenuCombined,	&sourceMenuCombined,	&sourceMenuCombined,				},
     {&sourceMenuCombined,	&sourceMenuCombined,	&sourceMenuCombined,	&sourceMenuCombined,			&sourceMenuCombined,	&sourceMenuCombined,	nullptr,				nullptr,							},
     {&sourceMenuCombined,	&sourceMenuCombined,	&sourceMenuCombined,	&sourceMenuCombined,			&sourceMenuCombined,	&sourceMenuCombined,	&sourceMenuCombined,	&stutterMenu,						},
-    {&sourceMenuCombined,	&sourceMenuCombined,	&sourceMenuCombined,	&sourceMenuCombined,			&sourceMenuCombined,	&soundDistortionMenu,   &soundDistortionMenu,	&soundDistortionMenu,				},
-    {&voiceMenuCombined,		&voiceMenuCombined,		&voiceMenuCombined,		&voiceMenuCombined,             &voiceMenuCombined,		&audioCompMenu,         nullptr,				&soundDistortionMenu,				},
+    {&soundMasterMenu,		&soundMasterMenu,		&soundMasterMenu,		&soundMasterMenu,				&soundMasterMenu,		&soundDistortionMenu,   &soundDistortionMenu,	&soundDistortionMenu,				},
+    {&voiceMenuWithoutUnison,&voiceMenuWithoutUnison,&voiceMenuWithoutUnison,&unisonMenu,					&unisonMenu,			&audioCompMenu,         nullptr,				&soundDistortionMenu,				},
     {&envMenuCombined,		&envMenuCombined,		&envMenuCombined,		&envMenuCombined,				&filtersMenuCombined,	&filtersMenuCombined,   &filtersMenuCombined,	&filtersMenuCombined,				},
     {&envMenuCombined,		&envMenuCombined,		&envMenuCombined,		&envMenuCombined,               &filtersMenuCombined,	&filtersMenuCombined,   &filtersMenuCombined,	&filtersMenuCombined,				},
     {&sidechainMenu,			&sidechainMenu,			&sidechainMenu,			&sidechainMenu,                 &sidechainMenu,			&sidechainMenu,			&eqMenu,				&eqMenu,							},
@@ -1794,7 +1790,7 @@ PLACE_SDRAM_DATA Submenu* parentsForSoundShortcutsSecondLayer[][kDisplayHeight] 
     {nullptr,			nullptr,			nullptr,			nullptr,			nullptr,	            nullptr,	    nullptr,	nullptr     },
     {nullptr,			nullptr,			nullptr,			nullptr,			nullptr,	            nullptr,	    nullptr,	&stutterMenu},
     {nullptr,			nullptr,			nullptr,			nullptr,			nullptr,	            nullptr,	    nullptr,	nullptr     },
-    {nullptr,			&voiceMenuCombined,	nullptr,			nullptr,			&voiceMenuCombined,     &audioCompMenu,	nullptr,	nullptr     },
+    {nullptr,			&voiceMenuWithoutUnison,nullptr,		nullptr,			&unisonMenu,			&audioCompMenu,	nullptr,	nullptr     },
     {&envMenuCombined,	&envMenuCombined,	&envMenuCombined,	&envMenuCombined,	nullptr,	            nullptr,	    nullptr,	nullptr     },
     {&envMenuCombined,	&envMenuCombined,	&envMenuCombined,	&envMenuCombined,	nullptr,	            nullptr,	    nullptr,	nullptr     },
     {nullptr,			nullptr,			nullptr,			nullptr,			nullptr,	            nullptr,	    nullptr,	nullptr     },
@@ -1808,8 +1804,8 @@ PLACE_SDRAM_DATA Submenu* parentsForSoundShortcutsSecondLayer[][kDisplayHeight] 
 PLACE_SDRAM_DATA MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight] = {
     {nullptr,                 &audioClipReverseMenu,   nullptr,                    &sample0PitchSpeedMenu,       nullptr,             &file0SelectorMenu,  &audioClipInterpolationMenu,&audioClipSampleMarkerEditorMenuEnd},
     {nullptr,                 &audioClipReverseMenu,   nullptr,                    &sample0PitchSpeedMenu,       nullptr,             &file0SelectorMenu,  &audioClipInterpolationMenu,&audioClipSampleMarkerEditorMenuEnd},
-    {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  nullptr                            },
-    {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  nullptr                            },
+    {nullptr,                 &audioClipTransposeMenu, nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  nullptr                            },
+    {nullptr,                 &audioClipTransposeMenu, nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  &stutterRateMenu                   },
     {&globalLevelMenu,        &audioClipTransposeMenu, nullptr,                    &globalPanMenu,              nullptr,              &srrMenu,           &bitcrushMenu,            &clippingMenu                      },
@@ -1824,13 +1820,13 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHe
     {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              nullptr,            nullptr,                  nullptr                            },
 };
 PLACE_SDRAM_DATA Submenu* parentsForAudioShortcuts[][kDisplayHeight] = {
-    {nullptr,                 &audioClipSampleMenu,		nullptr,					&audioClipSampleMenu,			 nullptr,			&audioClipSampleMenu,	&audioClipSampleMenu,		&audioClipSampleMenu,          },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              	nullptr,                 nullptr,                  nullptr,                        },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              	nullptr,                 nullptr,                  nullptr,                        },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              	nullptr,                 nullptr,                  nullptr,                        },
+    {nullptr,                 &audioClipSampleMenu,	  nullptr,						  &audioClipSampleMenu,			  nullptr,					&audioClipSampleMenu,	 &audioClipSampleMenu,	   &audioClipSampleMenu,           },
+    {nullptr,                 &audioClipSampleMenu,	  nullptr,                        &audioClipSampleMenu,			  nullptr,              	&audioClipSampleMenu,	 &audioClipSampleMenu,     &audioClipSampleMenu,           },
+    {nullptr,                 &audioClipSampleMenu,	  nullptr,                        nullptr,                        nullptr,              	nullptr,                 nullptr,                  nullptr,                        },
+    {nullptr,                 &audioClipSampleMenu,	  nullptr,                        nullptr,                        nullptr,              	nullptr,                 nullptr,                  nullptr,                        },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              	nullptr,                 nullptr,                  nullptr,                        },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              	nullptr,                 nullptr,                  &stutterMenu,                   },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,					&audioClipDistortionMenu,&audioClipDistortionMenu, &audioClipDistortionMenu,       },
+    {&audioClipMasterMenu,	 &audioClipSampleMenu,	  nullptr,						  &audioClipMasterMenu,			  nullptr,					&audioClipDistortionMenu,&audioClipDistortionMenu, &audioClipDistortionMenu,       },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              	&audioCompMenu,          nullptr,                  nullptr,                        },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalFiltersMenuCombined,&globalFiltersMenuCombined,&globalFiltersMenuCombined,&globalFiltersMenuCombined, },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalFiltersMenuCombined,&globalFiltersMenuCombined,&globalFiltersMenuCombined,&globalFiltersMenuCombined, },
@@ -1867,7 +1863,7 @@ PLACE_SDRAM_DATA Submenu* parentsForSongShortcuts[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,         			nullptr,                	nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,         			nullptr,                	nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,         			nullptr,                	nullptr,                  &stutterMenu,                      },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,         			&globalDistortionMenu,  	&globalDistortionMenu,    &globalDistortionMenu,             },
+    {&songMasterMenu,		 nullptr,                 nullptr,                        &songMasterMenu,				  nullptr,         			&globalDistortionMenu,  	&globalDistortionMenu,    &globalDistortionMenu,             },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,         			&audioCompMenu,         	nullptr,                  nullptr,                           },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalFiltersMenuCombined,&globalFiltersMenuCombined,&globalFiltersMenuCombined,&globalFiltersMenuCombined,       },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalFiltersMenuCombined,&globalFiltersMenuCombined,&globalFiltersMenuCombined,&globalFiltersMenuCombined,       },
@@ -1887,7 +1883,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr             				 },
     {&globalLevelMenu,        &globalPitchMenu,        nullptr,                        &globalPanMenu,                 nullptr,                     &srrMenu,               &bitcrushMenu,            nullptr                            },
-    {nullptr,              	  nullptr,                 nullptr,                        nullptr,                        nullptr,                     &threshold,             nullptr,                  nullptr                            },
+    {nullptr,              	 nullptr,                 nullptr,                        nullptr,                        nullptr,                     &threshold,             nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalLPFMorphMenu,         &lpfModeMenu,           &globalLPFResMenu,        &globalLPFFreqMenu                 },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalHPFMorphMenu,         &hpfModeMenu,           &globalHPFResMenu,        &globalHPFFreqMenu                 },
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &globalSidechainVolumeMenu,     &sidechainAttackMenu,           &sidechainShapeMenu,         nullptr,                &bassMenu,                &bassFreqMenu                      },
@@ -1904,7 +1900,7 @@ PLACE_SDRAM_DATA Submenu* parentsForKitGlobalFXShortcuts[][kDisplayHeight] = {
     {nullptr,				nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                	nullptr,                  nullptr,                           },
     {nullptr,				nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                	nullptr,                  nullptr,                           },
     {nullptr,				nullptr,                 nullptr,                        nullptr,                        nullptr,                     nullptr,                	nullptr,                  nullptr,                           },
-    {nullptr,				nullptr,                 nullptr,                        nullptr,                        nullptr,                     &globalDistortionMenu,  	&globalDistortionMenu,    nullptr,                           },
+    {&kitClipMasterMenu,		&kitClipMasterMenu,		 nullptr,                        &kitClipMasterMenu,			 nullptr,                     &globalDistortionMenu,  	&globalDistortionMenu,    nullptr,                           },
     {nullptr,				nullptr,                 nullptr,                        nullptr,                        nullptr,                     &audioCompMenu,         	nullptr,                  nullptr,                           },
     {nullptr,				nullptr,                 nullptr,                        nullptr,                        &globalFiltersMenuCombined,  &globalFiltersMenuCombined,&globalFiltersMenuCombined,&globalFiltersMenuCombined,      },
     {nullptr,				nullptr,                 nullptr,                        nullptr,                        &globalFiltersMenuCombined,  &globalFiltersMenuCombined,&globalFiltersMenuCombined,&globalFiltersMenuCombined,      },
@@ -1932,6 +1928,22 @@ PLACE_SDRAM_DATA Submenu* parentsForMidiOrCVParamShortcuts[][kDisplayHeight] = {
     {nullptr,                 		nullptr,                 		nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 		nullptr,                 		nullptr,                        nullptr,                        nullptr,                     nullptr,                nullptr,                  nullptr,                           },
     {nullptr,                 		&globalRandomizerMenu,   		nullptr,                        &globalRandomizerMenu,          nullptr,                     nullptr,                nullptr,                  nullptr,                           },
+};
+
+PLACE_SDRAM_DATA std::array<HorizontalMenu*, 16> horizontalMenusChainForSound = {
+	&arpMenuCombined, &voiceMenuWithoutUnison, &soundMasterMenu, &sourceMenuCombined, &unisonMenu, &envMenuCombined, &lfoMenuCombined, &filtersMenuCombined, &eqMenu, &modFXMenu, &reverbMenuCombined, &delayMenu, &soundDistortionMenu, &sidechainMenu, &audioCompMenu, &stutterMenu
+};
+
+PLACE_SDRAM_DATA std::array<HorizontalMenu*, 11> horizontalMenusChainForKit = {
+	&arpMenuCombinedKit, &kitClipMasterMenu, &globalFiltersMenuCombined, &globalEQMenu, &globalModFXMenu, &globalReverbMenuCombined, &globalDelayMenu, &globalDistortionMenu, &globalSidechainMenu, &audioCompMenu, &stutterMenu
+};
+
+PLACE_SDRAM_DATA std::array<HorizontalMenu*, 9> horizontalMenusChainForSong = {
+	&songMasterMenu, &globalFiltersMenuCombined, &globalEQMenu, &globalModFXMenu, &globalReverbMenuCombined, &globalDelayMenu, &globalDistortionMenu, &audioCompMenu, &stutterMenu
+};
+
+PLACE_SDRAM_DATA std::array<HorizontalMenu*, 11> horizontalMenusChainForAudioClip = {
+	&audioClipMasterMenu, &audioClipSampleMenu, &globalFiltersMenuCombined, &eqMenu, &globalModFXMenu, &globalReverbMenuCombined, &globalDelayMenu, &audioClipDistortionMenu, &globalSidechainMenu, &audioCompMenu, &stutterMenu
 };
 
 //clang-format on

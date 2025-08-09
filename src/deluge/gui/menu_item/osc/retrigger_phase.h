@@ -96,15 +96,18 @@ public:
 		return source.oscType != OscType::SAMPLE || sound->getSynthMode() == SynthMode::FM;
 	}
 
-	void selectEncoderAction(int32_t offset) override {
+	int32_t getNumberEditSize() override {
 		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
 			// In Horizontal menus we edit with 0.10 step by default, and with 0.01 step if the shift is pressed
-			soundEditor.numberEditSize = Buttons::isButtonPressed(hid::button::SHIFT) ? 1 : 10;
+			return Buttons::isButtonPressed(hid::button::SHIFT) ? 1 : 10;
 		}
-		if (offset > 0 && getValue() < 0) {
-			setValue(-soundEditor.numberEditSize);
-		}
+		return Decimal::getNumberEditSize();
+	}
 
+	void selectEncoderAction(int32_t offset) override {
+		if (offset > 0 && getValue() < 0) {
+			setValue(-getNumberEditSize());
+		}
 		Decimal::selectEncoderAction(offset);
 	}
 
