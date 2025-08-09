@@ -59,7 +59,7 @@ public:
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t) override {
-		if (getCurrentAudioClip()) {
+		if (getCurrentAudioClip() != nullptr) {
 			return true;
 		}
 		const auto sound = static_cast<Sound*>(modControllable);

@@ -20,10 +20,14 @@
 #include "gui/menu_item/sample/end.h"
 #include "gui/menu_item/sample/start.h"
 #include "gui/menu_item/sequence/direction.h"
+#include "gui/menu_item/source/patched_param/modulator_level.h"
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
+#include <array>
 
-#include <gui/menu_item/source/patched_param/modulator_level.h>
+namespace deluge::gui::menu_item {
+class HorizontalMenu;
+}
 
 extern deluge::gui::menu_item::patched_param::IntegerNonFM noiseMenu;
 extern deluge::gui::menu_item::osc::Sync oscSyncMenu;
@@ -101,3 +105,8 @@ extern deluge::gui::menu_item::Submenu* parentsForAudioShortcuts[kDisplayWidth][
 extern deluge::gui::menu_item::Submenu* parentsForSongShortcuts[kDisplayWidth][kDisplayHeight];
 extern deluge::gui::menu_item::Submenu* parentsForKitGlobalFXShortcuts[kDisplayWidth][kDisplayHeight];
 extern deluge::gui::menu_item::Submenu* parentsForMidiOrCVParamShortcuts[kDisplayWidth][kDisplayHeight];
+
+extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 16> horizontalMenusChainForSound;
+extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 11> horizontalMenusChainForKit;
+extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 9> horizontalMenusChainForSong;
+extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 11> horizontalMenusChainForAudioClip;
