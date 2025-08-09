@@ -51,6 +51,7 @@ class CompressorValue : public DecimalWithoutScrolling {
 	[[nodiscard]] int32_t getMaxValue() const final { return kMaxKnobPos; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
 	const char* getUnit() override { return "MS"; }
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return KNOB; }
 };
 
 class Attack final : public CompressorValue {

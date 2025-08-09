@@ -1930,6 +1930,22 @@ void SoundEditor::mpeZonesPotentiallyUpdated() {
 	}
 }
 
+std::optional<std::span<HorizontalMenu* const>> SoundEditor::getCurrentHorizontalMenusChain() {
+	if (editingCVOrMIDIClip()) {
+		return std::nullopt;
+	}
+	if (editingKitAffectEntire()) {
+		return std::span<HorizontalMenu* const>(horizontalMenusChainForKit);
+	}
+	if (!rootUIIsClipMinderScreen()) {
+		return std::span<HorizontalMenu* const>(horizontalMenusChainForSong);
+	}
+	if (getCurrentAudioClip() != nullptr) {
+		return std::span<HorizontalMenu* const>(horizontalMenusChainForAudioClip);
+	}
+	return std::span<HorizontalMenu* const>(horizontalMenusChainForSound);
+}
+
 void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 
 	// Sorry - extremely ugly hack here.

@@ -27,11 +27,15 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void selectEncoderAction(int32_t offset) override;
 	void horizontalEncoderAction(int32_t offset) override;
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+	void getNotificationValue(StringBuf& valueBuf) override { valueBuf.appendFloat(getValue() / 100.f, 2, 2); }
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return NUMBER; }
 
 protected:
 	void drawValue() override;
 	[[nodiscard]] virtual int32_t getNumDecimalPlaces() const = 0;
 	[[nodiscard]] virtual int32_t getDefaultEditPos() const { return 2; }
+	[[nodiscard]] virtual int32_t getNumberEditSize();
 
 	void drawPixelsForOled() override;
 
