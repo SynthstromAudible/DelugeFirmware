@@ -678,17 +678,22 @@ The Sound menu is accessible from Synth Clips and Kit clips when affect entire i
 The Sound menu contains the following menu hierarchy:
 
 <blockquote>
+<details><summary>Actions (ACT)</summary>
+
+    - Rename clip/drum (NAME)
+    - Record to sample 1 (REC1)
+    - Record to sample 2 (REC2)
+</details>
 <details><summary>Master (MASTR)</summary>
 
 	- Volume (VOLU)
-	- Master Transpose (TRAN)
-	- Vibrato (VIBR)
 	- Pan
+	- Master Transpose (TRAN)
 	- Synth Mode (MODE) - in Synth's and Kit row's that have loaded a Synth preset
 		- Subtractive
 		- FM
 		- Ringmod
-	- Name - in Kit's only for naming a Kit row
+    - Vibrato (VIBR)
 </details>
 <details><summary>Arpeggiator (ARPE)</summary>
 
@@ -946,11 +951,11 @@ The Sound menu contains the following menu hierarchy:
 		- Wavetable
 		- Sample (SAMP)
 		- Input (IN)
-
-	- Volume (VOLU)
-	- Wave-Index (WAVE) - if Wavetable type is selected
 	- File Browser (FILE) - if Wavetable or Sample type is selected
-	- Record Audio (RECO)
+	- Transpose (TRAN)
+	- Wave-Index (WAVE) - if Wavetable type is selected
+	- Pulse Width (PULS) - if any type except Sample or Input is selected
+	- Retrigger Phase (RETR) - if any type except Sample is selected
 	- Reverse (REVE) - if Sample type is selected
 		- Disabled (OFF)
 		- Enabled (ON)
@@ -959,18 +964,15 @@ The Sound menu contains the following menu hierarchy:
 		- Once
 		- Loop
 		- Stretch
-	- Start-Point (STAR) - if Sample type is selected
-	- End-Point (END-) - if Sample type is selected
-	- Transpose (TRAN)
-	- Pitch/Speed (PISP)
+	- Speed (SPEE) - if Sample type selected
+    - Pitch/Speed (PISP)
 		- Linked
 		- Independent
 	- Interpolation (INTE) - if Input type is selected
 		- Linear
 		- Sync
-	- Speed (SPEE) - if Sample type selected
-	- Pulse Width (PULS) - if any type except Sample or Input is selected
-	- Retrigger Phase (RETR) - if any type except Sample is selected
+	- Start-Point (STAR) - if Sample type is selected
+	- End-Point (END-) - if Sample type is selected
 </details>
 <details><summary>Oscillator 2 (OSC2) </summary>
 
@@ -984,11 +986,11 @@ The Sound menu contains the following menu hierarchy:
 		- Wavetable
 		- Sample (SAMP)
 		- Input (IN)
-
-	- Volume (VOLU)
-	- Wave-Index (WAVE) - if Wavetable type is selected
 	- File Browser (FILE) - if Wavetable or Sample type is selected
-	- Record Audio (RECO)
+	- Transpose (TRAN)
+	- Wave-Index (WAVE) - if Wavetable type is selected
+	- Pulse Width (PULS) - if any type except Sample or Input is selected
+	- Retrigger Phase (RETR) - if any type except Sample is selected
 	- Reverse (REVE) - if Sample type is selected
 		- Disabled (OFF)
 		- Enabled (ON)
@@ -997,21 +999,23 @@ The Sound menu contains the following menu hierarchy:
 		- Once
 		- Loop
 		- Stretch
-	- Start-Point (STAR) - if Sample type is selected
-	- End-Point (END-) - if Sample type is selected
-	- Transpose (TRAN)
-	- Pitch/Speed (PISP)
+	- Speed (SPEE) - if Sample type selected
+    - Pitch/Speed (PISP)
 		- Linked
 		- Independent
 	- Interpolation (INTE) - if Input type is selected
 		- Linear
 		- Sync
-	- Speed (SPEE) - if Sample type selected
-	- Pulse Width (PULS) - if any type except Sample or Input is selected
-	- Oscillator Sync (SYNC)
-		- Disabled (OFF)
-		- Enabled (ON)
-	- Retrigger Phase (RETR) - if any type except Sample is selected
+	- Start-Point (STAR) - if Sample type is selected
+	- End-Point (END-) - if Sample type is selected
+</details>
+<details>
+<summary>Osc mixer (OMIX) </summary>
+
+    - Osc1 level (OSC1)
+    - Osc2 level (OSC2)
+    - Noise level (NOIS)
+    - Oscillator sync (SYNC)
 </details>
 <details><summary>Envelope 1 (ENV1) </summary>
 
