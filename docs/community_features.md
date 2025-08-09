@@ -34,6 +34,12 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### 2.2 Horizontal Menus
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+  - Oscillator 1-2
+  - Oscillator mixer
+  - Sample 1-2
+  - Sample recorder
+  - Modulator 1-2
+  - Master
   - Envelope 1-4.
   - LFO 1-4.
   - LPF and HPF.
@@ -49,21 +55,21 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - Arpeggiator.
 - Horizontal Menu controls.
   - `Turn select encoder` to change the value of the selected menu item
-  - `Press + Turn select encoder` to change the selected menu item
   - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
     - When in a Horizontal Menu, the selected instruments LED corresponding to the Horizontal Menu item selected will light up
-  - You can switch between the different pages of the horizontal menu using the `SCALE` and `CROSS-SCREEN` buttons
-    - When in a Horizontal Menu, the `SCALE` and `CROSS-SCREEN` buttons LED will light up if the Horizontal Menu has more than one page.
-    - Use `CROSS-SCREEN` button to switch to the next page
-    - Use `SCALE` button to switch to the previous page
-  - If the selected menu item is a submenu, you can enter the submenu by pressing the SELECT encoder or the lit SYNTH, KIT, MIDI, or CV buttons under the submenu item selected
+  - Additionally, you can change the selected menu item by `Press + Turn select encoder`
+  - You can use the `SCALE` and `CROSS-SCREEN` buttons to switch between pages or adjacent menus
+    - Use `CROSS-SCREEN` button to switch to the next page, or the next Horizontal menu if you're on the last page
+    - Use `SCALE` button to switch to the previous page, or the previous Horizontal menu if you're on the first page
+    - Use `SHIFT + CROSS-SCREEN` button combo to switch straight to the next Horizontal menu
+    - Use `SHIFT + SCALE` button combo to switch straight to the previous Horizontal menu
 
 #### 2.3 Layered Shortcuts
 - Layered Shortcuts mechanism allows multiple shortcuts to be accessed under a single shortcut pad. Holding shift and pressing the same shortcut again cycles between shortcuts. The items available under layered shortcuts can also be accessed from menu: layered shortcut is never the only access method.
 - Following shortcuts have layers:
   - `ENV` shortcuts: cycles between envelope 1 and 3 (ENV1 shortcuts), and envelope 2 and 4 (ENV2 shortcuts). This also applies to ENV modulator shortcuts.
   - `LFO` shortcuts: cycles between LFO 1 and 3 (LFO1 shortcuts), and between LFO 2 and 4 (LFO2 shortcuts). This also applies to LFO modulator shortcuts.
-  - `UNISON NUMBER`: cycles between `UNISON AMOUNT` and `UNISON STEREO SPREAD`, in addition to the previous "press select when in `UNISON AMOUNT` access mechanism for `UNISON STEREO SPREAD`.
+  - `UNISON NUMBER`: cycles between `UNISON NUMBER` and `UNISON STEREO SPREAD`, in addition to the previous "press select when in `UNISON NUMBER` access mechanism for `UNISON STEREO SPREAD`.
   - `COMPRESSOR THRESHOLD`: cycles between `COMPRESSOR THRESHOLD` and `COMPRESSOR RATIO`
   - `STUTTER RATE`: cycles between `STUTTER RATE` and `STUTTER DIRECTION`
   - `ARP MODE`: cycles between `ARP MODE` and the arp randomizer `LOCK`. This is mostly for OLED users to quickly access the `RANDOMIZER` submenu.
