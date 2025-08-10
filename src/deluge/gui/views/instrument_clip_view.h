@@ -338,8 +338,8 @@ private:
 
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
 	Drum* flipThroughAvailableDrums(int32_t newOffset, Drum* drum, bool mayBeNone = false);
-	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
-	                                int32_t* getIndex = nullptr);
+	NoteRow* getOrCreateEmptyNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
+	                                       int32_t* getIndex = nullptr);
 	void createDrumForAuditionedNoteRow(DrumType drumType);
 	bool isRowAuditionedByInstrument(int32_t yDisplay);
 
