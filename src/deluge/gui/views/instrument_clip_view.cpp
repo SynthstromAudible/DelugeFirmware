@@ -367,7 +367,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 				// Make a new NoteRow
 				int32_t noteRowIndex;
-				NoteRow* newNoteRow = createNewNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
+				NoteRow* newNoteRow = getOrCreateEmptyNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
 				if (newNoteRow) {
 					uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
 
@@ -454,7 +454,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 			// Make a new NoteRow
 			int32_t noteRowIndex;
-			NoteRow* newNoteRow = createNewNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
+			NoteRow* newNoteRow = getOrCreateEmptyNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
 			if (!newNoteRow) {
 				display->displayError(Error::INSUFFICIENT_RAM);
 				return ActionResult::DEALT_WITH;
@@ -971,7 +971,7 @@ void InstrumentClipView::createDrumForAuditionedNoteRow(DrumType drumType) {
 		currentUIMode = UI_MODE_AUDITIONING;
 
 		// Make a new NoteRow
-		noteRow = createNewNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
+		noteRow = getOrCreateEmptyNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
 		if (!noteRow) {
 ramError:
 			error = Error::INSUFFICIENT_RAM;
@@ -4101,18 +4101,21 @@ fail:
 	uiNeedsRendering(getRootUI(), 0, 1 << yDisplay);
 }
 
-NoteRow* InstrumentClipView::createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
-                                                    int32_t* getIndex) {
+NoteRow* InstrumentClipView::getOrCreateEmptyNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
+                                                           int32_t* getIndex) {
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-	NoteRow* newNoteRow = clip->createNewNoteRowForKit(modelStack, (yDisplay < -clip->yScroll), getIndex);
-	if (!newNoteRow) {
-		return nullptr; // If memory full
+	// We check for existing no-sound rows at the y first. Even if we try not to create any, existing
+	// songs may have them!
+	NoteRow* row = clip->getNoteRowOnScreen(yDisplay, modelStack->song, getIndex);
+	if (row == nullptr || row->drum != nullptr) {
+		// No row, or the row isn't empty - create a new one.
+		row = clip->createNewNoteRowForKit(modelStack, (yDisplay < -clip->yScroll), getIndex);
 	}
 
 	recalculateColour(yDisplay);
 
-	return newNoteRow;
+	return row;
 }
 
 ModelStackWithNoteRow* InstrumentClipView::getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack,
@@ -5123,8 +5126,8 @@ Drum* InstrumentClipView::getAuditionedDrum(int32_t velocity, int32_t yDisplay, 
 
 					// Make a new NoteRow
 					int32_t noteRowIndex;
-					NoteRow* newNoteRow =
-					    createNewNoteRowForKit(modelStackWithTimelineCounter, yDisplayOfNewNoteRow, &noteRowIndex);
+					NoteRow* newNoteRow = getOrCreateEmptyNoteRowForKit(modelStackWithTimelineCounter,
+					                                                    yDisplayOfNewNoteRow, &noteRowIndex);
 					if (newNoteRow) {
 						// uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
 
