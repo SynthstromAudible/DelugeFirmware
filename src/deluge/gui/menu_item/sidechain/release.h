@@ -27,16 +27,20 @@
 namespace deluge::gui::menu_item::sidechain {
 class Release final : public Integer {
 public:
-	using Integer::Integer;
+	Release(l10n::String newName, l10n::String newTitle, bool isReverbSidechain = false)
+	    : Integer(newName, newTitle), is_reverb_sidechain_{isReverbSidechain} {}
+
 	void readCurrentValue() override {
-		this->setValue(getLookupIndexFromValue(soundEditor.currentSidechain->release >> 3, releaseRateTable, 50));
+		const auto sidechain = getCurrentSidechain();
+		this->setValue(getLookupIndexFromValue(sidechain->release >> 3, releaseRateTable, 50));
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = releaseRateTable[this->getValue()] << 3;
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (!is_reverb_sidechain_ && currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && soundEditor.editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -50,7 +54,8 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSidechain->release = current_value;
+			const auto sidechain = getCurrentSidechain();
+			sidechain->release = current_value;
 		}
 
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
@@ -58,11 +63,18 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingReverbSidechain() || AudioEngine::reverbSidechainVolume >= 0;
+		return !is_reverb_sidechain_ || AudioEngine::reverbSidechainVolume >= 0;
 	}
 
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(l10n::String::STRING_FOR_RELEASE_SHORT));
+	}
+
+private:
+	bool is_reverb_sidechain_;
+
+	SideChain* getCurrentSidechain() const {
+		return is_reverb_sidechain_ ? &AudioEngine::reverbSidechain : &soundEditor.currentSound->sidechain;
 	}
 };
 } // namespace deluge::gui::menu_item::sidechain
