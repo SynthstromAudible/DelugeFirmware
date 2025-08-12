@@ -265,6 +265,10 @@ void HorizontalMenu::switchVisiblePage(int32_t direction) {
 		return switchHorizontalMenu(direction, chain.value());
 	}
 
+	if (paging.totalPages <= 1) {
+		return;
+	}
+
 	// Wrap around
 	if (targetPageNumber < 0) {
 		targetPageNumber = paging.totalPages - 1;
