@@ -21,8 +21,8 @@
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+#include "utils.h"
 
 namespace deluge::gui::menu_item::sidechain {
 class Sync final : public SyncLevel {
@@ -32,7 +32,7 @@ public:
 
 	size_t size() override { return 10; };
 	void readCurrentValue() override {
-		const auto sidechain = getCurrentSidechain();
+		const auto sidechain = getSidechain(is_reverb_sidechain_);
 		this->setValue(syncTypeAndLevelToMenuOption(sidechain->syncType, sidechain->syncLevel));
 	}
 	bool usesAffectEntire() override { return true; }
@@ -56,7 +56,7 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			const auto sidechain = getCurrentSidechain();
+			const auto sidechain = getSidechain(is_reverb_sidechain_);
 			sidechain->syncType = syncValueToSyncType(current_value);
 			sidechain->syncLevel = syncValueToSyncLevel(current_value);
 		}
@@ -69,9 +69,5 @@ public:
 
 private:
 	bool is_reverb_sidechain_;
-
-	SideChain* getCurrentSidechain() const {
-		return is_reverb_sidechain_ ? &AudioEngine::reverbSidechain : &soundEditor.currentSound->sidechain;
-	}
 };
 } // namespace deluge::gui::menu_item::sidechain
