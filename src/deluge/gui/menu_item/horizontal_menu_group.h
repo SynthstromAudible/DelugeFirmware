@@ -22,11 +22,11 @@
 
 namespace deluge::gui::menu_item {
 
-// A class to combine multiple Horizontal menus into a single long Horizontal menu with paging
-class HorizontalMenuCombined final : public HorizontalMenu {
+// A class to group multiple Horizontal menus into a single long Horizontal menu with paging
+class HorizontalMenuGroup final : public HorizontalMenu {
 public:
-	HorizontalMenuCombined(std::initializer_list<HorizontalMenu*> submenus)
-	    : HorizontalMenu(l10n::String::STRING_FOR_NONE, {}), submenus_{submenus} {}
+	HorizontalMenuGroup(std::initializer_list<HorizontalMenu*> menus)
+	    : HorizontalMenu(l10n::String::STRING_FOR_NONE, {}), menus_{menus} {}
 
 	[[nodiscard]] std::string_view getTitle() const override;
 	bool focusChild(const MenuItem* child) override;
@@ -34,6 +34,9 @@ public:
 	                                             MultiRange** currentRange) override;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void selectEncoderAction(int32_t offset) override;
+	bool hasItem(const MenuItem* item) override;
+
+protected:
 	void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) override;
 	void selectMenuItem(int32_t pageNumber, int32_t itemPos) override;
 	void handleInstrumentButtonPress(std::span<MenuItem*> visiblePageItems, const MenuItem* previous,
@@ -42,8 +45,8 @@ public:
 	void switchVisiblePage(int32_t direction) override;
 
 private:
-	std::vector<HorizontalMenu*> submenus_{};
-	HorizontalMenu* current_submenu_{nullptr};
+	std::vector<HorizontalMenu*> menus_{};
+	HorizontalMenu* current_menu_{nullptr};
 	MenuItem* navigated_backward_from{nullptr};
 };
 } // namespace deluge::gui::menu_item

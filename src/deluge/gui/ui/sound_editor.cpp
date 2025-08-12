@@ -5,6 +5,7 @@
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/file_selector.h"
+#include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/menu_item/multi_range.h"
@@ -31,6 +32,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
+#include "menus.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -47,8 +49,6 @@
 #include "processing/source.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
-
-#include "menus.h"
 
 using namespace deluge;
 using namespace deluge::gui;
@@ -1046,13 +1046,11 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 
 		const MenuItem* item = nullptr;
-		Submenu* parent = nullptr;
 
 		// session views (arranger, song, performance)
 		if (!rootUIIsClipMinderScreen()) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForSongView[x][y];
-				parent = parentsForSongShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -1063,7 +1061,6 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			// only handle the shortcut for velocity in the mod sources column
 			if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1)) {
 				item = paramShortcutsForKitGlobalFX[x][y];
-				parent = parentsForKitGlobalFXShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -1074,7 +1071,6 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 			if (x <= 14) {
 				item = paramShortcutsForAudioClips[x][y];
-				parent = parentsForAudioShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -1097,7 +1093,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 				secondLayerModSourceShortcutsToggled =
 				    sourceShortcutBlinkFrequencies[modSourceX][y] != 255
-				            && getCurrentMenuItem()->getParamKind() == deluge::modulation::params::Kind::PATCH_CABLE
+				            && getCurrentMenuItem()->getParamKind() == modulation::params::Kind::PATCH_CABLE
 				        ? !secondLayerModSourceShortcutsToggled
 				        : false;
 
@@ -1185,24 +1181,30 @@ getOut:
 
 			// Shortcut to edit a parameter
 			if (!modulationItemFound
-			    && (x < 14 || (x == 14 && y < 5) ||     //< regular shortcuts
-			        (x == 15 && (y == 1 || y == 3)))) { //< note & velocity probability
+			    && (x < 14 || (x == 14 && y < 5) ||   //< regular shortcuts
+			        (x == 15 && y >= 1 && y <= 3))) { //< randomizer shortcuts
 
 				if (editingCVOrMIDIClip() || editingNonAudioDrumRow()) {
 					if (x == 11) {
-						if (editingGateDrumRow()) {
-							item = gateDrumParamShortcuts[y];
-						}
-						else {
-							item = midiOrCVParamShortcuts[y];
-						}
-						parent = parentsForMidiOrCVParamShortcuts[x][y];
+						item = editingGateDrumRow() ? gateDrumParamShortcuts[y] : midiOrCVParamShortcuts[y];
 					}
-					else if (x == 4) {
-						if (y == 7) {
-							item = &sequenceDirectionMenu;
-							parent = parentsForMidiOrCVParamShortcuts[x][y];
-						}
+					else if (x == 15) {
+						// Randomizer shortcuts for MIDI / CV clips
+						item = [&] {
+							switch (y) {
+							case 1:
+								return static_cast<MenuItem*>(&spreadVelocityMenuMIDIOrCV);
+							case 2:
+								return static_cast<MenuItem*>(&randomizerLockMenu);
+							case 3:
+								return static_cast<MenuItem*>(&randomizerNoteProbabilityMenuMIDIOrCV);
+							default:
+								return static_cast<MenuItem*>(nullptr);
+							}
+						}();
+					}
+					else if (x == 4 && y == 7) {
+						item = &sequenceDirectionMenu;
 					}
 					else {
 						item = nullptr;
@@ -1210,21 +1212,18 @@ getOut:
 				}
 				else {
 					item = paramShortcutsForSounds[x][y];
-					parent = parentsForSoundShortcuts[x][y];
 
 					// Replace with the second layer shortcut (e.g. env3 attack, lfo3 rate) if the pad was pressed twice
 					secondLayerShortcutsToggled =
 					    x == currentParamShorcutX && y == currentParamShorcutY
-					            && getCurrentMenuItem()->getParamKind() != deluge::modulation::params::Kind::PATCH_CABLE
+					            && getCurrentMenuItem()->getParamKind() != modulation::params::Kind::PATCH_CABLE
 					        ? !secondLayerShortcutsToggled
 					        : false;
 
 					if (secondLayerShortcutsToggled) {
-						const auto secondLayerItem = paramShortcutsForSoundsSecondLayer[x][y];
-						const auto secondLayerParent = parentsForSoundShortcutsSecondLayer[x][y];
-						if (secondLayerItem != nullptr && secondLayerParent != nullptr) {
+						if (const auto secondLayerItem = paramShortcutsForSoundsSecondLayer[x][y];
+						    secondLayerItem != nullptr) {
 							item = secondLayerItem;
-							parent = secondLayerParent;
 						}
 					}
 				}
@@ -1251,11 +1250,12 @@ doSetup:
 					}
 
 					const int32_t thingIndex = x & 1;
-					bool setupSuccess = setup(getCurrentClip(), item, parent, thingIndex);
+
+					bool setupSuccess = setup(getCurrentClip(), item, thingIndex);
 
 					if (!setupSuccess && item == &modulator0Volume && currentSource->oscType == OscType::DX7) {
 						item = &dxParam;
-						setupSuccess = setup(getCurrentClip(), item, parent, thingIndex);
+						setupSuccess = setup(getCurrentClip(), item, thingIndex);
 					}
 
 					if (!setupSuccess) {
@@ -1514,7 +1514,7 @@ void SoundEditor::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 }
 
-bool SoundEditor::setup(Clip* clip, const MenuItem* item, Submenu* parent, int32_t sourceIndex) {
+bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 
 	Sound* newSound = nullptr;
 	ParamManagerForTimeline* newParamManager = nullptr;
@@ -1681,9 +1681,20 @@ doMIDIOrCV:
 
 	// If we're on OLED, a parent menu & horizontal menus are in play,
 	// then we swap the parent in place of the child.
-	if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
-		const bool focused = parent->focusChild(newItem);
+	HorizontalMenu* parent = [&] {
+		const auto chain = getCurrentHorizontalMenusChain();
+		if (!chain.has_value()) {
+			return static_cast<HorizontalMenu*>(nullptr);
+		}
+		const auto it = std::ranges::find_if(chain.value(), [&](HorizontalMenu* menu) { return menu->hasItem(item); });
+		if (it == chain->end()) {
+			return static_cast<HorizontalMenu*>(nullptr);
+		}
+		return *it;
+	}();
 
+	if (parent != nullptr) {
+		const bool focused = parent->focusChild(newItem);
 		if (newItem == &file0SelectorMenu || newItem == &file1SelectorMenu) {
 			oneLevelDownItem = parent;
 		}
@@ -1926,19 +1937,26 @@ void SoundEditor::mpeZonesPotentiallyUpdated() {
 }
 
 std::optional<std::span<HorizontalMenu* const>> SoundEditor::getCurrentHorizontalMenusChain() {
-	if (editingCVOrMIDIClip()) {
+	if (navigationDepth > 0) {
+		// We're in the sound main menu, disallow chaining
 		return std::nullopt;
 	}
-	if (editingKitAffectEntire()) {
-		return std::span<HorizontalMenu* const>(horizontalMenusChainForKit);
+	if (!display->haveOLED() || runtimeFeatureSettings.get(HorizontalMenus) == Off) {
+		return std::nullopt;
 	}
 	if (!rootUIIsClipMinderScreen()) {
-		return std::span<HorizontalMenu* const>(horizontalMenusChainForSong);
+		return horizontalMenusChainForSong;
+	}
+	if (editingKitAffectEntire()) {
+		return horizontalMenusChainForKit;
+	}
+	if (editingCVOrMIDIClip()) {
+		return horizontalMenusChainForMidiOrCv;
 	}
 	if (getCurrentAudioClip() != nullptr) {
-		return std::span<HorizontalMenu* const>(horizontalMenusChainForAudioClip);
+		return horizontalMenusChainForAudioClip;
 	}
-	return std::span<HorizontalMenu* const>(horizontalMenusChainForSound);
+	return horizontalMenusChainForSound;
 }
 
 void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {

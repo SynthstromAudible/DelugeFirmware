@@ -15,18 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/submenu.h"
+#include "definitions_cxx.hpp"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
-#include "processing/engines/audio_engine.h"
+#include "randomizer_integer.h"
 
-namespace deluge::gui::menu_item::submenu {
-class ReverbSidechain final : public HorizontalMenu {
+namespace deluge::gui::menu_item::randomizer::midi_cv {
+class SpreadVelocity final : public RandomizerNonSoundInteger {
 public:
-	using HorizontalMenu::HorizontalMenu;
-
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
-		soundEditor.currentSidechain = &AudioEngine::reverbSidechain;
-		Submenu::beginSession(navigatedBackwardFrom);
+	using RandomizerNonSoundInteger::RandomizerNonSoundInteger;
+	void readCurrentValue() override {
+		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->spreadVelocity));
+	}
+	void writeCurrentValue() override {
+		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
+		soundEditor.currentArpSettings->spreadVelocity = value;
+	}
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow();
 	}
 };
-} // namespace deluge::gui::menu_item::submenu
+} // namespace deluge::gui::menu_item::randomizer::midi_cv

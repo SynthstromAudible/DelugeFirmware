@@ -15,26 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "definitions_cxx.hpp"
-#include "gui/menu_item/arpeggiator/midi_cv/arp_integer.h"
-#include "gui/menu_item/value_scaling.h"
+#include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
-#include "model/song/song.h"
 
-namespace deluge::gui::menu_item::arpeggiator::midi_cv {
-class SwapProbability final : public ArpNonSoundInteger {
+namespace deluge::gui::menu_item::randomizer::midi_cv {
+class RandomizerNonSoundInteger : public Integer {
 public:
-	using ArpNonSoundInteger::ArpNonSoundInteger;
-	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->swapProbability));
-	}
-	void writeCurrentValue() override {
-		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->swapProbability = value;
-	}
+	using Integer::Integer;
+	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuValue; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow();
+		return (soundEditor.editingCVOrMIDIClip() || soundEditor.editingNonAudioDrumRow())
+		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return PERCENT; }
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
+	}
 };
-} // namespace deluge::gui::menu_item::arpeggiator::midi_cv
+} // namespace deluge::gui::menu_item::randomizer::midi_cv
