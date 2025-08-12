@@ -37,8 +37,9 @@ MenuPermission HorizontalMenuGroup::checkPermissionToBeginSession(ModControllabl
 }
 
 void HorizontalMenuGroup::beginSession(MenuItem* navigatedBackwardFrom) {
-	Submenu::beginSession(navigatedBackwardFrom);
+	HorizontalMenu::beginSession(navigatedBackwardFrom);
 	navigated_backward_from = navigatedBackwardFrom;
+	lastSelectedItemPosition = kNoSelection;
 
 	// A horizontal menu can modify soundEditor parameters at the beginning of a session,
 	// which in their turn can affect whether an item is relevant or not.
