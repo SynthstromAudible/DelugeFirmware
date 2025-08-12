@@ -31,7 +31,7 @@ public:
 	    : Integer(newName, newTitle), is_reverb_sidechain_{isReverbSidechain} {}
 
 	void readCurrentValue() override {
-		const auto sidechain = getCurrentSidechain();
+		const auto sidechain = getSidechain(is_reverb_sidechain_);
 		this->setValue(getLookupIndexFromValue(sidechain->release >> 3, releaseRateTable, 50));
 	}
 	bool usesAffectEntire() override { return true; }
@@ -54,7 +54,7 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			const auto sidechain = getCurrentSidechain();
+			const auto sidechain = getSidechain(is_reverb_sidechain_);
 			sidechain->release = current_value;
 		}
 
@@ -72,9 +72,5 @@ public:
 
 private:
 	bool is_reverb_sidechain_;
-
-	SideChain* getCurrentSidechain() const {
-		return is_reverb_sidechain_ ? &AudioEngine::reverbSidechain : &soundEditor.currentSound->sidechain;
-	}
 };
 } // namespace deluge::gui::menu_item::sidechain
