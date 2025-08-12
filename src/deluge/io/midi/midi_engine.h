@@ -65,9 +65,12 @@ public:
 	MidiEngine();
 
 	void sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter);
+	void sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter,
+	              uint32_t deviceFilter);
 	void sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter);
 
 	void sendMidi(MIDISource source, MIDIMessage message, int32_t filter = kMIDIOutputFilterNoMPE, bool sendUSB = true);
+	void sendMidi(MIDISource source, MIDIMessage message, int32_t filter, bool sendUSB, uint32_t deviceFilter);
 	void sendClock(MIDISource source, bool sendUSB = true, int32_t howMany = 1);
 	void sendStart(MIDISource source);
 	void sendStop(MIDISource source);
@@ -77,6 +80,7 @@ public:
 	void checkIncomingMidi();
 	void flushMIDI();
 	void sendUsbMidi(MIDIMessage message, int32_t filter);
+	void sendUsbMidi(MIDIMessage message, int32_t filter, uint32_t deviceFilter);
 
 	void sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter);
 	void sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter);

@@ -115,6 +115,10 @@ public:
 	// Numbers 0 to 15 can all be an MPE member depending on configuration
 	MPEOutputMemberChannel mpeOutputMemberChannels[16];
 
+	// MIDI output device selection - bitmask where bit 0 = DIN, bit 1+ = USB devices
+	// 0 means send to all devices (current behavior)
+	uint32_t outputDeviceMask{0};
+
 	char const* getXMLTag() override { return "midi"; }
 	char const* getSlotXMLTag() override {
 		return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "channel";

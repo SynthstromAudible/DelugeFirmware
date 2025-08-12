@@ -834,7 +834,7 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 
 		int32_t lowestMemberChannel = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE)
 		                                  ? 1
-		                                  : MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput;
+		                                  : MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput;
 		int32_t highestMemberChannel = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE)
 		                                   ? MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput
 		                                   : 14;
@@ -951,7 +951,8 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 		sendNoteToInternal(true, noteCodePostArp, arpNote->velocity, outputMemberChannel);
 	}
 	else {
-		midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, outputMemberChannel, channel);
+		midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, outputMemberChannel, channel,
+		                    outputDeviceMask);
 	}
 }
 
@@ -987,7 +988,7 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 	}
 	// If no MPE, nice and simple
 	else if (!sendsToMPE()) {
-		midiEngine.sendNote(this, false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE);
+		midiEngine.sendNote(this, false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE, outputDeviceMask);
 
 		if (collapseAftertouch) {
 
@@ -1008,7 +1009,7 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 		mpeOutputMemberChannels[oldOutputMemberChannel].lastNoteCode = noteCodePostArp;
 		mpeOutputMemberChannels[oldOutputMemberChannel].noteOffOrder = lastNoteOffOrder++;
 
-		midiEngine.sendNote(this, false, noteCodePostArp, velocity, oldOutputMemberChannel, channel);
+		midiEngine.sendNote(this, false, noteCodePostArp, velocity, oldOutputMemberChannel, channel, outputDeviceMask);
 
 		// And now, if this note was sharing a member channel with any others, we want to send MPE values for those new
 		// averages

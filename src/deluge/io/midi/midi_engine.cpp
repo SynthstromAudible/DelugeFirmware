@@ -85,6 +85,25 @@ void MidiEngine::sendNote(MIDISource source, bool on, int32_t note, uint8_t velo
 	}
 }
 
+void MidiEngine::sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter,
+                          uint32_t deviceFilter) {
+	if (note < 0 || note >= 128) {
+		return;
+	}
+
+	// This is the only place where velocity is limited like this. In the internal engine, it's allowed to go right
+	// between 0 and 128
+	velocity = std::max((uint8_t)1, velocity);
+	velocity = std::min((uint8_t)127, velocity);
+
+	if (on) {
+		sendMidi(source, MIDIMessage::noteOn(channel, note, velocity), filter, true, deviceFilter);
+	}
+	else {
+		sendMidi(source, MIDIMessage::noteOff(channel, note, velocity), filter, true, deviceFilter);
+	}
+}
+
 void MidiEngine::sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter) {
 	sendMidi(source, MIDIMessage::cc(channel, 123, 0), filter);
 }
@@ -179,6 +198,43 @@ void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter
 	--eventStackTop_;
 }
 
+void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter, bool sendUSB, uint32_t deviceFilter) {
+	if (eventStackTop_ == eventStack_.end()) {
+		// We're somehow 16 messages deep, reject this message.
+		return;
+	}
+
+	EventStackStorage::const_iterator stackSearchIt{eventStackTop_};
+	while (stackSearchIt != eventStack_.begin()) {
+		stackSearchIt--;
+		if ((*stackSearchIt) == source) {
+			// We've already processed an event from this source, avoid infinite recursion and reject it
+			return;
+		}
+	}
+	*eventStackTop_ = source;
+	++eventStackTop_;
+
+	// Send USB MIDI
+	if (sendUSB) {
+		sendUsbMidi(message, filter, deviceFilter);
+	}
+
+	// Send serial MIDI
+	auto& dinCable = MIDIDeviceManager::root_din.cable;
+	if (dinCable.wantsToOutputMIDIOnChannel(message, filter)) {
+		// Check if DIN is in the device filter (bit 0)
+		if (deviceFilter == 0 || (deviceFilter & 1)) {
+			auto error = dinCable.sendMessage(message);
+			if (error != Error::NONE && error != Error::NO_ERROR_BUT_GET_OUT) {
+				D_PRINTLN("MIDI send error: %d", static_cast<int>(error));
+			}
+		}
+	}
+
+	--eventStackTop_;
+}
+
 void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 	// If no USB device is connected, don't send anything. Otherwise, we send to all cables.
 	if (MIDIDeviceManager::root_usb == nullptr) {
@@ -189,6 +245,32 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 		if (cable.wantsToOutputMIDIOnChannel(message, filter)) {
 			cable.sendMessage(message);
 		}
+	}
+}
+
+void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter, uint32_t deviceFilter) {
+	if (MIDIDeviceManager::root_usb == nullptr) {
+		return;
+	}
+
+	if (deviceFilter == 0) { // If deviceFilter is 0, send to all devices
+		for (auto& cable : MIDIDeviceManager::root_usb->getCables()) {
+			if (cable.wantsToOutputMIDIOnChannel(message, filter)) {
+				cable.sendMessage(message);
+			}
+		}
+		return;
+	}
+
+	// Send to specific devices based on deviceFilter
+	size_t i = 0;
+	for (auto& cable : MIDIDeviceManager::root_usb->getCables()) {
+		if (deviceFilter & (1 << (i + 1))) { // Check if this USB device is selected (bit i+1)
+			if (cable.wantsToOutputMIDIOnChannel(message, filter)) {
+				cable.sendMessage(message);
+			}
+		}
+		i++;
 	}
 }
 

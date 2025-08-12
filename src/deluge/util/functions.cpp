@@ -25,6 +25,8 @@
 #include "gui/ui/qwerty_ui.h"
 #include "hid/display/display.h"
 #include "hid/encoders.h"
+#include "io/midi/midi_device_manager.h"
+#include "model/instrument/midi_instrument.h"
 #include "modulation/arpeggiator.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
@@ -606,7 +608,41 @@ char const* getOutputTypeName(OutputType outputType, int32_t channel) {
 		return "Kit";
 	case OutputType::MIDI_OUT:
 		if (channel < 16) {
-			return "MIDI";
+			// For MIDI tracks, show the selected output device instead of "MIDI"
+			// Get the current MIDI instrument to check its output device
+			extern Output* getCurrentOutput();
+			Output* currentOutput = getCurrentOutput();
+			if (currentOutput && currentOutput->type == OutputType::MIDI_OUT) {
+				MIDIInstrument* midiInstrument = static_cast<MIDIInstrument*>(currentOutput);
+				uint32_t outputDeviceMask = midiInstrument->outputDeviceMask;
+
+				if (outputDeviceMask != 0) { // Not "ALL devices"
+					// Check if DIN is selected (bit 0)
+					if (outputDeviceMask & 1) {
+						return "DIN";
+					}
+
+					// Check USB devices (bits 1+)
+					if (MIDIDeviceManager::root_usb != nullptr) {
+						for (int32_t i = 0; i < MIDIDeviceManager::root_usb->getNumCables(); i++) {
+							if (outputDeviceMask & (1 << (i + 1))) {
+								MIDICable* usbCable = MIDIDeviceManager::root_usb->getCable(i);
+								if (usbCable) {
+									const char* deviceName = usbCable->getDisplayName();
+									if (deviceName && strlen(deviceName) > 0) {
+										return deviceName;
+									}
+								}
+								// Fallback to USB number if name not available
+								static char usbName[8];
+								snprintf(usbName, sizeof(usbName), "USB%d", i + 1);
+								return usbName;
+							}
+						}
+					}
+				}
+			}
+			return "MIDI"; // Fallback to "MIDI" if no specific device selected
 		}
 		else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 			return "MPE";

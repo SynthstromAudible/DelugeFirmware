@@ -66,12 +66,37 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 void MIDIDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
 	NonAudioDrum::noteOnPostArp(noteCodePostArp, arpNote, noteIndex);
 	lastVelocity = arpNote->velocity;
-	midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, channel, kMIDIOutputFilterNoMPE);
+
+	// Convert outputDevice to deviceFilter bitmask
+	uint32_t deviceFilter = 0;
+	if (outputDevice > 0) {
+		if (outputDevice == 1) {
+			deviceFilter = 1; // DIN only (bit 0)
+		}
+		else {
+			deviceFilter = (1 << (outputDevice - 1)); // USB device (bit outputDevice-1)
+		}
+	}
+
+	midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, channel, kMIDIOutputFilterNoMPE, deviceFilter);
 }
 
 void MIDIDrum::noteOffPostArp(int32_t noteCodePostArp) {
 	NonAudioDrum::noteOffPostArp(noteCodePostArp);
-	midiEngine.sendNote(this, false, noteCodePostArp, kDefaultNoteOffVelocity, channel, kMIDIOutputFilterNoMPE);
+
+	// Convert outputDevice to deviceFilter bitmask
+	uint32_t deviceFilter = 0;
+	if (outputDevice > 0) {
+		if (outputDevice == 1) {
+			deviceFilter = 1; // DIN only (bit 0)
+		}
+		else {
+			deviceFilter = (1 << (outputDevice - 1)); // USB device (bit outputDevice-1)
+		}
+	}
+
+	midiEngine.sendNote(this, false, noteCodePostArp, kDefaultNoteOffVelocity, channel, kMIDIOutputFilterNoMPE,
+	                    deviceFilter);
 }
 
 void MIDIDrum::killAllVoices() {

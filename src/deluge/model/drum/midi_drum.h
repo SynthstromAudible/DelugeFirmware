@@ -45,4 +45,8 @@ public:
 
 	uint8_t note;
 	int8_t noteEncoderCurrentOffset;
+
+	// MIDI output device selection - 0 means send to all devices (current behavior)
+	// 1 = DIN, 2+ = USB devices (device index + 1)
+	uint8_t outputDevice{0};
 };
