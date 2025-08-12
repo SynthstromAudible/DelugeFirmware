@@ -27,7 +27,7 @@ namespace deluge::gui::menu_item {
 
 class HorizontalMenu : public Submenu {
 public:
-	friend class HorizontalMenuCombined;
+	friend class HorizontalMenuGroup;
 
 	enum Layout { FIXED, DYNAMIC };
 
@@ -53,18 +53,23 @@ public:
 	void selectEncoderAction(int32_t offset) override;
 	void renderOLED() override;
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-	                                             MultiRange** currentRange) override;
+	                                             ::MultiRange** currentRange) override;
 	void endSession() override;
+	virtual bool hasItem(const MenuItem* item);
 
 protected:
 	Paging paging;
-	Layout layout = DYNAMIC;
-	int32_t lastSelectedItemPosition = kNoSelection;
+	Layout layout{DYNAMIC};
+	int32_t lastSelectedItemPosition{kNoSelection};
 
 	virtual void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem);
 	virtual Paging& preparePaging(std::span<MenuItem*> items, const MenuItem* currentItem);
-	virtual void selectMenuItem(std::span<MenuItem*> pageItems, const MenuItem* previous, int32_t selectedColumn);
+	virtual void handleInstrumentButtonPress(std::span<MenuItem*> visiblePageItems, const MenuItem* previous,
+	                                         int32_t pressedButtonPosition);
+	virtual void selectMenuItem(int32_t pageNumber, int32_t itemPos);
 	virtual void switchVisiblePage(int32_t direction);
+	virtual void switchHorizontalMenu(int32_t direction, std::span<HorizontalMenu* const> chain,
+	                                  bool forceSelectFirstItem = false);
 
 private:
 	void updateSelectedMenuItemLED(int32_t itemNumber) const;

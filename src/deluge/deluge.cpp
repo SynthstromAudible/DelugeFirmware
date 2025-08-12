@@ -470,8 +470,10 @@ void setupStartupSong() {
 	String failSafePath;
 	failSafePath.concatenate("SONGS/__STARTUP_OFF_CHECK_");
 	auto size = strlen(filename) + 1;
+	// The messages we show to the user are mostly plain language, but
+	// for non-user facing errors we use codes. All messages are < 20 chars.
 	if (size > 2048) {
-		display->displayPopup("Error reading filename");
+		display->consoleText("Startup path too long");
 		return;
 	}
 
@@ -480,15 +482,14 @@ void setupStartupSong() {
 	failSafePath.concatenate(replaced);
 
 	if (StorageManager::fileExists(failSafePath.get())) {
-		String msgReason;
-		msgReason.concatenate("STARTUP OFF, reason: ");
-		msgReason.concatenate(filename);
-		display->displayPopup(msgReason.get());
-		return;
+		// canary exists, previous boot failed?
+		display->consoleText("Startup fault F1");
+		return; // no cleanup, keep canary!
 	}
 	switch (startupSongMode) {
 	case StartupSongMode::TEMPLATE: {
 		if (!StorageManager::fileExists(defaultSongFullPath)) {
+			display->consoleText("Creating template");
 			currentSong->writeTemplateSong(defaultSongFullPath);
 		}
 	}
@@ -496,22 +497,41 @@ void setupStartupSong() {
 	case StartupSongMode::LASTOPENED:
 		[[fallthrough]];
 	case StartupSongMode::LASTSAVED: {
+		// Create canary
 		FIL f;
 		if (f_open(&f, failSafePath.get(), FA_CREATE_ALWAYS | FA_WRITE) == FR_OK) {
 			f_close(&f);
 		}
 		else {
-			// something wrong creating canary file, failsafe.
-			return;
+			// Could not create canary, not a user-facing error so code is fine.
+			// We're going to skip the startup song to avoid any issues.
+			display->consoleText("Startup fault F2");
+			return; // no canary, no cleanup
 		}
+		// Handle missing song
 		if (!StorageManager::fileExists(filename)) {
-			filename = defaultSongFullPath;
-			if (startupSongMode == StartupSongMode::TEMPLATE || !StorageManager::fileExists(filename)) {
+			if (startupSongMode == StartupSongMode::TEMPLATE) {
+				// we tried to create it earlier, but didn't happen?
+				display->consoleText("Startup fault F3");
+				// cleanup, this wasn't a crash
+				f_unlink(failSafePath.get());
+				return;
+			}
+			display->consoleText("Song missing");
+			// user didn't ask for the template, but if it exists let's use it instead
+			if (StorageManager::fileExists(defaultSongFullPath)) {
+				display->consoleText("Using template");
+				filename = defaultSongFullPath;
+				startupSongMode = StartupSongMode::TEMPLATE;
+			}
+			else {
+				// cleanup, this wasn't a crash
+				f_unlink(failSafePath.get());
 				return;
 			}
 		}
+		// Load song, if we got this far!
 		void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
-
 		currentSong->setSongFullPath(filename);
 		if (openUI(&loadSongUI)) {
 			loadSongUI.performLoad();
@@ -520,6 +540,11 @@ void setupStartupSong() {
 				currentSong->name.clear();
 			}
 		}
+		else {
+			// what just failed??
+			display->consoleText("Startup fault F4");
+		}
+		// ...but we got this far, cleanup
 		f_unlink(failSafePath.get());
 	} break;
 	case StartupSongMode::BLANK:

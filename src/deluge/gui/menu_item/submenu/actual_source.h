@@ -31,7 +31,8 @@ public:
 
 		// If we are in the sample oscillator and not on the first page,
 		// we show SAMPLE 1/2 as the menu title
-		if (soundEditor.currentSound->sources[source_id_].oscType == OscType::SAMPLE && paging.visiblePageNumber > 0) {
+		const auto& source = soundEditor.currentSound->sources[source_id_];
+		if (renderingStyle() == HORIZONTAL && source.oscType == OscType::SAMPLE && paging.visiblePageNumber > 0) {
 			l10nString = l10n::String::STRING_FOR_SAMPLE_MENU_TITLE;
 		}
 

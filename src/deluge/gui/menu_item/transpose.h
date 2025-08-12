@@ -51,27 +51,6 @@ public:
 	void learnKnob(::MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
 		MenuItemWithCCLearning::learnKnob(cable, whichKnob, modKnobMode, midiChannel);
 	};
-
-	void getNotificationValue(StringBuf& valueBuf) override { valueBuf.appendFloat(getValue() / 100.f, 2, 2); }
-
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
-		DEF_STACK_STRING_BUF(valueBuf, 10);
-		const int32_t value = getValue();
-		valueBuf.appendFloat(value / 100.f, 2, 2);
-		if (value <= -1000) {
-			valueBuf.truncate(3);
-		}
-
-		return OLED::main.drawStringCentered(valueBuf.data(), startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
-	}
-
-	void selectEncoderAction(int32_t offset) override {
-		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
-			// In Horizontal menus we edit with 1.00 step by default, and with 0.01 step if the shift is pressed
-			soundEditor.numberEditSize = Buttons::isButtonPressed(hid::button::SHIFT) ? 1 : 100;
-		}
-		Decimal::selectEncoderAction(offset);
-	}
 };
 
 } // namespace deluge::gui::menu_item
