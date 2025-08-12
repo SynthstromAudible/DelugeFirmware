@@ -119,8 +119,7 @@ public:
 	bool pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2);
 	void selectEncoderAction(int8_t offset) override;
 	bool canSeeViewUnderneath() override { return true; }
-	bool setup(Clip* clip = nullptr, const MenuItem* item = nullptr, deluge::gui::menu_item::Submenu* parent = nullptr,
-	           int32_t sourceIndex = 0);
+	bool setup(Clip* clip = nullptr, const MenuItem* item = nullptr, int32_t sourceIndex = 0);
 	void enterOrUpdateSoundEditor(bool on);
 	void blinkShortcut();
 	ActionResult potentialShortcutPadAction(int32_t x, int32_t y, bool on);

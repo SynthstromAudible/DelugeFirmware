@@ -53,11 +53,6 @@ MenuPermission HorizontalMenu::checkPermissionToBeginSession(ModControllableAudi
 	return Submenu::checkPermissionToBeginSession(modControllable, whichThing, currentRange);
 }
 
-void HorizontalMenu::beginSession(MenuItem* navigatedBackwardFrom) {
-	Submenu::beginSession(navigatedBackwardFrom);
-	chain = soundEditor.getCurrentHorizontalMenusChain();
-}
-
 ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
@@ -69,6 +64,7 @@ ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRou
 	if (b == CROSS_SCREEN_EDIT || b == SCALE_MODE) {
 		const int32_t direction = b == CROSS_SCREEN_EDIT ? 1 : -1;
 
+		const auto chain = soundEditor.getCurrentHorizontalMenusChain();
 		if (chain.has_value() && Buttons::isButtonPressed(SHIFT)) {
 			switchHorizontalMenu(direction, chain.value(), true);
 		}
@@ -98,6 +94,7 @@ void HorizontalMenu::renderOLED() {
 	const auto& paging = preparePaging(items, *current_item_);
 
 	// Light up the scale and cross-screen buttons LEDs to indicate they can be used to switch between pages
+	const auto chain = soundEditor.getCurrentHorizontalMenusChain();
 	const auto hasPagesOrChain = paging.totalPages > 1 || chain.has_value();
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, hasPagesOrChain);
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, hasPagesOrChain);
@@ -263,6 +260,7 @@ void HorizontalMenu::switchVisiblePage(int32_t direction) {
 	int32_t targetPageNumber = paging.visiblePageNumber + direction;
 
 	// If we're going outside the current menu, switch to the next / previous menu from the chain
+	const auto chain = soundEditor.getCurrentHorizontalMenusChain();
 	if (chain.has_value() && (targetPageNumber < 0 || targetPageNumber >= paging.totalPages)) {
 		return switchHorizontalMenu(direction, chain.value());
 	}
@@ -373,7 +371,7 @@ void HorizontalMenu::selectMenuItem(int32_t pageNumber, int32_t itemPos) {
 	int32_t positionOnPage = 0;
 
 	// Find the target item on the next / previous page
-	for (const auto it : std::views::filter(items, [&](auto it) { return layout == FIXED || isItemRelevant(it); })) {
+	for (const auto it : std::views::filter(items, [&](auto i) { return layout == FIXED || isItemRelevant(i); })) {
 		const auto itemSpan = it->getColumnSpan();
 
 		// Check if we need to move to the next page
@@ -384,12 +382,14 @@ void HorizontalMenu::selectMenuItem(int32_t pageNumber, int32_t itemPos) {
 		}
 
 		// Select an item with the target position
-		// If the item at a given position is not relevant, select the closest item instead
+		// If the item at a given position is not relevant, select the closest relevant item instead
 		if (currentPageNumber == pageNumber) {
-			if (positionOnPage > itemPos && isItemRelevant(*current_item_)) {
-				break; // Past target position
+			if (isItemRelevant(it)) {
+				current_item_ = std::ranges::find(items, it);
 			}
-			current_item_ = std::ranges::find(items, it);
+			if (positionOnPage >= itemPos) {
+				break;
+			}
 		}
 		currentPageSpan += itemSpan;
 		positionOnPage++;
@@ -593,6 +593,10 @@ void HorizontalMenu::handleItemAction(MenuItem* menuItem) {
 	}
 
 	soundEditor.enterSubmenu(menuItem);
+}
+
+bool HorizontalMenu::hasItem(const MenuItem* item) {
+	return std::ranges::contains(items, item);
 }
 
 } // namespace deluge::gui::menu_item
