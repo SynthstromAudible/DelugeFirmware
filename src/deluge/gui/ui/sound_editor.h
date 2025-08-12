@@ -168,7 +168,9 @@ public:
 	void updatePadLightsFor(MenuItem* item);
 
 	// Horizontal menus
-	std::optional<std::span<deluge::gui::menu_item::HorizontalMenu* const>> getCurrentHorizontalMenusChain();
+	deluge::gui::menu_item::HorizontalMenu* maybeGetParentMenu(MenuItem* item);
+	std::optional<std::span<deluge::gui::menu_item::HorizontalMenu* const>>
+	getCurrentHorizontalMenusChain(bool checkNavigationDepth = true);
 
 private:
 	/// Setup shortcut blinking by finding the given menu item in the provided item map
