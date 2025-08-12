@@ -29,11 +29,11 @@ public:
 	[[nodiscard]] std::string_view getTitle() const override {
 		auto l10nString = title;
 
-		// If we are in the sample oscillator and not on the first page,
-		// we show SAMPLE 1/2 as the menu title
+		// If we are in the sample oscillator menu and not on the first page,
+		// we display OSC1/2 SAMPLE as the menu title
 		const auto& source = soundEditor.currentSound->sources[source_id_];
 		if (renderingStyle() == HORIZONTAL && source.oscType == OscType::SAMPLE && paging.visiblePageNumber > 0) {
-			l10nString = l10n::String::STRING_FOR_SAMPLE_MENU_TITLE;
+			l10nString = l10n::String::STRING_FOR_OSC_SAMPLE_MENU_TITLE;
 		}
 
 		return getNameOrTitle(l10nString);

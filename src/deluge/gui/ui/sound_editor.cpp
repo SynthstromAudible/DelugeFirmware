@@ -1681,18 +1681,7 @@ doMIDIOrCV:
 
 	// If we're on OLED, a parent menu & horizontal menus are in play,
 	// then we swap the parent in place of the child.
-	HorizontalMenu* parent = [&] {
-		const auto chain = getCurrentHorizontalMenusChain();
-		if (!chain.has_value()) {
-			return static_cast<HorizontalMenu*>(nullptr);
-		}
-		const auto it = std::ranges::find_if(chain.value(), [&](HorizontalMenu* menu) { return menu->hasItem(item); });
-		if (it == chain->end()) {
-			return static_cast<HorizontalMenu*>(nullptr);
-		}
-		return *it;
-	}();
-
+	HorizontalMenu* parent = maybeGetParentMenu(newItem);
 	if (parent != nullptr) {
 		const bool focused = parent->focusChild(newItem);
 		if (newItem == &file0SelectorMenu || newItem == &file1SelectorMenu) {
@@ -1936,9 +1925,22 @@ void SoundEditor::mpeZonesPotentiallyUpdated() {
 	}
 }
 
-std::optional<std::span<HorizontalMenu* const>> SoundEditor::getCurrentHorizontalMenusChain() {
-	if (navigationDepth > 0) {
-		// We're in the sound main menu, disallow chaining
+HorizontalMenu* SoundEditor::maybeGetParentMenu(MenuItem* item) {
+	const auto chain = getCurrentHorizontalMenusChain(false);
+	if (!chain.has_value()) {
+		return nullptr;
+	}
+	const auto it = std::ranges::find_if(chain.value(), [&](HorizontalMenu* menu) { return menu->hasItem(item); });
+	if (it == chain->end()) {
+		return nullptr;
+	}
+	return *it;
+}
+
+std::optional<std::span<HorizontalMenu* const>> SoundEditor::getCurrentHorizontalMenusChain(bool checkNavigationDepth) {
+	if (checkNavigationDepth && navigationDepth > 0) {
+		// If a horizontal menu was accessed from the sound menu,
+		// we shouldn't allow switching between menus in the chain because the sound menu has different hierarchy
 		return std::nullopt;
 	}
 	if (!display->haveOLED() || runtimeFeatureSettings.get(HorizontalMenus) == Off) {
