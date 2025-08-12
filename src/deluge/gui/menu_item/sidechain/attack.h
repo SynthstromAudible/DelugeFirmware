@@ -22,6 +22,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
+#include "utils.h"
 
 namespace deluge::gui::menu_item::sidechain {
 class Attack final : public Integer {
@@ -30,7 +31,7 @@ public:
 	    : Integer(newName, newTitle), is_reverb_sidechain_{isReverbSidechain} {}
 
 	void readCurrentValue() override {
-		const auto sidechain = getCurrentSidechain();
+		const auto sidechain = getSidechain(is_reverb_sidechain_);
 		this->setValue(getLookupIndexFromValue(sidechain->attack >> 2, attackRateTable, 50));
 	}
 	bool usesAffectEntire() override { return true; }
@@ -53,7 +54,7 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			const auto sidechain = getCurrentSidechain();
+			const auto sidechain = getSidechain(is_reverb_sidechain_);
 			sidechain->attack = current_value;
 		}
 
@@ -71,9 +72,5 @@ public:
 
 private:
 	bool is_reverb_sidechain_;
-
-	SideChain* getCurrentSidechain() const {
-		return is_reverb_sidechain_ ? &AudioEngine::reverbSidechain : &soundEditor.currentSound->sidechain;
-	}
 };
 } // namespace deluge::gui::menu_item::sidechain
