@@ -21,9 +21,8 @@
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
-#include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::arpeggiator {
+namespace deluge::gui::menu_item::randomizer {
 class RandomizerLock final : public Selection {
 public:
 	using Selection::Selection;
@@ -73,4 +72,4 @@ public:
 		OLED::main.drawIconCentered(icon, startX, width, startY);
 	}
 };
-} // namespace deluge::gui::menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::randomizer

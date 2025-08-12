@@ -15,19 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/submenu.h"
+#include "definitions_cxx.hpp"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
-#include "processing/sound/sound.h"
+#include "randomizer_integer.h"
 
-namespace deluge::gui::menu_item::submenu {
-class Sidechain final : public HorizontalMenu {
+namespace deluge::gui::menu_item::randomizer::midi_cv {
+class RatchetAmount final : public RandomizerNonSoundInteger {
 public:
-	using HorizontalMenu::HorizontalMenu;
-
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
-		soundEditor.currentSidechain = &soundEditor.currentSound->sidechain;
-		HorizontalMenu::beginSession(navigatedBackwardFrom);
+	using RandomizerNonSoundInteger::RandomizerNonSoundInteger;
+	void readCurrentValue() override {
+		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->ratchetAmount));
+	}
+	void writeCurrentValue() override {
+		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
+		soundEditor.currentArpSettings->ratchetAmount = value;
 	}
 };
-
-} // namespace deluge::gui::menu_item::submenu
+} // namespace deluge::gui::menu_item::randomizer::midi_cv
