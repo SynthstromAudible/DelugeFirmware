@@ -186,7 +186,9 @@ Error MIDIRootComplexUSBPeripheral::poll() {
 }
 
 MIDICable* MIDIRootComplexUSBPeripheral::getCable(size_t index) {
-	if (index < 0 || index >= getNumCables()) {
+	// We need to use cables_.size() instead of getNumCables(), as that one doesn't
+	// admit that the last cable exists, since it's a secret one!
+	if (index < 0 || index >= cables_.size()) {
 		return nullptr;
 	}
 	return &cables_[index];

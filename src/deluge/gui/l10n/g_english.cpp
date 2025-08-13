@@ -429,7 +429,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SAMPLE_PREVIEW, "Sample preview"},
         {STRING_FOR_SAMPLE_RECORDER, "Sample recorder"},
         {STRING_FOR_RECORD_TO_SAMPLE, "Record to sample *"},
-        {STRING_FOR_SAMPLE_MENU_TITLE, "Sample *"},
+        {STRING_FOR_OSC_SAMPLE_MENU_TITLE, "Osc* sample"},
         {STRING_FOR_PLAY_CURSOR, "Play-cursor"},
         {STRING_FOR_FIRMWARE_VERSION, "Firmware version"},
         {STRING_FOR_COMMUNITY_FTS, "Community features"},

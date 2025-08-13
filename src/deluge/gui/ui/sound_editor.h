@@ -48,6 +48,7 @@ class MIDICable;
 
 namespace deluge::gui::menu_item {
 class Submenu;
+class HorizontalMenu;
 enum class RangeEdit : uint8_t;
 } // namespace deluge::gui::menu_item
 
@@ -118,8 +119,7 @@ public:
 	bool pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2);
 	void selectEncoderAction(int8_t offset) override;
 	bool canSeeViewUnderneath() override { return true; }
-	bool setup(Clip* clip = nullptr, const MenuItem* item = nullptr, deluge::gui::menu_item::Submenu* parent = nullptr,
-	           int32_t sourceIndex = 0);
+	bool setup(Clip* clip = nullptr, const MenuItem* item = nullptr, int32_t sourceIndex = 0);
 	void enterOrUpdateSoundEditor(bool on);
 	void blinkShortcut();
 	ActionResult potentialShortcutPadAction(int32_t x, int32_t y, bool on);
@@ -166,6 +166,11 @@ public:
 	bool inNoteRowEditor();
 	void toggleNoteEditorParamMenu(int32_t on);
 	void updatePadLightsFor(MenuItem* item);
+
+	// Horizontal menus
+	deluge::gui::menu_item::HorizontalMenu* maybeGetParentMenu(MenuItem* item);
+	std::optional<std::span<deluge::gui::menu_item::HorizontalMenu* const>>
+	getCurrentHorizontalMenusChain(bool checkNavigationDepth = true);
 
 private:
 	/// Setup shortcut blinking by finding the given menu item in the provided item map

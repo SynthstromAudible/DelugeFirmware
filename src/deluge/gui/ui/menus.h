@@ -17,13 +17,20 @@
 #include "gui/menu_item/osc/sync.h"
 #include "gui/menu_item/patch_cables.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
+#include "gui/menu_item/randomizer/midi_cv/note_probability.h"
+#include "gui/menu_item/randomizer/midi_cv/spread_velocity.h"
+#include "gui/menu_item/randomizer/randomizer_lock.h"
 #include "gui/menu_item/sample/end.h"
 #include "gui/menu_item/sample/start.h"
 #include "gui/menu_item/sequence/direction.h"
+#include "gui/menu_item/source/patched_param/modulator_level.h"
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
+#include <array>
 
-#include <gui/menu_item/source/patched_param/modulator_level.h>
+namespace deluge::gui::menu_item {
+class HorizontalMenu;
+}
 
 extern deluge::gui::menu_item::patched_param::IntegerNonFM noiseMenu;
 extern deluge::gui::menu_item::osc::Sync oscSyncMenu;
@@ -52,6 +59,10 @@ extern deluge::gui::menu_item::Submenu soundEditorRootMenuSongView;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuKitGlobalFX;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenu;
 extern deluge::gui::menu_item::Submenu settingsRootMenu;
+
+extern deluge::gui::menu_item::randomizer::RandomizerLock randomizerLockMenu;
+extern deluge::gui::menu_item::randomizer::midi_cv::SpreadVelocity spreadVelocityMenuMIDIOrCV;
+extern deluge::gui::menu_item::randomizer::midi_cv::NoteProbability randomizerNoteProbabilityMenuMIDIOrCV;
 
 // note editor menu's
 extern deluge::gui::menu_item::Submenu noteEditorRootMenu;
@@ -95,9 +106,8 @@ extern MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForSongView[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForKitGlobalFX[kDisplayWidth][kDisplayHeight];
 
-extern deluge::gui::menu_item::Submenu* parentsForSoundShortcuts[kDisplayWidth][kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForSoundShortcutsSecondLayer[kDisplayWidth][kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForAudioShortcuts[kDisplayWidth][kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForSongShortcuts[kDisplayWidth][kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForKitGlobalFXShortcuts[kDisplayWidth][kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForMidiOrCVParamShortcuts[kDisplayWidth][kDisplayHeight];
+extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 18> horizontalMenusChainForSound;
+extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 12> horizontalMenusChainForKit;
+extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 9> horizontalMenusChainForSong;
+extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 11> horizontalMenusChainForAudioClip;
+extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 2> horizontalMenusChainForMidiOrCv;

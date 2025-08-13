@@ -16,24 +16,26 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/arpeggiator/midi_cv/arp_integer.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
+#include "randomizer_integer.h"
 
-namespace deluge::gui::menu_item::arpeggiator::midi_cv {
-class ChordPolyphony final : public ArpNonSoundInteger {
+namespace deluge::gui::menu_item::randomizer::midi_cv {
+class BassProbability final : public RandomizerNonSoundInteger {
 public:
-	using ArpNonSoundInteger::ArpNonSoundInteger;
+	using RandomizerNonSoundInteger::RandomizerNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->chordPolyphony));
+		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->bassProbability));
 	}
 	void writeCurrentValue() override {
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
-		soundEditor.currentArpSettings->chordPolyphony = value;
+		soundEditor.currentArpSettings->bassProbability = value;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingCVOrMIDIClip();
+		return (soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow())
+		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return PERCENT; }
 };
-} // namespace deluge::gui::menu_item::arpeggiator::midi_cv
+} // namespace deluge::gui::menu_item::randomizer::midi_cv
