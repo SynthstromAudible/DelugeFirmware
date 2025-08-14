@@ -68,8 +68,7 @@ protected:
 	                                         int32_t pressedButtonPosition);
 	virtual void selectMenuItem(int32_t pageNumber, int32_t itemPos);
 	virtual void switchVisiblePage(int32_t direction);
-	virtual void switchHorizontalMenu(int32_t direction, std::span<HorizontalMenu* const> chain,
-	                                  bool forceSelectFirstItem = false);
+	virtual void switchHorizontalMenu(int32_t direction, std::span<HorizontalMenu* const> chain);
 
 private:
 	void updateSelectedMenuItemLED(int32_t itemNumber) const;
