@@ -106,7 +106,7 @@ extern MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForSongView[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForKitGlobalFX[kDisplayWidth][kDisplayHeight];
 
-extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 18> horizontalMenusChainForSound;
+extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 17> horizontalMenusChainForSound;
 extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 12> horizontalMenusChainForKit;
 extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 9> horizontalMenusChainForSong;
 extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 11> horizontalMenusChainForAudioClip;
