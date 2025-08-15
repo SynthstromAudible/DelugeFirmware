@@ -19,11 +19,10 @@
 #include <cstdint>
 #include <span>
 #include <utility>
-
 namespace deluge::dsp {
 void renderWave(const int16_t* __restrict__ table, int32_t tableSizeMagnitude, int32_t amplitude,
-                std::span<int32_t> buffer, uint32_t phaseIncrement, uint32_t phase, bool applyAmplitude,
-                uint32_t phaseToAdd, int32_t amplitudeIncrement);
+                int32_t* __restrict__ outputBuffer, int32_t* bufferEnd, uint32_t phaseIncrement, uint32_t phase,
+                bool applyAmplitude, uint32_t phaseToAdd, int32_t amplitudeIncrement);
 void renderPulseWave(const int16_t* __restrict__ table, int32_t tableSizeMagnitude, int32_t amplitude,
                      std::span<int32_t> outputBuffer, uint32_t phaseIncrement, uint32_t phase, bool applyAmplitude,
                      uint32_t phaseToAdd, int32_t amplitudeIncrement);
