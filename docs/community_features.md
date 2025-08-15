@@ -34,12 +34,12 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### 2.2 Horizontal Menus
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
-  - Oscillator 1-2
-  - Oscillator mixer
-  - Sample 1-2
-  - Sample recorder
+  - Oscillator 1-2.
+  - Oscillator mixer.
+  - Sample 1-2.
+  - Sample recorder.
   - Modulator 1-2
-  - Master
+  - Master.
   - Envelope 1-4.
   - LFO 1-4.
   - LPF and HPF.
@@ -47,6 +47,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - Distortion.
   - Reverb.
   - Reverb sidechain.
+  - Sidechain.
   - Delay.
   - Mod FX.
   - Compressor.
@@ -58,11 +59,11 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
     - When in a Horizontal Menu, the selected instruments LED corresponding to the Horizontal Menu item selected will light up
   - Additionally, you can change the selected menu item by `Press + Turn select encoder`
-  - You can use the `SCALE` and `CROSS-SCREEN` buttons to switch between pages or adjacent menus
-    - Use `CROSS-SCREEN` button to switch to the next page, or the next Horizontal menu if you're on the last page
-    - Use `SCALE` button to switch to the previous page, or the previous Horizontal menu if you're on the first page
-    - Use `SHIFT + CROSS-SCREEN` button combo to switch straight to the next Horizontal menu
-    - Use `SHIFT + SCALE` button combo to switch straight to the previous Horizontal menu
+  - You can use the `SCALE` and `CROSS-SCREEN` buttons to switch between pages and adjacent menus
+    - Use `CROSS-SCREEN` button to switch to the next page
+    - Use `SCALE` button to switch to the previous page
+    - Use `SHIFT + CROSS-SCREEN` button combo to switch to the next adjacent Horizontal menu
+    - Use `SHIFT + SCALE` button combo to switch to the previous adjacent Horizontal menu
 
 #### 2.3 Layered Shortcuts
 - Layered Shortcuts mechanism allows multiple shortcuts to be accessed under a single shortcut pad. Holding shift and pressing the same shortcut again cycles between shortcuts. The items available under layered shortcuts can also be accessed from menu: layered shortcut is never the only access method.
@@ -72,7 +73,6 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - `UNISON NUMBER`: cycles between `UNISON NUMBER` and `UNISON STEREO SPREAD`, in addition to the previous "press select when in `UNISON NUMBER` access mechanism for `UNISON STEREO SPREAD`.
   - `COMPRESSOR THRESHOLD`: cycles between `COMPRESSOR THRESHOLD` and `COMPRESSOR RATIO`
   - `STUTTER RATE`: cycles between `STUTTER RATE` and `STUTTER DIRECTION`
-  - `ARP MODE`: cycles between `ARP MODE` and the arp randomizer `LOCK`. This is mostly for OLED users to quickly access the `RANDOMIZER` submenu.
 
 #### 2.4 Favourites
 A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UI -> KEYBOARD -> FAVOURITES`.
