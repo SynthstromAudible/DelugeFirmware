@@ -639,7 +639,7 @@ setEnteredTextAndUseFoundFile:
 					goto gotErrorAfterAllocating;
 				}
 useFoundFile:
-				scrollPosVertical = fileIndexSelected;
+				scrollPosVertical = fileIndexSelected > 0 ? fileIndexSelected - 1 : fileIndexSelected;
 				if (display->getNumBrowserAndMenuLines() > 1) {
 					int32_t lastAllowed = fileItems.getNumElements() - display->getNumBrowserAndMenuLines();
 					if (scrollPosVertical > lastAllowed) {
@@ -1042,14 +1042,13 @@ int32_t Browser::calculateNewFileIndex(int8_t offset) {
 		if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
 			// this method of checking for shift press ignores the sticky shift state.
 
-			scroll_multiplier = NUM_FILES_ON_SCREEN; // Default to full speed
+			scroll_multiplier = NUM_FILES_ON_SCREEN;
 
 			// check if scroll direction was reversed during fast scroll sequence.
 			if (loading_delayed_during_fast_scroll) {
 				if (previous_offset_direction == -1 * offset) {
 					// Direction was reversed, so determine the index range of the files on the screen
-					reversal_screen_top_index =
-					    (offset < 0) ? fileIndexSelected - (NUM_FILES_ON_SCREEN - 1) : fileIndexSelected;
+					reversal_screen_top_index = scrollPosVertical;
 				}
 
 				if (reversal_screen_top_index != INT32_MIN) {
@@ -1066,6 +1065,11 @@ int32_t Browser::calculateNewFileIndex(int8_t offset) {
 						// scroll_multiplier stays at default NUM_FILES_ON_SCREEN
 					}
 				}
+			}
+			else if (fileIndexSelected == scrollPosVertical + NUM_FILES_ON_SCREEN / 2) {
+				// Check if current selection is in the center of the screen, and move one more to reach the end of next
+				// screen
+				scroll_multiplier = NUM_FILES_ON_SCREEN + 1;
 			}
 			previous_offset_direction = offset; // Update previous direction tracker
 		}
@@ -1123,10 +1127,14 @@ Error Browser::handleIndexBoundsAndReload(int32_t& new_file_index, int8_t offset
 		// Early return case from calculateNewFileIndex - no elements available
 		return Error::UNSPECIFIED;
 	}
-	if (new_file_index < 0) {
+	int32_t min_allowed_index = loading_delayed_during_fast_scroll ? 0 : 1;
+	if (new_file_index < min_allowed_index) {
 		return handleIndexBelowZero(new_file_index, offset);
 	}
-	else if (new_file_index >= fileItems.getNumElements()) {
+
+	int32_t max_allowed_index =
+	    loading_delayed_during_fast_scroll ? fileItems.getNumElements() - 1 : fileItems.getNumElements() - 2;
+	if (new_file_index > max_allowed_index) {
 		return handleIndexAboveMax(new_file_index, offset);
 	}
 	// otherwise the index is within bounds
@@ -1136,9 +1144,8 @@ Error Browser::handleIndexBoundsAndReload(int32_t& new_file_index, int8_t offset
 Error Browser::handleIndexBelowZero(int32_t& new_file_index, int8_t offset) {
 
 	if (numFileItemsDeletedAtStart) {
-		// reload items because we know there are still items that can be loaded to the left,
-		// since they were deleted from the fileItems array during the culling process when the folder contents were
-		// read
+		// reload items because we know there are still items that can be loaded to the left, since they were
+		// deleted from the fileItems array during the culling process when the folder contents were read
 		scrollPosVertical = 9999;
 		// Calculate the full movement from current position to target position
 		int32_t movement_amount = new_file_index - fileIndexSelected;
@@ -1232,11 +1239,11 @@ Error Browser::reloadItemsAndUpdateIndex(int32_t& new_file_index, int8_t offset,
 
 	// With fast scrolling we can choose a specific search direction to ensure adequate room for movement
 	// and reduce the frequency of reloading the fileItems array
-	if (movement_amount == NUM_FILES_ON_SCREEN) {
+	if (movement_amount > 1) {
 		// fast scrolling downwards on screen, load more files to the right in the array
 		search_direction = CATALOG_SEARCH_RIGHT;
 	}
-	else if (movement_amount == -NUM_FILES_ON_SCREEN) {
+	else if (movement_amount < -1) {
 		// fast scrolling upwards on screen, load more files to the left in the array
 		search_direction = CATALOG_SEARCH_LEFT;
 	}
@@ -1284,7 +1291,7 @@ Error Browser::reloadItemsAndUpdateIndex(int32_t& new_file_index, int8_t offset,
 	else {
 		// Original file not found - this is expected with CATALOG_SEARCH_LEFT
 		// Position ourselves based on where the original filename would fit
-		if (search_direction == CATALOG_SEARCH_LEFT && movement_amount == -NUM_FILES_ON_SCREEN) {
+		if (search_direction == CATALOG_SEARCH_LEFT && movement_amount < -1) {
 			// For leftward search, the loaded files are all to the left of our original position,
 			// which would put our selected file at the top of the screen with blank spaces below,
 			// so we need to offset the index. Rightward search doesn't have the same issue.
@@ -1324,11 +1331,23 @@ void Browser::updateUIState() {
 		qwertyVisible = false;
 	}
 
-	if (scrollPosVertical > fileIndexSelected) {
-		scrollPosVertical = fileIndexSelected;
+	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) { // fast scrolling
+		// Fast scroll logic - only adjust if selection goes off-screen
+		if (scrollPosVertical > fileIndexSelected) {
+			scrollPosVertical = fileIndexSelected;
+		}
+		else if (scrollPosVertical < fileIndexSelected - NUM_FILES_ON_SCREEN + 1) {
+			scrollPosVertical = fileIndexSelected - NUM_FILES_ON_SCREEN + 1;
+		}
 	}
-	else if (scrollPosVertical < fileIndexSelected - NUM_FILES_ON_SCREEN + 1) {
-		scrollPosVertical = fileIndexSelected - NUM_FILES_ON_SCREEN + 1;
+	else {
+		scrollPosVertical = fileIndexSelected - 1;
+		if (scrollPosVertical < 0 && numFileItemsDeletedAtStart == 0) {
+			scrollPosVertical = 0;
+		}
+		else if (fileIndexSelected == fileItems.getNumElements() - 1 && numFileItemsDeletedAtEnd == 0) {
+			scrollPosVertical--;
+		}
 	}
 
 	enteredTextEditPos = 0;
@@ -1901,7 +1920,6 @@ Error Browser::setEnteredTextFromCurrentFilename() {
 }
 
 Error Browser::goIntoFolder(char const* folderName) {
-	D_PRINTLN("goIntoFolder: entering folder '%s' (fast_scroll=%d)", folderName, loading_delayed_during_fast_scroll);
 	Error error;
 
 	if (!currentDir.isEmpty()) {
