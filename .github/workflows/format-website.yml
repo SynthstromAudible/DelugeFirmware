@@ -1,42 +1,26 @@
-# See: https://github.com/wearerequired/lint-action/blob/df31ae8635c46366688e0bea44d7aba2e1468813/.github/workflows/test-action.yml
-name: Format Website
-
+# See https://prettier.io/docs/ci
+name: autofix.ci
 on:
-  pull_request_target:
+  pull_request:
     paths:
       - "website/**"
-  workflow_dispatch:
-
-permissions:
-  checks: write
-  contents: write
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request_target' && github.head_ref || github.ref }}
-  cancel-in-progress: true
-
+  push:
+    paths:
+      - "website/**"
+permissions: {}
 jobs:
   formatting-check:
     name: Formatting Check
     runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository (pull_request_target)
-        if: ${{ github.event_name == 'pull_request_target' }}
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Install dependencies with npm (only npm is supported by lint-action)
+    defaults:
+      run:
         working-directory: website
-        run: npm i
-
-      - name: Run website check
-        uses: wearerequired/lint-action@v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: |
+          bun install
+          bun run check:fix
+      - uses: autofix-ci/action@v1
         with:
-          auto_fix: true
-          eslint: true
-          eslint_dir: website
-          eslint_auto_fix: true
-          prettier: true
-          prettier_dir: website
-          prettier_auto_fix: true
+          commit-message: "Apply Prettier format"

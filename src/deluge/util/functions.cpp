@@ -28,6 +28,7 @@
 #include "modulation/arpeggiator.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
+#include "storage/flash_storage.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cmath>
 #include <cstdint>
@@ -1380,12 +1381,12 @@ bool isAudioFilename(char const* filename) {
 	if (filename[0] == '.') {
 		return false;
 	}
-	char* dotPos = strrchr(filename, '.');
+	auto* dotPos = strrchr(filename, '.');
 	return (!strcasecmp(dotPos, ".WAV") || !strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF"));
 }
 
 bool isAiffFilename(char const* filename) {
-	char* dotPos = strrchr(filename, '.');
+	auto* dotPos = strrchr(filename, '.');
 	return (dotPos != NULL && (!strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF")));
 }
 
@@ -1863,7 +1864,7 @@ doNormal:
 
 void replace_char(char* out_str, const char* in_str, char find, char replace) {
 	strcpy(out_str, in_str);
-	char* current_pos = strchr(out_str, find);
+	auto* current_pos = strchr(out_str, find);
 	while (current_pos) {
 		*current_pos = replace;
 		current_pos = strchr(current_pos, find);
@@ -1918,10 +1919,15 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 	int32_t octave = (noteCode) / 12 - 2;
 	int32_t noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
 
-	*thisChar = noteCodeToNoteLetter[noteCodeWithinOctave];
+	bool useSharps = FlashStorage::defaultUseSharps;
+
+	*thisChar =
+	    useSharps ? noteCodeToNoteLetter[noteCodeWithinOctave] : noteCodeToNoteLetterFlats[noteCodeWithinOctave];
+
 	thisChar++;
 	if (noteCodeIsSharp[noteCodeWithinOctave]) {
-		*thisChar = display->haveOLED() ? '#' : '.';
+		char accidential = useSharps ? '#' : FLAT_CHAR;
+		*thisChar = display->haveOLED() ? accidential : '.';
 		thisChar++;
 	}
 	if (appendOctaveNo) {
@@ -2087,7 +2093,9 @@ void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude,
 			// for "rd")
 			char const* suffix = ((division % 10) == 2) ? "nd" : "th";
 			noteLengthBuf.append(suffix);
-			noteLengthBuf.append(notesString);
+			if (notesString != nullptr) {
+				noteLengthBuf.append(notesString);
+			}
 		}
 		else {
 			uint32_t numBars = (uint32_t)1 << magnitude;
@@ -2158,7 +2166,7 @@ bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, i
 		return false;
 	}
 
-	char* dotAddress = strrchr(fileName, '.');
+	auto* dotAddress = strrchr(fileName, '.');
 	if (!dotAddress) {
 		return false;
 	}
@@ -2230,3 +2238,9 @@ Error fatfsErrorToDelugeError(FatFS::Error result) {
 
 char miscStringBuffer[kFilenameBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
 char shortStringBuffer[kShortStringBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
+
+float sigmoidLikeCurve(const float x, const float xMax, const float softening) {
+	const float raw = x / (x + softening);
+	const float maxVal = xMax / (xMax + softening);
+	return raw / maxVal;
+};

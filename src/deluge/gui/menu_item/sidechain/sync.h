@@ -21,25 +21,27 @@
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+#include "utils.h"
 
 namespace deluge::gui::menu_item::sidechain {
 class Sync final : public SyncLevel {
 public:
-	using SyncLevel::SyncLevel;
+	Sync(l10n::String newName, l10n::String newTitle, bool isReverbSidechain = false)
+	    : SyncLevel(newName, newTitle), is_reverb_sidechain_{isReverbSidechain} {}
 
 	size_t size() override { return 10; };
 	void readCurrentValue() override {
-		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSidechain->syncType,
-		                                            soundEditor.currentSidechain->syncLevel));
+		const auto sidechain = getSidechain(is_reverb_sidechain_);
+		this->setValue(syncTypeAndLevelToMenuOption(sidechain->syncType, sidechain->syncLevel));
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();
 
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+		if (!is_reverb_sidechain_ && currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && soundEditor.editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
 
@@ -54,14 +56,18 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSidechain->syncType = syncValueToSyncType(current_value);
-			soundEditor.currentSidechain->syncLevel = syncValueToSyncLevel(current_value);
+			const auto sidechain = getSidechain(is_reverb_sidechain_);
+			sidechain->syncType = syncValueToSyncType(current_value);
+			sidechain->syncLevel = syncValueToSyncLevel(current_value);
 		}
 
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingReverbSidechain() || AudioEngine::reverbSidechainVolume >= 0;
+		return !is_reverb_sidechain_ || AudioEngine::reverbSidechainVolume >= 0;
 	}
+
+private:
+	bool is_reverb_sidechain_;
 };
 } // namespace deluge::gui::menu_item::sidechain

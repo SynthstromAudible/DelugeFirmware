@@ -23,6 +23,7 @@
 #include "util/lookuptables/lookuptables.h"
 #include <argon.hpp>
 #include <argon/vectorize/load_store.hpp>
+
 namespace deluge::dsp {
 /* Before calling, you must:
     amplitude <<= 1; ( so that it is q31)
@@ -40,7 +41,7 @@ void renderWave(const int16_t* __restrict__ table, int32_t table_size_magnitude,
 		    waveRenderingFunctionGeneral(phase, phase_increment, phase_to_add, table, table_size_magnitude);
 
 		if (apply_amplitude) {
-			value_vector = sample_vector.MultiplyAddQMax(value_vector, amplitude_vector);
+			value_vector = sample_vector.MultiplyAddFixedQMax(value_vector, amplitude_vector);
 			amplitude_vector = amplitude_vector + amplitude_increment_vector;
 		}
 
@@ -64,7 +65,7 @@ void renderPulseWave(const int16_t* __restrict__ table, int32_t table_size_magni
 		    waveRenderingFunctionPulse(phase, phase_increment, phase_to_add, table, table_size_magnitude);
 
 		if (apply_amplitude) {
-			value_vector = sample_vector.MultiplyAddQMax(value_vector, amplitude_vector);
+			value_vector = sample_vector.MultiplyAddFixedQMax(value_vector, amplitude_vector);
 			amplitude_vector = amplitude_vector + amplitude_increment_vector;
 		}
 

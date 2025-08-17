@@ -23,6 +23,9 @@
 #include <sys/_intsup.h>
 
 namespace deluge::gui::menu_item::arpeggiator {
+
+using namespace hid::display;
+
 class Rhythm final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
@@ -36,43 +39,34 @@ public:
 		char name[12];
 		// Index: Name
 		snprintf(name, sizeof(name), "%d: %s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
-
-		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
-		canvas.drawStringCentred(name, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
+		OLED::main.drawStringCentred(name, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
 	}
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
-		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+		oled_canvas::Canvas& image = OLED::main;
 
-		renderColumnLabel(startX, width, startY);
-
-		// Render current value
-
-		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
-		if (soundEditor.editingKit() && !soundEditor.editingGateDrumRow()) {
-			shortOpt.append(arpRhythmPatternNames[this->getValue()]);
-		}
-		else {
-			char name[12];
-			// Index:Name
-			snprintf(name, sizeof(name), "%d: %s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
-			shortOpt.append(name);
+		const auto value = this->getValue();
+		const auto pattern = std::string_view(arpRhythmPatternNames[value]);
+		if (value == 0) {
+			return image.drawStringCentered(pattern.data(), startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
 		}
 
-		int32_t pxLen;
-		// Trim characters from the end until it fits.
-		while ((pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY)) >= width - 2) {
-			shortOpt.truncate(shortOpt.size() - 1);
+		constexpr int32_t paddingBetween = 2;
+		const int32_t rhythmWidth = pattern.size() * kTextSpacingX + pattern.size() * paddingBetween;
+
+		int32_t x = startX + (width - rhythmWidth) / 2 + 2;
+		for (const char character : pattern) {
+			image.drawChar(character == '0' ? 'X' : character, x, startY + 3, kTextSpacingX, kTextSpacingY);
+			x += kTextSpacingX + paddingBetween;
 		}
-		// Padding to center the string. If we can't center exactly, 1px right is better than 1px left.
-		int32_t pad = (width + 1 - pxLen) / 2;
-		image.drawString(shortOpt.c_str(), startX + pad, startY + kTextSpacingY + 2, kTextSpacingX, kTextSpacingY, 0,
-		                 startX + width - kTextSpacingX);
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
 	}
+
+protected:
+	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
 };
 
 } // namespace deluge::gui::menu_item::arpeggiator

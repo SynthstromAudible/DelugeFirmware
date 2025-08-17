@@ -19,6 +19,10 @@
 #define DELUGE_TASK_H
 #include "OSLikeStuff/scheduler_api.h"
 #include "resource_checker.h"
+
+#include <io/debug/log.h>
+#define SCHEDULER_DETAILED_STATS (1 && ENABLE_TEXT_OUTPUT)
+
 // internal to the scheduler - do not include from anywhere else
 struct StatBlock {
 
@@ -83,17 +87,24 @@ struct Task {
 		schedule = {priority, 0, 0, 0};
 	}
 
-	void updateNextTimes(Time startTime, Time runtime) {
-
-		lastCallTime = startTime;
-
+	void updateNextTimes(Time startTime, Time runtime, Time finishTime) {
+		if (runtime > Time(0.003)) {
+			D_PRINTLN("Task %s took too long: %.3fms", name, double(runtime) * 1000.);
+		}
 		durationStats.update(runtime);
+
+#if SCHEDULER_DETAILED_STATS
+		latency.update(lastCallTime - idealCallTime);
+#endif
 		totalTime += runtime;
 		lastRunTime = runtime;
 		timesCalled += 1;
-
-		idealCallTime = startTime + schedule.targetInterval - durationStats.average;
-		latestCallTime = startTime + schedule.maxInterval - durationStats.average;
+		earliestCallTime = finishTime + schedule.backOffPeriod;
+		idealCallTime = lastCallTime + schedule.targetInterval - durationStats.average;
+		idealCallTime = std::max(earliestCallTime, idealCallTime);
+		latestCallTime = lastCallTime + schedule.maxInterval - durationStats.average;
+		latestCallTime = std::max(earliestCallTime, latestCallTime);
+		lastFinishTime = finishTime;
 	}
 	// returns true if the task becomes runnable
 	bool checkCondition() {
@@ -110,12 +121,11 @@ struct Task {
 		return state == State::READY && isReleased(currentTime) && resourcesAvailable();
 	};
 	[[nodiscard]] bool isRunnable() const { return state == State::READY && resourcesAvailable(); }
-	[[nodiscard]] bool isReleased(Time currentTime) const {
-		return currentTime - lastFinishTime > schedule.backOffPeriod;
-	}
+	[[nodiscard]] bool isReleased(Time currentTime) const { return currentTime > earliestCallTime; }
 	[[nodiscard]] bool resourcesAvailable() const { return _checker.checkResources(); }
 	TaskHandle handle{nullptr};
 	TaskSchedule schedule{0, 0, 0, 0};
+	Time earliestCallTime;
 	Time idealCallTime{0};
 	Time latestCallTime{0};
 	Time lastCallTime{0};
@@ -135,6 +145,7 @@ struct Task {
 	Time lastRunTime;
 
 	ResourceChecker _checker;
+	bool yielded = false;
 };
 
 #endif // DELUGE_TASK_H

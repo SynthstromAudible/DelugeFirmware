@@ -149,8 +149,8 @@ uint32_t timeLastSideChainHit = 2147483648;
 int32_t sizeLastSideChainHit;
 
 Metronome metronome{};
-StereoFloatSample approxRMSLevel{0};
-AbsValueFollower envelopeFollower{};
+deluge::dsp::StereoSample<float> approxRMSLevel{0};
+deluge::dsp::AbsValueFollower envelopeFollower{};
 int32_t timeLastPopup{0};
 
 SoundDrum* sampleForPreview;
@@ -186,11 +186,11 @@ LiveInputBuffer* liveInputBuffers[3];
 // For debugging
 uint16_t lastRoutineTime;
 
-alignas(CACHE_LINE_SIZE) std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> renderingMemory;
+alignas(CACHE_LINE_SIZE) std::array<deluge::dsp::StereoSample<q31_t>, SSI_TX_BUFFER_NUM_SAMPLES> renderingMemory;
 alignas(CACHE_LINE_SIZE) std::array<int32_t, 2 * SSI_TX_BUFFER_NUM_SAMPLES> reverbMemory;
 
-StereoSample* renderingBufferOutputPos = renderingMemory.begin();
-StereoSample* renderingBufferOutputEnd = renderingMemory.begin();
+deluge::dsp::StereoSample<q31_t>* renderingBufferOutputPos = renderingMemory.begin();
+deluge::dsp::StereoSample<q31_t>* renderingBufferOutputEnd = renderingMemory.begin();
 
 int32_t masterVolumeAdjustmentL;
 int32_t masterVolumeAdjustmentR;
@@ -959,13 +959,22 @@ void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSampl
 	}
 }
 
+void routine_task() {
+	if (audioRoutineLocked) {
+		logAction("AudioDriver::routine locked");
+		ignoreForStats();
+		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
+		        // called from within this!
+	}
+	routine();
+}
+
 void routine() {
 
 	logAction("AudioDriver::routine");
 
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
-		ignoreForStats();
 		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
 		        // called from within this!
 	}
@@ -1025,8 +1034,9 @@ bool doSomeOutputting() {
 	// Copy to actual output buffer, and apply heaps of gain too, with clipping
 	int32_t numSamplesOutputted = 0;
 
-	std::span<StereoSample> outputBufferForResampling{reinterpret_cast<StereoSample*>(spareRenderingBuffer), 128 * 2};
-	StereoSample* __restrict__ renderingBufferOutputPosNow = renderingBufferOutputPos;
+	deluge::dsp::StereoBuffer<q31_t> outputBufferForResampling{
+	    reinterpret_cast<deluge::dsp::StereoSample<q31_t>*>(spareRenderingBuffer), 128 * 2};
+	deluge::dsp::StereoSample<q31_t>* __restrict__ renderingBufferOutputPosNow = renderingBufferOutputPos;
 	int32_t* __restrict__ i2sTXBufferPosNow = (int32_t*)i2sTXBufferPos;
 	int32_t* __restrict__ inputReadPos = (int32_t*)i2sRXBufferPos;
 
@@ -1173,8 +1183,10 @@ bool doSomeOutputting() {
 				// stereo samples, we can offset it one sample to get it to operate on the right channel
 				std::span streamToRecord =
 				    (recorder->mode == AudioInputChannel::RIGHT)
-				        ? std::span{reinterpret_cast<StereoSample*>(recorder->sourcePos + 1), numSamplesFeedingNow}
-				        : std::span{reinterpret_cast<StereoSample*>(recorder->sourcePos), numSamplesFeedingNow};
+				        ? std::span{reinterpret_cast<deluge::dsp::StereoSample<q31_t>*>(recorder->sourcePos + 1),
+				                    numSamplesFeedingNow}
+				        : std::span{reinterpret_cast<deluge::dsp::StereoSample<q31_t>*>(recorder->sourcePos),
+				                    numSamplesFeedingNow};
 
 				recorder->feedAudio(streamToRecord);
 
@@ -1226,6 +1238,7 @@ void dumpAudioLog() {
 	definitelyLog = false;
 	lastRoutineTime = *TCNT[TIMER_SYSTEM_FAST];
 	numAudioLogItems = 0;
+	memset(audioLogStrings, 0, sizeof(audioLogStrings));
 #endif
 }
 

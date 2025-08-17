@@ -31,12 +31,14 @@ public:
 	size_t size() override { return NUM_SYNC_VALUES; }
 	/// Implementation of Enumeration::getShortOption(): note length name or OFF
 	void getShortOption(StringBuf&) override;
-	int32_t getColumnSpan() const override { return 2; };
+	int32_t getColumnSpan() const override { return 1; };
 
 protected:
 	void drawValue() final;
 	virtual void getNoteLengthName(StringBuf& buffer);
 	void drawPixelsForOled() override;
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+	void getColumnLabel(StringBuf& label) override;
 };
 
 } // namespace deluge::gui::menu_item

@@ -37,6 +37,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/try.h"
+#include <climits>
 #include <cstring>
 #include <new>
 
@@ -52,6 +53,9 @@ int32_t Browser::numCharsInPrefix;
 bool Browser::arrivedAtFileByTyping;
 int32_t Browser::numFileItemsDeletedAtStart;
 int32_t Browser::numFileItemsDeletedAtEnd;
+int8_t Browser::previous_offset_direction;
+bool Browser::loading_delayed_during_fast_scroll = false;
+int32_t Browser::reversal_screen_top_index = INT32_MIN;
 char const* Browser::firstFileItemRemaining;
 char const* Browser::lastFileItemRemaining;
 OutputType Browser::outputTypeToLoad;
@@ -71,6 +75,7 @@ Browser::Browser() {
 	fileIconPt2Width = 0;
 	scrollingText = NULL;
 	shouldWrapFolderContents = true;
+	previous_offset_direction = 0; // Initialize direction tracking
 
 	mayDefaultToBrandNewNameOnEntry = false;
 	qwertyAlwaysVisible = true;
@@ -853,7 +858,10 @@ useNonExistentFileName:     // Normally this will get skipped over - if we found
 	scrollPosVertical = 0;
 
 everythingFinalized:
-	folderContentsReady(direction);
+	if (!loading_delayed_during_fast_scroll) {
+		// Only call if we're not in fast scroll mode to avoid updating the screen preview
+		folderContentsReady(direction);
+	}
 
 	if (display->have7SEG()) {
 		displayText();
@@ -973,188 +981,348 @@ void Browser::selectEncoderAction(int8_t offset) {
 	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 	octaveStartsFromA = false;
 
-	int32_t newFileIndex;
+	int32_t new_file_index = calculateNewFileIndex(offset);
+
+	// Handle index bounds and reload items if necessary
+	Error error = handleIndexBoundsAndReload(new_file_index, offset);
+	if (error == Error::UNSPECIFIED) {
+		// Early return case - either no elements or should not wrap on 7SEG
+		return;
+	}
+	else if (error != Error::NONE) {
+		D_PRINTLN("error while reloading, emptying file items");
+		emptyFileItems();
+		return;
+	}
+
+	// Set the final file index - this corresponds to the original code's single assignment
+	fileIndexSelected = new_file_index;
+
+	updateUIState();
+
+	// Set entered text from current filename
+	error = setEnteredTextFromCurrentFilename();
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return;
+	}
+
+	displayText();
+
+	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT) && offset != 0) {
+		// we're fast scrolling, so to make it even faster and to keep a jam flowing we won't
+		// loaded a preview of the files we scroll to until we decide to, by releasing shift or by pressing select
+		loading_delayed_during_fast_scroll = true;
+	}
+	else {
+		// Normal scrolling, load preview immediately
+		currentFileChanged(offset); // let the relevant loading UI know of the change
+		loading_delayed_during_fast_scroll = false;
+	}
+}
+
+int32_t Browser::calculateNewFileIndex(int8_t offset) {
 
 	if (fileIndexSelected < 0) { // If no file selected and we were typing a new name?
 		if (!fileItems.getNumElements()) {
-			return;
+			return INT32_MIN; // Special value to indicate early return (no elements available)
 		}
 
-		newFileIndex = fileItems.search(enteredText.get());
+		int32_t new_file_index = fileItems.search(enteredText.get());
 		if (offset < 0) {
-			newFileIndex--;
+			new_file_index--;
+		}
+
+		return new_file_index;
+	}
+
+	if (display->haveOLED()) { // OLED version
+		// Calculate vertical scroll speed
+		int32_t scroll_multiplier = 1;
+		if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
+			// this method of checking for shift press ignores the sticky shift state.
+
+			scroll_multiplier = NUM_FILES_ON_SCREEN; // Default to full speed
+
+			// check if scroll direction was reversed during fast scroll sequence.
+			if (loading_delayed_during_fast_scroll) {
+				if (previous_offset_direction == -1 * offset) {
+					// Direction was reversed, so determine the index range of the files on the screen
+					reversal_screen_top_index =
+					    (offset < 0) ? fileIndexSelected - (NUM_FILES_ON_SCREEN - 1) : fileIndexSelected;
+				}
+
+				if (reversal_screen_top_index != INT32_MIN) {
+					int32_t target_index = fileIndexSelected + offset; // we are moving one at a time for now
+					int32_t reversal_screen_bottom = reversal_screen_top_index + NUM_FILES_ON_SCREEN - 1;
+					// Check if the target move would take us outside the captured screen range
+					if (target_index >= reversal_screen_top_index && target_index <= reversal_screen_bottom) {
+						// within screen range use single step scrolling
+						scroll_multiplier = 1;
+					}
+					else {
+						// Move would exit screen range - resume fast scrolling
+						reversal_screen_top_index = INT32_MIN;
+						// scroll_multiplier stays at default NUM_FILES_ON_SCREEN
+					}
+				}
+			}
+			previous_offset_direction = offset; // Update previous direction tracker
+		}
+		else {
+			// Reset reversal state and direction tracking during regular scrolling
+			previous_offset_direction = 0;
+			reversal_screen_top_index = INT32_MIN;
+		}
+		// Show current position and target
+		int32_t new_file_index = fileIndexSelected + (offset * scroll_multiplier);
+		char const* current_name = "none";
+		if (getCurrentFileItem()) {
+			current_name = getCurrentFileItem()->displayName;
+		}
+		// D_PRINTLN("At '%s' (index %d), trying to move %d to reach index %d",
+		// 					current_name, fileIndexSelected, offset * scroll_multiplier, new_file_index);
+		return new_file_index;
+	}
+	else {
+		// 7SEG version, filePrefix is e.g. SYNT, KIT, SONG, used in combination with numeric filenames
+		if (filePrefix && Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
+			int32_t file_prefix_length = strlen(filePrefix);
+			char const* entered_text_chars = enteredText.get();
+			if (!memcasecmp(filePrefix, entered_text_chars, file_prefix_length)) {
+				Slot this_slot = getSlot(&entered_text_chars[file_prefix_length]);
+				if (this_slot.slot >= 0) {
+					this_slot.slot += offset;
+
+					char search_string[9];
+					memcpy(search_string, filePrefix, file_prefix_length);
+					char* search_string_numbers_start = search_string + file_prefix_length;
+					int32_t min_num_digits = 3;
+					intToString(this_slot.slot, search_string_numbers_start, min_num_digits);
+					if (offset < 0) {
+						char* pos = strchr(search_string_numbers_start, 0);
+						*pos = 'A';
+						pos++;
+						*pos = 0;
+					}
+					int32_t new_file_index = fileItems.search(search_string);
+					if (offset < 0) {
+						new_file_index--;
+					}
+					return new_file_index;
+				}
+			}
+		}
+		// Non-numeric 7seg filename case
+		return fileIndexSelected + offset;
+	}
+}
+
+Error Browser::handleIndexBoundsAndReload(int32_t& new_file_index, int8_t offset) {
+	if (new_file_index == INT32_MIN) {
+		// Early return case from calculateNewFileIndex - no elements available
+		return Error::UNSPECIFIED;
+	}
+	if (new_file_index < 0) {
+		return handleIndexBelowZero(new_file_index, offset);
+	}
+	else if (new_file_index >= fileItems.getNumElements()) {
+		return handleIndexAboveMax(new_file_index, offset);
+	}
+	// otherwise the index is within bounds
+	return Error::NONE;
+}
+
+Error Browser::handleIndexBelowZero(int32_t& new_file_index, int8_t offset) {
+
+	if (numFileItemsDeletedAtStart) {
+		// reload items because we know there are still items that can be loaded to the left,
+		// since they were deleted from the fileItems array during the culling process when the folder contents were
+		// read
+		scrollPosVertical = 9999;
+		// Calculate the full movement from current position to target position
+		int32_t movement_amount = new_file_index - fileIndexSelected;
+		return reloadItemsAndUpdateIndex(new_file_index, offset, true, movement_amount);
+	}
+	else if (!shouldWrapFolderContents && display->have7SEG()) {
+		return Error::UNSPECIFIED;
+	}
+	else { // Wrap to end of folder
+
+		if (fileIndexSelected == 0) { // If we're at index 0, always wrap directly to the end
+			scrollPosVertical = 0;
+			if (numFileItemsDeletedAtEnd) {
+				// this means there are more files outside of the current array that will need need to be loaded after
+				// wrapping
+				return reloadFromOneEnd(new_file_index, CATALOG_SEARCH_LEFT);
+			}
+			else { // otherwise the current array contains all the files in the folder
+				new_file_index = fileItems.getNumElements() - 1;
+				return Error::NONE;
+			}
+		}
+		else {
+			// If we're out of bounds but didn't start at index 0, that means we moved more than one place,
+			// so we need to stop at index 0 to ensure we display the first set of files
+			new_file_index = 0;
+			return Error::NONE;
+		}
+	}
+}
+
+Error Browser::handleIndexAboveMax(int32_t& new_file_index, int8_t offset) {
+
+	if (numFileItemsDeletedAtEnd) {
+		// reload items because we know there are still items that can be loaded to the right, since they
+		// were deleted from the fileItems array during the culling process when the folder contents were read
+		scrollPosVertical = 0;
+		// Calculate the full movement from current position to target position
+		int32_t movement_amount = new_file_index - fileIndexSelected;
+		return reloadItemsAndUpdateIndex(new_file_index, offset, true, movement_amount);
+	}
+	else if (!shouldWrapFolderContents && display->have7SEG()) {
+		return Error::UNSPECIFIED;
+	}
+	else {
+		int32_t last_index = fileItems.getNumElements() - 1;
+		// If we're at the last index and there are no files to the right,
+		// that means we need to wrap to the start of the folder
+		if (fileIndexSelected == last_index) {
+			scrollPosVertical = 9999;
+			if (numFileItemsDeletedAtStart) {
+				// this means there are more files outside of the current array that will need need to be loaded after
+				// wrapping
+				return reloadFromOneEnd(new_file_index, CATALOG_SEARCH_RIGHT);
+			}
+			else { // otherwise the current array contains all the files in the folder
+				new_file_index = 0;
+				return Error::NONE;
+			}
+		}
+		else {
+			// If we're out of bounds but didn't start at the last index, that means we moved more than one place,
+			// so we need to stop at the last index to ensure we display the last set of files
+			new_file_index = last_index;
+			return Error::NONE;
+		}
+	}
+}
+
+Error Browser::reloadItemsAndUpdateIndex(int32_t& new_file_index, int8_t offset, bool use_entered_text,
+                                         int32_t movement_amount) {
+
+	Error error;
+
+	// Remember the current file name before reloading
+	String filename_temp;
+	FileItem* current_file = getCurrentFileItem();
+	if (current_file) {
+		error = filename_temp.set(current_file->filename.get());
+		if (error != Error::NONE) {
+			// Fallback to enteredText if we can't set filename
+			filename_temp.set(&enteredText);
 		}
 	}
 	else {
-		// If user is holding shift, skip past any subslots. And on numeric Deluge, user may have chosen one digit to
-		// "edit".
-		if (display->haveOLED()) {
-			// TODO: deal with deleted FileItems here...
-			int32_t numberEditPosNow = numberEditPos;
-			if (Buttons::isShiftButtonPressed() && numberEditPosNow == -1) {
-				numberEditPosNow = 0;
-			}
+		// No current file, use enteredText
+		filename_temp.set(&enteredText);
+	}
 
-			if (numberEditPosNow != -1) {
-				Slot thisSlot = getSlot(enteredText.get());
-				if (thisSlot.slot < 0) {
-					goto nonNumeric;
-				}
-				D_PRINTLN("treating as numeric");
-				thisSlot.subSlot = -1;
-				switch (numberEditPosNow) {
-				case 0:
-					thisSlot.slot += offset;
-					break;
+	int32_t search_direction = CATALOG_SEARCH_BOTH;
 
-				case 1:
-					thisSlot.slot = (thisSlot.slot / 10 + offset) * 10;
-					break;
+	// With fast scrolling we can choose a specific search direction to ensure adequate room for movement
+	// and reduce the frequency of reloading the fileItems array
+	if (movement_amount == NUM_FILES_ON_SCREEN) {
+		// fast scrolling downwards on screen, load more files to the right in the array
+		search_direction = CATALOG_SEARCH_RIGHT;
+	}
+	else if (movement_amount == -NUM_FILES_ON_SCREEN) {
+		// fast scrolling upwards on screen, load more files to the left in the array
+		search_direction = CATALOG_SEARCH_LEFT;
+	}
 
-				case 2:
-					thisSlot.slot = (thisSlot.slot / 100 + offset) * 100;
-					break;
+	error = readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix,
+	                                         use_entered_text ? enteredText.get() : nullptr, nullptr, true,
+	                                         Availability::ANY, search_direction);
 
-				default:
-					__builtin_unreachable();
-				}
+	// #if ALPHA_OR_BETA_VERSION
+	// show a list of the files in the fileItems array for debugging purposes
+	// 	D_PRINT("File Items: ");
+	// 	for (int i = 0; i < fileItems.getNumElements(); ++i) {
+	// 		FileItem* item = (FileItem*)fileItems.getElementAddress(i);
+	// 		String displayName;
+	// 		Error error = item->getDisplayNameWithoutExtension(&displayName);
+	// 		if (error == Error::NONE) {
+	// 			D_PRINT("%s ", displayName.get());
+	// 		} else {
+	// 			D_PRINT("Error getting name ");
+	// 		}
+	// 	}
+	// 	D_PRINTLN("");
+	// #endif
 
-				char searchString[6];
-				char* searchStringNumbersStart = searchString;
-				int32_t minNumDigits = 1;
-				intToString(thisSlot.slot, searchStringNumbersStart, minNumDigits);
-				if (offset < 0) {
-					char* pos = strchr(searchStringNumbersStart, 0);
-					*pos = 'A';
-					pos++;
-					*pos = 0;
-				}
-				newFileIndex = fileItems.search(searchString);
-				if (offset < 0) {
-					newFileIndex--;
-				}
-			}
-			else {
-				newFileIndex = fileIndexSelected + offset;
-			}
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	// Find where our original file ended up in the new array
+	int32_t original_file_new_index = -1;
+	for (int32_t i = 0; i < fileItems.getNumElements(); i++) {
+		FileItem* item = (FileItem*)fileItems.getElementAddress(i);
+		if (item && item->filename.equals(&filename_temp)) {
+			original_file_new_index = i;
+			break;
+		}
+	}
+
+	// Apply the original movement from the new position
+	if (original_file_new_index >= 0) {
+		int32_t target_index = original_file_new_index + movement_amount;
+		// D_PRINTLN("applying movement: %d + %d = %d", original_file_new_index, movement_amount, target_index);
+		new_file_index = target_index;
+	}
+	else {
+		// Original file not found - this is expected with CATALOG_SEARCH_LEFT
+		// Position ourselves based on where the original filename would fit
+		if (search_direction == CATALOG_SEARCH_LEFT && movement_amount == -NUM_FILES_ON_SCREEN) {
+			// For leftward search, the loaded files are all to the left of our original position,
+			// which would put our selected file at the top of the screen with blank spaces below,
+			// so we need to offset the index. Rightward search doesn't have the same issue.
+			new_file_index = fileItems.getNumElements() - NUM_FILES_ON_SCREEN;
 		}
 		else {
-			if (filePrefix && Buttons::isShiftButtonPressed()) {
-				int32_t filePrefixLength = strlen(filePrefix);
-				char const* enteredTextChars = enteredText.get();
-				if (memcasecmp(filePrefix, enteredTextChars, filePrefixLength)) {
-					goto nonNumeric;
-				}
-				Slot thisSlot = getSlot(&enteredTextChars[filePrefixLength]);
-				if (thisSlot.slot < 0) {
-					goto nonNumeric;
-				}
-				D_PRINTLN("treating as numeric");
-				thisSlot.slot += offset;
-
-				char searchString[9];
-				memcpy(searchString, filePrefix, filePrefixLength);
-				char* searchStringNumbersStart = searchString + filePrefixLength;
-				int32_t minNumDigits = 3;
-				intToString(thisSlot.slot, searchStringNumbersStart, minNumDigits);
-				if (offset < 0) {
-					char* pos = strchr(searchStringNumbersStart, 0);
-					*pos = 'A';
-					pos++;
-					*pos = 0;
-				}
-				newFileIndex = fileItems.search(searchString);
-				if (offset < 0) {
-					newFileIndex--;
-				}
-			}
-			else {
-nonNumeric:
-				newFileIndex = fileIndexSelected + offset;
-			}
+			new_file_index = offset < 0 ? 0 : (fileItems.getNumElements() - 1); // just in case
 		}
 	}
 
-	int32_t newCatalogSearchDirection;
-	Error error;
-
-	if (newFileIndex < 0) {
-		D_PRINTLN("index below 0");
-		if (numFileItemsDeletedAtStart) {
-			scrollPosVertical = 9999;
-
-tryReadingItems:
-			D_PRINTLN("reloading");
-			error = readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, enteredText.get(), NULL,
-			                                         true, Availability::ANY, CATALOG_SEARCH_BOTH);
-			if (error != Error::NONE) {
-gotErrorAfterAllocating:
-				D_PRINTLN("error while reloading, emptying file items");
-				emptyFileItems();
-				return;
-				// TODO - need to close UI or something?
-			}
-
-			newFileIndex = fileItems.search(enteredText.get()) + offset;
-			D_PRINTLN("new file Index is %d", newFileIndex);
-		}
-
-		else if (!shouldWrapFolderContents && display->have7SEG()) {
-			return;
-		}
-
-		else { // Wrap to end
-			scrollPosVertical = 0;
-
-			if (numFileItemsDeletedAtEnd) {
-				newCatalogSearchDirection = CATALOG_SEARCH_LEFT;
-searchFromOneEnd:
-				D_PRINTLN("reloading and wrap");
-				error =
-				    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, NULL, NULL, true,
-				                                     Availability::ANY, newCatalogSearchDirection); // Load from start
-				if (error != Error::NONE) {
-					goto gotErrorAfterAllocating;
-				}
-
-				newFileIndex =
-				    (newCatalogSearchDirection == CATALOG_SEARCH_LEFT) ? (fileItems.getNumElements() - 1) : 0;
-			}
-			else {
-				newFileIndex = fileItems.getNumElements() - 1;
-			}
-		}
+	// Ensure we're within bounds
+	if (new_file_index < 0) {
+		new_file_index = 0;
+	}
+	else if (new_file_index >= fileItems.getNumElements()) {
+		new_file_index = fileItems.getNumElements() - 1;
 	}
 
-	else if (newFileIndex >= fileItems.getNumElements()) {
-		D_PRINTLN("out of file items");
-		if (numFileItemsDeletedAtEnd) {
-			scrollPosVertical = 0;
-			goto tryReadingItems;
-		}
+	return Error::NONE;
+}
 
-		else if (!shouldWrapFolderContents && display->have7SEG()) {
-			return;
-		}
+Error Browser::reloadFromOneEnd(int32_t& new_file_index, int32_t search_direction) {
+	// D_PRINTLN("reloading and wrap");
+	Error error = readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, nullptr, nullptr, true,
+	                                               Availability::ANY, search_direction);
 
-		else {
-			scrollPosVertical = 9999;
-
-			if (numFileItemsDeletedAtStart) {
-				newCatalogSearchDirection = CATALOG_SEARCH_RIGHT;
-				goto searchFromOneEnd;
-			}
-			else {
-				newFileIndex = 0;
-			}
-		}
+	if (error != Error::NONE) {
+		return error;
 	}
 
+	new_file_index = (search_direction == CATALOG_SEARCH_LEFT) ? (fileItems.getNumElements() - 1) : 0;
+	return Error::NONE;
+}
+
+void Browser::updateUIState() {
 	if (!qwertyAlwaysVisible) {
 		qwertyVisible = false;
 	}
-
-	fileIndexSelected = newFileIndex;
 
 	if (scrollPosVertical > fileIndexSelected) {
 		scrollPosVertical = fileIndexSelected;
@@ -1189,15 +1357,6 @@ searchFromOneEnd:
 			enteredTextEditPos++;
 		}
 	}
-
-	error = setEnteredTextFromCurrentFilename();
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return;
-	}
-
-	displayText();
-	currentFileChanged(offset);
 }
 
 bool Browser::predictExtendedText() {
@@ -1344,7 +1503,7 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 
 	int32_t textStartX = 14;
 	int32_t iconStartX = 1;
-	if (FlashStorage::accessibilityMenuHighlighting) {
+	if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION) {
 		textStartX += kTextSpacingX;
 		iconStartX = kTextSpacingX;
 	}
@@ -1544,7 +1703,7 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 	}
 
 	// Save button, to delete file
-	else if (b == SAVE && Buttons::isShiftButtonPressed()) {
+	else if (b == SAVE && Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
 		if (!currentUIMode && on) {
 			FileItem* currentFileItem = getCurrentFileItem();
 			if (currentFileItem) {
@@ -1560,6 +1719,14 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 				goIntoDeleteFileContextMenu();
 			}
 		}
+	}
+
+	else if (b == SHIFT && on == false) {
+		if (loading_delayed_during_fast_scroll) {
+			folderContentsReady(0); // this makes it so the preview will load for all file types, including songs.
+			loading_delayed_during_fast_scroll = false;
+		}
+		return ActionResult::NOT_DEALT_WITH; // Let normal shift logic handle sticky shift
 	}
 
 	// Back button
@@ -1641,7 +1808,7 @@ ActionResult Browser::verticalEncoderAction(int32_t offset, bool inCardRoutine) 
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult Browser::mainButtonAction(bool on) {
+ActionResult Browser::mainButtonAction(bool on) { // specifically the select encoder press
 	// Press down
 	if (on) {
 		if (currentUIMode == UI_MODE_NONE) {
@@ -1661,6 +1828,18 @@ ActionResult Browser::mainButtonAction(bool on) {
 			}
 			currentUIMode = UI_MODE_NONE;
 			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
+
+			// Trigger delayed loading if necessary, but not if we're entering a folder,
+			// since we want to be able to use the select button for that
+			// while doing fast scrolling without loading the first file in a folder
+			if (loading_delayed_during_fast_scroll) {
+				FileItem* currentFileItem = getCurrentFileItem();
+				if (!currentFileItem || !currentFileItem->isFolder) {
+					currentFileChanged(0); // Signal that we want to load the current file
+					loading_delayed_during_fast_scroll = false;
+				}
+			}
+
 			enterKeyPress();
 		}
 	}
@@ -1722,6 +1901,7 @@ Error Browser::setEnteredTextFromCurrentFilename() {
 }
 
 Error Browser::goIntoFolder(char const* folderName) {
+	D_PRINTLN("goIntoFolder: entering folder '%s' (fast_scroll=%d)", folderName, loading_delayed_during_fast_scroll);
 	Error error;
 
 	if (!currentDir.isEmpty()) {

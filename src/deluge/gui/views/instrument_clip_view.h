@@ -163,7 +163,7 @@ public:
 	                                ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
 	void potentiallyRefreshNoteRowMenu();
 	bool startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
-	                         NoteRow* noteRowOnActiveClip, Drum* drum);
+	                         NoteRow* noteRowOnActiveClip, Drum* drum, bool displayNoteCode = true);
 	void finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack, NoteRow* noteRowOnActiveClip);
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
@@ -383,8 +383,8 @@ private:
 
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
 	Drum* flipThroughAvailableDrums(int32_t newOffset, Drum* drum, bool mayBeNone = false);
-	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
-	                                int32_t* getIndex = nullptr);
+	NoteRow* getOrCreateEmptyNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
+	                                       int32_t* getIndex = nullptr);
 	void createDrumForAuditionedNoteRow(DrumType drumType);
 	bool isRowAuditionedByInstrument(int32_t yDisplay);
 

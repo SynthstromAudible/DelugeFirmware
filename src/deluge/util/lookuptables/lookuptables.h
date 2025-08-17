@@ -131,6 +131,7 @@ const uint8_t presetReverbDamping[NUM_PRESET_REVERBS] = {29, 36, 45};
 extern deluge::l10n::String presetReverbNames[NUM_PRESET_REVERBS];
 
 extern const uint8_t noteCodeToNoteLetter[];
+extern const uint8_t noteCodeToNoteLetterFlats[];
 extern const bool noteCodeIsSharp[];
 
 extern const std::array<Iterance, 35> iterancePresets;

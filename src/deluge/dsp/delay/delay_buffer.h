@@ -18,13 +18,12 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include <cstdint>
 #include <expected>
 #include <optional>
 
-class StereoSample;
-
+namespace deluge::dsp {
 constexpr ptrdiff_t delaySpaceBetweenReadAndWrite = 20;
 
 class DelayBuffer {
@@ -105,8 +104,8 @@ public:
 		}
 	}
 
-	inline void writeNative(StereoSample toDelay) {
-		StereoSample* writePos = current_ - delaySpaceBetweenReadAndWrite;
+	inline void writeNative(StereoSample<q31_t> toDelay) {
+		StereoSample<q31_t>* writePos = current_ - delaySpaceBetweenReadAndWrite;
 		if (writePos < start_) {
 			writePos += sizeIncludingExtra;
 		}
@@ -114,7 +113,7 @@ public:
 		writePos->r = toDelay.r;
 	}
 
-	inline void writeNativeAndMoveOn(StereoSample toDelay, StereoSample** writePos) {
+	inline void writeNativeAndMoveOn(StereoSample<q31_t> toDelay, StereoSample<q31_t>** writePos) {
 		(*writePos)->l = toDelay.l;
 		(*writePos)->r = toDelay.r;
 
@@ -124,10 +123,10 @@ public:
 		}
 	}
 
-	[[gnu::always_inline]] void write(StereoSample toDelay, int32_t strength1, int32_t strength2) {
+	[[gnu::always_inline]] void write(StereoSample<q31_t> toDelay, int32_t strength1, int32_t strength2) {
 		// If no speed adjustment
 		if (isNative()) {
-			StereoSample* writePos = current_ - delaySpaceBetweenReadAndWrite;
+			StereoSample<q31_t>* writePos = current_ - delaySpaceBetweenReadAndWrite;
 			if (writePos < start_) {
 				writePos += sizeIncludingExtra;
 			}
@@ -139,7 +138,7 @@ public:
 		writeResampled(toDelay, strength1, strength2);
 	}
 
-	[[gnu::always_inline]] void writeResampled(StereoSample toDelay, int32_t strength1, int32_t strength2) {
+	[[gnu::always_inline]] void writeResampled(StereoSample<q31_t> toDelay, int32_t strength1, int32_t strength2) {
 		if (!resample_config_) {
 			return;
 		}
@@ -162,7 +161,7 @@ public:
 			int32_t distanceFromMainWrite = (int32_t)howFarRightToStart << 16;
 
 			// Initially is the far-right right pos, not the central "main" one
-			StereoSample* writePos = current_ - delaySpaceBetweenReadAndWrite + howFarRightToStart;
+			StereoSample<q31_t>* writePos = current_ - delaySpaceBetweenReadAndWrite + howFarRightToStart;
 			while (writePos < start_) {
 				writePos += sizeIncludingExtra;
 			}
@@ -222,7 +221,7 @@ public:
 			// a tiny slow-down causes half the bandwidth to be lost
 
 			// The furthest right we need to write is 2 steps right from the "main" write
-			StereoSample* writePos = current_ - delaySpaceBetweenReadAndWrite + 2;
+			StereoSample<q31_t>* writePos = current_ - delaySpaceBetweenReadAndWrite + 2;
 
 			while (writePos < start_) {
 				writePos += sizeIncludingExtra;
@@ -269,14 +268,14 @@ public:
 	[[nodiscard]] constexpr uint32_t nativeRate() const { return native_rate_; }
 
 	// Iterator access
-	[[nodiscard]] constexpr StereoSample& current() const { return *current_; }
-	[[nodiscard]] constexpr StereoSample* begin() const { return start_; }
-	[[nodiscard]] constexpr StereoSample* end() const { return end_; }
+	[[nodiscard]] constexpr StereoSample<q31_t>& current() const { return *current_; }
+	[[nodiscard]] constexpr StereoSample<q31_t>* begin() const { return start_; }
+	[[nodiscard]] constexpr StereoSample<q31_t>* end() const { return end_; }
 	[[nodiscard]] constexpr size_t size() const { return size_; }
 
 	void clear();
 
-	constexpr void setCurrent(StereoSample* sample) { current_ = sample; }
+	constexpr void setCurrent(StereoSample<q31_t>* sample) { current_ = sample; }
 
 	// TODO (Kate): Make it so the ModControllableFX stuff isn't touching these.
 	// That behavior should either be contained in this class or Delay or a new Stutterer class
@@ -298,12 +297,13 @@ private:
 
 	uint32_t native_rate_ = 0;
 
-	StereoSample* start_ = nullptr;
-	StereoSample* end_;
-	StereoSample* current_;
+	StereoSample<q31_t>* start_ = nullptr;
+	StereoSample<q31_t>* end_;
+	StereoSample<q31_t>* current_;
 
 	size_t size_;
 
 public:
 	std::optional<ResampleConfig> resample_config_{};
 };
+} // namespace deluge::dsp

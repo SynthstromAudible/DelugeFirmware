@@ -55,5 +55,9 @@ public:
 		                                   + deluge::modulation::params::UNPATCHED_PITCH_ADJUST);
 		return paramDescriptor;
 	}
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return getCurrentAudioClip()->sampleHolder.audioFile != nullptr;
+	}
 };
 } // namespace deluge::gui::menu_item::audio_clip

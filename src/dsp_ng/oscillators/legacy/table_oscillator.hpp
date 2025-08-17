@@ -102,7 +102,7 @@ public:
 		                              .MultiplyDoubleSaturateLong(value_b2) //<
 		                              .MultiplyDoubleAddSaturateLong(strength_b1, value_b1);
 
-		Argon<q31_t> output = output_a.MultiplyRoundQMax(output_b) << 1; // (a *. b) << 1 (average?)
+		Argon<q31_t> output = output_a.MultiplyRoundFixedQMax(output_b) << 1; // (a *. b) << 1 (average?)
 		return output;
 	}
 };

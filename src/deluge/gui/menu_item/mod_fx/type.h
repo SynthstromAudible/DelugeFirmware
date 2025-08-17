@@ -71,33 +71,51 @@ public:
 		return 4;
 	}
 
+	[[nodiscard]] bool showNotification() const override { return false; }
+	[[nodiscard]] bool showColumnLabel() const override { return false; }
+
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
-		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+		oled_canvas::Canvas& image = OLED::main;
 
 		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
 		getShortOption(shortOpt);
 
-		constexpr int32_t arrowSpace = 10; // Space reserved for each arrow
+		constexpr int32_t arrowSpace = 10;
 
-		// Get main text width and trim if needed
-		int32_t pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
-		while (pxLen >= width - (2 * arrowSpace)) {
+		// Get the main text width and trim if needed
+		int32_t textWidth = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
+		while (textWidth >= width - 2 * arrowSpace) {
 			shortOpt.truncate(shortOpt.size() - 1);
-			pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
+			textWidth = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
 		}
 
-		// Calculate center positions
-		int32_t textStartX = startX + ((width - pxLen) / 2);
-		int32_t textStartY = startY + ((height - kTextSpacingY) / 2) + 1;
+		const int32_t textStartX = startX + (width - textWidth) / 2 + 1;
+		const int32_t textStartY = startY + (height - kTextSpacingY) / 2 + 1;
 
 		// Draw arrows if needed
 		if (getValue() > 0) {
-			image.drawString("<", startX + 2, textStartY, kTextTitleSpacingX, kTextTitleSizeY);
+			image.drawString("<", startX + 5, textStartY, kTextTitleSpacingX, kTextTitleSizeY);
 		}
 
 		// Draw main text
 		image.drawString(shortOpt.c_str(), textStartX, textStartY, kTextSpacingX, kTextSpacingY);
 
+		// Highlight the text
+		constexpr int32_t highlightOffset = 21;
+		switch (FlashStorage::accessibilityMenuHighlighting) {
+		case MenuHighlighting::FULL_INVERSION:
+			image.invertAreaRounded(startX + highlightOffset, width - highlightOffset * 2, textStartY - 2,
+			                        textStartY + kTextSpacingY + 1);
+			break;
+		case MenuHighlighting::PARTIAL_INVERSION:
+			image.drawRectangleRounded(startX + highlightOffset, textStartY - 3, startX + width - highlightOffset,
+			                           textStartY + kTextSpacingY + 2, oled_canvas::BorderRadius::BIG);
+			break;
+		case MenuHighlighting::NO_INVERSION:
+			break;
+		}
+
+		// Draw arrows if needed
 		if (getValue() < size() - 1) {
 			image.drawString(">", OLED_MAIN_WIDTH_PIXELS - arrowSpace, textStartY, kTextTitleSpacingX, kTextTitleSizeY);
 		}

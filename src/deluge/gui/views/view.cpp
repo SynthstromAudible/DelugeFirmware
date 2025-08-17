@@ -25,6 +25,7 @@
 #include "gui/context_menu/clip_settings/clip_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
+#include "gui/menu_item/submenu.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
@@ -869,9 +870,17 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 
 	// let's see if we're editing the same param in the menu, if so, don't show pop-up
 	bool editingParamInMenu = false;
+
 	if (getCurrentUI() == &soundEditor) {
-		if ((soundEditor.getCurrentMenuItem()->getParamKind() == kind)
-		    && (soundEditor.getCurrentMenuItem()->getParamIndex() == modelStackWithParam->paramId)) {
+		using namespace deluge::gui::menu_item;
+
+		auto currentItem = soundEditor.getCurrentMenuItem();
+		bool inHorizontalMenu =
+		    currentItem->isSubmenu()
+		    && static_cast<Submenu*>(currentItem)->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL;
+
+		if (!inHorizontalMenu && currentItem->getParamKind() == kind
+		    && currentItem->getParamIndex() == modelStackWithParam->paramId) {
 			editingParamInMenu = true;
 		}
 	}
@@ -1063,61 +1072,50 @@ void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStack
 
 void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t newKnobPos, PatchSource source1,
                                        PatchSource source2) {
-	DEF_STACK_STRING_BUF(popupMsg, 40);
-	bool appendedName = true;
+	DEF_STACK_STRING_BUF(parameterName, 40);
+	DEF_STACK_STRING_BUF(parameterValue, 40);
 
 	// On OLED, display the name of the parameter on the first line of the popup
 	if (display->haveOLED()) {
 		if (kind == params::Kind::PATCH_CABLE) {
-			popupMsg.append(getSourceDisplayNameForOLED(source1));
-			popupMsg.append("\n");
-			popupMsg.append("-> ");
+			parameterName.append(sourceToStringShort(source1));
+			parameterName.append("->");
 			if (source2 != PatchSource::NONE && source2 != PatchSource::NOT_AVAILABLE) {
-				popupMsg.append(getSourceDisplayNameForOLED(source2));
-				popupMsg.append("\n");
-				popupMsg.append("-> ");
+				parameterName.append(sourceToStringShort(source2));
+				parameterName.append("->");
 			}
-			popupMsg.append(modulation::params::getPatchedParamShortName(paramID));
+			parameterName.append(modulation::params::getPatchedParamShortName(paramID));
 		}
 		else if (getCurrentOutputType() == OutputType::MIDI_OUT) {
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
 			if (kind == params::Kind::EXPRESSION) {
 				if (paramID == X_PITCH_BEND) {
-					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
+					parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
 				}
 				else if (paramID == Z_PRESSURE) {
-					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
+					parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
 				}
 				else if (paramID == Y_SLIDE_TIMBRE) {
 					// in mono expression this is mod wheel, and y-axis is not directly controllable
-					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
+					parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 				}
 			}
 			else if (paramID >= 0 && paramID < kNumRealCCNumbers) {
 				std::string_view name = midiInstrument->getNameFromCC(paramID);
 				if (!name.empty()) {
-					popupMsg.append(name.data());
+					parameterName.append(name.data());
 				}
 				else {
-					popupMsg.append("CC ");
-					popupMsg.appendInt(paramID);
+					parameterName.append("CC ");
+					parameterName.appendInt(paramID);
 				}
-			}
-			else {
-				appendedName = false;
 			}
 		}
 		else {
 			const char* name = getParamDisplayName(kind, paramID);
 			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
-				popupMsg.append(name);
+				parameterName.append(name);
 			}
-			else {
-				appendedName = false;
-			}
-		}
-		if (appendedName) {
-			popupMsg.append(": ");
 		}
 	}
 
@@ -1127,41 +1125,44 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	                            (ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 	    && !isUIModeActive(UI_MODE_STUTTERING)) {
 		if (newKnobPos < -39) { // 4ths stutter: no leds turned on
-			popupMsg.append("4ths");
+			parameterValue.append("4ths");
 		}
 		else if (newKnobPos < -14) { // 8ths stutter: 1 led turned on
-			popupMsg.append("8ths");
+			parameterValue.append("8ths");
 		}
 		else if (newKnobPos < 14) { // 16ths stutter: 2 leds turned on
-			popupMsg.append("16ths");
+			parameterValue.append("16ths");
 		}
 		else if (newKnobPos < 39) { // 32nds stutter: 3 leds turned on
-			popupMsg.append("32nds");
+			parameterValue.append("32nds");
 		}
 		else { // 64ths stutter: all 4 leds turned on
-			popupMsg.append("64ths");
+			parameterValue.append("64ths");
 		}
 	}
 	// if turning arpeggiator rhythm mod encoder
 	else if (isParamArpRhythm(kind, paramID)) {
 		int valueForDisplay = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
 		if (display->haveOLED()) {
-			popupMsg.append("\n");
-
 			char name[12];
 			// Index: Name
 			snprintf(name, sizeof(name), "%d: %s", valueForDisplay, arpRhythmPatternNames[valueForDisplay]);
-			popupMsg.append(name);
+			parameterValue.append(name);
 		}
 		else {
-			popupMsg.append(arpRhythmPatternNames[valueForDisplay]);
+			parameterValue.append(arpRhythmPatternNames[valueForDisplay]);
 		}
 	}
 	else {
 		int valueForDisplay = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
-		popupMsg.appendInt(valueForDisplay);
+		parameterValue.appendInt(valueForDisplay);
 	}
-	display->displayPopup(popupMsg.c_str());
+	if (display->haveOLED()) {
+		display->displayNotification(parameterName.c_str(), parameterValue.c_str());
+	}
+	else {
+		display->displayPopup(parameterValue.c_str());
+	}
 }
 
 // convert deluge internal knobPos range to same range as used by menu's.
@@ -1893,6 +1894,8 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 	deluge::hid::display::OLED::markChanged();
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstack-usage="
 void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int32_t channelSuffix, char const* name,
                                      bool isNameEmpty, bool editedByUser, bool doBlink, Clip* clip) {
 	if (doBlink) {
@@ -2104,6 +2107,7 @@ oledOutputBuffer:
 		}
 	}
 }
+#pragma GCC diagnostic pop
 
 void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* clip, bool doBlink) {
 

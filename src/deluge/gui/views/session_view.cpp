@@ -3355,11 +3355,6 @@ RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool rend
 	}
 
 	RGB resultColour = RGB::fromHue(clip->output->colour);
-	// when selecting a clip, dim all other clip pads a bit
-	// so that the selected clip pad can be lit a bit brighter
-	if (renderPulse && (x != gridFirstPressedX || y != gridFirstPressedY)) {
-		resultColour = resultColour.adjust(255, 2);
-	}
 
 	// Black phase of arm flashing
 	if (view.clipArmFlashOn && clip->armState != ArmState::OFF) {
@@ -3607,6 +3602,8 @@ void SessionView::setupNewClip(Clip* newClip) {
 	}
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstack-usage="
 void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput) {
 	if (source->name.isEmpty()) {
 		return;
@@ -3637,6 +3634,7 @@ void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput)
 	}
 	target->name.set(newName.data());
 }
+#pragma GCC diagnostic pop
 
 Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, Clip* sourceClip) {
 	actionLogger.deleteAllLogs();

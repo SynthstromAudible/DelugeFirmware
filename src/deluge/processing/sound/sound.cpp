@@ -1564,6 +1564,12 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 	arpeggiator->noteOff(arpSettings, noteCode, &instruction);
 
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+	}
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
 		}
@@ -1756,6 +1762,34 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 		if (noteCode == ALL_NOTES_OFF) {
 			// We must send note offs for all active notes
 			// so we will search for the current notes on postArp phase, if any
+
+			// First any glide notes
+			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+				if (getArp()->glideNoteCodeCurrentlyOnPostArp[n] == ARP_NOTE_NONE) {
+					break;
+				}
+				int32_t outputNoteCode = getArp()->glideNoteCodeCurrentlyOnPostArp[n];
+				if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
+					// If note for drums is set then this is a SoundDrum and we must use the relative note code
+					// (relative to kNoteForDrum)
+					int32_t noteCodeDiff = outputNoteCode - kNoteForDrum;
+					outputNoteCode = outputMidiNoteForDrum + noteCodeDiff;
+					// Correct if out of bounds
+					if (outputNoteCode < 0) {
+						outputNoteCode = 0;
+					}
+					else if (outputNoteCode > 127) {
+						outputNoteCode = 127;
+					}
+				}
+				midiEngine.sendNote(this, false, outputNoteCode, kDefaultNoteOffVelocity, outputMidiChannel, 0);
+
+				// The "voice" related code below will switch off the voice anyway, so it is safe to clean this flag so
+				// we don't send two note offs if a normal noteOff or playback stop is received later
+				getArp()->glideNoteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+			}
+
+			// Then any normal notes
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (getArp()->noteCodeCurrentlyOnPostArp[n] == ARP_NOTE_NONE) {
 					break;
@@ -2292,9 +2326,9 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 	}
 }
 
-void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
-                   int32_t sideChainHitPending, int32_t reverbAmountAdjust, bool shouldLimitDelayFeedback,
-                   int32_t pitchAdjust, SampleRecorder* recorder) {
+void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::StereoBuffer<q31_t> output,
+                   int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust,
+                   bool shouldLimitDelayFeedback, int32_t pitchAdjust, SampleRecorder* recorder) {
 
 	if (skippingRendering) {
 		compressor.gainReduction = 0;
@@ -2384,6 +2418,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 		bool atLeastOneOff = false;
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+				break;
+			}
+			atLeastOneOff = true;
+			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+		}
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 				break;
 			}
@@ -2410,7 +2451,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 
 	// Setup delay
-	Delay::State delayWorkingState{};
+	deluge::dsp::Delay::State delayWorkingState{};
 	delayWorkingState.delayFeedbackAmount = paramFinalValues[params::GLOBAL_DELAY_FEEDBACK - params::FIRST_GLOBAL];
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
@@ -2430,7 +2471,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	memset(sound_memory, 0, output.size() * sizeof(q31_t) * (voice_rendered_in_stereo ? 2 : 1));
 
 	std::span sound_mono{sound_memory, output.size()};
-	std::span sound_stereo{(StereoSample*)sound_memory, output.size()};
+	std::span sound_stereo{(deluge::dsp::StereoSample<q31_t>*)sound_memory, output.size()};
 
 	if (!voices_.empty()) {
 
@@ -2480,7 +2521,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			if (doPanning) {
 				// right to left because of in-place mono to stereo expansion
 				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), [=](q31_t sample) {
-					return StereoSample{
+					return deluge::dsp::StereoSample<q31_t>{
 					    .l = multiply_32x32_rshift32(sample, amplitudeL) << 2,
 					    .r = multiply_32x32_rshift32(sample, amplitudeR) << 2,
 					};
@@ -2488,14 +2529,15 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			}
 			else {
 				// right to left because of in-place mono to stereo expansion
-				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), StereoSample::fromMono);
+				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(),
+				               deluge::dsp::StereoSample<q31_t>::fromMono);
 			}
 		}
 
 		// Or if rendered in stereo...
 		// And if we're only applying pan here at the Sound level...
 		else if (!applyingPanAtVoiceLevel && doPanning) {
-			for (StereoSample& sample : sound_stereo) {
+			for (deluge::dsp::StereoSample<q31_t>& sample : sound_stereo) {
 				sample.l = multiply_32x32_rshift32(sample.l, amplitudeL) << 2;
 				sample.r = multiply_32x32_rshift32(sample.r, amplitudeR) << 2;
 			}

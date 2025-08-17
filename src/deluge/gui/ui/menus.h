@@ -1,7 +1,6 @@
 #pragma once
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
-#include "gui/menu_item/defaults/swing_interval.h"
 #include "gui/menu_item/edit_name.h"
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/midi/bank.h"
@@ -21,19 +20,30 @@
 #include "gui/menu_item/osc/sync.h"
 #include "gui/menu_item/patch_cables.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
+#include "gui/menu_item/randomizer/midi_cv/note_probability.h"
+#include "gui/menu_item/randomizer/midi_cv/spread_velocity.h"
+#include "gui/menu_item/randomizer/randomizer_lock.h"
 #include "gui/menu_item/sample/end.h"
 #include "gui/menu_item/sample/start.h"
 #include "gui/menu_item/sequence/direction.h"
-#include "gui/menu_item/source/patched_param/fm.h"
+#include "gui/menu_item/source/patched_param/modulator_level.h"
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
+#include <array>
+
+namespace deluge::gui::menu_item {
+class HorizontalMenu;
+}
 
 extern deluge::gui::menu_item::patched_param::IntegerNonFM noiseMenu;
 extern deluge::gui::menu_item::osc::Sync oscSyncMenu;
-extern deluge::gui::menu_item::osc::source::WaveIndex sourceWaveIndexMenu;
+extern deluge::gui::menu_item::osc::source::WaveIndex source0WaveIndexMenu;
+extern deluge::gui::menu_item::osc::source::WaveIndex source1WaveIndexMenu;
 
-extern deluge::gui::menu_item::sample::Start sampleStartMenu;
-extern deluge::gui::menu_item::sample::End sampleEndMenu;
+extern deluge::gui::menu_item::sample::Start sample0StartMenu;
+extern deluge::gui::menu_item::sample::Start sample1StartMenu;
+extern deluge::gui::menu_item::sample::End sample0EndMenu;
+extern deluge::gui::menu_item::sample::End sample1EndMenu;
 extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart;
 extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd;
 extern deluge::gui::menu_item::EditName nameEditMenu;
@@ -52,6 +62,10 @@ extern deluge::gui::menu_item::Submenu soundEditorRootMenuSongView;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuKitGlobalFX;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenu;
 extern deluge::gui::menu_item::Submenu settingsRootMenu;
+
+extern deluge::gui::menu_item::randomizer::RandomizerLock randomizerLockMenu;
+extern deluge::gui::menu_item::randomizer::midi_cv::SpreadVelocity spreadVelocityMenuMIDIOrCV;
+extern deluge::gui::menu_item::randomizer::midi_cv::NoteProbability randomizerNoteProbabilityMenuMIDIOrCV;
 
 // note editor menu's
 extern deluge::gui::menu_item::Submenu noteEditorRootMenu;
@@ -83,26 +97,24 @@ extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranc
 extern deluge::gui::menu_item::note_row::Fill noteRowFillMenu;
 
 extern deluge::gui::menu_item::PatchCables patchCablesMenu;
-extern deluge::gui::menu_item::source::patched_param::FM modulatorVolume;
-
-extern MenuItem* midiOrCVParamShortcuts[kDisplayHeight];
-
-extern MenuItem* gateDrumParamShortcuts[kDisplayHeight];
-extern MenuItem* paramShortcutsForSounds[kDisplayWidth][kDisplayHeight];
-extern MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight];
-extern MenuItem* paramShortcutsForSongView[kDisplayWidth][kDisplayHeight];
-extern MenuItem* paramShortcutsForKitGlobalFX[kDisplayWidth][kDisplayHeight];
-
-extern deluge::gui::menu_item::Submenu* parentsForSoundShortcuts[kDisplayWidth][kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForAudioShortcuts[kDisplayWidth][kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForSongShortcuts[kDisplayWidth][kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForKitGlobalFXShortcuts[kDisplayWidth][kDisplayHeight];
-extern deluge::gui::menu_item::Submenu* parentsForMidiOrCVParamShortcuts[kDisplayWidth][kDisplayHeight];
+extern deluge::gui::menu_item::source::patched_param::ModulatorLevel modulator0Volume;
+extern deluge::gui::menu_item::source::patched_param::ModulatorLevel modulator1Volume;
 
 extern deluge::gui::menu_item::midi::PGM midiPGMMenu;
 extern deluge::gui::menu_item::midi::Bank midiBankMenu;
 extern deluge::gui::menu_item::midi::Sub midiSubMenu;
 
-void setOscillatorNumberForTitles(int32_t);
-void setModulatorNumberForTitles(int32_t);
-void setEnvelopeNumberForTitles(int32_t);
+extern MenuItem* midiOrCVParamShortcuts[kDisplayHeight];
+
+extern MenuItem* gateDrumParamShortcuts[kDisplayHeight];
+extern MenuItem* paramShortcutsForSounds[kDisplayWidth][kDisplayHeight];
+extern MenuItem* paramShortcutsForSoundsSecondLayer[kDisplayWidth][kDisplayHeight];
+extern MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight];
+extern MenuItem* paramShortcutsForSongView[kDisplayWidth][kDisplayHeight];
+extern MenuItem* paramShortcutsForKitGlobalFX[kDisplayWidth][kDisplayHeight];
+
+extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 17> horizontalMenusChainForSound;
+extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 12> horizontalMenusChainForKit;
+extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 9> horizontalMenusChainForSong;
+extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 11> horizontalMenusChainForAudioClip;
+extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 2> horizontalMenusChainForMidiOrCv;

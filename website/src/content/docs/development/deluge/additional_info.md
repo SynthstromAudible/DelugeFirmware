@@ -4,7 +4,7 @@ title: Overview
 
 Developers will want to review these resources:
 
-- [Getting Started with Deluge Development](/development/deluge/getting_started)
+- [Getting Started with Deluge Firmware Development](/development/deluge/getting_started)
 - [Guidelines for Repository Contributions](/development/deluge/guidelines)
 - [Developer Tools](/development/deluge/tools)
 - [Deluge UX Principles](/development/deluge/ux_principles)

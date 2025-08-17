@@ -206,18 +206,14 @@ const uint8_t font_5px[] = {
         0b10000,
 
         0b11111,		// M
-        0b00010,
-        0b01100,
-        0b00010,
+        0b00110,
         0b11111,
 
         0b11111,		// N
-        0b00010,
-        0b00100,
-        0b11111,
+        0b00001,
+        0b11110,
 
         0b01110,		// O
-        0b10001,
         0b10001,
         0b01110,
 
@@ -227,8 +223,7 @@ const uint8_t font_5px[] = {
 
         0b01110,		// Q
         0b10001,
-        0b01001,
-        0b10110,
+        0b11110,
 
         0b11111,		// R
         0b00101,
@@ -251,9 +246,7 @@ const uint8_t font_5px[] = {
         0b01111,
 
         0b11111,		// W
-        0b01000,
-        0b00110,
-        0b01000,
+        0b01100,
         0b11111,
 
         0b11011,		// X
@@ -303,6 +296,10 @@ const uint8_t font_5px[] = {
         0b00010,
         0b00100,
         0b00110,
+
+        0b11111,		// ♭ (flat)
+        0b10100,
+        0b01100,
 };
 
 const lv_font_glyph_dsc_t font_5px_desc[] = {
@@ -351,30 +348,31 @@ const lv_font_glyph_dsc_t font_5px_desc[] = {
         {.w_px = 3,     .glyph_index = 117},	// J
         {.w_px = 3,     .glyph_index = 120},	// K
         {.w_px = 3,     .glyph_index = 123},	// L
-        {.w_px = 5,     .glyph_index = 126},	// M
-        {.w_px = 4,     .glyph_index = 131},	// N
-        {.w_px = 4,     .glyph_index = 135},	// O
-        {.w_px = 3,     .glyph_index = 139},	// P
-        {.w_px = 4,     .glyph_index = 142},	// Q
-        {.w_px = 3,     .glyph_index = 146},	// R
-        {.w_px = 3,     .glyph_index = 149},	// S
-        {.w_px = 3,     .glyph_index = 152},	// T
-        {.w_px = 3,     .glyph_index = 155},	// U
-        {.w_px = 3,     .glyph_index = 158},	// V
-        {.w_px = 5,     .glyph_index = 161},	// W
-        {.w_px = 3,     .glyph_index = 166},	// X
-        {.w_px = 3,     .glyph_index = 169},	// Y
-        {.w_px = 3,     .glyph_index = 172},	// Z
-        {.w_px = 2,     .glyph_index = 175},	// [
-        {.w_px = 3,     .glyph_index = 177},	// \ (backslash)
-        {.w_px = 2,     .glyph_index = 180},	// ]
-        {.w_px = 3,     .glyph_index = 182},	// ^
-        {.w_px = 3,     .glyph_index = 185},	// _
-        {.w_px = 2,     .glyph_index = 188},	// `
-        {.w_px = 3,     .glyph_index = 190},	// {
-        {.w_px = 1,     .glyph_index = 193},	// |
-        {.w_px = 3,     .glyph_index = 194},	// }
-        {.w_px = 4,     .glyph_index = 197},	// ~
+        {.w_px = 3,     .glyph_index = 126},	// M
+        {.w_px = 3,     .glyph_index = 129},	// N
+        {.w_px = 3,     .glyph_index = 132},	// O
+        {.w_px = 3,     .glyph_index = 135},	// P
+        {.w_px = 3,     .glyph_index = 138},	// Q
+        {.w_px = 3,     .glyph_index = 141},	// R
+        {.w_px = 3,     .glyph_index = 144},	// S
+        {.w_px = 3,     .glyph_index = 147},	// T
+        {.w_px = 3,     .glyph_index = 150},	// U
+        {.w_px = 3,     .glyph_index = 153},	// V
+        {.w_px = 3,     .glyph_index = 156},	// W
+        {.w_px = 3,     .glyph_index = 159},	// X
+        {.w_px = 3,     .glyph_index = 162},	// Y
+        {.w_px = 3,     .glyph_index = 165},	// Z
+        {.w_px = 2,     .glyph_index = 168},	// [
+        {.w_px = 3,     .glyph_index = 170},	// \ (backslash)
+        {.w_px = 2,     .glyph_index = 173},	// ]
+        {.w_px = 3,     .glyph_index = 175},	// ^
+        {.w_px = 3,     .glyph_index = 178},	// _
+        {.w_px = 2,     .glyph_index = 181},	// `
+        {.w_px = 3,     .glyph_index = 183},	// {
+        {.w_px = 1,     .glyph_index = 186},	// |
+        {.w_px = 3,     .glyph_index = 187},	// }
+        {.w_px = 4,     .glyph_index = 190},	// ~
+        {.w_px = 3,     .glyph_index = 194},	// ♭ (flat)
 };
 
 /***********************************************************************************
@@ -757,6 +755,12 @@ const uint8_t font_apple[] = {
         0b00000011,
         0b00000010,
         0b00000001,
+
+        0b01111110,		// flat glyph (♭)
+        0b01001000,
+        0b01001000,
+        0b01001000,
+        0b00110000,
 };
 
 const lv_font_glyph_dsc_t font_apple_desc[] = {
@@ -829,6 +833,7 @@ const lv_font_glyph_dsc_t font_apple_desc[] = {
         {.w_px = 1,     .glyph_index = 293},	// |
         {.w_px = 5,     .glyph_index = 294},	// }
         {.w_px = 5,     .glyph_index = 299},	// ~
+        {.w_px = 5,     .glyph_index = 304},	// flat glyph (♭)
 };
 
 
@@ -1314,6 +1319,13 @@ const uint8_t font_metric_bold_9px[] =
         0b00110000, 0b00000000,
         0b00111000, 0b00000000,
         0b00011000, 0b00000000,
+
+        0b11111111, 0b00000001,		// flat glyph (♭)
+        0b11111111, 0b00000001,
+        0b10011000, 0b00000001,
+        0b10011000, 0b00000001,
+        0b11111000, 0b00000001,
+        0b11110000, 0b00000000,
 };
 
 
@@ -1395,10 +1407,8 @@ const lv_font_glyph_dsc_t font_metric_bold_9px_desc[] =
         {.w_px = 2,     .glyph_index = 762},	// |
         {.w_px = 5,     .glyph_index = 766},	// }
         {.w_px = 6,     .glyph_index = 776},	// ~
+        {.w_px = 6,     .glyph_index = 788},	// flat glyph (♭)
 };
-
-
-
 
 
 
@@ -2128,6 +2138,18 @@ const uint8_t font_metric_bold_13px[] = {
         0b10000000, 0b00000001,
         0b11000000, 0b00000001,
         0b11000000, 0b00000000,
+
+        0b11111111, 0b00011111,		// flat glyph (♭)
+        0b11111111, 0b00011111,
+        0b11111111, 0b00011111,
+        0b11100000, 0b00011100,
+        0b11100000, 0b00011100,
+        0b11100000, 0b00011100,
+        0b11100000, 0b00011100,
+        0b11100000, 0b00011111,
+        0b11000000, 0b00001111,
+        0b10000000, 0b00000111,
+        0b00000000, 0b00000000,
 };
 
 
@@ -2202,6 +2224,7 @@ const lv_font_glyph_dsc_t font_metric_bold_13px_desc[] = {
         {.w_px = 4,     .glyph_index = 1258},	// |
         {.w_px = 7,     .glyph_index = 1266},	// }
         {.w_px = 8,     .glyph_index = 1280},	// ~
+        {.w_px = 10,    .glyph_index = 1296},	// flat glyph (♭)
 };
 
 
@@ -3279,6 +3302,23 @@ const uint8_t font_metric_bold_20px[] = {
         0b00000000, 0b00111110, 0b00000000,
         0b00000000, 0b00011110, 0b00000000,
         0b00000000, 0b00000010, 0b00000000,
+
+        0b11111111, 0b11111111, 0b00001111,		// flat glyph (♭)
+        0b11111111, 0b11111111, 0b00001111,
+        0b11111111, 0b11111111, 0b00001111,
+        0b11111111, 0b11111111, 0b00001111,
+        0b11111111, 0b11111111, 0b00001111,
+        0b00000000, 0b00001111, 0b00001111,
+        0b00000000, 0b00001111, 0b00001111,
+        0b00000000, 0b00001111, 0b00001111,
+        0b00000000, 0b00001111, 0b00001111,
+        0b00000000, 0b00001111, 0b00001111,
+        0b00000000, 0b10011111, 0b00001111,
+        0b00000000, 0b11111111, 0b00001111,
+        0b00000000, 0b11111110, 0b00000111,
+        0b00000000, 0b11111110, 0b00000111,
+        0b00000000, 0b11111100, 0b00000011,
+        0b00000000, 0b11111000, 0b00000001,
 };
 
 
@@ -3353,4 +3393,5 @@ const lv_font_glyph_dsc_t font_metric_bold_20px_desc[] = {
         {.w_px = 5,     .glyph_index = 2883},	// |
         {.w_px = 12,    .glyph_index = 2898},	// }
         {.w_px = 12,    .glyph_index = 2934},	// ~
+        {.w_px = 16,    .glyph_index = 2970},	// flat glyph (♭)
 };

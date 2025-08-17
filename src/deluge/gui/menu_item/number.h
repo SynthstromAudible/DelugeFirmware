@@ -21,15 +21,28 @@
 #include <cstdint>
 
 namespace deluge::gui::menu_item {
+
+enum NumberStyle { NUMBER, KNOB, VERTICAL_BAR, LEVEL, PERCENT, SLIDER, LENGTH_SLIDER };
+
 class Number : public Value<int32_t> {
 public:
 	using Value::Value;
-	void drawBar(int32_t yTop, int32_t marginL, int32_t marginR = -1);
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+	void drawHorizontalBar(int32_t yTop, int32_t marginL, int32_t marginR = -1, int32_t height = 8);
 
 protected:
 	[[nodiscard]] virtual int32_t getMaxValue() const = 0;
 	[[nodiscard]] virtual int32_t getMinValue() const { return 0; }
+	[[nodiscard]] virtual NumberStyle getNumberStyle() const { return KNOB; }
+	float getNormalizedValue();
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+	void drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t height);
+	void drawVerticalBar(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
+	void drawLevel(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
+	void drawPercent(int32_t startX, int32_t startY, int32_t width, int32_t height);
+	void drawSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
+	void drawLengthSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight, bool minSliderPos = 3);
+	void getNotificationValue(StringBuf& value);
 };
 
 } // namespace deluge::gui::menu_item

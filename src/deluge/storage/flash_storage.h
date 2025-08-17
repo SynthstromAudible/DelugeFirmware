@@ -27,6 +27,7 @@
 #define PREVIEW_ONLY_WHILE_NOT_PLAYING 1
 #define PREVIEW_ON 2
 
+enum class Polarity : uint8_t;
 namespace FlashStorage {
 
 extern uint8_t defaultScale;
@@ -73,14 +74,18 @@ extern uint8_t defaultSwingInterval;
 extern std::bitset<NUM_PRESET_SCALES> defaultDisabledPresetScales;
 
 extern bool accessibilityShortcuts;
-extern bool accessibilityMenuHighlighting;
+extern MenuHighlighting accessibilityMenuHighlighting;
 
 extern OutputType defaultNewClipType;
 extern bool defaultUseLastClipType;
 
 extern ThresholdRecordingMode defaultThresholdRecordingMode;
 
+extern Polarity defaultPatchCablePolarity;
+
 extern GlobalMIDICommand defaultLoopRecordingCommand;
+
+extern bool defaultUseSharps;
 
 void readSettings();
 void writeSettings();

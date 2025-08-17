@@ -35,6 +35,7 @@
 #include <bits/ranges_algo.h>
 #include <cstring>
 #include <etl/vector.h>
+#include <gui/ui/ui.h>
 #include <ranges>
 #include <string_view>
 
@@ -65,410 +66,6 @@ bool started_animation;
 bool loading;
 
 int32_t sideScrollerDirection; // 0 means none active
-
-const uint8_t OLED::folderIcon[] = {
-    0b11111100, //<
-    0b10000100, //<
-    0b10000110, //<
-    0b10000101, //<
-    0b10000011, //<
-    0b10000001, //<
-    0b10000001, //<
-    0b11111110, //<
-};
-
-const uint8_t OLED::waveIcon[] = {
-    0b00010000, //<
-    0b11111110, //<
-    0b00111000, //<
-    0b00010000, //<
-    0b00111000, //<
-    0b01111100, //<
-    0b00111000, //<
-    0b00010000, //<
-};
-
-const uint8_t OLED::songIcon[] = {
-    0b00000000, //<
-    0b01100000, //<
-    0b11110000, //<
-    0b11110000, //<
-    0b01111110, //<
-    0b00000110, //<
-    0b00000110, //<
-    0b00000011, //<
-    0b00000011, //<
-};
-
-const uint8_t OLED::synthIcon[] = {
-    0b11111110, //<
-    0b11100000, //<
-    0b00000000, //<
-    0b11111110, //<
-    0b00000000, //<
-    0b11100000, //<
-    0b11111110, //<
-    0b00000000, //<
-};
-
-const uint8_t OLED::kitIcon[] = {
-    0b00111100, //<
-    0b01001010, //<
-    0b11110001, //<
-    0b10010001, //<
-    0b10010001, //<
-    0b11110001, //<
-    0b01001010, //<
-    0b00111100, //<
-};
-
-// midi icon is 9 pixels wide, icons are normally 8 pixels wide
-// to accomodate rendering that right edge, a second icon is added below
-// to be rendered right after this one
-const uint8_t OLED::midiIcon[] = {
-    0b01111100, //<
-    0b10000010, //<
-    0b00101001, //<
-    0b10000001, //<
-    0b10000101, //<
-    0b10000001, //<
-    0b00101001, //<
-    0b10000010, //<
-};
-
-const uint8_t OLED::midiIconPt2[] = {
-    0b01111100, //<
-    0b00000000, //<
-    0b00000000, //<
-    0b00000000, //<
-    0b00000000, //<
-    0b00000000, //<
-    0b00000000, //<
-    0b00000000, //<
-};
-
-const uint8_t OLED::downArrowIcon[] = {
-    0b00010000, //<
-    0b00100000, //<
-    0b01111111, //<
-    0b00100000, //<
-    0b00010000, //<
-};
-
-const uint8_t OLED::rightArrowIcon[] = {
-    0b00010101, //<
-    0b00001110, //<
-    0b00000100, //<
-};
-
-// This icon is missing the bottom row because it's 9 pixels tall and bytes only have 8 bits. Remember to draw a
-// rectangle under it so it looks correct
-const uint8_t OLED::lockIcon[] = {
-    0b11111000, //<
-    0b11111110, //<
-    0b00001001, //<
-    0b01111001, //<
-    0b01111001, //<
-    0b11111110, //<
-    0b11111000, //<
-};
-
-const uint8_t OLED::checkedBoxIcon[] = {
-    0b11111110, //<
-    0b10000010, //<
-    0b10011010, //<
-    0b10110010, //<
-    0b10011010, //<
-    0b10001100, //<
-    0b11100110, //<
-};
-
-const uint8_t OLED::uncheckedBoxIcon[] = {
-    0b11111110, //<
-    0b10000010, //<
-    0b10000010, //<
-    0b10000010, //<
-    0b10000010, //<
-    0b10000010, //<
-    0b11111110, //<
-};
-
-const uint8_t OLED::submenuArrowIcon[] = {
-    0b00000000, //<
-    0b00000000, //<
-    0b01000100, //<
-    0b00101000, //<
-    0b00010000, //<
-    0b00000000, //<
-    0b00000000, //<
-};
-
-const uint8_t OLED::submenuArrowIconBold[] = {
-    0b00000000, //<
-    0b00000000, //<
-    0b11000110, //<
-    0b01101100, //<
-    0b00111000, //<
-    0b00010000, //<
-    0b00000000, //<
-};
-
-const uint8_t OLED::metronomeIcon[] = {
-    0b11100000, //<
-    0b11011100, //<
-    0b11000011, //<
-    0b11100001, //<
-    0b11010011, //<
-    0b11011000, //<
-    0b11100100, //<
-};
-
-const uint8_t OLED::lfoIconSine[64] = {
-    0b00000000, 0b00000001, //<
-    0b00000000, 0b00000110, //<
-    0b00000000, 0b00011000, //<
-    0b00000000, 0b00110000, //<
-    0b00000000, 0b01100001, //<
-    0b00000000, 0b01100000, //<
-    0b00000000, 0b11000000, //<
-    0b00000000, 0b11000001, //<
-    0b00000000, 0b11000000, //<
-    0b00000000, 0b01100000, //<
-    0b00000000, 0b01100001, //<
-    0b00000000, 0b00110000, //<
-    0b00000000, 0b00011000, //<
-    0b00000000, 0b00000110, //<
-    0b00000000, 0b00000001, //<
-    0b11000000, 0b00000000, //<
-
-    0b00110000, 0b00000000, //<
-    0b00011000, 0b00000001, //<
-    0b00001100, 0b00000000, //<
-    0b00001100, 0b00000000, //<
-    0b00000110, 0b00000001, //<
-    0b00000110, 0b00000000, //<
-    0b00000110, 0b00000000, //<
-    0b00001100, 0b00000001, //<
-    0b00001100, 0b00000000, //<
-    0b00011000, 0b00000000, //<
-    0b00110000, 0b00000000, //<
-    0b11000000, 0b00000001, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000  //<
-};
-
-const uint8_t OLED::lfoIconTriangle[64] = {
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000011, //<
-    0b00000000, 0b00000110, //<
-    0b00000000, 0b00001100, //<
-    0b00000000, 0b00011001, //<
-    0b00000000, 0b00110000, //<
-    0b00000000, 0b01100000, //<
-    0b00000000, 0b01000001, //<
-    0b00000000, 0b01100000, //<
-    0b00000000, 0b00110000, //<
-    0b00000000, 0b00011001, //<
-    0b00000000, 0b00001100, //<
-    0b00000000, 0b00000110, //<
-    0b00000000, 0b00000011, //<
-    0b10000000, 0b00000001, //<
-    0b11000000, 0b00000000, //<
-
-    0b01100000, 0b00000000, //<
-    0b00110000, 0b00000001, //<
-    0b00011000, 0b00000000, //<
-    0b00001100, 0b00000000, //<
-    0b00000110, 0b00000001, //<
-    0b00001100, 0b00000000, //<
-    0b00011000, 0b00000000, //<
-    0b00110000, 0b00000001, //<
-    0b01100000, 0b00000000, //<
-    0b11000000, 0b00000000, //<
-    0b10000000, 0b00000001, //<
-    0b00000000, 0b00000001, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000  //<
-};
-
-const uint8_t OLED::lfoIconSquare[64] = {
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b01111111, //<
-    0b00000000, 0b01100000, //<
-    0b00000000, 0b01100000, //<
-    0b00000000, 0b01100000, //<
-    0b00000000, 0b01100001, //<
-    0b00000000, 0b01100000, //<
-    0b00000000, 0b01100000, //<
-    0b00000000, 0b01100001, //<
-    0b00000000, 0b01100000, //<
-    0b00000000, 0b01100000, //<
-    0b00000000, 0b01100001, //<
-    0b00000000, 0b01100000, //<
-    0b00000000, 0b01100000, //<
-    0b11111110, 0b01111111, //<
-    0b00000110, 0b00000000, //<
-
-    0b00000110, 0b00000000, //<
-    0b00000110, 0b00000001, //<
-    0b00000110, 0b00000000, //<
-    0b00000110, 0b00000000, //<
-    0b00000110, 0b00000001, //<
-    0b00000110, 0b00000000, //<
-    0b00000110, 0b00000000, //<
-    0b00000110, 0b00000001, //<
-    0b00000110, 0b00000000, //<
-    0b00000110, 0b00000000, //<
-    0b11111110, 0b00000001, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000  //<
-};
-
-const uint8_t OLED::lfoIconSaw[64] = {
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b01111111, //<
-    0b00000000, 0b01100000, //<
-    0b00000000, 0b00100000, //<
-    0b00000000, 0b00110001, //<
-    0b00000000, 0b00010000, //<
-    0b00000000, 0b00011000, //<
-    0b00000000, 0b00001001, //<
-    0b00000000, 0b00001100, //<
-    0b00000000, 0b00000100, //<
-    0b00000000, 0b00000110, //<
-    0b00000000, 0b00000010, //<
-    0b00000000, 0b00000011, //<
-    0b00000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000000, //<
-
-    0b11000000, 0b00000000, //<
-    0b01000000, 0b00000000, //<
-    0b01100000, 0b00000000, //<
-    0b00100000, 0b00000001, //<
-    0b00110000, 0b00000000, //<
-    0b00010000, 0b00000000, //<
-    0b00011000, 0b00000001, //<
-    0b00001000, 0b00000000, //<
-    0b00001100, 0b00000000, //<
-    0b00000110, 0b00000000, //<
-    0b11111110, 0b00000001, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000  //<
-};
-
-const uint8_t OLED::lfoIconSampleHold[64] = {
-    0b00000000, 0b00000011, //<
-    0b00000000, 0b00000011, //<
-    0b00000000, 0b00000011, //<
-    0b00000000, 0b00000011, //<
-    0b11111000, 0b00000011, //<
-    0b00011000, 0b00000000, //<
-    0b00011000, 0b00000000, //<
-    0b00011000, 0b00000000, //<
-    0b11111000, 0b00011111, //<
-    0b00000000, 0b00011000, //<
-    0b00000000, 0b00011000, //<
-    0b00000000, 0b00011000, //<
-    0b00000000, 0b01111000, //<
-    0b00000000, 0b01100000, //<
-    0b00000000, 0b01100000, //<
-    0b00000000, 0b01100000, //<
-
-    0b11100000, 0b01111111, //<
-    0b01100000, 0b00000000, //<
-    0b01100000, 0b00000000, //<
-    0b01100000, 0b00000000, //<
-    0b01111110, 0b00000000, //<
-    0b00000110, 0b00000000, //<
-    0b00000110, 0b00000000, //<
-    0b00000110, 0b00000000, //<
-    0b11111110, 0b00001111, //<
-    0b00000000, 0b00001100, //<
-    0b00000000, 0b00001100, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000  //<
-};
-
-const uint8_t OLED::lfoIconRandomWalk[64] = {
-    0b00000000, 0b00000110, //<
-    0b00000000, 0b00000110, //<
-    0b00000000, 0b00000110, //<
-    0b00000000, 0b00000110, //<
-    0b00000000, 0b00000110, //<
-    0b00000000, 0b00000011, //<
-    0b00000000, 0b00000011, //<
-    0b00000000, 0b00000011, //<
-    0b11000000, 0b00000000, //<
-    0b11000000, 0b00000000, //<
-    0b11000000, 0b00000000, //<
-    0b11000000, 0b00000000, //<
-    0b11000000, 0b00000000, //<
-    0b11000000, 0b00000000, //<
-    0b00000000, 0b00000011, //<
-    0b00000000, 0b00000011, //<
-
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b01100000, 0b00000000, //<
-    0b01100000, 0b00000000, //<
-    0b01100000, 0b00000000, //<
-    0b01100000, 0b00000000, //<
-    0b01100000, 0b00000000, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000  //<
-};
-
-const uint8_t OLED::lfoIconWarbler[64] = {
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b00000000, 0b00000011, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b00000000, 0b00000011, //<
-    0b00000000, 0b00000011, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-
-    0b00000000, 0b00000011, //<
-    0b00000000, 0b00000011, //<
-    0b00000000, 0b00000011, //<
-    0b00000000, 0b00000110, //<
-    0b00000000, 0b00000011, //<
-    0b00000000, 0b00000011, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b11000000, 0b00000000, //<
-    0b10000000, 0b00000001, //<
-    0b10000000, 0b00000001, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000, //<
-    0b00000000, 0b00000000  //<
-};
 
 #if ENABLE_TEXT_OUTPUT
 uint16_t renderStartTime;
@@ -528,26 +125,44 @@ int32_t popupMaxX;
 int32_t popupMinY;
 int32_t popupMaxY;
 
-void OLED::setupPopup(int32_t width, int32_t height) {
+void OLED::setupPopup(PopupType type, int32_t width, int32_t height, std::optional<int32_t> startX,
+                      std::optional<int32_t> startY) {
 	height = std::clamp<int32_t>(height, 0, OLED_MAIN_HEIGHT_PIXELS);
 	oledPopupWidth = width;
 	popupHeight = height;
+	popupType = type;
 
-	popupMinX = (OLED_MAIN_WIDTH_PIXELS - width) / 2;
-	popupMaxX = OLED_MAIN_WIDTH_PIXELS - popupMinX;
+	popupMinX = startX.has_value() ? startX.value() : (OLED_MAIN_WIDTH_PIXELS - width) / 2;
+	popupMaxX = popupMinX + width;
+	popupMinY = startY.has_value() ? startY.value() : (OLED_MAIN_HEIGHT_PIXELS - height) / 2;
+	popupMaxY = popupMinY + height;
+#if ALPHA_OR_BETA_VERSION
+	if (popupMaxX < 0 || popupMinX < 0 || popupMaxX < popupMinX || popupMinX > OLED_MAIN_WIDTH_PIXELS
+	    || popupMaxX > OLED_MAIN_WIDTH_PIXELS) {
 
-	popupMinY = (OLED_MAIN_HEIGHT_PIXELS - height) / 2;
-	popupMaxY = OLED_MAIN_HEIGHT_PIXELS - popupMinY;
+		uint32_t regLR = 0;
+		uint32_t regSP = 0;
+		asm volatile("MOV %0, LR\n" : "=r"(regLR));
+		asm volatile("MOV %0, SP\n" : "=r"(regSP));
+		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);
+		::freezeWithError("D003");
+	}
+	if (popupMaxY < 0 || popupMinY < 0 || popupMaxY < popupMinY || popupMinY > OLED_MAIN_WIDTH_PIXELS
+	    || popupMaxY > OLED_MAIN_WIDTH_PIXELS) {
 
-	popupMinY = std::max<int32_t>(popupMinY, OLED_MAIN_TOPMOST_PIXEL);
-	popupMaxY = std::min<int32_t>(popupMaxY, OLED_MAIN_HEIGHT_PIXELS - 1);
-
-	// Clear the popup's area, not including the rectangle we're about to draw
-	int32_t popupFirstRow = (popupMinY + 1) >> 3;
-	int32_t popupLastRow = (popupMaxY - 1) >> 3;
-
+		uint32_t regLR = 0;
+		uint32_t regSP = 0;
+		asm volatile("MOV %0, LR\n" : "=r"(regLR));
+		asm volatile("MOV %0, SP\n" : "=r"(regSP));
+		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);
+		::freezeWithError("D003");
+	}
+#endif
 	popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
-	popup.drawRectangle(popupMinX, popupMinY, popupMaxX, popupMaxY);
+
+	if (type != PopupType::NOTIFICATION) {
+		popup.drawRectangleRounded(popupMinX, popupMinY, popupMaxX, popupMaxY);
+	}
 }
 
 int32_t consoleMaxX;
@@ -772,7 +387,7 @@ void OLED::sendMainImage() {
 
 struct TextLine {
 	std::string_view text;
-	size_t pixel_width;
+	size_t pixel_width{0};
 };
 
 constexpr std::size_t kMaxNumLines = 8;
@@ -804,10 +419,16 @@ std::pair<size_t, size_t> getWidthPixels(char c, size_t height) {
 /// @return the total width of the string in pixels
 size_t getWidthPixels(std::string_view text, size_t height) {
 	size_t total_width = 0;
-
+	size_t index = 0;
+	auto l = text.length();
 	for (char c : text) {
 		auto [char_width, char_spacing] = getWidthPixels(c, height);
-		total_width += char_spacing + char_width;
+		if (index++ == l - 1) {
+			total_width += char_width;
+		}
+		else {
+			total_width += char_spacing + char_width;
+		}
 	}
 
 	return total_width;
@@ -826,7 +447,6 @@ size_t getWidthPixels(std::string_view text, size_t height) {
 /// @note The function assumes that the input string is valid and does not contain any invalid characters.
 TextLineBreakdown::TextLineBreakdown(std::string_view text, size_t char_height, size_t max_pixels_per_line)
     : max_width_per_line{max_pixels_per_line} {
-
 	size_t line_width = 0;
 	size_t last_char_spacing = 0;
 
@@ -837,9 +457,14 @@ TextLineBreakdown::TextLineBreakdown(std::string_view text, size_t char_height, 
 			size_t end_idx = std::distance(text.begin(), c);
 
 			// add the current line to the lines vector
+			auto t = text.substr(0, end_idx);
+			auto l = getWidthPixels(t, char_height);
+			if (l > max_pixels_per_line) {
+				FREEZE_WITH_ERROR("P002");
+			}
 			lines.push_back({
-			    .text = text.substr(0, end_idx),
-			    .pixel_width = line_width,
+			    .text = t,
+			    .pixel_width = l,
 			});
 
 			// remove the text up to and including the newline
@@ -892,6 +517,9 @@ TextLineBreakdown::TextLineBreakdown(std::string_view text, size_t char_height, 
 		    .pixel_width = getWidthPixels(text, char_height),
 		});
 	}
+	if (maxPixelWidth() > max_pixels_per_line) {
+		FREEZE_WITH_ERROR("p001");
+	}
 }
 
 void OLED::drawPermanentPopupLookingText(std::string_view text) {
@@ -928,8 +556,7 @@ void OLED::popupText(std::string_view text, bool persistent, PopupType type) {
 	auto total_width = static_cast<int32_t>(breakdown.maxPixelWidth());
 	auto total_height = static_cast<int32_t>(breakdown.lines.size() * kTextSpacingY);
 
-	setupPopup(total_width + double_margin, total_height + double_margin);
-	popupType = type;
+	setupPopup(type, total_width + double_margin, total_height + double_margin);
 
 	int32_t text_pixel_y = std::max<int32_t>((OLED_MAIN_HEIGHT_PIXELS - total_height) / 2, 0);
 
@@ -1035,6 +662,47 @@ void OLED::removeWorkingAnimation() {
 		uiTimerManager.unsetTimer(TimerName::LOADING_ANIMATION);
 		working_animation_count = 0;
 	}
+}
+
+void OLED::displayNotification(std::string_view paramTitle, std::optional<std::string_view> paramValue) {
+	DEF_STACK_STRING_BUF(titleBuf, 25);
+	titleBuf.append(paramTitle);
+
+	// Calculate the width of the strings
+	int32_t titleWidth = popup.getStringWidthInPixels(paramTitle.data(), kTextSpacingY);
+	const int32_t valueWidth =
+	    paramValue.has_value() ? popup.getStringWidthInPixels(paramValue.value().data(), kTextSpacingY) : 0;
+
+	constexpr int32_t paddingLeft = 4;
+
+	if (valueWidth > 0) {
+		// Truncate the title string until we have space to display the value
+		while (titleWidth + paddingLeft + valueWidth > OLED_MAIN_WIDTH_PIXELS - 7) {
+			titleBuf.truncate(titleBuf.size() - 1);
+			titleWidth = popup.getStringWidthInPixels(titleBuf.data(), kTextSpacingY);
+		}
+	}
+
+	setupPopup(PopupType::NOTIFICATION, OLED_MAIN_WIDTH_PIXELS - 1, kTextSpacingY + 2, 0, OLED_MAIN_TOPMOST_PIXEL);
+
+	// Draw the title and value
+	popup.drawString(titleBuf.data(), paddingLeft, OLED_MAIN_TOPMOST_PIXEL + 1, kTextSpacingX, kTextSpacingY);
+	if (valueWidth > 0) {
+		popup.drawChar(':', paddingLeft + titleWidth, OLED_MAIN_TOPMOST_PIXEL + 1, kTextSpacingX, kTextSpacingY);
+		popup.drawString(paramValue.value().data(), paddingLeft + titleWidth + 8, OLED_MAIN_TOPMOST_PIXEL + 1,
+		                 kTextSpacingX, kTextSpacingY);
+	}
+
+	if (FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION) {
+		// Make the notification inverted
+		popup.invertAreaRounded(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL,
+		                        OLED_MAIN_TOPMOST_PIXEL + kTextSpacingY + 1);
+		popup.drawPixel(0, OLED_MAIN_TOPMOST_PIXEL);
+		popup.drawPixel(OLED_MAIN_WIDTH_PIXELS - 1, OLED_MAIN_TOPMOST_PIXEL);
+	}
+
+	markChanged();
+	uiTimerManager.setTimer(TimerName::DISPLAY, 1200);
 }
 
 void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display) {
@@ -1146,12 +814,13 @@ struct SideScroller {
 	int32_t boxLengthPixels;
 	bool finished;
 	bool doHighlight;
+	String string_;
 };
 
 #define NUM_SIDE_SCROLLERS 2
 
 SideScroller sideScrollers[NUM_SIDE_SCROLLERS];
-
+// text will be copied into the scroller, caller does not need to keep it allocated
 void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight) {
 
@@ -1173,7 +842,8 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 		return;
 	}
 
-	scroller->text = text.data();
+	scroller->string_.set(text.data(), static_cast<int32_t>(text.size()));
+	scroller->text = scroller->string_.get();
 	scroller->pos = 0;
 	scroller->startX = startX;
 	scroller->endX = endX;
@@ -1193,6 +863,7 @@ void OLED::stopScrollingAnimation() {
 		sideScrollerDirection = 0;
 		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 			SideScroller* scroller = &sideScrollers[s];
+			scroller->string_.clear();
 			scroller->text = nullptr;
 		}
 		uiTimerManager.unsetTimer(TimerName::OLED_SCROLLING_AND_BLINKING);
@@ -1255,7 +926,8 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 
 			if (doRender) {
 				int32_t endX = scroller->endX;
-				if (FlashStorage::accessibilityMenuHighlighting) {
+				bool doInversion = FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION;
+				if (!doInversion) {
 					// for submenu's, this is the padding before the icon's are rendered
 					// need to clear this area otherwise it leaves a white pixels
 					endX += 4;
@@ -1264,7 +936,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 				main.clearAreaExact(scroller->startX, scroller->startY, endX - 1, scroller->endY);
 				main.drawString(scroller->text, scroller->startX, scroller->startY, scroller->textSpacingX,
 				                scroller->textSizeY, scroller->pos, scroller->endX);
-				if (scroller->doHighlight && !FlashStorage::accessibilityMenuHighlighting) {
+				if (scroller->doHighlight && doInversion) {
 					main.invertArea(scroller->startX, scroller->endX - scroller->startX, scroller->startY,
 					                scroller->endY);
 				}

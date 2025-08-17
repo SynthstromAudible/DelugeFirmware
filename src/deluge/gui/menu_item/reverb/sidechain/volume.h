@@ -42,7 +42,7 @@ public:
 	}
 
 	void drawPixelsForOled() override {
-		deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main;
+		hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 		if (this->getValue() < 0) {
 			canvas.drawStringCentred(l10n::get(l10n::String::STRING_FOR_AUTO), 18 + OLED_MAIN_TOPMOST_PIXEL,
 			                         kTextHugeSpacingX, kTextHugeSizeY);
@@ -53,26 +53,27 @@ public:
 	}
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
-		deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main;
+		oled_canvas::Canvas& canvas = OLED::main;
 		if (this->getValue() < 0) {
-			renderColumnLabel(startX, width, startY);
+			const char* stringForAuto = l10n::get(l10n::String::STRING_FOR_AUTO);
+			return canvas.drawStringCentered(stringForAuto, startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+		}
 
-			const auto stringForAuto = l10n::get(l10n::String::STRING_FOR_AUTO);
-			const auto pxLen = canvas.getStringWidthInPixels(stringForAuto, kTextSpacingY);
-			const auto pad = ((width - pxLen) / 2) - 1;
-			canvas.drawString(stringForAuto, startX + pad, startY + kTextSpacingY + 2, kTextSpacingX, kTextSpacingY, 0,
-			                  startX + width - kTextSpacingX);
-		}
-		else {
-			Integer::renderInHorizontalMenu(startX, width, startY, height);
-		}
+		Integer::renderInHorizontalMenu(startX, width, startY, height);
 	}
 
 	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING_SHORT));
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_VOLUME_DUCKING_SHORT));
 	}
 
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
+	void getNotificationValue(StringBuf& valueBuf) override {
+		if (const int32_t value = this->getValue(); value < 0) {
+			valueBuf.append(l10n::get(l10n::String::STRING_FOR_AUTO));
+		}
+		else {
+			valueBuf.appendInt(value);
+		}
+	}
 };
 
 } // namespace deluge::gui::menu_item::reverb::sidechain

@@ -17,18 +17,10 @@
 #pragma once
 #include "processing/sound/sound.h"
 
-extern void setModulatorNumberForTitles(int32_t);
-
 namespace deluge::gui::menu_item::submenu {
-class Modulator final : public Submenu {
+class Modulator final : public HorizontalMenu {
 public:
-	Modulator(l10n::String newName, std::span<MenuItem*> newItems, int32_t newThingIndex)
-	    : Submenu(newName, newItems, newThingIndex) {}
-
-	void beginSession(MenuItem* navigatedBackwardFrom) override {
-		setModulatorNumberForTitles(this->thingIndex.value());
-		Submenu::beginSession(navigatedBackwardFrom);
-	}
+	using HorizontalMenu::HorizontalMenu;
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);

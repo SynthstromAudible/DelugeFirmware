@@ -19,7 +19,7 @@
 
 namespace deluge::gui::menu_item::eq {
 
-class EqUnpatchedParam final : public UnpatchedParam {
+class EqUnpatchedParam : public UnpatchedParam {
 public:
 	EqUnpatchedParam(l10n::String name, l10n::String columnLabel, int32_t newP)
 	    : UnpatchedParam(name, newP), columnLabel_{columnLabel} {}

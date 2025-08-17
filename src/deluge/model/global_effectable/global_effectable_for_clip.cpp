@@ -18,7 +18,7 @@
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
 #include "model/action/action.h"
@@ -48,7 +48,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 // Beware - unlike usual, modelStack might have a NULL timelineCounter.
 [[gnu::hot]] void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelStack,
                                                         ParamManager* paramManagerForClip,
-                                                        std::span<StereoSample> output, int32_t* reverbBuffer,
+                                                        deluge::dsp::StereoBuffer<q31_t> output, int32_t* reverbBuffer,
                                                         int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                                         bool shouldLimitDelayFeedback, bool isClipActive,
                                                         OutputType outputType, SampleRecorder* recorder) {
@@ -73,7 +73,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	int32_t pitchAdjust =
 	    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
 
-	Delay::State delayWorkingState =
+	deluge::dsp::Delay::State delayWorkingState =
 	    createDelayWorkingState(*paramManagerForClip, shouldLimitDelayFeedback, renderedLastTime);
 	if (outputType == OutputType::AUDIO) {
 		delayWorkingState.analog_saturation = 5;
@@ -108,9 +108,9 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	const q31_t compThreshold = unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
 	compressor.setThreshold(compThreshold);
 
-	alignas(CACHE_LINE_SIZE) StereoSample global_effectable_memory[SSI_TX_BUFFER_NUM_SAMPLES];
-	memset(global_effectable_memory, 0, sizeof(StereoSample) * output.size());
-	std::span<StereoSample> global_effectable_audio{global_effectable_memory, output.size()};
+	alignas(CACHE_LINE_SIZE) deluge::dsp::StereoSample<q31_t> global_effectable_memory[SSI_TX_BUFFER_NUM_SAMPLES];
+	memset(global_effectable_memory, 0, sizeof(deluge::dsp::StereoSample<q31_t>) * output.size());
+	deluge::dsp::StereoBuffer<q31_t> global_effectable_audio{global_effectable_memory, output.size()};
 
 	// Render actual Drums / AudioClip
 	renderedLastTime = renderGlobalEffectableForClip(
@@ -119,7 +119,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	// Render saturation
 	if (clippingAmount != 0u) {
-		for (StereoSample& sample : global_effectable_audio) {
+		for (deluge::dsp::StereoSample<q31_t>& sample : global_effectable_audio) {
 			sample.l = saturate(sample.l, &lastSaturationTanHWorkingValue[0]);
 			sample.r = saturate(sample.r, &lastSaturationTanHWorkingValue[1]);
 		}

@@ -22,11 +22,9 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 
 ## c1.4.0 <Badge text="Nightly" variant="tip" />
 
-### User Interface
+### Sound Engine
 
-#### <ins>Audio Export</ins>
-
-- Added Tempo, Root Note and Scale Information to file names
+- Various structural improvements to Sound Engine architecture which may result in performance improvements.
 
 ## c1.3.0 <Badge text="Upcoming" variant="tip" />
 
@@ -36,10 +34,14 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 - Added a boss/roland style Dimension effect
 - Made grain much faster and updated controls
 - Added LPF to Mutable Instruments Reverb
-- Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
-- Added two more LFOs (LFO 3 -global- and LFO 4 -per voice-), which you can access from the sound editor menu.
+- Added two more envelopes (Envelope 3 and Envelope 4)
+- Added two more LFOs (LFO 3 -global- and LFO 4 -per voice-)
+- Patch cables can be toggled to unipolar or bipolar mode
+  - `Press + Turn select encoder` to change the polarity while in the patch cable menu
+  - For OLED: `MIDI`/`CV` buttons can be used as an additional way to change it, with corresponding graphics on the display
+  - For 7SEG: a little dot will be displayed on the right side when the polarity is unipolar
 
-#### <ins>Per-clip Stutter with options: Quantize, Reverse, and Ping-Pong</ins>
+#### <ins>Per-clip Stutter with options: Direction and Quantize</ins>
 
 - Now the stutter buffer can also be set to play in reverse, and ping-pong.
 - A new menu has been added to the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song.
@@ -48,6 +50,29 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 - Quantized stutter is enabled by default.
 
 ### User Interface
+
+#### <ins>New Shortcuts</ins>
+
+Added main grid pad shortcuts for the following parameters:
+
+- `COMPRESSOR THRESHOLD`: accessed using :key[SHIFT] / :key[AUDITION PAD] + :key[PAD] between :key[DECIMATION PAD] and :key[LPF db/OCT PAD]
+- `STUTTER RATE`: accessed using :key[SHIFT] / :key[AUDITION PAD] + :key[PAD] between :key[DIRECTION PAD] and :key[SATURATION PAD]
+- `NOTE PROBABILITY`: accessed using :key[SHIFT] + :key[NOTE PAD] in the `PATCH SOURCE` column between :key[RANDOM PAD] and :key[SIDECHAIN PAD]
+  - Note: :key[AUDITION PAD] + :key[NOTE PAD] is reserved for future functionality
+- `RANDOMIZER LOCK`: accessed using :key[SHIFT] + :key[RANDOM PAD] in the `PATCH SOURCE` column between :key[NOTE PAD] and :key[VELOCITY PAD]
+  - Note: :key[AUDITION PAD] + :key[RANDOM PAD] is reserved for future functionality
+- `VELOCITY PROBABILITY`: accessed using :key[SHIFT] + :key[VELOCITY PAD] in the `PATCH SOURCE` column between :key[AFTERTOUCH PAD] and :key[RANDOM PAD]
+  - Note: :key[AUDITION PAD] + :key[VELOCITY PAD] is reserved for entering the Velocity Automation View
+
+#### <ins>Layered Shortcuts</ins>
+
+- Layered Shortcuts mechanism allows multiple shortcuts to be accessed under a single shortcut pad. Holding shift and pressing the same shortcut again cycles between shortcuts. The items available under layered shortcuts can also be accessed from menu: layered shortcut is never the only access method.
+- Following shortcuts have layers:
+  - `ENV` shortcuts: cycles between envelope 1 and 3 (ENV1 shortcuts), and envelope 2 and 4 (ENV2 shortcuts). This also applies to ENV modulator shortcuts.
+  - `LFO` shortcuts: cycles between LFO 1 and 3 (LFO1 shortcuts), and between LFO 2 and 4 (LFO2 shortcuts). This also applies to LFO modulator shortcuts.
+  - `UNISON NUMBER`: cycles between `UNISON NUMBER` and `UNISON STEREO SPREAD`, in addition to the previous "press select when in `UNISON NUMBER` access mechanism for `UNISON STEREO SPREAD`.
+  - `COMPRESSOR THRESHOLD`: cycles between `COMPRESSOR THRESHOLD` and `COMPRESSOR RATIO`
+  - `STUTTER RATE`: cycles between `STUTTER RATE` and `STUTTER DIRECTION`
 
 #### <ins>Accessibility</ins>
 
@@ -58,13 +83,19 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 
 #### <ins>OLED Display Improvements</ins>
 
-##### <ins>Saving/Loading Animation</ins>
+##### Saving/Loading Animation
 
 - Removed the saving and loading indicator popups which blocked the view of the screen and hindered the browsing of presets. In their place a small cyclical procedural animation will appear in the upper right corner of the screen. It is an abstract representation of data moving from the SD card to the system RAM and vice versa, with the saving animation being a mirror image of the loading animation.
 
-##### <ins>Horizontal Menus</ins>
+##### Horizontal Menus
 
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+  - Oscillator 1-2.
+  - Oscillator mixer.
+  - Sample 1-2.
+  - Sample recorder.
+  - Modulator 1-2.
+  - Master.
   - Envelope 1-4.
   - LFO 1-4.
   - LPF and HPF.
@@ -72,22 +103,24 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
   - Distortion.
   - Reverb.
   - Reverb sidechain.
+  - Sidechain.
   - Delay.
   - Mod FX.
   - Compressor.
+  - Stutter.
   - Unison.
   - Voice.
-  - Arpeggiator
+  - Arpeggiator.
 - Horizontal Menu controls.
   - `Turn select encoder` to change the value of the selected menu item
-  - `Press + Turn select encoder` to change the selected menu item
   - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
     - When in a Horizontal Menu, the selected instruments LED corresponding to the Horizontal Menu item selected will light up
-  - You can switch between the different pages of the horizontal menu using the `SCALE` and `CROSS-SCREEN` buttons
-    - When in a Horizontal Menu, the `SCALE` and `CROSS-SCREEN` buttons LED will light up if the Horizontal Menu has more than one page.
+  - Additionally, you can change the selected menu item by `Press + Turn select encoder`
+  - You can use the `SCALE` and `CROSS-SCREEN` buttons to switch between pages and adjacent menus
     - Use `CROSS-SCREEN` button to switch to the next page
     - Use `SCALE` button to switch to the previous page
-  - If the selected menu item is a submenu, you can enter the submenu by pressing the SELECT encoder or the lit SYNTH, KIT, MIDI, or CV buttons under the submenu item selected
+    - Use `SHIFT + CROSS-SCREEN` button combo to switch to the next adjacent Horizontal menu
+    - Use `SHIFT + SCALE` button combo to switch to the previous adjacent Horizontal menu
 
 #### <ins>Clip Name Display & Copying</ins>
 
@@ -101,6 +134,8 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 
 #### <ins>Recording</ins>
 
+##### Threshold Recording
+
 - Added `THRESHOLD RECORDING` default setting which can be turned on in the `SETTINGS > RECORDING > THRESHOLD RECORDING (THRE) > MODE` submenu
   - When this is enabled, recording of external audio input (e.g. Line In / Microphone) will only begin when it detects an audio signal according the Recording Threshold mode that has been set. There are four Threshold Recording modes that can be selected from:
     - `DISABLED (OFF)`: Standard Deluge behaviour. Recording starts right away.
@@ -110,12 +145,17 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
   - You can also view and temporarily change the current threshold recording setting as follows:
     - :key[Record + Turn Select]
     - Enter the Song menu while in Song or Arranger View by pressing :key[Select] and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
+
+##### Loop Recording
+
 - Easier loop recording in `SONG VIEW` (similar to Kit Row sampling working). Added ability to trigger a loop recording for a specific clip in `SONG VIEW` by holding a `CLIP` and pressing `RECORD`. By default this will trigger the Global MIDI Command `LAYERING LOOP`, however this can be changed in the `SETTINGS > RECORDING > LOOP COMMAND (LOOP)` submenu.
   - Note: to end a recording, you will send to send the Global MIDI Command again, which can be done by holding a clip and pressing record again.
 
 #### <ins>Audio Export</ins>
 
 - Added `EXPORT MIXDOWN` configuration option which provides the ability to export all unmuted tracks in Arranger View as a single stereo file. This is disabled by default but can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
+- Added `AUDIO EXPORT` for `KIT DRUMS`, an automated process for exporting `DRUM's` while in `KIT INSTRUMENT CLIP VIEW`. Press :key[SAVE] + :key[RECORD] to start exporting.
+- Added Tempo, Root Note and Scale Information to file names
 
 #### <ins>Save/Load Patterns</ins>
 
@@ -133,6 +173,10 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 #### <ins>Song View</ins>
 
 - Doubled the number of Song View sections from 12 to 24.
+
+##### <ins>Clip/Section Launching</ins>
+
+- A new option, 'Launch Exclusively', isolates a clip section from all other launch activity. This option is found to the left of option 'Launch non-exclusively' when selecting the section's number of repetitions. As a complement to non-exclusive sections that arm and turn off when another section is launched, exclusive sections remain independant.
 
 #### <ins>Song Grid View</ins>
 
@@ -254,6 +298,10 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 - Added the classic piano keyboard layout.
 
+#### <ins>Scales/Key</ins>
+
+- Added toggle in `SETTINGS > DEFAULTS > UI > USE SHARPS(#)` to allow users to choose which accidentals to display. When enabled in OLED mode, notes will be displayed as A# or D#, as they did prior to this change. When disabled, notes will be displayed as B♭ or E♭. In 7SEG mode, a dot is used to indicade when the note has the configured accidental.
+
 ### Sequencer
 
 #### <ins>Arpeggiator</ins>
@@ -263,6 +311,8 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 - Added `SPREAD` parameters (Velocity, Gate, and Octave) that will allow you to control how those parameters of each arp step are deviated from its base value. Additionally, a `LOCK` parameter will allow you to lock the generated values to create a repeating pattern. Velocity Spread
   also affect normal sequenced notes while arpeggiator is Off.
 - Added `BASS PROBABILITY (BASS)` paramater that will allow you to control the chance of a note being replaced the bass (lowest) note of the inputted notes.
+- Added `SWAP PROBABILITY (SWAP)` paramater that will allow you to control the chance of a note in the pattern being replaced by a random note from the pattern.
+- Added `GLIDE PROBABILITY (GLID)` paramater that will allow you to control the chance of delaying a note's note-off event to be executed at the same time as the following arp note. If your sound has some `Portamento` applied, then it will produce a glide effect.
 - Added `STEP REPEAT (REPE)` paramater (with values 1 to 8) that makes walked notes in the pattern be repeated X times before moving to the next note+octave in the pattern.
 - Added `CHORD PROBABILITY (CHRD)` paramater that will allow you to control the chance of a note to play, at the same time, itself and other notes to form a chord (5th, 3rd and 7th).
 - Added `CHORD POLYPHONY (POLY)` paramater that works together with the previous parameter, and this one will dictate how big is the chord, that is, how many notes will be played at the same time.
@@ -394,7 +444,6 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 - A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
   - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
 - The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
-- A new option, 'Launch Exclusively', isolates a clip section from all other launch activity. This option is found to the left of option 'Launch non-exclusively' when selecting the section's number of repetitions. As a complement to non-exclusive sections that arm and turn off when another section is launched, exclusive sections remain independant.
 
 #### <ins>Audio Clips</ins>
 
@@ -841,6 +890,7 @@ and MIDI clips on a per step basis at any zoom level. (Excludes MPE automations)
   synths. Future work will make a menu to set this per device.
 - Added additional MIDI ports which improves usability of MPE-capable devices via USB by sending MPE to one port and
   non-MPE to the other port.
+- Enabled learning CCs to the global midi commands (play, stop, loop, overdub, etc.). This improves compatibility with footswitches that can't send midi notes.
 - MIDI Takeover Mode - Affects how the Deluge handles MIDI input for learned CC controls. Options
   include `JUMP`, `PICKUP`, `SCALE`.
 - Fixed bugs in mpe handling so that mpe and MIDI channels can be separated without requiring differentiate inputs

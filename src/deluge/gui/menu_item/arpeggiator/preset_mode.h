@@ -27,6 +27,8 @@
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 
+#include <hid/display/oled.h>
+
 namespace deluge::gui::menu_item::arpeggiator {
 class PresetMode final : public Selection {
 public:
@@ -37,7 +39,7 @@ public:
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<ArpPreset>();
 
-		// If affect-entire button held, do whole kit
+		// If affect-entire button held, do the whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 
 			Kit* kit = getCurrentKit();
@@ -108,11 +110,47 @@ public:
 		auto current_value = this->getValue<ArpPreset>();
 		if (current_value == ArpPreset::CUSTOM) {
 			if (soundEditor.editingKitRow()) {
-				return &arpeggiator::arpOctaveModeToNoteModeMenuForDrums;
+				return &arpOctaveModeToNoteModeMenuForDrums;
 			}
-			return &arpeggiator::arpOctaveModeToNoteModeMenu;
+			return &arpOctaveModeToNoteModeMenu;
 		}
 		return nullptr;
+	}
+
+	[[nodiscard]] bool showColumnLabel() const override { return false; }
+
+	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_MODE)); }
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		using namespace deluge::hid::display;
+		oled_canvas::Canvas& image = OLED::main;
+
+		if (this->getValue<ArpPreset>() == ArpPreset::OFF) {
+			const auto offString = l10n::get(l10n::String::STRING_FOR_OFF);
+			return image.drawStringCentered(offString, startX, startY + 8, kTextTitleSpacingX, kTextTitleSizeY, width);
+		}
+
+		const auto arpPreset = getValue<ArpPreset>();
+		const Icon& icon = [&] {
+			switch (arpPreset) {
+			case ArpPreset::UP:
+			case ArpPreset::DOWN:
+				return OLED::arpModeIconUp;
+			case ArpPreset::BOTH:
+				return OLED::arpModeIconUpDown;
+			case ArpPreset::RANDOM:
+				return OLED::diceIcon;
+			case ArpPreset::WALK:
+				return OLED::arpModeIconWalk;
+			case ArpPreset::CUSTOM:
+				return OLED::arpModeIconCustom;
+			default:
+				return OLED::arpModeIconUp;
+			}
+		}();
+
+		const bool reversed = arpPreset == ArpPreset::DOWN;
+		image.drawIconCentered(icon, startX, width, startY + 4, reversed);
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator

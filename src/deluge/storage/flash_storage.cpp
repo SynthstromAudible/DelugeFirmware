@@ -31,6 +31,7 @@
 #include "util/functions.h"
 #include "util/misc.h"
 #include <cstdint>
+#include <modulation/patch/patch_cable.h>
 
 extern "C" {
 #include "RZA1/spibsc/r_spibsc_flash_api.h"
@@ -189,6 +190,8 @@ enum Entries {
 181-184: GlobalMIDICommand::NEXT_SONG product / vendor ids
 185: defaultFavouritesLayout
 186: defaultLoopRecordingCommand
+188: defaultUseSharps
+189: default patch cable polarity
 */
 
 uint8_t defaultScale;
@@ -245,14 +248,18 @@ std::bitset<NUM_PRESET_SCALES> defaultDisabledPresetScales;
 static_assert(NUM_PRESET_SCALES <= 16);
 
 bool accessibilityShortcuts = false;
-bool accessibilityMenuHighlighting = true;
+MenuHighlighting accessibilityMenuHighlighting = MenuHighlighting::FULL_INVERSION;
 
 OutputType defaultNewClipType = OutputType::SYNTH;
 bool defaultUseLastClipType = true;
 
 ThresholdRecordingMode defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 
+Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
+
 GlobalMIDICommand defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
+
+bool defaultUseSharps = true;
 
 void resetSettings() {
 
@@ -352,7 +359,7 @@ void resetSettings() {
 	defaultDisabledPresetScales = {0};
 
 	accessibilityShortcuts = false;
-	accessibilityMenuHighlighting = true;
+	accessibilityMenuHighlighting = MenuHighlighting::PARTIAL_INVERSION;
 
 	defaultNewClipType = OutputType::SYNTH;
 	defaultUseLastClipType = true;
@@ -360,6 +367,8 @@ void resetSettings() {
 	defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 
 	defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
+
+	defaultUseSharps = true;
 }
 
 void resetMidiFollowSettings() {
@@ -751,11 +760,11 @@ void readSettings() {
 		accessibilityShortcuts = buffer[174];
 	}
 
-	if (buffer[175] != 0 && buffer[175] != 1) {
-		accessibilityMenuHighlighting = false;
+	if (buffer[175] < 0 && buffer[175] > util::to_underlying(MenuHighlighting::NO_INVERSION)) {
+		accessibilityMenuHighlighting = MenuHighlighting::PARTIAL_INVERSION;
 	}
 	else {
-		accessibilityMenuHighlighting = buffer[175];
+		accessibilityMenuHighlighting = static_cast<MenuHighlighting>(buffer[175]);
 	}
 
 	if (buffer[176] < 0 && buffer[176] > util::to_underlying(OutputType::AUDIO)) {
@@ -792,6 +801,21 @@ void readSettings() {
 	}
 	else {
 		defaultLoopRecordingCommand = static_cast<GlobalMIDICommand>(buffer[186]);
+	}
+
+	if (buffer[188] != 0 && buffer[188] != 1) {
+		defaultUseSharps = true;
+	}
+	else {
+		defaultUseSharps = buffer[188];
+	}
+
+	if (buffer[189] != util::to_underlying(Polarity::BIPOLAR)
+	    && buffer[189] != util::to_underlying(Polarity::UNIPOLAR)) {
+		defaultPatchCablePolarity = Polarity::BIPOLAR;
+	}
+	else {
+		defaultPatchCablePolarity = static_cast<Polarity>(buffer[189]);
 	}
 }
 
@@ -1063,7 +1087,7 @@ void writeSettings() {
 	buffer[173] = 0xff & (disabledBits >> 8);
 
 	buffer[174] = accessibilityShortcuts;
-	buffer[175] = accessibilityMenuHighlighting;
+	buffer[175] = util::to_underlying(accessibilityMenuHighlighting);
 
 	buffer[176] = util::to_underlying(defaultNewClipType);
 	buffer[177] = defaultUseLastClipType;
@@ -1073,6 +1097,10 @@ void writeSettings() {
 	buffer[185] = util::to_underlying(defaultFavouritesLayout);
 
 	buffer[186] = util::to_underlying(defaultLoopRecordingCommand);
+
+	buffer[188] = defaultUseSharps;
+
+	buffer[189] = util::to_underlying(defaultPatchCablePolarity);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

@@ -211,7 +211,6 @@ int32_t cableToLinearParamShortcut(int32_t sourceValue);
 int32_t cableToExpParamShortcut(int32_t sourceValue);
 
 class Sound;
-class StereoSample;
 int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedValue);
 int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedValue);
 int32_t getFinalParameterValueHybrid(int32_t paramNeutralValue, int32_t patchedValue);
@@ -436,7 +435,4 @@ extern char miscStringBuffer[];
 constexpr size_t kShortStringBufferSize = 64;
 extern char shortStringBuffer[];
 
-struct StereoFloatSample {
-	float l;
-	float r;
-};
+float sigmoidLikeCurve(const float x, const float xMax, const float softening);

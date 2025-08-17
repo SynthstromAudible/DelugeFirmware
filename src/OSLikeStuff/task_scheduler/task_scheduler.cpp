@@ -20,7 +20,6 @@
 #include "io/debug/log.h"
 #include "resource_checker.h"
 #include <algorithm>
-
 #if !IN_UNIT_TESTS
 #include "memory/general_memory_allocator.h"
 #endif
@@ -53,6 +52,7 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 	Time currentTime = getSecondsFromStart();
 	Time nextFinishTime = currentTime;
 	TaskID bestTask = -1;
+	TaskID mandatoryTask = -1;
 	uint8_t bestPriority = INT8_MAX;
 	/// Go through all tasks. If a task needs to be called before the current best task finishes, and has a higher
 	/// priority than the current best task, it becomes the best task
@@ -64,18 +64,18 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 			continue;
 		}
 		// ensure every routine is within its target
-		if (currentTime - t->lastCallTime > s->maxInterval) {
-			return sortedList[i].task;
+		if (currentTime - t->lastCallTime > s->maxInterval && t->isReady(currentTime)) {
+			mandatoryTask = sortedList[i].task;
 		}
 		if (t->idealCallTime < currentTime || t->latestCallTime < nextFinishTime) {
 			if (deadline < Time(0) || currentTime + t->durationStats.average < deadline) {
 
-				if (s->priority < bestPriority && t->handle) {
+				if (s->priority < bestPriority && (t->handle != nullptr)) {
 					if (t->isReady(currentTime)) {
 						bestTask = sortedList[i].task;
 						nextFinishTime = currentTime + t->durationStats.average;
 					}
-					else {
+					else if (nextFinishTime > t->latestCallTime) {
 						bestTask = -1;
 						nextFinishTime = t->latestCallTime;
 					}
@@ -84,29 +84,31 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 			}
 		}
 	}
+	if (mandatoryTask != -1) {
+		return mandatoryTask;
+	}
 	// if we didn't find a task because something high priority needs to wait to run, find the next task we can do
 	// before it needs to start
 	if (bestTask == -1) {
 		// first look based on target time
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
 			struct Task* t = &list[sortedList[i].task];
-			if (!t->isRunnable()) {
+			if (!t->isReady(currentTime)) {
 				continue;
 			}
 			struct TaskSchedule* s = &t->schedule;
 			if (currentTime + t->durationStats.average < nextFinishTime
-			    && currentTime - t->lastFinishTime > s->targetInterval
-			    && currentTime - t->lastFinishTime > s->backOffPeriod) {
+			    && currentTime - t->lastFinishTime > s->targetInterval) {
 				return sortedList[i].task;
 			}
 		}
 		// then look based on min time just to avoid busy waiting
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
-			struct Task* t = &list[sortedList[i].task];
-			if (!t->isRunnable()) {
+			Task* t = &list[sortedList[i].task];
+			if (!t->isReady(currentTime)) {
 				continue;
 			}
-			struct TaskSchedule* s = &t->schedule;
+			TaskSchedule* s = &t->schedule;
 			if (currentTime + t->durationStats.average < nextFinishTime
 			    && currentTime - t->lastFinishTime > s->backOffPeriod) {
 				return sortedList[i].task;
@@ -186,32 +188,48 @@ void TaskManager::setNextRunTimeforCurrentTask(Time seconds) {
 
 void TaskManager::runTask(TaskID id) {
 	countThisTask = true;
-	auto timeNow = getSecondsFromStart();
-	Time startTime = timeNow;
-	// this includes ISR time as well as the scheduler's own time, such as calculating and printing stats
-	overhead += timeNow - lastFinishTime;
 	currentID = id;
-	auto currentTask = &list[currentID];
+	auto* current_task = &list[currentID];
 
-	currentTask->handle();
-	timeNow = getSecondsFromStart();
-	Time runtime = (timeNow - startTime);
-	cpuTime += runtime;
-	if (currentTask->removeAfterUse) {
-		removeTask(id);
+	{
+		Time timeNow = getSecondsFromStart();
+
+		// this includes ISR time as well as the scheduler's own time, such as calculating and printing stats
+		overhead += timeNow - lastFinishTime;
+		current_task->lastCallTime = timeNow;
+		current_task->yielded = false;
 	}
-	else {
-		if (countThisTask) {
-#if SCHEDULER_DETAILED_STATS
-			currentTask->latency.update(startTime - currentTask->lastCallTime);
-#endif
-			currentTask->updateNextTimes(startTime, runtime);
+	current_task->handle();
+
+	{
+		Time start_time = current_task->lastCallTime;
+		Time timeNow = getSecondsFromStart();
+		Time runtime = (timeNow - start_time);
+		cpuTime += runtime;
+		if (current_task->removeAfterUse) {
+			removeTask(id);
 		}
+		else {
+			if (countThisTask) {
+				current_task->updateNextTimes(start_time, runtime, timeNow);
+			}
+			else {
+				current_task->lastFinishTime = timeNow;
+			}
+		}
+		lastFinishTime = timeNow;
 	}
-	currentTask->lastFinishTime = timeNow;
-	lastFinishTime = timeNow;
 }
 
+void TaskManager::runHighestPriTask() {
+	// run the highest pri task (which is audio) since it's always ready and we might as well
+	if (numActiveTasks > 0) {
+		auto highest_pri_task = sortedList[numActiveTasks - 1].task;
+		if (list[highest_pri_task].isReady(getSecondsFromStart())) {
+			runTask(sortedList[numActiveTasks - 1].task);
+		}
+	}
+}
 /// pause current task, continue to run scheduler loop until a condition is met, then return to it
 /// current task can be called again if it's repeating - this is to match behaviour of busy waiting with routineForSD
 /// returns whether the condition was met
@@ -222,30 +240,25 @@ bool TaskManager::yield(RunCondition until, Time timeout) {
 #if !IN_UNIT_TESTS
 	GeneralMemoryAllocator::get().checkStack("ensure resizeable space");
 #endif
-	auto yieldingTask = &list[currentID];
-	auto yieldingID = currentID;
-	bool taskRemoved = false;
-	auto timeNow = getSecondsFromStart();
-	Time runtime = (timeNow - yieldingTask->lastCallTime);
-	bool skipTimeout = timeout < Time(1 / 10000.);
-
+	Task* yielding_task = &list[currentID];
+	yielding_task->yielded = true;
+	auto time_now = getSecondsFromStart();
+	Time runtime = (time_now - yielding_task->lastCallTime);
+	cpuTime += runtime;
+	bool skip_timeout = timeout < Time(1 / 10000.);
+	yielding_task->lastFinishTime = time_now; // update this so it's in its back off window
+	Time start_time = yielding_task->lastCallTime;
 	// for now we first end this as if the task finished - might be advantageous to replace with a context switch later
-	if (yieldingTask->removeAfterUse) {
-		removeTask(currentID);
-		taskRemoved = true;
+	if (yielding_task->removeAfterUse) {
+		yielding_task->state = State::BLOCKED; // mark it as blocked so it won't be run again
 	}
-	else {
-		yieldingTask->lastFinishTime = timeNow; // update this so it's in its back off window
-		if (countThisTask) {
-			yieldingTask->durationStats.update(runtime);
-			yieldingTask->totalTime += runtime;
-			yieldingTask->lastRunTime = runtime;
-			yieldingTask->timesCalled += 1;
-		}
+	if (countThisTask) {
+		yielding_task->updateNextTimes(start_time, runtime, time_now);
 	}
+
 	// continue the main loop. The yielding task is still on the stack but that should be fine
 	// run at least once so this can be used for yielding a single call as well
-	Time newTime = getSecondsFromStart();
+	Time new_time = getSecondsFromStart();
 	do {
 		TaskID task = chooseBestTask(mustEndBefore);
 		if (task >= 0) {
@@ -254,19 +267,19 @@ bool TaskManager::yield(RunCondition until, Time timeout) {
 		else {
 			bool addedTask = checkConditionalTasks();
 			// if we sorted our list then we should get back to running things and not print stats
-			if (!addedTask && newTime > lastPrintedStats + Time(10.0)) {
-				lastPrintedStats = newTime;
+			if (!addedTask && new_time > lastPrintedStats + Time(10.0)) {
+				lastPrintedStats = new_time;
 				// couldn't find anything so here we go
 				printStats();
 			}
+			runHighestPriTask();
 		}
-	} while (!until() && (skipTimeout || getSecondsFromStart() < timeNow + timeout));
-	if (!taskRemoved) {
+	} while (!until() && (skip_timeout || getSecondsFromStart() < time_now + timeout));
 
-		auto finishTime = getSecondsFromStart();
-		yieldingTask->lastCallTime = finishTime; // hack so it won't get called again immediately
-	}
-	return (getSecondsFromStart() < timeNow + timeout);
+	auto finishTime = getSecondsFromStart();
+	yielding_task->lastCallTime = finishTime; // hack so it won't get called again immediately
+
+	return (getSecondsFromStart() < time_now + timeout);
 }
 
 /// default duration of 0 signifies infinite loop, intended to be specified only for testing
@@ -296,6 +309,8 @@ void TaskManager::start(Time duration) {
 				// couldn't find anything so here we go
 				printStats();
 			}
+			// run the highest pri task (which is audio) since it's always ready and we might as well
+			runHighestPriTask();
 		}
 	}
 }
@@ -311,7 +326,7 @@ void TaskManager::startClock() {
 bool TaskManager::checkConditionalTasks() {
 	bool addedTask = false;
 	for (int i = 0; i < kMaxTasks; i++) {
-		struct Task* t = &list[i];
+		Task* t = &list[i];
 		if (t->checkCondition()) {
 			addedTask = true;
 		}
@@ -342,21 +357,21 @@ void TaskManager::printStats() {
 	D_PRINTLN("Dumping task manager stats: (min/ average/ max)");
 	for (auto task : list) {
 		if (task.handle) {
-			constexpr const Time latencyScale = 1000.0;
-			constexpr const Time durationScale = 1000000.0;
+			constexpr float latencyScale = 1000.0;
+			constexpr float durationScale = 1000000.0;
 #if SCHEDULER_DETAILED_STATS
-			D_PRINTLN("Load: %5.2f, "                             //<
-			          "Dur: %8.3f/%8.3f/%9.3f us "                //<
-			          "Latency: %8.3f/%8.3f/%8.3f ms "            //<
-			          "N: %10d, Task: %s",                        //<
-			          100.0 * task.totalTime / cpuTime,           //<
-			          durationScale * task.durationStats.min,     //<
-			          durationScale * task.durationStats.average, //<
-			          durationScale * task.durationStats.max,     //<
-			          latencyScale * task.latency.min,            //<
-			          latencyScale * task.latency.average,        //<
-			          latencyScale * task.latency.max,            //<
-			          task.timesCalled, task.name);
+			D_PRINTLN("Load: %5.2f, "                                                    //<
+			          "Dur: %8.3f/%8.3f/%9.3f us "                                       //<
+			          "Latency: %8.3f/%8.3f/%8.3f ms "                                   //<
+			          "N: %10d hz, Task: %s",                                            //<
+			          100.0 * double(task.totalTime) / double(cpuTime),                  //<
+			          durationScale * double(task.durationStats.min),                    //<
+			          durationScale * double(task.totalTime) / double(task.timesCalled), //<
+			          durationScale * double(task.durationStats.max),                    //<
+			          latencyScale * double(task.latency.min),                           //<
+			          latencyScale * double(task.latency.average),                       //<
+			          latencyScale * double(task.latency.max),                           //<
+			          task.timesCalled / 10, task.name);
 #else
 #ifdef NEVER
 			D_PRINTLN("Load: %5.2f "                  //<
@@ -370,7 +385,8 @@ void TaskManager::printStats() {
 	}
 	auto totalTime = cpuTime + overhead;
 	D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds",
-	          double(cpuTime * 100) / double(totalTime), double(overhead * 100) / double(totalTime), runningTime);
+	          double(cpuTime * 100) / double(totalTime), double(overhead * 100) / double(totalTime),
+	          double(runningTime));
 	resetStats();
 }
 Time getTimerValueSeconds(int timerNo) {

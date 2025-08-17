@@ -84,5 +84,6 @@ public:
 
 protected:
 	void getShortOption(StringBuf&) override;
+	void getNotificationValue(StringBuf&) override;
 };
 } // namespace deluge::gui::menu_item

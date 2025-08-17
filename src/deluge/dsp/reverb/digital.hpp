@@ -27,7 +27,7 @@ class Digital : public Mutable {
 	constexpr static size_t max_excursion = 16.f * kRatio;
 
 public:
-	void process(std::span<q31_t> in, std::span<StereoSample> output) override {
+	void process(std::span<q31_t> in, StereoBuffer<q31_t> output) override {
 		typename FxEngine::Context c;
 
 		typename FxEngine::AllPass ap1(142 * kRatio);

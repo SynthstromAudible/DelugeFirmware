@@ -64,6 +64,7 @@
 #include "util/lookuptables/lookuptables.h"
 #include "util/try.h"
 #include <cstring>
+#include <hid/buttons.h>
 #include <new>
 #include <stdint.h>
 
@@ -2334,7 +2335,8 @@ void Song::deleteSoundsWhichWontSound() {
 	deleteAllBackedUpParamManagersWithClips();
 }
 
-void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending) {
+void Song::renderAudio(deluge::dsp::StereoBuffer<q31_t> outputBuffer, int32_t* reverbBuffer,
+                       int32_t sideChainHitPending) {
 
 	// int32_t volumePostFX = getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
 	int32_t volumePostFX =
@@ -2384,7 +2386,7 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	}
 	AudioEngine::logAction("done recorders");
 
-	Delay::State delayWorkingState = globalEffectable.createDelayWorkingState(paramManager);
+	deluge::dsp::Delay::State delayWorkingState = globalEffectable.createDelayWorkingState(paramManager);
 
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	int32_t reverbSendAmount =
@@ -5666,6 +5668,8 @@ String Song::getSongFullPath() {
 	return fullPath;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstack-usage="
 void Song::setSongFullPath(const char* fullPath) {
 	if (char* filename = strrchr((char*)fullPath, '/')) {
 		auto fullPathLength = strlen(fullPath);
@@ -5681,6 +5685,7 @@ void Song::setSongFullPath(const char* fullPath) {
 		name.set(fullPath);
 	}
 }
+#pragma GCC diagnostic pop
 
 void Song::midiCableBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone,
                                                int32_t whichBendRange, int32_t bendSemitones) {

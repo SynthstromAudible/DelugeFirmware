@@ -23,40 +23,77 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::osc {
-class AudioRecorder final : public MenuItem {
+class AudioRecorder final : public MenuItem, FormattedTitle {
 public:
-	using MenuItem::MenuItem;
+	AudioRecorder(l10n::String newName, uint8_t sourceId)
+	    : MenuItem(newName), FormattedTitle(newName, sourceId + 1), source_id_{sourceId} {}
+
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getName() const override { return FormattedTitle::title(); }
+
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		soundEditor.shouldGoUpOneLevelOnBegin = true;
-		bool success = openUI(&audioRecorder);
-		if (!success) {
+		soundEditor.setCurrentSource(source_id_);
+
+		if (bool success = openUI(&audioRecorder); !success) {
 			if (getCurrentUI() == &soundEditor) {
 				soundEditor.goUpOneLevel();
 			}
-			uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
+			return uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 		}
-		else {
-			audioRecorder.process();
-		}
-	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		Sound* sound = static_cast<Sound*>(modControllable);
-		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE);
+
+		audioRecorder.process();
 	}
 
-	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+	bool isRelevant(ModControllableAudio* modControllable, int32_t) override {
+		const auto sound = static_cast<Sound*>(modControllable);
+		return sound->getSynthMode() == SynthMode::SUBTRACTIVE;
+	}
+
+	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t,
 	                                             ::MultiRange** currentRange) override {
-
-		bool can = isRelevant(modControllable, whichThing);
-		if (!can) {
+		if (!isRelevant(modControllable, source_id_)) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_RECORD_AUDIO_FM_MODE));
 			return MenuPermission::NO;
 		}
 
 		Sound* sound = static_cast<Sound*>(modControllable);
-
-		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, currentRange);
+		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, source_id_, currentRange);
 	}
+
+	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
+	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
+	[[nodiscard]] bool showColumnLabel() const override { return false; }
+	[[nodiscard]] bool showNotification() const override { return false; }
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		using namespace hid::display;
+		oled_canvas::Canvas& image = OLED::main;
+
+		// Draw record icon
+		int32_t x = startX + 5;
+		int32_t y = startY + 5;
+		const Icon& recIcon = OLED::recordIcon;
+		image.drawIcon(recIcon, x, y);
+
+		// Draw a "rec" string nearby
+		x += recIcon.width + 3;
+		y += 3;
+		image.drawString("rec", x, y, kTextSpacingX, kTextSpacingY);
+
+		// Draw the arrow icon next
+		x += kTextSpacingX * 3 + 3;
+		image.drawGraphicMultiLine(OLED::submenuArrowIconBold, x, y, 7);
+
+		// Draw a big source number
+		x = startX + width - kTextBigSpacingX - 3;
+		y = startY + 6;
+		DEF_STACK_STRING_BUF(sourceNumberBuf, kShortStringBufferSize);
+		sourceNumberBuf.appendInt(source_id_ + 1);
+		image.drawString(sourceNumberBuf.data(), x, y, kTextBigSpacingX, kTextBigSizeY);
+	}
+
+private:
+	uint8_t source_id_;
 };
 } // namespace deluge::gui::menu_item::osc

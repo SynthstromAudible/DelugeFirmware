@@ -23,6 +23,8 @@
 #include "model/output.h"
 #include "model/song/song.h"
 
+using namespace deluge::hid::display;
+
 namespace deluge::gui::menu_item::midi {
 class Preset : public Integer {
 public:
@@ -31,7 +33,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return 128; } // Probably not needed cos we override below...
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
-		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+		oled_canvas::Canvas& canvas = OLED::main;
 		char buffer[12];
 		char const* text;
 		if (this->getValue() == 128) {
@@ -68,12 +70,11 @@ public:
 		Number::selectEncoderAction(offset);
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
-		deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-		renderColumnLabel(startX, width, startY);
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		oled_canvas::Canvas& image = OLED::main;
 
 		DEF_STACK_STRING_BUF(paramValue, 5);
-		int sizeX, sizeY;
+		int32_t sizeX, sizeY;
 		if (this->getValue() == 128) {
 			paramValue.append(l10n::get(l10n::String::STRING_FOR_NONE));
 			sizeX = kTextSpacingX;
@@ -84,9 +85,9 @@ public:
 			sizeX = kTextTitleSpacingX;
 			sizeY = kTextTitleSizeY;
 		}
-		int32_t pxLen = image.getStringWidthInPixels(paramValue.c_str(), kTextSpacingY);
-		int32_t pad = ((width - pxLen) / 2) - 1;
-		image.drawString(paramValue.c_str(), startX + pad, startY + sizeY + 2, sizeX, sizeY, 0, startX + width);
+		image.drawStringCentered(paramValue, startX, startY + 2, sizeX, sizeY, width);
 	}
+
+	[[nodiscard]] bool showNotification() const override { return false; }
 };
 } // namespace deluge::gui::menu_item::midi

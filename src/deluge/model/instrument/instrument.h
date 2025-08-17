@@ -23,7 +23,6 @@
 #include "model/output.h"
 #include "storage/flash_storage.h"
 
-class StereoSample;
 class ModControllable;
 class InstrumentClip;
 class ParamManagerForTimeline;

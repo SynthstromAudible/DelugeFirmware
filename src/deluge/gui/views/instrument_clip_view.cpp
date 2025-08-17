@@ -20,6 +20,7 @@
 #include "extern.h"
 #include "fatfs.hpp"
 #include "gui/colour/colour.h"
+#include "gui/context_menu/stem_export/cancel_stem_export.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
 #include "gui/menu_item/file_selector.h"
@@ -80,12 +81,14 @@
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "playback/mode/arrangement.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multi_range.h"
@@ -364,7 +367,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 				// Make a new NoteRow
 				int32_t noteRowIndex;
-				NoteRow* newNoteRow = createNewNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
+				NoteRow* newNoteRow = getOrCreateEmptyNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
 				if (newNoteRow) {
 					uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
 
@@ -393,6 +396,32 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 		// let parent handle record button press so that you can end recording while auditioning
 		else {
 			return ActionResult::NOT_DEALT_WITH;
+		}
+	}
+
+	// trigger stem export when pressing record while holding save
+	else if (b == RECORD && currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON) {
+		if (on && getCurrentOutputType() == OutputType::KIT) {
+			if (playbackHandler.isEitherClockActive() || playbackHandler.recording != RecordingMode::OFF
+			    || currentPlaybackMode == &arrangement) {
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EXPORT_STEMS));
+			}
+			else {
+				stemExport.startStemExportProcess(StemExportType::DRUM);
+				return ActionResult::DEALT_WITH;
+			}
+		}
+	}
+
+	// cancel stem export process
+	else if (b == BACK && stemExport.processStarted) {
+		if (on) {
+			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
+
+			if (available) {
+				display->setNextTransitionDirection(1);
+				openUI(&context_menu::cancelStemExport);
+			}
 		}
 	}
 
@@ -425,7 +454,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 			// Make a new NoteRow
 			int32_t noteRowIndex;
-			NoteRow* newNoteRow = createNewNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
+			NoteRow* newNoteRow = getOrCreateEmptyNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
 			if (!newNoteRow) {
 				display->displayError(Error::INSUFFICIENT_RAM);
 				return ActionResult::DEALT_WITH;
@@ -471,7 +500,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 				cancelAllAuditioning();
 
 				// Can't fail because we just set the selected Drum
-				bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::fileSelectorMenu, 0);
+				bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0);
 				if (success) {
 					openUI(&soundEditor);
 				}
@@ -942,7 +971,7 @@ void InstrumentClipView::createDrumForAuditionedNoteRow(DrumType drumType) {
 		currentUIMode = UI_MODE_AUDITIONING;
 
 		// Make a new NoteRow
-		noteRow = createNewNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
+		noteRow = getOrCreateEmptyNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
 		if (!noteRow) {
 ramError:
 			error = Error::INSUFFICIENT_RAM;
@@ -1338,6 +1367,8 @@ void InstrumentClipView::patternClear() {
 	getCurrentInstrumentClip()->clear(action, modelStack, false, false);
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstack-usage="
 void InstrumentClipView::pasteNotes(bool overwriteExisting, bool pasteFromFile, bool noScaling, bool previewOnly,
                                     bool selectedDrumOnly) {
 
@@ -1489,6 +1520,7 @@ getOut:
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTES_PASTED));
 	}
 }
+#pragma GCC diagnostic pop
 
 Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool noScaling,
                                              bool previewOnly, bool selectedDrumOnly) {
@@ -1770,7 +1802,7 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 		}
 	}
 
-	// Or, if user holding a note(s) down, we'll adjust proability / iterance instead
+	// Or, if user holding a note(s) down, we'll adjust probability / iterance instead
 	else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
 		bool hasProbabilityPopup = display->hasPopupOfType(PopupType::PROBABILITY);
 		bool hasIterancePopup = display->hasPopupOfType(PopupType::ITERANCE);
@@ -4069,18 +4101,21 @@ fail:
 	uiNeedsRendering(getRootUI(), 0, 1 << yDisplay);
 }
 
-NoteRow* InstrumentClipView::createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
-                                                    int32_t* getIndex) {
+NoteRow* InstrumentClipView::getOrCreateEmptyNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
+                                                           int32_t* getIndex) {
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-	NoteRow* newNoteRow = clip->createNewNoteRowForKit(modelStack, (yDisplay < -clip->yScroll), getIndex);
-	if (!newNoteRow) {
-		return nullptr; // If memory full
+	// We check for existing no-sound rows at the y first. Even if we try not to create any, existing
+	// songs may have them!
+	NoteRow* row = clip->getNoteRowOnScreen(yDisplay, modelStack->song, getIndex);
+	if (row == nullptr || row->drum != nullptr) {
+		// No row, or the row isn't empty - create a new one.
+		row = clip->createNewNoteRowForKit(modelStack, (yDisplay < -clip->yScroll), getIndex);
 	}
 
 	recalculateColour(yDisplay);
 
-	return newNoteRow;
+	return row;
 }
 
 ModelStackWithNoteRow* InstrumentClipView::getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack,
@@ -4119,7 +4154,7 @@ doDisplayError:
 		}
 	}
 
-	// Or, if a kit
+	// If a kit, prevents creating a new kit row beyond the adjacent empty rows
 	else {
 		// If it's more than one row below, we can't do it
 		if (yDisplay < -1 - clip->yScroll) {
@@ -4129,16 +4164,6 @@ doDisplayError:
 		// If it's more than one row above, we can't do it
 		if (yDisplay > clip->getNumNoteRows() - clip->yScroll) {
 			goto getOut;
-		}
-
-		noteRow = createNewNoteRowForKit(modelStack, yDisplay, &noteRowId);
-
-		if (!noteRow) {
-			goto doDisplayError;
-		}
-
-		else {
-			uiNeedsRendering(this, 0, 1 << yDisplay);
 		}
 	}
 
@@ -5101,8 +5126,8 @@ Drum* InstrumentClipView::getAuditionedDrum(int32_t velocity, int32_t yDisplay, 
 
 					// Make a new NoteRow
 					int32_t noteRowIndex;
-					NoteRow* newNoteRow =
-					    createNewNoteRowForKit(modelStackWithTimelineCounter, yDisplayOfNewNoteRow, &noteRowIndex);
+					NoteRow* newNoteRow = getOrCreateEmptyNoteRowForKit(modelStackWithTimelineCounter,
+					                                                    yDisplayOfNewNoteRow, &noteRowIndex);
 					if (newNoteRow) {
 						// uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
 
@@ -5236,7 +5261,7 @@ int32_t InstrumentClipView::getVelocityToSound(int32_t velocity) {
 // sub-function of AuditionPadAction
 // audition pad is pressed, we'll either do a silent audition or non-silent audition
 bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
-                                             NoteRow* noteRowOnActiveClip, Drum* drum) {
+                                             NoteRow* noteRowOnActiveClip, Drum* drum, bool displayNoteCode) {
 	bool doSilentAudition = false;
 
 	int32_t velocityToSound = getVelocityToSound(velocity);
@@ -5244,7 +5269,7 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 	auditionPadIsPressed[yDisplay] = velocityToSound; // Yup, need to do this even if we're going to do a
 	                                                  // "silent" audition, so pad lights up etc.
 
-	if (noteRowOnActiveClip) {
+	if (noteRowOnActiveClip != nullptr) {
 		// Ensure our auditioning doesn't override a note playing in the sequence
 		if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->sequenced) {
 			doSilentAudition = true;
@@ -5281,7 +5306,6 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 		enterUIMode(UI_MODE_AUDITIONING);
 	}
 
-	drawNoteCode(yDisplay);
 	bool lastAuditionedYDisplayChanged = lastAuditionedYDisplay != yDisplay;
 	lastAuditionedYDisplay = yDisplay;
 
@@ -5300,9 +5324,13 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 
 	if (isKit) {
 		setSelectedDrum(drum);
-		return false; // No need to redraw any squares, because setSelectedDrum() has done it
 	}
-	return true;
+
+	if (displayNoteCode) {
+		drawNoteCode(yDisplay);
+	}
+
+	return !isKit; // No need to redraw any squares in kit, because setSelectedDrum() has done it
 }
 
 // sub-function of AuditionPadAction
@@ -5409,7 +5437,7 @@ doDisplayError:
 
 	// Can't fail because we just set the selected Drum
 	// TODO: what if fail because no RAM
-	bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::fileSelectorMenu, 0);
+	bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0);
 
 	if (doRecording) {
 		success = openUI(&audioRecorder);
@@ -5517,7 +5545,11 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 		drawActualNoteCode(getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong));
 	}
 	else {
-		drawDrumName(getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong)->drum);
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		Kit* thisKit = (Kit*)clip->output;
+		if (thisKit->selectedDrum != nullptr) {
+			drawDrumName(thisKit->selectedDrum);
+		}
 	}
 }
 

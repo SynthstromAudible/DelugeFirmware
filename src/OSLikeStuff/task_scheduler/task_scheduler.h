@@ -8,8 +8,6 @@
 #include "OSLikeStuff/task_scheduler/task.h"
 #include <array>
 
-#define SCHEDULER_DETAILED_STATS (0 && ENABLE_TEXT_OUTPUT)
-
 struct SortedTask {
 	uint8_t priority = UINT8_MAX;
 	TaskID task = -1;
@@ -24,6 +22,7 @@ struct TaskManager {
 	void start(Time duration = 0);
 	void removeTask(TaskID id);
 	void runTask(TaskID id);
+	void runHighestPriTask();
 	TaskID chooseBestTask(Time deadline);
 	TaskID addRepeatingTask(TaskHandle task, TaskSchedule schedule, const char* name, ResourceChecker resources);
 

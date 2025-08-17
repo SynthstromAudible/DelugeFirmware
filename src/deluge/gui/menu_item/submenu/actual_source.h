@@ -19,17 +19,24 @@
 #include "processing/sound/sound.h"
 #include "string.h"
 
-extern void setOscillatorNumberForTitles(int32_t);
-
 namespace deluge::gui::menu_item::submenu {
-class ActualSource final : public Submenu {
+class ActualSource final : public HorizontalMenu {
 public:
-	using Submenu::Submenu;
+	ActualSource(l10n::String newName, std::span<MenuItem*> newItems, uint8_t sourceId)
+	    : HorizontalMenu(newName, newItems), source_id_{sourceId} {}
 
-	// OLED Only
-	void beginSession(MenuItem* navigatedBackwardFrom) override {
-		setOscillatorNumberForTitles(this->thingIndex.value());
-		Submenu::beginSession(navigatedBackwardFrom);
+	[[nodiscard]] std::string_view getName() const override { return getNameOrTitle(title); }
+	[[nodiscard]] std::string_view getTitle() const override {
+		auto l10nString = title;
+
+		// If we are in the sample oscillator menu and not on the first page,
+		// we display OSC1/2 SAMPLE as the menu title
+		const auto& source = soundEditor.currentSound->sources[source_id_];
+		if (renderingStyle() == HORIZONTAL && source.oscType == OscType::SAMPLE && paging.visiblePageNumber > 0) {
+			l10nString = l10n::String::STRING_FOR_OSC_SAMPLE_MENU_TITLE;
+		}
+
+		return getNameOrTitle(l10nString);
 	}
 
 	// 7seg Only
@@ -37,12 +44,23 @@ public:
 		if (soundEditor.currentSound->getSynthMode() == SynthMode::FM) {
 			char buffer[5];
 			strcpy(buffer, "CAR");
-			intToString(this->thingIndex.value() + 1, buffer + 3);
+			intToString(source_id_ + 1, buffer + 3);
 			display->setText(buffer);
 		}
 		else {
 			Submenu::drawName();
 		}
+	}
+
+private:
+	uint8_t source_id_;
+	mutable std::string name_or_title_;
+
+	std::string_view getNameOrTitle(l10n::String l10n) const {
+		std::string result = l10n::get(l10n);
+		asterixToInt(result.data(), source_id_ + 1);
+		name_or_title_ = result;
+		return name_or_title_;
 	}
 };
 
