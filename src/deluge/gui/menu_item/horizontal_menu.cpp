@@ -66,12 +66,11 @@ ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRou
 
 		const auto chain = soundEditor.getCurrentHorizontalMenusChain();
 		if (chain.has_value() && Buttons::isButtonPressed(SHIFT)) {
-			switchHorizontalMenu(direction, chain.value(), true);
+			switchHorizontalMenu(direction, chain.value());
 		}
 		else {
 			switchVisiblePage(direction);
 		}
-
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -94,10 +93,9 @@ void HorizontalMenu::renderOLED() {
 	const auto& paging = preparePaging(items, *current_item_);
 
 	// Light up the scale and cross-screen buttons LEDs to indicate they can be used to switch between pages
-	const auto chain = soundEditor.getCurrentHorizontalMenusChain();
-	const auto hasPagesOrChain = paging.totalPages > 1 || chain.has_value();
-	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, hasPagesOrChain);
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, hasPagesOrChain);
+	const auto hasPages = paging.totalPages > 1;
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, hasPages);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, hasPages);
 
 	// did the selected horizontal menu item position change?
 	// if yes, update the instrument LED corresponding to that menu item position
@@ -257,25 +255,15 @@ void HorizontalMenu::displayNotification(MenuItem* menuItem) {
 }
 
 void HorizontalMenu::switchVisiblePage(int32_t direction) {
-	int32_t targetPageNumber = paging.visiblePageNumber + direction;
-
-	// If we're going outside the current menu, switch to the next / previous menu from the chain
-	const auto chain = soundEditor.getCurrentHorizontalMenusChain();
-	if (chain.has_value() && (targetPageNumber < 0 || targetPageNumber >= paging.totalPages)) {
-		return switchHorizontalMenu(direction, chain.value());
-	}
-
 	if (paging.totalPages <= 1) {
 		return;
 	}
 
+	int32_t targetPageNumber = paging.visiblePageNumber + direction;
+
 	// Wrap around
-	if (targetPageNumber < 0) {
-		targetPageNumber = paging.totalPages - 1;
-	}
-	else if (targetPageNumber >= paging.totalPages) {
-		targetPageNumber = 0;
-	}
+	const int32_t count = paging.totalPages;
+	targetPageNumber = (targetPageNumber % count + count) % count;
 
 	// Select an item on the next / previous page, keeping the previous position if possible
 	selectMenuItem(targetPageNumber, paging.selectedItemPositionOnPage);
@@ -289,40 +277,26 @@ void HorizontalMenu::switchVisiblePage(int32_t direction) {
 	}
 }
 
-void HorizontalMenu::switchHorizontalMenu(int32_t direction, std::span<HorizontalMenu* const> chain,
-                                          bool forceSelectFirstItem) {
+void HorizontalMenu::switchHorizontalMenu(int32_t direction, std::span<HorizontalMenu* const> chain) {
 	const auto it = std::ranges::find(chain, this);
 	const int32_t currentMenuPos = std::distance(chain.begin(), it);
 	int32_t targetMenuPos = currentMenuPos + direction;
 
 	// Wrap around
-	if (targetMenuPos < 0) {
-		targetMenuPos = chain.size() - 1;
-	}
-	else if (targetMenuPos >= chain.size()) {
-		targetMenuPos = 0;
-	}
+	const int32_t count = static_cast<int32_t>(chain.size());
+	targetMenuPos = (targetMenuPos % count + count) % count;
 
 	const auto targetMenu = chain[targetMenuPos];
-	const auto previousItemPos = paging.selectedItemPositionOnPage;
+	const auto totalPages = targetMenu->preparePaging(targetMenu->items, nullptr).totalPages;
+	if (totalPages == 0) {
+		// No relevant items on the switched menu, go to the next menu
+		return switchHorizontalMenu(direction >= 0 ? ++direction : --direction, chain);
+	}
 
 	targetMenu->checkPermissionToBeginSession(soundEditor.currentModControllable, soundEditor.currentSourceIndex,
 	                                          &soundEditor.currentMultiRange);
 	targetMenu->beginSession(nullptr);
-
-	if (forceSelectFirstItem) {
-		// Select the first item on the first page
-		targetMenu->selectMenuItem(0, 0);
-	}
-	else if (direction < 0) {
-		// going backward, select an item on the last page, keeping the previously selected position if possible
-		const auto pagesCount = targetMenu->preparePaging(targetMenu->items, nullptr).totalPages;
-		targetMenu->selectMenuItem(pagesCount - 1, previousItemPos);
-	}
-	else {
-		// going forward, select an item on the first page, keeping the previously selected position if possible
-		targetMenu->selectMenuItem(0, previousItemPos);
-	}
+	targetMenu->selectMenuItem(0, 0);
 
 	soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth] = targetMenu;
 	renderUIsForOled();
