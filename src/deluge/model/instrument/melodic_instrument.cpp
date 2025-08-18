@@ -430,7 +430,15 @@ void MelodicInstrument::offerReceivedPC(ModelStackWithTimelineCounter* modelStac
 
 void MelodicInstrument::receivedPC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                                    MIDIMatchType match, uint8_t channel, uint8_t program, bool* doingMidiThru) {
-	if (match == MIDIMatchType::CHANNEL) {
+	switch (match) {
+
+	case MIDIMatchType::NO_MATCH:
+		return;
+	case MIDIMatchType::MPE_MEMBER:
+		[[fallthrough]];
+	case MIDIMatchType::MPE_MASTER:
+		[[fallthrough]];
+	case MIDIMatchType::CHANNEL:
 		// If it's a MIDI Clip...
 		if (type == OutputType::MIDI_OUT) {
 			if (playbackHandler.recording != RecordingMode::OFF) {
