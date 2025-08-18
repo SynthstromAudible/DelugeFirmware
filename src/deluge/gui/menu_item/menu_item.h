@@ -36,7 +36,8 @@ class MIDICable;
 
 namespace deluge::gui::menu_item {
 class Submenu;
-}
+class HorizontalMenu;
+} // namespace deluge::gui::menu_item
 
 /// Base class for all menu items.
 class MenuItem {
@@ -314,7 +315,7 @@ public:
 
 	virtual void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {};
 
-	deluge::gui::menu_item::Submenu* parent{nullptr};
+	deluge::gui::menu_item::HorizontalMenu* parent{nullptr};
 
 	/// @}
 };
