@@ -11,6 +11,10 @@
 - Added LPF to Mutable Instruments Reverb
 - Added two more envelopes (Envelope 3 and Envelope 4)
 - Added two more LFOs (LFO 3 -global- and LFO 4 -per voice-)
+- Patch cables can be toggled to unipolar or bipolar mode
+  - `Press + Turn select encoder` to change the polarity while in the patch cable menu
+  - For OLED: `MIDI`/`CV` buttons can be used as an additional way to change it, with corresponding graphics on the display
+  - For 7SEG: a little dot will be displayed on the right side when the polarity is unipolar
 
 #### <ins>Per-clip Stutter with options: Direction and Quantize</ins>
 - Now the stutter buffer can also be set to play in reverse, and ping-pong.
@@ -27,6 +31,8 @@ Added main grid pad shortcuts for the following parameters:
 - `STUTTER RATE`: accessed using `SHIFT` / `AUDITION PAD` + `PAD` between the `PLAY DIRECTION PAD` and `SATURATION PAD`
 - `NOTE PROBABILITY`: accessed using `SHIFT` + `NOTE PAD` in the `PATCH SOURCE` column between the `RANDOM PAD` and `SIDECHAIN PAD`
   - Note: `AUDITION PAD` + `NOTE PAD` is reserved for future functionality
+- `RANDOMIZER LOCK`: accessed using :key[SHIFT] + :key[RANDOM PAD] in the `PATCH SOURCE` column between :key[NOTE PAD] and :key[VELOCITY PAD]
+  - Note: :key[AUDITION PAD] + :key[RANDOM PAD] is reserved for future functionality
 - `VELOCITY PROBABILITY`: accessed using `SHIFT` + `VELOCITY PAD` in the `PATCH SOURCE` column between the `AFTERTOUCH PAD` and `RANDOM PAD`
   - Note: `AUDITION PAD` + `VELOCITY PAD` is reserved for entering the Velocity Automation View
 
@@ -38,7 +44,6 @@ Added main grid pad shortcuts for the following parameters:
   - `UNISON NUMBER`: cycles between `UNISON NUMBER` and `UNISON STEREO SPREAD`, in addition to the previous "press select when in `UNISON NUMBER` access mechanism for `UNISON STEREO SPREAD`.
   - `COMPRESSOR THRESHOLD`: cycles between `COMPRESSOR THRESHOLD` and `COMPRESSOR RATIO`
   - `STUTTER RATE`: cycles between `STUTTER RATE` and `STUTTER DIRECTION`
-  - `ARP MODE`: cycles between `ARP MODE` and the arp randomizer `LOCK`. This is mostly for OLED users to quickly access the `RANDOMIZER` submenu.
 
 #### <ins>Accessibility</ins>
 - Added `DEFAULTS (DEFA) > UI > ACCESSIBILITY (ACCE)` menu which contains accessibility changes to the Deluge UI to make the deluge more accessible to users with disabilities. These changes include:
@@ -53,12 +58,12 @@ Added main grid pad shortcuts for the following parameters:
 
 ##### <ins>Horizontal Menus</ins>
 - The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
-  - Oscillator 1-2
-  - Oscillator mixer
-  - Sample 1-2
-  - Sample recorder
-  - Modulator 1-2
-  - Master
+  - Oscillator 1-2.
+  - Oscillator mixer.
+  - Sample 1-2.
+  - Sample recorder.
+  - Modulator 1-2.
+  - Master.
   - Envelope 1-4.
   - LFO 1-4.
   - LPF and HPF.
@@ -66,6 +71,7 @@ Added main grid pad shortcuts for the following parameters:
   - Distortion.
   - Reverb.
   - Reverb sidechain.
+  - Sidechain.
   - Delay.
   - Mod FX.
   - Compressor.
@@ -78,11 +84,11 @@ Added main grid pad shortcuts for the following parameters:
   - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
     - When in a Horizontal Menu, the selected instruments LED corresponding to the Horizontal Menu item selected will light up
   - Additionally, you can change the selected menu item by `Press + Turn select encoder`
-  - You can use the `SCALE` and `CROSS-SCREEN` buttons to switch between pages or adjacent menus
-    - Use `CROSS-SCREEN` button to switch to the next page, or the next Horizontal menu if you're on the last page
-    - Use `SCALE` button to switch to the previous page, or the previous Horizontal menu if you're on the first page
-    - Use `SHIFT + CROSS-SCREEN` button combo to switch straight to the next Horizontal menu
-    - Use `SHIFT + SCALE` button combo to switch straight to the previous Horizontal menu
+  - You can use the `SCALE` and `CROSS-SCREEN` buttons to switch between pages and adjacent menus
+    - Use `CROSS-SCREEN` button to switch to the next page
+    - Use `SCALE` button to switch to the previous page
+    - Use `SHIFT + CROSS-SCREEN` button combo to switch to the next adjacent Horizontal menu
+    - Use `SHIFT + SCALE` button combo to switch to the previous adjacent Horizontal menu
 
 #### <ins>Clip Name Display & Copying</ins>
 - If a clip has no named "SECTION N" is displayed in place of the clip name, indicating which section the clip is in.

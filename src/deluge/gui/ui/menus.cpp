@@ -438,6 +438,7 @@ HorizontalMenu voiceMenu{STRING_FOR_VOICE,
 HorizontalMenu voiceMenuWithoutUnison{STRING_FOR_VOICE,
                                       {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &portaMenu},
                                       HorizontalMenu::Layout::FIXED};
+HorizontalMenuGroup voiceMenuGroup{{&unisonMenu, &voiceMenuWithoutUnison}};
 
 // Envelope 1-4 menu -----------------------------------------------------------------------------
 HorizontalMenuGroup envMenuGroup{{&env1Menu, &env2Menu, &env3Menu, &env4Menu}};
@@ -1358,9 +1359,13 @@ patched_param::Pan panMenu{STRING_FOR_PAN, params::LOCAL_PAN};
 
 PatchCables patchCablesMenu{STRING_FOR_MOD_MATRIX};
 
-HorizontalMenu soundMasterMenu{
+Submenu soundMasterMenu{
     STRING_FOR_MASTER,
     {&synthModeMenu, &volumeMenu, &panMenu, &masterTransposeMenu, &vibratoMenu},
+};
+HorizontalMenu soundMasterMenuWithoutVibrato{
+    STRING_FOR_MASTER,
+    {&synthModeMenu, &volumeMenu, &panMenu, &masterTransposeMenu},
 };
 
 HorizontalMenuGroup sourceMenuGroup{{&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu}};
@@ -1806,20 +1811,21 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
     {nullptr,          	     &spreadVelocityMenu,	  &randomizerLockMenu,            &randomizerNoteProbabilityMenu,        nullptr,                     nullptr,                nullptr,                  nullptr                            },
 };
 
-PLACE_SDRAM_DATA std::array<HorizontalMenu*, 18> horizontalMenusChainForSound = {
-	&arpMenuGroup, &randomizerMenu,
-	&voiceMenuWithoutUnison, &soundMasterMenu, &recorderMenu, &sourceMenuGroup,
-	&unisonMenu, &envMenuGroup, &lfoMenuGroup,
+PLACE_SDRAM_DATA std::array<HorizontalMenu*, 17> horizontalMenusChainForSound = {
+	&soundMasterMenuWithoutVibrato, &recorderMenu,
+	&sourceMenuGroup, &voiceMenuGroup, &envMenuGroup, &lfoMenuGroup,
 	&filtersMenuGroup, &eqMenu, &modFXMenu,
 	&reverbMenuGroup, &delayMenu, &soundDistortionMenu,
-	&sidechainMenu, &audioCompMenu, &stutterMenu
+	&sidechainMenu, &audioCompMenu, &stutterMenu,
+	&arpMenuGroup, &randomizerMenu
 };
 
 PLACE_SDRAM_DATA std::array<HorizontalMenu*, 12> horizontalMenusChainForKit = {
-	&arpMenuGroupKit, &randomizerMenu, &kitClipMasterMenu,
+	&kitClipMasterMenu,
 	&globalFiltersMenuGroup, &globalEQMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
-	&globalSidechainMenu, &audioCompMenu, &stutterMenu
+	&globalSidechainMenu, &audioCompMenu, &stutterMenu,
+	&arpMenuGroupKit, &randomizerMenu
 };
 
 PLACE_SDRAM_DATA std::array<HorizontalMenu*, 9> horizontalMenusChainForSong = {

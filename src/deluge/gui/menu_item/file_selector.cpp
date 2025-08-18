@@ -22,6 +22,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
+#include "horizontal_menu.h"
 #include "model/clip/clip.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
@@ -41,10 +42,22 @@ void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
 		keyboardScreen.exitAuditionMode();
 	}
+
+	if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+		sampleBrowser.menuItemHeadingTo = this;
+		sampleBrowser.parentMenuHeadingTo = parent;
+	}
+
 	if (!openUI(&sampleBrowser)) {
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	}
 }
+
+MenuItem* FileSelector::selectButtonPress() {
+	beginSession(nullptr);
+	return NO_NAVIGATION;
+}
+
 bool FileSelector::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return true;
