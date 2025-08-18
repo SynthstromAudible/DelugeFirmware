@@ -1812,19 +1812,20 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
 };
 
 PLACE_SDRAM_DATA std::array<HorizontalMenu*, 17> horizontalMenusChainForSound = {
-	&arpMenuGroup, &randomizerMenu,
 	&soundMasterMenuWithoutVibrato, &recorderMenu,
 	&sourceMenuGroup, &voiceMenuGroup, &envMenuGroup, &lfoMenuGroup,
 	&filtersMenuGroup, &eqMenu, &modFXMenu,
 	&reverbMenuGroup, &delayMenu, &soundDistortionMenu,
-	&sidechainMenu, &audioCompMenu, &stutterMenu
+	&sidechainMenu, &audioCompMenu, &stutterMenu,
+	&arpMenuGroup, &randomizerMenu
 };
 
 PLACE_SDRAM_DATA std::array<HorizontalMenu*, 12> horizontalMenusChainForKit = {
-	&arpMenuGroupKit, &randomizerMenu, &kitClipMasterMenu,
+	&kitClipMasterMenu,
 	&globalFiltersMenuGroup, &globalEQMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
-	&globalSidechainMenu, &audioCompMenu, &stutterMenu
+	&globalSidechainMenu, &audioCompMenu, &stutterMenu,
+	&arpMenuGroupKit, &randomizerMenu
 };
 
 PLACE_SDRAM_DATA std::array<HorizontalMenu*, 9> horizontalMenusChainForSong = {
