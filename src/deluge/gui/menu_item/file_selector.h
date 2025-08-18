@@ -28,6 +28,7 @@ public:
 	FileSelector(l10n::String newName, uint8_t sourceId) : MenuItem(newName), sourceId_{sourceId} {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override;
+	MenuItem* selectButtonPress() override;
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             MultiRange** currentRange) override;
 

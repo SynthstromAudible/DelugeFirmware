@@ -17,7 +17,6 @@
 
 #include "patch_cable_strength.h"
 #include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
@@ -26,6 +25,8 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/led/indicator_leds.h"
+#include "horizontal_menu.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_descriptor.h"
@@ -34,11 +35,7 @@
 #include "processing/sound/sound.h"
 #include "source_selection.h"
 #include "source_selection/range.h"
-#include "submenu.h"
 #include "util/functions.h"
-
-#include <hid/led/indicator_leds.h>
-#include <util/comparison.h>
 
 using hid::display::OLED;
 
