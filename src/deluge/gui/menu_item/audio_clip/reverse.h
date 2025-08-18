@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/submenu.h"
+#include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/audio_clip_view.h"
