@@ -1333,12 +1333,8 @@ void Browser::updateUIState() {
 
 	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) { // fast scrolling
 		// Fast scroll logic - only adjust if selection goes off-screen
-		if (scrollPosVertical > fileIndexSelected) {
-			scrollPosVertical = fileIndexSelected;
-		}
-		else if (scrollPosVertical < fileIndexSelected - NUM_FILES_ON_SCREEN + 1) {
-			scrollPosVertical = fileIndexSelected - NUM_FILES_ON_SCREEN + 1;
-		}
+		scrollPosVertical =
+		    std::clamp(scrollPosVertical, fileIndexSelected - NUM_FILES_ON_SCREEN + 1, fileIndexSelected);
 	}
 	else {
 		scrollPosVertical = fileIndexSelected - 1;
