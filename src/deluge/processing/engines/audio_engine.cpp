@@ -362,17 +362,16 @@ int32_t getNumVoices() {
 	return std::transform_reduce(sounds.cbegin(), sounds.cend(), 0, std::plus{},
 	                             [](auto sound) { return sound->voices().size(); });
 }
+void yieldToAudio() {
+	if (!AudioEngine::audioRoutineLocked) {
+		// Sean: replace routineWithClusterLoading call, yield until AudioRoutine is called
+		AudioEngine::routineBeenCalled = false;
+		yieldToIdle([]() { return (AudioEngine::routineBeenCalled); });
+	}
+}
 
 void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
-	logAction("AudioDriver::routineWithClusterLoading");
-
-	routineBeenCalled = false;
-	audioFileManager.loadAnyEnqueuedClusters(128, mayProcessUserActionsBetween);
-	if (!routineBeenCalled) {
-		bypassCulling = true; // yolo?
-		logAction("from routineWithClusterLoading()");
-		routine(); // -----------------------------------
-	}
+	yieldToAudio();
 }
 
 #define TICK_TYPE_SWUNG 1
@@ -514,7 +513,13 @@ bool calledFromScheduler = false;
 
 /// inner loop of audio rendering, deliberately not in header
 [[gnu::hot]] void routine_() {
-
+	static double last_call_time = getSystemTime();
+	double current_time = getSystemTime();
+	if (current_time - last_call_time > 0.003) {
+		// If the audio routine is called at less than a 3ms interval, something is wrong
+		D_PRINTLN("Audio routine latency high: %.3fms", (current_time - last_call_time) * 1000.);
+	}
+	last_call_time = current_time;
 #ifndef USE_TASK_MANAGER
 	playbackHandler.routine();
 #endif

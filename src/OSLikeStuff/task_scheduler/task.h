@@ -88,9 +88,7 @@ struct Task {
 	}
 
 	void updateNextTimes(Time startTime, Time runtime, Time finishTime) {
-		if (runtime > Time(0.003)) {
-			D_PRINTLN("Task %s took too long: %.3fms", name, double(runtime) * 1000.);
-		}
+
 		durationStats.update(runtime);
 
 #if SCHEDULER_DETAILED_STATS

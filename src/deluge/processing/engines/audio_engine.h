@@ -180,7 +180,7 @@ void printLog();
 #endif
 int32_t getNumAudio();
 int32_t getNumVoices();
-
+void yieldToAudio();
 bool doSomeOutputting();
 void updateReverbParams();
 

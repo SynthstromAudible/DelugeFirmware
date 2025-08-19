@@ -65,6 +65,10 @@ bool yieldWithTimeout(RunCondition until, double timeout) {
 	return taskManager.yield(until, timeout);
 }
 
+bool yieldToIdle(RunCondition until) {
+	return taskManager.yield(until, 0, true);
+}
+
 void removeTask(TaskID id) {
 	taskManager.removeTask(id);
 }

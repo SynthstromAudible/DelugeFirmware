@@ -71,6 +71,9 @@ void removeTask(TaskID id);
 void yield(RunCondition until);
 /// timeout in seconds, returns whether the condition was met
 bool yieldWithTimeout(RunCondition until, double timeout);
+/// yield until the condition is met, but return immediately if the scheduler is idle
+/// use if you're yielding in a loop such as the sd routine
+bool yieldToIdle(RunCondition until);
 /// start the task scheduler
 void startTaskManager();
 #ifdef __cplusplus
