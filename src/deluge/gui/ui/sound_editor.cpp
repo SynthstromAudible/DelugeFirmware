@@ -6,6 +6,7 @@
 #include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/horizontal_menu.h"
+#include "gui/menu_item/horizontal_menu_group.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/menu_item/multi_range.h"
@@ -49,6 +50,7 @@
 #include "processing/source.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
+#include "util/comparison.h"
 
 using namespace deluge;
 using namespace deluge::gui;
@@ -1612,7 +1614,6 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	}
 
 	MenuItem* newItem;
-	MenuItem* oneLevelDownItem = nullptr;
 
 	if (item) {
 		newItem = (MenuItem*)item;
@@ -1687,14 +1688,8 @@ doMIDIOrCV:
 	// If we're on OLED, a parent menu & horizontal menus are in play,
 	// then we swap the parent in place of the child.
 	HorizontalMenu* parent = maybeGetParentMenu(newItem);
-	if (parent != nullptr) {
-		const bool focused = parent->focusChild(newItem);
-		if (newItem == &file0SelectorMenu || newItem == &file1SelectorMenu) {
-			oneLevelDownItem = parent;
-		}
-		else if (focused) {
-			newItem = parent;
-		}
+	if (parent != nullptr && parent->focusChild(newItem)) {
+		newItem = parent;
 	}
 
 	::MultiRange* newRange = currentMultiRange;
@@ -1762,12 +1757,6 @@ doMIDIOrCV:
 	shouldGoUpOneLevelOnBegin = false;
 	menuItemNavigationRecord[navigationDepth] = newItem;
 	display->setNextTransitionDirection(1);
-
-	if (oneLevelDownItem != nullptr) {
-		menuItemNavigationRecord[navigationDepth] = oneLevelDownItem;
-		navigationDepth++;
-		menuItemNavigationRecord[navigationDepth] = newItem;
-	}
 
 	return true;
 }
@@ -1935,10 +1924,24 @@ HorizontalMenu* SoundEditor::maybeGetParentMenu(MenuItem* item) {
 	if (!chain.has_value()) {
 		return nullptr;
 	}
+
+	if (util::one_of<MenuItem*>(item, {&sample0StartMenu, &sample1StartMenu, &audioClipSampleMarkerEditorMenuEnd})) {
+		// for sample start/end points we go straight to waveform editor UI
+		return nullptr;
+	}
+
 	const auto it = std::ranges::find_if(chain.value(), [&](HorizontalMenu* menu) { return menu->hasItem(item); });
 	if (it == chain->end()) {
 		return nullptr;
 	}
+
+	if (util::one_of<MenuItem*>(item, {&file0SelectorMenu, &file1SelectorMenu})) {
+		// for file selectors we go straight to the browser
+		// and automatically navigate to the parent horizontal menu when a file is selected
+		item->parent = *it;
+		return nullptr;
+	}
+
 	return *it;
 }
 
