@@ -2198,6 +2198,23 @@ bool ArrangerView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth 
 	    doActualRender(currentSong->xScroll[NAVIGATION_ARRANGEMENT], currentSong->xZoom[NAVIGATION_ARRANGEMENT],
 	                   whichRows, &image[0][0], occupancyMask, kDisplayWidth, kDisplayWidth + kSideBarWidth);
 
+	// Add negative region indicator when dragging clip instances up to the zero mark
+	bool dragging_clip_instance = isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
+	if (dragging_clip_instance && currentSong->xScroll[NAVIGATION_ARRANGEMENT] < 0) {
+		// Calculate how many columns are before the zero point
+		int32_t zero_column = getSquareFromPos(0);
+
+		// Light up all columns that represent negative time positions with light grey
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			for (int32_t xDisplay = 0; xDisplay < zero_column && xDisplay < kDisplayWidth; xDisplay++) {
+				// Only overlay grey if the current pixel is black to preserve colors of dragged portion
+				if (image[yDisplay][xDisplay] == colours::black) {
+					image[yDisplay][xDisplay] = RGB::monochrome(10);
+				}
+			}
+		}
+	}
+
 	PadLEDs::renderingLock = false;
 
 	if (whichRowsCouldntBeRendered && image == PadLEDs::image) {
