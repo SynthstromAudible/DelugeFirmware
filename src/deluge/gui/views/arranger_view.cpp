@@ -78,6 +78,7 @@
 #include "util/d_string.h"
 #include "util/functions.h"
 #include "util/try.h"
+#include <algorithm>
 #include <cstdint>
 #include <new>
 
@@ -2754,10 +2755,10 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 			}
 			else {
 
-				int32_t scrollAmount = offset * currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+				int32_t scroll_amount = offset * currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 
 				// If expanding, make sure we don't exceed length limit
-				if (offset >= 0 && getMaxLength() > kMaxSequenceLength - scrollAmount) {
+				if (offset >= 0 && static_cast<int32_t>(getMaxLength()) > kMaxSequenceLength - scroll_amount) {
 					return ActionResult::DEALT_WITH;
 				}
 
@@ -2789,18 +2790,18 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 						if (consMemory) {
 							ConsequenceArrangerParamsTimeInserted* consequence = new (consMemory)
 							    ConsequenceArrangerParamsTimeInserted(currentSong->xScroll[NAVIGATION_ARRANGEMENT],
-							                                          scrollAmount);
+							                                          scroll_amount);
 							action->addConsequence(consequence);
 						}
 						unpatchedParams->insertTime(modelStackWithUnpatchedParams,
-						                            currentSong->xScroll[NAVIGATION_ARRANGEMENT], scrollAmount);
+						                            currentSong->xScroll[NAVIGATION_ARRANGEMENT], scroll_amount);
 					}
 					else {
 						if (action) {
 							unpatchedParams->backUpAllAutomatedParamsToAction(action, modelStackWithUnpatchedParams);
 						}
 						unpatchedParams->deleteTime(modelStackWithUnpatchedParams,
-						                            currentSong->xScroll[NAVIGATION_ARRANGEMENT], -scrollAmount);
+						                            currentSong->xScroll[NAVIGATION_ARRANGEMENT], -scroll_amount);
 					}
 				}
 
@@ -2815,7 +2816,8 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 						ClipInstance* instance = thisOutput->clipInstances.getElement(i);
 
 						// If contracting time and this bit has to be deleted...
-						if (offset < 0 && instance->pos + scrollAmount < currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
+						if (offset < 0
+						    && instance->pos + scroll_amount < currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
 							deleteClipInstance(thisOutput, i, instance, action);
 							// Don't increment i, because we deleted an element
 						}
@@ -2823,7 +2825,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 						// Otherwise, just move it
 						else {
 
-							int32_t newPos = instance->pos + scrollAmount;
+							int32_t new_pos = instance->pos + scroll_amount;
 
 							// If contracting time, shorten the previous ClipInstance only if the ClipInstances we're
 							// moving will eat into its tail. Otherwise, leave the tail there. Perhaps it'd make more
@@ -2833,21 +2835,21 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 							if (!movedOneYet && offset < 0 && i > 0) {
 								movedOneYet = true;
 								ClipInstance* prevInstance = (ClipInstance*)thisOutput->clipInstances.getElement(i - 1);
-								int32_t maxLength = newPos - prevInstance->pos;
+								int32_t maxLength = new_pos - prevInstance->pos;
 								if (prevInstance->length > maxLength) {
 									prevInstance->change(action, thisOutput, prevInstance->pos, maxLength,
 									                     prevInstance->clip);
 								}
 							}
 
-							instance->change(action, thisOutput, newPos, instance->length, instance->clip);
+							instance->change(action, thisOutput, new_pos, instance->length, instance->clip);
 
 							i++;
 						}
 					}
 				}
 
-				lastInteractedPos += scrollAmount;
+				lastInteractedPos += scroll_amount;
 
 				uiNeedsRendering(this, 0xFFFFFFFF, 0);
 			}
@@ -2860,8 +2862,8 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 		actionOnDepress = false;
 
 		// When dragging a clip instance, allow temporary negative scroll to continue leftward movement
-		bool draggingClipInstance = isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
-		if (!draggingClipInstance && offset == -1 && currentSong->xScroll[NAVIGATION_ARRANGEMENT] == 0) {
+		bool dragging_clip_instance = isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
+		if (!dragging_clip_instance && offset == -1 && currentSong->xScroll[NAVIGATION_ARRANGEMENT] == 0) {
 			return ActionResult::DEALT_WITH;
 		}
 
@@ -2876,44 +2878,42 @@ ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 
 	uint32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 
-	int32_t scrollAmount = direction * xZoom;
+	int32_t scroll_amount = direction * static_cast<int32_t>(xZoom);
 
-	bool draggingClipInstance = isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
+	bool dragging_clip_instance = isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
 
 	// Only apply normal scroll constraints when not dragging to allow temporary negative
 	// window position so that clip instances can be dragged all the way to the start
-	if (!draggingClipInstance) {
-		if (scrollAmount < 0 && scrollAmount < -currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
-			scrollAmount = -currentSong->xScroll[NAVIGATION_ARRANGEMENT];
-		}
+	if (!dragging_clip_instance) {
+		scroll_amount = std::max(scroll_amount, -currentSong->xScroll[NAVIGATION_ARRANGEMENT]);
 	}
 
-	// Make sure we don't scroll too far right
-	int32_t maxScroll = getMaxLength() - 1 + xZoom; // Add one extra square, and round down
-	if (maxScroll < 0) {
-		maxScroll = 0;
+	// Calculate max scroll bounds
+	int32_t max_scroll = static_cast<int32_t>(getMaxLength()) - 1 + static_cast<int32_t>(xZoom);
+	int32_t screen_width = static_cast<int32_t>(xZoom) << kDisplayWidthMagnitude;
+	max_scroll = std::clamp(max_scroll, int32_t{0}, kMaxSequenceLength - screen_width);
+
+	int32_t new_x_scroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT] + scroll_amount;
+
+	// Allow negative scroll when dragging, otherwise clamp to 0 minimum
+	if (!dragging_clip_instance && new_x_scroll < 0) {
+		new_x_scroll = 0;
 	}
 
-	int32_t screenWidth = xZoom << kDisplayWidthMagnitude;
-	if (maxScroll > kMaxSequenceLength - screenWidth) {
-		maxScroll = kMaxSequenceLength - screenWidth;
+	// Apply maximum scroll limit
+	if (new_x_scroll > max_scroll) {
+		new_x_scroll = (max_scroll / static_cast<int32_t>(xZoom)) * static_cast<int32_t>(xZoom);
 	}
 
-	int32_t newXScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT] + scrollAmount;
+	if (new_x_scroll != currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
 
-	if (newXScroll > maxScroll) {
-		newXScroll = (uint32_t)maxScroll / xZoom * xZoom;
-	}
-
-	if (newXScroll != currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
-
-		if (draggingClipInstance && sdRoutineLock) {
+		if (dragging_clip_instance && sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
-		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = newXScroll;
+		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = new_x_scroll;
 
-		if (draggingClipInstance) {
+		if (dragging_clip_instance) {
 			putDraggedClipInstanceInNewPosition(outputsOnScreen[yPressedEffective]);
 		}
 
@@ -2922,7 +2922,7 @@ ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 	}
 
 	// Display scroll position, but handle negative values during dragging
-	if (draggingClipInstance && currentSong->xScroll[NAVIGATION_ARRANGEMENT] < 0) {
+	if (dragging_clip_instance && currentSong->xScroll[NAVIGATION_ARRANGEMENT] < 0) {
 		// Don't want to display invalid position when view is temporarily negative, so just keep it at 1:1:1
 		uint32_t quantization = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 		displayNumberOfBarsAndBeats(0, quantization, true, "FAR");
@@ -2967,11 +2967,11 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 
 	Output* output;
 
-	bool draggingWholeRow = isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION);
-	bool draggingClipInstance = isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
+	bool dragging_whole_row = isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION);
+	bool dragging_clip_instance = isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
 
 	// If a Output or ClipInstance selected for dragging, limit scrolling
-	if (draggingWholeRow || draggingClipInstance) {
+	if (dragging_whole_row || dragging_clip_instance) {
 		if (yPressedEffective != yPressedActual) {
 			return ActionResult::DEALT_WITH;
 		}
@@ -2999,7 +2999,7 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 	currentSong->arrangementYScroll += direction;
 
 	// If an Output is selected, drag it against the scroll
-	if (draggingWholeRow) {
+	if (dragging_whole_row) {
 
 		// Shift Output up
 		if (direction >= 0) {
@@ -3027,7 +3027,7 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 	}
 
 	// Or if dragging ClipInstance vertically
-	else if (draggingClipInstance) {
+	else if (dragging_clip_instance) {
 		Output* newOutput = currentSong->getOutputFromIndex(yPressedEffective + currentSong->arrangementYScroll);
 
 		putDraggedClipInstanceInNewPosition(newOutput);
@@ -3282,13 +3282,16 @@ uint32_t ArrangerView::getMaxLength() {
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
 		if (thisOutput->recordingInArrangement) {
-			maxEndPos = std::max<int32_t>(maxEndPos, arrangement.getLivePos());
+			int32_t livePos = arrangement.getLivePos();
+			if (livePos > 0) { // Only consider positive positions
+				maxEndPos = std::max(maxEndPos, static_cast<uint32_t>(livePos));
+			}
 		}
 
 		int32_t numElements = thisOutput->clipInstances.getNumElements();
 		if (numElements) {
 			ClipInstance* lastInstance = thisOutput->clipInstances.getElement(numElements - 1);
-			uint32_t endPos = lastInstance->pos + lastInstance->length;
+			uint32_t endPos = static_cast<uint32_t>(lastInstance->pos + lastInstance->length);
 			maxEndPos = std::max(maxEndPos, endPos);
 		}
 	}
@@ -3297,24 +3300,24 @@ uint32_t ArrangerView::getMaxLength() {
 }
 
 uint32_t ArrangerView::getMaxZoom() {
-	uint32_t maxLength = getMaxLength();
+	uint32_t max_length = getMaxLength();
 
-	if (maxLength < (kDefaultArrangerZoom << currentSong->insideWorldTickMagnitude) * kDisplayWidth) {
+	if (max_length < (kDefaultArrangerZoom << currentSong->insideWorldTickMagnitude) * kDisplayWidth) {
 		return (kDefaultArrangerZoom << currentSong->insideWorldTickMagnitude);
 	}
 
-	uint32_t thisLength = kDisplayWidth * 3;
-	while (thisLength < maxLength) {
-		thisLength <<= 1;
+	uint32_t this_length = kDisplayWidth * 3;
+	while (this_length < max_length) {
+		this_length <<= 1;
 	}
 
-	if (thisLength < (kMaxSequenceLength >> 1)) {
-		thisLength <<= 1;
+	if (this_length < (kMaxSequenceLength >> 1)) {
+		this_length <<= 1;
 	}
 
-	int32_t maxZoom = thisLength >> kDisplayWidthMagnitude;
+	int32_t max_zoom = this_length >> kDisplayWidthMagnitude;
 
-	return maxZoom;
+	return max_zoom;
 }
 
 void ArrangerView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
