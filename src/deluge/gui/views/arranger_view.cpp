@@ -2859,7 +2859,9 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 
 		actionOnDepress = false;
 
-		if (offset == -1 && currentSong->xScroll[NAVIGATION_ARRANGEMENT] == 0) {
+		// When dragging a clip instance, allow temporary negative scroll to continue leftward movement
+		bool draggingClipInstance = isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
+		if (!draggingClipInstance && offset == -1 && currentSong->xScroll[NAVIGATION_ARRANGEMENT] == 0) {
 			return ActionResult::DEALT_WITH;
 		}
 
@@ -2876,15 +2878,14 @@ ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 
 	int32_t scrollAmount = direction * xZoom;
 
-	if (scrollAmount < 0 && scrollAmount < -currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
-		scrollAmount = -currentSong->xScroll[NAVIGATION_ARRANGEMENT];
-	}
+	bool draggingClipInstance = isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
 
-	int32_t newXScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT] + scrollAmount;
-
-	// Make sure we don't scroll too far left, though I'm pretty sure we already did above?
-	if (newXScroll < 0) {
-		newXScroll = 0;
+	// Only apply normal scroll constraints when not dragging to allow temporary negative
+	// window position so that clip instances can be dragged all the way to the start
+	if (!draggingClipInstance) {
+		if (scrollAmount < 0 && scrollAmount < -currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
+			scrollAmount = -currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+		}
 	}
 
 	// Make sure we don't scroll too far right
@@ -2898,13 +2899,13 @@ ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 		maxScroll = kMaxSequenceLength - screenWidth;
 	}
 
+	int32_t newXScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT] + scrollAmount;
+
 	if (newXScroll > maxScroll) {
 		newXScroll = (uint32_t)maxScroll / xZoom * xZoom;
 	}
 
 	if (newXScroll != currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
-
-		bool draggingClipInstance = isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
 
 		if (draggingClipInstance && sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -2920,7 +2921,15 @@ ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 		reassessWhetherDoingAutoScroll();
 	}
 
-	displayScrollPos();
+	// Display scroll position, but handle negative values during dragging
+	if (draggingClipInstance && currentSong->xScroll[NAVIGATION_ARRANGEMENT] < 0) {
+		// Don't want to display invalid position when view is temporarily negative, so just keep it at 1:1:1
+		uint32_t quantization = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+		displayNumberOfBarsAndBeats(0, quantization, true, "FAR");
+	}
+	else {
+		displayScrollPos();
+	}
 
 	return ActionResult::DEALT_WITH;
 }
@@ -3062,6 +3071,12 @@ ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRout
 }
 
 void ArrangerView::setNoSubMode() {
+	// If we were dragging a clip instance left and have a negative scroll position, snap back to 0
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW && currentSong->xScroll[NAVIGATION_ARRANGEMENT] < 0) {
+		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	}
+
 	currentUIMode = UI_MODE_NONE;
 	if (doingAutoScrollNow) {
 		reassessWhetherDoingAutoScroll(); // Maybe stop auto-scrolling. But don't start.
