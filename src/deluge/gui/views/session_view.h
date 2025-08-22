@@ -147,6 +147,8 @@ public:
 	// display tempo
 	void displayPotentialTempoChange(UI* ui);
 	void displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM, bool clearArea);
+	void displayArrangementPositionAndLength(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea = true,
+	                                         bool onlyIfChanged = true);
 	float lastDisplayedTempo = 0;
 
 	// display root note and scale name

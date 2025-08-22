@@ -71,6 +71,7 @@ public:
 	bool putDraggedClipInstanceInNewPosition(Output* output);
 	void tellMatrixDriverWhichRowsContainSomethingZoomable() override;
 	void scrollFinished() override;
+	void displayScrollPos();
 	void notifyPlaybackBegun() override;
 	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output) override;
 	void playbackEnded() override;
@@ -115,6 +116,13 @@ public:
 
 	int32_t lastTickSquare{};
 
+	// Cache for arrangement length calculation and display
+	int32_t last_arrangement_end_position{-1};
+	float last_tempo_BPM{0.0f};
+	float total_seconds{0.0f};
+	String total_time_string = {};
+	String last_arrangement_time_display_string = {};
+
 	int32_t xScrollWhenPlaybackStarted{};
 
 	// ui
@@ -124,6 +132,12 @@ public:
 	Clip* getClipForSelection();
 
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
+
+	// Arrangement length calculation
+	String calculateArrangementPositionAndLength();
+	int32_t ticksToSeconds(int32_t ticks, bool rounding = true);
+	String secondsToTimeString(int32_t seconds);
+	int32_t getDraggedClipPosition();
 
 private:
 	RGB getMutePadColor(int32_t yDisplay);
@@ -168,6 +182,7 @@ private:
 	void deleteClipInstance(Output* output, ClipInstance* clipInstance);
 	void createNewClipForClipInstance(Output* output, ClipInstance* clipInstance);
 	void recordEditPadPress(Output* output, ClipInstance* clipInstance, int32_t x, int32_t y, int32_t xScroll);
+	int32_t last_position_seconds = 0;
 };
 
 extern ArrangerView arrangerView;

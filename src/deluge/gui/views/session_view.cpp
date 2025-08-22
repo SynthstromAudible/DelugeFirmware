@@ -2040,6 +2040,7 @@ void SessionView::renderViewDisplay() {
 	lastDisplayedTempo = playbackHandler.calculateBPM(playbackHandler.getTimePerInternalTickFloat());
 	playbackHandler.getTempoStringForOLED(lastDisplayedTempo, tempoBPM);
 	displayTempoBPM(canvas, tempoBPM, false);
+	displayArrangementPositionAndLength(canvas, false, false);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 	yPos = OLED_MAIN_TOPMOST_PIXEL + 30;
@@ -2082,6 +2083,7 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 	int32_t metronomeIconSpacingX = 7 + 3;
 
 	if (clearArea) {
+		// Clear tempo area on the right
 		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * 6) - metronomeIconSpacingX,
 		                      OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
 	}
@@ -2091,6 +2093,32 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 	int32_t stringLength = tempoBPM.size();
 	int32_t metronomeIconStartX = OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * stringLength) - metronomeIconSpacingX;
 	canvas.drawGraphicMultiLine(deluge::hid::display::OLED::metronomeIcon, metronomeIconStartX, yPos, 7);
+}
+
+// Separate function for displaying arrangement time (only called when in arranger view and time or tempo changes)
+void SessionView::displayArrangementPositionAndLength(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea,
+                                                      bool onlyIfChanged) {
+
+	// Get current arrangement time string and decide if we need to update the display
+	String arrangement_position_and_length_string = arrangerView.calculateArrangementPositionAndLength();
+
+	// If the string is empty and we're only supposed to update on changes, don't do anything
+	if (arrangement_position_and_length_string.isEmpty()) {
+		if (onlyIfChanged || arrangerView.last_arrangement_time_display_string.isEmpty()) {
+			return;
+		}
+		arrangement_position_and_length_string = arrangerView.last_arrangement_time_display_string;
+	}
+
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+	if (clearArea) {
+		// Clear arrangement time area on the left
+		// Always clear enough space for the longest reasonable length format (MMM:SS/MMM:SS = 13 characters)
+		canvas.clearAreaExact(0, OLED_MAIN_TOPMOST_PIXEL, kTextSpacingX * 13 + 2, yPos + kTextSpacingY);
+	}
+
+	// Display arrangement time at top-left
+	canvas.drawString(arrangement_position_and_length_string.get(), 0, yPos, kTextSpacingX, kTextSpacingY);
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
