@@ -32,7 +32,7 @@ jobs:
       run:
         working-directory: website
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Install CMake
         uses: lukka/get-cmake@latest
       - name: Install doxygen
@@ -95,12 +95,12 @@ jobs:
       - build-doxygen
     steps:
       - name: Download website artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: website-artifact
           path: website/dist
       - name: Download doxygen artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: doxygen-artifact
           path: website/dist/doxygen
