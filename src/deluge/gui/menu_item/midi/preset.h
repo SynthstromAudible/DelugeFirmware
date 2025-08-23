@@ -86,6 +86,6 @@ public:
 		image.drawStringCentered(paramValue, startX, startY + 2, sizeX, sizeY, width);
 	}
 
-	[[nodiscard]] bool showPopup() const override { return false; }
+	[[nodiscard]] bool showNotification() const override { return false; }
 };
 } // namespace deluge::gui::menu_item::midi

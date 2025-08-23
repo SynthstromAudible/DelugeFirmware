@@ -38,6 +38,9 @@ std::string_view polarityToStringShort(const Polarity polarity);
 class PatchCable {
 public:
 	PatchCable() = default;
+	void setDefaultPolarity();
+	static bool hasPolarity(PatchSource source);
+	static Polarity getDefaultPolarity(PatchSource source);
 	void setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount);
 	bool isActive();
 	void initAmount(int32_t value);

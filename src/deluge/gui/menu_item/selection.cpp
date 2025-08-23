@@ -74,7 +74,7 @@ void Selection::getShortOption(StringBuf& opt) {
 	opt.append(getOptions(OptType::SHORT)[this->getValue()].data());
 }
 
-void Selection::getValueForPopup(StringBuf& value) {
+void Selection::getNotificationValue(StringBuf& value) {
 	value.append(getOptions()[this->getValue()].data());
 }
 

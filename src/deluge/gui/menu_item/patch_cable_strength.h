@@ -20,6 +20,7 @@
 #include "gui/menu_item/automation/automation.h"
 #include "menu_item_with_cc_learning.h"
 
+#include <gui/ui/sound_editor.h>
 #include <modulation/patch/patch_cable.h>
 class MultiRange;
 
@@ -70,10 +71,15 @@ public:
 
 protected:
 	ModelStackWithAutoParam* getModelStack(void* memory, bool allowCreation = false);
-	Polarity polarity_;
+	void getNotificationValue(StringBuf& valueBuf) override { return valueBuf.appendFloat(getValue() / 100.0f, 2, 2); }
 
 private:
-	void updatePolarity(Polarity newPolarity);
+	bool isInHorizontalMenu() const;
+	void setPatchCablePolarity(Polarity newPolarity);
+	void updatePolarityUI();
+	Polarity polarityInTheUI_;
+	// if polarity is set before the patch cable is created then we'll need to update the patch cable when it exists
+	bool patchCableExists_ = false;
 };
 
 } // namespace deluge::gui::menu_item

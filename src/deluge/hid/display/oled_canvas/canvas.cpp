@@ -21,6 +21,7 @@
 #include "gui/fonts/fonts.h"
 #include "storage/flash_storage.h"
 
+#include <hid/display/oled.h>
 #include <math.h>
 #include <vector>
 
@@ -169,12 +170,20 @@ void Canvas::drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t max
 	drawHorizontalLine(maxY, minX + 1, maxX - 1);
 }
 
-void Canvas::drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {
-	drawVerticalLine(minX, minY + 1, maxY - 1);
-	drawVerticalLine(maxX, minY + 1, maxY - 1);
+void Canvas::drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, BorderRadius radius) {
+	const int32_t radiusPixels = radius == SMALL ? 1 : 2;
 
-	drawHorizontalLine(minY, minX + 1, maxX - 1);
-	drawHorizontalLine(maxY, minX + 1, maxX - 1);
+	drawVerticalLine(minX, minY + radiusPixels, maxY - radiusPixels);
+	drawVerticalLine(maxX, minY + radiusPixels, maxY - radiusPixels);
+	drawHorizontalLine(minY, minX + radiusPixels, maxX - radiusPixels);
+	drawHorizontalLine(maxY, minX + radiusPixels, maxX - radiusPixels);
+
+	if (radiusPixels == 2) {
+		drawPixel(minX + 1, minY + 1); //< Top-left corner
+		drawPixel(maxX - 1, minY + 1); //< Top-right corner
+		drawPixel(minX + 1, maxY - 1); //< Bottom-left corner
+		drawPixel(maxX - 1, maxY - 1); //< Bottom-right corner
+	}
 }
 
 void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
@@ -511,11 +520,10 @@ int32_t Canvas::getStringWidthInPixels(char const* string, int32_t textHeight) {
 void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height,
                                   int32_t numBytesTall, bool reversed) {
 	if (reversed) {
-		std::vector<uint8_t> reversedGraphic(width);
-		int32_t columnCount = width / numBytesTall;
-		for (int32_t col = 0; col < columnCount; ++col) {
+		std::vector<uint8_t> reversedGraphic(width * numBytesTall);
+		for (int32_t col = 0; col < width; ++col) {
 			int32_t inputIndex = col * numBytesTall;
-			int32_t reversedCol = columnCount - 1 - col;
+			int32_t reversedCol = width - 1 - col;
 			int32_t outputIndex = reversedCol * numBytesTall;
 			for (int32_t byte = 0; byte < numBytesTall; ++byte) {
 				reversedGraphic[outputIndex + byte] = graphic[inputIndex + byte];
@@ -585,6 +593,14 @@ void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_
 	}
 }
 
+void Canvas::drawIcon(const Icon& icon, int32_t x, int32_t y, bool reversed) {
+	drawGraphicMultiLine(icon.data, x, y, icon.width, icon.height, icon.numBytesTall, reversed);
+}
+void Canvas::drawIconCentered(const Icon& icon, int32_t startX, int32_t totalWidth, int32_t y, bool reversed) {
+	int32_t padding = (totalWidth - icon.width) >> 1;
+	drawIcon(icon, startX + padding, y, reversed);
+}
+
 /// Draw a screen title and underline it.
 ///
 /// @param text Title text
@@ -624,20 +640,48 @@ void Canvas::invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t end
 	}
 }
 
-void Canvas::invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
+void Canvas::invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY, BorderRadius radius) {
+	const int32_t radiusPixels = radius == SMALL ? 1 : 2;
+
 	invertArea(xMin, width, startY, endY);
 
 	// restore corners back
 	const int32_t xMax = xMin + width - 1;
-	clearPixel(xMin, startY);
-	clearPixel(xMax, startY);
-	clearPixel(xMin, endY);
-	clearPixel(xMax, endY);
+
+	if (radiusPixels == 1) {
+		// For 1px radius, clear just the corner pixels
+		clearPixel(xMin, startY); // Top-left corner
+		clearPixel(xMax, startY); // Top-right corner
+		clearPixel(xMin, endY);   // Bottom-left corner
+		clearPixel(xMax, endY);   // Bottom-right corner
+	}
+	else if (radiusPixels == 2) {
+		// For 2px radius, clear 3 pixels per corner
+		// Top-left corner
+		clearPixel(xMin, startY);
+		clearPixel(xMin + 1, startY);
+		clearPixel(xMin, startY + 1);
+
+		// Top-right corner
+		clearPixel(xMax, startY);
+		clearPixel(xMax - 1, startY);
+		clearPixel(xMax, startY + 1);
+
+		// Bottom-left corner
+		clearPixel(xMin, endY);
+		clearPixel(xMin + 1, endY);
+		clearPixel(xMin, endY - 1);
+
+		// Bottom-right corner
+		clearPixel(xMax, endY);
+		clearPixel(xMax - 1, endY);
+		clearPixel(xMax, endY - 1);
+	}
 }
 
 /// inverts just the left edge
 void Canvas::invertLeftEdgeForMenuHighlighting(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
-	if (!FlashStorage::accessibilityMenuHighlighting) {
+	if (FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION) {
 		return invertAreaRounded(xMin, width, startY, endY);
 	}
 

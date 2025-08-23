@@ -17,7 +17,7 @@
 
 #include "model/instrument/kit.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
@@ -528,10 +528,10 @@ void Kit::cutAllSound() {
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
 bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
-                                        std::span<StereoSample> globalEffectableBuffer, int32_t* bufferToTransferTo,
-                                        int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                        bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
-                                        int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
+                                        deluge::dsp::StereoBuffer<q31_t> globalEffectableBuffer,
+                                        int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                                        int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
+                                        int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
 	// Render Drums. Traverse backwards, in case one stops rendering (removing itself from the list) as we render it
 	for (int32_t d = drumsWithRenderingActive.getNumElements() - 1; d >= 0; d--) {
@@ -661,7 +661,7 @@ yesTickParamManager:
 	return rendered;
 }
 
-void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+void Kit::renderOutput(ModelStack* modelStack, deluge::dsp::StereoBuffer<q31_t> output, int32_t* reverbBuffer,
                        int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
                        bool isClipActive) {
 
@@ -673,16 +673,32 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 	// Kit arp, get arp settings, perform setup and render arp pre-output
 	setupAndRenderArpPreOutput(modelStackWithTimelineCounter, paramManager, output);
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
-	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
-	                                      isClipActive, OutputType::KIT, recorder);
+	// if you're exporting drum stems and includeKitFX configuration setting is disabled
+	// render kit row without kit affect entire FX (but leave in kit affect entire pitch adjustment)
+	if (stemExport.processStarted && (stemExport.currentStemExportType == StemExportType::DRUM)
+	    && !stemExport.includeKitFX) [[unlikely]] {
+		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+
+		int32_t pitchAdjust =
+		    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+
+		GlobalEffectableForClip::renderedLastTime = renderGlobalEffectableForClip(
+		    modelStackWithTimelineCounter, output, nullptr, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
+		    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
+	}
+	// render kit row with kit affect entire FX
+	else {
+		GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
+		                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
+		                                      isClipActive, OutputType::KIT, recorder);
+	}
 
 	// For Midi and Gate rows, we need to call the render method of the arpeggiator post-output
 	renderNonAudioArpPostOutput(output);
 }
 
 void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                     ParamManager* paramManager, std::span<StereoSample> output) {
+                                     ParamManager* paramManager, deluge::dsp::StereoBuffer<q31_t> output) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
@@ -769,7 +785,7 @@ ArpeggiatorSettings* Kit::getArpSettings(InstrumentClip* clip) {
 	}
 }
 
-void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
+void Kit::renderNonAudioArpPostOutput(deluge::dsp::StereoBuffer<q31_t> output) {
 	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 		// For Midi and Gate rows, we need to call the render method of the arpeggiator

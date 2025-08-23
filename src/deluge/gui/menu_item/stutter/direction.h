@@ -116,7 +116,7 @@ private:
 		}
 	}
 
-	void getValueForPopup(StringBuf& valueBuf) override {
+	void getNotificationValue(StringBuf& valueBuf) override {
 		const auto value = Selection::getValue();
 		valueBuf.append(getOptions(OptType::SHORT)[value]);
 	}
@@ -129,7 +129,7 @@ private:
 
 		if (value == USE_SONG_STUTTER) {
 			// Draw a song icon centered
-			const auto& icon = OLED::songIcon;
+			const uint8_t* icon = OLED::songIcon;
 			constexpr int32_t songIconWidth = 9;
 			const int32_t x = startX + (width - songIconWidth) / 2;
 			return image.drawGraphicMultiLine(icon, x, startY + 3, songIconWidth);
@@ -137,15 +137,13 @@ private:
 
 		// Draw the direction icon centered
 		const bool reversed = value == REVERSED || value == REVERSED_PING_PONG;
-		const auto& icon = OLED::stutterDirectionIcon;
-		int32_t x = startX + (width - icon.size()) / 2;
-		image.drawGraphicMultiLine(icon.data(), x, startY + 3, icon.size(), 8, 1, reversed);
+		image.drawIconCentered(OLED::directionIcon, startX, width, startY + 3, reversed);
 
 		if (value == FORWARD_PING_PONG || value == REVERSED_PING_PONG) {
 			// Draw ping-pong dots
-			x += icon.size() / 2;
-			image.drawPixel(x, startY + 3);
-			image.drawPixel(x, startY + 10);
+			const int32_t centerX = startX + width / 2;
+			image.drawPixel(centerX, startY + 3);
+			image.drawPixel(centerX, startY + 10);
 		}
 	}
 };

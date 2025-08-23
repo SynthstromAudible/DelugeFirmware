@@ -18,6 +18,8 @@
 #include "absolute_value.h"
 #include <cmath>
 
+namespace deluge::dsp {
+
 float AbsValueFollower::runEnvelope(float current, float desired, float numSamples) {
 	float s;
 	if (desired > current) {
@@ -31,12 +33,12 @@ float AbsValueFollower::runEnvelope(float current, float desired, float numSampl
 
 // output range is 0-21 (2^31)
 // dac clipping is at 16
-StereoFloatSample AbsValueFollower::calcApproxRMS(std::span<StereoSample> buffer) {
+StereoSample<float> AbsValueFollower::calcApproxRMS(StereoBuffer<q31_t> buffer) {
 	q31_t l = 0;
 	q31_t r = 0;
-	StereoFloatSample logMean;
+	StereoSample<float> logMean;
 
-	for (StereoSample sample : buffer) {
+	for (StereoSample<q31_t> sample : buffer) {
 		l += std::abs(sample.l);
 		r += std::abs(sample.r);
 	}
@@ -64,3 +66,4 @@ void AbsValueFollower::setup(q31_t a, q31_t r) {
 	setAttack(a);
 	setRelease(r);
 }
+} // namespace deluge::dsp

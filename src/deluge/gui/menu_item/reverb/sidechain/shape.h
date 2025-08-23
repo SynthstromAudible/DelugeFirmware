@@ -37,7 +37,6 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return (AudioEngine::reverbSidechainVolume >= 0);
 	}
-
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(l10n::String::STRING_FOR_SHAPE_SHORT));
 	}

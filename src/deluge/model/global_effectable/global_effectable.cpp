@@ -17,7 +17,7 @@
 
 #include "model/global_effectable/global_effectable.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/view.h"
@@ -508,7 +508,8 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
                                                                    ModelStackWithAutoParam* modelStack) {
 	if (*getModKnobMode() == 4) {
-		DEF_STACK_STRING_BUF(popupMsg, 40);
+		DEF_STACK_STRING_BUF(parameterName, 40);
+		DEF_STACK_STRING_BUF(parameterValue, 40);
 		int current;
 		int displayLevel;
 		int ledLevel;
@@ -516,7 +517,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 		// this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { // sidechain (threshold)
 			if (display->haveOLED()) {
-				popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_THRESHOLD));
+				parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_THRESHOLD));
 			}
 			current = (compressor.getThreshold() >> 24) - 64;
 			current += offset;
@@ -532,7 +533,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 			case CompParam::RATIO:
 				if (display->haveOLED()) {
-					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RATIO));
+					parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RATIO));
 				}
 				current = (compressor.getRatio() >> 24) - 64;
 				current += offset;
@@ -545,7 +546,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 			case CompParam::ATTACK:
 				if (display->haveOLED()) {
-					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ATTACK));
+					parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ATTACK));
 				}
 				current = (compressor.getAttack() >> 24) - 64;
 				current += offset;
@@ -558,7 +559,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 			case CompParam::RELEASE:
 				if (display->haveOLED()) {
-					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RELEASE));
+					parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RELEASE));
 				}
 				current = (compressor.getRelease() >> 24) - 64;
 				current += offset;
@@ -571,7 +572,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 			case CompParam::SIDECHAIN:
 				if (display->haveOLED()) {
-					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HPF));
+					parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HPF));
 				}
 				current = (compressor.getSidechain() >> 24) - 64;
 				current += offset;
@@ -584,7 +585,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 			case CompParam::BLEND: {
 				if (display->haveOLED()) {
-					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_BLEND));
+					parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_BLEND));
 				}
 				current = (compressor.getBlend().raw() >> 24) - 64;
 				current += offset;
@@ -603,15 +604,14 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			indicator_leds::setKnobIndicatorLevel(0, ledLevel);
 		}
 
+		parameterValue.appendInt(displayLevel);
 		if (display->haveOLED()) {
-			popupMsg.append(": ");
-			popupMsg.appendInt(displayLevel);
-			popupMsg.append(unit);
+			parameterValue.append(unit);
+			display->displayNotification(parameterName.c_str(), parameterValue.c_str());
 		}
 		else {
-			popupMsg.appendInt(displayLevel);
+			display->displayPopup(parameterValue.c_str());
 		}
-		display->displayPopup(popupMsg.c_str());
 
 		return ActionResult::DEALT_WITH;
 	}
@@ -785,7 +785,7 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	                        hpfModeForRender, hpfMorph, *postFXVolume, filterRoute, false, NULL);
 }
 
-[[gnu::hot]] void GlobalEffectable::processFilters(std::span<StereoSample> buffer) {
+[[gnu::hot]] void GlobalEffectable::processFilters(deluge::dsp::StereoBuffer<q31_t> buffer) {
 	filterSet.renderLongStereo(buffer);
 }
 
@@ -1111,10 +1111,10 @@ ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
 	return modFXType_;
 }
 
-Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManager, bool shouldLimitDelayFeedback,
-                                                       bool soundComingIn) {
+deluge::dsp::Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManager,
+                                                                    bool shouldLimitDelayFeedback, bool soundComingIn) {
 
-	Delay::State delayWorkingState;
+	deluge::dsp::Delay::State delayWorkingState;
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
 	delayWorkingState.delayFeedbackAmount = getFinalParameterValueLinear(
@@ -1133,8 +1133,9 @@ Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManage
 	return delayWorkingState;
 }
 
-void GlobalEffectable::processFXForGlobalEffectable(std::span<StereoSample> buffer, int32_t* postFXVolume,
-                                                    ParamManager* paramManager, const Delay::State& delayWorkingState,
+void GlobalEffectable::processFXForGlobalEffectable(deluge::dsp::StereoBuffer<q31_t> buffer, int32_t* postFXVolume,
+                                                    ParamManager* paramManager,
+                                                    const deluge::dsp::Delay::State& delayWorkingState,
                                                     bool anySoundComingIn, q31_t verbAmount) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 

@@ -20,14 +20,19 @@
 #include "RZA1/cpu_specific.h"
 #include "definitions.h"
 #include "deluge/util/d_string.h"
-#include <cstdint>
 #include <cstring>
 #include <string_view>
 
 namespace deluge::hid::display {
 class OLED;
+struct Icon;
 
 namespace oled_canvas {
+
+enum BorderRadius : uint8_t {
+	SMALL = 0, //< 1px
+	BIG = 1    //< 2px
+};
 
 class Canvas {
 public:
@@ -94,13 +99,13 @@ public:
 	/// @param maxY Maximum Y coordinate, inclusive
 	void drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY);
 
-	/// Draw a 1-px wide rectangle with 1px rounded corners
+	/// Draw a 1-px wide rectangle with rounded corners
 	///
 	/// @param minX Minimum X coordinate, inclusive
 	/// @param minY Minimum Y coordinate, inclusive
 	/// @param maxX Maximum X coordinate, inclusive
 	/// @param maxY Maximum Y coordinate, inclusive
-	void drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY);
+	void drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, BorderRadius radius = SMALL);
 
 	/// Draw a string
 	///
@@ -207,6 +212,22 @@ public:
 	/// @param numBytesTall Number of bytes in the Y direction, determines the stride in the graphic array
 	void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height = 8,
 	                          int32_t numBytesTall = 1, bool reversed = false);
+	/// Draw an icon.
+	///
+	/// @param icon Reference to the icon
+	/// @param x X coodinate of the left edge of the icon
+	/// @param y Y coordinate of the top of the icon
+	/// @param reversed Should reverse the icon horizontally
+	void drawIcon(const Icon& icon, int32_t x, int32_t y, bool reversed = false);
+
+	/// Draw an icon, centered between the provided startX and startX + totalWidth
+	///
+	/// @param icon Reference to the icon
+	/// @param startX Beginning X coordinate for center calculation
+	/// @param totalWidth Total width for center calculation
+	/// @param y Y coordinate of the top of the icon
+	/// @param reversed Should reverse the icon horizontally
+	void drawIconCentered(const Icon& icon, int32_t startX, int32_t totalWidth, int32_t y, bool reversed = false);
 
 	/// Draw a screen title and underline it.
 	///
@@ -221,13 +242,13 @@ public:
 	/// @param endY Maximum Y coordinate, inclusive
 	void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
 
-	/// Invert an area of the canvas with 1px rounded corners
+	/// Invert an area of the canvas with rounded corners
 	///
 	/// @param xMin Minimum X coordinate, inclusive
 	/// @param width Width of the region to invert. End coordinate is excluded.
 	/// @param startY Minimum Y coordinate, inclusive
 	/// @param endY Maximum Y coordinate, inclusive
-	void invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
+	void invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY, BorderRadius radius = SMALL);
 
 	/// Invert just the left edge of the canvas.
 	///

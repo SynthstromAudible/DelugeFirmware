@@ -17,7 +17,6 @@
 
 #include "patch_cable_strength.h"
 #include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
@@ -26,6 +25,8 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/led/indicator_leds.h"
+#include "horizontal_menu.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_descriptor.h"
@@ -36,9 +37,6 @@
 #include "source_selection/range.h"
 #include "util/functions.h"
 
-#include <hid/led/indicator_leds.h>
-#include <util/comparison.h>
-
 using hid::display::OLED;
 
 namespace deluge::gui::menu_item {
@@ -47,13 +45,25 @@ extern bool movingCursor;
 void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
 	Decimal::beginSession(navigatedBackwardFrom);
 
-	auto* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
-	const uint32_t patchCableIndex = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
-	const Polarity polarity = patchCableIndex == kNoSelection ? FlashStorage::defaultPatchCablePolarity
-	                                                          : patchCableSet->patchCables[patchCableIndex].polarity;
-	updatePolarity(polarity);
-
 	delayHorizontalScrollUntil = 0;
+
+	if (isInHorizontalMenu()) {
+		return;
+	}
+
+	auto* patch_cable_set = soundEditor.currentParamManager->getPatchCableSet();
+	const uint32_t patch_cable_index = patch_cable_set->getPatchCableIndex(getS(), getDestinationDescriptor());
+
+	if (patch_cable_index == kNoSelection) {
+		patchCableExists_ = false;
+		polarityInTheUI_ = PatchCable::getDefaultPolarity(getS());
+	}
+	else {
+		patchCableExists_ = true;
+		polarityInTheUI_ = patch_cable_set->patchCables[patch_cable_index].polarity;
+	}
+	setPatchCablePolarity(polarityInTheUI_);
+	updatePolarityUI();
 }
 
 void PatchCableStrength::endSession() {
@@ -129,39 +139,36 @@ void PatchCableStrength::renderOLED() {
 		image.drawPixel(startX - 1, startY - 1);
 		image.drawPixel(endX + 1, startY - 1);
 
-		// Draw strings
-		image.drawStringCentered("BI", startX, startY, kTextSpacingX, kTextSpacingY, biSlotWidth);
-		image.drawStringCentered("UNI", startX + biSlotWidth + 1, startY, kTextSpacingX, kTextSpacingY, uniSlotWidth);
-
-		// Highlight selected
-		if (polarity_ == Polarity::BIPOLAR) {
-			image.invertAreaRounded(startX, biSlotWidth, startY, endY);
+		if (PatchCable::hasPolarity(getS())) {
+			// Draw BI / UNI strings
+			image.drawStringCentered("BI", startX, startY, kTextSpacingX, kTextSpacingY, biSlotWidth);
+			image.drawStringCentered("UNI", startX + biSlotWidth + 1, startY, kTextSpacingX, kTextSpacingY,
+			                         uniSlotWidth);
+			// Highlight selected
+			int32_t x = polarityInTheUI_ == Polarity::BIPOLAR ? startX : startX + biSlotWidth;
+			int32_t width = polarityInTheUI_ == Polarity::BIPOLAR ? biSlotWidth : uniSlotWidth;
+			image.invertAreaRounded(x, width, startY, endY);
 		}
 		else {
-			image.invertAreaRounded(startX + biSlotWidth, uniSlotWidth, startY, endY);
+			// If the param doesn't support polarity, show only default polarity
+			const auto defaultPolarity = polarityToString(PatchCable::getDefaultPolarity(getS()));
+			image.drawStringCentered(defaultPolarity.data(), startX, startY, kTextSpacingX, kTextSpacingY,
+			                         biSlotWidth + uniSlotWidth);
 		}
 	}
 
-	// Draw the number
+	// Draw the value number
 	{
 		const int32_t value = getValue();
-		const int32_t decimalPlacesCount = getNonZeroDecimalPlacesCount();
+		const int32_t nonZeroDecimals = getNumNonZeroDecimals(value);
 
 		// We hide the fractional part digit if it's zero and the cursor is not on the fractional part
-		const int32_t hiddenDigitsCount = [&] {
-			if (soundEditor.numberEditPos > 1) {
-				return decimalPlacesCount == 2 ? 0 : decimalPlacesCount == 1 ? 1 : 2;
-			}
-			if (soundEditor.numberEditPos == 1) {
-				return decimalPlacesCount == 2 ? 0 : 1;
-			}
-			return 0;
-		}();
-		const int32_t numberEditPos = soundEditor.numberEditPos - hiddenDigitsCount;
-		const int32_t numberStr = value / std::pow(10, hiddenDigitsCount);
+		const int32_t hiddenZeroesCount = std::clamp<int32_t>(2 - nonZeroDecimals, 0, soundEditor.numberEditPos);
+		const int32_t numberEditPos = soundEditor.numberEditPos - hiddenZeroesCount;
+		const int32_t numberStr = value / std::pow(10, hiddenZeroesCount);
 
 		char numberBuf[6];
-		intToString(numberStr, numberBuf, 3 - hiddenDigitsCount);
+		intToString(numberStr, numberBuf, 3 - hiddenZeroesCount);
 
 		constexpr int32_t digitWidth = kTextBigSpacingX;
 		constexpr int32_t digitHeight = kTextBigSizeY;
@@ -175,7 +182,7 @@ void PatchCableStrength::renderOLED() {
 		OLED::setupBlink(cursorStartX, digitWidth, textY + digitHeight + 1, textY + digitHeight + 1, movingCursor);
 
 		// Draw the cursor
-		if (const int32_t fractionalDigitsCount = 2 - hiddenDigitsCount; fractionalDigitsCount > 0) {
+		if (const int32_t fractionalDigitsCount = 2 - hiddenZeroesCount; fractionalDigitsCount > 0) {
 			const int32_t separatorX = OLED_MAIN_WIDTH_PIXELS - fractionalDigitsCount * digitWidth - rightPadding;
 			image.drawVerticalLine(separatorX, textY + digitHeight + 1, textY + digitHeight + 3);
 			image.drawVerticalLine(separatorX - 1, textY + digitHeight + 1, textY + digitHeight + 3);
@@ -195,12 +202,6 @@ void PatchCableStrength::readCurrentValue() {
 		// the internal values are stored in the range -(2^30) to 2^30.
 		// rescale them to the range -5000 to 5000 and round to nearest.
 		this->setValue(((int64_t)paramValue * kMaxMenuPatchCableValue + (1 << 29)) >> 30);
-
-		if (polarity_ != patchCable.polarity) {
-			// could happen if the polarity was changed in the UI on detached patch cable (when the value is 0)
-			// in this case just correct the polarity
-			patchCable.polarity = polarity_;
-		}
 	}
 }
 
@@ -216,8 +217,15 @@ ModelStackWithAutoParam* PatchCableStrength::getModelStack(void* memory, bool al
 	ModelStackWithParamCollection* modelStackWithParamCollection =
 	    modelStack->addParamCollectionSummary(paramSetSummary);
 	ModelStackWithParamId* ModelStackWithParamId = modelStackWithParamCollection->addParamId(getLearningThing().data);
+	ModelStackWithAutoParam* modelStackMaybeWithAutoParam =
+	    paramSetSummary->paramCollection->getAutoParamFromId(ModelStackWithParamId, allowCreation);
 
-	return paramSetSummary->paramCollection->getAutoParamFromId(ModelStackWithParamId, allowCreation);
+	if (allowCreation && modelStackMaybeWithAutoParam->autoParam && !patchCableExists_ && !isInHorizontalMenu()) {
+		// If we created a patch cable then set the polarity to match the menus
+		setPatchCablePolarity(polarityInTheUI_);
+		patchCableExists_ = true;
+	}
+	return modelStackMaybeWithAutoParam;
 }
 
 void PatchCableStrength::writeCurrentValue() {
@@ -306,24 +314,37 @@ MenuItem* PatchCableStrength::selectButtonPress() {
 }
 
 ActionResult PatchCableStrength::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	if (on && (b == hid::button::MIDI || b == hid::button::CV) && display->haveOLED()) {
-		updatePolarity(b == hid::button::MIDI ? Polarity::BIPOLAR : Polarity::UNIPOLAR);
+	using namespace hid::button;
+
+	static auto polarityMap = std::map<hid::Button, Polarity>{{MIDI, Polarity::BIPOLAR}, {CV, Polarity::UNIPOLAR}};
+	if (on && display->haveOLED() && polarityMap.contains(b) && PatchCable::hasPolarity(getS())) {
+		polarityInTheUI_ = polarityMap[b];
+		setPatchCablePolarity(polarityInTheUI_);
+		updatePolarityUI();
 		return ActionResult::DEALT_WITH;
 	}
+
 	return Automation::buttonAction(b, on, inCardRoutine);
 }
 
 void PatchCableStrength::selectEncoderAction(int32_t offset) {
-	if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
-		updatePolarity(offset > 0 ? Polarity::UNIPOLAR : Polarity::BIPOLAR);
+	if (Buttons::isButtonPressed(hid::button::SELECT_ENC) && PatchCable::hasPolarity(getS())) {
+		polarityInTheUI_ = offset > 0 ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
+		setPatchCablePolarity(polarityInTheUI_);
+		updatePolarityUI();
 
 		if (display->haveOLED()) {
 			Buttons::selectButtonPressUsedUp = true;
 		}
 		else {
-			display->popupText(polarityToStringShort(polarity_));
+			display->popupText(polarityToStringShort(polarityInTheUI_));
 		}
 		return;
+	}
+
+	if (isInHorizontalMenu()) {
+		// In Horizontal menus we edit with 1.00 step by default, and with 0.01 step if the shift is pressed
+		soundEditor.numberEditSize = Buttons::isButtonPressed(hid::button::SHIFT) ? 1 : 100;
 	}
 
 	return Decimal::selectEncoderAction(offset);
@@ -362,27 +383,37 @@ void PatchCableStrength::updateAutomationViewParameter() {
 	Automation::handleAutomationViewParameterUpdate();
 }
 
-void PatchCableStrength::updatePolarity(Polarity newPolarity) {
-	polarity_ = newPolarity;
+bool PatchCableStrength::isInHorizontalMenu() const {
+	return parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL;
+}
+
+void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {
+	if (!PatchCable::hasPolarity(getS())) {
+		return;
+	}
 
 	auto* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
 	if (const int32_t index = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
 	    index != kNoSelection) {
 		patchCableSet->patchCables[index].polarity = newPolarity;
 	}
+}
 
+void PatchCableStrength::updatePolarityUI() {
 	if (display->haveOLED()) {
-		setLedState(IndicatorLED::MIDI, newPolarity == Polarity::BIPOLAR);
-		setLedState(IndicatorLED::CV, newPolarity == Polarity::UNIPOLAR);
+		const bool hasPolarity = PatchCable::hasPolarity(getS());
+		setLedState(IndicatorLED::MIDI, hasPolarity && polarityInTheUI_ == Polarity::BIPOLAR);
+		setLedState(IndicatorLED::CV, hasPolarity && polarityInTheUI_ == Polarity::UNIPOLAR);
 		renderUIsForOled();
 	}
 	else {
+		// update additional dot on 7seg
 		drawActualValue();
 	}
 }
 
 void PatchCableStrength::appendAdditionalDots(std::vector<uint8_t>& dotPositions) {
-	if (polarity_ == Polarity::UNIPOLAR) {
+	if (polarityInTheUI_ == Polarity::UNIPOLAR) {
 		dotPositions.push_back(3);
 	}
 }

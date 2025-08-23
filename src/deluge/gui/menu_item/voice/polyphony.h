@@ -76,7 +76,7 @@ public:
 		label.append(deluge::l10n::get(l10n::String::STRING_FOR_MAX_VOICES_SHORT));
 	}
 
-	void getValueForPopup(StringBuf& valueBuf) override {
+	void getNotificationValue(StringBuf& valueBuf) override {
 		if (const auto value = getValue(); value == 0) {
 			valueBuf.append(l10n::get(l10n::String::STRING_FOR_OFF));
 		}
@@ -87,10 +87,8 @@ public:
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
 		if (getValue() == 0) {
-			const auto& icon = OLED::infinityIcon;
 			const int32_t y = startY + (height - 8) / 2;
-			const int32_t x = startX + (width - icon.size()) / 2;
-			return OLED::main.drawGraphicMultiLine(icon.data(), x, y, icon.size());
+			return OLED::main.drawIconCentered(OLED::infinityIcon, startX, width, y);
 		}
 		IntegerWithOff::renderInHorizontalMenu(startX, width, startY, height);
 	}

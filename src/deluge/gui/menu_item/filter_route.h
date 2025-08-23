@@ -59,9 +59,18 @@ public:
 		(void)optType;
 		return {"HPF2LPF", "LPF2HPF", l10n::getView(l10n::String::STRING_FOR_PARALLEL)};
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		Sound* sound = static_cast<Sound*>(modControllable);
-		return ((sound == nullptr) || (sound->lpfMode != FilterMode::OFF && sound->hpfMode != FilterMode::OFF));
+
+	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
+	[[nodiscard]] bool showColumnLabel() const override { return false; }
+	[[nodiscard]] bool showNotification() const override { return false; }
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		oled_canvas::Canvas& image = OLED::main;
+
+		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
+		getShortOption(shortOpt);
+
+		image.drawStringCentered(shortOpt, startX, startY + 8, kTextSpacingX, kTextSpacingY, width);
 	}
 };
 } // namespace deluge::gui::menu_item

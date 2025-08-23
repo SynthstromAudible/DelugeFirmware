@@ -1490,7 +1490,8 @@ skipUnisonPart: {}
 	}
 
 	if (didStereoTempBuffer) {
-		std::span stereo_osc_buffer{reinterpret_cast<StereoSample*>(oscBuffer), static_cast<size_t>(numSamples)};
+		std::span stereo_osc_buffer{reinterpret_cast<dsp::StereoSample<q31_t>*>(oscBuffer),
+		                            static_cast<size_t>(numSamples)};
 		// fold
 		if (paramFinalValues[params::LOCAL_FOLD] > 0) {
 			dsp::foldBufferPolyApproximation(stereo_osc_buffer, paramFinalValues[params::LOCAL_FOLD]);
@@ -1500,11 +1501,10 @@ skipUnisonPart: {}
 
 		// No clipping
 		if (!sound.clippingAmount) {
-
-			StereoSample* __restrict__ outputSample = (StereoSample*)soundBuffer;
+			auto* __restrict__ outputSample = (dsp::StereoSample<q31_t>*)soundBuffer;
 			int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
 
-			for (StereoSample& osc_sample : stereo_osc_buffer) {
+			for (dsp::StereoSample<q31_t>& osc_sample : stereo_osc_buffer) {
 				int32_t outputSampleL = osc_sample.l;
 				int32_t outputSampleR = osc_sample.r;
 
@@ -1516,10 +1516,11 @@ skipUnisonPart: {}
 
 				// Write to the output buffer, panning or not
 				if (doPanning) {
-					outputSample->addPannedStereo(outputSampleL, outputSampleR, amplitudeL, amplitudeR);
+					outputSample->l += (multiply_32x32_rshift32(outputSampleL, amplitudeL) << 2);
+					outputSample->r += (multiply_32x32_rshift32(outputSampleR, amplitudeR) << 2);
 				}
 				else {
-					outputSample->addStereo(outputSampleL, outputSampleR);
+					*outputSample += dsp::StereoSample<q31_t>{.l = outputSampleL, .r = outputSampleR};
 				}
 
 				outputSample++;
@@ -1530,7 +1531,7 @@ skipUnisonPart: {}
 		else {
 
 			int32_t const* __restrict__ oscBufferPos = oscBuffer; // For traversal
-			StereoSample* __restrict__ outputSample = (StereoSample*)soundBuffer;
+			dsp::StereoSample<q31_t>* __restrict__ outputSample = (dsp::StereoSample<q31_t>*)soundBuffer;
 			int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
 
 			do {
@@ -1548,10 +1549,11 @@ skipUnisonPart: {}
 
 				// Write to the output buffer, panning or not
 				if (doPanning) {
-					outputSample->addPannedStereo(outputSampleL, outputSampleR, amplitudeL, amplitudeR);
+					outputSample->l += (multiply_32x32_rshift32(outputSampleL, amplitudeL) << 2);
+					outputSample->r += (multiply_32x32_rshift32(outputSampleR, amplitudeR) << 2);
 				}
 				else {
-					outputSample->addStereo(outputSampleL, outputSampleR);
+					*outputSample += dsp::StereoSample<q31_t>{.l = outputSampleL, .r = outputSampleR};
 				}
 
 				outputSample++;
@@ -1598,10 +1600,13 @@ skipUnisonPart: {}
 
 				if (soundRenderingInStereo) {
 					if (doPanning) {
-						((StereoSample*)outputSample)->addPannedMono(output, amplitudeL, amplitudeR);
+						((dsp::StereoSample<q31_t>*)outputSample)->l +=
+						    (multiply_32x32_rshift32(output, amplitudeL) << 2);
+						((dsp::StereoSample<q31_t>*)outputSample)->r +=
+						    (multiply_32x32_rshift32(output, amplitudeR) << 2);
 					}
 					else {
-						((StereoSample*)outputSample)->addMono(output);
+						*((dsp::StereoSample<q31_t>*)outputSample) += dsp::StereoSample<q31_t>::fromMono(output);
 					}
 					outputSample += 2;
 				}
@@ -1630,10 +1635,13 @@ skipUnisonPart: {}
 
 				if (soundRenderingInStereo) {
 					if (doPanning) {
-						((StereoSample*)outputSample)->addPannedMono(output, amplitudeL, amplitudeR);
+						((dsp::StereoSample<q31_t>*)outputSample)->l +=
+						    (multiply_32x32_rshift32(output, amplitudeL) << 2);
+						((dsp::StereoSample<q31_t>*)outputSample)->r +=
+						    (multiply_32x32_rshift32(output, amplitudeR) << 2);
 					}
 					else {
-						((StereoSample*)outputSample)->addMono(output);
+						*((dsp::StereoSample<q31_t>*)outputSample) += dsp::StereoSample<q31_t>::fromMono(output);
 					}
 					outputSample += 2;
 				}

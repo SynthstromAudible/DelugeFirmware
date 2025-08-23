@@ -51,7 +51,7 @@ public:
 	void renderLong(std::span<q31_t> buffer);
 
 	// expects to receive an interleaved stereo stream
-	void renderLongStereo(std::span<StereoSample> buffer);
+	void renderLongStereo(StereoBuffer<q31_t> buffer);
 
 	// used to check whether the filter is used at all
 	bool isLPFOn() { return LPFOn; }
@@ -66,8 +66,8 @@ private:
 	FilterRoute routing_;
 
 	void renderLPFLong(std::span<q31_t> buffer);
-	void renderLPFLongStereo(std::span<StereoSample> buffer);
-	void renderHPFLongStereo(std::span<StereoSample> buffer);
+	void renderLPFLongStereo(StereoBuffer<q31_t> buffer);
+	void renderHPFLongStereo(StereoBuffer<q31_t> buffer);
 	void renderHPFLong(std::span<q31_t> buffer);
 
 	// all filters share a state. This is fine since they just hold plain data and initialization is handled by

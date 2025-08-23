@@ -257,6 +257,7 @@ enum class OutputType : uint8_t {
 enum class StemExportType : uint8_t {
 	CLIP,
 	TRACK,
+	DRUM,
 	MIXDOWN,
 };
 
@@ -266,6 +267,8 @@ enum class ThingType : uint8_t {
 	SONG,
 	NONE,
 };
+
+enum class MenuHighlighting : uint8_t { FULL_INVERSION, PARTIAL_INVERSION, NO_INVERSION };
 
 constexpr int32_t kModFXBufferSize = 512;
 constexpr int32_t kModFXBufferIndexMask = (kModFXBufferSize - 1);

@@ -2326,9 +2326,9 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 	}
 }
 
-void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
-                   int32_t sideChainHitPending, int32_t reverbAmountAdjust, bool shouldLimitDelayFeedback,
-                   int32_t pitchAdjust, SampleRecorder* recorder) {
+void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::StereoBuffer<q31_t> output,
+                   int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust,
+                   bool shouldLimitDelayFeedback, int32_t pitchAdjust, SampleRecorder* recorder) {
 
 	if (skippingRendering) {
 		compressor.gainReduction = 0;
@@ -2451,7 +2451,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 
 	// Setup delay
-	Delay::State delayWorkingState{};
+	deluge::dsp::Delay::State delayWorkingState{};
 	delayWorkingState.delayFeedbackAmount = paramFinalValues[params::GLOBAL_DELAY_FEEDBACK - params::FIRST_GLOBAL];
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
@@ -2471,7 +2471,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	memset(sound_memory, 0, output.size() * sizeof(q31_t) * (voice_rendered_in_stereo ? 2 : 1));
 
 	std::span sound_mono{sound_memory, output.size()};
-	std::span sound_stereo{(StereoSample*)sound_memory, output.size()};
+	std::span sound_stereo{(deluge::dsp::StereoSample<q31_t>*)sound_memory, output.size()};
 
 	if (!voices_.empty()) {
 
@@ -2521,7 +2521,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			if (doPanning) {
 				// right to left because of in-place mono to stereo expansion
 				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), [=](q31_t sample) {
-					return StereoSample{
+					return deluge::dsp::StereoSample<q31_t>{
 					    .l = multiply_32x32_rshift32(sample, amplitudeL) << 2,
 					    .r = multiply_32x32_rshift32(sample, amplitudeR) << 2,
 					};
@@ -2529,14 +2529,15 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			}
 			else {
 				// right to left because of in-place mono to stereo expansion
-				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), StereoSample::fromMono);
+				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(),
+				               deluge::dsp::StereoSample<q31_t>::fromMono);
 			}
 		}
 
 		// Or if rendered in stereo...
 		// And if we're only applying pan here at the Sound level...
 		else if (!applyingPanAtVoiceLevel && doPanning) {
-			for (StereoSample& sample : sound_stereo) {
+			for (deluge::dsp::StereoSample<q31_t>& sample : sound_stereo) {
 				sample.l = multiply_32x32_rshift32(sample.l, amplitudeL) << 2;
 				sample.r = multiply_32x32_rshift32(sample.r, amplitudeR) << 2;
 			}

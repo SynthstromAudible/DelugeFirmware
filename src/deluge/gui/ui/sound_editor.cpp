@@ -5,6 +5,8 @@
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/file_selector.h"
+#include "gui/menu_item/horizontal_menu.h"
+#include "gui/menu_item/horizontal_menu_group.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/menu_item/multi_range.h"
@@ -30,8 +32,8 @@
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
-#include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
+#include "menus.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -42,19 +44,13 @@
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "modulation/params/param_set.h"
-#include "modulation/patch/patch_cable_set.h"
-#include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
-#include "storage/storage_manager.h"
-#include "util/functions.h"
-
-#include "menus.h"
+#include "util/comparison.h"
 
 using namespace deluge;
 using namespace deluge::gui;
@@ -123,14 +119,14 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 		paramShortcutsForAudioClips[0][6] = &audioClipSampleMarkerEditorMenuEnd;
 		paramShortcutsForAudioClips[1][6] = &audioClipSampleMarkerEditorMenuEnd;
 
-		paramShortcutsForSounds[0][6] = &sampleEndMenu;
-		paramShortcutsForSounds[1][6] = &sampleEndMenu;
+		paramShortcutsForSounds[0][6] = &sample0EndMenu;
+		paramShortcutsForSounds[1][6] = &sample1EndMenu;
 
-		paramShortcutsForSounds[2][6] = &noiseMenu;
-		paramShortcutsForSounds[3][6] = &oscSyncMenu;
+		paramShortcutsForSounds[2][6] = &source0WaveIndexMenu;
+		paramShortcutsForSounds[3][6] = &source1WaveIndexMenu;
 
-		paramShortcutsForSounds[2][7] = &sourceWaveIndexMenu;
-		paramShortcutsForSounds[3][7] = &sourceWaveIndexMenu;
+		paramShortcutsForSounds[2][7] = &noiseMenu;
+		paramShortcutsForSounds[3][7] = &oscSyncMenu;
 
 		modSourceShortcuts[0][7] = PatchSource::NOT_AVAILABLE;
 		modSourceShortcuts[1][7] = PatchSource::NOT_AVAILABLE;
@@ -200,6 +196,16 @@ bool SoundEditor::editingGateDrumRow() {
 	}
 	auto selectedDrumType = kit->selectedDrum->type;
 	return selectedDrumType == DrumType::GATE;
+}
+
+void SoundEditor::setCurrentSource(int32_t sourceIndex) {
+	currentSource = &currentSound->sources[sourceIndex];
+	currentSourceIndex = sourceIndex;
+	currentSampleControls = &currentSource->sampleControls;
+
+	if (currentMultiRange == nullptr && currentSource->ranges.getNumElements()) {
+		currentMultiRange = static_cast<MultisampleRange*>(currentSource->ranges.getElement(0));
+	}
 }
 
 bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -715,9 +721,11 @@ void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem
 void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 	resetSourceBlinks();
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
-	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
+
+	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sample0StartMenu && currentItem != &sample1StartMenu
+	    && currentItem != &sample0EndMenu && currentItem != &sample1EndMenu
 	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
-	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&nameEditMenu)) {
+	    && currentItem != static_cast<void*>(&nameEditMenu)) {
 
 		memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 		memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
@@ -936,39 +944,6 @@ void SoundEditor::scrollFinished() {
 const uint32_t selectEncoderUIModes[] = {UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, UI_MODE_NOTES_PRESSED,
                                          UI_MODE_AUDITIONING, 0};
 
-// inertia and acceleration controls how fast the knob accelerates in horizontal menus
-// speedScale controls how we go from "raw speed" to speed used as offset multiplier
-// min and max speed clamp the max effective speed
-//
-// current values have been tuned to be slow enough to feel easy to control, but fast
-// enough to go from 0 to 50 with one fast turn of the encoder. speedScale and min/max
-// could potentially be user configurable in a small range.
-const double acceleration = 0.1;
-const double inertia = 1.0 - acceleration;
-const double speedScale = 0.15;
-const double minSpeed = 1.0;
-const double maxSpeed = 5.0;
-
-double getKnobSpeed(int8_t offset) {
-	// speed is current raw knob speed
-	static double speed = 0.0;
-	// lastOffset and lastEncoderTime keep track of our direction and time
-	static int8_t lastOffset = 0;
-	static double lastEncoderTime = 0.0;
-	double time = getSystemTime();
-	if (offset == lastOffset) {
-		// moving in the same direction, update speed
-		speed = speed * inertia + (1.0 / (time - lastEncoderTime)) * acceleration;
-	}
-	else {
-		// change of direction, reset speed
-		speed = 0.0;
-	}
-	lastEncoderTime = time;
-	lastOffset = offset;
-	return std::clamp((speed * speedScale), minSpeed, maxSpeed);
-}
-
 void SoundEditor::selectEncoderAction(int8_t offset) {
 	int8_t scaledOffset = offset;
 	// 5x acceleration of select encoder when holding the shift button
@@ -1003,7 +978,7 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 			hadNoteTails = currentSound->allowNoteTails(modelStack);
 		}
 
-		item->selectEncoderAction(item->isSubmenu() ? offset * getKnobSpeed(offset) : scaledOffset);
+		item->selectEncoderAction(item->isSubmenu() ? offset : scaledOffset);
 
 		if (currentSound) {
 			if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) {
@@ -1078,13 +1053,11 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 
 		const MenuItem* item = nullptr;
-		Submenu* parent = nullptr;
 
 		// session views (arranger, song, performance)
 		if (!rootUIIsClipMinderScreen()) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForSongView[x][y];
-				parent = parentsForSongShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -1095,7 +1068,6 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			// only handle the shortcut for velocity in the mod sources column
 			if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1)) {
 				item = paramShortcutsForKitGlobalFX[x][y];
-				parent = parentsForKitGlobalFXShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -1106,7 +1078,6 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 			if (x <= 14) {
 				item = paramShortcutsForAudioClips[x][y];
-				parent = parentsForAudioShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -1129,7 +1100,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 				secondLayerModSourceShortcutsToggled =
 				    sourceShortcutBlinkFrequencies[modSourceX][y] != 255
-				            && getCurrentMenuItem()->getParamKind() == deluge::modulation::params::Kind::PATCH_CABLE
+				            && getCurrentMenuItem()->getParamKind() == modulation::params::Kind::PATCH_CABLE
 				        ? !secondLayerModSourceShortcutsToggled
 				        : false;
 
@@ -1217,24 +1188,30 @@ getOut:
 
 			// Shortcut to edit a parameter
 			if (!modulationItemFound
-			    && (x < 14 || (x == 14 && y < 5) ||     //< regular shortcuts
-			        (x == 15 && (y == 1 || y == 3)))) { //< note & velocity probability
+			    && (x < 14 || (x == 14 && y < 5) ||   //< regular shortcuts
+			        (x == 15 && y >= 1 && y <= 3))) { //< randomizer shortcuts
 
 				if (editingCVOrMIDIClip() || editingNonAudioDrumRow()) {
 					if (x == 11) {
-						if (editingGateDrumRow()) {
-							item = gateDrumParamShortcuts[y];
-						}
-						else {
-							item = midiOrCVParamShortcuts[y];
-						}
-						parent = parentsForMidiOrCVParamShortcuts[x][y];
+						item = editingGateDrumRow() ? gateDrumParamShortcuts[y] : midiOrCVParamShortcuts[y];
 					}
-					else if (x == 4) {
-						if (y == 7) {
-							item = &sequenceDirectionMenu;
-							parent = parentsForMidiOrCVParamShortcuts[x][y];
-						}
+					else if (x == 15) {
+						// Randomizer shortcuts for MIDI / CV clips
+						item = [&] {
+							switch (y) {
+							case 1:
+								return static_cast<MenuItem*>(&spreadVelocityMenuMIDIOrCV);
+							case 2:
+								return static_cast<MenuItem*>(&randomizerLockMenu);
+							case 3:
+								return static_cast<MenuItem*>(&randomizerNoteProbabilityMenuMIDIOrCV);
+							default:
+								return static_cast<MenuItem*>(nullptr);
+							}
+						}();
+					}
+					else if (x == 4 && y == 7) {
+						item = &sequenceDirectionMenu;
 					}
 					else {
 						item = nullptr;
@@ -1242,21 +1219,18 @@ getOut:
 				}
 				else {
 					item = paramShortcutsForSounds[x][y];
-					parent = parentsForSoundShortcuts[x][y];
 
 					// Replace with the second layer shortcut (e.g. env3 attack, lfo3 rate) if the pad was pressed twice
 					secondLayerShortcutsToggled =
 					    x == currentParamShorcutX && y == currentParamShorcutY
-					            && getCurrentMenuItem()->getParamKind() != deluge::modulation::params::Kind::PATCH_CABLE
+					            && getCurrentMenuItem()->getParamKind() != modulation::params::Kind::PATCH_CABLE
 					        ? !secondLayerShortcutsToggled
 					        : false;
 
 					if (secondLayerShortcutsToggled) {
-						const auto secondLayerItem = paramShortcutsForSoundsSecondLayer[x][y];
-						const auto secondLayerParent = parentsForSoundShortcutsSecondLayer[x][y];
-						if (secondLayerItem != nullptr && secondLayerParent != nullptr) {
+						if (const auto secondLayerItem = paramShortcutsForSoundsSecondLayer[x][y];
+						    secondLayerItem != nullptr) {
 							item = secondLayerItem;
-							parent = secondLayerParent;
 						}
 					}
 				}
@@ -1284,23 +1258,11 @@ doSetup:
 
 					const int32_t thingIndex = x & 1;
 
-					if (display->haveOLED()) {
-						switch (x) {
-						case 0 ... 3:
-							setOscillatorNumberForTitles(thingIndex);
-							break;
+					bool setupSuccess = setup(getCurrentClip(), item, thingIndex);
 
-						case 4 ... 5:
-							setModulatorNumberForTitles(thingIndex);
-							break;
-						}
-					}
-
-					bool setupSuccess = setup(getCurrentClip(), item, parent, thingIndex);
-
-					if (!setupSuccess && item == &modulatorVolume && currentSource->oscType == OscType::DX7) {
+					if (!setupSuccess && item == &modulator0Volume && currentSource->oscType == OscType::DX7) {
 						item = &dxParam;
-						setupSuccess = setup(getCurrentClip(), item, parent, thingIndex);
+						setupSuccess = setup(getCurrentClip(), item, thingIndex);
 					}
 
 					if (!setupSuccess) {
@@ -1559,7 +1521,7 @@ void SoundEditor::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 }
 
-bool SoundEditor::setup(Clip* clip, const MenuItem* item, Submenu* parent, int32_t sourceIndex) {
+bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 
 	Sound* newSound = nullptr;
 	ParamManagerForTimeline* newParamManager = nullptr;
@@ -1725,10 +1687,9 @@ doMIDIOrCV:
 
 	// If we're on OLED, a parent menu & horizontal menus are in play,
 	// then we swap the parent in place of the child.
-	if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
-		if (parent->focusChild(item)) {
-			newItem = parent;
-		}
+	HorizontalMenu* parent = maybeGetParentMenu(newItem);
+	if (parent != nullptr && parent->focusChild(newItem)) {
+		newItem = parent;
 	}
 
 	::MultiRange* newRange = currentMultiRange;
@@ -1743,13 +1704,13 @@ doMIDIOrCV:
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 		return false;
 	}
-	else if (result == MenuPermission::MUST_SELECT_RANGE) {
+	if (result == MenuPermission::MUST_SELECT_RANGE) {
 
 		D_PRINTLN("must select range");
 
 		newRange = nullptr;
-		menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
-		newItem = &menu_item::multiRangeMenu;
+		multiRangeMenu.menuItemHeadingTo = newItem;
+		newItem = &multiRangeMenu;
 	}
 
 	if (display->haveOLED()) {
@@ -1956,6 +1917,56 @@ void SoundEditor::mpeZonesPotentiallyUpdated() {
 			currentMenuItem->readValueAgain();
 		}
 	}
+}
+
+HorizontalMenu* SoundEditor::maybeGetParentMenu(MenuItem* item) {
+	const auto chain = getCurrentHorizontalMenusChain(false);
+	if (!chain.has_value()) {
+		return nullptr;
+	}
+
+	if (util::one_of<MenuItem*>(item, {&sample0StartMenu, &sample1StartMenu, &audioClipSampleMarkerEditorMenuEnd})) {
+		// for sample start/end points we go straight to waveform editor UI
+		return nullptr;
+	}
+
+	const auto it = std::ranges::find_if(chain.value(), [&](HorizontalMenu* menu) { return menu->hasItem(item); });
+	if (it == chain->end()) {
+		return nullptr;
+	}
+
+	if (util::one_of<MenuItem*>(item, {&file0SelectorMenu, &file1SelectorMenu})) {
+		// for file selectors we go straight to the browser
+		// and automatically navigate to the parent horizontal menu when a file is selected
+		item->parent = *it;
+		return nullptr;
+	}
+
+	return *it;
+}
+
+std::optional<std::span<HorizontalMenu* const>> SoundEditor::getCurrentHorizontalMenusChain(bool checkNavigationDepth) {
+	if (checkNavigationDepth && navigationDepth > 0) {
+		// If a horizontal menu was accessed from the sound menu,
+		// we shouldn't allow switching between menus in the chain because the sound menu has different hierarchy
+		return std::nullopt;
+	}
+	if (!display->haveOLED() || runtimeFeatureSettings.get(HorizontalMenus) == Off) {
+		return std::nullopt;
+	}
+	if (!rootUIIsClipMinderScreen()) {
+		return horizontalMenusChainForSong;
+	}
+	if (editingKitAffectEntire()) {
+		return horizontalMenusChainForKit;
+	}
+	if (editingCVOrMIDIClip()) {
+		return horizontalMenusChainForMidiOrCv;
+	}
+	if (getCurrentAudioClip() != nullptr) {
+		return horizontalMenusChainForAudioClip;
+	}
+	return horizontalMenusChainForSound;
 }
 
 void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {

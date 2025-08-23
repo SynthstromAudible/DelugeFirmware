@@ -21,9 +21,11 @@
 
 #include "decimal.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
+#include "horizontal_menu.h"
 #include "util/cfunctions.h"
 #include "util/functions.h"
 
@@ -52,23 +54,30 @@ void Decimal::drawValue() {
 	}
 }
 
-void Decimal::selectEncoderAction(int32_t offset) {
+int32_t Decimal::getNumberEditSize() {
+	if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+		// In Horizontal menus we edit with 1.00 step by default, and with 0.01 step if the shift is pressed
+		return Buttons::isButtonPressed(hid::button::SHIFT) ? 1 : 100;
+	}
+	return soundEditor.numberEditSize;
+}
 
-	this->setValue(this->getValue() + offset * soundEditor.numberEditSize);
+void Decimal::selectEncoderAction(int32_t offset) {
+	setValue(getValue() + offset * getNumberEditSize());
 
 	// If turned down
 	if (offset < 0) {
 		int32_t minValue = getMinValue();
-		if (this->getValue() < minValue) {
-			this->setValue(minValue);
+		if (getValue() < minValue) {
+			setValue(minValue);
 		}
 	}
 
 	// If turned up
 	else {
 		int32_t maxValue = getMaxValue();
-		if (this->getValue() > maxValue) {
-			this->setValue(maxValue);
+		if (getValue() > maxValue) {
+			setValue(maxValue);
 		}
 	}
 
@@ -200,8 +209,7 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	                                 false); // blinkImmediately
 }
 
-int32_t Decimal::getNonZeroDecimalPlacesCount() {
-	const int32_t value = this->getValue();
+int32_t Decimal::getNumNonZeroDecimals(int32_t value) {
 	const float remaining = std::abs(value / 100 - value / 100.0f);
 	if (remaining == 0) {
 		return 0;
@@ -209,6 +217,22 @@ int32_t Decimal::getNonZeroDecimalPlacesCount() {
 	DEF_STACK_STRING_BUF(remainingBuf, 8);
 	remainingBuf.appendFloat(remaining, 0, 2);
 	return remainingBuf.size() - 2;
+}
+
+void Decimal::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+	if (getNumberStyle() != NUMBER) {
+		return Number::renderInHorizontalMenu(startX, width, startY, height);
+	}
+
+	DEF_STACK_STRING_BUF(valueBuf, 10);
+	const int32_t value = getValue();
+	valueBuf.appendFloat(value / 100.f, 2, 2);
+	if (value <= -1000) {
+		valueBuf.truncate(3);
+	}
+
+	return hid::display::OLED::main.drawStringCentered(valueBuf.data(), startX, startY + 3, kTextSpacingX,
+	                                                   kTextSpacingY, width);
 }
 
 void DecimalWithoutScrolling::selectEncoderAction(int32_t offset) {
@@ -247,7 +271,7 @@ void DecimalWithoutScrolling::drawActualValue(bool justDidHorizontalScroll) {
 	display->setText(buffer, true, 3 - numDecimalPlaces);
 }
 
-void DecimalWithoutScrolling::getValueForPopup(StringBuf& value) {
+void DecimalWithoutScrolling::getNotificationValue(StringBuf& value) {
 	const int32_t numDecimalPlaces = this->getNumDecimalPlaces();
 	value.appendFloat(this->getDisplayValue(), numDecimalPlaces, numDecimalPlaces);
 	value.append(getUnit());

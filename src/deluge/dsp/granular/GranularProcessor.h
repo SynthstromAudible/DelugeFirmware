@@ -21,12 +21,14 @@
 #include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
 #include "dsp/filter/ladder_components.h"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include "memory/stealable.h"
 #include "modulation/lfo.h"
 #include <span>
 
 class UnpatchedParamSet;
+
+namespace deluge::dsp {
 
 struct Grain {
 	int32_t length = 0; // in samples 0=OFF
@@ -54,7 +56,7 @@ public:
 	void startSkippingRendering();
 
 	/// preset is currently converted from a param to a 0-4 preset inside the grain, which is probably not great
-	void processGrainFX(std::span<StereoSample> buffer, int32_t grainRate, int32_t grainMix, int32_t grainDensity,
+	void processGrainFX(StereoBuffer<q31_t> buffer, int32_t grainRate, int32_t grainMix, int32_t grainDensity,
 	                    int32_t pitchRandomness, int32_t* postFXVolume, bool anySoundComingIn, float tempoBPM,
 	                    q31_t reverbAmount);
 
@@ -64,7 +66,7 @@ public:
 private:
 	void setupGrainFX(int32_t grainRate, int32_t grainMix, int32_t grainDensity, int32_t pitchRandomness,
 	                  int32_t* postFXVolume, float timePerInternalTick);
-	StereoSample processOneGrainSample(StereoSample currentSample);
+	StereoSample<q31_t> processOneGrainSample(StereoSample<q31_t> currentSample);
 	void getBuffer();
 	void setWrapsToShutdown();
 	void setupGrainsIfNeeded(int32_t writeIndex);
@@ -112,11 +114,12 @@ public:
 	[[nodiscard]] StealableQueue getAppropriateQueue() const override {
 		return StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE;
 	};
-	StereoSample& operator[](int32_t i) { return sampleBuffer[i]; }
-	StereoSample operator[](int32_t i) const { return sampleBuffer[i]; }
+	StereoSample<q31_t>& operator[](int32_t i) { return sampleBuffer[i]; }
+	StereoSample<q31_t> operator[](int32_t i) const { return sampleBuffer[i]; }
 	bool inUse = true;
 
 private:
 	GranularProcessor* owner;
-	std::array<StereoSample, kModFXGrainBufferSize * sizeof(StereoSample)> sampleBuffer;
+	std::array<StereoSample<q31_t>, kModFXGrainBufferSize * sizeof(StereoSample<q31_t>)> sampleBuffer;
 };
+} // namespace deluge::dsp

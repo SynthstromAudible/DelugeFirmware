@@ -22,6 +22,8 @@
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include <argon.hpp>
+#include <argon/vectorize/load_store.hpp>
+
 namespace deluge::dsp {
 /* Before calling, you must:
     amplitude <<= 1; ( so that it is q31)
@@ -34,12 +36,12 @@ void renderWave(const int16_t* __restrict__ table, int32_t table_size_magnitude,
 	Argon<q31_t> amplitude_vector = createAmplitudeVector(amplitude, amplitude_increment);
 	Argon<q31_t> amplitude_increment_vector = amplitude_increment << 1;
 
-	for (Argon<q31_t>& sample_vector : argon::vectorize(buffer)) {
+	for (Argon<q31_t>& sample_vector : argon::vectorize::load_store(buffer)) {
 		auto [value_vector, new_phase] =
 		    waveRenderingFunctionGeneral(phase, phase_increment, phase_to_add, table, table_size_magnitude);
 
 		if (apply_amplitude) {
-			value_vector = sample_vector.MultiplyAddFixedPoint(value_vector, amplitude_vector);
+			value_vector = sample_vector.MultiplyAddFixedQMax(value_vector, amplitude_vector);
 			amplitude_vector = amplitude_vector + amplitude_increment_vector;
 		}
 
@@ -58,12 +60,12 @@ void renderPulseWave(const int16_t* __restrict__ table, int32_t table_size_magni
 	Argon<q31_t> amplitude_vector = createAmplitudeVector(amplitude, amplitude_increment);
 	Argon<q31_t> amplitude_increment_vector = amplitude_increment << 1;
 
-	for (Argon<q31_t>& sample_vector : argon::vectorize(buffer)) {
+	for (Argon<q31_t>& sample_vector : argon::vectorize::load_store(buffer)) {
 		auto [value_vector, new_phase] =
 		    waveRenderingFunctionPulse(phase, phase_increment, phase_to_add, table, table_size_magnitude);
 
 		if (apply_amplitude) {
-			value_vector = sample_vector.MultiplyAddFixedPoint(value_vector, amplitude_vector);
+			value_vector = sample_vector.MultiplyAddFixedQMax(value_vector, amplitude_vector);
 			amplitude_vector = amplitude_vector + amplitude_increment_vector;
 		}
 

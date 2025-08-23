@@ -4,6 +4,8 @@ sidebar:
   order: 2
 ---
 
+import { Badge } from "@astrojs/starlight/components"
+
 This document will document the menu structure hierarchy currently in place in the deluge in order to help users understand what exists in the menu structure and how the hierarchy strings are defined for OLED and 7SEG users.
 
 The hierarchy's illustrated below will follow the format of OLED (7SEG) in order to show the Menu name on OLED and the Menu name on 7SEG in brackets.
@@ -635,7 +637,7 @@ NOTE: These options can change depending on how your default resolution is set
 		- Offline Rendering (OFFR)
 			- Disabled (OFF)
 			- Enabled (ON)
-		- Export Mixdown (MIXD)
+		- Export Mixdown (MIXD) <Badge text="c1.3" variant="tip" />
 			- Disabled (OFF)
 			- Enabled (ON)
 </details>
@@ -906,16 +908,21 @@ The Sound menu is accessible from Synth Clips and Kit clips when :key[AffectEnti
 The Sound menu contains the following menu hierarchy:
 
 <details>
+<summary>Actions (ACT)<Badge text="c1.3" variant="tip" /></summary>
+    - Rename clip/drum (NAME)
+    - Record to sample 1 (REC1)
+    - Record to sample 2 (REC2)
+</details>
+<details>
 <summary>Master (MSTR)</summary>
     - Volume (VOLU)
-    - Master Transpose (TRAN)
-    - Vibrato (VIBR)
     - Pan
+    - Master Transpose (TRAN)
     - Synth Mode (MODE) - in Synth's and Kit row's that have loaded a Synth preset
     	- Subtractive
     	- FM
     	- Ringmod
-    - Name - in Kit's only for naming a Kit row
+    - Vibrato (VIBR)
 </details>
 <details>
 <summary>Arpeggiator (ARPE)</summary>
@@ -1168,10 +1175,11 @@ The Sound menu contains the following menu hierarchy:
 		- Wavetable
 		- Sample (SAMP)
 		- Input (IN)
-	- Volume (VOLU)
+    - File Browser (FILE) - if Wavetable or Sample type is selected
+    - Transpose (TRAN)
 	- Wave-Index (WAVE) - if Wavetable type is selected
-	- File Browser (FILE) - if Wavetable or Sample type is selected
-	- Record Audio (RECO)
+    - Pulse Width (PULS) - if any type except Sample or Input is selected
+    - Retrigger Phase (RETR) - if any type except Sample is selected
 	- Reverse (REVE) - if Sample type is selected
 		- Disabled (OFF)
 		- Enabled (ON)
@@ -1180,18 +1188,15 @@ The Sound menu contains the following menu hierarchy:
 		- Once
 		- Loop
 		- Stretch
+    - Speed (SPEE) - if Sample type selected
+    - Pitch/Speed (PISP)
+        - Linked
+        - Independent
+    - Interpolation (INTE) - if Input type is selected
+        - Linear
+        - Sync
 	- Start-Point (STAR) - if Sample type is selected
 	- End-Point (END-) - if Sample type is selected
-	- Transpose (TRAN)
-	- Pitch/Speed (PISP)
-		- Linked
-		- Independent
-	- Interpolation (INTE) - if Input type is selected
-		- Linear
-		- Sync
-	- Speed (SPEE) - if Sample type selected
-	- Pulse Width (PULS) - if any type except Sample or Input is selected
-	- Retrigger Phase (RETR) - if any type except Sample is selected
 </details>
 <details>
 <summary>Oscillator 2 (OSC2)</summary>
@@ -1205,10 +1210,11 @@ The Sound menu contains the following menu hierarchy:
 		- Wavetable
 		- Sample (SAMP)
 		- Input (IN)
-	- Volume (VOLU)
-	- Wave-Index (WAVE) - if Wavetable type is selected
-	- File Browser (FILE) - if Wavetable or Sample type is selected
-	- Record Audio (RECO)
+    - File Browser (FILE) - if Wavetable or Sample type is selected
+    - Transpose (TRAN)
+    - Wave-Index (WAVE) - if Wavetable type is selected
+    - Pulse Width (PULS) - if any type except Sample or Input is selected
+    - Retrigger Phase (RETR) - if any type except Sample is selected
 	- Reverse (REVE) - if Sample type is selected
 		- Disabled (OFF)
 		- Enabled (ON)
@@ -1217,21 +1223,22 @@ The Sound menu contains the following menu hierarchy:
 		- Once
 		- Loop
 		- Stretch
+    - Speed (SPEE) - if Sample type selected
+    - Pitch/Speed (PISP)
+        - Linked
+        - Independent
+    - Interpolation (INTE) - if Input type is selected
+        - Linear
+        - Sync
 	- Start-Point (STAR) - if Sample type is selected
 	- End-Point (END-) - if Sample type is selected
-	- Transpose (TRAN)
-	- Pitch/Speed (PISP)
-		- Linked
-		- Independent
-	- Interpolation (INTE) - if Input type is selected
-		- Linear
-		- Sync
-	- Speed (SPEE) - if Sample type selected
-	- Pulse Width (PULS) - if any type except Sample or Input is selected
-	- Oscillator Sync (SYNC)
-		- Disabled (OFF)
-		- Enabled (ON)
-	- Retrigger Phase (RETR) - if any type except Sample is selected
+</details>
+<details>
+<summary>Osc mixer (OMIX)<Badge text="c1.3" variant="tip" /></summary>
+    - Osc1 level (OSC1)
+    - Osc2 level (OSC2)
+    - Noise level (NOIS)
+    - Oscillator sync (SYNC)
 </details>
 <details>
 <summary>Envelope 1 (ENV1)</summary>
@@ -1470,6 +1477,27 @@ The Kit FX menu is accessible from Kit clips when :key[AffectEntire] is enabled 
 
 The Kit FX menu contains the following menu hierarchy:
 
+<details>
+<summary>Actions</summary>
+	- Audio Export (EXPO) <Badge text="c1.3" variant="tip" />
+		- Start Export (EXPO)
+		- Configure Export (CONF)
+			- Kit FX (KIT)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Normalization (NORM)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Export to Silence (SILE)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Song FX (SONG)
+				- Disabled (OFF)
+				- Enabled (ON)
+			- Offline Rendering (OFFR)
+				- Disabled (OFF)
+				- Enabled (ON)
+</details>
 <details>
 <summary>Master (MSTR)</summary>
     - Volume (VOLU)

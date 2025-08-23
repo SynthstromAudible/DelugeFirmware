@@ -23,9 +23,13 @@
 using namespace deluge::hid::display;
 
 namespace deluge::gui::menu_item::envelope {
-class EnvelopeMenu final : public HorizontalMenu {
+class EnvelopeMenu final : public HorizontalMenu, FormattedTitle {
 public:
-	using HorizontalMenu::HorizontalMenu;
+	EnvelopeMenu(l10n::String newName, std::span<MenuItem*> newItems, int32_t envelopeIndex)
+	    : HorizontalMenu(newName, newItems), FormattedTitle(newName, envelopeIndex + 1) {}
+
+	[[nodiscard]] std::string_view getName() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) override {
 		// Get the values in 0-50 range

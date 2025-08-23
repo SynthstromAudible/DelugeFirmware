@@ -19,7 +19,6 @@
 
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/sound_editor.h"
-#include "menu_item.h"
 #include "util/containers.h"
 #include <initializer_list>
 #include <span>
@@ -38,11 +37,6 @@ public:
 	    : MenuItem(newName, title), items{newItems}, current_item_{items.end()} {}
 	Submenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
 	    : MenuItem(newName, title), items{newItems.begin(), newItems.end()}, current_item_{items.end()} {}
-	Submenu(l10n::String newName, std::span<MenuItem*> newItems, int32_t newThingIndex)
-	    : MenuItem(newName), items{newItems.begin(), newItems.end()}, current_item_{items.end()},
-	      thingIndex(newThingIndex) {}
-	Submenu(l10n::String newName, std::initializer_list<MenuItem*> newItems, int32_t newThingIndex)
-	    : MenuItem(newName), items{newItems}, current_item_{items.end()}, thingIndex(newThingIndex) {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void updateDisplay();
@@ -69,12 +63,10 @@ public:
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override;
 	deluge::modulation::params::Kind getParamKind() override;
 	uint32_t getParamIndex() override;
-	std::optional<uint8_t> getThingIndex() { return thingIndex; }
 	[[nodiscard]] int32_t getColumnSpan() const override { return 2; };
-	[[nodiscard]] bool showPopup() const override { return false; }
+	[[nodiscard]] bool showNotification() const override { return false; }
 
 protected:
-	std::optional<uint8_t> thingIndex = std::nullopt;
 	uint32_t initial_index_ = 0;
 	deluge::vector<MenuItem*> items;
 	typename decltype(items)::iterator current_item_;

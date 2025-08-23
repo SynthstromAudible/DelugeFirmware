@@ -42,6 +42,9 @@ public:
 		else if (rootUI == &sessionView) {
 			stemExport.startStemExportProcess(StemExportType::CLIP);
 		}
+		else if (rootUI == &instrumentClipView && getCurrentOutputType() == OutputType::KIT) {
+			stemExport.startStemExportProcess(StemExportType::DRUM);
+		}
 		return NO_NAVIGATION;
 	}
 

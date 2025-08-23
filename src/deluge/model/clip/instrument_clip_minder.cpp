@@ -46,6 +46,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/scale/preset_scales.h"
 #include "model/song/song.h"
+#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "playback/mode/arrangement.h"
 #include "processing/engines/cv_engine.h"
@@ -105,6 +106,9 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 }
 
 void InstrumentClipMinder::redrawNumericDisplay() {
+	if (stemExport.processStarted) {
+		return;
+	}
 	if (display->have7SEG()) {
 		if (getCurrentUI()->toClipMinder()) { // Seems a redundant check now? Maybe? Or not?
 			view.displayOutputName(getCurrentOutput(), false);
@@ -113,6 +117,10 @@ void InstrumentClipMinder::redrawNumericDisplay() {
 }
 
 void InstrumentClipMinder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	if (stemExport.processStarted) {
+		stemExport.displayStemExportProgressOLED(StemExportType::DRUM);
+		return;
+	}
 	view.displayOutputName(getCurrentOutput(), false, getCurrentClip());
 }
 

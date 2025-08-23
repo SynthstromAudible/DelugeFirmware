@@ -285,7 +285,7 @@ public:
 	Error readFromFile(Deserializer& reader);
 	void writeToFile();
 	void loadAllSamples(bool mayActuallyReadFiles = true);
-	void renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending);
+	void renderAudio(deluge::dsp::StereoBuffer<q31_t> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending);
 	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);
 	Clip* syncScalingClip = nullptr;
 	void setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction = false);

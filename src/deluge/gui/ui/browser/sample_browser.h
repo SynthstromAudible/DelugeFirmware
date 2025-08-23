@@ -34,6 +34,11 @@ class SoundDrum;
 class NumericLayerScrollingText;
 class Source;
 class Sample;
+class MenuItem;
+
+namespace deluge::gui::menu_item {
+class HorizontalMenu;
+}
 
 class SampleBrowser final : public Browser {
 public:
@@ -59,6 +64,10 @@ public:
 	void exitAndNeverDeleteDrum();
 
 	String lastFilePathLoaded;
+
+	// menus to open when a sample file is selected
+	deluge::gui::menu_item::HorizontalMenu* parentMenuHeadingTo{nullptr};
+	MenuItem* menuItemHeadingTo{nullptr};
 
 	// ui
 	UIType getUIType() override { return UIType::SAMPLE_BROWSER; }

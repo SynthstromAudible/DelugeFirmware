@@ -20,7 +20,7 @@
 
 namespace deluge::dsp::filter {
 
-std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> temp_render_buffer;
+std::array<StereoSample<q31_t>, SSI_TX_BUFFER_NUM_SAMPLES> temp_render_buffer;
 
 [[gnu::hot]] void FilterSet::renderHPFLong(std::span<q31_t> buffer) {
 	if (!HPFOn) [[unlikely]] {
@@ -34,7 +34,7 @@ std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> temp_render_buffer;
 	}
 }
 
-[[gnu::hot]] void FilterSet::renderHPFLongStereo(std::span<StereoSample> buffer) {
+[[gnu::hot]] void FilterSet::renderHPFLongStereo(StereoBuffer<q31_t> buffer) {
 	if (!HPFOn) [[unlikely]] {
 		return;
 	}
@@ -57,7 +57,7 @@ std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> temp_render_buffer;
 	lpfilter.ladder.filterMono(buffer);
 }
 
-[[gnu::hot]] void FilterSet::renderLPFLongStereo(std::span<StereoSample> buffer) {
+[[gnu::hot]] void FilterSet::renderLPFLongStereo(StereoBuffer<q31_t> buffer) {
 	if (!LPFOn) {
 		return;
 	}
@@ -93,7 +93,7 @@ std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> temp_render_buffer;
 	}
 }
 // expects to receive an interleaved stereo stream
-[[gnu::hot]] void FilterSet::renderLongStereo(std::span<StereoSample> buffer) {
+[[gnu::hot]] void FilterSet::renderLongStereo(StereoBuffer<q31_t> buffer) {
 	// Do HPF, if it's on
 	switch (routing_) {
 	case FilterRoute::HIGH_TO_LOW:

@@ -28,7 +28,7 @@ public:
 	// returns a compensatory gain value
 	q31_t setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain);
 	void doFilter(std::span<q31_t>);
-	void doFilterStereo(std::span<StereoSample>);
+	void doFilterStereo(StereoBuffer<q31_t>);
 	void resetFilter() {
 		l = (SVFState){0, 0};
 		r = (SVFState){0, 0};

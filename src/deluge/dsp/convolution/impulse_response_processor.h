@@ -17,10 +17,11 @@
 
 #pragma once
 
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include "util/fixedpoint.h"
 #include <cstdint>
 
+namespace deluge::dsp {
 class [[gnu::hot]] ImpulseResponseProcessor {
 	constexpr static size_t IR_SIZE = 26;
 	constexpr static size_t IR_BUFFER_SIZE = (IR_SIZE - 1);
@@ -34,7 +35,7 @@ class [[gnu::hot]] ImpulseResponseProcessor {
 public:
 	ImpulseResponseProcessor() = default;
 
-	inline void process(const StereoSample input, StereoSample& output) {
+	inline void process(const StereoSample<q31_t> input, StereoSample<q31_t>& output) {
 		output.l = buffer_[0].l + multiply_32x32_rshift32_rounded(input.l, ir[0]);
 		output.r = buffer_[0].r + multiply_32x32_rshift32_rounded(input.r, ir[0]);
 
@@ -48,5 +49,6 @@ public:
 	}
 
 private:
-	std::array<StereoSample, IR_BUFFER_SIZE> buffer_;
+	std::array<StereoSample<q31_t>, IR_BUFFER_SIZE> buffer_;
 };
+} // namespace deluge::dsp

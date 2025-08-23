@@ -16,11 +16,13 @@
  */
 
 #include "dsp/delay/delay_buffer.h"
-#include "dsp/stereo_sample.h"
+#include "dsp_ng/core/types.hpp"
 #include "mem_functions.h"
 #include "memory/memory_allocator_interface.h"
 #include <cmath>
 #include <optional>
+
+namespace deluge::dsp {
 
 // Returns error status
 Error DelayBuffer::init(uint32_t rate, uint32_t failIfThisSize, bool includeExtraSpace) {
@@ -44,7 +46,7 @@ Error DelayBuffer::init(uint32_t rate, uint32_t failIfThisSize, bool includeExtr
 
 	sizeIncludingExtra = size_ + (includeExtraSpace ? delaySpaceBetweenReadAndWrite : 0);
 
-	start_ = (StereoSample*)allocLowSpeed(sizeIncludingExtra * sizeof(StereoSample));
+	start_ = (StereoSample<q31_t>*)allocLowSpeed(sizeIncludingExtra * sizeof(StereoSample<q31_t>));
 
 	if (start_ == nullptr) {
 		return Error::INSUFFICIENT_RAM;
@@ -56,7 +58,7 @@ Error DelayBuffer::init(uint32_t rate, uint32_t failIfThisSize, bool includeExtr
 }
 
 void DelayBuffer::clear() {
-	memset(start_, 0, sizeof(StereoSample) * (delaySpaceBetweenReadAndWrite + 2));
+	memset(start_, 0, sizeof(StereoSample<q31_t>) * (delaySpaceBetweenReadAndWrite + 2));
 	current_ = start_ + delaySpaceBetweenReadAndWrite;
 	resample_config_ = std::nullopt;
 }
@@ -106,12 +108,12 @@ void DelayBuffer::setupResample() {
 	// changed slightly at this stage, this is as simple as removing a quarter of the last written value, and
 	// putting that removed quarter where the "next" write-pos is. That's because the triangles are 4 samples
 	// wide total (2 samples either side)
-	StereoSample* writePos = current_ - delaySpaceBetweenReadAndWrite;
+	StereoSample<q31_t>* writePos = current_ - delaySpaceBetweenReadAndWrite;
 	while (writePos < start_) {
 		writePos += sizeIncludingExtra;
 	}
 
-	StereoSample* writePosPlusOne = writePos + 1;
+	StereoSample<q31_t>* writePosPlusOne = writePos + 1;
 	while (writePosPlusOne >= end_) {
 		writePosPlusOne -= sizeIncludingExtra;
 	}
@@ -189,3 +191,4 @@ void DelayBuffer::setupForRender(int32_t rate) {
 	    .writeSizeAdjustment = writeSizeAdjustment,
 	};
 }
+} // namespace deluge::dsp

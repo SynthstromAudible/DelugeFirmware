@@ -25,24 +25,27 @@
 #include "processing/sound/sound.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/multi_range/multi_range.h"
+#include "utils.h"
+
+#include <hid/display/oled.h>
 
 namespace deluge::gui::menu_item::sample {
 
-bool LoopPoint::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
-	return isSampleModeSample(modControllable, whichThing);
+bool LoopPoint::isRelevant(ModControllableAudio* modControllable, int32_t) {
+	return isSampleModeSample(modControllable, sourceId_);
 }
 
-MenuPermission LoopPoint::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+MenuPermission LoopPoint::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t,
                                                         MultiRange** currentRange) {
 
-	if (!isRelevant(modControllable, whichThing)) {
+	if (!isRelevant(modControllable, sourceId_)) {
 		return MenuPermission::NO;
 	}
 
-	Sound* sound = static_cast<Sound*>(modControllable);
+	const auto sound = static_cast<Sound*>(modControllable);
 
 	MenuPermission permission =
-	    soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, currentRange);
+	    soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, sourceId_, currentRange);
 
 	// Before going ahead, make sure a Sample is loaded
 	if (permission == MenuPermission::YES) {
@@ -55,7 +58,6 @@ MenuPermission LoopPoint::checkPermissionToBeginSession(ModControllableAudio* mo
 }
 
 void LoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
-
 	if (getRootUI() == &keyboardScreen) {
 		if (currentUIMode == UI_MODE_AUDITIONING) {
 			keyboardScreen.exitAuditionMode();
@@ -63,11 +65,37 @@ void LoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
+	soundEditor.setCurrentSource(sourceId_);
 	sampleMarkerEditor.markerType = markerType;
-	bool success = openUI(&sampleMarkerEditor); // Shouldn't be able to fail anymore
-	if (!success) {
-		// if (getCurrentUI() == &soundEditor) soundEditor.goUpOneLevel();
+
+	if (const bool success = openUI(&sampleMarkerEditor); !success) {
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	}
 }
+void LoopPoint::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+	using namespace hid::display;
+	oled_canvas::Canvas& image = OLED::main;
+
+	const bool isStartMarker = markerType == MarkerType::START;
+	const int32_t lineX = isStartMarker ? startX + 8 : startX + width - 12;
+
+	for (int32_t y = startY + 2; y <= startY + height - 4; y += 2) {
+		image.drawPixel(lineX, y);
+	}
+
+	const Icon& icon = OLED::loopPointIcon;
+	const int32_t iconX = isStartMarker ? lineX + 4 : startX - 2;
+	const int32_t iconY = startY + 3;
+	image.drawIcon(icon, iconX, iconY, !isStartMarker);
+}
+
+void LoopPoint::getColumnLabel(StringBuf& label) {
+	if (markerType == MarkerType::START) {
+		return label.append(l10n::get(l10n::String::STRING_FOR_START_POINT_SHORT));
+	}
+
+	label.append(getName());
+	label.truncate(3);
+}
+
 } // namespace deluge::gui::menu_item::sample

@@ -20,7 +20,6 @@
 #include <cstdint>
 
 class Song;
-class StereoSample;
 class InstrumentClip;
 class ArrangementRow;
 class Output;

@@ -48,7 +48,7 @@ public:
 
 	Model getModel() { return model_; }
 
-	void process(std::span<int32_t> input, std::span<StereoSample> output) override {
+	void process(std::span<int32_t> input, StereoBuffer<q31_t> output) override {
 		using namespace reverb;
 		switch (model_) {
 		case Model::FREEVERB:
