@@ -5,7 +5,7 @@
 #include "model/song/song.h"
 #include "octave.h"
 
-extern deluge::gui::menu_item::Submenu songMasterMenu;
+extern deluge::gui::menu_item::HorizontalMenu songMasterMenu;
 namespace deluge::gui::menu_item::tuning {
 class TuningMenu final : public Selection {
 	using Selection::Selection;
