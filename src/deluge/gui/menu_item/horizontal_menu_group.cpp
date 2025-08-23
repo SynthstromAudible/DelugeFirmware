@@ -66,8 +66,9 @@ bool HorizontalMenuGroup::focusChild(const MenuItem* child) {
 		}
 
 		// Child is not relevant — find first relevant among all items
-		current_item_ = std::ranges::find_if(items, isItemRelevant);
-		if (current_item_ != items.end()) {
+		it = std::ranges::find_if(items, isItemRelevant);
+		if (it != items.end()) {
+			current_item_ = it;
 			return true;
 		}
 	}
