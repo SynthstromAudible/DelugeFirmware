@@ -107,11 +107,11 @@ extern MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForSongView[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForKitGlobalFX[kDisplayWidth][kDisplayHeight];
 
-extern const std::array<gui::menu_item::HorizontalMenu*, 17> horizontalMenusChainForSound;
-extern const std::array<gui::menu_item::HorizontalMenu*, 12> horizontalMenusChainForKit;
-extern const std::array<gui::menu_item::HorizontalMenu*, 9> horizontalMenusChainForSong;
-extern const std::array<gui::menu_item::HorizontalMenu*, 11> horizontalMenusChainForAudioClip;
-extern const std::array<gui::menu_item::HorizontalMenu*, 2> horizontalMenusChainForMidiOrCv;
+extern std::array<gui::menu_item::HorizontalMenu*, 17> horizontalMenusChainForSound;
+extern std::array<gui::menu_item::HorizontalMenu*, 12> horizontalMenusChainForKit;
+extern std::array<gui::menu_item::HorizontalMenu*, 9> horizontalMenusChainForSong;
+extern std::array<gui::menu_item::HorizontalMenu*, 11> horizontalMenusChainForAudioClip;
+extern std::array<gui::menu_item::HorizontalMenu*, 2> horizontalMenusChainForMidiOrCv;
 
 extern gui::menu_item::HorizontalMenuGroup sourceMenuGroup;
 extern gui::menu_item::HorizontalMenu audioClipSampleMenu;
