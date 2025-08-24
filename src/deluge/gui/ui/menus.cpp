@@ -1811,7 +1811,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
     {nullptr,          	     &spreadVelocityMenu,	  &randomizerLockMenu,            &randomizerNoteProbabilityMenu,        nullptr,                     nullptr,                nullptr,                  nullptr                            },
 };
 
-PLACE_SDRAM_DATA std::array<HorizontalMenu*, 17> horizontalMenusChainForSound = {
+PLACE_SDRAM_DATA HorizontalMenu* horizontalMenusChainForSound[17] = {
 	&soundMasterMenuWithoutVibrato, &recorderMenu,
 	&sourceMenuGroup, &voiceMenuGroup, &envMenuGroup, &lfoMenuGroup,
 	&filtersMenuGroup, &eqMenu, &modFXMenu,
@@ -1820,7 +1820,7 @@ PLACE_SDRAM_DATA std::array<HorizontalMenu*, 17> horizontalMenusChainForSound = 
 	&arpMenuGroup, &randomizerMenu
 };
 
-PLACE_SDRAM_DATA std::array<HorizontalMenu*, 12> horizontalMenusChainForKit = {
+PLACE_SDRAM_DATA HorizontalMenu* horizontalMenusChainForKit[12] = {
 	&kitClipMasterMenu,
 	&globalFiltersMenuGroup, &globalEQMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
@@ -1828,21 +1828,21 @@ PLACE_SDRAM_DATA std::array<HorizontalMenu*, 12> horizontalMenusChainForKit = {
 	&arpMenuGroupKit, &randomizerMenu
 };
 
-PLACE_SDRAM_DATA std::array<HorizontalMenu*, 9> horizontalMenusChainForSong = {
+PLACE_SDRAM_DATA HorizontalMenu* horizontalMenusChainForSong[9] = {
 	&songMasterMenu,
 	&globalFiltersMenuGroup, &globalEQMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
 	&audioCompMenu, &stutterMenu
 };
 
-PLACE_SDRAM_DATA std::array<HorizontalMenu*, 11> horizontalMenusChainForAudioClip = {
+PLACE_SDRAM_DATA HorizontalMenu* horizontalMenusChainForAudioClip[11] = {
 	&audioClipMasterMenu, &audioClipSampleMenu,
 	&globalFiltersMenuGroup, &eqMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &audioClipDistortionMenu,
 	&globalSidechainMenu, &audioCompMenu, &stutterMenu
 };
 
-PLACE_SDRAM_DATA std::array<HorizontalMenu*, 2> horizontalMenusChainForMidiOrCv = {
+PLACE_SDRAM_DATA HorizontalMenu* horizontalMenusChainForMidiOrCv[2] = {
 	&arpMenuGroupMIDIOrCV, &randomizerMenu
 };
 
