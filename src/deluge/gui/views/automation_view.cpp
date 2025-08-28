@@ -4460,17 +4460,17 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		return;
 	}
-	// edit row or note probability
+	// edit row or note probability or iterance
 	else if (inNoteEditor()) {
-		// only allow adjusting probbaility while holding note
+		// only allow adjusting probability / iterance while holding note
 		if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
-			instrumentClipView.adjustNoteProbabilityWithOffset(offset);
+			instrumentClipView.handleProbabilityOrIteranceEditing(offset, false);
 			timeSelectKnobLastReleased = AudioEngine::audioSampleTimer;
 			probabilityChanged = true;
 		}
-		// only allow adjusting row probability while holding audition
+		// only allow adjusting row probability / iterance while holding audition
 		else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
-			instrumentClipView.setNoteRowProbabilityWithOffset(offset);
+			instrumentClipView.handleProbabilityOrIteranceEditing(offset, true);
 			timeSelectKnobLastReleased = AudioEngine::audioSampleTimer;
 			probabilityChanged = true;
 		}
