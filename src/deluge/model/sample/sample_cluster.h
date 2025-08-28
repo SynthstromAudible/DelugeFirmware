@@ -22,8 +22,11 @@
 class Cluster;
 class Sample;
 
-// This is a quick list item within Sample storing minimal info about one Cluster (which often won't be loaded yet) of
-// audio data for that Sample.
+/// This is a quick list item within Sample storing minimal info about one Cluster (which often won't be loaded yet) of
+/// audio data for that Sample.
+///
+/// Safety: This class must be safe to move via memcpy. The destructor/constructor will only be called when it is
+/// actually being deallocated, not when the array holding it resizes
 class SampleCluster {
 public:
 	SampleCluster() = default;
