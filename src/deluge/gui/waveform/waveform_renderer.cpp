@@ -28,7 +28,6 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
-#include <algorithm>
 #include <optional>
 #include <string.h>
 
@@ -239,7 +238,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 	int32_t endClusters;
 	if (recorder) {
 		numValidSamples = recorder->numSamplesCaptured;
-		endClusters = sample->clusters.size();
+		endClusters = sample->clusters.getNumElements();
 	}
 	else {
 		numValidSamples = sample->lengthInSamples;
@@ -375,27 +374,29 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 			int32_t limit = (numValidBytes + sample->audioDataStartPosBytes) & (Cluster::size - 1);
 
-			endByteWithinCluster = std::min(endByteWithinCluster, limit);
+			if (endByteWithinCluster > limit) {
+				endByteWithinCluster = limit;
+			}
 		}
 
-		SampleCluster& sample_cluster = sample->clusters[clusterIndexToDo];
+		SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndexToDo);
 
-		if ((sample_cluster.cluster != nullptr) && sample_cluster.cluster->numReasonsToBeLoaded < 0) {
+		if (sampleCluster->cluster && sampleCluster->cluster->numReasonsToBeLoaded < 0) {
 			FREEZE_WITH_ERROR("E449"); // Trying to catch errer before i028, which users have gotten.
 		}
 
 		// If we're wanting to investigate the whole length of one Cluster, and that's already actually been done
 		// previously, we can just reuse those findings!
-		if (investigatingAWholeCluster && sample_cluster.investigatedWholeLength) {
-			data->minPerCol[col] = (int32_t)sample_cluster.minValue << 24;
-			data->maxPerCol[col] = (int32_t)sample_cluster.maxValue << 24;
+		if (investigatingAWholeCluster && sampleCluster->investigatedWholeLength) {
+			data->minPerCol[col] = (int32_t)sampleCluster->minValue << 24;
+			data->maxPerCol[col] = (int32_t)sampleCluster->maxValue << 24;
 		}
 
 		// Otherwise, do our normal investigation
 		else {
 			char const* errorCode;
-			if (sample_cluster.cluster != nullptr) {
-				if (sample_cluster.cluster->loaded) {
+			if (sampleCluster->cluster) {
+				if (sampleCluster->cluster->loaded) {
 					errorCode = "E343";
 				}
 				else {
@@ -407,7 +408,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 				                    // Malte P.
 			}
 
-			Cluster* cluster = sample_cluster.getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
+			Cluster* cluster = sampleCluster->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
 			if (!cluster) {
 cantReadData:
 				D_PRINTLN("cant read");
@@ -432,11 +433,11 @@ cantReadData:
 			Cluster* nextCluster = nullptr;
 			if (endByteWithinCluster <= startByteWithinCluster && clusterIndexToDo < endClusters - 1) {
 				endByteWithinCluster += overshoot;
-				SampleCluster& next_sample_cluster = sample->clusters[clusterIndexToDo + 1];
-				if ((next_sample_cluster.cluster != nullptr) && next_sample_cluster.cluster->numReasonsToBeLoaded < 0) {
+				SampleCluster* nextSampleCluster = sample->clusters.getElement(clusterIndexToDo + 1);
+				if ((nextSampleCluster->cluster != nullptr) && nextSampleCluster->cluster->numReasonsToBeLoaded < 0) {
 					FREEZE_WITH_ERROR("E450"); // Trying to catch errer before i028, which users have gotten.
 				}
-				nextCluster = next_sample_cluster.getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
+				nextCluster = nextSampleCluster->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
 
 				if (cluster->numReasonsToBeLoaded <= 0) {
 					FREEZE_WITH_ERROR("E342"); // Trying to catch E340 below, which Ron R got while recording
@@ -484,8 +485,12 @@ cantReadData:
 				int32_t individualSampleValue =
 				    *(int32_t*)&cluster->data[bytePos]; // & sample->bitMask; // bitMask hardly matters here
 
-				maxThisCol = std::max(individualSampleValue, maxThisCol);
-				minThisCol = std::min(individualSampleValue, minThisCol);
+				if (individualSampleValue > maxThisCol) {
+					maxThisCol = individualSampleValue;
+				}
+				if (individualSampleValue < minThisCol) {
+					minThisCol = individualSampleValue;
+				}
 
 				bytePos += byteIncrement;
 			}
@@ -495,25 +500,29 @@ cantReadData:
 
 				// See if we want to include any previously captured maximums and minimums, which might have looked at
 				// slightly different values
-				int32_t prevMin = (int32_t)sample_cluster.minValue << 24;
-				int32_t prevMax = (int32_t)sample_cluster.maxValue << 24;
+				int32_t prevMin = (int32_t)sampleCluster->minValue << 24;
+				int32_t prevMax = (int32_t)sampleCluster->maxValue << 24;
 
-				minThisCol = std::min(prevMin, minThisCol);
-				maxThisCol = std::max(prevMax, maxThisCol);
+				if (prevMin < minThisCol) {
+					minThisCol = prevMin;
+				}
+				if (prevMax > maxThisCol) {
+					maxThisCol = prevMax;
+				}
 
 				// And mark the SampleCluster as fully investigated
-				sample_cluster.minValue = minThisCol >> 24;
-				sample_cluster.maxValue = maxThisCol >> 24;
+				sampleCluster->minValue = minThisCol >> 24;
+				sampleCluster->maxValue = maxThisCol >> 24;
 
 				// Make rounding be towards 0
-				if (sample_cluster.minValue < 0) {
-					sample_cluster.minValue++;
+				if (sampleCluster->minValue < 0) {
+					sampleCluster->minValue++;
 				}
-				if (sample_cluster.maxValue < 0) {
-					sample_cluster.maxValue++;
+				if (sampleCluster->maxValue < 0) {
+					sampleCluster->maxValue++;
 				}
 
-				sample_cluster.investigatedWholeLength = true;
+				sampleCluster->investigatedWholeLength = true;
 			}
 
 			// Or, if we only looked at a smaller part of a cluster...
@@ -531,8 +540,12 @@ cantReadData:
 					smallMax++;
 				}
 
-				sample_cluster.minValue = std::min(smallMin, sample_cluster.minValue);
-				sample_cluster.maxValue = std::max(smallMax, sample_cluster.maxValue);
+				if (smallMin < sampleCluster->minValue) {
+					sampleCluster->minValue = smallMin;
+				}
+				if (smallMax > sampleCluster->maxValue) {
+					sampleCluster->maxValue = smallMax;
+				}
 			}
 
 			data->maxPerCol[col] = maxThisCol;
@@ -559,8 +572,12 @@ cantReadData:
 	else {
 		for (int32_t col = xStart; col < xEnd; col++) {
 			if (data->colStatus[col] == COL_STATUS_INVESTIGATED) {
-				sample->maxValueFound = std::max(data->maxPerCol[col], sample->maxValueFound);
-				sample->minValueFound = std::min(data->minPerCol[col], sample->minValueFound);
+				if (data->maxPerCol[col] > sample->maxValueFound) {
+					sample->maxValueFound = data->maxPerCol[col];
+				}
+				if (data->minPerCol[col] < sample->minValueFound) {
+					sample->minValueFound = data->minPerCol[col];
+				}
 			}
 		}
 	}

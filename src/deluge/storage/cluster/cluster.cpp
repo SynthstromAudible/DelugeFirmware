@@ -197,9 +197,8 @@ void Cluster::steal(char const* errorCode) {
 	case Type::SAMPLE:
 		if (ALPHA_OR_BETA_VERSION && sample == nullptr) {
 			FREEZE_WITH_ERROR("E181");
-			std::terminate();
 		}
-		sample->clusters[clusterIndex].cluster = nullptr;
+		sample->clusters.getElement(clusterIndex)->cluster = nullptr;
 		break;
 
 	case Type::SAMPLE_CACHE:

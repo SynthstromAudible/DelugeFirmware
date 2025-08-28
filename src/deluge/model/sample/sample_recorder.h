@@ -78,7 +78,7 @@ public:
 
 	uint32_t numSamplesExtraToCaptureAtEndSyncingWise;
 
-	size_t firstUnwrittenClusterIndex = 0;
+	int32_t firstUnwrittenClusterIndex = 0;
 
 	// Put things in valid state so if we get destructed before any recording, it's all ok
 	int32_t currentRecordClusterIndex = -1;
