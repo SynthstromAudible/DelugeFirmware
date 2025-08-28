@@ -4096,7 +4096,7 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				return;
 			}
 		}
-		else {
+		else if (inNoteEditor()) {
 			goto followOnAction;
 		}
 	}
