@@ -21,7 +21,8 @@
 #include "util/container/array/resizeable_array.h"
 
 class SampleCluster;
-
+/// This class is similar to a vector but is optimised for the case of copyable types. It avoids the
+/// constructor/destructor call that would otherwise be needed to move a SampleCluster.
 class SampleClusterArray : public ResizeableArray {
 public:
 	SampleClusterArray();
