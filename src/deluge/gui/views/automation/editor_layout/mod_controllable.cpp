@@ -262,8 +262,32 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplayOLED(
 #endif
 	canvas.drawStringCentredShrinkIfNecessary(parameterName.c_str(), yPos, kTextSpacingX, kTextSpacingY);
 
+	// display parameter value
+	yPos = yPos + 16;
+
+	if (knobPosRight != kNoSelection) {
+		char bufferLeft[10];
+		bufferLeft[0] = 'L';
+		bufferLeft[1] = ':';
+		bufferLeft[2] = ' ';
+		intToString(knobPosLeft, &bufferLeft[3]);
+		canvas.drawString(bufferLeft, 0, yPos, kTextSpacingX, kTextSpacingY);
+
+		char bufferRight[10];
+		bufferRight[0] = 'R';
+		bufferRight[1] = ':';
+		bufferRight[2] = ' ';
+		intToString(knobPosRight, &bufferRight[3]);
+		canvas.drawStringAlignRight(bufferRight, yPos, kTextSpacingX, kTextSpacingY);
+	}
+	else {
+		char buffer[5];
+		intToString(knobPosLeft, buffer);
+		canvas.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
+	}
+
 	// display automation status
-	yPos = yPos + 12;
+	yPos = yPos + 13;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -294,30 +318,6 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplayOLED(
 	}
 
 	canvas.drawStringCentred(isAutomated, yPos, kTextSpacingX, kTextSpacingY);
-
-	// display parameter value
-	yPos = yPos + 12;
-
-	if (knobPosRight != kNoSelection) {
-		char bufferLeft[10];
-		bufferLeft[0] = 'L';
-		bufferLeft[1] = ':';
-		bufferLeft[2] = ' ';
-		intToString(knobPosLeft, &bufferLeft[3]);
-		canvas.drawString(bufferLeft, 0, yPos, kTextSpacingX, kTextSpacingY);
-
-		char bufferRight[10];
-		bufferRight[0] = 'R';
-		bufferRight[1] = ':';
-		bufferRight[2] = ' ';
-		intToString(knobPosRight, &bufferRight[3]);
-		canvas.drawStringAlignRight(bufferRight, yPos, kTextSpacingX, kTextSpacingY);
-	}
-	else {
-		char buffer[5];
-		intToString(knobPosLeft, buffer);
-		canvas.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
-	}
 }
 
 void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay7SEG(Clip* clip, OutputType outputType,

@@ -5857,6 +5857,10 @@ void Song::updateBPMFromAutomation() {
 	}
 }
 
+bool Song::hasTempoAutomation() {
+	return paramManager.getUnpatchedParamSet()->params[params::UNPATCHED_TEMPO].isAutomated();
+}
+
 void Song::changeThresholdRecordingMode(int8_t offset) {
 	// have we displayed the current threshold recording mode?
 	// if yes, allow user to edit threshold recording mode

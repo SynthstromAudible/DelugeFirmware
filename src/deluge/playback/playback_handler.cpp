@@ -2309,13 +2309,32 @@ float PlaybackHandler::calculateBPM(float timePerInternalTick) {
 	return currentSong->calculateBPM(timePerInternalTick);
 }
 
-void PlaybackHandler::getTempoStringForOLED(float tempoBPM, StringBuf& buffer) {
+void PlaybackHandler::getTempoStringForOLED(float tempoBPM, StringBuf& buffer, bool automated) {
 	if (tempoBPM >= 9999.5) {
 		buffer.append("FAST");
 	}
 	else {
-		int32_t numDecimalPlaces = (tempoBPM >= 1000 || isExternalClockActive()) ? 0 : 2;
-		buffer.appendFloat(tempoBPM, 0, numDecimalPlaces);
+		int32_t min_decimal_places = 0;
+		int32_t max_decimal_places = 0;
+		if (tempoBPM >= 240.0) {
+			max_decimal_places = 1;
+		}
+		else if (tempoBPM > 40.0) {
+			max_decimal_places = 1;
+		}
+		else if (tempoBPM >= 10.0) {
+			min_decimal_places = 1;
+			max_decimal_places = 1;
+		}
+		else if (tempoBPM >= 0.1) {
+			min_decimal_places = 2;
+			max_decimal_places = 2;
+		}
+		else {
+			min_decimal_places = 3;
+			max_decimal_places = 3;
+		}
+		buffer.appendFloat(tempoBPM, min_decimal_places, max_decimal_places);
 	}
 }
 
@@ -2331,6 +2350,12 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 			getTempoStringForOLED(tempoBPM, text);
 			sessionView.displayTempoBPM(deluge::hid::display::OLED::main, text, true);
 			deluge::hid::display::OLED::markChanged();
+
+			// If in arranger view, also update arrangement time display
+			if (currentUI == &arrangerView) {
+				sessionView.displayArrangementPositionAndLength(deluge::hid::display::OLED::main,
+				                                                ArrangementUpdateSource::TEMPO_CHANGED);
+			}
 		}
 		else {
 			text.append("Tempo: ");

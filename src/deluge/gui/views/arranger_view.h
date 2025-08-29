@@ -34,6 +34,28 @@ class Drum;
 class ModelStack;
 class ModelStackWithNoteRow;
 
+enum class ArrangementUpdateSource {
+	INITIALIZE, // entering or returning to the main view
+	PLAYBACK,
+	ZOOM,
+	SCROLL,
+	SHIFT_CLIPS, // Shifting all clips to the right of view with Shift + turn X_ENC
+	DRAG_CLIP,   // Dragging a clip instance left or right
+	MODIFY_CLIP, // pressing, adding, removing or changing length of clip instances
+	TEMPO_CHANGED
+};
+
+struct ArrangementDisplayResult {
+	String time_string{};
+	String update_source{};
+	bool needs_time_update = false;
+	bool needs_bar_update = false;
+	bool is_playback_update = false;
+	int32_t progress_bar_width{0};
+	int32_t screen_indicator_width{0};
+	int32_t scroll_indicator_position{0};
+};
+
 class ArrangerView final : public TimelineView {
 public:
 	ArrangerView() = default;
@@ -116,13 +138,6 @@ public:
 
 	int32_t lastTickSquare{};
 
-	// Cache for arrangement length calculation and display
-	int32_t last_arrangement_end_position{-1};
-	float last_tempo_BPM{0.0f};
-	float total_seconds{0.0f};
-	String total_time_string = {};
-	String last_arrangement_time_display_string = {};
-
 	int32_t xScrollWhenPlaybackStarted{};
 
 	// ui
@@ -134,9 +149,10 @@ public:
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 
 	// Arrangement length calculation
-	String calculateArrangementPositionAndLength();
+	ArrangementDisplayResult calculateArrangementPositionAndLength(ArrangementUpdateSource update_source,
+	                                                               bool display_time = true);
 	int32_t ticksToSeconds(int32_t ticks, bool rounding = true);
-	String secondsToTimeString(int32_t seconds);
+	String secondsToTimeString(int32_t seconds, bool force_hours_format = false);
 	int32_t getDraggedClipPosition();
 
 private:
@@ -182,7 +198,24 @@ private:
 	void deleteClipInstance(Output* output, ClipInstance* clipInstance);
 	void createNewClipForClipInstance(Output* output, ClipInstance* clipInstance);
 	void recordEditPadPress(Output* output, ClipInstance* clipInstance, int32_t x, int32_t y, int32_t xScroll);
-	int32_t last_position_seconds = 0;
+
+	// Cache for arrangement length calculation and display
+	int32_t cached_progress_bar_width{0};
+	int32_t cached_screen_indicator_width{0}; // How many pixels of progress bar represent one screen width
+	int32_t cached_scroll_indicator_position{-1};
+
+	int32_t cached_current_position = 0;
+	int32_t cached_current_position_seconds = 0;
+	int32_t playback_position = 0;
+	int32_t playback_position_seconds = 0;
+	int32_t cached_playback_position_seconds = 0;
+	int32_t cached_end_position{0};
+	int32_t cached_end_position_seconds = 0;
+	uint32_t cached_bar_update_tick = 0;
+	bool delay_playback_update = false;
+	bool first_press = false;
+	bool jump_to_start = false;
+	bool has_tempo_automation{false};
 };
 
 extern ArrangerView arrangerView;

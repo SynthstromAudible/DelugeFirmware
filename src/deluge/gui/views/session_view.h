@@ -19,6 +19,10 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
+
+// Forward declarations
+enum class ArrangementUpdateSource;
+struct ArrangementDisplayResult;
 #include "hid/button.h"
 #include "model/song/song.h"
 #include "storage/flash_storage.h"
@@ -146,14 +150,22 @@ public:
 
 	// display tempo
 	void displayPotentialTempoChange(UI* ui);
-	void displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM, bool clearArea);
-	void displayArrangementPositionAndLength(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea = true,
-	                                         bool onlyIfChanged = true);
+	void displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM, bool clear_area);
+
+	// display arrangement current/overall time and zoom/scroll/drag/playback indicator graphics
+	void displayArrangementPositionAndLength(deluge::hid::display::oled_canvas::Canvas& canvas,
+	                                         ArrangementUpdateSource update_source, bool clear_area = true);
+	void displayArrangementTime(deluge::hid::display::oled_canvas::Canvas& canvas, const char* time_string,
+	                            bool clear_area = true);
+	void displayArrangementBar(deluge::hid::display::oled_canvas::Canvas& canvas, int32_t bar_width,
+	                           int32_t screen_indicator_width = 0, int32_t scroll_indicator_position = -1,
+	                           bool clear_area = true);
+
 	float lastDisplayedTempo = 0;
 
 	// display root note and scale name
 	void displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
-	                                        StringBuf& rootNoteAndScaleName, bool clearArea);
+	                                        StringBuf& rootNoteAndScaleName, bool clear_area);
 	int16_t lastDisplayedRootNote = 0;
 
 	// convert instrument clip to audio clip

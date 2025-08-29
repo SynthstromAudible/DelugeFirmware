@@ -2104,8 +2104,11 @@ void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude,
 				if (numBars == 1) {
 					noteLengthBuf.append(" bar (per column)");
 				}
-				else {
+				else if (numBars < 1000) {
 					noteLengthBuf.append(" bars (per column)");
+				}
+				else {
+					noteLengthBuf.append(" bars / column");
 				}
 			}
 			else {

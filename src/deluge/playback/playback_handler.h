@@ -226,7 +226,7 @@ public:
 	void commandDisplayTempo(int8_t offset);
 	void commandClearTempoAutomation();
 
-	void getTempoStringForOLED(float tempoBPM, StringBuf& buffer);
+	void getTempoStringForOLED(float tempoBPM, StringBuf& buffer, bool automated = false);
 
 	void tryLoopCommand(GlobalMIDICommand command);
 

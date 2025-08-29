@@ -406,8 +406,13 @@ bool AutomationView::opened() {
 	return true;
 }
 
+// Global flag for render optimization reset
+static bool automation_first_render = true;
+
 void AutomationView::initializeView() {
 	navSysId = getNavSysId();
+	automation_first_render = true;
+	D_PRINTLN("initialize");
 
 	if (!midiCCShortcutsLoaded) {
 		initMIDICCShortcutsForAutomation();
@@ -957,6 +962,8 @@ This function replaces the two functions that were previously called:
 
 DisplayParameterValue
 DisplayParameterName */
+// Debug: Track automation display update frequency
+// static uint32_t automationDisplayUpdateCount = 0;
 
 void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction) {
 	// don't refresh display if we're not current in the automation view UI
@@ -964,6 +971,47 @@ void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bo
 	if (getCurrentUI() != &automationView) {
 		return;
 	}
+	// Cache last displayed values to avoid unnecessary screen updates
+	static int32_t last_knob_pos_left = INT32_MIN;
+	static int32_t last_knob_pos_right = INT32_MIN;
+	static bool last_mod_encoder_action = false;
+	static uint32_t last_actual_render_time = 0;
+
+	// Timing constants for display throttling (in AudioEngine sample units)
+	const uint32_t MIN_UPDATE_INTERVAL = 2000; // ~45ms at 44.1kHz (minimum perceptible update frequency)
+
+	uint32_t current_time = AudioEngine::audioSampleTimer;
+
+	// Check if values have actually changed
+	bool values_changed = (knobPosLeft != last_knob_pos_left || knobPosRight != last_knob_pos_right
+	                       || modEncoderAction != last_mod_encoder_action);
+
+	// Check if enough time has passed since the last update for visual perception
+	uint32_t time_since_last_render = current_time - last_actual_render_time;
+	bool min_time_elapsed = (time_since_last_render >= MIN_UPDATE_INTERVAL);
+
+	// Add debug to see who is calling this function
+	D_PRINTLN("renderDisplay() called - automation_first_render=%s, values_changed=%s, min_time_elapsed=%s",
+	          automation_first_render ? "true" : "false", values_changed ? "true" : "false",
+	          min_time_elapsed ? "true" : "false");
+
+	// Only skip rendering if this is NOT the first render AND no values changed AND not enough time has elapsed
+	if (!automation_first_render && !values_changed && !min_time_elapsed) {
+		return;
+	}
+
+	// Mark that we've done the first render
+	automation_first_render = false;
+
+	// Debug: Log when we actually render after optimization checks
+	// automationDisplayUpdateCount++;
+	// D_PRINTLN("renderDisplay #%d: ACTUALLY RENDERING (passed optimization checks)", automationDisplayUpdateCount);
+
+	// Update cached values
+	last_knob_pos_left = knobPosLeft;
+	last_knob_pos_right = knobPosRight;
+	last_mod_encoder_action = modEncoderAction;
+	last_actual_render_time = current_time;
 
 	Clip* clip = getCurrentClip();
 	Output* output = clip->output;
@@ -1025,9 +1073,9 @@ void AutomationView::renderAutomationOverviewDisplayOLED(deluge::hid::display::o
                                                          Output* output, OutputType outputType) {
 	// align string to vertically to the centre of the display
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 24;
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 26;
 #else
-	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 15;
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 18;
 #endif
 
 	// display Automation Overview
@@ -1762,6 +1810,11 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
                                                  Clip* clip, Output* output, OutputType outputType,
                                                  int32_t effectiveLength, int32_t x, int32_t y, int32_t velocity,
                                                  SquareInfo& squareInfo) {
+
+	// Cancel any display notifications (like scroll position) when grid pad is pressed
+	if (velocity > 0) {
+		display->cancelPopup();
+	}
 
 	if (onArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		return ActionResult::DEALT_WITH;
@@ -2619,6 +2672,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 
 	// update name on display, the LED mod indicators, and refresh the grid
 	lastPadSelectedKnobPos = kNoSelection;
+	automation_first_render = true;
 	if (multiPadPressSelected && padSelectionOn) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;

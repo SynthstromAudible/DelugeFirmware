@@ -598,6 +598,7 @@ changeOutputType:
 							goto doActualSimpleChange;
 						}
 
+						display->cancelPopup();
 						actionLogger.deleteAllLogs();
 
 						currentUIMode = UI_MODE_NONE;
@@ -2040,13 +2041,16 @@ void SessionView::renderViewDisplay() {
 	lastDisplayedTempo = playbackHandler.calculateBPM(playbackHandler.getTimePerInternalTickFloat());
 	playbackHandler.getTempoStringForOLED(lastDisplayedTempo, tempoBPM);
 	displayTempoBPM(canvas, tempoBPM, false);
-	displayArrangementPositionAndLength(canvas, false, false);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-	yPos = OLED_MAIN_TOPMOST_PIXEL + 30;
+	yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 #else
-	yPos = OLED_MAIN_TOPMOST_PIXEL + 17;
+	yPos = OLED_MAIN_TOPMOST_PIXEL + 19;
 #endif
+
+	if (getCurrentUI() == &arrangerView) {
+		displayArrangementPositionAndLength(canvas, ArrangementUpdateSource::INITIALIZE, false);
+	}
 
 	char const* name;
 	if (currentSong->name.isEmpty()) {
@@ -2077,12 +2081,12 @@ void SessionView::renderViewDisplay() {
 }
 
 void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM,
-                                  bool clearArea) {
+                                  bool clear_area) {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 
 	int32_t metronomeIconSpacingX = 7 + 3;
 
-	if (clearArea) {
+	if (clear_area) {
 		// Clear tempo area on the right
 		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * 6) - metronomeIconSpacingX,
 		                      OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
@@ -2096,41 +2100,193 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 }
 
 // Separate function for displaying arrangement time (only called when in arranger view and time or tempo changes)
-void SessionView::displayArrangementPositionAndLength(deluge::hid::display::oled_canvas::Canvas& canvas, bool clearArea,
-                                                      bool onlyIfChanged) {
+void SessionView::displayArrangementPositionAndLength(deluge::hid::display::oled_canvas::Canvas& canvas,
+                                                      ArrangementUpdateSource update_source, bool clear_area) {
 
-	// Get current arrangement time string and decide if we need to update the display
-	String arrangement_position_and_length_string = arrangerView.calculateArrangementPositionAndLength();
+	// Don't display time when in automation view for arranger. It overlaps needed information. But the bar can fit.
+	bool display_time = getRootUI() != &automationView;
 
-	// If the string is empty and we're only supposed to update on changes, don't do anything
-	if (arrangement_position_and_length_string.isEmpty()) {
-		if (onlyIfChanged || arrangerView.last_arrangement_time_display_string.isEmpty()) {
-			return;
+	// Get the display result with all the information and flags.
+	ArrangementDisplayResult result = arrangerView.calculateArrangementPositionAndLength(update_source, display_time);
+
+	if (result.needs_time_update && display_time) {
+		displayArrangementTime(canvas, result.time_string.get(), clear_area);
+	}
+	if (result.needs_bar_update) {
+		displayArrangementBar(canvas, result.progress_bar_width, result.screen_indicator_width,
+		                      result.scroll_indicator_position, clear_area);
+	}
+
+	// Debug messages. Will comment out later.
+	if (result.needs_time_update || result.needs_bar_update) {
+		float update_time = static_cast<float>(AudioEngine::audioSampleTimer) / 44100.0f;
+
+		String update_type_code;
+		if (result.is_playback_update) {
+			update_type_code.concatenate("P");
 		}
-		arrangement_position_and_length_string = arrangerView.last_arrangement_time_display_string;
+		if (result.needs_bar_update) {
+			update_type_code.concatenate("B");
+		}
+		if (result.needs_time_update) {
+			update_type_code.concatenate("T");
+		}
+
+		D_PRINTLN("%s-%s-t:%.3f, bar width:%d, scroll pos:%d, screen width:%d, %s", result.update_source.get(),
+		          update_type_code.get(), update_time, result.progress_bar_width, result.scroll_indicator_position,
+		          result.screen_indicator_width, result.time_string.get());
+	}
+}
+
+// Split display function - handles only time string updates
+void SessionView::displayArrangementTime(deluge::hid::display::oled_canvas::Canvas& canvas, const char* time_string,
+                                         bool clear_area) {
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3; // position and total length time string
+
+	if (clear_area) {
+		// Clear time area on the left
+		// Always clear enough space for the longest reasonable length format
+		// (MMM:SS/MMM:SS* = 14 characters, with a possible asterisk indicating tempo automation)
+		canvas.clearAreaExact(0, OLED_MAIN_TOPMOST_PIXEL, kTextSpacingX * 14 + 2, yPos + kTextSpacingY);
 	}
 
-	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
-	if (clearArea) {
-		// Clear arrangement time area on the left
-		// Always clear enough space for the longest reasonable length format (MMM:SS/MMM:SS = 13 characters)
-		canvas.clearAreaExact(0, OLED_MAIN_TOPMOST_PIXEL, kTextSpacingX * 13 + 2, yPos + kTextSpacingY);
+	// Display the time string
+	canvas.drawString(time_string, 0, yPos, kTextSpacingX, kTextSpacingY);
+}
+
+// Split display function - handles only progress bar and indicators
+void SessionView::displayArrangementBar(deluge::hid::display::oled_canvas::Canvas& canvas, int32_t bar_width,
+                                        int32_t screen_indicator_width, int32_t scroll_indicator_position,
+                                        bool clear_area) {
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 14; // position within the whole, represented by a horizontal bar
+	uint32_t update_time = AudioEngine::audioSampleTimer / 1000;
+	// D_PRINTLN("bar width:%d, scroll pos:%d, screen width:%d, t:%d", bar_width, scroll_indicator_position,
+	// screen_indicator_width, update_time);
+
+	if (clear_area) {
+		// Clear horizontal strip for progress bar lines
+		for (int32_t x = bar_width; x < OLED_MAIN_WIDTH_PIXELS; ++x) {
+			canvas.clearPixel(x, yPos);
+			canvas.clearPixel(x, yPos + 1);
+		}
 	}
 
-	// Display arrangement time at top-left
-	canvas.drawString(arrangement_position_and_length_string.get(), 0, yPos, kTextSpacingX, kTextSpacingY);
+	// draw quarter markers and end marker
+	int32_t half_width = OLED_MAIN_WIDTH_PIXELS >> 1;
+	int32_t quarter_width = half_width >> 1;
+	int32_t three_quarters_width = half_width + quarter_width;
+	canvas.drawPixel(OLED_MAIN_WIDTH_PIXELS - 1, yPos);
+	canvas.drawPixel(OLED_MAIN_WIDTH_PIXELS - 1, yPos + 1);
+	if (bar_width < three_quarters_width) {
+		canvas.drawPixel(three_quarters_width, yPos);
+		canvas.drawPixel(three_quarters_width, yPos + 1);
+	}
+	if (bar_width < half_width) {
+		canvas.drawPixel(half_width, yPos);
+		canvas.drawPixel(half_width, yPos + 1);
+	}
+	if (bar_width < quarter_width) {
+		canvas.drawPixel(quarter_width, yPos);
+		canvas.drawPixel(quarter_width, yPos + 1);
+	}
+
+	// draw progress bar (at 0 width it shows 1 pixel to act as the starting marker)
+	canvas.drawHorizontalLine(yPos, 0, bar_width);
+	canvas.drawHorizontalLine(yPos + 1, 0, bar_width);
+	int32_t bottom_line_indicator_end = bar_width;
+	if (screen_indicator_width > 0) {
+		bottom_line_indicator_end = bar_width + screen_indicator_width;
+		bottom_line_indicator_end = std::min((int)bottom_line_indicator_end, OLED_MAIN_WIDTH_PIXELS - 1);
+		// Draw a dashed indicator line extending from the end of the bar to represent the screen width extent
+		int32_t count = 0;
+		// canvas.drawPixel(bottom_line_indicator_end, yPos); // to make the end point more visible?
+		for (int32_t x = bottom_line_indicator_end; x > bar_width; x--) {
+			count++;
+			if (count % 2 == 1) {
+				canvas.drawPixel(x, yPos + 1);
+			}
+		}
+	}
+	if (scroll_indicator_position >= 0) {
+		int32_t top_line_indicator_end;
+		bool separated = false; // whether it is locked to the bar position or can split off
+		if (scroll_indicator_position == bar_width) {
+			top_line_indicator_end = bottom_line_indicator_end;
+		}
+		else {
+			separated = true;
+			top_line_indicator_end = scroll_indicator_position + std::max(2, (int)screen_indicator_width);
+		}
+		bool draw_bottom =
+		    (separated
+		     && (scroll_indicator_position > bottom_line_indicator_end || top_line_indicator_end < bar_width));
+
+		top_line_indicator_end = std::min((int)top_line_indicator_end, OLED_MAIN_WIDTH_PIXELS - 1);
+		// D_PRINTLN("draw scroll indicator from %d to %d", scroll_indicator_position, top_line_indicator_end);
+		// Draw a dashed indicator line to represent the view window position
+		// for cases like when playback happening in arranger and the regular bar is occupied
+		int32_t count = 0;
+		for (int32_t x = top_line_indicator_end; x >= scroll_indicator_position; x--) {
+			bool negative = (x < bar_width);
+			if (count == 0 || x == scroll_indicator_position) {
+				if (negative) {
+					canvas.clearPixel(x, yPos);
+					if (draw_bottom) {
+						canvas.clearPixel(x, yPos + 1);
+					}
+				}
+				else if (separated || screen_indicator_width > 3) {
+					canvas.drawPixel(x, yPos);
+					if (draw_bottom) {
+						canvas.drawPixel(x, yPos + 1);
+					}
+				}
+			}
+			if (count % 2 == 1) {
+				if (negative) {
+					canvas.clearPixel(x, yPos);
+				}
+				else {
+					canvas.drawPixel(x, yPos);
+				}
+			}
+			else if (draw_bottom) {
+				if (negative) {
+					canvas.clearPixel(x, yPos + 1);
+				}
+				else {
+					canvas.drawPixel(x, yPos + 1);
+				}
+			}
+			count++;
+		}
+	}
+
+	// inverted indicators
+	if (bar_width > three_quarters_width) {
+		canvas.clearPixel(three_quarters_width, yPos);
+		canvas.clearPixel(three_quarters_width, yPos + 1);
+	}
+	if (bar_width > half_width) {
+		canvas.clearPixel(half_width, yPos);
+		canvas.clearPixel(half_width, yPos + 1);
+	}
+	if (bar_width > quarter_width) {
+		canvas.clearPixel(quarter_width, yPos);
+		canvas.clearPixel(quarter_width, yPos + 1);
+	}
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
-                                                     StringBuf& rootNoteAndScaleName, bool clearArea) {
+                                                     StringBuf& rootNoteAndScaleName, bool clear_area) {
 
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 
-	if (clearArea) {
+	if (clear_area) {
 		canvas.clearAreaExact(0, yPos, OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
 	}
 
-	canvas.drawString(rootNoteAndScaleName.c_str(), 0, yPos, kTextSpacingX, kTextSpacingY);
+	canvas.drawStringCentred(rootNoteAndScaleName.c_str(), yPos, kTextSpacingX, kTextSpacingY);
 }
 
 // This gets called by redrawNumericDisplay() - or, if OLED, it gets called instead, because this still needs to
@@ -2388,7 +2544,7 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 		// always catch manual adjustments, limit rate of others
 		if (diff > 0.5) {
 			DEF_STACK_STRING_BUF(tempoBPM, 10);
-			playbackHandler.getTempoStringForOLED(tempo, tempoBPM);
+			playbackHandler.getTempoStringForOLED(tempo, tempoBPM, true);
 			displayTempoBPM(deluge::hid::display::OLED::main, tempoBPM, true);
 			deluge::hid::display::OLED::markChanged();
 			lastDisplayedTempo = tempo;

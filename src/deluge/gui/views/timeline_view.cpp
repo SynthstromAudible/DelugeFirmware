@@ -23,6 +23,7 @@
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "lib/printf.h"
@@ -122,7 +123,8 @@ void TimelineView::displayZoomLevel(bool justPopup) {
 	DEF_STACK_STRING_BUF(text, 30);
 	currentSong->getNoteLengthName(text, currentSong->xZoom[getNavSysId()], "-notes", true);
 
-	display->displayPopup(text.data(), justPopup ? 3 : 0, true);
+	// display->displayPopup(text.data(), justPopup ? 3 : 0, true);
+	static_cast<deluge::hid::display::OLED*>(display)->displayNotification(text.data(), std::nullopt, true);
 }
 
 bool horizontalEncoderActionLock = false;
@@ -257,7 +259,7 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 	if (display->haveOLED()) {
 		char buffer[15];
 		sprintf(buffer, "%d : %d : %d", whichBar, whichBeat, whichSubBeat);
-		display->popupTextTemporary(buffer);
+		static_cast<deluge::hid::display::OLED*>(display)->displayNotification(buffer, std::nullopt, true);
 	}
 	else {
 		char text[5];
