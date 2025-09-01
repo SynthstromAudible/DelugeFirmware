@@ -1090,9 +1090,6 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	static uint32_t last_actual_display_time = 0; // Used for frequency throttling
 
 	// Timing constants for display arbitration (in AudioEngine sample units)
-	const uint32_t MIN_DISPLAY_OWNERSHIP_TIME = 44100; // 1000ms at 44.1kHz (minimum juggling time)
-	const uint32_t DISPLAY_TIMEOUT = 11025;            // 250ms at 44.1kHz (ball drop timeout)
-	const uint32_t MIN_UPDATE_INTERVAL = 2000;         // ~45ms at 44.1kHz (minimum perceptible update frequency)
 
 	uint32_t current_time = AudioEngine::audioSampleTimer;
 
@@ -2085,9 +2082,9 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 oledDrawString:
 			deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 30;
 #else
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 19;
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 17;
 #endif
 
 			int32_t stringLengthPixels = canvas.getStringWidthInPixels(nameToDraw, kTextTitleSizeY);
@@ -2114,7 +2111,7 @@ oledDrawString:
 					info.append(": ");
 					info.append(clip->name.get());
 				}
-				yPos = yPos + 13;
+				yPos = yPos + 14;
 				canvas.drawStringCentred(info.data(), yPos, kTextSpacingX, kTextSpacingY);
 				deluge::hid::display::OLED::setupSideScroller(1, info.data(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
 				                                              yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY,
