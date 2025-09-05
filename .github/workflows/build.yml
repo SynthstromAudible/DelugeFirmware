@@ -48,12 +48,12 @@ jobs:
     steps:
       - name: Checkout branch
         if: inputs.branch != null
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ inputs.branch }}
       - name: Checkout branch
         if: inputs.branch == null
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Validate Build Type
         run: buildtype=${{inputs.build-type }} node .github/scripts/validate_build_string.js
       - name: Fetch container image
