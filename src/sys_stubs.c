@@ -1,15 +1,22 @@
 #include "definitions.h"
+#include <errno.h>
+#include <stddef.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
-// this is not included in the build but remains as a repo of information for implementing these in the future,
-// and to help troubleshoot link failures in the future - e.g. if _sbrk is required, it can be added to
-// finish compilation and find out what's including it
+// System call stubs required for newlib (C library for embedded ARM targets)
+// These provide minimal implementations of syscalls that the hardware doesn't provide by default
+void* _sbrk(ptrdiff_t incr) {
+	extern char _end; // Defined by the linker
+	static char* heap_end;
+	char* prev_heap_end;
 
-// this stub fails to allocate - needed for libc malloc
-// Take advantage of that to ensure anything which allocates will fail to link
-void* _sbrk(int incr) {
-	FREEZE_WITH_ERROR("SBRK");
-	return (void*)-1;
+	if (heap_end == 0) {
+		heap_end = &_end;
+	}
+	prev_heap_end = heap_end;
+	heap_end += incr;
+	return (void*)prev_heap_end;
 }
 
 // needed for libc abort, raise, return from main
