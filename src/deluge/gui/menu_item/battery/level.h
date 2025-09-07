@@ -20,8 +20,8 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/display/seven_segment.h"
+#include "model/settings/runtime_feature_settings.h"
 #include <cstdio>
-
 // External battery voltage variable from deluge.cpp
 extern uint16_t batteryMV;
 
@@ -30,6 +30,9 @@ class Level final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShowBatteryLevel);
+	}
 	void drawPixelsForOled() override {
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 		char buffer[50];
