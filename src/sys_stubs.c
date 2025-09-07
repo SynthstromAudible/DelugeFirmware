@@ -55,9 +55,10 @@ int _isatty(int file) {
 int _lseek(int file, int ptr, int dir) {
 	return 0;
 }
-// write nothing - note these will loop infinitely with newlib
+// Minimal _write implementation - discard output but return length
 int _write(int file, char* ptr, int len) {
-	return 0;
+	// If you want to send output to UART, do it here.
+	return len;
 }
 // read nothing
 int _read(int file, char* ptr, int len) {
