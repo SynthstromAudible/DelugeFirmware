@@ -489,6 +489,16 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - (#3794) <Badge text="c1.3" variant="tip" /> Added toggle in `SETTINGS > DEFAULTS > UI > USE SHARPS(#) (SHRP)` to allow users to choose which accidentals to display. When enabled in OLED mode, notes will be displayed as A# or D#, as they did prior to this change. When disabled, notes will be displayed as B♭ or E♭. In 7SEG mode, a dot is used to indicade when the note has the configured accidental. If selected, `D.` will mean D#. If not selected, `D.` will mean D♭.
 
+
+### 3.37 - Battery Level Display in System Menu
+
+- (#XXXX) <Badge text="c1.3" variant="tip" /> Added battery level display in the System menu
+  - Displays the current battery voltage in millivolts and percentage
+  - On OLED displays: Shows "Battery Level: X.XXV (XX%)"
+  - On 7-segment displays: Shows voltage in format "X.XX" (volts)
+  - The battery level menu item can be toggled on/off via the Community Features menu
+  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1361,6 +1371,8 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
 - `Trim from start of audio clips (TRIM)` <Badge text="c1.3" variant="tip" />
   - When On, the ability to trim from the start of an audio clip without needing to reverse it is enabled.
 
+- `Show Battery Level (BATT)` <Badge text="c1.3" variant="tip" />
+  - When On, displays battery level information in the System menu. Shows voltage and percentage on OLED displays, voltage only on 7-segment displays.
 ## 6. Sysex Handling
 
 Support for sending and receiving large sysex messages has been added. Initially, this has been used for development
