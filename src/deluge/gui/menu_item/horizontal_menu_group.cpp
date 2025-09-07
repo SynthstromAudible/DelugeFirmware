@@ -40,13 +40,6 @@ void HorizontalMenuGroup::beginSession(MenuItem* navigatedBackwardFrom) {
 	HorizontalMenu::beginSession(navigatedBackwardFrom);
 	navigated_backward_from = navigatedBackwardFrom;
 	lastSelectedItemPosition = kNoSelection;
-
-	// A horizontal menu can modify soundEditor parameters at the beginning of a session,
-	// which in their turn can affect whether an item is relevant or not.
-	// So we need to begin a session for each menu beforehand to ensure pages are counted correctly
-	for (const auto menu : menus_) {
-		menu->beginSession(navigatedBackwardFrom);
-	}
 }
 
 bool HorizontalMenuGroup::focusChild(const MenuItem* child) {
@@ -73,8 +66,9 @@ bool HorizontalMenuGroup::focusChild(const MenuItem* child) {
 		}
 
 		// Child is not relevant — find first relevant among all items
-		current_item_ = std::ranges::find_if(items, isItemRelevant);
-		if (current_item_ != items.end()) {
+		it = std::ranges::find_if(items, isItemRelevant);
+		if (it != items.end()) {
+			current_item_ = it;
 			return true;
 		}
 	}
@@ -170,12 +164,6 @@ void HorizontalMenuGroup::switchVisiblePage(int32_t direction) {
 	// Move to the next / previous menu
 	menuIndex += direction;
 
-	// If we're outside the current menu group, switch to the next / previous menu from the chain
-	const auto chain = soundEditor.getCurrentHorizontalMenusChain();
-	if (chain.has_value() && (menuIndex < 0 || menuIndex > static_cast<int32_t>(menus_.size()) - 1)) {
-		return switchHorizontalMenu(std::clamp<int32_t>(direction, -1, 1), chain.value());
-	}
-
 	// Wrap around
 	const int32_t count = static_cast<int32_t>(menus_.size());
 	menuIndex = (menuIndex % count + count) % count;
@@ -184,7 +172,7 @@ void HorizontalMenuGroup::switchVisiblePage(int32_t direction) {
 	const auto pagesCount = newMenu->preparePaging(newMenu->items, nullptr).totalPages;
 	if (pagesCount == 0) {
 		// No relevant items on the switched menu, go to the next menu
-		return switchVisiblePage(direction >= 0 ? direction + 1 : direction - 1);
+		return switchVisiblePage(direction >= 0 ? ++direction : --direction);
 	}
 
 	// Select an item with the same position as on the previously selected page if possible
