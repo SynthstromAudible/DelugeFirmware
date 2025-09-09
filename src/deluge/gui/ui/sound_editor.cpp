@@ -56,6 +56,12 @@ using namespace deluge;
 using namespace deluge::gui;
 using namespace deluge::gui::menu_item;
 
+extern std::array<HorizontalMenu*, 17> horizontalMenusChainForSound;
+extern std::array<HorizontalMenu*, 12> horizontalMenusChainForKit;
+extern std::array<HorizontalMenu*, 9> horizontalMenusChainForSong;
+extern std::array<HorizontalMenu*, 11> horizontalMenusChainForAudioClip;
+extern std::array<HorizontalMenu*, 2> horizontalMenusChainForMidiOrCv;
+
 #define comingSoonMenu (MenuItem*)0xFFFFFFFF
 
 // 255 means none. 254 means soon
