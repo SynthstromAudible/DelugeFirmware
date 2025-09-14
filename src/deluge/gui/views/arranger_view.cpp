@@ -2985,8 +2985,7 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 
 		currentSong->arrangementYScroll += direction;
 
-		// If an Output is selected, drag it against the scroll
-
+		// Drag selected output against the scroll
 		// Shift Output up
 		if (direction >= 0) {
 			Output** prevPointer = &currentSong->firstOutput;
@@ -3010,6 +3009,9 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 			lower->next = output->next;
 			output->next = lower;
 		}
+	}
+	else {
+		currentSong->arrangementYScroll += direction;
 	}
 
 	repopulateOutputsOnScreen();
