@@ -18,10 +18,11 @@
 #pragma once
 
 #include "model/sample/sample_holder.h"
+#include "model/tuning/tuning.h"
 
 class SampleHolderForClip final : public SampleHolder {
 public:
-	SampleHolderForClip();
+	SampleHolderForClip(uint8_t& clipSelectedTuning);
 	~SampleHolderForClip() override;
 
 	void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false,
@@ -34,4 +35,7 @@ public:
 
 protected:
 	void sampleBeenSet(bool reversed, bool manuallySelected) override;
+
+	uint8_t& selectedTuning;
+	inline Tuning& getTuning();
 };

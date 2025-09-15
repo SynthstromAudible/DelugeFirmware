@@ -4248,7 +4248,7 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 	ArpeggiatorSettings* arpSettings = getArpSettings(clip);
 
 	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
-		maxRawOscTranspose += (arpSettings->numOctaves - 1) * 12;
+		maxRawOscTranspose += (arpSettings->numOctaves - 1) * kOctaveSize;
 	}
 
 	return maxRawOscTranspose + transpose;

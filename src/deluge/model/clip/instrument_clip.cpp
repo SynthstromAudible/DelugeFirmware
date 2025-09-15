@@ -83,9 +83,9 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRow
 	onKeyboardScreen = false;
 
 	if (song) {
-		int32_t yNote = ((uint16_t)(song->key.rootNote + 120) % 12) + 60;
+		int32_t yNote = song->getRootNoteWithinOctave().noteWithin + 60;
 		if (yNote > 66) {
-			yNote -= 12;
+			yNote -= kOctaveSize;
 		}
 		yScroll = getYVisualFromYNote(yNote,
 		                              song); // This takes into account the rootNote, which could be anything. Must be
@@ -123,6 +123,7 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	midiBank = otherInstrumentClip->midiBank;
 	midiSub = otherInstrumentClip->midiSub;
 	midiPGM = otherInstrumentClip->midiPGM;
+	selectedTuning = otherInstrumentClip->selectedTuning;
 
 	onKeyboardScreen = otherInstrumentClip->onKeyboardScreen;
 	inScaleMode = otherInstrumentClip->inScaleMode;
@@ -1111,7 +1112,7 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 
 					if (consMemory) {
 						ConsequenceScaleAddNote* newConsequence =
-						    new (consMemory) ConsequenceScaleAddNote((yNote + 120) % 12);
+						    new (consMemory) ConsequenceScaleAddNote(getTuning().noteWithinOctave(yNote).noteWithin);
 						action->addConsequence(newConsequence);
 					}
 
@@ -1279,7 +1280,7 @@ void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) 
 	for (int32_t i = 0; i < noteRows.getNumElements();) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
-		if ((thisNoteRow->y + 120) % 12 == yNoteWithinOctave) {
+		if (getTuning().noteWithinOctave(thisNoteRow->y).noteWithin == yNoteWithinOctave) {
 			noteRows.deleteNoteRowAtIndex(i);
 		}
 		else {
@@ -1288,6 +1289,7 @@ void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) 
 	}
 }
 
+// Only call this if using 12-tone system.
 void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOctavePresent, MusicalKey key) {
 	for (int32_t i = 0; i < noteRows.getNumElements();) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
@@ -1342,7 +1344,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 			change *= modelStack->song->key.modeNotes.count();
 		}
 		else {
-			change *= 12;
+			change *= kOctaveSize;
 		}
 	}
 
@@ -1362,7 +1364,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 
 		// wanting to change a full octave
 		if (std::abs(change) == modelStack->song->key.modeNotes.count()) {
-			int32_t changeInSemitones = (change > 0) ? 12 : -12;
+			int32_t changeInSemitones = (change > 0) ? kOctaveSize : -kOctaveSize;
 			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 				NoteRow* thisNoteRow = noteRows.getElement(i);
 				// transpose by semitones or by octave
@@ -1398,13 +1400,13 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 					if (change > 0) {
 						// go up an octave
 						changeInSemitones = modelStack->song->key.modeNotes[newModeNoteIndex]
-						                    - modelStack->song->key.modeNotes[oldModeNoteIndex] + 12;
+						                    - modelStack->song->key.modeNotes[oldModeNoteIndex] + kOctaveSize;
 						s = 2;
 					}
 					else {
 						// go down an octave
 						changeInSemitones = modelStack->song->key.modeNotes[newModeNoteIndex]
-						                    - modelStack->song->key.modeNotes[oldModeNoteIndex] - 12;
+						                    - modelStack->song->key.modeNotes[oldModeNoteIndex] - kOctaveSize;
 						s = 3;
 					}
 				}
@@ -1498,6 +1500,10 @@ int32_t InstrumentClip::getYNoteFromYVisual(int32_t yVisual, Song* song) {
 }
 
 int32_t InstrumentClip::guessRootNote(Song* song, int32_t previousRoot) {
+
+	if (kOctaveSize != 12) // const until we allow changing the octave size
+		return previousRoot;
+
 	NoteSet notesPresent;
 
 	// It's important this comes before noteRows.getNumElements(), since fetching
@@ -1509,56 +1515,50 @@ int32_t InstrumentClip::guessRootNote(Song* song, int32_t previousRoot) {
 		return previousRoot;
 	}
 
-	previousRoot = previousRoot % 12;
-	if (previousRoot < 0) {
-		previousRoot += 12;
-	}
-
-	int32_t lowestNote = noteRows.getElement(0)->getNoteCode() % 12;
-	if (lowestNote < 0) {
-		lowestNote += 12;
-	}
+	Tuning& tuning = getTuning();
+	auto previousRootNoteWithin = tuning.noteWithinOctave(previousRoot).noteWithin;
+	auto lowestNoteWithin = tuning.noteWithinOctave(noteRows.getElement(0)->getNoteCode()).noteWithin;
 
 	uint8_t lowestIncompatibility = 255;
 	uint8_t mostViableRoot = 0;
 
 	// Go through each possible root note
-	for (int32_t root = 0; root < 12; root++) {
+	for (int32_t root = 0; root < kOctaveSize; root++) {
 		uint8_t incompatibility = 255;
 
 		if (notesPresent.has(root)) { // || root == previousRoot) {
 			// Assess viability of this being the root note
 			uint8_t majorIncompatibility = 0;
-			if (notesPresent.has((root + 1) % 12)) {
+			if (notesPresent.has((root + 1) % kOctaveSize)) {
 				majorIncompatibility++;
 			}
-			if (notesPresent.has((root + 3) % 12)) {
+			if (notesPresent.has((root + 3) % kOctaveSize)) {
 				majorIncompatibility += 2;
 			}
-			if (notesPresent.has((root + 6) % 12)) {
+			if (notesPresent.has((root + 6) % kOctaveSize)) {
 				majorIncompatibility++;
 			}
-			if (notesPresent.has((root + 8) % 12)) {
+			if (notesPresent.has((root + 8) % kOctaveSize)) {
 				majorIncompatibility++;
 			}
-			if (notesPresent.has((root + 10) % 12)) {
+			if (notesPresent.has((root + 10) % kOctaveSize)) {
 				majorIncompatibility++;
 			}
 
 			uint8_t minorIncompatibility = 0;
-			if (notesPresent.has((root + 1) % 12)) {
+			if (notesPresent.has((root + 1) % kOctaveSize)) {
 				minorIncompatibility++;
 			}
-			if (notesPresent.has((root + 4) % 12)) {
+			if (notesPresent.has((root + 4) % kOctaveSize)) {
 				minorIncompatibility += 2;
 			}
-			if (notesPresent.has((root + 6) % 12)) {
+			if (notesPresent.has((root + 6) % kOctaveSize)) {
 				minorIncompatibility++;
 			}
-			if (notesPresent.has((root + 9) % 12)) {
+			if (notesPresent.has((root + 9) % kOctaveSize)) {
 				minorIncompatibility++;
 			}
-			if (notesPresent.has((root + 11) % 12)) {
+			if (notesPresent.has((root + 11) % kOctaveSize)) {
 				minorIncompatibility++;
 			}
 
@@ -1567,7 +1567,8 @@ int32_t InstrumentClip::guessRootNote(Song* song, int32_t previousRoot) {
 
 		if (incompatibility < lowestIncompatibility
 		    || (incompatibility == lowestIncompatibility
-		        && (root == lowestNote || root == previousRoot // Favour the previous root and the lowest note
+		        && (root == lowestNoteWithin
+		            || root == previousRootNoteWithin // Favour the previous root and the lowest note
 		            ))) {
 			lowestIncompatibility = incompatibility;
 			mostViableRoot = root;
@@ -3177,7 +3178,8 @@ noteRowFailed: {}
 		chosenNoteRow = noteRows.getElement(0);
 		chosenNoteRowIndex = 0;
 useRootNote:
-		chosenNoteRow->y = (song->key.rootNote % 12) + 60; // Just do this even if we're not in key-mode
+		chosenNoteRow->y =
+		    song->getRootNoteWithinOctave().noteWithin + 60; // Just do this even if we're not in key-mode
 	}
 
 	// Now, give all the other NoteRows yNotes
@@ -3513,6 +3515,18 @@ void InstrumentClip::sendMIDIPGM() {
 	}
 	if (midiPGM != 128) {
 		midiEngine.sendPGMChange(midiInstrument, masterChannel, midiPGM, outputFilter);
+	}
+}
+
+void InstrumentClip::sendMIDITuning() {
+	MIDIInstrument* midiInstrument = (MIDIInstrument*)output;
+
+	int32_t outputFilter = midiInstrument->getChannel();
+	int32_t masterChannel = midiInstrument->getOutputMasterChannel();
+
+	if (selectedTuning != 128) {
+		// change tuning preset with RPN 3
+		midiEngine.sendRPN(midiInstrument, masterChannel, 3, selectedTuning, outputFilter);
 	}
 }
 

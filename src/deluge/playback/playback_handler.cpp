@@ -1367,6 +1367,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	loadSongUI.deletedPartsOfOldSong = false;
 
 	currentSong->sendAllMIDIPGMs();
+	currentSong->sendAllMIDITunings();
 	AudioEngine::getReverbParamsFromSong(currentSong);
 
 	// Some more "if we're playing" stuff - this needs to happen after currentSong is swapped over, because

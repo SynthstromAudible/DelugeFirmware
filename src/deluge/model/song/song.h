@@ -32,6 +32,7 @@
 #include "model/scale/scale_mapper.h"
 #include "model/sync.h"
 #include "model/timeline_counter.h"
+#include "model/tuning/tuning.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "storage/flash_storage.h"
@@ -148,8 +149,13 @@ public:
 	/// Sets root note of key. If the previous scale no longer fits, changes to a new implied scale, which
 	/// can result in a new user scale being set.
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = nullptr);
+	/// Get root note of key as a NoteWithinOctave object.
+	NoteWithinOctave getRootNoteWithinOctave();
 	/// Returns a NoteSet with all notes currently in used in scale mdoe clips.
 	NoteSet notesInScaleModeClips();
+
+	uint8_t selectedTuning;
+	inline Tuning& getTuning();
 
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();
@@ -320,6 +326,7 @@ public:
 	void assertActiveness(ModelStackWithTimelineCounter* modelStack, int32_t endInstanceAtTime = -1);
 	[[nodiscard]] bool isClipActive(Clip const* clip) const;
 	void sendAllMIDIPGMs();
+	void sendAllMIDITunings();
 	void sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, int32_t playbackWillStartInArrangerAtPos);
 	void deactivateAnyArrangementOnlyClips();
 	Clip* getLongestClip(bool includePlayDisabled, bool includeArrangementOnly);

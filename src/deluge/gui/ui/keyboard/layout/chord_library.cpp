@@ -25,6 +25,7 @@
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/tuning/tuning.h"
 #include "util/functions.h"
 #include <stdlib.h>
 
@@ -129,7 +130,7 @@ void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBar
 	// Iterate over grid image
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		int32_t noteCode = noteFromCoords(x);
-		uint16_t noteWithinOctave = (uint16_t)((noteCode + kOctaveSize) - getRootNote()) % kOctaveSize;
+		auto noteWithin = getTuning().noteWithinOctave((noteCode + kOctaveSize) - getRootNote()).noteWithin;
 
 		for (int32_t y = 0; y < kDisplayHeight; ++y) {
 			int32_t chordNo = getChordNo(y);
@@ -137,7 +138,7 @@ void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBar
 
 			if (inScaleMode) {
 				NoteSet intervalSet = state.chordList.chords[chordNo].intervalSet;
-				NoteSet modulatedNoteSet = intervalSet.modulateByOffset(noteWithinOctave);
+				NoteSet modulatedNoteSet = intervalSet.modulateByOffset(noteWithin);
 
 				if (modulatedNoteSet.isSubsetOf(octaveScaleNotes)) {
 					image[y][x] = noteColours[x % noteColours.size()];
@@ -152,7 +153,7 @@ void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBar
 					image[y][x] = pageColours[pageNo % pageColours.size()].dim(1);
 				}
 				// If not in scale mode, highlight the root note
-				else if (noteWithinOctave == 0) {
+				else if (noteWithin == 0) {
 					image[y][x] = noteColours[x % noteColours.size()];
 				}
 				else {

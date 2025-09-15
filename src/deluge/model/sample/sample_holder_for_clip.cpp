@@ -19,7 +19,7 @@
 #include "model/sample/sample.h"
 #include "util/lookuptables/lookuptables.h"
 
-SampleHolderForClip::SampleHolderForClip() {
+SampleHolderForClip::SampleHolderForClip(uint8_t& clipSelectedTuning) : selectedTuning(clipSelectedTuning) {
 	transpose = 0;
 	cents = 0;
 }
@@ -35,14 +35,21 @@ void SampleHolderForClip::setAudioFile(AudioFile* newAudioFile, bool reversed, b
 	recalculateNeutralPhaseIncrement();
 }
 
+inline Tuning& SampleHolderForClip::getTuning() {
+	if (selectedTuning >= NUM_TUNINGS) {
+		return *TuningSystem::tuning;
+	}
+	return TuningSystem::tunings[selectedTuning];
+}
+
 void SampleHolderForClip::recalculateNeutralPhaseIncrement() {
 
+	Tuning& tuning = getTuning();
 	if (audioFile) {
 
-		int32_t noteWithinOctave = (uint16_t)(transpose + 240) % 12;
-		int32_t octave = ((uint16_t)(transpose + 120) / 12) - 10;
+		auto nwo = tuning.noteWithinOctave(transpose);
 
-		neutralPhaseIncrement = noteIntervalTable[noteWithinOctave] >> (6 - octave);
+		neutralPhaseIncrement = getTuning().noteInterval(nwo.noteWithin) >> (6 - (nwo.octave - 10)); // not sure if -10
 
 		if (((Sample*)audioFile)->sampleRate != kSampleRate) {
 			neutralPhaseIncrement = (uint64_t)neutralPhaseIncrement * ((Sample*)audioFile)->sampleRate / kSampleRate;

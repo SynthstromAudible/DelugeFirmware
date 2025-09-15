@@ -21,13 +21,13 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 	if (on) {
 		if (!currentSong->hasBeenTransposed) {
 			/* First transpose event in a new song snaps to nearest octave */
-			currentSong->transposeOffset = (currentSong->key.rootNote - newNoteOrCC) / 12;
+			currentSong->transposeOffset = (currentSong->key.rootNote - newNoteOrCC) / kOctaveSize;
 			if (currentSong->key.rootNote < newNoteOrCC) {
-				if (abs((currentSong->key.rootNote - newNoteOrCC) % 12) > 6) {
+				if (abs((currentSong->key.rootNote - newNoteOrCC) % kOctaveSize) > 6) {
 					currentSong->transposeOffset -= 1;
 				}
 			}
-			currentSong->transposeOffset *= 12;
+			currentSong->transposeOffset *= kOctaveSize;
 			currentSong->hasBeenTransposed = true;
 		}
 
@@ -40,10 +40,10 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 			if (degree >= 0) {
 				int8_t octaves;
 				if (semitones < 0) {
-					octaves = ((semitones + 1) / 12) - 1;
+					octaves = ((semitones + 1) / kOctaveSize) - 1;
 				}
 				else {
-					octaves = (semitones / 12);
+					octaves = (semitones / kOctaveSize);
 				}
 				int32_t steps = octaves * currentSong->key.modeNotes.count() + degree;
 

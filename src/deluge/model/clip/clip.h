@@ -22,7 +22,6 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/waveform/waveform_render_data.h"
 #include "io/midi/learned_midi.h"
-#include "model/clip/clip.h"
 #include "model/sample/sample_controls.h"
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
@@ -159,6 +158,7 @@ public:
 	TimelineCounter* getTimelineCounterToRecordTo() override;
 	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack) override;
 	void expectEvent() override;
+	Tuning& getTuning();
 
 	Output* output;
 
@@ -185,6 +185,8 @@ public:
 	bool currentlyPlayingReversed;
 	SequenceDirection sequenceDirectionMode;
 #endif
+
+	uint8_t selectedTuning; // 128 means none
 
 	int32_t loopLength;
 
