@@ -79,7 +79,6 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 			    modelStack->addOtherTwoThingsButNoNoteRow(instrument, &getCurrentInstrumentClip()->paramManager);
 
 			int32_t newCC;
-
 			if (!Buttons::isButtonPressed(deluge::hid::button::SELECT_ENC)) {
 				newCC = instrument->changeControlNumberForModKnob(offset, editingMIDICCForWhichModKnob,
 				                                                  instrument->modKnobMode);
@@ -96,7 +95,6 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 			}
 
 			bool automationExists = instrument->doesAutomationExistOnMIDIParam(modelStackWithThreeMainThings, newCC);
-
 			drawMIDIControlNumber(newCC, automationExists);
 		}
 	}
@@ -147,10 +145,10 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 	}
 	else {
-		MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
 		bool appendedName = false;
 
 		if (controlNumber >= 0 && controlNumber < kNumRealCCNumbers) {
+			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
 			std::string_view name = midiInstrument->getNameFromCC(controlNumber);
 			// if we have a name for this midi cc set by the user, display that instead of the cc number
 			if (!name.empty()) {

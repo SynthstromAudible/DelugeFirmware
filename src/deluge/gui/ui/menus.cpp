@@ -620,6 +620,7 @@ HorizontalMenu soundDistortionMenu{
 midi::sound::OutputMidiChannel outputMidiChannelMenu{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL};
 midi::sound::OutputMidiNoteForDrum outputMidiNoteForDrumMenu{STRING_FOR_NOTE, STRING_FOR_NOTE};
 midi::sound::KitOutputDeviceSelection kitOutputDeviceSelectionMenu{STRING_FOR_OUTPUT_DEVICE, STRING_FOR_OUTPUT_DEVICE};
+
 Submenu outputMidiSubmenu{STRING_FOR_MIDI,
                           {&outputMidiChannelMenu, &outputMidiNoteForDrumMenu, &kitOutputDeviceSelectionMenu}};
 

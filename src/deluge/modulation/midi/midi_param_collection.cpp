@@ -21,7 +21,9 @@
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/midi_drum.h"
 #include "model/instrument/instrument.h"
+#include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -286,7 +288,15 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                              automatedNow);
 
-	if (modelStack->song->isOutputActiveInArrangement((MIDIInstrument*)modelStack->modControllable)) {
+	// Check if this is a MIDI instrument or MIDI drum
+	// We need to properly identify the type since static_cast doesn't do null checks
+	// Check if it's a kit first (which contains drums)
+	bool isKitContext = modelStack->modControllable->isKit();
+	bool isMIDIInstrument = !isKitContext; // If not a kit, assume it's a MIDI instrument
+	bool isMIDIDrum = isKitContext;        // If it's a kit context, assume we're dealing with a drum
+
+	if (isMIDIInstrument
+	    && modelStack->song->isOutputActiveInArrangement((MIDIInstrument*)modelStack->modControllable)) {
 		auto new_v = modelStack->autoParam->getCurrentValue();
 		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
 		    oldValue, new_v, getParamKind(), modelStack->paramId);
@@ -296,6 +306,19 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 			int32_t masterChannel = instrument->getOutputMasterChannel();
 			sendMIDI(instrument, masterChannel, modelStack->paramId, modelStack->autoParam->getCurrentValue(),
 			         midiOutputFilter);
+		}
+	}
+	else if (isMIDIDrum) {
+		auto new_v = modelStack->autoParam->getCurrentValue();
+		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
+		    oldValue, new_v, getParamKind(), modelStack->paramId);
+		if (current_value_changed) {
+			// In kit context, we need to get the selected drum from the kit
+			Kit* kit = static_cast<Kit*>(modelStack->modControllable);
+			if (kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI) {
+				MIDIDrum* midiDrum = static_cast<MIDIDrum*>(kit->selectedDrum);
+				midiDrum->sendCC(modelStack->paramId, modelStack->autoParam->getCurrentValue());
+			}
 		}
 	}
 }

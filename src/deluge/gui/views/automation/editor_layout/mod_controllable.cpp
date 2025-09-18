@@ -22,6 +22,9 @@
 #include "hid/led/indicator_leds.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
+#include "model/clip/instrument_clip.h"
+#include "model/drum/midi_drum.h"
+#include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -401,7 +404,11 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay7SEG(Cl
 // get's the name of the Parameter being edited so it can be displayed on the screen
 void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* clip, OutputType outputType,
                                                                        StringBuf& parameterName) {
-	if (getOnArrangerView() || outputType != OutputType::MIDI_OUT) {
+	// Check if this is a MIDI CC parameter in a kit row
+	bool isMIDICCInKitRow = (outputType == OutputType::KIT && !((InstrumentClip*)clip)->affectEntire
+	                         && clip->lastSelectedParamKind == params::Kind::MIDI);
+
+	if (getOnArrangerView() || (outputType != OutputType::MIDI_OUT && !isMIDICCInKitRow)) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
 		int32_t lastSelectedParamID = kNoSelection;
 		PatchSource lastSelectedPatchSource = PatchSource::NONE;
@@ -456,16 +463,30 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 		}
 		else {
-			MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 			bool appendedName = false;
+			std::string_view name;
 
-			if (clip->lastSelectedParamID >= 0 && clip->lastSelectedParamID < kNumRealCCNumbers) {
-				std::string_view name = midiInstrument->getNameFromCC(clip->lastSelectedParamID);
-				// if we have a name for this midi cc set by the user, display that instead of the cc number
-				if (!name.empty()) {
-					parameterName.append(name.data());
-					appendedName = true;
+			// Check if this is a MIDI instrument or MIDI drum
+			if (clip->output->type == OutputType::MIDI_OUT) {
+				MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
+				if (clip->lastSelectedParamID >= 0 && clip->lastSelectedParamID < kNumRealCCNumbers) {
+					name = midiInstrument->getNameFromCC(clip->lastSelectedParamID);
 				}
+			}
+			else if (clip->output->type == OutputType::KIT && !((InstrumentClip*)clip)->affectEntire) {
+				Kit* kit = (Kit*)clip->output;
+				if (kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI) {
+					MIDIDrum* midiDrum = (MIDIDrum*)kit->selectedDrum;
+					if (clip->lastSelectedParamID >= 0 && clip->lastSelectedParamID < kNumRealCCNumbers) {
+						name = midiDrum->getNameFromCC(clip->lastSelectedParamID);
+					}
+				}
+			}
+
+			// if we have a name for this midi cc set by the user, display that instead of the cc number
+			if (!name.empty()) {
+				parameterName.append(name.data());
+				appendedName = true;
 			}
 
 			// if we don't have a midi cc name set, draw CC number instead

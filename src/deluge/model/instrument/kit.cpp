@@ -2032,7 +2032,9 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTime
                                                               bool useMenuStack) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	if (selectedDrum && selectedDrum->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
+	if (selectedDrum
+	    && (selectedDrum->type == DrumType::SOUND
+	        || selectedDrum->type == DrumType::MIDI)) { // automation for SOUND and MIDI drum types
 
 		ModelStackWithNoteRow* modelStackWithNoteRow = ((InstrumentClip*)clip)->getNoteRowForSelectedDrum(modelStack);
 
@@ -2061,6 +2063,14 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTime
 				}
 				else if (paramKind == params::Kind::EXPRESSION) {
 					modelStackWithParam = modelStackWithThreeMainThings->getExpressionAutoParamFromID(paramID);
+				}
+				else if (paramKind == params::Kind::MIDI) {
+					// For MIDI drums, get MIDI CC parameters
+					if (selectedDrum->type == DrumType::MIDI) {
+						MIDIDrum* midiDrum = static_cast<MIDIDrum*>(selectedDrum);
+						modelStackWithParam =
+						    midiDrum->getParamToControlFromInputMIDIChannel(paramID, modelStackWithThreeMainThings);
+					}
 				}
 			}
 		}
