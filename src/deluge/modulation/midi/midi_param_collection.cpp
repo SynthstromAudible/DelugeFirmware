@@ -316,6 +316,9 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 		if (current_value_changed) {
 			// For kit rows, the modControllable is the MIDIDrum itself
 			MIDIDrum* midiDrum = static_cast<MIDIDrum*>(modelStack->modControllable);
+			// Debug: Print channel and device info with memory address
+			D_PRINTLN("MIDI CC: addr=%p, channel=%d, device=%d, cc=%d", midiDrum, midiDrum->channel,
+			          midiDrum->outputDevice, modelStack->paramId);
 			midiDrum->sendCC(modelStack->paramId, modelStack->autoParam->getCurrentValue());
 		}
 	}

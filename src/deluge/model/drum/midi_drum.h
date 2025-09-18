@@ -23,6 +23,10 @@
 #include <array>
 #include <string_view>
 
+// Forward declarations
+class MIDIParamCollection;
+struct ParamCollectionSummary;
+
 class MIDIDrum final : public NonAudioDrum {
 public:
 	MIDIDrum();
@@ -92,4 +96,8 @@ public:
 	// Mod knob CC assignments (same as MIDI instruments)
 	std::array<int8_t, kNumModButtons * kNumPhysicalModKnobs> modKnobCCAssignments;
 	uint8_t modKnobMode = 0;
+
+	// MIDI parameter collection for automation (separate from NoteRow's ParamManager)
+	MIDIParamCollection* midiParamCollection = nullptr;
+	ParamCollectionSummary midiParamCollectionSummary;
 };

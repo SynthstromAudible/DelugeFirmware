@@ -21,6 +21,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/oled.h"
 #include "io/midi/midi_engine.h"
+#include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/drum/non_audio_drum.h"
 #include "model/song/song.h"
@@ -32,6 +33,7 @@ MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 	channel = 0;
 	note = 0;
 	modKnobCCAssignments.fill(CC_NUMBER_NONE);
+	midiParamCollectionSummary = {0}; // Initialize to zero
 }
 
 void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
@@ -47,6 +49,9 @@ void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocit
 			deviceFilter = (1 << (outputDevice - 1)); // USB device (bit outputDevice-1)
 		}
 	}
+	// Debug: Print note on values
+	D_PRINTLN("noteOn: addr=%p, channel=%d, note=%d, velocity=%d, deviceFilter=%d", this, channel, note, velocity,
+	          deviceFilter);
 	midiEngine.sendMidi(this, MIDIMessage::noteOn(channel, note, velocity), kMIDIOutputFilterNoMPE, true, deviceFilter);
 }
 
@@ -210,14 +215,17 @@ expressionParam:
 		goto noParam;
 
 	default:
-		// Ensure MIDI parameter collection exists for kit rows
-		if (!modelStack->paramManager->containsAnyMainParamCollections()) {
-			Error error = modelStack->paramManager->setupMIDI();
-			if (error != Error::NONE) {
+		// For MIDI drums in kit rows, we need to create a MIDI parameter collection
+		// But we can't modify the NoteRow's ParamManager, so we'll create our own
+		// Create a temporary MIDI parameter collection for this drum
+		if (!midiParamCollection) {
+			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIParamCollection));
+			if (!memory) {
 				goto noParam;
 			}
+			midiParamCollection = new (memory) MIDIParamCollection(&midiParamCollectionSummary);
 		}
-		summary = modelStack->paramManager->getMIDIParamCollectionSummary();
+		summary = &midiParamCollectionSummary;
 		break;
 	}
 
@@ -473,5 +481,7 @@ void MIDIDrum::sendCC(int32_t cc, int32_t value) {
 			deviceFilter = (1 << (outputDevice - 1)); // USB device (bit outputDevice-1)
 		}
 	}
+	// Debug: Print actual values being sent
+	D_PRINTLN("sendCC: channel=%d, cc=%d, ccValue=%d, deviceFilter=%d", channel, cc, ccValue + 64, deviceFilter);
 	midiEngine.sendMidi(this, MIDIMessage::cc(channel, cc, ccValue + 64), kMIDIOutputFilterNoMPE, true, deviceFilter);
 }
