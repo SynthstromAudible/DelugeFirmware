@@ -122,7 +122,7 @@ drawSolid:
 	}
 }
 
-void Canvas::drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool thick) {
+void Canvas::drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, const DrawLineOptions& options) {
 	const bool steep = abs(y1 - y0) > abs(x1 - x0);
 	if (steep) {
 		std::swap(x0, y0);
@@ -133,27 +133,33 @@ void Canvas::drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool thick
 		std::swap(y0, y1);
 	}
 
-	const int32_t dx = x1 - x0;
-	const int32_t dy = abs(y1 - y0);
+	int32_t dx = x1 - x0;
+	int32_t dy = abs(y1 - y0);
 	int32_t error = dx / 2;
 	int32_t y = y0;
-	const int32_t y_step = (y0 < y1) ? 1 : -1;
+	int32_t y_step = y0 < y1 ? 1 : -1;
 
-	for (int x = x0; x <= x1; x++) {
-		if (steep) {
-			// Draw the line vertically
-			drawPixel(y, x);
-			if (thick) {
-				drawPixel(y + 1, x);
-			}
+	for (int32_t x = x0; x <= x1; x++) {
+		int32_t actual_x = steep ? y : x;
+		int32_t actual_y = steep ? x : y;
+
+		if (options.min_x.has_value() && actual_x < options.min_x.value()) {
+			continue;
 		}
-		else {
-			// Draw the line horizontally
-			drawPixel(x, y);
-			if (thick) {
-				drawPixel(x, y - 1);
-			}
+		if (options.max_x.has_value() && actual_x > options.max_x.value()) {
+			return;
 		}
+
+		drawPixel(actual_x, actual_y);
+
+		if (options.thick) {
+			drawPixel(steep ? actual_x + 1 : actual_x, steep ? actual_y : actual_y - 1);
+		}
+
+		if (options.point_callback.has_value()) {
+			options.point_callback.value()({actual_x, actual_y});
+		}
+
 		error -= dy;
 		if (error < 0) {
 			y += y_step;

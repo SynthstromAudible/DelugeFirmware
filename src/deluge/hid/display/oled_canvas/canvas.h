@@ -21,6 +21,8 @@
 #include "definitions.h"
 #include "deluge/util/d_string.h"
 #include <cstring>
+#include <functional>
+#include <optional>
 #include <string_view>
 
 namespace deluge::hid::display {
@@ -32,6 +34,19 @@ namespace oled_canvas {
 enum BorderRadius : uint8_t {
 	SMALL = 0, //< 1px
 	BIG = 1    //< 2px
+};
+
+struct Point {
+	int32_t x;
+	int32_t y;
+	bool operator==(const Point& other) const noexcept { return x == other.x && y == other.y; }
+};
+
+struct DrawLineOptions {
+	bool thick{false};
+	std::optional<uint8_t> min_x{std::nullopt};
+	std::optional<uint8_t> max_x{std::nullopt};
+	std::optional<std::function<void(Point)>> point_callback{std::nullopt};
 };
 
 class Canvas {
@@ -88,8 +103,8 @@ public:
 	/// @param y0 Start Y coordinate of the line
 	/// @param x1 End X coordinate of the line
 	/// @param y1 End Y coordinate of the line
-	/// @param thick Set to true if you want 2px line
-	void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool thick = false);
+	/// @param options Draw options
+	void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, const DrawLineOptions& options = {});
 
 	/// Draw a 1-px wide rectangle.
 	///

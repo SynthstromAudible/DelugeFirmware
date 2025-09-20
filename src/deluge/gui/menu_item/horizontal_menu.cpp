@@ -16,6 +16,7 @@
  */
 
 #include "horizontal_menu.h"
+
 #include "etl/vector.h"
 #include "gui/ui/menus.h"
 #include "gui/views/automation_view.h"
@@ -23,6 +24,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
+#include "horizontal_menu_container.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "multi_range.h"
 #include "processing/sound/sound.h"
@@ -75,9 +77,9 @@ ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRou
 	}
 
 	// use SYNTH / KIT / MIDI / CV buttons to select menu item in the currently displayed horizontal menu page
-	static std::map<hid::Button, int32_t> selectMap = {{SYNTH, 0}, {KIT, 1}, {MIDI, 2}, {CV, 3}};
-	if (selectMap.contains(b)) {
-		handleInstrumentButtonPress(paging.visiblePageItems, *current_item_, selectMap[b]);
+	static std::map<hid::Button, int32_t> select_map = {{SYNTH, 0}, {KIT, 1}, {MIDI, 2}, {CV, 3}};
+	if (select_map.contains(b)) {
+		handleInstrumentButtonPress(paging.visiblePageItems, *current_item_, select_map[b]);
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -93,16 +95,16 @@ void HorizontalMenu::renderOLED() {
 	const auto& paging = preparePaging(items, *current_item_);
 
 	// Light up the scale and cross-screen buttons LEDs to indicate they can be used to switch between pages
-	const auto hasPages = paging.totalPages > 1;
-	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, hasPages);
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, hasPages);
+	const auto has_pages = paging.totalPages > 1;
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, has_pages);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, has_pages);
 
 	// did the selected horizontal menu item position change?
 	// if yes, update the instrument LED corresponding to that menu item position
 	// store the last selected horizontal menu item position so that we don't update the LED's more than we have to
-	if (const auto posOnPage = paging.selectedItemPositionOnPage; posOnPage != lastSelectedItemPosition) {
-		updateSelectedMenuItemLED(posOnPage);
-		lastSelectedItemPosition = posOnPage;
+	if (const auto pos_on_page = paging.selectedItemPositionOnPage; pos_on_page != lastSelectedItemPosition) {
+		updateSelectedMenuItemLED(pos_on_page);
+		lastSelectedItemPosition = pos_on_page;
 		currentKnobSpeed = 0.0f;
 	}
 
@@ -139,80 +141,107 @@ void HorizontalMenu::renderPageCounters(const Paging& paging) {
 }
 
 void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) {
+	static auto containers_map = [&] {
+		std::map<MenuItem*, HorizontalMenuContainer*> result;
+		for (auto* container : horizontalMenuContainers) {
+			for (auto item : container->getItems()) {
+				result.emplace(item, container);
+			}
+		}
+		return result;
+	}();
+
 	oled_canvas::Canvas& image = OLED::main;
 
-	constexpr int32_t baseY = 14 + OLED_MAIN_TOPMOST_PIXEL;
-	constexpr int32_t columnWidth = OLED_MAIN_WIDTH_PIXELS / 4;
-	int32_t currentX = 0;
+	constexpr int32_t base_y = 14 + OLED_MAIN_TOPMOST_PIXEL;
+	constexpr int32_t column_width = OLED_MAIN_WIDTH_PIXELS / 4;
+	int32_t current_x = 0;
 
-	auto it = items.begin();
-	for (size_t n = 0; n < items.size() && it != items.end(); n++) {
+	for (auto it = items.begin(); it != items.end();) {
 		MenuItem* item = *it;
-		const bool isSelected = item == currentItem;
+		const bool is_selected = item == currentItem;
+		const bool is_relevant = isItemRelevant(item);
 
-		const int32_t boxWidth = columnWidth * item->getColumnSpan();
-		constexpr int32_t boxHeight = 25;
-		constexpr int32_t labelHeight = kTextSpacingY;
-		constexpr int32_t labelY = baseY + boxHeight - labelHeight;
-		int32_t contentHeight = boxHeight;
+		const int32_t box_width = column_width * item->getColumnSpan();
+		constexpr int32_t box_height = 25;
+		constexpr int32_t label_height = kTextSpacingY;
+		constexpr int32_t label_y = base_y + box_height - label_height;
+		int32_t content_height = box_height;
+
+		if (containers_map.contains(item) && is_relevant) {
+			// If item belongs to a container, delegate rendering to that container
+			const auto container = containers_map[item];
+			const auto column_span = container->getColumnSpan();
+
+			bool halt_remaining_rendering = false;
+			container->render(current_x, box_width * column_span, base_y, content_height, currentItem, this,
+			                  &halt_remaining_rendering);
+			if (halt_remaining_rendering) {
+				return;
+			}
+
+			current_x += box_width * column_span;
+			it += column_span;
+			continue;
+		}
 
 		if (item->showColumnLabel()) {
 			// Draw the label at the bottom
-			renderColumnLabel(item, labelY, currentX, boxWidth, isSelected);
-			contentHeight -= labelHeight;
+			renderColumnLabel(item, label_y, current_x, box_width, is_selected);
+			content_height -= label_height;
 		}
 
 		if (layout == FIXED && !isItemRelevant(item)) {
 			// Draw a dash as a value indicating that the item is disabled
-			image.drawStringCentered("-", currentX, baseY + 4, kTextTitleSpacingX, kTextTitleSizeY, boxWidth);
+			image.drawStringCentered("-", current_x, base_y + 4, kTextTitleSpacingX, kTextTitleSizeY, box_width);
 		}
 		else {
 			// Draw content of the menu item
-			item->renderInHorizontalMenu(currentX, boxWidth - 1, baseY, contentHeight);
+			item->renderInHorizontalMenu(current_x, box_width - 1, base_y, content_height);
 		}
 
 		// Highlight the selected item if it doesn't occupy the whole page
-		if (isSelected && (items.size() > 1 || items[0]->getColumnSpan() < 4)) {
+		if (is_selected && (items.size() > 1 || items[0]->getColumnSpan() < 4)) {
 			switch (FlashStorage::accessibilityMenuHighlighting) {
 			case MenuHighlighting::FULL_INVERSION: {
 				// Highlight by inversion of the label or whole slot
 				const bool highlightWholeSlot = !item->showColumnLabel() || item->isSubmenu();
-				const int32_t startY = highlightWholeSlot ? baseY : labelY;
-				const int32_t endY = highlightWholeSlot ? baseY + boxHeight - 1 : labelY + labelHeight - 1;
-				image.invertAreaRounded(currentX + 1, boxWidth - 3, startY, endY);
+				const int32_t startY = highlightWholeSlot ? base_y : label_y;
+				const int32_t endY = highlightWholeSlot ? base_y + box_height - 1 : label_y + label_height - 1;
+				image.invertAreaRounded(current_x + 1, box_width - 3, startY, endY);
 				break;
 			}
 			case MenuHighlighting::PARTIAL_INVERSION:
 				// Highlight by drawing outline
-				image.drawRectangleRounded(currentX, baseY - 2, currentX + boxWidth - 2, baseY + boxHeight + 1,
+				image.drawRectangleRounded(current_x, base_y - 2, current_x + box_width - 2, base_y + box_height + 1,
 				                           oled_canvas::BorderRadius::BIG);
 				break;
 			case MenuHighlighting::NO_INVERSION:
 				// Highlight by drawing a line below the item
-				image.invertArea(currentX, boxWidth - 1, baseY + boxHeight, OLED_MAIN_VISIBLE_HEIGHT + 1);
+				image.invertArea(current_x, box_width - 1, base_y + box_height, OLED_MAIN_VISIBLE_HEIGHT + 1);
 				break;
 			}
 		}
 
-		currentX += boxWidth;
+		current_x += box_width;
 		it = std::next(it);
 	}
 
 	// Render placeholders for remaining slots
-	for (int32_t n = currentX / (OLED_MAIN_WIDTH_PIXELS / 4); n < 4; n++) {
-		const int32_t startX = n * columnWidth + 7;
-		const int32_t endX = startX + 17;
-		constexpr int32_t startY = baseY + 2;
-		constexpr int32_t endY = OLED_MAIN_HEIGHT_PIXELS - 6;
-		constexpr int32_t dotInterval = 5;
+	for (int32_t n = current_x / (OLED_MAIN_WIDTH_PIXELS / 4); n < 4; n++) {
+		const int32_t start_x = n * column_width + 7;
+		const int32_t end_x = start_x + 17;
+		constexpr int32_t start_y = base_y + 2;
+		constexpr int32_t end_y = OLED_MAIN_HEIGHT_PIXELS - 6;
+		constexpr int32_t dot_interval = 5;
 
-		for (int32_t x = startX + 1; x < endX; x += dotInterval) {
-			image.drawPixel(x, startY + 1);
-			image.drawPixel(x, endY - 1);
+		for (int32_t x = start_x + 1; x < end_x; x += dot_interval) {
+			image.drawPixel(x, start_y + 1);
+			image.drawPixel(x, end_y - 1);
 		}
-		for (int32_t y = startY + 3; y < endY; y += dotInterval) {
-			image.drawPixel(startX - 1, y);
-			image.drawPixel(endX + 1, y);
+		for (int32_t y = start_y + 3; y < end_y; y += dot_interval) {
+			image.drawPixel(start_x - 1, y);
+			image.drawPixel(end_x + 1, y);
 		}
 	}
 }
@@ -222,10 +251,10 @@ void HorizontalMenu::selectEncoderAction(int32_t offset) {
 		return Submenu::selectEncoderAction(offset);
 	}
 
-	const bool selectButtonPressed = Buttons::selectButtonPressUsedUp =
+	const bool select_button_pressed = Buttons::selectButtonPressUsedUp =
 	    Buttons::isButtonPressed(hid::button::SELECT_ENC);
 
-	if (!selectButtonPressed) {
+	if (!select_button_pressed) {
 		MenuItem* child = *current_item_;
 		if (child->isSubmenu()) {
 			// No action for a submenu
@@ -259,14 +288,14 @@ void HorizontalMenu::switchVisiblePage(int32_t direction) {
 		return;
 	}
 
-	int32_t targetPageNumber = paging.visiblePageNumber + direction;
+	int32_t target_page_number = paging.visiblePageNumber + direction;
 
 	// Wrap around
 	const int32_t count = paging.totalPages;
-	targetPageNumber = (targetPageNumber % count + count) % count;
+	target_page_number = (target_page_number % count + count) % count;
 
 	// Select an item on the next / previous page, keeping the previous position if possible
-	selectMenuItem(targetPageNumber, paging.selectedItemPositionOnPage);
+	selectMenuItem(target_page_number, paging.selectedItemPositionOnPage);
 
 	renderUIsForOled();
 	updatePadLights();
@@ -279,45 +308,46 @@ void HorizontalMenu::switchVisiblePage(int32_t direction) {
 
 void HorizontalMenu::switchHorizontalMenu(int32_t direction, std::span<HorizontalMenu* const> chain) {
 	const auto it = std::ranges::find(chain, this);
-	const int32_t currentMenuPos = std::distance(chain.begin(), it);
-	int32_t targetMenuPos = currentMenuPos + direction;
+	const int32_t current_menu_pos = std::distance(chain.begin(), it);
+	int32_t target_menu_pos = current_menu_pos + direction;
 
 	// Wrap around
 	const int32_t count = static_cast<int32_t>(chain.size());
-	targetMenuPos = (targetMenuPos % count + count) % count;
+	target_menu_pos = (target_menu_pos % count + count) % count;
 
-	const auto targetMenu = chain[targetMenuPos];
-	const auto totalPages = targetMenu->preparePaging(targetMenu->items, nullptr).totalPages;
-	if (totalPages == 0) {
+	const auto target_menu = chain[target_menu_pos];
+	const auto total_pages = target_menu->preparePaging(target_menu->items, nullptr).totalPages;
+	if (total_pages == 0) {
 		// No relevant items on the switched menu, go to the next menu
 		return switchHorizontalMenu(direction >= 0 ? ++direction : --direction, chain);
 	}
 
-	targetMenu->checkPermissionToBeginSession(soundEditor.currentModControllable, soundEditor.currentSourceIndex,
-	                                          &soundEditor.currentMultiRange);
-	targetMenu->beginSession(nullptr);
-	targetMenu->selectMenuItem(0, 0);
+	target_menu->checkPermissionToBeginSession(soundEditor.currentModControllable, soundEditor.currentSourceIndex,
+	                                           &soundEditor.currentMultiRange);
+	target_menu->beginSession(nullptr);
+	target_menu->selectMenuItem(0, 0);
 
-	soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth] = targetMenu;
+	soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth] = target_menu;
 	renderUIsForOled();
-	targetMenu->updatePadLights();
-	(*targetMenu->current_item_)->updateAutomationViewParameter();
+	target_menu->updatePadLights();
+	(*target_menu->current_item_)->updateAutomationViewParameter();
 
 	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
 		display->cancelPopup();
 	}
 }
 
-void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visiblePageItems, const MenuItem* previous,
-                                                 int32_t pressedButtonPosition) {
+void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visible_page_items, const MenuItem* previous,
+                                                 int32_t pressed_button_position) {
 	// Find the item you're looking for by iterating through all items on the current page
-	int32_t currentColumn = 0;
+	int32_t current_column = 0;
 
-	for (size_t n = 0; n < visiblePageItems.size(); n++) {
-		MenuItem* item = visiblePageItems[n];
+	for (size_t n = 0; n < visible_page_items.size(); n++) {
+		MenuItem* item = visible_page_items[n];
 
 		// Is this item covering the selected column?
-		if (pressedButtonPosition >= currentColumn && pressedButtonPosition < currentColumn + item->getColumnSpan()) {
+		if (pressed_button_position >= current_column
+		    && pressed_button_position < current_column + item->getColumnSpan()) {
 			if (layout == FIXED && !isItemRelevant(item)) {
 				// Item is disabled, do nothing
 				return;
@@ -337,138 +367,138 @@ void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visiblePag
 			return displayNotification(*current_item_);
 		}
 
-		currentColumn += item->getColumnSpan();
+		current_column += item->getColumnSpan();
 	}
 }
 
-void HorizontalMenu::selectMenuItem(int32_t pageNumber, int32_t itemPos) {
+void HorizontalMenu::selectMenuItem(int32_t page_number, int32_t item_pos) {
 	lastSelectedItemPosition = kNoSelection;
 
-	int32_t currentPageSpan = 0;
-	int32_t currentPageNumber = 0;
-	int32_t positionOnPage = 0;
+	int32_t current_page_span = 0;
+	int32_t current_page_number = 0;
+	int32_t position_on_page = 0;
 
 	// Find the target item on the next / previous page
 	for (const auto it : std::views::filter(items, [&](auto i) { return layout == FIXED || isItemRelevant(i); })) {
 		const auto itemSpan = it->getColumnSpan();
 
 		// Check if we need to move to the next page
-		if (currentPageSpan + itemSpan > 4) {
-			currentPageNumber++;
-			currentPageSpan = 0;
-			positionOnPage = 0;
+		if (current_page_span + itemSpan > 4) {
+			current_page_number++;
+			current_page_span = 0;
+			position_on_page = 0;
 		}
 
 		// Select an item with the target position
 		// If the item at a given position is not relevant, select the closest relevant item instead
-		if (currentPageNumber == pageNumber) {
+		if (current_page_number == page_number) {
 			if (isItemRelevant(it)) {
 				current_item_ = std::ranges::find(items, it);
 			}
-			if (positionOnPage >= itemPos) {
+			if (position_on_page >= item_pos) {
 				break;
 			}
 		}
-		currentPageSpan += itemSpan;
-		positionOnPage++;
+		current_page_span += itemSpan;
+		position_on_page++;
 	}
 }
 
 HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items, const MenuItem* currentItem) {
-	static std::vector<MenuItem*> visiblePageItems;
-	visiblePageItems.clear();
-	visiblePageItems.reserve(4);
+	static std::vector<MenuItem*> visible_page_items;
+	visible_page_items.clear();
+	visible_page_items.reserve(4);
 
-	uint8_t visiblePageNumber = 0;
-	uint8_t currentPageSpan = 0;
-	uint8_t totalPages = 1;
-	uint8_t selectedItemPositionOnPage = 0;
-	bool currentItemInThisPage = false;
-	bool visiblePageCompleted = false;
+	uint8_t visible_page_number = 0;
+	uint8_t current_page_span = 0;
+	uint8_t total_pages = 1;
+	uint8_t selected_item_position_on_page = 0;
+	bool current_item_in_this_page = false;
+	bool visible_page_completed = false;
 
 	for (uint8_t i = 0; i < items.size(); ++i) {
 		MenuItem* item = items[i];
 
-		const bool isRelevant = isItemRelevant(item);
-		if (isRelevant) {
+		const bool is_relevant = isItemRelevant(item);
+		if (is_relevant) {
 			// Read value beforehand
 			item->readCurrentValue();
 		}
 		// Skip non-relevant items in dynamic mode
-		if (layout != FIXED && !isRelevant) {
+		if (layout != FIXED && !is_relevant) {
 			continue;
 		}
 
 		// If the item doesn't fit, start a new page
-		const int32_t itemSpan = item->getColumnSpan();
-		if (currentPageSpan + itemSpan > 4 && isRelevant) {
-			if (currentItemInThisPage) {
+		const int32_t item_span = item->getColumnSpan();
+		if (current_page_span + item_span > 4 && is_relevant) {
+			if (current_item_in_this_page) {
 				// Finalize visible page
-				visiblePageCompleted = true;
-				visiblePageNumber = totalPages - 1;
-				currentItemInThisPage = false;
+				visible_page_completed = true;
+				visible_page_number = total_pages - 1;
+				current_item_in_this_page = false;
 			}
 
-			if (!visiblePageCompleted) {
-				visiblePageItems.clear();
+			if (!visible_page_completed) {
+				visible_page_items.clear();
 			}
 
-			++totalPages;
-			currentPageSpan = 0;
+			++total_pages;
+			current_page_span = 0;
 		}
 
-		if (!visiblePageCompleted) {
-			visiblePageItems.push_back(item);
+		if (!visible_page_completed) {
+			visible_page_items.push_back(item);
 		}
 
 		if (item == currentItem) {
-			selectedItemPositionOnPage = static_cast<uint8_t>(visiblePageItems.size() - 1);
-			currentItemInThisPage = true;
+			selected_item_position_on_page = static_cast<uint8_t>(visible_page_items.size() - 1);
+			current_item_in_this_page = true;
 		}
 
-		currentPageSpan += itemSpan;
+		current_page_span += item_span;
 	}
 
 	// Handle the last page
-	if (currentItemInThisPage) {
-		visiblePageNumber = totalPages - 1;
+	if (current_item_in_this_page) {
+		visible_page_number = total_pages - 1;
 	}
 	// Check if the page is single and has no items to render
-	if (totalPages == 1 && currentPageSpan == 0) {
-		totalPages = 0;
+	if (total_pages == 1 && current_page_span == 0) {
+		total_pages = 0;
 	}
 
-	paging = Paging{visiblePageNumber, visiblePageItems, selectedItemPositionOnPage, totalPages};
+	paging = Paging{visible_page_number, visible_page_items, selected_item_position_on_page, total_pages};
 	return paging;
 }
 
 /// When updating the selected horizontal menu item, you need to refresh the lit instrument LED's
 void HorizontalMenu::updateSelectedMenuItemLED(int32_t itemNumber) const {
-	const auto& pageItems = paging.visiblePageItems;
-	const auto* selectedItem = pageItems[itemNumber];
+	const auto& page_items = paging.visiblePageItems;
+	const auto* selected_item = page_items[itemNumber];
 
-	int32_t startColumn = 0;
-	int32_t endColumn = 0;
-	for (const auto* item : pageItems) {
-		if (item == selectedItem) {
-			endColumn = startColumn + item->getColumnSpan();
+	int32_t start_column = 0;
+	int32_t end_column = 0;
+	for (const auto* item : page_items) {
+		if (item == selected_item) {
+			end_column = start_column + item->getColumnSpan();
 			break;
 		}
-		startColumn += item->getColumnSpan();
+		start_column += item->getColumnSpan();
 	}
 
 	// Light up all buttons whose columns are covered by the selected item
-	std::vector ledStates{false, false, false, false};
-	if (pageItems.size() > 1 || pageItems[0]->isSubmenu() || pageItems[0]->getColumnSpan() < 4) {
-		for (int32_t i = 0; i < ledStates.size(); ++i) {
-			ledStates[i] = i >= startColumn && i < endColumn;
+	std::vector led_states{false, false, false, false};
+	if (page_items.size() > 1 || page_items[0]->isSubmenu() || page_items[0]->getColumnSpan() < 4) {
+		for (int32_t i = 0; i < led_states.size(); ++i) {
+			led_states[i] = i >= start_column && i < end_column;
 		}
 	}
 
-	indicator_leds::setLedState(IndicatorLED::SYNTH, ledStates[0]);
-	indicator_leds::setLedState(IndicatorLED::KIT, ledStates[1]);
-	indicator_leds::setLedState(IndicatorLED::MIDI, ledStates[2]);
-	indicator_leds::setLedState(IndicatorLED::CV, ledStates[3]);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, led_states[0]);
+	indicator_leds::setLedState(IndicatorLED::KIT, led_states[1]);
+	indicator_leds::setLedState(IndicatorLED::MIDI, led_states[2]);
+	indicator_leds::setLedState(IndicatorLED::CV, led_states[3]);
 }
 
 /// when exiting a horizontal menu, turn off the LED's and reset selected horizontal menu item position
@@ -506,20 +536,20 @@ void HorizontalMenu::renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32
 
 	// If the name fits as-is, we'll squeeze it in. Otherwise, we chop off letters until
 	// we have some padding between columns.
-	int32_t labelWidth;
-	while ((labelWidth = image.getStringWidthInPixels(label.c_str(), kTextSpacingY)) + 4 >= slotWidth) {
+	int32_t label_width;
+	while ((label_width = image.getStringWidthInPixels(label.c_str(), kTextSpacingY)) + 4 >= slotWidth) {
 		label.truncate(label.size() - 1);
 	}
 
 	// Draw centered label
-	const int32_t labelStartX = slotStartX + (slotWidth - labelWidth) / 2;
-	image.drawString(label.c_str(), labelStartX, labelY, kTextSpacingX, kTextSpacingY);
+	const int32_t label_start_x = slotStartX + (slotWidth - label_width) / 2;
+	image.drawString(label.c_str(), label_start_x, labelY, kTextSpacingX, kTextSpacingY);
 
 	if (menuItem->getColumnSpan() > 1 && !menuItem->isSubmenu() && !isSelected) {
 		// Draw small lines on the left and right side if the slot is too wide
 		const int32_t y = labelY + 4;
-		image.drawHorizontalLine(y, slotStartX + 4, labelStartX - 4);
-		image.drawHorizontalLine(y, labelStartX + labelWidth + 2, slotStartX + slotWidth - 6);
+		image.drawHorizontalLine(y, slotStartX + 4, label_start_x - 4);
+		image.drawHorizontalLine(y, label_start_x + label_width + 2, slotStartX + slotWidth - 6);
 	}
 }
 
@@ -533,27 +563,27 @@ double HorizontalMenu::calcNextKnobSpeed(int8_t offset) {
 	// could potentially be user-configurable in a small range.
 	constexpr double acceleration = 0.1;
 	constexpr double inertia = 1.0 - acceleration;
-	constexpr double speedScale = 0.15;
-	constexpr double minSpeed = 1.0;
-	constexpr double maxSpeed = 5.0;
-	constexpr double resetSpeedTimeThreshold = 0.3;
+	constexpr double speed_scale = 0.15;
+	constexpr double min_speed = 1.0;
+	constexpr double max_speed = 5.0;
+	constexpr double reset_speed_time_threshold = 0.3;
 
 	// lastOffset and lastEncoderTime keep track of our direction and time
-	static int8_t lastOffset = 0;
-	static double lastEncoderTime = 0.0;
+	static int8_t last_offset = 0;
+	static double last_encoder_time = 0.0;
 	const double time = getSystemTime();
 
-	if (time - lastEncoderTime >= resetSpeedTimeThreshold || offset != lastOffset) {
+	if (time - last_encoder_time >= reset_speed_time_threshold || offset != last_offset) {
 		// too much time passed, or the knob direction changed, reset the speed
 		currentKnobSpeed = 0.0;
 	}
 	else {
 		// moving in the same direction, update speed
-		currentKnobSpeed = currentKnobSpeed * inertia + 1.0 / (time - lastEncoderTime) * acceleration;
+		currentKnobSpeed = currentKnobSpeed * inertia + 1.0 / (time - last_encoder_time) * acceleration;
 	}
-	lastEncoderTime = time;
-	lastOffset = offset;
-	return std::clamp((currentKnobSpeed * speedScale), minSpeed, maxSpeed);
+	last_encoder_time = time;
+	last_offset = offset;
+	return std::clamp((currentKnobSpeed * speed_scale), min_speed, max_speed);
 }
 
 void HorizontalMenu::handleItemAction(MenuItem* menuItem) {
@@ -575,6 +605,11 @@ void HorizontalMenu::handleItemAction(MenuItem* menuItem) {
 
 bool HorizontalMenu::hasItem(const MenuItem* item) {
 	return std::ranges::contains(items, item);
+}
+
+void HorizontalMenu::setCurrentItem(const MenuItem* item) {
+	current_item_ = std::ranges::find(items, item);
+	lastSelectedItemPosition = kNoSelection;
 }
 
 } // namespace deluge::gui::menu_item

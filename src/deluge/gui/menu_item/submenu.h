@@ -67,9 +67,9 @@ public:
 	[[nodiscard]] bool showNotification() const override { return false; }
 
 protected:
-	uint32_t initial_index_ = 0;
 	deluge::vector<MenuItem*> items;
 	typename decltype(items)::iterator current_item_;
+	uint32_t initial_index_ = 0;
 
 private:
 	bool shouldForwardButtons();
