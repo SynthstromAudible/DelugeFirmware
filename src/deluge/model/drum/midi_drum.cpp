@@ -473,5 +473,20 @@ void MIDIDrum::sendCC(int32_t cc, int32_t value) {
 			deviceFilter = (1 << (outputDevice - 1)); // USB device (bit outputDevice-1)
 		}
 	}
-	midiEngine.sendMidi(this, MIDIMessage::cc(channel, cc, ccValue + 64), kMIDIOutputFilterNoMPE, true, deviceFilter);
+	midiEngine.sendMidi(this, MIDIMessage::cc(getOutputMasterChannel(), cc, ccValue + 64), kMIDIOutputFilterNoMPE, true,
+	                    deviceFilter);
+}
+
+// Get the master channel for output (handles MPE zones like MIDI instruments)
+int32_t MIDIDrum::getOutputMasterChannel() {
+	switch (channel) {
+	case MIDI_CHANNEL_MPE_LOWER_ZONE:
+		return 0;
+
+	case MIDI_CHANNEL_MPE_UPPER_ZONE:
+		return 15;
+
+	default:
+		return channel;
+	}
 }

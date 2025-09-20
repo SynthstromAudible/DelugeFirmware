@@ -82,6 +82,9 @@ public:
 	// CC sending method
 	void sendCC(int32_t cc, int32_t value);
 
+	// Get the master channel for output (handles MPE zones like MIDI instruments)
+	int32_t getOutputMasterChannel();
+
 	uint8_t note;
 	int8_t noteEncoderCurrentOffset;
 
