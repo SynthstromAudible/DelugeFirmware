@@ -24,9 +24,11 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "io/midi/midi_device_manager.h"
+#include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/drum/midi_drum.h"
 #include "model/instrument/kit.h"
+#include "model/model_stack.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -95,6 +97,25 @@ public:
 			if (soundEditor.editingKitRow()) {
 				auto* kit = getCurrentKit();
 				if (kit && kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI) {
+					// Update the drum assigned to the specific note row, not just the selected drum
+					char modelStackMemory[MODEL_STACK_MAX_SIZE];
+					ModelStackWithTimelineCounter* modelStack =
+					    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+					auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
+
+					if (!clip->affectEntire && clip->output->type == OutputType::KIT) {
+						// Get the note row for the currently selected drum
+						ModelStackWithNoteRow* modelStackWithNoteRow =
+						    clip->getNoteRowForDrum(modelStack, kit->selectedDrum);
+						if (modelStackWithNoteRow->getNoteRowAllowNull() && modelStackWithNoteRow->getNoteRow()->drum
+						    && modelStackWithNoteRow->getNoteRow()->drum->type == DrumType::MIDI) {
+							// Update the channel of the drum assigned to this specific note row
+							auto* midiDrum = static_cast<MIDIDrum*>(modelStackWithNoteRow->getNoteRow()->drum);
+							midiDrum->channel = value;
+						}
+					}
+
+					// Also update the selected drum's channel for consistency
 					auto* midiDrum = static_cast<MIDIDrum*>(kit->selectedDrum);
 					midiDrum->channel = value;
 				}
