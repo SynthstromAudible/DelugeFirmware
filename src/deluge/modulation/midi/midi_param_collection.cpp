@@ -323,7 +323,19 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 					return; // Don't send MIDI CC if note row is muted
 				}
 
-				midiDrum->sendCC(modelStack->paramId, modelStack->autoParam->getCurrentValue());
+				// Get the channel from the currently selected drum (which has the current channel setting)
+				Kit* kit = static_cast<Kit*>(modelStack->modControllable);
+				int32_t currentChannel = midiDrum->channel; // Default to drum's stored channel
+
+				// If there's a selected drum and it's a MIDI drum, use its channel setting
+				if (kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI) {
+					MIDIDrum* selectedMidiDrum = static_cast<MIDIDrum*>(kit->selectedDrum);
+					currentChannel = selectedMidiDrum->channel;
+				}
+
+				// Send MIDI CC with the current channel setting
+				midiDrum->sendCCWithChannel(modelStack->paramId, modelStack->autoParam->getCurrentValue(),
+				                            currentChannel);
 			}
 		}
 	}

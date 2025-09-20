@@ -79,8 +79,9 @@ public:
 	bool loadDeviceDefinitionFile = false;
 	deluge::fast_map<uint8_t, std::string> labels;
 
-	// CC sending method
+	// CC sending methods
 	void sendCC(int32_t cc, int32_t value);
+	void sendCCWithChannel(int32_t cc, int32_t value, int32_t channelToUse);
 
 	// Get the master channel for output (handles MPE zones like MIDI instruments)
 	int32_t getOutputMasterChannel();
