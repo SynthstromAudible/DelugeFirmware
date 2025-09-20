@@ -44,7 +44,7 @@ public:
 		const int32_t y1 = yStart;
 
 		// Draw a sidechain level shape
-		image.drawLine(minX + xOffset, y0, maxX - xOffset, y1, true);
+		image.drawLine(minX + xOffset, y0, maxX - xOffset, y1, {.thick = true});
 		image.drawVerticalLine(minX + xOffset, yStart, yEnd);
 		image.drawVerticalLine(minX + xOffset + 1, yStart, yEnd);
 		image.drawHorizontalLine(y1 - 1, maxX - xOffset, maxX - 1);

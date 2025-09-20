@@ -2,6 +2,7 @@
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
 #include "gui/menu_item/edit_name.h"
+#include "gui/menu_item/filter/param.h"
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/note/fill.h"
 #include "gui/menu_item/note/iterance_divisor.h"
@@ -31,6 +32,7 @@
 namespace deluge::gui::menu_item {
 class HorizontalMenu;
 class HorizontalMenuGroup;
+class HorizontalMenuContainer;
 } // namespace deluge::gui::menu_item
 
 extern gui::menu_item::patched_param::IntegerNonFM noiseMenu;
@@ -99,7 +101,6 @@ extern gui::menu_item::source::patched_param::ModulatorLevel modulator0Volume;
 extern gui::menu_item::source::patched_param::ModulatorLevel modulator1Volume;
 
 extern MenuItem* midiOrCVParamShortcuts[kDisplayHeight];
-
 extern MenuItem* gateDrumParamShortcuts[kDisplayHeight];
 extern MenuItem* paramShortcutsForSounds[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForSoundsSecondLayer[kDisplayWidth][kDisplayHeight];
@@ -107,11 +108,12 @@ extern MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForSongView[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForKitGlobalFX[kDisplayWidth][kDisplayHeight];
 
-extern std::array<gui::menu_item::HorizontalMenu*, 17> horizontalMenusChainForSound;
-extern std::array<gui::menu_item::HorizontalMenu*, 12> horizontalMenusChainForKit;
-extern std::array<gui::menu_item::HorizontalMenu*, 9> horizontalMenusChainForSong;
-extern std::array<gui::menu_item::HorizontalMenu*, 11> horizontalMenusChainForAudioClip;
-extern std::array<gui::menu_item::HorizontalMenu*, 2> horizontalMenusChainForMidiOrCv;
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForSound;
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForKit;
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForSong;
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForAudioClip;
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForMidiOrCv;
+extern deluge::vector<gui::menu_item::HorizontalMenuContainer*> horizontalMenuContainers;
 
 extern gui::menu_item::HorizontalMenuGroup sourceMenuGroup;
 extern gui::menu_item::HorizontalMenu audioClipSampleMenu;

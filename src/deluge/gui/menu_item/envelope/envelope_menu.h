@@ -130,7 +130,7 @@ private:
 
 		// Draw a transition square
 		image.drawRectangle(ix - squareSize, iy - squareSize, ix + squareSize, iy + squareSize);
-	};
+	}
 };
 
 } // namespace deluge::gui::menu_item::envelope
