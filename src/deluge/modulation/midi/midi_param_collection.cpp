@@ -315,17 +315,18 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
 		    oldValue, new_v, getParamKind(), modelStack->paramId);
 		if (current_value_changed) {
-			// In kit context, get the drum from the note row being automated
-			NoteRow* noteRow = modelStack->getNoteRowAllowNull();
-			if (noteRow && noteRow->drum && noteRow->drum->type == DrumType::MIDI) {
-				MIDIDrum* midiDrum = static_cast<MIDIDrum*>(noteRow->drum);
+			// In kit context, use the selected drum (this is how automation view works)
+			Kit* kit = static_cast<Kit*>(modelStack->modControllable);
+			if (kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI) {
+				MIDIDrum* midiDrum = static_cast<MIDIDrum*>(kit->selectedDrum);
 
 				// Check if the note row is muted - if so, don't send MIDI CC
-				if (noteRow->muted) {
+				NoteRow* noteRow = modelStack->getNoteRowAllowNull();
+				if (noteRow && noteRow->muted) {
 					return; // Don't send MIDI CC if note row is muted
 				}
 
-				// Use the note row's drum channel (this is the channel for this specific kit row)
+				// Use the selected drum's channel (this is the channel setting for the kit row)
 				midiDrum->sendCC(modelStack->paramId, modelStack->autoParam->getCurrentValue());
 			}
 		}
