@@ -452,46 +452,6 @@ void MIDIDrum::setNameForCC(int32_t cc, std::string_view name) {
 	}
 }
 
-// CC sending method with specific channel
-void MIDIDrum::sendCCWithChannel(int32_t cc, int32_t value, int32_t channelToUse) {
-	// Convert automation value to MIDI CC value (same as MIDIParamCollection::autoparamValueToCC)
-	int32_t rShift = 25;
-	int32_t roundingAmountToAdd = 1 << (rShift - 1);
-	int32_t maxValue = 2147483647 - roundingAmountToAdd;
-
-	if (value > maxValue) {
-		value = maxValue;
-	}
-	int32_t ccValue = (value + roundingAmountToAdd) >> rShift;
-
-	uint32_t deviceFilter = 0;
-	if (outputDevice > 0) {
-		if (outputDevice == 1) {
-			deviceFilter = 1; // DIN only (bit 0)
-		}
-		else {
-			deviceFilter = (1 << (outputDevice - 1)); // USB device (bit outputDevice-1)
-		}
-	}
-
-	// Use the provided channel instead of the drum's stored channel
-	int32_t masterChannel = channelToUse;
-	switch (channelToUse) {
-	case MIDI_CHANNEL_MPE_LOWER_ZONE:
-		masterChannel = 0;
-		break;
-	case MIDI_CHANNEL_MPE_UPPER_ZONE:
-		masterChannel = 15;
-		break;
-	default:
-		masterChannel = channelToUse;
-		break;
-	}
-
-	midiEngine.sendMidi(this, MIDIMessage::cc(masterChannel, cc, ccValue + 64), kMIDIOutputFilterNoMPE, true,
-	                    deviceFilter);
-}
-
 // CC sending method
 void MIDIDrum::sendCC(int32_t cc, int32_t value) {
 	// Convert automation value to MIDI CC value (same as MIDIParamCollection::autoparamValueToCC)
