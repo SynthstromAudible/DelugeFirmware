@@ -290,20 +290,11 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                              automatedNow);
 
-	// Check if this is a MIDI instrument or MIDI drum
-	// We need to properly identify the type since static_cast doesn't do null checks
-	// Check if it's a kit first (which contains drums)
-	bool isKitContext = modelStack->modControllable->isKit();
-	bool isMIDIInstrument = !isKitContext; // If not a kit, assume it's a MIDI instrument
-	bool isMIDIDrum = isKitContext;        // If it's a kit context, assume we're dealing with a drum
-
-	// However, for MIDI CC parameters in kit rows, the modControllable is actually the MIDIDrum itself
-	// So we need to check if we can call sendCC on it
-	bool canCallSendCC = false;
-	// Try to cast to MIDIDrum to see if it has sendCC method
-	MIDIDrum* testDrum = static_cast<MIDIDrum*>(modelStack->modControllable);
-	// If we get here without compilation error, it's a MIDIDrum
-	canCallSendCC = true;
+	// Determine if this is a MIDI instrument or MIDI drum for proper channel routing
+	// For MIDI CC parameters in kit rows, the modControllable is the MIDIDrum itself
+	// For standalone MIDI instruments, the modControllable is the MIDIInstrument
+	bool isMIDIInstrument = modelStack->modControllable->isKit();
+	bool isMIDIDrum = !isMIDIInstrument;
 
 	if (isMIDIInstrument
 	    && modelStack->song->isOutputActiveInArrangement((MIDIInstrument*)modelStack->modControllable)) {
@@ -318,9 +309,9 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 			         midiOutputFilter);
 		}
 	}
-	else if (canCallSendCC) {
-		// For MIDI drums, the modControllable is the MIDIDrum itself
-		// Try to cast to MIDIDrum and call sendCC
+	else if (isMIDIDrum) {
+		// For MIDI drums in kit rows, the modControllable is the MIDIDrum itself
+		// This ensures MIDI CC automation uses the same channel as the kit row's channel setting
 		MIDIDrum* midiDrum = static_cast<MIDIDrum*>(modelStack->modControllable);
 
 		auto new_v = modelStack->autoParam->getCurrentValue();
@@ -333,7 +324,7 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 				return; // Don't send MIDI CC if note row is muted
 			}
 
-			// Use the MIDI drum's channel directly
+			// Send MIDI CC using the drum's channel (matches kit row channel setting)
 			midiDrum->sendCC(modelStack->paramId, modelStack->autoParam->getCurrentValue());
 		}
 	}

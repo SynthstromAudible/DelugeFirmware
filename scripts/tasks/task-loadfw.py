@@ -2,7 +2,6 @@ import time
 import binascii
 import argparse
 import util
-import itertools
 import os
 
 advisory = """
@@ -129,8 +128,12 @@ def make_sysex_messages(binary, handshake):
     checksum = binascii.crc32(binary)
     length = len(binary)
     messages = []
-    for i, segment in enumerate(itertools.batched(binary, 512)):
-        messages.append(deluge_sysex_message_firmware_segment(i, segment, handshake))
+    # Use a compatible approach for Python 3.11
+    for i in range(0, len(binary), 512):
+        segment = binary[i : i + 512]
+        messages.append(
+            deluge_sysex_message_firmware_segment(i // 512, segment, handshake)
+        )
     messages.append(deluge_sysex_message_firmware_load(checksum, length, handshake))
     return messages
 
