@@ -137,7 +137,7 @@ void Number::drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t hei
 	const float yStart = centerY + outerRadius * sinA;
 	const float xEnd = centerX + innerRadius * cosA;
 	const float yEnd = centerY + innerRadius * sinA;
-	image.drawLine(round(xStart), round(yStart), round(xEnd), round(yEnd), true);
+	image.drawLine(round(xStart), round(yStart), round(xEnd), round(yEnd), {.thick = true});
 
 	// If the knob's position is near left or near right, fill the gap on the bitmap (the gap exists purely for
 	// stylistic effect)

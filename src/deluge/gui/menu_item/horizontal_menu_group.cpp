@@ -40,6 +40,18 @@ void HorizontalMenuGroup::beginSession(MenuItem* navigatedBackwardFrom) {
 	HorizontalMenu::beginSession(navigatedBackwardFrom);
 	navigated_backward_from = navigatedBackwardFrom;
 	lastSelectedItemPosition = kNoSelection;
+
+	for (const auto menu : menus_) {
+		menu->parent = this;
+	}
+}
+
+void HorizontalMenuGroup::endSession() {
+	HorizontalMenu::endSession();
+
+	for (const auto menu : menus_) {
+		menu->parent = nullptr;
+	}
 }
 
 bool HorizontalMenuGroup::focusChild(const MenuItem* child) {
@@ -258,6 +270,15 @@ void HorizontalMenuGroup::selectEncoderAction(int32_t offset) {
 
 bool HorizontalMenuGroup::hasItem(const MenuItem* item) {
 	return std::ranges::any_of(menus_, [&](auto menu) { return menu->hasItem(item); });
+}
+
+void HorizontalMenuGroup::setCurrentItem(const MenuItem* item) {
+	for (auto* menu : menus_) {
+		current_item_ = std::ranges::find(menu->items, item);
+		if (current_item_ != menu->items.end()) {
+			return;
+		}
+	}
 }
 
 } // namespace deluge::gui::menu_item
