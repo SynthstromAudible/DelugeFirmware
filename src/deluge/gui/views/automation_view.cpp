@@ -2185,6 +2185,8 @@ ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* out
 			doRender = false;
 		}
 		else if (selectedDrumChanged) {
+			// Update the selected drum to match the drum assigned to this note row
+			instrumentClipView.setSelectedDrum(drum, false, (Kit*)output, false);
 			initParameterSelection();
 			uiNeedsRendering(getRootUI());
 			doRender = false;
