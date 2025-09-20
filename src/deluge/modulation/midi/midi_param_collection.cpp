@@ -297,6 +297,14 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 	bool isMIDIInstrument = !isKitContext; // If not a kit, assume it's a MIDI instrument
 	bool isMIDIDrum = isKitContext;        // If it's a kit context, assume we're dealing with a drum
 
+	// However, for MIDI CC parameters in kit rows, the modControllable is actually the MIDIDrum itself
+	// So we need to check if we can call sendCC on it
+	bool canCallSendCC = false;
+	// Try to cast to MIDIDrum to see if it has sendCC method
+	MIDIDrum* testDrum = static_cast<MIDIDrum*>(modelStack->modControllable);
+	// If we get here without compilation error, it's a MIDIDrum
+	canCallSendCC = true;
+
 	if (isMIDIInstrument
 	    && modelStack->song->isOutputActiveInArrangement((MIDIInstrument*)modelStack->modControllable)) {
 		auto new_v = modelStack->autoParam->getCurrentValue();
@@ -310,27 +318,8 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 			         midiOutputFilter);
 		}
 	}
-	else if (isMIDIDrum) {
-		auto new_v = modelStack->autoParam->getCurrentValue();
-		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
-		    oldValue, new_v, getParamKind(), modelStack->paramId);
-		if (current_value_changed) {
-			// For MIDI drums, the modControllable is the MIDIDrum itself
-			// Try to cast to MIDIDrum and call sendCC
-			MIDIDrum* midiDrum = static_cast<MIDIDrum*>(modelStack->modControllable);
-
-			// Check if the note row is muted - if so, don't send MIDI CC
-			NoteRow* noteRow = modelStack->getNoteRowAllowNull();
-			if (noteRow && noteRow->muted) {
-				return; // Don't send MIDI CC if note row is muted
-			}
-
-			// Use the MIDI drum's channel directly
-			midiDrum->sendCC(modelStack->paramId, modelStack->autoParam->getCurrentValue());
-		}
-	}
-	else {
-		// Check if modControllable is a MIDIDrum directly (for MIDI CC parameters in kit rows)
+	else if (canCallSendCC) {
+		// For MIDI drums, the modControllable is the MIDIDrum itself
 		// Try to cast to MIDIDrum and call sendCC
 		MIDIDrum* midiDrum = static_cast<MIDIDrum*>(modelStack->modControllable);
 
