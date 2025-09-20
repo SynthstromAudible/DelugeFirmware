@@ -464,15 +464,8 @@ void MIDIDrum::sendCC(int32_t cc, int32_t value) {
 	}
 	int32_t ccValue = (value + roundingAmountToAdd) >> rShift;
 
+	// Temporarily disable device filtering to test channel routing
 	uint32_t deviceFilter = 0;
-	if (outputDevice > 0) {
-		if (outputDevice == 1) {
-			deviceFilter = 1; // DIN only (bit 0)
-		}
-		else {
-			deviceFilter = (1 << (outputDevice - 1)); // USB device (bit outputDevice-1)
-		}
-	}
 	midiEngine.sendMidi(this, MIDIMessage::cc(getOutputMasterChannel(), cc, ccValue + 64), kMIDIOutputFilterNoMPE, true,
 	                    deviceFilter);
 }
