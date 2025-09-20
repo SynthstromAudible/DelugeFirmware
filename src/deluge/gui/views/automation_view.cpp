@@ -2177,7 +2177,8 @@ ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* out
 		}
 	}
 
-	if (selectedRowChanged || (selectedDrumChanged && (!getAffectEntire() || inNoteEditor()))) {
+	if (selectedRowChanged
+	    || (selectedDrumChanged && (!getAffectEntire() || inNoteEditor() || onAutomationOverview()))) {
 		if (inNoteEditor()) {
 			renderDisplay();
 			instrumentClipView.resetSelectedNoteRowBlinking();
