@@ -454,6 +454,7 @@ void MIDIDrum::setNameForCC(int32_t cc, std::string_view name) {
 
 // CC sending method
 void MIDIDrum::sendCC(int32_t cc, int32_t value) {
+
 	// Convert automation value to MIDI CC value (same as MIDIParamCollection::autoparamValueToCC)
 	int32_t rShift = 25;
 	int32_t roundingAmountToAdd = 1 << (rShift - 1);
