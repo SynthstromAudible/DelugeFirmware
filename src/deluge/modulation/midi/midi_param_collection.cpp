@@ -325,7 +325,10 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 			}
 
 			// Send MIDI CC using the drum's channel (matches kit row channel setting)
-			midiDrum->sendCC(modelStack->paramId, modelStack->autoParam->getCurrentValue());
+			// Add safety check to prevent potential memory issues
+			if (midiDrum && midiDrum->type == DrumType::MIDI) {
+				midiDrum->sendCC(modelStack->paramId, modelStack->autoParam->getCurrentValue());
+			}
 		}
 	}
 }

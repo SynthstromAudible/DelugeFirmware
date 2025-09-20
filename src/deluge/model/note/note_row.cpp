@@ -33,6 +33,7 @@
 #include "model/note/note.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
@@ -3682,9 +3683,19 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			writer.writeOpeningTagEnd();
 			closedOurTagYet = true;
 
-			writer.writeOpeningTagBeginning("soundParams");
-			Sound::writeParamsToFile(writer, &paramManager, true);
-			writer.writeClosingTag("soundParams", true);
+			// Save parameter collections based on drum type
+			if (drum->type == DrumType::SOUND) {
+				writer.writeOpeningTagBeginning("soundParams");
+				Sound::writeParamsToFile(writer, &paramManager, true);
+				writer.writeClosingTag("soundParams", true);
+			}
+			else if (drum->type == DrumType::MIDI) {
+				// Save MIDI parameter collections for MIDI drums
+				MIDIParamCollection* midiParams = paramManager.getMIDIParamCollection();
+				if (midiParams) {
+					midiParams->writeToFile(writer);
+				}
+			}
 		}
 	}
 
