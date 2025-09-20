@@ -329,6 +329,25 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 			midiDrum->sendCC(modelStack->paramId, modelStack->autoParam->getCurrentValue());
 		}
 	}
+	else {
+		// Check if modControllable is a MIDIDrum directly (for MIDI CC parameters in kit rows)
+		// Try to cast to MIDIDrum and call sendCC
+		MIDIDrum* midiDrum = static_cast<MIDIDrum*>(modelStack->modControllable);
+
+		auto new_v = modelStack->autoParam->getCurrentValue();
+		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
+		    oldValue, new_v, getParamKind(), modelStack->paramId);
+		if (current_value_changed) {
+			// Check if the note row is muted - if so, don't send MIDI CC
+			NoteRow* noteRow = modelStack->getNoteRowAllowNull();
+			if (noteRow && noteRow->muted) {
+				return; // Don't send MIDI CC if note row is muted
+			}
+
+			// Use the MIDI drum's channel directly
+			midiDrum->sendCC(modelStack->paramId, modelStack->autoParam->getCurrentValue());
+		}
+	}
 }
 
 bool MIDIParamCollection::mayParamInterpolate(int32_t paramId) {
