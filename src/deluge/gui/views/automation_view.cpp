@@ -403,6 +403,11 @@ bool AutomationView::opened() {
 
 	focusRegained();
 
+	// Ensure display is updated immediately when opening automation view
+	// This fixes blank display issues when entering automation mode
+	renderDisplay();
+	displayAutomation(true);
+
 	return true;
 }
 
@@ -530,6 +535,10 @@ void AutomationView::focusRegained() {
 		// Ensure display is rendered immediately when entering automation view
 		// This fixes the blank OLED display issue for kit rows
 		renderDisplay();
+
+		// Force display update for automation editor mode
+		// This fixes the blank display when entering automation CC edit mode for the first time
+		displayAutomation(true);
 	}
 }
 
@@ -1058,6 +1067,35 @@ void AutomationView::renderAutomationOverviewDisplayOLED(deluge::hid::display::o
 		deluge::hid::display::OLED::drawPermanentPopupLookingText(overviewText);
 	}
 	else {
+		// For MIDI instruments and MIDI drums, show current selected MIDI CC value if available
+		if ((outputType == OutputType::MIDI_OUT)
+		    || (outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
+		        && ((Kit*)output)->selectedDrum->type == DrumType::MIDI)) {
+
+			Clip* clip = getCurrentClip();
+			if (clip && clip->lastSelectedParamID != kNoSelection
+			    && clip->lastSelectedParamKind == params::Kind::MIDI) {
+				// Show current selected MIDI CC value
+				char ccText[20];
+				int32_t cc = clip->lastSelectedParamID;
+				if (cc == CC_NUMBER_PITCH_BEND) {
+					strcpy(ccText, "PITCH BEND");
+				}
+				else if (cc == CC_NUMBER_AFTERTOUCH) {
+					strcpy(ccText, "AFTERTOUCH");
+				}
+				else if (cc == CC_NUMBER_Y_AXIS) {
+					strcpy(ccText, "Y AXIS");
+				}
+				else {
+					snprintf(ccText, sizeof(ccText), "CC %d", cc);
+				}
+				canvas.drawStringCentred(ccText, yPos, kTextSpacingX, kTextSpacingY);
+				return;
+			}
+		}
+
+		// Default to "Automation Overview" for other cases
 		overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW);
 		canvas.drawStringCentred(overviewText, yPos, kTextSpacingX, kTextSpacingY);
 	}
@@ -1086,6 +1124,35 @@ void AutomationView::renderAutomationOverviewDisplay7SEG(Output* output, OutputT
 		overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
 	}
 	else {
+		// For MIDI instruments and MIDI drums, show current selected MIDI CC value if available
+		if ((outputType == OutputType::MIDI_OUT)
+		    || (outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
+		        && ((Kit*)output)->selectedDrum->type == DrumType::MIDI)) {
+
+			Clip* clip = getCurrentClip();
+			if (clip && clip->lastSelectedParamID != kNoSelection
+			    && clip->lastSelectedParamKind == params::Kind::MIDI) {
+				// Show current selected MIDI CC value
+				char ccText[20];
+				int32_t cc = clip->lastSelectedParamID;
+				if (cc == CC_NUMBER_PITCH_BEND) {
+					strcpy(ccText, "PITCH");
+				}
+				else if (cc == CC_NUMBER_AFTERTOUCH) {
+					strcpy(ccText, "AT");
+				}
+				else if (cc == CC_NUMBER_Y_AXIS) {
+					strcpy(ccText, "Y");
+				}
+				else {
+					snprintf(ccText, sizeof(ccText), "CC%d", cc);
+				}
+				display->setScrollingText(ccText);
+				return;
+			}
+		}
+
+		// Default to "AUTOMATION" for other cases
 		overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION);
 	}
 	display->setScrollingText(overviewText);
@@ -1987,6 +2054,9 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 
 		// if you are in a midi clip and the shortcut is valid, set the current selected ParamID
 		clip->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
+		// Force display update when selecting MIDI CC parameter
+		renderDisplay();
+		displayAutomation(true);
 	}
 	else if (outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
 	         && ((Kit*)output)->selectedDrum->type == DrumType::MIDI
@@ -1995,6 +2065,9 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		// if you are in a kit with a MIDI drum selected and the shortcut is valid, set the current selected ParamID
 		clip->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
 		clip->lastSelectedParamKind = params::Kind::MIDI;
+		// Force display update when selecting MIDI CC parameter for kit row
+		renderDisplay();
+		displayAutomation(true);
 	}
 	// expression params, so sounds or midi/cv, or a single drum
 	else if ((util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV, OutputType::SYNTH})
@@ -2026,9 +2099,8 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		instrumentClipView.resetSelectedNoteRowBlinking();
 	}
 	blinkShortcuts();
-	if (display->have7SEG()) {
-		renderDisplay(); // always display parameter name first, if there's automation it will show after
-	}
+	// Always update display to show parameter name and value when entering automation editor
+	renderDisplay(); // always display parameter name first, if there's automation it will show after
 	displayAutomation(true);
 	view.setModLedStates();
 	uiNeedsRendering(&automationView);
@@ -2639,6 +2711,8 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	else if (outputType == OutputType::MIDI_OUT) {
 		selectMIDICC(offset, clip);
 		getLastSelectedParamShortcut(clip);
+		// Force immediate display update to show current MIDI CC
+		renderDisplay();
 	}
 	// if you're in a kit with a MIDI drum selected, handle MIDI CC selection
 	else if (outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
