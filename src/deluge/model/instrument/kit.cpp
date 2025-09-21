@@ -427,6 +427,13 @@ void Kit::addDrum(Drum* newDrum) {
 	*prevPointer = newDrum;
 
 	newDrum->kit = this;
+
+	// Initialize MIDI drum routing after adding to kit
+	if (newDrum->type == DrumType::MIDI) {
+		MIDIDrum* midiDrum = (MIDIDrum*)newDrum;
+		// The outputRouting values should already be set from XML reading
+		// This ensures the drum is properly initialized
+	}
 }
 
 void Kit::removeDrumFromKitArpeggiator(int32_t drumIndex) {

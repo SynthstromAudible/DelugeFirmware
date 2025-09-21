@@ -85,17 +85,19 @@ void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "channel")) {
+		if (!strcmp(tagName, "outputDevice")) {
+			// Try reading the value first, then exitTag
+			int32_t deviceValue = reader.readTagOrAttributeValueInt();
+			reader.exitTag("outputDevice");
+			outputRouting.device = (uint8_t)deviceValue;
+		}
+		else if (!strcmp(tagName, "channel")) {
 			channel = reader.readTagOrAttributeValueInt();
 			reader.exitTag("channel");
 		}
 		else if (!strcmp(tagName, "note")) {
 			note = reader.readTagOrAttributeValueInt();
 			reader.exitTag("note");
-		}
-		else if (!strcmp(tagName, "outputDevice")) {
-			outputRouting.device = reader.readTagOrAttributeValueInt();
-			reader.exitTag("outputDevice");
 		}
 		else if (!strcmp(tagName, "outputChannel")) {
 			outputRouting.channel = reader.readTagOrAttributeValueInt();
