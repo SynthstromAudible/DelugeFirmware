@@ -526,6 +526,10 @@ void AutomationView::focusRegained() {
 		soundEditor.resetSourceBlinks();
 		// possibly restablish parameter shortcut blinking (if parameter is selected)
 		blinkShortcuts();
+
+		// Ensure display is rendered immediately when entering automation view
+		// This fixes the blank OLED display issue for kit rows
+		renderDisplay();
 	}
 }
 
@@ -729,10 +733,16 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 		// you're in a kit where midi or CV sound drum has been selected and you're editing velocity
 		if (onArrangerView || !(outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
 			bool isMIDICVDrum = false;
+			bool isMIDIDrum = false;
 			if (outputType == OutputType::KIT && !getAffectEntire()) {
-				isMIDICVDrum = (((Kit*)output)->selectedDrum
-				                && ((((Kit*)output)->selectedDrum->type == DrumType::MIDI)
-				                    || (((Kit*)output)->selectedDrum->type == DrumType::GATE)));
+				if (((Kit*)output)->selectedDrum) {
+					if (((Kit*)output)->selectedDrum->type == DrumType::MIDI) {
+						isMIDIDrum = true;
+					}
+					else if (((Kit*)output)->selectedDrum->type == DrumType::GATE) {
+						isMIDICVDrum = true;
+					}
+				}
 			}
 
 			// if parameter has been selected, show Automation Editor
@@ -755,7 +765,7 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 			// if not editing a parameter, show Automation Overview
 			else {
 				renderAutomationOverview(modelStackWithTimelineCounter, modelStackWithThreeMainThings, clip, outputType,
-				                         image, occupancyMask, xDisplay, isMIDICVDrum);
+				                         image, occupancyMask, xDisplay, isMIDICVDrum, isMIDIDrum);
 			}
 		}
 		else {
@@ -769,8 +779,8 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
                                               ModelStackWithThreeMainThings* modelStackWithThreeMainThings, Clip* clip,
                                               OutputType outputType, RGB image[][kDisplayWidth + kSideBarWidth],
                                               uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
-                                              bool isMIDICVDrum) {
-	bool singleSoundDrum = (outputType == OutputType::KIT && !getAffectEntire()) && !isMIDICVDrum;
+                                              bool isMIDICVDrum, bool isMIDIDrum) {
+	bool singleSoundDrum = (outputType == OutputType::KIT && !getAffectEntire()) && !isMIDICVDrum && !isMIDIDrum;
 	bool affectEntireKit = (outputType == OutputType::KIT && getAffectEntire());
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
@@ -853,8 +863,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 					    modelStackWithTimelineCounter, clip, midiCCShortcutsForAutomation[xDisplay][yDisplay]);
 				}
 			}
-			else if (outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)clip->output)->selectedDrum
-			         && ((Kit*)clip->output)->selectedDrum->type == DrumType::MIDI) {
+			else if (isMIDIDrum) {
 				// For MIDI drums in kit rows, show MIDI CC parameters
 				if (midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
 					modelStackWithParam = getModelStackWithParamForClip(
