@@ -741,7 +741,7 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 		// you're not in a kit where no sound drum has been selected and you're not editing velocity
 		// you're in a kit where midi or CV sound drum has been selected and you're editing velocity
 		if (onArrangerView || !(outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
-			bool isMIDICVDrum = false;
+			bool isGateDrum = false;
 			bool isMIDIDrum = false;
 			if (outputType == OutputType::KIT && !getAffectEntire()) {
 				if (((Kit*)output)->selectedDrum) {
@@ -749,7 +749,7 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 						isMIDIDrum = true;
 					}
 					else if (((Kit*)output)->selectedDrum->type == DrumType::GATE) {
-						isMIDICVDrum = true;
+						isGateDrum = true;
 					}
 				}
 			}
@@ -774,7 +774,7 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 			// if not editing a parameter, show Automation Overview
 			else {
 				renderAutomationOverview(modelStackWithTimelineCounter, modelStackWithThreeMainThings, clip, outputType,
-				                         image, occupancyMask, xDisplay, isMIDICVDrum, isMIDIDrum);
+				                         image, occupancyMask, xDisplay, isGateDrum, isMIDIDrum);
 			}
 		}
 		else {
@@ -788,14 +788,14 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
                                               ModelStackWithThreeMainThings* modelStackWithThreeMainThings, Clip* clip,
                                               OutputType outputType, RGB image[][kDisplayWidth + kSideBarWidth],
                                               uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
-                                              bool isMIDICVDrum, bool isMIDIDrum) {
-	bool singleSoundDrum = (outputType == OutputType::KIT && !getAffectEntire()) && !isMIDICVDrum && !isMIDIDrum;
+                                              bool isGateDrum, bool isMIDIDrum) {
+	bool singleSoundDrum = (outputType == OutputType::KIT && !getAffectEntire()) && !isGateDrum && !isMIDIDrum;
 	bool affectEntireKit = (outputType == OutputType::KIT && getAffectEntire());
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
 		RGB& pixel = image[yDisplay][xDisplay];
 
-		if (!isMIDICVDrum) {
+		if (!isGateDrum) {
 			ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 			if (!onArrangerView && (outputType == OutputType::SYNTH || singleSoundDrum)) {

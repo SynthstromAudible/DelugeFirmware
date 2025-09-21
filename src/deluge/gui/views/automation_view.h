@@ -215,7 +215,7 @@ private:
 	                              ModelStackWithThreeMainThings* modelStackWithThreeMainThings, Clip* clip,
 	                              OutputType outputType, RGB image[][kDisplayWidth + kSideBarWidth],
 	                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
-	                              bool isMIDICVDrum, bool isMIDIDrum);
+	                              bool isGateDrum, bool isMIDIDrum);
 	void renderDisplayOLED(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft = kNoSelection,
 	                       int32_t knobPosRight = kNoSelection);
 	void renderAutomationOverviewDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas, Output* output,
