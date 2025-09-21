@@ -447,11 +447,6 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 	else if (!strcmp(tagName, "outputDevice")) {
 		outputDeviceMask = reader.readTagOrAttributeValueInt();
 	}
-	else if (!strcmp(tagName, "outputChannel")) {
-		// Note: outputChannel is not currently used for MIDI instruments
-		// but we need to read it to avoid XML parsing issues
-		reader.readTagOrAttributeValueInt();
-	}
 	else if (!strcmp(tagName, "isArmedForRecording")) {
 		// Read but don't store - this might be handled by parent classes
 		reader.readTagOrAttributeValueInt();

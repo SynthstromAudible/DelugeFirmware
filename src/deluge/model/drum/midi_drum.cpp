@@ -67,7 +67,6 @@ void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 	writer.writeAttribute("channel", channel, false);
 	writer.writeAttribute("note", note, false);
 	writer.writeAttribute("outputDevice", outputRouting.device, false);
-	writer.writeAttribute("outputChannel", outputRouting.channel, false);
 	writer.writeOpeningTagEnd();
 
 	NonAudioDrum::writeArpeggiatorToFile(writer);
@@ -98,10 +97,6 @@ Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32
 		else if (!strcmp(tagName, "note")) {
 			note = reader.readTagOrAttributeValueInt();
 			reader.exitTag("note");
-		}
-		else if (!strcmp(tagName, "outputChannel")) {
-			outputRouting.channel = reader.readTagOrAttributeValueInt();
-			reader.exitTag("outputChannel");
 		}
 		else if (!strcmp(tagName, "modKnobs")) {
 			// Handle modKnobs if present (for backward compatibility with old debug format)
