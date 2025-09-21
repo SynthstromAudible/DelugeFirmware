@@ -86,6 +86,13 @@ public:
 	// Get the master channel for output (handles MPE zones like MIDI instruments)
 	int32_t getOutputMasterChannel();
 
+	// CC label file I/O methods
+	void writeCCLabelsToFile(Serializer& writer);
+	Error readCCLabelsFromFile(Deserializer& reader);
+
+	// Mod knob methods (for backward compatibility with old debug format)
+	Error readModKnobAssignmentsFromFile(Deserializer& reader);
+
 	uint8_t note;
 	int8_t noteEncoderCurrentOffset;
 

@@ -26,6 +26,7 @@
 #include "model/song/song.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
 #include <string.h>
 
 MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
@@ -70,14 +71,10 @@ void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 
 	if (savingSong) {
 		Drum::writeMIDICommandsToFile(writer);
-	}
 
-	// Write mod knob CC assignments
-	writer.writeOpeningTagBeginning("modKnobAssignments");
-	for (int32_t i = 0; i < kNumModButtons * kNumPhysicalModKnobs; i++) {
-		writer.writeTag("cc", modKnobCCAssignments[i]);
+		// Write ccLabels section directly (MIDI drums in kits don't use midiDevice wrapper)
+		writeCCLabelsToFile(writer);
 	}
-	writer.writeClosingTag("modKnobAssignments");
 
 	writer.writeClosingTag("midiOutput", true, true);
 }
@@ -101,19 +98,15 @@ Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32
 			outputRouting.channel = reader.readTagOrAttributeValueInt();
 			reader.exitTag("outputChannel");
 		}
-		else if (!strcmp(tagName, "modKnobAssignments")) {
-			int32_t i = 0;
-			while (*(tagName = reader.readNextTagOrAttributeName()) && i < kNumModButtons * kNumPhysicalModKnobs) {
-				if (!strcmp(tagName, "cc")) {
-					modKnobCCAssignments[i] = reader.readTagOrAttributeValueInt();
-					reader.exitTag("cc");
-					i++;
-				}
-				else {
-					reader.exitTag(tagName);
-				}
-			}
-			reader.exitTag("modKnobAssignments");
+		else if (!strcmp(tagName, "modKnobs")) {
+			// Handle modKnobs if present (for backward compatibility with old debug format)
+			readModKnobAssignmentsFromFile(reader);
+			reader.exitTag("modKnobs");
+		}
+		else if (!strcmp(tagName, "ccLabels")) {
+			// Handle ccLabels section (for kit row automation)
+			readCCLabelsFromFile(reader);
+			reader.exitTag("ccLabels");
 		}
 		else if (NonAudioDrum::readDrumTagFromFile(reader, tagName)) {}
 		else {
@@ -471,4 +464,83 @@ int32_t MIDIDrum::getOutputMasterChannel() {
 	default:
 		return channel;
 	}
+}
+
+// CC label file I/O methods (following MIDIInstrument pattern exactly)
+void MIDIDrum::writeCCLabelsToFile(Serializer& writer) {
+	writer.writeOpeningTagBeginning("ccLabels");
+	for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
+		if (i != CC_EXTERNAL_MOD_WHEEL) {
+			auto it = labels.find(i);
+			char ccNumber[10];
+			intToString(i, ccNumber, 1);
+			if (it != labels.end()) {
+				writer.writeAttribute(ccNumber, it->second.data());
+			}
+			else {
+				writer.writeAttribute(ccNumber, "");
+			}
+		}
+	}
+	writer.closeTag();
+}
+
+Error MIDIDrum::readModKnobAssignmentsFromFile(Deserializer& reader) {
+	int32_t m = 0;
+	char const* tagName;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "modKnob")) {
+			// Read the modKnob attributes directly (not nested elements)
+			char const* contents = reader.readTagOrAttributeValue();
+			int32_t cc = CC_NUMBER_NONE;
+
+			if (!strcasecmp(contents, "bend")) {
+				cc = CC_NUMBER_PITCH_BEND;
+			}
+			else if (!strcasecmp(contents, "aftertouch")) {
+				cc = CC_NUMBER_AFTERTOUCH;
+			}
+			else if (!strcasecmp(contents, "none")) {
+				cc = CC_NUMBER_NONE;
+			}
+			else {
+				cc = stringToInt(contents);
+			}
+
+			modKnobCCAssignments[m] = cc;
+			m++;
+			reader.exitTag("modKnob");
+		}
+		else {
+			reader.exitTag(tagName);
+		}
+		if (m >= kNumModButtons * kNumPhysicalModKnobs) {
+			break;
+		}
+	}
+	return Error::NONE;
+}
+
+Error MIDIDrum::readCCLabelsFromFile(Deserializer& reader) {
+	Error error = Error::FILE_UNREADABLE;
+
+	int32_t cc = 0;
+	char const* tagName;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		char ccNumber[10];
+		cc = stringToInt(tagName);
+
+		if (cc < 0 || cc >= kNumRealCCNumbers) {
+			reader.exitTag();
+			continue;
+		}
+
+		labels[cc] = reader.readTagOrAttributeValue();
+
+		error = Error::NONE;
+
+		reader.exitTag();
+	}
+
+	return error;
 }

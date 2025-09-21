@@ -2226,6 +2226,37 @@ void InstrumentClip::detachFromOutput(ModelStackWithTimelineCounter* modelStack,
 			                             shouldGrabMidiCommands, shouldBackUpExpressionParamsToo);
 		}
 
+		// For kits with MIDI drums, ensure the kit's ParamManager is initialized
+		// so it can be backed up properly during saving
+		if (output->type == OutputType::KIT && !paramManager.containsAnyMainParamCollections()) {
+			// Check if this kit has MIDI drums with automation
+			Kit* kit = (Kit*)output;
+			bool hasMIDIDrumsWithAutomation = false;
+			for (Drum* drum = kit->firstDrum; drum; drum = drum->next) {
+				if (drum->type == DrumType::MIDI) {
+					// Check if any NoteRow for this drum has automation
+					for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+						NoteRow* noteRow = noteRows.getElement(i);
+						if (noteRow->drum == drum && noteRow->paramManager.containsAnyMainParamCollections()) {
+							hasMIDIDrumsWithAutomation = true;
+							break;
+						}
+					}
+					if (hasMIDIDrumsWithAutomation)
+						break;
+				}
+			}
+
+			// If this kit has MIDI drums with automation, initialize its ParamManager
+			// so it can be backed up properly
+			if (hasMIDIDrumsWithAutomation) {
+				Error error = paramManager.setupUnpatched();
+				if (error == Error::NONE) {
+					GlobalEffectableForClip::initParams(&paramManager);
+				}
+			}
+		}
+
 		modelStack->song->backUpParamManager((ModControllableAudio*)output->toModControllable(), this, &paramManager,
 		                                     shouldBackUpExpressionParamsToo);
 	}

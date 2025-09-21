@@ -4161,6 +4161,33 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 			if (output->type == OutputType::SYNTH || output->type == OutputType::KIT) {
 				if (!getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)output->toModControllable(),
 				                                               nullptr)) {
+					// Special case: if this is a kit with MIDI drums, create a minimal ParamManager backup
+					// instead of deleting the output
+					if (output->type == OutputType::KIT) {
+						Kit* kit = (Kit*)output;
+						bool hasMIDIDrums = false;
+						for (Drum* drum = kit->firstDrum; drum; drum = drum->next) {
+							if (drum->type == DrumType::MIDI) {
+								hasMIDIDrums = true;
+								break;
+							}
+						}
+
+						if (hasMIDIDrums) {
+							// Create a minimal ParamManager backup for kits with MIDI drums
+							ParamManagerForTimeline paramManager{};
+							Error error = paramManager.setupUnpatched();
+							if (error == Error::NONE) {
+								GlobalEffectableForClip::initParams(&paramManager);
+								backUpParamManager((ModControllableAudio*)output->toModControllable(), nullptr,
+								                   &paramManager, true);
+								// Continue with setupWithoutActiveClip instead of deleting
+								output->setupWithoutActiveClip(modelStack);
+								goto getOut;
+							}
+						}
+					}
+
 #if ALPHA_OR_BETA_VERSION
 					display->displayPopup("E044");
 #endif

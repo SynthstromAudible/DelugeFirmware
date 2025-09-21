@@ -1696,11 +1696,25 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	// if we're in a midi clip, with a midi cc selected and we press the name shortcut
 	// while holding shift, then enter the rename midi cc UI
+	// Also handle MIDI drums in kit rows
 	if (outputType == OutputType::MIDI_OUT) {
 		if (Buttons::isShiftButtonPressed() && x == 11 && y == 5) {
 			if (!onAutomationOverview()) {
 				openUI(&renameMidiCCUI);
 				return ActionResult::DEALT_WITH;
+			}
+		}
+	}
+	else if (outputType == OutputType::KIT && !((InstrumentClip*)clip)->affectEntire) {
+		// Check if we have a MIDI drum selected and a MIDI CC parameter selected
+		Kit* kit = (Kit*)output;
+		if (kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI
+		    && clip->lastSelectedParamKind == params::Kind::MIDI) {
+			if (Buttons::isShiftButtonPressed() && x == 11 && y == 5) {
+				if (!onAutomationOverview()) {
+					openUI(&renameMidiCCUI);
+					return ActionResult::DEALT_WITH;
+				}
 			}
 		}
 	}

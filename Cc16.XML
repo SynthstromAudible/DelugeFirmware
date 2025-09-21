@@ -1,0 +1,571 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<song
+	firmwareVersion="c1.3.0"
+	earliestCompatibleFirmware="4.1.0-alpha"
+	previewNumPads="144"
+	preview="000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000EA15000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000FF00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080FF00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000FF000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000C738000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000B04F00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000B0004F0000FF491717000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005AA5001F00"
+	arrangementAutoScrollOn="0"
+	xScroll="0"
+	xZoom="24"
+	yScrollSongView="-7"
+	yScrollArrangementView="-7"
+	xScrollArrangementView="0"
+	xZoomArrangementView="192"
+	timePerTimerTick="229"
+	timerTickFraction="-1342177280"
+	rootNote="0"
+	inputTickMagnitude="2"
+	swingAmount="0"
+	swingInterval="7"
+	affectEntire="0"
+	activeModFunction="1"
+	modFXCurrentParam="feedback"
+	currentFilterType="lpf"
+	modFXType="none"
+	lpfMode="24dB"
+	hpfMode="HPLadder"
+	filterRoute="H2L"
+	songGridScrollX="0"
+	songGridScrollY="0"
+	sessionLayout="1">
+	<modeNotes>
+		<modeNote>0</modeNote>
+		<modeNote>2</modeNote>
+		<modeNote>4</modeNote>
+		<modeNote>5</modeNote>
+		<modeNote>7</modeNote>
+		<modeNote>9</modeNote>
+		<modeNote>11</modeNote>
+	</modeNotes>
+	<reverb
+		roomSize="1288490112"
+		dampening="1546188288"
+		width="2147483647"
+		hpf="0"
+		lpf="2147483647"
+		pan="0"
+		model="1">
+		<compressor
+			attack="327244"
+			release="936"
+			volume="-21474836"
+			shape="-601295438"
+			syncLevel="5" />
+	</reverb>
+	<delay
+		pingPong="1"
+		analog="0"
+		syncLevel="7"
+		syncType="0" />
+	<sidechain
+		attack="327244"
+		release="936"
+		syncLevel="6"
+		syncType="0" />
+	<audioCompressor
+		attack="83886080"
+		release="83886080"
+		thresh="0"
+		ratio="1073741824"
+		compHPF="0"
+		compBlend="2147483647" />
+	<stutter
+		quantized="1"
+		reverse="0"
+		pingPong="0" />
+	<songParams
+		reverbAmount="0x80000000"
+		volume="0x00000000"
+		pan="0x00000000"
+		sidechainCompressorShape="0xDC28F5B2"
+		modFXDepth="0x00000000"
+		modFXRate="0xE0000000"
+		stutterRate="0x00000000"
+		sampleRateReduction="0x80000000"
+		bitCrush="0x80000000"
+		modFXOffset="0x00000000"
+		modFXFeedback="0x80000000"
+		compressorThreshold="0x00000000"
+		arpeggiatorGate="0x7FFFFFFF"
+		noteProbability="0x7FFFFFFF"
+		bassProbability="0x80000000"
+		swapProbability="0x80000000"
+		glideProbability="0x80000000"
+		reverseProbability="0x80000000"
+		chordProbability="0x80000000"
+		ratchetProbability="0x80000000"
+		ratchetAmount="0x80000000"
+		sequenceLength="0x80000000"
+		chordPolyphony="0x80000000"
+		rhythm="0x80000000"
+		spreadVelocity="0x80000000"
+		spreadGate="0x80000000"
+		spreadOctave="0x80000000"
+		lpfMorph="0x80000000"
+		hpfMorph="0x80000000"
+		tempo="0x00002EE0"
+		arpeggiatorRate="0x00000000">
+		<delay
+			rate="0x00000000"
+			feedback="0x80000000" />
+		<lpf
+			frequency="0x7FFFFFFF"
+			resonance="0x80000000" />
+		<hpf
+			frequency="0x80000000"
+			resonance="0x80000000" />
+		<equalizer
+			bass="0x00000000"
+			treble="0x00000000"
+			bassFrequency="0x00000000"
+			trebleFrequency="0x00000000" />
+	</songParams>
+	<instruments>
+		<kit
+			presetName="KIT1"
+			presetFolder="KITS"
+			defaultVelocity="64"
+			isArmedForRecording="0"
+			activeModFunction="1"
+			colour="1"
+			modFXCurrentParam="feedback"
+			currentFilterType="lpf"
+			modFXType="none"
+			lpfMode="24dB"
+			hpfMode="HPLadder"
+			filterRoute="H2L">
+			<delay
+				pingPong="1"
+				analog="0"
+				syncLevel="7"
+				syncType="0" />
+			<sidechain
+				attack="327244"
+				release="936"
+				syncLevel="6"
+				syncType="0" />
+			<audioCompressor
+				attack="83886080"
+				release="83886080"
+				thresh="0"
+				ratio="1073741824"
+				compHPF="0"
+				compBlend="2147483647" />
+			<stutter
+				quantized="1"
+				reverse="0"
+				pingPong="0" />
+			<soundSources>
+				<midiOutput channel="0" note="25" outputDevice="0" outputChannel="0">
+					<arpeggiator
+						mode="off"
+						syncLevel="6"
+						numOctaves="2"
+						syncType="0"
+						arpMode="off"
+						chordType="0"
+						noteMode="up"
+						octaveMode="up"
+						mpeVelocity="off"
+						stepRepeat="1"
+						randomizerLock="0"
+						kitArp="1"
+						lastLockedNoteProb="0"
+						lockedNoteProbArray="00000000000000000000000000000000"
+						lastLockedBassProb="0"
+						lockedBassProbArray="00000000000000000000000000000000"
+						lastLockedSwapProb="0"
+						lockedSwapProbArray="00000000000000000000000000000000"
+						lastLockedGlideProb="0"
+						lockedGlideProbArray="00000000000000000000000000000000"
+						lastLockedReverseProb="0"
+						lockedReverseProbArray="00000000000000000000000000000000"
+						lastLockedChordProb="0"
+						lockedChordProbArray="00000000000000000000000000000000"
+						lastLockedRatchetProb="0"
+						lockedRatchetProbArray="00000000000000000000000000000000"
+						lastLockedVelocitySpread="0"
+						lockedVelocitySpreadArray="00000000000000000000000000000000"
+						lastLockedGateSpread="0"
+						lockedGateSpreadArray="00000000000000000000000000000000"
+						lastLockedOctaveSpread="0"
+						lockedOctaveSpreadArray="00000000000000000000000000000000"
+						notePattern="00000101000403020601060404010901"
+						gate="0"
+						rate="0"
+						noteProbability="-1"
+						bassProbability="0"
+						swapProbability="0"
+						glideProbability="0"
+						reverseProbability="0"
+						chordProbability="0"
+						ratchetProbability="0"
+						ratchetAmount="0"
+						sequenceLength="0"
+						chordPolyphony="0"
+						rhythm="0"
+						spreadVelocity="0"
+						spreadGate="0"
+						spreadOctave="0" />
+					<modKnobs>
+						<modKnob
+							cc="none" />
+						<modKnob
+							cc="none" />
+						<modKnob
+							cc="none" />
+						<modKnob
+							cc="none" />
+						<modKnob
+							cc="none" />
+						<modKnob
+							cc="none" />
+						<modKnob
+							cc="none" />
+						<modKnob
+							cc="none" />
+						<modKnob
+							cc="none" />
+						<modKnob
+							cc="none" />
+						<modKnob
+							cc="none" />
+						<modKnob
+							cc="none" />
+						<modKnob
+							cc="none" />
+						<modKnob
+							cc="none" />
+						<modKnob
+							cc="none" />
+						<modKnob
+							cc="none" />
+					</modKnobs>
+					<ccLabels
+						0=""
+						2=""
+						3=""
+						4=""
+						5=""
+						6=""
+						7=""
+						8=""
+						9=""
+						10="Pan"
+						11=""
+						12=""
+						13=""
+						14=""
+						15=""
+						16=""
+						17=""
+						18=""
+						19=""
+						20=""
+						21=""
+						22=""
+						23=""
+						24=""
+						25=""
+						26=""
+						27=""
+						28=""
+						29=""
+						30=""
+						31=""
+						32=""
+						33=""
+						34=""
+						35=""
+						36=""
+						37=""
+						38=""
+						39=""
+						40=""
+						41=""
+						42=""
+						43=""
+						44=""
+						45=""
+						46=""
+						47=""
+						48=""
+						49=""
+						50=""
+						51=""
+						52=""
+						53=""
+						54=""
+						55=""
+						56=""
+						57=""
+						58=""
+						59=""
+						60=""
+						61=""
+						62=""
+						63=""
+						64=""
+						65=""
+						66=""
+						67=""
+						68=""
+						69=""
+						70=""
+						71=""
+						72=""
+						73=""
+						74=""
+						75=""
+						76=""
+						77=""
+						78=""
+						79=""
+						80=""
+						81=""
+						82=""
+						83=""
+						84=""
+						85=""
+						86=""
+						87=""
+						88=""
+						89=""
+						90=""
+						91=""
+						92=""
+						93=""
+						94=""
+						95=""
+						96=""
+						97=""
+						98=""
+						99=""
+						100=""
+						101=""
+						102=""
+						103=""
+						104=""
+						105=""
+						106=""
+						107=""
+						108=""
+						109=""
+						110=""
+						111=""
+						112=""
+						113=""
+						114=""
+						115=""
+						116=""
+						117=""
+						118=""
+						119="" />
+				</midiOutput>
+			</soundSources>
+			<selectedDrumIndex>0</selectedDrumIndex>
+		</kit>
+	</instruments>
+	<sections>
+		<section id="0" numRepeats="0" />
+		<section id="1" numRepeats="0" />
+		<section id="2" numRepeats="0" />
+		<section id="3" numRepeats="0" />
+		<section id="4" numRepeats="0" />
+		<section id="5" numRepeats="0" />
+		<section id="6" numRepeats="0" />
+		<section id="7" numRepeats="0" />
+		<section id="8" numRepeats="0" />
+		<section id="9" numRepeats="0" />
+		<section id="10" numRepeats="0" />
+		<section id="11" numRepeats="0" />
+		<section id="12" numRepeats="0" />
+		<section id="13" numRepeats="0" />
+		<section id="14" numRepeats="0" />
+		<section id="15" numRepeats="0" />
+		<section id="16" numRepeats="0" />
+		<section id="17" numRepeats="0" />
+		<section id="18" numRepeats="0" />
+		<section id="19" numRepeats="0" />
+		<section id="20" numRepeats="0" />
+		<section id="21" numRepeats="0" />
+		<section id="22" numRepeats="0" />
+		<section id="23" numRepeats="0" />
+	</sections>
+	<sessionClips>
+		<instrumentClip
+			clipName=""
+			inKeyMode="1"
+			yScroll="0"
+			yScrollKeyboard="50"
+			onAutomationInstrumentClipView="1"
+			lastSelectedParamID="10"
+			lastSelectedParamKind="5"
+			lastSelectedParamShortcutX="6"
+			lastSelectedParamShortcutY="3"
+			lastSelectedInstrumentType="1"
+			lastSelectedPatchSource="15"
+			affectEntire="0"
+			instrumentPresetName="KIT1"
+			instrumentPresetFolder="KITS"
+			isPlaying="1"
+			isSoloing="0"
+			isArmedForRecording="1"
+			length="384"
+			colourOffset="-60"
+			section="0"
+			selected="1"
+			keyboardLayout="0"
+			keyboardRowInterval="5"
+			drumsScrollOffset="0"
+			drumsZoomLevel="8"
+			inKeyScrollOffset="21"
+			inKeyRowInterval="3">
+			<arpeggiator
+				mode="off"
+				syncLevel="6"
+				numOctaves="1"
+				syncType="0"
+				arpMode="off"
+				chordType="0"
+				noteMode="up"
+				octaveMode="up"
+				mpeVelocity="off"
+				stepRepeat="1"
+				randomizerLock="0"
+				kitArp="1"
+				lastLockedNoteProb="0"
+				lockedNoteProbArray="00000000000000000000000000000000"
+				lastLockedBassProb="0"
+				lockedBassProbArray="00000000000000000000000000000000"
+				lastLockedSwapProb="0"
+				lockedSwapProbArray="00000000000000000000000000000000"
+				lastLockedGlideProb="0"
+				lockedGlideProbArray="00000000000000000000000000000000"
+				lastLockedReverseProb="0"
+				lockedReverseProbArray="00000000000000000000000000000000"
+				lastLockedChordProb="0"
+				lockedChordProbArray="00000000000000000000000000000000"
+				lastLockedRatchetProb="0"
+				lockedRatchetProbArray="00000000000000000000000000000000"
+				lastLockedVelocitySpread="0"
+				lockedVelocitySpreadArray="00000000000000000000000000000000"
+				lastLockedGateSpread="0"
+				lockedGateSpreadArray="00000000000000000000000000000000"
+				lastLockedOctaveSpread="0"
+				lockedOctaveSpreadArray="00000000000000000000000000000000"
+				notePattern="000102010003030207040702010D040C" />
+			<kitParams
+				reverbAmount="0x80000000"
+				volume="0x00000000"
+				pan="0x00000000"
+				sidechainCompressorShape="0xDC28F5B2"
+				modFXDepth="0x00000000"
+				modFXRate="0xE0000000"
+				stutterRate="0x00000000"
+				sampleRateReduction="0x80000000"
+				bitCrush="0x80000000"
+				modFXOffset="0x00000000"
+				modFXFeedback="0x80000000"
+				compressorThreshold="0x00000000"
+				arpeggiatorGate="0x7FFFFFFF"
+				noteProbability="0x7FFFFFFF"
+				bassProbability="0x80000000"
+				swapProbability="0x80000000"
+				glideProbability="0x80000000"
+				reverseProbability="0x80000000"
+				chordProbability="0x80000000"
+				ratchetProbability="0x80000000"
+				ratchetAmount="0x80000000"
+				sequenceLength="0x80000000"
+				chordPolyphony="0x80000000"
+				rhythm="0x80000000"
+				spreadVelocity="0x80000000"
+				spreadGate="0x80000000"
+				spreadOctave="0x80000000"
+				lpfMorph="0x80000000"
+				hpfMorph="0x80000000"
+				tempo="0x00000000"
+				arpeggiatorRate="0x00000000">
+				<delay
+					rate="0x00000000"
+					feedback="0x80000000" />
+				<lpf
+					frequency="0x7FFFFFFF"
+					resonance="0x80000000" />
+				<hpf
+					frequency="0x80000000"
+					resonance="0x80000000" />
+				<equalizer
+					bass="0x00000000"
+					treble="0x00000000"
+					bassFrequency="0x00000000"
+					trebleFrequency="0x00000000" />
+			</kitParams>
+			<columnControls>
+				<leftCol
+					type="velocity" />
+				<rightCol
+					type="mod" />
+			</columnControls>
+			<noteRows>
+				<noteRow
+					colourOffset="61"
+					noteDataWithSplitProb="0x00000000000000184040140000000000001800000018404014000000000000480000001840401400000000000060000000184040140000000000009000000018404014000000000000C000000018404014000000000000F00000001840401400000000000120000000184040140000000000013800000018404014000000"
+					noteDataWithLift="0x00000000000000184040140000001800000018404014000000480000001840401400000060000000184040140000009000000018404014000000C000000018404014000000F00000001840401400000120000000184040140000013800000018404014"
+					drumIndex="0">
+					<midiParams>
+						<param>
+							<cc>0</cc>
+							<value>0x00000000</value>
+						</param>
+						<param>
+							<cc>2</cc>
+							<value>0x00000000</value>
+						</param>
+						<param>
+							<cc>3</cc>
+							<value>0x00000000</value>
+						</param>
+						<param>
+							<cc>4</cc>
+							<value>0xFC000000</value>
+						</param>
+						<param>
+							<cc>5</cc>
+							<value>0x00000000</value>
+						</param>
+						<param>
+							<cc>6</cc>
+							<value>0x00000000</value>
+						</param>
+						<param>
+							<cc>7</cc>
+							<value>0x00000000</value>
+						</param>
+						<param>
+							<cc>8</cc>
+							<value>0x00000000</value>
+						</param>
+						<param>
+							<cc>9</cc>
+							<value>0x00000000</value>
+						</param>
+						<param>
+							<cc>10</cc>
+							<value>0xEE000000600000000000000060000000000000154000000000000018400000000000002D30000000000000303000000000000045EE00000000000048EE0000008000004BEE00000080000060EE00000080000075EE00000000000078EE0000008000007BEE00000080000090EE000000800000A512000000000000A812000000800000AB12000000800000C012000000800000D536000000000000D836000000000000ED5C000000000000F05C000000800000F35C000000800001085C0000008000011D5C000000000001205C000000800001235C000000800001353600000000000138360000008000013B360000008000015036000000800001652000000000000168</value>
+						</param>
+						<param>
+							<cc>11</cc>
+							<value>0x00000000</value>
+						</param>
+					</midiParams>
+				</noteRow>
+			</noteRows>
+		</instrumentClip>
+	</sessionClips>
+	<scales>
+		<userScale>0</userScale>
+		<disabledPresetScales>0</disabledPresetScales>
+	</scales>
+</song>
