@@ -378,6 +378,50 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
 	}
 }
 
+void MIDIParamCollection::readFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
+	char const* tagName;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "param")) {
+			int32_t cc = CC_NUMBER_NONE;
+
+			// Read the cc value
+			char const* ccTagName;
+			while (*(ccTagName = reader.readNextTagOrAttributeName())) {
+				if (!strcmp(ccTagName, "cc")) {
+					char const* ccValue = reader.readTagOrAttributeValue();
+					if (!strcasecmp(ccValue, "none")) {
+						cc = CC_NUMBER_NONE;
+					}
+					else {
+						cc = stringToInt(ccValue);
+					}
+					reader.exitTag("cc");
+				}
+				else if (!strcmp(ccTagName, "value")) {
+					// Get or create the MIDI parameter for this CC
+					MIDIParam* midiParam = params.getOrCreateParamFromCC(cc, 0);
+					if (midiParam) {
+						Error error = midiParam->param.readFromFile(reader, readAutomationUpToPos);
+						if (error != Error::NONE) {
+							reader.exitTag("value");
+							reader.exitTag("param");
+							return;
+						}
+					}
+					reader.exitTag("value");
+				}
+				else {
+					reader.exitTag(ccTagName);
+				}
+			}
+			reader.exitTag("param");
+		}
+		else {
+			reader.exitTag(tagName);
+		}
+	}
+}
+
 /*
     for (int32_t i = 0; i < params.getNumElements(); i++) {
         MIDIParam* midiParam = params.getElement(i);

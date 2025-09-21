@@ -19,10 +19,13 @@
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/view.h"
 #include "hid/display/oled.h"
 #include "io/midi/midi_engine.h"
+#include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/drum/non_audio_drum.h"
+#include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "storage/storage_manager.h"
@@ -155,7 +158,57 @@ void MIDIDrum::ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelSt
 
 void MIDIDrum::processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
                                                 ModelStackWithTimelineCounter* modelStack) {
-	// Simplified implementation for MIDI drums - just send the CC value
+	int32_t modPos = 0;
+	int32_t modLength = 0;
+
+	if (modelStack->timelineCounterIsSet()) {
+		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
+
+		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
+		// region.
+		if (view.modLength
+		    && modelStack->getTimelineCounter() == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			modPos = view.modPos;
+			modLength = view.modLength;
+		}
+	}
+
+	// For MIDI drums in kits, we need to get the NoteRow's ParamManager
+	// The NoteRow's ParamManager is where MIDI CC automation is stored
+	// Get the InstrumentClip and find the NoteRow for this drum
+	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull();
+	if (!instrumentClip) {
+		// If no active clip, we can't record automation
+		sendCC(cc, newValue);
+		return;
+	}
+
+	// Get the NoteRow for this drum
+	NoteRow* noteRow = instrumentClip->getNoteRowForDrum(this);
+	if (!noteRow) {
+		// If no NoteRow for this drum, we can't record automation
+		sendCC(cc, newValue);
+		return;
+	}
+
+	// Get the NoteRow's ParamManager for MIDI drums
+	ParamManager* paramManager = &noteRow->paramManager;
+
+	// Create ModelStack with NoteRow and ParamManager
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, noteRow);
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStackWithNoteRow->addOtherTwoThings(toModControllable(), paramManager);
+
+	ModelStackWithAutoParam* modelStackWithAutoParam =
+	    getParamToControlFromInputMIDIChannel(cc, modelStackWithThreeMainThings);
+
+	if (modelStackWithAutoParam && modelStackWithAutoParam->autoParam) {
+		modelStackWithAutoParam->autoParam->setValuePossiblyForRegion(
+		    newValue, modelStackWithAutoParam, modPos, modLength,
+		    false); // Don't delete nodes in linear run, cos this might need to be outputted as MIDI again
+	}
+
+	// Also send the CC value for immediate output
 	sendCC(cc, newValue);
 }
 

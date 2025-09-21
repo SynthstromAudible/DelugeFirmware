@@ -3538,6 +3538,16 @@ getOut: {}
 			}
 		}
 
+		else if (!strcmp(tagName, "midiParams")) {
+			// Read MIDI CC automation data for MIDI drums
+			paramManager.setupMIDI();
+			ParamCollectionSummary* summary = paramManager.getMIDIParamCollectionSummary();
+			MIDIParamCollection* midiParams = (MIDIParamCollection*)summary->paramCollection;
+			if (midiParams) {
+				midiParams->readFromFile(reader, readAutomationUpToPos);
+			}
+		}
+
 		reader.exitTag();
 	}
 

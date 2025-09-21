@@ -67,6 +67,7 @@ public:
 	void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack) override;
 
 	void writeToFile(Serializer& writer);
+	void readFromFile(Deserializer& reader, int32_t readAutomationUpToPos);
 	int32_t moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithParamCollection* modelStack);
 
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::MIDI; }
