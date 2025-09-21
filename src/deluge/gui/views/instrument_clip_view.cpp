@@ -299,25 +299,16 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 	// Clip view button
 	else if (b == CLIP_VIEW) {
-		D_PRINTLN("InstrumentClipView::buttonAction(CLIP_VIEW) %d", (int)b);
 		if (on && currentUIMode == UI_MODE_NONE) {
-			D_PRINTLN("InstrumentClipView::buttonAction(CLIP_VIEW) - currentUIMode is NONE");
 			if (inCardRoutine) {
-				D_PRINTLN("InstrumentClipView::buttonAction(CLIP_VIEW) - inCardRoutine, returning");
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			D_PRINTLN("- yes");
-			changeRootUI(&automationView);
-			// Always enter automation overview mode when coming from clip button
-			// This ensures a consistent, non-blank display
-			automationView.initParameterSelection();
-			// Force display update after entering automation view
-			automationView.renderDisplay();
-			// Force UI rendering to ensure display is updated immediately
-			uiNeedsRendering(&automationView);
-		}
-		else {
-			D_PRINTLN("- no");
+			// Toggle to automation view (since we're currently in instrument clip view)
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			if (clip) {
+				clip->onAutomationClipView = true;
+				changeRootUI(&automationView);
+			}
 		}
 	}
 
