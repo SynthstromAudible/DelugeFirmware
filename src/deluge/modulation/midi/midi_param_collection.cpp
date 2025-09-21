@@ -293,8 +293,10 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 	// Determine if this is a MIDI instrument or MIDI drum for proper channel routing
 	// For MIDI CC parameters in kit rows, the modControllable is the MIDIDrum itself
 	// For standalone MIDI instruments, the modControllable is the MIDIInstrument
-	bool isMIDIInstrument = modelStack->modControllable->isKit();
-	bool isMIDIDrum = !isMIDIInstrument;
+	// Check if we have a NoteRow - this indicates we're dealing with a drum in a kit
+	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
+	bool isMIDIInstrument = noteRow == nullptr; // If no NoteRow, it's a MIDI instrument
+	bool isMIDIDrum = noteRow != nullptr;       // If NoteRow exists, it's a MIDI drum
 
 	if (isMIDIInstrument
 	    && modelStack->song->isOutputActiveInArrangement((MIDIInstrument*)modelStack->modControllable)) {
