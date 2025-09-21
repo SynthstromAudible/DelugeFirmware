@@ -88,14 +88,14 @@ public:
 				auto* kit = getCurrentKit();
 				if (kit && kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI) {
 					auto* midiDrum = static_cast<MIDIDrum*>(kit->selectedDrum);
-					if (midiDrum->outputDevice > 0) {
+					if (midiDrum->outputRouting.device > 0) {
 						// Show device name prefix
-						if (midiDrum->outputDevice == 1) {
+						if (midiDrum->outputRouting.device == 1) {
 							snprintf(name, sizeof(name), "D%d", value);
 						}
 						else {
 							// Try to get the actual USB device name
-							int32_t usbIndex = midiDrum->outputDevice - 2;
+							int32_t usbIndex = midiDrum->outputRouting.device - 2;
 							if (MIDIDeviceManager::root_usb != nullptr
 							    && usbIndex < MIDIDeviceManager::root_usb->getNumCables()) {
 								auto* cable = MIDIDeviceManager::root_usb->getCable(usbIndex);

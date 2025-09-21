@@ -43,7 +43,7 @@ void KitOutputDeviceSelection::readCurrentValue() {
 		auto* kit = ::getCurrentKit();
 		if (kit && kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI) {
 			auto* midiDrum = static_cast<MIDIDrum*>(kit->selectedDrum);
-			this->setValue(midiDrum->outputDevice);
+			this->setValue(midiDrum->outputRouting.device);
 		}
 		else {
 			this->setValue(0); // Default to ALL
@@ -62,7 +62,7 @@ void KitOutputDeviceSelection::writeCurrentValue() {
 		auto* kit = ::getCurrentKit();
 		if (kit && kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI) {
 			auto* midiDrum = static_cast<MIDIDrum*>(kit->selectedDrum);
-			midiDrum->outputDevice = currentDevice;
+			midiDrum->outputRouting.device = currentDevice;
 		}
 	}
 }
