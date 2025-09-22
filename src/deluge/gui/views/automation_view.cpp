@@ -533,7 +533,7 @@ void AutomationView::focusRegained() {
 
 		// Ensure display is rendered immediately when entering automation view
 		// This fixes the blank OLED display issue for kit rows
-		renderDisplay();
+		// renderDisplay();
 
 		// Force display update for automation editor mode
 		// This fixes the blank display when entering automation CC edit mode for the first time
@@ -1361,13 +1361,13 @@ void AutomationView::handleKeyboardButtonAction(bool on) {
 
 // called by button action if b == CLIP_VIEW
 void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
-	// if audition pad or shift is pressed, go back to automation overview
-	if (on && (currentUIMode == UI_MODE_AUDITIONING || Buttons::isShiftButtonPressed())) {
+	// if shift is pressed, go back to automation overview
+	if (on && Buttons::isShiftButtonPressed()) {
 		initParameterSelection();
 		blinkShortcuts();
 		uiNeedsRendering(&automationView);
 	}
-	// go back to clip view
+	// go back to clip view (handle all other cases)
 	else if (on) {
 		if (padSelectionOn) {
 			initPadSelection();
