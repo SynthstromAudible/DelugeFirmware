@@ -460,30 +460,6 @@ bool MIDIDrum::valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, 
 	return old_value >> 25 != new_value >> 25;
 }
 
-// Device definition support
-std::string_view MIDIDrum::getNameFromCC(int32_t cc) {
-	if (cc < 0 || cc >= kNumRealCCNumbers) {
-		// out of range
-		return std::string_view{};
-	}
-
-	auto it = labels.find(cc);
-
-	// found
-	if (it != labels.end()) {
-		return it->second;
-	}
-
-	// not found
-	return std::string_view{};
-}
-
-void MIDIDrum::setNameForCC(int32_t cc, std::string_view name) {
-	if (cc >= 0 && cc < kNumRealCCNumbers) {
-		labels[cc] = name;
-	}
-}
-
 // CC sending method
 void MIDIDrum::sendCC(int32_t cc, int32_t value) {
 

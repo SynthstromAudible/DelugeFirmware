@@ -45,18 +45,8 @@ String RenameMidiCCUI::getName() const {
 	int32_t cc = clip->lastSelectedParamID;
 	std::string_view name;
 
-	// Handle both MIDI instruments and MIDI drums in kits
-	if (clip->output->type == OutputType::MIDI_OUT) {
-		MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
-		name = midiInstrument->getNameFromCC(cc);
-	}
-	else if (clip->output->type == OutputType::KIT && !((InstrumentClip*)clip)->affectEntire) {
-		Kit* kit = (Kit*)clip->output;
-		if (kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI) {
-			MIDIDrum* midiDrum = (MIDIDrum*)kit->selectedDrum;
-			name = midiDrum->getNameFromCC(cc);
-		}
-	}
+	// For now, return empty string - device definition support removed
+	name = std::string_view{};
 
 	String name_string;
 	name_string.set(name.data(), name.length());

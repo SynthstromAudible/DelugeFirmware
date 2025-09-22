@@ -1,7 +1,7 @@
 # MIDI CC Automation for Kit Rows - Implementation Summary
 
 ## Overview
-We've implemented MIDI CC automation functionality for kit rows, allowing users to automate MIDI CC parameters for individual MIDI drums within kits, similar to how MIDI tracks work. This includes device definition support, real-time display updates, and proper MIDI routing.
+We've implemented MIDI CC automation functionality for kit rows, allowing users to automate MIDI CC parameters for individual MIDI drums within kits, similar to how MIDI tracks work. This includes real-time display updates and proper MIDI routing.
 
 ## Key Features Implemented
 
@@ -11,10 +11,6 @@ We've implemented MIDI CC automation functionality for kit rows, allowing users 
 - **Tap pads** to select specific MIDI CC parameters for automation
 - **Display shows "CC X"** instead of "NONE" when scrolling through CCs
 
-### 2. Device Definition Support
-- **Load device definition files** for custom MIDI CC labels
-- **Custom CC names** displayed in automation view
-- **Persistent storage** of device definition settings per kit row
 
 ### 3. MIDI Routing
 - **Correct device filtering** (DIN/USB device selection)
@@ -38,7 +34,7 @@ public:
     int32_t moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithThreeMainThings* modelStack);
     bool doesAutomationExistOnMIDIParam(int32_t cc, ModelStackWithThreeMainThings* modelStack);
 
-    // Device definition support
+    // MIDI CC automation support
     void readModKnobAssignmentsFromFile(Deserializer& reader);
     bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) override;
     void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) override;
@@ -46,18 +42,10 @@ public:
     int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) override;
     bool valueChangedEnoughToMatter(int32_t oldValue, int32_t newValue, deluge::modulation::params::Kind kind, uint32_t paramID) override;
 
-    // CC label management
-    char const* getNameFromCC(int32_t cc);
-    void setNameForCC(int32_t cc, char const* name);
-
     // MIDI output
     void sendCC(int32_t cc, int32_t value);
 
 private:
-    // Device definition support
-    String deviceDefinitionFileName;
-    bool loadDeviceDefinitionFile = false;
-    deluge::fast_map<int32_t, String> labels;
 
     // Mod knob CC assignments (same as MIDI instruments)
     std::array<int8_t, kNumModButtons * kNumPhysicalModKnobs> modKnobCCAssignments;
