@@ -52,6 +52,9 @@ public:
 
 	int16_t defaultRangeI; // -1 means none yet
 
+	/// @brief Determines if the oscillator tracks note pitch or not.
+	bool isTracking;
+
 	bool renderInStereo(Sound* s, SampleHolder* sampleHolder = nullptr);
 	void setCents(int32_t newCents);
 	void recalculateFineTuner();

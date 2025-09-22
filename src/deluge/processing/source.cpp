@@ -45,6 +45,8 @@ Source::Source() {
 
 	defaultRangeI = -1;
 	dxPatch = nullptr;
+
+	isTracking = true;
 }
 
 Source::~Source() {
