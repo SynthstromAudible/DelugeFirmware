@@ -410,158 +410,163 @@ void Voice::randomizeOscPhases(const Sound& sound) {
 	}
 }
 
+void Voice::makeUnisonPartsInactive(const Sound& sound, int32_t source_index) {
+	for (int32_t u = 0; u < sound.numUnison; u++) {
+		unisonParts[u].sources[source_index].active = false;
+	}
+}
+
+void Voice::calculatePhaseIncrementForSource(Sound& sound, int32_t source_index) {
+	Source* source = &sound.sources[source_index];
+
+	int32_t noteCode = source->isTracking ? noteCodeAfterArpeggiation : kC3NoteCode;
+
+	int32_t oscillatorTranspose;
+	if (source->oscType == OscType::SAMPLE && guides[source_index].audioFileHolder) { // Do not do this for WaveTables
+		oscillatorTranspose = ((SampleHolderForVoice*)guides[source_index].audioFileHolder)->transpose;
+	}
+	else {
+		oscillatorTranspose = source->transpose;
+	}
+
+	int32_t transposedNoteCode = noteCode + sound.transpose + oscillatorTranspose;
+
+	uint32_t phaseIncrement;
+
+	// Sample-osc
+	if (sound.getSynthMode() != SynthMode::FM
+	    && (source->oscType == OscType::SAMPLE || source->oscType == OscType::INPUT_L
+	        || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO)) {
+
+		int32_t pitchAdjustNeutralValue;
+		if (source->oscType == OscType::SAMPLE) {
+			pitchAdjustNeutralValue = ((SampleHolder*)guides[source_index].audioFileHolder)->neutralPhaseIncrement;
+		}
+		else {
+			pitchAdjustNeutralValue = kMaxSampleValue;
+		}
+
+		int32_t noteWithinOctave = (uint16_t)(transposedNoteCode + 240) % 12;
+		int32_t octave = (uint16_t)(transposedNoteCode + 120) / 12;
+
+		phaseIncrement = multiply_32x32_rshift32(noteIntervalTable[noteWithinOctave], pitchAdjustNeutralValue);
+
+		int32_t shiftRightAmount = 13 - octave;
+
+		// If shifting right...
+		if (shiftRightAmount >= 0) {
+			phaseIncrement >>= shiftRightAmount;
+		}
+
+		// If shifting left...
+		else {
+			int32_t shiftLeftAmount = 0 - shiftRightAmount;
+
+			// If frequency would end up too high...
+			// (which means one semitone below the limit, because osc-cent + unison could push it up a semitone)
+			if (phaseIncrement >= (2026954652 >> shiftLeftAmount)) {
+				return makeUnisonPartsInactive(sound, source_index);
+			}
+
+			// Or if it's fine...
+			else {
+				phaseIncrement <<= (shiftLeftAmount);
+			}
+		}
+	}
+
+	// Regular wave osc
+	else {
+		int32_t noteWithinOctave = (uint16_t)(transposedNoteCode + 240 - 4) % 12;
+		int32_t octave = (transposedNoteCode + 120 - 4) / 12;
+
+		int32_t shiftRightAmount = 20 - octave;
+		if (shiftRightAmount >= 0) {
+			phaseIncrement = noteFrequencyTable[noteWithinOctave] >> shiftRightAmount;
+		}
+		else {
+			return makeUnisonPartsInactive(sound, source_index);
+		}
+	}
+
+	// Cents
+	if (source->oscType == OscType::SAMPLE) { // guides[s].sampleHolder
+		phaseIncrement =
+		    ((SampleHolderForVoice*)guides[source_index].audioFileHolder)->fineTuner.detune(phaseIncrement);
+	}
+	else {
+		phaseIncrement = source->fineTuner.detune(phaseIncrement);
+	}
+
+	// Apply based on unison number.
+	if (sound.numUnison == 1) {
+		unisonParts[0].sources[source_index].phaseIncrementStoredValue = phaseIncrement;
+	}
+	else {
+		for (int32_t u = 0; u < sound.numUnison; u++) {
+			unisonParts[u].sources[source_index].phaseIncrementStoredValue =
+			    sound.unisonDetuners[u].detune(phaseIncrement);
+		}
+	}
+}
+
+void Voice::calculatePhaseIncrementForFmMod(Sound& sound, int32_t mod_index) {
+	int32_t transposedNoteCode = noteCodeAfterArpeggiation + sound.transpose + sound.modulatorTranspose[mod_index];
+	int32_t noteWithinOctave = (transposedNoteCode + 120 - 4) % 12;
+	int32_t octave = (transposedNoteCode + 120 - 4) / 12;
+	int32_t shiftRightAmount = 20 - octave;
+
+	int32_t phaseIncrement;
+
+	if (shiftRightAmount >= 0) {
+		phaseIncrement = noteFrequencyTable[noteWithinOctave] >> shiftRightAmount;
+	}
+	else {
+		// Frequency too high to render! (Higher than 22.05kHz)
+		for (int32_t u = 0; u < sound.numUnison; u++) {
+			unisonParts[u].modulatorPhaseIncrement[mod_index] = 0xFFFFFFFF; // Means "inactive"
+		}
+		return;
+	}
+
+	// Cents
+	phaseIncrement = sound.modulatorTransposers[mod_index].detune(phaseIncrement);
+
+	// Apply based on unison number.
+	if (sound.numUnison == 1) {
+		unisonParts[0].modulatorPhaseIncrement[mod_index] = phaseIncrement;
+	}
+	else {
+		for (int32_t u = 0; u < sound.numUnison; u++) {
+			unisonParts[u].modulatorPhaseIncrement[mod_index] = sound.unisonDetuners[u].detune(phaseIncrement);
+		}
+	}
+}
+
+bool isFmModActive(const Sound& sound, int32_t mod_index, ParamManagerForTimeline* paramManager) {
+	return sound.getSmoothedPatchedParamValue(params::LOCAL_MODULATOR_0_VOLUME + mod_index, *paramManager)
+	       != -2147483648;
+}
+
 // Can accept NULL paramManager
 void Voice::calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack) {
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
 
-	int32_t noteCodeWithMasterTranspose = noteCodeAfterArpeggiation + sound.transpose;
-
-	for (int32_t s = 0; s < kNumSources; s++) {
-
-		if (!modelStack->checkSourceEverActive(s)) { // Sets all unison parts inactive by default
-
-makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
-			for (int32_t u = 0; u < sound.numUnison; u++) {
-				unisonParts[u].sources[s].active = false;
-			}
-			continue;
-		}
-
-		Source* source = &sound.sources[s];
-
-		int32_t oscillatorTranspose;
-		if (source->oscType == OscType::SAMPLE && guides[s].audioFileHolder) { // Do not do this for WaveTables
-			oscillatorTranspose = ((SampleHolderForVoice*)guides[s].audioFileHolder)->transpose;
+	for (int32_t source_index = 0; source_index < kNumSources; source_index++) {
+		if (modelStack->checkSourceEverActive(source_index)) {
+			calculatePhaseIncrementForSource(sound, source_index);
 		}
 		else {
-			oscillatorTranspose = source->transpose;
-		}
-
-		int32_t transposedNoteCode = noteCodeWithMasterTranspose + oscillatorTranspose;
-
-		uint32_t phaseIncrement;
-
-		// Sample-osc
-		if (sound.getSynthMode() != SynthMode::FM
-		    && (source->oscType == OscType::SAMPLE || source->oscType == OscType::INPUT_L
-		        || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO)) {
-
-			int32_t pitchAdjustNeutralValue;
-			if (source->oscType == OscType::SAMPLE) {
-				pitchAdjustNeutralValue = ((SampleHolder*)guides[s].audioFileHolder)->neutralPhaseIncrement;
-			}
-			else {
-				pitchAdjustNeutralValue = kMaxSampleValue;
-			}
-
-			int32_t noteWithinOctave = (uint16_t)(transposedNoteCode + 240) % 12;
-			int32_t octave = (uint16_t)(transposedNoteCode + 120) / 12;
-
-			phaseIncrement = multiply_32x32_rshift32(noteIntervalTable[noteWithinOctave], pitchAdjustNeutralValue);
-
-			int32_t shiftRightAmount = 13 - octave;
-
-			// If shifting right...
-			if (shiftRightAmount >= 0) {
-				phaseIncrement >>= shiftRightAmount;
-			}
-
-			// If shifting left...
-			else {
-				int32_t shiftLeftAmount = 0 - shiftRightAmount;
-
-				// If frequency would end up too high...
-				// (which means one semitone below the limit, because osc-cent + unison could push it up a semitone)
-				if (phaseIncrement >= (2026954652 >> shiftLeftAmount)) {
-					goto makeInactive;
-				}
-
-				// Or if it's fine...
-				else {
-					phaseIncrement <<= (shiftLeftAmount);
-				}
-			}
-		}
-
-		// Regular wave osc
-		else {
-			int32_t noteWithinOctave = (uint16_t)(transposedNoteCode + 240 - 4) % 12;
-			int32_t octave = (transposedNoteCode + 120 - 4) / 12;
-
-			int32_t shiftRightAmount = 20 - octave;
-			if (shiftRightAmount >= 0) {
-				phaseIncrement = noteFrequencyTable[noteWithinOctave] >> shiftRightAmount;
-			}
-
-			else {
-				goto makeInactive;
-			}
-		}
-
-		// Cents
-		if (source->oscType == OscType::SAMPLE) { // guides[s].sampleHolder
-			phaseIncrement = ((SampleHolderForVoice*)guides[s].audioFileHolder)->fineTuner.detune(phaseIncrement);
-		}
-		else {
-			phaseIncrement = source->fineTuner.detune(phaseIncrement);
-		}
-
-		// If only one unison
-		if (sound.numUnison == 1) {
-			unisonParts[0].sources[s].phaseIncrementStoredValue = phaseIncrement;
-		}
-
-		// Or if multiple unison
-		else {
-			for (int32_t u = 0; u < sound.numUnison; u++) {
-				unisonParts[u].sources[s].phaseIncrementStoredValue = sound.unisonDetuners[u].detune(phaseIncrement);
-			}
+			makeUnisonPartsInactive(sound, source_index);
 		}
 	}
 
-	// FM modulators
 	if (sound.getSynthMode() == SynthMode::FM) {
-		for (int32_t m = 0; m < kNumModulators; m++) {
-
-			if (sound.getSmoothedPatchedParamValue(params::LOCAL_MODULATOR_0_VOLUME + m, *paramManager)
-			    == -2147483648) {
-				continue; // Only if modulator active
-			}
-
-			int32_t transposedNoteCode = noteCodeWithMasterTranspose + sound.modulatorTranspose[m];
-			int32_t noteWithinOctave = (transposedNoteCode + 120 - 4) % 12;
-			int32_t octave = (transposedNoteCode + 120 - 4) / 12;
-			int32_t shiftRightAmount = 20 - octave;
-
-			int32_t phaseIncrement;
-
-			if (shiftRightAmount >= 0) {
-				phaseIncrement = noteFrequencyTable[noteWithinOctave] >> shiftRightAmount;
-			}
-
-			else {
-				// Frequency too high to render! (Higher than 22.05kHz)
-				for (int32_t u = 0; u < sound.numUnison; u++) {
-					unisonParts[u].modulatorPhaseIncrement[m] = 0xFFFFFFFF; // Means "inactive"
-				}
-				continue;
-			}
-
-			// Cents
-			phaseIncrement = sound.modulatorTransposers[m].detune(phaseIncrement);
-
-			// If only one unison
-			if (sound.numUnison == 1) {
-				unisonParts[0].modulatorPhaseIncrement[m] = phaseIncrement;
-			}
-
-			// Or if multiple unison
-			else {
-				for (int32_t u = 0; u < sound.numUnison; u++) {
-					unisonParts[u].modulatorPhaseIncrement[m] = sound.unisonDetuners[u].detune(phaseIncrement);
-				}
+		for (int32_t mod_index = 0; mod_index < kNumModulators; mod_index++) {
+			if (isFmModActive(sound, mod_index, paramManager)) {
+				calculatePhaseIncrementForFmMod(sound, mod_index);
 			}
 		}
 	}
