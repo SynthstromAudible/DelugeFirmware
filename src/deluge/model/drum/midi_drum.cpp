@@ -41,15 +41,31 @@ MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
                       int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 
-	// Send MIDI note on using routing data class
-	uint32_t deviceFilter = outputRouting.toDeviceFilter();
+	// Send MIDI note on with device filtering
+	uint32_t deviceFilter = 0;
+	if (outputDevice > 0) {
+		if (outputDevice == 1) {
+			deviceFilter = 1; // DIN only (bit 0)
+		}
+		else {
+			deviceFilter = (1 << (outputDevice - 1)); // USB device (bit outputDevice-1)
+		}
+	}
 	midiEngine.sendMidi(this, MIDIMessage::noteOn(channel, note, velocity), kMIDIOutputFilterNoMPE, true, deviceFilter);
 }
 
 void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
 
-	// Send MIDI note off using routing data class
-	uint32_t deviceFilter = outputRouting.toDeviceFilter();
+	// Send MIDI note off with device filtering
+	uint32_t deviceFilter = 0;
+	if (outputDevice > 0) {
+		if (outputDevice == 1) {
+			deviceFilter = 1; // DIN only (bit 0)
+		}
+		else {
+			deviceFilter = (1 << (outputDevice - 1)); // USB device (bit outputDevice-1)
+		}
+	}
 	midiEngine.sendMidi(this, MIDIMessage::noteOff(channel, note, velocity), kMIDIOutputFilterNoMPE, true,
 	                    deviceFilter);
 }
@@ -66,7 +82,7 @@ void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 	writer.writeOpeningTagBeginning("midiOutput", true);
 	writer.writeAttribute("channel", channel, false);
 	writer.writeAttribute("note", note, false);
-	writer.writeAttribute("outputDevice", outputRouting.device, false);
+	writer.writeAttribute("outputDevice", outputDevice, false);
 	writer.writeOpeningTagEnd();
 
 	NonAudioDrum::writeArpeggiatorToFile(writer);
@@ -88,7 +104,7 @@ Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32
 			// Try reading the value first, then exitTag
 			int32_t deviceValue = reader.readTagOrAttributeValueInt();
 			reader.exitTag("outputDevice");
-			outputRouting.device = (uint8_t)deviceValue;
+			outputDevice = (uint8_t)deviceValue;
 		}
 		else if (!strcmp(tagName, "channel")) {
 			channel = reader.readTagOrAttributeValueInt();
@@ -497,7 +513,15 @@ void MIDIDrum::sendCC(int32_t cc, int32_t value) {
 	}
 	int32_t ccValue = (value + roundingAmountToAdd) >> rShift;
 
-	uint32_t deviceFilter = outputRouting.toDeviceFilter();
+	uint32_t deviceFilter = 0;
+	if (outputDevice > 0) {
+		if (outputDevice == 1) {
+			deviceFilter = 1; // DIN only (bit 0)
+		}
+		else {
+			deviceFilter = (1 << (outputDevice - 1)); // USB device (bit outputDevice-1)
+		}
+	}
 	midiEngine.sendMidi(this, MIDIMessage::cc(getOutputMasterChannel(), cc, ccValue + 64), kMIDIOutputFilterNoMPE, true,
 	                    deviceFilter);
 }

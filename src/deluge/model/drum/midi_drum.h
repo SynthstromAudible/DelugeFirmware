@@ -18,7 +18,6 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "io/midi/midi_routing.h"
 #include "model/drum/non_audio_drum.h"
 #include "util/containers.h"
 #include <array>
@@ -94,8 +93,8 @@ public:
 	uint8_t note;
 	int8_t noteEncoderCurrentOffset;
 
-	// MIDI routing configuration using data class instead of bitmasks
-	deluge::io::midi::MIDIRouting outputRouting;
+	// MIDI output configuration
+	uint8_t outputDevice = 0; // 0 = all devices, 1 = DIN, 2+ = USB device index
 
 	// Mod knob CC assignments (same as MIDI instruments)
 	std::array<int8_t, kNumModButtons * kNumPhysicalModKnobs> modKnobCCAssignments;
