@@ -1867,6 +1867,7 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 				clip->lastSelectedParamShortcutX = xDisplay;
 				clip->lastSelectedParamShortcutY = yDisplay;
 				blinkShortcuts();
+				renderDisplay();
 				uiNeedsRendering(&automationView);
 				// if you're in note editor, turn led on
 				if (((InstrumentClip*)clip)->wrapEditing) {
@@ -1982,7 +1983,12 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		instrumentClipView.resetSelectedNoteRowBlinking();
 	}
 	blinkShortcuts();
+	if (display->have7SEG()) {
+		renderDisplay(); // always display parameter name first, if there's automation it will show after
+	}
+	displayAutomation(true);
 	view.setModLedStates();
+	uiNeedsRendering(&automationView);
 	// turn off cross screen LED in automation editor
 	if (clip && clip->type == ClipType::INSTRUMENT && ((InstrumentClip*)clip)->wrapEditing) {
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
