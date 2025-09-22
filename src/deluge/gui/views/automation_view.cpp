@@ -533,7 +533,7 @@ void AutomationView::focusRegained() {
 
 		// Ensure display is rendered immediately when entering automation view
 		// This fixes the blank OLED display issue for kit rows
-		// renderDisplay();
+		renderDisplay();
 
 		// Force display update for automation editor mode
 		// This fixes the blank display when entering automation CC edit mode for the first time
