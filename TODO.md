@@ -14,20 +14,12 @@
 ### 1. Save and Recall Output Device to Song File
 - **Status**: Partially implemented (device selection saved, but needs device name matching)
 - **Description**: When saving songs, store the selected output device. When loading songs, match the saved device name to current connected devices and fall back gracefully if device is no longer connected.
-- **Implementation**: 
+- **Implementation**:
   - Store device names in song files for USB devices
   - Implement device name matching on load
   - Graceful fallback to "ALL devices" if saved device not found
   - Maintain backward compatibility with older song files
 
-### 2. Save Kit Row Automation to Song File for Recall
-- **Status**: Not implemented
-- **Description**: Save automation data for individual kit rows to song files so that automation settings are preserved when loading songs.
-- **Implementation**:
-  - Extend song file format to include kit row automation data
-  - Save automation parameters per kit row
-  - Load and restore automation settings on song load
-  - Ensure compatibility with existing song files
 
 ## Technical Notes
 - Current implementation uses MIDIRouting data class for cleaner architecture
@@ -39,4 +31,3 @@
 - `src/deluge/io/midi/midi_routing.h` - New data class
 - `src/deluge/model/drum/midi_drum.h/cpp` - Updated MIDI drum implementation
 - `src/deluge/gui/menu_item/midi/` - Updated UI components
-- PR #4089 - Contains the implementation
