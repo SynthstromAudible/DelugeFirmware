@@ -299,10 +299,16 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 	// Clip view button
 	else if (b == CLIP_VIEW) {
+		D_PRINTLN("InstrumentClipView::buttonAction(CLIP_VIEW) %d", (int)b);
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
+			D_PRINTLN("- yes");
+			changeRootUI(&automationView);
+		}
+		else {
+			D_PRINTLN("- no");
 			// Toggle to automation view (since we're currently in instrument clip view)
 			InstrumentClip* clip = getCurrentInstrumentClip();
 			if (clip) {
