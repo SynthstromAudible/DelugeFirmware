@@ -73,6 +73,11 @@ public:
 	bool valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, deluge::modulation::params::Kind kind,
 	                                uint32_t paramID) override;
 
+	// Device definition support (similar to MIDIInstrument)
+	std::string_view getNameFromCC(int32_t cc);
+	void setNameForCC(int32_t cc, std::string_view name);
+	deluge::fast_map<uint8_t, std::string> labels;
+
 	// CC sending method
 	void sendCC(int32_t cc, int32_t value);
 

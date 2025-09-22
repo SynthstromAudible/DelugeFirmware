@@ -1,7 +1,7 @@
 # MIDI CC Automation for Kit Rows - Implementation Summary
 
 ## Overview
-We've implemented MIDI CC automation functionality for kit rows, allowing users to automate MIDI CC parameters for individual MIDI drums within kits, similar to how MIDI tracks work. This includes real-time display updates and proper MIDI routing.
+We've implemented MIDI CC automation functionality for kit rows, allowing users to automate MIDI CC parameters for individual MIDI drums within kits, similar to how MIDI tracks work. This includes device definition support, real-time display updates, and proper MIDI routing.
 
 ## Key Features Implemented
 
@@ -11,6 +11,11 @@ We've implemented MIDI CC automation functionality for kit rows, allowing users 
 - **Tap pads** to select specific MIDI CC parameters for automation
 - **Display shows "CC X"** instead of "NONE" when scrolling through CCs
 
+### 2. Device Definition Support
+- **Custom CC names** displayed in automation view and rename UI
+- **Persistent storage** of CC labels per kit row (saved with songs)
+- **Manual CC naming** - users can rename CCs directly in the UI
+- **Recall from song files** - CC labels are saved and loaded with songs
 
 ### 3. MIDI Routing
 - **Correct device filtering** (DIN/USB device selection)
