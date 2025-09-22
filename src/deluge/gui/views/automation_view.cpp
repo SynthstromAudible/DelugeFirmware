@@ -1367,8 +1367,8 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 		blinkShortcuts();
 		uiNeedsRendering(&automationView);
 	}
-	// go back to clip view (handle both press and release)
-	else {
+	// go back to clip view (only on button press, not release)
+	else if (on) {
 		if (padSelectionOn) {
 			initPadSelection();
 		}
