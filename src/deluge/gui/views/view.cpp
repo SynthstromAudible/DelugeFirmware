@@ -2162,7 +2162,6 @@ yesAlignRight:
 		if (display->haveOLED()) {
 			if (channel < 16) {
 				slotToString(channel + 1, channelSuffix, buffer, 1);
-				nameToDraw = buffer;
 				goto oledDrawString;
 			}
 			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
