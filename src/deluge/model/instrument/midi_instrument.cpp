@@ -301,7 +301,7 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 	writeMelodicInstrumentAttributesToFile(writer, clipForSavingOutputOnly, song);
 
 	// Always write outputDevice attribute for MIDI instruments before ending the opening tag
-	if (!clipForSavingOutputOnly) {
+	if (clipForSavingOutputOnly) {
 		writer.writeAttribute("outputDevice", outputDeviceMask);
 	}
 
@@ -338,7 +338,7 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writeDeviceDefinitionFile(writer, true);
 	}
 	else {
-		if (!clipForSavingOutputOnly && !midiInput.containsSomething()) {
+		if (clipForSavingOutputOnly && !midiInput.containsSomething()) {
 			// If we don't need to write a "device" tag, make it self-closing since we wrote the outputDevice attribute
 			writer.closeTag();
 			// Still call the parent method to ensure consistency
