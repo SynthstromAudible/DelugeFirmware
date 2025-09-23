@@ -1337,12 +1337,18 @@ void Browser::updateUIState() {
 		    std::clamp(scrollPosVertical, fileIndexSelected - NUM_FILES_ON_SCREEN + 1, fileIndexSelected);
 	}
 	else {
-		scrollPosVertical = fileIndexSelected - 1;
-		if (scrollPosVertical < 0 && numFileItemsDeletedAtStart == 0) {
+		// For folders with fewer items than display slots, always start from index 0
+		if (fileItems.getNumElements() <= NUM_FILES_ON_SCREEN) {
 			scrollPosVertical = 0;
 		}
-		else if (fileIndexSelected == fileItems.getNumElements() - 1 && numFileItemsDeletedAtEnd == 0) {
-			scrollPosVertical--;
+		else {
+			scrollPosVertical = fileIndexSelected - 1;
+			if (scrollPosVertical < 0 && numFileItemsDeletedAtStart == 0) {
+				scrollPosVertical = 0;
+			}
+			else if (fileIndexSelected == fileItems.getNumElements() - 1 && numFileItemsDeletedAtEnd == 0) {
+				scrollPosVertical--;
+			}
 		}
 	}
 
@@ -1545,7 +1551,7 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 			{
 				int32_t i = o + scrollPosVertical;
 
-				if (i >= fileItems.getNumElements()) {
+				if (i < 0 || i >= fileItems.getNumElements()) {
 					break;
 				}
 
