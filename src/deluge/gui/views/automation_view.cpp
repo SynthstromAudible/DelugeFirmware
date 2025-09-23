@@ -1361,14 +1361,16 @@ void AutomationView::handleKeyboardButtonAction(bool on) {
 
 // called by button action if b == CLIP_VIEW
 void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
-	// if shift is pressed, go back to automation overview
-	if (on && Buttons::isShiftButtonPressed()) {
+	// if audition pad or shift is pressed, go back to automation overview
+	if (on && (currentUIMode == UI_MODE_AUDITIONING || Buttons::isShiftButtonPressed())) {
 		initParameterSelection();
 		blinkShortcuts();
 		uiNeedsRendering(&automationView);
 	}
-	// go back to clip view (only on button press, not release)
-	else if (on) {
+	// go back to clip view
+	else if (on
+	         && (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_SELECTING_MIDI_CC
+	             || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		if (padSelectionOn) {
 			initPadSelection();
 		}
