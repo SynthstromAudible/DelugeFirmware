@@ -1555,9 +1555,9 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
 menu_item::Submenu soundEditorRootMenuMidiDrum{
     STRING_FOR_MIDI,
     {
+        &kitOutputDeviceSelectionMenu,
         &arpMenuMIDIOrCV,
         &randomizerMenu,
-        &kitOutputDeviceSelectionMenu,
     },
 };
 menu_item::Submenu soundEditorRootMenuGateDrum{
