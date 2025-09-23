@@ -31,6 +31,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <string.h>
+#include <cstring>
 
 MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 	channel = 0;
@@ -529,7 +530,12 @@ std::string_view MIDIDrum::getNameFromCC(int32_t cc) {
 
 void MIDIDrum::setNameForCC(int32_t cc, std::string_view name) {
 	if (cc >= 0 && cc < kNumRealCCNumbers) {
-		labels[cc] = name;
+		// Limit CC label length to prevent memory issues
+		if (name.length() > 200) { // Leave some buffer for safety
+			labels[cc] = std::string(name.substr(0, 200));
+		} else {
+			labels[cc] = std::string(name);
+		}
 	}
 }
 
@@ -642,7 +648,22 @@ Error MIDIDrum::readCCLabelsFromFile(Deserializer& reader) {
 			continue;
 		}
 
-		labels[cc] = reader.readTagOrAttributeValue();
+		// Read the CC label value
+		char const* labelValue = reader.readTagOrAttributeValue();
+		
+		// Limit CC label length to prevent memory issues (kFilenameBufferSize is 256)
+		size_t labelLength = strlen(labelValue);
+		if (labelLength > 0) {
+			// Truncate if too long to prevent memory allocation issues
+			if (labelLength > 200) { // Leave some buffer for safety
+				char truncatedLabel[201];
+				memcpy(truncatedLabel, labelValue, 200);
+				truncatedLabel[200] = '\0';
+				labels[cc] = std::string(truncatedLabel);
+			} else {
+				labels[cc] = std::string(labelValue);
+			}
+		}
 
 		error = Error::NONE;
 
