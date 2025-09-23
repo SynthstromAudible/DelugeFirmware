@@ -1206,6 +1206,7 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	// automation view reset parameter selection and short blinking instead
 	else if (b == CLIP_VIEW) {
 		handleClipButtonAction(on, isAudioClip);
+		return ActionResult::DEALT_WITH;
 	}
 
 	// Auto scrolling
