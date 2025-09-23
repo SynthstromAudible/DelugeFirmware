@@ -309,12 +309,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 		}
 		else {
 			D_PRINTLN("- no");
-			// Toggle to automation view (since we're currently in instrument clip view)
-			InstrumentClip* clip = getCurrentInstrumentClip();
-			if (clip) {
-				clip->onAutomationClipView = true;
-				changeRootUI(&automationView);
-			}
 		}
 	}
 
