@@ -619,8 +619,11 @@ HorizontalMenu soundDistortionMenu{
 // Output MIDI for sound drums --------------------------------------------------------------
 midi::sound::OutputMidiChannel outputMidiChannelMenu{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL};
 midi::sound::OutputMidiNoteForDrum outputMidiNoteForDrumMenu{STRING_FOR_NOTE, STRING_FOR_NOTE};
+midi::sound::KitOutputDeviceSelection kitOutputDeviceSelectionMenu{STRING_FOR_OUTPUT_DEVICE, STRING_FOR_OUTPUT_DEVICE};
+midi::OutputDeviceSelection midiOutputDeviceSelectionMenu{STRING_FOR_OUTPUT_DEVICE, STRING_FOR_OUTPUT_DEVICE};
 
-Submenu outputMidiSubmenu{STRING_FOR_MIDI, {&outputMidiChannelMenu, &outputMidiNoteForDrumMenu}};
+Submenu outputMidiSubmenu{STRING_FOR_MIDI,
+                          {&outputMidiChannelMenu, &outputMidiNoteForDrumMenu, &midiOutputDeviceSelectionMenu}};
 
 // MIDIInstrument menu ----------------------------------------------------------------------
 midi::device_definition::Linked midiDeviceLinkedMenu{STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
@@ -1554,6 +1557,7 @@ menu_item::Submenu soundEditorRootMenuMidiDrum{
     {
         &arpMenuMIDIOrCV,
         &randomizerMenu,
+        &kitOutputDeviceSelectionMenu,
     },
 };
 menu_item::Submenu soundEditorRootMenuGateDrum{
