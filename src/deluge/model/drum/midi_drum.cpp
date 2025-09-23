@@ -531,8 +531,8 @@ std::string_view MIDIDrum::getNameFromCC(int32_t cc) {
 void MIDIDrum::setNameForCC(int32_t cc, std::string_view name) {
 	if (cc >= 0 && cc < kNumRealCCNumbers) {
 		// Limit CC label length to prevent memory issues
-		if (name.length() > 200) { // Leave some buffer for safety
-			labels[cc] = std::string(name.substr(0, 200));
+		if (name.length() > 20) { // Limit to 20 characters for memory efficiency
+			labels[cc] = std::string(name.substr(0, 20));
 		} else {
 			labels[cc] = std::string(name);
 		}
@@ -650,15 +650,15 @@ Error MIDIDrum::readCCLabelsFromFile(Deserializer& reader) {
 
 		// Read the CC label value
 		char const* labelValue = reader.readTagOrAttributeValue();
-		
-		// Limit CC label length to prevent memory issues (kFilenameBufferSize is 256)
+
+		// Limit CC label length to prevent memory issues
 		size_t labelLength = strlen(labelValue);
 		if (labelLength > 0) {
 			// Truncate if too long to prevent memory allocation issues
-			if (labelLength > 200) { // Leave some buffer for safety
-				char truncatedLabel[201];
-				memcpy(truncatedLabel, labelValue, 200);
-				truncatedLabel[200] = '\0';
+			if (labelLength > 20) { // Limit to 20 characters for memory efficiency
+				char truncatedLabel[21];
+				memcpy(truncatedLabel, labelValue, 20);
+				truncatedLabel[20] = '\0';
 				labels[cc] = std::string(truncatedLabel);
 			} else {
 				labels[cc] = std::string(labelValue);
