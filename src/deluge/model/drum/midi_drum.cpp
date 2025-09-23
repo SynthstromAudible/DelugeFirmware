@@ -122,6 +122,10 @@ void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 		// Write ccLabels section directly (MIDI drums in kits don't use midiDevice wrapper)
 		writeCCLabelsToFile(writer);
 	}
+	else {
+		// When saving kit preset, also save CC labels
+		writeCCLabelsToFile(writer);
+	}
 
 	writer.writeClosingTag("midiOutput", true, true);
 }
