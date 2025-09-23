@@ -1379,6 +1379,11 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 			changeRootUI(&audioClipView);
 		}
 		else {
+			// Clear the automation flag before transitioning to prevent immediate re-transition
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			if (clip) {
+				clip->onAutomationClipView = false;
+			}
 			changeRootUI(&instrumentClipView);
 		}
 		resetShortcutBlinking();
