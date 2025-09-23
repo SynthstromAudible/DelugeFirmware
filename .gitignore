@@ -38,5 +38,3 @@ __pycache__
 .deluge_hex_key
 
 # Exclude specific files from commits
-src/CMakeLists.txt
-scripts/tasks/task-loadfw.py
