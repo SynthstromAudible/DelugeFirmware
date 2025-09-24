@@ -78,6 +78,12 @@ private:
 	uint8_t voltageCheckCounter = 0;
 	bool isCharging = false;
 
+	/**
+	 * Formats battery information into a string buffer.
+	 *
+	 * @param buffer Output buffer for the formatted string. Must be at least 20 characters
+	 *               to safely hold the maximum possible output: "100% (4200mV) FULL"
+	 */
 	void getBatteryString(char* buffer) {
 		// Calculate battery percentage
 		// Assuming battery range is 2600mV (0%) to 4200mV (100%)
