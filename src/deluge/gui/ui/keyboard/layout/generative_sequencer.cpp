@@ -68,9 +68,9 @@ void KeyboardLayoutGenerativeSequencer::handleVerticalEncoder(int32_t offset) {
 		// Show rhythm name
 		display->displayPopup(arpRhythmPatternNames[displayState.currentRhythm]);
 
-		// Clean separation: display and pads updated separately
-		updateDisplay(); // Handles OLED vs 7-segment properly
-		keyboardScreen.requestMainPadsRendering(); // Pads only
+		// Direct refresh for immediate response
+		renderUIsForOled();
+		keyboardScreen.requestMainPadsRendering();
 	}
 }
 
@@ -92,9 +92,9 @@ void KeyboardLayoutGenerativeSequencer::handleHorizontalEncoder(int32_t offset, 
 
 			display->displayPopup(getOctaveModeDisplayName(settings->octaveMode));
 
-			// Clean separation: display and pads updated separately
-			updateDisplay(); // Handles OLED vs 7-segment properly
-			keyboardScreen.requestMainPadsRendering(); // Pads only
+			// Direct refresh for immediate response
+			renderUIsForOled();
+			keyboardScreen.requestMainPadsRendering();
 		} else {
 			// Normal horizontal: change arp preset (not mode)
 			int32_t newPreset = static_cast<int32_t>(settings->preset) + offset;
@@ -106,9 +106,9 @@ void KeyboardLayoutGenerativeSequencer::handleHorizontalEncoder(int32_t offset, 
 
 			display->displayPopup(getArpPresetDisplayName(settings->preset));
 
-			// Clean separation: display and pads updated separately
-			updateDisplay(); // Handles OLED vs 7-segment properly
-			keyboardScreen.requestMainPadsRendering(); // Pads only
+			// Direct refresh for immediate response
+			renderUIsForOled();
+			keyboardScreen.requestMainPadsRendering();
 		}
 	}
 }
