@@ -52,16 +52,16 @@ void KeyboardLayoutPulseSequencer::handleVerticalEncoder(int32_t offset) {
 	ArpeggiatorSettings* settings = getArpSettings();
 	if (settings) {
 		// Simple stepping: +1 for clockwise, -1 for counter-clockwise
-		// Skip pattern 0 ("None") and use patterns 1-50 for actual rhythm patterns
+		// Use all rhythms 0-50 (including "None" at 0 for all notes)
 		if (offset > 0) {
 			displayState.currentRhythm++;
 			if (displayState.currentRhythm > 50) {
-				displayState.currentRhythm = 1; // Wrap to first real pattern
+				displayState.currentRhythm = 0; // Wrap to start (includes "None")
 			}
 		} else if (offset < 0) {
 			displayState.currentRhythm--;
-			if (displayState.currentRhythm < 1) {
-				displayState.currentRhythm = 50; // Wrap to last pattern
+			if (displayState.currentRhythm < 0) {
+				displayState.currentRhythm = 50; // Wrap to end
 			}
 		}
 
