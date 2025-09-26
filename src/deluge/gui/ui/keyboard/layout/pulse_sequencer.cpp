@@ -65,18 +65,15 @@ void KeyboardLayoutPulseSequencer::handleVerticalEncoder(int32_t offset) {
 			}
 		}
 
-		// Update the rhythm setting using the parameter system (like official menu)
+		// Update the rhythm setting using the parameter system (like UnpatchedParam)
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 		ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
-
+		
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 			int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
 			modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
 		}
-
-		// Force arpeggiator to restart so it picks up the new rhythm pattern immediately
-		settings->flagForceArpRestart = true;
 
 		// Show rhythm name
 		display->displayPopup(arpRhythmPatternNames[displayState.currentRhythm]);
