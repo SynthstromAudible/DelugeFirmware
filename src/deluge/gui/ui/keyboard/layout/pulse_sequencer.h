@@ -27,7 +27,7 @@ class Arpeggiator;
 namespace deluge::gui::ui::keyboard::layout {
 
 /// Pulse sequencer keyboard layout that generates rhythmic pulses and patterns
-/// Based on arp control but focused on pulse generation and rhythm creation
+/// Provides basic chromatic note input and pulse generation control
 class KeyboardLayoutPulseSequencer : public ColumnControlsKeyboard {
 public:
 	KeyboardLayoutPulseSequencer() = default;

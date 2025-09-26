@@ -27,7 +27,7 @@ class Arpeggiator;
 namespace deluge::gui::ui::keyboard::layout {
 
 /// Arpeggiator control keyboard layout that visualizes and controls arpeggiator patterns
-/// Phase 1: Minimal extension - visualize existing arpeggiator state
+/// Provides basic chromatic note input and real-time arpeggiator control
 class KeyboardLayoutArpControl : public ColumnControlsKeyboard {
 public:
 	KeyboardLayoutArpControl() = default;
