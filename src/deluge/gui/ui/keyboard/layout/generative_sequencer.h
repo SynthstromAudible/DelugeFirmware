@@ -48,6 +48,12 @@ public:
 	/// Update animation and check if display needs refreshing
 	void updateAnimation();
 
+	/// Direct pad LED update for real-time animation
+	void updatePadLEDsDirect();
+	
+	/// Update playback progress bar on top row
+	void updatePlaybackProgressBar();
+
 private:
 	/// Get the current arpeggiator settings from the active clip
 	ArpeggiatorSettings* getArpSettings();

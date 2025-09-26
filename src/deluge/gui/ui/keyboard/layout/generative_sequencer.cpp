@@ -18,7 +18,9 @@
 #include "gui/ui/keyboard/layout/generative_sequencer.h"
 #include "gui/colour/colour.h"
 #include "gui/menu_item/value_scaling.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "hid/display/display.h"
+#include "hid/led/pad_leds.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/song/song.h"
@@ -86,7 +88,10 @@ void KeyboardLayoutGenerativeSequencer::handleHorizontalEncoder(int32_t offset, 
 			int32_t newPreset = static_cast<int32_t>(settings->preset) + offset;
 			newPreset = std::clamp(newPreset, static_cast<int32_t>(0), static_cast<int32_t>(ArpPreset::CUSTOM));
 			settings->preset = static_cast<ArpPreset>(newPreset);
-
+			
+			// Update settings from preset to enable arpeggiator
+			settings->updateSettingsFromCurrentPreset();
+			
 			display->displayPopup(getArpPresetDisplayName(settings->preset));
 		}
 
@@ -103,36 +108,118 @@ void KeyboardLayoutGenerativeSequencer::updateAnimation() {
 	int32_t currentStep = getCurrentRhythmStep();
 	bool isPlaying = playbackHandler.isEitherClockActive();
 	ArpeggiatorSettings* settings = getArpSettings();
-	
+
 	// Always refresh during playback to ensure smooth animation
 	bool shouldRefresh = false;
-	
+
 	// Check if the current step has changed
 	if (currentStep != displayState.lastRhythmStep) {
 		displayState.lastRhythmStep = currentStep;
 		shouldRefresh = true;
 	}
-	
+
 	// Check if playback state changed
 	if (isPlaying != displayState.wasPlaying) {
 		displayState.wasPlaying = isPlaying;
 		shouldRefresh = true;
 	}
-	
+
 	// Check if arp settings changed
 	if (hasArpSettingsChanged()) {
 		shouldRefresh = true;
 	}
-	
+
 	// During playback, refresh more frequently to ensure smooth animation
 	if (isPlaying && settings && settings->preset != ArpPreset::OFF) {
 		shouldRefresh = true;
 	}
-	
+
 	// Request rendering if needed
 	if (shouldRefresh) {
-		// Directly trigger pad LED refresh
-		uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
+		// Use keyboard screen's helper method for main pad rendering
+		keyboardScreen.requestMainPadsRendering();
+
+		// Also try direct pad LED update for immediate feedback
+		updatePadLEDsDirect();
+	}
+}
+
+void KeyboardLayoutGenerativeSequencer::updatePadLEDsDirect() {
+	ArpeggiatorSettings* settings = getArpSettings();
+	if (!settings) {
+		return;
+	}
+	
+	// Update playback progress bar on top row (like clip view)
+	updatePlaybackProgressBar();
+	
+	if (settings->preset == ArpPreset::OFF) {
+		return;
+	}
+	
+	// Get current step and pattern
+	int32_t currentStep = getCurrentRhythmStep();
+	int32_t rhythmIndex = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
+	const ArpRhythm& pattern = arpRhythmPatterns[rhythmIndex];
+	
+	if (currentStep < 0) {
+		return; // Not playing
+	}
+	
+	// Update only the current step pad directly using PadLEDs::set
+	const int32_t patternStartRow = 2;
+	const int32_t maxStepsPerRow = kDisplayWidth;
+	
+	// Clear previous step highlighting by re-rendering just the pattern area
+	for (int32_t step = 0; step < pattern.length && step < maxStepsPerRow * 3; step++) {
+		int32_t x = step % maxStepsPerRow;
+		int32_t y = patternStartRow + (step / maxStepsPerRow);
+		
+		if (y >= kDisplayHeight) break;
+		
+		bool isActive = pattern.steps[step];
+		bool isCurrent = (step == currentStep);
+		
+		RGB color = getStepColor(isActive, isCurrent);
+		PadLEDs::set({x, y}, color);
+	}
+	
+	// Send the updated colors to hardware
+	PadLEDs::sendOutMainPadColours();
+}
+
+void KeyboardLayoutGenerativeSequencer::updatePlaybackProgressBar() {
+	// Create a playback progress indicator on the top row (like clip view tick squares)
+	if (!playbackHandler.isEitherClockActive() || !currentSong->isClipActive(getCurrentClip())) {
+		// No playback - clear the progress bar
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			PadLEDs::set({x, 0}, colours::black);
+		}
+		return;
+	}
+	
+	// Calculate playback position within the clip
+	Clip* clip = getCurrentClip();
+	if (!clip) return;
+	
+	int32_t progressSquare = (uint64_t)(clip->lastProcessedPos + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick())
+	                        * kDisplayWidth / clip->loopLength;
+	
+	if (progressSquare < 0 || progressSquare >= kDisplayWidth) {
+		progressSquare = 255; // Off screen
+	}
+	
+	// Update top row as progress bar
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
+		RGB color;
+		if (x == progressSquare) {
+			color = colours::white; // Current position
+		} else if (x < progressSquare) {
+			color = colours::blue;  // Played portion
+		} else {
+			color = colours::black; // Future portion
+		}
+		PadLEDs::set({x, 0}, color);
 	}
 }
 
@@ -305,18 +392,18 @@ RGB KeyboardLayoutGenerativeSequencer::getStepColor(bool isActive, bool isCurren
 int32_t KeyboardLayoutGenerativeSequencer::getCurrentRhythmStep() {
 	Arpeggiator* arp = getArpeggiator();
 	ArpeggiatorSettings* settings = getArpSettings();
-	
+
 	if (!arp || !settings || !playbackHandler.isEitherClockActive() || settings->preset == ArpPreset::OFF) {
 		return -1; // Not playing or arp is off
 	}
-	
+
 	// Get current rhythm pattern
 	int32_t rhythmIndex = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
 	const ArpRhythm& pattern = arpRhythmPatterns[rhythmIndex];
-	
+
 	// Get current rhythm step from arpeggiator state and normalize to pattern length
 	int32_t currentStep = arp->notesPlayedFromRhythm % pattern.length;
-	
+
 	return currentStep;
 }
 

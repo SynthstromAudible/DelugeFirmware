@@ -57,6 +57,11 @@ public:
 
 	inline void requestRendering() { uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF); }
 
+	/// Helper methods for keyboard layouts to access rendering system
+	inline void requestMainPadsRendering() { uiNeedsRendering(this, 0xFFFFFFFF, 0); }
+	inline void requestSpecificRowsRendering(uint32_t rowMask) { uiNeedsRendering(this, rowMask, 0); }
+	inline void requestSidebarRendering() { uiNeedsRendering(this, 0, 0xFFFFFFFF); }
+
 	void killColumnSwitchKey(int32_t column);
 
 	// ui
