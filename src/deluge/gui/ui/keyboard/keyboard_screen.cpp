@@ -47,6 +47,7 @@
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/ui/keyboard/layout/chord_library.h"
 #include "gui/ui/keyboard/layout/column_control_state.h"
+#include "gui/ui/keyboard/layout/generative_sequencer.h"
 #include "gui/ui/keyboard/layout/in_key.h"
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "gui/ui/keyboard/layout/norns.h"
@@ -63,6 +64,7 @@ PLACE_SDRAM_DATA layout::KeyboardLayoutInKey keyboard_layout_in_key{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutPiano keyboard_layout_piano{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutChord keyboard_layout_chord{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutChordLibrary keyboard_layout_chord_library{};
+PLACE_SDRAM_DATA layout::KeyboardLayoutGenerativeSequencer keyboard_layout_generative{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutNorns keyboard_layout_norns{};
 PLACE_SDRAM_DATA std::array<KeyboardLayout*, KeyboardLayoutType::KeyboardLayoutTypeMaxElement> layout_list = {nullptr};
 
@@ -73,6 +75,7 @@ KeyboardScreen::KeyboardScreen() {
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeChord] = &keyboard_layout_chord;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeChordLibrary] = &keyboard_layout_chord_library;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeDrums] = &keyboard_layout_velocity_drums;
+	layout_list[KeyboardLayoutType::KeyboardLayoutTypeGenerative] = &keyboard_layout_generative;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeNorns] = &keyboard_layout_norns;
 
 	memset(&pressedPads, 0, sizeof(pressedPads));

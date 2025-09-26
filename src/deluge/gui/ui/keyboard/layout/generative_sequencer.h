@@ -1,0 +1,86 @@
+/*
+ * Copyright © 2025 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "gui/ui/keyboard/layout/column_controls.h"
+#include "gui/l10n/strings.h"
+
+// Forward declarations
+class ArpeggiatorSettings;
+class Arpeggiator;
+
+namespace deluge::gui::ui::keyboard::layout {
+
+/// Generative sequencer keyboard layout that visualizes and controls arpeggiator patterns
+/// Phase 1: Minimal extension - visualize existing arpeggiator state
+class KeyboardLayoutGenerativeSequencer : public ColumnControlsKeyboard {
+public:
+	KeyboardLayoutGenerativeSequencer() = default;
+	~KeyboardLayoutGenerativeSequencer() override = default;
+
+	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
+	void handleVerticalEncoder(int32_t offset) override;
+	void handleHorizontalEncoder(int32_t offset, bool shiftEnabled, PressedPad presses[kMaxNumKeyboardPadPresses],
+	                             bool encoderPressed = false) override;
+	void precalculate() override;
+
+	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
+
+	l10n::String name() override { return l10n::String::STRING_FOR_KEYBOARD_LAYOUT_GENERATIVE; }
+	bool supportsInstrument() override { return true; }
+	bool supportsKit() override { return false; }
+
+private:
+	/// Get the current arpeggiator settings from the active clip
+	ArpeggiatorSettings* getArpSettings();
+
+	/// Get the current arpeggiator instance from the active instrument
+	Arpeggiator* getArpeggiator();
+
+	/// Visualize the current rhythm pattern on the main pads
+	void renderRhythmPattern(RGB image[][kDisplayWidth + kSideBarWidth]);
+
+	/// Show current arpeggiator parameters in the top rows
+	void renderParameterDisplay(RGB image[][kDisplayWidth + kSideBarWidth]);
+
+	/// Show the current step position if arp is playing
+	void renderCurrentStep(RGB image[][kDisplayWidth + kSideBarWidth]);
+
+	/// Get color for a rhythm step based on its state
+	RGB getStepColor(bool isActive, bool isCurrent, uint8_t velocity = 64);
+
+	/// Get current step index in the rhythm pattern (returns -1 if not playing)
+	int32_t getCurrentRhythmStep();
+
+	/// Convert arpeggiator mode enum to display string
+	char const* getArpModeDisplayName(ArpMode mode);
+
+	/// Convert octave mode enum to display string
+	char const* getOctaveModeDisplayName(ArpOctaveMode mode);
+
+	// Display state
+	struct {
+		int32_t currentRhythm = 0;
+		ArpMode currentMode = ArpMode::OFF;
+		ArpOctaveMode currentOctaveMode = ArpOctaveMode::UP;
+		uint8_t currentOctaves = 1;
+		bool needsRefresh = true;
+	} displayState;
+};
+
+}; // namespace deluge::gui::ui::keyboard::layout
