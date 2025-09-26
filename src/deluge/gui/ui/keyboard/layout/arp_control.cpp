@@ -52,15 +52,16 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 	ArpeggiatorSettings* settings = getArpSettings();
 	if (settings) {
 		// Simple stepping: +1 for clockwise, -1 for counter-clockwise
+		// Skip pattern 0 ("None") and use patterns 1-50 for actual rhythm patterns
 		if (offset > 0) {
 			displayState.currentRhythm++;
 			if (displayState.currentRhythm > 50) {
-				displayState.currentRhythm = 0; // Wrap to start
+				displayState.currentRhythm = 1; // Wrap to first real pattern
 			}
 		} else if (offset < 0) {
 			displayState.currentRhythm--;
-			if (displayState.currentRhythm < 0) {
-				displayState.currentRhythm = 50; // Wrap to end
+			if (displayState.currentRhythm < 1) {
+				displayState.currentRhythm = 50; // Wrap to last pattern
 			}
 		}
 
@@ -129,17 +130,16 @@ void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shif
 			// Update settings from preset to enable arpeggiator
 			settings->updateSettingsFromCurrentPreset();
 			
-			// If we're enabling the arpeggiator and rhythm is still "None", set to a basic pattern
-			if (settings->preset != ArpPreset::OFF && computeCurrentValueForUnsignedMenuItem(settings->rhythm) == 0) {
+			// If we're enabling the arpeggiator, set to a rhythm pattern with actual rhythm
+			if (settings->preset != ArpPreset::OFF) {
 				// Set to pattern 1 ("0--") as a default rhythm pattern
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 				ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
 				
 				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					int32_t finalValue = computeFinalValueForUnsignedMenuItem(1); // Pattern 1 ("0--")
+					int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm); // Use our default (pattern 1)
 					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
-					displayState.currentRhythm = 1; // Update our display state too
 				}
 			}
 			
@@ -485,3 +485,4 @@ char const* KeyboardLayoutArpControl::getOctaveModeDisplayName(ArpOctaveMode mod
 }
 
 }; // namespace deluge::gui::ui::keyboard::layout
+
