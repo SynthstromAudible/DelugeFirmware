@@ -63,6 +63,9 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 
 		// Update the rhythm setting
 		settings->rhythm = (uint32_t)displayState.currentRhythm + 2147483648;
+		
+		// Force arpeggiator to restart so it picks up the new rhythm pattern immediately
+		settings->flagForceArpRestart = true;
 
 		// Show rhythm name
 		display->displayPopup(arpRhythmPatternNames[displayState.currentRhythm]);
@@ -96,6 +99,9 @@ void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shif
 			int32_t newOctaveMode = static_cast<int32_t>(settings->octaveMode) + offset;
 			newOctaveMode = std::clamp(newOctaveMode, static_cast<int32_t>(0), static_cast<int32_t>(ArpOctaveMode::RANDOM));
 			settings->octaveMode = static_cast<ArpOctaveMode>(newOctaveMode);
+			
+			// Force arpeggiator to restart so it picks up the new octave mode immediately
+			settings->flagForceArpRestart = true;
 
 			display->displayPopup(getOctaveModeDisplayName(settings->octaveMode));
 
@@ -112,6 +118,9 @@ void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shif
 
 			// Update settings from preset to enable arpeggiator
 			settings->updateSettingsFromCurrentPreset();
+			
+			// Force arpeggiator to restart so it picks up the new preset immediately
+			settings->flagForceArpRestart = true;
 
 			display->displayPopup(getArpPresetDisplayName(settings->preset));
 
