@@ -32,22 +32,11 @@
 namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutPulseSequencer::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
-	currentNotesState = NotesState{}; // Start with clean state
+	currentNotesState = NotesState{}; // Clear active notes for now
 
-	// Enable basic note input so arpeggiator can receive notes
-	// Use a simple chromatic layout in the bottom rows for now
-	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
-		auto pressed = presses[idxPress];
-		if (pressed.active && pressed.x < kDisplayWidth) {
-			// Map bottom 2 rows to chromatic notes (like a simple keyboard)
-			if (pressed.y >= 5) { // Rows 5-7 are available for note input
-				int32_t note = 60 + (pressed.y - 5) * kDisplayWidth + pressed.x; // C4 + chromatic
-				if (note >= 0 && note <= 127) {
-					enableNote(note, 64); // Default velocity
-				}
-			}
-		}
-	}
+	// For Phase 1, we're just visualizing - no pad input handling yet
+	// Notes come from the clip, not from pad input
+	// Future phases will add interactive control here
 
 	// Handle column controls (beat repeat, etc.) - but only when user wants them
 	ColumnControlsKeyboard::evaluatePads(presses);
@@ -73,8 +62,8 @@ void KeyboardLayoutPulseSequencer::handleVerticalEncoder(int32_t offset) {
 			}
 		}
 
-		// Update the rhythm setting
-		settings->rhythm = (uint32_t)displayState.currentRhythm + 2147483648;
+		// Update the rhythm setting using proper value scaling
+		settings->rhythm = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
 
 		// Force arpeggiator to restart so it picks up the new rhythm pattern immediately
 		settings->flagForceArpRestart = true;
@@ -380,13 +369,6 @@ void KeyboardLayoutPulseSequencer::renderParameterDisplay(RGB image[][kDisplayWi
 	// Show rhythm index as number of lit pads
 	for (int32_t x = 0; x < rhythmIndex && x < kDisplayWidth; x++) {
 		image[1][x] = rhythmColor;
-	}
-
-	// Bottom rows (5-7): Show available note input area with dim white
-	for (int32_t y = 5; y < kDisplayHeight; y++) {
-		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			image[y][x] = RGB(20, 20, 20); // Dim white to show note input area
-		}
 	}
 }
 
