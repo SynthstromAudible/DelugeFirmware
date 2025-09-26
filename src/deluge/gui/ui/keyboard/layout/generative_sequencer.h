@@ -67,8 +67,8 @@ private:
 	/// Get current step index in the rhythm pattern (returns -1 if not playing)
 	int32_t getCurrentRhythmStep();
 
-	/// Convert arpeggiator mode enum to display string
-	char const* getArpModeDisplayName(ArpMode mode);
+	/// Convert arpeggiator preset enum to display string
+	char const* getArpPresetDisplayName(ArpPreset preset);
 
 	/// Convert octave mode enum to display string
 	char const* getOctaveModeDisplayName(ArpOctaveMode mode);
@@ -76,7 +76,7 @@ private:
 	// Display state
 	struct {
 		int32_t currentRhythm = 0;
-		ArpMode currentMode = ArpMode::OFF;
+		ArpPreset currentPreset = ArpPreset::OFF;
 		ArpOctaveMode currentOctaveMode = ArpOctaveMode::UP;
 		uint8_t currentOctaves = 1;
 		bool needsRefresh = true;

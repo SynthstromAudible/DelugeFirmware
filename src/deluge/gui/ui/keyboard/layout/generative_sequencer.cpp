@@ -52,7 +52,7 @@ void KeyboardLayoutGenerativeSequencer::handleVerticalEncoder(int32_t offset) {
 
 		// Cycle through available rhythm patterns
 		currentRhythm += offset;
-		currentRhythm = std::clamp(currentRhythm, 0, static_cast<int32_t>(kMaxPresetArpRhythm));
+		currentRhythm = std::clamp(currentRhythm, static_cast<int32_t>(0), static_cast<int32_t>(kMaxPresetArpRhythm));
 
 		// Update the rhythm setting
 		settings->rhythm = (uint32_t)currentRhythm + 2147483648; // Convert back to internal format
@@ -77,17 +77,17 @@ void KeyboardLayoutGenerativeSequencer::handleHorizontalEncoder(int32_t offset, 
 		if (shiftEnabled) {
 			// Shift + horizontal: change octave mode
 			int32_t newOctaveMode = static_cast<int32_t>(settings->octaveMode) + offset;
-			newOctaveMode = std::clamp(newOctaveMode, 0, static_cast<int32_t>(ArpOctaveMode::NUM_ARP_OCTAVE_MODES) - 1);
+			newOctaveMode = std::clamp(newOctaveMode, static_cast<int32_t>(0), static_cast<int32_t>(ArpOctaveMode::RANDOM));
 			settings->octaveMode = static_cast<ArpOctaveMode>(newOctaveMode);
-
+			
 			display->displayPopup(getOctaveModeDisplayName(settings->octaveMode));
 		} else {
-			// Normal horizontal: change arp mode
-			int32_t newMode = static_cast<int32_t>(settings->mode) + offset;
-			newMode = std::clamp(newMode, 0, static_cast<int32_t>(ArpMode::NUM_ARP_MODES) - 1);
-			settings->mode = static_cast<ArpMode>(newMode);
-
-			display->displayPopup(getArpModeDisplayName(settings->mode));
+			// Normal horizontal: change arp preset (not mode)
+			int32_t newPreset = static_cast<int32_t>(settings->preset) + offset;
+			newPreset = std::clamp(newPreset, static_cast<int32_t>(0), static_cast<int32_t>(ArpPreset::CUSTOM));
+			settings->preset = static_cast<ArpPreset>(newPreset);
+			
+			display->displayPopup(getArpPresetDisplayName(settings->preset));
 		}
 
 		displayState.needsRefresh = true;
@@ -159,7 +159,7 @@ void KeyboardLayoutGenerativeSequencer::renderParameterDisplay(RGB image[][kDisp
 	if (!settings) return;
 
 	// Top row: Show arp mode and status
-	RGB modeColor = (settings->mode == ArpMode::OFF) ? colours::red : colours::green;
+	RGB modeColor = (settings->preset == ArpPreset::OFF) ? colours::red : colours::green;
 
 	// Show mode in first few pads of top row
 	for (int32_t x = 0; x < 3; x++) {
@@ -240,14 +240,15 @@ int32_t KeyboardLayoutGenerativeSequencer::getCurrentRhythmStep() {
 	return arp->notesPlayedFromRhythm;
 }
 
-char const* KeyboardLayoutGenerativeSequencer::getArpModeDisplayName(ArpMode mode) {
-	switch (mode) {
-		case ArpMode::OFF: return "OFF";
-		case ArpMode::UP: return "UP";
-		case ArpMode::DOWN: return "DOWN";
-		case ArpMode::BOTH: return "BOTH";
-		case ArpMode::RANDOM: return "RANDOM";
-		case ArpMode::AS_PLAYED: return "AS_PLAYED";
+char const* KeyboardLayoutGenerativeSequencer::getArpPresetDisplayName(ArpPreset preset) {
+	switch (preset) {
+		case ArpPreset::OFF: return "OFF";
+		case ArpPreset::UP: return "UP";
+		case ArpPreset::DOWN: return "DOWN";
+		case ArpPreset::BOTH: return "BOTH";
+		case ArpPreset::RANDOM: return "RANDOM";
+		case ArpPreset::WALK: return "WALK";
+		case ArpPreset::CUSTOM: return "CUSTOM";
 		default: return "UNKNOWN";
 	}
 }
