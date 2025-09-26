@@ -102,63 +102,71 @@ void KeyboardLayoutGenerativeSequencer::updateAnimation() {
 	// Check if we need to refresh the display due to arpeggiator changes
 	int32_t currentStep = getCurrentRhythmStep();
 	bool isPlaying = playbackHandler.isEitherClockActive();
+	ArpeggiatorSettings* settings = getArpSettings();
+	
+	// Always refresh during playback to ensure smooth animation
+	bool shouldRefresh = false;
 	
 	// Check if the current step has changed
 	if (currentStep != displayState.lastRhythmStep) {
 		displayState.lastRhythmStep = currentStep;
-		displayState.needsRefresh = true;
+		shouldRefresh = true;
 	}
 	
 	// Check if playback state changed
 	if (isPlaying != displayState.wasPlaying) {
 		displayState.wasPlaying = isPlaying;
-		displayState.needsRefresh = true;
+		shouldRefresh = true;
 	}
 	
 	// Check if arp settings changed
 	if (hasArpSettingsChanged()) {
-		displayState.needsRefresh = true;
+		shouldRefresh = true;
+	}
+	
+	// During playback, refresh more frequently to ensure smooth animation
+	if (isPlaying && settings && settings->preset != ArpPreset::OFF) {
+		shouldRefresh = true;
 	}
 	
 	// Request rendering if needed
-	if (displayState.needsRefresh) {
-		// Request full screen refresh
-		keyboardScreen.requestRendering();
-		displayState.needsRefresh = false;
+	if (shouldRefresh) {
+		// Directly trigger pad LED refresh
+		uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 	}
 }
 
 bool KeyboardLayoutGenerativeSequencer::hasArpSettingsChanged() {
 	ArpeggiatorSettings* settings = getArpSettings();
 	if (!settings) return false;
-	
+
 	bool changed = false;
-	
+
 	// Check rhythm pattern
 	int32_t currentRhythm = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
 	if (currentRhythm != displayState.currentRhythm) {
 		displayState.currentRhythm = currentRhythm;
 		changed = true;
 	}
-	
+
 	// Check preset
 	if (settings->preset != displayState.currentPreset) {
 		displayState.currentPreset = settings->preset;
 		changed = true;
 	}
-	
+
 	// Check octave mode
 	if (settings->octaveMode != displayState.currentOctaveMode) {
 		displayState.currentOctaveMode = settings->octaveMode;
 		changed = true;
 	}
-	
+
 	// Check octave count
 	if (settings->numOctaves != displayState.currentOctaves) {
 		displayState.currentOctaves = settings->numOctaves;
 		changed = true;
 	}
-	
+
 	return changed;
 }
 
@@ -296,12 +304,20 @@ RGB KeyboardLayoutGenerativeSequencer::getStepColor(bool isActive, bool isCurren
 
 int32_t KeyboardLayoutGenerativeSequencer::getCurrentRhythmStep() {
 	Arpeggiator* arp = getArpeggiator();
-	if (!arp || !playbackHandler.isEitherClockActive()) {
-		return -1; // Not playing
+	ArpeggiatorSettings* settings = getArpSettings();
+	
+	if (!arp || !settings || !playbackHandler.isEitherClockActive() || settings->preset == ArpPreset::OFF) {
+		return -1; // Not playing or arp is off
 	}
-
-	// Get current rhythm step from arpeggiator state
-	return arp->notesPlayedFromRhythm;
+	
+	// Get current rhythm pattern
+	int32_t rhythmIndex = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
+	const ArpRhythm& pattern = arpRhythmPatterns[rhythmIndex];
+	
+	// Get current rhythm step from arpeggiator state and normalize to pattern length
+	int32_t currentStep = arp->notesPlayedFromRhythm % pattern.length;
+	
+	return currentStep;
 }
 
 char const* KeyboardLayoutGenerativeSequencer::getArpPresetDisplayName(ArpPreset preset) {

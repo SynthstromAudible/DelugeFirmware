@@ -942,7 +942,7 @@ void KeyboardScreen::graphicsRoutine() {
 	keyboardTickSquares[kDisplayHeight - 1] = newTickSquare;
 
 	PadLEDs::setTickSquares(keyboardTickSquares, colours);
-	
+
 	// Update current layout animation if it's the generative sequencer
 	KeyboardLayoutType currentLayoutType = getCurrentInstrumentClip()->keyboardState.currentLayout;
 	if (currentLayoutType == KeyboardLayoutType::KeyboardLayoutTypeGenerative) {

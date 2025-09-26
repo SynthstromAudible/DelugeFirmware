@@ -44,7 +44,7 @@ public:
 	l10n::String name() override { return l10n::String::STRING_FOR_KEYBOARD_LAYOUT_GENERATIVE; }
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
-	
+
 	/// Update animation and check if display needs refreshing
 	void updateAnimation();
 
@@ -73,9 +73,9 @@ private:
 	/// Convert arpeggiator preset enum to display string
 	char const* getArpPresetDisplayName(ArpPreset preset);
 
-	/// Convert octave mode enum to display string  
+	/// Convert octave mode enum to display string
 	char const* getOctaveModeDisplayName(ArpOctaveMode mode);
-	
+
 	/// Check if arpeggiator settings have changed
 	bool hasArpSettingsChanged();
 
