@@ -79,14 +79,14 @@ void KeyboardLayoutGenerativeSequencer::handleHorizontalEncoder(int32_t offset, 
 			int32_t newOctaveMode = static_cast<int32_t>(settings->octaveMode) + offset;
 			newOctaveMode = std::clamp(newOctaveMode, static_cast<int32_t>(0), static_cast<int32_t>(ArpOctaveMode::RANDOM));
 			settings->octaveMode = static_cast<ArpOctaveMode>(newOctaveMode);
-			
+
 			display->displayPopup(getOctaveModeDisplayName(settings->octaveMode));
 		} else {
 			// Normal horizontal: change arp preset (not mode)
 			int32_t newPreset = static_cast<int32_t>(settings->preset) + offset;
 			newPreset = std::clamp(newPreset, static_cast<int32_t>(0), static_cast<int32_t>(ArpPreset::CUSTOM));
 			settings->preset = static_cast<ArpPreset>(newPreset);
-			
+
 			display->displayPopup(getArpPresetDisplayName(settings->preset));
 		}
 
@@ -96,6 +96,70 @@ void KeyboardLayoutGenerativeSequencer::handleHorizontalEncoder(int32_t offset, 
 
 void KeyboardLayoutGenerativeSequencer::precalculate() {
 	displayState.needsRefresh = true;
+}
+
+void KeyboardLayoutGenerativeSequencer::updateAnimation() {
+	// Check if we need to refresh the display due to arpeggiator changes
+	int32_t currentStep = getCurrentRhythmStep();
+	bool isPlaying = playbackHandler.isEitherClockActive();
+	
+	// Check if the current step has changed
+	if (currentStep != displayState.lastRhythmStep) {
+		displayState.lastRhythmStep = currentStep;
+		displayState.needsRefresh = true;
+	}
+	
+	// Check if playback state changed
+	if (isPlaying != displayState.wasPlaying) {
+		displayState.wasPlaying = isPlaying;
+		displayState.needsRefresh = true;
+	}
+	
+	// Check if arp settings changed
+	if (hasArpSettingsChanged()) {
+		displayState.needsRefresh = true;
+	}
+	
+	// Request rendering if needed
+	if (displayState.needsRefresh) {
+		// Request full screen refresh
+		keyboardScreen.requestRendering();
+		displayState.needsRefresh = false;
+	}
+}
+
+bool KeyboardLayoutGenerativeSequencer::hasArpSettingsChanged() {
+	ArpeggiatorSettings* settings = getArpSettings();
+	if (!settings) return false;
+	
+	bool changed = false;
+	
+	// Check rhythm pattern
+	int32_t currentRhythm = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
+	if (currentRhythm != displayState.currentRhythm) {
+		displayState.currentRhythm = currentRhythm;
+		changed = true;
+	}
+	
+	// Check preset
+	if (settings->preset != displayState.currentPreset) {
+		displayState.currentPreset = settings->preset;
+		changed = true;
+	}
+	
+	// Check octave mode
+	if (settings->octaveMode != displayState.currentOctaveMode) {
+		displayState.currentOctaveMode = settings->octaveMode;
+		changed = true;
+	}
+	
+	// Check octave count
+	if (settings->numOctaves != displayState.currentOctaves) {
+		displayState.currentOctaves = settings->numOctaves;
+		changed = true;
+	}
+	
+	return changed;
 }
 
 void KeyboardLayoutGenerativeSequencer::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
