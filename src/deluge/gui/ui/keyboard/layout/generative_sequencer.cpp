@@ -46,28 +46,27 @@ void KeyboardLayoutGenerativeSequencer::handleVerticalEncoder(int32_t offset) {
 		return;
 	}
 
-	// For Phase 1, vertical encoder could cycle through rhythm patterns
+	// Simple step +1/-1 through rhythm pattern array
 	ArpeggiatorSettings* settings = getArpSettings();
 	if (settings) {
-		// Get current rhythm value
-		int32_t currentRhythm = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
-
-		// Cycle through available rhythm patterns with wrap-around
-		currentRhythm += offset;
-
-		// Safe wrap-around for all 51 patterns (0 to kMaxPresetArpRhythm)
-		while (currentRhythm < 0) {
-			currentRhythm += (kMaxPresetArpRhythm + 1);
-		}
-		while (currentRhythm > kMaxPresetArpRhythm) {
-			currentRhythm -= (kMaxPresetArpRhythm + 1);
+		// Simple stepping: +1 for clockwise, -1 for counter-clockwise
+		if (offset > 0) {
+			displayState.currentRhythm++;
+			if (displayState.currentRhythm > 50) {
+				displayState.currentRhythm = 0; // Wrap to start
+			}
+		} else if (offset < 0) {
+			displayState.currentRhythm--;
+			if (displayState.currentRhythm < 0) {
+				displayState.currentRhythm = 50; // Wrap to end
+			}
 		}
 
 		// Update the rhythm setting
-		settings->rhythm = (uint32_t)currentRhythm + 2147483648; // Convert back to internal format
+		settings->rhythm = (uint32_t)displayState.currentRhythm + 2147483648;
 
 		// Show rhythm name
-		display->displayPopup(arpRhythmPatternNames[currentRhythm]);
+		display->displayPopup(arpRhythmPatternNames[displayState.currentRhythm]);
 
 		// Clean separation: display and pads updated separately
 		updateDisplay(); // Handles OLED vs 7-segment properly
