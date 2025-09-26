@@ -90,7 +90,7 @@ private:
 
 	// Display state
 	struct {
-		int32_t currentRhythm = 0;
+		int32_t currentRhythm = 1; // Start at rhythm 1 ("0--") for immediate rhythm effect
 		int32_t lastRhythmStep = -1;
 		ArpPreset currentPreset = ArpPreset::OFF;
 		ArpOctaveMode currentOctaveMode = ArpOctaveMode::UP;

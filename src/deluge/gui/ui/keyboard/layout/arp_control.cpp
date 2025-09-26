@@ -68,41 +68,48 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 			}
 		}
 
-		// Update the rhythm setting directly like MIDI/CV menu + force complete restart
-		int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
-		settings->rhythm = finalValue;
-
-		// Try forcing parameter sync like the parameter system might do
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-		if (modelStack && modelStack->paramManager) {
-			UnpatchedParamSet* unpatchedParams = modelStack->paramManager->getUnpatchedParamSet();
-			if (unpatchedParams) {
-				// Force the unpatched param to have our value
-				unpatchedParams->params[modulation::params::UNPATCHED_ARP_RHYTHM].currentValue = finalValue - 2147483648;
-				// Then update settings from the param set
-				settings->updateParamsFromUnpatchedParamSet(unpatchedParams);
-			}
+		// CRITICAL: Always ensure syncLevel is properly set (never 0)
+		if (settings->syncLevel == 0) {
+			settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 		}
 
-		// Debug: Check what the arpeggiator actually reads
+		// Always use the parameter system but force rhythm 0 to stay 0
+		UI* originalUI = getCurrentUI();
+		
+		// Set up sound editor context like the official menu
+		if (soundEditor.setup(clip, nullptr, 0)) {
+			// Now we're in sound editor context - use the official approach
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+			ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
+			
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				if (displayState.currentRhythm == 0) {
+					// For rhythm 0, force it to 0 and set directly in both places
+					settings->rhythm = 0; // Force direct assignment
+					modelStackWithParam->autoParam->setCurrentValueBasicForSetup(0);
+				} else {
+					int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
+					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+				}
+			}
+			
+			// Exit sound editor context back to original UI
+			originalUI->focusRegained();
+		}
+
+		// Debug: Check what the arpeggiator actually reads AND check syncLevel
 		uint32_t rhythmReadByArp = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
 
-		// Force complete arpeggiator restart
-		settings->flagForceArpRestart = true;
-
-		// Also reset the arpeggiator instance to ensure clean state
-		Arpeggiator* arp = getArpeggiator();
-		if (arp) {
-			arp->reset();
-			// Force reset of rhythm tracking state specifically
-			arp->notesPlayedFromRhythm = 0;
-			arp->lastNormalNotePlayedFromRhythm = 0;
+		// CRITICAL: Check if syncLevel is 0 (which disables rhythm processing)
+		if (settings->syncLevel == 0) {
+			// Force syncLevel to a reasonable default if it's 0
+			settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 		}
 
-		// Show rhythm name with debug info
+		// Show rhythm name with debug info including syncLevel
 		char debugMsg[50];
-		snprintf(debugMsg, sizeof(debugMsg), "%s (%d->%d)", arpRhythmPatternNames[displayState.currentRhythm], displayState.currentRhythm, (int)rhythmReadByArp);
+		snprintf(debugMsg, sizeof(debugMsg), "%s (%d->%d) sync:%d", arpRhythmPatternNames[displayState.currentRhythm], displayState.currentRhythm, (int)rhythmReadByArp, (int)settings->syncLevel);
 		display->displayPopup(debugMsg);
 
 		// Display update: Handle both OLED and 7-segment
