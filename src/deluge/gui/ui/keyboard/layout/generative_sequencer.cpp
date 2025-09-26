@@ -37,16 +37,15 @@ void KeyboardLayoutGenerativeSequencer::evaluatePads(PressedPad presses[kMaxNumK
 	// For Phase 1, we're just visualizing - no pad input handling yet
 	// Future phases will add interactive control here
 
-	// Handle column controls (beat repeat, etc.)
+	// Handle column controls (beat repeat, etc.) - but only when user wants them
 	ColumnControlsKeyboard::evaluatePads(presses);
 }
 
 void KeyboardLayoutGenerativeSequencer::handleVerticalEncoder(int32_t offset) {
-	if (verticalEncoderHandledByColumns(offset)) {
-		return;
-	}
+	// Force direct control - bypass column controls completely
+	// Don't call verticalEncoderHandledByColumns at all
 
-	// Simple step +1/-1 through rhythm pattern array
+	// Direct rhythm pattern control
 	ArpeggiatorSettings* settings = getArpSettings();
 	if (settings) {
 		// Simple stepping: +1 for clockwise, -1 for counter-clockwise
@@ -68,16 +67,25 @@ void KeyboardLayoutGenerativeSequencer::handleVerticalEncoder(int32_t offset) {
 		// Show rhythm name
 		display->displayPopup(arpRhythmPatternNames[displayState.currentRhythm]);
 
-		// Use keyboard screen's full refresh method
-		keyboardScreen.requestRendering();
+		// Display update: Handle both OLED and 7-segment
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+
+		// Pad update: Only because pattern changed
+		keyboardScreen.requestMainPadsRendering();
 	}
 }
 
 void KeyboardLayoutGenerativeSequencer::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
                                                                 PressedPad presses[kMaxNumKeyboardPadPresses],
                                                                 bool encoderPressed) {
-	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
-		return;
+	// Conditional: Only use column controls when user is holding column pads
+	if (leftColHeld != -1 || rightColHeld != -1) {
+		// User is holding column pads - let column controls handle it
+		if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
+			return;
+		}
 	}
 
 	// For Phase 1, horizontal encoder could cycle through arp modes
@@ -91,8 +99,11 @@ void KeyboardLayoutGenerativeSequencer::handleHorizontalEncoder(int32_t offset, 
 
 			display->displayPopup(getOctaveModeDisplayName(settings->octaveMode));
 
-			// Use keyboard screen's full refresh method
-			keyboardScreen.requestRendering();
+			// Display update: Handle both OLED and 7-segment
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			// 7-segment display is already handled by displayPopup()
 		} else {
 			// Normal horizontal: change arp preset (not mode)
 			int32_t newPreset = static_cast<int32_t>(settings->preset) + offset;
@@ -104,8 +115,14 @@ void KeyboardLayoutGenerativeSequencer::handleHorizontalEncoder(int32_t offset, 
 
 			display->displayPopup(getArpPresetDisplayName(settings->preset));
 
-			// Use keyboard screen's full refresh method
-			keyboardScreen.requestRendering();
+			// Display update: Handle both OLED and 7-segment
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			// 7-segment display is already handled by displayPopup()
+
+			// Pad update: Only because arp status changed
+			keyboardScreen.requestMainPadsRendering();
 		}
 	}
 }
@@ -115,42 +132,18 @@ void KeyboardLayoutGenerativeSequencer::precalculate() {
 }
 
 void KeyboardLayoutGenerativeSequencer::updateAnimation() {
-	// Check if we need to refresh the display due to arpeggiator changes
+	// Simplified animation - only update when arp step changes during playback
 	int32_t currentStep = getCurrentRhythmStep();
-	bool isPlaying = playbackHandler.isEitherClockActive();
 	ArpeggiatorSettings* settings = getArpSettings();
 
-	// Always refresh during playback to ensure smooth animation
-	bool shouldRefresh = false;
+	// Update progress bar using clip view approach (no OLED interference)
+	updatePlaybackProgressBar();
 
-	// Check if the current step has changed
-	if (currentStep != displayState.lastRhythmStep) {
+	// Only refresh for arp step changes to avoid OLED interference
+	if (currentStep != displayState.lastRhythmStep && currentStep >= 0 && settings && settings->preset != ArpPreset::OFF) {
 		displayState.lastRhythmStep = currentStep;
-		shouldRefresh = true;
-	}
 
-	// Check if playback state changed
-	if (isPlaying != displayState.wasPlaying) {
-		displayState.wasPlaying = isPlaying;
-		shouldRefresh = true;
-	}
-
-	// Check if arp settings changed
-	if (hasArpSettingsChanged()) {
-		shouldRefresh = true;
-	}
-
-	// During playback, refresh more frequently to ensure smooth animation
-	if (isPlaying && settings && settings->preset != ArpPreset::OFF) {
-		shouldRefresh = true;
-	}
-
-	// Request rendering if needed
-	if (shouldRefresh) {
-		// Use keyboard screen's helper method for main pad rendering
-		keyboardScreen.requestMainPadsRendering();
-
-		// Also try direct pad LED update for immediate feedback
+		// Direct pad LED update for arp step highlighting
 		updatePadLEDsDirect();
 	}
 }
@@ -195,8 +188,8 @@ void KeyboardLayoutGenerativeSequencer::updatePadLEDsDirect() {
 		PadLEDs::set({x, y}, color);
 	}
 
-	// Send the updated colors to hardware
-	PadLEDs::sendOutMainPadColours();
+	// Let the normal rendering system handle sending colors
+	// Don't call PadLEDs::sendOutMainPadColours() to avoid OLED conflicts
 }
 
 void KeyboardLayoutGenerativeSequencer::updateDisplay() {
@@ -211,38 +204,44 @@ void KeyboardLayoutGenerativeSequencer::updateDisplay() {
 }
 
 void KeyboardLayoutGenerativeSequencer::updatePlaybackProgressBar() {
-	// Create a playback progress indicator on the top row (like clip view tick squares)
-	if (!playbackHandler.isEitherClockActive() || !currentSong->isClipActive(getCurrentClip())) {
-		// No playback - clear the progress bar
-		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			PadLEDs::set({x, 0}, colours::black);
-		}
-		return;
+	// Use horizontal progress bar on bottom row (row 7)
+	int32_t newTickSquare;
+
+	// Calculate playback position (same logic as clip views)
+	if (!playbackHandler.isEitherClockActive() || !currentSong->isClipActive(getCurrentClip())
+	    || currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_IMPLODE_ANIMATION
+	    || playbackHandler.ticksLeftInCountIn) {
+		newTickSquare = 255; // Off screen
 	}
-
-	// Calculate playback position within the clip
-	Clip* clip = getCurrentClip();
-	if (!clip) return;
-
-	int32_t progressSquare = (uint64_t)(clip->lastProcessedPos + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick())
-	                        * kDisplayWidth / clip->loopLength;
-
-	if (progressSquare < 0 || progressSquare >= kDisplayWidth) {
-		progressSquare = 255; // Off screen
-	}
-
-	// Update top row as progress bar
-	for (int32_t x = 0; x < kDisplayWidth; x++) {
-		RGB color;
-		if (x == progressSquare) {
-			color = colours::white; // Current position
-		} else if (x < progressSquare) {
-			color = colours::blue;  // Played portion
+	else {
+		// Calculate position within clip (same as getTickSquare() in clip views)
+		Clip* clip = getCurrentClip();
+		if (clip) {
+			newTickSquare = (uint64_t)(clip->lastProcessedPos + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick())
+			                * kDisplayWidth / clip->loopLength;
+			if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
+				newTickSquare = 255;
+			}
 		} else {
-			color = colours::black; // Future portion
+			newTickSquare = 255;
 		}
-		PadLEDs::set({x, 0}, color);
 	}
+
+	// Create horizontal progress bar - only on bottom row (row 7)
+	uint8_t tickSquares[kDisplayHeight];
+	for (int32_t row = 0; row < kDisplayHeight; row++) {
+		if (row == 7) { // Bottom row gets the progress indicator
+			tickSquares[row] = newTickSquare;
+		} else {
+			tickSquares[row] = 255; // Off screen for other rows
+		}
+	}
+
+	// Set colors for the progress line
+	std::array<uint8_t, 8> coloursArray = {0}; // Default color for bottom row
+
+	// Send to hardware using the same system as clip views
+	PadLEDs::setTickSquares(tickSquares, coloursArray.data());
 }
 
 bool KeyboardLayoutGenerativeSequencer::hasArpSettingsChanged() {
