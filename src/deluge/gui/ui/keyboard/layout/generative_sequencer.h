@@ -53,6 +53,9 @@ public:
 	
 	/// Update playback progress bar on top row
 	void updatePlaybackProgressBar();
+	
+	/// Update display for both OLED and 7-segment
+	void updateDisplay();
 
 private:
 	/// Get the current arpeggiator settings from the active clip

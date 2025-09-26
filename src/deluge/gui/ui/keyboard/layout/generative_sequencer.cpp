@@ -52,17 +52,26 @@ void KeyboardLayoutGenerativeSequencer::handleVerticalEncoder(int32_t offset) {
 		// Get current rhythm value
 		int32_t currentRhythm = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
 
-		// Cycle through available rhythm patterns
+		// Cycle through available rhythm patterns with wrap-around
 		currentRhythm += offset;
-		currentRhythm = std::clamp(currentRhythm, static_cast<int32_t>(0), static_cast<int32_t>(kMaxPresetArpRhythm));
+		
+		// Safe wrap-around for all 51 patterns (0 to kMaxPresetArpRhythm)
+		while (currentRhythm < 0) {
+			currentRhythm += (kMaxPresetArpRhythm + 1);
+		}
+		while (currentRhythm > kMaxPresetArpRhythm) {
+			currentRhythm -= (kMaxPresetArpRhythm + 1);
+		}
 
 		// Update the rhythm setting
 		settings->rhythm = (uint32_t)currentRhythm + 2147483648; // Convert back to internal format
 
 		// Show rhythm name
 		display->displayPopup(arpRhythmPatternNames[currentRhythm]);
-
-		displayState.needsRefresh = true;
+		
+		// Clean separation: display and pads updated separately
+		updateDisplay(); // Handles OLED vs 7-segment properly
+		keyboardScreen.requestMainPadsRendering(); // Pads only
 	}
 }
 
@@ -83,6 +92,10 @@ void KeyboardLayoutGenerativeSequencer::handleHorizontalEncoder(int32_t offset, 
 			settings->octaveMode = static_cast<ArpOctaveMode>(newOctaveMode);
 
 			display->displayPopup(getOctaveModeDisplayName(settings->octaveMode));
+			
+			// Clean separation: display and pads updated separately
+			updateDisplay(); // Handles OLED vs 7-segment properly
+			keyboardScreen.requestMainPadsRendering(); // Pads only
 		} else {
 			// Normal horizontal: change arp preset (not mode)
 			int32_t newPreset = static_cast<int32_t>(settings->preset) + offset;
@@ -93,9 +106,11 @@ void KeyboardLayoutGenerativeSequencer::handleHorizontalEncoder(int32_t offset, 
 			settings->updateSettingsFromCurrentPreset();
 			
 			display->displayPopup(getArpPresetDisplayName(settings->preset));
+			
+			// Clean separation: display and pads updated separately
+			updateDisplay(); // Handles OLED vs 7-segment properly
+			keyboardScreen.requestMainPadsRendering(); // Pads only
 		}
-
-		displayState.needsRefresh = true;
 	}
 }
 
@@ -186,6 +201,17 @@ void KeyboardLayoutGenerativeSequencer::updatePadLEDsDirect() {
 	
 	// Send the updated colors to hardware
 	PadLEDs::sendOutMainPadColours();
+}
+
+void KeyboardLayoutGenerativeSequencer::updateDisplay() {
+	// Handle both OLED and 7-segment displays properly
+	if (display->haveOLED()) {
+		// OLED display - trigger full UI render
+		renderUIsForOled();
+	} else {
+		// 7-segment display - the popup should already be displayed
+		// No additional action needed for 7-segment
+	}
 }
 
 void KeyboardLayoutGenerativeSequencer::updatePlaybackProgressBar() {
