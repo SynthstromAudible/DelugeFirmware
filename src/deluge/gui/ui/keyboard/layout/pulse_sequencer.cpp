@@ -69,7 +69,7 @@ void KeyboardLayoutPulseSequencer::handleVerticalEncoder(int32_t offset) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 		ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
-		
+
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 			int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
 			modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);

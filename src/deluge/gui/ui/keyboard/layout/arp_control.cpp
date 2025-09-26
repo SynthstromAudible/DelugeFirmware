@@ -48,8 +48,16 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 	// Force direct control - bypass column controls completely
 	// Don't call verticalEncoderHandledByColumns at all
 
-	// Direct rhythm pattern control
-	ArpeggiatorSettings* settings = getArpSettings();
+	// Direct rhythm pattern control - ensure sound editor is set up for current clip
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip) return;
+	
+	// Set up sound editor context if needed
+	if (soundEditor.currentArpSettings != &clip->arpSettings) {
+		soundEditor.setup(clip, nullptr, 0);
+	}
+	
+	ArpeggiatorSettings* settings = soundEditor.currentArpSettings;
 	if (settings) {
 		// Simple stepping: +1 for clockwise, -1 for counter-clockwise
 		// Use all rhythms 0-50 (including "None" at 0 for all notes)
@@ -69,7 +77,7 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 		ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
-		
+
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 			int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
 			modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
