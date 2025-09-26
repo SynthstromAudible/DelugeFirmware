@@ -65,15 +65,9 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 			}
 		}
 
-		// Update the rhythm setting using the parameter system (like official menu)
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-		ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
-
-		if (modelStackWithParam && modelStackWithParam->autoParam) {
-			int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
-			modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
-		}
+		// Update the rhythm setting using the simpler MIDI/CV approach
+		int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
+		settings->rhythm = finalValue;
 
 		// Force arpeggiator to restart so it picks up the new rhythm pattern immediately
 		settings->flagForceArpRestart = true;
@@ -129,20 +123,8 @@ void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shif
 
 			// Update settings from preset to enable arpeggiator
 			settings->updateSettingsFromCurrentPreset();
-			
-			// If we're enabling the arpeggiator, set to a rhythm pattern with actual rhythm
-			if (settings->preset != ArpPreset::OFF) {
-				// Set to pattern 1 ("0--") as a default rhythm pattern
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-				ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
-				
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm); // Use our default (pattern 1)
-					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
-				}
-			}
-			
+
+
 			// Force arpeggiator to restart so it picks up the new preset immediately
 			settings->flagForceArpRestart = true;
 
