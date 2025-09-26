@@ -19,6 +19,7 @@
 #include "gui/colour/colour.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "model/clip/instrument_clip.h"
@@ -26,6 +27,7 @@
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/arpeggiator_rhythms.h"
+#include "modulation/params/param.h"
 #include "playback/playback_handler.h"
 #include "util/functions.h"
 
@@ -62,8 +64,15 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 			}
 		}
 
-		// Update the rhythm setting using proper value scaling
-		settings->rhythm = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
+		// Update the rhythm setting using the parameter system (like official menu)
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+		ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
+
+		if (modelStackWithParam && modelStackWithParam->autoParam) {
+			int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
+			modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+		}
 
 		// Force arpeggiator to restart so it picks up the new rhythm pattern immediately
 		settings->flagForceArpRestart = true;
@@ -119,7 +128,21 @@ void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shif
 
 			// Update settings from preset to enable arpeggiator
 			settings->updateSettingsFromCurrentPreset();
-
+			
+			// If we're enabling the arpeggiator and rhythm is still "None", set to a basic pattern
+			if (settings->preset != ArpPreset::OFF && computeCurrentValueForUnsignedMenuItem(settings->rhythm) == 0) {
+				// Set to pattern 1 ("0--") as a default rhythm pattern
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+				ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
+				
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
+					int32_t finalValue = computeFinalValueForUnsignedMenuItem(1); // Pattern 1 ("0--")
+					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+					displayState.currentRhythm = 1; // Update our display state too
+				}
+			}
+			
 			// Force arpeggiator to restart so it picks up the new preset immediately
 			settings->flagForceArpRestart = true;
 
