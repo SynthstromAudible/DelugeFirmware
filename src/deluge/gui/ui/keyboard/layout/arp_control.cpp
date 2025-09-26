@@ -51,7 +51,7 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 	// Direct rhythm pattern control - work directly with clip arpSettings like the arpeggiator does
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	if (!clip) return;
-	
+
 	ArpeggiatorSettings* settings = &clip->arpSettings;
 	if (settings) {
 		// Simple stepping: +1 for clockwise, -1 for counter-clockwise
@@ -71,18 +71,39 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 		// Update the rhythm setting directly like MIDI/CV menu + force complete restart
 		int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
 		settings->rhythm = finalValue;
-		
+
+		// Try forcing parameter sync like the parameter system might do
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+		if (modelStack && modelStack->paramManager) {
+			UnpatchedParamSet* unpatchedParams = modelStack->paramManager->getUnpatchedParamSet();
+			if (unpatchedParams) {
+				// Force the unpatched param to have our value
+				unpatchedParams->params[modulation::params::UNPATCHED_ARP_RHYTHM].currentValue = finalValue - 2147483648;
+				// Then update settings from the param set
+				settings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+			}
+		}
+
+		// Debug: Check what the arpeggiator actually reads
+		uint32_t rhythmReadByArp = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
+
 		// Force complete arpeggiator restart
 		settings->flagForceArpRestart = true;
-		
+
 		// Also reset the arpeggiator instance to ensure clean state
 		Arpeggiator* arp = getArpeggiator();
 		if (arp) {
 			arp->reset();
+			// Force reset of rhythm tracking state specifically
+			arp->notesPlayedFromRhythm = 0;
+			arp->lastNormalNotePlayedFromRhythm = 0;
 		}
 
-		// Show rhythm name
-		display->displayPopup(arpRhythmPatternNames[displayState.currentRhythm]);
+		// Show rhythm name with debug info
+		char debugMsg[50];
+		snprintf(debugMsg, sizeof(debugMsg), "%s (%d->%d)", arpRhythmPatternNames[displayState.currentRhythm], displayState.currentRhythm, (int)rhythmReadByArp);
+		display->displayPopup(debugMsg);
 
 		// Display update: Handle both OLED and 7-segment
 		if (display->haveOLED()) {

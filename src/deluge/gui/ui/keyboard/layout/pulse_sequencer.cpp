@@ -297,17 +297,17 @@ bool KeyboardLayoutPulseSequencer::hasArpSettingsChanged() {
 }
 
 void KeyboardLayoutPulseSequencer::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
-	// Clear the display
+	// Clear the display - keep this layout completely dark for easy identification
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			image[y][x] = colours::black;
 		}
 	}
 
-	// Render different sections
-	renderParameterDisplay(image);
-	renderRhythmPattern(image);
-	renderCurrentStep(image);
+	// Don't render any sections - keep completely dark to distinguish from Arp Control
+	// renderParameterDisplay(image);
+	// renderRhythmPattern(image);
+	// renderCurrentStep(image);
 
 	displayState.needsRefresh = false;
 }
