@@ -26,12 +26,12 @@ class Arpeggiator;
 
 namespace deluge::gui::ui::keyboard::layout {
 
-/// Generative sequencer keyboard layout that visualizes and controls arpeggiator patterns
+/// Arpeggiator control keyboard layout that visualizes and controls arpeggiator patterns
 /// Phase 1: Minimal extension - visualize existing arpeggiator state
-class KeyboardLayoutGenerativeSequencer : public ColumnControlsKeyboard {
+class KeyboardLayoutArpControl : public ColumnControlsKeyboard {
 public:
-	KeyboardLayoutGenerativeSequencer() = default;
-	~KeyboardLayoutGenerativeSequencer() override = default;
+	KeyboardLayoutArpControl() = default;
+	~KeyboardLayoutArpControl() override = default;
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;
@@ -41,7 +41,7 @@ public:
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
-	l10n::String name() override { return l10n::String::STRING_FOR_KEYBOARD_LAYOUT_GENERATIVE; }
+	l10n::String name() override { return l10n::String::STRING_FOR_KEYBOARD_LAYOUT_ARP_CONTROL; }
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
 

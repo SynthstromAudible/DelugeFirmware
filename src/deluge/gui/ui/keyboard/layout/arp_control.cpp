@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/ui/keyboard/layout/generative_sequencer.h"
+#include "gui/ui/keyboard/layout/arp_control.h"
 #include "gui/colour/colour.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -31,7 +31,7 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-void KeyboardLayoutGenerativeSequencer::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
+void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Clear active notes for now
 
 	// For Phase 1, we're just visualizing - no pad input handling yet
@@ -41,7 +41,7 @@ void KeyboardLayoutGenerativeSequencer::evaluatePads(PressedPad presses[kMaxNumK
 	ColumnControlsKeyboard::evaluatePads(presses);
 }
 
-void KeyboardLayoutGenerativeSequencer::handleVerticalEncoder(int32_t offset) {
+void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 	// Force direct control - bypass column controls completely
 	// Don't call verticalEncoderHandledByColumns at all
 
@@ -77,7 +77,7 @@ void KeyboardLayoutGenerativeSequencer::handleVerticalEncoder(int32_t offset) {
 	}
 }
 
-void KeyboardLayoutGenerativeSequencer::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
+void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
                                                                 PressedPad presses[kMaxNumKeyboardPadPresses],
                                                                 bool encoderPressed) {
 	// Conditional: Only use column controls when user is holding column pads
@@ -127,11 +127,11 @@ void KeyboardLayoutGenerativeSequencer::handleHorizontalEncoder(int32_t offset, 
 	}
 }
 
-void KeyboardLayoutGenerativeSequencer::precalculate() {
+void KeyboardLayoutArpControl::precalculate() {
 	displayState.needsRefresh = true;
 }
 
-void KeyboardLayoutGenerativeSequencer::updateAnimation() {
+void KeyboardLayoutArpControl::updateAnimation() {
 	// Simplified animation - only update when arp step changes during playback
 	int32_t currentStep = getCurrentRhythmStep();
 	ArpeggiatorSettings* settings = getArpSettings();
@@ -148,7 +148,7 @@ void KeyboardLayoutGenerativeSequencer::updateAnimation() {
 	}
 }
 
-void KeyboardLayoutGenerativeSequencer::updatePadLEDsDirect() {
+void KeyboardLayoutArpControl::updatePadLEDsDirect() {
 	ArpeggiatorSettings* settings = getArpSettings();
 	if (!settings) {
 		return;
@@ -192,7 +192,7 @@ void KeyboardLayoutGenerativeSequencer::updatePadLEDsDirect() {
 	// Don't call PadLEDs::sendOutMainPadColours() to avoid OLED conflicts
 }
 
-void KeyboardLayoutGenerativeSequencer::updateDisplay() {
+void KeyboardLayoutArpControl::updateDisplay() {
 	// Handle both OLED and 7-segment displays properly
 	if (display->haveOLED()) {
 		// OLED display - trigger full UI render
@@ -203,7 +203,7 @@ void KeyboardLayoutGenerativeSequencer::updateDisplay() {
 	}
 }
 
-void KeyboardLayoutGenerativeSequencer::updatePlaybackProgressBar() {
+void KeyboardLayoutArpControl::updatePlaybackProgressBar() {
 	// Use horizontal progress bar on bottom row (row 7)
 	int32_t newTickSquare;
 
@@ -244,7 +244,7 @@ void KeyboardLayoutGenerativeSequencer::updatePlaybackProgressBar() {
 	PadLEDs::setTickSquares(tickSquares, coloursArray.data());
 }
 
-bool KeyboardLayoutGenerativeSequencer::hasArpSettingsChanged() {
+bool KeyboardLayoutArpControl::hasArpSettingsChanged() {
 	ArpeggiatorSettings* settings = getArpSettings();
 	if (!settings) return false;
 
@@ -278,7 +278,7 @@ bool KeyboardLayoutGenerativeSequencer::hasArpSettingsChanged() {
 	return changed;
 }
 
-void KeyboardLayoutGenerativeSequencer::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
+void KeyboardLayoutArpControl::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// Clear the display
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
@@ -294,12 +294,12 @@ void KeyboardLayoutGenerativeSequencer::renderPads(RGB image[][kDisplayWidth + k
 	displayState.needsRefresh = false;
 }
 
-ArpeggiatorSettings* KeyboardLayoutGenerativeSequencer::getArpSettings() {
+ArpeggiatorSettings* KeyboardLayoutArpControl::getArpSettings() {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	return clip ? &clip->arpSettings : nullptr;
 }
 
-Arpeggiator* KeyboardLayoutGenerativeSequencer::getArpeggiator() {
+Arpeggiator* KeyboardLayoutArpControl::getArpeggiator() {
 	Instrument* instrument = getCurrentInstrument();
 	if (instrument && instrument->type == OutputType::SYNTH) {
 		return &((MelodicInstrument*)instrument)->arpeggiator;
@@ -307,7 +307,7 @@ Arpeggiator* KeyboardLayoutGenerativeSequencer::getArpeggiator() {
 	return nullptr;
 }
 
-void KeyboardLayoutGenerativeSequencer::renderRhythmPattern(RGB image[][kDisplayWidth + kSideBarWidth]) {
+void KeyboardLayoutArpControl::renderRhythmPattern(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	ArpeggiatorSettings* settings = getArpSettings();
 	if (!settings) return;
 
@@ -334,7 +334,7 @@ void KeyboardLayoutGenerativeSequencer::renderRhythmPattern(RGB image[][kDisplay
 	}
 }
 
-void KeyboardLayoutGenerativeSequencer::renderParameterDisplay(RGB image[][kDisplayWidth + kSideBarWidth]) {
+void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	ArpeggiatorSettings* settings = getArpSettings();
 	if (!settings) return;
 
@@ -362,7 +362,7 @@ void KeyboardLayoutGenerativeSequencer::renderParameterDisplay(RGB image[][kDisp
 	}
 }
 
-void KeyboardLayoutGenerativeSequencer::renderCurrentStep(RGB image[][kDisplayWidth + kSideBarWidth]) {
+void KeyboardLayoutArpControl::renderCurrentStep(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	int32_t currentStep = getCurrentRhythmStep();
 	if (currentStep < 0) return; // Not playing
 
@@ -392,7 +392,7 @@ void KeyboardLayoutGenerativeSequencer::renderCurrentStep(RGB image[][kDisplayWi
 	}
 }
 
-RGB KeyboardLayoutGenerativeSequencer::getStepColor(bool isActive, bool isCurrent, uint8_t velocity) {
+RGB KeyboardLayoutArpControl::getStepColor(bool isActive, bool isCurrent, uint8_t velocity) {
 	if (!isActive) {
 		return isCurrent ? colours::grey : colours::black;
 	}
@@ -410,7 +410,7 @@ RGB KeyboardLayoutGenerativeSequencer::getStepColor(bool isActive, bool isCurren
 	}
 }
 
-int32_t KeyboardLayoutGenerativeSequencer::getCurrentRhythmStep() {
+int32_t KeyboardLayoutArpControl::getCurrentRhythmStep() {
 	Arpeggiator* arp = getArpeggiator();
 	ArpeggiatorSettings* settings = getArpSettings();
 
@@ -428,7 +428,7 @@ int32_t KeyboardLayoutGenerativeSequencer::getCurrentRhythmStep() {
 	return currentStep;
 }
 
-char const* KeyboardLayoutGenerativeSequencer::getArpPresetDisplayName(ArpPreset preset) {
+char const* KeyboardLayoutArpControl::getArpPresetDisplayName(ArpPreset preset) {
 	switch (preset) {
 		case ArpPreset::OFF: return "OFF";
 		case ArpPreset::UP: return "UP";
@@ -441,7 +441,7 @@ char const* KeyboardLayoutGenerativeSequencer::getArpPresetDisplayName(ArpPreset
 	}
 }
 
-char const* KeyboardLayoutGenerativeSequencer::getOctaveModeDisplayName(ArpOctaveMode mode) {
+char const* KeyboardLayoutArpControl::getOctaveModeDisplayName(ArpOctaveMode mode) {
 	switch (mode) {
 		case ArpOctaveMode::UP: return "OCT_UP";
 		case ArpOctaveMode::DOWN: return "OCT_DOWN";
