@@ -50,10 +50,10 @@ public:
 
 	/// Direct pad LED update for real-time animation
 	void updatePadLEDsDirect();
-	
+
 	/// Update playback progress bar on top row
 	void updatePlaybackProgressBar();
-	
+
 	/// Update display for both OLED and 7-segment
 	void updateDisplay();
 

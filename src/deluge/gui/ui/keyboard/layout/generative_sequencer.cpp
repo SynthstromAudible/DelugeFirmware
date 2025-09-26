@@ -54,7 +54,7 @@ void KeyboardLayoutGenerativeSequencer::handleVerticalEncoder(int32_t offset) {
 
 		// Cycle through available rhythm patterns with wrap-around
 		currentRhythm += offset;
-		
+
 		// Safe wrap-around for all 51 patterns (0 to kMaxPresetArpRhythm)
 		while (currentRhythm < 0) {
 			currentRhythm += (kMaxPresetArpRhythm + 1);
@@ -68,7 +68,7 @@ void KeyboardLayoutGenerativeSequencer::handleVerticalEncoder(int32_t offset) {
 
 		// Show rhythm name
 		display->displayPopup(arpRhythmPatternNames[currentRhythm]);
-		
+
 		// Clean separation: display and pads updated separately
 		updateDisplay(); // Handles OLED vs 7-segment properly
 		keyboardScreen.requestMainPadsRendering(); // Pads only
@@ -92,7 +92,7 @@ void KeyboardLayoutGenerativeSequencer::handleHorizontalEncoder(int32_t offset, 
 			settings->octaveMode = static_cast<ArpOctaveMode>(newOctaveMode);
 
 			display->displayPopup(getOctaveModeDisplayName(settings->octaveMode));
-			
+
 			// Clean separation: display and pads updated separately
 			updateDisplay(); // Handles OLED vs 7-segment properly
 			keyboardScreen.requestMainPadsRendering(); // Pads only
@@ -101,12 +101,12 @@ void KeyboardLayoutGenerativeSequencer::handleHorizontalEncoder(int32_t offset, 
 			int32_t newPreset = static_cast<int32_t>(settings->preset) + offset;
 			newPreset = std::clamp(newPreset, static_cast<int32_t>(0), static_cast<int32_t>(ArpPreset::CUSTOM));
 			settings->preset = static_cast<ArpPreset>(newPreset);
-			
+
 			// Update settings from preset to enable arpeggiator
 			settings->updateSettingsFromCurrentPreset();
-			
+
 			display->displayPopup(getArpPresetDisplayName(settings->preset));
-			
+
 			// Clean separation: display and pads updated separately
 			updateDisplay(); // Handles OLED vs 7-segment properly
 			keyboardScreen.requestMainPadsRendering(); // Pads only
@@ -164,41 +164,41 @@ void KeyboardLayoutGenerativeSequencer::updatePadLEDsDirect() {
 	if (!settings) {
 		return;
 	}
-	
+
 	// Update playback progress bar on top row (like clip view)
 	updatePlaybackProgressBar();
-	
+
 	if (settings->preset == ArpPreset::OFF) {
 		return;
 	}
-	
+
 	// Get current step and pattern
 	int32_t currentStep = getCurrentRhythmStep();
 	int32_t rhythmIndex = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
 	const ArpRhythm& pattern = arpRhythmPatterns[rhythmIndex];
-	
+
 	if (currentStep < 0) {
 		return; // Not playing
 	}
-	
+
 	// Update only the current step pad directly using PadLEDs::set
 	const int32_t patternStartRow = 2;
 	const int32_t maxStepsPerRow = kDisplayWidth;
-	
+
 	// Clear previous step highlighting by re-rendering just the pattern area
 	for (int32_t step = 0; step < pattern.length && step < maxStepsPerRow * 3; step++) {
 		int32_t x = step % maxStepsPerRow;
 		int32_t y = patternStartRow + (step / maxStepsPerRow);
-		
+
 		if (y >= kDisplayHeight) break;
-		
+
 		bool isActive = pattern.steps[step];
 		bool isCurrent = (step == currentStep);
-		
+
 		RGB color = getStepColor(isActive, isCurrent);
 		PadLEDs::set({x, y}, color);
 	}
-	
+
 	// Send the updated colors to hardware
 	PadLEDs::sendOutMainPadColours();
 }
@@ -223,18 +223,18 @@ void KeyboardLayoutGenerativeSequencer::updatePlaybackProgressBar() {
 		}
 		return;
 	}
-	
+
 	// Calculate playback position within the clip
 	Clip* clip = getCurrentClip();
 	if (!clip) return;
-	
+
 	int32_t progressSquare = (uint64_t)(clip->lastProcessedPos + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick())
 	                        * kDisplayWidth / clip->loopLength;
-	
+
 	if (progressSquare < 0 || progressSquare >= kDisplayWidth) {
 		progressSquare = 255; // Off screen
 	}
-	
+
 	// Update top row as progress bar
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		RGB color;
