@@ -622,34 +622,60 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 		image[0][x] = rhythmColor;
 	}
 
-	// Row 1: Show sequence length as lit pads (1-16)
+	// Row 1: Show sequence length - all pads visible like octaves
 	int32_t currentSeqLength = (settings->sequenceLength * 16) / kMaxMenuValue; // Convert back to 1-16 range
 	if (currentSeqLength < 1) currentSeqLength = 1;
 	if (currentSeqLength > 16) currentSeqLength = 16;
 	
-	RGB seqLengthColor = colours::cyan; // Cyan for sequence length
-	for (int32_t x = 0; x < currentSeqLength && x < kDisplayWidth; x++) {
-		image[1][x] = seqLengthColor;
+	RGB brightSeqColor = colours::cyan; // Bright cyan for active length
+	RGB dimSeqColor = RGB(0, 40, 40); // Dim cyan for available positions
+	
+	// Show all 16 sequence length positions
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
+		int32_t lengthNum = x + 1; // Length 1-16
+		if (lengthNum <= currentSeqLength) {
+			image[1][x] = brightSeqColor; // Active length positions are bright
+		} else {
+			image[1][x] = dimSeqColor; // Inactive positions are dim
+		}
 	}
 
 	// Row 3: Show gate length (0-7), velocity spread (8-13), and transpose controls (14-15)
 	
-	// Gate length visualization (positions 0-7)
+	// Gate length visualization (positions 0-7) - all pads visible like octaves
 	int32_t currentGate = (settings->gate * 8) / kMaxMenuValue; // Convert to 1-8 range
 	if (currentGate < 1) currentGate = 1;
 	if (currentGate > 8) currentGate = 8;
-	RGB gateColor = colours::orange; // Orange for gate length
-	for (int32_t x = 0; x < currentGate && x < 8; x++) {
-		image[3][x] = gateColor;
+	
+	RGB brightGateColor = colours::orange; // Bright orange for active gate
+	RGB dimGateColor = RGB(40, 20, 0); // Dim orange for available positions
+	
+	// Show all 8 gate length positions
+	for (int32_t x = 0; x < 8; x++) {
+		int32_t gateNum = x + 1; // Gate 1-8
+		if (gateNum <= currentGate) {
+			image[3][x] = brightGateColor; // Active gate positions are bright
+		} else {
+			image[3][x] = dimGateColor; // Inactive positions are dim
+		}
 	}
 	
-	// Velocity spread visualization (positions 8-13)
+	// Velocity spread visualization (positions 8-13) - all pads visible like octaves
 	int32_t currentSpread = (settings->spreadVelocity * 6) / kMaxMenuValue; // Convert to 1-6 range
 	if (currentSpread < 1) currentSpread = 1;
 	if (currentSpread > 6) currentSpread = 6;
-	RGB spreadColor = colours::pink; // Pink for velocity spread
-	for (int32_t x = 8; x < 8 + currentSpread && x < 14; x++) {
-		image[3][x] = spreadColor;
+	
+	RGB brightSpreadColor = colours::pink; // Bright pink for active spread
+	RGB dimSpreadColor = RGB(40, 0, 20); // Dim pink for available positions
+	
+	// Show all 6 velocity spread positions
+	for (int32_t x = 8; x < 14; x++) {
+		int32_t spreadNum = x - 8 + 1; // Spread 1-6
+		if (spreadNum <= currentSpread) {
+			image[3][x] = brightSpreadColor; // Active spread positions are bright
+		} else {
+			image[3][x] = dimSpreadColor; // Inactive positions are dim
+		}
 	}
 	
 	// Transpose controls (positions 14-15)
