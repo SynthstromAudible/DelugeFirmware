@@ -60,14 +60,14 @@ public:
 
 	// Display state - public so keyboard screen can access for Y encoder press
 	struct {
-		int32_t currentRhythm = 0; // Start at rhythm 0 ("None" = OFF)
+		int32_t currentRhythm = 1; // Currently selected rhythm pattern (for preview)
+		int32_t appliedRhythm = 0; // Actually applied rhythm (0=OFF, 1-50=ON)
 		int32_t lastRhythmStep = -1;
 		ArpPreset currentPreset = ArpPreset::OFF;
 		ArpOctaveMode currentOctaveMode = ArpOctaveMode::UP;
 		uint8_t currentOctaves = 1;
 		bool needsRefresh = true;
 		bool wasPlaying = false;
-		bool rhythmEnabled = true; // Not used anymore - rhythm state tracked by currentRhythm (0=OFF, 1-50=ON)
 	} displayState;
 
 private:

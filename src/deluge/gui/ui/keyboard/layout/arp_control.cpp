@@ -49,61 +49,67 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 	// Force direct control - bypass column controls completely
 	// Don't call verticalEncoderHandledByColumns at all
 
-	// Simple rhythm control: use all rhythms 0-50
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	if (!clip) return;
-
-	ArpeggiatorSettings* settings = &clip->arpSettings;
-	if (settings) {
-		// Simple stepping: +1 for clockwise, -1 for counter-clockwise
-		// Use all rhythms 0-50 (0 = "None"/OFF, 1-50 = patterns/ON)
-		if (offset > 0) {
-			displayState.currentRhythm++;
-			if (displayState.currentRhythm > 50) {
-				displayState.currentRhythm = 0; // Wrap to "None" (OFF)
-			}
-		} else if (offset < 0) {
-			displayState.currentRhythm--;
-			if (displayState.currentRhythm < 0) {
-				displayState.currentRhythm = 50; // Wrap to last pattern
-			}
+	// Rhythm control: scroll through patterns and apply immediately if rhythm is ON
+	if (offset > 0) {
+		displayState.currentRhythm++;
+		if (displayState.currentRhythm > 50) {
+			displayState.currentRhythm = 1; // Wrap to first pattern (skip 0)
 		}
-
-		// CRITICAL: Always ensure syncLevel is properly set (never 0)
-		if (settings->syncLevel == 0) {
-			settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
+	} else if (offset < 0) {
+		displayState.currentRhythm--;
+		if (displayState.currentRhythm < 1) {
+			displayState.currentRhythm = 50; // Wrap to last pattern
 		}
-
-		// Use the parameter system (this was working!) but keep display consistent
-		UI* originalUI = getCurrentUI();
-
-		// Set up sound editor context like the official menu
-		if (soundEditor.setup(clip, nullptr, 0)) {
-			// Now we're in sound editor context - use the official approach
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-			ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
-
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
-				modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
-			}
-
-			// Exit sound editor context back to original UI
-			originalUI->focusRegained();
-		}
-
-		// Show rhythm name
-		display->displayPopup(arpRhythmPatternNames[displayState.currentRhythm]);
-
-		// Display update: Handle both OLED and 7-segment
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-
-		// Pad update: Only because pattern changed
-		keyboardScreen.requestMainPadsRendering();
 	}
+
+	// If rhythm is currently ON, apply the new pattern immediately
+	if (displayState.appliedRhythm > 0) {
+		displayState.appliedRhythm = displayState.currentRhythm;
+		
+		// Apply the change using the parameter system
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (clip) {
+			ArpeggiatorSettings* settings = &clip->arpSettings;
+			
+			// CRITICAL: Always ensure syncLevel is properly set (never 0)
+			if (settings->syncLevel == 0) {
+				settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
+			}
+
+			UI* originalUI = getCurrentUI();
+			
+			// Set up sound editor context like the official menu
+			if (soundEditor.setup(clip, nullptr, 0)) {
+				// Now we're in sound editor context - use the official approach
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+				ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
+				
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
+					int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.appliedRhythm);
+					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+				}
+				
+				// Exit sound editor context back to original UI
+				originalUI->focusRegained();
+			}
+		}
+	}
+
+	// Show rhythm name with appropriate status
+	char statusMsg[50];
+	if (displayState.appliedRhythm == 0) {
+		snprintf(statusMsg, sizeof(statusMsg), "%s (preview)", arpRhythmPatternNames[displayState.currentRhythm]);
+	} else {
+		snprintf(statusMsg, sizeof(statusMsg), "%s", arpRhythmPatternNames[displayState.currentRhythm]);
+	}
+	display->displayPopup(statusMsg);
+
+	// Update display and pads
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	keyboardScreen.requestMainPadsRendering();
 }
 
 void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
@@ -396,8 +402,8 @@ void KeyboardLayoutArpControl::renderRhythmPattern(RGB image[][kDisplayWidth + k
 		bool isCurrent = (step == currentStep);
 
 		RGB stepColor = getStepColor(isActive, isCurrent);
-		// Dim the pattern when rhythm is disabled
-		if (!displayState.rhythmEnabled) {
+		// Dim the pattern when rhythm is not applied
+		if (displayState.appliedRhythm == 0) {
 			stepColor = RGB(stepColor.r / 4, stepColor.g / 4, stepColor.b / 4);
 		}
 		image[y][x] = stepColor;
@@ -424,7 +430,7 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 
 	// Second row: Show rhythm pattern info
 	int32_t rhythmIndex = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
-	RGB rhythmColor = (displayState.currentRhythm > 0) ? colours::yellow : RGB(40, 40, 0); // Dim yellow when rhythm 0 (OFF)
+	RGB rhythmColor = (displayState.appliedRhythm > 0) ? colours::yellow : RGB(40, 40, 0); // Dim yellow when rhythm OFF
 
 	// Show rhythm index as number of lit pads
 	for (int32_t x = 0; x < rhythmIndex && x < kDisplayWidth; x++) {

@@ -18,6 +18,8 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/menu_item/multi_range.h"
+#include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
@@ -576,17 +578,53 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		// Pass Y encoder press to current layout if it supports it
 		KeyboardLayoutType currentLayoutType = getCurrentInstrumentClip()->keyboardState.currentLayout;
 		if (currentLayoutType == KeyboardLayoutType::KeyboardLayoutTypeGenerative) {
-			// Simple toggle: if rhythm is 0 (OFF), go to 1 (ON). If rhythm >0 (ON), go to 0 (OFF)
+			// Toggle logic: apply current pattern or turn OFF
 			layout::KeyboardLayoutArpControl* arpLayout = (layout::KeyboardLayoutArpControl*)layout_list[currentLayoutType];
-			if (arpLayout->displayState.currentRhythm == 0) {
-				arpLayout->displayState.currentRhythm = 1; // Turn ON to pattern 1
+			if (arpLayout->displayState.appliedRhythm == 0) {
+				// Turn ON: apply the currently selected pattern
+				arpLayout->displayState.appliedRhythm = arpLayout->displayState.currentRhythm;
 				display->displayPopup("Rhythm ON");
 			} else {
-				arpLayout->displayState.currentRhythm = 0; // Turn OFF to "None"
+				// Turn OFF: keep current pattern for next time
+				arpLayout->displayState.appliedRhythm = 0;
 				display->displayPopup("Rhythm OFF");
 			}
-			// Update the actual arpeggiator settings and display
-			arpLayout->handleVerticalEncoder(0); // Trigger update with 0 offset
+
+			// Apply the change to the actual arpeggiator
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			if (clip) {
+				ArpeggiatorSettings* settings = &clip->arpSettings;
+
+				// CRITICAL: Always ensure syncLevel is properly set (never 0)
+				if (settings->syncLevel == 0) {
+					settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
+				}
+
+				UI* originalUI = getCurrentUI();
+
+				// Set up sound editor context like the official menu
+				if (soundEditor.setup(clip, nullptr, 0)) {
+					// Now we're in sound editor context - use the official approach
+					char modelStackMemory[MODEL_STACK_MAX_SIZE];
+					ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+					ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
+
+					if (modelStackWithParam && modelStackWithParam->autoParam) {
+						// Use appliedRhythm for the actual parameter value
+						int32_t finalValue = computeFinalValueForUnsignedMenuItem(arpLayout->displayState.appliedRhythm);
+						modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+					}
+
+					// Exit sound editor context back to original UI
+					originalUI->focusRegained();
+				}
+			}
+
+			// Update display and pads
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			requestMainPadsRendering();
 		}
 	}
 
