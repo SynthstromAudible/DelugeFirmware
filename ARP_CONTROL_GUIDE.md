@@ -1,7 +1,9 @@
-# 🎹 Arp Control Keyboard Layout - User Guide
+# 🎹 Arp Control Keyboard Layout - User Guide (ALPHA)
 
 ## Overview
-The Arp Control layout provides comprehensive real-time control over the Deluge's arpeggiator with an integrated scale-based keyboard. Perfect for live performance and creative arpeggiator manipulation.
+The Arp Control layout provides comprehensive real-time control over the Deluge's arpeggiator with an integrated scale-based keyboard. This ALPHA version features major performance optimizations for demanding live performance scenarios.
+
+**ALPHA STATUS**: Optimized for multi-pad operations with 2-phase pad handling and batched UI refreshes.
 
 ## 🎚️ Encoder Controls
 
@@ -168,12 +170,21 @@ Rows 4-7: 🎹 Scale-Based Keyboard 🎹
 - **Sync rate + Gate length**: Fine-tune timing and articulation
 - **Mode cycling + Pattern changes**: Dynamic live performance variations
 
-### Pro Performance Tips
+### Pro Performance Tips (ALPHA Optimizations)
+- **Multi-pad operations**: Hold keyboard notes while using controls - optimized for smooth operation
+- **Visual feedback**: All controls use bright/dim states for instant feedback
+- **Batched updates**: UI refreshes are optimized for complex multi-pad scenarios
+- **Control priority**: Controls processed before keyboard for better responsiveness
 - **Start simple**: Use basic UP mode with rhythm patterns
 - **Add complexity gradually**: Gate → Velocity → Sequence length
-- **Use visual feedback**: All controls show current state
 - **Combine for impact**: Mode + Pattern + Gate changes for dramatic shifts
 - **Remember settings**: Most controls persist until changed
+
+### ALPHA Testing Notes
+- **2-phase pad handling**: Controls (rows 0-3) processed separately from keyboard (rows 4-7)
+- **Performance optimized**: Single UI refresh per evaluation cycle
+- **Visual consistency**: All control pads use the same bright/dim approach
+- **Live performance ready**: Tested for demanding multi-pad scenarios
 
 ## 🚀 Getting Started
 
@@ -186,4 +197,29 @@ Rows 4-7: 🎹 Scale-Based Keyboard 🎹
 
 ---
 
-*The Arp Control layout transforms the Deluge into a powerful arpeggiator performance instrument with intuitive pad-based controls and comprehensive real-time parameter access.*
+## 🧪 ALPHA Version Notes
+
+This ALPHA version includes major performance optimizations:
+
+### **Performance Improvements**
+- **2-phase pad handling**: Controls and keyboard processed separately for better performance
+- **Single UI refresh**: Batched updates instead of multiple individual refreshes
+- **Consolidated parameter updates**: Unified control handling with consistent error checking
+- **Optimized control detection**: Frequency-based ordering for faster response
+
+### **Testing Focus**
+- **Multi-pad operations**: Test holding keyboard notes while using controls
+- **UI responsiveness**: Should feel smoother during complex operations
+- **Visual consistency**: All control pads should behave like octave pads
+- **Live performance**: Optimized for demanding real-time scenarios
+
+### **Feedback Welcome**
+Please test thoroughly and report any issues with:
+- Control responsiveness during multi-pad operations
+- Visual feedback consistency
+- Performance during live use
+- Any crashes or unexpected behavior
+
+---
+
+*The Arp Control layout transforms the Deluge into a powerful arpeggiator performance instrument with intuitive pad-based controls and comprehensive real-time parameter access. This ALPHA version pushes the boundaries of live performance optimization.*
