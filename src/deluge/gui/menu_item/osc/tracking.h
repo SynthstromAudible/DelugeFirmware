@@ -15,9 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "deluge/gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/oled.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 
@@ -36,6 +38,20 @@ public:
 	void getColumnLabel(StringBuf& label) override {
 		label.append(getName());
 		label.truncate(4);
+	}
+
+	void selectEncoderAction(int32_t offset) override {
+		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+			// reverse direction
+			offset *= -1;
+		}
+		Toggle::selectEncoderAction(offset);
+	}
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		using namespace deluge::hid::display;
+		const auto& icon = getValue() ? OLED::oscTrackingEnabledIcon : OLED::oscTrackingDisabledIcon;
+		OLED::main.drawIconCentered(icon, startX, width, startY);
 	}
 
 private:

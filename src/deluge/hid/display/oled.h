@@ -150,6 +150,8 @@ public:
 	static const Icon pitchSpeedLinkedIcon;
 	static const Icon pitchSpeedIndependentIcon;
 	static const Icon delayBarInfiniteFeedbackIcon;
+	static const Icon oscTrackingEnabledIcon;
+	static const Icon oscTrackingDisabledIcon;
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;
