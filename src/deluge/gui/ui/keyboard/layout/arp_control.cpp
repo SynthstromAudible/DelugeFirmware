@@ -198,12 +198,12 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 					int32_t gateIndex = x + 1; // 1-8
 					uint32_t gateLength = (gateIndex * kMaxMenuValue) / 8; // Scale to parameter range
 					settings->gate = gateLength;
-					
+
 					// Force arpeggiator to restart with new gate
 					settings->flagForceArpRestart = true;
-					
+
 					display->displayPopup(("Gate: " + std::to_string((gateIndex * 100) / 8) + "%").c_str());
-					
+
 					// Update display
 					if (display->haveOLED()) {
 						renderUIsForOled();
@@ -211,7 +211,7 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 					keyboardScreen.requestMainPadsRendering();
 				}
 			}
-			
+
 			// Check if pressing velocity spread pads (row 3, positions 8-13)
 			else if (y == 3 && x >= 8 && x < 14) {
 				ArpeggiatorSettings* settings = getArpSettings();
@@ -220,12 +220,12 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 					int32_t spreadIndex = x - 8 + 1; // 1-6
 					uint32_t spreadAmount = (spreadIndex * kMaxMenuValue) / 6; // Scale to parameter range
 					settings->spreadVelocity = spreadAmount;
-					
+
 					// Force arpeggiator to restart with new spread
 					settings->flagForceArpRestart = true;
-					
+
 					display->displayPopup(("Vel Spread: " + std::to_string((spreadIndex * 100) / 6) + "%").c_str());
-					
+
 					// Update display
 					if (display->haveOLED()) {
 						renderUIsForOled();
@@ -233,7 +233,7 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 					keyboardScreen.requestMainPadsRendering();
 				}
 			}
-			
+
 			// Check if pressing sequence length pads (row 1, positions 0-15)
 			else if (y == 1 && x < kDisplayWidth) {
 				ArpeggiatorSettings* settings = getArpSettings();
@@ -241,12 +241,12 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 					// Set custom sequence length (1-16 steps)
 					int32_t newLength = x + 1; // x=0 gives length=1, x=15 gives length=16
 					settings->sequenceLength = (newLength * kMaxMenuValue) / 16; // Scale to parameter range
-					
+
 					// Force arpeggiator to restart with new length
 					settings->flagForceArpRestart = true;
-					
+
 					display->displayPopup(("Seq Length: " + std::to_string(newLength)).c_str());
-					
+
 					// Update display
 					if (display->haveOLED()) {
 						renderUIsForOled();
@@ -254,7 +254,8 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 					keyboardScreen.requestMainPadsRendering();
 				}
 			}
-			
+
+
 			// Check if pressing keyboard pads (rows 4-7)
 			else if (y >= 4 && y < 8) {
 				uint16_t note = noteFromCoords(x, y);
@@ -626,10 +627,10 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 	int32_t currentSeqLength = (settings->sequenceLength * 16) / kMaxMenuValue; // Convert back to 1-16 range
 	if (currentSeqLength < 1) currentSeqLength = 1;
 	if (currentSeqLength > 16) currentSeqLength = 16;
-	
+
 	RGB brightSeqColor = colours::cyan; // Bright cyan for active length
 	RGB dimSeqColor = RGB(0, 40, 40); // Dim cyan for available positions
-	
+
 	// Show all 16 sequence length positions
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		int32_t lengthNum = x + 1; // Length 1-16
@@ -641,15 +642,15 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 	}
 
 	// Row 3: Show gate length (0-7), velocity spread (8-13), and transpose controls (14-15)
-	
+
 	// Gate length visualization (positions 0-7) - all pads visible like octaves
 	int32_t currentGate = (settings->gate * 8) / kMaxMenuValue; // Convert to 1-8 range
 	if (currentGate < 1) currentGate = 1;
 	if (currentGate > 8) currentGate = 8;
-	
+
 	RGB brightGateColor = colours::orange; // Bright orange for active gate
 	RGB dimGateColor = RGB(40, 20, 0); // Dim orange for available positions
-	
+
 	// Show all 8 gate length positions
 	for (int32_t x = 0; x < 8; x++) {
 		int32_t gateNum = x + 1; // Gate 1-8
@@ -659,15 +660,15 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 			image[3][x] = dimGateColor; // Inactive positions are dim
 		}
 	}
-	
+
 	// Velocity spread visualization (positions 8-13) - all pads visible like octaves
 	int32_t currentSpread = (settings->spreadVelocity * 6) / kMaxMenuValue; // Convert to 1-6 range
 	if (currentSpread < 1) currentSpread = 1;
 	if (currentSpread > 6) currentSpread = 6;
-	
+
 	RGB brightSpreadColor = colours::pink; // Bright pink for active spread
 	RGB dimSpreadColor = RGB(40, 0, 20); // Dim pink for available positions
-	
+
 	// Show all 6 velocity spread positions
 	for (int32_t x = 8; x < 14; x++) {
 		int32_t spreadNum = x - 8 + 1; // Spread 1-6
@@ -677,7 +678,9 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 			image[3][x] = dimSpreadColor; // Inactive positions are dim
 		}
 	}
-	
+
+	// Row 2: Position 15 is now free for future features
+
 	// Transpose controls (positions 14-15)
 	if (kDisplayWidth > 14) {
 		image[3][14] = colours::red;    // Down octave
