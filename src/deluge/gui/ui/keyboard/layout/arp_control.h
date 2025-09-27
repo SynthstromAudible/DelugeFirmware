@@ -57,6 +57,9 @@ public:
 	/// Update display for both OLED and 7-segment
 	void updateDisplay();
 
+	/// Toggle rhythm on/off (called from Y encoder button press)
+	void toggleRhythm();
+
 private:
 	/// Get the current arpeggiator settings from the active clip
 	ArpeggiatorSettings* getArpSettings();
@@ -97,6 +100,7 @@ private:
 		uint8_t currentOctaves = 1;
 		bool needsRefresh = true;
 		bool wasPlaying = false;
+		bool rhythmEnabled = true; // Always enabled for now
 	} displayState;
 };
 

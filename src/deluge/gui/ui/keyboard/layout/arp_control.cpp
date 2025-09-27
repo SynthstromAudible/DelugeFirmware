@@ -20,6 +20,7 @@
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "model/clip/instrument_clip.h"
@@ -48,6 +49,12 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 	// Force direct control - bypass column controls completely
 	// Don't call verticalEncoderHandledByColumns at all
 
+	// Check if rhythm is disabled
+	if (!displayState.rhythmEnabled) {
+		display->displayPopup("Push for Rhythm");
+		return;
+	}
+
 	// Direct rhythm pattern control - work directly with clip arpSettings like the arpeggiator does
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	if (!clip) return;
@@ -55,16 +62,16 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 	ArpeggiatorSettings* settings = &clip->arpSettings;
 	if (settings) {
 		// Simple stepping: +1 for clockwise, -1 for counter-clockwise
-		// Use all rhythms 0-50 (including "None" at 0 for all notes)
+		// Skip rhythm 0 ("None") and use rhythms 1-50 for actual patterns
 		if (offset > 0) {
 			displayState.currentRhythm++;
 			if (displayState.currentRhythm > 50) {
-				displayState.currentRhythm = 0; // Wrap to start (includes "None")
+				displayState.currentRhythm = 1; // Wrap to first real pattern
 			}
 		} else if (offset < 0) {
 			displayState.currentRhythm--;
-			if (displayState.currentRhythm < 0) {
-				displayState.currentRhythm = 50; // Wrap to end
+			if (displayState.currentRhythm < 1) {
+				displayState.currentRhythm = 50; // Wrap to last pattern
 			}
 		}
 
@@ -73,44 +80,27 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 			settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 		}
 
-		// Always use the parameter system but force rhythm 0 to stay 0
+		// Use the parameter system for all rhythms (1-50)
 		UI* originalUI = getCurrentUI();
-		
+
 		// Set up sound editor context like the official menu
 		if (soundEditor.setup(clip, nullptr, 0)) {
 			// Now we're in sound editor context - use the official approach
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 			ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
-			
+
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				if (displayState.currentRhythm == 0) {
-					// For rhythm 0, force it to 0 and set directly in both places
-					settings->rhythm = 0; // Force direct assignment
-					modelStackWithParam->autoParam->setCurrentValueBasicForSetup(0);
-				} else {
-					int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
-					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
-				}
+				int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
+				modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
 			}
-			
+
 			// Exit sound editor context back to original UI
 			originalUI->focusRegained();
 		}
 
-		// Debug: Check what the arpeggiator actually reads AND check syncLevel
-		uint32_t rhythmReadByArp = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
-
-		// CRITICAL: Check if syncLevel is 0 (which disables rhythm processing)
-		if (settings->syncLevel == 0) {
-			// Force syncLevel to a reasonable default if it's 0
-			settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
-		}
-
-		// Show rhythm name with debug info including syncLevel
-		char debugMsg[50];
-		snprintf(debugMsg, sizeof(debugMsg), "%s (%d->%d) sync:%d", arpRhythmPatternNames[displayState.currentRhythm], displayState.currentRhythm, (int)rhythmReadByArp, (int)settings->syncLevel);
-		display->displayPopup(debugMsg);
+		// Show rhythm name
+		display->displayPopup(arpRhythmPatternNames[displayState.currentRhythm]);
 
 		// Display update: Handle both OLED and 7-segment
 		if (display->haveOLED()) {
@@ -133,9 +123,35 @@ void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shif
 		}
 	}
 
+	// Check for horizontal encoder button press to control octave count
+	static bool lastHorizontalEncoderPressed = false;
+	bool horizontalEncoderPressed = Buttons::isButtonPressed(hid::button::X_ENC);
+
 	// For Phase 1, horizontal encoder could cycle through arp modes
 	ArpeggiatorSettings* settings = getArpSettings();
 	if (settings) {
+
+		// If encoder is pressed, control octave count instead of modes
+		if (horizontalEncoderPressed) {
+			int32_t newOctaves = settings->numOctaves + offset;
+			newOctaves = std::clamp(newOctaves, (int32_t)1, (int32_t)8); // Octaves 1-8
+			settings->numOctaves = newOctaves;
+
+			// Force arpeggiator to restart with new octave count
+			settings->flagForceArpRestart = true;
+
+			display->displayPopup(("Octaves: " + std::to_string(newOctaves)).c_str());
+
+			// Display update
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			keyboardScreen.requestMainPadsRendering();
+
+			lastHorizontalEncoderPressed = horizontalEncoderPressed;
+			return;
+		}
+		lastHorizontalEncoderPressed = horizontalEncoderPressed;
 		if (shiftEnabled) {
 			// Shift + horizontal: change octave mode
 			int32_t newOctaveMode = static_cast<int32_t>(settings->octaveMode) + offset;
@@ -302,9 +318,12 @@ bool KeyboardLayoutArpControl::hasArpSettingsChanged() {
 
 	bool changed = false;
 
-	// Check rhythm pattern
+	// Check rhythm pattern - but don't overwrite our display state when we're controlling it
 	int32_t currentRhythm = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
-	if (currentRhythm != displayState.currentRhythm) {
+	// Only update display state if we're not actively controlling the rhythm
+	// This prevents the OLED from showing converted values that don't match our encoder
+	if (currentRhythm != displayState.currentRhythm && currentRhythm >= 1 && currentRhythm <= 50) {
+		// Only accept values in our valid range (1-50)
 		displayState.currentRhythm = currentRhythm;
 		changed = true;
 	}
@@ -382,7 +401,12 @@ void KeyboardLayoutArpControl::renderRhythmPattern(RGB image[][kDisplayWidth + k
 		bool isActive = pattern.steps[step];
 		bool isCurrent = (step == currentStep);
 
-		image[y][x] = getStepColor(isActive, isCurrent);
+		RGB stepColor = getStepColor(isActive, isCurrent);
+		// Dim the pattern when rhythm is disabled
+		if (!displayState.rhythmEnabled) {
+			stepColor = RGB(stepColor.r / 4, stepColor.g / 4, stepColor.b / 4);
+		}
+		image[y][x] = stepColor;
 	}
 }
 
@@ -406,7 +430,7 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 
 	// Second row: Show rhythm pattern info
 	int32_t rhythmIndex = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
-	RGB rhythmColor = colours::yellow;
+	RGB rhythmColor = displayState.rhythmEnabled ? colours::yellow : RGB(40, 40, 0); // Dim yellow when rhythm disabled
 
 	// Show rhythm index as number of lit pads
 	for (int32_t x = 0; x < rhythmIndex && x < kDisplayWidth; x++) {
@@ -501,6 +525,50 @@ char const* KeyboardLayoutArpControl::getOctaveModeDisplayName(ArpOctaveMode mod
 		case ArpOctaveMode::RANDOM: return "OCT_RAND";
 		default: return "OCT_UNK";
 	}
+}
+
+void KeyboardLayoutArpControl::toggleRhythm() {
+	// Toggle rhythm on/off
+	displayState.rhythmEnabled = !displayState.rhythmEnabled;
+
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip) return;
+
+	ArpeggiatorSettings* settings = &clip->arpSettings;
+	if (!settings) return;
+
+	// Ensure syncLevel is properly set
+	if (settings->syncLevel == 0) {
+		settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
+	}
+
+	if (displayState.rhythmEnabled) {
+		// Turn rhythm ON - set to current rhythm pattern
+		UI* originalUI = getCurrentUI();
+		if (soundEditor.setup(clip, nullptr, 0)) {
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+			ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
+
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
+				modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+			}
+			originalUI->focusRegained();
+		}
+		display->displayPopup("Rhythm ON");
+	} else {
+		// Turn rhythm OFF - set to rhythm 0 ("None")
+		settings->rhythm = 0;
+		settings->flagForceArpRestart = true;
+		display->displayPopup("Rhythm OFF");
+	}
+
+	// Update display to show rhythm state change
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	keyboardScreen.requestMainPadsRendering();
 }
 
 }; // namespace deluge::gui::ui::keyboard::layout

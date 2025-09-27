@@ -571,6 +571,17 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		xEncoderActive = on;
 	}
 
+	// Handle Y encoder button press for rhythm toggle
+	else if (b == Y_ENC && on) {
+		// Pass Y encoder press to current layout if it supports it
+		KeyboardLayoutType currentLayoutType = getCurrentInstrumentClip()->keyboardState.currentLayout;
+		if (currentLayoutType == KeyboardLayoutType::KeyboardLayoutTypeGenerative) {
+			// Toggle rhythm on/off for Arp Control layout
+			layout::KeyboardLayoutArpControl* arpLayout = (layout::KeyboardLayoutArpControl*)layout_list[currentLayoutType];
+			arpLayout->toggleRhythm();
+		}
+	}
+
 	// Load / kit button if auditioning
 	else if (currentUIMode == UI_MODE_AUDITIONING && ((b == LOAD) || (b == KIT))
 	         && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
