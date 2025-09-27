@@ -49,13 +49,31 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 			if (y == 0 && x >= 0 && x < 3) {
 				ArpeggiatorSettings* settings = getArpSettings();
 				if (settings) {
-					// Toggle between OFF and UP
-					if (settings->preset == ArpPreset::OFF) {
-						settings->preset = ArpPreset::UP;
-						display->displayPopup("Arp UP");
-					} else {
-						settings->preset = ArpPreset::OFF;
-						display->displayPopup("Arp OFF");
+					// Cycle through all arp modes: OFF -> UP -> DOWN -> UP&DOWN -> RANDOM -> OFF
+					switch (settings->preset) {
+						case ArpPreset::OFF:
+							settings->preset = ArpPreset::UP;
+							display->displayPopup("Arp UP");
+							break;
+						case ArpPreset::UP:
+							settings->preset = ArpPreset::DOWN;
+							display->displayPopup("Arp DOWN");
+							break;
+						case ArpPreset::DOWN:
+							settings->preset = ArpPreset::BOTH;
+							display->displayPopup("Arp UP&DOWN");
+							break;
+						case ArpPreset::BOTH:
+							settings->preset = ArpPreset::RANDOM;
+							display->displayPopup("Arp RANDOM");
+							break;
+						case ArpPreset::RANDOM:
+						case ArpPreset::WALK:
+						case ArpPreset::CUSTOM:
+						default:
+							settings->preset = ArpPreset::OFF;
+							display->displayPopup("Arp OFF");
+							break;
 					}
 
 					// Update settings from preset to apply the change
@@ -172,8 +190,73 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 				break;
 			}
 
+			// Check if pressing gate length pads (row 3, positions 0-7)
+			if (y == 3 && x >= 0 && x < 8) {
+				ArpeggiatorSettings* settings = getArpSettings();
+				if (settings) {
+					// Gate length control (1-8 = 12.5% to 100%)
+					int32_t gateIndex = x + 1; // 1-8
+					uint32_t gateLength = (gateIndex * kMaxMenuValue) / 8; // Scale to parameter range
+					settings->gate = gateLength;
+					
+					// Force arpeggiator to restart with new gate
+					settings->flagForceArpRestart = true;
+					
+					display->displayPopup(("Gate: " + std::to_string((gateIndex * 100) / 8) + "%").c_str());
+					
+					// Update display
+					if (display->haveOLED()) {
+						renderUIsForOled();
+					}
+					keyboardScreen.requestMainPadsRendering();
+				}
+			}
+			
+			// Check if pressing velocity spread pads (row 3, positions 8-13)
+			else if (y == 3 && x >= 8 && x < 14) {
+				ArpeggiatorSettings* settings = getArpSettings();
+				if (settings) {
+					// Velocity spread control (0-100%)
+					int32_t spreadIndex = x - 8 + 1; // 1-6
+					uint32_t spreadAmount = (spreadIndex * kMaxMenuValue) / 6; // Scale to parameter range
+					settings->spreadVelocity = spreadAmount;
+					
+					// Force arpeggiator to restart with new spread
+					settings->flagForceArpRestart = true;
+					
+					display->displayPopup(("Vel Spread: " + std::to_string((spreadIndex * 100) / 6) + "%").c_str());
+					
+					// Update display
+					if (display->haveOLED()) {
+						renderUIsForOled();
+					}
+					keyboardScreen.requestMainPadsRendering();
+				}
+			}
+			
+			// Check if pressing sequence length pads (row 1, positions 0-15)
+			else if (y == 1 && x < kDisplayWidth) {
+				ArpeggiatorSettings* settings = getArpSettings();
+				if (settings) {
+					// Set custom sequence length (1-16 steps)
+					int32_t newLength = x + 1; // x=0 gives length=1, x=15 gives length=16
+					settings->sequenceLength = (newLength * kMaxMenuValue) / 16; // Scale to parameter range
+					
+					// Force arpeggiator to restart with new length
+					settings->flagForceArpRestart = true;
+					
+					display->displayPopup(("Seq Length: " + std::to_string(newLength)).c_str());
+					
+					// Update display
+					if (display->haveOLED()) {
+						renderUIsForOled();
+					}
+					keyboardScreen.requestMainPadsRendering();
+				}
+			}
+			
 			// Check if pressing keyboard pads (rows 4-7)
-			if (y >= 4 && y < 8) {
+			else if (y >= 4 && y < 8) {
 				uint16_t note = noteFromCoords(x, y);
 				if (note < 128) {
 					enableNote(note, velocity);
@@ -539,9 +622,37 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 		image[0][x] = rhythmColor;
 	}
 
-	// Row 1 is now free for future features (old rhythm index removed)
+	// Row 1: Show sequence length as lit pads (1-16)
+	int32_t currentSeqLength = (settings->sequenceLength * 16) / kMaxMenuValue; // Convert back to 1-16 range
+	if (currentSeqLength < 1) currentSeqLength = 1;
+	if (currentSeqLength > 16) currentSeqLength = 16;
+	
+	RGB seqLengthColor = colours::cyan; // Cyan for sequence length
+	for (int32_t x = 0; x < currentSeqLength && x < kDisplayWidth; x++) {
+		image[1][x] = seqLengthColor;
+	}
 
-	// Row 3: Show transpose controls (positions 14-15)
+	// Row 3: Show gate length (0-7), velocity spread (8-13), and transpose controls (14-15)
+	
+	// Gate length visualization (positions 0-7)
+	int32_t currentGate = (settings->gate * 8) / kMaxMenuValue; // Convert to 1-8 range
+	if (currentGate < 1) currentGate = 1;
+	if (currentGate > 8) currentGate = 8;
+	RGB gateColor = colours::orange; // Orange for gate length
+	for (int32_t x = 0; x < currentGate && x < 8; x++) {
+		image[3][x] = gateColor;
+	}
+	
+	// Velocity spread visualization (positions 8-13)
+	int32_t currentSpread = (settings->spreadVelocity * 6) / kMaxMenuValue; // Convert to 1-6 range
+	if (currentSpread < 1) currentSpread = 1;
+	if (currentSpread > 6) currentSpread = 6;
+	RGB spreadColor = colours::pink; // Pink for velocity spread
+	for (int32_t x = 8; x < 8 + currentSpread && x < 14; x++) {
+		image[3][x] = spreadColor;
+	}
+	
+	// Transpose controls (positions 14-15)
 	if (kDisplayWidth > 14) {
 		image[3][14] = colours::red;    // Down octave
 	}
