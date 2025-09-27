@@ -463,10 +463,10 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 			else if (!strcmp(tagName, "note")) {
 				int32_t presetNote = std::clamp<int32_t>(reader.readTagOrAttributeValueInt(), 1, 127);
 
-				sources[0].transpose += presetNote - 60;
-				sources[1].transpose += presetNote - 60;
-				modulatorTranspose[0] += presetNote - 60;
-				modulatorTranspose[1] += presetNote - 60;
+				sources[0].transpose += presetNote - kC3NoteCode;
+				sources[1].transpose += presetNote - kC3NoteCode;
+				modulatorTranspose[0] += presetNote - kC3NoteCode;
+				modulatorTranspose[1] += presetNote - kC3NoteCode;
 				reader.exitTag("note");
 			}
 			else {
@@ -3300,6 +3300,10 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			source->setOscType(stringToOscType(reader.readTagOrAttributeValue()));
 			reader.exitTag("type");
 		}
+		else if (!strcmp(tagName, "isTracking")) {
+			source->isTracking = reader.readTagOrAttributeValueInt();
+			reader.exitTag("isTracking");
+		}
 		else if (!strcmp(tagName, "phaseWidth")) {
 			ENSURE_PARAM_MANAGER_EXISTS
 			patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_PHASE_WIDTH + s,
@@ -3565,6 +3569,7 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 	if (synthMode != SynthMode::FM) {
 		writer.writeAttribute("type", oscTypeToString(source->oscType));
 	}
+	writer.writeAttribute("isTracking", source->isTracking);
 
 	// If (multi)sample...
 	if (source->oscType == OscType::SAMPLE
