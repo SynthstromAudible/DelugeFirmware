@@ -68,6 +68,10 @@ public:
 		uint8_t currentOctaves = 1;
 		bool needsRefresh = true;
 		bool wasPlaying = false;
+
+		// Simple keyboard state for 4-row keyboard
+		int32_t keyboardScrollOffset = 0; // Start at C3 (note 60)
+		int32_t keyboardRowInterval = 4; // 4 semitones per row (major thirds)
 	} displayState;
 
 private:
@@ -86,6 +90,9 @@ private:
 	/// Show the current step position if arp is playing
 	void renderCurrentStep(RGB image[][kDisplayWidth + kSideBarWidth]);
 
+	/// Render keyboard in rows 4-7 (adapted from IN-KEY layout)
+	void renderKeyboard(RGB image[][kDisplayWidth + kSideBarWidth]);
+
 	/// Get color for a rhythm step based on its state
 	RGB getStepColor(bool isActive, bool isCurrent, uint8_t velocity = 64);
 
@@ -97,6 +104,16 @@ private:
 
 	/// Convert octave mode enum to display string
 	char const* getOctaveModeDisplayName(ArpOctaveMode mode);
+
+	/// Keyboard helper functions (adapted from IN-KEY layout)
+	inline uint16_t noteFromCoords(int32_t x, int32_t y) { return noteFromPadIndex(padIndexFromCoords(x, y)); }
+	inline uint16_t padIndexFromCoords(int32_t x, int32_t y) {
+		return displayState.keyboardScrollOffset + x + y * displayState.keyboardRowInterval;
+	}
+	inline uint16_t noteFromPadIndex(uint16_t padIndex) {
+		// Simple chromatic mapping for now (we can add scale support later)
+		return padIndex + 60; // Start at C3 (MIDI note 60)
+	}
 
 	/// Check if arpeggiator settings have changed
 	bool hasArpSettingsChanged();

@@ -37,9 +37,148 @@ namespace deluge::gui::ui::keyboard::layout {
 void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Clear active notes for now
 
-	// For Phase 1, we're just visualizing - no pad input handling yet
-	// Notes come from the clip, not from pad input
-	// Future phases will add interactive control here
+	// Handle green pad presses in top row (toggle between OFF and UP)
+	for (int32_t i = 0; i < kMaxNumKeyboardPadPresses; i++) {
+		if (presses[i].active) {
+			int32_t x = presses[i].x;
+			int32_t y = presses[i].y;
+
+			// Check if pressing green pads (top row, first 3 pads)
+			if (y == 0 && x >= 0 && x < 3) {
+				ArpeggiatorSettings* settings = getArpSettings();
+				if (settings) {
+					// Toggle between OFF and UP
+					if (settings->preset == ArpPreset::OFF) {
+						settings->preset = ArpPreset::UP;
+						display->displayPopup("Arp UP");
+					} else {
+						settings->preset = ArpPreset::OFF;
+						display->displayPopup("Arp OFF");
+					}
+
+					// Update settings from preset to apply the change
+					settings->updateSettingsFromCurrentPreset();
+
+					// Force arpeggiator to restart with new preset
+					settings->flagForceArpRestart = true;
+
+					// Update display
+					if (display->haveOLED()) {
+						renderUIsForOled();
+					}
+					keyboardScreen.requestMainPadsRendering();
+				}
+				break; // Only handle one pad press at a time
+			}
+
+			// Check if pressing blue octave pads (top row, positions 4-11)
+			if (y == 0 && x >= 4 && x < std::min((int32_t)(4 + 8), (int32_t)kDisplayWidth)) {
+				ArpeggiatorSettings* settings = getArpSettings();
+				if (settings) {
+					// Set octave count based on pad position (1-8)
+					int32_t newOctaves = x - 4 + 1;
+					settings->numOctaves = newOctaves;
+
+					// Force arpeggiator to restart with new octave count
+					settings->flagForceArpRestart = true;
+
+					display->displayPopup(("Octaves: " + std::to_string(newOctaves)).c_str());
+
+					// Update display
+					if (display->haveOLED()) {
+						renderUIsForOled();
+					}
+					keyboardScreen.requestMainPadsRendering();
+				}
+				break; // Only handle one pad press at a time
+			}
+
+			// Check if pressing yellow rhythm pads (top row, positions 12-14)
+			if (y == 0 && x >= 12 && x < 15 && x < kDisplayWidth) {
+				// Toggle rhythm on/off (same as Y encoder press)
+				if (displayState.appliedRhythm == 0) {
+					// Turn ON: apply the currently selected pattern
+					displayState.appliedRhythm = displayState.currentRhythm;
+					display->displayPopup("Rhythm ON");
+				} else {
+					// Turn OFF: keep current pattern for next time
+					displayState.appliedRhythm = 0;
+					display->displayPopup("Rhythm OFF");
+				}
+
+				// Apply the change to the actual arpeggiator
+				InstrumentClip* clip = getCurrentInstrumentClip();
+				if (clip) {
+					ArpeggiatorSettings* settings = &clip->arpSettings;
+
+					// CRITICAL: Always ensure syncLevel is properly set (never 0)
+					if (settings->syncLevel == 0) {
+						settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
+					}
+
+					UI* originalUI = getCurrentUI();
+
+					// Set up sound editor context like the official menu
+					if (soundEditor.setup(clip, nullptr, 0)) {
+						// Now we're in sound editor context - use the official approach
+						char modelStackMemory[MODEL_STACK_MAX_SIZE];
+						ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+						ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
+
+						if (modelStackWithParam && modelStackWithParam->autoParam) {
+							// Use appliedRhythm for the actual parameter value
+							int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.appliedRhythm);
+							modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+						}
+
+						// Exit sound editor context back to original UI
+						originalUI->focusRegained();
+					}
+				}
+
+				// Update display and pads
+				if (display->haveOLED()) {
+					renderUIsForOled();
+				}
+				keyboardScreen.requestMainPadsRendering();
+				break; // Only handle one pad press at a time
+			}
+
+			// Check if pressing transpose pads (row 3, positions 15-16)
+			if (y == 3 && x >= 15 && x < 17 && x < kDisplayWidth) {
+				if (x == 15) {
+					// Down octave (red pad)
+					displayState.keyboardScrollOffset -= 12; // Down one octave
+					if (displayState.keyboardScrollOffset < 0) {
+						displayState.keyboardScrollOffset = 0; // Don't go below C0
+					}
+					display->displayPopup("Keyboard -1 Oct");
+				} else if (x == 16) {
+					// Up octave (purple pad)
+					displayState.keyboardScrollOffset += 12; // Up one octave
+					if (displayState.keyboardScrollOffset > 96) {
+						displayState.keyboardScrollOffset = 96; // Don't go above reasonable range
+					}
+					display->displayPopup("Keyboard +1 Oct");
+				}
+
+				// Update display
+				if (display->haveOLED()) {
+					renderUIsForOled();
+				}
+				keyboardScreen.requestMainPadsRendering();
+				break;
+			}
+
+			// Check if pressing keyboard pads (rows 4-7)
+			if (y >= 4 && y < 8) {
+				uint16_t note = noteFromCoords(x, y);
+				if (note < 128) {
+					enableNote(note, velocity);
+				}
+			}
+		}
+	}
 
 	// Handle column controls (beat repeat, etc.) - but only when user wants them
 	ColumnControlsKeyboard::evaluatePads(presses);
@@ -65,31 +204,31 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 	// If rhythm is currently ON, apply the new pattern immediately
 	if (displayState.appliedRhythm > 0) {
 		displayState.appliedRhythm = displayState.currentRhythm;
-		
+
 		// Apply the change using the parameter system
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		if (clip) {
 			ArpeggiatorSettings* settings = &clip->arpSettings;
-			
+
 			// CRITICAL: Always ensure syncLevel is properly set (never 0)
 			if (settings->syncLevel == 0) {
 				settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 			}
 
 			UI* originalUI = getCurrentUI();
-			
+
 			// Set up sound editor context like the official menu
 			if (soundEditor.setup(clip, nullptr, 0)) {
 				// Now we're in sound editor context - use the official approach
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 				ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
-				
+
 				if (modelStackWithParam && modelStackWithParam->autoParam) {
 					int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.appliedRhythm);
 					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
 				}
-				
+
 				// Exit sound editor context back to original UI
 				originalUI->focusRegained();
 			}
@@ -115,84 +254,14 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
                                                                 PressedPad presses[kMaxNumKeyboardPadPresses],
                                                                 bool encoderPressed) {
-	// Conditional: Only use column controls when user is holding column pads
-	if (leftColHeld != -1 || rightColHeld != -1) {
-		// User is holding column pads - let column controls handle it
-		if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
-			return;
-		}
+	// Only handle column controls - keep it simple like other keyboard layouts
+	// This prevents interference with SELECT encoder preset selection
+	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
+		return;
 	}
 
-	// Check for horizontal encoder button press to control octave count
-	static bool lastHorizontalEncoderPressed = false;
-	bool horizontalEncoderPressed = Buttons::isButtonPressed(hid::button::X_ENC);
-
-	// For Phase 1, horizontal encoder could cycle through arp modes
-	ArpeggiatorSettings* settings = getArpSettings();
-	if (settings) {
-
-		// If encoder is pressed, control octave count instead of modes
-		if (horizontalEncoderPressed) {
-			int32_t newOctaves = settings->numOctaves + offset;
-			newOctaves = std::clamp(newOctaves, (int32_t)1, (int32_t)8); // Octaves 1-8
-			settings->numOctaves = newOctaves;
-
-			// Force arpeggiator to restart with new octave count
-			settings->flagForceArpRestart = true;
-
-			display->displayPopup(("Octaves: " + std::to_string(newOctaves)).c_str());
-
-			// Display update
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			keyboardScreen.requestMainPadsRendering();
-
-			lastHorizontalEncoderPressed = horizontalEncoderPressed;
-			return;
-		}
-		lastHorizontalEncoderPressed = horizontalEncoderPressed;
-		if (shiftEnabled) {
-			// Shift + horizontal: change octave mode
-			int32_t newOctaveMode = static_cast<int32_t>(settings->octaveMode) + offset;
-			newOctaveMode = std::clamp(newOctaveMode, static_cast<int32_t>(0), static_cast<int32_t>(ArpOctaveMode::RANDOM));
-			settings->octaveMode = static_cast<ArpOctaveMode>(newOctaveMode);
-
-			// Force arpeggiator to restart so it picks up the new octave mode immediately
-			settings->flagForceArpRestart = true;
-
-			display->displayPopup(getOctaveModeDisplayName(settings->octaveMode));
-
-			// Display update: Handle both OLED and 7-segment
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			// 7-segment display is already handled by displayPopup()
-		} else {
-			// Normal horizontal: change arp preset (not mode)
-			int32_t newPreset = static_cast<int32_t>(settings->preset) + offset;
-			newPreset = std::clamp(newPreset, static_cast<int32_t>(0), static_cast<int32_t>(ArpPreset::CUSTOM));
-			settings->preset = static_cast<ArpPreset>(newPreset);
-
-			// Update settings from preset to enable arpeggiator
-			settings->updateSettingsFromCurrentPreset();
-
-
-			// Force arpeggiator to restart so it picks up the new preset immediately
-			settings->flagForceArpRestart = true;
-
-			display->displayPopup(getArpPresetDisplayName(settings->preset));
-
-			// Display update: Handle both OLED and 7-segment
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			// 7-segment display is already handled by displayPopup()
-
-			// Pad update: Only because arp status changed
-			keyboardScreen.requestMainPadsRendering();
-		}
-	}
+	// Don't handle any other horizontal encoder actions
+	// All arp controls are now handled by pads and Y encoder
 }
 
 void KeyboardLayoutArpControl::precalculate() {
@@ -361,6 +430,7 @@ void KeyboardLayoutArpControl::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 	renderParameterDisplay(image);
 	renderRhythmPattern(image);
 	renderCurrentStep(image);
+	renderKeyboard(image); // Add keyboard in rows 4-7
 
 	displayState.needsRefresh = false;
 }
@@ -422,19 +492,35 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 		image[0][x] = modeColor;
 	}
 
-	// Show octave count in next few pads
-	RGB octaveColor = colours::blue;
-	for (int32_t x = 4; x < 4 + settings->numOctaves && x < kDisplayWidth; x++) {
-		image[0][x] = octaveColor;
+	// Show octave count: all 8 octave pads dimly lit, with active ones bright
+	RGB dimOctaveColor = RGB(0, 0, 40); // Dim blue for available octaves
+	RGB brightOctaveColor = colours::blue; // Bright blue for active octaves
+
+	// Show all 8 possible octaves (positions 4-11, but limit to display width)
+	int32_t maxOctaveX = std::min((int32_t)(4 + 8), (int32_t)kDisplayWidth);
+	for (int32_t x = 4; x < maxOctaveX; x++) {
+		int32_t octaveNum = x - 4 + 1; // Octave 1-8
+		if (octaveNum <= settings->numOctaves) {
+			image[0][x] = brightOctaveColor; // Active octaves are bright
+		} else {
+			image[0][x] = dimOctaveColor; // Inactive octaves are dim
+		}
 	}
 
-	// Second row: Show rhythm pattern info
-	int32_t rhythmIndex = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
+	// Show yellow rhythm toggle pads (top row, positions 13-16)
 	RGB rhythmColor = (displayState.appliedRhythm > 0) ? colours::yellow : RGB(40, 40, 0); // Dim yellow when rhythm OFF
+	for (int32_t x = 13; x < 16 && x < kDisplayWidth; x++) {
+		image[0][x] = rhythmColor;
+	}
 
-	// Show rhythm index as number of lit pads
-	for (int32_t x = 0; x < rhythmIndex && x < kDisplayWidth; x++) {
-		image[1][x] = rhythmColor;
+	// Row 1 is now free for future features (old rhythm index removed)
+
+	// Row 3: Show transpose controls (positions 15-16)
+	if (kDisplayWidth > 15) {
+		image[3][15] = colours::red;    // Down octave
+	}
+	if (kDisplayWidth > 16) {
+		image[3][16] = colours::magenta; // Up octave (purple)
 	}
 }
 
@@ -524,6 +610,60 @@ char const* KeyboardLayoutArpControl::getOctaveModeDisplayName(ArpOctaveMode mod
 		case ArpOctaveMode::ALTERNATE: return "OCT_ALT";
 		case ArpOctaveMode::RANDOM: return "OCT_RAND";
 		default: return "OCT_UNK";
+	}
+}
+
+void KeyboardLayoutArpControl::renderKeyboard(RGB image[][kDisplayWidth + kSideBarWidth]) {
+	// Render keyboard in rows 4-7 (adapted from IN-KEY layout)
+	// Simple chromatic keyboard for now
+
+	// Precreate list of all active notes
+	bool activeNotes[128] = {false};
+	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
+		if (currentNotesState.notes[idx].note < 128) {
+			activeNotes[currentNotesState.notes[idx].note] = true;
+		}
+	}
+
+	// Render keyboard in rows 4-7 only
+	for (int32_t y = 4; y < 8 && y < kDisplayHeight; ++y) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			uint16_t note = noteFromCoords(x, y);
+
+			// Limit to valid MIDI range
+			if (note >= 128) {
+				image[y][x] = colours::black;
+				continue;
+			}
+
+			// Color based on note type and state
+			bool isActive = activeNotes[note];
+			bool isRoot = (note % 12) == 0; // C notes
+			bool isBlackKey = (note % 12 == 1 || note % 12 == 3 || note % 12 == 6 || note % 12 == 8 || note % 12 == 10);
+
+			RGB color;
+			if (isActive) {
+				// Active notes are bright
+				if (isRoot) {
+					color = colours::red; // C notes are red when active
+				} else if (isBlackKey) {
+					color = colours::blue; // Black keys are blue when active
+				} else {
+					color = colours::white; // White keys are white when active
+				}
+			} else {
+				// Inactive notes are dim
+				if (isRoot) {
+					color = RGB(40, 0, 0); // Dim red for C notes
+				} else if (isBlackKey) {
+					color = RGB(0, 0, 20); // Dim blue for black keys
+				} else {
+					color = RGB(10, 10, 10); // Dim white for white keys
+				}
+			}
+
+			image[y][x] = color;
+		}
 	}
 }
 
