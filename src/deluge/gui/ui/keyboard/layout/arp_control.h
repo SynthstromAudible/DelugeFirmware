@@ -125,6 +125,9 @@ private:
 
 	/// Helper function to update arpeggiator and refresh UI efficiently
 	void updateArpAndRefreshUI(ArpeggiatorSettings* settings, const char* popupMessage);
+	
+	/// Optimized control pad handler - returns true if control was handled
+	bool handleControlPad(int32_t x, int32_t y, ArpeggiatorSettings* settings, bool& controlsChanged);
 
 };
 

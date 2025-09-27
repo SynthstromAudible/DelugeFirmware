@@ -38,52 +38,23 @@ namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Clear active notes for now
-
-	// Cache settings and track if we need UI refresh (batch refreshes for performance)
+	
+	// Cache settings and track changes for batched updates
 	ArpeggiatorSettings* settings = getArpSettings();
-	bool needsUIRefresh = false;
 	bool controlsChanged = false;
 
-	// Handle control pad presses (non-keyboard)
+	// PHASE 1: Handle control pads (non-keyboard) - process all controls first
 	for (int32_t i = 0; i < kMaxNumKeyboardPadPresses; i++) {
 		if (presses[i].active) {
 			int32_t x = presses[i].x;
 			int32_t y = presses[i].y;
-
-			// Only handle one control pad at a time for clarity
-			bool controlHandled = false;
-
-			// Green pads (0-2): Arp mode cycling
-			if (!controlHandled && y == 0 && x >= 0 && x < 3 && settings) {
-				const char* modeMessage = nullptr;
-				switch (settings->preset) {
-					case ArpPreset::OFF:
-						settings->preset = ArpPreset::UP;
-						modeMessage = "Arp UP";
-						break;
-					case ArpPreset::UP:
-						settings->preset = ArpPreset::DOWN;
-						modeMessage = "Arp DOWN";
-						break;
-					case ArpPreset::DOWN:
-						settings->preset = ArpPreset::BOTH;
-						modeMessage = "Arp UP&DOWN";
-						break;
-					case ArpPreset::BOTH:
-						settings->preset = ArpPreset::RANDOM;
-						modeMessage = "Arp RANDOM";
-						break;
-					default:
-						settings->preset = ArpPreset::OFF;
-						modeMessage = "Arp OFF";
-						break;
-				}
-				settings->updateSettingsFromCurrentPreset();
-				settings->flagForceArpRestart = true;
-				display->displayPopup(modeMessage);
-				controlsChanged = true;
-				controlHandled = true;
-			}
+			
+			// Skip keyboard area (rows 4-7) in this phase
+			if (y >= 4 && y < 8) continue;
+			
+			// Optimized control detection - consolidated handler
+			bool controlHandled = handleControlPad(x, y, settings, controlsChanged);
+			if (controlHandled) continue; // Move to next pad if control was handled
 
 			// Check if pressing blue octave pads (top row, positions 4-11)
 			if (y == 0 && x >= 4 && x < std::min((int32_t)(4 + 8), (int32_t)kDisplayWidth)) {
@@ -788,6 +759,118 @@ void KeyboardLayoutArpControl::updateArpAndRefreshUI(ArpeggiatorSettings* settin
 	}
 
 	// NOTE: UI refresh will be done at end of evaluatePads() for better performance
+}
+
+bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, ArpeggiatorSettings* settings, bool& controlsChanged) {
+	if (!settings) return false;
+	
+	// OPTIMIZED CONTROL DETECTION: Check most common controls first
+	
+	// Row 0 - Main controls (most frequently used)
+	if (y == 0) {
+		// Green pads (0-2): Arp mode cycling
+		if (x >= 0 && x < 3) {
+			const char* modeMessage = nullptr;
+			switch (settings->preset) {
+				case ArpPreset::OFF: settings->preset = ArpPreset::UP; modeMessage = "Arp UP"; break;
+				case ArpPreset::UP: settings->preset = ArpPreset::DOWN; modeMessage = "Arp DOWN"; break;
+				case ArpPreset::DOWN: settings->preset = ArpPreset::BOTH; modeMessage = "Arp UP&DOWN"; break;
+				case ArpPreset::BOTH: settings->preset = ArpPreset::RANDOM; modeMessage = "Arp RANDOM"; break;
+				default: settings->preset = ArpPreset::OFF; modeMessage = "Arp OFF"; break;
+			}
+			settings->updateSettingsFromCurrentPreset();
+			settings->flagForceArpRestart = true;
+			display->displayPopup(modeMessage);
+			controlsChanged = true;
+			return true;
+		}
+		
+		// Blue pads (4-11): Octave count
+		if (x >= 4 && x < 12) {
+			int32_t newOctaves = x - 4 + 1;
+			settings->numOctaves = newOctaves;
+			settings->flagForceArpRestart = true;
+			display->displayPopup(("Octaves: " + std::to_string(newOctaves)).c_str());
+			controlsChanged = true;
+			return true;
+		}
+		
+		// Yellow pads (13-15): Rhythm toggle
+		if (x >= 13 && x < 16) {
+			// Toggle rhythm on/off
+			if (displayState.appliedRhythm == 0) {
+				displayState.appliedRhythm = displayState.currentRhythm;
+				display->displayPopup("Rhythm ON");
+			} else {
+				displayState.appliedRhythm = 0;
+				display->displayPopup("Rhythm OFF");
+			}
+			
+			// Apply rhythm change safely
+			if (settings->syncLevel == 0) {
+				settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
+			}
+			settings->rhythm = (displayState.appliedRhythm > 0) ? displayState.appliedRhythm : 1;
+			settings->flagForceArpRestart = true;
+			controlsChanged = true;
+			return true;
+		}
+	}
+	
+	// Row 1 - Sequence length
+	if (y == 1 && x < kDisplayWidth) {
+		int32_t newLength = x + 1;
+		settings->sequenceLength = (newLength * kMaxMenuValue) / 16;
+		settings->flagForceArpRestart = true;
+		display->displayPopup(("Seq Length: " + std::to_string(newLength)).c_str());
+		controlsChanged = true;
+		return true;
+	}
+	
+	// Row 3 - Performance controls
+	if (y == 3) {
+		// Gate length (0-7)
+		if (x >= 0 && x < 8) {
+			int32_t gateIndex = x + 1;
+			settings->gate = (gateIndex * kMaxMenuValue) / 8;
+			settings->flagForceArpRestart = true;
+			display->displayPopup(("Gate: " + std::to_string((gateIndex * 100) / 8) + "%").c_str());
+			controlsChanged = true;
+			return true;
+		}
+		
+		// Velocity spread (8-13)
+		if (x >= 8 && x < 14) {
+			int32_t spreadIndex = x - 8 + 1;
+			settings->spreadVelocity = (spreadIndex * kMaxMenuValue) / 6;
+			settings->flagForceArpRestart = true;
+			display->displayPopup(("Vel Spread: " + std::to_string((spreadIndex * 100) / 6) + "%").c_str());
+			controlsChanged = true;
+			return true;
+		}
+		
+		// Transpose controls (14-15)
+		if (x == 14) {
+			displayState.keyboardScrollOffset -= 12;
+			if (displayState.keyboardScrollOffset < -36) {
+				displayState.keyboardScrollOffset = -36;
+			}
+			display->displayPopup("Keyboard -1 Oct");
+			controlsChanged = true;
+			return true;
+		}
+		if (x == 15) {
+			displayState.keyboardScrollOffset += 12;
+			if (displayState.keyboardScrollOffset > 48) {
+				displayState.keyboardScrollOffset = 48;
+			}
+			display->displayPopup("Keyboard +1 Oct");
+			controlsChanged = true;
+			return true;
+		}
+	}
+	
+	return false; // No control handled
 }
 
 void KeyboardLayoutArpControl::renderKeyboard(RGB image[][kDisplayWidth + kSideBarWidth]) {
