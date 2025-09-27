@@ -122,6 +122,9 @@ private:
 
 	/// Check if arpeggiator settings have changed
 	bool hasArpSettingsChanged();
+	
+	/// Helper function to update arpeggiator and refresh UI efficiently
+	void updateArpAndRefreshUI(ArpeggiatorSettings* settings, const char* popupMessage);
 
 };
 

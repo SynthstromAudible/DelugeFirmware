@@ -38,57 +38,48 @@ namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Clear active notes for now
+	
+	// Cache settings and track if we need UI refresh (batch refreshes for performance)
+	ArpeggiatorSettings* settings = getArpSettings();
+	bool needsUIRefresh = false;
 
-	// Handle green pad presses in top row (toggle between OFF and UP)
+	// Handle control pad presses (non-keyboard)
 	for (int32_t i = 0; i < kMaxNumKeyboardPadPresses; i++) {
 		if (presses[i].active) {
 			int32_t x = presses[i].x;
 			int32_t y = presses[i].y;
+			
+			// Only handle one control pad at a time for clarity
+			bool controlHandled = false;
 
-			// Check if pressing green pads (top row, first 3 pads)
-			if (y == 0 && x >= 0 && x < 3) {
-				ArpeggiatorSettings* settings = getArpSettings();
-				if (settings) {
-					// Cycle through all arp modes: OFF -> UP -> DOWN -> UP&DOWN -> RANDOM -> OFF
-					switch (settings->preset) {
-						case ArpPreset::OFF:
-							settings->preset = ArpPreset::UP;
-							display->displayPopup("Arp UP");
-							break;
-						case ArpPreset::UP:
-							settings->preset = ArpPreset::DOWN;
-							display->displayPopup("Arp DOWN");
-							break;
-						case ArpPreset::DOWN:
-							settings->preset = ArpPreset::BOTH;
-							display->displayPopup("Arp UP&DOWN");
-							break;
-						case ArpPreset::BOTH:
-							settings->preset = ArpPreset::RANDOM;
-							display->displayPopup("Arp RANDOM");
-							break;
-						case ArpPreset::RANDOM:
-						case ArpPreset::WALK:
-						case ArpPreset::CUSTOM:
-						default:
-							settings->preset = ArpPreset::OFF;
-							display->displayPopup("Arp OFF");
-							break;
-					}
-
-					// Update settings from preset to apply the change
-					settings->updateSettingsFromCurrentPreset();
-
-					// Force arpeggiator to restart with new preset
-					settings->flagForceArpRestart = true;
-
-					// Update display
-					if (display->haveOLED()) {
-						renderUIsForOled();
-					}
-					keyboardScreen.requestMainPadsRendering();
+			// Green pads (0-2): Arp mode cycling
+			if (!controlHandled && y == 0 && x >= 0 && x < 3 && settings) {
+				const char* modeMessage = nullptr;
+				switch (settings->preset) {
+					case ArpPreset::OFF:
+						settings->preset = ArpPreset::UP;
+						modeMessage = "Arp UP";
+						break;
+					case ArpPreset::UP:
+						settings->preset = ArpPreset::DOWN;
+						modeMessage = "Arp DOWN";
+						break;
+					case ArpPreset::DOWN:
+						settings->preset = ArpPreset::BOTH;
+						modeMessage = "Arp UP&DOWN";
+						break;
+					case ArpPreset::BOTH:
+						settings->preset = ArpPreset::RANDOM;
+						modeMessage = "Arp RANDOM";
+						break;
+					default:
+						settings->preset = ArpPreset::OFF;
+						modeMessage = "Arp OFF";
+						break;
 				}
-				break; // Only handle one pad press at a time
+				settings->updateSettingsFromCurrentPreset();
+				updateArpAndRefreshUI(settings, modeMessage);
+				controlHandled = true;
 			}
 
 			// Check if pressing blue octave pads (top row, positions 4-11)
@@ -777,6 +768,24 @@ char const* KeyboardLayoutArpControl::getOctaveModeDisplayName(ArpOctaveMode mod
 		case ArpOctaveMode::RANDOM: return "OCT_RAND";
 		default: return "OCT_UNK";
 	}
+}
+
+void KeyboardLayoutArpControl::updateArpAndRefreshUI(ArpeggiatorSettings* settings, const char* popupMessage) {
+	if (!settings) return;
+	
+	// Force arpeggiator restart to apply changes
+	settings->flagForceArpRestart = true;
+	
+	// Show popup message
+	if (popupMessage) {
+		display->displayPopup(popupMessage);
+	}
+	
+	// Batch UI refresh - only do this once per update cycle
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	keyboardScreen.requestMainPadsRendering();
 }
 
 void KeyboardLayoutArpControl::renderKeyboard(RGB image[][kDisplayWidth + kSideBarWidth]) {
