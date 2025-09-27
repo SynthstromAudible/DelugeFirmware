@@ -27,6 +27,6 @@ public:
 		return (sound->synthMode != SynthMode::FM);
 	}
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return LEVEL; }
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return BAR; }
 };
 } // namespace deluge::gui::menu_item::patched_param

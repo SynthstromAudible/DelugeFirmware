@@ -78,6 +78,11 @@ void Canvas::clearPixel(int32_t x, int32_t y) {
 	image_[yRow][x] &= ~(1 << (y & 0x7));
 }
 
+void Canvas::invertPixel(int32_t x, int32_t y) {
+	int32_t yRow = y >> 3;
+	image_[yRow][x] ^= 1 << (y & 0x7);
+}
+
 void Canvas::drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX) {
 	uint8_t mask = 1 << (pixelY & 7);
 

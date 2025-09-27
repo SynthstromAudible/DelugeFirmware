@@ -43,16 +43,8 @@ public:
 	}
 
 	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
-
-	[[nodiscard]] NumberStyle getNumberStyle() const override {
-		const auto p = static_cast<params::Local>(const_cast<FilterParam*>(this)->getP());
-		if (util::one_of(p, {params::LOCAL_LPF_MORPH, params::LOCAL_HPF_MORPH})) {
-			return LEVEL;
-		}
-		return KNOB;
-	}
-
-	FilterInfo const& getInfo() const { return info; }
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return info.getNumberStyle(); }
+	[[nodiscard]] FilterInfo const& getFilterInfo() const { return info; }
 
 private:
 	FilterInfo info;
@@ -68,18 +60,9 @@ public:
 	[[nodiscard]] bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return info.isOn();
 	}
-
-	[[nodiscard]] NumberStyle getNumberStyle() const override {
-		const auto p = static_cast<params::UnpatchedGlobal>(const_cast<UnpatchedFilterParam*>(this)->getP());
-		if (util::one_of(p, {params::UNPATCHED_LPF_MORPH, params::UNPATCHED_HPF_MORPH})) {
-			return LEVEL;
-		}
-		return KNOB;
-	}
-
 	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
-
-	FilterInfo const& getInfo() const { return info; }
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return info.getNumberStyle(); }
+	[[nodiscard]] FilterInfo const& getFilterInfo() const { return info; }
 
 private:
 	FilterInfo info;

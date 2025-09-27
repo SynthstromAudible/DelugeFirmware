@@ -17,6 +17,8 @@
 
 #include "number.h"
 #include "hid/display/oled.h"
+#include "trigger/out/ppqn.h"
+#include "util/functions.h"
 
 namespace deluge::gui::menu_item {
 
@@ -76,10 +78,8 @@ void Number::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t start
 		return drawPercent(startX, startY, width, height);
 	case KNOB:
 		return drawKnob(startX, startY, width, height);
-	case VERTICAL_BAR:
-		return drawVerticalBar(startX, startY, width, height);
-	case LEVEL:
-		return drawLevel(startX, startY, width, height);
+	case BAR:
+		return drawBar(startX, startY, width, height);
 	case SLIDER:
 		return drawSlider(startX, startY, width, height);
 	case LENGTH_SLIDER:
@@ -149,69 +149,42 @@ void Number::drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t hei
 	}
 }
 
-void Number::drawVerticalBar(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight) {
+void Number::drawBar(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight) {
 	oled_canvas::Canvas& image = OLED::main;
 
-	constexpr int32_t barWidth = 18;
+	constexpr uint8_t bar_width = 19;
+	constexpr uint8_t bar_height = 7;
+	constexpr uint8_t outline_padding = 2;
+	const uint8_t bar_start_x = startX + 4 + outline_padding;
+	const uint8_t bar_start_y = startY + 2 + outline_padding;
+	const uint8_t bar_end_x = bar_start_x + bar_width - 1;
+	const uint8_t bar_end_y = bar_start_y + bar_height - 1;
 
-	constexpr int32_t dotsInterval = 3;
-	constexpr int32_t fillPadding = 3;
-	const int32_t leftPadding = (slotWidth - barWidth) / 2;
+	// Draw outline
+	image.drawRectangleRounded(bar_start_x - outline_padding, bar_start_y - outline_padding,
+	                           bar_end_x + outline_padding, bar_end_y + outline_padding);
 
-	const int32_t minX = startX + leftPadding;
-	const int32_t maxX = minX + barWidth;
-	const int32_t minY = startY + 2;
-	const int32_t maxY = minY + slotHeight - 4;
-	const int32_t barHeight = maxY - minY;
+	// Draw bar fill
+	const float value = getNormalizedValue();
+	const uint8_t fill_width = value > 0.f ? std::ceil(value * bar_width) : 0;
+	image.invertArea(bar_start_x, fill_width, bar_start_y, bar_end_y);
 
-	// Draw the dots at left and right sides
-	for (int32_t y = minY; y <= maxY; y += dotsInterval) {
-		image.drawPixel(minX, y);
-		image.drawPixel(maxX, y);
-	}
-
-	// Calculate fill height based on value
-	const float valuePercent = getNormalizedValue();
-	const int32_t fillHeight = static_cast<int32_t>(valuePercent * barHeight);
-	if (fillHeight == 0) {
-		// Draw the bottom dots
-		for (int32_t x = minX + fillPadding; x < minX + barWidth; x += dotsInterval) {
-			image.drawPixel(x, maxY);
+	// Draw indicators
+	const uint8_t fill_x = bar_start_x + fill_width - 1;
+	for (uint8_t x = bar_start_x + 4; x < bar_end_x; x += 5) {
+		if (x == fill_x) {
+			// Highlight additionally if the indicator point is matched with bar position
+			// Idea is similar to gold knob's midpoint blinking
+			image.invertPixel(x, bar_start_y - 1);
+			image.invertPixel(x, bar_end_y + 1);
+			for (uint8_t y = bar_start_y; y <= bar_end_y; y += 2) {
+				image.invertPixel(x, y);
+			}
 		}
-	}
-
-	if (fillHeight > 0) {
-		// Fill from bottom to value
-		image.invertArea(minX + fillPadding, barWidth - fillPadding - 2, maxY - fillHeight, maxY);
-	}
-}
-
-void Number::drawLevel(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight) {
-	oled_canvas::Canvas& image = OLED::main;
-
-	constexpr int32_t barWidth = 13;
-
-	const int32_t leftPadding = (slotWidth - barWidth) / 2;
-	const int32_t minX = startX + leftPadding;
-	const int32_t minY = startY + 1;
-	const int32_t maxY = startY + slotHeight - 2;
-	const int32_t barHeight = maxY - minY;
-
-	// Calculate fill height based on value
-	const float valuePercent = getNormalizedValue();
-	const int32_t fillHeight = static_cast<int32_t>(valuePercent * barHeight);
-
-	// Draw dots for not filled space
-	constexpr int32_t dotsInterval = 4;
-	for (int32_t y = minY; y < maxY - fillHeight; y += dotsInterval) {
-		for (int32_t x = minX; x <= minX + barWidth; x += dotsInterval) {
-			image.drawPixel(x, y);
+		else {
+			image.invertPixel(x, bar_start_y);
+			image.invertPixel(x, bar_end_y);
 		}
-	}
-
-	if (fillHeight > 0) {
-		// Fill from bottom to value
-		image.invertArea(minX, barWidth, maxY - fillHeight, maxY);
 	}
 }
 
