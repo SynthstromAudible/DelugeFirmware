@@ -29,8 +29,11 @@ class UnpatchedParam : public Param, public IntegerContinuous, public MenuItemWi
 public:
 	UnpatchedParam(l10n::String newName, l10n::String title, int32_t newP)
 	    : Param(newP), IntegerContinuous(newName, title) {}
-
+	UnpatchedParam(l10n::String newName, l10n::String title, int32_t newP, NumberStyle style)
+	    : Param(newP), IntegerContinuous(newName, title), number_style_{style} {}
 	UnpatchedParam(l10n::String newName, int32_t newP) : Param(newP), IntegerContinuous(newName) {}
+	UnpatchedParam(l10n::String newName, int32_t newP, NumberStyle style)
+	    : Param(newP), IntegerContinuous(newName), number_style_{style} {}
 
 	bool usesAffectEntire() override { return true; }
 	void readCurrentValue() override;
@@ -63,8 +66,18 @@ public:
 		return getValue();
 	}
 
+	[[nodiscard]] NumberStyle getNumberStyle() const override {
+		if (number_style_.has_value()) {
+			return number_style_.value();
+		}
+		return IntegerContinuous::getNumberStyle();
+	}
+
 protected:
 	virtual int32_t getFinalValue();
+
+private:
+	std::optional<NumberStyle> number_style_{std::nullopt};
 };
 
 } // namespace deluge::gui::menu_item

@@ -40,6 +40,6 @@ public:
 		label.append(modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::DEPTH, true));
 	}
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return VERTICAL_BAR; }
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return BAR; }
 };
 } // namespace deluge::gui::menu_item::mod_fx

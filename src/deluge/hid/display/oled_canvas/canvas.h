@@ -84,6 +84,9 @@ public:
 	/// Clear a single pixel
 	void clearPixel(int32_t x, int32_t y);
 
+	/// Invert a single pixel
+	void invertPixel(int32_t x, int32_t y);
+
 	/// Draw a horizontal line.
 	///
 	/// @param pixelY Y coordinate of the line to draw

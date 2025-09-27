@@ -52,7 +52,7 @@ public:
 		}();
 
 		constexpr uint8_t reso_segment_width = 5;
-		constexpr uint8_t freq_slope_width = 6;
+		constexpr uint8_t freq_slope_width = 5;
 		constexpr uint8_t padding_x = 3;
 		const uint8_t total_width = width - 4 - padding_x * 2;
 		const uint8_t base_width = total_width - freq_slope_width - reso_segment_width;
@@ -72,6 +72,8 @@ public:
 			const uint8_t slope_shift = std::lerp(0, total_width + padding, morph_value);
 			const uint8_t reso_shift = std::lerp(0, freq_slope_width + reso_segment_width + padding, morph_value);
 			const uint8_t base_shift = std::lerp(0, padding, morph_value);
+			min_x += base_shift;
+			max_x += base_shift;
 			slope0_x0 += slope_shift;
 			slope0_x1 += slope_shift;
 			slope1_x0 += slope_shift;
@@ -79,8 +81,6 @@ public:
 			reso_x0 += reso_shift;
 			reso_x1 += reso_shift;
 			reso_x2 += reso_shift;
-			min_x += base_shift;
-			max_x += base_shift;
 		}
 
 		constexpr uint8_t padding_y = 2;
@@ -89,9 +89,9 @@ public:
 		const uint8_t full_reso_y = start_y + (height >> 1) + 1;
 		const uint8_t body_y = std::lerp(start_y + padding_y, full_reso_y, reso_value);
 
-		auto drawSegment = [&](int32_t x0, int32_t y0, int32_t x1, int32_t y1) {
+		auto draw_segment = [&](int32_t x0, int32_t y0, int32_t x1, int32_t y1) {
 			oled_canvas::Point last_point{-1, -1};
-			auto drawFillPattern = [&](oled_canvas::Point point) {
+			auto draw_fill_pattern = [&](oled_canvas::Point point) {
 				if (last_point.x != point.x && point.x % 3 == 0) {
 					for (int32_t y = point.y; y <= floor_y + 2; y++) {
 						if (y % 3 == 1) {
@@ -101,25 +101,25 @@ public:
 				}
 				last_point = point;
 			};
-			image.drawLine(x0, y0, x1, y1, {.min_x = min_x, .max_x = max_x, .point_callback = drawFillPattern});
+			image.drawLine(x0, y0, x1, y1, {.min_x = min_x, .max_x = max_x, .point_callback = draw_fill_pattern});
 			return last_point;
 		};
 
 		// Slope 0
-		auto slope0_last_point =
-		    slope0_x1 <= min_x ? oled_canvas::Point{min_x, body_y} : drawSegment(slope0_x0, floor_y, slope0_x1, body_y);
+		auto slope0_last_point = slope0_x1 <= min_x ? oled_canvas::Point{min_x, body_y}
+		                                            : draw_segment(slope0_x0, floor_y, slope0_x1, body_y);
 
 		// Body
-		drawSegment(slope0_x1, body_y, reso_x0, body_y);
+		draw_segment(slope0_x1, body_y, reso_x0, body_y);
 
 		// Resonance
-		drawSegment(reso_x0, body_y, reso_x1, peak_y);
-		drawSegment(reso_x1, peak_y, reso_x2, body_y);
-		drawSegment(reso_x2, body_y, slope1_x0, body_y);
+		draw_segment(reso_x0, body_y, reso_x1, peak_y);
+		draw_segment(reso_x1, peak_y, reso_x2, body_y);
+		draw_segment(reso_x2, body_y, slope1_x0, body_y);
 
 		// Slope 1
-		auto slope1_last_point =
-		    slope1_x0 >= max_x ? oled_canvas::Point{max_x, body_y} : drawSegment(slope1_x0, body_y, slope1_x1, floor_y);
+		auto slope1_last_point = slope1_x0 >= max_x ? oled_canvas::Point{max_x, body_y}
+		                                            : draw_segment(slope1_x0, body_y, slope1_x1, floor_y);
 
 		// Body level dashed line
 		constexpr uint8_t line_offset = 3;
@@ -144,27 +144,27 @@ private:
 	UnpatchedFilterParam* morph_item_unpatched_{nullptr};
 
 	struct FilterValues {
-		int32_t freq;
-		int32_t reso;
-		int32_t morph;
-		FilterMode mode;
-		bool is_hpf;
+		int32_t freq_value{0};
+		int32_t reso_value{0};
+		int32_t morph_value{0};
+		FilterMode mode{FilterMode::OFF};
+		bool is_hpf{false};
 	};
 
-	FilterValues getFilterValues() const {
+	[[nodiscard]] FilterValues getFilterValues() const {
 		if (morph_item_ != nullptr) {
 			// Get from patched params
 			auto freq_item = static_cast<FilterParam*>(items_[0]);
 			auto reso_item = static_cast<FilterParam*>(items_[1]);
-			FilterMode filter_mode = morph_item_->getInfo().getMode();
+			FilterMode filter_mode = morph_item_->getFilterInfo().getMode();
 			bool is_hpf = freq_item->getP() == params::LOCAL_HPF_FREQ;
 			return {freq_item->getValue(), reso_item->getValue(), morph_item_->getValue(), filter_mode, is_hpf};
 		}
 
 		// Get from unpatched params
-		const auto freq_item = static_cast<UnpatchedFilterParam*>(items_[0]);
-		const auto reso_item = static_cast<UnpatchedFilterParam*>(items_[1]);
-		const FilterMode filter_mode = morph_item_unpatched_->getInfo().getMode();
+		auto freq_item = static_cast<UnpatchedFilterParam*>(items_[0]);
+		auto reso_item = static_cast<UnpatchedFilterParam*>(items_[1]);
+		FilterMode filter_mode = morph_item_unpatched_->getFilterInfo().getMode();
 		bool is_hpf = freq_item->getP() == params::UNPATCHED_HPF_FREQ;
 		return {freq_item->getValue(), reso_item->getValue(), morph_item_unpatched_->getValue(), filter_mode, is_hpf};
 	}
