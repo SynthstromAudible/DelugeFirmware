@@ -23,8 +23,12 @@ namespace deluge::gui::menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
 public:
 	Integer(l10n::String newName, int32_t newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
+	Integer(l10n::String newName, int32_t newP, NumberStyle style)
+	    : PatchedParam(newP), IntegerContinuous(newName), number_style_{style} {}
 	Integer(l10n::String newName, l10n::String title, int32_t newP = 0)
 	    : PatchedParam(newP), IntegerContinuous(newName, title) {}
+	Integer(l10n::String newName, l10n::String title, int32_t newP, NumberStyle style)
+	    : PatchedParam(newP), IntegerContinuous(newName, title), number_style_{style} {}
 	// 7SEG Only
 	void drawValue() override { display->setTextAsNumber(this->getValue(), shouldDrawDotOnName()); }
 
@@ -66,9 +70,19 @@ public:
 
 	void updateAutomationViewParameter() override;
 
+	[[nodiscard]] NumberStyle getNumberStyle() const override {
+		if (number_style_.has_value()) {
+			return number_style_.value();
+		}
+		return IntegerContinuous::getNumberStyle();
+	}
+
 protected:
 	void readCurrentValue() override;
 	void writeCurrentValue() final;
 	virtual int32_t getFinalValue();
+
+private:
+	std::optional<NumberStyle> number_style_{std::nullopt};
 };
 } // namespace deluge::gui::menu_item::patched_param
