@@ -38,17 +38,18 @@ namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Clear active notes for now
-	
+
 	// Cache settings and track if we need UI refresh (batch refreshes for performance)
 	ArpeggiatorSettings* settings = getArpSettings();
 	bool needsUIRefresh = false;
+	bool controlsChanged = false;
 
 	// Handle control pad presses (non-keyboard)
 	for (int32_t i = 0; i < kMaxNumKeyboardPadPresses; i++) {
 		if (presses[i].active) {
 			int32_t x = presses[i].x;
 			int32_t y = presses[i].y;
-			
+
 			// Only handle one control pad at a time for clarity
 			bool controlHandled = false;
 
@@ -78,7 +79,9 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 						break;
 				}
 				settings->updateSettingsFromCurrentPreset();
-				updateArpAndRefreshUI(settings, modeMessage);
+				settings->flagForceArpRestart = true;
+				display->displayPopup(modeMessage);
+				controlsChanged = true;
 				controlHandled = true;
 			}
 
@@ -94,14 +97,9 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 					settings->flagForceArpRestart = true;
 
 					display->displayPopup(("Octaves: " + std::to_string(newOctaves)).c_str());
-
-					// Update display
-					if (display->haveOLED()) {
-						renderUIsForOled();
-					}
-					keyboardScreen.requestMainPadsRendering();
+					controlsChanged = true;
 				}
-				break; // Only handle one pad press at a time
+				controlHandled = true;
 			}
 
 			// Check if pressing yellow rhythm pads (top row, positions 12-14)
@@ -259,6 +257,14 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 
 	// Handle column controls (beat repeat, etc.) - but only when user wants them
 	ColumnControlsKeyboard::evaluatePads(presses);
+
+	// SINGLE UI REFRESH: Only refresh once at the end if controls changed
+	if (controlsChanged) {
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		keyboardScreen.requestMainPadsRendering();
+	}
 }
 
 void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
@@ -772,20 +778,16 @@ char const* KeyboardLayoutArpControl::getOctaveModeDisplayName(ArpOctaveMode mod
 
 void KeyboardLayoutArpControl::updateArpAndRefreshUI(ArpeggiatorSettings* settings, const char* popupMessage) {
 	if (!settings) return;
-	
+
 	// Force arpeggiator restart to apply changes
 	settings->flagForceArpRestart = true;
-	
-	// Show popup message
+
+	// Show popup message (this is immediate and doesn't conflict)
 	if (popupMessage) {
 		display->displayPopup(popupMessage);
 	}
-	
-	// Batch UI refresh - only do this once per update cycle
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	keyboardScreen.requestMainPadsRendering();
+
+	// NOTE: UI refresh will be done at end of evaluatePads() for better performance
 }
 
 void KeyboardLayoutArpControl::renderKeyboard(RGB image[][kDisplayWidth + kSideBarWidth]) {
