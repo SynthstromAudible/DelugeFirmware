@@ -573,15 +573,20 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	// Handle Y encoder button press for rhythm toggle
 	else if (b == Y_ENC && on) {
-		// Debug: Show that Y encoder press was detected
-		display->displayPopup("Y ENC PRESSED");
-
 		// Pass Y encoder press to current layout if it supports it
 		KeyboardLayoutType currentLayoutType = getCurrentInstrumentClip()->keyboardState.currentLayout;
 		if (currentLayoutType == KeyboardLayoutType::KeyboardLayoutTypeGenerative) {
-			// Toggle rhythm on/off for Arp Control layout
+			// Simple toggle: if rhythm is 0 (OFF), go to 1 (ON). If rhythm >0 (ON), go to 0 (OFF)
 			layout::KeyboardLayoutArpControl* arpLayout = (layout::KeyboardLayoutArpControl*)layout_list[currentLayoutType];
-			arpLayout->toggleRhythm();
+			if (arpLayout->displayState.currentRhythm == 0) {
+				arpLayout->displayState.currentRhythm = 1; // Turn ON to pattern 1
+				display->displayPopup("Rhythm ON");
+			} else {
+				arpLayout->displayState.currentRhythm = 0; // Turn OFF to "None"
+				display->displayPopup("Rhythm OFF");
+			}
+			// Update the actual arpeggiator settings and display
+			arpLayout->handleVerticalEncoder(0); // Trigger update with 0 offset
 		}
 	}
 

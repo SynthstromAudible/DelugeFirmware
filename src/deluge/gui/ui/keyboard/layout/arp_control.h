@@ -57,8 +57,18 @@ public:
 	/// Update display for both OLED and 7-segment
 	void updateDisplay();
 
-	/// Toggle rhythm on/off (called from Y encoder button press)
-	void toggleRhythm();
+
+	// Display state - public so keyboard screen can access for Y encoder press
+	struct {
+		int32_t currentRhythm = 0; // Start at rhythm 0 ("None" = OFF)
+		int32_t lastRhythmStep = -1;
+		ArpPreset currentPreset = ArpPreset::OFF;
+		ArpOctaveMode currentOctaveMode = ArpOctaveMode::UP;
+		uint8_t currentOctaves = 1;
+		bool needsRefresh = true;
+		bool wasPlaying = false;
+		bool rhythmEnabled = true; // Not used anymore - rhythm state tracked by currentRhythm (0=OFF, 1-50=ON)
+	} displayState;
 
 private:
 	/// Get the current arpeggiator settings from the active clip
@@ -91,17 +101,6 @@ private:
 	/// Check if arpeggiator settings have changed
 	bool hasArpSettingsChanged();
 
-	// Display state
-	struct {
-		int32_t currentRhythm = 1; // Start at rhythm 1 ("0--") for immediate rhythm effect
-		int32_t lastRhythmStep = -1;
-		ArpPreset currentPreset = ArpPreset::OFF;
-		ArpOctaveMode currentOctaveMode = ArpOctaveMode::UP;
-		uint8_t currentOctaves = 1;
-		bool needsRefresh = true;
-		bool wasPlaying = false;
-		bool rhythmEnabled = false; // Start with rhythm OFF
-	} displayState;
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

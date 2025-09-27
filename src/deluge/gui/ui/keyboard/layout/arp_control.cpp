@@ -49,28 +49,22 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 	// Force direct control - bypass column controls completely
 	// Don't call verticalEncoderHandledByColumns at all
 
-	// Check if rhythm is disabled
-	if (!displayState.rhythmEnabled) {
-		display->displayPopup("Push for Rhythm");
-		return;
-	}
-
-	// Direct rhythm pattern control - work directly with clip arpSettings like the arpeggiator does
+	// Simple rhythm control: use all rhythms 0-50
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	if (!clip) return;
 
 	ArpeggiatorSettings* settings = &clip->arpSettings;
 	if (settings) {
 		// Simple stepping: +1 for clockwise, -1 for counter-clockwise
-		// Skip rhythm 0 ("None") and use rhythms 1-50 for actual patterns
+		// Use all rhythms 0-50 (0 = "None"/OFF, 1-50 = patterns/ON)
 		if (offset > 0) {
 			displayState.currentRhythm++;
 			if (displayState.currentRhythm > 50) {
-				displayState.currentRhythm = 1; // Wrap to first real pattern
+				displayState.currentRhythm = 0; // Wrap to "None" (OFF)
 			}
 		} else if (offset < 0) {
 			displayState.currentRhythm--;
-			if (displayState.currentRhythm < 1) {
+			if (displayState.currentRhythm < 0) {
 				displayState.currentRhythm = 50; // Wrap to last pattern
 			}
 		}
@@ -430,7 +424,7 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 
 	// Second row: Show rhythm pattern info
 	int32_t rhythmIndex = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
-	RGB rhythmColor = displayState.rhythmEnabled ? colours::yellow : RGB(40, 40, 0); // Dim yellow when rhythm disabled
+	RGB rhythmColor = (displayState.currentRhythm > 0) ? colours::yellow : RGB(40, 40, 0); // Dim yellow when rhythm 0 (OFF)
 
 	// Show rhythm index as number of lit pads
 	for (int32_t x = 0; x < rhythmIndex && x < kDisplayWidth; x++) {
@@ -527,39 +521,6 @@ char const* KeyboardLayoutArpControl::getOctaveModeDisplayName(ArpOctaveMode mod
 	}
 }
 
-void KeyboardLayoutArpControl::toggleRhythm() {
-	// Toggle rhythm on/off
-	displayState.rhythmEnabled = !displayState.rhythmEnabled;
-
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	if (!clip) return;
-
-	ArpeggiatorSettings* settings = &clip->arpSettings;
-	if (!settings) return;
-
-	// Ensure syncLevel is properly set
-	if (settings->syncLevel == 0) {
-		settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
-	}
-
-	if (displayState.rhythmEnabled) {
-		// Turn rhythm ON - set to current rhythm pattern (raw value)
-		settings->rhythm = displayState.currentRhythm; // Use raw display value (1-50)
-		settings->flagForceArpRestart = true;
-		display->displayPopup("Rhythm ON");
-	} else {
-		// Turn rhythm OFF - set to rhythm 0 ("None") which plays all notes
-		settings->rhythm = 0; // Position 0 in array = "None" = all notes
-		settings->flagForceArpRestart = true;
-		display->displayPopup("Rhythm OFF");
-	}
-
-	// Update display to show rhythm state change
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	keyboardScreen.requestMainPadsRendering();
-}
 
 }; // namespace deluge::gui::ui::keyboard::layout
 
