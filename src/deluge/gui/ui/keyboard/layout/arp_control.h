@@ -100,7 +100,7 @@ private:
 		uint8_t currentOctaves = 1;
 		bool needsRefresh = true;
 		bool wasPlaying = false;
-		bool rhythmEnabled = true; // Always enabled for now
+		bool rhythmEnabled = false; // Start with rhythm OFF
 	} displayState;
 };
 

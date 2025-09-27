@@ -573,6 +573,9 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	// Handle Y encoder button press for rhythm toggle
 	else if (b == Y_ENC && on) {
+		// Debug: Show that Y encoder press was detected
+		display->displayPopup("Y ENC PRESSED");
+
 		// Pass Y encoder press to current layout if it supports it
 		KeyboardLayoutType currentLayoutType = getCurrentInstrumentClip()->keyboardState.currentLayout;
 		if (currentLayoutType == KeyboardLayoutType::KeyboardLayoutTypeGenerative) {

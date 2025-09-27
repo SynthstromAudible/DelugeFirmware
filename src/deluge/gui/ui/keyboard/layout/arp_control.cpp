@@ -80,7 +80,7 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 			settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 		}
 
-		// Use the parameter system for all rhythms (1-50)
+		// Use the parameter system (this was working!) but keep display consistent
 		UI* originalUI = getCurrentUI();
 
 		// Set up sound editor context like the official menu
@@ -543,23 +543,13 @@ void KeyboardLayoutArpControl::toggleRhythm() {
 	}
 
 	if (displayState.rhythmEnabled) {
-		// Turn rhythm ON - set to current rhythm pattern
-		UI* originalUI = getCurrentUI();
-		if (soundEditor.setup(clip, nullptr, 0)) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-			ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
-
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.currentRhythm);
-				modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
-			}
-			originalUI->focusRegained();
-		}
+		// Turn rhythm ON - set to current rhythm pattern (raw value)
+		settings->rhythm = displayState.currentRhythm; // Use raw display value (1-50)
+		settings->flagForceArpRestart = true;
 		display->displayPopup("Rhythm ON");
 	} else {
-		// Turn rhythm OFF - set to rhythm 0 ("None")
-		settings->rhythm = 0;
+		// Turn rhythm OFF - set to rhythm 0 ("None") which plays all notes
+		settings->rhythm = 0; // Position 0 in array = "None" = all notes
 		settings->flagForceArpRestart = true;
 		display->displayPopup("Rhythm OFF");
 	}
