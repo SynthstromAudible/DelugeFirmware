@@ -38,7 +38,7 @@ namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Clear active notes for now
-	
+
 	// Cache settings and track changes for batched updates
 	ArpeggiatorSettings* settings = getArpSettings();
 	bool controlsChanged = false;
@@ -48,10 +48,10 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 		if (presses[i].active) {
 			int32_t x = presses[i].x;
 			int32_t y = presses[i].y;
-			
+
 			// Skip keyboard area (rows 4-7) in this phase
 			if (y >= 4 && y < 8) continue;
-			
+
 			// Optimized control detection - consolidated handler
 			bool controlHandled = handleControlPad(x, y, settings, controlsChanged);
 			if (controlHandled) continue; // Move to next pad if control was handled
@@ -218,6 +218,22 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 
 			// Check if pressing keyboard pads (rows 4-7)
 			else if (y >= 4 && y < 8) {
+				uint16_t note = noteFromCoords(x, y);
+				if (note < 128) {
+					enableNote(note, velocity);
+				}
+			}
+		}
+	}
+
+	// PHASE 2: Handle keyboard pads (rows 4-7) - separate phase for better performance
+	for (int32_t i = 0; i < kMaxNumKeyboardPadPresses; i++) {
+		if (presses[i].active) {
+			int32_t x = presses[i].x;
+			int32_t y = presses[i].y;
+
+			// Only handle keyboard area in this phase
+			if (y >= 4 && y < 8) {
 				uint16_t note = noteFromCoords(x, y);
 				if (note < 128) {
 					enableNote(note, velocity);
@@ -763,9 +779,9 @@ void KeyboardLayoutArpControl::updateArpAndRefreshUI(ArpeggiatorSettings* settin
 
 bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, ArpeggiatorSettings* settings, bool& controlsChanged) {
 	if (!settings) return false;
-	
+
 	// OPTIMIZED CONTROL DETECTION: Check most common controls first
-	
+
 	// Row 0 - Main controls (most frequently used)
 	if (y == 0) {
 		// Green pads (0-2): Arp mode cycling
@@ -784,7 +800,7 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 			controlsChanged = true;
 			return true;
 		}
-		
+
 		// Blue pads (4-11): Octave count
 		if (x >= 4 && x < 12) {
 			int32_t newOctaves = x - 4 + 1;
@@ -794,7 +810,7 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 			controlsChanged = true;
 			return true;
 		}
-		
+
 		// Yellow pads (13-15): Rhythm toggle
 		if (x >= 13 && x < 16) {
 			// Toggle rhythm on/off
@@ -805,7 +821,7 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 				displayState.appliedRhythm = 0;
 				display->displayPopup("Rhythm OFF");
 			}
-			
+
 			// Apply rhythm change safely
 			if (settings->syncLevel == 0) {
 				settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
@@ -816,7 +832,7 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 			return true;
 		}
 	}
-	
+
 	// Row 1 - Sequence length
 	if (y == 1 && x < kDisplayWidth) {
 		int32_t newLength = x + 1;
@@ -826,7 +842,7 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 		controlsChanged = true;
 		return true;
 	}
-	
+
 	// Row 3 - Performance controls
 	if (y == 3) {
 		// Gate length (0-7)
@@ -838,7 +854,7 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 			controlsChanged = true;
 			return true;
 		}
-		
+
 		// Velocity spread (8-13)
 		if (x >= 8 && x < 14) {
 			int32_t spreadIndex = x - 8 + 1;
@@ -848,7 +864,7 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 			controlsChanged = true;
 			return true;
 		}
-		
+
 		// Transpose controls (14-15)
 		if (x == 14) {
 			displayState.keyboardScrollOffset -= 12;
@@ -869,7 +885,7 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 			return true;
 		}
 	}
-	
+
 	return false; // No control handled
 }
 
