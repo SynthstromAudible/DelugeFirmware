@@ -23,6 +23,6 @@ class Amount_Unpatched final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return VERTICAL_BAR; }
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return BAR; }
 };
 } // namespace deluge::gui::menu_item::reverb
