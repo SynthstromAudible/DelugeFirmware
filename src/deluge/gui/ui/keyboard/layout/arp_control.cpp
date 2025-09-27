@@ -29,6 +29,8 @@
 #include "modulation/arpeggiator.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "modulation/params/param.h"
+#include "model/sync.h"
+#include "util/d_string.h"
 #include "playback/playback_handler.h"
 #include "util/functions.h"
 
@@ -145,19 +147,19 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 			}
 
 			// Check if pressing transpose pads (row 3, positions 15-16)
-			if (y == 3 && x >= 15 && x < 17 && x < kDisplayWidth) {
-				if (x == 15) {
+			if (y == 3 && x >= 14 && x < 16 && x < kDisplayWidth) {
+				if (x == 14) {
 					// Down octave (red pad)
 					displayState.keyboardScrollOffset -= 12; // Down one octave
-					if (displayState.keyboardScrollOffset < 0) {
-						displayState.keyboardScrollOffset = 0; // Don't go below C0
+					if (displayState.keyboardScrollOffset < -36) {
+						displayState.keyboardScrollOffset = -36; // Don't go below C-2 (note 0)
 					}
 					display->displayPopup("Keyboard -1 Oct");
-				} else if (x == 16) {
+				} else if (x == 15) {
 					// Up octave (purple pad)
 					displayState.keyboardScrollOffset += 12; // Up one octave
-					if (displayState.keyboardScrollOffset > 96) {
-						displayState.keyboardScrollOffset = 96; // Don't go above reasonable range
+					if (displayState.keyboardScrollOffset > 48) {
+						displayState.keyboardScrollOffset = 48; // Don't go above C8 (note 84+36=120)
 					}
 					display->displayPopup("Keyboard +1 Oct");
 				}
@@ -254,14 +256,34 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
                                                                 PressedPad presses[kMaxNumKeyboardPadPresses],
                                                                 bool encoderPressed) {
-	// Only handle column controls - keep it simple like other keyboard layouts
-	// This prevents interference with SELECT encoder preset selection
+	// First check if column controls should handle this
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
 		return;
 	}
 
-	// Don't handle any other horizontal encoder actions
-	// All arp controls are now handled by pads and Y encoder
+	// Use horizontal encoder for arp sync rate control
+	ArpeggiatorSettings* settings = getArpSettings();
+	if (settings && offset != 0) {
+		// Control sync level (1-9: WHOLE to 256TH notes)
+		int32_t newSyncLevel = static_cast<int32_t>(settings->syncLevel) + offset;
+		newSyncLevel = std::clamp(newSyncLevel, (int32_t)1, (int32_t)9); // Valid range 1-9
+		settings->syncLevel = static_cast<SyncLevel>(newSyncLevel);
+
+		// Force arpeggiator to restart with new sync rate
+		settings->flagForceArpRestart = true;
+
+		// Show sync rate name using official function
+		char syncNameBuffer[30];
+		StringBuf syncNameStr(syncNameBuffer, sizeof(syncNameBuffer));
+		syncValueToString(newSyncLevel, syncNameStr, currentSong->getInputTickMagnitude());
+		display->displayPopup(syncNameStr.c_str());
+
+		// Update display
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		keyboardScreen.requestMainPadsRendering();
+	}
 }
 
 void KeyboardLayoutArpControl::precalculate() {
@@ -452,27 +474,31 @@ void KeyboardLayoutArpControl::renderRhythmPattern(RGB image[][kDisplayWidth + k
 	ArpeggiatorSettings* settings = getArpSettings();
 	if (!settings) return;
 
-	// Get current rhythm pattern
-	int32_t rhythmIndex = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
-	const ArpRhythm& pattern = arpRhythmPatterns[rhythmIndex];
+	// Always show the currently selected rhythm pattern (for preview)
+	int32_t patternIndex = displayState.currentRhythm; // Use our display state, not the applied rhythm
+	if (patternIndex < 1 || patternIndex > 50) {
+		patternIndex = 1; // Default to pattern 1 if invalid
+	}
+	const ArpRhythm& pattern = arpRhythmPatterns[patternIndex];
 
-	// Display rhythm pattern in the middle rows (rows 2-4)
+	// Display rhythm pattern in the middle rows (rows 2-3) - avoid keyboard area
 	const int32_t patternStartRow = 2;
 	const int32_t maxStepsPerRow = kDisplayWidth;
 
-	int32_t currentStep = getCurrentRhythmStep();
+	// Only show current step highlighting when actually playing and rhythm is applied
+	int32_t currentStep = (displayState.appliedRhythm > 0) ? getCurrentRhythmStep() : -1;
 
-	for (int32_t step = 0; step < pattern.length && step < maxStepsPerRow * 3; step++) {
+	for (int32_t step = 0; step < pattern.length && step < maxStepsPerRow * 2; step++) {
 		int32_t x = step % maxStepsPerRow;
 		int32_t y = patternStartRow + (step / maxStepsPerRow);
 
-		if (y >= kDisplayHeight) break;
+		if (y >= 4) break; // Don't overlap with keyboard (starts at row 4)
 
 		bool isActive = pattern.steps[step];
 		bool isCurrent = (step == currentStep);
 
 		RGB stepColor = getStepColor(isActive, isCurrent);
-		// Dim the pattern when rhythm is not applied
+		// Dim the pattern when rhythm is not applied (preview mode)
 		if (displayState.appliedRhythm == 0) {
 			stepColor = RGB(stepColor.r / 4, stepColor.g / 4, stepColor.b / 4);
 		}
@@ -515,12 +541,12 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 
 	// Row 1 is now free for future features (old rhythm index removed)
 
-	// Row 3: Show transpose controls (positions 15-16)
-	if (kDisplayWidth > 15) {
-		image[3][15] = colours::red;    // Down octave
+	// Row 3: Show transpose controls (positions 14-15)
+	if (kDisplayWidth > 14) {
+		image[3][14] = colours::red;    // Down octave
 	}
-	if (kDisplayWidth > 16) {
-		image[3][16] = colours::magenta; // Up octave (purple)
+	if (kDisplayWidth > 15) {
+		image[3][15] = colours::magenta; // Up octave (purple)
 	}
 }
 
@@ -614,21 +640,21 @@ char const* KeyboardLayoutArpControl::getOctaveModeDisplayName(ArpOctaveMode mod
 }
 
 void KeyboardLayoutArpControl::renderKeyboard(RGB image[][kDisplayWidth + kSideBarWidth]) {
-	// Render keyboard in rows 4-7 (adapted from IN-KEY layout)
-	// Simple chromatic keyboard for now
+	// Render scale-based keyboard in rows 4-7 (adapted from IN-KEY layout)
 
-	// Precreate list of all active notes
-	bool activeNotes[128] = {false};
+	// Precreate list of all active notes per octave
+	bool scaleActiveNotes[kOctaveSize] = {0};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
-		if (currentNotesState.notes[idx].note < 128) {
-			activeNotes[currentNotesState.notes[idx].note] = true;
-		}
+		scaleActiveNotes[((currentNotesState.notes[idx].note + kOctaveSize) - getRootNote()) % kOctaveSize] = true;
 	}
+
+	uint8_t scaleNoteCount = getScaleNoteCount();
 
 	// Render keyboard in rows 4-7 only
 	for (int32_t y = 4; y < 8 && y < kDisplayHeight; ++y) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			uint16_t note = noteFromCoords(x, y);
+			auto padIndex = padIndexFromCoords(x, y - 4); // Adjust for keyboard starting at row 4
+			auto note = noteFromPadIndex(padIndex);
 
 			// Limit to valid MIDI range
 			if (note >= 128) {
@@ -636,33 +662,26 @@ void KeyboardLayoutArpControl::renderKeyboard(RGB image[][kDisplayWidth + kSideB
 				continue;
 			}
 
-			// Color based on note type and state
-			bool isActive = activeNotes[note];
-			bool isRoot = (note % 12) == 0; // C notes
-			bool isBlackKey = (note % 12 == 1 || note % 12 == 3 || note % 12 == 6 || note % 12 == 8 || note % 12 == 10);
+			int32_t noteWithinScale = (uint16_t)((note + kOctaveSize) - getRootNote()) % kOctaveSize;
+			RGB colourSource = getNoteColour(note); // Use the note color system
 
-			RGB color;
-			if (isActive) {
-				// Active notes are bright
-				if (isRoot) {
-					color = colours::red; // C notes are red when active
-				} else if (isBlackKey) {
-					color = colours::blue; // Black keys are blue when active
-				} else {
-					color = colours::white; // White keys are white when active
-				}
-			} else {
-				// Inactive notes are dim
-				if (isRoot) {
-					color = RGB(40, 0, 0); // Dim red for C notes
-				} else if (isBlackKey) {
-					color = RGB(0, 0, 20); // Dim blue for black keys
-				} else {
-					color = RGB(10, 10, 10); // Dim white for white keys
-				}
+			// Scale-based coloring (adapted from IN-KEY layout)
+			if (noteWithinScale == 0 && scaleActiveNotes[noteWithinScale]) {
+				// Active root note: Full brightness and colour
+				image[y][x] = colourSource.adjust(255, 1);
 			}
-
-			image[y][x] = color;
+			else if (noteWithinScale == 0) {
+				// Inactive root note: Full colour but less brightness
+				image[y][x] = colourSource.adjust(255, 2);
+			}
+			else if (scaleActiveNotes[noteWithinScale]) {
+				// Active scale note: Toned down colour but high brightness
+				image[y][x] = colourSource.adjust(127, 3);
+			}
+			else {
+				// Inactive scale note: Dimly white
+				image[y][x] = RGB::monochrome(1);
+			}
 		}
 	}
 }

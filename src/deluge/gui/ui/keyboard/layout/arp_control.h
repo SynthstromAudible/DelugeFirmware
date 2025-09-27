@@ -70,8 +70,8 @@ public:
 		bool wasPlaying = false;
 
 		// Simple keyboard state for 4-row keyboard
-		int32_t keyboardScrollOffset = 0; // Start at C3 (note 60)
-		int32_t keyboardRowInterval = 4; // 4 semitones per row (major thirds)
+		int32_t keyboardScrollOffset = 0; // Default position (C2 base + 0 offset = C2 start)
+		int32_t keyboardRowInterval = 4; // 4 scale notes per row (good for most scales)
 	} displayState;
 
 private:
@@ -108,11 +108,16 @@ private:
 	/// Keyboard helper functions (adapted from IN-KEY layout)
 	inline uint16_t noteFromCoords(int32_t x, int32_t y) { return noteFromPadIndex(padIndexFromCoords(x, y)); }
 	inline uint16_t padIndexFromCoords(int32_t x, int32_t y) {
-		return displayState.keyboardScrollOffset + x + y * displayState.keyboardRowInterval;
+		return x + y * displayState.keyboardRowInterval;
 	}
 	inline uint16_t noteFromPadIndex(uint16_t padIndex) {
-		// Simple chromatic mapping for now (we can add scale support later)
-		return padIndex + 60; // Start at C3 (MIDI note 60)
+		// Scale-based mapping like IN-KEY layout
+		NoteSet& scaleNotes = getScaleNotes();
+		uint8_t scaleNoteCount = getScaleNoteCount();
+
+		uint8_t octave = padIndex / scaleNoteCount;
+		uint8_t octaveNoteIndex = padIndex % scaleNoteCount;
+		return octave * kOctaveSize + getRootNote() + scaleNotes[octaveNoteIndex] + displayState.keyboardScrollOffset;
 	}
 
 	/// Check if arpeggiator settings have changed
