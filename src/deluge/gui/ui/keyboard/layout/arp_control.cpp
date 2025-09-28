@@ -261,13 +261,13 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 	// Don't call verticalEncoderHandledByColumns at all
 
 	// Rhythm control: scroll through patterns and apply immediately if rhythm is ON
-	if (offset > 0) {
-		displayState.currentRhythm++;
-		if (displayState.currentRhythm > 50) {
+		if (offset > 0) {
+			displayState.currentRhythm++;
+			if (displayState.currentRhythm > 50) {
 			displayState.currentRhythm = 1; // Wrap to first pattern (skip 0)
-		}
-	} else if (offset < 0) {
-		displayState.currentRhythm--;
+			}
+		} else if (offset < 0) {
+			displayState.currentRhythm--;
 		if (displayState.currentRhythm < 1) {
 			displayState.currentRhythm = 50; // Wrap to last pattern
 		}
@@ -287,8 +287,11 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 				settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 			}
 
-			// SIMPLIFIED: Direct assignment to match yellow pad approach and avoid conflicts
-			settings->rhythm = (displayState.appliedRhythm > 0) ? displayState.appliedRhythm : 0;
+			// Let sequence length work independently - don't auto-modify it
+
+			// CORRECT: Use parameter conversion like the arpeggiator expects
+			int32_t rhythmValue = (displayState.appliedRhythm > 0) ? displayState.appliedRhythm : 0;
+			settings->rhythm = computeFinalValueForUnsignedMenuItem(rhythmValue);
 			settings->flagForceArpRestart = true;
 		}
 	}
@@ -303,18 +306,18 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 	display->displayPopup(statusMsg);
 
 	// Update display and pads
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	keyboardScreen.requestMainPadsRendering();
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		keyboardScreen.requestMainPadsRendering();
 }
 
 void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
                                                                 PressedPad presses[kMaxNumKeyboardPadPresses],
                                                                 bool encoderPressed) {
 	// First check if column controls should handle this
-	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
-		return;
+		if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
+			return;
 	}
 
 	// Use horizontal encoder for arp sync rate control
@@ -335,10 +338,10 @@ void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shif
 		display->displayPopup(syncNameStr.c_str());
 
 		// Update display
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		keyboardScreen.requestMainPadsRendering();
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			keyboardScreen.requestMainPadsRendering();
 	}
 }
 
@@ -595,7 +598,7 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 		image[0][x] = rhythmColor;
 	}
 
-	// Row 1: Show sequence length - handle 0 = unlimited case
+	// Row 1: Show sequence length - works independently of rhythm
 	int32_t currentSeqLength;
 	if (settings->sequenceLength == 0) {
 		currentSeqLength = 0; // 0 means unlimited (OFF)
@@ -826,18 +829,22 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 			if (settings->syncLevel == 0) {
 				settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 			}
-			// Use pattern 0 ("None") for rhythm OFF, selected pattern for rhythm ON
-			settings->rhythm = (displayState.appliedRhythm > 0) ? displayState.appliedRhythm : 0;
+
+			// Let sequence length work independently - don't auto-modify it
+
+			// CORRECT: Use parameter conversion like the arpeggiator expects
+			int32_t rhythmValue = (displayState.appliedRhythm > 0) ? displayState.appliedRhythm : 0;
+			settings->rhythm = computeFinalValueForUnsignedMenuItem(rhythmValue);
 			settings->flagForceArpRestart = true;
 			controlsChanged = true;
 			return true;
 		}
 	}
 
-	// Row 1 - Sequence length
+	// Row 1 - Sequence length (works independently of rhythm)
 	if (y == 1 && x < kDisplayWidth) {
 		int32_t newLength = x + 1;
-		settings->sequenceLength = (newLength * kMaxMenuValue) / 16;
+		settings->sequenceLength = computeFinalValueForUnsignedMenuItem(newLength);
 		settings->flagForceArpRestart = true;
 		display->displayPopup(("Seq Length: " + std::to_string(newLength)).c_str());
 		controlsChanged = true;
@@ -851,7 +858,7 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 		// Gate length (0-7)
 		if (x >= 0 && x < 8) {
 			int32_t gateIndex = x + 1;
-			settings->gate = (gateIndex * kMaxMenuValue) / 8;
+			settings->gate = computeFinalValueForStandardMenuItem(gateIndex);
 			settings->flagForceArpRestart = true;
 			display->displayPopup(("Gate: " + std::to_string((gateIndex * 100) / 8) + "%").c_str());
 			controlsChanged = true;
