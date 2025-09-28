@@ -231,7 +231,7 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 		if (presses[i].active) {
 			int32_t x = presses[i].x;
 			int32_t y = presses[i].y;
-			
+
 			// Only handle keyboard area in this phase
 			if (y >= 4 && y < 8) {
 				uint16_t note = noteFromCoords(x, y);
@@ -241,21 +241,10 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 			}
 		}
 	}
-	
-	// LATCH SYSTEM: Add latched notes to current notes state
-	if (displayState.latchActive) {
-		// Merge latched notes with currently pressed notes
-		for (uint8_t idx = 0; idx < displayState.latchedNotes.count; ++idx) {
-			auto& latchedNote = displayState.latchedNotes.notes[idx];
-			// Only add if not already present from current presses
-			if (!currentNotesState.noteEnabled(latchedNote.note)) {
-				enableNote(latchedNote.note, latchedNote.velocity);
-			}
-		}
-	}
 
-	// Handle column controls (beat repeat, etc.) - but only when user wants them
-	ColumnControlsKeyboard::evaluatePads(presses);
+	// Note: Latch functionality removed - requires complex note-off override system
+
+	// Note: Column controls removed to prevent interference with arp controls
 
 	// SINGLE UI REFRESH: Only refresh once at the end if controls changed
 	if (controlsChanged) {
@@ -675,11 +664,7 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 		}
 	}
 
-	// Row 2: Show latch button (position 15)
-	if (kDisplayWidth > 15) {
-		RGB latchColor = displayState.latchActive ? colours::green : RGB(20, 20, 20); // Bright green when active, dim when off
-		image[2][15] = latchColor;
-	}
+	// Row 2: Position 15 free for future features
 
 	// Transpose controls (positions 14-15)
 	if (kDisplayWidth > 14) {
@@ -858,23 +843,8 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 		controlsChanged = true;
 		return true;
 	}
-	
-	// Row 2 - Latch button (position 15)
-	if (y == 2 && x == 15) {
-		if (displayState.latchActive) {
-			// Turn OFF latch - clear all latched notes
-			displayState.latchActive = false;
-			displayState.latchedNotes = NotesState{}; // Clear latched notes
-			display->displayPopup("Latch OFF");
-		} else {
-			// Turn ON latch - capture currently pressed notes
-			displayState.latchActive = true;
-			displayState.latchedNotes = currentNotesState; // Store current notes
-			display->displayPopup("Latch ON");
-		}
-		controlsChanged = true;
-		return true;
-	}
+
+	// Row 2 - Position 15 free for future features (latch too complex for current implementation)
 
 	// Row 3 - Performance controls
 	if (y == 3) {
@@ -923,48 +893,55 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 }
 
 void KeyboardLayoutArpControl::renderKeyboard(RGB image[][kDisplayWidth + kSideBarWidth]) {
-	// Render scale-based keyboard in rows 4-7 (adapted from IN-KEY layout)
-
-	// Precreate list of all active notes per octave
-	bool scaleActiveNotes[kOctaveSize] = {0};
+	// Render simple chromatic keyboard in rows 4-7
+	
+	// Precreate list of all active notes
+	bool activeNotes[128] = {false};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
-		scaleActiveNotes[((currentNotesState.notes[idx].note + kOctaveSize) - getRootNote()) % kOctaveSize] = true;
+		if (currentNotesState.notes[idx].note < 128) {
+			activeNotes[currentNotesState.notes[idx].note] = true;
+		}
 	}
-
-	uint8_t scaleNoteCount = getScaleNoteCount();
 
 	// Render keyboard in rows 4-7 only
 	for (int32_t y = 4; y < 8 && y < kDisplayHeight; ++y) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			auto padIndex = padIndexFromCoords(x, y - 4); // Adjust for keyboard starting at row 4
 			auto note = noteFromPadIndex(padIndex);
-
+			
 			// Limit to valid MIDI range
 			if (note >= 128) {
 				image[y][x] = colours::black;
 				continue;
 			}
-
-			int32_t noteWithinScale = (uint16_t)((note + kOctaveSize) - getRootNote()) % kOctaveSize;
-			RGB colourSource = getNoteColour(note); // Use the note color system
-
-			// Scale-based coloring (adapted from IN-KEY layout)
-			if (noteWithinScale == 0 && scaleActiveNotes[noteWithinScale]) {
-				// Active root note: Full brightness and colour
-				image[y][x] = colourSource.adjust(255, 1);
+			
+			// Simple chromatic coloring
+			bool isActive = activeNotes[note];
+			bool isRoot = (note % 12) == 0; // C notes
+			bool isBlackKey = (note % 12 == 1 || note % 12 == 3 || note % 12 == 6 || note % 12 == 8 || note % 12 == 10);
+			
+			RGB color;
+			if (isActive) {
+				// Active notes are bright
+				if (isRoot) {
+					color = colours::red; // C notes are red when active
+				} else if (isBlackKey) {
+					color = colours::blue; // Black keys are blue when active
+				} else {
+					color = colours::white; // White keys are white when active
+				}
+			} else {
+				// Inactive notes are dim
+				if (isRoot) {
+					color = RGB(40, 0, 0); // Dim red for C notes
+				} else if (isBlackKey) {
+					color = RGB(0, 0, 20); // Dim blue for black keys
+				} else {
+					color = RGB(10, 10, 10); // Dim white for white keys
+				}
 			}
-			else if (noteWithinScale == 0) {
-				// Inactive root note: Full colour but less brightness
-				image[y][x] = colourSource.adjust(255, 2);
-			}
-			else if (scaleActiveNotes[noteWithinScale]) {
-				// Active scale note: Toned down colour but high brightness
-				image[y][x] = colourSource.adjust(127, 3);
-			}
-			else {
-				// Inactive scale note: Dimly white
-				image[y][x] = RGB::monochrome(1);
-			}
+			
+			image[y][x] = color;
 		}
 	}
 }

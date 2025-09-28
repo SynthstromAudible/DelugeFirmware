@@ -71,11 +71,7 @@ public:
 
 		// Simple keyboard state for 4-row keyboard
 		int32_t keyboardScrollOffset = 0; // Default position (C2 base + 0 offset = C2 start)
-		int32_t keyboardRowInterval = 4; // 4 scale notes per row (good for most scales)
-		
-		// Latch functionality - store latched notes separately
-		bool latchActive = false;
-		NotesState latchedNotes; // Notes that are latched (sustained)
+		int32_t keyboardRowInterval = 4; // 4 semitones per row (chromatic keyboard)
 	} displayState;
 
 private:
@@ -115,13 +111,8 @@ private:
 		return x + y * displayState.keyboardRowInterval;
 	}
 	inline uint16_t noteFromPadIndex(uint16_t padIndex) {
-		// Scale-based mapping like IN-KEY layout
-		NoteSet& scaleNotes = getScaleNotes();
-		uint8_t scaleNoteCount = getScaleNoteCount();
-
-		uint8_t octave = padIndex / scaleNoteCount;
-		uint8_t octaveNoteIndex = padIndex % scaleNoteCount;
-		return octave * kOctaveSize + getRootNote() + scaleNotes[octaveNoteIndex] + displayState.keyboardScrollOffset;
+		// Simple chromatic mapping starting at C2 by default, with transpose offset
+		return padIndex + displayState.keyboardScrollOffset + 36; // Base at C2 (MIDI note 36)
 	}
 
 	/// Check if arpeggiator settings have changed
