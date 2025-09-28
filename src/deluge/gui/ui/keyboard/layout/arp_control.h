@@ -72,6 +72,10 @@ public:
 		// Simple keyboard state for 4-row keyboard
 		int32_t keyboardScrollOffset = 0; // Default position (C2 base + 0 offset = C2 start)
 		int32_t keyboardRowInterval = 4; // 4 scale notes per row (good for most scales)
+		
+		// Latch functionality - store latched notes separately
+		bool latchActive = false;
+		NotesState latchedNotes; // Notes that are latched (sustained)
 	} displayState;
 
 private:

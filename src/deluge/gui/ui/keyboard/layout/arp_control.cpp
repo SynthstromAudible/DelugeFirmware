@@ -75,7 +75,7 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 
 			// Check if pressing yellow rhythm pads (top row, positions 12-14)
 			if (y == 0 && x >= 12 && x < 15 && x < kDisplayWidth) {
-				// Toggle rhythm on/off (same as Y encoder press)
+				// Toggle rhythm on/off
 				if (displayState.appliedRhythm == 0) {
 					// Turn ON: apply the currently selected pattern
 					displayState.appliedRhythm = displayState.currentRhythm;
@@ -231,13 +231,25 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 		if (presses[i].active) {
 			int32_t x = presses[i].x;
 			int32_t y = presses[i].y;
-
+			
 			// Only handle keyboard area in this phase
 			if (y >= 4 && y < 8) {
 				uint16_t note = noteFromCoords(x, y);
 				if (note < 128) {
 					enableNote(note, velocity);
 				}
+			}
+		}
+	}
+	
+	// LATCH SYSTEM: Add latched notes to current notes state
+	if (displayState.latchActive) {
+		// Merge latched notes with currently pressed notes
+		for (uint8_t idx = 0; idx < displayState.latchedNotes.count; ++idx) {
+			auto& latchedNote = displayState.latchedNotes.notes[idx];
+			// Only add if not already present from current presses
+			if (!currentNotesState.noteEnabled(latchedNote.note)) {
+				enableNote(latchedNote.note, latchedNote.velocity);
 			}
 		}
 	}
@@ -454,7 +466,7 @@ void KeyboardLayoutArpControl::updatePlaybackProgressBar() {
 		}
 	}
 
-	// Create horizontal progress bar - only on bottom row (row 7)
+	// Create horizontal progress bar - on top row (row 7)
 	uint8_t tickSquares[kDisplayHeight];
 	for (int32_t row = 0; row < kDisplayHeight; row++) {
 		if (row == 7) { // Bottom row gets the progress indicator
@@ -645,7 +657,7 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 		}
 	}
 
-	// Velocity spread visualization (positions 8-13) - all pads visible like octaves
+	// Velocity spread visualization (positions 8-13) - all pads visible
 	int32_t currentSpread = (settings->spreadVelocity * 6) / kMaxMenuValue; // Convert to 1-6 range
 	if (currentSpread < 1) currentSpread = 1;
 	if (currentSpread > 6) currentSpread = 6;
@@ -663,7 +675,11 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 		}
 	}
 
-	// Row 2: Position 15 is now free for future features
+	// Row 2: Show latch button (position 15)
+	if (kDisplayWidth > 15) {
+		RGB latchColor = displayState.latchActive ? colours::green : RGB(20, 20, 20); // Bright green when active, dim when off
+		image[2][15] = latchColor;
+	}
 
 	// Transpose controls (positions 14-15)
 	if (kDisplayWidth > 14) {
@@ -839,6 +855,23 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 		settings->sequenceLength = (newLength * kMaxMenuValue) / 16;
 		settings->flagForceArpRestart = true;
 		display->displayPopup(("Seq Length: " + std::to_string(newLength)).c_str());
+		controlsChanged = true;
+		return true;
+	}
+	
+	// Row 2 - Latch button (position 15)
+	if (y == 2 && x == 15) {
+		if (displayState.latchActive) {
+			// Turn OFF latch - clear all latched notes
+			displayState.latchActive = false;
+			displayState.latchedNotes = NotesState{}; // Clear latched notes
+			display->displayPopup("Latch OFF");
+		} else {
+			// Turn ON latch - capture currently pressed notes
+			displayState.latchActive = true;
+			displayState.latchedNotes = currentNotesState; // Store current notes
+			display->displayPopup("Latch ON");
+		}
 		controlsChanged = true;
 		return true;
 	}
