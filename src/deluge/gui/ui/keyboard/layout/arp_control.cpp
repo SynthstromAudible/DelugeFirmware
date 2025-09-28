@@ -232,8 +232,8 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 			int32_t x = presses[i].x;
 			int32_t y = presses[i].y;
 
-			// Only handle keyboard area in this phase
-			if (y >= 4 && y < 8) {
+			// Only handle keyboard area in this phase, exclude column pads
+			if (y >= 4 && y < 8 && x < kDisplayWidth) {
 				uint16_t note = noteFromCoords(x, y);
 				if (note < 128) {
 					enableNote(note, velocity);
@@ -244,7 +244,8 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 
 	// Note: Focus on excellent arp control features - latch removed due to complexity
 
-	// Note: Column controls removed to prevent interference with arp controls
+	// Handle column controls (beat repeat, etc.) - should work independently
+	ColumnControlsKeyboard::evaluatePads(presses);
 
 	// SINGLE UI REFRESH: Only refresh once at the end if controls changed
 	if (controlsChanged) {
@@ -286,23 +287,9 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 				settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 			}
 
-			UI* originalUI = getCurrentUI();
-
-			// Set up sound editor context like the official menu
-			if (soundEditor.setup(clip, nullptr, 0)) {
-				// Now we're in sound editor context - use the official approach
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-				ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
-
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.appliedRhythm);
-					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
-				}
-
-				// Exit sound editor context back to original UI
-				originalUI->focusRegained();
-			}
+			// SIMPLIFIED: Direct assignment to match yellow pad approach and avoid conflicts
+			settings->rhythm = (displayState.appliedRhythm > 0) ? displayState.appliedRhythm : 0;
+			settings->flagForceArpRestart = true;
 		}
 	}
 
