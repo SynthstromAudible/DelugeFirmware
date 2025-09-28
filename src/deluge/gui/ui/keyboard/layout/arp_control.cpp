@@ -639,10 +639,10 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 	// Gate length visualization (positions 0-7) - handle 0 = default case
 	int32_t currentGate = (settings->gate * 8) / kMaxMenuValue; // Convert to 0-8 range
 	if (currentGate > 8) currentGate = 8;
-	
+
 	RGB brightGateColor = colours::orange; // Bright orange for active gate
 	RGB dimGateColor = RGB(40, 20, 0); // Dim orange for available positions
-	
+
 	// Show all 8 gate length positions
 	for (int32_t x = 0; x < 8; x++) {
 		int32_t gateNum = x + 1; // Gate 1-8
@@ -659,10 +659,10 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 	// Velocity spread visualization (positions 8-13) - handle 0 = no spread case
 	int32_t currentSpread = (settings->spreadVelocity * 6) / kMaxMenuValue; // Convert to 0-6 range
 	if (currentSpread > 6) currentSpread = 6;
-	
+
 	RGB brightSpreadColor = colours::pink; // Bright pink for active spread
 	RGB dimSpreadColor = RGB(40, 0, 20); // Dim pink for available positions
-	
+
 	// Show all 6 velocity spread positions
 	for (int32_t x = 8; x < 14; x++) {
 		int32_t spreadNum = x - 8 + 1; // Spread 1-6
@@ -839,7 +839,8 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 			if (settings->syncLevel == 0) {
 				settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 			}
-			settings->rhythm = (displayState.appliedRhythm > 0) ? displayState.appliedRhythm : 1;
+			// Use pattern 0 ("None") for rhythm OFF, selected pattern for rhythm ON
+			settings->rhythm = (displayState.appliedRhythm > 0) ? displayState.appliedRhythm : 0;
 			settings->flagForceArpRestart = true;
 			controlsChanged = true;
 			return true;
