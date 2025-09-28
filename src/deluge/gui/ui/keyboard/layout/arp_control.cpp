@@ -242,7 +242,7 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 		}
 	}
 
-	// Note: Latch functionality removed - requires complex note-off override system
+	// Note: Focus on excellent arp control features - latch removed due to complexity
 
 	// Note: Column controls removed to prevent interference with arp controls
 
@@ -608,10 +608,15 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 		image[0][x] = rhythmColor;
 	}
 
-	// Row 1: Show sequence length - all pads visible like octaves
-	int32_t currentSeqLength = (settings->sequenceLength * 16) / kMaxMenuValue; // Convert back to 1-16 range
-	if (currentSeqLength < 1) currentSeqLength = 1;
-	if (currentSeqLength > 16) currentSeqLength = 16;
+	// Row 1: Show sequence length - handle 0 = unlimited case
+	int32_t currentSeqLength;
+	if (settings->sequenceLength == 0) {
+		currentSeqLength = 0; // 0 means unlimited (OFF)
+	} else {
+		currentSeqLength = (settings->sequenceLength * 16) / kMaxMenuValue; // Convert back to 1-16 range
+		if (currentSeqLength < 1) currentSeqLength = 1;
+		if (currentSeqLength > 16) currentSeqLength = 16;
+	}
 
 	RGB brightSeqColor = colours::cyan; // Bright cyan for active length
 	RGB dimSeqColor = RGB(0, 40, 40); // Dim cyan for available positions
@@ -619,7 +624,10 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 	// Show all 16 sequence length positions
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		int32_t lengthNum = x + 1; // Length 1-16
-		if (lengthNum <= currentSeqLength) {
+		if (currentSeqLength == 0) {
+			// Unlimited sequence length - show all pads dim to indicate "unlimited"
+			image[1][x] = dimSeqColor;
+		} else if (lengthNum <= currentSeqLength) {
 			image[1][x] = brightSeqColor; // Active length positions are bright
 		} else {
 			image[1][x] = dimSeqColor; // Inactive positions are dim
@@ -844,7 +852,7 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 		return true;
 	}
 
-	// Row 2 - Position 15 free for future features (latch too complex for current implementation)
+	// Row 2 - Position 15 free for future features
 
 	// Row 3 - Performance controls
 	if (y == 3) {
@@ -894,7 +902,7 @@ bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, Arpeggiato
 
 void KeyboardLayoutArpControl::renderKeyboard(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// Render simple chromatic keyboard in rows 4-7
-	
+
 	// Precreate list of all active notes
 	bool activeNotes[128] = {false};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
@@ -908,18 +916,18 @@ void KeyboardLayoutArpControl::renderKeyboard(RGB image[][kDisplayWidth + kSideB
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			auto padIndex = padIndexFromCoords(x, y - 4); // Adjust for keyboard starting at row 4
 			auto note = noteFromPadIndex(padIndex);
-			
+
 			// Limit to valid MIDI range
 			if (note >= 128) {
 				image[y][x] = colours::black;
 				continue;
 			}
-			
+
 			// Simple chromatic coloring
 			bool isActive = activeNotes[note];
 			bool isRoot = (note % 12) == 0; // C notes
 			bool isBlackKey = (note % 12 == 1 || note % 12 == 3 || note % 12 == 6 || note % 12 == 8 || note % 12 == 10);
-			
+
 			RGB color;
 			if (isActive) {
 				// Active notes are bright
@@ -940,7 +948,7 @@ void KeyboardLayoutArpControl::renderKeyboard(RGB image[][kDisplayWidth + kSideB
 					color = RGB(10, 10, 10); // Dim white for white keys
 				}
 			}
-			
+
 			image[y][x] = color;
 		}
 	}
