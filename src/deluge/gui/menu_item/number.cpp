@@ -152,10 +152,10 @@ void Number::drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t hei
 void Number::drawBar(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight) {
 	oled_canvas::Canvas& image = OLED::main;
 
-	constexpr uint8_t bar_width = 19;
+	constexpr uint8_t bar_width = 21;
 	constexpr uint8_t bar_height = 7;
 	constexpr uint8_t outline_padding = 2;
-	const uint8_t bar_start_x = startX + 4 + outline_padding;
+	const uint8_t bar_start_x = startX + 3 + outline_padding;
 	const uint8_t bar_start_y = startY + 2 + outline_padding;
 	const uint8_t bar_end_x = bar_start_x + bar_width - 1;
 	const uint8_t bar_end_y = bar_start_y + bar_height - 1;
@@ -170,20 +170,18 @@ void Number::drawBar(int32_t startX, int32_t startY, int32_t slotWidth, int32_t 
 	image.invertArea(bar_start_x, fill_width, bar_start_y, bar_end_y);
 
 	// Draw indicators
-	const uint8_t fill_x = bar_start_x + fill_width - 1;
-	for (uint8_t x = bar_start_x + 4; x < bar_end_x; x += 5) {
-		if (x == fill_x) {
-			// Highlight additionally if the indicator point is matched with bar position
-			// Idea is similar to gold knob's midpoint blinking
-			image.invertPixel(x, bar_start_y - 1);
-			image.invertPixel(x, bar_end_y + 1);
-			for (uint8_t y = bar_start_y; y <= bar_end_y; y += 2) {
-				image.invertPixel(x, y);
-			}
-		}
-		else {
-			image.invertPixel(x, bar_start_y);
-			image.invertPixel(x, bar_end_y);
+	for (uint8_t x = bar_start_x + 1; x < bar_end_x; x += 3) {
+		image.drawPixel(x, bar_start_y);
+		image.drawPixel(x, bar_end_y);
+	}
+
+	// Middle accentuation
+	const uint8_t middle_x = bar_start_x + bar_width / 2;
+	if (value == 0.5f) {
+		image.invertPixel(middle_x, bar_start_y - 1);
+		image.invertPixel(middle_x, bar_end_y + 1);
+		for (uint8_t y = bar_start_y; y <= bar_end_y; y += 2) {
+			image.invertPixel(middle_x, y);
 		}
 	}
 }

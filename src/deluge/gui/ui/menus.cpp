@@ -66,6 +66,7 @@
 #include "gui/menu_item/envelope/envelope_menu.h"
 #include "gui/menu_item/envelope/segment.h"
 #include "gui/menu_item/eq/eq_frequency.h"
+#include "gui/menu_item/eq/eq_menu.h"
 #include "gui/menu_item/eq/eq_unpatched_param.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/filter/filter_container.h"
@@ -474,7 +475,7 @@ eq::EqFrequency bassFreqMenu{STRING_FOR_BASS_FREQUENCY, STRING_FOR_BASS_FREQUENC
 eq::EqFrequency trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY, STRING_FOR_TREBLE_FREQUENCY_SHORT,
                                params::UNPATCHED_TREBLE_FREQ};
 
-HorizontalMenu eqMenu{
+eq::EqMenu eqMenu{
     STRING_FOR_EQ,
     {
         &bassMenu,
@@ -709,7 +710,7 @@ HorizontalMenuGroup globalFiltersMenuGroup{{&globalLPFMenu, &globalHPFMenu, &rou
 
 // EQ Menu
 
-HorizontalMenu globalEQMenu{
+eq::EqMenu globalEQMenu{
     STRING_FOR_EQ,
     {
         &bassMenu,

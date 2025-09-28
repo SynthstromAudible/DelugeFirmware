@@ -39,97 +39,94 @@ public:
 		const int32_t release = static_cast<Segment*>(items[3])->getValue();
 
 		// Constants
-		constexpr int32_t totalWidth = OLED_MAIN_WIDTH_PIXELS;
-		constexpr int32_t totalHeight = OLED_MAIN_VISIBLE_HEIGHT - kTextTitleSizeY - 6;
-		constexpr int32_t padding = 4;
-		constexpr int32_t drawX = padding;
-		constexpr int32_t drawY = OLED_MAIN_TOPMOST_PIXEL + kTextTitleSizeY + padding + 3;
-		constexpr int32_t drawWidth = totalWidth - 2 * padding;
-		constexpr int32_t drawHeight = totalHeight - 2 * padding;
-		constexpr float maxSegmentWidth = drawWidth / 4;
+		constexpr int32_t padding_x = 4;
+		constexpr int32_t start_x = padding_x;
+		constexpr uint8_t start_y = OLED_MAIN_TOPMOST_PIXEL + kTextTitleSizeY + 5;
+		constexpr uint8_t end_y = OLED_MAIN_HEIGHT_PIXELS - 6;
+		constexpr int32_t draw_width = OLED_MAIN_WIDTH_PIXELS - 2 * padding_x;
+		constexpr uint8_t draw_height = end_y - start_y;
+		constexpr float max_segment_width = draw_width / 4;
 
 		// Calculate widths
-		const float attackWidth = (attack / 50.0f) * maxSegmentWidth;
-		const float decayNormalized = sigmoidLikeCurve(decay, 50.0f, 10.0f); // Maps 0-50 to 0-1 range with steep start
-		const float decayWidth = decayNormalized * maxSegmentWidth;
+		const float attack_width = attack / 50.0f * max_segment_width;
+		const float decay_normalized = sigmoidLikeCurve(decay, 50.0f, 10.0f); // Maps 0-50 to 0-1 range with steep start
+		const float decay_width = decay_normalized * max_segment_width;
 
 		// X positions
-		const float attackX = round(drawX + attackWidth);
-		const float decayX = round(attackX + decayWidth);
-		constexpr float sustainX = drawX + maxSegmentWidth * 3; // Fixed sustainX position
-		const float releaseX = round(
-		    sustainX + (release / 50.0f) * (drawX + drawWidth - sustainX)); // Make releaseX dynamic, right of sustain
+		const float attack_x = round(start_x + attack_width);
+		const float decay_x = round(attack_x + decay_width);
+		constexpr float sustain_x = start_x + max_segment_width * 3; // Fixed sustainX position
+		// Make release x dynamic, right of sustain
+		const float release_x = round(sustain_x + release / 50.0f * (start_x + draw_width - sustain_x));
 
 		// Y positions
-		constexpr int32_t baseY = drawY + drawHeight;
-		constexpr int32_t peakY = drawY;
-		const int32_t sustainY = baseY - round((sustain / 50.0f) * drawHeight);
+		constexpr int32_t base_y = start_y + draw_height;
+		const int32_t sustain_y = base_y - round(sustain / 50.0f * draw_height);
 
 		oled_canvas::Canvas& image = OLED::main;
 
 		// Draw stage lines
-		image.drawLine(drawX, baseY, attackX, peakY);
-		image.drawLine(attackX, peakY, decayX, sustainY);
-		image.drawLine(decayX, sustainY, sustainX, sustainY);
-		image.drawLine(sustainX, sustainY, releaseX, baseY);
-		image.drawLine(releaseX, baseY, drawX + drawWidth, baseY);
+		image.drawLine(start_x, base_y, attack_x, start_y);
+		image.drawLine(attack_x, start_y, decay_x, sustain_y);
+		image.drawLine(decay_x, sustain_y, sustain_x, sustain_y);
+		image.drawLine(sustain_x, sustain_y, release_x, base_y);
+		image.drawLine(release_x, base_y, start_x + draw_width, base_y);
 
 		// Draw stage transition point dotted lines
-		for (int32_t y = OLED_MAIN_VISIBLE_HEIGHT; y >= drawY; y -= 4) {
+		for (int32_t y = OLED_MAIN_VISIBLE_HEIGHT; y >= start_y - 2; y -= 4) {
 			// reduce a messy look when lines are close to each other by omitting the line
-			if (attackX > drawX + 3) {
-				image.drawPixel(attackX, y);
+			if (attack_x > start_x + 3) {
+				image.drawPixel(attack_x, y);
 			}
-			if (decayX - attackX > 4) {
-				image.drawPixel(decayX, y);
+			if (decay_x - attack_x > 4) {
+				image.drawPixel(decay_x, y);
 			}
-			image.drawPixel(sustainX, y);
+			if (y != sustain_y + 1 && y != sustain_y - 1) {
+				image.drawPixel(sustain_x, y);
+			}
 		}
 
-		// Draw transition squares
-		selectedX = -1, selectedY = -1;
-		const int32_t selectedPos = std::distance(items.begin(), std::ranges::find(items, currentItem));
+		// Draw transition indicators
+		selected_x_ = -1, selected_y_ = -1;
+		const int32_t selected_pos = std::distance(items.begin(), std::ranges::find(items, currentItem));
 
-		// Attack → Decay
-		drawTransitionSquare(attackX, peakY, selectedPos == 0);
-		// Decay → Sustain
-		drawTransitionSquare(decayX, sustainY, selectedPos == 1);
-		// Sustain
-		drawTransitionSquare(decayX + (sustainX - decayX) / 2, sustainY, selectedPos == 2);
-		// Release → End
-		drawTransitionSquare(releaseX, baseY, selectedPos == 3);
+		drawTransitionIndicator(attack_x, start_y, selected_pos == 0);
+		drawTransitionIndicator(decay_x, sustain_y, selected_pos == 1);
+		drawTransitionIndicator(decay_x + (sustain_x - decay_x) / 2, sustain_y, selected_pos == 2);
+		drawTransitionIndicator(release_x, base_y, selected_pos == 3);
 	}
 
 private:
-	int32_t selectedX, selectedY;
+	int32_t selected_x_, selected_y_;
 
-	void drawTransitionSquare(const float centerX, const float centerY, const bool isSelected) {
+	void drawTransitionIndicator(const float center_x, const float center_y, const bool is_selected) {
 		oled_canvas::Canvas& image = OLED::main;
 
-		const int32_t ix = static_cast<int32_t>(centerX);
-		const int32_t iy = static_cast<int32_t>(centerY);
+		const int32_t ix = static_cast<int32_t>(center_x);
+		const int32_t iy = static_cast<int32_t>(center_y);
 
-		if (!isSelected && ix == selectedX && iy == selectedY) {
+		if (!is_selected && ix == selected_x_ && iy == selected_y_) {
 			// Overlap occurred, skip drawing
 			return;
 		}
 
 		// Clear region inside
-		constexpr int32_t squareSize = 2, innerSquareSize = squareSize - 1;
+		constexpr int32_t square_size = 2;
+		constexpr int32_t innerSquareSize = square_size - 1;
 		for (int32_t x = ix - innerSquareSize; x <= ix + innerSquareSize; x++) {
 			for (int32_t y = iy - innerSquareSize; y <= iy + innerSquareSize; y++) {
 				image.clearPixel(x, y);
 			}
 		}
 
-		if (isSelected) {
+		if (is_selected) {
 			// Invert region inside to highlight selection
-			selectedX = ix, selectedY = iy;
-			image.invertArea(ix - innerSquareSize, (squareSize * 2) - 1, iy - innerSquareSize, iy + innerSquareSize);
+			selected_x_ = ix, selected_y_ = iy;
+			image.invertArea(ix - innerSquareSize, square_size * 2 - 1, iy - innerSquareSize, iy + innerSquareSize);
 		}
 
 		// Draw a transition square
-		image.drawRectangle(ix - squareSize, iy - squareSize, ix + squareSize, iy + squareSize);
+		image.drawRectangle(ix - square_size, iy - square_size, ix + square_size, iy + square_size);
 	}
 };
 
