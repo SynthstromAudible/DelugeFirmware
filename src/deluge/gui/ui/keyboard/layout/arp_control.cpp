@@ -636,36 +636,40 @@ void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth 
 
 	// Row 3: Show gate length (0-7), velocity spread (8-13), and transpose controls (14-15)
 
-	// Gate length visualization (positions 0-7) - all pads visible like octaves
-	int32_t currentGate = (settings->gate * 8) / kMaxMenuValue; // Convert to 1-8 range
-	if (currentGate < 1) currentGate = 1;
+	// Gate length visualization (positions 0-7) - handle 0 = default case
+	int32_t currentGate = (settings->gate * 8) / kMaxMenuValue; // Convert to 0-8 range
 	if (currentGate > 8) currentGate = 8;
-
+	
 	RGB brightGateColor = colours::orange; // Bright orange for active gate
 	RGB dimGateColor = RGB(40, 20, 0); // Dim orange for available positions
-
+	
 	// Show all 8 gate length positions
 	for (int32_t x = 0; x < 8; x++) {
 		int32_t gateNum = x + 1; // Gate 1-8
-		if (gateNum <= currentGate) {
+		if (currentGate == 0) {
+			// Gate = 0 means default - show all pads dim to indicate "default"
+			image[3][x] = dimGateColor;
+		} else if (gateNum <= currentGate) {
 			image[3][x] = brightGateColor; // Active gate positions are bright
 		} else {
 			image[3][x] = dimGateColor; // Inactive positions are dim
 		}
 	}
 
-	// Velocity spread visualization (positions 8-13) - all pads visible
-	int32_t currentSpread = (settings->spreadVelocity * 6) / kMaxMenuValue; // Convert to 1-6 range
-	if (currentSpread < 1) currentSpread = 1;
+	// Velocity spread visualization (positions 8-13) - handle 0 = no spread case
+	int32_t currentSpread = (settings->spreadVelocity * 6) / kMaxMenuValue; // Convert to 0-6 range
 	if (currentSpread > 6) currentSpread = 6;
-
+	
 	RGB brightSpreadColor = colours::pink; // Bright pink for active spread
 	RGB dimSpreadColor = RGB(40, 0, 20); // Dim pink for available positions
-
+	
 	// Show all 6 velocity spread positions
 	for (int32_t x = 8; x < 14; x++) {
 		int32_t spreadNum = x - 8 + 1; // Spread 1-6
-		if (spreadNum <= currentSpread) {
+		if (currentSpread == 0) {
+			// Spread = 0 means no spread - show all pads dim to indicate "no spread"
+			image[3][x] = dimSpreadColor;
+		} else if (spreadNum <= currentSpread) {
 			image[3][x] = brightSpreadColor; // Active spread positions are bright
 		} else {
 			image[3][x] = dimSpreadColor; // Inactive positions are dim
