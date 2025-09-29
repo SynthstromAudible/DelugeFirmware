@@ -1111,8 +1111,8 @@ startRenderingACycle:
 				uint32_t resetterPhase = resetterPhaseThisCycle;
 				int32_t numSamplesThisOscSyncSession = numSamplesThisCycle;
 				renderOscSync(
-				    [&](std::span<q31_t> buffer, uint32_t phase) {
-					    doRenderingLoop(bufferStartThisSync, &*buffer.end(), firstCycleNumber, bandHere, phase,
+				    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
+					    doRenderingLoop(bufferStartThisSync, bufferEndThisSyncRender, firstCycleNumber, bandHere, phase,
 					                    phaseIncrement, crossCycleStrength2, crossCycleStrength2Increment, kernel);
 				    },
 				    [&](uint32_t samplesIncludingNextCrossoverSample) {
@@ -1147,9 +1147,9 @@ doneRenderingACycle:
 			uint32_t resetterPhase = resetterPhaseThisCycle;
 			int32_t numSamplesThisOscSyncSession = numSamples;
 			renderOscSync(
-			    [&](std::span<q31_t> buffer, uint32_t phase) {
-				    doRenderingLoopSingleCycle(bufferStartThisSync, &*buffer.end(), bandHere, phase, phaseIncrement,
-				                               kernel);
+			    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
+				    doRenderingLoopSingleCycle(bufferStartThisSync, bufferEndThisSyncRender, bandHere, phase,
+				                               phaseIncrement, kernel);
 			    },
 			    [](uint32_t) {}, phase, phaseIncrement, resetterPhase, resetterPhaseIncrement,
 			    resetterDivideByPhaseIncrement, retriggerPhase, numSamplesThisOscSyncSession, bufferStartThisSync);
