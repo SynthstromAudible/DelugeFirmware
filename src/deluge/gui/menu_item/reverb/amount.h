@@ -23,6 +23,6 @@ class Amount final : public patched_param::Integer {
 public:
 	using Integer::Integer;
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return VERTICAL_BAR; }
+	[[nodiscard]] NumberStyle getNumberStyle() const override { return BAR; }
 };
 } // namespace deluge::gui::menu_item::reverb

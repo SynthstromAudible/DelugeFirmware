@@ -138,6 +138,7 @@
 #include "gui/menu_item/osc/source/volume.h"
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
+#include "gui/menu_item/osc/tracking.h"
 #include "gui/menu_item/osc/type.h"
 #include "gui/menu_item/patch_cable_strength/fixed.h"
 #include "gui/menu_item/patch_cables.h"
@@ -600,11 +601,10 @@ HorizontalMenu routingHorizontal{STRING_FOR_FILTER_ROUTE, {&filterRoutingMenu}};
 HorizontalMenuGroup filtersMenuGroup{{&lpfMenu, &hpfMenu, &routingHorizontal}};
 
 // FX ----------------------------------------------------------------------------------------
-
 fx::Clipping clippingMenu{STRING_FOR_SATURATION};
-UnpatchedParam srrMenu{STRING_FOR_DECIMATION, params::UNPATCHED_SAMPLE_RATE_REDUCTION};
-UnpatchedParam bitcrushMenu{STRING_FOR_BITCRUSH, params::UNPATCHED_BITCRUSHING};
-patched_param::Integer foldMenu{STRING_FOR_WAVEFOLD, STRING_FOR_WAVEFOLD, params::LOCAL_FOLD};
+UnpatchedParam srrMenu{STRING_FOR_DECIMATION, params::UNPATCHED_SAMPLE_RATE_REDUCTION, NumberStyle::BAR};
+UnpatchedParam bitcrushMenu{STRING_FOR_BITCRUSH, params::UNPATCHED_BITCRUSHING, NumberStyle::BAR};
+patched_param::Integer foldMenu{STRING_FOR_WAVEFOLD, STRING_FOR_WAVEFOLD, params::LOCAL_FOLD, NumberStyle::BAR};
 
 HorizontalMenu soundDistortionMenu{
     STRING_FOR_DISTORTION,
@@ -1358,7 +1358,8 @@ HorizontalMenu soundMasterMenuWithoutVibrato{
     {&synthModeMenu, &volumeMenu, &panMenu, &masterTransposeMenu},
 };
 
-HorizontalMenuGroup sourceMenuGroup{{&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu}};
+HorizontalMenuGroup sourceMenuGroup{
+    {&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu, &oscTrackingMenu}};
 
 Submenu soundFXMenu{
     STRING_FOR_FX,
@@ -1394,6 +1395,7 @@ Submenu soundEditorRootMenu{
         &modulator0Menu,
         &modulator1Menu,
         &oscMixerMenu,
+        &oscTrackingMenu,
         &env1Menu,
         &env2Menu,
         &env3Menu,

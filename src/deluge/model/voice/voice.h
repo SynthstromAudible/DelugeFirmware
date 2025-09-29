@@ -152,4 +152,7 @@ private:
 	bool areAllUnisonPartsInactive(ModelStackWithSoundFlags& modelStack) const;
 	void setupPorta(const Sound& sound);
 	int32_t combineExpressionValues(const Sound& sound, int32_t expressionDimension) const;
+	void makeUnisonPartsInactive(const Sound& sound, int32_t source_index);
+	void calculatePhaseIncrementForSource(Sound& sound, int32_t source_index);
+	void calculatePhaseIncrementForFmMod(Sound& sound, int32_t mod_index);
 };

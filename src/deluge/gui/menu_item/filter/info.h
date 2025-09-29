@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "gui/menu_item/number.h"
 #include "gui/ui/sound_editor.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -77,13 +78,20 @@ public:
 	[[nodiscard]] std::string_view getMorphNameOr(std::string_view alt, bool shortName = false) const {
 		if (type == FilterParamType::MORPH) {
 			using enum l10n::String;
-			auto filt = deluge::dsp::filter::SpecificFilter(getMode());
+			auto filt = dsp::filter::SpecificFilter(getMode());
 			return l10n::getView(filt.getMorphName(shortName));
 		}
-		else {
-			return alt;
-		}
+		return alt;
 	}
+
+	[[nodiscard]] NumberStyle getNumberStyle() const {
+		auto filter = dsp::filter::SpecificFilter(getMode());
+		if (filter.getFamily() == dsp::filter::FilterFamily::SVF) {
+			return SLIDER;
+		}
+		return BAR;
+	}
+
 	bool isOn() const { return getMode() != ::FilterMode::OFF; }
 
 private:

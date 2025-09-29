@@ -17,12 +17,31 @@
 #pragma once
 
 #include "gui/menu_item/integer.h"
+#include "hid/display/oled.h"
 
 namespace deluge::gui::menu_item::delay {
+
+using namespace hid::display;
+
 class Amount final : public patched_param::Integer {
 public:
 	using Integer::Integer;
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return VERTICAL_BAR; }
+	float getNormalizedValue() override {
+		const int32_t clamped = std::clamp<int32_t>(getValue(), 0, max_value_in_horizontal_menu);
+		return clamped / static_cast<float>(max_value_in_horizontal_menu);
+	}
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		if (getValue() > max_value_in_horizontal_menu) {
+			OLED::main.drawIconCentered(OLED::delayBarInfiniteFeedbackIcon, startX, width, startY);
+		}
+		else {
+			drawBar(startX, startY, width, height);
+		}
+	}
+
+private:
+	constexpr static int32_t max_value_in_horizontal_menu = 24;
 };
 } // namespace deluge::gui::menu_item::delay

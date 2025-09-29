@@ -16,6 +16,7 @@
 #include "gui/menu_item/note_row/probability.h"
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
+#include "gui/menu_item/osc/tracking.h"
 #include "gui/menu_item/patch_cables.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/menu_item/randomizer/midi_cv/note_probability.h"
