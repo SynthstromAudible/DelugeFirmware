@@ -66,7 +66,7 @@ PLACE_SDRAM_DATA layout::KeyboardLayoutInKey keyboard_layout_in_key{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutPiano keyboard_layout_piano{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutChord keyboard_layout_chord{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutChordLibrary keyboard_layout_chord_library{};
-PLACE_SDRAM_DATA layout::KeyboardLayoutArpControl keyboard_layout_generative{};
+PLACE_SDRAM_DATA layout::KeyboardLayoutArpControl keyboard_layout_arp_control{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutNorns keyboard_layout_norns{};
 PLACE_SDRAM_DATA std::array<KeyboardLayout*, KeyboardLayoutType::KeyboardLayoutTypeMaxElement> layout_list = {nullptr};
 
@@ -77,7 +77,7 @@ KeyboardScreen::KeyboardScreen() {
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeChord] = &keyboard_layout_chord;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeChordLibrary] = &keyboard_layout_chord_library;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeDrums] = &keyboard_layout_velocity_drums;
-	layout_list[KeyboardLayoutType::KeyboardLayoutTypeGenerative] = &keyboard_layout_generative;
+	layout_list[KeyboardLayoutType::KeyboardLayoutTypeArpControl] = &keyboard_layout_arp_control;
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeNorns] = &keyboard_layout_norns;
 
 	memset(&pressedPads, 0, sizeof(pressedPads));
@@ -574,7 +574,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	else if (b == Y_ENC && on) {
 		// Pass Y encoder press to current layout if it supports it
 		KeyboardLayoutType currentLayoutType = getCurrentInstrumentClip()->keyboardState.currentLayout;
-		if (currentLayoutType == KeyboardLayoutType::KeyboardLayoutTypeGenerative) {
+		if (currentLayoutType == KeyboardLayoutType::KeyboardLayoutTypeArpControl) {
 			// Toggle logic: apply current pattern or turn OFF
 			layout::KeyboardLayoutArpControl* arpLayout = (layout::KeyboardLayoutArpControl*)layout_list[currentLayoutType];
 			arpLayout->handleRhythmToggle();
@@ -958,7 +958,7 @@ void KeyboardScreen::graphicsRoutine() {
 
 	// Update current layout animation if it's the generative sequencer or pulse sequencer
 	KeyboardLayoutType currentLayoutType = getCurrentInstrumentClip()->keyboardState.currentLayout;
-	if (currentLayoutType == KeyboardLayoutType::KeyboardLayoutTypeGenerative) {
+	if (currentLayoutType == KeyboardLayoutType::KeyboardLayoutTypeArpControl) {
 		((layout::KeyboardLayoutArpControl*)layout_list[currentLayoutType])->updateAnimation();
 	}
 }
