@@ -703,11 +703,11 @@ void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shif
 		// Get current sync value
 		deluge::gui::menu_item::SyncLevel syncLevel;
 		int32_t currentSyncValue = syncLevel.syncTypeAndLevelToMenuOption(settings->syncType, settings->syncLevel);
-		
+
 		// Change sync value
 		int32_t newSyncValue = currentSyncValue + offset;
 		newSyncValue = std::clamp(newSyncValue, static_cast<int32_t>(0), static_cast<int32_t>(NUM_SYNC_VALUES - 1));
-		
+
 		// Update sync type and level
 		settings->syncType = syncValueToSyncType(newSyncValue);
 		settings->syncLevel = syncValueToSyncLevel(newSyncValue);
