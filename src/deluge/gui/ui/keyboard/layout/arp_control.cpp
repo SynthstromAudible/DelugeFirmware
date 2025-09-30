@@ -30,12 +30,78 @@
 #include "modulation/arpeggiator.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "util/d_string.h"
-#include "gui/ui/sound_editor.h"
-#include "gui/menu_item/value_scaling.h"
-#include "modulation/params/param.h"
 #include "model/output.h"
 
 namespace deluge::gui::ui::keyboard::layout {
+
+// Constants
+static constexpr int32_t kMaxRhythmPattern = 50;
+static constexpr int32_t kMaxCVNote = 180;
+static constexpr int32_t kMaxMIDINote = 128;
+
+// Helper function to set parameters safely for different output types
+void KeyboardLayoutArpControl::setParameterSafely(int32_t paramId, int32_t value, bool useUnsignedScaling) {
+	ArpeggiatorSettings* settings = getArpSettings();
+	if (!settings) return;
+
+	OutputType outputType = getCurrentOutputType();
+
+	if (outputType == OutputType::SYNTH) {
+		// Use soundEditor.setup() for synth tracks (works properly)
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (clip) {
+			UI* originalUI = getCurrentUI();
+
+			// Set up sound editor context like the official menu
+			if (soundEditor.setup(clip, nullptr, 0)) {
+				// Now we're in sound editor context - use the official approach
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+				ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(paramId);
+
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
+					// Use appropriate scaling based on parameter type
+					int32_t finalValue = useUnsignedScaling ? 
+						computeFinalValueForUnsignedMenuItem(value) : 
+						computeFinalValueForStandardMenuItem(value);
+					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+				}
+
+				// Exit sound editor context back to original UI
+				originalUI->focusRegained();
+			}
+		}
+	}
+	else {
+		// Use direct parameter setting for CV/MIDI tracks (avoids crash)
+		// Use proper value scaling like the official menu system
+		int32_t scaledValue = useUnsignedScaling ? 
+			computeFinalValueForUnsignedMenuItem(value) : 
+			computeFinalValueForStandardMenuItem(value);
+		
+		// Set the appropriate parameter based on paramId
+		switch (paramId) {
+			case modulation::params::UNPATCHED_ARP_SEQUENCE_LENGTH:
+				settings->sequenceLength = scaledValue;
+				break;
+			case modulation::params::UNPATCHED_SPREAD_VELOCITY:
+				settings->spreadVelocity = scaledValue;
+				break;
+			case modulation::params::UNPATCHED_ARP_GATE:
+				settings->gate = scaledValue;
+				break;
+			case modulation::params::UNPATCHED_ARP_SPREAD_OCTAVE:
+				settings->spreadOctave = scaledValue;
+				break;
+			case modulation::params::UNPATCHED_ARP_SPREAD_GATE:
+				settings->spreadGate = scaledValue;
+				break;
+			case modulation::params::UNPATCHED_ARP_RHYTHM:
+				settings->rhythm = scaledValue;
+				break;
+		}
+	}
+}
 
 void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	// Clear current notes state
@@ -154,39 +220,8 @@ void KeyboardLayoutArpControl::handleSequenceLength(int32_t x, ArpeggiatorSettin
 	// Direct sequence length control - each pad has its own value
 	int32_t newLength = sequenceLengthValues[x];
 
-	// Check output type to determine which approach to use
-	OutputType outputType = getCurrentOutputType();
-
-	if (outputType == OutputType::SYNTH) {
-		// Use soundEditor.setup() for synth tracks (works properly)
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		if (clip) {
-			UI* originalUI = getCurrentUI();
-
-			// Set up sound editor context like the official menu
-			if (soundEditor.setup(clip, nullptr, 0)) {
-				// Now we're in sound editor context - use the official approach
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-				ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_SEQUENCE_LENGTH);
-
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					// Use signed scaling like the menu system
-					int32_t finalValue = computeFinalValueForStandardMenuItem(newLength);
-					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
-				}
-
-				// Exit sound editor context back to original UI
-				originalUI->focusRegained();
-			}
-		}
-	}
-	else {
-		// Use direct parameter setting for CV/MIDI tracks (avoids crash)
-		// Use proper value scaling like the official menu system
-		int32_t scaledValue = computeFinalValueForUnsignedMenuItem(newLength);
-		settings->sequenceLength = scaledValue;
-	}
+	// Use helper function to set parameter safely
+	setParameterSafely(modulation::params::UNPATCHED_ARP_SEQUENCE_LENGTH, newLength, true);
 
 	// Display "OFF" for value 0, otherwise show the value
 	if (newLength == 0) {
@@ -197,7 +232,6 @@ void KeyboardLayoutArpControl::handleSequenceLength(int32_t x, ArpeggiatorSettin
 
 	// Force UI update
 	keyboardScreen.requestMainPadsRendering();
-
 }
 
 void KeyboardLayoutArpControl::handleVelocitySpread(int32_t x, ArpeggiatorSettings* settings) {
@@ -207,40 +241,8 @@ void KeyboardLayoutArpControl::handleVelocitySpread(int32_t x, ArpeggiatorSettin
 	// Direct velocity spread control - each pad has its own value
 	int32_t newVelocity = velocitySpreadValues[x];
 
-	// Check output type to determine which approach to use
-	OutputType outputType = getCurrentOutputType();
-
-	if (outputType == OutputType::SYNTH) {
-		// Use soundEditor.setup() for synth tracks (works properly)
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		if (clip) {
-			UI* originalUI = getCurrentUI();
-
-			// Set up sound editor context like the official menu
-			if (soundEditor.setup(clip, nullptr, 0)) {
-				// Now we're in sound editor context - use the official approach
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-				ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_SPREAD_VELOCITY);
-
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					// Use signed scaling like the menu system
-					int32_t finalValue = computeFinalValueForStandardMenuItem(newVelocity);
-					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
-				}
-
-				// Exit sound editor context back to original UI
-				originalUI->focusRegained();
-			}
-		}
-	}
-	else {
-		// For MIDI/CV tracks, spreadVelocity is in the randomizer menu, not the main arp menu
-		// Use direct parameter setting for CV/MIDI tracks (avoids crash)
-		// Use proper value scaling like the official menu system (unsigned scaling)
-		int32_t scaledValue = computeFinalValueForUnsignedMenuItem(newVelocity);
-		settings->spreadVelocity = scaledValue;
-	}
+	// Use helper function to set parameter safely
+	setParameterSafely(modulation::params::UNPATCHED_SPREAD_VELOCITY, newVelocity, true);
 
 	// Display "OFF" for value 0, otherwise show the value
 	if (newVelocity == 0) {
@@ -251,7 +253,6 @@ void KeyboardLayoutArpControl::handleVelocitySpread(int32_t x, ArpeggiatorSettin
 
 	// Force UI update
 	keyboardScreen.requestMainPadsRendering();
-
 }
 
 void KeyboardLayoutArpControl::handleGate(int32_t x, ArpeggiatorSettings* settings) {
@@ -261,45 +262,13 @@ void KeyboardLayoutArpControl::handleGate(int32_t x, ArpeggiatorSettings* settin
 	// Direct gate control - each pad has its own value
 	int32_t newGate = gateValues[x];
 
-	// Check output type to determine which approach to use
-	OutputType outputType = getCurrentOutputType();
-
-	if (outputType == OutputType::SYNTH) {
-		// Use soundEditor.setup() for synth tracks (works properly)
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		if (clip) {
-			UI* originalUI = getCurrentUI();
-
-			// Set up sound editor context like the official menu
-			if (soundEditor.setup(clip, nullptr, 0)) {
-				// Now we're in sound editor context - use the official approach
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-				ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_GATE);
-
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					// Use absolute value (0-50) without scaling
-					int32_t finalValue = computeFinalValueForStandardMenuItem(newGate);
-					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
-				}
-
-				// Exit sound editor context back to original UI
-				originalUI->focusRegained();
-			}
-		}
-	}
-	else {
-		// Use direct parameter setting for CV/MIDI tracks (avoids crash)
-		// Use proper value scaling like the official menu system
-		int32_t scaledValue = computeFinalValueForStandardMenuItem(newGate);
-		settings->gate = scaledValue;
-	}
+	// Use helper function to set parameter safely
+	setParameterSafely(modulation::params::UNPATCHED_ARP_GATE, newGate, false);
 
 	display->displayPopup(("Gate: " + std::to_string(newGate)).c_str());
 
 	// Force UI update
 	keyboardScreen.requestMainPadsRendering();
-
 }
 
 void KeyboardLayoutArpControl::handleRandomOctave(int32_t x, ArpeggiatorSettings* settings) {
@@ -309,38 +278,8 @@ void KeyboardLayoutArpControl::handleRandomOctave(int32_t x, ArpeggiatorSettings
 	// Direct random octave control - each pad has its own value
 	int32_t newOctave = randomOctaveValues[x];
 
-	// Set parameter based on track type
-	if (getCurrentOutputType() == OutputType::SYNTH) {
-		// Use soundEditor for synth tracks
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		if (soundEditor.setup(clip, nullptr, 0)) {
-			// Now we're in sound editor context - use the official approach
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-			ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_SPREAD_OCTAVE);
-
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				// Get the current UI to restore later
-				UI* originalUI = getCurrentUI();
-
-				// Enter sound editor context
-				soundEditor.focusRegained();
-
-				// Set the parameter value
-				int32_t finalValue = computeFinalValueForUnsignedMenuItem(newOctave);
-				modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
-
-				// Exit sound editor context back to original UI
-				originalUI->focusRegained();
-			}
-		}
-	}
-	else {
-		// Use direct parameter setting for CV/MIDI tracks (avoids crash)
-		// Use proper value scaling like the official menu system
-		int32_t scaledValue = computeFinalValueForUnsignedMenuItem(newOctave);
-		settings->spreadOctave = scaledValue;
-	}
+	// Use helper function to set parameter safely
+	setParameterSafely(modulation::params::UNPATCHED_ARP_SPREAD_OCTAVE, newOctave, true);
 
 	display->displayPopup(("Random Octave: " + std::to_string(newOctave)).c_str());
 
@@ -355,38 +294,8 @@ void KeyboardLayoutArpControl::handleRandomGate(int32_t x, ArpeggiatorSettings* 
 	// Direct random gate control - each pad has its own value
 	int32_t newGate = randomGateValues[x];
 
-	// Set parameter based on track type
-	if (getCurrentOutputType() == OutputType::SYNTH) {
-		// Use soundEditor for synth tracks
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		if (soundEditor.setup(clip, nullptr, 0)) {
-			// Now we're in sound editor context - use the official approach
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-			ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_SPREAD_GATE);
-
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				// Get the current UI to restore later
-				UI* originalUI = getCurrentUI();
-
-				// Enter sound editor context
-				soundEditor.focusRegained();
-
-				// Set the parameter value
-				int32_t finalValue = computeFinalValueForUnsignedMenuItem(newGate);
-				modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
-
-				// Exit sound editor context back to original UI
-				originalUI->focusRegained();
-			}
-		}
-	}
-	else {
-		// Use direct parameter setting for CV/MIDI tracks (avoids crash)
-		// Use proper value scaling like the official menu system
-		int32_t scaledValue = computeFinalValueForUnsignedMenuItem(newGate);
-		settings->spreadGate = scaledValue;
-	}
+	// Use helper function to set parameter safely
+	setParameterSafely(modulation::params::UNPATCHED_ARP_SPREAD_GATE, newGate, true);
 
 	display->displayPopup(("Random Gate: " + std::to_string(newGate)).c_str());
 
@@ -427,13 +336,13 @@ void KeyboardLayoutArpControl::handleKeyboard(int32_t x, int32_t y, uint8_t velo
 			// CV tracks can handle wider note range - check voltage calculation limits
 			// CV engine clamps voltage to 0-65535, which corresponds to roughly -24 to +120 semitones from C3
 			// For safety, limit to a reasonable range that won't cause voltage overflow
-			if (note <= 180) { // ~10 octaves from C3
+			if (note <= kMaxCVNote) { // ~10 octaves from C3
 				enableNote(note, velocity);
 			}
 		}
 		else if (clip->output->type == OutputType::MIDI_OUT) {
 			// MIDI tracks are limited to 0-127
-			if (note < 128) {
+			if (note < kMaxMIDINote) {
 				enableNote(note, velocity);
 			}
 		}
@@ -529,29 +438,29 @@ RGB KeyboardLayoutArpControl::getArpModeColor(ArpeggiatorSettings* settings, int
 			switch (x) {
 				case 0: return colours::green;
 				case 1: return colours::green;
-				case 2: return RGB(255, 200, 150); // Peach
+				case 2: return colours::pink;
 				default: return colours::green;
 			}
 		case ArpPreset::DOWN:
 			switch (x) {
-				case 0: return RGB(255, 200, 150); // Peach
+				case 0: return colours::pink;
 				case 1: return colours::green;
 				case 2: return colours::green;
 				default: return colours::green;
 			}
 		case ArpPreset::BOTH:
 			switch (x) {
-				case 0: return RGB(255, 200, 150); // Peach
+				case 0: return colours::pink;
 				case 1: return colours::green;
-				case 2: return RGB(255, 200, 150); // Peach
+				case 2: return colours::pink;
 				default: return colours::green;
 			}
 		case ArpPreset::RANDOM:
 			switch (x) {
-				case 0: return RGB(255, 200, 150); // Peach
-				case 1: return RGB(255, 200, 150); // Peach
-				case 2: return RGB(255, 200, 150); // Peach
-				default: return RGB(255, 200, 150);
+				case 0: return colours::pink;
+				case 1: return colours::pink;
+				case 2: return colours::pink;
+				default: return colours::pink;
 			}
 		case ArpPreset::WALK: return colours::magenta;
 		case ArpPreset::CUSTOM: return colours::white;
@@ -617,7 +526,7 @@ RGB KeyboardLayoutArpControl::getRhythmPatternColor(int32_t step) {
 	}
 
 	// Clamp rhythm to valid range
-	int32_t rhythmIndex = std::clamp(displayState.currentRhythm, static_cast<int32_t>(0), static_cast<int32_t>(kMaxPresetArpRhythm));
+	int32_t rhythmIndex = std::clamp(displayState.currentRhythm, static_cast<int32_t>(0), static_cast<int32_t>(kMaxRhythmPattern));
 
 	// Get the rhythm pattern
 	const ArpRhythm& pattern = arpRhythmPatterns[rhythmIndex];
@@ -746,10 +655,10 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 	// Scroll through rhythm patterns (but don't apply until encoder is pressed)
 	if (offset > 0) {
 		displayState.currentRhythm++;
-		if (displayState.currentRhythm > 50) displayState.currentRhythm = 1;
+		if (displayState.currentRhythm > kMaxRhythmPattern) displayState.currentRhythm = 1;
 	} else {
 		displayState.currentRhythm--;
-		if (displayState.currentRhythm < 1) displayState.currentRhythm = 50;
+		if (displayState.currentRhythm < 1) displayState.currentRhythm = kMaxRhythmPattern;
 	}
 
 	// Display rhythm pattern name and status
@@ -814,23 +723,23 @@ void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shif
 }
 
 void KeyboardLayoutArpControl::precalculate() {
-	// No precalculation needed
+	// No precalculation needed for this layout
 }
 
 void KeyboardLayoutArpControl::updateAnimation() {
-	// Simple animation update
+	// No animation updates needed for this layout
 }
 
 void KeyboardLayoutArpControl::updateDisplay() {
-	// Simple display update
+	// No display updates needed for this layout
 }
 
 void KeyboardLayoutArpControl::updatePadLEDsDirect() {
-	// Simple pad LED update
+	// No direct pad LED updates needed for this layout
 }
 
 void KeyboardLayoutArpControl::updatePlaybackProgressBar() {
-	// Simple progress bar update
+	// No progress bar updates needed for this layout
 }
 
 char const* KeyboardLayoutArpControl::getArpPresetDisplayName(ArpPreset preset) {

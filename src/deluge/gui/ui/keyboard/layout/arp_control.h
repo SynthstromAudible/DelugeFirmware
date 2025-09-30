@@ -91,6 +91,9 @@ private:
 	/// Handle keyboard notes (rows 4-7)
 	void handleKeyboard(int32_t x, int32_t y, uint8_t velocity);
 
+	/// Helper function to set parameters safely for different output types
+	void setParameterSafely(int32_t paramId, int32_t value, bool useUnsignedScaling);
+
 	/// Get color for arp mode display
 	RGB getArpModeColor(ArpeggiatorSettings* settings, int32_t x);
 
