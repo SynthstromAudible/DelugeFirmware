@@ -1,225 +1,146 @@
-# 🎹 Arp Control Keyboard Layout - User Guide (ALPHA)
+# Arp Control Keyboard Layout User Guide
 
 ## Overview
-The Arp Control layout provides comprehensive real-time control over the Deluge's arpeggiator with an integrated scale-based keyboard. This ALPHA version features major performance optimizations for demanding live performance scenarios.
+The Arp Control keyboard layout provides a comprehensive interface for controlling arpeggiator parameters directly from the keyboard view. This layout is designed for the Deluge's generative sequencer functionality with visual feedback and intuitive pad-based controls.
 
-**ALPHA STATUS**: Optimized for multi-pad operations with 2-phase pad handling and batched UI refreshes.
+## Accessing the Layout
+1. Enter **Keyboard Mode** by pressing the **KEYBOARD** button
+2. Navigate to the **Generative** layout using the **SELECT** encoder
+3. The layout will display with the following pad arrangement:
 
-## 🎚️ Encoder Controls
+## Pad Layout
 
-### Y Encoder (Vertical)
-- **Turn**: Scroll through rhythm patterns (1-50)
-  - When rhythm OFF: Preview patterns (shows "Pattern Name (preview)")
-  - When rhythm ON: Change patterns in real-time during playback
-- **Press**: Toggle rhythm ON/OFF
-  - Maintains selected pattern when toggling
+### Row 0 (Top Row)
+- **Pads 0-2**: Arp Mode (Green) - Cycle through arpeggiator presets
+- **Pads 4-11**: Octaves (Blue) - Set number of octaves for arpeggiation
+- **Pad 15**: Randomizer Lock (Yellow) - Toggle randomizer lock on/off
 
-### X Encoder (Horizontal) 
-- **Turn**: Control arpeggiator sync rate
-  - Range: WHOLE → 2ND → 4TH → 8TH → 16TH → 32ND → 64TH → 128TH → 256TH
-  - Immediate effect with arpeggiator restart
+### Row 1
+- **Pads 0-7**: Velocity Spread (Cyan) - Control velocity randomization
+- **Pads 8-15**: Random Octave (Light Blue) - Control octave randomization
 
-### SELECT Encoder
-- **Turn**: Normal synth preset selection (no interference)
-- **KEYBOARD + Turn**: Change keyboard layouts
+### Row 2
+- **Pads 0-7**: Gate (Green) - Control note gate length
+- **Pads 8-15**: Random Gate (Lime) - Control gate randomization
 
-## 🎹 Pad Controls
+### Row 3
+- **Pads 0-7**: Sequence Length (Orange) - Control arpeggiator sequence length
+- **Pads 8-13**: Rhythm Patterns (White) - Visualize rhythm patterns
+- **Pads 14-15**: Transpose (Red/Purple) - Transpose keyboard up/down
 
-### Row 0 (Top Row) - Main Controls
+### Rows 4-7
+- **Keyboard**: Standard keyboard layout for playing notes
 
-#### 🟢 Green Pads (0-2) - Arpeggiator Mode
-- **Tap**: Cycle through arp modes
-  - OFF → UP → DOWN → UP&DOWN → RANDOM → OFF
-- **Visual**: Green when active, red when OFF
-- **Perfect for**: Live arp variation and character changes
+## Controls
 
-#### 🔵 Blue Pads (4-11) - Octave Control
-- **Tap**: Set octave count (1-8)
-  - Pad position = octave count
-  - Bright pads = active octaves, dim pads = available
-- **Visual**: Blue brightness shows octave range
+### Pad Controls
+- **Touch any pad** to set the corresponding parameter value
+- **Last touched pad** will be highlighted brightly
+- **Other pads** in the same group will be dimmed for visual feedback
 
-#### 🟡 Yellow Pads (13-15) - Rhythm Control
-- **Tap**: Toggle rhythm ON/OFF (same as Y encoder press)
-  - Bright when rhythm ON, dim when rhythm OFF
-- **Multiple access**: Same function as Y encoder press
+### Encoder Controls
+- **Vertical Encoder**: Scroll through rhythm patterns (1-50)
+- **Vertical Encoder Press**: Toggle rhythm pattern on/off
+- **Horizontal Encoder**: Cycle through arpeggiator presets (OFF, UP, DOWN, BOTH, RANDOM, WALK, CUSTOM)
 
-### Row 1 - Sequence Length Control
+### Parameter Values
 
-#### 🔵 Cyan Pads (0-15) - Custom Sequence Length
-- **Tap**: Set arpeggiator sequence length (1-16 steps)
-  - Pad position = sequence length
-  - **Always lit**: Shows current length persistently
-  - Creates polyrhythmic effects and variations
+#### Velocity Spread (Row 1, Pads 0-7)
+- **Pad 0**: OFF (0)
+- **Pad 1**: 10
+- **Pad 2**: 20
+- **Pad 3**: 25
+- **Pad 4**: 35
+- **Pad 5**: 40
+- **Pad 6**: 45
+- **Pad 7**: 50
 
-### Row 3 - Performance Controls & Transpose
+#### Random Octave (Row 1, Pads 8-15)
+- **Pad 8**: OFF (0)
+- **Pad 9**: 5
+- **Pad 10**: 10
+- **Pad 11**: 15
+- **Pad 12**: 20
+- **Pad 13**: 25
+- **Pad 14**: 30
+- **Pad 15**: 35
 
-#### 🟠 Orange Pads (0-7) - Gate Length Control
-- **Tap**: Set gate length (12.5% - 100%)
-  - Pad 1 = 12.5% (staccato), Pad 8 = 100% (legato)
-  - **Always lit**: Shows current gate length
-  - Perfect for rhythmic character changes
+#### Gate (Row 2, Pads 0-7)
+- **Pad 0**: 1
+- **Pad 1**: 10
+- **Pad 2**: 20
+- **Pad 3**: 25
+- **Pad 4**: 35
+- **Pad 5**: 40
+- **Pad 6**: 45
+- **Pad 7**: 50
 
-#### 🩷 Pink Pads (8-13) - Velocity Spread Control
-- **Tap**: Set velocity randomization (0-100%)
-  - 6 levels of velocity spread for human feel
-  - **Always lit**: Shows current spread amount
-  - Adds organic variation to arpeggiator
+#### Random Gate (Row 2, Pads 8-15)
+- **Pad 8**: OFF (0)
+- **Pad 9**: 5
+- **Pad 10**: 10
+- **Pad 11**: 15
+- **Pad 12**: 20
+- **Pad 13**: 25
+- **Pad 14**: 30
+- **Pad 15**: 35
 
-#### 🔴 Red Pad (14) - Transpose Down
-- **Tap**: Shift keyboard down one octave
-- **Range**: Down to C-2 for deep bass
+#### Sequence Length (Row 3, Pads 0-7)
+- **Pad 0**: OFF (0)
+- **Pad 1**: 10
+- **Pad 2**: 20
+- **Pad 3**: 25
+- **Pad 4**: 35
+- **Pad 5**: 40
+- **Pad 6**: 45
+- **Pad 7**: 50
 
-#### 🟣 Purple Pad (15) - Transpose Up  
-- **Tap**: Shift keyboard up one octave
-- **Range**: Up to C8 for high leads
+## Rhythm Patterns
+- **50 rhythm patterns** available (1-50)
+- **Pattern 0**: OFF (no rhythm)
+- **Visual feedback** on pads 8-13 shows the current pattern
+- **Bright white**: Active steps in current pattern
+- **Dim white**: Inactive steps in current pattern
+- **Scroll** with vertical encoder to browse patterns
+- **Press** vertical encoder to toggle pattern on/off
 
-### Rows 4-7 - Scale-Based Keyboard
+## Arpeggiator Presets
+- **OFF**: Arpeggiator disabled
+- **UP**: Ascending arpeggio
+- **DOWN**: Descending arpeggio
+- **BOTH**: Up and down arpeggio
+- **RANDOM**: Random note order
+- **WALK**: Walking arpeggio pattern
+- **CUSTOM**: User-defined pattern
 
-#### 🎹 Musical Keyboard
-- **Scale-aware**: Uses current song scale and root note
-- **4 rows**: Approximately 4+ octaves of scale coverage
-- **Visual feedback**: 
-  - Root notes highlighted
-  - Active notes bright
-  - Scale notes normal brightness
-  - Non-scale notes dimmed
-- **More octaves**: Scale notes provide better coverage than chromatic
+## Display Information
+- **OLED Display**: Shows current parameter values and rhythm pattern names
+- **"OFF" Display**: Shown for zero values instead of "0"
+- **Parameter Names**: Displayed with current values (e.g., "Velocity: 25", "Seq Length: OFF")
 
-## 🎨 Visual Feedback & Layout
+## Track Type Compatibility
+- **Synth Tracks**: Full functionality with all parameters
+- **MIDI Tracks**: Full functionality with proper parameter scaling
+- **CV Tracks**: Full functionality with proper parameter scaling
 
-### Complete Layout Overview
-```
-Row 0: [🟢🟢🟢] [🔵🔵🔵🔵🔵🔵🔵🔵] [🟡🟡🟡]
-       Green=Mode Blue=Octaves           Yellow=Rhythm
+## Tips for Use
+1. **Start with basic settings**: Set gate, velocity, and sequence length first
+2. **Use rhythm patterns**: Experiment with different patterns for varied arpeggiation
+3. **Randomization**: Use random octave and gate for more organic patterns
+4. **Visual feedback**: Watch the pad colors to understand current settings
+5. **Preset cycling**: Use horizontal encoder to quickly try different arpeggiator modes
 
-Row 1: [🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵]
-       Cyan=Sequence Length (always visible)
+## Troubleshooting
+- **No sound**: Check that arpeggiator is not set to OFF
+- **Parameters not changing**: Ensure you're on a compatible track type (Synth, MIDI, or CV)
+- **Rhythm not working**: Make sure sync rate is set appropriately for rhythm patterns
+- **Display issues**: Check that OLED display is functioning properly
 
-Row 2: [⚪⚪⚪⚪⚪⚪⚪⚪⚪⚪⚪⚪⚪⚪⚪⚪]
-       White=Rhythm Pattern (always visible)
-
-Row 3: [🟠🟠🟠🟠🟠🟠🟠🟠][🩷🩷🩷🩷🩷🩷][🔴🟣]
-       Orange=Gate    Pink=Velocity    Red/Purple=Transpose
-
-Rows 4-7: 🎹 Scale-Based Keyboard 🎹
-```
-
-### Color-Coded Controls
-- **🟢 Green**: Arp mode cycling (OFF/UP/DOWN/UP&DOWN/RANDOM)
-- **🔵 Blue**: Octave count (bright = active, dim = available)
-- **🟡 Yellow**: Rhythm toggle (bright = ON, dim = OFF)
-- **🔵 Cyan**: Sequence length (always shows current length)
-- **🟠 Orange**: Gate length (always shows current setting)
-- **🩷 Pink**: Velocity spread (always shows current amount)
-- **🔴 Red**: Keyboard transpose down
-- **🟣 Purple**: Keyboard transpose up
-
-### Rhythm Pattern Display (Row 2)
-- **White pads**: Active steps in rhythm pattern
-- **Black pads**: Rest steps (silence)
-- **Bright**: When rhythm is ON and playing
-- **Dim**: When rhythm is OFF (preview mode)
-- **Always visible**: Patterns show even when not playing
-
-### Current Step Highlighting
-- **Extra bright pad**: Shows currently playing step in rhythm
-- **Only when playing**: Appears during active playback with rhythm ON
-
-## 🎵 Performance Workflows
-
-### Quick Arp Setup
-1. **Green pad** → Set arp mode (UP, DOWN, etc.)
-2. **Blue pads** → Set octave range
-3. **Y encoder** → Choose rhythm pattern
-4. **Yellow pad** → Turn rhythm ON
-5. **Play keyboard** → Trigger arpeggiator
-
-### Live Performance
-- **Y encoder** → Change rhythm patterns in real-time
-- **Green pads** → Cycle through arp modes (OFF/UP/DOWN/UP&DOWN/RANDOM)
-- **Orange pads** → Adjust gate length for rhythmic feel
-- **Pink pads** → Add velocity humanization
-- **Cyan pads** → Change sequence length for polyrhythms
-- **Yellow pads** → Quick rhythm toggle
-
-### Sound Design
-- **X encoder** → Fine-tune arp timing (sync rate)
-- **Transpose pads** → Explore different keyboard ranges
-- **Gate length** → Shape note articulation (staccato to legato)
-- **Velocity spread** → Add organic, human variation
-- **Sequence length** → Create complex polyrhythmic patterns
-
-## 🎛️ Advanced Tips
-
-### Rhythm Control
-- **Preview mode**: Scroll through patterns when rhythm is OFF
-- **Real-time changes**: Modify patterns during playback when ON
-- **Pattern memory**: Selected pattern is remembered when toggling OFF/ON
-
-### Keyboard Usage
-- **Scale-based**: Only shows notes that work well together
-- **Transpose freely**: Explore bass (C-2) to lead (C8) ranges
-- **Visual guidance**: Root notes and scale structure clearly visible
-
-### Performance Combinations
-- **Arp mode + Rhythm pattern**: 5 modes × 50 patterns = 250 combinations
-- **Gate length + Velocity spread**: Control rhythmic feel and humanization
-- **Sequence length + Rhythm**: Create complex polyrhythmic patterns
-- **Octave range + Transpose**: Perfect register for each musical context
-- **Sync rate + Gate length**: Fine-tune timing and articulation
-- **Mode cycling + Pattern changes**: Dynamic live performance variations
-
-### Pro Performance Tips (ALPHA Optimizations)
-- **Multi-pad operations**: Hold keyboard notes while using controls - optimized for smooth operation
-- **Visual feedback**: All controls use bright/dim states for instant feedback
-- **Batched updates**: UI refreshes are optimized for complex multi-pad scenarios
-- **Control priority**: Controls processed before keyboard for better responsiveness
-- **Start simple**: Use basic UP mode with rhythm patterns
-- **Add complexity gradually**: Gate → Velocity → Sequence length
-- **Combine for impact**: Mode + Pattern + Gate changes for dramatic shifts
-- **Remember settings**: Most controls persist until changed
-
-### ALPHA Testing Notes
-- **2-phase pad handling**: Controls (rows 0-3) processed separately from keyboard (rows 4-7)
-- **Performance optimized**: Single UI refresh per evaluation cycle
-- **Visual consistency**: All control pads use the same bright/dim approach
-- **Live performance ready**: Tested for demanding multi-pad scenarios
-
-## 🚀 Getting Started
-
-1. **Load the firmware** with Arp Control layout
-2. **Switch to keyboard view** (KEYBOARD button + SELECT encoder)
-3. **Choose "Arp Control"** layout
-4. **Start with green pad** → Set arp to UP mode
-5. **Play some notes** on the scale keyboard
-6. **Experiment** with all the controls!
+## Version Information
+- **Version**: BETA 0.2
+- **Compatibility**: Deluge Community Firmware v1.3.0-dev
+- **Last Updated**: 2024
 
 ---
 
-## 🧪 ALPHA Version Notes
-
-This ALPHA version includes major performance optimizations:
-
-### **Performance Improvements**
-- **2-phase pad handling**: Controls and keyboard processed separately for better performance
-- **Single UI refresh**: Batched updates instead of multiple individual refreshes
-- **Consolidated parameter updates**: Unified control handling with consistent error checking
-- **Optimized control detection**: Frequency-based ordering for faster response
-
-### **Testing Focus**
-- **Multi-pad operations**: Test holding keyboard notes while using controls
-- **UI responsiveness**: Should feel smoother during complex operations
-- **Visual consistency**: All control pads should behave like octave pads
-- **Live performance**: Optimized for demanding real-time scenarios
-
-### **Feedback Welcome**
-Please test thoroughly and report any issues with:
-- Control responsiveness during multi-pad operations
-- Visual feedback consistency
-- Performance during live use
-- Any crashes or unexpected behavior
-
----
-
-*The Arp Control layout transforms the Deluge into a powerful arpeggiator performance instrument with intuitive pad-based controls and comprehensive real-time parameter access. This ALPHA version pushes the boundaries of live performance optimization.*
+*This guide covers the Arp Control keyboard layout for the Deluge generative sequencer. For additional help, refer to the main Deluge manual or community documentation.*

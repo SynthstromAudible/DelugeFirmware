@@ -17,10 +17,11 @@
 
 #include "gui/ui/keyboard/layout/arp_control.h"
 #include "gui/colour/colour.h"
-#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/buttons.h"
+#include "model/model_stack.h"
+#include "modulation/params/param.h"
+#include "gui/menu_item/value_scaling.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "model/clip/instrument_clip.h"
@@ -28,719 +29,784 @@
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/arpeggiator_rhythms.h"
-#include "modulation/params/param.h"
-#include "model/sync.h"
 #include "util/d_string.h"
-#include "playback/playback_handler.h"
-#include "util/functions.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/menu_item/value_scaling.h"
+#include "modulation/params/param.h"
+#include "model/output.h"
 
 namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
-	currentNotesState = NotesState{}; // Clear active notes for now
+	// Clear current notes state
+	currentNotesState = NotesState{};
 
-	// Cache settings and track changes for batched updates
+	// Get arp settings once
 	ArpeggiatorSettings* settings = getArpSettings();
-	bool controlsChanged = false;
+	if (!settings) return;
 
-	// PHASE 1: Handle control pads (non-keyboard) - process all controls first
+	// Process pad presses - only handle pads within kDisplayWidth (0-15)
 	for (int32_t i = 0; i < kMaxNumKeyboardPadPresses; i++) {
-		if (presses[i].active) {
+		if (presses[i].active && presses[i].x < kDisplayWidth) {
 			int32_t x = presses[i].x;
 			int32_t y = presses[i].y;
+			uint8_t velocity = 127; // Default velocity
 
-			// Skip keyboard area (rows 4-7) in this phase
-			if (y >= 4 && y < 8) continue;
-
-			// Optimized control detection - consolidated handler
-			bool controlHandled = handleControlPad(x, y, settings, controlsChanged);
-			if (controlHandled) continue; // Move to next pad if control was handled
-
-			// Check if pressing blue octave pads (top row, positions 4-11)
-			if (y == 0 && x >= 4 && x < std::min((int32_t)(4 + 8), (int32_t)kDisplayWidth)) {
-				ArpeggiatorSettings* settings = getArpSettings();
-				if (settings) {
-					// Set octave count based on pad position (1-8)
-					int32_t newOctaves = x - 4 + 1;
-					settings->numOctaves = newOctaves;
-
-					// Force arpeggiator to restart with new octave count
-					settings->flagForceArpRestart = true;
-
-					display->displayPopup(("Octaves: " + std::to_string(newOctaves)).c_str());
-					controlsChanged = true;
+			// Handle control pads first
+			if (y == 0) {
+				// Top row: Arp mode, octaves, and randomizer lock
+				if (x >= 0 && x < 3) {
+					handleArpMode(x, settings);
 				}
-				controlHandled = true;
-			}
-
-			// Check if pressing yellow rhythm pads (top row, positions 12-14)
-			if (y == 0 && x >= 12 && x < 15 && x < kDisplayWidth) {
-				// Toggle rhythm on/off
-				if (displayState.appliedRhythm == 0) {
-					// Turn ON: apply the currently selected pattern
-					displayState.appliedRhythm = displayState.currentRhythm;
-					display->displayPopup("Rhythm ON");
-				} else {
-					// Turn OFF: keep current pattern for next time
-					displayState.appliedRhythm = 0;
-					display->displayPopup("Rhythm OFF");
+				else if (x >= 4 && x < 12) {
+					handleOctaves(x, settings);
 				}
-
-				// Apply the change to the actual arpeggiator
-				InstrumentClip* clip = getCurrentInstrumentClip();
-				if (clip) {
-					ArpeggiatorSettings* settings = &clip->arpSettings;
-
-					// CRITICAL: Always ensure syncLevel is properly set (never 0)
-					if (settings->syncLevel == 0) {
-						settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
-					}
-
-					UI* originalUI = getCurrentUI();
-
-					// Set up sound editor context like the official menu
-					if (soundEditor.setup(clip, nullptr, 0)) {
-						// Now we're in sound editor context - use the official approach
-						char modelStackMemory[MODEL_STACK_MAX_SIZE];
-						ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-						ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
-
-						if (modelStackWithParam && modelStackWithParam->autoParam) {
-							// Use appliedRhythm for the actual parameter value
-							int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.appliedRhythm);
-							modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
-						}
-
-						// Exit sound editor context back to original UI
-						originalUI->focusRegained();
-					}
-				}
-
-				// Update display and pads
-				if (display->haveOLED()) {
-					renderUIsForOled();
-				}
-				keyboardScreen.requestMainPadsRendering();
-				break; // Only handle one pad press at a time
-			}
-
-			// Check if pressing transpose pads (row 3, positions 15-16)
-			if (y == 3 && x >= 14 && x < 16 && x < kDisplayWidth) {
-				if (x == 14) {
-					// Down octave (red pad)
-					displayState.keyboardScrollOffset -= 12; // Down one octave
-					if (displayState.keyboardScrollOffset < -36) {
-						displayState.keyboardScrollOffset = -36; // Don't go below C-2 (note 0)
-					}
-					display->displayPopup("Keyboard -1 Oct");
-				} else if (x == 15) {
-					// Up octave (purple pad)
-					displayState.keyboardScrollOffset += 12; // Up one octave
-					if (displayState.keyboardScrollOffset > 48) {
-						displayState.keyboardScrollOffset = 48; // Don't go above C8 (note 84+36=120)
-					}
-					display->displayPopup("Keyboard +1 Oct");
-				}
-
-				// Update display
-				if (display->haveOLED()) {
-					renderUIsForOled();
-				}
-				keyboardScreen.requestMainPadsRendering();
-				break;
-			}
-
-			// Check if pressing gate length pads (row 3, positions 0-7)
-			if (y == 3 && x >= 0 && x < 8) {
-				ArpeggiatorSettings* settings = getArpSettings();
-				if (settings) {
-					// Gate length control (1-8 = 12.5% to 100%)
-					int32_t gateIndex = x + 1; // 1-8
-					uint32_t gateLength = (gateIndex * kMaxMenuValue) / 8; // Scale to parameter range
-					settings->gate = gateLength;
-
-					// Force arpeggiator to restart with new gate
-					settings->flagForceArpRestart = true;
-
-					display->displayPopup(("Gate: " + std::to_string((gateIndex * 100) / 8) + "%").c_str());
-
-					// Update display
-					if (display->haveOLED()) {
-						renderUIsForOled();
-					}
-					keyboardScreen.requestMainPadsRendering();
+				else if (x == 15) {
+					handleRandomizerLock();
 				}
 			}
-
-			// Check if pressing velocity spread pads (row 3, positions 8-13)
-			else if (y == 3 && x >= 8 && x < 14) {
-				ArpeggiatorSettings* settings = getArpSettings();
-				if (settings) {
-					// Velocity spread control (0-100%)
-					int32_t spreadIndex = x - 8 + 1; // 1-6
-					uint32_t spreadAmount = (spreadIndex * kMaxMenuValue) / 6; // Scale to parameter range
-					settings->spreadVelocity = spreadAmount;
-
-					// Force arpeggiator to restart with new spread
-					settings->flagForceArpRestart = true;
-
-					display->displayPopup(("Vel Spread: " + std::to_string((spreadIndex * 100) / 6) + "%").c_str());
-
-					// Update display
-					if (display->haveOLED()) {
-						renderUIsForOled();
-					}
-					keyboardScreen.requestMainPadsRendering();
+			else if (y == 1) {
+				// Row 1: Velocity spread and random octave
+				if (x >= 0 && x < 8) {
+					handleVelocitySpread(x, settings);
+				}
+				else if (x >= 8 && x < 16) {
+					handleRandomOctave(x - 8, settings);
 				}
 			}
-
-			// Check if pressing sequence length pads (row 1, positions 0-15)
-			else if (y == 1 && x < kDisplayWidth) {
-				ArpeggiatorSettings* settings = getArpSettings();
-				if (settings) {
-					// Set custom sequence length (1-16 steps)
-					int32_t newLength = x + 1; // x=0 gives length=1, x=15 gives length=16
-					settings->sequenceLength = (newLength * kMaxMenuValue) / 16; // Scale to parameter range
-
-					// Force arpeggiator to restart with new length
-					settings->flagForceArpRestart = true;
-
-					display->displayPopup(("Seq Length: " + std::to_string(newLength)).c_str());
-
-					// Update display
-					if (display->haveOLED()) {
-						renderUIsForOled();
-					}
-					keyboardScreen.requestMainPadsRendering();
+			else if (y == 2) {
+				// Row 2: Gate and random gate
+				if (x >= 0 && x < 8) {
+					handleGate(x, settings);
+				}
+				else if (x >= 8 && x < 16) {
+					handleRandomGate(x - 8, settings);
 				}
 			}
-
-
-			// Check if pressing keyboard pads (rows 4-7)
+			else if (y == 3) {
+				// Row 3: Sequence length, rhythm patterns, and transpose
+				if (x >= 0 && x < 8) {
+					handleSequenceLength(x, settings);
+				}
+				else if (x >= 14 && x < 16) {
+					handleTranspose(x);
+				}
+			}
 			else if (y >= 4 && y < 8) {
-				uint16_t note = noteFromCoords(x, y);
-				if (note < 128) {
-					enableNote(note, velocity);
-				}
+				// Rows 4-7: Keyboard
+				handleKeyboard(x, y, velocity);
 			}
 		}
 	}
 
-	// PHASE 2: Handle keyboard pads (rows 4-7) - separate phase for better performance
-	for (int32_t i = 0; i < kMaxNumKeyboardPadPresses; i++) {
-		if (presses[i].active) {
-			int32_t x = presses[i].x;
-			int32_t y = presses[i].y;
-
-			// Only handle keyboard area in this phase, exclude column pads
-			if (y >= 4 && y < 8 && x < kDisplayWidth) {
-				uint16_t note = noteFromCoords(x, y);
-				if (note < 128) {
-					enableNote(note, velocity);
-				}
-			}
-		}
+	// Update display
+	if (display->haveOLED()) {
+		renderUIsForOled();
 	}
+	keyboardScreen.requestMainPadsRendering();
 
-	// Note: Focus on excellent arp control features - latch removed due to complexity
-
-	// Handle column controls (beat repeat, etc.) - should work independently
+	// Handle column controls (columns 16 & 17) - should be called last
 	ColumnControlsKeyboard::evaluatePads(presses);
+}
 
-	// SINGLE UI REFRESH: Only refresh once at the end if controls changed
-	if (controlsChanged) {
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		keyboardScreen.requestMainPadsRendering();
+void KeyboardLayoutArpControl::handleArpMode(int32_t x, ArpeggiatorSettings* settings) {
+	// Cycle through all arp presets
+	int32_t currentPreset = static_cast<int32_t>(settings->preset);
+	int32_t newPreset = currentPreset + 1;
+
+	// Wrap around to OFF if we go past CUSTOM
+	if (newPreset > static_cast<int32_t>(ArpPreset::CUSTOM)) {
+		newPreset = static_cast<int32_t>(ArpPreset::OFF);
 	}
+
+	settings->preset = static_cast<ArpPreset>(newPreset);
+
+	// Update all settings from the new preset
+	settings->updateSettingsFromCurrentPreset();
+	// Force arpeggiator to restart with new mode
+	settings->flagForceArpRestart = true;
+
+	// Show mode name in popup
+	const char* modeName = KeyboardLayoutArpControl::getArpPresetDisplayName(settings->preset);
+	display->displayPopup(modeName);
+
+	// Force UI update
+	keyboardScreen.requestMainPadsRendering();
+}
+
+void KeyboardLayoutArpControl::handleOctaves(int32_t x, ArpeggiatorSettings* settings) {
+	// Direct octave control (1-8)
+	int32_t newOctaves = x - 4 + 1;
+	settings->numOctaves = newOctaves;
+	// Force arpeggiator to restart with new octave count
+	settings->flagForceArpRestart = false;
+	display->displayPopup(("Octaves: " + std::to_string(newOctaves)).c_str());
+
+	// Force UI update
+	keyboardScreen.requestMainPadsRendering();
+}
+
+
+void KeyboardLayoutArpControl::handleSequenceLength(int32_t x, ArpeggiatorSettings* settings) {
+	// Track the last touched sequence length pad for LED feedback
+	lastTouchedSequenceLengthPad = x;
+
+	// Direct sequence length control - each pad has its own value
+	int32_t newLength = sequenceLengthValues[x];
+
+	// Check output type to determine which approach to use
+	OutputType outputType = getCurrentOutputType();
+
+	if (outputType == OutputType::SYNTH) {
+		// Use soundEditor.setup() for synth tracks (works properly)
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (clip) {
+			UI* originalUI = getCurrentUI();
+
+			// Set up sound editor context like the official menu
+			if (soundEditor.setup(clip, nullptr, 0)) {
+				// Now we're in sound editor context - use the official approach
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+				ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_SEQUENCE_LENGTH);
+
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
+					// Use signed scaling like the menu system
+					int32_t finalValue = computeFinalValueForStandardMenuItem(newLength);
+					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+				}
+
+				// Exit sound editor context back to original UI
+				originalUI->focusRegained();
+			}
+		}
+	}
+	else {
+		// Use direct parameter setting for CV/MIDI tracks (avoids crash)
+		// Use proper value scaling like the official menu system
+		int32_t scaledValue = computeFinalValueForUnsignedMenuItem(newLength);
+		settings->sequenceLength = scaledValue;
+	}
+
+	// Display "OFF" for value 0, otherwise show the value
+	if (newLength == 0) {
+		display->displayPopup("Seq Length: OFF");
+	} else {
+		display->displayPopup(("Seq Length: " + std::to_string(newLength)).c_str());
+	}
+
+	// Force UI update
+	keyboardScreen.requestMainPadsRendering();
+
+}
+
+void KeyboardLayoutArpControl::handleVelocitySpread(int32_t x, ArpeggiatorSettings* settings) {
+	// Track the last touched velocity pad for LED feedback
+	lastTouchedVelocityPad = x;
+
+	// Direct velocity spread control - each pad has its own value
+	int32_t newVelocity = velocitySpreadValues[x];
+
+	// Check output type to determine which approach to use
+	OutputType outputType = getCurrentOutputType();
+
+	if (outputType == OutputType::SYNTH) {
+		// Use soundEditor.setup() for synth tracks (works properly)
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (clip) {
+			UI* originalUI = getCurrentUI();
+
+			// Set up sound editor context like the official menu
+			if (soundEditor.setup(clip, nullptr, 0)) {
+				// Now we're in sound editor context - use the official approach
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+				ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_SPREAD_VELOCITY);
+
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
+					// Use signed scaling like the menu system
+					int32_t finalValue = computeFinalValueForStandardMenuItem(newVelocity);
+					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+				}
+
+				// Exit sound editor context back to original UI
+				originalUI->focusRegained();
+			}
+		}
+	}
+	else {
+		// For MIDI/CV tracks, spreadVelocity is in the randomizer menu, not the main arp menu
+		// Use direct parameter setting for CV/MIDI tracks (avoids crash)
+		// Use proper value scaling like the official menu system (unsigned scaling)
+		int32_t scaledValue = computeFinalValueForUnsignedMenuItem(newVelocity);
+		settings->spreadVelocity = scaledValue;
+	}
+
+	// Display "OFF" for value 0, otherwise show the value
+	if (newVelocity == 0) {
+		display->displayPopup("Spread Velocity: OFF");
+	} else {
+		display->displayPopup(("Spread Velocity: " + std::to_string(newVelocity)).c_str());
+	}
+
+	// Force UI update
+	keyboardScreen.requestMainPadsRendering();
+
+}
+
+void KeyboardLayoutArpControl::handleGate(int32_t x, ArpeggiatorSettings* settings) {
+	// Track the last touched gate pad for LED feedback
+	lastTouchedGatePad = x;
+
+	// Direct gate control - each pad has its own value
+	int32_t newGate = gateValues[x];
+
+	// Check output type to determine which approach to use
+	OutputType outputType = getCurrentOutputType();
+
+	if (outputType == OutputType::SYNTH) {
+		// Use soundEditor.setup() for synth tracks (works properly)
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (clip) {
+			UI* originalUI = getCurrentUI();
+
+			// Set up sound editor context like the official menu
+			if (soundEditor.setup(clip, nullptr, 0)) {
+				// Now we're in sound editor context - use the official approach
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+				ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_GATE);
+
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
+					// Use absolute value (0-50) without scaling
+					int32_t finalValue = computeFinalValueForStandardMenuItem(newGate);
+					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+				}
+
+				// Exit sound editor context back to original UI
+				originalUI->focusRegained();
+			}
+		}
+	}
+	else {
+		// Use direct parameter setting for CV/MIDI tracks (avoids crash)
+		// Use proper value scaling like the official menu system
+		int32_t scaledValue = computeFinalValueForStandardMenuItem(newGate);
+		settings->gate = scaledValue;
+	}
+
+	display->displayPopup(("Gate: " + std::to_string(newGate)).c_str());
+
+	// Force UI update
+	keyboardScreen.requestMainPadsRendering();
+
+}
+
+void KeyboardLayoutArpControl::handleRandomOctave(int32_t x, ArpeggiatorSettings* settings) {
+	// Track the last touched random octave pad for LED feedback
+	lastTouchedRandomOctavePad = x;
+
+	// Direct random octave control - each pad has its own value
+	int32_t newOctave = randomOctaveValues[x];
+
+	// Set parameter based on track type
+	if (getCurrentOutputType() == OutputType::SYNTH) {
+		// Use soundEditor for synth tracks
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (soundEditor.setup(clip, nullptr, 0)) {
+			// Now we're in sound editor context - use the official approach
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+			ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_SPREAD_OCTAVE);
+
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				// Get the current UI to restore later
+				UI* originalUI = getCurrentUI();
+
+				// Enter sound editor context
+				soundEditor.focusRegained();
+
+				// Set the parameter value
+				int32_t finalValue = computeFinalValueForUnsignedMenuItem(newOctave);
+				modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+
+				// Exit sound editor context back to original UI
+				originalUI->focusRegained();
+			}
+		}
+	}
+	else {
+		// Use direct parameter setting for CV/MIDI tracks (avoids crash)
+		// Use proper value scaling like the official menu system
+		int32_t scaledValue = computeFinalValueForUnsignedMenuItem(newOctave);
+		settings->spreadOctave = scaledValue;
+	}
+
+	display->displayPopup(("Random Octave: " + std::to_string(newOctave)).c_str());
+
+	// Force UI update
+	keyboardScreen.requestMainPadsRendering();
+}
+
+void KeyboardLayoutArpControl::handleRandomGate(int32_t x, ArpeggiatorSettings* settings) {
+	// Track the last touched random gate pad for LED feedback
+	lastTouchedRandomGatePad = x;
+
+	// Direct random gate control - each pad has its own value
+	int32_t newGate = randomGateValues[x];
+
+	// Set parameter based on track type
+	if (getCurrentOutputType() == OutputType::SYNTH) {
+		// Use soundEditor for synth tracks
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (soundEditor.setup(clip, nullptr, 0)) {
+			// Now we're in sound editor context - use the official approach
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+			ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_SPREAD_GATE);
+
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				// Get the current UI to restore later
+				UI* originalUI = getCurrentUI();
+
+				// Enter sound editor context
+				soundEditor.focusRegained();
+
+				// Set the parameter value
+				int32_t finalValue = computeFinalValueForUnsignedMenuItem(newGate);
+				modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+
+				// Exit sound editor context back to original UI
+				originalUI->focusRegained();
+			}
+		}
+	}
+	else {
+		// Use direct parameter setting for CV/MIDI tracks (avoids crash)
+		// Use proper value scaling like the official menu system
+		int32_t scaledValue = computeFinalValueForUnsignedMenuItem(newGate);
+		settings->spreadGate = scaledValue;
+	}
+
+	display->displayPopup(("Random Gate: " + std::to_string(newGate)).c_str());
+
+	// Force UI update
+	keyboardScreen.requestMainPadsRendering();
+}
+
+void KeyboardLayoutArpControl::handleRandomizerLock() {
+	ArpeggiatorSettings* settings = getArpSettings();
+	if (!settings) return;
+
+	// Toggle randomizer lock
+	settings->randomizerLock = !settings->randomizerLock;
+
+	display->displayPopup(settings->randomizerLock ? "Randomizer Lock: ON" : "Randomizer Lock: OFF");
+
+	// Force UI update
+	keyboardScreen.requestMainPadsRendering();
+}
+
+void KeyboardLayoutArpControl::handleTranspose(int32_t x) {
+	if (x == 14) {
+		keyboardScrollOffset -= 12; // Down one octave
+		display->displayPopup("Keyboard -1 Oct");
+	} else if (x == 15) {
+		keyboardScrollOffset += 12; // Up one octave
+		display->displayPopup("Keyboard +1 Oct");
+	}
+}
+
+void KeyboardLayoutArpControl::handleKeyboard(int32_t x, int32_t y, uint8_t velocity) {
+	uint16_t note = noteFromCoords(x, y) + keyboardScrollOffset;
+
+	// Check note range based on output type
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (clip && clip->output) {
+		if (clip->output->type == OutputType::CV) {
+			// CV tracks can handle wider note range - check voltage calculation limits
+			// CV engine clamps voltage to 0-65535, which corresponds to roughly -24 to +120 semitones from C3
+			// For safety, limit to a reasonable range that won't cause voltage overflow
+			if (note <= 180) { // ~10 octaves from C3
+				enableNote(note, velocity);
+			}
+		}
+		else if (clip->output->type == OutputType::MIDI_OUT) {
+			// MIDI tracks are limited to 0-127
+			if (note < 128) {
+				enableNote(note, velocity);
+			}
+		}
+		else {
+			// Synth tracks use the standard keyboard range
+			if (note < kHighestKeyboardNote) {
+				enableNote(note, velocity);
+			}
+		}
+	}
+	else {
+		// Fallback to standard range
+		if (note < kHighestKeyboardNote) {
+			enableNote(note, velocity);
+		}
+	}
+}
+
+void KeyboardLayoutArpControl::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
+	ArpeggiatorSettings* settings = getArpSettings();
+	if (!settings) return;
+
+	// Top row: Arp mode, octaves, and randomizer lock
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
+		if (x >= 0 && x < 3) {
+			// Arp mode display
+			image[0][x] = getArpModeColor(settings);
+		}
+		else if (x >= 4 && x < 12) {
+			// Octave display
+			image[0][x] = getOctaveColor(x - 4, settings->numOctaves);
+		}
+		else if (x == 15) {
+			// Randomizer lock button
+			image[0][x] = settings->randomizerLock ? colours::yellow : colours::yellow.adjust(32, 3);
+		}
+		else {
+			// Unused pads are black
+			image[0][x] = colours::black;
+		}
+	}
+
+	// Row 1: Velocity spread and random octave
+	for (int32_t x = 0; x < 8; x++) {
+		image[1][x] = getVelocitySpreadColor(x);
+	}
+	for (int32_t x = 8; x < 16; x++) {
+		image[1][x] = getRandomOctaveColor(x - 8);
+	}
+
+	// Row 2: Gate and random gate
+	for (int32_t x = 0; x < 8; x++) {
+		image[2][x] = getGateColor(x);
+	}
+	for (int32_t x = 8; x < 16; x++) {
+		image[2][x] = getRandomGateColor(x - 8);
+	}
+
+	// Row 3: Sequence length, rhythm visualization, and transpose
+	for (int32_t x = 0; x < 8; x++) {
+		image[3][x] = getSequenceLengthColor(x);
+	}
+
+	// Rhythm pattern visualization on pads x8-x13
+	for (int32_t x = 8; x < 14; x++) {
+		image[3][x] = getRhythmPatternColor(x - 8);
+	}
+
+	image[3][14] = colours::red; // Down transpose
+	image[3][15] = colours::purple; // Up transpose
+
+	// Rows 4-7: Keyboard (stop at y=7, leave y=8-15 for control columns)
+	for (int32_t y = 4; y < 8; y++) {
+		for (int32_t x = 0; x < 15; x++) {
+			image[y][x] = getKeyboardColor(x, y);
+		}
+	}
+
+	// Rows 8-15: Control columns (y16, y17 when 0-indexed)
+	for (int32_t y = 8; y < 16; y++) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			// Control columns - will be handled by holding y16, y17
+			image[y][x] = colours::black;
+		}
+	}
+}
+
+// Color functions
+RGB KeyboardLayoutArpControl::getArpModeColor(ArpeggiatorSettings* settings) {
+	switch (settings->preset) {
+		case ArpPreset::OFF: return colours::red;
+		case ArpPreset::UP: return colours::pink;
+		case ArpPreset::DOWN: return colours::pink;
+		case ArpPreset::BOTH: return colours::pink;
+		case ArpPreset::RANDOM: return colours::pink;
+		case ArpPreset::WALK: return colours::magenta;
+		case ArpPreset::CUSTOM: return colours::white;
+		default: return colours::red;
+	}
+}
+
+RGB KeyboardLayoutArpControl::getOctaveColor(int32_t octave, int32_t currentOctaves) {
+	return (octave < currentOctaves) ? colours::blue : RGB(0, 0, 40);
+}
+
+
+RGB KeyboardLayoutArpControl::getSequenceLengthColor(int32_t length) {
+	// Highlight the last touched sequence length pad, dim all others
+	if (lastTouchedSequenceLengthPad == length) {
+		return colours::orange; // Bright orange for last touched pad
+	} else {
+		return colours::orange.adjust(32, 3); // Dim orange for other pads
+	}
+}
+
+RGB KeyboardLayoutArpControl::getVelocitySpreadColor(int32_t spread) {
+	// Highlight the last touched velocity pad, dim all others
+	if (lastTouchedVelocityPad == spread) {
+		return colours::cyan; // Bright cyan for last touched pad
+	} else {
+		return colours::cyan.adjust(32, 3); // Dim cyan for other pads
+	}
+}
+
+RGB KeyboardLayoutArpControl::getGateColor(int32_t gate) {
+	// Highlight the last touched gate pad, dim all others
+	if (lastTouchedGatePad == gate) {
+		return colours::green; // Bright green for last touched pad
+	} else {
+		return colours::green.adjust(32, 3); // Dim green for other pads
+	}
+}
+
+RGB KeyboardLayoutArpControl::getRandomOctaveColor(int32_t octave) {
+	// Highlight the last touched random octave pad, dim all others
+	if (lastTouchedRandomOctavePad == octave) {
+		return RGB(0, 100, 255); // Bright light blue for last touched pad
+	} else {
+		return RGB(0, 100, 255).adjust(32, 3); // Dim light blue for other pads
+	}
+}
+
+RGB KeyboardLayoutArpControl::getRandomGateColor(int32_t gate) {
+	// Highlight the last touched random gate pad, dim all others
+	if (lastTouchedRandomGatePad == gate) {
+		return colours::lime; // Bright lime for last touched pad
+	} else {
+		return colours::lime.adjust(32, 3); // Dim lime for other pads
+	}
+}
+
+RGB KeyboardLayoutArpControl::getRhythmPatternColor(int32_t step) {
+	// Show the currently selected rhythm pattern (not necessarily applied)
+	if (displayState.currentRhythm == 0) {
+		// Pattern 0 (all notes) - show all steps as dim white
+		return RGB::monochrome(32);
+	}
+
+	// Clamp rhythm to valid range
+	int32_t rhythmIndex = std::clamp(displayState.currentRhythm, static_cast<int32_t>(0), static_cast<int32_t>(kMaxPresetArpRhythm));
+
+	// Get the rhythm pattern
+	const ArpRhythm& pattern = arpRhythmPatterns[rhythmIndex];
+
+	// Check if this step should be active
+	if (step < pattern.length && pattern.steps[step]) {
+		// Bright white for active steps, dimmer if not applied
+		if (displayState.appliedRhythm == displayState.currentRhythm) {
+			return RGB::monochrome(128); // Bright white when applied
+		} else {
+			return RGB::monochrome(60); // Dimmer white when not applied
+		}
+	} else {
+		return RGB::monochrome(0); // Dim white for inactive steps
+	}
+}
+
+void KeyboardLayoutArpControl::applyRhythmToArpSettings() {
+	ArpeggiatorSettings* settings = getArpSettings();
+	if (!settings) return;
+
+	// Check output type to determine which approach to use
+	OutputType outputType = getCurrentOutputType();
+
+	if (outputType == OutputType::SYNTH) {
+		// Use soundEditor.setup() for synth tracks (works properly)
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (!clip) return;
+
+		// Use the same approach as the keyboard screen for proper parameter setting
+		UI* originalUI = getCurrentUI();
+
+		// Set up sound editor context like the official menu
+		if (soundEditor.setup(clip, nullptr, 0)) {
+			// Now we're in sound editor context - use the official approach
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+			ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
+
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				// Use appliedRhythm for the actual parameter value
+				int32_t finalValue = computeFinalValueForUnsignedMenuItem(displayState.appliedRhythm);
+				modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+			}
+
+			// Exit sound editor context back to original UI
+			originalUI->focusRegained();
+		}
+	}
+	else {
+		// Use direct parameter setting for CV/MIDI tracks (avoids crash)
+		// Use proper value scaling like the official menu system
+		int32_t scaledValue = computeFinalValueForUnsignedMenuItem(displayState.appliedRhythm);
+		settings->rhythm = scaledValue;
+	}
+
+}
+
+void KeyboardLayoutArpControl::handleRhythmToggle() {
+	// Toggle logic: apply current pattern or turn OFF
+	if (displayState.appliedRhythm == 0) {
+		// Turn ON: apply the currently selected pattern
+		displayState.appliedRhythm = displayState.currentRhythm;
+		display->displayPopup("Rhythm ON");
+	} else {
+		// Turn OFF: keep current pattern for next time
+		displayState.appliedRhythm = 0;
+		display->displayPopup("Rhythm OFF");
+	}
+
+	// Apply the change using our safe method
+	applyRhythmToArpSettings();
+
+	// Update display and pads
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	keyboardScreen.requestMainPadsRendering();
+}
+
+RGB KeyboardLayoutArpControl::getKeyboardColor(int32_t x, int32_t y) {
+	// Get the note for this pad position
+	auto note = noteFromCoords(x, y);
+
+	// Calculate note within octave relative to root
+	int32_t noteWithinOctave = (uint16_t)((note + kOctaveSize) - getRootNote()) % kOctaveSize;
+
+	// Check if this note is currently pressed
+	bool isPressed = false;
+	for (int32_t i = 0; i < currentNotesState.count; i++) {
+		if (currentNotesState.notes[i].note == note) {
+			isPressed = true;
+			break;
+		}
+	}
+
+	// Get color source using getNoteColour function
+	RGB colourSource = getNoteColour(note);
+
+	// Full brightness and colour for active root note
+	if (noteWithinOctave == 0 && isPressed) {
+		return colourSource.adjust(255, 1);
+	}
+	// Full colour but less brightness for inactive root note
+	else if (noteWithinOctave == 0) {
+		return colourSource.adjust(255, 2);
+	}
+	// Toned down colour but high brightness for active scale note
+	else if (isPressed) {
+		return colourSource.adjust(127, 3);
+	}
+	// Dimly white for inactive scale notes
+	else {
+		return RGB::monochrome(1);
+	}
+}
+
+// Essential functions
+ArpeggiatorSettings* KeyboardLayoutArpControl::getArpSettings() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip) return nullptr;
+	return &clip->arpSettings;
 }
 
 void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
-	// Force direct control - bypass column controls completely
-	// Don't call verticalEncoderHandledByColumns at all
-
-	// Rhythm control: scroll through patterns and apply immediately if rhythm is ON
-		if (offset > 0) {
-			displayState.currentRhythm++;
-			if (displayState.currentRhythm > 50) {
-			displayState.currentRhythm = 1; // Wrap to first pattern (skip 0)
-			}
-		} else if (offset < 0) {
-			displayState.currentRhythm--;
-		if (displayState.currentRhythm < 1) {
-			displayState.currentRhythm = 50; // Wrap to last pattern
-		}
-	}
-
-	// If rhythm is currently ON, apply the new pattern immediately
-	if (displayState.appliedRhythm > 0) {
-		displayState.appliedRhythm = displayState.currentRhythm;
-
-		// Apply the change using the parameter system
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		if (clip) {
-			ArpeggiatorSettings* settings = &clip->arpSettings;
-
-			// CRITICAL: Always ensure syncLevel is properly set (never 0)
-			if (settings->syncLevel == 0) {
-				settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
-			}
-
-			// Let sequence length work independently - don't auto-modify it
-
-			// CORRECT: Use parameter conversion like the arpeggiator expects
-			int32_t rhythmValue = (displayState.appliedRhythm > 0) ? displayState.appliedRhythm : 0;
-			settings->rhythm = computeFinalValueForUnsignedMenuItem(rhythmValue);
-			settings->flagForceArpRestart = true;
-		}
-	}
-
-	// Show rhythm name with appropriate status
-	char statusMsg[50];
-	if (displayState.appliedRhythm == 0) {
-		snprintf(statusMsg, sizeof(statusMsg), "%s (preview)", arpRhythmPatternNames[displayState.currentRhythm]);
+	// Scroll through rhythm patterns (but don't apply until encoder is pressed)
+	if (offset > 0) {
+		displayState.currentRhythm++;
+		if (displayState.currentRhythm > 50) displayState.currentRhythm = 1;
 	} else {
-		snprintf(statusMsg, sizeof(statusMsg), "%s", arpRhythmPatternNames[displayState.currentRhythm]);
+		displayState.currentRhythm--;
+		if (displayState.currentRhythm < 1) displayState.currentRhythm = 50;
 	}
-	display->displayPopup(statusMsg);
 
-	// Update display and pads
+	// Display rhythm pattern name and status
+	DEF_STACK_STRING_BUF(buffer, 30);
+	if (displayState.currentRhythm == 0) {
+		buffer.append("Rhythm: None");
+	} else {
+		buffer.append("Rhythm: ");
+		buffer.append(arpRhythmPatternNames[displayState.currentRhythm]);
+		if (displayState.appliedRhythm == 0) {
+			buffer.append(" (OFF)");
+		} else {
+			buffer.append(" (ON)");
+		}
+	}
+	display->displayPopup(buffer.c_str());
+
+	// Update OLED display to show the rhythm pattern
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+
+	// Update pads to show the rhythm pattern visualization
+	keyboardScreen.requestMainPadsRendering();
+}
+
+void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shiftEnabled, PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
+
+	// Check if column controls are handling the encoder
+	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
+		return;
+	}
+
+	// Arp preset control (like pulse_sequencer.cpp)
+	ArpeggiatorSettings* settings = getArpSettings();
+	if (!settings) return;
+
+	// Only change preset if offset is non-zero (avoid display refresh on select encoder)
+	if (offset != 0) {
+		// Normal horizontal: change arp preset (not rate)
+		int32_t newPreset = static_cast<int32_t>(settings->preset) + offset;
+		newPreset = std::clamp(newPreset, static_cast<int32_t>(0), static_cast<int32_t>(ArpPreset::CUSTOM));
+		settings->preset = static_cast<ArpPreset>(newPreset);
+
+		// Update settings from preset to enable arpeggiator
+		settings->updateSettingsFromCurrentPreset();
+
+		// Force arpeggiator to restart so it picks up the new preset immediately
+		settings->flagForceArpRestart = true;
+
+		display->displayPopup(KeyboardLayoutArpControl::getArpPresetDisplayName(settings->preset));
+
+		// Display update: Handle both OLED and 7-segment
 		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
+		// 7-segment display is already handled by displayPopup()
+
+		// Pad update: Only because arp status changed
 		keyboardScreen.requestMainPadsRendering();
-}
-
-void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
-                                                                PressedPad presses[kMaxNumKeyboardPadPresses],
-                                                                bool encoderPressed) {
-	// First check if column controls should handle this
-		if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
-			return;
-	}
-
-	// Use horizontal encoder for arp sync rate control
-	ArpeggiatorSettings* settings = getArpSettings();
-	if (settings && offset != 0) {
-		// Control sync level (1-9: WHOLE to 256TH notes)
-		int32_t newSyncLevel = static_cast<int32_t>(settings->syncLevel) + offset;
-		newSyncLevel = std::clamp(newSyncLevel, (int32_t)1, (int32_t)9); // Valid range 1-9
-		settings->syncLevel = static_cast<SyncLevel>(newSyncLevel);
-
-		// Force arpeggiator to restart with new sync rate
-		settings->flagForceArpRestart = true;
-
-		// Show sync rate name using official function
-		char syncNameBuffer[30];
-		StringBuf syncNameStr(syncNameBuffer, sizeof(syncNameBuffer));
-		syncValueToString(newSyncLevel, syncNameStr, currentSong->getInputTickMagnitude());
-		display->displayPopup(syncNameStr.c_str());
-
-		// Update display
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			keyboardScreen.requestMainPadsRendering();
 	}
 }
 
 void KeyboardLayoutArpControl::precalculate() {
-	displayState.needsRefresh = true;
+	// No precalculation needed
 }
 
 void KeyboardLayoutArpControl::updateAnimation() {
-	// Simplified animation - only update when arp step changes during playback
-	int32_t currentStep = getCurrentRhythmStep();
-	ArpeggiatorSettings* settings = getArpSettings();
-
-	// Update progress bar using clip view approach (no OLED interference)
-	updatePlaybackProgressBar();
-
-	// Only refresh for arp step changes to avoid OLED interference
-	if (currentStep != displayState.lastRhythmStep && currentStep >= 0 && settings && settings->preset != ArpPreset::OFF) {
-		displayState.lastRhythmStep = currentStep;
-
-		// Direct pad LED update for arp step highlighting
-		updatePadLEDsDirect();
-	}
-}
-
-void KeyboardLayoutArpControl::updatePadLEDsDirect() {
-	ArpeggiatorSettings* settings = getArpSettings();
-	if (!settings) {
-		return;
-	}
-
-	// Update playback progress bar on top row (like clip view)
-	updatePlaybackProgressBar();
-
-	if (settings->preset == ArpPreset::OFF) {
-		return;
-	}
-
-	// Get current step and pattern
-	int32_t currentStep = getCurrentRhythmStep();
-	int32_t rhythmIndex = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
-	const ArpRhythm& pattern = arpRhythmPatterns[rhythmIndex];
-
-	if (currentStep < 0) {
-		return; // Not playing
-	}
-
-	// Update only the current step pad directly using PadLEDs::set
-	const int32_t patternStartRow = 2;
-	const int32_t maxStepsPerRow = kDisplayWidth;
-
-	// Clear previous step highlighting by re-rendering just the pattern area
-	for (int32_t step = 0; step < pattern.length && step < maxStepsPerRow * 3; step++) {
-		int32_t x = step % maxStepsPerRow;
-		int32_t y = patternStartRow + (step / maxStepsPerRow);
-
-		if (y >= kDisplayHeight) break;
-
-		bool isActive = pattern.steps[step];
-		bool isCurrent = (step == currentStep);
-
-		RGB color = getStepColor(isActive, isCurrent);
-		PadLEDs::set({x, y}, color);
-	}
-
-	// Let the normal rendering system handle sending colors
-	// Don't call PadLEDs::sendOutMainPadColours() to avoid OLED conflicts
+	// Simple animation update
 }
 
 void KeyboardLayoutArpControl::updateDisplay() {
-	// Handle both OLED and 7-segment displays properly
-	if (display->haveOLED()) {
-		// OLED display - trigger full UI render
-		renderUIsForOled();
-	} else {
-		// 7-segment display - the popup should already be displayed
-		// No additional action needed for 7-segment
-	}
+	// Simple display update
+}
+
+void KeyboardLayoutArpControl::updatePadLEDsDirect() {
+	// Simple pad LED update
 }
 
 void KeyboardLayoutArpControl::updatePlaybackProgressBar() {
-	// Use horizontal progress bar on bottom row (row 7)
-	int32_t newTickSquare;
-
-	// Calculate playback position (same logic as clip views)
-	if (!playbackHandler.isEitherClockActive() || !currentSong->isClipActive(getCurrentClip())
-	    || currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_IMPLODE_ANIMATION
-	    || playbackHandler.ticksLeftInCountIn) {
-		newTickSquare = 255; // Off screen
-	}
-	else {
-		// Calculate position within clip (same as getTickSquare() in clip views)
-		Clip* clip = getCurrentClip();
-		if (clip) {
-			newTickSquare = (uint64_t)(clip->lastProcessedPos + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick())
-			                * kDisplayWidth / clip->loopLength;
-			if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
-				newTickSquare = 255;
-			}
-		} else {
-			newTickSquare = 255;
-		}
-	}
-
-	// Create horizontal progress bar - on top row (row 7)
-	uint8_t tickSquares[kDisplayHeight];
-	for (int32_t row = 0; row < kDisplayHeight; row++) {
-		if (row == 7) { // Bottom row gets the progress indicator
-			tickSquares[row] = newTickSquare;
-		} else {
-			tickSquares[row] = 255; // Off screen for other rows
-		}
-	}
-
-	// Set colors for the progress line
-	std::array<uint8_t, 8> coloursArray = {0}; // Default color for bottom row
-
-	// Send to hardware using the same system as clip views
-	PadLEDs::setTickSquares(tickSquares, coloursArray.data());
-}
-
-bool KeyboardLayoutArpControl::hasArpSettingsChanged() {
-	ArpeggiatorSettings* settings = getArpSettings();
-	if (!settings) return false;
-
-	bool changed = false;
-
-	// Check rhythm pattern - but don't overwrite our display state when we're controlling it
-	int32_t currentRhythm = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
-	// Only update display state if we're not actively controlling the rhythm
-	// This prevents the OLED from showing converted values that don't match our encoder
-	if (currentRhythm != displayState.currentRhythm && currentRhythm >= 1 && currentRhythm <= 50) {
-		// Only accept values in our valid range (1-50)
-		displayState.currentRhythm = currentRhythm;
-		changed = true;
-	}
-
-	// Check preset
-	if (settings->preset != displayState.currentPreset) {
-		displayState.currentPreset = settings->preset;
-		changed = true;
-	}
-
-	// Check octave mode
-	if (settings->octaveMode != displayState.currentOctaveMode) {
-		displayState.currentOctaveMode = settings->octaveMode;
-		changed = true;
-	}
-
-	// Check octave count
-	if (settings->numOctaves != displayState.currentOctaves) {
-		displayState.currentOctaves = settings->numOctaves;
-		changed = true;
-	}
-
-	return changed;
-}
-
-void KeyboardLayoutArpControl::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
-	// Clear the display
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			image[y][x] = colours::black;
-		}
-	}
-
-	// Render different sections
-	renderParameterDisplay(image);
-	renderRhythmPattern(image);
-	renderCurrentStep(image);
-	renderKeyboard(image); // Add keyboard in rows 4-7
-
-	displayState.needsRefresh = false;
-}
-
-ArpeggiatorSettings* KeyboardLayoutArpControl::getArpSettings() {
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	return clip ? &clip->arpSettings : nullptr;
-}
-
-Arpeggiator* KeyboardLayoutArpControl::getArpeggiator() {
-	Instrument* instrument = getCurrentInstrument();
-	if (instrument && instrument->type == OutputType::SYNTH) {
-		return &((MelodicInstrument*)instrument)->arpeggiator;
-	}
-	return nullptr;
-}
-
-void KeyboardLayoutArpControl::renderRhythmPattern(RGB image[][kDisplayWidth + kSideBarWidth]) {
-	ArpeggiatorSettings* settings = getArpSettings();
-	if (!settings) return;
-
-	// Always show the currently selected rhythm pattern (for preview)
-	int32_t patternIndex = displayState.currentRhythm; // Use our display state, not the applied rhythm
-	if (patternIndex < 1 || patternIndex > 50) {
-		patternIndex = 1; // Default to pattern 1 if invalid
-	}
-	const ArpRhythm& pattern = arpRhythmPatterns[patternIndex];
-
-	// Display rhythm pattern in the middle rows (rows 2-3) - avoid keyboard area
-	const int32_t patternStartRow = 2;
-	const int32_t maxStepsPerRow = kDisplayWidth;
-
-	// Only show current step highlighting when actually playing and rhythm is applied
-	int32_t currentStep = (displayState.appliedRhythm > 0) ? getCurrentRhythmStep() : -1;
-
-	for (int32_t step = 0; step < pattern.length && step < maxStepsPerRow * 2; step++) {
-		int32_t x = step % maxStepsPerRow;
-		int32_t y = patternStartRow + (step / maxStepsPerRow);
-
-		if (y >= 4) break; // Don't overlap with keyboard (starts at row 4)
-
-		bool isActive = pattern.steps[step];
-		bool isCurrent = (step == currentStep);
-
-		RGB stepColor = getStepColor(isActive, isCurrent);
-		// Dim the pattern when rhythm is not applied (preview mode)
-		if (displayState.appliedRhythm == 0) {
-			stepColor = RGB(stepColor.r / 4, stepColor.g / 4, stepColor.b / 4);
-		}
-		image[y][x] = stepColor;
-	}
-}
-
-void KeyboardLayoutArpControl::renderParameterDisplay(RGB image[][kDisplayWidth + kSideBarWidth]) {
-	ArpeggiatorSettings* settings = getArpSettings();
-	if (!settings) return;
-
-	// Top row: Show arp mode and status
-	RGB modeColor = (settings->preset == ArpPreset::OFF) ? colours::red : colours::green;
-
-	// Show mode in first few pads of top row
-	for (int32_t x = 0; x < 3; x++) {
-		image[0][x] = modeColor;
-	}
-
-	// Show octave count: all 8 octave pads dimly lit, with active ones bright
-	RGB dimOctaveColor = RGB(0, 0, 40); // Dim blue for available octaves
-	RGB brightOctaveColor = colours::blue; // Bright blue for active octaves
-
-	// Show all 8 possible octaves (positions 4-11, but limit to display width)
-	int32_t maxOctaveX = std::min((int32_t)(4 + 8), (int32_t)kDisplayWidth);
-	for (int32_t x = 4; x < maxOctaveX; x++) {
-		int32_t octaveNum = x - 4 + 1; // Octave 1-8
-		if (octaveNum <= settings->numOctaves) {
-			image[0][x] = brightOctaveColor; // Active octaves are bright
-		} else {
-			image[0][x] = dimOctaveColor; // Inactive octaves are dim
-		}
-	}
-
-	// Show yellow rhythm toggle pads (top row, positions 13-16)
-	RGB rhythmColor = (displayState.appliedRhythm > 0) ? colours::yellow : RGB(40, 40, 0); // Dim yellow when rhythm OFF
-	for (int32_t x = 13; x < 16 && x < kDisplayWidth; x++) {
-		image[0][x] = rhythmColor;
-	}
-
-	// Row 1: Show sequence length - works independently of rhythm
-	int32_t currentSeqLength;
-	if (settings->sequenceLength == 0) {
-		currentSeqLength = 0; // 0 means unlimited (OFF)
-	} else {
-		currentSeqLength = (settings->sequenceLength * 16) / kMaxMenuValue; // Convert back to 1-16 range
-		if (currentSeqLength < 1) currentSeqLength = 1;
-		if (currentSeqLength > 16) currentSeqLength = 16;
-	}
-
-	RGB brightSeqColor = colours::cyan; // Bright cyan for active length
-	RGB dimSeqColor = RGB(0, 40, 40); // Dim cyan for available positions
-
-	// Show all 16 sequence length positions
-	for (int32_t x = 0; x < kDisplayWidth; x++) {
-		int32_t lengthNum = x + 1; // Length 1-16
-		if (currentSeqLength == 0) {
-			// Unlimited sequence length - show all pads dim to indicate "unlimited"
-			image[1][x] = dimSeqColor;
-		} else if (lengthNum <= currentSeqLength) {
-			image[1][x] = brightSeqColor; // Active length positions are bright
-		} else {
-			image[1][x] = dimSeqColor; // Inactive positions are dim
-		}
-	}
-
-	// Row 3: Show gate length (0-7), velocity spread (8-13), and transpose controls (14-15)
-
-	// Gate length visualization (positions 0-7) - handle 0 = default case
-	int32_t currentGate = (settings->gate * 8) / kMaxMenuValue; // Convert to 0-8 range
-	if (currentGate > 8) currentGate = 8;
-
-	RGB brightGateColor = colours::orange; // Bright orange for active gate
-	RGB dimGateColor = RGB(40, 20, 0); // Dim orange for available positions
-
-	// Show all 8 gate length positions
-	for (int32_t x = 0; x < 8; x++) {
-		int32_t gateNum = x + 1; // Gate 1-8
-		if (currentGate == 0) {
-			// Gate = 0 means default - show all pads dim to indicate "default"
-			image[3][x] = dimGateColor;
-		} else if (gateNum <= currentGate) {
-			image[3][x] = brightGateColor; // Active gate positions are bright
-		} else {
-			image[3][x] = dimGateColor; // Inactive positions are dim
-		}
-	}
-
-	// Velocity spread visualization (positions 8-13) - handle 0 = no spread case
-	int32_t currentSpread = (settings->spreadVelocity * 6) / kMaxMenuValue; // Convert to 0-6 range
-	if (currentSpread > 6) currentSpread = 6;
-
-	RGB brightSpreadColor = colours::pink; // Bright pink for active spread
-	RGB dimSpreadColor = RGB(40, 0, 20); // Dim pink for available positions
-
-	// Show all 6 velocity spread positions
-	for (int32_t x = 8; x < 14; x++) {
-		int32_t spreadNum = x - 8 + 1; // Spread 1-6
-		if (currentSpread == 0) {
-			// Spread = 0 means no spread - show all pads dim to indicate "no spread"
-			image[3][x] = dimSpreadColor;
-		} else if (spreadNum <= currentSpread) {
-			image[3][x] = brightSpreadColor; // Active spread positions are bright
-		} else {
-			image[3][x] = dimSpreadColor; // Inactive positions are dim
-		}
-	}
-
-	// Row 2: Position 15 free for future features
-
-	// Transpose controls (positions 14-15)
-	if (kDisplayWidth > 14) {
-		image[3][14] = colours::red;    // Down octave
-	}
-	if (kDisplayWidth > 15) {
-		image[3][15] = colours::magenta; // Up octave (purple)
-	}
-}
-
-void KeyboardLayoutArpControl::renderCurrentStep(RGB image[][kDisplayWidth + kSideBarWidth]) {
-	int32_t currentStep = getCurrentRhythmStep();
-	if (currentStep < 0) return; // Not playing
-
-	ArpeggiatorSettings* settings = getArpSettings();
-	if (!settings) return;
-
-	int32_t rhythmIndex = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
-	const ArpRhythm& pattern = arpRhythmPatterns[rhythmIndex];
-
-	// Highlight current step with brighter color
-	const int32_t patternStartRow = 2;
-	const int32_t maxStepsPerRow = kDisplayWidth;
-
-	if (currentStep < pattern.length) {
-		int32_t x = currentStep % maxStepsPerRow;
-		int32_t y = patternStartRow + (currentStep / maxStepsPerRow);
-
-		if (y < kDisplayHeight) {
-			// Make current step extra bright
-			RGB currentColor = image[y][x];
-			image[y][x] = RGB(
-				std::min(255, currentColor.r + 100),
-				std::min(255, currentColor.g + 100),
-				std::min(255, currentColor.b + 100)
-			);
-		}
-	}
-}
-
-RGB KeyboardLayoutArpControl::getStepColor(bool isActive, bool isCurrent, uint8_t velocity) {
-	if (!isActive) {
-		return isCurrent ? colours::grey : colours::black;
-	}
-
-	// Active steps get colored based on velocity
-	RGB baseColor = colours::white;
-
-	if (isCurrent) {
-		// Current step is brighter
-		return RGB(255, 255, 255);
-	} else {
-		// Dim the color based on velocity
-		uint8_t brightness = (velocity * 200) / 127 + 55; // Scale to 55-255 range
-		return RGB(brightness, brightness, brightness);
-	}
-}
-
-int32_t KeyboardLayoutArpControl::getCurrentRhythmStep() {
-	Arpeggiator* arp = getArpeggiator();
-	ArpeggiatorSettings* settings = getArpSettings();
-
-	if (!arp || !settings || !playbackHandler.isEitherClockActive() || settings->preset == ArpPreset::OFF) {
-		return -1; // Not playing or arp is off
-	}
-
-	// Get current rhythm pattern
-	int32_t rhythmIndex = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
-	const ArpRhythm& pattern = arpRhythmPatterns[rhythmIndex];
-
-	// Get current rhythm step from arpeggiator state and normalize to pattern length
-	int32_t currentStep = arp->notesPlayedFromRhythm % pattern.length;
-
-	return currentStep;
+	// Simple progress bar update
 }
 
 char const* KeyboardLayoutArpControl::getArpPresetDisplayName(ArpPreset preset) {
@@ -756,203 +822,4 @@ char const* KeyboardLayoutArpControl::getArpPresetDisplayName(ArpPreset preset) 
 	}
 }
 
-char const* KeyboardLayoutArpControl::getOctaveModeDisplayName(ArpOctaveMode mode) {
-	switch (mode) {
-		case ArpOctaveMode::UP: return "OCT_UP";
-		case ArpOctaveMode::DOWN: return "OCT_DOWN";
-		case ArpOctaveMode::ALTERNATE: return "OCT_ALT";
-		case ArpOctaveMode::RANDOM: return "OCT_RAND";
-		default: return "OCT_UNK";
-	}
-}
-
-void KeyboardLayoutArpControl::updateArpAndRefreshUI(ArpeggiatorSettings* settings, const char* popupMessage) {
-	if (!settings) return;
-
-	// Force arpeggiator restart to apply changes
-	settings->flagForceArpRestart = true;
-
-	// Show popup message (this is immediate and doesn't conflict)
-	if (popupMessage) {
-		display->displayPopup(popupMessage);
-	}
-
-	// NOTE: UI refresh will be done at end of evaluatePads() for better performance
-}
-
-bool KeyboardLayoutArpControl::handleControlPad(int32_t x, int32_t y, ArpeggiatorSettings* settings, bool& controlsChanged) {
-	if (!settings) return false;
-
-	// OPTIMIZED CONTROL DETECTION: Check most common controls first
-
-	// Row 0 - Main controls (most frequently used)
-	if (y == 0) {
-		// Green pads (0-2): Arp mode cycling
-		if (x >= 0 && x < 3) {
-			const char* modeMessage = nullptr;
-			switch (settings->preset) {
-				case ArpPreset::OFF: settings->preset = ArpPreset::UP; modeMessage = "Arp UP"; break;
-				case ArpPreset::UP: settings->preset = ArpPreset::DOWN; modeMessage = "Arp DOWN"; break;
-				case ArpPreset::DOWN: settings->preset = ArpPreset::BOTH; modeMessage = "Arp UP&DOWN"; break;
-				case ArpPreset::BOTH: settings->preset = ArpPreset::RANDOM; modeMessage = "Arp RANDOM"; break;
-				default: settings->preset = ArpPreset::OFF; modeMessage = "Arp OFF"; break;
-			}
-			settings->updateSettingsFromCurrentPreset();
-			settings->flagForceArpRestart = true;
-			display->displayPopup(modeMessage);
-			controlsChanged = true;
-			return true;
-		}
-
-		// Blue pads (4-11): Octave count
-		if (x >= 4 && x < 12) {
-			int32_t newOctaves = x - 4 + 1;
-			settings->numOctaves = newOctaves;
-			settings->flagForceArpRestart = true;
-			display->displayPopup(("Octaves: " + std::to_string(newOctaves)).c_str());
-			controlsChanged = true;
-			return true;
-		}
-
-		// Yellow pads (13-15): Rhythm toggle
-		if (x >= 13 && x < 16) {
-			// Toggle rhythm on/off
-			if (displayState.appliedRhythm == 0) {
-				displayState.appliedRhythm = displayState.currentRhythm;
-				display->displayPopup("Rhythm ON");
-			} else {
-				displayState.appliedRhythm = 0;
-				display->displayPopup("Rhythm OFF");
-			}
-
-			// Apply rhythm change safely
-			if (settings->syncLevel == 0) {
-				settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
-			}
-
-			// Let sequence length work independently - don't auto-modify it
-
-			// CORRECT: Use parameter conversion like the arpeggiator expects
-			int32_t rhythmValue = (displayState.appliedRhythm > 0) ? displayState.appliedRhythm : 0;
-			settings->rhythm = computeFinalValueForUnsignedMenuItem(rhythmValue);
-			settings->flagForceArpRestart = true;
-			controlsChanged = true;
-			return true;
-		}
-	}
-
-	// Row 1 - Sequence length (works independently of rhythm)
-	if (y == 1 && x < kDisplayWidth) {
-		int32_t newLength = x + 1;
-		settings->sequenceLength = computeFinalValueForUnsignedMenuItem(newLength);
-		settings->flagForceArpRestart = true;
-		display->displayPopup(("Seq Length: " + std::to_string(newLength)).c_str());
-		controlsChanged = true;
-		return true;
-	}
-
-	// Row 2 - Position 15 free for future features
-
-	// Row 3 - Performance controls
-	if (y == 3) {
-		// Gate length (0-7)
-		if (x >= 0 && x < 8) {
-			int32_t gateIndex = x + 1;
-			settings->gate = computeFinalValueForStandardMenuItem(gateIndex);
-			settings->flagForceArpRestart = true;
-			display->displayPopup(("Gate: " + std::to_string((gateIndex * 100) / 8) + "%").c_str());
-			controlsChanged = true;
-			return true;
-		}
-
-		// Velocity spread (8-13)
-		if (x >= 8 && x < 14) {
-			int32_t spreadIndex = x - 8 + 1;
-			settings->spreadVelocity = (spreadIndex * kMaxMenuValue) / 6;
-			settings->flagForceArpRestart = true;
-			display->displayPopup(("Vel Spread: " + std::to_string((spreadIndex * 100) / 6) + "%").c_str());
-			controlsChanged = true;
-			return true;
-		}
-
-		// Transpose controls (14-15)
-		if (x == 14) {
-			displayState.keyboardScrollOffset -= 12;
-			if (displayState.keyboardScrollOffset < -36) {
-				displayState.keyboardScrollOffset = -36;
-			}
-			display->displayPopup("Keyboard -1 Oct");
-			controlsChanged = true;
-			return true;
-		}
-		if (x == 15) {
-			displayState.keyboardScrollOffset += 12;
-			if (displayState.keyboardScrollOffset > 48) {
-				displayState.keyboardScrollOffset = 48;
-			}
-			display->displayPopup("Keyboard +1 Oct");
-			controlsChanged = true;
-			return true;
-		}
-	}
-
-	return false; // No control handled
-}
-
-void KeyboardLayoutArpControl::renderKeyboard(RGB image[][kDisplayWidth + kSideBarWidth]) {
-	// Render simple chromatic keyboard in rows 4-7
-
-	// Precreate list of all active notes
-	bool activeNotes[128] = {false};
-	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
-		if (currentNotesState.notes[idx].note < 128) {
-			activeNotes[currentNotesState.notes[idx].note] = true;
-		}
-	}
-
-	// Render keyboard in rows 4-7 only
-	for (int32_t y = 4; y < 8 && y < kDisplayHeight; ++y) {
-		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			auto padIndex = padIndexFromCoords(x, y - 4); // Adjust for keyboard starting at row 4
-			auto note = noteFromPadIndex(padIndex);
-
-			// Limit to valid MIDI range
-			if (note >= 128) {
-				image[y][x] = colours::black;
-				continue;
-			}
-
-			// Simple chromatic coloring
-			bool isActive = activeNotes[note];
-			bool isRoot = (note % 12) == 0; // C notes
-			bool isBlackKey = (note % 12 == 1 || note % 12 == 3 || note % 12 == 6 || note % 12 == 8 || note % 12 == 10);
-
-			RGB color;
-			if (isActive) {
-				// Active notes are bright
-				if (isRoot) {
-					color = colours::red; // C notes are red when active
-				} else if (isBlackKey) {
-					color = colours::blue; // Black keys are blue when active
-				} else {
-					color = colours::white; // White keys are white when active
-				}
-			} else {
-				// Inactive notes are dim
-				if (isRoot) {
-					color = RGB(40, 0, 0); // Dim red for C notes
-				} else if (isBlackKey) {
-					color = RGB(0, 0, 20); // Dim blue for black keys
-				} else {
-					color = RGB(10, 10, 10); // Dim white for white keys
-				}
-			}
-
-			image[y][x] = color;
-		}
-	}
-}
-
-
-}; // namespace deluge::gui::ui::keyboard::layout
-
+} // namespace deluge::gui::ui::keyboard::layout

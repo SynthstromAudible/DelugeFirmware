@@ -580,51 +580,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		if (currentLayoutType == KeyboardLayoutType::KeyboardLayoutTypeGenerative) {
 			// Toggle logic: apply current pattern or turn OFF
 			layout::KeyboardLayoutArpControl* arpLayout = (layout::KeyboardLayoutArpControl*)layout_list[currentLayoutType];
-			if (arpLayout->displayState.appliedRhythm == 0) {
-				// Turn ON: apply the currently selected pattern
-				arpLayout->displayState.appliedRhythm = arpLayout->displayState.currentRhythm;
-				display->displayPopup("Rhythm ON");
-			} else {
-				// Turn OFF: keep current pattern for next time
-				arpLayout->displayState.appliedRhythm = 0;
-				display->displayPopup("Rhythm OFF");
-			}
-
-			// Apply the change to the actual arpeggiator
-			InstrumentClip* clip = getCurrentInstrumentClip();
-			if (clip) {
-				ArpeggiatorSettings* settings = &clip->arpSettings;
-
-				// CRITICAL: Always ensure syncLevel is properly set (never 0)
-				if (settings->syncLevel == 0) {
-					settings->syncLevel = (SyncLevel)(8 - currentSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitudeOffsetFromBPM);
-				}
-
-				UI* originalUI = getCurrentUI();
-
-				// Set up sound editor context like the official menu
-				if (soundEditor.setup(clip, nullptr, 0)) {
-					// Now we're in sound editor context - use the official approach
-					char modelStackMemory[MODEL_STACK_MAX_SIZE];
-					ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-					ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
-
-					if (modelStackWithParam && modelStackWithParam->autoParam) {
-						// Use appliedRhythm for the actual parameter value
-						int32_t finalValue = computeFinalValueForUnsignedMenuItem(arpLayout->displayState.appliedRhythm);
-						modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
-					}
-
-					// Exit sound editor context back to original UI
-					originalUI->focusRegained();
-				}
-			}
-
-			// Update display and pads
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			requestMainPadsRendering();
+			arpLayout->handleRhythmToggle();
 		}
 	}
 
