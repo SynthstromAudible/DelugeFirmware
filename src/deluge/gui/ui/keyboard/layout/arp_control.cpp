@@ -460,7 +460,7 @@ void KeyboardLayoutArpControl::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		if (x >= 0 && x < 3) {
 			// Arp mode display
-			image[0][x] = getArpModeColor(settings);
+			image[0][x] = getArpModeColor(settings, x);
 		}
 		else if (x >= 4 && x < 12) {
 			// Octave display
@@ -522,13 +522,37 @@ void KeyboardLayoutArpControl::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 }
 
 // Color functions
-RGB KeyboardLayoutArpControl::getArpModeColor(ArpeggiatorSettings* settings) {
+RGB KeyboardLayoutArpControl::getArpModeColor(ArpeggiatorSettings* settings, int32_t x) {
 	switch (settings->preset) {
 		case ArpPreset::OFF: return colours::red;
-		case ArpPreset::UP: return colours::pink;
-		case ArpPreset::DOWN: return colours::pink;
-		case ArpPreset::BOTH: return colours::pink;
-		case ArpPreset::RANDOM: return colours::pink;
+		case ArpPreset::UP:
+			switch (x) {
+				case 0: return colours::green;
+				case 1: return colours::green;
+				case 2: return RGB(255, 200, 150); // Peach
+				default: return colours::green;
+			}
+		case ArpPreset::DOWN:
+			switch (x) {
+				case 0: return RGB(255, 200, 150); // Peach
+				case 1: return colours::green;
+				case 2: return colours::green;
+				default: return colours::green;
+			}
+		case ArpPreset::BOTH:
+			switch (x) {
+				case 0: return RGB(255, 200, 150); // Peach
+				case 1: return colours::green;
+				case 2: return RGB(255, 200, 150); // Peach
+				default: return colours::green;
+			}
+		case ArpPreset::RANDOM:
+			switch (x) {
+				case 0: return RGB(255, 200, 150); // Peach
+				case 1: return RGB(255, 200, 150); // Peach
+				case 2: return RGB(255, 200, 150); // Peach
+				default: return RGB(255, 200, 150);
+			}
 		case ArpPreset::WALK: return colours::magenta;
 		case ArpPreset::CUSTOM: return colours::white;
 		default: return colours::red;

@@ -92,7 +92,7 @@ private:
 	void handleKeyboard(int32_t x, int32_t y, uint8_t velocity);
 
 	/// Get color for arp mode display
-	RGB getArpModeColor(ArpeggiatorSettings* settings);
+	RGB getArpModeColor(ArpeggiatorSettings* settings, int32_t x);
 
 	/// Get color for octave display
 	RGB getOctaveColor(int32_t octave, int32_t currentOctaves);
