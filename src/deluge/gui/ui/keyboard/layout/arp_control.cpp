@@ -759,7 +759,7 @@ void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shif
 		return;
 	}
 
-	// Arp preset control (like pulse_sequencer.cpp)
+	// Arp preset control
 	ArpeggiatorSettings* settings = getArpSettings();
 	if (!settings) return;
 
