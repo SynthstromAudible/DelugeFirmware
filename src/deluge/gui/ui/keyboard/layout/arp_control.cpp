@@ -31,6 +31,8 @@
 #include "modulation/arpeggiator_rhythms.h"
 #include "util/d_string.h"
 #include "model/output.h"
+#include "model/sync.h"
+#include "gui/menu_item/sync_level.h"
 
 namespace deluge::gui::ui::keyboard::layout {
 
@@ -61,8 +63,8 @@ void KeyboardLayoutArpControl::setParameterSafely(int32_t paramId, int32_t value
 
 				if (modelStackWithParam && modelStackWithParam->autoParam) {
 					// Use appropriate scaling based on parameter type
-					int32_t finalValue = useUnsignedScaling ? 
-						computeFinalValueForUnsignedMenuItem(value) : 
+					int32_t finalValue = useUnsignedScaling ?
+						computeFinalValueForUnsignedMenuItem(value) :
 						computeFinalValueForStandardMenuItem(value);
 					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
 				}
@@ -75,10 +77,10 @@ void KeyboardLayoutArpControl::setParameterSafely(int32_t paramId, int32_t value
 	else {
 		// Use direct parameter setting for CV/MIDI tracks (avoids crash)
 		// Use proper value scaling like the official menu system
-		int32_t scaledValue = useUnsignedScaling ? 
-			computeFinalValueForUnsignedMenuItem(value) : 
+		int32_t scaledValue = useUnsignedScaling ?
+			computeFinalValueForUnsignedMenuItem(value) :
 			computeFinalValueForStandardMenuItem(value);
-		
+
 		// Set the appropriate parameter based on paramId
 		switch (paramId) {
 			case modulation::params::UNPATCHED_ARP_SEQUENCE_LENGTH:
@@ -692,24 +694,32 @@ void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shif
 		return;
 	}
 
-	// Arp preset control
+	// Arp rate control
 	ArpeggiatorSettings* settings = getArpSettings();
 	if (!settings) return;
 
-	// Only change preset if offset is non-zero (avoid display refresh on select encoder)
+	// Only change rate if offset is non-zero (avoid display refresh on select encoder)
 	if (offset != 0) {
-		// Normal horizontal: change arp preset (not rate)
-		int32_t newPreset = static_cast<int32_t>(settings->preset) + offset;
-		newPreset = std::clamp(newPreset, static_cast<int32_t>(0), static_cast<int32_t>(ArpPreset::CUSTOM));
-		settings->preset = static_cast<ArpPreset>(newPreset);
+		// Get current sync value
+		deluge::gui::menu_item::SyncLevel syncLevel;
+		int32_t currentSyncValue = syncLevel.syncTypeAndLevelToMenuOption(settings->syncType, settings->syncLevel);
+		
+		// Change sync value
+		int32_t newSyncValue = currentSyncValue + offset;
+		newSyncValue = std::clamp(newSyncValue, static_cast<int32_t>(0), static_cast<int32_t>(NUM_SYNC_VALUES - 1));
+		
+		// Update sync type and level
+		settings->syncType = syncValueToSyncType(newSyncValue);
+		settings->syncLevel = syncValueToSyncLevel(newSyncValue);
 
-		// Update settings from preset to enable arpeggiator
-		settings->updateSettingsFromCurrentPreset();
-
-		// Force arpeggiator to restart so it picks up the new preset immediately
-		settings->flagForceArpRestart = true;
-
-		display->displayPopup(KeyboardLayoutArpControl::getArpPresetDisplayName(settings->preset));
+		// Display sync value name
+		DEF_STACK_STRING_BUF(buffer, 30);
+		if (newSyncValue == 0) {
+			buffer.append("OFF");
+		} else {
+			syncValueToString(newSyncValue, buffer, currentSong->getInputTickMagnitude());
+		}
+		display->displayPopup(buffer.c_str());
 
 		// Display update: Handle both OLED and 7-segment
 		if (display->haveOLED()) {
@@ -717,7 +727,7 @@ void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shif
 		}
 		// 7-segment display is already handled by displayPopup()
 
-		// Pad update: Only because arp status changed
+		// Pad update: Only because arp rate changed
 		keyboardScreen.requestMainPadsRendering();
 	}
 }
