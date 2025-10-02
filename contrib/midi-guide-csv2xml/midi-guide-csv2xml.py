@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # This script converts a CSV file from https://midi.guide with MIDI device definitions
-# into Deluge's XML file for the sd_card/MIDI/ device template.
+# into Deluge's XML file for the sd_card/MIDI_DEVICES/DEFINITION directory.
 import sys
 import csv
 

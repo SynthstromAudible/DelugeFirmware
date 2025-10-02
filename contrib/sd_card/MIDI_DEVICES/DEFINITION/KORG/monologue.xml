@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		16="Envelope attack"
+		17="Envelope decay"
+		25="Envelope intensity"
+		24="LFO rate"
+		26="LFO depth"
+		28="Drive"
+		35="VCO 2 pitch"
+		36="VCO 1 shape"
+		37="VCO 2 shape"
+		39="VCO 1 level"
+		40="VCO 2 level"
+		43="Filter cutoff"
+		44="Resonance"
+		49="VCO 2 octave"
+		50="VCO 1 wave"
+		51="VCO 2 wave"
+		56="LFO target"
+		58="LFO wave"
+		59="LFO mode"
+		60="Sync/ring"
+		61="Envelope generator type"
+		62="Envelope generator target"/>
+</midiDevice>

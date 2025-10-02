@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		1="MOD"
+		2="CC"
+		21="EXP1"
+		22="EXP2"
+		23="EXP3"
+		24="EXP4"
+		25="EXP5"
+		26="EXP6"
+		27="EXP7"
+		28="EXP8"/>
+</midiDevice>

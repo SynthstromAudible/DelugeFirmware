@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		="Pitch"
+		="Mod Depth"
+		="Mod Speed"
+		="Mod Type"
+		="Wave"
+		="Decay"
+		="Level"
+		="Pan"
+		="Low Boost"
+		="Motion Seq"
+		="Type"
+		="Depth"
+		="Time"
+		="Ring Mod 1"
+		="Ring Mod 2"
+		="Mute Synths"
+		="Mute PCM/Audio"/>
+</midiDevice>
