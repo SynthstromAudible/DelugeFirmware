@@ -496,7 +496,7 @@ gotError5:
 			// Read all the data we can before reaching either the end of the cycle, or the end of the file cluster
 			while (source < sourceStopAt) {
 				int32_t value32 = *(int32_t*)source;
-				convert_and_store_sample(reinterpret_cast<const int32_t&>(source));
+				convert_and_store_sample(*reinterpret_cast<const int32_t*>(source));
 				source += byteDepth;
 			}
 
