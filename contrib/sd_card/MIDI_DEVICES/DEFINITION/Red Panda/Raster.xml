@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		4="Expression Pedal"
+		14="Blend"
+		13="Blend L R Tilt"
+		16="Shift"
+		17="Shift L R Tilt"
+		18="Delay Time"
+		19="Delay Time L R Tilt"
+		20="Feedback"
+		21="Feedback L R Tilt"
+		22="Modulation Rate"
+		23="Modulation Rate L R Tilt"
+		24="Modulation Depth"
+		25="Modulation Depth L R Tilt"
+		26="Tone"
+		80="Shift TAP Footswitch"
+		81="ON Footswittch"
+		88="Bypass"/>
+</midiDevice>

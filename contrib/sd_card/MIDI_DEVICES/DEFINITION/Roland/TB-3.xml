@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		1="Pad Z"
+		11="(XY play) pad Y"
+		12="(Env mod) pad X"
+		13="(Env mod) pad Y"
+		16="Accent"
+		17="Effect"
+		68="Scatter type"
+		69="Scatter depth"
+		71="Resonance"
+		74="Cutoff"
+		102="Pattern slide"
+		103="Pattern accent"
+		104="Tuning"/>
+</midiDevice>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		0="Synth"
+		1="Envelope"
+		2="FX"
+		3="Volume"/>
+</midiDevice>

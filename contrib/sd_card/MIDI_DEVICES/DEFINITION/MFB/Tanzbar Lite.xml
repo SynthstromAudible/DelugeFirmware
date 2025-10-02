@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		3="Bass drum tune"
+		2="Bass drum tone"
+		64="Bass drum decay"
+		11="Snare drum tone"
+		67="Snare drum decay"
+		13="Snare drum noise"
+		75="Claps decay"
+		18="Claps filter"
+		76="Claps attack"
+		77="Claps trigger"
+		19="Toms tune"
+		20="Toms decay"
+		79="Conga tune"
+		78="Conga decay"
+		82="Conga pan"
+		73="Toms pan"
+		84="Cowbell tune"
+		85="Cowbell decay"
+		86="Claves tune"
+		87="Claves decay"
+		89="Cymbal tune"
+		92="Cymbal tone"
+		88="Cymbal decay"
+		90="Open hi hat decay"
+		91="Closed hi hat decay"/>
+</midiDevice>

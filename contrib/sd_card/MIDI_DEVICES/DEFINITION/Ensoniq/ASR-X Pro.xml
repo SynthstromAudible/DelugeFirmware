@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		1="MOD Wheel"
+		4="Foot Pedal"
+		65="Glide ON OFF"
+		5="Glide Time"
+		7="Volume"
+		10="PAN"
+		11="Expression"
+		73="AMP ENV ATK"
+		76="AMP ENV DCY"
+		64="AMP ENV SUS"
+		72="AMP ENV REL"
+		74="Filter Cutoff"
+		77="Filter Resonance"
+		75="LFO Rate"
+		119="Mute Track"/>
+</midiDevice>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		1="MOD Wheel"
+		64="Sustain"
+		70="STR Registration"
+		71="STR Octaves"
+		72="STR Release"
+		73="STR Crescendo"
+		74="STR ENS Type"
+		75="STR Ensemble"
+		76="Solo Tone"
+		77="Solo Tremolo"
+		78="Solo Split"
+		79="Solo Sustain"
+		80="Solo Attack"
+		81="Solo Decay"
+		82="Balance"
+		91="FX Type"
+		92="FX Animate Amount"
+		93="FX Phaser Amount"
+		94="FX Reverb Amount"
+		120="Sound OFF"
+		121="Reset"
+		122="Local Control"
+		123="Panic"/>
+</midiDevice>

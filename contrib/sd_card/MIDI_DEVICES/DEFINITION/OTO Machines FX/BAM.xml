@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		12="Size"
+		13="Predly"
+		14="MIX"
+		15="Revtime"
+		16="Damping"
+		17="Active"
+		18="Type"
+		19="Ingain"
+		20="Lowcut"
+		21="Highcut"
+		22="Chorus"
+		23="Freeze"/>
+</midiDevice>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		12="Comp"
+		13="Drive"
+		14="MIX"
+		15="Hicut"
+		16="Level"
+		17="Active"
+		18="Ingain"
+		19="Attack"
+		20="Release"
+		21="Locut"
+		22="Disto"
+		23="Gate"
+		24="Sidech"/>
+</midiDevice>

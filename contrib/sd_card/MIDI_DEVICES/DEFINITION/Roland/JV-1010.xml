@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		74="Cutoff Frequency"
+		71="Resonance"
+		1="Modulation"
+		72="ENV Release"
+		73="ENV Attack"
+		7="Volume"
+		8="Balance"
+		10="PAN"
+		91="Reverb Send"
+		93="Chorus Send"
+		80="Level ENV Tone1"
+		81="Level ENV Tone2"
+		82="Level ENV Tone3"
+		83="Level ENV Tone4"
+		65="Portamento ON OFF"
+		84="Portamento Amount"
+		5="Portamento Time"
+		2="Breath Type"
+		4="Foot Type"
+		11="Expression"
+		64="Hold1"
+		69="Hold2"
+		66="Sostenuto"
+		67="Soft"/>
+</midiDevice>
