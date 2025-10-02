@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <midiDevice>
 	<ccLabels
-		="MSB"
 		1="MOD Wheel"
 		3="BPM"
 		4="Foot Controller"
@@ -58,22 +57,5 @@
 		124="Omni Mode OFF"
 		125="Omni Mode ON"
 		126="Mono Mode ON"
-		127="Poly Mode ON"
-		="Noise Level"
-		="PAN Spread"
-		="LFO Freq"
-		="LFO Amt"
-		="LFO Shape"
-		="LFO Sync"
-		="FX1 Type"
-		="FX1 Mix"
-		="FX1 Param1"
-		="FX1 Param2"
-		="FX2 Type"
-		="FX2 Mix"
-		="FX2 Param1"
-		="FX2 Param2"
-		="FX ON Off"
-		="X MOD Filter ENV Amt"
-		="X MOD VCO2 Amt"/>
+		127="Poly Mode ON"/>
 </midiDevice>

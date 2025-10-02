@@ -33,22 +33,11 @@
 		117="LFO 2 rate"
 		118="LFO 2 rise time"
 		119="LFO 2 master/slave"
-		="Modulation n source"
-		="Modulation n destination"
-		="Modulation n amount"
-		="Operator n source 1"
-		="Operator n source 2"
-		="Operator n operation"
 		75="Sequencer mode"
-		="Tempo"
 		76="Groove template"
 		77="Groove amount"
 		78="Arpeggiator direction"
 		79="Arpeggiator range"
 		80="Arpeggiator pattern"
-		81="Sequencer clock division"
-		="Octave transposition"
-		="Scale/raga"
-		="Portamento"
-		="Legato"/>
+		81="Sequencer clock division"/>
 </midiDevice>

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <midiDevice>
 	<ccLabels
-		="MSB"
 		1="MOD Wheel"
 		3="BPM"
 		4="Foot Controller"

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <midiDevice>
 	<ccLabels
-		="Banksel"
 		1="MOD Wheel"
 		2="Breath"
 		3="Master Tune"

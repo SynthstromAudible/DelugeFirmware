@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <midiDevice>
 	<ccLabels
-		="Bank Change"
 		1="MOD Wheel"
 		3="WAV MOD1"
 		5="Glide"

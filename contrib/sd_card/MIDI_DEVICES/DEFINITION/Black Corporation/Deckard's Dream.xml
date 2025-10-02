@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <midiDevice>
 	<ccLabels
-		="Bank Selection"
 		1="MOD Wheel"
 		40="Pulse Width MOD Speed A"
 		41="Pulse Width MOD Amount A"

@@ -75,21 +75,5 @@
 		124="Omni OFF"
 		125="Omni ON"
 		126="Mono"
-		127="Poly"
-		="P1 LFO Shape"
-		="P2 LFO Shape"
-		="P3 LFO Shape"
-		="P1 LFO Pitch Depth"
-		="P2 LFO Pitch Depth"
-		="P3 LFO Pitch Depth"
-		="P1 LFO Filter Depth"
-		="P2 LFO Filter Depth"
-		="P3 LFO Filter Depth"
-		="P1 LFO AMP Depth"
-		="P2 LFO AMP Depth"
-		="P3 LFO AMP Depth"
-		="Analog Pulse Width"
-		="P1 Envelope"
-		="P2 Envelope"
-		="P3 Envelope"/>
+		127="Poly"/>
 </midiDevice>

@@ -28,10 +28,13 @@ with open(file_name_out, "w") as f:
     f.write('<?xml version="1.0" encoding="UTF-8"?>\n<midiDevice>\n\t<ccLabels')
     # check all csv data and select only needed
     for row in csv_data:
+        midiName = ""
+        midiCC = ""
         for k, v in row.items():
             if k == csv_col_midiName:
                 midiName = v
             if k == csv_col_midiCC:
                 midiCC = v
-        f.write(f'\n\t\t{midiCC}="{midiName}"')
+        if len(midiName) > 0 and len(midiCC) > 0:
+            f.write(f'\n\t\t{midiCC}="{midiName}"')
     f.write("/>\n</midiDevice>")

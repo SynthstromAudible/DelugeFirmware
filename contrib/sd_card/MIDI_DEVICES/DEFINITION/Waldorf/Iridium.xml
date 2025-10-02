@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <midiDevice>
 	<ccLabels
-		="Filter1 Cutoff"
 		2="Filter1 Reso"
 		3="Filter1 Attack"
 		4="Filter1 Decay"

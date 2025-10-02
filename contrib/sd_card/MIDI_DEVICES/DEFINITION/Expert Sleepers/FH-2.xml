@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <midiDevice>
 	<ccLabels
-		="FH2 Direct1"
 		10="LFO1 Level"
 		11="LFO1 Base"
 		12="LFO1 Multiplier"
