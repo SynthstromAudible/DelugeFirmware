@@ -34,8 +34,8 @@ public:
 	int32_t getBytePosToEndOrLoopPlayback() override;
 	LoopType getLoopingType(const Source& source) const;
 
-	uint32_t getLoopStartPlaybackAtByte() const { return loopStartPlaybackAtByte; }
-	uint32_t getLoopEndPlaybackAtByte() const {
+	[[nodiscard]] uint32_t getLoopStartPlaybackAtByte() const override { return loopStartPlaybackAtByte; }
+	[[nodiscard]] uint32_t getLoopEndPlaybackAtByte() const override {
 		return loopEndPlaybackAtByte ? loopEndPlaybackAtByte : endPlaybackAtByte;
 	}
 
