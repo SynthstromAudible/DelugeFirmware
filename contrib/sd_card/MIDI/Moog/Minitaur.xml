@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midi
+	firmwareVersion="c1.3.0"
+	earliestCompatibleFirmware="4.1.0-alpha"
+	channel="1"
+	suffix="-1">
+	<modKnobs>
+		<modKnob
+			cc="none" />
+		<modKnob
+			cc="none" />
+		<modKnob
+			cc="21" />
+		<modKnob
+			cc="19" />
+		<modKnob
+			cc="24" />
+		<modKnob
+			cc="23" />
+		<modKnob
+			cc="29" />
+		<modKnob
+			cc="28" />
+		<modKnob
+			cc="13" />
+		<modKnob
+			cc="22" />
+		<modKnob
+			cc="12" />
+		<modKnob
+			cc="3" />
+		<modKnob
+			cc="16" />
+		<modKnob
+			cc="15" />
+		<modKnob
+			cc="none" />
+		<modKnob
+			cc="none" />
+	</modKnobs>
+	<polyToMonoConversion
+		aftertouch="0"
+		mpe="1"
+		yCC="74" />
+	<midiDevice>
+		<definitionFile
+			name="MIDI_DEVICES/DEFINITION/Moog/Minitaur.xml" />
+		<ccLabels
+			0=""
+			2=""
+			3="LFO-Rate"
+			4=""
+			5="Glide"
+			6=""
+			7="Vol"
+			8=""
+			9=""
+			10=""
+			11=""
+			12="Fltr-LFOAmnt"
+			13="OSC-LFOAmnt"
+			14=""
+			15="OSC1-Lev"
+			16="OSC2-Lev"
+			17="OSC2-Freq"
+			18="OSC2-Beat"
+			19="Fltr-Freq"
+			20="Fltr-KTrack"
+			21="Fltr-Res"
+			22="Fltr-EnvAmnt"
+			23="FEnv-Att"
+			24="FEnv-DecRel"
+			25="FEnv-Sus"
+			26=""
+			27="ExtIn-Lev"
+			28="AmpEnv-Att"
+			29="AmpEnv-DecRel"
+			30="AmpEnv-Sus"
+			31=""
+			32=""
+			33=""
+			34=""
+			35=""
+			36=""
+			37=""
+			38=""
+			39=""
+			40=""
+			41=""
+			42=""
+			43=""
+			44=""
+			45=""
+			46=""
+			47=""
+			48=""
+			49=""
+			50=""
+			51=""
+			52=""
+			53=""
+			54=""
+			55=""
+			56=""
+			57=""
+			58=""
+			59=""
+			60=""
+			61=""
+			62=""
+			63=""
+			64=""
+			65="Glide-Switch"
+			66=""
+			67=""
+			68=""
+			69=""
+			70="OSC1-Wave"
+			71="OSC2-Wave"
+			72="Release-Switch"
+			73="Trigger-Mode"
+			74=""
+			75=""
+			76=""
+			77=""
+			78=""
+			79=""
+			80=""
+			81="Note-Sync"
+			82="LFO-Regrig"
+			83="Glide-Legato"
+			84=""
+			85=""
+			86="LFO-SyncDiv"
+			87="LFO-MidiSync"
+			88=""
+			89="Fltr-VelSens"
+			90="Vol-VelSens"
+			91="Key-Prio"
+			92="Glide-Type"
+			93=""
+			94=""
+			95=""
+			96=""
+			97=""
+			98=""
+			99=""
+			100=""
+			101=""
+			102=""
+			103=""
+			104=""
+			105=""
+			106=""
+			107="BendUp-Amnt"
+			108="BendDown-Amnt"
+			109=""
+			110=""
+			111=""
+			112=""
+			113=""
+			114=""
+			115=""
+			116=""
+			117=""
+			118=""
+			119="" />
+	</midiDevice>
+</midi>

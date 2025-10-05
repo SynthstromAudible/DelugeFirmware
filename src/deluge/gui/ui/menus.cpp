@@ -29,6 +29,7 @@
 #include "gui/menu_item/audio_compressor/compressor_params.h"
 #include "gui/menu_item/audio_compressor/compressor_values.h"
 #include "gui/menu_item/audio_interpolation.h"
+#include "gui/menu_item/battery/level.h"
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
 #include "gui/menu_item/colour.h"
@@ -987,6 +988,8 @@ flash::Status flashStatusMenu{STRING_FOR_PLAY_CURSOR};
 
 firmware::Version firmwareVersionMenu{STRING_FOR_FIRMWARE_VERSION, STRING_FOR_FIRMWARE_VER_MENU_TITLE};
 
+battery::Level batteryLevelMenu{STRING_FOR_BATTERY_LEVEL, STRING_FOR_BATTERY_LEVEL_MENU_TITLE};
+
 runtime_feature::Settings runtimeFeatureSettingsMenu{STRING_FOR_COMMUNITY_FTS, STRING_FOR_COMMUNITY_FTS_MENU_TITLE};
 
 // CV menu
@@ -1701,6 +1704,7 @@ Submenu settingsRootMenu{
         &flashStatusMenu,
         &recordSubmenu,
         &runtimeFeatureSettingsMenu,
+        &batteryLevelMenu,
         &firmwareVersionMenu,
     },
 };

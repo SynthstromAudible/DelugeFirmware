@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		5="Slide time"
+		11="Expression"
+		40="Octave"
+		41="LFO rate"
+		42="LFO intensity"
+		43="VCO pitch 1"
+		44="VCO pitch 2"
+		45="VCO pitch 3"
+		46="EG attack"
+		47="EG decay/release"
+		48="Cutoff EG intensity"
+		49="Gate time"/>
+</midiDevice>

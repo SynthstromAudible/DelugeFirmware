@@ -195,6 +195,11 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrimFromStartOfAudioClip],
 	                  STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP, "trimFromStartOfAudioClip",
 	                  RuntimeFeatureStateToggle::On);
+
+	// Show Battery Level
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShowBatteryLevel],
+	                  STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "showBatteryLevel",
+	                  RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

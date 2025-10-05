@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		20="Portamento"
+		78="LFO assign"
+		77="LFO depth"
+		76="LFO speed"
+		80="Oscillator type"
+		81="Oscillator texture"
+		82="Oscillator mod"
+		74="Filter cutoff"
+		71="Filter resonance"
+		83="EG FEG-AEG balance"
+		73="EG attack time"
+		75="EG decay time"
+		79="EG sustain level"
+		72="EG release time"
+		17="Effect type"
+		18="Effect depth"
+		19="Effect rate"/>
+</midiDevice>
