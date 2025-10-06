@@ -2465,7 +2465,7 @@ bool Voice::forceNormalRelease() {
 	if (doneFirstRender) {
 		// If no release-stage, we'll stop as soon as we can
 		if (!hasReleaseStage()) {
-			envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE);
+			envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, SOFT_CULL_INCREMENT);
 		}
 		// otherwise we'll just let it get there on its own
 		else {
