@@ -2510,7 +2510,15 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 		playNote(true, modelStack, note, swungTicksBeforeLastActionedOne, timeAgo);
 	}
 }
-
+/// If a note is on in a SoundInstrument and it's allowed to have tails it might be a drone
+bool NoteRow::check_for_note_still_sounding(ModelStackWithNoteRow* modelStack, SoundInstrument* output) {
+	return (output)->noteIsOn(getNoteCode(), true)
+	       && (output)->allowNoteTails(
+	           modelStack
+	               ->addOtherTwoThings(((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
+	                                   &modelStack->getTimelineCounter()->paramManager)
+	               ->addSoundFlags());
+}
 // Note may be NULL if it's a note-off, in which case you don't get lift-velocity
 void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNote, int32_t ticksLate,
                        uint32_t samplesLate, bool noteMightBeConstant, PendingNoteOnList* pendingNoteOnList) {
@@ -2525,14 +2533,7 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 
 				// Special case for Sounds
 				if (output->type == OutputType::SYNTH) {
-					if (((SoundInstrument*)output)->noteIsOn(getNoteCode(), true)
-					    && ((SoundInstrument*)output)
-					           ->allowNoteTails(
-					               modelStack
-					                   ->addOtherTwoThings(
-					                       ((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
-					                       &modelStack->getTimelineCounter()->paramManager)
-					                   ->addSoundFlags())) {
+					if (check_for_note_still_sounding(modelStack, static_cast<SoundInstrument*>(output))) {
 						// Alright yup the note's still sounding from before - no need to do anything
 					}
 
