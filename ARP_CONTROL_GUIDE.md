@@ -1,7 +1,7 @@
 # Arp Control Keyboard Layout User Guide
 
 ## Overview
-The Arp Control keyboard layout provides a comprehensive interface for controlling arpeggiator parameters directly from the keyboard view. This layout is designed for the Deluge's arpeggiator functionality with visual feedback and intuitive pad-based controls.
+The Arp Control keyboard layout provides a comprehensive interface for controlling arpeggiator parameters directly from the keyboard view.
 
 ## Accessing the Layout
 1. Enter **Keyboard Mode** by pressing the **KEYBOARD** button
@@ -41,7 +41,7 @@ The Arp Control keyboard layout provides a comprehensive interface for controlli
 ### Encoder Controls
 - **Vertical Encoder**: Scroll through rhythm patterns (1-50)
 - **Vertical Encoder Press**: Toggle rhythm pattern on/off
-- **Horizontal Encoder**: Cycle Arp Sync Rates
+- **Horizontal Encoder**: Cycle Arp Sync Rates 16th, 8th notes etc.
 
 ### Parameter Values
 
