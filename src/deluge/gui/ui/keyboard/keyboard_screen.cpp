@@ -17,8 +17,8 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "gui/menu_item/multi_range.h"
 #include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/multi_range.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/sound_editor.h"
@@ -46,10 +46,10 @@
 #include <cstring>
 
 #include "gui/ui/keyboard/layout.h"
+#include "gui/ui/keyboard/layout/arp_control.h"
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/ui/keyboard/layout/chord_library.h"
 #include "gui/ui/keyboard/layout/column_control_state.h"
-#include "gui/ui/keyboard/layout/arp_control.h"
 #include "gui/ui/keyboard/layout/in_key.h"
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "gui/ui/keyboard/layout/norns.h"
@@ -576,7 +576,8 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		KeyboardLayoutType currentLayoutType = getCurrentInstrumentClip()->keyboardState.currentLayout;
 		if (currentLayoutType == KeyboardLayoutType::KeyboardLayoutTypeArpControl) {
 			// Toggle logic: apply current pattern or turn OFF
-			layout::KeyboardLayoutArpControl* arpLayout = (layout::KeyboardLayoutArpControl*)layout_list[currentLayoutType];
+			layout::KeyboardLayoutArpControl* arpLayout =
+			    (layout::KeyboardLayoutArpControl*)layout_list[currentLayoutType];
 			arpLayout->handleRhythmToggle();
 		}
 	}
@@ -956,7 +957,7 @@ void KeyboardScreen::graphicsRoutine() {
 
 	PadLEDs::setTickSquares(keyboardTickSquares, colours);
 
-	// Update current layout animation if it's the generative sequencer or pulse sequencer
+	// Update current layout animation if it's the arp control layout
 	KeyboardLayoutType currentLayoutType = getCurrentInstrumentClip()->keyboardState.currentLayout;
 	if (currentLayoutType == KeyboardLayoutType::KeyboardLayoutTypeArpControl) {
 		((layout::KeyboardLayoutArpControl*)layout_list[currentLayoutType])->updateAnimation();

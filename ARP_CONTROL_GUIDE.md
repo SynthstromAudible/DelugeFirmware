@@ -1,11 +1,11 @@
 # Arp Control Keyboard Layout User Guide
 
 ## Overview
-The Arp Control keyboard layout provides a comprehensive interface for controlling arpeggiator parameters directly from the keyboard view. This layout is designed for the Deluge's generative sequencer functionality with visual feedback and intuitive pad-based controls.
+The Arp Control keyboard layout provides a comprehensive interface for controlling arpeggiator parameters directly from the keyboard view. This layout is designed for the Deluge's arpeggiator functionality with visual feedback and intuitive pad-based controls.
 
 ## Accessing the Layout
 1. Enter **Keyboard Mode** by pressing the **KEYBOARD** button
-2. Navigate to the **Generative** layout using the **SELECT** encoder
+2. Navigate to the **Arp Control** layout using the **SELECT** encoder
 3. The layout will display with the following pad arrangement:
 
 ## Pad Layout
@@ -41,7 +41,7 @@ The Arp Control keyboard layout provides a comprehensive interface for controlli
 ### Encoder Controls
 - **Vertical Encoder**: Scroll through rhythm patterns (1-50)
 - **Vertical Encoder Press**: Toggle rhythm pattern on/off
-- **Horizontal Encoder**: Cycle through arpeggiator presets (OFF, UP, DOWN, BOTH, RANDOM, WALK, CUSTOM)
+- **Horizontal Encoder**: Cycle Arp Sync Rates
 
 ### Parameter Values
 
@@ -139,7 +139,7 @@ The Arp Control keyboard layout provides a comprehensive interface for controlli
 ## Version Information
 - **Version**: BETA 0.2
 - **Compatibility**: Deluge Community Firmware v1.3.0-dev
-- **Last Updated**: 2024
+- **Last Updated**: 2025
 
 ---
 
