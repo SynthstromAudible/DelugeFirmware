@@ -157,6 +157,11 @@ void Envelope::resetTimeEntered() {
 void Envelope::setState(EnvelopeStage newState) {
 	state = newState;
 	timeEnteredState = AudioEngine::nextVoiceState++;
+	if (newState == EnvelopeStage::FAST_RELEASE) {
+		if (fastReleaseIncrement < 65536) {
+			D_PRINTLN("fast releasing slowly");
+		}
+	}
 }
 
 void Envelope::unconditionalOff() {
@@ -165,14 +170,13 @@ void Envelope::unconditionalOff() {
 }
 
 void Envelope::unconditionalRelease(EnvelopeStage typeOfRelease, uint32_t newFastReleaseIncrement) {
+
+	fastReleaseIncrement = newFastReleaseIncrement;
+
 	if (state != typeOfRelease) {
 		setState(typeOfRelease);
 		pos = 0;
 		lastValuePreCurrentStage = lastValue;
-	}
-
-	if (typeOfRelease == EnvelopeStage::FAST_RELEASE) {
-		fastReleaseIncrement = newFastReleaseIncrement;
 	}
 }
 
