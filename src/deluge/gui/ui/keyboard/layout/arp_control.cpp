@@ -17,22 +17,23 @@
 
 #include "gui/ui/keyboard/layout/arp_control.h"
 #include "gui/colour/colour.h"
+#include "gui/menu_item/sync_level.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
-#include "model/model_stack.h"
-#include "modulation/params/param.h"
-#include "gui/menu_item/value_scaling.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/melodic_instrument.h"
+#include "model/model_stack.h"
+#include "model/output.h"
 #include "model/song/song.h"
+#include "model/sync.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/arpeggiator_rhythms.h"
-#include "util/d_string.h"
-#include "model/output.h"
-#include "model/sync.h"
-#include "gui/menu_item/sync_level.h"
+#include "modulation/params/param.h"
+#include <cstdio>
+#include <cstring>
 
 namespace deluge::gui::ui::keyboard::layout {
 
@@ -41,67 +42,119 @@ static constexpr int32_t kMaxRhythmPattern = 50;
 static constexpr int32_t kMaxCVNote = 180;
 static constexpr int32_t kMaxMIDINote = 128;
 
+// Pad layout constants
+static constexpr int32_t kArpModeStartX = 0;
+static constexpr int32_t kArpModeEndX = 3;
+static constexpr int32_t kOctaveStartX = 4;
+static constexpr int32_t kOctaveEndX = 12;
+static constexpr int32_t kRandomizerLockX = 15;
+static constexpr int32_t kControlPadsPerRow = 8;
+static constexpr int32_t kTransposeDownX = 14;
+static constexpr int32_t kTransposeUpX = 15;
+static constexpr int32_t kKeyboardStartY = 4;
+static constexpr int32_t kKeyboardEndY = 8;
+static constexpr int32_t kRhythmVisualizationStartX = 8;
+static constexpr int32_t kRhythmVisualizationEndX = 14;
+
+// Color adjustment constants
+static constexpr int32_t kDimBrightness = 32;
+static constexpr int32_t kDimDivisor = 3;
+static constexpr int32_t kFullBrightness = 255;
+static constexpr int32_t kHalfBrightness = 127;
+static constexpr int32_t kQuarterBrightness = 60;
+static constexpr int32_t kMinBrightness = 1;
+
+// Array size constants
+static constexpr int32_t kNumControlPads = 8;
+static constexpr int32_t kNumRhythmVisualizationPads = 6;
+
+// Helper functions for common patterns
+namespace {
+// Common color function for highlighting last touched pad
+RGB getHighlightedPadColor(int32_t currentPad, int32_t lastTouchedPad, const RGB& baseColor) {
+	if (lastTouchedPad == currentPad) {
+		return baseColor; // Bright color for last touched pad
+	}
+	else {
+		// Create dimmed version manually since adjust() may not be available
+		return RGB(baseColor.r / kDimDivisor, baseColor.g / kDimDivisor, baseColor.b / kDimDivisor);
+	}
+}
+
+// Common display and UI update pattern
+void updateDisplayAndUI(char const* message) {
+	display->displayPopup(message);
+	keyboardScreen.requestMainPadsRendering();
+}
+
+// Check if pad is in range
+bool isPadInRange(int32_t x, int32_t startX, int32_t endX) {
+	return x >= startX && x < endX;
+}
+} // namespace
+
+// Helper functions for parameter setting
+namespace {
+void setParameterForSynthTrack(int32_t paramId, int32_t value, bool useUnsignedScaling) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip)
+		return;
+
+	UI* originalUI = getCurrentUI();
+	if (soundEditor.setup(clip, nullptr, 0)) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+		ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(paramId);
+
+		if (modelStackWithParam && modelStackWithParam->autoParam) {
+			int32_t finalValue = useUnsignedScaling ? computeFinalValueForUnsignedMenuItem(value)
+			                                        : computeFinalValueForStandardMenuItem(value);
+			modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+		}
+		originalUI->focusRegained();
+	}
+}
+
+void setParameterForCVMIDITrack(ArpeggiatorSettings* settings, int32_t paramId, int32_t value,
+                                bool useUnsignedScaling) {
+	int32_t scaledValue =
+	    useUnsignedScaling ? computeFinalValueForUnsignedMenuItem(value) : computeFinalValueForStandardMenuItem(value);
+
+	switch (paramId) {
+	case modulation::params::UNPATCHED_ARP_SEQUENCE_LENGTH:
+		settings->sequenceLength = scaledValue;
+		break;
+	case modulation::params::UNPATCHED_SPREAD_VELOCITY:
+		settings->spreadVelocity = scaledValue;
+		break;
+	case modulation::params::UNPATCHED_ARP_GATE:
+		settings->gate = scaledValue;
+		break;
+	case modulation::params::UNPATCHED_ARP_SPREAD_OCTAVE:
+		settings->spreadOctave = scaledValue;
+		break;
+	case modulation::params::UNPATCHED_ARP_SPREAD_GATE:
+		settings->spreadGate = scaledValue;
+		break;
+	case modulation::params::UNPATCHED_ARP_RHYTHM:
+		settings->rhythm = scaledValue;
+		break;
+	}
+}
+} // namespace
+
 // Helper function to set parameters safely for different output types
 void KeyboardLayoutArpControl::setParameterSafely(int32_t paramId, int32_t value, bool useUnsignedScaling) {
 	ArpeggiatorSettings* settings = getArpSettings();
-	if (!settings) return;
+	if (!settings)
+		return;
 
 	OutputType outputType = getCurrentOutputType();
-
 	if (outputType == OutputType::SYNTH) {
-		// Use soundEditor.setup() for synth tracks (works properly)
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		if (clip) {
-			UI* originalUI = getCurrentUI();
-
-			// Set up sound editor context like the official menu
-			if (soundEditor.setup(clip, nullptr, 0)) {
-				// Now we're in sound editor context - use the official approach
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-				ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(paramId);
-
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					// Use appropriate scaling based on parameter type
-					int32_t finalValue = useUnsignedScaling ?
-						computeFinalValueForUnsignedMenuItem(value) :
-						computeFinalValueForStandardMenuItem(value);
-					modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
-				}
-
-				// Exit sound editor context back to original UI
-				originalUI->focusRegained();
-			}
-		}
+		setParameterForSynthTrack(paramId, value, useUnsignedScaling);
 	}
 	else {
-		// Use direct parameter setting for CV/MIDI tracks (avoids crash)
-		// Use proper value scaling like the official menu system
-		int32_t scaledValue = useUnsignedScaling ?
-			computeFinalValueForUnsignedMenuItem(value) :
-			computeFinalValueForStandardMenuItem(value);
-
-		// Set the appropriate parameter based on paramId
-		switch (paramId) {
-			case modulation::params::UNPATCHED_ARP_SEQUENCE_LENGTH:
-				settings->sequenceLength = scaledValue;
-				break;
-			case modulation::params::UNPATCHED_SPREAD_VELOCITY:
-				settings->spreadVelocity = scaledValue;
-				break;
-			case modulation::params::UNPATCHED_ARP_GATE:
-				settings->gate = scaledValue;
-				break;
-			case modulation::params::UNPATCHED_ARP_SPREAD_OCTAVE:
-				settings->spreadOctave = scaledValue;
-				break;
-			case modulation::params::UNPATCHED_ARP_SPREAD_GATE:
-				settings->spreadGate = scaledValue;
-				break;
-			case modulation::params::UNPATCHED_ARP_RHYTHM:
-				settings->rhythm = scaledValue;
-				break;
-		}
+		setParameterForCVMIDITrack(settings, paramId, value, useUnsignedScaling);
 	}
 }
 
@@ -111,7 +164,8 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 
 	// Get arp settings once
 	ArpeggiatorSettings* settings = getArpSettings();
-	if (!settings) return;
+	if (!settings)
+		return;
 
 	// Process pad presses - only handle pads within kDisplayWidth (0-15)
 	for (int32_t i = 0; i < kMaxNumKeyboardPadPresses; i++) {
@@ -123,44 +177,44 @@ void KeyboardLayoutArpControl::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 			// Handle control pads first
 			if (y == 0) {
 				// Top row: Arp mode, octaves, and randomizer lock
-				if (x >= 0 && x < 3) {
+				if (isPadInRange(x, kArpModeStartX, kArpModeEndX)) {
 					handleArpMode(x, settings);
 				}
-				else if (x >= 4 && x < 12) {
+				else if (isPadInRange(x, kOctaveStartX, kOctaveEndX)) {
 					handleOctaves(x, settings);
 				}
-				else if (x == 15) {
+				else if (x == kRandomizerLockX) {
 					handleRandomizerLock();
 				}
 			}
 			else if (y == 1) {
 				// Row 1: Velocity spread and random octave
-				if (x >= 0 && x < 8) {
+				if (isPadInRange(x, 0, kControlPadsPerRow)) {
 					handleVelocitySpread(x, settings);
 				}
-				else if (x >= 8 && x < 16) {
-					handleRandomOctave(x - 8, settings);
+				else if (isPadInRange(x, kControlPadsPerRow, kDisplayWidth)) {
+					handleRandomOctave(x - kControlPadsPerRow, settings);
 				}
 			}
 			else if (y == 2) {
 				// Row 2: Gate and random gate
-				if (x >= 0 && x < 8) {
+				if (isPadInRange(x, 0, kControlPadsPerRow)) {
 					handleGate(x, settings);
 				}
-				else if (x >= 8 && x < 16) {
-					handleRandomGate(x - 8, settings);
+				else if (isPadInRange(x, kControlPadsPerRow, kDisplayWidth)) {
+					handleRandomGate(x - kControlPadsPerRow, settings);
 				}
 			}
 			else if (y == 3) {
 				// Row 3: Sequence length, rhythm patterns, and transpose
-				if (x >= 0 && x < 8) {
+				if (isPadInRange(x, 0, kControlPadsPerRow)) {
 					handleSequenceLength(x, settings);
 				}
-				else if (x >= 14 && x < 16) {
+				else if (x == kTransposeDownX || x == kTransposeUpX) {
 					handleTranspose(x);
 				}
 			}
-			else if (y >= 4 && y < 8) {
+			else if (isPadInRange(y, kKeyboardStartY, kKeyboardEndY)) {
 				// Rows 4-7: Keyboard
 				handleKeyboard(x, y, velocity);
 			}
@@ -194,26 +248,23 @@ void KeyboardLayoutArpControl::handleArpMode(int32_t x, ArpeggiatorSettings* set
 	// Force arpeggiator to restart with new mode
 	settings->flagForceArpRestart = true;
 
-	// Show mode name in popup
+	// Show mode name in popup and update UI
 	const char* modeName = KeyboardLayoutArpControl::getArpPresetDisplayName(settings->preset);
-	display->displayPopup(modeName);
-
-	// Force UI update
-	keyboardScreen.requestMainPadsRendering();
+	updateDisplayAndUI(modeName);
 }
 
 void KeyboardLayoutArpControl::handleOctaves(int32_t x, ArpeggiatorSettings* settings) {
 	// Direct octave control (1-8)
-	int32_t newOctaves = x - 4 + 1;
+	int32_t newOctaves = x - kOctaveStartX + 1;
 	settings->numOctaves = newOctaves;
 	// Force arpeggiator to restart with new octave count
 	settings->flagForceArpRestart = false;
-	display->displayPopup(("Octaves: " + std::to_string(newOctaves)).c_str());
 
-	// Force UI update
-	keyboardScreen.requestMainPadsRendering();
+	// Create message using string formatting
+	char message[32];
+	sprintf(message, "Octaves: %d", newOctaves);
+	updateDisplayAndUI(message);
 }
-
 
 void KeyboardLayoutArpControl::handleSequenceLength(int32_t x, ArpeggiatorSettings* settings) {
 	// Track the last touched sequence length pad for LED feedback
@@ -226,14 +277,14 @@ void KeyboardLayoutArpControl::handleSequenceLength(int32_t x, ArpeggiatorSettin
 	setParameterSafely(modulation::params::UNPATCHED_ARP_SEQUENCE_LENGTH, newLength, true);
 
 	// Display "OFF" for value 0, otherwise show the value
+	char message[32];
 	if (newLength == 0) {
-		display->displayPopup("Seq Length: OFF");
-	} else {
-		display->displayPopup(("Seq Length: " + std::to_string(newLength)).c_str());
+		strcpy(message, "Seq Length: OFF");
 	}
-
-	// Force UI update
-	keyboardScreen.requestMainPadsRendering();
+	else {
+		sprintf(message, "Seq Length: %d", newLength);
+	}
+	updateDisplayAndUI(message);
 }
 
 void KeyboardLayoutArpControl::handleVelocitySpread(int32_t x, ArpeggiatorSettings* settings) {
@@ -247,14 +298,14 @@ void KeyboardLayoutArpControl::handleVelocitySpread(int32_t x, ArpeggiatorSettin
 	setParameterSafely(modulation::params::UNPATCHED_SPREAD_VELOCITY, newVelocity, true);
 
 	// Display "OFF" for value 0, otherwise show the value
+	char message[32];
 	if (newVelocity == 0) {
-		display->displayPopup("Spread Velocity: OFF");
-	} else {
-		display->displayPopup(("Spread Velocity: " + std::to_string(newVelocity)).c_str());
+		strcpy(message, "Spread Velocity: OFF");
 	}
-
-	// Force UI update
-	keyboardScreen.requestMainPadsRendering();
+	else {
+		sprintf(message, "Spread Velocity: %d", newVelocity);
+	}
+	updateDisplayAndUI(message);
 }
 
 void KeyboardLayoutArpControl::handleGate(int32_t x, ArpeggiatorSettings* settings) {
@@ -267,10 +318,9 @@ void KeyboardLayoutArpControl::handleGate(int32_t x, ArpeggiatorSettings* settin
 	// Use helper function to set parameter safely
 	setParameterSafely(modulation::params::UNPATCHED_ARP_GATE, newGate, false);
 
-	display->displayPopup(("Gate: " + std::to_string(newGate)).c_str());
-
-	// Force UI update
-	keyboardScreen.requestMainPadsRendering();
+	char message[32];
+	sprintf(message, "Gate: %d", newGate);
+	updateDisplayAndUI(message);
 }
 
 void KeyboardLayoutArpControl::handleRandomOctave(int32_t x, ArpeggiatorSettings* settings) {
@@ -283,10 +333,9 @@ void KeyboardLayoutArpControl::handleRandomOctave(int32_t x, ArpeggiatorSettings
 	// Use helper function to set parameter safely
 	setParameterSafely(modulation::params::UNPATCHED_ARP_SPREAD_OCTAVE, newOctave, true);
 
-	display->displayPopup(("Random Octave: " + std::to_string(newOctave)).c_str());
-
-	// Force UI update
-	keyboardScreen.requestMainPadsRendering();
+	char message[32];
+	sprintf(message, "Random Octave: %d", newOctave);
+	updateDisplayAndUI(message);
 }
 
 void KeyboardLayoutArpControl::handleRandomGate(int32_t x, ArpeggiatorSettings* settings) {
@@ -299,30 +348,29 @@ void KeyboardLayoutArpControl::handleRandomGate(int32_t x, ArpeggiatorSettings* 
 	// Use helper function to set parameter safely
 	setParameterSafely(modulation::params::UNPATCHED_ARP_SPREAD_GATE, newGate, true);
 
-	display->displayPopup(("Random Gate: " + std::to_string(newGate)).c_str());
-
-	// Force UI update
-	keyboardScreen.requestMainPadsRendering();
+	char message[32];
+	sprintf(message, "Random Gate: %d", newGate);
+	updateDisplayAndUI(message);
 }
 
 void KeyboardLayoutArpControl::handleRandomizerLock() {
 	ArpeggiatorSettings* settings = getArpSettings();
-	if (!settings) return;
+	if (!settings)
+		return;
 
 	// Toggle randomizer lock
 	settings->randomizerLock = !settings->randomizerLock;
 
-	display->displayPopup(settings->randomizerLock ? "Randomizer Lock: ON" : "Randomizer Lock: OFF");
-
-	// Force UI update
-	keyboardScreen.requestMainPadsRendering();
+	char const* message = settings->randomizerLock ? "Randomizer Lock: ON" : "Randomizer Lock: OFF";
+	updateDisplayAndUI(message);
 }
 
 void KeyboardLayoutArpControl::handleTranspose(int32_t x) {
-	if (x == 14) {
+	if (x == kTransposeDownX) {
 		keyboardScrollOffset -= 12; // Down one octave
 		display->displayPopup("Keyboard -1 Oct");
-	} else if (x == 15) {
+	}
+	else if (x == kTransposeUpX) {
 		keyboardScrollOffset += 12; // Up one octave
 		display->displayPopup("Keyboard +1 Oct");
 	}
@@ -365,21 +413,25 @@ void KeyboardLayoutArpControl::handleKeyboard(int32_t x, int32_t y, uint8_t velo
 
 void KeyboardLayoutArpControl::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	ArpeggiatorSettings* settings = getArpSettings();
-	if (!settings) return;
+	if (!settings)
+		return;
 
 	// Top row: Arp mode, octaves, and randomizer lock
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
-		if (x >= 0 && x < 3) {
+		if (isPadInRange(x, kArpModeStartX, kArpModeEndX)) {
 			// Arp mode display
 			image[0][x] = getArpModeColor(settings, x);
 		}
-		else if (x >= 4 && x < 12) {
+		else if (isPadInRange(x, kOctaveStartX, kOctaveEndX)) {
 			// Octave display
-			image[0][x] = getOctaveColor(x - 4, settings->numOctaves);
+			image[0][x] = getOctaveColor(x - kOctaveStartX, settings->numOctaves);
 		}
-		else if (x == 15) {
+		else if (x == kRandomizerLockX) {
 			// Randomizer lock button
-			image[0][x] = settings->randomizerLock ? colours::yellow : colours::yellow.adjust(32, 3);
+			image[0][x] = settings->randomizerLock
+			                  ? colours::yellow
+			                  : RGB(colours::yellow.r / kDimDivisor, colours::yellow.g / kDimDivisor,
+			                        colours::yellow.b / kDimDivisor);
 		}
 		else {
 			// Unused pads are black
@@ -388,37 +440,37 @@ void KeyboardLayoutArpControl::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 	}
 
 	// Row 1: Velocity spread and random octave
-	for (int32_t x = 0; x < 8; x++) {
+	for (int32_t x = 0; x < kControlPadsPerRow; x++) {
 		image[1][x] = getVelocitySpreadColor(x);
 	}
-	for (int32_t x = 8; x < 16; x++) {
-		image[1][x] = getRandomOctaveColor(x - 8);
+	for (int32_t x = kControlPadsPerRow; x < kDisplayWidth; x++) {
+		image[1][x] = getRandomOctaveColor(x - kControlPadsPerRow);
 	}
 
 	// Row 2: Gate and random gate
-	for (int32_t x = 0; x < 8; x++) {
+	for (int32_t x = 0; x < kControlPadsPerRow; x++) {
 		image[2][x] = getGateColor(x);
 	}
-	for (int32_t x = 8; x < 16; x++) {
-		image[2][x] = getRandomGateColor(x - 8);
+	for (int32_t x = kControlPadsPerRow; x < kDisplayWidth; x++) {
+		image[2][x] = getRandomGateColor(x - kControlPadsPerRow);
 	}
 
 	// Row 3: Sequence length, rhythm visualization, and transpose
-	for (int32_t x = 0; x < 8; x++) {
+	for (int32_t x = 0; x < kControlPadsPerRow; x++) {
 		image[3][x] = getSequenceLengthColor(x);
 	}
 
 	// Rhythm pattern visualization on pads x8-x13
-	for (int32_t x = 8; x < 14; x++) {
-		image[3][x] = getRhythmPatternColor(x - 8);
+	for (int32_t x = kRhythmVisualizationStartX; x < kRhythmVisualizationEndX; x++) {
+		image[3][x] = getRhythmPatternColor(x - kRhythmVisualizationStartX);
 	}
 
-	image[3][14] = colours::red; // Down transpose
-	image[3][15] = colours::purple; // Up transpose
+	image[3][kTransposeDownX] = colours::red;  // Down transpose
+	image[3][kTransposeUpX] = colours::purple; // Up transpose
 
 	// Rows 4-7: Keyboard (stop at y=7, leave y=8-15 for control columns)
-	for (int32_t y = 4; y < 8; y++) {
-		for (int32_t x = 0; x < 15; x++) {
+	for (int32_t y = kKeyboardStartY; y < kKeyboardEndY; y++) {
+		for (int32_t x = 0; x < kDisplayWidth - 1; x++) { // Leave last column for controls
 			image[y][x] = getKeyboardColor(x, y);
 		}
 	}
@@ -435,38 +487,58 @@ void KeyboardLayoutArpControl::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 // Color functions
 RGB KeyboardLayoutArpControl::getArpModeColor(ArpeggiatorSettings* settings, int32_t x) {
 	switch (settings->preset) {
-		case ArpPreset::OFF: return colours::red;
-		case ArpPreset::UP:
-			switch (x) {
-				case 0: return colours::green;
-				case 1: return colours::green;
-				case 2: return colours::pink;
-				default: return colours::green;
-			}
-		case ArpPreset::DOWN:
-			switch (x) {
-				case 0: return colours::pink;
-				case 1: return colours::green;
-				case 2: return colours::green;
-				default: return colours::green;
-			}
-		case ArpPreset::BOTH:
-			switch (x) {
-				case 0: return colours::pink;
-				case 1: return colours::green;
-				case 2: return colours::pink;
-				default: return colours::green;
-			}
-		case ArpPreset::RANDOM:
-			switch (x) {
-				case 0: return colours::pink;
-				case 1: return colours::pink;
-				case 2: return colours::pink;
-				default: return colours::pink;
-			}
-		case ArpPreset::WALK: return colours::magenta;
-		case ArpPreset::CUSTOM: return colours::white;
-		default: return colours::red;
+	case ArpPreset::OFF:
+		return colours::red;
+	case ArpPreset::UP:
+		switch (x) {
+		case 0:
+			return colours::green;
+		case 1:
+			return colours::green;
+		case 2:
+			return colours::pink;
+		default:
+			return colours::green;
+		}
+	case ArpPreset::DOWN:
+		switch (x) {
+		case 0:
+			return colours::pink;
+		case 1:
+			return colours::green;
+		case 2:
+			return colours::green;
+		default:
+			return colours::green;
+		}
+	case ArpPreset::BOTH:
+		switch (x) {
+		case 0:
+			return colours::pink;
+		case 1:
+			return colours::green;
+		case 2:
+			return colours::pink;
+		default:
+			return colours::green;
+		}
+	case ArpPreset::RANDOM:
+		switch (x) {
+		case 0:
+			return colours::pink;
+		case 1:
+			return colours::pink;
+		case 2:
+			return colours::pink;
+		default:
+			return colours::pink;
+		}
+	case ArpPreset::WALK:
+		return colours::magenta;
+	case ArpPreset::CUSTOM:
+		return colours::white;
+	default:
+		return colours::red;
 	}
 }
 
@@ -474,61 +546,39 @@ RGB KeyboardLayoutArpControl::getOctaveColor(int32_t octave, int32_t currentOcta
 	return (octave < currentOctaves) ? colours::blue : RGB(0, 0, 40);
 }
 
-
 RGB KeyboardLayoutArpControl::getSequenceLengthColor(int32_t length) {
-	// Highlight the last touched sequence length pad, dim all others
-	if (lastTouchedSequenceLengthPad == length) {
-		return colours::orange; // Bright orange for last touched pad
-	} else {
-		return colours::orange.adjust(32, 3); // Dim orange for other pads
-	}
+	return getHighlightedPadColor(length, lastTouchedSequenceLengthPad, colours::orange);
 }
 
 RGB KeyboardLayoutArpControl::getVelocitySpreadColor(int32_t spread) {
-	// Highlight the last touched velocity pad, dim all others
-	if (lastTouchedVelocityPad == spread) {
-		return colours::cyan; // Bright cyan for last touched pad
-	} else {
-		return colours::cyan.adjust(32, 3); // Dim cyan for other pads
-	}
+	return getHighlightedPadColor(spread, lastTouchedVelocityPad, colours::cyan);
 }
 
 RGB KeyboardLayoutArpControl::getGateColor(int32_t gate) {
-	// Highlight the last touched gate pad, dim all others
-	if (lastTouchedGatePad == gate) {
-		return colours::green; // Bright green for last touched pad
-	} else {
-		return colours::green.adjust(32, 3); // Dim green for other pads
-	}
+	return getHighlightedPadColor(gate, lastTouchedGatePad, colours::green);
 }
 
 RGB KeyboardLayoutArpControl::getRandomOctaveColor(int32_t octave) {
-	// Highlight the last touched random octave pad, dim all others
-	if (lastTouchedRandomOctavePad == octave) {
-		return RGB(0, 100, 255); // Bright light blue for last touched pad
-	} else {
-		return RGB(0, 100, 255).adjust(32, 3); // Dim light blue for other pads
-	}
+	return getHighlightedPadColor(octave, lastTouchedRandomOctavePad, RGB(0, 100, 255));
 }
 
 RGB KeyboardLayoutArpControl::getRandomGateColor(int32_t gate) {
-	// Highlight the last touched random gate pad, dim all others
-	if (lastTouchedRandomGatePad == gate) {
-		return colours::lime; // Bright lime for last touched pad
-	} else {
-		return colours::lime.adjust(32, 3); // Dim lime for other pads
-	}
+	return getHighlightedPadColor(gate, lastTouchedRandomGatePad, colours::lime);
 }
 
 RGB KeyboardLayoutArpControl::getRhythmPatternColor(int32_t step) {
 	// Show the currently selected rhythm pattern (not necessarily applied)
 	if (displayState.currentRhythm == 0) {
 		// Pattern 0 (all notes) - show all steps as dim white
-		return RGB::monochrome(32);
+		return RGB::monochrome(kDimBrightness);
 	}
 
 	// Clamp rhythm to valid range
-	int32_t rhythmIndex = std::clamp(displayState.currentRhythm, static_cast<int32_t>(0), static_cast<int32_t>(kMaxRhythmPattern));
+	int32_t rhythmIndex = displayState.currentRhythm;
+	if (rhythmIndex < 0)
+		rhythmIndex = 0;
+	if (rhythmIndex > kMaxRhythmPattern)
+		rhythmIndex = kMaxRhythmPattern;
 
 	// Get the rhythm pattern
 	const ArpRhythm& pattern = arpRhythmPatterns[rhythmIndex];
@@ -537,18 +587,21 @@ RGB KeyboardLayoutArpControl::getRhythmPatternColor(int32_t step) {
 	if (step < pattern.length && pattern.steps[step]) {
 		// Bright white for active steps, dimmer if not applied
 		if (displayState.appliedRhythm == displayState.currentRhythm) {
-			return RGB::monochrome(128); // Bright white when applied
-		} else {
-			return RGB::monochrome(60); // Dimmer white when not applied
+			return RGB::monochrome(kHalfBrightness); // Bright white when applied
 		}
-	} else {
-		return RGB::monochrome(0); // Dim white for inactive steps
+		else {
+			return RGB::monochrome(kQuarterBrightness); // Dimmer white when not applied
+		}
+	}
+	else {
+		return RGB::monochrome(0); // Black for inactive steps
 	}
 }
 
 void KeyboardLayoutArpControl::applyRhythmToArpSettings() {
 	ArpeggiatorSettings* settings = getArpSettings();
-	if (!settings) return;
+	if (!settings)
+		return;
 
 	// Check output type to determine which approach to use
 	OutputType outputType = getCurrentOutputType();
@@ -556,7 +609,8 @@ void KeyboardLayoutArpControl::applyRhythmToArpSettings() {
 	if (outputType == OutputType::SYNTH) {
 		// Use soundEditor.setup() for synth tracks (works properly)
 		InstrumentClip* clip = getCurrentInstrumentClip();
-		if (!clip) return;
+		if (!clip)
+			return;
 
 		// Use the same approach as the keyboard screen for proper parameter setting
 		UI* originalUI = getCurrentUI();
@@ -566,7 +620,8 @@ void KeyboardLayoutArpControl::applyRhythmToArpSettings() {
 			// Now we're in sound editor context - use the official approach
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-			ModelStackWithAutoParam* modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
+			ModelStackWithAutoParam* modelStackWithParam =
+			    modelStack->getUnpatchedAutoParamFromId(modulation::params::UNPATCHED_ARP_RHYTHM);
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				// Use appliedRhythm for the actual parameter value
@@ -584,7 +639,6 @@ void KeyboardLayoutArpControl::applyRhythmToArpSettings() {
 		int32_t scaledValue = computeFinalValueForUnsignedMenuItem(displayState.appliedRhythm);
 		settings->rhythm = scaledValue;
 	}
-
 }
 
 void KeyboardLayoutArpControl::handleRhythmToggle() {
@@ -593,7 +647,8 @@ void KeyboardLayoutArpControl::handleRhythmToggle() {
 		// Turn ON: apply the currently selected pattern
 		displayState.appliedRhythm = displayState.currentRhythm;
 		display->displayPopup("Rhythm ON");
-	} else {
+	}
+	else {
 		// Turn OFF: keep current pattern for next time
 		displayState.appliedRhythm = 0;
 		display->displayPopup("Rhythm OFF");
@@ -630,26 +685,27 @@ RGB KeyboardLayoutArpControl::getKeyboardColor(int32_t x, int32_t y) {
 
 	// Full brightness and colour for active root note
 	if (noteWithinOctave == 0 && isPressed) {
-		return colourSource.adjust(255, 1);
+		return colourSource;
 	}
 	// Full colour but less brightness for inactive root note
 	else if (noteWithinOctave == 0) {
-		return colourSource.adjust(255, 2);
+		return RGB(colourSource.r / 2, colourSource.g / 2, colourSource.b / 2);
 	}
 	// Toned down colour but high brightness for active scale note
 	else if (isPressed) {
-		return colourSource.adjust(127, 3);
+		return RGB(colourSource.r / kDimDivisor, colourSource.g / kDimDivisor, colourSource.b / kDimDivisor);
 	}
 	// Dimly white for inactive scale notes
 	else {
-		return RGB::monochrome(1);
+		return RGB::monochrome(kMinBrightness);
 	}
 }
 
 // Essential functions
 ArpeggiatorSettings* KeyboardLayoutArpControl::getArpSettings() {
 	InstrumentClip* clip = getCurrentInstrumentClip();
-	if (!clip) return nullptr;
+	if (!clip)
+		return nullptr;
 	return &clip->arpSettings;
 }
 
@@ -657,22 +713,27 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 	// Scroll through rhythm patterns (but don't apply until encoder is pressed)
 	if (offset > 0) {
 		displayState.currentRhythm++;
-		if (displayState.currentRhythm > kMaxRhythmPattern) displayState.currentRhythm = 1;
-	} else {
+		if (displayState.currentRhythm > kMaxRhythmPattern)
+			displayState.currentRhythm = 1;
+	}
+	else {
 		displayState.currentRhythm--;
-		if (displayState.currentRhythm < 1) displayState.currentRhythm = kMaxRhythmPattern;
+		if (displayState.currentRhythm < 1)
+			displayState.currentRhythm = kMaxRhythmPattern;
 	}
 
 	// Display rhythm pattern name and status
 	DEF_STACK_STRING_BUF(buffer, 30);
 	if (displayState.currentRhythm == 0) {
 		buffer.append("Rhythm: None");
-	} else {
+	}
+	else {
 		buffer.append("Rhythm: ");
 		buffer.append(arpRhythmPatternNames[displayState.currentRhythm]);
 		if (displayState.appliedRhythm == 0) {
 			buffer.append(" (OFF)");
-		} else {
+		}
+		else {
 			buffer.append(" (ON)");
 		}
 	}
@@ -687,7 +748,9 @@ void KeyboardLayoutArpControl::handleVerticalEncoder(int32_t offset) {
 	keyboardScreen.requestMainPadsRendering();
 }
 
-void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shiftEnabled, PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
+void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
+                                                       PressedPad presses[kMaxNumKeyboardPadPresses],
+                                                       bool encoderPressed) {
 
 	// Check if column controls are handling the encoder
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
@@ -696,7 +759,8 @@ void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shif
 
 	// Arp rate control
 	ArpeggiatorSettings* settings = getArpSettings();
-	if (!settings) return;
+	if (!settings)
+		return;
 
 	// Only change rate if offset is non-zero (avoid display refresh on select encoder)
 	if (offset != 0) {
@@ -716,7 +780,8 @@ void KeyboardLayoutArpControl::handleHorizontalEncoder(int32_t offset, bool shif
 		DEF_STACK_STRING_BUF(buffer, 30);
 		if (newSyncValue == 0) {
 			buffer.append("OFF");
-		} else {
+		}
+		else {
 			syncValueToString(newSyncValue, buffer, currentSong->getInputTickMagnitude());
 		}
 		display->displayPopup(buffer.c_str());
@@ -754,14 +819,22 @@ void KeyboardLayoutArpControl::updatePlaybackProgressBar() {
 
 char const* KeyboardLayoutArpControl::getArpPresetDisplayName(ArpPreset preset) {
 	switch (preset) {
-		case ArpPreset::OFF: return "OFF";
-		case ArpPreset::UP: return "UP";
-		case ArpPreset::DOWN: return "DOWN";
-		case ArpPreset::BOTH: return "BOTH";
-		case ArpPreset::RANDOM: return "RANDOM";
-		case ArpPreset::WALK: return "WALK";
-		case ArpPreset::CUSTOM: return "CUSTOM";
-		default: return "UNKNOWN";
+	case ArpPreset::OFF:
+		return "OFF";
+	case ArpPreset::UP:
+		return "UP";
+	case ArpPreset::DOWN:
+		return "DOWN";
+	case ArpPreset::BOTH:
+		return "BOTH";
+	case ArpPreset::RANDOM:
+		return "RANDOM";
+	case ArpPreset::WALK:
+		return "WALK";
+	case ArpPreset::CUSTOM:
+		return "CUSTOM";
+	default:
+		return "UNKNOWN";
 	}
 }
 

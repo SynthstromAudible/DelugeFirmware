@@ -17,9 +17,9 @@
 
 #pragma once
 
+#include "gui/l10n/strings.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
 #include "modulation/arpeggiator.h"
-#include "gui/l10n/strings.h"
 
 // Forward declarations
 class ArpeggiatorSettings;
@@ -66,7 +66,6 @@ private:
 	/// Handle octave control (top row, pads 4-11)
 	void handleOctaves(int32_t x, ArpeggiatorSettings* settings);
 
-
 	/// Handle sequence length control (row 1, pads 0-15)
 	void handleSequenceLength(int32_t x, ArpeggiatorSettings* settings);
 
@@ -100,7 +99,6 @@ private:
 	/// Get color for octave display
 	RGB getOctaveColor(int32_t octave, int32_t currentOctaves);
 
-
 	/// Get color for sequence length display
 	RGB getSequenceLengthColor(int32_t length);
 
@@ -133,9 +131,7 @@ public:
 	char const* getArpPresetDisplayName(ArpPreset preset);
 
 	/// Simple keyboard helper functions
-	inline uint16_t noteFromCoords(int32_t x, int32_t y) {
-		return noteFromPadIndex(padIndexFromCoords(x, y));
-	}
+	inline uint16_t noteFromCoords(int32_t x, int32_t y) { return noteFromPadIndex(padIndexFromCoords(x, y)); }
 
 	inline uint16_t padIndexFromCoords(int32_t x, int32_t y) {
 		return getState().inKey.scrollOffset + x + y * getState().inKey.rowInterval;
@@ -151,24 +147,24 @@ public:
 	}
 
 	// Simple state tracking
-	int32_t keyboardScrollOffset = 0; // Keyboard transpose offset
-	int32_t currentRhythm = 1; // Currently selected rhythm pattern
-	int32_t appliedRhythm = 0; // Currently applied rhythm (0 = off)
-	int32_t lastTouchedGatePad = -1; // Track last touched gate pad for LED feedback
+	int32_t keyboardScrollOffset = 0;   // Keyboard transpose offset
+	int32_t lastTouchedGatePad = -1;    // Track last touched gate pad for LED feedback
 	int32_t lastTouchedVelocityPad = 0; // Track last touched velocity pad for LED feedback (default to pad 0)
-	int32_t lastTouchedSequenceLengthPad = 0; // Track last touched sequence length pad for LED feedback (default to pad 0)
+	int32_t lastTouchedSequenceLengthPad =
+	    0; // Track last touched sequence length pad for LED feedback (default to pad 0)
 	int32_t lastTouchedRandomOctavePad = 0; // Track last touched random octave pad for LED feedback (default to pad 0)
-	int32_t lastTouchedRandomGatePad = 0; // Track last touched random gate pad for LED feedback (default to pad 0)
+	int32_t lastTouchedRandomGatePad = 0;   // Track last touched random gate pad for LED feedback (default to pad 0)
 
 	// Individual pad values for tweaking
-	int32_t sequenceLengthValues[8] = {0, 10, 20, 25, 35, 40, 45, 50}; // Each pad has its own value
-	int32_t velocitySpreadValues[8] = {0, 10, 20, 25, 35, 40, 45, 50}; // Each pad has its own value
-	int32_t gateValues[8] = {1, 10, 20, 25, 35, 40, 45, 50}; // Each pad has its own value
-	int32_t randomOctaveValues[8] = {0, 5, 10, 15, 20, 25, 30, 35}; // Random octave spread values
-	int32_t randomGateValues[8] = {0, 5, 10, 15, 20, 25, 30, 35}; // Random gate spread values
+	static constexpr int32_t kNumControlValues = 8;
+	int32_t sequenceLengthValues[kNumControlValues] = {0, 10, 20, 25, 35, 40, 45, 50}; // Each pad has its own value
+	int32_t velocitySpreadValues[kNumControlValues] = {0, 10, 20, 25, 35, 40, 45, 50}; // Each pad has its own value
+	int32_t gateValues[kNumControlValues] = {1, 10, 20, 25, 35, 40, 45, 50};           // Each pad has its own value
+	int32_t randomOctaveValues[kNumControlValues] = {0, 5, 10, 15, 20, 25, 30, 35};    // Random octave spread values
+	int32_t randomGateValues[kNumControlValues] = {0, 5, 10, 15, 20, 25, 30, 35};      // Random gate spread values
 
 public:
-	// Public display state for keyboard screen access
+	// Public display state for keyboard screen access (consolidated rhythm state)
 	struct {
 		int32_t currentRhythm = 1;
 		int32_t appliedRhythm = 0;
