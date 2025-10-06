@@ -90,7 +90,7 @@ Voice::Voice(Sound& sound) : patcher(kPatcherConfigForVoice, sourceValues, param
 void Voice::setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong) {
 
 	unassignStuff(deletingSong);
-
+	delete_this_voice_ = true;
 	if (!deletingSong) {
 		this->sound.voiceUnassigned(modelStack);
 	}
