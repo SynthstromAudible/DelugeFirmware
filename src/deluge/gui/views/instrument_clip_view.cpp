@@ -3415,19 +3415,17 @@ void InstrumentClipView::displayIterance(Iterance iterance) {
 
 const char* InstrumentClipView::getFillString(uint8_t fill) {
 	// FILL mode
-	if (fill == FillMode::FILL) {
+	if (fill == FILL) {
 		return "FILL";
 	}
 
 	// NO-FILL mode
-	else if (fill == FillMode::NOT_FILL) {
+	if (fill == NOT_FILL) {
 		return "NOT FILL";
 	}
 
 	// OFF
-	else {
-		return "OFF";
-	}
+	return "OFF";
 }
 
 #pragma gcc pop
@@ -3535,7 +3533,7 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 // if we're in a submenu, we'll need to go up a level
 void InstrumentClipView::deselectNoteAndGoUpOneLevel() {
 	exitNoteEditor();
-	if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu) {
+	if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu || runtimeFeatureSettings.isOn(HorizontalMenus)) {
 		soundEditor.goUpOneLevel();
 	}
 }
@@ -3559,6 +3557,11 @@ ActionResult InstrumentClipView::handleNoteEditorHorizontalEncoderAction(int32_t
 ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	// to allow you to switch between items in horizontal menu
+	if (util::one_of<hid::Button>(b, {SYNTH, KIT, MIDI, CV})) {
+		return soundEditor.getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+	}
+
 	// to allow you to zoom in / out
 	// to allow you to toggle fill
 	if (b == X_ENC || b == SYNC_SCALING) {
@@ -3567,7 +3570,7 @@ ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Butto
 	// to allow you to toggle playback on / off
 	// to allow you to toggle shift on / off
 	// to allow you to toggle mod encoders on / off
-	else if (b == PLAY || b == SHIFT || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
+	if (b == PLAY || b == SHIFT || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
@@ -3795,13 +3798,18 @@ ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int3
 ActionResult InstrumentClipView::handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	// to allow you to switch between items in horizontal menu
+	if (util::one_of<hid::Button>(b, {SYNTH, KIT, MIDI, CV})) {
+		return soundEditor.getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+	}
+
 	// to allow you to zoom in / out
 	// to allow you to toggle fill
 	if (b == X_ENC || b == SYNC_SCALING) {
 		return buttonAction(b, on, inCardRoutine);
 	}
 	// to allow you to toggle affect entire on / off in kits
-	else if (on && b == AFFECT_ENTIRE) {
+	if (on && b == AFFECT_ENTIRE) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		if (clip->output->type == OutputType::KIT) {
 			clip->affectEntire = !clip->affectEntire;

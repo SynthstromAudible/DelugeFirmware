@@ -25,138 +25,140 @@ namespace deluge::gui::menu_item {
 using namespace hid::display;
 
 float Number::getNormalizedValue() {
-	const int32_t minValue = getMinValue();
-	const int32_t maxValue = getMaxValue();
-	return static_cast<float>(getValue() - minValue) / static_cast<float>(maxValue - minValue);
+	const int32_t min_value = getMinValue();
+	const int32_t max_value = getMaxValue();
+	return static_cast<float>(getValue() - min_value) / static_cast<float>(max_value - min_value);
 }
 
-void Number::drawHorizontalBar(int32_t yTop, int32_t marginL, int32_t marginR, int32_t height) {
+void Number::drawHorizontalBar(int32_t y_top, int32_t margin_l, int32_t margin_r, int32_t height) {
 	oled_canvas::Canvas& canvas = OLED::main;
-	if (marginR == -1) {
-		marginR = marginL;
+	if (margin_r == -1) {
+		margin_r = margin_l;
 	}
-	const int32_t leftMost = marginL + 2;
-	const int32_t rightMost = OLED_MAIN_WIDTH_PIXELS - marginR - 3;
+	const int32_t left_most = margin_l + 2;
+	const int32_t right_most = OLED_MAIN_WIDTH_PIXELS - margin_r - 3;
 
 	const int32_t value = getValue();
-	const int32_t minValue = getMinValue();
-	if (minValue == 0 && value == 0) {
-		return canvas.drawRectangleRounded(leftMost, yTop, rightMost - 1, yTop + height);
+	const int32_t min_value = getMinValue();
+	if (min_value == 0 && value == 0) {
+		return canvas.drawRectangleRounded(left_most, y_top, right_most - 1, y_top + height);
 	}
 
-	const int32_t maxValue = getMaxValue();
-	const uint32_t range = maxValue - minValue;
-	const float posFractional = static_cast<float>(value - minValue) / range;
-	const float zeroPosFractional = static_cast<float>(-minValue) / range;
+	const int32_t max_value = getMaxValue();
+	const uint32_t range = max_value - min_value;
+	const float pos_fractional = static_cast<float>(value - min_value) / range;
+	const float zero_pos_fractional = static_cast<float>(-min_value) / range;
 
-	const int32_t width = rightMost - leftMost;
-	const int32_t posHorizontal = static_cast<int32_t>(posFractional * width);
+	const int32_t width = right_most - left_most;
+	const int32_t pos_horizontal = static_cast<int32_t>(pos_fractional * width);
 
-	if (const int32_t zeroPosHorizontal = static_cast<int32_t>(zeroPosFractional * width);
-	    posHorizontal == zeroPosHorizontal) {
+	if (const int32_t zero_pos_horizontal = static_cast<int32_t>(zero_pos_fractional * width);
+	    pos_horizontal == zero_pos_horizontal) {
 		// = 0, draw vertical line in the middle
-		const int32_t xMin = leftMost + zeroPosHorizontal;
-		canvas.invertArea(xMin, 1, yTop + 1, yTop + height - 1);
+		const int32_t xMin = left_most + zero_pos_horizontal;
+		canvas.invertArea(xMin, 1, y_top + 1, y_top + height - 1);
 	}
-	else if (posHorizontal < zeroPosHorizontal) {
+	else if (pos_horizontal < zero_pos_horizontal) {
 		// < 0, draw the bar to the left
-		const int32_t xMin = leftMost + posHorizontal;
-		canvas.invertArea(xMin, zeroPosHorizontal - posHorizontal, yTop + 1, yTop + height - 1);
+		const int32_t x_min = left_most + pos_horizontal;
+		canvas.invertArea(x_min, zero_pos_horizontal - pos_horizontal, y_top + 1, y_top + height - 1);
 	}
 	else {
 		// > 0, draw the bar to the right
-		const int32_t xMin = leftMost + zeroPosHorizontal;
-		canvas.invertArea(xMin, posHorizontal - zeroPosHorizontal, yTop + 1, yTop + height - 1);
+		const int32_t x_min = left_most + zero_pos_horizontal;
+		canvas.invertArea(x_min, pos_horizontal - zero_pos_horizontal, y_top + 1, y_top + height - 1);
 	}
 
-	canvas.drawRectangleRounded(leftMost, yTop, rightMost - 1, yTop + height);
+	canvas.drawRectangleRounded(left_most, y_top, right_most - 1, y_top + height);
 }
 
-void Number::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+void Number::renderInHorizontalMenu(int32_t start_x, int32_t width, int32_t start_y, int32_t height) {
 	switch (getNumberStyle()) {
 	case PERCENT:
-		return drawPercent(startX, startY, width, height);
+		return drawPercent(start_x, start_y, width, height);
 	case KNOB:
-		return drawKnob(startX, startY, width, height);
+		return drawKnob(start_x, start_y, width, height);
 	case BAR:
-		return drawBar(startX, startY, width, height);
+		return drawBar(start_x, start_y, width, height);
 	case SLIDER:
-		return drawSlider(startX, startY, width, height);
+		return drawSlider(start_x, start_y, width, height);
 	case LENGTH_SLIDER:
-		return drawLengthSlider(startX, startY, width, height);
+		return drawLengthSlider(start_x, start_y, width, height);
+	case PAN:
+		return drawPan(start_x, start_y, width, height);
 	default:
 		DEF_STACK_STRING_BUF(paramValue, 10);
 		paramValue.appendInt(getValue());
-		return OLED::main.drawStringCentered(paramValue, startX, startY + 3, kTextTitleSpacingX, kTextTitleSizeY,
+		return OLED::main.drawStringCentered(paramValue, start_x, start_y + 3, kTextTitleSpacingX, kTextTitleSizeY,
 		                                     width);
 	}
 }
 
-void Number::drawPercent(int32_t startX, int32_t startY, int32_t width, int32_t height) {
+void Number::drawPercent(int32_t start_x, int32_t start_y, int32_t width, int32_t height) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	DEF_STACK_STRING_BUF(valueString, 12);
 	valueString.appendInt(getValue() * 2);
 
-	constexpr char percentChar = '%';
-	const int32_t valueWidth = image.getStringWidthInPixels(valueString.c_str(), kTextSpacingY);
-	const int32_t percentCharWidth = image.getCharWidthInPixels(percentChar, kTextSpacingY);
-	constexpr int32_t paddingBetween = 2;
-	const int32_t totalWidth = valueWidth + percentCharWidth + paddingBetween;
+	constexpr char percent_char = '%';
+	const int32_t value_width = image.getStringWidthInPixels(valueString.c_str(), kTextSpacingY);
+	const int32_t percent_char_width = image.getCharWidthInPixels(percent_char, kTextSpacingY);
+	constexpr int32_t padding_between = 2;
+	const int32_t total_width = value_width + percent_char_width + padding_between;
 
-	int32_t x = startX + (width - totalWidth) / 2 + 1;
-	int32_t y = startY + 3;
+	int32_t x = start_x + (width - total_width) / 2 + 1;
+	int32_t y = start_y + 3;
 	image.drawString(valueString.c_str(), x, y, kTextSpacingX, kTextSpacingY);
 
-	x += valueWidth + paddingBetween;
-	image.drawChar(percentChar, x, y, kTextSpacingX, kTextSpacingY);
+	x += value_width + padding_between;
+	image.drawChar(percent_char, x, y, kTextSpacingX, kTextSpacingY);
 }
 
-void Number::drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t height) {
+void Number::drawKnob(int32_t start_x, int32_t start_y, int32_t width, int32_t height) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	// Draw the background arc
 	// Easier to adjust pixel-perfect, so we use a bitmap
-	image.drawIconCentered(OLED::knobArcIcon, startX, width, startY);
+	image.drawIconCentered(OLED::knobArcIcon, start_x, width, start_y);
 
 	// Calculate current value angle
-	constexpr int32_t knobRadius = 10;
-	const int32_t centerX = startX + width / 2;
-	const int32_t centerY = startY + knobRadius + 1;
-	constexpr int32_t arcRangeAngle = 210, beginningAngle = 165;
-	const float valuePercent = getNormalizedValue();
-	const float currentAngle = beginningAngle + (arcRangeAngle * valuePercent);
+	constexpr int32_t knob_radius = 10;
+	const int32_t center_x = start_x + width / 2;
+	const int32_t center_y = start_y + knob_radius + 1;
+	constexpr int32_t arc_range_angle = 210, beginning_angle = 165;
+	const float value_percent = getNormalizedValue();
+	const float current_angle = beginning_angle + (arc_range_angle * value_percent);
 
 	// Draw the indicator line
-	const float radians = (currentAngle * M_PI) / 180.0f;
-	constexpr float innerRadius = knobRadius - 1.0f;
-	constexpr float outerRadius = 3.5f;
-	const float cosA = cos(radians);
-	const float sinA = sin(radians);
-	const float xStart = centerX + outerRadius * cosA;
-	const float yStart = centerY + outerRadius * sinA;
-	const float xEnd = centerX + innerRadius * cosA;
-	const float yEnd = centerY + innerRadius * sinA;
-	image.drawLine(round(xStart), round(yStart), round(xEnd), round(yEnd), {.thick = true});
+	const float radians = (current_angle * M_PI) / 180.0f;
+	constexpr float inner_radius = knob_radius - 1.0f;
+	constexpr float outer_radius = 3.5f;
+	const float cos_a = cos(radians);
+	const float sin_a = sin(radians);
+	const float x_start = center_x + outer_radius * cos_a;
+	const float y_start = center_y + outer_radius * sin_a;
+	const float x_end = center_x + inner_radius * cos_a;
+	const float y_end = center_y + inner_radius * sin_a;
+	image.drawLine(round(x_start), round(y_start), round(x_end), round(y_end), {.thick = true});
 
 	// If the knob's position is near left or near right, fill the gap on the bitmap (the gap exists purely for
 	// stylistic effect)
-	if (currentAngle < 180.0f) {
-		image.drawPixel(centerX - knobRadius, startY + height - 4);
+	if (current_angle < 180.0f) {
+		image.drawPixel(center_x - knob_radius, start_y + height - 4);
 	}
-	if (currentAngle > 360.0f) {
-		image.drawPixel(centerX + knobRadius, startY + height - 4);
+	if (current_angle > 360.0f) {
+		image.drawPixel(center_x + knob_radius, start_y + height - 4);
 	}
 }
 
-void Number::drawBar(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight) {
+void Number::drawBar(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t bar_width = 21;
-	constexpr uint8_t bar_height = 7;
+	constexpr uint8_t bar_height = 8;
 	constexpr uint8_t outline_padding = 2;
-	const uint8_t bar_start_x = startX + 3 + outline_padding;
-	const uint8_t bar_start_y = startY + 2 + outline_padding;
+	const uint8_t bar_start_x = start_x + 3 + outline_padding;
+	const uint8_t bar_start_y = start_y + 1 + outline_padding;
 	const uint8_t bar_end_x = bar_start_x + bar_width - 1;
 	const uint8_t bar_end_y = bar_start_y + bar_height - 1;
 
@@ -186,66 +188,104 @@ void Number::drawBar(int32_t startX, int32_t startY, int32_t slotWidth, int32_t 
 	}
 }
 
-void Number::drawSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight) {
+void Number::drawSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr int32_t padding = 4;
-	const int32_t minX = startX + padding;
-	const int32_t maxX = startX + slotWidth - 1 - padding;
-	const int32_t minY = startY + 2;
-	const int32_t maxY = startY + slotHeight - 4;
+	const int32_t min_x = start_x + padding;
+	const int32_t max_x = start_x + slot_width - 1 - padding;
+	const int32_t min_y = start_y + 2;
+	const int32_t max_y = start_y + slot_height - 4;
 
-	const float valueNormalized = getNormalizedValue();
-	const int32_t valueLineMinX = minX;
-	const int32_t valueLineWidth = static_cast<int32_t>(valueNormalized * (maxX - 1 - valueLineMinX));
-	const int32_t valueLineX = valueLineMinX + valueLineWidth;
+	const float value_normalized = getNormalizedValue();
+	const int32_t value_line_min_x = min_x;
+	const int32_t value_line_width = static_cast<int32_t>(value_normalized * (max_x - 1 - value_line_min_x));
+	const int32_t value_line_x = value_line_min_x + value_line_width;
 
-	const int32_t centerY = minY + (maxY - minY) / 2;
-	for (int32_t x = minX; x <= maxX; x += 3) {
-		if (x != valueLineX - 1 && x != valueLineX + 2) {
-			image.drawPixel(x, centerY - 1);
-			image.drawPixel(x, centerY + 1);
+	const int32_t center_y = min_y + (max_y - min_y) / 2;
+	for (int32_t x = min_x; x <= max_x; x += 3) {
+		if (x != value_line_x - 1 && x != value_line_x + 2) {
+			image.drawPixel(x, center_y - 1);
+			image.drawPixel(x, center_y + 1);
 		}
 	}
 
-	image.drawVerticalLine(valueLineX, minY, maxY);
-	image.drawVerticalLine(valueLineX + 1, minY, maxY);
+	image.drawVerticalLine(value_line_x, min_y, max_y);
+	image.drawVerticalLine(value_line_x + 1, min_y, max_y);
 }
 
-void Number::drawLengthSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight,
-                              bool minSliderPos) {
+void Number::drawLengthSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height,
+                              bool min_slider_pos) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr int32_t padding = 4;
-	const int32_t minX = startX + padding;
-	const int32_t maxX = startX + slotWidth - 1 - padding;
-	const int32_t minY = startY + 2;
-	const int32_t maxY = startY + slotHeight - 4;
+	const int32_t min_x = start_x + padding;
+	const int32_t max_x = start_x + slot_width - 1 - padding;
+	const int32_t min_y = start_y + 2;
+	const int32_t max_y = start_y + slot_height - 4;
 
-	const float valueNormalized = getNormalizedValue();
-	const int32_t valueLineMinX = minX + minSliderPos;
-	const int32_t valueLineWidth = static_cast<int32_t>(valueNormalized * (maxX - valueLineMinX));
-	const int32_t valueLineX = valueLineMinX + valueLineWidth;
+	const float value_normalized = getNormalizedValue();
+	const int32_t value_line_min_x = min_x + min_slider_pos;
+	const int32_t value_line_width = static_cast<int32_t>(value_normalized * (max_x - value_line_min_x));
+	const int32_t value_line_x = value_line_min_x + value_line_width;
 
-	const int32_t centerY = minY + (maxY - minY) / 2;
-	for (int32_t y = centerY - 1; y <= centerY + 1; y++) {
-		image.drawHorizontalLine(y, minX, valueLineX);
+	const int32_t center_y = min_y + (max_y - min_y) / 2;
+	for (int32_t y = center_y - 1; y <= center_y + 1; y++) {
+		image.drawHorizontalLine(y, min_x, value_line_x);
 	}
-	image.drawVerticalLine(valueLineX, minY, maxY);
+	image.drawVerticalLine(value_line_x, min_y, max_y);
 
-	for (int32_t x = maxX; x >= valueLineMinX; x -= 3) {
-		image.drawPixel(x, centerY - 1);
-		image.drawPixel(x, centerY + 1);
+	for (int32_t x = max_x; x >= value_line_min_x; x -= 3) {
+		image.drawPixel(x, center_y - 1);
+		image.drawPixel(x, center_y + 1);
 	}
 }
 
+void Number::drawPan(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
+	oled_canvas::Canvas& image = OLED::main;
+
+	constexpr uint8_t width = 21;
+	constexpr uint8_t height = 11;
+	const uint8_t pan_start_x = start_x + 5;
+	const uint8_t pan_end_x = pan_start_x + width - 1;
+	const uint8_t pan_start_y = start_y + 2;
+	const uint8_t pan_end_y = pan_start_y + height - 1;
+
+	const uint8_t center_x = pan_start_x + width / 2;
+	const uint8_t center_y = pan_start_y + height / 2;
+
+	const int32_t value = getValue();
+	const float norm = std::abs(value) / 25.f;
+	const uint8_t max_fill_width = center_x - pan_start_x - 1;
+	const uint8_t fill_width = norm * max_fill_width;
+
+	const int8_t direction = (value > 0) - (value < 0); // -1, 0, or +1
+	const uint8_t fill_start_x = center_x + direction;
+	const uint8_t fill_end_x = fill_start_x + direction * fill_width;
+	const uint8_t fill_min_x = std::min(fill_start_x, fill_end_x);
+	const uint8_t fill_max_x = std::max(fill_start_x, fill_end_x);
+
+	auto draw_segment = [&](uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1) {
+		auto fill_segment = [&](oled_canvas::Point point) {
+			if (point.x >= fill_min_x && point.x <= fill_max_x) {
+				image.drawLine(point.x, point.y, point.x, center_y);
+			}
+		};
+		image.drawLine(x0, y0, x1, y1, {.point_callback = fill_segment});
+	};
+
+	draw_segment(center_x, center_y - 2, pan_end_x - 1, pan_start_y);
+	draw_segment(center_x, center_y + 2, pan_end_x - 1, pan_end_y);
+	draw_segment(center_x, center_y - 2, pan_start_x + 1, pan_start_y);
+	draw_segment(center_x, center_y + 2, pan_start_x + 1, pan_end_y);
+
+	image.drawVerticalLine(pan_end_x, pan_start_y, pan_end_y);
+	image.drawVerticalLine(pan_start_x, pan_start_y, pan_end_y);
+	image.drawVerticalLine(center_x, center_y - 5, center_y + 5);
+}
+
 void Number::getNotificationValue(StringBuf& value) {
-	if (getNumberStyle() == PERCENT) {
-		value.appendInt(getValue() * 2);
-	}
-	else {
-		value.appendInt(getValue());
-	}
+	value.appendInt(getNumberStyle() == PERCENT ? getValue() * 2 : getValue());
 }
 
 } // namespace deluge::gui::menu_item

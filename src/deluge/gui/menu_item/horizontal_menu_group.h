@@ -34,7 +34,6 @@ public:
 	                                             MultiRange** currentRange) override;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void endSession() override;
-	void selectEncoderAction(int32_t offset) override;
 	bool hasItem(const MenuItem* item) override;
 	void setCurrentItem(const MenuItem* item) override;
 
