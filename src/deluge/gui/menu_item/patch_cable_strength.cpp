@@ -232,6 +232,7 @@ void PatchCableStrength::writeCurrentValue() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStackWithParam = getModelStack(modelStackMemory, true);
 	if (!modelStackWithParam->autoParam) {
+		patchCableExists_ = false;
 		return;
 	}
 
@@ -328,6 +329,12 @@ ActionResult PatchCableStrength::buttonAction(hid::Button b, bool on, bool inCar
 }
 
 void PatchCableStrength::selectEncoderAction(int32_t offset) {
+	if (isInHorizontalMenu()) {
+		// In Horizontal menus we edit with 1.00 step by default, and with 0.01 step if the select encoder is pressed
+		soundEditor.numberEditSize = Buttons::isButtonPressed(hid::button::SELECT_ENC) ? 1 : 100;
+		return Decimal::selectEncoderAction(offset);
+	}
+
 	if (Buttons::isButtonPressed(hid::button::SELECT_ENC) && PatchCable::hasPolarity(getS())) {
 		polarityInTheUI_ = offset > 0 ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
 		setPatchCablePolarity(polarityInTheUI_);
@@ -340,11 +347,6 @@ void PatchCableStrength::selectEncoderAction(int32_t offset) {
 			display->popupText(polarityToStringShort(polarityInTheUI_));
 		}
 		return;
-	}
-
-	if (isInHorizontalMenu()) {
-		// In Horizontal menus we edit with 1.00 step by default, and with 0.01 step if the shift is pressed
-		soundEditor.numberEditSize = Buttons::isButtonPressed(hid::button::SHIFT) ? 1 : 100;
 	}
 
 	return Decimal::selectEncoderAction(offset);

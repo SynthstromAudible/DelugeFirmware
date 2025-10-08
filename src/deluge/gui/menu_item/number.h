@@ -22,12 +22,12 @@
 
 namespace deluge::gui::menu_item {
 
-enum NumberStyle { NUMBER, KNOB, BAR, PERCENT, SLIDER, LENGTH_SLIDER };
+enum NumberStyle { NUMBER, KNOB, BAR, PERCENT, SLIDER, LENGTH_SLIDER, PAN };
 
 class Number : public Value<int32_t> {
 public:
 	using Value::Value;
-	void drawHorizontalBar(int32_t yTop, int32_t marginL, int32_t marginR = -1, int32_t height = 8);
+	void drawHorizontalBar(int32_t y_top, int32_t margin_l, int32_t margin_r = -1, int32_t height = 8);
 
 protected:
 	[[nodiscard]] virtual int32_t getMaxValue() const = 0;
@@ -35,12 +35,14 @@ protected:
 	[[nodiscard]] virtual NumberStyle getNumberStyle() const { return KNOB; }
 	virtual float getNormalizedValue();
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
-	void drawKnob(int32_t startX, int32_t startY, int32_t width, int32_t height);
-	void drawBar(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
-	void drawPercent(int32_t startX, int32_t startY, int32_t width, int32_t height);
-	void drawSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight);
-	void drawLengthSlider(int32_t startX, int32_t startY, int32_t slotWidth, int32_t slotHeight, bool minSliderPos = 3);
+	void renderInHorizontalMenu(int32_t start_x, int32_t width, int32_t start_y, int32_t height) override;
+	void drawKnob(int32_t start_x, int32_t start_y, int32_t width, int32_t height);
+	void drawBar(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
+	void drawPercent(int32_t start_x, int32_t start_y, int32_t width, int32_t height);
+	void drawSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
+	void drawLengthSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height,
+	                      bool min_slider_pos = 3);
+	void drawPan(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
 	void getNotificationValue(StringBuf& value) override;
 };
 

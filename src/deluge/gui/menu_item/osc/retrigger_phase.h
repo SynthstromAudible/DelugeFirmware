@@ -99,9 +99,9 @@ public:
 	int32_t getNumberEditSize() override {
 		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
 			// In Horizontal menus we edit with 0.10 step by default, and with 0.01 step if the shift is pressed
-			return Buttons::isButtonPressed(hid::button::SHIFT) ? 1 : 10;
+			return Buttons::isButtonPressed(hid::button::SELECT_ENC) ? 1 : 10;
 		}
-		return Decimal::getNumberEditSize();
+		return soundEditor.numberEditSize;
 	}
 
 	void selectEncoderAction(int32_t offset) override {

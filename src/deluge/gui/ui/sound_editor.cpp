@@ -719,13 +719,17 @@ void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem
 }
 
 void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
+	if (inNoteRowEditor() || inNoteEditor()) {
+		return;
+	}
+
 	resetSourceBlinks();
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
-	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sample0StartMenu && currentItem != &sample1StartMenu
-	    && currentItem != &sample0EndMenu && currentItem != &sample1EndMenu
-	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
-	    && currentItem != static_cast<void*>(&nameEditMenu)) {
+	if (!inSettingsMenu()
+	    && !util::one_of<MenuItem*>(currentItem, {&sample0StartMenu, &sample1StartMenu, &sample0EndMenu,
+	                                              &sample1EndMenu, &audioClipSampleMarkerEditorMenuStart,
+	                                              &audioClipSampleMarkerEditorMenuEnd, &nameEditMenu})) {
 
 		memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 		memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
@@ -1781,6 +1785,7 @@ bool SoundEditor::inNoteRowEditor() {
 void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 	MenuItem* currentMenuItem = getCurrentMenuItem();
 	MenuItem* newMenuItem = nullptr;
+	bool inHorizontalMenu = runtimeFeatureSettings.isOn(HorizontalMenus);
 
 	// if you're holding down a note
 	// see if you're currently editing a row param
@@ -1795,6 +1800,9 @@ void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 		else if (currentMenuItem == &noteRowFillMenu) {
 			newMenuItem = &noteFillMenu;
 		}
+		else if (currentMenuItem == &noteRowEditorRootMenu && inHorizontalMenu) {
+			newMenuItem = &noteEditorRootMenu;
+		}
 	}
 	// if you're release a note
 	// see if you're currently editing a note param
@@ -1808,6 +1816,9 @@ void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 		}
 		else if (currentMenuItem == &noteFillMenu) {
 			newMenuItem = &noteRowFillMenu;
+		}
+		else if (currentMenuItem == &noteEditorRootMenu && inHorizontalMenu) {
+			newMenuItem = &noteRowEditorRootMenu;
 		}
 	}
 
