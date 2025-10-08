@@ -67,10 +67,7 @@ public:
 	}
 
 	[[nodiscard]] NumberStyle getNumberStyle() const override {
-		if (number_style_.has_value()) {
-			return number_style_.value();
-		}
-		return IntegerContinuous::getNumberStyle();
+		return number_style_.value_or(IntegerContinuous::getNumberStyle());
 	}
 
 protected:

@@ -650,7 +650,7 @@ sequence::Direction sequenceDirectionMenu{STRING_FOR_PLAY_DIRECTION};
 // Global FX Menu
 
 // Volume
-UnpatchedParam globalLevelMenu{STRING_FOR_VOLUME_LEVEL, params::UNPATCHED_VOLUME};
+UnpatchedParam globalLevelMenu{STRING_FOR_VOLUME_LEVEL, params::UNPATCHED_VOLUME, BAR};
 
 // Pitch
 UnpatchedParam globalPitchMenu{STRING_FOR_PITCH, params::UNPATCHED_PITCH_ADJUST};
@@ -1346,9 +1346,9 @@ MasterTranspose masterTransposeMenu{STRING_FOR_MASTER_TRANSPOSE, STRING_FOR_MAST
 patch_cable_strength::Fixed vibratoMenu{STRING_FOR_VIBRATO, params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1};
 
 // Synth only
-menu_item::SynthModeSelection synthModeMenu{STRING_FOR_SYNTH_MODE};
+SynthModeSelection synthModeMenu{STRING_FOR_SYNTH_MODE};
 bend_range::PerFinger drumBendRangeMenu{STRING_FOR_BEND_RANGE}; // The single option available for Drums
-patched_param::Integer volumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_MASTER_LEVEL, params::GLOBAL_VOLUME_POST_FX};
+patched_param::Integer volumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_MASTER_LEVEL, params::GLOBAL_VOLUME_POST_FX, BAR};
 patched_param::Pan panMenu{STRING_FOR_PAN, params::LOCAL_PAN};
 
 PatchCables patchCablesMenu{STRING_FOR_MOD_MATRIX};
@@ -1457,15 +1457,13 @@ menu_item::note::IterancePreset noteIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE
 menu_item::note::Fill noteFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
 
 // Root menu for Note Editor
-menu_item::Submenu noteEditorRootMenu{
-    STRING_FOR_NOTE_EDITOR,
-    {
-        &noteVelocityMenu,
-        &noteProbabilityMenu,
-        &noteIteranceMenu,
-        &noteFillMenu,
-    },
-};
+HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
+                                  {
+                                      &noteVelocityMenu,
+                                      &noteProbabilityMenu,
+                                      &noteIteranceMenu,
+                                      &noteFillMenu,
+                                  }};
 
 menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor{STRING_FOR_ITERANCE_DIVISOR};
 menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep1{STRING_FOR_ITERATION_STEP_1,
@@ -1501,20 +1499,18 @@ menu_item::Submenu noteRowCustomIteranceRootMenu{
     },
 };
 
-menu_item::note_row::Probability noteRowProbabilityMenu{STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY};
-menu_item::note_row::IterancePreset noteRowIteranceMenu{STRING_FOR_NOTE_ROW_EDITOR_ITERANCE};
-menu_item::note_row::Fill noteRowFillMenu{STRING_FOR_NOTE_ROW_EDITOR_FILL};
+note_row::Probability noteRowProbabilityMenu{STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY};
+note_row::IterancePreset noteRowIteranceMenu{STRING_FOR_NOTE_ROW_EDITOR_ITERANCE};
+note_row::Fill noteRowFillMenu{STRING_FOR_NOTE_ROW_EDITOR_FILL};
 
 // Root menu for Note Row Editor
-menu_item::Submenu noteRowEditorRootMenu{
-    STRING_FOR_NOTE_ROW_EDITOR,
-    {
-        &noteRowProbabilityMenu,
-        &noteRowIteranceMenu,
-        &noteRowFillMenu,
-        &sequenceDirectionMenu,
-    },
-};
+HorizontalMenu noteRowEditorRootMenu{STRING_FOR_NOTE_ROW_EDITOR,
+                                     {
+                                         &noteRowProbabilityMenu,
+                                         &noteRowIteranceMenu,
+                                         &noteRowFillMenu,
+                                         &sequenceDirectionMenu,
+                                     }};
 
 menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TITLE,
                                                 {

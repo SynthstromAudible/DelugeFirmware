@@ -56,8 +56,8 @@ void Decimal::drawValue() {
 
 int32_t Decimal::getNumberEditSize() {
 	if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
-		// In Horizontal menus we edit with 1.00 step by default, and with 0.01 step if the shift is pressed
-		return Buttons::isButtonPressed(hid::button::SHIFT) ? 1 : 100;
+		// In Horizontal menus we use 1.00 step by default, and 0.01 step for fine editing
+		return Buttons::isAnyOfButtonsPressed({hid::button::SELECT_ENC, hid::button::SHIFT}) ? 1 : 100;
 	}
 	return soundEditor.numberEditSize;
 }

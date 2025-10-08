@@ -41,7 +41,7 @@ public:
 		// Constants
 		constexpr int32_t padding_x = 4;
 		constexpr int32_t start_x = padding_x;
-		constexpr uint8_t start_y = OLED_MAIN_TOPMOST_PIXEL + kTextTitleSizeY + 5;
+		constexpr uint8_t start_y = OLED_MAIN_TOPMOST_PIXEL + kTextTitleSizeY + 6;
 		constexpr uint8_t end_y = OLED_MAIN_HEIGHT_PIXELS - 6;
 		constexpr int32_t draw_width = OLED_MAIN_WIDTH_PIXELS - 2 * padding_x;
 		constexpr uint8_t draw_height = end_y - start_y;
@@ -81,7 +81,7 @@ public:
 			if (decay_x - attack_x > 4) {
 				image.drawPixel(decay_x, y);
 			}
-			if (y != sustain_y + 1 && y != sustain_y - 1) {
+			if (sustain_y > start_y || y > sustain_y) {
 				image.drawPixel(sustain_x, y);
 			}
 		}
