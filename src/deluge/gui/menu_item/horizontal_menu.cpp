@@ -251,26 +251,19 @@ void HorizontalMenu::selectEncoderAction(int32_t offset) {
 		return Submenu::selectEncoderAction(offset);
 	}
 
-	const bool select_button_pressed = Buttons::selectButtonPressUsedUp =
-	    Buttons::isButtonPressed(hid::button::SELECT_ENC);
-
-	if (!select_button_pressed) {
-		MenuItem* child = *current_item_;
-		if (child->isSubmenu()) {
-			// No action for a submenu
-			return;
-		}
-
-		child->selectEncoderAction(offset * calcNextKnobSpeed(offset));
-		focusChild(child);
-		displayNotification(child);
-
-		// We don't want to return true for selectEncoderEditsInstrument(), since
-		// that would trigger for scrolling in the menu as well.
-		return soundEditor.markInstrumentAsEdited();
+	MenuItem* child = *current_item_;
+	if (child->isSubmenu()) {
+		// No action for a submenu
+		return;
 	}
 
-	Submenu::selectEncoderAction(offset);
+	child->selectEncoderAction(offset * calcNextKnobSpeed(offset));
+	focusChild(child);
+	displayNotification(child);
+
+	// We don't want to return true for selectEncoderEditsInstrument(), since
+	// that would trigger for scrolling in the menu as well.
+	return soundEditor.markInstrumentAsEdited();
 }
 
 void HorizontalMenu::displayNotification(MenuItem* menuItem) {

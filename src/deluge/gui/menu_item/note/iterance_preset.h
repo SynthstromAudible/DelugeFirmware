@@ -17,17 +17,18 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/integer.h"
 #include "gui/menu_item/note/selected_note.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/views/instrument_clip_view.h"
-#include "model/clip/instrument_clip.h"
+#include "hid/display/oled.h"
 #include "model/note/note.h"
-#include "model/note/note_row.h"
 
-extern deluge::gui::menu_item::Submenu noteCustomIteranceRootMenu;
+extern gui::menu_item::Submenu noteCustomIteranceRootMenu;
 
 namespace deluge::gui::menu_item::note {
+
+using namespace deluge::hid::display;
+
 class IterancePreset final : public SelectedNote {
 public:
 	using SelectedNote::SelectedNote;
@@ -50,7 +51,7 @@ public:
 		}
 	}
 
-	void selectEncoderAction(int32_t offset) final override {
+	void selectEncoderAction(int32_t offset) override {
 		instrumentClipView.adjustNoteIteranceWithOffset(offset);
 		readValueAgain();
 	}
@@ -65,60 +66,51 @@ public:
 		return nullptr;
 	}
 
-	void drawPixelsForOled() {
-		char buffer[20];
-
-		int32_t iterancePreset = this->getValue();
-
-		if (iterancePreset == kDefaultIterancePreset) {
-			strcpy(buffer, "OFF");
-		}
-		else if (iterancePreset == kCustomIterancePreset) {
-			strcpy(buffer, "CUSTOM");
-		}
-		else {
-			Iterance iterance = iterancePresets[iterancePreset - 1];
-			int32_t i = iterance.divisor;
-			for (; i >= 0; i--) {
-				// try to find which iteration step index is active
-				if (iterance.iteranceStep[i]) {
-					break;
-				}
-			}
-			sprintf(buffer, "%d of %d", i + 1, iterance.divisor);
-		}
-
-		deluge::hid::display::OLED::main.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
-		                                                   kTextHugeSizeY);
+	void drawPixelsForOled() override {
+		const std::string value = getIteranceDisplayValue("%d of %d");
+		OLED::main.drawStringCentred(value.data(), 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY);
 	}
 
-	void drawValue() final override {
-		char buffer[20];
-
-		int32_t iterancePreset = this->getValue();
-
-		if (iterancePreset == kDefaultIterancePreset) {
-			strcpy(buffer, "OFF");
-		}
-		else if (iterancePreset == kCustomIterancePreset) {
-			strcpy(buffer, "CUSTOM");
-		}
-		else {
-			Iterance iterance = iterancePresets[iterancePreset - 1];
-			int32_t i = iterance.divisor;
-			for (; i >= 0; i--) {
-				// try to find which iteration step index is active
-				if (iterance.iteranceStep[i]) {
-					break;
-				}
-			}
-			sprintf(buffer, "%dof%d", i + 1, iterance.divisor);
-		}
-
-		display->setText(buffer);
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		const std::string value = getIteranceDisplayValue("%d:%d");
+		OLED::main.drawStringCentered(value.data(), startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
 	}
+
+	void drawValue() override {
+		const std::string value = getIteranceDisplayValue("%dof%d");
+		display->setText(value);
+	}
+
+	void getNotificationValue(StringBuf& valueBuf) override { valueBuf.append(getIteranceDisplayValue("%d of %d")); }
 
 	void writeCurrentValue() override { ; }
+
+private:
+	std::string getIteranceDisplayValue(const std::string& format) {
+		char buffer[20];
+
+		int32_t iterancePreset = this->getValue();
+
+		if (iterancePreset == kDefaultIterancePreset) {
+			strcpy(buffer, "OFF");
+		}
+		else if (iterancePreset == kCustomIterancePreset) {
+			strcpy(buffer, "CUSTOM");
+		}
+		else {
+			Iterance iterance = iterancePresets[iterancePreset - 1];
+			int32_t i = iterance.divisor;
+			for (; i >= 0; i--) {
+				// try to find which iteration step index is active
+				if (iterance.iteranceStep[i]) {
+					break;
+				}
+			}
+			sprintf(buffer, format.data(), i + 1, iterance.divisor);
+		}
+
+		return std::string(buffer);
+	}
 };
 
 } // namespace deluge::gui::menu_item::note
