@@ -16,18 +16,18 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/integer.h"
 #include "gui/menu_item/note/selected_note.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
-#include "model/clip/instrument_clip.h"
-#include "model/instrument/kit.h"
+#include "hid/display/oled.h"
 #include "model/model_stack.h"
 #include "model/note/note.h"
-#include "model/note/note_row.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::note {
+
+using namespace deluge::hid::display;
+
 class Fill final : public SelectedNote {
 public:
 	using SelectedNote::SelectedNote;
@@ -40,7 +40,7 @@ public:
 	/// Should make sure the menu's internal state matches the system and redraw the display.
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final override { readValueAgain(); }
 
-	void readCurrentValue() final override {
+	void readCurrentValue() override {
 		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 
 		if (leftMostNote) {
@@ -56,13 +56,35 @@ public:
 		}
 	}
 
-	void drawPixelsForOled() final override {
-		deluge::hid::display::OLED::main.drawStringCentred(instrumentClipView.getFillString(this->getValue()),
-		                                                   18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
-		                                                   kTextHugeSizeY);
+	void drawPixelsForOled() override {
+		OLED::main.drawStringCentred(instrumentClipView.getFillString(this->getValue()), 18 + OLED_MAIN_TOPMOST_PIXEL,
+		                             kTextHugeSpacingX, kTextHugeSizeY);
 	}
 
-	void drawValue() final override { display->setText(instrumentClipView.getFillString(this->getValue())); }
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		oled_canvas::Canvas& image = OLED::main;
+
+		const uint8_t value = getValue();
+		const std::string str = value == OFF ? "OFF" : "FILL";
+		image.drawStringCentered(str.data(), startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+
+		if (value == NOT_FILL) {
+			const uint8_t center_y = startY + 7;
+			const uint8_t line_start_x = startX + 2;
+			const uint8_t line_end_x = startX + width - 4;
+			for (uint8_t x = line_start_x; x <= line_end_x; x++) {
+				image.clearPixel(x, center_y - 1);
+				image.clearPixel(x, center_y + 1);
+			}
+			image.drawHorizontalLine(center_y, line_start_x, line_end_x);
+		}
+	}
+
+	void getNotificationValue(StringBuf& valueBuf) override {
+		valueBuf.append(instrumentClipView.getFillString(this->getValue()));
+	}
+
+	void drawValue() override { display->setText(instrumentClipView.getFillString(this->getValue())); }
 
 	void writeCurrentValue() override { ; }
 };

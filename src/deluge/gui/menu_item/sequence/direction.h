@@ -19,6 +19,7 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
+#include "hid/display/oled.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -117,6 +118,26 @@ public:
 			soundEditor.selectedNoteRow = isUIModeActive(UI_MODE_AUDITIONING);
 		}
 		return MenuPermission::YES;
+	}
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		using namespace deluge::hid::display;
+		oled_canvas::Canvas& image = OLED::main;
+
+		const auto current_value = this->getValue<SequenceDirection>();
+		if (current_value == SequenceDirection::OBEY_PARENT) {
+			return Selection::renderInHorizontalMenu(startX, width, startY, height);
+		}
+
+		const uint8_t icon_y = startY + 3;
+		if (current_value == SequenceDirection::PINGPONG) {
+			image.drawIconCentered(OLED::directionIcon, startX + 2, width, icon_y);
+			image.drawIconCentered(OLED::directionIcon, startX - 2, width, icon_y, true);
+		}
+		else {
+			image.drawIconCentered(OLED::directionIcon, startX, width, icon_y,
+			                       current_value == SequenceDirection::REVERSE);
+		}
 	}
 };
 } // namespace deluge::gui::menu_item::sequence
