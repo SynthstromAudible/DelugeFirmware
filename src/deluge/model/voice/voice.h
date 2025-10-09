@@ -80,7 +80,6 @@ public:
 	std::array<uint32_t, kNumSources> sourceWaveIndexesLastTime;
 
 	int32_t filterGainLastTime;
-
 	bool doneFirstRender;
 	bool previouslyIgnoredNoteOff;
 
@@ -123,6 +122,7 @@ public:
 	bool forceNormalRelease();
 
 	bool speedUpRelease();
+	bool shouldBeDeleted() { return delete_this_voice_; }
 
 	// This compares based on the priority of two voices
 	[[nodiscard]] std::strong_ordering operator<=>(const Voice& other) const {
@@ -132,6 +132,7 @@ public:
 private:
 	// inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t
 	// phaseShift);
+	bool delete_this_voice_{false};
 
 	void renderBasicSource(Sound& sound, ParamManagerForTimeline* paramManager, int32_t s, int32_t* oscBuffer,
 	                       int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude,
