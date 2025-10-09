@@ -90,7 +90,7 @@ Voice::Voice(Sound& sound) : patcher(kPatcherConfigForVoice, sourceValues, param
 void Voice::setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong) {
 
 	unassignStuff(deletingSong);
-
+	delete_this_voice_ = true;
 	if (!deletingSong) {
 		this->sound.voiceUnassigned(modelStack);
 	}
@@ -2453,7 +2453,7 @@ bool Voice::forceNormalRelease() {
 	if (doneFirstRender) {
 		// If no release-stage, we'll stop as soon as we can
 		if (!hasReleaseStage()) {
-			envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE);
+			envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, SOFT_CULL_INCREMENT);
 		}
 		// otherwise we'll just let it get there on its own
 		else {
