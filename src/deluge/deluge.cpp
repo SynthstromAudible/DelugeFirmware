@@ -139,6 +139,7 @@ void inputRoutine() {
 	if (micNow != AudioEngine::micPluggedIn) {
 		D_PRINT("mic %d", micNow);
 		AudioEngine::micPluggedIn = micNow;
+		renderUIsForOled();
 	}
 
 	if (!ALLOW_SPAM_MODE) {
@@ -153,6 +154,7 @@ void inputRoutine() {
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
 		D_PRINTLN("line in %d", lineInNow);
 		AudioEngine::lineInPluggedIn = lineInNow;
+		renderUIsForOled();
 	}
 
 	// Battery voltage

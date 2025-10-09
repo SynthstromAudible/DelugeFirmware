@@ -55,14 +55,14 @@ void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
 	const uint32_t patch_cable_index = patch_cable_set->getPatchCableIndex(getS(), getDestinationDescriptor());
 
 	if (patch_cable_index == kNoSelection) {
-		patchCableExists_ = false;
-		polarityInTheUI_ = PatchCable::getDefaultPolarity(getS());
+		patch_cable_exists_ = false;
+		polarity_in_the_ui_ = PatchCable::getDefaultPolarity(getS());
 	}
 	else {
-		patchCableExists_ = true;
-		polarityInTheUI_ = patch_cable_set->patchCables[patch_cable_index].polarity;
+		patch_cable_exists_ = true;
+		polarity_in_the_ui_ = patch_cable_set->patchCables[patch_cable_index].polarity;
 	}
-	setPatchCablePolarity(polarityInTheUI_);
+	setPatchCablePolarity(polarity_in_the_ui_);
 	updatePolarityUI();
 }
 
@@ -145,8 +145,8 @@ void PatchCableStrength::renderOLED() {
 			image.drawStringCentered("UNI", startX + biSlotWidth + 1, startY, kTextSpacingX, kTextSpacingY,
 			                         uniSlotWidth);
 			// Highlight selected
-			int32_t x = polarityInTheUI_ == Polarity::BIPOLAR ? startX : startX + biSlotWidth;
-			int32_t width = polarityInTheUI_ == Polarity::BIPOLAR ? biSlotWidth : uniSlotWidth;
+			int32_t x = polarity_in_the_ui_ == Polarity::BIPOLAR ? startX : startX + biSlotWidth;
+			int32_t width = polarity_in_the_ui_ == Polarity::BIPOLAR ? biSlotWidth : uniSlotWidth;
 			image.invertAreaRounded(x, width, startY, endY);
 		}
 		else {
@@ -195,6 +195,7 @@ void PatchCableStrength::readCurrentValue() {
 	uint32_t c = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
 	if (c == 255) {
 		this->setValue(0);
+		patch_cable_exists_ = false;
 	}
 	else {
 		PatchCable& patchCable = patchCableSet->patchCables[c];
@@ -220,10 +221,10 @@ ModelStackWithAutoParam* PatchCableStrength::getModelStack(void* memory, bool al
 	ModelStackWithAutoParam* modelStackMaybeWithAutoParam =
 	    paramSetSummary->paramCollection->getAutoParamFromId(ModelStackWithParamId, allowCreation);
 
-	if (allowCreation && modelStackMaybeWithAutoParam->autoParam && !patchCableExists_ && !isInHorizontalMenu()) {
+	if (allowCreation && modelStackMaybeWithAutoParam->autoParam && !patch_cable_exists_ && !isInHorizontalMenu()) {
 		// If we created a patch cable then set the polarity to match the menus
-		setPatchCablePolarity(polarityInTheUI_);
-		patchCableExists_ = true;
+		setPatchCablePolarity(polarity_in_the_ui_);
+		patch_cable_exists_ = true;
 	}
 	return modelStackMaybeWithAutoParam;
 }
@@ -232,7 +233,6 @@ void PatchCableStrength::writeCurrentValue() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStackWithParam = getModelStack(modelStackMemory, true);
 	if (!modelStackWithParam->autoParam) {
-		patchCableExists_ = false;
 		return;
 	}
 
@@ -317,10 +317,10 @@ MenuItem* PatchCableStrength::selectButtonPress() {
 ActionResult PatchCableStrength::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
-	static auto polarityMap = std::map<hid::Button, Polarity>{{MIDI, Polarity::BIPOLAR}, {CV, Polarity::UNIPOLAR}};
-	if (on && display->haveOLED() && polarityMap.contains(b) && PatchCable::hasPolarity(getS())) {
-		polarityInTheUI_ = polarityMap[b];
-		setPatchCablePolarity(polarityInTheUI_);
+	static auto polarity_map = std::map<hid::Button, Polarity>{{MIDI, Polarity::BIPOLAR}, {CV, Polarity::UNIPOLAR}};
+	if (on && display->haveOLED() && polarity_map.contains(b) && PatchCable::hasPolarity(getS())) {
+		polarity_in_the_ui_ = polarity_map[b];
+		setPatchCablePolarity(polarity_in_the_ui_);
 		updatePolarityUI();
 		return ActionResult::DEALT_WITH;
 	}
@@ -329,22 +329,16 @@ ActionResult PatchCableStrength::buttonAction(hid::Button b, bool on, bool inCar
 }
 
 void PatchCableStrength::selectEncoderAction(int32_t offset) {
-	if (isInHorizontalMenu()) {
-		// In Horizontal menus we edit with 1.00 step by default, and with 0.01 step if the select encoder is pressed
-		soundEditor.numberEditSize = Buttons::isButtonPressed(hid::button::SELECT_ENC) ? 1 : 100;
-		return Decimal::selectEncoderAction(offset);
-	}
-
-	if (Buttons::isButtonPressed(hid::button::SELECT_ENC) && PatchCable::hasPolarity(getS())) {
-		polarityInTheUI_ = offset > 0 ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
-		setPatchCablePolarity(polarityInTheUI_);
+	if (!isInHorizontalMenu() && Buttons::isButtonPressed(hid::button::SELECT_ENC) && PatchCable::hasPolarity(getS())) {
+		polarity_in_the_ui_ = offset > 0 ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
+		setPatchCablePolarity(polarity_in_the_ui_);
 		updatePolarityUI();
 
 		if (display->haveOLED()) {
 			Buttons::selectButtonPressUsedUp = true;
 		}
 		else {
-			display->popupText(polarityToStringShort(polarityInTheUI_));
+			display->popupText(polarityToStringShort(polarity_in_the_ui_));
 		}
 		return;
 	}
@@ -404,8 +398,8 @@ void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {
 void PatchCableStrength::updatePolarityUI() {
 	if (display->haveOLED()) {
 		const bool hasPolarity = PatchCable::hasPolarity(getS());
-		setLedState(IndicatorLED::MIDI, hasPolarity && polarityInTheUI_ == Polarity::BIPOLAR);
-		setLedState(IndicatorLED::CV, hasPolarity && polarityInTheUI_ == Polarity::UNIPOLAR);
+		setLedState(IndicatorLED::MIDI, hasPolarity && polarity_in_the_ui_ == Polarity::BIPOLAR);
+		setLedState(IndicatorLED::CV, hasPolarity && polarity_in_the_ui_ == Polarity::UNIPOLAR);
 		renderUIsForOled();
 	}
 	else {
@@ -415,7 +409,7 @@ void PatchCableStrength::updatePolarityUI() {
 }
 
 void PatchCableStrength::appendAdditionalDots(std::vector<uint8_t>& dotPositions) {
-	if (polarityInTheUI_ == Polarity::UNIPOLAR) {
+	if (polarity_in_the_ui_ == Polarity::UNIPOLAR) {
 		dotPositions.push_back(3);
 	}
 }

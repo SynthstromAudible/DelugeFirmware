@@ -53,6 +53,8 @@ public:
 		}
 	}
 
+	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_AMOUNT_SHORT)); }
+
 private:
 	constexpr static int32_t max_value_in_horizontal_menu = 24;
 };
