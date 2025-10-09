@@ -62,6 +62,8 @@ public:
 	}
 	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) override { compressor->setAttack(value); }
 	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getAttackMS(); }
+
+	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_ATTACK_SHORT)); }
 };
 class Release final : public CompressorValue {
 public:
@@ -72,6 +74,8 @@ public:
 	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) final { compressor->setRelease(value); }
 	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getReleaseMS(); }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const { return 1; }
+
+	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_RELEASE_SHORT)); }
 };
 class Ratio final : public CompressorValue {
 public:

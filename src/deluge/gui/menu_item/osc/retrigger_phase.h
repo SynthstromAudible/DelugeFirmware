@@ -98,8 +98,8 @@ public:
 
 	int32_t getNumberEditSize() override {
 		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
-			// In Horizontal menus we edit with 0.10 step by default, and with 0.01 step if the shift is pressed
-			return Buttons::isButtonPressed(hid::button::SELECT_ENC) ? 1 : 10;
+			// In Horizontal menus we use 0.10 step by default, and 0.01 step for fine editing
+			return Buttons::isAnyOfButtonsPressed({hid::button::SELECT_ENC, hid::button::SHIFT}) ? 1 : 10;
 		}
 		return soundEditor.numberEditSize;
 	}

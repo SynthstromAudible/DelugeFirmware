@@ -152,7 +152,7 @@ public:
 			case OscType::INPUT_STEREO:
 			case OscType::INPUT_L:
 			case OscType::INPUT_R:
-				return OLED::inputIcon;
+				return AudioEngine::lineInPluggedIn ? OLED::inputIcon : OLED::micIcon;
 			case OscType::WAVETABLE:
 				return OLED::wavetableIcon;
 			default:
@@ -168,6 +168,10 @@ public:
 			image.clearAreaExact(x - 1, y - 1, x + kTextSpacingX + 1, y + kTextSpacingY + 1);
 			image.drawChar('A', x, y, kTextSpacingX, kTextSpacingY);
 		}
+	}
+
+	bool wrapAround() override {
+		return parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL;
 	}
 
 private:

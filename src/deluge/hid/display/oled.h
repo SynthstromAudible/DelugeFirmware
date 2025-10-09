@@ -139,6 +139,7 @@ public:
 	static const Icon sampleIcon;
 	static const Icon wavetableIcon;
 	static const Icon inputIcon;
+	static const Icon micIcon;
 	static const Icon folderIconBig;
 	static const Icon recordIcon;
 	static const Icon loopPointIcon;
