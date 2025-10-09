@@ -57,10 +57,10 @@ public:
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;
 		using enum l10n::String;
-		static auto mod1 = l10n::getView(STRING_FOR_MODULATOR_1);
 		return {
 		    l10n::getView(STRING_FOR_CARRIERS),
-		    mod1,
+		    optType == OptType::SHORT ? l10n::getView(l10n::built_in::seven_segment, STRING_FOR_MODULATOR_1)
+		                              : l10n::getView(STRING_FOR_MODULATOR_1),
 		};
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
