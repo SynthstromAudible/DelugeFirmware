@@ -148,21 +148,19 @@ void Canvas::drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, const Draw
 		int32_t actual_x = steep ? y : x;
 		int32_t actual_y = steep ? x : y;
 
-		if (options.min_x.has_value() && actual_x < options.min_x.value()) {
-			continue;
-		}
 		if (options.max_x.has_value() && actual_x > options.max_x.value()) {
 			return;
 		}
+		if (!options.min_x.has_value() || actual_x >= options.min_x.value()) {
+			drawPixel(actual_x, actual_y);
 
-		drawPixel(actual_x, actual_y);
+			if (options.thick) {
+				drawPixel(steep ? actual_x + 1 : actual_x, steep ? actual_y : actual_y - 1);
+			}
 
-		if (options.thick) {
-			drawPixel(steep ? actual_x + 1 : actual_x, steep ? actual_y : actual_y - 1);
-		}
-
-		if (options.point_callback.has_value()) {
-			options.point_callback.value()({actual_x, actual_y});
+			if (options.point_callback.has_value()) {
+				options.point_callback.value()({actual_x, actual_y});
+			}
 		}
 
 		error -= dy;

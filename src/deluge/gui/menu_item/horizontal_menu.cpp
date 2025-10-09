@@ -62,28 +62,35 @@ ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRou
 		return Submenu::buttonAction(b, on, inCardRoutine);
 	}
 
-	// use SCALE / CROSS SCREEN buttons to switch between pages or chained horizontal menus
-	if (b == CROSS_SCREEN_EDIT || b == SCALE_MODE) {
-		const int32_t direction = b == CROSS_SCREEN_EDIT ? 1 : -1;
+	static double last_navigation_buttons_press_time = 0.0;
+	constexpr double navigation_buttons_debounce_threshold = 0.14;
+	const double time = getSystemTime();
 
-		const auto chain = soundEditor.getCurrentHorizontalMenusChain();
-		if (chain.has_value() && Buttons::isButtonPressed(SHIFT)) {
-			switchHorizontalMenu(direction, chain.value());
+	if (util::one_of(b, SYNTH, KIT, MIDI, CV, CROSS_SCREEN_EDIT, SCALE_MODE)
+	    && time - last_navigation_buttons_press_time > navigation_buttons_debounce_threshold) {
+
+		// use SCALE / CROSS SCREEN buttons to switch between pages or chained horizontal menus
+		if (util::one_of(b, CROSS_SCREEN_EDIT, SCALE_MODE)) {
+			const int32_t direction = b == CROSS_SCREEN_EDIT ? 1 : -1;
+			const auto chain = soundEditor.getCurrentHorizontalMenusChain();
+			if (chain.has_value() && Buttons::isButtonPressed(SHIFT)) {
+				switchHorizontalMenu(direction, chain.value());
+			}
+			else {
+				switchVisiblePage(direction);
+			}
 		}
-		else {
-			switchVisiblePage(direction);
+
+		// use SYNTH / KIT / MIDI / CV buttons to select menu item in the currently displayed horizontal menu page
+		static std::map<hid::Button, int32_t> select_map = {{SYNTH, 0}, {KIT, 1}, {MIDI, 2}, {CV, 3}};
+		if (select_map.contains(b)) {
+			handleInstrumentButtonPress(paging.visiblePageItems, *current_item_, select_map[b]);
 		}
+
+		last_navigation_buttons_press_time = time;
 		return ActionResult::DEALT_WITH;
 	}
 
-	// use SYNTH / KIT / MIDI / CV buttons to select menu item in the currently displayed horizontal menu page
-	static std::map<hid::Button, int32_t> select_map = {{SYNTH, 0}, {KIT, 1}, {MIDI, 2}, {CV, 3}};
-	if (select_map.contains(b)) {
-		handleInstrumentButtonPress(paging.visiblePageItems, *current_item_, select_map[b]);
-		return ActionResult::DEALT_WITH;
-	}
-
-	// forward other button presses to be handled by the parent
 	return Submenu::buttonAction(b, on, inCardRoutine);
 }
 
@@ -581,6 +588,7 @@ double HorizontalMenu::calcNextKnobSpeed(int8_t offset) {
 
 void HorizontalMenu::handleItemAction(MenuItem* menuItem) {
 	if (!menuItem->isSubmenu() && !menuItem->allowToBeginSessionFromHorizontalMenu()) {
+		menuItem->selectButtonPress();
 		return displayNotification(menuItem);
 	}
 

@@ -642,6 +642,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_RATE, "RATE"},
         {STRING_FOR_DELAY, "DELAY"},
         {STRING_FOR_AMOUNT, "AMOUNT"},
+        {STRING_FOR_AMOUNT_SHORT, "AMNT"},
         {STRING_FOR_REVERB, "REVERB"},
         {STRING_FOR_VOLUME_DUCKING, "Volume ducking"},
         {STRING_FOR_VOLUME_DUCKING_SHORT, "Ducking"},

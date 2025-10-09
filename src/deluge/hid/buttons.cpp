@@ -307,6 +307,15 @@ bool isButtonPressed(deluge::hid::Button b) {
 	return buttonStates[xy.x][xy.y];
 }
 
+bool isAnyOfButtonsPressed(std::initializer_list<deluge::hid::Button> buttons) {
+	for (const auto button : buttons) {
+		if (isButtonPressed(button)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 bool isShiftButtonPressed() {
 	return shiftCurrentlyPressed;
 }
