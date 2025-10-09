@@ -2494,7 +2494,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::Stere
 		    thisHasFilters
 		    && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_HPF_FREQ)
 		        || (hpfFreq != std::numeric_limits<q31_t>::min()) || (hpfMorph > std::numeric_limits<q31_t>::min()));
-		size_t num_to_delete = 0;
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
@@ -2504,14 +2503,11 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::Stere
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");
 				this->freeActiveVoice(voice, modelStackWithSoundFlags, false);
-				num_to_delete++;
 			}
 			++it;
 		}
-		auto num = std::erase_if(voices_, [](const ActiveVoice& voice) { return voice->shouldBeDeleted(); });
-		if (num_to_delete != num) {
-			FREEZE_WITH_ERROR("oh no");
-		}
+		std::erase_if(voices_, [](const ActiveVoice& voice) { return voice->shouldBeDeleted(); });
+
 		// We know that nothing's patched to pan, so can read it in this very basic way.
 		int32_t pan = paramManager->getPatchedParamSet()->getValue(params::LOCAL_PAN) >> 1;
 		int32_t amplitudeL, amplitudeR;
