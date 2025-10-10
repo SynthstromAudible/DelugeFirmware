@@ -56,7 +56,8 @@ void Enumeration::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t 
 	DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
 	getShortOption(shortOpt);
 
-	image.drawStringCentered(shortOpt, startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+	image.drawStringCentered(shortOpt, startX, startY + kHorizontalMenuSlotYOffset, kTextSpacingX, kTextSpacingY,
+	                         width);
 }
 
 } // namespace deluge::gui::menu_item

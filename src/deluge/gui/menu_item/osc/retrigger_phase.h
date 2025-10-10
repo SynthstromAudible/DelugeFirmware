@@ -115,7 +115,8 @@ public:
 		oled_canvas::Canvas& canvas = OLED::main;
 		if (this->getValue() < 0) {
 			const char* off = l10n::get(l10n::String::STRING_FOR_OFF);
-			return canvas.drawStringCentered(off, startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+			return canvas.drawStringCentered(off, startX, startY + kHorizontalMenuSlotYOffset, kTextSpacingX,
+			                                 kTextSpacingY, width);
 		}
 
 		return Decimal::renderInHorizontalMenu(startX, width, startY, height);

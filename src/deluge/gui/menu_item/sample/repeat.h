@@ -128,7 +128,7 @@ public:
 			}
 			return OLED::sampleModeCutIcon;
 		}();
-		OLED::main.drawIcon(icon, startX + 4, startY - 1);
+		OLED::main.drawIcon(icon, startX + 4, startY - 2);
 	}
 
 	void getColumnLabel(StringBuf& label) override { label.append(getOptions(OptType::SHORT)[getValue()]); }

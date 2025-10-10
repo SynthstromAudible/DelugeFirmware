@@ -59,12 +59,12 @@ void SampleMarkerEditor::renderInHorizontalMenu(int32_t startX, int32_t width, i
 	oled_canvas::Canvas& image = OLED::main;
 
 	const int32_t lineX = startX + width - 6;
-	for (int32_t y = startY + 2; y <= startY + height - 4; y += 2) {
+	for (int32_t y = startY + 1; y <= startY + height - 5; y += 2) {
 		image.drawPixel(lineX, y);
 	}
 
 	const Icon& icon = OLED::loopPointIcon;
-	image.drawIcon(icon, startX + 5, startY + 3, true);
+	image.drawIcon(icon, startX + 5, startY + kHorizontalMenuSlotYOffset, true);
 }
 
 void SampleMarkerEditor::getColumnLabel(StringBuf& label) {

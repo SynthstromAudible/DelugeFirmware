@@ -87,8 +87,7 @@ public:
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
 		if (getValue() == 0) {
-			const int32_t y = startY + (height - 8) / 2;
-			return OLED::main.drawIconCentered(OLED::infinityIcon, startX, width, y);
+			return OLED::main.drawIconCentered(OLED::infinityIcon, startX, width, startY + 3);
 		}
 		IntegerWithOff::renderInHorizontalMenu(startX, width, startY, height);
 	}
