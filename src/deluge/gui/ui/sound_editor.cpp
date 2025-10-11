@@ -235,7 +235,8 @@ bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 			*rows = 0x0;
 		}
 		else if (inNoteRowEditor()) {
-			*cols = 0xFFFFFFFC; // don't greyout sidebar
+			// don't greyout note row editor
+			doGreyout = false;
 		}
 		else {
 			*cols = 0xFFFFFFFE;
