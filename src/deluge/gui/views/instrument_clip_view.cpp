@@ -3657,41 +3657,37 @@ bool InstrumentClipView::handleNoteRowEditorPadAction(int32_t x, int32_t y, int3
 	return true;
 }
 
-// handles editing notes if shift is pressed
+// handles editing notes on the grid
 bool InstrumentClipView::handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on) {
-	// if shift is active, allow editing notes on the grid
-	if (Buttons::isShiftButtonPressed()) {
-		bool wasntHoldingNote = !isUIModeActive(UI_MODE_NOTES_PRESSED);
+	bool wasntHoldingNote = !isUIModeActive(UI_MODE_NOTES_PRESSED);
 
-		editPadAction(on, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
+	editPadAction(on, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
 
-		bool nowHoldingNote = isUIModeActive(UI_MODE_NOTES_PRESSED);
+	bool nowHoldingNote = isUIModeActive(UI_MODE_NOTES_PRESSED);
 
-		// toggle note menu if you weren't holding note and now you are
-		// or if you were holding note and now you aren't
-		bool toggleMenu = (wasntHoldingNote && nowHoldingNote) || (!wasntHoldingNote && !nowHoldingNote);
+	// toggle note menu if you weren't holding note and now you are
+	// or if you were holding note and now you aren't
+	bool toggleMenu = (wasntHoldingNote && nowHoldingNote) || (!wasntHoldingNote && !nowHoldingNote);
 
-		// if we selected a note / created a note
-		// update the row selection
-		// so that menu can be potentially refreshed
-		if (lastSelectedNoteYDisplay != kNoSelection) {
-			handleNoteRowEditorAuditionPadAction(lastSelectedNoteYDisplay);
-		}
-
-		if (toggleMenu) {
-			// toggle showing note editor param menu while holding / release note pad
-			soundEditor.toggleNoteEditorParamMenu(on);
-		}
-		else {
-			// if you were holding a note and are still holding a note
-			// it means you were holding more than one note and released one
-			// so refresh parameter menu so it reflects the note remaining
-			soundEditor.getCurrentMenuItem()->readValueAgain();
-		}
-
-		return true;
+	// if we selected a note / created a note
+	// update the row selection
+	// so that menu can be potentially refreshed
+	if (lastSelectedNoteYDisplay != kNoSelection) {
+		handleNoteRowEditorAuditionPadAction(lastSelectedNoteYDisplay);
 	}
-	return false;
+
+	if (toggleMenu) {
+		// toggle showing note editor param menu while holding / release note pad
+		soundEditor.toggleNoteEditorParamMenu(on);
+	}
+	else {
+		// if you were holding a note and are still holding a note
+		// it means you were holding more than one note and released one
+		// so refresh parameter menu so it reflects the note remaining
+		soundEditor.getCurrentMenuItem()->readValueAgain();
+	}
+
+	return true;
 }
 
 void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y) {
