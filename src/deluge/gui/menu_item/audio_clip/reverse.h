@@ -66,7 +66,7 @@ public:
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
 		const bool reversed = getValue();
-		OLED::main.drawIconCentered(OLED::directionIcon, startX, width, startY + 3, reversed);
+		OLED::main.drawIconCentered(OLED::directionIcon, startX, width, startY + kHorizontalMenuSlotYOffset, reversed);
 	}
 
 	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_PLAY)); }

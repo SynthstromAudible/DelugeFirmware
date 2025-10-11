@@ -79,13 +79,13 @@ void LoopPoint::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t st
 	const bool isStartMarker = markerType == MarkerType::START;
 	const int32_t lineX = isStartMarker ? startX + 8 : startX + width - 12;
 
-	for (int32_t y = startY + 2; y <= startY + height - 4; y += 2) {
+	for (int32_t y = startY + 1; y <= startY + height - 5; y += 2) {
 		image.drawPixel(lineX, y);
 	}
 
 	const Icon& icon = OLED::loopPointIcon;
 	const int32_t iconX = isStartMarker ? lineX + 4 : startX - 2;
-	const int32_t iconY = startY + 3;
+	const int32_t iconY = startY + kHorizontalMenuSlotYOffset;
 	image.drawIcon(icon, iconX, iconY, !isStartMarker);
 }
 

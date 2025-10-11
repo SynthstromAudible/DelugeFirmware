@@ -231,8 +231,8 @@ void Decimal::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t star
 		valueBuf.truncate(3);
 	}
 
-	return hid::display::OLED::main.drawStringCentered(valueBuf.data(), startX, startY + 3, kTextSpacingX,
-	                                                   kTextSpacingY, width);
+	return hid::display::OLED::main.drawStringCentered(valueBuf.data(), startX, startY + kHorizontalMenuSlotYOffset,
+	                                                   kTextSpacingX, kTextSpacingY, width);
 }
 
 void DecimalWithoutScrolling::selectEncoderAction(int32_t offset) {

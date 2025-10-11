@@ -38,7 +38,8 @@ public:
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
 		if (getValue() == 0) {
 			const auto offString = l10n::get(l10n::String::STRING_FOR_OFF);
-			return OLED::main.drawStringCentered(offString, startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+			return OLED::main.drawStringCentered(offString, startX, startY + kHorizontalMenuSlotYOffset, kTextSpacingX,
+			                                     kTextSpacingY, width);
 		}
 		ArpNonSoundInteger::renderInHorizontalMenu(startX, width, startY, height);
 	}

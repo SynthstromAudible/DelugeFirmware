@@ -68,7 +68,8 @@ void SyncLevel::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t st
 
 	if (const ::SyncLevel level = syncValueToSyncLevel(value); level == SYNC_LEVEL_NONE) {
 		const auto offString = l10n::get(l10n::String::STRING_FOR_OFF);
-		return image.drawStringCentered(offString, startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+		return image.drawStringCentered(offString, startX, startY + kHorizontalMenuSlotYOffset, kTextSpacingX,
+		                                kTextSpacingY, width);
 	}
 
 	// Draw only the sync type icon, sync level already drawn as a label

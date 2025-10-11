@@ -132,18 +132,18 @@ private:
 			const uint8_t* icon = OLED::songIcon;
 			constexpr int32_t songIconWidth = 9;
 			const int32_t x = startX + (width - songIconWidth) / 2;
-			return image.drawGraphicMultiLine(icon, x, startY + 3, songIconWidth);
+			return image.drawGraphicMultiLine(icon, x, startY + kHorizontalMenuSlotYOffset, songIconWidth);
 		}
 
 		// Draw the direction icon centered
 		const bool reversed = value == REVERSED || value == REVERSED_PING_PONG;
-		image.drawIconCentered(OLED::directionIcon, startX, width, startY + 3, reversed);
+		image.drawIconCentered(OLED::directionIcon, startX, width, startY + kHorizontalMenuSlotYOffset, reversed);
 
 		if (value == FORWARD_PING_PONG || value == REVERSED_PING_PONG) {
 			// Draw ping-pong dots
 			const int32_t centerX = startX + width / 2;
-			image.drawPixel(centerX, startY + 3);
-			image.drawPixel(centerX, startY + 10);
+			image.drawPixel(centerX, startY + kHorizontalMenuSlotYOffset);
+			image.drawPixel(centerX, startY + 9);
 		}
 	}
 };

@@ -72,7 +72,7 @@ public:
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
 		const Icon& icon = getValue() ? OLED::pitchSpeedIndependentIcon : OLED::pitchSpeedLinkedIcon;
-		OLED::main.drawIconCentered(icon, startX, width, startY);
+		OLED::main.drawIconCentered(icon, startX, width, startY - 1);
 	}
 
 	void getColumnLabel(StringBuf& label) override {
