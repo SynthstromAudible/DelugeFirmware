@@ -62,7 +62,7 @@ public:
 
 		int32_t xStart = startX + xPadding;
 		int32_t xEnd = xStart + width;
-		int32_t yStart = startY + 2;
+		int32_t yStart = startY + kHorizontalMenuSlotYOffset;
 		int32_t yEnd = startY + height - 5;
 
 		int32_t pwMinX = xStart + 2;

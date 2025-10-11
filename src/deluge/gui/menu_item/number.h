@@ -37,7 +37,7 @@ protected:
 
 	void renderInHorizontalMenu(int32_t start_x, int32_t width, int32_t start_y, int32_t height) override;
 	void drawKnob(int32_t start_x, int32_t start_y, int32_t width, int32_t height);
-	void drawBar(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
+	void drawBar(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height, bool show_max_value = true);
 	void drawPercent(int32_t start_x, int32_t start_y, int32_t width, int32_t height);
 	void drawSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
 	void drawLengthSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height,

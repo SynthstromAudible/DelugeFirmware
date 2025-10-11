@@ -129,7 +129,7 @@ public:
 			return Selection::renderInHorizontalMenu(startX, width, startY, height);
 		}
 
-		const uint8_t icon_y = startY + 3;
+		const uint8_t icon_y = startY + kHorizontalMenuSlotYOffset;
 		if (current_value == SequenceDirection::PINGPONG) {
 			image.drawIconCentered(OLED::directionIcon, startX + 2, width, icon_y);
 			image.drawIconCentered(OLED::directionIcon, startX - 2, width, icon_y, true);

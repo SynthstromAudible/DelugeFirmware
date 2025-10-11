@@ -74,7 +74,8 @@ public:
 		intToString(getProbabilityValue(latching), buffer);
 		strcat(buffer, latching ? "L" : "%");
 
-		OLED::main.drawStringCentered(buffer, startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+		OLED::main.drawStringCentered(buffer, startX, startY + kHorizontalMenuSlotYOffset, kTextSpacingX, kTextSpacingY,
+		                              width);
 	}
 
 	void drawValue() override {
