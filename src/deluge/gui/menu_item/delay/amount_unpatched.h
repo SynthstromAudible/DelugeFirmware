@@ -29,7 +29,7 @@ public:
 	}
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
-		drawBar(startX, startY, width, height, false);
+		drawBar(startX, startY, width, height);
 
 		if (getValue() > max_value_in_horizontal_menu) {
 			// Draw exclamation mark

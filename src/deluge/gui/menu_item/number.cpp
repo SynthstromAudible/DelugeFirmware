@@ -151,7 +151,7 @@ void Number::drawKnob(int32_t start_x, int32_t start_y, int32_t width, int32_t h
 	}
 }
 
-void Number::drawBar(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height, bool show_max_value) {
+void Number::drawBar(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t bar_width = 23;
@@ -162,13 +162,8 @@ void Number::drawBar(int32_t start_x, int32_t start_y, int32_t slot_width, int32
 	const uint8_t bar_end_x = bar_start_x + bar_width;
 	const uint8_t bar_end_y = bar_start_y + bar_height - 1;
 
-	const float value = getNormalizedValue();
-	if (value == 1.f && show_max_value) {
-		image.drawStringCentered(std::to_string(getValue()).data(), start_x - 1, bar_start_y, kTextSpacingX,
-		                         kTextSpacingY, slot_width);
-	}
-
 	// Bar fill
+	const float value = getNormalizedValue();
 	const uint8_t fill_width = value > 0.f ? std::ceil(value * bar_width) : 0;
 	image.invertArea(bar_start_x, fill_width, bar_start_y, bar_end_y);
 
