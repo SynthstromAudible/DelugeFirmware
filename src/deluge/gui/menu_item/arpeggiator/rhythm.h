@@ -48,7 +48,8 @@ public:
 		const auto value = this->getValue();
 		const auto pattern = std::string_view(arpRhythmPatternNames[value]);
 		if (value == 0) {
-			return image.drawStringCentered(pattern.data(), startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+			return image.drawStringCentered(pattern.data(), startX, startY + kHorizontalMenuSlotYOffset, kTextSpacingX,
+			                                kTextSpacingY, width);
 		}
 
 		constexpr int32_t paddingBetween = 2;
@@ -56,7 +57,8 @@ public:
 
 		int32_t x = startX + (width - rhythmWidth) / 2 + 2;
 		for (const char character : pattern) {
-			image.drawChar(character == '0' ? 'X' : character, x, startY + 3, kTextSpacingX, kTextSpacingY);
+			image.drawChar(character == '0' ? 'X' : character, x, startY + kHorizontalMenuSlotYOffset, kTextSpacingX,
+			               kTextSpacingY);
 			x += kTextSpacingX + paddingBetween;
 		}
 	}

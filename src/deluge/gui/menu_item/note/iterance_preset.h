@@ -72,7 +72,8 @@ public:
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
 		const std::string value = getIteranceDisplayValue("%d:%d");
-		OLED::main.drawStringCentered(value.data(), startX, startY + 3, kTextSpacingX, kTextSpacingY, width);
+		OLED::main.drawStringCentered(value.data(), startX, startY + kHorizontalMenuSlotYOffset, kTextSpacingX,
+		                              kTextSpacingY, width);
 	}
 
 	void drawValue() override {
