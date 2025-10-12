@@ -63,6 +63,9 @@ bool yieldWithTimeout(RunCondition until, double timeout) {
 void removeTask(TaskID id) {
 	return taskManager.removeTask(id);
 }
+void boostTask(TaskID id) {
+	taskManager.boostTask(id);
+}
 double getSystemTime() {
 	return taskManager.getSecondsFromStart();
 }
