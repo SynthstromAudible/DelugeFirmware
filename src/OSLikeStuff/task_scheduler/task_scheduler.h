@@ -21,6 +21,7 @@ struct TaskManager {
 
 	void start(Time duration = 0);
 	void removeTask(TaskID id);
+	void boostTask(TaskID id);
 	void runTask(TaskID id);
 	void runHighestPriTask();
 	TaskID chooseBestTask(Time deadline);
