@@ -128,6 +128,7 @@ struct Task {
 	Time latestCallTime{0};
 	Time lastCallTime{0};
 	Time lastFinishTime{0};
+	bool boosted{false};
 
 	StatBlock durationStats;
 #if SCHEDULER_DETAILED_STATS
