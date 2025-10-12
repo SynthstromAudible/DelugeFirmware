@@ -2135,6 +2135,11 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 		afh->filePath.concatenate(chosenFilename);
 		afh->loadFile(false, true, true, 1, nullptr, false);
 
+		char* dot = strrchr(chosenFilename, '.');
+		if (dot) {
+			// Remove the extension (e.g., ".WAV", ".AIFF") from chosenFilename before assigning as name
+			*dot = '\0';
+		}
 		soundDrum->name.set(chosenFilename);
 		kit->beenEdited();
 		*slashAddress = '/';
