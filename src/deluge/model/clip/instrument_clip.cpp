@@ -701,13 +701,10 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 	// We already incremented / decremented noteRowsNumTicksBehindClip and ticksTilNextNoteRowEvent, in the call to
 	// incrementPos().
 
-	// Handle sequencer mode playback if active (replaces normal note row processing)
+	// If sequencer mode is active, skip normal note row processing
+	// (sequencer processing is now handled in Session::doTickForward)
 	if (sequencerMode_) {
-		int32_t ticksTilNextSequencerEvent = sequencerMode_->processPlayback(modelStack, lastProcessedPos);
-		if (ticksTilNextSequencerEvent > 0) {
-			ticksTilNextNoteRowEvent = ticksTilNextSequencerEvent;
-		}
-		return; // Skip normal note row processing when sequencer mode is active
+		return;
 	}
 
 	if (ticksTilNextNoteRowEvent <= 0) {
