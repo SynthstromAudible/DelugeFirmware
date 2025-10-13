@@ -2849,53 +2849,22 @@ createNewParamManager:
 	else if (!strcmp(tagName, "sequencerMode")) {
 		char const* modeName = nullptr;
 
-		// Read sequencer mode attributes
+		// Read sequencer mode attributes first
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "mode")) {
 				modeName = reader.readTagOrAttributeValue();
-			}
-			else if (!strcmp(tagName, "stepSequencer")) {
-				// Ensure step sequencer mode is active
-				if (modeName && !strcmp(modeName, "step_sequencer")) {
-					if (!hasSequencerMode() || getSequencerModeName() != "step_sequencer") {
-						setSequencerMode("step_sequencer");
-					}
 
-					// Load step data
-					if (sequencerMode_) {
-						error = sequencerMode_->readFromFile(reader);
-						if (error != Error::NONE) {
-							goto someError;
-						}
+				// Set the sequencer mode based on the mode name
+				if (modeName) {
+					if (!hasSequencerMode() || getSequencerModeName() != modeName) {
+						setSequencerMode(modeName);
 					}
-				}
-				else {
-					reader.exitTag(tagName);
 				}
 			}
-			else if (!strcmp(tagName, "pulseSequencer")) {
-				// Ensure pulse sequencer mode is active
-				if (modeName && !strcmp(modeName, "pulse_seq")) {
-					if (!hasSequencerMode() || getSequencerModeName() != "pulse_seq") {
-						setSequencerMode("pulse_seq");
-					}
-
-					// Load pulse data
-					if (sequencerMode_) {
-						error = sequencerMode_->readFromFile(reader);
-						if (error != Error::NONE) {
-							goto someError;
-						}
-					}
-				}
-				else {
-					reader.exitTag(tagName);
-				}
-			}
-			else if (!strcmp(tagName, "controlColumns")) {
-				// Load control columns if sequencer mode is active
-				if (hasSequencerMode() && sequencerMode_) {
-					error = sequencerMode_->getControlColumnState().readFromFile(reader);
+			else {
+				// This is a child element, let the sequencer mode handle it
+				if (sequencerMode_) {
+					error = sequencerMode_->readFromFile(reader);
 					if (error != Error::NONE) {
 						goto someError;
 					}
@@ -2903,9 +2872,6 @@ createNewParamManager:
 				else {
 					reader.exitTag(tagName);
 				}
-			}
-			else {
-				reader.exitTag(tagName);
 			}
 		}
 	}
