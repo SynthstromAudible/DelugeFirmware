@@ -25,6 +25,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <cstring>
+#include <vector>
 
 namespace deluge::model::clip::sequencer {
 
@@ -834,11 +835,20 @@ void SequencerControlState::writeToFile(Serializer& writer, bool includeScenes) 
 	// Write control column pads as single hex string (Deluge convention)
 	writer.writeOpeningTagBeginning("controlColumns");
 
-	// Write pad data as hex string (7 bytes per pad: y, x, type, valueIndex[4 bytes], mode, active)
-	writer.write("\n\t\t");
-	writer.write("padData=\"0x");
+	// Count non-NONE pads and calculate total size
+	size_t totalPads = 0;
+	size_t totalBytes = 0;
+	for (size_t i = 0; i < pads_.size(); ++i) {
+		if (pads_[i].type != ControlType::NONE) {
+			totalPads++;
+			totalBytes += (pads_[i].type == ControlType::SCENE) ? 10 : 9; // Variable size
+		}
+	}
 
-	char buffer[3];
+	// Prepare pad data as byte array for writeAttributeHexBytes
+	std::vector<uint8_t> padData;
+	padData.reserve(totalBytes);
+
 	for (size_t i = 0; i < pads_.size(); ++i) {
 		const auto& pad = pads_[i];
 
@@ -852,38 +862,33 @@ void SequencerControlState::writeToFile(Serializer& writer, bool includeScenes) 
 		int32_t y = (i < 8) ? i : (i - 8);
 
 		// Byte 0: y coordinate
-		byteToHex(static_cast<uint8_t>(y), buffer);
-		writer.write(buffer);
+		padData.push_back(static_cast<uint8_t>(y));
 
 		// Byte 1: x coordinate
-		byteToHex(static_cast<uint8_t>(x), buffer);
-		writer.write(buffer);
+		padData.push_back(static_cast<uint8_t>(x));
 
 		// Byte 2: control type
-		byteToHex(static_cast<uint8_t>(pad.type), buffer);
-		writer.write(buffer);
+		padData.push_back(static_cast<uint8_t>(pad.type));
 
 		// Bytes 3-6: valueIndex (int32_t, 4 bytes, big-endian)
-		char hexBuffer[9];
-		intToHex(pad.valueIndex, hexBuffer);
-		writer.write(hexBuffer);
+		padData.push_back(static_cast<uint8_t>((pad.valueIndex >> 24) & 0xFF));
+		padData.push_back(static_cast<uint8_t>((pad.valueIndex >> 16) & 0xFF));
+		padData.push_back(static_cast<uint8_t>((pad.valueIndex >> 8) & 0xFF));
+		padData.push_back(static_cast<uint8_t>(pad.valueIndex & 0xFF));
 
 		// Byte 7: mode
-		byteToHex(static_cast<uint8_t>(pad.mode), buffer);
-		writer.write(buffer);
+		padData.push_back(static_cast<uint8_t>(pad.mode));
 
 		// Byte 8: active flag
-		byteToHex(pad.active ? 1 : 0, buffer);
-		writer.write(buffer);
+		padData.push_back(pad.active ? 1 : 0);
 
 		// Byte 9: sceneValid flag (for scene pads)
 		if (pad.type == ControlType::SCENE) {
-			byteToHex(pad.sceneValid ? 1 : 0, buffer);
-			writer.write(buffer);
+			padData.push_back(pad.sceneValid ? 1 : 0);
 		}
 	}
 
-	writer.write("\"");
+	writer.writeAttributeHexBytes("padData", padData.data(), padData.size());
 
 	// Close controlColumns opening tag
 	writer.writeOpeningTagEnd();
@@ -897,9 +902,9 @@ void SequencerControlState::writeToFile(Serializer& writer, bool includeScenes) 
 				writer.writeOpeningTagBeginning("scene");
 				writer.writeAttribute("index", i);
 				writer.writeAttribute("size", static_cast<int32_t>(sceneSizes_[i]));
+				writer.writeOpeningTagEnd(false);
 
-				// Write scene data as hex string
-				writer.write("\n\t\t\t");
+				// Write scene data as hex string content
 				writer.write("0x");
 				char buffer[3];
 				for (size_t j = 0; j < sceneSizes_[i]; ++j) {
@@ -907,7 +912,7 @@ void SequencerControlState::writeToFile(Serializer& writer, bool includeScenes) 
 					writer.write(buffer);
 				}
 
-				writer.closeTag("scene");
+				writer.writeClosingTag("scene");
 			}
 		}
 

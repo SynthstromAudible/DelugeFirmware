@@ -547,28 +547,21 @@ void StepSequencerMode::writeToFile(Serializer& writer, bool includeScenes) {
 	writer.writeAttribute("currentStep", currentStep_);
 	writer.writeAttribute("noteScrollOffset", noteScrollOffset_);
 
-	// Write step data as single hex string (3 bytes per step: noteIndex, octave+3, gate)
-	writer.insertCommaIfNeeded();
-	writer.write("\n\t\t");
-	writer.write("stepData=\"0x");
-
-	char buffer[3];
+	// Prepare step data as byte array for writeAttributeHexBytes
+	uint8_t stepData[kNumSteps * 3];  // 3 bytes per step
 	for (int32_t i = 0; i < kNumSteps; ++i) {
+		int32_t offset = i * 3;
 		// Byte 0: noteIndex (0-31)
-		byteToHex(static_cast<uint8_t>(steps_[i].noteIndex), buffer);
-		writer.write(buffer);
-
+		stepData[offset] = static_cast<uint8_t>(steps_[i].noteIndex);
 		// Byte 1: octave + 3 (to make it unsigned 0-6 for -3 to +3)
-		byteToHex(static_cast<uint8_t>(steps_[i].octave + 3), buffer);
-		writer.write(buffer);
-
+		stepData[offset + 1] = static_cast<uint8_t>(steps_[i].octave + 3);
 		// Byte 2: gate type (0=OFF, 1=ON, 2=SKIP)
-		byteToHex(static_cast<uint8_t>(steps_[i].gateType), buffer);
-		writer.write(buffer);
+		stepData[offset + 2] = static_cast<uint8_t>(steps_[i].gateType);
 	}
 
-	writer.write("\"");
-	writer.closeTag("stepSequencer");
+	writer.writeAttributeHexBytes("stepData", stepData, kNumSteps * 3);
+	writer.writeOpeningTagEnd();
+	writer.writeClosingTag("stepSequencer");
 
 	// Write control columns and scenes
 	controlColumnState_.writeToFile(writer, includeScenes);

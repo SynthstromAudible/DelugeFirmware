@@ -1586,57 +1586,39 @@ void PulseSequencerMode::writeToFile(Serializer& writer, bool includeScenes) {
 	writer.writeAttribute("currentStage", performanceControls_.currentStage);
 	writer.writeAttribute("pingPongDirection", performanceControls_.pingPongDirection);
 
-	// Write stage data as single hex string (7 bytes per stage)
-	writer.insertCommaIfNeeded();
-	writer.write("\n\t\t");
-	writer.write("stageData=\"0x");
-
-	char buffer[3];
+	// Prepare stage data as byte array for writeAttributeHexBytes (7 bytes per stage)
+	uint8_t stageData[kMaxStages * 7];
 	for (int32_t i = 0; i < kMaxStages; ++i) {
+		int32_t offset = i * 7;
 		// Byte 0: gate type (0-3)
-		byteToHex(static_cast<uint8_t>(stages_[i].gateType), buffer);
-		writer.write(buffer);
-
+		stageData[offset] = static_cast<uint8_t>(stages_[i].gateType);
 		// Byte 1: noteIndex (0-31)
-		byteToHex(static_cast<uint8_t>(stages_[i].noteIndex), buffer);
-		writer.write(buffer);
-
+		stageData[offset + 1] = static_cast<uint8_t>(stages_[i].noteIndex);
 		// Byte 2: octave + 3 (unsigned 0-6 for -3 to +3)
-		byteToHex(static_cast<uint8_t>(stages_[i].octave + 3), buffer);
-		writer.write(buffer);
-
+		stageData[offset + 2] = static_cast<uint8_t>(stages_[i].octave + 3);
 		// Byte 3: pulse count (1-8)
-		byteToHex(static_cast<uint8_t>(stages_[i].pulseCount), buffer);
-		writer.write(buffer);
-
+		stageData[offset + 3] = static_cast<uint8_t>(stages_[i].pulseCount);
 		// Byte 4: velocity spread (0-127)
-		byteToHex(static_cast<uint8_t>(stages_[i].velocitySpread), buffer);
-		writer.write(buffer);
-
+		stageData[offset + 4] = static_cast<uint8_t>(stages_[i].velocitySpread);
 		// Byte 5: probability (0-100)
-		byteToHex(static_cast<uint8_t>(stages_[i].probability), buffer);
-		writer.write(buffer);
-
+		stageData[offset + 5] = static_cast<uint8_t>(stages_[i].probability);
 		// Byte 6: gate length (0-100)
-		byteToHex(static_cast<uint8_t>(stages_[i].gateLength), buffer);
-		writer.write(buffer);
+		stageData[offset + 6] = static_cast<uint8_t>(stages_[i].gateLength);
 	}
 
-	writer.write("\"\n\t\t");
+	writer.writeAttributeHexBytes("stageData", stageData, kMaxStages * 7);
 
-	// Write stage enabled flags as hex string (1 byte for 8 flags)
-	writer.write("stageEnabled=\"0x");
+	// Write stage enabled flags as hex byte
 	uint8_t enabledBits = 0;
 	for (int32_t i = 0; i < kMaxStages; ++i) {
 		if (performanceControls_.stageEnabled[i]) {
 			enabledBits |= (1 << i);
 		}
 	}
-	byteToHex(enabledBits, buffer);
-	writer.write(buffer);
-	writer.write("\"");
+	writer.writeAttributeHexBytes("stageEnabled", &enabledBits, 1);
 
-	writer.closeTag("pulseSequencer");
+	writer.writeOpeningTagEnd();
+	writer.writeClosingTag("pulseSequencer");
 
 	// Write control columns and scenes
 	controlColumnState_.writeToFile(writer, includeScenes);
