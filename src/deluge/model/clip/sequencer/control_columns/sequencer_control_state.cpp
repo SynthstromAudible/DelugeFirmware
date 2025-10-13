@@ -907,7 +907,7 @@ void SequencerControlState::writeToFile(Serializer& writer, bool includeScenes) 
 					writer.write(buffer);
 				}
 
-				writer.closeTag();
+				writer.closeTag("scene");
 			}
 		}
 
