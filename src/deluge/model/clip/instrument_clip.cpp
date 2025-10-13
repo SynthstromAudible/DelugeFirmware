@@ -701,8 +701,14 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 	// We already incremented / decremented noteRowsNumTicksBehindClip and ticksTilNextNoteRowEvent, in the call to
 	// incrementPos().
 
-	// NOTE: Sequencer mode playback is now handled in Session::doTickForward()
-	// alongside the arpeggiator, so it gets called every tick
+	// Handle sequencer mode playback if active (replaces normal note row processing)
+	if (sequencerMode_) {
+		int32_t ticksTilNextSequencerEvent = sequencerMode_->processPlayback(modelStack, lastProcessedPos);
+		if (ticksTilNextSequencerEvent > 0) {
+			ticksTilNextNoteRowEvent = ticksTilNextSequencerEvent;
+		}
+		return; // Skip normal note row processing when sequencer mode is active
+	}
 
 	if (ticksTilNextNoteRowEvent <= 0) {
 
