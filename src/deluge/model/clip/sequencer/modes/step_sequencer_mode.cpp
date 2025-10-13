@@ -568,7 +568,7 @@ void StepSequencerMode::writeToFile(Serializer& writer, bool includeScenes) {
 	}
 
 	writer.write("\"");
-	writer.closeTag();
+	writer.closeTag("stepSequencer");
 
 	// Write control columns and scenes
 	controlColumnState_.writeToFile(writer, includeScenes);

@@ -1636,7 +1636,7 @@ void PulseSequencerMode::writeToFile(Serializer& writer, bool includeScenes) {
 	writer.write(buffer);
 	writer.write("\"");
 
-	writer.closeTag();
+	writer.closeTag("pulseSequencer");
 
 	// Write control columns and scenes
 	controlColumnState_.writeToFile(writer, includeScenes);
