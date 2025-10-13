@@ -42,6 +42,7 @@ public:
 private:
 	bool selectedDrumOnly;
 	std::string defaultDir;
+	std::string cachedSequencerModeName; // Cache mode name to avoid accessing clip during card routine
 };
 
 extern SavePatternUI savePatternUI;

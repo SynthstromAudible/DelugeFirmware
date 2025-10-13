@@ -1,6 +1,7 @@
 #include "../menu_item/randomizer/midi_cv/note_probability.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/active_scales.h"
+#include "gui/menu_item/clip/clip_type_selection.h"
 #include "gui/menu_item/arpeggiator/arp_unpatched_param.h"
 #include "gui/menu_item/arpeggiator/chord_type.h"
 #include "gui/menu_item/arpeggiator/include_in_kit_arp.h"
@@ -626,6 +627,9 @@ Submenu outputMidiSubmenu{STRING_FOR_MIDI, {&outputMidiChannelMenu, &outputMidiN
 // MIDIInstrument menu ----------------------------------------------------------------------
 midi::device_definition::Linked midiDeviceLinkedMenu{STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
                                                      STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED};
+
+// Clip Type Selection Menu
+clip::ClipTypeSelection clipTypeSelectionMenu{STRING_FOR_CLIP_TYPE, STRING_FOR_CLIP_TYPE};
 
 midi::device_definition::DeviceDefinitionSubmenu midiDeviceDefinitionMenu{
     STRING_FOR_MIDI_DEVICE_DEFINITION,
@@ -1386,7 +1390,8 @@ Submenu soundEditorRootActionsMenu{
 Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,
     {
-        &soundEditorRootActionsMenu,
+        &clipTypeSelectionMenu,
+		&soundEditorRootActionsMenu,
         &soundMasterMenu,
         &arpMenu,
         &randomizerMenu,
@@ -1525,6 +1530,7 @@ menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TIT
 menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     STRING_FOR_MIDI_INST_MENU_TITLE,
     {
+        &clipTypeSelectionMenu,
         &midiDeviceDefinitionMenu,
         &midiProgramMenu,
         &arpMenuMIDIOrCV,

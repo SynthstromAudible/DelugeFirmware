@@ -36,3 +36,9 @@ __pycache__
 *.srctrl*
 
 .deluge_hex_key
+
+# Ignore everything except src/ directory
+/*
+!/src/
+!/.gitignore
+!/docs/
