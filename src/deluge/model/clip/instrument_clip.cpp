@@ -147,6 +147,34 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	}
 
 	arpSettings.cloneFrom(&otherInstrumentClip->arpSettings);
+
+	// Copy sequencer mode data
+	sequencerModeName_ = otherInstrumentClip->sequencerModeName_;
+
+	// Clone the active sequencer mode if it exists
+	if (otherInstrumentClip->sequencerMode_) {
+		auto& manager = deluge::model::clip::sequencer::SequencerModeManager::instance();
+		sequencerMode_ = manager.createMode(sequencerModeName_);
+		if (sequencerMode_) {
+			// TODO: We should implement a proper clone method for sequencer modes
+			// For now, the new clip will get default sequencer mode data
+			sequencerMode_->initialize();
+		}
+	}
+
+	// Clone cached sequencer modes
+	for (const auto& [modeName, mode] : otherInstrumentClip->cachedSequencerModes_) {
+		if (mode) {
+			auto& manager = deluge::model::clip::sequencer::SequencerModeManager::instance();
+			auto clonedMode = manager.createMode(modeName);
+			if (clonedMode) {
+				// TODO: We should implement a proper clone method for sequencer modes
+				// For now, the cached modes will have default data
+				clonedMode->initialize();
+				cachedSequencerModes_[modeName] = std::move(clonedMode);
+			}
+		}
+	}
 }
 
 // Will replace the Clip in the modelStack, if success.
