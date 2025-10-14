@@ -2844,8 +2844,8 @@ createNewParamManager:
 				}
 				reader.match('}');             // leave value object.
 				reader.exitTag(nullptr, true); // leave box.
-		}
-		reader.match(']');
+			}
+			reader.match(']');
 	}
 
 	// Sequencer mode data (for song loading)
