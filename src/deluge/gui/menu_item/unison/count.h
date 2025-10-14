@@ -68,7 +68,7 @@ public:
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
 		DEF_STACK_STRING_BUF(paramValue, 2);
 		paramValue.appendInt(getValue());
-		return OLED::main.drawStringCentered(paramValue, startX + 1, startY + 6, kTextBigSpacingX, kTextBigSizeY,
+		return OLED::main.drawStringCentered(paramValue, startX + 1, startY + 5, kTextBigSpacingX, kTextBigSizeY,
 		                                     width);
 	}
 };

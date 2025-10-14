@@ -212,10 +212,10 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 			switch (FlashStorage::accessibilityMenuHighlighting) {
 			case MenuHighlighting::FULL_INVERSION: {
 				// Highlight by inversion of the label or whole slot
-				const bool highlightWholeSlot = !item->showColumnLabel() || item->isSubmenu();
-				const int32_t startY = highlightWholeSlot ? base_y : label_y;
-				const int32_t endY = highlightWholeSlot ? base_y + box_height - 1 : label_y + label_height - 1;
-				image.invertAreaRounded(current_x + 1, box_width - 3, startY, endY);
+				const bool highlight_whole_slot = !item->showColumnLabel() || item->isSubmenu();
+				const int32_t start_y = highlight_whole_slot ? base_y - 1 : label_y;
+				const int32_t end_y = highlight_whole_slot ? base_y + box_height - 1 : label_y + label_height - 1;
+				image.invertAreaRounded(current_x + 1, box_width - 3, start_y, end_y);
 				break;
 			}
 			case MenuHighlighting::PARTIAL_INVERSION:
@@ -238,8 +238,8 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 	for (int32_t n = current_x / (OLED_MAIN_WIDTH_PIXELS / 4); n < 4; n++) {
 		const int32_t start_x = n * column_width + 7;
 		const int32_t end_x = start_x + 17;
-		constexpr int32_t start_y = base_y + 2;
-		constexpr int32_t end_y = OLED_MAIN_HEIGHT_PIXELS - 6;
+		constexpr int32_t start_y = base_y + 1;
+		constexpr int32_t end_y = OLED_MAIN_HEIGHT_PIXELS - 7;
 		constexpr int32_t dot_interval = 5;
 
 		for (int32_t x = start_x + 1; x < end_x; x += dot_interval) {
