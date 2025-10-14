@@ -154,36 +154,20 @@ void Number::drawKnob(int32_t start_x, int32_t start_y, int32_t width, int32_t h
 void Number::drawBar(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
 	oled_canvas::Canvas& image = OLED::main;
 
-	constexpr uint8_t bar_width = 23;
-	constexpr uint8_t bar_height = 9;
-	constexpr uint8_t outline_padding = 0;
+	constexpr uint8_t bar_width = 21;
+	constexpr uint8_t bar_height = 7;
+	constexpr uint8_t outline_padding = 2;
 	const uint8_t bar_start_x = start_x + 3 + outline_padding;
-	const uint8_t bar_start_y = start_y + kHorizontalMenuSlotYOffset;
-	const uint8_t bar_end_x = bar_start_x + bar_width;
+	const uint8_t bar_start_y = start_y + 1 + outline_padding;
+	const uint8_t bar_end_x = bar_start_x + bar_width - 1;
 	const uint8_t bar_end_y = bar_start_y + bar_height - 1;
 
-	// Bar fill
 	const float value = getNormalizedValue();
-	const uint8_t fill_width = value > 0.f ? std::ceil(value * bar_width) : 0;
+	const uint8_t fill_width = value * bar_width;
+	image.drawRectangleRounded(bar_start_x - outline_padding, bar_start_y - outline_padding,
+	                           bar_end_x + outline_padding, bar_end_y + outline_padding);
+
 	image.invertArea(bar_start_x, fill_width, bar_start_y, bar_end_y);
-
-	// Dashed background
-	const uint8_t fill_x = bar_start_x + fill_width;
-	for (uint8_t x = bar_start_x + 3; x <= bar_end_x; x += 4) {
-		if (x >= fill_x) {
-			for (uint8_t y = bar_start_y + 1; y <= bar_end_y; y += 3) {
-				image.drawPixel(x, y);
-			}
-		}
-	}
-
-	// Leading line
-	image.drawVerticalLine(fill_x, bar_start_y - 1, bar_end_y + 1);
-
-	// Clear space just before the leading line
-	for (uint8_t y = bar_start_y; y <= bar_end_y; y++) {
-		image.clearPixel(fill_x - 1, y);
-	}
 }
 
 void Number::drawSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {

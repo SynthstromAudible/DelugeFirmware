@@ -100,7 +100,7 @@ public:
 			return OLED::sineIcon;
 		}();
 
-		image.drawIconCentered(icon, startX, width, startY + 4);
+		image.drawIconCentered(icon, startX, width, startY + kHorizontalMenuSlotYOffset + 2);
 	}
 
 private:
