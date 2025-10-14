@@ -94,6 +94,10 @@ public:
 		return 2147483647;
 	} // Max int = never
 
+	// Stop all notes - called when playback stops to prevent hung notes
+	// Override this in sequencer modes that track active notes
+	virtual void stopAllNotes(void* modelStack) {}
+
 	// Simple callback when a musical division boundary is crossed
 	// Override this for easy timing - base class handles the modulo math
 	// syncLevel: 7=16th, 6=8th, 8=32nd (same as arpeggiator)

@@ -1161,6 +1161,11 @@ void InstrumentClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) 
 
 	stopAllNotesPlaying(modelStack, actuallySoundChange && !currentlyRecordingLinearly); // Stop all sound
 
+	// Stop sequencer mode notes if active
+	if (sequencerMode_) {
+		sequencerMode_->stopAllNotes(modelStack);
+	}
+
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 
@@ -2862,6 +2867,18 @@ createNewParamManager:
 						if (!hasSequencerMode() || getSequencerModeName() != modeName) {
 							setSequencerMode(modeName);
 						}
+					}
+				}
+				else if (!strcmp(tagName, "controlColumns")) {
+					// Handle control columns directly (sequencer modes delegate this back)
+					if (sequencerMode_) {
+						error = sequencerMode_->getControlColumnState().readFromFile(reader);
+						if (error != Error::NONE) {
+							goto someError;
+						}
+					}
+					else {
+						reader.exitTag(tagName);
 					}
 				}
 				else {

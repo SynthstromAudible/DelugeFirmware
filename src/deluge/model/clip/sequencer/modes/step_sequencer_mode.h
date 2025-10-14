@@ -72,6 +72,9 @@ public:
 	// Playback - plays the sequence at 16th note intervals
 	int32_t processPlayback(void* modelStack, int32_t absolutePlaybackPos) override;
 
+	// Stop all notes - prevents hung notes when playback stops
+	void stopAllNotes(void* modelStack) override;
+
 	// Scene management
 	size_t captureScene(void* buffer, size_t maxSize) override;
 	bool recallScene(const void* buffer, size_t size) override;

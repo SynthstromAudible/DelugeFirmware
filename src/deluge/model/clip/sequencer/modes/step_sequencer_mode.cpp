@@ -61,6 +61,14 @@ void StepSequencerMode::initialize() {
 }
 
 void StepSequencerMode::cleanup() {
+	// Stop any playing notes before cleanup
+	if (activeNoteCode_ >= 0) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(getCurrentClip());
+		stopNote(modelStackWithTimelineCounter, activeNoteCode_);
+	}
+
 	initialized_ = false;
 	currentStep_ = 0;
 	activeNoteCode_ = -1;
@@ -478,6 +486,14 @@ int32_t StepSequencerMode::processPlayback(void* modelStackPtr, int32_t absolute
 	return ticksPerSixteenthNote_;
 }
 
+void StepSequencerMode::stopAllNotes(void* modelStackPtr) {
+	// Stop any currently playing note
+	if (activeNoteCode_ >= 0) {
+		stopNote(modelStackPtr, activeNoteCode_);
+		activeNoteCode_ = -1;
+	}
+}
+
 // ================================================================================================
 // SCENE MANAGEMENT
 // ================================================================================================
@@ -581,9 +597,9 @@ void StepSequencerMode::writeToFile(Serializer& writer, bool includeScenes) {
 		stepData[offset + 2] = static_cast<uint8_t>(steps_[i].gateType);
 	}
 
+	// Always write stepData (fixed size array)
 	writer.writeAttributeHexBytes("stepData", stepData, kNumSteps * 3);
-	writer.writeOpeningTagEnd();
-	writer.writeClosingTag("stepSequencer");
+	writer.closeTag(); // Self-closing tag since no child content
 
 	// Write control columns and scenes
 	controlColumnState_.writeToFile(writer, includeScenes);
@@ -630,7 +646,9 @@ Error StepSequencerMode::readFromFile(Deserializer& reader) {
 			}
 		}
 		else {
-			reader.exitTag(tagName);
+			// Unknown tag - let the caller handle it
+			// Don't call reader.exitTag() here to avoid XML parser state issues
+			break;
 		}
 	}
 

@@ -75,15 +75,14 @@ void PulseSequencerMode::initialize() {
 }
 
 void PulseSequencerMode::cleanup() {
-	// Send all notes off before cleanup
-	for (int32_t n = 0; n < kMaxNoteSlots; n++) {
-		if (sequencerState_.noteActive[n] && sequencerState_.noteCodeActive[n] >= 0) {
-			// We don't have modelStack here, so just mark as inactive
-			// The notes will be stopped when mode switches
-			sequencerState_.noteActive[n] = false;
-			sequencerState_.noteCodeActive[n] = -1;
-		}
+	// Stop any playing notes before cleanup
+	if (initialized_) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(getCurrentClip());
+		stopAllNotes(modelStackWithTimelineCounter);
 	}
+
 	initialized_ = false;
 }
 
@@ -640,6 +639,17 @@ int32_t PulseSequencerMode::processPlayback(void* modelStackPtr, int32_t absolut
 	}
 
 	return ticksUntilNextDivision(absolutePlaybackPos, ticksPerPeriod);
+}
+
+void PulseSequencerMode::stopAllNotes(void* modelStackPtr) {
+	// Stop all currently playing notes
+	for (int32_t i = 0; i < kMaxNoteSlots; i++) {
+		if (sequencerState_.noteActive[i]) {
+			stopNote(modelStackPtr, sequencerState_.noteCodeActive[i]);
+			sequencerState_.noteActive[i] = false;
+			sequencerState_.noteCodeActive[i] = -1;
+		}
+	}
 }
 
 void PulseSequencerMode::generateNotes(void* modelStackPtr) {
@@ -1654,6 +1664,7 @@ void PulseSequencerMode::writeToFile(Serializer& writer, bool includeScenes) {
 		stageData[offset + 6] = static_cast<uint8_t>(stages_[i].gateLength);
 	}
 
+	// Always write stageData (fixed size array)
 	writer.writeAttributeHexBytes("stageData", stageData, kMaxStages * 7);
 
 	// Write stage enabled flags as hex byte
@@ -1664,9 +1675,7 @@ void PulseSequencerMode::writeToFile(Serializer& writer, bool includeScenes) {
 		}
 	}
 	writer.writeAttributeHexBytes("stageEnabled", &enabledBits, 1);
-
-	writer.writeOpeningTagEnd();
-	writer.writeClosingTag("pulseSequencer");
+	writer.closeTag(); // Self-closing tag since no child content
 
 	// Write control columns and scenes
 	controlColumnState_.writeToFile(writer, includeScenes);
@@ -1747,7 +1756,9 @@ Error PulseSequencerMode::readFromFile(Deserializer& reader) {
 			}
 		}
 		else {
-			reader.exitTag(tagName);
+			// Unknown tag - let the caller handle it
+			// Don't call reader.exitTag() here to avoid XML parser state issues
+			break;
 		}
 	}
 

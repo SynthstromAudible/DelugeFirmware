@@ -24,6 +24,7 @@
 #include "model/clip/sequencer/sequencer_mode.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include <algorithm>
 #include <cstring>
 #include <vector>
 
@@ -874,7 +875,12 @@ void SequencerControlState::writeToFile(Serializer& writer, bool includeScenes) 
 		}
 	}
 
-	writer.writeAttributeHexBytes("padData", padData.data(), padData.size());
+	// Write padData (empty string if no active pads)
+	if (padData.empty()) {
+		writer.writeAttribute("padData", "");
+	} else {
+		writer.writeAttributeHexBytes("padData", padData.data(), padData.size());
+	}
 
 	// Close controlColumns opening tag
 	writer.writeOpeningTagEnd();
@@ -888,17 +894,10 @@ void SequencerControlState::writeToFile(Serializer& writer, bool includeScenes) 
 				writer.writeOpeningTagBeginning("scene");
 				writer.writeAttribute("index", i);
 				writer.writeAttribute("size", static_cast<int32_t>(sceneSizes_[i]));
-				writer.writeOpeningTagEnd(false);
 
-				// Write scene data as hex string content
-				writer.write("0x");
-				char buffer[3];
-				for (size_t j = 0; j < sceneSizes_[i]; ++j) {
-					byteToHex(sceneBuffers_[i][j], buffer);
-					writer.write(buffer);
-				}
-
-				writer.writeClosingTag("scene");
+				// Write scene data as hex attribute for consistency with other hex data
+				writer.writeAttributeHexBytes("data", sceneBuffers_[i], sceneSizes_[i]);
+				writer.closeTag(); // Self-closing tag
 			}
 		}
 
@@ -973,8 +972,7 @@ Error SequencerControlState::readFromFile(Deserializer& reader) {
 			}
 		}
 		else if (!strcmp(tagName, "scenes")) {
-			// Read scenes array
-			reader.match('{');
+			// Read scenes array (XML format)
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "scene")) {
 					int32_t sceneIndex = -1;
@@ -989,13 +987,40 @@ Error SequencerControlState::readFromFile(Deserializer& reader) {
 						else if (!strcmp(innerTag, "size")) {
 							sceneSize = reader.readTagOrAttributeValueInt();
 						}
-						else {
-							// Hex data inside the tag
+						else if (!strcmp(innerTag, "data")) {
+							// Scene data as hex attribute
 							char const* hexData = reader.readTagOrAttributeValue();
 
 							if (sceneIndex >= 0 && sceneIndex < kMaxScenes && sceneSize > 0
 			    && sceneSize <= static_cast<int32_t>(kMaxSceneDataSize)) {
-								// Skip "0x" prefix
+								// Skip "0x" prefix if present
+								if (hexData[0] == '0' && hexData[1] == 'x') {
+									hexData += 2;
+								}
+
+								// Parse hex data into scene buffer with safety checks
+								int32_t hexLength = strlen(hexData);
+								int32_t maxBytes = hexLength / 2; // Each byte = 2 hex chars
+								int32_t bytesToRead = std::min(sceneSize, maxBytes);
+								bytesToRead = std::min(bytesToRead, static_cast<int32_t>(kMaxSceneDataSize));
+
+								for (int32_t i = 0; i < bytesToRead; ++i) {
+									if ((i * 2 + 1) < hexLength) {
+										sceneBuffers_[sceneIndex][i] = hexToIntFixedLength(&hexData[i * 2], 2);
+									} else {
+										sceneBuffers_[sceneIndex][i] = 0; // Pad with zeros if hex data is short
+									}
+								}
+								sceneSizes_[sceneIndex] = bytesToRead; // Use actual bytes read
+							}
+						}
+						else {
+							// Handle old format (hex data as tag content) for backward compatibility
+							char const* hexData = reader.readTagOrAttributeValue();
+
+							if (sceneIndex >= 0 && sceneIndex < kMaxScenes && sceneSize > 0
+			    && sceneSize <= static_cast<int32_t>(kMaxSceneDataSize)) {
+								// Skip "0x" prefix if present
 								if (hexData[0] == '0' && hexData[1] == 'x') {
 									hexData += 2;
 								}
@@ -1016,7 +1041,6 @@ Error SequencerControlState::readFromFile(Deserializer& reader) {
 					reader.exitTag(tagName);
 				}
 			}
-			reader.match('}');
 		}
 		else {
 			reader.exitTag(tagName);
