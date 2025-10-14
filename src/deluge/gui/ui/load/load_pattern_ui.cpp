@@ -37,8 +37,8 @@ using namespace deluge;
 static constexpr const char* PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/KIT";
 static constexpr const char* PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/DRUM";
 static constexpr const char* PATTERN_MELODIC_DEFAULT_FOLDER = "PATTERNS/MELODIC";
-static constexpr const char* PATTERN_MELODIC_SEQUENCER_STEP_FOLDER = "PATTERNS/MELODIC/SEQUENCER/STEP";
-static constexpr const char* PATTERN_MELODIC_SEQUENCER_PULSE_FOLDER = "PATTERNS/MELODIC/SEQUENCER/PULSE";
+static constexpr const char* PATTERN_SEQUENCER_STEP_DEFAULT_FOLDER = "PATTERNS/SEQUENCER/STEP";
+static constexpr const char* PATTERN_SEQUENCER_PULSE_DEFAULT_FOLDER = "PATTERNS/SEQUENCER/PULSE";
 
 LoadPatternUI loadPatternUI{};
 
@@ -78,18 +78,17 @@ bool LoadPatternUI::opened() {
 		display->displayError(error);
 		return false;
 	}
+	error = createFoldersRecursiveIfNotExists(PATTERN_SEQUENCER_STEP_DEFAULT_FOLDER);
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
+	}
+	error = createFoldersRecursiveIfNotExists(PATTERN_SEQUENCER_PULSE_DEFAULT_FOLDER);
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return false;
+	}
 
-	// Create sequencer mode pattern folders
-	error = createFoldersRecursiveIfNotExists(PATTERN_MELODIC_SEQUENCER_STEP_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
-	error = createFoldersRecursiveIfNotExists(PATTERN_MELODIC_SEQUENCER_PULSE_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
 
 	actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	overwriteExisting = true;
@@ -112,13 +111,13 @@ bool LoadPatternUI::opened() {
 		// Melodic instruments - use cached sequencer mode name
 		if (!cachedSequencerModeName.empty()) {
 			if (cachedSequencerModeName == "step_sequencer") {
-				defaultDir = PATTERN_MELODIC_SEQUENCER_STEP_FOLDER;
-				favouritesManager.setCategory(PATTERN_MELODIC_SEQUENCER_STEP_FOLDER);
+				defaultDir = PATTERN_SEQUENCER_STEP_DEFAULT_FOLDER;
+				favouritesManager.setCategory(PATTERN_SEQUENCER_STEP_DEFAULT_FOLDER);
 				title = "Load Step Pattern";
 			}
 			else if (cachedSequencerModeName == "pulse_seq") {
-				defaultDir = PATTERN_MELODIC_SEQUENCER_PULSE_FOLDER;
-				favouritesManager.setCategory(PATTERN_MELODIC_SEQUENCER_PULSE_FOLDER);
+				defaultDir = PATTERN_SEQUENCER_PULSE_DEFAULT_FOLDER;
+				favouritesManager.setCategory(PATTERN_SEQUENCER_PULSE_DEFAULT_FOLDER);
 				title = "Load Pulse Pattern";
 			}
 			else {
