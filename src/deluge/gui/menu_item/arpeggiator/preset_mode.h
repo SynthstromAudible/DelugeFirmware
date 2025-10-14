@@ -127,8 +127,9 @@ public:
 		oled_canvas::Canvas& image = OLED::main;
 
 		if (this->getValue<ArpPreset>() == ArpPreset::OFF) {
-			const auto offString = l10n::get(l10n::String::STRING_FOR_OFF);
-			return image.drawStringCentered(offString, startX, startY + 8, kTextTitleSpacingX, kTextTitleSizeY, width);
+			const auto off = l10n::get(l10n::String::STRING_FOR_OFF);
+			return image.drawStringCentered(off, startX, startY + kHorizontalMenuSlotYOffset + 5, kTextTitleSpacingX,
+			                                kTextTitleSizeY, width);
 		}
 
 		const auto arpPreset = getValue<ArpPreset>();
@@ -151,7 +152,7 @@ public:
 		}();
 
 		const bool reversed = arpPreset == ArpPreset::DOWN;
-		image.drawIconCentered(icon, startX, width, startY + 4, reversed);
+		image.drawIconCentered(icon, startX, width, startY + kHorizontalMenuSlotYOffset + 1, reversed);
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator

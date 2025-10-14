@@ -132,7 +132,8 @@ public:
 		const OscType oscType = soundEditor.currentSound->sources[sourceId_].oscType;
 		if (oscType == OscType::DX7) {
 			const auto option = getOptions(OptType::FULL)[getValue()].data();
-			return image.drawStringCentered(option, startX, startY + 8, kTextTitleSpacingX, kTextTitleSizeY, width);
+			return image.drawStringCentered(option, startX, startY + kHorizontalMenuSlotYOffset + 5, kTextTitleSpacingX,
+			                                kTextTitleSizeY, width);
 		}
 
 		const Icon& icon = [&] {
@@ -160,7 +161,7 @@ public:
 			}
 		}();
 
-		image.drawIconCentered(icon, startX, width, startY + 4);
+		image.drawIconCentered(icon, startX, width, startY + kHorizontalMenuSlotYOffset + 2);
 
 		if (oscType == OscType::ANALOG_SQUARE || oscType == OscType::ANALOG_SAW_2) {
 			const int32_t x = startX + 4;

@@ -69,7 +69,7 @@ public:
 			constexpr int32_t lineSpacing = 5;
 			constexpr int32_t maxYOffset = 4;
 
-			const int32_t y = startY + kHorizontalMenuSlotYOffset + i * lineSpacing;
+			const int32_t y = startY + 1 + i * lineSpacing;
 			const int32_t x0 = startX + 6;
 			const int32_t x1 = startX + width - 7;
 
