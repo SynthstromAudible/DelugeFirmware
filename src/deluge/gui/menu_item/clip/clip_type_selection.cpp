@@ -65,8 +65,8 @@ void ClipTypeSelection::writeCurrentValue() {
 
 	if (clip) {
 		if (selectedMode == 0) {
-			// PIANO ROLL - clear sequencer mode (back to linear)
-			clip->clearSequencerMode();
+			// PIANO ROLL - deactivate sequencer mode but preserve data
+			clip->setSequencerMode(""); // Empty string = piano roll mode
 		}
 		else if (selectedMode == 1) {
 			// STEP SEQ - set step sequencer mode

@@ -228,6 +228,10 @@ private:
 	void resetPerformanceControls();
 	void randomizeSequence();
 	void evolveSequence();
+
+	// Default pattern management
+	bool isDefaultPattern() const;
+	void setDefaultPattern();
 };
 
 } // namespace deluge::model::clip::sequencer::modes

@@ -1166,6 +1166,13 @@ void InstrumentClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) 
 		sequencerMode_->stopAllNotes(modelStack);
 	}
 
+	// Also stop notes in cached sequencer modes
+	for (auto& [name, mode] : cachedSequencerModes_) {
+		if (mode) {
+			mode->stopAllNotes(modelStack);
+		}
+	}
+
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 
@@ -4791,19 +4798,47 @@ void InstrumentClip::incrementPos(ModelStackWithTimelineCounter* modelStack, int
 // SEQUENCER MODE MANAGEMENT
 
 void InstrumentClip::setSequencerMode(const std::string& modeName) {
-	// Clear existing mode
-	clearSequencerMode();
+	// Handle piano roll mode (empty string)
+	if (modeName.empty()) {
+		// Cache current sequencer mode if we have one
+		if (sequencerMode_ && !sequencerModeName_.empty()) {
+			cachedSequencerModes_[sequencerModeName_] = std::move(sequencerMode_);
+		}
 
-	// Create new mode
-	auto& manager = deluge::model::clip::sequencer::SequencerModeManager::instance();
-	sequencerMode_ = manager.createMode(modeName);
+		// Clear active mode but keep cache
+		sequencerMode_.reset();
+		sequencerModeName_ = "";
+		return;
+	}
 
+	// If we're already in this mode, don't recreate it
+	if (hasSequencerMode() && sequencerModeName_ == modeName) {
+		return;
+	}
+
+	// Cache current mode if switching to a different mode
+	if (sequencerMode_ && !sequencerModeName_.empty() && sequencerModeName_ != modeName) {
+		cachedSequencerModes_[sequencerModeName_] = std::move(sequencerMode_);
+	}
+
+	// Try to restore from cache first
+	if (cachedSequencerModes_.count(modeName)) {
+		sequencerMode_ = std::move(cachedSequencerModes_[modeName]);
+		cachedSequencerModes_.erase(modeName);
+	}
+	else {
+		// Create new mode
+		auto& manager = deluge::model::clip::sequencer::SequencerModeManager::instance();
+		sequencerMode_ = manager.createMode(modeName);
+
+		if (sequencerMode_) {
+			sequencerMode_->initialize();
+		}
+	}
+
+	// Set active mode
 	if (sequencerMode_) {
 		sequencerModeName_ = modeName;
-		sequencerMode_->initialize();
-
-		// CRITICAL: Ensure the clip gets called regularly during playback
-		// Set ticksTilNextNoteRowEvent to ensure processCurrentPos gets called
 		expectEvent();
 	}
 }
@@ -4814,6 +4849,14 @@ void InstrumentClip::clearSequencerMode() {
 		sequencerMode_.reset();
 		sequencerModeName_.clear();
 	}
+
+	// Clear cache as well
+	for (auto& [name, mode] : cachedSequencerModes_) {
+		if (mode) {
+			mode->cleanup();
+		}
+	}
+	cachedSequencerModes_.clear();
 }
 
 /*

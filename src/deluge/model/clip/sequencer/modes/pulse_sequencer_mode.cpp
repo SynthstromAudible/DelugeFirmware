@@ -41,16 +41,9 @@ void PulseSequencerMode::initialize() {
 	// Initialize scale notes first so we know how many notes are in the scale
 	updateScaleNotes();
 
-	// Initialize all stages with a simple test pattern
-	for (int32_t i = 0; i < kMaxStages; i++) {
-		stages_[i].gateType = (i < 4) ? GateType::SINGLE : GateType::OFF; // First 4 stages active
-		// Wrap noteIndex to valid range based on scale
-		stages_[i].noteIndex = (displayState_.numScaleNotes > 0) ? (i % displayState_.numScaleNotes) : 0;
-		stages_[i].octave = 0;
-		stages_[i].pulseCount = 1;
-		stages_[i].velocitySpread = 0;
-		stages_[i].probability = 100;
-		stages_[i].gateLength = 50;
+	// Only initialize with defaults if current data matches the exact default pattern
+	if (isDefaultPattern()) {
+		setDefaultPattern();
 	}
 
 	// Initialize sequencer state
@@ -65,13 +58,15 @@ void PulseSequencerMode::initialize() {
 		sequencerState_.noteActive[i] = false;
 	}
 
-	// Initialize performance controls
-	performanceControls_.transpose = 0;
-	performanceControls_.octave = 0;
-	performanceControls_.clockDivider = 1; // Default: 16th notes (1=16th, 2=8th, 4=quarter)
-	performanceControls_.numStages = 8;
-	performanceControls_.playOrder = PlayOrder::FORWARDS;
-	performanceControls_.currentStage = 0;
+	// Only initialize performance controls if not already set (preserve loaded data)
+	if (performanceControls_.numStages == 0) {
+		performanceControls_.transpose = 0;
+		performanceControls_.octave = 0;
+		performanceControls_.clockDivider = 1; // Default: 16th notes (1=16th, 2=8th, 4=quarter)
+		performanceControls_.numStages = 8;
+		performanceControls_.playOrder = PlayOrder::FORWARDS;
+		performanceControls_.currentStage = 0;
+	}
 }
 
 void PulseSequencerMode::cleanup() {
@@ -1766,6 +1761,42 @@ Error PulseSequencerMode::readFromFile(Deserializer& reader) {
 	updateScaleNotes();
 
 	return Error::NONE;
+}
+
+// Helper methods for default pattern management
+bool PulseSequencerMode::isDefaultPattern() const {
+	// Check if current pattern matches the exact default we would create
+	for (int32_t i = 0; i < kMaxStages; i++) {
+		// Default pattern: all gates OFF, note 0, pulse count 1, other values default
+		GateType expectedGate = GateType::OFF;
+		int32_t expectedNoteIndex = 0; // First note in scale
+		int32_t expectedOctave = 0;
+		int32_t expectedPulseCount = 1;
+		int32_t expectedVelocitySpread = 0;
+		int32_t expectedProbability = 100;
+		int32_t expectedGateLength = 50;
+
+		if (stages_[i].gateType != expectedGate ||
+		    stages_[i].noteIndex != expectedNoteIndex ||
+		    stages_[i].octave != expectedOctave ||
+		    stages_[i].pulseCount != expectedPulseCount) {
+			return false; // Found non-default data
+		}
+	}
+	return true; // All stages match default pattern
+}
+
+void PulseSequencerMode::setDefaultPattern() {
+	// Set the default pattern - centralized so it's easy to change later
+	for (int32_t i = 0; i < kMaxStages; i++) {
+		stages_[i].gateType = GateType::OFF; // All gates OFF by default
+		stages_[i].noteIndex = 0; // First note in scale
+		stages_[i].octave = 0;
+		stages_[i].pulseCount = 1; // Pulse count 1
+		stages_[i].velocitySpread = 0;
+		stages_[i].probability = 100;
+		stages_[i].gateLength = 50;
+	}
 }
 
 } // namespace deluge::model::clip::sequencer::modes

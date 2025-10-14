@@ -43,7 +43,11 @@ void StepSequencerMode::initialize() {
 	activeNoteCode_ = -1;
 	ticksPerSixteenthNote_ = 0;
 	lastAbsolutePlaybackPos_ = 0;
-	noteScrollOffset_ = 0;
+
+	// Only initialize noteScrollOffset if not already set (preserve loaded data)
+	if (noteScrollOffset_ == 0) {
+		noteScrollOffset_ = 0;
+	}
 
 	// Update scale notes first
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -51,12 +55,9 @@ void StepSequencerMode::initialize() {
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(getCurrentClip());
 	updateScaleNotes(modelStackWithTimelineCounter);
 
-	// Initialize all steps with defaults
-	for (int32_t i = 0; i < kNumSteps; i++) {
-		steps_[i].gateType = GateType::ON;
-		steps_[i].octave = 0; // Default: no octave shift
-		// Wrap noteIndex to valid scale range
-		steps_[i].noteIndex = (numScaleNotes_ > 0) ? (i % numScaleNotes_) : 0;
+	// Only initialize with defaults if current data matches the exact default pattern
+	if (isDefaultPattern()) {
+		setDefaultPattern();
 	}
 }
 
@@ -792,6 +793,33 @@ void StepSequencerMode::evolveNotes(int32_t mutationRate) {
 	}
 
 	uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0xFFFFFFFF);
+}
+
+// Helper methods for default pattern management
+bool StepSequencerMode::isDefaultPattern() const {
+	// Check if current pattern matches the exact default we would create
+	for (int32_t i = 0; i < kNumSteps; i++) {
+		// Default pattern: all OFF, octave 0, noteIndex 0 (first in scale)
+		GateType expectedGate = GateType::OFF;
+		int32_t expectedOctave = 0;
+		int32_t expectedNoteIndex = 0;
+
+		if (steps_[i].gateType != expectedGate ||
+		    steps_[i].octave != expectedOctave ||
+		    steps_[i].noteIndex != expectedNoteIndex) {
+			return false; // Found non-default data
+		}
+	}
+	return true; // All steps match default pattern
+}
+
+void StepSequencerMode::setDefaultPattern() {
+	// Set the default pattern - centralized so it's easy to change later
+	for (int32_t i = 0; i < kNumSteps; i++) {
+		steps_[i].gateType = GateType::OFF; // All gates OFF by default
+		steps_[i].octave = 0; // Default: no octave shift
+		steps_[i].noteIndex = 0; // First note in scale
+	}
 }
 
 } // namespace deluge::model::clip::sequencer::modes

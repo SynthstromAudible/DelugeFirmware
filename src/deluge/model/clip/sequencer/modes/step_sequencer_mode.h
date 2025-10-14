@@ -133,6 +133,10 @@ private:
 	RGB getNoteGradientColor(int32_t yPos) const; // y3=blue, y7=magenta
 	void displayOctaveValue(int32_t octave);
 	void advanceStep(int32_t direction); // Advance step based on direction mode
+
+	// Default pattern management
+	bool isDefaultPattern() const;
+	void setDefaultPattern();
 };
 
 } // namespace deluge::model::clip::sequencer::modes
