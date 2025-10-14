@@ -48,13 +48,15 @@ public:
 	// Rendering - allow sequencer modes to override pad display
 	// Returns true if the mode handled rendering, false to use default linear rendering
 	virtual bool renderPads(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	                       int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth) { return false; }
+	                        int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth) {
+		return false;
+	}
 
 	// Sidebar rendering - allow sequencer modes to override sidebar (x16-17)
 	// Returns true if the mode handled sidebar, false to use default mute/audition
 	// Default implementation renders control columns
 	virtual bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
 	// Pad input - handle user interaction with pads
 	// Returns true if the mode handled the pad press, false to use default behavior
@@ -75,8 +77,9 @@ public:
 	// Vertical encoder - handle vertical scrolling or control column value adjustment
 	// Returns true if the mode handled the encoder, false to use default behavior
 	// offset: encoder rotation amount (positive = clockwise, negative = counter-clockwise)
-	// This method is FINAL - it handles control columns automatically then delegates to handleModeSpecificVerticalEncoder
-	// Derived classes should NOT override this - override handleModeSpecificVerticalEncoder instead
+	// This method is FINAL - it handles control columns automatically then delegates to
+	// handleModeSpecificVerticalEncoder Derived classes should NOT override this - override
+	// handleModeSpecificVerticalEncoder instead
 	virtual bool handleVerticalEncoder(int32_t offset) final;
 
 	// Vertical encoder button - toggle momentary/toggle mode for control columns
@@ -87,7 +90,9 @@ public:
 	// Return value: ticks until this mode needs to be called again
 	// modelStack: ModelStackWithTimelineCounter* for note triggering
 	// absolutePlaybackPos: playbackHandler.lastSwungTickActioned - NEVER resets, always incrementing
-	virtual int32_t processPlayback(void* modelStack, int32_t absolutePlaybackPos) { return 2147483647; } // Max int = never
+	virtual int32_t processPlayback(void* modelStack, int32_t absolutePlaybackPos) {
+		return 2147483647;
+	} // Max int = never
 
 	// Simple callback when a musical division boundary is crossed
 	// Override this for easy timing - base class handles the modulo math
@@ -178,8 +183,8 @@ protected:
 	// maxNotes: size of the noteArray buffer
 	// octaveRange: how many octaves to span
 	// baseOctave: starting octave (0 = root octave, 1 = one octave up, etc.)
-	static int32_t getScaleNotes(void* modelStackPtr, int32_t* noteArray, int32_t maxNotes,
-	                             int32_t octaveRange = 2, int32_t baseOctave = 0);
+	static int32_t getScaleNotes(void* modelStackPtr, int32_t* noteArray, int32_t maxNotes, int32_t octaveRange = 2,
+	                             int32_t baseOctave = 0);
 
 	// NOTE HELPERS - Easy note triggering
 	// Sends a note on/off to the instrument

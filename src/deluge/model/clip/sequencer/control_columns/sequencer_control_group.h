@@ -25,24 +25,23 @@ namespace deluge::model::clip::sequencer {
 
 // Control types available for sequencer columns
 enum class ControlType {
-	NONE,        // Empty/unused pad (always first)
+	NONE, // Empty/unused pad (always first)
 	// Alphabetically sorted from here:
-	CLOCK_DIV,   // Clock divider/multiplier
-	DIRECTION,   // Playback direction
-	EVOLVE,      // Generative: evolve pattern (gentle at low %, chaotic at high %)
-	OCTAVE,      // Octave shift
-	RANDOM,      // Generative: complete randomization (with % intensity)
-	RESET,       // Generative: reset to init (no value)
-	SCENE,       // Scene capture/recall
-	TRANSPOSE,   // Semitone transpose
+	CLOCK_DIV, // Clock divider/multiplier
+	DIRECTION, // Playback direction
+	EVOLVE,    // Generative: evolve pattern (gentle at low %, chaotic at high %)
+	OCTAVE,    // Octave shift
+	RANDOM,    // Generative: complete randomization (with % intensity)
+	RESET,     // Generative: reset to init (no value)
+	SCENE,     // Scene capture/recall
+	TRANSPOSE, // Semitone transpose
 	MAX
 };
 
 // Pad behavior mode
 enum class PadMode {
-	TOGGLE,     // Press to activate, press again to deactivate
-	MOMENTARY   // Hold to activate, release to deactivate
+	TOGGLE,   // Press to activate, press again to deactivate
+	MOMENTARY // Hold to activate, release to deactivate
 };
 
 } // namespace deluge::model::clip::sequencer
-

@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "model/clip/sequencer/sequencer_mode.h"
 #include "gui/l10n/l10n.h"
 #include "hid/led/pad_leds.h"
+#include "model/clip/sequencer/sequencer_mode.h"
 #include <array>
 
 namespace deluge::model::clip::sequencer::modes {
@@ -47,20 +47,18 @@ public:
 	bool supportsAudio() override { return false; }
 
 	// Pulse Sequencer doesn't support DIRECTION (no step-based playback)
-	bool supportsControlType(ControlType type) override {
-		return type != ControlType::DIRECTION;
-	}
+	bool supportsControlType(ControlType type) override { return type != ControlType::DIRECTION; }
 
 	void initialize() override;
 	void cleanup() override;
 
 	// Override rendering to show pulse pattern
 	bool renderPads(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	               int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth) override;
+	                int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth) override;
 
 	// Override sidebar rendering
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 
 	// Override pad input to handle user interaction
 	bool handlePadPress(int32_t x, int32_t y, int32_t velocity) override;
@@ -70,7 +68,6 @@ protected:
 	bool handleModeSpecificVerticalEncoder(int32_t offset) override;
 
 public:
-
 	// Override playback to generate pulsed notes
 	int32_t processPlayback(void* modelStack, int32_t absolutePlaybackPos) override;
 
@@ -110,9 +107,9 @@ private:
 	// Stage data (8 stages, one per column)
 	struct StageData {
 		GateType gateType = GateType::OFF;
-		int32_t noteIndex = 0;     // Index in current scale
-		int32_t octave = 0;        // Octave offset from base
-		int32_t pulseCount = 1;    // 1-8, default is 1
+		int32_t noteIndex = 0;      // Index in current scale
+		int32_t octave = 0;         // Octave offset from base
+		int32_t pulseCount = 1;     // 1-8, default is 1
 		int32_t velocitySpread = 0; // 0-127, randomization amount
 		int32_t probability = 100;  // 0-100%, chance to play
 		int32_t gateLength = 50;    // 0-100%, note length as % of period
@@ -162,8 +159,8 @@ private:
 	// Display state
 	struct {
 		int32_t gateLineOffset = 0; // 0 to (3+numScaleNotes), shifts entire left side
-		int32_t scaleNotes[12]; // Current scale notes (max 12 for chromatic)
-		int32_t numScaleNotes = 0; // How many notes in current scale
+		int32_t scaleNotes[12];     // Current scale notes (max 12 for chromatic)
+		int32_t numScaleNotes = 0;  // How many notes in current scale
 	} displayState_;
 
 	// Core sequencer methods
@@ -188,17 +185,17 @@ private:
 
 	// Rendering sub-methods
 	void renderPulseCounts(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	                      int32_t imageWidth, int32_t gateLineY);
+	                       int32_t imageWidth, int32_t gateLineY);
 	void renderGateLine(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	                   int32_t imageWidth, int32_t gateLineY);
+	                    int32_t imageWidth, int32_t gateLineY);
 	void renderOctavePads(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	                     int32_t imageWidth, int32_t gateLineY);
+	                      int32_t imageWidth, int32_t gateLineY);
 	void renderNotePads(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	                   int32_t imageWidth, int32_t gateLineY);
+	                    int32_t imageWidth, int32_t gateLineY);
 	void renderRightSideControls(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	                            int32_t imageWidth);
+	                             int32_t imageWidth);
 	void renderPlaybackIndicator(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	                            int32_t imageWidth, int32_t gateLineY);
+	                             int32_t imageWidth, int32_t gateLineY);
 
 	// Play order advancement methods
 	void advanceForwards(int32_t& nextStage);

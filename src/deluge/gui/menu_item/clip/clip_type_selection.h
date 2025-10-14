@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "gui/menu_item/selection.h"
 #include "gui/l10n/l10n.h"
+#include "gui/menu_item/selection.h"
 #include "util/containers.h"
 
 namespace deluge::gui::menu_item::clip {

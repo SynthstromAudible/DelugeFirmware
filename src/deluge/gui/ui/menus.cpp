@@ -1391,7 +1391,7 @@ Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,
     {
         &clipTypeSelectionMenu,
-		&soundEditorRootActionsMenu,
+        &soundEditorRootActionsMenu,
         &soundMasterMenu,
         &arpMenu,
         &randomizerMenu,

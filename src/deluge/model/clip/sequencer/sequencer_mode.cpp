@@ -16,12 +16,12 @@
  */
 
 #include "model/clip/sequencer/sequencer_mode.h"
+#include "hid/buttons.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "util/functions.h"
-#include "hid/buttons.h"
 
 namespace deluge::model::clip::sequencer {
 
@@ -123,8 +123,8 @@ bool SequencerMode::handleVerticalEncoderButton() {
 
 // ========== HELPER IMPLEMENTATIONS ==========
 
-int32_t SequencerMode::getScaleNotes(void* modelStackPtr, int32_t* noteArray, int32_t maxNotes,
-                                     int32_t octaveRange, int32_t baseOctave) {
+int32_t SequencerMode::getScaleNotes(void* modelStackPtr, int32_t* noteArray, int32_t maxNotes, int32_t octaveRange,
+                                     int32_t baseOctave) {
 	ModelStackWithTimelineCounter* modelStack = static_cast<ModelStackWithTimelineCounter*>(modelStackPtr);
 	InstrumentClip* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
 
@@ -147,7 +147,8 @@ int32_t SequencerMode::getScaleNotes(void* modelStackPtr, int32_t* noteArray, in
 				}
 			}
 		}
-	} else {
+	}
+	else {
 		// Chromatic mode - all 12 notes per octave
 		for (int32_t octave = 0; octave < octaveRange && noteCount < maxNotes; octave++) {
 			for (int32_t semitone = 0; semitone < 12 && noteCount < maxNotes; semitone++) {
@@ -174,8 +175,10 @@ uint8_t SequencerMode::applyVelocitySpread(uint8_t baseVelocity, int32_t spread)
 	int32_t newVelocity = baseVelocity + variation;
 
 	// Clamp to valid MIDI velocity range
-	if (newVelocity < 1) newVelocity = 1;
-	if (newVelocity > 127) newVelocity = 127;
+	if (newVelocity < 1)
+		newVelocity = 1;
+	if (newVelocity > 127)
+		newVelocity = 127;
 
 	return static_cast<uint8_t>(newVelocity);
 }
@@ -201,12 +204,11 @@ void SequencerMode::playNote(void* modelStackPtr, int32_t noteCode, uint8_t velo
 	memset(mpeValues, 0, sizeof(mpeValues));
 
 	char newModelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    setupModelStackWithThreeMainThingsButNoNoteRow(newModelStackMemory, modelStack->song,
-	                                                   instrument->toModControllable(), clip, &clip->paramManager);
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = setupModelStackWithThreeMainThingsButNoNoteRow(
+	    newModelStackMemory, modelStack->song, instrument->toModControllable(), clip, &clip->paramManager);
 
-	instrument->sendNote(modelStackWithThreeMainThings, true, noteCode, mpeValues,
-	                    MIDI_CHANNEL_NONE, velocity, length, 0);
+	instrument->sendNote(modelStackWithThreeMainThings, true, noteCode, mpeValues, MIDI_CHANNEL_NONE, velocity, length,
+	                     0);
 }
 
 void SequencerMode::stopNote(void* modelStackPtr, int32_t noteCode) {
@@ -215,12 +217,10 @@ void SequencerMode::stopNote(void* modelStackPtr, int32_t noteCode) {
 	MelodicInstrument* instrument = static_cast<MelodicInstrument*>(clip->output);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, modelStack->song,
-	                                                   instrument->toModControllable(), clip, &clip->paramManager);
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = setupModelStackWithThreeMainThingsButNoNoteRow(
+	    modelStackMemory, modelStack->song, instrument->toModControllable(), clip, &clip->paramManager);
 
-	instrument->sendNote(modelStackWithThreeMainThings, false, noteCode, nullptr,
-	                    MIDI_CHANNEL_NONE, 64, 0, 0);
+	instrument->sendNote(modelStackWithThreeMainThings, false, noteCode, nullptr, MIDI_CHANNEL_NONE, 64, 0, 0);
 }
 
 void SequencerMode::renderPlaybackPosition(RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
@@ -235,8 +235,10 @@ void SequencerMode::renderPlaybackPosition(RGB* image, uint8_t occupancyMask[][k
 	int32_t padX = (positionInPattern * kDisplayWidth) / totalLength;
 
 	// Clamp to valid range
-	if (padX < 0) padX = 0;
-	if (padX >= kDisplayWidth) padX = kDisplayWidth - 1;
+	if (padX < 0)
+		padX = 0;
+	if (padX >= kDisplayWidth)
+		padX = kDisplayWidth - 1;
 
 	// Light up the pad on y7
 	int32_t y = 7;

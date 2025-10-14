@@ -16,13 +16,13 @@
  */
 
 #include "gui/menu_item/clip/clip_type_selection.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/ui/ui.h"
+#include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/sequencer/sequencer_mode_manager.h"
 #include "model/song/song.h"
-#include "gui/ui/ui.h"
-#include "gui/views/instrument_clip_view.h"
 
 namespace deluge::gui::menu_item::clip {
 
@@ -45,12 +45,15 @@ void ClipTypeSelection::readCurrentValue() {
 		const std::string& modeName = clip->getSequencerModeName();
 		if (modeName == "step_sequencer") {
 			this->setValue(1); // STEP SEQ
-		} else if (modeName == "pulse_seq") {
+		}
+		else if (modeName == "pulse_seq") {
 			this->setValue(2); // PULSE SEQ
-		} else {
+		}
+		else {
 			this->setValue(0); // Default to PIANO ROLL
 		}
-	} else {
+	}
+	else {
 		this->setValue(0); // PIANO ROLL (default/linear mode)
 	}
 }
@@ -64,10 +67,12 @@ void ClipTypeSelection::writeCurrentValue() {
 		if (selectedMode == 0) {
 			// PIANO ROLL - clear sequencer mode (back to linear)
 			clip->clearSequencerMode();
-		} else if (selectedMode == 1) {
+		}
+		else if (selectedMode == 1) {
 			// STEP SEQ - set step sequencer mode
 			clip->setSequencerMode("step_sequencer");
-		} else if (selectedMode == 2) {
+		}
+		else if (selectedMode == 2) {
 			// PULSE SEQ - set pulse sequencer mode
 			clip->setSequencerMode("pulse_seq");
 		}

@@ -96,12 +96,12 @@ doReturnFalse:
 	currentFolderIsEmpty = false;
 
 	std::string patternFolder = "";
-	
+
 	// Check if current clip has a sequencer mode
 	InstrumentClip* currentClip = getCurrentInstrumentClip();
 	bool hasSequencerMode = (currentClip && currentClip->hasSequencerMode());
 	std::string sequencerModeName = hasSequencerMode ? currentClip->getSequencerModeName() : "";
-	
+
 	if (getCurrentOutputType() == OutputType::KIT) {
 		if (getRootUI()->getAffectEntire()) {
 			defaultDir = PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER;

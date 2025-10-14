@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "model/clip/sequencer/sequencer_mode.h"
 #include "gui/l10n/l10n.h"
+#include "model/clip/sequencer/sequencer_mode.h"
 #include <array>
 
 namespace deluge::model::clip::sequencer::modes {
@@ -56,7 +56,7 @@ public:
 
 	// Rendering
 	bool renderPads(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	               int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth) override;
+	                int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth) override;
 
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
@@ -69,7 +69,6 @@ protected:
 	bool handleModeSpecificVerticalEncoder(int32_t offset) override;
 
 public:
-
 	// Playback - plays the sequence at 16th note intervals
 	int32_t processPlayback(void* modelStack, int32_t absolutePlaybackPos) override;
 
@@ -92,16 +91,16 @@ private:
 
 	// Gate types for each step
 	enum class GateType : int32_t {
-		OFF = 0,   // No note, but step duration counts
-		ON = 1,    // Play note
-		SKIP = 2,  // Skip step entirely, jump to next
+		OFF = 0,  // No note, but step duration counts
+		ON = 1,   // Play note
+		SKIP = 2, // Skip step entirely, jump to next
 	};
 
 	// Per-step data
 	struct Step {
 		GateType gateType{GateType::ON};
-		int32_t octave{0};        // -3 to +3
-		int32_t noteIndex{0};     // Index into scale notes array
+		int32_t octave{0};    // -3 to +3
+		int32_t noteIndex{0}; // Index into scale notes array
 	};
 
 	// State

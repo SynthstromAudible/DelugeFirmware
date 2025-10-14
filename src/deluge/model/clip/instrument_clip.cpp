@@ -16,8 +16,6 @@
  */
 
 #include "model/clip/instrument_clip.h"
-#include "model/clip/sequencer/sequencer_mode_manager.h"
-#include "model/clip/sequencer/modes/step_sequencer_mode.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
@@ -32,6 +30,8 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
+#include "model/clip/sequencer/modes/step_sequencer_mode.h"
+#include "model/clip/sequencer/sequencer_mode_manager.h"
 #include "model/consequence/consequence_note_row_mute.h"
 #include "model/consequence/consequence_scale_add_note.h"
 #include "model/drum/drum_name.h"
@@ -2848,39 +2848,39 @@ createNewParamManager:
 			reader.match(']');
 	}
 
-	// Sequencer mode data (for song loading)
-	else if (!strcmp(tagName, "sequencerMode")) {
-		char const* modeName = nullptr;
+		// Sequencer mode data (for song loading)
+		else if (!strcmp(tagName, "sequencerMode")) {
+			char const* modeName = nullptr;
 
-		// Read sequencer mode attributes first
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "mode")) {
-				modeName = reader.readTagOrAttributeValue();
+			// Read sequencer mode attributes first
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
+				if (!strcmp(tagName, "mode")) {
+					modeName = reader.readTagOrAttributeValue();
 
-				// Set the sequencer mode based on the mode name
-				if (modeName) {
-					if (!hasSequencerMode() || getSequencerModeName() != modeName) {
-						setSequencerMode(modeName);
-					}
-				}
-			}
-			else {
-				// This is a child element, let the sequencer mode handle it
-				if (sequencerMode_) {
-					error = sequencerMode_->readFromFile(reader);
-					if (error != Error::NONE) {
-						goto someError;
+					// Set the sequencer mode based on the mode name
+					if (modeName) {
+						if (!hasSequencerMode() || getSequencerModeName() != modeName) {
+							setSequencerMode(modeName);
+						}
 					}
 				}
 				else {
-					reader.exitTag(tagName);
+					// This is a child element, let the sequencer mode handle it
+					if (sequencerMode_) {
+						error = sequencerMode_->readFromFile(reader);
+						if (error != Error::NONE) {
+							goto someError;
+						}
+					}
+					else {
+						reader.exitTag(tagName);
+					}
 				}
 			}
 		}
-	}
 
-	// These are the expression params for MPE
-	else if (!strcmp(tagName, "pitchBend")) {
+		// These are the expression params for MPE
+		else if (!strcmp(tagName, "pitchBend")) {
 			temp = 0;
 doReadExpressionParam:
 			paramManager.ensureExpressionParamSetExists();

@@ -16,12 +16,12 @@
  */
 
 #include "model/clip/sequencer/control_columns/sequencer_control_state.h"
-#include "model/clip/sequencer/sequencer_mode.h"
-#include "hid/display/display.h"
-#include "hid/led/pad_leds.h"
-#include "hid/buttons.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
+#include "hid/buttons.h"
+#include "hid/display/display.h"
+#include "hid/led/pad_leds.h"
+#include "model/clip/sequencer/sequencer_mode.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <cstring>
@@ -31,21 +31,21 @@ namespace deluge::model::clip::sequencer {
 
 // Forward declare helper functions from sequencer_control_group.cpp
 namespace helpers {
-	const char* getTypeName(ControlType type);
-	RGB getColorForType(ControlType type);
-	const int32_t* getAvailableValues(ControlType type);
-	int32_t getNumAvailableValues(ControlType type);
-	int32_t getValue(ControlType type, int32_t valueIndex);
-	const char* formatValue(ControlType type, int32_t value);
-}
+const char* getTypeName(ControlType type);
+RGB getColorForType(ControlType type);
+const int32_t* getAvailableValues(ControlType type);
+int32_t getNumAvailableValues(ControlType type);
+int32_t getValue(ControlType type, int32_t valueIndex);
+const char* formatValue(ControlType type, int32_t value);
+} // namespace helpers
 
 namespace {
-	// Helper: Request UI refresh for sidebar
-	void refreshSidebar() {
-		uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
-		PadLEDs::sendOutSidebarColoursSoon();
-	}
+// Helper: Request UI refresh for sidebar
+void refreshSidebar() {
+	uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+	PadLEDs::sendOutSidebarColoursSoon();
 }
+} // namespace
 
 SequencerControlState::SequencerControlState() {
 	// Initialize scene buffers
@@ -90,14 +90,14 @@ void SequencerControlState::initialize() {
 
 	// Set useful default values
 	// Octave +1 (valueIndex 5 in kOctaveValues = +1)
-	pads_[0].valueIndex = 6;  // +1 octave (kOctaveValues[6] = +1)
+	pads_[0].valueIndex = 6; // +1 octave (kOctaveValues[6] = +1)
 
 	// Transpose +5 (valueIndex 17 in kTransposeValues = +5)
 	pads_[1].valueIndex = 17; // +5 semitones (kTransposeValues[17] = +5)
 
 	// Scenes: 1-2
-	pads_[8].valueIndex = 0;  // Scene 1
-	pads_[9].valueIndex = 1;  // Scene 2
+	pads_[8].valueIndex = 0; // Scene 1
+	pads_[9].valueIndex = 1; // Scene 2
 
 	// Random: default to 50%
 	pads_[14].valueIndex = 4; // 50% for random
@@ -133,8 +133,8 @@ void SequencerControlState::deactivateAllScenePads() {
 }
 
 void SequencerControlState::renderPadAtPosition(int32_t y, int32_t x, const ControlPad& pad,
-                                                 RGB image[][kDisplayWidth + kSideBarWidth],
-                                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+                                                RGB image[][kDisplayWidth + kSideBarWidth],
+                                                uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	RGB color = helpers::getColorForType(pad.type);
 	bool isBright = pad.active || pad.held;
 	bool isEmpty = (pad.type == ControlType::SCENE && !pad.sceneValid) || (pad.type == ControlType::NONE);
@@ -144,19 +144,13 @@ void SequencerControlState::renderPadAtPosition(int32_t y, int32_t x, const Cont
 	}
 	else if (isEmpty) {
 		// Very dim for empty scenes or unused pads
-		image[y][x] = RGB{
-			static_cast<uint8_t>(color.r / 16),
-			static_cast<uint8_t>(color.g / 16),
-			static_cast<uint8_t>(color.b / 16)
-		};
+		image[y][x] = RGB{static_cast<uint8_t>(color.r / 16), static_cast<uint8_t>(color.g / 16),
+		                  static_cast<uint8_t>(color.b / 16)};
 	}
 	else {
 		// Normal dim
-		image[y][x] = RGB{
-			static_cast<uint8_t>(color.r / 8),
-			static_cast<uint8_t>(color.g / 8),
-			static_cast<uint8_t>(color.b / 8)
-		};
+		image[y][x] = RGB{static_cast<uint8_t>(color.r / 8), static_cast<uint8_t>(color.g / 8),
+		                  static_cast<uint8_t>(color.b / 8)};
 	}
 
 	if (occupancyMask) {
@@ -237,7 +231,7 @@ bool SequencerControlState::handleSceneRecall(ControlPad& pad, SequencerMode* mo
 // ========== RENDERING ==========
 
 void SequencerControlState::render(RGB image[][kDisplayWidth + kSideBarWidth],
-                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	// Render x16 column (pads 0-7)
 	for (int32_t y = 0; y < 8; y++) {
 		renderPadAtPosition(y, kDisplayWidth, pads_[y], image, occupancyMask);
@@ -435,17 +429,9 @@ bool SequencerControlState::handleHorizontalEncoder(int32_t heldX, int32_t heldY
 	ControlPad& pad = pads_[padIndex];
 
 	// All available control types (alphabetically sorted, NONE always first)
-	constexpr ControlType availableTypes[] = {
-		ControlType::NONE,
-		ControlType::CLOCK_DIV,
-		ControlType::DIRECTION,
-		ControlType::EVOLVE,
-		ControlType::OCTAVE,
-		ControlType::RANDOM,
-		ControlType::RESET,
-		ControlType::SCENE,
-		ControlType::TRANSPOSE
-	};
+	constexpr ControlType availableTypes[] = {ControlType::NONE,   ControlType::CLOCK_DIV, ControlType::DIRECTION,
+	                                          ControlType::EVOLVE, ControlType::OCTAVE,    ControlType::RANDOM,
+	                                          ControlType::RESET,  ControlType::SCENE,     ControlType::TRANSPOSE};
 	constexpr int32_t numTypes = sizeof(availableTypes) / sizeof(availableTypes[0]);
 
 	// Find current type index
@@ -585,8 +571,7 @@ bool SequencerControlState::handleVerticalEncoder(int32_t heldX, int32_t heldY, 
 	if (display) {
 		int32_t val = helpers::getValue(pad.type, pad.valueIndex);
 		static char popup[40];
-		snprintf(popup, sizeof(popup), "%s: %s", helpers::getTypeName(pad.type),
-		         helpers::formatValue(pad.type, val));
+		snprintf(popup, sizeof(popup), "%s: %s", helpers::getTypeName(pad.type), helpers::formatValue(pad.type, val));
 		display->displayPopup(popup);
 	}
 
@@ -603,9 +588,8 @@ bool SequencerControlState::handleVerticalEncoderButton(int32_t heldX, int32_t h
 	ControlPad& pad = pads_[padIndex];
 
 	// Toggle mode for pads that support it
-	if (pad.type != ControlType::NONE && pad.type != ControlType::SCENE
-	    && pad.type != ControlType::RESET && pad.type != ControlType::RANDOM
-	    && pad.type != ControlType::EVOLVE) {
+	if (pad.type != ControlType::NONE && pad.type != ControlType::SCENE && pad.type != ControlType::RESET
+	    && pad.type != ControlType::RANDOM && pad.type != ControlType::EVOLVE) {
 
 		pad.mode = (pad.mode == PadMode::TOGGLE) ? PadMode::MOMENTARY : PadMode::TOGGLE;
 
@@ -719,9 +703,9 @@ bool SequencerControlState::restoreState(const void* buffer, size_t size) {
 	return true;
 }
 
-void SequencerControlState::applyControlValues(int32_t clockDivider, int32_t octaveShift, int32_t transpose, int32_t direction,
-                                                int32_t* unmatchedClock, int32_t* unmatchedOctave,
-                                                int32_t* unmatchedTranspose, int32_t* unmatchedDirection) {
+void SequencerControlState::applyControlValues(int32_t clockDivider, int32_t octaveShift, int32_t transpose,
+                                               int32_t direction, int32_t* unmatchedClock, int32_t* unmatchedOctave,
+                                               int32_t* unmatchedTranspose, int32_t* unmatchedDirection) {
 	// Initialize unmatched outputs (assume all are unmatched initially)
 	*unmatchedClock = clockDivider;
 	*unmatchedOctave = octaveShift;
@@ -749,7 +733,8 @@ void SequencerControlState::applyControlValues(int32_t clockDivider, int32_t oct
 				}
 			}
 		}
-	} else {
+	}
+	else {
 		*unmatchedClock = 1; // Default value, no need to apply
 	}
 
@@ -809,7 +794,8 @@ void SequencerControlState::applyControlValues(int32_t clockDivider, int32_t oct
 }
 
 void SequencerControlState::clearBaseControlForType(ControlType type, SequencerMode* mode) {
-	if (!mode) return;
+	if (!mode)
+		return;
 
 	switch (type) {
 	case ControlType::CLOCK_DIV:
@@ -1007,7 +993,8 @@ Error SequencerControlState::readFromFile(Deserializer& reader) {
 							// Hex data inside the tag
 							char const* hexData = reader.readTagOrAttributeValue();
 
-							if (sceneIndex >= 0 && sceneIndex < kMaxScenes && sceneSize > 0 && sceneSize <= static_cast<int32_t>(kMaxSceneDataSize)) {
+							if (sceneIndex >= 0 && sceneIndex < kMaxScenes && sceneSize > 0
+			    && sceneSize <= static_cast<int32_t>(kMaxSceneDataSize)) {
 								// Skip "0x" prefix
 								if (hexData[0] == '0' && hexData[1] == 'x') {
 									hexData += 2;

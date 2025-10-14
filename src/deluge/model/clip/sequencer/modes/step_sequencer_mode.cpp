@@ -113,7 +113,8 @@ void StepSequencerMode::updateScaleNotes(void* modelStackPtr) {
 }
 
 void StepSequencerMode::cycleGateType(int32_t step) {
-	if (step < 0 || step >= kNumSteps) return;
+	if (step < 0 || step >= kNumSteps)
+		return;
 
 	switch (steps_[step].gateType) {
 	case GateType::OFF:
@@ -129,26 +130,33 @@ void StepSequencerMode::cycleGateType(int32_t step) {
 }
 
 void StepSequencerMode::adjustOctave(int32_t step, int32_t delta) {
-	if (step < 0 || step >= kNumSteps) return;
+	if (step < 0 || step >= kNumSteps)
+		return;
 
 	steps_[step].octave += delta;
 	// Clamp to -3 to +3 range
-	if (steps_[step].octave < -3) steps_[step].octave = -3;
-	if (steps_[step].octave > 3) steps_[step].octave = 3;
+	if (steps_[step].octave < -3)
+		steps_[step].octave = -3;
+	if (steps_[step].octave > 3)
+		steps_[step].octave = 3;
 }
 
 void StepSequencerMode::setNoteIndex(int32_t step, int32_t noteIndex) {
-	if (step < 0 || step >= kNumSteps) return;
-	if (noteIndex < 0 || noteIndex >= numScaleNotes_) return;
+	if (step < 0 || step >= kNumSteps)
+		return;
+	if (noteIndex < 0 || noteIndex >= numScaleNotes_)
+		return;
 
 	steps_[step].noteIndex = noteIndex;
 }
 
 int32_t StepSequencerMode::calculateNoteCode(const Step& step, const CombinedEffects& effects) const {
-	if (numScaleNotes_ == 0) return 60; // Default to middle C
+	if (numScaleNotes_ == 0)
+		return 60; // Default to middle C
 
 	Song* song = currentSong;
-	if (!song) return 60;
+	if (!song)
+		return 60;
 
 	int32_t rootNote = song->key.rootNote;
 
@@ -156,8 +164,10 @@ int32_t StepSequencerMode::calculateNoteCode(const Step& step, const CombinedEff
 	int32_t noteIndexInScale = step.noteIndex + effects.transpose;
 
 	// Wrap to scale (same as Pulse Sequencer)
-	while (noteIndexInScale < 0) noteIndexInScale += numScaleNotes_;
-	while (noteIndexInScale >= numScaleNotes_) noteIndexInScale -= numScaleNotes_;
+	while (noteIndexInScale < 0)
+		noteIndexInScale += numScaleNotes_;
+	while (noteIndexInScale >= numScaleNotes_)
+		noteIndexInScale -= numScaleNotes_;
 
 	// Get scale degree from transposed index
 	int32_t scaleDegree = scaleNotes_[noteIndexInScale]; // 0-11
@@ -167,8 +177,10 @@ int32_t StepSequencerMode::calculateNoteCode(const Step& step, const CombinedEff
 	int32_t noteCode = rootNote + scaleDegree + 48 + (step.octave * 12) + (effects.octaveShift * 12);
 
 	// Clamp to MIDI range
-	if (noteCode < 0) noteCode = 0;
-	if (noteCode > 127) noteCode = 127;
+	if (noteCode < 0)
+		noteCode = 0;
+	if (noteCode > 127)
+		noteCode = 127;
 
 	return noteCode;
 }
@@ -185,7 +197,8 @@ RGB StepSequencerMode::getNoteGradientColor(int32_t yPos) const {
 }
 
 void StepSequencerMode::displayOctaveValue(int32_t octave) {
-	if (!display) return;
+	if (!display)
+		return;
 
 	char buffer[8];
 	if (octave > 0) {
@@ -215,16 +228,19 @@ bool StepSequencerMode::handleModeSpecificVerticalEncoder(int32_t offset) {
 
 	// Clamp to valid range (show 5 notes at a time, or all notes if less than 5)
 	int32_t maxScroll = (numScaleNotes_ > 5) ? (numScaleNotes_ - 5) : 0;
-	if (noteScrollOffset_ < 0) noteScrollOffset_ = 0;
-	if (noteScrollOffset_ > maxScroll) noteScrollOffset_ = maxScroll;
+	if (noteScrollOffset_ < 0)
+		noteScrollOffset_ = 0;
+	if (noteScrollOffset_ > maxScroll)
+		noteScrollOffset_ = maxScroll;
 
 	// Refresh only note pads (y3-y7)
 	uiNeedsRendering(&instrumentClipView, kNoteRows, 0);
 	return true;
 }
 
-bool StepSequencerMode::renderPads(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                    int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth) {
+bool StepSequencerMode::renderPads(uint32_t whichRows, RGB* image,
+                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xScroll,
+                                   uint32_t xZoom, int32_t renderWidth, int32_t imageWidth) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -239,7 +255,8 @@ bool StepSequencerMode::renderPads(uint32_t whichRows, RGB* image, uint8_t occup
 		bool isCurrentStep = (x == currentStep_);
 
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			if (!(whichRows & (1 << y))) continue;
+			if (!(whichRows & (1 << y)))
+				continue;
 
 			RGB color{0, 0, 0};
 
@@ -274,7 +291,7 @@ bool StepSequencerMode::renderPads(uint32_t whichRows, RGB* image, uint8_t occup
 			}
 			// y3-y7: Note pads (5 notes with scrolling)
 			else if (y >= 3 && y <= 7) {
-				int32_t displaySlot = y - 3; // 0-4 (which of 5 visible pads)
+				int32_t displaySlot = y - 3;                               // 0-4 (which of 5 visible pads)
 				int32_t actualNoteIndex = displaySlot + noteScrollOffset_; // Actual note in scale
 
 				if (actualNoteIndex < numScaleNotes_ && actualNoteIndex == step.noteIndex) {
@@ -328,9 +345,15 @@ bool StepSequencerMode::handlePadPress(int32_t x, int32_t y, int32_t velocity) {
 		if (display) {
 			const char* gateTypeName = "";
 			switch (steps_[x].gateType) {
-			case GateType::OFF:  gateTypeName = "OFF"; break;
-			case GateType::ON:   gateTypeName = "ON"; break;
-			case GateType::SKIP: gateTypeName = "SKIP"; break;
+			case GateType::OFF:
+				gateTypeName = "OFF";
+				break;
+			case GateType::ON:
+				gateTypeName = "ON";
+				break;
+			case GateType::SKIP:
+				gateTypeName = "SKIP";
+				break;
 			}
 			display->displayPopup(gateTypeName);
 		}
@@ -397,7 +420,8 @@ int32_t StepSequencerMode::processPlayback(void* modelStackPtr, int32_t absolute
 	int32_t adjustedTicksPerStep = ticksPerSixteenthNote_;
 	if (effects.clockDivider > 1) {
 		adjustedTicksPerStep *= effects.clockDivider; // Divide: slower
-	} else if (effects.clockDivider < -1) {
+	}
+	else if (effects.clockDivider < -1) {
 		adjustedTicksPerStep /= (-effects.clockDivider); // Multiply: faster
 	}
 
@@ -524,10 +548,8 @@ bool StepSequencerMode::recallScene(const void* buffer, size_t size) {
 
 	// Restore control values by activating matching pads
 	int32_t unmatchedClock, unmatchedOctave, unmatchedTranspose, unmatchedDirection;
-	controlColumnState_.applyControlValues(
-		scene->clockDivider, scene->octaveShift, scene->transpose, scene->direction,
-		&unmatchedClock, &unmatchedOctave, &unmatchedTranspose, &unmatchedDirection
-	);
+	controlColumnState_.applyControlValues(scene->clockDivider, scene->octaveShift, scene->transpose, scene->direction,
+	                                       &unmatchedClock, &unmatchedOctave, &unmatchedTranspose, &unmatchedDirection);
 
 	// Apply unmatched values to base controls (invisible effects)
 	setBaseClockDivider(unmatchedClock);
@@ -548,7 +570,7 @@ void StepSequencerMode::writeToFile(Serializer& writer, bool includeScenes) {
 	writer.writeAttribute("noteScrollOffset", noteScrollOffset_);
 
 	// Prepare step data as byte array for writeAttributeHexBytes
-	uint8_t stepData[kNumSteps * 3];  // 3 bytes per step
+	uint8_t stepData[kNumSteps * 3]; // 3 bytes per step
 	for (int32_t i = 0; i < kNumSteps; ++i) {
 		int32_t offset = i * 3;
 		// Byte 0: noteIndex (0-31)
@@ -629,7 +651,8 @@ void StepSequencerMode::advanceStep(int32_t direction) {
 
 	case 1: // Backward
 		currentStep_ = (currentStep_ - 1);
-		if (currentStep_ < 0) currentStep_ = kNumSteps - 1;
+		if (currentStep_ < 0)
+			currentStep_ = kNumSteps - 1;
 		break;
 
 	case 2: // Ping Pong
@@ -658,7 +681,7 @@ void StepSequencerMode::resetToInit() {
 	// Reset all steps to default state
 	for (int32_t i = 0; i < kNumSteps; ++i) {
 		steps_[i].gateType = GateType::ON;
-		steps_[i].noteIndex = i % numScaleNotes_;  // Simple ascending pattern
+		steps_[i].noteIndex = i % numScaleNotes_; // Simple ascending pattern
 		steps_[i].octave = 0;
 	}
 
@@ -709,13 +732,14 @@ void StepSequencerMode::evolveNotes(int32_t mutationRate) {
 			// Always mutate notes
 			if (numScaleNotes_ > 0) {
 				int32_t change;
-				if (isHighRate) {
-					// High rate: larger jumps
-					change = (rand() % 5) - 2; // -2 to +2
-				} else {
-					// Low rate: gentle steps
-					change = (rand() % 3) - 1; // -1, 0, +1
-				}
+			if (isHighRate) {
+				// High rate: larger jumps
+				change = (rand() % 5) - 2; // -2 to +2
+			}
+			else {
+				// Low rate: gentle steps
+				change = (rand() % 3) - 1; // -1, 0, +1
+			}
 
 				steps_[i].noteIndex += change;
 
@@ -734,8 +758,10 @@ void StepSequencerMode::evolveNotes(int32_t mutationRate) {
 				if ((rand() % 100) < 40) {
 					int32_t octaveChange = (rand() % 3) - 1; // -1, 0, or +1
 					steps_[i].octave += octaveChange;
-					if (steps_[i].octave < -3) steps_[i].octave = -3;
-					if (steps_[i].octave > 3) steps_[i].octave = 3;
+				if (steps_[i].octave < -3)
+					steps_[i].octave = -3;
+				if (steps_[i].octave > 3)
+					steps_[i].octave = 3;
 				}
 
 				// Mutate gates (25% chance)
@@ -754,8 +780,9 @@ void StepSequencerMode::evolveNotes(int32_t mutationRate) {
 
 // Register this mode with the manager
 namespace {
-	static auto registered_step_sequencer_mode = []() {
-		deluge::model::clip::sequencer::SequencerModeManager::instance().registerMode<deluge::model::clip::sequencer::modes::StepSequencerMode>("step_sequencer");
-		return true;
-	}();
-}
+static auto registered_step_sequencer_mode = []() {
+	deluge::model::clip::sequencer::SequencerModeManager::instance()
+	    .registerMode<deluge::model::clip::sequencer::modes::StepSequencerMode>("step_sequencer");
+	return true;
+}();
+} // namespace

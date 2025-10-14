@@ -36,7 +36,7 @@ public:
 	static SequencerModeManager& instance();
 
 	// Registration system for sequencer modes
-	template<typename T>
+	template <typename T>
 	void registerMode(const std::string& name) {
 		static_assert(std::is_base_of_v<SequencerMode, T>, "T must derive from SequencerMode");
 		factories_[name] = []() { return std::make_unique<T>(); };
@@ -65,10 +65,10 @@ private:
 // Convenient registration macro for sequencer modes
 #define REGISTER_SEQUENCER_MODE(ClassName, ModeName)                                                                   \
 	namespace {                                                                                                        \
-		static auto registered_##ClassName##_mode = []() {                                                                   \
-			deluge::model::clip::sequencer::SequencerModeManager::instance().registerMode<ClassName>(ModeName);                                      \
-			return true;                                                                                               \
-		}();                                                                                                           \
+	static auto registered_##ClassName##_mode = []() {                                                                 \
+		deluge::model::clip::sequencer::SequencerModeManager::instance().registerMode<ClassName>(ModeName);            \
+		return true;                                                                                                   \
+	}();                                                                                                               \
 	}
 
 } // namespace deluge::model::clip::sequencer

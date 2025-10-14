@@ -14,17 +14,17 @@
  */
 
 #include "model/clip/sequencer/modes/pulse_sequencer_mode.h"
-#include "model/clip/sequencer/sequencer_mode_manager.h"
+#include "gui/ui/ui.h"
+#include "gui/views/instrument_clip_view.h"
+#include "hid/display/display.h"
 #include "model/clip/instrument_clip.h"
+#include "model/clip/sequencer/sequencer_mode_manager.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
-#include "util/functions.h"
-#include "gui/ui/ui.h"
-#include "gui/views/instrument_clip_view.h"
-#include "hid/display/display.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
 #include <algorithm>
 #include <cstdarg>
 #include <cstdio>
@@ -68,7 +68,7 @@ void PulseSequencerMode::initialize() {
 	// Initialize performance controls
 	performanceControls_.transpose = 0;
 	performanceControls_.octave = 0;
-	performanceControls_.clockDivider = 1;  // Default: 16th notes (1=16th, 2=8th, 4=quarter)
+	performanceControls_.clockDivider = 1; // Default: 16th notes (1=16th, 2=8th, 4=quarter)
 	performanceControls_.numStages = 8;
 	performanceControls_.playOrder = PlayOrder::FORWARDS;
 	performanceControls_.currentStage = 0;
@@ -122,8 +122,7 @@ void PulseSequencerMode::updateScaleNotes() {
 // ================================================================================================
 
 bool PulseSequencerMode::isStageActive(int32_t stage) const {
-	return isStageValid(stage) && stage < performanceControls_.numStages
-	       && performanceControls_.stageEnabled[stage];
+	return isStageValid(stage) && stage < performanceControls_.numStages && performanceControls_.stageEnabled[stage];
 }
 
 void PulseSequencerMode::showStagePopup(int32_t stage, const char* format, ...) {
@@ -149,14 +148,16 @@ RGB PulseSequencerMode::getOctaveColor(int32_t octave) const {
 	if (octave == 0) {
 		// At default pitch: white
 		color = RGB{200, 200, 200};
-	} else if (octave > 0) {
+	}
+	else if (octave > 0) {
 		// Going up: brighter orange based on how far up (range 1 to 3)
 		int32_t brightness = (octave * 127) / 3;
-		color = RGB{static_cast<uint8_t>(128 + brightness), static_cast<uint8_t>(64 + brightness/2), 0};
-	} else {
+		color = RGB{static_cast<uint8_t>(128 + brightness), static_cast<uint8_t>(64 + brightness / 2), 0};
+	}
+	else {
 		// Going down: brighter orange based on how far down (range -2 to -1)
 		int32_t brightness = (-octave * 127) / 2;
-		color = RGB{static_cast<uint8_t>(128 + brightness), static_cast<uint8_t>(64 + brightness/2), 0};
+		color = RGB{static_cast<uint8_t>(128 + brightness), static_cast<uint8_t>(64 + brightness / 2), 0};
 	}
 	return color;
 }
@@ -183,23 +184,32 @@ int32_t PulseSequencerMode::getTicksPerPeriod(int32_t baseTicks) const {
 	// Clock divider modes: 0=*2, 1=*1(default), 2=/2, 3=/4, 4=/8, 5=/16, 6=/32, 7=/64
 	int32_t ticks = baseTicks;
 	switch (performanceControls_.clockDivider) {
-	case 0: ticks = baseTicks / 2;   // *2 (32nd notes, faster)
+	case 0:
+		ticks = baseTicks / 2; // *2 (32nd notes, faster)
 		break;
-	case 1: ticks = baseTicks;       // *1 (16th notes, default)
+	case 1:
+		ticks = baseTicks; // *1 (16th notes, default)
 		break;
-	case 2: ticks = baseTicks * 2;   // /2 (8th notes)
+	case 2:
+		ticks = baseTicks * 2; // /2 (8th notes)
 		break;
-	case 3: ticks = baseTicks * 4;   // /4 (quarter notes)
+	case 3:
+		ticks = baseTicks * 4; // /4 (quarter notes)
 		break;
-	case 4: ticks = baseTicks * 8;   // /8
+	case 4:
+		ticks = baseTicks * 8; // /8
 		break;
-	case 5: ticks = baseTicks * 16;  // /16
+	case 5:
+		ticks = baseTicks * 16; // /16
 		break;
-	case 6: ticks = baseTicks * 32;  // /32
+	case 6:
+		ticks = baseTicks * 32; // /32
 		break;
-	case 7: ticks = baseTicks * 64;  // /64
+	case 7:
+		ticks = baseTicks * 64; // /64
 		break;
-	default: ticks = baseTicks;
+	default:
+		ticks = baseTicks;
 		break;
 	}
 
@@ -221,8 +231,9 @@ int32_t PulseSequencerMode::getTicksPerPeriod(int32_t baseTicks) const {
 // RENDERING
 // ================================================================================================
 
-bool PulseSequencerMode::renderPads(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                   int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth) {
+bool PulseSequencerMode::renderPads(uint32_t whichRows, RGB* image,
+                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xScroll,
+                                    uint32_t xZoom, int32_t renderWidth, int32_t imageWidth) {
 	// Clear all pads first
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		if (whichRows & (1 << y)) {
@@ -271,22 +282,32 @@ bool PulseSequencerMode::renderPads(uint32_t whichRows, RGB* image, uint8_t occu
 			if (sequencerState_.gatePadFlashing && sequencerState_.lastPlayedStage == stage) {
 				uint32_t currentTime = playbackHandler.getCurrentInternalTickCount();
 				uint32_t flashElapsed = currentTime - sequencerState_.flashStartTime;
-				if (flashElapsed < sequencerState_.flashDuration) {
-					shouldFlash = true;
-				} else {
-					sequencerState_.gatePadFlashing = false;
-				}
+			if (flashElapsed < sequencerState_.flashDuration) {
+				shouldFlash = true;
+			}
+			else {
+				sequencerState_.gatePadFlashing = false;
+			}
 			}
 
 			RGB color;
 			if (shouldFlash) {
 				color = (stages_[stage].gateType == GateType::OFF) ? RGB{255, 100, 0} : RGB{255, 0, 0};
-			} else {
+			}
+			else {
 				switch (stages_[stage].gateType) {
-				case GateType::OFF: color = RGB{100, 100, 100}; break;
-				case GateType::SINGLE: color = RGB{0, 255, 0}; break;
-				case GateType::MULTIPLE: color = RGB{0, 0, 255}; break;
-				case GateType::HELD: color = RGB{255, 0, 255}; break;
+				case GateType::OFF:
+					color = RGB{100, 100, 100};
+					break;
+				case GateType::SINGLE:
+					color = RGB{0, 255, 0};
+					break;
+				case GateType::MULTIPLE:
+					color = RGB{0, 0, 255};
+					break;
+				case GateType::HELD:
+					color = RGB{255, 0, 255};
+					break;
 				}
 			}
 
@@ -665,8 +686,10 @@ void PulseSequencerMode::playNoteForStage(void* modelStackPtr, int32_t stage) {
 	int32_t noteIndexInScale = stageData.noteIndex + totalTranspose;
 
 	// Wrap to scale
-	while (noteIndexInScale < 0) noteIndexInScale += numNotes;
-	while (noteIndexInScale >= numNotes) noteIndexInScale -= numNotes;
+	while (noteIndexInScale < 0)
+		noteIndexInScale += numNotes;
+	while (noteIndexInScale >= numNotes)
+		noteIndexInScale -= numNotes;
 
 	// Get note from scale (already includes the root note from getScaleNotes)
 	int32_t note = scaleNotes[noteIndexInScale];
@@ -680,8 +703,10 @@ void PulseSequencerMode::playNoteForStage(void* modelStackPtr, int32_t stage) {
 	note += (stageData.octave * 12) + (totalOctaveShift * 12);
 
 	// Clamp to MIDI range
-	if (note < 0) note = 0;
-	if (note > 127) note = 127;
+	if (note < 0)
+		note = 0;
+	if (note > 127)
+		note = 127;
 
 	// Calculate note length based on gate type
 	ModelStackWithTimelineCounter* modelStack = static_cast<ModelStackWithTimelineCounter*>(modelStackPtr);
@@ -719,7 +744,8 @@ void PulseSequencerMode::playNoteForStage(void* modelStackPtr, int32_t stage) {
 
 		// Apply gate length to note duration
 		noteLength = (noteLength * stageData.gateLength) / 100;
-		if (noteLength < 1) noteLength = 1; // Ensure at least 1 tick
+		if (noteLength < 1)
+			noteLength = 1; // Ensure at least 1 tick
 
 		// Send note-on (Deluge convention: pass length but we still track note-off ourselves)
 		playNote(modelStackPtr, note, velocity, noteLength);
@@ -991,8 +1017,10 @@ bool PulseSequencerMode::handlePadPress(int32_t x, int32_t y, int32_t velocity) 
 					int32_t totalOctaveShift = performanceControls_.octave + effects.octaveShift;
 					noteCode += (stages_[stage].octave * 12) + (totalOctaveShift * 12);
 
-					if (noteCode < 0) noteCode = 0;
-					if (noteCode > 127) noteCode = 127;
+				if (noteCode < 0)
+					noteCode = 0;
+				if (noteCode > 127)
+					noteCode = 127;
 
 				char noteNameBuffer[kNoteNameBufferSize];
 				int32_t lengthDummy = 0;
@@ -1114,7 +1142,8 @@ bool PulseSequencerMode::handleModeSpecificVerticalEncoder(int32_t offset) {
 // ================================================================================================
 
 void PulseSequencerMode::handleGateType(int32_t stage) {
-	if (!isStageValid(stage)) return;
+	if (!isStageValid(stage))
+		return;
 
 	// Cycle through gate types: OFF -> SINGLE -> MULTIPLE -> HELD -> OFF
 	int32_t currentType = static_cast<int32_t>(stages_[stage].gateType);
@@ -1129,7 +1158,8 @@ void PulseSequencerMode::handleGateType(int32_t stage) {
 }
 
 void PulseSequencerMode::handleNoteSelection(int32_t stage) {
-	if (!isStageValid(stage)) return;
+	if (!isStageValid(stage))
+		return;
 
 	// Cycle through note indices (0-15 for more range)
 	stages_[stage].noteIndex = (stages_[stage].noteIndex + 1) % 16;
@@ -1138,7 +1168,8 @@ void PulseSequencerMode::handleNoteSelection(int32_t stage) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	if (clip && clip->output->type == OutputType::SYNTH) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
 		int32_t scaleNotes[64];
 		int32_t numNotes = getScaleNotes(modelStack, scaleNotes, 64, 6, 0);
@@ -1150,15 +1181,19 @@ void PulseSequencerMode::handleNoteSelection(int32_t stage) {
 			// Calculate note with current settings (performance controls + control columns)
 			int32_t totalTranspose = performanceControls_.transpose + effects.transpose;
 			int32_t noteIndexInScale = stages_[stage].noteIndex + totalTranspose;
-			while (noteIndexInScale < 0) noteIndexInScale += numNotes;
-			while (noteIndexInScale >= numNotes) noteIndexInScale -= numNotes;
+			while (noteIndexInScale < 0)
+				noteIndexInScale += numNotes;
+			while (noteIndexInScale >= numNotes)
+				noteIndexInScale -= numNotes;
 
 			int32_t note = scaleNotes[noteIndexInScale] + 48; // Base C3 offset
 			int32_t totalOctaveShift = performanceControls_.octave + effects.octaveShift;
 			note += (stages_[stage].octave * 12) + (totalOctaveShift * 12);
 
-			if (note < 0) note = 0;
-			if (note > 127) note = 127;
+			if (note < 0)
+				note = 0;
+			if (note > 127)
+				note = 127;
 
 			// Convert to note name
 			char noteNameBuffer[kNoteNameBufferSize];
@@ -1176,11 +1211,14 @@ void PulseSequencerMode::handleNoteSelection(int32_t stage) {
 }
 
 void PulseSequencerMode::handleOctaveAdjustment(int32_t stage, int32_t direction) {
-	if (!isStageValid(stage)) return;
+	if (!isStageValid(stage))
+		return;
 
 	int32_t newOctave = stages_[stage].octave + direction;
-	if (newOctave < -2) newOctave = -2;
-	if (newOctave > 3) newOctave = 3;
+	if (newOctave < -2)
+		newOctave = -2;
+	if (newOctave > 3)
+		newOctave = 3;
 
 	stages_[stage].octave = newOctave;
 
@@ -1207,8 +1245,10 @@ void PulseSequencerMode::handlePulseCount(int32_t stage, int32_t position) {
 }
 
 void PulseSequencerMode::handleStageCountChange(int32_t numStages) {
-	if (numStages < 1) numStages = 1;
-	if (numStages > 8) numStages = 8;
+	if (numStages < 1)
+		numStages = 1;
+	if (numStages > 8)
+		numStages = 8;
 
 	if (performanceControls_.numStages != numStages) {
 		performanceControls_.numStages = numStages;
@@ -1231,7 +1271,8 @@ void PulseSequencerMode::handlePlayOrderChange(int32_t playOrderIndex) {
 		performanceControls_.pingPongDirection = 1;
 
 		// Show popup with order name
-		const char* orderNames[] = {"FORWARDS", "BACKWARDS", "PING PONG", "RANDOM", "PEDAL", "SKIP 2", "PENDULUM", "SPIRAL"};
+		const char* orderNames[] = {"FORWARDS", "BACKWARDS", "PING PONG", "RANDOM",
+		                            "PEDAL",    "SKIP 2",    "PENDULUM",  "SPIRAL"};
 		display->displayPopup(orderNames[playOrderIndex]);
 	}
 }
@@ -1283,7 +1324,8 @@ void PulseSequencerMode::handleOctaveChange(int32_t direction) {
 }
 
 void PulseSequencerMode::handleStageToggle(int32_t stage) {
-	if (!isStageValid(stage)) return;
+	if (!isStageValid(stage))
+		return;
 	performanceControls_.stageEnabled[stage] = !performanceControls_.stageEnabled[stage];
 
 	const char* status = performanceControls_.stageEnabled[stage] ? "ON" : "OFF";
@@ -1293,7 +1335,8 @@ void PulseSequencerMode::handleStageToggle(int32_t stage) {
 }
 
 void PulseSequencerMode::handleVelocitySpread(int32_t stage) {
-	if (!isStageValid(stage)) return;
+	if (!isStageValid(stage))
+		return;
 
 	static const int32_t spreads[] = {0, 20, 40, 60, 80, 100, 127};
 	stages_[stage].velocitySpread = cycleValue(stages_[stage].velocitySpread, spreads, 7);
@@ -1301,7 +1344,8 @@ void PulseSequencerMode::handleVelocitySpread(int32_t stage) {
 }
 
 void PulseSequencerMode::handleProbability(int32_t stage) {
-	if (!isStageValid(stage)) return;
+	if (!isStageValid(stage))
+		return;
 
 	static const int32_t probs[] = {100, 80, 60, 40, 20};
 	stages_[stage].probability = cycleValue(stages_[stage].probability, probs, 5);
@@ -1309,7 +1353,8 @@ void PulseSequencerMode::handleProbability(int32_t stage) {
 }
 
 void PulseSequencerMode::handleGateLength(int32_t stage) {
-	if (!isStageValid(stage)) return;
+	if (!isStageValid(stage))
+		return;
 
 	static const int32_t lengths[] = {10, 25, 50, 75, 90, 100};
 	stages_[stage].gateLength = cycleValue(stages_[stage].gateLength, lengths, 6);
@@ -1319,7 +1364,7 @@ void PulseSequencerMode::handleGateLength(int32_t stage) {
 void PulseSequencerMode::resetToDefaults() {
 	performanceControls_.transpose = 0;
 	performanceControls_.octave = 0;
-	performanceControls_.clockDivider = 1;  // Default: 16th notes (1=16th, 2=8th, 4=quarter)
+	performanceControls_.clockDivider = 1; // Default: 16th notes (1=16th, 2=8th, 4=quarter)
 	performanceControls_.numStages = 8;
 	performanceControls_.playOrder = PlayOrder::FORWARDS;
 	performanceControls_.pingPongDirection = 1;
@@ -1407,8 +1452,10 @@ void PulseSequencerMode::evolveSequence() {
 			int32_t newNote = currentNote + noteChange;
 
 			// Wrap around within the current scale
-			while (newNote < 0) newNote += maxNoteIndex;
-			while (newNote >= maxNoteIndex) newNote -= maxNoteIndex;
+			while (newNote < 0)
+				newNote += maxNoteIndex;
+			while (newNote >= maxNoteIndex)
+				newNote -= maxNoteIndex;
 
 			stages_[stageToChange].noteIndex = newNote;
 		}
@@ -1417,8 +1464,10 @@ void PulseSequencerMode::evolveSequence() {
 			int32_t octaveChange = (getRandom255() < 128) ? -1 : 1;
 			int32_t newOctave = currentOctave + octaveChange;
 
-			if (newOctave < -2) newOctave = -2;
-			if (newOctave > 3) newOctave = 3;
+			if (newOctave < -2)
+				newOctave = -2;
+			if (newOctave > 3)
+				newOctave = 3;
 
 			stages_[stageToChange].octave = newOctave;
 		}
@@ -1454,7 +1503,8 @@ void PulseSequencerMode::evolveNotes(int32_t mutationRate) {
 	int32_t numEvolves;
 	if (mutationRate > 70) {
 		numEvolves = (mutationRate / 20) + 1; // 80% = 5, 100% = 6 evolves
-	} else {
+	}
+	else {
 		numEvolves = (mutationRate / 40) + 1; // 30% = 1, 60% = 2 evolves
 	}
 
@@ -1556,10 +1606,8 @@ bool PulseSequencerMode::recallScene(const void* buffer, size_t size) {
 
 	// Apply control values by activating matching pads
 	int32_t unmatchedClock, unmatchedOctave, unmatchedTranspose, unmatchedDirection;
-	controlColumnState_.applyControlValues(
-		clockDivider, octaveShift, transpose, direction,
-		&unmatchedClock, &unmatchedOctave, &unmatchedTranspose, &unmatchedDirection
-	);
+	controlColumnState_.applyControlValues(clockDivider, octaveShift, transpose, direction, &unmatchedClock,
+	                                       &unmatchedOctave, &unmatchedTranspose, &unmatchedDirection);
 
 	// Apply unmatched values to base controls (invisible effects)
 	setBaseClockDivider(unmatchedClock);
@@ -1713,8 +1761,9 @@ Error PulseSequencerMode::readFromFile(Deserializer& reader) {
 
 // Register this mode with the manager
 namespace {
-	static auto registered_pulse_sequencer_mode = []() {
-		deluge::model::clip::sequencer::SequencerModeManager::instance().registerMode<deluge::model::clip::sequencer::modes::PulseSequencerMode>("pulse_seq");
-		return true;
-	}();
-}
+static auto registered_pulse_sequencer_mode = []() {
+	deluge::model::clip::sequencer::SequencerModeManager::instance()
+	    .registerMode<deluge::model::clip::sequencer::modes::PulseSequencerMode>("pulse_seq");
+	return true;
+}();
+} // namespace

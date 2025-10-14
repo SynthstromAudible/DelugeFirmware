@@ -7257,7 +7257,8 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 	// Check if clip has an active sequencer mode that wants to handle rendering
 	if (clip && clip->hasSequencerMode()) {
 		auto* sequencerMode = clip->getSequencerMode();
-		if (sequencerMode && sequencerMode->renderPads(whichRows, image, occupancyMask, xScroll, xZoom, renderWidth, imageWidth)) {
+		if (sequencerMode
+		    && sequencerMode->renderPads(whichRows, image, occupancyMask, xScroll, xZoom, renderWidth, imageWidth)) {
 			return; // Sequencer mode handled the rendering
 		}
 	}

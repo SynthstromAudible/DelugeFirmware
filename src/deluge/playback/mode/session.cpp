@@ -2481,12 +2481,15 @@ void Session::doTickForward(int32_t posIncrement) {
 			if (activeClip->type == ClipType::INSTRUMENT) {
 				InstrumentClip* instrumentClip = static_cast<InstrumentClip*>(activeClip);
 				if (instrumentClip->hasSequencerMode()) {
-					ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(instrumentClip);
+					ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+					    modelStack->addTimelineCounter(instrumentClip);
 					auto* sequencerMode = instrumentClip->getSequencerMode();
 					if (sequencerMode) {
-						int32_t ticksTilNextSequencerEvent = sequencerMode->processPlayback(modelStackWithTimelineCounter, playbackHandler.lastSwungTickActioned);
+						int32_t ticksTilNextSequencerEvent = sequencerMode->processPlayback(
+						    modelStackWithTimelineCounter, playbackHandler.lastSwungTickActioned);
 						if (ticksTilNextSequencerEvent > 0) {
-							playbackHandler.swungTicksTilNextEvent = std::min(ticksTilNextSequencerEvent, playbackHandler.swungTicksTilNextEvent);
+							playbackHandler.swungTicksTilNextEvent =
+							    std::min(ticksTilNextSequencerEvent, playbackHandler.swungTicksTilNextEvent);
 						}
 					}
 				}

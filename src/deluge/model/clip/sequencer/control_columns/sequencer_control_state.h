@@ -26,11 +26,11 @@ namespace deluge::model::clip::sequencer {
 
 // Combined effects from all active control groups
 struct CombinedEffects {
-	int32_t clockDivider = 1;   // From CLOCK_DIV group
-	int32_t octaveShift = 0;    // From OCTAVE group
-	int32_t transpose = 0;      // From TRANSPOSE group
-	int32_t sceneIndex = -1;    // From SCENE group (-1 = none)
-	int32_t direction = 0;      // From DIRECTION group (0=forward, 1=backward, 2=pingpong, 3=random)
+	int32_t clockDivider = 1; // From CLOCK_DIV group
+	int32_t octaveShift = 0;  // From OCTAVE group
+	int32_t transpose = 0;    // From TRANSPOSE group
+	int32_t sceneIndex = -1;  // From SCENE group (-1 = none)
+	int32_t direction = 0;    // From DIRECTION group (0=forward, 1=backward, 2=pingpong, 3=random)
 };
 
 // Individual pad configuration
@@ -84,8 +84,8 @@ public:
 	// Deactivates all pads, then activates matching ones if found
 	// Returns true if all values were applied to pads, false if some need base controls
 	void applyControlValues(int32_t clockDivider, int32_t octaveShift, int32_t transpose, int32_t direction,
-	                        int32_t* unmatchedClock, int32_t* unmatchedOctave,
-	                        int32_t* unmatchedTranspose, int32_t* unmatchedDirection);
+	                        int32_t* unmatchedClock, int32_t* unmatchedOctave, int32_t* unmatchedTranspose,
+	                        int32_t* unmatchedDirection);
 
 	// Clear base controls for a specific control type (called when user manually activates a pad)
 	void clearBaseControlForType(ControlType type, class SequencerMode* mode);
@@ -112,10 +112,8 @@ private:
 	bool handleSceneRecall(ControlPad& pad, class SequencerMode* mode);
 
 	// Rendering helpers
-	void renderPadAtPosition(int32_t y, int32_t x, const ControlPad& pad,
-	                         RGB image[][kDisplayWidth + kSideBarWidth],
+	void renderPadAtPosition(int32_t y, int32_t x, const ControlPad& pad, RGB image[][kDisplayWidth + kSideBarWidth],
 	                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 };
 
 } // namespace deluge::model::clip::sequencer
-
