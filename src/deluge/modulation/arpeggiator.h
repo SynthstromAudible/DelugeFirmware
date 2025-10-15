@@ -210,6 +210,7 @@ public:
 		outputMIDIChannelForNoteCurrentlyOnPostArp.fill(0);
 		outputMIDIChannelForGlideNoteCurrentlyOnPostArp.fill(0);
 	}
+
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
 	virtual void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) = 0;
@@ -221,16 +222,42 @@ public:
 	virtual bool hasAnyInputNotesActive() = 0;
 	virtual void reset() = 0;
 	virtual ArpType getArpType() = 0;
-
-	bool gateCurrentlyActive = false;
-	uint32_t gatePos = 0;
-
-	bool playedFirstArpeggiatedNoteYet = false;
-	uint8_t lastVelocity = 0;
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForNoteCurrentlyOnPostArp;
 	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeCurrentlyOnPostArp;
 	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeCurrentlyOnPostArp;
-	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForNoteCurrentlyOnPostArp;
 	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForGlideNoteCurrentlyOnPostArp;
+	uint32_t gatePos = 0;
+	uint8_t lastVelocity = 0;
+
+protected:
+	void calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
+	void setInitialNoteAndOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
+	void resetBase();
+	void resetRatchet();
+	void executeArpStep(ArpeggiatorSettings* settings, uint8_t numActiveNotes, bool isRatchet,
+	                    uint32_t maxSequenceLength, uint32_t rhythm, bool* shouldCarryOnRhythmNote,
+	                    bool* shouldPlayNote, bool* shouldPlayBassNote, bool* shouldPlayRandomStep,
+	                    bool* shouldPlayReverseNote, bool* shouldPlayChordNote);
+	void increasePatternIndexes(uint8_t numStepRepeats);
+	void increaseSequenceIndexes(uint32_t maxSequenceLength, uint32_t rhythm);
+	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
+	bool evaluateRhythm(uint32_t rhythm, bool isRatchet);
+	bool evaluateNoteProbability(bool isRatchet);
+	bool evaluateBassProbability(bool isRatchet);
+	bool evaluateSwapProbability(bool isRatchet);
+	bool evaluateReverseProbability(bool isRatchet);
+	bool evaluateChordProbability(bool isRatchet);
+	uint32_t calculateSpreadVelocity(uint8_t velocity, int32_t spreadVelocityForCurrentStep);
+	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
+	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
+	void switchAnyNoteOff(ArpReturnInstruction* instruction);
+	bool getRandomProbabilityResult(uint32_t value);
+	int8_t getRandomBipolarProbabilityAmount(uint32_t value);
+	int8_t getRandomWeighted2BitsAmount(uint32_t value);
+
+	bool gateCurrentlyActive = false;
+
+	bool playedFirstArpeggiatedNoteYet = false;
 
 	// Playing state
 	uint32_t notesPlayedFromSequence = 0;
@@ -289,31 +316,7 @@ public:
 	int32_t spreadOctaveForCurrentStep = 0;
 	bool resetLockedRandomizerValuesNextTime = false;
 
-protected:
-	void calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
-	void setInitialNoteAndOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
-	void resetBase();
-	void resetRatchet();
-	void executeArpStep(ArpeggiatorSettings* settings, uint8_t numActiveNotes, bool isRatchet,
-	                    uint32_t maxSequenceLength, uint32_t rhythm, bool* shouldCarryOnRhythmNote,
-	                    bool* shouldPlayNote, bool* shouldPlayBassNote, bool* shouldPlayRandomStep,
-	                    bool* shouldPlayReverseNote, bool* shouldPlayChordNote);
-	void increasePatternIndexes(uint8_t numStepRepeats);
-	void increaseSequenceIndexes(uint32_t maxSequenceLength, uint32_t rhythm);
-	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
-	bool evaluateRhythm(uint32_t rhythm, bool isRatchet);
-	bool evaluateNoteProbability(bool isRatchet);
-	bool evaluateBassProbability(bool isRatchet);
-	bool evaluateSwapProbability(bool isRatchet);
-	bool evaluateReverseProbability(bool isRatchet);
-	bool evaluateChordProbability(bool isRatchet);
-	uint32_t calculateSpreadVelocity(uint8_t velocity, int32_t spreadVelocityForCurrentStep);
-	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
-	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
-	void switchAnyNoteOff(ArpReturnInstruction* instruction);
-	bool getRandomProbabilityResult(uint32_t value);
-	int8_t getRandomBipolarProbabilityAmount(uint32_t value);
-	int8_t getRandomWeighted2BitsAmount(uint32_t value);
+	bool pending_note{false};
 };
 
 class ArpeggiatorForDrum : public ArpeggiatorBase {
