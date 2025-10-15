@@ -1717,7 +1717,7 @@ void Sound::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t e
 			// This is a sound drum (kit)
 			ArpeggiatorForDrum* arpeggiator = (ArpeggiatorForDrum*)getArp();
 			// Just one note is possible
-			ArpNote arpNote = arpeggiator->arpNote;
+			ArpNote arpNote = arpeggiator->active_note;
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (arpNote.noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 					break;
@@ -1792,10 +1792,10 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 
 			// Then any normal notes
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-				if (getArp()->noteCodeCurrentlyOnPostArp[n] == ARP_NOTE_NONE) {
+				if (getArp()->active_note.noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 					break;
 				}
-				int32_t outputNoteCode = getArp()->noteCodeCurrentlyOnPostArp[n];
+				int32_t outputNoteCode = getArp()->active_note.noteCodeOnPostArp[n];
 				if (outputMidiNoteForDrum != MIDI_NOTE_NONE) {
 					// If note for drums is set then this is a SoundDrum and we must use the relative note code
 					// (relative to kNoteForDrum)
@@ -1813,7 +1813,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 
 				// The "voice" related code below will switch off the voice anyway, so it is safe to clean this flag so
 				// we don't send two note offs if a normal noteOff or playback stop is received later
-				getArp()->noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
+				getArp()->active_note.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 			}
 		}
 		else {
@@ -2441,12 +2441,15 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::Stere
 					break;
 				}
 				invertReversed = instruction.invertReversed;
-				noteOnPostArpeggiator(
-				    modelStackWithSoundFlags,
-				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-				    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-				    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
-				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+				if (AudioEngine::allowedToStartVoice()) {
+					noteOnPostArpeggiator(
+					    modelStackWithSoundFlags,
+					    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+					    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
+					    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
+					    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
+				}
 			}
 		}
 	}

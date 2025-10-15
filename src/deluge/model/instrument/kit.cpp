@@ -768,6 +768,7 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 					                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn,
 					                          0, 0);
 				}
+				kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
 			}
 		}
 	}
@@ -821,6 +822,7 @@ void Kit::renderNonAudioArpPostOutput(deluge::dsp::StereoBuffer<q31_t> output) {
 			}
 			if (instruction.arpNoteOn != nullptr) {
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 					if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}

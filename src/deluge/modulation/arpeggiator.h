@@ -17,12 +17,14 @@
 
 #pragma once
 
+#include "algorithm"
 #include "definitions_cxx.hpp"
 #include "model/sync.h"
 #include "storage/storage_manager.h"
 #include "util/container/array/ordered_resizeable_array.h"
 #include "util/container/array/resizeable_array.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -156,6 +158,9 @@ struct ArpNote {
 		noteCodeOnPostArp.fill(ARP_NOTE_NONE);
 		noteStatus.fill(ArpNoteStatus::OFF);
 	}
+	bool isPending() {
+		return std::ranges::any_of(noteStatus, [](ArpNoteStatus status) { return status == ArpNoteStatus::PENDING; });
+	}
 	int16_t inputCharacteristics[2]{}; // Before arpeggiation. And applying to MIDI input if that's happening. Or,
 	                                   // channel might be MIDI_CHANNEL_NONE.
 	int16_t mpeValues[kNumExpressionDimensions]{};
@@ -204,10 +209,9 @@ public:
 
 class ArpeggiatorBase {
 public:
+	virtual ~ArpeggiatorBase() = default;
 	ArpeggiatorBase() {
-		noteCodeCurrentlyOnPostArp.fill(ARP_NOTE_NONE);
 		glideNoteCodeCurrentlyOnPostArp.fill(ARP_NOTE_NONE);
-		outputMIDIChannelForNoteCurrentlyOnPostArp.fill(0);
 		outputMIDIChannelForGlideNoteCurrentlyOnPostArp.fill(0);
 	}
 
@@ -222,8 +226,8 @@ public:
 	virtual bool hasAnyInputNotesActive() = 0;
 	virtual void reset() = 0;
 	virtual ArpType getArpType() = 0;
-	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForNoteCurrentlyOnPostArp;
-	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeCurrentlyOnPostArp;
+	ArpNote active_note; // For the currently active note.
+
 	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeCurrentlyOnPostArp;
 	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMIDIChannelForGlideNoteCurrentlyOnPostArp;
 	uint32_t gatePos = 0;
@@ -315,19 +319,17 @@ protected:
 	int32_t spreadGateForCurrentStep = 0;
 	int32_t spreadOctaveForCurrentStep = 0;
 	bool resetLockedRandomizerValuesNextTime = false;
-
-	bool pending_note{false};
 };
 
 class ArpeggiatorForDrum : public ArpeggiatorBase {
 public:
+	virtual ~ArpeggiatorForDrum() = default;
 	ArpeggiatorForDrum();
 	void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
 	            int32_t fromMIDIChannel, int16_t const* mpeValues) override;
 	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) override;
 	void reset() override;
 	ArpType getArpType() override { return ArpType::DRUM; }
-	ArpNote arpNote; // For the one note. noteCode will always be 60. velocity will be 0 if off.
 	int16_t noteForDrum;
 
 	bool invertReversedFromKitArp;
@@ -339,6 +341,7 @@ protected:
 
 class Arpeggiator : public ArpeggiatorBase {
 public:
+	virtual ~Arpeggiator() = default;
 	Arpeggiator();
 
 	void reset() override;
@@ -348,7 +351,6 @@ public:
 	            int32_t fromMIDIChannel, int16_t const* mpeValues) override;
 	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) override;
 	bool hasAnyInputNotesActive() override;
-
 	// This array tracks the notes ordered by noteCode
 	OrderedResizeableArray notes;
 	// This array tracks the notes as they were played by the user
@@ -363,7 +365,7 @@ protected:
 
 class ArpeggiatorForKit : public Arpeggiator {
 public:
-	ArpeggiatorForKit();
+	ArpeggiatorForKit() = default;
 	ArpType getArpType() override { return ArpType::KIT; }
 	void removeDrumIndex(ArpeggiatorSettings* arpSettings, int32_t drumIndex);
 };

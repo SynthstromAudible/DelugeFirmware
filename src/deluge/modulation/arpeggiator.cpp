@@ -64,7 +64,7 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 }
 
 ArpeggiatorForDrum::ArpeggiatorForDrum() : invertReversedFromKitArp(false) {
-	arpNote.velocity = 0;
+	active_note.velocity = 0;
 }
 
 Arpeggiator::Arpeggiator()
@@ -73,9 +73,6 @@ Arpeggiator::Arpeggiator()
 	notes.emptyingShouldFreeMemory = false;
 	notesAsPlayed.emptyingShouldFreeMemory = false;
 	notesByPattern.emptyingShouldFreeMemory = false;
-}
-
-ArpeggiatorForKit::ArpeggiatorForKit() : Arpeggiator::Arpeggiator() {
 }
 
 void ArpeggiatorForKit::removeDrumIndex(ArpeggiatorSettings* arpSettings, int32_t drumIndex) {
@@ -121,7 +118,7 @@ void Arpeggiator::reset() {
 
 // Surely this shouldn't be quite necessary?
 void ArpeggiatorForDrum::reset() {
-	arpNote.velocity = 0;
+	active_note.velocity = 0;
 }
 
 void ArpeggiatorBase::resetRatchet() {
@@ -148,21 +145,21 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 	lastVelocity = originalVelocity;
 	noteForDrum = noteCode;
 
-	bool wasActiveBefore = arpNote.velocity;
+	bool wasActiveBefore = active_note.velocity;
 
-	arpNote.inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
-	arpNote.inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
-	arpNote.baseVelocity = originalVelocity;
-	arpNote.velocity = originalVelocity; // Means note is on.
+	active_note.inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
+	active_note.inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
+	active_note.baseVelocity = originalVelocity;
+	active_note.velocity = originalVelocity; // Means note is on.
 
 	// MIDIInstrument might set this later, but it needs to be MIDI_CHANNEL_NONE until then so it doesn't get included
 	// in the survey that will happen of existing output member channels.
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-		arpNote.outputMemberChannel[n] = MIDI_CHANNEL_NONE;
+		active_note.outputMemberChannel[n] = MIDI_CHANNEL_NONE;
 	}
 	// Update expression values
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-		arpNote.mpeValues[m] = mpeValues[m];
+		active_note.mpeValues[m] = mpeValues[m];
 	}
 
 	// If we're an actual arpeggiator...
@@ -190,22 +187,20 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 		if (isPlayNoteForCurrentStep) {
 			// Play a note
 
-			arpNote.baseVelocity = originalVelocity;
+			active_note.baseVelocity = originalVelocity;
 			// Now apply velocity spread to the base velocity
 			uint8_t velocity = calculateSpreadVelocity(originalVelocity, spreadVelocityForCurrentStep);
-			arpNote.velocity = velocity; // calculated modified velocity
+			active_note.velocity = velocity; // calculated modified velocity
 
 			// Set the note to be played
-			noteCodeCurrentlyOnPostArp[0] = noteCode;
-			arpNote.noteCodeOnPostArp[0] = noteCode;
+			active_note.noteCodeOnPostArp[0] = noteCode;
 			for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				// Clean rest of slots
-				noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-				arpNote.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+				active_note.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 			}
 			instruction->invertReversed =
 			    invertReversedFromKitArp ? !isPlayReverseForCurrentStep : isPlayReverseForCurrentStep;
-			instruction->arpNoteOn = &arpNote;
+			instruction->arpNoteOn = &active_note;
 		}
 	}
 }
@@ -216,15 +211,13 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, int32_t noteCode
 	// If no arpeggiation...
 	if ((settings == nullptr) || settings->mode == ArpMode::OFF) {
 		instruction->noteCodeOffPostArp[0] = noteCodePreArp;
-		instruction->outputMIDIChannelOff[0] = arpNote.outputMemberChannel[0];
-		noteCodeCurrentlyOnPostArp[0] = ARP_NOTE_NONE;
-		outputMIDIChannelForNoteCurrentlyOnPostArp[0] = MIDI_CHANNEL_NONE;
+		instruction->outputMIDIChannelOff[0] = active_note.outputMemberChannel[0];
+		active_note.noteCodeOnPostArp[0] = ARP_NOTE_NONE;
+		active_note.outputMemberChannel[0] = MIDI_CHANNEL_NONE;
 		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			// If no arp, rest of chord notes are for sure disabled
 			instruction->noteCodeOffPostArp[n] = ARP_NOTE_NONE;
 			instruction->outputMIDIChannelOff[n] = MIDI_CHANNEL_NONE;
-			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-			outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
 		}
 	}
 
@@ -239,15 +232,12 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, int32_t noteCode
 			outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
 
 			// Set all chord notes
-			instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
-			instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
-			// Clean the temp state
-			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-			outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
+			instruction->noteCodeOffPostArp[n] = active_note.noteCodeOnPostArp[n];
+			instruction->outputMIDIChannelOff[n] = active_note.outputMemberChannel[n];
 		}
 	}
 
-	arpNote.velocity = 0; // Means note is off
+	active_note.velocity = 0; // Means note is off
 }
 
 // May return the instruction for a note-on, or no instruction. The noteCode instructed might be some octaves up from
@@ -359,7 +349,6 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 			arp_note->velocity = velocity; // calculated modified velocity
 
 			// Set the note to be played
-			noteCodeCurrentlyOnPostArp[0] = noteCode;
 			arp_note->noteCodeOnPostArp[0] = noteCode;
 			for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				// Clean rest of chord note slots
@@ -367,6 +356,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 			}
 			instruction->invertReversed = isPlayReverseForCurrentStep;
 			instruction->arpNoteOn = arp_note;
+			active_note = *arp_note;
 		}
 	}
 }
@@ -382,13 +372,14 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 			if (arpOff) {
 				instruction->noteCodeOffPostArp[0] = noteCodePreArp;
 				instruction->outputMIDIChannelOff[0] = arpNote->outputMemberChannel[0];
-				noteCodeCurrentlyOnPostArp[0] = ARP_NOTE_NONE;
 				arpNote->outputMemberChannel[0] = MIDI_CHANNEL_NONE;
+				arpNote->noteStatus[0] = ArpNoteStatus::OFF;
 				for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					// If no arp, rest of chord notes are for sure disabled
 					instruction->noteCodeOffPostArp[n] = ARP_NOTE_NONE;
 					instruction->outputMIDIChannelOff[n] = MIDI_CHANNEL_NONE;
 					arpNote->outputMemberChannel[n] = MIDI_CHANNEL_NONE;
+					arpNote->noteStatus[n] = ArpNoteStatus::OFF;
 				}
 			}
 
@@ -483,11 +474,10 @@ void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 			// also send them
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				// Move note codes from normal to glide
-				glideNoteCodeCurrentlyOnPostArp[n] = noteCodeCurrentlyOnPostArp[n];
-				outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+				glideNoteCodeCurrentlyOnPostArp[n] = active_note.noteCodeOnPostArp[n];
+				outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n] = active_note.outputMemberChannel[n];
 				// Clean the temp state
-				noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-				outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
+				active_note.noteStatus[n] = ArpNoteStatus::OFF;
 			}
 			glideOnNextNoteOff = false;
 		}
@@ -495,11 +485,10 @@ void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 			// Schedule normal note to be turned off (if no glide set to happen now)
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				// Set all chord notes
-				instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
-				instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+				instruction->noteCodeOffPostArp[n] = active_note.noteCodeOnPostArp[n];
+				instruction->outputMIDIChannelOff[n] = active_note.outputMemberChannel[n];
 				// Clean the temp state
-				noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-				outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
+				active_note.noteStatus[n] = ArpNoteStatus::OFF;
 			}
 		}
 		gateCurrentlyActive = false;
@@ -748,16 +737,16 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			gatePos = 0;
 		}
 
-		uint8_t velocity = arpNote.baseVelocity;
+		uint8_t velocity = active_note.baseVelocity;
 
 		if (settings->mpeVelocity != ArpMpeModSource::OFF) {
 			// Check if we need to update velocity with some MPE value
 			switch (settings->mpeVelocity) {
 			case ArpMpeModSource::AFTERTOUCH:
-				velocity = arpNote.mpeValues[util::to_underlying(Expression::Z_PRESSURE)] >> 8;
+				velocity = active_note.mpeValues[util::to_underlying(Expression::Z_PRESSURE)] >> 8;
 				break;
 			case ArpMpeModSource::MPE_Y:
-				velocity = arpNote.mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 8;
+				velocity = active_note.mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 8;
 				// velocity = ((arpNote.mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 1) + (1 << 14)) >>
 				// 8;
 				break;
@@ -769,10 +758,10 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 				velocity = MIN_MPE_MODULATED_VELOCITY;
 			}
 		}
-		arpNote.baseVelocity = velocity;
+		active_note.baseVelocity = velocity;
 		// Now apply velocity spread to the base velocity
 		velocity = calculateSpreadVelocity(velocity, spreadVelocityForCurrentStep);
-		arpNote.velocity = velocity;
+		active_note.velocity = velocity;
 		// Get current sequence note
 		int16_t note;
 		if (shouldPlayBassNote) {
@@ -806,15 +795,13 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		}
 		// Set the note to be played
 		// (Only one note, chord polyphony/probability is not available in kit rows)
-		noteCodeCurrentlyOnPostArp[0] = note;
-		arpNote.noteCodeOnPostArp[0] = noteCodeCurrentlyOnPostArp[0];
+		active_note.noteCodeOnPostArp[0] = note;
 		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			// Clean rest of chord note slots
-			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-			arpNote.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+			active_note.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 		}
 		instruction->invertReversed = invertReversedFromKitArp ? !shouldPlayReverseNote : shouldPlayReverseNote;
-		instruction->arpNoteOn = &arpNote;
+		instruction->arpNoteOn = &active_note;
 
 		// If this is going to be a glide note, we need to flag it (not compatible with ratchets)
 		if (isPlayGlideForCurrentStep && !isRatcheting) {
@@ -1339,8 +1326,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		}
 
 		// Set the note(s) to be played
-		noteCodeCurrentlyOnPostArp[0] = note; // This is the main note, whether we play chord or not
-		arpNote->noteCodeOnPostArp[0] = note;
+		arpNote->noteCodeOnPostArp[0] = note; // This is the main note, whether we play chord or not
 		arpNote->noteStatus[0] = ArpNoteStatus::PENDING;
 		// Now get additional notes to be played
 		const MusicalKey musical_key = currentSong->key;
@@ -1393,6 +1379,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			glideOnNextNoteOff = true;
 		}
 	}
+	active_note = *arpNote;
 }
 
 bool Arpeggiator::hasAnyInputNotesActive() {
@@ -1400,13 +1387,18 @@ bool Arpeggiator::hasAnyInputNotesActive() {
 }
 
 bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
-	return arpNote.velocity;
+	return active_note.velocity;
 }
 
 // Check arpeggiator is on before you call this.
 // May switch notes on and/or off.
 void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, int32_t numSamples,
                              uint32_t gateThreshold, uint32_t phaseIncrement) {
+	if (active_note.isPending()) {
+		D_PRINTLN("WEVE GOTONE");
+		instruction->arpNoteOn = &active_note;
+		return;
+	}
 	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
 		return;
 	}
