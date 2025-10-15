@@ -35,7 +35,7 @@ constexpr uint32_t RANDOMIZER_LOCK_MAX_SAVED_VALUES = 16;
 constexpr uint32_t ARP_MAX_INSTRUCTION_NOTES = 4;
 constexpr uint32_t PATTERN_MAX_BUFFER_SIZE = 16;
 
-constexpr uint32_t ARP_NOTE_NONE = 32767;
+constexpr int16_t ARP_NOTE_NONE = 32767;
 
 enum class ArpType : uint8_t {
 	SYNTH,
@@ -144,21 +144,28 @@ public:
 	uint32_t spreadGate{0};
 	uint32_t spreadOctave{0};
 };
+enum class ArpNoteStatus : uint8_t {
+	OFF,
+	PENDING,
+	PLAYING,
+};
 
 struct ArpNote {
 	ArpNote() {
 		outputMemberChannel.fill(MIDI_CHANNEL_NONE);
 		noteCodeOnPostArp.fill(ARP_NOTE_NONE);
+		noteStatus.fill(ArpNoteStatus::OFF);
 	}
-	int16_t inputCharacteristics[2]; // Before arpeggiation. And applying to MIDI input if that's happening. Or, channel
-	                                 // might be MIDI_CHANNEL_NONE.
-	int16_t mpeValues[kNumExpressionDimensions];
-	uint8_t velocity;
-	uint8_t baseVelocity;
+	int16_t inputCharacteristics[2]{}; // Before arpeggiation. And applying to MIDI input if that's happening. Or,
+	                                   // channel might be MIDI_CHANNEL_NONE.
+	int16_t mpeValues[kNumExpressionDimensions]{};
+	uint8_t velocity{};
+	uint8_t baseVelocity{};
 
 	// For note-ons
-	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMemberChannel;
-	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOnPostArp;
+	std::array<ArpNoteStatus, ARP_MAX_INSTRUCTION_NOTES> noteStatus{};
+	std::array<uint8_t, ARP_MAX_INSTRUCTION_NOTES> outputMemberChannel{};
+	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> noteCodeOnPostArp{};
 };
 
 struct ArpJustNoteCode {

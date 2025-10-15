@@ -256,26 +256,23 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
                          ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) {
 	lastVelocity = originalVelocity;
 
-	bool noteExists = false;
+	bool note_exists = false;
 
-	ArpNote* arpNote;
+	ArpNote* arp_note = nullptr;
 
-	int32_t notesKey = notes.search(noteCode, GREATER_OR_EQUAL);
-	if (notesKey < notes.getNumElements()) [[unlikely]] {
-		arpNote = (ArpNote*)notes.getElementAddress(notesKey);
-		if (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode) {
-			noteExists = true;
+	int32_t notes_key = notes.search(noteCode, GREATER_OR_EQUAL);
+	if (notes_key < notes.getNumElements()) [[unlikely]] {
+		arp_note = (ArpNote*)notes.getElementAddress(notes_key);
+		if (arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode) {
+			note_exists = true;
 		}
 	}
 
-	if (noteExists) {
+	if (note_exists) {
 		// If note exists already, do nothing if we are an arpeggiator, and if not, go to noteinserted to update
 		// midiChannel
 		if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
 			return; // If we're an arpeggiator, return
-		}
-		else {
-			goto noteInserted;
 		}
 	}
 	// If note does not exist yet in the arrays, we must insert it in both
@@ -284,48 +281,48 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// ORDERED NOTES
 
 		// Insert it in notes array
-		Error error = notes.insertAtIndex(notesKey);
+		Error error = notes.insertAtIndex(notes_key);
 		if (error != Error::NONE) {
 			return;
 		}
 		// Save arpNote
-		arpNote = (ArpNote*)notes.getElementAddress(notesKey);
-		arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
-		arpNote->baseVelocity = originalVelocity;
-		arpNote->velocity = originalVelocity;
+		arp_note = static_cast<ArpNote*>(notes.getElementAddress(notes_key));
+		arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
+		arp_note->baseVelocity = originalVelocity;
+		arp_note->velocity = originalVelocity;
 
 		// MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it
 		// doesn't get included in the survey that will happen of existing output member
 		// channels.
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			arpNote->outputMemberChannel[n] = MIDI_CHANNEL_NONE;
+			arp_note->outputMemberChannel[n] = MIDI_CHANNEL_NONE;
 		}
 		// Update expression values
 		for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-			arpNote->mpeValues[m] = mpeValues[m];
+			arp_note->mpeValues[m] = mpeValues[m];
 		}
 
 		// "PLAYED ORDER" NOTES
 
 		// Insert it in notesAsPlayed array
-		int32_t notesAsPlayedIndex = notesAsPlayed.getNumElements();
-		error = notesAsPlayed.insertAtIndex(notesAsPlayedIndex); // always insert at the end or the array
+		int32_t notes_as_played_index = notesAsPlayed.getNumElements();
+		error = notesAsPlayed.insertAtIndex(notes_as_played_index); // always insert at the end or the array
 		if (error != Error::NONE) {
 			return;
 		}
 		// Save arpNote
-		ArpJustNoteCode* arpAsPlayedNote = (ArpJustNoteCode*)notesAsPlayed.getElementAddress(notesAsPlayedIndex);
-		arpAsPlayedNote->noteCode = noteCode;
+		auto* arp_as_played_note =
+		    static_cast<ArpJustNoteCode*>(notesAsPlayed.getElementAddress(notes_as_played_index));
+		arp_as_played_note->noteCode = noteCode;
 
 		// "PATTERN" NOTES
 
 		rearrangePatterntArpNotes(settings);
 	}
 
-noteInserted:
 	// This is here so that "stealing" a note being edited can then replace its MPE data during
 	// editing. Kind of a hacky solution, but it works for now.
-	arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
+	arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
 
 	// If we're an arpeggiator...
 	if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
@@ -342,7 +339,7 @@ noteInserted:
 
 		// Or if the arpeggiator was already sounding
 		else {
-			if (whichNoteCurrentlyOnPostArp >= notesKey) {
+			if (whichNoteCurrentlyOnPostArp >= notes_key) {
 				whichNoteCurrentlyOnPostArp++;
 			}
 		}
@@ -356,21 +353,20 @@ noteInserted:
 		if (isPlayNoteForCurrentStep) {
 			// Play a note
 
-			arpNote->baseVelocity = originalVelocity;
+			arp_note->baseVelocity = originalVelocity;
 			// Now apply velocity spread to the base velocity
 			uint8_t velocity = calculateSpreadVelocity(originalVelocity, spreadVelocityForCurrentStep);
-			arpNote->velocity = velocity; // calculated modified velocity
+			arp_note->velocity = velocity; // calculated modified velocity
 
 			// Set the note to be played
 			noteCodeCurrentlyOnPostArp[0] = noteCode;
-			arpNote->noteCodeOnPostArp[0] = noteCode;
+			arp_note->noteCodeOnPostArp[0] = noteCode;
 			for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				// Clean rest of chord note slots
-				noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-				arpNote->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+				arp_note->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 			}
 			instruction->invertReversed = isPlayReverseForCurrentStep;
-			instruction->arpNoteOn = arpNote;
+			instruction->arpNoteOn = arp_note;
 		}
 	}
 }
@@ -387,13 +383,12 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 				instruction->noteCodeOffPostArp[0] = noteCodePreArp;
 				instruction->outputMIDIChannelOff[0] = arpNote->outputMemberChannel[0];
 				noteCodeCurrentlyOnPostArp[0] = ARP_NOTE_NONE;
-				outputMIDIChannelForNoteCurrentlyOnPostArp[0] = MIDI_CHANNEL_NONE;
+				arpNote->outputMemberChannel[0] = MIDI_CHANNEL_NONE;
 				for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 					// If no arp, rest of chord notes are for sure disabled
 					instruction->noteCodeOffPostArp[n] = ARP_NOTE_NONE;
 					instruction->outputMIDIChannelOff[n] = MIDI_CHANNEL_NONE;
-					noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-					outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
+					arpNote->outputMemberChannel[n] = MIDI_CHANNEL_NONE;
 				}
 			}
 
@@ -409,12 +404,12 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 						outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
 
 						// Set all chord notes
-						instruction->noteCodeOffPostArp[n] = noteCodeCurrentlyOnPostArp[n];
-						instruction->outputMIDIChannelOff[n] = outputMIDIChannelForNoteCurrentlyOnPostArp[n];
+						instruction->noteCodeOffPostArp[n] = arpNote->noteCodeOnPostArp[n];
+						instruction->outputMIDIChannelOff[n] = arpNote->outputMemberChannel[n];
 						;
 						// Clean the temp state
-						noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
-						outputMIDIChannelForNoteCurrentlyOnPostArp[n] = MIDI_CHANNEL_NONE;
+						arpNote->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+						arpNote->outputMemberChannel[n] = MIDI_CHANNEL_NONE;
 					}
 				}
 			}
@@ -1310,7 +1305,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		velocity = calculateSpreadVelocity(velocity, spreadVelocityForCurrentStep);
 		arpNote->velocity = velocity;
 		// Get current sequence note
-		int16_t note;
+		int16_t note = 0;
 		if (shouldPlayBassNote) {
 			// Bass note
 			note = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
@@ -1339,59 +1334,57 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 
 		// Wipe noteOn codes
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			noteCodeCurrentlyOnPostArp[n] = ARP_NOTE_NONE;
 			arpNote->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+			arpNote->noteStatus[n] = ArpNoteStatus::OFF;
 		}
 
 		// Set the note(s) to be played
 		noteCodeCurrentlyOnPostArp[0] = note; // This is the main note, whether we play chord or not
-
+		arpNote->noteCodeOnPostArp[0] = note;
+		arpNote->noteStatus[0] = ArpNoteStatus::PENDING;
 		// Now get additional notes to be played
-		MusicalKey musicalKey = currentSong->key;
-		int8_t degree = musicalKey.degreeOf(note);
-		if (shouldPlayChordNote && degree >= 0 && musicalKey.modeNotes.count() >= 5) {
+		const MusicalKey musical_key = currentSong->key;
+		const int8_t degree = musical_key.degreeOf(note);
+		if (shouldPlayChordNote && degree >= 0 && musical_key.modeNotes.count() >= 5) {
 			// Play chord!
 			// Limitation: we will only try to play chords for notes in the scale, and if scale has at least 5 notes
-			int8_t baseOffset = musicalKey.modeNotes[degree % musicalKey.modeNotes.count()];
-			int8_t numAdditionalNotesInChord =
-			    std::min((int8_t)3, getRandomWeighted2BitsAmount(settings->chordPolyphony));
-			int8_t degreeOffsets[3] = {0, 0, 0};
-			if (numAdditionalNotesInChord > 0) {
-				switch (numAdditionalNotesInChord) {
+			const int8_t base_offset = musical_key.modeNotes[degree % musical_key.modeNotes.count()];
+			const uint8_t num_additional_notes_in_chord =
+			    std::min(3_i8, getRandomWeighted2BitsAmount(settings->chordPolyphony));
+			if (num_additional_notes_in_chord > 0) {
+				std::array<int8_t, 3> degree_offsets = {0, 0, 0};
+				switch (num_additional_notes_in_chord) {
 				case 1:
-					degreeOffsets[0] = 4;
+					degree_offsets[0] = 4;
 					break;
 				case 2:
-					degreeOffsets[0] = 2;
-					degreeOffsets[1] = 4;
+					degree_offsets[0] = 2;
+					degree_offsets[1] = 4;
 					break;
 				case 3:
-					degreeOffsets[0] = 2;
-					degreeOffsets[1] = 4;
-					degreeOffsets[2] = 6;
+					degree_offsets[0] = 2;
+					degree_offsets[1] = 4;
+					degree_offsets[2] = 6;
 					break;
 				default:
 					break;
 				}
-				for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-					if (n <= numAdditionalNotesInChord) {
+				for (uint32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+					if (n <= num_additional_notes_in_chord) {
 						// Pick the note to be added
-						int8_t targetOffset =
-						    musicalKey.modeNotes[(degree + degreeOffsets[n - 1]) % musicalKey.modeNotes.count()];
-						if (targetOffset <= baseOffset) {
+						int8_t target_offset =
+						    musical_key.modeNotes[(degree + degree_offsets[n - 1]) % musical_key.modeNotes.count()];
+						if (target_offset <= base_offset) {
 							// If the note is lower than the base note, we need to add an octave
-							targetOffset += 12;
+							target_offset += 12;
 						}
-						noteCodeCurrentlyOnPostArp[n] = note + targetOffset - baseOffset;
+						arpNote->noteCodeOnPostArp[n] = note + target_offset - base_offset;
+						arpNote->noteStatus[n] = ArpNoteStatus::PENDING;
 					}
 				}
 			}
 		}
 
-		// Copy notes to the arp return instruction object
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			arpNote->noteCodeOnPostArp[n] = noteCodeCurrentlyOnPostArp[n];
-		}
 		instruction->invertReversed = shouldPlayReverseNote;
 		instruction->arpNoteOn = arpNote;
 
@@ -1464,7 +1457,8 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction
 			// Switch on next note in the ratchet
 			switchNoteOn(settings, instruction, true);
 		}
-		// And maybe (if not syncing) the gatePos is also far enough along that we also want to switch a normal note on?
+		// And maybe (if not syncing) the gatePos is also far enough along that we also want to switch a normal
+		// note on?
 		else if (!syncedNow && gatePos >= maxGate) {
 			switchNoteOn(settings, instruction, false);
 		}
@@ -1513,8 +1507,8 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 			howFarIntoPeriod = ticksPerPeriod - howFarIntoPeriod;
 		}
 	}
-	return howFarIntoPeriod; // Normally we will have modified this variable above, and it no longer represents what its
-	                         // name says.
+	return howFarIntoPeriod; // Normally we will have modified this variable above, and it no longer represents
+	                         // what its name says.
 }
 
 uint32_t ArpeggiatorSettings::getPhaseIncrement(int32_t arpRate) {
@@ -1781,7 +1775,8 @@ void ArpeggiatorSettings::writeCommonParamsToFile(Serializer& writer, Song* song
 		writer.writeAttribute("syncLevel", syncLevel, true);
 	}
 	writer.writeAttribute("numOctaves", numOctaves);
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent
+	// tag)
 	if (songToConvertSyncLevel) {
 		writer.writeSyncTypeToFile(songToConvertSyncLevel, "syncType", syncType, true);
 	}
@@ -1940,8 +1935,9 @@ void ArpeggiatorSettings::updateSettingsFromCurrentPreset() {
 	}
 	else if (preset == ArpPreset::CUSTOM) {
 		mode = ArpMode::ARP;
-		// Although CUSTOM has octaveMode and noteMode freely setable, when we select CUSTOM from the preset menu
-		// shortcut, we can provide here some default starting settings that user can change later with the menus.
+		// Although CUSTOM has octaveMode and noteMode freely setable, when we select CUSTOM from the preset
+		// menu shortcut, we can provide here some default starting settings that user can change later with the
+		// menus.
 		octaveMode = ArpOctaveMode::UP;
 		noteMode = ArpNoteMode::UP;
 	}
