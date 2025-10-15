@@ -1608,7 +1608,8 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				                           return isSourceActiveCurrently(s, paramManager)
 				                                  && sources[s].oscType != OscType::SAMPLE;
 			                           })
-			    || (voice->envelopes[0].state != EnvelopeStage::FAST_RELEASE && !voice->doFastRelease());
+			    || (voice->envelopes[0].state != EnvelopeStage::FAST_RELEASE
+			        && !voice->doFastRelease(SOFT_CULL_INCREMENT));
 
 			if (needs_unassign) {
 				if (voiceToReuse != nullptr) {
@@ -4666,7 +4667,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 void Sound::fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack) {
 	for (auto it = voices_.begin(); it != voices_.end();) {
 		const ActiveVoice& voice = *it;
-		bool stillGoing = voice->doFastRelease();
+		bool stillGoing = voice->doFastRelease(SOFT_CULL_INCREMENT);
 
 		if (!stillGoing) {
 			this->checkVoiceExists(voice, "E212");
