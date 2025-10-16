@@ -218,6 +218,7 @@ public:
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
 	virtual void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) = 0;
+	virtual bool checkPendingNotes(ArpReturnInstruction* instruction);
 	void render(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, int32_t numSamples,
 	            uint32_t gateThreshold, uint32_t phaseIncrement);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
@@ -350,6 +351,7 @@ public:
 	void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
 	            int32_t fromMIDIChannel, int16_t const* mpeValues) override;
 	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) override;
+	bool checkPendingNotes(ArpReturnInstruction* instruction) override;
 	bool hasAnyInputNotesActive() override;
 	// This array tracks the notes ordered by noteCode
 	OrderedResizeableArray notes;
@@ -361,6 +363,7 @@ public:
 protected:
 	void rearrangePatterntArpNotes(ArpeggiatorSettings* settings);
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) override;
+	bool anyPending{false};
 };
 
 class ArpeggiatorForKit : public Arpeggiator {

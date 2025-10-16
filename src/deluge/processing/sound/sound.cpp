@@ -1540,11 +1540,19 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 				break;
 			}
-			atLeastOneNoteOn = true;
-			invertReversed = instruction.invertReversed;
-			noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp, instruction.arpNoteOn->noteCodeOnPostArp[n],
-			                      instruction.arpNoteOn->velocity, mpeValues, instruction.sampleSyncLengthOn, ticksLate,
-			                      samplesLate, fromMIDIChannel);
+			if (AudioEngine::allowedToStartVoice()) {
+				atLeastOneNoteOn = true;
+				invertReversed = instruction.invertReversed;
+				noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp,
+				                      instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
+				                      mpeValues, instruction.sampleSyncLengthOn, ticksLate, samplesLate,
+				                      fromMIDIChannel);
+				instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
+			}
+			else {
+				D_PRINTLN("couldn't start note");
+			}
+			// todo: end pending note?
 		}
 	}
 	if (!atLeastOneNoteOn) {
@@ -2408,51 +2416,53 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::Stere
 	if (arpSettings != nullptr) {
 		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
 	}
+	ArpReturnInstruction instruction;
+
 	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement =
 		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
 
-		ArpReturnInstruction instruction;
-
 		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
-
-		bool atLeastOneOff = false;
+	}
+	else {
+		getArp()->checkPendingNotes(&instruction);
+	}
+	bool atLeastOneOff = false;
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		atLeastOneOff = true;
+		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
+	}
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		atLeastOneOff = true;
+		noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
+	}
+	if (atLeastOneOff) {
+		invertReversed = false;
+	}
+	if (instruction.arpNoteOn != nullptr) {
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 				break;
 			}
-			atLeastOneOff = true;
-			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.glideNoteCodeOffPostArp[n]);
-		}
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
-				break;
+			invertReversed = instruction.invertReversed;
+			if (AudioEngine::allowedToStartVoice()) {
+				noteOnPostArpeggiator(
+				    modelStackWithSoundFlags,
+				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+				    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
+				    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
+				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+				instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 			}
-			atLeastOneOff = true;
-			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
-		}
-		if (atLeastOneOff) {
-			invertReversed = false;
-		}
-		if (instruction.arpNoteOn != nullptr) {
-			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-				if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
-					break;
-				}
-				invertReversed = instruction.invertReversed;
-				if (AudioEngine::allowedToStartVoice()) {
-					noteOnPostArpeggiator(
-					    modelStackWithSoundFlags,
-					    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-					    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-					    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
-					    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
-					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
-				}
-				else {
-					D_PRINTLN("couldn't start voice");
-				}
+			else {
+				D_PRINTLN("couldn't start voice");
 			}
 		}
 	}
