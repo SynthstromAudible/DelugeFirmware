@@ -355,8 +355,8 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 				arp_note->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 			}
 			instruction->invertReversed = isPlayReverseForCurrentStep;
-			instruction->arpNoteOn = arp_note;
 			active_note = *arp_note;
+			instruction->arpNoteOn = &active_note;
 		}
 	}
 }
@@ -1197,7 +1197,7 @@ void Arpeggiator::rearrangePatterntArpNotes(ArpeggiatorSettings* settings) {
 		arpByPatternNote->noteCode = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 	}
 }
-
+// todo: make sure reference taken after copy to activeNote, seems to be missed for first note on while arp active
 void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) {
 	// Get params
 	uint32_t maxSequenceLength = computeCurrentValueForUnsignedMenuItem(settings->sequenceLength);
@@ -1259,7 +1259,6 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		// Normal pattern step
 		arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
 	}
-
 	if (shouldCarryOnRhythmNote && shouldPlayNote) {
 		// Set Gate as active
 		gateCurrentlyActive = true;
@@ -1372,14 +1371,14 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		}
 
 		instruction->invertReversed = shouldPlayReverseNote;
-		instruction->arpNoteOn = arpNote;
+		active_note = *arpNote;
+		instruction->arpNoteOn = &active_note;
 
 		// If this is going to be a glide note, we need to flag it (not compatible with ratchets)
 		if (isPlayGlideForCurrentStep && !isRatcheting) {
 			glideOnNextNoteOff = true;
 		}
 	}
-	active_note = *arpNote;
 }
 
 bool Arpeggiator::hasAnyInputNotesActive() {

@@ -2450,6 +2450,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::Stere
 					    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
 					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 				}
+				else {
+					D_PRINTLN("couldn't start voice");
+				}
 			}
 		}
 	}
