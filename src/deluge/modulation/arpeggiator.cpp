@@ -352,7 +352,6 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 			// Set the note to be played
 			arp_note->noteCodeOnPostArp[0] = noteCode;
 			arp_note->noteStatus[0] = ArpNoteStatus::PENDING;
-			D_PRINTLN("pending a live played note");
 			for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				// Clean rest of chord note slots
 				arp_note->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
@@ -459,30 +458,31 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 		playedFirstArpeggiatedNoteYet = false;
 	}
 }
-bool Arpeggiator::checkPendingNotes(ArpReturnInstruction* instruction) {
-	// if off just make sure there aren't any notes waiting to start
-	if (anyPending) {
-		for (int i = 0; i < notes.getNumElements(); i++) {
-			if (auto* arp_note = static_cast<ArpNote*>(notes.getElementAddress(i));
-			    arp_note->noteStatus[0] == ArpNoteStatus::PENDING) {
-				if (arp_note->noteCodeOnPostArp[0] == ARP_NOTE_NONE) {
-					arp_note->noteStatus[0] = ArpNoteStatus::OFF;
-				}
-				else {
-					instruction->arpNoteOn = arp_note;
-					D_PRINTLN("found a pending a live note, starting it");
-					return true;
+bool Arpeggiator::checkPendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
+	if ((settings != nullptr) && settings->mode == ArpMode::OFF) {
+		// if off make sure there aren't any notes waiting to start
+		if (anyPending) {
+			for (int i = 0; i < notes.getNumElements(); i++) {
+				if (auto* arp_note = static_cast<ArpNote*>(notes.getElementAddress(i));
+				    arp_note->noteStatus[0] == ArpNoteStatus::PENDING) {
+					if (arp_note->noteCodeOnPostArp[0] == ARP_NOTE_NONE) {
+						arp_note->noteStatus[0] = ArpNoteStatus::OFF;
+					}
+					else {
+						instruction->arpNoteOn = arp_note;
+						D_PRINTLN("found a pending a live note, starting it");
+						return true;
+					}
 				}
 			}
+			anyPending = false;
 		}
-		anyPending = false;
-		D_PRINTLN("no more pending notes");
-		return false;
 	}
-	if (anyPending) {
-		anyPending = ArpeggiatorBase::checkPendingNotes(instruction);
-		return anyPending;
+	else {
+		// if on then we just want to check if the active arp note is pending
+		return ArpeggiatorBase::checkPendingNotes(settings, instruction);
 	}
+
 	return false;
 }
 
@@ -1355,7 +1355,6 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		// Set the note(s) to be played
 		arpNote->noteCodeOnPostArp[0] = note; // This is the main note, whether we play chord or not
 		arpNote->noteStatus[0] = ArpNoteStatus::PENDING;
-		D_PRINTLN("pending a base note");
 		// Now get additional notes to be played
 		const MusicalKey musical_key = currentSong->key;
 		const int8_t degree = musical_key.degreeOf(note);
@@ -1419,7 +1418,7 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 	return active_note.velocity;
 }
 
-bool ArpeggiatorBase::checkPendingNotes(ArpReturnInstruction* instruction) {
+bool ArpeggiatorBase::checkPendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
 	if (active_note.isPending()) {
 		D_PRINTLN("WEVE GOTONE");
 		instruction->arpNoteOn = &active_note;
@@ -1431,7 +1430,7 @@ bool ArpeggiatorBase::checkPendingNotes(ArpReturnInstruction* instruction) {
 // May switch notes on and/or off.
 void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, int32_t numSamples,
                              uint32_t gateThreshold, uint32_t phaseIncrement) {
-	if (checkPendingNotes(instruction)) {
+	if (checkPendingNotes(settings, instruction)) {
 		return;
 	}
 	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {

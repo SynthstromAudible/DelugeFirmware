@@ -2426,7 +2426,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::Stere
 		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
 	}
 	else {
-		getArp()->checkPendingNotes(&instruction);
+		getArp()->checkPendingNotes(arpSettings, &instruction);
 	}
 	bool atLeastOneOff = false;
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
