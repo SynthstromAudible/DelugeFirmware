@@ -1222,7 +1222,7 @@ getOut:
 
 					// Replace with the second layer shortcut (e.g. env3 attack, lfo3 rate) if the pad was pressed twice
 					secondLayerShortcutsToggled =
-					    x == currentParamShorcutX && y == currentParamShorcutY
+					    (getCurrentMenuItem() != nullptr) && x == currentParamShorcutX && y == currentParamShorcutY
 					            && getCurrentMenuItem()->getParamKind() != modulation::params::Kind::PATCH_CABLE
 					        ? !secondLayerShortcutsToggled
 					        : false;
