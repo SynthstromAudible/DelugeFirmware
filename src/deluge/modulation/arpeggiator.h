@@ -164,8 +164,8 @@ struct ArpNote {
 	int16_t inputCharacteristics[2]{}; // Before arpeggiation. And applying to MIDI input if that's happening. Or,
 	                                   // channel might be MIDI_CHANNEL_NONE.
 	int16_t mpeValues[kNumExpressionDimensions]{};
-	uint8_t velocity{};
-	uint8_t baseVelocity{};
+	uint8_t velocity{0};
+	uint8_t baseVelocity{0};
 
 	// For note-ons
 	std::array<ArpNoteStatus, ARP_MAX_INSTRUCTION_NOTES> noteStatus{};
@@ -324,16 +324,16 @@ protected:
 
 class ArpeggiatorForDrum : public ArpeggiatorBase {
 public:
-	virtual ~ArpeggiatorForDrum() = default;
+	~ArpeggiatorForDrum() override = default;
 	ArpeggiatorForDrum();
 	void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
 	            int32_t fromMIDIChannel, int16_t const* mpeValues) override;
 	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) override;
 	void reset() override;
 	ArpType getArpType() override { return ArpType::DRUM; }
-	int16_t noteForDrum;
+	int16_t noteForDrum{0};
 
-	bool invertReversedFromKitArp;
+	bool invertReversedFromKitArp{false};
 
 protected:
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) override;

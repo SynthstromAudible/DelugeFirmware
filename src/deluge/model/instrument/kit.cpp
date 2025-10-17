@@ -1197,6 +1197,8 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
 				                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn, 0,
 				                          0);
+				// no check needed - will be held by the drum's own arp if it can't start immediately
+				kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
 			}
 		}
 	}

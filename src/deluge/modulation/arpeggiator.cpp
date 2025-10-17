@@ -63,7 +63,7 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 	generateNewNotePattern();
 }
 
-ArpeggiatorForDrum::ArpeggiatorForDrum() : invertReversedFromKitArp(false) {
+ArpeggiatorForDrum::ArpeggiatorForDrum() {
 	active_note.velocity = 0;
 }
 
@@ -138,6 +138,7 @@ void ArpeggiatorBase::resetBase() {
 	stepRepeatIndex = 0;
 	// Glide
 	glideOnNextNoteOff = false;
+	active_note = ArpNote();
 }
 
 void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t originalVelocity,
@@ -1503,9 +1504,9 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 	if (clipCurrentPos == 0) {
 		notesPlayedFromLockedRandomizer = 0;
 	}
-	// Make sure we actually intended to sync
-	if (settings->mode == ArpMode::OFF || (settings->syncLevel == 0u)) {
-		return 2147483647;
+	if (checkPendingNotes(settings, instruction)) {
+		D_PRINTLN("pending during tick forward");
+		return 1;
 	}
 
 	uint32_t ticksPerPeriod = 3 << (9 - settings->syncLevel);
