@@ -17,11 +17,23 @@
 
 #include "model/clip/sequencer/sequencer_mode_manager.h"
 #include "model/clip/sequencer/sequencer_mode.h"
+#include "model/clip/sequencer/modes/step_sequencer_mode.h"
+#include "model/clip/sequencer/modes/pulse_sequencer_mode.h"
 
 namespace deluge::model::clip::sequencer {
 
 SequencerModeManager& SequencerModeManager::instance() {
 	static SequencerModeManager instance;
+
+	// Lazy registration to avoid static initialization order issues
+	static bool registered = false;
+	if (!registered) {
+		registered = true;
+		// Register built-in modes here instead of using static initialization
+		instance.registerMode<deluge::model::clip::sequencer::modes::StepSequencerMode>("step_sequencer");
+		instance.registerMode<deluge::model::clip::sequencer::modes::PulseSequencerMode>("pulse_seq");
+	}
+
 	return instance;
 }
 

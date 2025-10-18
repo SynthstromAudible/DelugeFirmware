@@ -1800,12 +1800,3 @@ void PulseSequencerMode::setDefaultPattern() {
 }
 
 } // namespace deluge::model::clip::sequencer::modes
-
-// Register this mode with the manager
-namespace {
-static auto registered_pulse_sequencer_mode = []() {
-	deluge::model::clip::sequencer::SequencerModeManager::instance()
-	    .registerMode<deluge::model::clip::sequencer::modes::PulseSequencerMode>("pulse_seq");
-	return true;
-}();
-} // namespace

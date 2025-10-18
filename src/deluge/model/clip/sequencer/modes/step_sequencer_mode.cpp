@@ -823,12 +823,3 @@ void StepSequencerMode::setDefaultPattern() {
 }
 
 } // namespace deluge::model::clip::sequencer::modes
-
-// Register this mode with the manager
-namespace {
-static auto registered_step_sequencer_mode = []() {
-	deluge::model::clip::sequencer::SequencerModeManager::instance()
-	    .registerMode<deluge::model::clip::sequencer::modes::StepSequencerMode>("step_sequencer");
-	return true;
-}();
-} // namespace
