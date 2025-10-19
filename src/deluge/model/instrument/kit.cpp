@@ -1241,18 +1241,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 					}
 					soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
 				}
-				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-					if (instruction.arpNoteOn == nullptr
-					    || instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
-						break;
-					}
-					soundDrum->invertReversed = instruction.invertReversed;
-					soundDrum->noteOnPostArpeggiator(
-					    modelStackWithSoundFlags,
-					    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-					    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-					    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0);
-				}
+				soundDrum->process_postarp_notes(modelStackWithSoundFlags, &drum->arpSettings, instruction);
 			}
 			else if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
 				NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;

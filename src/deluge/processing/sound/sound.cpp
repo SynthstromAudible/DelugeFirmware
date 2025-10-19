@@ -1550,7 +1550,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 				instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 			}
 			else {
-				D_PRINTLN("couldn't start note");
+				D_PRINTLN("couldn't start note from sound::noteon");
 			}
 			// todo: end pending note?
 		}
@@ -2335,6 +2335,30 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 	}
 }
 
+void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
+                                  ArpReturnInstruction instruction) {
+	if (instruction.arpNoteOn)
+		instruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PENDING;
+	while (instruction.arpNoteOn != nullptr && instruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE
+	       && AudioEngine::allowedToStartVoice()) {
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+				break;
+			}
+			invertReversed = instruction.invertReversed;
+
+			noteOnPostArpeggiator(
+			    modelStackWithSoundFlags,
+			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+			    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
+			    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
+			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
+			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
+		}
+		if (getArp()->checkPendingNotes(arpSettings, &instruction))
+			instruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PENDING;
+	}
+}
 void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::StereoBuffer<q31_t> output,
                    int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust,
                    bool shouldLimitDelayFeedback, int32_t pitchAdjust, SampleRecorder* recorder) {
@@ -2446,26 +2470,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::Stere
 	if (atLeastOneOff) {
 		invertReversed = false;
 	}
-	if (instruction.arpNoteOn != nullptr) {
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
-				break;
-			}
-			invertReversed = instruction.invertReversed;
-			if (AudioEngine::allowedToStartVoice()) {
-				noteOnPostArpeggiator(
-				    modelStackWithSoundFlags,
-				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-				    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-				    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
-				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
-				instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
-			}
-			else {
-				D_PRINTLN("couldn't start voice");
-			}
-		}
-	}
+	process_postarp_notes(modelStackWithSoundFlags, arpSettings, instruction);
 
 	// Setup delay
 	deluge::dsp::Delay::State delayWorkingState{};

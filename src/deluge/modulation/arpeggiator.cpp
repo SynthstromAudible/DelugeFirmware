@@ -825,8 +825,10 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		// Set the note to be played
 		// (Only one note, chord polyphony/probability is not available in kit rows)
 		active_note.noteCodeOnPostArp[0] = note;
+		active_note.noteStatus[0] = ArpNoteStatus::PENDING;
 		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			// Clean rest of chord note slots
+			active_note.noteStatus[0] = ArpNoteStatus::OFF;
 			active_note.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 		}
 		instruction->invertReversed = invertReversedFromKitArp ? !shouldPlayReverseNote : shouldPlayReverseNote;
@@ -1421,10 +1423,11 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 
 bool ArpeggiatorBase::checkPendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
 	if (active_note.isPending()) {
-		D_PRINTLN("WEVE GOTONE");
+		D_PRINTLN("found a pending drum note");
 		instruction->arpNoteOn = &active_note;
 		return true;
 	}
+	instruction->arpNoteOn = nullptr;
 	return false;
 }
 // Check arpeggiator is on before you call this.
@@ -1507,6 +1510,10 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 	if (checkPendingNotes(settings, instruction)) {
 		D_PRINTLN("pending during tick forward");
 		return 1;
+	}
+	// Make sure we actually intended to sync
+	if (settings->mode == ArpMode::OFF || (settings->syncLevel == 0u)) {
+		return 2147483647;
 	}
 
 	uint32_t ticksPerPeriod = 3 << (9 - settings->syncLevel);
