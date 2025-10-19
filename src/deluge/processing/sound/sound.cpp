@@ -1822,6 +1822,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 				// The "voice" related code below will switch off the voice anyway, so it is safe to clean this flag so
 				// we don't send two note offs if a normal noteOff or playback stop is received later
 				getArp()->active_note.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+				getArp()->active_note.noteStatus[n] = ArpNoteStatus::OFF;
 			}
 		}
 		else {

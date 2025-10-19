@@ -822,10 +822,10 @@ void Kit::renderNonAudioArpPostOutput(deluge::dsp::StereoBuffer<q31_t> output) {
 			}
 			if (instruction.arpNoteOn != nullptr) {
 				for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 					if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 						break;
 					}
+					instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 					nonAudioDrum->noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
 				}
 			}

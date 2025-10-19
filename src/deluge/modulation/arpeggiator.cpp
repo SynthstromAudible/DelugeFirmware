@@ -195,9 +195,12 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 
 			// Set the note to be played
 			active_note.noteCodeOnPostArp[0] = noteCode;
+			active_note.noteStatus[0] = ArpNoteStatus::PENDING;
 			for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				// Clean rest of slots
 				active_note.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+				active_note.outputMemberChannel[n] = MIDI_CHANNEL_NONE;
+				active_note.noteStatus[n] = ArpNoteStatus::OFF;
 			}
 			instruction->invertReversed =
 			    invertReversedFromKitArp ? !isPlayReverseForCurrentStep : isPlayReverseForCurrentStep;
@@ -237,6 +240,7 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, int32_t noteCode
 			instruction->outputMIDIChannelOff[n] = active_note.outputMemberChannel[n];
 		}
 	}
+	active_note.resetPostArpArrays();
 
 	active_note.velocity = 0; // Means note is off
 }
@@ -356,6 +360,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 			for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				// Clean rest of chord note slots
 				arp_note->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+				arp_note->noteStatus[n] = ArpNoteStatus::OFF;
 			}
 			instruction->invertReversed = isPlayReverseForCurrentStep;
 			instruction->arpNoteOn = arp_note;
@@ -403,6 +408,7 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 						// Clean the temp state
 						arpNote->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
 						arpNote->outputMemberChannel[n] = MIDI_CHANNEL_NONE;
+						arpNote->noteStatus[n] = ArpNoteStatus::OFF;
 					}
 				}
 			}
@@ -426,6 +432,7 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 							for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 								// Clean rest of chord note slots
 								lastArpNote->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+								lastArpNote->noteStatus[n] = ArpNoteStatus::OFF;
 							}
 							instruction->arpNoteOn = lastArpNote;
 						}
@@ -507,6 +514,8 @@ void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 				outputMIDIChannelForGlideNoteCurrentlyOnPostArp[n] = active_note.outputMemberChannel[n];
 				// Clean the temp state
 				active_note.noteStatus[n] = ArpNoteStatus::OFF;
+				active_note.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
+				active_note.outputMemberChannel[n] = MIDI_CHANNEL_NONE;
 			}
 			glideOnNextNoteOff = false;
 		}
@@ -1349,11 +1358,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			note = 127;
 		}
 
-		// Wipe noteOn codes
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			arpNote->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
-			arpNote->noteStatus[n] = ArpNoteStatus::OFF;
-		}
+		arpNote->resetPostArpArrays();
 
 		// Set the note(s) to be played
 		arpNote->noteCodeOnPostArp[0] = note; // This is the main note, whether we play chord or not

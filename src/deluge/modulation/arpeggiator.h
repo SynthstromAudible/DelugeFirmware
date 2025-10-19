@@ -161,6 +161,11 @@ struct ArpNote {
 	bool isPending() {
 		return std::ranges::any_of(noteStatus, [](ArpNoteStatus status) { return status == ArpNoteStatus::PENDING; });
 	}
+	void resetPostArpArrays() {
+		outputMemberChannel.fill(MIDI_CHANNEL_NONE);
+		noteCodeOnPostArp.fill(ARP_NOTE_NONE);
+		noteStatus.fill(ArpNoteStatus::OFF);
+	}
 	int16_t inputCharacteristics[2]{}; // Before arpeggiation. And applying to MIDI input if that's happening. Or,
 	                                   // channel might be MIDI_CHANNEL_NONE.
 	int16_t mpeValues[kNumExpressionDimensions]{};
