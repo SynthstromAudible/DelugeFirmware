@@ -1237,7 +1237,6 @@ void Arpeggiator::rearrangePatterntArpNotes(ArpeggiatorSettings* settings) {
 		arpByPatternNote->noteCode = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 	}
 }
-// todo: make sure reference taken after copy to activeNote, seems to be missed for first note on while arp active
 void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) {
 	// Get params
 	uint32_t maxSequenceLength = computeCurrentValueForUnsignedMenuItem(settings->sequenceLength);
