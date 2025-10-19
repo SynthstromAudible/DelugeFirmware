@@ -26,7 +26,7 @@ public:
 protected:
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuRelativeValue; }
 	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuRelativeValue; }
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return PAN; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return PAN; }
 	int32_t getFinalValue() override;
 	void readCurrentValue() override;
 };

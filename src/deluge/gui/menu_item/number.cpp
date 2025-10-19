@@ -73,7 +73,7 @@ void Number::drawHorizontalBar(int32_t y_top, int32_t margin_l, int32_t margin_r
 }
 
 void Number::renderInHorizontalMenu(int32_t start_x, int32_t width, int32_t start_y, int32_t height) {
-	switch (getNumberStyle()) {
+	switch (getRenderingStyle()) {
 	case PERCENT:
 		return drawPercent(start_x, start_y, width, height);
 	case KNOB:
@@ -86,6 +86,14 @@ void Number::renderInHorizontalMenu(int32_t start_x, int32_t width, int32_t star
 		return drawLengthSlider(start_x, start_y, width, height);
 	case PAN:
 		return drawPan(start_x, start_y, width, height);
+	case HPF:
+		return drawHpf(start_x, start_y, width, height);
+	case LPF:
+		return drawLpf(start_x, start_y, width, height);
+	case ATTACK:
+		return drawAttack(start_x, start_y, width, height);
+	case RELEASE:
+		return drawRelease(start_x, start_y, width, height);
 	default:
 		DEF_STACK_STRING_BUF(paramValue, 10);
 		paramValue.appendInt(getValue());
@@ -140,34 +148,58 @@ void Number::drawKnob(int32_t start_x, int32_t start_y, int32_t width, int32_t h
 	const float line_end_x = center_x + inner_radius * cos_a;
 	const float line_end_y = center_y + inner_radius * sin_a;
 	image.drawLine(round(line_start_x), round(line_start_y), round(line_end_x), round(line_end_y), {.thick = true});
-
-	// If the knob's position is near left or near right, fill the gap on the bitmap (the gap exists purely for
-	// stylistic effect)
-	if (current_angle < 180.0f) {
-		image.drawPixel(center_x - knob_radius, start_y + height - 5);
-	}
-	if (current_angle > 360.0f) {
-		image.drawPixel(center_x + knob_radius, start_y + height - 5);
-	}
 }
 
 void Number::drawBar(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
 	oled_canvas::Canvas& image = OLED::main;
 
-	constexpr uint8_t bar_width = 21;
-	constexpr uint8_t bar_height = 7;
-	constexpr uint8_t outline_padding = 2;
-	const uint8_t bar_start_x = start_x + 3 + outline_padding;
-	const uint8_t bar_start_y = start_y + 1 + outline_padding;
+	constexpr uint8_t bar_width = 15;
+	constexpr uint8_t bar_height = 13;
+
+	const uint8_t bar_start_x = start_x + (slot_width - bar_width) / 2;
 	const uint8_t bar_end_x = bar_start_x + bar_width - 1;
+	const uint8_t bar_start_y = start_y + kHorizontalMenuSlotYOffset - 1;
 	const uint8_t bar_end_y = bar_start_y + bar_height - 1;
 
 	const float value = getNormalizedValue();
-	const uint8_t fill_width = value * bar_width;
-	image.drawRectangleRounded(bar_start_x - outline_padding, bar_start_y - outline_padding,
-	                           bar_end_x + outline_padding, bar_end_y + outline_padding);
+	const float fill_height_f = value * bar_height;
+	const float fill_height = static_cast<uint8_t>(fill_height_f);
+	const uint8_t fill_y = bar_end_y - fill_height + 1;
 
-	image.invertArea(bar_start_x, fill_width, bar_start_y, bar_end_y);
+	// Draw indicators
+	constexpr uint8_t indicators_offset = 3;
+	const uint8_t indicators_start_x = bar_start_x - indicators_offset;
+	const uint8_t indicators_end_x = bar_end_x + indicators_offset;
+	for (uint8_t y = bar_start_y; y <= bar_end_y; y += 3) {
+		image.drawPixel(indicators_start_x, y);
+		image.drawPixel(indicators_end_x, y);
+	}
+
+	// Draw bar
+	if (fill_y <= bar_end_y) {
+		image.invertArea(bar_start_x, bar_width, fill_y, bar_end_y);
+	}
+	else {
+		for (uint8_t x = bar_start_x + 1; x <= bar_end_x; x += 4) {
+			image.drawPixel(x, bar_end_y);
+		}
+	}
+
+	// Apply dithering
+	constexpr uint8_t dithering_segments = 3;
+	constexpr uint8_t segment_width = bar_width / dithering_segments;
+	const float dithering_amount = fill_height_f - fill_height;
+	const uint8_t dithering_width = static_cast<uint8_t>(dithering_amount * segment_width);
+	if (dithering_width > 0) {
+		for (uint8_t segment = 0; segment < dithering_segments; segment++) {
+			const uint8_t start_x = bar_start_x + segment_width * segment;
+			uint8_t end_x = start_x + dithering_width;
+			if (end_x == bar_end_x - 1) {
+				end_x = bar_end_x;
+			}
+			image.drawHorizontalLine(fill_y - 1, start_x, end_x);
+		}
+	}
 }
 
 void Number::drawSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
@@ -228,48 +260,194 @@ void Number::drawLengthSlider(int32_t start_x, int32_t start_y, int32_t slot_wid
 void Number::drawPan(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
 	oled_canvas::Canvas& image = OLED::main;
 
-	constexpr uint8_t width = 21;
-	constexpr uint8_t height = 11;
-	const uint8_t pan_start_x = start_x + 5;
+	constexpr uint8_t width = 23;
+	constexpr uint8_t circle_radius = 5;
+	const uint8_t pan_start_x = start_x + 4;
 	const uint8_t pan_end_x = pan_start_x + width - 1;
-	const uint8_t pan_start_y = start_y + 1;
-	const uint8_t pan_end_y = pan_start_y + height - 1;
-
-	const uint8_t center_x = pan_start_x + width / 2;
-	const uint8_t center_y = pan_start_y + height / 2;
+	const uint8_t center_x = start_x + slot_width / 2;
+	const uint8_t center_y = start_y + kHorizontalMenuSlotYOffset + 4;
 
 	const int32_t value = getValue();
+	const int8_t direction = (value > 0) - (value < 0);
 	const float norm = std::abs(value) / 25.f;
-	const uint8_t max_fill_width = center_x - pan_start_x - 1;
-	const uint8_t fill_width = norm * max_fill_width;
 
-	const int8_t direction = (value > 0) - (value < 0); // -1, 0, or +1
-	const uint8_t fill_start_x = center_x + direction;
-	const uint8_t fill_end_x = fill_start_x + direction * fill_width;
-	const uint8_t fill_min_x = std::min(fill_start_x, fill_end_x);
-	const uint8_t fill_max_x = std::max(fill_start_x, fill_end_x);
+	// Draw the main circle
+	const uint8_t circle_x = center_x + direction * norm * (width / 2);
+	image.drawCircle(circle_x, center_y, circle_radius, pan_start_x, pan_end_x);
+	image.drawCircle(circle_x, center_y, circle_radius - 1, pan_start_x, pan_end_x);
 
-	auto draw_segment = [&](uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1) {
-		auto fill_segment = [&](oled_canvas::Point point) {
-			if (point.x >= fill_min_x && point.x <= fill_max_x) {
-				image.drawLine(point.x, point.y, point.x, center_y);
+	if (norm == 0.f) {
+		// Draw a small filled circle inside if we're at center position
+		constexpr uint8_t fill_offset = 3;
+		image.clearAreaExact(center_x - fill_offset, center_y - fill_offset, center_x + fill_offset,
+		                     center_y + fill_offset);
+		image.invertArea(center_x - fill_offset, fill_offset * 2 + 1, center_y - fill_offset, center_y + fill_offset);
+		image.clearCircle(circle_x, center_y, circle_radius - 2, pan_start_x, pan_end_x);
+	}
+
+	// Fill remaining gaps
+	constexpr uint8_t gaps_offset = 3;
+	for (const uint8_t y : {center_y + gaps_offset, center_y - gaps_offset}) {
+		for (const uint8_t x : {circle_x + gaps_offset, circle_x - gaps_offset}) {
+			if (pan_start_x < x && x < pan_end_x) {
+				image.drawPixel(x, y);
 			}
-		};
-		image.drawLine(x0, y0, x1, y1, {.point_callback = fill_segment});
-	};
+		}
+	}
 
-	draw_segment(center_x, center_y - 2, pan_end_x - 1, pan_start_y);
-	draw_segment(center_x, center_y + 2, pan_end_x - 1, pan_end_y);
-	draw_segment(center_x, center_y - 2, pan_start_x + 1, pan_start_y);
-	draw_segment(center_x, center_y + 2, pan_start_x + 1, pan_end_y);
+	// Draw side dashed lines
+	if (circle_x - circle_radius < pan_start_x) {
+		for (uint8_t y = center_y - circle_radius; y <= center_y + circle_radius; y++) {
+			image.clearPixel(pan_start_x, y);
+			image.clearPixel(pan_start_x + 1, y);
+			if (y % 2 == 0) {
+				image.drawPixel(pan_start_x, y);
+			}
+		}
+	}
+	if (circle_x + circle_radius > pan_end_x) {
+		for (uint8_t y = center_y - circle_radius; y <= center_y + circle_radius; y++) {
+			image.clearPixel(pan_end_x, y);
+			image.clearPixel(pan_end_x - 1, y);
+			if (y % 2 == 0) {
+				image.drawPixel(pan_end_x, y);
+			}
+		}
+	}
+	// Draw a vertical dashed line at center
+	for (uint8_t x = pan_start_x; x <= pan_end_x; x += 2) {
+		if (x <= circle_x - circle_radius || x >= circle_x + circle_radius) {
+			image.drawPixel(x, center_y);
+		}
+	}
+}
 
-	image.drawVerticalLine(pan_end_x, pan_start_y, pan_end_y);
-	image.drawVerticalLine(pan_start_x, pan_start_y, pan_end_y);
-	image.drawVerticalLine(center_x, center_y - 5, center_y + 5);
+void Number::drawHpf(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
+	oled_canvas::Canvas& image = OLED::main;
+
+	constexpr uint8_t slope_width = 5;
+	constexpr uint8_t width = 21;
+	constexpr uint8_t height = 11;
+
+	const uint8_t hpf_start_x = start_x + 5;
+	const uint8_t hpf_end_x = hpf_start_x + width - 1;
+	const uint8_t hpf_start_y = start_y + 1;
+	const uint8_t hpf_end_y = hpf_start_y + height - 1;
+
+	const float norm = getNormalizedValue();
+	const uint8_t slope_start_x = std::lerp(hpf_start_x, hpf_end_x - slope_width - 4, norm);
+	const uint8_t slope_end_x = slope_start_x + slope_width;
+
+	image.drawLine(slope_start_x, hpf_end_y, slope_end_x, hpf_start_y, {.thick = true});
+	image.drawHorizontalLine(hpf_start_y, slope_end_x, hpf_end_x);
+	image.drawHorizontalLine(hpf_start_y + 1, slope_end_x, hpf_end_x);
+
+	for (uint8_t x = hpf_start_x; x < slope_start_x; x += 3) {
+		image.drawPixel(x, hpf_start_y);
+	}
+	if (slope_start_x != hpf_start_x) {
+		for (uint8_t y = hpf_start_y; y < hpf_end_y; y += 3) {
+			image.drawPixel(hpf_start_x, y);
+		}
+	}
+}
+
+void Number::drawLpf(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
+	oled_canvas::Canvas& image = OLED::main;
+
+	constexpr uint8_t slope_width = 5;
+	constexpr uint8_t width = 21;
+	constexpr uint8_t height = 11;
+
+	const uint8_t lpf_start_x = start_x + 5;
+	const uint8_t lpf_end_x = lpf_start_x + width - 1;
+	const uint8_t lpf_start_y = start_y + 1;
+	const uint8_t lpf_end_y = lpf_start_y + height - 1;
+
+	const float norm = getNormalizedValue();
+	const uint8_t slope_start_x = std::lerp(lpf_start_x + 3, lpf_end_x - slope_width, norm);
+	const uint8_t slope_end_x = slope_start_x + slope_width;
+
+	image.drawLine(slope_start_x, lpf_start_y, slope_end_x, lpf_end_y, {.thick = true});
+	image.drawHorizontalLine(lpf_start_y, lpf_start_x, slope_start_x);
+	image.drawHorizontalLine(lpf_start_y + 1, lpf_start_x, slope_start_x);
+
+	for (uint8_t x = lpf_end_x; x > slope_end_x; x -= 3) {
+		image.drawPixel(x, lpf_start_y);
+	}
+	if (slope_end_x != lpf_end_x) {
+		for (uint8_t y = lpf_start_y; y < lpf_end_y; y += 3) {
+			image.drawPixel(lpf_end_x, y);
+		}
+	}
+}
+
+void Number::drawRelease(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
+	oled_canvas::Canvas& image = OLED::main;
+
+	constexpr uint8_t width = 20;
+	constexpr uint8_t height = 11;
+
+	const uint8_t rel_start_x = start_x + 5;
+	const uint8_t rel_end_x = rel_start_x + width - 1;
+	const uint8_t rel_start_y = start_y + kHorizontalMenuSlotYOffset - 1;
+	const uint8_t rel_end_y = rel_start_y + height - 1;
+
+	const float norm = getNormalizedValue();
+	const uint8_t rel_stage_start_x = rel_start_x + 4;
+	const uint8_t rel_effective_x = std::lerp(rel_stage_start_x, rel_end_x, norm);
+
+	image.drawHorizontalLine(rel_start_y, rel_start_x, rel_stage_start_x);
+	image.drawLine(rel_stage_start_x, rel_start_y, rel_effective_x, rel_end_y);
+
+	constexpr uint8_t indicator_offset = 2;
+	for (uint8_t x = rel_effective_x - indicator_offset; x <= rel_effective_x + indicator_offset; x++) {
+		image.clearPixel(x, rel_end_y - indicator_offset - 1);
+		image.clearPixel(x, rel_end_y + indicator_offset + 1);
+
+		for (uint8_t y = rel_end_y - indicator_offset; y <= rel_end_y + indicator_offset; y++) {
+			image.drawPixel(x, y);
+		}
+	}
+
+	for (uint8_t x = rel_end_x; x > rel_effective_x + 1; x -= 2) {
+		image.drawPixel(x, rel_end_y);
+	}
+}
+
+void Number::drawAttack(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
+	oled_canvas::Canvas& image = OLED::main;
+
+	constexpr uint8_t width = 20;
+	constexpr uint8_t height = 11;
+
+	const uint8_t atk_start_x = start_x + 6;
+	const uint8_t atk_end_x = atk_start_x + width - 1;
+	const uint8_t atk_start_y = start_y + kHorizontalMenuSlotYOffset;
+	const uint8_t atk_end_y = atk_start_y + height - 1;
+
+	const float norm = getNormalizedValue();
+	const uint8_t atk_effective_x = std::lerp(atk_start_x, atk_end_x - 3, norm);
+
+	image.drawLine(atk_start_x, atk_end_y, atk_effective_x, atk_start_y, {.thick = false});
+
+	constexpr uint8_t indicator_offset = 2;
+	for (uint8_t x = atk_effective_x - indicator_offset; x <= atk_effective_x + indicator_offset; x++) {
+		image.clearPixel(x, atk_start_y - indicator_offset - 1);
+		image.clearPixel(x, atk_start_y + indicator_offset + 1);
+
+		for (uint8_t y = atk_start_y - indicator_offset; y <= atk_start_y + indicator_offset; y++) {
+			image.drawPixel(x, y);
+		}
+	}
+
+	for (uint8_t x = atk_end_x; x > atk_effective_x + 1; x -= 2) {
+		image.drawPixel(x, atk_start_y);
+	}
 }
 
 void Number::getNotificationValue(StringBuf& value) {
-	value.appendInt(getNumberStyle() == PERCENT ? getValue() * 2 : getValue());
+	value.appendInt(getRenderingStyle() == PERCENT ? getValue() * 2 : getValue());
 }
 
 } // namespace deluge::gui::menu_item

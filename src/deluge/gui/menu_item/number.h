@@ -22,7 +22,7 @@
 
 namespace deluge::gui::menu_item {
 
-enum NumberStyle { NUMBER, KNOB, BAR, PERCENT, SLIDER, LENGTH_SLIDER, PAN };
+enum RenderingStyle { NUMBER, KNOB, BAR, PERCENT, SLIDER, LENGTH_SLIDER, PAN, LPF, HPF, ATTACK, RELEASE };
 
 class Number : public Value<int32_t> {
 public:
@@ -32,7 +32,7 @@ public:
 protected:
 	[[nodiscard]] virtual int32_t getMaxValue() const = 0;
 	[[nodiscard]] virtual int32_t getMinValue() const { return 0; }
-	[[nodiscard]] virtual NumberStyle getNumberStyle() const { return KNOB; }
+	[[nodiscard]] virtual RenderingStyle getRenderingStyle() const { return KNOB; }
 	virtual float getNormalizedValue();
 
 	void renderInHorizontalMenu(int32_t start_x, int32_t width, int32_t start_y, int32_t height) override;
@@ -43,6 +43,10 @@ protected:
 	void drawLengthSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height,
 	                      bool min_slider_pos = 3);
 	void drawPan(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
+	void drawLpf(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
+	void drawHpf(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
+	void drawAttack(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
+	void drawRelease(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
 	void getNotificationValue(StringBuf& value) override;
 };
 
