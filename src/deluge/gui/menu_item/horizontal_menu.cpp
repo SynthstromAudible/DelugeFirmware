@@ -200,7 +200,8 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 
 		if (layout == FIXED && !isItemRelevant(item)) {
 			// Draw a dash as a value indicating that the item is disabled
-			image.drawStringCentered("-", current_x, base_y + 4, kTextTitleSpacingX, kTextTitleSizeY, box_width);
+			image.drawStringCentered("-", current_x, base_y + kHorizontalMenuSlotYOffset, kTextTitleSpacingX,
+			                         kTextTitleSizeY, box_width);
 		}
 		else {
 			// Draw content of the menu item
@@ -210,6 +211,7 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 		// Highlight the selected item if it doesn't occupy the whole page
 		if (is_selected && (items.size() > 1 || items[0]->getColumnSpan() < 4)) {
 			switch (FlashStorage::accessibilityMenuHighlighting) {
+
 			case MenuHighlighting::FULL_INVERSION: {
 				// Highlight by inversion of the label or whole slot
 				const bool highlight_whole_slot = !item->showColumnLabel() || item->isSubmenu();
@@ -218,11 +220,20 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 				image.invertAreaRounded(current_x + 1, box_width - 3, start_y, end_y);
 				break;
 			}
-			case MenuHighlighting::PARTIAL_INVERSION:
+
+			case MenuHighlighting::PARTIAL_INVERSION: {
 				// Highlight by drawing outline
-				image.drawRectangleRounded(current_x, base_y - 2, current_x + box_width - 2, base_y + box_height + 1,
+				constexpr uint8_t y_top = base_y - 3;
+				const uint8_t max_x = current_x + box_width - 2;
+				image.drawRectangleRounded(current_x, y_top, max_x, base_y + box_height + 1,
 				                           oled_canvas::BorderRadius::BIG);
+				for (uint8_t x = current_x; x <= max_x; x++) {
+					image.clearPixel(x, y_top - 1);
+					image.clearPixel(x, y_top - 2);
+				}
 				break;
+			}
+
 			case MenuHighlighting::NO_INVERSION:
 				// Highlight by drawing a line below the item
 				image.invertArea(current_x, box_width - 1, base_y + box_height, OLED_MAIN_VISIBLE_HEIGHT + 1);

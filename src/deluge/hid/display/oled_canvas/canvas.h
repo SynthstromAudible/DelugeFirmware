@@ -125,6 +125,11 @@ public:
 	/// @param maxY Maximum Y coordinate, inclusive
 	void drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, BorderRadius radius = SMALL);
 
+	void drawCircle(int32_t centerX, int32_t centerY, int32_t radius, std::optional<int32_t> min_x = std::nullopt,
+	                std::optional<int32_t> max_x = std::nullopt);
+	void clearCircle(int32_t centerX, int32_t centerY, int32_t radius, std::optional<int32_t> min_x = std::nullopt,
+	                 std::optional<int32_t> max_x = std::nullopt);
+
 	/// Draw a string
 	///
 	/// @param str The string

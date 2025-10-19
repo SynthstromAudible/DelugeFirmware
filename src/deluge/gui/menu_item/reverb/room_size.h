@@ -40,5 +40,35 @@ public:
 		}
 	}
 	[[nodiscard]] std::string_view getTitle() const override { return getName(); }
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		oled_canvas::Canvas& image = OLED::main;
+
+		constexpr uint8_t rect_width = 21;
+		constexpr uint8_t rect_height = 13;
+
+		const uint8_t rect_start_x = startX + (width - rect_width) / 2;
+		const uint8_t rect_end_x = rect_start_x + rect_width - 1;
+		const uint8_t rect_start_y = startY + kHorizontalMenuSlotYOffset - 1;
+		const uint8_t rect_end_y = rect_start_y + rect_height - 1;
+
+		const float norm = getNormalizedValue();
+		const uint8_t rect_effective_x = std::lerp(rect_start_x + 4, rect_end_x, norm);
+
+		// Draw the main rectangle
+		image.drawRectangle(rect_start_x, rect_start_y, rect_effective_x, rect_end_y);
+		constexpr uint8_t inner_offset = 4;
+		image.invertArea(rect_start_x + inner_offset, rect_effective_x - rect_start_x - inner_offset * 2 + 1,
+		                 rect_start_y + inner_offset, rect_end_y - inner_offset);
+
+		// Draw silhouette
+		for (uint8_t x = rect_end_x; x > rect_effective_x + 2; x -= 3) {
+			image.drawPixel(x, rect_start_y);
+			image.drawPixel(x, rect_end_y);
+		}
+		for (uint8_t y = rect_start_y; y <= rect_end_y; y += 3) {
+			image.drawPixel(rect_end_x, y);
+		}
+	}
 };
 } // namespace deluge::gui::menu_item::reverb
