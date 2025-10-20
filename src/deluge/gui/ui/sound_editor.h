@@ -183,7 +183,7 @@ private:
 	ActionResult handleAutomationViewPadAction(int32_t x, int32_t y, int32_t velocity);
 	bool isEditingAutomationViewParam();
 	void handlePotentialParamMenuChange(deluge::hid::Button b, bool inCardRoutine, MenuItem* previousItem,
-	                                    MenuItem* currentItem);
+	                                    MenuItem* currentItem, bool isHorizontalMenu);
 
 	uint8_t sourceShortcutBlinkFrequencies[2][kDisplayHeight];
 	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight];
