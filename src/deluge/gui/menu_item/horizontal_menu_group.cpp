@@ -197,7 +197,6 @@ void HorizontalMenuGroup::switchVisiblePage(int32_t direction) {
 	// Update UI
 	updateDisplay();
 	updatePadLights();
-	(*current_item_)->updateAutomationViewParameter();
 
 	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
 		display->cancelPopup();

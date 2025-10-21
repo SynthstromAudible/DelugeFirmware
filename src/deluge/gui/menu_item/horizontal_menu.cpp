@@ -299,7 +299,6 @@ void HorizontalMenu::switchVisiblePage(int32_t direction) {
 
 	renderUIsForOled();
 	updatePadLights();
-	(*current_item_)->updateAutomationViewParameter();
 
 	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
 		display->cancelPopup();
@@ -330,7 +329,6 @@ void HorizontalMenu::switchHorizontalMenu(int32_t direction, std::span<Horizonta
 	soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth] = target_menu;
 	renderUIsForOled();
 	target_menu->updatePadLights();
-	(*target_menu->current_item_)->updateAutomationViewParameter();
 
 	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
 		display->cancelPopup();
@@ -363,7 +361,6 @@ void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visible_pa
 			// Update the currently selected item
 			updateDisplay();
 			updatePadLights();
-			(*current_item_)->updateAutomationViewParameter();
 			return displayNotification(*current_item_);
 		}
 

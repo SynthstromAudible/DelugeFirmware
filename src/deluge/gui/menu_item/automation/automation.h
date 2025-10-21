@@ -33,7 +33,5 @@ public:
 	virtual ModelStackWithAutoParam* getModelStackWithParam(void* memory) = 0;
 	virtual PatchSource getPatchSource() { return PatchSource::NONE; }
 	void selectAutomationViewParameter(bool clipMinder);
-	/// MenuItem::updateAutomationViewParameter forwards here when necessary.
-	void handleAutomationViewParameterUpdate();
 };
 } // namespace deluge::gui::menu_item
