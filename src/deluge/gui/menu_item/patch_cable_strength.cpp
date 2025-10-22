@@ -375,10 +375,6 @@ void PatchCableStrength::horizontalEncoderAction(int32_t offset) {
 	}
 }
 
-void PatchCableStrength::updateAutomationViewParameter() {
-	Automation::handleAutomationViewParameterUpdate();
-}
-
 bool PatchCableStrength::isInHorizontalMenu() const {
 	return parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL;
 }

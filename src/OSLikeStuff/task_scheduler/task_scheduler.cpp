@@ -422,6 +422,9 @@ Time getTimerValueSeconds(int timerNo) {
 }
 /// return a monotonic timer value in seconds from when the task manager started
 Time TaskManager::getSecondsFromStart() {
+	if (!running) [[unlikely]] {
+		startClock();
+	}
 	auto timeNow = getTimerValueSeconds(0);
 	if (timeNow < lastTime) {
 		runningTime += rollTime;

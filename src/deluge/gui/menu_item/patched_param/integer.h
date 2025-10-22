@@ -68,8 +68,6 @@ public:
 		return getValue();
 	}
 
-	void updateAutomationViewParameter() override;
-
 	[[nodiscard]] NumberStyle getNumberStyle() const override {
 		return number_style_.value_or(IntegerContinuous::getNumberStyle());
 	}
