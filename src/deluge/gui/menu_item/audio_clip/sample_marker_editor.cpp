@@ -50,10 +50,6 @@ void SampleMarkerEditor::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 
-bool SampleMarkerEditor::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
-	return getCurrentAudioClip()->sampleHolder.audioFile != nullptr;
-}
-
 void SampleMarkerEditor::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
 	using namespace hid::display;
 	oled_canvas::Canvas& image = OLED::main;
