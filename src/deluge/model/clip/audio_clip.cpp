@@ -173,6 +173,7 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	bool shouldRecordMarginsNow =
 	    FlashStorage::audioClipRecordMargins && inputChannel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION;
 
+	// todo - pass in config variables for the recorder
 	recorder = AudioEngine::getNewRecorder(numChannels, AudioRecordingFolder::CLIPS, inputChannel, true,
 	                                       shouldRecordMarginsNow, buttonPressLatency, false, outputRecordingFrom);
 	if (!recorder) {

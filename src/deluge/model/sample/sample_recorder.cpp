@@ -108,6 +108,7 @@ void SampleRecorder::detachSample() {
 	sample->removeReason("E400");
 }
 
+//todo accept a config argument
 Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
                             bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency,
                             Output* outputRecordingFrom_) {
@@ -243,6 +244,8 @@ gotError:
 	int32_t lengthSamples = lengthSec * sample->sampleRate;
 	audioDataLengthBytesAsWrittenToFile = lengthSamples * 3 * recordingNumChannels;
 
+	// todo only set threshold based on argument -
+	// needed so we don't do threshold for audio clips doing a synched recording
 	setRecordingThreshold();
 
 	// Riff chunk -------------------------------------------------------

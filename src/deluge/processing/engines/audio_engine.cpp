@@ -1517,6 +1517,7 @@ void slowRoutine() {
 	doRecorderCardRoutines();
 }
 
+// todo accept config object for the sample recorder
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
                                bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency,
                                bool shouldNormalize, Output* outputRecordingFrom) {
@@ -1529,6 +1530,7 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
 
 	SampleRecorder* newRecorder = new (recorderMemory) SampleRecorder();
 
+	// todo pass in config
 	error = newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency,
 	                           outputRecordingFrom);
 	if (error != Error::NONE) {
