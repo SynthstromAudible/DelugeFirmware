@@ -33,10 +33,7 @@ public:
 	bool usesAffectEntire() override { return true; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		if (const auto audioClip = getCurrentAudioClip(); audioClip != nullptr) {
-			return audioClip->sampleHolder.audioFile != nullptr;
-		}
-		return isSampleModeSample(modControllable, source_id_);
+		return getCurrentAudioClip() != nullptr || isSampleModeSample(modControllable, source_id_);
 	}
 
 	void readCurrentValue() override {
