@@ -28,7 +28,13 @@
 #include <cstdint>
 
 #define MIN_MPE_MODULATED_VELOCITY 10
+#define ARP_DEBUG false
 
+#if ARP_DEBUG
+#define ARP_PRINTLN D_PRINTLN
+#else
+#define ARP_PRINTLN(...)
+#endif
 namespace params = deluge::modulation::params;
 
 ArpeggiatorSettings::ArpeggiatorSettings() {
@@ -478,7 +484,7 @@ bool Arpeggiator::checkPendingNotes(ArpeggiatorSettings* settings, ArpReturnInst
 					}
 					else {
 						instruction->arpNoteOn = arp_note;
-						D_PRINTLN("found a pending a live note, starting it");
+						ARP_PRINTLN("found a pending a live note, starting it");
 						return true;
 					}
 				}
@@ -1400,7 +1406,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 						}
 						arpNote->noteCodeOnPostArp[n] = note + target_offset - base_offset;
 						arpNote->noteStatus[n] = ArpNoteStatus::PENDING;
-						D_PRINTLN("pending a note in an arp chord");
+						ARP_PRINTLN("pending a note in an arp chord");
 					}
 				}
 			}
@@ -1427,7 +1433,7 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 
 bool ArpeggiatorBase::checkPendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
 	if (active_note.isPending()) {
-		D_PRINTLN("found a pending drum note");
+		ARP_PRINTLN("found a pending drum note");
 		instruction->arpNoteOn = &active_note;
 		return true;
 	}
@@ -1512,8 +1518,8 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 		notesPlayedFromLockedRandomizer = 0;
 	}
 	if (checkPendingNotes(settings, instruction)) {
-		D_PRINTLN("pending during tick forward");
-		return 1;
+		ARP_PRINTLN("pending during tick forward");
+		return 0;
 	}
 	// Make sure we actually intended to sync
 	if (settings->mode == ArpMode::OFF || (settings->syncLevel == 0u)) {
