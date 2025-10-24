@@ -195,6 +195,96 @@ void Canvas::drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int3
 	}
 }
 
+void Canvas::drawCircle(int32_t centerX, int32_t centerY, int32_t radius, std::optional<int32_t> min_x,
+                        std::optional<int32_t> max_x) {
+	int32_t x = 0;
+	int32_t y = radius;
+	// Add a small bias for small radii — helps round out edges
+	int32_t d = 1 - radius + (radius <= 6 ? 1 : 0);
+
+	auto draw_if_inside = [&](int32_t x, int32_t y) {
+		if (min_x && x < *min_x)
+			return;
+		if (max_x && x > *max_x)
+			return;
+		drawPixel(x, y);
+	};
+
+	auto plot_circle_points = [&](int32_t cx, int32_t cy, int32_t x, int32_t y) {
+		draw_if_inside(cx + x, cy + y);
+		draw_if_inside(cx - x, cy + y);
+		draw_if_inside(cx + x, cy - y);
+		draw_if_inside(cx - x, cy - y);
+		draw_if_inside(cx + y, cy + x);
+		draw_if_inside(cx - y, cy + x);
+		draw_if_inside(cx + y, cy - x);
+		draw_if_inside(cx - y, cy - x);
+	};
+
+	while (x <= y) {
+		plot_circle_points(centerX, centerY, x, y);
+
+		// normal midpoint update
+		if (d < 0) {
+			d += 2 * x + 3;
+		}
+		else {
+			d += 2 * (x - y) + 5;
+			y--;
+		}
+		x++;
+
+		// Small tweak: for very small circles, gradually adjust d to round diagonals
+		if (radius <= 5)
+			d += (x % 2 == 0 ? 1 : 0);
+	}
+}
+
+void Canvas::clearCircle(int32_t centerX, int32_t centerY, int32_t radius, std::optional<int32_t> min_x,
+                         std::optional<int32_t> max_x) {
+	int32_t x = 0;
+	int32_t y = radius;
+	// Add a small bias for small radii — helps round out edges
+	int32_t d = 1 - radius + (radius <= 6 ? 1 : 0);
+
+	auto clear_if_inside = [&](int32_t x, int32_t y) {
+		if (min_x && x < *min_x)
+			return;
+		if (max_x && x > *max_x)
+			return;
+		clearPixel(x, y);
+	};
+
+	auto plot_circle_points = [&](int32_t cx, int32_t cy, int32_t x, int32_t y) {
+		clear_if_inside(cx + x, cy + y);
+		clear_if_inside(cx - x, cy + y);
+		clear_if_inside(cx + x, cy - y);
+		clear_if_inside(cx - x, cy - y);
+		clear_if_inside(cx + y, cy + x);
+		clear_if_inside(cx - y, cy + x);
+		clear_if_inside(cx + y, cy - x);
+		clear_if_inside(cx - y, cy - x);
+	};
+
+	while (x <= y) {
+		plot_circle_points(centerX, centerY, x, y);
+
+		// normal midpoint update
+		if (d < 0) {
+			d += 2 * x + 3;
+		}
+		else {
+			d += 2 * (x - y) + 5;
+			y--;
+		}
+		x++;
+
+		// Small tweak: for very small circles, gradually adjust d to round diagonals
+		if (radius <= 5)
+			d += (x % 2 == 0 ? 1 : 0);
+	}
+}
+
 void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
                         int32_t scrollPos, int32_t endX, bool useTextWidth) {
 	int32_t lastIndex = string.length() - 1;

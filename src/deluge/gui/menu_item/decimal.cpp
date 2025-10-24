@@ -220,7 +220,7 @@ int32_t Decimal::getNumNonZeroDecimals(int32_t value) {
 }
 
 void Decimal::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
-	if (getNumberStyle() != NUMBER) {
+	if (getRenderingStyle() != NUMBER) {
 		return Number::renderInHorizontalMenu(startX, width, startY, height);
 	}
 

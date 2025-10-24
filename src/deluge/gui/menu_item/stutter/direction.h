@@ -128,11 +128,9 @@ private:
 		const auto value = getValue();
 
 		if (value == USE_SONG_STUTTER) {
-			// Draw a song icon centered
-			const uint8_t* icon = OLED::songIcon;
-			constexpr int32_t songIconWidth = 9;
-			const int32_t x = startX + (width - songIconWidth) / 2;
-			return image.drawGraphicMultiLine(icon, x, startY + kHorizontalMenuSlotYOffset, songIconWidth);
+			image.drawStringCentered("song", startX, startY + kHorizontalMenuSlotYOffset, kTextSpacingX, kTextSpacingY,
+			                         width);
+			return;
 		}
 
 		// Draw the direction icon centered

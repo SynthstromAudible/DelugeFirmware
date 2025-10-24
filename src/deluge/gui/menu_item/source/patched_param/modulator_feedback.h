@@ -26,7 +26,7 @@ public:
 	    : PatchedParam(name, newP, source_id), FormattedTitle(title_format_str, source_id + 1) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return BAR; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);

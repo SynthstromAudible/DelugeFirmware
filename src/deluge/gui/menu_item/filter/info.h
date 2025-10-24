@@ -84,7 +84,7 @@ public:
 		return alt;
 	}
 
-	[[nodiscard]] NumberStyle getNumberStyle() const {
+	[[nodiscard]] RenderingStyle getNumberStyle() const {
 		auto filter = dsp::filter::SpecificFilter(getMode());
 		if (filter.getFamily() == dsp::filter::FilterFamily::SVF) {
 			return SLIDER;
