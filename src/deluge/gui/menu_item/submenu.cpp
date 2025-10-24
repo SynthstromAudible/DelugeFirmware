@@ -182,8 +182,6 @@ void Submenu::selectEncoderAction(int32_t offset) {
 		} while (offset < 0);
 	}
 	updateDisplay();
-	updatePadLights();
-	(*current_item_)->updateAutomationViewParameter();
 }
 
 bool Submenu::shouldForwardButtons() {

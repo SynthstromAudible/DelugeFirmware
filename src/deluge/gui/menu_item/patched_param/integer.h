@@ -68,8 +68,6 @@ public:
 		return getValue();
 	}
 
-	void updateAutomationViewParameter() override;
-
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override {
 		return number_style_.value_or(IntegerContinuous::getRenderingStyle());
 	}

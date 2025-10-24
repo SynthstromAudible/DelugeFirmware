@@ -376,7 +376,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					goUpOneLevel();
 				}
 
-				handlePotentialParamMenuChange(b, on, inCardRoutine, currentMenuItem, getCurrentMenuItem());
+				handlePotentialParamMenuChange(b, inCardRoutine, currentMenuItem, getCurrentMenuItem(), false);
 
 				if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
 				    && getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
@@ -420,7 +420,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					goUpOneLevel();
 				}
 
-				handlePotentialParamMenuChange(b, on, inCardRoutine, currentMenuItem, getCurrentMenuItem());
+				handlePotentialParamMenuChange(b, inCardRoutine, currentMenuItem, getCurrentMenuItem(), false);
 
 				if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
 				    && getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
@@ -559,8 +559,25 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	}
 
 	else {
-		// potentially swap root UI to automation view / previous UI
-		return getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+		MenuItem* currentMenuItem = getCurrentMenuItem();
+		HorizontalMenu* asHorizontal = nullptr;
+		MenuItem* selectedItem = nullptr;
+
+		if (currentMenuItem->isSubmenu()
+		    && static_cast<Submenu*>(currentMenuItem)->renderingStyle() == Submenu::HORIZONTAL) {
+			asHorizontal = static_cast<HorizontalMenu*>(currentMenuItem);
+			selectedItem = asHorizontal->getCurrentItem();
+		}
+
+		ActionResult result = currentMenuItem->buttonAction(b, on, inCardRoutine);
+
+		// potentially swap out automation view UI / handle parameter change in horizontal menu
+		if (on && asHorizontal != nullptr) {
+			handlePotentialParamMenuChange(SELECT_ENC, inCardRoutine, selectedItem, asHorizontal->getCurrentItem(),
+			                               true);
+		}
+
+		return result;
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -570,19 +587,23 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 /// (may not have changed if we were holding shift to delete automation)
 /// potentially enter and refresh automation view if entering a new param menu
 /// potentially exit automation view / switch to automation overview if exiting param menu
-void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool on, bool inCardRoutine,
-                                                 MenuItem* previousItem, MenuItem* currentItem) {
+void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool inCardRoutine, MenuItem* previousItem,
+                                                 MenuItem* currentItem, bool isHorizontalMenu) {
 	using namespace deluge::hid::button;
 	if (previousItem != currentItem) {
+		bool previousMenuIsParam = (isHorizontalMenu == false || previousItem->isSubmenu() == false)
+		                           && (previousItem->getParamKind() != deluge::modulation::params::Kind::NONE);
+		bool currentMenuIsParam = (isHorizontalMenu == false || currentItem->isSubmenu() == false)
+		                          && (currentItem->getParamKind() != deluge::modulation::params::Kind::NONE);
+
 		// if we're entering a non-param menu from a param menu
 		// potentially swap out automation view as background root UI
 		// or go back to automation overview in background root UI
-		if ((previousItem->getParamKind() != deluge::modulation::params::Kind::NONE)
-		    && (currentItem->getParamKind() == deluge::modulation::params::Kind::NONE)) {
+		if (previousMenuIsParam == true && currentMenuIsParam == false) {
 			if (getRootUI() == &automationView) {
 				// if on menu view, swap out root UI to previous UI
 				if (automationView.onMenuView) {
-					previousItem->buttonAction(b, on, inCardRoutine);
+					previousItem->buttonAction(b, true, inCardRoutine);
 				}
 				// if not on menu view, go back to overview
 				else {
@@ -592,11 +613,10 @@ void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool on,
 				}
 			}
 		}
-		// if we're entering a param menu from a non-param menu
-		else if ((previousItem->getParamKind() == deluge::modulation::params::Kind::NONE)
-		         && (currentItem->getParamKind() != deluge::modulation::params::Kind::NONE)) {
+		// if we're entering a param menu
+		else if (currentMenuIsParam == true) {
 			// enter automation view and update parameter selection
-			currentItem->buttonAction(b, on, inCardRoutine);
+			currentItem->buttonAction(b, true, inCardRoutine);
 		}
 	}
 }
@@ -959,10 +979,9 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 	MenuItem* item = getCurrentMenuItem();
 	RootUI* rootUI = getRootUI();
 
-	// Forward to automation view.
-	// - skipped for submenus, since vertical menus don't need it, and horizontal menus need extra case
-	// - TODO: this could be handled by the Automation class via regular forwarding for all cases
-	if (!item->isSubmenu() && rootUI == &automationView && isEditingAutomationViewParam()
+	// Forward to automation view if holding a note
+	// This is to allow for fine tuning a specific steps automation
+	if (rootUI == &automationView && isUIModeActive(UI_MODE_NOTES_PRESSED) && isEditingAutomationViewParam()
 	    && !automationView.multiPadPressSelected) {
 		automationView.modEncoderAction(0, scaledOffset);
 	}
@@ -990,16 +1009,14 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 				markInstrumentAsEdited(); // TODO: make reverb and reverb-sidechain stuff exempt from this
 			}
 
-			if (rootUI != &automationView) {
-				// If envelope param preset values were changed, there's a chance that there could have been a
-				// change to whether notes have tails
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
+			// If envelope param preset values were changed, there's a chance that there could have been a
+			// change to whether notes have tails
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-				bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
-				if (hadNoteTails != hasNoteTailsNow) {
-					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
-				}
+			bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
+			if (hadNoteTails != hasNoteTailsNow) {
+				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 			}
 
 			if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
