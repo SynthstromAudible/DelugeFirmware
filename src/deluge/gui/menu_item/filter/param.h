@@ -43,7 +43,7 @@ public:
 	}
 
 	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return info.getNumberStyle(); }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return info.getNumberStyle(); }
 	[[nodiscard]] FilterInfo const& getFilterInfo() const { return info; }
 
 private:
@@ -61,7 +61,7 @@ public:
 		return info.isOn();
 	}
 	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return info.getNumberStyle(); }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return info.getNumberStyle(); }
 	[[nodiscard]] FilterInfo const& getFilterInfo() const { return info; }
 
 private:

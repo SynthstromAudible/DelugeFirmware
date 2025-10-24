@@ -65,7 +65,7 @@ public:
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 16; }
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return NUMBER; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
