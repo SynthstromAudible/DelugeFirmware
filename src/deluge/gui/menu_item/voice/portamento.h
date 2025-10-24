@@ -35,7 +35,7 @@ public:
 		using namespace deluge::hid::display;
 		oled_canvas::Canvas& image = OLED::main;
 
-		constexpr uint8_t porta_graphics_width = 27;
+		constexpr uint8_t porta_graphics_width = 25;
 		const uint8_t center_x = startX + width / 2;
 		const uint8_t porta_start_x = startX + 2;
 		const uint8_t porta_end_x = porta_start_x + porta_graphics_width - 1;
@@ -58,7 +58,7 @@ public:
 			image.drawLine(porta_x0, porta_end_y, porta_x1, porta_start_y);
 		}
 
-		constexpr uint8_t max_note_width = 8;
+		constexpr uint8_t max_note_width = 6;
 		constexpr uint8_t note_offset = 2;
 		const uint8_t lower_note_start_x = std::max<uint8_t>(porta_start_x, porta_x0 - note_offset - max_note_width);
 		const uint8_t higher_note_end_x = std::min<uint8_t>(porta_end_x, porta_x1 + note_offset + max_note_width);
