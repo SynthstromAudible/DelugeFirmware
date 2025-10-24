@@ -38,15 +38,9 @@ public:
 		if (getValue() > max_value_in_horizontal_menu) {
 			// Draw exclamation mark
 			oled_canvas::Canvas& image = OLED::main;
-			const uint8_t excl_mark_start_x = startX + 20;
-			const uint8_t excl_mark_start_y = startY + 2;
-			constexpr uint8_t excl_mark_width = 2;
-			constexpr uint8_t x_padding = 2;
-
-			for (uint8_t x = excl_mark_start_x - x_padding; x < excl_mark_start_x + excl_mark_width + x_padding; x++) {
-				image.drawPixel(x, excl_mark_start_y);
-				image.drawPixel(x, excl_mark_start_y + 8);
-			}
+			const uint8_t excl_mark_start_x = startX + width / 2 - 1;
+			const uint8_t excl_mark_start_y = startY + kHorizontalMenuSlotYOffset + 1;
+			constexpr uint8_t excl_mark_width = 3;
 
 			image.invertArea(excl_mark_start_x, excl_mark_width, excl_mark_start_y, excl_mark_start_y + 5);
 			image.invertArea(excl_mark_start_x, excl_mark_width, excl_mark_start_y + 7, excl_mark_start_y + 8);

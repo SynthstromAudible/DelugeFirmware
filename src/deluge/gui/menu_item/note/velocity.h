@@ -33,7 +33,7 @@ public:
 
 	[[nodiscard]] int32_t getMaxValue() const override { return 127; }
 	[[nodiscard]] int32_t getMinValue() const override { return 1; }
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return NUMBER; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
 	/// @brief Begin an editing session with this menu item.
 	///

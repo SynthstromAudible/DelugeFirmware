@@ -23,7 +23,7 @@ class ArpUnpatchedParam : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 
-	ArpUnpatchedParam(l10n::String newName, l10n::String title, int32_t newP, NumberStyle style)
+	ArpUnpatchedParam(l10n::String newName, l10n::String title, int32_t newP, RenderingStyle style)
 	    : UnpatchedParam(newName, title, newP), style_(style) {}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
@@ -34,10 +34,10 @@ public:
 		label.append(deluge::l10n::get(l10n::built_in::seven_segment, this->name));
 	}
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return style_; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return style_; }
 
 private:
-	NumberStyle style_ = KNOB;
+	RenderingStyle style_ = KNOB;
 };
 
 } // namespace deluge::gui::menu_item::arpeggiator
