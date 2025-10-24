@@ -61,7 +61,7 @@ public:
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return BAR; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return soundEditor.editingKit();
 	}

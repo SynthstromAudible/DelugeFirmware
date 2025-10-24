@@ -24,6 +24,6 @@ class EqFrequency final : public EqUnpatchedParam {
 public:
 	using EqUnpatchedParam::EqUnpatchedParam;
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return SLIDER; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return SLIDER; }
 };
 } // namespace deluge::gui::menu_item::eq

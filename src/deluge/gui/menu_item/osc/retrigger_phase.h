@@ -133,7 +133,7 @@ public:
 		label.append(l10n::get(l10n::String::STRING_FOR_RETRIGGER_PHASE_SHORT));
 	}
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return SLIDER; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return SLIDER; }
 
 private:
 	bool for_modulator_;

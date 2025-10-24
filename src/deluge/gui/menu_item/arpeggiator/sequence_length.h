@@ -22,7 +22,7 @@ class SequenceLength final : public ArpUnpatchedParam {
 public:
 	using ArpUnpatchedParam::ArpUnpatchedParam;
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return NUMBER; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
 		if (getValue() == 0) {

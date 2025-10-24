@@ -34,7 +34,7 @@ public:
 		return (sound->getSynthMode() != SynthMode::RINGMOD);
 	}
 
-	[[nodiscard]] NumberStyle getNumberStyle() const override { return BAR; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 
 	void getColumnLabel(StringBuf& label) override {
 		label.append(getName());
