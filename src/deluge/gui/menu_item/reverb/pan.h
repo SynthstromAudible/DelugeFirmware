@@ -44,6 +44,10 @@ public:
 
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuRelativeValue; }
 	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuRelativeValue; }
-	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return PAN; }
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+		// lift the pan graphics up a bit to align better with HPF and LPF elements
+		drawPan(startX, startY - 1, width, height);
+	}
 };
 } // namespace deluge::gui::menu_item::reverb
