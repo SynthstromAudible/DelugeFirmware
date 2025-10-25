@@ -94,6 +94,8 @@ void Number::renderInHorizontalMenu(int32_t start_x, int32_t width, int32_t star
 		return drawAttack(start_x, start_y, width, height);
 	case RELEASE:
 		return drawRelease(start_x, start_y, width, height);
+	case SIDECHAIN:
+		return drawSidechain(start_x, start_y, width, height);
 	default:
 		DEF_STACK_STRING_BUF(paramValue, 10);
 		paramValue.appendInt(getValue());
@@ -130,24 +132,35 @@ void Number::drawKnob(int32_t start_x, int32_t start_y, int32_t width, int32_t h
 	image.drawIconCentered(OLED::knobArcIcon, start_x, width, start_y - 1);
 
 	// Calculate current value angle
-	constexpr int32_t knob_radius = 10;
-	const int32_t center_x = start_x + width / 2;
-	const int32_t center_y = start_y + knob_radius;
-	constexpr int32_t arc_range_angle = 210, beginning_angle = 165;
+	constexpr uint8_t knob_radius = 10;
+	const uint8_t center_x = start_x + width / 2;
+	const uint8_t center_y = start_y + knob_radius;
+	constexpr uint8_t arc_range_angle = 210;
+	constexpr uint8_t beginning_angle = 165;
 	const float value_percent = getNormalizedValue();
 	const float current_angle = beginning_angle + (arc_range_angle * value_percent);
 
-	// Draw the indicator line
+	// Draw the leading line
 	const float radians = current_angle * M_PI / 180.0f;
-	constexpr float inner_radius = knob_radius - 1.0f;
-	constexpr float outer_radius = 3.5f;
+	constexpr float outer_radius = knob_radius - 1.0f;
+	constexpr float inner_radius = 3.5f;
 	const float cos_a = cos(radians);
 	const float sin_a = sin(radians);
-	const float line_start_x = center_x + outer_radius * cos_a;
-	const float line_start_y = center_y + outer_radius * sin_a;
-	const float line_end_x = center_x + inner_radius * cos_a;
-	const float line_end_y = center_y + inner_radius * sin_a;
+	const float line_start_x = center_x + inner_radius * cos_a;
+	const float line_start_y = center_y + inner_radius * sin_a;
+	const float line_end_x = center_x + outer_radius * cos_a;
+	const float line_end_y = center_y + outer_radius * sin_a;
 	image.drawLine(round(line_start_x), round(line_start_y), round(line_end_x), round(line_end_y), {.thick = true});
+
+	// If the knob's position is near left or near right, fill the gap on the bitmap (the gap exists purely for
+	// stylistic effect)
+	const uint8_t gap_y = start_y + kHorizontalMenuSlotYOffset + height - 7;
+	if (current_angle < 180.0f) {
+		image.drawPixel(center_x - knob_radius, gap_y);
+	}
+	if (current_angle > 360.0f) {
+		image.drawPixel(center_x + knob_radius, gap_y);
+	}
 }
 
 void Number::drawBar(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
@@ -260,65 +273,47 @@ void Number::drawLengthSlider(int32_t start_x, int32_t start_y, int32_t slot_wid
 void Number::drawPan(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
 	oled_canvas::Canvas& image = OLED::main;
 
-	constexpr uint8_t width = 23;
-	constexpr uint8_t circle_radius = 5;
-	const uint8_t pan_start_x = start_x + 4;
-	const uint8_t pan_end_x = pan_start_x + width - 1;
-	const uint8_t center_x = start_x + slot_width / 2;
-	const uint8_t center_y = start_y + kHorizontalMenuSlotYOffset + 4;
+	// Draw the half-cylinder base (easier to have a bitmap for that)
+	image.drawIconCentered(OLED::panHalfCylinderIcon, start_x, slot_width, start_y - 1);
 
 	const int32_t value = getValue();
 	const int8_t direction = (value > 0) - (value < 0);
+	if (direction == 0) {
+		// Nothing to fill when value is zero
+		return;
+	}
+
+	constexpr uint8_t arc_range_angle = 90, beginning_angle = 270;
 	const float norm = std::abs(value) / 25.f;
+	const float target_angle = beginning_angle + arc_range_angle * norm * direction;
 
-	// Draw the main circle
-	const uint8_t circle_x = center_x + direction * norm * (width / 2);
-	image.drawCircle(circle_x, center_y, circle_radius, pan_start_x, pan_end_x);
-	image.drawCircle(circle_x, center_y, circle_radius - 1, pan_start_x, pan_end_x);
+	// Start from the beginning angle (center) and step outwards toward target_angle
+	constexpr uint8_t radius = 11;
+	float cos_a = cos(beginning_angle * M_PI / 180.0f);
+	float sin_a = sin(beginning_angle * M_PI / 180.0f);
+	const int32_t center_x = start_x + slot_width / 2;
+	const int32_t center_y = start_y + radius;
 
-	if (norm == 0.f) {
-		// Draw a small filled circle inside if we're at center position
-		constexpr uint8_t fill_offset = 3;
-		image.clearAreaExact(center_x - fill_offset, center_y - fill_offset, center_x + fill_offset,
-		                     center_y + fill_offset);
-		image.invertArea(center_x - fill_offset, fill_offset * 2 + 1, center_y - fill_offset, center_y + fill_offset);
-		image.clearCircle(circle_x, center_y, circle_radius - 2, pan_start_x, pan_end_x);
-	}
+	constexpr uint8_t angle_step = 1;
+	constexpr float step_rad = angle_step * M_PI / 180.0f;
+	const float cos_step = cos(step_rad);
+	const float sin_step = sin(step_rad);
 
-	// Fill remaining gaps
-	constexpr uint8_t gaps_offset = 3;
-	for (const uint8_t y : {center_y + gaps_offset, center_y - gaps_offset}) {
-		for (const uint8_t x : {circle_x + gaps_offset, circle_x - gaps_offset}) {
-			if (pan_start_x < x && x < pan_end_x) {
-				image.drawPixel(x, y);
-			}
-		}
-	}
+	const uint8_t steps = static_cast<uint8_t>(std::round(std::abs((target_angle - beginning_angle) / angle_step)));
+	for (uint8_t s = 0; s < steps; s++) {
+		// Advance one step toward the target angle
+		const float new_cos = cos_a * cos_step - sin_a * sin_step * direction;
+		const float new_sin = sin_a * cos_step + cos_a * sin_step * direction;
+		cos_a = new_cos;
+		sin_a = new_sin;
 
-	// Draw side dashed lines
-	if (circle_x - circle_radius < pan_start_x) {
-		for (uint8_t y = center_y - circle_radius; y <= center_y + circle_radius; y++) {
-			image.clearPixel(pan_start_x, y);
-			image.clearPixel(pan_start_x + 1, y);
-			if (y % 2 == 0) {
-				image.drawPixel(pan_start_x, y);
-			}
-		}
-	}
-	if (circle_x + circle_radius > pan_end_x) {
-		for (uint8_t y = center_y - circle_radius; y <= center_y + circle_radius; y++) {
-			image.clearPixel(pan_end_x, y);
-			image.clearPixel(pan_end_x - 1, y);
-			if (y % 2 == 0) {
-				image.drawPixel(pan_end_x, y);
-			}
-		}
-	}
-	// Draw a vertical dashed line at center
-	for (uint8_t x = pan_start_x; x <= pan_end_x; x += 2) {
-		if (x <= circle_x - circle_radius || x >= circle_x + circle_radius) {
-			image.drawPixel(x, center_y);
-		}
+		constexpr float inner_radius = 5.0f;
+		constexpr float outer_radius = radius - 1;
+		const float line_start_x = center_x + inner_radius * cos_a;
+		const float line_start_y = center_y + inner_radius * sin_a;
+		const float line_end_x = center_x + outer_radius * cos_a;
+		const float line_end_y = center_y + outer_radius * sin_a;
+		image.drawLine(round(line_start_x), round(line_start_y), round(line_end_x), round(line_end_y));
 	}
 }
 
@@ -405,7 +400,7 @@ void Number::drawRelease(int32_t start_x, int32_t start_y, int32_t slot_width, i
 		image.clearPixel(x, rel_end_y - indicator_offset - 1);
 		image.clearPixel(x, rel_end_y + indicator_offset + 1);
 
-		for (uint8_t y = rel_end_y - indicator_offset; y <= rel_end_y + indicator_offset; y++) {
+		for (uint8_t y = rel_end_y - indicator_offset; y <= rel_end_y + indicator_offset - 1; y++) {
 			image.drawPixel(x, y);
 		}
 	}
@@ -427,7 +422,7 @@ void Number::drawAttack(int32_t start_x, int32_t start_y, int32_t slot_width, in
 	const uint8_t atk_end_y = atk_start_y + height - 1;
 
 	const float norm = getNormalizedValue();
-	const uint8_t atk_effective_x = std::lerp(atk_start_x, atk_end_x - 3, norm);
+	const uint8_t atk_effective_x = std::lerp(atk_start_x, atk_end_x - 2, norm);
 
 	image.drawLine(atk_start_x, atk_end_y, atk_effective_x, atk_start_y, {.thick = false});
 
@@ -436,13 +431,56 @@ void Number::drawAttack(int32_t start_x, int32_t start_y, int32_t slot_width, in
 		image.clearPixel(x, atk_start_y - indicator_offset - 1);
 		image.clearPixel(x, atk_start_y + indicator_offset + 1);
 
-		for (uint8_t y = atk_start_y - indicator_offset; y <= atk_start_y + indicator_offset; y++) {
+		for (uint8_t y = atk_start_y - indicator_offset + 1; y <= atk_start_y + indicator_offset; y++) {
 			image.drawPixel(x, y);
 		}
 	}
 
 	for (uint8_t x = atk_end_x; x > atk_effective_x + 1; x -= 2) {
 		image.drawPixel(x, atk_start_y);
+	}
+}
+
+void Number::drawSidechain(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
+	oled_canvas::Canvas& image = OLED::main;
+
+	constexpr int32_t width = 23;
+	constexpr int32_t height = 13;
+
+	const int32_t left_padding = (slot_width - width) / 2;
+	const int32_t min_x = start_x + left_padding;
+	const int32_t max_x = min_x + width;
+	const int32_t min_y = start_y + kHorizontalMenuSlotYOffset - 2;
+	const int32_t max_y = min_y + height - 1;
+
+	// Calculate shape height based on value
+	const float norm = getMaxValue() > 50 ? std::abs(getValue()) / 5000.0f : getValue() / 50.0f;
+	const int32_t fill_height = norm * height;
+	const int32_t y_offset = (height - fill_height) / 2;
+
+	int32_t ducking_start_y, ducking_end_y, y0, y1;
+	if (getValue() >= 0) {
+		// For positive values, draw from top down
+		ducking_start_y = min_y + y_offset;
+		ducking_end_y = ducking_start_y + fill_height;
+		y0 = ducking_end_y;
+		y1 = ducking_start_y;
+	}
+	else {
+		// For negative values, draw from bottom up
+		ducking_end_y = max_y - y_offset;
+		ducking_start_y = ducking_end_y - fill_height;
+		y0 = ducking_start_y;
+		y1 = ducking_end_y;
+	}
+
+	// Draw a sidechain level shape
+	constexpr int32_t offset_right = 10;
+	image.drawLine(min_x, y0, max_x - offset_right, y1,
+	               {.point_callback = [&](auto p) { image.drawLine(p.x, p.y, p.x, y1); }});
+
+	for (uint8_t x = max_x - offset_right; x < max_x; x += 2) {
+		image.drawPixel(x, y1);
 	}
 }
 
