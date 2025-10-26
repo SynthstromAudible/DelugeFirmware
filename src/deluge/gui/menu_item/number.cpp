@@ -94,8 +94,8 @@ void Number::renderInHorizontalMenu(int32_t start_x, int32_t width, int32_t star
 		return drawAttack(start_x, start_y, width, height);
 	case RELEASE:
 		return drawRelease(start_x, start_y, width, height);
-	case SIDECHAIN:
-		return drawSidechain(start_x, start_y, width, height);
+	case SIDECHAIN_DUCKING:
+		return drawSidechainDucking(start_x, start_y, width, height);
 	default:
 		DEF_STACK_STRING_BUF(paramValue, 10);
 		paramValue.appendInt(getValue());
@@ -283,7 +283,7 @@ void Number::drawPan(int32_t start_x, int32_t start_y, int32_t slot_width, int32
 		return;
 	}
 
-	constexpr uint8_t arc_range_angle = 90, beginning_angle = 270;
+	constexpr int32_t arc_range_angle = 90, beginning_angle = 270;
 	const float norm = std::abs(value) / 25.f;
 	const float target_angle = beginning_angle + arc_range_angle * norm * direction;
 
@@ -397,9 +397,6 @@ void Number::drawRelease(int32_t start_x, int32_t start_y, int32_t slot_width, i
 
 	constexpr uint8_t indicator_offset = 2;
 	for (uint8_t x = rel_effective_x - indicator_offset; x <= rel_effective_x + indicator_offset; x++) {
-		image.clearPixel(x, rel_end_y - indicator_offset - 1);
-		image.clearPixel(x, rel_end_y + indicator_offset + 1);
-
 		for (uint8_t y = rel_end_y - indicator_offset; y <= rel_end_y + indicator_offset - 1; y++) {
 			image.drawPixel(x, y);
 		}
@@ -428,9 +425,6 @@ void Number::drawAttack(int32_t start_x, int32_t start_y, int32_t slot_width, in
 
 	constexpr uint8_t indicator_offset = 2;
 	for (uint8_t x = atk_effective_x - indicator_offset; x <= atk_effective_x + indicator_offset; x++) {
-		image.clearPixel(x, atk_start_y - indicator_offset - 1);
-		image.clearPixel(x, atk_start_y + indicator_offset + 1);
-
 		for (uint8_t y = atk_start_y - indicator_offset + 1; y <= atk_start_y + indicator_offset; y++) {
 			image.drawPixel(x, y);
 		}
@@ -441,7 +435,7 @@ void Number::drawAttack(int32_t start_x, int32_t start_y, int32_t slot_width, in
 	}
 }
 
-void Number::drawSidechain(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
+void Number::drawSidechainDucking(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr int32_t width = 23;
