@@ -60,7 +60,7 @@ public:
 			                          kTextSpacingY, width);
 		}
 		else {
-			drawSidechain(startX, startY, width, height);
+			drawSidechainDucking(startX, startY, width, height);
 		}
 	}
 

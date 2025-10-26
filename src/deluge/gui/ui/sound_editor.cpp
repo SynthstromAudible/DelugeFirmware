@@ -142,7 +142,7 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 SoundEditor soundEditor{};
 
 SoundEditor::SoundEditor() {
-	currentParamShorcutX = 255;
+	currentParamShortcutX = kNoSelection;
 	timeLastAttemptedAutomatedParamEdit = 0;
 	shouldGoUpOneLevelOnBegin = false;
 	setupKitGlobalFXMenu = false;
@@ -757,7 +757,7 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 		paramShortcutBlinkFrequency = 3;
 
 		// Find param shortcut
-		currentParamShorcutX = 255;
+		currentParamShortcutX = kNoSelection;
 
 		// Global song parameters (this check seems very sketchy...)
 		if (!rootUIIsClipMinderScreen()) {
@@ -810,7 +810,7 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 							goto stopThat;
 						}
 
-						if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) {
+						if (currentParamShortcutX != kNoSelection && (x & 1) && currentSourceIndex == 0) {
 							goto stopThat;
 						}
 						setupShortcutBlink(x, y, 0);
@@ -819,7 +819,7 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 			}
 
 			// Failing that, if we're doing some patching, see if there's a shortcut for that *param*
-			if (currentParamShorcutX == 255) {
+			if (currentParamShortcutX == kNoSelection) {
 
 				int32_t paramLookingFor = currentItem->getIndexOfPatchedParamToBlink();
 				if (paramLookingFor != 255) {
@@ -833,13 +833,13 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 
 stopThat:
 
-			if (currentParamShorcutX != 255) {
+			if (currentParamShortcutX != kNoSelection) {
 				updateSourceBlinks(currentItem);
 			}
 		}
 
 		// If we found something...
-		if (currentParamShorcutX != 255) {
+		if (currentParamShortcutX != kNoSelection) {
 			blinkShortcut();
 		}
 	}
@@ -890,8 +890,8 @@ void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 }
 
 void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour) {
-	currentParamShorcutX = x;
-	currentParamShorcutY = y;
+	currentParamShortcutX = x;
+	currentParamShortcutY = y;
 	currentParamColour = colour;
 
 	shortcutBlinkCounter = 0;
@@ -913,7 +913,7 @@ void SoundEditor::blinkShortcut() {
 	if (shortcutBlinkCounter & 1) {
 		// Blink param
 		if ((counterForNow & paramShortcutBlinkFrequency) == 0) {
-			PadLEDs::flashMainPad(currentParamShorcutX, currentParamShorcutY, currentParamColour);
+			PadLEDs::flashMainPad(currentParamShortcutX, currentParamShortcutY, currentParamColour);
 		}
 		uiTimerManager.setTimer(TimerName::SHORTCUT_BLINK, 180);
 	}
@@ -1237,9 +1237,9 @@ getOut:
 				else {
 					item = paramShortcutsForSounds[x][y];
 
-					// Replace with the second layer shortcut (e.g. env3 attack, lfo3 rate) if the pad was pressed twice
+					// Replace the current shortcut with a second layer shortcut if the pad was pressed twice
 					secondLayerShortcutsToggled =
-					    (getCurrentMenuItem() != nullptr) && x == currentParamShorcutX && y == currentParamShorcutY
+					    getCurrentMenuItem() != nullptr && x == currentParamShortcutX && y == currentParamShortcutY
 					            && getCurrentMenuItem()->getParamKind() != modulation::params::Kind::PATCH_CABLE
 					        ? !secondLayerShortcutsToggled
 					        : false;
@@ -1273,13 +1273,24 @@ doSetup:
 						}
 					}
 
+					// Special shortcut for Note Row Editor menu: [audition pad] + [sequence direction pad]
+					Clip* currentClip = getCurrentClip();
+					if (currentClip->type == ClipType::INSTRUMENT && item == &sequenceDirectionMenu
+					    && display->haveOLED() && runtimeFeatureSettings.get(HorizontalMenus) == On
+					    && instrumentClipView.getNumNoteRowsAuditioning() == 1) {
+
+						noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu);
+						instrumentClipView.enterNoteRowEditor();
+						return ActionResult::DEALT_WITH;
+					}
+
 					const int32_t thingIndex = x & 1;
 
-					bool setupSuccess = setup(getCurrentClip(), item, thingIndex);
+					bool setupSuccess = setup(currentClip, item, thingIndex);
 
 					if (!setupSuccess && item == &modulator0Volume && currentSource->oscType == OscType::DX7) {
 						item = &dxParam;
-						setupSuccess = setup(getCurrentClip(), item, thingIndex);
+						setupSuccess = setup(currentClip, item, thingIndex);
 					}
 
 					if (!setupSuccess) {
@@ -1539,7 +1550,6 @@ void SoundEditor::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 }
 
 bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
-
 	Sound* newSound = nullptr;
 	ParamManagerForTimeline* newParamManager = nullptr;
 	ArpeggiatorSettings* newArpSettings = nullptr;
@@ -1944,13 +1954,13 @@ void SoundEditor::mpeZonesPotentiallyUpdated() {
 }
 
 HorizontalMenu* SoundEditor::maybeGetParentMenu(MenuItem* item) {
-	const auto chain = getCurrentHorizontalMenusChain(false);
-	if (!chain.has_value()) {
+	if (util::one_of<MenuItem*>(item, {&sample0StartMenu, &sample1StartMenu, &audioClipSampleMarkerEditorMenuEnd})) {
+		// for sample start/end points we go straight to waveform editor UI
 		return nullptr;
 	}
 
-	if (util::one_of<MenuItem*>(item, {&sample0StartMenu, &sample1StartMenu, &audioClipSampleMarkerEditorMenuEnd})) {
-		// for sample start/end points we go straight to waveform editor UI
+	const auto chain = getCurrentHorizontalMenusChain(false);
+	if (!chain.has_value()) {
 		return nullptr;
 	}
 

@@ -1351,11 +1351,11 @@ PatchCables patchCablesMenu{STRING_FOR_MOD_MATRIX};
 
 HorizontalMenu soundMasterMenu{
     STRING_FOR_MASTER,
-    {&synthModeMenu, &volumeMenu, &panMenu, &masterTransposeMenu, &vibratoMenu},
+    {&volumeMenu, &panMenu, &synthModeMenu, &masterTransposeMenu, &vibratoMenu},
 };
 HorizontalMenu soundMasterMenuWithoutVibrato{
     STRING_FOR_MASTER,
-    {&synthModeMenu, &volumeMenu, &panMenu, &masterTransposeMenu},
+    {&volumeMenu, &panMenu, &synthModeMenu, &masterTransposeMenu},
 };
 
 HorizontalMenuGroup sourceMenuGroup{{&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu}};
