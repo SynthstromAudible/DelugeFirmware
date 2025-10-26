@@ -40,6 +40,5 @@ public:
 		}
 	}
 	[[nodiscard]] std::string_view getTitle() const override { return getName(); }
-	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return LENGTH_SLIDER; }
 };
 } // namespace deluge::gui::menu_item::reverb
