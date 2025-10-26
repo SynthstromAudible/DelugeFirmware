@@ -166,53 +166,20 @@ void Number::drawKnob(int32_t start_x, int32_t start_y, int32_t width, int32_t h
 void Number::drawBar(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
 	oled_canvas::Canvas& image = OLED::main;
 
-	constexpr uint8_t bar_width = 15;
-	constexpr uint8_t bar_height = 13;
-
-	const uint8_t bar_start_x = start_x + (slot_width - bar_width) / 2;
+	constexpr uint8_t bar_width = 21;
+	constexpr uint8_t bar_height = 5;
+	constexpr uint8_t outline_padding = 2;
+	const uint8_t bar_start_x = start_x + 5;
+	const uint8_t bar_start_y = start_y + kHorizontalMenuSlotYOffset + 2;
 	const uint8_t bar_end_x = bar_start_x + bar_width - 1;
-	const uint8_t bar_start_y = start_y + kHorizontalMenuSlotYOffset - 1;
 	const uint8_t bar_end_y = bar_start_y + bar_height - 1;
 
-	const float value = getNormalizedValue();
-	const float fill_height_f = value * bar_height;
-	const float fill_height = static_cast<uint8_t>(fill_height_f);
-	const uint8_t fill_y = bar_end_y - fill_height + 1;
+	image.drawRectangle(bar_start_x - outline_padding, bar_start_y - outline_padding, bar_end_x + outline_padding,
+	                    bar_end_y + outline_padding);
 
-	// Draw indicators
-	constexpr uint8_t indicators_offset = 3;
-	const uint8_t indicators_start_x = bar_start_x - indicators_offset;
-	const uint8_t indicators_end_x = bar_end_x + indicators_offset;
-	for (uint8_t y = bar_start_y; y <= bar_end_y; y += 3) {
-		image.drawPixel(indicators_start_x, y);
-		image.drawPixel(indicators_end_x, y);
-	}
-
-	// Draw bar
-	if (fill_y <= bar_end_y) {
-		image.invertArea(bar_start_x, bar_width, fill_y, bar_end_y);
-	}
-	else {
-		for (uint8_t x = bar_start_x + 1; x <= bar_end_x; x += 4) {
-			image.drawPixel(x, bar_end_y);
-		}
-	}
-
-	// Apply dithering
-	constexpr uint8_t dithering_segments = 3;
-	constexpr uint8_t segment_width = bar_width / dithering_segments;
-	const float dithering_amount = fill_height_f - fill_height;
-	const uint8_t dithering_width = static_cast<uint8_t>(dithering_amount * segment_width);
-	if (dithering_width > 0) {
-		for (uint8_t segment = 0; segment < dithering_segments; segment++) {
-			const uint8_t start_x = bar_start_x + segment_width * segment;
-			uint8_t end_x = start_x + dithering_width;
-			if (end_x == bar_end_x - 1) {
-				end_x = bar_end_x;
-			}
-			image.drawHorizontalLine(fill_y - 1, start_x, end_x);
-		}
-	}
+	const float norm = getNormalizedValue();
+	const uint8_t fill_width = norm * bar_width;
+	image.invertArea(bar_start_x, fill_width, bar_start_y, bar_end_y);
 }
 
 void Number::drawSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
@@ -380,7 +347,7 @@ void Number::drawLpf(int32_t start_x, int32_t start_y, int32_t slot_width, int32
 void Number::drawRelease(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
 	oled_canvas::Canvas& image = OLED::main;
 
-	constexpr uint8_t width = 20;
+	constexpr uint8_t width = 19;
 	constexpr uint8_t height = 11;
 
 	const uint8_t rel_start_x = start_x + 5;
@@ -410,10 +377,10 @@ void Number::drawRelease(int32_t start_x, int32_t start_y, int32_t slot_width, i
 void Number::drawAttack(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
 	oled_canvas::Canvas& image = OLED::main;
 
-	constexpr uint8_t width = 20;
+	constexpr uint8_t width = 19;
 	constexpr uint8_t height = 11;
 
-	const uint8_t atk_start_x = start_x + 6;
+	const uint8_t atk_start_x = start_x + 7;
 	const uint8_t atk_end_x = atk_start_x + width - 1;
 	const uint8_t atk_start_y = start_y + kHorizontalMenuSlotYOffset;
 	const uint8_t atk_end_y = atk_start_y + height - 1;
@@ -439,12 +406,12 @@ void Number::drawSidechainDucking(int32_t start_x, int32_t start_y, int32_t slot
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr int32_t width = 23;
-	constexpr int32_t height = 13;
+	constexpr int32_t height = 11;
 
 	const int32_t left_padding = (slot_width - width) / 2;
 	const int32_t min_x = start_x + left_padding;
 	const int32_t max_x = min_x + width;
-	const int32_t min_y = start_y + kHorizontalMenuSlotYOffset - 2;
+	const int32_t min_y = start_y + kHorizontalMenuSlotYOffset - 1;
 	const int32_t max_y = min_y + height - 1;
 
 	// Calculate shape height based on value
@@ -470,12 +437,9 @@ void Number::drawSidechainDucking(int32_t start_x, int32_t start_y, int32_t slot
 
 	// Draw a sidechain level shape
 	constexpr int32_t offset_right = 10;
-	image.drawLine(min_x, y0, max_x - offset_right, y1,
-	               {.point_callback = [&](auto p) { image.drawLine(p.x, p.y, p.x, y1); }});
-
-	for (uint8_t x = max_x - offset_right; x < max_x; x += 2) {
-		image.drawPixel(x, y1);
-	}
+	image.drawLine(min_x, y0, max_x - offset_right, y1);
+	image.drawLine(min_x, y0, min_x, y1);
+	image.drawHorizontalLine(y1, max_x - offset_right, max_x);
 }
 
 void Number::getNotificationValue(StringBuf& value) {
