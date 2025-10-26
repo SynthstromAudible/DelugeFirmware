@@ -22,7 +22,20 @@
 
 namespace deluge::gui::menu_item {
 
-enum RenderingStyle { NUMBER, KNOB, BAR, PERCENT, SLIDER, LENGTH_SLIDER, PAN, LPF, HPF, ATTACK, RELEASE, SIDECHAIN };
+enum RenderingStyle {
+	NUMBER,
+	KNOB,
+	BAR,
+	PERCENT,
+	SLIDER,
+	LENGTH_SLIDER,
+	PAN,
+	LPF,
+	HPF,
+	ATTACK,
+	RELEASE,
+	SIDECHAIN_DUCKING
+};
 
 class Number : public Value<int32_t> {
 public:
@@ -35,6 +48,7 @@ protected:
 	[[nodiscard]] virtual RenderingStyle getRenderingStyle() const { return KNOB; }
 	virtual float getNormalizedValue();
 
+	// Horizontal menus ------
 	void renderInHorizontalMenu(int32_t start_x, int32_t width, int32_t start_y, int32_t height) override;
 	void drawKnob(int32_t start_x, int32_t start_y, int32_t width, int32_t height);
 	void drawBar(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
@@ -47,7 +61,7 @@ protected:
 	void drawHpf(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
 	void drawAttack(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
 	void drawRelease(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
-	void drawSidechain(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
+	void drawSidechainDucking(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
 	void getNotificationValue(StringBuf& value) override;
 };
 
