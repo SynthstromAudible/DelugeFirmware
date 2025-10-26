@@ -94,8 +94,8 @@ public:
 
 	uint8_t navigationDepth;
 	uint8_t patchingParamSelected;
-	uint8_t currentParamShorcutX;
-	uint8_t currentParamShorcutY;
+	uint8_t currentParamShortcutX;
+	uint8_t currentParamShortcutY;
 	uint8_t currentParamColour;
 	uint8_t paramShortcutBlinkFrequency;
 	uint32_t shortcutBlinkCounter;
