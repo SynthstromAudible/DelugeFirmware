@@ -42,8 +42,8 @@ public:
 	}
 
 	void drawPixelsForOled() override {
-		hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
-		if (this->getValue() < 0) {
+		oled_canvas::Canvas& canvas = OLED::main;
+		if (getValue() < 0) {
 			canvas.drawStringCentred(l10n::get(l10n::String::STRING_FOR_AUTO), 18 + OLED_MAIN_TOPMOST_PIXEL,
 			                         kTextHugeSpacingX, kTextHugeSizeY);
 		}
@@ -54,13 +54,14 @@ public:
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
 		oled_canvas::Canvas& canvas = OLED::main;
-		if (this->getValue() < 0) {
-			const char* stringForAuto = l10n::get(l10n::String::STRING_FOR_AUTO);
-			return canvas.drawStringCentered(stringForAuto, startX, startY + kHorizontalMenuSlotYOffset, kTextSpacingX,
-			                                 kTextSpacingY, width);
+		if (getValue() < 0) {
+			const char* string_for_auto = l10n::get(l10n::String::STRING_FOR_AUTO);
+			canvas.drawStringCentered(string_for_auto, startX, startY + kHorizontalMenuSlotYOffset, kTextSpacingX,
+			                          kTextSpacingY, width);
 		}
-
-		Integer::renderInHorizontalMenu(startX, width, startY, height);
+		else {
+			drawSidechain(startX, startY, width, height);
+		}
 	}
 
 	void getColumnLabel(StringBuf& label) override {
@@ -68,7 +69,7 @@ public:
 	}
 
 	void getNotificationValue(StringBuf& valueBuf) override {
-		if (const int32_t value = this->getValue(); value < 0) {
+		if (const int32_t value = getValue(); value < 0) {
 			valueBuf.append(l10n::get(l10n::String::STRING_FOR_AUTO));
 		}
 		else {

@@ -686,7 +686,7 @@ void OLED::displayNotification(std::string_view param_title, std::optional<std::
 	constexpr uint8_t end_x = OLED_MAIN_WIDTH_PIXELS - 1;
 	constexpr uint8_t start_y = OLED_MAIN_TOPMOST_PIXEL;
 	constexpr uint8_t end_y = OLED_MAIN_TOPMOST_PIXEL + kTextSpacingY + 1;
-	constexpr uint8_t width = end_x - start_x;
+	constexpr uint8_t width = end_x - start_x + 1;
 	constexpr uint8_t height = end_y - start_y;
 	constexpr int32_t padding_left = 4;
 
@@ -702,7 +702,7 @@ void OLED::displayNotification(std::string_view param_title, std::optional<std::
 		}
 	}
 
-	setupPopup(PopupType::NOTIFICATION, width, height, start_x, start_y);
+	setupPopup(PopupType::NOTIFICATION, width - 1, height, start_x, start_y);
 
 	// Draw the title and value
 	popup.drawString(titleBuf.data(), padding_left, start_y + 1, kTextSpacingX, kTextSpacingY);

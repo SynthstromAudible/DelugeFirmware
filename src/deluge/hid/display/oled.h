@@ -136,6 +136,7 @@ public:
 	static const Icon diceIcon;
 	static const Icon directionIcon;
 	static const Icon knobArcIcon;
+	static const Icon panHalfCylinderIcon;
 	static const Icon infinityIcon;
 	static const Icon sampleIcon;
 	static const Icon wavetableIcon;
