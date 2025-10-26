@@ -1281,7 +1281,7 @@ doSetup:
 					// Special shortcut for Note Row Editor menu: [audition pad] + [sequence direction pad]
 					Clip* currentClip = getCurrentClip();
 					if (currentClip->type == ClipType::INSTRUMENT && item == &sequenceDirectionMenu
-					    && runtimeFeatureSettings.get(HorizontalMenus) == On
+					    && display->haveOLED() && runtimeFeatureSettings.get(HorizontalMenus) == On
 					    && instrumentClipView.getNumNoteRowsAuditioning() == 1) {
 
 						noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu);
