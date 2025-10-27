@@ -278,18 +278,18 @@ arpeggiator::IncludeInKitArp arpIncludeInKitArpMenu{STRING_FOR_INCLUDE_IN_KIT_AR
 // Randomizer ---------------------------------
 randomizer::RandomizerLock randomizerLockMenu{STRING_FOR_RANDOMIZER_LOCK, STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE};
 randomizer::RandomizerUnpatchedParam spreadGateMenu{STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
-                                                    params::UNPATCHED_ARP_SPREAD_GATE};
+                                                    params::UNPATCHED_ARP_SPREAD_GATE, BAR};
 randomizer::midi_cv::SpreadGate spreadGateMenuMIDIOrCV{STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE};
 randomizer::RandomizerSoundOnlyUnpatchedParam spreadOctaveMenu{
-    STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_OCTAVE};
+    STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_OCTAVE, BAR};
 randomizer::midi_cv::SpreadOctave spreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD_OCTAVE,
                                                            STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
 randomizer::RandomizerUnpatchedParam spreadVelocityMenu{
-    STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_SPREAD_VELOCITY};
+    STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_SPREAD_VELOCITY, BAR};
 randomizer::midi_cv::SpreadVelocity spreadVelocityMenuMIDIOrCV{STRING_FOR_SPREAD_VELOCITY,
                                                                STRING_FOR_SPREAD_VELOCITY_MENU_TITLE};
 randomizer::RandomizerUnpatchedParam ratchetAmountMenu{
-    STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE, params::UNPATCHED_ARP_RATCHET_AMOUNT};
+    STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE, params::UNPATCHED_ARP_RATCHET_AMOUNT, BAR};
 randomizer::midi_cv::RatchetAmount ratchetAmountMenuMIDIOrCV{STRING_FOR_NUMBER_OF_RATCHETS,
                                                              STRING_FOR_ARP_RATCHETS_MENU_TITLE};
 randomizer::RandomizerUnpatchedParam ratchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY,
@@ -298,7 +298,7 @@ randomizer::RandomizerUnpatchedParam ratchetProbabilityMenu{STRING_FOR_RATCHET_P
 randomizer::midi_cv::RatchetProbability ratchetProbabilityMenuMIDIOrCV{STRING_FOR_RATCHET_PROBABILITY,
                                                                        STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
 randomizer::RandomizerNonKitSoundUnpatchedParam chordPolyphonyMenu{
-    STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_POLYPHONY};
+    STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_POLYPHONY, BAR};
 randomizer::midi_cv::ChordPolyphony chordPolyphonyMenuMIDIOrCV{STRING_FOR_CHORD_POLYPHONY,
                                                                STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE};
 randomizer::RandomizerNonKitSoundUnpatchedParam chordProbabilityMenu{STRING_FOR_CHORD_PROBABILITY,
@@ -1805,7 +1805,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
 };
 
 deluge::vector<HorizontalMenu*> horizontalMenusChainForSound = {
-	&soundMasterMenuWithoutVibrato, &recorderMenu,
+	&recorderMenu, &soundMasterMenuWithoutVibrato,
 	&sourceMenuGroup, &voiceMenuGroup, &envMenuGroup, &lfoMenuGroup,
 	&filtersMenuGroup, &eqMenu, &modFXMenu,
 	&reverbMenuGroup, &delayMenu, &soundDistortionMenu,
