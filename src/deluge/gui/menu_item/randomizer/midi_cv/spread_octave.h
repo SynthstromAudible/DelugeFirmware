@@ -35,5 +35,6 @@ public:
 		return (soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow())
 		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 };
 } // namespace deluge::gui::menu_item::randomizer::midi_cv

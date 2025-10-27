@@ -68,7 +68,7 @@ public:
 
 	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
 		using namespace deluge::hid::display;
-		const Icon& icon = getValue() ? OLED::switcherIconOn : OLED::switcherIconOff;
+		const Icon& icon = getValue() ? OLED::randomizerLockOnIcon : OLED::randomizerLockOffIcon;
 		OLED::main.drawIconCentered(icon, startX, width, startY - 1);
 	}
 };

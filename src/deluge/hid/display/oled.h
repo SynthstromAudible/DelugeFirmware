@@ -132,6 +132,8 @@ public:
 	static const Icon arpModeIconUpDown;
 	static const Icon arpModeIconWalk;
 	static const Icon arpModeIconCustom;
+	static const Icon randomizerLockOnIcon;
+	static const Icon randomizerLockOffIcon;
 	static const Icon diceIcon;
 	static const Icon directionIcon;
 	static const Icon knobArcIcon;
