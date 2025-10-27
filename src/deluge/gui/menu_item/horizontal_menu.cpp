@@ -254,12 +254,12 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 		constexpr int32_t dot_interval = 5;
 
 		for (int32_t x = start_x + 1; x < end_x; x += dot_interval) {
-			image.drawPixel(x, start_y + 1);
-			image.drawPixel(x, end_y - 1);
+			image.drawPixel(x, start_y);
+			image.drawPixel(x, end_y);
 		}
 		for (int32_t y = start_y + 3; y < end_y; y += dot_interval) {
-			image.drawPixel(start_x - 1, y);
-			image.drawPixel(end_x + 1, y);
+			image.drawPixel(start_x - 2, y);
+			image.drawPixel(end_x + 2, y);
 		}
 	}
 }
