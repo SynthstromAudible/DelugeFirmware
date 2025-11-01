@@ -241,7 +241,8 @@ void Number::drawPan(int32_t start_x, int32_t start_y, int32_t slot_width, int32
 	oled_canvas::Canvas& image = OLED::main;
 
 	// Draw the half-cylinder base (easier to have a bitmap for that)
-	image.drawIconCentered(OLED::panHalfCylinderIcon, start_x, slot_width, start_y - 1);
+	const uint8_t pan_start_y = start_y + kHorizontalMenuSlotYOffset - 4;
+	image.drawIconCentered(OLED::panHalfCylinderIcon, start_x, slot_width, pan_start_y);
 
 	const int32_t value = getValue();
 	const int8_t direction = (value > 0) - (value < 0);
@@ -259,7 +260,7 @@ void Number::drawPan(int32_t start_x, int32_t start_y, int32_t slot_width, int32
 	float cos_a = cos(beginning_angle * M_PI / 180.0f);
 	float sin_a = sin(beginning_angle * M_PI / 180.0f);
 	const int32_t center_x = start_x + slot_width / 2;
-	const int32_t center_y = start_y + radius;
+	const int32_t center_y = pan_start_y + radius;
 
 	constexpr uint8_t angle_step = 1;
 	constexpr float step_rad = angle_step * M_PI / 180.0f;
