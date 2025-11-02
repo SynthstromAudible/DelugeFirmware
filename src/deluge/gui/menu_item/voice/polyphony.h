@@ -85,11 +85,12 @@ public:
 		}
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
 		if (getValue() == 0) {
-			return OLED::main.drawIconCentered(OLED::infinityIcon, startX, width, startY + 3);
+			return OLED::main.drawIconCentered(OLED::infinityIcon, slot.start_x, slot.width,
+			                                   slot.start_y + kHorizontalMenuSlotYOffset + 1);
 		}
-		IntegerWithOff::renderInHorizontalMenu(startX, width, startY, height);
+		IntegerWithOff::renderInHorizontalMenu(slot);
 	}
 };
 

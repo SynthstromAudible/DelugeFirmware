@@ -66,13 +66,14 @@ public:
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 	[[nodiscard]] bool showNotification() const override { return false; }
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
 		using namespace hid::display;
 		oled_canvas::Canvas& image = OLED::main;
+		const bool full_inversion = FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::FULL_INVERSION;
 
 		// Draw record icon
-		int32_t x = startX + 5;
-		int32_t y = startY + 5;
+		int32_t x = slot.start_x + 5;
+		int32_t y = slot.start_y + kHorizontalMenuSlotYOffset + 3;
 		const Icon& rec_icon = OLED::recordIcon;
 		image.drawIcon(rec_icon, x, y);
 
@@ -83,23 +84,34 @@ public:
 
 		// Draw the arrow icon next
 		x += kTextSpacingX * 3 + 3;
-		image.drawGraphicMultiLine(OLED::submenuArrowIconBold, x, y, 7);
+		if (full_inversion) {
+			image.drawGraphicMultiLine(OLED::submenuArrowIconBold, x, y, 7);
+		}
+		else {
+			image.drawString(">", x, y, kTextSpacingX, kTextSpacingY);
+		}
 
 		DEF_STACK_STRING_BUF(sourceNumberBuf, kShortStringBufferSize);
 		sourceNumberBuf.appendInt(source_id_ + 1);
+		x = slot.start_x + slot.width - kTextBigSpacingX - 3;
+		y = slot.start_y + kHorizontalMenuSlotYOffset + 4;
 
-		if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::FULL_INVERSION
-		    || parent->getCurrentItem() == this) {
+		if (full_inversion || parent->getCurrentItem() == this) {
 			// Draw a big source number
-			x = startX + width - kTextBigSpacingX - 3;
-			y = startY + 6;
 			image.drawString(sourceNumberBuf.data(), x, y, kTextBigSpacingX, kTextBigSizeY);
 		}
 		else {
 			// Draw a smaller source number
-			x = startX + width - kTextBigSpacingX - 2;
-			y = startY + 8;
-			image.drawString(sourceNumberBuf.data(), x, y, kTextSpacingX, kTextSpacingY);
+			image.drawString(sourceNumberBuf.data(), x - 1, y + 2, kTextSpacingX, kTextSpacingY);
+		}
+
+		if (!full_inversion && source_id_ == 0) {
+			// Draw separator in the middle
+			const uint8_t start_y = slot.start_y + kHorizontalMenuSlotYOffset + 1;
+			const uint8_t end_y = start_y + 18;
+			for (uint8_t y = start_y; y <= end_y; y += 2) {
+				image.drawPixel(slot.start_x + slot.width - 1, y);
+			}
 		}
 	}
 

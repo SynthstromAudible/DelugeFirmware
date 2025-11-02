@@ -162,18 +162,18 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 
 	constexpr int32_t base_y = 14 + OLED_MAIN_TOPMOST_PIXEL;
 	constexpr int32_t column_width = OLED_MAIN_WIDTH_PIXELS / 4;
-	int32_t current_x = 0;
+	uint8_t current_x = 0;
 
 	for (auto it = items.begin(); it != items.end();) {
 		MenuItem* item = *it;
 		const bool is_selected = item == currentItem;
 		const bool is_relevant = isItemRelevant(item);
 
-		const int32_t box_width = column_width * item->getColumnSpan();
-		constexpr int32_t box_height = 25;
-		constexpr int32_t label_height = kTextSpacingY;
-		constexpr int32_t label_y = base_y + box_height - label_height;
-		int32_t content_height = box_height;
+		const uint8_t box_width = column_width * item->getColumnSpan();
+		constexpr uint8_t box_height = 25;
+		constexpr uint8_t label_height = kTextSpacingY;
+		constexpr uint8_t label_y = base_y + box_height - label_height;
+		uint8_t content_height = box_height;
 
 		if (containers_map.contains(item) && is_relevant) {
 			// If item belongs to a container, delegate rendering to that container
@@ -205,7 +205,10 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 		}
 		else {
 			// Draw content of the menu item
-			item->renderInHorizontalMenu(current_x, box_width - 1, base_y, content_height);
+			item->renderInHorizontalMenu({.start_x = current_x,
+			                              .start_y = base_y,
+			                              .width = static_cast<uint8_t>(box_width - 1),
+			                              .height = content_height});
 		}
 
 		// Highlight the selected item if it doesn't occupy the whole page
@@ -223,8 +226,7 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 			case MenuHighlighting::PARTIAL_INVERSION:
 			case MenuHighlighting::NO_INVERSION:
 				// Highlight by drawing a line below the item
-				constexpr uint8_t line_y = OLED_MAIN_VISIBLE_HEIGHT + 2;
-				image.invertArea(current_x, box_width - 1, line_y, line_y);
+				image.drawHorizontalLine(OLED_MAIN_VISIBLE_HEIGHT + 2, current_x, current_x + box_width - 2);
 				break;
 			}
 		}

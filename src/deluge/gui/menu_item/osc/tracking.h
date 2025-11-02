@@ -48,10 +48,10 @@ public:
 		Toggle::selectEncoderAction(offset);
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
 		using namespace deluge::hid::display;
 		const auto& icon = getValue() ? OLED::oscTrackingEnabledIcon : OLED::oscTrackingDisabledIcon;
-		OLED::main.drawIconCentered(icon, startX, width, startY - 1);
+		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
 	}
 
 private:
