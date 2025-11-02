@@ -27,23 +27,23 @@ class Amount final : public patched_param::Integer {
 public:
 	using Integer::Integer;
 
-	float getNormalizedValue() override {
-		const int32_t clamped = std::clamp<int32_t>(getValue(), 0, max_value_in_horizontal_menu);
+	float normalize(int32_t value) override {
+		const int32_t clamped = std::clamp<int32_t>(value, 0, max_value_in_horizontal_menu);
 		return clamped / static_cast<float>(max_value_in_horizontal_menu);
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
-		drawBar(startX, startY, width, height);
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+		drawBar(slot);
 
 		if (getValue() > max_value_in_horizontal_menu) {
 			// Draw exclamation mark
 			oled_canvas::Canvas& image = OLED::main;
 			constexpr uint8_t excl_mark_width = 3;
 			constexpr uint8_t excl_mark_height = 9;
-			const uint8_t center_x = startX + width / 2;
-			const uint8_t excl_mark_start_y = startY + kHorizontalMenuSlotYOffset;
+			const uint8_t center_x = slot.start_x + slot.width / 2;
+			const uint8_t excl_mark_start_y = slot.start_y + kHorizontalMenuSlotYOffset;
 			const uint8_t excl_mark_end_y = excl_mark_start_y + excl_mark_height - 1;
-			const uint8_t excl_mark_start_x = startX + width / 2 - 1;
+			const uint8_t excl_mark_start_x = center_x - 1;
 
 			// Fill the mark area
 			for (uint8_t x = center_x - 2; x <= center_x + 2; x++) {

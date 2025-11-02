@@ -705,16 +705,23 @@ void OLED::displayNotification(std::string_view param_title, std::optional<std::
 	setupPopup(PopupType::NOTIFICATION, width - 1, height, start_x, start_y);
 
 	// Draw the title and value
-	popup.drawString(titleBuf.data(), padding_left, start_y + 1, kTextSpacingX, kTextSpacingY);
+	const bool no_inversion = FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION;
+	constexpr uint8_t title_start_x = padding_left;
+	const uint8_t title_start_y = no_inversion ? start_y : start_y + 1;
+	popup.drawString(titleBuf.data(), title_start_x, title_start_y, kTextSpacingX, kTextSpacingY);
 
 	if (value_width > 0) {
-		popup.drawChar(':', padding_left + title_width, start_y + 1, kTextSpacingX, kTextSpacingY);
-		popup.drawString(param_value.value().data(), padding_left + title_width + 8, start_y + 1, kTextSpacingX,
+		popup.drawChar(':', title_start_x + title_width, title_start_y, kTextSpacingX, kTextSpacingY);
+		popup.drawString(param_value.value().data(), title_start_x + title_width + 8, title_start_y, kTextSpacingX,
 		                 kTextSpacingY);
 	}
 
-	if (FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION) {
-		// Make the notification inverted
+	if (no_inversion) {
+		for (uint8_t x = start_x + 1; x < end_x; x += 2) {
+			popup.drawPixel(x, end_y);
+		}
+	}
+	else {
 		popup.invertAreaRounded(start_x, width, start_y, end_y);
 		popup.drawPixel(start_x, start_y);
 		popup.drawPixel(end_x, start_y);

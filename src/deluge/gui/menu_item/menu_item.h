@@ -30,6 +30,13 @@ enum class MenuPermission {
 	MUST_SELECT_RANGE,
 };
 
+struct HorizontalMenuSlotParams {
+	uint8_t start_x{0};
+	uint8_t start_y{0};
+	uint8_t width{0};
+	uint8_t height{0};
+};
+
 class Sound;
 class MultiRange;
 class MIDICable;
@@ -310,7 +317,7 @@ public:
 	/// Needs to be overridden
 	virtual void getNotificationValue(StringBuf& valueBuf) {}
 
-	virtual void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {};
+	virtual void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {};
 
 	deluge::gui::menu_item::HorizontalMenu* parent{nullptr};
 

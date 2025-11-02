@@ -37,7 +37,7 @@ protected:
 	void drawValue() final;
 	virtual void getNoteLengthName(StringBuf& buffer);
 	void drawPixelsForOled() override;
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override;
 	void getColumnLabel(StringBuf& label) override;
 };
 

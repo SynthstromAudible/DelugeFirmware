@@ -121,14 +121,14 @@ public:
 
 	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_MODE)); }
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
 		using namespace deluge::hid::display;
 		oled_canvas::Canvas& image = OLED::main;
 
 		if (this->getValue<ArpPreset>() == ArpPreset::OFF) {
 			const auto off = l10n::get(l10n::String::STRING_FOR_OFF);
-			return image.drawStringCentered(off, startX, startY + kHorizontalMenuSlotYOffset + 5, kTextTitleSpacingX,
-			                                kTextTitleSizeY, width);
+			return image.drawStringCentered(off, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset + 5,
+			                                kTextTitleSpacingX, kTextTitleSizeY, slot.width);
 		}
 
 		const auto arpPreset = getValue<ArpPreset>();
@@ -151,7 +151,7 @@ public:
 		}();
 
 		const bool reversed = arpPreset == ArpPreset::DOWN;
-		image.drawIconCentered(icon, startX, width, startY + kHorizontalMenuSlotYOffset + 1, reversed);
+		image.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y + kHorizontalMenuSlotYOffset + 1, reversed);
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator

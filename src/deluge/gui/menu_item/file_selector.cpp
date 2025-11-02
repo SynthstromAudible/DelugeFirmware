@@ -92,9 +92,9 @@ MenuPermission FileSelector::checkPermissionToBeginSession(ModControllableAudio*
 	return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, sourceId_, currentRange);
 }
 
-void FileSelector::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+void FileSelector::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
 	using namespace hid::display;
-	OLED::main.drawIconCentered(OLED::folderIconBig, startX, width, startY - 1);
+	OLED::main.drawIconCentered(OLED::folderIconBig, slot.start_x, slot.width, slot.start_y - 1);
 }
 
 void FileSelector::getColumnLabel(StringBuf& label) {
