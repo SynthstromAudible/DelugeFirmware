@@ -73,11 +73,11 @@ public:
 		// Draw record icon
 		int32_t x = startX + 5;
 		int32_t y = startY + 5;
-		const Icon& recIcon = OLED::recordIcon;
-		image.drawIcon(recIcon, x, y);
+		const Icon& rec_icon = OLED::recordIcon;
+		image.drawIcon(rec_icon, x, y);
 
 		// Draw a "rec" string nearby
-		x += recIcon.width + 3;
+		x += rec_icon.width + 3;
 		y += 3;
 		image.drawString("rec", x, y, kTextSpacingX, kTextSpacingY);
 
@@ -85,12 +85,22 @@ public:
 		x += kTextSpacingX * 3 + 3;
 		image.drawGraphicMultiLine(OLED::submenuArrowIconBold, x, y, 7);
 
-		// Draw a big source number
-		x = startX + width - kTextBigSpacingX - 3;
-		y = startY + 6;
 		DEF_STACK_STRING_BUF(sourceNumberBuf, kShortStringBufferSize);
 		sourceNumberBuf.appendInt(source_id_ + 1);
-		image.drawString(sourceNumberBuf.data(), x, y, kTextBigSpacingX, kTextBigSizeY);
+
+		if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::FULL_INVERSION
+		    || parent->getCurrentItem() == this) {
+			// Draw a big source number
+			x = startX + width - kTextBigSpacingX - 3;
+			y = startY + 6;
+			image.drawString(sourceNumberBuf.data(), x, y, kTextBigSpacingX, kTextBigSizeY);
+		}
+		else {
+			// Draw a smaller source number
+			x = startX + width - kTextBigSpacingX - 2;
+			y = startY + 8;
+			image.drawString(sourceNumberBuf.data(), x, y, kTextSpacingX, kTextSpacingY);
+		}
 	}
 
 private:
