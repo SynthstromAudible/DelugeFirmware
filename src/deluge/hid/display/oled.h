@@ -144,7 +144,6 @@ public:
 	static const Icon inputIcon;
 	static const Icon micIcon;
 	static const Icon folderIconBig;
-	static const Icon recordIcon;
 	static const Icon loopPointIcon;
 	static const Icon sampleModeCutIcon;
 	static const Icon sampleModeOnceIcon;
