@@ -1074,12 +1074,13 @@ doLoadAsSample:
 		exitAndNeverDeleteDrum();
 
 		if (menuItemHeadingTo != nullptr && parentMenuHeadingTo != nullptr) {
-			parentMenuHeadingTo->focusChild(menuItemHeadingTo);
-			soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo;
-			soundEditor.navigationDepth = 0;
 			if (isUIOpen(&soundEditor)) {
 				closeUI(&soundEditor);
 			}
+
+			parentMenuHeadingTo->focusChild(menuItemHeadingTo);
+			soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo;
+			soundEditor.navigationDepth = 0;
 			openUI(&soundEditor);
 
 			parentMenuHeadingTo = nullptr;

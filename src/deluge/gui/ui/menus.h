@@ -14,6 +14,7 @@
 #include "gui/menu_item/note_row/iterance_preset.h"
 #include "gui/menu_item/note_row/iterance_step_toggle.h"
 #include "gui/menu_item/note_row/probability.h"
+#include "gui/menu_item/osc/audio_recorder.h"
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
 #include "gui/menu_item/patch_cables.h"
@@ -44,6 +45,8 @@ extern gui::menu_item::sample::Start sample0StartMenu;
 extern gui::menu_item::sample::Start sample1StartMenu;
 extern gui::menu_item::sample::End sample0EndMenu;
 extern gui::menu_item::sample::End sample1EndMenu;
+extern gui::menu_item::osc::AudioRecorder sample0RecorderMenu;
+extern gui::menu_item::osc::AudioRecorder sample1RecorderMenu;
 extern gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart;
 extern gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd;
 extern gui::menu_item::EditName nameEditMenu;
