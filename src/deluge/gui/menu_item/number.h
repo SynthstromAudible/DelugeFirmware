@@ -46,22 +46,21 @@ protected:
 	[[nodiscard]] virtual int32_t getMaxValue() const = 0;
 	[[nodiscard]] virtual int32_t getMinValue() const { return 0; }
 	[[nodiscard]] virtual RenderingStyle getRenderingStyle() const { return KNOB; }
-	virtual float getNormalizedValue();
+	virtual float normalize(int32_t value);
 
 	// Horizontal menus ------
-	void renderInHorizontalMenu(int32_t start_x, int32_t width, int32_t start_y, int32_t height) override;
-	void drawKnob(int32_t start_x, int32_t start_y, int32_t width, int32_t height);
-	void drawBar(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
-	void drawPercent(int32_t start_x, int32_t start_y, int32_t width, int32_t height);
-	void drawSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
-	void drawLengthSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height,
-	                      bool min_slider_pos = 3);
-	void drawPan(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
-	void drawLpf(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
-	void drawHpf(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
-	void drawAttack(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
-	void drawRelease(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
-	void drawSidechainDucking(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height);
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override;
+	void drawKnob(const HorizontalMenuSlotParams& slot);
+	void drawBar(const HorizontalMenuSlotParams& slot);
+	void drawPercent(const HorizontalMenuSlotParams& slot);
+	void drawSlider(const HorizontalMenuSlotParams& slot, std::optional<int32_t> value = std::nullopt);
+	void drawLengthSlider(const HorizontalMenuSlotParams& slot, bool min_slider_pos = 3);
+	void drawPan(const HorizontalMenuSlotParams& slot);
+	void drawLpf(const HorizontalMenuSlotParams& slot);
+	void drawHpf(const HorizontalMenuSlotParams& slot);
+	void drawAttack(const HorizontalMenuSlotParams& slot);
+	void drawRelease(const HorizontalMenuSlotParams& slot);
+	void drawSidechainDucking(const HorizontalMenuSlotParams& slot);
 	void getNotificationValue(StringBuf& value) override;
 };
 

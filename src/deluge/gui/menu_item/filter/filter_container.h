@@ -37,12 +37,12 @@ public:
 	            HorizontalMenu* parent, bool* halt_remaining_rendering) override {
 		oled_canvas::Canvas& image = OLED::main;
 
-		const auto [freq_raw, reso_raw, morph_raw, filter_mode, is_hpf] = getFilterValues();
+		const auto [freq_raw, reso_raw, morph_raw, is_morphable, is_hpf] = getFilterValues();
 		const float freq_value = freq_raw / 50.f;
 		const float reso_value = sigmoidLikeCurve(reso_raw, 50.f, 15.f);
 		const float morph_value = [&] {
 			float result = 0.f;
-			if (util::one_of(filter_mode, {FilterMode::SVF_BAND, FilterMode::SVF_NOTCH})) {
+			if (is_morphable) {
 				result = morph_raw / 50.f;
 			}
 			if (is_hpf) {
@@ -123,7 +123,7 @@ public:
 
 		// Body level dashed line
 		constexpr uint8_t line_offset = 3;
-		constexpr uint8_t line_interval = 5;
+		constexpr uint8_t line_interval = 4;
 		for (uint8_t x = min_x + line_offset; x <= max_x - line_offset; x += line_interval) {
 			if (x < slope0_x1 - line_offset || x > slope1_x0 + line_offset) {
 				image.drawPixel(x, body_y);
@@ -147,7 +147,7 @@ private:
 		int32_t freq_value{0};
 		int32_t reso_value{0};
 		int32_t morph_value{0};
-		FilterMode mode{FilterMode::OFF};
+		bool is_morphable{false};
 		bool is_hpf{false};
 	};
 
@@ -156,17 +156,17 @@ private:
 			// Get from patched params
 			auto freq_item = static_cast<FilterParam*>(items_[0]);
 			auto reso_item = static_cast<FilterParam*>(items_[1]);
-			FilterMode filter_mode = morph_item_->getFilterInfo().getMode();
+			bool is_morphable = morph_item_->getFilterInfo().isMorphable();
 			bool is_hpf = freq_item->getP() == params::LOCAL_HPF_FREQ;
-			return {freq_item->getValue(), reso_item->getValue(), morph_item_->getValue(), filter_mode, is_hpf};
+			return {freq_item->getValue(), reso_item->getValue(), morph_item_->getValue(), is_morphable, is_hpf};
 		}
 
 		// Get from unpatched params
 		auto freq_item = static_cast<UnpatchedFilterParam*>(items_[0]);
 		auto reso_item = static_cast<UnpatchedFilterParam*>(items_[1]);
-		FilterMode filter_mode = morph_item_unpatched_->getFilterInfo().getMode();
+		bool is_morphable = morph_item_unpatched_->getFilterInfo().isMorphable();
 		bool is_hpf = freq_item->getP() == params::UNPATCHED_HPF_FREQ;
-		return {freq_item->getValue(), reso_item->getValue(), morph_item_unpatched_->getValue(), filter_mode, is_hpf};
+		return {freq_item->getValue(), reso_item->getValue(), morph_item_unpatched_->getValue(), is_morphable, is_hpf};
 	}
 
 	static oled_canvas::Point pickFreqPoint(const oled_canvas::Point& slope0_last_point,

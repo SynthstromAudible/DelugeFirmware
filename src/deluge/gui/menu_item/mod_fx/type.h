@@ -74,7 +74,7 @@ public:
 	[[nodiscard]] bool showNotification() const override { return false; }
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
@@ -84,17 +84,17 @@ public:
 
 		// Get the main text width and trim if needed
 		int32_t text_width = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
-		while (text_width >= width - 2 * arrow_space) {
+		while (text_width >= slot.width - 2 * arrow_space) {
 			shortOpt.truncate(shortOpt.size() - 1);
 			text_width = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
 		}
 
-		const int32_t text_start_x = startX + (width - text_width) / 2 + 1;
-		const int32_t text_start_y = startY + (height - kTextSpacingY) / 2 + 1;
+		const int32_t text_start_x = slot.start_x + (slot.width - text_width) / 2 + 1;
+		const int32_t text_start_y = slot.start_y + (slot.height - kTextSpacingY) / 2 + 1;
 
 		// Draw the left arrow
 		if (getValue() > 0) {
-			image.drawString("<", startX + 5, text_start_y, kTextTitleSpacingX, kTextTitleSizeY);
+			image.drawString("<", slot.start_x + 5, text_start_y, kTextTitleSpacingX, kTextTitleSizeY);
 		}
 
 		// Draw main text
@@ -104,13 +104,14 @@ public:
 		constexpr int32_t highlight_offset = 21;
 		switch (FlashStorage::accessibilityMenuHighlighting) {
 		case MenuHighlighting::FULL_INVERSION:
-			image.invertAreaRounded(startX + highlight_offset, width - highlight_offset * 2, text_start_y - 2,
-			                        text_start_y + kTextSpacingY + 1);
+			image.invertAreaRounded(slot.start_x + highlight_offset, slot.width - highlight_offset * 2,
+			                        text_start_y - 2, text_start_y + kTextSpacingY + 1);
 			break;
 		case MenuHighlighting::PARTIAL_INVERSION:
 		case MenuHighlighting::NO_INVERSION:
-			image.drawRectangleRounded(startX + highlight_offset, text_start_y - 4, startX + width - highlight_offset,
-			                           text_start_y + kTextSpacingY + 3, oled_canvas::BorderRadius::BIG);
+			image.drawRectangleRounded(slot.start_x + highlight_offset, text_start_y - 4,
+			                           slot.start_x + slot.width - highlight_offset, text_start_y + kTextSpacingY + 3,
+			                           oled_canvas::BorderRadius::BIG);
 			break;
 		}
 
