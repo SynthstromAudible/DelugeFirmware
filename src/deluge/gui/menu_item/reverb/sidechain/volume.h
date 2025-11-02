@@ -52,15 +52,15 @@ public:
 		}
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
 		oled_canvas::Canvas& canvas = OLED::main;
 		if (getValue() < 0) {
 			const char* string_for_auto = l10n::get(l10n::String::STRING_FOR_AUTO);
-			canvas.drawStringCentered(string_for_auto, startX, startY + kHorizontalMenuSlotYOffset, kTextSpacingX,
-			                          kTextSpacingY, width);
+			canvas.drawStringCentered(string_for_auto, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
+			                          kTextSpacingX, kTextSpacingY, slot.width);
 		}
 		else {
-			drawSidechainDucking(startX, startY, width, height);
+			drawSidechainDucking(slot);
 		}
 	}
 

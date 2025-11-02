@@ -24,10 +24,10 @@ namespace deluge::gui::menu_item {
 
 using namespace hid::display;
 
-float Number::getNormalizedValue() {
+float Number::normalize(int32_t value) {
 	const int32_t min_value = getMinValue();
 	const int32_t max_value = getMaxValue();
-	return static_cast<float>(getValue() - min_value) / static_cast<float>(max_value - min_value);
+	return static_cast<float>(value - min_value) / static_cast<float>(max_value - min_value);
 }
 
 void Number::drawHorizontalBar(int32_t y_top, int32_t margin_l, int32_t margin_r, int32_t height) {
@@ -72,39 +72,39 @@ void Number::drawHorizontalBar(int32_t y_top, int32_t margin_l, int32_t margin_r
 	canvas.drawRectangleRounded(left_most, y_top, right_most - 1, y_top + height);
 }
 
-void Number::renderInHorizontalMenu(int32_t start_x, int32_t width, int32_t start_y, int32_t height) {
+void Number::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
 	switch (getRenderingStyle()) {
 	case PERCENT:
-		return drawPercent(start_x, start_y, width, height);
+		return drawPercent(slot);
 	case KNOB:
-		return drawKnob(start_x, start_y, width, height);
+		return drawKnob(slot);
 	case BAR:
-		return drawBar(start_x, start_y, width, height);
+		return drawBar(slot);
 	case SLIDER:
-		return drawSlider(start_x, start_y, width, height);
+		return drawSlider(slot);
 	case LENGTH_SLIDER:
-		return drawLengthSlider(start_x, start_y, width, height);
+		return drawLengthSlider(slot);
 	case PAN:
-		return drawPan(start_x, start_y, width, height);
+		return drawPan(slot);
 	case HPF:
-		return drawHpf(start_x, start_y, width, height);
+		return drawHpf(slot);
 	case LPF:
-		return drawLpf(start_x, start_y, width, height);
+		return drawLpf(slot);
 	case ATTACK:
-		return drawAttack(start_x, start_y, width, height);
+		return drawAttack(slot);
 	case RELEASE:
-		return drawRelease(start_x, start_y, width, height);
+		return drawRelease(slot);
 	case SIDECHAIN_DUCKING:
-		return drawSidechainDucking(start_x, start_y, width, height);
+		return drawSidechainDucking(slot);
 	default:
 		DEF_STACK_STRING_BUF(paramValue, 10);
 		paramValue.appendInt(getValue());
-		return OLED::main.drawStringCentered(paramValue, start_x, start_y + kHorizontalMenuSlotYOffset,
-		                                     kTextTitleSpacingX, kTextTitleSizeY, width);
+		return OLED::main.drawStringCentered(paramValue, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
+		                                     kTextTitleSpacingX, kTextTitleSizeY, slot.width);
 	}
 }
 
-void Number::drawPercent(int32_t start_x, int32_t start_y, int32_t width, int32_t height) {
+void Number::drawPercent(const HorizontalMenuSlotParams& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	DEF_STACK_STRING_BUF(valueString, 12);
@@ -116,28 +116,28 @@ void Number::drawPercent(int32_t start_x, int32_t start_y, int32_t width, int32_
 	constexpr int32_t padding_between = 2;
 	const int32_t total_width = value_width + percent_char_width + padding_between;
 
-	int32_t x = start_x + (width - total_width) / 2 + 1;
-	int32_t y = start_y + kHorizontalMenuSlotYOffset;
+	int32_t x = slot.start_x + (slot.width - total_width) / 2 + 1;
+	int32_t y = slot.start_y + kHorizontalMenuSlotYOffset;
 	image.drawString(valueString.c_str(), x, y, kTextSpacingX, kTextSpacingY);
 
 	x += value_width + padding_between;
 	image.drawChar(percent_char, x, y, kTextSpacingX, kTextSpacingY);
 }
 
-void Number::drawKnob(int32_t start_x, int32_t start_y, int32_t width, int32_t height) {
+void Number::drawKnob(const HorizontalMenuSlotParams& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	// Draw the background arc
 	// Easier to adjust pixel-perfect, so we use a bitmap
-	image.drawIconCentered(OLED::knobArcIcon, start_x, width, start_y - 1);
+	image.drawIconCentered(OLED::knobArcIcon, slot.start_x, slot.width, slot.start_y - 1);
 
 	// Calculate current value angle
 	constexpr uint8_t knob_radius = 10;
-	const uint8_t center_x = start_x + width / 2;
-	const uint8_t center_y = start_y + knob_radius;
+	const uint8_t center_x = slot.start_x + slot.width / 2;
+	const uint8_t center_y = slot.start_y + knob_radius;
 	constexpr uint8_t arc_range_angle = 210;
 	constexpr uint8_t beginning_angle = 165;
-	const float value_percent = getNormalizedValue();
+	const float value_percent = normalize(getValue());
 	const float current_angle = beginning_angle + (arc_range_angle * value_percent);
 
 	// Draw the leading line
@@ -154,7 +154,7 @@ void Number::drawKnob(int32_t start_x, int32_t start_y, int32_t width, int32_t h
 
 	// If the knob's position is near left or near right, fill the gap on the bitmap (the gap exists purely for
 	// stylistic effect)
-	const uint8_t gap_y = start_y + kHorizontalMenuSlotYOffset + height - 7;
+	const uint8_t gap_y = slot.start_y + kHorizontalMenuSlotYOffset + slot.height - 7;
 	if (current_angle < 180.0f) {
 		image.drawPixel(center_x - knob_radius, gap_y);
 	}
@@ -163,38 +163,38 @@ void Number::drawKnob(int32_t start_x, int32_t start_y, int32_t width, int32_t h
 	}
 }
 
-void Number::drawBar(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
+void Number::drawBar(const HorizontalMenuSlotParams& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t bar_width = 21;
 	constexpr uint8_t bar_height = 5;
 	constexpr uint8_t outline_padding = 2;
-	const uint8_t bar_start_x = start_x + 5;
-	const uint8_t bar_start_y = start_y + kHorizontalMenuSlotYOffset + 2;
+	const uint8_t bar_start_x = slot.start_x + 5;
+	const uint8_t bar_start_y = slot.start_y + kHorizontalMenuSlotYOffset + 2;
 	const uint8_t bar_end_x = bar_start_x + bar_width - 1;
 	const uint8_t bar_end_y = bar_start_y + bar_height - 1;
 
 	image.drawRectangle(bar_start_x - outline_padding, bar_start_y - outline_padding, bar_end_x + outline_padding,
 	                    bar_end_y + outline_padding);
 
-	const float norm = getNormalizedValue();
+	const float norm = normalize(getValue());
 	const uint8_t fill_width = norm * bar_width;
 	image.invertArea(bar_start_x, fill_width, bar_start_y, bar_end_y);
 }
 
-void Number::drawSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
+void Number::drawSlider(const HorizontalMenuSlotParams& slot, std::optional<int32_t> value) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr int32_t slider_width = 23;
 	constexpr int32_t slider_height = 11;
-	const int32_t min_x = start_x + 4;
+	const int32_t min_x = slot.start_x + 4;
 	const int32_t max_x = min_x + slider_width - 1;
-	const int32_t min_y = start_y + 1;
+	const int32_t min_y = slot.start_y + 1;
 	const int32_t max_y = min_y + slider_height - 1;
 
-	const float value_normalized = getNormalizedValue();
+	const float norm = normalize(value.value_or(getValue()));
 	const int32_t value_line_min_x = min_x;
-	const int32_t value_line_width = static_cast<int32_t>(value_normalized * (max_x - 1 - value_line_min_x));
+	const int32_t value_line_width = static_cast<int32_t>(norm * (max_x - 1 - value_line_min_x));
 	const int32_t value_line_x = value_line_min_x + value_line_width;
 
 	const int32_t center_y = min_y + (max_y - min_y) / 2;
@@ -209,20 +209,19 @@ void Number::drawSlider(int32_t start_x, int32_t start_y, int32_t slot_width, in
 	image.drawVerticalLine(value_line_x + 1, min_y, max_y);
 }
 
-void Number::drawLengthSlider(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height,
-                              bool min_slider_pos) {
+void Number::drawLengthSlider(const HorizontalMenuSlotParams& slot, bool min_slider_pos) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr int32_t slider_width = 23;
 	constexpr int32_t slider_height = 11;
-	const int32_t min_x = start_x + 4;
+	const int32_t min_x = slot.start_x + 4;
 	const int32_t max_x = min_x + slider_width - 1;
-	const int32_t min_y = start_y + 1;
+	const int32_t min_y = slot.start_y + 1;
 	const int32_t max_y = min_y + slider_height - 1;
 
-	const float value_normalized = getNormalizedValue();
+	const float norm = normalize(getValue());
 	const int32_t value_line_min_x = min_x + min_slider_pos;
-	const int32_t value_line_width = static_cast<int32_t>(value_normalized * (max_x - value_line_min_x));
+	const int32_t value_line_width = static_cast<int32_t>(norm * (max_x - value_line_min_x));
 	const int32_t value_line_x = value_line_min_x + value_line_width;
 
 	const int32_t center_y = min_y + (max_y - min_y) / 2;
@@ -237,12 +236,12 @@ void Number::drawLengthSlider(int32_t start_x, int32_t start_y, int32_t slot_wid
 	}
 }
 
-void Number::drawPan(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
+void Number::drawPan(const HorizontalMenuSlotParams& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	// Draw the half-cylinder base (easier to have a bitmap for that)
-	const uint8_t pan_start_y = start_y + kHorizontalMenuSlotYOffset - 4;
-	image.drawIconCentered(OLED::panHalfCylinderIcon, start_x, slot_width, pan_start_y);
+	const uint8_t pan_start_y = slot.start_y + kHorizontalMenuSlotYOffset - 4;
+	image.drawIconCentered(OLED::panHalfCylinderIcon, slot.start_x, slot.width, pan_start_y);
 
 	const int32_t value = getValue();
 	const int8_t direction = (value > 0) - (value < 0);
@@ -259,8 +258,8 @@ void Number::drawPan(int32_t start_x, int32_t start_y, int32_t slot_width, int32
 	constexpr uint8_t radius = 11;
 	float cos_a = cos(beginning_angle * M_PI / 180.0f);
 	float sin_a = sin(beginning_angle * M_PI / 180.0f);
-	const int32_t center_x = start_x + slot_width / 2;
-	const int32_t center_y = pan_start_y + radius;
+	const int32_t center_x = slot.start_x + slot.width / 2;
+	const int32_t center_y = pan_start_y + radius + 1;
 
 	constexpr uint8_t angle_step = 1;
 	constexpr float step_rad = angle_step * M_PI / 180.0f;
@@ -285,19 +284,19 @@ void Number::drawPan(int32_t start_x, int32_t start_y, int32_t slot_width, int32
 	}
 }
 
-void Number::drawHpf(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
+void Number::drawHpf(const HorizontalMenuSlotParams& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t slope_width = 5;
 	constexpr uint8_t width = 21;
 	constexpr uint8_t height = 11;
 
-	const uint8_t hpf_start_x = start_x + 5;
+	const uint8_t hpf_start_x = slot.start_x + 5;
 	const uint8_t hpf_end_x = hpf_start_x + width - 1;
-	const uint8_t hpf_start_y = start_y + 1;
+	const uint8_t hpf_start_y = slot.start_y + 1;
 	const uint8_t hpf_end_y = hpf_start_y + height - 1;
 
-	const float norm = getNormalizedValue();
+	const float norm = normalize(getValue());
 	const uint8_t slope_start_x = std::lerp(hpf_start_x, hpf_end_x - slope_width - 4, norm);
 	const uint8_t slope_end_x = slope_start_x + slope_width;
 
@@ -315,19 +314,19 @@ void Number::drawHpf(int32_t start_x, int32_t start_y, int32_t slot_width, int32
 	}
 }
 
-void Number::drawLpf(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
+void Number::drawLpf(const HorizontalMenuSlotParams& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t slope_width = 5;
 	constexpr uint8_t width = 21;
 	constexpr uint8_t height = 11;
 
-	const uint8_t lpf_start_x = start_x + 5;
+	const uint8_t lpf_start_x = slot.start_x + 5;
 	const uint8_t lpf_end_x = lpf_start_x + width - 1;
-	const uint8_t lpf_start_y = start_y + 1;
+	const uint8_t lpf_start_y = slot.start_y + 1;
 	const uint8_t lpf_end_y = lpf_start_y + height - 1;
 
-	const float norm = getNormalizedValue();
+	const float norm = normalize(getValue());
 	const uint8_t slope_start_x = std::lerp(lpf_start_x + 3, lpf_end_x - slope_width, norm);
 	const uint8_t slope_end_x = slope_start_x + slope_width;
 
@@ -345,18 +344,18 @@ void Number::drawLpf(int32_t start_x, int32_t start_y, int32_t slot_width, int32
 	}
 }
 
-void Number::drawRelease(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
+void Number::drawRelease(const HorizontalMenuSlotParams& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t width = 19;
 	constexpr uint8_t height = 11;
 
-	const uint8_t rel_start_x = start_x + 5;
+	const uint8_t rel_start_x = slot.start_x + 5;
 	const uint8_t rel_end_x = rel_start_x + width - 1;
-	const uint8_t rel_start_y = start_y + kHorizontalMenuSlotYOffset - 1;
+	const uint8_t rel_start_y = slot.start_y + kHorizontalMenuSlotYOffset - 1;
 	const uint8_t rel_end_y = rel_start_y + height - 1;
 
-	const float norm = getNormalizedValue();
+	const float norm = normalize(getValue());
 	const uint8_t rel_stage_start_x = rel_start_x + 4;
 	const uint8_t rel_effective_x = std::lerp(rel_stage_start_x, rel_end_x, norm);
 
@@ -375,18 +374,18 @@ void Number::drawRelease(int32_t start_x, int32_t start_y, int32_t slot_width, i
 	}
 }
 
-void Number::drawAttack(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
+void Number::drawAttack(const HorizontalMenuSlotParams& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t width = 19;
 	constexpr uint8_t height = 11;
 
-	const uint8_t atk_start_x = start_x + 7;
+	const uint8_t atk_start_x = slot.start_x + 7;
 	const uint8_t atk_end_x = atk_start_x + width - 1;
-	const uint8_t atk_start_y = start_y + kHorizontalMenuSlotYOffset;
+	const uint8_t atk_start_y = slot.start_y + kHorizontalMenuSlotYOffset;
 	const uint8_t atk_end_y = atk_start_y + height - 1;
 
-	const float norm = getNormalizedValue();
+	const float norm = normalize(getValue());
 	const uint8_t atk_effective_x = std::lerp(atk_start_x, atk_end_x - 2, norm);
 
 	image.drawLine(atk_start_x, atk_end_y, atk_effective_x, atk_start_y, {.thick = false});
@@ -403,16 +402,16 @@ void Number::drawAttack(int32_t start_x, int32_t start_y, int32_t slot_width, in
 	}
 }
 
-void Number::drawSidechainDucking(int32_t start_x, int32_t start_y, int32_t slot_width, int32_t slot_height) {
+void Number::drawSidechainDucking(const HorizontalMenuSlotParams& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr int32_t width = 23;
 	constexpr int32_t height = 11;
 
-	const int32_t left_padding = (slot_width - width) / 2;
-	const int32_t min_x = start_x + left_padding;
+	const int32_t left_padding = (slot.width - width) / 2;
+	const int32_t min_x = slot.start_x + left_padding;
 	const int32_t max_x = min_x + width;
-	const int32_t min_y = start_y + kHorizontalMenuSlotYOffset - 1;
+	const int32_t min_y = slot.start_y + kHorizontalMenuSlotYOffset - 1;
 	const int32_t max_y = min_y + height - 1;
 
 	// Calculate shape height based on value

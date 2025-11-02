@@ -31,20 +31,20 @@ public:
 		label.append(deluge::l10n::get(l10n::String::STRING_FOR_PORTAMENTO_SHORT));
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
 		using namespace deluge::hid::display;
 		oled_canvas::Canvas& image = OLED::main;
 
 		constexpr uint8_t porta_graphics_width = 25;
-		const uint8_t center_x = startX + width / 2;
-		const uint8_t porta_start_x = startX + 2;
+		const uint8_t center_x = slot.start_x + slot.width / 2;
+		const uint8_t porta_start_x = slot.start_x + 2;
 		const uint8_t porta_end_x = porta_start_x + porta_graphics_width - 1;
 
 		constexpr uint8_t porta_graphics_height = 11;
-		const uint8_t porta_start_y = startY + 1;
+		const uint8_t porta_start_y = slot.start_y + kHorizontalMenuSlotYOffset - 1;
 		const uint8_t porta_end_y = porta_start_y + porta_graphics_height - 1;
 
-		const float norm = getNormalizedValue();
+		const float norm = normalize(getValue());
 		constexpr uint8_t porta_line_width = 9;
 		const uint8_t porta_x0 = std::lerp(center_x, center_x - porta_line_width, norm);
 		const uint8_t porta_x1 = std::lerp(center_x, center_x + porta_line_width, norm);

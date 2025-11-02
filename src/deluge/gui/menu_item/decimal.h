@@ -27,7 +27,7 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void selectEncoderAction(int32_t offset) override;
 	void horizontalEncoderAction(int32_t offset) override;
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override;
 	void getNotificationValue(StringBuf& valueBuf) override { valueBuf.appendFloat(getValue() / 100.f, 2, 2); }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
