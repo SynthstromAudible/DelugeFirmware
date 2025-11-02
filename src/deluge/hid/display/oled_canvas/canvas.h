@@ -130,20 +130,7 @@ public:
 	/// @param centerX Center X coordinate
 	/// @param centerY Center Y coordinate
 	/// @param radius Circle radius
-	/// @param min_x Optional minimum X boundary
-	/// @param max_x Optional maximum X boundary
-	void drawCircle(int32_t centerX, int32_t centerY, int32_t radius, std::optional<int32_t> min_x = std::nullopt,
-	                std::optional<int32_t> max_x = std::nullopt);
-
-	/// Clear a circle using Bresenham algorithm
-	///
-	/// @param centerX Center X coordinate
-	/// @param centerY Center Y coordinate
-	/// @param radius Circle radius
-	/// @param min_x Optional minimum X boundary
-	/// @param max_x Optional maximum X boundary
-	void clearCircle(int32_t centerX, int32_t centerY, int32_t radius, std::optional<int32_t> min_x = std::nullopt,
-	                 std::optional<int32_t> max_x = std::nullopt);
+	void drawCircle(int32_t centerX, int32_t centerY, int32_t radius, bool fill = false);
 
 	/// Draw a string
 	///

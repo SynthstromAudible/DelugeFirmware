@@ -13,6 +13,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/menus.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
@@ -1976,9 +1977,18 @@ HorizontalMenu* SoundEditor::maybeGetParentMenu(MenuItem* item) {
 
 	if (util::one_of<MenuItem*>(item, {&file0SelectorMenu, &file1SelectorMenu})) {
 		// for file selectors we go straight to the browser
-		// and automatically navigate to the parent horizontal menu when a file is selected
-		item->parent = *it;
+		// and automatically navigate to the source horizontal menu when a file is selected
+		sampleBrowser.menuItemHeadingTo = item;
+		sampleBrowser.parentMenuHeadingTo = *it;
 		return nullptr;
+	}
+
+	if (util::one_of<MenuItem*>(item, {&sample0RecorderMenu, &sample1RecorderMenu})) {
+		// for sample recorders we automatically navigate to the source menu when a sample was recorded
+		// with focusing on the file selector's item
+		MenuItem* headingTo = item == &sample0RecorderMenu ? &file0SelectorMenu : &file1SelectorMenu;
+		static_cast<osc::AudioRecorder*>(item)->menuItemHeadingTo = headingTo;
+		static_cast<osc::AudioRecorder*>(item)->parentMenuHeadingTo = &sourceMenuGroup;
 	}
 
 	return *it;
