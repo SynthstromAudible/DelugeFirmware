@@ -80,44 +80,44 @@ public:
 		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
 		getShortOption(shortOpt);
 
-		constexpr int32_t arrowSpace = 10;
+		constexpr int32_t arrow_space = 10;
 
 		// Get the main text width and trim if needed
-		int32_t textWidth = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
-		while (textWidth >= width - 2 * arrowSpace) {
+		int32_t text_width = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
+		while (text_width >= width - 2 * arrow_space) {
 			shortOpt.truncate(shortOpt.size() - 1);
-			textWidth = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
+			text_width = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
 		}
 
-		const int32_t textStartX = startX + (width - textWidth) / 2 + 1;
-		const int32_t textStartY = startY + (height - kTextSpacingY) / 2 + 1;
+		const int32_t text_start_x = startX + (width - text_width) / 2 + 1;
+		const int32_t text_start_y = startY + (height - kTextSpacingY) / 2 + 1;
 
-		// Draw arrows if needed
+		// Draw the left arrow
 		if (getValue() > 0) {
-			image.drawString("<", startX + 5, textStartY, kTextTitleSpacingX, kTextTitleSizeY);
+			image.drawString("<", startX + 5, text_start_y, kTextTitleSpacingX, kTextTitleSizeY);
 		}
 
 		// Draw main text
-		image.drawString(shortOpt.c_str(), textStartX, textStartY, kTextSpacingX, kTextSpacingY);
+		image.drawString(shortOpt.c_str(), text_start_x, text_start_y, kTextSpacingX, kTextSpacingY);
 
 		// Highlight the text
-		constexpr int32_t highlightOffset = 21;
+		constexpr int32_t highlight_offset = 21;
 		switch (FlashStorage::accessibilityMenuHighlighting) {
 		case MenuHighlighting::FULL_INVERSION:
-			image.invertAreaRounded(startX + highlightOffset, width - highlightOffset * 2, textStartY - 2,
-			                        textStartY + kTextSpacingY + 1);
+			image.invertAreaRounded(startX + highlight_offset, width - highlight_offset * 2, text_start_y - 2,
+			                        text_start_y + kTextSpacingY + 1);
 			break;
 		case MenuHighlighting::PARTIAL_INVERSION:
-			image.drawRectangleRounded(startX + highlightOffset, textStartY - 3, startX + width - highlightOffset,
-			                           textStartY + kTextSpacingY + 2, oled_canvas::BorderRadius::BIG);
-			break;
 		case MenuHighlighting::NO_INVERSION:
+			image.drawRectangleRounded(startX + highlight_offset, text_start_y - 4, startX + width - highlight_offset,
+			                           text_start_y + kTextSpacingY + 3, oled_canvas::BorderRadius::BIG);
 			break;
 		}
 
-		// Draw arrows if needed
+		// Draw the right arrow
 		if (getValue() < size() - 1) {
-			image.drawString(">", OLED_MAIN_WIDTH_PIXELS - arrowSpace, textStartY, kTextTitleSpacingX, kTextTitleSizeY);
+			image.drawString(">", OLED_MAIN_WIDTH_PIXELS - arrow_space, text_start_y, kTextTitleSpacingX,
+			                 kTextTitleSizeY);
 		}
 	}
 };
