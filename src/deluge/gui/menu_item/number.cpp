@@ -250,7 +250,7 @@ void Number::drawPan(const HorizontalMenuSlotParams& slot) {
 		return;
 	}
 
-	constexpr int32_t arc_range_angle = 90, beginning_angle = 270;
+	constexpr int32_t arc_range_angle = 100, beginning_angle = 270;
 	const float norm = std::abs(value) / 25.f;
 	const float target_angle = beginning_angle + arc_range_angle * norm * direction;
 
