@@ -2702,7 +2702,7 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 		actionLogger.closeAction(ActionType::NOTE_EDIT);
 		quantizeAmount = 0;
 		if (lastSelectedNoteXDisplay != kNoSelection && lastSelectedNoteYDisplay != kNoSelection) {
-			gridSquareInfo[lastSelectedNoteXDisplay][lastSelectedNoteYDisplay].isValid = false;
+			gridSquareInfo[lastSelectedNoteYDisplay][lastSelectedNoteXDisplay].isValid = false;
 			lastSelectedNoteXDisplay = kNoSelection;
 			lastSelectedNoteYDisplay = kNoSelection;
 		}
@@ -3467,7 +3467,7 @@ void InstrumentClipView::exitNoteEditor() {
 		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
 			editPadAction(0, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay, currentSong->xZoom[NAVIGATION_CLIP]);
 		}
-		gridSquareInfo[lastSelectedNoteXDisplay][lastSelectedNoteYDisplay].isValid = false;
+		gridSquareInfo[lastSelectedNoteYDisplay][lastSelectedNoteXDisplay].isValid = false;
 		lastSelectedNoteXDisplay = kNoSelection;
 		lastSelectedNoteYDisplay = kNoSelection;
 	}
