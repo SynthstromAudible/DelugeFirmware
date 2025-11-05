@@ -389,13 +389,13 @@ gotError5:
 				if (clusterIndex != clusterIndexCurrentlyLoaded) {
 
 					// First, unload the old Cluster if there was one
-					if (cluster != nullptr) {
+					if (cluster) {
 						audioFileManager.removeReasonFromCluster(*cluster, "E385");
 					}
 
-					cluster = sample->clusters[clusterIndex].getCluster(sample, clusterIndex, CLUSTER_LOAD_IMMEDIATELY,
-					                                                    0, &error);
-					if (cluster == nullptr) {
+					cluster = sample->clusters.getElement(clusterIndex)
+					              ->getCluster(sample, clusterIndex, CLUSTER_LOAD_IMMEDIATELY, 0, &error);
+					if (!cluster) {
 						goto gotError5;
 					}
 
@@ -496,7 +496,7 @@ gotError5:
 			// Read all the data we can before reaching either the end of the cycle, or the end of the file cluster
 			while (source < sourceStopAt) {
 				int32_t value32 = *(int32_t*)source;
-				convert_and_store_sample(reinterpret_cast<const int32_t&>(source));
+				convert_and_store_sample(*reinterpret_cast<const int32_t*>(source));
 				source += byteDepth;
 			}
 
@@ -975,7 +975,7 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 			auto value2 = Argon<int16_t>::Load(sincKernelReadPos + 16 + (i * 8));
 
 			auto difference = value2 - value1;
-			auto multipliedDifference = difference.MultiplyFixedQMax(strength2);
+			auto multipliedDifference = difference.MultiplyFixedPoint(strength2);
 			kernelVector[i] = value1 + multipliedDifference;
 		}
 
@@ -1111,8 +1111,8 @@ startRenderingACycle:
 				uint32_t resetterPhase = resetterPhaseThisCycle;
 				int32_t numSamplesThisOscSyncSession = numSamplesThisCycle;
 				renderOscSync(
-				    [&](std::span<q31_t> buffer, uint32_t phase) {
-					    doRenderingLoop(bufferStartThisSync, &*buffer.end(), firstCycleNumber, bandHere, phase,
+				    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
+					    doRenderingLoop(bufferStartThisSync, bufferEndThisSyncRender, firstCycleNumber, bandHere, phase,
 					                    phaseIncrement, crossCycleStrength2, crossCycleStrength2Increment, kernel);
 				    },
 				    [&](uint32_t samplesIncludingNextCrossoverSample) {
@@ -1147,9 +1147,9 @@ doneRenderingACycle:
 			uint32_t resetterPhase = resetterPhaseThisCycle;
 			int32_t numSamplesThisOscSyncSession = numSamples;
 			renderOscSync(
-			    [&](std::span<q31_t> buffer, uint32_t phase) {
-				    doRenderingLoopSingleCycle(bufferStartThisSync, &*buffer.end(), bandHere, phase, phaseIncrement,
-				                               kernel);
+			    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
+				    doRenderingLoopSingleCycle(bufferStartThisSync, bufferEndThisSyncRender, bandHere, phase,
+				                               phaseIncrement, kernel);
 			    },
 			    [](uint32_t) {}, phase, phaseIncrement, resetterPhase, resetterPhaseIncrement,
 			    resetterDivideByPhaseIncrement, retriggerPhase, numSamplesThisOscSyncSession, bufferStartThisSync);

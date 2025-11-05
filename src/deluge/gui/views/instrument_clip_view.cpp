@@ -1771,24 +1771,7 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 			offsetNoteCodeAction(offset);
 		}
 		else {
-			bool hasProbabilityPopup = display->hasPopupOfType(PopupType::PROBABILITY);
-			bool hasIterancePopup = display->hasPopupOfType(PopupType::ITERANCE);
-			bool hasPopup = hasProbabilityPopup || hasIterancePopup;
-
-			// if there's no probability or iterance pop-up yet and we're turning encoder left, edit probability
-			// if there's a probability pop-up, continue editing probability
-			bool shouldEditProbability = (!hasPopup && (offset < 0)) || hasProbabilityPopup;
-
-			// if there's no probability or iterance pop-up yet and we're turning encoder right, edit iterance
-			// if there's an iterance pop-up, continue editing iterance
-			bool shouldEditIterance = (!hasPopup && (offset > 0)) || hasIterancePopup;
-
-			if (shouldEditProbability) {
-				setNoteRowProbabilityWithOffset(offset);
-			}
-			else if (shouldEditIterance) {
-				setNoteRowIteranceWithOffset(offset, false);
-			}
+			handleProbabilityOrIteranceEditing(offset, true);
 		}
 	}
 
@@ -1804,24 +1787,7 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 
 	// Or, if user holding a note(s) down, we'll adjust probability / iterance instead
 	else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
-		bool hasProbabilityPopup = display->hasPopupOfType(PopupType::PROBABILITY);
-		bool hasIterancePopup = display->hasPopupOfType(PopupType::ITERANCE);
-		bool hasPopup = hasProbabilityPopup || hasIterancePopup;
-
-		// if there's no probability or iterance pop-up yet and we're turning encoder left, edit probability
-		// if there's a probability pop-up, continue editing probability
-		bool shouldEditProbability = (!hasPopup && (offset < 0)) || hasProbabilityPopup;
-
-		// if there's no probability or iterance pop-up yet and we're turning encoder right, edit iterance
-		// if there's an iterance pop-up, continue editing iterance
-		bool shouldEditIterance = (!hasPopup && (offset > 0)) || hasIterancePopup;
-
-		if (shouldEditProbability) {
-			adjustNoteProbabilityWithOffset(offset);
-		}
-		else if (shouldEditIterance) {
-			adjustNoteIteranceWithOffset(offset, false);
-		}
+		handleProbabilityOrIteranceEditing(offset, false);
 	}
 	// Or, normal option - trying to change Instrument presets
 	else {
@@ -1833,6 +1799,37 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 		    && ((NonAudioInstrument*)clip->output)->getChannel() == MIDI_CHANNEL_TRANSPOSE) {
 			exitScaleMode();
 			clip->inScaleMode = false;
+		}
+	}
+}
+
+void InstrumentClipView::handleProbabilityOrIteranceEditing(int8_t offset, bool editNoteRow) {
+	bool hasProbabilityPopup = display->hasPopupOfType(PopupType::PROBABILITY);
+	bool hasIterancePopup = display->hasPopupOfType(PopupType::ITERANCE);
+	bool hasPopup = hasProbabilityPopup || hasIterancePopup;
+
+	// if there's no probability or iterance pop-up yet and we're turning encoder left, edit probability
+	// if there's a probability pop-up, continue editing probability
+	bool shouldEditProbability = (!hasPopup && (offset < 0)) || hasProbabilityPopup;
+
+	// if there's no probability or iterance pop-up yet and we're turning encoder right, edit iterance
+	// if there's an iterance pop-up, continue editing iterance
+	bool shouldEditIterance = (!hasPopup && (offset > 0)) || hasIterancePopup;
+
+	if (shouldEditProbability) {
+		if (editNoteRow) {
+			setNoteRowProbabilityWithOffset(offset);
+		}
+		else {
+			adjustNoteProbabilityWithOffset(offset);
+		}
+	}
+	else if (shouldEditIterance) {
+		if (editNoteRow) {
+			setNoteRowIteranceWithOffset(offset, false);
+		}
+		else {
+			adjustNoteIteranceWithOffset(offset, false);
 		}
 	}
 }
@@ -2138,6 +2135,11 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 		afh->filePath.concatenate(chosenFilename);
 		afh->loadFile(false, true, true, 1, nullptr, false);
 
+		char* dot = strrchr(chosenFilename, '.');
+		if (dot) {
+			// Remove the extension (e.g., ".WAV", ".AIFF") from chosenFilename before assigning as name
+			*dot = '\0';
+		}
 		soundDrum->name.set(chosenFilename);
 		kit->beenEdited();
 		*slashAddress = '/';
@@ -2733,7 +2735,7 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 		actionLogger.closeAction(ActionType::NOTE_EDIT);
 		quantizeAmount = 0;
 		if (lastSelectedNoteXDisplay != kNoSelection && lastSelectedNoteYDisplay != kNoSelection) {
-			gridSquareInfo[lastSelectedNoteXDisplay][lastSelectedNoteYDisplay].isValid = false;
+			gridSquareInfo[lastSelectedNoteYDisplay][lastSelectedNoteXDisplay].isValid = false;
 			lastSelectedNoteXDisplay = kNoSelection;
 			lastSelectedNoteYDisplay = kNoSelection;
 		}
@@ -3452,19 +3454,17 @@ void InstrumentClipView::displayIterance(Iterance iterance) {
 
 const char* InstrumentClipView::getFillString(uint8_t fill) {
 	// FILL mode
-	if (fill == FillMode::FILL) {
+	if (fill == FILL) {
 		return "FILL";
 	}
 
 	// NO-FILL mode
-	else if (fill == FillMode::NOT_FILL) {
+	if (fill == NOT_FILL) {
 		return "NOT FILL";
 	}
 
 	// OFF
-	else {
-		return "OFF";
-	}
+	return "OFF";
 }
 
 #pragma gcc pop
@@ -3500,7 +3500,7 @@ void InstrumentClipView::exitNoteEditor() {
 		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
 			editPadAction(0, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay, currentSong->xZoom[NAVIGATION_CLIP]);
 		}
-		gridSquareInfo[lastSelectedNoteXDisplay][lastSelectedNoteYDisplay].isValid = false;
+		gridSquareInfo[lastSelectedNoteYDisplay][lastSelectedNoteXDisplay].isValid = false;
 		lastSelectedNoteXDisplay = kNoSelection;
 		lastSelectedNoteYDisplay = kNoSelection;
 	}
@@ -3572,7 +3572,7 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 // if we're in a submenu, we'll need to go up a level
 void InstrumentClipView::deselectNoteAndGoUpOneLevel() {
 	exitNoteEditor();
-	if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu) {
+	if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu || runtimeFeatureSettings.isOn(HorizontalMenus)) {
 		soundEditor.goUpOneLevel();
 	}
 }
@@ -3596,6 +3596,11 @@ ActionResult InstrumentClipView::handleNoteEditorHorizontalEncoderAction(int32_t
 ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	// to allow you to switch between items in horizontal menu
+	if (util::one_of<hid::Button>(b, {SYNTH, KIT, MIDI, CV})) {
+		return soundEditor.getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+	}
+
 	// to allow you to zoom in / out
 	// to allow you to toggle fill
 	if (b == X_ENC || b == SYNC_SCALING) {
@@ -3604,7 +3609,7 @@ ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Butto
 	// to allow you to toggle playback on / off
 	// to allow you to toggle shift on / off
 	// to allow you to toggle mod encoders on / off
-	else if (b == PLAY || b == SHIFT || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
+	if (b == PLAY || b == SHIFT || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
@@ -3691,41 +3696,37 @@ bool InstrumentClipView::handleNoteRowEditorPadAction(int32_t x, int32_t y, int3
 	return true;
 }
 
-// handles editing notes if shift is pressed
+// handles editing notes on the grid
 bool InstrumentClipView::handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on) {
-	// if shift is active, allow editing notes on the grid
-	if (Buttons::isShiftButtonPressed()) {
-		bool wasntHoldingNote = !isUIModeActive(UI_MODE_NOTES_PRESSED);
+	bool wasntHoldingNote = !isUIModeActive(UI_MODE_NOTES_PRESSED);
 
-		editPadAction(on, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
+	editPadAction(on, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
 
-		bool nowHoldingNote = isUIModeActive(UI_MODE_NOTES_PRESSED);
+	bool nowHoldingNote = isUIModeActive(UI_MODE_NOTES_PRESSED);
 
-		// toggle note menu if you weren't holding note and now you are
-		// or if you were holding note and now you aren't
-		bool toggleMenu = (wasntHoldingNote && nowHoldingNote) || (!wasntHoldingNote && !nowHoldingNote);
+	// toggle note menu if you weren't holding note and now you are
+	// or if you were holding note and now you aren't
+	bool toggleMenu = (wasntHoldingNote && nowHoldingNote) || (!wasntHoldingNote && !nowHoldingNote);
 
-		// if we selected a note / created a note
-		// update the row selection
-		// so that menu can be potentially refreshed
-		if (lastSelectedNoteYDisplay != kNoSelection) {
-			handleNoteRowEditorAuditionPadAction(lastSelectedNoteYDisplay);
-		}
-
-		if (toggleMenu) {
-			// toggle showing note editor param menu while holding / release note pad
-			soundEditor.toggleNoteEditorParamMenu(on);
-		}
-		else {
-			// if you were holding a note and are still holding a note
-			// it means you were holding more than one note and released one
-			// so refresh parameter menu so it reflects the note remaining
-			soundEditor.getCurrentMenuItem()->readValueAgain();
-		}
-
-		return true;
+	// if we selected a note / created a note
+	// update the row selection
+	// so that menu can be potentially refreshed
+	if (lastSelectedNoteYDisplay != kNoSelection) {
+		handleNoteRowEditorAuditionPadAction(lastSelectedNoteYDisplay);
 	}
-	return false;
+
+	if (toggleMenu) {
+		// toggle showing note editor param menu while holding / release note pad
+		soundEditor.toggleNoteEditorParamMenu(on);
+	}
+	else {
+		// if you were holding a note and are still holding a note
+		// it means you were holding more than one note and released one
+		// so refresh parameter menu so it reflects the note remaining
+		soundEditor.getCurrentMenuItem()->readValueAgain();
+	}
+
+	return true;
 }
 
 void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y) {
@@ -3832,13 +3833,18 @@ ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int3
 ActionResult InstrumentClipView::handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	// to allow you to switch between items in horizontal menu
+	if (util::one_of<hid::Button>(b, {SYNTH, KIT, MIDI, CV})) {
+		return soundEditor.getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+	}
+
 	// to allow you to zoom in / out
 	// to allow you to toggle fill
 	if (b == X_ENC || b == SYNC_SCALING) {
 		return buttonAction(b, on, inCardRoutine);
 	}
 	// to allow you to toggle affect entire on / off in kits
-	else if (on && b == AFFECT_ENTIRE) {
+	if (on && b == AFFECT_ENTIRE) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		if (clip->output->type == OutputType::KIT) {
 			clip->affectEntire = !clip->affectEntire;

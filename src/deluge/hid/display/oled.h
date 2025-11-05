@@ -133,15 +133,18 @@ public:
 	static const Icon arpModeIconUpDown;
 	static const Icon arpModeIconWalk;
 	static const Icon arpModeIconCustom;
+	static const Icon randomizerLockOnIcon;
+	static const Icon randomizerLockOffIcon;
 	static const Icon diceIcon;
 	static const Icon directionIcon;
 	static const Icon knobArcIcon;
+	static const Icon panHalfCylinderIcon;
 	static const Icon infinityIcon;
 	static const Icon sampleIcon;
 	static const Icon wavetableIcon;
 	static const Icon inputIcon;
+	static const Icon micIcon;
 	static const Icon folderIconBig;
-	static const Icon recordIcon;
 	static const Icon loopPointIcon;
 	static const Icon sampleModeCutIcon;
 	static const Icon sampleModeOnceIcon;
@@ -149,6 +152,8 @@ public:
 	static const Icon sampleModeStretchIcon;
 	static const Icon pitchSpeedLinkedIcon;
 	static const Icon pitchSpeedIndependentIcon;
+	static const Icon oscTrackingEnabledIcon;
+	static const Icon oscTrackingDisabledIcon;
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;
@@ -183,7 +188,7 @@ public:
 	bool hasPopupOfType(PopupType type) override { return isPopupPresentOfType(type); }
 
 	// Horizontal menus
-	void displayNotification(std::string_view paramTitle, std::optional<std::string_view> paramValue) override;
+	void displayNotification(std::string_view param_title, std::optional<std::string_view> param_value) override;
 
 private:
 	static bool needsSending;

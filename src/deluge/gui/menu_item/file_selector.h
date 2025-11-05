@@ -28,11 +28,12 @@ public:
 	FileSelector(l10n::String newName, uint8_t sourceId) : MenuItem(newName), sourceId_{sourceId} {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override;
+	MenuItem* selectButtonPress() override;
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             MultiRange** currentRange) override;
 
 	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override;
 	void getColumnLabel(StringBuf& label) override;
 
 private:

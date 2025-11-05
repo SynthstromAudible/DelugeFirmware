@@ -78,6 +78,11 @@ void Canvas::clearPixel(int32_t x, int32_t y) {
 	image_[yRow][x] &= ~(1 << (y & 0x7));
 }
 
+void Canvas::invertPixel(int32_t x, int32_t y) {
+	int32_t yRow = y >> 3;
+	image_[yRow][x] ^= 1 << (y & 0x7);
+}
+
 void Canvas::drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX) {
 	uint8_t mask = 1 << (pixelY & 7);
 
@@ -122,7 +127,7 @@ drawSolid:
 	}
 }
 
-void Canvas::drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool thick) {
+void Canvas::drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, const DrawLineOptions& options) {
 	const bool steep = abs(y1 - y0) > abs(x1 - x0);
 	if (steep) {
 		std::swap(x0, y0);
@@ -133,27 +138,31 @@ void Canvas::drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool thick
 		std::swap(y0, y1);
 	}
 
-	const int32_t dx = x1 - x0;
-	const int32_t dy = abs(y1 - y0);
+	int32_t dx = x1 - x0;
+	int32_t dy = abs(y1 - y0);
 	int32_t error = dx / 2;
 	int32_t y = y0;
-	const int32_t y_step = (y0 < y1) ? 1 : -1;
+	int32_t y_step = y0 < y1 ? 1 : -1;
 
-	for (int x = x0; x <= x1; x++) {
-		if (steep) {
-			// Draw the line vertically
-			drawPixel(y, x);
-			if (thick) {
-				drawPixel(y + 1, x);
+	for (int32_t x = x0; x <= x1; x++) {
+		int32_t actual_x = steep ? y : x;
+		int32_t actual_y = steep ? x : y;
+
+		if (options.max_x.has_value() && actual_x > options.max_x.value()) {
+			return;
+		}
+		if (!options.min_x.has_value() || actual_x >= options.min_x.value()) {
+			drawPixel(actual_x, actual_y);
+
+			if (options.thick) {
+				drawPixel(steep ? actual_x + 1 : actual_x, steep ? actual_y : actual_y - 1);
+			}
+
+			if (options.point_callback.has_value()) {
+				options.point_callback.value()({actual_x, actual_y});
 			}
 		}
-		else {
-			// Draw the line horizontally
-			drawPixel(x, y);
-			if (thick) {
-				drawPixel(x, y - 1);
-			}
-		}
+
 		error -= dy;
 		if (error < 0) {
 			y += y_step;
@@ -183,6 +192,53 @@ void Canvas::drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int3
 		drawPixel(maxX - 1, minY + 1); //< Top-right corner
 		drawPixel(minX + 1, maxY - 1); //< Bottom-left corner
 		drawPixel(maxX - 1, maxY - 1); //< Bottom-right corner
+	}
+}
+
+void Canvas::drawCircle(int32_t centerX, int32_t centerY, int32_t radius, bool fill) {
+	int32_t x = 0;
+	int32_t y = radius;
+	// Add a small bias for small radii — helps round out edges
+	int32_t d = 1 - radius + (radius <= 6 ? 1 : 0);
+
+	auto plot_circle_points = [&](int32_t cx, int32_t cy, int32_t x, int32_t y) {
+		if (fill) {
+			// Fill horizontally between symmetric points
+			drawHorizontalLine(cy + y, cx - x, cx + x);
+			drawHorizontalLine(cy - y, cx - x, cx + x);
+			drawHorizontalLine(cy + x, cx - y, cx + y);
+			drawHorizontalLine(cy - x, cx - y, cx + y);
+		}
+		else {
+			// Just outline
+			drawPixel(cx + x, cy + y);
+			drawPixel(cx - x, cy + y);
+			drawPixel(cx + x, cy - y);
+			drawPixel(cx - x, cy - y);
+			drawPixel(cx + y, cy + x);
+			drawPixel(cx - y, cy + x);
+			drawPixel(cx + y, cy - x);
+			drawPixel(cx - y, cy - x);
+		}
+	};
+
+	while (x <= y) {
+		plot_circle_points(centerX, centerY, x, y);
+
+		// normal midpoint update
+		if (d < 0) {
+			d += 2 * x + 3;
+		}
+		else {
+			d += 2 * (x - y) + 5;
+			y--;
+		}
+		x++;
+
+		// Small tweak: for very small circles, gradually adjust d to round diagonals
+		if (radius <= 5) {
+			d += x % 2 == 0 ? 1 : 0;
+		}
 	}
 }
 

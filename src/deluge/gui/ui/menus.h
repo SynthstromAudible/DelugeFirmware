@@ -2,6 +2,7 @@
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
 #include "gui/menu_item/edit_name.h"
+#include "gui/menu_item/filter/param.h"
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/midi/device_definition/submenu.h"
@@ -20,8 +21,10 @@
 #include "gui/menu_item/note_row/iterance_preset.h"
 #include "gui/menu_item/note_row/iterance_step_toggle.h"
 #include "gui/menu_item/note_row/probability.h"
+#include "gui/menu_item/osc/audio_recorder.h"
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
+#include "gui/menu_item/osc/tracking.h"
 #include "gui/menu_item/patch_cables.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/menu_item/randomizer/midi_cv/note_probability.h"
@@ -37,72 +40,76 @@
 
 namespace deluge::gui::menu_item {
 class HorizontalMenu;
-}
+class HorizontalMenuGroup;
+class HorizontalMenuContainer;
+} // namespace deluge::gui::menu_item
 
-extern deluge::gui::menu_item::patched_param::IntegerNonFM noiseMenu;
-extern deluge::gui::menu_item::osc::Sync oscSyncMenu;
-extern deluge::gui::menu_item::osc::source::WaveIndex source0WaveIndexMenu;
-extern deluge::gui::menu_item::osc::source::WaveIndex source1WaveIndexMenu;
+extern gui::menu_item::patched_param::IntegerNonFM noiseMenu;
+extern gui::menu_item::osc::Sync oscSyncMenu;
+extern gui::menu_item::osc::source::WaveIndex source0WaveIndexMenu;
+extern gui::menu_item::osc::source::WaveIndex source1WaveIndexMenu;
 
-extern deluge::gui::menu_item::sample::Start sample0StartMenu;
-extern deluge::gui::menu_item::sample::Start sample1StartMenu;
-extern deluge::gui::menu_item::sample::End sample0EndMenu;
-extern deluge::gui::menu_item::sample::End sample1EndMenu;
-extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart;
-extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd;
-extern deluge::gui::menu_item::EditName nameEditMenu;
-extern deluge::gui::menu_item::Submenu dxMenu;
-extern deluge::gui::menu_item::Submenu stemExportMenu;
-extern deluge::gui::menu_item::stem_export::Start startStemExportMenu;
+extern gui::menu_item::sample::Start sample0StartMenu;
+extern gui::menu_item::sample::Start sample1StartMenu;
+extern gui::menu_item::sample::End sample0EndMenu;
+extern gui::menu_item::sample::End sample1EndMenu;
+extern gui::menu_item::osc::AudioRecorder sample0RecorderMenu;
+extern gui::menu_item::osc::AudioRecorder sample1RecorderMenu;
+extern gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart;
+extern gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd;
+extern gui::menu_item::EditName nameEditMenu;
+extern gui::menu_item::Submenu dxMenu;
+extern gui::menu_item::Submenu stemExportMenu;
+extern gui::menu_item::stem_export::Start startStemExportMenu;
 
-extern deluge::gui::menu_item::firmware::Version firmwareVersionMenu;
-extern deluge::gui::menu_item::sequence::Direction sequenceDirectionMenu;
-extern deluge::gui::menu_item::Submenu soundEditorRootMenuMIDIOrCV;
-extern deluge::gui::menu_item::Submenu soundEditorRootMenuMidiDrum;
-extern deluge::gui::menu_item::Submenu soundEditorRootMenuGateDrum;
-extern deluge::gui::menu_item::Submenu soundEditorRootMenuAudioClip;
-extern deluge::gui::menu_item::Submenu soundEditorRootMenuPerformanceView;
-extern deluge::gui::menu_item::Submenu soundEditorRootMenuSongView;
-extern deluge::gui::menu_item::Submenu soundEditorRootMenuKitGlobalFX;
-extern deluge::gui::menu_item::Submenu soundEditorRootMenu;
-extern deluge::gui::menu_item::Submenu settingsRootMenu;
+extern gui::menu_item::firmware::Version firmwareVersionMenu;
+extern gui::menu_item::sequence::Direction sequenceDirectionMenu;
+extern gui::menu_item::Submenu soundEditorRootMenuMIDIOrCV;
+extern gui::menu_item::Submenu soundEditorRootMenuMidiDrum;
+extern gui::menu_item::Submenu soundEditorRootMenuGateDrum;
+extern gui::menu_item::Submenu soundEditorRootMenuAudioClip;
+extern gui::menu_item::Submenu soundEditorRootMenuPerformanceView;
+extern gui::menu_item::Submenu soundEditorRootMenuSongView;
+extern gui::menu_item::Submenu soundEditorRootMenuKitGlobalFX;
+extern gui::menu_item::Submenu soundEditorRootMenu;
+extern gui::menu_item::Submenu settingsRootMenu;
 
-extern deluge::gui::menu_item::randomizer::RandomizerLock randomizerLockMenu;
-extern deluge::gui::menu_item::randomizer::midi_cv::SpreadVelocity spreadVelocityMenuMIDIOrCV;
-extern deluge::gui::menu_item::randomizer::midi_cv::NoteProbability randomizerNoteProbabilityMenuMIDIOrCV;
+extern gui::menu_item::randomizer::RandomizerLock randomizerLockMenu;
+extern gui::menu_item::randomizer::midi_cv::SpreadVelocity spreadVelocityMenuMIDIOrCV;
+extern gui::menu_item::randomizer::midi_cv::NoteProbability randomizerNoteProbabilityMenuMIDIOrCV;
 
 // note editor menu's
-extern deluge::gui::menu_item::Submenu noteEditorRootMenu;
-extern deluge::gui::menu_item::note::Probability noteProbabilityMenu;
-extern deluge::gui::menu_item::note::IterancePreset noteIteranceMenu;
-extern deluge::gui::menu_item::note::IteranceDivisor noteCustomIteranceDivisor;
-extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep1;
-extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep2;
-extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep3;
-extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep4;
-extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep5;
-extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep6;
-extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep7;
-extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep8;
-extern deluge::gui::menu_item::note::Fill noteFillMenu;
+extern gui::menu_item::HorizontalMenu noteEditorRootMenu;
+extern gui::menu_item::note::Probability noteProbabilityMenu;
+extern gui::menu_item::note::IterancePreset noteIteranceMenu;
+extern gui::menu_item::note::IteranceDivisor noteCustomIteranceDivisor;
+extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep1;
+extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep2;
+extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep3;
+extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep4;
+extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep5;
+extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep6;
+extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep7;
+extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep8;
+extern gui::menu_item::note::Fill noteFillMenu;
 // note row editor menu's
-extern deluge::gui::menu_item::Submenu noteRowEditorRootMenu;
-extern deluge::gui::menu_item::note_row::Probability noteRowProbabilityMenu;
-extern deluge::gui::menu_item::note_row::IterancePreset noteRowIteranceMenu;
-extern deluge::gui::menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor;
-extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep1;
-extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep2;
-extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep3;
-extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep4;
-extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep5;
-extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep6;
-extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep7;
-extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep8;
-extern deluge::gui::menu_item::note_row::Fill noteRowFillMenu;
+extern gui::menu_item::HorizontalMenu noteRowEditorRootMenu;
+extern gui::menu_item::note_row::Probability noteRowProbabilityMenu;
+extern gui::menu_item::note_row::IterancePreset noteRowIteranceMenu;
+extern gui::menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor;
+extern gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep1;
+extern gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep2;
+extern gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep3;
+extern gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep4;
+extern gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep5;
+extern gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep6;
+extern gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep7;
+extern gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep8;
+extern gui::menu_item::note_row::Fill noteRowFillMenu;
 
-extern deluge::gui::menu_item::PatchCables patchCablesMenu;
-extern deluge::gui::menu_item::source::patched_param::ModulatorLevel modulator0Volume;
-extern deluge::gui::menu_item::source::patched_param::ModulatorLevel modulator1Volume;
+extern gui::menu_item::PatchCables patchCablesMenu;
+extern gui::menu_item::source::patched_param::ModulatorLevel modulator0Volume;
+extern gui::menu_item::source::patched_param::ModulatorLevel modulator1Volume;
 
 extern deluge::gui::menu_item::midi::sound::OutputMidiChannel outputMidiChannelMenu;
 extern deluge::gui::menu_item::midi::sound::OutputMidiNoteForDrum outputMidiNoteForDrumMenu;
@@ -114,7 +121,6 @@ extern deluge::gui::menu_item::midi::OutputDeviceSelection midiOutputDeviceSelec
 extern deluge::gui::menu_item::midi::device_definition::DeviceDefinitionSubmenu midiDeviceDefinitionMenu;
 
 extern MenuItem* midiOrCVParamShortcuts[kDisplayHeight];
-
 extern MenuItem* gateDrumParamShortcuts[kDisplayHeight];
 extern MenuItem* paramShortcutsForSounds[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForSoundsSecondLayer[kDisplayWidth][kDisplayHeight];
@@ -122,8 +128,12 @@ extern MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForSongView[kDisplayWidth][kDisplayHeight];
 extern MenuItem* paramShortcutsForKitGlobalFX[kDisplayWidth][kDisplayHeight];
 
-extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 18> horizontalMenusChainForSound;
-extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 12> horizontalMenusChainForKit;
-extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 9> horizontalMenusChainForSong;
-extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 11> horizontalMenusChainForAudioClip;
-extern const std::array<deluge::gui::menu_item::HorizontalMenu*, 2> horizontalMenusChainForMidiOrCv;
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForSound;
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForKit;
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForSong;
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForAudioClip;
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForMidiOrCv;
+extern deluge::vector<gui::menu_item::HorizontalMenuContainer*> horizontalMenuContainers;
+
+extern gui::menu_item::HorizontalMenuGroup sourceMenuGroup;
+extern gui::menu_item::HorizontalMenu audioClipSampleMenu;

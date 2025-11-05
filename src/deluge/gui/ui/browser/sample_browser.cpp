@@ -27,6 +27,7 @@
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
 #include "gui/l10n/l10n.h"
+#include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -44,7 +45,6 @@
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -69,7 +69,6 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "storage/wave_table/wave_table.h"
 #include "util/d_string.h"
 #include "util/functions.h"
 #include <cstring>
@@ -368,7 +367,6 @@ void SampleBrowser::enterKeyPress() {
 		if (error != Error::NONE) {
 			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
-			return;
 		}
 	}
 
@@ -996,7 +994,7 @@ doLoadAsSample:
 				drum->name.clear();
 
 				String newName;
-				if (!numCharsInPrefix) {
+				if (!numCharsInPrefix || display->haveOLED()) {
 					newName.set(&enteredText);
 				}
 				else {
@@ -1074,6 +1072,21 @@ doLoadAsSample:
 
 	if (!loadWithoutExiting) {
 		exitAndNeverDeleteDrum();
+
+		if (menuItemHeadingTo != nullptr && parentMenuHeadingTo != nullptr) {
+			if (isUIOpen(&soundEditor)) {
+				closeUI(&soundEditor);
+			}
+
+			parentMenuHeadingTo->focusChild(menuItemHeadingTo);
+			soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo;
+			soundEditor.navigationDepth = 0;
+			openUI(&soundEditor);
+
+			parentMenuHeadingTo = nullptr;
+			menuItemHeadingTo = nullptr;
+		}
+
 		uiNeedsRendering(&audioClipView);
 	}
 	display->removeWorkingAnimation();

@@ -17,17 +17,18 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/integer.h"
 #include "gui/menu_item/note_row/selected_note_row.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
-#include "model/clip/instrument_clip.h"
-#include "model/instrument/kit.h"
+#include "hid/display/oled.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::note_row {
+
+using namespace deluge::hid::display;
+
 class Fill final : public SelectedNoteRow {
 public:
 	using SelectedNoteRow::SelectedNoteRow;
@@ -63,13 +64,36 @@ public:
 		}
 	}
 
-	void drawPixelsForOled() final override {
-		deluge::hid::display::OLED::main.drawStringCentred(instrumentClipView.getFillString(this->getValue()),
-		                                                   18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
-		                                                   kTextHugeSizeY);
+	void drawPixelsForOled() override {
+		OLED::main.drawStringCentred(instrumentClipView.getFillString(this->getValue()), 18 + OLED_MAIN_TOPMOST_PIXEL,
+		                             kTextHugeSpacingX, kTextHugeSizeY);
 	}
 
-	void drawValue() final override { display->setText(instrumentClipView.getFillString(this->getValue())); }
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+		oled_canvas::Canvas& image = OLED::main;
+
+		const uint8_t value = getValue();
+		const std::string str = value == OFF ? "OFF" : "FILL";
+		image.drawStringCentered(str.data(), slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
+		                         kTextSpacingY, slot.width);
+
+		if (value == NOT_FILL) {
+			const uint8_t center_y = slot.start_y + kHorizontalMenuSlotYOffset + 4;
+			const uint8_t line_start_x = slot.start_x + 2;
+			const uint8_t line_end_x = slot.start_x + slot.width - 4;
+			for (uint8_t x = line_start_x; x <= line_end_x; x++) {
+				image.clearPixel(x, center_y - 1);
+				image.clearPixel(x, center_y + 1);
+			}
+			image.drawHorizontalLine(center_y, line_start_x, line_end_x);
+		}
+	}
+
+	void getNotificationValue(StringBuf& valueBuf) override {
+		valueBuf.append(instrumentClipView.getFillString(this->getValue()));
+	}
+
+	void drawValue() override { display->setText(instrumentClipView.getFillString(this->getValue())); }
 
 	void writeCurrentValue() override { ; }
 };

@@ -25,7 +25,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
-#include "submenu.h"
+#include "horizontal_menu.h"
 #include "util/cfunctions.h"
 #include "util/functions.h"
 
@@ -56,8 +56,8 @@ void Decimal::drawValue() {
 
 int32_t Decimal::getNumberEditSize() {
 	if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
-		// In Horizontal menus we edit with 1.00 step by default, and with 0.01 step if the shift is pressed
-		return Buttons::isButtonPressed(hid::button::SHIFT) ? 1 : 100;
+		// In Horizontal menus we use 1.00 step by default, and 0.01 step for fine editing
+		return Buttons::isAnyOfButtonsPressed({hid::button::SELECT_ENC, hid::button::SHIFT}) ? 1 : 100;
 	}
 	return soundEditor.numberEditSize;
 }
@@ -219,9 +219,9 @@ int32_t Decimal::getNumNonZeroDecimals(int32_t value) {
 	return remainingBuf.size() - 2;
 }
 
-void Decimal::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
-	if (getNumberStyle() != NUMBER) {
-		return Number::renderInHorizontalMenu(startX, width, startY, height);
+void Decimal::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+	if (getRenderingStyle() != NUMBER) {
+		return Number::renderInHorizontalMenu(slot);
 	}
 
 	DEF_STACK_STRING_BUF(valueBuf, 10);
@@ -231,8 +231,9 @@ void Decimal::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t star
 		valueBuf.truncate(3);
 	}
 
-	return hid::display::OLED::main.drawStringCentered(valueBuf.data(), startX, startY + 3, kTextSpacingX,
-	                                                   kTextSpacingY, width);
+	return hid::display::OLED::main.drawStringCentered(valueBuf.data(), slot.start_x,
+	                                                   slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
+	                                                   kTextSpacingY, slot.width);
 }
 
 void DecimalWithoutScrolling::selectEncoderAction(int32_t offset) {

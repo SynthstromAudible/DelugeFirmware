@@ -21,6 +21,7 @@ struct TaskManager {
 
 	void start(Time duration = 0);
 	void removeTask(TaskID id);
+	void boostTask(TaskID id);
 	void runTask(TaskID id);
 	void runHighestPriTask();
 	TaskID chooseBestTask(Time deadline);
@@ -34,13 +35,14 @@ struct TaskManager {
 	TaskID insertTaskToList(Task task);
 	void printStats();
 	bool checkConditionalTasks();
-	bool yield(RunCondition until, Time timeout = 0);
+	bool yield(RunCondition until, Time timeout = 0, bool returnOnIdle = false);
 	Time getSecondsFromStart();
 
 	void ignoreForStats();
 	void setNextRunTimeforCurrentTask(Time seconds);
 
-	Time getAverageRunTimeForCurrentTask();
+	[[nodiscard]] Time getAverageRunTimeForCurrentTask() const;
+	[[nodiscard]] Time getAverageRunTimeForTask(TaskID id) const;
 
 private:
 	// All current tasks

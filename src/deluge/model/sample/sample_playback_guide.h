@@ -34,8 +34,8 @@ public:
 		return endPlaybackAtByte;
 	} // This is actually an important function whose output is the basis for a lot of stuff
 	virtual void setupPlaybackBounds(bool reversed);
-	virtual uint32_t getLoopStartPlaybackAtByte() { return startPlaybackAtByte; }
-	virtual uint32_t getLoopEndPlaybackAtByte() { return endPlaybackAtByte; }
+	[[nodiscard]] virtual uint32_t getLoopStartPlaybackAtByte() const { return startPlaybackAtByte; }
+	[[nodiscard]] virtual uint32_t getLoopEndPlaybackAtByte() const { return endPlaybackAtByte; }
 	uint64_t getSyncedNumSamplesIn();
 	int32_t getNumSamplesLaggingBehindSync(VoiceSample* voiceSample);
 	int32_t adjustPitchToCorrectDriftFromSync(VoiceSample* voiceSample, int32_t phaseIncrement);

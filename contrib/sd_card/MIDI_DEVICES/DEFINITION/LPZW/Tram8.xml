@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		69="CC1"
+		70="CC2"
+		71="CC3"
+		72="CC4"
+		73="CC5"
+		74="CC6"
+		75="CC7"
+		76="CC8"/>
+</midiDevice>

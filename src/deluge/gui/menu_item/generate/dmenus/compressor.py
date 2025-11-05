@@ -3,7 +3,7 @@ from dmui.dsl import Menu, Submenu
 threshold = Menu(
     "audio_compressor::CompParam",
     "threshold",
-    ["{name}", "{title}", "params::UNPATCHED_COMPRESSOR_THRESHOLD"],
+    ["{name}", "{title}", "params::UNPATCHED_COMPRESSOR_THRESHOLD", "BAR"],
     "compressor/threshold.md",
     name="STRING_FOR_THRESHOLD",
     title="STRING_FOR_COMP_THRESHOLD_MENU_TITLE",

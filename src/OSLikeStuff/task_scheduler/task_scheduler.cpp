@@ -172,13 +172,28 @@ void TaskManager::removeTask(TaskID id) {
 	createSortedList();
 	return;
 }
+
+void TaskManager::boostTask(TaskID id) {
+	auto* task = &list[id];
+	if (!task->boosted) {
+		task->boosted = true;
+		task->schedule.backOffPeriod *= 0.1;
+		task->schedule.targetInterval *= 0.1;
+	}
+}
+
 void TaskManager::ignoreForStats() {
 	countThisTask = false;
 }
 
-Time TaskManager::getAverageRunTimeForCurrentTask() {
+Time TaskManager::getAverageRunTimeForCurrentTask() const {
 	auto currentTask = &list[currentID];
 	return currentTask->durationStats.average;
+}
+
+Time TaskManager::getAverageRunTimeForTask(TaskID id) const {
+	auto task = &list[id];
+	return task->durationStats.average;
 }
 
 void TaskManager::setNextRunTimeforCurrentTask(Time seconds) {
@@ -211,6 +226,10 @@ void TaskManager::runTask(TaskID id) {
 		}
 		else {
 			if (countThisTask) {
+				if (runtime > Time(0.003)) {
+					D_PRINTLN("Task %s took too long: %.3fms. %s", current_task->name, double(runtime) * 1000.,
+					          current_task->yielded ? " (yielded)" : "");
+				}
 				current_task->updateNextTimes(start_time, runtime, timeNow);
 			}
 			else {
@@ -233,7 +252,7 @@ void TaskManager::runHighestPriTask() {
 /// pause current task, continue to run scheduler loop until a condition is met, then return to it
 /// current task can be called again if it's repeating - this is to match behaviour of busy waiting with routineForSD
 /// returns whether the condition was met
-bool TaskManager::yield(RunCondition until, Time timeout) {
+bool TaskManager::yield(RunCondition until, Time timeout, bool returnOnIdle) {
 	if (!running) [[unlikely]] {
 		startClock();
 	}
@@ -253,12 +272,16 @@ bool TaskManager::yield(RunCondition until, Time timeout) {
 		yielding_task->state = State::BLOCKED; // mark it as blocked so it won't be run again
 	}
 	if (countThisTask) {
+		if (runtime > Time(0.003)) {
+			D_PRINTLN("Task %s took too long before yielding: %.3fms", yielding_task->name, double(runtime) * 1000.);
+		}
 		yielding_task->updateNextTimes(start_time, runtime, time_now);
 	}
 
 	// continue the main loop. The yielding task is still on the stack but that should be fine
 	// run at least once so this can be used for yielding a single call as well
 	Time new_time = getSecondsFromStart();
+	bool ret = false;
 	do {
 		TaskID task = chooseBestTask(mustEndBefore);
 		if (task >= 0) {
@@ -273,13 +296,17 @@ bool TaskManager::yield(RunCondition until, Time timeout) {
 				printStats();
 			}
 			runHighestPriTask();
+			if (returnOnIdle) {
+				break;
+			}
 		}
-	} while (!until() && (skip_timeout || getSecondsFromStart() < time_now + timeout));
+		ret = until();
+	} while (!ret && (skip_timeout || getSecondsFromStart() < time_now + timeout));
 
-	auto finishTime = getSecondsFromStart();
-	yielding_task->lastCallTime = finishTime; // hack so it won't get called again immediately
+	auto finish_time = getSecondsFromStart();
+	yielding_task->lastCallTime = finish_time; // hack so it won't get called again immediately
 
-	return (getSecondsFromStart() < time_now + timeout);
+	return ret;
 }
 
 /// default duration of 0 signifies infinite loop, intended to be specified only for testing
@@ -395,6 +422,9 @@ Time getTimerValueSeconds(int timerNo) {
 }
 /// return a monotonic timer value in seconds from when the task manager started
 Time TaskManager::getSecondsFromStart() {
+	if (!running) [[unlikely]] {
+		startClock();
+	}
 	auto timeNow = getTimerValueSeconds(0);
 	if (timeNow < lastTime) {
 		runningTime += rollTime;

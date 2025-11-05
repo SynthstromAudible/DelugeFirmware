@@ -33,10 +33,7 @@ public:
 	bool usesAffectEntire() override { return true; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		if (const auto audioClip = getCurrentAudioClip(); audioClip != nullptr) {
-			return audioClip->sampleHolder.audioFile != nullptr;
-		}
-		return isSampleModeSample(modControllable, source_id_);
+		return getCurrentAudioClip() != nullptr || isSampleModeSample(modControllable, source_id_);
 	}
 
 	void readCurrentValue() override {
@@ -70,9 +67,9 @@ public:
 		return {l10n::getView(l10n::String::STRING_FOR_LINKED), l10n::getView(l10n::String::STRING_FOR_INDEPENDENT)};
 	}
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
 		const Icon& icon = getValue() ? OLED::pitchSpeedIndependentIcon : OLED::pitchSpeedLinkedIcon;
-		OLED::main.drawIconCentered(icon, startX, width, startY);
+		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
 	}
 
 	void getColumnLabel(StringBuf& label) override {

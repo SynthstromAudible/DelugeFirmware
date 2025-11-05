@@ -463,10 +463,10 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 			else if (!strcmp(tagName, "note")) {
 				int32_t presetNote = std::clamp<int32_t>(reader.readTagOrAttributeValueInt(), 1, 127);
 
-				sources[0].transpose += presetNote - 60;
-				sources[1].transpose += presetNote - 60;
-				modulatorTranspose[0] += presetNote - 60;
-				modulatorTranspose[1] += presetNote - 60;
+				sources[0].transpose += presetNote - kC3NoteCode;
+				sources[1].transpose += presetNote - kC3NoteCode;
+				modulatorTranspose[0] += presetNote - kC3NoteCode;
+				modulatorTranspose[1] += presetNote - kC3NoteCode;
 				reader.exitTag("note");
 			}
 			else {
@@ -1608,7 +1608,8 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				                           return isSourceActiveCurrently(s, paramManager)
 				                                  && sources[s].oscType != OscType::SAMPLE;
 			                           })
-			    || (voice->envelopes[0].state != EnvelopeStage::FAST_RELEASE && !voice->doFastRelease());
+			    || (voice->envelopes[0].state != EnvelopeStage::FAST_RELEASE
+			        && !voice->doFastRelease(SOFT_CULL_INCREMENT));
 
 			if (needs_unassign) {
 				if (voiceToReuse != nullptr) {
@@ -2494,7 +2495,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::Stere
 		    thisHasFilters
 		    && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_HPF_FREQ)
 		        || (hpfFreq != std::numeric_limits<q31_t>::min()) || (hpfMorph > std::numeric_limits<q31_t>::min()));
-
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
@@ -2504,12 +2504,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::Stere
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");
 				this->freeActiveVoice(voice, modelStackWithSoundFlags, false);
-				it = voices_.erase(it);
 			}
-			else {
-				it++;
-			}
+			++it;
 		}
+		std::erase_if(voices_, [](const ActiveVoice& voice) { return voice->shouldBeDeleted(); });
 
 		// We know that nothing's patched to pan, so can read it in this very basic way.
 		int32_t pan = paramManager->getPatchedParamSet()->getValue(params::LOCAL_PAN) >> 1;
@@ -3300,6 +3298,10 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			source->setOscType(stringToOscType(reader.readTagOrAttributeValue()));
 			reader.exitTag("type");
 		}
+		else if (!strcmp(tagName, "isTracking")) {
+			source->isTracking = reader.readTagOrAttributeValueInt();
+			reader.exitTag("isTracking");
+		}
 		else if (!strcmp(tagName, "phaseWidth")) {
 			ENSURE_PARAM_MANAGER_EXISTS
 			patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_PHASE_WIDTH + s,
@@ -3565,6 +3567,7 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 	if (synthMode != SynthMode::FM) {
 		writer.writeAttribute("type", oscTypeToString(source->oscType));
 	}
+	writer.writeAttribute("isTracking", source->isTracking);
 
 	// If (multi)sample...
 	if (source->oscType == OscType::SAMPLE
@@ -4670,7 +4673,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 void Sound::fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack) {
 	for (auto it = voices_.begin(); it != voices_.end();) {
 		const ActiveVoice& voice = *it;
-		bool stillGoing = voice->doFastRelease();
+		bool stillGoing = voice->doFastRelease(SOFT_CULL_INCREMENT);
 
 		if (!stillGoing) {
 			this->checkVoiceExists(voice, "E212");

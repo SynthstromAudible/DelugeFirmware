@@ -29,6 +29,7 @@
 #include "gui/menu_item/audio_compressor/compressor_params.h"
 #include "gui/menu_item/audio_compressor/compressor_values.h"
 #include "gui/menu_item/audio_interpolation.h"
+#include "gui/menu_item/battery/level.h"
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
 #include "gui/menu_item/colour.h"
@@ -65,9 +66,10 @@
 #include "gui/menu_item/edit_name.h"
 #include "gui/menu_item/envelope/envelope_menu.h"
 #include "gui/menu_item/envelope/segment.h"
-#include "gui/menu_item/eq/eq_frequency.h"
+#include "gui/menu_item/eq/eq_menu.h"
 #include "gui/menu_item/eq/eq_unpatched_param.h"
 #include "gui/menu_item/file_selector.h"
+#include "gui/menu_item/filter/filter_container.h"
 #include "gui/menu_item/filter/mode.h"
 #include "gui/menu_item/filter/param.h"
 #include "gui/menu_item/filter_route.h"
@@ -78,6 +80,7 @@
 #include "gui/menu_item/gate/off_time.h"
 #include "gui/menu_item/gate/selection.h"
 #include "gui/menu_item/horizontal_menu.h"
+#include "gui/menu_item/horizontal_menu_container.h"
 #include "gui/menu_item/horizontal_menu_group.h"
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
@@ -138,6 +141,7 @@
 #include "gui/menu_item/osc/source/volume.h"
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
+#include "gui/menu_item/osc/tracking.h"
 #include "gui/menu_item/osc/type.h"
 #include "gui/menu_item/patch_cable_strength/fixed.h"
 #include "gui/menu_item/patch_cables.h"
@@ -261,7 +265,7 @@ arpeggiator::ChordType arpChordSimulatorMenuKit{STRING_FOR_CHORD_SIMULATOR, STRI
 arpeggiator::StepRepeat arpStepRepeatMenu{STRING_FOR_STEP_REPEAT, STRING_FOR_ARP_STEP_REPEAT_MENU_TITLE};
 // Note and rhythm settings
 arpeggiator::ArpUnpatchedParam arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE, params::UNPATCHED_ARP_GATE,
-                                           NumberStyle::LENGTH_SLIDER};
+                                           RenderingStyle::LENGTH_SLIDER};
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
 arpeggiator::Rhythm arpRhythmMenu{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE, params::UNPATCHED_ARP_RHYTHM};
 arpeggiator::midi_cv::Rhythm arpRhythmMenuMIDIOrCV{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE};
@@ -276,18 +280,18 @@ arpeggiator::IncludeInKitArp arpIncludeInKitArpMenu{STRING_FOR_INCLUDE_IN_KIT_AR
 // Randomizer ---------------------------------
 randomizer::RandomizerLock randomizerLockMenu{STRING_FOR_RANDOMIZER_LOCK, STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE};
 randomizer::RandomizerUnpatchedParam spreadGateMenu{STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
-                                                    params::UNPATCHED_ARP_SPREAD_GATE};
+                                                    params::UNPATCHED_ARP_SPREAD_GATE, BAR};
 randomizer::midi_cv::SpreadGate spreadGateMenuMIDIOrCV{STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE};
 randomizer::RandomizerSoundOnlyUnpatchedParam spreadOctaveMenu{
-    STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_OCTAVE};
+    STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_OCTAVE, BAR};
 randomizer::midi_cv::SpreadOctave spreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD_OCTAVE,
                                                            STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
 randomizer::RandomizerUnpatchedParam spreadVelocityMenu{
-    STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_SPREAD_VELOCITY};
+    STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_SPREAD_VELOCITY, BAR};
 randomizer::midi_cv::SpreadVelocity spreadVelocityMenuMIDIOrCV{STRING_FOR_SPREAD_VELOCITY,
                                                                STRING_FOR_SPREAD_VELOCITY_MENU_TITLE};
 randomizer::RandomizerUnpatchedParam ratchetAmountMenu{
-    STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE, params::UNPATCHED_ARP_RATCHET_AMOUNT};
+    STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE, params::UNPATCHED_ARP_RATCHET_AMOUNT, BAR};
 randomizer::midi_cv::RatchetAmount ratchetAmountMenuMIDIOrCV{STRING_FOR_NUMBER_OF_RATCHETS,
                                                              STRING_FOR_ARP_RATCHETS_MENU_TITLE};
 randomizer::RandomizerUnpatchedParam ratchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY,
@@ -296,7 +300,7 @@ randomizer::RandomizerUnpatchedParam ratchetProbabilityMenu{STRING_FOR_RATCHET_P
 randomizer::midi_cv::RatchetProbability ratchetProbabilityMenuMIDIOrCV{STRING_FOR_RATCHET_PROBABILITY,
                                                                        STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
 randomizer::RandomizerNonKitSoundUnpatchedParam chordPolyphonyMenu{
-    STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_POLYPHONY};
+    STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_POLYPHONY, BAR};
 randomizer::midi_cv::ChordPolyphony chordPolyphonyMenuMIDIOrCV{STRING_FOR_CHORD_POLYPHONY,
                                                                STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE};
 randomizer::RandomizerNonKitSoundUnpatchedParam chordProbabilityMenu{STRING_FOR_CHORD_PROBABILITY,
@@ -440,6 +444,7 @@ HorizontalMenu voiceMenu{STRING_FOR_VOICE,
 HorizontalMenu voiceMenuWithoutUnison{STRING_FOR_VOICE,
                                       {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &portaMenu},
                                       HorizontalMenu::Layout::FIXED};
+HorizontalMenuGroup voiceMenuGroup{{&unisonMenu, &voiceMenuWithoutUnison}};
 
 // Envelope 1-4 menu -----------------------------------------------------------------------------
 HorizontalMenuGroup envMenuGroup{{&env1Menu, &env2Menu, &env3Menu, &env4Menu}};
@@ -468,11 +473,12 @@ submenu::ModFxHorizontalMenu modFXMenu{
 // EQ -------------------------------------------------------------------------------------
 eq::EqUnpatchedParam bassMenu{STRING_FOR_BASS, params::UNPATCHED_BASS};
 eq::EqUnpatchedParam trebleMenu{STRING_FOR_TREBLE, params::UNPATCHED_TREBLE};
-eq::EqFrequency bassFreqMenu{STRING_FOR_BASS_FREQUENCY, STRING_FOR_BASS_FREQUENCY_SHORT, params::UNPATCHED_BASS_FREQ};
-eq::EqFrequency trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY, STRING_FOR_TREBLE_FREQUENCY_SHORT,
-                               params::UNPATCHED_TREBLE_FREQ};
+eq::EqUnpatchedParam bassFreqMenu{STRING_FOR_BASS_FREQUENCY, STRING_FOR_BASS_FREQUENCY_SHORT,
+                                  params::UNPATCHED_BASS_FREQ};
+eq::EqUnpatchedParam trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY, STRING_FOR_TREBLE_FREQUENCY_SHORT,
+                                    params::UNPATCHED_TREBLE_FREQ};
 
-HorizontalMenu eqMenu{
+eq::EqMenu eqMenu{
     STRING_FOR_EQ,
     {
         &bassMenu,
@@ -599,11 +605,10 @@ HorizontalMenu routingHorizontal{STRING_FOR_FILTER_ROUTE, {&filterRoutingMenu}};
 HorizontalMenuGroup filtersMenuGroup{{&lpfMenu, &hpfMenu, &routingHorizontal}};
 
 // FX ----------------------------------------------------------------------------------------
-
 fx::Clipping clippingMenu{STRING_FOR_SATURATION};
-UnpatchedParam srrMenu{STRING_FOR_DECIMATION, params::UNPATCHED_SAMPLE_RATE_REDUCTION};
-UnpatchedParam bitcrushMenu{STRING_FOR_BITCRUSH, params::UNPATCHED_BITCRUSHING};
-patched_param::Integer foldMenu{STRING_FOR_WAVEFOLD, STRING_FOR_WAVEFOLD, params::LOCAL_FOLD};
+UnpatchedParam srrMenu{STRING_FOR_DECIMATION, params::UNPATCHED_SAMPLE_RATE_REDUCTION, RenderingStyle::BAR};
+UnpatchedParam bitcrushMenu{STRING_FOR_BITCRUSH, params::UNPATCHED_BITCRUSHING, RenderingStyle::BAR};
+patched_param::Integer foldMenu{STRING_FOR_WAVEFOLD, STRING_FOR_WAVEFOLD, params::LOCAL_FOLD, RenderingStyle::BAR};
 
 HorizontalMenu soundDistortionMenu{
     STRING_FOR_DISTORTION,
@@ -652,7 +657,7 @@ sequence::Direction sequenceDirectionMenu{STRING_FOR_PLAY_DIRECTION};
 // Global FX Menu
 
 // Volume
-UnpatchedParam globalLevelMenu{STRING_FOR_VOLUME_LEVEL, params::UNPATCHED_VOLUME};
+UnpatchedParam globalLevelMenu{STRING_FOR_VOLUME_LEVEL, params::UNPATCHED_VOLUME, BAR};
 
 // Pitch
 UnpatchedParam globalPitchMenu{STRING_FOR_PITCH, params::UNPATCHED_PITCH_ADJUST};
@@ -686,13 +691,7 @@ filter::UnpatchedFilterParam globalLPFResMenu{STRING_FOR_RESONANCE, STRING_FOR_L
 filter::UnpatchedFilterParam globalLPFMorphMenu{STRING_FOR_MORPH, STRING_FOR_LPF_MORPH, params::UNPATCHED_LPF_MORPH,
                                                 filter::FilterSlot::LPF, filter::FilterParamType::MORPH};
 HorizontalMenu globalLPFMenu{STRING_FOR_LPF,
-                             {
-                                 &globalLPFFreqMenu,
-                                 &globalLPFResMenu,
-                                 &globalLPFMorphMenu,
-                                 &lpfModeMenu,
-                             },
-                             HorizontalMenu::Layout::FIXED};
+                             {&lpfModeMenu, &globalLPFFreqMenu, &globalLPFResMenu, &globalLPFMorphMenu}};
 
 // HPF Menu
 filter::UnpatchedFilterParam globalHPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY,
@@ -704,13 +703,7 @@ filter::UnpatchedFilterParam globalHPFMorphMenu{STRING_FOR_MORPH, STRING_FOR_HPF
                                                 filter::FilterSlot::HPF, filter::FilterParamType::MORPH};
 
 HorizontalMenu globalHPFMenu{STRING_FOR_HPF,
-                             {
-                                 &globalHPFFreqMenu,
-                                 &globalHPFResMenu,
-                                 &globalHPFMorphMenu,
-                                 &hpfModeMenu,
-                             },
-                             HorizontalMenu::Layout::FIXED};
+                             {&hpfModeMenu, &globalHPFFreqMenu, &globalHPFResMenu, &globalHPFMorphMenu}};
 
 Submenu globalFiltersMenu{
     STRING_FOR_FILTERS,
@@ -725,7 +718,7 @@ HorizontalMenuGroup globalFiltersMenuGroup{{&globalLPFMenu, &globalHPFMenu, &rou
 
 // EQ Menu
 
-HorizontalMenu globalEQMenu{
+eq::EqMenu globalEQMenu{
     STRING_FOR_EQ,
     {
         &bassMenu,
@@ -1001,6 +994,8 @@ sample::browser_preview::Mode sampleBrowserPreviewModeMenu{STRING_FOR_SAMPLE_PRE
 flash::Status flashStatusMenu{STRING_FOR_PLAY_CURSOR};
 
 firmware::Version firmwareVersionMenu{STRING_FOR_FIRMWARE_VERSION, STRING_FOR_FIRMWARE_VER_MENU_TITLE};
+
+battery::Level batteryLevelMenu{STRING_FOR_BATTERY_LEVEL, STRING_FOR_BATTERY_LEVEL_MENU_TITLE};
 
 runtime_feature::Settings runtimeFeatureSettingsMenu{STRING_FOR_COMMUNITY_FTS, STRING_FOR_COMMUNITY_FTS_MENU_TITLE};
 
@@ -1358,9 +1353,9 @@ MasterTranspose masterTransposeMenu{STRING_FOR_MASTER_TRANSPOSE, STRING_FOR_MAST
 patch_cable_strength::Fixed vibratoMenu{STRING_FOR_VIBRATO, params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1};
 
 // Synth only
-menu_item::SynthModeSelection synthModeMenu{STRING_FOR_SYNTH_MODE};
+SynthModeSelection synthModeMenu{STRING_FOR_SYNTH_MODE};
 bend_range::PerFinger drumBendRangeMenu{STRING_FOR_BEND_RANGE}; // The single option available for Drums
-patched_param::Integer volumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_MASTER_LEVEL, params::GLOBAL_VOLUME_POST_FX};
+patched_param::Integer volumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_MASTER_LEVEL, params::GLOBAL_VOLUME_POST_FX, BAR};
 patched_param::Pan panMenu{STRING_FOR_PAN, params::LOCAL_PAN};
 
 PatchCables patchCablesMenu{STRING_FOR_MOD_MATRIX};
@@ -1369,8 +1364,13 @@ HorizontalMenu soundMasterMenu{
     STRING_FOR_MASTER,
     {&synthModeMenu, &volumeMenu, &panMenu, &masterTransposeMenu, &vibratoMenu},
 };
+HorizontalMenu soundMasterMenuWithoutVibrato{
+    STRING_FOR_MASTER,
+    {&synthModeMenu, &volumeMenu, &panMenu, &masterTransposeMenu},
+};
 
-HorizontalMenuGroup sourceMenuGroup{{&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu}};
+HorizontalMenuGroup sourceMenuGroup{
+    {&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu, &oscTrackingMenu}};
 
 Submenu soundFXMenu{
     STRING_FOR_FX,
@@ -1406,6 +1406,7 @@ Submenu soundEditorRootMenu{
         &modulator0Menu,
         &modulator1Menu,
         &oscMixerMenu,
+        &oscTrackingMenu,
         &env1Menu,
         &env2Menu,
         &env3Menu,
@@ -1463,15 +1464,13 @@ menu_item::note::IterancePreset noteIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE
 menu_item::note::Fill noteFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
 
 // Root menu for Note Editor
-menu_item::Submenu noteEditorRootMenu{
-    STRING_FOR_NOTE_EDITOR,
-    {
-        &noteVelocityMenu,
-        &noteProbabilityMenu,
-        &noteIteranceMenu,
-        &noteFillMenu,
-    },
-};
+HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
+                                  {
+                                      &noteVelocityMenu,
+                                      &noteProbabilityMenu,
+                                      &noteIteranceMenu,
+                                      &noteFillMenu,
+                                  }};
 
 menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor{STRING_FOR_ITERANCE_DIVISOR};
 menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep1{STRING_FOR_ITERATION_STEP_1,
@@ -1507,20 +1506,18 @@ menu_item::Submenu noteRowCustomIteranceRootMenu{
     },
 };
 
-menu_item::note_row::Probability noteRowProbabilityMenu{STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY};
-menu_item::note_row::IterancePreset noteRowIteranceMenu{STRING_FOR_NOTE_ROW_EDITOR_ITERANCE};
-menu_item::note_row::Fill noteRowFillMenu{STRING_FOR_NOTE_ROW_EDITOR_FILL};
+note_row::Probability noteRowProbabilityMenu{STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY};
+note_row::IterancePreset noteRowIteranceMenu{STRING_FOR_NOTE_ROW_EDITOR_ITERANCE};
+note_row::Fill noteRowFillMenu{STRING_FOR_NOTE_ROW_EDITOR_FILL};
 
 // Root menu for Note Row Editor
-menu_item::Submenu noteRowEditorRootMenu{
-    STRING_FOR_NOTE_ROW_EDITOR,
-    {
-        &noteRowProbabilityMenu,
-        &noteRowIteranceMenu,
-        &noteRowFillMenu,
-        &sequenceDirectionMenu,
-    },
-};
+HorizontalMenu noteRowEditorRootMenu{STRING_FOR_NOTE_ROW_EDITOR,
+                                     {
+                                         &noteRowProbabilityMenu,
+                                         &noteRowIteranceMenu,
+                                         &noteRowFillMenu,
+                                         &sequenceDirectionMenu,
+                                     }};
 
 menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TITLE,
                                                 {
@@ -1712,6 +1709,7 @@ Submenu settingsRootMenu{
         &flashStatusMenu,
         &recordSubmenu,
         &runtimeFeatureSettingsMenu,
+        &batteryLevelMenu,
         &firmwareVersionMenu,
     },
 };
@@ -1815,39 +1813,46 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
     {nullptr,          	     &spreadVelocityMenu,	  &randomizerLockMenu,            &randomizerNoteProbabilityMenu,        nullptr,                     nullptr,                nullptr,                  nullptr                            },
 };
 
-PLACE_SDRAM_DATA std::array<HorizontalMenu*, 18> horizontalMenusChainForSound = {
-	&arpMenuGroup, &randomizerMenu,
-	&voiceMenuWithoutUnison, &soundMasterMenu, &recorderMenu, &sourceMenuGroup,
-	&unisonMenu, &envMenuGroup, &lfoMenuGroup,
+deluge::vector<HorizontalMenu*> horizontalMenusChainForSound = {
+	&recorderMenu, &soundMasterMenuWithoutVibrato,
+	&sourceMenuGroup, &voiceMenuGroup, &envMenuGroup, &lfoMenuGroup,
 	&filtersMenuGroup, &eqMenu, &modFXMenu,
 	&reverbMenuGroup, &delayMenu, &soundDistortionMenu,
-	&sidechainMenu, &audioCompMenu, &stutterMenu
+	&sidechainMenu, &audioCompMenu, &stutterMenu,
+	&arpMenuGroup, &randomizerMenu
 };
 
-PLACE_SDRAM_DATA std::array<HorizontalMenu*, 12> horizontalMenusChainForKit = {
-	&arpMenuGroupKit, &randomizerMenu, &kitClipMasterMenu,
+deluge::vector<HorizontalMenu*> horizontalMenusChainForKit = {
+	&kitClipMasterMenu,
 	&globalFiltersMenuGroup, &globalEQMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
-	&globalSidechainMenu, &audioCompMenu, &stutterMenu
+	&globalSidechainMenu, &audioCompMenu, &stutterMenu,
+	&arpMenuGroupKit, &randomizerMenu
 };
 
-PLACE_SDRAM_DATA std::array<HorizontalMenu*, 9> horizontalMenusChainForSong = {
+deluge::vector<HorizontalMenu*> horizontalMenusChainForSong = {
 	&songMasterMenu,
 	&globalFiltersMenuGroup, &globalEQMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
 	&audioCompMenu, &stutterMenu
 };
 
-PLACE_SDRAM_DATA std::array<HorizontalMenu*, 11> horizontalMenusChainForAudioClip = {
+deluge::vector<HorizontalMenu*> horizontalMenusChainForAudioClip = {
 	&audioClipMasterMenu, &audioClipSampleMenu,
 	&globalFiltersMenuGroup, &eqMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &audioClipDistortionMenu,
 	&globalSidechainMenu, &audioCompMenu, &stutterMenu
 };
 
-PLACE_SDRAM_DATA std::array<HorizontalMenu*, 2> horizontalMenusChainForMidiOrCv = {
+deluge::vector<HorizontalMenu*> horizontalMenusChainForMidiOrCv = {
 	&arpMenuGroupMIDIOrCV, &randomizerMenu
 };
+
+filter::FilterContainer lpfContainer{{&lpfFreqMenu, &lpfResMenu}, &lpfMorphMenu};
+filter::FilterContainer hpfContainer{{&hpfFreqMenu, &hpfResMenu}, &hpfMorphMenu};
+filter::FilterContainer globalLpfContainer{{&globalLPFFreqMenu, &globalLPFResMenu}, &globalLPFMorphMenu};
+filter::FilterContainer globalHpfContainer{{&globalHPFFreqMenu, &globalHPFResMenu}, &globalHPFMorphMenu};
+deluge::vector<HorizontalMenuContainer*> horizontalMenuContainers{&lpfContainer, &hpfContainer, &globalLpfContainer, &globalHpfContainer};
 
 //clang-format on
 

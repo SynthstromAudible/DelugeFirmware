@@ -123,7 +123,7 @@ void Cluster::convertDataIfNecessary() {
 				}
 
 				AudioEngine::logAction("from convert-data");
-				AudioEngine::routine(); // ----------------------------------------------------
+				AudioEngine::yieldToAudio(); // ----------------------------------------------------
 			}
 		}
 
@@ -151,8 +151,7 @@ void Cluster::convertDataIfNecessary() {
 			for (; pos < endPos; pos++) {
 
 				if (!((uint32_t)pos & 0b1111111100)) {
-					AudioEngine::logAction("from convert-data");
-					AudioEngine::routine(); // ----------------------------------------------------
+					AudioEngine::yieldToAudio(); // ----------------------------------------------------
 				}
 
 				*pos = sample->convertToNative(*pos);
@@ -197,9 +196,8 @@ void Cluster::steal(char const* errorCode) {
 	case Type::SAMPLE:
 		if (ALPHA_OR_BETA_VERSION && sample == nullptr) {
 			FREEZE_WITH_ERROR("E181");
-			std::terminate();
 		}
-		sample->clusters[clusterIndex].cluster = nullptr;
+		sample->clusters.getElement(clusterIndex)->cluster = nullptr;
 		break;
 
 	case Type::SAMPLE_CACHE:

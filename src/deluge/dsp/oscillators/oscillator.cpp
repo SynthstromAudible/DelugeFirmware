@@ -16,21 +16,17 @@
  */
 #include "oscillator.h"
 #include "basic_waves.h"
-#include "definitions.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/render_wave.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/fixedpoint.h"
-#include <argon/vectorize/load.hpp>
-#include <argon/vectorize/load_store.hpp>
-#include <argon/vectorize/store.hpp>
 
 namespace deluge::dsp {
-alignas(CACHE_LINE_SIZE) PLACE_INTERNAL_FRUNK std::array<int32_t, SSI_TX_BUFFER_NUM_SAMPLES + 4> oscSyncRenderingBuffer;
-
+PLACE_INTERNAL_FRUNK int32_t oscSyncRenderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES + 4]
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 __attribute__((optimize("unroll-loops"))) void
-Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, size_t numSamples,
-                      uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool apply_amplitude,
+Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
+                      uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
                       int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
                       uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
                       int sourceWaveIndexLastTime, WaveTable* waveTable) {
@@ -158,7 +154,7 @@ skipPastOscSyncStuff:
 
 		int32_t waveIndex = sourceWaveIndexLastTime + 1073741824;
 
-		int32_t* wavetableRenderingBuffer = apply_amplitude ? oscSyncRenderingBuffer.data() : bufferStart;
+		int32_t* wavetableRenderingBuffer = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 
 		phase = waveTable->render(wavetableRenderingBuffer, numSamples, phaseIncrement, phase, doOscSync, resetterPhase,
 		                          resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase, waveIndex,
@@ -166,9 +162,10 @@ skipPastOscSyncStuff:
 
 		amplitude <<= 3;
 		amplitudeIncrement <<= 3;
-		if (apply_amplitude) { // change from original code but if we don't render into the osc sync buffer this is just
-			                   // a very long useless operation
-			applyAmplitude(oscSyncRenderingBuffer, {bufferStart, numSamples}, amplitude, amplitudeIncrement);
+		if (applyAmplitude) { // change from original code but if we don't render into the osc sync buffer this is just
+			                  // a very long useless operation
+			applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
+			                             oscSyncRenderingBuffer);
 		}
 		maybeStorePhase(type, startPhase, phase, doPulseWave);
 		return;
@@ -198,7 +195,7 @@ skipPastOscSyncStuff:
 
 					int32_t value = getTriangleSmall(phaseNow);
 
-					if (apply_amplitude) {
+					if (applyAmplitude) {
 						amplitudeNow += amplitudeIncrement;
 						*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, value, amplitudeNow);
 					}
@@ -221,7 +218,7 @@ skipPastOscSyncStuff:
 
 					int32_t value = getTriangleSmall(phaseNow);
 
-					if (apply_amplitude) {
+					if (applyAmplitude) {
 						amplitudeNow += amplitudeIncrement;
 						*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, value, amplitudeNow);
 					}
@@ -276,7 +273,7 @@ doSaw:
 			if (tableNumber < AudioEngine::cpuDireness + 6) {
 
 				if (!doOscSync) {
-					if (apply_amplitude) {
+					if (applyAmplitude) {
 						dsp::renderCrudeSawWave({bufferStart, static_cast<uint>(numSamples)}, phase, phaseIncrement,
 						                        amplitude, amplitudeIncrement);
 					}
@@ -305,7 +302,7 @@ doSaw:
 							    + 1 + retriggerPhase;
 						}
 
-						if (apply_amplitude) {
+						if (applyAmplitude) {
 							amplitudeNow += amplitudeIncrement;
 							*thisSample = multiply_accumulate_32x32_rshift32_rounded(
 							    *thisSample, (int32_t)phaseNow,
@@ -338,7 +335,7 @@ doSaw:
 
 				if (!doOscSync) {
 
-					if (apply_amplitude) {
+					if (applyAmplitude) {
 
 						do {
 							phaseNow += phaseIncrement;
@@ -396,7 +393,7 @@ doSaw:
 							    + 1 + retriggerPhase;
 						}
 
-						if (apply_amplitude) {
+						if (applyAmplitude) {
 							amplitudeNow += amplitudeIncrement;
 							*thisSample = multiply_accumulate_32x32_rshift32_rounded(
 							    *thisSample, getSquare(phaseNow, pulseWidth), amplitudeNow);
@@ -427,27 +424,31 @@ doSaw:
 					phaseIncrement >>= 1;
 
 					if (doOscSync) {
-						int32_t* bufferStartThisSync = apply_amplitude ? oscSyncRenderingBuffer.data() : bufferStart;
+						int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 						int32_t numSamplesThisOscSyncSession = numSamples;
-						auto storeVectorWaveForOneSync = [&](std::span<q31_t> buffer, uint32_t phase) {
-							for (Argon<q31_t>& value_vector : argon::vectorize::store(buffer)) {
-								std::tie(value_vector, phase) = waveRenderingFunctionPulse(
+						auto storeVectorWaveForOneSync = [&](int32_t const* const bufferEndThisSyncRender,
+						                                     uint32_t phase, int32_t* __restrict__ writePos) {
+							int32x4_t valueVector;
+							do {
+								std::tie(valueVector, phase) = waveRenderingFunctionPulse(
 								    phase, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);
-							}
+								vst1q_s32(writePos, valueVector);
+								writePos += 4;
+							} while (writePos < bufferEndThisSyncRender);
 						};
 						renderOscSync(
 						    storeVectorWaveForOneSync, [](uint32_t) {}, phase, phaseIncrement, resetterPhase,
 						    resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase,
 						    numSamplesThisOscSyncSession, bufferStartThisSync);
 						phase <<= 1;
-						applyAmplitude(oscSyncRenderingBuffer, {bufferStart, numSamples}, amplitude,
-						               amplitudeIncrement);
+						applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
+						                             oscSyncRenderingBuffer);
 						maybeStorePhase(type, startPhase, phase, doPulseWave);
 						return;
 					}
 					else {
 						dsp::renderPulseWave(table, tableSizeMagnitude, amplitude, {bufferStart, bufferEnd},
-						                     phaseIncrement, phase, apply_amplitude, phaseToAdd, amplitudeIncrement);
+						                     phaseIncrement, phase, applyAmplitude, phaseToAdd, amplitudeIncrement);
 						return;
 					}
 				}
@@ -471,53 +472,62 @@ doAnalogSquare:
 
 callRenderWave:
 		if (doOscSync) {
-			int32_t* bufferStartThisSync = apply_amplitude ? oscSyncRenderingBuffer.data() : bufferStart;
+			int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 			int32_t numSamplesThisOscSyncSession = numSamples;
 			auto storeVectorWaveForOneSync = //<
-			    [&](std::span<q31_t> buffer, uint32_t phase) {
-				    for (Argon<q31_t>& value_vector : argon::vectorize::store(buffer)) {
-					    std::tie(value_vector, phase) =
+			    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phase, int32_t* __restrict__ writePos) {
+				    int32x4_t valueVector;
+				    do {
+					    std::tie(valueVector, phase) =
 					        waveRenderingFunctionGeneral(phase, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);
-				    }
+					    vst1q_s32(writePos, valueVector);
+					    writePos += 4;
+				    } while (writePos < bufferEndThisSyncRender);
 			    };
 			renderOscSync(
 			    storeVectorWaveForOneSync, [](uint32_t) {}, phase, phaseIncrement, resetterPhase,
 			    resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase, numSamplesThisOscSyncSession,
 			    bufferStartThisSync);
-			applyAmplitude(oscSyncRenderingBuffer, {bufferStart, numSamples}, amplitude, amplitudeIncrement);
+			applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart,
+			                             oscSyncRenderingBuffer);
 			maybeStorePhase(type, startPhase, phase, doPulseWave);
 			return;
 		}
 		else {
 			dsp::renderWave(table, tableSizeMagnitude, amplitude, {bufferStart, bufferEnd}, phaseIncrement, phase,
-			                apply_amplitude, phaseToAdd, amplitudeIncrement);
+			                applyAmplitude, phaseToAdd, amplitudeIncrement);
 			return;
 		}
 	}
 
 	// Rohan thinks we never get here but who knows
 
-	applyAmplitude(oscSyncRenderingBuffer, {bufferStart, numSamples}, amplitude, amplitudeIncrement);
+	applyAmplitudeVectorToBuffer(amplitude, numSamples, amplitudeIncrement, bufferStart, oscSyncRenderingBuffer);
 
 	maybeStorePhase(type, startPhase, phase, doPulseWave);
 }
+void Oscillator::applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamples, int32_t amplitudeIncrement,
+                                              int32_t* outputBufferPos, int32_t* inputBuferPos) {
+	int32_t const* const bufferEnd = outputBufferPos + numSamples;
 
-void Oscillator::applyAmplitude(std::span<q31_t> input_span, std::span<q31_t> output_span, int32_t amplitude,
-                                int32_t amplitude_increment) {
-	size_t num_samples = std::min(input_span.size(), output_span.size());
+	int32x4_t amplitudeVector = createAmplitudeVector(amplitude, amplitudeIncrement);
+	int32x4_t amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);
 
-	Argon<q31_t> amplitude_vector = createAmplitudeVector(amplitude, amplitude_increment);
-	Argon<q31_t> amplitude_increment_vector = amplitude_increment << 1;
+	do {
+		int32x4_t waveDataFromBefore = vld1q_s32(inputBuferPos);
+		int32x4_t existingDataInBuffer = vld1q_s32(outputBufferPos);
+		int32x4_t dataWithAmplitudeApplied = vqdmulhq_s32(amplitudeVector, waveDataFromBefore);
+		amplitudeVector = vaddq_s32(amplitudeVector, amplitudeIncrementVector);
+		int32x4_t sum = vaddq_s32(dataWithAmplitudeApplied, existingDataInBuffer);
 
-	auto output_it = argon::vectorize::load_store(output_span.first(num_samples)).begin();
-	for (auto input : argon::vectorize::load(input_span.first(num_samples))) {
-		*output_it++ = output_it->MultiplyAddFixedQMax(input, amplitude_vector); // output = output + input * amplitude
-		amplitude_vector = amplitude_vector + amplitude_increment_vector;
-	}
+		vst1q_s32(outputBufferPos, sum);
+
+		outputBufferPos += 4;
+		inputBuferPos += 4;
+	} while (outputBufferPos < bufferEnd);
 }
-
 void Oscillator::maybeStorePhase(const OscType& type, uint32_t* startPhase, uint32_t phase, bool doPulseWave) {
-	if (!doPulseWave || type == OscType::SQUARE) {
+	if (!(doPulseWave && type != OscType::SQUARE)) {
 		*startPhase = phase;
 	}
 }

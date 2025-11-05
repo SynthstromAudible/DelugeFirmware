@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<midiDevice>
+	<ccLabels
+		1="Assign1"
+		2="Assign2"
+		4="Assign3"
+		7="Assign4"
+		5="Portamento Time"
+		65="Portamento"
+		64="Sustain"/>
+</midiDevice>

@@ -285,6 +285,7 @@ public:
 	void displayVelocity(int32_t velocityValue, int32_t velocityChange);
 	void popupVelocity(char const* displayString);
 
+	void handleProbabilityOrIteranceEditing(int8_t offset, bool editNoteRow);
 	void adjustNoteProbabilityWithOffset(int32_t offset);
 	void adjustNoteIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom = true);
 	void adjustNoteIteranceWithFinalValue(Iterance finalValue);

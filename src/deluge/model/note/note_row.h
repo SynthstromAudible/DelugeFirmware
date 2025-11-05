@@ -23,6 +23,7 @@
 #include "model/iterance/iterance.h"
 #include "model/note/note_vector.h"
 #include "modulation/params/param_manager.h"
+#include "processing/sound/sound_instrument.h"
 
 #define SQUARE_NEW_NOTE 1
 #define SQUARE_NOTE_HEAD 2
@@ -247,6 +248,7 @@ private:
 	                  PendingNoteOnList* pendingNoteOnList = nullptr);
 	void findNextNoteToPlay(uint32_t);
 	void attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack, Note* note);
+	bool check_for_note_still_sounding(ModelStackWithNoteRow* modelStack, SoundInstrument* output);
 	bool noteRowMayMakeSound(bool);
 	void drawTail(int32_t startTail, int32_t endTail, uint8_t squareColour[], bool overwriteExisting,
 	              uint8_t image[][3], uint8_t occupancyMask[]);

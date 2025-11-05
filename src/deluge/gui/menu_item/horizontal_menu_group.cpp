@@ -41,11 +41,16 @@ void HorizontalMenuGroup::beginSession(MenuItem* navigatedBackwardFrom) {
 	navigated_backward_from = navigatedBackwardFrom;
 	lastSelectedItemPosition = kNoSelection;
 
-	// A horizontal menu can modify soundEditor parameters at the beginning of a session,
-	// which in their turn can affect whether an item is relevant or not.
-	// So we need to begin a session for each menu beforehand to ensure pages are counted correctly
 	for (const auto menu : menus_) {
-		menu->beginSession(navigatedBackwardFrom);
+		menu->parent = this;
+	}
+}
+
+void HorizontalMenuGroup::endSession() {
+	HorizontalMenu::endSession();
+
+	for (const auto menu : menus_) {
+		menu->parent = nullptr;
 	}
 }
 
@@ -73,8 +78,9 @@ bool HorizontalMenuGroup::focusChild(const MenuItem* child) {
 		}
 
 		// Child is not relevant — find first relevant among all items
-		current_item_ = std::ranges::find_if(items, isItemRelevant);
-		if (current_item_ != items.end()) {
+		it = std::ranges::find_if(items, isItemRelevant);
+		if (it != items.end()) {
+			current_item_ = it;
 			return true;
 		}
 	}
@@ -170,12 +176,6 @@ void HorizontalMenuGroup::switchVisiblePage(int32_t direction) {
 	// Move to the next / previous menu
 	menuIndex += direction;
 
-	// If we're outside the current menu group, switch to the next / previous menu from the chain
-	const auto chain = soundEditor.getCurrentHorizontalMenusChain();
-	if (chain.has_value() && (menuIndex < 0 || menuIndex > static_cast<int32_t>(menus_.size()) - 1)) {
-		return switchHorizontalMenu(std::clamp<int32_t>(direction, -1, 1), chain.value());
-	}
-
 	// Wrap around
 	const int32_t count = static_cast<int32_t>(menus_.size());
 	menuIndex = (menuIndex % count + count) % count;
@@ -184,7 +184,7 @@ void HorizontalMenuGroup::switchVisiblePage(int32_t direction) {
 	const auto pagesCount = newMenu->preparePaging(newMenu->items, nullptr).totalPages;
 	if (pagesCount == 0) {
 		// No relevant items on the switched menu, go to the next menu
-		return switchVisiblePage(direction >= 0 ? direction + 1 : direction - 1);
+		return switchVisiblePage(direction >= 0 ? ++direction : --direction);
 	}
 
 	// Select an item with the same position as on the previously selected page if possible
@@ -197,79 +197,23 @@ void HorizontalMenuGroup::switchVisiblePage(int32_t direction) {
 	// Update UI
 	updateDisplay();
 	updatePadLights();
-	(*current_item_)->updateAutomationViewParameter();
 
 	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
 		display->cancelPopup();
 	}
 }
 
-void HorizontalMenuGroup::selectEncoderAction(int32_t offset) {
-	const bool selectButtonPressed = Buttons::selectButtonPressUsedUp =
-	    Buttons::isButtonPressed(hid::button::SELECT_ENC);
-
-	if (renderingStyle() != HORIZONTAL || !selectButtonPressed) {
-		return HorizontalMenu::selectEncoderAction(offset);
-	}
-
-	// Traverse through menu items
-	int32_t menuIndex = std::distance(menus_.begin(), std::ranges::find(menus_, current_menu_));
-	int32_t itemIndex = std::distance(current_menu_->items.begin(), current_item_);
-
-	auto moveForward = [&](int32_t& menuIdx, int32_t& itemIdx) {
-		++itemIdx;
-		while (menuIdx < static_cast<int32_t>(menus_.size())) {
-			if (itemIdx < static_cast<int32_t>(menus_[menuIdx]->items.size())) {
-				return;
-			}
-			++menuIdx;
-			itemIdx = 0;
-		}
-		menuIdx = 0;
-		itemIdx = 0;
-	};
-
-	auto moveBackward = [&](int32_t& submenuIdx, int32_t& itemIdx) {
-		--itemIdx;
-		while (submenuIdx >= 0) {
-			if (itemIdx >= 0) {
-				return;
-			}
-			--submenuIdx;
-			if (submenuIdx >= 0) {
-				itemIdx = static_cast<int32_t>(menus_[submenuIdx]->items.size()) - 1;
-			}
-		}
-		submenuIdx = static_cast<int32_t>(menus_.size()) - 1;
-		itemIdx = static_cast<int32_t>(menus_[submenuIdx]->items.size()) - 1;
-	};
-
-	if (offset > 0) {
-		do {
-			moveForward(menuIndex, itemIndex);
-			if (auto* item = menus_[menuIndex]->items[itemIndex]; isItemRelevant(item)) {
-				current_item_ = menus_[menuIndex]->items.begin() + itemIndex;
-				offset--;
-			}
-		} while (offset > 0);
-	}
-	else if (offset < 0) {
-		do {
-			moveBackward(menuIndex, itemIndex);
-			if (auto* item = menus_[menuIndex]->items[itemIndex]; isItemRelevant(item)) {
-				current_item_ = menus_[menuIndex]->items.begin() + itemIndex;
-				offset++;
-			}
-		} while (offset < 0);
-	}
-
-	updateDisplay();
-	updatePadLights();
-	(*current_item_)->updateAutomationViewParameter();
-}
-
 bool HorizontalMenuGroup::hasItem(const MenuItem* item) {
 	return std::ranges::any_of(menus_, [&](auto menu) { return menu->hasItem(item); });
+}
+
+void HorizontalMenuGroup::setCurrentItem(const MenuItem* item) {
+	for (auto* menu : menus_) {
+		current_item_ = std::ranges::find(menu->items, item);
+		if (current_item_ != menu->items.end()) {
+			return;
+		}
+	}
 }
 
 } // namespace deluge::gui::menu_item

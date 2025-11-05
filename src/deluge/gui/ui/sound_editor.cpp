@@ -6,12 +6,14 @@
 #include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/horizontal_menu.h"
+#include "gui/menu_item/horizontal_menu_group.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/menus.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
@@ -49,6 +51,7 @@
 #include "processing/source.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
+#include "util/comparison.h"
 
 using namespace deluge;
 using namespace deluge::gui;
@@ -140,7 +143,7 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 SoundEditor soundEditor{};
 
 SoundEditor::SoundEditor() {
-	currentParamShorcutX = 255;
+	currentParamShortcutX = kNoSelection;
 	timeLastAttemptedAutomatedParamEdit = 0;
 	shouldGoUpOneLevelOnBegin = false;
 	setupKitGlobalFXMenu = false;
@@ -233,7 +236,8 @@ bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 			*rows = 0x0;
 		}
 		else if (inNoteRowEditor()) {
-			*cols = 0xFFFFFFFC; // don't greyout sidebar
+			// don't greyout note row editor
+			doGreyout = false;
 		}
 		else {
 			*cols = 0xFFFFFFFE;
@@ -373,7 +377,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					goUpOneLevel();
 				}
 
-				handlePotentialParamMenuChange(b, on, inCardRoutine, currentMenuItem, getCurrentMenuItem());
+				handlePotentialParamMenuChange(b, inCardRoutine, currentMenuItem, getCurrentMenuItem(), false);
 
 				if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
 				    && getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
@@ -417,7 +421,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					goUpOneLevel();
 				}
 
-				handlePotentialParamMenuChange(b, on, inCardRoutine, currentMenuItem, getCurrentMenuItem());
+				handlePotentialParamMenuChange(b, inCardRoutine, currentMenuItem, getCurrentMenuItem(), false);
 
 				if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
 				    && getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
@@ -556,8 +560,25 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	}
 
 	else {
-		// potentially swap root UI to automation view / previous UI
-		return getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+		MenuItem* currentMenuItem = getCurrentMenuItem();
+		HorizontalMenu* asHorizontal = nullptr;
+		MenuItem* selectedItem = nullptr;
+
+		if (currentMenuItem->isSubmenu()
+		    && static_cast<Submenu*>(currentMenuItem)->renderingStyle() == Submenu::HORIZONTAL) {
+			asHorizontal = static_cast<HorizontalMenu*>(currentMenuItem);
+			selectedItem = asHorizontal->getCurrentItem();
+		}
+
+		ActionResult result = currentMenuItem->buttonAction(b, on, inCardRoutine);
+
+		// potentially swap out automation view UI / handle parameter change in horizontal menu
+		if (on && asHorizontal != nullptr) {
+			handlePotentialParamMenuChange(SELECT_ENC, inCardRoutine, selectedItem, asHorizontal->getCurrentItem(),
+			                               true);
+		}
+
+		return result;
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -567,19 +588,23 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 /// (may not have changed if we were holding shift to delete automation)
 /// potentially enter and refresh automation view if entering a new param menu
 /// potentially exit automation view / switch to automation overview if exiting param menu
-void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool on, bool inCardRoutine,
-                                                 MenuItem* previousItem, MenuItem* currentItem) {
+void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool inCardRoutine, MenuItem* previousItem,
+                                                 MenuItem* currentItem, bool isHorizontalMenu) {
 	using namespace deluge::hid::button;
 	if (previousItem != currentItem) {
+		bool previousMenuIsParam = (isHorizontalMenu == false || previousItem->isSubmenu() == false)
+		                           && (previousItem->getParamKind() != deluge::modulation::params::Kind::NONE);
+		bool currentMenuIsParam = (isHorizontalMenu == false || currentItem->isSubmenu() == false)
+		                          && (currentItem->getParamKind() != deluge::modulation::params::Kind::NONE);
+
 		// if we're entering a non-param menu from a param menu
 		// potentially swap out automation view as background root UI
 		// or go back to automation overview in background root UI
-		if ((previousItem->getParamKind() != deluge::modulation::params::Kind::NONE)
-		    && (currentItem->getParamKind() == deluge::modulation::params::Kind::NONE)) {
+		if (previousMenuIsParam == true && currentMenuIsParam == false) {
 			if (getRootUI() == &automationView) {
 				// if on menu view, swap out root UI to previous UI
 				if (automationView.onMenuView) {
-					previousItem->buttonAction(b, on, inCardRoutine);
+					previousItem->buttonAction(b, true, inCardRoutine);
 				}
 				// if not on menu view, go back to overview
 				else {
@@ -589,11 +614,10 @@ void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool on,
 				}
 			}
 		}
-		// if we're entering a param menu from a non-param menu
-		else if ((previousItem->getParamKind() == deluge::modulation::params::Kind::NONE)
-		         && (currentItem->getParamKind() != deluge::modulation::params::Kind::NONE)) {
+		// if we're entering a param menu
+		else if (currentMenuIsParam == true) {
 			// enter automation view and update parameter selection
-			currentItem->buttonAction(b, on, inCardRoutine);
+			currentItem->buttonAction(b, true, inCardRoutine);
 		}
 	}
 }
@@ -717,20 +741,24 @@ void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem
 }
 
 void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
+	if (inNoteRowEditor() || inNoteEditor()) {
+		return;
+	}
+
 	resetSourceBlinks();
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
-	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sample0StartMenu && currentItem != &sample1StartMenu
-	    && currentItem != &sample0EndMenu && currentItem != &sample1EndMenu
-	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
-	    && currentItem != static_cast<void*>(&nameEditMenu)) {
+	if (!inSettingsMenu()
+	    && !util::one_of<MenuItem*>(currentItem, {&sample0StartMenu, &sample1StartMenu, &sample0EndMenu,
+	                                              &sample1EndMenu, &audioClipSampleMarkerEditorMenuStart,
+	                                              &audioClipSampleMarkerEditorMenuEnd, &nameEditMenu})) {
 
 		memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 		memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
 		paramShortcutBlinkFrequency = 3;
 
 		// Find param shortcut
-		currentParamShorcutX = 255;
+		currentParamShortcutX = kNoSelection;
 
 		// Global song parameters (this check seems very sketchy...)
 		if (!rootUIIsClipMinderScreen()) {
@@ -783,7 +811,7 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 							goto stopThat;
 						}
 
-						if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) {
+						if (currentParamShortcutX != kNoSelection && (x & 1) && currentSourceIndex == 0) {
 							goto stopThat;
 						}
 						setupShortcutBlink(x, y, 0);
@@ -792,7 +820,7 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 			}
 
 			// Failing that, if we're doing some patching, see if there's a shortcut for that *param*
-			if (currentParamShorcutX == 255) {
+			if (currentParamShortcutX == kNoSelection) {
 
 				int32_t paramLookingFor = currentItem->getIndexOfPatchedParamToBlink();
 				if (paramLookingFor != 255) {
@@ -806,13 +834,13 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 
 stopThat:
 
-			if (currentParamShorcutX != 255) {
+			if (currentParamShortcutX != kNoSelection) {
 				updateSourceBlinks(currentItem);
 			}
 		}
 
 		// If we found something...
-		if (currentParamShorcutX != 255) {
+		if (currentParamShortcutX != kNoSelection) {
 			blinkShortcut();
 		}
 	}
@@ -868,8 +896,8 @@ void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 }
 
 void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour) {
-	currentParamShorcutX = x;
-	currentParamShorcutY = y;
+	currentParamShortcutX = x;
+	currentParamShortcutY = y;
 	currentParamColour = colour;
 
 	shortcutBlinkCounter = 0;
@@ -891,7 +919,7 @@ void SoundEditor::blinkShortcut() {
 	if (shortcutBlinkCounter & 1) {
 		// Blink param
 		if ((counterForNow & paramShortcutBlinkFrequency) == 0) {
-			PadLEDs::flashMainPad(currentParamShorcutX, currentParamShorcutY, currentParamColour);
+			PadLEDs::flashMainPad(currentParamShortcutX, currentParamShortcutY, currentParamColour);
 		}
 		uiTimerManager.setTimer(TimerName::SHORTCUT_BLINK, 180);
 	}
@@ -952,10 +980,9 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 	MenuItem* item = getCurrentMenuItem();
 	RootUI* rootUI = getRootUI();
 
-	// Forward to automation view.
-	// - skipped for submenus, since vertical menus don't need it, and horizontal menus need extra case
-	// - TODO: this could be handled by the Automation class via regular forwarding for all cases
-	if (!item->isSubmenu() && rootUI == &automationView && isEditingAutomationViewParam()
+	// Forward to automation view if holding a note
+	// This is to allow for fine tuning a specific steps automation
+	if (rootUI == &automationView && isUIModeActive(UI_MODE_NOTES_PRESSED) && isEditingAutomationViewParam()
 	    && !automationView.multiPadPressSelected) {
 		automationView.modEncoderAction(0, scaledOffset);
 	}
@@ -983,16 +1010,14 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 				markInstrumentAsEdited(); // TODO: make reverb and reverb-sidechain stuff exempt from this
 			}
 
-			if (rootUI != &automationView) {
-				// If envelope param preset values were changed, there's a chance that there could have been a
-				// change to whether notes have tails
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
+			// If envelope param preset values were changed, there's a chance that there could have been a
+			// change to whether notes have tails
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-				bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
-				if (hadNoteTails != hasNoteTailsNow) {
-					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
-				}
+			bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
+			if (hadNoteTails != hasNoteTailsNow) {
+				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 			}
 
 			if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
@@ -1218,9 +1243,9 @@ getOut:
 				else {
 					item = paramShortcutsForSounds[x][y];
 
-					// Replace with the second layer shortcut (e.g. env3 attack, lfo3 rate) if the pad was pressed twice
+					// Replace the current shortcut with a second layer shortcut if the pad was pressed twice
 					secondLayerShortcutsToggled =
-					    x == currentParamShorcutX && y == currentParamShorcutY
+					    getCurrentMenuItem() != nullptr && x == currentParamShortcutX && y == currentParamShortcutY
 					            && getCurrentMenuItem()->getParamKind() != modulation::params::Kind::PATCH_CABLE
 					        ? !secondLayerShortcutsToggled
 					        : false;
@@ -1254,13 +1279,24 @@ doSetup:
 						}
 					}
 
+					// Special shortcut for Note Row Editor menu: [audition pad] + [sequence direction pad]
+					Clip* currentClip = getCurrentClip();
+					if (currentClip->type == ClipType::INSTRUMENT && item == &sequenceDirectionMenu
+					    && display->haveOLED() && runtimeFeatureSettings.get(HorizontalMenus) == On
+					    && instrumentClipView.getNumNoteRowsAuditioning() == 1) {
+
+						noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu);
+						instrumentClipView.enterNoteRowEditor();
+						return ActionResult::DEALT_WITH;
+					}
+
 					const int32_t thingIndex = x & 1;
 
-					bool setupSuccess = setup(getCurrentClip(), item, thingIndex);
+					bool setupSuccess = setup(currentClip, item, thingIndex);
 
 					if (!setupSuccess && item == &modulator0Volume && currentSource->oscType == OscType::DX7) {
 						item = &dxParam;
-						setupSuccess = setup(getCurrentClip(), item, thingIndex);
+						setupSuccess = setup(currentClip, item, thingIndex);
 					}
 
 					if (!setupSuccess) {
@@ -1520,7 +1556,6 @@ void SoundEditor::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 }
 
 bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
-
 	Sound* newSound = nullptr;
 	ParamManagerForTimeline* newParamManager = nullptr;
 	ArpeggiatorSettings* newArpSettings = nullptr;
@@ -1612,7 +1647,6 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	}
 
 	MenuItem* newItem;
-	MenuItem* oneLevelDownItem = nullptr;
 
 	if (item) {
 		newItem = (MenuItem*)item;
@@ -1687,14 +1721,8 @@ doMIDIOrCV:
 	// If we're on OLED, a parent menu & horizontal menus are in play,
 	// then we swap the parent in place of the child.
 	HorizontalMenu* parent = maybeGetParentMenu(newItem);
-	if (parent != nullptr) {
-		const bool focused = parent->focusChild(newItem);
-		if (newItem == &file0SelectorMenu || newItem == &file1SelectorMenu) {
-			oneLevelDownItem = parent;
-		}
-		else if (focused) {
-			newItem = parent;
-		}
+	if (parent != nullptr && parent->focusChild(newItem)) {
+		newItem = parent;
 	}
 
 	::MultiRange* newRange = currentMultiRange;
@@ -1763,12 +1791,6 @@ doMIDIOrCV:
 	menuItemNavigationRecord[navigationDepth] = newItem;
 	display->setNextTransitionDirection(1);
 
-	if (oneLevelDownItem != nullptr) {
-		menuItemNavigationRecord[navigationDepth] = oneLevelDownItem;
-		navigationDepth++;
-		menuItemNavigationRecord[navigationDepth] = newItem;
-	}
-
 	return true;
 }
 
@@ -1792,6 +1814,7 @@ bool SoundEditor::inNoteRowEditor() {
 void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 	MenuItem* currentMenuItem = getCurrentMenuItem();
 	MenuItem* newMenuItem = nullptr;
+	bool inHorizontalMenu = runtimeFeatureSettings.isOn(HorizontalMenus);
 
 	// if you're holding down a note
 	// see if you're currently editing a row param
@@ -1806,6 +1829,9 @@ void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 		else if (currentMenuItem == &noteRowFillMenu) {
 			newMenuItem = &noteFillMenu;
 		}
+		else if (currentMenuItem == &noteRowEditorRootMenu && inHorizontalMenu) {
+			newMenuItem = &noteEditorRootMenu;
+		}
 	}
 	// if you're release a note
 	// see if you're currently editing a note param
@@ -1819,6 +1845,9 @@ void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 		}
 		else if (currentMenuItem == &noteFillMenu) {
 			newMenuItem = &noteRowFillMenu;
+		}
+		else if (currentMenuItem == &noteEditorRootMenu && inHorizontalMenu) {
+			newMenuItem = &noteRowEditorRootMenu;
 		}
 	}
 
@@ -1931,14 +1960,37 @@ void SoundEditor::mpeZonesPotentiallyUpdated() {
 }
 
 HorizontalMenu* SoundEditor::maybeGetParentMenu(MenuItem* item) {
+	if (util::one_of<MenuItem*>(item, {&sample0StartMenu, &sample1StartMenu, &audioClipSampleMarkerEditorMenuEnd})) {
+		// for sample start/end points we go straight to waveform editor UI
+		return nullptr;
+	}
+
 	const auto chain = getCurrentHorizontalMenusChain(false);
 	if (!chain.has_value()) {
 		return nullptr;
 	}
+
 	const auto it = std::ranges::find_if(chain.value(), [&](HorizontalMenu* menu) { return menu->hasItem(item); });
 	if (it == chain->end()) {
 		return nullptr;
 	}
+
+	if (util::one_of<MenuItem*>(item, {&file0SelectorMenu, &file1SelectorMenu})) {
+		// for file selectors we go straight to the browser
+		// and automatically navigate to the source horizontal menu when a file is selected
+		sampleBrowser.menuItemHeadingTo = item;
+		sampleBrowser.parentMenuHeadingTo = *it;
+		return nullptr;
+	}
+
+	if (util::one_of<MenuItem*>(item, {&sample0RecorderMenu, &sample1RecorderMenu})) {
+		// for sample recorders we automatically navigate to the source menu when a sample was recorded
+		// with focusing on the file selector's item
+		MenuItem* headingTo = item == &sample0RecorderMenu ? &file0SelectorMenu : &file1SelectorMenu;
+		static_cast<osc::AudioRecorder*>(item)->menuItemHeadingTo = headingTo;
+		static_cast<osc::AudioRecorder*>(item)->parentMenuHeadingTo = &sourceMenuGroup;
+	}
+
 	return *it;
 }
 

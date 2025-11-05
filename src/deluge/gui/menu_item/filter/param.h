@@ -17,14 +17,18 @@
 #pragma once
 
 #include "gui/menu_item/filter/info.h"
+#include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
-#include "gui/ui/sound_editor.h"
-#include "model/mod_controllable/filters/filter_config.h"
+#include "gui/menu_item/unpatched_param.h"
+#include "gui/menu_item/value_scaling.h"
 #include "modulation/params/param.h"
+
+#include <util/comparison.h>
 
 namespace deluge::gui::menu_item::filter {
 
-namespace params = deluge::modulation::params;
+using namespace deluge::modulation;
+using namespace hid::display;
 
 class FilterParam : public patched_param::Integer {
 public:
@@ -32,16 +36,39 @@ public:
 	    : Integer{newName, newP}, info{slot_, type_} {}
 	FilterParam(l10n::String newName, l10n::String title, int32_t newP, FilterSlot slot_, FilterParamType type_)
 	    : Integer{newName, title, newP}, info{slot_, type_} {}
-	[[nodiscard]] std::string_view getName() const override {
-		return info.getMorphNameOr(patched_param::Integer::getName());
-	}
-	[[nodiscard]] std::string_view getTitle() const override {
-		return info.getMorphNameOr(patched_param::Integer::getTitle());
-	}
+
+	[[nodiscard]] std::string_view getName() const override { return info.getMorphNameOr(Integer::getName()); }
+	[[nodiscard]] std::string_view getTitle() const override { return info.getMorphNameOr(Integer::getTitle()); }
 	[[nodiscard]] bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return info.isOn();
 	}
+	[[nodiscard]] FilterInfo const& getFilterInfo() const { return info; }
+
 	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
+
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+		if (info.getFilterParamType() == FilterParamType::MORPH && info.isMorphable()) {
+			int32_t value = getValue();
+			if (info.getSlot() == FilterSlot::HPF) {
+				// Treat HPF as fully morphed LPF visually
+				value = 50 - value;
+			}
+			drawSlider(slot, value);
+		}
+		else {
+			drawBar(slot);
+		}
+	}
+
+	void selectEncoderAction(int32_t offset) override {
+		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL
+		    && info.getFilterParamType() == FilterParamType::MORPH && info.isMorphable()
+		    && info.getSlot() == FilterSlot::HPF) {
+			// Treat HPF as fully morphed LPF visually, reverse direction
+			offset *= -1;
+		}
+		Integer::selectEncoderAction(offset);
+	}
 
 private:
 	FilterInfo info;
@@ -52,10 +79,36 @@ public:
 	UnpatchedFilterParam(l10n::String newName, l10n::String title, int32_t newP, FilterSlot slot_,
 	                     FilterParamType type_)
 	    : UnpatchedParam{newName, title, newP}, info{slot_, type_} {}
+
 	[[nodiscard]] std::string_view getName() const override { return info.getMorphNameOr(UnpatchedParam::getName()); }
 	[[nodiscard]] std::string_view getTitle() const override { return info.getMorphNameOr(UnpatchedParam::getTitle()); }
 	[[nodiscard]] bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return info.isOn();
+	}
+	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
+	[[nodiscard]] FilterInfo const& getFilterInfo() const { return info; }
+
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+		if (info.getFilterParamType() == FilterParamType::MORPH && info.isMorphable()) {
+			int32_t value = getValue();
+			if (info.getSlot() == FilterSlot::HPF) {
+				// Treat HPF as fully morphed LPF visually
+				value = 50 - value;
+			}
+			drawSlider(slot, value);
+		}
+		else {
+			drawBar(slot);
+		}
+	}
+	void selectEncoderAction(int32_t offset) override {
+		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL
+		    && info.getFilterParamType() == FilterParamType::MORPH && info.isMorphable()
+		    && info.getSlot() == FilterSlot::HPF) {
+			// Treat HPF as fully morphed LPF visually, reverse direction
+			offset *= -1;
+		}
+		Integer::selectEncoderAction(offset);
 	}
 
 private:

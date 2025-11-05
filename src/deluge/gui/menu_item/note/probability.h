@@ -49,38 +49,59 @@ public:
 		}
 	}
 
-	void selectEncoderAction(int32_t offset) final override {
+	void selectEncoderAction(int32_t offset) override {
 		instrumentClipView.adjustNoteProbabilityWithOffset(offset);
 		readValueAgain();
 	}
 
-	void drawPixelsForOled() {
+	void drawPixelsForOled() override {
 		char buffer[20];
-
-		int32_t probability = this->getValue();
 		bool latching = false;
 
-		// if it's a latching probability, remove latching from value
-		if (probability > kNumProbabilityValues) {
-			probability &= 127;
-			latching = true;
-		}
-
-		sprintf(buffer, "%d%%", probability * 5);
-
+		intToString(getProbabilityValue(latching), buffer);
+		strcat(buffer, "%");
 		if (latching) {
 			strcat(buffer, " (L)");
 		}
 
-		deluge::hid::display::OLED::main.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
-		                                                   kTextHugeSizeY);
+		OLED::main.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY);
 	}
 
-	void drawValue() final override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
 		char buffer[20];
-
-		int32_t probability = this->getValue();
 		bool latching = false;
+
+		intToString(getProbabilityValue(latching), buffer);
+		strcat(buffer, latching ? "L" : "%");
+
+		OLED::main.drawStringCentered(buffer, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
+		                              kTextSpacingY, slot.width);
+	}
+
+	void drawValue() override {
+		char buffer[20];
+		bool latching = false;
+
+		intToString(getProbabilityValue(latching), buffer);
+
+		display->setText(buffer, true, latching ? 3 : 255);
+	}
+
+	void getNotificationValue(StringBuf& valueBuf) override {
+		bool latching = false;
+		valueBuf.appendInt(getProbabilityValue(latching));
+		valueBuf.append("%");
+
+		if (latching) {
+			valueBuf.append(" ltch");
+		}
+	}
+
+	void writeCurrentValue() override { ; }
+
+private:
+	int32_t getProbabilityValue(bool& latching) {
+		int32_t probability = this->getValue();
 
 		// if it's a latching probability, remove latching from value
 		if (probability > kNumProbabilityValues) {
@@ -88,11 +109,7 @@ public:
 			latching = true;
 		}
 
-		intToString(probability * 5, buffer);
-
-		display->setText(buffer, true, latching ? 3 : 255);
+		return probability * 5;
 	}
-
-	void writeCurrentValue() override { ; }
 };
 } // namespace deluge::gui::menu_item::note

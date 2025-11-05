@@ -126,17 +126,18 @@ public:
 
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 
-	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
-		const OscType oscType = soundEditor.currentSound->sources[sourceId_].oscType;
-		if (oscType == OscType::DX7) {
+		const OscType osc_type = soundEditor.currentSound->sources[sourceId_].oscType;
+		if (osc_type == OscType::DX7) {
 			const auto option = getOptions(OptType::FULL)[getValue()].data();
-			return image.drawStringCentered(option, startX, startY + 8, kTextTitleSpacingX, kTextTitleSizeY, width);
+			return image.drawStringCentered(option, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset + 5,
+			                                kTextTitleSpacingX, kTextTitleSizeY, slot.width);
 		}
 
 		const Icon& icon = [&] {
-			switch (oscType) {
+			switch (osc_type) {
 			case OscType::SINE:
 				return OLED::sineIcon;
 			case OscType::TRIANGLE:
@@ -152,7 +153,7 @@ public:
 			case OscType::INPUT_STEREO:
 			case OscType::INPUT_L:
 			case OscType::INPUT_R:
-				return OLED::inputIcon;
+				return AudioEngine::lineInPluggedIn ? OLED::inputIcon : OLED::micIcon;
 			case OscType::WAVETABLE:
 				return OLED::wavetableIcon;
 			default:
@@ -160,14 +161,18 @@ public:
 			}
 		}();
 
-		image.drawIconCentered(icon, startX, width, startY + 4);
+		image.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y + kHorizontalMenuSlotYOffset + 2);
 
-		if (oscType == OscType::ANALOG_SQUARE || oscType == OscType::ANALOG_SAW_2) {
-			const int32_t x = startX + 4;
+		if (osc_type == OscType::ANALOG_SQUARE || osc_type == OscType::ANALOG_SAW_2) {
+			const int32_t x = slot.start_x + 4;
 			constexpr int32_t y = OLED_MAIN_HEIGHT_PIXELS - kTextSpacingY - 8;
 			image.clearAreaExact(x - 1, y - 1, x + kTextSpacingX + 1, y + kTextSpacingY + 1);
 			image.drawChar('A', x, y, kTextSpacingX, kTextSpacingY);
 		}
+	}
+
+	bool wrapAround() override {
+		return parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL;
 	}
 
 private:

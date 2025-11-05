@@ -249,7 +249,7 @@ int32_t CVEngine::calculateVoltage(int32_t note, uint8_t channel) {
 	int32_t voltage;
 	// Hz per volt
 	if (cvChannels[channel].voltsPerOctave == 0) {
-		voltage = round(pow((double)2, (transposedNoteCode - 60) / 12)
+		voltage = round(pow((double)2, (transposedNoteCode - kC3NoteCode) / 12)
 		                * 6552); // Puts middle C at 1V - I think? Would 2V be better?
 	}
 
