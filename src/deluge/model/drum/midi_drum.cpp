@@ -18,6 +18,7 @@
 #include "model/drum/midi_drum.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "io/midi/midi_device_helper.h"
 #include "io/midi/midi_engine.h"
 #include "model/drum/non_audio_drum.h"
 #include "storage/storage_manager.h"
@@ -67,18 +68,14 @@ void MIDIDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t 
 	NonAudioDrum::noteOnPostArp(noteCodePostArp, arpNote, noteIndex);
 	lastVelocity = arpNote->velocity;
 
-	// Send MIDI note using routing data class
-	uint32_t deviceFilter = outputRouting.toDeviceFilter();
-	midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, channel, kMIDIOutputFilterNoMPE, deviceFilter);
+	midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, channel, kMIDIOutputFilterNoMPE, outputDevice);
 }
 
 void MIDIDrum::noteOffPostArp(int32_t noteCodePostArp) {
 	NonAudioDrum::noteOffPostArp(noteCodePostArp);
 
-	// Send MIDI note off using routing data class
-	uint32_t deviceFilter = outputRouting.toDeviceFilter();
 	midiEngine.sendNote(this, false, noteCodePostArp, kDefaultNoteOffVelocity, channel, kMIDIOutputFilterNoMPE,
-	                    deviceFilter);
+	                    outputDevice);
 }
 
 void MIDIDrum::killAllVoices() {
@@ -90,10 +87,13 @@ void MIDIDrum::killAllVoices() {
 
 void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("midiOutput", true);
+
 	writer.writeAttribute("channel", channel, false);
 	writer.writeAttribute("note", note, false);
-	writer.writeAttribute("outputDevice", outputRouting.device, false);
-	writer.writeAttribute("outputChannel", outputRouting.channel, false);
+
+	// Save MIDI output device selection (index + name for reliable matching)
+	deluge::io::midi::writeDeviceToFile(writer, outputDevice, outputDeviceName);
+
 	writer.writeOpeningTagEnd();
 
 	NonAudioDrum::writeArpeggiatorToFile(writer);
@@ -106,6 +106,8 @@ void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 
 Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
+	uint8_t savedOutputDevice = 0;
+	String savedDeviceName;
 
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "note")) {
@@ -113,17 +115,26 @@ Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32
 			reader.exitTag("note");
 		}
 		else if (!strcmp(tagName, "outputDevice")) {
-			outputRouting.device = reader.readTagOrAttributeValueInt();
+			savedOutputDevice = static_cast<uint8_t>(reader.readTagOrAttributeValueInt());
 			reader.exitTag("outputDevice");
 		}
-		else if (!strcmp(tagName, "outputChannel")) {
-			outputRouting.channel = reader.readTagOrAttributeValueInt();
-			reader.exitTag("outputChannel");
+		else if (!strcmp(tagName, "outputDeviceName")) {
+			reader.readTagOrAttributeValueString(&savedDeviceName);
+			reader.exitTag("outputDeviceName");
 		}
 		else if (NonAudioDrum::readDrumTagFromFile(reader, tagName)) {}
 		else {
 			reader.exitTag(tagName);
 		}
+	}
+
+	// Match device by name first (more reliable), fall back to index
+	if (!savedDeviceName.isEmpty()) {
+		outputDevice = deluge::io::midi::findDeviceIndexByName(savedDeviceName.get(), savedOutputDevice);
+		outputDeviceName.set(&savedDeviceName);
+	}
+	else {
+		outputDevice = savedOutputDevice;
 	}
 
 	return Error::NONE;

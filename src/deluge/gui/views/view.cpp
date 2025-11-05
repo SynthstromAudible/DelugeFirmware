@@ -2063,7 +2063,9 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 		hid::display::OLED::clearMainImage();
 
-		char const* outputTypeText = getOutputTypeName(outputType, channel);
+		// Pass the output pointer so getOutputTypeName can use the correct output (not a stale getCurrentOutput)
+		Output* outputForName = (clip != nullptr) ? clip->output : nullptr;
+		char const* outputTypeText = getOutputTypeName(outputType, channel, outputForName);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;

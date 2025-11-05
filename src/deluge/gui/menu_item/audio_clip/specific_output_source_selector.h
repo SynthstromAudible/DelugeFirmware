@@ -72,7 +72,7 @@ public:
 			channel = ((NonAudioInstrument*)instrument)->getChannel();
 		}
 
-		char const* outputTypeText = getOutputTypeName(outputType, channel);
+		char const* outputTypeText = getOutputTypeName(outputType, channel, output);
 
 		// draw the track type
 		canvas.drawStringCentred(outputTypeText, OLED_MAIN_TOPMOST_PIXEL + 14, kTextSpacingX, kTextSpacingY);

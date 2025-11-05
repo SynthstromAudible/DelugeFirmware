@@ -24,6 +24,7 @@
 #include "gui/ui/ui.h"
 #include "hid/display/oled.h"
 #include "hid/display/seven_segment.h"
+#include "io/midi/midi_device_helper.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/drum/midi_drum.h"
 #include "model/instrument/kit.h"
@@ -38,23 +39,12 @@ void OutputDeviceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void OutputDeviceSelection::readCurrentValue() {
-	// Determine current device selection based on context
+	// Get current device selection from MIDI instrument
 	if (soundEditor.editingCVOrMIDIClip()) {
 		auto* instrument = ::getCurrentInstrument();
 		if (instrument && instrument->type == OutputType::MIDI_OUT) {
 			auto* midiInstrument = static_cast<MIDIInstrument*>(instrument);
-			if (midiInstrument->outputDeviceMask == 0) {
-				this->setValue(0); // ALL devices
-			}
-			else {
-				// Find the first set bit
-				for (int32_t i = 0; i < 32; i++) {
-					if (midiInstrument->outputDeviceMask & (1 << i)) {
-						this->setValue(i + 1);
-						break;
-					}
-				}
-			}
+			this->setValue(midiInstrument->outputDevice);
 		}
 		else {
 			this->setValue(0); // Default to ALL
@@ -64,7 +54,7 @@ void OutputDeviceSelection::readCurrentValue() {
 		auto* kit = ::getCurrentKit();
 		if (kit && kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI) {
 			auto* midiDrum = static_cast<MIDIDrum*>(kit->selectedDrum);
-			this->setValue(midiDrum->outputRouting.device);
+			this->setValue(midiDrum->outputDevice);
 		}
 		else {
 			this->setValue(0); // Default to ALL
@@ -76,18 +66,20 @@ void OutputDeviceSelection::readCurrentValue() {
 }
 
 void OutputDeviceSelection::writeCurrentValue() {
-	int32_t currentDevice = this->getValue();
+	uint8_t currentDevice = static_cast<uint8_t>(this->getValue());
+
+	// Get device name for storing
+	auto deviceName = deluge::io::midi::getDeviceNameForIndex(currentDevice);
 
 	// Update the actual device selection
 	if (soundEditor.editingCVOrMIDIClip()) {
 		auto* instrument = ::getCurrentInstrument();
 		if (instrument && instrument->type == OutputType::MIDI_OUT) {
 			auto* midiInstrument = static_cast<MIDIInstrument*>(instrument);
-			if (currentDevice == 0) {
-				midiInstrument->outputDeviceMask = 0; // ALL devices
-			}
-			else {
-				midiInstrument->outputDeviceMask = (1 << (currentDevice - 1));
+			midiInstrument->outputDevice = currentDevice;
+			// Store device name for reliable matching when devices are reconnected
+			if (!deviceName.empty()) {
+				midiInstrument->outputDeviceName.set(deviceName.data());
 			}
 		}
 	}
@@ -95,40 +87,17 @@ void OutputDeviceSelection::writeCurrentValue() {
 		auto* kit = ::getCurrentKit();
 		if (kit && kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI) {
 			auto* midiDrum = static_cast<MIDIDrum*>(kit->selectedDrum);
-			midiDrum->outputRouting.device = currentDevice;
+			midiDrum->outputDevice = currentDevice;
+			// Store device name for reliable matching when devices are reconnected
+			if (!deviceName.empty()) {
+				midiDrum->outputDeviceName.set(deviceName.data());
+			}
 		}
 	}
 }
 
 deluge::vector<std::string_view> OutputDeviceSelection::getOptions(OptType optType) {
-	(void)optType; // Not used for this implementation
-
-	deluge::vector<std::string_view> options;
-
-	// Always include ALL (0)
-	options.push_back("ALL");
-
-	// Always include DIN (1) - get the actual DIN cable name
-	MIDICable* dinCable = &MIDIDeviceManager::root_din.cable;
-	options.push_back(dinCable->getDisplayName());
-
-	// Add USB devices using the same logic as the main MIDI devices menu
-	if (MIDIDeviceManager::root_usb != nullptr) {
-		int32_t numCables = MIDIDeviceManager::root_usb->getNumCables();
-		for (int32_t i = 0; i < numCables; i++) {
-			MIDICable* usbCable = MIDIDeviceManager::root_usb->getCable(i);
-			if (usbCable) {
-				options.push_back(usbCable->getDisplayName());
-			}
-		}
-	}
-
-	return options;
-}
-
-void OutputDeviceSelection::getDeviceName(int32_t deviceIndex, StringBuf& buffer) const {
-	// Implementation for getting device names (if needed later)
-	// For now, just use simple USB names
+	return deluge::io::midi::getAllMIDIDeviceNames();
 }
 
 void OutputDeviceSelection::drawValue() {

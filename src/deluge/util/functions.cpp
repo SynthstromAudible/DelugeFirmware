@@ -600,7 +600,7 @@ char const* getThingName(OutputType outputType) {
 	}
 }
 
-char const* getOutputTypeName(OutputType outputType, int32_t channel) {
+char const* getOutputTypeName(OutputType outputType, int32_t channel, Output* output) {
 	switch (outputType) {
 	case OutputType::SYNTH:
 		return "Synth";
@@ -609,34 +609,36 @@ char const* getOutputTypeName(OutputType outputType, int32_t channel) {
 	case OutputType::MIDI_OUT:
 		if (channel < 16) {
 			// For MIDI tracks, show the selected output device instead of "MIDI"
-			// Get the current MIDI instrument to check its output device
-			extern Output* getCurrentOutput();
-			Output* currentOutput = getCurrentOutput();
+			// Use the provided output if available, otherwise fall back to getCurrentOutput()
+			Output* currentOutput = output;
+			if (!currentOutput) {
+				extern Output* getCurrentOutput();
+				currentOutput = getCurrentOutput();
+			}
+
 			if (currentOutput && currentOutput->type == OutputType::MIDI_OUT) {
 				MIDIInstrument* midiInstrument = static_cast<MIDIInstrument*>(currentOutput);
-				uint32_t outputDeviceMask = midiInstrument->outputDeviceMask;
+				uint8_t outputDevice = midiInstrument->outputDevice;
 
-				if (outputDeviceMask != 0) { // Not "ALL devices"
-					// Check if DIN is selected (bit 0)
-					if (outputDeviceMask & 1) {
+				if (outputDevice != 0) { // Not "ALL devices"
+					// Get device name - prefer stored name, fall back to live lookup
+					if (!midiInstrument->outputDeviceName.isEmpty()) {
+						return midiInstrument->outputDeviceName.get();
+					}
+					// Fallback: get name from device index
+					else if (outputDevice == 1) {
 						return "DIN";
 					}
-
-					// Check USB devices (bits 1+)
-					if (MIDIDeviceManager::root_usb != nullptr) {
-						for (int32_t i = 0; i < MIDIDeviceManager::root_usb->getNumCables(); i++) {
-							if (outputDeviceMask & (1 << (i + 1))) {
-								MIDICable* usbCable = MIDIDeviceManager::root_usb->getCable(i);
-								if (usbCable) {
-									const char* deviceName = usbCable->getDisplayName();
-									if (deviceName && strlen(deviceName) > 0) {
-										return deviceName;
-									}
+					else if (outputDevice >= 2) {
+						uint32_t usbIndex = outputDevice - 2;
+						if (MIDIDeviceManager::root_usb != nullptr
+						    && usbIndex < MIDIDeviceManager::root_usb->getNumCables()) {
+							MIDICable* cable = MIDIDeviceManager::root_usb->getCable(usbIndex);
+							if (cable) {
+								const char* deviceName = cable->getDisplayName();
+								if (deviceName && strlen(deviceName) > 0) {
+									return deviceName;
 								}
-								// Fallback to USB number if name not available
-								static char usbName[8];
-								snprintf(usbName, sizeof(usbName), "USB%d", i + 1);
-								return usbName;
 							}
 						}
 					}

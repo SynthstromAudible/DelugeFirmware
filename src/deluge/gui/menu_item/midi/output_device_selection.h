@@ -42,10 +42,6 @@ public:
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
 	deluge::vector<std::string_view> getOptions(OptType optType) override;
-
-private:
-	/// Get the device name for display
-	void getDeviceName(int32_t deviceIndex, StringBuf& buffer) const;
 };
 
 } // namespace deluge::gui::menu_item::midi
