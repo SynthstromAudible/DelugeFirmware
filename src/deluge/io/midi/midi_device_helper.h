@@ -18,6 +18,7 @@
 #pragma once
 
 #include "io/midi/midi_device_manager.h"
+#include "util/containers.h"
 #include "util/d_string.h"
 #include <string_view>
 

@@ -25,6 +25,7 @@
 #include "gui/ui/qwerty_ui.h"
 #include "hid/display/display.h"
 #include "hid/encoders.h"
+#include "io/midi/midi_device_helper.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/instrument/midi_instrument.h"
 #include "modulation/arpeggiator.h"
@@ -625,22 +626,10 @@ char const* getOutputTypeName(OutputType outputType, int32_t channel, Output* ou
 					if (!midiInstrument->outputDeviceName.isEmpty()) {
 						return midiInstrument->outputDeviceName.get();
 					}
-					// Fallback: get name from device index
-					else if (outputDevice == 1) {
-						return "DIN";
-					}
-					else if (outputDevice >= 2) {
-						uint32_t usbIndex = outputDevice - 2;
-						if (MIDIDeviceManager::root_usb != nullptr
-						    && usbIndex < MIDIDeviceManager::root_usb->getNumCables()) {
-							MIDICable* cable = MIDIDeviceManager::root_usb->getCable(usbIndex);
-							if (cable) {
-								const char* deviceName = cable->getDisplayName();
-								if (deviceName && strlen(deviceName) > 0) {
-									return deviceName;
-								}
-							}
-						}
+					// Fallback: get name from device index using helper function
+					auto deviceName = deluge::io::midi::getDeviceNameForIndex(outputDevice);
+					if (!deviceName.empty()) {
+						return deviceName.data();
 					}
 				}
 			}
