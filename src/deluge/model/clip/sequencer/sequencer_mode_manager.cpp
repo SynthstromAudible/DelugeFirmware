@@ -16,9 +16,9 @@
  */
 
 #include "model/clip/sequencer/sequencer_mode_manager.h"
-#include "model/clip/sequencer/sequencer_mode.h"
-#include "model/clip/sequencer/modes/step_sequencer_mode.h"
 #include "model/clip/sequencer/modes/pulse_sequencer_mode.h"
+#include "model/clip/sequencer/modes/step_sequencer_mode.h"
+#include "model/clip/sequencer/sequencer_mode.h"
 
 namespace deluge::model::clip::sequencer {
 

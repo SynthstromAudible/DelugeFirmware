@@ -16,18 +16,18 @@
  */
 
 #include "model/clip/sequencer/modes/step_sequencer_mode.h"
-#include "model/clip/sequencer/sequencer_mode_manager.h"
-#include "model/clip/instrument_clip.h"
-#include "model/instrument/melodic_instrument.h"
-#include "model/model_stack.h"
-#include "model/song/song.h"
-#include "model/scale/musical_key.h"
-#include "playback/playback_handler.h"
-#include "util/functions.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
+#include "model/clip/instrument_clip.h"
+#include "model/clip/sequencer/sequencer_mode_manager.h"
+#include "model/instrument/melodic_instrument.h"
+#include "model/model_stack.h"
+#include "model/scale/musical_key.h"
+#include "model/song/song.h"
+#include "playback/playback_handler.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
 
 namespace deluge::model::clip::sequencer::modes {
 
@@ -751,14 +751,14 @@ void StepSequencerMode::evolveNotes(int32_t mutationRate) {
 			// Always mutate notes
 			if (numScaleNotes_ > 0) {
 				int32_t change;
-			if (isHighRate) {
-				// High rate: larger jumps
-				change = (rand() % 5) - 2; // -2 to +2
-			}
-			else {
-				// Low rate: gentle steps
-				change = (rand() % 3) - 1; // -1, 0, +1
-			}
+				if (isHighRate) {
+					// High rate: larger jumps
+					change = (rand() % 5) - 2; // -2 to +2
+				}
+				else {
+					// Low rate: gentle steps
+					change = (rand() % 3) - 1; // -1, 0, +1
+				}
 
 				steps_[i].noteIndex += change;
 
@@ -777,10 +777,10 @@ void StepSequencerMode::evolveNotes(int32_t mutationRate) {
 				if ((rand() % 100) < 40) {
 					int32_t octaveChange = (rand() % 3) - 1; // -1, 0, or +1
 					steps_[i].octave += octaveChange;
-				if (steps_[i].octave < -3)
-					steps_[i].octave = -3;
-				if (steps_[i].octave > 3)
-					steps_[i].octave = 3;
+					if (steps_[i].octave < -3)
+						steps_[i].octave = -3;
+					if (steps_[i].octave > 3)
+						steps_[i].octave = 3;
 				}
 
 				// Mutate gates (25% chance)
@@ -804,9 +804,8 @@ bool StepSequencerMode::isDefaultPattern() const {
 		int32_t expectedOctave = 0;
 		int32_t expectedNoteIndex = 0;
 
-		if (steps_[i].gateType != expectedGate ||
-		    steps_[i].octave != expectedOctave ||
-		    steps_[i].noteIndex != expectedNoteIndex) {
+		if (steps_[i].gateType != expectedGate || steps_[i].octave != expectedOctave
+		    || steps_[i].noteIndex != expectedNoteIndex) {
 			return false; // Found non-default data
 		}
 	}
@@ -817,8 +816,8 @@ void StepSequencerMode::setDefaultPattern() {
 	// Set the default pattern - centralized so it's easy to change later
 	for (int32_t i = 0; i < kNumSteps; i++) {
 		steps_[i].gateType = GateType::OFF; // All gates OFF by default
-		steps_[i].octave = 0; // Default: no octave shift
-		steps_[i].noteIndex = 0; // First note in scale
+		steps_[i].octave = 0;               // Default: no octave shift
+		steps_[i].noteIndex = 0;            // First note in scale
 	}
 }
 

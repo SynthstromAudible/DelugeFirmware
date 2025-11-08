@@ -2886,7 +2886,7 @@ createNewParamManager:
 				reader.exitTag(nullptr, true); // leave box.
 			}
 			reader.match(']');
-	}
+		}
 
 		// Sequencer mode data (for song loading)
 		else if (!strcmp(tagName, "sequencerMode")) {

@@ -752,7 +752,8 @@ void SequencerControlState::applyControlValues(int32_t clockDivider, int32_t oct
 				}
 			}
 		}
-	} else {
+	}
+	else {
 		*unmatchedOctave = 0; // Default value, no need to apply
 	}
 
@@ -769,7 +770,8 @@ void SequencerControlState::applyControlValues(int32_t clockDivider, int32_t oct
 				}
 			}
 		}
-	} else {
+	}
+	else {
 		*unmatchedTranspose = 0; // Default value, no need to apply
 	}
 
@@ -786,7 +788,8 @@ void SequencerControlState::applyControlValues(int32_t clockDivider, int32_t oct
 				}
 			}
 		}
-	} else {
+	}
+	else {
 		*unmatchedDirection = 0; // Default value, no need to apply
 	}
 
@@ -878,7 +881,8 @@ void SequencerControlState::writeToFile(Serializer& writer, bool includeScenes) 
 	// Write padData (empty string if no active pads)
 	if (padData.empty()) {
 		writer.writeAttribute("padData", "");
-	} else {
+	}
+	else {
 		writer.writeAttributeHexBytes("padData", padData.data(), padData.size());
 	}
 
@@ -1007,7 +1011,8 @@ Error SequencerControlState::readFromFile(Deserializer& reader) {
 								for (int32_t i = 0; i < bytesToRead; ++i) {
 									if ((i * 2 + 1) < hexLength) {
 										sceneBuffers_[sceneIndex][i] = hexToIntFixedLength(&hexData[i * 2], 2);
-									} else {
+									}
+									else {
 										sceneBuffers_[sceneIndex][i] = 0; // Pad with zeros if hex data is short
 									}
 								}
@@ -1019,7 +1024,7 @@ Error SequencerControlState::readFromFile(Deserializer& reader) {
 							char const* hexData = reader.readTagOrAttributeValue();
 
 							if (sceneIndex >= 0 && sceneIndex < kMaxScenes && sceneSize > 0
-			    && sceneSize <= static_cast<int32_t>(kMaxSceneDataSize)) {
+							    && sceneSize <= static_cast<int32_t>(kMaxSceneDataSize)) {
 								// Skip "0x" prefix if present
 								if (hexData[0] == '0' && hexData[1] == 'x') {
 									hexData += 2;

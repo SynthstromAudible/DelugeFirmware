@@ -25,11 +25,11 @@
 #include "hid/display/oled.h"
 #include "io/debug/log.h"
 #include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
-#include "model/clip/instrument_clip.h"
 #include <string>
 
 using namespace deluge;
