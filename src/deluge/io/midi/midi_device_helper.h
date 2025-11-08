@@ -42,7 +42,7 @@ inline std::string_view getDeviceNameForIndex(uint8_t deviceIndex) {
 			size_t numCables = MIDIDeviceManager::root_usb->getNumCables();
 			if (usbIndex < numCables) {
 				MIDICable* cable = MIDIDeviceManager::root_usb->getCable(usbIndex);
-				if (cable) {
+				if (cable != nullptr) {
 					return cable->getDisplayName();
 				}
 			}
@@ -75,7 +75,7 @@ inline uint8_t findDeviceIndexByName(std::string_view deviceName, uint8_t fallba
 		size_t numCables = MIDIDeviceManager::root_usb->getNumCables();
 		for (size_t i = 0; i < numCables; i++) {
 			MIDICable* cable = MIDIDeviceManager::root_usb->getCable(i);
-			if (cable && deviceName == cable->getDisplayName()) {
+			if (cable != nullptr && deviceName == cable->getDisplayName()) {
 				return 2 + i; // USB devices start at index 2
 			}
 		}

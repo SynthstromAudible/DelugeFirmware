@@ -93,8 +93,7 @@ void MidiEngine::sendNote(MIDISource source, bool on, int32_t note, uint8_t velo
 
 	// This is the only place where velocity is limited like this. In the internal engine, it's allowed to go right
 	// between 0 and 128
-	velocity = std::max((uint8_t)1, velocity);
-	velocity = std::min((uint8_t)127, velocity);
+	velocity = std::clamp<uint8_t>(velocity, 1, 127);
 
 	if (on) {
 		sendMidi(source, MIDIMessage::noteOn(channel, note, velocity), filter, true, deviceFilter);
@@ -273,7 +272,7 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter, uint8_t device
 		size_t numCables = MIDIDeviceManager::root_usb->getNumCables();
 		if (usbIndex < numCables) {
 			MIDICable* cable = MIDIDeviceManager::root_usb->getCable(usbIndex);
-			if (cable && cable->wantsToOutputMIDIOnChannel(message, filter)) {
+			if (cable != nullptr && cable->wantsToOutputMIDIOnChannel(message, filter)) {
 				cable->sendMessage(message);
 			}
 		}

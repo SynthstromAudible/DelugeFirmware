@@ -42,7 +42,7 @@ void KitOutputDeviceSelection::readCurrentValue() {
 	// Determine current device selection based on context
 	if (soundEditor.editingKitRow()) {
 		auto* kit = ::getCurrentKit();
-		if (kit && kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI) {
+		if (kit != nullptr && kit->selectedDrum != nullptr && kit->selectedDrum->type == DrumType::MIDI) {
 			auto* midiDrum = static_cast<MIDIDrum*>(kit->selectedDrum);
 			this->setValue(midiDrum->outputDevice);
 		}
@@ -64,7 +64,7 @@ void KitOutputDeviceSelection::writeCurrentValue() {
 	// Update the actual device selection
 	if (soundEditor.editingKitRow()) {
 		auto* kit = ::getCurrentKit();
-		if (kit && kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI) {
+		if (kit != nullptr && kit->selectedDrum != nullptr && kit->selectedDrum->type == DrumType::MIDI) {
 			auto* midiDrum = static_cast<MIDIDrum*>(kit->selectedDrum);
 			midiDrum->outputDevice = currentDevice;
 			// Store device name for reliable matching when devices are reconnected

@@ -33,7 +33,7 @@ public:
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Output* output = ::getCurrentOutput();
-		return (output && output->type == OutputType::MIDI_OUT);
+		return (output != nullptr && output->type == OutputType::MIDI_OUT);
 	}
 
 	void drawValue() override;

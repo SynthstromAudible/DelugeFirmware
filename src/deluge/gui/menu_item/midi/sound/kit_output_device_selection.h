@@ -38,7 +38,7 @@ public:
 		// Check if we're editing a Kit row and if it's a MIDI drum
 		if (soundEditor.editingKitRow()) {
 			auto* kit = ::getCurrentKit();
-			return (kit && kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI);
+			return (kit != nullptr && kit->selectedDrum != nullptr && kit->selectedDrum->type == DrumType::MIDI);
 		}
 		return false;
 	}

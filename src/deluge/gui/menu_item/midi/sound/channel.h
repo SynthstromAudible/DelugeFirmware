@@ -87,7 +87,7 @@ public:
 			// For Kit drum MIDI channels, show device index prefix
 			if (soundEditor.editingKitRow()) {
 				auto* kit = getCurrentKit();
-				if (kit && kit->selectedDrum && kit->selectedDrum->type == DrumType::MIDI) {
+				if (kit != nullptr && kit->selectedDrum != nullptr && kit->selectedDrum->type == DrumType::MIDI) {
 					auto* midiDrum = static_cast<MIDIDrum*>(kit->selectedDrum);
 					if (midiDrum->outputDevice > 0) {
 						// Show device name prefix
