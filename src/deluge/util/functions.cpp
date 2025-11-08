@@ -612,7 +612,7 @@ char const* getOutputTypeName(OutputType outputType, int32_t channel, Output* ou
 			// For MIDI tracks, show the selected output device instead of "MIDI"
 			// Use the provided output if available, otherwise fall back to getCurrentOutput()
 			Output* currentOutput = output;
-			if (!currentOutput) {
+			if (currentOutput == nullptr) {
 				extern Output* getCurrentOutput();
 				currentOutput = getCurrentOutput();
 			}
