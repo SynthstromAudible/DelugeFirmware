@@ -2,7 +2,11 @@
 inputs:
   nixpkgs:
     url: github:cachix/devenv-nixpkgs/rolling
-
+  # Currently pinned to: playwright@1.54.1
+  # Make sure this version is always the same as the version in package.json
+  # See https://search.nixos.org/packages?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=playwright
+  nixpkgs-playwright:
+    url: github:NixOS/nixpkgs/b6a8526db03f735b89dd5ff348f53f752e7ddc8e
 # If you're using non-OSS software, you can set allowUnfree to true.
 # allowUnfree: true
 

@@ -1,17 +1,30 @@
 { pkgs, lib, config, inputs, ... }:
-
+let
+  pkgs-playwright = import inputs.nixpkgs-playwright { system = pkgs.stdenv.system; };
+  browsers = (builtins.fromJSON (builtins.readFile "${pkgs-playwright.playwright-driver}/browsers.json")).browsers;
+  chromium-rev = (builtins.head (builtins.filter (x: x.name == "chromium") browsers)).revision;
+in
 {
   # https://devenv.sh/integrations/codespaces-devcontainer/
   devcontainer.enable = true;
 
   # https://devenv.sh/basics/
-  # env.GREET = "devenv";
+  env = {
+    PLAYWRIGHT_BROWSERS_PATH = "${pkgs-playwright.playwright.browsers}";
+    PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = true;
+    PLAYWRIGHT_NODEJS_PATH = "${pkgs.nodejs}/bin/node";
+    PLAYWRIGHT_LAUNCH_OPTIONS_EXECUTABLE_PATH = "${pkgs-playwright.playwright.browsers}/chromium-${chromium-rev}/chrome-linux/chrome";
+
+    LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [ pkgs.libuuid ];
+  };
 
   # https://devenv.sh/packages/
-  packages = [ pkgs.git ];
+  packages = [
+    pkgs.git
+    pkgs.libuuid
+  ];
 
   # https://devenv.sh/languages/
-  # languages.rust.enable = true;
   languages.javascript.enable = true;
   languages.javascript.bun.enable = true;
 
