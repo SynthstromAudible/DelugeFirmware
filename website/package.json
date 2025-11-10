@@ -6,7 +6,7 @@
     "dev": "kill-port 4321 && astro dev",
     "start": "astro dev",
     "build": "astro build",
-    "preview": "astro build && astro preview",
+    "preview": "bun run build && astro preview",
     "astro": "astro",
     "check": "astro check && eslint . --max-warnings=0 && prettier . --check",
     "check:fix": "prettier . --write && eslint . --fix"
