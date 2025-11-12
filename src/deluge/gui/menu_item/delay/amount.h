@@ -32,7 +32,7 @@ public:
 		return clamped / static_cast<float>(max_value_in_horizontal_menu);
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		drawBar(slot);
 
 		if (getValue() > max_value_in_horizontal_menu) {
@@ -57,7 +57,10 @@ public:
 		}
 	}
 
-	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_AMOUNT_SHORT)); }
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		Integer::configureRenderingOptions(options);
+		options.label = l10n::get(l10n::String::STRING_FOR_AMOUNT_SHORT);
+	}
 
 private:
 	constexpr static int32_t max_value_in_horizontal_menu = 24;

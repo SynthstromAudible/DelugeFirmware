@@ -56,8 +56,9 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingGateDrumRow();
 	}
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions &options) override {
+		Integer::configureRenderingOptions(options);
+		options.label = deluge::l10n::get(l10n::built_in::seven_segment, this->name);
 	}
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }

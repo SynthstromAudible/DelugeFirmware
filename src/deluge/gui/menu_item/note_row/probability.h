@@ -73,7 +73,7 @@ public:
 		OLED::main.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY);
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		char buffer[20];
 		bool latching = false;
 
@@ -93,14 +93,19 @@ public:
 		display->setText(buffer, true, latching ? 3 : 255);
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override {
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		SelectedNoteRow::configureRenderingOptions(options);
+
 		bool latching = false;
-		valueBuf.appendInt(getProbabilityValue(latching));
-		valueBuf.append("%");
+		DEF_STACK_STRING_BUF(value_buf, 4);
+		value_buf.appendInt(getProbabilityValue(latching));
+		value_buf.append("%");
 
 		if (latching) {
-			valueBuf.append(" ltch");
+			value_buf.append(" ltch");
 		}
+
+		options.notification_value = value_buf.data();
 	}
 
 	void writeCurrentValue() override { ; }

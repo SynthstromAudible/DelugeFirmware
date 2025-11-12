@@ -66,15 +66,13 @@ public:
 		return modfx::getModNames();
 	}
 
-	[[nodiscard]] int32_t getColumnSpan() const override {
-		// Occupy the whole page in the horizontal menu
-		return 4;
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		options.show_label = false;
+		options.show_notification = false;
+		options.occupied_slots = 4; // Occupy the whole page in the horizontal menu
 	}
 
-	[[nodiscard]] bool showNotification() const override { return false; }
-	[[nodiscard]] bool showColumnLabel() const override { return false; }
-
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);

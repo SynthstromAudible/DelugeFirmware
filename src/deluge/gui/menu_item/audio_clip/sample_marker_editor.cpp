@@ -50,7 +50,7 @@ void SampleMarkerEditor::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 
-void SampleMarkerEditor::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void SampleMarkerEditor::renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) {
 	using namespace hid::display;
 	oled_canvas::Canvas& image = OLED::main;
 
@@ -62,9 +62,12 @@ void SampleMarkerEditor::renderInHorizontalMenu(const HorizontalMenuSlotParams& 
 	image.drawIcon(OLED::loopPointIcon, slot.start_x + 5, slot.start_y + kHorizontalMenuSlotYOffset, true);
 }
 
-void SampleMarkerEditor::getColumnLabel(StringBuf& label) {
-	label.append(l10n::get(l10n::String::STRING_FOR_END_POINT));
-	label.truncate(3);
+void SampleMarkerEditor::configureRenderingOptions(const HorizontalMenuRenderingOptions& options) {
+	MenuItem::configureRenderingOptions(options);
+
+	options.label = l10n::get(l10n::String::STRING_FOR_END_POINT);
+	options.label.resize(3);
+	options.allow_to_begin_session = true;
 }
 
 } // namespace deluge::gui::menu_item::audio_clip

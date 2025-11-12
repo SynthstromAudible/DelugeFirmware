@@ -74,8 +74,9 @@ void Selection::getShortOption(StringBuf& opt) {
 	opt.append(getOptions(OptType::SHORT)[this->getValue()].data());
 }
 
-void Selection::getNotificationValue(StringBuf& value) {
-	value.append(getOptions()[this->getValue()].data());
+void Selection::configureRenderingOptions(const HorizontalMenuRenderingOptions& options) {
+	Enumeration::configureRenderingOptions(options);
+	options.notification_value = getOptions()[this->getValue()].data();
 }
 
 } // namespace deluge::gui::menu_item

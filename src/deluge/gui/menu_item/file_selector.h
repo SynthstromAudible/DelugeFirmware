@@ -32,9 +32,8 @@ public:
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             MultiRange** currentRange) override;
 
-	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override;
-	void getColumnLabel(StringBuf& label) override;
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions &options) override;
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override;
 
 private:
 	uint8_t sourceId_;

@@ -116,12 +116,12 @@ private:
 		}
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override {
-		const auto value = Selection::getValue();
-		valueBuf.append(getOptions(OptType::SHORT)[value]);
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		Selection::configureRenderingOptions(options);
+		options.notification_value = getOptions(OptType::SHORT)[Selection::getValue()];
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		using namespace deluge::hid::display;
 		oled_canvas::Canvas& image = OLED::main;
 

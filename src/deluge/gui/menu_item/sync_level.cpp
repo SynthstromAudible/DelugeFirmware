@@ -48,19 +48,22 @@ void SyncLevel::drawPixelsForOled() {
 	hid::display::OLED::main.drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, kTextBigSpacingX, kTextBigSizeY);
 }
 
-void SyncLevel::getColumnLabel(StringBuf& label) {
+void SyncLevel::configureRenderingOptions(const HorizontalMenuRenderingOptions& options) {
+	Enumeration::configureRenderingOptions(options);
+
 	const int32_t value = getValue();
 	const ::SyncLevel level = syncValueToSyncLevel(value);
 
-	if (level == SYNC_LEVEL_NONE) {
-		return Enumeration::getColumnLabel(label);
+	if (level != SYNC_LEVEL_NONE) {
+		// Draw the sync level as a label
+		DEF_STACK_STRING_BUF(label_buf, 4);
+		syncValueToStringForHorzMenuLabel(syncValueToSyncType(value), level, label_buf,
+		                                  currentSong->getInputTickMagnitude());
+		options.label = label_buf.data();
 	}
-
-	// Draw the sync level as a label
-	syncValueToStringForHorzMenuLabel(syncValueToSyncType(value), level, label, currentSong->getInputTickMagnitude());
 }
 
-void SyncLevel::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void SyncLevel::renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) {
 	using namespace deluge::hid::display;
 	oled_canvas::Canvas& image = OLED::main;
 

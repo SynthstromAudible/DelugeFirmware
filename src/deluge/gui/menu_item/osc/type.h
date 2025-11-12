@@ -124,9 +124,11 @@ public:
 		return &dxMenu;
 	}
 
-	[[nodiscard]] bool showColumnLabel() const override { return false; }
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions &options) override {
+		options.show_label = false;
+	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		const OscType osc_type = soundEditor.currentSound->sources[sourceId_].oscType;

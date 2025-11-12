@@ -37,8 +37,8 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingKitRow();
 	}
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		options.label = deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name);
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

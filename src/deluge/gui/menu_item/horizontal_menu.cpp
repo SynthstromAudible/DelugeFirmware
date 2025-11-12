@@ -55,6 +55,21 @@ MenuPermission HorizontalMenu::checkPermissionToBeginSession(ModControllableAudi
 	return Submenu::checkPermissionToBeginSession(modControllable, whichThing, currentRange);
 }
 
+void HorizontalMenu::beginSession(MenuItem* navigatedBackwardFrom) {
+	rendering_options_.clear();
+
+	for (const auto it : items) {
+		HorizontalMenuRenderingOptions options{.label = std::string(getName()),
+		                                       .notification_value = std::string{},
+		                                       .show_label = true,
+		                                       .show_notification = true,
+		                                       .allow_to_begin_session = false};
+		it->configureRenderingOptions(options);
+
+		rendering_options_.emplace(it, options);
+	}
+}
+
 ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
@@ -169,20 +184,18 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 		const bool is_selected = item == currentItem;
 		const bool is_relevant = isItemRelevant(item);
 
-		const uint8_t box_width = column_width * item->getColumnSpan();
+		const uint8_t box_width = column_width * rendering_options_[item].occupied_slots;
 		constexpr uint8_t box_height = 25;
 		constexpr uint8_t label_height = kTextSpacingY;
 		constexpr uint8_t label_y = base_y + box_height - label_height;
 		uint8_t content_height = box_height;
 
 		if (containers_map.contains(item) && is_relevant) {
-			// If item belongs to a container, delegate rendering to that container
-			const auto container = containers_map[item];
-			const auto column_span = container->getColumnSpan();
-
+			// If the item belongs to a container, delegate rendering to that container
+			const int32_t column_span = containers_map[item]->getColumnSpan();
 			bool halt_remaining_rendering = false;
-			container->render(current_x, box_width * column_span, base_y, content_height, currentItem, this,
-			                  &halt_remaining_rendering);
+			containers_map[item]->render(current_x, box_width * column_span, base_y, content_height, currentItem, this,
+			                             &halt_remaining_rendering);
 			if (halt_remaining_rendering) {
 				return;
 			}
@@ -192,9 +205,14 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 			continue;
 		}
 
-		if (item->showColumnLabel()) {
+		const HorizontalMenuSlotPosition slot{.start_x = current_x,
+		                                      .start_y = base_y,
+		                                      .width = static_cast<uint8_t>(box_width - 1),
+		                                      .height = content_height};
+
+		if (rendering_options_[item].show_label) {
 			// Draw the label at the bottom
-			renderColumnLabel(item, label_y, current_x, box_width, is_selected);
+			renderColumnLabel(item, is_selected, label_y, slot);
 			content_height -= label_height;
 		}
 
@@ -212,11 +230,11 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 		}
 
 		// Highlight the selected item if it doesn't occupy the whole page
-		if (is_selected && (items.size() > 1 || items[0]->getColumnSpan() < 4)) {
+		if (is_selected && (items.size() > 1 || rendering_options_[item].occupied_slots < 4)) {
 			switch (FlashStorage::accessibilityMenuHighlighting) {
 			case MenuHighlighting::FULL_INVERSION: {
 				// Highlight by inversion of the label or whole slot
-				const bool highlight_whole_slot = !item->showColumnLabel() || item->isSubmenu();
+				const bool highlight_whole_slot = !rendering_options_[item].show_label || item->isSubmenu();
 				const int32_t start_y = highlight_whole_slot ? base_y - 1 : label_y;
 				const int32_t end_y = highlight_whole_slot ? base_y + box_height - 1 : label_y + label_height - 1;
 				image.invertAreaRounded(current_x + 1, box_width - 3, start_y, end_y);
@@ -275,13 +293,11 @@ void HorizontalMenu::selectEncoderAction(int32_t offset) {
 }
 
 void HorizontalMenu::displayNotification(MenuItem* menuItem) {
-	if (!menuItem->showNotification()) {
+	if (!rendering_options_[menuItem].show_notification) {
 		return;
 	}
 
-	DEF_STACK_STRING_BUF(notificationValueBuf, kShortStringBufferSize);
-	menuItem->getNotificationValue(notificationValueBuf);
-	display->displayNotification(menuItem->getName(), notificationValueBuf.data());
+	display->displayNotification(menuItem->getName(), rendering_options_[menuItem].notification_value);
 }
 
 void HorizontalMenu::switchVisiblePage(int32_t direction) {
@@ -346,7 +362,7 @@ void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visible_pa
 
 		// Is this item covering the selected column?
 		if (pressed_button_position >= current_column
-		    && pressed_button_position < current_column + item->getColumnSpan()) {
+		    && pressed_button_position < current_column + rendering_options_[item].occupied_slots) {
 			if (layout == FIXED && !isItemRelevant(item)) {
 				// Item is disabled, do nothing
 				return;
@@ -365,7 +381,7 @@ void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visible_pa
 			return displayNotification(*current_item_);
 		}
 
-		current_column += item->getColumnSpan();
+		current_column += rendering_options_[item].occupied_slots;
 	}
 }
 
@@ -378,10 +394,10 @@ void HorizontalMenu::selectMenuItem(int32_t page_number, int32_t item_pos) {
 
 	// Find the target item on the next / previous page
 	for (const auto it : std::views::filter(items, [&](auto i) { return layout == FIXED || isItemRelevant(i); })) {
-		const auto itemSpan = it->getColumnSpan();
+		const auto item_span = rendering_options_[it].occupied_slots;
 
 		// Check if we need to move to the next page
-		if (current_page_span + itemSpan > 4) {
+		if (current_page_span + item_span > 4) {
 			current_page_number++;
 			current_page_span = 0;
 			position_on_page = 0;
@@ -397,7 +413,7 @@ void HorizontalMenu::selectMenuItem(int32_t page_number, int32_t item_pos) {
 				break;
 			}
 		}
-		current_page_span += itemSpan;
+		current_page_span += item_span;
 		position_on_page++;
 	}
 }
@@ -428,7 +444,7 @@ HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items
 		}
 
 		// If the item doesn't fit, start a new page
-		const int32_t item_span = item->getColumnSpan();
+		const int32_t item_span = rendering_options_[item].occupied_slots;
 		if (current_page_span + item_span > 4 && is_relevant) {
 			if (current_item_in_this_page) {
 				// Finalize visible page
@@ -471,23 +487,23 @@ HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items
 }
 
 /// When updating the selected horizontal menu item, you need to refresh the lit instrument LED's
-void HorizontalMenu::updateSelectedMenuItemLED(int32_t itemNumber) const {
+void HorizontalMenu::updateSelectedMenuItemLED(int32_t itemNumber) {
 	const auto& page_items = paging.visiblePageItems;
 	const auto* selected_item = page_items[itemNumber];
 
 	int32_t start_column = 0;
 	int32_t end_column = 0;
-	for (const auto* item : page_items) {
+	for (auto* const item : page_items) {
 		if (item == selected_item) {
-			end_column = start_column + item->getColumnSpan();
+			end_column = start_column + rendering_options_[item].occupied_slots;
 			break;
 		}
-		start_column += item->getColumnSpan();
+		start_column += rendering_options_[item].occupied_slots;
 	}
 
 	// Light up all buttons whose columns are covered by the selected item
 	std::vector led_states{false, false, false, false};
-	if (page_items.size() > 1 || page_items[0]->isSubmenu() || page_items[0]->getColumnSpan() < 4) {
+	if (page_items.size() > 1 || page_items[0]->isSubmenu() || rendering_options_[page_items[0]].occupied_slots < 4) {
 		for (int32_t i = 0; i < led_states.size(); ++i) {
 			led_states[i] = i >= start_column && i < end_column;
 		}
@@ -524,30 +540,27 @@ Submenu::RenderingStyle HorizontalMenu::renderingStyle() const {
 	return VERTICAL;
 }
 
-void HorizontalMenu::renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32_t slotStartX, int32_t slotWidth,
-                                       bool isSelected) {
+void HorizontalMenu::renderColumnLabel(MenuItem* menu_item, bool is_selected, int32_t label_y,
+                                       const HorizontalMenuSlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
-
-	DEF_STACK_STRING_BUF(label, kShortStringBufferSize);
-	menuItem->getColumnLabel(label);
-	label.removeSpaces();
+	auto label = rendering_options_[menu_item].label;
 
 	// If the name fits as-is, we'll squeeze it in. Otherwise, we chop off letters until
 	// we have some padding between columns.
 	int32_t label_width;
-	while ((label_width = image.getStringWidthInPixels(label.c_str(), kTextSpacingY)) + 4 >= slotWidth) {
-		label.truncate(label.size() - 1);
+	while ((label_width = image.getStringWidthInPixels(label.c_str(), kTextSpacingY)) + 4 >= slot.width) {
+		label.resize(label.size() - 1);
 	}
 
 	// Draw centered label
-	const int32_t label_start_x = slotStartX + (slotWidth - label_width) / 2;
-	image.drawString(label.c_str(), label_start_x, labelY, kTextSpacingX, kTextSpacingY);
+	const int32_t label_start_x = slot.start_x + (slot.width - label_width) / 2;
+	image.drawString(label.c_str(), label_start_x, label_y, kTextSpacingX, kTextSpacingY);
 
-	if (menuItem->getColumnSpan() > 1 && !menuItem->isSubmenu() && !isSelected) {
+	if (rendering_options_[menu_item].occupied_slots > 1 && !menu_item->isSubmenu() && !is_selected) {
 		// Draw small lines on the left and right side if the slot is too wide
-		const int32_t y = labelY + 4;
-		image.drawHorizontalLine(y, slotStartX + 4, label_start_x - 4);
-		image.drawHorizontalLine(y, label_start_x + label_width + 2, slotStartX + slotWidth - 6);
+		const int32_t y = label_y + 4;
+		image.drawHorizontalLine(y, slot.start_x + 4, label_start_x - 4);
+		image.drawHorizontalLine(y, label_start_x + label_width + 2, slot.start_x + slot.width - 6);
 	}
 }
 
@@ -585,7 +598,7 @@ double HorizontalMenu::calcNextKnobSpeed(int8_t offset) {
 }
 
 void HorizontalMenu::handleItemAction(MenuItem* menuItem) {
-	if (!menuItem->isSubmenu() && !menuItem->allowToBeginSessionFromHorizontalMenu()) {
+	if (!menuItem->isSubmenu() && !rendering_options_[menuItem].allow_to_begin_session) {
 		menuItem->selectButtonPress();
 		return displayNotification(menuItem);
 	}

@@ -60,7 +60,7 @@ void Rate::drawPixelsForOled() {
 	                                                   kTextHugeSizeY);
 }
 
-void Rate::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void Rate::renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) {
 	if (!isStutterQuantized()) {
 		return UnpatchedParam::renderInHorizontalMenu(slot);
 	}
@@ -68,13 +68,6 @@ void Rate::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
 	const char* label = getQuantizedOptionLabel();
 	hid::display::OLED::main.drawStringCentered(label, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
 	                                            kTextSpacingX, kTextSpacingY, slot.width);
-}
-
-void Rate::getNotificationValue(StringBuf& valueBuf) {
-	if (!isStutterQuantized()) {
-		return valueBuf.appendInt(getValue());
-	}
-	valueBuf.append(getQuantizedOptionLabel());
 }
 
 bool Rate::isStutterQuantized() {

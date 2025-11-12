@@ -22,6 +22,9 @@ class End final : public LoopPoint {
 public:
 	End(l10n::String newName, uint8_t sourceId) : LoopPoint(newName, sourceId) { markerType = MarkerType::END; }
 
-	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions &options) override {
+		LoopPoint::configureRenderingOptions(options);
+		options.allow_to_begin_session = true;
+	}
 };
 } // namespace deluge::gui::menu_item::sample

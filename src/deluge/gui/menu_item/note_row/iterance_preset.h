@@ -84,7 +84,7 @@ public:
 		OLED::main.drawStringCentred(value.data(), 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY);
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		const std::string value = getIteranceDisplayValue("%d:%d");
 		OLED::main.drawStringCentered(value.data(), slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
 		                              kTextSpacingX, kTextSpacingY, slot.width);
@@ -95,8 +95,10 @@ public:
 		display->setText(value);
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override { valueBuf.append(getIteranceDisplayValue("%d of %d")); }
-
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		SelectedNoteRow::configureRenderingOptions(options);
+		options.notification_value = getIteranceDisplayValue("%d of %d");
+	}
 	void writeCurrentValue() override { ; }
 
 private:

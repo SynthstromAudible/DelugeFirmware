@@ -67,8 +67,9 @@ public:
 		return !is_reverb_sidechain_ || AudioEngine::reverbSidechainVolume >= 0;
 	}
 
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(l10n::String::STRING_FOR_RELEASE_SHORT));
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		Integer::configureRenderingOptions(options);
+		options.label = l10n::get(l10n::String::STRING_FOR_RELEASE_SHORT);
 	}
 
 private:

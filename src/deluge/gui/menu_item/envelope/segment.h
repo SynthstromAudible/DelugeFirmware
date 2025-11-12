@@ -28,9 +28,9 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	void getColumnLabel(StringBuf& label) override {
-		const auto& shortNameString = getShortEnvelopeParamName(menu_item::PatchedParam::getP());
-		label.append(deluge::l10n::get(shortNameString));
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		PatchedParam::configureRenderingOptions(options);
+		options.label = l10n::get(getShortEnvelopeParamName(menu_item::PatchedParam::getP()));
 	}
 
 private:

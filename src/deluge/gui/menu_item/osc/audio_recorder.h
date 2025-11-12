@@ -73,12 +73,14 @@ public:
 		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, source_id_, currentRange);
 	}
 
-	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
-	[[nodiscard]] bool showColumnLabel() const override { return false; }
-	[[nodiscard]] bool showNotification() const override { return false; }
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		options.show_label = false;
+		options.show_notification = false;
+		options.allow_to_begin_session = true;
+		options.occupied_slots = 2;
+	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		using namespace hid::display;
 		oled_canvas::Canvas& image = OLED::main;
 

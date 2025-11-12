@@ -36,9 +36,10 @@ public:
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 
-	void getColumnLabel(StringBuf& label) override {
-		label.append(getName());
-		label.truncate(4);
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions &options) override {
+		PatchedParam::configureRenderingOptions(options);
+		options.label = getName();
+		options.label.resize(4);
 	}
 };
 } // namespace deluge::gui::menu_item::osc::source

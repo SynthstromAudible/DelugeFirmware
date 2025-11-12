@@ -69,7 +69,13 @@ public:
 
 protected:
 	ModelStackWithAutoParam* getModelStack(void* memory, bool allowCreation = false);
-	void getNotificationValue(StringBuf& valueBuf) override { return valueBuf.appendFloat(getValue() / 100.0f, 2, 2); }
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		Decimal::configureRenderingOptions(options);
+
+		char value_buf[4];
+		floatToString(getValue() / 100.f, value_buf, 2, 2);
+		options.notification_value = value_buf;
+	}
 
 private:
 	bool isInHorizontalMenu() const;

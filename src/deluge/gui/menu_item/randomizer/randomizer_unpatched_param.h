@@ -41,8 +41,9 @@ public:
 		return isGlobal || soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
 
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions &options) override {
+		UnpatchedParam::configureRenderingOptions(options);
+		options.label = deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name);
 	}
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return style_; }
@@ -58,8 +59,9 @@ public:
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKitAffectEntire()
 		       && !soundEditor.editingNonAudioDrumRow() && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions &options) override {
+		UnpatchedParam::configureRenderingOptions(options);
+		options.label = deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name);
 	}
 };
 
@@ -74,8 +76,9 @@ public:
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKit()
 		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions &options) override {
+		UnpatchedParam::configureRenderingOptions(options);
+		options.label = deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name);
 	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return style_; }
 

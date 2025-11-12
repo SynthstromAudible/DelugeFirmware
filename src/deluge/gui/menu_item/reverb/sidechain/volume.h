@@ -52,7 +52,7 @@ public:
 		}
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		oled_canvas::Canvas& canvas = OLED::main;
 		if (getValue() < 0) {
 			const char* string_for_auto = l10n::get(l10n::String::STRING_FOR_AUTO);
@@ -64,17 +64,12 @@ public:
 		}
 	}
 
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(l10n::String::STRING_FOR_VOLUME_DUCKING_SHORT));
-	}
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		Integer::configureRenderingOptions(options);
 
-	void getNotificationValue(StringBuf& valueBuf) override {
-		if (const int32_t value = getValue(); value < 0) {
-			valueBuf.append(l10n::get(l10n::String::STRING_FOR_AUTO));
-		}
-		else {
-			valueBuf.appendInt(value);
-		}
+		options.label = l10n::get(l10n::String::STRING_FOR_VOLUME_DUCKING_SHORT);
+		options.notification_value =
+		    getValue() < 0 ? deluge::l10n::get(l10n::String::STRING_FOR_AUTO) : std::to_string(getValue());
 	}
 };
 
