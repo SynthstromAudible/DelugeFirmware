@@ -30,11 +30,20 @@ enum class MenuPermission {
 	MUST_SELECT_RANGE,
 };
 
-struct HorizontalMenuSlotParams {
+struct HorizontalMenuSlotPosition {
 	uint8_t start_x{0};
 	uint8_t start_y{0};
 	uint8_t width{0};
 	uint8_t height{0};
+};
+
+struct HorizontalMenuRenderingOptions {
+	mutable std::string label;
+	mutable std::string notification_value;
+	mutable uint8_t occupied_slots;
+	mutable bool show_label;
+	mutable bool show_notification;
+	mutable bool allow_to_begin_session;
 };
 
 class Sound;
@@ -283,42 +292,8 @@ public:
 	virtual void setupNumberEditor() {}
 	virtual void updatePadLights();
 
-	/// @}
-	/// @name Horizontal menus
-	/// @{
-	///
-	/// @brief Get the name for use on Horizontal menus.
-	///
-	/// By default this redirects to getName(), but can be overridden.
-	virtual void getColumnLabel(StringBuf& label) { label.append(getName().data()); }
-
-	/// @brief Show a label for the parameter in Horizontal menu
-	///
-	/// true by default, but can be overridden
-	[[nodiscard]] virtual bool showColumnLabel() const { return true; }
-
-	/// @brief Get the number of occupied virtual columns in Horizontal menu.
-	///
-	/// 1 by default, but can be overridden
-	[[nodiscard]] virtual int32_t getColumnSpan() const { return 1; };
-
-	/// @brief Show a popup with the full name and value of the editing parameter at the top of Horizontal menu
-	///
-	/// true by default, but can be overridden
-	[[nodiscard]] virtual bool showNotification() const { return true; }
-
-	/// @brief Allow entering menu session by selecting the menu item twice in Horizontal menu
-	///
-	/// false by default, but can be overridden
-	[[nodiscard]] virtual bool allowToBeginSessionFromHorizontalMenu() { return false; }
-
-	/// @brief Get the parameter value string to show in the popup
-	///
-	/// Needs to be overridden
-	virtual void getNotificationValue(StringBuf& valueBuf) {}
-
-	virtual void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {};
-
+	virtual void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) {};
+	virtual void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) {};
 	deluge::gui::menu_item::HorizontalMenu* parent{nullptr};
 
 	/// @}

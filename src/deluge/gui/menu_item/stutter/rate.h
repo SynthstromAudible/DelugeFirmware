@@ -29,10 +29,13 @@ public:
 	void selectEncoderAction(int32_t offset) override;
 	void drawValue() override;
 	void drawPixelsForOled() override;
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override;
-	void getNotificationValue(StringBuf& valueBuf) override;
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override;
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		UnpatchedParam::configureRenderingOptions(options);
 
-	void getColumnLabel(StringBuf& label) override { label.append(deluge::l10n::get(l10n::String::STRING_FOR_RATE)); }
+		options.label = deluge::l10n::get(l10n::String::STRING_FOR_RATE);
+		options.notification_value = isStutterQuantized() ? getQuantizedOptionLabel() : std::to_string(getValue());
+	}
 
 private:
 	int32_t getClosestQuantizedOptionIndex(int32_t value) const;

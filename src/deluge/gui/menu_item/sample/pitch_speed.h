@@ -67,14 +67,14 @@ public:
 		return {l10n::getView(l10n::String::STRING_FOR_LINKED), l10n::getView(l10n::String::STRING_FOR_INDEPENDENT)};
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		const Icon& icon = getValue() ? OLED::pitchSpeedIndependentIcon : OLED::pitchSpeedLinkedIcon;
 		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
 	}
 
-	void getColumnLabel(StringBuf& label) override {
-		const auto option = getOptions(OptType::SHORT)[getValue()].data();
-		label.append(option);
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		Selection::configureRenderingOptions(options);
+		options.label = getOptions(OptType::SHORT)[getValue()].data();
 	}
 
 private:

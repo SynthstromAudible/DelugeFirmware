@@ -117,11 +117,11 @@ public:
 		return nullptr;
 	}
 
-	[[nodiscard]] bool showColumnLabel() const override { return false; }
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		options.show_label = false;
+	}
 
-	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_MODE)); }
-
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		using namespace deluge::hid::display;
 		oled_canvas::Canvas& image = OLED::main;
 

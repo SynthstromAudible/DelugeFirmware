@@ -65,7 +65,10 @@ public:
 	}
 	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getAttackMS(); }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return ATTACK; }
-	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_ATTACK_SHORT)); }
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		CompressorValue::configureRenderingOptions(options);
+		options.label = l10n::get(l10n::String::STRING_FOR_ATTACK_SHORT);
+	}
 };
 class Release final : public CompressorValue {
 public:
@@ -79,8 +82,10 @@ public:
 	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getReleaseMS(); }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 1; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return RELEASE; }
-
-	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_RELEASE_SHORT)); }
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		CompressorValue::configureRenderingOptions(options);
+		options.label = l10n::get(l10n::String::STRING_FOR_RELEASE_SHORT);
+	}
 };
 class Ratio final : public CompressorValue {
 public:
@@ -126,6 +131,5 @@ public:
 	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getBlendForDisplay(); }
 	const char* getUnit() override { return " %"; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 0; }
-	[[nodiscard]] int32_t getColumnSpan() const override { return 1; }
 };
 } // namespace deluge::gui::menu_item::audio_compressor

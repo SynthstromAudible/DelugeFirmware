@@ -68,7 +68,7 @@ public:
 		Number::selectEncoderAction(offset);
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		DEF_STACK_STRING_BUF(paramValue, 5);
@@ -87,6 +87,8 @@ public:
 		                         slot.width);
 	}
 
-	[[nodiscard]] bool showNotification() const override { return false; }
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions &options) override {
+		options.show_notification = false;
+	}
 };
 } // namespace deluge::gui::menu_item::midi

@@ -49,7 +49,7 @@ void Enumeration::getShortOption(StringBuf& opt) {
 	opt.appendInt(getValue());
 }
 
-void Enumeration::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void Enumeration::renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) {
 	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 	// Render current value

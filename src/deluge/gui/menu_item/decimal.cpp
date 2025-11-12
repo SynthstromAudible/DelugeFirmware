@@ -219,7 +219,7 @@ int32_t Decimal::getNumNonZeroDecimals(int32_t value) {
 	return remainingBuf.size() - 2;
 }
 
-void Decimal::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void Decimal::renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) {
 	if (getRenderingStyle() != NUMBER) {
 		return Number::renderInHorizontalMenu(slot);
 	}
@@ -271,11 +271,14 @@ void DecimalWithoutScrolling::drawActualValue(bool justDidHorizontalScroll) {
 	floatToString(displayValue, buffer, numDecimalPlaces, numDecimalPlaces);
 	display->setText(buffer, true, 3 - numDecimalPlaces);
 }
+void DecimalWithoutScrolling::configureRenderingOptions(const HorizontalMenuRenderingOptions& options) {
+	Decimal::configureRenderingOptions(options);
 
-void DecimalWithoutScrolling::getNotificationValue(StringBuf& value) {
-	const int32_t numDecimalPlaces = this->getNumDecimalPlaces();
-	value.appendFloat(this->getDisplayValue(), numDecimalPlaces, numDecimalPlaces);
-	value.append(getUnit());
+	const int32_t num_decimal_places = this->getNumDecimalPlaces();
+	DEF_STACK_STRING_BUF(notification_value_buf, 10);
+	notification_value_buf.appendFloat(this->getDisplayValue(), num_decimal_places, num_decimal_places);
+	notification_value_buf.append(getUnit());
+	options.notification_value = notification_value_buf.data();
 }
 
 } // namespace deluge::gui::menu_item

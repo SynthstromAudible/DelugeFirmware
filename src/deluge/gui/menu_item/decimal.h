@@ -27,8 +27,14 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void selectEncoderAction(int32_t offset) override;
 	void horizontalEncoderAction(int32_t offset) override;
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override;
-	void getNotificationValue(StringBuf& valueBuf) override { valueBuf.appendFloat(getValue() / 100.f, 2, 2); }
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override;
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		Number::configureRenderingOptions(options);
+
+		char value_buf[4];
+		floatToString(getValue() / 100.f, value_buf, 2, 2);
+		options.notification_value = value_buf;
+	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
 protected:
@@ -57,12 +63,12 @@ public:
 
 protected:
 	virtual float getDisplayValue() { return this->getValue(); }
-	void getNotificationValue(StringBuf& value) override;
 	virtual const char* getUnit() { return ""; }
 	void drawPixelsForOled() override;
 	void drawDecimal(int32_t textWidth, int32_t textHeight, int32_t yPixel);
 	// 7Seg Only
 	void drawActualValue(bool justDidHorizontalScroll = false) override;
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override;
 };
 
 } // namespace deluge::gui::menu_item

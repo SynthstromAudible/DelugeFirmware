@@ -36,8 +36,9 @@ public:
 	}
 	[[nodiscard]] virtual std::string_view getTitle() const { return getName(); }
 
-	void getColumnLabel(StringBuf& label) override {
-		label.append(modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::DEPTH, true));
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions &options) override {
+		Integer::configureRenderingOptions(options);
+		options.label = modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::DEPTH, true);
 	}
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }

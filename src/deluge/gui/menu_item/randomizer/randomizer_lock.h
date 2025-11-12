@@ -56,8 +56,9 @@ public:
 		};
 	}
 
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		Selection::configureRenderingOptions(options);
+		options.label = deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name);
 	}
 
 	// flag this selection menu as a toggle menu so we can use a checkbox to toggle value
@@ -66,7 +67,7 @@ public:
 	// don't enter menu on select button press
 	bool shouldEnterSubmenu() override { return false; }
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		using namespace deluge::hid::display;
 		const Icon& icon = getValue() ? OLED::randomizerLockOnIcon : OLED::randomizerLockOffIcon;
 		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);

@@ -69,7 +69,7 @@ public:
 		                             kTextHugeSpacingX, kTextHugeSizeY);
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		const uint8_t value = getValue();
@@ -89,8 +89,9 @@ public:
 		}
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override {
-		valueBuf.append(instrumentClipView.getFillString(this->getValue()));
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		SelectedNoteRow::configureRenderingOptions(options);
+		options.notification_value = instrumentClipView.getFillString(getValue());
 	}
 
 	void drawValue() override { display->setText(instrumentClipView.getFillString(this->getValue())); }

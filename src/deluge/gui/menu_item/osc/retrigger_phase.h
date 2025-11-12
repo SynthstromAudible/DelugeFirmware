@@ -111,7 +111,7 @@ public:
 		Decimal::selectEncoderAction(offset);
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		oled_canvas::Canvas& canvas = OLED::main;
 		if (this->getValue() < 0) {
 			const char* off = l10n::get(l10n::String::STRING_FOR_OFF);
@@ -122,15 +122,12 @@ public:
 		return Decimal::renderInHorizontalMenu(slot);
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override {
-		if (this->getValue() < 0) {
-			return valueBuf.append(l10n::get(l10n::String::STRING_FOR_OFF));
-		}
-		valueBuf.appendInt(getValue());
-	}
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		Decimal::configureRenderingOptions(options);
 
-	void getColumnLabel(StringBuf& label) override {
-		label.append(l10n::get(l10n::String::STRING_FOR_RETRIGGER_PHASE_SHORT));
+		options.label = l10n::get(l10n::String::STRING_FOR_RETRIGGER_PHASE_SHORT);
+		options.notification_value =
+		    getValue() < 0 ? l10n::get(l10n::String::STRING_FOR_OFF) : std::to_string(getValue());
 	}
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return SLIDER; }

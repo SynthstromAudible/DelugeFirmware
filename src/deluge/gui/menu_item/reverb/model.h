@@ -21,8 +21,9 @@ public:
 		        l10n::getView(STRING_FOR_DIGITAL)};
 	}
 
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(l10n::String::STRING_FOR_MODEL_SHORT));
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions &options) override {
+		Selection::configureRenderingOptions(options);
+		options.label = l10n::get(l10n::String::STRING_FOR_MODEL_SHORT);
 	}
 };
 } // namespace deluge::gui::menu_item::reverb

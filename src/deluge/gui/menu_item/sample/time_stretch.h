@@ -65,7 +65,10 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return -48; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 48; }
 
-	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_SPEED_SHORT)); }
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		Integer::configureRenderingOptions(options);
+		options.label = l10n::get(l10n::String::STRING_FOR_SPEED_SHORT);
+	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
 private:
