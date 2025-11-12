@@ -292,7 +292,7 @@ public:
 	virtual void setupNumberEditor() {}
 	virtual void updatePadLights();
 
-	virtual void configureRenderingOptions(const HorizontalMenuRenderingOptions& options);
+	virtual void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) {};
 	virtual void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) {};
 	deluge::gui::menu_item::HorizontalMenu* parent{nullptr};
 
