@@ -22,6 +22,14 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 
 ## c1.4.0 <Badge text="Nightly" variant="tip" />
 
+#### <ins>Audio Visualizer</ins>
+
+- Added real-time audio visualizer feature that displays audio signal visualizations on the OLED screen
+- Three visualization modes: Waveform (time-domain), Spectrum (frequency-domain using FFT), and Equalizer (16-band frequency analysis)
+- Works by default with the VU meter or can be toggled independently for standalone use
+- Can be toggled independently using :key[Shift] + `LEVEL/PAN` mod button for quick access
+- Hot keys allow switching between modes: :key[SYNTH] for Waveform, :key[KIT] for Spectrum, :key[MIDI] for Equalizer
+
 ### Sound Engine
 
 - Various structural improvements to Sound Engine architecture which may result in performance improvements.

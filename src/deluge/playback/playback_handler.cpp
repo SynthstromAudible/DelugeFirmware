@@ -34,6 +34,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/visualizer.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -75,6 +76,8 @@
 #include "util/functions.h"
 #include <math.h>
 #include <new>
+
+using deluge::hid::display::Visualizer;
 
 extern "C" {
 #include "RZA1/gpio/gpio.h"
@@ -1362,6 +1365,8 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	AudioEngine::killAllVoices(true);
 	midiFollow.clearStoredClips(); // need to clear clip pointers stored for previous song
 	currentSong = preLoadedSong;
+	// Reset visualizer session mode when loading a new song
+	deluge::hid::display::Visualizer::resetSessionMode();
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	preLoadedSong = nullptr;
 	loadSongUI.deletedPartsOfOldSong = false;
@@ -2324,15 +2329,18 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 	DEF_STACK_STRING_BUF(text, 27);
 	if (display->haveOLED()) {
 		UI* currentUI = getCurrentUI();
-		// if we're currently in song or arranger view, we'll render tempo on the display instead of a popup
-		if ((currentUI == &sessionView || currentUI == &arrangerView)
-		    && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
+		bool isSessionOrArranger = (currentUI == &sessionView || currentUI == &arrangerView);
+
+		if (isSessionOrArranger && !deluge::hid::display::OLED::isPermanentPopupPresent()
+		    && !deluge::hid::display::Visualizer::isActive(view.displayVUMeter)) {
+			// Direct canvas rendering (original behavior when visualizer not actively running)
 			sessionView.lastDisplayedTempo = tempoBPM;
 			getTempoStringForOLED(tempoBPM, text);
 			sessionView.displayTempoBPM(deluge::hid::display::OLED::main, text, true);
 			deluge::hid::display::OLED::markChanged();
 		}
 		else {
+			// Popup rendering (for active visualizer users or fallback cases)
 			text.append("Tempo: ");
 			getTempoStringForOLED(tempoBPM, text);
 			display->popupTextTemporary(text.c_str(), PopupType::TEMPO);

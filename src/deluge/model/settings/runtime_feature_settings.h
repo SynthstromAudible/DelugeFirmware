@@ -41,6 +41,13 @@ enum RuntimeFeatureStateSyncScalingAction : uint32_t { SyncScaling = 0, Fill = 1
 
 enum RuntimeFeatureStateEmulatedDisplay : uint32_t { Hardware = 0, Toggle = 1, OnBoot = 2 };
 
+enum RuntimeFeatureStateVisualizer : uint32_t {
+	VisualizerOff = 0,
+	VisualizerWaveform = 1,
+	VisualizerSpectrum = 2,
+	VisualizerEqualizer = 3
+};
+
 /// Every setting needs to be declared in here
 enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
@@ -66,6 +73,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	HorizontalMenus,
 	TrimFromStartOfAudioClip,
 	ShowBatteryLevel,
+	Visualizer,
 	MaxElement // Keep as boundary
 };
 

@@ -1,0 +1,100 @@
+---
+title: Visualizer
+---
+
+import LinkPreviewCard from "../../../components/LinkPreviewCard.astro"
+import { Badge } from "@astrojs/starlight/components"
+
+The Visualizer feature provides real-time audio visualizations on the OLED display, showing different representations of the audio signal. It was added in <Badge text="c1.4" variant="tip" /> and includes three visualization modes: Waveform, Spectrum, and Equalizer. The visualizer replaces the VU meter display when active and provides visual feedback for your audio output.
+
+## Enabling the Visualizer
+
+The visualizer must first be enabled in the Community Settings menu:
+
+1. Press the :key[Shift + Select] button to open the Settings menu
+2. Navigate to `COMMUNITY FEATURES`
+3. Select `VISUALIZER`
+4. Choose one of the visualization modes:
+   - `OFF` - Visualizer disabled (default)
+   - `WAVEFORM` - Shows audio waveform over time
+   - `SPECTRUM` - Shows frequency spectrum using FFT
+   - `EQUALIZER` - Shows 16 frequency bands with peak indicators
+
+## Display Conditions
+
+To enable the visualizer display, you must first enable the VU meter:
+
+1. Turn :key[AffectEntire] on
+2. Select the `LEVEL/PAN` mod button
+3. Press the `LEVEL/PAN` mod button again to toggle the VU Meter on
+   - The `LEVEL/PAN` mod button will blink when the VU meter is active
+
+The visualizer only appears when all of the following conditions are met:
+
+- **Community Setting**: Visualizer must be set to Waveform, Spectrum, or Equalizer (not Off)
+- **VU Meter**: The VU meter must be enabled as described above
+- **AffectEntire**: The :key[AffectEntire] button must remain enabled
+- **LEVEL/PAN Mod Button**: The `LEVEL/PAN` mod button must remain selected
+
+The visualizer will automatically appear in the OLED display area when these conditions are satisfied, replacing the standard VU meter display. The VU meter will stop displaying (and therefore the visualizer will be hidden) if you switch mod button selections, turn :key[AffectEntire] off, select a clip, or exit Song/Arranger views.
+
+Alternatively, you can use the independent visualizer toggle to display the visualizer without needing to enable the VU meter. Press :key[Shift] + `LEVEL/PAN` mod button to toggle the visualizer on or off independently. This allows you to view visualizations in situations where the VU meter conditions cannot be met.
+
+## Visualization Modes
+
+### Waveform Mode <Badge text="c1.4 Feature" variant="tip" />
+
+Waveform mode displays the audio signal as a continuous waveform over time, similar to what you might see in a digital audio workstation.
+
+- Shows the raw audio signal amplitude over a recent time window
+- Displays both left and right channels when available
+- Uses a center line to show the zero crossing point
+- Provides a visual representation of the audio's dynamic range and shape
+
+To activate Waveform mode, press the :key[SYNTH] button while the visualizer is active.
+
+### Spectrum Mode <Badge text="c1.4 Feature" variant="tip" />
+
+Spectrum mode uses Fast Fourier Transform (FFT) to analyze the audio signal and display its frequency content.
+
+- Shows the frequency spectrum of the audio signal in real-time
+- Displays frequency bands from low to high across the display width
+- Uses logarithmic scaling for better representation of human hearing
+- Includes temporal smoothing to reduce visual flicker
+- Provides insight into the tonal balance and frequency distribution of your audio
+
+To activate Spectrum mode, press the :key[KIT] button while the visualizer is active.
+
+### Equalizer Mode <Badge text="c1.4 Feature" variant="tip" />
+
+Equalizer mode displays the audio signal across 16 frequency bands, similar to a graphic equalizer.
+
+- Shows 16 frequency bands spanning the audible spectrum
+- Each bar represents the energy in that frequency range
+- Includes peak indicators that decay over time
+- Uses temporal smoothing for stable visualization
+- Helps visualize the frequency response and balance of your mix
+
+To activate Equalizer mode, press the :key[MIDI] button while the visualizer is active.
+
+## Hot Key Controls
+
+When the visualizer is active (displaying on screen), you can switch between modes using the following hot keys:
+
+- :key[SYNTH] - Switch to Waveform mode
+- :key[KIT] - Switch to Spectrum mode
+- :key[MIDI] - Switch to Equalizer mode
+
+These mode changes are temporary for the current session and don't affect your community setting preference.
+
+You can also toggle the visualizer on or off independently using :key[Shift] + `LEVEL/PAN` mod button. This provides a quick way to enable the visualizer without needing to set up the VU meter conditions, and shows popup feedback indicating the current state.
+
+## Tips and Usage
+
+- **Mixing**: The Equalizer mode can help you identify problematic frequency ranges in your mix
+- **Sound Design**: The Spectrum mode provides insight into the harmonic content of your sounds
+- **Troubleshooting**: The Waveform mode can help identify clipping or level issues
+- **Quick Mode Switching**: Use the hot keys to quickly compare different visualization perspectives
+- **Independent Access**: Use :key[Shift] + `LEVEL/PAN` mod button to quickly toggle the visualizer on or off without setting up VU meter conditions, perfect for quick visual checks during production
+
+The visualizer provides valuable visual feedback for your audio production workflow, making it easier to monitor and understand your sound in real-time.
