@@ -43,6 +43,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/visualizer.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -164,6 +165,9 @@ void InstrumentClipView::focusRegained() {
 	sessionMacroSidebarActive = false;
 
 	InstrumentClipMinder::focusRegained();
+
+	// Set current clip for visualizer when entering clip view
+	deluge::hid::display::Visualizer::trySetClipForVisualizer(getCurrentClip());
 
 	setLedStates();
 }
@@ -7426,6 +7430,10 @@ void InstrumentClipView::graphicsRoutine() {
 			}
 		}
 	}
+
+	// Request OLED refresh for visualizer if active (ensures continuous updates)
+	deluge::hid::display::Visualizer::requestVisualizerUpdateIfNeeded();
+
 	PadLEDs::setTickSquares(tickSquares, colours);
 }
 

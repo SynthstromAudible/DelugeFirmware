@@ -24,6 +24,11 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "hid/display/visualizer.h"
+#include "hid/display/visualizer/visualizer_common.h"
+
+// Use visualizer button helpers from the display namespace
+using deluge::hid::display::handleVisualizerModeButton;
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "playback/mode/playback_mode.h"
@@ -135,6 +140,14 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	else if (b == SELECT_ENC) {
 		if (on) {
 			selectButtonPressUsedUp = false;
+		}
+	}
+
+	// Handle visualizer mode switching when visualizer is active in Arranger or Song view
+	if (on) {
+		ActionResult visualizerResult = handleVisualizerModeButton(b, view);
+		if (visualizerResult == ActionResult::DEALT_WITH) {
+			goto dealtWith;
 		}
 	}
 
