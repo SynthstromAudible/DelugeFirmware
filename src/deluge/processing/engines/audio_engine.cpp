@@ -18,6 +18,7 @@
 #include "processing/engines/audio_engine.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "deluge/model/settings/runtime_feature_settings.h"
 #include "dsp/reverb/reverb.hpp"
 #include "dsp/timestretch/time_stretcher.h"
 #include "extern.h"
@@ -30,6 +31,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/display/visualizer.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
@@ -612,6 +614,8 @@ void renderAudio(size_t numSamples) {
 	metronome.render(renderingBuffer);
 
 	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer);
+
+	deluge::hid::display::Visualizer::sampleAudioForDisplay(renderingBuffer, numSamples);
 
 	setMonitoringMode();
 

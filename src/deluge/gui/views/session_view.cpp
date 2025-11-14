@@ -46,6 +46,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/visualizer.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -1900,6 +1901,11 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		return;
 	}
 
+	// Check if visualizer should be displayed (same conditions as VU meter)
+	if (deluge::hid::display::Visualizer::potentiallyRenderVisualizer(canvas)) {
+		return;
+	}
+
 	UI* currentUI = getCurrentUI();
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		view.displayOutputName(getCurrentClip()->output, true, getCurrentClip());
@@ -1913,15 +1919,52 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		if (currentPlaybackMode == &session) {
 			if (session.launchEventAtSwungTickCount) {
 				intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
-				deluge::hid::display::OLED::clearMainImage();
-				deluge::hid::display::OLED::drawPermanentPopupLookingText(loopsRemainingText);
+
+				// Check if visualizer is enabled AND actively running
+				bool visualizer_active = deluge::hid::display::Visualizer::isActive(view.displayVUMeter);
+
+				if (visualizer_active) {
+					// Use popup for active visualizer users
+					display->popupText(loopsRemainingText, PopupType::GENERAL);
+				}
+				else {
+					// Direct rendering for non-active visualizer users (original behavior)
+					// Cancel any existing popup first
+					display->cancelPopup();
+					deluge::hid::display::OLED::clearMainImage();
+					deluge::hid::display::OLED::drawPermanentPopupLookingText(loopsRemainingText);
+				}
+			}
+			else {
+				// Check if visualizer is active - if so, cancel any lingering popup when launch event ends
+				if (deluge::hid::display::Visualizer::isActive(view.displayVUMeter)) {
+					// Cancel any lingering popup when the launch event countdown reaches zero
+					display->cancelPopup();
+				}
 			}
 		}
 
 		else { // Arrangement playback
 			if (playbackHandler.stopOutputRecordingAtLoopEnd) {
-				deluge::hid::display::OLED::clearMainImage();
-				deluge::hid::display::OLED::drawPermanentPopupLookingText("Resampling will end...");
+				// Check if visualizer is enabled AND actively running
+				if (deluge::hid::display::Visualizer::isActive(view.displayVUMeter)) {
+					// Use popup for active visualizer users
+					display->popupText("Resampling will end...", PopupType::GENERAL);
+				}
+				else {
+					// Direct rendering for non-active visualizer users (original behavior)
+					// Cancel any existing popup first
+					display->cancelPopup();
+					deluge::hid::display::OLED::clearMainImage();
+					deluge::hid::display::OLED::drawPermanentPopupLookingText("Resampling will end...");
+				}
+			}
+			else {
+				// Check if visualizer is active - if so, cancel any lingering popup when resampling ends
+				if (deluge::hid::display::Visualizer::isActive(view.displayVUMeter)) {
+					// Cancel any lingering popup when the resampling notification ends
+					display->cancelPopup();
+				}
 			}
 		}
 	}
@@ -2203,6 +2246,9 @@ void SessionView::graphicsRoutine() {
 		PadLEDs::sendOutSidebarColours();
 	}
 
+	// Request OLED refresh for visualizer if active (ensures continuous updates)
+	deluge::hid::display::Visualizer::requestVisualizerUpdateIfNeeded();
+
 	if (display->haveOLED()) {
 		displayPotentialTempoChange(this);
 	}
@@ -2390,12 +2436,32 @@ int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 				popupMsg.appendInt(quarterNotesRemaining);
 			}
 			if (display->haveOLED() && !ephemeral) {
-				deluge::hid::display::OLED::clearMainImage();
-				deluge::hid::display::OLED::drawPermanentPopupLookingText(popupMsg.c_str());
-				deluge::hid::display::OLED::sendMainImage();
+				// Check if visualizer is enabled AND actively running
+				if (deluge::hid::display::Visualizer::isActive(view.displayVUMeter)) {
+					// Use popup for active visualizer users
+					display->popupText(popupMsg.c_str(), PopupType::GENERAL);
+				}
+				else {
+					// Direct rendering for non-active visualizer users (original behavior)
+					// Cancel any existing popup first
+					display->cancelPopup();
+					deluge::hid::display::OLED::clearMainImage();
+					deluge::hid::display::OLED::drawPermanentPopupLookingText(popupMsg.c_str());
+					deluge::hid::display::OLED::sendMainImage();
+				}
 			}
 			else {
 				display->displayPopup(popupMsg.c_str(), 1, true);
+			}
+		}
+		else {
+			// If no popup was shown (sixteenthNotesRemaining <= 0), but visualizer is active,
+			// cancel any lingering popup from previous calls
+			if (display->haveOLED() && !ephemeral) {
+				if (deluge::hid::display::Visualizer::isActive(view.displayVUMeter)) {
+					// Cancel any lingering popup when the countdown reaches zero
+					display->cancelPopup();
+				}
 			}
 		}
 	}
