@@ -102,6 +102,32 @@ static void SetupEmulatedDisplaySetting(RuntimeFeatureSetting& setting, deluge::
 	};
 }
 
+static void SetupVisualizerSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
+                                   std::string_view xmlName, RuntimeFeatureStateVisualizer def) {
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = static_cast<uint32_t>(def);
+
+	setting.options = {
+	    {
+	        .displayName = "Off",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerOff,
+	    },
+	    {
+	        .displayName = display->haveOLED() ? "Waveform" : "WAVE",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerWaveform,
+	    },
+	    {
+	        .displayName = display->haveOLED() ? "Line Spectrum" : "SPEC",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerLineSpectrum,
+	    },
+	    {
+	        .displayName = display->haveOLED() ? "MIDI Piano Roll" : "MIDI",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll,
+	    },
+	};
+}
+
 void RuntimeFeatureSettings::init() {
 	using enum deluge::l10n::String;
 	// Drum randomizer
@@ -195,6 +221,15 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrimFromStartOfAudioClip],
 	                  STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP, "trimFromStartOfAudioClip",
 	                  RuntimeFeatureStateToggle::On);
+
+	// Show Battery Level
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShowBatteryLevel],
+	                  STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "showBatteryLevel",
+	                  RuntimeFeatureStateToggle::On);
+
+	// Visualizer
+	SetupVisualizerSetting(settings[RuntimeFeatureSettingType::Visualizer], STRING_FOR_COMMUNITY_FEATURE_VISUALIZER,
+	                       "visualizer", RuntimeFeatureStateVisualizer::VisualizerOff);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
