@@ -38,6 +38,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/visualizer.h"
 #include "hid/encoder.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
@@ -100,8 +101,15 @@ void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas)
 		else {
 			stemExport.displayStemExportProgressOLED(StemExportType::TRACK);
 		}
+		return;
 	}
-	else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
+
+	// Check if visualizer should be displayed (same conditions as VU meter)
+	if (deluge::hid::display::Visualizer::potentiallyRenderVisualizer(canvas)) {
+		return;
+	}
+
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
 		Output* output = outputsOnScreen[yPressedEffective];
 		view.displayOutputName(output);
 	}
@@ -3069,7 +3077,7 @@ void ArrangerView::graphicsRoutine() {
 	if (currentUIMode == UI_MODE_NONE) {
 		int32_t modKnobMode = -1;
 		bool editingComp = false;
-		if (view.activeModControllableModelStack.modControllable) {
+		if (view.activeModControllableModelStack.modControllable != nullptr) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
 			if (modKnobModePointer) {
 				modKnobMode = *modKnobModePointer;
@@ -3090,6 +3098,9 @@ void ArrangerView::graphicsRoutine() {
 	if (view.potentiallyRenderVUMeter(PadLEDs::image)) {
 		PadLEDs::sendOutSidebarColours();
 	}
+
+	// Request OLED refresh for visualizer if active (ensures continuous updates)
+	deluge::hid::display::Visualizer::requestVisualizerUpdateIfNeeded();
 
 	if (display->haveOLED()) {
 		sessionView.displayPotentialTempoChange(this);
