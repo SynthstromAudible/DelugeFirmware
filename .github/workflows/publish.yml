@@ -40,12 +40,12 @@ jobs:
           ref: ${{ inputs.branch }}
       - name: Download Build Artifact
         if: inputs.run-id == null
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: ${{ inputs.tag }}_Release_build_bundle
       - name: Download Build Artifact
         if: inputs.run-id != null
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: ${{ inputs.tag }}_Release_build_bundle
           run-id: ${{inputs.run-id}}
