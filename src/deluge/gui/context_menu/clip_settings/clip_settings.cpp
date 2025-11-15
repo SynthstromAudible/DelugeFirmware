@@ -28,7 +28,7 @@
 
 namespace deluge::gui::context_menu::clip_settings {
 
-ClipSettingsMenu clipSettings{};
+PLACE_SDRAM_BSS ClipSettingsMenu clipSettings{};
 
 char const* ClipSettingsMenu::getTitle() {
 	static char const* title = "Clip Settings";

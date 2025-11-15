@@ -34,7 +34,7 @@ using namespace deluge;
 
 #define MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER "MIDI_DEVICES/DEFINITION"
 
-SaveMidiDeviceDefinitionUI saveMidiDeviceDefinitionUI{};
+PLACE_SDRAM_BSS SaveMidiDeviceDefinitionUI saveMidiDeviceDefinitionUI{};
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstack-usage="

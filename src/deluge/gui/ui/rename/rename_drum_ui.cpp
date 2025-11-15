@@ -27,7 +27,7 @@
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 
-RenameDrumUI renameDrumUI{"Drum Name"};
+PLACE_SDRAM_BSS RenameDrumUI renameDrumUI{"Drum Name"};
 
 String RenameDrumUI::getName() const {
 	return getDrum()->name;

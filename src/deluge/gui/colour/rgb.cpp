@@ -1,8 +1,9 @@
 #include "rgb.h"
 #include "util/functions.h"
 
+PLACE_SDRAM_BSS RGB rgb{};
+
 RGB RGB::fromHue(int32_t hue) {
-	RGB rgb{};
 	hue = (uint16_t)(hue + 1920) % 192;
 
 	for (int32_t c = 0; c < rgb.size(); c++) {
@@ -34,7 +35,6 @@ RGB RGB::fromHue(int32_t hue) {
 constexpr int32_t kMaxPastel = 230;
 
 RGB RGB::fromHuePastel(int32_t hue) {
-	RGB rgb{};
 	hue = (uint16_t)(hue + 1920) % 192;
 
 	for (int32_t c = 0; c < rgb.size(); c++) {

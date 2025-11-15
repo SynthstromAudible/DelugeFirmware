@@ -39,7 +39,7 @@ enum class AudioInputSelector::Value {
 };
 constexpr size_t kNumValues = 8;
 
-AudioInputSelector audioInputSelector{};
+PLACE_SDRAM_BSS AudioInputSelector audioInputSelector{};
 
 char const* AudioInputSelector::getTitle() {
 	using enum l10n::String;

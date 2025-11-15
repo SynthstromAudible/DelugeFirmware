@@ -77,7 +77,7 @@ namespace params = deluge::modulation::params;
 using namespace deluge;
 using namespace gui;
 
-SampleBrowser sampleBrowser{};
+PLACE_SDRAM_BSS SampleBrowser sampleBrowser{};
 
 char const* allowedFileExtensionsAudio[] = {"WAV", "AIFF", "AIF", NULL};
 

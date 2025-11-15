@@ -24,7 +24,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "util/misc.h"
 
-WaveformBasicNavigator waveformBasicNavigator{};
+PLACE_SDRAM_BSS WaveformBasicNavigator waveformBasicNavigator{};
 
 WaveformBasicNavigator::WaveformBasicNavigator() {
 }

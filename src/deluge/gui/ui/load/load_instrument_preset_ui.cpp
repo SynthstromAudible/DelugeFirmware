@@ -48,7 +48,7 @@ using namespace deluge;
 namespace encoders = deluge::hid::encoders;
 using encoders::EncoderName;
 
-LoadInstrumentPresetUI loadInstrumentPresetUI{};
+PLACE_SDRAM_BSS LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
 bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	if (showingAuditionPads() && !qwertyAlwaysVisible) {

@@ -22,7 +22,7 @@
 
 namespace deluge::gui::menu_item {
 
-DxBrowseMenu dxBrowseMenu{l10n::String::STRING_FOR_DX_BROWSER};
+PLACE_SDRAM_BSS DxBrowseMenu dxBrowseMenu{l10n::String::STRING_FOR_DX_BROWSER};
 
 void DxBrowseMenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
