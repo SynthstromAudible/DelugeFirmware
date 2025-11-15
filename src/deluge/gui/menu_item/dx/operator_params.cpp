@@ -27,8 +27,8 @@
 
 namespace deluge::gui::menu_item {
 
-PLACE_SDRAM_BSS DxOperatorParams dxOperatorParams{l10n::String::STRING_FOR_DX_GLOBAL_PARAMS,
-                                                  l10n::String::STRING_FOR_DX_OPERATOR_PARAMS};
+DxOperatorParams dxOperatorParams{l10n::String::STRING_FOR_DX_GLOBAL_PARAMS,
+                                  l10n::String::STRING_FOR_DX_OPERATOR_PARAMS};
 
 void DxOperatorParams::beginSession(MenuItem* navigatedBackwardFrom) {
 	readValueAgain();

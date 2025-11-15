@@ -27,7 +27,7 @@
 #include "util/functions.h"
 
 namespace deluge::gui::context_menu::sample_browser {
-PLACE_SDRAM_BSS Synth synth{};
+Synth synth{};
 
 char const* Synth::getTitle() {
 	using enum l10n::String;

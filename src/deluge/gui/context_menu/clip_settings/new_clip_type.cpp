@@ -29,7 +29,7 @@ namespace deluge::gui::context_menu::clip_settings {
 
 constexpr size_t kNumValues = 5;
 
-PLACE_SDRAM_BSS NewClipType newClipType{};
+NewClipType newClipType{};
 
 char const* NewClipType::getTitle() {
 	static char const* title = "New Clip Type";

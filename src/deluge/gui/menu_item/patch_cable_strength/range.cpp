@@ -20,7 +20,7 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::patch_cable_strength {
-PLACE_SDRAM_BSS Range rangeMenu{};
+Range rangeMenu{};
 
 ParamDescriptor Range::getLearningThing() {
 	ParamDescriptor paramDescriptor;

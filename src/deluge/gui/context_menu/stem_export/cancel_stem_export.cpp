@@ -27,7 +27,7 @@ extern "C" {
 
 namespace deluge::gui::context_menu {
 
-PLACE_SDRAM_BSS CancelStemExport cancelStemExport{};
+CancelStemExport cancelStemExport{};
 
 char const* CancelStemExport::getTitle() {
 	using enum l10n::String;

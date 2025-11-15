@@ -21,7 +21,7 @@
 #include "modulation/params/param_descriptor.h"
 
 namespace deluge::gui::menu_item::source_selection {
-PLACE_SDRAM_BSS Regular regularMenu{};
+Regular regularMenu{};
 
 ParamDescriptor Regular::getDestinationDescriptor() {
 	ParamDescriptor descriptor{};

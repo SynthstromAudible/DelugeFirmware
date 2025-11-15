@@ -36,7 +36,7 @@ static constexpr const char* PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER = "PATTERNS/RHY
 static constexpr const char* PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/DRUM";
 static constexpr const char* PATTERN_MELODIC_DEFAULT_FOLDER = "PATTERNS/MELODIC";
 
-PLACE_SDRAM_BSS LoadPatternUI loadPatternUI{};
+LoadPatternUI loadPatternUI{};
 
 bool LoadPatternUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;

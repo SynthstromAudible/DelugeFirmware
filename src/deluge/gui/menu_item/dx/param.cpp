@@ -31,7 +31,7 @@
 
 namespace deluge::gui::menu_item {
 
-PLACE_SDRAM_BSS DxParam dxParam{l10n::String::STRING_FOR_DX_PARAM};
+DxParam dxParam{l10n::String::STRING_FOR_DX_PARAM};
 
 void DxParam::beginSession(MenuItem* navigatedBackwardFrom) {
 	readValueAgain();

@@ -29,7 +29,7 @@
 
 namespace deluge::gui::menu_item {
 
-PLACE_SDRAM_BSS DxGlobalParams dxGlobalParams{l10n::String::STRING_FOR_DX_GLOBAL_PARAMS};
+DxGlobalParams dxGlobalParams{l10n::String::STRING_FOR_DX_GLOBAL_PARAMS};
 
 void DxGlobalParams::beginSession(MenuItem* navigatedBackwardFrom) {
 	readValueAgain();

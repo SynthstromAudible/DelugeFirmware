@@ -25,7 +25,7 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::patch_cable_strength {
-PLACE_SDRAM_BSS Regular regularMenu{};
+Regular regularMenu{};
 
 ParamDescriptor Regular::getLearningThing() {
 	ParamDescriptor paramDescriptor;

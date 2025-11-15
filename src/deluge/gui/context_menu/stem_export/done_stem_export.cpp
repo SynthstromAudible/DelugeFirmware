@@ -26,7 +26,7 @@ extern "C" {
 
 namespace deluge::gui::context_menu {
 
-PLACE_SDRAM_BSS DoneStemExport doneStemExport{};
+DoneStemExport doneStemExport{};
 
 char const* DoneStemExport::getTitle() {
 	using enum l10n::String;

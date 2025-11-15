@@ -20,7 +20,7 @@
 
 namespace deluge::gui::menu_item::mpe {
 
-PLACE_SDRAM_BSS ZoneSelector zoneSelectorMenu{};
+ZoneSelector zoneSelectorMenu{};
 
 void ZoneSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	if (!navigatedBackwardFrom) {

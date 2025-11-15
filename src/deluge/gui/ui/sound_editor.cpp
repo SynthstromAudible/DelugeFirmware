@@ -60,7 +60,7 @@ using namespace deluge::gui::menu_item;
 #define comingSoonMenu (MenuItem*)0xFFFFFFFF
 
 // 255 means none. 254 means soon
-PLACE_SDRAM_DATA PatchSource modSourceShortcuts[2][8] = {
+PatchSource modSourceShortcuts[2][8] = {
     {
         PatchSource::NOT_AVAILABLE,
         PatchSource::NOT_AVAILABLE,
@@ -83,7 +83,7 @@ PLACE_SDRAM_DATA PatchSource modSourceShortcuts[2][8] = {
     },
 };
 
-PLACE_SDRAM_DATA PatchSource modSourceShortcutsSecondLayer[2][8] = {
+PatchSource modSourceShortcutsSecondLayer[2][8] = {
     {
         PatchSource::NOT_AVAILABLE,
         PatchSource::NOT_AVAILABLE,
@@ -140,7 +140,7 @@ PLACE_SDRAM_TEXT void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 	}
 }
 
-PLACE_SDRAM_BSS SoundEditor soundEditor{};
+SoundEditor soundEditor{};
 
 SoundEditor::SoundEditor() {
 	currentParamShortcutX = kNoSelection;

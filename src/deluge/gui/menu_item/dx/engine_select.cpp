@@ -28,7 +28,7 @@
 
 namespace deluge::gui::menu_item {
 
-PLACE_SDRAM_BSS DxEngineSelect dxEngineSelect{l10n::String::STRING_FOR_DX_ENGINE_SELECT};
+DxEngineSelect dxEngineSelect{l10n::String::STRING_FOR_DX_ENGINE_SELECT};
 
 void DxEngineSelect::beginSession(MenuItem* navigatedBackwardFrom) {
 	readValueAgain();

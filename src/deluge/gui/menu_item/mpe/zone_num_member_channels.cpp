@@ -24,7 +24,7 @@
 
 namespace deluge::gui::menu_item::mpe {
 
-PLACE_SDRAM_BSS ZoneNumMemberChannels zoneNumMemberChannelsMenu{};
+ZoneNumMemberChannels zoneNumMemberChannelsMenu{};
 
 MIDIPort* ZoneNumMemberChannels::getPort() const {
 	return &soundEditor.currentMIDICable->ports[directionSelectorMenu.whichDirection];

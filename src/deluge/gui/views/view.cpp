@@ -92,7 +92,7 @@ namespace encoders = deluge::hid::encoders;
 using namespace deluge;
 using namespace gui;
 
-PLACE_SDRAM_BSS View view{};
+View view{};
 
 extern GlobalMIDICommand pendingGlobalMIDICommand;
 

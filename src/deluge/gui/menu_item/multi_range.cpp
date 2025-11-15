@@ -33,7 +33,7 @@
 
 namespace deluge::gui::menu_item {
 
-PLACE_SDRAM_BSS MultiRange multiRangeMenu{};
+MultiRange multiRangeMenu{};
 
 void MultiRange::beginSession(MenuItem* navigatedBackwardFrom) {
 

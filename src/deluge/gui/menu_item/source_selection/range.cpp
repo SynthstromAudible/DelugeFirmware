@@ -21,7 +21,7 @@
 #include "regular.h"
 
 namespace deluge::gui::menu_item::source_selection {
-PLACE_SDRAM_BSS Range rangeMenu{};
+Range rangeMenu{};
 
 ParamDescriptor Range::getDestinationDescriptor() {
 	ParamDescriptor descriptor{};

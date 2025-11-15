@@ -44,7 +44,7 @@
 #include "util/d_string.h"
 #include <string.h>
 
-PLACE_SDRAM_BSS AudioRecorder audioRecorder{};
+AudioRecorder audioRecorder{};
 
 extern "C" void routineForSD(void);
 
