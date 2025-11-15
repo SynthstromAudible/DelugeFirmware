@@ -150,6 +150,11 @@ bool MIDICable::wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) 
 
 void MIDICable::sendRPN(int32_t channel, int32_t rpnMSB, int32_t rpnLSB, int32_t valueMSB) {
 
+	// Deselect any outstanding NRPN selection so the Data Entry message below can't
+	// accidentally tweak an NRPN parameter on devices that don't understand RPN/MPE.
+	sendCC(channel, 0x63, 0x7F); // NRPN MSB
+	sendCC(channel, 0x62, 0x7F); // NRPN LSB
+
 	// Set the RPN number
 	sendCC(channel, 0x64, rpnLSB);
 	sendCC(channel, 0x65, rpnMSB);
@@ -160,6 +165,10 @@ void MIDICable::sendRPN(int32_t channel, int32_t rpnMSB, int32_t rpnLSB, int32_t
 	// Signal end of transmission by resetting RPN number to 0x7F (127)
 	sendCC(channel, 0x64, 0x7F);
 	sendCC(channel, 0x65, 0x7F);
+
+	// Leave NRPN cleared as well to avoid carrying over any future Data Entry writes.
+	sendCC(channel, 0x63, 0x7F);
+	sendCC(channel, 0x62, 0x7F);
 }
 
 void MIDICable::sendAllMCMs() {
