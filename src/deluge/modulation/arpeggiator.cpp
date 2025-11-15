@@ -224,6 +224,7 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, int32_t noteCode
 		instruction->outputMIDIChannelOff[0] = active_note.outputMemberChannel[0];
 		active_note.noteCodeOnPostArp[0] = ARP_NOTE_NONE;
 		active_note.outputMemberChannel[0] = MIDI_CHANNEL_NONE;
+		active_note.noteStatus[0] = ArpNoteStatus::OFF;
 		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			// If no arp, rest of chord notes are for sure disabled
 			instruction->noteCodeOffPostArp[n] = ARP_NOTE_NONE;
@@ -472,7 +473,7 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 		playedFirstArpeggiatedNoteYet = false;
 	}
 }
-bool Arpeggiator::checkPendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
+bool Arpeggiator::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
 	if ((settings != nullptr) && settings->mode == ArpMode::OFF) {
 		// if off make sure there aren't any notes waiting to start
 		if (anyPending) {
@@ -494,7 +495,7 @@ bool Arpeggiator::checkPendingNotes(ArpeggiatorSettings* settings, ArpReturnInst
 	}
 	else {
 		// if on then we just want to check if the active arp note is pending
-		return ArpeggiatorBase::checkPendingNotes(settings, instruction);
+		return ArpeggiatorBase::handlePendingNotes(settings, instruction);
 	}
 
 	return false;
@@ -1431,7 +1432,7 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 	return active_note.velocity;
 }
 
-bool ArpeggiatorBase::checkPendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
+bool ArpeggiatorBase::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
 	if (active_note.isPending()) {
 		ARP_PRINTLN("found a pending drum note");
 		instruction->arpNoteOn = &active_note;
@@ -1444,7 +1445,7 @@ bool ArpeggiatorBase::checkPendingNotes(ArpeggiatorSettings* settings, ArpReturn
 // May switch notes on and/or off.
 void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, int32_t numSamples,
                              uint32_t gateThreshold, uint32_t phaseIncrement) {
-	if (checkPendingNotes(settings, instruction)) {
+	if (handlePendingNotes(settings, instruction)) {
 		return;
 	}
 	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
@@ -1517,7 +1518,7 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 	if (clipCurrentPos == 0) {
 		notesPlayedFromLockedRandomizer = 0;
 	}
-	if (checkPendingNotes(settings, instruction)) {
+	if (handlePendingNotes(settings, instruction)) {
 		ARP_PRINTLN("pending during tick forward");
 		return 0;
 	}

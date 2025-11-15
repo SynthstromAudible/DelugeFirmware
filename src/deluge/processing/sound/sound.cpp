@@ -2356,7 +2356,7 @@ void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundF
 			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
 			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 		}
-		if (getArp()->checkPendingNotes(arpSettings, &instruction))
+		if (getArp()->handlePendingNotes(arpSettings, &instruction))
 			instruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PENDING;
 	}
 }
@@ -2451,7 +2451,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::Stere
 		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
 	}
 	else {
-		getArp()->checkPendingNotes(arpSettings, &instruction);
+		getArp()->handlePendingNotes(arpSettings, &instruction);
 	}
 	bool atLeastOneOff = false;
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {

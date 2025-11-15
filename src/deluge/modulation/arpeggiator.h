@@ -223,7 +223,9 @@ public:
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
 	virtual void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) = 0;
-	virtual bool checkPendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction);
+	/// Looks for pending notes and sets arp return to the pending note if found
+	/// Returns true if it sets the arp return note
+	virtual bool handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction);
 	void render(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, int32_t numSamples,
 	            uint32_t gateThreshold, uint32_t phaseIncrement);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
@@ -356,7 +358,7 @@ public:
 	void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
 	            int32_t fromMIDIChannel, int16_t const* mpeValues) override;
 	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) override;
-	bool checkPendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) override;
+	bool handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) override;
 	bool hasAnyInputNotesActive() override;
 	// This array tracks the notes ordered by noteCode
 	OrderedResizeableArray notes;
