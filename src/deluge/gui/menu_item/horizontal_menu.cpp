@@ -37,8 +37,9 @@ namespace deluge::gui::menu_item {
 
 using namespace hid::display;
 
-MenuPermission HorizontalMenu::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-                                                             ::MultiRange** currentRange) {
+PLACE_SDRAM_TEXT MenuPermission HorizontalMenu::checkPermissionToBeginSession(ModControllableAudio* modControllable,
+                                                                              int32_t whichThing,
+                                                                              ::MultiRange** currentRange) {
 	for (const auto it : items) {
 		it->parent = this;
 		// Important initialization stuff may happen in this check
@@ -55,7 +56,7 @@ MenuPermission HorizontalMenu::checkPermissionToBeginSession(ModControllableAudi
 	return Submenu::checkPermissionToBeginSession(modControllable, whichThing, currentRange);
 }
 
-void HorizontalMenu::beginSession(MenuItem* navigatedBackwardFrom) {
+PLACE_SDRAM_TEXT void HorizontalMenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	rendering_options_.clear();
 
 	for (const auto it : items) {
@@ -70,7 +71,7 @@ void HorizontalMenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 
-ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	if (!on) {
@@ -109,7 +110,7 @@ ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRou
 	return Submenu::buttonAction(b, on, inCardRoutine);
 }
 
-void HorizontalMenu::renderOLED() {
+PLACE_SDRAM_TEXT void HorizontalMenu::renderOLED() {
 	if (renderingStyle() != HORIZONTAL) {
 		return Submenu::renderOLED();
 	}
@@ -137,7 +138,7 @@ void HorizontalMenu::renderOLED() {
 	OLED::markChanged();
 }
 
-void HorizontalMenu::renderPageCounters(const Paging& paging) {
+PLACE_SDRAM_TEXT void HorizontalMenu::renderPageCounters(const Paging& paging) {
 	if (paging.totalPages <= 1) {
 		return;
 	}
@@ -162,7 +163,7 @@ void HorizontalMenu::renderPageCounters(const Paging& paging) {
 	image.drawString(currentPageNum.c_str(), x, y, kTextSpacingX, kTextSpacingY);
 }
 
-void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) {
+PLACE_SDRAM_TEXT void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) {
 	static auto containers_map = [&] {
 		std::map<MenuItem*, HorizontalMenuContainer*> result;
 		for (auto* container : horizontalMenuContainers) {
@@ -272,7 +273,7 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 	}
 }
 
-void HorizontalMenu::selectEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT void HorizontalMenu::selectEncoderAction(int32_t offset) {
 	if (renderingStyle() != HORIZONTAL) {
 		return Submenu::selectEncoderAction(offset);
 	}
@@ -292,7 +293,7 @@ void HorizontalMenu::selectEncoderAction(int32_t offset) {
 	return soundEditor.markInstrumentAsEdited();
 }
 
-void HorizontalMenu::displayNotification(MenuItem* menuItem) {
+PLACE_SDRAM_TEXT void HorizontalMenu::displayNotification(MenuItem* menuItem) {
 	if (!rendering_options_[menuItem].show_notification) {
 		return;
 	}
@@ -300,7 +301,7 @@ void HorizontalMenu::displayNotification(MenuItem* menuItem) {
 	display->displayNotification(menuItem->getName(), rendering_options_[menuItem].notification_value);
 }
 
-void HorizontalMenu::switchVisiblePage(int32_t direction) {
+PLACE_SDRAM_TEXT void HorizontalMenu::switchVisiblePage(int32_t direction) {
 	if (paging.totalPages <= 1) {
 		return;
 	}
@@ -322,7 +323,7 @@ void HorizontalMenu::switchVisiblePage(int32_t direction) {
 	}
 }
 
-void HorizontalMenu::switchHorizontalMenu(int32_t direction, std::span<HorizontalMenu* const> chain) {
+PLACE_SDRAM_TEXT void HorizontalMenu::switchHorizontalMenu(int32_t direction, std::span<HorizontalMenu* const> chain) {
 	const auto it = std::ranges::find(chain, this);
 	const int32_t current_menu_pos = std::distance(chain.begin(), it);
 	int32_t target_menu_pos = current_menu_pos + direction;
@@ -352,8 +353,9 @@ void HorizontalMenu::switchHorizontalMenu(int32_t direction, std::span<Horizonta
 	}
 }
 
-void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visible_page_items, const MenuItem* previous,
-                                                 int32_t pressed_button_position) {
+PLACE_SDRAM_TEXT void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visible_page_items,
+                                                                  const MenuItem* previous,
+                                                                  int32_t pressed_button_position) {
 	// Find the item you're looking for by iterating through all items on the current page
 	int32_t current_column = 0;
 
@@ -385,7 +387,7 @@ void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visible_pa
 	}
 }
 
-void HorizontalMenu::selectMenuItem(int32_t page_number, int32_t item_pos) {
+PLACE_SDRAM_TEXT void HorizontalMenu::selectMenuItem(int32_t page_number, int32_t item_pos) {
 	lastSelectedItemPosition = kNoSelection;
 
 	int32_t current_page_span = 0;
@@ -418,7 +420,8 @@ void HorizontalMenu::selectMenuItem(int32_t page_number, int32_t item_pos) {
 	}
 }
 
-HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items, const MenuItem* currentItem) {
+PLACE_SDRAM_TEXT HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items,
+                                                                       const MenuItem* currentItem) {
 	static std::vector<MenuItem*> visible_page_items;
 	visible_page_items.clear();
 	visible_page_items.reserve(4);
@@ -487,7 +490,7 @@ HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items
 }
 
 /// When updating the selected horizontal menu item, you need to refresh the lit instrument LED's
-void HorizontalMenu::updateSelectedMenuItemLED(int32_t itemNumber) {
+PLACE_SDRAM_TEXT void HorizontalMenu::updateSelectedMenuItemLED(int32_t itemNumber) {
 	const auto& page_items = paging.visiblePageItems;
 	const auto* selected_item = page_items[itemNumber];
 
@@ -517,7 +520,7 @@ void HorizontalMenu::updateSelectedMenuItemLED(int32_t itemNumber) {
 
 /// when exiting a horizontal menu, turn off the LED's and reset selected horizontal menu item position
 /// so that next time you open a horizontal menu, it refreshes the LED for the selected horizontal menu item
-void HorizontalMenu::endSession() {
+PLACE_SDRAM_TEXT void HorizontalMenu::endSession() {
 	Submenu::endSession();
 
 	lastSelectedItemPosition = kNoSelection;
@@ -533,15 +536,15 @@ void HorizontalMenu::endSession() {
 	}
 }
 
-Submenu::RenderingStyle HorizontalMenu::renderingStyle() const {
+PLACE_SDRAM_TEXT Submenu::RenderingStyle HorizontalMenu::renderingStyle() const {
 	if (display->haveOLED() && runtimeFeatureSettings.isOn(HorizontalMenus)) {
 		return HORIZONTAL;
 	}
 	return VERTICAL;
 }
 
-void HorizontalMenu::renderColumnLabel(MenuItem* menu_item, bool is_selected, int32_t label_y,
-                                       const HorizontalMenuSlotPosition& slot) {
+PLACE_SDRAM_TEXT void HorizontalMenu::renderColumnLabel(MenuItem* menu_item, bool is_selected, int32_t label_y,
+                                                        const HorizontalMenuSlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 	auto label = rendering_options_[menu_item].label;
 
@@ -564,7 +567,7 @@ void HorizontalMenu::renderColumnLabel(MenuItem* menu_item, bool is_selected, in
 	}
 }
 
-double HorizontalMenu::calcNextKnobSpeed(int8_t offset) {
+PLACE_SDRAM_TEXT double HorizontalMenu::calcNextKnobSpeed(int8_t offset) {
 	// - inertia and acceleration control how fast the knob speeds up in horizontal menus
 	// - speedScale controls how we go from "raw speed" to speed used as offset multiplier
 	// - min and max speed clamp the max effective speed
@@ -597,7 +600,7 @@ double HorizontalMenu::calcNextKnobSpeed(int8_t offset) {
 	return std::clamp((currentKnobSpeed * speed_scale), min_speed, max_speed);
 }
 
-void HorizontalMenu::handleItemAction(MenuItem* menuItem) {
+PLACE_SDRAM_TEXT void HorizontalMenu::handleItemAction(MenuItem* menuItem) {
 	if (!menuItem->isSubmenu() && !rendering_options_[menuItem].allow_to_begin_session) {
 		menuItem->selectButtonPress();
 		return displayNotification(menuItem);
@@ -615,11 +618,11 @@ void HorizontalMenu::handleItemAction(MenuItem* menuItem) {
 	soundEditor.enterSubmenu(menuItem);
 }
 
-bool HorizontalMenu::hasItem(const MenuItem* item) {
+PLACE_SDRAM_TEXT bool HorizontalMenu::hasItem(const MenuItem* item) {
 	return std::ranges::contains(items, item);
 }
 
-void HorizontalMenu::setCurrentItem(const MenuItem* item) {
+PLACE_SDRAM_TEXT void HorizontalMenu::setCurrentItem(const MenuItem* item) {
 	current_item_ = std::ranges::find(items, item);
 	lastSelectedItemPosition = kNoSelection;
 }

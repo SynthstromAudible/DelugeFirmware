@@ -23,7 +23,8 @@ using namespace deluge::gui::ui::keyboard::layout;
 
 namespace deluge::gui::ui::keyboard::controls {
 
-void ModColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void ModColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column,
+                                              KeyboardLayout* layout) {
 	uint8_t brightness = 1;
 	uint8_t otherChannels = 0;
 	uint32_t modVal = modMin;
@@ -38,7 +39,7 @@ void ModColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t
 	}
 }
 
-bool ModColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
+PLACE_SDRAM_TEXT bool ModColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	if (pad == 7) {
 		modMax += offset << kVelModShift;
 		modMax = std::clamp(modMax, modMin, (uint32_t)127 << kVelModShift);
@@ -56,16 +57,16 @@ bool ModColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	return false;
 };
 
-void ModColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                    KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void ModColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                                     KeyboardLayout* layout) {
 	// Restore previously set Modwheel
 	modDisplay = storedMod;
 	getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, storedMod,
 	                                                         modelStackWithTimelineCounter);
 };
 
-void ModColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
-                          KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void ModColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
+                                           KeyboardLayout* layout) {
 
 	if (pad.active) {
 		modDisplay = modMin + pad.y * modStep;

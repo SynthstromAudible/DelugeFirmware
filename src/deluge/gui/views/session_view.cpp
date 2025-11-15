@@ -99,7 +99,7 @@ SessionView::SessionView() {
 	createClip = false;
 }
 
-bool SessionView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+PLACE_SDRAM_TEXT bool SessionView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 		switch (currentSong->sessionLayout) {
 		case SessionLayoutType::SessionLayoutTypeRows: {
@@ -133,7 +133,7 @@ bool SessionView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	}
 }
 
-bool SessionView::opened() {
+PLACE_SDRAM_TEXT bool SessionView::opened() {
 	if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
 		PadLEDs::skipGreyoutFade();
 	}
@@ -146,7 +146,7 @@ bool SessionView::opened() {
 	return true;
 }
 
-void SessionView::focusRegained() {
+PLACE_SDRAM_TEXT void SessionView::focusRegained() {
 	viewingRecordArmingActive = false;
 	horizontalEncoderPressed = false;
 	selectLayout(0); // Make sure we get a valid layout from the loaded file
@@ -192,7 +192,7 @@ void SessionView::focusRegained() {
 	}
 }
 
-ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	// when stem export process has started,
@@ -677,19 +677,19 @@ notDealtWith:
 	return ActionResult::DEALT_WITH;
 }
 
-void SessionView::goToArrangementEditor() {
+PLACE_SDRAM_TEXT void SessionView::goToArrangementEditor() {
 	currentSong->xZoomForReturnToSongView = currentSong->xZoom[NAVIGATION_CLIP];
 	currentSong->xScrollForReturnToSongView = currentSong->xScroll[NAVIGATION_CLIP];
 	changeRootUI(&arrangerView);
 }
 
-void SessionView::beginEditingSectionRepeatsNum() {
+PLACE_SDRAM_TEXT void SessionView::beginEditingSectionRepeatsNum() {
 	performActionOnSectionPadRelease = false;
 	drawSectionRepeatNumber();
 	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 }
 
-ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
+PLACE_SDRAM_TEXT ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	// don't interact with sidebar if VU Meter is displayed
 	// and you're in the volume/pan mod knob mode (0)
 	if (xDisplay >= kDisplayWidth && view.displayVUMeter && (view.getModKnobMode() == 0)) {
@@ -1074,7 +1074,7 @@ justEndClipPress:
 	return ActionResult::DEALT_WITH;
 }
 
-void SessionView::clipPressEnded() {
+PLACE_SDRAM_TEXT void SessionView::clipPressEnded() {
 	// End stuttering since this can also end selection
 	if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && isUIModeActive(UI_MODE_STUTTERING)) {
 		((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
@@ -1118,7 +1118,7 @@ void SessionView::clipPressEnded() {
 	}
 }
 
-void SessionView::sectionPadAction(uint8_t y, bool on) {
+PLACE_SDRAM_TEXT void SessionView::sectionPadAction(uint8_t y, bool on) {
 
 	Clip* clip = getClipOnScreen(y);
 
@@ -1205,7 +1205,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 	}
 }
 
-ActionResult SessionView::timerCallback() {
+PLACE_SDRAM_TEXT ActionResult SessionView::timerCallback() {
 	switch (currentUIMode) {
 
 	case UI_MODE_HOLDING_SECTION_PAD:
@@ -1234,7 +1234,7 @@ ActionResult SessionView::timerCallback() {
 	return ActionResult::DEALT_WITH;
 }
 
-void SessionView::drawSectionRepeatNumber() {
+PLACE_SDRAM_TEXT void SessionView::drawSectionRepeatNumber() {
 	int32_t number = currentSong->sections[sectionPressed].numRepetitions;
 	char const* outputText;
 	if (display->haveOLED()) {
@@ -1279,7 +1279,7 @@ void SessionView::drawSectionRepeatNumber() {
 	}
 }
 
-void SessionView::commandChangeSectionRepeats(int8_t offset) {
+PLACE_SDRAM_TEXT void SessionView::commandChangeSectionRepeats(int8_t offset) {
 	if (performActionOnSectionPadRelease) {
 		beginEditingSectionRepeatsNum();
 	}
@@ -1296,7 +1296,7 @@ void SessionView::commandChangeSectionRepeats(int8_t offset) {
 	}
 }
 
-void SessionView::commandChangeClipPreset(int8_t offset) {
+PLACE_SDRAM_TEXT void SessionView::commandChangeClipPreset(int8_t offset) {
 	performActionOnPadRelease = false;
 
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
@@ -1339,7 +1339,7 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 	}
 }
 
-void SessionView::commandChangeCurrentSectionRepeats(int8_t offset) {
+PLACE_SDRAM_TEXT void SessionView::commandChangeCurrentSectionRepeats(int8_t offset) {
 	if (session.hasPlaybackActive()) {
 		if (session.launchEventAtSwungTickCount) {
 			editNumRepeatsTilLaunch(offset);
@@ -1350,11 +1350,11 @@ void SessionView::commandChangeCurrentSectionRepeats(int8_t offset) {
 	}
 }
 
-void SessionView::commandChangeLayout(int8_t offset) {
+PLACE_SDRAM_TEXT void SessionView::commandChangeLayout(int8_t offset) {
 	return selectLayout(offset);
 }
 
-void SessionView::selectEncoderAction(int8_t offset) {
+PLACE_SDRAM_TEXT void SessionView::selectEncoderAction(int8_t offset) {
 	switch (currentUIMode) {
 	case UI_MODE_HOLDING_SECTION_PAD:
 		return commandChangeSectionRepeats(offset);
@@ -1374,7 +1374,7 @@ void SessionView::selectEncoderAction(int8_t offset) {
 	}
 }
 
-void SessionView::editNumRepeatsTilLaunch(int32_t offset) {
+PLACE_SDRAM_TEXT void SessionView::editNumRepeatsTilLaunch(int32_t offset) {
 	session.numRepeatsTilLaunch += offset;
 	if (session.numRepeatsTilLaunch < 1) {
 		session.numRepeatsTilLaunch = 1;
@@ -1392,7 +1392,7 @@ void SessionView::editNumRepeatsTilLaunch(int32_t offset) {
 	}
 }
 
-ActionResult SessionView::horizontalEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT ActionResult SessionView::horizontalEncoderAction(int32_t offset) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return gridHandleScroll(offset, 0);
 	}
@@ -1411,7 +1411,7 @@ ActionResult SessionView::horizontalEncoderAction(int32_t offset) {
 	return ClipNavigationTimelineView::horizontalEncoderAction(offset);
 }
 
-ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
 	if (currentUIMode == UI_MODE_NONE && Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		currentSong->commandTranspose(offset);
@@ -1454,7 +1454,7 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
+PLACE_SDRAM_TEXT ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 
 	if (direction == 1) {
 		if (currentSong->songViewYScroll >= currentSong->sessionClips.getNumElements() - 1) {
@@ -1511,8 +1511,8 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 	return ActionResult::DEALT_WITH;
 }
 
-bool SessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT bool SessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
 	}
@@ -1535,7 +1535,7 @@ bool SessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + 
 	return true;
 }
 
-void SessionView::drawStatusSquare(uint8_t yDisplay, RGB thisImage[]) {
+PLACE_SDRAM_TEXT void SessionView::drawStatusSquare(uint8_t yDisplay, RGB thisImage[]) {
 	RGB& thisColour = thisImage[kDisplayWidth];
 
 	Clip* clip = getClipOnScreen(yDisplay);
@@ -1549,7 +1549,7 @@ void SessionView::drawStatusSquare(uint8_t yDisplay, RGB thisImage[]) {
 	}
 }
 
-void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
+PLACE_SDRAM_TEXT void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 	RGB& thisColour = thisImage[kDisplayWidth + 1];
 
 	Clip* clip = getClipOnScreen(yDisplay);
@@ -1748,7 +1748,7 @@ Clip* SessionView::createNewInstrumentClip(OutputType outputType, int32_t yDispl
 	return newClip;
 }
 
-bool SessionView::insertAndResyncNewClip(Clip* newClip, int32_t yDisplay) {
+PLACE_SDRAM_TEXT bool SessionView::insertAndResyncNewClip(Clip* newClip, int32_t yDisplay) {
 	// insert clip at index
 	int32_t index = yDisplay + currentSong->songViewYScroll;
 	if (index <= 0) {
@@ -1775,14 +1775,15 @@ bool SessionView::insertAndResyncNewClip(Clip* newClip, int32_t yDisplay) {
 	return true;
 }
 
-void SessionView::resyncNewClip(Clip* newClip, ModelStackWithTimelineCounter* modelStackWithTimelineCounter) {
+PLACE_SDRAM_TEXT void SessionView::resyncNewClip(Clip* newClip,
+                                                 ModelStackWithTimelineCounter* modelStackWithTimelineCounter) {
 	// Figure out the play pos for the new Clip if we're currently playing
 	if (session.hasPlaybackActive() && playbackHandler.isEitherClockActive() && currentSong->isClipActive(newClip)) {
 		session.reSyncClip(modelStackWithTimelineCounter, true);
 	}
 }
 
-void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
+PLACE_SDRAM_TEXT void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
 
 	if (!clip || clip->type != ClipType::INSTRUMENT) {
@@ -1818,7 +1819,7 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 	requestRendering(this, 1 << selectedClipYDisplay, 1 << selectedClipYDisplay);
 }
 
-void SessionView::removeClip(Clip* clip) {
+PLACE_SDRAM_TEXT void SessionView::removeClip(Clip* clip) {
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager(
 	    "E373", "H373"); // Trying to narrow down H067 that Leo got, below.
 
@@ -1873,7 +1874,7 @@ Clip* SessionView::getClipOnScreen(int32_t yDisplay) {
 	return currentSong->sessionClips.getClipAtIndex(index);
 }
 
-void SessionView::redrawClipsOnScreen(bool doRender) {
+PLACE_SDRAM_TEXT void SessionView::redrawClipsOnScreen(bool doRender) {
 	if (doRender) {
 		// use root UI in case this is called from performance view
 		requestRendering(getRootUI());
@@ -1881,7 +1882,7 @@ void SessionView::redrawClipsOnScreen(bool doRender) {
 	view.flashPlayEnable();
 }
 
-void SessionView::setLedStates() {
+PLACE_SDRAM_TEXT void SessionView::setLedStates() {
 
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 
@@ -1894,7 +1895,7 @@ void SessionView::setLedStates() {
 
 extern char loopsRemainingText[];
 
-void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+PLACE_SDRAM_TEXT void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	if (stemExport.processStarted) {
 		stemExport.displayStemExportProgressOLED(StemExportType::CLIP);
 		return;
@@ -1927,7 +1928,7 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	}
 }
 
-void SessionView::redrawNumericDisplay() {
+PLACE_SDRAM_TEXT void SessionView::redrawNumericDisplay() {
 	if ((currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || stemExport.processStarted)) {
 		return;
 	}
@@ -2010,7 +2011,7 @@ nothingToDisplay:
 	}
 }
 
-void SessionView::clearNumericDisplay() {
+PLACE_SDRAM_TEXT void SessionView::clearNumericDisplay() {
 	if (getCurrentUI() == &performanceView) {
 		performanceView.renderViewDisplay();
 	}
@@ -2019,14 +2020,14 @@ void SessionView::clearNumericDisplay() {
 	}
 }
 
-void SessionView::displayRepeatsTilLaunch() {
+PLACE_SDRAM_TEXT void SessionView::displayRepeatsTilLaunch() {
 	char buffer[5];
 	intToString(session.numRepeatsTilLaunch, buffer);
 	display->setText(buffer, true, 255, true, NULL, false, true);
 }
 
 /// render session view display on opening
-void SessionView::renderViewDisplay() {
+PLACE_SDRAM_TEXT void SessionView::renderViewDisplay() {
 	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 	hid::display::OLED::clearMainImage();
 
@@ -2075,8 +2076,8 @@ void SessionView::renderViewDisplay() {
 	deluge::hid::display::OLED::markChanged();
 }
 
-void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM,
-                                  bool clearArea) {
+PLACE_SDRAM_TEXT void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas,
+                                                   StringBuf& tempoBPM, bool clearArea) {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 
 	int32_t metronomeIconSpacingX = 7 + 3;
@@ -2093,8 +2094,8 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 	canvas.drawGraphicMultiLine(deluge::hid::display::OLED::metronomeIcon, metronomeIconStartX, yPos, 7);
 }
 
-void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
-                                                     StringBuf& rootNoteAndScaleName, bool clearArea) {
+PLACE_SDRAM_TEXT void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
+                                                                      StringBuf& rootNoteAndScaleName, bool clearArea) {
 
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 
@@ -2107,7 +2108,7 @@ void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_
 
 // This gets called by redrawNumericDisplay() - or, if OLED, it gets called instead, because this still needs to
 // happen.
-void SessionView::setCentralLEDStates() {
+PLACE_SDRAM_TEXT void SessionView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
@@ -2120,11 +2121,11 @@ void SessionView::setCentralLEDStates() {
 	}
 }
 
-uint32_t SessionView::getMaxZoom() {
+PLACE_SDRAM_TEXT uint32_t SessionView::getMaxZoom() {
 	return currentSong->getLongestClip(true, false)->getMaxZoom();
 }
 
-void SessionView::cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo) {
+PLACE_SDRAM_TEXT void SessionView::cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo) {
 	Clip* clipToClone = getClipOnScreen(yDisplayFrom);
 	if (!clipToClone) {
 		return;
@@ -2177,7 +2178,7 @@ ramError:
 	redrawClipsOnScreen();
 }
 
-void SessionView::graphicsRoutine() {
+PLACE_SDRAM_TEXT void SessionView::graphicsRoutine() {
 	static int counter = 0;
 	if (currentUIMode == UI_MODE_NONE) {
 		int32_t modKnobMode = -1;
@@ -2352,7 +2353,7 @@ void SessionView::graphicsRoutine() {
 }
 
 // checks if tempo has changed since it was last rendered on the display and updates it if required
-void SessionView::displayPotentialTempoChange(UI* ui) {
+PLACE_SDRAM_TEXT void SessionView::displayPotentialTempoChange(UI* ui) {
 	// check UI in case graphics routine is called while we're in another UI (e.g. menu)
 	if (getCurrentUI() == ui) {
 		float tempo = playbackHandler.calculateBPMForDisplay();
@@ -2369,7 +2370,7 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 }
 
 /// display number of bars or quarter notes remaining until a launch event
-int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
+PLACE_SDRAM_TEXT int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 	int32_t sixteenthNotesRemaining = session.getNumSixteenthNotesRemainingTilLaunch();
 	// only show pop-up if you're not in any other UI mode
 	if (currentUIMode == UI_MODE_NONE) {
@@ -2407,7 +2408,8 @@ const uint8_t launchTickColours[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 // potentially render a playhead in top row of main grid that displays
 // when the next clip launch event is expected occur (e.g. when clips will start or end)
-void SessionView::potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare, int32_t sixteenthNotesRemaining) {
+PLACE_SDRAM_TEXT void SessionView::potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare,
+                                                                       int32_t sixteenthNotesRemaining) {
 	int32_t newTickSquare;
 	const uint8_t* colours = launchTickColours;
 
@@ -2429,7 +2431,7 @@ void SessionView::potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare, i
 	PadLEDs::setTickSquares(launchTickSquares, launchTickColours);
 }
 
-void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
+PLACE_SDRAM_TEXT void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 	if (ui == &performanceView) {
 		// don't re-render main pads in performance view
 		uiNeedsRendering(ui, 0, whichSideRows);
@@ -2445,7 +2447,7 @@ void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whic
 	}
 }
 
-void SessionView::rowNeedsRenderingDependingOnSubMode(int32_t yDisplay) {
+PLACE_SDRAM_TEXT void SessionView::rowNeedsRenderingDependingOnSubMode(int32_t yDisplay) {
 
 	switch (currentUIMode) {
 	case UI_MODE_HORIZONTAL_SCROLL:
@@ -2464,7 +2466,8 @@ void SessionView::rowNeedsRenderingDependingOnSubMode(int32_t yDisplay) {
 	}
 }
 
-bool SessionView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom, uint32_t oldZoom) {
+PLACE_SDRAM_TEXT bool SessionView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom,
+                                                           uint32_t oldZoom) {
 
 	bool anyToDo = false;
 
@@ -2489,15 +2492,15 @@ bool SessionView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll
 	return anyToDo;
 }
 
-int32_t SessionView::getClipPlaceOnScreen(Clip* clip) {
+PLACE_SDRAM_TEXT int32_t SessionView::getClipPlaceOnScreen(Clip* clip) {
 	return currentSong->sessionClips.getIndexForClip(clip) - currentSong->songViewYScroll;
 }
 
-uint32_t SessionView::getMaxLength() {
+PLACE_SDRAM_TEXT uint32_t SessionView::getMaxLength() {
 	return currentSong->getLongestClip(true, false)->loopLength;
 }
 
-bool SessionView::setupScroll(uint32_t oldScroll) {
+PLACE_SDRAM_TEXT bool SessionView::setupScroll(uint32_t oldScroll) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return false;
 	}
@@ -2541,11 +2544,11 @@ noTransition:
 	return anyMoved;
 }
 
-uint32_t SessionView::getClipLocalScroll(Clip* clip, uint32_t overviewScroll, uint32_t xZoom) {
+PLACE_SDRAM_TEXT uint32_t SessionView::getClipLocalScroll(Clip* clip, uint32_t overviewScroll, uint32_t xZoom) {
 	return std::min((clip->loopLength - 1) / (xZoom * kDisplayWidth) * xZoom * kDisplayWidth, overviewScroll);
 }
 
-void SessionView::flashPlayRoutine() {
+PLACE_SDRAM_TEXT void SessionView::flashPlayRoutine() {
 	switch (currentSong->sessionLayout) {
 	case SessionLayoutType::SessionLayoutTypeRows: {
 		uint32_t whichRowsNeedReRendering = 0;
@@ -2588,17 +2591,17 @@ void SessionView::flashPlayRoutine() {
 	}
 }
 
-void SessionView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
+PLACE_SDRAM_TEXT void SessionView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	UI::modEncoderButtonAction(whichModEncoder, on);
 	performActionOnPadRelease = false;
 }
 
-void SessionView::modButtonAction(uint8_t whichButton, bool on) {
+PLACE_SDRAM_TEXT void SessionView::modButtonAction(uint8_t whichButton, bool on) {
 	UI::modButtonAction(whichButton, on);
 	performActionOnPadRelease = false;
 }
 
-void SessionView::noteRowChanged(InstrumentClip* instrumentClip, NoteRow* noteRow) {
+PLACE_SDRAM_TEXT void SessionView::noteRowChanged(InstrumentClip* instrumentClip, NoteRow* noteRow) {
 
 	if (currentUIMode == UI_MODE_HORIZONTAL_SCROLL) {
 		return; // Is this 100% correct? What if that one Clip isn't visually scrolling?
@@ -2613,7 +2616,7 @@ void SessionView::noteRowChanged(InstrumentClip* instrumentClip, NoteRow* noteRo
 	}
 }
 
-uint32_t SessionView::getGreyedOutRowsNotRepresentingOutput(Output* output) {
+PLACE_SDRAM_TEXT uint32_t SessionView::getGreyedOutRowsNotRepresentingOutput(Output* output) {
 	uint32_t rows = 0xFFFFFFFF;
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		Clip* clip = getClipOnScreen(yDisplay);
@@ -2624,8 +2627,9 @@ uint32_t SessionView::getGreyedOutRowsNotRepresentingOutput(Output* output) {
 	return rows;
 }
 
-bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
+PLACE_SDRAM_TEXT bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                                  bool drawUndefinedArea) {
 	if (!image) {
 		return true;
 	}
@@ -2659,8 +2663,10 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 }
 
 // Returns false if can't because in card routine
-bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
-                            uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
+PLACE_SDRAM_TEXT bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay,
+                                             RGB thisImage[kDisplayWidth + kSideBarWidth],
+                                             uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth],
+                                             bool drawUndefinedArea) {
 	Clip* clip = getClipOnScreen(yDisplay);
 
 	if (clip) {
@@ -2717,7 +2723,7 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisIm
 	return true;
 }
 
-void SessionView::transitionToViewForClip(Clip* clip) {
+PLACE_SDRAM_TEXT void SessionView::transitionToViewForClip(Clip* clip) {
 	// If no Clip, just go back into the previous one we were in
 	if (!clip) {
 		clip = getCurrentClip();
@@ -2838,7 +2844,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 	}
 }
 
-void SessionView::transitionToSessionView() {
+PLACE_SDRAM_TEXT void SessionView::transitionToSessionView() {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		gridTransitionToSessionView();
 		return;
@@ -2922,7 +2928,7 @@ void SessionView::transitionToSessionView() {
 }
 
 // Might be called during card routine! So renders might fail. Not too likely
-void SessionView::finishedTransitioningHere() {
+PLACE_SDRAM_TEXT void SessionView::finishedTransitioningHere() {
 	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
 	yield([]() { return true; });
 	currentUIMode = UI_MODE_ANIMATION_FADE;
@@ -2934,7 +2940,7 @@ void SessionView::finishedTransitioningHere() {
 	PadLEDs::timerRoutine(); // What... why? This would normally get called from that...
 }
 
-void SessionView::playbackEnded() {
+PLACE_SDRAM_TEXT void SessionView::playbackEnded() {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		return;
@@ -2958,7 +2964,7 @@ void SessionView::playbackEnded() {
 	}
 }
 
-void SessionView::clipNeedsReRendering(Clip* clip) {
+PLACE_SDRAM_TEXT void SessionView::clipNeedsReRendering(Clip* clip) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		return;
@@ -2980,7 +2986,7 @@ void SessionView::clipNeedsReRendering(Clip* clip) {
 	}
 }
 
-void SessionView::sampleNeedsReRendering(Sample* sample) {
+PLACE_SDRAM_TEXT void SessionView::sampleNeedsReRendering(Sample* sample) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		return;
@@ -3001,7 +3007,7 @@ void SessionView::sampleNeedsReRendering(Sample* sample) {
 	}
 }
 
-void SessionView::midiLearnFlash() {
+PLACE_SDRAM_TEXT void SessionView::midiLearnFlash() {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		return;
@@ -3039,7 +3045,7 @@ void SessionView::midiLearnFlash() {
 	requestRendering(this, mainRowsToRender, sideRowsToRender);
 }
 
-void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+PLACE_SDRAM_TEXT void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	performActionOnPadRelease = false;
 
 	if (getCurrentUI() == this) { // This routine may also be called from the Arranger view
@@ -3047,7 +3053,7 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	}
 }
 
-Clip* SessionView::getClipForLayout() {
+PLACE_SDRAM_TEXT Clip* SessionView::getClipForLayout() {
 	switch (currentSong->sessionLayout) {
 	case SessionLayoutType::SessionLayoutTypeGrid: {
 		return gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
@@ -3060,7 +3066,7 @@ Clip* SessionView::getClipForLayout() {
 	}
 }
 
-int32_t SessionView::getClipIndexForLayout() {
+PLACE_SDRAM_TEXT int32_t SessionView::getClipIndexForLayout() {
 	switch (currentSong->sessionLayout) {
 	case SessionLayoutType::SessionLayoutTypeGrid: {
 		return gridClipIndexFromCoords(gridFirstPressedX, gridFirstPressedY);
@@ -3073,7 +3079,7 @@ int32_t SessionView::getClipIndexForLayout() {
 	}
 }
 
-void SessionView::selectLayout(int8_t offset) {
+PLACE_SDRAM_TEXT void SessionView::selectLayout(int8_t offset) {
 	gridSetDefaultMode();
 	// only reset first pad if it's not still held
 	bool keepFirst = matrixDriver.isPadPressed(gridFirstPressedX, gridFirstPressedY);
@@ -3103,7 +3109,7 @@ void SessionView::selectLayout(int8_t offset) {
 	}
 }
 
-void SessionView::renderLayoutChange(bool displayPopup) {
+PLACE_SDRAM_TEXT void SessionView::renderLayoutChange(bool displayPopup) {
 	// After change
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
 		if (displayPopup) {
@@ -3129,7 +3135,7 @@ void SessionView::renderLayoutChange(bool displayPopup) {
 	}
 }
 
-void SessionView::selectSpecificLayout(SessionLayoutType layout) {
+PLACE_SDRAM_TEXT void SessionView::selectSpecificLayout(SessionLayoutType layout) {
 	gridSetDefaultMode();
 	gridResetPresses();
 	gridModeActive = gridModeSelected;
@@ -3144,7 +3150,7 @@ void SessionView::selectSpecificLayout(SessionLayoutType layout) {
 	}
 }
 
-void SessionView::enterMacrosConfigMode() {
+PLACE_SDRAM_TEXT void SessionView::enterMacrosConfigMode() {
 	previousLayout = currentSong->sessionLayout;
 	currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
 	gridModeActive = SessionGridModeMacros;
@@ -3152,25 +3158,25 @@ void SessionView::enterMacrosConfigMode() {
 	view.flashPlayEnable();
 }
 
-void SessionView::exitMacrosConfigMode() {
+PLACE_SDRAM_TEXT void SessionView::exitMacrosConfigMode() {
 	selectSpecificLayout(previousLayout);
 }
 
-void SessionView::enterMidiLearnMode() {
+PLACE_SDRAM_TEXT void SessionView::enterMidiLearnMode() {
 	previousGridModeActive = gridModeActive;
 	gridModeActive = SessionGridModeLaunch;
 	requestRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
 	view.startMIDILearn();
 }
 
-void SessionView::exitMidiLearnMode() {
+PLACE_SDRAM_TEXT void SessionView::exitMidiLearnMode() {
 	view.endMIDILearn();
 	gridModeActive = previousGridModeActive;
 	requestRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
 }
 
-bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 
 	// Section column
 	uint32_t sectionColumnIndex = kDisplayWidth;
@@ -3207,8 +3213,8 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 	return true;
 }
 
-void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSideBarWidth],
-                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSideBarWidth],
+                                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	// Action modes column
 	uint32_t actionModeColumnIndex = kDisplayWidth + 1;
 	bool modeExists = true;
@@ -3253,8 +3259,9 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 	image[y][actionModeColumnIndex] = modeColour.adjust(255, (modeActive ? 1 : 8));
 }
 
-bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
+PLACE_SDRAM_TEXT bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                                      bool drawUndefinedArea) {
 
 	// Clear just the main pads
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
@@ -3295,7 +3302,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 	return true;
 }
 
-RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool renderPulse) {
+PLACE_SDRAM_TEXT RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool renderPulse) {
 	// Greyout all clips during record button pressed or soloing, overwrite for clips that shouldn't be greyed out
 	bool greyout = (viewingRecordArmingActive || currentSong->getAnyClipsSoloing());
 
@@ -3405,7 +3412,7 @@ RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool rend
 	return resultColour;
 }
 
-Clip* SessionView::gridCloneClip(Clip* sourceClip) {
+PLACE_SDRAM_TEXT Clip* SessionView::gridCloneClip(Clip* sourceClip) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
@@ -3419,7 +3426,7 @@ Clip* SessionView::gridCloneClip(Clip* sourceClip) {
 	return (Clip*)modelStack->getTimelineCounter();
 }
 
-Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
+PLACE_SDRAM_TEXT Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 	Clip* sourceClip = nullptr;
 	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
@@ -3456,7 +3463,7 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 	return newClip;
 }
 
-bool SessionView::createNewTrackForAudioClip(AudioClip* newClip) {
+PLACE_SDRAM_TEXT bool SessionView::createNewTrackForAudioClip(AudioClip* newClip) {
 	// Suss output
 	AudioOutput* newOutput = currentSong->createNewAudioOutput();
 	if (!newOutput) {
@@ -3470,7 +3477,8 @@ bool SessionView::createNewTrackForAudioClip(AudioClip* newClip) {
 	return true;
 }
 
-bool SessionView::createNewTrackForInstrumentClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip) {
+PLACE_SDRAM_TEXT bool SessionView::createNewTrackForInstrumentClip(OutputType type, InstrumentClip* clip,
+                                                                   bool copyDrumsFromClip) {
 	bool instrumentAlreadyInSong = false;
 	if (type == OutputType::SYNTH || type == OutputType::KIT) {
 		Error error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip);
@@ -3514,7 +3522,7 @@ bool SessionView::createNewTrackForInstrumentClip(OutputType type, InstrumentCli
 	return true;
 }
 
-AudioClip* SessionView::gridCreateAudioClipWithNewTrack() {
+PLACE_SDRAM_TEXT AudioClip* SessionView::gridCreateAudioClipWithNewTrack() {
 	// Allocate new clip
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!memory) {
@@ -3536,7 +3544,7 @@ AudioClip* SessionView::gridCreateAudioClipWithNewTrack() {
 	return newClip;
 }
 
-InstrumentClip* SessionView::gridCreateInstrumentClipWithNewTrack(OutputType type) {
+PLACE_SDRAM_TEXT InstrumentClip* SessionView::gridCreateInstrumentClipWithNewTrack(OutputType type) {
 	// Allocate new clip
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!memory) {
@@ -3558,7 +3566,7 @@ InstrumentClip* SessionView::gridCreateInstrumentClipWithNewTrack(OutputType typ
 }
 
 // For safety we set it up the new clip exactly as we want it
-void SessionView::setupNewClip(Clip* newClip) {
+PLACE_SDRAM_TEXT void SessionView::setupNewClip(Clip* newClip) {
 	newClip->colourOffset = random(72);
 	newClip->soloingInSessionMode = false;
 	newClip->wasActiveBefore = false;
@@ -3604,7 +3612,7 @@ void SessionView::setupNewClip(Clip* newClip) {
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstack-usage="
-void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput) {
+PLACE_SDRAM_TEXT void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput) {
 	if (source->name.isEmpty()) {
 		return;
 	}
@@ -3636,7 +3644,7 @@ void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput)
 }
 #pragma GCC diagnostic pop
 
-Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, Clip* sourceClip) {
+PLACE_SDRAM_TEXT Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, Clip* sourceClip) {
 	actionLogger.deleteAllLogs();
 
 	Clip* newClip = nullptr;
@@ -3782,7 +3790,8 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	return newClip;
 }
 
-void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY) {
+PLACE_SDRAM_TEXT void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX,
+                                                uint32_t targetY) {
 	Clip* sourceClip = gridClipFromCoords(sourceX, sourceY);
 	if (sourceClip == nullptr) {
 		return;
@@ -3804,7 +3813,7 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 	display->popupTextTemporary("COPIED");
 }
 
-void SessionView::gridStartSection(uint32_t section, bool instant) {
+PLACE_SDRAM_TEXT void SessionView::gridStartSection(uint32_t section, bool instant) {
 	if (instant) {
 		currentSong->turnSoloingIntoJustPlaying(currentSong->sections[section].numRepetitions > -1);
 
@@ -3827,11 +3836,11 @@ void SessionView::gridStartSection(uint32_t section, bool instant) {
 	}
 }
 
-void SessionView::gridToggleClipPlay(Clip* clip, bool instant) {
+PLACE_SDRAM_TEXT void SessionView::gridToggleClipPlay(Clip* clip, bool instant) {
 	session.toggleClipStatus(clip, nullptr, instant, kInternalButtonPressLatency);
 }
 
-ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
+PLACE_SDRAM_TEXT ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 	// Except for the path to sectionPadAction in the original function all paths contained this check. Can probably
 	// be refactored
 	if (sdRoutineLock) {
@@ -3924,7 +3933,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip) {
+PLACE_SDRAM_TEXT ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip) {
 	// Left sidebar column (sections)
 	if (x == kDisplayWidth) {
 		// Get pressed section
@@ -4055,12 +4064,13 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
-void SessionView::setupTrackCreation() const { // start clip creation, blink LED corresponding to last type created
+PLACE_SDRAM_TEXT void
+SessionView::setupTrackCreation() const { // start clip creation, blink LED corresponding to last type created
 	context_menu::clip_settings::newClipType.setupAndCheckAvailability();
 	openUI(&context_menu::clip_settings::newClipType);
 }
 
-ActionResult SessionView::clipCreationButtonPressed(hid::Button i, bool on, bool routine) {
+PLACE_SDRAM_TEXT ActionResult SessionView::clipCreationButtonPressed(hid::Button i, bool on, bool routine) {
 	using namespace deluge::hid::button;
 	OutputType toCreate = buttonToOutputType(i);
 	if (toCreate != OutputType::NONE) {
@@ -4077,7 +4087,7 @@ ActionResult SessionView::clipCreationButtonPressed(hid::Button i, bool on, bool
 	}
 	return ActionResult::NOT_DEALT_WITH;
 }
-void SessionView::exitTrackCreation() {
+PLACE_SDRAM_TEXT void SessionView::exitTrackCreation() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false, false);
 	indicator_leds::setLedState(IndicatorLED::MIDI, false, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false, false);
@@ -4086,7 +4096,7 @@ void SessionView::exitTrackCreation() {
 	exitUIMode(UI_MODE_CREATING_CLIP);
 }
 
-ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip) {
+PLACE_SDRAM_TEXT ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip) {
 	if (on && playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
 		if (currentUIMode == UI_MODE_NONE) {
 			playbackHandler.switchToSession();
@@ -4225,7 +4235,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 	}
 }
 
-ActionResult SessionView::gridHandlePadsLaunchImmediate(int32_t x, int32_t y, int32_t on, Clip* clip) {
+PLACE_SDRAM_TEXT ActionResult SessionView::gridHandlePadsLaunchImmediate(int32_t x, int32_t y, int32_t on, Clip* clip) {
 	// From here all actions only happen on press
 	if (!on) {
 		return ActionResult::DEALT_WITH;
@@ -4235,7 +4245,8 @@ ActionResult SessionView::gridHandlePadsLaunchImmediate(int32_t x, int32_t y, in
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
-ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y, int32_t on, Clip* clip) {
+PLACE_SDRAM_TEXT ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y, int32_t on,
+                                                                             Clip* clip) {
 	if (on) {
 		// Immediate arming, immediate consumption
 		if (Buttons::isShiftButtonPressed()) {
@@ -4278,7 +4289,7 @@ ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
-void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
+PLACE_SDRAM_TEXT void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
 	if (immediate) {
 		if (horizontalEncoderPressed) {
 			session.soloClipAction(clip, kInternalButtonPressLatency);
@@ -4307,7 +4318,7 @@ void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
 	}
 }
 
-void SessionView::gridHandlePadsWithMidiLearnPressed(int32_t x, int32_t on, Clip* clip) {
+PLACE_SDRAM_TEXT void SessionView::gridHandlePadsWithMidiLearnPressed(int32_t x, int32_t on, Clip* clip) {
 	if (clip != nullptr) {
 		if (clip->type != ClipType::AUDIO) {
 			// Learn + Holding pad = Learn MIDI channel
@@ -4327,7 +4338,7 @@ void SessionView::gridHandlePadsWithMidiLearnPressed(int32_t x, int32_t on, Clip
 	}
 }
 
-ActionResult SessionView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip) {
+PLACE_SDRAM_TEXT ActionResult SessionView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip) {
 	if (x < kDisplayWidth) {
 		if (selectedMacro == -1 || !on) {
 			return ActionResult::DEALT_WITH;
@@ -4373,7 +4384,7 @@ ActionResult SessionView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on,
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
-char const* SessionView::getMacroKindString(SessionMacroKind kind) {
+PLACE_SDRAM_TEXT char const* SessionView::getMacroKindString(SessionMacroKind kind) {
 	const char* macroKind;
 	// display new macro type on the screen
 	switch (kind) {
@@ -4394,7 +4405,7 @@ char const* SessionView::getMacroKindString(SessionMacroKind kind) {
 	return macroKind;
 }
 
-ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
+PLACE_SDRAM_TEXT ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && offsetY != 0) {
 		auto track = gridTrackFromX(gridFirstPressedX, gridTrackCount());
 		if (track != nullptr) {
@@ -4432,7 +4443,7 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	return ActionResult::DEALT_WITH;
 }
 
-void SessionView::gridTransitionToSessionView() {
+PLACE_SDRAM_TEXT void SessionView::gridTransitionToSessionView() {
 	Sample* sample;
 
 	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
@@ -4484,7 +4495,7 @@ void SessionView::gridTransitionToSessionView() {
 	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
 }
 
-void SessionView::gridTransitionToViewForClip(Clip* clip) {
+PLACE_SDRAM_TEXT void SessionView::gridTransitionToViewForClip(Clip* clip) {
 	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
 
 	auto clipX = std::clamp<int32_t>(gridXFromTrack(gridTrackIndexFromTrack(getCurrentOutput(), gridTrackCount())), 0,
@@ -4568,7 +4579,7 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_CLIP_VIEW);
 }
 
-const size_t SessionView::gridTrackCount() const {
+PLACE_SDRAM_TEXT const size_t SessionView::gridTrackCount() const {
 	size_t count = 0;
 	Output* currentTrack = currentSong->firstOutput;
 	while (currentTrack != nullptr) {
@@ -4581,7 +4592,7 @@ const size_t SessionView::gridTrackCount() const {
 	return count;
 }
 
-uint32_t SessionView::gridClipCountForTrack(Output* track) {
+PLACE_SDRAM_TEXT uint32_t SessionView::gridClipCountForTrack(Output* track) {
 	uint32_t count = 0;
 	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
@@ -4593,7 +4604,7 @@ uint32_t SessionView::gridClipCountForTrack(Output* track) {
 	return count;
 }
 
-uint32_t SessionView::gridTrackIndexFromTrack(Output* track, uint32_t maxTrack) {
+PLACE_SDRAM_TEXT uint32_t SessionView::gridTrackIndexFromTrack(Output* track, uint32_t maxTrack) {
 	if (maxTrack <= 0) {
 		return -1;
 	}
@@ -4610,7 +4621,7 @@ uint32_t SessionView::gridTrackIndexFromTrack(Output* track, uint32_t maxTrack) 
 	return -1;
 }
 
-Output* SessionView::gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack) {
+PLACE_SDRAM_TEXT Output* SessionView::gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack) {
 	uint32_t count = 0;
 	Output* currentTrack = currentSong->firstOutput;
 	while (currentTrack != nullptr) {
@@ -4627,7 +4638,7 @@ Output* SessionView::gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack) 
 	return nullptr;
 }
 
-int32_t SessionView::gridYFromSection(uint32_t section) {
+PLACE_SDRAM_TEXT int32_t SessionView::gridYFromSection(uint32_t section) {
 	int32_t result = (kGridHeight - 1) - section + currentSong->songGridScrollY;
 	if (result >= kGridHeight) {
 		return -1;
@@ -4636,7 +4647,7 @@ int32_t SessionView::gridYFromSection(uint32_t section) {
 	return result;
 }
 
-int32_t SessionView::gridSectionFromY(uint32_t y) {
+PLACE_SDRAM_TEXT int32_t SessionView::gridSectionFromY(uint32_t y) {
 	int32_t result = ((kGridHeight - 1) - y) + currentSong->songGridScrollY;
 	if (result >= kMaxNumSections) {
 		return -1;
@@ -4645,7 +4656,7 @@ int32_t SessionView::gridSectionFromY(uint32_t y) {
 	return result;
 }
 
-int32_t SessionView::gridXFromTrack(uint32_t trackIndex) {
+PLACE_SDRAM_TEXT int32_t SessionView::gridXFromTrack(uint32_t trackIndex) {
 	int32_t result = trackIndex - currentSong->songGridScrollX;
 	if (result >= kDisplayWidth) {
 		return -1;
@@ -4654,7 +4665,7 @@ int32_t SessionView::gridXFromTrack(uint32_t trackIndex) {
 	return result;
 }
 
-int32_t SessionView::gridTrackIndexFromX(uint32_t x, uint32_t maxTrack) {
+PLACE_SDRAM_TEXT int32_t SessionView::gridTrackIndexFromX(uint32_t x, uint32_t maxTrack) {
 	if (maxTrack <= 0) {
 		return 0;
 	}
@@ -4666,7 +4677,7 @@ int32_t SessionView::gridTrackIndexFromX(uint32_t x, uint32_t maxTrack) {
 	return result;
 }
 
-Output* SessionView::gridTrackFromX(uint32_t x, uint32_t maxTrack) {
+PLACE_SDRAM_TEXT Output* SessionView::gridTrackFromX(uint32_t x, uint32_t maxTrack) {
 	auto trackIndex = gridTrackIndexFromX(x, maxTrack);
 
 	if (trackIndex < 0) {
@@ -4676,7 +4687,7 @@ Output* SessionView::gridTrackFromX(uint32_t x, uint32_t maxTrack) {
 	return gridTrackFromIndex(trackIndex, maxTrack);
 }
 
-Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
+PLACE_SDRAM_TEXT Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
 	auto maxTrack = gridTrackCount();
 	Output* track = gridTrackFromX(x, maxTrack);
 
@@ -4699,7 +4710,7 @@ Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
 	return nullptr;
 }
 
-int32_t SessionView::gridClipIndexFromCoords(uint32_t x, uint32_t y) {
+PLACE_SDRAM_TEXT int32_t SessionView::gridClipIndexFromCoords(uint32_t x, uint32_t y) {
 	auto maxTrack = gridTrackCount();
 	Output* track = gridTrackFromX(x, maxTrack);
 
@@ -4722,7 +4733,7 @@ int32_t SessionView::gridClipIndexFromCoords(uint32_t x, uint32_t y) {
 	return -1;
 }
 
-Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
+PLACE_SDRAM_TEXT Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return gridTrackFromX(x, gridTrackCount());
 	}
@@ -4732,7 +4743,7 @@ Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
 	return nullptr;
 }
 
-Cartesian SessionView::gridXYFromClip(Clip& clip) {
+PLACE_SDRAM_TEXT Cartesian SessionView::gridXYFromClip(Clip& clip) {
 	Output& track = *clip.output;
 	size_t maxTrack = gridTrackCount();
 	int32_t trackIndex = gridTrackIndexFromTrack(&track, maxTrack);
@@ -4741,7 +4752,7 @@ Cartesian SessionView::gridXYFromClip(Clip& clip) {
 
 // stop pulsing selected clip
 // called when exiting session view
-void SessionView::gridStopSelectedClipPulsing() {
+PLACE_SDRAM_TEXT void SessionView::gridStopSelectedClipPulsing() {
 	uiTimerManager.unsetTimer(TimerName::SELECTED_CLIP_PULSE);
 	gridSelectedClipPulsing = false;
 	selectedClipForPulsing = nullptr;
@@ -4749,21 +4760,21 @@ void SessionView::gridStopSelectedClipPulsing() {
 }
 
 // reset blend position for pulse
-void SessionView::gridResetSelectedClipPulseProgress() {
+PLACE_SDRAM_TEXT void SessionView::gridResetSelectedClipPulseProgress() {
 	progress = kMinProgress;
 	blendDirection = 1;
 	gridSelectedClipRenderedColour = RGB::monochrome(0);
 }
 
 // render pulse for selected clip
-void SessionView::gridSelectClipForPulsing(Clip& clip) {
+PLACE_SDRAM_TEXT void SessionView::gridSelectClipForPulsing(Clip& clip) {
 	// save the selected clip so that we don't override the pulsed colour when re-rendering grid
 	gridResetSelectedClipPulseProgress();
 	selectedClipForPulsing = &clip;
 }
 
 // check if we should stop pulsing
-bool SessionView::gridCheckForPulseStop() {
+PLACE_SDRAM_TEXT bool SessionView::gridCheckForPulseStop() {
 	// stop pulsing if...
 	return (getCurrentUI() != this)                                                    // we're in another view
 	       || (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) // we're in row view
@@ -4772,7 +4783,7 @@ bool SessionView::gridCheckForPulseStop() {
 
 static const uint32_t pulseUIModes[] = {UI_MODE_CLIP_PRESSED_IN_SONG_VIEW, UI_MODE_CREATING_CLIP, 0};
 
-void SessionView::gridPulseSelectedClip() {
+PLACE_SDRAM_TEXT void SessionView::gridPulseSelectedClip() {
 	auto setupTimer = util::finally([] {
 		// set pulse timer so that uiTimerManager comes back here to continue the pulsing
 		uiTimerManager.setTimer(TimerName::SELECTED_CLIP_PULSE, kPulseRate);

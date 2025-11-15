@@ -27,7 +27,7 @@ using namespace deluge::gui::ui::keyboard::layout;
 
 namespace deluge::gui::ui::keyboard::controls {
 
-DxPatch* getCurrentDxPatch() {
+PLACE_SDRAM_TEXT DxPatch* getCurrentDxPatch() {
 	auto* inst = getCurrentInstrument();
 	if (inst->type == OutputType::SYNTH) {
 		auto* sound = (SoundInstrument*)inst;
@@ -38,7 +38,8 @@ DxPatch* getCurrentDxPatch() {
 	return nullptr;
 }
 
-void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column,
+                                             KeyboardLayout* layout) {
 	using menu_item::dxParam;
 	DxPatch* patch = getCurrentDxPatch();
 	if (!patch) {
@@ -72,15 +73,15 @@ void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t 
 	}
 }
 
-bool DXColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
+PLACE_SDRAM_TEXT bool DXColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	return false;
 };
 
-void DXColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                   KeyboardLayout* layout) {};
+PLACE_SDRAM_TEXT void DXColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                                    KeyboardLayout* layout) {};
 
-void DXColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
-                         KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void DXColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
+                                          KeyboardLayout* layout) {
 	DxPatch* patch = getCurrentDxPatch();
 	if (!patch) {
 		return;

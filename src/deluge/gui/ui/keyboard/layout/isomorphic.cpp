@@ -26,7 +26,7 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
+PLACE_SDRAM_TEXT void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Erase active notes
 
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
@@ -40,23 +40,23 @@ void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 	ColumnControlsKeyboard::evaluatePads(presses);
 }
 
-void KeyboardLayoutIsomorphic::handleVerticalEncoder(int32_t offset) {
+PLACE_SDRAM_TEXT void KeyboardLayoutIsomorphic::handleVerticalEncoder(int32_t offset) {
 	if (verticalEncoderHandledByColumns(offset)) {
 		return;
 	}
 	offsetPads(offset * getState().isomorphic.rowInterval, false);
 }
 
-void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
-                                                       PressedPad presses[kMaxNumKeyboardPadPresses],
-                                                       bool encoderPressed) {
+PLACE_SDRAM_TEXT void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
+                                                                        PressedPad presses[kMaxNumKeyboardPadPresses],
+                                                                        bool encoderPressed) {
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
 		return;
 	}
 	offsetPads(offset, shiftEnabled);
 }
 
-void KeyboardLayoutIsomorphic::offsetPads(int32_t offset, bool shiftEnabled) {
+PLACE_SDRAM_TEXT void KeyboardLayoutIsomorphic::offsetPads(int32_t offset, bool shiftEnabled) {
 	KeyboardStateIsomorphic& state = getState().isomorphic;
 
 	if (shiftEnabled) {
@@ -87,7 +87,7 @@ void KeyboardLayoutIsomorphic::offsetPads(int32_t offset, bool shiftEnabled) {
 	precalculate();
 }
 
-void KeyboardLayoutIsomorphic::precalculate() {
+PLACE_SDRAM_TEXT void KeyboardLayoutIsomorphic::precalculate() {
 	KeyboardStateIsomorphic& state = getState().isomorphic;
 
 	// Pre-Buffer colours for next renderings
@@ -96,7 +96,7 @@ void KeyboardLayoutIsomorphic::precalculate() {
 	}
 }
 
-void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// Precreate list of all active notes per octave
 	bool octaveActiveNotes[kOctaveSize] = {0};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {

@@ -42,7 +42,7 @@ using hid::display::OLED;
 namespace deluge::gui::menu_item {
 extern bool movingCursor;
 
-void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
+PLACE_SDRAM_TEXT void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
 	Decimal::beginSession(navigatedBackwardFrom);
 
 	delayHorizontalScrollUntil = 0;
@@ -66,14 +66,14 @@ void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
 	updatePolarityUI();
 }
 
-void PatchCableStrength::endSession() {
+PLACE_SDRAM_TEXT void PatchCableStrength::endSession() {
 	if (display->haveOLED()) {
 		setLedState(IndicatorLED::MIDI, false);
 		setLedState(IndicatorLED::CV, false);
 	}
 }
 
-void PatchCableStrength::renderOLED() {
+PLACE_SDRAM_TEXT void PatchCableStrength::renderOLED() {
 	hid::display::oled_canvas::Canvas& image = OLED::main;
 
 	constexpr int32_t extraY = 1;
@@ -190,7 +190,7 @@ void PatchCableStrength::renderOLED() {
 	}
 }
 
-void PatchCableStrength::readCurrentValue() {
+PLACE_SDRAM_TEXT void PatchCableStrength::readCurrentValue() {
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
 	uint32_t c = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
 	if (c == 255) {
@@ -206,12 +206,12 @@ void PatchCableStrength::readCurrentValue() {
 	}
 }
 
-ModelStackWithAutoParam* PatchCableStrength::getModelStackWithParam(void* memory) {
+PLACE_SDRAM_TEXT ModelStackWithAutoParam* PatchCableStrength::getModelStackWithParam(void* memory) {
 	return getModelStack(memory);
 }
 
 // Might return a ModelStack with NULL autoParam - check for that!
-ModelStackWithAutoParam* PatchCableStrength::getModelStack(void* memory, bool allowCreation) {
+PLACE_SDRAM_TEXT ModelStackWithAutoParam* PatchCableStrength::getModelStack(void* memory, bool allowCreation) {
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
 	ParamCollectionSummary* paramSetSummary = modelStack->paramManager->getPatchCableSetSummary();
 
@@ -229,7 +229,7 @@ ModelStackWithAutoParam* PatchCableStrength::getModelStack(void* memory, bool al
 	return modelStackMaybeWithAutoParam;
 }
 
-void PatchCableStrength::writeCurrentValue() {
+PLACE_SDRAM_TEXT void PatchCableStrength::writeCurrentValue() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStackWithParam = getModelStack(modelStackMemory, true);
 	if (!modelStackWithParam->autoParam) {
@@ -248,8 +248,9 @@ void PatchCableStrength::writeCurrentValue() {
 	}
 }
 
-MenuPermission PatchCableStrength::checkPermissionToBeginSession(ModControllableAudio* modControllable,
-                                                                 int32_t whichThing, MultiRange** currentRange) {
+PLACE_SDRAM_TEXT MenuPermission PatchCableStrength::checkPermissionToBeginSession(ModControllableAudio* modControllable,
+                                                                                  int32_t whichThing,
+                                                                                  MultiRange** currentRange) {
 
 	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
 	PatchSource s = getS();
@@ -280,7 +281,7 @@ MenuPermission PatchCableStrength::checkPermissionToBeginSession(ModControllable
 	return MenuPermission::YES;
 }
 
-uint8_t PatchCableStrength::getIndexOfPatchedParamToBlink() {
+PLACE_SDRAM_TEXT uint8_t PatchCableStrength::getIndexOfPatchedParamToBlink() {
 	if (soundEditor.patchingParamSelected == deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND
 	    || soundEditor.patchingParamSelected == deluge::modulation::params::LOCAL_VOLUME) {
 		return deluge::modulation::params::GLOBAL_VOLUME_POST_FX;
@@ -288,19 +289,19 @@ uint8_t PatchCableStrength::getIndexOfPatchedParamToBlink() {
 	return soundEditor.patchingParamSelected;
 }
 
-deluge::modulation::params::Kind PatchCableStrength::getParamKind() {
+PLACE_SDRAM_TEXT deluge::modulation::params::Kind PatchCableStrength::getParamKind() {
 	return deluge::modulation::params::Kind::PATCH_CABLE;
 }
 
-uint32_t PatchCableStrength::getParamIndex() {
+PLACE_SDRAM_TEXT uint32_t PatchCableStrength::getParamIndex() {
 	return getLearningThing().data;
 }
 
-PatchSource PatchCableStrength::getPatchSource() {
+PLACE_SDRAM_TEXT PatchSource PatchCableStrength::getPatchSource() {
 	return getS();
 }
 
-MenuItem* PatchCableStrength::selectButtonPress() {
+PLACE_SDRAM_TEXT MenuItem* PatchCableStrength::selectButtonPress() {
 	// Cancel the polarity popup on the 7SEG
 	if (display->have7SEG() && display->hasPopup()) {
 		display->cancelPopup();
@@ -314,7 +315,7 @@ MenuItem* PatchCableStrength::selectButtonPress() {
 	return &source_selection::rangeMenu;
 }
 
-ActionResult PatchCableStrength::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult PatchCableStrength::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	static auto polarity_map = std::map<hid::Button, Polarity>{{MIDI, Polarity::BIPOLAR}, {CV, Polarity::UNIPOLAR}};
@@ -328,7 +329,7 @@ ActionResult PatchCableStrength::buttonAction(hid::Button b, bool on, bool inCar
 	return Automation::buttonAction(b, on, inCardRoutine);
 }
 
-void PatchCableStrength::selectEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT void PatchCableStrength::selectEncoderAction(int32_t offset) {
 	if (!isInHorizontalMenu() && Buttons::isButtonPressed(hid::button::SELECT_ENC) && PatchCable::hasPolarity(getS())) {
 		polarity_in_the_ui_ = offset > 0 ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
 		setPatchCablePolarity(polarity_in_the_ui_);
@@ -346,7 +347,7 @@ void PatchCableStrength::selectEncoderAction(int32_t offset) {
 	return Decimal::selectEncoderAction(offset);
 }
 
-void PatchCableStrength::horizontalEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT void PatchCableStrength::horizontalEncoderAction(int32_t offset) {
 	int8_t currentEditPos = soundEditor.numberEditPos;
 	// don't adjust patch cable decimal edit pos if you're holding down the horizontal encoder
 	// reserve holding down horizontal encoder for zooming in automation view
@@ -375,11 +376,11 @@ void PatchCableStrength::horizontalEncoderAction(int32_t offset) {
 	}
 }
 
-bool PatchCableStrength::isInHorizontalMenu() const {
+PLACE_SDRAM_TEXT bool PatchCableStrength::isInHorizontalMenu() const {
 	return parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL;
 }
 
-void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {
+PLACE_SDRAM_TEXT void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {
 	if (!PatchCable::hasPolarity(getS())) {
 		return;
 	}
@@ -391,7 +392,7 @@ void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {
 	}
 }
 
-void PatchCableStrength::updatePolarityUI() {
+PLACE_SDRAM_TEXT void PatchCableStrength::updatePolarityUI() {
 	if (display->haveOLED()) {
 		const bool hasPolarity = PatchCable::hasPolarity(getS());
 		setLedState(IndicatorLED::MIDI, hasPolarity && polarity_in_the_ui_ == Polarity::BIPOLAR);
@@ -404,7 +405,7 @@ void PatchCableStrength::updatePolarityUI() {
 	}
 }
 
-void PatchCableStrength::appendAdditionalDots(std::vector<uint8_t>& dotPositions) {
+PLACE_SDRAM_TEXT void PatchCableStrength::appendAdditionalDots(std::vector<uint8_t>& dotPositions) {
 	if (polarity_in_the_ui_ == Polarity::UNIPOLAR) {
 		dotPositions.push_back(3);
 	}

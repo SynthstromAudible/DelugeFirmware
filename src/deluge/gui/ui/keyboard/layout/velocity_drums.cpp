@@ -24,7 +24,7 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
+PLACE_SDRAM_TEXT void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Erase active notes
 
 	static_assert(kMaxNumActiveNotes < 32, "We use a 32-bit integer to represent note active state");
@@ -83,15 +83,14 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 	}
 }
 
-void KeyboardLayoutVelocityDrums::handleVerticalEncoder(int32_t offset) {
+PLACE_SDRAM_TEXT void KeyboardLayoutVelocityDrums::handleVerticalEncoder(int32_t offset) {
 	PressedPad pressedPad{};
 	uint32_t edge_size_x = zoom_arr[getState().drums.zoom_level][0];
 	handleHorizontalEncoder(offset * (kDisplayWidth / edge_size_x), false, &pressedPad, false);
 }
 
-void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
-                                                          PressedPad presses[kMaxNumKeyboardPadPresses],
-                                                          bool encoderPressed) {
+PLACE_SDRAM_TEXT void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(
+    int32_t offset, bool shiftEnabled, PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
 	KeyboardStateDrums& state = getState().drums;
 	bool zoom_level_changed = false;
 	if (shiftEnabled || Buttons::isButtonPressed(hid::button::X_ENC)) { // zoom control
@@ -130,7 +129,7 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 	}
 }
 
-void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// D_PRINTLN("render pads");
 	uint32_t highest_clip_note = getHighestClipNote();
 	uint32_t offset = getState().drums.scroll_offset;

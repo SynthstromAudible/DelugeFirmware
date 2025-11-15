@@ -19,7 +19,7 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-void KeyboardLayoutNorns::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
+PLACE_SDRAM_TEXT void KeyboardLayoutNorns::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	uint8_t noteIdx = 0;
 
 	currentNotesState = NotesState{}; // Erase active notes
@@ -32,17 +32,18 @@ void KeyboardLayoutNorns::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 	}
 }
 
-void KeyboardLayoutNorns::handleVerticalEncoder(int32_t offset) {
+PLACE_SDRAM_TEXT void KeyboardLayoutNorns::handleVerticalEncoder(int32_t offset) {
 }
 
-void KeyboardLayoutNorns::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
-                                                  PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
+PLACE_SDRAM_TEXT void KeyboardLayoutNorns::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
+                                                                   PressedPad presses[kMaxNumKeyboardPadPresses],
+                                                                   bool encoderPressed) {
 }
 
-void KeyboardLayoutNorns::precalculate() {
+PLACE_SDRAM_TEXT void KeyboardLayoutNorns::precalculate() {
 }
 
-void KeyboardLayoutNorns::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT void KeyboardLayoutNorns::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// Iterate over grid image
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {

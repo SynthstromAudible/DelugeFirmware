@@ -83,7 +83,7 @@ KeyboardScreen::KeyboardScreen() {
 static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
                                             0}; // Careful - this is referenced in two places // I'm always careful ;)
 
-void KeyboardScreen::killColumnSwitchKey(int32_t column) {
+PLACE_SDRAM_TEXT void KeyboardScreen::killColumnSwitchKey(int32_t column) {
 	if (column != kDisplayWidth && column != kDisplayWidth + 1) {
 		return;
 	}
@@ -95,7 +95,7 @@ void KeyboardScreen::killColumnSwitchKey(int32_t column) {
 		}
 	}
 }
-ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
+PLACE_SDRAM_TEXT ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
 	}
@@ -191,13 +191,13 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 	return ActionResult::DEALT_WITH;
 }
 
-void KeyboardScreen::evaluateActiveNotes() {
+PLACE_SDRAM_TEXT void KeyboardScreen::evaluateActiveNotes() {
 	lastNotesState = currentNotesState;
 	layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->evaluatePads(pressedPads);
 	currentNotesState = layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->getNotesState();
 }
 
-void KeyboardScreen::updateActiveNotes() {
+PLACE_SDRAM_TEXT void KeyboardScreen::updateActiveNotes() {
 	Instrument* activeInstrument = getCurrentInstrument();
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -377,8 +377,8 @@ void KeyboardScreen::updateActiveNotes() {
 	}
 }
 
-void KeyboardScreen::noteOff(ModelStack& modelStack, Instrument& activeInstrument, bool clipIsActiveOnInstrument,
-                             int32_t note) {
+PLACE_SDRAM_TEXT void KeyboardScreen::noteOff(ModelStack& modelStack, Instrument& activeInstrument,
+                                              bool clipIsActiveOnInstrument, int32_t note) {
 	NoteRow* noteRow = (static_cast<InstrumentClip*>(activeInstrument.getActiveClip()))->getNoteRowForYNote(note);
 	if (noteRow) {
 		if (noteRow->sequenced) {
@@ -405,7 +405,7 @@ void KeyboardScreen::noteOff(ModelStack& modelStack, Instrument& activeInstrumen
 	}
 }
 
-ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	if (inCardRoutine) {
@@ -610,7 +610,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 	}
@@ -631,7 +631,7 @@ ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset, bool inCardRo
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult KeyboardScreen::horizontalEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT ActionResult KeyboardScreen::horizontalEncoderAction(int32_t offset) {
 
 	layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(
 	    offset, (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)), pressedPads,
@@ -646,7 +646,7 @@ ActionResult KeyboardScreen::horizontalEncoderAction(int32_t offset) {
 	return ActionResult::DEALT_WITH;
 }
 
-void KeyboardScreen::selectLayout(int8_t offset) {
+PLACE_SDRAM_TEXT void KeyboardScreen::selectLayout(int8_t offset) {
 	KeyboardLayoutType lastLayout = getCurrentInstrumentClip()->keyboardState.currentLayout;
 
 	int32_t nextLayout = getCurrentInstrumentClip()->keyboardState.currentLayout + offset;
@@ -718,7 +718,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 	requestRendering();
 }
 
-void KeyboardScreen::selectEncoderAction(int8_t offset) {
+PLACE_SDRAM_TEXT void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	if (keyboardButtonActive) {
 		keyboardButtonUsed = true;
 		selectLayout(offset);
@@ -755,7 +755,7 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	}
 }
 
-void KeyboardScreen::exitAuditionMode() {
+PLACE_SDRAM_TEXT void KeyboardScreen::exitAuditionMode() {
 	memset(&pressedPads, 0, sizeof(pressedPads));
 	evaluateActiveNotes();
 	updateActiveNotes();
@@ -766,13 +766,13 @@ void KeyboardScreen::exitAuditionMode() {
 	}
 }
 
-bool KeyboardScreen::opened() {
+PLACE_SDRAM_TEXT bool KeyboardScreen::opened() {
 	focusRegained();
 	openedInBackground();
 	return true;
 }
 
-void KeyboardScreen::focusRegained() {
+PLACE_SDRAM_TEXT void KeyboardScreen::focusRegained() {
 	keyboardButtonUsed = true; // Ensure we don't leave the mode on button up
 	InstrumentClipMinder::focusRegained();
 	setLedStates();
@@ -780,11 +780,11 @@ void KeyboardScreen::focusRegained() {
 	selectLayout(0); // Make sure we get a valid layout from the loaded file
 }
 
-void KeyboardScreen::displayOrLanguageChanged() {
+PLACE_SDRAM_TEXT void KeyboardScreen::displayOrLanguageChanged() {
 	InstrumentClipMinder::displayOrLanguageChanged();
 }
 
-void KeyboardScreen::openedInBackground() {
+PLACE_SDRAM_TEXT void KeyboardScreen::openedInBackground() {
 	getCurrentInstrumentClip()->onKeyboardScreen = true;
 
 	// Ensure scroll values are calculated in bounds
@@ -794,12 +794,13 @@ void KeyboardScreen::openedInBackground() {
 	requestRendering(); // This one originally also included sidebar, the other ones didn't
 }
 
-void KeyboardScreen::checkNewInstrument(Instrument* newInstrument) {
+PLACE_SDRAM_TEXT void KeyboardScreen::checkNewInstrument(Instrument* newInstrument) {
 	layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->checkNewInstrument(newInstrument);
 }
 
-bool KeyboardScreen::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
+PLACE_SDRAM_TEXT bool KeyboardScreen::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                                     bool drawUndefinedArea) {
 	if (!image) {
 		return true;
 	}
@@ -820,8 +821,8 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 	return true;
 }
 
-bool KeyboardScreen::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT bool KeyboardScreen::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
 	}
@@ -835,13 +836,13 @@ bool KeyboardScreen::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth
 	return true;
 }
 
-void KeyboardScreen::flashDefaultRootNote() {
+PLACE_SDRAM_TEXT void KeyboardScreen::flashDefaultRootNote() {
 	uiTimerManager.setTimer(TimerName::DEFAULT_ROOT_NOTE, kFlashTime);
 	flashDefaultRootNoteOn = !flashDefaultRootNoteOn;
 	requestRendering();
 }
 
-void KeyboardScreen::enterScaleMode(int32_t selectedRootNote) {
+PLACE_SDRAM_TEXT void KeyboardScreen::enterScaleMode(int32_t selectedRootNote) {
 	auto requiredScaleMode = layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->requiredScaleMode();
 	if (requiredScaleMode == RequiredScaleMode::Disabled) {
 		return;
@@ -863,7 +864,7 @@ void KeyboardScreen::enterScaleMode(int32_t selectedRootNote) {
 	setLedStates();
 }
 
-void KeyboardScreen::exitScaleMode() {
+PLACE_SDRAM_TEXT void KeyboardScreen::exitScaleMode() {
 	auto requiredScaleMode = layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->requiredScaleMode();
 	if (requiredScaleMode == RequiredScaleMode::Enabled) {
 		return;
@@ -878,12 +879,12 @@ void KeyboardScreen::exitScaleMode() {
 	setLedStates();
 }
 
-void KeyboardScreen::setLedStates() {
+PLACE_SDRAM_TEXT void KeyboardScreen::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 	InstrumentClipMinder::setLedStates();
 }
 
-void KeyboardScreen::drawNoteCode(int32_t noteCode) {
+PLACE_SDRAM_TEXT void KeyboardScreen::drawNoteCode(int32_t noteCode) {
 	// Might not want to actually do this...
 	if (!getCurrentUI()->toClipMinder()) {
 		return;
@@ -894,11 +895,11 @@ void KeyboardScreen::drawNoteCode(int32_t noteCode) {
 	}
 }
 
-bool KeyboardScreen::getAffectEntire() {
+PLACE_SDRAM_TEXT bool KeyboardScreen::getAffectEntire() {
 	return getCurrentInstrumentClip()->affectEntire;
 }
 
-void KeyboardScreen::unscrolledPadAudition(int32_t velocity, int32_t note, bool shiftButtonDown) {
+PLACE_SDRAM_TEXT void KeyboardScreen::unscrolledPadAudition(int32_t velocity, int32_t note, bool shiftButtonDown) {
 	// Ideally evaluateActiveNotes and InstrumentClipView::auditionPadAction should be harmonized
 	// (even in the original keyboard_screen most of the non kit sounding was a copy from auditionPadAction)
 	// but this refactor needs to wait for another day.
@@ -913,7 +914,7 @@ uint8_t keyboardTickSquares[kDisplayHeight] = {255, 255, 255, 255, 255, 255, 255
 const uint8_t keyboardTickColoursBasicRecording[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 0};
 const uint8_t keyboardTickColoursLinearRecording[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 2};
 
-void KeyboardScreen::graphicsRoutine() {
+PLACE_SDRAM_TEXT void KeyboardScreen::graphicsRoutine() {
 	int32_t newTickSquare;
 
 	const uint8_t* colours = keyboardTickColoursBasicRecording;

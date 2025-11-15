@@ -23,7 +23,8 @@ using namespace deluge::gui::ui::keyboard::layout;
 
 namespace deluge::gui::ui::keyboard::controls {
 
-void VelocityColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void VelocityColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column,
+                                                   KeyboardLayout* layout) {
 	uint8_t brightness = 1;
 	uint8_t otherChannels = 0;
 	uint32_t velocityVal = velocityMin;
@@ -39,7 +40,7 @@ void VelocityColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], in
 	}
 }
 
-bool VelocityColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
+PLACE_SDRAM_TEXT bool VelocityColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	if (pad == 7) {
 		velocityMax += offset << kVelModShift;
 		velocityMax = std::clamp(velocityMax, velocityMin, (uint32_t)127 << kVelModShift);
@@ -57,15 +58,15 @@ bool VelocityColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	return false;
 };
 
-void VelocityColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                         KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void VelocityColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                                          KeyboardLayout* layout) {
 	// Restore previously set Velocity
 	vDisplay = storedVelocity;
 	layout->velocity = (storedVelocity + kHalfStep) >> kVelModShift;
 };
 
-void VelocityColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
-                               KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void VelocityColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                                PressedPad pad, KeyboardLayout* layout) {
 	if (pad.active) {
 		vDisplay = velocityMin + pad.y * velocityStep;
 		layout->velocity = (vDisplay + kHalfStep) >> kVelModShift;

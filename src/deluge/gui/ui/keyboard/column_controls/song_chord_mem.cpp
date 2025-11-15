@@ -22,8 +22,8 @@
 
 namespace deluge::gui::ui::keyboard::controls {
 
-void SongChordMemColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column,
-                                      KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void SongChordMemColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column,
+                                                       KeyboardLayout* layout) {
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		bool chord_selected = y == activeChordMem;
@@ -34,15 +34,16 @@ void SongChordMemColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth]
 	}
 }
 
-bool SongChordMemColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
+PLACE_SDRAM_TEXT bool SongChordMemColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	return false;
 };
 
-void SongChordMemColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                             KeyboardLayout* layout) {};
+PLACE_SDRAM_TEXT void
+SongChordMemColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                        KeyboardLayout* layout) {};
 
-void SongChordMemColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
-                                   KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void SongChordMemColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                                    PressedPad pad, KeyboardLayout* layout) {
 	NotesState& currentNotesState = layout->getNotesState();
 
 	if (pad.active) {

@@ -32,7 +32,7 @@
 #include <algorithm>
 #include <string.h>
 
-void TimelineView::scrollFinished() {
+PLACE_SDRAM_TEXT void TimelineView::scrollFinished() {
 	exitUIMode(UI_MODE_HORIZONTAL_SCROLL);
 	// Needed because sometimes we initiate a scroll before reverting an Action, so we need to
 	// properly render again afterwards
@@ -40,7 +40,7 @@ void TimelineView::scrollFinished() {
 }
 
 // Virtual function
-bool TimelineView::setupScroll(uint32_t oldScroll) {
+PLACE_SDRAM_TEXT bool TimelineView::setupScroll(uint32_t oldScroll) {
 	memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
 
 	renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, &PadLEDs::occupancyMaskStore[kDisplayHeight], true);
@@ -48,7 +48,8 @@ bool TimelineView::setupScroll(uint32_t oldScroll) {
 	return true;
 }
 
-bool TimelineView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom, uint32_t oldZoom) {
+PLACE_SDRAM_TEXT bool TimelineView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom,
+                                                            uint32_t oldZoom) {
 
 	int32_t zoomPinSquareBig = ((int64_t)(int32_t)(oldScroll - newScroll) << 16) / (int32_t)(newZoom - oldZoom);
 
@@ -61,7 +62,7 @@ bool TimelineView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScrol
 	return true;
 }
 
-ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	// Horizontal encoder button
@@ -118,7 +119,7 @@ ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	return ActionResult::DEALT_WITH;
 }
 
-void TimelineView::displayZoomLevel(bool justPopup) {
+PLACE_SDRAM_TEXT void TimelineView::displayZoomLevel(bool justPopup) {
 	DEF_STACK_STRING_BUF(text, 30);
 	currentSong->getNoteLengthName(text, currentSong->xZoom[getNavSysId()], "-notes", true);
 
@@ -127,7 +128,7 @@ void TimelineView::displayZoomLevel(bool justPopup) {
 
 bool horizontalEncoderActionLock = false;
 
-ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -222,7 +223,7 @@ getOut:
 	return ActionResult::DEALT_WITH;
 }
 
-void TimelineView::displayScrollPos() {
+PLACE_SDRAM_TEXT void TimelineView::displayScrollPos() {
 
 	int32_t navSysId = getNavSysId();
 	uint32_t quantization = currentSong->xZoom[navSysId];
@@ -233,8 +234,8 @@ void TimelineView::displayScrollPos() {
 	displayNumberOfBarsAndBeats(currentSong->xScroll[navSysId], quantization, true, "FAR");
 }
 
-void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantization, bool countFromOne,
-                                               char const* tooLongText) {
+PLACE_SDRAM_TEXT void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantization,
+                                                                bool countFromOne, char const* tooLongText) {
 
 	uint32_t oneBar = currentSong->getBarLength();
 
@@ -303,7 +304,7 @@ putBeatCountOnFarRight:
 }
 
 // Changes the actual xScroll.
-void TimelineView::initiateXScroll(uint32_t newXScroll, int32_t numSquaresToScroll) {
+PLACE_SDRAM_TEXT void TimelineView::initiateXScroll(uint32_t newXScroll, int32_t numSquaresToScroll) {
 
 	uint32_t oldXScroll = currentSong->xScroll[getNavSysId()];
 
@@ -321,7 +322,7 @@ void TimelineView::initiateXScroll(uint32_t newXScroll, int32_t numSquaresToScro
 }
 
 // Returns whether any zooming took place - I think?
-bool TimelineView::zoomToMax(bool inOnly) {
+PLACE_SDRAM_TEXT bool TimelineView::zoomToMax(bool inOnly) {
 	uint32_t maxZoom = getMaxZoom();
 	uint32_t oldZoom = currentSong->xZoom[getNavSysId()];
 	if (maxZoom != oldZoom && (!inOnly || maxZoom < oldZoom)) {
@@ -340,7 +341,7 @@ bool TimelineView::zoomToMax(bool inOnly) {
 }
 
 // Puts us into zoom mode. Assumes we've already altered currentSong->xZoom.
-void TimelineView::initiateXZoom(int32_t zoomMagnitude, int32_t newScroll, uint32_t oldZoom) {
+PLACE_SDRAM_TEXT void TimelineView::initiateXZoom(int32_t zoomMagnitude, int32_t newScroll, uint32_t oldZoom) {
 
 	memcpy(PadLEDs::imageStore[(zoomMagnitude < 0) ? kDisplayHeight : 0], PadLEDs::image,
 	       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
@@ -366,7 +367,7 @@ void TimelineView::initiateXZoom(int32_t zoomMagnitude, int32_t newScroll, uint3
 	}
 }
 
-bool TimelineView::scrollRightToEndOfLengthIfNecessary(int32_t maxLength) {
+PLACE_SDRAM_TEXT bool TimelineView::scrollRightToEndOfLengthIfNecessary(int32_t maxLength) {
 
 	// If we're not scrolled all the way to the right, go there now
 	if (getPosFromSquare(kDisplayWidth) < maxLength) {
@@ -380,7 +381,7 @@ bool TimelineView::scrollRightToEndOfLengthIfNecessary(int32_t maxLength) {
 	return false;
 }
 
-bool TimelineView::scrollLeftIfTooFarRight(int32_t maxLength) {
+PLACE_SDRAM_TEXT bool TimelineView::scrollLeftIfTooFarRight(int32_t maxLength) {
 
 	if (getPosFromSquare(0) >= maxLength) {
 		initiateXScroll(currentSong->xScroll[getNavSysId()] - currentSong->xZoom[getNavSysId()] * kDisplayWidth);
@@ -390,7 +391,7 @@ bool TimelineView::scrollLeftIfTooFarRight(int32_t maxLength) {
 	return false;
 }
 
-void TimelineView::tripletsButtonPressed() {
+PLACE_SDRAM_TEXT void TimelineView::tripletsButtonPressed() {
 
 	currentSong->tripletsOn = !currentSong->tripletsOn;
 	if (currentSong->tripletsOn) {
@@ -400,11 +401,11 @@ void TimelineView::tripletsButtonPressed() {
 	setTripletsLEDState();
 }
 
-void TimelineView::setTripletsLEDState() {
+PLACE_SDRAM_TEXT void TimelineView::setTripletsLEDState() {
 	indicator_leds::setLedState(IndicatorLED::TRIPLETS, inTripletsView());
 }
 
-int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll, uint32_t xZoom) const {
+PLACE_SDRAM_TEXT int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll, uint32_t xZoom) const {
 
 	if (inTripletsView()) {
 		// If zoomed in just a normal amount...
@@ -435,7 +436,7 @@ int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll, uint32_t
 	return xScroll + square * xZoom;
 }
 
-int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll) const {
+PLACE_SDRAM_TEXT int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll) const {
 
 	int32_t navSys = getNavSysId();
 
@@ -448,7 +449,8 @@ int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll) const {
 	return getPosFromSquare(square, xScroll, xZoom);
 }
 
-int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t xScroll, uint32_t xZoom) {
+PLACE_SDRAM_TEXT int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t xScroll,
+                                                        uint32_t xZoom) {
 
 	int32_t posRelativeToScroll = pos - xScroll;
 
@@ -497,7 +499,7 @@ int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t
 	return divide_round_negative(pos - xScroll, xZoom);
 }
 
-int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t xScroll) {
+PLACE_SDRAM_TEXT int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t xScroll) {
 
 	int32_t navSys = getNavSysId();
 
@@ -510,7 +512,7 @@ int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t
 	return getSquareFromPos(pos, rightOnSquare, xScroll, xZoom);
 }
 
-int32_t TimelineView::getSquareEndFromPos(int32_t pos, int32_t localScroll) {
+PLACE_SDRAM_TEXT int32_t TimelineView::getSquareEndFromPos(int32_t pos, int32_t localScroll) {
 	bool rightOnSquare;
 	int32_t square = getSquareFromPos(pos, &rightOnSquare, localScroll);
 	if (!rightOnSquare) {
@@ -519,7 +521,7 @@ int32_t TimelineView::getSquareEndFromPos(int32_t pos, int32_t localScroll) {
 	return square;
 }
 
-bool TimelineView::isSquareDefined(int32_t square, int32_t xScroll, uint32_t xZoom) {
+PLACE_SDRAM_TEXT bool TimelineView::isSquareDefined(int32_t square, int32_t xScroll, uint32_t xZoom) {
 	if (!inTripletsView()) {
 		return true;
 	}
@@ -530,7 +532,7 @@ bool TimelineView::isSquareDefined(int32_t square, int32_t xScroll, uint32_t xZo
 }
 
 // Deprecate this.
-bool TimelineView::isSquareDefined(int32_t square, int32_t xScroll) {
+PLACE_SDRAM_TEXT bool TimelineView::isSquareDefined(int32_t square, int32_t xScroll) {
 	if (!inTripletsView()) {
 		return true;
 	}
@@ -542,10 +544,10 @@ bool TimelineView::isSquareDefined(int32_t square, int32_t xScroll) {
 	}
 }
 
-bool TimelineView::inTripletsView() const {
+PLACE_SDRAM_TEXT bool TimelineView::inTripletsView() const {
 	return (supportsTriplets() && currentSong->tripletsOn);
 }
 
-void TimelineView::midiLearnFlash() {
+PLACE_SDRAM_TEXT void TimelineView::midiLearnFlash() {
 	uiNeedsRendering(this, 0, 0xFFFFFFFF);
 }

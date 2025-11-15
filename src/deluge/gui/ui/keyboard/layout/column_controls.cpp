@@ -37,7 +37,7 @@ using namespace deluge::gui::ui::keyboard::controls;
 
 namespace deluge::gui::ui::keyboard::layout {
 
-l10n::String functionNames[] = {
+PLACE_SDRAM_DATA l10n::String functionNames[] = {
     l10n::String::STRING_FOR_COLUMN_VELOCITY, //<
     l10n::String::STRING_FOR_COLUMN_MOD,
     l10n::String::STRING_FOR_COLUMN_CHORD,
@@ -49,7 +49,7 @@ l10n::String functionNames[] = {
     l10n::String::STRING_FOR_COLUMN_BEAT_REPEAT,
 };
 
-void ColumnControlsKeyboard::enableNote(uint8_t note, uint8_t velocity) {
+PLACE_SDRAM_TEXT void ColumnControlsKeyboard::enableNote(uint8_t note, uint8_t velocity) {
 	currentNotesState.enableNote(note, velocity);
 
 	ColumnControlState& state = getState().columnControl;
@@ -63,7 +63,7 @@ void ColumnControlsKeyboard::enableNote(uint8_t note, uint8_t velocity) {
 	}
 }
 
-void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
+PLACE_SDRAM_TEXT void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(getCurrentClip());
@@ -109,11 +109,11 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 	}
 }
 
-void ColumnControlsKeyboard::handleVerticalEncoder(int32_t offset) {
+PLACE_SDRAM_TEXT void ColumnControlsKeyboard::handleVerticalEncoder(int32_t offset) {
 	verticalEncoderHandledByColumns(offset);
 }
 
-bool ColumnControlsKeyboard::verticalEncoderHandledByColumns(int32_t offset) {
+PLACE_SDRAM_TEXT bool ColumnControlsKeyboard::verticalEncoderHandledByColumns(int32_t offset) {
 	ColumnControlState& state = getState().columnControl;
 
 	if (leftColHeld != -1) {
@@ -125,14 +125,14 @@ bool ColumnControlsKeyboard::verticalEncoderHandledByColumns(int32_t offset) {
 	return false;
 }
 
-void ColumnControlsKeyboard::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
-                                                     PressedPad presses[kMaxNumKeyboardPadPresses],
-                                                     bool encoderPressed) {
+PLACE_SDRAM_TEXT void ColumnControlsKeyboard::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
+                                                                      PressedPad presses[kMaxNumKeyboardPadPresses],
+                                                                      bool encoderPressed) {
 	horizontalEncoderHandledByColumns(offset, shiftEnabled);
 }
 
-ColumnControlFunction ColumnControlsKeyboard::nextControlFunction(ColumnControlFunction cur,
-                                                                  ColumnControlFunction skip) {
+PLACE_SDRAM_TEXT ColumnControlFunction ColumnControlsKeyboard::nextControlFunction(ColumnControlFunction cur,
+                                                                                   ColumnControlFunction skip) {
 	bool has_dx = (getCurrentDxPatch() != nullptr);
 	auto out = cur;
 	while (true) {
@@ -143,8 +143,8 @@ ColumnControlFunction ColumnControlsKeyboard::nextControlFunction(ColumnControlF
 	}
 }
 
-ColumnControlFunction ColumnControlsKeyboard::prevControlFunction(ColumnControlFunction cur,
-                                                                  ColumnControlFunction skip) {
+PLACE_SDRAM_TEXT ColumnControlFunction ColumnControlsKeyboard::prevControlFunction(ColumnControlFunction cur,
+                                                                                   ColumnControlFunction skip) {
 	bool has_dx = (getCurrentDxPatch() != nullptr);
 	auto out = cur;
 	while (true) {
@@ -158,7 +158,7 @@ ColumnControlFunction ColumnControlsKeyboard::prevControlFunction(ColumnControlF
 	}
 }
 
-void ColumnControlsKeyboard::checkNewInstrument(Instrument* newInstrument) {
+PLACE_SDRAM_TEXT void ColumnControlsKeyboard::checkNewInstrument(Instrument* newInstrument) {
 	if (newInstrument->type != OutputType::SYNTH) {
 		return;
 	}
@@ -189,12 +189,13 @@ void ColumnControlsKeyboard::checkNewInstrument(Instrument* newInstrument) {
 	}
 }
 
-ColumnControlFunction ColumnControlsKeyboard::stepControlFunction(int32_t offset, ColumnControlFunction cur,
-                                                                  ColumnControlFunction skip) {
+PLACE_SDRAM_TEXT ColumnControlFunction ColumnControlsKeyboard::stepControlFunction(int32_t offset,
+                                                                                   ColumnControlFunction cur,
+                                                                                   ColumnControlFunction skip) {
 	return (offset > 0) ? nextControlFunction(cur, skip) : prevControlFunction(cur, skip);
 }
 
-ControlColumn* ColumnControlState::getColumnForFunc(ColumnControlFunction func) {
+PLACE_SDRAM_TEXT ControlColumn* ColumnControlState::getColumnForFunc(ColumnControlFunction func) {
 	switch (func) {
 	case VELOCITY:
 		return &velocityColumn;
@@ -243,7 +244,7 @@ const char* columnFunctionToString(ColumnControlFunction func) {
 	return "";
 }
 
-ColumnControlFunction stringToColumnFunction(char const* string) {
+PLACE_SDRAM_TEXT ColumnControlFunction stringToColumnFunction(char const* string) {
 	if (!strcmp(string, "velocity")) {
 		return VELOCITY;
 	}
@@ -273,7 +274,7 @@ ColumnControlFunction stringToColumnFunction(char const* string) {
 	}
 }
 
-void ColumnControlState::writeToFile(Serializer& writer) {
+PLACE_SDRAM_TEXT void ColumnControlState::writeToFile(Serializer& writer) {
 	writer.writeOpeningTagBeginning("leftCol");
 	writer.writeAttribute("type", (char*)columnFunctionToString(leftColFunc));
 	writer.closeTag();
@@ -285,7 +286,7 @@ void ColumnControlState::writeToFile(Serializer& writer) {
 	chordMemColumn.writeToFile(writer);
 }
 
-void ColumnControlState::readFromFile(Deserializer& reader) {
+PLACE_SDRAM_TEXT void ColumnControlState::readFromFile(Deserializer& reader) {
 	char const* tagName;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -313,7 +314,7 @@ void ColumnControlState::readFromFile(Deserializer& reader) {
 	rightCol = getColumnForFunc(rightColFunc);
 }
 
-bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, bool shiftEnabled) {
+PLACE_SDRAM_TEXT bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, bool shiftEnabled) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(getCurrentClip());
@@ -341,14 +342,15 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 	return false;
 }
 
-void ColumnControlsKeyboard::renderSidebarPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT void ColumnControlsKeyboard::renderSidebarPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	ColumnControlState& state = getState().columnControl;
 
 	state.leftCol->renderColumn(image, LEFT_COL, this);
 	state.rightCol->renderColumn(image, RIGHT_COL, this);
 }
 
-void ColumnControlsKeyboard::renderColumnBeatRepeat(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
+PLACE_SDRAM_TEXT void ColumnControlsKeyboard::renderColumnBeatRepeat(RGB image[][kDisplayWidth + kSideBarWidth],
+                                                                     int32_t column) {
 	// TODO
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {

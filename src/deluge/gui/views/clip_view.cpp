@@ -32,19 +32,19 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 
-uint32_t ClipView::getMaxZoom() {
+PLACE_SDRAM_TEXT uint32_t ClipView::getMaxZoom() {
 	return getCurrentClip()->getMaxZoom();
 }
 
-uint32_t ClipView::getMaxLength() {
+PLACE_SDRAM_TEXT uint32_t ClipView::getMaxLength() {
 	return getCurrentClip()->getMaxLength();
 }
 
-void ClipView::focusRegained() {
+PLACE_SDRAM_TEXT void ClipView::focusRegained() {
 	ClipNavigationTimelineView::focusRegained();
 }
 
-ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently
@@ -72,7 +72,7 @@ ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardR
 extern bool allowResyncingDuringClipLengthChange;
 
 // Check newLength valid before calling this
-Action* ClipView::lengthenClip(int32_t newLength) {
+PLACE_SDRAM_TEXT Action* ClipView::lengthenClip(int32_t newLength) {
 
 	Action* action = nullptr;
 
@@ -121,7 +121,7 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 }
 
 // Check newLength valid before calling this
-Action* ClipView::shortenClip(int32_t newLength) {
+PLACE_SDRAM_TEXT Action* ClipView::shortenClip(int32_t newLength) {
 
 	Action* action = nullptr;
 
@@ -143,7 +143,7 @@ Action* ClipView::shortenClip(int32_t newLength) {
 	return action;
 }
 
-ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 	// Shift button pressed - edit length
 	if (isNoUIModeActive() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)
@@ -261,7 +261,8 @@ addConsequenceToAction:
 		return ClipNavigationTimelineView::horizontalEncoderAction(offset);
 	}
 }
-uint32_t ClipView::changeClipLength(int32_t offset, uint32_t oldLength, Action*& action) {
+
+PLACE_SDRAM_TEXT uint32_t ClipView::changeClipLength(int32_t offset, uint32_t oldLength, Action*& action) {
 	bool rightOnSquare;
 	uint32_t newLength;
 	int32_t endSquare = getSquareFromPos(oldLength, &rightOnSquare);
@@ -312,7 +313,7 @@ doReRender:
 	return newLength;
 }
 
-int32_t ClipView::getLengthChopAmount(int32_t square) {
+PLACE_SDRAM_TEXT int32_t ClipView::getLengthChopAmount(int32_t square) {
 
 	square--; // We want the width of the square before
 	while (!isSquareDefined(square)) {
@@ -332,7 +333,7 @@ int32_t ClipView::getLengthChopAmount(int32_t square) {
 	return xZoom;
 }
 
-int32_t ClipView::getLengthExtendAmount(int32_t square) {
+PLACE_SDRAM_TEXT int32_t ClipView::getLengthExtendAmount(int32_t square) {
 
 	while (!isSquareDefined(square)) {
 		square++;
@@ -351,7 +352,7 @@ int32_t ClipView::getLengthExtendAmount(int32_t square) {
 	return xZoom;
 }
 
-int32_t ClipView::getTickSquare() {
+PLACE_SDRAM_TEXT int32_t ClipView::getTickSquare() {
 
 	int32_t newTickSquare = getSquareFromPos(getCurrentClip()->getLivePos());
 

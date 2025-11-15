@@ -24,19 +24,19 @@
 
 namespace deluge::gui::menu_item {
 
-std::string_view HorizontalMenuGroup::getTitle() const {
+PLACE_SDRAM_TEXT std::string_view HorizontalMenuGroup::getTitle() const {
 	return current_menu_->getTitle();
 }
 
-MenuPermission HorizontalMenuGroup::checkPermissionToBeginSession(ModControllableAudio* modControllable,
-                                                                  int32_t whichThing, MultiRange** currentRange) {
+PLACE_SDRAM_TEXT MenuPermission HorizontalMenuGroup::checkPermissionToBeginSession(
+    ModControllableAudio* modControllable, int32_t whichThing, MultiRange** currentRange) {
 	for (const auto menu : menus_) {
 		menu->checkPermissionToBeginSession(modControllable, whichThing, currentRange);
 	}
 	return MenuPermission::YES;
 }
 
-void HorizontalMenuGroup::beginSession(MenuItem* navigatedBackwardFrom) {
+PLACE_SDRAM_TEXT void HorizontalMenuGroup::beginSession(MenuItem* navigatedBackwardFrom) {
 	HorizontalMenu::beginSession(navigatedBackwardFrom);
 	navigated_backward_from = navigatedBackwardFrom;
 	lastSelectedItemPosition = kNoSelection;
@@ -46,7 +46,7 @@ void HorizontalMenuGroup::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 
-void HorizontalMenuGroup::endSession() {
+PLACE_SDRAM_TEXT void HorizontalMenuGroup::endSession() {
 	HorizontalMenu::endSession();
 
 	for (const auto menu : menus_) {
@@ -54,7 +54,7 @@ void HorizontalMenuGroup::endSession() {
 	}
 }
 
-bool HorizontalMenuGroup::focusChild(const MenuItem* child) {
+PLACE_SDRAM_TEXT bool HorizontalMenuGroup::focusChild(const MenuItem* child) {
 	if (child == nullptr) {
 		// Select the first relevant item if the current item is not valid or relevant
 		if (current_item_ == items.end() || !isItemRelevant(*current_item_)) {
@@ -87,19 +87,20 @@ bool HorizontalMenuGroup::focusChild(const MenuItem* child) {
 	return false;
 }
 
-void HorizontalMenuGroup::renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) {
+PLACE_SDRAM_TEXT void HorizontalMenuGroup::renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) {
 	// Redirect rendering to the current menu
 	current_menu_->renderMenuItems(items, currentItem);
 }
 
-void HorizontalMenuGroup::handleInstrumentButtonPress(std::span<MenuItem*> visiblePageItems, const MenuItem* previous,
-                                                      int32_t pressedButtonPosition) {
+PLACE_SDRAM_TEXT void HorizontalMenuGroup::handleInstrumentButtonPress(std::span<MenuItem*> visiblePageItems,
+                                                                       const MenuItem* previous,
+                                                                       int32_t pressedButtonPosition) {
 	// Redirect handling to the current menu
 	current_menu_->handleInstrumentButtonPress(visiblePageItems, previous, pressedButtonPosition);
 	current_item_ = current_menu_->current_item_;
 }
 
-void HorizontalMenuGroup::selectMenuItem(int32_t pageNumber, int32_t itemPos) {
+PLACE_SDRAM_TEXT void HorizontalMenuGroup::selectMenuItem(int32_t pageNumber, int32_t itemPos) {
 	int32_t currentPageNumber = 0;
 
 	for (const auto menu : menus_) {
@@ -116,7 +117,8 @@ void HorizontalMenuGroup::selectMenuItem(int32_t pageNumber, int32_t itemPos) {
 	}
 }
 
-HorizontalMenu::Paging& HorizontalMenuGroup::preparePaging(std::span<MenuItem*>, const MenuItem* currentItem) {
+PLACE_SDRAM_TEXT HorizontalMenu::Paging& HorizontalMenuGroup::preparePaging(std::span<MenuItem*>,
+                                                                            const MenuItem* currentItem) {
 	static std::vector<MenuItem*> visiblePageItems;
 	visiblePageItems.clear();
 	visiblePageItems.reserve(4);
@@ -156,7 +158,7 @@ HorizontalMenu::Paging& HorizontalMenuGroup::preparePaging(std::span<MenuItem*>,
 	return paging;
 }
 
-void HorizontalMenuGroup::switchVisiblePage(int32_t direction) {
+PLACE_SDRAM_TEXT void HorizontalMenuGroup::switchVisiblePage(int32_t direction) {
 	// Try switching page within the current menu first
 	if (current_menu_->paging.totalPages > 1) {
 		// If we can stay within the current menu, do it
@@ -203,11 +205,11 @@ void HorizontalMenuGroup::switchVisiblePage(int32_t direction) {
 	}
 }
 
-bool HorizontalMenuGroup::hasItem(const MenuItem* item) {
+PLACE_SDRAM_TEXT bool HorizontalMenuGroup::hasItem(const MenuItem* item) {
 	return std::ranges::any_of(menus_, [&](auto menu) { return menu->hasItem(item); });
 }
 
-void HorizontalMenuGroup::setCurrentItem(const MenuItem* item) {
+PLACE_SDRAM_TEXT void HorizontalMenuGroup::setCurrentItem(const MenuItem* item) {
 	for (auto* menu : menus_) {
 		current_item_ = std::ranges::find(menu->items, item);
 		if (current_item_ != menu->items.end()) {
