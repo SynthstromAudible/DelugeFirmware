@@ -24,7 +24,7 @@ public:
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		if (getValue() == 0) {
 			const auto off_string = l10n::get(l10n::String::STRING_FOR_OFF);
 			return OLED::main.drawStringCentered(off_string, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
@@ -33,13 +33,10 @@ public:
 		ArpUnpatchedParam::renderInHorizontalMenu(slot);
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override {
-		if (const auto value = getValue(); value == 0) {
-			valueBuf.append(l10n::get(l10n::String::STRING_FOR_OFF));
-		}
-		else {
-			valueBuf.appendInt(value);
-		}
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		ArpUnpatchedParam::configureRenderingOptions(options);
+		options.notification_value =
+		    getValue() < 0 ? l10n::get(l10n::String::STRING_FOR_OFF) : std::to_string(getValue());
 	}
 };
 

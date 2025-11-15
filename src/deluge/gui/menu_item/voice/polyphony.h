@@ -71,21 +71,15 @@ public:
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return (sound->polyphonic == PolyphonyMode::POLY);
 	}
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		IntegerWithOff::configureRenderingOptions(options);
 
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(l10n::String::STRING_FOR_MAX_VOICES_SHORT));
+		options.label = deluge::l10n::get(l10n::String::STRING_FOR_MAX_VOICES_SHORT);
+		options.notification_value =
+		    getValue() < 0 ? l10n::get(l10n::String::STRING_FOR_OFF) : std::to_string(getValue());
 	}
 
-	void getNotificationValue(StringBuf& valueBuf) override {
-		if (const auto value = getValue(); value == 0) {
-			valueBuf.append(l10n::get(l10n::String::STRING_FOR_OFF));
-		}
-		else {
-			valueBuf.appendInt(value);
-		}
-	}
-
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		if (getValue() == 0) {
 			return OLED::main.drawIconCentered(OLED::infinityIcon, slot.start_x, slot.width,
 			                                   slot.start_y + kHorizontalMenuSlotYOffset + 1);
@@ -143,8 +137,9 @@ public:
 		return Selection::selectButtonPress();
 	}
 
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(l10n::String::STRING_FOR_POLYPHONY_SHORT));
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		Selection::configureRenderingOptions(options);
+		options.label = deluge::l10n::get(l10n::String::STRING_FOR_POLYPHONY_SHORT);
 	}
 };
 } // namespace deluge::gui::menu_item::voice

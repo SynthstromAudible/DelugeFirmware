@@ -72,7 +72,7 @@ void Number::drawHorizontalBar(int32_t y_top, int32_t margin_l, int32_t margin_r
 	canvas.drawRectangleRounded(left_most, y_top, right_most - 1, y_top + height);
 }
 
-void Number::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void Number::renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) {
 	switch (getRenderingStyle()) {
 	case PERCENT:
 		return drawPercent(slot);
@@ -104,7 +104,7 @@ void Number::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
 	}
 }
 
-void Number::drawPercent(const HorizontalMenuSlotParams& slot) {
+void Number::drawPercent(const HorizontalMenuSlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	DEF_STACK_STRING_BUF(valueString, 12);
@@ -124,7 +124,7 @@ void Number::drawPercent(const HorizontalMenuSlotParams& slot) {
 	image.drawChar(percent_char, x, y, kTextSpacingX, kTextSpacingY);
 }
 
-void Number::drawKnob(const HorizontalMenuSlotParams& slot) {
+void Number::drawKnob(const HorizontalMenuSlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	// Draw the background arc
@@ -163,7 +163,7 @@ void Number::drawKnob(const HorizontalMenuSlotParams& slot) {
 	}
 }
 
-void Number::drawBar(const HorizontalMenuSlotParams& slot) {
+void Number::drawBar(const HorizontalMenuSlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t bar_width = 21;
@@ -182,7 +182,7 @@ void Number::drawBar(const HorizontalMenuSlotParams& slot) {
 	image.invertArea(bar_start_x, fill_width, bar_start_y, bar_end_y);
 }
 
-void Number::drawSlider(const HorizontalMenuSlotParams& slot, std::optional<int32_t> value) {
+void Number::drawSlider(const HorizontalMenuSlotPosition& slot, std::optional<int32_t> value) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr int32_t slider_width = 23;
@@ -209,7 +209,7 @@ void Number::drawSlider(const HorizontalMenuSlotParams& slot, std::optional<int3
 	image.drawVerticalLine(value_line_x + 1, min_y, max_y);
 }
 
-void Number::drawLengthSlider(const HorizontalMenuSlotParams& slot, bool min_slider_pos) {
+void Number::drawLengthSlider(const HorizontalMenuSlotPosition& slot, bool min_slider_pos) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr int32_t slider_width = 23;
@@ -236,7 +236,7 @@ void Number::drawLengthSlider(const HorizontalMenuSlotParams& slot, bool min_sli
 	}
 }
 
-void Number::drawPan(const HorizontalMenuSlotParams& slot) {
+void Number::drawPan(const HorizontalMenuSlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	// Draw the half-cylinder base (easier to have a bitmap for that)
@@ -284,7 +284,7 @@ void Number::drawPan(const HorizontalMenuSlotParams& slot) {
 	}
 }
 
-void Number::drawHpf(const HorizontalMenuSlotParams& slot) {
+void Number::drawHpf(const HorizontalMenuSlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t slope_width = 5;
@@ -314,7 +314,7 @@ void Number::drawHpf(const HorizontalMenuSlotParams& slot) {
 	}
 }
 
-void Number::drawLpf(const HorizontalMenuSlotParams& slot) {
+void Number::drawLpf(const HorizontalMenuSlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t slope_width = 5;
@@ -344,7 +344,7 @@ void Number::drawLpf(const HorizontalMenuSlotParams& slot) {
 	}
 }
 
-void Number::drawRelease(const HorizontalMenuSlotParams& slot) {
+void Number::drawRelease(const HorizontalMenuSlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t width = 19;
@@ -374,7 +374,7 @@ void Number::drawRelease(const HorizontalMenuSlotParams& slot) {
 	}
 }
 
-void Number::drawAttack(const HorizontalMenuSlotParams& slot) {
+void Number::drawAttack(const HorizontalMenuSlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t width = 19;
@@ -402,7 +402,7 @@ void Number::drawAttack(const HorizontalMenuSlotParams& slot) {
 	}
 }
 
-void Number::drawSidechainDucking(const HorizontalMenuSlotParams& slot) {
+void Number::drawSidechainDucking(const HorizontalMenuSlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr int32_t width = 23;
@@ -442,8 +442,12 @@ void Number::drawSidechainDucking(const HorizontalMenuSlotParams& slot) {
 	image.drawHorizontalLine(y1, max_x - offset_right, max_x);
 }
 
-void Number::getNotificationValue(StringBuf& value) {
-	value.appendInt(getRenderingStyle() == PERCENT ? getValue() * 2 : getValue());
+void Number::configureRenderingOptions(const HorizontalMenuRenderingOptions& options) {
+	Value::configureRenderingOptions(options);
+
+	char value_buf[3];
+	intToString(getRenderingStyle() == PERCENT ? getValue() * 2 : getValue(), value_buf);
+	options.notification_value = value_buf;
 }
 
 } // namespace deluge::gui::menu_item

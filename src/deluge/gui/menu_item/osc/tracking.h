@@ -35,9 +35,10 @@ public:
 	[[nodiscard]] std::string_view getName() const override { return FormattedTitle::title(); }
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	void getColumnLabel(StringBuf& label) override {
-		label.append(getName());
-		label.truncate(4);
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		Toggle::configureRenderingOptions(options);
+		options.label = getName();
+		options.label.resize(4);
 	}
 
 	void selectEncoderAction(int32_t offset) override {
@@ -48,7 +49,7 @@ public:
 		Toggle::selectEncoderAction(offset);
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		using namespace deluge::hid::display;
 		const auto& icon = getValue() ? OLED::oscTrackingEnabledIcon : OLED::oscTrackingDisabledIcon;
 		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);

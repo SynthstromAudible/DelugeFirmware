@@ -30,7 +30,7 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
+PLACE_SDRAM_TEXT void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Erase active notes
 	KeyboardStateChordLibrary& state = getState().chordLibrary;
 
@@ -57,7 +57,7 @@ void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboard
 	ColumnControlsKeyboard::evaluatePads(presses);
 }
 
-void KeyboardLayoutChordLibrary::handleVerticalEncoder(int32_t offset) {
+PLACE_SDRAM_TEXT void KeyboardLayoutChordLibrary::handleVerticalEncoder(int32_t offset) {
 	if (verticalEncoderHandledByColumns(offset)) {
 		return;
 	}
@@ -67,9 +67,9 @@ void KeyboardLayoutChordLibrary::handleVerticalEncoder(int32_t offset) {
 	precalculate();
 }
 
-void KeyboardLayoutChordLibrary::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
-                                                         PressedPad presses[kMaxNumKeyboardPadPresses],
-                                                         bool encoderPressed) {
+PLACE_SDRAM_TEXT void KeyboardLayoutChordLibrary::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
+                                                                          PressedPad presses[kMaxNumKeyboardPadPresses],
+                                                                          bool encoderPressed) {
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
 		return;
 	}
@@ -93,7 +93,7 @@ void KeyboardLayoutChordLibrary::handleHorizontalEncoder(int32_t offset, bool sh
 	precalculate();
 }
 
-void KeyboardLayoutChordLibrary::precalculate() {
+PLACE_SDRAM_TEXT void KeyboardLayoutChordLibrary::precalculate() {
 	KeyboardStateChordLibrary& state = getState().chordLibrary;
 	// On first render, offset by the root note. This can't be done in the constructor
 	// because at constructor time, root note changes from the default menu aren't seen yet
@@ -113,7 +113,7 @@ void KeyboardLayoutChordLibrary::precalculate() {
 	}
 }
 
-void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	KeyboardStateChordLibrary& state = getState().chordLibrary;
 	bool inScaleMode = getScaleModeEnabled();
 
@@ -163,7 +163,8 @@ void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBar
 	}
 }
 
-void KeyboardLayoutChordLibrary::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
+PLACE_SDRAM_TEXT void KeyboardLayoutChordLibrary::drawChordName(int16_t noteCode, const char* chordName,
+                                                                const char* voicingName) {
 	char noteName[3] = {0};
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
 	noteCodeToString(noteCode, noteName, &isNatural, false);
@@ -186,7 +187,7 @@ void KeyboardLayoutChordLibrary::drawChordName(int16_t noteCode, const char* cho
 	}
 }
 
-bool KeyboardLayoutChordLibrary::allowSidebarType(ColumnControlFunction sidebarType) {
+PLACE_SDRAM_TEXT bool KeyboardLayoutChordLibrary::allowSidebarType(ColumnControlFunction sidebarType) {
 	if ((sidebarType == ColumnControlFunction::CHORD)) {
 		return false;
 	}

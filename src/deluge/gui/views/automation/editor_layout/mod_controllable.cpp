@@ -90,7 +90,7 @@ PLACE_SDRAM_BSS AutomationEditorLayoutModControllable automationEditorLayoutModC
 
 // gets the length of the clip, renders the pads corresponding to current parameter values set up to the
 // clip length renders the undefined area of the clip that the user can't interact with
-void AutomationEditorLayoutModControllable::renderAutomationEditor(
+PLACE_SDRAM_TEXT void AutomationEditorLayoutModControllable::renderAutomationEditor(
     ModelStackWithAutoParam* modelStackWithParam, Clip* clip, RGB image[][kDisplayWidth + kSideBarWidth],
     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
     int32_t effectiveLength, int32_t xDisplay, bool drawUndefinedArea, params::Kind kind, bool isBipolar) {
@@ -105,7 +105,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditor(
 }
 
 /// render each square in each column of the automation editor grid
-void AutomationEditorLayoutModControllable::renderAutomationColumn(
+PLACE_SDRAM_TEXT void AutomationEditorLayoutModControllable::renderAutomationColumn(
     ModelStackWithAutoParam* modelStackWithParam, RGB image[][kDisplayWidth + kSideBarWidth],
     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t lengthToDisplay, int32_t xDisplay, bool isAutomated,
     int32_t xScroll, int32_t xZoom, params::Kind kind, bool isBipolar) {
@@ -125,7 +125,7 @@ void AutomationEditorLayoutModControllable::renderAutomationColumn(
 }
 
 /// render column for bipolar params - e.g. pan, pitch, patch cable
-void AutomationEditorLayoutModControllable::renderAutomationBipolarSquare(
+PLACE_SDRAM_TEXT void AutomationEditorLayoutModControllable::renderAutomationBipolarSquare(
     RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
     int32_t xDisplay, int32_t yDisplay, bool isAutomated, params::Kind kind, int32_t knobPos) {
 	RGB& pixel = image[yDisplay][xDisplay];
@@ -211,7 +211,7 @@ void AutomationEditorLayoutModControllable::renderAutomationBipolarSquare(
 }
 
 /// render column for unipolar params (e.g. not pan, pitch, or patch cables)
-void AutomationEditorLayoutModControllable::renderAutomationUnipolarSquare(
+PLACE_SDRAM_TEXT void AutomationEditorLayoutModControllable::renderAutomationUnipolarSquare(
     RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
     int32_t xDisplay, int32_t yDisplay, bool isAutomated, int32_t knobPos) {
 	RGB& pixel = image[yDisplay][xDisplay];
@@ -248,7 +248,7 @@ void AutomationEditorLayoutModControllable::renderAutomationUnipolarSquare(
 	}
 }
 
-void AutomationEditorLayoutModControllable::renderAutomationEditorDisplayOLED(
+PLACE_SDRAM_TEXT void AutomationEditorLayoutModControllable::renderAutomationEditorDisplayOLED(
     deluge::hid::display::oled_canvas::Canvas& canvas, Clip* clip, OutputType outputType, int32_t knobPosLeft,
     int32_t knobPosRight) {
 	// display parameter name
@@ -320,9 +320,10 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplayOLED(
 	}
 }
 
-void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay7SEG(Clip* clip, OutputType outputType,
-                                                                              int32_t knobPosLeft,
-                                                                              bool modEncoderAction) {
+PLACE_SDRAM_TEXT void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay7SEG(Clip* clip,
+                                                                                               OutputType outputType,
+                                                                                               int32_t knobPosLeft,
+                                                                                               bool modEncoderAction) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -399,8 +400,9 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay7SEG(Cl
 }
 
 // get's the name of the Parameter being edited so it can be displayed on the screen
-void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* clip, OutputType outputType,
-                                                                       StringBuf& parameterName) {
+PLACE_SDRAM_TEXT void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* clip,
+                                                                                        OutputType outputType,
+                                                                                        StringBuf& parameterName) {
 	if (getOnArrangerView() || outputType != OutputType::MIDI_OUT) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
 		int32_t lastSelectedParamID = kNoSelection;
@@ -489,7 +491,7 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 }
 
 /// toggle automation interpolation on / off
-bool AutomationEditorLayoutModControllable::toggleAutomationInterpolation() {
+PLACE_SDRAM_TEXT bool AutomationEditorLayoutModControllable::toggleAutomationInterpolation() {
 	if (getInterpolation()) {
 		getInterpolation() = false;
 		initInterpolation();
@@ -507,7 +509,7 @@ bool AutomationEditorLayoutModControllable::toggleAutomationInterpolation() {
 }
 
 /// toggle automation pad selection mode on / off
-bool AutomationEditorLayoutModControllable::toggleAutomationPadSelectionMode(
+PLACE_SDRAM_TEXT bool AutomationEditorLayoutModControllable::toggleAutomationPadSelectionMode(
     ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
 	// enter/exit pad selection mode
 	if (getPadSelectionOn()) {
@@ -540,10 +542,9 @@ bool AutomationEditorLayoutModControllable::toggleAutomationPadSelectionMode(
 // automation edit pad action
 // handles single and multi pad presses for automation editing
 // stores pad presses in the EditPadPresses struct of the instrument clip view
-void AutomationEditorLayoutModControllable::automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam,
-                                                                    Clip* clip, int32_t xDisplay, int32_t yDisplay,
-                                                                    int32_t velocity, int32_t effectiveLength,
-                                                                    int32_t xScroll, int32_t xZoom) {
+PLACE_SDRAM_TEXT void AutomationEditorLayoutModControllable::automationEditPadAction(
+    ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay, int32_t yDisplay, int32_t velocity,
+    int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
 	// If button down
 	if (velocity) {
 		// If this is a automation-length-edit press...
@@ -667,7 +668,8 @@ singlePadPressAction:
 	}
 }
 
-bool AutomationEditorLayoutModControllable::recordAutomationSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
+PLACE_SDRAM_TEXT bool AutomationEditorLayoutModControllable::recordAutomationSinglePadPress(int32_t xDisplay,
+                                                                                            int32_t yDisplay) {
 	instrumentClipView.timeLastEditPadPress = AudioEngine::audioSampleTimer;
 	// Find an empty space in the press buffer, if there is one
 	int32_t i;
@@ -697,7 +699,7 @@ bool AutomationEditorLayoutModControllable::recordAutomationSinglePadPress(int32
 	return false;
 }
 
-bool AutomationEditorLayoutModControllable::automationModEncoderActionForSelectedPad(
+PLACE_SDRAM_TEXT bool AutomationEditorLayoutModControllable::automationModEncoderActionForSelectedPad(
     ModelStackWithAutoParam* modelStackWithParam, int32_t whichModEncoder, int32_t offset, int32_t effectiveLength) {
 	Clip* clip = getCurrentClip();
 
@@ -786,7 +788,7 @@ bool AutomationEditorLayoutModControllable::automationModEncoderActionForSelecte
 	return false;
 }
 
-void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselectedPad(
+PLACE_SDRAM_TEXT void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselectedPad(
     ModelStackWithAutoParam* modelStackWithParam, int32_t whichModEncoder, int32_t offset, int32_t effectiveLength) {
 	Clip* clip = getCurrentClip();
 
@@ -835,8 +837,9 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 	}
 }
 
-void AutomationEditorLayoutModControllable::copyAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
-                                                           int32_t xScroll, int32_t xZoom) {
+PLACE_SDRAM_TEXT void
+AutomationEditorLayoutModControllable::copyAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+                                                      int32_t xScroll, int32_t xZoom) {
 	if (getCopiedParamAutomation()->nodes) {
 		delugeDealloc(getCopiedParamAutomation()->nodes);
 		getCopiedParamAutomation()->nodes = nullptr;
@@ -869,8 +872,9 @@ void AutomationEditorLayoutModControllable::copyAutomation(ModelStackWithAutoPar
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_AUTOMATION_TO_COPY));
 }
 
-void AutomationEditorLayoutModControllable::pasteAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
-                                                            int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
+PLACE_SDRAM_TEXT void
+AutomationEditorLayoutModControllable::pasteAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+                                                       int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
 	if (!getCopiedParamAutomation()->nodes) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_AUTOMATION_TO_PASTE));
 		return;
@@ -930,16 +934,18 @@ void AutomationEditorLayoutModControllable::pasteAutomation(ModelStackWithAutoPa
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_PASTE_AUTOMATION));
 }
 
-uint32_t AutomationEditorLayoutModControllable::getSquareWidth(int32_t square, int32_t effectiveLength, int32_t xScroll,
-                                                               int32_t xZoom) {
+PLACE_SDRAM_TEXT uint32_t AutomationEditorLayoutModControllable::getSquareWidth(int32_t square, int32_t effectiveLength,
+                                                                                int32_t xScroll, int32_t xZoom) {
 	int32_t squareRightEdge = getPosFromSquare(square + 1, xScroll, xZoom);
 	return std::min(effectiveLength, squareRightEdge) - getPosFromSquare(square, xScroll, xZoom);
 }
 
 // when pressing on a single pad, you want to display the value of the middle node within that square
 // as that is the most accurate value that represents that square
-uint32_t AutomationEditorLayoutModControllable::getMiddlePosFromSquare(int32_t xDisplay, int32_t effectiveLength,
-                                                                       int32_t xScroll, int32_t xZoom) {
+PLACE_SDRAM_TEXT uint32_t AutomationEditorLayoutModControllable::getMiddlePosFromSquare(int32_t xDisplay,
+                                                                                        int32_t effectiveLength,
+                                                                                        int32_t xScroll,
+                                                                                        int32_t xZoom) {
 	uint32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
 	uint32_t squareWidth = getSquareWidth(xDisplay, effectiveLength, xScroll, xZoom);
 	if (squareWidth != 3) {
@@ -953,8 +959,8 @@ uint32_t AutomationEditorLayoutModControllable::getMiddlePosFromSquare(int32_t x
 // the knobPos is used for rendering the current parameter values in the automation editor
 // it's also used for obtaining the start and end position values for a multi pad press
 // and also used for increasing/decreasing parameter values with the mod encoders
-int32_t AutomationEditorLayoutModControllable::getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack,
-                                                                             uint32_t squareStart) {
+PLACE_SDRAM_TEXT int32_t AutomationEditorLayoutModControllable::getAutomationParameterKnobPos(
+    ModelStackWithAutoParam* modelStack, uint32_t squareStart) {
 	// obtain value corresponding to the two pads that were pressed in a multi pad press action
 	int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareStart, modelStack);
 	int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(currentValue, modelStack);
@@ -966,8 +972,9 @@ int32_t AutomationEditorLayoutModControllable::getAutomationParameterKnobPos(Mod
 // interpolation status of the left node or right node (depending on the reversed parameter which is
 // used to indicate what node in what direction we are looking for (e.g. we want status of left node, or
 // right node, relative to the current pos we are looking at
-bool AutomationEditorLayoutModControllable::getAutomationNodeInterpolation(ModelStackWithAutoParam* modelStack,
-                                                                           int32_t pos, bool reversed) {
+PLACE_SDRAM_TEXT bool
+AutomationEditorLayoutModControllable::getAutomationNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos,
+                                                                      bool reversed) {
 
 	if (!modelStack->autoParam->nodes.getNumElements()) {
 		return false;
@@ -995,11 +1002,9 @@ bool AutomationEditorLayoutModControllable::getAutomationNodeInterpolation(Model
 
 // this function writes the new values calculated by the handleAutomationSinglePadPress and
 // handleAutomationMultiPadPress functions
-void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelStackWithAutoParam* modelStack,
-                                                                        int32_t knobPos, int32_t squareStart,
-                                                                        int32_t xDisplay, int32_t effectiveLength,
-                                                                        int32_t xScroll, int32_t xZoom,
-                                                                        bool modEncoderAction) {
+PLACE_SDRAM_TEXT void AutomationEditorLayoutModControllable::setAutomationParameterValue(
+    ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart, int32_t xDisplay,
+    int32_t effectiveLength, int32_t xScroll, int32_t xZoom, bool modEncoderAction) {
 
 	int32_t newValue = modelStack->paramCollection->knobPosToParamValue(knobPos, modelStack);
 
@@ -1067,9 +1072,9 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 // sets both knob indicators to the same value when pressing single pad,
 // deleting automation, or displaying current parameter value
 // multi pad presses don't use this function
-void AutomationEditorLayoutModControllable::setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack,
-                                                                             int32_t knobPosLeft,
-                                                                             int32_t knobPosRight) {
+PLACE_SDRAM_TEXT void
+AutomationEditorLayoutModControllable::setAutomationKnobIndicatorLevels(ModelStackWithAutoParam* modelStack,
+                                                                        int32_t knobPosLeft, int32_t knobPosRight) {
 	params::Kind kind = modelStack->paramCollection->getParamKind();
 	bool isBipolar = isParamBipolar(kind, modelStack->paramId);
 
@@ -1090,9 +1095,8 @@ void AutomationEditorLayoutModControllable::setAutomationKnobIndicatorLevels(Mod
 
 // updates the position that the active mod controllable stack is pointing to
 // this sets the current value for the active parameter so that it can be auditioned
-void AutomationEditorLayoutModControllable::updateAutomationModPosition(ModelStackWithAutoParam* modelStack,
-                                                                        uint32_t squareStart, bool updateDisplay,
-                                                                        bool updateIndicatorLevels) {
+PLACE_SDRAM_TEXT void AutomationEditorLayoutModControllable::updateAutomationModPosition(
+    ModelStackWithAutoParam* modelStack, uint32_t squareStart, bool updateDisplay, bool updateIndicatorLevels) {
 
 	if (!playbackHandler.isEitherClockActive() || getPadSelectionOn()) {
 		if (modelStack && modelStack->autoParam) {
@@ -1117,10 +1121,9 @@ void AutomationEditorLayoutModControllable::updateAutomationModPosition(ModelSta
 }
 
 // takes care of setting the automation value for the single pad that was pressed
-void AutomationEditorLayoutModControllable::handleAutomationSinglePadPress(ModelStackWithAutoParam* modelStackWithParam,
-                                                                           Clip* clip, int32_t xDisplay,
-                                                                           int32_t yDisplay, int32_t effectiveLength,
-                                                                           int32_t xScroll, int32_t xZoom) {
+PLACE_SDRAM_TEXT void AutomationEditorLayoutModControllable::handleAutomationSinglePadPress(
+    ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay, int32_t yDisplay,
+    int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
 
 	Output* output = clip->output;
 	OutputType outputType = output->type;
@@ -1134,7 +1137,7 @@ void AutomationEditorLayoutModControllable::handleAutomationSinglePadPress(Model
 
 // called by handle single pad press when it is determined that you are editing parameter automation
 // using the grid
-void AutomationEditorLayoutModControllable::handleAutomationParameterChange(
+PLACE_SDRAM_TEXT void AutomationEditorLayoutModControllable::handleAutomationParameterChange(
     ModelStackWithAutoParam* modelStackWithParam, Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay,
     int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
 	if (getPadSelectionOn()) {
@@ -1180,7 +1183,7 @@ void AutomationEditorLayoutModControllable::handleAutomationParameterChange(
 	}
 }
 
-int32_t AutomationEditorLayoutModControllable::calculateAutomationKnobPosForPadPress(
+PLACE_SDRAM_TEXT int32_t AutomationEditorLayoutModControllable::calculateAutomationKnobPosForPadPress(
     ModelStackWithAutoParam* modelStackWithParam, OutputType outputType, int32_t yDisplay) {
 
 	int32_t newKnobPos = 0;
@@ -1208,8 +1211,8 @@ int32_t AutomationEditorLayoutModControllable::calculateAutomationKnobPosForPadP
 // calculates what the new parameter value is when you press a second pad in the same column
 // middle value is calculated by taking average of min and max value of the range for the two pad
 // presses
-int32_t AutomationEditorLayoutModControllable::calculateAutomationKnobPosForMiddlePadPress(params::Kind kind,
-                                                                                           int32_t yDisplay) {
+PLACE_SDRAM_TEXT int32_t AutomationEditorLayoutModControllable::calculateAutomationKnobPosForMiddlePadPress(
+    params::Kind kind, int32_t yDisplay) {
 	int32_t newKnobPos = 0;
 
 	int32_t yMin = yDisplay < getLeftPadSelectedY() ? yDisplay : getLeftPadSelectedY();
@@ -1232,8 +1235,8 @@ int32_t AutomationEditorLayoutModControllable::calculateAutomationKnobPosForMidd
 }
 
 // calculates what the new parameter value is when you press a single pad
-int32_t AutomationEditorLayoutModControllable::calculateAutomationKnobPosForSinglePadPress(params::Kind kind,
-                                                                                           int32_t yDisplay) {
+PLACE_SDRAM_TEXT int32_t AutomationEditorLayoutModControllable::calculateAutomationKnobPosForSinglePadPress(
+    params::Kind kind, int32_t yDisplay) {
 	int32_t newKnobPos = 0;
 
 	// patch cable
@@ -1249,7 +1252,7 @@ int32_t AutomationEditorLayoutModControllable::calculateAutomationKnobPosForSing
 }
 
 // takes care of setting the automation values for the two pads pressed and the pads in between
-void AutomationEditorLayoutModControllable::handleAutomationMultiPadPress(
+PLACE_SDRAM_TEXT void AutomationEditorLayoutModControllable::handleAutomationMultiPadPress(
     ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t firstPadX, int32_t firstPadY, int32_t secondPadX,
     int32_t secondPadY, int32_t effectiveLength, int32_t xScroll, int32_t xZoom, bool modEncoderAction) {
 
@@ -1375,7 +1378,7 @@ void AutomationEditorLayoutModControllable::handleAutomationMultiPadPress(
 // on OLED this will display the left and right position in a long press on the screen
 // on 7SEG this will display the position of the last selected pad
 // also updates LED indicators. bottom LED indicator = left pad, top LED indicator = right pad
-void AutomationEditorLayoutModControllable::renderAutomationDisplayForMultiPadPress(
+PLACE_SDRAM_TEXT void AutomationEditorLayoutModControllable::renderAutomationDisplayForMultiPadPress(
     ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
     int32_t xDisplay, bool modEncoderAction) {
 
@@ -1425,7 +1428,7 @@ void AutomationEditorLayoutModControllable::renderAutomationDisplayForMultiPadPr
 }
 
 // used to calculate new knobPos when you turn the mod encoders (gold knobs)
-int32_t AutomationEditorLayoutModControllable::calculateAutomationKnobPosForModEncoderTurn(
+PLACE_SDRAM_TEXT int32_t AutomationEditorLayoutModControllable::calculateAutomationKnobPosForModEncoderTurn(
     ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, int32_t offset) {
 
 	// adjust the current knob so that it is within the range of 0-128 for calculation purposes

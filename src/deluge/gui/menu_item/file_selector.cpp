@@ -84,30 +84,36 @@ MenuPermission FileSelector::checkPermissionToBeginSession(ModControllableAudio*
 	return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, sourceId_, currentRange);
 }
 
-void FileSelector::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void FileSelector::renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) {
 	using namespace hid::display;
 	OLED::main.drawIconCentered(OLED::folderIconBig, slot.start_x, slot.width, slot.start_y - 1);
 }
 
-void FileSelector::getColumnLabel(StringBuf& label) {
-	if (const auto audioClip = getCurrentAudioClip(); audioClip != nullptr) {
-		if (const auto audioFile = audioClip->sampleHolder.audioFile; audioFile != nullptr) {
-			return label.append(getLastFolderFromPath(audioFile->filePath));
+void FileSelector::configureRenderingOptions(const HorizontalMenuRenderingOptions& options) {
+	const auto label = [&]() -> std::optional<std::string> {
+		if (const auto audioClip = getCurrentAudioClip(); audioClip != nullptr) {
+			if (const auto audioFile = audioClip->sampleHolder.audioFile; audioFile != nullptr) {
+				return std::optional(getLastFolderFromPath(audioFile->filePath));
+			}
+			return std::nullopt;
 		}
-		return MenuItem::getColumnLabel(label);
-	}
 
-	auto& source = soundEditor.currentSound->sources[sourceId_];
-	if (!source.hasAtLeastOneAudioFileLoaded()) {
-		return MenuItem::getColumnLabel(label);
-	}
+		auto& source = soundEditor.currentSound->sources[sourceId_];
+		if (!source.hasAtLeastOneAudioFileLoaded()) {
+			return std::nullopt;
+		}
 
-	if (source.ranges.getNumElements() > 1) {
-		return label.append("Mult");
-	}
+		if (source.ranges.getNumElements() > 1) {
+			return std::optional<std::string>("Mult");
+		}
 
-	auto path = source.ranges.getElement(0)->getAudioFileHolder()->filePath;
-	label.append(getLastFolderFromPath(path));
+		auto path = source.ranges.getElement(0)->getAudioFileHolder()->filePath;
+		return std::optional(getLastFolderFromPath(path));
+	}();
+
+	if (label.has_value()) {
+		options.label = label.value();
+	}
 }
 
 std::string FileSelector::getLastFolderFromPath(String& path) {

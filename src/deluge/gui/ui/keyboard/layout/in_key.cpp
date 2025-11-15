@@ -23,7 +23,7 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-void KeyboardLayoutInKey::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
+PLACE_SDRAM_TEXT void KeyboardLayoutInKey::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Erase active notes
 
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
@@ -37,22 +37,23 @@ void KeyboardLayoutInKey::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 	ColumnControlsKeyboard::evaluatePads(presses);
 }
 
-void KeyboardLayoutInKey::handleVerticalEncoder(int32_t offset) {
+PLACE_SDRAM_TEXT void KeyboardLayoutInKey::handleVerticalEncoder(int32_t offset) {
 	if (verticalEncoderHandledByColumns(offset)) {
 		return;
 	}
 	offsetPads(offset * getState().inKey.rowInterval, false);
 }
 
-void KeyboardLayoutInKey::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
-                                                  PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
+PLACE_SDRAM_TEXT void KeyboardLayoutInKey::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
+                                                                   PressedPad presses[kMaxNumKeyboardPadPresses],
+                                                                   bool encoderPressed) {
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
 		return;
 	}
 	offsetPads(offset, shiftEnabled);
 }
 
-void KeyboardLayoutInKey::offsetPads(int32_t offset, bool shiftEnabled) {
+PLACE_SDRAM_TEXT void KeyboardLayoutInKey::offsetPads(int32_t offset, bool shiftEnabled) {
 	KeyboardStateInKey& state = getState().inKey;
 
 	if (shiftEnabled) {
@@ -84,7 +85,7 @@ void KeyboardLayoutInKey::offsetPads(int32_t offset, bool shiftEnabled) {
 	precalculate();
 }
 
-void KeyboardLayoutInKey::precalculate() {
+PLACE_SDRAM_TEXT void KeyboardLayoutInKey::precalculate() {
 	KeyboardStateInKey& state = getState().inKey;
 
 	// Pre-Buffer colours for next renderings
@@ -93,7 +94,7 @@ void KeyboardLayoutInKey::precalculate() {
 	}
 }
 
-void KeyboardLayoutInKey::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT void KeyboardLayoutInKey::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// Precreate list of all active notes per octave
 	bool scaleActiveNotes[kOctaveSize] = {0};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {

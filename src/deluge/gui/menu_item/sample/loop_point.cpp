@@ -72,7 +72,7 @@ void LoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	}
 }
-void LoopPoint::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void LoopPoint::renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) {
 	using namespace hid::display;
 	oled_canvas::Canvas& image = OLED::main;
 
@@ -89,13 +89,16 @@ void LoopPoint::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
 	image.drawIcon(icon, icon_x, icon_y, !is_start_marker);
 }
 
-void LoopPoint::getColumnLabel(StringBuf& label) {
-	if (markerType == MarkerType::START) {
-		return label.append(l10n::get(l10n::String::STRING_FOR_START_POINT_SHORT));
-	}
+void LoopPoint::configureRenderingOptions(const HorizontalMenuRenderingOptions& options) {
+	MenuItem::configureRenderingOptions(options);
 
-	label.append(getName());
-	label.truncate(3);
+	if (markerType == MarkerType::START) {
+		options.label = l10n::get(l10n::String::STRING_FOR_START_POINT_SHORT);
+	}
+	else {
+		options.label = getName();
+		options.label.resize(3);
+	}
 }
 
 } // namespace deluge::gui::menu_item::sample

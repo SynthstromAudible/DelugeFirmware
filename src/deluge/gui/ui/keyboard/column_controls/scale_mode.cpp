@@ -24,7 +24,8 @@ using namespace deluge::gui::ui::keyboard::layout;
 
 namespace deluge::gui::ui::keyboard::controls {
 
-void ScaleModeColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void ScaleModeColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column,
+                                                    KeyboardLayout* layout) {
 	Scale currentScale = currentSong->getCurrentScale();
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
@@ -40,7 +41,7 @@ void ScaleModeColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], i
 	}
 }
 
-bool ScaleModeColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
+PLACE_SDRAM_TEXT bool ScaleModeColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	Scale newScale = scaleModes[pad];
 	bool newScaleNotSelectedYet = true;
 	while (newScaleNotSelectedYet) {
@@ -70,8 +71,8 @@ bool ScaleModeColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	return true;
 };
 
-void ScaleModeColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                          KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void ScaleModeColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                                           KeyboardLayout* layout) {
 	// Restore previously set scale
 	if (previousScale == NO_SCALE) {
 		return;
@@ -86,8 +87,8 @@ void ScaleModeColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelSt
 	}
 };
 
-void ScaleModeColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
-                                KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void ScaleModeColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                                 PressedPad pad, KeyboardLayout* layout) {
 	if (pad.active) {
 		previousScale = currentSong->getCurrentScale();
 		if (keyboardScreen.setScale(scaleModes[pad.y])) {

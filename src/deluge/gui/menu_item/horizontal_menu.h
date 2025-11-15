@@ -52,6 +52,7 @@ public:
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
 	void selectEncoderAction(int32_t offset) override;
 	void renderOLED() override;
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             ::MultiRange** currentRange) override;
 	void endSession() override;
@@ -75,14 +76,15 @@ protected:
 	virtual void switchHorizontalMenu(int32_t direction, std::span<HorizontalMenu* const> chain);
 
 private:
-	void updateSelectedMenuItemLED(int32_t itemNumber) const;
-	static void handleItemAction(MenuItem* menuItem);
-	static void displayNotification(MenuItem* menuItem);
+	void updateSelectedMenuItemLED(int32_t itemNumber);
+	void displayNotification(MenuItem* menuItem);
+	void handleItemAction(MenuItem* menuItem);
+	void renderColumnLabel(MenuItem* menu_item, bool is_selected, int32_t label_y,
+	                       const HorizontalMenuSlotPosition& slot);
 	static void renderPageCounters(const Paging& paging);
-	static void renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32_t slotStartX, int32_t slotWidth,
-	                              bool isSelected);
 
 	double currentKnobSpeed{0.0};
 	double calcNextKnobSpeed(int8_t offset);
+	deluge::map<MenuItem* const, HorizontalMenuRenderingOptions> rendering_options_;
 };
 } // namespace deluge::gui::menu_item

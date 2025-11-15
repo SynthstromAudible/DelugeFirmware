@@ -24,7 +24,7 @@
 namespace deluge::gui::ui::keyboard::layout {
 
 // Handle pads presses
-void KeyboardLayoutPiano::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
+PLACE_SDRAM_TEXT void KeyboardLayoutPiano::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Erase active notes
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		auto pressed = presses[idxPress];
@@ -40,7 +40,7 @@ void KeyboardLayoutPiano::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 }
 
 // Vertical srollOffset (octave+-)
-void KeyboardLayoutPiano::handleVerticalEncoder(int32_t offset) {
+PLACE_SDRAM_TEXT void KeyboardLayoutPiano::handleVerticalEncoder(int32_t offset) {
 	if (verticalEncoderHandledByColumns(offset)) {
 		return;
 	}
@@ -53,8 +53,9 @@ void KeyboardLayoutPiano::handleVerticalEncoder(int32_t offset) {
 }
 
 // Horizontal noteOffset (note+-)
-void KeyboardLayoutPiano::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
-                                                  PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
+PLACE_SDRAM_TEXT void KeyboardLayoutPiano::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
+                                                                   PressedPad presses[kMaxNumKeyboardPadPresses],
+                                                                   bool encoderPressed) {
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
 		return;
 	}
@@ -67,7 +68,7 @@ void KeyboardLayoutPiano::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 }
 
 // Fill up noteColours array with colours
-void KeyboardLayoutPiano::precalculate() {
+PLACE_SDRAM_TEXT void KeyboardLayoutPiano::precalculate() {
 	KeyboardStatePiano& state = getState().piano;
 	for (int32_t i = 0; i <= totalPianoOctaves; ++i) {
 		noteColours[i] = getNoteColour((state.scrollOffset + i) * colourOffset);
@@ -75,7 +76,7 @@ void KeyboardLayoutPiano::precalculate() {
 }
 
 // Render RGB pads
-void KeyboardLayoutPiano::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT void KeyboardLayoutPiano::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// Precreate list of all active notes per octave
 	bool octaveActiveNotes[kOctaveSize] = {0};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {

@@ -23,17 +23,17 @@
 
 int32_t ClipNavigationTimelineView::xScrollBeforeFollowingAutoExtendingLinearRecording; // -1 means none
 
-void ClipNavigationTimelineView::focusRegained() {
+PLACE_SDRAM_TEXT void ClipNavigationTimelineView::focusRegained() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 }
 
-ActionResult ClipNavigationTimelineView::horizontalEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT ActionResult ClipNavigationTimelineView::horizontalEncoderAction(int32_t offset) {
 
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 	return TimelineView::horizontalEncoderAction(offset); // Let parent to scrolling / zooming
 }
 
-void ClipNavigationTimelineView::horizontalScrollForLinearRecording(int32_t newXScroll) {
+PLACE_SDRAM_TEXT void ClipNavigationTimelineView::horizontalScrollForLinearRecording(int32_t newXScroll) {
 	// Make sure we don't scroll too far right
 	if (newXScroll < getMaxLength()) {
 		if (!PadLEDs::renderingLock && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING)

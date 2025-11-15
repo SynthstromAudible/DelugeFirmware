@@ -106,7 +106,7 @@ PatchSource modSourceShortcutsSecondLayer[2][8] = {
     },
 };
 
-void SoundEditor::setShortcutsVersion(int32_t newVersion) {
+PLACE_SDRAM_TEXT void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 
 	shortcutsVersion = newVersion;
 
@@ -151,28 +151,28 @@ SoundEditor::SoundEditor() {
 	resetSourceBlinks();
 }
 
-void SoundEditor::resetSourceBlinks() {
+PLACE_SDRAM_TEXT void SoundEditor::resetSourceBlinks() {
 	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 	memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
 }
 
-bool SoundEditor::editingKit() {
+PLACE_SDRAM_TEXT bool SoundEditor::editingKit() {
 	return getCurrentOutputType() == OutputType::KIT;
 }
 
-bool SoundEditor::editingKitAffectEntire() {
+PLACE_SDRAM_TEXT bool SoundEditor::editingKitAffectEntire() {
 	return getCurrentOutputType() == OutputType::KIT && setupKitGlobalFXMenu;
 }
 
-bool SoundEditor::editingKitRow() {
+PLACE_SDRAM_TEXT bool SoundEditor::editingKitRow() {
 	return getCurrentOutputType() == OutputType::KIT && !setupKitGlobalFXMenu;
 }
 
-bool SoundEditor::editingCVOrMIDIClip() {
+PLACE_SDRAM_TEXT bool SoundEditor::editingCVOrMIDIClip() {
 	return (getCurrentOutputType() == OutputType::MIDI_OUT || getCurrentOutputType() == OutputType::CV);
 }
 
-bool SoundEditor::editingNonAudioDrumRow() {
+PLACE_SDRAM_TEXT bool SoundEditor::editingNonAudioDrumRow() {
 	auto* kit = getCurrentKit();
 	if (kit == nullptr || kit->selectedDrum == nullptr) {
 		return false;
@@ -181,7 +181,7 @@ bool SoundEditor::editingNonAudioDrumRow() {
 	return selectedDrumType == DrumType::MIDI || selectedDrumType == DrumType::GATE;
 }
 
-bool SoundEditor::editingMidiDrumRow() {
+PLACE_SDRAM_TEXT bool SoundEditor::editingMidiDrumRow() {
 	auto* kit = getCurrentKit();
 	if (kit == nullptr || kit->selectedDrum == nullptr) {
 		return false;
@@ -190,7 +190,7 @@ bool SoundEditor::editingMidiDrumRow() {
 	return selectedDrumType == DrumType::MIDI;
 }
 
-bool SoundEditor::editingGateDrumRow() {
+PLACE_SDRAM_TEXT bool SoundEditor::editingGateDrumRow() {
 	auto* kit = getCurrentKit();
 	if (kit == nullptr || kit->selectedDrum == nullptr) {
 		return false;
@@ -199,7 +199,7 @@ bool SoundEditor::editingGateDrumRow() {
 	return selectedDrumType == DrumType::GATE;
 }
 
-void SoundEditor::setCurrentSource(int32_t sourceIndex) {
+PLACE_SDRAM_TEXT void SoundEditor::setCurrentSource(int32_t sourceIndex) {
 	currentSource = &currentSound->sources[sourceIndex];
 	currentSourceIndex = sourceIndex;
 	currentSampleControls = &currentSource->sampleControls;
@@ -209,7 +209,7 @@ void SoundEditor::setCurrentSource(int32_t sourceIndex) {
 	}
 }
 
-bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+PLACE_SDRAM_TEXT bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	bool doGreyout = true;
 
 	RootUI* rootUI = getRootUI();
@@ -251,7 +251,7 @@ bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	return doGreyout;
 }
 
-bool SoundEditor::opened() {
+PLACE_SDRAM_TEXT bool SoundEditor::opened() {
 	// we don't want to process select button release when entering menu
 	Buttons::selectButtonPressUsedUp = true;
 
@@ -267,7 +267,7 @@ bool SoundEditor::opened() {
 	return true;
 }
 
-void SoundEditor::focusRegained() {
+PLACE_SDRAM_TEXT void SoundEditor::focusRegained() {
 	// we don't want to process select button release when re-entering menu
 	Buttons::selectButtonPressUsedUp = true;
 
@@ -290,11 +290,11 @@ void SoundEditor::focusRegained() {
 	setLedStates();
 }
 
-void SoundEditor::displayOrLanguageChanged() {
+PLACE_SDRAM_TEXT void SoundEditor::displayOrLanguageChanged() {
 	getCurrentMenuItem()->readValueAgain();
 }
 
-void SoundEditor::setLedStates() {
+PLACE_SDRAM_TEXT void SoundEditor::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::SAVE, false); // In case we came from the save-Instrument UI
 
 	// turn off all instrument LED's when entering menu
@@ -316,7 +316,7 @@ void SoundEditor::setLedStates() {
 	}
 }
 
-void SoundEditor::enterSubmenu(MenuItem* newItem) {
+PLACE_SDRAM_TEXT void SoundEditor::enterSubmenu(MenuItem* newItem) {
 	// end current menu item session before beginning new menu item session
 	endScreen();
 
@@ -326,7 +326,7 @@ void SoundEditor::enterSubmenu(MenuItem* newItem) {
 	beginScreen();
 }
 
-ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	Clip* clip = nullptr;
@@ -588,8 +588,9 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 /// (may not have changed if we were holding shift to delete automation)
 /// potentially enter and refresh automation view if entering a new param menu
 /// potentially exit automation view / switch to automation overview if exiting param menu
-void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool inCardRoutine, MenuItem* previousItem,
-                                                 MenuItem* currentItem, bool isHorizontalMenu) {
+PLACE_SDRAM_TEXT void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool inCardRoutine,
+                                                                  MenuItem* previousItem, MenuItem* currentItem,
+                                                                  bool isHorizontalMenu) {
 	using namespace deluge::hid::button;
 	if (previousItem != currentItem) {
 		bool previousMenuIsParam = (isHorizontalMenu == false || previousItem->isSubmenu() == false)
@@ -622,7 +623,7 @@ void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool inC
 	}
 }
 
-void SoundEditor::goUpOneLevel() {
+PLACE_SDRAM_TEXT void SoundEditor::goUpOneLevel() {
 	// end current menu item session before beginning new menu item session
 	endScreen();
 
@@ -645,7 +646,7 @@ void SoundEditor::goUpOneLevel() {
 	beginScreen(oldItem);
 }
 
-void SoundEditor::exitCompletely() {
+PLACE_SDRAM_TEXT void SoundEditor::exitCompletely() {
 	if (inSettingsMenu()) {
 		// First, save settings
 
@@ -679,7 +680,8 @@ void SoundEditor::exitCompletely() {
 	currentUIMode = UI_MODE_NONE;
 }
 
-bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout, bool* isSecondLayerParamOut) {
+PLACE_SDRAM_TEXT bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout,
+                                                    bool* isSecondLayerParamOut) {
 	bool found = false;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -702,7 +704,7 @@ bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32
 	return found;
 }
 
-void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
+PLACE_SDRAM_TEXT void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
 	for (int32_t x = 0; x < 2; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			PatchSource source = modSourceShortcuts[x][y];
@@ -728,8 +730,9 @@ void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
 	}
 }
 
-void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem,
-                                               MenuItem const* const items[kDisplayWidth][kDisplayHeight]) {
+PLACE_SDRAM_TEXT void
+SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem,
+                                          MenuItem const* const items[kDisplayWidth][kDisplayHeight]) {
 	for (auto x = 0; x < kDisplayWidth; ++x) {
 		for (auto y = 0; y < kDisplayHeight; ++y) {
 			if (items[x][y] == currentItem) {
@@ -740,7 +743,7 @@ void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem
 	}
 }
 
-void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
+PLACE_SDRAM_TEXT void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 	if (inNoteRowEditor() || inNoteEditor()) {
 		return;
 	}
@@ -853,7 +856,7 @@ stopThat:
 	}
 }
 
-bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
+PLACE_SDRAM_TEXT bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 	MenuItem* currentItem = getCurrentMenuItem();
 	currentItem->beginSession(oldMenuItem);
 
@@ -877,14 +880,14 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 }
 
 /// end current menu item session before beginning new menu item session or exiting the sound editor
-void SoundEditor::endScreen() {
+PLACE_SDRAM_TEXT void SoundEditor::endScreen() {
 	MenuItem* currentMenuItem = getCurrentMenuItem();
 	if (currentMenuItem != nullptr) {
 		currentMenuItem->endSession();
 	}
 }
 
-void SoundEditor::possibleChangeToCurrentRangeDisplay() {
+PLACE_SDRAM_TEXT void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 	RootUI* rootUI = getRootUI();
 
 	if (rootUI == &keyboardScreen) {
@@ -895,7 +898,7 @@ void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 	}
 }
 
-void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour) {
+PLACE_SDRAM_TEXT void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour) {
 	currentParamShortcutX = x;
 	currentParamShortcutY = y;
 	currentParamColour = colour;
@@ -904,13 +907,13 @@ void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, in
 	paramShortcutBlinkFrequency = frequency;
 }
 
-void SoundEditor::setupExclusiveShortcutBlink(int32_t x, int32_t y) {
+PLACE_SDRAM_TEXT void SoundEditor::setupExclusiveShortcutBlink(int32_t x, int32_t y) {
 	resetSourceBlinks();
 	setupShortcutBlink(x, y, 1);
 	blinkShortcut();
 }
 
-void SoundEditor::blinkShortcut() {
+PLACE_SDRAM_TEXT void SoundEditor::blinkShortcut() {
 	// We have to blink params and shortcuts at slightly different times, because blinking two pads on the same row
 	// at same time doesn't work
 
@@ -940,11 +943,11 @@ void SoundEditor::blinkShortcut() {
 	shortcutBlinkCounter++;
 }
 
-bool SoundEditor::editingReverbSidechain() {
+PLACE_SDRAM_TEXT bool SoundEditor::editingReverbSidechain() {
 	return (getCurrentUI() == &soundEditor && currentSidechain == &AudioEngine::reverbSidechain);
 }
 
-ActionResult SoundEditor::horizontalEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT ActionResult SoundEditor::horizontalEncoderAction(int32_t offset) {
 	if (inNoteEditor()) {
 		return instrumentClipView.handleNoteEditorHorizontalEncoderAction(offset);
 	}
@@ -960,7 +963,7 @@ ActionResult SoundEditor::horizontalEncoderAction(int32_t offset) {
 	}
 }
 
-void SoundEditor::scrollFinished() {
+PLACE_SDRAM_TEXT void SoundEditor::scrollFinished() {
 	exitUIMode(UI_MODE_HORIZONTAL_SCROLL);
 	// Needed because sometimes we initiate a scroll before reverting an Action, so we need to
 	// properly render again afterwards
@@ -970,7 +973,7 @@ void SoundEditor::scrollFinished() {
 const uint32_t selectEncoderUIModes[] = {UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, UI_MODE_NOTES_PRESSED,
                                          UI_MODE_AUDITIONING, 0};
 
-void SoundEditor::selectEncoderAction(int8_t offset) {
+PLACE_SDRAM_TEXT void SoundEditor::selectEncoderAction(int8_t offset) {
 	int8_t scaledOffset = offset;
 	// 5x acceleration of select encoder when holding the shift button
 	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
@@ -1032,11 +1035,11 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 }
 
 // TIMER_UI_SPECIFIC is only set by a menu item
-ActionResult SoundEditor::timerCallback() {
+PLACE_SDRAM_TEXT ActionResult SoundEditor::timerCallback() {
 	return getCurrentMenuItem()->timerCallback();
 }
 
-void SoundEditor::markInstrumentAsEdited() {
+PLACE_SDRAM_TEXT void SoundEditor::markInstrumentAsEdited() {
 	if (!inSettingsMenu()) {
 		Instrument* inst = getCurrentInstrument();
 		if (inst) {
@@ -1047,7 +1050,7 @@ void SoundEditor::markInstrumentAsEdited() {
 
 static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, 0};
 
-ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
+PLACE_SDRAM_TEXT ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 	bool ignoreAction = false;
 	bool modulationItemFound = false;
 	if (!Buttons::isShiftButtonPressed()) {
@@ -1312,7 +1315,7 @@ doSetup:
 	return ActionResult::DEALT_WITH;
 }
 
-void SoundEditor::enterOrUpdateSoundEditor(bool on) {
+PLACE_SDRAM_TEXT void SoundEditor::enterOrUpdateSoundEditor(bool on) {
 	// If not in SoundEditor yet
 	if (getCurrentUI() != &soundEditor) {
 		if (getCurrentUI() == &sampleMarkerEditor) {
@@ -1338,9 +1341,9 @@ void SoundEditor::enterOrUpdateSoundEditor(bool on) {
 	}
 }
 
-extern uint16_t batteryMV;
+PLACE_SDRAM_DATA extern uint16_t batteryMV;
 
-ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
+PLACE_SDRAM_TEXT ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
@@ -1433,7 +1436,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult SoundEditor::handleAutomationViewPadAction(int32_t x, int32_t y, int32_t velocity) {
+PLACE_SDRAM_TEXT ActionResult SoundEditor::handleAutomationViewPadAction(int32_t x, int32_t y, int32_t velocity) {
 	// interact with automation view grid from menu
 	bool editingParamInAutomationView = isEditingAutomationViewParam();
 
@@ -1446,7 +1449,7 @@ ActionResult SoundEditor::handleAutomationViewPadAction(int32_t x, int32_t y, in
 	return ActionResult::NOT_DEALT_WITH;
 }
 
-bool SoundEditor::isEditingAutomationViewParam() {
+PLACE_SDRAM_TEXT bool SoundEditor::isEditingAutomationViewParam() {
 	// get the current menu item open
 	MenuItem* currentMenuItem = getCurrentMenuItem();
 
@@ -1474,7 +1477,7 @@ bool SoundEditor::isEditingAutomationViewParam() {
 	return (editingParamInAutomationArrangerView || editingParamInAutomationClipView);
 }
 
-ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (inNoteEditor()) {
 		return instrumentClipView.handleNoteEditorVerticalEncoderAction(offset, inCardRoutine);
 	}
@@ -1487,19 +1490,20 @@ ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRouti
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);
 }
 
-bool SoundEditor::pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) {
+PLACE_SDRAM_TEXT bool SoundEditor::pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) {
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
 		getCurrentMenuItem()->learnProgramChange(cable, channel, program);
 		return true;
 	}
 	return false;
 }
-bool SoundEditor::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) {
+PLACE_SDRAM_TEXT bool SoundEditor::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note,
+                                                              int32_t velocity) {
 	return getCurrentMenuItem()->learnNoteOn(cable, channel, note);
 }
 
 // Returns true if some use was made of the message here
-bool SoundEditor::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value) {
+PLACE_SDRAM_TEXT bool SoundEditor::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value) {
 
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
 		getCurrentMenuItem()->learnCC(cable, channel, ccNumber, value);
@@ -1510,7 +1514,7 @@ bool SoundEditor::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNu
 }
 
 // Returns true if some use was made of the message here
-bool SoundEditor::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2) {
+PLACE_SDRAM_TEXT bool SoundEditor::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2) {
 
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
 		getCurrentMenuItem()->learnKnob(&cable, 128, 0, channel);
@@ -1520,7 +1524,7 @@ bool SoundEditor::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t d
 	return false;
 }
 
-void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+PLACE_SDRAM_TEXT void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	if (getRootUI() == &automationView) {
 		automationView.modEncoderAction(whichModEncoder, offset);
 	}
@@ -1546,7 +1550,7 @@ void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	}
 }
 
-void SoundEditor::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
+PLACE_SDRAM_TEXT void SoundEditor::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	if (getRootUI() == &automationView) {
 		automationView.modEncoderButtonAction(whichModEncoder, on);
 	}
@@ -1555,7 +1559,7 @@ void SoundEditor::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 }
 
-bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
+PLACE_SDRAM_TEXT bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	Sound* newSound = nullptr;
 	ParamManagerForTimeline* newParamManager = nullptr;
 	ArpeggiatorSettings* newArpSettings = nullptr;
@@ -1794,24 +1798,24 @@ doMIDIOrCV:
 	return true;
 }
 
-MenuItem* SoundEditor::getCurrentMenuItem() {
+PLACE_SDRAM_TEXT MenuItem* SoundEditor::getCurrentMenuItem() {
 	return menuItemNavigationRecord[navigationDepth];
 }
 
-bool SoundEditor::inSettingsMenu() {
+PLACE_SDRAM_TEXT bool SoundEditor::inSettingsMenu() {
 	return (menuItemNavigationRecord[0] == &settingsRootMenu);
 }
 
-bool SoundEditor::inNoteEditor() {
+PLACE_SDRAM_TEXT bool SoundEditor::inNoteEditor() {
 	return (menuItemNavigationRecord[0] == &noteEditorRootMenu);
 }
 
-bool SoundEditor::inNoteRowEditor() {
+PLACE_SDRAM_TEXT bool SoundEditor::inNoteRowEditor() {
 	return (menuItemNavigationRecord[0] == &noteRowEditorRootMenu);
 }
 
 // used to jump from note row editor to note editor and back
-void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
+PLACE_SDRAM_TEXT void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 	MenuItem* currentMenuItem = getCurrentMenuItem();
 	MenuItem* newMenuItem = nullptr;
 	bool inHorizontalMenu = runtimeFeatureSettings.isOn(HorizontalMenus);
@@ -1863,19 +1867,19 @@ void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 	}
 }
 
-bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
+PLACE_SDRAM_TEXT bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
 	return (soundEditor.currentSource->ranges.getNumElements() > 1
 	        && soundEditor.currentSource->getRange(noteCode + soundEditor.currentSound->transpose)
 	               == soundEditor.currentMultiRange);
 }
 
-void SoundEditor::setCurrentMultiRange(int32_t i) {
+PLACE_SDRAM_TEXT void SoundEditor::setCurrentMultiRange(int32_t i) {
 	currentMultiRangeIndex = i;
 	currentMultiRange = (MultisampleRange*)soundEditor.currentSource->ranges.getElement(i);
 }
 
-MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int32_t whichThing,
-                                                                               ::MultiRange** previouslySelectedRange) {
+PLACE_SDRAM_TEXT MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(
+    Sound* sound, int32_t whichThing, ::MultiRange** previouslySelectedRange) {
 
 	Source* source = &sound->sources[whichThing];
 
@@ -1903,7 +1907,7 @@ MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(S
 	return MenuPermission::MUST_SELECT_RANGE;
 }
 
-void SoundEditor::cutSound() {
+PLACE_SDRAM_TEXT void SoundEditor::cutSound() {
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		getCurrentAudioClip()->unassignVoiceSample(false);
 	}
@@ -1912,7 +1916,7 @@ void SoundEditor::cutSound() {
 	}
 }
 
-AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
+PLACE_SDRAM_TEXT AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return &getCurrentAudioClip()->sampleHolder;
@@ -1923,7 +1927,7 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 	}
 }
 
-ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
+PLACE_SDRAM_TEXT ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = getCurrentInstrument();
 
@@ -1950,7 +1954,7 @@ ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	}
 }
 
-void SoundEditor::mpeZonesPotentiallyUpdated() {
+PLACE_SDRAM_TEXT void SoundEditor::mpeZonesPotentiallyUpdated() {
 	if (getCurrentUI() == this) {
 		MenuItem* currentMenuItem = getCurrentMenuItem();
 		if (currentMenuItem == &mpe::zoneNumMemberChannelsMenu) {
@@ -1959,7 +1963,7 @@ void SoundEditor::mpeZonesPotentiallyUpdated() {
 	}
 }
 
-HorizontalMenu* SoundEditor::maybeGetParentMenu(MenuItem* item) {
+PLACE_SDRAM_TEXT HorizontalMenu* SoundEditor::maybeGetParentMenu(MenuItem* item) {
 	if (util::one_of<MenuItem*>(item, {&sample0StartMenu, &sample1StartMenu, &audioClipSampleMarkerEditorMenuEnd})) {
 		// for sample start/end points we go straight to waveform editor UI
 		return nullptr;
@@ -1994,7 +1998,8 @@ HorizontalMenu* SoundEditor::maybeGetParentMenu(MenuItem* item) {
 	return *it;
 }
 
-std::optional<std::span<HorizontalMenu* const>> SoundEditor::getCurrentHorizontalMenusChain(bool checkNavigationDepth) {
+PLACE_SDRAM_TEXT std::optional<std::span<HorizontalMenu* const>>
+SoundEditor::getCurrentHorizontalMenusChain(bool checkNavigationDepth) {
 	if (checkNavigationDepth && navigationDepth > 0) {
 		// If a horizontal menu was accessed from the sound menu,
 		// we shouldn't allow switching between menus in the chain because the sound menu has different hierarchy
@@ -2018,7 +2023,7 @@ std::optional<std::span<HorizontalMenu* const>> SoundEditor::getCurrentHorizonta
 	return horizontalMenusChainForSound;
 }
 
-void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+PLACE_SDRAM_TEXT void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 
 	// Sorry - extremely ugly hack here.
 	MenuItem* currentMenuItem = getCurrentMenuItem();

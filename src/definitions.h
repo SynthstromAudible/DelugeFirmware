@@ -76,6 +76,7 @@ extern void freezeWithError(char const* errmsg);
 // Paul: It seems this area is not executable, could not find a reason in the datasheet, marked NOLOAD now
 #define PLACE_INTERNAL_FRUNK __attribute__((__section__(".frunk_bss")))
 
+#define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text")))
 #define PLACE_SDRAM_BSS __attribute__((__section__(".sdram_bss")))
 #define PLACE_SDRAM_DATA __attribute__((__section__(".sdram_data")))
 #define PLACE_SDRAM_RODATA __attribute__((__section__(".sdram_rodata")))

@@ -44,9 +44,12 @@ public:
 	}
 	[[nodiscard]] FilterInfo const& getFilterInfo() const { return info; }
 
-	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		Integer::configureRenderingOptions(options);
+		options.label = info.getMorphNameOr(Integer::getName(), true);
+	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		if (info.getFilterParamType() == FilterParamType::MORPH && info.isMorphable()) {
 			int32_t value = getValue();
 			if (info.getSlot() == FilterSlot::HPF) {
@@ -85,10 +88,13 @@ public:
 	[[nodiscard]] bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return info.isOn();
 	}
-	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		UnpatchedParam::configureRenderingOptions(options);
+		options.label = info.getMorphNameOr(Integer::getName(), true);
+	}
 	[[nodiscard]] FilterInfo const& getFilterInfo() const { return info; }
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		if (info.getFilterParamType() == FilterParamType::MORPH && info.isMorphable()) {
 			int32_t value = getValue();
 			if (info.getSlot() == FilterSlot::HPF) {

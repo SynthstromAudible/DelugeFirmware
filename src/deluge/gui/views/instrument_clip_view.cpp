@@ -141,7 +141,7 @@ InstrumentClipView::InstrumentClipView() {
 	lastSelectedNoteYDisplay = kNoSelection;
 }
 
-bool InstrumentClipView::opened() {
+PLACE_SDRAM_TEXT bool InstrumentClipView::opened() {
 
 	openedInBackground();
 
@@ -150,7 +150,7 @@ bool InstrumentClipView::opened() {
 	return true;
 }
 
-void InstrumentClipView::openedInBackground() {
+PLACE_SDRAM_TEXT void InstrumentClipView::openedInBackground() {
 	bool renderingToStore = (currentUIMode == UI_MODE_ANIMATION_FADE);
 
 	recalculateColours();
@@ -172,7 +172,7 @@ void InstrumentClipView::openedInBackground() {
 }
 
 // Initializes some stuff to begin a new editing session
-void InstrumentClipView::focusRegained() {
+PLACE_SDRAM_TEXT void InstrumentClipView::focusRegained() {
 	ClipView::focusRegained();
 
 	auditioningSilently = false; // Necessary?
@@ -182,16 +182,16 @@ void InstrumentClipView::focusRegained() {
 	setLedStates();
 }
 
-void InstrumentClipView::displayOrLanguageChanged() {
+PLACE_SDRAM_TEXT void InstrumentClipView::displayOrLanguageChanged() {
 	InstrumentClipMinder::displayOrLanguageChanged();
 }
 
-void InstrumentClipView::setLedStates() {
+PLACE_SDRAM_TEXT void InstrumentClipView::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 	InstrumentClipMinder::setLedStates();
 }
 
-ActionResult InstrumentClipView::commandLearnUserScale() {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::commandLearnUserScale() {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	if (!clip->inScaleMode) {
 		commandEnterScaleMode();
@@ -206,7 +206,7 @@ ActionResult InstrumentClipView::commandLearnUserScale() {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::commandCycleThroughScales() {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::commandCycleThroughScales() {
 	cycleThroughScales();
 	recalculateColours();
 	uiNeedsRendering(this);
@@ -215,7 +215,7 @@ ActionResult InstrumentClipView::commandCycleThroughScales() {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::commandFlashRootNote() {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::commandFlashRootNote() {
 	calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've
 	                            // released the button
 	flashDefaultRootNoteOn = false;
@@ -225,13 +225,13 @@ ActionResult InstrumentClipView::commandFlashRootNote() {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::commandEnterScaleModeWithRoot(uint8_t root) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::commandEnterScaleModeWithRoot(uint8_t root) {
 	cancelAllAuditioning();
 	enterScaleMode(root);
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::commandChangeRootNote(uint8_t yDisplay) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::commandChangeRootNote(uint8_t yDisplay) {
 	// uiTimerManager.unsetTimer(TimerName::DEFAULT_ROOT_NOTE);
 	cancelAllAuditioning();
 
@@ -250,17 +250,17 @@ ActionResult InstrumentClipView::commandChangeRootNote(uint8_t yDisplay) {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::commandEnterScaleMode() {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::commandEnterScaleMode() {
 	enterScaleMode();
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::commandExitScaleMode() {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::commandExitScaleMode() {
 	exitScaleMode();
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	// Scale mode button
@@ -863,7 +863,7 @@ passToOthers:
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRoutine) {
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
@@ -931,7 +931,7 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 	return ActionResult::DEALT_WITH;
 }
 
-bool InstrumentClipView::handleInstrumentChange(OutputType outputType) {
+PLACE_SDRAM_TEXT bool InstrumentClipView::handleInstrumentChange(OutputType outputType) {
 	bool is_fm = false;
 	bool isMIDIorCV = util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV});
 
@@ -949,7 +949,7 @@ bool InstrumentClipView::handleInstrumentChange(OutputType outputType) {
 	}
 }
 
-void InstrumentClipView::createDrumForAuditionedNoteRow(DrumType drumType) {
+PLACE_SDRAM_TEXT void InstrumentClipView::createDrumForAuditionedNoteRow(DrumType drumType) {
 	if (getCurrentOutputType() != OutputType::KIT) {
 		return;
 	}
@@ -1044,7 +1044,7 @@ someError:
 	// uiNeedsRendering(this, 0, 1 << lastAuditionedNoteOnScreen);
 }
 
-void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
+PLACE_SDRAM_TEXT void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	// If they want to copy or paste automation...
 	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
@@ -1062,7 +1062,7 @@ void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on
 	}
 }
 
-void InstrumentClipView::copyAutomation(int32_t whichModEncoder, int32_t navSysId) {
+PLACE_SDRAM_TEXT void InstrumentClipView::copyAutomation(int32_t whichModEncoder, int32_t navSysId) {
 	int32_t xScroll = currentSong->xScroll[navSysId];
 	int32_t xZoom = currentSong->xZoom[navSysId];
 
@@ -1101,7 +1101,7 @@ void InstrumentClipView::copyAutomation(int32_t whichModEncoder, int32_t navSysI
 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_AUTOMATION_TO_COPY));
 }
 
-void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
+PLACE_SDRAM_TEXT void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 
 	bool copyToFile = false;
 	if (writer) {
@@ -1284,11 +1284,11 @@ ramError:
 	}
 }
 
-void InstrumentClipView::copyNotesToFile(Serializer& writer, bool selectedDrumOnly) {
+PLACE_SDRAM_TEXT void InstrumentClipView::copyNotesToFile(Serializer& writer, bool selectedDrumOnly) {
 	copyNotes(&writer, selectedDrumOnly);
 }
 
-void InstrumentClipView::deleteCopiedNoteRows() {
+PLACE_SDRAM_TEXT void InstrumentClipView::deleteCopiedNoteRows() {
 	while (firstCopiedNoteRow) {
 		CopiedNoteRow* toDelete = firstCopiedNoteRow;
 		firstCopiedNoteRow = firstCopiedNoteRow->next;
@@ -1297,7 +1297,7 @@ void InstrumentClipView::deleteCopiedNoteRows() {
 	}
 }
 
-void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSysId) {
+PLACE_SDRAM_TEXT void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSysId) {
 	int32_t xScroll = currentSong->xScroll[navSysId];
 	int32_t xZoom = currentSong->xZoom[navSysId];
 
@@ -1349,7 +1349,7 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSys
 	}
 }
 
-void InstrumentClipView::patternPreview() {
+PLACE_SDRAM_TEXT void InstrumentClipView::patternPreview() {
 	if (!playbackHandler.playbackState) {
 		playbackHandler.setupPlaybackUsingInternalClock(0, false, true, false);
 	}
@@ -1358,7 +1358,7 @@ void InstrumentClipView::patternPreview() {
 	}
 }
 
-void InstrumentClipView::patternClear() {
+PLACE_SDRAM_TEXT void InstrumentClipView::patternClear() {
 	// Clear the Clip bevore starting
 	Action* action = actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 
@@ -1369,8 +1369,8 @@ void InstrumentClipView::patternClear() {
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstack-usage="
-void InstrumentClipView::pasteNotes(bool overwriteExisting, bool pasteFromFile, bool noScaling, bool previewOnly,
-                                    bool selectedDrumOnly) {
+PLACE_SDRAM_TEXT void InstrumentClipView::pasteNotes(bool overwriteExisting, bool pasteFromFile, bool noScaling,
+                                                     bool previewOnly, bool selectedDrumOnly) {
 
 	if (!firstCopiedNoteRow) {
 		return;
@@ -1522,8 +1522,8 @@ getOut:
 }
 #pragma GCC diagnostic pop
 
-Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader, bool overwriteExisting, bool noScaling,
-                                             bool previewOnly, bool selectedDrumOnly) {
+PLACE_SDRAM_TEXT Error InstrumentClipView::pasteNotesFromFile(Deserializer& reader, bool overwriteExisting,
+                                                              bool noScaling, bool previewOnly, bool selectedDrumOnly) {
 	Error error = Error::NONE;
 
 	if (false) {
@@ -1681,7 +1681,7 @@ getOut: {}
 	return Error::NONE;
 }
 
-void InstrumentClipView::doubleClipLengthAction() {
+PLACE_SDRAM_TEXT void InstrumentClipView::doubleClipLengthAction() {
 
 	// If too big...
 	if (getCurrentClip()->loopLength > (kMaxSequenceLength >> 1)) {
@@ -1720,7 +1720,7 @@ void InstrumentClipView::doubleClipLengthAction() {
 	}
 }
 
-bool InstrumentClipView::createNewInstrument(OutputType newOutputType, bool is_dx) {
+PLACE_SDRAM_TEXT bool InstrumentClipView::createNewInstrument(OutputType newOutputType, bool is_dx) {
 	if (InstrumentClipMinder::createNewInstrument(newOutputType, is_dx)) {
 		recalculateColours();
 		uiNeedsRendering(getRootUI());
@@ -1742,7 +1742,7 @@ bool InstrumentClipView::createNewInstrument(OutputType newOutputType, bool is_d
 	return false;
 }
 
-bool InstrumentClipView::changeOutputType(OutputType newOutputType) {
+PLACE_SDRAM_TEXT bool InstrumentClipView::changeOutputType(OutputType newOutputType) {
 
 	if (getCurrentOutputType() == newOutputType) {
 		return false;
@@ -1757,7 +1757,7 @@ bool InstrumentClipView::changeOutputType(OutputType newOutputType) {
 	return false;
 }
 
-void InstrumentClipView::selectEncoderAction(int8_t offset) {
+PLACE_SDRAM_TEXT void InstrumentClipView::selectEncoderAction(int8_t offset) {
 
 	// User may be trying to edit noteCode...
 	if (currentUIMode == UI_MODE_AUDITIONING) {
@@ -1803,7 +1803,7 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 	}
 }
 
-void InstrumentClipView::handleProbabilityOrIteranceEditing(int8_t offset, bool editNoteRow) {
+PLACE_SDRAM_TEXT void InstrumentClipView::handleProbabilityOrIteranceEditing(int8_t offset, bool editNoteRow) {
 	bool hasProbabilityPopup = display->hasPopupOfType(PopupType::PROBABILITY);
 	bool hasIterancePopup = display->hasPopupOfType(PopupType::ITERANCE);
 	bool hasPopup = hasProbabilityPopup || hasIterancePopup;
@@ -1846,7 +1846,7 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING,
                                              UI_MODE_HOLDING_LOAD_BUTTON,
                                              0};
 
-ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocity) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	// Drum Randomizer
 	if (x == 15 && y == 2 && velocity > 0
@@ -1996,7 +1996,7 @@ possiblyAuditionPad:
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::potentiallyRandomizeDrumSamples() {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::potentiallyRandomizeDrumSamples() {
 	if (isUIModeActive(UI_MODE_HOLDING_LOAD_BUTTON)) {
 		exitUIMode(UI_MODE_HOLDING_LOAD_BUTTON);
 	}
@@ -2077,7 +2077,8 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSamples() {
 	}
 }
 
-ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* drum, char* chosenFilename) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* drum,
+                                                                                 char* chosenFilename) {
 	// we can only randomize a sound drum as only sound drum's have a sample
 	if (drum == nullptr || drum->type != DrumType::SOUND) {
 		return ActionResult::NOT_DEALT_WITH;
@@ -2152,7 +2153,7 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 	return ActionResult::NOT_DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::commandEnterNoteVelocityEditor(int32_t x, int32_t y) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::commandEnterNoteVelocityEditor(int32_t x, int32_t y) {
 	Clip* clip = getCurrentClip();
 	// don't enter if you're in a kit with affect entire on
 	if (!(clip->output->type == OutputType::KIT && automationView.getAffectEntire())) {
@@ -2167,7 +2168,7 @@ ActionResult InstrumentClipView::commandEnterNoteVelocityEditor(int32_t x, int32
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::commandLearnMutePad(int32_t y, int32_t velocity) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::commandLearnMutePad(int32_t y, int32_t velocity) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
@@ -2186,8 +2187,9 @@ ActionResult InstrumentClipView::commandLearnMutePad(int32_t y, int32_t velocity
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::commandLearnAuditionPad(InstrumentClip* clip, Output* output, OutputType outputType,
-                                                         int32_t y, int32_t velocity) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::commandLearnAuditionPad(InstrumentClip* clip, Output* output,
+                                                                          OutputType outputType, int32_t y,
+                                                                          int32_t velocity) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
@@ -2205,8 +2207,8 @@ ActionResult InstrumentClipView::commandLearnAuditionPad(InstrumentClip* clip, O
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::commandSaveKitRow(InstrumentClip* clip, Output* output, OutputType outputType,
-                                                   int32_t y) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::commandSaveKitRow(InstrumentClip* clip, Output* output,
+                                                                    OutputType outputType, int32_t y) {
 	Instrument* instrument = getCurrentInstrument();
 
 	bool isKit = (instrument->type == OutputType::KIT);
@@ -2227,7 +2229,7 @@ ActionResult InstrumentClipView::commandSaveKitRow(InstrumentClip* clip, Output*
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::commandActivateSongMacro(int32_t y, int32_t velocity) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::commandActivateSongMacro(int32_t y, int32_t velocity) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
@@ -2238,7 +2240,7 @@ ActionResult InstrumentClipView::commandActivateSongMacro(int32_t y, int32_t vel
 	return ActionResult::DEALT_WITH;
 }
 
-uint8_t InstrumentClipView::getEditPadPressXDisplayOnScreen(uint8_t yDisplay) {
+PLACE_SDRAM_TEXT uint8_t InstrumentClipView::getEditPadPressXDisplayOnScreen(uint8_t yDisplay) {
 	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 		if (editPadPresses[i].isActive && editPadPresses[i].yDisplay == yDisplay) {
 			return editPadPresses[i].xDisplay;
@@ -2248,7 +2250,8 @@ uint8_t InstrumentClipView::getEditPadPressXDisplayOnScreen(uint8_t yDisplay) {
 	return 0; // Presumably impossible case
 }
 
-void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom) {
+PLACE_SDRAM_TEXT void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay,
+                                                        uint32_t xZoom) {
 	RootUI* rootUI = getRootUI();
 
 	uint32_t squareStart = getPosFromSquare(xDisplay);
@@ -2684,7 +2687,8 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 	}
 }
 
-Sound* InstrumentClipView::getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager) {
+PLACE_SDRAM_TEXT Sound* InstrumentClipView::getSoundForNoteRow(NoteRow* noteRow,
+                                                               ParamManagerForTimeline** getParamManager) {
 	if (getCurrentOutputType() == OutputType::SYNTH) {
 		*getParamManager = &getCurrentClip()->paramManager;
 		return (SoundInstrument*)getCurrentOutput();
@@ -2703,7 +2707,7 @@ Sound* InstrumentClipView::getSoundForNoteRow(NoteRow* noteRow, ParamManagerForT
 	}
 }
 
-void InstrumentClipView::endEditPadPress(uint8_t i) {
+PLACE_SDRAM_TEXT void InstrumentClipView::endEditPadPress(uint8_t i) {
 	editPadPresses[i].isActive = false;
 	numEditPadPresses--;
 	numEditPadPressesPerNoteRowOnScreen[editPadPresses[i].yDisplay]--;
@@ -2715,7 +2719,7 @@ void InstrumentClipView::endEditPadPress(uint8_t i) {
 	}
 }
 
-void InstrumentClipView::endAllEditPadPresses() {
+PLACE_SDRAM_TEXT void InstrumentClipView::endAllEditPadPresses() {
 	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 		if (editPadPresses[i].isActive) {
 			endEditPadPress(i);
@@ -2728,7 +2732,7 @@ void InstrumentClipView::endAllEditPadPresses() {
 	}
 }
 
-void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
+PLACE_SDRAM_TEXT void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 	if (numEditPadPresses == 0) {
 		view.setModRegion();
 		exitUIMode(UI_MODE_NOTES_PRESSED);
@@ -2744,7 +2748,7 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 
 // adjust a note's velocity when pressing and holding a pad with a note in it and turning the horizontal encoder <>
 // this function is also called from the automation velocity editing view
-void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
+PLACE_SDRAM_TEXT void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 	int32_t velocityValue = 0;
 
 	UI* currentUI = getCurrentUI();
@@ -2840,7 +2844,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 // with different starting velocities (prior to adjustment)
 // used to determine whether to display the updated velocity value or a generalized
 // "velocity increased / decreased" message
-void InstrumentClipView::updateVelocityValue(int32_t& velocityValue, int32_t newVelocity) {
+PLACE_SDRAM_TEXT void InstrumentClipView::updateVelocityValue(int32_t& velocityValue, int32_t newVelocity) {
 	// Compares velocityValue to newVelocity
 	// Sets velocityValue to newVelocity if velocityValue is 0.
 	// Keeps velocityValue the same if they're equal
@@ -2857,7 +2861,7 @@ void InstrumentClipView::updateVelocityValue(int32_t& velocityValue, int32_t new
 }
 
 // display updated velocity value for note(s) edited or generalized "velocity increased / decreased" message
-void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocityChange) {
+PLACE_SDRAM_TEXT void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocityChange) {
 	if (velocityValue) {
 		char buffer[22];
 		char const* displayString;
@@ -2899,7 +2903,7 @@ void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocity
 }
 
 // display velocity popup
-void InstrumentClipView::popupVelocity(char const* displayString) {
+PLACE_SDRAM_TEXT void InstrumentClipView::popupVelocity(char const* displayString) {
 	if (display->haveOLED()) {
 		display->popupText(displayString);
 	}
@@ -2908,26 +2912,27 @@ void InstrumentClipView::popupVelocity(char const* displayString) {
 	}
 }
 
-void InstrumentClipView::adjustNoteProbabilityWithOffset(int32_t offset) {
+PLACE_SDRAM_TEXT void InstrumentClipView::adjustNoteProbabilityWithOffset(int32_t offset) {
 	adjustNoteParameterValue(offset, -1, CORRESPONDING_NOTES_SET_PROBABILITY, 1, kNumProbabilityValues);
 }
 
-void InstrumentClipView::adjustNoteIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom) {
+PLACE_SDRAM_TEXT void InstrumentClipView::adjustNoteIteranceWithOffset(int32_t offset,
+                                                                       bool allowTogglingBetweenPresetsAndCustom) {
 	adjustNoteParameterValue(offset, -1, CORRESPONDING_NOTES_SET_ITERANCE, 0, kNumIterancePresets + 1,
 	                         allowTogglingBetweenPresetsAndCustom);
 }
 
-void InstrumentClipView::adjustNoteIteranceWithFinalValue(Iterance finalValue) {
+PLACE_SDRAM_TEXT void InstrumentClipView::adjustNoteIteranceWithFinalValue(Iterance finalValue) {
 	adjustNoteParameterValue(0, finalValue.toInt(), CORRESPONDING_NOTES_SET_ITERANCE, 0, kNumIterancePresets + 1);
 }
 
-void InstrumentClipView::adjustNoteFillWithOffset(int32_t offset) {
+PLACE_SDRAM_TEXT void InstrumentClipView::adjustNoteFillWithOffset(int32_t offset) {
 	adjustNoteParameterValue(offset, -1, CORRESPONDING_NOTES_SET_FILL, FillMode::OFF, kNumFillValues);
 }
 
 // used with the note probability, iterance and fill note editing menu
 // when adjusting multiple notes, the value displayed is the value of the left most note
-Note* InstrumentClipView::getLeftMostNotePressed() {
+PLACE_SDRAM_TEXT Note* InstrumentClipView::getLeftMostNotePressed() {
 	Note* leftMostNote = nullptr;
 	if (numEditPadPresses != 0) {
 		int32_t leftMostPos = 2147483647;
@@ -2956,9 +2961,10 @@ Note* InstrumentClipView::getLeftMostNotePressed() {
 // adjusts note probability, iterance, fill for notes
 //  - either via offset, providing values -1 or 1 (provide 0 if you don't want to use this parameter)
 //  - or via finalValue, providing value 0 or up (provide -1 if you don't want to use this parameter)
-void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t withFinalValue, int32_t changeType,
-                                                  int32_t parameterMinValue, int32_t parameterMaxValue,
-                                                  bool allowTogglingBetweenPresetsAndCustom) {
+PLACE_SDRAM_TEXT void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t withFinalValue,
+                                                                   int32_t changeType, int32_t parameterMinValue,
+                                                                   int32_t parameterMaxValue,
+                                                                   bool allowTogglingBetweenPresetsAndCustom) {
 	// ensure offset is valid (offset acceleration not permitted here)
 	if (withOffset < 0) {
 		withOffset = -1;
@@ -3399,7 +3405,7 @@ multiplePresses:
 #pragma GCC push
 #pragma GCC diagnostic ignored "-Wstack-usage="
 
-void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
+PLACE_SDRAM_TEXT void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
 	char buffer[(display->haveOLED()) ? 29 : 5];
 
 	// if it's a latching probability, remove latching from value
@@ -3420,7 +3426,7 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 	}
 }
 
-void InstrumentClipView::displayIterance(Iterance iterance) {
+PLACE_SDRAM_TEXT void InstrumentClipView::displayIterance(Iterance iterance) {
 	char buffer[(display->haveOLED()) ? 29 : 5];
 
 	// Iteration dependence
@@ -3452,7 +3458,7 @@ void InstrumentClipView::displayIterance(Iterance iterance) {
 	}
 }
 
-const char* InstrumentClipView::getFillString(uint8_t fill) {
+PLACE_SDRAM_TEXT const char* InstrumentClipView::getFillString(uint8_t fill) {
 	// FILL mode
 	if (fill == FILL) {
 		return "FILL";
@@ -3470,7 +3476,7 @@ const char* InstrumentClipView::getFillString(uint8_t fill) {
 #pragma gcc pop
 
 // if you've selected a single note and pressed the select encoder, you can enter the note editor menu
-bool InstrumentClipView::enterNoteEditor() {
+PLACE_SDRAM_TEXT bool InstrumentClipView::enterNoteEditor() {
 	if (numEditPadPresses == 1 && lastSelectedNoteXDisplay != kNoSelection
 	    && lastSelectedNoteYDisplay != kNoSelection) {
 		dontDeleteNotesOnDepress();
@@ -3495,7 +3501,7 @@ bool InstrumentClipView::enterNoteEditor() {
 	return false;
 }
 
-void InstrumentClipView::exitNoteEditor() {
+PLACE_SDRAM_TEXT void InstrumentClipView::exitNoteEditor() {
 	if (lastSelectedNoteXDisplay != kNoSelection && lastSelectedNoteYDisplay != kNoSelection) {
 		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
 			editPadAction(0, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay, currentSong->xZoom[NAVIGATION_CLIP]);
@@ -3507,7 +3513,7 @@ void InstrumentClipView::exitNoteEditor() {
 	resetSelectedNoteBlinking();
 }
 
-void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on) {
+PLACE_SDRAM_TEXT void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on) {
 	if (on) {
 		// did you press a different pad?
 		// if no, we'll toggle auditioning the note on / off
@@ -3570,14 +3576,15 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 
 // before scrolling, we need to reset the note selection
 // if we're in a submenu, we'll need to go up a level
-void InstrumentClipView::deselectNoteAndGoUpOneLevel() {
+PLACE_SDRAM_TEXT void InstrumentClipView::deselectNoteAndGoUpOneLevel() {
 	exitNoteEditor();
 	if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu || runtimeFeatureSettings.isOn(HorizontalMenus)) {
 		soundEditor.goUpOneLevel();
 	}
 }
 
-ActionResult InstrumentClipView::handleNoteEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::handleNoteEditorVerticalEncoderAction(int32_t offset,
+                                                                                        bool inCardRoutine) {
 	// if you're holding down vertical encoder, don't de-select because that lets you edit
 	// note repeats
 	if (!Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
@@ -3587,13 +3594,14 @@ ActionResult InstrumentClipView::handleNoteEditorVerticalEncoderAction(int32_t o
 	return verticalEncoderAction(offset, inCardRoutine);
 }
 
-ActionResult InstrumentClipView::handleNoteEditorHorizontalEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::handleNoteEditorHorizontalEncoderAction(int32_t offset) {
 	deselectNoteAndGoUpOneLevel();
 
 	return horizontalEncoderAction(offset);
 }
 
-ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Button b, bool on,
+                                                                               bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	// to allow you to switch between items in horizontal menu
@@ -3617,7 +3625,7 @@ ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Butto
 }
 
 // if you've selected a single note row and pressed the select encoder, you can enter the note row editor menu
-bool InstrumentClipView::enterNoteRowEditor() {
+PLACE_SDRAM_TEXT bool InstrumentClipView::enterNoteRowEditor() {
 	if (getNumNoteRowsAuditioning() == 1) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 
@@ -3670,14 +3678,14 @@ bool InstrumentClipView::enterNoteRowEditor() {
 	return false;
 }
 
-void InstrumentClipView::exitNoteRowEditor() {
+PLACE_SDRAM_TEXT void InstrumentClipView::exitNoteRowEditor() {
 	if (isUIModeActive(UI_MODE_AUDITIONING)) {
 		auditionPadAction(0, lastAuditionedYDisplay, true);
 	}
 	resetSelectedNoteRowBlinking();
 }
 
-bool InstrumentClipView::handleNoteRowEditorPadAction(int32_t x, int32_t y, int32_t on) {
+PLACE_SDRAM_TEXT bool InstrumentClipView::handleNoteRowEditorPadAction(int32_t x, int32_t y, int32_t on) {
 	// main pad action
 	if (x < kDisplayWidth) {
 		return handleNoteRowEditorMainPadAction(x, y, on);
@@ -3697,7 +3705,7 @@ bool InstrumentClipView::handleNoteRowEditorPadAction(int32_t x, int32_t y, int3
 }
 
 // handles editing notes on the grid
-bool InstrumentClipView::handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on) {
+PLACE_SDRAM_TEXT bool InstrumentClipView::handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on) {
 	bool wasntHoldingNote = !isUIModeActive(UI_MODE_NOTES_PRESSED);
 
 	editPadAction(on, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
@@ -3729,7 +3737,7 @@ bool InstrumentClipView::handleNoteRowEditorMainPadAction(int32_t x, int32_t y, 
 	return true;
 }
 
-void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y) {
+PLACE_SDRAM_TEXT void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y) {
 	// did you press a different pad?
 	// if no, ignore press
 	if (!isUIModeActive(UI_MODE_AUDITIONING) || y != lastAuditionedYDisplay) {
@@ -3765,7 +3773,8 @@ void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y) {
 	}
 }
 
-ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_t offset,
+                                                                                           bool inCardRoutine) {
 	bool isHoldingVerticalEncoder = Buttons::isButtonPressed(deluge::hid::button::Y_ENC);
 
 	// if you haven't selected a row and you are holding down vertical encoder
@@ -3792,7 +3801,7 @@ ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_
 	return result;
 }
 
-ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int32_t offset) {
 	if (!isUIModeActive(UI_MODE_AUDITIONING)) {
 		return ActionResult::DEALT_WITH;
 	}
@@ -3830,7 +3839,8 @@ ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int3
 	return ClipView::horizontalEncoderAction(offset);
 }
 
-ActionResult InstrumentClipView::handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on,
+                                                                                  bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	// to allow you to switch between items in horizontal menu
@@ -3861,30 +3871,32 @@ ActionResult InstrumentClipView::handleNoteRowEditorButtonAction(deluge::hid::Bu
 	return ActionResult::DEALT_WITH;
 }
 
-int32_t InstrumentClipView::setNoteRowProbabilityWithOffset(int32_t offset) {
+PLACE_SDRAM_TEXT int32_t InstrumentClipView::setNoteRowProbabilityWithOffset(int32_t offset) {
 	return setNoteRowParameterValue(offset, -1, CORRESPONDING_NOTES_SET_PROBABILITY, 1, kNumProbabilityValues);
 }
 
-int32_t InstrumentClipView::setNoteRowIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom) {
+PLACE_SDRAM_TEXT int32_t InstrumentClipView::setNoteRowIteranceWithOffset(int32_t offset,
+                                                                          bool allowTogglingBetweenPresetsAndCustom) {
 	return setNoteRowParameterValue(offset, -1, CORRESPONDING_NOTES_SET_ITERANCE, 0, kNumIterancePresets + 1,
 	                                allowTogglingBetweenPresetsAndCustom);
 }
 
-int32_t InstrumentClipView::setNoteRowIteranceWithFinalValue(Iterance finalValue) {
+PLACE_SDRAM_TEXT int32_t InstrumentClipView::setNoteRowIteranceWithFinalValue(Iterance finalValue) {
 	return setNoteRowParameterValue(0, finalValue.toInt(), CORRESPONDING_NOTES_SET_ITERANCE, 0,
 	                                kNumIterancePresets + 1);
 }
 
-int32_t InstrumentClipView::setNoteRowFillWithOffset(int32_t offset) {
+PLACE_SDRAM_TEXT int32_t InstrumentClipView::setNoteRowFillWithOffset(int32_t offset) {
 	return setNoteRowParameterValue(offset, -1, CORRESPONDING_NOTES_SET_FILL, FillMode::OFF, FillMode::FILL);
 }
 
 // adjusts note probability, iterance, fill for note rows
 //  - either via offset, providing values -1 or 1 (provide 0 if you don't want to use this parameter)
 //  - or via finalValue, providing value 0 or up (provide -1 if you don't want to use this parameter)
-int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t withFinalValue, int32_t changeType,
-                                                     int32_t parameterMinValue, int32_t parameterMaxValue,
-                                                     bool allowTogglingBetweenPresetsAndCustom) {
+PLACE_SDRAM_TEXT int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t withFinalValue,
+                                                                      int32_t changeType, int32_t parameterMinValue,
+                                                                      int32_t parameterMaxValue,
+                                                                      bool allowTogglingBetweenPresetsAndCustom) {
 	// ensure offset is valid (offset acceleration not permitted here)
 	if (withOffset < 0) {
 		withOffset = -1;
@@ -4055,7 +4067,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 	return parameterValue;
 }
 
-void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
+PLACE_SDRAM_TEXT void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -4107,8 +4119,8 @@ fail:
 	uiNeedsRendering(getRootUI(), 0, 1 << yDisplay);
 }
 
-NoteRow* InstrumentClipView::getOrCreateEmptyNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
-                                                           int32_t* getIndex) {
+PLACE_SDRAM_TEXT NoteRow* InstrumentClipView::getOrCreateEmptyNoteRowForKit(ModelStackWithTimelineCounter* modelStack,
+                                                                            int32_t yDisplay, int32_t* getIndex) {
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
 	// We check for existing no-sound rows at the y first. Even if we try not to create any, existing
@@ -4124,8 +4136,8 @@ NoteRow* InstrumentClipView::getOrCreateEmptyNoteRowForKit(ModelStackWithTimelin
 	return row;
 }
 
-ModelStackWithNoteRow* InstrumentClipView::getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack,
-                                                                         int32_t yDisplay) {
+PLACE_SDRAM_TEXT ModelStackWithNoteRow*
+InstrumentClipView::getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay) {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
@@ -4138,8 +4150,8 @@ ModelStackWithNoteRow* InstrumentClipView::getOrCreateNoteRowForYDisplay(ModelSt
 	return modelStackWithNoteRow;
 }
 
-ModelStackWithNoteRow* InstrumentClipView::createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack,
-                                                                    int32_t yDisplay) {
+PLACE_SDRAM_TEXT ModelStackWithNoteRow*
+InstrumentClipView::createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay) {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
@@ -4177,13 +4189,13 @@ getOut:
 	return modelStack->addNoteRow(noteRowId, noteRow);
 }
 
-void InstrumentClipView::recalculateColours() {
+PLACE_SDRAM_TEXT void InstrumentClipView::recalculateColours() {
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		recalculateColour(yDisplay);
 	}
 }
 
-void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
+PLACE_SDRAM_TEXT void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
 	int32_t colourOffset = 0;
 	NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong);
 	if (noteRow) {
@@ -4198,8 +4210,9 @@ void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
 	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_RECALCULATE_COLOUR);
 }
 
-ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow,
-                                                ModelStackWithTimelineCounter* modelStack) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCardRoutine,
+                                                                 bool draggingNoteRow,
+                                                                 ModelStackWithTimelineCounter* modelStack) {
 
 	if (modelStack == nullptr) {
 		return ActionResult::DEALT_WITH;
@@ -4279,10 +4292,10 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::scrollVertical_limit(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow,
-                                                      ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
-                                                      bool isKit, bool preventOverScrolling, int32_t& noteRowToShiftI,
-                                                      int32_t& noteRowToSwapWithI) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::scrollVertical_limit(
+    int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow, ModelStackWithTimelineCounter* modelStack,
+    InstrumentClip* clip, bool isKit, bool preventOverScrolling, int32_t& noteRowToShiftI,
+    int32_t& noteRowToSwapWithI) {
 	// If a Kit...
 	if (isKit) {
 		// Limit scrolling
@@ -4356,10 +4369,8 @@ ActionResult InstrumentClipView::scrollVertical_limit(int32_t scrollAmount, bool
 	return ActionResult::NOT_DEALT_WITH;
 }
 
-void InstrumentClipView::scrollVertical_potentiallySwitchOffAuditionedNotes(bool draggingNoteRow,
-                                                                            ModelStackWithTimelineCounter* modelStack,
-                                                                            InstrumentClip* clip,
-                                                                            bool currentClipIsActive) {
+PLACE_SDRAM_TEXT void InstrumentClipView::scrollVertical_potentiallySwitchOffAuditionedNotes(
+    bool draggingNoteRow, ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, bool currentClipIsActive) {
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		if (lastAuditionedVelocityOnScreen[yDisplay] != 255
 		    && (!draggingNoteRow || lastAuditionedYDisplay != yDisplay)) {
@@ -4378,8 +4389,8 @@ void InstrumentClipView::scrollVertical_potentiallySwitchOffAuditionedNotes(bool
 	}
 }
 
-void InstrumentClipView::scrollVertical_grabNotesPressed(ModelStackWithTimelineCounter* modelStack,
-                                                         InstrumentClip* clip) {
+PLACE_SDRAM_TEXT void InstrumentClipView::scrollVertical_grabNotesPressed(ModelStackWithTimelineCounter* modelStack,
+                                                                          InstrumentClip* clip) {
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 
 	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
@@ -4427,8 +4438,9 @@ void InstrumentClipView::scrollVertical_grabNotesPressed(ModelStackWithTimelineC
 	}
 }
 
-void InstrumentClipView::scrollVertical_dragSelectedNoteRow(InstrumentClip* clip, Output* output, bool isKit,
-                                                            int32_t noteRowToShiftI, int32_t noteRowToSwapWithI) {
+PLACE_SDRAM_TEXT void InstrumentClipView::scrollVertical_dragSelectedNoteRow(InstrumentClip* clip, Output* output,
+                                                                             bool isKit, int32_t noteRowToShiftI,
+                                                                             int32_t noteRowToSwapWithI) {
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
 	clip->noteRows.getElement(noteRowToShiftI)->y = -32768; // Need to remember not to try and use the yNote value
@@ -4444,7 +4456,7 @@ void InstrumentClipView::scrollVertical_dragSelectedNoteRow(InstrumentClip* clip
 	}
 }
 
-void InstrumentClipView::scrollVertical_potentiallySwitchOnAuditionedNotes(
+PLACE_SDRAM_TEXT void InstrumentClipView::scrollVertical_potentiallySwitchOnAuditionedNotes(
     bool draggingNoteRow, ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, Output* output,
     OutputType outputType, bool isKit, bool inSoundEditor, bool currentClipIsActive, bool renderDisplay,
     bool updateDrumSelection) {
@@ -4524,8 +4536,8 @@ void InstrumentClipView::scrollVertical_potentiallySwitchOnAuditionedNotes(
 	}
 }
 
-void InstrumentClipView::scrollVertical_placeNotesPressed(ModelStackWithTimelineCounter* modelStack,
-                                                          InstrumentClip* clip, bool isKit) {
+PLACE_SDRAM_TEXT void InstrumentClipView::scrollVertical_placeNotesPressed(ModelStackWithTimelineCounter* modelStack,
+                                                                           InstrumentClip* clip, bool isKit) {
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 	// if (!action) return; // Couldn't happen?
 
@@ -4607,13 +4619,13 @@ cancelPress:
 	checkIfAllEditPadPressesEnded(false);
 }
 
-void InstrumentClipView::reassessAllAuditionStatus() {
+PLACE_SDRAM_TEXT void InstrumentClipView::reassessAllAuditionStatus() {
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		reassessAuditionStatus(yDisplay);
 	}
 }
 
-void InstrumentClipView::reassessAuditionStatus(uint8_t yDisplay) {
+PLACE_SDRAM_TEXT void InstrumentClipView::reassessAuditionStatus(uint8_t yDisplay) {
 	uint32_t sampleSyncLength;
 	uint8_t newVelocity = getVelocityForAudition(yDisplay, &sampleSyncLength);
 	// If some change in the NoteRow's audition status (it's come on or off or had its velocity changed)...
@@ -4634,7 +4646,8 @@ void InstrumentClipView::reassessAuditionStatus(uint8_t yDisplay) {
 }
 
 // This may send it on a different Clip, if a different one is the activeClip
-void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength) {
+PLACE_SDRAM_TEXT void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity,
+                                                           uint32_t sampleSyncLength) {
 	Instrument* instrument = getCurrentInstrument();
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -4693,7 +4706,7 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 	}
 }
 
-uint8_t InstrumentClipView::getVelocityForAudition(uint8_t yDisplay, uint32_t* sampleSyncLength) {
+PLACE_SDRAM_TEXT uint8_t InstrumentClipView::getVelocityForAudition(uint8_t yDisplay, uint32_t* sampleSyncLength) {
 	int32_t numInstances = 0;
 	uint32_t sum = 0;
 	*sampleSyncLength = 0;
@@ -4724,7 +4737,7 @@ uint8_t InstrumentClipView::getVelocityForAudition(uint8_t yDisplay, uint32_t* s
 	return sum / numInstances;
 }
 
-uint8_t InstrumentClipView::getNumNoteRowsAuditioning() {
+PLACE_SDRAM_TEXT uint8_t InstrumentClipView::getNumNoteRowsAuditioning() {
 	uint8_t num = 0;
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		if (auditionPadIsPressed[i]) {
@@ -4734,11 +4747,11 @@ uint8_t InstrumentClipView::getNumNoteRowsAuditioning() {
 	return num;
 }
 
-uint8_t InstrumentClipView::oneNoteAuditioning() {
+PLACE_SDRAM_TEXT uint8_t InstrumentClipView::oneNoteAuditioning() {
 	return (currentUIMode == UI_MODE_AUDITIONING && getNumNoteRowsAuditioning() == 1);
 }
 
-void InstrumentClipView::offsetNoteCodeAction(int32_t newOffset) {
+PLACE_SDRAM_TEXT void InstrumentClipView::offsetNoteCodeAction(int32_t newOffset) {
 
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
@@ -4825,7 +4838,7 @@ doRenderRow:
 	uiNeedsRendering(this, 0, 1 << lastAuditionedYDisplay);
 }
 
-Drum* InstrumentClipView::flipThroughAvailableDrums(int32_t newOffset, Drum* drum, bool mayBeNone) {
+PLACE_SDRAM_TEXT Drum* InstrumentClipView::flipThroughAvailableDrums(int32_t newOffset, Drum* drum, bool mayBeNone) {
 
 	Drum* startedAtDrum = drum;
 	Drum* newDrum = startedAtDrum;
@@ -4860,7 +4873,7 @@ Drum* InstrumentClipView::flipThroughAvailableDrums(int32_t newOffset, Drum* dru
 	return newDrum;
 }
 
-Drum* InstrumentClipView::getNextDrum(Drum* oldDrum, bool mayBeNone) {
+PLACE_SDRAM_TEXT Drum* InstrumentClipView::getNextDrum(Drum* oldDrum, bool mayBeNone) {
 	if (oldDrum == nullptr) {
 		Drum* newDrum = getCurrentKit()->firstDrum;
 		/*
@@ -4877,11 +4890,11 @@ Drum* InstrumentClipView::getNextDrum(Drum* oldDrum, bool mayBeNone) {
 	return nextDrum;
 }
 
-int32_t InstrumentClipView::getYVisualFromYDisplay(int32_t yDisplay) {
+PLACE_SDRAM_TEXT int32_t InstrumentClipView::getYVisualFromYDisplay(int32_t yDisplay) {
 	return yDisplay + getCurrentInstrumentClip()->yScroll;
 }
 
-int32_t InstrumentClipView::getYVisualWithinOctaveFromYDisplay(int32_t yDisplay) {
+PLACE_SDRAM_TEXT int32_t InstrumentClipView::getYVisualWithinOctaveFromYDisplay(int32_t yDisplay) {
 	int32_t yVisual = getYVisualFromYDisplay(yDisplay);
 	int32_t yVisualRelativeToRoot = yVisual - currentSong->key.rootNote;
 	int32_t yVisualWithinOctave = yVisualRelativeToRoot % currentSong->key.modeNotes.count();
@@ -4893,8 +4906,8 @@ int32_t InstrumentClipView::getYVisualWithinOctaveFromYDisplay(int32_t yDisplay)
 
 // Beware - supplying shouldRedrawStuff as false will cause the activeModControllable to *not* update! Probably
 // never should do this anymore...
-void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit* selectedKit,
-                                         bool shouldSendMidiFeedback) {
+PLACE_SDRAM_TEXT void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit* selectedKit,
+                                                          bool shouldSendMidiFeedback) {
 	Clip* clip = getCurrentClip();
 	// check if you've already selected this drum
 	Kit* kit;
@@ -4975,7 +4988,8 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 	}
 }
 
-ActionResult InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay,
+                                                                    bool shiftButtonDown) {
 	exitUIMode(UI_MODE_DRAGGING_KIT_NOTEROW);
 	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allowable sometimes if in card routine.
@@ -5045,7 +5059,7 @@ ActionResult InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDi
 	return ActionResult::DEALT_WITH;
 }
 
-void InstrumentClipView::potentiallyRecordAuditionPadAction(
+PLACE_SDRAM_TEXT void InstrumentClipView::potentiallyRecordAuditionPadAction(
     bool clipIsActiveOnInstrument, int32_t velocity, int32_t yDisplay, Instrument* instrument, bool isKit,
     ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
     ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum) {
@@ -5077,10 +5091,10 @@ void InstrumentClipView::potentiallyRecordAuditionPadAction(
 
 // sub-function of AuditionPadAction
 // if we're in a kit clip, get the drum that were trying to audition
-Drum* InstrumentClipView::getAuditionedDrum(int32_t velocity, int32_t yDisplay, bool shiftButtonDown,
-                                            Instrument* instrument,
-                                            ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                            ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip) {
+PLACE_SDRAM_TEXT Drum*
+InstrumentClipView::getAuditionedDrum(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, Instrument* instrument,
+                                      ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                      ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip) {
 	bool doRender = false;
 
 	Drum* drum = nullptr;
@@ -5163,8 +5177,10 @@ Drum* InstrumentClipView::getAuditionedDrum(int32_t velocity, int32_t yDisplay, 
 
 // sub-function of AuditionPadAction
 // record note on early if count in is on
-void InstrumentClipView::recordNoteOnEarly(int32_t velocity, int32_t yDisplay, Instrument* instrument, bool isKit,
-                                           ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum) {
+PLACE_SDRAM_TEXT void InstrumentClipView::recordNoteOnEarly(int32_t velocity, int32_t yDisplay, Instrument* instrument,
+                                                            bool isKit,
+                                                            ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip,
+                                                            Drum* drum) {
 	if (isKit) {
 		if (drum) {
 			drum->recordNoteOnEarly((velocity == USE_DEFAULT_VELOCITY) ? instrument->defaultVelocity : velocity,
@@ -5184,9 +5200,9 @@ void InstrumentClipView::recordNoteOnEarly(int32_t velocity, int32_t yDisplay, I
 
 // sub-function of AuditionPadAction
 // if count in is not on, record note on as per usual
-void InstrumentClipView::recordNoteOn(int32_t velocity, int32_t yDisplay, Instrument* instrument,
-                                      ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                      ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip) {
+PLACE_SDRAM_TEXT void InstrumentClipView::recordNoteOn(int32_t velocity, int32_t yDisplay, Instrument* instrument,
+                                                       ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                                       ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip) {
 
 	// May need to create NoteRow if there wasn't one previously
 	if (!modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
@@ -5206,7 +5222,8 @@ void InstrumentClipView::recordNoteOn(int32_t velocity, int32_t yDisplay, Instru
 
 // sub-function of AuditionPadAction
 // if recording is on, make sure to record note off so that you can end tails
-void InstrumentClipView::recordNoteOff(int32_t yDisplay, ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip) {
+PLACE_SDRAM_TEXT void InstrumentClipView::recordNoteOff(int32_t yDisplay,
+                                                        ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip) {
 	if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
 		getCurrentInstrumentClip()->recordNoteOff(modelStackWithNoteRowOnCurrentClip);
 		if (!(currentUIMode & UI_MODE_HORIZONTAL_SCROLL)) { // What about zoom too?
@@ -5217,7 +5234,8 @@ void InstrumentClipView::recordNoteOff(int32_t yDisplay, ModelStackWithNoteRow* 
 
 // sub-function of AuditionPadAction
 // if you're in a multi range menu, you can use audition pads to set the note range
-void InstrumentClipView::potentiallyUpdateMultiRangeMenu(int32_t velocity, int32_t yDisplay, Instrument* instrument) {
+PLACE_SDRAM_TEXT void InstrumentClipView::potentiallyUpdateMultiRangeMenu(int32_t velocity, int32_t yDisplay,
+                                                                          Instrument* instrument) {
 	if (velocity != 0) {
 		if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 			menu_item::multiRangeMenu.noteOnToChangeRange(
@@ -5229,10 +5247,9 @@ void InstrumentClipView::potentiallyUpdateMultiRangeMenu(int32_t velocity, int32
 
 // sub-function of AuditionPadAction
 // get the note row that we're auditioning
-NoteRow* InstrumentClipView::getNoteRowOnActiveClip(int32_t yDisplay, Instrument* instrument,
-                                                    bool clipIsActiveOnInstrument,
-                                                    ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip,
-                                                    Drum* drum) {
+PLACE_SDRAM_TEXT NoteRow*
+InstrumentClipView::getNoteRowOnActiveClip(int32_t yDisplay, Instrument* instrument, bool clipIsActiveOnInstrument,
+                                           ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum) {
 	NoteRow* noteRowOnActiveClip = nullptr;
 
 	if (clipIsActiveOnInstrument) {
@@ -5256,7 +5273,7 @@ NoteRow* InstrumentClipView::getNoteRowOnActiveClip(int32_t yDisplay, Instrument
 
 // sub-function of AuditionPadAction
 // get the velocity that should be used to sound the audition pad of the note row selected
-int32_t InstrumentClipView::getVelocityToSound(int32_t velocity) {
+PLACE_SDRAM_TEXT int32_t InstrumentClipView::getVelocityToSound(int32_t velocity) {
 	int32_t velocityToSound = velocity;
 	if (velocityToSound == USE_DEFAULT_VELOCITY) {
 		velocityToSound = getCurrentInstrument()->defaultVelocity;
@@ -5266,8 +5283,9 @@ int32_t InstrumentClipView::getVelocityToSound(int32_t velocity) {
 
 // sub-function of AuditionPadAction
 // audition pad is pressed, we'll either do a silent audition or non-silent audition
-bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
-                                             NoteRow* noteRowOnActiveClip, Drum* drum, bool displayNoteCode) {
+PLACE_SDRAM_TEXT bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown,
+                                                              bool isKit, NoteRow* noteRowOnActiveClip, Drum* drum,
+                                                              bool displayNoteCode) {
 	bool doSilentAudition = false;
 
 	int32_t velocityToSound = getVelocityToSound(velocity);
@@ -5342,7 +5360,7 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 // sub-function of AuditionPadAction
 // if you're in the sequence direction menu,
 // pressing audition pad will change the note row selected in the menu
-void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
+PLACE_SDRAM_TEXT void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
 	// are we in the sound editor menu for a selected note row?
 	if (getCurrentUI() == &soundEditor && soundEditor.selectedNoteRow) {
 		MenuItem* currentMenuItem = soundEditor.getCurrentMenuItem();
@@ -5357,8 +5375,8 @@ void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
 
 // sub-function of AuditionPadAction
 // pad is released, end previous audition pad press
-void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack,
-                                              NoteRow* noteRowOnActiveClip) {
+PLACE_SDRAM_TEXT void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack,
+                                                               NoteRow* noteRowOnActiveClip) {
 	if (auditionPadIsPressed[yDisplay]) {
 		auditionPadIsPressed[yDisplay] = 0;
 		lastAuditionedVelocityOnScreen[yDisplay] = 255;
@@ -5376,7 +5394,7 @@ void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNo
 	actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
 }
 
-void InstrumentClipView::cancelAllAuditioning() {
+PLACE_SDRAM_TEXT void InstrumentClipView::cancelAllAuditioning() {
 	if (isUIModeActive(UI_MODE_AUDITIONING)) {
 		memset(auditionPadIsPressed, 0, sizeof(auditionPadIsPressed));
 		reassessAllAuditionStatus();
@@ -5385,7 +5403,7 @@ void InstrumentClipView::cancelAllAuditioning() {
 	}
 }
 
-void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording) {
+PLACE_SDRAM_TEXT void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording) {
 
 	D_PRINTLN("enterDrumCreator");
 
@@ -5465,7 +5483,7 @@ doDisplayError:
 	}
 }
 
-void InstrumentClipView::deleteDrum(SoundDrum* drum) {
+PLACE_SDRAM_TEXT void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 
 	Kit* kit = getCurrentKit();
 
@@ -5508,7 +5526,7 @@ void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 	// sessions starts again anyway
 }
 
-void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen) {
+PLACE_SDRAM_TEXT void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen) {
 	// Try to find another auditioned NoteRow so we can show its name etc
 	int32_t i;
 	for (i = 0; i < kDisplayHeight; i++) {
@@ -5541,7 +5559,7 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 	}
 }
 
-void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
+PLACE_SDRAM_TEXT void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 	// Might not want to actually do this...
 	if (!getCurrentUI()->toClipMinder()) {
 		return;
@@ -5559,7 +5577,7 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 	}
 }
 
-void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
+PLACE_SDRAM_TEXT void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 	DEF_STACK_STRING_BUF(drumName, 50);
 
 	getDrumName(drum, drumName);
@@ -5593,7 +5611,7 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 	}
 }
 
-void InstrumentClipView::getDrumName(Drum* drum, StringBuf& drumName) {
+PLACE_SDRAM_TEXT void InstrumentClipView::getDrumName(Drum* drum, StringBuf& drumName) {
 	if (display->haveOLED()) {
 		if (!drum) {
 			drumName.append("No sound");
@@ -5640,7 +5658,7 @@ void InstrumentClipView::getDrumName(Drum* drum, StringBuf& drumName) {
 	}
 }
 
-int32_t InstrumentClipView::setupForEnteringScaleMode(int32_t newRootNote, int32_t yDisplay) {
+PLACE_SDRAM_TEXT int32_t InstrumentClipView::setupForEnteringScaleMode(int32_t newRootNote, int32_t yDisplay) {
 	// Having got to this function, we have recently calculated the default root note
 
 	uiTimerManager.unsetTimer(TimerName::DEFAULT_ROOT_NOTE);
@@ -5690,7 +5708,7 @@ doneLookingForRootNoteOnScreen:
 	return newScroll;
 }
 
-void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
+PLACE_SDRAM_TEXT void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -5778,7 +5796,7 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_ENTER_SCALE_MODE);
 }
 
-int32_t InstrumentClipView::setupForExitingScaleMode() {
+PLACE_SDRAM_TEXT int32_t InstrumentClipView::setupForExitingScaleMode() {
 
 	int32_t scrollAdjust;
 	// See if there's a root note onscreen
@@ -5806,7 +5824,7 @@ int32_t InstrumentClipView::setupForExitingScaleMode() {
 	return scrollAdjust;
 }
 
-void InstrumentClipView::exitScaleMode() {
+PLACE_SDRAM_TEXT void InstrumentClipView::exitScaleMode() {
 
 	int32_t scrollAdjust = setupForExitingScaleMode();
 
@@ -5870,7 +5888,7 @@ void InstrumentClipView::exitScaleMode() {
 }
 
 // If called from KeyboardScreen, the newRootNote won't correspond to the yDisplay, and that's ok
-void InstrumentClipView::setupChangingOfRootNote(int32_t newRootNote, int32_t yDisplay) {
+PLACE_SDRAM_TEXT void InstrumentClipView::setupChangingOfRootNote(int32_t newRootNote, int32_t yDisplay) {
 	int32_t oldYVisual = getYVisualFromYDisplay(yDisplay);
 	int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYVisual(oldYVisual, currentSong);
 	currentSong->setRootNote(newRootNote, getCurrentInstrumentClip()); // Computation to find out what scale etc
@@ -5880,8 +5898,8 @@ void InstrumentClipView::setupChangingOfRootNote(int32_t newRootNote, int32_t yD
 	getCurrentInstrumentClip()->yScroll += scrollChange;
 }
 
-bool InstrumentClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT bool InstrumentClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
 	}
@@ -5911,7 +5929,8 @@ bool InstrumentClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayW
 	return true;
 }
 
-void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], uint8_t thisOccupancyMask[]) {
+PLACE_SDRAM_TEXT void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[],
+                                                         uint8_t thisOccupancyMask[]) {
 	RGB& thisColour = thisImage[kDisplayWidth];
 	uint8_t* thisOccupancy = &(thisOccupancyMask[kDisplayWidth]);
 
@@ -5943,7 +5962,7 @@ void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], u
 	}
 }
 
-bool InstrumentClipView::isRowAuditionedByInstrument(int32_t yDisplay) {
+PLACE_SDRAM_TEXT bool InstrumentClipView::isRowAuditionedByInstrument(int32_t yDisplay) {
 	if (getCurrentOutputType() == OutputType::KIT) {
 		NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong);
 		if (!noteRow || !noteRow->drum) {
@@ -5957,7 +5976,7 @@ bool InstrumentClipView::isRowAuditionedByInstrument(int32_t yDisplay) {
 	}
 }
 
-void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, RGB thisImage[]) {
+PLACE_SDRAM_TEXT void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, RGB thisImage[]) {
 	RGB& thisColour = thisImage[kDisplayWidth + 1];
 
 	if (view.midiLearnFlashOn) {
@@ -6086,7 +6105,7 @@ checkIfSelectingRanges:
 	}
 }
 
-void InstrumentClipView::cutAuditionedNotesToOne() {
+PLACE_SDRAM_TEXT void InstrumentClipView::cutAuditionedNotesToOne() {
 	uint32_t whichRowsNeedReRendering = 0;
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -6108,7 +6127,7 @@ static const uint32_t verticalScrollUIModes[] = {
     UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, UI_MODE_DRAGGING_KIT_NOTEROW, 0,
 };
 
-ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
 	if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
@@ -6158,7 +6177,7 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::commandTransposeKey(int32_t offset, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::commandTransposeKey(int32_t offset, bool inCardRoutine) {
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
@@ -6178,7 +6197,7 @@ ActionResult InstrumentClipView::commandTransposeKey(int32_t offset, bool inCard
 	return ActionResult::DEALT_WITH;
 }
 
-void InstrumentClipView::commandShiftColour(int32_t offset) {
+PLACE_SDRAM_TEXT void InstrumentClipView::commandShiftColour(int32_t offset) {
 	uint32_t whichRowsToRender = 0;
 
 	// If NoteRow(s) auditioned, shift its colour (Kits only)
@@ -6227,9 +6246,9 @@ shiftAllColour:
 	}
 }
 
-static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
+uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
 
-ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 	}
@@ -6273,7 +6292,7 @@ ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
 	}
 }
 
-void InstrumentClipView::editNoteRowLength(int32_t offset) {
+PLACE_SDRAM_TEXT void InstrumentClipView::editNoteRowLength(int32_t offset) {
 	if (!shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress) {
 wantToEditNoteRowLength:
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -6295,7 +6314,7 @@ wantToEditNoteRowLength:
 	}
 }
 
-void InstrumentClipView::rotateNoteRowHorizontally(int32_t offset) {
+PLACE_SDRAM_TEXT void InstrumentClipView::rotateNoteRowHorizontally(int32_t offset) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	ModelStackWithNoteRow* modelStackWithNoteRow =
@@ -6308,7 +6327,8 @@ void InstrumentClipView::rotateNoteRowHorizontally(int32_t offset) {
 	editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
 }
 
-void InstrumentClipView::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
+PLACE_SDRAM_TEXT void InstrumentClipView::tempoEncoderAction(int8_t offset, bool encoderButtonPressed,
+                                                             bool shiftButtonPressed) {
 	auto quantizeType = encoderButtonPressed ? NudgeMode::QUANTIZE_ALL : NudgeMode::QUANTIZE;
 	if (isUIModeActive(UI_MODE_QUANTIZE)) {
 		commandQuantizeNotes(offset, quantizeType);
@@ -6344,7 +6364,7 @@ void appendQuantizeMode(StringBuf& text, int8_t direction, NudgeMode mode) {
 	}
 }
 
-void InstrumentClipView::commandStartQuantize(int8_t offset, NudgeMode mode) {
+PLACE_SDRAM_TEXT void InstrumentClipView::commandStartQuantize(int8_t offset, NudgeMode mode) {
 	auditioningSilently = true;
 	reassessAllAuditionStatus();
 	enterUIMode(UI_MODE_QUANTIZE);
@@ -6354,7 +6374,7 @@ void InstrumentClipView::commandStartQuantize(int8_t offset, NudgeMode mode) {
 	display->popupText(text.c_str(), PopupType::QUANTIZE);
 }
 
-ActionResult InstrumentClipView::commandStopQuantize(int32_t y) {
+PLACE_SDRAM_TEXT ActionResult InstrumentClipView::commandStopQuantize(int32_t y) {
 	auto res = auditionPadAction(0, y, true);
 	if (res != ActionResult::DEALT_WITH) {
 		return res;
@@ -6370,7 +6390,7 @@ ActionResult InstrumentClipView::commandStopQuantize(int32_t y) {
 	;
 }
 
-void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode) {
+PLACE_SDRAM_TEXT void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode) {
 	shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
 
 	int32_t squareSize = getPosFromSquare(1) - getPosFromSquare(0);
@@ -6505,7 +6525,7 @@ void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode
 }
 
 // Supply offset as 0 to just popup number, not change anything
-void InstrumentClipView::editNoteRepeat(int32_t offset) {
+PLACE_SDRAM_TEXT void InstrumentClipView::editNoteRepeat(int32_t offset) {
 
 	shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
 
@@ -6591,7 +6611,7 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 #pragma GCC diagnostic ignored "-Wstack-usage="
 
 // Supply offset as 0 to just popup number, not change anything
-void InstrumentClipView::nudgeNotes(int32_t offset) {
+PLACE_SDRAM_TEXT void InstrumentClipView::nudgeNotes(int32_t offset) {
 
 	// if we're in note row editor and we nudge a note we're holding
 	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
@@ -6888,7 +6908,7 @@ abandonModRegion:
 	}
 }
 #pragma GCC pop
-void InstrumentClipView::graphicsRoutine() {
+PLACE_SDRAM_TEXT void InstrumentClipView::graphicsRoutine() {
 	if (!currentSong) {
 		return; // Briefly, if loading a song fails, during the creation of a new blank one, this could happen.
 	}
@@ -6962,7 +6982,7 @@ void InstrumentClipView::graphicsRoutine() {
 	PadLEDs::setTickSquares(tickSquares, colours);
 }
 
-void InstrumentClipView::fillOffScreenImageStores() {
+PLACE_SDRAM_TEXT void InstrumentClipView::fillOffScreenImageStores() {
 
 	uint32_t xZoom = currentSong->xZoom[NAVIGATION_CLIP];
 	uint32_t xScroll = currentSong->xScroll[NAVIGATION_CLIP];
@@ -7000,18 +7020,18 @@ void InstrumentClipView::fillOffScreenImageStores() {
 	}
 }
 
-uint32_t InstrumentClipView::getSquareWidth(int32_t square, int32_t effectiveLength) {
+PLACE_SDRAM_TEXT uint32_t InstrumentClipView::getSquareWidth(int32_t square, int32_t effectiveLength) {
 	int32_t squareRightEdge = getPosFromSquare(square + 1);
 	return std::min(effectiveLength, squareRightEdge) - getPosFromSquare(square);
 }
 
-void InstrumentClipView::flashDefaultRootNote() {
+PLACE_SDRAM_TEXT void InstrumentClipView::flashDefaultRootNote() {
 	flashDefaultRootNoteOn = !flashDefaultRootNoteOn;
 	uiNeedsRendering(this, 0, 0xFFFFFFFF);
 	uiTimerManager.setTimer(TimerName::DEFAULT_ROOT_NOTE, kFlashTime);
 }
 
-void InstrumentClipView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
+PLACE_SDRAM_TEXT void InstrumentClipView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
 
 	if (currentUIMode & UI_MODE_HORIZONTAL_SCROLL) {
 		return;
@@ -7027,7 +7047,7 @@ void InstrumentClipView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) 
 	}
 }
 
-bool InstrumentClipView::isDrumAuditioned(Drum* drum) {
+PLACE_SDRAM_TEXT bool InstrumentClipView::isDrumAuditioned(Drum* drum) {
 
 	if (getCurrentOutputType() != OutputType::KIT) {
 		return false;
@@ -7045,24 +7065,24 @@ bool InstrumentClipView::isDrumAuditioned(Drum* drum) {
 	return false;
 }
 
-bool InstrumentClipView::getAffectEntire() {
+PLACE_SDRAM_TEXT bool InstrumentClipView::getAffectEntire() {
 	return getCurrentInstrumentClip()->affectEntire;
 }
 
-void InstrumentClipView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
+PLACE_SDRAM_TEXT void InstrumentClipView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong);
 		PadLEDs::transitionTakingPlaceOnRow[yDisplay] = (noteRow && !noteRow->hasNoNotes());
 	}
 }
 
-void InstrumentClipView::notifyPlaybackBegun() {
+PLACE_SDRAM_TEXT void InstrumentClipView::notifyPlaybackBegun() {
 	reassessAllAuditionStatus();
 }
 
-bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                        bool drawUndefinedArea) {
+PLACE_SDRAM_TEXT bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                                         bool drawUndefinedArea) {
 	if (!image) {
 		return true;
 	}
@@ -7081,10 +7101,10 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 }
 
 // occupancyMask now optional
-void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
-                                             uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xScroll,
-                                             uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
-                                             bool drawUndefinedArea) {
+PLACE_SDRAM_TEXT void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
+                                                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                                              int32_t xScroll, uint32_t xZoom, int32_t renderWidth,
+                                                              int32_t imageWidth, bool drawUndefinedArea) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -7131,13 +7151,13 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 	}
 }
 
-void InstrumentClipView::playbackEnded() {
+PLACE_SDRAM_TEXT void InstrumentClipView::playbackEnded() {
 
 	// Easter egg - if user's holding down a note, we want it to be edit-auditioned again now
 	reassessAllAuditionStatus();
 }
 
-void InstrumentClipView::scrollFinished() {
+PLACE_SDRAM_TEXT void InstrumentClipView::scrollFinished() {
 	if (currentUIMode == UI_MODE_AUDITIONING) {
 		// Needed because sometimes we initiate a scroll before reverting an Action, so we need to
 		// properly render again afterwards
@@ -7148,19 +7168,19 @@ void InstrumentClipView::scrollFinished() {
 	}
 }
 
-void InstrumentClipView::clipNeedsReRendering(Clip* clip) {
+PLACE_SDRAM_TEXT void InstrumentClipView::clipNeedsReRendering(Clip* clip) {
 	if (clip == getCurrentInstrumentClip()) {
 		uiNeedsRendering(this); // Re-renders sidebar too. Probably a good idea? Can't hurt?
 	}
 }
 
-void InstrumentClipView::dontDeleteNotesOnDepress() {
+PLACE_SDRAM_TEXT void InstrumentClipView::dontDeleteNotesOnDepress() {
 	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 		editPadPresses[i].deleteOnDepress = false;
 	}
 }
 
-void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+PLACE_SDRAM_TEXT void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	dontDeleteNotesOnDepress();
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
@@ -7204,7 +7224,7 @@ void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offse
 	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 }
 
-void InstrumentClipView::commandEuclidean(int32_t offset) {
+PLACE_SDRAM_TEXT void InstrumentClipView::commandEuclidean(int32_t offset) {
 	/*
 	if (!Buttons::isShiftButtonPressed()) { // Why'd I mandate that shift not be pressed?
 	    // If in kit mode, then we can do it
@@ -7236,7 +7256,8 @@ void InstrumentClipView::commandEuclidean(int32_t offset) {
 }
 
 // Check UI mode is appropriate before calling this
-void InstrumentClipView::editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay) {
+PLACE_SDRAM_TEXT void InstrumentClipView::editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset,
+                                                                 int32_t yDisplay) {
 
 	int32_t newNumNotes = 0;
 
@@ -7397,8 +7418,9 @@ displayNewNumNotes:
 }
 
 // Check UI mode is appropriate before calling this
-void InstrumentClipView::rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay,
-                                                   bool shouldDisplayDirectionEvenIfNoNoteRow) {
+PLACE_SDRAM_TEXT void InstrumentClipView::rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int32_t offset,
+                                                                    int32_t yDisplay,
+                                                                    bool shouldDisplayDirectionEvenIfNoNoteRow) {
 
 	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
 	if (!noteRow) {
@@ -7489,7 +7511,8 @@ extern bool shouldResumePlaybackOnNoteRowLengthSet;
 
 // Check UI mode is appropriate before calling this.
 // Can handle being given a NULL NoteRow, in which case it'll do nothing.
-void InstrumentClipView::editNoteRowLength(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay) {
+PLACE_SDRAM_TEXT void InstrumentClipView::editNoteRowLength(ModelStackWithNoteRow* modelStack, int32_t offset,
+                                                            int32_t yDisplay) {
 
 	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
 	if (!noteRow) {
@@ -7631,8 +7654,8 @@ tryScrollingLeft:
 	}
 }
 
-void InstrumentClipView::reportMPEInitialValuesForNoteEditing(ModelStackWithNoteRow* modelStack,
-                                                              int16_t const* mpeValues) {
+PLACE_SDRAM_TEXT void InstrumentClipView::reportMPEInitialValuesForNoteEditing(ModelStackWithNoteRow* modelStack,
+                                                                               int16_t const* mpeValues) {
 
 	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
 
@@ -7660,7 +7683,7 @@ void InstrumentClipView::reportMPEInitialValuesForNoteEditing(ModelStackWithNote
 	}
 }
 
-void InstrumentClipView::reportMPEValueForNoteEditing(int32_t expressionDimension, int32_t value) {
+PLACE_SDRAM_TEXT void InstrumentClipView::reportMPEValueForNoteEditing(int32_t expressionDimension, int32_t value) {
 
 	// If time to move record along...
 	uint32_t timeSince = AudioEngine::audioSampleTimer - mpeRecordLastUpdateTime;
@@ -7686,7 +7709,7 @@ void InstrumentClipView::reportMPEValueForNoteEditing(int32_t expressionDimensio
 	                            // as an edit, so we don't want the note deleted on press-release.
 }
 
-void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* modelStack) {
+PLACE_SDRAM_TEXT void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* modelStack) {
 
 	NoteRow* noteRow = modelStack->getNoteRow();
 
@@ -7728,23 +7751,23 @@ void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* model
 }
 
 // used to blink selected noted row when using the note row view or the note row menu
-void InstrumentClipView::resetSelectedNoteRowBlinking() {
+PLACE_SDRAM_TEXT void InstrumentClipView::resetSelectedNoteRowBlinking() {
 	uiTimerManager.unsetTimer(TimerName::NOTE_ROW_BLINK);
 	noteRowBlinking = false;
 	noteRowFlashOn = false;
 }
 
-void InstrumentClipView::blinkSelectedNote(int32_t whichMainRows) {
+PLACE_SDRAM_TEXT void InstrumentClipView::blinkSelectedNote(int32_t whichMainRows) {
 	soundEditor.setupShortcutBlink(lastSelectedNoteXDisplay, lastSelectedNoteYDisplay, 10);
 	soundEditor.blinkShortcut();
 }
 
 // used to blink selected note when using the note menu
-void InstrumentClipView::resetSelectedNoteBlinking() {
+PLACE_SDRAM_TEXT void InstrumentClipView::resetSelectedNoteBlinking() {
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 }
 
-void InstrumentClipView::blinkSelectedNoteRow(int32_t whichMainRows) {
+PLACE_SDRAM_TEXT void InstrumentClipView::blinkSelectedNoteRow(int32_t whichMainRows) {
 	noteRowBlinking = true;
 	noteRowFlashOn = !noteRowFlashOn;
 	uiNeedsRendering(getRootUI(), whichMainRows, 0xFFFFFFFF);

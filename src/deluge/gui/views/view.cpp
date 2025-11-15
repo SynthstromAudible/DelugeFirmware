@@ -114,7 +114,7 @@ View::View() {
 	cachedMaxYDisplayForVUMeterR = 255;
 }
 
-void View::focusRegained() {
+PLACE_SDRAM_TEXT void View::focusRegained() {
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	if (auto* timeline = getCurrentUI()->toTimelineView()) {
 		timeline->setTripletsLEDState();
@@ -133,7 +133,7 @@ void View::focusRegained() {
 
 extern GlobalMIDICommand pendingGlobalMIDICommandNumClustersWritten;
 
-ActionResult View::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult View::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	GlobalMIDICommand newGlobalMidiCommand;
@@ -447,7 +447,7 @@ possiblyRevert:
 	return ActionResult::DEALT_WITH;
 }
 
-void View::startMIDILearn() {
+PLACE_SDRAM_TEXT void View::startMIDILearn() {
 	if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_MIDI_LEARN) {
 		thingPressedForMidiLearn = MidiLearn::NONE;
 		shouldSaveSettingsAfterMidiLearn = false;
@@ -457,7 +457,7 @@ void View::startMIDILearn() {
 	}
 }
 
-void View::endMIDILearn() {
+PLACE_SDRAM_TEXT void View::endMIDILearn() {
 	if (shouldSaveSettingsAfterMidiLearn) {
 		if (!AudioEngine::audioRoutineLocked) {
 			FlashStorage::writeSettings(); // Rare case where we could have been called during audio routine
@@ -477,7 +477,7 @@ void View::endMIDILearn() {
 	indicator_leds::setLedState(IndicatorLED::LEARN, false);
 }
 
-void View::setTimeBaseScaleLedState() {
+PLACE_SDRAM_TEXT void View::setTimeBaseScaleLedState() {
 	// If this Clip is the inputTickScaleClip, flash the LED
 	if (getCurrentUI()->toClipMinder() && getCurrentClip() == currentSong->getSyncScalingClip()) {
 		indicator_leds::blinkLed(IndicatorLED::SYNC_SCALING);
@@ -489,11 +489,11 @@ void View::setTimeBaseScaleLedState() {
 	}
 }
 
-void View::setLedStates() {
+PLACE_SDRAM_TEXT void View::setLedStates() {
 	setTimeBaseScaleLedState();
 }
 
-void View::sectionMidiLearnPadPressed(bool on, uint8_t section) {
+PLACE_SDRAM_TEXT void View::sectionMidiLearnPadPressed(bool on, uint8_t section) {
 	if (on) {
 		endMidiLearnPressSession(MidiLearn::SECTION);
 		deleteMidiCommandOnRelease = true;
@@ -507,7 +507,7 @@ void View::sectionMidiLearnPadPressed(bool on, uint8_t section) {
 	}
 }
 
-void View::clipStatusMidiLearnPadPressed(bool on, Clip* whichClip) {
+PLACE_SDRAM_TEXT void View::clipStatusMidiLearnPadPressed(bool on, Clip* whichClip) {
 	if (on) {
 		endMidiLearnPressSession(MidiLearn::CLIP);
 		deleteMidiCommandOnRelease = true;
@@ -521,7 +521,7 @@ void View::clipStatusMidiLearnPadPressed(bool on, Clip* whichClip) {
 	}
 }
 
-void View::noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow) {
+PLACE_SDRAM_TEXT void View::noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow) {
 	if (on) {
 		endMidiLearnPressSession(MidiLearn::NOTEROW_MUTE);
 		deleteMidiCommandOnRelease = true;
@@ -535,7 +535,7 @@ void View::noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow) {
 	}
 }
 
-void View::drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit) {
+PLACE_SDRAM_TEXT void View::drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit) {
 	if (on) {
 		endMidiLearnPressSession(MidiLearn::DRUM_INPUT);
 		deleteMidiCommandOnRelease = true;
@@ -554,7 +554,7 @@ void View::drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit) {
 	}
 }
 
-void View::instrumentMidiLearnPadPressed(bool on, Instrument* instrument) {
+PLACE_SDRAM_TEXT void View::instrumentMidiLearnPadPressed(bool on, Instrument* instrument) {
 	if (on) {
 		endMidiLearnPressSession(MidiLearn::INSTRUMENT_INPUT);
 		deleteMidiCommandOnRelease = true;
@@ -572,7 +572,7 @@ void View::instrumentMidiLearnPadPressed(bool on, Instrument* instrument) {
 	}
 }
 
-void View::endMidiLearnPressSession(MidiLearn newThingPressed) {
+PLACE_SDRAM_TEXT void View::endMidiLearnPressSession(MidiLearn newThingPressed) {
 	// Depending on which thing was previously pressed, we might have to do some admin
 	switch (thingPressedForMidiLearn) {
 	case MidiLearn::PLAY_BUTTON:
@@ -598,7 +598,8 @@ void View::endMidiLearnPressSession(MidiLearn newThingPressed) {
 	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_MIDI_LEARN);
 }
 
-void View::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t note, int32_t velocity) {
+PLACE_SDRAM_TEXT void View::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t note,
+                                                       int32_t velocity) {
 	if (thingPressedForMidiLearn != MidiLearn::NONE) {
 		deleteMidiCommandOnRelease = false;
 
@@ -720,7 +721,7 @@ isMPEZone:
 	}
 }
 
-void View::clearMelodicInstrumentMonoExpressionIfPossible() {
+PLACE_SDRAM_TEXT void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 
 	ParamManager* paramManager = instrumentPressedForMIDILearn->getParamManager(
 	    currentSong); // Could be NULL, e.g. for CVInstruments with no Clips
@@ -742,7 +743,7 @@ void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 	}
 }
 
-void View::ccReceivedForMIDILearn(MIDICable& cable, int32_t channel, int32_t cc, int32_t value) {
+PLACE_SDRAM_TEXT void View::ccReceivedForMIDILearn(MIDICable& cable, int32_t channel, int32_t cc, int32_t value) {
 	if (thingPressedForMidiLearn != MidiLearn::NONE) {
 		deleteMidiCommandOnRelease = false;
 
@@ -771,7 +772,7 @@ void View::ccReceivedForMIDILearn(MIDICable& cable, int32_t channel, int32_t cc,
 	}
 }
 
-void View::midiLearnFlash() {
+PLACE_SDRAM_TEXT void View::midiLearnFlash() {
 	midiLearnFlashOn = !midiLearnFlashOn;
 	uiTimerManager.setTimer(TimerName::MIDI_LEARN_FLASH, kFastFlashTime);
 
@@ -793,7 +794,7 @@ void View::midiLearnFlash() {
 	}
 }
 
-void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+PLACE_SDRAM_TEXT void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	// this routine used to exit if shift was held, but the shift+encoder combo does not seem used anywhere else either
 	//  if (Buttons::isShiftButtonPressed()) {
 	//  	return;
@@ -818,8 +819,8 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	instrumentBeenEdited();
 }
 
-void View::modEncoderAction_nonExistentParam(int32_t whichModEncoder, int32_t offset,
-                                             ModelStackWithAutoParam* modelStackWithParam) {
+PLACE_SDRAM_TEXT void View::modEncoderAction_nonExistentParam(int32_t whichModEncoder, int32_t offset,
+                                                              ModelStackWithAutoParam* modelStackWithParam) {
 	ActionResult result = activeModControllableModelStack.modControllable->modEncoderActionForNonExistentParam(
 	    offset, whichModEncoder, modelStackWithParam);
 
@@ -828,8 +829,9 @@ void View::modEncoderAction_nonExistentParam(int32_t whichModEncoder, int32_t of
 	}
 }
 
-void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offset,
-                                          ModelStackWithAutoParam* modelStackWithParam, bool noteTailsAllowedBefore) {
+PLACE_SDRAM_TEXT void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offset,
+                                                           ModelStackWithAutoParam* modelStackWithParam,
+                                                           bool noteTailsAllowedBefore) {
 	char modelStackTempMemory[MODEL_STACK_MAX_SIZE];
 	copyModelStack(modelStackTempMemory, modelStackWithParam, sizeof(ModelStackWithThreeMainThings));
 	ModelStackWithThreeMainThings* tempModelStack = (ModelStackWithThreeMainThings*)modelStackTempMemory;
@@ -951,7 +953,8 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 
 // get's modelStackWithParam for use with Gold Knobs and ModEncoderAction above
 // also used with ModButtonAction to display name's of parameters assigned to gold knobs
-ModelStackWithAutoParam* View::getModelStackWithParam(int32_t whichModEncoder, bool& noteTailsAllowedBefore) {
+PLACE_SDRAM_TEXT ModelStackWithAutoParam* View::getModelStackWithParam(int32_t whichModEncoder,
+                                                                       bool& noteTailsAllowedBefore) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	if (activeModControllableModelStack.modControllable) {
@@ -992,7 +995,7 @@ ModelStackWithAutoParam* View::getModelStackWithParam(int32_t whichModEncoder, b
 }
 
 // used to get name of parameter assigned to mod encoder
-void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* parameterName) {
+PLACE_SDRAM_TEXT void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* parameterName) {
 	bool noteTailsAllowedBefore;
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(whichModEncoder, noteTailsAllowedBefore);
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -1044,8 +1047,9 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 // for param's that are bipolar / should indicate middle value
 // this will blink the middle value when middle knob pos is reached
 // and make it harder to turn the knob past the middle value
-void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStackWithAutoParam* modelStackWithParam,
-                                             int32_t newKnobPos) {
+PLACE_SDRAM_TEXT void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder,
+                                                              ModelStackWithAutoParam* modelStackWithParam,
+                                                              int32_t newKnobPos) {
 	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
 	// if you're dealing with a patch cable which has a -128 to +128 range
@@ -1070,8 +1074,8 @@ void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStack
 	}
 }
 
-void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t newKnobPos, PatchSource source1,
-                                       PatchSource source2) {
+PLACE_SDRAM_TEXT void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t newKnobPos,
+                                                        PatchSource source1, PatchSource source2) {
 
 	// Cache last displayed values to avoid unnecessary notifications
 	static params::Kind last_param_kind = params::Kind::NONE;
@@ -1267,7 +1271,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 }
 
 // convert deluge internal knobPos range to same range as used by menu's.
-int32_t View::calculateKnobPosForDisplay(params::Kind kind, int32_t paramID, int32_t knobPos) {
+PLACE_SDRAM_TEXT int32_t View::calculateKnobPosForDisplay(params::Kind kind, int32_t paramID, int32_t knobPos) {
 	if (kind == params::Kind::MIDI) {
 		return knobPos;
 	}
@@ -1291,13 +1295,13 @@ returnValue:
 	return static_cast<int32_t>(std::round(valueForDisplayFloat));
 }
 
-void View::instrumentBeenEdited() {
+PLACE_SDRAM_TEXT void View::instrumentBeenEdited() {
 	if (activeModControllableModelStack.timelineCounterIsSet()) {
 		activeModControllableModelStack.getTimelineCounter()->instrumentBeenEdited();
 	}
 }
 
-void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
+PLACE_SDRAM_TEXT void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	// If the learn button is pressed, user is trying to copy or paste, and the fact that we've ended up here means they
 	// can't
@@ -1321,7 +1325,7 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 }
 
-void View::modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder) {
+PLACE_SDRAM_TEXT void View::modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder) {
 	ModelStackWithAutoParam* modelStackWithParam =
 	    activeModControllableModelStack.modControllable->getParamFromModEncoder(whichModEncoder,
 	                                                                            &activeModControllableModelStack);
@@ -1333,7 +1337,7 @@ void View::modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder) {
 	}
 }
 
-void View::modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder, bool on) {
+PLACE_SDRAM_TEXT void View::modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder, bool on) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	copyModelStack(modelStackMemory, &activeModControllableModelStack, sizeof(ModelStackWithThreeMainThings));
 	ModelStackWithThreeMainThings* modelStack = (ModelStackWithThreeMainThings*)modelStackMemory;
@@ -1349,7 +1353,7 @@ void View::modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder,
 	}
 }
 
-void View::setKnobIndicatorLevels() {
+PLACE_SDRAM_TEXT void View::setKnobIndicatorLevels() {
 	if (!getRootUI()) {
 		return; // What's this?
 	}
@@ -1373,7 +1377,7 @@ void View::setKnobIndicatorLevels() {
 	}
 }
 
-void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
+PLACE_SDRAM_TEXT void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	// timelineCounter and paramManager could be NULL - if the user is holding down an audition pad in Arranger,
 	// and that Output has no Clips. Especially if it's a MIDIInstrument (no ParamManager).
 	ModelStackWithAutoParam* modelStackWithParam =
@@ -1443,7 +1447,7 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 
 /// if you're dealing with a patch cable which has a -128 to +128 range
 /// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
-int32_t View::convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos) {
+PLACE_SDRAM_TEXT int32_t View::convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos) {
 	int32_t newKnobPos = (knobPos + kMaxKnobPos) >> 1;
 	// adjustment to make sure that when knobPos returned is 64, it's really 64
 	// the knob LED indicator is centred around 64
@@ -1467,7 +1471,7 @@ static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
                                             UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED,
                                             0};
 
-void View::modButtonAction(uint8_t whichButton, bool on) {
+PLACE_SDRAM_TEXT void View::modButtonAction(uint8_t whichButton, bool on) {
 	RootUI* rootUI = getRootUI();
 
 	// ignore modButtonAction when in the Automation View Automation Editor
@@ -1518,7 +1522,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	}
 }
 
-void View::setModLedStates() {
+PLACE_SDRAM_TEXT void View::setModLedStates() {
 
 	RootUI* rootUI = getRootUI();
 	UIType uiType = UIType::NONE;
@@ -1647,7 +1651,7 @@ void View::setModLedStates() {
 	}
 }
 
-int32_t View::getModKnobMode() {
+PLACE_SDRAM_TEXT int32_t View::getModKnobMode() {
 	int32_t modKnobMode = -1;
 	if (activeModControllableModelStack.modControllable) {
 		uint8_t* modKnobModePointer = activeModControllableModelStack.modControllable->getModKnobMode();
@@ -1658,7 +1662,7 @@ int32_t View::getModKnobMode() {
 	return modKnobMode;
 }
 
-void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels) {
+PLACE_SDRAM_TEXT void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels) {
 	if (paramManager == activeModControllableModelStack.paramManager
 	    || (getCurrentUI() == &soundEditor && paramManager == soundEditor.currentParamManager)) {
 
@@ -1680,7 +1684,8 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 	}
 }
 
-void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, bool isAutomation) {
+PLACE_SDRAM_TEXT void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
+                                                   bool isAutomation) {
 	if (midiEngine.midiFollowFeedbackChannelType != MIDIFollowChannelType::NONE) {
 		int32_t channel =
 		    midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowFeedbackChannelType)]
@@ -1704,7 +1709,7 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 }
 
 // sets flag to let caller know if we are dealing with clip context
-bool View::isClipContext() {
+PLACE_SDRAM_TEXT bool View::isClipContext() {
 	bool itsAClip = false;
 	if (activeModControllableModelStack.modControllable) {
 		itsAClip = (activeModControllableModelStack.timelineCounterIsSet()
@@ -1713,7 +1718,7 @@ bool View::isClipContext() {
 	return itsAClip;
 }
 
-void View::displayAutomation() {
+PLACE_SDRAM_TEXT void View::displayAutomation() {
 	if (pendingParamAutomationUpdatesModLevels) {
 		setKnobIndicatorLevels();
 	}
@@ -1725,7 +1730,7 @@ void View::displayAutomation() {
 /// if you've toggled showing the VU meter, and the mod encoders are controllable (e.g. affect entire on)
 /// and the current mod button selected is the volume/pan button
 /// render VU meter on the grid
-bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// if VU meter is toggled on and
 	// 1) mod controllable is active and we've selected the level / pan mod knob button
 	// or
@@ -1787,7 +1792,7 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 // lookup table for the min value of each pad's value range used to display vu meter on the grid
 const float dBFSForYDisplay[kDisplayHeight] = {-30.8, -26.4, -22.0, -17.6, -13.2, -8.8, -4.4, -0.2};
 
-int32_t View::getMaxYDisplayForVUMeter(float level) {
+PLACE_SDRAM_TEXT int32_t View::getMaxYDisplayForVUMeter(float level) {
 	// dBFS (dB below clipping) calculation
 	// 16.7 = log(2^24) which is the approxRMSLevel at which clipping begins
 	float dBFS = (level - 16.7) * 4;
@@ -1822,7 +1827,8 @@ int32_t View::getMaxYDisplayForVUMeter(float level) {
 }
 
 /// render AudioEngine::approxRMSLevel as a VU meter on the grid
-void View::renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT void View::renderVUMeter(int32_t maxYDisplay, int32_t xDisplay,
+                                          RGB thisImage[][kDisplayWidth + kSideBarWidth]) {
 	for (int32_t yDisplay = 0; yDisplay < (maxYDisplay + 1); yDisplay++) {
 		// y0 - y4 = green
 		if (yDisplay < 5) {
@@ -1839,7 +1845,8 @@ void View::renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][
 	}
 }
 
-void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCounter, bool shouldSendMidiFeedback) {
+PLACE_SDRAM_TEXT void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCounter,
+                                                                    bool shouldSendMidiFeedback) {
 	if (timelineCounter) {
 		timelineCounter = timelineCounter->getTimelineCounterToRecordTo();
 	}
@@ -1872,8 +1879,8 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 	}
 }
 
-void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable,
-                                                          ParamManager* paramManager) {
+PLACE_SDRAM_TEXT void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable,
+                                                                           ParamManager* paramManager) {
 
 	pretendModKnobsUntouchedForAWhile(); // Why again?
 
@@ -1895,7 +1902,7 @@ void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modCo
 	sendMidiFollowFeedback();
 }
 
-void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
+PLACE_SDRAM_TEXT void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 
 	modPos = pos;
 	modLength = length;
@@ -1923,12 +1930,12 @@ void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 	}
 }
 
-void View::pretendModKnobsUntouchedForAWhile() {
+PLACE_SDRAM_TEXT void View::pretendModKnobsUntouchedForAWhile() {
 	encoders::timeModEncoderLastTurned[0] = encoders::timeModEncoderLastTurned[1] =
 	    AudioEngine::audioSampleTimer - kSampleRate;
 }
 
-void View::cycleThroughReverbPresets() {
+PLACE_SDRAM_TEXT void View::cycleThroughReverbPresets() {
 
 	int32_t currentPreset = getCurrentReverbPreset();
 
@@ -1941,7 +1948,7 @@ void View::cycleThroughReverbPresets() {
 	AudioEngine::reverb.setDamping((float)presetReverbDamping[newPreset] / 50);
 }
 
-int32_t View::getCurrentReverbPreset() {
+PLACE_SDRAM_TEXT int32_t View::getCurrentReverbPreset() {
 	int32_t currentRoomSize = AudioEngine::reverb.getRoomSize() * 50;
 	int32_t currentDamping = AudioEngine::reverb.getDamping() * 50;
 
@@ -1960,11 +1967,11 @@ int32_t View::getCurrentReverbPreset() {
 	return currentPreset;
 }
 
-char const* View::getReverbPresetDisplayName(int32_t preset) {
+PLACE_SDRAM_TEXT char const* View::getReverbPresetDisplayName(int32_t preset) {
 	return deluge::l10n::get(presetReverbNames[preset]);
 }
 
-void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
+PLACE_SDRAM_TEXT void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 	int32_t channel{0}, channelSuffix{0};
 	bool editedByUser = true;
 	if (output->type != OutputType::AUDIO) {
@@ -1997,8 +2004,9 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstack-usage="
-void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int32_t channelSuffix, char const* name,
-                                     bool isNameEmpty, bool editedByUser, bool doBlink, Clip* clip) {
+PLACE_SDRAM_TEXT void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int32_t channelSuffix,
+                                                      char const* name, bool isNameEmpty, bool editedByUser,
+                                                      bool doBlink, Clip* clip) {
 	if (doBlink) {
 		using namespace indicator_leds;
 		LED led;
@@ -2210,7 +2218,7 @@ oledOutputBuffer:
 }
 #pragma GCC diagnostic pop
 
-void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* clip, bool doBlink) {
+PLACE_SDRAM_TEXT void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* clip, bool doBlink) {
 
 	AudioEngine::logAction("navigateThroughPresets");
 
@@ -2249,8 +2257,8 @@ void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* cl
 	setActiveModControllableTimelineCounter(clip); // Necessary? Does ParamManager get moved over too?
 }
 
-void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWithTimelineCounter* modelStack,
-                                                   bool doBlink) {
+PLACE_SDRAM_TEXT void
+View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWithTimelineCounter* modelStack, bool doBlink) {
 
 	AudioEngine::logAction("navigateThroughPresets");
 
@@ -2586,7 +2594,8 @@ getOut:
 }
 
 // Returns whether success
-bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCounter* modelStack, bool doBlink) {
+PLACE_SDRAM_TEXT bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCounter* modelStack,
+                                             bool doBlink) {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
@@ -2614,7 +2623,7 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 	return true;
 }
 
-void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument) {
+PLACE_SDRAM_TEXT void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument) {
 
 	((Clip*)modelStack->getTimelineCounter())->outputChanged(modelStack, newInstrument);
 	// Do a redraw. Obviously the Clip is the same
@@ -2625,7 +2634,7 @@ void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrume
 	}
 }
 
-RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool allowMIDIFlash) {
+PLACE_SDRAM_TEXT RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool allowMIDIFlash) {
 
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip && clip->armedForRecording) {
 		if (blinkOn) {
@@ -2693,7 +2702,7 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool allowMIDIFlas
 	return thisColour;
 }
 
-ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView) {
+PLACE_SDRAM_TEXT ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView) {
 
 	switch (currentUIMode) {
 	case UI_MODE_MIDI_LEARN:
@@ -2781,7 +2790,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 	return ActionResult::DEALT_WITH;
 }
 
-void View::flashPlayRoutine() {
+PLACE_SDRAM_TEXT void View::flashPlayRoutine() {
 	view.clipArmFlashOn = !view.clipArmFlashOn;
 	RootUI* rootUI = getRootUI();
 	if ((rootUI == &sessionView) || (rootUI == &performanceView)) {
@@ -2793,11 +2802,11 @@ void View::flashPlayRoutine() {
 	}
 }
 
-void View::flashPlayEnable() {
+PLACE_SDRAM_TEXT void View::flashPlayEnable() {
 	uiTimerManager.setTimer(TimerName::PLAY_ENABLE_FLASH, kFastFlashTime);
 }
 
-void View::flashPlayDisable() {
+PLACE_SDRAM_TEXT void View::flashPlayDisable() {
 	clipArmFlashOn = false;
 	uiTimerManager.unsetTimer(TimerName::PLAY_ENABLE_FLASH);
 
@@ -2812,8 +2821,9 @@ void View::flashPlayDisable() {
 #endif
 }
 
-bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB image[][kDisplayWidth + kSideBarWidth],
-                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro,
+                                         RGB image[][kDisplayWidth + kSideBarWidth],
+                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	uint8_t brightness = 1;
 	uint8_t otherChannels = 0;
 
@@ -2861,7 +2871,7 @@ bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB i
 	return armed;
 }
 
-void View::activateMacro(uint32_t y) {
+PLACE_SDRAM_TEXT void View::activateMacro(uint32_t y) {
 	if (y > 8) {
 		return;
 	}
@@ -2896,7 +2906,7 @@ void View::activateMacro(uint32_t y) {
 	}
 }
 
-Clip* View::findNextClipForOutput(Output* output) {
+PLACE_SDRAM_TEXT Clip* View::findNextClipForOutput(Output* output) {
 	int last_active = -1;
 	for (int i = 0; i < currentSong->sessionClips.getNumElements(); i++) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(i);

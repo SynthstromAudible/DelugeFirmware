@@ -49,19 +49,19 @@ protected:
 	virtual float normalize(int32_t value);
 
 	// Horizontal menus ------
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override;
-	void drawKnob(const HorizontalMenuSlotParams& slot);
-	void drawBar(const HorizontalMenuSlotParams& slot);
-	void drawPercent(const HorizontalMenuSlotParams& slot);
-	void drawSlider(const HorizontalMenuSlotParams& slot, std::optional<int32_t> value = std::nullopt);
-	void drawLengthSlider(const HorizontalMenuSlotParams& slot, bool min_slider_pos = 3);
-	void drawPan(const HorizontalMenuSlotParams& slot);
-	void drawLpf(const HorizontalMenuSlotParams& slot);
-	void drawHpf(const HorizontalMenuSlotParams& slot);
-	void drawAttack(const HorizontalMenuSlotParams& slot);
-	void drawRelease(const HorizontalMenuSlotParams& slot);
-	void drawSidechainDucking(const HorizontalMenuSlotParams& slot);
-	void getNotificationValue(StringBuf& value) override;
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override;
+	void drawKnob(const HorizontalMenuSlotPosition& slot);
+	void drawBar(const HorizontalMenuSlotPosition& slot);
+	void drawPercent(const HorizontalMenuSlotPosition& slot);
+	void drawSlider(const HorizontalMenuSlotPosition& slot, std::optional<int32_t> value = std::nullopt);
+	void drawLengthSlider(const HorizontalMenuSlotPosition& slot, bool min_slider_pos = 3);
+	void drawPan(const HorizontalMenuSlotPosition& slot);
+	void drawLpf(const HorizontalMenuSlotPosition& slot);
+	void drawHpf(const HorizontalMenuSlotPosition& slot);
+	void drawAttack(const HorizontalMenuSlotPosition& slot);
+	void drawRelease(const HorizontalMenuSlotPosition& slot);
+	void drawSidechainDucking(const HorizontalMenuSlotPosition& slot);
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions &options) override;
 };
 
 } // namespace deluge::gui::menu_item

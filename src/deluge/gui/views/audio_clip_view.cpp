@@ -66,7 +66,7 @@ inline Sample* getSample() {
 	return static_cast<Sample*>(clip.sampleHolder.audioFile);
 }
 
-bool AudioClipView::opened() {
+PLACE_SDRAM_TEXT bool AudioClipView::opened() {
 	mustRedrawTickSquares = true;
 	uiNeedsRendering(this);
 
@@ -76,7 +76,7 @@ bool AudioClipView::opened() {
 	return true;
 }
 
-void AudioClipView::focusRegained() {
+PLACE_SDRAM_TEXT void AudioClipView::focusRegained() {
 	ClipView::focusRegained();
 	endMarkerVisible = false;
 	startMarkerVisible = false;
@@ -92,12 +92,13 @@ void AudioClipView::focusRegained() {
 #endif
 }
 
-void AudioClipView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+PLACE_SDRAM_TEXT void AudioClipView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	view.displayOutputName(getCurrentOutput(), false, getCurrentClip());
 }
 
-bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
+PLACE_SDRAM_TEXT bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                                    bool drawUndefinedArea) {
 	if (!image) {
 		return true;
 	}
@@ -224,7 +225,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 	return true;
 }
 
-ActionResult AudioClipView::timerCallback() {
+PLACE_SDRAM_TEXT ActionResult AudioClipView::timerCallback() {
 	blinkOn = !blinkOn;
 	uiNeedsRendering(this, 0xFFFFFFFF, 0); // Very inefficient!
 
@@ -232,8 +233,8 @@ ActionResult AudioClipView::timerCallback() {
 	return ActionResult::DEALT_WITH;
 }
 
-bool AudioClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+PLACE_SDRAM_TEXT bool AudioClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
 	}
@@ -259,7 +260,7 @@ bool AudioClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth 
 	return true;
 }
 
-void AudioClipView::graphicsRoutine() {
+PLACE_SDRAM_TEXT void AudioClipView::graphicsRoutine() {
 	if (isUIModeActive(UI_MODE_AUDIO_CLIP_COLLAPSING)) {
 		return;
 	}
@@ -309,7 +310,7 @@ void AudioClipView::graphicsRoutine() {
 	}
 }
 
-void AudioClipView::needsRenderingDependingOnSubMode() {
+PLACE_SDRAM_TEXT void AudioClipView::needsRenderingDependingOnSubMode() {
 	switch (currentUIMode) {
 	case UI_MODE_HORIZONTAL_SCROLL:
 	case UI_MODE_HORIZONTAL_ZOOM:
@@ -321,7 +322,7 @@ void AudioClipView::needsRenderingDependingOnSubMode() {
 
 // If you want your specialized button logic (session view, clip view, etc.),
 // put that here. Otherwise call the parent:
-ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	ActionResult result;
@@ -469,7 +470,7 @@ deactivateMarkerIfNecessary:
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
+PLACE_SDRAM_TEXT ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 	if (x < kDisplayWidth) {
 		if (Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
 			if (on) {
@@ -584,8 +585,9 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 }
 
 // ----------- "End" pointer logic -----------
-void AudioClipView::changeUnderlyingSampleLength(AudioClip& clip, const Sample* sample, int32_t newLength,
-                                                 int32_t oldLength, uint64_t oldLengthSamples) const {
+PLACE_SDRAM_TEXT void AudioClipView::changeUnderlyingSampleLength(AudioClip& clip, const Sample* sample,
+                                                                  int32_t newLength, int32_t oldLength,
+                                                                  uint64_t oldLengthSamples) const {
 	uint64_t* valueToChange;
 	int64_t newEndPosSamples;
 
@@ -641,8 +643,9 @@ void AudioClipView::changeUnderlyingSampleLength(AudioClip& clip, const Sample* 
 }
 
 // ----------- "Start" pointer logic -----------
-void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* sample, int32_t newStartTicks,
-                                                int32_t oldLength, uint64_t oldLengthSamples) const {
+PLACE_SDRAM_TEXT void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* sample,
+                                                                 int32_t newStartTicks, int32_t oldLength,
+                                                                 uint64_t oldLengthSamples) const {
 	int32_t oldEndTick = oldLength;
 	int32_t newLengthTicks = oldEndTick - newStartTicks;
 	if (newLengthTicks < 1) {
@@ -695,11 +698,11 @@ void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* s
 	}
 }
 
-void AudioClipView::playbackEnded() {
+PLACE_SDRAM_TEXT void AudioClipView::playbackEnded() {
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
-void AudioClipView::clipNeedsReRendering(Clip* c) {
+PLACE_SDRAM_TEXT void AudioClipView::clipNeedsReRendering(Clip* c) {
 	if (c == getCurrentAudioClip()) {
 		// Scroll back left if we need to - it's possible that the length just reverted, if recording got aborted.
 		// Ok, coming back to this, it seems it was a bit hacky that I put this in this function...
@@ -712,13 +715,13 @@ void AudioClipView::clipNeedsReRendering(Clip* c) {
 	}
 }
 
-void AudioClipView::sampleNeedsReRendering(Sample* s) {
+PLACE_SDRAM_TEXT void AudioClipView::sampleNeedsReRendering(Sample* s) {
 	if (s == getSample()) {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 }
 
-void AudioClipView::selectEncoderAction(int8_t offset) {
+PLACE_SDRAM_TEXT void AudioClipView::selectEncoderAction(int8_t offset) {
 	if (currentUIMode) {
 		return;
 	}
@@ -726,7 +729,7 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 	ao->scrollAudioOutputMode(offset);
 }
 
-void AudioClipView::setClipLengthEqualToSampleLength() {
+PLACE_SDRAM_TEXT void AudioClipView::setClipLengthEqualToSampleLength() {
 	AudioClip& audioClip = *getCurrentAudioClip();
 	SamplePlaybackGuide guide = audioClip.guide;
 	SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
@@ -739,7 +742,7 @@ void AudioClipView::setClipLengthEqualToSampleLength() {
 	}
 }
 
-void AudioClipView::adjustLoopLength(int32_t newLength) {
+PLACE_SDRAM_TEXT void AudioClipView::adjustLoopLength(int32_t newLength) {
 	int32_t oldLength = getCurrentClip()->loopLength;
 
 	if (oldLength != newLength) {
@@ -773,7 +776,7 @@ doReRender:
 	}
 }
 
-ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
 	// Shift and x pressed - edit length of clip without timestretching
 	if (isNoUIModeActive() && Buttons::isButtonPressed(deluge::hid::button::X_ENC) && Buttons::isShiftButtonPressed()) {
 		return editClipLengthWithoutTimestretching(offset);
@@ -784,7 +787,7 @@ ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
 	}
 }
 
-ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) {
+PLACE_SDRAM_TEXT ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) {
 	// If tempoless recording, don't allow
 	if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EDIT_LENGTH));
@@ -823,7 +826,7 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
@@ -836,25 +839,25 @@ ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRou
 	return ActionResult::DEALT_WITH;
 }
 
-bool AudioClipView::setupScroll(uint32_t oldScroll) {
+PLACE_SDRAM_TEXT bool AudioClipView::setupScroll(uint32_t oldScroll) {
 	if (!getCurrentAudioClip()->currentlyScrollableAndZoomable()) {
 		return false;
 	}
 	return ClipView::setupScroll(oldScroll);
 }
 
-void AudioClipView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
+PLACE_SDRAM_TEXT void AudioClipView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
 	memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
 }
 
-uint32_t AudioClipView::getMaxLength() {
+PLACE_SDRAM_TEXT uint32_t AudioClipView::getMaxLength() {
 	if (endMarkerVisible) {
 		return getCurrentClip()->loopLength + 1;
 	}
 	return getCurrentClip()->loopLength;
 }
 
-uint32_t AudioClipView::getMaxZoom() {
+PLACE_SDRAM_TEXT uint32_t AudioClipView::getMaxZoom() {
 	int32_t maxZoom = getCurrentClip()->getMaxZoom();
 	if (endMarkerVisible && maxZoom < 1073741824) {
 		maxZoom <<= 1;

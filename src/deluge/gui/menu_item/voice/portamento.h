@@ -27,11 +27,12 @@ public:
 
 	Portamento(l10n::String newName) : UnpatchedParam(newName, deluge::modulation::params::UNPATCHED_PORTAMENTO) {}
 
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(l10n::String::STRING_FOR_PORTAMENTO_SHORT));
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		UnpatchedParam::configureRenderingOptions(options);
+		options.label = deluge::l10n::get(l10n::String::STRING_FOR_PORTAMENTO_SHORT);
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		using namespace deluge::hid::display;
 		oled_canvas::Canvas& image = OLED::main;
 

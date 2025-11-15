@@ -27,8 +27,9 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingNonAudioDrumRow();
 	}
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::get(l10n::built_in::seven_segment, this->name));
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions &options) override {
+		Integer::configureRenderingOptions(options);
+		options.label = deluge::l10n::get(l10n::built_in::seven_segment, this->name);
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

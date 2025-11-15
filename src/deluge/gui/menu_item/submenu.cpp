@@ -8,7 +8,7 @@
 #include <algorithm>
 
 namespace deluge::gui::menu_item {
-void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
+PLACE_SDRAM_TEXT void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.currentMultiRange = nullptr;
 
 	if (navigatedBackwardFrom == nullptr && initial_index_ > 0) {
@@ -21,7 +21,7 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 
-bool Submenu::focusChild(const MenuItem* child) {
+PLACE_SDRAM_TEXT bool Submenu::focusChild(const MenuItem* child) {
 	if (child != nullptr) {
 		// if the specific child is passed, try to find it among the items
 		// if not found or not relevant, keep the previous selection
@@ -39,7 +39,7 @@ bool Submenu::focusChild(const MenuItem* child) {
 	return current_item_ != items.end();
 }
 
-void Submenu::updateDisplay() {
+PLACE_SDRAM_TEXT void Submenu::updateDisplay() {
 	if (!focusChild(nullptr)) {
 		// no relevant items, back out
 		soundEditor.goUpOneLevel();
@@ -52,7 +52,7 @@ void Submenu::updateDisplay() {
 	}
 }
 
-void Submenu::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+PLACE_SDRAM_TEXT void Submenu::renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) {
 	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 	// Draw arrow icon centered indicating that there is another layer
@@ -61,7 +61,7 @@ void Submenu::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
 	image.drawGraphicMultiLine(hid::display::OLED::submenuArrowIconBold, arrow_x, arrow_y, kSubmenuIconSpacingX);
 }
 
-void Submenu::drawPixelsForOled() {
+PLACE_SDRAM_TEXT void Submenu::drawPixelsForOled() {
 	// Collect items before the current item, this is possibly more than we need.
 	etl::vector<MenuItem*, kOLEDMenuNumOptionsVisible> before = {};
 	for (auto it = current_item_ - 1; it != items.begin() - 1 && before.size() < before.capacity(); it--) {
@@ -102,7 +102,7 @@ void Submenu::drawPixelsForOled() {
 	drawSubmenuItemsForOled(visible, pos);
 }
 
-void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption) {
+PLACE_SDRAM_TEXT void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption) {
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
@@ -132,11 +132,11 @@ void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_
 	}
 }
 
-bool Submenu::wrapAround() {
+PLACE_SDRAM_TEXT bool Submenu::wrapAround() {
 	return display->have7SEG() || renderingStyle() == HORIZONTAL;
 }
 
-void Submenu::selectEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT void Submenu::selectEncoderAction(int32_t offset) {
 	if (current_item_ == items.end()) {
 		return;
 	}
@@ -184,12 +184,12 @@ void Submenu::selectEncoderAction(int32_t offset) {
 	updateDisplay();
 }
 
-bool Submenu::shouldForwardButtons() {
+PLACE_SDRAM_TEXT bool Submenu::shouldForwardButtons() {
 	// Should we deliver buttons to selected menu item instead?
 	return (*current_item_)->isSubmenu() == false && renderingStyle() == RenderingStyle::HORIZONTAL;
 }
 
-MenuItem* Submenu::selectButtonPress() {
+PLACE_SDRAM_TEXT MenuItem* Submenu::selectButtonPress() {
 	if (shouldForwardButtons()) {
 		return (*current_item_)->selectButtonPress();
 	}
@@ -198,7 +198,7 @@ MenuItem* Submenu::selectButtonPress() {
 	}
 }
 
-ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+PLACE_SDRAM_TEXT ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	if (shouldForwardButtons()) {
 		return (*current_item_)->buttonAction(b, on, inCardRoutine);
 	}
@@ -207,7 +207,7 @@ ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 	}
 }
 
-deluge::modulation::params::Kind Submenu::getParamKind() {
+PLACE_SDRAM_TEXT deluge::modulation::params::Kind Submenu::getParamKind() {
 	if (shouldForwardButtons()) {
 		return (*current_item_)->getParamKind();
 	}
@@ -216,7 +216,7 @@ deluge::modulation::params::Kind Submenu::getParamKind() {
 	}
 }
 
-uint32_t Submenu::getParamIndex() {
+PLACE_SDRAM_TEXT uint32_t Submenu::getParamIndex() {
 	if (shouldForwardButtons()) {
 		return (*current_item_)->getParamIndex();
 	}
@@ -225,38 +225,39 @@ uint32_t Submenu::getParamIndex() {
 	}
 }
 
-void Submenu::unlearnAction() {
+PLACE_SDRAM_TEXT void Submenu::unlearnAction() {
 	if (soundEditor.getCurrentMenuItem() == this) {
 		(*current_item_)->unlearnAction();
 	}
 }
 
-bool Submenu::allowsLearnMode() {
+PLACE_SDRAM_TEXT bool Submenu::allowsLearnMode() {
 	if (soundEditor.getCurrentMenuItem() == this) {
 		return (*current_item_)->allowsLearnMode();
 	}
 	return false;
 }
 
-void Submenu::learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
+PLACE_SDRAM_TEXT void Submenu::learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode,
+                                         int32_t midiChannel) {
 	if (soundEditor.getCurrentMenuItem() == this) {
 		(*current_item_)->learnKnob(cable, whichKnob, modKnobMode, midiChannel);
 	}
 }
-void Submenu::learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) {
+PLACE_SDRAM_TEXT void Submenu::learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) {
 	if (soundEditor.getCurrentMenuItem() == this) {
 		(*current_item_)->learnProgramChange(cable, channel, programNumber);
 	}
 }
 
-bool Submenu::learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) {
+PLACE_SDRAM_TEXT bool Submenu::learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) {
 	if (soundEditor.getCurrentMenuItem() == this) {
 		return (*current_item_)->learnNoteOn(cable, channel, noteCode);
 	}
 	return false;
 }
 
-void Submenu::updatePadLights() {
+PLACE_SDRAM_TEXT void Submenu::updatePadLights() {
 	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
 		soundEditor.updatePadLightsFor(*current_item_);
 	}
@@ -265,7 +266,7 @@ void Submenu::updatePadLights() {
 	}
 }
 
-bool Submenu::usesAffectEntire() {
+PLACE_SDRAM_TEXT bool Submenu::usesAffectEntire() {
 	if (current_item_ != items.end()
 	    && (renderingStyle() == RenderingStyle::HORIZONTAL || !(*current_item_)->shouldEnterSubmenu())) {
 		// If the menu is Horizontal or is the focused menu item is a toggle,
@@ -275,7 +276,7 @@ bool Submenu::usesAffectEntire() {
 	return false;
 }
 
-MenuItem* Submenu::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
+PLACE_SDRAM_TEXT MenuItem* Submenu::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
 	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
 		return (*current_item_)->patchingSourceShortcutPress(s, previousPressStillActive);
 	}

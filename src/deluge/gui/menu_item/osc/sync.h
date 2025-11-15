@@ -58,8 +58,10 @@ public:
 		return sound->synthMode != SynthMode::FM && sound->sources[0].oscType != OscType::SAMPLE
 		       && sound->sources[1].oscType != OscType::SAMPLE;
 	}
-
-	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_SYNC)); }
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions &options) override {
+		Toggle::configureRenderingOptions(options);
+		options.label = l10n::get(l10n::String::STRING_FOR_SYNC);
+	}
 };
 
 } // namespace deluge::gui::menu_item::osc

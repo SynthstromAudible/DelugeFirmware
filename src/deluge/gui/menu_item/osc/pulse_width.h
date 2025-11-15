@@ -52,7 +52,7 @@ public:
 		       && oscType != OscType::INPUT_STEREO;
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		const float norm = getValue() / 50.0f;

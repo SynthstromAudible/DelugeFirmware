@@ -70,7 +70,7 @@ void Toggle::renderSubmenuItemTypeForOled(int32_t yPixel) {
 	                           kSubmenuIconSpacingX);
 }
 
-void Toggle::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void Toggle::renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) {
 	using namespace deluge::hid::display;
 	const Icon& icon = getValue() ? OLED::switcherIconOn : OLED::switcherIconOff;
 	OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);

@@ -66,17 +66,18 @@ public:
 		}
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const HorizontalMenuSlotPosition& slot) override {
 		const bool reversed = getValue();
 		const Icon& icon = OLED::directionIcon;
 		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y + kHorizontalMenuSlotYOffset,
 		                            reversed);
 	}
 
-	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_PLAY)); }
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		Toggle::configureRenderingOptions(options);
 
-	void getNotificationValue(StringBuf& valueBuf) override {
-		valueBuf.append(l10n::get(getValue() ? l10n::String::STRING_FOR_ON : l10n::String::STRING_FOR_OFF));
+		options.label = l10n::get(l10n::String::STRING_FOR_PLAY);
+		options.notification_value = l10n::get(getValue() ? l10n::String::STRING_FOR_ON : l10n::String::STRING_FOR_OFF);
 	}
 
 	void selectEncoderAction(int32_t offset) override {

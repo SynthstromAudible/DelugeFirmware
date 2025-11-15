@@ -22,7 +22,7 @@ using namespace deluge::gui::ui::keyboard::layout;
 
 namespace deluge::gui::ui::keyboard::controls {
 
-void ChordColumn::setActiveChord(ChordModeChord chord) {
+PLACE_SDRAM_TEXT void ChordColumn::setActiveChord(ChordModeChord chord) {
 	activeChord = chord;
 	chordSemitoneOffsets[0] = chordTypeSemitoneOffsets[activeChord][0];
 	chordSemitoneOffsets[1] = chordTypeSemitoneOffsets[activeChord][1];
@@ -30,7 +30,8 @@ void ChordColumn::setActiveChord(ChordModeChord chord) {
 	chordSemitoneOffsets[3] = chordTypeSemitoneOffsets[activeChord][3];
 }
 
-void ChordColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void ChordColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column,
+                                                KeyboardLayout* layout) {
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		bool chord_selected = y + 1 == activeChord;
@@ -40,18 +41,18 @@ void ChordColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32
 	}
 }
 
-bool ChordColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
+PLACE_SDRAM_TEXT bool ChordColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	return false;
 };
 
-void ChordColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                      KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void ChordColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                                       KeyboardLayout* layout) {
 	// Restore previously set chord
 	setActiveChord(defaultChord);
 };
 
-void ChordColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
-                            KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void ChordColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                             PressedPad pad, KeyboardLayout* layout) {
 	if (pad.active) {
 		setActiveChord(static_cast<ChordModeChord>(pad.y + 1));
 		display->displayPopup(l10n::get(chordNames[activeChord]));

@@ -13,7 +13,7 @@
 
 namespace deluge::gui::menu_item {
 
-void PatchCables::beginSession(MenuItem* navigatedBackwardFrom) {
+PLACE_SDRAM_TEXT void PatchCables::beginSession(MenuItem* navigatedBackwardFrom) {
 	currentValue = 0;
 
 	if (navigatedBackwardFrom != nullptr) {
@@ -27,7 +27,7 @@ void PatchCables::beginSession(MenuItem* navigatedBackwardFrom) {
 	readValueAgain();
 }
 
-void PatchCables::readValueAgain() {
+PLACE_SDRAM_TEXT void PatchCables::readValueAgain() {
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 	if (currentValue >= set->numPatchCables) {
 		// The last patch cable was deleted and it was selected, need to adjust
@@ -46,7 +46,7 @@ void PatchCables::readValueAgain() {
 	blinkShortcutsSoon();
 }
 
-void PatchCables::renderOptions() {
+PLACE_SDRAM_TEXT void PatchCables::renderOptions() {
 	options.clear();
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 
@@ -94,11 +94,11 @@ void PatchCables::renderOptions() {
 	}
 }
 
-void PatchCables::drawPixelsForOled() {
+PLACE_SDRAM_TEXT void PatchCables::drawPixelsForOled() {
 	drawItemsForOled(options, currentValue - scrollPos, scrollPos);
 }
 
-void PatchCables::drawValue() {
+PLACE_SDRAM_TEXT void PatchCables::drawValue() {
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 	if (set->numPatchCables == 0) {
 		display->setText("none", false, false);
@@ -108,7 +108,7 @@ void PatchCables::drawValue() {
 	display->setScrollingText(options[currentValue].begin());
 }
 
-void PatchCables::selectEncoderAction(int32_t offset) {
+PLACE_SDRAM_TEXT void PatchCables::selectEncoderAction(int32_t offset) {
 	int32_t newValue = currentValue + offset;
 
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
@@ -141,7 +141,7 @@ void PatchCables::selectEncoderAction(int32_t offset) {
 	readValueAgain(); // redraw
 }
 
-void PatchCables::blinkShortcutsSoon() {
+PLACE_SDRAM_TEXT void PatchCables::blinkShortcutsSoon() {
 	// some throttling so menu scrolling doesn't become a lightning storm of flashes
 	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, display->haveOLED() ? 500 : 200);
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
@@ -152,7 +152,7 @@ ActionResult PatchCables::timerCallback() {
 	return ActionResult::DEALT_WITH;
 }
 
-void PatchCables::blinkShortcuts() {
+PLACE_SDRAM_TEXT void PatchCables::blinkShortcuts() {
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 	PatchCable* cable = &set->patchCables[currentValue];
 	ParamDescriptor desc = cable->destinationParamDescriptor;
@@ -192,7 +192,7 @@ uint8_t PatchCables::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* c
 	return 255;
 }
 
-MenuItem* PatchCables::selectButtonPress() {
+PLACE_SDRAM_TEXT MenuItem* PatchCables::selectButtonPress() {
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 	int val = currentValue;
 

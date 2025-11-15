@@ -26,7 +26,8 @@ using namespace deluge::gui::ui::keyboard::layout;
 
 namespace deluge::gui::ui::keyboard::controls {
 
-void SessionColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void SessionColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column,
+                                                  KeyboardLayout* layout) {
 	bool armed = false;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		armed |= view.renderMacros(column, y, -1, image, nullptr);
@@ -36,7 +37,7 @@ void SessionColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int
 	}
 }
 
-bool SessionColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
+PLACE_SDRAM_TEXT bool SessionColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	SessionMacro& m = currentSong->sessionMacros[pad];
 	int kindIndex = (int32_t)m.kind + offset;
 	if (kindIndex >= SessionMacroKind::NUM_KINDS) {
@@ -70,11 +71,11 @@ bool SessionColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	return true;
 };
 
-void SessionColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                        KeyboardLayout* layout) {};
+PLACE_SDRAM_TEXT void SessionColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                                         KeyboardLayout* layout) {};
 
-void SessionColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
-                              KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void SessionColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                               PressedPad pad, KeyboardLayout* layout) {
 
 	if (pad.active) {}
 	else {

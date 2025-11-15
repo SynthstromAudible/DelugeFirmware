@@ -22,7 +22,8 @@
 
 namespace deluge::gui::ui::keyboard::controls {
 
-void ChordMemColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void ChordMemColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column,
+                                                   KeyboardLayout* layout) {
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		bool chord_selected = y == activeChordMem;
@@ -35,15 +36,15 @@ void ChordMemColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], in
 	}
 }
 
-bool ChordMemColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
+PLACE_SDRAM_TEXT bool ChordMemColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	return false;
 };
 
-void ChordMemColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                         KeyboardLayout* layout) {};
+PLACE_SDRAM_TEXT void ChordMemColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                                          KeyboardLayout* layout) {};
 
-void ChordMemColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
-                               KeyboardLayout* layout) {
+PLACE_SDRAM_TEXT void ChordMemColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                                PressedPad pad, KeyboardLayout* layout) {
 	NotesState& currentNotesState = layout->getNotesState();
 
 	if (pad.active) {
@@ -69,7 +70,7 @@ void ChordMemColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTime
 	}
 };
 
-void ChordMemColumn::writeToFile(Serializer& writer) {
+PLACE_SDRAM_TEXT void ChordMemColumn::writeToFile(Serializer& writer) {
 	int num = 0;
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		if (chordMemNoteCount[y] > 0) {
@@ -95,7 +96,7 @@ void ChordMemColumn::writeToFile(Serializer& writer) {
 }
 
 // Need to match logic in the other chordMem handler.
-void ChordMemColumn::readFromFile(Deserializer& reader) {
+PLACE_SDRAM_TEXT void ChordMemColumn::readFromFile(Deserializer& reader) {
 	reader.match('[');
 	int slot_index = 0;
 	const char* tagName;

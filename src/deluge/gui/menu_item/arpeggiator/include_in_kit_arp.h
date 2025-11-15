@@ -82,8 +82,9 @@ public:
 		return soundEditor.editingKitRow();
 	}
 
-	void getColumnLabel(StringBuf& label) override {
-		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
+	void configureRenderingOptions(const HorizontalMenuRenderingOptions& options) override {
+		Selection::configureRenderingOptions(options);
+		options.label = deluge::l10n::get(l10n::built_in::seven_segment, this->name);
 	}
 
 	// flag this selection menu as a toggle menu so we can use a checkbox to toggle value

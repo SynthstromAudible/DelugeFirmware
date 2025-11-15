@@ -24,29 +24,29 @@
 
 using namespace deluge;
 
-MenuPermission MenuItem::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-                                                       MultiRange** currentRange) {
+PLACE_SDRAM_TEXT MenuPermission MenuItem::checkPermissionToBeginSession(ModControllableAudio* modControllable,
+                                                                        int32_t whichThing, MultiRange** currentRange) {
 	bool toReturn = isRelevant(modControllable, whichThing);
 	return toReturn ? MenuPermission::YES : MenuPermission::NO;
 }
 
-void MenuItem::learnCC(MIDICable& cable, int32_t channel, int32_t ccNumber, int32_t value) {
+PLACE_SDRAM_TEXT void MenuItem::learnCC(MIDICable& cable, int32_t channel, int32_t ccNumber, int32_t value) {
 	learnKnob(&cable, ccNumber, 0, channel);
 }
 
-void MenuItem::renderOLED() {
+PLACE_SDRAM_TEXT void MenuItem::renderOLED() {
 	deluge::hid::display::OLED::main.drawScreenTitle(getTitle());
 	deluge::hid::display::OLED::markChanged();
 	drawPixelsForOled();
 }
 
-void MenuItem::drawName() {
+PLACE_SDRAM_TEXT void MenuItem::drawName() {
 	display->setText(getName(), false, shouldDrawDotOnName());
 }
 
 // A couple of our child classes call this - that's all
-void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32_t selectedOption,
-                                const int32_t offset) {
+PLACE_SDRAM_TEXT void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32_t selectedOption,
+                                                 const int32_t offset) {
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
@@ -67,7 +67,7 @@ void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32
 }
 
 // renders the default sub menu item type ("  >")
-void MenuItem::renderSubmenuItemTypeForOled(int32_t yPixel) {
+PLACE_SDRAM_TEXT void MenuItem::renderSubmenuItemTypeForOled(int32_t yPixel) {
 	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 	const int32_t startX = getSubmenuItemTypeRenderIconStart();
@@ -75,17 +75,17 @@ void MenuItem::renderSubmenuItemTypeForOled(int32_t yPixel) {
 	image.drawGraphicMultiLine(hid::display::OLED::submenuArrowIcon, startX, yPixel, kSubmenuIconSpacingX);
 }
 
-void MenuItem::updatePadLights() {
+PLACE_SDRAM_TEXT void MenuItem::updatePadLights() {
 	soundEditor.updatePadLightsFor(this);
 }
 
-void MenuItem::endSession() {
+PLACE_SDRAM_TEXT void MenuItem::endSession() {
 	// need to reset current coords for correct work of the second page shortcuts
 	soundEditor.currentParamShortcutX = kNoSelection;
 	soundEditor.currentParamShortcutY = kNoSelection;
 }
 
-bool isItemRelevant(MenuItem* item) {
+PLACE_SDRAM_TEXT bool isItemRelevant(MenuItem* item) {
 	if (item == nullptr) {
 		return false;
 	}
