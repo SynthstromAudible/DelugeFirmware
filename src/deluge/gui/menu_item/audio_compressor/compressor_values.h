@@ -126,6 +126,6 @@ public:
 	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getBlendForDisplay(); }
 	const char* getUnit() override { return " %"; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 0; }
-	[[nodiscard]] int32_t getColumnSpan() const override { return 1; }
+	[[nodiscard]] int32_t getOccupiedSlots() const override { return 1; }
 };
 } // namespace deluge::gui::menu_item::audio_compressor

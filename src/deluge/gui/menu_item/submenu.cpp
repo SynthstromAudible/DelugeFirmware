@@ -52,7 +52,7 @@ void Submenu::updateDisplay() {
 	}
 }
 
-void Submenu::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void Submenu::renderInHorizontalMenu(const SlotPosition& slot) {
 	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
 	// Draw arrow icon centered indicating that there is another layer

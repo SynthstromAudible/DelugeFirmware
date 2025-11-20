@@ -74,11 +74,11 @@ public:
 	}
 
 	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
+	[[nodiscard]] int32_t getOccupiedSlots() const override { return 2; }
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 	[[nodiscard]] bool showNotification() const override { return false; }
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace hid::display;
 		oled_canvas::Canvas& image = OLED::main;
 

@@ -33,7 +33,7 @@ public:
 	                                             MultiRange** currentRange) override;
 
 	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override;
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
 	void getColumnLabel(StringBuf& label) override;
 
 private:

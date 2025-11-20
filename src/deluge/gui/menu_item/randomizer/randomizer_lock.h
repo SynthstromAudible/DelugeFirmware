@@ -66,9 +66,9 @@ public:
 	// don't enter menu on select button press
 	bool shouldEnterSubmenu() override { return false; }
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace deluge::hid::display;
-		const Icon& icon = getValue() ? OLED::randomizerLockOnIcon : OLED::randomizerLockOffIcon;
+		const Icon& icon = getValue() ? OLED::lockedIconBig : OLED::unlockedIconBig;
 		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
 	}
 };

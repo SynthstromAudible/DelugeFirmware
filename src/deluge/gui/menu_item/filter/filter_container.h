@@ -20,7 +20,6 @@
 #include "gui/menu_item/horizontal_menu_container.h"
 #include "hid/led/indicator_leds.h"
 #include "param.h"
-#include "util/comparison.h"
 
 namespace deluge::gui::menu_item::filter {
 
@@ -33,8 +32,8 @@ public:
 	FilterContainer(std::initializer_list<MenuItem*> items, UnpatchedFilterParam* morph_item)
 	    : HorizontalMenuContainer(items), morph_item_unpatched_{morph_item} {}
 
-	void render(int32_t start_x, int32_t width, int32_t start_y, int32_t height, const MenuItem* selected_item,
-	            HorizontalMenu* parent, bool* halt_remaining_rendering) override {
+	void render(const SlotPosition& slots, const MenuItem* selected_item, HorizontalMenu* parent,
+	            bool* halt_remaining_rendering) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		const auto [freq_raw, reso_raw, morph_raw, is_morphable, is_hpf] = getFilterValues();
@@ -51,13 +50,13 @@ public:
 			return result;
 		}();
 
-		constexpr uint8_t reso_segment_width = 5;
+		constexpr uint8_t reso_segment_width = 6;
 		constexpr uint8_t freq_slope_width = 5;
-		constexpr uint8_t padding_x = 3;
-		const uint8_t total_width = width - 4 - padding_x * 2;
+		constexpr uint8_t padding_x = 4;
+		const uint8_t total_width = slots.width - 2 - padding_x * 2;
 		const uint8_t base_width = total_width - freq_slope_width - reso_segment_width;
 
-		uint8_t min_x = start_x + padding_x;
+		uint8_t min_x = slots.start_x + padding_x;
 		uint8_t max_x = min_x + total_width;
 		uint8_t reso_x0 = min_x - reso_segment_width + base_width * freq_value;
 		uint8_t reso_x1 = reso_x0 + reso_segment_width;
@@ -68,12 +67,8 @@ public:
 		uint8_t slope1_x1 = slope1_x0 + freq_slope_width;
 
 		if (morph_value > 0) {
-			constexpr uint8_t padding = padding_x - 1; // reduce movement range a bit for better looking
-			const uint8_t slope_shift = std::lerp(0, total_width + padding, morph_value);
-			const uint8_t reso_shift = std::lerp(0, freq_slope_width + reso_segment_width + padding, morph_value);
-			const uint8_t base_shift = std::lerp(0, padding, morph_value);
-			min_x += base_shift;
-			max_x += base_shift;
+			const uint8_t slope_shift = std::lerp(0, total_width, morph_value);
+			const uint8_t reso_shift = std::lerp(0, freq_slope_width + reso_segment_width, morph_value);
 			slope0_x0 += slope_shift;
 			slope0_x1 += slope_shift;
 			slope1_x0 += slope_shift;
@@ -83,17 +78,19 @@ public:
 			reso_x2 += reso_shift;
 		}
 
-		constexpr uint8_t padding_y = 2;
-		const uint8_t peak_y = start_y + padding_y;
-		const uint8_t floor_y = start_y + height - 3;
-		const uint8_t full_reso_y = start_y + (height >> 1) + 1;
-		const uint8_t body_y = std::lerp(start_y + padding_y, full_reso_y, reso_value);
+		constexpr uint8_t container_height = 23;
+		const uint8_t start_y = slots.start_y + 1;
+		const uint8_t end_y = start_y + container_height - 1;
+		const uint8_t center_y = start_y + (end_y - start_y) / 2;
+		const uint8_t reso_y = std::lerp(center_y, start_y, reso_value);
+
+		image.drawRectangleRounded(min_x - 1, start_y - 1, max_x + 1, end_y + 1);
 
 		auto draw_segment = [&](int32_t x0, int32_t y0, int32_t x1, int32_t y1) {
 			oled_canvas::Point last_point{-1, -1};
 			auto draw_fill_pattern = [&](oled_canvas::Point point) {
 				if (last_point.x != point.x && point.x % 3 == 0) {
-					for (int32_t y = point.y; y <= floor_y + 2; y++) {
+					for (int32_t y = point.y; y <= end_y; y++) {
 						if (y % 3 == 1) {
 							image.drawPixel(point.x, y);
 						}
@@ -106,37 +103,24 @@ public:
 		};
 
 		// Slope 0
-		auto slope0_last_point = slope0_x1 <= min_x ? oled_canvas::Point{min_x, body_y}
-		                                            : draw_segment(slope0_x0, floor_y, slope0_x1, body_y);
+		auto slope0_last_point = slope0_x1 <= min_x ? oled_canvas::Point{min_x, center_y}
+		                                            : draw_segment(slope0_x0, end_y, slope0_x1, center_y);
 
 		// Body
-		draw_segment(slope0_x1, body_y, reso_x0, body_y);
+		draw_segment(slope0_x1, center_y, reso_x0, center_y);
 
 		// Resonance
-		draw_segment(reso_x0, body_y, reso_x1, peak_y);
-		draw_segment(reso_x1, peak_y, reso_x2, body_y);
-		draw_segment(reso_x2, body_y, slope1_x0, body_y);
+		draw_segment(reso_x0, center_y, reso_x1, reso_y);
+		draw_segment(reso_x1, reso_y, reso_x2, center_y);
+		draw_segment(reso_x2, center_y, slope1_x0, center_y);
 
 		// Slope 1
-		auto slope1_last_point = slope1_x0 >= max_x ? oled_canvas::Point{max_x, body_y}
-		                                            : draw_segment(slope1_x0, body_y, slope1_x1, floor_y);
+		auto slope1_last_point = slope1_x0 >= max_x ? oled_canvas::Point{max_x, center_y}
+		                                            : draw_segment(slope1_x0, center_y, slope1_x1, end_y);
 
-		// Body level dashed line
-		constexpr uint8_t line_offset = 3;
-		constexpr uint8_t line_interval = 4;
-		for (uint8_t x = min_x + line_offset; x <= max_x - line_offset; x += line_interval) {
-			if (x < slope0_x1 - line_offset || x > slope1_x0 + line_offset) {
-				image.drawPixel(x, body_y);
-			}
-		}
-
-		// Freq / reso indicator squares
 		auto freq_point = pickFreqPoint(slope0_last_point, slope1_last_point, min_x, max_x);
-		drawIndicatorSquare(freq_point.x, freq_point.y, selected_item == items_[0]);
-		drawIndicatorSquare(reso_x1, peak_y, selected_item == items_[1]);
-
-		syncIndicatorsPositionWithLEDs(freq_point == slope1_last_point, selected_item, parent,
-		                               halt_remaining_rendering);
+		syncFreqAndResonancePositionWithLEDs(freq_point == slope1_last_point, selected_item, parent,
+		                                     halt_remaining_rendering);
 	};
 
 private:
@@ -180,22 +164,8 @@ private:
 		return slope0_last_point.y > slope1_last_point.y ? slope0_last_point : slope1_last_point;
 	}
 
-	static void drawIndicatorSquare(int32_t center_x, int32_t center_y, bool is_selected) {
-		oled_canvas::Canvas& image = OLED::main;
-
-		for (int32_t x = center_x - 1; x <= center_x + 1; x++) {
-			for (int32_t y = center_y - 1; y <= center_y + 1; y++) {
-				image.clearPixel(x, y);
-			}
-		}
-		if (is_selected) {
-			image.invertArea(center_x - 1, 3, center_y - 1, center_y + 1);
-		}
-		image.drawRectangle(center_x - 2, center_y - 2, center_x + 2, center_y + 2);
-	};
-
-	void syncIndicatorsPositionWithLEDs(bool freq_is_on_right_side, const MenuItem* selected_item,
-	                                    HorizontalMenu* parent, bool* halt_remaining_rendering) const {
+	void syncFreqAndResonancePositionWithLEDs(bool freq_is_on_right_side, const MenuItem* selected_item,
+	                                          HorizontalMenu* parent, bool* halt_remaining_rendering) const {
 		MenuItem* freq = items_[0];
 		MenuItem* reso = items_[1];
 
