@@ -132,12 +132,11 @@ public:
 	static const Icon arpModeIconUpDown;
 	static const Icon arpModeIconWalk;
 	static const Icon arpModeIconCustom;
-	static const Icon randomizerLockOnIcon;
-	static const Icon randomizerLockOffIcon;
+	static const Icon lockedIconBig;
+	static const Icon unlockedIconBig;
 	static const Icon diceIcon;
 	static const Icon directionIcon;
 	static const Icon knobArcIcon;
-	static const Icon panHalfCylinderIcon;
 	static const Icon infinityIcon;
 	static const Icon sampleIcon;
 	static const Icon wavetableIcon;
@@ -149,10 +148,8 @@ public:
 	static const Icon sampleModeOnceIcon;
 	static const Icon sampleModeLoopIcon;
 	static const Icon sampleModeStretchIcon;
-	static const Icon pitchSpeedLinkedIcon;
-	static const Icon pitchSpeedIndependentIcon;
-	static const Icon oscTrackingEnabledIcon;
-	static const Icon oscTrackingDisabledIcon;
+	static const Icon keyboardIcon;
+	static const Icon crossedOutKeyboardIcon;
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;

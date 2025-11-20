@@ -113,7 +113,7 @@ public:
 		};
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		const auto& source = soundEditor.currentSound->sources[source_id_];
 		const Icon& icon = [&] {
 			switch (source.repeatMode) {

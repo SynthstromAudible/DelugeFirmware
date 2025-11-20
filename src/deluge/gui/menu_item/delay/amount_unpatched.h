@@ -28,16 +28,16 @@ public:
 		return clamped / static_cast<float>(max_value_in_horizontal_menu);
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		drawBar(slot);
 
 		if (getValue() > max_value_in_horizontal_menu) {
 			// Draw exclamation mark
 			oled_canvas::Canvas& image = OLED::main;
 			constexpr uint8_t excl_mark_width = 3;
-			constexpr uint8_t excl_mark_height = 9;
+			constexpr uint8_t excl_mark_height = 11;
 			const uint8_t center_x = slot.start_x + slot.width / 2;
-			const uint8_t excl_mark_start_y = slot.start_y + kHorizontalMenuSlotYOffset;
+			const uint8_t excl_mark_start_y = slot.start_y + kHorizontalMenuSlotYOffset - 1;
 			const uint8_t excl_mark_end_y = excl_mark_start_y + excl_mark_height - 1;
 			const uint8_t excl_mark_start_x = center_x - 1;
 
@@ -48,8 +48,8 @@ public:
 				}
 			}
 
-			image.invertArea(excl_mark_start_x, excl_mark_width, excl_mark_start_y, excl_mark_start_y + 5);
-			image.invertArea(excl_mark_start_x, excl_mark_width, excl_mark_start_y + 7, excl_mark_start_y + 8);
+			image.invertArea(excl_mark_start_x, excl_mark_width, excl_mark_start_y, excl_mark_start_y + 6);
+			image.invertArea(excl_mark_start_x, excl_mark_width, excl_mark_start_y + 8, excl_mark_start_y + 10);
 		}
 	}
 
