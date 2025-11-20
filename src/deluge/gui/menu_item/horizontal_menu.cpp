@@ -169,7 +169,7 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 		const bool is_selected = item == currentItem;
 		const bool is_relevant = isItemRelevant(item);
 
-		const uint8_t box_width = column_width * item->getColumnSpan();
+		const uint8_t box_width = column_width * item->getOccupiedSlots();
 		constexpr uint8_t box_height = 25;
 		constexpr uint8_t label_height = kTextSpacingY;
 		constexpr uint8_t label_y = base_y + box_height - label_height;
@@ -178,17 +178,20 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 		if (containers_map.contains(item) && is_relevant) {
 			// If item belongs to a container, delegate rendering to that container
 			const auto container = containers_map[item];
-			const auto column_span = container->getColumnSpan();
+			const auto slots_count = container->getOccupiedSlotsCount();
 
 			bool halt_remaining_rendering = false;
-			container->render(current_x, box_width * column_span, base_y, content_height, currentItem, this,
-			                  &halt_remaining_rendering);
+			container->render({.start_x = current_x,
+			                   .start_y = base_y,
+			                   .width = static_cast<uint8_t>(box_width * slots_count),
+			                   .height = content_height},
+			                  currentItem, this, &halt_remaining_rendering);
 			if (halt_remaining_rendering) {
 				return;
 			}
 
-			current_x += box_width * column_span;
-			it += column_span;
+			current_x += box_width * slots_count;
+			it += slots_count;
 			continue;
 		}
 
@@ -212,7 +215,7 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 		}
 
 		// Highlight the selected item if it doesn't occupy the whole page
-		if (is_selected && (items.size() > 1 || items[0]->getColumnSpan() < 4)) {
+		if (is_selected && (items.size() > 1 || items[0]->getOccupiedSlots() < 4)) {
 			switch (FlashStorage::accessibilityMenuHighlighting) {
 			case MenuHighlighting::FULL_INVERSION: {
 				// Highlight by inversion of the label or whole slot
@@ -346,7 +349,7 @@ void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visible_pa
 
 		// Is this item covering the selected column?
 		if (pressed_button_position >= current_column
-		    && pressed_button_position < current_column + item->getColumnSpan()) {
+		    && pressed_button_position < current_column + item->getOccupiedSlots()) {
 			if (layout == FIXED && !isItemRelevant(item)) {
 				// Item is disabled, do nothing
 				return;
@@ -365,25 +368,25 @@ void HorizontalMenu::handleInstrumentButtonPress(std::span<MenuItem*> visible_pa
 			return displayNotification(*current_item_);
 		}
 
-		current_column += item->getColumnSpan();
+		current_column += item->getOccupiedSlots();
 	}
 }
 
 void HorizontalMenu::selectMenuItem(int32_t page_number, int32_t item_pos) {
 	lastSelectedItemPosition = kNoSelection;
 
-	int32_t current_page_span = 0;
+	int32_t current_page_acquired_slots = 0;
 	int32_t current_page_number = 0;
 	int32_t position_on_page = 0;
 
 	// Find the target item on the next / previous page
 	for (const auto it : std::views::filter(items, [&](auto i) { return layout == FIXED || isItemRelevant(i); })) {
-		const auto itemSpan = it->getColumnSpan();
+		const auto slots_count = it->getOccupiedSlots();
 
 		// Check if we need to move to the next page
-		if (current_page_span + itemSpan > 4) {
+		if (current_page_acquired_slots + slots_count > 4) {
 			current_page_number++;
-			current_page_span = 0;
+			current_page_acquired_slots = 0;
 			position_on_page = 0;
 		}
 
@@ -397,7 +400,7 @@ void HorizontalMenu::selectMenuItem(int32_t page_number, int32_t item_pos) {
 				break;
 			}
 		}
-		current_page_span += itemSpan;
+		current_page_acquired_slots += slots_count;
 		position_on_page++;
 	}
 }
@@ -408,7 +411,7 @@ HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items
 	visible_page_items.reserve(4);
 
 	uint8_t visible_page_number = 0;
-	uint8_t current_page_span = 0;
+	uint8_t current_page_acquired_slots = 0;
 	uint8_t total_pages = 1;
 	uint8_t selected_item_position_on_page = 0;
 	bool current_item_in_this_page = false;
@@ -428,8 +431,8 @@ HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items
 		}
 
 		// If the item doesn't fit, start a new page
-		const int32_t item_span = item->getColumnSpan();
-		if (current_page_span + item_span > 4 && is_relevant) {
+		const int32_t slots_count = item->getOccupiedSlots();
+		if (current_page_acquired_slots + slots_count > 4 && is_relevant) {
 			if (current_item_in_this_page) {
 				// Finalize visible page
 				visible_page_completed = true;
@@ -442,7 +445,7 @@ HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items
 			}
 
 			++total_pages;
-			current_page_span = 0;
+			current_page_acquired_slots = 0;
 		}
 
 		if (!visible_page_completed) {
@@ -454,7 +457,7 @@ HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items
 			current_item_in_this_page = true;
 		}
 
-		current_page_span += item_span;
+		current_page_acquired_slots += slots_count;
 	}
 
 	// Handle the last page
@@ -462,7 +465,7 @@ HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items
 		visible_page_number = total_pages - 1;
 	}
 	// Check if the page is single and has no items to render
-	if (total_pages == 1 && current_page_span == 0) {
+	if (total_pages == 1 && current_page_acquired_slots == 0) {
 		total_pages = 0;
 	}
 
@@ -479,15 +482,15 @@ void HorizontalMenu::updateSelectedMenuItemLED(int32_t itemNumber) const {
 	int32_t end_column = 0;
 	for (const auto* item : page_items) {
 		if (item == selected_item) {
-			end_column = start_column + item->getColumnSpan();
+			end_column = start_column + item->getOccupiedSlots();
 			break;
 		}
-		start_column += item->getColumnSpan();
+		start_column += item->getOccupiedSlots();
 	}
 
 	// Light up all buttons whose columns are covered by the selected item
 	std::vector led_states{false, false, false, false};
-	if (page_items.size() > 1 || page_items[0]->isSubmenu() || page_items[0]->getColumnSpan() < 4) {
+	if (page_items.size() > 1 || page_items[0]->isSubmenu() || page_items[0]->getOccupiedSlots() < 4) {
 		for (int32_t i = 0; i < led_states.size(); ++i) {
 			led_states[i] = i >= start_column && i < end_column;
 		}
@@ -543,7 +546,7 @@ void HorizontalMenu::renderColumnLabel(MenuItem* menuItem, int32_t labelY, int32
 	const int32_t label_start_x = slotStartX + (slotWidth - label_width) / 2;
 	image.drawString(label.c_str(), label_start_x, labelY, kTextSpacingX, kTextSpacingY);
 
-	if (menuItem->getColumnSpan() > 1 && !menuItem->isSubmenu() && !isSelected) {
+	if (menuItem->getOccupiedSlots() > 1 && !menuItem->isSubmenu() && !isSelected) {
 		// Draw small lines on the left and right side if the slot is too wide
 		const int32_t y = labelY + 4;
 		image.drawHorizontalLine(y, slotStartX + 4, label_start_x - 4);

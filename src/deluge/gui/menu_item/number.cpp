@@ -72,7 +72,7 @@ void Number::drawHorizontalBar(int32_t y_top, int32_t margin_l, int32_t margin_r
 	canvas.drawRectangleRounded(left_most, y_top, right_most - 1, y_top + height);
 }
 
-void Number::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void Number::renderInHorizontalMenu(const SlotPosition& slot) {
 	switch (getRenderingStyle()) {
 	case PERCENT:
 		return drawPercent(slot);
@@ -104,7 +104,7 @@ void Number::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
 	}
 }
 
-void Number::drawPercent(const HorizontalMenuSlotParams& slot) {
+void Number::drawPercent(const SlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	DEF_STACK_STRING_BUF(valueString, 12);
@@ -124,7 +124,7 @@ void Number::drawPercent(const HorizontalMenuSlotParams& slot) {
 	image.drawChar(percent_char, x, y, kTextSpacingX, kTextSpacingY);
 }
 
-void Number::drawKnob(const HorizontalMenuSlotParams& slot) {
+void Number::drawKnob(const SlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	// Draw the background arc
@@ -151,19 +151,9 @@ void Number::drawKnob(const HorizontalMenuSlotParams& slot) {
 	const float line_end_x = center_x + outer_radius * cos_a;
 	const float line_end_y = center_y + outer_radius * sin_a;
 	image.drawLine(round(line_start_x), round(line_start_y), round(line_end_x), round(line_end_y), {.thick = true});
-
-	// If the knob's position is near left or near right, fill the gap on the bitmap (the gap exists purely for
-	// stylistic effect)
-	const uint8_t gap_y = slot.start_y + kHorizontalMenuSlotYOffset + slot.height - 7;
-	if (current_angle < 180.0f) {
-		image.drawPixel(center_x - knob_radius, gap_y);
-	}
-	if (current_angle > 360.0f) {
-		image.drawPixel(center_x + knob_radius, gap_y);
-	}
 }
 
-void Number::drawBar(const HorizontalMenuSlotParams& slot) {
+void Number::drawBar(const SlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t bar_width = 21;
@@ -182,7 +172,7 @@ void Number::drawBar(const HorizontalMenuSlotParams& slot) {
 	image.invertArea(bar_start_x, fill_width, bar_start_y, bar_end_y);
 }
 
-void Number::drawSlider(const HorizontalMenuSlotParams& slot, std::optional<int32_t> value) {
+void Number::drawSlider(const SlotPosition& slot, std::optional<int32_t> value) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr int32_t slider_width = 23;
@@ -209,7 +199,7 @@ void Number::drawSlider(const HorizontalMenuSlotParams& slot, std::optional<int3
 	image.drawVerticalLine(value_line_x + 1, min_y, max_y);
 }
 
-void Number::drawLengthSlider(const HorizontalMenuSlotParams& slot, bool min_slider_pos) {
+void Number::drawLengthSlider(const SlotPosition& slot, bool min_slider_pos) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr int32_t slider_width = 23;
@@ -236,55 +226,49 @@ void Number::drawLengthSlider(const HorizontalMenuSlotParams& slot, bool min_sli
 	}
 }
 
-void Number::drawPan(const HorizontalMenuSlotParams& slot) {
+void Number::drawPan(const SlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
-	// Draw the half-cylinder base (easier to have a bitmap for that)
-	const uint8_t pan_start_y = slot.start_y + kHorizontalMenuSlotYOffset - 4;
-	image.drawIconCentered(OLED::panHalfCylinderIcon, slot.start_x, slot.width, pan_start_y);
+	constexpr uint8_t bar_width = 21;
+	constexpr uint8_t bar_height = 5;
+	constexpr uint8_t outline_padding = 2;
+	const uint8_t bar_start_x = slot.start_x + 5;
+	const uint8_t bar_start_y = slot.start_y + kHorizontalMenuSlotYOffset + 2;
+	const uint8_t bar_end_x = bar_start_x + bar_width - 1;
+	const uint8_t bar_end_y = bar_start_y + bar_height - 1;
+	const uint8_t bar_center_x = bar_start_x + bar_width / 2;
+
+	// Outline
+	image.drawRectangle(bar_start_x - outline_padding, bar_start_y - outline_padding, bar_end_x + outline_padding,
+	                    bar_end_y + outline_padding);
+
+	// The top and the bottom notches
+	for (const auto offset : {1, 2}) {
+		image.drawPixel(bar_center_x, bar_end_y + outline_padding + offset);
+		image.drawPixel(bar_center_x, bar_start_y - outline_padding - offset);
+	}
+
+	// Midpoint
+	image.drawVerticalLine(bar_center_x, bar_start_y, bar_end_y);
 
 	const int32_t value = getValue();
 	const int8_t direction = (value > 0) - (value < 0);
-	if (direction == 0) {
-		// Nothing to fill when value is zero
-		return;
+
+	// Adjust the value a bit to make a perfect zero indication
+	uint8_t abs_value = std::abs(value);
+	if (abs_value > 0 && abs_value < 3) {
+		abs_value = 3;
 	}
 
-	constexpr int32_t arc_range_angle = 100, beginning_angle = 270;
-	const float norm = std::abs(value) / 25.f;
-	const float target_angle = beginning_angle + arc_range_angle * norm * direction;
-
-	// Start from the beginning angle (center) and step outwards toward target_angle
-	constexpr uint8_t radius = 11;
-	float cos_a = cos(beginning_angle * M_PI / 180.0f);
-	float sin_a = sin(beginning_angle * M_PI / 180.0f);
-	const int32_t center_x = slot.start_x + slot.width / 2;
-	const int32_t center_y = pan_start_y + radius + 1;
-
-	constexpr uint8_t angle_step = 1;
-	constexpr float step_rad = angle_step * M_PI / 180.0f;
-	const float cos_step = cos(step_rad);
-	const float sin_step = sin(step_rad);
-
-	const uint8_t steps = static_cast<uint8_t>(std::round(std::abs((target_angle - beginning_angle) / angle_step)));
-	for (uint8_t s = 0; s < steps; s++) {
-		// Advance one step toward the target angle
-		const float new_cos = cos_a * cos_step - sin_a * sin_step * direction;
-		const float new_sin = sin_a * cos_step + cos_a * sin_step * direction;
-		cos_a = new_cos;
-		sin_a = new_sin;
-
-		constexpr float inner_radius = 5.0f;
-		constexpr float outer_radius = radius - 1;
-		const float line_start_x = center_x + inner_radius * cos_a;
-		const float line_start_y = center_y + inner_radius * sin_a;
-		const float line_end_x = center_x + outer_radius * cos_a;
-		const float line_end_y = center_y + outer_radius * sin_a;
-		image.drawLine(round(line_start_x), round(line_start_y), round(line_end_x), round(line_end_y));
+	// Fill
+	const uint8_t fill_width = abs_value / 25.f * (bar_width / 2);
+	if (fill_width > 0) {
+		const uint8_t fill_start_x = direction >= 0 ? bar_center_x + 1 : bar_center_x - fill_width - 1;
+		image.invertArea(fill_start_x, fill_width + 1, bar_start_y, bar_end_y);
 	}
 }
 
-void Number::drawHpf(const HorizontalMenuSlotParams& slot) {
+void Number::drawHpf(const SlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t slope_width = 5;
@@ -314,7 +298,7 @@ void Number::drawHpf(const HorizontalMenuSlotParams& slot) {
 	}
 }
 
-void Number::drawLpf(const HorizontalMenuSlotParams& slot) {
+void Number::drawLpf(const SlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t slope_width = 5;
@@ -344,7 +328,7 @@ void Number::drawLpf(const HorizontalMenuSlotParams& slot) {
 	}
 }
 
-void Number::drawRelease(const HorizontalMenuSlotParams& slot) {
+void Number::drawRelease(const SlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t width = 19;
@@ -374,7 +358,7 @@ void Number::drawRelease(const HorizontalMenuSlotParams& slot) {
 	}
 }
 
-void Number::drawAttack(const HorizontalMenuSlotParams& slot) {
+void Number::drawAttack(const SlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr uint8_t width = 19;
@@ -402,7 +386,7 @@ void Number::drawAttack(const HorizontalMenuSlotParams& slot) {
 	}
 }
 
-void Number::drawSidechainDucking(const HorizontalMenuSlotParams& slot) {
+void Number::drawSidechainDucking(const SlotPosition& slot) {
 	oled_canvas::Canvas& image = OLED::main;
 
 	constexpr int32_t width = 23;

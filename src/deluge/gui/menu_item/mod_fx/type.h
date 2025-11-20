@@ -66,7 +66,7 @@ public:
 		return modfx::getModNames();
 	}
 
-	[[nodiscard]] int32_t getColumnSpan() const override {
+	[[nodiscard]] int32_t getOccupiedSlots() const override {
 		// Occupy the whole page in the horizontal menu
 		return 4;
 	}
@@ -74,7 +74,7 @@ public:
 	[[nodiscard]] bool showNotification() const override { return false; }
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);

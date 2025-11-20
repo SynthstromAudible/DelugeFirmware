@@ -47,7 +47,7 @@ public:
 		                         textHeight);
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		const auto value = this->getValue();
@@ -69,6 +69,6 @@ public:
 	}
 
 protected:
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; }
+	[[nodiscard]] int32_t getOccupiedSlots() const override { return 2; }
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

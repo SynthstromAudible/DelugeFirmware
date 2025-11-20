@@ -51,7 +51,7 @@ public:
 	void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) override;
 	bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) final;
 	virtual RenderingStyle renderingStyle() const { return RenderingStyle::VERTICAL; };
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override;
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
 	void drawPixelsForOled() override;
 	void drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption);
 	/// @brief 	Indicates if the menu-like object should wrap-around. Destined to be virtualized.
@@ -63,7 +63,7 @@ public:
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override;
 	deluge::modulation::params::Kind getParamKind() override;
 	uint32_t getParamIndex() override;
-	[[nodiscard]] int32_t getColumnSpan() const override { return 2; };
+	[[nodiscard]] int32_t getOccupiedSlots() const override { return 2; };
 	[[nodiscard]] bool showNotification() const override { return false; }
 
 protected:

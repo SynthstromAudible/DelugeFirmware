@@ -46,7 +46,7 @@ public:
 
 	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		if (info.getFilterParamType() == FilterParamType::MORPH && info.isMorphable()) {
 			int32_t value = getValue();
 			if (info.getSlot() == FilterSlot::HPF) {
@@ -88,7 +88,7 @@ public:
 	void getColumnLabel(StringBuf& label) override { label.append(info.getMorphNameOr(Integer::getName(), true)); }
 	[[nodiscard]] FilterInfo const& getFilterInfo() const { return info; }
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		if (info.getFilterParamType() == FilterParamType::MORPH && info.isMorphable()) {
 			int32_t value = getValue();
 			if (info.getSlot() == FilterSlot::HPF) {
