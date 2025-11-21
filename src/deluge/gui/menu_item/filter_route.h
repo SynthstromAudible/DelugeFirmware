@@ -61,11 +61,11 @@ public:
 		        optType == OptType::SHORT ? "LPF > HPF" : "LPF2HPF", l10n::getView(l10n::String::STRING_FOR_PARALLEL)};
 	}
 
-	[[nodiscard]] int32_t getColumnSpan() const override { return 4; }
+	[[nodiscard]] int32_t getOccupiedSlots() const override { return 4; }
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 	[[nodiscard]] bool showNotification() const override { return false; }
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);

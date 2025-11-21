@@ -85,7 +85,7 @@ public:
 		}
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		if (getValue() == 0) {
 			return OLED::main.drawIconCentered(OLED::infinityIcon, slot.start_x, slot.width,
 			                                   slot.start_y + kHorizontalMenuSlotYOffset + 1);

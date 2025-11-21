@@ -19,17 +19,17 @@
 
 namespace deluge::gui::menu_item {
 
-// A base class for rendering multiple menu items as single "container" within Horizontal menu
+// A base class for rendering multiple menu items as a single "container" within a horizontal menu
 class HorizontalMenuContainer {
 public:
 	virtual ~HorizontalMenuContainer() = default;
 	HorizontalMenuContainer(std::initializer_list<MenuItem*> items) : items_{items} {}
 
-	[[nodiscard]] int32_t getColumnSpan() const { return items_.size(); }
+	[[nodiscard]] int32_t getOccupiedSlotsCount() const { return items_.size(); }
 	std::span<MenuItem* const> getItems() const { return items_; }
 
-	virtual void render(int32_t start_x, int32_t width, int32_t start_y, int32_t height, const MenuItem* selected_item,
-	                    HorizontalMenu* parent, bool* halt_remaining_rendering) {}
+	virtual void render(const SlotPosition& slots, const MenuItem* selected_item, HorizontalMenu* parent,
+	                    bool* halt_remaining_rendering) {}
 
 protected:
 	deluge::vector<MenuItem*> items_;

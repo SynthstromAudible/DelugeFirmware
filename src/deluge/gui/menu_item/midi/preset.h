@@ -68,7 +68,7 @@ public:
 		Number::selectEncoderAction(offset);
 	}
 
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override {
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		DEF_STACK_STRING_BUF(paramValue, 5);

@@ -50,7 +50,7 @@ void SampleMarkerEditor::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 
-void SampleMarkerEditor::renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) {
+void SampleMarkerEditor::renderInHorizontalMenu(const SlotPosition& slot) {
 	using namespace hid::display;
 	oled_canvas::Canvas& image = OLED::main;
 

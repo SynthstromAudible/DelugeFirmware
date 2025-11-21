@@ -29,7 +29,7 @@ public:
 	void selectEncoderAction(int32_t offset) override;
 	void drawValue() override;
 	void drawPixelsForOled() override;
-	void renderInHorizontalMenu(const HorizontalMenuSlotParams& slot) override;
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
 	void getNotificationValue(StringBuf& valueBuf) override;
 
 	void getColumnLabel(StringBuf& label) override { label.append(deluge::l10n::get(l10n::String::STRING_FOR_RATE)); }
