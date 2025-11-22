@@ -115,11 +115,49 @@ void HorizontalMenu::renderOLED() {
 		currentKnobSpeed = 0.0f;
 	}
 
-	OLED::main.drawScreenTitle(getTitle(), false);
+	renderTitle(paging);
 	renderPageCounters(paging);
 	renderMenuItems(paging.visiblePageItems, *current_item_);
 
 	OLED::markChanged();
+}
+
+void HorizontalMenu::renderTitle(const Paging& paging) const {
+	std::string_view title = getTitle();
+
+	// Check if we need to shorten the title
+	if (paging.totalPages > 1 && title.size() > 12) {
+		std::string title_copy(title);
+
+		// Split into words
+		std::vector<std::string> words;
+		{
+			int32_t start = 0;
+			while (start < title_copy.size()) {
+				// skip leading spaces
+				while (start < title_copy.size() && title_copy[start] == ' ') {
+					start++;
+				}
+				if (start >= title_copy.size())
+					break;
+
+				int32_t end = start;
+				while (end < title_copy.size() && title_copy[end] != ' ') {
+					end++;
+				}
+
+				words.emplace_back(title_copy.substr(start, end - start));
+				start = end;
+			}
+		}
+
+		if (words.size() == 2) {
+			// Shorten the first word
+			title = std::string(1, words[0][0]) + ". " + words[1];
+		}
+	}
+
+	OLED::main.drawScreenTitle(title, false);
 }
 
 void HorizontalMenu::renderPageCounters(const Paging& paging) {
@@ -141,7 +179,7 @@ void HorizontalMenu::renderPageCounters(const Paging& paging) {
 	image.drawLine(x, y + kTextSpacingY - 2, x + 2, y + 1);
 	x -= 6;
 
-	// Draw the current one
+	// Draw the current page
 	currentPageNum.clear();
 	currentPageNum.appendInt(paging.visiblePageNumber + 1);
 	image.drawString(currentPageNum.c_str(), x, y, kTextSpacingX, kTextSpacingY);

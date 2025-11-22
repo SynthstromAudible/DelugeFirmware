@@ -52,7 +52,7 @@ public:
 
 		constexpr uint8_t reso_segment_width = 6;
 		constexpr uint8_t freq_slope_width = 5;
-		constexpr uint8_t padding_x = 4;
+		constexpr uint8_t padding_x = 5;
 		const uint8_t total_width = slots.width - 2 - padding_x * 2;
 		const uint8_t base_width = total_width - freq_slope_width - reso_segment_width;
 
@@ -84,6 +84,7 @@ public:
 		const uint8_t center_y = start_y + (end_y - start_y) / 2;
 		const uint8_t reso_y = std::lerp(center_y, start_y, reso_value);
 
+		// Outline
 		image.drawRectangleRounded(min_x - 1, start_y - 1, max_x + 1, end_y + 1);
 
 		auto draw_segment = [&](int32_t x0, int32_t y0, int32_t x1, int32_t y1) {
