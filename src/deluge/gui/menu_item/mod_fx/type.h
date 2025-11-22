@@ -75,51 +75,8 @@ public:
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		oled_canvas::Canvas& image = OLED::main;
-
-		DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
-		getShortOption(shortOpt);
-
-		constexpr int32_t arrow_space = 10;
-
-		// Get the main text width and trim if needed
-		int32_t text_width = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
-		while (text_width >= slot.width - 2 * arrow_space) {
-			shortOpt.truncate(shortOpt.size() - 1);
-			text_width = image.getStringWidthInPixels(shortOpt.c_str(), kTextSpacingY);
-		}
-
-		const int32_t text_start_x = slot.start_x + (slot.width - text_width) / 2 + 1;
-		const int32_t text_start_y = slot.start_y + (slot.height - kTextSpacingY) / 2 + 1;
-
-		// Draw the left arrow
-		if (getValue() > 0) {
-			image.drawString("<", slot.start_x + 5, text_start_y, kTextTitleSpacingX, kTextTitleSizeY);
-		}
-
-		// Draw main text
-		image.drawString(shortOpt.c_str(), text_start_x, text_start_y, kTextSpacingX, kTextSpacingY);
-
-		// Highlight the text
-		constexpr int32_t highlight_offset = 21;
-		switch (FlashStorage::accessibilityMenuHighlighting) {
-		case MenuHighlighting::FULL_INVERSION:
-			image.invertAreaRounded(slot.start_x + highlight_offset, slot.width - highlight_offset * 2,
-			                        text_start_y - 2, text_start_y + kTextSpacingY + 1);
-			break;
-		case MenuHighlighting::PARTIAL_INVERSION:
-		case MenuHighlighting::NO_INVERSION:
-			image.drawRectangleRounded(slot.start_x + highlight_offset, text_start_y - 4,
-			                           slot.start_x + slot.width - highlight_offset, text_start_y + kTextSpacingY + 3,
-			                           oled_canvas::BorderRadius::BIG);
-			break;
-		}
-
-		// Draw the right arrow
-		if (getValue() < size() - 1) {
-			image.drawString(">", OLED_MAIN_WIDTH_PIXELS - arrow_space, text_start_y, kTextTitleSpacingX,
-			                 kTextTitleSizeY);
-		}
+		OLED::main.drawScreenTitle(l10n::getView(l10n::String::STRING_FOR_MOD_FX_TYPE)); // draw title with separator
+		drawPixelsForOled();
 	}
 };
 } // namespace deluge::gui::menu_item::mod_fx
