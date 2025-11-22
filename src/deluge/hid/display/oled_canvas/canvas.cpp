@@ -318,7 +318,7 @@ void Canvas::drawStringCentred(char const* string, int32_t pixelY, int32_t textW
 
 void Canvas::drawStringCentered(char const* string, int32_t pixelX, int32_t pixelY, int32_t textSpacingX,
                                 int32_t textSpacingY, int32_t totalWidth) {
-	DEF_STACK_STRING_BUF(stringBuf, 12);
+	DEF_STACK_STRING_BUF(stringBuf, 24);
 	stringBuf.append(string);
 	drawStringCentered(stringBuf, pixelX, pixelY, textSpacingX, textSpacingY, totalWidth);
 }

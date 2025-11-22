@@ -151,17 +151,7 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 	canvas.drawString(&displayName[scrollPosHorizontal], xPixel, yPixel, kTextSpacingX, kTextSpacingY, 0,
 	                  xPixel + maxNumChars * kTextSpacingX);
 
-	int32_t highlightStartX;
-	int32_t scrollAmount = enteredTextEditPos - scrollPosHorizontal;
-	if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION && !scrollAmount) {
-		highlightStartX = 0;
-	}
-	else {
-		// if we're at the beginning of the string, we want to show an extra inverted pixel before
-		// if we're somewhere inside the string, we want to start highlight right on the character
-		int32_t startAdjustment = scrollAmount ? 0 : 1;
-		highlightStartX = xPixel + kTextSpacingX * scrollAmount - startAdjustment;
-	}
+	int32_t highlightStartX = 0;
 	int32_t highlightWidth = xPixelMax - highlightStartX;
 
 	if (atVeryEnd) {
