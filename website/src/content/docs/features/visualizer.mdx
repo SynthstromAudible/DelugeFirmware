@@ -5,7 +5,7 @@ title: Visualizer
 import LinkPreviewCard from "../../../components/LinkPreviewCard.astro"
 import { Badge } from "@astrojs/starlight/components"
 
-The Visualizer feature provides real-time audio visualizations on the OLED display, showing different representations of the audio signal. It was added in <Badge text="c1.4" variant="tip" /> and includes three main visualization modes (Waveform, Line Spectrum, Bar Spectrum) that can be selected as defaults, plus additional special visualizers available via hot keys. The visualizer replaces the VU meter display when active and provides visual feedback for your audio output.
+The Visualizer feature provides real-time audio visualizations on the OLED display, showing different representations of the audio signal. It was added in <Badge text="c1.4" variant="tip" /> and includes three main visualization modes (Waveform, Line Spectrum, Bar Spectrum) that can be selected as defaults, plus additional special visualizers available via hot keys. The visualizer replaces the VU meter display when active and provides visual feedback for your audio output. It includes both global mix visualization and clip-specific visualization for individual instrument clips.
 
 ## Enabling the Visualizer
 
@@ -53,6 +53,29 @@ The visualizer only appears when all of the following conditions are met:
 The visualizer will automatically appear in the OLED display area when these conditions are satisfied, replacing the standard VU meter display. The VU meter will stop displaying (and therefore the visualizer will be hidden) if you switch mod button selections, turn :key[AffectEntire] off, select a clip, or exit Song/Arranger views.
 
 Alternatively, you can use the independent visualizer toggle to display the visualizer without needing to enable the VU meter. Press :key[Shift] + `LEVEL/PAN` mod button to toggle the visualizer on or off independently. This allows you to view visualizations in situations where the VU meter conditions cannot be met.
+
+## Clip-Specific Visualization <Badge text="c1.4 Enhancement" variant="tip" />
+
+The visualizer can display waveforms for individual instrument clips (Synth and Kit clips) in addition to the global mix visualization. This allows you to monitor the audio output of specific clips in real-time.
+
+### When Clip Visualization Activates
+
+Clip-specific visualization automatically activates in the following situations:
+
+- **Instrument Clip View**: When viewing a Synth or Kit clip
+- **Keyboard Screen**: When in keyboard view for a Synth or Kit clip
+- **Holding Clips**: When holding a clip pad in Session or Arranger view
+
+### Clip Visualization Features
+
+- **Always Waveform Mode**: Clip visualization always displays in Waveform mode for optimal clip monitoring
+- **Program Name Display**: Shows a popup with the instrument/program name when entering clip visualization mode
+- **Automatic Context Switching**: Seamlessly switches between global mix and clip-specific visualization based on your current view and actions
+- **Audio Source Isolation**: Displays the actual output of the specific clip, including all effects and processing applied to that clip
+
+### Auto-Hide on Silence <Badge text="c1.4 Enhancement" variant="tip" />
+
+Both global and clip-specific visualizers automatically hide after 1 second of audio silence to prevent displaying noise or empty waveforms. This helps maintain a clean interface when audio is not present and prevents visual distractions from noise floor signals.
 
 ## Visualization Modes
 
@@ -202,8 +225,10 @@ You can also toggle the visualizer on or off independently using :key[Shift] + `
 
 - **Mixing**: The Bar Spectrum mode can help you identify problematic frequency ranges in your mix
 - **Sound Design**: The Line Spectrum mode provides insight into the harmonic content of your sounds
+- **Clip Monitoring**: Use clip-specific visualization to monitor individual Synth and Kit clip outputs in real-time
 - **Troubleshooting**: The Waveform mode can help identify clipping or level issues
+- **Performance**: Auto-hide on silence keeps the interface clean during quiet passages
 - **Quick Mode Switching**: Use the hot keys to quickly compare different visualization perspectives
 - **Independent Access**: Use :key[Shift] + `LEVEL/PAN` mod button to quickly toggle the visualizer on or off without setting up VU meter conditions, perfect for quick visual checks during production
 
-The visualizer provides valuable visual feedback for your audio production workflow, making it easier to monitor and understand your sound in real-time.
+The visualizer provides valuable visual feedback for your audio production workflow, making it easier to monitor and understand your sound in real-time. The clip-specific visualization feature enhances this by allowing detailed monitoring of individual instrument outputs.
