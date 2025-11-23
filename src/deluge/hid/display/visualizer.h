@@ -243,6 +243,13 @@ public:
 	/// Clip visualizer hides after 0.5 seconds of silence for that specific clip
 	inline static uint32_t clip_visualizer_last_audio_time = 0;
 
+	/// Visualizer constants
+	static constexpr uint32_t kSilenceTimeoutSamples = 22050; // 0.5 seconds at 44.1kHz
+	static constexpr int32_t kSilenceThreshold = 1 << 20;     // Small threshold to avoid noise floor triggering
+	static constexpr uint32_t kVisualizerSampleInterval = 2;  // Sample every N-th sample for efficiency
+	static constexpr uint32_t kQ31ToQ15Shift = 16;            // Convert Q31 → Q15 (15 fractional bits)
+	static constexpr uint32_t kFrameSkip = 2;                 // 30fps (skip every 2nd frame)
+
 	/// Visualizer sample buffer and related variables
 	static constexpr size_t kVisualizerBufferSize = 512;
 	inline static std::array<int32_t, kVisualizerBufferSize> visualizer_sample_buffer_left{};
