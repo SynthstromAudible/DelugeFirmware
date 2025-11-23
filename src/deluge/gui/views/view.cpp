@@ -1486,13 +1486,16 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	// Check for SHIFT+LEVEL mod button to toggle independent visualizer
 	// This works in all views including Clip Minder screens, regardless of Affect Entire
 	if (on && whichButton == 0 && Buttons::isShiftButtonPressed()) {
-		bool new_state = !deluge::hid::display::Visualizer::isToggleEnabled();
-		deluge::hid::display::Visualizer::setToggleEnabled(new_state);
+		// Only allow toggle if visualizer feature is enabled in community features
+		if (deluge::hid::display::Visualizer::isEnabled()) {
+			bool new_state = !deluge::hid::display::Visualizer::isToggleEnabled();
+			deluge::hid::display::Visualizer::setToggleEnabled(new_state);
 
-		// Show popup feedback
-		display->displayPopup(new_state ? "VISUALIZER: ON" : "VISUALIZER: OFF");
+			// Show popup feedback
+			display->displayPopup(new_state ? "VISUALIZER: ON" : "VISUALIZER: OFF");
 
-		renderUIsForOled();
+			renderUIsForOled();
+		}
 		return;
 	}
 
