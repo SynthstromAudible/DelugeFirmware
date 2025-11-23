@@ -31,6 +31,7 @@
 #include <string_view>
 
 // Forward declarations
+class Clip;
 class ModControllable;
 
 namespace deluge::hid::display {
@@ -42,6 +43,10 @@ public:
 	/// Main entry point for rendering visualizer
 	/// @param canvas The OLED canvas to render to
 	static void renderVisualizer(oled_canvas::Canvas& canvas);
+
+	/// Render visualizer waveform or spectrum on OLED display (default implementation)
+	/// @param canvas The OLED canvas to render to
+	static void renderVisualizerDefault(oled_canvas::Canvas& canvas);
 
 	/// Render waveform visualization
 	/// @param canvas The OLED canvas to render to
@@ -167,11 +172,39 @@ public:
 	/// @return true if visualizer toggle is enabled
 	static bool isToggleEnabled();
 
+	/// Check if visualizer should display clip-specific audio vs. full mix
+	/// @return true if in clip mode (instrument clip view with Synth/Kit clip)
+	static bool isClipMode();
+
+	/// Check if clip visualizer is actively running
+	/// @param displayVUMeter Whether VU meter is enabled
+	/// @return true if clip visualizer is active
+	static bool isClipVisualizerActive(bool displayVUMeter);
+
+	/// Set the current clip for visualizer (called by UI thread)
+	/// @param clip Pointer to the current clip, or nullptr to clear
+	static void setCurrentClipForVisualizer(Clip* clip);
+
+	/// Get the current clip for visualizer (thread-safe)
+	/// @return Pointer to the current clip, or nullptr
+	static Clip* getCurrentClipForVisualizer();
+
+	/// Display program name popup when entering clip visualizer mode
+	static void displayClipProgramNamePopup();
+
 	/// Sample audio data for visualizer display (waveform, line spectrum, bar spectrum)
 	/// Performs downsampling and stores samples in the circular buffer for display
 	/// @param renderingBuffer The audio buffer to sample from
 	/// @param numSamples Number of samples in the buffer
 	static void sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples);
+
+	/// Sample audio data for clip-specific visualizer display
+	/// Performs downsampling and stores samples in the circular buffer for display
+	/// @param renderingBuffer The audio buffer to sample from
+	/// @param numSamples Number of samples in the buffer
+	/// @param clip Pointer to the clip being sampled
+	static void sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples,
+	                                      Clip* clip);
 
 	/// Get display name for a visualizer mode
 	/// @param mode The visualizer mode
@@ -194,6 +227,12 @@ public:
 
 	/// Whether visualizer toggle is enabled (independent of VU meter)
 	inline static bool visualizer_toggle_enabled = false;
+
+	/// Current clip for visualizer display (thread-safe atomic pointer)
+	inline static std::atomic<Clip*> current_clip_for_visualizer{nullptr};
+
+	/// Track if we've shown the program name popup for the current clip
+	inline static bool clip_program_popup_shown = false;
 
 	/// Visualizer sample buffer and related variables
 	static constexpr size_t kVisualizerBufferSize = 512;
