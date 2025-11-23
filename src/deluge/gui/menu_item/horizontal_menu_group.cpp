@@ -17,8 +17,8 @@
 
 #include "horizontal_menu_group.h"
 #include "deluge/gui/menu_item/submenu.h"
-#include <gui/menu_item/horizontal_menu.h>
-#include <hid/buttons.h>
+#include "gui/menu_item/horizontal_menu.h"
+#include "hid/buttons.h"
 #include <ranges>
 #include <string_view>
 

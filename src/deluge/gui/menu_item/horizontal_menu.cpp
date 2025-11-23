@@ -126,12 +126,15 @@ void HorizontalMenu::renderTitle(const Paging& paging) const {
 	std::string_view title = getTitle();
 
 	// Check if we need to shorten the title
-	if (paging.totalPages > 1 && title.size() > 12) {
-		std::string title_copy(title);
+	if (paging.totalPages > 1) {
+		const uint8_t title_width = OLED::main.getStringWidthInPixels(title.data(), kTextTitleSizeY);
+		constexpr uint8_t paging_width = kTextSpacingX * 2 + 10;
 
-		// Split into words
-		std::vector<std::string> words;
-		{
+		if (title_width > OLED_MAIN_WIDTH_PIXELS - paging_width) {
+			std::string title_copy(title);
+
+			// Split into words
+			std::vector<std::string> words;
 			int32_t start = 0;
 			while (start < title_copy.size()) {
 				// skip leading spaces
@@ -149,11 +152,11 @@ void HorizontalMenu::renderTitle(const Paging& paging) const {
 				words.emplace_back(title_copy.substr(start, end - start));
 				start = end;
 			}
-		}
 
-		if (words.size() == 2) {
 			// Shorten the first word
-			title = std::string(1, words[0][0]) + ". " + words[1];
+			if (words.size() == 2) {
+				title = std::string(1, words[0][0]) + ". " + words[1];
+			}
 		}
 	}
 
@@ -366,7 +369,10 @@ void HorizontalMenu::switchHorizontalMenu(int32_t direction, std::span<Horizonta
 	target_menu->checkPermissionToBeginSession(soundEditor.currentModControllable, soundEditor.currentSourceIndex,
 	                                           &soundEditor.currentMultiRange);
 	target_menu->beginSession(nullptr);
-	target_menu->selectMenuItem(0, 0);
+
+	// For Mod FX menu we want to switch straight to the selected FX's controls that are on the second page
+	auto desired_page = util::one_of<Submenu*>(target_menu, {&modFXMenu, &globalModFXMenu}) ? 1 : 0;
+	target_menu->selectMenuItem(desired_page, 0);
 
 	soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth] = target_menu;
 	renderUIsForOled();
@@ -527,7 +533,7 @@ void HorizontalMenu::updateSelectedMenuItemLED(int32_t itemNumber) const {
 	}
 
 	// Light up all buttons whose columns are covered by the selected item
-	std::vector led_states{false, false, false, false};
+	std::array led_states{false, false, false, false};
 	if (page_items.size() > 1 || page_items[0]->isSubmenu() || page_items[0]->getOccupiedSlots() < 4) {
 		for (int32_t i = 0; i < led_states.size(); ++i) {
 			led_states[i] = i >= start_column && i < end_column;
