@@ -449,8 +449,9 @@ void Visualizer::setCurrentClipForVisualizer(Clip* clip) {
 	Clip* previousClip = current_clip_for_visualizer.load(std::memory_order_acquire);
 	current_clip_for_visualizer.store(clip, std::memory_order_release);
 
-	// Reset popup flag when switching clips
+	// Clear buffer and reset popup flag when switching clips
 	if (clip != previousClip) {
+		clearVisualizerBuffer();
 		clip_program_popup_shown = false;
 	}
 }
@@ -459,6 +460,18 @@ void Visualizer::setCurrentClipForVisualizer(Clip* clip) {
 /// @return Pointer to the current clip, or nullptr
 Clip* Visualizer::getCurrentClipForVisualizer() {
 	return current_clip_for_visualizer.load(std::memory_order_acquire);
+}
+
+/// Clear visualizer buffer (called when switching clips or entering clip view)
+void Visualizer::clearVisualizerBuffer() {
+	// Clear all sample buffers
+	visualizer_sample_buffer_left.fill(0);
+	visualizer_sample_buffer_right.fill(0);
+	visualizer_sample_buffer.fill(0);
+
+	// Reset buffer positions and counts
+	visualizer_write_pos.store(0, std::memory_order_release);
+	visualizer_sample_count.store(0, std::memory_order_release);
 }
 
 /// Get display name for a visualizer mode
