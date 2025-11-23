@@ -45,7 +45,7 @@
 
 namespace deluge::hid::display {
 
-/// Render visualizer waveform or spectrum on OLED display (default implementation)
+/// Render visualizer waveform or spectrum on OLED display
 void Visualizer::renderVisualizerDefault(oled_canvas::Canvas& canvas) {
 	// Check visualizer mode
 	uint32_t visualizer_mode = getMode();
@@ -199,19 +199,18 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 		bool shouldEnable =
 		    (displayVUMeter && modControllable != nullptr && mod_knob_mode == 0) || visualizer_toggle_enabled;
 
-		// Check silence timeout (1 second = ~44100 samples at 44.1kHz)
-		constexpr uint32_t silence_timeout_samples = 44100;
+		// Check silence timeout (0.5 seconds at 44.1kHz)
 		bool isSilent = false;
 
 		if (isClipMode()) {
 			// For clip visualizer, check if this specific clip has been silent for 0.5 seconds
 			uint32_t samplesSinceAudio = AudioEngine::audioSampleTimer - clip_visualizer_last_audio_time;
-			isSilent = (samplesSinceAudio > silence_timeout_samples);
+			isSilent = (samplesSinceAudio > kSilenceTimeoutSamples);
 		}
 		else {
 			// For global visualizer, check if the mix has been silent for 0.5 seconds
 			uint32_t samplesSinceAudio = AudioEngine::audioSampleTimer - global_visualizer_last_audio_time;
-			isSilent = (samplesSinceAudio > silence_timeout_samples);
+			isSilent = (samplesSinceAudio > kSilenceTimeoutSamples);
 		}
 
 		// Don't show visualizer if it's been silent for too long
@@ -270,12 +269,11 @@ void Visualizer::requestVisualizerUpdateIfNeeded(bool displayVUMeter, bool visua
 			display_visualizer = true;
 		}
 
-		// All visualizers use 30fps (frame_skip = 2)
-		constexpr uint32_t frame_skip = 2;
+		// All visualizers use 30fps
 
 		// Request OLED update at 30fps
 		visualizer_frame_counter++;
-		if (visualizer_frame_counter >= frame_skip) {
+		if (visualizer_frame_counter >= kFrameSkip) {
 			visualizer_frame_counter = 0;
 			renderUIsForOled();
 		}
@@ -387,17 +385,13 @@ void Visualizer::sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderin
 	if (isEnabled() && current_clip_for_visualizer.load(std::memory_order_acquire) == nullptr) {
 		// Sample every N-th sample from the audio block for efficiency
 
-		constexpr uint32_t visualizer_sample_interval = 2; // Keep CPU usage modest
-		constexpr uint32_t q31_to_q15_shift = 16;          // Convert Q31 → Q15 (15 fractional bits)
-
 		// Check for silence detection - look for any non-zero samples in this buffer
 		bool hasAudio = false;
-		constexpr int32_t silence_threshold = 1 << 20; // Small threshold to avoid noise floor triggering
 
-		for (size_t i = 0; i < numSamples; i += visualizer_sample_interval) {
+		for (size_t i = 0; i < numSamples; i += kVisualizerSampleInterval) {
 			// Check if either channel has significant audio
-			if (std::abs(renderingBuffer[i].l) > silence_threshold
-			    || std::abs(renderingBuffer[i].r) > silence_threshold) {
+			if (std::abs(renderingBuffer[i].l) > kSilenceThreshold
+			    || std::abs(renderingBuffer[i].r) > kSilenceThreshold) {
 				hasAudio = true;
 				break;
 			}
@@ -408,10 +402,10 @@ void Visualizer::sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderin
 			global_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
 		}
 
-		for (size_t i = 0; i < numSamples; i += visualizer_sample_interval) {
+		for (size_t i = 0; i < numSamples; i += kVisualizerSampleInterval) {
 			// Convert stereo channels to Q15
-			int32_t sample_l = renderingBuffer[i].l >> q31_to_q15_shift;
-			int32_t sample_r = renderingBuffer[i].r >> q31_to_q15_shift;
+			int32_t sample_l = renderingBuffer[i].l >> kQ31ToQ15Shift;
+			int32_t sample_r = renderingBuffer[i].r >> kQ31ToQ15Shift;
 			int32_t combined = (sample_l + sample_r) >> 1;
 
 			// Write into the circular buffers
@@ -448,17 +442,13 @@ void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> rend
 
 		if ((isInClipView || isInKeyboardScreen || holdingClipInSessionView || holdingClipInArrangerView)
 		    && isSynthOrKitClip && isNotInAutomationOverview) {
-			constexpr uint32_t visualizer_sample_interval = 2; // Keep CPU usage modest
-			constexpr uint32_t q31_to_q15_shift = 16;          // Convert Q31 → Q15 (15 fractional bits)
-
 			// Check for silence detection - look for any non-zero samples in this buffer
 			bool hasAudio = false;
-			constexpr int32_t silence_threshold = 1 << 20; // Small threshold to avoid noise floor triggering
 
-			for (size_t i = 0; i < numSamples; i += visualizer_sample_interval) {
+			for (size_t i = 0; i < numSamples; i += kVisualizerSampleInterval) {
 				// Check if either channel has significant audio
-				if (std::abs(renderingBuffer[i].l) > silence_threshold
-				    || std::abs(renderingBuffer[i].r) > silence_threshold) {
+				if (std::abs(renderingBuffer[i].l) > kSilenceThreshold
+				    || std::abs(renderingBuffer[i].r) > kSilenceThreshold) {
 					hasAudio = true;
 					break;
 				}
@@ -469,10 +459,10 @@ void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> rend
 				clip_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
 			}
 
-			for (size_t i = 0; i < numSamples; i += visualizer_sample_interval) {
+			for (size_t i = 0; i < numSamples; i += kVisualizerSampleInterval) {
 				// Convert stereo channels to Q15
-				int32_t sample_l = renderingBuffer[i].l >> q31_to_q15_shift;
-				int32_t sample_r = renderingBuffer[i].r >> q31_to_q15_shift;
+				int32_t sample_l = renderingBuffer[i].l >> kQ31ToQ15Shift;
+				int32_t sample_r = renderingBuffer[i].r >> kQ31ToQ15Shift;
 				int32_t combined = (sample_l + sample_r) >> 1;
 
 				// Write into the circular buffers (reuse existing buffers)
