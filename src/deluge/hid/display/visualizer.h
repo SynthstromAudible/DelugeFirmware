@@ -217,6 +217,11 @@ public:
 	/// @param numSamples Number of samples in the buffer
 	static void sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples);
 
+	/// Helper function to sample audio into the circular buffers
+	/// @param renderingBuffer The audio buffer to sample from
+	/// @param numSamples Number of samples in the buffer
+	static void sampleIntoBuffers(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples);
+
 	/// Sample audio data for clip-specific visualizer display
 	/// Performs downsampling and stores samples in the circular buffer for display
 	/// @param renderingBuffer The audio buffer to sample from
@@ -278,8 +283,7 @@ public:
 	static constexpr uint32_t kQ31ToQ15Shift = 16; // Convert Q31 → Q15 (15 fractional bits)
 
 	/// Frame rate constants
-	static constexpr uint32_t kFrameSkip =
-	    2; // Frame skip for 30fps: (44.1kHz/30fps)/(128 samples/frame) ≈ 11.5, but OLED refresh limits to ~2
+	static constexpr uint32_t kFrameSkip = 2; // Frame skip for 30fps visualizer updates
 
 	/// Visualizer sample buffer and related variables
 	static constexpr size_t kVisualizerBufferSize = 512;

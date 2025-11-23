@@ -221,7 +221,6 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 		}
 
 		// Check silence timeout (1 second at 44.1kHz)
-		// This check runs during OLED rendering (max 30fps) so performance impact is minimal
 		bool isSilent = false;
 
 		if (isClipMode()) {
@@ -400,32 +399,37 @@ bool Visualizer::isToggleEnabled() {
 	return visualizer_toggle_enabled;
 }
 
+/// Helper function to sample audio into the circular buffers
+/// @param renderingBuffer The audio buffer to sample from
+/// @param numSamples Number of samples in the buffer
+void Visualizer::sampleIntoBuffers(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples) {
+	for (size_t i = 0; i < numSamples; i += kVisualizerSampleInterval) {
+		// Convert stereo channels to Q15
+		int32_t sample_l = renderingBuffer[i].l >> kQ31ToQ15Shift;
+		int32_t sample_r = renderingBuffer[i].r >> kQ31ToQ15Shift;
+		int32_t combined = (sample_l + sample_r) >> 1;
+
+		// Write into the circular buffers
+		uint32_t write_pos = visualizer_write_pos.load(std::memory_order_acquire);
+		visualizer_sample_buffer_left[write_pos] = sample_l;
+		visualizer_sample_buffer_right[write_pos] = sample_r;
+		// Keep mono buffer for backward compatibility with existing visualizers
+		visualizer_sample_buffer[write_pos] = combined;
+		visualizer_write_pos.store((write_pos + 1) % kVisualizerBufferSize, std::memory_order_release);
+		if (visualizer_sample_count.load(std::memory_order_acquire) < kVisualizerBufferSize) {
+			visualizer_sample_count.fetch_add(1, std::memory_order_release);
+		}
+	}
+}
+
 void Visualizer::sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples) {
 	// Sample audio for visualizer visualization (downsample for efficiency)
-	// Only sample if visualizer feature is enabled AND not in clip mode (to avoid conflicts with clip-specific
-	// sampling) Check if there's a current clip set for visualization - if so, we're in clip mode and should skip
-	// full mix sampling
+	// Only sample if visualizer feature is enabled and not in clip mode
 	if (isEnabled() && current_clip_for_visualizer.load(std::memory_order_acquire) == nullptr) {
 		// Sample every N-th sample from the audio block for efficiency
 		updateSilenceTimer(renderingBuffer, numSamples, global_visualizer_last_audio_time);
 
-		for (size_t i = 0; i < numSamples; i += kVisualizerSampleInterval) {
-			// Convert stereo channels to Q15
-			int32_t sample_l = renderingBuffer[i].l >> kQ31ToQ15Shift;
-			int32_t sample_r = renderingBuffer[i].r >> kQ31ToQ15Shift;
-			int32_t combined = (sample_l + sample_r) >> 1;
-
-			// Write into the circular buffers
-			uint32_t write_pos = visualizer_write_pos.load(std::memory_order_acquire);
-			visualizer_sample_buffer_left[write_pos] = sample_l;
-			visualizer_sample_buffer_right[write_pos] = sample_r;
-			// Keep mono buffer for backward compatibility with existing visualizers
-			visualizer_sample_buffer[write_pos] = combined;
-			visualizer_write_pos.store((write_pos + 1) % kVisualizerBufferSize, std::memory_order_release);
-			if (visualizer_sample_count.load(std::memory_order_acquire) < kVisualizerBufferSize) {
-				visualizer_sample_count.fetch_add(1, std::memory_order_release);
-			}
-		}
+		sampleIntoBuffers(renderingBuffer, numSamples);
 	}
 }
 
@@ -442,23 +446,7 @@ void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> rend
 		if (isInClipContext() && isSynthOrKitClip && isNotInAutomationOverview) {
 			updateSilenceTimer(renderingBuffer, numSamples, clip_visualizer_last_audio_time);
 
-			for (size_t i = 0; i < numSamples; i += kVisualizerSampleInterval) {
-				// Convert stereo channels to Q15
-				int32_t sample_l = renderingBuffer[i].l >> kQ31ToQ15Shift;
-				int32_t sample_r = renderingBuffer[i].r >> kQ31ToQ15Shift;
-				int32_t combined = (sample_l + sample_r) >> 1;
-
-				// Write into the circular buffers (reuse existing buffers)
-				uint32_t write_pos = visualizer_write_pos.load(std::memory_order_acquire);
-				visualizer_sample_buffer_left[write_pos] = sample_l;
-				visualizer_sample_buffer_right[write_pos] = sample_r;
-				// Keep mono buffer for backward compatibility with existing visualizers
-				visualizer_sample_buffer[write_pos] = combined;
-				visualizer_write_pos.store((write_pos + 1) % kVisualizerBufferSize, std::memory_order_release);
-				if (visualizer_sample_count.load(std::memory_order_acquire) < kVisualizerBufferSize) {
-					visualizer_sample_count.fetch_add(1, std::memory_order_release);
-				}
-			}
+			sampleIntoBuffers(renderingBuffer, numSamples);
 		}
 	}
 }
@@ -549,14 +537,9 @@ void Visualizer::displayClipProgramNamePopup() {
 /// @param clip Pointer to the current clip, or nullptr to clear
 void Visualizer::setCurrentClipForVisualizer(Clip* clip) {
 	Clip* previousClip = current_clip_for_visualizer.load(std::memory_order_acquire);
-	Clip* expected = previousClip;
 
-	// Use compare_exchange to atomically update the clip pointer and check if it changed
-	while (!current_clip_for_visualizer.compare_exchange_weak(expected, clip, std::memory_order_acq_rel)) {
-		// If the exchange failed, expected now contains the actual current value
-		previousClip = expected;
-		expected = previousClip;
-	}
+	// Store new clip value
+	current_clip_for_visualizer.store(clip, std::memory_order_release);
 
 	// Clear buffer and reset popup flag when switching clips
 	if (clip != previousClip) {
