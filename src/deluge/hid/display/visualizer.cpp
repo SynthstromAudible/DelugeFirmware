@@ -21,6 +21,7 @@
 #include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -178,6 +179,11 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, View& 
 /// Check if visualizer should be rendered and render it if conditions are met
 bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool displayVUMeter, bool visualizer_enabled,
                                              ModControllable* modControllable, int32_t mod_knob_mode) {
+	// Don't show visualizer in automation overview mode
+	if (getRootUI() == &automationView && automationView.onAutomationOverview()) {
+		return false;
+	}
+
 	// Check if visualizer feature is enabled in Waveform, Spectrum, or Equalizer mode in runtime settings
 	if (visualizer_enabled) {
 		// Visualizer engages automatically with VU meter (session/arranger only) or when toggle is enabled (all views)
@@ -375,13 +381,15 @@ void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> rend
                                            Clip* clip) {
 	// Sample clip audio for visualizer visualization (same logic as full mix sampling)
 	// Only sample if visualizer is enabled AND in clip view AND this clip matches current clip for visualization
+	// AND not in automation overview mode
 	if (isEnabled() && clip == getCurrentClipForVisualizer()) {
-		// Check if we're in instrument clip view with a Synth/Kit clip
+		// Check if we're in instrument clip view with a Synth/Kit clip, but not in automation overview mode
 		bool isInClipView = (getCurrentUI() == &instrumentClipView);
 		bool isSynthOrKitClip = (clip->type == ClipType::INSTRUMENT
 		                         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT));
+		bool isNotInAutomationOverview = !(getRootUI() == &automationView && automationView.onAutomationOverview());
 
-		if (isInClipView && isSynthOrKitClip) {
+		if (isInClipView && isSynthOrKitClip && isNotInAutomationOverview) {
 			constexpr uint32_t visualizer_sample_interval = 2; // Keep CPU usage modest
 			constexpr uint32_t q31_to_q15_shift = 16;          // Convert Q31 → Q15 (15 fractional bits)
 
@@ -410,6 +418,11 @@ void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> rend
 /// @return true if in clip mode (instrument clip view with Synth/Kit clip)
 bool Visualizer::isClipMode() {
 	if (getCurrentUI() != &instrumentClipView) {
+		return false;
+	}
+
+	// Don't show visualizer in automation overview mode
+	if (getRootUI() == &automationView && automationView.onAutomationOverview()) {
 		return false;
 	}
 
