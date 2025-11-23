@@ -2571,7 +2571,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::Stere
 	// Sample audio for clip-specific visualizer after all effects processing
 	// This is for Synth/Melodic instrument clips (Kit clips use GlobalEffectableForClip::renderOutput)
 	if (modelStack && modelStack->getTimelineCounter()) {
-		Clip* clip = (Clip*)modelStack->getTimelineCounter();
+		// TimelineCounter is guaranteed to be a Clip when processing Sound output
+		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
 		deluge::hid::display::Visualizer::sampleAudioForClipDisplay(sound_stereo, output.size(), clip);
 	}
 

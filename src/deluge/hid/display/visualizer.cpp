@@ -221,6 +221,7 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 		}
 
 		// Check silence timeout (1 second at 44.1kHz)
+		// This check runs during OLED rendering (max 30fps) so performance impact is minimal
 		bool isSilent = false;
 
 		if (isClipMode()) {
@@ -259,7 +260,8 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 	return false;
 }
 
-/// Main entry point for rendering visualizer
+/// Render visualizer waveform or spectrum on OLED display
+/// Handles both global mix and clip-specific visualization modes
 void Visualizer::renderVisualizer(oled_canvas::Canvas& canvas) {
 	// Check if we're in clip mode - if so, force Waveform mode
 	if (isClipMode()) {
@@ -405,23 +407,7 @@ void Visualizer::sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderin
 	// full mix sampling
 	if (isEnabled() && current_clip_for_visualizer.load(std::memory_order_acquire) == nullptr) {
 		// Sample every N-th sample from the audio block for efficiency
-
-		// Check for silence detection - look for any non-zero samples in this buffer
-		bool hasAudio = false;
-
-		for (size_t i = 0; i < numSamples; i += kVisualizerSampleInterval) {
-			// Check if either channel has significant audio
-			if (std::abs(renderingBuffer[i].l) > kSilenceThreshold
-			    || std::abs(renderingBuffer[i].r) > kSilenceThreshold) {
-				hasAudio = true;
-				break;
-			}
-		}
-
-		// Update silence timer if audio detected
-		if (hasAudio) {
-			global_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
-		}
+		updateSilenceTimer(renderingBuffer, numSamples, global_visualizer_last_audio_time);
 
 		for (size_t i = 0; i < numSamples; i += kVisualizerSampleInterval) {
 			// Convert stereo channels to Q15
@@ -445,40 +431,16 @@ void Visualizer::sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderin
 
 void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples,
                                            Clip* clip) {
-	// Sample clip audio for visualizer visualization (same logic as full mix sampling)
-	// Only sample if visualizer is enabled AND in clip view AND this clip matches current clip for visualization
-	// AND not in automation overview mode
+	// Sample clip-specific audio for visualizer display (downsamples and stores in circular buffer)
+	// Only samples when visualizer is enabled and this clip is the current clip being visualized
 	if (isEnabled() && clip == getCurrentClipForVisualizer()) {
-		// Check if we're in instrument clip view, keyboard screen, or holding a clip in Session/Arranger view
-		bool isInClipView = (getCurrentUI() == &instrumentClipView);
-		bool isInKeyboardScreen = (getRootUI() == &keyboardScreen);
-		bool holdingClipInSessionView =
-		    (getCurrentUI() == &sessionView) && (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW);
-		bool holdingClipInArrangerView = (getCurrentUI() == &arrangerView)
-		                                 && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
-		                                     || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION);
+		// Check if we're in clip context and have valid clip type
 		bool isSynthOrKitClip = (clip->type == ClipType::INSTRUMENT
 		                         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT));
 		bool isNotInAutomationOverview = !(getRootUI() == &automationView && automationView.onAutomationOverview());
 
-		if ((isInClipView || isInKeyboardScreen || holdingClipInSessionView || holdingClipInArrangerView)
-		    && isSynthOrKitClip && isNotInAutomationOverview) {
-			// Check for silence detection - look for any non-zero samples in this buffer
-			bool hasAudio = false;
-
-			for (size_t i = 0; i < numSamples; i += kVisualizerSampleInterval) {
-				// Check if either channel has significant audio
-				if (std::abs(renderingBuffer[i].l) > kSilenceThreshold
-				    || std::abs(renderingBuffer[i].r) > kSilenceThreshold) {
-					hasAudio = true;
-					break;
-				}
-			}
-
-			// Update silence timer if audio detected
-			if (hasAudio) {
-				clip_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
-			}
+		if (isInClipContext() && isSynthOrKitClip && isNotInAutomationOverview) {
+			updateSilenceTimer(renderingBuffer, numSamples, clip_visualizer_last_audio_time);
 
 			for (size_t i = 0; i < numSamples; i += kVisualizerSampleInterval) {
 				// Convert stereo channels to Q15
@@ -501,10 +463,32 @@ void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> rend
 	}
 }
 
-/// Check if visualizer should display clip-specific audio vs. full mix
-/// @return true if in clip mode (instrument clip view or keyboard screen with Synth/Kit clip, or holding clip in
-/// Song/Arranger view)
-bool Visualizer::isClipMode() {
+/// Check buffer for audio activity and update silence timer
+/// @param renderingBuffer The audio buffer to check
+/// @param numSamples Number of samples in the buffer
+/// @param lastAudioTime Reference to the timer to update if audio is detected
+void Visualizer::updateSilenceTimer(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples,
+                                    uint32_t& lastAudioTime) {
+	// Check for silence detection - look for any non-zero samples in this buffer
+	bool hasAudio = false;
+
+	for (size_t i = 0; i < numSamples; i += kVisualizerSampleInterval) {
+		// Check if either channel has significant audio
+		if (std::abs(renderingBuffer[i].l) > kSilenceThreshold || std::abs(renderingBuffer[i].r) > kSilenceThreshold) {
+			hasAudio = true;
+			break;
+		}
+	}
+
+	// Update silence timer if audio detected
+	if (hasAudio) {
+		lastAudioTime = AudioEngine::audioSampleTimer;
+	}
+}
+
+/// Check if we're currently in a clip context (clip view, keyboard screen, or holding clip)
+/// @return true if in clip context
+bool Visualizer::isInClipContext() {
 	bool inClipView = (getCurrentUI() == &instrumentClipView);
 	bool inKeyboardScreen = (getRootUI() == &keyboardScreen);
 
@@ -515,7 +499,14 @@ bool Visualizer::isClipMode() {
 	                                 && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
 	                                     || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION);
 
-	if (!inClipView && !inKeyboardScreen && !holdingClipInSessionView && !holdingClipInArrangerView) {
+	return inClipView || inKeyboardScreen || holdingClipInSessionView || holdingClipInArrangerView;
+}
+
+/// Check if visualizer should display clip-specific audio vs. full mix
+/// @return true if in clip mode (instrument clip view or keyboard screen with Synth/Kit clip, or holding clip in
+/// Song/Arranger view). MIDI clips are excluded.
+bool Visualizer::isClipMode() {
+	if (!isInClipContext()) {
 		return false;
 	}
 

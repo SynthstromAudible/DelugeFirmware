@@ -137,7 +137,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	// Sample audio for clip-specific visualizer after all effects processing
 	if (modelStack && modelStack->getTimelineCounter()) {
-		Clip* clip = (Clip*)modelStack->getTimelineCounter();
+		// TimelineCounter is guaranteed to be a Clip in this context (GlobalEffectableForClip)
+		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
 		deluge::hid::display::Visualizer::sampleAudioForClipDisplay(global_effectable_audio, output.size(), clip);
 	}
 	// record before pan/compression/volume to keep volumes consistent
