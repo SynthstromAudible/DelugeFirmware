@@ -75,7 +75,7 @@ public:
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		OLED::main.drawScreenTitle(l10n::getView(l10n::String::STRING_FOR_MOD_FX_TYPE)); // draw title with separator
+		OLED::main.drawHorizontalLine(kScreenTitleSeparatorY, 0, OLED_MAIN_WIDTH_PIXELS - 1);
 		drawPixelsForOled();
 	}
 };

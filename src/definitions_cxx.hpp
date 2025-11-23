@@ -1083,3 +1083,4 @@ enum class StartupSongMode { BLANK, TEMPLATE, LASTOPENED, LASTSAVED };
 constexpr auto kNumStartupSongMode = util::to_underlying(StartupSongMode::LASTSAVED) + 1;
 
 constexpr uint8_t kHorizontalMenuSlotYOffset = 2;
+constexpr uint8_t kScreenTitleSeparatorY = 12 + OLED_MAIN_TOPMOST_PIXEL;
