@@ -22,9 +22,11 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
+#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/display/visualizer/visualizer_bar_spectrum.h"
@@ -432,15 +434,20 @@ void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> rend
 	// Only sample if visualizer is enabled AND in clip view AND this clip matches current clip for visualization
 	// AND not in automation overview mode
 	if (isEnabled() && clip == getCurrentClipForVisualizer()) {
-		// Check if we're in instrument clip view or keyboard screen with a Synth/Kit clip, but not in automation
-		// overview mode
+		// Check if we're in instrument clip view, keyboard screen, or holding a clip in Session/Arranger view
 		bool isInClipView = (getCurrentUI() == &instrumentClipView);
 		bool isInKeyboardScreen = (getRootUI() == &keyboardScreen);
+		bool holdingClipInSessionView =
+		    (getCurrentUI() == &sessionView) && (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW);
+		bool holdingClipInArrangerView = (getCurrentUI() == &arrangerView)
+		                                 && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
+		                                     || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION);
 		bool isSynthOrKitClip = (clip->type == ClipType::INSTRUMENT
 		                         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT));
 		bool isNotInAutomationOverview = !(getRootUI() == &automationView && automationView.onAutomationOverview());
 
-		if ((isInClipView || isInKeyboardScreen) && isSynthOrKitClip && isNotInAutomationOverview) {
+		if ((isInClipView || isInKeyboardScreen || holdingClipInSessionView || holdingClipInArrangerView)
+		    && isSynthOrKitClip && isNotInAutomationOverview) {
 			constexpr uint32_t visualizer_sample_interval = 2; // Keep CPU usage modest
 			constexpr uint32_t q31_to_q15_shift = 16;          // Convert Q31 → Q15 (15 fractional bits)
 
@@ -484,12 +491,20 @@ void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> rend
 }
 
 /// Check if visualizer should display clip-specific audio vs. full mix
-/// @return true if in clip mode (instrument clip view or keyboard screen with Synth/Kit clip)
+/// @return true if in clip mode (instrument clip view or keyboard screen with Synth/Kit clip, or holding clip in
+/// Song/Arranger view)
 bool Visualizer::isClipMode() {
 	bool inClipView = (getCurrentUI() == &instrumentClipView);
 	bool inKeyboardScreen = (getRootUI() == &keyboardScreen);
 
-	if (!inClipView && !inKeyboardScreen) {
+	// Check if we're holding a clip in Session or Arranger view
+	bool holdingClipInSessionView =
+	    (getCurrentUI() == &sessionView) && (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW);
+	bool holdingClipInArrangerView = (getCurrentUI() == &arrangerView)
+	                                 && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
+	                                     || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION);
+
+	if (!inClipView && !inKeyboardScreen && !holdingClipInSessionView && !holdingClipInArrangerView) {
 		return false;
 	}
 
