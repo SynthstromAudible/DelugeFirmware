@@ -189,6 +189,9 @@ public:
 	/// @return Pointer to the current clip, or nullptr
 	static Clip* getCurrentClipForVisualizer();
 
+	/// Clear visualizer buffer (called when switching clips or entering clip view)
+	static void clearVisualizerBuffer();
+
 	/// Display program name popup when entering clip visualizer mode
 	static void displayClipProgramNamePopup();
 
