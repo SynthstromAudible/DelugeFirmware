@@ -172,8 +172,12 @@ public:
 	/// @return true if visualizer toggle is enabled
 	static bool isToggleEnabled();
 
+	/// Check if we're currently in a clip context (clip view, keyboard screen, or holding clip)
+	/// @return true if in clip context
+	static bool isInClipContext();
+
 	/// Check if visualizer should display clip-specific audio vs. full mix
-	/// @return true if in clip mode (instrument clip view with Synth/Kit clip)
+	/// @return true if in clip mode (instrument clip view with Synth/Kit clip, MIDI clips excluded)
 	static bool isClipMode();
 
 	/// Check if clip visualizer is actively running
@@ -209,6 +213,13 @@ public:
 	static void sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples,
 	                                      Clip* clip);
 
+	/// Check buffer for audio activity and update silence timer
+	/// @param renderingBuffer The audio buffer to check
+	/// @param numSamples Number of samples in the buffer
+	/// @param lastAudioTime Reference to the timer to update if audio is detected
+	static void updateSilenceTimer(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples,
+	                               uint32_t& lastAudioTime);
+
 	/// Get display name for a visualizer mode
 	/// @param mode The visualizer mode
 	/// @return String containing the display name
@@ -232,6 +243,7 @@ public:
 	inline static bool visualizer_toggle_enabled = false;
 
 	/// Current clip for visualizer display (thread-safe atomic pointer)
+	/// Written by UI thread in setCurrentClipForVisualizer(), read by both UI and audio threads
 	inline static std::atomic<Clip*> current_clip_for_visualizer{nullptr};
 
 	/// Track if we've shown the program name popup for the current clip
@@ -243,12 +255,19 @@ public:
 	/// Clip visualizer hides after 1 second of silence for that specific clip
 	inline static uint32_t clip_visualizer_last_audio_time = 0;
 
-	/// Visualizer constants
+	/// Silence detection constants
 	static constexpr uint32_t kSilenceTimeoutSamples = 44100; // 1 second at 44.1kHz
-	static constexpr int32_t kSilenceThreshold = 1 << 20;     // Small threshold to avoid noise floor triggering
-	static constexpr uint32_t kVisualizerSampleInterval = 2;  // Sample every N-th sample for efficiency
-	static constexpr uint32_t kQ31ToQ15Shift = 16;            // Convert Q31 → Q15 (15 fractional bits)
-	static constexpr uint32_t kFrameSkip = 2;                 // 30fps (skip every 2nd frame)
+	static constexpr int32_t kSilenceThreshold =
+	    1 << 20; // ~0.0005 in Q31 format (small threshold to avoid noise floor triggering)
+
+	/// Audio sampling constants
+	static constexpr uint32_t kVisualizerSampleInterval =
+	    2;                                         // Sample every N-th sample for efficiency (reduces CPU usage)
+	static constexpr uint32_t kQ31ToQ15Shift = 16; // Convert Q31 → Q15 (15 fractional bits)
+
+	/// Frame rate constants
+	static constexpr uint32_t kFrameSkip =
+	    2; // Frame skip for 30fps: (44.1kHz/30fps)/(128 samples/frame) ≈ 11.5, but OLED refresh limits to ~2
 
 	/// Visualizer sample buffer and related variables
 	static constexpr size_t kVisualizerBufferSize = 512;
@@ -256,7 +275,9 @@ public:
 	inline static std::array<int32_t, kVisualizerBufferSize> visualizer_sample_buffer_right{};
 	// Keep mono buffer for backward compatibility with existing visualizers
 	inline static std::array<int32_t, kVisualizerBufferSize> visualizer_sample_buffer{};
+	/// Current write position in circular buffer (accessed by audio thread)
 	inline static std::atomic<uint32_t> visualizer_write_pos{0};
+	/// Number of valid samples in buffer (accessed by audio thread)
 	inline static std::atomic<uint32_t> visualizer_sample_count{0};
 };
 

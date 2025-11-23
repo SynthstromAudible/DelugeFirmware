@@ -123,7 +123,7 @@ void InstrumentClipMinder::renderOLED(deluge::hid::display::oled_canvas::Canvas&
 		return;
 	}
 
-	// Check if visualizer should be displayed (same conditions as VU meter)
+	// Check if visualizer should be displayed in clip view
 	if (deluge::hid::display::Visualizer::potentiallyRenderVisualizer(canvas)) {
 		return;
 	}
