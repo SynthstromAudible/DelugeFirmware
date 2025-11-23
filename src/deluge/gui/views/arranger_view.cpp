@@ -1212,11 +1212,7 @@ void ArrangerView::interactWithClipInstance(Output* output, int32_t yDisplay, Cl
 
 	// Set current clip for visualizer when holding clip in arranger view
 	// This allows visualizer to show clip-specific waveform when clip is held
-	if (clip && deluge::hid::display::Visualizer::isEnabled() && deluge::hid::display::Visualizer::isToggleEnabled()) {
-		deluge::hid::display::Visualizer::setCurrentClipForVisualizer(clip);
-		// Display instrument name popup when holding clip (if visualizer is active)
-		deluge::hid::display::Visualizer::displayClipProgramNamePopup();
-	}
+	deluge::hid::display::Visualizer::trySetClipForVisualizer(clip);
 }
 
 void ArrangerView::rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance) {
@@ -1727,7 +1723,7 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 
 	if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		// Clear clip visualizer when clip audition ends (return to global visualizer)
-		deluge::hid::display::Visualizer::setCurrentClipForVisualizer(nullptr);
+		deluge::hid::display::Visualizer::clearClipForVisualizer();
 
 		Output* output = outputsOnScreen[yPressedEffective];
 		if (output) {
@@ -1739,7 +1735,7 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 
 	else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
 		// Clear clip visualizer when clip press ends (return to global visualizer)
-		deluge::hid::display::Visualizer::setCurrentClipForVisualizer(nullptr);
+		deluge::hid::display::Visualizer::clearClipForVisualizer();
 
 		// needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
 		// the right model stack with param (otherwise midi follow mode will think you're still in a clip)

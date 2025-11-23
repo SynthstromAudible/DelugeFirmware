@@ -827,12 +827,7 @@ startHoldingDown:
 
 						// Set current clip for visualizer when holding clip in session view
 						// This allows visualizer to show clip-specific waveform when clip is held
-						if (deluge::hid::display::Visualizer::isEnabled()
-						    && deluge::hid::display::Visualizer::isToggleEnabled()) {
-							deluge::hid::display::Visualizer::setCurrentClipForVisualizer(clip);
-							// Display instrument name popup when holding clip (if visualizer is active)
-							deluge::hid::display::Visualizer::displayClipProgramNamePopup();
-						}
+						deluge::hid::display::Visualizer::trySetClipForVisualizer(clip);
 					}
 				}
 
@@ -1107,7 +1102,7 @@ void SessionView::clipPressEnded() {
 
 	// Clear clip visualizer when clip press ends (return to global visualizer)
 	if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-		deluge::hid::display::Visualizer::setCurrentClipForVisualizer(nullptr);
+		deluge::hid::display::Visualizer::clearClipForVisualizer();
 	}
 
 	// needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
@@ -4263,12 +4258,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 						view.setActiveModControllableTimelineCounter(clip);
 
 						// Set current clip for visualizer when holding clip in session view (grid mode)
-						if (deluge::hid::display::Visualizer::isEnabled()
-						    && deluge::hid::display::Visualizer::isToggleEnabled()) {
-							deluge::hid::display::Visualizer::setCurrentClipForVisualizer(clip);
-							// Display instrument name popup when holding clip (if visualizer is active)
-							deluge::hid::display::Visualizer::displayClipProgramNamePopup();
-						}
+						deluge::hid::display::Visualizer::trySetClipForVisualizer(clip);
 					}
 				}
 
@@ -4348,11 +4338,7 @@ ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y
 			view.setActiveModControllableTimelineCounter(clip);
 
 			// Set current clip for visualizer when holding clip in session view (grid launch mode)
-			if (deluge::hid::display::Visualizer::isEnabled() && deluge::hid::display::Visualizer::isToggleEnabled()) {
-				deluge::hid::display::Visualizer::setCurrentClipForVisualizer(clip);
-				// Display instrument name popup when holding clip (if visualizer is active)
-				deluge::hid::display::Visualizer::displayClipProgramNamePopup();
-			}
+			deluge::hid::display::Visualizer::trySetClipForVisualizer(clip);
 		}
 		// Special case, if there are already selected pads we allow immediate arming all others
 		else {

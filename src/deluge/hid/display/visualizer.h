@@ -199,6 +199,18 @@ public:
 	/// Display program name popup when entering clip visualizer mode
 	static void displayClipProgramNamePopup();
 
+	/// Check if clip visualizer should be activated for a given clip
+	/// @param clip Pointer to the clip to check
+	/// @return true if clip visualizer should be activated
+	static bool shouldActivateClipVisualizer(Clip* clip);
+
+	/// Try to set the current clip for visualizer if conditions are met
+	/// @param clip Pointer to the clip to set, or nullptr to clear
+	static void trySetClipForVisualizer(Clip* clip);
+
+	/// Clear the current clip for visualizer (safe cleanup function)
+	static void clearClipForVisualizer();
+
 	/// Sample audio data for visualizer display (waveform, line spectrum, bar spectrum)
 	/// Performs downsampling and stores samples in the circular buffer for display
 	/// @param renderingBuffer The audio buffer to sample from

@@ -181,15 +181,9 @@ void InstrumentClipView::focusRegained() {
 	InstrumentClipMinder::focusRegained();
 
 	// Set current clip for visualizer when entering clip view
-	deluge::hid::display::Visualizer::setCurrentClipForVisualizer(getCurrentClip());
+	deluge::hid::display::Visualizer::trySetClipForVisualizer(getCurrentClip());
 
 	setLedStates();
-
-	// Show program name popup when entering clip view if visualizer is active
-	// Do this after other UI setup to ensure popup displays correctly
-	if (deluge::hid::display::Visualizer::isClipVisualizerActive(false)) {
-		deluge::hid::display::Visualizer::displayClipProgramNamePopup();
-	}
 }
 
 void InstrumentClipView::displayOrLanguageChanged() {
