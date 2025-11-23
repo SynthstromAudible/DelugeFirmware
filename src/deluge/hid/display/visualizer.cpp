@@ -197,6 +197,26 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 		bool shouldEnable =
 		    (displayVUMeter && modControllable != nullptr && mod_knob_mode == 0) || visualizer_toggle_enabled;
 
+		// Check silence timeout (1 second = ~44100 samples at 44.1kHz)
+		constexpr uint32_t silence_timeout_samples = 44100;
+		bool isSilent = false;
+
+		if (isClipMode()) {
+			// For clip visualizer, check if this specific clip has been silent for 0.5 seconds
+			uint32_t samplesSinceAudio = AudioEngine::audioSampleTimer - clip_visualizer_last_audio_time;
+			isSilent = (samplesSinceAudio > silence_timeout_samples);
+		}
+		else {
+			// For global visualizer, check if the mix has been silent for 0.5 seconds
+			uint32_t samplesSinceAudio = AudioEngine::audioSampleTimer - global_visualizer_last_audio_time;
+			isSilent = (samplesSinceAudio > silence_timeout_samples);
+		}
+
+		// Don't show visualizer if it's been silent for too long
+		if (isSilent) {
+			shouldEnable = false;
+		}
+
 		if (shouldEnable) {
 			if (!display_visualizer) {
 				display_visualizer = true;
@@ -271,6 +291,10 @@ void Visualizer::reset() {
 	// and only reset when loading a new song
 	visualizer_frame_counter = 0;
 	clip_program_popup_shown = false;
+
+	// Initialize silence timers to current time to prevent immediate timeout
+	global_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
+	clip_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
 
 	// Clear clip visualizer state when switching views
 	// (this will be called when exiting clip view or switching to other views)
@@ -364,6 +388,24 @@ void Visualizer::sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderin
 		constexpr uint32_t visualizer_sample_interval = 2; // Keep CPU usage modest
 		constexpr uint32_t q31_to_q15_shift = 16;          // Convert Q31 → Q15 (15 fractional bits)
 
+		// Check for silence detection - look for any non-zero samples in this buffer
+		bool hasAudio = false;
+		constexpr int32_t silence_threshold = 1 << 20; // Small threshold to avoid noise floor triggering
+
+		for (size_t i = 0; i < numSamples; i += visualizer_sample_interval) {
+			// Check if either channel has significant audio
+			if (std::abs(renderingBuffer[i].l) > silence_threshold
+			    || std::abs(renderingBuffer[i].r) > silence_threshold) {
+				hasAudio = true;
+				break;
+			}
+		}
+
+		// Update silence timer if audio detected
+		if (hasAudio) {
+			global_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
+		}
+
 		for (size_t i = 0; i < numSamples; i += visualizer_sample_interval) {
 			// Convert stereo channels to Q15
 			int32_t sample_l = renderingBuffer[i].l >> q31_to_q15_shift;
@@ -401,6 +443,24 @@ void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> rend
 		if ((isInClipView || isInKeyboardScreen) && isSynthOrKitClip && isNotInAutomationOverview) {
 			constexpr uint32_t visualizer_sample_interval = 2; // Keep CPU usage modest
 			constexpr uint32_t q31_to_q15_shift = 16;          // Convert Q31 → Q15 (15 fractional bits)
+
+			// Check for silence detection - look for any non-zero samples in this buffer
+			bool hasAudio = false;
+			constexpr int32_t silence_threshold = 1 << 20; // Small threshold to avoid noise floor triggering
+
+			for (size_t i = 0; i < numSamples; i += visualizer_sample_interval) {
+				// Check if either channel has significant audio
+				if (std::abs(renderingBuffer[i].l) > silence_threshold
+				    || std::abs(renderingBuffer[i].r) > silence_threshold) {
+					hasAudio = true;
+					break;
+				}
+			}
+
+			// Update silence timer if audio detected
+			if (hasAudio) {
+				clip_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
+			}
 
 			for (size_t i = 0; i < numSamples; i += visualizer_sample_interval) {
 				// Convert stereo channels to Q15
@@ -497,6 +557,10 @@ void Visualizer::clearVisualizerBuffer() {
 	// Reset buffer positions and counts
 	visualizer_write_pos.store(0, std::memory_order_release);
 	visualizer_sample_count.store(0, std::memory_order_release);
+
+	// Reset silence timers when clearing buffer (typically when switching clips)
+	global_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
+	clip_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
 }
 
 /// Get display name for a visualizer mode

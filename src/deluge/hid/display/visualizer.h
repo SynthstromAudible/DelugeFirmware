@@ -237,6 +237,12 @@ public:
 	/// Track if we've shown the program name popup for the current clip
 	inline static bool clip_program_popup_shown = false;
 
+	/// Silence detection timers (in audio samples)
+	/// Global visualizer hides after 0.5 seconds of silence
+	inline static uint32_t global_visualizer_last_audio_time = 0;
+	/// Clip visualizer hides after 0.5 seconds of silence for that specific clip
+	inline static uint32_t clip_visualizer_last_audio_time = 0;
+
 	/// Visualizer sample buffer and related variables
 	static constexpr size_t kVisualizerBufferSize = 512;
 	inline static std::array<int32_t, kVisualizerBufferSize> visualizer_sample_buffer_left{};
