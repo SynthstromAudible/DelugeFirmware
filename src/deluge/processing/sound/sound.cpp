@@ -24,6 +24,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/visualizer.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/midi/midi_engine.h"
@@ -2566,6 +2567,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::Stere
 	processFX(sound_stereo, modFXType_, modFXRate, modFXDepth, delayWorkingState, &postFXVolume, paramManager,
 	          !voices_.empty(), reverbSendAmount >> 1);
 	processStutter(sound_stereo, paramManager);
+
+	// Sample audio for clip-specific visualizer after all effects processing
+	// This is for Synth/Melodic instrument clips (Kit clips use GlobalEffectableForClip::renderOutput)
+	if (modelStack && modelStack->getTimelineCounter()) {
+		Clip* clip = (Clip*)modelStack->getTimelineCounter();
+		deluge::hid::display::Visualizer::sampleAudioForClipDisplay(sound_stereo, output.size(), clip);
+	}
 
 	processReverbSendAndVolume(sound_stereo, reverbBuffer, postFXVolume, postReverbVolume, reverbSendAmount, 0, true);
 

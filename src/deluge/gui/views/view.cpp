@@ -1500,27 +1500,32 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 		if (on) {
 
 			if (isUIModeWithinRange(modButtonUIModes) || (rootUI == &performanceView)) {
-				// only displaying VU meter in session view, arranger view, performance view and arranger automation
-				// view
-				if (!rootUIIsClipMinderScreen()) {
-					// are we pressing the same button that is currently selected
-					if (*activeModControllableModelStack.modControllable->getModKnobMode() == whichButton) {
-						// you just pressed the volume mod button and it was already selected previously
-						// toggle displaying VU Meter and visualizer on / off
-						if (whichButton == 0) {
-							// Store previous state to determine if we need to refresh OLED when disabling
-							bool visualizer_enabled = deluge::hid::display::Visualizer::isEnabled();
-							bool visualizer_was_displayed =
-							    deluge::hid::display::Visualizer::isDisplaying() && visualizer_enabled;
+				// are we pressing the same button that is currently selected
+				if (*activeModControllableModelStack.modControllable->getModKnobMode() == whichButton) {
+					// you just pressed the volume mod button and it was already selected previously
+					// toggle displaying VU Meter and visualizer on / off
+					if (whichButton == 0) {
+						// Store previous state to determine if we need to refresh OLED when disabling
+						bool visualizer_enabled = deluge::hid::display::Visualizer::isEnabled();
+						bool visualizer_was_displayed =
+						    deluge::hid::display::Visualizer::isDisplaying() && visualizer_enabled;
+
+						// VU meter toggle only works in session/arranger views where VU meters can be displayed
+						if (getCurrentUI() == &instrumentClipView) {
+							// VU meters cannot be displayed in clip view - do nothing
+							return;
+						}
+						else {
+							// In session/arranger views, toggle VU meter which controls visualizer
 							displayVUMeter = !displayVUMeter;
-							// Visualizer follows VU meter toggle only if visualizer feature is enabled in an active
-							// mode
+							// Visualizer follows VU meter toggle only if visualizer feature is enabled
 							deluge::hid::display::Visualizer::setEnabled(displayVUMeter && visualizer_enabled);
-							// Refresh OLED if visualizer was previously displayed (need to show normal view when
-							// disabling)
-							if (visualizer_was_displayed) {
-								renderUIsForOled();
-							}
+						}
+
+						// Refresh OLED if visualizer was previously displayed (need to show normal view when
+						// disabling)
+						if (visualizer_was_displayed) {
+							renderUIsForOled();
 						}
 					}
 					// refresh sidebar if VU meter previously rendered is still showing

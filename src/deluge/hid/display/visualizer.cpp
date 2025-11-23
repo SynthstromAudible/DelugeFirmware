@@ -16,11 +16,14 @@
  */
 
 #include "hid/display/visualizer.h"
+#include "deluge/model/clip/clip.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
+#include "hid/display/display.h"
 #include "hid/display/visualizer/visualizer_bar_spectrum.h"
 #include "hid/display/visualizer/visualizer_cube.h"
 #include "hid/display/visualizer/visualizer_line_spectrum.h"
@@ -37,8 +40,8 @@
 
 namespace deluge::hid::display {
 
-/// Render visualizer waveform or spectrum on OLED display
-void Visualizer::renderVisualizer(oled_canvas::Canvas& canvas) {
+/// Render visualizer waveform or spectrum on OLED display (default implementation)
+void Visualizer::renderVisualizerDefault(oled_canvas::Canvas& canvas) {
 	// Check visualizer mode
 	uint32_t visualizer_mode = getMode();
 
@@ -177,8 +180,11 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
                                              ModControllable* modControllable, int32_t mod_knob_mode) {
 	// Check if visualizer feature is enabled in Waveform, Spectrum, or Equalizer mode in runtime settings
 	if (visualizer_enabled) {
-		// Visualizer engages automatically with VU meter or when toggle is enabled
-		if ((displayVUMeter && modControllable != nullptr && mod_knob_mode == 0) || visualizer_toggle_enabled) {
+		// Visualizer engages automatically with VU meter (session/arranger only) or when toggle is enabled (all views)
+		bool shouldEnable =
+		    (displayVUMeter && modControllable != nullptr && mod_knob_mode == 0) || visualizer_toggle_enabled;
+
+		if (shouldEnable) {
 			if (!display_visualizer) {
 				display_visualizer = true;
 			}
@@ -188,10 +194,27 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 	}
 
 	// If visualizer should be displayed but conditions aren't met, disable it
-	if (display_visualizer && (!visualizer_enabled || (!displayVUMeter && !visualizer_toggle_enabled))) {
+	bool shouldDisable = !visualizer_enabled || (!displayVUMeter && !visualizer_toggle_enabled);
+
+	if (display_visualizer && shouldDisable) {
 		display_visualizer = false;
+		// Reset popup flag when visualizer is disabled
+		clip_program_popup_shown = false;
 	}
 	return false;
+}
+
+/// Main entry point for rendering visualizer
+void Visualizer::renderVisualizer(oled_canvas::Canvas& canvas) {
+	// Check if we're in clip mode - if so, force Waveform mode
+	if (isClipMode()) {
+		// Always use Waveform mode in clip view
+		::deluge::hid::display::renderVisualizerWaveform(canvas);
+		return;
+	}
+
+	// Normal mode selection for session/arranger views - delegate to default implementation
+	renderVisualizerDefault(canvas);
 }
 
 /// Request OLED refresh for visualizer if active
@@ -234,6 +257,11 @@ void Visualizer::reset() {
 	// Don't reset session_visualizer_mode here - it should persist within the same song
 	// and only reset when loading a new song
 	visualizer_frame_counter = 0;
+	clip_program_popup_shown = false;
+
+	// Clear clip visualizer state when switching views
+	// (this will be called when exiting clip view or switching to other views)
+	setCurrentClipForVisualizer(nullptr);
 }
 
 void Visualizer::setEnabled(bool enabled) {
@@ -314,8 +342,10 @@ bool Visualizer::isToggleEnabled() {
 
 void Visualizer::sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples) {
 	// Sample audio for visualizer visualization (downsample for efficiency)
-	// Only sample if visualizer feature is enabled in Waveform, Spectrum, or Equalizer mode to save CPU cycles
-	if (isEnabled()) {
+	// Only sample if visualizer feature is enabled AND not in clip mode (to avoid conflicts with clip-specific
+	// sampling) Check if there's a current clip set for visualization - if so, we're in clip mode and should skip
+	// full mix sampling
+	if (isEnabled() && current_clip_for_visualizer.load(std::memory_order_acquire) == nullptr) {
 		// Sample every N-th sample from the audio block for efficiency
 
 		constexpr uint32_t visualizer_sample_interval = 2; // Keep CPU usage modest
@@ -339,6 +369,96 @@ void Visualizer::sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderin
 			}
 		}
 	}
+}
+
+void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples,
+                                           Clip* clip) {
+	// Sample clip audio for visualizer visualization (same logic as full mix sampling)
+	// Only sample if visualizer is enabled AND in clip view AND this clip matches current clip for visualization
+	if (isEnabled() && clip == getCurrentClipForVisualizer()) {
+		// Check if we're in instrument clip view with a Synth/Kit clip
+		bool isInClipView = (getCurrentUI() == &instrumentClipView);
+		bool isSynthOrKitClip = (clip->type == ClipType::INSTRUMENT
+		                         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT));
+
+		if (isInClipView && isSynthOrKitClip) {
+			constexpr uint32_t visualizer_sample_interval = 2; // Keep CPU usage modest
+			constexpr uint32_t q31_to_q15_shift = 16;          // Convert Q31 → Q15 (15 fractional bits)
+
+			for (size_t i = 0; i < numSamples; i += visualizer_sample_interval) {
+				// Convert stereo channels to Q15
+				int32_t sample_l = renderingBuffer[i].l >> q31_to_q15_shift;
+				int32_t sample_r = renderingBuffer[i].r >> q31_to_q15_shift;
+				int32_t combined = (sample_l + sample_r) >> 1;
+
+				// Write into the circular buffers (reuse existing buffers)
+				uint32_t write_pos = visualizer_write_pos.load(std::memory_order_acquire);
+				visualizer_sample_buffer_left[write_pos] = sample_l;
+				visualizer_sample_buffer_right[write_pos] = sample_r;
+				// Keep mono buffer for backward compatibility with existing visualizers
+				visualizer_sample_buffer[write_pos] = combined;
+				visualizer_write_pos.store((write_pos + 1) % kVisualizerBufferSize, std::memory_order_release);
+				if (visualizer_sample_count.load(std::memory_order_acquire) < kVisualizerBufferSize) {
+					visualizer_sample_count.fetch_add(1, std::memory_order_release);
+				}
+			}
+		}
+	}
+}
+
+/// Check if visualizer should display clip-specific audio vs. full mix
+/// @return true if in clip mode (instrument clip view with Synth/Kit clip)
+bool Visualizer::isClipMode() {
+	if (getCurrentUI() != &instrumentClipView) {
+		return false;
+	}
+
+	Clip* currentClip = getCurrentClipForVisualizer();
+	if (!currentClip) {
+		return false;
+	}
+
+	// Only enable for Instrument clips with Synth/Kit outputs
+	return (currentClip->type == ClipType::INSTRUMENT
+	        && (currentClip->output->type == OutputType::SYNTH || currentClip->output->type == OutputType::KIT));
+}
+
+/// Check if clip visualizer is actively running
+/// @param displayVUMeter Whether VU meter is enabled
+/// @return true if clip visualizer is active
+bool Visualizer::isClipVisualizerActive(bool displayVUMeter) {
+	return isClipMode() && isEnabled() && (displayVUMeter || visualizer_toggle_enabled);
+}
+
+/// Display program name popup when entering clip visualizer mode
+void Visualizer::displayClipProgramNamePopup() {
+	Clip* currentClip = getCurrentClipForVisualizer();
+	if (currentClip && currentClip->output) {
+		// Get the program name from the output
+		std::string_view programName = currentClip->output->name.get();
+		if (!programName.empty()) {
+			::display->displayPopup(programName.data());
+		}
+	}
+	clip_program_popup_shown = true;
+}
+
+/// Set the current clip for visualizer (called by UI thread)
+/// @param clip Pointer to the current clip, or nullptr to clear
+void Visualizer::setCurrentClipForVisualizer(Clip* clip) {
+	Clip* previousClip = current_clip_for_visualizer.load(std::memory_order_acquire);
+	current_clip_for_visualizer.store(clip, std::memory_order_release);
+
+	// Reset popup flag when switching clips
+	if (clip != previousClip) {
+		clip_program_popup_shown = false;
+	}
+}
+
+/// Get the current clip for visualizer (thread-safe)
+/// @return Pointer to the current clip, or nullptr
+Clip* Visualizer::getCurrentClipForVisualizer() {
+	return current_clip_for_visualizer.load(std::memory_order_acquire);
 }
 
 /// Get display name for a visualizer mode

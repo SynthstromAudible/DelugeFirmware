@@ -45,6 +45,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/visualizer.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
@@ -179,7 +180,16 @@ void InstrumentClipView::focusRegained() {
 
 	InstrumentClipMinder::focusRegained();
 
+	// Set current clip for visualizer when entering clip view
+	deluge::hid::display::Visualizer::setCurrentClipForVisualizer(getCurrentClip());
+
 	setLedStates();
+
+	// Show program name popup when entering clip view if visualizer is active
+	// Do this after other UI setup to ensure popup displays correctly
+	if (deluge::hid::display::Visualizer::isClipVisualizerActive(false)) {
+		deluge::hid::display::Visualizer::displayClipProgramNamePopup();
+	}
 }
 
 void InstrumentClipView::displayOrLanguageChanged() {
@@ -6959,6 +6969,10 @@ void InstrumentClipView::graphicsRoutine() {
 			}
 		}
 	}
+
+	// Request OLED refresh for visualizer if active (ensures continuous updates)
+	deluge::hid::display::Visualizer::requestVisualizerUpdateIfNeeded();
+
 	PadLEDs::setTickSquares(tickSquares, colours);
 }
 
