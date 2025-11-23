@@ -549,7 +549,14 @@ void Visualizer::displayClipProgramNamePopup() {
 /// @param clip Pointer to the current clip, or nullptr to clear
 void Visualizer::setCurrentClipForVisualizer(Clip* clip) {
 	Clip* previousClip = current_clip_for_visualizer.load(std::memory_order_acquire);
-	current_clip_for_visualizer.store(clip, std::memory_order_release);
+	Clip* expected = previousClip;
+
+	// Use compare_exchange to atomically update the clip pointer and check if it changed
+	while (!current_clip_for_visualizer.compare_exchange_weak(expected, clip, std::memory_order_acq_rel)) {
+		// If the exchange failed, expected now contains the actual current value
+		previousClip = expected;
+		expected = previousClip;
+	}
 
 	// Clear buffer and reset popup flag when switching clips
 	if (clip != previousClip) {
@@ -578,6 +585,27 @@ void Visualizer::clearVisualizerBuffer() {
 	// Reset silence timers when clearing buffer (typically when switching clips)
 	global_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
 	clip_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
+}
+
+/// Check if clip visualizer should be activated for a given clip
+/// @param clip Pointer to the clip to check
+/// @return true if clip visualizer should be activated
+bool Visualizer::shouldActivateClipVisualizer(Clip* clip) {
+	return clip && isEnabled() && isToggleEnabled();
+}
+
+/// Try to set the current clip for visualizer if conditions are met
+/// @param clip Pointer to the clip to set, or nullptr to clear
+void Visualizer::trySetClipForVisualizer(Clip* clip) {
+	if (shouldActivateClipVisualizer(clip)) {
+		setCurrentClipForVisualizer(clip);
+		displayClipProgramNamePopup();
+	}
+}
+
+/// Clear the current clip for visualizer (safe cleanup function)
+void Visualizer::clearClipForVisualizer() {
+	setCurrentClipForVisualizer(nullptr);
 }
 
 /// Get display name for a visualizer mode

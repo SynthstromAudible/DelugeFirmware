@@ -789,7 +789,7 @@ void KeyboardScreen::openedInBackground() {
 	getCurrentInstrumentClip()->onKeyboardScreen = true;
 
 	// Set current clip for visualizer when entering keyboard screen
-	deluge::hid::display::Visualizer::setCurrentClipForVisualizer(getCurrentInstrumentClip());
+	deluge::hid::display::Visualizer::trySetClipForVisualizer(getCurrentInstrumentClip());
 
 	// Ensure scroll values are calculated in bounds
 	layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false, pressedPads,
