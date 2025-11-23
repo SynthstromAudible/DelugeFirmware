@@ -199,6 +199,27 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 		bool shouldEnable =
 		    (displayVUMeter && modControllable != nullptr && mod_knob_mode == 0) || visualizer_toggle_enabled;
 
+		// Check if we're in a clip context (clip view or holding clip) - if so, only allow for SYNTH/KIT clips
+		Clip* currentClip = getCurrentClipForVisualizer();
+		if (currentClip && shouldEnable) {
+			bool inClipView = (getCurrentUI() == &instrumentClipView);
+			bool inKeyboardScreen = (getRootUI() == &keyboardScreen);
+			bool holdingClipInSessionView =
+			    (getCurrentUI() == &sessionView) && (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW);
+			bool holdingClipInArrangerView = (getCurrentUI() == &arrangerView)
+			                                 && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
+			                                     || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION);
+
+			if (inClipView || inKeyboardScreen || holdingClipInSessionView || holdingClipInArrangerView) {
+				// Don't show visualizer for MIDI/CV clips in clip contexts
+				if (!(currentClip->type == ClipType::INSTRUMENT
+				      && (currentClip->output->type == OutputType::SYNTH
+				          || currentClip->output->type == OutputType::KIT))) {
+					shouldEnable = false;
+				}
+			}
+		}
+
 		// Check silence timeout (1 second at 44.1kHz)
 		bool isSilent = false;
 
