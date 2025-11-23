@@ -23,6 +23,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/display/visualizer/visualizer_bar_spectrum.h"
@@ -181,6 +182,11 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
                                              ModControllable* modControllable, int32_t mod_knob_mode) {
 	// Don't show visualizer in automation overview mode
 	if (getRootUI() == &automationView && automationView.onAutomationOverview()) {
+		return false;
+	}
+
+	// Don't show visualizer in performance mode
+	if (getRootUI() == &performanceView) {
 		return false;
 	}
 
