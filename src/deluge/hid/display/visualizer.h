@@ -238,13 +238,13 @@ public:
 	inline static bool clip_program_popup_shown = false;
 
 	/// Silence detection timers (in audio samples)
-	/// Global visualizer hides after 0.5 seconds of silence
+	/// Global visualizer hides after 1 second of silence
 	inline static uint32_t global_visualizer_last_audio_time = 0;
-	/// Clip visualizer hides after 0.5 seconds of silence for that specific clip
+	/// Clip visualizer hides after 1 second of silence for that specific clip
 	inline static uint32_t clip_visualizer_last_audio_time = 0;
 
 	/// Visualizer constants
-	static constexpr uint32_t kSilenceTimeoutSamples = 22050; // 0.5 seconds at 44.1kHz
+	static constexpr uint32_t kSilenceTimeoutSamples = 44100; // 1 second at 44.1kHz
 	static constexpr int32_t kSilenceThreshold = 1 << 20;     // Small threshold to avoid noise floor triggering
 	static constexpr uint32_t kVisualizerSampleInterval = 2;  // Sample every N-th sample for efficiency
 	static constexpr uint32_t kQ31ToQ15Shift = 16;            // Convert Q31 → Q15 (15 fractional bits)

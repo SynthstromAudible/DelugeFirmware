@@ -199,16 +199,16 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 		bool shouldEnable =
 		    (displayVUMeter && modControllable != nullptr && mod_knob_mode == 0) || visualizer_toggle_enabled;
 
-		// Check silence timeout (0.5 seconds at 44.1kHz)
+		// Check silence timeout (1 second at 44.1kHz)
 		bool isSilent = false;
 
 		if (isClipMode()) {
-			// For clip visualizer, check if this specific clip has been silent for 0.5 seconds
+			// For clip visualizer, check if this specific clip has been silent for 1 second
 			uint32_t samplesSinceAudio = AudioEngine::audioSampleTimer - clip_visualizer_last_audio_time;
 			isSilent = (samplesSinceAudio > kSilenceTimeoutSamples);
 		}
 		else {
-			// For global visualizer, check if the mix has been silent for 0.5 seconds
+			// For global visualizer, check if the mix has been silent for 1 second
 			uint32_t samplesSinceAudio = AudioEngine::audioSampleTimer - global_visualizer_last_audio_time;
 			isSilent = (samplesSinceAudio > kSilenceTimeoutSamples);
 		}
