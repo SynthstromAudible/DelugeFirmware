@@ -824,6 +824,15 @@ startHoldingDown:
 						selectedClipTimePressed = AudioEngine::audioSampleTimer;
 						view.setActiveModControllableTimelineCounter(clip);
 						view.displayOutputName(clip->output, true, clip);
+
+						// Set current clip for visualizer when holding clip in session view
+						// This allows visualizer to show clip-specific waveform when clip is held
+						if (deluge::hid::display::Visualizer::isEnabled()
+						    && deluge::hid::display::Visualizer::isToggleEnabled()) {
+							deluge::hid::display::Visualizer::setCurrentClipForVisualizer(clip);
+							// Display instrument name popup when holding clip (if visualizer is active)
+							deluge::hid::display::Visualizer::displayClipProgramNamePopup();
+						}
 					}
 				}
 
@@ -1095,6 +1104,12 @@ void SessionView::clipPressEnded() {
 	if (currentUIMode == UI_MODE_EXPLODE_ANIMATION) {
 		return;
 	}
+
+	// Clear clip visualizer when clip press ends (return to global visualizer)
+	if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+		deluge::hid::display::Visualizer::setCurrentClipForVisualizer(nullptr);
+	}
+
 	// needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
 	// the right model stack with param (otherwise midi follow mode will think you're still in a clip)
 	selectedClipYDisplay = 255;
@@ -4246,6 +4261,14 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 						// this needs to be called after the current clip is set in order to ensure that
 						// if midi follow feedback is enabled, it sends feedback for the right clip
 						view.setActiveModControllableTimelineCounter(clip);
+
+						// Set current clip for visualizer when holding clip in session view (grid mode)
+						if (deluge::hid::display::Visualizer::isEnabled()
+						    && deluge::hid::display::Visualizer::isToggleEnabled()) {
+							deluge::hid::display::Visualizer::setCurrentClipForVisualizer(clip);
+							// Display instrument name popup when holding clip (if visualizer is active)
+							deluge::hid::display::Visualizer::displayClipProgramNamePopup();
+						}
 					}
 				}
 
@@ -4323,6 +4346,13 @@ ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y
 			// this needs to be called after the current clip is set in order to ensure that
 			// if midi follow feedback is enabled, it sends feedback for the right clip
 			view.setActiveModControllableTimelineCounter(clip);
+
+			// Set current clip for visualizer when holding clip in session view (grid launch mode)
+			if (deluge::hid::display::Visualizer::isEnabled() && deluge::hid::display::Visualizer::isToggleEnabled()) {
+				deluge::hid::display::Visualizer::setCurrentClipForVisualizer(clip);
+				// Display instrument name popup when holding clip (if visualizer is active)
+				deluge::hid::display::Visualizer::displayClipProgramNamePopup();
+			}
 		}
 		// Special case, if there are already selected pads we allow immediate arming all others
 		else {
