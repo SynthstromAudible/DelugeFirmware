@@ -110,19 +110,39 @@ static void SetupVisualizerSetting(RuntimeFeatureSetting& setting, deluge::l10n:
 
 	setting.options = {
 	    {
-	        .displayName = "Off",
+	        .displayName = "OFF",
 	        .value = RuntimeFeatureStateVisualizer::VisualizerOff,
 	    },
 	    {
-	        .displayName = display->haveOLED() ? "Waveform" : "WAVE",
+	        .displayName = "WAVEFORM",
 	        .value = RuntimeFeatureStateVisualizer::VisualizerWaveform,
 	    },
 	    {
-	        .displayName = display->haveOLED() ? "Line Spectrum" : "SPEC",
+	        .displayName = "LINE SPECTRUM",
 	        .value = RuntimeFeatureStateVisualizer::VisualizerLineSpectrum,
 	    },
 	    {
-	        .displayName = display->haveOLED() ? "MIDI Piano Roll" : "MIDI",
+	        .displayName = "BAR SPECTRUM",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerBarSpectrum,
+	    },
+	    {
+	        .displayName = "CUBE",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerCube,
+	    },
+	    {
+	        .displayName = "STEREO LINE SPECTRUM",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerStereoLineSpectrum,
+	    },
+	    {
+	        .displayName = "STARFIELD",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerStarfield,
+	    },
+	    {
+	        .displayName = "SKYLINE",
+	        .value = RuntimeFeatureStateVisualizer::VisualizerSkyline,
+	    },
+	    {
+	        .displayName = "MIDI PIANO ROLL",
 	        .value = RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll,
 	    },
 	};
