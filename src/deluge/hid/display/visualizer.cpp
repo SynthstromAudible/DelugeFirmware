@@ -293,6 +293,32 @@ void Visualizer::requestVisualizerUpdateIfNeeded(View& view) {
 void Visualizer::requestVisualizerUpdateIfNeeded(bool displayVUMeter, bool visualizer_enabled) {
 	// Check if visualizer should be active (VU meter conditions OR toggle conditions)
 	if (visualizer_enabled && (displayVUMeter || visualizer_toggle_enabled)) {
+		// Check silence timeout (1 second at 44.1kHz) - don't refresh OLED if silent
+		bool isSilent = false;
+
+		// Check if we're in MIDI Piano Roll mode
+		uint32_t visualizer_mode = getMode();
+		if (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll) {
+			// For MIDI Piano Roll, check if there have been no MIDI notes for 1 second
+			uint32_t samplesSinceMidiNote = AudioEngine::audioSampleTimer - midi_piano_roll_last_note_time;
+			isSilent = (samplesSinceMidiNote > kSilenceTimeoutSamples);
+		}
+		else if (isClipMode()) {
+			// For clip visualizer, check if this specific clip has been silent for 1 second
+			uint32_t samplesSinceAudio = AudioEngine::audioSampleTimer - clip_visualizer_last_audio_time;
+			isSilent = (samplesSinceAudio > kSilenceTimeoutSamples);
+		}
+		else {
+			// For global visualizer, check if the mix has been silent for 1 second
+			uint32_t samplesSinceAudio = AudioEngine::audioSampleTimer - global_visualizer_last_audio_time;
+			isSilent = (samplesSinceAudio > kSilenceTimeoutSamples);
+		}
+
+		// Don't refresh OLED if visualizer is silent
+		if (isSilent) {
+			return;
+		}
+
 		// Enable visualizer if conditions are met
 		if (!display_visualizer) {
 			display_visualizer = true;
