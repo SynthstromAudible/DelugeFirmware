@@ -223,7 +223,14 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 		// Check silence timeout (1 second at 44.1kHz)
 		bool isSilent = false;
 
-		if (isClipMode()) {
+		// Check if we're in MIDI Piano Roll mode
+		uint32_t visualizer_mode = getMode();
+		if (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll) {
+			// For MIDI Piano Roll, check if there have been no MIDI notes for 1 second
+			uint32_t samplesSinceMidiNote = AudioEngine::audioSampleTimer - midi_piano_roll_last_note_time;
+			isSilent = (samplesSinceMidiNote > kSilenceTimeoutSamples);
+		}
+		else if (isClipMode()) {
 			// For clip visualizer, check if this specific clip has been silent for 1 second
 			uint32_t samplesSinceAudio = AudioEngine::audioSampleTimer - clip_visualizer_last_audio_time;
 			isSilent = (samplesSinceAudio > kSilenceTimeoutSamples);
@@ -317,6 +324,7 @@ void Visualizer::reset() {
 	// Initialize silence timers to current time to prevent immediate timeout
 	global_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
 	clip_visualizer_last_audio_time = AudioEngine::audioSampleTimer;
+	midi_piano_roll_last_note_time = AudioEngine::audioSampleTimer;
 
 	// Clear clip visualizer state when switching views
 	// (this will be called when exiting clip view or switching to other views)

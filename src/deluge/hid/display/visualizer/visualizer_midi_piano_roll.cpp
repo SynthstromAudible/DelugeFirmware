@@ -18,6 +18,7 @@
 #include "visualizer_midi_piano_roll.h"
 #include "RZA1/cpu_specific.h" // For OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS, OLED_MAIN_TOPMOST_PIXEL
 #include "definitions_cxx.hpp" // For kMaxMIDIValue
+#include "extern.h"            // For AudioEngine
 #include "hid/display/oled.h"
 #include "hid/display/oled_canvas/canvas.h"
 #include "hid/display/visualizer.h"
@@ -160,6 +161,9 @@ void midiPianoRollNoteEvent(uint8_t note, bool on, uint8_t velocity, bool visual
 		}
 		return;
 	}
+
+	// Update MIDI activity timer for silence detection
+	Visualizer::midi_piano_roll_last_note_time = AudioEngine::audioSampleTimer;
 
 	// Process the note event
 	if (on) {

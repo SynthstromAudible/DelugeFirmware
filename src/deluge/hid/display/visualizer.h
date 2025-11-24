@@ -271,6 +271,8 @@ public:
 	inline static uint32_t global_visualizer_last_audio_time = 0;
 	/// Clip visualizer hides after 1 second of silence for that specific clip
 	inline static uint32_t clip_visualizer_last_audio_time = 0;
+	/// MIDI piano roll visualizer hides after 1 second of no MIDI notes
+	inline static uint32_t midi_piano_roll_last_note_time = 0;
 
 	/// Silence detection constants
 	static constexpr uint32_t kSilenceTimeoutSamples = 44100; // 1 second at 44.1kHz
