@@ -620,6 +620,11 @@ void PlaybackHandler::endPlayback() {
 		display->cancelPopup(); // In case the count-in was showing
 	}
 
+	// Cancel any GENERAL popup (beats remaining popup when visualizer is active)
+	if (display->hasPopupOfType(PopupType::GENERAL)) {
+		display->cancelPopup();
+	}
+
 	setLedStates();
 }
 
