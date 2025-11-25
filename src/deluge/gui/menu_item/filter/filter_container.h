@@ -32,8 +32,7 @@ public:
 	FilterContainer(std::initializer_list<MenuItem*> items, UnpatchedFilterParam* morph_item)
 	    : HorizontalMenuContainer(items), morph_item_unpatched_{morph_item} {}
 
-	void render(const SlotPosition& slots, const MenuItem* selected_item, HorizontalMenu* parent,
-	            bool* halt_remaining_rendering) override {
+	void render(const SlotPosition& slots, const MenuItem* selected_item, HorizontalMenu* parent) override {
 		oled_canvas::Canvas& image = OLED::main;
 
 		const auto [freq_raw, reso_raw, morph_raw, is_morphable, is_hpf] = getFilterValues();
@@ -100,12 +99,10 @@ public:
 				last_point = point;
 			};
 			image.drawLine(x0, y0, x1, y1, {.min_x = min_x, .max_x = max_x, .point_callback = draw_fill_pattern});
-			return last_point;
 		};
 
-		// Slope 0
-		auto slope0_last_point = slope0_x1 <= min_x ? oled_canvas::Point{min_x, center_y}
-		                                            : draw_segment(slope0_x0, end_y, slope0_x1, center_y);
+		// Left slope
+		draw_segment(slope0_x0, end_y, slope0_x1, center_y);
 
 		// Body
 		draw_segment(slope0_x1, center_y, reso_x0, center_y);
@@ -115,13 +112,8 @@ public:
 		draw_segment(reso_x1, reso_y, reso_x2, center_y);
 		draw_segment(reso_x2, center_y, slope1_x0, center_y);
 
-		// Slope 1
-		auto slope1_last_point = slope1_x0 >= max_x ? oled_canvas::Point{max_x, center_y}
-		                                            : draw_segment(slope1_x0, center_y, slope1_x1, end_y);
-
-		auto freq_point = pickFreqPoint(slope0_last_point, slope1_last_point, min_x, max_x);
-		syncFreqAndResonancePositionWithLEDs(freq_point == slope1_last_point, selected_item, parent,
-		                                     halt_remaining_rendering);
+		// Right slope
+		draw_segment(slope1_x0, center_y, slope1_x1, end_y);
 	};
 
 private:
@@ -152,45 +144,6 @@ private:
 		bool is_morphable = morph_item_unpatched_->getFilterInfo().isMorphable();
 		bool is_hpf = freq_item->getP() == params::UNPATCHED_HPF_FREQ;
 		return {freq_item->getValue(), reso_item->getValue(), morph_item_unpatched_->getValue(), is_morphable, is_hpf};
-	}
-
-	static oled_canvas::Point pickFreqPoint(const oled_canvas::Point& slope0_last_point,
-	                                        const oled_canvas::Point& slope1_last_point, uint8_t min_x, uint8_t max_x) {
-		if (slope0_last_point.x > min_x && slope0_last_point.x < max_x) {
-			return slope0_last_point;
-		}
-		if (slope1_last_point.x > min_x && slope1_last_point.x < max_x) {
-			return slope1_last_point;
-		}
-		return slope0_last_point.y > slope1_last_point.y ? slope0_last_point : slope1_last_point;
-	}
-
-	void syncFreqAndResonancePositionWithLEDs(bool freq_is_on_right_side, const MenuItem* selected_item,
-	                                          HorizontalMenu* parent, bool* halt_remaining_rendering) const {
-		MenuItem* freq = items_[0];
-		MenuItem* reso = items_[1];
-
-		uint8_t freq_index = 1, reso_index = 2;
-		if (freq_is_on_right_side) {
-			std::swap(freq_index, reso_index);
-		}
-
-		auto& parent_items = parent->getItems();
-		if (parent_items[freq_index] != freq) {
-			parent_items[freq_index] = freq;
-			parent_items[reso_index] = reso;
-
-			// We can be inside a horizontal menu group or a plain horizontal menu
-			auto host_menu = parent->parent != nullptr ? parent->parent : parent;
-
-			// Reset the current item iterator, it points to incorrect item now after items order was changed
-			host_menu->setCurrentItem(selected_item);
-
-			// Should re-render the whole menu to apply new items order
-			OLED::clearMainImage();
-			host_menu->renderOLED();
-			*halt_remaining_rendering = true;
-		}
 	}
 };
 } // namespace deluge::gui::menu_item::filter
