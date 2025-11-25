@@ -28,8 +28,7 @@ public:
 	[[nodiscard]] int32_t getOccupiedSlotsCount() const { return items_.size(); }
 	std::span<MenuItem* const> getItems() const { return items_; }
 
-	virtual void render(const SlotPosition& slots, const MenuItem* selected_item, HorizontalMenu* parent,
-	                    bool* halt_remaining_rendering) {}
+	virtual void render(const SlotPosition& slots, const MenuItem* selected_item, HorizontalMenu* parent) {}
 
 protected:
 	deluge::vector<MenuItem*> items_;
