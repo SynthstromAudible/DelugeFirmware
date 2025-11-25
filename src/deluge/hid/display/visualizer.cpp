@@ -199,18 +199,26 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 		bool shouldEnable =
 		    (displayVUMeter && modControllable != nullptr && mod_knob_mode == 0) || visualizer_toggle_enabled;
 
-		// Check if we're in a clip context (clip view or holding clip) - if so, only allow for SYNTH/KIT clips
-		Clip* currentClip = getCurrentClipForVisualizer();
-		if (currentClip && shouldEnable) {
-			bool inClipView = (getCurrentUI() == &instrumentClipView);
-			bool inKeyboardScreen = (getRootUI() == &keyboardScreen);
-			bool holdingClipInSessionView =
-			    (getCurrentUI() == &sessionView) && (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW);
-			bool holdingClipInArrangerView = (getCurrentUI() == &arrangerView)
-			                                 && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
-			                                     || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION);
+		// Check if we're in a clip context (clip view or holding clip)
+		bool inClipView = (getCurrentUI() == &instrumentClipView);
+		bool inKeyboardScreen = (getRootUI() == &keyboardScreen);
+		bool holdingClipInSessionView =
+		    (getCurrentUI() == &sessionView) && (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW);
+		bool holdingClipInArrangerView = (getCurrentUI() == &arrangerView)
+		                                 && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
+		                                     || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION);
 
-			if (inClipView || inKeyboardScreen || holdingClipInSessionView || holdingClipInArrangerView) {
+		bool inClipContext = inClipView || inKeyboardScreen || holdingClipInSessionView || holdingClipInArrangerView;
+
+		// If we're in clip context and toggle is NOT enabled, disable visualizer entirely
+		// (clip visualizer should only show when toggle is enabled)
+		if (inClipContext && !visualizer_toggle_enabled) {
+			shouldEnable = false;
+		}
+		// Otherwise, if we're in clip context and toggle IS enabled, check if it's a valid clip type
+		else if (inClipContext && visualizer_toggle_enabled) {
+			Clip* currentClip = getCurrentClipForVisualizer();
+			if (currentClip) {
 				// Don't show visualizer for MIDI/CV clips in clip contexts
 				if (!(currentClip->type == ClipType::INSTRUMENT
 				      && (currentClip->output->type == OutputType::SYNTH
@@ -270,8 +278,9 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 /// Handles both global mix and clip-specific visualization modes
 void Visualizer::renderVisualizer(oled_canvas::Canvas& canvas) {
 	// Check if we're in clip context with a Synth/Kit clip - if so, force Waveform mode
-	if (isInClipContext()) {
-		Clip* currentClip = currentSong->getCurrentClip();
+	// BUT only if the toggle is enabled (clip visualizer should only show when toggle is on)
+	if (isInClipContext() && visualizer_toggle_enabled) {
+		Clip* currentClip = getCurrentClipForVisualizer();
 		if (currentClip && currentClip->type == ClipType::INSTRUMENT
 		    && (currentClip->output->type == OutputType::SYNTH || currentClip->output->type == OutputType::KIT)) {
 			// Always use Waveform mode in clip view for Synth/Kit clips
@@ -301,7 +310,15 @@ void Visualizer::requestVisualizerUpdateIfNeeded(bool displayVUMeter, bool visua
 	}
 
 	// Check if visualizer should be active (VU meter conditions OR toggle conditions)
-	if (visualizer_enabled && (displayVUMeter || visualizer_toggle_enabled)) {
+	bool shouldBeActive = visualizer_enabled && (displayVUMeter || visualizer_toggle_enabled);
+
+	// If we're in clip context and toggle is NOT enabled, disable visualizer entirely
+	// (clip visualizer should only show when toggle is enabled)
+	if (shouldBeActive && isInClipContext() && !visualizer_toggle_enabled) {
+		shouldBeActive = false;
+	}
+
+	if (shouldBeActive) {
 		// Check silence timeout (1 second at 44.1kHz) - don't refresh OLED if silent
 		bool isSilent = false;
 
@@ -479,8 +496,8 @@ void Visualizer::sampleAudioForDisplay(deluge::dsp::StereoBuffer<q31_t> renderin
 void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> renderingBuffer, size_t numSamples,
                                            Clip* clip) {
 	// Sample clip-specific audio for visualizer display (downsamples and stores in circular buffer)
-	// Only samples when visualizer is enabled and this clip is the current clip being visualized
-	if (isEnabled() && clip == getCurrentClipForVisualizer()) {
+	// Only samples when visualizer is enabled, toggle is enabled, and this clip is the current clip being visualized
+	if (isEnabled() && visualizer_toggle_enabled && clip == getCurrentClipForVisualizer()) {
 		// Check if we're in clip context and have valid clip type
 		bool isSynthOrKitClip = (clip->type == ClipType::INSTRUMENT
 		                         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT));
