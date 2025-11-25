@@ -221,15 +221,11 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 			const auto container = containers_map[item];
 			const auto slots_count = container->getOccupiedSlotsCount();
 
-			bool halt_remaining_rendering = false;
 			container->render({.start_x = current_x,
 			                   .start_y = base_y,
 			                   .width = static_cast<uint8_t>(box_width * slots_count),
 			                   .height = content_height},
-			                  currentItem, this, &halt_remaining_rendering);
-			if (halt_remaining_rendering) {
-				return;
-			}
+			                  currentItem, this);
 
 			current_x += box_width * slots_count;
 			it += slots_count;
