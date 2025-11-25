@@ -269,11 +269,15 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 /// Render visualizer waveform or spectrum on OLED display
 /// Handles both global mix and clip-specific visualization modes
 void Visualizer::renderVisualizer(oled_canvas::Canvas& canvas) {
-	// Check if we're in clip mode - if so, force Waveform mode
-	if (isClipMode()) {
-		// Always use Waveform mode in clip view
-		::deluge::hid::display::renderVisualizerWaveform(canvas);
-		return;
+	// Check if we're in clip context with a Synth/Kit clip - if so, force Waveform mode
+	if (isInClipContext()) {
+		Clip* currentClip = currentSong->getCurrentClip();
+		if (currentClip && currentClip->type == ClipType::INSTRUMENT
+		    && (currentClip->output->type == OutputType::SYNTH || currentClip->output->type == OutputType::KIT)) {
+			// Always use Waveform mode in clip view for Synth/Kit clips
+			::deluge::hid::display::renderVisualizerWaveform(canvas);
+			return;
+		}
 	}
 
 	// Normal mode selection for session/arranger views - delegate to default implementation
