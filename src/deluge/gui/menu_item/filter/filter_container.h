@@ -145,16 +145,5 @@ private:
 		bool is_hpf = freq_item->getP() == params::UNPATCHED_HPF_FREQ;
 		return {freq_item->getValue(), reso_item->getValue(), morph_item_unpatched_->getValue(), is_morphable, is_hpf};
 	}
-
-	static oled_canvas::Point pickFreqPoint(const oled_canvas::Point& slope0_last_point,
-	                                        const oled_canvas::Point& slope1_last_point, uint8_t min_x, uint8_t max_x) {
-		if (slope0_last_point.x > min_x && slope0_last_point.x < max_x) {
-			return slope0_last_point;
-		}
-		if (slope1_last_point.x > min_x && slope1_last_point.x < max_x) {
-			return slope1_last_point;
-		}
-		return slope0_last_point.y > slope1_last_point.y ? slope0_last_point : slope1_last_point;
-	}
 };
 } // namespace deluge::gui::menu_item::filter
