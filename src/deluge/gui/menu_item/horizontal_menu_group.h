@@ -30,8 +30,6 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override;
 	bool focusChild(const MenuItem* child) override;
-	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-	                                             MultiRange** currentRange) override;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void endSession() override;
 	bool hasItem(const MenuItem* item) override;
