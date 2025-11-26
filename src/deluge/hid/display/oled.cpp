@@ -728,7 +728,7 @@ void OLED::displayNotification(std::string_view param_title, std::optional<std::
 	}
 
 	markChanged();
-	uiTimerManager.setTimer(TimerName::DISPLAY, 1200);
+	uiTimerManager.setTimer(TimerName::DISPLAY, 2000);
 }
 
 void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display) {

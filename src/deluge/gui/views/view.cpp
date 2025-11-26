@@ -1257,7 +1257,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		}
 		// Even if no display update needed, refresh timer if same parameter is being adjusted
 		else if (current_param_owns_display && display->hasPopupOfType(PopupType::NOTIFICATION)) {
-			uiTimerManager.setTimer(TimerName::DISPLAY, 1000);
+			uiTimerManager.setTimer(TimerName::DISPLAY, 2000);
 			last_display_update_time = current_time;
 		}
 	}

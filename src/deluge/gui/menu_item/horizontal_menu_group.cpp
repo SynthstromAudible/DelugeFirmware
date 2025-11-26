@@ -28,14 +28,6 @@ std::string_view HorizontalMenuGroup::getTitle() const {
 	return current_menu_->getTitle();
 }
 
-MenuPermission HorizontalMenuGroup::checkPermissionToBeginSession(ModControllableAudio* modControllable,
-                                                                  int32_t whichThing, MultiRange** currentRange) {
-	for (const auto menu : menus_) {
-		menu->checkPermissionToBeginSession(modControllable, whichThing, currentRange);
-	}
-	return MenuPermission::YES;
-}
-
 void HorizontalMenuGroup::beginSession(MenuItem* navigatedBackwardFrom) {
 	HorizontalMenu::beginSession(navigatedBackwardFrom);
 	navigated_backward_from = navigatedBackwardFrom;
@@ -43,6 +35,9 @@ void HorizontalMenuGroup::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	for (const auto menu : menus_) {
 		menu->parent = this;
+		for (const auto it : menu->items) {
+			it->parent = menu;
+		}
 	}
 }
 
@@ -51,6 +46,9 @@ void HorizontalMenuGroup::endSession() {
 
 	for (const auto menu : menus_) {
 		menu->parent = nullptr;
+		for (const auto it : menu->items) {
+			it->parent = nullptr;
+		}
 	}
 }
 
