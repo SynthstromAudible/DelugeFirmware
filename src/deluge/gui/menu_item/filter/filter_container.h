@@ -37,7 +37,7 @@ public:
 
 		const auto [freq_raw, reso_raw, morph_raw, is_morphable, is_hpf] = getFilterValues();
 		const float freq_value = freq_raw / 50.f;
-		const float reso_value = sigmoidLikeCurve(reso_raw, 50.f, 15.f);
+		const float reso_value = sigmoidLikeCurve(reso_raw, 50.f, 30.f);
 		const float morph_value = [&] {
 			float result = 0.f;
 			if (is_morphable) {
@@ -60,18 +60,18 @@ public:
 		uint8_t reso_x0 = min_x - reso_segment_width + base_width * freq_value;
 		uint8_t reso_x1 = reso_x0 + reso_segment_width;
 		uint8_t reso_x2 = reso_x1 + reso_segment_width;
-		int8_t slope0_x0 = reso_x0 - base_width - freq_slope_width;
-		int8_t slope0_x1 = slope0_x0 + freq_slope_width;
-		uint8_t slope1_x0 = reso_x2;
-		uint8_t slope1_x1 = slope1_x0 + freq_slope_width;
+		int8_t left_slope_x0 = reso_x0 - base_width - freq_slope_width;
+		int8_t left_slope_x1 = left_slope_x0 + freq_slope_width;
+		uint8_t right_slope_x0 = reso_x2;
+		uint8_t right_slope_x1 = right_slope_x0 + freq_slope_width;
 
 		if (morph_value > 0) {
 			const uint8_t slope_shift = std::lerp(0, total_width, morph_value);
 			const uint8_t reso_shift = std::lerp(0, freq_slope_width + reso_segment_width, morph_value);
-			slope0_x0 += slope_shift;
-			slope0_x1 += slope_shift;
-			slope1_x0 += slope_shift;
-			slope1_x1 += slope_shift;
+			left_slope_x0 += slope_shift;
+			left_slope_x1 += slope_shift;
+			right_slope_x0 += slope_shift;
+			right_slope_x1 += slope_shift;
 			reso_x0 += reso_shift;
 			reso_x1 += reso_shift;
 			reso_x2 += reso_shift;
@@ -102,18 +102,18 @@ public:
 		};
 
 		// Left slope
-		draw_segment(slope0_x0, end_y, slope0_x1, center_y);
+		draw_segment(left_slope_x0, end_y, left_slope_x1, center_y);
 
 		// Body
-		draw_segment(slope0_x1, center_y, reso_x0, center_y);
+		draw_segment(left_slope_x1, center_y, reso_x0, center_y);
 
 		// Resonance
 		draw_segment(reso_x0, center_y, reso_x1, reso_y);
 		draw_segment(reso_x1, reso_y, reso_x2, center_y);
-		draw_segment(reso_x2, center_y, slope1_x0, center_y);
+		draw_segment(reso_x2, center_y, right_slope_x0, center_y);
 
 		// Right slope
-		draw_segment(slope1_x0, center_y, slope1_x1, end_y);
+		draw_segment(right_slope_x0, center_y, right_slope_x1, end_y);
 	};
 
 private:

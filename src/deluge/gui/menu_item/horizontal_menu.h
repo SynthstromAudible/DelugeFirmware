@@ -52,8 +52,7 @@ public:
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
 	void selectEncoderAction(int32_t offset) override;
 	void renderOLED() override;
-	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-	                                             ::MultiRange** currentRange) override;
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void endSession() override;
 
 	virtual bool hasItem(const MenuItem* item);
