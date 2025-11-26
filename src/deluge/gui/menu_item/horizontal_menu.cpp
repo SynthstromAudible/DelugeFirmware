@@ -37,22 +37,12 @@ namespace deluge::gui::menu_item {
 
 using namespace hid::display;
 
-MenuPermission HorizontalMenu::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-                                                             ::MultiRange** currentRange) {
+void HorizontalMenu::beginSession(MenuItem* navigatedBackwardFrom) {
+	Submenu::beginSession(navigatedBackwardFrom);
+
 	for (const auto it : items) {
 		it->parent = this;
-		// Important initialization stuff may happen in this check
-		// E.g. the patch cable strength menu sets the current source there
-		it->checkPermissionToBeginSession(soundEditor.currentModControllable, soundEditor.currentSourceIndex,
-		                                  &soundEditor.currentMultiRange);
 	}
-
-	// Workaround: calling checkPermissionToBeginSession on a specific menu item could cause unnecessary popups
-	if (display->hasPopupOfType(PopupType::GENERAL)) {
-		display->cancelPopup();
-	}
-
-	return Submenu::checkPermissionToBeginSession(modControllable, whichThing, currentRange);
 }
 
 ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
@@ -362,8 +352,6 @@ void HorizontalMenu::switchHorizontalMenu(int32_t direction, std::span<Horizonta
 		return switchHorizontalMenu(direction >= 0 ? ++direction : --direction, chain);
 	}
 
-	target_menu->checkPermissionToBeginSession(soundEditor.currentModControllable, soundEditor.currentSourceIndex,
-	                                           &soundEditor.currentMultiRange);
 	target_menu->beginSession(nullptr);
 
 	// For Mod FX menu we want to switch straight to the selected FX's controls that are on the second page
@@ -557,6 +545,10 @@ void HorizontalMenu::endSession() {
 
 	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
 		display->cancelPopup();
+	}
+
+	for (const auto it : items) {
+		it->parent = nullptr;
 	}
 }
 
