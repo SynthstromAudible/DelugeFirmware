@@ -2568,14 +2568,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, deluge::dsp::Stere
 	          !voices_.empty(), reverbSendAmount >> 1);
 	processStutter(sound_stereo, paramManager);
 
-	// Sample audio for clip-specific visualizer after all effects processing
-	// This is for Synth/Melodic instrument clips (Kit clips use GlobalEffectableForClip::renderOutput)
-	if (modelStack && modelStack->getTimelineCounter()) {
-		// TimelineCounter is guaranteed to be a Clip when processing Sound output
-		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
-		deluge::hid::display::Visualizer::sampleAudioForClipDisplay(sound_stereo, output.size(), clip);
-	}
-
 	processReverbSendAndVolume(sound_stereo, reverbBuffer, postFXVolume, postReverbVolume, reverbSendAmount, 0, true);
 
 	q31_t compThreshold = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
