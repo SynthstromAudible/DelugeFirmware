@@ -135,12 +135,6 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	                             renderedLastTime, reverbSendAmount);
 	processStutter(global_effectable_audio, paramManagerForClip);
 
-	// Sample audio for clip-specific visualizer after all effects processing
-	if (modelStack && modelStack->getTimelineCounter() && deluge::hid::display::Visualizer::isToggleEnabled()) {
-		// TimelineCounter is guaranteed to be a Clip in this context (GlobalEffectableForClip)
-		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
-		deluge::hid::display::Visualizer::sampleAudioForClipDisplay(global_effectable_audio, output.size(), clip);
-	}
 	// record before pan/compression/volume to keep volumes consistent
 	if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
@@ -155,6 +149,14 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	}
 	else {
 		compressor.reset();
+	}
+
+	// Sample audio for clip-specific visualizer after all effects processing including master volume
+	// This ensures the visualizer reflects the actual audible output level
+	if (modelStack && modelStack->getTimelineCounter() && deluge::hid::display::Visualizer::isToggleEnabled()) {
+		// TimelineCounter is guaranteed to be a Clip in this context (GlobalEffectableForClip)
+		Clip* clip = static_cast<Clip*>(modelStack->getTimelineCounter());
+		deluge::hid::display::Visualizer::sampleAudioForClipDisplay(global_effectable_audio, output.size(), clip);
 	}
 
 	// Add the global effectable data to the output

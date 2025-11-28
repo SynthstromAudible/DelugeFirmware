@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp_ng/core/types.hpp"
 #include "gui/views/view.h"
+#include "hid/display/visualizer.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -108,6 +109,12 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, deluge::dsp::StereoBu
 	else {
 		Sound::render(modelStackWithThreeMainThings, output, reverbBuffer, sideChainHitPending, reverbAmountAdjust,
 		              shouldLimitDelayFeedback, kMaxSampleValue, recorder);
+
+		// Sample audio for clip-specific visualizer after all effects processing
+		// This is for Synth/Melodic instrument clips (Kit clips use GlobalEffectableForClip::renderOutput)
+		if (deluge::hid::display::Visualizer::isToggleEnabled()) {
+			deluge::hid::display::Visualizer::sampleAudioForClipDisplay(output, output.size(), activeClip);
+		}
 	}
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {
