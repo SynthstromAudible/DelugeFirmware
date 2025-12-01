@@ -34,6 +34,8 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
+#include <algorithm>
+#include <ranges>
 
 namespace params = deluge::modulation::params;
 
@@ -107,13 +109,31 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, deluge::dsp::StereoBu
 		compressor.gainReduction = 0;
 	}
 	else {
-		Sound::render(modelStackWithThreeMainThings, output, reverbBuffer, sideChainHitPending, reverbAmountAdjust,
-		              shouldLimitDelayFeedback, kMaxSampleValue, recorder);
-
-		// Sample audio for clip-specific visualizer after all effects processing
-		// This is for Synth/Melodic instrument clips (Kit clips use GlobalEffectableForClip::renderOutput)
+		// If visualizer is enabled, use a local buffer to isolate this clip's audio for sampling
+		// Otherwise, render directly to the output buffer (original behavior)
 		if (deluge::hid::display::Visualizer::isToggleEnabled()) {
-			deluge::hid::display::Visualizer::sampleAudioForClipDisplay(output, output.size(), activeClip);
+			// Create a local buffer for this clip's audio to avoid sampling accumulated audio from other clips
+			// This ensures the visualizer only shows audio from this specific instrument
+			alignas(CACHE_LINE_SIZE) deluge::dsp::StereoSample<q31_t>
+			    sound_instrument_memory[SSI_TX_BUFFER_NUM_SAMPLES];
+			memset(sound_instrument_memory, 0, sizeof(deluge::dsp::StereoSample<q31_t>) * output.size());
+			deluge::dsp::StereoBuffer<q31_t> sound_instrument_audio{sound_instrument_memory, output.size()};
+
+			// Render this instrument's audio into the local buffer
+			Sound::render(modelStackWithThreeMainThings, sound_instrument_audio, reverbBuffer, sideChainHitPending,
+			              reverbAmountAdjust, shouldLimitDelayFeedback, kMaxSampleValue, recorder);
+
+			// Sample audio for clip-specific visualizer after all effects processing
+			deluge::hid::display::Visualizer::sampleAudioForClipDisplay(sound_instrument_audio, output.size(),
+			                                                            activeClip);
+
+			// Add this instrument's audio to the shared output buffer
+			std::ranges::transform(sound_instrument_audio, output, output.begin(), std::plus{});
+		}
+		else {
+			// Normal path: render directly to output buffer (no visualizer overhead)
+			Sound::render(modelStackWithThreeMainThings, output, reverbBuffer, sideChainHitPending, reverbAmountAdjust,
+			              shouldLimitDelayFeedback, kMaxSampleValue, recorder);
 		}
 	}
 
