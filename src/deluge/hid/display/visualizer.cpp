@@ -23,6 +23,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
@@ -200,7 +201,7 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 		    (displayVUMeter && modControllable != nullptr && mod_knob_mode == 0) || visualizer_toggle_enabled;
 
 		// Check if we're in a clip context (clip view or holding clip)
-		bool inClipView = (getCurrentUI() == &instrumentClipView);
+		bool inClipView = (getCurrentUI() == &instrumentClipView) || (getCurrentUI() == &audioClipView);
 		bool inKeyboardScreen = (getRootUI() == &keyboardScreen);
 		bool holdingClipInSessionView =
 		    (getCurrentUI() == &sessionView) && (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW);
@@ -220,9 +221,10 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 			Clip* currentClip = getCurrentClipForVisualizer();
 			if (currentClip) {
 				// Don't show visualizer for MIDI/CV clips in clip contexts
-				if (!(currentClip->type == ClipType::INSTRUMENT
-				      && (currentClip->output->type == OutputType::SYNTH
-				          || currentClip->output->type == OutputType::KIT))) {
+				if (!((currentClip->type == ClipType::INSTRUMENT
+				       && (currentClip->output->type == OutputType::SYNTH
+				           || currentClip->output->type == OutputType::KIT))
+				      || currentClip->type == ClipType::AUDIO)) {
 					shouldEnable = false;
 				}
 			}
@@ -277,13 +279,15 @@ bool Visualizer::potentiallyRenderVisualizer(oled_canvas::Canvas& canvas, bool d
 /// Render visualizer waveform or spectrum on OLED display
 /// Handles both global mix and clip-specific visualization modes
 void Visualizer::renderVisualizer(oled_canvas::Canvas& canvas) {
-	// Check if we're in clip context with a Synth/Kit clip - if so, force Waveform mode
+	// Check if we're in clip context with a Synth/Kit/Audio clip - if so, force Waveform mode
 	// BUT only if the toggle is enabled (clip visualizer should only show when toggle is on)
 	if (isInClipContext() && visualizer_toggle_enabled) {
 		Clip* currentClip = getCurrentClipForVisualizer();
-		if (currentClip && currentClip->type == ClipType::INSTRUMENT
-		    && (currentClip->output->type == OutputType::SYNTH || currentClip->output->type == OutputType::KIT)) {
-			// Always use Waveform mode in clip view for Synth/Kit clips
+		if (currentClip
+		    && ((currentClip->type == ClipType::INSTRUMENT
+		         && (currentClip->output->type == OutputType::SYNTH || currentClip->output->type == OutputType::KIT))
+		        || currentClip->type == ClipType::AUDIO)) {
+			// Always use Waveform mode in clip view for Synth/Kit/Audio clips
 			::deluge::hid::display::renderVisualizerWaveform(canvas);
 			return;
 		}
@@ -499,11 +503,13 @@ void Visualizer::sampleAudioForClipDisplay(deluge::dsp::StereoBuffer<q31_t> rend
 	// Only samples when visualizer is enabled, toggle is enabled, and this clip is the current clip being visualized
 	if (isEnabled() && visualizer_toggle_enabled && clip == getCurrentClipForVisualizer()) {
 		// Check if we're in clip context and have valid clip type
-		bool isSynthOrKitClip = (clip->type == ClipType::INSTRUMENT
-		                         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT));
+		bool isSynthKitOrAudioClip =
+		    ((clip->type == ClipType::INSTRUMENT
+		      && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT))
+		     || clip->type == ClipType::AUDIO);
 		bool isNotInAutomationView = !(getRootUI() == &automationView);
 
-		if (isInClipContext() && isSynthOrKitClip && isNotInAutomationView) {
+		if (isInClipContext() && isSynthKitOrAudioClip && isNotInAutomationView) {
 			updateSilenceTimer(renderingBuffer, numSamples, clip_visualizer_last_audio_time);
 
 			sampleIntoBuffers(renderingBuffer, numSamples);
@@ -537,7 +543,7 @@ void Visualizer::updateSilenceTimer(deluge::dsp::StereoBuffer<q31_t> renderingBu
 /// Check if we're currently in a clip context (clip view, keyboard screen, or holding clip)
 /// @return true if in clip context
 bool Visualizer::isInClipContext() {
-	bool inClipView = (getCurrentUI() == &instrumentClipView);
+	bool inClipView = (getCurrentUI() == &instrumentClipView) || (getCurrentUI() == &audioClipView);
 	bool inKeyboardScreen = (getRootUI() == &keyboardScreen);
 
 	// Check if we're holding a clip in Session or Arranger view
@@ -568,9 +574,10 @@ bool Visualizer::isClipMode() {
 		return false;
 	}
 
-	// Only enable for Instrument clips with Synth/Kit outputs
-	return (currentClip->type == ClipType::INSTRUMENT
-	        && (currentClip->output->type == OutputType::SYNTH || currentClip->output->type == OutputType::KIT));
+	// Enable for Instrument clips with Synth/Kit outputs OR Audio clips
+	return ((currentClip->type == ClipType::INSTRUMENT
+	         && (currentClip->output->type == OutputType::SYNTH || currentClip->output->type == OutputType::KIT))
+	        || currentClip->type == ClipType::AUDIO);
 }
 
 /// Check if clip visualizer is actively running
