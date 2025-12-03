@@ -211,6 +211,23 @@ public:
 	/// Clear the current clip for visualizer (safe cleanup function)
 	static void clearClipForVisualizer();
 
+	/// Handle SHIFT+LEVEL mod button press for visualizer toggle
+	/// @param view Reference to current view for context and OLED refresh
+	/// @return true if button press was handled by visualizer
+	static bool handleModButtonToggle(View& view);
+
+	/// Handle LEVEL button press for VU meter toggle (affects visualizer)
+	/// @param view Reference to current view (modifies displayVUMeter)
+	/// @param whichButton The mod button that was pressed
+	/// @param renderedVUMeter Whether VU meter was previously rendered
+	/// @return true if button press was handled
+	static bool handleVUMeterToggle(View& view, uint8_t whichButton, bool renderedVUMeter);
+
+	/// Sync visualizer state with VU meter state
+	/// @param view Reference to current view for OLED refresh
+	/// @param displayVUMeter Current VU meter state
+	static void syncWithVUState(View& view, bool displayVUMeter);
+
 	/// Sample audio data for visualizer display (waveform, line spectrum, bar spectrum)
 	/// Performs downsampling and stores samples in the circular buffer for display
 	/// @param renderingBuffer The audio buffer to sample from

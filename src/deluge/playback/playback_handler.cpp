@@ -2345,7 +2345,7 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 			deluge::hid::display::OLED::markChanged();
 		}
 		else {
-			// Popup rendering (for active visualizer users or fallback cases)
+			// Popup rendering (when visualizer is active)
 			text.append("Tempo: ");
 			getTempoStringForOLED(tempoBPM, text);
 			display->popupTextTemporary(text.c_str(), PopupType::TEMPO);

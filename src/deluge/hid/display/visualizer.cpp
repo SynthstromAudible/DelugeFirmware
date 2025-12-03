@@ -17,6 +17,7 @@
 
 #include "hid/display/visualizer.h"
 #include "deluge/model/clip/clip.h"
+#include "deluge/model/clip/instrument_clip.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
@@ -29,6 +30,7 @@
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "hid/button.h"
 #include "hid/display/display.h"
 #include "hid/display/visualizer/visualizer_bar_spectrum.h"
 #include "hid/display/visualizer/visualizer_common.h"
@@ -630,6 +632,115 @@ std::string_view Visualizer::getModeDisplayName(uint32_t mode) {
 		return "MIDI PIANO ROLL";
 	default:
 		return "UNKNOWN";
+	}
+}
+
+/// Handle SHIFT+LEVEL mod button press for visualizer toggle
+/// @param view Reference to current view for context and OLED refresh
+/// @return true if button press was handled by visualizer
+bool Visualizer::handleModButtonToggle(View& view) {
+	// Check for SHIFT+LEVEL mod button to toggle independent visualizer
+	// This works in all views including Clip Minder screens, regardless of Affect Entire
+	if (Buttons::isShiftButtonPressed()) {
+		// Only allow toggle if visualizer feature is enabled in community features
+		if (isEnabled()) {
+			bool new_state = !isToggleEnabled();
+			setToggleEnabled(new_state);
+
+			// If enabling toggle and in clip context, try to set the current clip for visualizer
+			if (new_state && isInClipContext()) {
+				Clip* clip_to_set = nullptr;
+				if (getCurrentUI() == &instrumentClipView) {
+					clip_to_set = getCurrentClip();
+				}
+				else if (getRootUI() == &keyboardScreen) {
+					clip_to_set = getCurrentInstrumentClip();
+				}
+				else if (getCurrentUI() == &sessionView && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+					clip_to_set = sessionView.getClipForLayout();
+				}
+				else if (getCurrentUI() == &arrangerView
+				         && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
+				             || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+					// For arranger view, get the clip from the held output
+					Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
+					if (output != nullptr) {
+						clip_to_set = currentSong->getClipWithOutput(output);
+					}
+				}
+
+				if (clip_to_set) {
+					trySetClipForVisualizer(clip_to_set);
+				}
+			}
+
+			// Show popup feedback
+			::display->displayPopup(new_state ? "VISUALIZER: ON" : "VISUALIZER: OFF");
+
+			renderUIsForOled();
+
+			return true; // Button press was handled by visualizer
+		}
+	}
+	return false; // Button press was not handled by visualizer
+}
+
+/// Handle LEVEL button press for VU meter toggle (affects visualizer)
+/// @param view Reference to current view (modifies displayVUMeter)
+/// @param whichButton The mod button that was pressed
+/// @param renderedVUMeter Whether VU meter was previously rendered
+/// @return true if button press was handled
+bool Visualizer::handleVUMeterToggle(View& view, uint8_t whichButton, bool renderedVUMeter) {
+	// Only handle LEVEL button (whichButton == 0)
+	if (whichButton != 0) {
+		return false;
+	}
+
+	// Store previous state to determine if we need to refresh OLED when disabling
+	bool visualizer_enabled = isEnabled();
+	bool visualizer_was_displayed = isDisplaying() && visualizer_enabled;
+
+	// VU meter toggle only works in session/arranger views where VU meters can be displayed
+	if (getCurrentUI() == &instrumentClipView) {
+		// VU meters cannot be displayed in clip view - do nothing
+		return false;
+	}
+	else {
+		// In session/arranger views, toggle VU meter which controls visualizer
+		view.displayVUMeter = !view.displayVUMeter;
+		// Visualizer follows VU meter toggle only if visualizer feature is enabled
+		setEnabled(view.displayVUMeter && visualizer_enabled);
+	}
+
+	// Refresh OLED if visualizer was previously displayed (need to show normal view when
+	// disabling)
+	if (visualizer_was_displayed) {
+		renderUIsForOled();
+	}
+	// refresh sidebar if VU meter previously rendered is still showing
+	if (renderedVUMeter) {
+		uiNeedsRendering(getRootUI(), 0); // only render sidebar
+	}
+	// refresh OLED if visualizer is now displayed (when enabling)
+	if (isDisplaying()) {
+		renderUIsForOled();
+	}
+
+	return true; // Button press was handled
+}
+
+/// Sync visualizer state with VU meter state
+/// @param view Reference to current view for OLED refresh
+/// @param displayVUMeter Current VU meter state
+void Visualizer::syncWithVUState(View& view, bool displayVUMeter) {
+	// Also disable visualizer when VU meter is not being rendered
+	if (!displayVUMeter && isDisplaying()) {
+		setEnabled(false);
+		// Trigger OLED refresh to clear visualizer and show normal view
+		RootUI* root_ui = getRootUI();
+		if (root_ui != nullptr && !rootUIIsClipMinderScreen()) {
+			renderUIsForOled();
+		}
 	}
 }
 

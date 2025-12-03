@@ -1484,46 +1484,10 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	pretendModKnobsUntouchedForAWhile();
 
 	// Check for SHIFT+LEVEL mod button to toggle independent visualizer
-	// This works in all views including Clip Minder screens, regardless of Affect Entire
-	if (on && whichButton == 0 && Buttons::isShiftButtonPressed()) {
-		// Only allow toggle if visualizer feature is enabled in community features
-		if (deluge::hid::display::Visualizer::isEnabled()) {
-			bool new_state = !deluge::hid::display::Visualizer::isToggleEnabled();
-			deluge::hid::display::Visualizer::setToggleEnabled(new_state);
-
-			// If enabling toggle and in clip context, try to set the current clip for visualizer
-			if (new_state && deluge::hid::display::Visualizer::isInClipContext()) {
-				Clip* clip_to_set = nullptr;
-				if (getCurrentUI() == &instrumentClipView) {
-					clip_to_set = getCurrentClip();
-				}
-				else if (getRootUI() == &keyboardScreen) {
-					clip_to_set = getCurrentInstrumentClip();
-				}
-				else if (getCurrentUI() == &sessionView && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
-					clip_to_set = sessionView.getClipForLayout();
-				}
-				else if (getCurrentUI() == &arrangerView
-				         && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
-				             || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-					// For arranger view, get the clip from the held output
-					Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
-					if (output) {
-						clip_to_set = currentSong->getClipWithOutput(output);
-					}
-				}
-
-				if (clip_to_set) {
-					deluge::hid::display::Visualizer::trySetClipForVisualizer(clip_to_set);
-				}
-			}
-
-			// Show popup feedback
-			display->displayPopup(new_state ? "VISUALIZER: ON" : "VISUALIZER: OFF");
-
-			renderUIsForOled();
+	if (on && whichButton == 0) {
+		if (deluge::hid::display::Visualizer::handleModButtonToggle(*this)) {
+			return;
 		}
-		return;
 	}
 
 	if (activeModControllableModelStack.modControllable) {
@@ -1533,38 +1497,13 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 				// are we pressing the same button that is currently selected
 				if (*activeModControllableModelStack.modControllable->getModKnobMode() == whichButton) {
 					// you just pressed the volume mod button and it was already selected previously
-					// toggle displaying VU Meter and visualizer on / off
-					if (whichButton == 0) {
-						// Store previous state to determine if we need to refresh OLED when disabling
-						bool visualizer_enabled = deluge::hid::display::Visualizer::isEnabled();
-						bool visualizer_was_displayed =
-						    deluge::hid::display::Visualizer::isDisplaying() && visualizer_enabled;
-
-						// VU meter toggle only works in session/arranger views where VU meters can be displayed
-						if (getCurrentUI() == &instrumentClipView) {
-							// VU meters cannot be displayed in clip view - do nothing
-							return;
+					// Check if visualizer should handle VU meter toggle
+					if (deluge::hid::display::Visualizer::handleVUMeterToggle(*this, whichButton, renderedVUMeter)) {
+						// refresh sidebar if VU meter previously rendered is still showing
+						if (renderedVUMeter) {
+							uiNeedsRendering(rootUI, 0); // only render sidebar
 						}
-						else {
-							// In session/arranger views, toggle VU meter which controls visualizer
-							displayVUMeter = !displayVUMeter;
-							// Visualizer follows VU meter toggle only if visualizer feature is enabled
-							deluge::hid::display::Visualizer::setEnabled(displayVUMeter && visualizer_enabled);
-						}
-
-						// Refresh OLED if visualizer was previously displayed (need to show normal view when
-						// disabling)
-						if (visualizer_was_displayed) {
-							renderUIsForOled();
-						}
-					}
-					// refresh sidebar if VU meter previously rendered is still showing
-					if (renderedVUMeter) {
-						uiNeedsRendering(rootUI, 0); // only render sidebar
-					}
-					// refresh OLED if visualizer is now displayed (when enabling)
-					if (deluge::hid::display::Visualizer::isDisplaying()) {
-						renderUIsForOled();
+						return;
 					}
 				}
 
@@ -1848,14 +1787,7 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 	// if we made it here then we haven't rendered a VU meter in the sidebar
 	renderedVUMeter = false;
 	// Also disable visualizer when VU meter is not being rendered
-	if (!displayVUMeter && deluge::hid::display::Visualizer::isDisplaying()) {
-		deluge::hid::display::Visualizer::setEnabled(false);
-		// Trigger OLED refresh to clear visualizer and show normal view
-		RootUI* root_ui = getRootUI();
-		if (root_ui != nullptr && !rootUIIsClipMinderScreen()) {
-			renderUIsForOled();
-		}
-	}
+	deluge::hid::display::Visualizer::syncWithVUState(*this, displayVUMeter);
 
 	// return false so that the usual sidebar rendering can be drawn
 	return false;

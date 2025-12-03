@@ -104,7 +104,7 @@ void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas)
 		return;
 	}
 
-	// Check if visualizer should be displayed (same conditions as VU meter)
+	// Check if visualizer should be displayed
 	if (deluge::hid::display::Visualizer::potentiallyRenderVisualizer(canvas)) {
 		return;
 	}
@@ -3087,7 +3087,7 @@ void ArrangerView::graphicsRoutine() {
 	if (currentUIMode == UI_MODE_NONE) {
 		int32_t modKnobMode = -1;
 		bool editingComp = false;
-		if (view.activeModControllableModelStack.modControllable != nullptr) {
+		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
 			if (modKnobModePointer) {
 				modKnobMode = *modKnobModePointer;
