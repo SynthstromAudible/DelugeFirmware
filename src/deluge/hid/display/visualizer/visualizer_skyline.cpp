@@ -119,19 +119,19 @@ static_assert(kSkylineNumBands == kSkylineSourceBandIndices.size());
 // State
 // ------------------------------------------------------------
 
-static float g_smoothedAmplitude = 0.0f;
+float g_smoothed_amplitude = 0.0f;
 
-static float g_gridOffset = 0.0f; // 0..1 scroll
+float g_grid_offset = 0.0f; // 0..1 scroll
 
-static uint32_t g_lastAudioTime = 0; // Last time we had audio (for persistence)
+uint32_t g_last_audio_time = 0; // Last time we had audio (for persistence)
 
-static bool g_initialized = false;
+bool g_initialized = false;
 
 // Per-band smoothed values for skyline buildings (0..1)
 
-static std::array<float, kSkylineNumBands> g_skylineBandValues{};
+std::array<float, kSkylineNumBands> g_skyline_band_values{};
 
-static std::array<float, kSkylineNumBands> g_skylineBandSmoothed{};
+std::array<float, kSkylineNumBands> g_skyline_band_smoothed{};
 
 // ------------------------------------------------------------
 // Helpers
@@ -173,9 +173,9 @@ void updateSkylineBands() {
 	if (!fft_result.isValid || fft_result.isSilent) {
 		// If FFT isn't valid or is silent, slowly decay the bands
 		for (int i = 0; i < kSkylineNumBands; i++) {
-			g_skylineBandSmoothed[i] *= kSilenceBandDecayFactor;
+			g_skyline_band_smoothed[i] *= kSilenceBandDecayFactor;
 
-			g_skylineBandValues[i] = g_skylineBandSmoothed[i];
+			g_skyline_band_values[i] = g_skyline_band_smoothed[i];
 		}
 		return;
 	}
@@ -198,9 +198,9 @@ void updateSkylineBands() {
 		float display_value = applyVisualizerCompression(amplitude, kEqualizerFrequencies[srcIndex]);
 		display_value = std::clamp(display_value, 0.0f, 1.0f);
 		// Per-band smoothing for nicer skyline motion
-		g_skylineBandSmoothed[i] =
-		    g_skylineBandSmoothed[i] * kBuildingSmoothingAlpha + display_value * kBuildingSmoothingBeta;
-		g_skylineBandValues[i] = std::clamp(g_skylineBandSmoothed[i], 0.0f, 1.0f);
+		g_skyline_band_smoothed[i] =
+		    g_skyline_band_smoothed[i] * kBuildingSmoothingAlpha + display_value * kBuildingSmoothingBeta;
+		g_skyline_band_values[i] = std::clamp(g_skyline_band_smoothed[i], 0.0f, 1.0f);
 	}
 }
 
@@ -276,7 +276,7 @@ void drawBuildings(oled_canvas::Canvas& canvas, int32_t sky_top_boundary, int32_
 	const int32_t half_width = OLED_MAIN_WIDTH_PIXELS / 2;
 	// Draw buildings from left and right sides, mirroring the 8 bands
 	for (int32_t band = 0; band < kSkylineNumBands; band++) {
-		float band_value = g_skylineBandValues[band];
+		float band_value = g_skyline_band_values[band];
 		// Building height scales with amplitude, with some minimum height
 		int32_t building_height =
 		    min_building_height + static_cast<int32_t>(band_value * (max_building_height - min_building_height));
@@ -397,11 +397,11 @@ void drawPerspectiveRoad(oled_canvas::Canvas& canvas, int32_t region_top, int32_
 void renderVisualizerSkylineInternal(oled_canvas::Canvas& canvas) {
 	// Initialize on first run
 	if (!g_initialized) {
-		g_smoothedAmplitude = 0.0f;
-		g_gridOffset = 0.0f;
+		g_smoothed_amplitude = 0.0f;
+		g_grid_offset = 0.0f;
 		g_initialized = true;
-		std::fill(g_skylineBandValues.begin(), g_skylineBandValues.end(), 0.0f);
-		std::fill(g_skylineBandSmoothed.begin(), g_skylineBandSmoothed.end(), 0.0f);
+		std::fill(g_skyline_band_values.begin(), g_skyline_band_values.end(), 0.0f);
+		std::fill(g_skyline_band_smoothed.begin(), g_skyline_band_smoothed.end(), 0.0f);
 	}
 	// Check for silence and manage persistence
 	uint32_t sample_count = Visualizer::visualizer_sample_count.load(std::memory_order_acquire);
@@ -429,7 +429,7 @@ void renderVisualizerSkylineInternal(oled_canvas::Canvas& canvas) {
 		}
 		if (is_silent) {
 			// Check if we should still show persistence
-			uint32_t time_since_last_audio = current_time - g_lastAudioTime;
+			uint32_t time_since_last_audio = current_time - g_last_audio_time;
 			if (time_since_last_audio > kBasePersistenceDurationFrames) {
 				// Persistence expired, don't update display to avoid flicker from brief gaps
 				// Previous skyline frame remains visible
@@ -438,17 +438,18 @@ void renderVisualizerSkylineInternal(oled_canvas::Canvas& canvas) {
 			// Continue with persistence - don't return
 		}
 		else {
-			// Audio detected, update g_lastAudioTime
-			g_lastAudioTime = current_time;
+			// Audio detected, update g_last_audio_time
+			g_last_audio_time = current_time;
 		}
 	}
 	else {
-		// Audio detected, update g_lastAudioTime
-		g_lastAudioTime = current_time;
+		// Audio detected, update g_last_audio_time
+		g_last_audio_time = current_time;
 	}
 	// Update audio analysis for skyline band calculations
 	float current_amplitude = ::deluge::hid::display::computeCurrentAmplitude();
-	g_smoothedAmplitude = g_smoothedAmplitude * kAmplitudeSmoothingAlpha + current_amplitude * kAmplitudeSmoothingBeta;
+	g_smoothed_amplitude =
+	    g_smoothed_amplitude * kAmplitudeSmoothingAlpha + current_amplitude * kAmplitudeSmoothingBeta;
 	updateSkylineBands();
 	// Calculate tempo-based road speed (BPM determines road movement rate)
 	float bpm = playbackHandler.calculateBPMForDisplay();
@@ -456,9 +457,9 @@ void renderVisualizerSkylineInternal(oled_canvas::Canvas& canvas) {
 	bpm = std::max(bpm, 1.0f);
 	float grid_speed = kBaseGridSpeed * (bpm / kReferenceBPM);
 	// Update road motion (continuous forward scroll)
-	g_gridOffset -= grid_speed;
-	if (g_gridOffset < 0.0f) {
-		g_gridOffset += 1.0f;
+	g_grid_offset -= grid_speed;
+	if (g_grid_offset < 0.0f) {
+		g_grid_offset += 1.0f;
 	}
 	// Layout: split screen into sky (top) and skyline (bottom) regions
 	// Raised buildings: skyline starts higher so they are closer to the sun.
@@ -468,10 +469,10 @@ void renderVisualizerSkylineInternal(oled_canvas::Canvas& canvas) {
 	const int32_t sky_top = 0;
 	const int32_t sky_bottom = skyline_top - 1; // Buildings and sun in top half
 	// Draw skyline region (buildings + perspective road)
-	drawBuildings(canvas, 0, skyline_top, skyline_bottom, g_smoothedAmplitude);
-	drawPerspectiveRoad(canvas, skyline_top, skyline_bottom, g_gridOffset);
+	drawBuildings(canvas, 0, skyline_top, skyline_bottom, g_smoothed_amplitude);
+	drawPerspectiveRoad(canvas, skyline_top, skyline_bottom, g_grid_offset);
 	// Draw sky region (sun) - after buildings so it appears in front
-	drawSun(canvas, 0, OLED_MAIN_WIDTH_PIXELS - 1, sky_top, sky_bottom, g_smoothedAmplitude);
+	drawSun(canvas, 0, OLED_MAIN_WIDTH_PIXELS - 1, sky_top, sky_bottom, g_smoothed_amplitude);
 }
 
 } // namespace

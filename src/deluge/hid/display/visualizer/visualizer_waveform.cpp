@@ -44,7 +44,7 @@ int32_t scaleWaveformAmplitude(int32_t sample, int32_t graph_height) {
 	}
 
 	// Apply 2:1 compression: normalize, compress with square root, then scale
-	float abs_sample = static_cast<float>(std::abs(sample));
+	auto abs_sample = static_cast<float>(std::abs(sample));
 	float normalized_amplitude = abs_sample / static_cast<float>(kWaveformReferenceMagnitude);
 	normalized_amplitude = std::clamp(normalized_amplitude, 0.0f, 1.0f);
 
@@ -54,7 +54,7 @@ int32_t scaleWaveformAmplitude(int32_t sample, int32_t graph_height) {
 	// Scale to display height
 	float max_height = static_cast<float>(graph_height) / 2.0f;
 	float compressed_height = compressed_amplitude * max_height;
-	int32_t scaled_height = static_cast<int32_t>(compressed_height);
+	auto scaled_height = static_cast<int32_t>(compressed_height);
 
 	// Restore original sign
 	return (sample < 0) ? -scaled_height : scaled_height;

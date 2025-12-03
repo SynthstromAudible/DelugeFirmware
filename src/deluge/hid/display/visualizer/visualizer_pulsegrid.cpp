@@ -104,18 +104,18 @@ void renderPulseGridCell(oled_canvas::Canvas& canvas, int32_t base_x, int32_t ba
 	amplitude = std::clamp(amplitude, 0.0f, 1.0f);
 
 	// Determine dithering level based on amplitude (3 levels)
-	bool (*ditherFunc)(int32_t, int32_t) = nullptr;
+	bool (*dither_func)(int32_t, int32_t) = nullptr;
 	if (amplitude < kOffThreshold) {
 		// Low amplitude: completely off
-		ditherFunc = [](int32_t, int32_t) { return false; };
+		dither_func = [](int32_t, int32_t) { return false; };
 	}
 	else if (amplitude < kSolidThreshold) {
 		// Medium amplitude: dithered pattern (checkerboard)
-		ditherFunc = [](int32_t x, int32_t y) { return ((x + y) % 2) == 0; };
+		dither_func = [](int32_t x, int32_t y) { return ((x + y) % 2) == 0; };
 	}
 	else {
 		// High amplitude: solid fill
-		ditherFunc = [](int32_t, int32_t) { return true; };
+		dither_func = [](int32_t, int32_t) { return true; };
 	}
 
 	// Calculate cell position
@@ -125,7 +125,7 @@ void renderPulseGridCell(oled_canvas::Canvas& canvas, int32_t base_x, int32_t ba
 	// Render 10x10 cell with dithering
 	for (int32_t y = 0; y < kCellSize; y++) {
 		for (int32_t x = 0; x < kCellSize; x++) {
-			if (ditherFunc(x, y)) {
+			if (dither_func(x, y)) {
 				int32_t pixel_x = cell_left + x;
 				int32_t pixel_y = cell_top + y;
 				canvas.drawPixel(pixel_x, pixel_y);

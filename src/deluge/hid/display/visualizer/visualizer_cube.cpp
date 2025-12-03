@@ -40,7 +40,7 @@ constexpr int32_t kCubeEdges = 12;
 constexpr int32_t kVertexComponents = 3; // x, y, z per vertex
 
 // Cube vertices (unit cube centered at origin)
-const float cube_vertices[kCubeVertices * kVertexComponents] = {
+const std::array<float, kCubeVertices * kVertexComponents> cube_vertices = {
     -0.5f, -0.5f, -0.5f, // 0: bottom-back-left
     0.5f,  -0.5f, -0.5f, // 1: bottom-back-right
     0.5f,  0.5f,  -0.5f, // 2: top-back-right
@@ -52,7 +52,7 @@ const float cube_vertices[kCubeVertices * kVertexComponents] = {
 };
 
 // Cube edges (pairs of vertex indices)
-const int32_t cube_edges[kCubeEdges * 2] = {
+const std::array<int32_t, kCubeEdges * 2> cube_edges = {
     0, 1, // bottom-back
     1, 2, // back-right
     2, 3, // top-back
@@ -146,7 +146,7 @@ void renderVisualizerCube(oled_canvas::Canvas& canvas) {
 	current_amplitude = std::min(current_amplitude * kAmplitudeAmplification, 1.0f);
 
 	// Apply smoothing
-	float smoothed_amplitude = last_amplitude + kSmoothingFactor * (current_amplitude - last_amplitude);
+	float smoothed_amplitude = last_amplitude + (kSmoothingFactor * (current_amplitude - last_amplitude));
 	last_amplitude = smoothed_amplitude;
 
 	// Scale cube based on audio amplitude for dynamic visual response
@@ -182,8 +182,8 @@ void renderCube(oled_canvas::Canvas& canvas, float rotation_angle, float scale, 
 	float cos_y = std::cos(rotation_angle * kRotationMultiplierY);
 	float sin_y = std::sin(rotation_angle * kRotationMultiplierY);
 
-	float cos_x = std::cos(rotation_angle * kRotationMultiplierX + kRotationOffsetXDegrees * kDegreesToRadians);
-	float sin_x = std::sin(rotation_angle * kRotationMultiplierX + kRotationOffsetXDegrees * kDegreesToRadians);
+	float cos_x = std::cos((rotation_angle * kRotationMultiplierX) + (kRotationOffsetXDegrees * kDegreesToRadians));
+	float sin_x = std::sin((rotation_angle * kRotationMultiplierX) + (kRotationOffsetXDegrees * kDegreesToRadians));
 
 	float cos_z = std::cos(rotation_angle * kRotationMultiplierZ);
 	float sin_z = std::sin(rotation_angle * kRotationMultiplierZ);
@@ -191,17 +191,17 @@ void renderCube(oled_canvas::Canvas& canvas, float rotation_angle, float scale, 
 	// Project and draw edges
 	for (int32_t i = 0; i < kCubeEdges; i++) {
 		// Get vertex indices for this edge
-		int32_t v1_idx = cube_edges[i * 2];
-		int32_t v2_idx = cube_edges[i * 2 + 1];
+		int32_t v1_idx = cube_edges[static_cast<size_t>(i) * 2];
+		int32_t v2_idx = cube_edges[static_cast<size_t>(i) * 2 + 1];
 
 		// Get vertex positions
-		float v1_x = cube_vertices[v1_idx * 3];
-		float v1_y = cube_vertices[v1_idx * 3 + 1] + translate_y; // Apply Y translation
-		float v1_z = cube_vertices[v1_idx * 3 + 2];
+		float v1_x = cube_vertices[static_cast<size_t>(v1_idx) * 3];
+		float v1_y = cube_vertices[static_cast<size_t>(v1_idx) * 3 + 1] + translate_y; // Apply Y translation
+		float v1_z = cube_vertices[static_cast<size_t>(v1_idx) * 3 + 2];
 
-		float v2_x = cube_vertices[v2_idx * 3];
-		float v2_y = cube_vertices[v2_idx * 3 + 1] + translate_y; // Apply Y translation
-		float v2_z = cube_vertices[v2_idx * 3 + 2];
+		float v2_x = cube_vertices[static_cast<size_t>(v2_idx) * 3];
+		float v2_y = cube_vertices[static_cast<size_t>(v2_idx) * 3 + 1] + translate_y; // Apply Y translation
+		float v2_z = cube_vertices[static_cast<size_t>(v2_idx) * 3 + 2];
 
 		// Apply tilt first (matches mini_cube glRotatef(20.0f, 1.0f, 0.0f, 0.0f))
 		float v1_tilt_y = v1_y * cos_tilt - v1_z * sin_tilt;
