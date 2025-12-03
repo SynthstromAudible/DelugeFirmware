@@ -25,6 +25,10 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/visualizer.h"
+#include "hid/display/visualizer/visualizer_common.h"
+
+// Use visualizer button helpers from the display namespace
+using deluge::hid::display::handleVisualizerModeButton;
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "playback/mode/playback_mode.h"
@@ -157,115 +161,9 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Handle visualizer mode switching when visualizer is active in Arranger or Song view
-	if (on && (currentUI == &sessionView || currentUI == &arrangerView)
-	    && deluge::hid::display::Visualizer::isActive(view.displayVUMeter)
-	    && currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
-	    && currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
-		if (b == SYNTH) {
-			deluge::hid::display::Visualizer::setSessionMode(RuntimeFeatureStateVisualizer::VisualizerWaveform);
-			display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(
-			    RuntimeFeatureStateVisualizer::VisualizerWaveform));
-			goto dealtWith;
-		}
-		else if (b == KIT) {
-			deluge::hid::display::Visualizer::setSessionMode(RuntimeFeatureStateVisualizer::VisualizerLineSpectrum);
-			display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(
-			    RuntimeFeatureStateVisualizer::VisualizerLineSpectrum));
-			goto dealtWith;
-		}
-		else if (b == MIDI) {
-			deluge::hid::display::Visualizer::setSessionMode(RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll);
-			display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(
-			    RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll));
-			goto dealtWith;
-		}
-		else if (b == CV) {
-			// CV button toggles to special visualizers: if viewing special visualizer, cycle to next; if viewing main
-			// visualizer, return to last viewed special visualizer
-			uint32_t current_session_mode = deluge::hid::display::Visualizer::getMode();
-
-			// Check if currently viewing a special visualizer
-			bool is_viewing_special =
-			    (current_session_mode == RuntimeFeatureStateVisualizer::VisualizerBarSpectrum
-			     || current_session_mode == RuntimeFeatureStateVisualizer::VisualizerStereoLineSpectrum
-			     || current_session_mode == RuntimeFeatureStateVisualizer::VisualizerStereoBarSpectrum
-			     || current_session_mode == RuntimeFeatureStateVisualizer::VisualizerCube
-			     || current_session_mode == RuntimeFeatureStateVisualizer::VisualizerSkyline
-			     || current_session_mode == RuntimeFeatureStateVisualizer::VisualizerStarfield
-			     || current_session_mode == RuntimeFeatureStateVisualizer::VisualizerTunnel
-			     || current_session_mode == RuntimeFeatureStateVisualizer::VisualizerPulseGrid);
-
-			if (is_viewing_special) {
-				// Already viewing a special visualizer, cycle to next one
-				if (current_session_mode == RuntimeFeatureStateVisualizer::VisualizerBarSpectrum) {
-					deluge::hid::display::Visualizer::setSessionMode(
-					    RuntimeFeatureStateVisualizer::VisualizerStereoLineSpectrum);
-					deluge::hid::display::Visualizer::setCVVisualizerMode(
-					    RuntimeFeatureStateVisualizer::VisualizerStereoLineSpectrum);
-					display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(
-					    RuntimeFeatureStateVisualizer::VisualizerStereoLineSpectrum));
-				}
-				else if (current_session_mode == RuntimeFeatureStateVisualizer::VisualizerStereoLineSpectrum) {
-					deluge::hid::display::Visualizer::setSessionMode(
-					    RuntimeFeatureStateVisualizer::VisualizerStereoBarSpectrum);
-					deluge::hid::display::Visualizer::setCVVisualizerMode(
-					    RuntimeFeatureStateVisualizer::VisualizerStereoBarSpectrum);
-					display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(
-					    RuntimeFeatureStateVisualizer::VisualizerStereoBarSpectrum));
-				}
-				else if (current_session_mode == RuntimeFeatureStateVisualizer::VisualizerStereoBarSpectrum) {
-					deluge::hid::display::Visualizer::setSessionMode(RuntimeFeatureStateVisualizer::VisualizerCube);
-					deluge::hid::display::Visualizer::setCVVisualizerMode(
-					    RuntimeFeatureStateVisualizer::VisualizerCube);
-					display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(
-					    RuntimeFeatureStateVisualizer::VisualizerCube));
-				}
-				else if (current_session_mode == RuntimeFeatureStateVisualizer::VisualizerCube) {
-					deluge::hid::display::Visualizer::setSessionMode(RuntimeFeatureStateVisualizer::VisualizerSkyline);
-					deluge::hid::display::Visualizer::setCVVisualizerMode(
-					    RuntimeFeatureStateVisualizer::VisualizerSkyline);
-					display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(
-					    RuntimeFeatureStateVisualizer::VisualizerSkyline));
-				}
-				else if (current_session_mode == RuntimeFeatureStateVisualizer::VisualizerSkyline) {
-					deluge::hid::display::Visualizer::setSessionMode(
-					    RuntimeFeatureStateVisualizer::VisualizerStarfield);
-					deluge::hid::display::Visualizer::setCVVisualizerMode(
-					    RuntimeFeatureStateVisualizer::VisualizerStarfield);
-					display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(
-					    RuntimeFeatureStateVisualizer::VisualizerStarfield));
-				}
-				else if (current_session_mode == RuntimeFeatureStateVisualizer::VisualizerStarfield) {
-					deluge::hid::display::Visualizer::setSessionMode(RuntimeFeatureStateVisualizer::VisualizerTunnel);
-					deluge::hid::display::Visualizer::setCVVisualizerMode(
-					    RuntimeFeatureStateVisualizer::VisualizerTunnel);
-					display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(
-					    RuntimeFeatureStateVisualizer::VisualizerTunnel));
-				}
-				else if (current_session_mode == RuntimeFeatureStateVisualizer::VisualizerTunnel) {
-					deluge::hid::display::Visualizer::setSessionMode(
-					    RuntimeFeatureStateVisualizer::VisualizerPulseGrid);
-					deluge::hid::display::Visualizer::setCVVisualizerMode(
-					    RuntimeFeatureStateVisualizer::VisualizerPulseGrid);
-					display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(
-					    RuntimeFeatureStateVisualizer::VisualizerPulseGrid));
-				}
-				else { // Pulse Grid
-					deluge::hid::display::Visualizer::setSessionMode(
-					    RuntimeFeatureStateVisualizer::VisualizerBarSpectrum);
-					deluge::hid::display::Visualizer::setCVVisualizerMode(
-					    RuntimeFeatureStateVisualizer::VisualizerBarSpectrum);
-					display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(
-					    RuntimeFeatureStateVisualizer::VisualizerBarSpectrum));
-				}
-			}
-			else {
-				// Not viewing a special visualizer, switch to last viewed special visualizer
-				uint32_t last_special_mode = deluge::hid::display::Visualizer::getCVVisualizerMode();
-				deluge::hid::display::Visualizer::setSessionMode(last_special_mode);
-				display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(last_special_mode));
-				// cv_visualizer_mode stays the same
-			}
+	if (on) {
+		ActionResult visualizerResult = handleVisualizerModeButton(b, view);
+		if (visualizerResult == ActionResult::DEALT_WITH) {
 			goto dealtWith;
 		}
 	}

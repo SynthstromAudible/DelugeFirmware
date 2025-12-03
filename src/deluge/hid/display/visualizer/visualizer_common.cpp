@@ -16,10 +16,25 @@
  */
 
 #include "visualizer_common.h"
+#include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
+#include "gui/views/automation_view.h"
+#include "gui/views/performance_view.h"
+#include "gui/views/session_view.h"
+#include "hid/button.h"
+#include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/display/visualizer.h"
+#include "model/clip/clip.h"
+#include "model/clip/instrument_clip.h"
+#include "model/mod_controllable/mod_controllable.h"
+#include "model/output.h"
 #include "processing/engines/audio_engine.h"
 #include <algorithm>
 #include <cmath>
+
+// Forward declarations for UI globals
+extern uint32_t currentUIMode;
 
 namespace deluge::hid::display {
 
@@ -80,6 +95,241 @@ float computeCurrentAmplitude() {
 
 	// Clamp to valid range [0, 1]
 	return std::clamp(current_amplitude, 0.0f, 1.0f);
+}
+
+// Audio Sampling and Silence Detection Helpers
+
+bool isValidClipForAudioSampling(Clip* clip) {
+	if (!clip) {
+		return false;
+	}
+
+	// Valid clip types: Synth, Kit, or Audio clips
+	return ((clip->type == ClipType::INSTRUMENT
+	         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT))
+	        || clip->type == ClipType::AUDIO);
+}
+
+uint32_t& getAppropriateSilenceTimer(uint32_t visualizer_mode, bool is_clip_mode) {
+	// For MIDI piano roll, use MIDI note timer
+	if (visualizer_mode == RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll) {
+		return Visualizer::midi_piano_roll_last_note_time;
+	}
+	// For clip mode, use clip visualizer timer
+	else if (is_clip_mode) {
+		return Visualizer::clip_visualizer_last_audio_time;
+	}
+	// For global visualizer, use global timer
+	else {
+		return Visualizer::global_visualizer_last_audio_time;
+	}
+}
+
+bool shouldSilenceVisualizer(uint32_t visualizer_mode, bool is_clip_mode) {
+	uint32_t& timer = getAppropriateSilenceTimer(visualizer_mode, is_clip_mode);
+	uint32_t current_time = AudioEngine::audioSampleTimer;
+	uint32_t time_since_last_audio = current_time - timer;
+
+	return time_since_last_audio > kSilenceTimeoutSamples;
+}
+
+// Buffer Management Helpers
+
+void clearAllVisualizerBuffers() {
+	// Clear all sample buffers
+	Visualizer::visualizer_sample_buffer.fill(0);
+	Visualizer::visualizer_sample_buffer_left.fill(0);
+	Visualizer::visualizer_sample_buffer_right.fill(0);
+
+	// Reset buffer state
+	resetVisualizerBufferState();
+}
+
+void resetVisualizerBufferState() {
+	// Reset buffer positions and counters
+	Visualizer::visualizer_write_pos.store(0, std::memory_order_release);
+	Visualizer::visualizer_sample_count.store(0, std::memory_order_release);
+}
+
+bool validateClipContextForVisualizer(bool in_clip_context, bool toggle_enabled, Clip* current_clip) {
+	// Must be in clip context, toggle must be enabled, and clip must be valid for audio sampling
+	return in_clip_context && toggle_enabled && isValidClipForAudioSampling(current_clip);
+}
+
+/**
+ * Check if current UI context should disable visualizer display
+ * @return true if visualizer should be disabled (automation/performance views)
+ */
+bool shouldDisableVisualizerForCurrentUI() {
+	// Don't show visualizer in automation view (including overview and editor modes)
+	if (getRootUI() == &automationView) {
+		return true;
+	}
+
+	// Don't show visualizer in performance mode
+	if (getRootUI() == &performanceView) {
+		return true;
+	}
+
+	return false;
+}
+
+// Button Action Helpers
+
+ActionResult handleVisualizerModeButton(deluge::hid::Button button, View& view) {
+	// Check if we should handle this button
+	if (!shouldHandleVisualizerModeButtons(view)) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
+
+	switch (button) {
+	case deluge::hid::button::SYNTH:
+		deluge::hid::display::Visualizer::setSessionMode(RuntimeFeatureStateVisualizer::VisualizerWaveform);
+		::display->displayPopup(
+		    deluge::hid::display::Visualizer::getModeDisplayName(RuntimeFeatureStateVisualizer::VisualizerWaveform));
+		return ActionResult::DEALT_WITH;
+
+	case deluge::hid::button::KIT:
+		deluge::hid::display::Visualizer::setSessionMode(RuntimeFeatureStateVisualizer::VisualizerLineSpectrum);
+		::display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(
+		    RuntimeFeatureStateVisualizer::VisualizerLineSpectrum));
+		return ActionResult::DEALT_WITH;
+
+	case deluge::hid::button::MIDI:
+		deluge::hid::display::Visualizer::setSessionMode(RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll);
+		::display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(
+		    RuntimeFeatureStateVisualizer::VisualizerMidiPianoRoll));
+		return ActionResult::DEALT_WITH;
+
+	case deluge::hid::button::CV: {
+		// CV button toggles to special visualizers: if viewing special visualizer, cycle to next; if viewing main
+		// visualizer, return to last viewed special visualizer
+		uint32_t current_session_mode = deluge::hid::display::Visualizer::getMode();
+
+		// Check if currently viewing a special visualizer
+		bool is_viewing_special =
+		    (current_session_mode == RuntimeFeatureStateVisualizer::VisualizerBarSpectrum
+		     || current_session_mode == RuntimeFeatureStateVisualizer::VisualizerStereoLineSpectrum
+		     || current_session_mode == RuntimeFeatureStateVisualizer::VisualizerStereoBarSpectrum
+		     || current_session_mode == RuntimeFeatureStateVisualizer::VisualizerCube
+		     || current_session_mode == RuntimeFeatureStateVisualizer::VisualizerSkyline
+		     || current_session_mode == RuntimeFeatureStateVisualizer::VisualizerStarfield
+		     || current_session_mode == RuntimeFeatureStateVisualizer::VisualizerTunnel
+		     || current_session_mode == RuntimeFeatureStateVisualizer::VisualizerPulseGrid);
+
+		if (is_viewing_special) {
+			// Already viewing a special visualizer, cycle to next one
+			uint32_t next_mode;
+			switch (current_session_mode) {
+			case RuntimeFeatureStateVisualizer::VisualizerBarSpectrum:
+				next_mode = RuntimeFeatureStateVisualizer::VisualizerStereoLineSpectrum;
+				break;
+			case RuntimeFeatureStateVisualizer::VisualizerStereoLineSpectrum:
+				next_mode = RuntimeFeatureStateVisualizer::VisualizerStereoBarSpectrum;
+				break;
+			case RuntimeFeatureStateVisualizer::VisualizerStereoBarSpectrum:
+				next_mode = RuntimeFeatureStateVisualizer::VisualizerCube;
+				break;
+			case RuntimeFeatureStateVisualizer::VisualizerCube:
+				next_mode = RuntimeFeatureStateVisualizer::VisualizerSkyline;
+				break;
+			case RuntimeFeatureStateVisualizer::VisualizerSkyline:
+				next_mode = RuntimeFeatureStateVisualizer::VisualizerStarfield;
+				break;
+			case RuntimeFeatureStateVisualizer::VisualizerStarfield:
+				next_mode = RuntimeFeatureStateVisualizer::VisualizerTunnel;
+				break;
+			case RuntimeFeatureStateVisualizer::VisualizerTunnel:
+				next_mode = RuntimeFeatureStateVisualizer::VisualizerPulseGrid;
+				break;
+			case RuntimeFeatureStateVisualizer::VisualizerPulseGrid:
+			default:
+				next_mode = RuntimeFeatureStateVisualizer::VisualizerBarSpectrum;
+				break;
+			}
+
+			deluge::hid::display::Visualizer::setSessionMode(next_mode);
+			deluge::hid::display::Visualizer::setCVVisualizerMode(next_mode);
+			::display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(next_mode));
+		}
+		else {
+			// Not viewing a special visualizer, switch to last viewed special visualizer
+			uint32_t last_special_mode = deluge::hid::display::Visualizer::getCVVisualizerMode();
+			deluge::hid::display::Visualizer::setSessionMode(last_special_mode);
+			::display->displayPopup(deluge::hid::display::Visualizer::getModeDisplayName(last_special_mode));
+			// cv_visualizer_mode stays the same
+		}
+		return ActionResult::DEALT_WITH;
+	}
+
+	default:
+		return ActionResult::NOT_DEALT_WITH;
+	}
+}
+
+bool shouldHandleVisualizerModeButtons(View& view) {
+	// Handle visualizer mode switching when visualizer is active in Arranger or Song view
+	UI* currentUI = getCurrentUI();
+	return (currentUI == &sessionView || currentUI == &arrangerView)
+	       && deluge::hid::display::Visualizer::isActive(view.displayVUMeter)
+	       && currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
+	       && currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
+}
+
+// Popup Display Helpers
+
+void displayConditionalPopup(const char* text, View& view, PopupType popupType) {
+	displayConditionalPopup(text, text, view, popupType);
+}
+
+void displayConditionalPopup(const char* text, const char* directText, View& view, PopupType popupType) {
+	if (::display->haveOLED()) {
+		if (deluge::hid::display::Visualizer::isActive(view.displayVUMeter)) {
+			// Use popup for active visualizer users
+			::display->popupText(text, popupType);
+		}
+		else {
+			// Direct rendering for non-active visualizer users (original behavior)
+			// Cancel any existing popup first
+			::display->cancelPopup();
+			deluge::hid::display::OLED::clearMainImage();
+			deluge::hid::display::OLED::drawPermanentPopupLookingText(directText);
+			deluge::hid::display::OLED::sendMainImage();
+		}
+	}
+	else {
+		// Seven segment display - always use popup
+		::display->displayPopup(text, 1, true);
+	}
+}
+
+void cancelPopupIfVisualizerActive(View& view) {
+	if (::display->haveOLED() && deluge::hid::display::Visualizer::isActive(view.displayVUMeter)) {
+		// Cancel any lingering popup when visualizer is active
+		::display->cancelPopup();
+	}
+}
+
+// Mod Knob Mode Extraction Helpers
+
+int32_t extractModKnobMode(View& view) {
+	if (view.activeModControllableModelStack.modControllable != nullptr) {
+		uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+		if (modKnobModePointer != nullptr) {
+			return *modKnobModePointer;
+		}
+	}
+	return 0; // Default to 0 when no mod controllable or no mode pointer
+}
+
+int32_t extractModKnobMode(ModControllable* modControllable) {
+	if (modControllable != nullptr) {
+		uint8_t* modKnobModePointer = modControllable->getModKnobMode();
+		if (modKnobModePointer != nullptr) {
+			return *modKnobModePointer;
+		}
+	}
+	return 0; // Default to 0 when no mod controllable or no mode pointer
 }
 
 } // namespace deluge::hid::display
