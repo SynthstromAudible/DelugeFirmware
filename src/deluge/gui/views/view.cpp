@@ -1493,15 +1493,15 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 
 			// If enabling toggle and in clip context, try to set the current clip for visualizer
 			if (new_state && deluge::hid::display::Visualizer::isInClipContext()) {
-				Clip* clipToSet = nullptr;
+				Clip* clip_to_set = nullptr;
 				if (getCurrentUI() == &instrumentClipView) {
-					clipToSet = getCurrentClip();
+					clip_to_set = getCurrentClip();
 				}
 				else if (getRootUI() == &keyboardScreen) {
-					clipToSet = getCurrentInstrumentClip();
+					clip_to_set = getCurrentInstrumentClip();
 				}
 				else if (getCurrentUI() == &sessionView && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
-					clipToSet = sessionView.getClipForLayout();
+					clip_to_set = sessionView.getClipForLayout();
 				}
 				else if (getCurrentUI() == &arrangerView
 				         && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
@@ -1509,12 +1509,12 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 					// For arranger view, get the clip from the held output
 					Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
 					if (output) {
-						clipToSet = currentSong->getClipWithOutput(output);
+						clip_to_set = currentSong->getClipWithOutput(output);
 					}
 				}
 
-				if (clipToSet) {
-					deluge::hid::display::Visualizer::trySetClipForVisualizer(clipToSet);
+				if (clip_to_set) {
+					deluge::hid::display::Visualizer::trySetClipForVisualizer(clip_to_set);
 				}
 			}
 
